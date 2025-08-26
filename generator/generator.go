@@ -11,6 +11,7 @@ import (
 	"mbvlabs/andurel/generator/internal/ddl"
 	"mbvlabs/andurel/generator/internal/migrations"
 	"mbvlabs/andurel/generator/models"
+	"mbvlabs/andurel/generator/views"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -24,6 +25,7 @@ type Generator struct {
 	fileManager       *files.Manager
 	modelGenerator    *models.Generator
 	controllerGenerator *controllers.Generator
+	viewGenerator     *views.Generator
 }
 
 func New() (Generator, error) {
@@ -37,6 +39,7 @@ func New() (Generator, error) {
 		fileManager:       files.NewManager(),
 		modelGenerator:    models.NewGenerator("postgresql"),
 		controllerGenerator: controllers.NewGenerator("postgresql"),
+		viewGenerator:     views.NewGenerator("postgresql"),
 	}, nil
 }
 
@@ -165,7 +168,12 @@ func (g *Generator) GenerateResourceController(resourceName, tableName string) e
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
-	fmt.Printf("Successfully generated resource controller for %s\n", resourceName)
+	// Generate view
+	if err := g.viewGenerator.GenerateView(cat, resourceName, g.modulePath); err != nil {
+		return fmt.Errorf("failed to generate view: %w", err)
+	}
+
+	fmt.Printf("Successfully generated resource controller and view for %s\n", resourceName)
 	return nil
 }
 

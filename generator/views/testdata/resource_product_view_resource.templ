@@ -1,0 +1,274 @@
+package views
+
+import (
+	"fmt"
+	"github.com/example/shop/models"
+	"github.com/example/shop/router/routes"
+	"github.com/example/shop/views/internal/layouts"
+)
+
+templ ProductIndex(products []models.Product) {
+	@layouts.Base() {
+		<div class="container mx-auto p-6">
+			<div class="flex items-center justify-between mb-8">
+				<h1 class="text-2xl font-semibold text-white">Products</h1>
+				<a href={ templ.URL(routes.ProductNew.Path) } class="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">New Product</a>
+			</div>
+			<div class="bg-white/5 rounded-lg border border-white/10">
+				<div class="p-6">
+					if len(products) == 0 {
+						<p class="text-gray-400">No products found.</p>
+					} else {
+						<div class="overflow-x-auto">
+							<table class="table w-full">
+								<thead>
+									<tr>
+										<th class="text-white font-semibold">Name</th>
+										<th class="text-white font-semibold">Price</th>
+										<th class="text-white font-semibold">Description</th>
+										<th class="text-white font-semibold">Category Id</th>
+										<th class="text-white font-semibold">In Stock</th>
+										<th class="text-white font-semibold">Metadata</th>
+										<th class="text-white font-semibold">Created At</th>
+										<th class="text-white font-semibold">Updated At</th>
+										<th class="text-white font-semibold">Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									for _, product := range products {
+										<tr>
+											<td class="text-white">{ product.Name }</td>
+											<td class="text-white">{ fmt.Sprintf("%f", product.Price) }</td>
+											<td class="text-white">{ product.Description }</td>
+											<td class="text-white">{ fmt.Sprintf("%d", product.CategoryId) }</td>
+											<td class="text-white">{ fmt.Sprintf("%t", product.InStock) }</td>
+											<td class="text-white">{ product.Metadata }</td>
+											<td class="text-white">{ product.CreatedAt.String() }</td>
+											<td class="text-white">{ product.UpdatedAt.String() }</td>
+											<td class="flex gap-2">
+												<a href={ templ.URL(routes.ProductShow.GetPath(product.ID)) } class="btn btn-sm btn-primary">View</a>
+												<a href={ templ.URL(routes.ProductEdit.GetPath(product.ID)) } class="btn btn-sm btn-outline">Edit</a>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ ProductShow(product models.Product) {
+	@layouts.Base() {
+		<div class="container mx-auto p-6">
+			<div class="flex items-center justify-between mb-8">
+				<h1 class="text-2xl font-semibold text-white">Product Details</h1>
+				<div class="flex gap-2">
+					<a href={ templ.URL(routes.ProductEdit.GetPath(product.ID)) } class="rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Edit</a>
+					<a href={ templ.URL(routes.ProductIndex.Path) } class="text-sm font-semibold text-gray-400 hover:text-white">Back to List</a>
+				</div>
+			</div>
+			<div class="bg-white/5 rounded-lg border border-white/10">
+				<div class="p-6">
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+						<div>
+							<label class="block text-sm font-medium text-white mb-1">Name</label>
+							<p class="text-lg text-gray-300">{ product.Name }</p>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-white mb-1">Price</label>
+							<p class="text-lg text-gray-300">{ fmt.Sprintf("%f", product.Price) }</p>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-white mb-1">Description</label>
+							<p class="text-lg text-gray-300">{ product.Description }</p>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-white mb-1">Category Id</label>
+							<p class="text-lg text-gray-300">{ fmt.Sprintf("%d", product.CategoryId) }</p>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-white mb-1">In Stock</label>
+							<p class="text-lg text-gray-300">{ fmt.Sprintf("%t", product.InStock) }</p>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-white mb-1">Metadata</label>
+							<p class="text-lg text-gray-300">{ product.Metadata }</p>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-white mb-1">Created At</label>
+							<p class="text-lg text-gray-300">{ product.CreatedAt.String() }</p>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-white mb-1">Updated At</label>
+							<p class="text-lg text-gray-300">{ product.UpdatedAt.String() }</p>
+						</div>
+						
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ ProductNew() {
+	@layouts.Base() {
+		<div class="container mx-auto p-6">
+			<div class="flex items-center justify-between mb-8">
+				<h1 class="text-2xl font-semibold text-white">New Product</h1>
+				<a href={ templ.URL(routes.ProductIndex.Path) } class="text-sm font-semibold text-gray-400 hover:text-white">Back to List</a>
+			</div>
+			<div class="bg-white/5 rounded-lg border border-white/10">
+				<div class="p-6">
+					<form data-on-submit={ fmt.Sprintf("@post('%s')", routes.ProductCreate.Path) }>
+						<div class="space-y-6">
+							<div class="border-b border-white/10 pb-6">
+								<h2 class="text-base font-semibold text-white">Product Information</h2>
+								<p class="mt-1 text-sm text-gray-400">Enter the details for the new product.</p>
+								<div class="mt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+									<div class="sm:col-span-3">
+										<label for="name" class="block text-sm font-medium text-white">
+											Name
+										</label>
+										<div class="mt-2">
+											<input id="name" type="text" data-bind="name" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+										</div>
+									</div>
+									<div class="sm:col-span-3">
+										<label for="price" class="block text-sm font-medium text-white">
+											Price
+										</label>
+										<div class="mt-2">
+											<input id="price" type="number" data-bind="price" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+										</div>
+									</div>
+									<div class="sm:col-span-3">
+										<label for="description" class="block text-sm font-medium text-white">
+											Description
+										</label>
+										<div class="mt-2">
+											<input id="description" type="text" data-bind="description" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+										</div>
+									</div>
+									<div class="sm:col-span-3">
+										<label for="category_id" class="block text-sm font-medium text-white">
+											Category Id
+										</label>
+										<div class="mt-2">
+											<input id="category_id" type="number" data-bind="category_id" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+										</div>
+									</div>
+									<div class="sm:col-span-3">
+										<label for="in_stock" class="block text-sm font-medium text-white">
+											In Stock
+										</label>
+										<div class="mt-2">
+											<input id="in_stock" type="checkbox" data-bind="in_stock" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+										</div>
+									</div>
+									<div class="sm:col-span-3">
+										<label for="metadata" class="block text-sm font-medium text-white">
+											Metadata
+										</label>
+										<div class="mt-2">
+											<input id="metadata" type="text" data-bind="metadata" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+										</div>
+									</div>
+									</div>
+							</div>
+						</div>
+						<div class="mt-6 flex items-center justify-end gap-x-6">
+							<a href={ templ.URL(routes.ProductIndex.Path) } class="text-sm font-semibold text-white hover:text-gray-300">Cancel</a>
+							<button type="submit" class="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">Create Product</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ ProductEdit(product models.Product) {
+	@layouts.Base() {
+		<div class="container mx-auto p-6">
+			<div class="flex items-center justify-between mb-8">
+				<h1 class="text-2xl font-semibold text-white">Edit Product</h1>
+				<a href={ templ.URL(routes.ProductIndex.Path) } class="text-sm font-semibold text-gray-400 hover:text-white">Back to List</a>
+			</div>
+			<div class="bg-white/5 rounded-lg border border-white/10">
+				<div class="p-6">
+					<form data-on-submit={ fmt.Sprintf("@put('%s')", routes.ProductUpdate.GetPath(product.ID)) }>
+						<div class="space-y-6">
+							<div class="border-b border-white/10 pb-6">
+								<h2 class="text-base font-semibold text-white">Product Information</h2>
+								<p class="mt-1 text-sm text-gray-400">Update the details for this product.</p>
+								<div class="mt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+									<div class="sm:col-span-3">
+										<label for="name" class="block text-sm font-medium text-white">
+											Name
+										</label>
+										<div class="mt-2">
+											<input id="name" type="text" data-bind="name" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ product.Name } />
+										</div>
+									</div>
+									<div class="sm:col-span-3">
+										<label for="price" class="block text-sm font-medium text-white">
+											Price
+										</label>
+										<div class="mt-2">
+											<input id="price" type="number" data-bind="price" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ fmt.Sprintf("%f", product.Price) } />
+										</div>
+									</div>
+									<div class="sm:col-span-3">
+										<label for="description" class="block text-sm font-medium text-white">
+											Description
+										</label>
+										<div class="mt-2">
+											<input id="description" type="text" data-bind="description" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ product.Description } />
+										</div>
+									</div>
+									<div class="sm:col-span-3">
+										<label for="category_id" class="block text-sm font-medium text-white">
+											Category Id
+										</label>
+										<div class="mt-2">
+											<input id="category_id" type="number" data-bind="category_id" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ fmt.Sprintf("%d", product.CategoryId) } />
+										</div>
+									</div>
+									<div class="sm:col-span-3">
+										<label for="in_stock" class="block text-sm font-medium text-white">
+											In Stock
+										</label>
+										<div class="mt-2">
+											<input id="in_stock" type="checkbox" data-bind="in_stock" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ fmt.Sprintf("%t", product.InStock) } />
+										</div>
+									</div>
+									<div class="sm:col-span-3">
+										<label for="metadata" class="block text-sm font-medium text-white">
+											Metadata
+										</label>
+										<div class="mt-2">
+											<input id="metadata" type="text" data-bind="metadata" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ product.Metadata } />
+										</div>
+									</div>
+									</div>
+							</div>
+						</div>
+						<div class="mt-6 flex items-center justify-end gap-x-6">
+							<a href={ templ.URL(routes.ProductIndex.Path) } class="text-sm font-semibold text-white hover:text-gray-300">Cancel</a>
+							<button type="submit" class="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">Update Product</button>
+						</div>
+					</form>
+					<div class="mt-6 pt-6 border-t border-white/10">
+						<button 
+							data-on-click={ fmt.Sprintf("@delete('%s')", routes.ProductDestroy.GetPath(product.ID)) }
+							class="rounded-md bg-red-500 px-3 py-2 text-sm font-semibold text-white hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500">Destroy Product</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}

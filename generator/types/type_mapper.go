@@ -289,3 +289,28 @@ func FormatFieldName(dbColumnName string) string {
 
 	return strings.Join(parts, "")
 }
+
+func FormatDisplayName(dbColumnName string) string {
+	parts := strings.Split(dbColumnName, "_")
+	for i, part := range parts {
+		if len(part) > 0 {
+			parts[i] = strings.ToUpper(part[:1]) + strings.ToLower(part[1:])
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+func FormatCamelCase(dbColumnName string) string {
+	parts := strings.Split(dbColumnName, "_")
+	if len(parts) == 0 {
+		return dbColumnName
+	}
+
+	result := strings.ToLower(parts[0])
+	for i := 1; i < len(parts); i++ {
+		if len(parts[i]) > 0 {
+			result += strings.ToUpper(parts[i][:1]) + strings.ToLower(parts[i][1:])
+		}
+	}
+	return result
+}
