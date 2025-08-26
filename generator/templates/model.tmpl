@@ -1,0 +1,225 @@
+package models
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+{{- range .Imports}}
+{{- if and (ne . "time") (ne . "github.com/google/uuid") (ne . "github.com/jackc/pgx/v5/pgtype") (ne . "context") (ne . "errors")}}
+	"{{.}}"
+{{- end}}
+{{- end}}
+
+	"{{.ModulePath}}/models/internal/db"
+)
+
+type {{.Name}} struct {
+{{- range .Fields}}
+	{{.Name}} {{.Type}}
+{{- end}}
+}
+
+func Find{{.Name}}(
+	ctx context.Context,
+	dbtx db.DBTX,
+	id uuid.UUID,
+) ({{.Name}}, error) {
+	row, err := db.New().Query{{.Name}}ByID(ctx, dbtx, id)
+	if err != nil {
+		return {{.Name}}{}, err
+	}
+
+	return rowTo{{.Name}}(row), nil
+}
+
+type Create{{.Name}}Payload struct {
+{{- range .Fields}}
+{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+	{{.Name}} {{.Type}}
+{{- end}}
+{{- end}}
+}
+
+func Create{{.Name}}(
+	ctx context.Context,
+	dbtx db.DBTX,
+	data Create{{.Name}}Payload,
+) ({{.Name}}, error) {
+	if err := validate.Struct(data); err != nil {
+		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	now := time.Now()
+
+	row, err := db.New().Insert{{.Name}}(ctx, dbtx, db.Insert{{.Name}}Params{
+{{- range .Fields}}
+{{- if eq .Name "ID"}}
+		{{.Name}}: uuid.New(),
+{{- else if or (eq .Name "CreatedAt") (eq .Name "UpdatedAt")}}
+		{{.Name}}: pgtype.Timestamptz{
+			Time:  now,
+			Valid: true,
+		},
+{{- else}}
+		{{.Name}}: {{.ConversionToDB}},
+{{- end}}
+{{- end}}
+	})
+	if err != nil {
+		return {{.Name}}{}, err
+	}
+
+	return rowTo{{.Name}}(row), nil
+}
+
+type Update{{.Name}}Payload struct {
+	ID uuid.UUID
+{{- range .Fields}}
+{{- if and (ne .Name "ID") (ne .Name "CreatedAt")}}
+	{{.Name}} {{.Type}}
+{{- end}}
+{{- end}}
+}
+
+func Update{{.Name}}(
+	ctx context.Context,
+	dbtx db.DBTX,
+	data Update{{.Name}}Payload,
+) ({{.Name}}, error) {
+	if err := validate.Struct(data); err != nil {
+		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	currentRow, err := db.New().Query{{.Name}}ByID(ctx, dbtx, data.ID)
+	if err != nil {
+		return {{.Name}}{}, err
+	}
+
+	payload := db.Update{{.Name}}Params{
+		ID: data.ID,
+		UpdatedAt: pgtype.Timestamptz{
+			Time:  time.Now(),
+			Valid: true,
+		},
+{{- range .Fields}}
+{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+		{{.Name}}: currentRow.{{.Name}},
+{{- end}}
+{{- end}}
+	}
+
+{{- range .Fields}}
+{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+	if {{.ZeroCheck}} {
+		payload.{{.Name}} = {{.ConversionToDBForUpdate}}
+	}
+{{- end}}
+{{- end}}
+
+	row, err := db.New().Update{{.Name}}(ctx, dbtx, payload)
+	if err != nil {
+		return {{.Name}}{}, err
+	}
+
+	return rowTo{{.Name}}(row), nil
+}
+
+func Destroy{{.Name}}(
+	ctx context.Context,
+	dbtx db.DBTX,
+	id uuid.UUID,
+) error {
+	return db.New().Delete{{.Name}}(ctx, dbtx, id)
+}
+
+func All{{.Name}}s(
+	ctx context.Context,
+	dbtx db.DBTX,
+) ([]{{.Name}}, error) {
+	rows, err := db.New().QueryAll{{.Name}}s(ctx, dbtx)
+	if err != nil {
+		return nil, err
+	}
+
+	{{.TableName}} := make([]{{.Name}}, len(rows))
+	for i, row := range rows {
+		{{.TableName}}[i] = rowTo{{.Name}}(row)
+	}
+
+	return {{.TableName}}, nil
+}
+
+type Paginated{{.Name}}s struct {
+	{{.Name}}s    []{{.Name}}
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func Paginate{{.Name}}s(
+	ctx context.Context,
+	dbtx db.DBTX,
+	page int64,
+	pageSize int64,
+) (Paginated{{.Name}}s, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := db.New().Count{{.Name}}s(ctx, dbtx)
+	if err != nil {
+		return Paginated{{.Name}}s{}, err
+	}
+
+	rows, err := db.New().QueryPaginated{{.Name}}s(
+		ctx,
+		dbtx,
+		db.QueryPaginated{{.Name}}sParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
+	)
+	if err != nil {
+		return Paginated{{.Name}}s{}, err
+	}
+
+	{{.TableName}} := make([]{{.Name}}, len(rows))
+	for i, row := range rows {
+		{{.TableName}}[i] = rowTo{{.Name}}(row)
+	}
+
+	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+
+	return Paginated{{.Name}}s{
+		{{.Name}}s:    {{.TableName}},
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func rowTo{{.Name}}(row db.{{SQLCTypeName .TableName}}) {{.Name}} {
+	return {{.Name}}{
+{{- range .Fields}}
+{{- if or (eq .Name "CreatedAt") (eq .Name "UpdatedAt")}}
+		{{.Name}}: row.{{.Name}}.Time,
+{{- else}}
+		{{.Name}}: {{.ConversionFromDB}},
+{{- end}}
+{{- end}}
+	}
+}
+

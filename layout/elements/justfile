@@ -39,7 +39,7 @@ down-migrations-to version:
 	go run cmd/migrate/main.go --cmd "down" --version {{version}}
 
 fix-migrations:
-	@goose -dir psql/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME fix
+	@goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME fix
 
 reset-db:
 	go run cmd/migrate/main.go --cmd "reset"
