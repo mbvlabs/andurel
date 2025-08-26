@@ -1,0 +1,69 @@
+set dotenv-load
+
+# alias
+alias r := run
+alias ra := run-app
+
+alias ci := golangci
+
+alias cm := create-migration
+alias ms := migration-status
+alias um := up-migrations
+alias dm := down-migrations
+alias dmt := down-migrations-to
+alias fm := fix-migrations
+alias rdb := reset-db
+
+alias gdf := generate-db-functions
+
+default:
+    @just --list
+
+# database 
+create-migration name:
+	@goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME create {{name}} sql
+
+migration-status:
+	go run cmd/migrate/main.go --cmd "status"
+
+up-migrations:
+	go run cmd/migrate/main.go --cmd "up"
+
+up-migrations-by-one:
+	go run cmd/migrate/main.go --cmd "upbyone"
+
+down-migrations:
+	go run cmd/migrate/main.go --cmd "down"
+
+down-migrations-to version:
+	go run cmd/migrate/main.go --cmd "down" --version {{version}}
+
+fix-migrations:
+	@goose -dir psql/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME fix
+
+reset-db:
+	go run cmd/migrate/main.go --cmd "reset"
+
+generate-db-functions:
+	cd database && sqlc compile && sqlc generate
+
+# application
+run:
+    wgo -file=.go -file=.templ -xfile=_templ.go just compile-templates :: wgo -file=.templ -file=base.css -xfile=_templ.go npm run build-css :: just run-app
+
+run-app:
+    go run cmd/app/main.go
+
+# assets
+compile-templates:
+    templ generate
+
+# code quality
+golangci:
+	golangci-lint run
+
+vet:
+	@go vet ./...
+
+golines:
+	@golines -w -m 100 controllers models router router/routes 

@@ -1,0 +1,15 @@
+{
+	"name": "andurel",
+	"version": "1.0.0",
+	"type": "module",
+	"author": "MBV (@mbvisti)",
+	"license": "ISC",
+	"scripts": {
+		"build-css": "vite build"
+	},
+	"devDependencies": {
+		"@tailwindcss/vite": "^4.1.8",
+		"tailwindcss": "^4.1.8",
+		"@tailwindcss/typography": "^0.5.16"
+	}
+}
