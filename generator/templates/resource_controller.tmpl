@@ -15,38 +15,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"{{.ModulePath}}/models"
-	"{{.ModulePath}}/psql"
+	"{{.ModulePath}}/database"
 	"{{.ModulePath}}/router/cookies"
 	"{{.ModulePath}}/router/routes"
 	"{{.ModulePath}}/views"
 )
 
 type {{.ResourceName}}s struct {
-	db psql.Postgres
-}
-
-type Create{{.ResourceName}}FormPayload struct {
-{{- range .Fields}}
-{{- if not .IsSystemField}}
-	{{- if eq .GoFormType "time.Time"}}
-	{{.Name}}    string `form:"{{.DBName}}"`
-	{{- else}}
-	{{.Name}}    {{.GoFormType}} `form:"{{.DBName}}"`
-	{{- end}}
-{{- end}}
-{{- end}}
-}
-
-type Update{{.ResourceName}}FormPayload struct {
-{{- range .Fields}}
-{{- if not .IsSystemField}}
-	{{- if eq .GoFormType "time.Time"}}
-	{{.Name}}    string `form:"{{.DBName}}"`
-	{{- else}}
-	{{.Name}}    {{.GoFormType}} `form:"{{.DBName}}"`
-	{{- end}}
-{{- end}}
-{{- end}}
+	db database.Postgres
 }
 
 func new{{.ResourceName}}s(db psql.Postgres) {{.ResourceName}}s {
@@ -102,6 +78,18 @@ func (r {{.ResourceName}}s) Show(c echo.Context) error {
 
 func (r {{.ResourceName}}s) New(c echo.Context) error {
 	return views.{{.ResourceName}}New().Render(renderArgs(c))
+}
+
+type Create{{.ResourceName}}FormPayload struct {
+{{- range .Fields}}
+{{- if not .IsSystemField}}
+	{{- if eq .GoFormType "time.Time"}}
+	{{.Name}}    string `form:"{{.DBName}}"`
+	{{- else}}
+	{{.Name}}    {{.GoFormType}} `form:"{{.DBName}}"`
+	{{- end}}
+{{- end}}
+{{- end}}
 }
 
 func (r {{.ResourceName}}s) Create(c echo.Context) error {
@@ -168,6 +156,18 @@ func (r {{.ResourceName}}s) Edit(c echo.Context) error {
 	}
 
 	return views.{{.ResourceName}}Edit({{.ResourceName | ToLower}}).Render(renderArgs(c))
+}
+
+type Update{{.ResourceName}}FormPayload struct {
+{{- range .Fields}}
+{{- if not .IsSystemField}}
+	{{- if eq .GoFormType "time.Time"}}
+	{{.Name}}    string `form:"{{.DBName}}"`
+	{{- else}}
+	{{.Name}}    {{.GoFormType}} `form:"{{.DBName}}"`
+	{{- end}}
+{{- end}}
+{{- end}}
 }
 
 func (r {{.ResourceName}}s) Update(c echo.Context) error {

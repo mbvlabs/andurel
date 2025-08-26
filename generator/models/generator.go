@@ -8,6 +8,7 @@ import (
 	"mbvlabs/andurel/generator/templates"
 	"mbvlabs/andurel/generator/types"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
 	"text/template"
@@ -211,6 +212,11 @@ func (g *Generator) GenerateModel(
 		return fmt.Errorf("failed to write model file: %w", err)
 	}
 
+	// Format the generated model file
+	if err := g.formatGoFile(modelPath); err != nil {
+		return fmt.Errorf("failed to format model file: %w", err)
+	}
+
 	return nil
 }
 
@@ -358,4 +364,12 @@ func (g *Generator) GenerateModelFromMigrations(
 	}
 
 	return g.GenerateModel(cat, resourceName, tableName, modelPath, sqlPath, modulePath)
+}
+
+func (g *Generator) formatGoFile(filePath string) error {
+	cmd := exec.Command("go", "fmt", filePath)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to run go fmt on %s: %w", filePath, err)
+	}
+	return nil
 }

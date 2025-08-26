@@ -15,12 +15,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"{{.ModulePath}}/models"
-	"{{.ModulePath}}/psql"
+	"{{.ModulePath}}/database"
 	"{{.ModulePath}}/router/cookies"
 	"{{.ModulePath}}/router/routes"
 	"{{.ModulePath}}/views"
 )
 
 type {{.ResourceName}}s struct {
-	db psql.Postgres
+	db database.Postgres
 }

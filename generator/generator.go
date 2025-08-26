@@ -4,6 +4,7 @@ package generator
 import (
 	"bufio"
 	"fmt"
+	"mbvlabs/andurel/generator/controllers"
 	"mbvlabs/andurel/generator/files"
 	"mbvlabs/andurel/generator/internal/catalog"
 	"mbvlabs/andurel/generator/internal/config"
@@ -19,9 +20,10 @@ import (
 )
 
 type Generator struct {
-	modulePath     string
-	fileManager    *files.Manager
-	modelGenerator *models.Generator
+	modulePath        string
+	fileManager       *files.Manager
+	modelGenerator    *models.Generator
+	controllerGenerator *controllers.Generator
 }
 
 func New() (Generator, error) {
@@ -31,9 +33,10 @@ func New() (Generator, error) {
 	}
 
 	return Generator{
-		modulePath:     modulePath,
-		fileManager:    files.NewManager(),
-		modelGenerator: models.NewGenerator("postgresql"),
+		modulePath:        modulePath,
+		fileManager:       files.NewManager(),
+		modelGenerator:    models.NewGenerator("postgresql"),
+		controllerGenerator: controllers.NewGenerator("postgresql"),
 	}, nil
 }
 
@@ -114,7 +117,6 @@ func (g *Generator) GenerateModel(resourceName, tableName string) error {
 	modelPath := filepath.Join("models", strings.ToLower(resourceName)+".go")
 	sqlPath := filepath.Join("database/queries", pluralName+".sql")
 
-	// Validate files don't already exist
 	if err := g.fileManager.ValidateFileNotExists(modelPath); err != nil {
 		return err
 	}
@@ -122,18 +124,15 @@ func (g *Generator) GenerateModel(resourceName, tableName string) error {
 		return err
 	}
 
-	// Discover and process migrations to build catalog
 	cat, err := g.buildCatalogFromMigrations(tableName)
 	if err != nil {
 		return err
 	}
 
-	// Generate model using the catalog
 	if err := g.modelGenerator.GenerateModel(cat, resourceName, pluralName, modelPath, sqlPath, g.modulePath); err != nil {
 		return fmt.Errorf("failed to generate model: %w", err)
 	}
 
-	// Run sqlc generate
 	if err := g.fileManager.RunSQLCGenerate(); err != nil {
 		return fmt.Errorf("failed to run sqlc generate: %w", err)
 	}
@@ -145,54 +144,42 @@ func (g *Generator) GenerateModel(resourceName, tableName string) error {
 	return nil
 }
 
-//	func (g *Generator) GenerateController(resourceName string) error {
-//		pluralName := inflection.Plural(strings.ToLower(resourceName))
-//
-//		modelPath := filepath.Join("models", strings.ToLower(resourceName)+".go")
-//		if _, err := os.Stat(modelPath); os.IsNotExist(err) {
-//			return fmt.Errorf(
-//				"model file %s does not exist. Generate model first",
-//				modelPath,
-//			)
-//		}
-//
-//		controllerPath := filepath.Join("controllers", pluralName+".go")
-//		if _, err := os.Stat(controllerPath); err == nil {
-//			return fmt.Errorf("controller file %s already exists", controllerPath)
-//		}
-//
-//		routesPath := filepath.Join("router", "routes", pluralName+".go")
-//		if _, err := os.Stat(routesPath); err == nil {
-//			return fmt.Errorf("routes file %s already exists", routesPath)
-//		}
-//
-//		viewPath := filepath.Join("views", pluralName+"_resource.templ")
-//		if _, err := os.Stat(viewPath); os.IsNotExist(err) {
-//			if err := g.GenerateView(resourceName); err != nil {
-//				return fmt.Errorf("failed to generate view: %w", err)
-//			}
-//			fmt.Printf("Generated view for %s\n", resourceName)
-//		}
-//
-//		if err := g.generateControllerFile(resourceName, pluralName, controllerPath); err != nil {
-//			return fmt.Errorf("failed to generate controller file: %w", err)
-//		}
-//
-//		if err := g.generateRoutesFile(resourceName, pluralName, routesPath); err != nil {
-//			return fmt.Errorf("failed to generate routes file: %w", err)
-//		}
-//
-//		if err := registerController(resourceName, pluralName); err != nil {
-//			return fmt.Errorf("failed to register controller: %w", err)
-//		}
-//
-//		if err := registerRoutes(resourceName); err != nil {
-//			return fmt.Errorf("failed to register routes: %w", err)
-//		}
-//
-//		fmt.Printf("Successfully generated controller for %s\n", resourceName)
-//		return nil
-//	}
+func (g *Generator) GenerateResourceController(resourceName, tableName string) error {
+	// Check if model exists
+	modelPath := filepath.Join("models", strings.ToLower(resourceName)+".go")
+	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
+		return fmt.Errorf(
+			"model file %s does not exist. Generate model first",
+			modelPath,
+		)
+	}
+
+	// Build catalog from migrations
+	cat, err := g.buildCatalogFromMigrations(tableName)
+	if err != nil {
+		return err
+	}
+
+	// Generate controller
+	if err := g.controllerGenerator.GenerateController(cat, resourceName, controllers.ResourceController, g.modulePath); err != nil {
+		return fmt.Errorf("failed to generate controller: %w", err)
+	}
+
+	fmt.Printf("Successfully generated resource controller for %s\n", resourceName)
+	return nil
+}
+
+func (g *Generator) GenerateController(resourceName string) error {
+	// For normal controllers, we don't need a table, just generate empty controller
+	emptycat := catalog.NewCatalog("public")
+	
+	if err := g.controllerGenerator.GenerateController(emptycat, resourceName, controllers.NormalController, g.modulePath); err != nil {
+		return fmt.Errorf("failed to generate controller: %w", err)
+	}
+
+	fmt.Printf("Successfully generated controller for %s\n", resourceName)
+	return nil
+}
 //
 //	func (g *Generator) GenerateView(resourceName string) error {
 //		pluralName := inflection.Plural(strings.ToLower(resourceName))
