@@ -64,3 +64,5 @@ require (
 	golang.org/x/time v0.12.0 // indirect
 	golang.org/x/tools v0.35.0 // indirect
 )
+
+tool github.com/a-h/templ/cmd/templ

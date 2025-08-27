@@ -29,54 +29,44 @@ type Generator struct {
 }
 
 func New() (Generator, error) {
-	modulePath, err := getCurrentModulePath()
+	g := Generator{
+		fileManager:         files.NewManager(),
+		modelGenerator:      models.NewGenerator("postgresql"),
+		controllerGenerator: controllers.NewGenerator("postgresql"),
+		viewGenerator:       views.NewGenerator("postgresql"),
+	}
+
+	modulePath, err := g.getCurrentModulePath()
 	if err != nil {
 		return Generator{}, fmt.Errorf("failed to get module path: %w", err)
 	}
+	g.modulePath = modulePath
 
-	return Generator{
-		modulePath:        modulePath,
-		fileManager:       files.NewManager(),
-		modelGenerator:    models.NewGenerator("postgresql"),
-		controllerGenerator: controllers.NewGenerator("postgresql"),
-		viewGenerator:     views.NewGenerator("postgresql"),
-	}, nil
+	return g, nil
 }
 
-func getCurrentModulePath() (string, error) {
-	dir, err := os.Getwd()
+func (g *Generator) getCurrentModulePath() (string, error) {
+	rootDir, err := g.fileManager.FindGoModRoot()
 	if err != nil {
-		return "", fmt.Errorf("failed to get current directory: %w", err)
+		return "", fmt.Errorf("failed to find go.mod: %w", err)
 	}
 
-	for {
-		goModPath := filepath.Join(dir, "go.mod")
-		if _, err := os.Stat(goModPath); err == nil {
-			file, err := os.Open(goModPath)
-			if err != nil {
-				return "", fmt.Errorf("failed to open go.mod: %w", err)
-			}
-			defer file.Close()
+	goModPath := filepath.Join(rootDir, "go.mod")
+	file, err := os.Open(goModPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open go.mod: %w", err)
+	}
+	defer file.Close()
 
-			scanner := bufio.NewScanner(file)
-			for scanner.Scan() {
-				line := strings.TrimSpace(scanner.Text())
-				if strings.HasPrefix(line, "module ") {
-					return strings.Fields(line)[1], nil
-				}
-			}
-
-			return "", fmt.Errorf("module declaration not found in go.mod")
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "module ") {
+			return strings.Fields(line)[1], nil
 		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
 	}
 
-	return "", fmt.Errorf("go.mod not found in current directory or any parent directory")
+	return "", fmt.Errorf("module declaration not found in go.mod")
 }
 
 func (g *Generator) buildCatalogFromMigrations(tableName string) (*catalog.Catalog, error) {

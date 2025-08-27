@@ -2,6 +2,8 @@ package views
 
 import (
 	"fmt"
+	"log/slog"
+	"mbvlabs/andurel/generator/files"
 	"mbvlabs/andurel/generator/internal/catalog"
 	"mbvlabs/andurel/generator/templates"
 	"mbvlabs/andurel/generator/types"
@@ -41,12 +43,14 @@ type Config struct {
 }
 
 type Generator struct {
-	typeMapper *types.TypeMapper
+	typeMapper  *types.TypeMapper
+	fileManager *files.Manager
 }
 
 func NewGenerator(databaseType string) *Generator {
 	return &Generator{
-		typeMapper: types.NewTypeMapper(databaseType),
+		typeMapper:  types.NewTypeMapper(databaseType),
+		fileManager: files.NewManager(),
 	}
 }
 
@@ -275,61 +279,36 @@ func (g *Generator) GenerateView(
 }
 
 func (g *Generator) formatTemplFile(filePath string) error {
-	// Find the root directory with go.mod
-	rootDir, err := findGoModRoot()
+	rootDir, err := g.fileManager.FindGoModRoot()
 	if err != nil {
-		// If we can't find go.mod, skip formatting (e.g., in test environments)
-		return nil
+		return fmt.Errorf("failed to find go.mod root: %w", err)
 	}
+	slog.Info("Go mod root", "dir", rootDir)
 
-	cmd := exec.Command("go", "run", "github.com/a-h/templ/cmd/templ", "fmt", filePath)
-	cmd.Dir = rootDir
+	cmd := exec.Command("go", "tool", "templ", "fmt", filePath)
+	// cmd.Dir = rootDir
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to run templ fmt on %s: %w", filePath, err)
 	}
 	return nil
 }
 
-func findGoModRoot() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	for {
-		goModPath := filepath.Join(dir, "go.mod")
-		if _, err := os.Stat(goModPath); err == nil {
-			return dir, nil
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-
-	return "", fmt.Errorf("go.mod not found")
-}
-
 func (g *Generator) runCompileTemplates() error {
-	// Check if 'just' command exists
 	if _, err := exec.LookPath("just"); err != nil {
 		// 'just' not available, skip template compilation
-		return nil
+		return fmt.Errorf("'just' command not found in PATH")
 	}
 
-	// Check if Justfile exists in current directory
 	if _, err := os.Stat("Justfile"); os.IsNotExist(err) {
 		// No Justfile, skip template compilation
-		return nil
+		return fmt.Errorf("justfile not found in the current directory")
 	}
 
 	cmd := exec.Command("just", "compile-templates")
 	if err := cmd.Run(); err != nil {
 		// If compilation fails, we'll just skip it in test environments
 		// In production, this would be a real error
-		return nil
+		return fmt.Errorf("failed to run 'just compile-templates': %w", err)
 	}
 	return nil
 }

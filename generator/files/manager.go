@@ -44,19 +44,62 @@ func (m *Manager) WriteFile(path, content string) error {
 }
 
 func (m *Manager) RunSQLCGenerate() error {
-	cmd := exec.CommandContext(
-		context.Background(),
-		"just",
-		"generate-db-functions",
-	)
-	output, err := cmd.CombinedOutput()
+	// Find the root directory with go.mod to run from project root
+	rootDir, err := m.FindGoModRoot()
 	if err != nil {
+		return fmt.Errorf("failed to find go.mod root: %w", err)
+	}
+
+	// Run sqlc compile
+	compileCmd := exec.CommandContext(
+		context.Background(),
+		"go", "tool", "sqlc", "-f", "./database/sqlc.yaml", "compile",
+	)
+	compileCmd.Dir = rootDir
+	if output, err := compileCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf(
-			"failed to run 'just generate-db-functions': %w\nOutput: %s",
+			"failed to run 'go tool sqlc compile': %w\nOutput: %s",
 			err,
 			output,
 		)
 	}
+
+	// Run sqlc generate
+	generateCmd := exec.CommandContext(
+		context.Background(),
+		"go", "tool", "sqlc", "-f", "./database/sqlc.yaml", "generate",
+	)
+	generateCmd.Dir = rootDir
+	if output, err := generateCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf(
+			"failed to run 'go tool sqlc generate': %w\nOutput: %s",
+			err,
+			output,
+		)
+	}
+
 	fmt.Println("Generated database functions with sqlc")
 	return nil
+}
+
+func (m *Manager) FindGoModRoot() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	for {
+		goModPath := filepath.Join(dir, "go.mod")
+		if _, err := os.Stat(goModPath); err == nil {
+			return dir, nil
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+
+	return "", fmt.Errorf("go.mod not found")
 }

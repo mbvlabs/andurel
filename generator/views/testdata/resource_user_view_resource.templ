@@ -94,7 +94,6 @@ templ UserShow(user models.User) {
 							<label class="block text-sm font-medium text-white mb-1">Updated At</label>
 							<p class="text-lg text-gray-300">{ user.UpdatedAt.String() }</p>
 						</div>
-						
 					</div>
 				</div>
 			</div>
@@ -122,7 +121,7 @@ templ UserNew() {
 											Email
 										</label>
 										<div class="mt-2">
-											<input id="email" type="text" data-bind="email" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+											<input id="email" type="text" data-bind="email" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm"/>
 										</div>
 									</div>
 									<div class="sm:col-span-3">
@@ -130,7 +129,7 @@ templ UserNew() {
 											Name
 										</label>
 										<div class="mt-2">
-											<input id="name" type="text" data-bind="name" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+											<input id="name" type="text" data-bind="name" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm"/>
 										</div>
 									</div>
 									<div class="sm:col-span-3">
@@ -138,7 +137,7 @@ templ UserNew() {
 											Age
 										</label>
 										<div class="mt-2">
-											<input id="age" type="number" data-bind="age" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+											<input id="age" type="number" data-bind="age" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm"/>
 										</div>
 									</div>
 									<div class="sm:col-span-3">
@@ -146,10 +145,10 @@ templ UserNew() {
 											Is Active
 										</label>
 										<div class="mt-2">
-											<input id="is_active" type="checkbox" data-bind="is_active" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+											<input id="is_active" type="checkbox" data-bind="is_active" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm"/>
 										</div>
 									</div>
-									</div>
+								</div>
 							</div>
 						</div>
 						<div class="mt-6 flex items-center justify-end gap-x-6">
@@ -183,7 +182,7 @@ templ UserEdit(user models.User) {
 											Email
 										</label>
 										<div class="mt-2">
-											<input id="email" type="text" data-bind="email" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ user.Email } />
+											<input id="email" type="text" data-bind="email" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ user.Email }/>
 										</div>
 									</div>
 									<div class="sm:col-span-3">
@@ -191,7 +190,7 @@ templ UserEdit(user models.User) {
 											Name
 										</label>
 										<div class="mt-2">
-											<input id="name" type="text" data-bind="name" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ user.Name } />
+											<input id="name" type="text" data-bind="name" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ user.Name }/>
 										</div>
 									</div>
 									<div class="sm:col-span-3">
@@ -199,7 +198,7 @@ templ UserEdit(user models.User) {
 											Age
 										</label>
 										<div class="mt-2">
-											<input id="age" type="number" data-bind="age" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ fmt.Sprintf("%d", user.Age) } />
+											<input id="age" type="number" data-bind="age" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ fmt.Sprintf("%d", user.Age) }/>
 										</div>
 									</div>
 									<div class="sm:col-span-3">
@@ -207,10 +206,10 @@ templ UserEdit(user models.User) {
 											Is Active
 										</label>
 										<div class="mt-2">
-											<input id="is_active" type="checkbox" data-bind="is_active" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ fmt.Sprintf("%t", user.IsActive) } />
+											<input id="is_active" type="checkbox" data-bind="is_active" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ fmt.Sprintf("%t", user.IsActive) }/>
 										</div>
 									</div>
-									</div>
+								</div>
 							</div>
 						</div>
 						<div class="mt-6 flex items-center justify-end gap-x-6">
@@ -219,9 +218,10 @@ templ UserEdit(user models.User) {
 						</div>
 					</form>
 					<div class="mt-6 pt-6 border-t border-white/10">
-						<button 
+						<button
 							data-on-click={ fmt.Sprintf("@delete('%s')", routes.UserDestroy.GetPath(user.ID)) }
-							class="rounded-md bg-red-500 px-3 py-2 text-sm font-semibold text-white hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500">Destroy User</button>
+							class="rounded-md bg-red-500 px-3 py-2 text-sm font-semibold text-white hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+						>Destroy User</button>
 					</div>
 				</div>
 			</div>
