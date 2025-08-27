@@ -199,7 +199,7 @@ func copyFile(src, dest, projectName string) error {
 	contentStr = strings.ReplaceAll(contentStr, moduleName, projectName)
 
 	// Generate secure values for .env files
-	if strings.HasSuffix(src, ".env") {
+	if strings.HasSuffix(src, ".env.example") {
 		contentStr = replaceSecureValues(contentStr)
 	}
 

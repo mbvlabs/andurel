@@ -156,7 +156,7 @@ func (r *Router) SetupRoutes() *echo.Echo {
 
 	r.Handler.RouteNotFound(
 		"/*",
-		getHandlerFunc(r.controllers.Pages, "NotFoundPage"),
+		getHandlerFunc(r.controllers.Pages, "NotFound"),
 	)
 
 	return r.Handler

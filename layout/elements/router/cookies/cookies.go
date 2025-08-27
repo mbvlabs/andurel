@@ -13,7 +13,7 @@ import (
 var authenticatedSessionName = fmt.Sprintf(
 	"ua-%s-%s",
 	strings.ToLower(config.App.ProjectName),
-	"",
+	strings.ToLower(config.App.Env),
 )
 
 func GetAuthenticatedSessionName() string {

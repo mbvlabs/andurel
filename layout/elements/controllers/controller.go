@@ -13,6 +13,7 @@ import (
 
 type Controllers struct {
 	Assets Assets
+	API    API
 	Pages  Pages
 }
 
@@ -35,9 +36,11 @@ func New(
 
 	assets := newAssets()
 	pages := newPages(db, pageCacher)
+	api := newAPI(db)
 
 	return Controllers{
 		assets,
+		api,
 		pages,
 	}, nil
 }
