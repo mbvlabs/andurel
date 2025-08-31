@@ -29,7 +29,7 @@ func FindProduct(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) (Product, error) {
-	row, err := db.Stmts.QueryProductByID(ctx, dbtx, id)
+	row, err := db.New().QueryProductByID(ctx, dbtx, id)
 	if err != nil {
 		return Product{}, err
 	}
@@ -57,7 +57,7 @@ func CreateProduct(
 
 	now := time.Now()
 
-	row, err := db.Stmts.InsertProduct(ctx, dbtx, db.InsertProductParams{
+	row, err := db.New().InsertProduct(ctx, dbtx, db.InsertProductParams{
 		ID: uuid.New(),
 		Name: data.Name,
 		Price: data.Price,
@@ -101,7 +101,7 @@ func UpdateProduct(
 		return Product{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := db.Stmts.QueryProductByID(ctx, dbtx, data.ID)
+	currentRow, err := db.New().QueryProductByID(ctx, dbtx, data.ID)
 	if err != nil {
 		return Product{}, err
 	}
@@ -138,7 +138,7 @@ func UpdateProduct(
 		payload.Metadata = data.Metadata
 	}
 
-	row, err := db.Stmts.UpdateProduct(ctx, dbtx, payload)
+	row, err := db.New().UpdateProduct(ctx, dbtx, payload)
 	if err != nil {
 		return Product{}, err
 	}
@@ -151,14 +151,14 @@ func DestroyProduct(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) error {
-	return db.Stmts.DeleteProduct(ctx, dbtx, id)
+	return db.New().DeleteProduct(ctx, dbtx, id)
 }
 
 func AllProducts(
 	ctx context.Context,
 	dbtx db.DBTX,
 ) ([]Product, error) {
-	rows, err := db.Stmts.QueryAllProducts(ctx, dbtx)
+	rows, err := db.New().QueryAllProducts(ctx, dbtx)
 	if err != nil {
 		return nil, err
 	}
@@ -197,12 +197,12 @@ func PaginateProducts(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.Stmts.CountProducts(ctx, dbtx)
+	totalCount, err := db.New().CountProducts(ctx, dbtx)
 	if err != nil {
 		return PaginatedProducts{}, err
 	}
 
-	rows, err := db.Stmts.QueryPaginatedProducts(
+	rows, err := db.New().QueryPaginatedProducts(
 		ctx,
 		dbtx,
 		db.QueryPaginatedProductsParams{

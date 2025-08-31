@@ -159,7 +159,7 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 	return field, nil
 }
 
-func (g *Generator) RenderViewFile(view *GeneratedView) (string, error) {
+func (g *Generator) GenerateViewFile(view *GeneratedView) (string, error) {
 	templateContent, err := templates.Files.ReadFile("resource_view.tmpl")
 	if err != nil {
 		return "", fmt.Errorf("failed to read view template: %w", err)
@@ -251,7 +251,7 @@ func (g *Generator) GenerateView(
 		return fmt.Errorf("failed to build view: %w", err)
 	}
 
-	viewContent, err := g.RenderViewFile(view)
+	viewContent, err := g.GenerateViewFile(view)
 	if err != nil {
 		return fmt.Errorf("failed to render view file: %w", err)
 	}
@@ -294,21 +294,17 @@ func (g *Generator) formatTemplFile(filePath string) error {
 }
 
 func (g *Generator) runCompileTemplates() error {
-	if _, err := exec.LookPath("just"); err != nil {
-		// 'just' not available, skip template compilation
-		return fmt.Errorf("'just' command not found in PATH")
+	// Find the root directory with go.mod to run from project root
+	rootDir, err := g.fileManager.FindGoModRoot()
+	if err != nil {
+		// If we can't find go.mod, skip template compilation (e.g., in test environments)
+		return nil
 	}
 
-	if _, err := os.Stat("Justfile"); os.IsNotExist(err) {
-		// No Justfile, skip template compilation
-		return fmt.Errorf("justfile not found in the current directory")
-	}
-
-	cmd := exec.Command("just", "compile-templates")
+	cmd := exec.Command("go", "tool", "templ", "generate")
+	cmd.Dir = rootDir
 	if err := cmd.Run(); err != nil {
-		// If compilation fails, we'll just skip it in test environments
-		// In production, this would be a real error
-		return fmt.Errorf("failed to run 'just compile-templates': %w", err)
+		return fmt.Errorf("failed to run 'go tool templ generate': %w", err)
 	}
 	return nil
 }

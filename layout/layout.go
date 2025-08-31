@@ -211,7 +211,11 @@ const goVersion = "1.24.4"
 
 func createGoMod(targetDir, projectName string) error {
 	goModPath := filepath.Join(targetDir, "go.mod")
-	goModContent := fmt.Sprintf("module %s\n\ngo %s\n\ntool github.com/a-h/templ/cmd/templ@latest\ntool github.com/sqlc-dev/sqlc/cmd/sqlc@latest\n", projectName, goVersion)
+	goModContent := fmt.Sprintf(
+		"module %s\n\ngo %s\n\ntool github.com/a-h/templ/cmd/templ\ntool github.com/sqlc-dev/sqlc/cmd/sqlc\n",
+		projectName,
+		goVersion,
+	)
 
 	return os.WriteFile(goModPath, []byte(goModContent), 0644)
 }

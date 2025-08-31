@@ -79,14 +79,29 @@ func TestGenerator_GoldenFiles(t *testing.T) {
 				}
 			}
 
-			err = generator.GenerateView(cat, tt.resourceName, tt.modulePath)
+			// Build view from catalog
+			view, err := generator.Build(cat, Config{
+				ResourceName: tt.resourceName,
+				PluralName:   tt.tableName,
+				ModulePath:   tt.modulePath,
+			})
 			if err != nil {
-				t.Fatalf("Failed to generate view: %v", err)
+				t.Fatalf("Failed to build view: %v", err)
 			}
 
-			// Test view file
+			// Generate view content
+			viewContent, err := generator.GenerateViewFile(view)
+			if err != nil {
+				t.Fatalf("Failed to generate view content: %v", err)
+			}
+
+			// Write content to test file
 			pluralName := tt.tableName
 			viewPath := filepath.Join("views", pluralName+"_resource.templ")
+			err = os.WriteFile(viewPath, []byte(viewContent), 0644)
+			if err != nil {
+				t.Fatalf("Failed to write view file: %v", err)
+			}
 
 			t.Run("view_file", func(t *testing.T) {
 				compareWithGolden(t, tt.name+"_resource.templ", viewPath, *update, originalWd)

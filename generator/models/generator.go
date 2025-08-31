@@ -151,7 +151,7 @@ func (g *Generator) addTypeImports(sqlcType string, importSet map[string]bool) {
 	}
 }
 
-func (g *Generator) RenderModelFile(model *GeneratedModel, templateStr string) (string, error) {
+func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string) (string, error) {
 	funcMap := template.FuncMap{
 		"SQLCTypeName": func(tableName string) string {
 			singular := strings.TrimSuffix(tableName, "s") // Simple singularization
@@ -203,7 +203,7 @@ func (g *Generator) GenerateModel(
 		return fmt.Errorf("failed to read model template: %w", err)
 	}
 
-	modelContent, err := g.RenderModelFile(model, string(templateContent))
+	modelContent, err := g.GenerateModelFile(model, string(templateContent))
 	if err != nil {
 		return fmt.Errorf("failed to render model file: %w", err)
 	}
@@ -244,6 +244,31 @@ func (g *Generator) GenerateSQLFile(
 	}
 
 	return os.WriteFile(sqlPath, []byte(buf.String()), 0600)
+}
+
+func (g *Generator) GenerateSQLContent(
+	resourceName string,
+	pluralName string,
+	table *catalog.Table,
+) (string, error) {
+	templateContent, err := templates.Files.ReadFile("crud_operations.tmpl")
+	if err != nil {
+		return "", fmt.Errorf("failed to read SQL template: %w", err)
+	}
+
+	data := g.prepareSQLData(resourceName, pluralName, table)
+
+	t, err := template.New("sql").Parse(string(templateContent))
+	if err != nil {
+		return "", err
+	}
+
+	var buf strings.Builder
+	if err := t.Execute(&buf, data); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
 }
 
 func (g *Generator) prepareSQLData(

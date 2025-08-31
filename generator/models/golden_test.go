@@ -2,6 +2,7 @@ package models
 
 import (
 	"flag"
+	"mbvlabs/andurel/generator/templates"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,19 +61,58 @@ func TestGenerator_GoldenFiles(t *testing.T) {
 
 			generator := NewGenerator("postgresql")
 
+			// Build catalog from migrations
+			cat, err := generator.buildCatalogFromTableMigrations(tt.tableName, []string{migrationsDir})
+			if err != nil {
+				t.Fatalf("Failed to build catalog from migrations: %v", err)
+			}
+
+			// Build model structure
+			model, err := generator.Build(cat, Config{
+				TableName:    tt.tableName,
+				ResourceName: tt.resourceName,
+				PackageName:  "models",
+				DatabaseType: "postgresql",
+				ModulePath:   tt.modulePath,
+			})
+			if err != nil {
+				t.Fatalf("Failed to build model: %v", err)
+			}
+
+			// Generate model content
+			templateContent, err := templates.Files.ReadFile("model.tmpl")
+			if err != nil {
+				t.Fatalf("Failed to read model template: %v", err)
+			}
+
+			modelContent, err := generator.GenerateModelFile(model, string(templateContent))
+			if err != nil {
+				t.Fatalf("Failed to generate model content: %v", err)
+			}
+
+			// Generate SQL content
+			table, err := cat.GetTable("", tt.tableName)
+			if err != nil {
+				t.Fatalf("Failed to get table from catalog: %v", err)
+			}
+
+			sqlContent, err := generator.GenerateSQLContent(tt.resourceName, tt.tableName, table)
+			if err != nil {
+				t.Fatalf("Failed to generate SQL content: %v", err)
+			}
+
+			// Write content to test files
 			modelPath := filepath.Join("models", strings.ToLower(tt.resourceName)+".go")
 			sqlPath := filepath.Join("database", "queries", tt.tableName+".sql")
 
-			err = generator.GenerateModelFromMigrations(
-				tt.tableName,
-				tt.resourceName,
-				[]string{migrationsDir},
-				modelPath,
-				sqlPath,
-				tt.modulePath,
-			)
+			err = os.WriteFile(modelPath, []byte(modelContent), 0644)
 			if err != nil {
-				t.Fatalf("Failed to generate model from migrations: %v", err)
+				t.Fatalf("Failed to write model file: %v", err)
+			}
+
+			err = os.WriteFile(sqlPath, []byte(sqlContent), 0644)
+			if err != nil {
+				t.Fatalf("Failed to write SQL file: %v", err)
 			}
 
 			t.Run("model_file", func(t *testing.T) {

@@ -25,7 +25,7 @@ type {{.ResourceName}}s struct {
 	db database.Postgres
 }
 
-func new{{.ResourceName}}s(db psql.Postgres) {{.ResourceName}}s {
+func new{{.ResourceName}}s(db database.Postgres) {{.ResourceName}}s {
 	return {{.ResourceName}}s{db}
 }
 
@@ -47,7 +47,7 @@ func (r {{.ResourceName}}s) Index(c echo.Context) error {
 
 	{{.PluralName}}List, err := models.Paginate{{.ResourceName}}s(
 		c.Request().Context(),
-		r.db.Pool,
+		r.db.Pool(),
 		page,
 		perPage,
 	)
@@ -68,7 +68,7 @@ func (r {{.ResourceName}}s) Show(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid {{.ResourceName | ToLower}} ID")
 	}
 
-	{{.ResourceName | ToLower}}, err := models.Find{{.ResourceName}}(c.Request().Context(), r.db.Pool, {{.ResourceName | ToLower}}ID)
+	{{.ResourceName | ToLower}}, err := models.Find{{.ResourceName}}(c.Request().Context(), r.db.Pool(), {{.ResourceName | ToLower}}ID)
 	if err != nil {
 		return c.String(http.StatusNotFound, "{{.ResourceName}} not found")
 	}
@@ -127,7 +127,7 @@ func (r {{.ResourceName}}s) Create(c echo.Context) error {
 
 	{{.ResourceName | ToLower}}, err := models.Create{{.ResourceName}}(
 		c.Request().Context(),
-		r.db.Pool,
+		r.db.Pool(),
 		payload,
 	)
 	if err != nil {
@@ -150,7 +150,7 @@ func (r {{.ResourceName}}s) Edit(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid {{.ResourceName | ToLower}} ID")
 	}
 
-	{{.ResourceName | ToLower}}, err := models.Find{{.ResourceName}}(c.Request().Context(), r.db.Pool, {{.ResourceName | ToLower}}ID)
+	{{.ResourceName | ToLower}}, err := models.Find{{.ResourceName}}(c.Request().Context(), r.db.Pool(), {{.ResourceName | ToLower}}ID)
 	if err != nil {
 		return c.String(http.StatusNotFound, "{{.ResourceName}} not found")
 	}
@@ -211,7 +211,7 @@ func (r {{.ResourceName}}s) Update(c echo.Context) error {
 
 	{{.ResourceName | ToLower}}, err := models.Update{{.ResourceName}}(
 		c.Request().Context(),
-		r.db.Pool,
+		r.db.Pool(),
 		payload,
 	)
 	if err != nil {
@@ -237,7 +237,7 @@ func (r {{.ResourceName}}s) Destroy(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid {{.ResourceName | ToLower}} ID")
 	}
 
-	err = models.Destroy{{.ResourceName}}(c.Request().Context(), r.db.Pool, {{.ResourceName | ToLower}}ID)
+	err = models.Destroy{{.ResourceName}}(c.Request().Context(), r.db.Pool(), {{.ResourceName | ToLower}}ID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLower}}: %v", err)); flashErr != nil {
 			return flashErr

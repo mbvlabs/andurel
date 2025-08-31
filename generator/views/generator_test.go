@@ -115,7 +115,7 @@ func TestRenderViewFile(t *testing.T) {
 		t.Fatalf("Failed to build view: %v", err)
 	}
 
-	content, err := generator.RenderViewFile(view)
+	content, err := generator.GenerateViewFile(view)
 	if err != nil {
 		t.Fatalf("Failed to render view file: %v", err)
 	}
