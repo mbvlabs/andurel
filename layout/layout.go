@@ -62,7 +62,7 @@ var Layout = []Element{
 				RootDir: "migrations",
 			},
 			{
-				RootDir: "queue",
+				RootDir: "queries",
 			},
 		},
 	},

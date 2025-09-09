@@ -61,16 +61,18 @@ func New(
 		registerFlashMessagesContext,
 
 		echomw.CSRFWithConfig(echomw.CSRFConfig{Skipper: func(c echo.Context) bool {
-			return strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
+			return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
+				strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
 		}, TokenLookup: "cookie:_csrf", CookiePath: "/", CookieDomain: func() string {
 			if config.App.Env == config.ProdEnvironment {
 				return config.App.Domain
 			}
 
 			return ""
-		}(), CookieSecure: false, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
+		}(), CookieSecure: config.App.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
 
 		echomw.Recover(),
+		echomw.Logger(),
 	)
 
 	return &Router{
