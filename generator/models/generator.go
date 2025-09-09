@@ -122,21 +122,24 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		field.Type,
 	)
 
+	// For created_at/updated_at, we don't need conversion to DB since they use now() in SQL
+	// For other fields in Create operations, use 'data.FieldName'
 	if col.Name == "created_at" || col.Name == "updated_at" {
-		field.ConversionToDB = g.typeMapper.GenerateConversionToDB(
-			field.SQLCType,
-			field.Type,
-			"resource."+field.Name,
-		)
+		field.ConversionToDB = "" // Not needed since handled by now() in SQL
 	} else {
 		field.ConversionToDB = g.typeMapper.GenerateConversionToDB(field.SQLCType, field.Type, "data."+field.Name)
 	}
 
-	field.ConversionToDBForUpdate = g.typeMapper.GenerateConversionToDB(
-		field.SQLCType,
-		field.Type,
-		"data."+field.Name,
-	)
+	// For Update operations, updated_at uses now() in SQL, others use data.FieldName  
+	if col.Name == "updated_at" {
+		field.ConversionToDBForUpdate = "" // Not needed since handled by now() in SQL
+	} else {
+		field.ConversionToDBForUpdate = g.typeMapper.GenerateConversionToDB(
+			field.SQLCType,
+			field.Type,
+			"data."+field.Name,
+		)
+	}
 	field.ZeroCheck = g.typeMapper.GenerateZeroCheck(field.Type, "data."+field.Name)
 
 	return field, nil
@@ -284,21 +287,32 @@ func (g *Generator) prepareSQLData(
 
 	for _, col := range table.Columns {
 		insertColumns = append(insertColumns, col.Name)
-		insertPlaceholders = append(
-			insertPlaceholders,
-			fmt.Sprintf("$%d", placeholderIndex),
-		)
-		placeholderIndex++
+		
+		// Use now() for created_at and updated_at, placeholders for everything else
+		if col.Name == "created_at" || col.Name == "updated_at" {
+			insertPlaceholders = append(insertPlaceholders, "now()")
+		} else {
+			insertPlaceholders = append(
+				insertPlaceholders,
+				fmt.Sprintf("$%d", placeholderIndex),
+			)
+			placeholderIndex++
+		}
 	}
 
 	placeholderIndex = 2
 	for _, col := range table.Columns {
 		if col.Name != "id" && col.Name != "created_at" {
-			updateColumns = append(
-				updateColumns,
-				fmt.Sprintf("%s=$%d", col.Name, placeholderIndex),
-			)
-			placeholderIndex++
+			if col.Name == "updated_at" {
+				// Use now() for updated_at in updates
+				updateColumns = append(updateColumns, "updated_at=now()")
+			} else {
+				updateColumns = append(
+					updateColumns,
+					fmt.Sprintf("%s=$%d", col.Name, placeholderIndex),
+				)
+				placeholderIndex++
+			}
 		}
 	}
 

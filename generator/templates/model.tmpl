@@ -52,18 +52,11 @@ func Create{{.Name}}(
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	now := time.Now()
-
 	row, err := db.New().Insert{{.Name}}(ctx, dbtx, db.Insert{{.Name}}Params{
 {{- range .Fields}}
 {{- if eq .Name "ID"}}
 		{{.Name}}: uuid.New(),
-{{- else if or (eq .Name "CreatedAt") (eq .Name "UpdatedAt")}}
-		{{.Name}}: pgtype.Timestamptz{
-			Time:  now,
-			Valid: true,
-		},
-{{- else}}
+{{- else if not (or (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
 		{{.Name}}: {{.ConversionToDB}},
 {{- end}}
 {{- end}}
@@ -100,10 +93,6 @@ func Update{{.Name}}(
 
 	payload := db.Update{{.Name}}Params{
 		ID: data.ID,
-		UpdatedAt: pgtype.Timestamptz{
-			Time:  time.Now(),
-			Valid: true,
-		},
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		{{.Name}}: currentRow.{{.Name}},
@@ -214,11 +203,7 @@ func Paginate{{.Name}}s(
 func rowTo{{.Name}}(row db.{{SQLCTypeName .TableName}}) {{.Name}} {
 	return {{.Name}}{
 {{- range .Fields}}
-{{- if or (eq .Name "CreatedAt") (eq .Name "UpdatedAt")}}
-		{{.Name}}: row.{{.Name}}.Time,
-{{- else}}
 		{{.Name}}: {{.ConversionFromDB}},
-{{- end}}
 {{- end}}
 	}
 }

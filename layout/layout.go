@@ -100,7 +100,7 @@ var Layout = []Element{
 func Scaffold(targetDir, projectName string) error {
 	elementsDir := filepath.Join(filepath.Dir(getCurrentFile()), "elements")
 
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create target directory: %w", err)
 	}
 
@@ -137,7 +137,7 @@ func createElementStructure(
 	elementTargetPath := filepath.Join(targetDir, element.RootDir)
 	elementSourcePath := filepath.Join(elementsDir, element.RootDir)
 
-	if err := os.MkdirAll(elementTargetPath, 0755); err != nil {
+	if err := os.MkdirAll(elementTargetPath, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", elementTargetPath, err)
 	}
 
@@ -170,7 +170,7 @@ func copyDirectoryContents(srcDir, destDir, projectName string) error {
 		destPath := filepath.Join(destDir, relPath)
 
 		if d.IsDir() {
-			return os.MkdirAll(destPath, 0755)
+			return os.MkdirAll(destPath, 0o755)
 		}
 
 		return copyFile(path, destPath, projectName)
@@ -212,12 +212,12 @@ const goVersion = "1.24.4"
 func createGoMod(targetDir, projectName string) error {
 	goModPath := filepath.Join(targetDir, "go.mod")
 	goModContent := fmt.Sprintf(
-		"module %s\n\ngo %s\n\ntool github.com/a-h/templ/cmd/templ\ntool github.com/sqlc-dev/sqlc/cmd/sqlc\n",
+		"module %s\n\ngo %s\n\ntool (\n    github.com/a-h/templ/cmd/templ\n    github.com/sqlc-dev/sqlc/cmd/sqlc\n    github.com/pressly/goose/v3/cmd/goose\n    github.com/air-verse/air\n)\n",
 		projectName,
 		goVersion,
 	)
 
-	return os.WriteFile(goModPath, []byte(goModContent), 0644)
+	return os.WriteFile(goModPath, []byte(goModContent), 0o644)
 }
 
 func runGoModTidy(targetDir string) error {

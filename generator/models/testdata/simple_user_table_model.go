@@ -51,22 +51,12 @@ func CreateUser(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	now := time.Now()
-
 	row, err := db.New().InsertUser(ctx, dbtx, db.InsertUserParams{
 		ID: uuid.New(),
 		Email: data.Email,
 		Name: data.Name,
 		Age: sql.NullInt32{Int32: data.Age, Valid: true},
 		IsActive: sql.NullBool{Bool: data.IsActive, Valid: true},
-		CreatedAt: pgtype.Timestamptz{
-			Time:  now,
-			Valid: true,
-		},
-		UpdatedAt: pgtype.Timestamptz{
-			Time:  now,
-			Valid: true,
-		},
 	})
 	if err != nil {
 		return User{}, err
@@ -100,10 +90,6 @@ func UpdateUser(
 
 	payload := db.UpdateUserParams{
 		ID: data.ID,
-		UpdatedAt: pgtype.Timestamptz{
-			Time:  time.Now(),
-			Valid: true,
-		},
 		Email: currentRow.Email,
 		Name: currentRow.Name,
 		Age: currentRow.Age,
@@ -225,4 +211,3 @@ func rowToUser(row db.User) User {
 		UpdatedAt: row.UpdatedAt.Time,
 	}
 }
-

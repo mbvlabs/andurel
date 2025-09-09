@@ -55,8 +55,6 @@ func CreateProduct(
 		return Product{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	now := time.Now()
-
 	row, err := db.New().InsertProduct(ctx, dbtx, db.InsertProductParams{
 		ID: uuid.New(),
 		Name: data.Name,
@@ -65,14 +63,6 @@ func CreateProduct(
 		CategoryId: data.CategoryId,
 		InStock: sql.NullBool{Bool: data.InStock, Valid: true},
 		Metadata: data.Metadata,
-		CreatedAt: pgtype.Timestamptz{
-			Time:  now,
-			Valid: true,
-		},
-		UpdatedAt: pgtype.Timestamptz{
-			Time:  now,
-			Valid: true,
-		},
 	})
 	if err != nil {
 		return Product{}, err
@@ -108,10 +98,6 @@ func UpdateProduct(
 
 	payload := db.UpdateProductParams{
 		ID: data.ID,
-		UpdatedAt: pgtype.Timestamptz{
-			Time:  time.Now(),
-			Valid: true,
-		},
 		Name: currentRow.Name,
 		Price: currentRow.Price,
 		Description: currentRow.Description,
@@ -243,4 +229,3 @@ func rowToProduct(row db.Product) Product {
 		UpdatedAt: row.UpdatedAt.Time,
 	}
 }
-

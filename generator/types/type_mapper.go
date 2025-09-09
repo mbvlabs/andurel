@@ -135,10 +135,14 @@ func (tm *TypeMapper) mapNullableType(
 		return "sql.NullString", "string"
 	case "bool":
 		return "sql.NullBool", "bool"
+	case "int16":
+		return "sql.NullInt32", "int16"
 	case "int32":
 		return "sql.NullInt32", "int32"
 	case "int64":
 		return "sql.NullInt64", "int64"
+	case "float32":
+		return "sql.NullFloat64", "float32"
 	case "float64":
 		if sqlType == "decimal" || sqlType == "numeric" {
 			return "pgtype.Numeric", "float64"
@@ -239,7 +243,7 @@ func (tm *TypeMapper) GenerateZeroCheck(
 		return fmt.Sprintf("!%s.IsZero()", valueExpr)
 	case "bool":
 		return "true"
-	case "int32", "int64", "float32", "float64":
+	case "int16", "int32", "int64", "float32", "float64":
 		return fmt.Sprintf("%s != 0", valueExpr)
 	case "uuid.UUID":
 		return fmt.Sprintf("%s != uuid.Nil", valueExpr)

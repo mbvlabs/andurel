@@ -104,12 +104,78 @@ func TestGenerator_Build(t *testing.T) {
 			t.Errorf("Field %s: missing ConversionFromDB", field.Name)
 		}
 
-		if field.ConversionToDB == "" {
+		// created_at and updated_at don't need ConversionToDB since they use now() in SQL
+		if field.ConversionToDB == "" && field.Name != "CreatedAt" && field.Name != "UpdatedAt" {
 			t.Errorf("Field %s: missing ConversionToDB", field.Name)
 		}
 
 		if field.ZeroCheck == "" {
 			t.Errorf("Field %s: missing ZeroCheck", field.Name)
+		}
+
+		// Test specific conversion patterns
+		switch field.Name {
+		case "Age":
+			expectedFromDB := "row.Age.Int32"
+			if field.ConversionFromDB != expectedFromDB {
+				t.Errorf("Field %s: expected ConversionFromDB %s, got %s", 
+					field.Name, expectedFromDB, field.ConversionFromDB)
+			}
+			expectedToDB := "sql.NullInt32{Int32: data.Age, Valid: true}"
+			if field.ConversionToDB != expectedToDB {
+				t.Errorf("Field %s: expected ConversionToDB %s, got %s", 
+					field.Name, expectedToDB, field.ConversionToDB)
+			}
+		case "IsActive":
+			expectedFromDB := "row.IsActive.Bool"
+			if field.ConversionFromDB != expectedFromDB {
+				t.Errorf("Field %s: expected ConversionFromDB %s, got %s", 
+					field.Name, expectedFromDB, field.ConversionFromDB)
+			}
+			expectedToDB := "sql.NullBool{Bool: data.IsActive, Valid: true}"
+			if field.ConversionToDB != expectedToDB {
+				t.Errorf("Field %s: expected ConversionToDB %s, got %s", 
+					field.Name, expectedToDB, field.ConversionToDB)
+			}
+		case "CreatedAt":
+			expectedFromDB := "row.CreatedAt.Time"
+			if field.ConversionFromDB != expectedFromDB {
+				t.Errorf("Field %s: expected ConversionFromDB %s, got %s", 
+					field.Name, expectedFromDB, field.ConversionFromDB)
+			}
+			// ConversionToDB should be empty since we use now() in SQL
+			if field.ConversionToDB != "" {
+				t.Errorf("Field %s: expected empty ConversionToDB, got %s", 
+					field.Name, field.ConversionToDB)
+			}
+		case "UpdatedAt":
+			expectedFromDB := "row.UpdatedAt.Time"
+			if field.ConversionFromDB != expectedFromDB {
+				t.Errorf("Field %s: expected ConversionFromDB %s, got %s", 
+					field.Name, expectedFromDB, field.ConversionFromDB)
+			}
+			// ConversionToDB should be empty since we use now() in SQL
+			if field.ConversionToDB != "" {
+				t.Errorf("Field %s: expected empty ConversionToDB, got %s", 
+					field.Name, field.ConversionToDB)
+			}
+			// ConversionToDBForUpdate should be empty since we use now() in SQL
+			if field.ConversionToDBForUpdate != "" {
+				t.Errorf("Field %s: expected empty ConversionToDBForUpdate, got %s", 
+					field.Name, field.ConversionToDBForUpdate)
+			}
+		case "Email", "Name":
+			// String fields should have direct conversions (non-nullable)
+			expectedFromDB := "row." + field.Name
+			if field.ConversionFromDB != expectedFromDB {
+				t.Errorf("Field %s: expected ConversionFromDB %s, got %s", 
+					field.Name, expectedFromDB, field.ConversionFromDB)
+			}
+			expectedToDB := "data." + field.Name
+			if field.ConversionToDB != expectedToDB {
+				t.Errorf("Field %s: expected ConversionToDB %s, got %s", 
+					field.Name, expectedToDB, field.ConversionToDB)
+			}
 		}
 	}
 

@@ -11,12 +11,12 @@ select * from users;
 insert into
     users (id, email, name, age, is_active, created_at, updated_at)
 values
-    ($1, $2, $3, $4, $5, $6, $7)
+    ($1, $2, $3, $4, $5, now(), now())
 returning *;
 
 -- name: UpdateUser :one
 update users
-    set email=$2, name=$3, age=$4, is_active=$5, updated_at=$6
+    set email=$2, name=$3, age=$4, is_active=$5, updated_at=now()
 where id = $1
 returning *;
 
@@ -30,4 +30,3 @@ limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
 
 -- name: CountUsers :one
 select count(*) from users;
-
