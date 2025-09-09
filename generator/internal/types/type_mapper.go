@@ -440,9 +440,9 @@ func normalizeSQLType(sqlType string) string {
 	case "integer[]":
 		return "_integer"
 	case "integer[][]":
-		return "_integer" 
+		return "_integer"
 	case "text[]":
-		return "_text" 
+		return "_text"
 	}
 
 	return normalizedType

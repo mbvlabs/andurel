@@ -2,11 +2,15 @@ set dotenv-load
 
 # alias
 alias r := run
+alias cdd := connect-database-docker
 
 default:
     @just --list
 
 # database 
+connect-database-docker conntainer_id name:
+	docker exec -it {{conntainer_id}} psql -U postgres {{name}}
+
 create-migration name:
 	go tool goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME create {{name}} sql
 

@@ -387,11 +387,11 @@ func TestGenerator_ComplexTable(t *testing.T) {
 
 	// Test that we have fields for all the types from the complex migration that are successfully parsed
 	expectedFieldTypes := map[string]string{
-		"ID":                 "int64",
+		"ID":                "int64",
 		"UuidId":            "uuid.UUID",
 		"SmallInt":          "int16",
 		"RegularInt":        "int32",
-		"BigInt":            "int64", 
+		"BigInt":            "int64",
 		"DecimalPrecise":    "float64",
 		"NumericField":      "float64",
 		"RealFloat":         "float32",
@@ -438,7 +438,6 @@ func TestGenerator_ComplexTable(t *testing.T) {
 		"NumericRange":      "string",
 	}
 
-
 	// Verify we have the expected number of fields that can be successfully parsed
 	if len(model.Fields) != 49 {
 		t.Errorf("Expected 49 fields for complex table, got %d", len(model.Fields))
@@ -476,7 +475,6 @@ func TestGenerator_ComplexTable(t *testing.T) {
 		}
 	}
 }
-
 
 type FieldExpectation struct {
 	Type     string
