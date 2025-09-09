@@ -14,10 +14,9 @@ const (
 var assetRoutes = []Route{
 	Robots,
 	Sitemap,
-	CSSEntrypoint,
-	CSSFile,
-	JSEntrypoint,
-	JSFile,
+	Stylesheet,
+	Scripts,
+	Script,
 }
 
 var startTime = time.Now().Unix()
@@ -38,34 +37,26 @@ var Sitemap = Route{
 	HandleMethod: "Sitemap",
 }
 
-var CSSEntrypoint = Route{
-	Name:         assetsNamePrefix + "css.entry",
-	Path:         assetsNamePrefix + fmt.Sprintf("/css/%v/styles.css", startTime),
+var Stylesheet = Route{
+	Name:         assetsNamePrefix + "css.stylesheet",
+	Path:         assetsNamePrefix + fmt.Sprintf("/css/%v/tw.css", startTime),
 	Method:       http.MethodGet,
 	Handler:      "Assets",
-	HandleMethod: "CSSEntrypoint",
+	HandleMethod: "Stylesheet",
 }
 
-var CSSFile = Route{
-	Name:         assetsNamePrefix + "css.all",
-	Path:         assetsNamePrefix + fmt.Sprintf("/css/%v/:file", startTime),
+var Scripts = Route{
+	Name:         assetsNamePrefix + "js.scripts",
+	Path:         assetsNamePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime),
 	Method:       http.MethodGet,
 	Handler:      "Assets",
-	HandleMethod: "CSSFile",
+	HandleMethod: "Scripts",
 }
 
-var JSEntrypoint = Route{
-	Name:         assetsNamePrefix + "js.entry",
-	Path:         assetsNamePrefix + fmt.Sprintf("/js/%v/script.js", startTime),
-	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "JSEntrypoint",
-}
-
-var JSFile = Route{
-	Name:         assetsNamePrefix + "js.all",
+var Script = Route{
+	Name:         assetsNamePrefix + "js.script",
 	Path:         assetsNamePrefix + fmt.Sprintf("/js/%v/:file", startTime),
 	Method:       http.MethodGet,
 	Handler:      "Assets",
-	HandleMethod: "JSFile",
+	HandleMethod: "Script",
 }

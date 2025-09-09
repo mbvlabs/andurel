@@ -4,11 +4,8 @@
 	"type": "module",
 	"author": "MBV (@mbvisti)",
 	"license": "ISC",
-	"scripts": {
-		"build-css": "vite build"
-	},
+	"scripts": {},
 	"devDependencies": {
-		"@tailwindcss/vite": "^4.1.8",
 		"tailwindcss": "^4.1.8",
 		"@tailwindcss/typography": "^0.5.16"
 	}

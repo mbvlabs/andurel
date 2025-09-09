@@ -72,8 +72,8 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 		Description:    "The web development framework for Go.",
 		Slug:           "/",
 		MetaType:       "website",
-		StylesheetHref: routes.CSSEntrypoint.Path,
-		ScriptSrc:      routes.JSEntrypoint.Path,
+		StylesheetHref: routes.Stylesheet.Path,
+		ScriptSrc:      routes.Scripts.Path,
 	}
 
 	for _, opt := range opts {

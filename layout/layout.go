@@ -87,10 +87,7 @@ var Layout = []Element{
 		RootDir: "views",
 		SubDirs: []Element{
 			{
-				RootDir: "internal",
-				SubDirs: []Element{
-					{RootDir: "layouts"},
-				},
+				RootDir: "components",
 			},
 		},
 	},

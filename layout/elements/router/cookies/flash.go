@@ -17,7 +17,10 @@ type FlashMessage struct {
 	Message   string
 }
 
-var FlashKey flashKey = "flash_messages"
+var (
+	FlashKey     flashKey = "flash_key"
+	flashSession          = "flash_session"
+)
 
 type flashKey string
 
@@ -33,7 +36,7 @@ const (
 func AddFlash(
 	c echo.Context, flashType FlashType, msg string,
 ) error {
-	sess, err := session.Get(string(FlashKey), c)
+	sess, err := session.Get(flashSession, c)
 	if err != nil {
 		return err
 	}
