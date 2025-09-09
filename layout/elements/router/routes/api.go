@@ -16,5 +16,5 @@ var Health = Route{
 	Path:         APIRoutePrefix + "/health",
 	Method:       http.MethodGet,
 	Handler:      "API",
-	HandleMethod: "AppHealth",
+	HandleMethod: "Health",
 }

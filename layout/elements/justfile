@@ -2,61 +2,46 @@ set dotenv-load
 
 # alias
 alias r := run
-alias ra := run-app
-
-alias ci := golangci
-
-alias cm := create-migration
-alias ms := migration-status
-alias um := up-migrations
-alias dm := down-migrations
-alias dmt := down-migrations-to
-alias fm := fix-migrations
-alias rdb := reset-db
-
-alias gdf := generate-db-functions
 
 default:
     @just --list
 
 # database 
 create-migration name:
-	@goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME create {{name}} sql
-
-migration-status:
-	go run cmd/migrate/main.go --cmd "status"
-
-up-migrations:
-	go run cmd/migrate/main.go --cmd "up"
-
-up-migrations-by-one:
-	go run cmd/migrate/main.go --cmd "upbyone"
-
-down-migrations:
-	go run cmd/migrate/main.go --cmd "down"
-
-down-migrations-to version:
-	go run cmd/migrate/main.go --cmd "down" --version {{version}}
+	go tool goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME create {{name}} sql
 
 fix-migrations:
-	@goose -dir psql/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME fix
+	go tool goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME fix
 
-reset-db:
-	go run cmd/migrate/main.go --cmd "reset"
+new-migration name: 
+	just create-migration {{name}}
+	just fix-migrations
 
-generate-db-functions:
-	cd database && sqlc compile && sqlc generate
+up-migrations:
+	go tool goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME up
 
-# application
-run:
-    wgo -file=.go -file=.templ -xfile=_templ.go just compile-templates :: wgo -file=.templ -file=base.css -xfile=_templ.go npm run build-css :: just run-app
+# sqlc
+compile-queries:
+	go tool sqlc -f ./database/sqlc.yaml compile
 
-run-app:
-    go run cmd/app/main.go
+generate-queries:
+	go tool sqlc -f ./database/sqlc.yaml generate
 
-# assets
-compile-templates:
-    templ generate
+compile-generate-queries: compile-queries generate-queries
+
+# server
+live-server:
+	go tool air -build.cmd "go build -o tmp/bin/main cmd/app/main.go" -build.bin "tmp/bin/main" -build.exclude_dir "node_modules" -build.include_ext "go,css,js" -build.stop_on_error false -misc.clean_on_exit true
+
+# generation
+live-templ:
+	go tool air -build.cmd "go tool templ generate --watch" -build.include_ext "templ" -build.bin "true" -build.include_dir "views" -build.exclude_regex "_templ.go"
+
+live-tailwind:
+	./bin/tailwindcli -i ./base.css -o ./assets/css/tw.css --watch
+
+[parallel]
+run: live-tailwind live-templ live-server 
 
 # code quality
 golangci:

@@ -17,6 +17,10 @@ type FlashMessage struct {
 	Message   string
 }
 
+var FlashKey flashKey = "flash_messages"
+
+type flashKey string
+
 type FlashType string
 
 const (
@@ -29,7 +33,7 @@ const (
 func AddFlash(
 	c echo.Context, flashType FlashType, msg string,
 ) error {
-	sess, err := session.Get(FlashKey, c)
+	sess, err := session.Get(string(FlashKey), c)
 	if err != nil {
 		return err
 	}
@@ -39,21 +43,19 @@ func AddFlash(
 		Type:      flashType,
 		CreatedAt: time.Now(),
 		Message:   msg,
-	}, "")
+	}, string(FlashKey))
 
 	return sess.Save(c.Request(), c.Response())
 }
 
 func GetFlashes(c echo.Context) ([]FlashMessage, error) {
-	sess, err := session.Get(FlashKey, c)
+	sess, err := session.Get(string(FlashKey), c)
 	if err != nil {
 		return nil, err
 	}
 
-	flashes := sess.Flashes()
 	var flashMessages []FlashMessage
-
-	for _, flash := range flashes {
+	for _, flash := range sess.Flashes(string(FlashKey)) {
 		if msg, ok := flash.(FlashMessage); ok {
 			flashMessages = append(flashMessages, msg)
 		}

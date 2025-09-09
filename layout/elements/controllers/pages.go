@@ -22,9 +22,9 @@ func newPages(
 }
 
 func (p Pages) Home(c echo.Context) error {
-	return views.Home().Render(renderArgs(c))
+	return render(c, views.Home())
 }
 
 func (p Pages) NotFound(c echo.Context) error {
-	return views.NotFound().Render(renderArgs(c))
+	return render(c, views.NotFound())
 }

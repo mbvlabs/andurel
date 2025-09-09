@@ -2,9 +2,10 @@ package controllers
 
 import (
 	"context"
-	"io"
-	"mbvlabs/andurel/layout/elements/database"
 	"net/http"
+
+	"mbvlabs/andurel/layout/elements/database"
+	"mbvlabs/andurel/layout/elements/router/cookies"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
@@ -13,11 +14,8 @@ import (
 
 type Controllers struct {
 	Assets Assets
+	API    API
 	Pages  Pages
-}
-
-func renderArgs(ctx echo.Context) (context.Context, io.Writer) {
-	return ctx.Request().Context(), ctx.Response().Writer
 }
 
 func New(
@@ -35,25 +33,36 @@ func New(
 
 	assets := newAssets()
 	pages := newPages(db, pageCacher)
+	api := newAPI(db)
 
 	return Controllers{
 		assets,
+		api,
 		pages,
 	}, nil
 }
 
-func redirectHx(w http.ResponseWriter, url string) error {
-	w.Header().Set("HX-Redirect", url)
-	w.WriteHeader(http.StatusSeeOther)
+func render(ctx echo.Context, t templ.Component) error {
+	buf := templ.GetBuffer()
+	defer templ.ReleaseBuffer(buf)
 
-	return nil
-}
+	appCtx := ctx.Get(string(cookies.AppKey))
+	withAppCtx := context.WithValue(
+		ctx.Request().Context(),
+		cookies.AppKey,
+		appCtx,
+	)
 
-func redirect(
-	w http.ResponseWriter,
-	r *http.Request,
-	url string,
-) error {
-	http.Redirect(w, r, url, http.StatusSeeOther)
-	return nil
+	flashCtx := ctx.Get(string(cookies.FlashKey))
+	withFlashCtx := context.WithValue(
+		withAppCtx,
+		cookies.FlashKey,
+		flashCtx,
+	)
+
+	if err := t.Render(withFlashCtx, buf); err != nil {
+		return err
+	}
+
+	return ctx.HTML(http.StatusOK, buf.String())
 }

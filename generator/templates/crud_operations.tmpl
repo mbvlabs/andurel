@@ -1,0 +1,33 @@
+-- name: Query{{.ResourceName}}ByID :one
+select * from {{.PluralName}} where id=$1;
+
+-- name: Query{{.ResourceName}}s :many
+select * from {{.PluralName}};
+
+-- name: QueryAll{{.ResourceName}}s :many
+select * from {{.PluralName}};
+
+-- name: Insert{{.ResourceName}} :one
+insert into
+    {{.PluralName}} ({{.InsertColumns}})
+values
+    ({{.InsertPlaceholders}})
+returning *;
+
+-- name: Update{{.ResourceName}} :one
+update {{.PluralName}}
+    set {{.UpdateColumns}}
+where id = $1
+returning *;
+
+-- name: Delete{{.ResourceName}} :exec
+delete from {{.PluralName}} where id=$1;
+
+-- name: QueryPaginated{{.ResourceName}}s :many
+select * from {{.PluralName}} 
+order by created_at desc 
+limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
+
+-- name: Count{{.ResourceName}}s :one
+select count(*) from {{.PluralName}};
+

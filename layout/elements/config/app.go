@@ -6,15 +6,13 @@ import (
 	"github.com/caarlos0/env/v10"
 )
 
-var App Application = newApp()
-
 const (
 	DevEnvironment  = "development"
 	ProdEnvironment = "production"
 	TestEnvironment = "testing"
 )
 
-type Application struct {
+type app struct {
 	ServerHost  string `env:"SERVER_HOST"`
 	ServerPort  string `env:"SERVER_PORT"`
 	Domain      string `env:"APP_DOMAIN"`
@@ -22,7 +20,7 @@ type Application struct {
 	Env         string `env:"ENVIRONMENT"`
 }
 
-func (a Application) GetFullDomain() string {
+func (a app) GetFullDomain() string {
 	if a.Env == ProdEnvironment {
 		return fmt.Sprintf("%v://%v", "https", a.Domain)
 	}
@@ -35,8 +33,8 @@ func (a Application) GetFullDomain() string {
 	)
 }
 
-func newApp() Application {
-	appCfg := Application{}
+func newAppConfig() app {
+	appCfg := app{}
 
 	if err := env.ParseWithOptions(&appCfg, env.Options{
 		RequiredIfNoDef: true,

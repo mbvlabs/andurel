@@ -1,0 +1,224 @@
+package views
+
+import (
+	"fmt"
+	"github.com/example/blog/models"
+	"github.com/example/blog/router/routes"
+	"github.com/example/blog/views/internal/layouts"
+)
+
+templ PostIndex(posts []models.Post) {
+	@layouts.Base() {
+		<div class="container mx-auto p-6">
+			<div class="flex items-center justify-between mb-8">
+				<h1 class="text-2xl font-semibold text-white">Posts</h1>
+				<a href={ templ.URL(routes.PostNew.Path) } class="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">New Post</a>
+			</div>
+			<div class="bg-white/5 rounded-lg border border-white/10">
+				<div class="p-6">
+					if len(posts) == 0 {
+						<p class="text-gray-400">No posts found.</p>
+					} else {
+						<div class="overflow-x-auto">
+							<table class="table w-full">
+								<thead>
+									<tr>
+										<th class="text-white font-semibold">Title</th>
+										<th class="text-white font-semibold">Content</th>
+										<th class="text-white font-semibold">Created At</th>
+										<th class="text-white font-semibold">Author Id</th>
+										<th class="text-white font-semibold">Published At</th>
+										<th class="text-white font-semibold">Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									for _, post := range posts {
+										<tr>
+											<td class="text-white">{ post.Title }</td>
+											<td class="text-white">{ post.Content }</td>
+											<td class="text-white">{ post.CreatedAt.String() }</td>
+											<td class="text-white">{ post.AuthorId }</td>
+											<td class="text-white">{ post.PublishedAt.String() }</td>
+											<td class="flex gap-2">
+												<a href={ templ.URL(routes.PostShow.GetPath(post.ID)) } class="btn btn-sm btn-primary">View</a>
+												<a href={ templ.URL(routes.PostEdit.GetPath(post.ID)) } class="btn btn-sm btn-outline">Edit</a>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ PostShow(post models.Post) {
+	@layouts.Base() {
+		<div class="container mx-auto p-6">
+			<div class="flex items-center justify-between mb-8">
+				<h1 class="text-2xl font-semibold text-white">Post Details</h1>
+				<div class="flex gap-2">
+					<a href={ templ.URL(routes.PostEdit.GetPath(post.ID)) } class="rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Edit</a>
+					<a href={ templ.URL(routes.PostIndex.Path) } class="text-sm font-semibold text-gray-400 hover:text-white">Back to List</a>
+				</div>
+			</div>
+			<div class="bg-white/5 rounded-lg border border-white/10">
+				<div class="p-6">
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+						<div>
+							<label class="block text-sm font-medium text-white mb-1">Title</label>
+							<p class="text-lg text-gray-300">{ post.Title }</p>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-white mb-1">Content</label>
+							<p class="text-lg text-gray-300">{ post.Content }</p>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-white mb-1">Created At</label>
+							<p class="text-lg text-gray-300">{ post.CreatedAt.String() }</p>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-white mb-1">Author Id</label>
+							<p class="text-lg text-gray-300">{ post.AuthorId }</p>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-white mb-1">Published At</label>
+							<p class="text-lg text-gray-300">{ post.PublishedAt.String() }</p>
+						</div>
+						
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ PostNew() {
+	@layouts.Base() {
+		<div class="container mx-auto p-6">
+			<div class="flex items-center justify-between mb-8">
+				<h1 class="text-2xl font-semibold text-white">New Post</h1>
+				<a href={ templ.URL(routes.PostIndex.Path) } class="text-sm font-semibold text-gray-400 hover:text-white">Back to List</a>
+			</div>
+			<div class="bg-white/5 rounded-lg border border-white/10">
+				<div class="p-6">
+					<form data-on-submit={ fmt.Sprintf("@post('%s')", routes.PostCreate.Path) }>
+						<div class="space-y-6">
+							<div class="border-b border-white/10 pb-6">
+								<h2 class="text-base font-semibold text-white">Post Information</h2>
+								<p class="mt-1 text-sm text-gray-400">Enter the details for the new post.</p>
+								<div class="mt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+									<div class="sm:col-span-3">
+										<label for="title" class="block text-sm font-medium text-white">
+											Title
+										</label>
+										<div class="mt-2">
+											<input id="title" type="text" data-bind="title" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+										</div>
+									</div>
+									<div class="sm:col-span-3">
+										<label for="content" class="block text-sm font-medium text-white">
+											Content
+										</label>
+										<div class="mt-2">
+											<input id="content" type="text" data-bind="content" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+										</div>
+									</div>
+									<div class="sm:col-span-3">
+										<label for="author_id" class="block text-sm font-medium text-white">
+											Author Id
+										</label>
+										<div class="mt-2">
+											<input id="author_id" type="text" data-bind="author_id" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+										</div>
+									</div>
+									<div class="sm:col-span-3">
+										<label for="published_at" class="block text-sm font-medium text-white">
+											Published At
+										</label>
+										<div class="mt-2">
+											<input id="published_at" type="date" data-bind="published_at" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+										</div>
+									</div>
+									</div>
+							</div>
+						</div>
+						<div class="mt-6 flex items-center justify-end gap-x-6">
+							<a href={ templ.URL(routes.PostIndex.Path) } class="text-sm font-semibold text-white hover:text-gray-300">Cancel</a>
+							<button type="submit" class="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">Create Post</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ PostEdit(post models.Post) {
+	@layouts.Base() {
+		<div class="container mx-auto p-6">
+			<div class="flex items-center justify-between mb-8">
+				<h1 class="text-2xl font-semibold text-white">Edit Post</h1>
+				<a href={ templ.URL(routes.PostIndex.Path) } class="text-sm font-semibold text-gray-400 hover:text-white">Back to List</a>
+			</div>
+			<div class="bg-white/5 rounded-lg border border-white/10">
+				<div class="p-6">
+					<form data-on-submit={ fmt.Sprintf("@put('%s')", routes.PostUpdate.GetPath(post.ID)) }>
+						<div class="space-y-6">
+							<div class="border-b border-white/10 pb-6">
+								<h2 class="text-base font-semibold text-white">Post Information</h2>
+								<p class="mt-1 text-sm text-gray-400">Update the details for this post.</p>
+								<div class="mt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+									<div class="sm:col-span-3">
+										<label for="title" class="block text-sm font-medium text-white">
+											Title
+										</label>
+										<div class="mt-2">
+											<input id="title" type="text" data-bind="title" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ post.Title } />
+										</div>
+									</div>
+									<div class="sm:col-span-3">
+										<label for="content" class="block text-sm font-medium text-white">
+											Content
+										</label>
+										<div class="mt-2">
+											<input id="content" type="text" data-bind="content" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ post.Content } />
+										</div>
+									</div>
+									<div class="sm:col-span-3">
+										<label for="author_id" class="block text-sm font-medium text-white">
+											Author Id
+										</label>
+										<div class="mt-2">
+											<input id="author_id" type="text" data-bind="author_id" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ post.AuthorId } />
+										</div>
+									</div>
+									<div class="sm:col-span-3">
+										<label for="published_at" class="block text-sm font-medium text-white">
+											Published At
+										</label>
+										<div class="mt-2">
+											<input id="published_at" type="date" data-bind="published_at" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ post.PublishedAt.String() } />
+										</div>
+									</div>
+									</div>
+							</div>
+						</div>
+						<div class="mt-6 flex items-center justify-end gap-x-6">
+							<a href={ templ.URL(routes.PostIndex.Path) } class="text-sm font-semibold text-white hover:text-gray-300">Cancel</a>
+							<button type="submit" class="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">Update Post</button>
+						</div>
+					</form>
+					<div class="mt-6 pt-6 border-t border-white/10">
+						<button 
+							data-on-click={ fmt.Sprintf("@delete('%s')", routes.PostDestroy.GetPath(post.ID)) }
+							class="rounded-md bg-red-500 px-3 py-2 text-sm font-semibold text-white hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500">Destroy Post</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}

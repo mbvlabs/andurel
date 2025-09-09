@@ -1,0 +1,9 @@
+-- +goose Up
+ALTER TABLE posts ADD COLUMN author_id INTEGER;
+ALTER TABLE posts ADD COLUMN published_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE posts ALTER COLUMN title TYPE VARCHAR(500);
+
+-- +goose Down
+ALTER TABLE posts DROP COLUMN author_id;
+ALTER TABLE posts DROP COLUMN published_at;
+ALTER TABLE posts ALTER COLUMN title TYPE VARCHAR(255);

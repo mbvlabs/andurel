@@ -1,1 +1,26 @@
 package controllers
+
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+	"strconv"
+{{- range .Fields}}
+{{- if and (not .IsSystemField) (eq .GoFormType "time.Time")}}
+	"time"
+{{- break}}
+{{- end}}
+{{- end}}
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
+	"{{.ModulePath}}/models"
+	"{{.ModulePath}}/database"
+	"{{.ModulePath}}/router/cookies"
+	"{{.ModulePath}}/router/routes"
+	"{{.ModulePath}}/views"
+)
+
+type {{.ResourceName}}s struct {
+	db database.Postgres
+}
