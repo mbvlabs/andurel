@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"mbvlabs/andurel/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"path/filepath"
 )
 

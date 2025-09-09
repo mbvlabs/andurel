@@ -10,10 +10,10 @@ import (
 	"os/signal"
 	"time"
 
-	"mbvlabs/andurel/layout/elements/config"
-	"mbvlabs/andurel/layout/elements/controllers"
-	"mbvlabs/andurel/layout/elements/database"
-	"mbvlabs/andurel/layout/elements/router"
+	"github.com/mbvlabs/andurel/layout/elements/config"
+	"github.com/mbvlabs/andurel/layout/elements/controllers"
+	"github.com/mbvlabs/andurel/layout/elements/database"
+	"github.com/mbvlabs/andurel/layout/elements/router"
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/sync/errgroup"

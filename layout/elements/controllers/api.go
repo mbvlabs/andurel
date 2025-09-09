@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"mbvlabs/andurel/layout/elements/database"
+	"github.com/mbvlabs/andurel/layout/elements/database"
 	"net/http"
 
 	"github.com/labstack/echo/v4"

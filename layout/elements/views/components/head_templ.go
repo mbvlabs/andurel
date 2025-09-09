@@ -10,8 +10,8 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"context"
-	"mbvlabs/andurel/layout/elements/config"
-	"mbvlabs/andurel/layout/elements/router/routes"
+	"github.com/mbvlabs/andurel/layout/elements/config"
+	"github.com/mbvlabs/andurel/layout/elements/router/routes"
 )
 
 type HeadDataOption func(*HeadData)

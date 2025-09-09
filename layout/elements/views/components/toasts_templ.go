@@ -11,7 +11,7 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"fmt"
 	"github.com/dromara/carbon/v2"
-	"mbvlabs/andurel/layout/elements/router/cookies"
+	"github.com/mbvlabs/andurel/layout/elements/router/cookies"
 )
 
 func toastBase(tType string, flash cookies.FlashMessage) templ.Component {

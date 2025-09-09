@@ -6,8 +6,8 @@ import (
 	"slices"
 	"testing"
 
-	"mbvlabs/andurel/generator/internal/catalog"
-	"mbvlabs/andurel/generator/internal/types"
+	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/generator/internal/types"
 )
 
 func TestGenerator_Build(t *testing.T) {

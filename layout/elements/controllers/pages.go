@@ -1,8 +1,8 @@
 package controllers
 
 import (
-	"mbvlabs/andurel/layout/elements/database"
-	"mbvlabs/andurel/layout/elements/views"
+	"github.com/mbvlabs/andurel/layout/elements/database"
+	"github.com/mbvlabs/andurel/layout/elements/views"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"

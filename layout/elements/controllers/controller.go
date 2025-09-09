@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	"mbvlabs/andurel/layout/elements/database"
-	"mbvlabs/andurel/layout/elements/router/cookies"
+	"github.com/mbvlabs/andurel/layout/elements/database"
+	"github.com/mbvlabs/andurel/layout/elements/router/cookies"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"

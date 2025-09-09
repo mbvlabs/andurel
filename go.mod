@@ -1,4 +1,4 @@
-module mbvlabs/andurel
+module github.com/mbvlabs/andurel
 
 go 1.24.4
 

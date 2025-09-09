@@ -2,9 +2,9 @@ package views
 
 import (
 	"flag"
-	"mbvlabs/andurel/generator/internal/catalog"
-	"mbvlabs/andurel/generator/internal/ddl"
-	"mbvlabs/andurel/generator/internal/migrations"
+	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/generator/internal/ddl"
+	"github.com/mbvlabs/andurel/generator/internal/migrations"
 	"os"
 	"path/filepath"
 	"strings"

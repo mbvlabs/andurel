@@ -1,8 +1,8 @@
 package views
 
 import (
-	"mbvlabs/andurel/generator/internal/catalog"
-	"mbvlabs/andurel/generator/internal/ddl"
+	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/generator/internal/ddl"
 	"strings"
 	"testing"
 )

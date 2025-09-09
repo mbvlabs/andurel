@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"log"
-	"mbvlabs/andurel/cli"
+	"github.com/mbvlabs/andurel/cli"
 	"os"
 	"time"
 )

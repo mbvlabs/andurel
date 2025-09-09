@@ -9,8 +9,8 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"mbvlabs/andurel/layout/elements/router/cookies"
-	"mbvlabs/andurel/layout/elements/views/components"
+	"github.com/mbvlabs/andurel/layout/elements/router/cookies"
+	"github.com/mbvlabs/andurel/layout/elements/views/components"
 )
 
 func base(headOpts ...components.HeadDataOption) templ.Component {

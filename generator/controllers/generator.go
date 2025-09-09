@@ -8,9 +8,9 @@ import (
 	"strings"
 	"text/template"
 
-	"mbvlabs/andurel/generator/internal/catalog"
-	"mbvlabs/andurel/generator/internal/types"
-	"mbvlabs/andurel/generator/templates"
+	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/generator/internal/types"
+	"github.com/mbvlabs/andurel/generator/templates"
 
 	"github.com/jinzhu/inflection"
 	"golang.org/x/text/cases"
