@@ -200,6 +200,10 @@ func (g *Generator) GenerateController(
 		}
 	}
 
+	// if err := g.registerController(resourceName); err != nil {
+	// 	return fmt.Errorf("failed to register controller: %w", err)
+	// }
+
 	return nil
 }
 
@@ -302,6 +306,83 @@ func (g *Generator) registerRoutes(pluralName string) error {
 
 	return os.WriteFile(routesFilePath, []byte(strings.Join(modifiedLines, "\n")), 0o600)
 }
+
+// TODO:
+// func (g *Generator) registerController(resourceName string) error {
+// 	controllerFilePath := "controllers/controller.go"
+//
+// 	content, err := os.ReadFile(controllerFilePath)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to read controller.go: %w", err)
+// 	}
+//
+// 	contentStr := string(content)
+// 	controllerStructName := cases.Title(language.English).String(resourceName)
+//
+// 	if strings.Contains(contentStr, controllerStructName+" "+controllerStructName) {
+// 		return nil
+// 	}
+//
+// 	lines := strings.Split(contentStr, "\n")
+// 	var modifiedLines []string
+// 	structUpdated := false
+// 	constructorUpdated := false
+//
+// 	for i, line := range lines {
+// 		if strings.Contains(line, "type Controllers struct {") && !structUpdated {
+// 			modifiedLines = append(modifiedLines, line)
+// 			for j := i + 1; j < len(lines); j++ {
+// 				if strings.TrimSpace(lines[j]) == "}" {
+// 					modifiedLines = append(
+// 						modifiedLines,
+// 						fmt.Sprintf("\t%s %s", controllerStructName, controllerStructName),
+// 					)
+// 					modifiedLines = append(modifiedLines, lines[j])
+// 					structUpdated = true
+// 					break
+// 				}
+// 				modifiedLines = append(modifiedLines, lines[j])
+// 			}
+// 			continue
+// 		}
+//
+// 		if strings.Contains(line, "return Controllers{") && !constructorUpdated {
+// 			modifiedLines = append(modifiedLines, line)
+// 			for j := i + 1; j < len(lines); j++ {
+// 				if strings.TrimSpace(lines[j]) == "}" {
+// 					constructorVar := strings.ToLower(resourceName)
+// 					modifiedLines = append(modifiedLines, fmt.Sprintf("\t\t%s,", constructorVar))
+// 					modifiedLines = append(modifiedLines, lines[j])
+// 					constructorUpdated = true
+// 					break
+// 				}
+// 				modifiedLines = append(modifiedLines, lines[j])
+// 			}
+// 			continue
+// 		}
+//
+// 		if strings.Contains(line, "api := newAPI(db)") && constructorUpdated {
+// 			modifiedLines = append(modifiedLines, line)
+// 			constructorVar := strings.ToLower(resourceName)
+// 			constructorFunc := "new" + controllerStructName
+// 			modifiedLines = append(
+// 				modifiedLines,
+// 				fmt.Sprintf("\t%s := %s(db)", constructorVar, constructorFunc),
+// 			)
+// 			continue
+// 		}
+//
+// 		if !structUpdated || !constructorUpdated {
+// 			modifiedLines = append(modifiedLines, line)
+// 		}
+// 	}
+//
+// 	if !structUpdated || !constructorUpdated {
+// 		return fmt.Errorf("could not find appropriate place to register controller")
+// 	}
+//
+// 	return os.WriteFile(controllerFilePath, []byte(strings.Join(modifiedLines, "\n")), 0o600)
+// }
 
 func (g *Generator) formatGoFile(filePath string) error {
 	cmd := exec.Command("go", "fmt", filePath)
