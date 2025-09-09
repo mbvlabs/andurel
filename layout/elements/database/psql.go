@@ -5,9 +5,9 @@ import (
 	"embed"
 	"errors"
 	"log/slog"
+
 	"mbvlabs/andurel/layout/elements/config"
 
-	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -26,8 +26,20 @@ type Postgres struct {
 }
 
 func NewPostgres(ctx context.Context) (Postgres, error) {
-	pool, err := CreatePooledConnection(ctx, config.DB.GetDatabaseURL())
+	cfg, err := pgxpool.ParseConfig(config.DB.GetDatabaseURL())
 	if err != nil {
+		slog.ErrorContext(ctx, "could not parse database connection string", "error", err)
+		return Postgres{}, err
+	}
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
+	if err != nil {
+		slog.ErrorContext(ctx, "could not establish connection to database", "error", err)
+		return Postgres{}, err
+	}
+
+	if err := pool.Ping(ctx); err != nil {
+		slog.ErrorContext(ctx, "could not ping database", "error", err)
 		return Postgres{}, err
 	}
 
@@ -64,25 +76,4 @@ func (p *Postgres) CommitTx(ctx context.Context, tx pgx.Tx) error {
 	}
 
 	return nil
-}
-
-func CreatePooledConnection(
-	ctx context.Context,
-	uri string,
-) (*pgxpool.Pool, error) {
-	cfg, err := pgxpool.ParseConfig(uri)
-	if err != nil {
-		slog.ErrorContext(ctx, "could not parse database connection string", "error", err)
-		return nil, err
-	}
-
-	cfg.ConnConfig.Tracer = otelpgx.NewTracer()
-
-	dbpool, err := pgxpool.NewWithConfig(ctx, cfg)
-	if err != nil {
-		slog.ErrorContext(ctx, "could not establish connection to database", "error", err)
-		return nil, err
-	}
-
-	return dbpool, nil
 }
