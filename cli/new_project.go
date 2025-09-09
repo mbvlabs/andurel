@@ -2,7 +2,7 @@ package cli
 
 import (
 	"fmt"
-	"mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/layout"
 
 	"github.com/spf13/cobra"
 )

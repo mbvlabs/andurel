@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"mbvlabs/andurel/generator/templates"
+	"github.com/mbvlabs/andurel/generator/templates"
 )
 
 var update = flag.Bool("update", false, "update golden files")

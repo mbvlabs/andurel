@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-const moduleName = "mbvlabs/andurel/layout/elements"
+const moduleName = "github.com/mbvlabs/andurel/layout/elements"
 
 // Element represents a directory and its subdirectories.
 type Element struct {

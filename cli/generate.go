@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"mbvlabs/andurel/generator"
+	"github.com/mbvlabs/andurel/generator"
 
 	"github.com/spf13/cobra"
 )

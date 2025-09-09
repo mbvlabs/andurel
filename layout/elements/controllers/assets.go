@@ -8,9 +8,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	"mbvlabs/andurel/layout/elements/assets"
-	"mbvlabs/andurel/layout/elements/config"
-	"mbvlabs/andurel/layout/elements/router/routes"
+	"github.com/mbvlabs/andurel/layout/elements/assets"
+	"github.com/mbvlabs/andurel/layout/elements/config"
+	"github.com/mbvlabs/andurel/layout/elements/router/routes"
 
 	"github.com/labstack/echo/v4"
 	"github.com/maypok86/otter"

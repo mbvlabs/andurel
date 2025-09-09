@@ -6,7 +6,7 @@ import (
 	"errors"
 	"log/slog"
 
-	"mbvlabs/andurel/layout/elements/config"
+	"github.com/mbvlabs/andurel/layout/elements/config"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"

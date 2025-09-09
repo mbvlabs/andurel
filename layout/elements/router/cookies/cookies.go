@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"mbvlabs/andurel/layout/elements/config"
+	"github.com/mbvlabs/andurel/layout/elements/config"
 
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"

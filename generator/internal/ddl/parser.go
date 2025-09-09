@@ -2,7 +2,7 @@ package ddl
 
 import (
 	"fmt"
-	"mbvlabs/andurel/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"regexp"
 	"slices"
 	"strconv"

@@ -11,10 +11,10 @@ import (
 	"slices"
 	"strings"
 
-	"mbvlabs/andurel/layout/elements/config"
-	"mbvlabs/andurel/layout/elements/controllers"
-	"mbvlabs/andurel/layout/elements/router/cookies"
-	"mbvlabs/andurel/layout/elements/router/routes"
+	"github.com/mbvlabs/andurel/layout/elements/config"
+	"github.com/mbvlabs/andurel/layout/elements/controllers"
+	"github.com/mbvlabs/andurel/layout/elements/router/cookies"
+	"github.com/mbvlabs/andurel/layout/elements/router/routes"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
