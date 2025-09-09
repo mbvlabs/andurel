@@ -6,9 +6,11 @@ import (
 	"encoding/xml"
 	"fmt"
 	"log/slog"
-	"mbvlabs/andurel/layout/elements/assets"
-	"mbvlabs/andurel/layout/elements/router/routes"
 	"net/http"
+
+	"mbvlabs/andurel/layout/elements/assets"
+	"mbvlabs/andurel/layout/elements/config"
+	"mbvlabs/andurel/layout/elements/router/routes"
 
 	"github.com/labstack/echo/v4"
 	"github.com/maypok86/otter"
@@ -16,11 +18,10 @@ import (
 )
 
 const (
-	sitemapCacheKey  = "assets.sitemap"
-	robotsCacheKey   = "assets.robots"
-	weekInHours      = 168
-	threeInHours     = 72
-	threeMonthsCache = "63072000"
+	sitemapCacheKey = "assets.sitemap"
+	robotsCacheKey  = "assets.robots"
+	weekInHours     = 168
+	threeInHours    = 72
 )
 
 type Assets struct {
@@ -88,8 +89,7 @@ func (a Assets) Robots(c echo.Context) error {
 		Allow:     "/",
 		Sitemap: fmt.Sprintf(
 			"%s%s",
-			// config.Cfg.App.GetFullDomain(),
-			"",
+			config.App.GetFullDomain(),
 			routes.Sitemap.Path,
 		),
 	})
@@ -137,8 +137,7 @@ type Sitemap struct {
 }
 
 func createSitemap(c echo.Context) (Sitemap, error) {
-	// baseURL := config.Cfg.App.GetFullDomain()
-	baseURL := ""
+	baseURL := config.App.GetFullDomain()
 
 	var urls []URL
 
@@ -171,56 +170,39 @@ func createSitemap(c echo.Context) (Sitemap, error) {
 	return sitemap, nil
 }
 
-func (a Assets) CSSEntrypoint(c echo.Context) error {
+func (a Assets) Stylesheet(c echo.Context) error {
 	stylesheet, err := assets.Files.ReadFile(
-		"css/styles.css",
+		"css/tw.css",
 	)
 	if err != nil {
 		return err
 	}
 
 	c = a.enableCaching(c, stylesheet)
-
 	return c.Blob(http.StatusOK, "text/css", stylesheet)
 }
 
-func (a Assets) CSSFile(c echo.Context) error {
-	filename := c.Param("file")
+func (a Assets) Scripts(c echo.Context) error {
 	stylesheet, err := assets.Files.ReadFile(
-		fmt.Sprintf("css/%s", filename),
+		"js/scripts.js",
 	)
 	if err != nil {
 		return err
 	}
 
 	c = a.enableCaching(c, stylesheet)
-
-	return c.Blob(http.StatusOK, "text/css", stylesheet)
+	return c.Blob(http.StatusOK, "application/javascript", stylesheet)
 }
 
-func (a Assets) JSEntrypoint(c echo.Context) error {
-	script, err := assets.Files.ReadFile(
-		"js/script.js",
+func (a Assets) Script(c echo.Context) error {
+	param := c.Param("file")
+	stylesheet, err := assets.Files.ReadFile(
+		fmt.Sprintf("js/%s", param),
 	)
 	if err != nil {
 		return err
 	}
 
-	c = a.enableCaching(c, script)
-
-	return c.Blob(http.StatusOK, "text/javascript", script)
-}
-
-func (a Assets) JSFile(c echo.Context) error {
-	filename := c.Param("file")
-	script, err := assets.Files.ReadFile(
-		fmt.Sprintf("js/%s", filename),
-	)
-	if err != nil {
-		return err
-	}
-
-	c = a.enableCaching(c, script)
-
-	return c.Blob(http.StatusOK, "text/javascript", script)
+	c = a.enableCaching(c, stylesheet)
+	return c.Blob(http.StatusOK, "application/javascript", stylesheet)
 }

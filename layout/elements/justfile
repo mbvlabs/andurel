@@ -38,7 +38,7 @@ live-templ:
 	go tool air -build.cmd "go tool templ generate --watch" -build.include_ext "templ" -build.bin "true" -build.include_dir "views" -build.exclude_regex "_templ.go"
 
 live-tailwind:
-	./bin/tailwindcli -i ./base.css -o ./assets/css/tw.css --watch
+	./bin/tailwindcli -i ./css/base.css -o ./assets/css/tw.css --watch
 
 [parallel]
 run: live-tailwind live-templ live-server 
