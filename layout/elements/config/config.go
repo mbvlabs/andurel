@@ -1,3 +1,7 @@
 package config
 
-type Config struct{}
+var (
+	App  = newAppConfig()
+	Auth = newAuthConfig()
+	DB   = newDatabaseConfig()
+)

@@ -2,48 +2,49 @@ package controllers
 
 import (
 	"flag"
-	"mbvlabs/andurel/generator/internal/catalog"
-	"mbvlabs/andurel/generator/internal/ddl"
-	"mbvlabs/andurel/generator/internal/migrations"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"mbvlabs/andurel/generator/internal/catalog"
+	"mbvlabs/andurel/generator/internal/ddl"
+	"mbvlabs/andurel/generator/internal/migrations"
 )
 
 var update = flag.Bool("update", false, "update golden files")
 
 func TestGenerator_GoldenFiles(t *testing.T) {
 	tests := []struct {
-		name          string
-		migrationsDir string
-		tableName     string
-		resourceName  string
-		modulePath    string
+		name           string
+		migrationsDir  string
+		tableName      string
+		resourceName   string
+		modulePath     string
 		controllerType ControllerType
 	}{
 		{
-			name:          "resource_user_controller",
-			migrationsDir: "simple_user_table",
-			tableName:     "users",
-			resourceName:  "User",
-			modulePath:    "github.com/example/myapp",
+			name:           "resource_user_controller",
+			migrationsDir:  "simple_user_table",
+			tableName:      "users",
+			resourceName:   "User",
+			modulePath:     "github.com/example/myapp",
 			controllerType: ResourceController,
 		},
 		{
-			name:          "resource_product_controller",
-			migrationsDir: "product_table_with_decimals",
-			tableName:     "products",
-			resourceName:  "Product",
-			modulePath:    "github.com/example/shop",
+			name:           "resource_product_controller",
+			migrationsDir:  "product_table_with_decimals",
+			tableName:      "products",
+			resourceName:   "Product",
+			modulePath:     "github.com/example/shop",
 			controllerType: ResourceController,
 		},
 		{
-			name:          "normal_dashboard_controller",
-			migrationsDir: "", // Not needed for normal controllers
-			tableName:     "",
-			resourceName:  "Dashboard",
-			modulePath:    "github.com/example/myapp",
+			name:           "normal_dashboard_controller",
+			migrationsDir:  "", // Not needed for normal controllers
+			tableName:      "",
+			resourceName:   "Dashboard",
+			modulePath:     "github.com/example/myapp",
 			controllerType: NormalController,
 		},
 	}
@@ -54,17 +55,17 @@ func TestGenerator_GoldenFiles(t *testing.T) {
 			controllersDir := filepath.Join(tempDir, "controllers")
 			routesDir := filepath.Join(tempDir, "router", "routes")
 
-			err := os.MkdirAll(controllersDir, 0755)
+			err := os.MkdirAll(controllersDir, 0o755)
 			if err != nil {
 				t.Fatalf("Failed to create controllers directory: %v", err)
 			}
 
-			err = os.MkdirAll(routesDir, 0755)
+			err = os.MkdirAll(routesDir, 0o755)
 			if err != nil {
 				t.Fatalf("Failed to create routes directory: %v", err)
 			}
 
-			// Create a basic routes.go file for testing  
+			// Create a basic routes.go file for testing
 			routesContent := `package routes
 
 import "github.com/labstack/echo/v4"
@@ -100,7 +101,7 @@ var BuildRoutes = func() []Route {
 }()
 `
 			routesFile := filepath.Join(routesDir, "routes.go")
-			err = os.WriteFile(routesFile, []byte(routesContent), 0644)
+			err = os.WriteFile(routesFile, []byte(routesContent), 0o644)
 			if err != nil {
 				t.Fatalf("Failed to create routes.go: %v", err)
 			}
@@ -112,13 +113,18 @@ var BuildRoutes = func() []Route {
 			os.Chdir(tempDir)
 
 			generator := NewGenerator("postgresql")
-			
+
 			var cat *catalog.Catalog
-			
+
 			if tt.controllerType == ResourceController && tt.migrationsDir != "" {
 				// Build catalog from migrations for resource controllers
-				migrationsDir := filepath.Join(originalWd, "testdata", "migrations", tt.migrationsDir)
-				
+				migrationsDir := filepath.Join(
+					originalWd,
+					"testdata",
+					"migrations",
+					tt.migrationsDir,
+				)
+
 				allMigrations, err := migrations.DiscoverMigrations([]string{migrationsDir})
 				if err != nil {
 					t.Fatalf("Failed to discover migrations: %v", err)
@@ -137,7 +143,12 @@ var BuildRoutes = func() []Route {
 				cat = catalog.NewCatalog("public")
 			}
 
-			err = generator.GenerateController(cat, tt.resourceName, tt.controllerType, tt.modulePath)
+			err = generator.GenerateController(
+				cat,
+				tt.resourceName,
+				tt.controllerType,
+				tt.modulePath,
+			)
 			if err != nil {
 				t.Fatalf("Failed to generate controller: %v", err)
 			}
@@ -171,7 +182,13 @@ var BuildRoutes = func() []Route {
 				// Test that routes.go was properly updated with the new routes
 				t.Run("routes_registration", func(t *testing.T) {
 					updatedRoutesPath := filepath.Join("router", "routes", "routes.go")
-					compareWithGolden(t, tt.name+"_routes_registration.go", updatedRoutesPath, *update, originalWd)
+					compareWithGolden(
+						t,
+						tt.name+"_routes_registration.go",
+						updatedRoutesPath,
+						*update,
+						originalWd,
+					)
 				})
 			}
 		})
@@ -192,12 +209,12 @@ func compareWithGolden(
 	goldenPath := filepath.Join(originalWd, "testdata", goldenFile)
 
 	if update {
-		err = os.MkdirAll(filepath.Dir(goldenPath), 0755)
+		err = os.MkdirAll(filepath.Dir(goldenPath), 0o755)
 		if err != nil {
 			t.Fatalf("Failed to create testdata directory: %v", err)
 		}
 
-		err = os.WriteFile(goldenPath, actualContent, 0644)
+		err = os.WriteFile(goldenPath, actualContent, 0o644)
 		if err != nil {
 			t.Fatalf("Failed to update golden file %s: %v", goldenPath, err)
 		}

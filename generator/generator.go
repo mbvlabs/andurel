@@ -4,28 +4,30 @@ package generator
 import (
 	"bufio"
 	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+
 	"mbvlabs/andurel/generator/controllers"
 	"mbvlabs/andurel/generator/files"
 	"mbvlabs/andurel/generator/internal/catalog"
 	"mbvlabs/andurel/generator/internal/config"
 	"mbvlabs/andurel/generator/internal/ddl"
 	"mbvlabs/andurel/generator/internal/migrations"
+	"mbvlabs/andurel/generator/internal/types"
 	"mbvlabs/andurel/generator/models"
 	"mbvlabs/andurel/generator/views"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 
 	"github.com/jinzhu/inflection"
 )
 
 type Generator struct {
-	modulePath        string
-	fileManager       *files.Manager
-	modelGenerator    *models.Generator
+	modulePath          string
+	fileManager         *files.Manager
+	modelGenerator      *models.Generator
 	controllerGenerator *controllers.Generator
-	viewGenerator     *views.Generator
+	viewGenerator       *views.Generator
 }
 
 func New() (Generator, error) {
@@ -106,6 +108,14 @@ func (g *Generator) buildCatalogFromMigrations(tableName string) (*catalog.Catal
 }
 
 func (g *Generator) GenerateModel(resourceName, tableName string) error {
+	rootDir, err := g.fileManager.FindGoModRoot()
+	if err != nil {
+		return fmt.Errorf("failed to find go.mod root: %w", err)
+	}
+	if err := types.ValidateSQLCConfig(rootDir); err != nil {
+		return fmt.Errorf("SQLC configuration validation failed: %w", err)
+	}
+
 	pluralName := inflection.Plural(strings.ToLower(resourceName))
 	modelPath := filepath.Join("models", strings.ToLower(resourceName)+".go")
 	sqlPath := filepath.Join("database/queries", pluralName+".sql")
@@ -137,8 +147,15 @@ func (g *Generator) GenerateModel(resourceName, tableName string) error {
 	return nil
 }
 
-func (g *Generator) GenerateResourceController(resourceName, tableName string) error {
-	// Check if model exists
+func (g *Generator) GenerateController(resourceName, tableName string) error {
+	rootDir, err := g.fileManager.FindGoModRoot()
+	if err != nil {
+		return fmt.Errorf("failed to find go.mod root: %w", err)
+	}
+	if err := types.ValidateSQLCConfig(rootDir); err != nil {
+		return fmt.Errorf("SQLC configuration validation failed: %w", err)
+	}
+
 	modelPath := filepath.Join("models", strings.ToLower(resourceName)+".go")
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
 		return fmt.Errorf(
@@ -147,18 +164,15 @@ func (g *Generator) GenerateResourceController(resourceName, tableName string) e
 		)
 	}
 
-	// Build catalog from migrations
 	cat, err := g.buildCatalogFromMigrations(tableName)
 	if err != nil {
 		return err
 	}
 
-	// Generate controller
 	if err := g.controllerGenerator.GenerateController(cat, resourceName, controllers.ResourceController, g.modulePath); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
-	// Generate view
 	if err := g.viewGenerator.GenerateView(cat, resourceName, g.modulePath); err != nil {
 		return fmt.Errorf("failed to generate view: %w", err)
 	}
@@ -167,17 +181,17 @@ func (g *Generator) GenerateResourceController(resourceName, tableName string) e
 	return nil
 }
 
-func (g *Generator) GenerateController(resourceName string) error {
-	// For normal controllers, we don't need a table, just generate empty controller
-	emptycat := catalog.NewCatalog("public")
-	
-	if err := g.controllerGenerator.GenerateController(emptycat, resourceName, controllers.NormalController, g.modulePath); err != nil {
-		return fmt.Errorf("failed to generate controller: %w", err)
-	}
+// func (g *Generator) GenerateController(resourceName string) error {
+// 	emptycat := catalog.NewCatalog("public")
+//
+// 	if err := g.controllerGenerator.GenerateController(emptycat, resourceName, controllers.NormalController, g.modulePath); err != nil {
+// 		return fmt.Errorf("failed to generate controller: %w", err)
+// 	}
+//
+// 	fmt.Printf("Successfully generated controller for %s\n", resourceName)
+// 	return nil
+// }
 
-	fmt.Printf("Successfully generated controller for %s\n", resourceName)
-	return nil
-}
 //
 //	func (g *Generator) GenerateView(resourceName string) error {
 //		pluralName := inflection.Plural(strings.ToLower(resourceName))

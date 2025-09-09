@@ -52,8 +52,7 @@ func (r Products) Index(c echo.Context) error {
 		)
 	}
 
-	return views.ProductIndex(productsList.Products).
-		Render(renderArgs(c))
+	return render(c, views.ProductIndex(productsList.Products))
 }
 
 func (r Products) Show(c echo.Context) error {
@@ -67,7 +66,7 @@ func (r Products) Show(c echo.Context) error {
 		return c.String(http.StatusNotFound, "Product not found")
 	}
 
-	return views.ProductShow(product).Render(renderArgs(c))
+	return render(c, views.ProductShow(product))
 }
 
 func (r Products) New(c echo.Context) error {
@@ -93,7 +92,7 @@ func (r Products) Create(c echo.Context) error {
 			err,
 		)
 
-		return views.ErrorPage().Render(renderArgs(c))
+		return render(c, views.ErrorPage())
 	}
 
 	payload := models.CreateProductPayload{
@@ -135,7 +134,7 @@ func (r Products) Edit(c echo.Context) error {
 		return c.String(http.StatusNotFound, "Product not found")
 	}
 
-	return views.ProductEdit(product).Render(renderArgs(c))
+	return render(c, views.ProductEdit(product))
 }
 
 type UpdateProductFormPayload struct {
@@ -162,7 +161,7 @@ func (r Products) Update(c echo.Context) error {
 			err,
 		)
 
-		return views.ErrorPage().Render(renderArgs(c))
+		return render(c, views.ErrorPage())
 	}
 
 	payload := models.UpdateProductPayload{

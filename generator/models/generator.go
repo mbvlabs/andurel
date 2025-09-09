@@ -2,16 +2,17 @@ package models
 
 import (
 	"fmt"
-	"mbvlabs/andurel/generator/internal/catalog"
-	"mbvlabs/andurel/generator/internal/ddl"
-	"mbvlabs/andurel/generator/internal/migrations"
-	"mbvlabs/andurel/generator/templates"
-	"mbvlabs/andurel/generator/types"
 	"os"
 	"os/exec"
 	"sort"
 	"strings"
 	"text/template"
+
+	"mbvlabs/andurel/generator/internal/catalog"
+	"mbvlabs/andurel/generator/internal/ddl"
+	"mbvlabs/andurel/generator/internal/migrations"
+	"mbvlabs/andurel/generator/internal/types"
+	"mbvlabs/andurel/generator/templates"
 )
 
 type GeneratedField struct {
@@ -91,7 +92,10 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 			importSet[field.Package] = true
 		}
 
-		g.addTypeImports(field.SQLCType, importSet)
+		typeImports := g.addTypeImports(field.SQLCType, field.Type)
+		for imp := range typeImports {
+			importSet[imp] = true
+		}
 		model.Fields = append(model.Fields, field)
 	}
 
@@ -122,17 +126,14 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		field.Type,
 	)
 
-	// For created_at/updated_at, we don't need conversion to DB since they use now() in SQL
-	// For other fields in Create operations, use 'data.FieldName'
 	if col.Name == "created_at" || col.Name == "updated_at" {
-		field.ConversionToDB = "" // Not needed since handled by now() in SQL
+		field.ConversionToDB = ""
 	} else {
 		field.ConversionToDB = g.typeMapper.GenerateConversionToDB(field.SQLCType, field.Type, "data."+field.Name)
 	}
 
-	// For Update operations, updated_at uses now() in SQL, others use data.FieldName  
 	if col.Name == "updated_at" {
-		field.ConversionToDBForUpdate = "" // Not needed since handled by now() in SQL
+		field.ConversionToDBForUpdate = ""
 	} else {
 		field.ConversionToDBForUpdate = g.typeMapper.GenerateConversionToDB(
 			field.SQLCType,
@@ -140,18 +141,22 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 			"data."+field.Name,
 		)
 	}
+
 	field.ZeroCheck = g.typeMapper.GenerateZeroCheck(field.Type, "data."+field.Name)
 
 	return field, nil
 }
 
-func (g *Generator) addTypeImports(sqlcType string, importSet map[string]bool) {
-	switch sqlcType {
-	case "sql.NullString", "sql.NullBool", "sql.NullInt32", "sql.NullInt64", "sql.NullFloat64":
-		importSet["database/sql"] = true
-	case "pgtype.Timestamptz", "pgtype.Timestamp", "pgtype.Numeric":
+func (g *Generator) addTypeImports(sqlcType, goType string) map[string]bool {
+	importSet := map[string]bool{}
+	if strings.Contains(sqlcType, "pgtype.") {
 		importSet["github.com/jackc/pgx/v5/pgtype"] = true
 	}
+	if strings.Contains(goType, "time.Time") {
+		importSet["time"] = true
+	}
+
+	return importSet
 }
 
 func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string) (string, error) {
@@ -159,6 +164,9 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 		"SQLCTypeName": func(tableName string) string {
 			singular := strings.TrimSuffix(tableName, "s") // Simple singularization
 			return types.FormatFieldName(singular)
+		},
+		"lower": func(s string) string {
+			return strings.ToLower(s)
 		},
 	}
 
@@ -211,7 +219,7 @@ func (g *Generator) GenerateModel(
 		return fmt.Errorf("failed to render model file: %w", err)
 	}
 
-	if err := os.WriteFile(modelPath, []byte(modelContent), 0600); err != nil {
+	if err := os.WriteFile(modelPath, []byte(modelContent), 0o600); err != nil {
 		return fmt.Errorf("failed to write model file: %w", err)
 	}
 
@@ -246,7 +254,7 @@ func (g *Generator) GenerateSQLFile(
 		return err
 	}
 
-	return os.WriteFile(sqlPath, []byte(buf.String()), 0600)
+	return os.WriteFile(sqlPath, []byte(buf.String()), 0o600)
 }
 
 func (g *Generator) GenerateSQLContent(
@@ -287,8 +295,7 @@ func (g *Generator) prepareSQLData(
 
 	for _, col := range table.Columns {
 		insertColumns = append(insertColumns, col.Name)
-		
-		// Use now() for created_at and updated_at, placeholders for everything else
+
 		if col.Name == "created_at" || col.Name == "updated_at" {
 			insertPlaceholders = append(insertPlaceholders, "now()")
 		} else {
@@ -304,7 +311,6 @@ func (g *Generator) prepareSQLData(
 	for _, col := range table.Columns {
 		if col.Name != "id" && col.Name != "created_at" {
 			if col.Name == "updated_at" {
-				// Use now() for updated_at in updates
 				updateColumns = append(updateColumns, "updated_at=now()")
 			} else {
 				updateColumns = append(

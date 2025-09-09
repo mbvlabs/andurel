@@ -58,8 +58,7 @@ func (r {{.ResourceName}}s) Index(c echo.Context) error {
 		)
 	}
 
-	return views.{{.ResourceName}}Index({{.PluralName}}List.{{.ResourceName}}s).
-		Render(renderArgs(c))
+	return render(c, views.{{.ResourceName}}Index({{.PluralName}}List.{{.ResourceName}}s))
 }
 
 func (r {{.ResourceName}}s) Show(c echo.Context) error {
@@ -73,11 +72,11 @@ func (r {{.ResourceName}}s) Show(c echo.Context) error {
 		return c.String(http.StatusNotFound, "{{.ResourceName}} not found")
 	}
 
-	return views.{{.ResourceName}}Show({{.ResourceName | ToLower}}).Render(renderArgs(c))
+	return render(c, views.{{.ResourceName}}Show({{.ResourceName | ToLower}}))
 }
 
 func (r {{.ResourceName}}s) New(c echo.Context) error {
-	return views.{{.ResourceName}}New().Render(renderArgs(c))
+	return render(c, views.{{.ResourceName}}New())
 }
 
 type Create{{.ResourceName}}FormPayload struct {
@@ -102,7 +101,7 @@ func (r {{.ResourceName}}s) Create(c echo.Context) error {
 			err,
 		)
 
-		return views.ErrorPage().Render(renderArgs(c))
+		return render(c, views.NotFound())
 	}
 
 	payload := models.Create{{.ResourceName}}Payload{
@@ -155,7 +154,7 @@ func (r {{.ResourceName}}s) Edit(c echo.Context) error {
 		return c.String(http.StatusNotFound, "{{.ResourceName}} not found")
 	}
 
-	return views.{{.ResourceName}}Edit({{.ResourceName | ToLower}}).Render(renderArgs(c))
+	return render(c, views.{{.ResourceName}}Edit({{.ResourceName | ToLower}}))
 }
 
 type Update{{.ResourceName}}FormPayload struct {
@@ -185,7 +184,7 @@ func (r {{.ResourceName}}s) Update(c echo.Context) error {
 			err,
 		)
 
-		return views.ErrorPage().Render(renderArgs(c))
+		return render(c, views.NotFound())
 	}
 
 	payload := models.Update{{.ResourceName}}Payload{

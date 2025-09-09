@@ -2,14 +2,15 @@ package controllers
 
 import (
 	"fmt"
-	"mbvlabs/andurel/generator/internal/catalog"
-	"mbvlabs/andurel/generator/templates"
-	"mbvlabs/andurel/generator/types"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"mbvlabs/andurel/generator/internal/catalog"
+	"mbvlabs/andurel/generator/internal/types"
+	"mbvlabs/andurel/generator/templates"
 
 	"github.com/jinzhu/inflection"
 	"golang.org/x/text/cases"
@@ -68,7 +69,6 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 		Fields:       make([]GeneratedField, 0),
 	}
 
-	// For resource controllers, we need to generate fields from the table
 	if config.ControllerType == ResourceController {
 		table, err := cat.GetTable("", config.PluralName)
 		if err != nil {
@@ -100,7 +100,6 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		IsSystemField: col.Name == "created_at" || col.Name == "updated_at" || col.Name == "id",
 	}
 
-	// Set form type for controller form handling
 	switch goType {
 	case "time.Time":
 		field.GoFormType = "time.Time"
@@ -163,7 +162,6 @@ func (g *Generator) GenerateController(
 	pluralName := inflection.Plural(strings.ToLower(resourceName))
 	controllerPath := filepath.Join("controllers", pluralName+".go")
 
-	// Check if controller already exists
 	if _, err := os.Stat(controllerPath); err == nil {
 		return fmt.Errorf("controller file %s already exists", controllerPath)
 	}
@@ -184,21 +182,18 @@ func (g *Generator) GenerateController(
 		return fmt.Errorf("failed to render controller file: %w", err)
 	}
 
-	// Ensure controllers directory exists
-	if err := os.MkdirAll("controllers", 0755); err != nil {
+	if err := os.MkdirAll("controllers", 0o755); err != nil {
 		return fmt.Errorf("failed to create controllers directory: %w", err)
 	}
 
-	if err := os.WriteFile(controllerPath, []byte(controllerContent), 0600); err != nil {
+	if err := os.WriteFile(controllerPath, []byte(controllerContent), 0o600); err != nil {
 		return fmt.Errorf("failed to write controller file: %w", err)
 	}
 
-	// Format the generated controller file
 	if err := g.formatGoFile(controllerPath); err != nil {
 		return fmt.Errorf("failed to format controller file: %w", err)
 	}
 
-	// For resource controllers, also generate routes
 	if controllerType == ResourceController {
 		if err := g.GenerateRoutes(resourceName, pluralName); err != nil {
 			return fmt.Errorf("failed to generate routes: %w", err)
@@ -211,7 +206,6 @@ func (g *Generator) GenerateController(
 func (g *Generator) GenerateRoutes(resourceName, pluralName string) error {
 	routesPath := filepath.Join("router/routes", pluralName+".go")
 
-	// Check if routes already exist
 	if _, err := os.Stat(routesPath); err == nil {
 		return fmt.Errorf("routes file %s already exists", routesPath)
 	}
@@ -221,21 +215,18 @@ func (g *Generator) GenerateRoutes(resourceName, pluralName string) error {
 		return fmt.Errorf("failed to generate route content: %w", err)
 	}
 
-	// Ensure routes directory exists
-	if err := os.MkdirAll("router/routes", 0755); err != nil {
+	if err := os.MkdirAll("router/routes", 0o755); err != nil {
 		return fmt.Errorf("failed to create routes directory: %w", err)
 	}
 
-	if err := os.WriteFile(routesPath, []byte(routeContent), 0600); err != nil {
+	if err := os.WriteFile(routesPath, []byte(routeContent), 0o600); err != nil {
 		return fmt.Errorf("failed to write routes file: %w", err)
 	}
 
-	// Format the generated routes file
 	if err := g.formatGoFile(routesPath); err != nil {
 		return fmt.Errorf("failed to format routes file: %w", err)
 	}
 
-	// Register routes in routes.go
 	return g.registerRoutes(pluralName)
 }
 
@@ -280,29 +271,25 @@ func (g *Generator) registerRoutes(pluralName string) error {
 
 	contentStr := string(content)
 
-	// Add import for the new routes
-	resourceName := cases.Title(language.English).String(strings.TrimSuffix(pluralName, "s")) // Convert plural to singular title case
+	resourceName := cases.Title(language.English).
+		String(strings.TrimSuffix(pluralName, "s"))
 	routeSliceName := resourceName + "Routes"
 
-	// Check if routes are already registered
 	if strings.Contains(contentStr, routeSliceName) {
-		return nil // Already registered
+		return nil
 	}
 
-	// Find the return statement and insert before it
 	lines := strings.Split(contentStr, "\n")
 	var modifiedLines []string
 	added := false
 
 	for _, line := range lines {
-		// Insert new routes before the return statement
 		if strings.TrimSpace(line) == "return r" && !added {
-			// Add the new routes
 			modifiedLines = append(modifiedLines, "")
-			modifiedLines = append(modifiedLines, fmt.Sprintf("\tr = append("))
-			modifiedLines = append(modifiedLines, fmt.Sprintf("\t\tr,"))
+			modifiedLines = append(modifiedLines, "\tr = append(")
+			modifiedLines = append(modifiedLines, "\t\tr,")
 			modifiedLines = append(modifiedLines, fmt.Sprintf("\t\t%s...,", routeSliceName))
-			modifiedLines = append(modifiedLines, fmt.Sprintf("\t)"))
+			modifiedLines = append(modifiedLines, "\t)")
 			modifiedLines = append(modifiedLines, "")
 			added = true
 		}
@@ -313,7 +300,7 @@ func (g *Generator) registerRoutes(pluralName string) error {
 		return fmt.Errorf("could not find appropriate place to register routes")
 	}
 
-	return os.WriteFile(routesFilePath, []byte(strings.Join(modifiedLines, "\n")), 0600)
+	return os.WriteFile(routesFilePath, []byte(strings.Join(modifiedLines, "\n")), 0o600)
 }
 
 func (g *Generator) formatGoFile(filePath string) error {

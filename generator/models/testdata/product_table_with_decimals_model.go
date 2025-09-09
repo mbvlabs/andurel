@@ -7,21 +7,20 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	"database/sql"
 
 	"github.com/example/shop/models/internal/db"
 )
 
 type Product struct {
-	ID int32
-	Name string
-	Price float64
+	ID          int32
+	Name        string
+	Price       float64
 	Description string
-	CategoryId int32
-	InStock bool
-	Metadata interface{}
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CategoryId  int32
+	InStock     bool
+	Metadata    []byte
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 func FindProduct(
@@ -38,12 +37,12 @@ func FindProduct(
 }
 
 type CreateProductPayload struct {
-	Name string
-	Price float64
+	Name        string
+	Price       float64
 	Description string
-	CategoryId int32
-	InStock bool
-	Metadata interface{}
+	CategoryId  int32
+	InStock     bool
+	Metadata    []byte
 }
 
 func CreateProduct(
@@ -56,13 +55,13 @@ func CreateProduct(
 	}
 
 	row, err := db.New().InsertProduct(ctx, dbtx, db.InsertProductParams{
-		ID: uuid.New(),
-		Name: data.Name,
-		Price: data.Price,
-		Description: sql.NullString{String: data.Description, Valid: data.Description != ""},
-		CategoryId: data.CategoryId,
-		InStock: sql.NullBool{Bool: data.InStock, Valid: true},
-		Metadata: data.Metadata,
+		ID:          uuid.New(),
+		Name:        data.Name,
+		Price:       data.Price,
+		Description: pgtype.Text{String: data.Description, Valid: true},
+		CategoryId:  data.CategoryId,
+		InStock:     pgtype.Bool{Bool: data.InStock, Valid: true},
+		Metadata:    data.Metadata,
 	})
 	if err != nil {
 		return Product{}, err
@@ -72,14 +71,14 @@ func CreateProduct(
 }
 
 type UpdateProductPayload struct {
-	ID uuid.UUID
-	Name string
-	Price float64
+	ID          uuid.UUID
+	Name        string
+	Price       float64
 	Description string
-	CategoryId int32
-	InStock bool
-	Metadata interface{}
-	UpdatedAt time.Time
+	CategoryId  int32
+	InStock     bool
+	Metadata    []byte
+	UpdatedAt   time.Time
 }
 
 func UpdateProduct(
@@ -97,28 +96,28 @@ func UpdateProduct(
 	}
 
 	payload := db.UpdateProductParams{
-		ID: data.ID,
-		Name: currentRow.Name,
-		Price: currentRow.Price,
+		ID:          data.ID,
+		Name:        currentRow.Name,
+		Price:       currentRow.Price,
 		Description: currentRow.Description,
-		CategoryId: currentRow.CategoryId,
-		InStock: currentRow.InStock,
-		Metadata: currentRow.Metadata,
+		CategoryId:  currentRow.CategoryId,
+		InStock:     currentRow.InStock,
+		Metadata:    currentRow.Metadata,
 	}
-	if data.Name != "" {
+	if true {
 		payload.Name = data.Name
 	}
-	if data.Price != 0 {
+	if true {
 		payload.Price = data.Price
 	}
-	if data.Description != "" {
-		payload.Description = sql.NullString{String: data.Description, Valid: data.Description != ""}
+	if true {
+		payload.Description = pgtype.Text{String: data.Description, Valid: true}
 	}
-	if data.CategoryId != 0 {
+	if true {
 		payload.CategoryId = data.CategoryId
 	}
 	if true {
-		payload.InStock = sql.NullBool{Bool: data.InStock, Valid: true}
+		payload.InStock = pgtype.Bool{Bool: data.InStock, Valid: true}
 	}
 	if true {
 		payload.Metadata = data.Metadata
@@ -158,7 +157,7 @@ func AllProducts(
 }
 
 type PaginatedProducts struct {
-	Products    []Product
+	Products   []Product
 	TotalCount int64
 	Page       int64
 	PageSize   int64
@@ -208,7 +207,7 @@ func PaginateProducts(
 	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
 
 	return PaginatedProducts{
-		Products:    products,
+		Products:   products,
 		TotalCount: totalCount,
 		Page:       page,
 		PageSize:   pageSize,
@@ -218,14 +217,14 @@ func PaginateProducts(
 
 func rowToProduct(row db.Product) Product {
 	return Product{
-		ID: row.ID,
-		Name: row.Name,
-		Price: row.Price,
+		ID:          row.ID,
+		Name:        row.Name,
+		Price:       row.Price,
 		Description: row.Description.String,
-		CategoryId: row.CategoryId,
-		InStock: row.InStock.Bool,
-		Metadata: row.Metadata,
-		CreatedAt: row.CreatedAt.Time,
-		UpdatedAt: row.UpdatedAt.Time,
+		CategoryId:  row.CategoryId,
+		InStock:     row.InStock.Bool,
+		Metadata:    row.Metadata,
+		CreatedAt:   row.CreatedAt.Time,
+		UpdatedAt:   row.UpdatedAt.Time,
 	}
 }

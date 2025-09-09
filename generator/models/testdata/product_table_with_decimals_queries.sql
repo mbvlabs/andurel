@@ -30,3 +30,4 @@ limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
 
 -- name: CountProducts :one
 select count(*) from products;
+

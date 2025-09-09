@@ -52,8 +52,7 @@ func (r Users) Index(c echo.Context) error {
 		)
 	}
 
-	return views.UserIndex(usersList.Users).
-		Render(renderArgs(c))
+	return render(c, views.UserIndex(usersList.Users))
 }
 
 func (r Users) Show(c echo.Context) error {
@@ -67,11 +66,11 @@ func (r Users) Show(c echo.Context) error {
 		return c.String(http.StatusNotFound, "User not found")
 	}
 
-	return views.UserShow(user).Render(renderArgs(c))
+	return render(c, views.UserShow(user))
 }
 
 func (r Users) New(c echo.Context) error {
-	return views.UserNew().Render(renderArgs(c))
+	return render(c, views.UserNew())
 }
 
 type CreateUserFormPayload struct {
@@ -91,7 +90,7 @@ func (r Users) Create(c echo.Context) error {
 			err,
 		)
 
-		return views.ErrorPage().Render(renderArgs(c))
+		return render(c, views.ErrorPage())
 	}
 
 	payload := models.CreateUserPayload{
@@ -131,7 +130,7 @@ func (r Users) Edit(c echo.Context) error {
 		return c.String(http.StatusNotFound, "User not found")
 	}
 
-	return views.UserEdit(user).Render(renderArgs(c))
+	return render(c, views.UserEdit(user))
 }
 
 type UpdateUserFormPayload struct {
@@ -156,7 +155,7 @@ func (r Users) Update(c echo.Context) error {
 			err,
 		)
 
-		return views.ErrorPage().Render(renderArgs(c))
+		return render(c, views.ErrorPage())
 	}
 
 	payload := models.UpdateUserPayload{

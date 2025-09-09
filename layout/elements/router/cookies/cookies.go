@@ -3,8 +3,9 @@ package cookies
 import (
 	"context"
 	"fmt"
-	"mbvlabs/andurel/layout/elements/config"
 	"strings"
+
+	"mbvlabs/andurel/layout/elements/config"
 
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
@@ -20,16 +21,19 @@ func GetAuthenticatedSessionName() string {
 	return authenticatedSessionName
 }
 
+var AppKey appKey = "app_context"
+
+type appKey string
+
 const (
-	FlashKey         = "flash_messages"
-	AppKey           = "app_context"
-	isAuthenticated  = "is_authenticated"
-	oneWeekInSeconds = 604800
+	isAuthenticated = "is_authenticated"
+	// oneWeekInSeconds = 604800
 )
 
 type App struct {
 	echo.Context
-	CurrentPath string
+	IsAuthenticated bool
+	FlashMessages   []FlashMessage
 }
 
 func GetAppCtx(ctx context.Context) App {
@@ -42,22 +46,15 @@ func GetAppCtx(ctx context.Context) App {
 }
 
 func GetApp(c echo.Context) App {
-	_, err := session.Get(authenticatedSessionName, c)
+	sess, err := session.Get(authenticatedSessionName, c)
 	if err != nil {
 		return App{}
 	}
+	app := App{Context: c}
 
-	// isAuth, _ := sess.Values[isAuthenticated].(bool)
-	// userID, _ := sess.Values[userID].(uuid.UUID)
-	// userEmail, _ := sess.Values[userEmail].(string)
-	// isAdmin, _ := sess.Values[isAdmin].(bool)
-
-	return App{
-		Context: c,
-		// UserID:          userID,
-		// Email:           userEmail,
-		// IsAuthenticated: isAuth,
-		// IsAdmin:         isAdmin,
-		CurrentPath: c.Request().URL.Path,
+	if _, ok := sess.Values[isAuthenticated].(bool); ok {
+		app.IsAuthenticated = true
 	}
+
+	return app
 }

@@ -305,17 +305,44 @@ func splitColumnDefinitions(defs string) []string {
 	var result []string
 	var current strings.Builder
 	parenLevel := 0
+	bracketLevel := 0
+	inSingleQuote := false
+	inDoubleQuote := false
 
 	for _, char := range defs {
 		switch char {
+		case '\'':
+			if !inDoubleQuote {
+				inSingleQuote = !inSingleQuote
+			}
+			current.WriteRune(char)
+		case '"':
+			if !inSingleQuote {
+				inDoubleQuote = !inDoubleQuote
+			}
+			current.WriteRune(char)
 		case '(':
-			parenLevel++
+			if !inSingleQuote && !inDoubleQuote {
+				parenLevel++
+			}
 			current.WriteRune(char)
 		case ')':
-			parenLevel--
+			if !inSingleQuote && !inDoubleQuote {
+				parenLevel--
+			}
+			current.WriteRune(char)
+		case '[':
+			if !inSingleQuote && !inDoubleQuote {
+				bracketLevel++
+			}
+			current.WriteRune(char)
+		case ']':
+			if !inSingleQuote && !inDoubleQuote {
+				bracketLevel--
+			}
 			current.WriteRune(char)
 		case ',':
-			if parenLevel == 0 {
+			if parenLevel == 0 && bracketLevel == 0 && !inSingleQuote && !inDoubleQuote {
 				result = append(result, current.String())
 				current.Reset()
 			} else {

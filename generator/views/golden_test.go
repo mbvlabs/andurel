@@ -61,10 +61,10 @@ func TestGenerator_GoldenFiles(t *testing.T) {
 			os.Chdir(tempDir)
 
 			generator := NewGenerator("postgresql")
-			
+
 			// Build catalog from migrations
 			migrationsDir := filepath.Join(originalWd, "testdata", "migrations", tt.migrationsDir)
-			
+
 			allMigrations, err := migrations.DiscoverMigrations([]string{migrationsDir})
 			if err != nil {
 				t.Fatalf("Failed to discover migrations: %v", err)

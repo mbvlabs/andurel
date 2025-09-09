@@ -1,12 +1,13 @@
 package models
 
 import (
-	"mbvlabs/andurel/generator/internal/catalog"
-	"mbvlabs/andurel/generator/types"
 	"os"
 	"path/filepath"
 	"slices"
 	"testing"
+
+	"mbvlabs/andurel/generator/internal/catalog"
+	"mbvlabs/andurel/generator/internal/types"
 )
 
 func TestGenerator_Build(t *testing.T) {
@@ -60,11 +61,11 @@ func TestGenerator_Build(t *testing.T) {
 		},
 		"Age": {
 			Type:     "int32",
-			SQLCType: "sql.NullInt32",
+			SQLCType: "pgtype.Int4",
 		},
 		"IsActive": {
 			Type:     "bool",
-			SQLCType: "sql.NullBool",
+			SQLCType: "pgtype.Bool",
 		},
 		"CreatedAt": {
 			Type:     "time.Time",
@@ -113,74 +114,89 @@ func TestGenerator_Build(t *testing.T) {
 			t.Errorf("Field %s: missing ZeroCheck", field.Name)
 		}
 
-		// Test specific conversion patterns
+		// Test specific conversion patterns based on nullability
 		switch field.Name {
 		case "Age":
+			// Nullable field - uses pgtype
 			expectedFromDB := "row.Age.Int32"
 			if field.ConversionFromDB != expectedFromDB {
-				t.Errorf("Field %s: expected ConversionFromDB %s, got %s", 
+				t.Errorf("Field %s: expected ConversionFromDB %s, got %s",
 					field.Name, expectedFromDB, field.ConversionFromDB)
 			}
-			expectedToDB := "sql.NullInt32{Int32: data.Age, Valid: true}"
+			expectedToDB := "pgtype.Int4{Int32: data.Age, Valid: true}"
 			if field.ConversionToDB != expectedToDB {
-				t.Errorf("Field %s: expected ConversionToDB %s, got %s", 
+				t.Errorf("Field %s: expected ConversionToDB %s, got %s",
 					field.Name, expectedToDB, field.ConversionToDB)
 			}
 		case "IsActive":
+			// Nullable field - uses pgtype
 			expectedFromDB := "row.IsActive.Bool"
 			if field.ConversionFromDB != expectedFromDB {
-				t.Errorf("Field %s: expected ConversionFromDB %s, got %s", 
+				t.Errorf("Field %s: expected ConversionFromDB %s, got %s",
 					field.Name, expectedFromDB, field.ConversionFromDB)
 			}
-			expectedToDB := "sql.NullBool{Bool: data.IsActive, Valid: true}"
+			expectedToDB := "pgtype.Bool{Bool: data.IsActive, Valid: true}"
 			if field.ConversionToDB != expectedToDB {
-				t.Errorf("Field %s: expected ConversionToDB %s, got %s", 
+				t.Errorf("Field %s: expected ConversionToDB %s, got %s",
 					field.Name, expectedToDB, field.ConversionToDB)
 			}
 		case "CreatedAt":
+			// Non-nullable timestamp - uses pgtype for SQLC but time.Time for Go
 			expectedFromDB := "row.CreatedAt.Time"
 			if field.ConversionFromDB != expectedFromDB {
-				t.Errorf("Field %s: expected ConversionFromDB %s, got %s", 
+				t.Errorf("Field %s: expected ConversionFromDB %s, got %s",
 					field.Name, expectedFromDB, field.ConversionFromDB)
 			}
 			// ConversionToDB should be empty since we use now() in SQL
 			if field.ConversionToDB != "" {
-				t.Errorf("Field %s: expected empty ConversionToDB, got %s", 
+				t.Errorf("Field %s: expected empty ConversionToDB, got %s",
 					field.Name, field.ConversionToDB)
 			}
 		case "UpdatedAt":
+			// Non-nullable timestamp - uses pgtype for SQLC but time.Time for Go
 			expectedFromDB := "row.UpdatedAt.Time"
 			if field.ConversionFromDB != expectedFromDB {
-				t.Errorf("Field %s: expected ConversionFromDB %s, got %s", 
+				t.Errorf("Field %s: expected ConversionFromDB %s, got %s",
 					field.Name, expectedFromDB, field.ConversionFromDB)
 			}
 			// ConversionToDB should be empty since we use now() in SQL
 			if field.ConversionToDB != "" {
-				t.Errorf("Field %s: expected empty ConversionToDB, got %s", 
+				t.Errorf("Field %s: expected empty ConversionToDB, got %s",
 					field.Name, field.ConversionToDB)
 			}
 			// ConversionToDBForUpdate should be empty since we use now() in SQL
 			if field.ConversionToDBForUpdate != "" {
-				t.Errorf("Field %s: expected empty ConversionToDBForUpdate, got %s", 
+				t.Errorf("Field %s: expected empty ConversionToDBForUpdate, got %s",
 					field.Name, field.ConversionToDBForUpdate)
 			}
 		case "Email", "Name":
-			// String fields should have direct conversions (non-nullable)
+			// Non-nullable string fields - direct conversions
 			expectedFromDB := "row." + field.Name
 			if field.ConversionFromDB != expectedFromDB {
-				t.Errorf("Field %s: expected ConversionFromDB %s, got %s", 
+				t.Errorf("Field %s: expected ConversionFromDB %s, got %s",
 					field.Name, expectedFromDB, field.ConversionFromDB)
 			}
 			expectedToDB := "data." + field.Name
 			if field.ConversionToDB != expectedToDB {
-				t.Errorf("Field %s: expected ConversionToDB %s, got %s", 
+				t.Errorf("Field %s: expected ConversionToDB %s, got %s",
+					field.Name, expectedToDB, field.ConversionToDB)
+			}
+		case "ID":
+			// Non-nullable int - direct conversions
+			expectedFromDB := "row.ID"
+			if field.ConversionFromDB != expectedFromDB {
+				t.Errorf("Field %s: expected ConversionFromDB %s, got %s",
+					field.Name, expectedFromDB, field.ConversionFromDB)
+			}
+			expectedToDB := "data.ID"
+			if field.ConversionToDB != expectedToDB {
+				t.Errorf("Field %s: expected ConversionToDB %s, got %s",
 					field.Name, expectedToDB, field.ConversionToDB)
 			}
 		}
 	}
 
 	expectedImports := []string{
-		"database/sql",
 		"github.com/jackc/pgx/v5/pgtype",
 		"time",
 	}
@@ -259,11 +275,11 @@ func TestGenerator_MigrationBasedFlow(t *testing.T) {
 	tempDir := t.TempDir()
 	modelsDir := filepath.Join(tempDir, "models")
 	queriesDir := filepath.Join(tempDir, "database", "queries")
-	err := os.MkdirAll(modelsDir, 0755)
+	err := os.MkdirAll(modelsDir, 0o755)
 	if err != nil {
 		t.Fatalf("Failed to create models directory: %v", err)
 	}
-	err = os.MkdirAll(queriesDir, 0755)
+	err = os.MkdirAll(queriesDir, 0o755)
 	if err != nil {
 		t.Fatalf("Failed to create queries directory: %v", err)
 	}
@@ -336,6 +352,131 @@ func TestGenerator_MigrationBasedFlow(t *testing.T) {
 		t.Error("Title column not found")
 	}
 }
+
+func TestGenerator_ComplexTable(t *testing.T) {
+	currentDir, _ := os.Getwd()
+	migrationsDir := filepath.Join(currentDir, "testdata", "migrations", "complex_table")
+
+	generator := NewGenerator("postgresql")
+
+	cat, err := generator.buildCatalogFromTableMigrations("comprehensive_example", []string{migrationsDir})
+	if err != nil {
+		t.Fatalf("Failed to build catalog from migrations: %v", err)
+	}
+
+	config := Config{
+		TableName:    "comprehensive_example",
+		ResourceName: "ComprehensiveExample",
+		PackageName:  "models",
+		DatabaseType: "postgresql",
+		ModulePath:   "test/module",
+	}
+
+	model, err := generator.Build(cat, config)
+	if err != nil {
+		t.Fatalf("Failed to build model: %v", err)
+	}
+
+	if model.Name != "ComprehensiveExample" {
+		t.Errorf("Expected model name 'ComprehensiveExample', got '%s'", model.Name)
+	}
+
+	if model.TableName != "comprehensive_example" {
+		t.Errorf("Expected table name 'comprehensive_example', got '%s'", model.TableName)
+	}
+
+	// Test that we have fields for all the types from the complex migration that are successfully parsed
+	expectedFieldTypes := map[string]string{
+		"ID":                 "int64",
+		"UuidId":            "uuid.UUID",
+		"SmallInt":          "int16",
+		"RegularInt":        "int32",
+		"BigInt":            "int64", 
+		"DecimalPrecise":    "float64",
+		"NumericField":      "float64",
+		"RealFloat":         "float32",
+		"DoubleFloat":       "float64",
+		"SmallSerial":       "int16",
+		"BigSerial":         "int64",
+		"FixedChar":         "string",
+		"VariableChar":      "string",
+		"UnlimitedText":     "string",
+		"TextWithDefault":   "string",
+		"TextNotNull":       "string",
+		"IsActive":          "bool",
+		"IsVerified":        "bool",
+		"NullableFlag":      "bool",
+		"CreatedDate":       "time.Time",
+		"BirthDate":         "time.Time",
+		"ExactTime":         "time.Time",
+		"TimeWithZone":      "time.Time",
+		"CreatedTimestamp":  "time.Time",
+		"UpdatedTimestamp":  "time.Time",
+		"TimestampWithZone": "time.Time",
+		"DurationInterval":  "string",
+		"WorkHours":         "string",
+		"FileData":          "[]byte",
+		"RequiredBinary":    "[]byte",
+		"IpAddress":         "string",
+		"IpNetwork":         "string",
+		"MacAddress":        "string",
+		"Mac8Address":       "string",
+		"PointLocation":     "string",
+		"LineSegment":       "string",
+		"RectangularBox":    "string",
+		"PathData":          "string",
+		"PolygonShape":      "string",
+		"CircleArea":        "string",
+		"JsonData":          "[]byte",
+		"JsonbData":         "[]byte",
+		"JsonbNotNull":      "[]byte",
+		"IntegerArray":      "[]int32",
+		"TextArray":         "[]string",
+		"MultidimArray":     "[]int32",
+		"IntRange":          "string",
+		"BigintRange":       "string",
+		"NumericRange":      "string",
+	}
+
+
+	// Verify we have the expected number of fields that can be successfully parsed
+	if len(model.Fields) != 49 {
+		t.Errorf("Expected 49 fields for complex table, got %d", len(model.Fields))
+	}
+
+	// Test some specific field types
+	fieldsByName := make(map[string]GeneratedField)
+	for _, field := range model.Fields {
+		fieldsByName[field.Name] = field
+	}
+
+	for fieldName, expectedType := range expectedFieldTypes {
+		field, exists := fieldsByName[fieldName]
+		if !exists {
+			t.Errorf("Expected field %s not found", fieldName)
+			continue
+		}
+
+		if field.Type != expectedType {
+			t.Errorf("Field %s: expected type %s, got %s", fieldName, expectedType, field.Type)
+		}
+	}
+
+	// Verify imports include necessary packages
+	expectedImports := []string{
+		"github.com/jackc/pgx/v5/pgtype",
+		"time",
+		"github.com/google/uuid",
+	}
+
+	for _, expectedImport := range expectedImports {
+		found := slices.Contains(model.Imports, expectedImport)
+		if !found {
+			t.Errorf("Missing expected import: %s", expectedImport)
+		}
+	}
+}
+
 
 type FieldExpectation struct {
 	Type     string

@@ -7,17 +7,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	"database/sql"
 
 	"github.com/example/myapp/models/internal/db"
 )
 
 type User struct {
-	ID int32
-	Email string
-	Name string
-	Age int32
-	IsActive bool
+	ID        int32
+	Email     string
+	Name      string
+	Age       int32
+	IsActive  bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -36,9 +35,9 @@ func FindUser(
 }
 
 type CreateUserPayload struct {
-	Email string
-	Name string
-	Age int32
+	Email    string
+	Name     string
+	Age      int32
 	IsActive bool
 }
 
@@ -52,11 +51,11 @@ func CreateUser(
 	}
 
 	row, err := db.New().InsertUser(ctx, dbtx, db.InsertUserParams{
-		ID: uuid.New(),
-		Email: data.Email,
-		Name: data.Name,
-		Age: sql.NullInt32{Int32: data.Age, Valid: true},
-		IsActive: sql.NullBool{Bool: data.IsActive, Valid: true},
+		ID:       uuid.New(),
+		Email:    data.Email,
+		Name:     data.Name,
+		Age:      pgtype.Int4{Int32: data.Age, Valid: true},
+		IsActive: pgtype.Bool{Bool: data.IsActive, Valid: true},
 	})
 	if err != nil {
 		return User{}, err
@@ -66,11 +65,11 @@ func CreateUser(
 }
 
 type UpdateUserPayload struct {
-	ID uuid.UUID
-	Email string
-	Name string
-	Age int32
-	IsActive bool
+	ID        uuid.UUID
+	Email     string
+	Name      string
+	Age       int32
+	IsActive  bool
 	UpdatedAt time.Time
 }
 
@@ -89,23 +88,23 @@ func UpdateUser(
 	}
 
 	payload := db.UpdateUserParams{
-		ID: data.ID,
-		Email: currentRow.Email,
-		Name: currentRow.Name,
-		Age: currentRow.Age,
+		ID:       data.ID,
+		Email:    currentRow.Email,
+		Name:     currentRow.Name,
+		Age:      currentRow.Age,
 		IsActive: currentRow.IsActive,
 	}
-	if data.Email != "" {
+	if true {
 		payload.Email = data.Email
 	}
-	if data.Name != "" {
+	if true {
 		payload.Name = data.Name
 	}
-	if data.Age != 0 {
-		payload.Age = sql.NullInt32{Int32: data.Age, Valid: true}
+	if true {
+		payload.Age = pgtype.Int4{Int32: data.Age, Valid: true}
 	}
 	if true {
-		payload.IsActive = sql.NullBool{Bool: data.IsActive, Valid: true}
+		payload.IsActive = pgtype.Bool{Bool: data.IsActive, Valid: true}
 	}
 
 	row, err := db.New().UpdateUser(ctx, dbtx, payload)
@@ -142,7 +141,7 @@ func AllUsers(
 }
 
 type PaginatedUsers struct {
-	Users    []User
+	Users      []User
 	TotalCount int64
 	Page       int64
 	PageSize   int64
@@ -192,7 +191,7 @@ func PaginateUsers(
 	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
 
 	return PaginatedUsers{
-		Users:    users,
+		Users:      users,
 		TotalCount: totalCount,
 		Page:       page,
 		PageSize:   pageSize,
@@ -202,11 +201,11 @@ func PaginateUsers(
 
 func rowToUser(row db.User) User {
 	return User{
-		ID: row.ID,
-		Email: row.Email,
-		Name: row.Name,
-		Age: row.Age.Int32,
-		IsActive: row.IsActive.Bool,
+		ID:        row.ID,
+		Email:     row.Email,
+		Name:      row.Name,
+		Age:       row.Age.Int32,
+		IsActive:  row.IsActive.Bool,
 		CreatedAt: row.CreatedAt.Time,
 		UpdatedAt: row.UpdatedAt.Time,
 	}

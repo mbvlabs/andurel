@@ -2,11 +2,14 @@ package models
 
 import (
 	"flag"
-	"mbvlabs/andurel/generator/templates"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"mbvlabs/andurel/generator/templates"
 )
 
 var update = flag.Bool("update", false, "update golden files")
@@ -33,6 +36,13 @@ func TestGenerator_GoldenFiles(t *testing.T) {
 			resourceName:  "Product",
 			modulePath:    "github.com/example/shop",
 		},
+		{
+			name:          "complex_table",
+			migrationsDir: "complex_table",
+			tableName:     "comprehensive_example",
+			resourceName:  "ComprehensiveExample",
+			modulePath:    "github.com/example/complex",
+		},
 	}
 
 	for _, tt := range tests {
@@ -41,12 +51,12 @@ func TestGenerator_GoldenFiles(t *testing.T) {
 			queriesDir := filepath.Join(tempDir, "database", "queries")
 			modelsDir := filepath.Join(tempDir, "models")
 
-			err := os.MkdirAll(queriesDir, 0755)
+			err := os.MkdirAll(queriesDir, 0o755)
 			if err != nil {
 				t.Fatalf("Failed to create queries directory: %v", err)
 			}
 
-			err = os.MkdirAll(modelsDir, 0755)
+			err = os.MkdirAll(modelsDir, 0o755)
 			if err != nil {
 				t.Fatalf("Failed to create models directory: %v", err)
 			}
@@ -61,13 +71,14 @@ func TestGenerator_GoldenFiles(t *testing.T) {
 
 			generator := NewGenerator("postgresql")
 
-			// Build catalog from migrations
-			cat, err := generator.buildCatalogFromTableMigrations(tt.tableName, []string{migrationsDir})
+			cat, err := generator.buildCatalogFromTableMigrations(
+				tt.tableName,
+				[]string{migrationsDir},
+			)
 			if err != nil {
 				t.Fatalf("Failed to build catalog from migrations: %v", err)
 			}
 
-			// Build model structure
 			model, err := generator.Build(cat, Config{
 				TableName:    tt.tableName,
 				ResourceName: tt.resourceName,
@@ -79,7 +90,6 @@ func TestGenerator_GoldenFiles(t *testing.T) {
 				t.Fatalf("Failed to build model: %v", err)
 			}
 
-			// Generate model content
 			templateContent, err := templates.Files.ReadFile("model.tmpl")
 			if err != nil {
 				t.Fatalf("Failed to read model template: %v", err)
@@ -90,7 +100,6 @@ func TestGenerator_GoldenFiles(t *testing.T) {
 				t.Fatalf("Failed to generate model content: %v", err)
 			}
 
-			// Generate SQL content
 			table, err := cat.GetTable("", tt.tableName)
 			if err != nil {
 				t.Fatalf("Failed to get table from catalog: %v", err)
@@ -101,16 +110,20 @@ func TestGenerator_GoldenFiles(t *testing.T) {
 				t.Fatalf("Failed to generate SQL content: %v", err)
 			}
 
-			// Write content to test files
 			modelPath := filepath.Join("models", strings.ToLower(tt.resourceName)+".go")
 			sqlPath := filepath.Join("database", "queries", tt.tableName+".sql")
 
-			err = os.WriteFile(modelPath, []byte(modelContent), 0644)
+			err = os.WriteFile(modelPath, []byte(modelContent), 0o644)
 			if err != nil {
 				t.Fatalf("Failed to write model file: %v", err)
 			}
 
-			err = os.WriteFile(sqlPath, []byte(sqlContent), 0644)
+			err = formatGoFile(modelPath)
+			if err != nil {
+				t.Fatalf("Failed to format model file: %v", err)
+			}
+
+			err = os.WriteFile(sqlPath, []byte(sqlContent), 0o644)
 			if err != nil {
 				t.Fatalf("Failed to write SQL file: %v", err)
 			}
@@ -140,12 +153,12 @@ func compareWithGolden(
 	goldenPath := filepath.Join(originalWd, "testdata", goldenFile)
 
 	if update {
-		err = os.MkdirAll(filepath.Dir(goldenPath), 0755)
+		err = os.MkdirAll(filepath.Dir(goldenPath), 0o755)
 		if err != nil {
 			t.Fatalf("Failed to create testdata directory: %v", err)
 		}
 
-		err = os.WriteFile(goldenPath, actualContent, 0644)
+		err = os.WriteFile(goldenPath, actualContent, 0o644)
 		if err != nil {
 			t.Fatalf("Failed to update golden file %s: %v", goldenPath, err)
 		}
@@ -165,4 +178,12 @@ func compareWithGolden(
 		t.Errorf("Generated content doesn't match golden file %s\n\nActual:\n%s\n\nExpected:\n%s",
 			goldenPath, actualStr, expectedStr)
 	}
+}
+
+func formatGoFile(filePath string) error {
+	cmd := exec.Command("go", "fmt", filePath)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to run go fmt on %s: %w", filePath, err)
+	}
+	return nil
 }

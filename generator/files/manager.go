@@ -16,7 +16,7 @@ func NewManager() *Manager {
 }
 
 func (m *Manager) EnsureDirectoryExists(dirPath string) error {
-	if err := os.MkdirAll(dirPath, 0755); err != nil {
+	if err := os.MkdirAll(dirPath, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", dirPath, err)
 	}
 	return nil
@@ -40,7 +40,7 @@ func (m *Manager) WriteFile(path, content string) error {
 		return err
 	}
 
-	return os.WriteFile(path, []byte(content), 0600)
+	return os.WriteFile(path, []byte(content), 0o600)
 }
 
 func (m *Manager) RunSQLCGenerate() error {

@@ -3,15 +3,16 @@ package views
 import (
 	"fmt"
 	"log/slog"
-	"mbvlabs/andurel/generator/files"
-	"mbvlabs/andurel/generator/internal/catalog"
-	"mbvlabs/andurel/generator/templates"
-	"mbvlabs/andurel/generator/types"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"mbvlabs/andurel/generator/files"
+	"mbvlabs/andurel/generator/internal/catalog"
+	"mbvlabs/andurel/generator/internal/types"
+	"mbvlabs/andurel/generator/templates"
 
 	"github.com/jinzhu/inflection"
 )
@@ -68,7 +69,6 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 	}
 
 	for _, col := range table.Columns {
-		// Skip ID field for views
 		if col.Name == "id" {
 			continue
 		}
@@ -98,7 +98,6 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 		GoType:        goType,
 	}
 
-	// Set input type and string converter based on Go type
 	switch goType {
 	case "time.Time":
 		field.IsTimestamp = true
@@ -136,7 +135,6 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 		field.StringConverter = ""
 	}
 
-	// Set form type for view form handling
 	switch goType {
 	case "time.Time":
 		field.GoFormType = "time.Time"
@@ -237,7 +235,6 @@ func (g *Generator) GenerateView(
 	pluralName := inflection.Plural(strings.ToLower(resourceName))
 	viewPath := filepath.Join("views", pluralName+"_resource.templ")
 
-	// Check if view already exists
 	if _, err := os.Stat(viewPath); err == nil {
 		return fmt.Errorf("view file %s already exists", viewPath)
 	}
@@ -256,21 +253,18 @@ func (g *Generator) GenerateView(
 		return fmt.Errorf("failed to render view file: %w", err)
 	}
 
-	// Ensure views directory exists
-	if err := os.MkdirAll("views", 0755); err != nil {
+	if err := os.MkdirAll("views", 0o755); err != nil {
 		return fmt.Errorf("failed to create views directory: %w", err)
 	}
 
-	if err := os.WriteFile(viewPath, []byte(viewContent), 0600); err != nil {
+	if err := os.WriteFile(viewPath, []byte(viewContent), 0o600); err != nil {
 		return fmt.Errorf("failed to write view file: %w", err)
 	}
 
-	// Format the generated view file
 	if err := g.formatTemplFile(viewPath); err != nil {
 		return fmt.Errorf("failed to format view file: %w", err)
 	}
 
-	// Run templ generate to compile templates (optional)
 	if err := g.runCompileTemplates(); err != nil {
 		return fmt.Errorf("failed to compile templates: %w", err)
 	}
@@ -286,18 +280,16 @@ func (g *Generator) formatTemplFile(filePath string) error {
 	slog.Info("Go mod root", "dir", rootDir)
 
 	cmd := exec.Command("go", "tool", "templ", "fmt", filePath)
-	// cmd.Dir = rootDir
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to run templ fmt on %s: %w", filePath, err)
 	}
+
 	return nil
 }
 
 func (g *Generator) runCompileTemplates() error {
-	// Find the root directory with go.mod to run from project root
 	rootDir, err := g.fileManager.FindGoModRoot()
 	if err != nil {
-		// If we can't find go.mod, skip template compilation (e.g., in test environments)
 		return nil
 	}
 

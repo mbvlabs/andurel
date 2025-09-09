@@ -16,7 +16,6 @@ func newGenerateCommand() *cobra.Command {
 
 	generateCmd.AddCommand(newModelCommand())
 	generateCmd.AddCommand(newControllerCommand())
-	generateCmd.AddCommand(newResourceControllerCommand())
 	generateCmd.AddCommand(newViewCommand())
 	generateCmd.AddCommand(newResourceCommand())
 
@@ -59,21 +58,21 @@ func generateModel(cmd *cobra.Command, args []string) error {
 	return gen.GenerateModel(resourceName, tableName)
 }
 
+// func newControllerCommand() *cobra.Command {
+// 	return &cobra.Command{
+// 		Use:   "controller [name]",
+// 		Short: "Generate a new basic controller",
+// 		Long: `Generate a new basic controller without CRUD actions.
+// This creates a simple controller structure for custom actions.
+//
+// Example:
+//   andurel generate controller Dashboard`,
+// 		Args: cobra.ExactArgs(1),
+// 		RunE: generateController,
+// 	}
+// }
+
 func newControllerCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "controller [name]",
-		Short: "Generate a new basic controller",
-		Long: `Generate a new basic controller without CRUD actions.
-This creates a simple controller structure for custom actions.
-
-Example:
-  andurel generate controller Dashboard`,
-		Args: cobra.ExactArgs(1),
-		RunE: generateController,
-	}
-}
-
-func newResourceControllerCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "resource_controller [name] [table]",
 		Short: "Generate a new resource controller with CRUD actions",
@@ -84,7 +83,7 @@ It will also generate the corresponding routes.
 Example:
   andurel generate resource_controller User users`,
 		Args: cobra.ExactArgs(2),
-		RunE: generateResourceController,
+		RunE: generateController,
 	}
 }
 
@@ -102,18 +101,18 @@ Example:
 	}
 }
 
+// func generateController(cmd *cobra.Command, args []string) error {
+// 	resourceName := args[0]
+//
+// 	gen, err := generator.New()
+// 	if err != nil {
+// 		return err
+// 	}
+//
+// 	return gen.GenerateController(resourceName)
+// }
+
 func generateController(cmd *cobra.Command, args []string) error {
-	resourceName := args[0]
-
-	gen, err := generator.New()
-	if err != nil {
-		return err
-	}
-
-	return gen.GenerateController(resourceName)
-}
-
-func generateResourceController(cmd *cobra.Command, args []string) error {
 	resourceName := args[0]
 	tableName := args[1]
 
@@ -122,7 +121,7 @@ func generateResourceController(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return gen.GenerateResourceController(resourceName, tableName)
+	return gen.GenerateController(resourceName, tableName)
 }
 
 func generateResource(cmd *cobra.Command, args []string) error {
@@ -140,7 +139,7 @@ func generateResource(cmd *cobra.Command, args []string) error {
 	}
 
 	// Then generate resource controller with CRUD operations
-	return gen.GenerateResourceController(resourceName, tableName)
+	return gen.GenerateController(resourceName, tableName)
 }
 
 func generateView(cmd *cobra.Command, args []string) error {

@@ -133,16 +133,16 @@ func All{{.Name}}s(
 		return nil, err
 	}
 
-	{{.TableName}} := make([]{{.Name}}, len(rows))
+	{{lower .Name}}s := make([]{{.Name}}, len(rows))
 	for i, row := range rows {
-		{{.TableName}}[i] = rowTo{{.Name}}(row)
+		{{lower .Name}}s[i] = rowTo{{.Name}}(row)
 	}
 
-	return {{.TableName}}, nil
+	return {{lower .Name}}s, nil
 }
 
 type Paginated{{.Name}}s struct {
-	{{.Name}}s    []{{.Name}}
+	{{.Name}}s []{{.Name}}
 	TotalCount int64
 	Page       int64
 	PageSize   int64
@@ -184,15 +184,15 @@ func Paginate{{.Name}}s(
 		return Paginated{{.Name}}s{}, err
 	}
 
-	{{.TableName}} := make([]{{.Name}}, len(rows))
+	{{lower .Name}}s := make([]{{.Name}}, len(rows))
 	for i, row := range rows {
-		{{.TableName}}[i] = rowTo{{.Name}}(row)
+		{{lower .Name}}s[i] = rowTo{{.Name}}(row)
 	}
 
 	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
 
 	return Paginated{{.Name}}s{
-		{{.Name}}s:    {{.TableName}},
+		{{.Name}}s:    {{lower .Name}}s,
 		TotalCount: totalCount,
 		Page:       page,
 		PageSize:   pageSize,
