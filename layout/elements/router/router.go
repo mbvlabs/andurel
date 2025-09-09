@@ -6,14 +6,15 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
-	"mbvlabs/andurel/layout/elements/config"
-	"mbvlabs/andurel/layout/elements/controllers"
-	"mbvlabs/andurel/layout/elements/router/cookies"
-	"mbvlabs/andurel/layout/elements/router/routes"
 	"net/http"
 	"reflect"
 	"slices"
 	"strings"
+
+	"mbvlabs/andurel/layout/elements/config"
+	"mbvlabs/andurel/layout/elements/controllers"
+	"mbvlabs/andurel/layout/elements/router/cookies"
+	"mbvlabs/andurel/layout/elements/router/routes"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
@@ -30,8 +31,6 @@ type Router struct {
 
 func New(
 	controllers controllers.Controllers,
-	// riverUI *riverui.Server,
-	// traceProvider trace.TracerProvider,
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
@@ -50,21 +49,6 @@ func New(
 	if err != nil {
 		return nil, err
 	}
-
-	// httpRequestsTotal, err := telemetry.HTTPRequestsTotal()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	//
-	// httpDuration, err := telemetry.HTTPRequestDuration()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	//
-	// httpInFlight, err := telemetry.HTTPRequestsInFlight()
-	// if err != nil {
-	// 	return nil, err
-	// }
 
 	router.Use(
 		session.Middleware(
@@ -85,16 +69,9 @@ func New(
 
 			return ""
 		}(), CookieSecure: false, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
-		// middleware.Logging(
-		// traceProvider,
-		// httpRequestsTotal,
-		// httpDuration,
-		// httpInFlight,
-		// ),
+
 		echomw.Recover(),
 	)
-
-	// router.Any("/river*", echo.WrapHandler(riverUI), middleware.AuthOnly)
 
 	return &Router{
 		router,
@@ -192,40 +169,37 @@ func getHandlerFunc(controller any, methodName string) echo.HandlerFunc {
 	}
 }
 
-func registerFlashMessagesContext(
+func registerAppContext(
 	next echo.HandlerFunc,
 ) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		if strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix) {
+		if strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix) ||
+			strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) {
 			return next(c)
 		}
 
-		flashMessages, err := cookies.GetFlashes(c)
-		if err != nil {
-			slog.WarnContext(c.Request().Context(),
-				"Failed to get flash messages",
-				"error", err,
-			)
-
-			return next(c)
-		}
-
-		c.Set(cookies.FlashKey, flashMessages)
+		c.Set(string(cookies.AppKey), cookies.GetApp(c))
 
 		return next(c)
 	}
 }
 
-func registerAppContext(
+func registerFlashMessagesContext(
 	next echo.HandlerFunc,
 ) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		// if strings.HasPrefix(c.Request().URL.Path, "/static") ||
-		// 	strings.HasPrefix(c.Request().URL.Path, "/fragments") {
-		// 	return next(c)
-		// }
+		if strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix) ||
+			strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) {
+			return next(c)
+		}
 
-		c.Set(cookies.AppKey, cookies.GetApp(c))
+		flashes, err := cookies.GetFlashes(c)
+		if err != nil {
+			slog.Error("Error getting flash messages from session", "error", err)
+			return next(c)
+		}
+
+		c.Set(string(cookies.FlashKey), flashes)
 
 		return next(c)
 	}

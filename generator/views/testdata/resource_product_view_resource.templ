@@ -42,7 +42,7 @@ templ ProductIndex(products []models.Product) {
 											<td class="text-white">{ product.Description }</td>
 											<td class="text-white">{ fmt.Sprintf("%d", product.CategoryId) }</td>
 											<td class="text-white">{ fmt.Sprintf("%t", product.InStock) }</td>
-											<td class="text-white">{ product.Metadata }</td>
+											<td class="text-white">{ string(product.Metadata) }</td>
 											<td class="text-white">{ product.CreatedAt.String() }</td>
 											<td class="text-white">{ product.UpdatedAt.String() }</td>
 											<td class="flex gap-2">
@@ -96,7 +96,7 @@ templ ProductShow(product models.Product) {
 						</div>
 						<div>
 							<label class="block text-sm font-medium text-white mb-1">Metadata</label>
-							<p class="text-lg text-gray-300">{ product.Metadata }</p>
+							<p class="text-lg text-gray-300">{ string(product.Metadata) }</p>
 						</div>
 						<div>
 							<label class="block text-sm font-medium text-white mb-1">Created At</label>
@@ -251,7 +251,7 @@ templ ProductEdit(product models.Product) {
 											Metadata
 										</label>
 										<div class="mt-2">
-											<input id="metadata" type="text" data-bind="metadata" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ product.Metadata } />
+											<input id="metadata" type="text" data-bind="metadata" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ string(product.Metadata) } />
 										</div>
 									</div>
 									</div>

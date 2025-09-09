@@ -269,6 +269,7 @@ func (g *Generator) GenerateView(
 		return fmt.Errorf("failed to compile templates: %w", err)
 	}
 
+	fmt.Printf("Successfully generated view at %s\n", viewPath)
 	return nil
 }
 

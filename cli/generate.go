@@ -1,6 +1,11 @@
 package cli
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"mbvlabs/andurel/generator"
 
 	"github.com/spf13/cobra"
@@ -38,10 +43,10 @@ Example:
 
 func newViewCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "view [name]",
+		Use:   "view [name] [table]",
 		Short: "Generate a new view",
 		Long:  `Generate view templates for the specified resource.`,
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.ExactArgs(2),
 		RunE:  generateView,
 	}
 }
@@ -74,7 +79,7 @@ func generateModel(cmd *cobra.Command, args []string) error {
 
 func newControllerCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "resource_controller [name] [table]",
+		Use:   "controller [name] [table]",
 		Short: "Generate a new resource controller with CRUD actions",
 		Long: `Generate a new resource controller with full CRUD actions.
 The controller will include index, show, new, create, edit, update, and destroy actions.
@@ -133,24 +138,30 @@ func generateResource(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Generate model first
 	if err := gen.GenerateModel(resourceName, tableName); err != nil {
 		return err
 	}
 
-	// Then generate resource controller with CRUD operations
 	return gen.GenerateController(resourceName, tableName)
 }
 
 func generateView(cmd *cobra.Command, args []string) error {
-	// resourceName := args[0]
-	//
-	// gen, err := generator.New()
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// return gen.GenerateView(resourceName)
-	//
-	return nil
+	resourceName := args[0]
+	tableName := args[1]
+
+	gen, err := generator.New()
+	if err != nil {
+		return err
+	}
+
+	modelPath := filepath.Join("models", strings.ToLower(resourceName)+".go")
+	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
+		return fmt.Errorf(
+			"model file %s does not exist. Generate the model first with: andurel generate model %s <table_name>",
+			modelPath,
+			resourceName,
+		)
+	}
+
+	return gen.GenerateView(resourceName, tableName)
 }
