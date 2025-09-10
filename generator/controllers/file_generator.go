@@ -73,9 +73,58 @@ func (fg *FileGenerator) GenerateController(
 		if err := fg.routeGenerator.GenerateRoutes(resourceName, pluralName); err != nil {
 			return fmt.Errorf("failed to generate routes: %w", err)
 		}
+		
+		if err := fg.registerController(resourceName); err != nil {
+			return fmt.Errorf("failed to register controller: %w", err)
+		}
 	}
 
 	return nil
+}
+
+func (fg *FileGenerator) registerController(resourceName string) error {
+	controllerFilePath := "controllers/controller.go"
+	
+	content, err := os.ReadFile(controllerFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to read controller.go: %w", err)
+	}
+	
+	contentStr := string(content)
+	
+	// Check if controller is already registered
+	controllerField := resourceName + "s " + resourceName + "s"
+	if strings.Contains(contentStr, controllerField) {
+		return nil // Already registered
+	}
+	
+	lines := strings.Split(contentStr, "\n")
+	var modifiedLines []string
+	
+	for _, line := range lines {
+		modifiedLines = append(modifiedLines, line)
+		
+		// Add controller field to Controllers struct (after Pages field)
+		if strings.Contains(line, "Pages  Pages") {
+			modifiedLines = append(modifiedLines, "\t"+controllerField)
+		}
+		
+		// Add constructor call after api := newAPI(db)
+		if strings.Contains(line, "api := newAPI(db)") {
+			modifiedLines = append(modifiedLines, "\t"+strings.ToLower(resourceName)+"s := new"+resourceName+"s(db)")
+		}
+		
+		// Add to return statement (after pages, line)
+		if strings.TrimSpace(line) == "pages," {
+			modifiedLines = append(modifiedLines, "\t\t"+strings.ToLower(resourceName)+"s,")
+		}
+	}
+	
+	if err := os.WriteFile(controllerFilePath, []byte(strings.Join(modifiedLines, "\n")), constants.FilePermissionPrivate); err != nil {
+		return fmt.Errorf("failed to write modified controller file: %w", err)
+	}
+	
+	return fg.formatGoFile(controllerFilePath)
 }
 
 func (fg *FileGenerator) formatGoFile(filePath string) error {
