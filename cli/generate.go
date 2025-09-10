@@ -48,8 +48,8 @@ By default, views are generated without controllers. Use --with-controller to al
 Examples:
   andurel generate view User                    # Views without controller
   andurel generate view User --with-controller  # Views with controller`,
-		Args:  cobra.ExactArgs(1),
-		RunE:  generateView,
+		Args: cobra.ExactArgs(1),
+		RunE: generateView,
 	}
 
 	cmd.Flags().Bool("with-controller", false, "Generate controller along with the views")

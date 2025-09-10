@@ -14,12 +14,12 @@ import (
 
 func TestViewFileGeneration__GoldenFile(t *testing.T) {
 	tests := []struct {
-		name          string
-		fileName      string
-		migrationsDir string
-		tableName     string
-		resourceName  string
-		modulePath    string
+		name           string
+		fileName       string
+		migrationsDir  string
+		tableName      string
+		resourceName   string
+		modulePath     string
 		withController bool
 	}{
 		{
