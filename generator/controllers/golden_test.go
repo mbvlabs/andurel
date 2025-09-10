@@ -296,6 +296,74 @@ func TestRoutesRegistration__GoldenFile(t *testing.T) {
 	}
 }
 
+func TestControllerRegistration__GoldenFile(t *testing.T) {
+	tests := []struct {
+		name         string
+		fileName     string
+		resourceName string
+	}{
+		{
+			name:         "Should register User controller",
+			fileName:     "user_controller_registration",
+			resourceName: "User",
+		},
+		{
+			name:         "Should register Product controller",
+			fileName:     "product_controller_registration",
+			resourceName: "Product",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			controllersDir := filepath.Join(tempDir, "controllers")
+
+			err := os.MkdirAll(controllersDir, constants.DirPermissionDefault)
+			if err != nil {
+				t.Fatalf("Failed to create controllers directory: %v", err)
+			}
+
+			originalWd, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Failed to get working directory: %v", err)
+			}
+
+			initialControllerGoldenPath := filepath.Join(originalWd, "testdata", "base_controller.go")
+			initialControllerContent, err := os.ReadFile(initialControllerGoldenPath)
+			if err != nil {
+				t.Fatalf("Failed to read initial controller golden file: %v", err)
+			}
+
+			controllerFile := filepath.Join(controllersDir, "controller.go")
+			err = os.WriteFile(controllerFile, initialControllerContent, 0o644)
+			if err != nil {
+				t.Fatalf("Failed to create controller.go: %v", err)
+			}
+
+			oldWd, _ := os.Getwd()
+			defer os.Chdir(oldWd)
+			os.Chdir(tempDir)
+
+			fileGenerator := NewFileGenerator()
+			err = fileGenerator.registerController(tt.resourceName)
+			if err != nil {
+				t.Fatalf("Failed to register controller: %v", err)
+			}
+
+			updatedControllerContent, err := os.ReadFile(controllerFile)
+			if err != nil {
+				t.Fatalf("Failed to read updated controller file: %v", err)
+			}
+
+			fixtureDir := filepath.Join(originalWd, "testdata")
+			g := goldie.New(t, goldie.WithFixtureDir(fixtureDir), goldie.WithNameSuffix(".go"))
+
+			g.Assert(t, tt.fileName, updatedControllerContent)
+		})
+	}
+}
+
 func formatGoFile(filePath string) error {
 	routeGenerator := NewRouteGenerator()
 	return routeGenerator.formatGoFile(filePath)
