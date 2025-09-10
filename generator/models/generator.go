@@ -409,3 +409,221 @@ func (g *Generator) formatGoFile(filePath string) error {
 	}
 	return nil
 }
+
+func (g *Generator) RefreshModel(
+	cat *catalog.Catalog,
+	resourceName, pluralName string,
+	modelPath, sqlPath string,
+	modulePath string,
+) error {
+	// First, completely replace the SQL file with updated CRUD operations
+	if err := g.refreshSQLFile(resourceName, pluralName, cat, sqlPath); err != nil {
+		return fmt.Errorf("failed to refresh SQL file: %w", err)
+	}
+
+	// Then, selectively refresh the model file
+	if err := g.refreshModelFile(cat, resourceName, pluralName, modelPath, modulePath); err != nil {
+		return fmt.Errorf("failed to refresh model file: %w", err)
+	}
+
+	return nil
+}
+
+func (g *Generator) refreshSQLFile(
+	resourceName string,
+	pluralName string,
+	cat *catalog.Catalog,
+	sqlPath string,
+) error {
+	table, err := cat.GetTable("", pluralName)
+	if err != nil {
+		return fmt.Errorf("table '%s' not found in catalog: %w", pluralName, err)
+	}
+
+	// Generate new SQL content completely
+	newSQLContent, err := g.GenerateSQLContent(resourceName, pluralName, table)
+	if err != nil {
+		return fmt.Errorf("failed to generate SQL content: %w", err)
+	}
+
+	// Write the new SQL file (completely replace)
+	if err := os.WriteFile(sqlPath, []byte(newSQLContent), constants.FilePermissionPrivate); err != nil {
+		return fmt.Errorf("failed to write SQL file: %w", err)
+	}
+
+	return nil
+}
+
+func (g *Generator) refreshModelFile(
+	cat *catalog.Catalog,
+	resourceName, pluralName string,
+	modelPath, modulePath string,
+) error {
+	// Read the existing file content
+	existingContent, err := os.ReadFile(modelPath)
+	if err != nil {
+		return fmt.Errorf("failed to read existing model file: %w", err)
+	}
+
+	// Build the new model data
+	model, err := g.Build(cat, Config{
+		TableName:    pluralName,
+		ResourceName: resourceName,
+		PackageName:  "models",
+		DatabaseType: "postgresql",
+		ModulePath:   modulePath,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to build model: %w", err)
+	}
+
+	// Generate the new complete model content to extract new generated parts
+	templateContent, err := templates.Files.ReadFile("model.tmpl")
+	if err != nil {
+		return fmt.Errorf("failed to read model template: %w", err)
+	}
+
+	newModelContent, err := g.GenerateModelFile(model, string(templateContent))
+	if err != nil {
+		return fmt.Errorf("failed to render model file: %w", err)
+	}
+
+	// Replace known generated parts with updated versions
+	updatedContent, err := g.replaceGeneratedParts(string(existingContent), newModelContent, resourceName)
+	if err != nil {
+		return fmt.Errorf("failed to replace generated parts: %w", err)
+	}
+
+	// Write the updated content
+	if err := os.WriteFile(modelPath, []byte(updatedContent), constants.FilePermissionPrivate); err != nil {
+		return fmt.Errorf("failed to write updated model file: %w", err)
+	}
+
+	// Always run go fmt to ensure proper formatting
+	if err := g.formatGoFile(modelPath); err != nil {
+		return fmt.Errorf("failed to format model file: %w", err)
+	}
+
+	return nil
+}
+
+func (g *Generator) replaceGeneratedParts(existingContent, newContent, resourceName string) (string, error) {
+	// Extract all generated parts from the new content
+	newParts := g.extractGeneratedParts(newContent, resourceName)
+	
+	updatedContent := existingContent
+	
+	// Replace each generated part in the existing content
+	for signature, newContent := range newParts {
+		updatedContent = g.replacePartBySignature(updatedContent, signature, newContent)
+	}
+	
+	return updatedContent, nil
+}
+
+func (g *Generator) extractGeneratedParts(content, resourceName string) map[string]string {
+	parts := make(map[string]string)
+	lines := strings.Split(content, "\n")
+	
+	// Define the generated function/type signatures we're looking for
+	signatures := []string{
+		fmt.Sprintf("type %s struct", resourceName),
+		fmt.Sprintf("type Create%sPayload struct", resourceName),
+		fmt.Sprintf("type Update%sPayload struct", resourceName),
+		fmt.Sprintf("type Paginated%ss struct", resourceName),
+		fmt.Sprintf("func Find%s(", resourceName),
+		fmt.Sprintf("func Create%s(", resourceName),
+		fmt.Sprintf("func Update%s(", resourceName),
+		fmt.Sprintf("func Destroy%s(", resourceName),
+		fmt.Sprintf("func All%ss(", resourceName),
+		fmt.Sprintf("func Paginate%ss(", resourceName),
+		fmt.Sprintf("func rowTo%s(", resourceName),
+	}
+	
+	for _, signature := range signatures {
+		part := g.extractPartBySignature(lines, signature)
+		if part != "" {
+			parts[signature] = part
+		}
+	}
+	
+	return parts
+}
+
+func (g *Generator) extractPartBySignature(lines []string, signature string) string {
+	var result []string
+	inBlock := false
+	braceCount := 0
+	
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		
+		// Check if this line starts our target block
+		if strings.HasPrefix(trimmed, signature) {
+			inBlock = true
+			result = []string{line}
+			braceCount = strings.Count(line, "{") - strings.Count(line, "}")
+			
+			// If the opening brace closes on the same line, we're done
+			if braceCount == 0 {
+				return strings.Join(result, "\n")
+			}
+			continue
+		}
+		
+		if inBlock {
+			result = append(result, line)
+			braceCount += strings.Count(line, "{") - strings.Count(line, "}")
+			
+			// When braces are balanced, we've reached the end
+			if braceCount == 0 {
+				return strings.Join(result, "\n")
+			}
+		}
+	}
+	
+	return ""
+}
+
+func (g *Generator) replacePartBySignature(content, signature, newPart string) string {
+	lines := strings.Split(content, "\n")
+	var result []string
+	inBlock := false
+	braceCount := 0
+	
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		
+		// Check if this line starts our target block
+		if strings.HasPrefix(trimmed, signature) {
+			inBlock = true
+			braceCount = strings.Count(line, "{") - strings.Count(line, "}")
+			
+			// If the opening brace closes on the same line, replace just this line
+			if braceCount == 0 {
+				result = append(result, newPart)
+				inBlock = false
+				continue
+			}
+			continue
+		}
+		
+		if inBlock {
+			braceCount += strings.Count(line, "{") - strings.Count(line, "}")
+			
+			// When braces are balanced, we've reached the end - replace the whole block
+			if braceCount == 0 {
+				result = append(result, newPart)
+				inBlock = false
+				continue
+			}
+			// Skip lines that are part of the block being replaced
+			continue
+		}
+		
+		// Keep all other lines
+		result = append(result, line)
+	}
+	
+	return strings.Join(result, "\n")
+}

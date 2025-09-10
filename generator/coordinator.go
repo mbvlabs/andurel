@@ -321,6 +321,67 @@ func (c *Coordinator) GenerateView(resourceName, tableName string) error {
 	return nil
 }
 
+func (c *Coordinator) RefreshModel(resourceName, tableName string) error {
+	modulePath, err := c.projectManager.GetModulePath()
+	if err != nil {
+		return err
+	}
+
+	if err := c.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
+		return err
+	}
+
+	rootDir, err := c.fileManager.FindGoModRoot()
+	if err != nil {
+		return fmt.Errorf("failed to find go.mod root: %w", err)
+	}
+
+	if err := c.projectManager.ValidateSQLCConfig(rootDir); err != nil {
+		return fmt.Errorf("SQLC configuration validation failed: %w", err)
+	}
+
+	pluralName := inflection.Plural(strings.ToLower(resourceName))
+
+	var modelFileName strings.Builder
+	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
+	modelFileName.WriteString(strings.ToLower(resourceName))
+	modelFileName.WriteString(".go")
+	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
+
+	var sqlFileName strings.Builder
+	sqlFileName.Grow(len(pluralName) + 4) // +4 for ".sql"
+	sqlFileName.WriteString(pluralName)
+	sqlFileName.WriteString(".sql")
+	sqlPath := filepath.Join(c.config.Paths.Queries, sqlFileName.String())
+
+	// Check that files exist (required for refresh)
+	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
+		return fmt.Errorf("model file %s does not exist. Use 'generate model' to create it first", modelPath)
+	}
+	if _, err := os.Stat(sqlPath); os.IsNotExist(err) {
+		return fmt.Errorf("SQL file %s does not exist. Use 'generate model' to create it first", sqlPath)
+	}
+
+	cat, err := c.migrationManager.BuildCatalogFromMigrations(tableName)
+	if err != nil {
+		return err
+	}
+
+	if err := c.modelGenerator.RefreshModel(cat, resourceName, pluralName, modelPath, sqlPath, modulePath); err != nil {
+		return fmt.Errorf("failed to refresh model: %w", err)
+	}
+
+	if err := c.fileManager.RunSQLCGenerate(); err != nil {
+		return fmt.Errorf("failed to run sqlc generate: %w", err)
+	}
+
+	fmt.Printf(
+		"Successfully refreshed model %s with updated database schema while preserving custom code\n",
+		resourceName,
+	)
+	return nil
+}
+
 func (c *Coordinator) GenerateViewFromModel(resourceName string, withController bool) error {
 	modulePath, err := c.projectManager.GetModulePath()
 	if err != nil {
