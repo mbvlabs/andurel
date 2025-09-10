@@ -12,53 +12,53 @@ func TestMapSQLTypeToGo_NonNullableTypes(t *testing.T) {
 		expectedSQLC string
 		expectedPkg  string
 	}{
-		{"varchar", "varchar", "pgtype.Text", "pgtype.Text", "github.com/jackc/pgx/v5/pgtype"},
-		{"text", "text", "pgtype.Text", "pgtype.Text", "github.com/jackc/pgx/v5/pgtype"},
-		{"char", "char", "pgtype.Text", "pgtype.Text", "github.com/jackc/pgx/v5/pgtype"},
+		{"varchar", "varchar", "string", "string", ""},
+		{"text", "text", "string", "string", ""},
+		{"char", "char", "string", "string", ""},
 
 		{"uuid", "uuid", "uuid.UUID", "uuid.UUID", "github.com/google/uuid"},
 
-		{"boolean", "boolean", "pgtype.Bool", "pgtype.Bool", "github.com/jackc/pgx/v5/pgtype"},
-		{"bool", "bool", "pgtype.Bool", "pgtype.Bool", "github.com/jackc/pgx/v5/pgtype"},
+		{"boolean", "boolean", "bool", "bool", ""},
+		{"bool", "bool", "bool", "bool", ""},
 
-		{"integer", "integer", "pgtype.Int4", "pgtype.Int4", "github.com/jackc/pgx/v5/pgtype"},
-		{"int", "int", "pgtype.Int4", "pgtype.Int4", "github.com/jackc/pgx/v5/pgtype"},
-		{"int4", "int4", "pgtype.Int4", "pgtype.Int4", "github.com/jackc/pgx/v5/pgtype"},
-		{"serial", "serial", "pgtype.Int4", "pgtype.Int4", "github.com/jackc/pgx/v5/pgtype"},
-		{"bigint", "bigint", "pgtype.Int8", "pgtype.Int8", "github.com/jackc/pgx/v5/pgtype"},
-		{"int8", "int8", "pgtype.Int8", "pgtype.Int8", "github.com/jackc/pgx/v5/pgtype"},
-		{"bigserial", "bigserial", "pgtype.Int8", "pgtype.Int8", "github.com/jackc/pgx/v5/pgtype"},
-		{"smallint", "smallint", "pgtype.Int2", "pgtype.Int2", "github.com/jackc/pgx/v5/pgtype"},
-		{"int2", "int2", "pgtype.Int2", "pgtype.Int2", "github.com/jackc/pgx/v5/pgtype"},
+		{"integer", "integer", "int32", "int32", ""},
+		{"int", "int", "int32", "int32", ""},
+		{"int4", "int4", "int32", "int32", ""},
+		{"serial", "serial", "int32", "int32", ""},
+		{"bigint", "bigint", "int64", "int64", ""},
+		{"int8", "int8", "int64", "int64", ""},
+		{"bigserial", "bigserial", "int64", "int64", ""},
+		{"smallint", "smallint", "int16", "int16", ""},
+		{"int2", "int2", "int16", "int16", ""},
 		{
 			"smallserial",
 			"smallserial",
-			"pgtype.Int2",
-			"pgtype.Int2",
-			"github.com/jackc/pgx/v5/pgtype",
+			"int16",
+			"int16",
+			"",
 		},
 
-		{"real", "real", "pgtype.Float4", "pgtype.Float4", "github.com/jackc/pgx/v5/pgtype"},
-		{"float4", "float4", "pgtype.Float4", "pgtype.Float4", "github.com/jackc/pgx/v5/pgtype"},
+		{"real", "real", "float32", "float32", ""},
+		{"float4", "float4", "float32", "float32", ""},
 		{
 			"double precision",
 			"double precision",
-			"pgtype.Float8",
-			"pgtype.Float8",
-			"github.com/jackc/pgx/v5/pgtype",
+			"float64",
+			"float64",
+			"",
 		},
-		{"float8", "float8", "pgtype.Float8", "pgtype.Float8", "github.com/jackc/pgx/v5/pgtype"},
+		{"float8", "float8", "float64", "float64", ""},
 		{
 			"decimal",
 			"decimal",
-			"pgtype.Numeric",
+			"float64",
 			"pgtype.Numeric",
 			"github.com/jackc/pgx/v5/pgtype",
 		},
 		{
 			"numeric",
 			"numeric",
-			"pgtype.Numeric",
+			"float64",
 			"pgtype.Numeric",
 			"github.com/jackc/pgx/v5/pgtype",
 		},
@@ -66,37 +66,37 @@ func TestMapSQLTypeToGo_NonNullableTypes(t *testing.T) {
 		{
 			"timestamp",
 			"timestamp",
-			"pgtype.Timestamp",
+			"time.Time",
 			"pgtype.Timestamp",
 			"github.com/jackc/pgx/v5/pgtype",
 		},
 		{
 			"timestamp without time zone",
 			"timestamp without time zone",
-			"pgtype.Timestamp",
+			"time.Time",
 			"pgtype.Timestamp",
 			"github.com/jackc/pgx/v5/pgtype",
 		},
 		{
 			"timestamptz",
 			"timestamptz",
-			"pgtype.Timestamptz",
+			"time.Time",
 			"pgtype.Timestamptz",
 			"github.com/jackc/pgx/v5/pgtype",
 		},
 		{
 			"timestamp with time zone",
 			"timestamp with time zone",
-			"pgtype.Timestamptz",
+			"time.Time",
 			"pgtype.Timestamptz",
 			"github.com/jackc/pgx/v5/pgtype",
 		},
-		{"date", "date", "pgtype.Date", "pgtype.Date", "github.com/jackc/pgx/v5/pgtype"},
-		{"time", "time", "pgtype.Time", "pgtype.Time", "github.com/jackc/pgx/v5/pgtype"},
+		{"date", "date", "time.Time", "pgtype.Date", "github.com/jackc/pgx/v5/pgtype"},
+		{"time", "time", "time.Time", "pgtype.Time", "github.com/jackc/pgx/v5/pgtype"},
 
-		{"bytea", "bytea", "pgtype.Bytea", "pgtype.Bytea", "github.com/jackc/pgx/v5/pgtype"},
-		{"jsonb", "jsonb", "pgtype.JSONB", "pgtype.JSONB", "github.com/jackc/pgx/v5/pgtype"},
-		{"json", "json", "pgtype.JSON", "pgtype.JSON", "github.com/jackc/pgx/v5/pgtype"},
+		{"bytea", "bytea", "[]byte", "[]byte", ""},
+		{"jsonb", "jsonb", "[]byte", "pgtype.JSONB", "github.com/jackc/pgx/v5/pgtype"},
+		{"json", "json", "[]byte", "pgtype.JSON", "github.com/jackc/pgx/v5/pgtype"},
 	}
 
 	tm := NewTypeMapper("postgresql")
@@ -149,16 +149,16 @@ func TestMapSQLTypeToGo_NullableTypes(t *testing.T) {
 		{
 			"varchar nullable",
 			"varchar",
-			"pgtype.Text",
+			"string",
 			"pgtype.Text",
 			"github.com/jackc/pgx/v5/pgtype",
 		},
-		{"text nullable", "text", "pgtype.Text", "pgtype.Text", "github.com/jackc/pgx/v5/pgtype"},
+		{"text nullable", "text", "string", "pgtype.Text", "github.com/jackc/pgx/v5/pgtype"},
 
 		{
 			"boolean nullable",
 			"boolean",
-			"pgtype.Bool",
+			"bool",
 			"pgtype.Bool",
 			"github.com/jackc/pgx/v5/pgtype",
 		},
@@ -166,14 +166,14 @@ func TestMapSQLTypeToGo_NullableTypes(t *testing.T) {
 		{
 			"integer nullable",
 			"integer",
-			"pgtype.Int4",
+			"int32",
 			"pgtype.Int4",
 			"github.com/jackc/pgx/v5/pgtype",
 		},
 		{
 			"bigint nullable",
 			"bigint",
-			"pgtype.Int8",
+			"int64",
 			"pgtype.Int8",
 			"github.com/jackc/pgx/v5/pgtype",
 		},
@@ -181,14 +181,14 @@ func TestMapSQLTypeToGo_NullableTypes(t *testing.T) {
 		{
 			"decimal nullable",
 			"decimal",
-			"pgtype.Numeric",
+			"float64",
 			"pgtype.Numeric",
 			"github.com/jackc/pgx/v5/pgtype",
 		},
 		{
 			"numeric nullable",
 			"numeric",
-			"pgtype.Numeric",
+			"float64",
 			"pgtype.Numeric",
 			"github.com/jackc/pgx/v5/pgtype",
 		},
@@ -196,14 +196,14 @@ func TestMapSQLTypeToGo_NullableTypes(t *testing.T) {
 		{
 			"timestamp nullable",
 			"timestamp",
-			"pgtype.Timestamp",
+			"time.Time",
 			"pgtype.Timestamp",
 			"github.com/jackc/pgx/v5/pgtype",
 		},
 		{
 			"timestamptz nullable",
 			"timestamptz",
-			"pgtype.Timestamptz",
+			"time.Time",
 			"pgtype.Timestamptz",
 			"github.com/jackc/pgx/v5/pgtype",
 		},
@@ -258,24 +258,24 @@ func TestGenerateConversionFromDB(t *testing.T) {
 		goType       string
 		expectedCode string
 	}{
-		{"pgtype.Text", "Name", "pgtype.Text", "pgtype.Text", "row.Name"},
-		{"pgtype.Bool", "IsActive", "pgtype.Bool", "pgtype.Bool", "row.IsActive"},
-		{"pgtype.Int2", "SmallAge", "pgtype.Int2", "pgtype.Int2", "row.SmallAge"},
-		{"pgtype.Int4", "Age", "pgtype.Int4", "pgtype.Int4", "row.Age"},
-		{"pgtype.Int8", "BigAge", "pgtype.Int8", "pgtype.Int8", "row.BigAge"},
-		{"pgtype.Float4", "SmallPrice", "pgtype.Float4", "pgtype.Float4", "row.SmallPrice"},
-		{"pgtype.Float8", "Price", "pgtype.Float8", "pgtype.Float8", "row.Price"},
+		{"pgtype.Text", "Name", "pgtype.Text", "pgtype.Text", "row.Name.String"},
+		{"pgtype.Bool", "IsActive", "pgtype.Bool", "pgtype.Bool", "row.IsActive.Bool"},
+		{"pgtype.Int2", "SmallAge", "pgtype.Int2", "pgtype.Int2", "row.SmallAge.Int16"},
+		{"pgtype.Int4", "Age", "pgtype.Int4", "pgtype.Int4", "row.Age.Int32"},
+		{"pgtype.Int8", "BigAge", "pgtype.Int8", "pgtype.Int8", "row.BigAge.Int64"},
+		{"pgtype.Float4", "SmallPrice", "pgtype.Float4", "pgtype.Float4", "row.SmallPrice.Float32"},
+		{"pgtype.Float8", "Price", "pgtype.Float8", "pgtype.Float8", "row.Price.Float64"},
 		{"uuid direct", "ID", "uuid.UUID", "uuid.UUID", "row.ID"},
 		{
 			"pgtype.Timestamptz",
 			"CreatedAt",
 			"pgtype.Timestamptz",
 			"pgtype.Timestamptz",
-			"row.CreatedAt",
+			"row.CreatedAt.Time",
 		},
-		{"pgtype.Timestamp", "UpdatedAt", "pgtype.Timestamp", "pgtype.Timestamp", "row.UpdatedAt"},
+		{"pgtype.Timestamp", "UpdatedAt", "pgtype.Timestamp", "pgtype.Timestamp", "row.UpdatedAt.Time"},
 		{"pgtype.Numeric", "Amount", "pgtype.Numeric", "pgtype.Numeric", "row.Amount"},
-		{"pgtype.JSONB", "Metadata", "pgtype.JSONB", "pgtype.JSONB", "row.Metadata"},
+		{"pgtype.JSONB", "Metadata", "pgtype.JSONB", "pgtype.JSONB", "row.Metadata.Bytes"},
 	}
 
 	tm := NewTypeMapper("postgresql")
@@ -299,30 +299,30 @@ func TestGenerateConversionToDB(t *testing.T) {
 		valueExpr    string
 		expectedCode string
 	}{
-		{"pgtype.Text", "pgtype.Text", "pgtype.Text", "data.Name", "data.Name"},
-		{"pgtype.Bool", "pgtype.Bool", "pgtype.Bool", "data.IsActive", "data.IsActive"},
-		{"pgtype.Int2", "pgtype.Int2", "pgtype.Int2", "data.SmallAge", "data.SmallAge"},
-		{"pgtype.Int4", "pgtype.Int4", "pgtype.Int4", "data.Age", "data.Age"},
-		{"pgtype.Int8", "pgtype.Int8", "pgtype.Int8", "data.BigAge", "data.BigAge"},
-		{"pgtype.Float4", "pgtype.Float4", "pgtype.Float4", "data.SmallPrice", "data.SmallPrice"},
-		{"pgtype.Float8", "pgtype.Float8", "pgtype.Float8", "data.Price", "data.Price"},
+		{"pgtype.Text", "pgtype.Text", "pgtype.Text", "data.Name", "pgtype.Text{String: data.Name, Valid: true}"},
+		{"pgtype.Bool", "pgtype.Bool", "pgtype.Bool", "data.IsActive", "pgtype.Bool{Bool: data.IsActive, Valid: true}"},
+		{"pgtype.Int2", "pgtype.Int2", "pgtype.Int2", "data.SmallAge", "pgtype.Int2{Int16: data.SmallAge, Valid: true}"},
+		{"pgtype.Int4", "pgtype.Int4", "pgtype.Int4", "data.Age", "pgtype.Int4{Int32: data.Age, Valid: true}"},
+		{"pgtype.Int8", "pgtype.Int8", "pgtype.Int8", "data.BigAge", "pgtype.Int8{Int64: data.BigAge, Valid: true}"},
+		{"pgtype.Float4", "pgtype.Float4", "pgtype.Float4", "data.SmallPrice", "pgtype.Float4{Float32: data.SmallPrice, Valid: true}"},
+		{"pgtype.Float8", "pgtype.Float8", "pgtype.Float8", "data.Price", "pgtype.Float8{Float64: data.Price, Valid: true}"},
 		{"uuid direct", "uuid.UUID", "uuid.UUID", "data.ID", "data.ID"},
 		{
 			"pgtype.Timestamptz",
 			"pgtype.Timestamptz",
 			"pgtype.Timestamptz",
 			"data.CreatedAt",
-			"data.CreatedAt",
+			"pgtype.Timestamptz{Time: data.CreatedAt, Valid: true}",
 		},
 		{
 			"pgtype.Timestamp",
 			"pgtype.Timestamp",
 			"pgtype.Timestamp",
 			"data.UpdatedAt",
-			"data.UpdatedAt",
+			"pgtype.Timestamp{Time: data.UpdatedAt, Valid: true}",
 		},
 		{"pgtype.Numeric", "pgtype.Numeric", "pgtype.Numeric", "data.Amount", "data.Amount"},
-		{"pgtype.JSONB", "pgtype.JSONB", "pgtype.JSONB", "data.Metadata", "data.Metadata"},
+		{"pgtype.JSONB", "pgtype.JSONB", "pgtype.JSONB", "data.Metadata", "pgtype.JSONB{Bytes: data.Metadata, Valid: true}"},
 	}
 
 	tm := NewTypeMapper("postgresql")
@@ -469,8 +469,16 @@ func TestComplexTypeConversions(t *testing.T) {
 				t.Errorf("GenerateConversionToDB returned empty string for %s", tt.name)
 			}
 
-			if result != tt.valueExpr {
-				t.Errorf("Expected direct mapping, got: %s, want: %s", result, tt.valueExpr)
+			// For pgtype.Text, expect struct creation, for pgtype.Numeric, direct mapping
+			if tt.sqlcType == "pgtype.Text" {
+				expected := "pgtype.Text{String: data.Description, Valid: true}"
+				if result != expected {
+					t.Errorf("Expected pgtype struct creation, got: %s, want: %s", result, expected)
+				}
+			} else {
+				if result != tt.valueExpr {
+					t.Errorf("Expected direct mapping, got: %s, want: %s", result, tt.valueExpr)
+				}
 			}
 		})
 	}
