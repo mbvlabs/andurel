@@ -34,3 +34,7 @@ func (g *Generator) GenerateView(resourceName, tableName string) error {
 func (g *Generator) GenerateViewFromModel(resourceName string, withController bool) error {
 	return g.coordinator.GenerateViewFromModel(resourceName, withController)
 }
+
+func (g *Generator) RefreshModel(resourceName, tableName string) error {
+	return g.coordinator.RefreshModel(resourceName, tableName)
+}

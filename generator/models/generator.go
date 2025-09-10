@@ -409,3 +409,322 @@ func (g *Generator) formatGoFile(filePath string) error {
 	}
 	return nil
 }
+
+func (g *Generator) RefreshModel(
+	cat *catalog.Catalog,
+	resourceName, pluralName string,
+	modelPath, sqlPath string,
+	modulePath string,
+) error {
+	if err := g.refreshSQLFile(resourceName, pluralName, cat, sqlPath); err != nil {
+		return fmt.Errorf("failed to refresh SQL file: %w", err)
+	}
+
+	if err := g.refreshModelFile(cat, resourceName, pluralName, modelPath, modulePath); err != nil {
+		return fmt.Errorf("failed to refresh model file: %w", err)
+	}
+
+	return nil
+}
+
+func (g *Generator) refreshSQLFile(
+	resourceName string,
+	pluralName string,
+	cat *catalog.Catalog,
+	sqlPath string,
+) error {
+	existingContent, err := os.ReadFile(sqlPath)
+	if err != nil {
+		return fmt.Errorf("failed to read existing SQL file: %w", err)
+	}
+
+	table, err := cat.GetTable("", pluralName)
+	if err != nil {
+		return fmt.Errorf("table '%s' not found in catalog: %w", pluralName, err)
+	}
+
+	newSQLContent, err := g.GenerateSQLContent(resourceName, pluralName, table)
+	if err != nil {
+		return fmt.Errorf("failed to generate SQL content: %w", err)
+	}
+
+	updatedContent := g.replaceGeneratedSQLQueries(
+		string(existingContent),
+		newSQLContent,
+		resourceName,
+	)
+
+	if err := os.WriteFile(sqlPath, []byte(updatedContent), constants.FilePermissionPrivate); err != nil {
+		return fmt.Errorf("failed to write SQL file: %w", err)
+	}
+
+	return nil
+}
+
+func (g *Generator) refreshModelFile(
+	cat *catalog.Catalog,
+	resourceName, pluralName string,
+	modelPath, modulePath string,
+) error {
+	existingContent, err := os.ReadFile(modelPath)
+	if err != nil {
+		return fmt.Errorf("failed to read existing model file: %w", err)
+	}
+
+	model, err := g.Build(cat, Config{
+		TableName:    pluralName,
+		ResourceName: resourceName,
+		PackageName:  "models",
+		DatabaseType: "postgresql",
+		ModulePath:   modulePath,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to build model: %w", err)
+	}
+
+	templateContent, err := templates.Files.ReadFile("model.tmpl")
+	if err != nil {
+		return fmt.Errorf("failed to read model template: %w", err)
+	}
+
+	newModelContent, err := g.GenerateModelFile(model, string(templateContent))
+	if err != nil {
+		return fmt.Errorf("failed to render model file: %w", err)
+	}
+
+	updatedContent, err := g.replaceGeneratedParts(
+		string(existingContent),
+		newModelContent,
+		resourceName,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to replace generated parts: %w", err)
+	}
+
+	if err := os.WriteFile(modelPath, []byte(updatedContent), constants.FilePermissionPrivate); err != nil {
+		return fmt.Errorf("failed to write updated model file: %w", err)
+	}
+
+	if err := g.formatGoFile(modelPath); err != nil {
+		return fmt.Errorf("failed to format model file: %w", err)
+	}
+
+	return nil
+}
+
+func (g *Generator) replaceGeneratedParts(
+	existingContent, newContent, resourceName string,
+) (string, error) {
+	newParts := g.extractGeneratedParts(newContent, resourceName)
+
+	updatedContent := existingContent
+
+	for signature, newContent := range newParts {
+		updatedContent = g.replacePartBySignature(updatedContent, signature, newContent)
+	}
+
+	return updatedContent, nil
+}
+
+func (g *Generator) extractGeneratedParts(content, resourceName string) map[string]string {
+	parts := make(map[string]string)
+	lines := strings.Split(content, "\n")
+
+	signatures := []string{
+		fmt.Sprintf("type %s struct", resourceName),
+		fmt.Sprintf("type Create%sPayload struct", resourceName),
+		fmt.Sprintf("type Update%sPayload struct", resourceName),
+		fmt.Sprintf("type Paginated%ss struct", resourceName),
+		fmt.Sprintf("func Find%s(", resourceName),
+		fmt.Sprintf("func Create%s(", resourceName),
+		fmt.Sprintf("func Update%s(", resourceName),
+		fmt.Sprintf("func Destroy%s(", resourceName),
+		fmt.Sprintf("func All%ss(", resourceName),
+		fmt.Sprintf("func Paginate%ss(", resourceName),
+		fmt.Sprintf("func rowTo%s(", resourceName),
+	}
+
+	for _, signature := range signatures {
+		part := g.extractPartBySignature(lines, signature)
+		if part != "" {
+			parts[signature] = part
+		}
+	}
+
+	return parts
+}
+
+func (g *Generator) extractPartBySignature(lines []string, signature string) string {
+	var result []string
+	inBlock := false
+	braceCount := 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		if strings.HasPrefix(trimmed, signature) {
+			inBlock = true
+			result = []string{line}
+			braceCount = strings.Count(line, "{") - strings.Count(line, "}")
+
+			if braceCount == 0 {
+				return strings.Join(result, "\n")
+			}
+			continue
+		}
+
+		if inBlock {
+			result = append(result, line)
+			braceCount += strings.Count(line, "{") - strings.Count(line, "}")
+
+			if braceCount == 0 {
+				return strings.Join(result, "\n")
+			}
+		}
+	}
+
+	return ""
+}
+
+func (g *Generator) replacePartBySignature(content, signature, newPart string) string {
+	lines := strings.Split(content, "\n")
+	var result []string
+	inBlock := false
+	braceCount := 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		if strings.HasPrefix(trimmed, signature) {
+			inBlock = true
+			braceCount = strings.Count(line, "{") - strings.Count(line, "}")
+
+			if braceCount == 0 {
+				result = append(result, newPart)
+				inBlock = false
+				continue
+			}
+			continue
+		}
+
+		if inBlock {
+			braceCount += strings.Count(line, "{") - strings.Count(line, "}")
+
+			if braceCount == 0 {
+				result = append(result, newPart)
+				inBlock = false
+				continue
+			}
+
+			continue
+		}
+
+		result = append(result, line)
+	}
+
+	return strings.Join(result, "\n")
+}
+
+func (g *Generator) replaceGeneratedSQLQueries(
+	existingContent, newContent, resourceName string,
+) string {
+	newQueries := g.extractGeneratedSQLQueries(newContent, resourceName)
+
+	updatedContent := existingContent
+
+	for queryName, newQuery := range newQueries {
+		if g.queryExistsInContent(updatedContent, queryName) {
+			updatedContent = g.replaceSQLQueryByName(updatedContent, queryName, newQuery)
+		} else {
+			updatedContent = strings.TrimSpace(updatedContent) + "\n\n" + newQuery + "\n"
+		}
+	}
+
+	return updatedContent
+}
+
+func (g *Generator) extractGeneratedSQLQueries(content, resourceName string) map[string]string {
+	queries := make(map[string]string)
+	lines := strings.Split(content, "\n")
+
+	queryNames := []string{
+		fmt.Sprintf("Query%sByID", resourceName),
+		fmt.Sprintf("Query%ss", resourceName),
+		fmt.Sprintf("QueryAll%ss", resourceName),
+		fmt.Sprintf("Insert%s", resourceName),
+		fmt.Sprintf("Update%s", resourceName),
+		fmt.Sprintf("Delete%s", resourceName),
+		fmt.Sprintf("QueryPaginated%ss", resourceName),
+		fmt.Sprintf("Count%ss", resourceName),
+	}
+
+	for _, queryName := range queryNames {
+		query := g.extractSQLQueryByName(lines, queryName)
+		if query != "" {
+			queries[queryName] = query
+		}
+	}
+
+	return queries
+}
+
+func (g *Generator) extractSQLQueryByName(lines []string, queryName string) string {
+	var result []string
+	inQuery := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		if strings.Contains(trimmed, fmt.Sprintf("-- name: %s ", queryName)) {
+			inQuery = true
+			result = []string{line}
+			continue
+		}
+
+		if inQuery {
+			if trimmed == "" || strings.HasPrefix(trimmed, "-- name:") {
+				return strings.Join(result, "\n")
+			}
+			result = append(result, line)
+		}
+	}
+
+	if inQuery {
+		return strings.Join(result, "\n")
+	}
+
+	return ""
+}
+
+func (g *Generator) replaceSQLQueryByName(content, queryName, newQuery string) string {
+	lines := strings.Split(content, "\n")
+	var result []string
+	inQuery := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		if strings.Contains(trimmed, fmt.Sprintf("-- name: %s ", queryName)) {
+			inQuery = true
+			result = append(result, newQuery)
+			continue
+		}
+
+		if inQuery {
+			if trimmed == "" || strings.HasPrefix(trimmed, "-- name:") {
+				inQuery = false
+				result = append(result, line) // Keep the empty line or next query
+				continue
+			}
+			continue
+		}
+
+		result = append(result, line)
+	}
+
+	return strings.Join(result, "\n")
+}
+
+func (g *Generator) queryExistsInContent(content, queryName string) bool {
+	return strings.Contains(content, fmt.Sprintf("-- name: %s ", queryName))
+}

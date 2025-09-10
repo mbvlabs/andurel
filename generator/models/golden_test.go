@@ -216,6 +216,207 @@ func TestQueriesFileGeneration__GoldenFile(t *testing.T) {
 	}
 }
 
+func TestModelRefresh__PreservesCustomCode__GoldenFile(t *testing.T) {
+	tests := []struct {
+		name                 string
+		initialMigrationsDir string
+		refreshMigrationsDir string
+		tableName            string
+		resourceName         string
+		modulePath           string
+		beforeRefreshFixture string
+		afterRefreshFixture  string
+	}{
+		{
+			name:                 "Should preserve custom functions when refreshing User model with schema changes",
+			initialMigrationsDir: "simple_user_table",
+			refreshMigrationsDir: "simple_user_table_with_phone",
+			tableName:            "users",
+			resourceName:         "User",
+			modulePath:           "github.com/example/myapp",
+			beforeRefreshFixture: "user_model_with_custom_code_before_refresh",
+			afterRefreshFixture:  "user_model_with_custom_code_after_refresh_with_phone",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			queriesDir := filepath.Join(tempDir, "database", "queries")
+			modelsDir := filepath.Join(tempDir, "models")
+
+			err := os.MkdirAll(queriesDir, constants.DirPermissionDefault)
+			if err != nil {
+				t.Fatalf("Failed to create queries directory: %v", err)
+			}
+
+			err = os.MkdirAll(modelsDir, constants.DirPermissionDefault)
+			if err != nil {
+				t.Fatalf("Failed to create models directory: %v", err)
+			}
+
+			originalWd, _ := os.Getwd()
+			oldWd, _ := os.Getwd()
+			defer os.Chdir(oldWd)
+			os.Chdir(tempDir)
+
+			initialMigrationsDir := filepath.Join(
+				originalWd,
+				"testdata",
+				"migrations",
+				tt.initialMigrationsDir,
+			)
+			refreshMigrationsDir := filepath.Join(
+				originalWd,
+				"testdata",
+				"migrations",
+				tt.refreshMigrationsDir,
+			)
+			modelPath := filepath.Join(modelsDir, strings.ToLower(tt.resourceName)+".go")
+			sqlPath := filepath.Join(queriesDir, tt.tableName+".sql")
+
+			generator := NewGenerator("postgresql")
+
+			err = generator.GenerateModelFromMigrations(
+				tt.tableName, tt.resourceName,
+				[]string{initialMigrationsDir},
+				modelPath, sqlPath,
+				tt.modulePath,
+			)
+			if err != nil {
+				t.Fatalf("Failed to generate initial model: %v", err)
+			}
+
+			beforeRefreshPath := filepath.Join(
+				originalWd,
+				"testdata",
+				tt.beforeRefreshFixture+".go",
+			)
+			beforeRefreshContent, err := os.ReadFile(beforeRefreshPath)
+			if err != nil {
+				t.Fatalf("Failed to read before refresh fixture: %v", err)
+			}
+
+			err = os.WriteFile(modelPath, beforeRefreshContent, constants.FilePermissionPrivate)
+			if err != nil {
+				t.Fatalf("Failed to write model file with custom code: %v", err)
+			}
+
+			cat, err := generator.buildCatalogFromTableMigrations(
+				tt.tableName,
+				[]string{refreshMigrationsDir},
+			)
+			if err != nil {
+				t.Fatalf("Failed to build catalog from refresh migrations: %v", err)
+			}
+
+			err = generator.RefreshModel(
+				cat,
+				tt.resourceName,
+				tt.tableName,
+				modelPath,
+				sqlPath,
+				tt.modulePath,
+			)
+			if err != nil {
+				t.Fatalf("Failed to refresh model: %v", err)
+			}
+
+			refreshedContent, err := os.ReadFile(modelPath)
+			if err != nil {
+				t.Fatalf("Failed to read refreshed model file: %v", err)
+			}
+
+			fixtureDir := filepath.Join(originalWd, "testdata")
+			g := goldie.New(t, goldie.WithFixtureDir(fixtureDir), goldie.WithNameSuffix(".go"))
+
+			g.Assert(t, tt.afterRefreshFixture, refreshedContent)
+		})
+	}
+}
+
+func TestSQLRefresh__PreservesCustomQueries__GoldenFile(t *testing.T) {
+	t.Skip("Skipping SQL refresh test as it is not yet implemented")
+
+	tests := []struct {
+		name                 string
+		migrationsDir        string
+		tableName            string
+		resourceName         string
+		beforeRefreshFixture string
+		afterRefreshFixture  string
+	}{
+		{
+			name:                 "Should preserve custom queries while refreshing CRUD queries",
+			migrationsDir:        "simple_user_table",
+			tableName:            "users",
+			resourceName:         "User",
+			beforeRefreshFixture: "users_sql_with_custom_queries_before_refresh",
+			afterRefreshFixture:  "users_sql_with_custom_queries_after_refresh",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			queriesDir := filepath.Join(tempDir, "database", "queries")
+
+			err := os.MkdirAll(queriesDir, constants.DirPermissionDefault)
+			if err != nil {
+				t.Fatalf("Failed to create queries directory: %v", err)
+			}
+
+			originalWd, _ := os.Getwd()
+			oldWd, _ := os.Getwd()
+			defer os.Chdir(oldWd)
+			os.Chdir(tempDir)
+
+			migrationsDir := filepath.Join(originalWd, "testdata", "migrations", tt.migrationsDir)
+			sqlPath := filepath.Join(queriesDir, tt.tableName+".sql")
+
+			generator := NewGenerator("postgresql")
+
+			beforeRefreshPath := filepath.Join(
+				originalWd,
+				"testdata",
+				tt.beforeRefreshFixture+".sql",
+			)
+			beforeRefreshContent, err := os.ReadFile(beforeRefreshPath)
+			if err != nil {
+				t.Fatalf("Failed to read before refresh fixture: %v", err)
+			}
+
+			err = os.WriteFile(sqlPath, beforeRefreshContent, constants.FilePermissionPrivate)
+			if err != nil {
+				t.Fatalf("Failed to write initial SQL file: %v", err)
+			}
+
+			cat, err := generator.buildCatalogFromTableMigrations(
+				tt.tableName,
+				[]string{migrationsDir},
+			)
+			if err != nil {
+				t.Fatalf("Failed to build catalog from migrations: %v", err)
+			}
+
+			err = generator.refreshSQLFile(tt.resourceName, tt.tableName, cat, sqlPath)
+			if err != nil {
+				t.Fatalf("Failed to refresh SQL file: %v", err)
+			}
+
+			refreshedContent, err := os.ReadFile(sqlPath)
+			if err != nil {
+				t.Fatalf("Failed to read refreshed SQL file: %v", err)
+			}
+
+			fixtureDir := filepath.Join(originalWd, "testdata")
+			g := goldie.New(t, goldie.WithFixtureDir(fixtureDir), goldie.WithNameSuffix(".sql"))
+
+			g.Assert(t, tt.afterRefreshFixture, refreshedContent)
+		})
+	}
+}
+
 func formatGoFile(filePath string) error {
 	cmd := exec.Command("go", "fmt", filePath)
 	if err := cmd.Run(); err != nil {

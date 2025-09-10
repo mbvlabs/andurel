@@ -23,17 +23,22 @@ func newGenerateCommand() *cobra.Command {
 }
 
 func newModelCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "model [name] [table]",
 		Short: "Generate a new model",
 		Long: `Generate a new model with the specified name.
 The model will include CRUD operations and database functions.
 
-Example:
-  andurel generate model User`,
+Examples:
+  andurel generate model User users           # Create new model
+  andurel generate model User users --refresh # Refresh existing model`,
 		Args: cobra.ExactArgs(2),
 		RunE: generateModel,
 	}
+
+	cmd.Flags().Bool("refresh", false, "Refresh existing model while preserving custom code")
+
+	return cmd
 }
 
 func newViewCommand() *cobra.Command {
@@ -61,9 +66,18 @@ func generateModel(cmd *cobra.Command, args []string) error {
 	resourceName := args[0]
 	tableName := args[1]
 
+	refresh, err := cmd.Flags().GetBool("refresh")
+	if err != nil {
+		return err
+	}
+
 	gen, err := generator.New()
 	if err != nil {
 		return err
+	}
+
+	if refresh {
+		return gen.RefreshModel(resourceName, tableName)
 	}
 
 	return gen.GenerateModel(resourceName, tableName)
