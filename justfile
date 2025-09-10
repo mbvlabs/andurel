@@ -1,10 +1,10 @@
 alias b := build
 
 build:
-	go build -o andurel main.go
+	go build -o andurel-dev main.go
 
 move:
-	sudo mv andurel /usr/local/bin/andurel
+	sudo mv andurel-dev /usr/local/bin/andurel-dev
 
 full:
 	just build
