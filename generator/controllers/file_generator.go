@@ -69,14 +69,12 @@ func (fg *FileGenerator) GenerateController(
 		return fmt.Errorf("failed to format controller file: %w", err)
 	}
 
-	if controllerType == ResourceController {
-		if err := fg.routeGenerator.GenerateRoutes(resourceName, pluralName); err != nil {
-			return fmt.Errorf("failed to generate routes: %w", err)
-		}
+	if err := fg.routeGenerator.GenerateRoutes(resourceName, pluralName); err != nil {
+		return fmt.Errorf("failed to generate routes: %w", err)
+	}
 
-		if err := fg.registerController(resourceName); err != nil {
-			return fmt.Errorf("failed to register controller: %w", err)
-		}
+	if err := fg.registerController(resourceName); err != nil {
+		return fmt.Errorf("failed to register controller: %w", err)
 	}
 
 	return nil

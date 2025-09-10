@@ -19,8 +19,8 @@ func (g *Generator) GenerateModel(resourceName, tableName string) error {
 	return g.coordinator.GenerateModel(resourceName, tableName)
 }
 
-func (g *Generator) GenerateController(resourceName, tableName string) error {
-	return g.coordinator.GenerateController(resourceName, tableName)
+func (g *Generator) GenerateController(resourceName, tableName string, withViews bool) error {
+	return g.coordinator.GenerateController(resourceName, tableName, withViews)
 }
 
 func (g *Generator) GenerateView(resourceName, tableName string) error {

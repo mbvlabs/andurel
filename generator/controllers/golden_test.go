@@ -21,22 +21,34 @@ func TestControllerFileGeneration__GoldenFile(t *testing.T) {
 		tableName     string
 		resourceName  string
 		modulePath    string
+		ctrlType      ControllerType
 	}{
 		{
-			name:          "Should generate user controller",
+			name:          "Should generate user controller with views",
 			fileName:      "user_controller",
 			migrationsDir: "simple_user_table",
 			tableName:     "users",
 			resourceName:  "User",
 			modulePath:    "github.com/example/myapp",
+			ctrlType:      ResourceController,
 		},
 		{
-			name:          "Should generate product controller",
+			name:          "Should generate product controller with views",
 			fileName:      "product_controller",
 			migrationsDir: "product_table",
 			tableName:     "products",
 			resourceName:  "Product",
 			modulePath:    "github.com/example/shop",
+			ctrlType:      ResourceController,
+		},
+		{
+			name:          "Should generate product controller with no views",
+			fileName:      "product_controller_no_view",
+			migrationsDir: "product_table",
+			tableName:     "products",
+			resourceName:  "Product",
+			modulePath:    "github.com/example/shop",
+			ctrlType:      ResourceControllerNoViews,
 		},
 	}
 
@@ -73,7 +85,7 @@ func TestControllerFileGeneration__GoldenFile(t *testing.T) {
 				PluralName:     tt.tableName,
 				PackageName:    "controllers",
 				ModulePath:     tt.modulePath,
-				ControllerType: ResourceController,
+				ControllerType: tt.ctrlType,
 			})
 			if err != nil {
 				t.Fatalf("Failed to build controller: %v", err)
@@ -149,7 +161,10 @@ func TestRoutesFileGeneration__GoldenFile(t *testing.T) {
 			os.Chdir(tempDir)
 
 			templateRenderer := NewTemplateRenderer()
-			routeContent, err := templateRenderer.generateRouteContent(tt.resourceName, tt.tableName)
+			routeContent, err := templateRenderer.generateRouteContent(
+				tt.resourceName,
+				tt.tableName,
+			)
 			if err != nil {
 				t.Fatalf("Failed to generate route content: %v", err)
 			}
@@ -329,7 +344,11 @@ func TestControllerRegistration__GoldenFile(t *testing.T) {
 				t.Fatalf("Failed to get working directory: %v", err)
 			}
 
-			initialControllerGoldenPath := filepath.Join(originalWd, "testdata", "base_controller.go")
+			initialControllerGoldenPath := filepath.Join(
+				originalWd,
+				"testdata",
+				"base_controller.go",
+			)
 			initialControllerContent, err := os.ReadFile(initialControllerGoldenPath)
 			if err != nil {
 				t.Fatalf("Failed to read initial controller golden file: %v", err)

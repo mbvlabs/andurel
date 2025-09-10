@@ -46,10 +46,7 @@ func (r Users) Index(c echo.Context) error {
 		perPage,
 	)
 	if err != nil {
-		return c.String(
-			http.StatusInternalServerError,
-			"Failed to load users",
-		)
+		return render(c, views.InternalError())
 	}
 
 	return render(c, views.UserIndex(usersList.Users))
@@ -58,12 +55,12 @@ func (r Users) Index(c echo.Context) error {
 func (r Users) Show(c echo.Context) error {
 	userID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		return c.String(http.StatusBadRequest, "Invalid user ID")
+		return render(c, views.BadRequest())
 	}
 
 	user, err := models.FindUser(c.Request().Context(), r.db.Pool(), userID)
 	if err != nil {
-		return c.String(http.StatusNotFound, "User not found")
+		return render(c, views.NotFound())
 	}
 
 	return render(c, views.UserShow(user))
@@ -113,7 +110,7 @@ func (r Users) Create(c echo.Context) error {
 	}
 
 	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "User created successfully"); flashErr != nil {
-		return flashErr
+		return render(c, views.InternalError())
 	}
 
 	return c.Redirect(http.StatusSeeOther, routes.UserShow.GetPath(user.ID))
@@ -122,12 +119,12 @@ func (r Users) Create(c echo.Context) error {
 func (r Users) Edit(c echo.Context) error {
 	userID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		return c.String(http.StatusBadRequest, "Invalid user ID")
+		return render(c, views.BadRequest())
 	}
 
 	user, err := models.FindUser(c.Request().Context(), r.db.Pool(), userID)
 	if err != nil {
-		return c.String(http.StatusNotFound, "User not found")
+		return render(c, views.NotFound())
 	}
 
 	return render(c, views.UserEdit(user))
@@ -143,7 +140,7 @@ type UpdateUserFormPayload struct {
 func (r Users) Update(c echo.Context) error {
 	userID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		return c.String(http.StatusBadRequest, "Invalid user ID")
+		return render(c, views.BadRequest())
 	}
 
 	var formPayload UpdateUserFormPayload
@@ -173,7 +170,7 @@ func (r Users) Update(c echo.Context) error {
 	)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to update user: %v", err)); flashErr != nil {
-			return flashErr
+			return render(c, views.InternalError())
 		}
 		return c.Redirect(
 			http.StatusSeeOther,
@@ -182,7 +179,7 @@ func (r Users) Update(c echo.Context) error {
 	}
 
 	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "User updated successfully"); flashErr != nil {
-		return flashErr
+		return render(c, views.InternalError())
 	}
 
 	return c.Redirect(http.StatusSeeOther, routes.UserShow.GetPath(user.ID))
@@ -191,19 +188,19 @@ func (r Users) Update(c echo.Context) error {
 func (r Users) Destroy(c echo.Context) error {
 	userID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		return c.String(http.StatusBadRequest, "Invalid user ID")
+		return render(c, views.BadRequest())
 	}
 
 	err = models.DestroyUser(c.Request().Context(), r.db.Pool(), userID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete user: %v", err)); flashErr != nil {
-			return flashErr
+			return render(c, views.InternalError())
 		}
 		return c.Redirect(http.StatusSeeOther, routes.UserIndex.Path)
 	}
 
 	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "User destroyed successfully"); flashErr != nil {
-		return flashErr
+		return render(c, views.InternalError())
 	}
 
 	return c.Redirect(http.StatusSeeOther, routes.UserIndex.Path)

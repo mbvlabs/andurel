@@ -55,7 +55,7 @@ func (r {{.ResourceName}}s) Index(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return render(c, views.{{.ResourceName}}Index({{.PluralName}}List.{{.ResourceName}}s))
+	return c.HTML(http.StatusOK, "{{.ResourceName | ToLower}}s index - no views implemented")
 }
 
 func (r {{.ResourceName}}s) Show(c echo.Context) error {
@@ -69,11 +69,11 @@ func (r {{.ResourceName}}s) Show(c echo.Context) error {
 		return render(c, views.NotFound())
 	}
 
-	return render(c, views.{{.ResourceName}}Show({{.ResourceName | ToLower}}))
+	return c.HTML(http.StatusOK, "{{.ResourceName | ToLower}} show - no views implemented")
 }
 
 func (r {{.ResourceName}}s) New(c echo.Context) error {
-	return render(c, views.{{.ResourceName}}New())
+	return c.HTML(http.StatusOK, "{{.ResourceName | ToLower}} new - no views implemented")
 }
 
 type Create{{.ResourceName}}FormPayload struct {
@@ -151,7 +151,7 @@ func (r {{.ResourceName}}s) Edit(c echo.Context) error {
 		return render(c, views.NotFound())
 	}
 
-	return render(c, views.{{.ResourceName}}Edit({{.ResourceName | ToLower}}))
+	return c.HTML(http.StatusOK, "{{.ResourceName | ToLower}} edit - no views implemented")
 }
 
 type Update{{.ResourceName}}FormPayload struct {

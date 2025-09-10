@@ -105,7 +105,7 @@ func (c *Coordinator) GenerateModel(resourceName, tableName string) error {
 	return nil
 }
 
-func (c *Coordinator) GenerateController(resourceName, tableName string) error {
+func (c *Coordinator) GenerateController(resourceName, tableName string, withViews bool) error {
 	modulePath, err := c.projectManager.GetModulePath()
 	if err != nil {
 		return err
@@ -132,15 +132,24 @@ func (c *Coordinator) GenerateController(resourceName, tableName string) error {
 		return err
 	}
 
-	if err := c.controllerGenerator.GenerateController(cat, resourceName, controllers.ResourceController, modulePath); err != nil {
+	controllerType := controllers.ResourceControllerNoViews
+	if withViews {
+		controllerType = controllers.ResourceController
+	}
+
+	if err := c.controllerGenerator.GenerateController(cat, resourceName, controllerType, modulePath); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
-	if err := c.viewGenerator.GenerateView(cat, resourceName, modulePath); err != nil {
-		return fmt.Errorf("failed to generate view: %w", err)
+	if withViews {
+		if err := c.viewGenerator.GenerateView(cat, resourceName, modulePath); err != nil {
+			return fmt.Errorf("failed to generate view: %w", err)
+		}
+		fmt.Printf("Successfully generated resource controller %s with views\n", resourceName)
+	} else {
+		fmt.Printf("Successfully generated resource controller %s (no views)\n", resourceName)
 	}
-
-	fmt.Printf("Successfully generated resource controller and view for %s\n", resourceName)
+	
 	return nil
 }
 

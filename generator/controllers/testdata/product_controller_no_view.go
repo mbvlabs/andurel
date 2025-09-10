@@ -49,7 +49,7 @@ func (r Products) Index(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return render(c, views.ProductIndex(productsList.Products))
+	return c.HTML(http.StatusOK, "products index - no views implemented")
 }
 
 func (r Products) Show(c echo.Context) error {
@@ -63,11 +63,11 @@ func (r Products) Show(c echo.Context) error {
 		return render(c, views.NotFound())
 	}
 
-	return render(c, views.ProductShow(product))
+	return c.HTML(http.StatusOK, "product show - no views implemented")
 }
 
 func (r Products) New(c echo.Context) error {
-	return render(c, views.ProductNew())
+	return c.HTML(http.StatusOK, "product new - no views implemented")
 }
 
 type CreateProductFormPayload struct {
@@ -131,7 +131,7 @@ func (r Products) Edit(c echo.Context) error {
 		return render(c, views.NotFound())
 	}
 
-	return render(c, views.ProductEdit(product))
+	return c.HTML(http.StatusOK, "product edit - no views implemented")
 }
 
 type UpdateProductFormPayload struct {
