@@ -1,7 +1,6 @@
 package models
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,38 +9,41 @@ import (
 	"testing"
 
 	"github.com/mbvlabs/andurel/generator/templates"
+	"github.com/sebdah/goldie/v2"
 )
 
-var update = flag.Bool("update", false, "update golden files")
-
-func TestGenerator_GoldenFiles(t *testing.T) {
+func TestModelFileGeneration__GoldenFile(t *testing.T) {
 	tests := []struct {
 		name          string
+		fileName      string
 		migrationsDir string
 		tableName     string
 		resourceName  string
 		modulePath    string
 	}{
 		{
-			name:          "simple_user_table",
+			name:          "Should generate model for simple users table",
+			fileName:      "simple_user_table_model",
 			migrationsDir: "simple_user_table",
 			tableName:     "users",
 			resourceName:  "User",
 			modulePath:    "github.com/example/myapp",
 		},
 		{
-			name:          "product_table_with_decimals",
-			migrationsDir: "product_table_with_decimals",
-			tableName:     "products",
-			resourceName:  "Product",
-			modulePath:    "github.com/example/shop",
-		},
-		{
-			name:          "complex_table",
+			name:          "Should generate model for complex table",
 			migrationsDir: "complex_table",
+			fileName:      "complex_table_model",
 			tableName:     "comprehensive_example",
 			resourceName:  "ComprehensiveExample",
 			modulePath:    "github.com/example/complex",
+		},
+		{
+			name:          "Should generate model for posts with multi-migration",
+			fileName:      "posts_multi_migration_model",
+			migrationsDir: "posts_multi_migration",
+			tableName:     "posts",
+			resourceName:  "Post",
+			modulePath:    "github.com/example/blog",
 		},
 	}
 
@@ -100,18 +102,7 @@ func TestGenerator_GoldenFiles(t *testing.T) {
 				t.Fatalf("Failed to generate model content: %v", err)
 			}
 
-			table, err := cat.GetTable("", tt.tableName)
-			if err != nil {
-				t.Fatalf("Failed to get table from catalog: %v", err)
-			}
-
-			sqlContent, err := generator.GenerateSQLContent(tt.resourceName, tt.tableName, table)
-			if err != nil {
-				t.Fatalf("Failed to generate SQL content: %v", err)
-			}
-
 			modelPath := filepath.Join("models", strings.ToLower(tt.resourceName)+".go")
-			sqlPath := filepath.Join("database", "queries", tt.tableName+".sql")
 
 			err = os.WriteFile(modelPath, []byte(modelContent), 0o644)
 			if err != nil {
@@ -123,60 +114,104 @@ func TestGenerator_GoldenFiles(t *testing.T) {
 				t.Fatalf("Failed to format model file: %v", err)
 			}
 
+			formattedModelContent, err := os.ReadFile(modelPath)
+			if err != nil {
+				t.Fatalf("Failed to read formatted model file: %v", err)
+			}
+
+			fixtureDir := filepath.Join(originalWd, "testdata")
+			g := goldie.New(t, goldie.WithFixtureDir(fixtureDir), goldie.WithNameSuffix(".go"))
+
+			g.Assert(t, tt.fileName, formattedModelContent)
+		})
+	}
+}
+
+func TestQueriesFileGeneration__GoldenFile(t *testing.T) {
+	tests := []struct {
+		name          string
+		fileName      string
+		migrationsDir string
+		tableName     string
+		resourceName  string
+	}{
+		{
+			name:          "Should generate SQL for simple users table",
+			fileName:      "simple_user_table_queries",
+			migrationsDir: "simple_user_table",
+			tableName:     "users",
+			resourceName:  "User",
+		},
+		{
+			name:          "Should generate SQL for complex table",
+			migrationsDir: "complex_table",
+			fileName:      "complex_table_queries",
+			tableName:     "comprehensive_example",
+			resourceName:  "ComprehensiveExample",
+		},
+		{
+			name:          "Should generate SQL for posts with multi-migration",
+			fileName:      "posts_multi_migration_queries",
+			migrationsDir: "posts_multi_migration",
+			tableName:     "posts",
+			resourceName:  "Post",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			queriesDir := filepath.Join(tempDir, "database", "queries")
+
+			err := os.MkdirAll(queriesDir, 0o755)
+			if err != nil {
+				t.Fatalf("Failed to create queries directory: %v", err)
+			}
+			originalWd, _ := os.Getwd()
+
+			oldWd, _ := os.Getwd()
+			defer os.Chdir(oldWd)
+			os.Chdir(tempDir)
+
+			migrationsDir := filepath.Join(originalWd, "testdata", "migrations", tt.migrationsDir)
+
+			generator := NewGenerator("postgresql")
+
+			cat, err := generator.buildCatalogFromTableMigrations(
+				tt.tableName,
+				[]string{migrationsDir},
+			)
+			if err != nil {
+				t.Fatalf("Failed to build catalog from migrations: %v", err)
+			}
+
+			table, err := cat.GetTable("", tt.tableName)
+			if err != nil {
+				t.Fatalf("Failed to get table from catalog: %v", err)
+			}
+
+			sqlContent, err := generator.GenerateSQLContent(tt.resourceName, tt.tableName, table)
+			if err != nil {
+				t.Fatalf("Failed to generate SQL content: %v", err)
+			}
+
+			sqlPath := filepath.Join("database", "queries", tt.tableName+".sql")
+
 			err = os.WriteFile(sqlPath, []byte(sqlContent), 0o644)
 			if err != nil {
 				t.Fatalf("Failed to write SQL file: %v", err)
 			}
 
-			t.Run("model_file", func(t *testing.T) {
-				compareWithGolden(t, tt.name+"_model.go", modelPath, *update, originalWd)
-			})
+			queriesContent, err := os.ReadFile(sqlPath)
+			if err != nil {
+				t.Fatalf("Failed to read formatted model file: %v", err)
+			}
 
-			t.Run("sql_file", func(t *testing.T) {
-				compareWithGolden(t, tt.name+"_queries.sql", sqlPath, *update, originalWd)
-			})
+			fixtureDir := filepath.Join(originalWd, "testdata")
+			g := goldie.New(t, goldie.WithFixtureDir(fixtureDir), goldie.WithNameSuffix(".sql"))
+
+			g.Assert(t, tt.fileName, queriesContent)
 		})
-	}
-}
-
-func compareWithGolden(
-	t *testing.T,
-	goldenFile, actualFile string,
-	update bool,
-	originalWd string,
-) {
-	actualContent, err := os.ReadFile(actualFile)
-	if err != nil {
-		t.Fatalf("Failed to read actual file %s: %v", actualFile, err)
-	}
-
-	goldenPath := filepath.Join(originalWd, "testdata", goldenFile)
-
-	if update {
-		err = os.MkdirAll(filepath.Dir(goldenPath), 0o755)
-		if err != nil {
-			t.Fatalf("Failed to create testdata directory: %v", err)
-		}
-
-		err = os.WriteFile(goldenPath, actualContent, 0o644)
-		if err != nil {
-			t.Fatalf("Failed to update golden file %s: %v", goldenPath, err)
-		}
-		t.Logf("Updated golden file: %s", goldenPath)
-		return
-	}
-
-	expectedContent, err := os.ReadFile(goldenPath)
-	if err != nil {
-		t.Fatalf("Failed to read golden file %s: %v (run with -update to create)", goldenPath, err)
-	}
-
-	actualStr := strings.TrimSpace(string(actualContent))
-	expectedStr := strings.TrimSpace(string(expectedContent))
-
-	if actualStr != expectedStr {
-		t.Errorf("Generated content doesn't match golden file %s\n\nActual:\n%s\n\nExpected:\n%s",
-			goldenPath, actualStr, expectedStr)
 	}
 }
 

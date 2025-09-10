@@ -29,7 +29,6 @@ var BuildRoutes = func() []Route {
 		apiRoutes...,
 	)
 
-
 	r = append(
 		r,
 		ProductRoutes...,

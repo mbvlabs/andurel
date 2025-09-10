@@ -19,7 +19,7 @@ type Users struct {
 	db database.Postgres
 }
 
-func newUsers(db psql.Postgres) Users {
+func newUsers(db database.Postgres) Users {
 	return Users{db}
 }
 
@@ -41,7 +41,7 @@ func (r Users) Index(c echo.Context) error {
 
 	usersList, err := models.PaginateUsers(
 		c.Request().Context(),
-		r.db.Pool,
+		r.db.Pool(),
 		page,
 		perPage,
 	)
@@ -61,7 +61,7 @@ func (r Users) Show(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid user ID")
 	}
 
-	user, err := models.FindUser(c.Request().Context(), r.db.Pool, userID)
+	user, err := models.FindUser(c.Request().Context(), r.db.Pool(), userID)
 	if err != nil {
 		return c.String(http.StatusNotFound, "User not found")
 	}
@@ -90,7 +90,7 @@ func (r Users) Create(c echo.Context) error {
 			err,
 		)
 
-		return render(c, views.ErrorPage())
+		return render(c, views.NotFound())
 	}
 
 	payload := models.CreateUserPayload{
@@ -102,7 +102,7 @@ func (r Users) Create(c echo.Context) error {
 
 	user, err := models.CreateUser(
 		c.Request().Context(),
-		r.db.Pool,
+		r.db.Pool(),
 		payload,
 	)
 	if err != nil {
@@ -125,7 +125,7 @@ func (r Users) Edit(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid user ID")
 	}
 
-	user, err := models.FindUser(c.Request().Context(), r.db.Pool, userID)
+	user, err := models.FindUser(c.Request().Context(), r.db.Pool(), userID)
 	if err != nil {
 		return c.String(http.StatusNotFound, "User not found")
 	}
@@ -155,7 +155,7 @@ func (r Users) Update(c echo.Context) error {
 			err,
 		)
 
-		return render(c, views.ErrorPage())
+		return render(c, views.NotFound())
 	}
 
 	payload := models.UpdateUserPayload{
@@ -168,7 +168,7 @@ func (r Users) Update(c echo.Context) error {
 
 	user, err := models.UpdateUser(
 		c.Request().Context(),
-		r.db.Pool,
+		r.db.Pool(),
 		payload,
 	)
 	if err != nil {
@@ -194,7 +194,7 @@ func (r Users) Destroy(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid user ID")
 	}
 
-	err = models.DestroyUser(c.Request().Context(), r.db.Pool, userID)
+	err = models.DestroyUser(c.Request().Context(), r.db.Pool(), userID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete user: %v", err)); flashErr != nil {
 			return flashErr

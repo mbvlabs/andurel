@@ -12,7 +12,7 @@ import (
 )
 
 type User struct {
-	ID        int32
+	ID        uuid.UUID
 	Email     string
 	Name      string
 	Age       int32

@@ -39,10 +39,7 @@ func NewTypeMapper(databaseType string) *TypeMapper {
 }
 
 func (tm *TypeMapper) initPostgreSQLMappings() {
-	// UUID is always handled specially
 	tm.TypeMap["uuid"] = "uuid.UUID"
-
-	// The rest will be handled by getPostgreSQLType based on nullability
 }
 
 func (tm *TypeMapper) MapSQLTypeToGo(
@@ -105,9 +102,19 @@ func (tm *TypeMapper) GenerateConversionFromDB(fieldName, sqlcType, goType strin
 			return fmt.Sprintf("row.%s.Bytes", fieldName)
 		case "pgtype.Inet", "pgtype.CIDR", "pgtype.Macaddr", "pgtype.Macaddr8":
 			return fmt.Sprintf("row.%s.IPNet.String()", fieldName)
-		case "pgtype.Point", "pgtype.Lseg", "pgtype.Box", "pgtype.Path", "pgtype.Polygon", "pgtype.Circle":
+		case "pgtype.Point",
+			"pgtype.Lseg",
+			"pgtype.Box",
+			"pgtype.Path",
+			"pgtype.Polygon",
+			"pgtype.Circle":
 			return fmt.Sprintf("string(row.%s.Bytes)", fieldName)
-		case "pgtype.Int4range", "pgtype.Int8range", "pgtype.Numrange", "pgtype.Tsrange", "pgtype.Tstzrange", "pgtype.Daterange":
+		case "pgtype.Int4range",
+			"pgtype.Int8range",
+			"pgtype.Numrange",
+			"pgtype.Tsrange",
+			"pgtype.Tstzrange",
+			"pgtype.Daterange":
 			return fmt.Sprintf("string(row.%s.Bytes)", fieldName)
 		case "pgtype.Money":
 			return fmt.Sprintf("row.%s.String", fieldName)
@@ -415,6 +422,10 @@ func normalizeSQLType(sqlType string) string {
 	normalizedType := strings.ToLower(sqlType)
 
 	if idx := strings.Index(normalizedType, "("); idx != -1 {
+		normalizedType = normalizedType[:idx]
+	}
+
+	if idx := strings.Index(normalizedType, ";"); idx != -1 {
 		normalizedType = normalizedType[:idx]
 	}
 
