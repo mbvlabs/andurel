@@ -65,18 +65,20 @@ func generateModel(cmd *cobra.Command, args []string) error {
 
 func newControllerCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "controller [name] [table]",
+		Use:   "controller [model_name]",
 		Short: "Generate a new resource controller with CRUD actions",
 		Long: `Generate a new resource controller with full CRUD actions.
 The controller will include index, show, new, create, edit, update, and destroy actions.
 It will also generate the corresponding routes.
 
+The model must already exist before generating a controller.
+
 By default, controllers are generated without views. Use --with-views to also generate view templates.
 
 Examples:
-  andurel generate controller User users              # Controller without views
-  andurel generate controller User users --with-views # Controller with views`,
-		Args: cobra.ExactArgs(2),
+  andurel generate controller User              # Controller without views
+  andurel generate controller User --with-views # Controller with views`,
+		Args: cobra.ExactArgs(1),
 		RunE: generateController,
 	}
 	
@@ -108,7 +110,6 @@ Examples:
 
 func generateController(cmd *cobra.Command, args []string) error {
 	resourceName := args[0]
-	tableName := args[1]
 
 	withViews, err := cmd.Flags().GetBool("with-views")
 	if err != nil {
@@ -120,7 +121,7 @@ func generateController(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return gen.GenerateController(resourceName, tableName, withViews)
+	return gen.GenerateControllerFromModel(resourceName, withViews)
 }
 
 func generateResource(cmd *cobra.Command, args []string) error {
