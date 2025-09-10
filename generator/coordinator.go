@@ -354,12 +354,17 @@ func (c *Coordinator) RefreshModel(resourceName, tableName string) error {
 	sqlFileName.WriteString(".sql")
 	sqlPath := filepath.Join(c.config.Paths.Queries, sqlFileName.String())
 
-	// Check that files exist (required for refresh)
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
-		return fmt.Errorf("model file %s does not exist. Use 'generate model' to create it first", modelPath)
+		return fmt.Errorf(
+			"model file %s does not exist. Use 'generate model' to create it first",
+			modelPath,
+		)
 	}
 	if _, err := os.Stat(sqlPath); os.IsNotExist(err) {
-		return fmt.Errorf("SQL file %s does not exist. Use 'generate model' to create it first", sqlPath)
+		return fmt.Errorf(
+			"SQL file %s does not exist. Use 'generate model' to create it first",
+			sqlPath,
+		)
 	}
 
 	cat, err := c.migrationManager.BuildCatalogFromMigrations(tableName)

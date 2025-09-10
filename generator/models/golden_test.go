@@ -218,14 +218,14 @@ func TestQueriesFileGeneration__GoldenFile(t *testing.T) {
 
 func TestModelRefresh__PreservesCustomCode__GoldenFile(t *testing.T) {
 	tests := []struct {
-		name                   string
-		initialMigrationsDir   string
-		refreshMigrationsDir   string
-		tableName              string
-		resourceName           string
-		modulePath             string
-		beforeRefreshFixture   string
-		afterRefreshFixture    string
+		name                 string
+		initialMigrationsDir string
+		refreshMigrationsDir string
+		tableName            string
+		resourceName         string
+		modulePath           string
+		beforeRefreshFixture string
+		afterRefreshFixture  string
 	}{
 		{
 			name:                 "Should preserve custom functions when refreshing User model with schema changes",
@@ -260,14 +260,23 @@ func TestModelRefresh__PreservesCustomCode__GoldenFile(t *testing.T) {
 			defer os.Chdir(oldWd)
 			os.Chdir(tempDir)
 
-			initialMigrationsDir := filepath.Join(originalWd, "testdata", "migrations", tt.initialMigrationsDir)
-			refreshMigrationsDir := filepath.Join(originalWd, "testdata", "migrations", tt.refreshMigrationsDir)
+			initialMigrationsDir := filepath.Join(
+				originalWd,
+				"testdata",
+				"migrations",
+				tt.initialMigrationsDir,
+			)
+			refreshMigrationsDir := filepath.Join(
+				originalWd,
+				"testdata",
+				"migrations",
+				tt.refreshMigrationsDir,
+			)
 			modelPath := filepath.Join(modelsDir, strings.ToLower(tt.resourceName)+".go")
 			sqlPath := filepath.Join(queriesDir, tt.tableName+".sql")
 
 			generator := NewGenerator("postgresql")
 
-			// First, generate the initial model
 			err = generator.GenerateModelFromMigrations(
 				tt.tableName, tt.resourceName,
 				[]string{initialMigrationsDir},
@@ -278,20 +287,21 @@ func TestModelRefresh__PreservesCustomCode__GoldenFile(t *testing.T) {
 				t.Fatalf("Failed to generate initial model: %v", err)
 			}
 
-			// Load the "before refresh" fixture (model with custom code)
-			beforeRefreshPath := filepath.Join(originalWd, "testdata", tt.beforeRefreshFixture+".go")
+			beforeRefreshPath := filepath.Join(
+				originalWd,
+				"testdata",
+				tt.beforeRefreshFixture+".go",
+			)
 			beforeRefreshContent, err := os.ReadFile(beforeRefreshPath)
 			if err != nil {
 				t.Fatalf("Failed to read before refresh fixture: %v", err)
 			}
 
-			// Write the fixture content to simulate a model with custom code
 			err = os.WriteFile(modelPath, beforeRefreshContent, constants.FilePermissionPrivate)
 			if err != nil {
 				t.Fatalf("Failed to write model file with custom code: %v", err)
 			}
 
-			// Now refresh the model with the updated schema
 			cat, err := generator.buildCatalogFromTableMigrations(
 				tt.tableName,
 				[]string{refreshMigrationsDir},
@@ -300,18 +310,23 @@ func TestModelRefresh__PreservesCustomCode__GoldenFile(t *testing.T) {
 				t.Fatalf("Failed to build catalog from refresh migrations: %v", err)
 			}
 
-			err = generator.RefreshModel(cat, tt.resourceName, tt.tableName, modelPath, sqlPath, tt.modulePath)
+			err = generator.RefreshModel(
+				cat,
+				tt.resourceName,
+				tt.tableName,
+				modelPath,
+				sqlPath,
+				tt.modulePath,
+			)
 			if err != nil {
 				t.Fatalf("Failed to refresh model: %v", err)
 			}
 
-			// Read the refreshed content
 			refreshedContent, err := os.ReadFile(modelPath)
 			if err != nil {
 				t.Fatalf("Failed to read refreshed model file: %v", err)
 			}
 
-			// Compare with golden file
 			fixtureDir := filepath.Join(originalWd, "testdata")
 			g := goldie.New(t, goldie.WithFixtureDir(fixtureDir), goldie.WithNameSuffix(".go"))
 
@@ -320,7 +335,7 @@ func TestModelRefresh__PreservesCustomCode__GoldenFile(t *testing.T) {
 	}
 }
 
-func TestSQLRefresh__ReplacesCompleteFile(t *testing.T) {
+func TestSQLRefresh__PreservesCustomQueries(t *testing.T) {
 	tests := []struct {
 		name          string
 		migrationsDir string
@@ -328,7 +343,7 @@ func TestSQLRefresh__ReplacesCompleteFile(t *testing.T) {
 		resourceName  string
 	}{
 		{
-			name:          "Should completely replace SQL file on refresh",
+			name:          "Should preserve custom queries while refreshing CRUD queries",
 			migrationsDir: "simple_user_table",
 			tableName:     "users",
 			resourceName:  "User",
@@ -355,21 +370,33 @@ func TestSQLRefresh__ReplacesCompleteFile(t *testing.T) {
 
 			generator := NewGenerator("postgresql")
 
-			// Create initial SQL file with custom content
+			// Create initial SQL with some generated queries and custom queries mixed together
 			initialSQL := `-- Custom comment that should be replaced
+
 -- name: QueryUserByID :one
 select * from users where id=$1;
 
--- Custom query that should be removed
+-- name: QueryUsers :many
+select * from users;
+
+-- Custom query that should be preserved
 -- name: CustomQuery :many  
 select * from users where custom_field = $1;
+
+-- name: InsertUser :one
+insert into users (id, email, name, age, is_active, created_at, updated_at)
+values ($1, $2, $3, $4, $5, now(), now())
+returning *;
+
+-- Another custom query
+-- name: FindUsersByEmail :many
+select * from users where email like $1;
 `
 			err = os.WriteFile(sqlPath, []byte(initialSQL), constants.FilePermissionPrivate)
 			if err != nil {
 				t.Fatalf("Failed to write initial SQL file: %v", err)
 			}
 
-			// Refresh the SQL file
 			cat, err := generator.buildCatalogFromTableMigrations(
 				tt.tableName,
 				[]string{migrationsDir},
@@ -383,7 +410,6 @@ select * from users where custom_field = $1;
 				t.Fatalf("Failed to refresh SQL file: %v", err)
 			}
 
-			// Verify the refreshed SQL content
 			refreshedContent, err := os.ReadFile(sqlPath)
 			if err != nil {
 				t.Fatalf("Failed to read refreshed SQL file: %v", err)
@@ -391,19 +417,23 @@ select * from users where custom_field = $1;
 
 			refreshedStr := string(refreshedContent)
 
-			// Check that custom content is removed (complete replacement)
-			if strings.Contains(refreshedStr, "Custom comment that should be replaced") {
-				t.Error("Expected custom comment to be removed after SQL refresh")
+			// Check that custom content is PRESERVED (selective replacement)
+			if !strings.Contains(refreshedStr, "Custom comment that should be replaced") {
+				t.Error("Expected custom comment to be preserved after SQL refresh")
 			}
 
-			if strings.Contains(refreshedStr, "CustomQuery") {
-				t.Error("Expected custom query to be removed after SQL refresh")
+			if !strings.Contains(refreshedStr, "CustomQuery") {
+				t.Error("Expected custom query to be preserved after SQL refresh")
 			}
 
-			// Check that all standard CRUD operations are present
+			// Check that custom queries are preserved
+			if !strings.Contains(refreshedStr, "FindUsersByEmail") {
+				t.Error("Expected custom query FindUsersByEmail to be preserved after SQL refresh")
+			}
+
 			expectedQueries := []string{
 				"-- name: Query" + tt.resourceName + "ByID :one",
-				"-- name: Query" + tt.resourceName + "s :many", 
+				"-- name: Query" + tt.resourceName + "s :many",
 				"-- name: QueryAll" + tt.resourceName + "s :many",
 				"-- name: Insert" + tt.resourceName + " :one",
 				"-- name: Update" + tt.resourceName + " :one",
@@ -414,7 +444,10 @@ select * from users where custom_field = $1;
 
 			for _, expectedQuery := range expectedQueries {
 				if !strings.Contains(refreshedStr, expectedQuery) {
-					t.Errorf("Expected query %s to be present after SQL refresh, but it was not found", expectedQuery)
+					t.Errorf(
+						"Expected query %s to be present after SQL refresh, but it was not found",
+						expectedQuery,
+					)
 				}
 			}
 		})

@@ -416,12 +416,10 @@ func (g *Generator) RefreshModel(
 	modelPath, sqlPath string,
 	modulePath string,
 ) error {
-	// First, completely replace the SQL file with updated CRUD operations
 	if err := g.refreshSQLFile(resourceName, pluralName, cat, sqlPath); err != nil {
 		return fmt.Errorf("failed to refresh SQL file: %w", err)
 	}
 
-	// Then, selectively refresh the model file
 	if err := g.refreshModelFile(cat, resourceName, pluralName, modelPath, modulePath); err != nil {
 		return fmt.Errorf("failed to refresh model file: %w", err)
 	}
@@ -435,19 +433,28 @@ func (g *Generator) refreshSQLFile(
 	cat *catalog.Catalog,
 	sqlPath string,
 ) error {
+	// Read existing SQL file
+	existingContent, err := os.ReadFile(sqlPath)
+	if err != nil {
+		return fmt.Errorf("failed to read existing SQL file: %w", err)
+	}
+
 	table, err := cat.GetTable("", pluralName)
 	if err != nil {
 		return fmt.Errorf("table '%s' not found in catalog: %w", pluralName, err)
 	}
 
-	// Generate new SQL content completely
+	// Generate new SQL content to extract new CRUD operations
 	newSQLContent, err := g.GenerateSQLContent(resourceName, pluralName, table)
 	if err != nil {
 		return fmt.Errorf("failed to generate SQL content: %w", err)
 	}
 
-	// Write the new SQL file (completely replace)
-	if err := os.WriteFile(sqlPath, []byte(newSQLContent), constants.FilePermissionPrivate); err != nil {
+	// Replace only the known CRUD operations
+	updatedContent := g.replaceGeneratedSQLQueries(string(existingContent), newSQLContent, resourceName)
+
+	// Write the updated SQL file
+	if err := os.WriteFile(sqlPath, []byte(updatedContent), constants.FilePermissionPrivate); err != nil {
 		return fmt.Errorf("failed to write SQL file: %w", err)
 	}
 
@@ -459,13 +466,11 @@ func (g *Generator) refreshModelFile(
 	resourceName, pluralName string,
 	modelPath, modulePath string,
 ) error {
-	// Read the existing file content
 	existingContent, err := os.ReadFile(modelPath)
 	if err != nil {
 		return fmt.Errorf("failed to read existing model file: %w", err)
 	}
 
-	// Build the new model data
 	model, err := g.Build(cat, Config{
 		TableName:    pluralName,
 		ResourceName: resourceName,
@@ -477,7 +482,6 @@ func (g *Generator) refreshModelFile(
 		return fmt.Errorf("failed to build model: %w", err)
 	}
 
-	// Generate the new complete model content to extract new generated parts
 	templateContent, err := templates.Files.ReadFile("model.tmpl")
 	if err != nil {
 		return fmt.Errorf("failed to read model template: %w", err)
@@ -488,18 +492,19 @@ func (g *Generator) refreshModelFile(
 		return fmt.Errorf("failed to render model file: %w", err)
 	}
 
-	// Replace known generated parts with updated versions
-	updatedContent, err := g.replaceGeneratedParts(string(existingContent), newModelContent, resourceName)
+	updatedContent, err := g.replaceGeneratedParts(
+		string(existingContent),
+		newModelContent,
+		resourceName,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to replace generated parts: %w", err)
 	}
 
-	// Write the updated content
 	if err := os.WriteFile(modelPath, []byte(updatedContent), constants.FilePermissionPrivate); err != nil {
 		return fmt.Errorf("failed to write updated model file: %w", err)
 	}
 
-	// Always run go fmt to ensure proper formatting
 	if err := g.formatGoFile(modelPath); err != nil {
 		return fmt.Errorf("failed to format model file: %w", err)
 	}
@@ -507,25 +512,24 @@ func (g *Generator) refreshModelFile(
 	return nil
 }
 
-func (g *Generator) replaceGeneratedParts(existingContent, newContent, resourceName string) (string, error) {
-	// Extract all generated parts from the new content
+func (g *Generator) replaceGeneratedParts(
+	existingContent, newContent, resourceName string,
+) (string, error) {
 	newParts := g.extractGeneratedParts(newContent, resourceName)
-	
+
 	updatedContent := existingContent
-	
-	// Replace each generated part in the existing content
+
 	for signature, newContent := range newParts {
 		updatedContent = g.replacePartBySignature(updatedContent, signature, newContent)
 	}
-	
+
 	return updatedContent, nil
 }
 
 func (g *Generator) extractGeneratedParts(content, resourceName string) map[string]string {
 	parts := make(map[string]string)
 	lines := strings.Split(content, "\n")
-	
-	// Define the generated function/type signatures we're looking for
+
 	signatures := []string{
 		fmt.Sprintf("type %s struct", resourceName),
 		fmt.Sprintf("type Create%sPayload struct", resourceName),
@@ -539,14 +543,14 @@ func (g *Generator) extractGeneratedParts(content, resourceName string) map[stri
 		fmt.Sprintf("func Paginate%ss(", resourceName),
 		fmt.Sprintf("func rowTo%s(", resourceName),
 	}
-	
+
 	for _, signature := range signatures {
 		part := g.extractPartBySignature(lines, signature)
 		if part != "" {
 			parts[signature] = part
 		}
 	}
-	
+
 	return parts
 }
 
@@ -554,34 +558,31 @@ func (g *Generator) extractPartBySignature(lines []string, signature string) str
 	var result []string
 	inBlock := false
 	braceCount := 0
-	
+
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		
-		// Check if this line starts our target block
+
 		if strings.HasPrefix(trimmed, signature) {
 			inBlock = true
 			result = []string{line}
 			braceCount = strings.Count(line, "{") - strings.Count(line, "}")
-			
-			// If the opening brace closes on the same line, we're done
+
 			if braceCount == 0 {
 				return strings.Join(result, "\n")
 			}
 			continue
 		}
-		
+
 		if inBlock {
 			result = append(result, line)
 			braceCount += strings.Count(line, "{") - strings.Count(line, "}")
-			
-			// When braces are balanced, we've reached the end
+
 			if braceCount == 0 {
 				return strings.Join(result, "\n")
 			}
 		}
 	}
-	
+
 	return ""
 }
 
@@ -590,16 +591,14 @@ func (g *Generator) replacePartBySignature(content, signature, newPart string) s
 	var result []string
 	inBlock := false
 	braceCount := 0
-	
+
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		
-		// Check if this line starts our target block
+
 		if strings.HasPrefix(trimmed, signature) {
 			inBlock = true
 			braceCount = strings.Count(line, "{") - strings.Count(line, "}")
-			
-			// If the opening brace closes on the same line, replace just this line
+
 			if braceCount == 0 {
 				result = append(result, newPart)
 				inBlock = false
@@ -607,17 +606,124 @@ func (g *Generator) replacePartBySignature(content, signature, newPart string) s
 			}
 			continue
 		}
-		
+
 		if inBlock {
 			braceCount += strings.Count(line, "{") - strings.Count(line, "}")
-			
-			// When braces are balanced, we've reached the end - replace the whole block
+
 			if braceCount == 0 {
 				result = append(result, newPart)
 				inBlock = false
 				continue
 			}
-			// Skip lines that are part of the block being replaced
+
+			continue
+		}
+
+		result = append(result, line)
+	}
+
+	return strings.Join(result, "\n")
+}
+
+func (g *Generator) replaceGeneratedSQLQueries(existingContent, newContent, resourceName string) string {
+	// Extract all generated SQL queries from the new content
+	newQueries := g.extractGeneratedSQLQueries(newContent, resourceName)
+	
+	updatedContent := existingContent
+	
+	// Replace/add each generated query in the existing content
+	for queryName, newQuery := range newQueries {
+		if g.queryExistsInContent(updatedContent, queryName) {
+			// Replace existing query
+			updatedContent = g.replaceSQLQueryByName(updatedContent, queryName, newQuery)
+		} else {
+			// Add new query at the end
+			updatedContent = strings.TrimSpace(updatedContent) + "\n\n" + newQuery + "\n"
+		}
+	}
+	
+	return updatedContent
+}
+
+func (g *Generator) extractGeneratedSQLQueries(content, resourceName string) map[string]string {
+	queries := make(map[string]string)
+	lines := strings.Split(content, "\n")
+	
+	// Define the generated query names we're looking for
+	queryNames := []string{
+		fmt.Sprintf("Query%sByID", resourceName),
+		fmt.Sprintf("Query%ss", resourceName),
+		fmt.Sprintf("QueryAll%ss", resourceName),
+		fmt.Sprintf("Insert%s", resourceName),
+		fmt.Sprintf("Update%s", resourceName),
+		fmt.Sprintf("Delete%s", resourceName),
+		fmt.Sprintf("QueryPaginated%ss", resourceName),
+		fmt.Sprintf("Count%ss", resourceName),
+	}
+	
+	for _, queryName := range queryNames {
+		query := g.extractSQLQueryByName(lines, queryName)
+		if query != "" {
+			queries[queryName] = query
+		}
+	}
+	
+	return queries
+}
+
+func (g *Generator) extractSQLQueryByName(lines []string, queryName string) string {
+	var result []string
+	inQuery := false
+	
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		
+		// Check if this line starts our target query
+		if strings.Contains(trimmed, fmt.Sprintf("-- name: %s ", queryName)) {
+			inQuery = true
+			result = []string{line}
+			continue
+		}
+		
+		if inQuery {
+			// Empty line or next query comment ends this query
+			if trimmed == "" || strings.HasPrefix(trimmed, "-- name:") {
+				return strings.Join(result, "\n")
+			}
+			result = append(result, line)
+		}
+	}
+	
+	if inQuery {
+		return strings.Join(result, "\n")
+	}
+	
+	return ""
+}
+
+func (g *Generator) replaceSQLQueryByName(content, queryName, newQuery string) string {
+	lines := strings.Split(content, "\n")
+	var result []string
+	inQuery := false
+	
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		
+		// Check if this line starts our target query
+		if strings.Contains(trimmed, fmt.Sprintf("-- name: %s ", queryName)) {
+			inQuery = true
+			result = append(result, newQuery)
+			continue
+		}
+		
+		if inQuery {
+			// Empty line or next query comment ends this query - skip the old content
+			if trimmed == "" || strings.HasPrefix(trimmed, "-- name:") {
+				inQuery = false
+				result = append(result, line) // Keep the empty line or next query
+				continue
+			}
+			// Skip lines that are part of the query being replaced
 			continue
 		}
 		
@@ -626,4 +732,8 @@ func (g *Generator) replacePartBySignature(content, signature, newPart string) s
 	}
 	
 	return strings.Join(result, "\n")
+}
+
+func (g *Generator) queryExistsInContent(content, queryName string) bool {
+	return strings.Contains(content, fmt.Sprintf("-- name: %s ", queryName))
 }
