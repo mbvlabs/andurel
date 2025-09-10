@@ -1,0 +1,1 @@
+-- Only added for the compiler-delete when other migration files exist.
