@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -20,11 +21,10 @@ func (v *InputValidator) ValidateResourceName(resourceName string) error {
 
 	validIdentifier := regexp.MustCompile(`^[A-Z][a-zA-Z0-9]*$`)
 	if !validIdentifier.MatchString(resourceName) {
-		return fmt.Errorf("resource name '%s' must be a valid Go identifier starting with uppercase letter", resourceName)
-	}
-
-	if len(resourceName) > 50 {
-		return fmt.Errorf("resource name '%s' is too long (max 50 characters)", resourceName)
+		return fmt.Errorf(
+			"resource name '%s' must be a valid Go identifier starting with uppercase letter",
+			resourceName,
+		)
 	}
 
 	return nil
@@ -37,7 +37,10 @@ func (v *InputValidator) ValidateTableName(tableName string) error {
 
 	validSQLIdentifier := regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 	if !validSQLIdentifier.MatchString(tableName) {
-		return fmt.Errorf("table name '%s' must be a valid SQL identifier (letters, numbers, underscore only)", tableName)
+		return fmt.Errorf(
+			"table name '%s' must be a valid SQL identifier (letters, numbers, underscore only)",
+			tableName,
+		)
 	}
 
 	reservedKeywords := []string{
@@ -47,10 +50,8 @@ func (v *InputValidator) ValidateTableName(tableName string) error {
 	}
 
 	lowerTableName := strings.ToLower(tableName)
-	for _, keyword := range reservedKeywords {
-		if lowerTableName == keyword {
-			return fmt.Errorf("table name '%s' is a reserved SQL keyword", tableName)
-		}
+	if slices.Contains(reservedKeywords, lowerTableName) {
+		return fmt.Errorf("table name '%s' is a reserved SQL keyword", tableName)
 	}
 
 	if len(tableName) > 63 { // PostgreSQL limit

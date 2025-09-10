@@ -19,6 +19,8 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 	switch controller.Type {
 	case ResourceController:
 		templateName = "resource_controller.tmpl"
+	case ResourceControllerNoViews:
+		templateName = "resource_controller_no_views.tmpl"
 	default:
 		templateName = "controller.tmpl"
 	}

@@ -64,49 +64,74 @@ func generateModel(cmd *cobra.Command, args []string) error {
 }
 
 func newControllerCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "controller [name] [table]",
+	cmd := &cobra.Command{
+		Use:   "controller [model_name]",
 		Short: "Generate a new resource controller with CRUD actions",
 		Long: `Generate a new resource controller with full CRUD actions.
 The controller will include index, show, new, create, edit, update, and destroy actions.
 It will also generate the corresponding routes.
 
-Example:
-  andurel generate resource_controller User users`,
-		Args: cobra.ExactArgs(2),
+The model must already exist before generating a controller.
+
+By default, controllers are generated without views. Use --with-views to also generate view templates.
+
+Examples:
+  andurel generate controller User              # Controller without views
+  andurel generate controller User --with-views # Controller with views`,
+		Args: cobra.ExactArgs(1),
 		RunE: generateController,
 	}
+
+	cmd.Flags().Bool("with-views", false, "Generate views along with the controller")
+
+	return cmd
 }
 
 func newResourceCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "resource [name] [table]",
 		Short: "Generate a complete resource (model, resource controller, and routes)",
 		Long: `Generate a complete resource including model, resource controller with CRUD actions, and routes.
-This is equivalent to running model and resource_controller generators together.
+This is equivalent to running model and controller generators together.
 
-Example:
-  andurel generate resource Product products`,
+By default, controllers are generated without views. Use --with-views to also generate view templates.
+
+Examples:
+  andurel generate resource Product products              # Model + controller without views
+  andurel generate resource Product products --with-views # Model + controller with views`,
 		Args: cobra.ExactArgs(2),
 		RunE: generateResource,
 	}
+
+	cmd.Flags().Bool("with-views", false, "Generate views along with the controller")
+
+	return cmd
 }
 
 func generateController(cmd *cobra.Command, args []string) error {
 	resourceName := args[0]
-	tableName := args[1]
+
+	withViews, err := cmd.Flags().GetBool("with-views")
+	if err != nil {
+		return err
+	}
 
 	gen, err := generator.New()
 	if err != nil {
 		return err
 	}
 
-	return gen.GenerateController(resourceName, tableName)
+	return gen.GenerateControllerFromModel(resourceName, withViews)
 }
 
 func generateResource(cmd *cobra.Command, args []string) error {
 	resourceName := args[0]
 	tableName := args[1]
+
+	withViews, err := cmd.Flags().GetBool("with-views")
+	if err != nil {
+		return err
+	}
 
 	gen, err := generator.New()
 	if err != nil {
@@ -117,7 +142,7 @@ func generateResource(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return gen.GenerateController(resourceName, tableName)
+	return gen.GenerateController(resourceName, tableName, withViews)
 }
 
 func generateView(cmd *cobra.Command, args []string) error {

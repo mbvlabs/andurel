@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"github.com/example/myapp/models"
 	"github.com/example/myapp/router/routes"
-	"github.com/example/myapp/views/internal/layouts"
 )
 
 templ UserIndex(users []models.User) {
-	@layouts.Base() {
+	@base() {
 		<div class="container mx-auto p-6">
 			<div class="flex items-center justify-between mb-8">
 				<h1 class="text-2xl font-semibold text-white">Users</h1>
@@ -58,7 +57,7 @@ templ UserIndex(users []models.User) {
 }
 
 templ UserShow(user models.User) {
-	@layouts.Base() {
+	@base() {
 		<div class="container mx-auto p-6">
 			<div class="flex items-center justify-between mb-8">
 				<h1 class="text-2xl font-semibold text-white">User Details</h1>
@@ -103,7 +102,7 @@ templ UserShow(user models.User) {
 }
 
 templ UserNew() {
-	@layouts.Base() {
+	@base() {
 		<div class="container mx-auto p-6">
 			<div class="flex items-center justify-between mb-8">
 				<h1 class="text-2xl font-semibold text-white">New User</h1>
@@ -164,7 +163,7 @@ templ UserNew() {
 }
 
 templ UserEdit(user models.User) {
-	@layouts.Base() {
+	@base() {
 		<div class="container mx-auto p-6">
 			<div class="flex items-center justify-between mb-8">
 				<h1 class="text-2xl font-semibold text-white">Edit User</h1>

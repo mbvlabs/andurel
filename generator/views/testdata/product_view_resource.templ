@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"github.com/example/shop/models"
 	"github.com/example/shop/router/routes"
-	"github.com/example/shop/views/internal/layouts"
 )
 
 templ ProductIndex(products []models.Product) {
-	@layouts.Base() {
+	@base() {
 		<div class="container mx-auto p-6">
 			<div class="flex items-center justify-between mb-8">
 				<h1 class="text-2xl font-semibold text-white">Products</h1>
@@ -62,7 +61,7 @@ templ ProductIndex(products []models.Product) {
 }
 
 templ ProductShow(product models.Product) {
-	@layouts.Base() {
+	@base() {
 		<div class="container mx-auto p-6">
 			<div class="flex items-center justify-between mb-8">
 				<h1 class="text-2xl font-semibold text-white">Product Details</h1>
@@ -115,7 +114,7 @@ templ ProductShow(product models.Product) {
 }
 
 templ ProductNew() {
-	@layouts.Base() {
+	@base() {
 		<div class="container mx-auto p-6">
 			<div class="flex items-center justify-between mb-8">
 				<h1 class="text-2xl font-semibold text-white">New Product</h1>
@@ -192,7 +191,7 @@ templ ProductNew() {
 }
 
 templ ProductEdit(product models.Product) {
-	@layouts.Base() {
+	@base() {
 		<div class="container mx-auto p-6">
 			<div class="flex items-center justify-between mb-8">
 				<h1 class="text-2xl font-semibold text-white">Edit Product</h1>

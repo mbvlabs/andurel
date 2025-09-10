@@ -12,6 +12,7 @@ type ControllerType int
 
 const (
 	ResourceController ControllerType = iota
+	ResourceControllerNoViews
 	NormalController
 )
 
@@ -62,7 +63,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 		Fields:       make([]GeneratedField, 0),
 	}
 
-	if config.ControllerType == ResourceController {
+	if config.ControllerType == ResourceController || config.ControllerType == ResourceControllerNoViews {
 		table, err := cat.GetTable("", config.PluralName)
 		if err != nil {
 			return nil, fmt.Errorf("table %s not found: %w", config.PluralName, err)
