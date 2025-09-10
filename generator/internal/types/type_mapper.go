@@ -456,10 +456,10 @@ func FormatFieldName(dbColumnName string) string {
 	}
 
 	parts := strings.Split(dbColumnName, "_")
-	
+
 	var builder strings.Builder
 	builder.Grow(len(dbColumnName))
-	
+
 	for _, part := range parts {
 		if len(part) > 0 {
 			builder.WriteString(strings.ToUpper(part[:1]))
@@ -472,10 +472,10 @@ func FormatFieldName(dbColumnName string) string {
 
 func FormatDisplayName(dbColumnName string) string {
 	parts := strings.Split(dbColumnName, "_")
-	
+
 	var builder strings.Builder
 	builder.Grow(len(dbColumnName) + len(parts) - 1)
-	
+
 	for i, part := range parts {
 		if len(part) > 0 {
 			if i > 0 {

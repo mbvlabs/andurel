@@ -115,7 +115,6 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 	return field, nil
 }
 
-
 func (g *Generator) GenerateController(
 	cat *catalog.Catalog,
 	resourceName string,
@@ -125,4 +124,3 @@ func (g *Generator) GenerateController(
 	fileGen := NewFileGenerator()
 	return fileGen.GenerateController(cat, resourceName, controllerType, modulePath)
 }
-

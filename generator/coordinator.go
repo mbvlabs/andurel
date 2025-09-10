@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jinzhu/inflection"
 	"github.com/mbvlabs/andurel/generator/controllers"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/models"
 	"github.com/mbvlabs/andurel/generator/views"
-	"github.com/jinzhu/inflection"
 )
 
 type Coordinator struct {
@@ -31,7 +31,7 @@ func NewCoordinator() (Coordinator, error) {
 	}
 
 	config := NewDefaultAppConfig()
-	
+
 	c := Coordinator{
 		fileManager:         files.NewManager(),
 		modelGenerator:      models.NewGenerator(config.Database.Type),
@@ -51,7 +51,7 @@ func (c *Coordinator) GenerateModel(resourceName, tableName string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if err := c.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
 		return err
 	}
@@ -65,13 +65,13 @@ func (c *Coordinator) GenerateModel(resourceName, tableName string) error {
 	}
 
 	pluralName := inflection.Plural(strings.ToLower(resourceName))
-	
+
 	var modelFileName strings.Builder
 	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
 	modelFileName.WriteString(strings.ToLower(resourceName))
 	modelFileName.WriteString(".go")
 	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
-	
+
 	var sqlFileName strings.Builder
 	sqlFileName.Grow(len(pluralName) + 4) // +4 for ".sql"
 	sqlFileName.WriteString(pluralName)
@@ -110,7 +110,7 @@ func (c *Coordinator) GenerateController(resourceName, tableName string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if err := c.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func (c *Coordinator) GenerateView(resourceName, tableName string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if err := c.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
 		return err
 	}

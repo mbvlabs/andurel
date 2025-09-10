@@ -45,7 +45,7 @@ func (v *InputValidator) ValidateTableName(tableName string) error {
 		"table", "index", "view", "database", "schema", "user", "group",
 		"order", "by", "where", "from", "join", "union", "having",
 	}
-	
+
 	lowerTableName := strings.ToLower(tableName)
 	for _, keyword := range reservedKeywords {
 		if lowerTableName == keyword {

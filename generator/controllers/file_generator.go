@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jinzhu/inflection"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/pkg/constants"
-	"github.com/jinzhu/inflection"
 )
 
 type FileGenerator struct {

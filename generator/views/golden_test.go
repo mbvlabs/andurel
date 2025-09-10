@@ -37,7 +37,6 @@ func TestViewFileGeneration__GoldenFile(t *testing.T) {
 			resourceName:  "Product",
 			modulePath:    "github.com/example/shop",
 		},
-
 	}
 
 	for _, tt := range tests {

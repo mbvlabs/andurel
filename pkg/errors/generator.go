@@ -82,10 +82,10 @@ func NewTemplateError(templateName, operation string, err error) error {
 }
 
 type ValidationError struct {
-	Field   string
-	Value   string
-	Reason  string
-	Cause   error
+	Field  string
+	Value  string
+	Reason string
+	Cause  error
 }
 
 func (e *ValidationError) Error() string {

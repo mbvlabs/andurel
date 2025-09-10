@@ -278,7 +278,7 @@ func TestRoutesRegistration__GoldenFile(t *testing.T) {
 			os.Chdir(tempDir)
 
 			routeGenerator := NewRouteGenerator()
-		err = routeGenerator.registerRoutes(tt.tableName)
+			err = routeGenerator.registerRoutes(tt.tableName)
 			if err != nil {
 				t.Fatalf("Failed to register routes: %v", err)
 			}

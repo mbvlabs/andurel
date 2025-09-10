@@ -12,9 +12,9 @@ type AppConfig struct {
 }
 
 type DatabaseConfig struct {
-	Type           string
-	MigrationDirs  []string
-	DefaultSchema  string
+	Type          string
+	MigrationDirs []string
+	DefaultSchema string
 }
 
 type FileConfig struct {

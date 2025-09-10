@@ -63,7 +63,6 @@ func generateModel(cmd *cobra.Command, args []string) error {
 	return gen.GenerateModel(resourceName, tableName)
 }
 
-
 func newControllerCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "controller [name] [table]",
@@ -92,7 +91,6 @@ Example:
 		RunE: generateResource,
 	}
 }
-
 
 func generateController(cmd *cobra.Command, args []string) error {
 	resourceName := args[0]

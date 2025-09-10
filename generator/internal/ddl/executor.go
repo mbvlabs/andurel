@@ -3,8 +3,8 @@ package ddl
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"log/slog"
 	"path/filepath"
 )
 
