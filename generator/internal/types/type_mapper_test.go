@@ -469,7 +469,6 @@ func TestComplexTypeConversions(t *testing.T) {
 				t.Errorf("GenerateConversionToDB returned empty string for %s", tt.name)
 			}
 
-			// For pgtype.Text, expect struct creation, for pgtype.Numeric, direct mapping
 			if tt.sqlcType == "pgtype.Text" {
 				expected := "pgtype.Text{String: data.Description, Valid: true}"
 				if result != expected {

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/mbvlabs/andurel/generator/templates"
+	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/sebdah/goldie/v2"
 )
 
@@ -53,12 +54,12 @@ func TestModelFileGeneration__GoldenFile(t *testing.T) {
 			queriesDir := filepath.Join(tempDir, "database", "queries")
 			modelsDir := filepath.Join(tempDir, "models")
 
-			err := os.MkdirAll(queriesDir, 0o755)
+			err := os.MkdirAll(queriesDir, constants.DirPermissionDefault)
 			if err != nil {
 				t.Fatalf("Failed to create queries directory: %v", err)
 			}
 
-			err = os.MkdirAll(modelsDir, 0o755)
+			err = os.MkdirAll(modelsDir, constants.DirPermissionDefault)
 			if err != nil {
 				t.Fatalf("Failed to create models directory: %v", err)
 			}
@@ -163,7 +164,7 @@ func TestQueriesFileGeneration__GoldenFile(t *testing.T) {
 			tempDir := t.TempDir()
 			queriesDir := filepath.Join(tempDir, "database", "queries")
 
-			err := os.MkdirAll(queriesDir, 0o755)
+			err := os.MkdirAll(queriesDir, constants.DirPermissionDefault)
 			if err != nil {
 				t.Fatalf("Failed to create queries directory: %v", err)
 			}

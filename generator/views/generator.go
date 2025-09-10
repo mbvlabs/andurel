@@ -13,6 +13,8 @@ import (
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/internal/types"
 	"github.com/mbvlabs/andurel/generator/templates"
+	"github.com/mbvlabs/andurel/pkg/constants"
+	"github.com/mbvlabs/andurel/pkg/errors"
 
 	"github.com/jinzhu/inflection"
 )
@@ -65,7 +67,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 
 	table, err := cat.GetTable("", config.PluralName)
 	if err != nil {
-		return nil, fmt.Errorf("table %s not found: %w", config.PluralName, err)
+		return nil, errors.NewDatabaseError("get table", config.PluralName, err)
 	}
 
 	for _, col := range table.Columns {
@@ -158,11 +160,6 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 }
 
 func (g *Generator) GenerateViewFile(view *GeneratedView) (string, error) {
-	templateContent, err := templates.Files.ReadFile("resource_view.tmpl")
-	if err != nil {
-		return "", fmt.Errorf("failed to read view template: %w", err)
-	}
-
 	funcMap := template.FuncMap{
 		"ToLower": strings.ToLower,
 		"StringDisplay": func(field ViewField, resourceName string) string {
@@ -173,7 +170,12 @@ func (g *Generator) GenerateViewFile(view *GeneratedView) (string, error) {
 					field.Name,
 				)
 			}
-			actualFieldRef := strings.ToLower(resourceName) + "." + field.Name
+			var fieldRef strings.Builder
+			fieldRef.Grow(len(resourceName) + len(field.Name) + 1)
+			fieldRef.WriteString(strings.ToLower(resourceName))
+			fieldRef.WriteString(".")
+			fieldRef.WriteString(field.Name)
+			actualFieldRef := fieldRef.String()
 			converter := strings.ReplaceAll(
 				field.StringConverter,
 				"%s",
@@ -189,7 +191,12 @@ func (g *Generator) GenerateViewFile(view *GeneratedView) (string, error) {
 					field.Name,
 				)
 			}
-			actualFieldRef := strings.ToLower(resourceName) + "." + field.Name
+			var fieldRef strings.Builder
+			fieldRef.Grow(len(resourceName) + len(field.Name) + 1)
+			fieldRef.WriteString(strings.ToLower(resourceName))
+			fieldRef.WriteString(".")
+			fieldRef.WriteString(field.Name)
+			actualFieldRef := fieldRef.String()
 			converter := strings.ReplaceAll(
 				field.StringConverter,
 				"%s",
@@ -205,7 +212,12 @@ func (g *Generator) GenerateViewFile(view *GeneratedView) (string, error) {
 					field.Name,
 				)
 			}
-			actualFieldRef := strings.ToLower(resourceName) + "." + field.Name
+			var fieldRef strings.Builder
+			fieldRef.Grow(len(resourceName) + len(field.Name) + 1)
+			fieldRef.WriteString(strings.ToLower(resourceName))
+			fieldRef.WriteString(".")
+			fieldRef.WriteString(field.Name)
+			actualFieldRef := fieldRef.String()
 			return strings.ReplaceAll(
 				field.StringConverter,
 				"%s",
@@ -214,14 +226,14 @@ func (g *Generator) GenerateViewFile(view *GeneratedView) (string, error) {
 		},
 	}
 
-	tmpl, err := template.New("resource_view").Funcs(funcMap).Parse(string(templateContent))
+	tmpl, err := templates.GetCachedTemplate("resource_view.tmpl", funcMap)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse template: %w", err)
+		return "", errors.NewTemplateError("resource_view.tmpl", "get template", err)
 	}
 
 	var buf strings.Builder
 	if err := tmpl.Execute(&buf, view); err != nil {
-		return "", fmt.Errorf("failed to execute template: %w", err)
+		return "", errors.NewTemplateError("resource_view.tmpl", "execute template", err)
 	}
 
 	return buf.String(), nil
@@ -253,11 +265,11 @@ func (g *Generator) GenerateView(
 		return fmt.Errorf("failed to render view file: %w", err)
 	}
 
-	if err := os.MkdirAll("views", 0o755); err != nil {
-		return fmt.Errorf("failed to create views directory: %w", err)
+	if err := g.fileManager.EnsureDirectoryExists("views"); err != nil {
+		return err
 	}
 
-	if err := os.WriteFile(viewPath, []byte(viewContent), 0o600); err != nil {
+	if err := os.WriteFile(viewPath, []byte(viewContent), constants.FilePermissionPrivate); err != nil {
 		return fmt.Errorf("failed to write view file: %w", err)
 	}
 

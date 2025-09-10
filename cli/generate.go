@@ -63,19 +63,6 @@ func generateModel(cmd *cobra.Command, args []string) error {
 	return gen.GenerateModel(resourceName, tableName)
 }
 
-// func newControllerCommand() *cobra.Command {
-// 	return &cobra.Command{
-// 		Use:   "controller [name]",
-// 		Short: "Generate a new basic controller",
-// 		Long: `Generate a new basic controller without CRUD actions.
-// This creates a simple controller structure for custom actions.
-//
-// Example:
-//   andurel generate controller Dashboard`,
-// 		Args: cobra.ExactArgs(1),
-// 		RunE: generateController,
-// 	}
-// }
 
 func newControllerCommand() *cobra.Command {
 	return &cobra.Command{
@@ -106,16 +93,6 @@ Example:
 	}
 }
 
-// func generateController(cmd *cobra.Command, args []string) error {
-// 	resourceName := args[0]
-//
-// 	gen, err := generator.New()
-// 	if err != nil {
-// 		return err
-// 	}
-//
-// 	return gen.GenerateController(resourceName)
-// }
 
 func generateController(cmd *cobra.Command, args []string) error {
 	resourceName := args[0]

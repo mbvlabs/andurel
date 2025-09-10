@@ -13,6 +13,8 @@ import (
 	"github.com/mbvlabs/andurel/generator/internal/migrations"
 	"github.com/mbvlabs/andurel/generator/internal/types"
 	"github.com/mbvlabs/andurel/generator/templates"
+	"github.com/mbvlabs/andurel/pkg/constants"
+	"github.com/mbvlabs/andurel/pkg/errors"
 )
 
 type GeneratedField struct {
@@ -66,7 +68,7 @@ func NewGenerator(databaseType string) *Generator {
 func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel, error) {
 	table, err := cat.GetTable("", config.TableName)
 	if err != nil {
-		return nil, fmt.Errorf("table %s not found: %w", config.TableName, err)
+		return nil, errors.NewDatabaseError("get table", config.TableName, err)
 	}
 
 	g.typeMapper.Overrides = append(g.typeMapper.Overrides, config.CustomTypes...)
@@ -85,7 +87,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	for _, col := range table.Columns {
 		field, err := g.buildField(col)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build field for column %s: %w", col.Name, err)
+			return nil, errors.NewGeneratorError("build field", col.Name, err)
 		}
 
 		if field.Package != "" {
@@ -219,11 +221,10 @@ func (g *Generator) GenerateModel(
 		return fmt.Errorf("failed to render model file: %w", err)
 	}
 
-	if err := os.WriteFile(modelPath, []byte(modelContent), 0o600); err != nil {
+	if err := os.WriteFile(modelPath, []byte(modelContent), constants.FilePermissionPrivate); err != nil {
 		return fmt.Errorf("failed to write model file: %w", err)
 	}
 
-	// Format the generated model file
 	if err := g.formatGoFile(modelPath); err != nil {
 		return fmt.Errorf("failed to format model file: %w", err)
 	}
@@ -237,24 +238,19 @@ func (g *Generator) GenerateSQLFile(
 	table *catalog.Table,
 	sqlPath string,
 ) error {
-	templateContent, err := templates.Files.ReadFile("crud_operations.tmpl")
-	if err != nil {
-		return fmt.Errorf("failed to read SQL template: %w", err)
-	}
-
 	data := g.prepareSQLData(resourceName, pluralName, table)
 
-	t, err := template.New("sql").Parse(string(templateContent))
+	tmpl, err := templates.GetCachedTemplate("crud_operations.tmpl", template.FuncMap{})
 	if err != nil {
-		return err
+		return errors.NewTemplateError("crud_operations.tmpl", "get template", err)
 	}
 
 	var buf strings.Builder
-	if err := t.Execute(&buf, data); err != nil {
-		return err
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return errors.NewTemplateError("crud_operations.tmpl", "execute template", err)
 	}
 
-	return os.WriteFile(sqlPath, []byte(buf.String()), 0o600)
+	return os.WriteFile(sqlPath, []byte(buf.String()), constants.FilePermissionPrivate)
 }
 
 func (g *Generator) GenerateSQLContent(
@@ -262,21 +258,16 @@ func (g *Generator) GenerateSQLContent(
 	pluralName string,
 	table *catalog.Table,
 ) (string, error) {
-	templateContent, err := templates.Files.ReadFile("crud_operations.tmpl")
-	if err != nil {
-		return "", fmt.Errorf("failed to read SQL template: %w", err)
-	}
-
 	data := g.prepareSQLData(resourceName, pluralName, table)
 
-	t, err := template.New("sql").Parse(string(templateContent))
+	tmpl, err := templates.GetCachedTemplate("crud_operations.tmpl", template.FuncMap{})
 	if err != nil {
-		return "", err
+		return "", errors.NewTemplateError("crud_operations.tmpl", "get template", err)
 	}
 
 	var buf strings.Builder
-	if err := t.Execute(&buf, data); err != nil {
-		return "", err
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", errors.NewTemplateError("crud_operations.tmpl", "execute template", err)
 	}
 
 	return buf.String(), nil

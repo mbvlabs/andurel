@@ -1,4 +1,3 @@
-// Package router defines the routing logic for the web application using the Echo framework.
 package router
 
 import (

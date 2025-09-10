@@ -1,4 +1,3 @@
-// Package files provides utilities for file and directory management.
 package files
 
 import (
@@ -7,6 +6,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/mbvlabs/andurel/pkg/cache"
+	"github.com/mbvlabs/andurel/pkg/constants"
 )
 
 type Manager struct{}
@@ -16,15 +18,17 @@ func NewManager() *Manager {
 }
 
 func (m *Manager) EnsureDirectoryExists(dirPath string) error {
-	if err := os.MkdirAll(dirPath, 0o755); err != nil {
+	if err := os.MkdirAll(dirPath, constants.DirPermissionDefault); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", dirPath, err)
 	}
 	return nil
 }
 
 func (m *Manager) FileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
+	return cache.GetFileExists("file_exists:"+path, func() bool {
+		_, err := os.Stat(path)
+		return err == nil
+	})
 }
 
 func (m *Manager) ValidateFileNotExists(path string) error {
@@ -40,17 +44,15 @@ func (m *Manager) WriteFile(path, content string) error {
 		return err
 	}
 
-	return os.WriteFile(path, []byte(content), 0o600)
+	return os.WriteFile(path, []byte(content), constants.FilePermissionPrivate)
 }
 
 func (m *Manager) RunSQLCGenerate() error {
-	// Find the root directory with go.mod to run from project root
 	rootDir, err := m.FindGoModRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find go.mod root: %w", err)
 	}
 
-	// Run sqlc compile
 	compileCmd := exec.CommandContext(
 		context.Background(),
 		"go", "tool", "sqlc", "-f", "./database/sqlc.yaml", "compile",
@@ -64,7 +66,6 @@ func (m *Manager) RunSQLCGenerate() error {
 		)
 	}
 
-	// Run sqlc generate
 	generateCmd := exec.CommandContext(
 		context.Background(),
 		"go", "tool", "sqlc", "-f", "./database/sqlc.yaml", "generate",
@@ -83,23 +84,25 @@ func (m *Manager) RunSQLCGenerate() error {
 }
 
 func (m *Manager) FindGoModRoot() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	for {
-		goModPath := filepath.Join(dir, "go.mod")
-		if _, err := os.Stat(goModPath); err == nil {
-			return dir, nil
+	return cache.GetDirectoryRoot("go_mod_root", func() (string, error) {
+		dir, err := os.Getwd()
+		if err != nil {
+			return "", err
 		}
 
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
+		for {
+			goModPath := filepath.Join(dir, "go.mod")
+			if _, err := os.Stat(goModPath); err == nil {
+				return dir, nil
+			}
 
-	return "", fmt.Errorf("go.mod not found")
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			dir = parent
+		}
+
+		return "", fmt.Errorf("go.mod not found")
+	})
 }

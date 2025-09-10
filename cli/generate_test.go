@@ -34,7 +34,6 @@ func TestGenerateCommands(t *testing.T) {
 func TestGenerateCommandStructure(t *testing.T) {
 	rootCmd := NewRootCommand("test", "test-date")
 
-	// Test generate command structure
 	var generateCmd *cobra.Command
 	for _, cmd := range rootCmd.Commands() {
 		if cmd.Use == "generate" {
