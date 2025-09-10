@@ -159,7 +159,7 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 	return field, nil
 }
 
-func (g *Generator) GenerateViewFile(view *GeneratedView) (string, error) {
+func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool) (string, error) {
 	funcMap := template.FuncMap{
 		"ToLower": strings.ToLower,
 		"StringDisplay": func(field ViewField, resourceName string) string {
@@ -226,14 +226,19 @@ func (g *Generator) GenerateViewFile(view *GeneratedView) (string, error) {
 		},
 	}
 
-	tmpl, err := templates.GetCachedTemplate("resource_view.tmpl", funcMap)
+	templateName := "resource_view_no_controller.tmpl"
+	if withController {
+		templateName = "resource_view.tmpl"
+	}
+
+	tmpl, err := templates.GetCachedTemplate(templateName, funcMap)
 	if err != nil {
-		return "", errors.NewTemplateError("resource_view.tmpl", "get template", err)
+		return "", errors.NewTemplateError(templateName, "get template", err)
 	}
 
 	var buf strings.Builder
 	if err := tmpl.Execute(&buf, view); err != nil {
-		return "", errors.NewTemplateError("resource_view.tmpl", "execute template", err)
+		return "", errors.NewTemplateError(templateName, "execute template", err)
 	}
 
 	return buf.String(), nil
@@ -243,6 +248,15 @@ func (g *Generator) GenerateView(
 	cat *catalog.Catalog,
 	resourceName string,
 	modulePath string,
+) error {
+	return g.GenerateViewWithController(cat, resourceName, modulePath, false)
+}
+
+func (g *Generator) GenerateViewWithController(
+	cat *catalog.Catalog,
+	resourceName string,
+	modulePath string,
+	withController bool,
 ) error {
 	pluralName := inflection.Plural(strings.ToLower(resourceName))
 	viewPath := filepath.Join("views", pluralName+"_resource.templ")
@@ -260,7 +274,7 @@ func (g *Generator) GenerateView(
 		return fmt.Errorf("failed to build view: %w", err)
 	}
 
-	viewContent, err := g.GenerateViewFile(view)
+	viewContent, err := g.GenerateViewFile(view, withController)
 	if err != nil {
 		return fmt.Errorf("failed to render view file: %w", err)
 	}

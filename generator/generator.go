@@ -30,3 +30,7 @@ func (g *Generator) GenerateControllerFromModel(resourceName string, withViews b
 func (g *Generator) GenerateView(resourceName, tableName string) error {
 	return g.coordinator.GenerateView(resourceName, tableName)
 }
+
+func (g *Generator) GenerateViewFromModel(resourceName string, withController bool) error {
+	return g.coordinator.GenerateViewFromModel(resourceName, withController)
+}
