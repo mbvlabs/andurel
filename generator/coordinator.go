@@ -346,7 +346,6 @@ func (c *Coordinator) GenerateViewFromModel(resourceName string, withController 
 		return fmt.Errorf("derived table name validation failed: %w", err)
 	}
 
-	// Check if view already exists
 	if _, err := os.Stat(c.config.Paths.Views); os.IsNotExist(err) {
 		return fmt.Errorf(
 			"views directory %s does not exist. Please create the views directory structure",
@@ -359,7 +358,6 @@ func (c *Coordinator) GenerateViewFromModel(resourceName string, withController 
 		return fmt.Errorf("view file %s already exists", viewPath)
 	}
 
-	// If --with-controller flag is used, validate controller preconditions
 	if withController {
 		routesFilePath := filepath.Join(c.config.Paths.Routes, "routes.go")
 		if _, err := os.Stat(routesFilePath); os.IsNotExist(err) {
@@ -434,12 +432,10 @@ func (c *Coordinator) GenerateViewFromModel(resourceName string, withController 
 		return err
 	}
 
-	// Generate the view first
 	if err := c.viewGenerator.GenerateViewWithController(cat, resourceName, modulePath, withController); err != nil {
 		return fmt.Errorf("failed to generate view: %w", err)
 	}
 
-	// Generate controller if requested
 	if withController {
 		controllerType := controllers.ResourceController // with views since we're generating both
 		if err := c.controllerGenerator.GenerateController(cat, resourceName, controllerType, modulePath); err != nil {
