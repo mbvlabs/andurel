@@ -179,3 +179,44 @@ func (c *Coordinator) GenerateView(resourceName, tableName string) error {
 
 	return nil
 }
+
+func (c *Coordinator) GenerateControllerFromModel(resourceName string) error {
+	tableName, err := c.inferTableNameFromModel(resourceName)
+	if err != nil {
+		return err
+	}
+	return c.GenerateController(resourceName, tableName)
+}
+
+func (c *Coordinator) GenerateViewFromModel(resourceName string) error {
+	tableName, err := c.inferTableNameFromModel(resourceName)
+	if err != nil {
+		return err
+	}
+	return c.GenerateView(resourceName, tableName)
+}
+
+func (c *Coordinator) inferTableNameFromModel(resourceName string) (string, error) {
+	if err := c.validator.ValidateResourceName(resourceName); err != nil {
+		return "", fmt.Errorf("resource name validation failed: %w", err)
+	}
+
+	var modelFileName strings.Builder
+	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
+	modelFileName.WriteString(strings.ToLower(resourceName))
+	modelFileName.WriteString(".go")
+	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
+	
+	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
+		return "", fmt.Errorf(
+			"model file %s does not exist. Generate model first",
+			modelPath,
+		)
+	}
+
+	// For now, we'll infer the table name using inflection like we do in model generation
+	// In the future, this could be enhanced to read the actual table name from the model file
+	pluralName := inflection.Plural(strings.ToLower(resourceName))
+	
+	return pluralName, nil
+}

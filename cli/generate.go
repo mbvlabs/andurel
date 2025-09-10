@@ -43,10 +43,10 @@ Example:
 
 func newViewCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "view [name] [table]",
+		Use:   "view [name]",
 		Short: "Generate a new view",
-		Long:  `Generate view templates for the specified resource.`,
-		Args:  cobra.ExactArgs(2),
+		Long:  `Generate view templates for the specified resource. Requires the model to exist first.`,
+		Args:  cobra.ExactArgs(1),
 		RunE:  generateView,
 	}
 }
@@ -65,15 +65,15 @@ func generateModel(cmd *cobra.Command, args []string) error {
 
 func newControllerCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "controller [name] [table]",
+		Use:   "controller [name]",
 		Short: "Generate a new resource controller with CRUD actions",
 		Long: `Generate a new resource controller with full CRUD actions.
 The controller will include index, show, new, create, edit, update, and destroy actions.
-It will also generate the corresponding routes.
+It will also generate the corresponding routes. Requires the model to exist first.
 
 Example:
-  andurel generate resource_controller User users`,
-		Args: cobra.ExactArgs(2),
+  andurel generate controller User`,
+		Args: cobra.ExactArgs(1),
 		RunE: generateController,
 	}
 }
@@ -94,14 +94,22 @@ Example:
 
 func generateController(cmd *cobra.Command, args []string) error {
 	resourceName := args[0]
-	tableName := args[1]
 
 	gen, err := generator.New()
 	if err != nil {
 		return err
 	}
 
-	return gen.GenerateController(resourceName, tableName)
+	modelPath := filepath.Join("models", strings.ToLower(resourceName)+".go")
+	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
+		return fmt.Errorf(
+			"model file %s does not exist. Generate the model first with: andurel generate model %s <table_name>",
+			modelPath,
+			resourceName,
+		)
+	}
+
+	return gen.GenerateController(resourceName)
 }
 
 func generateResource(cmd *cobra.Command, args []string) error {
@@ -122,7 +130,6 @@ func generateResource(cmd *cobra.Command, args []string) error {
 
 func generateView(cmd *cobra.Command, args []string) error {
 	resourceName := args[0]
-	tableName := args[1]
 
 	gen, err := generator.New()
 	if err != nil {
@@ -138,5 +145,5 @@ func generateView(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	return gen.GenerateView(resourceName, tableName)
+	return gen.GenerateView(resourceName)
 }
