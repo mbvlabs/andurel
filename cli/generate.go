@@ -81,9 +81,9 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		RunE: generateController,
 	}
-	
+
 	cmd.Flags().Bool("with-views", false, "Generate views along with the controller")
-	
+
 	return cmd
 }
 
@@ -102,9 +102,9 @@ Examples:
 		Args: cobra.ExactArgs(2),
 		RunE: generateResource,
 	}
-	
+
 	cmd.Flags().Bool("with-views", false, "Generate views along with the controller")
-	
+
 	return cmd
 }
 

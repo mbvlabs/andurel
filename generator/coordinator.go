@@ -149,7 +149,7 @@ func (c *Coordinator) GenerateController(resourceName, tableName string, withVie
 	} else {
 		fmt.Printf("Successfully generated resource controller %s (no views)\n", resourceName)
 	}
-	
+
 	return nil
 }
 
@@ -159,7 +159,6 @@ func (c *Coordinator) GenerateControllerFromModel(resourceName string, withViews
 		return err
 	}
 
-	// Verify model exists
 	var modelFileName strings.Builder
 	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
 	modelFileName.WriteString(strings.ToLower(resourceName))
@@ -173,15 +172,12 @@ func (c *Coordinator) GenerateControllerFromModel(resourceName string, withViews
 		)
 	}
 
-	// Derive table name from model name (same logic as model generation)
 	tableName := inflection.Plural(strings.ToLower(resourceName))
 
-	// Validate derived table name
 	if err := c.validator.ValidateTableName(tableName); err != nil {
 		return fmt.Errorf("derived table name validation failed: %w", err)
 	}
 
-	// Check routes file exists before generating (atomic operation)
 	routesFilePath := filepath.Join(c.config.Paths.Routes, "routes.go")
 	if _, err := os.Stat(routesFilePath); os.IsNotExist(err) {
 		return fmt.Errorf(
@@ -190,19 +186,16 @@ func (c *Coordinator) GenerateControllerFromModel(resourceName string, withViews
 		)
 	}
 
-	// Check if individual route file already exists
 	individualRoutePath := filepath.Join("router/routes", tableName+".go")
 	if _, err := os.Stat(individualRoutePath); err == nil {
 		return fmt.Errorf("routes file %s already exists", individualRoutePath)
 	}
 
-	// Check if controller file already exists
 	controllerPath := filepath.Join(c.config.Paths.Controllers, tableName+".go")
 	if _, err := os.Stat(controllerPath); err == nil {
 		return fmt.Errorf("controller file %s already exists", controllerPath)
 	}
 
-	// Check if controller is already registered in controllers/controller.go
 	controllerFilePath := filepath.Join(c.config.Paths.Controllers, "controller.go")
 	if _, err := os.Stat(controllerFilePath); os.IsNotExist(err) {
 		return fmt.Errorf(
@@ -210,58 +203,62 @@ func (c *Coordinator) GenerateControllerFromModel(resourceName string, withViews
 			controllerFilePath,
 		)
 	}
-	
+
 	content, err := os.ReadFile(controllerFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to read controller.go: %w", err)
 	}
-	
-	// Check for controller registration patterns (accounts for go fmt spacing variations)
+
 	controllerFieldName := resourceName + "s"
 	controllerVarName := strings.ToLower(resourceName) + "s"
 	controllerConstructor := controllerVarName + " := new" + resourceName + "s(db)"
 	controllerReturnField := controllerVarName + ","
 	contentStr := string(content)
-	lines := strings.Split(contentStr, "\n")
-	
-	for _, line := range lines {
+	lines := strings.SplitSeq(contentStr, "\n")
+
+	for line := range lines {
 		trimmedLine := strings.TrimSpace(line)
-		
-		// Check 1: Look for struct field declaration like "Users Users" or "Users  Users"
-		if strings.HasPrefix(trimmedLine, controllerFieldName+" ") && 
-		   strings.HasSuffix(trimmedLine, " "+controllerFieldName) {
-			return fmt.Errorf("controller %s is already registered in %s (struct field found)", resourceName, controllerFilePath)
+
+		if strings.HasPrefix(trimmedLine, controllerFieldName+" ") &&
+			strings.HasSuffix(trimmedLine, " "+controllerFieldName) {
+			return fmt.Errorf(
+				"controller %s is already registered in %s (struct field found)",
+				resourceName,
+				controllerFilePath,
+			)
 		}
-		
-		// Check 2: Look for variable assignment like "users := newUsers(db)"
+
 		if strings.Contains(trimmedLine, controllerConstructor) {
-			return fmt.Errorf("controller %s is already registered in %s (constructor call found)", resourceName, controllerFilePath)
+			return fmt.Errorf(
+				"controller %s is already registered in %s (constructor call found)",
+				resourceName,
+				controllerFilePath,
+			)
 		}
-		
-		// Check 3: Look for return field like "users,"
+
 		if trimmedLine == controllerReturnField {
-			return fmt.Errorf("controller %s is already registered in %s (return field found)", resourceName, controllerFilePath)
+			return fmt.Errorf(
+				"controller %s is already registered in %s (return field found)",
+				resourceName,
+				controllerFilePath,
+			)
 		}
 	}
 
-	// Check prerequisites for views if --with-views flag is provided
 	if withViews {
-		// Ensure views directory exists
 		if _, err := os.Stat(c.config.Paths.Views); os.IsNotExist(err) {
 			return fmt.Errorf(
 				"views directory %s does not exist. Please create the views directory structure before using --with-views",
 				c.config.Paths.Views,
 			)
 		}
-		
-		// Check if view file already exists
+
 		viewPath := filepath.Join(c.config.Paths.Views, tableName+"_resource.templ")
 		if _, err := os.Stat(viewPath); err == nil {
 			return fmt.Errorf("view file %s already exists", viewPath)
 		}
 	}
 
-	// Build catalog from derived table name
 	cat, err := c.migrationManager.BuildCatalogFromMigrations(tableName)
 	if err != nil {
 		return err
@@ -284,7 +281,7 @@ func (c *Coordinator) GenerateControllerFromModel(resourceName string, withViews
 	} else {
 		fmt.Printf("Successfully generated resource controller %s (no views)\n", resourceName)
 	}
-	
+
 	return nil
 }
 
