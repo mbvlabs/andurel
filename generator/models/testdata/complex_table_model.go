@@ -12,7 +12,7 @@ import (
 )
 
 type ComprehensiveExample struct {
-	ID                int64
+	ID                uuid.UUID
 	UuidId            uuid.UUID
 	SmallInt          int16
 	RegularInt        int32

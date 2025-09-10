@@ -4,7 +4,7 @@
 -- Create comprehensive table with all PostgreSQL field types
 CREATE TABLE comprehensive_example (
     -- Primary key variations
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY,
     uuid_id UUID DEFAULT gen_random_uuid() UNIQUE,
     
     -- Numeric types with various constraints

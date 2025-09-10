@@ -19,7 +19,7 @@ type Products struct {
 	db database.Postgres
 }
 
-func newProducts(db psql.Postgres) Products {
+func newProducts(db database.Postgres) Products {
 	return Products{db}
 }
 
@@ -41,7 +41,7 @@ func (r Products) Index(c echo.Context) error {
 
 	productsList, err := models.PaginateProducts(
 		c.Request().Context(),
-		r.db.Pool,
+		r.db.Pool(),
 		page,
 		perPage,
 	)
@@ -61,7 +61,7 @@ func (r Products) Show(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid product ID")
 	}
 
-	product, err := models.FindProduct(c.Request().Context(), r.db.Pool, productID)
+	product, err := models.FindProduct(c.Request().Context(), r.db.Pool(), productID)
 	if err != nil {
 		return c.String(http.StatusNotFound, "Product not found")
 	}
@@ -70,7 +70,7 @@ func (r Products) Show(c echo.Context) error {
 }
 
 func (r Products) New(c echo.Context) error {
-	return views.ProductNew().Render(renderArgs(c))
+	return render(c, views.ProductNew())
 }
 
 type CreateProductFormPayload struct {
@@ -92,7 +92,7 @@ func (r Products) Create(c echo.Context) error {
 			err,
 		)
 
-		return render(c, views.ErrorPage())
+		return render(c, views.NotFound())
 	}
 
 	payload := models.CreateProductPayload{
@@ -106,7 +106,7 @@ func (r Products) Create(c echo.Context) error {
 
 	product, err := models.CreateProduct(
 		c.Request().Context(),
-		r.db.Pool,
+		r.db.Pool(),
 		payload,
 	)
 	if err != nil {
@@ -129,7 +129,7 @@ func (r Products) Edit(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid product ID")
 	}
 
-	product, err := models.FindProduct(c.Request().Context(), r.db.Pool, productID)
+	product, err := models.FindProduct(c.Request().Context(), r.db.Pool(), productID)
 	if err != nil {
 		return c.String(http.StatusNotFound, "Product not found")
 	}
@@ -161,7 +161,7 @@ func (r Products) Update(c echo.Context) error {
 			err,
 		)
 
-		return render(c, views.ErrorPage())
+		return render(c, views.NotFound())
 	}
 
 	payload := models.UpdateProductPayload{
@@ -176,7 +176,7 @@ func (r Products) Update(c echo.Context) error {
 
 	product, err := models.UpdateProduct(
 		c.Request().Context(),
-		r.db.Pool,
+		r.db.Pool(),
 		payload,
 	)
 	if err != nil {
@@ -202,7 +202,7 @@ func (r Products) Destroy(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid product ID")
 	}
 
-	err = models.DestroyProduct(c.Request().Context(), r.db.Pool, productID)
+	err = models.DestroyProduct(c.Request().Context(), r.db.Pool(), productID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete product: %v", err)); flashErr != nil {
 			return flashErr

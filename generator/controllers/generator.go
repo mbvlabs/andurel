@@ -304,7 +304,11 @@ func (g *Generator) registerRoutes(pluralName string) error {
 		return fmt.Errorf("could not find appropriate place to register routes")
 	}
 
-	return os.WriteFile(routesFilePath, []byte(strings.Join(modifiedLines, "\n")), 0o600)
+	if err := os.WriteFile(routesFilePath, []byte(strings.Join(modifiedLines, "\n")), 0o600); err != nil {
+		return fmt.Errorf("failed to write modified routes file: %w", err)
+	}
+
+	return g.formatGoFile(routesFilePath)
 }
 
 // TODO:
