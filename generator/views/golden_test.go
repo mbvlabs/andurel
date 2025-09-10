@@ -20,22 +20,43 @@ func TestViewFileGeneration__GoldenFile(t *testing.T) {
 		tableName     string
 		resourceName  string
 		modulePath    string
+		withController bool
 	}{
 		{
-			name:          "Should generate user view",
-			fileName:      "user_view_resource",
-			migrationsDir: "simple_user_table",
-			tableName:     "users",
-			resourceName:  "User",
-			modulePath:    "github.com/example/myapp",
+			name:           "Should generate user view with controller",
+			fileName:       "user_view_resource",
+			migrationsDir:  "simple_user_table",
+			tableName:      "users",
+			resourceName:   "User",
+			modulePath:     "github.com/example/myapp",
+			withController: true,
 		},
 		{
-			name:          "Should generate product view",
-			fileName:      "product_view_resource",
-			migrationsDir: "product_table_with_decimals",
-			tableName:     "products",
-			resourceName:  "Product",
-			modulePath:    "github.com/example/shop",
+			name:           "Should generate product view with controller",
+			fileName:       "product_view_resource",
+			migrationsDir:  "product_table_with_decimals",
+			tableName:      "products",
+			resourceName:   "Product",
+			modulePath:     "github.com/example/shop",
+			withController: true,
+		},
+		{
+			name:           "Should generate user view without controller",
+			fileName:       "user_view_resource_no_controller",
+			migrationsDir:  "simple_user_table",
+			tableName:      "users",
+			resourceName:   "User",
+			modulePath:     "github.com/example/myapp",
+			withController: false,
+		},
+		{
+			name:           "Should generate product view without controller",
+			fileName:       "product_view_resource_no_controller",
+			migrationsDir:  "product_table_with_decimals",
+			tableName:      "products",
+			resourceName:   "Product",
+			modulePath:     "github.com/example/shop",
+			withController: false,
 		},
 	}
 
@@ -82,7 +103,7 @@ func TestViewFileGeneration__GoldenFile(t *testing.T) {
 				t.Fatalf("Failed to build view: %v", err)
 			}
 
-			viewContent, err := generator.GenerateViewFile(view)
+			viewContent, err := generator.GenerateViewFile(view, tt.withController)
 			if err != nil {
 				t.Fatalf("Failed to generate view content: %v", err)
 			}
