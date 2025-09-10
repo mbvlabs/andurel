@@ -433,7 +433,6 @@ func (g *Generator) refreshSQLFile(
 	cat *catalog.Catalog,
 	sqlPath string,
 ) error {
-	// Read existing SQL file
 	existingContent, err := os.ReadFile(sqlPath)
 	if err != nil {
 		return fmt.Errorf("failed to read existing SQL file: %w", err)
@@ -444,16 +443,17 @@ func (g *Generator) refreshSQLFile(
 		return fmt.Errorf("table '%s' not found in catalog: %w", pluralName, err)
 	}
 
-	// Generate new SQL content to extract new CRUD operations
 	newSQLContent, err := g.GenerateSQLContent(resourceName, pluralName, table)
 	if err != nil {
 		return fmt.Errorf("failed to generate SQL content: %w", err)
 	}
 
-	// Replace only the known CRUD operations
-	updatedContent := g.replaceGeneratedSQLQueries(string(existingContent), newSQLContent, resourceName)
+	updatedContent := g.replaceGeneratedSQLQueries(
+		string(existingContent),
+		newSQLContent,
+		resourceName,
+	)
 
-	// Write the updated SQL file
 	if err := os.WriteFile(sqlPath, []byte(updatedContent), constants.FilePermissionPrivate); err != nil {
 		return fmt.Errorf("failed to write SQL file: %w", err)
 	}
@@ -625,31 +625,28 @@ func (g *Generator) replacePartBySignature(content, signature, newPart string) s
 	return strings.Join(result, "\n")
 }
 
-func (g *Generator) replaceGeneratedSQLQueries(existingContent, newContent, resourceName string) string {
-	// Extract all generated SQL queries from the new content
+func (g *Generator) replaceGeneratedSQLQueries(
+	existingContent, newContent, resourceName string,
+) string {
 	newQueries := g.extractGeneratedSQLQueries(newContent, resourceName)
-	
+
 	updatedContent := existingContent
-	
-	// Replace/add each generated query in the existing content
+
 	for queryName, newQuery := range newQueries {
 		if g.queryExistsInContent(updatedContent, queryName) {
-			// Replace existing query
 			updatedContent = g.replaceSQLQueryByName(updatedContent, queryName, newQuery)
 		} else {
-			// Add new query at the end
 			updatedContent = strings.TrimSpace(updatedContent) + "\n\n" + newQuery + "\n"
 		}
 	}
-	
+
 	return updatedContent
 }
 
 func (g *Generator) extractGeneratedSQLQueries(content, resourceName string) map[string]string {
 	queries := make(map[string]string)
 	lines := strings.Split(content, "\n")
-	
-	// Define the generated query names we're looking for
+
 	queryNames := []string{
 		fmt.Sprintf("Query%sByID", resourceName),
 		fmt.Sprintf("Query%ss", resourceName),
@@ -660,44 +657,42 @@ func (g *Generator) extractGeneratedSQLQueries(content, resourceName string) map
 		fmt.Sprintf("QueryPaginated%ss", resourceName),
 		fmt.Sprintf("Count%ss", resourceName),
 	}
-	
+
 	for _, queryName := range queryNames {
 		query := g.extractSQLQueryByName(lines, queryName)
 		if query != "" {
 			queries[queryName] = query
 		}
 	}
-	
+
 	return queries
 }
 
 func (g *Generator) extractSQLQueryByName(lines []string, queryName string) string {
 	var result []string
 	inQuery := false
-	
+
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		
-		// Check if this line starts our target query
+
 		if strings.Contains(trimmed, fmt.Sprintf("-- name: %s ", queryName)) {
 			inQuery = true
 			result = []string{line}
 			continue
 		}
-		
+
 		if inQuery {
-			// Empty line or next query comment ends this query
 			if trimmed == "" || strings.HasPrefix(trimmed, "-- name:") {
 				return strings.Join(result, "\n")
 			}
 			result = append(result, line)
 		}
 	}
-	
+
 	if inQuery {
 		return strings.Join(result, "\n")
 	}
-	
+
 	return ""
 }
 
@@ -705,32 +700,28 @@ func (g *Generator) replaceSQLQueryByName(content, queryName, newQuery string) s
 	lines := strings.Split(content, "\n")
 	var result []string
 	inQuery := false
-	
+
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		
-		// Check if this line starts our target query
+
 		if strings.Contains(trimmed, fmt.Sprintf("-- name: %s ", queryName)) {
 			inQuery = true
 			result = append(result, newQuery)
 			continue
 		}
-		
+
 		if inQuery {
-			// Empty line or next query comment ends this query - skip the old content
 			if trimmed == "" || strings.HasPrefix(trimmed, "-- name:") {
 				inQuery = false
 				result = append(result, line) // Keep the empty line or next query
 				continue
 			}
-			// Skip lines that are part of the query being replaced
 			continue
 		}
-		
-		// Keep all other lines
+
 		result = append(result, line)
 	}
-	
+
 	return strings.Join(result, "\n")
 }
 

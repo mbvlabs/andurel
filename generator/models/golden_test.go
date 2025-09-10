@@ -336,7 +336,6 @@ func TestModelRefresh__PreservesCustomCode__GoldenFile(t *testing.T) {
 }
 
 func TestSQLRefresh__PreservesCustomQueries__GoldenFile(t *testing.T) {
-	// TODO: test logic not correct but _actually_ using the refresh commands works as expected
 	t.Skip("Skipping SQL refresh test as it is not yet implemented")
 
 	tests := []struct {

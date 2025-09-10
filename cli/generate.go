@@ -35,9 +35,9 @@ Examples:
 		Args: cobra.ExactArgs(2),
 		RunE: generateModel,
 	}
-	
+
 	cmd.Flags().Bool("refresh", false, "Refresh existing model while preserving custom code")
-	
+
 	return cmd
 }
 
@@ -79,7 +79,7 @@ func generateModel(cmd *cobra.Command, args []string) error {
 	if refresh {
 		return gen.RefreshModel(resourceName, tableName)
 	}
-	
+
 	return gen.GenerateModel(resourceName, tableName)
 }
 
