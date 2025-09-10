@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"{{.ModulePath}}/models"
 	"{{.ModulePath}}/router/routes"
-	"{{.ModulePath}}/views/internal/layouts"
 )
 
 templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
-	@layouts.Base() {
+	@base() {
 		<div class="container mx-auto p-6">
 			<div class="flex items-center justify-between mb-8">
 				<h1 class="text-2xl font-semibold text-white">{{.ResourceName}}s</h1>
@@ -48,7 +47,7 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 }
 
 templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
-	@layouts.Base() {
+	@base() {
 		<div class="container mx-auto p-6">
 			<div class="flex items-center justify-between mb-8">
 				<h1 class="text-2xl font-semibold text-white">{{.ResourceName}} Details</h1>
@@ -73,7 +72,7 @@ templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}
 }
 
 templ {{.ResourceName}}New() {
-	@layouts.Base() {
+	@base() {
 		<div class="container mx-auto p-6">
 			<div class="flex items-center justify-between mb-8">
 				<h1 class="text-2xl font-semibold text-white">New {{.ResourceName}}</h1>
@@ -110,7 +109,7 @@ templ {{.ResourceName}}New() {
 }
 
 templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
-	@layouts.Base() {
+	@base() {
 		<div class="container mx-auto p-6">
 			<div class="flex items-center justify-between mb-8">
 				<h1 class="text-2xl font-semibold text-white">Edit {{.ResourceName}}</h1>
