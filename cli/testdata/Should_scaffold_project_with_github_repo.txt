@@ -1,0 +1,674 @@
+=== go.mod ===
+module github.com/testuser/myapp
+
+go 1.25
+
+tool (
+	github.com/a-h/templ/cmd/templ
+	github.com/air-verse/air
+	github.com/pressly/goose/v3/cmd/goose
+	github.com/sqlc-dev/sqlc/cmd/sqlc
+)
+
+require (
+	github.com/a-h/templ v0.3.943
+	github.com/caarlos0/env/v10 v10.0.0
+	github.com/dromara/carbon/v2 v2.6.11
+	github.com/go-playground/validator/v10 v10.27.0
+	github.com/google/uuid v1.6.0
+	github.com/gorilla/sessions v1.4.0
+	github.com/jackc/pgx/v5 v5.7.5
+	github.com/labstack/echo-contrib v0.17.4
+	github.com/labstack/echo/v4 v4.13.4
+	github.com/maypok86/otter v1.2.4
+	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.63.0
+	go.opentelemetry.io/otel v1.38.0
+	go.opentelemetry.io/otel/metric v1.38.0
+	go.opentelemetry.io/otel/trace v1.38.0
+	golang.org/x/sync v0.16.0
+	gopkg.in/yaml.v2 v2.4.0
+)
+
+require (
+	cel.dev/expr v0.24.0 // indirect
+	dario.cat/mergo v1.0.2 // indirect
+	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/ClickHouse/ch-go v0.67.0 // indirect
+	github.com/ClickHouse/clickhouse-go/v2 v2.40.1 // indirect
+	github.com/a-h/parse v0.0.0-20250122154542-74294addb73e // indirect
+	github.com/air-verse/air v1.63.0 // indirect
+	github.com/andybalholm/brotli v1.2.0 // indirect
+	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
+	github.com/bep/godartsass/v2 v2.5.0 // indirect
+	github.com/bep/golibsass v1.2.0 // indirect
+	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cli/browser v1.3.0 // indirect
+	github.com/coder/websocket v1.8.12 // indirect
+	github.com/creack/pty v1.1.24 // indirect
+	github.com/cubicdaiya/gonp v1.0.4 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/dolthub/maphash v0.1.0 // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/elastic/go-sysinfo v1.15.4 // indirect
+	github.com/elastic/go-windows v1.0.2 // indirect
+	github.com/fatih/color v1.18.0 // indirect
+	github.com/fatih/structtag v1.2.0 // indirect
+	github.com/fsnotify/fsnotify v1.9.0 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
+	github.com/gammazero/deque v0.2.1 // indirect
+	github.com/go-faster/city v1.0.1 // indirect
+	github.com/go-faster/errors v0.7.1 // indirect
+	github.com/go-logr/logr v1.4.3 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/go-playground/locales v0.14.1 // indirect
+	github.com/go-playground/universal-translator v0.18.1 // indirect
+	github.com/go-sql-driver/mysql v1.9.3 // indirect
+	github.com/gobwas/glob v0.2.3 // indirect
+	github.com/gohugoio/hugo v0.149.1 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
+	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
+	github.com/golang-sql/sqlexp v0.1.0 // indirect
+	github.com/google/cel-go v0.26.1 // indirect
+	github.com/gorilla/context v1.1.2 // indirect
+	github.com/gorilla/securecookie v1.1.2 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
+	github.com/jonboulle/clockwork v0.5.0 // indirect
+	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/labstack/gommon v0.4.2 // indirect
+	github.com/leodido/go-urn v1.4.0 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mfridman/interpolate v0.0.2 // indirect
+	github.com/mfridman/xflag v0.1.0 // indirect
+	github.com/microsoft/go-mssqldb v1.9.2 // indirect
+	github.com/natefinch/atomic v1.0.1 // indirect
+	github.com/ncruces/go-strftime v0.1.9 // indirect
+	github.com/paulmach/orb v0.11.1 // indirect
+	github.com/pelletier/go-toml v1.9.5 // indirect
+	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
+	github.com/pganalyze/pg_query_go/v6 v6.1.0 // indirect
+	github.com/pierrec/lz4/v4 v4.1.22 // indirect
+	github.com/pingcap/errors v0.11.5-0.20240311024730-e056997136bb // indirect
+	github.com/pingcap/failpoint v0.0.0-20240528011301-b51a646c7c86 // indirect
+	github.com/pingcap/log v1.1.0 // indirect
+	github.com/pingcap/tidb/pkg/parser v0.0.0-20250324122243-d51e00e5bbf0 // indirect
+	github.com/pressly/goose/v3 v3.25.0 // indirect
+	github.com/prometheus/procfs v0.16.1 // indirect
+	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	github.com/riza-io/grpc-go v0.2.0 // indirect
+	github.com/segmentio/asm v1.2.0 // indirect
+	github.com/sethvargo/go-retry v0.3.0 // indirect
+	github.com/shopspring/decimal v1.4.0 // indirect
+	github.com/spf13/afero v1.14.0 // indirect
+	github.com/spf13/cast v1.9.2 // indirect
+	github.com/spf13/cobra v1.9.1 // indirect
+	github.com/spf13/pflag v1.0.7 // indirect
+	github.com/sqlc-dev/sqlc v1.30.0 // indirect
+	github.com/stoewer/go-strcase v1.2.0 // indirect
+	github.com/tdewolff/parse/v2 v2.8.3 // indirect
+	github.com/tetratelabs/wazero v1.9.0 // indirect
+	github.com/tursodatabase/libsql-client-go v0.0.0-20240902231107-85af5b9d094d // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fasttemplate v1.2.2 // indirect
+	github.com/vertica/vertica-sql-go v1.3.3 // indirect
+	github.com/wasilibs/go-pgquery v0.0.0-20250409022910-10ac41983c07 // indirect
+	github.com/wasilibs/wazero-helpers v0.0.0-20240620070341-3dff1577cd52 // indirect
+	github.com/ydb-platform/ydb-go-genproto v0.0.0-20241112172322-ea1f63298f77 // indirect
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.108.1 // indirect
+	github.com/ziutek/mymysql v1.5.4 // indirect
+	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
+	go.uber.org/zap v1.27.0 // indirect
+	golang.org/x/crypto v0.41.0 // indirect
+	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b // indirect
+	golang.org/x/mod v0.27.0 // indirect
+	golang.org/x/net v0.43.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/time v0.12.0 // indirect
+	golang.org/x/tools v0.36.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250715232539-7130f93afb79 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250818200422-3122310a409c // indirect
+	google.golang.org/grpc v1.75.0 // indirect
+	google.golang.org/protobuf v1.36.8 // indirect
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+	howett.net/plist v1.0.1 // indirect
+	modernc.org/libc v1.66.3 // indirect
+	modernc.org/mathutil v1.7.1 // indirect
+	modernc.org/memory v1.11.0 // indirect
+	modernc.org/sqlite v1.38.2 // indirect
+)
+
+
+=== views/layout.templ ===
+package views
+
+import (
+	"github.com/testuser/myapp/views/components"
+	"github.com/testuser/myapp/router/cookies"
+)
+
+templ base(headOpts ...components.HeadDataOption) {
+	<!DOCTYPE html>
+	<html lang="en" data-theme="grafto">
+		@components.SetupHead(ctx, headOpts...)
+		<body class="container mx-auto min-h-screen flex flex-col bg-base-200 text-base-content">
+			{ children... }
+		</body>
+		<div class="fixed top-4 right-4 z-50 space-y-2">
+			for _, flash := range cookies.GetFlashesCtx(ctx) {
+				@components.ToastMessage(flash)
+			}
+		</div>
+	</html>
+}
+
+
+=== views/components/head.templ ===
+package components
+
+import (
+	"context"
+	"github.com/testuser/myapp/config"
+	"github.com/testuser/myapp/router/routes"
+)
+
+type HeadDataOption func(*HeadData)
+
+type MetaContent struct {
+	Content  string
+	Name     string
+	Property string
+}
+
+type HeadData struct {
+	Title          string
+	Description    string
+	Image          string
+	Slug           string
+	MetaType       string
+	StylesheetHref string
+	ScriptSrc      string
+	ExtraMeta      []MetaContent
+}
+
+templ head(data HeadData) {
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<meta name="twitter:card" content="summary_large_image"/>
+		<meta name="twitter:creator" content="@mbvlabs"/>
+		<title>
+			{ data.Title }
+		</title>
+		<link href={ data.StylesheetHref } rel="stylesheet"/>
+		<meta property="og:type" content={ data.MetaType }/>
+		<meta property="og:title" content={ data.Title }/>
+		<meta property="og:description" content={ data.Description }/>
+		<meta property="og:url" content={ data.Slug }/>
+		<meta property="og:site_name" content={ data.Title }/>
+		if data.Image != "" {
+			<meta property="og:image" content={ data.Image }/>
+		}
+		for _, extraMeta := range data.ExtraMeta {
+			<meta
+				if extraMeta.Name != "" {
+					name={ extraMeta.Name }
+				}
+				if extraMeta.Property != "" {
+					property={ extraMeta.Property }
+				}
+				if extraMeta.Content != "" {
+					content={ extraMeta.Content }
+				}
+			/>
+		}
+		<meta name="description" content={ data.Description }/>
+		<link
+			rel="canonical"
+			href={ data.Slug }
+		/>
+		<script src={ data.ScriptSrc } type="module"></script>
+	</head>
+}
+
+func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
+
+	data := &HeadData{
+		Title:          config.App.ProjectName,
+		Description:    "The web development framework for Go.",
+		Slug:           "/",
+		MetaType:       "website",
+		StylesheetHref: routes.Stylesheet.Path,
+		ScriptSrc:      routes.Scripts.Path,
+	}
+
+	for _, opt := range opts {
+		opt(data)
+	}
+
+	return head(*data)
+}
+
+
+=== views/components/toasts.templ ===
+package components
+
+import (
+	"fmt"
+	"github.com/dromara/carbon/v2"
+	"github.com/testuser/myapp/router/cookies"
+)
+
+templ toastBase(tType string, flash cookies.FlashMessage) {
+	<div
+		class="max-w-96 border border-gray-500 rounded bg-black flex flex-col"
+		id={ "toast-" + flash.ID.String() }
+	>
+		<div class="px-4 py-2 flex justify-between items-center border-b-1 border-b-gray-300">
+			<div class={ "w-4 h-4 rounded", tType }></div>
+			<span class="flex">
+				<p class="text-base-content">{ carbon.CreateFromStdTime(flash.CreatedAt).DiffForHumans() }</p>
+				<button data-on-click={ fmt.Sprintf("evt.target.closest('#%s').remove(); evt.stopPropagation();", "toast-"+flash.ID.String()) }>
+					<svg class="ml-2 w-4 h-4 fill-white cursor-pointer hover:fill-gray-400" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="100" height="100" viewBox="0 0 30 30">
+						<path d="M 7 4 C 6.744125 4 6.4879687 4.0974687 6.2929688 4.2929688 L 4.2929688 6.2929688 C 3.9019687 6.6839688 3.9019687 7.3170313 4.2929688 7.7070312 L 11.585938 15 L 4.2929688 22.292969 C 3.9019687 22.683969 3.9019687 23.317031 4.2929688 23.707031 L 6.2929688 25.707031 C 6.6839688 26.098031 7.3170313 26.098031 7.7070312 25.707031 L 15 18.414062 L 22.292969 25.707031 C 22.682969 26.098031 23.317031 26.098031 23.707031 25.707031 L 25.707031 23.707031 C 26.098031 23.316031 26.098031 22.682969 25.707031 22.292969 L 18.414062 15 L 25.707031 7.7070312 C 26.098031 7.3170312 26.098031 6.6829688 25.707031 6.2929688 L 23.707031 4.2929688 C 23.316031 3.9019687 22.682969 3.9019687 22.292969 4.2929688 L 15 11.585938 L 7.7070312 4.2929688 C 7.5115312 4.0974687 7.255875 4 7 4 z"></path>
+					</svg>
+				</button>
+			</span>
+		</div>
+		<span class="text-base-content px-4 py-2">
+			{ flash.Message }
+		</span>
+	</div>
+}
+
+templ ToastMessage(flash cookies.FlashMessage) {
+	switch flash.Type {
+		case cookies.FlashSuccess:
+			@toastBase("bg-success", flash)
+		case cookies.FlashInfo:
+			@toastBase("bg-info", flash)
+		case cookies.FlashError:
+			@toastBase("bg-error", flash)
+		case cookies.FlashWarning:
+			@toastBase("bg-warning", flash)
+	}
+}
+
+
+=== cmd/app/main.go ===
+package main
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"time"
+
+	"github.com/testuser/myapp/config"
+	"github.com/testuser/myapp/controllers"
+	"github.com/testuser/myapp/database"
+	"github.com/testuser/myapp/router"
+
+	"github.com/labstack/echo/v4"
+	"golang.org/x/sync/errgroup"
+)
+
+var appVersion string
+
+func startServer(ctx context.Context, srv *http.Server, env string) error {
+	if env == config.ProdEnvironment {
+		eg, egCtx := errgroup.WithContext(ctx)
+
+		eg.Go(func() error {
+			if err := srv.ListenAndServe(); err != nil &&
+				err != http.ErrServerClosed {
+				return fmt.Errorf("server error: %w", err)
+			}
+			return nil
+		})
+
+		eg.Go(func() error {
+			<-egCtx.Done()
+			slog.InfoContext(ctx, "initiating graceful shutdown")
+			shutdownCtx, cancel := context.WithTimeout(
+				ctx,
+				10*time.Second,
+			)
+			defer cancel()
+			if err := srv.Shutdown(shutdownCtx); err != nil {
+				return fmt.Errorf("shutdown error: %w", err)
+			}
+			return nil
+		})
+
+		if err := eg.Wait(); err != nil {
+			slog.InfoContext(ctx, "wait error", "e", err)
+			return err
+		}
+
+		return nil
+	}
+
+	return srv.ListenAndServe()
+}
+
+func setupControllers(psql database.Postgres) (controllers.Controllers, error) {
+	ctrl, err := controllers.New(
+		psql,
+	)
+	if err != nil {
+		return controllers.Controllers{}, err
+	}
+
+	return ctrl, nil
+}
+
+func setupRouter(ctrl controllers.Controllers) (*echo.Echo, error) {
+	router, err := router.New(
+		ctrl,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return router.SetupRoutes(), nil
+}
+
+func run(ctx context.Context) error {
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+	defer cancel()
+
+	psql, err := database.NewPostgres(ctx)
+	if err != nil {
+		return err
+	}
+
+	controllers, err := setupControllers(psql)
+	if err != nil {
+		return err
+	}
+
+	handler, err := setupRouter(controllers)
+	if err != nil {
+		return err
+	}
+
+	port := config.App.ServerPort
+	host := config.App.ServerHost
+
+	srv := &http.Server{
+		Addr:         fmt.Sprintf("%v:%v", host, port),
+		Handler:      handler,
+		ReadTimeout:  1 * time.Second,
+		WriteTimeout: 5 * time.Second,
+		BaseContext:  func(_ net.Listener) context.Context { return ctx },
+	}
+
+	slog.InfoContext(ctx, "starting server", "host", host, "port", port)
+	return startServer(ctx, srv, config.App.Env)
+}
+
+func main() {
+	ctx := context.Background()
+	if err := run(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+}
+
+
+=== router/router.go ===
+package router
+
+import (
+	"encoding/gob"
+	"encoding/hex"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"reflect"
+	"slices"
+	"strings"
+
+	"github.com/testuser/myapp/config"
+	"github.com/testuser/myapp/controllers"
+	"github.com/testuser/myapp/router/cookies"
+	"github.com/testuser/myapp/router/routes"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/sessions"
+	"github.com/labstack/echo-contrib/session"
+	"github.com/labstack/echo/v4"
+
+	echomw "github.com/labstack/echo/v4/middleware"
+)
+
+type Router struct {
+	Handler     *echo.Echo
+	controllers controllers.Controllers
+}
+
+func New(
+	controllers controllers.Controllers,
+) (*Router, error) {
+	gob.Register(uuid.UUID{})
+	gob.Register(cookies.FlashMessage{})
+
+	router := echo.New()
+
+	if config.App.Env != config.ProdEnvironment {
+		router.Debug = true
+	}
+
+	authKey, err := hex.DecodeString(config.Auth.SessionKey)
+	if err != nil {
+		return nil, err
+	}
+	encKey, err := hex.DecodeString(config.Auth.SessionEncryptionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	router.Use(
+		session.Middleware(
+			sessions.NewCookieStore(
+				authKey,
+				encKey,
+			),
+		),
+		registerAppContext,
+		registerFlashMessagesContext,
+
+		echomw.CSRFWithConfig(echomw.CSRFConfig{Skipper: func(c echo.Context) bool {
+			return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
+				strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
+		}, TokenLookup: "cookie:_csrf", CookiePath: "/", CookieDomain: func() string {
+			if config.App.Env == config.ProdEnvironment {
+				return config.App.Domain
+			}
+
+			return ""
+		}(), CookieSecure: config.App.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
+
+		echomw.Recover(),
+		echomw.Logger(),
+	)
+
+	return &Router{
+		router,
+		controllers,
+	}, nil
+}
+
+func (r *Router) SetupRoutes() *echo.Echo {
+	registeredRoutes := []string{}
+	controllersValue := reflect.ValueOf(r.controllers)
+
+	for _, route := range routes.BuildRoutes {
+		if registered := slices.Contains(registeredRoutes, route.Name); registered {
+			panic(
+				fmt.Sprintf(
+					"%s is registered more than once",
+					route.Name,
+				),
+			)
+		}
+
+		if route.Handler == "" || route.HandleMethod == "" {
+			panic("Route must specify Handler and HandleMethod fields")
+		}
+
+		controllerField := controllersValue.FieldByName(route.Handler)
+		if !controllerField.IsValid() {
+			panic(
+				fmt.Sprintf(
+					"Controller field %s not found in controllers struct",
+					route.Handler,
+				),
+			)
+		}
+
+		controller := controllerField.Interface()
+		controllerFunc := getHandlerFunc(controller, route.HandleMethod)
+
+		var middlewareFuncs []echo.MiddlewareFunc
+		for _, mw := range route.Middleware {
+			middlewareFuncs = append(middlewareFuncs, echo.MiddlewareFunc(mw))
+		}
+
+		switch route.Method {
+		case http.MethodGet:
+			registeredRoutes = append(registeredRoutes, route.Name)
+			r.Handler.GET(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
+		case http.MethodPost:
+			registeredRoutes = append(registeredRoutes, route.Name)
+			r.Handler.POST(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
+		case http.MethodPut:
+			registeredRoutes = append(registeredRoutes, route.Name)
+			r.Handler.PUT(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
+		case http.MethodDelete:
+			registeredRoutes = append(registeredRoutes, route.Name)
+			r.Handler.DELETE(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
+		}
+	}
+
+	r.Handler.RouteNotFound(
+		"/*",
+		getHandlerFunc(r.controllers.Pages, "NotFound"),
+	)
+
+	return r.Handler
+}
+
+func getHandlerFunc(controller any, methodName string) echo.HandlerFunc {
+	appType := reflect.TypeOf(controller)
+	method, found := appType.MethodByName(methodName)
+	if !found {
+		panic(fmt.Sprintf("Controller method %s not found", methodName))
+	}
+
+	return func(c echo.Context) error {
+		values := method.Func.Call([]reflect.Value{
+			reflect.ValueOf(controller),
+			reflect.ValueOf(c),
+		})
+
+		if len(values) != 1 {
+			panic(
+				fmt.Sprintf(
+					"Controller method %s does not return exactly one value",
+					methodName,
+				),
+			)
+		}
+
+		if values[0].IsNil() {
+			return nil
+		}
+
+		return values[0].Interface().(error)
+	}
+}
+
+func registerAppContext(
+	next echo.HandlerFunc,
+) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix) ||
+			strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) {
+			return next(c)
+		}
+
+		c.Set(string(cookies.AppKey), cookies.GetApp(c))
+
+		return next(c)
+	}
+}
+
+func registerFlashMessagesContext(
+	next echo.HandlerFunc,
+) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix) ||
+			strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) {
+			return next(c)
+		}
+
+		flashes, err := cookies.GetFlashes(c)
+		if err != nil {
+			slog.Error("Error getting flash messages from session", "error", err)
+			return next(c)
+		}
+
+		c.Set(string(cookies.FlashKey), flashes)
+
+		return next(c)
+	}
+}
+
+
+=== controllers/pages.go ===
+package controllers
+
+import (
+	"github.com/testuser/myapp/database"
+	"github.com/testuser/myapp/views"
+
+	"github.com/a-h/templ"
+	"github.com/labstack/echo/v4"
+	"github.com/maypok86/otter"
+)
+
+type Pages struct {
+	db    database.Postgres
+	cache otter.CacheWithVariableTTL[string, templ.Component]
+}
+
+func newPages(
+	db database.Postgres,
+	cache otter.CacheWithVariableTTL[string, templ.Component],
+) Pages {
+	return Pages{db, cache}
+}
+
+func (p Pages) Home(c echo.Context) error {
+	return render(c, views.Home())
+}
+
+func (p Pages) NotFound(c echo.Context) error {
+	return render(c, views.NotFound())
+}
+
+
