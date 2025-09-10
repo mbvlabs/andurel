@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+
 	"github.com/mbvlabs/andurel/layout"
 
 	"github.com/spf13/cobra"
@@ -45,9 +46,9 @@ func newProject(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("\n🎉 Successfully created project: %s\n", projectName)
 	fmt.Printf("\nNext steps:\n")
-	fmt.Printf("  cd %s\n", projectName)
-	fmt.Printf("  npm i\n")
-	fmt.Printf("  update .env\n")
+	fmt.Printf("  cd %s\n", args[0])
+	fmt.Printf("  just setup <platform> # (mac, linux, or windows)\n")
+	fmt.Printf("  cp .env.example .env and fill it out\n")
 	fmt.Printf("  and just run\n")
 
 	return nil
