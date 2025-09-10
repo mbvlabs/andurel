@@ -3,8 +3,8 @@ package ddl
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"log/slog"
 	"path/filepath"
 )
 
@@ -42,7 +42,6 @@ func ApplyDDL(
 		)
 		return nil
 	case CreateEnum, DropEnum, CreateSchema, DropSchema:
-		// Skip these for now - not needed for basic table scaffolding
 		return nil
 	default:
 		return fmt.Errorf(

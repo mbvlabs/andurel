@@ -27,7 +27,6 @@ type appKey string
 
 const (
 	isAuthenticated = "is_authenticated"
-	// oneWeekInSeconds = 604800
 )
 
 type App struct {

@@ -48,7 +48,6 @@ func (tm *TypeMapper) MapSQLTypeToGo(
 ) (goType, sqlcType, packageName string, err error) {
 	normalizedType := normalizeSQLType(sqlType)
 
-	// Check for custom type overrides first
 	for _, override := range tm.Overrides {
 		if override.DatabaseType == normalizedType &&
 			override.Nullable == nullable {
@@ -56,12 +55,10 @@ func (tm *TypeMapper) MapSQLTypeToGo(
 		}
 	}
 
-	// Handle UUID specially (always uses github.com/google/uuid)
 	if normalizedType == "uuid" {
 		return "uuid.UUID", "uuid.UUID", "github.com/google/uuid", nil
 	}
 
-	// Get the appropriate Go and SQLC types based on nullability
 	goType, sqlcType, packageName = tm.getPostgreSQLType(normalizedType, nullable)
 	if goType == "" {
 		return "interface{}", "interface{}", "", nil
@@ -71,7 +68,6 @@ func (tm *TypeMapper) MapSQLTypeToGo(
 }
 
 func (tm *TypeMapper) GenerateConversionFromDB(fieldName, sqlcType, goType string) string {
-	// For pgtype nullable types, we need to access the underlying value
 	if strings.HasPrefix(sqlcType, "pgtype.") {
 		switch sqlcType {
 		case "pgtype.Text":
@@ -128,12 +124,9 @@ func (tm *TypeMapper) GenerateConversionFromDB(fieldName, sqlcType, goType strin
 			return fmt.Sprintf("row.%s", fieldName)
 		}
 	}
-	// For non-pgtype (non-nullable) types, direct access
 	return fmt.Sprintf("row.%s", fieldName)
 }
 
-// getPostgreSQLType returns the appropriate Go type, SQLC type, and package
-// based on the SQL type and whether it's nullable
 func (tm *TypeMapper) getPostgreSQLType(
 	normalizedType string,
 	nullable bool,
@@ -354,7 +347,6 @@ func (tm *TypeMapper) GenerateConversionToDB(
 	goType string,
 	valueExpr string,
 ) string {
-	// For pgtype nullable types, we need to create the pgtype struct
 	if strings.HasPrefix(sqlcType, "pgtype.") {
 		switch sqlcType {
 		case "pgtype.Text":
@@ -399,7 +391,6 @@ func (tm *TypeMapper) GenerateConversionToDB(
 			return valueExpr
 		}
 	}
-	// For non-pgtype (non-nullable) types, direct value
 	return valueExpr
 }
 
@@ -465,23 +456,36 @@ func FormatFieldName(dbColumnName string) string {
 	}
 
 	parts := strings.Split(dbColumnName, "_")
-	for i, part := range parts {
+
+	var builder strings.Builder
+	builder.Grow(len(dbColumnName))
+
+	for _, part := range parts {
 		if len(part) > 0 {
-			parts[i] = strings.ToUpper(part[:1]) + strings.ToLower(part[1:])
+			builder.WriteString(strings.ToUpper(part[:1]))
+			builder.WriteString(strings.ToLower(part[1:]))
 		}
 	}
 
-	return strings.Join(parts, "")
+	return builder.String()
 }
 
 func FormatDisplayName(dbColumnName string) string {
 	parts := strings.Split(dbColumnName, "_")
+
+	var builder strings.Builder
+	builder.Grow(len(dbColumnName) + len(parts) - 1)
+
 	for i, part := range parts {
 		if len(part) > 0 {
-			parts[i] = strings.ToUpper(part[:1]) + strings.ToLower(part[1:])
+			if i > 0 {
+				builder.WriteString(" ")
+			}
+			builder.WriteString(strings.ToUpper(part[:1]))
+			builder.WriteString(strings.ToLower(part[1:]))
 		}
 	}
-	return strings.Join(parts, " ")
+	return builder.String()
 }
 
 func FormatCamelCase(dbColumnName string) string {
@@ -490,13 +494,17 @@ func FormatCamelCase(dbColumnName string) string {
 		return dbColumnName
 	}
 
-	result := strings.ToLower(parts[0])
+	var builder strings.Builder
+	builder.Grow(len(dbColumnName))
+
+	builder.WriteString(strings.ToLower(parts[0]))
 	for i := 1; i < len(parts); i++ {
 		if len(parts[i]) > 0 {
-			result += strings.ToUpper(parts[i][:1]) + strings.ToLower(parts[i][1:])
+			builder.WriteString(strings.ToUpper(parts[i][:1]))
+			builder.WriteString(strings.ToLower(parts[i][1:]))
 		}
 	}
-	return result
+	return builder.String()
 }
 
 type SQLCConfig struct {

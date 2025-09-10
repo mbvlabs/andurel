@@ -7,8 +7,6 @@ type Config struct {
 	OutputFile    string
 	PackageName   string
 	GenerateJSON  bool
-	// CustomTypes   []generator.TypeOverride
-	// StructTags    generator.TagConfig
 }
 
 func NewDefaultConfig() *Config {
@@ -17,11 +15,5 @@ func NewDefaultConfig() *Config {
 		DatabaseType:  "postgresql",
 		PackageName:   "models",
 		GenerateJSON:  true,
-		// StructTags: generator.TagConfig{
-		// 	JSON:     true,
-		// 	DB:       true,
-		// 	Validate: true,
-		// 	Custom:   make(map[string]string),
-		// },
 	}
 }

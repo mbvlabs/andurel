@@ -1,4 +1,3 @@
-// Package catalog provides a thread-safe in-memory representation of a database catalog,
 package catalog
 
 import (

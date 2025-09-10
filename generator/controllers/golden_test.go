@@ -9,6 +9,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/internal/ddl"
 	"github.com/mbvlabs/andurel/generator/internal/migrations"
+	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/sebdah/goldie/v2"
 )
 
@@ -44,7 +45,7 @@ func TestControllerFileGeneration__GoldenFile(t *testing.T) {
 			tempDir := t.TempDir()
 			controllersDir := filepath.Join(tempDir, "controllers")
 
-			err := os.MkdirAll(controllersDir, 0o755)
+			err := os.MkdirAll(controllersDir, constants.DirPermissionDefault)
 			if err != nil {
 				t.Fatalf("Failed to create controllers directory: %v", err)
 			}
@@ -78,7 +79,8 @@ func TestControllerFileGeneration__GoldenFile(t *testing.T) {
 				t.Fatalf("Failed to build controller: %v", err)
 			}
 
-			controllerContent, err := generator.RenderControllerFile(controller)
+			templateRenderer := NewTemplateRenderer()
+			controllerContent, err := templateRenderer.RenderControllerFile(controller)
 			if err != nil {
 				t.Fatalf("Failed to render controller content: %v", err)
 			}
@@ -90,7 +92,8 @@ func TestControllerFileGeneration__GoldenFile(t *testing.T) {
 				t.Fatalf("Failed to write controller file: %v", err)
 			}
 
-			err = formatGoFile(controllerPath)
+			routeGenerator := NewRouteGenerator()
+			err = routeGenerator.formatGoFile(controllerPath)
 			if err != nil {
 				t.Fatalf("Failed to format controller file: %v", err)
 			}
@@ -134,7 +137,7 @@ func TestRoutesFileGeneration__GoldenFile(t *testing.T) {
 			tempDir := t.TempDir()
 			routesDir := filepath.Join(tempDir, "router", "routes")
 
-			err := os.MkdirAll(routesDir, 0o755)
+			err := os.MkdirAll(routesDir, constants.DirPermissionDefault)
 			if err != nil {
 				t.Fatalf("Failed to create routes directory: %v", err)
 			}
@@ -145,9 +148,8 @@ func TestRoutesFileGeneration__GoldenFile(t *testing.T) {
 			defer os.Chdir(oldWd)
 			os.Chdir(tempDir)
 
-			generator := NewGenerator("postgresql")
-
-			routeContent, err := generator.generateRouteContent(tt.resourceName, tt.tableName)
+			templateRenderer := NewTemplateRenderer()
+			routeContent, err := templateRenderer.generateRouteContent(tt.resourceName, tt.tableName)
 			if err != nil {
 				t.Fatalf("Failed to generate route content: %v", err)
 			}
@@ -159,7 +161,8 @@ func TestRoutesFileGeneration__GoldenFile(t *testing.T) {
 				t.Fatalf("Failed to write routes file: %v", err)
 			}
 
-			err = formatGoFile(routesPath)
+			routeGenerator := NewRouteGenerator()
+			err = routeGenerator.formatGoFile(routesPath)
 			if err != nil {
 				t.Fatalf("Failed to format routes file: %v", err)
 			}
@@ -248,7 +251,7 @@ func TestRoutesRegistration__GoldenFile(t *testing.T) {
 			tempDir := t.TempDir()
 			routesDir := filepath.Join(tempDir, "router", "routes")
 
-			err := os.MkdirAll(routesDir, 0o755)
+			err := os.MkdirAll(routesDir, constants.DirPermissionDefault)
 			if err != nil {
 				t.Fatalf("Failed to create routes directory: %v", err)
 			}
@@ -274,10 +277,8 @@ func TestRoutesRegistration__GoldenFile(t *testing.T) {
 			defer os.Chdir(oldWd)
 			os.Chdir(tempDir)
 
-			generator := NewGenerator("postgresql")
-
-			// Register the routes - this modifies the main routes.go file
-			err = generator.registerRoutes(tt.tableName)
+			routeGenerator := NewRouteGenerator()
+			err = routeGenerator.registerRoutes(tt.tableName)
 			if err != nil {
 				t.Fatalf("Failed to register routes: %v", err)
 			}
@@ -296,5 +297,6 @@ func TestRoutesRegistration__GoldenFile(t *testing.T) {
 }
 
 func formatGoFile(filePath string) error {
-	return (&Generator{}).formatGoFile(filePath)
+	routeGenerator := NewRouteGenerator()
+	return routeGenerator.formatGoFile(filePath)
 }

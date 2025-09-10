@@ -30,13 +30,13 @@ func newProject(cmd *cobra.Command, args []string) error {
 
 	basePath := "./" + projectName
 
-	moduleNamerepo, err := cmd.Flags().GetString("repo")
+	repo, err := cmd.Flags().GetString("repo")
 	if err != nil {
 		return err
 	}
 
-	if moduleNamerepo != "" {
-		projectName = moduleNamerepo + "/" + projectName
+	if repo != "" {
+		projectName = repo + "/" + projectName
 	}
 
 	if err := layout.Scaffold(basePath, projectName); err != nil {

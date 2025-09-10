@@ -1,4 +1,3 @@
-// Package layout provides functionality to scaffold a Go project with a predefined directory structure and files.
 package layout
 
 import (
@@ -12,17 +11,17 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/mbvlabs/andurel/pkg/constants"
 )
 
 const moduleName = "github.com/mbvlabs/andurel/layout/elements"
 
-// Element represents a directory and its subdirectories.
 type Element struct {
 	RootDir string
 	SubDirs []Element
 }
 
-// Layout defines the directory structure and files to be created.
 var Layout = []Element{
 	{
 		RootDir: "assets",
@@ -93,11 +92,10 @@ var Layout = []Element{
 	},
 }
 
-// Scaffold creates the project structure in the specified target directory
 func Scaffold(targetDir, projectName string) error {
 	elementsDir := filepath.Join(filepath.Dir(getCurrentFile()), "elements")
 
-	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+	if err := os.MkdirAll(targetDir, constants.DirPermissionDefault); err != nil {
 		return fmt.Errorf("failed to create target directory: %w", err)
 	}
 
@@ -134,7 +132,7 @@ func createElementStructure(
 	elementTargetPath := filepath.Join(targetDir, element.RootDir)
 	elementSourcePath := filepath.Join(elementsDir, element.RootDir)
 
-	if err := os.MkdirAll(elementTargetPath, 0o755); err != nil {
+	if err := os.MkdirAll(elementTargetPath, constants.DirPermissionDefault); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", elementTargetPath, err)
 	}
 
@@ -167,7 +165,7 @@ func copyDirectoryContents(srcDir, destDir, projectName string) error {
 		destPath := filepath.Join(destDir, relPath)
 
 		if d.IsDir() {
-			return os.MkdirAll(destPath, 0o755)
+			return os.MkdirAll(destPath, constants.DirPermissionDefault)
 		}
 
 		return copyFile(path, destPath, projectName)
@@ -195,7 +193,6 @@ func copyFile(src, dest, projectName string) error {
 	contentStr := string(content)
 	contentStr = strings.ReplaceAll(contentStr, moduleName, projectName)
 
-	// Generate secure values for .env files
 	if strings.HasSuffix(src, ".env.example") {
 		contentStr = replaceSecureValues(contentStr)
 	}
@@ -255,13 +252,11 @@ func getCurrentFile() string {
 }
 
 func replaceSecureValues(content string) string {
-	// Generate secure random values
 	sessionKey := generateRandomHex(64)
 	sessionEncryptionKey := generateRandomHex(32)
 	tokenSigningKey := generateRandomHex(32)
 	passwordSalt := generateRandomHex(16)
 
-	// Replace placeholder values with secure ones
 	content = strings.ReplaceAll(content, "SESSION_KEY=session_key", "SESSION_KEY="+sessionKey)
 	content = strings.ReplaceAll(
 		content,

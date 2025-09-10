@@ -1,0 +1,3112 @@
+=== PROJECT STRUCTURE ===
+.env.example
+.gitignore
+assets/assets.go
+assets/css/tw.css
+assets/js/datastar_1-0-0-rc5.min.js
+assets/js/scripts.js
+cmd/app/main.go
+cmd/migrate/main.go
+config/app.go
+config/auth.go
+config/config.go
+config/database.go
+controllers/api.go
+controllers/assets.go
+controllers/controller.go
+controllers/pages.go
+css/base.css
+css/theme.css
+database/migrations/00001_create_riverqueue_v1_table.sql
+database/migrations/00002_create_riverqueue_v2_table.sql
+database/migrations/00003_create_riverqueue_v3_table.sql
+database/migrations/00004_create_riverqueue_v4_table.sql
+database/migrations/00005_create_riverqueue_v5_table.sql
+database/migrations/00006_create_riverqueue_v6_table.sql
+database/psql.go
+database/queries/.gitkeep
+database/sqlc.yaml
+go.mod
+justfile
+models/errors.go
+models/validator.go
+package.json
+router/cookies/cookies.go
+router/cookies/flash.go
+router/middleware/logging.go
+router/router.go
+router/routes/api.go
+router/routes/assets.go
+router/routes/pages.go
+router/routes/routes.go
+views/components/head.templ
+views/components/head_templ.go
+views/components/toasts.templ
+views/components/toasts_templ.go
+views/home.templ
+views/home_templ.go
+views/layout.templ
+views/layout_templ.go
+views/not_found.templ
+views/not_found_templ.go
+
+=== .env.example ===
+ENVIRONMENT=development
+
+SERVER_HOST=localhost
+SERVER_PORT=8080
+DEFAULT_SENDER_SIGNATURE=info@andurel.com
+
+DB_KIND=postgres
+DB_PORT=5432
+DB_HOST=127.0.0.1
+DB_NAME=andurel
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_SSL_MODE=disable
+
+PASSWORD_SALT=test_password_salt_value
+
+PROJECT_NAME=Andurel
+APP_DOMAIN=localhost
+APP_PROTOCOL=http
+
+SESSION_KEY=test_session_key_value
+SESSION_ENCRYPTION_KEY=test_session_encryption_key_value
+
+TOKEN_SIGNING_KEY=test_token_signing_key_value
+
+
+=== .gitignore ===
+node_modules
+.env
+
+
+=== assets/assets.go ===
+package assets
+
+import "embed"
+
+//go:embed *
+var Files embed.FS
+
+
+=== assets/css/tw.css ===
+
+
+=== assets/js/datastar_1-0-0-rc5.min.js ===
+// Datastar v1.0.0-RC.5
+var tt=/🖕JS_DS🚀/.source,be=tt.slice(0,5),He=tt.slice(4),L="datastar",nt="Datastar-Request",it=1e3;var rt=!1,Ee="outer",st="inner",ot="remove",Ie="replace",at="prepend",ct="append",lt="before",ut="after",ft=Ee,ce="datastar-patch-elements",le="datastar-patch-signals";function Re(e){return e instanceof HTMLElement||e instanceof SVGElement}var Q=e=>e!==null&&typeof e=="object"&&(Object.getPrototypeOf(e)===Object.prototype||Object.getPrototypeOf(e)===null);function dt(e){for(let t in e)if(Object.hasOwn(e,t))return!1;return!0}function ue(e,t){for(let n in e){let i=e[n];Q(i)||Array.isArray(i)?ue(i,t):e[n]=t(i)}}var Te=e=>{let t={};for(let[n,i]of e){let r=n.split("."),o=r.pop(),s=r.reduce((a,c)=>a[c]??={},t);s[o]=i}return t};var pt=e=>e.trim()==="true",T=e=>e.replace(/([a-z0-9])([A-Z])/g,"$1-$2").replace(/([a-z])([0-9]+)/gi,"$1-$2").replace(/([0-9]+)([a-z])/gi,"$1-$2").toLowerCase(),Z=e=>T(e).replace(/-./g,t=>t[1].toUpperCase()),fe=e=>T(e).replace(/-/g,"_"),wn=e=>Z(e).replace(/(^.|(?<=\.).)/g,t=>t[0].toUpperCase()),Y=e=>{try{return JSON.parse(e)}catch{return Function(`return (${e})`)()}},Pn={kebab:T,snake:fe,pascal:wn};function S(e,t){for(let n of t.get("case")||[]){let i=Pn[n];i&&(e=i(e))}return e}var Cn="https://data-star.dev/errors";function mt(e,t,n={}){let i=new Error;i.name=`${L} ${e} error`;let r=fe(t),o=new URLSearchParams({metadata:JSON.stringify(n)}).toString(),s=JSON.stringify(n,null,2);return i.message=`${t}
+More info: ${Cn}/${e}/${r}?${o}
+Context: ${s}`,i}function Ne(e,t,n={}){let i={plugin:{name:e.plugin.name,type:e.plugin.type}};return mt("init",t,Object.assign(i,n))}function gt(e,t,n={}){let i={plugin:{name:e.plugin.name,type:e.plugin.type},element:{id:e.el.id,tag:e.el.tagName},expression:{rawKey:e.rawKey,key:e.key,value:e.value,fnContent:e.fnContent}};return mt("runtime",t,Object.assign(i,n))}var W=`${L}-signal-patch`;var Ae=[],_e=[],Le=0,Se=0,qe=0,V,me=()=>{Le++},ge=()=>{--Le||(At(),D())},X=e=>On.bind(0,{previousValue:e,t:e,e:1}),je=Symbol("computed"),Et=e=>{let t=Ln.bind(0,{e:17,getter:e});return t[je]=1,t},Rt=e=>{let t={d:e,e:2};V&&We(t,V);let n=_(t);me();try{t.d()}finally{ge(),_(n)}return wt.bind(0,t)},Tt=e=>{let t=_(void 0);try{return e()}finally{_(t)}},At=()=>{for(;Se<qe;){let e=_e[Se];_e[Se++]=void 0,Mt(e,e.e&=-65)}Se=0,qe=0},yt=e=>"getter"in e?St(e):xt(e,e.t),_=e=>{let t=V;return V=e,t},St=e=>{let t=_(e);Pt(e);try{let n=e.t;return n!==(e.t=e.getter(n))}finally{_(t),Ct(e)}},xt=(e,t)=>(e.e=1,e.previousValue!==(e.previousValue=t)),Ge=e=>{let t=e.e;if(!(t&64)){e.e=t|64;let n=e.s;n?Ge(n.o):_e[qe++]=e}},Mt=(e,t)=>{if(t&16||t&32&&Lt(e.r,e)){let i=_(e);Pt(e),me();try{e.d()}finally{ge(),_(i),Ct(e)}return}t&32&&(e.e=t&-33);let n=e.r;for(;n;){let i=n.c,r=i.e;r&64&&Mt(i,i.e=r&-65),n=n.n}},Ln=e=>{let t=e.e;if(t&16||t&32&&Lt(e.r,e)){if(St(e)){let n=e.s;n&&Pe(n)}}else t&32&&(e.e=t&-33);return V&&We(e,V),e.t},On=(e,...t)=>{if(t.length){let i=t[0];if(e.t!==(e.t=i)){e.e=17;let r=e.s;return r&&(Fn(r),Le||At()),!0}return!1}let n=e.t;if(e.e&16&&xt(e,n)){let i=e.s;i&&Pe(i)}return V&&We(e,V),n},wt=e=>{let t=e.r;for(;t;)t=we(t,e);let n=e.s;n&&we(n),e.e=0},We=(e,t)=>{let n=t.a;if(n&&n.c===e)return;let i,r=t.e&4;if(r&&(i=n?n.n:t.r,i&&i.c===e)){t.a=i;return}let o=e.p;if(o&&o.o===t&&(!r||Ot(o,t)))return;let s=t.a=e.p={c:e,o:t,l:n,n:i,u:o};i&&(i.l=s),n?n.n=s:t.r=s,o?o.i=s:e.s=s},we=(e,t=e.o)=>{let n=e.c,i=e.l,r=e.n,o=e.i,s=e.u;if(r?r.l=i:t.a=i,i?i.n=r:t.r=r,o?o.u=s:n.p=s,s)s.i=o;else if(!(n.s=o))if("getter"in n){let a=n.r;if(a){n.e=17;do a=we(a,n);while(a)}}else"previousValue"in n||wt(n);return r},Fn=e=>{let t=e.i,n;e:for(;;){let i=e.o,r=i.e;if(r&3&&(r&60?r&12?r&4?!(r&48)&&Ot(e,i)?(i.e=r|40,r&=1):r=0:i.e=r&-9|32:r=0:i.e=r|32,r&2&&Ge(i),r&1)){let o=i.s;if(o){e=o,o.i&&(n={t,f:n},t=e.i);continue}}if(e=t){t=e.i;continue}for(;n;)if(e=n.t,n=n.f,e){t=e.i;continue e}break}},Pt=e=>{e.a=void 0,e.e=e.e&-57|4},Ct=e=>{let t=e.a,n=t?t.n:e.r;for(;n;)n=we(n,e);e.e&=-5},Lt=(e,t)=>{let n,i=0;e:for(;;){let r=e.c,o=r.e,s=!1;if(t.e&16)s=!0;else if((o&17)===17){if(yt(r)){let a=r.s;a.i&&Pe(a),s=!0}}else if((o&33)===33){(e.i||e.u)&&(n={t:e,f:n}),e=r.r,t=r,++i;continue}if(!s&&e.n){e=e.n;continue}for(;i;){--i;let a=t.s,c=a.i;if(c?(e=n.t,n=n.f):e=a,s){if(yt(t)){c&&Pe(a),t=e.o;continue}}else t.e&=-33;if(t=e.o,e.n){e=e.n;continue e}s=!1}return s}},Pe=e=>{do{let t=e.o,n=e.i,i=t.e;(i&48)===32&&(t.e=i|16,i&2&&Ge(t)),e=n}while(e)},Ot=(e,t)=>{let n=t.a;if(n){let i=t.r;do{if(i===e)return!0;if(i===n)break;i=i.n}while(i)}return!1},Ke=e=>{let t=K,n=e.split(".");for(let i of n){if(t==null||!Object.hasOwn(t,i))return;t=t[i]}return t},ht=Symbol("delete"),xe=(e,t="")=>{let n=Array.isArray(e);if(n||Q(e)){let i=n?[]:{};for(let o in e)i[o]=X(xe(e[o],`${t+o}.`));let r=X(0);return new Proxy(i,{get(o,s){if(!(s==="toJSON"&&!Object.hasOwn(i,s)))return n&&s in Array.prototype?(r(),i[s]):typeof s=="symbol"?i[s]:((!Object.hasOwn(i,s)||i[s]()==null)&&(i[s]=X(""),D(t+s,""),r(r()+1)),i[s]())},set(o,s,a){let c=t+s;if(a===ht)Object.hasOwn(i,s)&&(delete i[s],D(c,ht),r(r()+1));else if(n&&s==="length"){let l=i[s]-a;if(i[s]=a,l>0){let u={};for(let f=a;f<i[s];f++)u[f]=null;D(t.slice(0,-1),u),r(r()+1)}}else Object.hasOwn(i,s)?a==null?i[s](null)&&D(c,null):Object.hasOwn(a,je)?(i[s]=a,D(c,"")):i[s](xe(a,`${c}.`))&&D(c,a):a!=null&&(Object.hasOwn(a,je)?(i[s]=a,D(c,"")):(i[s]=X(xe(a,`${c}.`)),D(c,a)),r(r()+1));return!0},deleteProperty(o,s){return Object.hasOwn(i,s)&&i[s](null)&&D(t+s,null),!0},ownKeys(){return r(),Reflect.ownKeys(i)},has(o,s){return r(),s in i}})}return e},D=(e,t)=>{if(e!==void 0&&t!==void 0&&Ae.push([e,t]),!Le&&Ae.length){let n=Te(Ae);Ae.length=0,document.dispatchEvent(new CustomEvent(W,{detail:n}))}},Ue=(e,{ifMissing:t}={})=>{me();for(let n in e)e[n]==null?t||delete K[n]:Dt(e[n],n,K,"",t);ge()},Ft=(e,t={})=>Ue(Te(e),t),Dt=(e,t,n,i,r)=>{if(Q(e)){Object.hasOwn(n,t)&&(Q(n[t])||Array.isArray(n[t]))||(n[t]={});for(let o in e)e[o]==null?r||delete n[t][o]:Dt(e[o],o,n[t],`${i+t}.`,r)}else r&&Object.hasOwn(n,t)||(n[t]=e)};function kt({include:e=/.*/,exclude:t=/(?!)/}={},n=K){let i=[],r=[[n,""]];for(;r.length;){let[o,s]=r.pop();for(let a in o){let c=s+a;Q(o[a])?r.push([o[a],`${c}.`]):vt(e).test(c)&&!vt(t).test(c)&&i.push([c,Ke(c)])}}return Te(i)}function vt(e){return typeof e=="string"?RegExp(e.replace(/^\/|\/$/g,"")):e}var K=xe({}),de={},Me=[],$t=[],pe=new Map,Ve=null,ee="";function Ht(e){ee=e}function $(e){return ee?`data-${ee}-${e}`:`data-${e}`}function Be(...e){for(let t of e){let n={plugin:t,actions:de,root:K,filtered:kt,signal:X,computed:Et,effect:Rt,mergePatch:Ue,mergePaths:Ft,peek:Tt,getPath:Ke,startBatch:me,endBatch:ge,initErr:0};if(n.initErr=Ne.bind(0,n),t.type==="action")de[t.name]=t;else if(t.type==="attribute")Me.push(t),t.onGlobalInit?.(n);else if(t.type==="watcher")t.onGlobalInit?.(n);else throw n.initErr("InvalidPluginType")}Me.sort((t,n)=>{let i=n.name.length-t.name.length;return i!==0?i:t.name.localeCompare(n.name)}),$t=Me.map(t=>RegExp(`^${t.name}([A-Z]|_|$)`))}function Ce(e){let t=`[${$("ignore")}]`;for(let n of e)if(!n.closest(t))for(let i in n.dataset)It(n,i,n.dataset[i])}function bt(e){for(let t of e){let n=pe.get(t);if(pe.delete(t)){for(let i of n.values())i();n.clear()}}}function Je(e=document.body){queueMicrotask(()=>{Ce([e]),Ce(e.querySelectorAll("*")),Ve||(Ve=new MutationObserver(Dn),Ve.observe(e,{subtree:!0,childList:!0,attributes:!0}))})}function It(e,t,n){if(t.startsWith(ee)){let i=Z(ee?t.slice(ee.length):t),r=Me.find((o,s)=>$t[s].test(i));if(r){let[o,...s]=i.slice(r.name.length).split(/__+/),a=!!o;a&&(o=Z(o));let c=!!n,l={plugin:r,actions:de,root:K,filtered:kt,signal:X,computed:Et,effect:Rt,mergePatch:Ue,mergePaths:Ft,peek:Tt,getPath:Ke,startBatch:me,endBatch:ge,initErr:0,el:e,rawKey:i,key:o,value:n,mods:new Map,runtimeErr:0,rx:0};l.initErr=Ne.bind(0,l),l.runtimeErr=gt.bind(0,l),(r.shouldEvaluate===void 0||r.shouldEvaluate===!0)&&(l.rx=kn(l));let u=r.keyReq||"allowed";if(a){if(u==="denied")throw l.runtimeErr(`${r.name}KeyNotAllowed`)}else if(u==="must")throw l.runtimeErr(`${r.name}KeyRequired`);let f=r.valReq||"allowed";if(c){if(f==="denied")throw l.runtimeErr(`${r.name}ValueNotAllowed`)}else if(f==="must")throw l.runtimeErr(`${r.name}ValueRequired`);if(u==="exclusive"||f==="exclusive"){if(a&&c)throw l.runtimeErr(`${r.name}KeyAndValueProvided`);if(!a&&!c)throw l.runtimeErr(`${r.name}KeyOrValueRequired`)}for(let m of s){let[v,...A]=m.split(".");l.mods.set(Z(v),new Set(A.map(d=>d.toLowerCase())))}let p=r.onLoad(l);if(p){let m=pe.get(e);m?m.get(i)?.():(m=new Map,pe.set(e,m)),m.set(i,p)}}}}function Dn(e){let t=`[${$("ignore")}]`;for(let{target:n,type:i,attributeName:r,addedNodes:o,removedNodes:s}of e)if(i==="childList"){for(let a of s)Re(a)&&(bt([a]),bt(a.querySelectorAll("*")));for(let a of o)Re(a)&&(Ce([a]),Ce(a.querySelectorAll("*")))}else if(i==="attributes"&&Re(n)&&!n.closest(t)){let a=Z(r.slice(5)),c=n.getAttribute(r);if(c===null){let l=pe.get(n);l&&(l.get(a)?.(),l.delete(a))}else It(n,a,c)}}function kn(e){let t="",n=e.plugin||void 0;if(n?.returnsValue){let p=/(\/(\\\/|[^/])*\/|"(\\"|[^"])*"|'(\\'|[^'])*'|`(\\`|[^`])*`|\(\s*((function)\s*\(\s*\)|(\(\s*\))\s*=>)\s*(?:\{[\s\S]*?\}|[^;){]*)\s*\)\s*\(\s*\)|[^;])+/gm,m=e.value.trim().match(p);if(m){let v=m.length-1,A=m[v].trim();A.startsWith("return")||(m[v]=`return (${A});`),t=m.join(`;
+`)}}else t=e.value.trim();t=t.replace(/\$\['([a-zA-Z_$\d][\w$]*)'\]/g,"$$$1").replace(/\$([a-zA-Z_\d]\w*(?:[.-]\w+)*)/g,(p,m)=>m.split(".").reduce((A,d)=>`${A}['${d}']`,"$")).replace(/\[(\$[a-zA-Z_\d]\w*)\]/g,(p,m)=>`[$['${m.slice(1)}']]`);let i=new Map,r=RegExp(`(?:${be})(.*?)(?:${He})`,"gm"),o=0;for(let p of t.matchAll(r)){let m=p[1],v=`dsEscaped${o++}`;i.set(v,m),t=t.replace(be+m+He,v)}let s=(p,m)=>`${p}${fe(m).replaceAll(/\./g,"_")}`,a=new Set,c=RegExp(`@(${Object.keys(de).join("|")})\\(`,"gm"),l=[...t.matchAll(c)],u=new Set,f=new Set;if(l.length){let p=`${L}Act_`;for(let m of l){let v=m[1],A=de[v];if(!A)continue;a.add(v);let d=s(p,v);t=t.replace(`@${v}(`,`${d}(`),u.add(d),f.add((...y)=>A.fn(e,...y))}}for(let[p,m]of i)t=t.replace(p,m);e.fnContent=t;try{let p=Function("el","$",...n?.argNames||[],...u,t);return(...m)=>{try{return p(e.el,K,...m,...f)}catch(v){throw e.runtimeErr("ExecuteExpression",{error:v.message})}}}catch(p){throw e.runtimeErr("GenerateExpression",{error:p.message})}}var Nt={type:"action",name:"peek",fn:({peek:e},t)=>e(t)};var Vt={type:"action",name:"setAll",fn:({filtered:e,mergePatch:t,peek:n},i,r)=>{n(()=>{let o=e(r);ue(o,()=>i),t(o)})}};var _t={type:"action",name:"toggleAll",fn:({filtered:e,mergePatch:t,peek:n},i)=>{n(()=>{let r=e(i);ue(r,o=>!o),t(r)})}};var qt={type:"attribute",name:"attr",valReq:"must",returnsValue:!0,onLoad:({el:e,effect:t,key:n,rx:i})=>{let r=(c,l)=>{l===""||l===!0?e.setAttribute(c,""):l===!1||l==null?e.removeAttribute(c):typeof l=="string"?e.setAttribute(c,l):e.setAttribute(c,JSON.stringify(l))};n=T(n);let o=n?()=>{s.disconnect();let c=i();r(n,c),s.observe(e,{attributeFilter:[n]})}:()=>{s.disconnect();let c=i(),l=Object.keys(c);for(let u of l)r(u,c[u]);s.observe(e,{attributeFilter:l})},s=new MutationObserver(o),a=t(o);return()=>{s.disconnect(),a()}}};var $n=/^data:(?<mime>[^;]+);base64,(?<contents>.*)$/,jt=Symbol("empty"),Gt={type:"attribute",name:"bind",keyReq:"exclusive",valReq:"exclusive",shouldEvaluate:!1,onLoad:({el:e,key:t,mods:n,value:i,effect:r,mergePaths:o,runtimeErr:s,getPath:a})=>{let c=t?S(t,n):i,l=(d,y)=>y==="number"?+d.value:d.value,u=d=>{e.value=`${d}`};if(e instanceof HTMLInputElement)switch(e.type){case"range":case"number":l=(d,y)=>y==="string"?d.value:+d.value;break;case"checkbox":l=(d,y)=>d.value!=="on"?y==="boolean"?d.checked:d.checked?d.value:"":y==="string"?d.checked?d.value:"":d.checked,u=d=>{e.checked=typeof d=="string"?d===e.value:d};break;case"radio":e.getAttribute("name")?.length||e.setAttribute("name",c),l=(d,y)=>d.checked?y==="number"?+d.value:d.value:jt,u=d=>{e.checked=d===(typeof d=="number"?+e.value:e.value)};break;case"file":{let d=()=>{let y=[...e.files||[]],h=[],R=[],H=[];Promise.all(y.map(C=>new Promise(w=>{let x=new FileReader;x.onload=()=>{if(typeof x.result!="string")throw s("InvalidFileResultType",{resultType:typeof x.result});let g=x.result.match($n);if(!g?.groups)throw s("InvalidDataUri",{result:x.result});h.push(g.groups.contents),R.push(g.groups.mime),H.push(C.name)},x.onloadend=()=>w(),x.readAsDataURL(C)}))).then(()=>{o([[c,h],[`${c}Mimes`,R],[`${c}Names`,H]])})};return e.addEventListener("change",d),e.addEventListener("input",d),()=>{e.removeEventListener("change",d),e.removeEventListener("input",d)}}}else if(e instanceof HTMLSelectElement){if(e.multiple){let d=new Map;l=y=>[...y.selectedOptions].map(h=>{let R=d.get(h.value);return R==="string"||R==null?h.value:+h.value}),u=y=>{for(let h of e.options)y.includes(h.value)?(d.set(h.value,"string"),h.selected=!0):y.includes(+h.value)?(d.set(h.value,"number"),h.selected=!0):h.selected=!1}}}else e instanceof HTMLTextAreaElement||(l=d=>"value"in d?d.value:d.getAttribute("value"),u=d=>{"value"in e?e.value=d:e.setAttribute("value",d)});let f=a(c),p=typeof f,m=c;if(Array.isArray(f)&&!(e instanceof HTMLSelectElement&&e.multiple)){let d=document.querySelectorAll(`[${$("bind")}-${t}],[${$("bind")}="${i}"]`),y=[],h=0;for(let R of d){if(y.push([`${m}.${h}`,l(R,"none")]),e===R)break;h++}o(y,{ifMissing:!0}),m=`${m}.${h}`}else o([[m,l(e,p)]],{ifMissing:!0});let v=()=>{let d=a(m);if(d!=null){let y=l(e,typeof d);y!==jt&&o([[m,y]])}};e.addEventListener("input",v),e.addEventListener("change",v);let A=r(()=>{u(a(m))});return()=>{A(),e.removeEventListener("input",v),e.removeEventListener("change",v)}}};var Wt={type:"attribute",name:"class",valReq:"must",returnsValue:!0,onLoad:({key:e,el:t,effect:n,mods:i,rx:r})=>{e&&(e=S(T(e),i));let o=()=>{s.disconnect();let c=e?{[e]:r()}:r();for(let l in c){let u=l.split(/\s+/).filter(f=>f.length>0);if(c[l])for(let f of u)t.classList.contains(f)||t.classList.add(f);else for(let f of u)t.classList.contains(f)&&t.classList.remove(f)}s.observe(t,{attributeFilter:["class"]})},s=new MutationObserver(o),a=n(o);return()=>{s.disconnect(),a();let c=e?{[e]:r()}:r();for(let l in c){let u=l.split(/\s+/).filter(f=>f.length>0);for(let f of u)t.classList.remove(f)}}}};var Kt={type:"attribute",name:"computed",keyReq:"must",valReq:"must",returnsValue:!0,onLoad:({key:e,mods:t,rx:n,computed:i,mergePaths:r})=>{r([[S(e,t),i(n)]])}};var Ut={type:"attribute",name:"effect",keyReq:"denied",valReq:"must",onLoad:({effect:e,rx:t})=>e(t)};var q=`${L}-fetch`,Oe="started",Fe="finished",Bt="error",Jt="retrying",zt="retries-failed";function De(e,t){document.addEventListener(q,n=>{if(n.detail.type===e){let{argsRaw:i}=n.detail;t(i)}})}var Qt={type:"attribute",name:"indicator",keyReq:"exclusive",valReq:"exclusive",shouldEvaluate:!1,onLoad:({el:e,key:t,mods:n,mergePaths:i,value:r})=>{let o=t?S(t,n):r;i([[o,!1]],{ifMissing:!0});let s=a=>{let{type:c,el:l}=a.detail;if(l===e)switch(c){case Oe:i([[o,!0]]);break;case Fe:i([[o,!1]]);break}};return document.addEventListener(q,s),()=>{i([[o,!1]]),document.removeEventListener(q,s)}}};var Zt={type:"attribute",name:"jsonSignals",keyReq:"denied",onLoad:({el:e,effect:t,value:n,filtered:i,mods:r})=>{let o=r.has("terse")?0:2,s={};n&&(s=Y(n));let a=()=>{c.disconnect(),e.textContent=JSON.stringify(i(s),null,o),c.observe(e,{childList:!0,characterData:!0,subtree:!0})},c=new MutationObserver(a),l=t(a);return()=>{c.disconnect(),l()}}};function j(e){if(!e||e.size<=0)return 0;for(let t of e){if(t.endsWith("ms"))return+t.replace("ms","");if(t.endsWith("s"))return+t.replace("s","")*1e3;try{return Number.parseFloat(t)}catch{}}return 0}function U(e,t,n=!1){return e?e.has(t.toLowerCase()):n}function ze(e,t){return(...n)=>{setTimeout(()=>{e(...n)},t)}}function Hn(e,t,n=!1,i=!0){let r=0;return(...o)=>{r&&clearTimeout(r),n&&!r&&e(...o),r=setTimeout(()=>{i&&e(...o),r&&clearTimeout(r)},t)}}function In(e,t,n=!0,i=!1){let r=!1;return(...o)=>{r||(n&&e(...o),r=!0,setTimeout(()=>{r=!1,i&&e(...o)},t))}}function te(e,t){let n=t.get("delay");if(n){let o=j(n);e=ze(e,o)}let i=t.get("debounce");if(i){let o=j(i),s=U(i,"leading",!1),a=!U(i,"notrail",!1);e=Hn(e,o,s,a)}let r=t.get("throttle");if(r){let o=j(r),s=!U(r,"noleading",!1),a=U(r,"trail",!1);e=In(e,o,s,a)}return e}var Qe=!!document.startViewTransition;function G(e,t){if(t.has("viewtransition")&&Qe){let n=e;e=(...i)=>document.startViewTransition(()=>n(...i))}return e}var Yt={type:"attribute",name:"on",keyReq:"must",valReq:"must",argNames:["evt"],onLoad:e=>{let{el:t,key:n,mods:i,rx:r,startBatch:o,endBatch:s}=e,a=t;i.has("window")&&(a=window);let c=f=>{f&&(i.has("prevent")&&f.preventDefault(),i.has("stop")&&f.stopPropagation(),e.evt=f),o(),r(f),s()};c=te(c,i),c=G(c,i);let l={capture:i.has("capture"),passive:i.has("passive"),once:i.has("once")};if(i.has("outside")){a=document;let f=c;c=p=>{t.contains(p?.target)||f(p)}}let u=T(n);if(u=S(u,i),(u===q||u===W)&&(a=document),t instanceof HTMLFormElement&&u==="submit"){let f=c;c=p=>{p?.preventDefault(),f(p)}}return a.addEventListener(u,c,l),()=>{a.removeEventListener(u,c)}}};var Ze=new WeakSet,Xt={type:"attribute",name:"onIntersect",keyReq:"denied",onLoad:({el:e,mods:t,rx:n,startBatch:i,endBatch:r})=>{let o=()=>{i(),n(),r()};o=te(o,t),o=G(o,t);let s={threshold:0};t.has("full")?s.threshold=1:t.has("half")&&(s.threshold=.5);let a=new IntersectionObserver(c=>{for(let l of c)l.isIntersecting&&(o(),a&&Ze.has(e)&&a.disconnect())},s);return a.observe(e),t.has("once")&&Ze.add(e),()=>{t.has("once")||Ze.delete(e),a&&(a.disconnect(),a=null)}}};var en={type:"attribute",name:"onInterval",keyReq:"denied",valReq:"must",onLoad:({mods:e,rx:t,startBatch:n,endBatch:i})=>{let r=()=>{n(),t(),i()};r=G(r,e);let o=1e3,s=e.get("duration");s&&(o=j(s),U(s,"leading",!1)&&r());let a=setInterval(r,o);return()=>{clearInterval(a)}}};var tn={type:"attribute",name:"onLoad",keyReq:"denied",valReq:"must",onLoad:({rx:e,mods:t,startBatch:n,endBatch:i})=>{let r=()=>{n(),e(),i()};r=G(r,t);let o=0,s=t.get("delay");s&&(o=j(s),o>0&&(r=ze(r,o))),r()}};var nn={type:"attribute",name:"onSignalPatch",valReq:"must",argNames:["patch"],returnsValue:!0,onLoad:({el:e,key:t,mods:n,plugin:i,rx:r,filtered:o,runtimeErr:s,startBatch:a,endBatch:c})=>{if(t&&t!=="filter")throw s(`${i.name}KeyNotAllowed`);let l=e.getAttribute("data-on-signal-patch-filter"),u={};l&&(u=Y(l));let f=te(p=>{let m=o(u,p.detail);dt(m)||(a(),r(m),c())},n);return document.addEventListener(W,f),()=>{document.removeEventListener(W,f)}}};var rn={type:"attribute",name:"ref",keyReq:"exclusive",valReq:"exclusive",shouldEvaluate:!1,onLoad:({el:e,key:t,mods:n,value:i,mergePaths:r})=>{let o=t?S(t,n):i;r([[o,e]])}};var sn="none",on="display",an={type:"attribute",name:"show",keyReq:"denied",valReq:"must",returnsValue:!0,onLoad:({el:e,effect:t,rx:n})=>{let i=()=>{r.disconnect(),n()?e.style.display===sn&&e.style.removeProperty(on):e.style.setProperty(on,sn),r.observe(e,{attributeFilter:["style"]})},r=new MutationObserver(i),o=t(i);return()=>{r.disconnect(),o()}}};var cn={type:"attribute",name:"signals",returnsValue:!0,onLoad:({key:e,mods:t,rx:n,mergePatch:i,mergePaths:r})=>{let o=t.has("ifmissing");if(e)e=S(e,t),r([[e,n()]],{ifMissing:o});else{let s=Object.assign({},n());i(s,{ifMissing:o})}}};var ln={type:"attribute",name:"style",valReq:"must",returnsValue:!0,onLoad:({key:e,el:t,effect:n,rx:i})=>{let{style:r}=t,o=new Map;e&&=T(e);let s=(u,f)=>{let p=o.get(u);!f&&f!==0?p!==void 0&&(p?r.setProperty(u,p):r.removeProperty(u)):(p===void 0&&o.set(u,r.getPropertyValue(u)),r.setProperty(u,String(f)))},a=()=>{if(c.disconnect(),e)s(e,i());else{let u=i();for(let[f,p]of o)f in u||(p?r.setProperty(f,p):r.removeProperty(f));for(let f in u)s(T(f),u[f])}c.observe(t,{attributeFilter:["style"]})},c=new MutationObserver(a),l=n(a);return()=>{c.disconnect(),l();for(let[u,f]of o)f?r.setProperty(u,f):r.removeProperty(u)}}};var un={type:"attribute",name:"text",keyReq:"denied",valReq:"must",returnsValue:!0,onLoad:({el:e,effect:t,rx:n})=>{let i=()=>{r.disconnect(),e.textContent=`${n()}`,r.observe(e,{childList:!0,characterData:!0,subtree:!0})},r=new MutationObserver(i),o=t(i);return()=>{r.disconnect(),o()}}};var ke=new WeakMap,k=(e,t)=>({type:"action",name:e,fn:async(n,i,r)=>{let{el:o}=n,s=r?.requestCancellation??"auto",a=s instanceof AbortController?s:new AbortController,c=s==="disabled";c||ke.get(o)?.abort(),!c&&!(s instanceof AbortController)&&ke.set(o,a);try{await Nn(n,t,i,r,a.signal)}finally{ke.get(o)===a&&ke.delete(o)}}}),B=(e,t,n)=>document.dispatchEvent(new CustomEvent(q,{detail:{type:e,el:t,argsRaw:n}})),fn=e=>`${e}`.includes("text/event-stream"),Nn=async({el:e,evt:t,filtered:n,runtimeErr:i},r,o,{selector:s,headers:a,contentType:c="json",filterSignals:{include:l=/.*/,exclude:u=/(^|\.)_/}={},openWhenHidden:f=!1,retryInterval:p=it,retryScaler:m=2,retryMaxWaitMs:v=3e4,retryMaxCount:A=10}={},d)=>{let y=r.toLowerCase(),h=()=>{};try{if(!o?.length)throw i("FetchNoUrlProvided",{action:y});let R={Accept:"text/event-stream, text/html, application/json",[nt]:!0};c==="json"&&(R["Content-Type"]="application/json");let H=Object.assign({},R,a),C={method:r,headers:H,openWhenHidden:f,retryInterval:p,retryScaler:m,retryMaxWaitMs:v,retryMaxCount:A,signal:d,onopen:async g=>{g.status>=400&&B(Bt,e,{status:g.status.toString()})},onmessage:g=>{if(!g.event.startsWith(L))return;let I=g.event,O={};for(let E of g.data.split(`
+`)){let b=E.indexOf(" "),F=E.slice(0,b),M=E.slice(b+1);(O[F]||=[]).push(M)}let N=Object.fromEntries(Object.entries(O).map(([E,b])=>[E,b.join(`
+`)]));B(I,e,N)},onerror:g=>{if(fn(g))throw i("InvalidContentType",{url:o});g&&(console.error(g.message),B(Jt,e,{message:g.message}))}},w=new URL(o,window.location.href),x=new URLSearchParams(w.search);if(c==="json"){let g=JSON.stringify(n({include:l,exclude:u}));r==="GET"?x.set(L,g):C.body=g}else if(c==="form"){let g=s?document.querySelector(s):e.closest("form");if(!g)throw i(s?"FetchFormNotFound":"FetchClosestFormNotFound",{action:y,selector:s});if(!g.checkValidity()){g.reportValidity(),h();return}let I=new FormData(g),O=e;if(e===g&&t instanceof SubmitEvent)O=t.submitter;else{let b=F=>F.preventDefault();g.addEventListener("submit",b),h=()=>g.removeEventListener("submit",b)}if(O instanceof HTMLButtonElement){let b=O.getAttribute("name");b&&I.append(b,O.value)}let N=g.getAttribute("enctype")==="multipart/form-data";N||(H["Content-Type"]="application/x-www-form-urlencoded");let E=new URLSearchParams(I);if(r==="GET")for(let[b,F]of E)x.append(b,F);else N?C.body=I:C.body=E}else throw i("FetchInvalidContentType",{action:y,contentType:c});B(Oe,e,{}),w.search=x.toString();try{await Gn(w.toString(),e,C)}catch(g){if(!fn(g))throw i("FetchFailed",{method:r,url:o,error:g})}}finally{B(Fe,e,{}),h()}};async function Vn(e,t){let n=e.getReader(),i=await n.read();for(;!i.done;)t(i.value),i=await n.read()}function _n(e){let t,n,i,r=!1;return function(s){t?t=jn(t,s):(t=s,n=0,i=-1);let a=t.length,c=0;for(;n<a;){r&&(t[n]===10&&(c=++n),r=!1);let l=-1;for(;n<a&&l===-1;++n)switch(t[n]){case 58:i===-1&&(i=n-c);break;case 13:r=!0;case 10:l=n;break}if(l===-1)break;e(t.subarray(c,l),i),c=n,i=-1}c===a?t=void 0:c&&(t=t.subarray(c),n-=c)}}function qn(e,t,n){let i=dn(),r=new TextDecoder;return function(s,a){if(!s.length)n?.(i),i=dn();else if(a>0){let c=r.decode(s.subarray(0,a)),l=a+(s[a+1]===32?2:1),u=r.decode(s.subarray(l));switch(c){case"data":i.data=i.data?`${i.data}
+${u}`:u;break;case"event":i.event=u;break;case"id":e(i.id=u);break;case"retry":{let f=+u;Number.isNaN(f)||t(i.retry=f);break}}}}}var jn=(e,t)=>{let n=new Uint8Array(e.length+t.length);return n.set(e),n.set(t,e.length),n},dn=()=>({data:"",event:"",id:"",retry:void 0});function Gn(e,t,{signal:n,headers:i,onopen:r,onmessage:o,onclose:s,onerror:a,openWhenHidden:c,fetch:l,retryInterval:u=1e3,retryScaler:f=2,retryMaxWaitMs:p=3e4,retryMaxCount:m=10,overrides:v,...A}){return new Promise((d,y)=>{let h={...i},R;function H(){R.abort(),document.hidden||N()}c||document.addEventListener("visibilitychange",H);let C=0;function w(){document.removeEventListener("visibilitychange",H),window.clearTimeout(C),R.abort()}n?.addEventListener("abort",()=>{w(),d()});let x=l||window.fetch,g=r||(()=>{}),I=0,O=u;async function N(){R=new AbortController;try{let E=await x(e,{...A,headers:h,signal:R.signal});I=0,u=O,await g(E);let b=async(M,J,he,z,...$e)=>{let se={[he]:await J.text()};for(let oe of $e){let ve=J.headers.get(`datastar-${T(oe)}`);if(z){let ae=z[oe];ae&&(ve=typeof ae=="string"?ae:JSON.stringify(ae))}ve&&(se[oe]=ve)}B(M,t,se),w(),d()},F=E.headers.get("Content-Type");if(F?.includes("text/html"))return await b(ce,E,"elements",v,"selector","mode","useViewTransition");if(F?.includes("application/json"))return await b(le,E,"signals",v,"onlyIfMissing");if(F?.includes("text/javascript")){let M=document.createElement("script"),J=E.headers.get("datastar-script-attributes");if(J)for(let[he,z]of Object.entries(JSON.parse(J)))M.setAttribute(he,z);M.textContent=await E.text(),document.head.appendChild(M),w();return}await Vn(E.body,_n(qn(M=>{M?h["last-event-id"]=M:delete h["last-event-id"]},M=>{O=u=M},o))),s?.(),w(),d()}catch(E){if(!R.signal.aborted)try{let b=a?.(E)||u;window.clearTimeout(C),C=window.setTimeout(N,b),u=Math.min(u*f,p),++I>=m?(B(zt,t,{}),w(),y("Max retries reached.")):console.error(`Datastar failed to reach ${e.toString()} retrying in ${b}ms.`)}catch(b){w(),y(b)}}}N()})}var pn=k("delete","DELETE");var mn=k("get","GET");var gn=k("patch","PATCH");var yn=k("post","POST");var hn=k("put","PUT");var An={type:"watcher",name:ce,async onGlobalInit(e){De(ce,t=>{Qe&&t.useViewTransition?.trim()==="true"?document.startViewTransition(()=>vn(e,t)):vn(e,t)})}};function vn(e,{elements:t="",selector:n,mode:i=ft}){let{initErr:r}=e,o=t.replace(/<svg(\s[^>]*>|>)([\s\S]*?)<\/svg>/gim,""),s=/<\/html>/.test(o),a=/<\/head>/.test(o),c=/<\/body>/.test(o),l=new DOMParser().parseFromString(s||a||c?t:`<body><template>${t}</template></body>`,"text/html"),u=document.createDocumentFragment();if(s?u.appendChild(l.documentElement):a&&c?(u.appendChild(l.head),u.appendChild(l.body)):a?u.appendChild(l.head):c?u.appendChild(l.body):u=l.querySelector("template").content,!n&&(i===Ee||i===Ie))for(let f of u.children){let p;if(f instanceof HTMLHtmlElement)p=document.documentElement;else if(f instanceof HTMLBodyElement)p=document.body;else if(f instanceof HTMLHeadElement)p=document.head;else if(p=document.getElementById(f.id),!p){console.error(r("NoTargetsFound",{id:f.id}));continue}En(e,i,f,[p])}else{let f=document.querySelectorAll(n);if(!f.length){console.error(r("NoTargetsFound",{selector:n}));return}En(e,i,u,f)}}var Xe=new WeakSet;for(let e of document.querySelectorAll("script"))Xe.add(e);function bn(e){let t=e instanceof HTMLScriptElement?[e]:e.querySelectorAll("script");for(let n of t)if(!Xe.has(n)){let i=document.createElement("script");for(let{name:r,value:o}of n.attributes)i.setAttribute(r,o);i.text=n.text,n.replaceWith(i),Xe.add(i)}}function En({initErr:e},t,n,i){for(let r of i){let o=n.cloneNode(!0);if(t===ot)r.remove();else if(t===Ee||t===st)Wn(r,o,t),bn(r);else if(bn(o),t===Ie)r.replaceWith(o);else if(t===at)r.prepend(o);else if(t===ct)r.append(o);else if(t===lt)r.before(o);else if(t===ut)r.after(o);else throw e("InvalidPatchMode",{mode:t})}}var ne=new Map,P=new Map,ie=new Set,ye=new Set,re=document.createElement("div");re.hidden=!0;function Wn(e,t,n){let i=$("ignore-morph");if(e.hasAttribute(i)&&t instanceof HTMLElement&&t.hasAttribute(i)||e.parentElement?.closest(`[${i}]`))return;let r=document.createElement("div");r.append(t),document.body.insertAdjacentElement("afterend",re);let o=e.querySelectorAll("[id]");for(let{id:a,tagName:c}of o)ne.has(a)?ye.add(a):ne.set(a,c);e.id&&(ne.has(e.id)?ye.add(e.id):ne.set(e.id,e.tagName)),ie.clear();let s=r.querySelectorAll("[id]");for(let{id:a,tagName:c}of s)ie.has(a)?ye.add(a):ne.get(a)===c&&ie.add(a);ne.clear();for(let a of ye)ie.delete(a);ye.clear(),P.clear(),Tn(n==="outer"?e.parentElement:e,o),Tn(r,s),Sn(n==="outer"?e.parentElement:e,r,n==="outer"?e:null,e.nextSibling),re.remove()}function Sn(e,t,n=null,i=null){e instanceof HTMLTemplateElement&&t instanceof HTMLTemplateElement&&(e=e.content,t=t.content),n??=e.firstChild;for(let r of t.childNodes){if(n&&n!==i){let s=Kn(r,n,i);if(s){if(s!==n){let a=n;for(;a&&a!==s;){let c=a;a=a.nextSibling,et(c)}}Ye(s,r),n=s.nextSibling;continue}}let o=r.id;if(r instanceof Element&&ie.has(o)){let s=window[o],a=s;for(;a=a.parentNode;){let c=P.get(a);c&&(c.delete(o),c.size||P.delete(a))}xn(e,s,n),Ye(s,r),n=s.nextSibling;continue}if(P.has(r)){let s=document.createElement(r.tagName);e.insertBefore(s,n),Ye(s,r),n=s.nextSibling}else{let s=document.importNode(r,!0);e.insertBefore(s,n),n=s.nextSibling}}for(;n&&n!==i;){let r=n;n=n.nextSibling,et(r)}}function Kn(e,t,n){let i=null,r=e.nextSibling,o=0,s=0,a=P.get(e)?.size||0,c=t;for(;c&&c!==n;){if(Rn(c,e)){let l=!1,u=P.get(c),f=P.get(e);if(f&&u){for(let p of u)if(f.has(p)){l=!0;break}}if(l)return c;if(!i&&!P.has(c)){if(!a)return c;i=c}}if(s+=P.get(c)?.size||0,s>a||(i===null&&r&&Rn(c,r)&&(o++,r=r.nextSibling,o>=2&&(i=void 0)),c.contains(document.activeElement)))break;c=c.nextSibling}return i||null}function Rn(e,t){let n=e.id;return e.nodeType===t.nodeType&&e.tagName===t.tagName&&(!n||n===t.id)}function et(e){P.has(e)?xn(re,e,null):e.parentNode?.removeChild(e)}var xn=et.call.bind(re.moveBefore??re.insertBefore);function Ye(e,t){let n=t.nodeType;if(n===1){let i=$("ignore-morph");if(e.hasAttribute(i)&&t.hasAttribute(i))return e;if(e instanceof HTMLInputElement&&t instanceof HTMLInputElement&&t.type!=="file")t.getAttribute("value")!==e.getAttribute("value")&&(e.value=t.getAttribute("value")??"");else if(e instanceof HTMLTextAreaElement&&t instanceof HTMLTextAreaElement){let s=t.value;s!==e.value&&(e.value=s),e.firstChild&&e.firstChild.nodeValue!==s&&(e.firstChild.nodeValue=s)}let r=(t.getAttribute($("preserve-attr"))??"").split(" ");for(let{name:s,value:a}of t.attributes)e.getAttribute(s)!==a&&!r.includes(T(s))&&e.setAttribute(s,a);let o=e.attributes;for(let s=o.length-1;s>=0;s--){let{name:a}=o[s];!t.hasAttribute(a)&&!r.includes(T(a))&&e.removeAttribute(a)}}return(n===8||n===3)&&e.nodeValue!==t.nodeValue&&(e.nodeValue=t.nodeValue),e.isEqualNode(t)||Sn(e,t),e}function Tn(e,t){for(let n of t)if(ie.has(n.id)){let i=n;for(;i&&i!==e;){let r=P.get(i);r||(r=new Set,P.set(i,r)),r.add(n.id),i=i.parentElement}}}var Mn={type:"watcher",name:le,onGlobalInit:e=>De(le,({signals:t="{}",onlyIfMissing:n=`${rt}`})=>e.mergePatch(Y(t),{ifMissing:pt(n)}))};Be(mn,yn,hn,gn,pn,An,Mn,qt,Gt,Wt,Kt,Ut,Qt,Zt,Yt,Xt,en,tn,nn,rn,an,cn,ln,un,Nt,Vt,_t);Je();export{Je as apply,Be as load,Ht as setAlias};
+//# sourceMappingURL=datastar.js.map
+
+
+
+=== assets/js/scripts.js ===
+import "./datastar_1-0-0-rc5.min.js"
+
+
+=== cmd/app/main.go ===
+package main
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"time"
+
+	"github.com/testuser/myapp/config"
+	"github.com/testuser/myapp/controllers"
+	"github.com/testuser/myapp/database"
+	"github.com/testuser/myapp/router"
+
+	"github.com/labstack/echo/v4"
+	"golang.org/x/sync/errgroup"
+)
+
+var appVersion string
+
+func startServer(ctx context.Context, srv *http.Server, env string) error {
+	if env == config.ProdEnvironment {
+		eg, egCtx := errgroup.WithContext(ctx)
+
+		eg.Go(func() error {
+			if err := srv.ListenAndServe(); err != nil &&
+				err != http.ErrServerClosed {
+				return fmt.Errorf("server error: %w", err)
+			}
+			return nil
+		})
+
+		eg.Go(func() error {
+			<-egCtx.Done()
+			slog.InfoContext(ctx, "initiating graceful shutdown")
+			shutdownCtx, cancel := context.WithTimeout(
+				ctx,
+				10*time.Second,
+			)
+			defer cancel()
+			if err := srv.Shutdown(shutdownCtx); err != nil {
+				return fmt.Errorf("shutdown error: %w", err)
+			}
+			return nil
+		})
+
+		if err := eg.Wait(); err != nil {
+			slog.InfoContext(ctx, "wait error", "e", err)
+			return err
+		}
+
+		return nil
+	}
+
+	return srv.ListenAndServe()
+}
+
+func setupControllers(psql database.Postgres) (controllers.Controllers, error) {
+	ctrl, err := controllers.New(
+		psql,
+	)
+	if err != nil {
+		return controllers.Controllers{}, err
+	}
+
+	return ctrl, nil
+}
+
+func setupRouter(ctrl controllers.Controllers) (*echo.Echo, error) {
+	router, err := router.New(
+		ctrl,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return router.SetupRoutes(), nil
+}
+
+func run(ctx context.Context) error {
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+	defer cancel()
+
+	psql, err := database.NewPostgres(ctx)
+	if err != nil {
+		return err
+	}
+
+	controllers, err := setupControllers(psql)
+	if err != nil {
+		return err
+	}
+
+	handler, err := setupRouter(controllers)
+	if err != nil {
+		return err
+	}
+
+	port := config.App.ServerPort
+	host := config.App.ServerHost
+
+	srv := &http.Server{
+		Addr:         fmt.Sprintf("%v:%v", host, port),
+		Handler:      handler,
+		ReadTimeout:  1 * time.Second,
+		WriteTimeout: 5 * time.Second,
+		BaseContext:  func(_ net.Listener) context.Context { return ctx },
+	}
+
+	slog.InfoContext(ctx, "starting server", "host", host, "port", port)
+	return startServer(ctx, srv, config.App.Env)
+}
+
+func main() {
+	ctx := context.Background()
+	if err := run(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+}
+
+
+=== cmd/migrate/main.go ===
+package main
+
+func main() {
+	// ctx := context.Background()
+	// ctx, cancel := context.WithTimeoutCause(
+	// 	ctx,
+	// 	5*time.Minute,
+	// 	errors.New("migration timeout of 5 minutes reached"),
+	// )
+	// defer cancel()
+	//
+	// // cfg := config.NewConfig()
+	//
+	// gooseLock, err := lock.NewPostgresSessionLocker()
+	// if err != nil {
+	// 	panic(err)
+	// }
+	//
+	// fsys, err := fs.Sub(database.Migrations, "migrations")
+	// if err != nil {
+	// 	panic(err)
+	// }
+	//
+	// pool, err := database.CreatePooledConnection(ctx, config.DB.GetDatabaseURL())
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// defer pool.Close()
+	//
+	// db := stdlib.OpenDBFromPool(pool)
+	//
+	// gooseProvider, err := goose.NewProvider(
+	// 	goose.DialectPostgres,
+	// 	db,
+	// 	fsys,
+	// 	goose.WithVerbose(true),
+	// 	goose.WithSessionLocker(gooseLock),
+	// )
+	// if err != nil {
+	// 	panic(err)
+	// }
+	//
+	// ops := flag.String("cmd", "", "")
+	// version := flag.String("version", "", "")
+	// flag.Parse()
+	//
+	// if *version != "" {
+	// 	v, err := strconv.Atoi(*version)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	//
+	// 	switch *ops {
+	// 	case "up":
+	// 		_, err = gooseProvider.UpTo(ctx, int64(v))
+	// 		if err != nil {
+	// 			panic(err)
+	// 		}
+	// 	case "down":
+	// 		_, err = gooseProvider.DownTo(ctx, int64(v))
+	// 		if err != nil {
+	// 			panic(err)
+	// 		}
+	// 	}
+	// }
+	//
+	// if *version == "" {
+	// 	switch *ops {
+	// 	case "up":
+	// 		_, err = gooseProvider.Up(ctx)
+	// 		if err != nil {
+	// 			panic(err)
+	// 		}
+	// 	case "down":
+	// 		_, err = gooseProvider.Down(ctx)
+	// 		if err != nil {
+	// 			panic(err)
+	// 		}
+	// 	case "upbyone":
+	// 		_, err = gooseProvider.UpByOne(ctx)
+	// 		if err != nil {
+	// 			panic(err)
+	// 		}
+	// 	case "reset":
+	// 		_, err = gooseProvider.DownTo(ctx, 0)
+	// 		if err != nil {
+	// 			panic(err)
+	// 		}
+	// 		_, err = gooseProvider.Up(ctx)
+	// 		if err != nil {
+	// 			panic(err)
+	// 		}
+	// 	case "status":
+	// 		statuses, err := gooseProvider.Status(ctx)
+	// 		if err != nil {
+	// 			panic(err)
+	// 		}
+	//
+	// 		for _, status := range statuses {
+	// 			slog.InfoContext(
+	// 				ctx,
+	// 				"database status",
+	// 				"version",
+	// 				status.Source.Version,
+	// 				"file_name",
+	// 				status.Source.Path,
+	// 				"state",
+	// 				status.State,
+	// 				"applied_at",
+	// 				status.AppliedAt,
+	// 			)
+	// 		}
+	// 	}
+	// }
+}
+
+
+=== config/app.go ===
+package config
+
+import (
+	"fmt"
+
+	"github.com/caarlos0/env/v10"
+)
+
+const (
+	DevEnvironment  = "development"
+	ProdEnvironment = "production"
+	TestEnvironment = "testing"
+)
+
+type app struct {
+	ServerHost  string `env:"SERVER_HOST"`
+	ServerPort  string `env:"SERVER_PORT"`
+	Domain      string `env:"APP_DOMAIN"`
+	ProjectName string `env:"PROJECT_NAME"`
+	Env         string `env:"ENVIRONMENT"`
+}
+
+func (a app) GetFullDomain() string {
+	if a.Env == ProdEnvironment {
+		return fmt.Sprintf("%v://%v", "https", a.Domain)
+	}
+
+	return fmt.Sprintf(
+		"%v://%v:%v",
+		"http",
+		a.Domain,
+		a.ServerPort,
+	)
+}
+
+func newAppConfig() app {
+	appCfg := app{}
+
+	if err := env.ParseWithOptions(&appCfg, env.Options{
+		RequiredIfNoDef: true,
+	}); err != nil {
+		panic(err)
+	}
+
+	return appCfg
+}
+
+
+=== config/auth.go ===
+package config
+
+import "github.com/caarlos0/env/v10"
+
+type auth struct {
+	PasswordSalt         string `env:"PASSWORD_SALT"`
+	SessionKey           string `env:"SESSION_KEY"`
+	SessionEncryptionKey string `env:"SESSION_ENCRYPTION_KEY"`
+	TokenSigningKey      string `env:"TOKEN_SIGNING_KEY"`
+}
+
+func newAuthConfig() auth {
+	authenticationCfg := auth{}
+
+	if err := env.ParseWithOptions(&authenticationCfg, env.Options{
+		RequiredIfNoDef: true,
+	}); err != nil {
+		panic(err)
+	}
+
+	return authenticationCfg
+}
+
+
+=== config/config.go ===
+package config
+
+var (
+	App  = newAppConfig()
+	Auth = newAuthConfig()
+	DB   = newDatabaseConfig()
+)
+
+
+=== config/database.go ===
+package config
+
+import (
+	"fmt"
+
+	"github.com/caarlos0/env/v10"
+)
+
+type database struct {
+	Port         string `env:"DB_PORT"`
+	Host         string `env:"DB_HOST"`
+	Name         string `env:"DB_NAME"`
+	User         string `env:"DB_USER"`
+	Password     string `env:"DB_PASSWORD"`
+	DatabaseKind string `env:"DB_KIND"`
+	SslMode      string `env:"DB_SSL_MODE"`
+}
+
+func (d database) GetDatabaseURL() string {
+	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
+		d.DatabaseKind, d.User, d.Password, d.Host, d.Port,
+		d.Name, d.SslMode,
+	)
+}
+
+func newDatabaseConfig() database {
+	dataCfg := database{}
+
+	if err := env.ParseWithOptions(&dataCfg, env.Options{
+		RequiredIfNoDef: true,
+	}); err != nil {
+		panic(err)
+	}
+
+	return dataCfg
+}
+
+
+=== controllers/api.go ===
+package controllers
+
+import (
+	"github.com/testuser/myapp/database"
+	"net/http"
+
+	"github.com/labstack/echo/v4"
+)
+
+type API struct {
+	db database.Postgres
+}
+
+func newAPI(db database.Postgres) API {
+	return API{db}
+}
+
+func (a API) Health(ctx echo.Context) error {
+	return ctx.JSON(http.StatusOK, "app is healthy and running")
+}
+
+
+=== controllers/assets.go ===
+package controllers
+
+import (
+	//nolint:gosec //only needed for browser caching
+
+	"encoding/xml"
+	"fmt"
+	"log/slog"
+	"net/http"
+
+	"github.com/testuser/myapp/assets"
+	"github.com/testuser/myapp/config"
+	"github.com/testuser/myapp/router/routes"
+
+	"github.com/labstack/echo/v4"
+	"github.com/maypok86/otter"
+	"gopkg.in/yaml.v2"
+)
+
+const (
+	sitemapCacheKey = "assets.sitemap"
+	robotsCacheKey  = "assets.robots"
+	weekInHours     = 168
+	threeInHours    = 72
+)
+
+type Assets struct {
+	sitemapCache otter.Cache[string, Sitemap]
+	assetsCache  otter.Cache[string, string]
+}
+
+func newAssets() Assets {
+	sitemapCacheBuilder, err := otter.NewBuilder[string, Sitemap](1)
+	if err != nil {
+		panic(err)
+	}
+
+	sitemapCache, err := sitemapCacheBuilder.WithTTL(threeInHours).Build()
+	if err != nil {
+		panic(err)
+	}
+
+	robotsCacheBuilder, err := otter.NewBuilder[string, string](1)
+	if err != nil {
+		panic(err)
+	}
+
+	robotsCache, err := robotsCacheBuilder.WithTTL(weekInHours).Build()
+	if err != nil {
+		panic(err)
+	}
+
+	return Assets{sitemapCache, robotsCache}
+}
+
+func (a Assets) enableCaching(c echo.Context, content []byte) echo.Context {
+	// if config.Cfg.App.Env == config.PROD_ENVIRONMENT {
+	// 	//nolint:gosec //only needed for browser caching
+	// 	hash := md5.Sum(content)
+	// 	etag := fmt.Sprintf(`W/"%x-%x"`, hash, len(content))
+	//
+	// 	c.Response().
+	// 		Header().
+	// 		Set("Cache-Control", fmt.Sprintf("public, max-age=%s", threeMonthsCache))
+	// 	c.Response().
+	// 		Header().
+	// 		Set("Vary", "Accept-Encoding")
+	// 	c.Response().
+	// 		Header().
+	// 		Set("ETag", etag)
+	// }
+
+	return c
+}
+
+func (a Assets) Robots(c echo.Context) error {
+	if value, ok := a.assetsCache.Get(robotsCacheKey); ok {
+		return c.String(http.StatusOK, string(value))
+	}
+
+	type robotsTxt struct {
+		UserAgent string `yaml:"User-agent"`
+		Allow     string `yaml:"Allow"`
+		Sitemap   string `yaml:"Sitemap"`
+	}
+
+	robots, err := yaml.Marshal(robotsTxt{
+		UserAgent: "*",
+		Allow:     "/",
+		Sitemap: fmt.Sprintf(
+			"%s%s",
+			config.App.GetFullDomain(),
+			routes.Sitemap.Path,
+		),
+	})
+	if err != nil {
+		return err
+	}
+
+	return c.String(http.StatusOK, string(robots))
+}
+
+func (a Assets) Sitemap(c echo.Context) error {
+	if value, ok := a.sitemapCache.Get(sitemapCacheKey); ok {
+		return c.XML(http.StatusOK, value)
+	}
+
+	sitemap, err := createSitemap(c)
+	if err != nil {
+		return err
+	}
+
+	if ok := a.sitemapCache.Set(sitemapCacheKey, sitemap); !ok {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"could not set sitemap cache",
+			"error",
+			err,
+		)
+	}
+
+	return c.XML(http.StatusOK, sitemap)
+}
+
+type URL struct {
+	XMLName    xml.Name `xml:"url"`
+	Loc        string   `xml:"loc"`
+	ChangeFreq string   `xml:"changefreq"`
+	LastMod    string   `xml:"lastmod,omitempty"`
+	Priority   string   `xml:"priority,omitempty"`
+}
+
+type Sitemap struct {
+	XMLName xml.Name `xml:"urlset"`
+	XMLNS   string   `xml:"xmlns,attr"`
+	URL     []URL    `xml:"url"`
+}
+
+func createSitemap(c echo.Context) (Sitemap, error) {
+	baseURL := config.App.GetFullDomain()
+
+	var urls []URL
+
+	urls = append(urls, URL{
+		Loc:        baseURL,
+		ChangeFreq: "monthly",
+		LastMod:    "2024-10-22T09:43:09+00:00",
+		Priority:   "1",
+	})
+
+	for _, r := range c.Echo().Routes() {
+		switch r.Name {
+		// case routes.AboutPage.Name:
+		// 	urls = append(urls, URL{
+		// 		Loc: fmt.Sprintf(
+		// 			"%s%s",
+		// 			baseUrl,
+		// 			r.Path,
+		// 		),
+		// 		ChangeFreq: "monthly",
+		// 	})
+		}
+	}
+
+	sitemap := Sitemap{
+		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
+		URL:   urls,
+	}
+
+	return sitemap, nil
+}
+
+func (a Assets) Stylesheet(c echo.Context) error {
+	stylesheet, err := assets.Files.ReadFile(
+		"css/tw.css",
+	)
+	if err != nil {
+		return err
+	}
+
+	c = a.enableCaching(c, stylesheet)
+	return c.Blob(http.StatusOK, "text/css", stylesheet)
+}
+
+func (a Assets) Scripts(c echo.Context) error {
+	stylesheet, err := assets.Files.ReadFile(
+		"js/scripts.js",
+	)
+	if err != nil {
+		return err
+	}
+
+	c = a.enableCaching(c, stylesheet)
+	return c.Blob(http.StatusOK, "application/javascript", stylesheet)
+}
+
+func (a Assets) Script(c echo.Context) error {
+	param := c.Param("file")
+	stylesheet, err := assets.Files.ReadFile(
+		fmt.Sprintf("js/%s", param),
+	)
+	if err != nil {
+		return err
+	}
+
+	c = a.enableCaching(c, stylesheet)
+	return c.Blob(http.StatusOK, "application/javascript", stylesheet)
+}
+
+
+=== controllers/controller.go ===
+package controllers
+
+import (
+	"context"
+	"net/http"
+
+	"github.com/testuser/myapp/database"
+	"github.com/testuser/myapp/router/cookies"
+
+	"github.com/a-h/templ"
+	"github.com/labstack/echo/v4"
+	"github.com/maypok86/otter"
+)
+
+type Controllers struct {
+	Assets Assets
+	API    API
+	Pages  Pages
+}
+
+func New(
+	db database.Postgres,
+) (Controllers, error) {
+	cacheBuilder, err := otter.NewBuilder[string, templ.Component](20)
+	if err != nil {
+		return Controllers{}, err
+	}
+
+	pageCacher, err := cacheBuilder.WithVariableTTL().Build()
+	if err != nil {
+		return Controllers{}, err
+	}
+
+	assets := newAssets()
+	pages := newPages(db, pageCacher)
+	api := newAPI(db)
+
+	return Controllers{
+		assets,
+		api,
+		pages,
+	}, nil
+}
+
+func render(ctx echo.Context, t templ.Component) error {
+	buf := templ.GetBuffer()
+	defer templ.ReleaseBuffer(buf)
+
+	appCtx := ctx.Get(string(cookies.AppKey))
+	withAppCtx := context.WithValue(
+		ctx.Request().Context(),
+		cookies.AppKey,
+		appCtx,
+	)
+
+	flashCtx := ctx.Get(string(cookies.FlashKey))
+	withFlashCtx := context.WithValue(
+		withAppCtx,
+		cookies.FlashKey,
+		flashCtx,
+	)
+
+	if err := t.Render(withFlashCtx, buf); err != nil {
+		return err
+	}
+
+	return ctx.HTML(http.StatusOK, buf.String())
+}
+
+
+=== controllers/pages.go ===
+package controllers
+
+import (
+	"github.com/testuser/myapp/database"
+	"github.com/testuser/myapp/views"
+
+	"github.com/a-h/templ"
+	"github.com/labstack/echo/v4"
+	"github.com/maypok86/otter"
+)
+
+type Pages struct {
+	db    database.Postgres
+	cache otter.CacheWithVariableTTL[string, templ.Component]
+}
+
+func newPages(
+	db database.Postgres,
+	cache otter.CacheWithVariableTTL[string, templ.Component],
+) Pages {
+	return Pages{db, cache}
+}
+
+func (p Pages) Home(c echo.Context) error {
+	return render(c, views.Home())
+}
+
+func (p Pages) NotFound(c echo.Context) error {
+	return render(c, views.NotFound())
+}
+
+
+=== css/base.css ===
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+body {
+	font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	font-style: normal;
+	font-weight: 400;
+	letter-spacing: -0.0125em;
+	line-height: 1.5;
+	-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+	text-rendering: optimizeLegibility;
+}
+@import "./theme.css";
+
+@source "./views";
+
+
+=== css/theme.css ===
+@theme {
+	--color-base-100: oklch(28.822% 0.022 277.508);
+	--color-base-200: oklch(26.805% 0.02 277.508);
+	--color-base-300: oklch(24.787% 0.019 277.508);
+	--color-base-content: oklch(97.747% 0.007 106.545);
+	--color-primary: oklch(75.461% 0.183 346.812);
+	--color-primary-content: oklch(15.092% 0.036 346.812);
+	--color-secondary: oklch(74.202% 0.148 301.883);
+	--color-secondary-content: oklch(14.84% 0.029 301.883);
+	--color-accent: oklch(83.392% 0.124 66.558);
+	--color-accent-content: oklch(16.678% 0.024 66.558);
+	--color-neutral: oklch(39.445% 0.032 275.524);
+	--color-neutral-content: oklch(87.889% 0.006 275.524);
+	--color-info: oklch(88.263% 0.093 212.846);
+	--color-info-content: oklch(17.652% 0.018 212.846);
+	--color-success: oklch(87.099% 0.219 148.024);
+	--color-success-content: oklch(17.419% 0.043 148.024);
+	--color-warning: oklch(95.533% 0.134 112.757);
+	--color-warning-content: oklch(19.106% 0.026 112.757);
+	--color-error: oklch(68.22% 0.206 24.43);
+	--color-error-content: oklch(13.644% 0.041 24.43);
+	--radius-selector: 1rem;
+	--radius-field: 0.5rem;
+	--radius-box: 1rem;
+	--size-selector: 0.25rem;
+	--size-field: 0.25rem;
+	--border: 1px;
+	--depth: 0;
+	--noise: 0;
+}
+
+
+=== database/migrations/00001_create_riverqueue_v1_table.sql ===
+-- +goose Up
+-- +goose StatementBegin
+SELECT 'up SQL query';
+CREATE TABLE river_migration(
+  id bigserial PRIMARY KEY,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  version bigint NOT NULL,
+  CONSTRAINT version CHECK (version >= 1)
+);
+
+CREATE UNIQUE INDEX ON river_migration USING btree(version);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+SELECT 'down SQL query';
+DROP TABLE river_migration;
+-- +goose StatementEnd
+
+
+=== database/migrations/00002_create_riverqueue_v2_table.sql ===
+-- +goose Up
+-- +goose StatementBegin
+SELECT 'up SQL query';
+CREATE TYPE river_job_state AS ENUM(
+  'available',
+  'cancelled',
+  'completed',
+  'discarded',
+  'retryable',
+  'running',
+  'scheduled'
+);
+
+CREATE TABLE river_job(
+  -- 8 bytes
+  id bigserial PRIMARY KEY,
+
+  -- 8 bytes (4 bytes + 2 bytes + 2 bytes)
+  --
+  -- `state` is kept near the top of the table for operator convenience -- when
+  -- looking at jobs with `SELECT *` it'll appear first after ID. The other two
+  -- fields aren't as important but are kept adjacent to `state` for alignment
+  -- to get an 8-byte block.
+  state river_job_state NOT NULL DEFAULT 'available' ::river_job_state,
+  attempt smallint NOT NULL DEFAULT 0,
+  max_attempts smallint NOT NULL,
+
+  -- 8 bytes each (no alignment needed)
+  attempted_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  finalized_at timestamptz,
+  scheduled_at timestamptz NOT NULL DEFAULT NOW(),
+
+  -- 2 bytes (some wasted padding probably)
+  priority smallint NOT NULL DEFAULT 1,
+
+  -- types stored out-of-band
+  args jsonb,
+  attempted_by text[],
+  errors jsonb[],
+  kind text NOT NULL,
+  metadata jsonb NOT NULL DEFAULT '{}' ::jsonb,
+  queue text NOT NULL DEFAULT 'default' ::text,
+  tags varchar(255)[],
+
+  CONSTRAINT finalized_or_finalized_at_null CHECK ((state IN ('cancelled', 'completed', 'discarded') AND finalized_at IS NOT NULL) OR finalized_at IS NULL),
+  CONSTRAINT max_attempts_is_positive CHECK (max_attempts > 0),
+  CONSTRAINT priority_in_range CHECK (priority >= 1 AND priority <= 4),
+  CONSTRAINT queue_length CHECK (char_length(queue) > 0 AND char_length(queue) < 128),
+  CONSTRAINT kind_length CHECK (char_length(kind) > 0 AND char_length(kind) < 128)
+);
+
+-- We may want to consider adding another property here after `kind` if it seems
+-- like it'd be useful for something.
+CREATE INDEX river_job_kind ON river_job USING btree(kind);
+
+CREATE INDEX river_job_state_and_finalized_at_index ON river_job USING btree(state, finalized_at) WHERE finalized_at IS NOT NULL;
+
+CREATE INDEX river_job_prioritized_fetching_index ON river_job USING btree(state, queue, priority, scheduled_at, id);
+
+CREATE INDEX river_job_args_index ON river_job USING GIN(args);
+
+CREATE INDEX river_job_metadata_index ON river_job USING GIN(metadata);
+
+CREATE OR REPLACE FUNCTION river_job_notify()
+  RETURNS TRIGGER
+  AS $$
+DECLARE
+  payload json;
+BEGIN
+  IF NEW.state = 'available' THEN
+    -- Notify will coalesce duplicate notificiations within a transaction, so
+    -- keep these payloads generalized:
+    payload = json_build_object('queue', NEW.queue);
+    PERFORM
+      pg_notify('river_insert', payload::text);
+  END IF;
+  RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER river_notify
+  AFTER INSERT ON river_job
+  FOR EACH ROW
+  EXECUTE PROCEDURE river_job_notify();
+
+CREATE UNLOGGED TABLE river_leader(
+  -- 8 bytes each (no alignment needed)
+  elected_at timestamptz NOT NULL,
+  expires_at timestamptz NOT NULL,
+
+  -- types stored out-of-band
+  leader_id text NOT NULL,
+  name text PRIMARY KEY,
+
+  CONSTRAINT name_length CHECK (char_length(name) > 0 AND char_length(name) < 128),
+  CONSTRAINT leader_id_length CHECK (char_length(leader_id) > 0 AND char_length(leader_id) < 128)
+);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+SELECT 'down SQL query';
+DROP TABLE river_job;
+DROP FUNCTION river_job_notify;
+DROP TYPE river_job_state;
+
+DROP TABLE river_leader;
+-- +goose StatementEnd
+
+
+=== database/migrations/00003_create_riverqueue_v3_table.sql ===
+-- +goose Up
+-- +goose StatementBegin
+SELECT 'up SQL query';
+ALTER TABLE river_job ALTER COLUMN tags SET DEFAULT '{}';
+UPDATE river_job SET tags = '{}' WHERE tags IS NULL;
+ALTER TABLE river_job ALTER COLUMN tags SET NOT NULL;
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+SELECT 'down SQL query';
+ALTER TABLE river_job ALTER COLUMN tags DROP NOT NULL,
+                      ALTER COLUMN tags DROP DEFAULT;
+-- +goose StatementEnd
+
+
+=== database/migrations/00004_create_riverqueue_v4_table.sql ===
+-- +goose Up
+-- +goose StatementBegin
+SELECT 'up SQL query';
+-- The args column never had a NOT NULL constraint or default value at the
+-- database level, though we tried to ensure one at the application level.
+ALTER TABLE river_job ALTER COLUMN args SET DEFAULT '{}';
+UPDATE river_job SET args = '{}' WHERE args IS NULL;
+ALTER TABLE river_job ALTER COLUMN args SET NOT NULL;
+ALTER TABLE river_job ALTER COLUMN args DROP DEFAULT;
+
+-- The metadata column never had a NOT NULL constraint or default value at the
+-- database level, though we tried to ensure one at the application level.
+ALTER TABLE river_job ALTER COLUMN metadata SET DEFAULT '{}';
+UPDATE river_job SET metadata = '{}' WHERE metadata IS NULL;
+ALTER TABLE river_job ALTER COLUMN metadata SET NOT NULL;
+
+-- The 'pending' job state will be used for upcoming functionality:
+ALTER TYPE river_job_state ADD VALUE IF NOT EXISTS 'pending' AFTER 'discarded';
+
+ALTER TABLE river_job DROP CONSTRAINT finalized_or_finalized_at_null;
+ALTER TABLE river_job ADD CONSTRAINT finalized_or_finalized_at_null CHECK (
+    (finalized_at IS NULL AND state NOT IN ('cancelled', 'completed', 'discarded')) OR
+    (finalized_at IS NOT NULL AND state IN ('cancelled', 'completed', 'discarded'))
+);
+
+DROP TRIGGER river_notify ON river_job;
+DROP FUNCTION river_job_notify;
+
+CREATE TABLE river_queue(
+  name text PRIMARY KEY NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  metadata jsonb NOT NULL DEFAULT '{}' ::jsonb,
+  paused_at timestamptz,
+  updated_at timestamptz NOT NULL
+);
+
+ALTER TABLE river_leader
+    ALTER COLUMN name SET DEFAULT 'default',
+    DROP CONSTRAINT name_length,
+    ADD CONSTRAINT name_length CHECK (name = 'default');
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+SELECT 'down SQL query';
+ALTER TABLE river_job ALTER COLUMN args DROP NOT NULL;
+
+ALTER TABLE river_job ALTER COLUMN metadata DROP NOT NULL;
+ALTER TABLE river_job ALTER COLUMN metadata DROP DEFAULT;
+
+-- It is not possible to safely remove 'pending' from the river_job_state enum,
+-- so leave it in place.
+
+ALTER TABLE river_job DROP CONSTRAINT finalized_or_finalized_at_null;
+ALTER TABLE river_job ADD CONSTRAINT finalized_or_finalized_at_null CHECK (
+  (state IN ('cancelled', 'completed', 'discarded') AND finalized_at IS NOT NULL) OR finalized_at IS NULL
+);
+
+CREATE OR REPLACE FUNCTION river_job_notify()
+  RETURNS TRIGGER
+  AS $$
+DECLARE
+  payload json;
+BEGIN
+  IF NEW.state = 'available' THEN
+    -- Notify will coalesce duplicate notificiations within a transaction, so
+    -- keep these payloads generalized:
+    payload = json_build_object('queue', NEW.queue);
+    PERFORM
+      pg_notify('river_insert', payload::text);
+  END IF;
+  RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER river_notify
+  AFTER INSERT ON river_job
+  FOR EACH ROW
+  EXECUTE PROCEDURE river_job_notify();
+
+DROP TABLE river_queue;
+
+ALTER TABLE river_leader
+    ALTER COLUMN name DROP DEFAULT,
+    DROP CONSTRAINT name_length,
+    ADD CONSTRAINT name_length CHECK (char_length(name) > 0 AND char_length(name) < 128);
+-- +goose StatementEnd
+
+
+=== database/migrations/00005_create_riverqueue_v5_table.sql ===
+-- +goose Up
+-- +goose StatementBegin
+SELECT 'up SQL query';
+--
+-- Rebuild the migration table so it's based on `(line, version)`.
+--
+
+DO
+$body$
+BEGIN
+    -- Tolerate users who may be using their own migration system rather than
+    -- River's. If they are, they will have skipped version 001 containing
+    -- `CREATE TABLE river_migration`, so this table won't exist.
+    IF (SELECT to_regclass('river_migration') IS NOT NULL) THEN
+        ALTER TABLE river_migration
+            RENAME TO river_migration_old;
+
+        CREATE TABLE river_migration(
+            line TEXT NOT NULL,
+            version bigint NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT NOW(),
+            CONSTRAINT line_length CHECK (char_length(line) > 0 AND char_length(line) < 128),
+            CONSTRAINT version_gte_1 CHECK (version >= 1),
+            PRIMARY KEY (line, version)
+        );
+
+        INSERT INTO river_migration
+            (created_at, line, version)
+        SELECT created_at, 'main', version
+        FROM river_migration_old;
+
+        DROP TABLE river_migration_old;
+    END IF;
+END;
+$body$
+LANGUAGE 'plpgsql'; 
+
+--
+-- Add `river_job.unique_key` and bring up an index on it.
+--
+
+-- These statements use `IF NOT EXISTS` to allow users with a `river_job` table
+-- of non-trivial size to build the index `CONCURRENTLY` out of band of this
+-- migration, then follow by completing the migration.
+ALTER TABLE river_job
+    ADD COLUMN IF NOT EXISTS unique_key bytea;
+
+CREATE UNIQUE INDEX IF NOT EXISTS river_job_kind_unique_key_idx ON river_job (kind, unique_key) WHERE unique_key IS NOT NULL;
+
+--
+-- Create `river_client` and derivative.
+--
+-- This feature hasn't quite yet been implemented, but we're taking advantage of
+-- the migration to add the schema early so that we can add it later without an
+-- additional migration.
+--
+
+CREATE UNLOGGED TABLE river_client (
+    id text PRIMARY KEY NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    metadata jsonb NOT NULL DEFAULT '{}',
+    paused_at timestamptz,
+    updated_at timestamptz NOT NULL,
+    CONSTRAINT name_length CHECK (char_length(id) > 0 AND char_length(id) < 128)
+);
+
+-- Differs from `river_queue` in that it tracks the queue state for a particular
+-- active client.
+CREATE UNLOGGED TABLE river_client_queue (
+    river_client_id text NOT NULL REFERENCES river_client (id) ON DELETE CASCADE,
+    name text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    max_workers bigint NOT NULL DEFAULT 0,
+    metadata jsonb NOT NULL DEFAULT '{}',
+    num_jobs_completed bigint NOT NULL DEFAULT 0,
+    num_jobs_running bigint NOT NULL DEFAULT 0,
+    updated_at timestamptz NOT NULL,
+    PRIMARY KEY (river_client_id, name),
+    CONSTRAINT name_length CHECK (char_length(name) > 0 AND char_length(name) < 128),
+    CONSTRAINT num_jobs_completed_zero_or_positive CHECK (num_jobs_completed >= 0),
+    CONSTRAINT num_jobs_running_zero_or_positive CHECK (num_jobs_running >= 0)
+);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+SELECT 'down SQL query';
+-- Revert to migration table based only on `(version)`.
+--
+-- If any non-main migrations are present, 005 is considered irreversible.
+--
+
+DO
+$body$
+BEGIN
+    -- Tolerate users who may be using their own migration system rather than
+    -- River's. If they are, they will have skipped version 001 containing
+    -- `CREATE TABLE river_migration`, so this table won't exist.
+    IF (SELECT to_regclass('river_migration') IS NOT NULL) THEN
+        IF EXISTS (
+            SELECT *
+            FROM river_migration
+            WHERE line <> 'main'
+        ) THEN
+            RAISE EXCEPTION 'Found non-main migration lines in the database; version 005 migration is irreversible because it would result in loss of migration information.';
+        END IF;
+
+        ALTER TABLE river_migration
+            RENAME TO river_migration_old;
+
+        CREATE TABLE river_migration(
+            id bigserial PRIMARY KEY,
+            created_at timestamptz NOT NULL DEFAULT NOW(),
+            version bigint NOT NULL,
+            CONSTRAINT version CHECK (version >= 1)
+        );
+
+        CREATE UNIQUE INDEX ON river_migration USING btree(version);
+
+        INSERT INTO river_migration
+            (created_at, version)
+        SELECT created_at, version
+        FROM river_migration_old;
+
+        DROP TABLE river_migration_old;
+    END IF;
+END;
+$body$
+LANGUAGE 'plpgsql'; 
+
+--
+-- Drop `river_job.unique_key`.
+--
+
+ALTER TABLE river_job
+    DROP COLUMN unique_key;
+
+--
+-- Drop `river_client` and derivative.
+--
+
+DROP TABLE river_client_queue;
+DROP TABLE river_client;
+-- +goose StatementEnd
+
+
+=== database/migrations/00006_create_riverqueue_v6_table.sql ===
+-- +goose Up
+-- +goose StatementBegin
+SELECT 'up SQL query';
+CREATE OR REPLACE FUNCTION river_job_state_in_bitmask(bitmask BIT(8), state river_job_state)
+RETURNS boolean
+LANGUAGE SQL
+IMMUTABLE
+AS $$
+    SELECT CASE state
+        WHEN 'available' THEN get_bit(bitmask, 7)
+        WHEN 'cancelled' THEN get_bit(bitmask, 6)
+        WHEN 'completed' THEN get_bit(bitmask, 5)
+        WHEN 'discarded' THEN get_bit(bitmask, 4)
+        WHEN 'pending' THEN get_bit(bitmask, 3)
+        WHEN 'retryable' THEN get_bit(bitmask, 2)
+        WHEN 'running' THEN get_bit(bitmask, 1)
+        WHEN 'scheduled' THEN get_bit(bitmask, 0)
+        ELSE 0
+    END = 1;
+$$;
+
+--
+-- Add `river_job.unique_states` and bring up an index on it.
+--
+ALTER TABLE river_job ADD COLUMN unique_states BIT(8);
+
+-- This statement uses `IF NOT EXISTS` to allow users with a `river_job` table
+-- of non-trivial size to build the index `CONCURRENTLY` out of band of this
+-- migration, then follow by completing the migration.
+CREATE UNIQUE INDEX IF NOT EXISTS river_job_unique_idx ON river_job (unique_key)
+    WHERE unique_key IS NOT NULL
+      AND unique_states IS NOT NULL
+      AND river_job_state_in_bitmask(unique_states, state);
+
+-- Remove the old unique index. Users who are actively using the unique jobs
+-- feature and who wish to avoid deploy downtime may want od drop this in a
+-- subsequent migration once all jobs using the old unique system have been
+-- completed (i.e. no more rows with non-null unique_key and null
+-- unique_states).
+DROP INDEX river_job_kind_unique_key_idx;
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+SELECT 'down SQL query';
+--
+-- Drop `river_job.unique_states` and its index.
+--
+
+DROP INDEX river_job_unique_idx;
+
+ALTER TABLE river_job
+    DROP COLUMN unique_states;
+
+CREATE UNIQUE INDEX IF NOT EXISTS river_job_kind_unique_key_idx ON river_job (kind, unique_key) WHERE unique_key IS NOT NULL;
+
+--
+-- Drop `river_job_state_in_bitmask` function.
+--
+DROP FUNCTION river_job_state_in_bitmask;
+-- +goose StatementEnd
+
+
+=== database/psql.go ===
+package database
+
+import (
+	"context"
+	"embed"
+	"errors"
+	"log/slog"
+
+	"github.com/testuser/myapp/config"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+var (
+	ErrBeginTx    = errors.New("could not begin transaction")
+	ErrRollbackTx = errors.New("could not rollback transaction")
+	ErrCommitTx   = errors.New("could not commit transaction")
+)
+
+//go:embed migrations/*.sql
+var Migrations embed.FS
+
+type Postgres struct {
+	pool *pgxpool.Pool
+}
+
+func NewPostgres(ctx context.Context) (Postgres, error) {
+	cfg, err := pgxpool.ParseConfig(config.DB.GetDatabaseURL())
+	if err != nil {
+		slog.ErrorContext(ctx, "could not parse database connection string", "error", err)
+		return Postgres{}, err
+	}
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
+	if err != nil {
+		slog.ErrorContext(ctx, "could not establish connection to database", "error", err)
+		return Postgres{}, err
+	}
+
+	if err := pool.Ping(ctx); err != nil {
+		slog.ErrorContext(ctx, "could not ping database", "error", err)
+		return Postgres{}, err
+	}
+
+	return Postgres{pool}, nil
+}
+
+func (p *Postgres) Pool() *pgxpool.Pool {
+	return p.pool
+}
+
+func (p *Postgres) BeginTx(ctx context.Context) (pgx.Tx, error) {
+	tx, err := p.pool.Begin(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "could not begin transaction", "reason", err)
+		return nil, errors.Join(ErrBeginTx, err)
+	}
+
+	return tx, nil
+}
+
+func (p *Postgres) RollBackTx(ctx context.Context, tx pgx.Tx) error {
+	if err := tx.Rollback(ctx); err != nil {
+		slog.ErrorContext(ctx, "could not rollback transaction", "reason", err)
+		return errors.Join(ErrRollbackTx, err)
+	}
+
+	return nil
+}
+
+func (p *Postgres) CommitTx(ctx context.Context, tx pgx.Tx) error {
+	if err := tx.Commit(ctx); err != nil {
+		slog.ErrorContext(ctx, "could not commit transaction", "reason", err)
+		return errors.Join(ErrCommitTx, err)
+	}
+
+	return nil
+}
+
+
+=== database/queries/.gitkeep ===
+
+
+=== database/sqlc.yaml ===
+version: "2"
+sql:
+  - schema: migrations
+    queries: queries
+    engine: postgresql
+    gen:
+      go:
+        package: db
+        out: ../models/internal/db
+        output_db_file_name: db.go
+        output_models_file_name: entities.go
+        emit_methods_with_db_argument: true
+        sql_package: pgx/v5
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+
+
+=== go.mod ===
+module github.com/testuser/myapp
+
+go 1.25
+
+tool (
+	github.com/a-h/templ/cmd/templ
+	github.com/air-verse/air
+	github.com/pressly/goose/v3/cmd/goose
+	github.com/sqlc-dev/sqlc/cmd/sqlc
+)
+
+require (
+	github.com/a-h/templ v0.3.943
+	github.com/caarlos0/env/v10 v10.0.0
+	github.com/dromara/carbon/v2 v2.6.11
+	github.com/go-playground/validator/v10 v10.27.0
+	github.com/google/uuid v1.6.0
+	github.com/gorilla/sessions v1.4.0
+	github.com/jackc/pgx/v5 v5.7.5
+	github.com/labstack/echo-contrib v0.17.4
+	github.com/labstack/echo/v4 v4.13.4
+	github.com/maypok86/otter v1.2.4
+	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.63.0
+	go.opentelemetry.io/otel v1.38.0
+	go.opentelemetry.io/otel/metric v1.38.0
+	go.opentelemetry.io/otel/trace v1.38.0
+	golang.org/x/sync v0.16.0
+	gopkg.in/yaml.v2 v2.4.0
+)
+
+require (
+	cel.dev/expr v0.24.0 // indirect
+	dario.cat/mergo v1.0.2 // indirect
+	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/ClickHouse/ch-go v0.67.0 // indirect
+	github.com/ClickHouse/clickhouse-go/v2 v2.40.1 // indirect
+	github.com/a-h/parse v0.0.0-20250122154542-74294addb73e // indirect
+	github.com/air-verse/air v1.63.0 // indirect
+	github.com/andybalholm/brotli v1.2.0 // indirect
+	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
+	github.com/bep/godartsass/v2 v2.5.0 // indirect
+	github.com/bep/golibsass v1.2.0 // indirect
+	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cli/browser v1.3.0 // indirect
+	github.com/coder/websocket v1.8.12 // indirect
+	github.com/creack/pty v1.1.24 // indirect
+	github.com/cubicdaiya/gonp v1.0.4 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/dolthub/maphash v0.1.0 // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/elastic/go-sysinfo v1.15.4 // indirect
+	github.com/elastic/go-windows v1.0.2 // indirect
+	github.com/fatih/color v1.18.0 // indirect
+	github.com/fatih/structtag v1.2.0 // indirect
+	github.com/fsnotify/fsnotify v1.9.0 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
+	github.com/gammazero/deque v0.2.1 // indirect
+	github.com/go-faster/city v1.0.1 // indirect
+	github.com/go-faster/errors v0.7.1 // indirect
+	github.com/go-logr/logr v1.4.3 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/go-playground/locales v0.14.1 // indirect
+	github.com/go-playground/universal-translator v0.18.1 // indirect
+	github.com/go-sql-driver/mysql v1.9.3 // indirect
+	github.com/gobwas/glob v0.2.3 // indirect
+	github.com/gohugoio/hugo v0.149.1 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
+	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
+	github.com/golang-sql/sqlexp v0.1.0 // indirect
+	github.com/google/cel-go v0.26.1 // indirect
+	github.com/gorilla/context v1.1.2 // indirect
+	github.com/gorilla/securecookie v1.1.2 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
+	github.com/jonboulle/clockwork v0.5.0 // indirect
+	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/labstack/gommon v0.4.2 // indirect
+	github.com/leodido/go-urn v1.4.0 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mfridman/interpolate v0.0.2 // indirect
+	github.com/mfridman/xflag v0.1.0 // indirect
+	github.com/microsoft/go-mssqldb v1.9.2 // indirect
+	github.com/natefinch/atomic v1.0.1 // indirect
+	github.com/ncruces/go-strftime v0.1.9 // indirect
+	github.com/paulmach/orb v0.11.1 // indirect
+	github.com/pelletier/go-toml v1.9.5 // indirect
+	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
+	github.com/pganalyze/pg_query_go/v6 v6.1.0 // indirect
+	github.com/pierrec/lz4/v4 v4.1.22 // indirect
+	github.com/pingcap/errors v0.11.5-0.20240311024730-e056997136bb // indirect
+	github.com/pingcap/failpoint v0.0.0-20240528011301-b51a646c7c86 // indirect
+	github.com/pingcap/log v1.1.0 // indirect
+	github.com/pingcap/tidb/pkg/parser v0.0.0-20250324122243-d51e00e5bbf0 // indirect
+	github.com/pressly/goose/v3 v3.25.0 // indirect
+	github.com/prometheus/procfs v0.16.1 // indirect
+	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	github.com/riza-io/grpc-go v0.2.0 // indirect
+	github.com/segmentio/asm v1.2.0 // indirect
+	github.com/sethvargo/go-retry v0.3.0 // indirect
+	github.com/shopspring/decimal v1.4.0 // indirect
+	github.com/spf13/afero v1.14.0 // indirect
+	github.com/spf13/cast v1.9.2 // indirect
+	github.com/spf13/cobra v1.9.1 // indirect
+	github.com/spf13/pflag v1.0.7 // indirect
+	github.com/sqlc-dev/sqlc v1.30.0 // indirect
+	github.com/stoewer/go-strcase v1.2.0 // indirect
+	github.com/tdewolff/parse/v2 v2.8.3 // indirect
+	github.com/tetratelabs/wazero v1.9.0 // indirect
+	github.com/tursodatabase/libsql-client-go v0.0.0-20240902231107-85af5b9d094d // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fasttemplate v1.2.2 // indirect
+	github.com/vertica/vertica-sql-go v1.3.3 // indirect
+	github.com/wasilibs/go-pgquery v0.0.0-20250409022910-10ac41983c07 // indirect
+	github.com/wasilibs/wazero-helpers v0.0.0-20240620070341-3dff1577cd52 // indirect
+	github.com/ydb-platform/ydb-go-genproto v0.0.0-20241112172322-ea1f63298f77 // indirect
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.108.1 // indirect
+	github.com/ziutek/mymysql v1.5.4 // indirect
+	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
+	go.uber.org/zap v1.27.0 // indirect
+	golang.org/x/crypto v0.41.0 // indirect
+	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b // indirect
+	golang.org/x/mod v0.27.0 // indirect
+	golang.org/x/net v0.43.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/time v0.12.0 // indirect
+	golang.org/x/tools v0.36.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250715232539-7130f93afb79 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250818200422-3122310a409c // indirect
+	google.golang.org/grpc v1.75.0 // indirect
+	google.golang.org/protobuf v1.36.8 // indirect
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+	howett.net/plist v1.0.1 // indirect
+	modernc.org/libc v1.66.3 // indirect
+	modernc.org/mathutil v1.7.1 // indirect
+	modernc.org/memory v1.11.0 // indirect
+	modernc.org/sqlite v1.38.2 // indirect
+)
+
+
+=== justfile ===
+set dotenv-load
+
+# alias
+alias r := run
+alias cdd := connect-database-docker
+
+default:
+    @just --list
+
+# database 
+connect-database-docker conntainer_id name:
+	docker exec -it {{conntainer_id}} psql -U postgres {{name}}
+
+create-migration name:
+	go tool goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME create {{name}} sql
+
+fix-migrations:
+	go tool goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME fix
+
+new-migration name: 
+	just create-migration {{name}}
+	just fix-migrations
+
+up-migrations:
+	go tool goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME up
+
+# sqlc
+compile-queries:
+	go tool sqlc -f ./database/sqlc.yaml compile
+
+generate-queries:
+	go tool sqlc -f ./database/sqlc.yaml generate
+
+compile-generate-queries: compile-queries generate-queries
+
+# server
+live-server:
+	go tool air -build.cmd "go build -o tmp/bin/main cmd/app/main.go" -build.bin "tmp/bin/main" -build.exclude_dir "node_modules" -build.include_ext "go,css,js" -build.stop_on_error false -misc.clean_on_exit true
+
+# generation
+live-templ:
+	go tool air -build.cmd "go tool templ generate --watch" -build.include_ext "templ" -build.bin "true" -build.include_dir "views" -build.exclude_regex "_templ.go"
+
+live-tailwind:
+	./bin/tailwindcli -i ./css/base.css -o ./assets/css/tw.css --watch
+
+[parallel]
+run: live-tailwind live-templ live-server 
+
+# code quality
+golangci:
+	golangci-lint run
+
+vet:
+	@go vet ./...
+
+golines:
+	@golines -w -m 100 controllers models router router/routes 
+
+
+=== models/errors.go ===
+package models
+
+import "errors"
+
+var ErrDomainValidation = errors.New("the provided payload failed validations")
+
+
+=== models/validator.go ===
+package models
+
+import (
+	"github.com/go-playground/validator/v10"
+)
+
+var validate = setupValidator()
+
+func setupValidator() *validator.Validate {
+	v := validator.New(validator.WithRequiredStructEnabled())
+	return v
+}
+
+
+=== package.json ===
+{
+	"name": "andurel",
+	"version": "1.0.0",
+	"type": "module",
+	"author": "MBV (@mbvisti)",
+	"license": "ISC",
+	"scripts": {},
+	"devDependencies": {
+		"tailwindcss": "^4.1.8",
+		"@tailwindcss/typography": "^0.5.16"
+	}
+}
+
+
+=== router/cookies/cookies.go ===
+package cookies
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/testuser/myapp/config"
+
+	"github.com/labstack/echo-contrib/session"
+	"github.com/labstack/echo/v4"
+)
+
+var authenticatedSessionName = fmt.Sprintf(
+	"ua-%s-%s",
+	strings.ToLower(config.App.ProjectName),
+	strings.ToLower(config.App.Env),
+)
+
+func GetAuthenticatedSessionName() string {
+	return authenticatedSessionName
+}
+
+var AppKey appKey = "app_context"
+
+type appKey string
+
+const (
+	isAuthenticated = "is_authenticated"
+)
+
+type App struct {
+	echo.Context
+	IsAuthenticated bool
+	FlashMessages   []FlashMessage
+}
+
+func GetAppCtx(ctx context.Context) App {
+	appCtx, ok := ctx.Value(AppKey).(App)
+	if !ok {
+		return App{}
+	}
+
+	return appCtx
+}
+
+func GetApp(c echo.Context) App {
+	sess, err := session.Get(authenticatedSessionName, c)
+	if err != nil {
+		return App{}
+	}
+	app := App{Context: c}
+
+	if _, ok := sess.Values[isAuthenticated].(bool); ok {
+		app.IsAuthenticated = true
+	}
+
+	return app
+}
+
+
+=== router/cookies/flash.go ===
+package cookies
+
+import (
+	"context"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo-contrib/session"
+	"github.com/labstack/echo/v4"
+)
+
+type FlashMessage struct {
+	echo.Context
+	ID        uuid.UUID
+	Type      FlashType
+	CreatedAt time.Time
+	Message   string
+}
+
+var (
+	FlashKey     flashKey = "flash_key"
+	flashSession          = "flash_session"
+)
+
+type flashKey string
+
+type FlashType string
+
+const (
+	FlashSuccess FlashType = "success"
+	FlashError   FlashType = "error"
+	FlashWarning FlashType = "warning"
+	FlashInfo    FlashType = "info"
+)
+
+func AddFlash(
+	c echo.Context, flashType FlashType, msg string,
+) error {
+	sess, err := session.Get(flashSession, c)
+	if err != nil {
+		return err
+	}
+
+	sess.AddFlash(FlashMessage{
+		ID:        uuid.New(),
+		Type:      flashType,
+		CreatedAt: time.Now(),
+		Message:   msg,
+	}, string(FlashKey))
+
+	return sess.Save(c.Request(), c.Response())
+}
+
+func GetFlashes(c echo.Context) ([]FlashMessage, error) {
+	sess, err := session.Get(string(FlashKey), c)
+	if err != nil {
+		return nil, err
+	}
+
+	var flashMessages []FlashMessage
+	for _, flash := range sess.Flashes(string(FlashKey)) {
+		if msg, ok := flash.(FlashMessage); ok {
+			flashMessages = append(flashMessages, msg)
+		}
+	}
+
+	if err := sess.Save(c.Request(), c.Response()); err != nil {
+		return nil, err
+	}
+
+	return flashMessages, nil
+}
+
+func GetFlashesCtx(ctx context.Context) []FlashMessage {
+	value, ok := ctx.Value(FlashKey).([]FlashMessage)
+	if !ok {
+		return nil
+	}
+
+	return value
+}
+
+
+=== router/middleware/logging.go ===
+package middleware
+
+import (
+	"context"
+	"log/slog"
+	"strings"
+	"time"
+
+	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/trace"
+)
+
+func Logging(
+	tp trace.TracerProvider,
+	httpRequestsTotal metric.Int64Counter,
+	httpDuration metric.Float64Histogram,
+	httpInFlight metric.Int64UpDownCounter,
+) echo.MiddlewareFunc {
+	otelMiddleware := otelecho.Middleware(
+		"grafto",
+		otelecho.WithTracerProvider(tp),
+	)
+
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if strings.Contains(c.Request().URL.Path, "/assets/") {
+				return next(c)
+			}
+
+			var ctx context.Context
+			var requestDuration time.Duration
+
+			httpInFlight.Add(ctx, 1)
+
+			wrappedNext := func(c echo.Context) error {
+				ctx = c.Request().Context()
+
+				start := time.Now()
+				err := next(c)
+				requestDuration = time.Since(start)
+
+				return err
+			}
+
+			err := otelMiddleware(wrappedNext)(c)
+
+			httpInFlight.Add(ctx, -1)
+
+			statusCode := c.Response().Status
+
+			attrs := []attribute.KeyValue{
+				attribute.String("method", c.Request().Method),
+				attribute.String("route", c.Path()),
+				attribute.Int("status_code", statusCode),
+			}
+
+			httpRequestsTotal.Add(
+				ctx,
+				1,
+				metric.WithAttributes(attrs...),
+			)
+
+			httpDuration.Record(
+				ctx,
+				requestDuration.Seconds(),
+				metric.WithAttributes(attrs...),
+			)
+
+			slog.InfoContext(ctx, "HTTP request completed",
+				"method", c.Request().Method,
+				"path", c.Request().URL.Path,
+				"status", statusCode,
+				"duration", requestDuration.Seconds(),
+				"remote_addr", c.RealIP(),
+				"user_agent", c.Request().UserAgent(),
+			)
+
+			return err
+		}
+	}
+}
+
+
+=== router/router.go ===
+package router
+
+import (
+	"encoding/gob"
+	"encoding/hex"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"reflect"
+	"slices"
+	"strings"
+
+	"github.com/testuser/myapp/config"
+	"github.com/testuser/myapp/controllers"
+	"github.com/testuser/myapp/router/cookies"
+	"github.com/testuser/myapp/router/routes"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/sessions"
+	"github.com/labstack/echo-contrib/session"
+	"github.com/labstack/echo/v4"
+
+	echomw "github.com/labstack/echo/v4/middleware"
+)
+
+type Router struct {
+	Handler     *echo.Echo
+	controllers controllers.Controllers
+}
+
+func New(
+	controllers controllers.Controllers,
+) (*Router, error) {
+	gob.Register(uuid.UUID{})
+	gob.Register(cookies.FlashMessage{})
+
+	router := echo.New()
+
+	if config.App.Env != config.ProdEnvironment {
+		router.Debug = true
+	}
+
+	authKey, err := hex.DecodeString(config.Auth.SessionKey)
+	if err != nil {
+		return nil, err
+	}
+	encKey, err := hex.DecodeString(config.Auth.SessionEncryptionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	router.Use(
+		session.Middleware(
+			sessions.NewCookieStore(
+				authKey,
+				encKey,
+			),
+		),
+		registerAppContext,
+		registerFlashMessagesContext,
+
+		echomw.CSRFWithConfig(echomw.CSRFConfig{Skipper: func(c echo.Context) bool {
+			return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
+				strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
+		}, TokenLookup: "cookie:_csrf", CookiePath: "/", CookieDomain: func() string {
+			if config.App.Env == config.ProdEnvironment {
+				return config.App.Domain
+			}
+
+			return ""
+		}(), CookieSecure: config.App.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
+
+		echomw.Recover(),
+		echomw.Logger(),
+	)
+
+	return &Router{
+		router,
+		controllers,
+	}, nil
+}
+
+func (r *Router) SetupRoutes() *echo.Echo {
+	registeredRoutes := []string{}
+	controllersValue := reflect.ValueOf(r.controllers)
+
+	for _, route := range routes.BuildRoutes {
+		if registered := slices.Contains(registeredRoutes, route.Name); registered {
+			panic(
+				fmt.Sprintf(
+					"%s is registered more than once",
+					route.Name,
+				),
+			)
+		}
+
+		if route.Handler == "" || route.HandleMethod == "" {
+			panic("Route must specify Handler and HandleMethod fields")
+		}
+
+		controllerField := controllersValue.FieldByName(route.Handler)
+		if !controllerField.IsValid() {
+			panic(
+				fmt.Sprintf(
+					"Controller field %s not found in controllers struct",
+					route.Handler,
+				),
+			)
+		}
+
+		controller := controllerField.Interface()
+		controllerFunc := getHandlerFunc(controller, route.HandleMethod)
+
+		var middlewareFuncs []echo.MiddlewareFunc
+		for _, mw := range route.Middleware {
+			middlewareFuncs = append(middlewareFuncs, echo.MiddlewareFunc(mw))
+		}
+
+		switch route.Method {
+		case http.MethodGet:
+			registeredRoutes = append(registeredRoutes, route.Name)
+			r.Handler.GET(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
+		case http.MethodPost:
+			registeredRoutes = append(registeredRoutes, route.Name)
+			r.Handler.POST(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
+		case http.MethodPut:
+			registeredRoutes = append(registeredRoutes, route.Name)
+			r.Handler.PUT(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
+		case http.MethodDelete:
+			registeredRoutes = append(registeredRoutes, route.Name)
+			r.Handler.DELETE(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
+		}
+	}
+
+	r.Handler.RouteNotFound(
+		"/*",
+		getHandlerFunc(r.controllers.Pages, "NotFound"),
+	)
+
+	return r.Handler
+}
+
+func getHandlerFunc(controller any, methodName string) echo.HandlerFunc {
+	appType := reflect.TypeOf(controller)
+	method, found := appType.MethodByName(methodName)
+	if !found {
+		panic(fmt.Sprintf("Controller method %s not found", methodName))
+	}
+
+	return func(c echo.Context) error {
+		values := method.Func.Call([]reflect.Value{
+			reflect.ValueOf(controller),
+			reflect.ValueOf(c),
+		})
+
+		if len(values) != 1 {
+			panic(
+				fmt.Sprintf(
+					"Controller method %s does not return exactly one value",
+					methodName,
+				),
+			)
+		}
+
+		if values[0].IsNil() {
+			return nil
+		}
+
+		return values[0].Interface().(error)
+	}
+}
+
+func registerAppContext(
+	next echo.HandlerFunc,
+) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix) ||
+			strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) {
+			return next(c)
+		}
+
+		c.Set(string(cookies.AppKey), cookies.GetApp(c))
+
+		return next(c)
+	}
+}
+
+func registerFlashMessagesContext(
+	next echo.HandlerFunc,
+) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix) ||
+			strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) {
+			return next(c)
+		}
+
+		flashes, err := cookies.GetFlashes(c)
+		if err != nil {
+			slog.Error("Error getting flash messages from session", "error", err)
+			return next(c)
+		}
+
+		c.Set(string(cookies.FlashKey), flashes)
+
+		return next(c)
+	}
+}
+
+
+=== router/routes/api.go ===
+package routes
+
+import "net/http"
+
+const (
+	APIRoutePrefix = "/api"
+	apiNamePrefix  = "api"
+)
+
+var apiRoutes = []Route{
+	Health,
+}
+
+var Health = Route{
+	Name:         apiNamePrefix + ".health",
+	Path:         APIRoutePrefix + "/health",
+	Method:       http.MethodGet,
+	Handler:      "API",
+	HandleMethod: "Health",
+}
+
+
+=== router/routes/assets.go ===
+package routes
+
+import (
+	"fmt"
+	"net/http"
+	"time"
+)
+
+const (
+	AssetsRoutePrefix = "/assets"
+	assetsNamePrefix  = "assets"
+)
+
+var assetRoutes = []Route{
+	Robots,
+	Sitemap,
+	Stylesheet,
+	Scripts,
+	Script,
+}
+
+var startTime = time.Now().Unix()
+
+var Robots = Route{
+	Name:         assetsNamePrefix + ".robots",
+	Path:         assetsNamePrefix + "/robots.txt",
+	Method:       http.MethodGet,
+	Handler:      "Assets",
+	HandleMethod: "Robots",
+}
+
+var Sitemap = Route{
+	Name:         assetsNamePrefix + ".sitemap",
+	Path:         assetsNamePrefix + "/sitemap.xml",
+	Method:       http.MethodGet,
+	Handler:      "Assets",
+	HandleMethod: "Sitemap",
+}
+
+var Stylesheet = Route{
+	Name:         assetsNamePrefix + "css.stylesheet",
+	Path:         assetsNamePrefix + fmt.Sprintf("/css/%v/tw.css", startTime),
+	Method:       http.MethodGet,
+	Handler:      "Assets",
+	HandleMethod: "Stylesheet",
+}
+
+var Scripts = Route{
+	Name:         assetsNamePrefix + "js.scripts",
+	Path:         assetsNamePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime),
+	Method:       http.MethodGet,
+	Handler:      "Assets",
+	HandleMethod: "Scripts",
+}
+
+var Script = Route{
+	Name:         assetsNamePrefix + "js.script",
+	Path:         assetsNamePrefix + fmt.Sprintf("/js/%v/:file", startTime),
+	Method:       http.MethodGet,
+	Handler:      "Assets",
+	HandleMethod: "Script",
+}
+
+
+=== router/routes/pages.go ===
+package routes
+
+import "net/http"
+
+const pageNamePrefix = "pages"
+
+var pageRoutes = []Route{
+	HomePage,
+}
+
+var HomePage = Route{
+	Name:         pageNamePrefix + ".home",
+	Path:         "/",
+	Method:       http.MethodGet,
+	Handler:      "Pages",
+	HandleMethod: "Home",
+}
+
+
+=== router/routes/routes.go ===
+package routes
+
+import "github.com/labstack/echo/v4"
+
+type Route struct {
+	Name         string
+	Path         string
+	Handler      string
+	HandleMethod string
+	Method       string
+	Middleware   []func(next echo.HandlerFunc) echo.HandlerFunc
+}
+
+var BuildRoutes = func() []Route {
+	var r []Route
+
+	r = append(
+		r,
+		assetRoutes...,
+	)
+
+	r = append(
+		r,
+		pageRoutes...,
+	)
+
+	r = append(
+		r,
+		apiRoutes...,
+	)
+
+	return r
+}()
+
+
+=== views/components/head.templ ===
+package components
+
+import (
+	"context"
+	"github.com/testuser/myapp/config"
+	"github.com/testuser/myapp/router/routes"
+)
+
+type HeadDataOption func(*HeadData)
+
+type MetaContent struct {
+	Content  string
+	Name     string
+	Property string
+}
+
+type HeadData struct {
+	Title          string
+	Description    string
+	Image          string
+	Slug           string
+	MetaType       string
+	StylesheetHref string
+	ScriptSrc      string
+	ExtraMeta      []MetaContent
+}
+
+templ head(data HeadData) {
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<meta name="twitter:card" content="summary_large_image"/>
+		<meta name="twitter:creator" content="@mbvlabs"/>
+		<title>
+			{ data.Title }
+		</title>
+		<link href={ data.StylesheetHref } rel="stylesheet"/>
+		<meta property="og:type" content={ data.MetaType }/>
+		<meta property="og:title" content={ data.Title }/>
+		<meta property="og:description" content={ data.Description }/>
+		<meta property="og:url" content={ data.Slug }/>
+		<meta property="og:site_name" content={ data.Title }/>
+		if data.Image != "" {
+			<meta property="og:image" content={ data.Image }/>
+		}
+		for _, extraMeta := range data.ExtraMeta {
+			<meta
+				if extraMeta.Name != "" {
+					name={ extraMeta.Name }
+				}
+				if extraMeta.Property != "" {
+					property={ extraMeta.Property }
+				}
+				if extraMeta.Content != "" {
+					content={ extraMeta.Content }
+				}
+			/>
+		}
+		<meta name="description" content={ data.Description }/>
+		<link
+			rel="canonical"
+			href={ data.Slug }
+		/>
+		<script src={ data.ScriptSrc } type="module"></script>
+	</head>
+}
+
+func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
+
+	data := &HeadData{
+		Title:          config.App.ProjectName,
+		Description:    "The web development framework for Go.",
+		Slug:           "/",
+		MetaType:       "website",
+		StylesheetHref: routes.Stylesheet.Path,
+		ScriptSrc:      routes.Scripts.Path,
+	}
+
+	for _, opt := range opts {
+		opt(data)
+	}
+
+	return head(*data)
+}
+
+
+=== views/components/head_templ.go ===
+// Code generated by templ - DO NOT EDIT.
+
+// templ: version: v0.3.943
+package components
+
+//lint:file-ignore SA4006 This context is only used if a nested component is present.
+
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
+
+import (
+	"context"
+	"github.com/testuser/myapp/config"
+	"github.com/testuser/myapp/router/routes"
+)
+
+type HeadDataOption func(*HeadData)
+
+type MetaContent struct {
+	Content  string
+	Name     string
+	Property string
+}
+
+type HeadData struct {
+	Title          string
+	Description    string
+	Image          string
+	Slug           string
+	MetaType       string
+	StylesheetHref string
+	ScriptSrc      string
+	ExtraMeta      []MetaContent
+}
+
+func head(data HeadData) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var1 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var1 == nil {
+			templ_7745c5c3_Var1 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><meta name=\"twitter:card\" content=\"summary_large_image\"><meta name=\"twitter:creator\" content=\"@mbvlabs\"><title>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var2 string
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(data.Title)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 35, Col: 15}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><link href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 templ.SafeURL
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(data.StylesheetHref)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 37, Col: 34}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" rel=\"stylesheet\"><meta property=\"og:type\" content=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var4 string
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.MetaType)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 38, Col: 50}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"><meta property=\"og:title\" content=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var5 string
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.Title)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 39, Col: 48}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"><meta property=\"og:description\" content=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var6 string
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.Description)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 40, Col: 60}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><meta property=\"og:url\" content=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var7 string
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.Slug)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 41, Col: 45}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"><meta property=\"og:site_name\" content=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var8 string
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.Title)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 42, Col: 52}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if data.Image != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<meta property=\"og:image\" content=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var9 string
+			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(data.Image)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 44, Col: 49}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		for _, extraMeta := range data.ExtraMeta {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<meta")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if extraMeta.Name != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " name=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var10 string
+				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(extraMeta.Name)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 49, Col: 26}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			if extraMeta.Property != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " property=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var11 string
+				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(extraMeta.Property)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 52, Col: 34}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			if extraMeta.Content != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, " content=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var12 string
+				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(extraMeta.Content)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 55, Col: 32}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, ">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<meta name=\"description\" content=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var13 string
+		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(data.Description)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 59, Col: 53}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\"><link rel=\"canonical\" href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var14 templ.SafeURL
+		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinURLErrs(data.Slug)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 62, Col: 19}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\"><script src=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var15 string
+		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(data.ScriptSrc)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 64, Col: 30}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\" type=\"module\"></script></head>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
+
+	data := &HeadData{
+		Title:          config.App.ProjectName,
+		Description:    "The web development framework for Go.",
+		Slug:           "/",
+		MetaType:       "website",
+		StylesheetHref: routes.Stylesheet.Path,
+		ScriptSrc:      routes.Scripts.Path,
+	}
+
+	for _, opt := range opts {
+		opt(data)
+	}
+
+	return head(*data)
+}
+
+var _ = templruntime.GeneratedTemplate
+
+
+=== views/components/toasts.templ ===
+package components
+
+import (
+	"fmt"
+	"github.com/dromara/carbon/v2"
+	"github.com/testuser/myapp/router/cookies"
+)
+
+templ toastBase(tType string, flash cookies.FlashMessage) {
+	<div
+		class="max-w-96 border border-gray-500 rounded bg-black flex flex-col"
+		id={ "toast-" + flash.ID.String() }
+	>
+		<div class="px-4 py-2 flex justify-between items-center border-b-1 border-b-gray-300">
+			<div class={ "w-4 h-4 rounded", tType }></div>
+			<span class="flex">
+				<p class="text-base-content">{ carbon.CreateFromStdTime(flash.CreatedAt).DiffForHumans() }</p>
+				<button data-on-click={ fmt.Sprintf("evt.target.closest('#%s').remove(); evt.stopPropagation();", "toast-"+flash.ID.String()) }>
+					<svg class="ml-2 w-4 h-4 fill-white cursor-pointer hover:fill-gray-400" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="100" height="100" viewBox="0 0 30 30">
+						<path d="M 7 4 C 6.744125 4 6.4879687 4.0974687 6.2929688 4.2929688 L 4.2929688 6.2929688 C 3.9019687 6.6839688 3.9019687 7.3170313 4.2929688 7.7070312 L 11.585938 15 L 4.2929688 22.292969 C 3.9019687 22.683969 3.9019687 23.317031 4.2929688 23.707031 L 6.2929688 25.707031 C 6.6839688 26.098031 7.3170313 26.098031 7.7070312 25.707031 L 15 18.414062 L 22.292969 25.707031 C 22.682969 26.098031 23.317031 26.098031 23.707031 25.707031 L 25.707031 23.707031 C 26.098031 23.316031 26.098031 22.682969 25.707031 22.292969 L 18.414062 15 L 25.707031 7.7070312 C 26.098031 7.3170312 26.098031 6.6829688 25.707031 6.2929688 L 23.707031 4.2929688 C 23.316031 3.9019687 22.682969 3.9019687 22.292969 4.2929688 L 15 11.585938 L 7.7070312 4.2929688 C 7.5115312 4.0974687 7.255875 4 7 4 z"></path>
+					</svg>
+				</button>
+			</span>
+		</div>
+		<span class="text-base-content px-4 py-2">
+			{ flash.Message }
+		</span>
+	</div>
+}
+
+templ ToastMessage(flash cookies.FlashMessage) {
+	switch flash.Type {
+		case cookies.FlashSuccess:
+			@toastBase("bg-success", flash)
+		case cookies.FlashInfo:
+			@toastBase("bg-info", flash)
+		case cookies.FlashError:
+			@toastBase("bg-error", flash)
+		case cookies.FlashWarning:
+			@toastBase("bg-warning", flash)
+	}
+}
+
+
+=== views/components/toasts_templ.go ===
+// Code generated by templ - DO NOT EDIT.
+
+// templ: version: v0.3.943
+package components
+
+//lint:file-ignore SA4006 This context is only used if a nested component is present.
+
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
+
+import (
+	"fmt"
+	"github.com/dromara/carbon/v2"
+	"github.com/testuser/myapp/router/cookies"
+)
+
+func toastBase(tType string, flash cookies.FlashMessage) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var1 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var1 == nil {
+			templ_7745c5c3_Var1 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-96 border border-gray-500 rounded bg-black flex flex-col\" id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var2 string
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs("toast-" + flash.ID.String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/toasts.templ`, Line: 12, Col: 35}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><div class=\"px-4 py-2 flex justify-between items-center border-b-1 border-b-gray-300\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 = []any{"w-4 h-4 rounded", tType}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var3...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var4 string
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var3).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/toasts.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"></div><span class=\"flex\"><p class=\"text-base-content\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var5 string
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(carbon.CreateFromStdTime(flash.CreatedAt).DiffForHumans())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/toasts.templ`, Line: 17, Col: 92}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p><button data-on-click=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var6 string
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("evt.target.closest('#%s').remove(); evt.stopPropagation();", "toast-"+flash.ID.String()))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/toasts.templ`, Line: 18, Col: 129}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><svg class=\"ml-2 w-4 h-4 fill-white cursor-pointer hover:fill-gray-400\" xmlns=\"http://www.w3.org/2000/svg\" x=\"0px\" y=\"0px\" width=\"100\" height=\"100\" viewBox=\"0 0 30 30\"><path d=\"M 7 4 C 6.744125 4 6.4879687 4.0974687 6.2929688 4.2929688 L 4.2929688 6.2929688 C 3.9019687 6.6839688 3.9019687 7.3170313 4.2929688 7.7070312 L 11.585938 15 L 4.2929688 22.292969 C 3.9019687 22.683969 3.9019687 23.317031 4.2929688 23.707031 L 6.2929688 25.707031 C 6.6839688 26.098031 7.3170313 26.098031 7.7070312 25.707031 L 15 18.414062 L 22.292969 25.707031 C 22.682969 26.098031 23.317031 26.098031 23.707031 25.707031 L 25.707031 23.707031 C 26.098031 23.316031 26.098031 22.682969 25.707031 22.292969 L 18.414062 15 L 25.707031 7.7070312 C 26.098031 7.3170312 26.098031 6.6829688 25.707031 6.2929688 L 23.707031 4.2929688 C 23.316031 3.9019687 22.682969 3.9019687 22.292969 4.2929688 L 15 11.585938 L 7.7070312 4.2929688 C 7.5115312 4.0974687 7.255875 4 7 4 z\"></path></svg></button></span></div><span class=\"text-base-content px-4 py-2\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var7 string
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(flash.Message)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/toasts.templ`, Line: 26, Col: 18}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</span></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func ToastMessage(flash cookies.FlashMessage) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var8 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var8 == nil {
+			templ_7745c5c3_Var8 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		switch flash.Type {
+		case cookies.FlashSuccess:
+			templ_7745c5c3_Err = toastBase("bg-success", flash).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		case cookies.FlashInfo:
+			templ_7745c5c3_Err = toastBase("bg-info", flash).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		case cookies.FlashError:
+			templ_7745c5c3_Err = toastBase("bg-error", flash).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		case cookies.FlashWarning:
+			templ_7745c5c3_Err = toastBase("bg-warning", flash).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		return nil
+	})
+}
+
+var _ = templruntime.GeneratedTemplate
+
+
+=== views/home.templ ===
+package views
+
+templ Home() {
+	@base() {
+		<h1>Welcome to the Home Page</h1>
+		<p>This is a simple home page template.</p>
+	}
+}
+
+
+=== views/home_templ.go ===
+// Code generated by templ - DO NOT EDIT.
+
+// templ: version: v0.3.943
+package views
+
+//lint:file-ignore SA4006 This context is only used if a nested component is present.
+
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
+
+func Home() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var1 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var1 == nil {
+			templ_7745c5c3_Var1 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Var2 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+			if !templ_7745c5c3_IsBuffer {
+				defer func() {
+					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err == nil {
+						templ_7745c5c3_Err = templ_7745c5c3_BufErr
+					}
+				}()
+			}
+			ctx = templ.InitializeContext(ctx)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<h1>Welcome to the Home Page</h1><p>This is a simple home page template.</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			return nil
+		})
+		templ_7745c5c3_Err = base().Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+var _ = templruntime.GeneratedTemplate
+
+
+=== views/layout.templ ===
+package views
+
+import (
+	"github.com/testuser/myapp/views/components"
+	"github.com/testuser/myapp/router/cookies"
+)
+
+templ base(headOpts ...components.HeadDataOption) {
+	<!DOCTYPE html>
+	<html lang="en" data-theme="grafto">
+		@components.SetupHead(ctx, headOpts...)
+		<body class="container mx-auto min-h-screen flex flex-col bg-base-200 text-base-content">
+			{ children... }
+		</body>
+		<div class="fixed top-4 right-4 z-50 space-y-2">
+			for _, flash := range cookies.GetFlashesCtx(ctx) {
+				@components.ToastMessage(flash)
+			}
+		</div>
+	</html>
+}
+
+
+=== views/layout_templ.go ===
+// Code generated by templ - DO NOT EDIT.
+
+// templ: version: v0.3.943
+package views
+
+//lint:file-ignore SA4006 This context is only used if a nested component is present.
+
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
+
+import (
+	"github.com/testuser/myapp/router/cookies"
+	"github.com/testuser/myapp/views/components"
+)
+
+func base(headOpts ...components.HeadDataOption) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var1 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var1 == nil {
+			templ_7745c5c3_Var1 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" data-theme=\"grafto\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = components.SetupHead(ctx, headOpts...).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<body class=\"container mx-auto min-h-screen flex flex-col bg-base-200 text-base-content\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templ_7745c5c3_Var1.Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</body><div class=\"fixed top-4 right-4 z-50 space-y-2\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		for _, flash := range cookies.GetFlashesCtx(ctx) {
+			templ_7745c5c3_Err = components.ToastMessage(flash).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div></html>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+var _ = templruntime.GeneratedTemplate
+
+
+=== views/not_found.templ ===
+package views
+
+templ NotFound() {
+	@base() {
+		<h1>Not found</h1>
+	}
+}
+
+
+=== views/not_found_templ.go ===
+// Code generated by templ - DO NOT EDIT.
+
+// templ: version: v0.3.943
+package views
+
+//lint:file-ignore SA4006 This context is only used if a nested component is present.
+
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
+
+func NotFound() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var1 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var1 == nil {
+			templ_7745c5c3_Var1 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Var2 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+			if !templ_7745c5c3_IsBuffer {
+				defer func() {
+					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err == nil {
+						templ_7745c5c3_Err = templ_7745c5c3_BufErr
+					}
+				}()
+			}
+			ctx = templ.InitializeContext(ctx)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<h1>Not found</h1>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			return nil
+		})
+		templ_7745c5c3_Err = base().Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+var _ = templruntime.GeneratedTemplate
+
+
