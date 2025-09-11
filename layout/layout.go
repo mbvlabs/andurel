@@ -98,8 +98,8 @@ var Layout = []Element{
 	},
 }
 
-func Scaffold(targetDir, projectName string) error {
-	return ScaffoldWithDatabase(targetDir, projectName, "postgresql")
+func Scaffold(targetDir, projectName, database string) error {
+	return ScaffoldWithDatabase(targetDir, projectName, database)
 }
 
 func ScaffoldWithDatabase(targetDir, projectName, database string) error {
@@ -149,12 +149,11 @@ type (
 func processTemplatedFiles(targetDir string, data TemplateData) error {
 	templateMappings := map[TmplTarget]TmplTargetPath{
 		// Core files
-		"database.tmpl":        "database/database.go",
-		"env.tmpl":             ".env.example",
-		"database_config.tmpl": "config/database.go",
-		"sqlc.tmpl":            "database/sqlc.yaml",
-		"gitignore.tmpl":       ".gitignore",
-		"justfile.tmpl":        "justfile",
+		"database.tmpl":  "database/database.go",
+		"env.tmpl":       ".env.example",
+		"sqlc.tmpl":      "database/sqlc.yaml",
+		"gitignore.tmpl": ".gitignore",
+		"justfile.tmpl":  "justfile",
 
 		// Assets
 		"assets_assets.tmpl":      "assets/assets.go",
@@ -168,12 +167,12 @@ func processTemplatedFiles(targetDir string, data TemplateData) error {
 
 		// Commands
 		"cmd_app_main.tmpl": "cmd/app/main.go",
-		// "cmd_migrate_main.tmpl": "cmd/migrate/main.go",
 
 		// Config
-		"config_app.tmpl":    "config/app.go",
-		"config_auth.tmpl":   "config/auth.go",
-		"config_config.tmpl": "config/config.go",
+		"config_app.tmpl":      "config/app.go",
+		"config_auth.tmpl":     "config/auth.go",
+		"config_config.tmpl":   "config/config.go",
+		"config_database.tmpl": "config/database.go",
 
 		// Controllers
 		"controllers_api.tmpl":        "controllers/api.go",

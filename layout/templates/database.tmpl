@@ -121,7 +121,7 @@ func NewSQLite(ctx context.Context) (SQLite, error) {
 	return SQLite{db}, nil
 }
 
-func (s *SQLite) DB() *sql.DB {
+func (s *SQLite) Conn() *sql.DB {
 	return s.db
 }
 

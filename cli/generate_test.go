@@ -79,7 +79,69 @@ func getCommandNames(commands []*cobra.Command) []string {
 	return names
 }
 
-func TestProjectScaffolding__GoldenFile(t *testing.T) {
+func TestProjectScaffoldingSqlite__GoldenFile(t *testing.T) {
+	tests := []struct {
+		name           string
+		projectName    string
+		repoFlag       string
+		expectedModule string
+	}{
+		{
+			name:           "Should_scaffold_project_with_simple_name_sqlite",
+			projectName:    "testapp",
+			repoFlag:       "",
+			expectedModule: "testapp",
+		},
+		{
+			name:           "Should_scaffold_project_with_github_repo_sqlite",
+			projectName:    "myapp",
+			repoFlag:       "github.com/testuser",
+			expectedModule: "github.com/testuser/myapp",
+		},
+		{
+			name:           "Should_scaffold_project_with_simple_repo_sqlite",
+			projectName:    "webapp",
+			repoFlag:       "myorg",
+			expectedModule: "myorg/webapp",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+
+			projectDir := filepath.Join(tempDir, tt.projectName)
+
+			originalWd, _ := os.Getwd()
+
+			rootCmd := NewRootCommand("test", "test-date")
+
+			args := []string{"new", tt.projectName, "--database", "sqlite"}
+			if tt.repoFlag != "" {
+				args = append(args, "--repo", tt.repoFlag)
+			}
+
+			rootCmd.SetArgs(args)
+
+			oldWd, _ := os.Getwd()
+			defer os.Chdir(oldWd)
+			os.Chdir(tempDir)
+
+			if err := rootCmd.Execute(); err != nil {
+				t.Fatalf("Project scaffolding failed: %v", err)
+			}
+
+			scaffoldOutput := captureScaffoldedProject(t, projectDir)
+
+			fixtureDir := filepath.Join(originalWd, "testdata")
+			g := goldie.New(t, goldie.WithFixtureDir(fixtureDir), goldie.WithNameSuffix(".txt"))
+
+			g.Assert(t, tt.name, []byte(scaffoldOutput))
+		})
+	}
+}
+
+func TestProjectScaffoldingPostgresql__GoldenFile(t *testing.T) {
 	tests := []struct {
 		name           string
 		projectName    string
