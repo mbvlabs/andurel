@@ -50,16 +50,13 @@ sql: []`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create temporary directory
 			tmpDir := t.TempDir()
 
-			// Create database directory
 			dbDir := tmpDir + "/database"
-			if err := os.MkdirAll(dbDir, 0755); err != nil {
+			if err := os.MkdirAll(dbDir, 0o755); err != nil {
 				t.Fatalf("Failed to create database directory: %v", err)
 			}
 
-			// Change to temporary directory
 			originalDir, err := os.Getwd()
 			if err != nil {
 				t.Fatalf("Failed to get working directory: %v", err)
@@ -70,13 +67,11 @@ sql: []`,
 				t.Fatalf("Failed to change to temp directory: %v", err)
 			}
 
-			// Write test sqlc.yaml content
 			sqlcPath := "database/sqlc.yaml"
-			if err := os.WriteFile(sqlcPath, []byte(tt.content), 0644); err != nil {
+			if err := os.WriteFile(sqlcPath, []byte(tt.content), 0o644); err != nil {
 				t.Fatalf("Failed to write sqlc.yaml: %v", err)
 			}
 
-			// Test the function
 			result, err := readDatabaseTypeFromSQLCYAML()
 
 			if tt.hasError {
@@ -121,16 +116,13 @@ sql:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create temporary directory
 			tmpDir := t.TempDir()
 
-			// Create database directory
 			dbDir := tmpDir + "/database"
-			if err := os.MkdirAll(dbDir, 0755); err != nil {
+			if err := os.MkdirAll(dbDir, 0o755); err != nil {
 				t.Fatalf("Failed to create database directory: %v", err)
 			}
 
-			// Change to temporary directory
 			originalDir, err := os.Getwd()
 			if err != nil {
 				t.Fatalf("Failed to get working directory: %v", err)
@@ -141,13 +133,11 @@ sql:
 				t.Fatalf("Failed to change to temp directory: %v", err)
 			}
 
-			// Write test sqlc.yaml content
 			sqlcPath := "database/sqlc.yaml"
-			if err := os.WriteFile(sqlcPath, []byte(tt.sqlcContent), 0644); err != nil {
+			if err := os.WriteFile(sqlcPath, []byte(tt.sqlcContent), 0o644); err != nil {
 				t.Fatalf("Failed to write sqlc.yaml: %v", err)
 			}
 
-			// Create config
 			config := NewDefaultAppConfig()
 
 			if config.Database.Type != tt.expected {
@@ -158,10 +148,8 @@ sql:
 }
 
 func TestNewDefaultAppConfig_FallbackWhenNoSQLCYAML(t *testing.T) {
-	// Create temporary directory without sqlc.yaml
 	tmpDir := t.TempDir()
 
-	// Change to temporary directory
 	originalDir, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("Failed to get working directory: %v", err)
@@ -172,10 +160,8 @@ func TestNewDefaultAppConfig_FallbackWhenNoSQLCYAML(t *testing.T) {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
-	// Create config without sqlc.yaml present
 	config := NewDefaultAppConfig()
 
-	// Should fallback to postgresql
 	if config.Database.Type != "postgresql" {
 		t.Errorf("Expected fallback to postgresql, got %s", config.Database.Type)
 	}

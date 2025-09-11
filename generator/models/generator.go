@@ -107,9 +107,8 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		model.Fields = append(model.Fields, field)
 	}
 
-	// Add template-required imports
-	importSet["time"] = true                   // template uses time.Time for CreatedAt/UpdatedAt
-	importSet["github.com/google/uuid"] = true // template uses uuid.UUID for IDs
+	importSet["time"] = true
+	importSet["github.com/google/uuid"] = true
 
 	for imp := range importSet {
 		model.Imports = append(model.Imports, imp)
@@ -304,7 +303,6 @@ func (g *Generator) prepareSQLData(
 	var insertPlaceholders []string
 	var updateColumns []string
 
-	// Database-specific syntax
 	var placeholderFunc func(int) string
 	var nowFunc string
 	var idPlaceholder string
@@ -315,7 +313,8 @@ func (g *Generator) prepareSQLData(
 		nowFunc = "datetime('now')"
 		idPlaceholder = "?"
 		limitOffsetClause = "limit ? offset ?"
-	} else { // postgresql
+	}
+	if g.typeMapper.GetDatabaseType() == "postgresql" {
 		placeholderFunc = func(i int) string { return fmt.Sprintf("$%d", i) }
 		nowFunc = "now()"
 		idPlaceholder = "$1"
