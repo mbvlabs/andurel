@@ -1,12 +1,15 @@
 package config
 
 import (
+{{- if eq .Database "postgresql"}}
 	"fmt"
+{{- end}}
 
 	"github.com/caarlos0/env/v10"
 )
 
 type database struct {
+{{- if eq .Database "postgresql"}}
 	Port         string `env:"DB_PORT"`
 	Host         string `env:"DB_HOST"`
 	Name         string `env:"DB_NAME"`
@@ -14,13 +17,21 @@ type database struct {
 	Password     string `env:"DB_PASSWORD"`
 	DatabaseKind string `env:"DB_KIND"`
 	SslMode      string `env:"DB_SSL_MODE"`
+{{- else if eq .Database "sqlite"}}
+	DatabaseKind string `env:"DB_KIND"`
+	Path         string `env:"DB_PATH"`
+{{- end}}
 }
 
 func (d database) GetDatabaseURL() string {
+{{- if eq .Database "postgresql"}}
 	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
 		d.DatabaseKind, d.User, d.Password, d.Host, d.Port,
 		d.Name, d.SslMode,
 	)
+{{- else if eq .Database "sqlite"}}
+	return d.Path
+{{- end}}
 }
 
 func newDatabaseConfig() database {

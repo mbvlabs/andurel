@@ -10,10 +10,10 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/mbvlabs/andurel/layout/elements/config"
-	"github.com/mbvlabs/andurel/layout/elements/controllers"
-	"github.com/mbvlabs/andurel/layout/elements/database"
-	"github.com/mbvlabs/andurel/layout/elements/router"
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/router"
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/sync/errgroup"
@@ -58,6 +58,7 @@ func startServer(ctx context.Context, srv *http.Server, env string) error {
 	return srv.ListenAndServe()
 }
 
+{{- if eq .Database "postgresql"}}
 func setupControllers(psql database.Postgres) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
 		psql,
@@ -68,6 +69,20 @@ func setupControllers(psql database.Postgres) (controllers.Controllers, error) {
 
 	return ctrl, nil
 }
+
+{{- else if eq .Database "sqlite"}}
+func setupControllers(sqlite database.SQLite) (controllers.Controllers, error) {
+	ctrl, err := controllers.New(
+		sqlite,
+	)
+	if err != nil {
+		return controllers.Controllers{}, err
+	}
+
+	return ctrl, nil
+}
+
+{{- end}}
 
 func setupRouter(ctrl controllers.Controllers) (*echo.Echo, error) {
 	router, err := router.New(
@@ -84,6 +99,7 @@ func run(ctx context.Context) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
+{{- if eq .Database "postgresql"}}
 	psql, err := database.NewPostgres(ctx)
 	if err != nil {
 		return err
@@ -93,6 +109,19 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+{{- else if eq .Database "sqlite"}}
+	sqlite, err := database.NewSQLite(ctx)
+	if err != nil {
+		return err
+	}
+
+	controllers, err := setupControllers(sqlite)
+	if err != nil {
+		return err
+	}
+
+{{- end}}
 
 	handler, err := setupRouter(controllers)
 	if err != nil {

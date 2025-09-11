@@ -4,8 +4,12 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/mbvlabs/andurel/layout/elements/database"
-	"github.com/mbvlabs/andurel/layout/elements/router/cookies"
+{{- if eq .Database "postgresql"}}
+	"{{.ModuleName}}/database"
+{{- else if eq .Database "sqlite"}}
+	"{{.ModuleName}}/database"
+{{- end}}
+	"{{.ModuleName}}/router/cookies"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
@@ -18,9 +22,15 @@ type Controllers struct {
 	Pages  Pages
 }
 
+{{- if eq .Database "postgresql"}}
 func New(
 	db database.Postgres,
 ) (Controllers, error) {
+{{- else if eq .Database "sqlite"}}
+func New(
+	db database.SQLite,
+) (Controllers, error) {
+{{- end}}
 	cacheBuilder, err := otter.NewBuilder[string, templ.Component](20)
 	if err != nil {
 		return Controllers{}, err
