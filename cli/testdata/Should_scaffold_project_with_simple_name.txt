@@ -170,7 +170,6 @@ func startServer(ctx context.Context, srv *http.Server, env string) error {
 
 	return srv.ListenAndServe()
 }
-
 func setupControllers(psql database.Postgres) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
 		psql,
@@ -196,7 +195,6 @@ func setupRouter(ctrl controllers.Controllers) (*echo.Echo, error) {
 func run(ctx context.Context) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
-
 	psql, err := database.NewPostgres(ctx)
 	if err != nil {
 		return err
@@ -490,7 +488,6 @@ import (
 type API struct {
 	db database.Postgres
 }
-
 func newAPI(db database.Postgres) API {
 	return API{db}
 }
@@ -717,7 +714,6 @@ package controllers
 import (
 	"context"
 	"net/http"
-
 	"testapp/database"
 	"testapp/router/cookies"
 
@@ -731,7 +727,6 @@ type Controllers struct {
 	API    API
 	Pages  Pages
 }
-
 func New(
 	db database.Postgres,
 ) (Controllers, error) {
@@ -787,6 +782,7 @@ package controllers
 
 import (
 	"testapp/database"
+
 	"testapp/views"
 
 	"github.com/a-h/templ"
@@ -798,7 +794,6 @@ type Pages struct {
 	db    database.Postgres
 	cache otter.CacheWithVariableTTL[string, templ.Component]
 }
-
 func newPages(
 	db database.Postgres,
 	cache otter.CacheWithVariableTTL[string, templ.Component],
@@ -871,7 +866,6 @@ body {
 
 
 === database/migrations/.gitkeep ===
--- Only added for the compiler-delete when other migration files exist.
 
 
 === database/psql.go ===
@@ -955,6 +949,7 @@ func (p *Postgres) CommitTx(ctx context.Context, tx pgx.Tx) error {
 
 	return nil
 }
+
 
 === database/queries/.gitkeep ===
 

@@ -1,0 +1,84 @@
+package components
+
+import (
+	"context"
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/router/routes"
+)
+
+type HeadDataOption func(*HeadData)
+
+type MetaContent struct {
+	Content  string
+	Name     string
+	Property string
+}
+
+type HeadData struct {
+	Title          string
+	Description    string
+	Image          string
+	Slug           string
+	MetaType       string
+	StylesheetHref string
+	ScriptSrc      string
+	ExtraMeta      []MetaContent
+}
+
+templ head(data HeadData) {
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<meta name="twitter:card" content="summary_large_image"/>
+		<meta name="twitter:creator" content="@mbvlabs"/>
+		<title>
+			{ data.Title }
+		</title>
+		<link href={ data.StylesheetHref } rel="stylesheet"/>
+		<meta property="og:type" content={ data.MetaType }/>
+		<meta property="og:title" content={ data.Title }/>
+		<meta property="og:description" content={ data.Description }/>
+		<meta property="og:url" content={ data.Slug }/>
+		<meta property="og:site_name" content={ data.Title }/>
+		if data.Image != "" {
+			<meta property="og:image" content={ data.Image }/>
+		}
+		for _, extraMeta := range data.ExtraMeta {
+			<meta
+				if extraMeta.Name != "" {
+					name={ extraMeta.Name }
+				}
+				if extraMeta.Property != "" {
+					property={ extraMeta.Property }
+				}
+				if extraMeta.Content != "" {
+					content={ extraMeta.Content }
+				}
+			/>
+		}
+		<meta name="description" content={ data.Description }/>
+		<link
+			rel="canonical"
+			href={ data.Slug }
+		/>
+		<script src={ data.ScriptSrc } type="module"></script>
+	</head>
+}
+
+func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
+
+	data := &HeadData{
+		Title:          config.App.ProjectName,
+		Description:    "The web development framework for Go.",
+		Slug:           "/",
+		MetaType:       "website",
+		StylesheetHref: routes.Stylesheet.Path,
+		ScriptSrc:      routes.Scripts.Path,
+	}
+
+	for _, opt := range opts {
+		opt(data)
+	}
+
+	return head(*data)
+}
