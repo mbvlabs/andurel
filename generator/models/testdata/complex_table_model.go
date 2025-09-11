@@ -3,10 +3,9 @@ package models
 import (
 	"context"
 	"errors"
-	"time"
-
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"time"
 
 	"github.com/example/complex/models/internal/db"
 )
@@ -260,7 +259,7 @@ func UpdateComprehensiveExample(
 		return ComprehensiveExample{}, err
 	}
 
-	data := db.UpdateComprehensiveExampleParams{
+	params := db.UpdateComprehensiveExampleParams{
 		ID:                data.ID,
 		UuidId:            currentRow.UuidId,
 		SmallInt:          currentRow.SmallInt,
@@ -312,151 +311,151 @@ func UpdateComprehensiveExample(
 		NumericRange:      currentRow.NumericRange,
 	}
 	if data.UuidId != uuid.Nil {
-		data.UuidId = data.UuidId
+		params.UuidId = data.UuidId
 	}
 	if true {
-		data.SmallInt = data.SmallInt
+		params.SmallInt = data.SmallInt
 	}
 	if true {
-		data.RegularInt = pgtype.Int4{Int32: data.RegularInt, Valid: true}
+		params.RegularInt = pgtype.Int4{Int32: data.RegularInt, Valid: true}
 	}
 	if true {
-		data.BigInt = data.BigInt
+		params.BigInt = data.BigInt
 	}
 	if true {
-		data.DecimalPrecise = data.DecimalPrecise
+		params.DecimalPrecise = data.DecimalPrecise
 	}
 	if true {
-		data.NumericField = data.NumericField
+		params.NumericField = data.NumericField
 	}
 	if true {
-		data.RealFloat = pgtype.Float4{Float32: data.RealFloat, Valid: true}
+		params.RealFloat = pgtype.Float4{Float32: data.RealFloat, Valid: true}
 	}
 	if true {
-		data.DoubleFloat = data.DoubleFloat
+		params.DoubleFloat = data.DoubleFloat
 	}
 	if true {
-		data.SmallSerial = data.SmallSerial
+		params.SmallSerial = data.SmallSerial
 	}
 	if true {
-		data.BigSerial = pgtype.Int8{Int64: data.BigSerial, Valid: true}
+		params.BigSerial = pgtype.Int8{Int64: data.BigSerial, Valid: true}
 	}
 	if true {
-		data.FixedChar = pgtype.Text{String: data.FixedChar, Valid: true}
+		params.FixedChar = pgtype.Text{String: data.FixedChar, Valid: true}
 	}
 	if true {
-		data.VariableChar = data.VariableChar
+		params.VariableChar = data.VariableChar
 	}
 	if true {
-		data.UnlimitedText = pgtype.Text{String: data.UnlimitedText, Valid: true}
+		params.UnlimitedText = pgtype.Text{String: data.UnlimitedText, Valid: true}
 	}
 	if true {
-		data.TextWithDefault = pgtype.Text{String: data.TextWithDefault, Valid: true}
+		params.TextWithDefault = pgtype.Text{String: data.TextWithDefault, Valid: true}
 	}
 	if true {
-		data.TextNotNull = data.TextNotNull
+		params.TextNotNull = data.TextNotNull
 	}
 	if true {
-		data.IsActive = pgtype.Bool{Bool: data.IsActive, Valid: true}
+		params.IsActive = pgtype.Bool{Bool: data.IsActive, Valid: true}
 	}
 	if true {
-		data.IsVerified = data.IsVerified
+		params.IsVerified = data.IsVerified
 	}
 	if true {
-		data.NullableFlag = pgtype.Bool{Bool: data.NullableFlag, Valid: true}
+		params.NullableFlag = pgtype.Bool{Bool: data.NullableFlag, Valid: true}
 	}
 	if true {
-		data.CreatedDate = pgtype.Date{Time: data.CreatedDate, Valid: true}
+		params.CreatedDate = pgtype.Date{Time: data.CreatedDate, Valid: true}
 	}
 	if true {
-		data.BirthDate = pgtype.Date{Time: data.BirthDate, Valid: true}
+		params.BirthDate = pgtype.Date{Time: data.BirthDate, Valid: true}
 	}
 	if true {
-		data.ExactTime = pgtype.Time{Time: data.ExactTime, Valid: true}
+		params.ExactTime = pgtype.Time{Time: data.ExactTime, Valid: true}
 	}
 	if true {
-		data.TimeWithZone = pgtype.Timetz{Time: data.TimeWithZone, Valid: true}
+		params.TimeWithZone = pgtype.Timetz{Time: data.TimeWithZone, Valid: true}
 	}
 	if true {
-		data.CreatedTimestamp = pgtype.Timestamp{Time: data.CreatedTimestamp, Valid: true}
+		params.CreatedTimestamp = pgtype.Timestamp{Time: data.CreatedTimestamp, Valid: true}
 	}
 	if true {
-		data.UpdatedTimestamp = pgtype.Timestamp{Time: data.UpdatedTimestamp, Valid: true}
+		params.UpdatedTimestamp = pgtype.Timestamp{Time: data.UpdatedTimestamp, Valid: true}
 	}
 	if true {
-		data.TimestampWithZone = pgtype.Timestamptz{Time: data.TimestampWithZone, Valid: true}
+		params.TimestampWithZone = pgtype.Timestamptz{Time: data.TimestampWithZone, Valid: true}
 	}
 	if true {
-		data.DurationInterval = pgtype.Interval{Microseconds: data.DurationInterval, Valid: true}
+		params.DurationInterval = pgtype.Interval{Microseconds: data.DurationInterval, Valid: true}
 	}
 	if true {
-		data.WorkHours = pgtype.Interval{Microseconds: data.WorkHours, Valid: true}
+		params.WorkHours = pgtype.Interval{Microseconds: data.WorkHours, Valid: true}
 	}
 	if true {
-		data.FileData = data.FileData
+		params.FileData = data.FileData
 	}
 	if true {
-		data.RequiredBinary = data.RequiredBinary
+		params.RequiredBinary = data.RequiredBinary
 	}
 	if true {
-		data.IpAddress = pgtype.Inet{IPNet: data.IpAddress, Valid: true}
+		params.IpAddress = pgtype.Inet{IPNet: data.IpAddress, Valid: true}
 	}
 	if true {
-		data.IpNetwork = pgtype.Inet{IPNet: data.IpNetwork, Valid: true}
+		params.IpNetwork = pgtype.Inet{IPNet: data.IpNetwork, Valid: true}
 	}
 	if true {
-		data.MacAddress = pgtype.Inet{IPNet: data.MacAddress, Valid: true}
+		params.MacAddress = pgtype.Inet{IPNet: data.MacAddress, Valid: true}
 	}
 	if true {
-		data.Mac8Address = pgtype.Inet{IPNet: data.Mac8Address, Valid: true}
+		params.Mac8Address = pgtype.Inet{IPNet: data.Mac8Address, Valid: true}
 	}
 	if true {
-		data.PointLocation = data.PointLocation
+		params.PointLocation = data.PointLocation
 	}
 	if true {
-		data.LineSegment = data.LineSegment
+		params.LineSegment = data.LineSegment
 	}
 	if true {
-		data.RectangularBox = data.RectangularBox
+		params.RectangularBox = data.RectangularBox
 	}
 	if true {
-		data.PathData = data.PathData
+		params.PathData = data.PathData
 	}
 	if true {
-		data.PolygonShape = data.PolygonShape
+		params.PolygonShape = data.PolygonShape
 	}
 	if true {
-		data.CircleArea = data.CircleArea
+		params.CircleArea = data.CircleArea
 	}
 	if true {
-		data.JsonData = pgtype.JSON{Bytes: data.JsonData, Valid: true}
+		params.JsonData = pgtype.JSON{Bytes: data.JsonData, Valid: true}
 	}
 	if true {
-		data.JsonbData = pgtype.JSONB{Bytes: data.JsonbData, Valid: true}
+		params.JsonbData = pgtype.JSONB{Bytes: data.JsonbData, Valid: true}
 	}
 	if true {
-		data.JsonbNotNull = pgtype.JSONB{Bytes: data.JsonbNotNull, Valid: true}
+		params.JsonbNotNull = pgtype.JSONB{Bytes: data.JsonbNotNull, Valid: true}
 	}
 	if true {
-		data.IntegerArray = pgtype.Array[int32]{Elements: data.IntegerArray, Valid: true}
+		params.IntegerArray = pgtype.Array[int32]{Elements: data.IntegerArray, Valid: true}
 	}
 	if true {
-		data.TextArray = pgtype.Array[string]{Elements: data.TextArray, Valid: true}
+		params.TextArray = pgtype.Array[string]{Elements: data.TextArray, Valid: true}
 	}
 	if true {
-		data.MultidimArray = pgtype.Array[int32]{Elements: data.MultidimArray, Valid: true}
+		params.MultidimArray = pgtype.Array[int32]{Elements: data.MultidimArray, Valid: true}
 	}
 	if true {
-		data.IntRange = data.IntRange
+		params.IntRange = data.IntRange
 	}
 	if true {
-		data.BigintRange = data.BigintRange
+		params.BigintRange = data.BigintRange
 	}
 	if true {
-		data.NumericRange = data.NumericRange
+		params.NumericRange = data.NumericRange
 	}
 
-	row, err := db.New().UpdateComprehensiveExample(ctx, dbtx, data)
+	row, err := db.New().UpdateComprehensiveExample(ctx, dbtx, params)
 	if err != nil {
 		return ComprehensiveExample{}, err
 	}

@@ -1,0 +1,182 @@
+package generator
+
+import (
+	"os"
+	"testing"
+)
+
+func TestReadDatabaseTypeFromSQLCYAML(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected string
+		hasError bool
+	}{
+		{
+			name: "PostgreSQL engine",
+			content: `version: "2"
+sql:
+  - engine: postgresql
+    schema: migrations`,
+			expected: "postgresql",
+			hasError: false,
+		},
+		{
+			name: "SQLite engine",
+			content: `version: "2"
+sql:
+  - engine: sqlite
+    schema: migrations`,
+			expected: "sqlite",
+			hasError: false,
+		},
+		{
+			name: "Unsupported engine",
+			content: `version: "2"
+sql:
+  - engine: mysql
+    schema: migrations`,
+			expected: "",
+			hasError: true,
+		},
+		{
+			name: "No SQL configuration",
+			content: `version: "2"
+sql: []`,
+			expected: "",
+			hasError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary directory
+			tmpDir := t.TempDir()
+			
+			// Create database directory
+			dbDir := tmpDir + "/database"
+			if err := os.MkdirAll(dbDir, 0755); err != nil {
+				t.Fatalf("Failed to create database directory: %v", err)
+			}
+
+			// Change to temporary directory
+			originalDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Failed to get working directory: %v", err)
+			}
+			defer os.Chdir(originalDir)
+
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatalf("Failed to change to temp directory: %v", err)
+			}
+
+			// Write test sqlc.yaml content
+			sqlcPath := "database/sqlc.yaml"
+			if err := os.WriteFile(sqlcPath, []byte(tt.content), 0644); err != nil {
+				t.Fatalf("Failed to write sqlc.yaml: %v", err)
+			}
+
+			// Test the function
+			result, err := readDatabaseTypeFromSQLCYAML()
+
+			if tt.hasError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+				if result != tt.expected {
+					t.Errorf("Expected %s, got %s", tt.expected, result)
+				}
+			}
+		})
+	}
+}
+
+func TestNewDefaultAppConfig_WithSQLCYAML(t *testing.T) {
+	tests := []struct {
+		name        string
+		sqlcContent string
+		expected    string
+	}{
+		{
+			name: "Uses SQLite from sqlc.yaml",
+			sqlcContent: `version: "2"
+sql:
+  - engine: sqlite
+    schema: migrations`,
+			expected: "sqlite",
+		},
+		{
+			name: "Uses PostgreSQL from sqlc.yaml",
+			sqlcContent: `version: "2"
+sql:
+  - engine: postgresql
+    schema: migrations`,
+			expected: "postgresql",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary directory
+			tmpDir := t.TempDir()
+			
+			// Create database directory
+			dbDir := tmpDir + "/database"
+			if err := os.MkdirAll(dbDir, 0755); err != nil {
+				t.Fatalf("Failed to create database directory: %v", err)
+			}
+
+			// Change to temporary directory
+			originalDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Failed to get working directory: %v", err)
+			}
+			defer os.Chdir(originalDir)
+
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatalf("Failed to change to temp directory: %v", err)
+			}
+
+			// Write test sqlc.yaml content
+			sqlcPath := "database/sqlc.yaml"
+			if err := os.WriteFile(sqlcPath, []byte(tt.sqlcContent), 0644); err != nil {
+				t.Fatalf("Failed to write sqlc.yaml: %v", err)
+			}
+
+			// Create config
+			config := NewDefaultAppConfig()
+
+			if config.Database.Type != tt.expected {
+				t.Errorf("Expected database type %s, got %s", tt.expected, config.Database.Type)
+			}
+		})
+	}
+}
+
+func TestNewDefaultAppConfig_FallbackWhenNoSQLCYAML(t *testing.T) {
+	// Create temporary directory without sqlc.yaml
+	tmpDir := t.TempDir()
+	
+	// Change to temporary directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get working directory: %v", err)
+	}
+	defer os.Chdir(originalDir)
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Create config without sqlc.yaml present
+	config := NewDefaultAppConfig()
+
+	// Should fallback to postgresql
+	if config.Database.Type != "postgresql" {
+		t.Errorf("Expected fallback to postgresql, got %s", config.Database.Type)
+	}
+}

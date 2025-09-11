@@ -21,6 +21,7 @@ func TestModelFileGeneration__GoldenFile(t *testing.T) {
 		tableName     string
 		resourceName  string
 		modulePath    string
+		databaseType  string
 	}{
 		{
 			name:          "Should generate model for simple users table",
@@ -29,6 +30,7 @@ func TestModelFileGeneration__GoldenFile(t *testing.T) {
 			tableName:     "users",
 			resourceName:  "User",
 			modulePath:    "github.com/example/myapp",
+			databaseType:  "postgresql",
 		},
 		{
 			name:          "Should generate model for complex table",
@@ -37,6 +39,7 @@ func TestModelFileGeneration__GoldenFile(t *testing.T) {
 			tableName:     "comprehensive_example",
 			resourceName:  "ComprehensiveExample",
 			modulePath:    "github.com/example/complex",
+			databaseType:  "postgresql",
 		},
 		{
 			name:          "Should generate model for posts with multi-migration",
@@ -45,6 +48,25 @@ func TestModelFileGeneration__GoldenFile(t *testing.T) {
 			tableName:     "posts",
 			resourceName:  "Post",
 			modulePath:    "github.com/example/blog",
+			databaseType:  "postgresql",
+		},
+		{
+			name:          "Should generate SQLite model for simple users table",
+			fileName:      "sqlite_user_table_model",
+			migrationsDir: "sqlite_user_table",
+			tableName:     "users",
+			resourceName:  "User",
+			modulePath:    "github.com/example/sqlite",
+			databaseType:  "sqlite",
+		},
+		{
+			name:          "Should generate SQLite model for complex products table",
+			fileName:      "sqlite_complex_table_model", 
+			migrationsDir: "sqlite_complex_table",
+			tableName:     "products",
+			resourceName:  "Product",
+			modulePath:    "github.com/example/sqlite",
+			databaseType:  "sqlite",
 		},
 	}
 
@@ -72,7 +94,7 @@ func TestModelFileGeneration__GoldenFile(t *testing.T) {
 
 			migrationsDir := filepath.Join(originalWd, "testdata", "migrations", tt.migrationsDir)
 
-			generator := NewGenerator("postgresql")
+			generator := NewGenerator(tt.databaseType)
 
 			cat, err := generator.buildCatalogFromTableMigrations(
 				tt.tableName,
@@ -86,7 +108,7 @@ func TestModelFileGeneration__GoldenFile(t *testing.T) {
 				TableName:    tt.tableName,
 				ResourceName: tt.resourceName,
 				PackageName:  "models",
-				DatabaseType: "postgresql",
+				DatabaseType: tt.databaseType,
 				ModulePath:   tt.modulePath,
 			})
 			if err != nil {
@@ -135,6 +157,7 @@ func TestQueriesFileGeneration__GoldenFile(t *testing.T) {
 		migrationsDir string
 		tableName     string
 		resourceName  string
+		databaseType  string
 	}{
 		{
 			name:          "Should generate SQL for simple users table",
@@ -142,6 +165,7 @@ func TestQueriesFileGeneration__GoldenFile(t *testing.T) {
 			migrationsDir: "simple_user_table",
 			tableName:     "users",
 			resourceName:  "User",
+			databaseType:  "postgresql",
 		},
 		{
 			name:          "Should generate SQL for complex table",
@@ -149,6 +173,7 @@ func TestQueriesFileGeneration__GoldenFile(t *testing.T) {
 			fileName:      "complex_table_queries",
 			tableName:     "comprehensive_example",
 			resourceName:  "ComprehensiveExample",
+			databaseType:  "postgresql",
 		},
 		{
 			name:          "Should generate SQL for posts with multi-migration",
@@ -156,6 +181,23 @@ func TestQueriesFileGeneration__GoldenFile(t *testing.T) {
 			migrationsDir: "posts_multi_migration",
 			tableName:     "posts",
 			resourceName:  "Post",
+			databaseType:  "postgresql",
+		},
+		{
+			name:          "Should generate SQLite SQL for simple users table",
+			fileName:      "sqlite_user_table_queries",
+			migrationsDir: "sqlite_user_table",
+			tableName:     "users",
+			resourceName:  "User",
+			databaseType:  "sqlite",
+		},
+		{
+			name:          "Should generate SQLite SQL for complex products table",
+			fileName:      "sqlite_complex_table_queries",
+			migrationsDir: "sqlite_complex_table", 
+			tableName:     "products",
+			resourceName:  "Product",
+			databaseType:  "sqlite",
 		},
 	}
 
@@ -176,7 +218,7 @@ func TestQueriesFileGeneration__GoldenFile(t *testing.T) {
 
 			migrationsDir := filepath.Join(originalWd, "testdata", "migrations", tt.migrationsDir)
 
-			generator := NewGenerator("postgresql")
+			generator := NewGenerator(tt.databaseType)
 
 			cat, err := generator.buildCatalogFromTableMigrations(
 				tt.tableName,

@@ -3,14 +3,8 @@ package models
 import (
 	"context"
 	"errors"
-	"time"
-
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 {{- range .Imports}}
-{{- if and (ne . "time") (ne . "github.com/google/uuid") (ne . "github.com/jackc/pgx/v5/pgtype") (ne . "context") (ne . "errors")}}
 	"{{.}}"
-{{- end}}
 {{- end}}
 
 	"{{.ModulePath}}/models/internal/db"
@@ -27,7 +21,7 @@ func Find{{.Name}}(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) ({{.Name}}, error) {
-	row, err := db.New().Query{{.Name}}ByID(ctx, dbtx, id)
+	row, err := db.New().Query{{.Name}}ByID(ctx, dbtx, {{uuidParam "id"}})
 	if err != nil {
 		return {{.Name}}{}, err
 	}
@@ -55,7 +49,7 @@ func Create{{.Name}}(
 	row, err := db.New().Insert{{.Name}}(ctx, dbtx, db.Insert{{.Name}}Params{
 {{- range .Fields}}
 {{- if eq .Name "ID"}}
-		{{.Name}}: uuid.New(),
+		{{.Name}}: {{uuidParam "uuid.New()"}},
 {{- else if not (or (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
 		{{.Name}}: {{.ConversionToDB}},
 {{- end}}
@@ -86,13 +80,13 @@ func Update{{.Name}}(
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := db.New().Query{{.Name}}ByID(ctx, dbtx, data.ID)
+	currentRow, err := db.New().Query{{.Name}}ByID(ctx, dbtx, {{uuidParam "data.ID"}})
 	if err != nil {
 		return {{.Name}}{}, err
 	}
 
-	data := db.Update{{.Name}}Params{
-		ID: data.ID,
+	params := db.Update{{.Name}}Params{
+		ID: {{uuidParam "data.ID"}},
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		{{.Name}}: currentRow.{{.Name}},
@@ -103,12 +97,12 @@ func Update{{.Name}}(
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 	if {{.ZeroCheck}} {
-		data.{{.Name}} = {{.ConversionToDBForUpdate}}
+		params.{{.Name}} = {{.ConversionToDBForUpdate}}
 	}
 {{- end}}
 {{- end}}
 
-	row, err := db.New().Update{{.Name}}(ctx, dbtx, data)
+	row, err := db.New().Update{{.Name}}(ctx, dbtx, params)
 	if err != nil {
 		return {{.Name}}{}, err
 	}
@@ -121,7 +115,7 @@ func Destroy{{.Name}}(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) error {
-	return db.New().Delete{{.Name}}(ctx, dbtx, id)
+	return db.New().Delete{{.Name}}(ctx, dbtx, {{uuidParam "id"}})
 }
 
 func All{{.Name}}s(

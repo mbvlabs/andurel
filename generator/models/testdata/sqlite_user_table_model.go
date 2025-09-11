@@ -2,22 +2,22 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"time"
 
-	"github.com/example/myapp/models/internal/db"
+	"github.com/example/sqlite/models/internal/db"
 )
 
 type User struct {
-	ID        uuid.UUID
-	Email     string
-	Name      string
-	Age       int32
-	IsActive  bool
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID              string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	Email           string
+	EmailVerifiedAt time.Time
+	Password        []byte
+	IsAdmin         int64
 }
 
 func FindUser(
@@ -25,7 +25,7 @@ func FindUser(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) (User, error) {
-	row, err := db.New().QueryUserByID(ctx, dbtx, id)
+	row, err := db.New().QueryUserByID(ctx, dbtx, id.String())
 	if err != nil {
 		return User{}, err
 	}
@@ -34,10 +34,10 @@ func FindUser(
 }
 
 type CreateUserData struct {
-	Email    string
-	Name     string
-	Age      int32
-	IsActive bool
+	Email           string
+	EmailVerifiedAt time.Time
+	Password        []byte
+	IsAdmin         int64
 }
 
 func CreateUser(
@@ -50,11 +50,11 @@ func CreateUser(
 	}
 
 	row, err := db.New().InsertUser(ctx, dbtx, db.InsertUserParams{
-		ID:       uuid.New(),
-		Email:    data.Email,
-		Name:     data.Name,
-		Age:      pgtype.Int4{Int32: data.Age, Valid: true},
-		IsActive: pgtype.Bool{Bool: data.IsActive, Valid: true},
+		ID:              uuid.New().String(),
+		Email:           data.Email,
+		EmailVerifiedAt: sql.NullTime{Time: data.EmailVerifiedAt, Valid: true},
+		Password:        data.Password,
+		IsAdmin:         data.IsAdmin,
 	})
 	if err != nil {
 		return User{}, err
@@ -64,12 +64,12 @@ func CreateUser(
 }
 
 type UpdateUserData struct {
-	ID        uuid.UUID
-	Email     string
-	Name      string
-	Age       int32
-	IsActive  bool
-	UpdatedAt time.Time
+	ID              uuid.UUID
+	UpdatedAt       time.Time
+	Email           string
+	EmailVerifiedAt time.Time
+	Password        []byte
+	IsAdmin         int64
 }
 
 func UpdateUser(
@@ -81,29 +81,29 @@ func UpdateUser(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := db.New().QueryUserByID(ctx, dbtx, data.ID)
+	currentRow, err := db.New().QueryUserByID(ctx, dbtx, data.ID.String())
 	if err != nil {
 		return User{}, err
 	}
 
 	params := db.UpdateUserParams{
-		ID:       data.ID,
-		Email:    currentRow.Email,
-		Name:     currentRow.Name,
-		Age:      currentRow.Age,
-		IsActive: currentRow.IsActive,
+		ID:              data.ID.String(),
+		Email:           currentRow.Email,
+		EmailVerifiedAt: currentRow.EmailVerifiedAt,
+		Password:        currentRow.Password,
+		IsAdmin:         currentRow.IsAdmin,
 	}
 	if true {
 		params.Email = data.Email
 	}
 	if true {
-		params.Name = data.Name
+		params.EmailVerifiedAt = sql.NullTime{Time: data.EmailVerifiedAt, Valid: true}
 	}
 	if true {
-		params.Age = pgtype.Int4{Int32: data.Age, Valid: true}
+		params.Password = data.Password
 	}
 	if true {
-		params.IsActive = pgtype.Bool{Bool: data.IsActive, Valid: true}
+		params.IsAdmin = data.IsAdmin
 	}
 
 	row, err := db.New().UpdateUser(ctx, dbtx, params)
@@ -119,7 +119,7 @@ func DestroyUser(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) error {
-	return db.New().DeleteUser(ctx, dbtx, id)
+	return db.New().DeleteUser(ctx, dbtx, id.String())
 }
 
 func AllUsers(
@@ -200,12 +200,12 @@ func PaginateUsers(
 
 func rowToUser(row db.User) User {
 	return User{
-		ID:        row.ID,
-		Email:     row.Email,
-		Name:      row.Name,
-		Age:       row.Age.Int32,
-		IsActive:  row.IsActive.Bool,
-		CreatedAt: row.CreatedAt.Time,
-		UpdatedAt: row.UpdatedAt.Time,
+		ID:              row.ID,
+		CreatedAt:       row.CreatedAt,
+		UpdatedAt:       row.UpdatedAt,
+		Email:           row.Email,
+		EmailVerifiedAt: row.EmailVerifiedAt.Time,
+		Password:        row.Password,
+		IsAdmin:         row.IsAdmin,
 	}
 }

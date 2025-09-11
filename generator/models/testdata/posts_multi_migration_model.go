@@ -3,10 +3,9 @@ package models
 import (
 	"context"
 	"errors"
-	"time"
-
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"time"
 
 	"github.com/example/blog/models/internal/db"
 )
@@ -81,23 +80,23 @@ func UpdatePost(
 		return Post{}, err
 	}
 
-	data := db.UpdatePostParams{
+	params := db.UpdatePostParams{
 		ID:          data.ID,
 		Title:       currentRow.Title,
 		AuthorId:    currentRow.AuthorId,
 		PublishedAt: currentRow.PublishedAt,
 	}
 	if true {
-		data.Title = data.Title
+		params.Title = data.Title
 	}
 	if true {
-		data.AuthorId = pgtype.Int4{Int32: data.AuthorId, Valid: true}
+		params.AuthorId = pgtype.Int4{Int32: data.AuthorId, Valid: true}
 	}
 	if true {
-		data.PublishedAt = pgtype.Timestamptz{Time: data.PublishedAt, Valid: true}
+		params.PublishedAt = pgtype.Timestamptz{Time: data.PublishedAt, Valid: true}
 	}
 
-	row, err := db.New().UpdatePost(ctx, dbtx, data)
+	row, err := db.New().UpdatePost(ctx, dbtx, params)
 	if err != nil {
 		return Post{}, err
 	}

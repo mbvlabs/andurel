@@ -1,5 +1,5 @@
 -- name: Query{{.ResourceName}}ByID :one
-select * from {{.PluralName}} where id=$1;
+select * from {{.PluralName}} where id={{.IDPlaceholder}};
 
 -- name: Query{{.ResourceName}}s :many
 select * from {{.PluralName}};
@@ -17,16 +17,16 @@ returning *;
 -- name: Update{{.ResourceName}} :one
 update {{.PluralName}}
     set {{.UpdateColumns}}
-where id = $1
+where id = {{.IDPlaceholder}}
 returning *;
 
 -- name: Delete{{.ResourceName}} :exec
-delete from {{.PluralName}} where id=$1;
+delete from {{.PluralName}} where id={{.IDPlaceholder}};
 
 -- name: QueryPaginated{{.ResourceName}}s :many
 select * from {{.PluralName}} 
 order by created_at desc 
-limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
+{{.LimitOffsetClause}};
 
 -- name: Count{{.ResourceName}}s :one
 select count(*) from {{.PluralName}};
