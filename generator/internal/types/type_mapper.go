@@ -415,7 +415,7 @@ func (tm *TypeMapper) getSQLiteType(
 		}
 		return "float64", "float64", ""
 
-	case "numeric", "decimal", "boolean", "date", "datetime":
+	case "numeric", "decimal", "boolean", "date", "datetime", "timestamp", "time":
 		if normalizedType == "boolean" {
 			if nullable {
 				return "bool", "sql.NullBool", "database/sql"
@@ -426,6 +426,11 @@ func (tm *TypeMapper) getSQLiteType(
 			if nullable {
 				return "time.Time", "sql.NullTime", "database/sql"
 			}
+			return "time.Time", "time.Time", ""
+		}
+		if normalizedType == "timestamp" || normalizedType == "time" {
+			// SQLite TIMESTAMP and TIME fields are always treated as non-nullable time.Time
+			// as SQLC generates them as time.Time, not sql.NullTime, even when nullable
 			return "time.Time", "time.Time", ""
 		}
 		if nullable {

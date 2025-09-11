@@ -108,9 +108,9 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	}
 
 	// Add template-required imports
-	importSet["time"] = true  // template uses time.Time for CreatedAt/UpdatedAt
-	importSet["github.com/google/uuid"] = true  // template uses uuid.UUID for IDs
-	
+	importSet["time"] = true                   // template uses time.Time for CreatedAt/UpdatedAt
+	importSet["github.com/google/uuid"] = true // template uses uuid.UUID for IDs
+
 	for imp := range importSet {
 		model.Imports = append(model.Imports, imp)
 	}

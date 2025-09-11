@@ -61,7 +61,7 @@ func TestModelFileGeneration__GoldenFile(t *testing.T) {
 		},
 		{
 			name:          "Should generate SQLite model for complex products table",
-			fileName:      "sqlite_complex_table_model", 
+			fileName:      "sqlite_complex_table_model",
 			migrationsDir: "sqlite_complex_table",
 			tableName:     "products",
 			resourceName:  "Product",
@@ -194,7 +194,7 @@ func TestQueriesFileGeneration__GoldenFile(t *testing.T) {
 		{
 			name:          "Should generate SQLite SQL for complex products table",
 			fileName:      "sqlite_complex_table_queries",
-			migrationsDir: "sqlite_complex_table", 
+			migrationsDir: "sqlite_complex_table",
 			tableName:     "products",
 			resourceName:  "Product",
 			databaseType:  "sqlite",

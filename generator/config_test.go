@@ -52,7 +52,7 @@ sql: []`,
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory
 			tmpDir := t.TempDir()
-			
+
 			// Create database directory
 			dbDir := tmpDir + "/database"
 			if err := os.MkdirAll(dbDir, 0755); err != nil {
@@ -123,7 +123,7 @@ sql:
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory
 			tmpDir := t.TempDir()
-			
+
 			// Create database directory
 			dbDir := tmpDir + "/database"
 			if err := os.MkdirAll(dbDir, 0755); err != nil {
@@ -160,7 +160,7 @@ sql:
 func TestNewDefaultAppConfig_FallbackWhenNoSQLCYAML(t *testing.T) {
 	// Create temporary directory without sqlc.yaml
 	tmpDir := t.TempDir()
-	
+
 	// Change to temporary directory
 	originalDir, err := os.Getwd()
 	if err != nil {

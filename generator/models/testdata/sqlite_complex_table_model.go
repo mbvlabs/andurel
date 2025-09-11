@@ -11,22 +11,48 @@ import (
 )
 
 type Product struct {
-	ID           int64
-	Uuid         string
-	Name         string
-	Description  string
-	Price        float64
-	Weight       float64
-	Quantity     int64
-	InStock      bool
-	Tags         string
-	Metadata     []byte
-	CreatedDate  time.Time
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	CategoryId   int64
-	IsFeatured   bool
-	DiscountRate float64
+	ID                    int64
+	IntField              int64
+	IntegerField          int64
+	TinyintField          int64
+	SmallintField         int64
+	MediumintField        int64
+	BigintField           int64
+	UnsignedBigintField   int64
+	Int2Field             int64
+	Int8Field             int64
+	BooleanField          bool
+	BoolField             bool
+	CharacterField        string
+	VarcharField          string
+	VaryingCharacterField string
+	NcharField            string
+	NativeCharacterField  string
+	NvarcharField         string
+	TextField             string
+	ClobField             string
+	CharField             string
+	RealField             float64
+	DoubleField           float64
+	DoublePrecisionField  float64
+	FloatField            float64
+	NumericField          float64
+	DecimalField          float64
+	DecField              float64
+	BlobField             []byte
+	DateAsText            time.Time
+	DatetimeAsText        time.Time
+	TimestampField        time.Time
+	TimeField             time.Time
+	RequiredText          string
+	RequiredInt           int64
+	DefaultText           string
+	DefaultInt            int64
+	DefaultReal           float64
+	DefaultBool           bool
+	DefaultTimestamp      time.Time
+	PositiveInt           int64
+	EmailText             string
 }
 
 func FindProduct(
@@ -43,19 +69,47 @@ func FindProduct(
 }
 
 type CreateProductData struct {
-	Uuid         string
-	Name         string
-	Description  string
-	Price        float64
-	Weight       float64
-	Quantity     int64
-	InStock      bool
-	Tags         string
-	Metadata     []byte
-	CreatedDate  time.Time
-	CategoryId   int64
-	IsFeatured   bool
-	DiscountRate float64
+	IntField              int64
+	IntegerField          int64
+	TinyintField          int64
+	SmallintField         int64
+	MediumintField        int64
+	BigintField           int64
+	UnsignedBigintField   int64
+	Int2Field             int64
+	Int8Field             int64
+	BooleanField          bool
+	BoolField             bool
+	CharacterField        string
+	VarcharField          string
+	VaryingCharacterField string
+	NcharField            string
+	NativeCharacterField  string
+	NvarcharField         string
+	TextField             string
+	ClobField             string
+	CharField             string
+	RealField             float64
+	DoubleField           float64
+	DoublePrecisionField  float64
+	FloatField            float64
+	NumericField          float64
+	DecimalField          float64
+	DecField              float64
+	BlobField             []byte
+	DateAsText            time.Time
+	DatetimeAsText        time.Time
+	TimestampField        time.Time
+	TimeField             time.Time
+	RequiredText          string
+	RequiredInt           int64
+	DefaultText           string
+	DefaultInt            int64
+	DefaultReal           float64
+	DefaultBool           bool
+	DefaultTimestamp      time.Time
+	PositiveInt           int64
+	EmailText             string
 }
 
 func CreateProduct(
@@ -68,20 +122,48 @@ func CreateProduct(
 	}
 
 	row, err := db.New().InsertProduct(ctx, dbtx, db.InsertProductParams{
-		ID:           uuid.New().String(),
-		Uuid:         data.Uuid,
-		Name:         data.Name,
-		Description:  sql.NullString{String: data.Description, Valid: true},
-		Price:        sql.NullFloat64{Float64: data.Price, Valid: true},
-		Weight:       sql.NullFloat64{Float64: data.Weight, Valid: true},
-		Quantity:     data.Quantity,
-		InStock:      sql.NullBool{Bool: data.InStock, Valid: true},
-		Tags:         sql.NullString{String: data.Tags, Valid: true},
-		Metadata:     data.Metadata,
-		CreatedDate:  sql.NullTime{Time: data.CreatedDate, Valid: true},
-		CategoryId:   sql.NullInt64{Int64: data.CategoryId, Valid: true},
-		IsFeatured:   sql.NullBool{Bool: data.IsFeatured, Valid: true},
-		DiscountRate: sql.NullFloat64{Float64: data.DiscountRate, Valid: true},
+		ID:                    uuid.New().String(),
+		IntField:              sql.NullInt64{Int64: data.IntField, Valid: true},
+		IntegerField:          sql.NullInt64{Int64: data.IntegerField, Valid: true},
+		TinyintField:          sql.NullInt64{Int64: data.TinyintField, Valid: true},
+		SmallintField:         sql.NullInt64{Int64: data.SmallintField, Valid: true},
+		MediumintField:        sql.NullInt64{Int64: data.MediumintField, Valid: true},
+		BigintField:           sql.NullInt64{Int64: data.BigintField, Valid: true},
+		UnsignedBigintField:   sql.NullInt64{Int64: data.UnsignedBigintField, Valid: true},
+		Int2Field:             sql.NullInt64{Int64: data.Int2Field, Valid: true},
+		Int8Field:             sql.NullInt64{Int64: data.Int8Field, Valid: true},
+		BooleanField:          sql.NullBool{Bool: data.BooleanField, Valid: true},
+		BoolField:             sql.NullBool{Bool: data.BoolField, Valid: true},
+		CharacterField:        sql.NullString{String: data.CharacterField, Valid: true},
+		VarcharField:          sql.NullString{String: data.VarcharField, Valid: true},
+		VaryingCharacterField: sql.NullString{String: data.VaryingCharacterField, Valid: true},
+		NcharField:            sql.NullString{String: data.NcharField, Valid: true},
+		NativeCharacterField:  sql.NullString{String: data.NativeCharacterField, Valid: true},
+		NvarcharField:         sql.NullString{String: data.NvarcharField, Valid: true},
+		TextField:             sql.NullString{String: data.TextField, Valid: true},
+		ClobField:             sql.NullString{String: data.ClobField, Valid: true},
+		CharField:             sql.NullString{String: data.CharField, Valid: true},
+		RealField:             sql.NullFloat64{Float64: data.RealField, Valid: true},
+		DoubleField:           sql.NullFloat64{Float64: data.DoubleField, Valid: true},
+		DoublePrecisionField:  sql.NullFloat64{Float64: data.DoublePrecisionField, Valid: true},
+		FloatField:            sql.NullFloat64{Float64: data.FloatField, Valid: true},
+		NumericField:          sql.NullFloat64{Float64: data.NumericField, Valid: true},
+		DecimalField:          sql.NullFloat64{Float64: data.DecimalField, Valid: true},
+		DecField:              sql.NullFloat64{Float64: data.DecField, Valid: true},
+		BlobField:             data.BlobField,
+		DateAsText:            sql.NullTime{Time: data.DateAsText, Valid: true},
+		DatetimeAsText:        sql.NullTime{Time: data.DatetimeAsText, Valid: true},
+		TimestampField:        data.TimestampField,
+		TimeField:             data.TimeField,
+		RequiredText:          data.RequiredText,
+		RequiredInt:           data.RequiredInt,
+		DefaultText:           sql.NullString{String: data.DefaultText, Valid: true},
+		DefaultInt:            sql.NullInt64{Int64: data.DefaultInt, Valid: true},
+		DefaultReal:           sql.NullFloat64{Float64: data.DefaultReal, Valid: true},
+		DefaultBool:           sql.NullBool{Bool: data.DefaultBool, Valid: true},
+		DefaultTimestamp:      data.DefaultTimestamp,
+		PositiveInt:           sql.NullInt64{Int64: data.PositiveInt, Valid: true},
+		EmailText:             sql.NullString{String: data.EmailText, Valid: true},
 	})
 	if err != nil {
 		return Product{}, err
@@ -91,21 +173,48 @@ func CreateProduct(
 }
 
 type UpdateProductData struct {
-	ID           uuid.UUID
-	Uuid         string
-	Name         string
-	Description  string
-	Price        float64
-	Weight       float64
-	Quantity     int64
-	InStock      bool
-	Tags         string
-	Metadata     []byte
-	CreatedDate  time.Time
-	UpdatedAt    time.Time
-	CategoryId   int64
-	IsFeatured   bool
-	DiscountRate float64
+	ID                    uuid.UUID
+	IntField              int64
+	IntegerField          int64
+	TinyintField          int64
+	SmallintField         int64
+	MediumintField        int64
+	BigintField           int64
+	UnsignedBigintField   int64
+	Int2Field             int64
+	Int8Field             int64
+	BooleanField          bool
+	BoolField             bool
+	CharacterField        string
+	VarcharField          string
+	VaryingCharacterField string
+	NcharField            string
+	NativeCharacterField  string
+	NvarcharField         string
+	TextField             string
+	ClobField             string
+	CharField             string
+	RealField             float64
+	DoubleField           float64
+	DoublePrecisionField  float64
+	FloatField            float64
+	NumericField          float64
+	DecimalField          float64
+	DecField              float64
+	BlobField             []byte
+	DateAsText            time.Time
+	DatetimeAsText        time.Time
+	TimestampField        time.Time
+	TimeField             time.Time
+	RequiredText          string
+	RequiredInt           int64
+	DefaultText           string
+	DefaultInt            int64
+	DefaultReal           float64
+	DefaultBool           bool
+	DefaultTimestamp      time.Time
+	PositiveInt           int64
+	EmailText             string
 }
 
 func UpdateProduct(
@@ -123,59 +232,171 @@ func UpdateProduct(
 	}
 
 	params := db.UpdateProductParams{
-		ID:           data.ID.String(),
-		Uuid:         currentRow.Uuid,
-		Name:         currentRow.Name,
-		Description:  currentRow.Description,
-		Price:        currentRow.Price,
-		Weight:       currentRow.Weight,
-		Quantity:     currentRow.Quantity,
-		InStock:      currentRow.InStock,
-		Tags:         currentRow.Tags,
-		Metadata:     currentRow.Metadata,
-		CreatedDate:  currentRow.CreatedDate,
-		CategoryId:   currentRow.CategoryId,
-		IsFeatured:   currentRow.IsFeatured,
-		DiscountRate: currentRow.DiscountRate,
+		ID:                    data.ID.String(),
+		IntField:              currentRow.IntField,
+		IntegerField:          currentRow.IntegerField,
+		TinyintField:          currentRow.TinyintField,
+		SmallintField:         currentRow.SmallintField,
+		MediumintField:        currentRow.MediumintField,
+		BigintField:           currentRow.BigintField,
+		UnsignedBigintField:   currentRow.UnsignedBigintField,
+		Int2Field:             currentRow.Int2Field,
+		Int8Field:             currentRow.Int8Field,
+		BooleanField:          currentRow.BooleanField,
+		BoolField:             currentRow.BoolField,
+		CharacterField:        currentRow.CharacterField,
+		VarcharField:          currentRow.VarcharField,
+		VaryingCharacterField: currentRow.VaryingCharacterField,
+		NcharField:            currentRow.NcharField,
+		NativeCharacterField:  currentRow.NativeCharacterField,
+		NvarcharField:         currentRow.NvarcharField,
+		TextField:             currentRow.TextField,
+		ClobField:             currentRow.ClobField,
+		CharField:             currentRow.CharField,
+		RealField:             currentRow.RealField,
+		DoubleField:           currentRow.DoubleField,
+		DoublePrecisionField:  currentRow.DoublePrecisionField,
+		FloatField:            currentRow.FloatField,
+		NumericField:          currentRow.NumericField,
+		DecimalField:          currentRow.DecimalField,
+		DecField:              currentRow.DecField,
+		BlobField:             currentRow.BlobField,
+		DateAsText:            currentRow.DateAsText,
+		DatetimeAsText:        currentRow.DatetimeAsText,
+		TimestampField:        currentRow.TimestampField,
+		TimeField:             currentRow.TimeField,
+		RequiredText:          currentRow.RequiredText,
+		RequiredInt:           currentRow.RequiredInt,
+		DefaultText:           currentRow.DefaultText,
+		DefaultInt:            currentRow.DefaultInt,
+		DefaultReal:           currentRow.DefaultReal,
+		DefaultBool:           currentRow.DefaultBool,
+		DefaultTimestamp:      currentRow.DefaultTimestamp,
+		PositiveInt:           currentRow.PositiveInt,
+		EmailText:             currentRow.EmailText,
 	}
 	if true {
-		params.Uuid = data.Uuid
+		params.IntField = sql.NullInt64{Int64: data.IntField, Valid: true}
 	}
 	if true {
-		params.Name = data.Name
+		params.IntegerField = sql.NullInt64{Int64: data.IntegerField, Valid: true}
 	}
 	if true {
-		params.Description = sql.NullString{String: data.Description, Valid: true}
+		params.TinyintField = sql.NullInt64{Int64: data.TinyintField, Valid: true}
 	}
 	if true {
-		params.Price = sql.NullFloat64{Float64: data.Price, Valid: true}
+		params.SmallintField = sql.NullInt64{Int64: data.SmallintField, Valid: true}
 	}
 	if true {
-		params.Weight = sql.NullFloat64{Float64: data.Weight, Valid: true}
+		params.MediumintField = sql.NullInt64{Int64: data.MediumintField, Valid: true}
 	}
 	if true {
-		params.Quantity = data.Quantity
+		params.BigintField = sql.NullInt64{Int64: data.BigintField, Valid: true}
 	}
 	if true {
-		params.InStock = sql.NullBool{Bool: data.InStock, Valid: true}
+		params.UnsignedBigintField = sql.NullInt64{Int64: data.UnsignedBigintField, Valid: true}
 	}
 	if true {
-		params.Tags = sql.NullString{String: data.Tags, Valid: true}
+		params.Int2Field = sql.NullInt64{Int64: data.Int2Field, Valid: true}
 	}
 	if true {
-		params.Metadata = data.Metadata
+		params.Int8Field = sql.NullInt64{Int64: data.Int8Field, Valid: true}
 	}
 	if true {
-		params.CreatedDate = sql.NullTime{Time: data.CreatedDate, Valid: true}
+		params.BooleanField = sql.NullBool{Bool: data.BooleanField, Valid: true}
 	}
 	if true {
-		params.CategoryId = sql.NullInt64{Int64: data.CategoryId, Valid: true}
+		params.BoolField = sql.NullBool{Bool: data.BoolField, Valid: true}
 	}
 	if true {
-		params.IsFeatured = sql.NullBool{Bool: data.IsFeatured, Valid: true}
+		params.CharacterField = sql.NullString{String: data.CharacterField, Valid: true}
 	}
 	if true {
-		params.DiscountRate = sql.NullFloat64{Float64: data.DiscountRate, Valid: true}
+		params.VarcharField = sql.NullString{String: data.VarcharField, Valid: true}
+	}
+	if true {
+		params.VaryingCharacterField = sql.NullString{String: data.VaryingCharacterField, Valid: true}
+	}
+	if true {
+		params.NcharField = sql.NullString{String: data.NcharField, Valid: true}
+	}
+	if true {
+		params.NativeCharacterField = sql.NullString{String: data.NativeCharacterField, Valid: true}
+	}
+	if true {
+		params.NvarcharField = sql.NullString{String: data.NvarcharField, Valid: true}
+	}
+	if true {
+		params.TextField = sql.NullString{String: data.TextField, Valid: true}
+	}
+	if true {
+		params.ClobField = sql.NullString{String: data.ClobField, Valid: true}
+	}
+	if true {
+		params.CharField = sql.NullString{String: data.CharField, Valid: true}
+	}
+	if true {
+		params.RealField = sql.NullFloat64{Float64: data.RealField, Valid: true}
+	}
+	if true {
+		params.DoubleField = sql.NullFloat64{Float64: data.DoubleField, Valid: true}
+	}
+	if true {
+		params.DoublePrecisionField = sql.NullFloat64{Float64: data.DoublePrecisionField, Valid: true}
+	}
+	if true {
+		params.FloatField = sql.NullFloat64{Float64: data.FloatField, Valid: true}
+	}
+	if true {
+		params.NumericField = sql.NullFloat64{Float64: data.NumericField, Valid: true}
+	}
+	if true {
+		params.DecimalField = sql.NullFloat64{Float64: data.DecimalField, Valid: true}
+	}
+	if true {
+		params.DecField = sql.NullFloat64{Float64: data.DecField, Valid: true}
+	}
+	if true {
+		params.BlobField = data.BlobField
+	}
+	if true {
+		params.DateAsText = sql.NullTime{Time: data.DateAsText, Valid: true}
+	}
+	if true {
+		params.DatetimeAsText = sql.NullTime{Time: data.DatetimeAsText, Valid: true}
+	}
+	if true {
+		params.TimestampField = data.TimestampField
+	}
+	if true {
+		params.TimeField = data.TimeField
+	}
+	if true {
+		params.RequiredText = data.RequiredText
+	}
+	if true {
+		params.RequiredInt = data.RequiredInt
+	}
+	if true {
+		params.DefaultText = sql.NullString{String: data.DefaultText, Valid: true}
+	}
+	if true {
+		params.DefaultInt = sql.NullInt64{Int64: data.DefaultInt, Valid: true}
+	}
+	if true {
+		params.DefaultReal = sql.NullFloat64{Float64: data.DefaultReal, Valid: true}
+	}
+	if true {
+		params.DefaultBool = sql.NullBool{Bool: data.DefaultBool, Valid: true}
+	}
+	if true {
+		params.DefaultTimestamp = data.DefaultTimestamp
+	}
+	if true {
+		params.PositiveInt = sql.NullInt64{Int64: data.PositiveInt, Valid: true}
+	}
+	if true {
+		params.EmailText = sql.NullString{String: data.EmailText, Valid: true}
 	}
 
 	row, err := db.New().UpdateProduct(ctx, dbtx, params)
@@ -272,21 +493,47 @@ func PaginateProducts(
 
 func rowToProduct(row db.Product) Product {
 	return Product{
-		ID:           row.ID,
-		Uuid:         row.Uuid,
-		Name:         row.Name,
-		Description:  row.Description.String,
-		Price:        row.Price.Float64,
-		Weight:       row.Weight.Float64,
-		Quantity:     row.Quantity,
-		InStock:      row.InStock.Bool,
-		Tags:         row.Tags.String,
-		Metadata:     row.Metadata,
-		CreatedDate:  row.CreatedDate.Time,
-		CreatedAt:    row.CreatedAt,
-		UpdatedAt:    row.UpdatedAt.Time,
-		CategoryId:   row.CategoryId.Int64,
-		IsFeatured:   row.IsFeatured.Bool,
-		DiscountRate: row.DiscountRate.Float64,
+		ID:                    row.ID,
+		IntField:              row.IntField.Int64,
+		IntegerField:          row.IntegerField.Int64,
+		TinyintField:          row.TinyintField.Int64,
+		SmallintField:         row.SmallintField.Int64,
+		MediumintField:        row.MediumintField.Int64,
+		BigintField:           row.BigintField.Int64,
+		UnsignedBigintField:   row.UnsignedBigintField.Int64,
+		Int2Field:             row.Int2Field.Int64,
+		Int8Field:             row.Int8Field.Int64,
+		BooleanField:          row.BooleanField.Bool,
+		BoolField:             row.BoolField.Bool,
+		CharacterField:        row.CharacterField.String,
+		VarcharField:          row.VarcharField.String,
+		VaryingCharacterField: row.VaryingCharacterField.String,
+		NcharField:            row.NcharField.String,
+		NativeCharacterField:  row.NativeCharacterField.String,
+		NvarcharField:         row.NvarcharField.String,
+		TextField:             row.TextField.String,
+		ClobField:             row.ClobField.String,
+		CharField:             row.CharField.String,
+		RealField:             row.RealField.Float64,
+		DoubleField:           row.DoubleField.Float64,
+		DoublePrecisionField:  row.DoublePrecisionField.Float64,
+		FloatField:            row.FloatField.Float64,
+		NumericField:          row.NumericField.Float64,
+		DecimalField:          row.DecimalField.Float64,
+		DecField:              row.DecField.Float64,
+		BlobField:             row.BlobField,
+		DateAsText:            row.DateAsText.Time,
+		DatetimeAsText:        row.DatetimeAsText.Time,
+		TimestampField:        row.TimestampField,
+		TimeField:             row.TimeField,
+		RequiredText:          row.RequiredText,
+		RequiredInt:           row.RequiredInt,
+		DefaultText:           row.DefaultText.String,
+		DefaultInt:            row.DefaultInt.Int64,
+		DefaultReal:           row.DefaultReal.Float64,
+		DefaultBool:           row.DefaultBool.Bool,
+		DefaultTimestamp:      row.DefaultTimestamp,
+		PositiveInt:           row.PositiveInt.Int64,
+		EmailText:             row.EmailText.String,
 	}
 }
