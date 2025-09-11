@@ -12,33 +12,28 @@ func TestSQLiteTypeMapper_NonNullableTypes(t *testing.T) {
 		expectedSQLC string
 		expectedPkg  string
 	}{
-		// TEXT affinity
 		{"text", "text", "string", "string", ""},
 		{"varchar", "varchar", "string", "string", ""},
 		{"char", "char", "string", "string", ""},
 		{"clob", "clob", "string", "string", ""},
-		
-		// INTEGER affinity  
+
 		{"integer", "integer", "int64", "int64", ""},
 		{"int", "int", "int64", "int64", ""},
 		{"tinyint", "tinyint", "int64", "int64", ""},
 		{"smallint", "smallint", "int64", "int64", ""},
 		{"bigint", "bigint", "int64", "int64", ""},
-		
-		// REAL affinity
+
 		{"real", "real", "float64", "float64", ""},
 		{"double", "double", "float64", "float64", ""},
 		{"float", "float", "float64", "float64", ""},
 		{"double precision", "double precision", "float64", "float64", ""},
-		
-		// NUMERIC affinity - special cases
+
 		{"boolean", "boolean", "bool", "bool", ""},
 		{"date", "date", "time.Time", "time.Time", ""},
 		{"datetime", "datetime", "time.Time", "time.Time", ""},
 		{"numeric", "numeric", "float64", "float64", ""},
 		{"decimal", "decimal", "float64", "float64", ""},
-		
-		// BLOB affinity
+
 		{"blob", "blob", "[]byte", "[]byte", ""},
 	}
 
@@ -89,25 +84,20 @@ func TestSQLiteTypeMapper_NullableTypes(t *testing.T) {
 		expectedSQLC string
 		expectedPkg  string
 	}{
-		// TEXT affinity nullable
 		{"text nullable", "text", "string", "sql.NullString", "database/sql"},
 		{"varchar nullable", "varchar", "string", "sql.NullString", "database/sql"},
-		
-		// INTEGER affinity nullable
+
 		{"integer nullable", "integer", "int64", "sql.NullInt64", "database/sql"},
 		{"bigint nullable", "bigint", "int64", "sql.NullInt64", "database/sql"},
-		
-		// REAL affinity nullable
+
 		{"real nullable", "real", "float64", "sql.NullFloat64", "database/sql"},
 		{"double nullable", "double", "float64", "sql.NullFloat64", "database/sql"},
-		
-		// NUMERIC affinity nullable
+
 		{"boolean nullable", "boolean", "bool", "sql.NullBool", "database/sql"},
 		{"date nullable", "date", "time.Time", "sql.NullTime", "database/sql"},
 		{"datetime nullable", "datetime", "time.Time", "sql.NullTime", "database/sql"},
 		{"numeric nullable", "numeric", "float64", "sql.NullFloat64", "database/sql"},
-		
-		// BLOB is never nullable (it's always []byte)
+
 		{"blob", "blob", "[]byte", "[]byte", ""},
 	}
 
@@ -157,7 +147,7 @@ func TestSQLiteTypeNormalization(t *testing.T) {
 	}{
 		{"VARCHAR(255)", "varchar"},
 		{"TEXT", "text"},
-		{"INTEGER", "integer"},  
+		{"INTEGER", "integer"},
 		{"REAL", "real"},
 		{"BLOB", "blob"},
 		{"BOOLEAN", "boolean"},

@@ -31,9 +31,10 @@ func NewTypeMapper(databaseType string) *TypeMapper {
 		Overrides:    make([]TypeOverride, 0),
 	}
 
-	if databaseType == "postgresql" {
+	switch databaseType {
+	case "postgresql":
 		tm.initPostgreSQLMappings()
-	} else if databaseType == "sqlite" {
+	case "sqlite":
 		tm.initSQLiteMappings()
 	}
 
@@ -66,14 +67,15 @@ func (tm *TypeMapper) MapSQLTypeToGo(
 		return "uuid.UUID", "uuid.UUID", "github.com/google/uuid", nil
 	}
 
-	if tm.DatabaseType == "postgresql" {
+	switch tm.DatabaseType {
+	case "postgresql":
 		goType, sqlcType, packageName = tm.getPostgreSQLType(normalizedType, nullable)
-	} else if tm.DatabaseType == "sqlite" {
+	case "sqlite":
 		goType, sqlcType, packageName = tm.getSQLiteType(normalizedType, nullable)
-	} else {
+	default:
 		goType, sqlcType, packageName = tm.getPostgreSQLType(normalizedType, nullable)
 	}
-	
+
 	if goType == "" {
 		return "interface{}", "interface{}", "", nil
 	}
@@ -138,8 +140,7 @@ func (tm *TypeMapper) GenerateConversionFromDB(fieldName, sqlcType, goType strin
 			return fmt.Sprintf("row.%s", fieldName)
 		}
 	}
-	
-	// Handle SQLite sql.Null* types
+
 	if strings.HasPrefix(sqlcType, "sql.Null") {
 		switch sqlcType {
 		case "sql.NullString":
@@ -156,7 +157,7 @@ func (tm *TypeMapper) GenerateConversionFromDB(fieldName, sqlcType, goType strin
 			return fmt.Sprintf("row.%s", fieldName)
 		}
 	}
-	
+
 	return fmt.Sprintf("row.%s", fieldName)
 }
 
@@ -379,32 +380,41 @@ func (tm *TypeMapper) getSQLiteType(
 	normalizedType string,
 	nullable bool,
 ) (goType, sqlcType, packageName string) {
-	// SQLite uses type affinity system with 5 storage classes:
-	// TEXT, NUMERIC, INTEGER, REAL, BLOB
-	
 	switch normalizedType {
-	// TEXT affinity - strings
-	case "varchar", "text", "char", "clob", "character", "varying character", "nchar", "native character", "nvarchar":
+	case "varchar",
+		"text",
+		"char",
+		"clob",
+		"character",
+		"varying character",
+		"nchar",
+		"native character",
+		"nvarchar":
 		if nullable {
 			return "string", "sql.NullString", "database/sql"
 		}
 		return "string", "string", ""
-		
-	// INTEGER affinity - integers
-	case "int", "integer", "tinyint", "smallint", "mediumint", "bigint", "unsigned big int", "int2", "int8":
+
+	case "int",
+		"integer",
+		"tinyint",
+		"smallint",
+		"mediumint",
+		"bigint",
+		"unsigned big int",
+		"int2",
+		"int8":
 		if nullable {
 			return "int64", "sql.NullInt64", "database/sql"
 		}
 		return "int64", "int64", ""
-		
-	// REAL affinity - floating point
+
 	case "real", "double", "double precision", "float":
 		if nullable {
 			return "float64", "sql.NullFloat64", "database/sql"
 		}
 		return "float64", "float64", ""
-		
-	// NUMERIC affinity - can store any type, but we'll map common cases
+
 	case "numeric", "decimal", "boolean", "date", "datetime":
 		if normalizedType == "boolean" {
 			if nullable {
@@ -418,16 +428,14 @@ func (tm *TypeMapper) getSQLiteType(
 			}
 			return "time.Time", "time.Time", ""
 		}
-		// Default numeric to float64
 		if nullable {
 			return "float64", "sql.NullFloat64", "database/sql"
 		}
 		return "float64", "float64", ""
-		
-	// BLOB affinity - binary data
+
 	case "blob":
 		return "[]byte", "[]byte", ""
-		
+
 	default:
 		return "", "", ""
 	}
@@ -482,8 +490,7 @@ func (tm *TypeMapper) GenerateConversionToDB(
 			return valueExpr
 		}
 	}
-	
-	// Handle SQLite sql.Null* types
+
 	if strings.HasPrefix(sqlcType, "sql.Null") {
 		switch sqlcType {
 		case "sql.NullString":
@@ -500,7 +507,7 @@ func (tm *TypeMapper) GenerateConversionToDB(
 			return valueExpr
 		}
 	}
-	
+
 	return valueExpr
 }
 
@@ -534,7 +541,6 @@ func normalizeSQLType(sqlType string) string {
 	}
 
 	switch normalizedType {
-	// PostgreSQL-specific normalizations
 	case "int4":
 		return "integer"
 	case "int8":
@@ -559,8 +565,7 @@ func normalizeSQLType(sqlType string) string {
 		return "_integer"
 	case "text[]":
 		return "_text"
-	
-	// SQLite-specific normalizations
+
 	case "native character", "nchar":
 		return "char"
 	case "nvarchar":
@@ -629,7 +634,6 @@ func FormatCamelCase(dbColumnName string) string {
 	return builder.String()
 }
 
-// DatabaseType returns the database type for this type mapper
 func (tm *TypeMapper) GetDatabaseType() string {
 	return tm.DatabaseType
 }
