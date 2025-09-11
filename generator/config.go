@@ -3,7 +3,9 @@ package generator
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
+	"github.com/mbvlabs/andurel/generator/files"
 	"gopkg.in/yaml.v3"
 )
 
@@ -48,7 +50,13 @@ type SQLConfig struct {
 
 // readDatabaseTypeFromSQLCYAML reads the database type from database/sqlc.yaml
 func readDatabaseTypeFromSQLCYAML() (string, error) {
-	sqlcPath := "database/sqlc.yaml"
+	manager := files.NewManager()
+	rootDir, err := manager.FindGoModRoot()
+	if err != nil {
+		return "", fmt.Errorf("failed to find go.mod root: %w", err)
+	}
+	
+	sqlcPath := filepath.Join(rootDir, "database", "sqlc.yaml")
 	
 	// Check if sqlc.yaml exists
 	if _, err := os.Stat(sqlcPath); os.IsNotExist(err) {
