@@ -32,7 +32,7 @@ func FindPost(
 	return rowToPost(row), nil
 }
 
-type CreatePostPayload struct {
+type CreatePostData struct {
 	Title       string
 	AuthorId    int32
 	PublishedAt time.Time
@@ -41,7 +41,7 @@ type CreatePostPayload struct {
 func CreatePost(
 	ctx context.Context,
 	dbtx db.DBTX,
-	data CreatePostPayload,
+	data CreatePostData,
 ) (Post, error) {
 	if err := validate.Struct(data); err != nil {
 		return Post{}, errors.Join(ErrDomainValidation, err)
@@ -60,7 +60,7 @@ func CreatePost(
 	return rowToPost(row), nil
 }
 
-type UpdatePostPayload struct {
+type UpdatePostData struct {
 	ID          uuid.UUID
 	Title       string
 	AuthorId    int32
@@ -70,7 +70,7 @@ type UpdatePostPayload struct {
 func UpdatePost(
 	ctx context.Context,
 	dbtx db.DBTX,
-	data UpdatePostPayload,
+	data UpdatePostData,
 ) (Post, error) {
 	if err := validate.Struct(data); err != nil {
 		return Post{}, errors.Join(ErrDomainValidation, err)
@@ -81,23 +81,23 @@ func UpdatePost(
 		return Post{}, err
 	}
 
-	payload := db.UpdatePostParams{
+	data := db.UpdatePostParams{
 		ID:          data.ID,
 		Title:       currentRow.Title,
 		AuthorId:    currentRow.AuthorId,
 		PublishedAt: currentRow.PublishedAt,
 	}
 	if true {
-		payload.Title = data.Title
+		data.Title = data.Title
 	}
 	if true {
-		payload.AuthorId = pgtype.Int4{Int32: data.AuthorId, Valid: true}
+		data.AuthorId = pgtype.Int4{Int32: data.AuthorId, Valid: true}
 	}
 	if true {
-		payload.PublishedAt = pgtype.Timestamptz{Time: data.PublishedAt, Valid: true}
+		data.PublishedAt = pgtype.Timestamptz{Time: data.PublishedAt, Valid: true}
 	}
 
-	row, err := db.New().UpdatePost(ctx, dbtx, payload)
+	row, err := db.New().UpdatePost(ctx, dbtx, data)
 	if err != nil {
 		return Post{}, err
 	}

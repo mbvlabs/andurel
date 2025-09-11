@@ -78,8 +78,8 @@ type CreateUserFormPayload struct {
 }
 
 func (r Users) Create(c echo.Context) error {
-	var formPayload CreateUserFormPayload
-	if err := c.Bind(&formPayload); err != nil {
+	var payload CreateUserFormPayload
+	if err := c.Bind(&payload); err != nil {
 		slog.ErrorContext(
 			c.Request().Context(),
 			"could not parse CreateUserFormPayload",
@@ -90,17 +90,17 @@ func (r Users) Create(c echo.Context) error {
 		return render(c, views.NotFound())
 	}
 
-	payload := models.CreateUserPayload{
-		Email:    formPayload.Email,
-		Name:     formPayload.Name,
-		Age:      formPayload.Age,
-		IsActive: formPayload.IsActive,
+	data := models.CreateUserData{
+		Email:    payload.Email,
+		Name:     payload.Name,
+		Age:      payload.Age,
+		IsActive: payload.IsActive,
 	}
 
 	user, err := models.CreateUser(
 		c.Request().Context(),
 		r.db.Pool(),
-		payload,
+		data,
 	)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to create user: %v", err)); flashErr != nil {
@@ -143,8 +143,8 @@ func (r Users) Update(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
-	var formPayload UpdateUserFormPayload
-	if err := c.Bind(&formPayload); err != nil {
+	var payload UpdateUserFormPayload
+	if err := c.Bind(&payload); err != nil {
 		slog.ErrorContext(
 			c.Request().Context(),
 			"could not parse UpdateUserFormPayload",
@@ -155,18 +155,18 @@ func (r Users) Update(c echo.Context) error {
 		return render(c, views.NotFound())
 	}
 
-	payload := models.UpdateUserPayload{
+	data := models.UpdateUserData{
 		ID:       userID,
-		Email:    formPayload.Email,
-		Name:     formPayload.Name,
-		Age:      formPayload.Age,
-		IsActive: formPayload.IsActive,
+		Email:    payload.Email,
+		Name:     payload.Name,
+		Age:      payload.Age,
+		IsActive: payload.IsActive,
 	}
 
 	user, err := models.UpdateUser(
 		c.Request().Context(),
 		r.db.Pool(),
-		payload,
+		data,
 	)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to update user: %v", err)); flashErr != nil {

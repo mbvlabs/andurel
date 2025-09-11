@@ -89,8 +89,8 @@ type Create{{.ResourceName}}FormPayload struct {
 }
 
 func (r {{.ResourceName}}s) Create(c echo.Context) error {
-	var formPayload Create{{.ResourceName}}FormPayload
-	if err := c.Bind(&formPayload); err != nil {
+	var payload Create{{.ResourceName}}FormPayload
+	if err := c.Bind(&payload); err != nil {
 		slog.ErrorContext(
 			c.Request().Context(),
 			"could not parse Create{{.ResourceName}}FormPayload",
@@ -101,21 +101,21 @@ func (r {{.ResourceName}}s) Create(c echo.Context) error {
 		return render(c, views.NotFound())
 	}
 
-	payload := models.Create{{.ResourceName}}Payload{
+	data := models.Create{{.ResourceName}}Data{
 {{- range .Fields}}
 {{- if not .IsSystemField}}
 		{{- if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
-			if formPayload.{{.Name}} == "" {
+			if payload.{{.Name}} == "" {
 				return time.Time{}
 			}
-			if t, err := time.Parse("2006-01-02", formPayload.{{.Name}}); err == nil {
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
 				return t
 			}
 			return time.Time{}
 		}(),
 		{{- else}}
-		{{.Name}}:    formPayload.{{.Name}},
+		{{.Name}}:    payload.{{.Name}},
 		{{- end}}
 {{- end}}
 {{- end}}
@@ -124,7 +124,7 @@ func (r {{.ResourceName}}s) Create(c echo.Context) error {
 	{{.ResourceName | ToLower}}, err := models.Create{{.ResourceName}}(
 		c.Request().Context(),
 		r.db.Pool(),
-		payload,
+		data,
 	)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to create {{.ResourceName | ToLower}}: %v", err)); flashErr != nil {
@@ -172,8 +172,8 @@ func (r {{.ResourceName}}s) Update(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
-	var formPayload Update{{.ResourceName}}FormPayload
-	if err := c.Bind(&formPayload); err != nil {
+	var payload Update{{.ResourceName}}FormPayload
+	if err := c.Bind(&payload); err != nil {
 		slog.ErrorContext(
 			c.Request().Context(),
 			"could not parse Update{{.ResourceName}}FormPayload",
@@ -184,22 +184,22 @@ func (r {{.ResourceName}}s) Update(c echo.Context) error {
 		return render(c, views.NotFound())
 	}
 
-	payload := models.Update{{.ResourceName}}Payload{
+	data := models.Update{{.ResourceName}}data{
 		ID:      {{.ResourceName | ToLower}}ID,
 {{- range .Fields}}
 {{- if not .IsSystemField}}
 		{{- if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
-			if formPayload.{{.Name}} == "" {
+			if payload.{{.Name}} == "" {
 				return time.Time{}
 			}
-			if t, err := time.Parse("2006-01-02", formPayload.{{.Name}}); err == nil {
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
 				return t
 			}
 			return time.Time{}
 		}(),
 		{{- else}}
-		{{.Name}}:    formPayload.{{.Name}},
+		{{.Name}}:    payload.{{.Name}},
 		{{- end}}
 {{- end}}
 {{- end}}
@@ -208,7 +208,7 @@ func (r {{.ResourceName}}s) Update(c echo.Context) error {
 	{{.ResourceName | ToLower}}, err := models.Update{{.ResourceName}}(
 		c.Request().Context(),
 		r.db.Pool(),
-		payload,
+		data,
 	)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLower}}: %v", err)); flashErr != nil {

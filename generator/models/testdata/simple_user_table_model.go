@@ -34,7 +34,7 @@ func FindUser(
 	return rowToUser(row), nil
 }
 
-type CreateUserPayload struct {
+type CreateUserData struct {
 	Email    string
 	Name     string
 	Age      int32
@@ -44,7 +44,7 @@ type CreateUserPayload struct {
 func CreateUser(
 	ctx context.Context,
 	dbtx db.DBTX,
-	data CreateUserPayload,
+	data CreateUserData,
 ) (User, error) {
 	if err := validate.Struct(data); err != nil {
 		return User{}, errors.Join(ErrDomainValidation, err)
@@ -64,7 +64,7 @@ func CreateUser(
 	return rowToUser(row), nil
 }
 
-type UpdateUserPayload struct {
+type UpdateUserData struct {
 	ID        uuid.UUID
 	Email     string
 	Name      string
@@ -76,7 +76,7 @@ type UpdateUserPayload struct {
 func UpdateUser(
 	ctx context.Context,
 	dbtx db.DBTX,
-	data UpdateUserPayload,
+	data UpdateUserData,
 ) (User, error) {
 	if err := validate.Struct(data); err != nil {
 		return User{}, errors.Join(ErrDomainValidation, err)
@@ -87,7 +87,7 @@ func UpdateUser(
 		return User{}, err
 	}
 
-	payload := db.UpdateUserParams{
+	data := db.UpdateUserParams{
 		ID:       data.ID,
 		Email:    currentRow.Email,
 		Name:     currentRow.Name,
@@ -95,19 +95,19 @@ func UpdateUser(
 		IsActive: currentRow.IsActive,
 	}
 	if true {
-		payload.Email = data.Email
+		data.Email = data.Email
 	}
 	if true {
-		payload.Name = data.Name
+		data.Name = data.Name
 	}
 	if true {
-		payload.Age = pgtype.Int4{Int32: data.Age, Valid: true}
+		data.Age = pgtype.Int4{Int32: data.Age, Valid: true}
 	}
 	if true {
-		payload.IsActive = pgtype.Bool{Bool: data.IsActive, Valid: true}
+		data.IsActive = pgtype.Bool{Bool: data.IsActive, Valid: true}
 	}
 
-	row, err := db.New().UpdateUser(ctx, dbtx, payload)
+	row, err := db.New().UpdateUser(ctx, dbtx, data)
 	if err != nil {
 		return User{}, err
 	}

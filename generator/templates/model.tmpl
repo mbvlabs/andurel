@@ -35,7 +35,7 @@ func Find{{.Name}}(
 	return rowTo{{.Name}}(row), nil
 }
 
-type Create{{.Name}}Payload struct {
+type Create{{.Name}}Data struct {
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 	{{.Name}} {{.Type}}
@@ -46,7 +46,7 @@ type Create{{.Name}}Payload struct {
 func Create{{.Name}}(
 	ctx context.Context,
 	dbtx db.DBTX,
-	data Create{{.Name}}Payload,
+	data Create{{.Name}}Data,
 ) ({{.Name}}, error) {
 	if err := validate.Struct(data); err != nil {
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
@@ -68,7 +68,7 @@ func Create{{.Name}}(
 	return rowTo{{.Name}}(row), nil
 }
 
-type Update{{.Name}}Payload struct {
+type Update{{.Name}}Data struct {
 	ID uuid.UUID
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt")}}
@@ -80,7 +80,7 @@ type Update{{.Name}}Payload struct {
 func Update{{.Name}}(
 	ctx context.Context,
 	dbtx db.DBTX,
-	data Update{{.Name}}Payload,
+	data Update{{.Name}}Data,
 ) ({{.Name}}, error) {
 	if err := validate.Struct(data); err != nil {
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
@@ -91,7 +91,7 @@ func Update{{.Name}}(
 		return {{.Name}}{}, err
 	}
 
-	payload := db.Update{{.Name}}Params{
+	data := db.Update{{.Name}}Params{
 		ID: data.ID,
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
@@ -103,12 +103,12 @@ func Update{{.Name}}(
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 	if {{.ZeroCheck}} {
-		payload.{{.Name}} = {{.ConversionToDBForUpdate}}
+		data.{{.Name}} = {{.ConversionToDBForUpdate}}
 	}
 {{- end}}
 {{- end}}
 
-	row, err := db.New().Update{{.Name}}(ctx, dbtx, payload)
+	row, err := db.New().Update{{.Name}}(ctx, dbtx, data)
 	if err != nil {
 		return {{.Name}}{}, err
 	}

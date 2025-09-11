@@ -76,7 +76,7 @@ func FindComprehensiveExample(
 	return rowToComprehensiveExample(row), nil
 }
 
-type CreateComprehensiveExamplePayload struct {
+type CreateComprehensiveExampleData struct {
 	UuidId            uuid.UUID
 	SmallInt          int16
 	RegularInt        int32
@@ -130,7 +130,7 @@ type CreateComprehensiveExamplePayload struct {
 func CreateComprehensiveExample(
 	ctx context.Context,
 	dbtx db.DBTX,
-	data CreateComprehensiveExamplePayload,
+	data CreateComprehensiveExampleData,
 ) (ComprehensiveExample, error) {
 	if err := validate.Struct(data); err != nil {
 		return ComprehensiveExample{}, errors.Join(ErrDomainValidation, err)
@@ -194,7 +194,7 @@ func CreateComprehensiveExample(
 	return rowToComprehensiveExample(row), nil
 }
 
-type UpdateComprehensiveExamplePayload struct {
+type UpdateComprehensiveExampleData struct {
 	ID                uuid.UUID
 	UuidId            uuid.UUID
 	SmallInt          int16
@@ -249,7 +249,7 @@ type UpdateComprehensiveExamplePayload struct {
 func UpdateComprehensiveExample(
 	ctx context.Context,
 	dbtx db.DBTX,
-	data UpdateComprehensiveExamplePayload,
+	data UpdateComprehensiveExampleData,
 ) (ComprehensiveExample, error) {
 	if err := validate.Struct(data); err != nil {
 		return ComprehensiveExample{}, errors.Join(ErrDomainValidation, err)
@@ -260,7 +260,7 @@ func UpdateComprehensiveExample(
 		return ComprehensiveExample{}, err
 	}
 
-	payload := db.UpdateComprehensiveExampleParams{
+	data := db.UpdateComprehensiveExampleParams{
 		ID:                data.ID,
 		UuidId:            currentRow.UuidId,
 		SmallInt:          currentRow.SmallInt,
@@ -312,151 +312,151 @@ func UpdateComprehensiveExample(
 		NumericRange:      currentRow.NumericRange,
 	}
 	if data.UuidId != uuid.Nil {
-		payload.UuidId = data.UuidId
+		data.UuidId = data.UuidId
 	}
 	if true {
-		payload.SmallInt = data.SmallInt
+		data.SmallInt = data.SmallInt
 	}
 	if true {
-		payload.RegularInt = pgtype.Int4{Int32: data.RegularInt, Valid: true}
+		data.RegularInt = pgtype.Int4{Int32: data.RegularInt, Valid: true}
 	}
 	if true {
-		payload.BigInt = data.BigInt
+		data.BigInt = data.BigInt
 	}
 	if true {
-		payload.DecimalPrecise = data.DecimalPrecise
+		data.DecimalPrecise = data.DecimalPrecise
 	}
 	if true {
-		payload.NumericField = data.NumericField
+		data.NumericField = data.NumericField
 	}
 	if true {
-		payload.RealFloat = pgtype.Float4{Float32: data.RealFloat, Valid: true}
+		data.RealFloat = pgtype.Float4{Float32: data.RealFloat, Valid: true}
 	}
 	if true {
-		payload.DoubleFloat = data.DoubleFloat
+		data.DoubleFloat = data.DoubleFloat
 	}
 	if true {
-		payload.SmallSerial = data.SmallSerial
+		data.SmallSerial = data.SmallSerial
 	}
 	if true {
-		payload.BigSerial = pgtype.Int8{Int64: data.BigSerial, Valid: true}
+		data.BigSerial = pgtype.Int8{Int64: data.BigSerial, Valid: true}
 	}
 	if true {
-		payload.FixedChar = pgtype.Text{String: data.FixedChar, Valid: true}
+		data.FixedChar = pgtype.Text{String: data.FixedChar, Valid: true}
 	}
 	if true {
-		payload.VariableChar = data.VariableChar
+		data.VariableChar = data.VariableChar
 	}
 	if true {
-		payload.UnlimitedText = pgtype.Text{String: data.UnlimitedText, Valid: true}
+		data.UnlimitedText = pgtype.Text{String: data.UnlimitedText, Valid: true}
 	}
 	if true {
-		payload.TextWithDefault = pgtype.Text{String: data.TextWithDefault, Valid: true}
+		data.TextWithDefault = pgtype.Text{String: data.TextWithDefault, Valid: true}
 	}
 	if true {
-		payload.TextNotNull = data.TextNotNull
+		data.TextNotNull = data.TextNotNull
 	}
 	if true {
-		payload.IsActive = pgtype.Bool{Bool: data.IsActive, Valid: true}
+		data.IsActive = pgtype.Bool{Bool: data.IsActive, Valid: true}
 	}
 	if true {
-		payload.IsVerified = data.IsVerified
+		data.IsVerified = data.IsVerified
 	}
 	if true {
-		payload.NullableFlag = pgtype.Bool{Bool: data.NullableFlag, Valid: true}
+		data.NullableFlag = pgtype.Bool{Bool: data.NullableFlag, Valid: true}
 	}
 	if true {
-		payload.CreatedDate = pgtype.Date{Time: data.CreatedDate, Valid: true}
+		data.CreatedDate = pgtype.Date{Time: data.CreatedDate, Valid: true}
 	}
 	if true {
-		payload.BirthDate = pgtype.Date{Time: data.BirthDate, Valid: true}
+		data.BirthDate = pgtype.Date{Time: data.BirthDate, Valid: true}
 	}
 	if true {
-		payload.ExactTime = pgtype.Time{Time: data.ExactTime, Valid: true}
+		data.ExactTime = pgtype.Time{Time: data.ExactTime, Valid: true}
 	}
 	if true {
-		payload.TimeWithZone = pgtype.Timetz{Time: data.TimeWithZone, Valid: true}
+		data.TimeWithZone = pgtype.Timetz{Time: data.TimeWithZone, Valid: true}
 	}
 	if true {
-		payload.CreatedTimestamp = pgtype.Timestamp{Time: data.CreatedTimestamp, Valid: true}
+		data.CreatedTimestamp = pgtype.Timestamp{Time: data.CreatedTimestamp, Valid: true}
 	}
 	if true {
-		payload.UpdatedTimestamp = pgtype.Timestamp{Time: data.UpdatedTimestamp, Valid: true}
+		data.UpdatedTimestamp = pgtype.Timestamp{Time: data.UpdatedTimestamp, Valid: true}
 	}
 	if true {
-		payload.TimestampWithZone = pgtype.Timestamptz{Time: data.TimestampWithZone, Valid: true}
+		data.TimestampWithZone = pgtype.Timestamptz{Time: data.TimestampWithZone, Valid: true}
 	}
 	if true {
-		payload.DurationInterval = pgtype.Interval{Microseconds: data.DurationInterval, Valid: true}
+		data.DurationInterval = pgtype.Interval{Microseconds: data.DurationInterval, Valid: true}
 	}
 	if true {
-		payload.WorkHours = pgtype.Interval{Microseconds: data.WorkHours, Valid: true}
+		data.WorkHours = pgtype.Interval{Microseconds: data.WorkHours, Valid: true}
 	}
 	if true {
-		payload.FileData = data.FileData
+		data.FileData = data.FileData
 	}
 	if true {
-		payload.RequiredBinary = data.RequiredBinary
+		data.RequiredBinary = data.RequiredBinary
 	}
 	if true {
-		payload.IpAddress = pgtype.Inet{IPNet: data.IpAddress, Valid: true}
+		data.IpAddress = pgtype.Inet{IPNet: data.IpAddress, Valid: true}
 	}
 	if true {
-		payload.IpNetwork = pgtype.Inet{IPNet: data.IpNetwork, Valid: true}
+		data.IpNetwork = pgtype.Inet{IPNet: data.IpNetwork, Valid: true}
 	}
 	if true {
-		payload.MacAddress = pgtype.Inet{IPNet: data.MacAddress, Valid: true}
+		data.MacAddress = pgtype.Inet{IPNet: data.MacAddress, Valid: true}
 	}
 	if true {
-		payload.Mac8Address = pgtype.Inet{IPNet: data.Mac8Address, Valid: true}
+		data.Mac8Address = pgtype.Inet{IPNet: data.Mac8Address, Valid: true}
 	}
 	if true {
-		payload.PointLocation = data.PointLocation
+		data.PointLocation = data.PointLocation
 	}
 	if true {
-		payload.LineSegment = data.LineSegment
+		data.LineSegment = data.LineSegment
 	}
 	if true {
-		payload.RectangularBox = data.RectangularBox
+		data.RectangularBox = data.RectangularBox
 	}
 	if true {
-		payload.PathData = data.PathData
+		data.PathData = data.PathData
 	}
 	if true {
-		payload.PolygonShape = data.PolygonShape
+		data.PolygonShape = data.PolygonShape
 	}
 	if true {
-		payload.CircleArea = data.CircleArea
+		data.CircleArea = data.CircleArea
 	}
 	if true {
-		payload.JsonData = pgtype.JSON{Bytes: data.JsonData, Valid: true}
+		data.JsonData = pgtype.JSON{Bytes: data.JsonData, Valid: true}
 	}
 	if true {
-		payload.JsonbData = pgtype.JSONB{Bytes: data.JsonbData, Valid: true}
+		data.JsonbData = pgtype.JSONB{Bytes: data.JsonbData, Valid: true}
 	}
 	if true {
-		payload.JsonbNotNull = pgtype.JSONB{Bytes: data.JsonbNotNull, Valid: true}
+		data.JsonbNotNull = pgtype.JSONB{Bytes: data.JsonbNotNull, Valid: true}
 	}
 	if true {
-		payload.IntegerArray = pgtype.Array[int32]{Elements: data.IntegerArray, Valid: true}
+		data.IntegerArray = pgtype.Array[int32]{Elements: data.IntegerArray, Valid: true}
 	}
 	if true {
-		payload.TextArray = pgtype.Array[string]{Elements: data.TextArray, Valid: true}
+		data.TextArray = pgtype.Array[string]{Elements: data.TextArray, Valid: true}
 	}
 	if true {
-		payload.MultidimArray = pgtype.Array[int32]{Elements: data.MultidimArray, Valid: true}
+		data.MultidimArray = pgtype.Array[int32]{Elements: data.MultidimArray, Valid: true}
 	}
 	if true {
-		payload.IntRange = data.IntRange
+		data.IntRange = data.IntRange
 	}
 	if true {
-		payload.BigintRange = data.BigintRange
+		data.BigintRange = data.BigintRange
 	}
 	if true {
-		payload.NumericRange = data.NumericRange
+		data.NumericRange = data.NumericRange
 	}
 
-	row, err := db.New().UpdateComprehensiveExample(ctx, dbtx, payload)
+	row, err := db.New().UpdateComprehensiveExample(ctx, dbtx, data)
 	if err != nil {
 		return ComprehensiveExample{}, err
 	}
