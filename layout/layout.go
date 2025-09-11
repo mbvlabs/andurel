@@ -1,3 +1,4 @@
+// Package layout provides functionality to scaffold a new Go web application project
 package layout
 
 import (
@@ -7,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"text/template"
 
@@ -48,9 +48,6 @@ var Layout = []Element{
 		SubDirs: []Element{
 			{
 				RootDir: "app",
-			},
-			{
-				RootDir: "migrate",
 			},
 		},
 	},
@@ -127,7 +124,6 @@ func ScaffoldWithDatabase(targetDir, projectName, database string) error {
 		return fmt.Errorf("failed to create go.mod: %w", err)
 	}
 
-	// Create empty directories structure
 	for _, element := range Layout {
 		if err := createDirectoryStructure(targetDir, element); err != nil {
 			return fmt.Errorf("failed to create directory structure %s: %w", element.RootDir, err)
@@ -145,9 +141,13 @@ func ScaffoldWithDatabase(targetDir, projectName, database string) error {
 	return nil
 }
 
+type (
+	TmplTarget     string
+	TmplTargetPath string
+)
+
 func processTemplatedFiles(targetDir string, data TemplateData) error {
-	// Template mappings: template file -> target file path
-	templateMappings := map[string]string{
+	templateMappings := map[TmplTarget]TmplTargetPath{
 		// Core files
 		"database.tmpl":        "database/database.go",
 		"env.tmpl":             ".env.example",
@@ -167,8 +167,8 @@ func processTemplatedFiles(targetDir string, data TemplateData) error {
 		"css_theme.tmpl": "css/theme.css",
 
 		// Commands
-		"cmd_app_main.tmpl":     "cmd/app/main.go",
-		"cmd_migrate_main.tmpl": "cmd/migrate/main.go",
+		"cmd_app_main.tmpl": "cmd/app/main.go",
+		// "cmd_migrate_main.tmpl": "cmd/migrate/main.go",
 
 		// Config
 		"config_app.tmpl":    "config/app.go",
@@ -225,7 +225,7 @@ func processTemplatedFiles(targetDir string, data TemplateData) error {
 	}
 
 	for templateFile, targetPath := range templateMappings {
-		if err := processTemplate(targetDir, templateFile, targetPath, data); err != nil {
+		if err := processTemplate(targetDir, string(templateFile), string(targetPath), data); err != nil {
 			return fmt.Errorf("failed to process template %s: %w", templateFile, err)
 		}
 	}
@@ -234,7 +234,6 @@ func processTemplatedFiles(targetDir string, data TemplateData) error {
 }
 
 func processTemplate(targetDir, templateFile, targetPath string, data TemplateData) error {
-	// Read template content
 	content, err := templates.Files.ReadFile(templateFile)
 	if err != nil {
 		return fmt.Errorf("failed to read template %s: %w", templateFile, err)
@@ -242,24 +241,20 @@ func processTemplate(targetDir, templateFile, targetPath string, data TemplateDa
 
 	contentStr := string(content)
 
-	// For generated *_templ.go files, replace hardcoded import paths
 	if strings.HasSuffix(templateFile, "_templ.tmpl") {
 		contentStr = strings.ReplaceAll(contentStr, moduleName, data.ModuleName)
 	}
 
-	// Parse and execute template
 	tmpl, err := template.New(templateFile).Parse(contentStr)
 	if err != nil {
 		return fmt.Errorf("failed to parse template %s: %w", templateFile, err)
 	}
 
-	// Create target directory if needed
 	fullTargetPath := filepath.Join(targetDir, targetPath)
 	if err := os.MkdirAll(filepath.Dir(fullTargetPath), constants.DirPermissionDefault); err != nil {
 		return fmt.Errorf("failed to create directory for %s: %w", targetPath, err)
 	}
 
-	// Create and write to target file
 	file, err := os.Create(fullTargetPath)
 	if err != nil {
 		return fmt.Errorf("failed to create file %s: %w", targetPath, err)
@@ -293,7 +288,7 @@ func createDirectoryStructure(targetDir string, element Element) error {
 	return nil
 }
 
-const goVersion = "1.24.4"
+const goVersion = "1.25.0"
 
 func createGoMod(targetDir, projectName string) error {
 	goModPath := filepath.Join(targetDir, "go.mod")
@@ -316,11 +311,6 @@ func initializeGit(targetDir string) error {
 	cmd := exec.Command("git", "init")
 	cmd.Dir = targetDir
 	return cmd.Run()
-}
-
-func getCurrentFile() string {
-	_, filename, _, _ := runtime.Caller(0)
-	return filename
 }
 
 func generateRandomHex(bytes int) string {
