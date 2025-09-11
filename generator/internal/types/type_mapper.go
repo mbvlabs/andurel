@@ -45,9 +45,8 @@ func (tm *TypeMapper) initPostgreSQLMappings() {
 	tm.TypeMap["uuid"] = "uuid.UUID"
 }
 
+// TODO: is this needed?
 func (tm *TypeMapper) initSQLiteMappings() {
-	// SQLite has a more flexible type system based on type affinity
-	// We'll handle the main type affinities here
 }
 
 func (tm *TypeMapper) MapSQLTypeToGo(
