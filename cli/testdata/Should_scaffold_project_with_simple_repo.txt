@@ -17,8 +17,8 @@ controllers/controller.go
 controllers/pages.go
 css/base.css
 css/theme.css
+database/database.go
 database/migrations/.gitkeep
-database/psql.go
 database/queries/.gitkeep
 database/sqlc.yaml
 go.mod
@@ -865,10 +865,7 @@ body {
 }
 
 
-=== database/migrations/.gitkeep ===
-
-
-=== database/psql.go ===
+=== database/database.go ===
 
 package database
 
@@ -890,7 +887,7 @@ var (
 	ErrCommitTx   = errors.New("could not commit transaction")
 )
 
-//go:embed migrations/*.sql
+//go:embed migrations/*
 var Migrations embed.FS
 
 type Postgres struct {
@@ -949,6 +946,9 @@ func (p *Postgres) CommitTx(ctx context.Context, tx pgx.Tx) error {
 
 	return nil
 }
+
+
+=== database/migrations/.gitkeep ===
 
 
 === database/queries/.gitkeep ===

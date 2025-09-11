@@ -23,12 +23,12 @@ type Element struct {
 }
 
 type TemplateData struct {
-	ModuleName              string
-	Database                string
-	SessionKey              string
-	SessionEncryptionKey    string
-	TokenSigningKey         string
-	PasswordSalt           string
+	ModuleName           string
+	Database             string
+	SessionKey           string
+	SessionEncryptionKey string
+	TokenSigningKey      string
+	PasswordSalt         string
 }
 
 var Layout = []Element{
@@ -107,12 +107,12 @@ func Scaffold(targetDir, projectName string) error {
 
 func ScaffoldWithDatabase(targetDir, projectName, database string) error {
 	templateData := TemplateData{
-		ModuleName:              projectName,
-		Database:                database,
-		SessionKey:              generateRandomHex(64),
-		SessionEncryptionKey:    generateRandomHex(32),
-		TokenSigningKey:         generateRandomHex(32),
-		PasswordSalt:           generateRandomHex(16),
+		ModuleName:           projectName,
+		Database:             database,
+		SessionKey:           generateRandomHex(64),
+		SessionEncryptionKey: generateRandomHex(32),
+		TokenSigningKey:      generateRandomHex(32),
+		PasswordSalt:         generateRandomHex(16),
 	}
 
 	if err := os.MkdirAll(targetDir, constants.DirPermissionDefault); err != nil {
@@ -149,76 +149,76 @@ func processTemplatedFiles(targetDir string, data TemplateData) error {
 	// Template mappings: template file -> target file path
 	templateMappings := map[string]string{
 		// Core files
-		"database.tmpl":        "database/psql.go",
-		"env.tmpl":            ".env.example", 
+		"database.tmpl":        "database/database.go",
+		"env.tmpl":             ".env.example",
 		"database_config.tmpl": "config/database.go",
-		"sqlc.tmpl":           "database/sqlc.yaml",
-		"gitignore.tmpl":      ".gitignore",
-		"justfile.tmpl":       "justfile",
-		
+		"sqlc.tmpl":            "database/sqlc.yaml",
+		"gitignore.tmpl":       ".gitignore",
+		"justfile.tmpl":        "justfile",
+
 		// Assets
-		"assets_assets.tmpl":     "assets/assets.go",
-		"assets_css_tw.tmpl":     "assets/css/tw.css",
-		"assets_js_scripts.tmpl": "assets/js/scripts.js",
+		"assets_assets.tmpl":      "assets/assets.go",
+		"assets_css_tw.tmpl":      "assets/css/tw.css",
+		"assets_js_scripts.tmpl":  "assets/js/scripts.js",
 		"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc5.min.js",
-		
+
 		// CSS
 		"css_base.tmpl":  "css/base.css",
 		"css_theme.tmpl": "css/theme.css",
-		
+
 		// Commands
 		"cmd_app_main.tmpl":     "cmd/app/main.go",
 		"cmd_migrate_main.tmpl": "cmd/migrate/main.go",
-		
+
 		// Config
 		"config_app.tmpl":    "config/app.go",
-		"config_auth.tmpl":   "config/auth.go", 
+		"config_auth.tmpl":   "config/auth.go",
 		"config_config.tmpl": "config/config.go",
-		
+
 		// Controllers
 		"controllers_api.tmpl":        "controllers/api.go",
 		"controllers_assets.tmpl":     "controllers/assets.go",
 		"controllers_controller.tmpl": "controllers/controller.go",
 		"controllers_pages.tmpl":      "controllers/pages.go",
-		
+
 		// Database
 		"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
-		"database_queries_gitkeep.tmpl": "database/queries/.gitkeep",
-		
+		"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
+
 		// Models
 		"models_errors.tmpl":    "models/errors.go",
 		"models_validator.tmpl": "models/validator.go",
-		
+
 		// Router
-		"router_router.tmpl":           "router/router.go",
-		"router_cookies_cookies.tmpl":  "router/cookies/cookies.go",
-		"router_cookies_flash.tmpl":    "router/cookies/flash.go",
+		"router_router.tmpl":             "router/router.go",
+		"router_cookies_cookies.tmpl":    "router/cookies/cookies.go",
+		"router_cookies_flash.tmpl":      "router/cookies/flash.go",
 		"router_middleware_logging.tmpl": "router/middleware/logging.go",
-		
+
 		// Routes
-		"router_routes_routes.tmpl":  "router/routes/routes.go",
-		"router_routes_api.tmpl":     "router/routes/api.go",
-		"router_routes_assets.tmpl":  "router/routes/assets.go",
-		"router_routes_pages.tmpl":   "router/routes/pages.go",
-		
+		"router_routes_routes.tmpl": "router/routes/routes.go",
+		"router_routes_api.tmpl":    "router/routes/api.go",
+		"router_routes_assets.tmpl": "router/routes/assets.go",
+		"router_routes_pages.tmpl":  "router/routes/pages.go",
+
 		// Views
-		"views_layout.tmpl":       "views/layout.templ",
-		"views_home.tmpl":         "views/home.templ",
-		"views_bad_request.tmpl":  "views/bad_request.templ",
+		"views_layout.tmpl":         "views/layout.templ",
+		"views_home.tmpl":           "views/home.templ",
+		"views_bad_request.tmpl":    "views/bad_request.templ",
 		"views_internal_error.tmpl": "views/internal_error.templ",
-		"views_not_found.tmpl":    "views/not_found.templ",
-		
+		"views_not_found.tmpl":      "views/not_found.templ",
+
 		// View Components
 		"views_components_head.tmpl":   "views/components/head.templ",
 		"views_components_toasts.tmpl": "views/components/toasts.templ",
-		
+
 		// Generated Template Files
-		"views_layout_templ.tmpl":       "views/layout_templ.go",
-		"views_home_templ.tmpl":         "views/home_templ.go",
-		"views_bad_request_templ.tmpl":  "views/bad_request_templ.go",
+		"views_layout_templ.tmpl":         "views/layout_templ.go",
+		"views_home_templ.tmpl":           "views/home_templ.go",
+		"views_bad_request_templ.tmpl":    "views/bad_request_templ.go",
 		"views_internal_error_templ.tmpl": "views/internal_error_templ.go",
-		"views_not_found_templ.tmpl":    "views/not_found_templ.go",
-		
+		"views_not_found_templ.tmpl":      "views/not_found_templ.go",
+
 		// Generated Component Files
 		"views_components_head_templ.tmpl":   "views/components/head_templ.go",
 		"views_components_toasts_templ.tmpl": "views/components/toasts_templ.go",
@@ -241,7 +241,7 @@ func processTemplate(targetDir, templateFile, targetPath string, data TemplateDa
 	}
 
 	contentStr := string(content)
-	
+
 	// For generated *_templ.go files, replace hardcoded import paths
 	if strings.HasSuffix(templateFile, "_templ.tmpl") {
 		contentStr = strings.ReplaceAll(contentStr, moduleName, data.ModuleName)
@@ -275,14 +275,18 @@ func processTemplate(targetDir, templateFile, targetPath string, data TemplateDa
 
 func createDirectoryStructure(targetDir string, element Element) error {
 	elementTargetPath := filepath.Join(targetDir, element.RootDir)
-	
+
 	if err := os.MkdirAll(elementTargetPath, constants.DirPermissionDefault); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", elementTargetPath, err)
 	}
 
 	for _, subElement := range element.SubDirs {
 		if err := createDirectoryStructure(elementTargetPath, subElement); err != nil {
-			return fmt.Errorf("failed to create sub-directory structure %s: %w", subElement.RootDir, err)
+			return fmt.Errorf(
+				"failed to create sub-directory structure %s: %w",
+				subElement.RootDir,
+				err,
+			)
 		}
 	}
 
@@ -308,7 +312,6 @@ func runGoModTidy(targetDir string) error {
 	return cmd.Run()
 }
 
-
 func initializeGit(targetDir string) error {
 	cmd := exec.Command("git", "init")
 	cmd.Dir = targetDir
@@ -319,7 +322,6 @@ func getCurrentFile() string {
 	_, filename, _, _ := runtime.Caller(0)
 	return filename
 }
-
 
 func generateRandomHex(bytes int) string {
 	randomBytes := make([]byte, bytes)
