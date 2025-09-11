@@ -99,7 +99,7 @@ var (
 	ErrCommitTx   = errors.New("could not commit transaction")
 )
 
-//go:embed migrations/*.sql
+//go:embed migrations/*
 var Migrations embed.FS
 
 type SQLite struct {
@@ -121,7 +121,7 @@ func NewSQLite(ctx context.Context) (SQLite, error) {
 	return SQLite{db}, nil
 }
 
-func (s *SQLite) DB() *sql.DB {
+func (s *SQLite) Conn() *sql.DB {
 	return s.db
 }
 

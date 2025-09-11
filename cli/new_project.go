@@ -23,6 +23,9 @@ dependencies, and configuration.`,
 	projectCmd.Flags().
 		StringP("repo", "r", "", "GitHub username (i.e. mbvlabs or github.com/mbvlabs (optional)")
 
+	projectCmd.Flags().
+		StringP("database", "d", "", "Database to use (postgresql, sqlite) (optional, default: postgres)")
+
 	return projectCmd
 }
 
@@ -36,11 +39,16 @@ func newProject(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if repo != "" {
-		projectName = repo + "/" + projectName
+	database, err := cmd.Flags().GetString("database")
+	if err != nil {
+		return err
 	}
 
-	if err := layout.Scaffold(basePath, projectName); err != nil {
+	if database == "" {
+		database = "postgresql"
+	}
+
+	if err := layout.Scaffold(basePath, projectName, repo, database); err != nil {
 		return err
 	}
 

@@ -1,3 +1,4 @@
+// Package cli provides the command-line interface for the Andurel framework.
 package cli
 
 import (

@@ -2,7 +2,9 @@ set dotenv-load
 
 # alias
 alias r := run
+{{- if eq .Database "postgresql"}}
 alias cdd := connect-database-docker
+{{- end}}
 
 default:
     @just --list

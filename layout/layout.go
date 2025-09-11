@@ -23,6 +23,7 @@ type Element struct {
 }
 
 type TemplateData struct {
+	ProjectName          string
 	ModuleName           string
 	Database             string
 	SessionKey           string
@@ -98,13 +99,19 @@ var Layout = []Element{
 	},
 }
 
-func Scaffold(targetDir, projectName string) error {
-	return ScaffoldWithDatabase(targetDir, projectName, "postgresql")
+func Scaffold(targetDir, projectName, repo, database string) error {
+	return ScaffoldWithDatabase(targetDir, projectName, repo, database)
 }
 
-func ScaffoldWithDatabase(targetDir, projectName, database string) error {
+func ScaffoldWithDatabase(targetDir, projectName, repo, database string) error {
+	moduleName := projectName
+	if repo != "" {
+		moduleName = repo + "/" + projectName
+	}
+
 	templateData := TemplateData{
-		ModuleName:           projectName,
+		ProjectName:          projectName,
+		ModuleName:           moduleName,
 		Database:             database,
 		SessionKey:           generateRandomHex(64),
 		SessionEncryptionKey: generateRandomHex(32),
@@ -120,13 +127,19 @@ func ScaffoldWithDatabase(targetDir, projectName, database string) error {
 		return fmt.Errorf("failed to process templated files: %w", err)
 	}
 
-	if err := createGoMod(targetDir, projectName); err != nil {
+	if err := createGoMod(targetDir, moduleName); err != nil {
 		return fmt.Errorf("failed to create go.mod: %w", err)
 	}
 
 	for _, element := range Layout {
 		if err := createDirectoryStructure(targetDir, element); err != nil {
 			return fmt.Errorf("failed to create directory structure %s: %w", element.RootDir, err)
+		}
+	}
+
+	if database == "sqlite" {
+		if err := createSqliteDB(targetDir, projectName); err != nil {
+			return fmt.Errorf("failed to create go.mod: %w", err)
 		}
 	}
 
@@ -149,12 +162,11 @@ type (
 func processTemplatedFiles(targetDir string, data TemplateData) error {
 	templateMappings := map[TmplTarget]TmplTargetPath{
 		// Core files
-		"database.tmpl":        "database/database.go",
-		"env.tmpl":             ".env.example",
-		"database_config.tmpl": "config/database.go",
-		"sqlc.tmpl":            "database/sqlc.yaml",
-		"gitignore.tmpl":       ".gitignore",
-		"justfile.tmpl":        "justfile",
+		"database.tmpl":  "database/database.go",
+		"env.tmpl":       ".env.example",
+		"sqlc.tmpl":      "database/sqlc.yaml",
+		"gitignore.tmpl": ".gitignore",
+		"justfile.tmpl":  "justfile",
 
 		// Assets
 		"assets_assets.tmpl":      "assets/assets.go",
@@ -168,12 +180,12 @@ func processTemplatedFiles(targetDir string, data TemplateData) error {
 
 		// Commands
 		"cmd_app_main.tmpl": "cmd/app/main.go",
-		// "cmd_migrate_main.tmpl": "cmd/migrate/main.go",
 
 		// Config
-		"config_app.tmpl":    "config/app.go",
-		"config_auth.tmpl":   "config/auth.go",
-		"config_config.tmpl": "config/config.go",
+		"config_app.tmpl":      "config/app.go",
+		"config_auth.tmpl":     "config/auth.go",
+		"config_config.tmpl":   "config/config.go",
+		"config_database.tmpl": "config/database.go",
 
 		// Controllers
 		"controllers_api.tmpl":        "controllers/api.go",
@@ -299,6 +311,12 @@ func createGoMod(targetDir, projectName string) error {
 	)
 
 	return os.WriteFile(goModPath, []byte(goModContent), 0o644)
+}
+
+func createSqliteDB(targetDir, projectName string) error {
+	goModPath := filepath.Join(targetDir, projectName+".db")
+
+	return os.WriteFile(goModPath, nil, 0o644)
 }
 
 func runGoModTidy(targetDir string) error {

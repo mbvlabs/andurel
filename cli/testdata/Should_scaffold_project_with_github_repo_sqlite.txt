@@ -24,6 +24,7 @@ go.mod
 justfile
 models/errors.go
 models/validator.go
+myapp.db
 router/cookies/cookies.go
 router/cookies/flash.go
 router/middleware/logging.go
@@ -54,13 +55,9 @@ SERVER_HOST=localhost
 SERVER_PORT=8080
 DEFAULT_SENDER_SIGNATURE=info@andurel.com
 
-DB_KIND=postgres
-DB_PORT=5432
-DB_HOST=127.0.0.1
-DB_NAME=andurel
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_SSL_MODE=disable
+
+DB_KIND=sqlite3
+DB_PATH=./myapp.db
 
 PASSWORD_SALT=test_password_salt_value
 
@@ -169,9 +166,9 @@ func startServer(ctx context.Context, srv *http.Server, env string) error {
 
 	return srv.ListenAndServe()
 }
-func setupControllers(psql database.Postgres) (controllers.Controllers, error) {
+func setupControllers(sqlite database.SQLite) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
-		psql,
+		sqlite,
 	)
 	if err != nil {
 		return controllers.Controllers{}, err
@@ -194,12 +191,12 @@ func setupRouter(ctrl controllers.Controllers) (*echo.Echo, error) {
 func run(ctx context.Context) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
-	psql, err := database.NewPostgres(ctx)
+	sqlite, err := database.NewSQLite(ctx)
 	if err != nil {
 		return err
 	}
 
-	controllers, err := setupControllers(psql)
+	controllers, err := setupControllers(sqlite)
 	if err != nil {
 		return err
 	}
@@ -321,26 +318,17 @@ var (
 package config
 
 import (
-	"fmt"
 
 	"github.com/caarlos0/env/v10"
 )
 
 type database struct {
-	Port         string `env:"DB_PORT"`
-	Host         string `env:"DB_HOST"`
-	Name         string `env:"DB_NAME"`
-	User         string `env:"DB_USER"`
-	Password     string `env:"DB_PASSWORD"`
 	DatabaseKind string `env:"DB_KIND"`
-	SslMode      string `env:"DB_SSL_MODE"`
+	Path         string `env:"DB_PATH"`
 }
 
 func (d database) GetDatabaseURL() string {
-	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
-		d.DatabaseKind, d.User, d.Password, d.Host, d.Port,
-		d.Name, d.SslMode,
-	)
+	return d.Path
 }
 
 func newDatabaseConfig() database {
@@ -367,9 +355,9 @@ import (
 )
 
 type API struct {
-	db database.Postgres
+	db database.SQLite
 }
-func newAPI(db database.Postgres) API {
+func newAPI(db database.SQLite) API {
 	return API{db}
 }
 
@@ -609,7 +597,7 @@ type Controllers struct {
 	Pages  Pages
 }
 func New(
-	db database.Postgres,
+	db database.SQLite,
 ) (Controllers, error) {
 	cacheBuilder, err := otter.NewBuilder[string, templ.Component](20)
 	if err != nil {
@@ -672,11 +660,11 @@ import (
 )
 
 type Pages struct {
-	db    database.Postgres
+	db    database.SQLite
 	cache otter.CacheWithVariableTTL[string, templ.Component]
 }
 func newPages(
-	db database.Postgres,
+	db database.SQLite,
 	cache otter.CacheWithVariableTTL[string, templ.Component],
 ) Pages {
 	return Pages{db, cache}
@@ -752,14 +740,14 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"embed"
 	"errors"
 	"log/slog"
 
 	"github.com/testuser/myapp/config"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var (
@@ -771,37 +759,31 @@ var (
 //go:embed migrations/*
 var Migrations embed.FS
 
-type Postgres struct {
-	pool *pgxpool.Pool
+type SQLite struct {
+	db *sql.DB
 }
 
-func NewPostgres(ctx context.Context) (Postgres, error) {
-	cfg, err := pgxpool.ParseConfig(config.DB.GetDatabaseURL())
+func NewSQLite(ctx context.Context) (SQLite, error) {
+	db, err := sql.Open("sqlite3", config.DB.GetDatabaseURL())
 	if err != nil {
-		slog.ErrorContext(ctx, "could not parse database connection string", "error", err)
-		return Postgres{}, err
+		slog.ErrorContext(ctx, "could not open sqlite database", "error", err)
+		return SQLite{}, err
 	}
 
-	pool, err := pgxpool.NewWithConfig(ctx, cfg)
-	if err != nil {
-		slog.ErrorContext(ctx, "could not establish connection to database", "error", err)
-		return Postgres{}, err
-	}
-
-	if err := pool.Ping(ctx); err != nil {
+	if err := db.PingContext(ctx); err != nil {
 		slog.ErrorContext(ctx, "could not ping database", "error", err)
-		return Postgres{}, err
+		return SQLite{}, err
 	}
 
-	return Postgres{pool}, nil
+	return SQLite{db}, nil
 }
 
-func (p *Postgres) Pool() *pgxpool.Pool {
-	return p.pool
+func (s *SQLite) Conn() *sql.DB {
+	return s.db
 }
 
-func (p *Postgres) BeginTx(ctx context.Context) (pgx.Tx, error) {
-	tx, err := p.pool.Begin(ctx)
+func (s *SQLite) BeginTx(ctx context.Context) (*sql.Tx, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not begin transaction", "reason", err)
 		return nil, errors.Join(ErrBeginTx, err)
@@ -810,8 +792,8 @@ func (p *Postgres) BeginTx(ctx context.Context) (pgx.Tx, error) {
 	return tx, nil
 }
 
-func (p *Postgres) RollBackTx(ctx context.Context, tx pgx.Tx) error {
-	if err := tx.Rollback(ctx); err != nil {
+func (s *SQLite) RollBackTx(ctx context.Context, tx *sql.Tx) error {
+	if err := tx.Rollback(); err != nil {
 		slog.ErrorContext(ctx, "could not rollback transaction", "reason", err)
 		return errors.Join(ErrRollbackTx, err)
 	}
@@ -819,8 +801,8 @@ func (p *Postgres) RollBackTx(ctx context.Context, tx pgx.Tx) error {
 	return nil
 }
 
-func (p *Postgres) CommitTx(ctx context.Context, tx pgx.Tx) error {
-	if err := tx.Commit(ctx); err != nil {
+func (s *SQLite) CommitTx(ctx context.Context, tx *sql.Tx) error {
+	if err := tx.Commit(); err != nil {
 		slog.ErrorContext(ctx, "could not commit transaction", "reason", err)
 		return errors.Join(ErrCommitTx, err)
 	}
@@ -840,7 +822,7 @@ version: "2"
 sql:
   - schema: migrations
     queries: queries
-    engine: postgresql
+    engine: sqlite
     gen:
       go:
         package: db
@@ -848,7 +830,7 @@ sql:
         output_db_file_name: db.go
         output_models_file_name: entities.go
         emit_methods_with_db_argument: true
-        sql_package: pgx/v5
+      sql_package: "database/sql"
         overrides:
           - db_type: uuid
             go_type: github.com/google/uuid.UUID
@@ -873,9 +855,9 @@ require (
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/sessions v1.4.0
-	github.com/jackc/pgx/v5 v5.7.5
 	github.com/labstack/echo-contrib v0.17.4
 	github.com/labstack/echo/v4 v4.13.4
+	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/maypok86/otter v1.2.4
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.63.0
 	go.opentelemetry.io/otel v1.38.0
@@ -930,6 +912,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.7.5 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
@@ -1008,27 +991,23 @@ set dotenv-load
 
 # alias
 alias r := run
-alias cdd := connect-database-docker
 
 default:
     @just --list
 
 # database 
-connect-database-docker conntainer_id name:
-	docker exec -it {{conntainer_id}} psql -U postgres {{name}}
-
 create-migration name:
-	go tool goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME create {{name}} sql
+	go tool goose -dir database/migrations sqlite3 ./{{name}}.db create {{name}} sql
 
 fix-migrations:
-	go tool goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME fix
+	go tool goose -dir database/migrations sqlite3 ./database.db fix
 
 new-migration name: 
 	just create-migration {{name}}
 	just fix-migrations
 
 up-migrations:
-	go tool goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME up
+	go tool goose -dir database/migrations sqlite3 ./database.db up
 
 # sqlc
 compile-queries:
@@ -1116,6 +1095,9 @@ func setupValidator() *validator.Validate {
 	v := validator.New(validator.WithRequiredStructEnabled())
 	return v
 }
+
+
+=== myapp.db ===
 
 
 === router/cookies/cookies.go ===
