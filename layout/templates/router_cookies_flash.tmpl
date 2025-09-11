@@ -36,7 +36,7 @@ const (
 func AddFlash(
 	c echo.Context, flashType FlashType, msg string,
 ) error {
-	sess, err := session.Get(flashSession, c)
+	sess, err := session.Get(string(FlashKey), c)
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func AddFlash(
 		Type:      flashType,
 		CreatedAt: time.Now(),
 		Message:   msg,
-	}, string(FlashKey))
+	}, flashSession)
 
 	return sess.Save(c.Request(), c.Response())
 }
@@ -58,7 +58,7 @@ func GetFlashes(c echo.Context) ([]FlashMessage, error) {
 	}
 
 	var flashMessages []FlashMessage
-	for _, flash := range sess.Flashes(string(FlashKey)) {
+	for _, flash := range sess.Flashes(flashSession) {
 		if msg, ok := flash.(FlashMessage); ok {
 			flashMessages = append(flashMessages, msg)
 		}

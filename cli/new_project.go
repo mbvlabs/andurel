@@ -48,11 +48,7 @@ func newProject(cmd *cobra.Command, args []string) error {
 		database = "postgresql"
 	}
 
-	if repo != "" {
-		projectName = repo + "/" + projectName
-	}
-
-	if err := layout.Scaffold(basePath, projectName, database); err != nil {
+	if err := layout.Scaffold(basePath, projectName, repo, database); err != nil {
 		return err
 	}
 

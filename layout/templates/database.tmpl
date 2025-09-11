@@ -99,7 +99,7 @@ var (
 	ErrCommitTx   = errors.New("could not commit transaction")
 )
 
-//go:embed migrations/*.sql
+//go:embed migrations/*
 var Migrations embed.FS
 
 type SQLite struct {

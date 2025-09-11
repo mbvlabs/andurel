@@ -23,6 +23,7 @@ type Element struct {
 }
 
 type TemplateData struct {
+	ProjectName          string
 	ModuleName           string
 	Database             string
 	SessionKey           string
@@ -98,13 +99,19 @@ var Layout = []Element{
 	},
 }
 
-func Scaffold(targetDir, projectName, database string) error {
-	return ScaffoldWithDatabase(targetDir, projectName, database)
+func Scaffold(targetDir, projectName, repo, database string) error {
+	return ScaffoldWithDatabase(targetDir, projectName, repo, database)
 }
 
-func ScaffoldWithDatabase(targetDir, projectName, database string) error {
+func ScaffoldWithDatabase(targetDir, projectName, repo, database string) error {
+	moduleName := projectName
+	if repo != "" {
+		moduleName = repo + "/" + projectName
+	}
+
 	templateData := TemplateData{
-		ModuleName:           projectName,
+		ProjectName:          projectName,
+		ModuleName:           moduleName,
 		Database:             database,
 		SessionKey:           generateRandomHex(64),
 		SessionEncryptionKey: generateRandomHex(32),
@@ -120,13 +127,19 @@ func ScaffoldWithDatabase(targetDir, projectName, database string) error {
 		return fmt.Errorf("failed to process templated files: %w", err)
 	}
 
-	if err := createGoMod(targetDir, projectName); err != nil {
+	if err := createGoMod(targetDir, moduleName); err != nil {
 		return fmt.Errorf("failed to create go.mod: %w", err)
 	}
 
 	for _, element := range Layout {
 		if err := createDirectoryStructure(targetDir, element); err != nil {
 			return fmt.Errorf("failed to create directory structure %s: %w", element.RootDir, err)
+		}
+	}
+
+	if database == "sqlite" {
+		if err := createSqliteDB(targetDir, projectName); err != nil {
+			return fmt.Errorf("failed to create go.mod: %w", err)
 		}
 	}
 
@@ -298,6 +311,12 @@ func createGoMod(targetDir, projectName string) error {
 	)
 
 	return os.WriteFile(goModPath, []byte(goModContent), 0o644)
+}
+
+func createSqliteDB(targetDir, projectName string) error {
+	goModPath := filepath.Join(targetDir, projectName+".db")
+
+	return os.WriteFile(goModPath, nil, 0o644)
 }
 
 func runGoModTidy(targetDir string) error {
