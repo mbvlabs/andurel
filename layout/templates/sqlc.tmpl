@@ -15,12 +15,12 @@ sql:
         output_db_file_name: db.go
         output_models_file_name: entities.go
         emit_methods_with_db_argument: true
-	{{- if eq .Database "sqlite"}}
-      sql_package: "database/sql"
-	{{- end}}
-	{{- if eq .Database "postgresql"}}
+    {{- if eq .Database "sqlite"}}
+        sql_package: "database/sql"
+    {{- end}}
+    {{- if eq .Database "postgresql"}}
         sql_package: pgx/v5
-	{{- end}}
+    {{- end}}
         overrides:
           - db_type: uuid
             go_type: github.com/google/uuid.UUID
