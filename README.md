@@ -39,18 +39,6 @@ cp .env.example .env
 just run
 ```
 
-### Generate a Resource
-
-```bash
-# Generate a complete resource (model + controller + views)
-andurel generate resource User users --with-views
-
-# Generate individual components
-andurel generate model Product products
-andurel generate controller User
-andurel generate view User --with-controller
-```
-
 ## Architecture
 
 ### Project Structure
@@ -89,7 +77,7 @@ andurel new myapp --repo mbvlabs
 
 ```bash
 # Generate a complete resource (model + controller + views)
-andurel generate resource User users [--with-views]
+andurel generate resource User users
 
 # Generate individual components
 andurel generate model User users [--refresh]
@@ -98,15 +86,13 @@ andurel generate view User [--with-controller]
 
 # Aliases
 andurel g model User users
+andurel g model User users --refresh
+andurel g controller User --with-views
 andurel g controller User
-andurel g resource Product products --with-views
+andurel generate view User 
+andurel generate view User --with-controller
+andurel g resource Product products
 ```
-
-### Generation Options
-
-- `--refresh`: Refresh existing model while preserving custom code
-- `--with-views`: Generate view templates along with controllers
-- `--with-controller`: Generate controller along with views
 
 ## Framework Philosophy
 
