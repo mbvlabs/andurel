@@ -41,7 +41,6 @@ type CreateUserPayload struct {
 	Name     string
 	Age      int32
 	IsActive bool
-	Phone    string
 }
 
 func CreateUser(
@@ -74,7 +73,6 @@ type UpdateUserPayload struct {
 	Age       int32
 	IsActive  bool
 	UpdatedAt time.Time
-	Phone     string
 }
 
 func UpdateUser(

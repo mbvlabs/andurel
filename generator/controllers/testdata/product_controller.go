@@ -80,8 +80,8 @@ type CreateProductFormPayload struct {
 }
 
 func (r Products) Create(c echo.Context) error {
-	var formPayload CreateProductFormPayload
-	if err := c.Bind(&formPayload); err != nil {
+	var payload CreateProductFormPayload
+	if err := c.Bind(&payload); err != nil {
 		slog.ErrorContext(
 			c.Request().Context(),
 			"could not parse CreateProductFormPayload",
@@ -92,19 +92,19 @@ func (r Products) Create(c echo.Context) error {
 		return render(c, views.NotFound())
 	}
 
-	payload := models.CreateProductPayload{
-		Name:        formPayload.Name,
-		Price:       formPayload.Price,
-		Description: formPayload.Description,
-		CategoryId:  formPayload.CategoryId,
-		InStock:     formPayload.InStock,
-		Metadata:    formPayload.Metadata,
+	data := models.CreateProductData{
+		Name:        payload.Name,
+		Price:       payload.Price,
+		Description: payload.Description,
+		CategoryId:  payload.CategoryId,
+		InStock:     payload.InStock,
+		Metadata:    payload.Metadata,
 	}
 
 	product, err := models.CreateProduct(
 		c.Request().Context(),
 		r.db.Pool(),
-		payload,
+		data,
 	)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to create product: %v", err)); flashErr != nil {
@@ -149,8 +149,8 @@ func (r Products) Update(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
-	var formPayload UpdateProductFormPayload
-	if err := c.Bind(&formPayload); err != nil {
+	var payload UpdateProductFormPayload
+	if err := c.Bind(&payload); err != nil {
 		slog.ErrorContext(
 			c.Request().Context(),
 			"could not parse UpdateProductFormPayload",
@@ -161,20 +161,20 @@ func (r Products) Update(c echo.Context) error {
 		return render(c, views.NotFound())
 	}
 
-	payload := models.UpdateProductPayload{
+	data := models.UpdateProductData{
 		ID:          productID,
-		Name:        formPayload.Name,
-		Price:       formPayload.Price,
-		Description: formPayload.Description,
-		CategoryId:  formPayload.CategoryId,
-		InStock:     formPayload.InStock,
-		Metadata:    formPayload.Metadata,
+		Name:        payload.Name,
+		Price:       payload.Price,
+		Description: payload.Description,
+		CategoryId:  payload.CategoryId,
+		InStock:     payload.InStock,
+		Metadata:    payload.Metadata,
 	}
 
 	product, err := models.UpdateProduct(
 		c.Request().Context(),
 		r.db.Pool(),
-		payload,
+		data,
 	)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to update product: %v", err)); flashErr != nil {
