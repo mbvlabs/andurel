@@ -17,7 +17,7 @@ controllers/controller.go
 controllers/pages.go
 css/base.css
 css/theme.css
-database/migrations/placeholder_migration.sql
+database/migrations/.gitkeep
 database/psql.go
 database/queries/.gitkeep
 database/sqlc.yaml
@@ -870,11 +870,12 @@ body {
 }
 
 
-=== database/migrations/placeholder_migration.sql ===
+=== database/migrations/.gitkeep ===
 -- Only added for the compiler-delete when other migration files exist.
 
 
 === database/psql.go ===
+
 package database
 
 import (
@@ -954,7 +955,6 @@ func (p *Postgres) CommitTx(ctx context.Context, tx pgx.Tx) error {
 
 	return nil
 }
-
 
 === database/queries/.gitkeep ===
 
