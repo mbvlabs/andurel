@@ -33,6 +33,8 @@ func NewTypeMapper(databaseType string) *TypeMapper {
 
 	if databaseType == "postgresql" {
 		tm.initPostgreSQLMappings()
+	} else if databaseType == "sqlite" {
+		tm.initSQLiteMappings()
 	}
 
 	return tm
@@ -40,6 +42,11 @@ func NewTypeMapper(databaseType string) *TypeMapper {
 
 func (tm *TypeMapper) initPostgreSQLMappings() {
 	tm.TypeMap["uuid"] = "uuid.UUID"
+}
+
+func (tm *TypeMapper) initSQLiteMappings() {
+	// SQLite has a more flexible type system based on type affinity
+	// We'll handle the main type affinities here
 }
 
 func (tm *TypeMapper) MapSQLTypeToGo(
@@ -59,7 +66,14 @@ func (tm *TypeMapper) MapSQLTypeToGo(
 		return "uuid.UUID", "uuid.UUID", "github.com/google/uuid", nil
 	}
 
-	goType, sqlcType, packageName = tm.getPostgreSQLType(normalizedType, nullable)
+	if tm.DatabaseType == "postgresql" {
+		goType, sqlcType, packageName = tm.getPostgreSQLType(normalizedType, nullable)
+	} else if tm.DatabaseType == "sqlite" {
+		goType, sqlcType, packageName = tm.getSQLiteType(normalizedType, nullable)
+	} else {
+		goType, sqlcType, packageName = tm.getPostgreSQLType(normalizedType, nullable)
+	}
+	
 	if goType == "" {
 		return "interface{}", "interface{}", "", nil
 	}
@@ -124,6 +138,25 @@ func (tm *TypeMapper) GenerateConversionFromDB(fieldName, sqlcType, goType strin
 			return fmt.Sprintf("row.%s", fieldName)
 		}
 	}
+	
+	// Handle SQLite sql.Null* types
+	if strings.HasPrefix(sqlcType, "sql.Null") {
+		switch sqlcType {
+		case "sql.NullString":
+			return fmt.Sprintf("row.%s.String", fieldName)
+		case "sql.NullInt64":
+			return fmt.Sprintf("row.%s.Int64", fieldName)
+		case "sql.NullFloat64":
+			return fmt.Sprintf("row.%s.Float64", fieldName)
+		case "sql.NullBool":
+			return fmt.Sprintf("row.%s.Bool", fieldName)
+		case "sql.NullTime":
+			return fmt.Sprintf("row.%s.Time", fieldName)
+		default:
+			return fmt.Sprintf("row.%s", fieldName)
+		}
+	}
+	
 	return fmt.Sprintf("row.%s", fieldName)
 }
 
@@ -342,6 +375,64 @@ func (tm *TypeMapper) getPostgreSQLType(
 	}
 }
 
+func (tm *TypeMapper) getSQLiteType(
+	normalizedType string,
+	nullable bool,
+) (goType, sqlcType, packageName string) {
+	// SQLite uses type affinity system with 5 storage classes:
+	// TEXT, NUMERIC, INTEGER, REAL, BLOB
+	
+	switch normalizedType {
+	// TEXT affinity - strings
+	case "varchar", "text", "char", "clob", "character", "varying character", "nchar", "native character", "nvarchar":
+		if nullable {
+			return "string", "sql.NullString", "database/sql"
+		}
+		return "string", "string", ""
+		
+	// INTEGER affinity - integers
+	case "int", "integer", "tinyint", "smallint", "mediumint", "bigint", "unsigned big int", "int2", "int8":
+		if nullable {
+			return "int64", "sql.NullInt64", "database/sql"
+		}
+		return "int64", "int64", ""
+		
+	// REAL affinity - floating point
+	case "real", "double", "double precision", "float":
+		if nullable {
+			return "float64", "sql.NullFloat64", "database/sql"
+		}
+		return "float64", "float64", ""
+		
+	// NUMERIC affinity - can store any type, but we'll map common cases
+	case "numeric", "decimal", "boolean", "date", "datetime":
+		if normalizedType == "boolean" {
+			if nullable {
+				return "bool", "sql.NullBool", "database/sql"
+			}
+			return "bool", "bool", ""
+		}
+		if normalizedType == "date" || normalizedType == "datetime" {
+			if nullable {
+				return "time.Time", "sql.NullTime", "database/sql"
+			}
+			return "time.Time", "time.Time", ""
+		}
+		// Default numeric to float64
+		if nullable {
+			return "float64", "sql.NullFloat64", "database/sql"
+		}
+		return "float64", "float64", ""
+		
+	// BLOB affinity - binary data
+	case "blob":
+		return "[]byte", "[]byte", ""
+		
+	default:
+		return "", "", ""
+	}
+}
+
 func (tm *TypeMapper) GenerateConversionToDB(
 	sqlcType string,
 	goType string,
@@ -391,6 +482,25 @@ func (tm *TypeMapper) GenerateConversionToDB(
 			return valueExpr
 		}
 	}
+	
+	// Handle SQLite sql.Null* types
+	if strings.HasPrefix(sqlcType, "sql.Null") {
+		switch sqlcType {
+		case "sql.NullString":
+			return fmt.Sprintf("sql.NullString{String: %s, Valid: true}", valueExpr)
+		case "sql.NullInt64":
+			return fmt.Sprintf("sql.NullInt64{Int64: %s, Valid: true}", valueExpr)
+		case "sql.NullFloat64":
+			return fmt.Sprintf("sql.NullFloat64{Float64: %s, Valid: true}", valueExpr)
+		case "sql.NullBool":
+			return fmt.Sprintf("sql.NullBool{Bool: %s, Valid: true}", valueExpr)
+		case "sql.NullTime":
+			return fmt.Sprintf("sql.NullTime{Time: %s, Valid: true}", valueExpr)
+		default:
+			return valueExpr
+		}
+	}
+	
 	return valueExpr
 }
 
@@ -403,6 +513,9 @@ func (tm *TypeMapper) GenerateZeroCheck(
 		return fmt.Sprintf("%s != uuid.Nil", valueExpr)
 	default:
 		if strings.HasPrefix(goType, "pgtype.") {
+			return fmt.Sprintf("%s.Valid", valueExpr)
+		}
+		if strings.HasPrefix(goType, "sql.Null") {
 			return fmt.Sprintf("%s.Valid", valueExpr)
 		}
 		return "true"
@@ -421,6 +534,7 @@ func normalizeSQLType(sqlType string) string {
 	}
 
 	switch normalizedType {
+	// PostgreSQL-specific normalizations
 	case "int4":
 		return "integer"
 	case "int8":
@@ -435,7 +549,7 @@ func normalizeSQLType(sqlType string) string {
 		return "boolean"
 	case "time with time zone":
 		return "timetz"
-	case "character varying":
+	case "character varying", "varying character":
 		return "varchar"
 	case "character":
 		return "char"
@@ -445,6 +559,14 @@ func normalizeSQLType(sqlType string) string {
 		return "_integer"
 	case "text[]":
 		return "_text"
+	
+	// SQLite-specific normalizations
+	case "native character", "nchar":
+		return "char"
+	case "nvarchar":
+		return "varchar"
+	case "unsigned big int":
+		return "bigint"
 	}
 
 	return normalizedType
@@ -505,6 +627,11 @@ func FormatCamelCase(dbColumnName string) string {
 		}
 	}
 	return builder.String()
+}
+
+// DatabaseType returns the database type for this type mapper
+func (tm *TypeMapper) GetDatabaseType() string {
+	return tm.DatabaseType
 }
 
 type SQLCConfig struct {
