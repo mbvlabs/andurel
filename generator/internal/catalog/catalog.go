@@ -320,3 +320,117 @@ func (c *Catalog) AddEnum(schemaName string, enum *Enum) error {
 	schema.Enums[enum.Name] = enum
 	return nil
 }
+
+// GetRelatedTables returns tables that have foreign key relationships with the given table
+func (c *Catalog) GetRelatedTables(tableName string) ([]*Table, error) {
+	schema, err := c.GetSchema("")
+	if err != nil {
+		return nil, err
+	}
+
+	var relatedTables []*Table
+	tableSet := make(map[string]bool)
+
+	// Find tables that reference this table (one-to-many from this table's perspective)
+	for _, table := range schema.Tables {
+		for _, fk := range table.ForeignKeys {
+			if fk.ReferencedTable == tableName {
+				if !tableSet[table.Name] {
+					relatedTables = append(relatedTables, table)
+					tableSet[table.Name] = true
+				}
+			}
+		}
+	}
+
+	// Find tables that this table references (many-to-one from this table's perspective)
+	targetTable, err := c.GetTable("", tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, fk := range targetTable.ForeignKeys {
+		if !tableSet[fk.ReferencedTable] {
+			if refTable, err := c.GetTable("", fk.ReferencedTable); err == nil {
+				relatedTables = append(relatedTables, refTable)
+				tableSet[fk.ReferencedTable] = true
+			}
+		}
+	}
+
+	return relatedTables, nil
+}
+
+// GetRelationshipGraph builds a complete relationship graph for all tables in the catalog
+func (c *Catalog) GetRelationshipGraph() (*RelationshipGraph, error) {
+	schema, err := c.GetSchema("")
+	if err != nil {
+		return nil, err
+	}
+
+	graph := NewRelationshipGraph()
+
+	// Add all tables to the graph
+	for _, table := range schema.Tables {
+		graph.AddTable(table)
+	}
+
+	// Build relations for each table
+	for tableName := range schema.Tables {
+		relations := c.discoverRelationsForTable(tableName, schema)
+		for _, relation := range relations {
+			graph.AddRelation(tableName, relation)
+		}
+	}
+
+	return graph, nil
+}
+
+// discoverRelationsForTable discovers all relations for a specific table
+func (c *Catalog) discoverRelationsForTable(tableName string, schema *Schema) []*Relation {
+	var relations []*Relation
+	table := schema.Tables[tableName]
+
+	// One-to-Many and Many-to-One relations from foreign keys
+	for _, fk := range table.ForeignKeys {
+		// This is a many-to-one relation (this table has FK to another)
+		relation := &Relation{
+			Type:            ManyToOne,
+			FromTable:       tableName,
+			FromColumn:      fk.Column,
+			ToTable:         fk.ReferencedTable,
+			ToColumn:        fk.ReferencedColumn,
+			ForeignKey:      fk,
+			IsSelfReference: fk.ReferencedTable == tableName,
+		}
+		relations = append(relations, relation)
+	}
+
+	// Find one-to-many relations (other tables reference this table)
+	for _, otherTable := range schema.Tables {
+		if otherTable.Name == tableName {
+			continue
+		}
+
+		for _, fk := range otherTable.ForeignKeys {
+			if fk.ReferencedTable == tableName {
+				// This is a one-to-many relation (other table has FK to this table)
+				relation := &Relation{
+					Type:            OneToMany,
+					FromTable:       tableName,
+					FromColumn:      fk.ReferencedColumn,
+					ToTable:         otherTable.Name,
+					ToColumn:        fk.Column,
+					ForeignKey:      fk,
+					IsSelfReference: otherTable.Name == tableName,
+				}
+				relations = append(relations, relation)
+			}
+		}
+	}
+
+	// TODO: Detect many-to-many relations through junction tables
+	// This would look for tables with exactly 2 foreign keys that reference different tables
+
+	return relations
+}
