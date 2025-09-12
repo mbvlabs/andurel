@@ -41,7 +41,7 @@ func (r Products) Index(c echo.Context) error {
 
 	productsList, err := models.PaginateProducts(
 		c.Request().Context(),
-		r.db.Pool(),
+		r.db.Conn(),
 		page,
 		perPage,
 	)
@@ -58,7 +58,7 @@ func (r Products) Show(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
-	product, err := models.FindProduct(c.Request().Context(), r.db.Pool(), productID)
+	product, err := models.FindProduct(c.Request().Context(), r.db.Conn(), productID)
 	if err != nil {
 		return render(c, views.NotFound())
 	}
@@ -103,7 +103,7 @@ func (r Products) Create(c echo.Context) error {
 
 	product, err := models.CreateProduct(
 		c.Request().Context(),
-		r.db.Pool(),
+		r.db.Conn(),
 		data,
 	)
 	if err != nil {
@@ -126,7 +126,7 @@ func (r Products) Edit(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
-	product, err := models.FindProduct(c.Request().Context(), r.db.Pool(), productID)
+	product, err := models.FindProduct(c.Request().Context(), r.db.Conn(), productID)
 	if err != nil {
 		return render(c, views.NotFound())
 	}
@@ -173,7 +173,7 @@ func (r Products) Update(c echo.Context) error {
 
 	product, err := models.UpdateProduct(
 		c.Request().Context(),
-		r.db.Pool(),
+		r.db.Conn(),
 		data,
 	)
 	if err != nil {
@@ -199,7 +199,7 @@ func (r Products) Destroy(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
-	err = models.DestroyProduct(c.Request().Context(), r.db.Pool(), productID)
+	err = models.DestroyProduct(c.Request().Context(), r.db.Conn(), productID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete product: %v", err)); flashErr != nil {
 			return render(c, views.InternalError())

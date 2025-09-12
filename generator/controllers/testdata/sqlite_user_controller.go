@@ -41,7 +41,7 @@ func (r Users) Index(c echo.Context) error {
 
 	usersList, err := models.PaginateUsers(
 		c.Request().Context(),
-		r.db.Pool(),
+		r.db.Conn(),
 		page,
 		perPage,
 	)
@@ -58,7 +58,7 @@ func (r Users) Show(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
-	user, err := models.FindUser(c.Request().Context(), r.db.Pool(), userID)
+	user, err := models.FindUser(c.Request().Context(), r.db.Conn(), userID)
 	if err != nil {
 		return render(c, views.NotFound())
 	}
@@ -99,7 +99,7 @@ func (r Users) Create(c echo.Context) error {
 
 	user, err := models.CreateUser(
 		c.Request().Context(),
-		r.db.Pool(),
+		r.db.Conn(),
 		data,
 	)
 	if err != nil {
@@ -122,7 +122,7 @@ func (r Users) Edit(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
-	user, err := models.FindUser(c.Request().Context(), r.db.Pool(), userID)
+	user, err := models.FindUser(c.Request().Context(), r.db.Conn(), userID)
 	if err != nil {
 		return render(c, views.NotFound())
 	}
@@ -165,7 +165,7 @@ func (r Users) Update(c echo.Context) error {
 
 	user, err := models.UpdateUser(
 		c.Request().Context(),
-		r.db.Pool(),
+		r.db.Conn(),
 		data,
 	)
 	if err != nil {
@@ -191,7 +191,7 @@ func (r Users) Destroy(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
-	err = models.DestroyUser(c.Request().Context(), r.db.Pool(), userID)
+	err = models.DestroyUser(c.Request().Context(), r.db.Conn(), userID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete user: %v", err)); flashErr != nil {
 			return render(c, views.InternalError())
