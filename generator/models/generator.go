@@ -494,6 +494,43 @@ func (g *Generator) RefreshModel(
 	return nil
 }
 
+func (g *Generator) RefreshQueries(
+	cat *catalog.Catalog,
+	resourceName, pluralName string,
+	sqlPath string,
+) error {
+	// Validate ID column constraints before refreshing
+	if err := g.validateIDColumnConstraints(cat, pluralName); err != nil {
+		return fmt.Errorf("ID validation failed: %w", err)
+	}
+
+	if err := g.refreshSQLFile(resourceName, pluralName, cat, sqlPath); err != nil {
+		return fmt.Errorf("failed to refresh SQL file: %w", err)
+	}
+
+	return nil
+}
+
+func (g *Generator) validateIDColumnConstraints(cat *catalog.Catalog, tableName string) error {
+	table, err := cat.GetTable("", tableName)
+	if err != nil {
+		return fmt.Errorf("table '%s' not found in catalog: %w", tableName, err)
+	}
+
+	// Find the ID column and validate its data type
+	for _, col := range table.Columns {
+		if col.Name == "id" && col.IsPrimaryKey {
+			// Use the existing validation logic from catalog.Column
+			if err := col.ValidatePrimaryKeyDatatype(g.databaseType, "refresh operation"); err != nil {
+				return err
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("no primary key 'id' column found in table '%s'", tableName)
+}
+
 func (g *Generator) refreshSQLFile(
 	resourceName string,
 	pluralName string,

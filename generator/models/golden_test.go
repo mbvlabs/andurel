@@ -322,7 +322,7 @@ func TestQueriesFileGeneration__GoldenFile(t *testing.T) {
 	}
 }
 
-func TestModelRefresh__PreservesCustomCode__GoldenFile(t *testing.T) {
+func TestQueryRefresh__PreservesModelFunctions__GoldenFile(t *testing.T) {
 	tests := []struct {
 		name                 string
 		initialMigrationsDir string
@@ -331,17 +331,15 @@ func TestModelRefresh__PreservesCustomCode__GoldenFile(t *testing.T) {
 		resourceName         string
 		modulePath           string
 		beforeRefreshFixture string
-		afterRefreshFixture  string
 	}{
 		{
-			name:                 "Should preserve custom functions when refreshing User model with schema changes",
+			name:                 "Should preserve custom model functions when refreshing only SQL queries with schema changes",
 			initialMigrationsDir: "simple_user_table",
 			refreshMigrationsDir: "simple_user_table_with_phone",
 			tableName:            "users",
 			resourceName:         "User",
 			modulePath:           "github.com/example/myapp",
 			beforeRefreshFixture: "user_model_with_custom_code_before_refresh",
-			afterRefreshFixture:  "user_model_with_custom_code_after_refresh_with_phone",
 		},
 	}
 
@@ -416,16 +414,14 @@ func TestModelRefresh__PreservesCustomCode__GoldenFile(t *testing.T) {
 				t.Fatalf("Failed to build catalog from refresh migrations: %v", err)
 			}
 
-			err = generator.RefreshModel(
+			err = generator.RefreshQueries(
 				cat,
 				tt.resourceName,
 				tt.tableName,
-				modelPath,
 				sqlPath,
-				tt.modulePath,
 			)
 			if err != nil {
-				t.Fatalf("Failed to refresh model: %v", err)
+				t.Fatalf("Failed to refresh queries: %v", err)
 			}
 
 			refreshedContent, err := os.ReadFile(modelPath)
@@ -433,10 +429,141 @@ func TestModelRefresh__PreservesCustomCode__GoldenFile(t *testing.T) {
 				t.Fatalf("Failed to read refreshed model file: %v", err)
 			}
 
-			fixtureDir := filepath.Join(originalWd, "testdata")
-			g := goldie.New(t, goldie.WithFixtureDir(fixtureDir), goldie.WithNameSuffix(".go"))
+			// Verify that the model file content remains exactly the same (no model functions were changed)
+			if string(refreshedContent) != string(beforeRefreshContent) {
+				t.Error("Model file content changed during query refresh, but it should remain unchanged")
+				t.Logf("Expected model to remain unchanged, but content differs")
+			}
 
-			g.Assert(t, tt.afterRefreshFixture, refreshedContent)
+			// Also verify that the SQL file was actually updated by checking it exists and has expected content
+			_, err = os.Stat(sqlPath)
+			if err != nil {
+				t.Fatalf("SQL file should have been refreshed but doesn't exist: %v", err)
+			}
+
+			sqlContent, err := os.ReadFile(sqlPath)
+			if err != nil {
+				t.Fatalf("Failed to read SQL file: %v", err)
+			}
+
+			// Verify SQL file contains expected query names
+			sqlStr := string(sqlContent)
+			expectedQueries := []string{
+				"-- name: QueryUserByID",
+				"-- name: InsertUser",
+				"-- name: UpdateUser", 
+				"-- name: DeleteUser",
+			}
+			for _, query := range expectedQueries {
+				if !strings.Contains(sqlStr, query) {
+					t.Errorf("Expected SQL file to contain query %s after refresh", query)
+				}
+			}
+		})
+	}
+}
+
+func TestRefreshQueries__ValidatesIDColumns(t *testing.T) {
+	tests := []struct {
+		name             string
+		migrationsDir    string
+		tableName        string
+		resourceName     string
+		databaseType     string
+		expectedErrorMsg string
+		shouldFail       bool
+	}{
+		{
+			name:         "Should succeed with valid PostgreSQL UUID primary key",
+			migrationsDir: "simple_user_table",
+			tableName:     "users",
+			resourceName:  "User",
+			databaseType:  "postgresql",
+			shouldFail:    false,
+		},
+		{
+			name:         "Should succeed with valid SQLite TEXT primary key",
+			migrationsDir: "sqlite_user_table",
+			tableName:     "users",
+			resourceName:  "User",
+			databaseType:  "sqlite",
+			shouldFail:    false,
+		},
+		{
+			name:             "Should fail with invalid PostgreSQL TEXT primary key",
+			migrationsDir:    "invalid_pg_primary_key",
+			tableName:        "users",
+			resourceName:     "User",
+			databaseType:     "postgresql",
+			expectedErrorMsg: "PostgreSQL primary keys must use 'uuid'",
+			shouldFail:       true,
+		},
+		{
+			name:             "Should fail with invalid SQLite UUID primary key", 
+			migrationsDir:    "invalid_sqlite_primary_key",
+			tableName:        "users",
+			resourceName:     "User",
+			databaseType:     "sqlite",
+			expectedErrorMsg: "SQLite primary keys must use 'text'",
+			shouldFail:       true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			queriesDir := filepath.Join(tempDir, "database", "queries")
+
+			err := os.MkdirAll(queriesDir, constants.DirPermissionDefault)
+			if err != nil {
+				t.Fatalf("Failed to create queries directory: %v", err)
+			}
+
+			originalWd, _ := os.Getwd()
+			oldWd, _ := os.Getwd()
+			defer os.Chdir(oldWd)
+			os.Chdir(tempDir)
+
+			migrationsDir := filepath.Join(originalWd, "testdata", "migrations", tt.migrationsDir)
+			sqlPath := filepath.Join(queriesDir, tt.tableName+".sql")
+
+			// Create a dummy SQL file for the test
+			err = os.WriteFile(sqlPath, []byte("-- dummy queries"), constants.FilePermissionPrivate)
+			if err != nil {
+				t.Fatalf("Failed to create SQL file: %v", err)
+			}
+
+			generator := NewGenerator(tt.databaseType)
+
+			cat, err := generator.buildCatalogFromTableMigrations(
+				tt.tableName,
+				[]string{migrationsDir},
+			)
+			if err != nil && !tt.shouldFail {
+				t.Fatalf("Failed to build catalog from migrations: %v", err)
+			}
+			if err != nil && tt.shouldFail {
+				// Expected failure during catalog building due to ID validation
+				if !strings.Contains(err.Error(), tt.expectedErrorMsg) {
+					t.Errorf("Expected error message to contain '%s', but got: %s", tt.expectedErrorMsg, err.Error())
+				}
+				return
+			}
+
+			err = generator.RefreshQueries(cat, tt.resourceName, tt.tableName, sqlPath)
+
+			if tt.shouldFail {
+				if err == nil {
+					t.Fatal("Expected error due to invalid primary key type, but got none")
+				}
+				if !strings.Contains(err.Error(), tt.expectedErrorMsg) {
+					t.Errorf("Expected error message to contain '%s', but got: %s", tt.expectedErrorMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Expected no error but got: %v", err)
+				}
+			}
 		})
 	}
 }

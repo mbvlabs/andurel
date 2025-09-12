@@ -14,6 +14,7 @@ sql:
         out: ../models/internal/db
         output_db_file_name: db.go
         output_models_file_name: entities.go
+        emit_sql_as_comment: true
         emit_methods_with_db_argument: true
     {{- if eq .Database "sqlite"}}
         sql_package: "database/sql"
