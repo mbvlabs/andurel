@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"strings"
+
+	"github.com/jinzhu/inflection"
 	"github.com/mbvlabs/andurel/generator"
 
 	"github.com/spf13/cobra"
@@ -24,19 +27,21 @@ func newGenerateCommand() *cobra.Command {
 
 func newModelCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "model [name] [table]",
+		Use:   "model [name]",
 		Short: "Generate a new model",
 		Long: `Generate a new model with the specified name.
 The model will include CRUD operations and database functions.
+The table name is automatically inferred as the plural form of the model name.
 
 Examples:
-  andurel generate model User users           # Create new model
-  andurel generate model User users --refresh # Refresh SQL queries and constructor functions`,
-		Args: cobra.ExactArgs(2),
+  andurel generate model User           # Create new model for 'users' table
+  andurel generate model User --refresh # Refresh SQL queries and constructor functions`,
+		Args: cobra.ExactArgs(1),
 		RunE: generateModel,
 	}
 
-	cmd.Flags().Bool("refresh", false, "Refresh SQL queries and constructor functions - makes schema changes compiler-enforced")
+	cmd.Flags().
+		Bool("refresh", false, "Refresh SQL queries and constructor functions - makes schema changes compiler-enforced")
 
 	return cmd
 }
@@ -64,7 +69,6 @@ Examples:
 
 func generateModel(cmd *cobra.Command, args []string) error {
 	resourceName := args[0]
-	tableName := args[1]
 
 	refresh, err := cmd.Flags().GetBool("refresh")
 	if err != nil {
@@ -77,10 +81,13 @@ func generateModel(cmd *cobra.Command, args []string) error {
 	}
 
 	if refresh {
-		return gen.RefreshConstructors(resourceName, tableName)
+		return gen.RefreshConstructors(
+			resourceName,
+			inflection.Plural(strings.ToLower(resourceName)),
+		)
 	}
 
-	return gen.GenerateModel(resourceName, tableName)
+	return gen.GenerateModel(resourceName)
 }
 
 func newControllerCommand() *cobra.Command {
@@ -109,14 +116,15 @@ Examples:
 
 func newResourceCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "resource [name] [table]",
+		Use:   "resource [name]",
 		Short: "Generate a complete resource (model, controller, views, and routes)",
 		Long: `Generate a complete resource including model, controller with CRUD actions, views, and routes.
 This is equivalent to running model, controller, and view generators together.
+The table name is automatically inferred as the plural form of the model name.
 
 Examples:
-  andurel generate resource Product products    # Model + controller + views + routes`,
-		Args: cobra.ExactArgs(2),
+  andurel generate resource Product    # Model + controller + views + routes for 'products' table`,
+		Args: cobra.ExactArgs(1),
 		RunE: generateResource,
 	}
 
@@ -141,14 +149,13 @@ func generateController(cmd *cobra.Command, args []string) error {
 
 func generateResource(cmd *cobra.Command, args []string) error {
 	resourceName := args[0]
-	tableName := args[1]
 
 	gen, err := generator.New()
 	if err != nil {
 		return err
 	}
 
-	if err := gen.GenerateModel(resourceName, tableName); err != nil {
+	if err := gen.GenerateModel(resourceName); err != nil {
 		return err
 	}
 
