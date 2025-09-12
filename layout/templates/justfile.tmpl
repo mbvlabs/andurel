@@ -31,17 +31,17 @@ up-migrations:
 
 # database 
 create-migration name:
-	go tool goose -dir database/migrations sqlite3 ./{{`{{name}}`}}.db create {{`{{name}}`}} sql
+	go tool goose -dir database/migrations sqlite3 ./{{.ProjectName}}.db create {{`{{name}}`}} sql
 
 fix-migrations:
-	go tool goose -dir database/migrations sqlite3 ./database.db fix
+	go tool goose -dir database/migrations sqlite3 ./{{.ProjectName}}.db fix
 
 new-migration name: 
 	just create-migration {{`{{name}}`}}
 	just fix-migrations
 
 up-migrations:
-	go tool goose -dir database/migrations sqlite3 ./database.db up
+	go tool goose -dir database/migrations sqlite3 ./{{.ProjectName}}.db up
 {{- end}}
 
 # sqlc
