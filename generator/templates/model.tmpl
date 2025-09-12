@@ -26,7 +26,11 @@ func Find{{.Name}}(
 		return {{.Name}}{}, err
 	}
 
-	return rowTo{{.Name}}(row), nil
+{{if hasErrorHandling}}	result, err := rowTo{{.Name}}(row)
+	if err != nil {
+		return {{.Name}}{}, err
+	}
+	return result, nil{{else}}	return rowTo{{.Name}}(row), nil{{end}}
 }
 
 type Create{{.Name}}Data struct {
@@ -59,7 +63,11 @@ func Create{{.Name}}(
 		return {{.Name}}{}, err
 	}
 
-	return rowTo{{.Name}}(row), nil
+{{if hasErrorHandling}}	result, err := rowTo{{.Name}}(row)
+	if err != nil {
+		return {{.Name}}{}, err
+	}
+	return result, nil{{else}}	return rowTo{{.Name}}(row), nil{{end}}
 }
 
 type Update{{.Name}}Data struct {
@@ -107,7 +115,11 @@ func Update{{.Name}}(
 		return {{.Name}}{}, err
 	}
 
-	return rowTo{{.Name}}(row), nil
+{{if hasErrorHandling}}	result, err := rowTo{{.Name}}(row)
+	if err != nil {
+		return {{.Name}}{}, err
+	}
+	return result, nil{{else}}	return rowTo{{.Name}}(row), nil{{end}}
 }
 
 func Destroy{{.Name}}(
@@ -129,7 +141,11 @@ func All{{.Name}}s(
 
 	{{lower .Name}}s := make([]{{.Name}}, len(rows))
 	for i, row := range rows {
-		{{lower .Name}}s[i] = rowTo{{.Name}}(row)
+{{if hasErrorHandling}}		result, err := rowTo{{.Name}}(row)
+		if err != nil {
+			return nil, err
+		}
+		{{lower .Name}}s[i] = result{{else}}		{{lower .Name}}s[i] = rowTo{{.Name}}(row){{end}}
 	}
 
 	return {{lower .Name}}s, nil
@@ -180,7 +196,11 @@ func Paginate{{.Name}}s(
 
 	{{lower .Name}}s := make([]{{.Name}}, len(rows))
 	for i, row := range rows {
-		{{lower .Name}}s[i] = rowTo{{.Name}}(row)
+{{if hasErrorHandling}}		result, err := rowTo{{.Name}}(row)
+		if err != nil {
+			return Paginated{{.Name}}s{}, err
+		}
+		{{lower .Name}}s[i] = result{{else}}		{{lower .Name}}s[i] = rowTo{{.Name}}(row){{end}}
 	}
 
 	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
@@ -194,6 +214,28 @@ func Paginate{{.Name}}s(
 	}, nil
 }
 
+{{if hasErrorHandling}}
+func rowTo{{.Name}}(row db.{{SQLCTypeName .TableName}}) ({{.Name}}, error) {
+{{- range .Fields}}
+{{- if .RequiresErrorHandling}}
+	{{lower .Name}}, err := {{.ConversionFromDB}}
+	if err != nil {
+		return {{$.Name}}{}, err
+	}
+{{- end}}
+{{- end}}
+
+	return {{.Name}}{
+{{- range .Fields}}
+{{- if .RequiresErrorHandling}}
+		{{.Name}}: {{lower .Name}},
+{{- else}}
+		{{.Name}}: {{.ConversionFromDB}},
+{{- end}}
+{{- end}}
+	}, nil
+}
+{{else}}
 func rowTo{{.Name}}(row db.{{SQLCTypeName .TableName}}) {{.Name}} {
 	return {{.Name}}{
 {{- range .Fields}}
@@ -201,4 +243,5 @@ func rowTo{{.Name}}(row db.{{SQLCTypeName .TableName}}) {{.Name}} {
 {{- end}}
 	}
 }
+{{end}}
 

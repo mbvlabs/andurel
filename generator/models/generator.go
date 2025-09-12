@@ -27,6 +27,7 @@ type GeneratedField struct {
 	ConversionToDB          string
 	ConversionToDBForUpdate string
 	ZeroCheck               string
+	RequiresErrorHandling   bool
 }
 
 type GeneratedModel struct {
@@ -119,16 +120,27 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 }
 
 func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
-	goType, sqlcType, pkg, err := g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
-	if err != nil {
-		return GeneratedField{}, err
+	var goType, sqlcType, pkg string
+	var err error
+
+	// Special handling for ID fields in SQLite - always use uuid.UUID
+	if col.Name == "id" && g.typeMapper.GetDatabaseType() == "sqlite" {
+		goType = "uuid.UUID"
+		sqlcType = "string"
+		pkg = "github.com/google/uuid"
+	} else {
+		goType, sqlcType, pkg, err = g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
+		if err != nil {
+			return GeneratedField{}, err
+		}
 	}
 
 	field := GeneratedField{
-		Name:     types.FormatFieldName(col.Name),
-		Type:     goType,
-		SQLCType: sqlcType,
-		Package:  pkg,
+		Name:                  types.FormatFieldName(col.Name),
+		Type:                  goType,
+		SQLCType:              sqlcType,
+		Package:               pkg,
+		RequiresErrorHandling: col.Name == "id" && g.typeMapper.GetDatabaseType() == "sqlite",
 	}
 
 	field.ConversionFromDB = g.typeMapper.GenerateConversionFromDB(
@@ -191,6 +203,14 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 			}
 			return param
 		},
+		"hasErrorHandling": func() bool {
+			for _, field := range model.Fields {
+				if field.RequiresErrorHandling {
+					return true
+				}
+			}
+			return false
+		},
 	}
 
 	tmpl, err := template.New("model").Funcs(funcMap).Parse(templateStr)
@@ -225,7 +245,7 @@ func (g *Generator) GenerateModel(
 		TableName:    pluralName,
 		ResourceName: resourceName,
 		PackageName:  "models",
-		DatabaseType: "postgresql",
+		DatabaseType: g.typeMapper.GetDatabaseType(),
 		ModulePath:   modulePath,
 	})
 	if err != nil {
@@ -518,7 +538,7 @@ func (g *Generator) refreshModelFile(
 		TableName:    pluralName,
 		ResourceName: resourceName,
 		PackageName:  "models",
-		DatabaseType: "postgresql",
+		DatabaseType: g.typeMapper.GetDatabaseType(),
 		ModulePath:   modulePath,
 	})
 	if err != nil {

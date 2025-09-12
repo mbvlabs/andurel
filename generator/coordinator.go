@@ -142,7 +142,7 @@ func (c *Coordinator) GenerateController(resourceName, tableName string, withVie
 	}
 
 	if withViews {
-		if err := c.viewGenerator.GenerateView(cat, resourceName, modulePath); err != nil {
+		if err := c.viewGenerator.GenerateViewWithController(cat, resourceName, modulePath, true); err != nil {
 			return fmt.Errorf("failed to generate view: %w", err)
 		}
 		fmt.Printf("Successfully generated resource controller %s with views\n", resourceName)
@@ -274,7 +274,7 @@ func (c *Coordinator) GenerateControllerFromModel(resourceName string, withViews
 	}
 
 	if withViews {
-		if err := c.viewGenerator.GenerateView(cat, resourceName, modulePath); err != nil {
+		if err := c.viewGenerator.GenerateViewWithController(cat, resourceName, modulePath, true); err != nil {
 			return fmt.Errorf("failed to generate view: %w", err)
 		}
 		fmt.Printf("Successfully generated resource controller %s with views\n", resourceName)
