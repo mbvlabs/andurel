@@ -49,13 +49,13 @@ func CreateUser(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	row, err := db.New().InsertUser(ctx, dbtx, db.InsertUserParams{
-		ID:       uuid.New(),
-		Email:    data.Email,
-		Name:     data.Name,
-		Age:      pgtype.Int4{Int32: data.Age, Valid: true},
-		IsActive: pgtype.Bool{Bool: data.IsActive, Valid: true},
-	})
+	params := db.NewInsertUserParams(
+		data.Email,
+		data.Name,
+		pgtype.Int4{Int32: data.Age, Valid: true},
+		pgtype.Bool{Bool: data.IsActive, Valid: true},
+	)
+	row, err := db.New().InsertUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err
 	}
@@ -86,25 +86,33 @@ func UpdateUser(
 		return User{}, err
 	}
 
-	params := db.UpdateUserParams{
-		ID:       data.ID,
-		Email:    currentRow.Email,
-		Name:     currentRow.Name,
-		Age:      currentRow.Age,
-		IsActive: currentRow.IsActive,
-	}
-	if true {
-		params.Email = data.Email
-	}
-	if true {
-		params.Name = data.Name
-	}
-	if true {
-		params.Age = pgtype.Int4{Int32: data.Age, Valid: true}
-	}
-	if true {
-		params.IsActive = pgtype.Bool{Bool: data.IsActive, Valid: true}
-	}
+	params := db.NewUpdateUserParams(
+		data.ID,
+		func() string {
+			if true {
+				return data.Email
+			}
+			return currentRow.Email
+		}(),
+		func() string {
+			if true {
+				return data.Name
+			}
+			return currentRow.Name
+		}(),
+		func() pgtype.Int4 {
+			if true {
+				return pgtype.Int4{Int32: data.Age, Valid: true}
+			}
+			return currentRow.Age
+		}(),
+		func() pgtype.Bool {
+			if true {
+				return pgtype.Bool{Bool: data.IsActive, Valid: true}
+			}
+			return currentRow.IsActive
+		}(),
+	)
 
 	row, err := db.New().UpdateUser(ctx, dbtx, params)
 	if err != nil {
@@ -173,10 +181,7 @@ func PaginateUsers(
 	rows, err := db.New().QueryPaginatedUsers(
 		ctx,
 		dbtx,
-		db.QueryPaginatedUsersParams{
-			Limit:  pageSize,
-			Offset: offset,
-		},
+		db.NewQueryPaginatedUsersParams(pageSize, offset),
 	)
 	if err != nil {
 		return PaginatedUsers{}, err

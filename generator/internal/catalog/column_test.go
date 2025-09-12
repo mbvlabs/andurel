@@ -75,7 +75,7 @@ func TestColumn_ValidatePrimaryKeyDatatype(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.column.ValidatePrimaryKeyDatatype(tc.databaseType, tc.migrationFile)
-			
+
 			if tc.expectError {
 				if err == nil {
 					t.Fatal("Expected error but got none")
@@ -95,17 +95,17 @@ func TestColumn_ValidatePrimaryKeyDatatype(t *testing.T) {
 func TestColumn_SetPrimaryKey(t *testing.T) {
 	col := NewColumn("id", "uuid")
 	col.IsNullable = true // should be set to false when setting as primary key
-	
+
 	result := col.SetPrimaryKey()
-	
+
 	if result != col {
 		t.Error("SetPrimaryKey should return the same column instance")
 	}
-	
+
 	if !col.IsPrimaryKey {
 		t.Error("Column should be marked as primary key")
 	}
-	
+
 	if col.IsNullable {
 		t.Error("Primary key column should not be nullable")
 	}

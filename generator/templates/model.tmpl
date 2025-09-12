@@ -50,15 +50,14 @@ func Create{{.Name}}(
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	row, err := db.New().Insert{{.Name}}(ctx, dbtx, db.Insert{{.Name}}Params{
+	params := db.NewInsert{{.Name}}Params(
 {{- range .Fields}}
-{{- if eq .Name "ID"}}
-		{{.Name}}: {{uuidParam "uuid.New()"}},
-{{- else if not (or (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
-		{{.Name}}: {{.ConversionToDB}},
+{{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
+		{{.ConversionToDB}},
 {{- end}}
 {{- end}}
-	})
+	)
+	row, err := db.New().Insert{{.Name}}(ctx, dbtx, params)
 	if err != nil {
 		return {{.Name}}{}, err
 	}
@@ -93,22 +92,19 @@ func Update{{.Name}}(
 		return {{.Name}}{}, err
 	}
 
-	params := db.Update{{.Name}}Params{
-		ID: {{uuidParam "data.ID"}},
+	params := db.NewUpdate{{.Name}}Params(
+		{{uuidParam "data.ID"}},
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
-		{{.Name}}: currentRow.{{.Name}},
+		func() {{.SQLCType}} {
+			if {{.ZeroCheck}} {
+				return {{.ConversionToDBForUpdate}}
+			}
+			return currentRow.{{.Name}}
+		}(),
 {{- end}}
 {{- end}}
-	}
-
-{{- range .Fields}}
-{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
-	if {{.ZeroCheck}} {
-		params.{{.Name}} = {{.ConversionToDBForUpdate}}
-	}
-{{- end}}
-{{- end}}
+	)
 
 	row, err := db.New().Update{{.Name}}(ctx, dbtx, params)
 	if err != nil {
@@ -185,10 +181,7 @@ func Paginate{{.Name}}s(
 	rows, err := db.New().QueryPaginated{{.Name}}s(
 		ctx,
 		dbtx,
-		db.QueryPaginated{{.Name}}sParams{
-			Limit:  pageSize,
-			Offset: offset,
-		},
+		db.NewQueryPaginated{{.Name}}sParams(pageSize, offset),
 	)
 	if err != nil {
 		return Paginated{{.Name}}s{}, err
@@ -244,4 +237,5 @@ func rowTo{{.Name}}(row db.{{SQLCTypeName .TableName}}) {{.Name}} {
 	}
 }
 {{end}}
+
 

@@ -38,3 +38,11 @@ func (g *Generator) GenerateViewFromModel(resourceName string, withController bo
 func (g *Generator) RefreshModel(resourceName, tableName string) error {
 	return g.coordinator.RefreshModel(resourceName, tableName)
 }
+
+func (g *Generator) RefreshQueries(resourceName, tableName string) error {
+	return g.coordinator.RefreshQueries(resourceName, tableName)
+}
+
+func (g *Generator) RefreshConstructors(resourceName, tableName string) error {
+	return g.coordinator.RefreshConstructors(resourceName, tableName)
+}

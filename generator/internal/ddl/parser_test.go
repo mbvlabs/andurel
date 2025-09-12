@@ -14,22 +14,22 @@ func TestValidatePrimaryKeyDatatype(t *testing.T) {
 		// PostgreSQL valid cases
 		{"postgresql_uuid_valid", "UUID", "postgresql", false},
 		{"postgresql_uuid_lowercase", "uuid", "postgresql", false},
-		
-		// PostgreSQL invalid cases  
+
+		// PostgreSQL invalid cases
 		{"postgresql_text_invalid", "TEXT", "postgresql", true},
 		{"postgresql_integer_invalid", "INTEGER", "postgresql", true},
 		{"postgresql_varchar_invalid", "VARCHAR", "postgresql", true},
-		
+
 		// SQLite valid cases
 		{"sqlite_text_valid", "TEXT", "sqlite", false},
 		{"sqlite_text_lowercase", "text", "sqlite", false},
-		
+
 		// SQLite invalid cases
 		{"sqlite_uuid_invalid", "UUID", "sqlite", true},
 		{"sqlite_integer_invalid", "INTEGER", "sqlite", true},
 		{"sqlite_varchar_invalid", "VARCHAR", "sqlite", true},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := validatePrimaryKeyDatatype(tc.dataType, tc.databaseType, "test.sql", "id")
@@ -45,48 +45,48 @@ func TestValidatePrimaryKeyDatatype(t *testing.T) {
 
 func TestValidatePrimaryKeyDatatype_ErrorMessages(t *testing.T) {
 	testCases := []struct {
-		name          string
-		dataType      string
-		databaseType  string
-		columnName    string
-		migrationFile string
+		name           string
+		dataType       string
+		databaseType   string
+		columnName     string
+		migrationFile  string
 		expectedSubstr string
 	}{
 		{
-			name:          "postgresql_text_error_message",
-			dataType:      "TEXT",
-			databaseType:  "postgresql",
-			columnName:    "id",
-			migrationFile: "/path/to/001_create_users.sql",
+			name:           "postgresql_text_error_message",
+			dataType:       "TEXT",
+			databaseType:   "postgresql",
+			columnName:     "id",
+			migrationFile:  "/path/to/001_create_users.sql",
 			expectedSubstr: "PostgreSQL primary keys must use 'uuid'",
 		},
 		{
-			name:          "sqlite_uuid_error_message",
-			dataType:      "UUID",
-			databaseType:  "sqlite",
-			columnName:    "user_id",
-			migrationFile: "/path/to/002_create_posts.sql",
+			name:           "sqlite_uuid_error_message",
+			dataType:       "UUID",
+			databaseType:   "sqlite",
+			columnName:     "user_id",
+			migrationFile:  "/path/to/002_create_posts.sql",
 			expectedSubstr: "SQLite primary keys must use 'text'",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := validatePrimaryKeyDatatype(tc.dataType, tc.databaseType, tc.migrationFile, tc.columnName)
 			if err == nil {
 				t.Fatal("Expected error but got none")
 			}
-			
+
 			errorMsg := err.Error()
 			if !containsString(errorMsg, tc.expectedSubstr) {
 				t.Errorf("Expected error message to contain '%s', but got: %s", tc.expectedSubstr, errorMsg)
 			}
-			
+
 			// Check that the error message contains the column name
 			if !containsString(errorMsg, tc.columnName) {
 				t.Errorf("Expected error message to contain column name '%s', but got: %s", tc.columnName, errorMsg)
 			}
-			
+
 			// Check that the error message contains the migration file basename
 			if !containsString(errorMsg, "001_create_users.sql") && !containsString(errorMsg, "002_create_posts.sql") {
 				t.Errorf("Expected error message to contain migration file name, but got: %s", errorMsg)
@@ -104,12 +104,12 @@ func TestValidatePrimaryKeyDatatype_UnsupportedDatabase(t *testing.T) {
 }
 
 func containsString(s, substr string) bool {
-	return len(s) >= len(substr) && 
-		   (s == substr || 
-		    (len(s) > len(substr) && 
-		     (s[:len(substr)] == substr || 
-		      s[len(s)-len(substr):] == substr || 
-		      containsSubstring(s, substr))))
+	return len(s) >= len(substr) &&
+		(s == substr ||
+			(len(s) > len(substr) &&
+				(s[:len(substr)] == substr ||
+					s[len(s)-len(substr):] == substr ||
+					containsSubstring(s, substr))))
 }
 
 func containsSubstring(s, substr string) bool {
@@ -182,11 +182,11 @@ func TestParseColumnDefinitions_PrimaryKeyValidation(t *testing.T) {
 			errorSubstr:  "SQLite primary keys must use 'text'",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			columns, err := parseColumnDefinitions(tc.columnDefs, "test.sql", tc.databaseType)
-			
+
 			if tc.expectError {
 				if err == nil {
 					t.Fatal("Expected error but got none")
@@ -198,12 +198,12 @@ func TestParseColumnDefinitions_PrimaryKeyValidation(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Expected no error but got: %v", err)
 				}
-				
+
 				// Verify that we got the expected columns
 				if len(columns) < 2 {
 					t.Errorf("Expected at least 2 columns, got %d", len(columns))
 				}
-				
+
 				// Find the primary key column and verify it's marked correctly
 				var foundPK bool
 				for _, col := range columns {
@@ -214,7 +214,7 @@ func TestParseColumnDefinitions_PrimaryKeyValidation(t *testing.T) {
 						}
 					}
 				}
-				
+
 				if !foundPK {
 					t.Error("Expected to find a primary key column but didn't")
 				}
@@ -258,11 +258,11 @@ func TestParseCreateTable_PrimaryKeyValidation(t *testing.T) {
 			errorSubstr:  "SQLite primary keys must use 'text'",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			stmt, err := parseCreateTable(tc.sql, "test.sql", tc.databaseType)
-			
+
 			if tc.expectError {
 				if err == nil {
 					t.Fatal("Expected error but got none")
@@ -274,11 +274,11 @@ func TestParseCreateTable_PrimaryKeyValidation(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Expected no error but got: %v", err)
 				}
-				
+
 				if stmt == nil {
 					t.Fatal("Expected statement but got nil")
 				}
-				
+
 				if stmt.Type != CreateTable {
 					t.Errorf("Expected CREATE TABLE statement type, got %v", stmt.Type)
 				}

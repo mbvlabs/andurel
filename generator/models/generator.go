@@ -494,6 +494,159 @@ func (g *Generator) RefreshModel(
 	return nil
 }
 
+func (g *Generator) RefreshQueries(
+	cat *catalog.Catalog,
+	resourceName, pluralName string,
+	sqlPath string,
+) error {
+	if err := g.validateIDColumnConstraints(cat, pluralName); err != nil {
+		return fmt.Errorf("ID validation failed: %w", err)
+	}
+
+	if err := g.refreshSQLFile(resourceName, pluralName, cat, sqlPath); err != nil {
+		return fmt.Errorf("failed to refresh SQL file: %w", err)
+	}
+
+	return nil
+}
+
+func (g *Generator) GenerateConstructorFile(
+	model *GeneratedModel,
+	templateStr string,
+) (string, error) {
+	funcMap := template.FuncMap{
+		"lower": func(s string) string {
+			return strings.ToLower(s)
+		},
+		"uuidParam": func(param string) string {
+			if model.DatabaseType == "sqlite" {
+				return param + ".String()"
+			}
+			return param
+		},
+	}
+
+	tmpl, err := template.New("constructors").Funcs(funcMap).Parse(templateStr)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse constructor template: %w", err)
+	}
+
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, model); err != nil {
+		return "", fmt.Errorf("failed to execute constructor template: %w", err)
+	}
+
+	return buf.String(), nil
+}
+
+func (g *Generator) GenerateConstructors(
+	cat *catalog.Catalog,
+	resourceName, pluralName string,
+	constructorPath string,
+	modulePath string,
+) error {
+	model, err := g.Build(cat, Config{
+		TableName:    pluralName,
+		ResourceName: resourceName,
+		PackageName:  "db",
+		DatabaseType: g.typeMapper.GetDatabaseType(),
+		ModulePath:   modulePath,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to build model for constructors: %w", err)
+	}
+
+	model.Imports = g.calculateConstructorImports(model)
+
+	templateContent, err := templates.Files.ReadFile("constructors.tmpl")
+	if err != nil {
+		return fmt.Errorf("failed to read constructor template: %w", err)
+	}
+
+	constructorContent, err := g.GenerateConstructorFile(model, string(templateContent))
+	if err != nil {
+		return fmt.Errorf("failed to render constructor file: %w", err)
+	}
+
+	if err := os.WriteFile(constructorPath, []byte(constructorContent), constants.FilePermissionPrivate); err != nil {
+		return fmt.Errorf("failed to write constructor file: %w", err)
+	}
+
+	if err := g.formatGoFile(constructorPath); err != nil {
+		return fmt.Errorf("failed to format constructor file: %w", err)
+	}
+
+	return nil
+}
+
+func (g *Generator) calculateConstructorImports(model *GeneratedModel) []string {
+	importSet := make(map[string]bool)
+
+	importSet["github.com/google/uuid"] = true
+
+	for _, field := range model.Fields {
+		if field.Name == "ID" || field.Name == "CreatedAt" || field.Name == "UpdatedAt" {
+			continue
+		}
+
+		if strings.Contains(field.SQLCType, "pgtype.") {
+			importSet["github.com/jackc/pgx/v5/pgtype"] = true
+		}
+		if strings.Contains(field.SQLCType, "sql.") {
+			importSet["database/sql"] = true
+		}
+		if strings.Contains(field.SQLCType, "time.Time") {
+			importSet["time"] = true
+		}
+		if strings.Contains(field.SQLCType, "uuid.UUID") {
+			importSet["github.com/google/uuid"] = true
+		}
+	}
+
+	var imports []string
+	for imp := range importSet {
+		imports = append(imports, imp)
+	}
+	sort.Strings(imports)
+
+	return imports
+}
+
+func (g *Generator) RefreshConstructors(
+	cat *catalog.Catalog,
+	resourceName, pluralName string,
+	constructorPath string,
+	modulePath string,
+) error {
+	if err := g.validateIDColumnConstraints(cat, pluralName); err != nil {
+		return fmt.Errorf("ID validation failed: %w", err)
+	}
+
+	if err := g.GenerateConstructors(cat, resourceName, pluralName, constructorPath, modulePath); err != nil {
+		return fmt.Errorf("failed to generate constructor functions: %w", err)
+	}
+
+	return nil
+}
+
+func (g *Generator) validateIDColumnConstraints(cat *catalog.Catalog, tableName string) error {
+	table, err := cat.GetTable("", tableName)
+	if err != nil {
+		return fmt.Errorf("table '%s' not found in catalog: %w", tableName, err)
+	}
+
+	for _, col := range table.Columns {
+		if col.Name == "id" && col.IsPrimaryKey {
+			if err := col.ValidatePrimaryKeyDatatype(g.databaseType, "refresh operation"); err != nil {
+				return err
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("no primary key 'id' column found in table '%s'", tableName)
+}
+
 func (g *Generator) refreshSQLFile(
 	resourceName string,
 	pluralName string,
@@ -599,8 +752,8 @@ func (g *Generator) extractGeneratedParts(content, resourceName string) map[stri
 
 	signatures := []string{
 		fmt.Sprintf("type %s struct", resourceName),
-		fmt.Sprintf("type Create%sPayload struct", resourceName),
-		fmt.Sprintf("type Update%sPayload struct", resourceName),
+		fmt.Sprintf("type Create%sData struct", resourceName),
+		fmt.Sprintf("type Update%sData struct", resourceName),
 		fmt.Sprintf("type Paginated%ss struct", resourceName),
 		fmt.Sprintf("func Find%s(", resourceName),
 		fmt.Sprintf("func Create%s(", resourceName),
@@ -609,6 +762,9 @@ func (g *Generator) extractGeneratedParts(content, resourceName string) map[stri
 		fmt.Sprintf("func All%ss(", resourceName),
 		fmt.Sprintf("func Paginate%ss(", resourceName),
 		fmt.Sprintf("func rowTo%s(", resourceName),
+		fmt.Sprintf("func newInsert%sParams(", resourceName),
+		fmt.Sprintf("func newUpdate%sParams(", resourceName),
+		fmt.Sprintf("func newQueryPaginated%ssParams(", resourceName),
 	}
 
 	for _, signature := range signatures {
@@ -625,16 +781,22 @@ func (g *Generator) extractPartBySignature(lines []string, signature string) str
 	var result []string
 	inBlock := false
 	braceCount := 0
+	inFunctionParams := false
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
 		if strings.HasPrefix(trimmed, signature) {
 			inBlock = true
+			inFunctionParams = true
 			result = []string{line}
 			braceCount = strings.Count(line, "{") - strings.Count(line, "}")
 
-			if braceCount == 0 {
+			if strings.Contains(line, "{") {
+				inFunctionParams = false
+			}
+
+			if braceCount == 0 && !inFunctionParams {
 				return strings.Join(result, "\n")
 			}
 			continue
@@ -642,9 +804,14 @@ func (g *Generator) extractPartBySignature(lines []string, signature string) str
 
 		if inBlock {
 			result = append(result, line)
+
+			if inFunctionParams && strings.Contains(line, "{") {
+				inFunctionParams = false
+			}
+
 			braceCount += strings.Count(line, "{") - strings.Count(line, "}")
 
-			if braceCount == 0 {
+			if braceCount == 0 && !inFunctionParams {
 				return strings.Join(result, "\n")
 			}
 		}

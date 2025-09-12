@@ -135,57 +135,57 @@ func CreateComprehensiveExample(
 		return ComprehensiveExample{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	row, err := db.New().InsertComprehensiveExample(ctx, dbtx, db.InsertComprehensiveExampleParams{
-		ID:                uuid.New(),
-		UuidId:            data.UuidId,
-		SmallInt:          data.SmallInt,
-		RegularInt:        pgtype.Int4{Int32: data.RegularInt, Valid: true},
-		BigInt:            data.BigInt,
-		DecimalPrecise:    data.DecimalPrecise,
-		NumericField:      data.NumericField,
-		RealFloat:         pgtype.Float4{Float32: data.RealFloat, Valid: true},
-		DoubleFloat:       data.DoubleFloat,
-		SmallSerial:       data.SmallSerial,
-		BigSerial:         pgtype.Int8{Int64: data.BigSerial, Valid: true},
-		FixedChar:         pgtype.Text{String: data.FixedChar, Valid: true},
-		VariableChar:      data.VariableChar,
-		UnlimitedText:     pgtype.Text{String: data.UnlimitedText, Valid: true},
-		TextWithDefault:   pgtype.Text{String: data.TextWithDefault, Valid: true},
-		TextNotNull:       data.TextNotNull,
-		IsActive:          pgtype.Bool{Bool: data.IsActive, Valid: true},
-		IsVerified:        data.IsVerified,
-		NullableFlag:      pgtype.Bool{Bool: data.NullableFlag, Valid: true},
-		CreatedDate:       pgtype.Date{Time: data.CreatedDate, Valid: true},
-		BirthDate:         pgtype.Date{Time: data.BirthDate, Valid: true},
-		ExactTime:         pgtype.Time{Time: data.ExactTime, Valid: true},
-		TimeWithZone:      pgtype.Timetz{Time: data.TimeWithZone, Valid: true},
-		CreatedTimestamp:  pgtype.Timestamp{Time: data.CreatedTimestamp, Valid: true},
-		UpdatedTimestamp:  pgtype.Timestamp{Time: data.UpdatedTimestamp, Valid: true},
-		TimestampWithZone: pgtype.Timestamptz{Time: data.TimestampWithZone, Valid: true},
-		DurationInterval:  pgtype.Interval{Microseconds: data.DurationInterval, Valid: true},
-		WorkHours:         pgtype.Interval{Microseconds: data.WorkHours, Valid: true},
-		FileData:          data.FileData,
-		RequiredBinary:    data.RequiredBinary,
-		IpAddress:         pgtype.Inet{IPNet: data.IpAddress, Valid: true},
-		IpNetwork:         pgtype.Inet{IPNet: data.IpNetwork, Valid: true},
-		MacAddress:        pgtype.Inet{IPNet: data.MacAddress, Valid: true},
-		Mac8Address:       pgtype.Inet{IPNet: data.Mac8Address, Valid: true},
-		PointLocation:     data.PointLocation,
-		LineSegment:       data.LineSegment,
-		RectangularBox:    data.RectangularBox,
-		PathData:          data.PathData,
-		PolygonShape:      data.PolygonShape,
-		CircleArea:        data.CircleArea,
-		JsonData:          pgtype.JSON{Bytes: data.JsonData, Valid: true},
-		JsonbData:         pgtype.JSONB{Bytes: data.JsonbData, Valid: true},
-		JsonbNotNull:      pgtype.JSONB{Bytes: data.JsonbNotNull, Valid: true},
-		IntegerArray:      pgtype.Array[int32]{Elements: data.IntegerArray, Valid: true},
-		TextArray:         pgtype.Array[string]{Elements: data.TextArray, Valid: true},
-		MultidimArray:     pgtype.Array[int32]{Elements: data.MultidimArray, Valid: true},
-		IntRange:          data.IntRange,
-		BigintRange:       data.BigintRange,
-		NumericRange:      data.NumericRange,
-	})
+	params := db.NewInsertComprehensiveExampleParams(
+		data.UuidId,
+		data.SmallInt,
+		pgtype.Int4{Int32: data.RegularInt, Valid: true},
+		data.BigInt,
+		data.DecimalPrecise,
+		data.NumericField,
+		pgtype.Float4{Float32: data.RealFloat, Valid: true},
+		data.DoubleFloat,
+		data.SmallSerial,
+		pgtype.Int8{Int64: data.BigSerial, Valid: true},
+		pgtype.Text{String: data.FixedChar, Valid: true},
+		data.VariableChar,
+		pgtype.Text{String: data.UnlimitedText, Valid: true},
+		pgtype.Text{String: data.TextWithDefault, Valid: true},
+		data.TextNotNull,
+		pgtype.Bool{Bool: data.IsActive, Valid: true},
+		data.IsVerified,
+		pgtype.Bool{Bool: data.NullableFlag, Valid: true},
+		pgtype.Date{Time: data.CreatedDate, Valid: true},
+		pgtype.Date{Time: data.BirthDate, Valid: true},
+		pgtype.Time{Time: data.ExactTime, Valid: true},
+		pgtype.Timetz{Time: data.TimeWithZone, Valid: true},
+		pgtype.Timestamp{Time: data.CreatedTimestamp, Valid: true},
+		pgtype.Timestamp{Time: data.UpdatedTimestamp, Valid: true},
+		pgtype.Timestamptz{Time: data.TimestampWithZone, Valid: true},
+		pgtype.Interval{Microseconds: data.DurationInterval, Valid: true},
+		pgtype.Interval{Microseconds: data.WorkHours, Valid: true},
+		data.FileData,
+		data.RequiredBinary,
+		pgtype.Inet{IPNet: data.IpAddress, Valid: true},
+		pgtype.Inet{IPNet: data.IpNetwork, Valid: true},
+		pgtype.Inet{IPNet: data.MacAddress, Valid: true},
+		pgtype.Inet{IPNet: data.Mac8Address, Valid: true},
+		data.PointLocation,
+		data.LineSegment,
+		data.RectangularBox,
+		data.PathData,
+		data.PolygonShape,
+		data.CircleArea,
+		pgtype.JSON{Bytes: data.JsonData, Valid: true},
+		pgtype.JSONB{Bytes: data.JsonbData, Valid: true},
+		pgtype.JSONB{Bytes: data.JsonbNotNull, Valid: true},
+		pgtype.Array[int32]{Elements: data.IntegerArray, Valid: true},
+		pgtype.Array[string]{Elements: data.TextArray, Valid: true},
+		pgtype.Array[int32]{Elements: data.MultidimArray, Valid: true},
+		data.IntRange,
+		data.BigintRange,
+		data.NumericRange,
+	)
+	row, err := db.New().InsertComprehensiveExample(ctx, dbtx, params)
 	if err != nil {
 		return ComprehensiveExample{}, err
 	}
@@ -259,201 +259,297 @@ func UpdateComprehensiveExample(
 		return ComprehensiveExample{}, err
 	}
 
-	params := db.UpdateComprehensiveExampleParams{
-		ID:                data.ID,
-		UuidId:            currentRow.UuidId,
-		SmallInt:          currentRow.SmallInt,
-		RegularInt:        currentRow.RegularInt,
-		BigInt:            currentRow.BigInt,
-		DecimalPrecise:    currentRow.DecimalPrecise,
-		NumericField:      currentRow.NumericField,
-		RealFloat:         currentRow.RealFloat,
-		DoubleFloat:       currentRow.DoubleFloat,
-		SmallSerial:       currentRow.SmallSerial,
-		BigSerial:         currentRow.BigSerial,
-		FixedChar:         currentRow.FixedChar,
-		VariableChar:      currentRow.VariableChar,
-		UnlimitedText:     currentRow.UnlimitedText,
-		TextWithDefault:   currentRow.TextWithDefault,
-		TextNotNull:       currentRow.TextNotNull,
-		IsActive:          currentRow.IsActive,
-		IsVerified:        currentRow.IsVerified,
-		NullableFlag:      currentRow.NullableFlag,
-		CreatedDate:       currentRow.CreatedDate,
-		BirthDate:         currentRow.BirthDate,
-		ExactTime:         currentRow.ExactTime,
-		TimeWithZone:      currentRow.TimeWithZone,
-		CreatedTimestamp:  currentRow.CreatedTimestamp,
-		UpdatedTimestamp:  currentRow.UpdatedTimestamp,
-		TimestampWithZone: currentRow.TimestampWithZone,
-		DurationInterval:  currentRow.DurationInterval,
-		WorkHours:         currentRow.WorkHours,
-		FileData:          currentRow.FileData,
-		RequiredBinary:    currentRow.RequiredBinary,
-		IpAddress:         currentRow.IpAddress,
-		IpNetwork:         currentRow.IpNetwork,
-		MacAddress:        currentRow.MacAddress,
-		Mac8Address:       currentRow.Mac8Address,
-		PointLocation:     currentRow.PointLocation,
-		LineSegment:       currentRow.LineSegment,
-		RectangularBox:    currentRow.RectangularBox,
-		PathData:          currentRow.PathData,
-		PolygonShape:      currentRow.PolygonShape,
-		CircleArea:        currentRow.CircleArea,
-		JsonData:          currentRow.JsonData,
-		JsonbData:         currentRow.JsonbData,
-		JsonbNotNull:      currentRow.JsonbNotNull,
-		IntegerArray:      currentRow.IntegerArray,
-		TextArray:         currentRow.TextArray,
-		MultidimArray:     currentRow.MultidimArray,
-		IntRange:          currentRow.IntRange,
-		BigintRange:       currentRow.BigintRange,
-		NumericRange:      currentRow.NumericRange,
-	}
-	if data.UuidId != uuid.Nil {
-		params.UuidId = data.UuidId
-	}
-	if true {
-		params.SmallInt = data.SmallInt
-	}
-	if true {
-		params.RegularInt = pgtype.Int4{Int32: data.RegularInt, Valid: true}
-	}
-	if true {
-		params.BigInt = data.BigInt
-	}
-	if true {
-		params.DecimalPrecise = data.DecimalPrecise
-	}
-	if true {
-		params.NumericField = data.NumericField
-	}
-	if true {
-		params.RealFloat = pgtype.Float4{Float32: data.RealFloat, Valid: true}
-	}
-	if true {
-		params.DoubleFloat = data.DoubleFloat
-	}
-	if true {
-		params.SmallSerial = data.SmallSerial
-	}
-	if true {
-		params.BigSerial = pgtype.Int8{Int64: data.BigSerial, Valid: true}
-	}
-	if true {
-		params.FixedChar = pgtype.Text{String: data.FixedChar, Valid: true}
-	}
-	if true {
-		params.VariableChar = data.VariableChar
-	}
-	if true {
-		params.UnlimitedText = pgtype.Text{String: data.UnlimitedText, Valid: true}
-	}
-	if true {
-		params.TextWithDefault = pgtype.Text{String: data.TextWithDefault, Valid: true}
-	}
-	if true {
-		params.TextNotNull = data.TextNotNull
-	}
-	if true {
-		params.IsActive = pgtype.Bool{Bool: data.IsActive, Valid: true}
-	}
-	if true {
-		params.IsVerified = data.IsVerified
-	}
-	if true {
-		params.NullableFlag = pgtype.Bool{Bool: data.NullableFlag, Valid: true}
-	}
-	if true {
-		params.CreatedDate = pgtype.Date{Time: data.CreatedDate, Valid: true}
-	}
-	if true {
-		params.BirthDate = pgtype.Date{Time: data.BirthDate, Valid: true}
-	}
-	if true {
-		params.ExactTime = pgtype.Time{Time: data.ExactTime, Valid: true}
-	}
-	if true {
-		params.TimeWithZone = pgtype.Timetz{Time: data.TimeWithZone, Valid: true}
-	}
-	if true {
-		params.CreatedTimestamp = pgtype.Timestamp{Time: data.CreatedTimestamp, Valid: true}
-	}
-	if true {
-		params.UpdatedTimestamp = pgtype.Timestamp{Time: data.UpdatedTimestamp, Valid: true}
-	}
-	if true {
-		params.TimestampWithZone = pgtype.Timestamptz{Time: data.TimestampWithZone, Valid: true}
-	}
-	if true {
-		params.DurationInterval = pgtype.Interval{Microseconds: data.DurationInterval, Valid: true}
-	}
-	if true {
-		params.WorkHours = pgtype.Interval{Microseconds: data.WorkHours, Valid: true}
-	}
-	if true {
-		params.FileData = data.FileData
-	}
-	if true {
-		params.RequiredBinary = data.RequiredBinary
-	}
-	if true {
-		params.IpAddress = pgtype.Inet{IPNet: data.IpAddress, Valid: true}
-	}
-	if true {
-		params.IpNetwork = pgtype.Inet{IPNet: data.IpNetwork, Valid: true}
-	}
-	if true {
-		params.MacAddress = pgtype.Inet{IPNet: data.MacAddress, Valid: true}
-	}
-	if true {
-		params.Mac8Address = pgtype.Inet{IPNet: data.Mac8Address, Valid: true}
-	}
-	if true {
-		params.PointLocation = data.PointLocation
-	}
-	if true {
-		params.LineSegment = data.LineSegment
-	}
-	if true {
-		params.RectangularBox = data.RectangularBox
-	}
-	if true {
-		params.PathData = data.PathData
-	}
-	if true {
-		params.PolygonShape = data.PolygonShape
-	}
-	if true {
-		params.CircleArea = data.CircleArea
-	}
-	if true {
-		params.JsonData = pgtype.JSON{Bytes: data.JsonData, Valid: true}
-	}
-	if true {
-		params.JsonbData = pgtype.JSONB{Bytes: data.JsonbData, Valid: true}
-	}
-	if true {
-		params.JsonbNotNull = pgtype.JSONB{Bytes: data.JsonbNotNull, Valid: true}
-	}
-	if true {
-		params.IntegerArray = pgtype.Array[int32]{Elements: data.IntegerArray, Valid: true}
-	}
-	if true {
-		params.TextArray = pgtype.Array[string]{Elements: data.TextArray, Valid: true}
-	}
-	if true {
-		params.MultidimArray = pgtype.Array[int32]{Elements: data.MultidimArray, Valid: true}
-	}
-	if true {
-		params.IntRange = data.IntRange
-	}
-	if true {
-		params.BigintRange = data.BigintRange
-	}
-	if true {
-		params.NumericRange = data.NumericRange
-	}
+	params := db.NewUpdateComprehensiveExampleParams(
+		data.ID,
+		func() uuid.UUID {
+			if data.UuidId != uuid.Nil {
+				return data.UuidId
+			}
+			return currentRow.UuidId
+		}(),
+		func() int16 {
+			if true {
+				return data.SmallInt
+			}
+			return currentRow.SmallInt
+		}(),
+		func() pgtype.Int4 {
+			if true {
+				return pgtype.Int4{Int32: data.RegularInt, Valid: true}
+			}
+			return currentRow.RegularInt
+		}(),
+		func() int64 {
+			if true {
+				return data.BigInt
+			}
+			return currentRow.BigInt
+		}(),
+		func() pgtype.Numeric {
+			if true {
+				return data.DecimalPrecise
+			}
+			return currentRow.DecimalPrecise
+		}(),
+		func() pgtype.Numeric {
+			if true {
+				return data.NumericField
+			}
+			return currentRow.NumericField
+		}(),
+		func() pgtype.Float4 {
+			if true {
+				return pgtype.Float4{Float32: data.RealFloat, Valid: true}
+			}
+			return currentRow.RealFloat
+		}(),
+		func() float64 {
+			if true {
+				return data.DoubleFloat
+			}
+			return currentRow.DoubleFloat
+		}(),
+		func() int16 {
+			if true {
+				return data.SmallSerial
+			}
+			return currentRow.SmallSerial
+		}(),
+		func() pgtype.Int8 {
+			if true {
+				return pgtype.Int8{Int64: data.BigSerial, Valid: true}
+			}
+			return currentRow.BigSerial
+		}(),
+		func() pgtype.Text {
+			if true {
+				return pgtype.Text{String: data.FixedChar, Valid: true}
+			}
+			return currentRow.FixedChar
+		}(),
+		func() string {
+			if true {
+				return data.VariableChar
+			}
+			return currentRow.VariableChar
+		}(),
+		func() pgtype.Text {
+			if true {
+				return pgtype.Text{String: data.UnlimitedText, Valid: true}
+			}
+			return currentRow.UnlimitedText
+		}(),
+		func() pgtype.Text {
+			if true {
+				return pgtype.Text{String: data.TextWithDefault, Valid: true}
+			}
+			return currentRow.TextWithDefault
+		}(),
+		func() string {
+			if true {
+				return data.TextNotNull
+			}
+			return currentRow.TextNotNull
+		}(),
+		func() pgtype.Bool {
+			if true {
+				return pgtype.Bool{Bool: data.IsActive, Valid: true}
+			}
+			return currentRow.IsActive
+		}(),
+		func() bool {
+			if true {
+				return data.IsVerified
+			}
+			return currentRow.IsVerified
+		}(),
+		func() pgtype.Bool {
+			if true {
+				return pgtype.Bool{Bool: data.NullableFlag, Valid: true}
+			}
+			return currentRow.NullableFlag
+		}(),
+		func() pgtype.Date {
+			if true {
+				return pgtype.Date{Time: data.CreatedDate, Valid: true}
+			}
+			return currentRow.CreatedDate
+		}(),
+		func() pgtype.Date {
+			if true {
+				return pgtype.Date{Time: data.BirthDate, Valid: true}
+			}
+			return currentRow.BirthDate
+		}(),
+		func() pgtype.Time {
+			if true {
+				return pgtype.Time{Time: data.ExactTime, Valid: true}
+			}
+			return currentRow.ExactTime
+		}(),
+		func() pgtype.Timetz {
+			if true {
+				return pgtype.Timetz{Time: data.TimeWithZone, Valid: true}
+			}
+			return currentRow.TimeWithZone
+		}(),
+		func() pgtype.Timestamp {
+			if true {
+				return pgtype.Timestamp{Time: data.CreatedTimestamp, Valid: true}
+			}
+			return currentRow.CreatedTimestamp
+		}(),
+		func() pgtype.Timestamp {
+			if true {
+				return pgtype.Timestamp{Time: data.UpdatedTimestamp, Valid: true}
+			}
+			return currentRow.UpdatedTimestamp
+		}(),
+		func() pgtype.Timestamptz {
+			if true {
+				return pgtype.Timestamptz{Time: data.TimestampWithZone, Valid: true}
+			}
+			return currentRow.TimestampWithZone
+		}(),
+		func() pgtype.Interval {
+			if true {
+				return pgtype.Interval{Microseconds: data.DurationInterval, Valid: true}
+			}
+			return currentRow.DurationInterval
+		}(),
+		func() pgtype.Interval {
+			if true {
+				return pgtype.Interval{Microseconds: data.WorkHours, Valid: true}
+			}
+			return currentRow.WorkHours
+		}(),
+		func() pgtype.Bytea {
+			if true {
+				return data.FileData
+			}
+			return currentRow.FileData
+		}(),
+		func() []byte {
+			if true {
+				return data.RequiredBinary
+			}
+			return currentRow.RequiredBinary
+		}(),
+		func() pgtype.Inet {
+			if true {
+				return pgtype.Inet{IPNet: data.IpAddress, Valid: true}
+			}
+			return currentRow.IpAddress
+		}(),
+		func() pgtype.CIDR {
+			if true {
+				return pgtype.Inet{IPNet: data.IpNetwork, Valid: true}
+			}
+			return currentRow.IpNetwork
+		}(),
+		func() pgtype.Macaddr {
+			if true {
+				return pgtype.Inet{IPNet: data.MacAddress, Valid: true}
+			}
+			return currentRow.MacAddress
+		}(),
+		func() pgtype.Macaddr8 {
+			if true {
+				return pgtype.Inet{IPNet: data.Mac8Address, Valid: true}
+			}
+			return currentRow.Mac8Address
+		}(),
+		func() pgtype.Point {
+			if true {
+				return data.PointLocation
+			}
+			return currentRow.PointLocation
+		}(),
+		func() pgtype.Lseg {
+			if true {
+				return data.LineSegment
+			}
+			return currentRow.LineSegment
+		}(),
+		func() pgtype.Box {
+			if true {
+				return data.RectangularBox
+			}
+			return currentRow.RectangularBox
+		}(),
+		func() pgtype.Path {
+			if true {
+				return data.PathData
+			}
+			return currentRow.PathData
+		}(),
+		func() pgtype.Polygon {
+			if true {
+				return data.PolygonShape
+			}
+			return currentRow.PolygonShape
+		}(),
+		func() pgtype.Circle {
+			if true {
+				return data.CircleArea
+			}
+			return currentRow.CircleArea
+		}(),
+		func() pgtype.JSON {
+			if true {
+				return pgtype.JSON{Bytes: data.JsonData, Valid: true}
+			}
+			return currentRow.JsonData
+		}(),
+		func() pgtype.JSONB {
+			if true {
+				return pgtype.JSONB{Bytes: data.JsonbData, Valid: true}
+			}
+			return currentRow.JsonbData
+		}(),
+		func() pgtype.JSONB {
+			if true {
+				return pgtype.JSONB{Bytes: data.JsonbNotNull, Valid: true}
+			}
+			return currentRow.JsonbNotNull
+		}(),
+		func() pgtype.Array[int32] {
+			if true {
+				return pgtype.Array[int32]{Elements: data.IntegerArray, Valid: true}
+			}
+			return currentRow.IntegerArray
+		}(),
+		func() pgtype.Array[string] {
+			if true {
+				return pgtype.Array[string]{Elements: data.TextArray, Valid: true}
+			}
+			return currentRow.TextArray
+		}(),
+		func() pgtype.Array[int32] {
+			if true {
+				return pgtype.Array[int32]{Elements: data.MultidimArray, Valid: true}
+			}
+			return currentRow.MultidimArray
+		}(),
+		func() pgtype.Int4range {
+			if true {
+				return data.IntRange
+			}
+			return currentRow.IntRange
+		}(),
+		func() pgtype.Int8range {
+			if true {
+				return data.BigintRange
+			}
+			return currentRow.BigintRange
+		}(),
+		func() pgtype.Numrange {
+			if true {
+				return data.NumericRange
+			}
+			return currentRow.NumericRange
+		}(),
+	)
 
 	row, err := db.New().UpdateComprehensiveExample(ctx, dbtx, params)
 	if err != nil {
@@ -522,10 +618,7 @@ func PaginateComprehensiveExamples(
 	rows, err := db.New().QueryPaginatedComprehensiveExamples(
 		ctx,
 		dbtx,
-		db.QueryPaginatedComprehensiveExamplesParams{
-			Limit:  pageSize,
-			Offset: offset,
-		},
+		db.NewQueryPaginatedComprehensiveExamplesParams(pageSize, offset),
 	)
 	if err != nil {
 		return PaginatedComprehensiveExamples{}, err

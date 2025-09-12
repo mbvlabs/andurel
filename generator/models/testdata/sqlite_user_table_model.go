@@ -53,13 +53,13 @@ func CreateUser(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	row, err := db.New().InsertUser(ctx, dbtx, db.InsertUserParams{
-		ID:              uuid.New().String(),
-		Email:           data.Email,
-		EmailVerifiedAt: sql.NullTime{Time: data.EmailVerifiedAt, Valid: true},
-		Password:        data.Password,
-		IsAdmin:         data.IsAdmin,
-	})
+	params := db.NewInsertUserParams(
+		data.Email,
+		sql.NullTime{Time: data.EmailVerifiedAt, Valid: true},
+		data.Password,
+		data.IsAdmin,
+	)
+	row, err := db.New().InsertUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err
 	}
@@ -94,25 +94,33 @@ func UpdateUser(
 		return User{}, err
 	}
 
-	params := db.UpdateUserParams{
-		ID:              data.ID.String(),
-		Email:           currentRow.Email,
-		EmailVerifiedAt: currentRow.EmailVerifiedAt,
-		Password:        currentRow.Password,
-		IsAdmin:         currentRow.IsAdmin,
-	}
-	if true {
-		params.Email = data.Email
-	}
-	if true {
-		params.EmailVerifiedAt = sql.NullTime{Time: data.EmailVerifiedAt, Valid: true}
-	}
-	if true {
-		params.Password = data.Password
-	}
-	if true {
-		params.IsAdmin = data.IsAdmin
-	}
+	params := db.NewUpdateUserParams(
+		data.ID.String(),
+		func() string {
+			if true {
+				return data.Email
+			}
+			return currentRow.Email
+		}(),
+		func() sql.NullTime {
+			if true {
+				return sql.NullTime{Time: data.EmailVerifiedAt, Valid: true}
+			}
+			return currentRow.EmailVerifiedAt
+		}(),
+		func() []byte {
+			if true {
+				return data.Password
+			}
+			return currentRow.Password
+		}(),
+		func() int64 {
+			if true {
+				return data.IsAdmin
+			}
+			return currentRow.IsAdmin
+		}(),
+	)
 
 	row, err := db.New().UpdateUser(ctx, dbtx, params)
 	if err != nil {
@@ -189,10 +197,7 @@ func PaginateUsers(
 	rows, err := db.New().QueryPaginatedUsers(
 		ctx,
 		dbtx,
-		db.QueryPaginatedUsersParams{
-			Limit:  pageSize,
-			Offset: offset,
-		},
+		db.NewQueryPaginatedUsersParams(pageSize, offset),
 	)
 	if err != nil {
 		return PaginatedUsers{}, err
