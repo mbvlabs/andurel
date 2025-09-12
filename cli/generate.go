@@ -110,20 +110,15 @@ Examples:
 func newResourceCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "resource [name] [table]",
-		Short: "Generate a complete resource (model, resource controller, and routes)",
-		Long: `Generate a complete resource including model, resource controller with CRUD actions, and routes.
-This is equivalent to running model and controller generators together.
-
-By default, controllers are generated without views. Use --with-views to also generate view templates.
+		Short: "Generate a complete resource (model, controller, views, and routes)",
+		Long: `Generate a complete resource including model, controller with CRUD actions, views, and routes.
+This is equivalent to running model, controller, and view generators together.
 
 Examples:
-  andurel generate resource Product products              # Model + controller without views
-  andurel generate resource Product products --with-views # Model + controller with views`,
+  andurel generate resource Product products    # Model + controller + views + routes`,
 		Args: cobra.ExactArgs(2),
 		RunE: generateResource,
 	}
-
-	cmd.Flags().Bool("with-views", false, "Generate views along with the controller")
 
 	return cmd
 }
@@ -148,11 +143,6 @@ func generateResource(cmd *cobra.Command, args []string) error {
 	resourceName := args[0]
 	tableName := args[1]
 
-	withViews, err := cmd.Flags().GetBool("with-views")
-	if err != nil {
-		return err
-	}
-
 	gen, err := generator.New()
 	if err != nil {
 		return err
@@ -162,7 +152,7 @@ func generateResource(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return gen.GenerateController(resourceName, tableName, withViews)
+	return gen.GenerateControllerFromModel(resourceName, true)
 }
 
 func generateView(cmd *cobra.Command, args []string) error {

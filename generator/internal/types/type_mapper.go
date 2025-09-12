@@ -83,6 +83,11 @@ func (tm *TypeMapper) MapSQLTypeToGo(
 }
 
 func (tm *TypeMapper) GenerateConversionFromDB(fieldName, sqlcType, goType string) string {
+	// Special case: UUID from string for SQLite ID fields
+	if goType == "uuid.UUID" && sqlcType == "string" {
+		return fmt.Sprintf("uuid.Parse(row.%s)", fieldName)
+	}
+
 	if strings.HasPrefix(sqlcType, "pgtype.") {
 		switch sqlcType {
 		case "pgtype.Text":
@@ -451,6 +456,11 @@ func (tm *TypeMapper) GenerateConversionToDB(
 	goType string,
 	valueExpr string,
 ) string {
+	// Special case: UUID to string for SQLite ID fields
+	if goType == "uuid.UUID" && sqlcType == "string" {
+		return fmt.Sprintf("%s.String()", valueExpr)
+	}
+
 	if strings.HasPrefix(sqlcType, "pgtype.") {
 		switch sqlcType {
 		case "pgtype.Text":
