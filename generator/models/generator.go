@@ -230,7 +230,8 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 
 func (g *Generator) GenerateModel(
 	cat *catalog.Catalog,
-	resourceName, pluralName string,
+	resourceName string,
+	pluralName string,
 	modelPath, sqlPath string,
 	modulePath string,
 ) error {
@@ -614,7 +615,8 @@ func (g *Generator) calculateConstructorImports(model *GeneratedModel) []string 
 
 func (g *Generator) RefreshConstructors(
 	cat *catalog.Catalog,
-	resourceName, pluralName string,
+	resourceName string,
+	pluralName string,
 	constructorPath string,
 	modulePath string,
 ) error {
