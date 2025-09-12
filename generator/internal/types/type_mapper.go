@@ -45,9 +45,8 @@ func (tm *TypeMapper) initPostgreSQLMappings() {
 	tm.TypeMap["uuid"] = "uuid.UUID"
 }
 
+// TODO: is this needed?
 func (tm *TypeMapper) initSQLiteMappings() {
-	// SQLite has a more flexible type system based on type affinity
-	// We'll handle the main type affinities here
 }
 
 func (tm *TypeMapper) MapSQLTypeToGo(
@@ -415,7 +414,7 @@ func (tm *TypeMapper) getSQLiteType(
 		}
 		return "float64", "float64", ""
 
-	case "numeric", "decimal", "boolean", "date", "datetime":
+	case "numeric", "decimal", "boolean", "date", "datetime", "timestamp", "time":
 		if normalizedType == "boolean" {
 			if nullable {
 				return "bool", "sql.NullBool", "database/sql"
@@ -423,6 +422,12 @@ func (tm *TypeMapper) getSQLiteType(
 			return "bool", "bool", ""
 		}
 		if normalizedType == "date" || normalizedType == "datetime" {
+			if nullable {
+				return "time.Time", "sql.NullTime", "database/sql"
+			}
+			return "time.Time", "time.Time", ""
+		}
+		if normalizedType == "timestamp" || normalizedType == "time" {
 			if nullable {
 				return "time.Time", "sql.NullTime", "database/sql"
 			}

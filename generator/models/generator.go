@@ -30,12 +30,13 @@ type GeneratedField struct {
 }
 
 type GeneratedModel struct {
-	Name       string
-	Package    string
-	Fields     []GeneratedField
-	Imports    []string
-	TableName  string
-	ModulePath string
+	Name         string
+	Package      string
+	Fields       []GeneratedField
+	Imports      []string
+	TableName    string
+	ModulePath   string
+	DatabaseType string
 }
 
 type Config struct {
@@ -53,6 +54,10 @@ type SQLData struct {
 	InsertColumns      string
 	InsertPlaceholders string
 	UpdateColumns      string
+	DatabaseType       string
+	IDPlaceholder      string
+	LimitOffsetClause  string
+	NowFunction        string
 }
 
 type Generator struct {
@@ -74,12 +79,13 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	g.typeMapper.Overrides = append(g.typeMapper.Overrides, config.CustomTypes...)
 
 	model := &GeneratedModel{
-		Name:       config.ResourceName,
-		Package:    config.PackageName,
-		TableName:  config.TableName,
-		ModulePath: config.ModulePath,
-		Fields:     make([]GeneratedField, 0, len(table.Columns)),
-		Imports:    make([]string, 0),
+		Name:         config.ResourceName,
+		Package:      config.PackageName,
+		TableName:    config.TableName,
+		ModulePath:   config.ModulePath,
+		DatabaseType: g.typeMapper.GetDatabaseType(),
+		Fields:       make([]GeneratedField, 0, len(table.Columns)),
+		Imports:      make([]string, 0),
 	}
 
 	importSet := make(map[string]bool)
@@ -100,6 +106,9 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		}
 		model.Fields = append(model.Fields, field)
 	}
+
+	importSet["time"] = true
+	importSet["github.com/google/uuid"] = true
 
 	for imp := range importSet {
 		model.Imports = append(model.Imports, imp)
@@ -154,8 +163,14 @@ func (g *Generator) addTypeImports(sqlcType, goType string) map[string]bool {
 	if strings.Contains(sqlcType, "pgtype.") {
 		importSet["github.com/jackc/pgx/v5/pgtype"] = true
 	}
-	if strings.Contains(goType, "time.Time") {
+	if strings.Contains(sqlcType, "sql.Null") {
+		importSet["database/sql"] = true
+	}
+	if strings.Contains(goType, "time.Time") || strings.Contains(sqlcType, "time.Time") {
 		importSet["time"] = true
+	}
+	if strings.Contains(goType, "uuid.UUID") || strings.Contains(sqlcType, "uuid.UUID") {
+		importSet["github.com/google/uuid"] = true
 	}
 
 	return importSet
@@ -169,6 +184,12 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 		},
 		"lower": func(s string) string {
 			return strings.ToLower(s)
+		},
+		"uuidParam": func(param string) string {
+			if model.DatabaseType == "sqlite" {
+				return param + ".String()"
+			}
+			return param
 		},
 	}
 
@@ -282,17 +303,35 @@ func (g *Generator) prepareSQLData(
 	var insertPlaceholders []string
 	var updateColumns []string
 
+	var placeholderFunc func(int) string
+	var nowFunc string
+	var idPlaceholder string
+	var limitOffsetClause string
+
+	if g.typeMapper.GetDatabaseType() == "sqlite" {
+		placeholderFunc = func(i int) string { return "?" }
+		nowFunc = "datetime('now')"
+		idPlaceholder = "?"
+		limitOffsetClause = "limit ? offset ?"
+	}
+	if g.typeMapper.GetDatabaseType() == "postgresql" {
+		placeholderFunc = func(i int) string { return fmt.Sprintf("$%d", i) }
+		nowFunc = "now()"
+		idPlaceholder = "$1"
+		limitOffsetClause = "limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint"
+	}
+
 	placeholderIndex := 1
 
 	for _, col := range table.Columns {
 		insertColumns = append(insertColumns, col.Name)
 
 		if col.Name == "created_at" || col.Name == "updated_at" {
-			insertPlaceholders = append(insertPlaceholders, "now()")
+			insertPlaceholders = append(insertPlaceholders, nowFunc)
 		} else {
 			insertPlaceholders = append(
 				insertPlaceholders,
-				fmt.Sprintf("$%d", placeholderIndex),
+				placeholderFunc(placeholderIndex),
 			)
 			placeholderIndex++
 		}
@@ -302,11 +341,11 @@ func (g *Generator) prepareSQLData(
 	for _, col := range table.Columns {
 		if col.Name != "id" && col.Name != "created_at" {
 			if col.Name == "updated_at" {
-				updateColumns = append(updateColumns, "updated_at=now()")
+				updateColumns = append(updateColumns, "updated_at="+nowFunc)
 			} else {
 				updateColumns = append(
 					updateColumns,
-					fmt.Sprintf("%s=$%d", col.Name, placeholderIndex),
+					fmt.Sprintf("%s=%s", col.Name, placeholderFunc(placeholderIndex)),
 				)
 				placeholderIndex++
 			}
@@ -319,6 +358,10 @@ func (g *Generator) prepareSQLData(
 		InsertColumns:      strings.Join(insertColumns, ", "),
 		InsertPlaceholders: strings.Join(insertPlaceholders, ", "),
 		UpdateColumns:      strings.Join(updateColumns, ", "),
+		DatabaseType:       g.typeMapper.GetDatabaseType(),
+		IDPlaceholder:      idPlaceholder,
+		LimitOffsetClause:  limitOffsetClause,
+		NowFunction:        nowFunc,
 	}
 }
 
