@@ -511,7 +511,10 @@ func (g *Generator) RefreshQueries(
 	return nil
 }
 
-func (g *Generator) GenerateConstructorFile(model *GeneratedModel, templateStr string) (string, error) {
+func (g *Generator) GenerateConstructorFile(
+	model *GeneratedModel,
+	templateStr string,
+) (string, error) {
 	funcMap := template.FuncMap{
 		"lower": func(s string) string {
 			return strings.ToLower(s)
@@ -554,7 +557,6 @@ func (g *Generator) GenerateConstructors(
 		return fmt.Errorf("failed to build model for constructors: %w", err)
 	}
 
-	// Calculate only the imports needed for constructor functions
 	model.Imports = g.calculateConstructorImports(model)
 
 	templateContent, err := templates.Files.ReadFile("constructors.tmpl")
@@ -581,17 +583,13 @@ func (g *Generator) GenerateConstructors(
 func (g *Generator) calculateConstructorImports(model *GeneratedModel) []string {
 	importSet := make(map[string]bool)
 
-	// Always need uuid for ID generation
 	importSet["github.com/google/uuid"] = true
 
-	// Check what types are actually used in constructor parameters
 	for _, field := range model.Fields {
-		// Skip fields that are not part of constructor parameters
 		if field.Name == "ID" || field.Name == "CreatedAt" || field.Name == "UpdatedAt" {
 			continue
 		}
 
-		// Add imports based on the SQLCType used in constructor parameters
 		if strings.Contains(field.SQLCType, "pgtype.") {
 			importSet["github.com/jackc/pgx/v5/pgtype"] = true
 		}
@@ -606,7 +604,6 @@ func (g *Generator) calculateConstructorImports(model *GeneratedModel) []string 
 		}
 	}
 
-	// Convert to sorted slice
 	var imports []string
 	for imp := range importSet {
 		imports = append(imports, imp)
@@ -622,12 +619,10 @@ func (g *Generator) RefreshConstructors(
 	constructorPath string,
 	modulePath string,
 ) error {
-	// Validate ID column constraints before refreshing
 	if err := g.validateIDColumnConstraints(cat, pluralName); err != nil {
 		return fmt.Errorf("ID validation failed: %w", err)
 	}
 
-	// Generate new constructor functions in the internal/db package
 	if err := g.GenerateConstructors(cat, resourceName, pluralName, constructorPath, modulePath); err != nil {
 		return fmt.Errorf("failed to generate constructor functions: %w", err)
 	}
@@ -635,17 +630,14 @@ func (g *Generator) RefreshConstructors(
 	return nil
 }
 
-
 func (g *Generator) validateIDColumnConstraints(cat *catalog.Catalog, tableName string) error {
 	table, err := cat.GetTable("", tableName)
 	if err != nil {
 		return fmt.Errorf("table '%s' not found in catalog: %w", tableName, err)
 	}
 
-	// Find the ID column and validate its data type
 	for _, col := range table.Columns {
 		if col.Name == "id" && col.IsPrimaryKey {
-			// Use the existing validation logic from catalog.Column
 			if err := col.ValidatePrimaryKeyDatatype(g.databaseType, "refresh operation"); err != nil {
 				return err
 			}
@@ -800,8 +792,7 @@ func (g *Generator) extractPartBySignature(lines []string, signature string) str
 			inFunctionParams = true
 			result = []string{line}
 			braceCount = strings.Count(line, "{") - strings.Count(line, "}")
-			
-			// If the opening brace is on the same line as the signature, we're done with params
+
 			if strings.Contains(line, "{") {
 				inFunctionParams = false
 			}
@@ -814,12 +805,11 @@ func (g *Generator) extractPartBySignature(lines []string, signature string) str
 
 		if inBlock {
 			result = append(result, line)
-			
-			// Still parsing parameters if we haven't seen the opening brace
+
 			if inFunctionParams && strings.Contains(line, "{") {
 				inFunctionParams = false
 			}
-			
+
 			braceCount += strings.Count(line, "{") - strings.Count(line, "}")
 
 			if braceCount == 0 && !inFunctionParams {

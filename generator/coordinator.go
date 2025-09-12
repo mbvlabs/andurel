@@ -94,15 +94,11 @@ func (c *Coordinator) GenerateModel(resourceName, tableName string) error {
 		return fmt.Errorf("failed to generate model: %w", err)
 	}
 
-	// Create models/internal/db directory if it doesn't exist
-	internalDbDir := filepath.Join(c.config.Paths.Models, "internal", "db")
-	if err := os.MkdirAll(internalDbDir, os.ModePerm); err != nil {
-		return fmt.Errorf("failed to create internal/db directory: %w", err)
-	}
-
-	// Generate constructor functions in models/internal/db/{model}_constructors.go
 	constructorFileName := fmt.Sprintf("%s_constructors.go", strings.ToLower(resourceName))
-	constructorPath := filepath.Join(internalDbDir, constructorFileName)
+	constructorPath := filepath.Join(
+		filepath.Join(c.config.Paths.Models, "internal", "db"),
+		constructorFileName,
+	)
 	if err := c.modelGenerator.GenerateConstructors(cat, resourceName, pluralName, constructorPath, modulePath); err != nil {
 		return fmt.Errorf("failed to generate constructor functions: %w", err)
 	}
@@ -517,20 +513,15 @@ func (c *Coordinator) RefreshConstructors(resourceName, tableName string) error 
 		return err
 	}
 
-	// Refresh SQL queries first
 	if err := c.modelGenerator.RefreshQueries(cat, resourceName, pluralName, sqlPath); err != nil {
 		return fmt.Errorf("failed to refresh queries: %w", err)
 	}
 
-	// Create models/internal/db directory if it doesn't exist
-	internalDbDir := filepath.Join(c.config.Paths.Models, "internal", "db")
-	if err := os.MkdirAll(internalDbDir, os.ModePerm); err != nil {
-		return fmt.Errorf("failed to create internal/db directory: %w", err)
-	}
-
-	// Generate constructor functions in models/internal/db/{model}_constructors.go
 	constructorFileName := fmt.Sprintf("%s_constructors.go", strings.ToLower(resourceName))
-	constructorPath := filepath.Join(internalDbDir, constructorFileName)
+	constructorPath := filepath.Join(
+		filepath.Join(c.config.Paths.Models, "internal", "db"),
+		constructorFileName,
+	)
 	if err := c.modelGenerator.RefreshConstructors(cat, resourceName, pluralName, constructorPath, modulePath); err != nil {
 		return fmt.Errorf("failed to refresh constructor functions: %w", err)
 	}

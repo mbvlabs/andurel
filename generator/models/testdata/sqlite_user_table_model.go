@@ -53,7 +53,7 @@ func CreateUser(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := newInsertUserParams(
+	params := db.NewInsertUserParams(
 		data.Email,
 		sql.NullTime{Time: data.EmailVerifiedAt, Valid: true},
 		data.Password,
@@ -94,7 +94,7 @@ func UpdateUser(
 		return User{}, err
 	}
 
-	params := newUpdateUserParams(
+	params := db.NewUpdateUserParams(
 		data.ID.String(),
 		func() string {
 			if true {
@@ -197,7 +197,7 @@ func PaginateUsers(
 	rows, err := db.New().QueryPaginatedUsers(
 		ctx,
 		dbtx,
-		newQueryPaginatedUsersParams(pageSize, offset),
+		db.NewQueryPaginatedUsersParams(pageSize, offset),
 	)
 	if err != nil {
 		return PaginatedUsers{}, err
@@ -238,45 +238,4 @@ func rowToUser(row db.User) (User, error) {
 		Password:        row.Password,
 		IsAdmin:         row.IsAdmin,
 	}, nil
-}
-
-// Constructor functions for SQLC parameters - these get updated during refresh
-// to make schema changes compiler-enforced and visible
-
-func newInsertUserParams(
-	email string,
-	emailverifiedat sql.NullTime,
-	password []byte,
-	isadmin int64,
-) db.InsertUserParams {
-	return db.InsertUserParams{
-		ID:              uuid.New().String(),
-		Email:           email,
-		EmailVerifiedAt: emailverifiedat,
-		Password:        password,
-		IsAdmin:         isadmin,
-	}
-}
-
-func newUpdateUserParams(
-	id string,
-	email string,
-	emailverifiedat sql.NullTime,
-	password []byte,
-	isadmin int64,
-) db.UpdateUserParams {
-	return db.UpdateUserParams{
-		ID:              id,
-		Email:           email,
-		EmailVerifiedAt: emailverifiedat,
-		Password:        password,
-		IsAdmin:         isadmin,
-	}
-}
-
-func newQueryPaginatedUsersParams(limit, offset int64) db.QueryPaginatedUsersParams {
-	return db.QueryPaginatedUsersParams{
-		Limit:  limit,
-		Offset: offset,
-	}
 }

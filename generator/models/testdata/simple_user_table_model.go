@@ -214,4 +214,3 @@ func rowToUser(row db.User) User {
 		UpdatedAt: row.UpdatedAt.Time,
 	}
 }
-
