@@ -2,6 +2,7 @@ package ddl
 
 import (
 	"fmt"
+	"path/filepath"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"regexp"
 	"slices"
@@ -41,7 +42,7 @@ type DDLStatement struct {
 	ColumnChanges  map[string]any // for ALTER COLUMN operations (type, nullable, default)
 }
 
-func ParseDDLStatement(sql, migrationFile string) (*DDLStatement, error) {
+func ParseDDLStatement(sql, migrationFile string, databaseType string) (*DDLStatement, error) {
 	sql = strings.TrimSpace(sql)
 	if sql == "" {
 		return nil, nil
@@ -55,9 +56,9 @@ func ParseDDLStatement(sql, migrationFile string) (*DDLStatement, error) {
 
 	switch {
 	case strings.HasPrefix(sqlLower, "create table"):
-		return parseCreateTable(sql, migrationFile)
+		return parseCreateTable(sql, migrationFile, databaseType)
 	case strings.HasPrefix(sqlLower, "alter table"):
-		return parseAlterTable(sql, migrationFile)
+		return parseAlterTable(sql, migrationFile, databaseType)
 	case strings.HasPrefix(sqlLower, "drop table"):
 		return parseDropTable(sql)
 	case strings.HasPrefix(sqlLower, "create index") || strings.HasPrefix(sqlLower, "create unique index"):
@@ -78,7 +79,7 @@ func ParseDDLStatement(sql, migrationFile string) (*DDLStatement, error) {
 	}
 }
 
-func parseCreateTable(sql, migrationFile string) (*DDLStatement, error) {
+func parseCreateTable(sql, migrationFile string, databaseType string) (*DDLStatement, error) {
 	createTableRegex, err := regexp.Compile(
 		`(?is)create\s+table(\s+if\s+not\s+exists)?\s+(?:(\w+)\.)?(\w+)\s*\(\s*(.*?)\s*\)`,
 	)
@@ -98,7 +99,7 @@ func parseCreateTable(sql, migrationFile string) (*DDLStatement, error) {
 
 	table := catalog.NewTable(schemaName, tableName).SetCreatedBy(migrationFile)
 
-	columns, err := parseColumnDefinitions(columnDefs, migrationFile)
+	columns, err := parseColumnDefinitions(columnDefs, migrationFile, databaseType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse column definitions: %w", err)
 	}
@@ -120,6 +121,7 @@ func parseCreateTable(sql, migrationFile string) (*DDLStatement, error) {
 
 func parseColumnDefinitions(
 	columnDefs, migrationFile string,
+	databaseType string,
 ) ([]*catalog.Column, error) {
 	var columns []*catalog.Column
 	var primaryKeyColumns []string
@@ -157,7 +159,7 @@ func parseColumnDefinitions(
 			continue
 		}
 
-		col, err := parseColumnDefinition(def, migrationFile)
+		col, err := parseColumnDefinition(def, migrationFile, databaseType)
 		if err != nil {
 			return nil, fmt.Errorf(
 				"failed to parse column definition '%s': %w",
@@ -175,6 +177,9 @@ func parseColumnDefinitions(
 		for _, pkCol := range primaryKeyColumns {
 			if col.Name == pkCol {
 				col.SetPrimaryKey()
+				if err := validatePrimaryKeyDatatype(col.DataType, databaseType, migrationFile, col.Name); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -182,7 +187,7 @@ func parseColumnDefinitions(
 	return columns, nil
 }
 
-func parseColumnDefinition(def, migrationFile string) (*catalog.Column, error) {
+func parseColumnDefinition(def, migrationFile string, databaseType string) (*catalog.Column, error) {
 	parts := strings.Fields(def)
 	if len(parts) < 2 {
 		return nil, fmt.Errorf("invalid column definition: %s", def)
@@ -234,6 +239,9 @@ func parseColumnDefinition(def, migrationFile string) (*catalog.Column, error) {
 
 	if strings.Contains(defLower, "primary key") {
 		col.SetPrimaryKey()
+		if err := validatePrimaryKeyDatatype(col.DataType, databaseType, migrationFile, col.Name); err != nil {
+			return nil, err
+		}
 	}
 
 	if strings.Contains(defLower, "unique") {
@@ -363,6 +371,7 @@ func splitColumnDefinitions(defs string) []string {
 func parseAddColumn(
 	stmt *DDLStatement,
 	operation, migrationFile string,
+	databaseType string,
 ) (*DDLStatement, error) {
 	addColumnRegex := regexp.MustCompile(
 		`(?i)add\s+column\s+(?:if\s+not\s+exists\s+)?(.+)`,
@@ -374,7 +383,7 @@ func parseAddColumn(
 	}
 
 	columnDef := strings.TrimSpace(matches[1])
-	column, err := parseColumnDefinition(columnDef, migrationFile)
+	column, err := parseColumnDefinition(columnDef, migrationFile, databaseType)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"failed to parse column definition in ADD COLUMN: %w",
@@ -485,7 +494,7 @@ func parseRenameTable(
 	return stmt, nil
 }
 
-func parseAlterTable(sql, migrationFile string) (*DDLStatement, error) {
+func parseAlterTable(sql, migrationFile string, databaseType string) (*DDLStatement, error) {
 	alterRegex := regexp.MustCompile(
 		`(?is)alter\s+table\s+(?:if\s+exists\s+)?(?:(\w+)\.)?(\w+)\s+(.+)`,
 	)
@@ -508,6 +517,7 @@ func parseAlterTable(sql, migrationFile string) (*DDLStatement, error) {
 			operationList[0],
 			sql,
 			migrationFile,
+			databaseType,
 		)
 	}
 
@@ -528,6 +538,7 @@ func parseAlterTable(sql, migrationFile string) (*DDLStatement, error) {
 
 func parseAlterTableSingleOperation(
 	schemaName, tableName, operation, sql, migrationFile string,
+	databaseType string,
 ) (*DDLStatement, error) {
 	stmt := &DDLStatement{
 		Type:       AlterTable,
@@ -541,7 +552,7 @@ func parseAlterTableSingleOperation(
 
 	switch {
 	case strings.HasPrefix(operationLower, "add column"):
-		return parseAddColumn(stmt, operation, migrationFile)
+		return parseAddColumn(stmt, operation, migrationFile, databaseType)
 	case strings.HasPrefix(operationLower, "drop column"):
 		return parseDropColumn(stmt, operation)
 	case strings.HasPrefix(operationLower, "alter column"):
@@ -600,6 +611,39 @@ func splitAlterOperations(operations string) []string {
 	}
 
 	return result
+}
+
+func validatePrimaryKeyDatatype(dataType, databaseType, migrationFile, columnName string) error {
+	normalizedDataType := strings.ToLower(dataType)
+	
+	switch databaseType {
+	case "postgresql":
+		if normalizedDataType != "uuid" {
+			return fmt.Errorf(`Primary key validation failed in migration '%s':
+Column '%s' has datatype '%s' but PostgreSQL primary keys must use 'uuid'.
+
+To fix this, change:
+  %s %s PRIMARY KEY
+to:
+  %s UUID PRIMARY KEY`, 
+				filepath.Base(migrationFile), columnName, dataType, 
+				columnName, dataType, columnName)
+		}
+	case "sqlite":
+		if normalizedDataType != "text" {
+			return fmt.Errorf(`Primary key validation failed in migration '%s':
+Column '%s' has datatype '%s' but SQLite primary keys must use 'text'.
+
+To fix this, change:
+  %s %s PRIMARY KEY
+to:
+  %s TEXT PRIMARY KEY`, 
+				filepath.Base(migrationFile), columnName, dataType,
+				columnName, dataType, columnName)
+		}
+	}
+	
+	return nil
 }
 
 func parseDropTable(sql string) (*DDLStatement, error) {

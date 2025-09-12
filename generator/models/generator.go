@@ -62,12 +62,14 @@ type SQLData struct {
 }
 
 type Generator struct {
-	typeMapper *types.TypeMapper
+	typeMapper   *types.TypeMapper
+	databaseType string
 }
 
 func NewGenerator(databaseType string) *Generator {
 	return &Generator{
-		typeMapper: types.NewTypeMapper(databaseType),
+		typeMapper:   types.NewTypeMapper(databaseType),
+		databaseType: databaseType,
 	}
 }
 
@@ -400,7 +402,7 @@ func (g *Generator) buildCatalogFromTableMigrations(
 
 	for _, migration := range relevantMigrations {
 		for _, statement := range migration.Statements {
-			if err := ddl.ApplyDDL(cat, statement, migration.FilePath); err != nil {
+			if err := ddl.ApplyDDL(cat, statement, migration.FilePath, g.databaseType); err != nil {
 				return nil, fmt.Errorf("failed to apply DDL from %s: %w", migration.FilePath, err)
 			}
 		}
@@ -434,9 +436,11 @@ func (g *Generator) filterMigrationsForTable(
 }
 
 func (g *Generator) statementAffectsTable(statement, tableName string) bool {
-	stmt, err := ddl.ParseDDLStatement(statement, "")
+	stmt, err := ddl.ParseDDLStatement(statement, "", g.databaseType)
 	if err != nil {
-		return false
+		// Don't filter out statements that fail to parse - let them be processed
+		// by ApplyDDL so validation errors can be properly reported
+		return strings.Contains(strings.ToLower(statement), strings.ToLower(tableName))
 	}
 
 	if stmt == nil {

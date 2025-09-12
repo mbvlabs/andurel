@@ -208,7 +208,7 @@ func buildCatalogFromTableMigrations(
 	for _, migration := range allMigrations {
 		for _, statement := range migration.Statements {
 			if isRelevantForTable(statement, tableName) {
-				if err := ddl.ApplyDDL(cat, statement, migration.FilePath); err != nil {
+				if err := ddl.ApplyDDL(cat, statement, migration.FilePath, "postgresql"); err != nil {
 					return nil, err
 				}
 			}

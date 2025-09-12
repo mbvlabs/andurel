@@ -88,7 +88,7 @@ func TestViewFileGeneration__GoldenFile(t *testing.T) {
 			cat := catalog.NewCatalog("public")
 			for _, migration := range allMigrations {
 				for _, statement := range migration.Statements {
-					if err := ddl.ApplyDDL(cat, statement, migration.FilePath); err != nil {
+					if err := ddl.ApplyDDL(cat, statement, migration.FilePath, "postgresql"); err != nil {
 						t.Fatalf("Failed to apply DDL from %s: %v", migration.FilePath, err)
 					}
 				}

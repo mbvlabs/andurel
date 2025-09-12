@@ -12,8 +12,9 @@ func ApplyDDL(
 	catalog *catalog.Catalog,
 	stmt string,
 	migrationFile string,
+	databaseType string,
 ) error {
-	ddlStmt, err := ParseDDLStatement(stmt, migrationFile)
+	ddlStmt, err := ParseDDLStatement(stmt, migrationFile, databaseType)
 	if err != nil {
 		return fmt.Errorf(
 			"failed to parse DDL statement in %s: %w",
@@ -28,9 +29,9 @@ func ApplyDDL(
 
 	switch ddlStmt.Type {
 	case CreateTable:
-		return applyCreateTable(catalog, ddlStmt, migrationFile)
+		return applyCreateTable(catalog, ddlStmt, migrationFile, databaseType)
 	case AlterTable:
-		return applyAlterTable(catalog, ddlStmt, migrationFile)
+		return applyAlterTable(catalog, ddlStmt, migrationFile, databaseType)
 	case DropTable:
 		return applyDropTable(catalog, ddlStmt)
 	case Unknown:
@@ -56,8 +57,9 @@ func applyCreateTable(
 	catalog *catalog.Catalog,
 	stmt *DDLStatement,
 	migrationFile string,
+	databaseType string,
 ) error {
-	table, err := parseCreateTableToTable(stmt.Raw, migrationFile)
+	table, err := parseCreateTableToTable(stmt.Raw, migrationFile, databaseType)
 	if err != nil {
 		return fmt.Errorf("failed to parse CREATE TABLE statement: %w", err)
 	}
@@ -88,8 +90,9 @@ func applyCreateTable(
 
 func parseCreateTableToTable(
 	sql, migrationFile string,
+	databaseType string,
 ) (*catalog.Table, error) {
-	ddlStmt, err := ParseDDLStatement(sql, migrationFile)
+	ddlStmt, err := ParseDDLStatement(sql, migrationFile, databaseType)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +109,7 @@ func parseCreateTableToTable(
 		return nil, fmt.Errorf("failed to extract column definitions: %w", err)
 	}
 
-	columns, err := parseColumnDefinitions(columnDefs, migrationFile)
+	columns, err := parseColumnDefinitions(columnDefs, migrationFile, databaseType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse column definitions: %w", err)
 	}
@@ -153,6 +156,7 @@ func applyAlterTable(
 	catalog *catalog.Catalog,
 	stmt *DDLStatement,
 	migrationFile string,
+	databaseType string,
 ) error {
 	schemaName := stmt.SchemaName
 	if schemaName == "" {
@@ -191,7 +195,7 @@ func applyAlterTable(
 			stmt.NewTableName,
 		)
 	case "MULTIPLE_OPERATIONS":
-		return applyMultipleAlterOperations(catalog, stmt, migrationFile)
+		return applyMultipleAlterOperations(catalog, stmt, migrationFile, databaseType)
 	default:
 		return nil
 	}
@@ -277,6 +281,7 @@ func applyMultipleAlterOperations(
 	catalog *catalog.Catalog,
 	stmt *DDLStatement,
 	migrationFile string,
+	databaseType string,
 ) error {
 	operations, ok := stmt.ColumnChanges["operations"].([]string)
 	if !ok {
@@ -288,7 +293,7 @@ func applyMultipleAlterOperations(
 	for _, operation := range operations {
 		tempSQL := fmt.Sprintf("ALTER TABLE %s %s", stmt.TableName, operation)
 
-		individualStmt, err := ParseDDLStatement(tempSQL, migrationFile)
+		individualStmt, err := ParseDDLStatement(tempSQL, migrationFile, databaseType)
 		if err != nil {
 			return fmt.Errorf(
 				"failed to parse individual ALTER operation '%s': %w",
@@ -297,7 +302,7 @@ func applyMultipleAlterOperations(
 			)
 		}
 
-		if err := applyAlterTable(catalog, individualStmt, migrationFile); err != nil {
+		if err := applyAlterTable(catalog, individualStmt, migrationFile, databaseType); err != nil {
 			return fmt.Errorf(
 				"failed to apply ALTER operation '%s': %w",
 				operation,
