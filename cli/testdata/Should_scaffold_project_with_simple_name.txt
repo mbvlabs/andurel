@@ -78,6 +78,7 @@ TOKEN_SIGNING_KEY=test_token_signing_key_value
 node_modules
 .env
 bin
+testapp.db
 
 
 === assets/assets.go ===

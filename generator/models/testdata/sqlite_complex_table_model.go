@@ -153,15 +153,15 @@ func CreateProduct(
 		BlobField:             data.BlobField,
 		DateAsText:            sql.NullTime{Time: data.DateAsText, Valid: true},
 		DatetimeAsText:        sql.NullTime{Time: data.DatetimeAsText, Valid: true},
-		TimestampField:        data.TimestampField,
-		TimeField:             data.TimeField,
+		TimestampField:        sql.NullTime{Time: data.TimestampField, Valid: true},
+		TimeField:             sql.NullTime{Time: data.TimeField, Valid: true},
 		RequiredText:          data.RequiredText,
 		RequiredInt:           data.RequiredInt,
 		DefaultText:           sql.NullString{String: data.DefaultText, Valid: true},
 		DefaultInt:            sql.NullInt64{Int64: data.DefaultInt, Valid: true},
 		DefaultReal:           sql.NullFloat64{Float64: data.DefaultReal, Valid: true},
 		DefaultBool:           sql.NullBool{Bool: data.DefaultBool, Valid: true},
-		DefaultTimestamp:      data.DefaultTimestamp,
+		DefaultTimestamp:      sql.NullTime{Time: data.DefaultTimestamp, Valid: true},
 		PositiveInt:           sql.NullInt64{Int64: data.PositiveInt, Valid: true},
 		EmailText:             sql.NullString{String: data.EmailText, Valid: true},
 	})
@@ -366,10 +366,10 @@ func UpdateProduct(
 		params.DatetimeAsText = sql.NullTime{Time: data.DatetimeAsText, Valid: true}
 	}
 	if true {
-		params.TimestampField = data.TimestampField
+		params.TimestampField = sql.NullTime{Time: data.TimestampField, Valid: true}
 	}
 	if true {
-		params.TimeField = data.TimeField
+		params.TimeField = sql.NullTime{Time: data.TimeField, Valid: true}
 	}
 	if true {
 		params.RequiredText = data.RequiredText
@@ -390,7 +390,7 @@ func UpdateProduct(
 		params.DefaultBool = sql.NullBool{Bool: data.DefaultBool, Valid: true}
 	}
 	if true {
-		params.DefaultTimestamp = data.DefaultTimestamp
+		params.DefaultTimestamp = sql.NullTime{Time: data.DefaultTimestamp, Valid: true}
 	}
 	if true {
 		params.PositiveInt = sql.NullInt64{Int64: data.PositiveInt, Valid: true}
@@ -524,15 +524,15 @@ func rowToProduct(row db.Product) Product {
 		BlobField:             row.BlobField,
 		DateAsText:            row.DateAsText.Time,
 		DatetimeAsText:        row.DatetimeAsText.Time,
-		TimestampField:        row.TimestampField,
-		TimeField:             row.TimeField,
+		TimestampField:        row.TimestampField.Time,
+		TimeField:             row.TimeField.Time,
 		RequiredText:          row.RequiredText,
 		RequiredInt:           row.RequiredInt,
 		DefaultText:           row.DefaultText.String,
 		DefaultInt:            row.DefaultInt.Int64,
 		DefaultReal:           row.DefaultReal.Float64,
 		DefaultBool:           row.DefaultBool.Bool,
-		DefaultTimestamp:      row.DefaultTimestamp,
+		DefaultTimestamp:      row.DefaultTimestamp.Time,
 		PositiveInt:           row.PositiveInt.Int64,
 		EmailText:             row.EmailText.String,
 	}

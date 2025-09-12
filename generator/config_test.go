@@ -3,6 +3,8 @@ package generator
 import (
 	"os"
 	"testing"
+
+	"github.com/mbvlabs/andurel/pkg/cache"
 )
 
 func TestReadDatabaseTypeFromSQLCYAML(t *testing.T) {
@@ -50,7 +52,14 @@ sql: []`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			cache.ClearFileSystemCache()
+
 			tmpDir := t.TempDir()
+
+			goModContent := "module test\n\ngo 1.21\n"
+			if err := os.WriteFile(tmpDir+"/go.mod", []byte(goModContent), 0o644); err != nil {
+				t.Fatalf("Failed to write go.mod: %v", err)
+			}
 
 			dbDir := tmpDir + "/database"
 			if err := os.MkdirAll(dbDir, 0o755); err != nil {
@@ -116,7 +125,14 @@ sql:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			cache.ClearFileSystemCache()
+
 			tmpDir := t.TempDir()
+
+			goModContent := "module test\n\ngo 1.21\n"
+			if err := os.WriteFile(tmpDir+"/go.mod", []byte(goModContent), 0o644); err != nil {
+				t.Fatalf("Failed to write go.mod: %v", err)
+			}
 
 			dbDir := tmpDir + "/database"
 			if err := os.MkdirAll(dbDir, 0o755); err != nil {
@@ -148,7 +164,14 @@ sql:
 }
 
 func TestNewDefaultAppConfig_FallbackWhenNoSQLCYAML(t *testing.T) {
+	cache.ClearFileSystemCache()
+
 	tmpDir := t.TempDir()
+
+	goModContent := "module test\n\ngo 1.21\n"
+	if err := os.WriteFile(tmpDir+"/go.mod", []byte(goModContent), 0o644); err != nil {
+		t.Fatalf("Failed to write go.mod: %v", err)
+	}
 
 	originalDir, err := os.Getwd()
 	if err != nil {
