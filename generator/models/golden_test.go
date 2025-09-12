@@ -150,6 +150,70 @@ func TestModelFileGeneration__GoldenFile(t *testing.T) {
 	}
 }
 
+func TestModelFileGeneration_InvalidPrimaryKeyTypes(t *testing.T) {
+	tests := []struct {
+		name             string
+		migrationsDir    string
+		tableName        string
+		resourceName     string
+		modulePath       string
+		databaseType     string
+		expectedErrorMsg string
+	}{
+		{
+			name:             "Should reject PostgreSQL migration with TEXT primary key",
+			migrationsDir:    "invalid_pg_primary_key",
+			tableName:        "users",
+			resourceName:     "User",
+			modulePath:       "github.com/example/myapp",
+			databaseType:     "postgresql",
+			expectedErrorMsg: "PostgreSQL primary keys must use 'uuid'",
+		},
+		{
+			name:             "Should reject SQLite migration with UUID primary key",
+			migrationsDir:    "invalid_sqlite_primary_key",
+			tableName:        "users",
+			resourceName:     "User",
+			modulePath:       "github.com/example/myapp",
+			databaseType:     "sqlite",
+			expectedErrorMsg: "SQLite primary keys must use 'text'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			originalWd, _ := os.Getwd()
+			
+			oldWd, _ := os.Getwd()
+			defer os.Chdir(oldWd)
+			os.Chdir(tempDir)
+
+			migrationsDir := filepath.Join(originalWd, "testdata", "migrations", tt.migrationsDir)
+
+			generator := NewGenerator(tt.databaseType)
+
+			_, err := generator.buildCatalogFromTableMigrations(
+				tt.tableName,
+				[]string{migrationsDir},
+			)
+
+			if err == nil {
+				t.Fatal("Expected error due to invalid primary key type, but got none")
+			}
+
+			if !strings.Contains(err.Error(), tt.expectedErrorMsg) {
+				t.Errorf("Expected error message to contain '%s', but got: %s", tt.expectedErrorMsg, err.Error())
+			}
+
+			// Verify the error message also contains the migration file name
+			if !strings.Contains(err.Error(), "001_users_text_pk.sql") && !strings.Contains(err.Error(), "001_users_uuid_pk.sql") {
+				t.Errorf("Expected error message to contain migration file name, but got: %s", err.Error())
+			}
+		})
+	}
+}
+
 func TestQueriesFileGeneration__GoldenFile(t *testing.T) {
 	tests := []struct {
 		name          string

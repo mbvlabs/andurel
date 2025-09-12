@@ -19,6 +19,8 @@ func NewMigrationManager() *MigrationManager {
 
 func (mm *MigrationManager) BuildCatalogFromMigrations(tableName string) (*catalog.Catalog, error) {
 	cfg := config.NewDefaultConfig()
+	appCfg := NewDefaultAppConfig()
+	databaseType := appCfg.Database.Type
 	migrationsList, err := migrations.DiscoverMigrations(cfg.MigrationDirs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover migrations: %w", err)
@@ -30,7 +32,7 @@ func (mm *MigrationManager) BuildCatalogFromMigrations(tableName string) (*catal
 	for _, migration := range migrationsList {
 		for _, stmt := range migration.Statements {
 			if isRelevantForTable(stmt, tableName) {
-				if err := ddl.ApplyDDL(cat, stmt, migration.FilePath); err != nil {
+				if err := ddl.ApplyDDL(cat, stmt, migration.FilePath, databaseType); err != nil {
 					return nil, fmt.Errorf(
 						"failed to apply DDL from %s: %w",
 						migration.FilePath,
