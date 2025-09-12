@@ -2,8 +2,8 @@ package ddl
 
 import (
 	"fmt"
-	"path/filepath"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -615,7 +615,7 @@ func splitAlterOperations(operations string) []string {
 
 func validatePrimaryKeyDatatype(dataType, databaseType, migrationFile, columnName string) error {
 	normalizedDataType := strings.ToLower(dataType)
-	
+
 	switch databaseType {
 	case "postgresql":
 		if normalizedDataType != "uuid" {
@@ -625,8 +625,8 @@ Column '%s' has datatype '%s' but PostgreSQL primary keys must use 'uuid'.
 To fix this, change:
   %s %s PRIMARY KEY
 to:
-  %s UUID PRIMARY KEY`, 
-				filepath.Base(migrationFile), columnName, dataType, 
+  %s UUID PRIMARY KEY`,
+				filepath.Base(migrationFile), columnName, dataType,
 				columnName, dataType, columnName)
 		}
 	case "sqlite":
@@ -637,12 +637,12 @@ Column '%s' has datatype '%s' but SQLite primary keys must use 'text'.
 To fix this, change:
   %s %s PRIMARY KEY
 to:
-  %s TEXT PRIMARY KEY`, 
+  %s TEXT PRIMARY KEY`,
 				filepath.Base(migrationFile), columnName, dataType,
 				columnName, dataType, columnName)
 		}
 	}
-	
+
 	return nil
 }
 

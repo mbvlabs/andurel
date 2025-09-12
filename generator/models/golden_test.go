@@ -184,7 +184,7 @@ func TestModelFileGeneration_InvalidPrimaryKeyTypes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tempDir := t.TempDir()
 			originalWd, _ := os.Getwd()
-			
+
 			oldWd, _ := os.Getwd()
 			defer os.Chdir(oldWd)
 			os.Chdir(tempDir)
@@ -451,7 +451,7 @@ func TestQueryRefresh__PreservesModelFunctions__GoldenFile(t *testing.T) {
 			expectedQueries := []string{
 				"-- name: QueryUserByID",
 				"-- name: InsertUser",
-				"-- name: UpdateUser", 
+				"-- name: UpdateUser",
 				"-- name: DeleteUser",
 			}
 			for _, query := range expectedQueries {
@@ -474,7 +474,7 @@ func TestRefreshQueries__ValidatesIDColumns(t *testing.T) {
 		shouldFail       bool
 	}{
 		{
-			name:         "Should succeed with valid PostgreSQL UUID primary key",
+			name:          "Should succeed with valid PostgreSQL UUID primary key",
 			migrationsDir: "simple_user_table",
 			tableName:     "users",
 			resourceName:  "User",
@@ -482,7 +482,7 @@ func TestRefreshQueries__ValidatesIDColumns(t *testing.T) {
 			shouldFail:    false,
 		},
 		{
-			name:         "Should succeed with valid SQLite TEXT primary key",
+			name:          "Should succeed with valid SQLite TEXT primary key",
 			migrationsDir: "sqlite_user_table",
 			tableName:     "users",
 			resourceName:  "User",
@@ -499,7 +499,7 @@ func TestRefreshQueries__ValidatesIDColumns(t *testing.T) {
 			shouldFail:       true,
 		},
 		{
-			name:             "Should fail with invalid SQLite UUID primary key", 
+			name:             "Should fail with invalid SQLite UUID primary key",
 			migrationsDir:    "invalid_sqlite_primary_key",
 			tableName:        "users",
 			resourceName:     "User",
@@ -717,7 +717,7 @@ func TestConstructorRefresh__UpdatesOnlyConstructors__GoldenFile(t *testing.T) {
 				t.Fatalf("Failed to read constructor file: %v", err)
 			}
 			constructorStr := string(constructorContent)
-			
+
 			if !strings.Contains(constructorStr, "func NewInsertUserParams(") {
 				t.Error("Constructor file should contain NewInsertUserParams function")
 			}
@@ -732,11 +732,11 @@ func TestConstructorRefresh__UpdatesOnlyConstructors__GoldenFile(t *testing.T) {
 
 			// Verify that only necessary imports are included (no unused imports)
 			expectedImports := []string{
-				`"github.com/google/uuid"`,        // Always needed for ID generation
+				`"github.com/google/uuid"`,         // Always needed for ID generation
 				`"github.com/jackc/pgx/v5/pgtype"`, // Needed for pgtype.Int4, pgtype.Bool used in this model
 			}
 			unexpectedImports := []string{
-				`"time"`,        // Not needed in constructors for this model
+				`"time"`,         // Not needed in constructors for this model
 				`"database/sql"`, // Not needed for PostgreSQL simple user model
 			}
 
@@ -777,12 +777,12 @@ func TestConstructorRefresh__UpdatesOnlyConstructors__GoldenFile(t *testing.T) {
 
 func TestConstructorImports__OnlyNecessaryImports(t *testing.T) {
 	tests := []struct {
-		name         string
-		migrationsDir string
-		tableName    string
-		resourceName string
-		modulePath   string
-		expectedImports []string
+		name              string
+		migrationsDir     string
+		tableName         string
+		resourceName      string
+		modulePath        string
+		expectedImports   []string
 		unexpectedImports []string
 	}{
 		{
