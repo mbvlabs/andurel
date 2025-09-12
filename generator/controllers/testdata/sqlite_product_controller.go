@@ -16,10 +16,10 @@ import (
 )
 
 type Products struct {
-	db database.Postgres
+	db database.SQLite
 }
 
-func newProducts(db database.Postgres) Products {
+func newProducts(db database.SQLite) Products {
 	return Products{db}
 }
 
@@ -49,7 +49,7 @@ func (r Products) Index(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return c.HTML(http.StatusOK, "products index - no views implemented")
+	return render(c, views.ProductIndex(productsList.Products))
 }
 
 func (r Products) Show(c echo.Context) error {
@@ -63,11 +63,11 @@ func (r Products) Show(c echo.Context) error {
 		return render(c, views.NotFound())
 	}
 
-	return c.HTML(http.StatusOK, "product show - no views implemented")
+	return render(c, views.ProductShow(product))
 }
 
 func (r Products) New(c echo.Context) error {
-	return c.HTML(http.StatusOK, "product new - no views implemented")
+	return render(c, views.ProductNew())
 }
 
 type CreateProductFormPayload struct {
@@ -131,7 +131,7 @@ func (r Products) Edit(c echo.Context) error {
 		return render(c, views.NotFound())
 	}
 
-	return c.HTML(http.StatusOK, "product edit - no views implemented")
+	return render(c, views.ProductEdit(product))
 }
 
 type UpdateProductFormPayload struct {

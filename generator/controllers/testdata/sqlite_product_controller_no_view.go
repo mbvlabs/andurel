@@ -16,10 +16,10 @@ import (
 )
 
 type Products struct {
-	db database.Postgres
+	db database.SQLite
 }
 
-func newProducts(db database.Postgres) Products {
+func newProducts(db database.SQLite) Products {
 	return Products{db}
 }
 

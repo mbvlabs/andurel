@@ -22,10 +22,14 @@ import (
 )
 
 type {{.ResourceName}}s struct {
+{{- if eq (DatabaseType) "sqlite"}}
+	db database.SQLite
+{{- else}}
 	db database.Postgres
+{{- end}}
 }
 
-func new{{.ResourceName}}s(db database.Postgres) {{.ResourceName}}s {
+func new{{.ResourceName}}s({{- if eq (DatabaseType) "sqlite"}}db database.SQLite{{- else}}db database.Postgres{{- end}}) {{.ResourceName}}s {
 	return {{.ResourceName}}s{db}
 }
 
@@ -184,7 +188,7 @@ func (r {{.ResourceName}}s) Update(c echo.Context) error {
 		return render(c, views.NotFound())
 	}
 
-	data := models.Update{{.ResourceName}}data{
+	data := models.Update{{.ResourceName}}Data{
 		ID:      {{.ResourceName | ToLower}}ID,
 {{- range .Fields}}
 {{- if not .IsSystemField}}

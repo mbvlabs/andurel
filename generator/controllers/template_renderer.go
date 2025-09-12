@@ -27,6 +27,15 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 
 	funcMap := template.FuncMap{
 		"ToLower": strings.ToLower,
+		"DatabaseType": func() string {
+			return controller.DatabaseType
+		},
+		"uuidParam": func(param string) string {
+			if controller.DatabaseType == "sqlite" {
+				return param + ".String()"
+			}
+			return param
+		},
 	}
 
 	tmpl, err := templates.GetCachedTemplate(templateName, funcMap)
