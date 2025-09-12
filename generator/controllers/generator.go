@@ -31,6 +31,7 @@ type GeneratedController struct {
 	Fields       []GeneratedField
 	ModulePath   string
 	Type         ControllerType
+	DatabaseType string
 }
 
 type Config struct {
@@ -60,6 +61,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 		Package:      config.PackageName,
 		ModulePath:   config.ModulePath,
 		Type:         config.ControllerType,
+		DatabaseType: g.typeMapper.GetDatabaseType(),
 		Fields:       make([]GeneratedField, 0),
 	}
 
@@ -82,9 +84,17 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 }
 
 func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
-	goType, _, _, err := g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
-	if err != nil {
-		return GeneratedField{}, err
+	var goType string
+	var err error
+
+	// Special handling for ID fields in SQLite - always use uuid.UUID
+	if col.Name == "id" && g.typeMapper.GetDatabaseType() == "sqlite" {
+		goType = "uuid.UUID"
+	} else {
+		goType, _, _, err = g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
+		if err != nil {
+			return GeneratedField{}, err
+		}
 	}
 
 	field := GeneratedField{
@@ -123,5 +133,5 @@ func (g *Generator) GenerateController(
 	modulePath string,
 ) error {
 	fileGen := NewFileGenerator()
-	return fileGen.GenerateController(cat, resourceName, controllerType, modulePath)
+	return fileGen.GenerateController(cat, resourceName, controllerType, modulePath, g.typeMapper.GetDatabaseType())
 }

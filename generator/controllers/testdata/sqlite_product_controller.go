@@ -16,10 +16,10 @@ import (
 )
 
 type Products struct {
-	db database.Postgres
+	db database.SQLite
 }
 
-func newProducts(db database.Postgres) Products {
+func newProducts(db database.SQLite) Products {
 	return Products{db}
 }
 
@@ -41,7 +41,7 @@ func (r Products) Index(c echo.Context) error {
 
 	productsList, err := models.PaginateProducts(
 		c.Request().Context(),
-		r.db.Pool(),
+		r.db.Conn(),
 		page,
 		perPage,
 	)
@@ -49,7 +49,7 @@ func (r Products) Index(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return c.HTML(http.StatusOK, "products index - no views implemented")
+	return render(c, views.ProductIndex(productsList.Products))
 }
 
 func (r Products) Show(c echo.Context) error {
@@ -58,16 +58,16 @@ func (r Products) Show(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
-	product, err := models.FindProduct(c.Request().Context(), r.db.Pool(), productID)
+	product, err := models.FindProduct(c.Request().Context(), r.db.Conn(), productID)
 	if err != nil {
 		return render(c, views.NotFound())
 	}
 
-	return c.HTML(http.StatusOK, "product show - no views implemented")
+	return render(c, views.ProductShow(product))
 }
 
 func (r Products) New(c echo.Context) error {
-	return c.HTML(http.StatusOK, "product new - no views implemented")
+	return render(c, views.ProductNew())
 }
 
 type CreateProductFormPayload struct {
@@ -103,7 +103,7 @@ func (r Products) Create(c echo.Context) error {
 
 	product, err := models.CreateProduct(
 		c.Request().Context(),
-		r.db.Pool(),
+		r.db.Conn(),
 		data,
 	)
 	if err != nil {
@@ -126,12 +126,12 @@ func (r Products) Edit(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
-	product, err := models.FindProduct(c.Request().Context(), r.db.Pool(), productID)
+	product, err := models.FindProduct(c.Request().Context(), r.db.Conn(), productID)
 	if err != nil {
 		return render(c, views.NotFound())
 	}
 
-	return c.HTML(http.StatusOK, "product edit - no views implemented")
+	return render(c, views.ProductEdit(product))
 }
 
 type UpdateProductFormPayload struct {
@@ -173,7 +173,7 @@ func (r Products) Update(c echo.Context) error {
 
 	product, err := models.UpdateProduct(
 		c.Request().Context(),
-		r.db.Pool(),
+		r.db.Conn(),
 		data,
 	)
 	if err != nil {
@@ -199,7 +199,7 @@ func (r Products) Destroy(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
-	err = models.DestroyProduct(c.Request().Context(), r.db.Pool(), productID)
+	err = models.DestroyProduct(c.Request().Context(), r.db.Conn(), productID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete product: %v", err)); flashErr != nil {
 			return render(c, views.InternalError())

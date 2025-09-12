@@ -32,6 +32,7 @@ func (fg *FileGenerator) GenerateController(
 	resourceName string,
 	controllerType ControllerType,
 	modulePath string,
+	databaseType string,
 ) error {
 	pluralName := inflection.Plural(strings.ToLower(resourceName))
 	controllerPath := filepath.Join("controllers", pluralName+".go")
@@ -40,7 +41,7 @@ func (fg *FileGenerator) GenerateController(
 		return fmt.Errorf("controller file %s already exists", controllerPath)
 	}
 
-	generator := NewGenerator("postgresql") // TODO: Make database type configurable
+	generator := NewGenerator(databaseType)
 	controller, err := generator.Build(cat, Config{
 		ResourceName:   resourceName,
 		PluralName:     pluralName,
