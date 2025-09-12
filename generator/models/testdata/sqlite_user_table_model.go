@@ -11,7 +11,7 @@ import (
 )
 
 type User struct {
-	ID              string
+	ID              uuid.UUID
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	Email           string
@@ -30,7 +30,11 @@ func FindUser(
 		return User{}, err
 	}
 
-	return rowToUser(row), nil
+	result, err := rowToUser(row)
+	if err != nil {
+		return User{}, err
+	}
+	return result, nil
 }
 
 type CreateUserData struct {
@@ -60,7 +64,11 @@ func CreateUser(
 		return User{}, err
 	}
 
-	return rowToUser(row), nil
+	result, err := rowToUser(row)
+	if err != nil {
+		return User{}, err
+	}
+	return result, nil
 }
 
 type UpdateUserData struct {
@@ -111,7 +119,11 @@ func UpdateUser(
 		return User{}, err
 	}
 
-	return rowToUser(row), nil
+	result, err := rowToUser(row)
+	if err != nil {
+		return User{}, err
+	}
+	return result, nil
 }
 
 func DestroyUser(
@@ -133,7 +145,11 @@ func AllUsers(
 
 	users := make([]User, len(rows))
 	for i, row := range rows {
-		users[i] = rowToUser(row)
+		result, err := rowToUser(row)
+		if err != nil {
+			return nil, err
+		}
+		users[i] = result
 	}
 
 	return users, nil
@@ -184,7 +200,11 @@ func PaginateUsers(
 
 	users := make([]User, len(rows))
 	for i, row := range rows {
-		users[i] = rowToUser(row)
+		result, err := rowToUser(row)
+		if err != nil {
+			return PaginatedUsers{}, err
+		}
+		users[i] = result
 	}
 
 	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
@@ -198,14 +218,19 @@ func PaginateUsers(
 	}, nil
 }
 
-func rowToUser(row db.User) User {
+func rowToUser(row db.User) (User, error) {
+	id, err := uuid.Parse(row.ID)
+	if err != nil {
+		return User{}, err
+	}
+
 	return User{
-		ID:              row.ID,
+		ID:              id,
 		CreatedAt:       row.CreatedAt,
 		UpdatedAt:       row.UpdatedAt,
 		Email:           row.Email,
 		EmailVerifiedAt: row.EmailVerifiedAt.Time,
 		Password:        row.Password,
 		IsAdmin:         row.IsAdmin,
-	}
+	}, nil
 }

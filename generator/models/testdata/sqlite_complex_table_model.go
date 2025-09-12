@@ -11,7 +11,7 @@ import (
 )
 
 type Product struct {
-	ID                    int64
+	ID                    uuid.UUID
 	IntField              int64
 	IntegerField          int64
 	TinyintField          int64
@@ -65,7 +65,11 @@ func FindProduct(
 		return Product{}, err
 	}
 
-	return rowToProduct(row), nil
+	result, err := rowToProduct(row)
+	if err != nil {
+		return Product{}, err
+	}
+	return result, nil
 }
 
 type CreateProductData struct {
@@ -169,7 +173,11 @@ func CreateProduct(
 		return Product{}, err
 	}
 
-	return rowToProduct(row), nil
+	result, err := rowToProduct(row)
+	if err != nil {
+		return Product{}, err
+	}
+	return result, nil
 }
 
 type UpdateProductData struct {
@@ -404,7 +412,11 @@ func UpdateProduct(
 		return Product{}, err
 	}
 
-	return rowToProduct(row), nil
+	result, err := rowToProduct(row)
+	if err != nil {
+		return Product{}, err
+	}
+	return result, nil
 }
 
 func DestroyProduct(
@@ -426,7 +438,11 @@ func AllProducts(
 
 	products := make([]Product, len(rows))
 	for i, row := range rows {
-		products[i] = rowToProduct(row)
+		result, err := rowToProduct(row)
+		if err != nil {
+			return nil, err
+		}
+		products[i] = result
 	}
 
 	return products, nil
@@ -477,7 +493,11 @@ func PaginateProducts(
 
 	products := make([]Product, len(rows))
 	for i, row := range rows {
-		products[i] = rowToProduct(row)
+		result, err := rowToProduct(row)
+		if err != nil {
+			return PaginatedProducts{}, err
+		}
+		products[i] = result
 	}
 
 	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
@@ -491,9 +511,14 @@ func PaginateProducts(
 	}, nil
 }
 
-func rowToProduct(row db.Product) Product {
+func rowToProduct(row db.Product) (Product, error) {
+	id, err := uuid.Parse(row.ID)
+	if err != nil {
+		return Product{}, err
+	}
+
 	return Product{
-		ID:                    row.ID,
+		ID:                    id,
 		IntField:              row.IntField.Int64,
 		IntegerField:          row.IntegerField.Int64,
 		TinyintField:          row.TinyintField.Int64,
@@ -535,5 +560,5 @@ func rowToProduct(row db.Product) Product {
 		DefaultTimestamp:      row.DefaultTimestamp.Time,
 		PositiveInt:           row.PositiveInt.Int64,
 		EmailText:             row.EmailText.String,
-	}
+	}, nil
 }
