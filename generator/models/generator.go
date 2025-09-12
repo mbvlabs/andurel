@@ -499,7 +499,6 @@ func (g *Generator) RefreshQueries(
 	resourceName, pluralName string,
 	sqlPath string,
 ) error {
-	// Validate ID column constraints before refreshing
 	if err := g.validateIDColumnConstraints(cat, pluralName); err != nil {
 		return fmt.Errorf("ID validation failed: %w", err)
 	}
