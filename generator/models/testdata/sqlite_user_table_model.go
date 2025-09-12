@@ -53,13 +53,13 @@ func CreateUser(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	row, err := db.New().InsertUser(ctx, dbtx, db.InsertUserParams{
-		ID:              uuid.New().String(),
-		Email:           data.Email,
-		EmailVerifiedAt: sql.NullTime{Time: data.EmailVerifiedAt, Valid: true},
-		Password:        data.Password,
-		IsAdmin:         data.IsAdmin,
-	})
+	params := newInsertUserParams(
+		data.Email,
+		sql.NullTime{Time: data.EmailVerifiedAt, Valid: true},
+		data.Password,
+		data.IsAdmin,
+	)
+	row, err := db.New().InsertUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err
 	}
@@ -94,25 +94,33 @@ func UpdateUser(
 		return User{}, err
 	}
 
-	params := db.UpdateUserParams{
-		ID:              data.ID.String(),
-		Email:           currentRow.Email,
-		EmailVerifiedAt: currentRow.EmailVerifiedAt,
-		Password:        currentRow.Password,
-		IsAdmin:         currentRow.IsAdmin,
-	}
-	if true {
-		params.Email = data.Email
-	}
-	if true {
-		params.EmailVerifiedAt = sql.NullTime{Time: data.EmailVerifiedAt, Valid: true}
-	}
-	if true {
-		params.Password = data.Password
-	}
-	if true {
-		params.IsAdmin = data.IsAdmin
-	}
+	params := newUpdateUserParams(
+		data.ID.String(),
+		func() string {
+			if true {
+				return data.Email
+			}
+			return currentRow.Email
+		}(),
+		func() sql.NullTime {
+			if true {
+				return sql.NullTime{Time: data.EmailVerifiedAt, Valid: true}
+			}
+			return currentRow.EmailVerifiedAt
+		}(),
+		func() []byte {
+			if true {
+				return data.Password
+			}
+			return currentRow.Password
+		}(),
+		func() int64 {
+			if true {
+				return data.IsAdmin
+			}
+			return currentRow.IsAdmin
+		}(),
+	)
 
 	row, err := db.New().UpdateUser(ctx, dbtx, params)
 	if err != nil {
@@ -189,10 +197,7 @@ func PaginateUsers(
 	rows, err := db.New().QueryPaginatedUsers(
 		ctx,
 		dbtx,
-		db.QueryPaginatedUsersParams{
-			Limit:  pageSize,
-			Offset: offset,
-		},
+		newQueryPaginatedUsersParams(pageSize, offset),
 	)
 	if err != nil {
 		return PaginatedUsers{}, err
@@ -233,4 +238,45 @@ func rowToUser(row db.User) (User, error) {
 		Password:        row.Password,
 		IsAdmin:         row.IsAdmin,
 	}, nil
+}
+
+// Constructor functions for SQLC parameters - these get updated during refresh
+// to make schema changes compiler-enforced and visible
+
+func newInsertUserParams(
+	email string,
+	emailverifiedat sql.NullTime,
+	password []byte,
+	isadmin int64,
+) db.InsertUserParams {
+	return db.InsertUserParams{
+		ID:              uuid.New().String(),
+		Email:           email,
+		EmailVerifiedAt: emailverifiedat,
+		Password:        password,
+		IsAdmin:         isadmin,
+	}
+}
+
+func newUpdateUserParams(
+	id string,
+	email string,
+	emailverifiedat sql.NullTime,
+	password []byte,
+	isadmin int64,
+) db.UpdateUserParams {
+	return db.UpdateUserParams{
+		ID:              id,
+		Email:           email,
+		EmailVerifiedAt: emailverifiedat,
+		Password:        password,
+		IsAdmin:         isadmin,
+	}
+}
+
+func newQueryPaginatedUsersParams(limit, offset int64) db.QueryPaginatedUsersParams {
+	return db.QueryPaginatedUsersParams{
+		Limit:  limit,
+		Offset: offset,
+	}
 }

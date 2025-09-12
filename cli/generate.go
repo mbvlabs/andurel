@@ -31,12 +31,12 @@ The model will include CRUD operations and database functions.
 
 Examples:
   andurel generate model User users           # Create new model
-  andurel generate model User users --refresh # Refresh SQL queries only, preserve model functions`,
+  andurel generate model User users --refresh # Refresh SQL queries and constructor functions`,
 		Args: cobra.ExactArgs(2),
 		RunE: generateModel,
 	}
 
-	cmd.Flags().Bool("refresh", false, "Refresh SQL queries only while preserving custom model functions")
+	cmd.Flags().Bool("refresh", false, "Refresh SQL queries and constructor functions - makes schema changes compiler-enforced")
 
 	return cmd
 }
@@ -77,7 +77,7 @@ func generateModel(cmd *cobra.Command, args []string) error {
 	}
 
 	if refresh {
-		return gen.RefreshQueries(resourceName, tableName)
+		return gen.RefreshConstructors(resourceName, tableName)
 	}
 
 	return gen.GenerateModel(resourceName, tableName)

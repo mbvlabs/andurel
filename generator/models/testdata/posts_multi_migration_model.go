@@ -46,12 +46,12 @@ func CreatePost(
 		return Post{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	row, err := db.New().InsertPost(ctx, dbtx, db.InsertPostParams{
-		ID:          uuid.New(),
-		Title:       data.Title,
-		AuthorId:    pgtype.Int4{Int32: data.AuthorId, Valid: true},
-		PublishedAt: pgtype.Timestamptz{Time: data.PublishedAt, Valid: true},
-	})
+	params := newInsertPostParams(
+		data.Title,
+		pgtype.Int4{Int32: data.AuthorId, Valid: true},
+		pgtype.Timestamptz{Time: data.PublishedAt, Valid: true},
+	)
+	row, err := db.New().InsertPost(ctx, dbtx, params)
 	if err != nil {
 		return Post{}, err
 	}
@@ -80,21 +80,27 @@ func UpdatePost(
 		return Post{}, err
 	}
 
-	params := db.UpdatePostParams{
-		ID:          data.ID,
-		Title:       currentRow.Title,
-		AuthorId:    currentRow.AuthorId,
-		PublishedAt: currentRow.PublishedAt,
-	}
-	if true {
-		params.Title = data.Title
-	}
-	if true {
-		params.AuthorId = pgtype.Int4{Int32: data.AuthorId, Valid: true}
-	}
-	if true {
-		params.PublishedAt = pgtype.Timestamptz{Time: data.PublishedAt, Valid: true}
-	}
+	params := newUpdatePostParams(
+		data.ID,
+		func() string {
+			if true {
+				return data.Title
+			}
+			return currentRow.Title
+		}(),
+		func() pgtype.Int4 {
+			if true {
+				return pgtype.Int4{Int32: data.AuthorId, Valid: true}
+			}
+			return currentRow.AuthorId
+		}(),
+		func() pgtype.Timestamptz {
+			if true {
+				return pgtype.Timestamptz{Time: data.PublishedAt, Valid: true}
+			}
+			return currentRow.PublishedAt
+		}(),
+	)
 
 	row, err := db.New().UpdatePost(ctx, dbtx, params)
 	if err != nil {
@@ -163,10 +169,7 @@ func PaginatePosts(
 	rows, err := db.New().QueryPaginatedPosts(
 		ctx,
 		dbtx,
-		db.QueryPaginatedPostsParams{
-			Limit:  pageSize,
-			Offset: offset,
-		},
+		newQueryPaginatedPostsParams(pageSize, offset),
 	)
 	if err != nil {
 		return PaginatedPosts{}, err
@@ -195,5 +198,42 @@ func rowToPost(row db.Post) Post {
 		CreatedAt:   row.CreatedAt.Time,
 		AuthorId:    row.AuthorId.Int32,
 		PublishedAt: row.PublishedAt.Time,
+	}
+}
+
+// Constructor functions for SQLC parameters - these get updated during refresh
+// to make schema changes compiler-enforced and visible
+
+func newInsertPostParams(
+	title string,
+	authorid pgtype.Int4,
+	publishedat pgtype.Timestamptz,
+) db.InsertPostParams {
+	return db.InsertPostParams{
+		ID:          uuid.New(),
+		Title:       title,
+		AuthorId:    authorid,
+		PublishedAt: publishedat,
+	}
+}
+
+func newUpdatePostParams(
+	id uuid.UUID,
+	title string,
+	authorid pgtype.Int4,
+	publishedat pgtype.Timestamptz,
+) db.UpdatePostParams {
+	return db.UpdatePostParams{
+		ID:          id,
+		Title:       title,
+		AuthorId:    authorid,
+		PublishedAt: publishedat,
+	}
+}
+
+func newQueryPaginatedPostsParams(limit, offset int64) db.QueryPaginatedPostsParams {
+	return db.QueryPaginatedPostsParams{
+		Limit:  limit,
+		Offset: offset,
 	}
 }
