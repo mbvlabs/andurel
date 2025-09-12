@@ -57,18 +57,6 @@ func (c *Coordinator) GenerateModel(resourceName string) error {
 	if err := c.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
 		return err
 	}
-
-	// if err := c.validator.ValidateResourceName(resourceName); err != nil {
-	// 	return fmt.Errorf("resource name validation failed: %w", err)
-	// }
-	//
-	// if err := c.validator.ValidateTableName(tableName); err != nil {
-	// 	return fmt.Errorf("inferred table name validation failed: %w", err)
-	// }
-	//
-	// if err := c.validator.ValidateModulePath(modulePath); err != nil {
-	// 	return fmt.Errorf("module path validation failed: %w", err)
-	// }
 	rootDir, err := c.fileManager.FindGoModRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find go.mod root: %w", err)
