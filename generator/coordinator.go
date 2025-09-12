@@ -46,15 +46,29 @@ func NewCoordinator() (Coordinator, error) {
 	return c, nil
 }
 
-func (c *Coordinator) GenerateModel(resourceName, tableName string) error {
+func (c *Coordinator) GenerateModel(resourceName string) error {
 	modulePath, err := c.projectManager.GetModulePath()
 	if err != nil {
 		return err
 	}
 
+	tableName := inflection.Plural(strings.ToLower(resourceName))
+
 	if err := c.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
 		return err
 	}
+
+	// if err := c.validator.ValidateResourceName(resourceName); err != nil {
+	// 	return fmt.Errorf("resource name validation failed: %w", err)
+	// }
+	//
+	// if err := c.validator.ValidateTableName(tableName); err != nil {
+	// 	return fmt.Errorf("inferred table name validation failed: %w", err)
+	// }
+	//
+	// if err := c.validator.ValidateModulePath(modulePath); err != nil {
+	// 	return fmt.Errorf("module path validation failed: %w", err)
+	// }
 	rootDir, err := c.fileManager.FindGoModRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find go.mod root: %w", err)
@@ -64,8 +78,6 @@ func (c *Coordinator) GenerateModel(resourceName, tableName string) error {
 		return fmt.Errorf("SQLC configuration validation failed: %w", err)
 	}
 
-	pluralName := inflection.Plural(strings.ToLower(resourceName))
-
 	var modelFileName strings.Builder
 	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
 	modelFileName.WriteString(strings.ToLower(resourceName))
@@ -73,8 +85,8 @@ func (c *Coordinator) GenerateModel(resourceName, tableName string) error {
 	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
 
 	var sqlFileName strings.Builder
-	sqlFileName.Grow(len(pluralName) + 4) // +4 for ".sql"
-	sqlFileName.WriteString(pluralName)
+	sqlFileName.Grow(len(tableName) + 4) // +4 for ".sql"
+	sqlFileName.WriteString(tableName)
 	sqlFileName.WriteString(".sql")
 	sqlPath := filepath.Join(c.config.Paths.Queries, sqlFileName.String())
 
@@ -90,8 +102,12 @@ func (c *Coordinator) GenerateModel(resourceName, tableName string) error {
 		return err
 	}
 
-	if err := c.modelGenerator.GenerateModel(cat, resourceName, pluralName, modelPath, sqlPath, modulePath); err != nil {
+	if err := c.modelGenerator.GenerateModel(cat, resourceName, tableName, modelPath, sqlPath, modulePath); err != nil {
 		return fmt.Errorf("failed to generate model: %w", err)
+	}
+
+	if err := c.fileManager.RunSQLCGenerate(); err != nil {
+		return fmt.Errorf("failed to run sqlc generate: %w", err)
 	}
 
 	constructorFileName := fmt.Sprintf("%s_constructors.go", strings.ToLower(resourceName))
@@ -99,12 +115,8 @@ func (c *Coordinator) GenerateModel(resourceName, tableName string) error {
 		filepath.Join(c.config.Paths.Models, "internal", "db"),
 		constructorFileName,
 	)
-	if err := c.modelGenerator.GenerateConstructors(cat, resourceName, pluralName, constructorPath, modulePath); err != nil {
+	if err := c.modelGenerator.GenerateConstructors(cat, resourceName, tableName, constructorPath, modulePath); err != nil {
 		return fmt.Errorf("failed to generate constructor functions: %w", err)
-	}
-
-	if err := c.fileManager.RunSQLCGenerate(); err != nil {
-		return fmt.Errorf("failed to run sqlc generate: %w", err)
 	}
 
 	fmt.Printf(
@@ -481,8 +493,6 @@ func (c *Coordinator) RefreshConstructors(resourceName, tableName string) error 
 		return fmt.Errorf("SQLC configuration validation failed: %w", err)
 	}
 
-	pluralName := inflection.Plural(strings.ToLower(resourceName))
-
 	var modelFileName strings.Builder
 	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
 	modelFileName.WriteString(strings.ToLower(resourceName))
@@ -490,8 +500,8 @@ func (c *Coordinator) RefreshConstructors(resourceName, tableName string) error 
 	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
 
 	var sqlFileName strings.Builder
-	sqlFileName.Grow(len(pluralName) + 4) // +4 for ".sql"
-	sqlFileName.WriteString(pluralName)
+	sqlFileName.Grow(len(tableName) + 4) // +4 for ".sql"
+	sqlFileName.WriteString(tableName)
 	sqlFileName.WriteString(".sql")
 	sqlPath := filepath.Join(c.config.Paths.Queries, sqlFileName.String())
 
@@ -513,7 +523,7 @@ func (c *Coordinator) RefreshConstructors(resourceName, tableName string) error 
 		return err
 	}
 
-	if err := c.modelGenerator.RefreshQueries(cat, resourceName, pluralName, sqlPath); err != nil {
+	if err := c.modelGenerator.RefreshQueries(cat, resourceName, tableName, sqlPath); err != nil {
 		return fmt.Errorf("failed to refresh queries: %w", err)
 	}
 
@@ -522,7 +532,7 @@ func (c *Coordinator) RefreshConstructors(resourceName, tableName string) error 
 		filepath.Join(c.config.Paths.Models, "internal", "db"),
 		constructorFileName,
 	)
-	if err := c.modelGenerator.RefreshConstructors(cat, resourceName, pluralName, constructorPath, modulePath); err != nil {
+	if err := c.modelGenerator.RefreshConstructors(cat, resourceName, tableName, constructorPath, modulePath); err != nil {
 		return fmt.Errorf("failed to refresh constructor functions: %w", err)
 	}
 
