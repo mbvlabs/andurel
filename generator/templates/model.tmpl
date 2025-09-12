@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"errors"
+	"fmt"
 {{- range .Imports}}
 	"{{.}}"
 {{- end}}
@@ -238,4 +239,83 @@ func rowTo{{.Name}}(row db.{{SQLCTypeName .TableName}}) {{.Name}} {
 }
 {{end}}
 
+{{/* Relation Methods */}}
+{{- range .Relations}}
+
+{{- if eq .Type "one_to_many"}}
+// {{.LoaderMethod}} loads all {{.RelatedModel}}s that belong to this {{$.Name}}
+func ({{$.Name | lower}} {{$.Name}}) {{.LoaderMethod}}(
+	ctx context.Context,
+	dbtx db.DBTX,
+) ([]{{.RelatedModel}}, error) {
+	// TODO: Implement one-to-many relation loading
+	// This would query {{.RelatedTable}} WHERE {{.ForeignKey}} = {{$.Name | lower}}.ID
+	return nil, fmt.Errorf("{{.LoaderMethod}} relation not implemented yet")
+}
+
+// Add{{.RelatedModel}} creates a new {{.RelatedModel}} associated with this {{$.Name}}
+func ({{$.Name | lower}} {{$.Name}}) Add{{.RelatedModel}}(
+	ctx context.Context,
+	dbtx db.DBTX,
+	data Create{{.RelatedModel}}Data,
+) ({{.RelatedModel}}, error) {
+	// TODO: Implement relation creation
+	// This would set data.{{.ForeignKey}} = {{$.Name | lower}}.ID and create the record
+	return {{.RelatedModel}}{}, fmt.Errorf("Add{{.RelatedModel}} relation not implemented yet")
+}
+
+// Count{{.LoaderMethod}} counts all {{.RelatedModel}}s that belong to this {{$.Name}}
+func ({{$.Name | lower}} {{$.Name}}) Count{{.LoaderMethod}}(
+	ctx context.Context,
+	dbtx db.DBTX,
+) (int64, error) {
+	// TODO: Implement one-to-many relation counting
+	return 0, fmt.Errorf("Count{{.LoaderMethod}} relation not implemented yet")
+}
+{{- end}}
+
+{{- if eq .Type "many_to_one"}}
+// {{.LoaderMethod}} loads the {{.RelatedModel}} that this {{$.Name}} belongs to
+func ({{$.Name | lower}} {{$.Name}}) {{.LoaderMethod}}(
+	ctx context.Context,
+	dbtx db.DBTX,
+) (*{{.RelatedModel}}, error) {
+	// TODO: Implement many-to-one relation loading
+	// This would load the {{.RelatedModel}} by {{$.Name | lower}}.{{.ForeignKey}}
+	return nil, fmt.Errorf("{{.LoaderMethod}} relation not implemented yet")
+}
+{{- end}}
+
+{{- if eq .Type "many_to_many"}}
+// {{.LoaderMethod}} loads all {{.RelatedModel}}s associated with this {{$.Name}} through {{.JoinTable}}
+func ({{$.Name | lower}} {{$.Name}}) {{.LoaderMethod}}(
+	ctx context.Context,
+	dbtx db.DBTX,
+) ([]{{.RelatedModel}}, error) {
+	// TODO: Implement many-to-many relation loading
+	return nil, fmt.Errorf("{{.LoaderMethod}} relation not implemented yet")
+}
+
+// Add{{.RelatedModel}} creates an association between this {{$.Name}} and a {{.RelatedModel}}
+func ({{$.Name | lower}} {{$.Name}}) Add{{.RelatedModel}}(
+	ctx context.Context,
+	dbtx db.DBTX,
+	{{.RelatedModel | lower}}ID uuid.UUID,
+) error {
+	// TODO: Implement many-to-many association creation
+	return fmt.Errorf("Add{{.RelatedModel}} association not implemented yet")
+}
+
+// Remove{{.RelatedModel}} removes the association between this {{$.Name}} and a {{.RelatedModel}}
+func ({{$.Name | lower}} {{$.Name}}) Remove{{.RelatedModel}}(
+	ctx context.Context,
+	dbtx db.DBTX,
+	{{.RelatedModel | lower}}ID uuid.UUID,
+) error {
+	// TODO: Implement many-to-many association removal
+	return fmt.Errorf("Remove{{.RelatedModel}} association not implemented yet")
+}
+{{- end}}
+
+{{- end}}
 
