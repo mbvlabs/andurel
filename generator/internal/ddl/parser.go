@@ -25,6 +25,18 @@ const (
 	Unknown
 )
 
+type ForeignKeyConstraint struct {
+	Name             string
+	Column           string
+	ReferencedTable  string
+	ReferencedColumn string
+	OnUpdate         string // CASCADE, RESTRICT, SET NULL, NO ACTION
+	OnDelete         string // CASCADE, RESTRICT, SET NULL, NO ACTION
+	Deferrable       bool
+	InitiallyDeferred bool
+	CreatedBy        string // migration file
+}
+
 type DDLStatement struct {
 	Type           StatementType
 	SchemaName     string
@@ -34,6 +46,7 @@ type DDLStatement struct {
 	Raw            string // original SQL
 	IndexDef       *catalog.Index
 	EnumDef        *catalog.Enum
+	ForeignKeyDef  *ForeignKeyConstraint // for foreign key operations
 	IfNotExists    bool           // for CREATE TABLE IF NOT EXISTS
 	AlterOperation string         // ADD_COLUMN, DROP_COLUMN, ALTER_COLUMN, RENAME_COLUMN, RENAME_TABLE
 	ColumnName     string         // for column-specific operations
@@ -99,7 +112,7 @@ func parseCreateTable(sql, migrationFile string, databaseType string) (*DDLState
 
 	table := catalog.NewTable(schemaName, tableName).SetCreatedBy(migrationFile)
 
-	columns, err := parseColumnDefinitions(columnDefs, migrationFile, databaseType)
+	columns, foreignKeys, err := parseColumnDefinitions(columnDefs, migrationFile, databaseType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse column definitions: %w", err)
 	}
@@ -107,6 +120,14 @@ func parseCreateTable(sql, migrationFile string, databaseType string) (*DDLState
 	for _, col := range columns {
 		if err := table.AddColumn(col); err != nil {
 			return nil, fmt.Errorf("failed to add column %s: %w", col.Name, err)
+		}
+	}
+
+	// Add parsed foreign keys to the table
+	for _, fk := range foreignKeys {
+		catalogFK := convertForeignKeyConstraintToCatalogFK(fk)
+		if err := table.AddForeignKey(catalogFK); err != nil {
+			return nil, fmt.Errorf("failed to add foreign key %s: %w", fk.Name, err)
 		}
 	}
 
@@ -122,8 +143,9 @@ func parseCreateTable(sql, migrationFile string, databaseType string) (*DDLState
 func parseColumnDefinitions(
 	columnDefs, migrationFile string,
 	databaseType string,
-) ([]*catalog.Column, error) {
+) ([]*catalog.Column, []*ForeignKeyConstraint, error) {
 	var columns []*catalog.Column
+	var foreignKeys []*ForeignKeyConstraint
 	var primaryKeyColumns []string
 
 	defs := splitColumnDefinitions(columnDefs)
@@ -152,16 +174,26 @@ func parseColumnDefinitions(
 			continue
 		}
 
-		if strings.HasPrefix(defLower, "foreign key") ||
-			strings.HasPrefix(defLower, "constraint") ||
-			strings.HasPrefix(defLower, "unique") ||
+		// Skip table constraints that aren't foreign keys for now
+		if strings.HasPrefix(defLower, "unique") ||
 			strings.HasPrefix(defLower, "check") {
 			continue
 		}
 
-		col, err := parseColumnDefinition(def, migrationFile, databaseType)
+		// Handle table-level foreign key constraints
+		if strings.HasPrefix(defLower, "foreign key") ||
+			(strings.HasPrefix(defLower, "constraint") && strings.Contains(defLower, "foreign key")) {
+			fk := parseTableForeignKeyConstraint(def)
+			if fk != nil {
+				fk.CreatedBy = migrationFile
+				foreignKeys = append(foreignKeys, fk)
+			}
+			continue
+		}
+
+		col, fk, err := parseColumnDefinitionWithFK(def, migrationFile, databaseType)
 		if err != nil {
-			return nil, fmt.Errorf(
+			return nil, nil, fmt.Errorf(
 				"failed to parse column definition '%s': %w",
 				def,
 				err,
@@ -171,6 +203,10 @@ func parseColumnDefinitions(
 		if col != nil {
 			columns = append(columns, col)
 		}
+		if fk != nil {
+			fk.CreatedBy = migrationFile
+			foreignKeys = append(foreignKeys, fk)
+		}
 	}
 
 	for _, col := range columns {
@@ -178,13 +214,30 @@ func parseColumnDefinitions(
 			if col.Name == pkCol {
 				col.SetPrimaryKey()
 				if err := validatePrimaryKeyDatatype(col.DataType, databaseType, migrationFile, col.Name); err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 			}
 		}
 	}
 
-	return columns, nil
+	return columns, foreignKeys, nil
+}
+
+// parseColumnDefinitionWithFK parses a column definition and returns both column and foreign key if present
+func parseColumnDefinitionWithFK(def, migrationFile string, databaseType string) (*catalog.Column, *ForeignKeyConstraint, error) {
+	col, err := parseColumnDefinition(def, migrationFile, databaseType)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Check for inline REFERENCES clause
+	defLower := strings.ToLower(def)
+	if strings.Contains(defLower, "references") {
+		fk := parseInlineReferences(def, col.Name)
+		return col, fk, nil
+	}
+
+	return col, nil, nil
 }
 
 func parseColumnDefinition(def, migrationFile string, databaseType string) (*catalog.Column, error) {
@@ -252,6 +305,8 @@ func parseColumnDefinition(def, migrationFile string, databaseType string) (*cat
 	if matches := defaultRegex.FindStringSubmatch(def); len(matches) > 1 {
 		col.SetDefault(strings.TrimSpace(matches[1]))
 	}
+
+	// Inline REFERENCES clause is now handled by parseColumnDefinitionWithFK
 
 	return col, nil
 }
@@ -707,4 +762,104 @@ func parseDropEnum(sql string) (*DDLStatement, error) {
 		Type: DropEnum,
 		Raw:  sql,
 	}, nil
+}
+
+// parseInlineReferences parses an inline REFERENCES clause
+// Format: REFERENCES table(column) [ON DELETE action] [ON UPDATE action]
+func parseInlineReferences(def, columnName string) *ForeignKeyConstraint {
+	// Simple regex to match REFERENCES table(column)
+	referenceRegex := regexp.MustCompile(`(?i)references\s+(\w+)\s*\(\s*(\w+)\s*\)`)
+	matches := referenceRegex.FindStringSubmatch(def)
+	
+	if len(matches) < 3 {
+		return nil
+	}
+	
+	referencedTable := matches[1]
+	referencedColumn := matches[2]
+	
+	fk := &ForeignKeyConstraint{
+		Name:             fmt.Sprintf("fk_%s_%s", columnName, referencedTable),
+		Column:           columnName,
+		ReferencedTable:  referencedTable,
+		ReferencedColumn: referencedColumn,
+		OnUpdate:         "NO ACTION",
+		OnDelete:         "NO ACTION",
+	}
+	
+	// Parse ON DELETE and ON UPDATE clauses
+	defLower := strings.ToLower(def)
+	
+	if strings.Contains(defLower, "on delete cascade") {
+		fk.OnDelete = "CASCADE"
+	} else if strings.Contains(defLower, "on delete set null") {
+		fk.OnDelete = "SET NULL"
+	} else if strings.Contains(defLower, "on delete restrict") {
+		fk.OnDelete = "RESTRICT"
+	}
+	
+	if strings.Contains(defLower, "on update cascade") {
+		fk.OnUpdate = "CASCADE"
+	} else if strings.Contains(defLower, "on update set null") {
+		fk.OnUpdate = "SET NULL"
+	} else if strings.Contains(defLower, "on update restrict") {
+		fk.OnUpdate = "RESTRICT"
+	}
+	
+	return fk
+}
+
+// parseTableForeignKeyConstraint parses table-level FOREIGN KEY constraints
+// Supports patterns like:
+// "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+// "CONSTRAINT fk_posts_user FOREIGN KEY (user_id) REFERENCES users(id)"
+func parseTableForeignKeyConstraint(def string) *ForeignKeyConstraint {
+	defLower := strings.ToLower(def)
+	
+	// Pattern for FOREIGN KEY (column) REFERENCES table(column)
+	fkRegex := regexp.MustCompile(`(?i)foreign\s+key\s*\(\s*(\w+)\s*\)\s+references\s+(\w+)\s*\(\s*(\w+)\s*\)`)
+	matches := fkRegex.FindStringSubmatch(def)
+	
+	if len(matches) < 4 {
+		return nil
+	}
+	
+	column := matches[1]
+	referencedTable := matches[2]
+	referencedColumn := matches[3]
+	
+	// Extract constraint name if present
+	constraintName := fmt.Sprintf("fk_%s_%s", column, referencedTable)
+	constraintRegex := regexp.MustCompile(`(?i)constraint\s+(\w+)\s+foreign\s+key`)
+	if constraintMatches := constraintRegex.FindStringSubmatch(def); len(constraintMatches) > 1 {
+		constraintName = constraintMatches[1]
+	}
+	
+	fk := &ForeignKeyConstraint{
+		Name:             constraintName,
+		Column:           column,
+		ReferencedTable:  referencedTable,
+		ReferencedColumn: referencedColumn,
+		OnUpdate:         "NO ACTION",
+		OnDelete:         "NO ACTION",
+	}
+	
+	// Parse ON DELETE and ON UPDATE clauses
+	if strings.Contains(defLower, "on delete cascade") {
+		fk.OnDelete = "CASCADE"
+	} else if strings.Contains(defLower, "on delete set null") {
+		fk.OnDelete = "SET NULL"
+	} else if strings.Contains(defLower, "on delete restrict") {
+		fk.OnDelete = "RESTRICT"
+	}
+	
+	if strings.Contains(defLower, "on update cascade") {
+		fk.OnUpdate = "CASCADE"
+	} else if strings.Contains(defLower, "on update set null") {
+		fk.OnUpdate = "SET NULL"
+	} else if strings.Contains(defLower, "on update restrict") {
+		fk.OnUpdate = "RESTRICT"
+	}
+	
+	return fk
 }

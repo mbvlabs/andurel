@@ -185,7 +185,7 @@ func TestParseColumnDefinitions_PrimaryKeyValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			columns, err := parseColumnDefinitions(tc.columnDefs, "test.sql", tc.databaseType)
+			columns, _, err := parseColumnDefinitions(tc.columnDefs, "test.sql", tc.databaseType)
 
 			if tc.expectError {
 				if err == nil {

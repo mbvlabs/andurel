@@ -30,10 +30,25 @@ type GeneratedField struct {
 	RequiresErrorHandling   bool
 }
 
+type GeneratedRelation struct {
+	Name              string           // e.g., "Posts", "User", "Roles"
+	Type              catalog.RelationType     // one_to_many, many_to_one, etc.
+	RelatedModel      string           // e.g., "Post", "User", "Role"
+	RelatedTable      string           // e.g., "posts", "users", "roles"
+	ForeignKey        string           // e.g., "user_id"
+	RelatedColumn     string           // e.g., "id"
+	JoinTable         string           // for many_to_many
+	JoinForeignKey    string           // for many_to_many
+	RelatedForeignKey string           // for many_to_many
+	LoaderMethod      string           // e.g., "Posts", "GetPosts", "LoadPosts"
+	IsSelfReference   bool
+}
+
 type GeneratedModel struct {
 	Name         string
 	Package      string
 	Fields       []GeneratedField
+	Relations    []GeneratedRelation  // NEW: Relations for this model
 	Imports      []string
 	TableName    string
 	ModulePath   string
@@ -49,6 +64,16 @@ type Config struct {
 	CustomTypes  []types.TypeOverride
 }
 
+type RelationSQLData struct {
+	Name           string
+	Type           catalog.RelationType
+	JoinQuery      string
+	LoaderQuery    string
+	CountQuery     string
+	RelatedModel   string
+	ForeignKey     string
+}
+
 type SQLData struct {
 	ResourceName       string
 	PluralName         string
@@ -59,6 +84,7 @@ type SQLData struct {
 	IDPlaceholder      string
 	LimitOffsetClause  string
 	NowFunction        string
+	Relations          []RelationSQLData  // NEW: Relation SQL data
 }
 
 type Generator struct {
@@ -88,6 +114,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		ModulePath:   config.ModulePath,
 		DatabaseType: g.typeMapper.GetDatabaseType(),
 		Fields:       make([]GeneratedField, 0, len(table.Columns)),
+		Relations:    make([]GeneratedRelation, 0),
 		Imports:      make([]string, 0),
 	}
 
@@ -108,6 +135,30 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 			importSet[imp] = true
 		}
 		model.Fields = append(model.Fields, field)
+	}
+
+	// Discover and generate relations
+	relations, err := g.discoverRelations(cat, config.TableName, config.ResourceName)
+	if err != nil {
+		return nil, errors.NewGeneratorError("discover relations", config.TableName, err)
+	}
+	model.Relations = relations
+
+	// DEBUG: Log relation discovery for troubleshooting
+	fmt.Printf("DEBUG: Table %s discovered %d relations\n", config.TableName, len(relations))
+	for _, rel := range relations {
+		fmt.Printf("  - %s: %s -> %s\n", rel.Type, rel.RelatedModel, rel.RelatedTable)
+	}
+
+	// Add relation imports - only if there are actually relations
+	if len(relations) > 0 {
+		// Relations use fmt.Errorf in template
+		importSet["fmt"] = true
+	}
+	for _, rel := range relations {
+		if rel.RelatedModel != model.Name {
+			// Relations might require additional imports in the future
+		}
 	}
 
 	importSet["time"] = true
@@ -170,6 +221,65 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 	field.ZeroCheck = g.typeMapper.GenerateZeroCheck(field.Type, "data."+field.Name)
 
 	return field, nil
+}
+
+// discoverRelations discovers and generates relation definitions for a table
+func (g *Generator) discoverRelations(cat *catalog.Catalog, tableName, resourceName string) ([]GeneratedRelation, error) {
+	// Get relationship graph from catalog
+	graph, err := cat.GetRelationshipGraph()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get relationship graph: %w", err)
+	}
+
+	// Get relations for this table
+	catalogRelations := graph.GetRelations(tableName)
+	var generatedRelations []GeneratedRelation
+
+	for _, rel := range catalogRelations {
+		genRel, err := g.convertCatalogRelation(rel, resourceName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert relation: %w", err)
+		}
+		if genRel != nil {
+			generatedRelations = append(generatedRelations, *genRel)
+		}
+	}
+
+	return generatedRelations, nil
+}
+
+// convertCatalogRelation converts a catalog.Relation to a GeneratedRelation
+func (g *Generator) convertCatalogRelation(rel *catalog.Relation, resourceName string) (*GeneratedRelation, error) {
+	if rel == nil {
+		return nil, nil
+	}
+
+	// Convert table name to model name (simple title case for now)
+	baseTableName := strings.TrimSuffix(rel.ToTable, "s")
+	relatedModel := strings.ToUpper(baseTableName[:1]) + baseTableName[1:]
+
+	// Generate loader method name
+	loaderMethod := relatedModel
+	if rel.Type == catalog.OneToMany {
+		// For one-to-many, use plural form
+		loaderMethod = relatedModel + "s"
+	}
+
+	genRel := &GeneratedRelation{
+		Name:              loaderMethod,
+		Type:              rel.Type,
+		RelatedModel:      relatedModel,
+		RelatedTable:      rel.ToTable,
+		ForeignKey:        rel.FromColumn,
+		RelatedColumn:     rel.ToColumn,
+		LoaderMethod:      loaderMethod,
+		IsSelfReference:   rel.IsSelfReference,
+		JoinTable:         rel.JoinTable,
+		JoinForeignKey:    rel.JoinFromColumn,
+		RelatedForeignKey: rel.JoinToColumn,
+	}
+
+	return genRel, nil
 }
 
 func (g *Generator) addTypeImports(sqlcType, goType string) map[string]bool {
