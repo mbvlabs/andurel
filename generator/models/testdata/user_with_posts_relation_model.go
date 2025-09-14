@@ -8,15 +8,13 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"time"
 
-	"github.com/example/myapp/models/internal/db"
+	"github.com/example/relations/models/internal/db"
 )
 
 type User struct {
 	ID        uuid.UUID
-	Email     string
 	Name      string
-	Age       int32
-	IsActive  bool
+	Email     string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -35,10 +33,8 @@ func FindUser(
 }
 
 type CreateUserData struct {
-	Email    string
-	Name     string
-	Age      int32
-	IsActive bool
+	Name  string
+	Email string
 }
 
 func CreateUser(
@@ -51,10 +47,8 @@ func CreateUser(
 	}
 
 	params := db.NewInsertUserParams(
-		data.Email,
 		data.Name,
-		pgtype.Int4{Int32: data.Age, Valid: true},
-		pgtype.Bool{Bool: data.IsActive, Valid: true},
+		data.Email,
 	)
 	row, err := db.New().InsertUser(ctx, dbtx, params)
 	if err != nil {
@@ -66,10 +60,8 @@ func CreateUser(
 
 type UpdateUserData struct {
 	ID        uuid.UUID
-	Email     string
 	Name      string
-	Age       int32
-	IsActive  bool
+	Email     string
 	UpdatedAt time.Time
 }
 
@@ -91,27 +83,15 @@ func UpdateUser(
 		data.ID,
 		func() string {
 			if true {
-				return data.Email
-			}
-			return currentRow.Email
-		}(),
-		func() string {
-			if true {
 				return data.Name
 			}
 			return currentRow.Name
 		}(),
-		func() pgtype.Int4 {
+		func() string {
 			if true {
-				return pgtype.Int4{Int32: data.Age, Valid: true}
+				return data.Email
 			}
-			return currentRow.Age
-		}(),
-		func() pgtype.Bool {
-			if true {
-				return pgtype.Bool{Bool: data.IsActive, Valid: true}
-			}
-			return currentRow.IsActive
+			return currentRow.Email
 		}(),
 	)
 
@@ -207,10 +187,8 @@ func PaginateUsers(
 func rowToUser(row db.User) User {
 	return User{
 		ID:        row.ID,
-		Email:     row.Email,
 		Name:      row.Name,
-		Age:       row.Age.Int32,
-		IsActive:  row.IsActive.Bool,
+		Email:     row.Email,
 		CreatedAt: row.CreatedAt.Time,
 		UpdatedAt: row.UpdatedAt.Time,
 	}

@@ -8,15 +8,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"time"
 
-	"github.com/example/blog/models/internal/db"
+	"github.com/example/relations/models/internal/db"
 )
 
 type Post struct {
-	ID          uuid.UUID
-	Title       string
-	CreatedAt   time.Time
-	AuthorId    int32
-	PublishedAt time.Time
+	ID        uuid.UUID
+	UserId    uuid.UUID
+	Title     string
+	Content   string
+	Published bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func FindPost(
@@ -33,9 +35,10 @@ func FindPost(
 }
 
 type CreatePostData struct {
-	Title       string
-	AuthorId    int32
-	PublishedAt time.Time
+	UserId    uuid.UUID
+	Title     string
+	Content   string
+	Published bool
 }
 
 func CreatePost(
@@ -48,9 +51,10 @@ func CreatePost(
 	}
 
 	params := db.NewInsertPostParams(
+		data.UserId,
 		data.Title,
-		pgtype.Int4{Int32: data.AuthorId, Valid: true},
-		pgtype.Timestamptz{Time: data.PublishedAt, Valid: true},
+		pgtype.Text{String: data.Content, Valid: true},
+		data.Published,
 	)
 	row, err := db.New().InsertPost(ctx, dbtx, params)
 	if err != nil {
@@ -61,10 +65,12 @@ func CreatePost(
 }
 
 type UpdatePostData struct {
-	ID          uuid.UUID
-	Title       string
-	AuthorId    int32
-	PublishedAt time.Time
+	ID        uuid.UUID
+	UserId    uuid.UUID
+	Title     string
+	Content   string
+	Published bool
+	UpdatedAt time.Time
 }
 
 func UpdatePost(
@@ -83,23 +89,29 @@ func UpdatePost(
 
 	params := db.NewUpdatePostParams(
 		data.ID,
+		func() uuid.UUID {
+			if data.UserId != uuid.Nil {
+				return data.UserId
+			}
+			return currentRow.UserId
+		}(),
 		func() string {
 			if true {
 				return data.Title
 			}
 			return currentRow.Title
 		}(),
-		func() pgtype.Int4 {
+		func() pgtype.Text {
 			if true {
-				return pgtype.Int4{Int32: data.AuthorId, Valid: true}
+				return pgtype.Text{String: data.Content, Valid: true}
 			}
-			return currentRow.AuthorId
+			return currentRow.Content
 		}(),
-		func() pgtype.Timestamptz {
+		func() bool {
 			if true {
-				return pgtype.Timestamptz{Time: data.PublishedAt, Valid: true}
+				return data.Published
 			}
-			return currentRow.PublishedAt
+			return currentRow.Published
 		}(),
 	)
 
@@ -194,10 +206,22 @@ func PaginatePosts(
 
 func rowToPost(row db.Post) Post {
 	return Post{
-		ID:          row.ID,
-		Title:       row.Title,
-		CreatedAt:   row.CreatedAt.Time,
-		AuthorId:    row.AuthorId.Int32,
-		PublishedAt: row.PublishedAt.Time,
+		ID:        row.ID,
+		UserId:    row.UserId,
+		Title:     row.Title,
+		Content:   row.Content.String,
+		Published: row.Published,
+		CreatedAt: row.CreatedAt.Time,
+		UpdatedAt: row.UpdatedAt.Time,
 	}
+}
+
+// User loads the User that this Post belongs to
+func (post Post) User(
+	ctx context.Context,
+	dbtx db.DBTX,
+) (*User, error) {
+	// TODO: Implement many-to-one relation loading
+	// This would load the User by post.user_id
+	return nil, fmt.Errorf("User relation not implemented yet")
 }

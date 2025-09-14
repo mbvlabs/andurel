@@ -109,7 +109,7 @@ func parseCreateTableToTable(
 		return nil, fmt.Errorf("failed to extract column definitions: %w", err)
 	}
 
-	columns, err := parseColumnDefinitions(columnDefs, migrationFile, databaseType)
+	columns, foreignKeys, err := parseColumnDefinitions(columnDefs, migrationFile, databaseType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse column definitions: %w", err)
 	}
@@ -117,6 +117,14 @@ func parseCreateTableToTable(
 	for _, col := range columns {
 		if err := table.AddColumn(col); err != nil {
 			return nil, fmt.Errorf("failed to add column %s: %w", col.Name, err)
+		}
+	}
+
+	// Add parsed foreign keys to the table
+	for _, fk := range foreignKeys {
+		catalogFK := convertForeignKeyConstraintToCatalogFK(fk)
+		if err := table.AddForeignKey(catalogFK); err != nil {
+			return nil, fmt.Errorf("failed to add foreign key %s: %w", fk.Name, err)
 		}
 	}
 
