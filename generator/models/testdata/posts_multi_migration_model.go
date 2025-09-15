@@ -14,7 +14,7 @@ type Post struct {
 	ID          uuid.UUID
 	Title       string
 	CreatedAt   time.Time
-	AuthorId    int32
+	AuthorID    int32
 	PublishedAt time.Time
 }
 
@@ -33,7 +33,7 @@ func FindPost(
 
 type CreatePostData struct {
 	Title       string
-	AuthorId    int32
+	AuthorID    int32
 	PublishedAt time.Time
 }
 
@@ -48,7 +48,7 @@ func CreatePost(
 
 	params := db.NewInsertPostParams(
 		data.Title,
-		pgtype.Int4{Int32: data.AuthorId, Valid: true},
+		pgtype.Int4{Int32: data.AuthorID, Valid: true},
 		pgtype.Timestamptz{Time: data.PublishedAt, Valid: true},
 	)
 	row, err := db.New().InsertPost(ctx, dbtx, params)
@@ -62,7 +62,7 @@ func CreatePost(
 type UpdatePostData struct {
 	ID          uuid.UUID
 	Title       string
-	AuthorId    int32
+	AuthorID    int32
 	PublishedAt time.Time
 }
 
@@ -90,9 +90,9 @@ func UpdatePost(
 		}(),
 		func() pgtype.Int4 {
 			if true {
-				return pgtype.Int4{Int32: data.AuthorId, Valid: true}
+				return pgtype.Int4{Int32: data.AuthorID, Valid: true}
 			}
-			return currentRow.AuthorId
+			return currentRow.AuthorID
 		}(),
 		func() pgtype.Timestamptz {
 			if true {
@@ -196,7 +196,7 @@ func rowToPost(row db.Post) Post {
 		ID:          row.ID,
 		Title:       row.Title,
 		CreatedAt:   row.CreatedAt.Time,
-		AuthorId:    row.AuthorId.Int32,
+		AuthorID:    row.AuthorID.Int32,
 		PublishedAt: row.PublishedAt.Time,
 	}
 }

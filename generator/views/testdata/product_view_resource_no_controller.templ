@@ -38,7 +38,7 @@ templ ProductIndex(products []models.Product) {
 											<td class="text-white">{ product.Name }</td>
 											<td class="text-white">{ fmt.Sprintf("%f", product.Price) }</td>
 											<td class="text-white">{ product.Description }</td>
-											<td class="text-white">{ fmt.Sprintf("%d", product.CategoryId) }</td>
+											<td class="text-white">{ fmt.Sprintf("%d", product.CategoryID) }</td>
 											<td class="text-white">{ fmt.Sprintf("%t", product.InStock) }</td>
 											<td class="text-white">{ string(product.Metadata) }</td>
 											<td class="text-white">{ product.CreatedAt.String() }</td>
@@ -86,7 +86,7 @@ templ ProductShow(product models.Product) {
 						</div>
 						<div>
 							<label class="block text-sm font-medium text-white mb-1">Category Id</label>
-							<p class="text-lg text-gray-300">{ fmt.Sprintf("%d", product.CategoryId) }</p>
+							<p class="text-lg text-gray-300">{ fmt.Sprintf("%d", product.CategoryID) }</p>
 						</div>
 						<div>
 							<label class="block text-sm font-medium text-white mb-1">In Stock</label>
@@ -233,7 +233,7 @@ templ ProductEdit(product models.Product) {
 											Category Id
 										</label>
 										<div class="mt-2">
-											<input id="category_id" type="number" data-bind="category_id" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ fmt.Sprintf("%d", product.CategoryId) } />
+											<input id="category_id" type="number" data-bind="category_id" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ fmt.Sprintf("%d", product.CategoryID) } />
 										</div>
 									</div>
 									<div class="sm:col-span-3">

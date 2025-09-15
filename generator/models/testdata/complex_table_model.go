@@ -12,7 +12,7 @@ import (
 
 type ComprehensiveExample struct {
 	ID                uuid.UUID
-	UuidId            uuid.UUID
+	UuidID            uuid.UUID
 	SmallInt          int16
 	RegularInt        int32
 	BigInt            int64
@@ -76,7 +76,7 @@ func FindComprehensiveExample(
 }
 
 type CreateComprehensiveExampleData struct {
-	UuidId            uuid.UUID
+	UuidID            uuid.UUID
 	SmallInt          int16
 	RegularInt        int32
 	BigInt            int64
@@ -136,7 +136,7 @@ func CreateComprehensiveExample(
 	}
 
 	params := db.NewInsertComprehensiveExampleParams(
-		data.UuidId,
+		data.UuidID,
 		data.SmallInt,
 		pgtype.Int4{Int32: data.RegularInt, Valid: true},
 		data.BigInt,
@@ -195,7 +195,7 @@ func CreateComprehensiveExample(
 
 type UpdateComprehensiveExampleData struct {
 	ID                uuid.UUID
-	UuidId            uuid.UUID
+	UuidID            uuid.UUID
 	SmallInt          int16
 	RegularInt        int32
 	BigInt            int64
@@ -262,10 +262,10 @@ func UpdateComprehensiveExample(
 	params := db.NewUpdateComprehensiveExampleParams(
 		data.ID,
 		func() uuid.UUID {
-			if data.UuidId != uuid.Nil {
-				return data.UuidId
+			if data.UuidID != uuid.Nil {
+				return data.UuidID
 			}
-			return currentRow.UuidId
+			return currentRow.UuidID
 		}(),
 		func() int16 {
 			if true {
@@ -643,7 +643,7 @@ func PaginateComprehensiveExamples(
 func rowToComprehensiveExample(row db.ComprehensiveExample) ComprehensiveExample {
 	return ComprehensiveExample{
 		ID:                row.ID,
-		UuidId:            row.UuidId,
+		UuidID:            row.UuidID,
 		SmallInt:          row.SmallInt,
 		RegularInt:        row.RegularInt.Int32,
 		BigInt:            row.BigInt,
