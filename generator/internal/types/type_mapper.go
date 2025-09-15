@@ -603,7 +603,11 @@ func FormatFieldName(dbColumnName string) string {
 	builder.Grow(len(dbColumnName))
 
 	for _, part := range parts {
-		if len(part) > 0 {
+		if len(part) > 0 && part == "id" {
+			builder.WriteString(strings.ToUpper(part))
+		}
+
+		if len(part) > 0 && part != "id" {
 			builder.WriteString(strings.ToUpper(part[:1]))
 			builder.WriteString(strings.ToLower(part[1:]))
 		}

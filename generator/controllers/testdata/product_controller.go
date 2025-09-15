@@ -74,7 +74,7 @@ type CreateProductFormPayload struct {
 	Name        string  `form:"name"`
 	Price       float64 `form:"price"`
 	Description string  `form:"description"`
-	CategoryId  int32   `form:"category_id"`
+	CategoryID  int32   `form:"category_id"`
 	InStock     bool    `form:"in_stock"`
 	Metadata    string  `form:"metadata"`
 }
@@ -96,7 +96,7 @@ func (r Products) Create(c echo.Context) error {
 		Name:        payload.Name,
 		Price:       payload.Price,
 		Description: payload.Description,
-		CategoryId:  payload.CategoryId,
+		CategoryID:  payload.CategoryID,
 		InStock:     payload.InStock,
 		Metadata:    payload.Metadata,
 	}
@@ -138,7 +138,7 @@ type UpdateProductFormPayload struct {
 	Name        string  `form:"name"`
 	Price       float64 `form:"price"`
 	Description string  `form:"description"`
-	CategoryId  int32   `form:"category_id"`
+	CategoryID  int32   `form:"category_id"`
 	InStock     bool    `form:"in_stock"`
 	Metadata    string  `form:"metadata"`
 }
@@ -166,7 +166,7 @@ func (r Products) Update(c echo.Context) error {
 		Name:        payload.Name,
 		Price:       payload.Price,
 		Description: payload.Description,
-		CategoryId:  payload.CategoryId,
+		CategoryID:  payload.CategoryID,
 		InStock:     payload.InStock,
 		Metadata:    payload.Metadata,
 	}
