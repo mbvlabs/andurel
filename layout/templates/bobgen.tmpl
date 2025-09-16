@@ -1,0 +1,31 @@
+{{- if eq .Database "postgresql"}}
+psql:
+  dsn: "postgres://postgres:postgres@0.0.0.0:5432/{{.ProjectName}}?sslmode=disable"
+  schemas: ["public"]
+
+  uuid_pkg: "google"
+  queries: "models/internal/queries"
+{{- else if eq .Database "sqlite"}}
+sqlite:
+  dsn: "{{.ProjectName}}.db"
+
+  queries: "models/internal/queries"
+{{- end}}
+
+plugins_preset: "none"
+plugins:
+  enums:
+    disabled: false
+    pkgname: "enums"
+    destination: "models/internal/enums"
+  models:
+    disabled: false
+    pkgname: "db"
+    destination: "models/internal/db"
+
+type_system: "github.com/aarondl/opt"
+
+tags: ["db"]
+struct_tag_casing: "snake"
+
+no_tests: true
