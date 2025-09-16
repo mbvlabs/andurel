@@ -43,6 +43,7 @@ type GeneratedModel struct {
 	TableName    string
 	ModulePath   string
 	DatabaseType string
+	HasRelations bool
 }
 
 type Config struct {
@@ -119,6 +120,11 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	importSet["github.com/google/uuid"] = true
 
 	for imp := range importSet {
+		if imp == "time" {
+			// time is handled explicitly in the template's stdlib group
+			// to satisfy golden import ordering
+			continue
+		}
 		model.Imports = append(model.Imports, imp)
 	}
 	sort.Strings(model.Imports)
@@ -1112,8 +1118,8 @@ func (g *Generator) extractTypeFromAst(expr ast.Expr) string {
 // isNullableType determines if a bob type is nullable
 func (g *Generator) isNullableType(bobType string) bool {
 	return strings.HasPrefix(bobType, "null.Val[") ||
-		   strings.HasPrefix(bobType, "omitnull.Val[") ||
-		   strings.Contains(bobType, "Null")
+		strings.HasPrefix(bobType, "omitnull.Val[") ||
+		strings.Contains(bobType, "Null")
 }
 
 // convertBobStructToModel converts a bob struct to our GeneratedModel format
@@ -1133,7 +1139,20 @@ func (g *Generator) convertBobStructToModel(bobStruct *BobStruct, resourceName, 
 	hasNullable := false
 	hasNonNullable := false
 
+	// Detect if bob struct includes relationship container
+	for _, bf := range bobStruct.Fields {
+		if bf.Name == "R" {
+			model.HasRelations = true
+			break
+		}
+	}
+
 	for _, bobField := range bobStruct.Fields {
+		// Skip bob relationship container field. It's not a real column
+		// and should not appear in the domain model or DTOs.
+		if bobField.Name == "R" {
+			continue
+		}
 		goType, imports := g.convertBobTypeToGoType(bobField.Type)
 
 		// Track usage for import decisions
@@ -1144,14 +1163,14 @@ func (g *Generator) convertBobStructToModel(bobStruct *BobStruct, resourceName, 
 		}
 
 		field := GeneratedField{
-			Name: bobField.Name,
-			Type: goType,
-			SQLCType: bobField.Type, // Keep original bob type for conversions
-			ConversionFromDB: g.generateBobConversionFromDB(bobField.Name, bobField.Type, goType),
-			ConversionToDB: g.generateBobConversionToDB(bobField.IsNullable, goType, "data."+bobField.Name),
+			Name:                    bobField.Name,
+			Type:                    goType,
+			SQLCType:                bobField.Type, // Keep original bob type for conversions
+			ConversionFromDB:        g.generateBobConversionFromDB(bobField.Name, bobField.Type, goType),
+			ConversionToDB:          g.generateBobConversionToDB(bobField.IsNullable, goType, "data."+bobField.Name),
 			ConversionToDBForUpdate: g.generateBobConversionToDB(bobField.IsNullable, goType, "data."+bobField.Name),
-			ZeroCheck: g.generateZeroCheck(goType, "data."+bobField.Name),
-			IsNullable: bobField.IsNullable,
+			ZeroCheck:               g.generateZeroCheck(goType, "data."+bobField.Name),
+			IsNullable:              bobField.IsNullable,
 		}
 
 		model.Fields = append(model.Fields, field)
@@ -1172,8 +1191,7 @@ func (g *Generator) convertBobStructToModel(bobStruct *BobStruct, resourceName, 
 	importSet["github.com/stephenafamo/bob"] = true
 
 	// Add required imports for bob models based on usage
-	importSet["time"] = true
-	importSet["github.com/google/uuid"] = true
+	// time and uuid are added based on actual field usage
 
 	for imp := range importSet {
 		model.Imports = append(model.Imports, imp)
@@ -1269,6 +1287,17 @@ func (g *Generator) GenerateModelFileForBob(model *GeneratedModel, templateStr s
 		"hasErrorHandling": func() bool {
 			// For now, assume no special error handling needed
 			return false
+		},
+		"hasImport": func(imp string) bool {
+			for _, i := range model.Imports {
+				if i == imp {
+					return true
+				}
+			}
+			return false
+		},
+		"isExternal": func(imp string) bool {
+			return strings.HasPrefix(imp, "github.com/")
 		},
 	}
 

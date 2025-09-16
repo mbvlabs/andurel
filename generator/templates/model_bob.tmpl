@@ -1,13 +1,31 @@
 package models
 
 import (
+{{- if .HasRelations }}
+	"{{.ModulePath}}/models/internal/db"
 	"context"
 	"errors"
+	"time"
+
+{{- /* Separate external imports when relations exist */}}
 {{- range .Imports}}
+{{- if isExternal .}}
 	"{{.}}"
+{{- end}}
+{{- end}}
+{{- else }}
+    	"context"
+	"errors"
+	"time"
+{{- /* No relations: keep externals in same group */}}
+{{- range .Imports}}
+{{- if isExternal .}}
+	"{{.}}"
+{{- end}}
 {{- end}}
 
 	"{{.ModulePath}}/models/internal/db"
+{{- end }}
 )
 
 type {{.Name}} struct {

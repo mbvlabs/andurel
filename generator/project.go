@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/files"
-	"github.com/mbvlabs/andurel/generator/internal/types"
 	"github.com/mbvlabs/andurel/pkg/cache"
 )
 

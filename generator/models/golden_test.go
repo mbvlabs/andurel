@@ -22,7 +22,15 @@ func TestCompleteModelGeneration__GoldenFile(t *testing.T) {
 	}{
 		{
 			name:         "Should generate complete model files from user table migration",
-			referenceDir: "user_table",
+			referenceDir: "user",
+			tableName:    "users",
+			resourceName: "User",
+			modulePath:   "bob-new",
+			databaseType: "postgresql",
+		},
+		{
+			name:         "Should generate complete model files from user and team table migration",
+			referenceDir: "user_team_relation",
 			tableName:    "users",
 			resourceName: "User",
 			modulePath:   "bob-new",
