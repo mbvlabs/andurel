@@ -47,15 +47,27 @@ func (m *Manager) WriteFile(path, content string) error {
 	return os.WriteFile(path, []byte(content), constants.FilePermissionPrivate)
 }
 
-func (m *Manager) RunBobGenerate() error {
+func (m *Manager) RunBobGenerate(dbType string) error {
 	rootDir, err := m.FindGoModRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find go.mod root: %w", err)
 	}
 
+	bobGen := "bobgen-psql"
+	if dbType == "sqlite" {
+		bobGen = "bobgen-sqlite"
+	}
+
+	root, err := m.FindGoModRoot()
+	if err != nil {
+		return err
+	}
+
+	bobGenPath := filepath.Join(root, "database", "bobgen.yaml")
+
 	generateCmd := exec.CommandContext(
 		context.Background(),
-		"go", "run", "github.com/stephenafamo/bob/gen/bobgen-psql@latest", "-c", "./database/bobgen.yml",
+		"go", "tool", bobGen, "-c", bobGenPath,
 	)
 	generateCmd.Dir = rootDir
 	if output, err := generateCmd.CombinedOutput(); err != nil {

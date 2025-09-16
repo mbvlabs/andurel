@@ -21,20 +21,36 @@ func TestCompleteModelGeneration__GoldenFile(t *testing.T) {
 		databaseType string
 	}{
 		{
-			name:         "Should generate complete model files from user table migration",
-			referenceDir: "user",
+			name:         "[PSQL] Should generate complete model files from user table migration",
+			referenceDir: "psql_user",
 			tableName:    "users",
 			resourceName: "User",
 			modulePath:   "bob-new",
 			databaseType: "postgresql",
 		},
 		{
-			name:         "Should generate complete model files from user and team table migration",
-			referenceDir: "user_team_relation",
+			name:         "[PSQL] Should generate complete model files from user and team table migration",
+			referenceDir: "psql_user_team_relation",
 			tableName:    "users",
 			resourceName: "User",
 			modulePath:   "bob-new",
 			databaseType: "postgresql",
+		},
+		{
+			name:         "[SQLITE] Should generate complete model files from user table migration",
+			referenceDir: "sqlite_user",
+			tableName:    "users",
+			resourceName: "User",
+			modulePath:   "bob-new",
+			databaseType: "sqlite",
+		},
+		{
+			name:         "[SQLITE] Should generate complete model files from user and team table migration",
+			referenceDir: "spqlite_user_team_relation",
+			tableName:    "users",
+			resourceName: "User",
+			modulePath:   "bob-new",
+			databaseType: "sqlite",
 		},
 	}
 

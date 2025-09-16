@@ -120,11 +120,6 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	importSet["github.com/google/uuid"] = true
 
 	for imp := range importSet {
-		if imp == "time" {
-			// time is handled explicitly in the template's stdlib group
-			// to satisfy golden import ordering
-			continue
-		}
 		model.Imports = append(model.Imports, imp)
 	}
 	sort.Strings(model.Imports)
@@ -203,10 +198,10 @@ func (g *Generator) addTypeImports(sqlcType, goType string) map[string]bool {
 
 func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string) (string, error) {
 	funcMap := template.FuncMap{
-		"SQLCTypeName": func(tableName string) string {
-			singular := strings.TrimSuffix(tableName, "s") // Simple singularization
-			return types.FormatFieldName(singular)
-		},
+		// "SQLCTypeName": func(tableName string) string {
+		// 	singular := strings.TrimSuffix(tableName, "s") // Simple singularization
+		// 	return types.FormatFieldName(singular)
+		// },
 		"lower": func(s string) string {
 			return strings.ToLower(s)
 		},
@@ -246,14 +241,14 @@ func (g *Generator) GenerateModel(
 	modelPath, sqlPath string,
 	modulePath string,
 ) error {
-	table, err := cat.GetTable("", pluralName)
+	_, err := cat.GetTable("", pluralName)
 	if err != nil {
 		return fmt.Errorf("table '%s' not found in catalog: %w", pluralName, err)
 	}
 
-	if err := g.GenerateSQLFile(resourceName, pluralName, table, sqlPath); err != nil {
-		return fmt.Errorf("failed to generate SQL file: %w", err)
-	}
+	// if err := g.GenerateSQLFile(resourceName, pluralName, table, sqlPath); err != nil {
+	// 	return fmt.Errorf("failed to generate SQL file: %w", err)
+	// }
 
 	model, err := g.Build(cat, Config{
 		TableName:    pluralName,
@@ -977,7 +972,9 @@ func (g *Generator) queryExistsInContent(content, queryName string) bool {
 }
 
 // GenerateModelFromBob generates a model by parsing bob-generated structs
-func (g *Generator) GenerateModelFromBob(resourceName, tableName, modelPath, modulePath string) error {
+func (g *Generator) GenerateModelFromBob(
+	resourceName, tableName, modelPath, modulePath string,
+) error {
 	// Find the bob-generated file in models/internal/db/
 	dbDir := filepath.Join("models", "internal", "db")
 
@@ -1123,7 +1120,10 @@ func (g *Generator) isNullableType(bobType string) bool {
 }
 
 // convertBobStructToModel converts a bob struct to our GeneratedModel format
-func (g *Generator) convertBobStructToModel(bobStruct *BobStruct, resourceName, tableName, modulePath string) *GeneratedModel {
+func (g *Generator) convertBobStructToModel(
+	bobStruct *BobStruct,
+	resourceName, tableName, modulePath string,
+) *GeneratedModel {
 	model := &GeneratedModel{
 		Name:         resourceName,
 		Package:      "models",
@@ -1163,14 +1163,26 @@ func (g *Generator) convertBobStructToModel(bobStruct *BobStruct, resourceName, 
 		}
 
 		field := GeneratedField{
-			Name:                    bobField.Name,
-			Type:                    goType,
-			SQLCType:                bobField.Type, // Keep original bob type for conversions
-			ConversionFromDB:        g.generateBobConversionFromDB(bobField.Name, bobField.Type, goType),
-			ConversionToDB:          g.generateBobConversionToDB(bobField.IsNullable, goType, "data."+bobField.Name),
-			ConversionToDBForUpdate: g.generateBobConversionToDB(bobField.IsNullable, goType, "data."+bobField.Name),
-			ZeroCheck:               g.generateZeroCheck(goType, "data."+bobField.Name),
-			IsNullable:              bobField.IsNullable,
+			Name:     bobField.Name,
+			Type:     goType,
+			SQLCType: bobField.Type, // Keep original bob type for conversions
+			ConversionFromDB: g.generateBobConversionFromDB(
+				bobField.Name,
+				bobField.Type,
+				goType,
+			),
+			ConversionToDB: g.generateBobConversionToDB(
+				bobField.IsNullable,
+				goType,
+				"data."+bobField.Name,
+			),
+			ConversionToDBForUpdate: g.generateBobConversionToDB(
+				bobField.IsNullable,
+				goType,
+				"data."+bobField.Name,
+			),
+			ZeroCheck:  g.generateZeroCheck(goType, "data."+bobField.Name),
+			IsNullable: bobField.IsNullable,
 		}
 
 		model.Fields = append(model.Fields, field)
@@ -1271,7 +1283,10 @@ func (g *Generator) generateZeroCheck(goType, valueExpr string) string {
 }
 
 // GenerateModelFileForBob generates model content using bob-specific template functions
-func (g *Generator) GenerateModelFileForBob(model *GeneratedModel, templateStr string) (string, error) {
+func (g *Generator) GenerateModelFileForBob(
+	model *GeneratedModel,
+	templateStr string,
+) (string, error) {
 	funcMap := template.FuncMap{
 		"SQLCTypeName": func(tableName string) string {
 			// For bob, the struct name is the singular resource name

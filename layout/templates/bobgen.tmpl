@@ -1,5 +1,6 @@
 {{- if eq .Database "postgresql"}}
 psql:
+  driver: "github.com/jackc/pgx/v5"
   dsn: "postgres://postgres:postgres@0.0.0.0:5432/{{.ProjectName}}?sslmode=disable"
   schemas: ["public"]
 
@@ -7,6 +8,7 @@ psql:
   queries: "models/internal/queries"
 {{- else if eq .Database "sqlite"}}
 sqlite:
+  driver: "github.com/mattn/go-sqlite3"
   dsn: "{{.ProjectName}}.db"
 
   queries: "models/internal/queries"

@@ -81,7 +81,7 @@ sql: []`,
 				t.Fatalf("Failed to write sqlc.yaml: %v", err)
 			}
 
-			result, err := readDatabaseTypeFromSQLCYAML()
+			result, err := readDatabaseTypeFromBobYaml()
 
 			if tt.hasError {
 				if err == nil {

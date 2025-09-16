@@ -140,7 +140,7 @@ func ScaffoldWithDatabase(targetDir, projectName, repo, database string) error {
 		return fmt.Errorf("failed to process templated files: %w", err)
 	}
 
-	if err := createGoMod(targetDir, moduleName); err != nil {
+	if err := createGoMod(targetDir, moduleName, database); err != nil {
 		return fmt.Errorf("failed to create go.mod: %w", err)
 	}
 
@@ -315,9 +315,12 @@ func createDirectoryStructure(targetDir string, element Element) error {
 
 const goVersion = "1.25.0"
 
-func createGoMod(targetDir, projectName string) error {
+func createGoMod(targetDir, projectName, dbType string) error {
 	goModPath := filepath.Join(targetDir, "go.mod")
 	db := "psql"
+	if dbType == "sqlite" {
+		db = "sqlite"
+	}
 
 	goModContent := fmt.Sprintf(
 		"module %s\n\ngo %s\n\ntool (\n    github.com/a-h/templ/cmd/templ\n    github.com/stephenafamo/bob/gen/bobgen-%s\n    github.com/pressly/goose/v3/cmd/goose\n    github.com/air-verse/air\n)\n",

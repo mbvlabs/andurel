@@ -41,8 +41,7 @@ func (pm *ProjectManager) GetModulePath() (string, error) {
 }
 
 func (pm *ProjectManager) ValidateBobConfig(rootDir string) error {
-	// Check if bobgen.yml exists in database directory
-	bobgenPath := filepath.Join(rootDir, "database", "bobgen.yml")
+	bobgenPath := filepath.Join(rootDir, "database", "bobgen.yaml")
 	if _, err := os.Stat(bobgenPath); os.IsNotExist(err) {
 		return fmt.Errorf("bob configuration file not found at %s", bobgenPath)
 	}

@@ -63,7 +63,7 @@ func (c *Coordinator) GenerateModel(resourceName string) error {
 	}
 
 	if err := c.projectManager.ValidateBobConfig(rootDir); err != nil {
-		return fmt.Errorf("Bob configuration validation failed: %w", err)
+		return fmt.Errorf("bob configuration validation failed: %w", err)
 	}
 
 	var modelFileName strings.Builder
@@ -76,8 +76,7 @@ func (c *Coordinator) GenerateModel(resourceName string) error {
 		return err
 	}
 
-	// Run bob first to generate database code
-	if err := c.fileManager.RunBobGenerate(); err != nil {
+	if err := c.fileManager.RunBobGenerate(c.config.Database.Type); err != nil {
 		return fmt.Errorf("failed to run bob generate: %w", err)
 	}
 
@@ -364,7 +363,7 @@ func (c *Coordinator) RefreshModel(resourceName, tableName string) error {
 		return fmt.Errorf("failed to refresh model: %w", err)
 	}
 
-	if err := c.fileManager.RunBobGenerate(); err != nil {
+	if err := c.fileManager.RunBobGenerate(c.config.Database.Type); err != nil {
 		return fmt.Errorf("failed to run bob generate: %w", err)
 	}
 
@@ -430,7 +429,7 @@ func (c *Coordinator) RefreshQueries(resourceName, tableName string) error {
 		return fmt.Errorf("failed to refresh queries: %w", err)
 	}
 
-	if err := c.fileManager.RunBobGenerate(); err != nil {
+	if err := c.fileManager.RunBobGenerate(c.config.Database.Type); err != nil {
 		return fmt.Errorf("failed to run bob generate: %w", err)
 	}
 
@@ -503,7 +502,7 @@ func (c *Coordinator) RefreshConstructors(resourceName, tableName string) error 
 		return fmt.Errorf("failed to refresh constructor functions: %w", err)
 	}
 
-	if err := c.fileManager.RunBobGenerate(); err != nil {
+	if err := c.fileManager.RunBobGenerate(c.config.Database.Type); err != nil {
 		return fmt.Errorf("failed to run bob generate: %w", err)
 	}
 
