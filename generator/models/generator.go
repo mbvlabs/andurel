@@ -2,8 +2,12 @@ package models
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 	"text/template"
@@ -28,6 +32,7 @@ type GeneratedField struct {
 	ConversionToDBForUpdate string
 	ZeroCheck               string
 	RequiresErrorHandling   bool
+	IsNullable              bool
 }
 
 type GeneratedModel struct {
@@ -963,4 +968,319 @@ func (g *Generator) replaceSQLQueryByName(content, queryName, newQuery string) s
 
 func (g *Generator) queryExistsInContent(content, queryName string) bool {
 	return strings.Contains(content, fmt.Sprintf("-- name: %s ", queryName))
+}
+
+// GenerateModelFromBob generates a model by parsing bob-generated structs
+func (g *Generator) GenerateModelFromBob(resourceName, tableName, modelPath, modulePath string) error {
+	// Find the bob-generated file in models/internal/db/
+	dbDir := filepath.Join("models", "internal", "db")
+
+	// Look for generated Go files in the db directory
+	files, err := filepath.Glob(filepath.Join(dbDir, "*.go"))
+	if err != nil {
+		return fmt.Errorf("failed to find generated db files: %w", err)
+	}
+
+	var bobStruct *BobStruct
+	for _, file := range files {
+		bobStruct, err = g.parseBobStruct(file, resourceName)
+		if err != nil {
+			continue // Try next file
+		}
+		if bobStruct != nil {
+			break
+		}
+	}
+
+	if bobStruct == nil {
+		return fmt.Errorf("could not find bob-generated struct for %s in %s", resourceName, dbDir)
+	}
+
+	model := g.convertBobStructToModel(bobStruct, resourceName, tableName, modulePath)
+
+	templateContent, err := templates.Files.ReadFile("model_bob.tmpl")
+	if err != nil {
+		return fmt.Errorf("failed to read bob model template: %w", err)
+	}
+
+	modelContent, err := g.GenerateModelFileForBob(model, string(templateContent))
+	if err != nil {
+		return fmt.Errorf("failed to render model file: %w", err)
+	}
+
+	if err := os.WriteFile(modelPath, []byte(modelContent), constants.FilePermissionPrivate); err != nil {
+		return fmt.Errorf("failed to write model file: %w", err)
+	}
+
+	if err := g.formatGoFile(modelPath); err != nil {
+		return fmt.Errorf("failed to format model file: %w", err)
+	}
+
+	return nil
+}
+
+type BobStruct struct {
+	Name   string
+	Fields []BobField
+}
+
+type BobField struct {
+	Name       string
+	Type       string
+	IsNullable bool
+}
+
+// parseBobStruct parses a Go file to find a struct with the given name
+func (g *Generator) parseBobStruct(filename, structName string) (*BobStruct, error) {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %w", filename, err)
+	}
+
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, filename, content, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse file %s: %w", filename, err)
+	}
+
+	for _, decl := range node.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok || genDecl.Tok != token.TYPE {
+			continue
+		}
+
+		for _, spec := range genDecl.Specs {
+			typeSpec, ok := spec.(*ast.TypeSpec)
+			if !ok || typeSpec.Name.Name != structName {
+				continue
+			}
+
+			structType, ok := typeSpec.Type.(*ast.StructType)
+			if !ok {
+				continue
+			}
+
+			// Found the struct, extract fields
+			bobStruct := &BobStruct{
+				Name:   structName,
+				Fields: make([]BobField, 0, len(structType.Fields.List)),
+			}
+
+			for _, field := range structType.Fields.List {
+				for _, name := range field.Names {
+					fieldType := g.extractTypeFromAst(field.Type)
+					isNullable := g.isNullableType(fieldType)
+					bobStruct.Fields = append(bobStruct.Fields, BobField{
+						Name:       name.Name,
+						Type:       fieldType,
+						IsNullable: isNullable,
+					})
+				}
+			}
+
+			return bobStruct, nil
+		}
+	}
+
+	return nil, fmt.Errorf("struct %s not found in %s", structName, filename)
+}
+
+// extractTypeFromAst converts an AST type expression to a string
+func (g *Generator) extractTypeFromAst(expr ast.Expr) string {
+	switch t := expr.(type) {
+	case *ast.Ident:
+		return t.Name
+	case *ast.SelectorExpr:
+		pkg := g.extractTypeFromAst(t.X)
+		return pkg + "." + t.Sel.Name
+	case *ast.ArrayType:
+		elem := g.extractTypeFromAst(t.Elt)
+		return "[]" + elem
+	case *ast.StarExpr:
+		elem := g.extractTypeFromAst(t.X)
+		return "*" + elem
+	case *ast.IndexExpr:
+		// Handle generic types like null.Val[int32]
+		base := g.extractTypeFromAst(t.X)
+		index := g.extractTypeFromAst(t.Index)
+		return base + "[" + index + "]"
+	default:
+		return "interface{}" // fallback
+	}
+}
+
+// isNullableType determines if a bob type is nullable
+func (g *Generator) isNullableType(bobType string) bool {
+	return strings.HasPrefix(bobType, "null.Val[") ||
+		   strings.HasPrefix(bobType, "omitnull.Val[") ||
+		   strings.Contains(bobType, "Null")
+}
+
+// convertBobStructToModel converts a bob struct to our GeneratedModel format
+func (g *Generator) convertBobStructToModel(bobStruct *BobStruct, resourceName, tableName, modulePath string) *GeneratedModel {
+	model := &GeneratedModel{
+		Name:         resourceName,
+		Package:      "models",
+		TableName:    tableName,
+		ModulePath:   modulePath,
+		DatabaseType: g.databaseType,
+		Fields:       make([]GeneratedField, 0, len(bobStruct.Fields)),
+		Imports:      make([]string, 0),
+	}
+
+	importSet := make(map[string]bool)
+
+	hasNullable := false
+	hasNonNullable := false
+
+	for _, bobField := range bobStruct.Fields {
+		goType, imports := g.convertBobTypeToGoType(bobField.Type)
+
+		// Track usage for import decisions
+		if bobField.IsNullable {
+			hasNullable = true
+		} else {
+			hasNonNullable = true
+		}
+
+		field := GeneratedField{
+			Name: bobField.Name,
+			Type: goType,
+			SQLCType: bobField.Type, // Keep original bob type for conversions
+			ConversionFromDB: g.generateBobConversionFromDB(bobField.Name, bobField.Type, goType),
+			ConversionToDB: g.generateBobConversionToDB(bobField.IsNullable, goType, "data."+bobField.Name),
+			ConversionToDBForUpdate: g.generateBobConversionToDB(bobField.IsNullable, goType, "data."+bobField.Name),
+			ZeroCheck: g.generateZeroCheck(goType, "data."+bobField.Name),
+			IsNullable: bobField.IsNullable,
+		}
+
+		model.Fields = append(model.Fields, field)
+
+		// Add imports
+		for _, imp := range imports {
+			importSet[imp] = true
+		}
+	}
+
+	// Add bob-specific imports based on actual usage
+	if hasNullable {
+		importSet["github.com/aarondl/opt/omitnull"] = true
+	}
+	if hasNonNullable {
+		importSet["github.com/aarondl/opt/omit"] = true
+	}
+	importSet["github.com/stephenafamo/bob"] = true
+
+	// Add required imports for bob models based on usage
+	importSet["time"] = true
+	importSet["github.com/google/uuid"] = true
+
+	for imp := range importSet {
+		model.Imports = append(model.Imports, imp)
+	}
+	sort.Strings(model.Imports)
+
+	return model
+}
+
+// convertBobTypeToGoType converts bob types to standard Go types
+func (g *Generator) convertBobTypeToGoType(bobType string) (string, []string) {
+	imports := make([]string, 0)
+
+	// Handle common bob types
+	switch {
+	case bobType == "uuid.UUID":
+		imports = append(imports, "github.com/google/uuid")
+		return "uuid.UUID", imports
+	case strings.HasPrefix(bobType, "null.Val["):
+		// Extract the inner type from null.Val[T]
+		innerType := strings.TrimPrefix(bobType, "null.Val[")
+		innerType = strings.TrimSuffix(innerType, "]")
+
+		// Convert inner type
+		convertedInner, innerImports := g.convertBobTypeToGoType(innerType)
+		imports = append(imports, innerImports...)
+
+		return convertedInner, imports
+	case bobType == "int32":
+		return "int32", imports
+	case bobType == "bool":
+		return "bool", imports
+	case bobType == "string":
+		return "string", imports
+	case bobType == "time.Time":
+		imports = append(imports, "time")
+		return "time.Time", imports
+	default:
+		return bobType, imports
+	}
+}
+
+// generateBobConversionFromDB generates code to convert from bob struct field to Go type
+func (g *Generator) generateBobConversionFromDB(fieldName, bobType, goType string) string {
+	// Handle null.Val types
+	if strings.HasPrefix(bobType, "null.Val[") {
+		// For null.Val[T], access the value with .GetOrZero()
+		return fmt.Sprintf("row.%s.GetOrZero()", fieldName)
+	}
+
+	// Direct conversion for non-nullable types
+	return fmt.Sprintf("row.%s", fieldName)
+}
+
+// generateBobConversionToDB generates code to convert from Go type to bob parameter
+func (g *Generator) generateBobConversionToDB(isNullable bool, goType, valueExpr string) string {
+	if isNullable {
+		return fmt.Sprintf("omitnull.From(%s)", valueExpr)
+	}
+	return fmt.Sprintf("omit.From(%s)", valueExpr)
+}
+
+// generateZeroCheck generates code to check if a value is non-zero
+func (g *Generator) generateZeroCheck(goType, valueExpr string) string {
+	switch goType {
+	case "string":
+		return fmt.Sprintf(`%s != ""`, valueExpr)
+	case "int", "int32", "int64":
+		return fmt.Sprintf(`%s != 0`, valueExpr)
+	case "bool":
+		return fmt.Sprintf(`%s`, valueExpr)
+	case "uuid.UUID":
+		return fmt.Sprintf(`%s != uuid.Nil`, valueExpr)
+	default:
+		return fmt.Sprintf(`%s != nil`, valueExpr)
+	}
+}
+
+// GenerateModelFileForBob generates model content using bob-specific template functions
+func (g *Generator) GenerateModelFileForBob(model *GeneratedModel, templateStr string) (string, error) {
+	funcMap := template.FuncMap{
+		"SQLCTypeName": func(tableName string) string {
+			// For bob, the struct name is the singular resource name
+			return model.Name
+		},
+		"lower": func(s string) string {
+			return strings.ToLower(s)
+		},
+		"uuidParam": func(param string) string {
+			// Bob handles UUIDs natively
+			return param
+		},
+		"hasErrorHandling": func() bool {
+			// For now, assume no special error handling needed
+			return false
+		},
+	}
+
+	tmpl, err := template.New("model").Funcs(funcMap).Parse(templateStr)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse template: %w", err)
+	}
+
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, model); err != nil {
+		return "", fmt.Errorf("failed to execute template: %w", err)
+	}
+
+	return buf.String(), nil
 }

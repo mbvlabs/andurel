@@ -41,8 +41,13 @@ func (pm *ProjectManager) GetModulePath() (string, error) {
 	return pm.modulePath, nil
 }
 
-func (pm *ProjectManager) ValidateSQLCConfig(rootDir string) error {
-	return types.ValidateSQLCConfig(rootDir)
+func (pm *ProjectManager) ValidateBobConfig(rootDir string) error {
+	// Check if bobgen.yml exists in database directory
+	bobgenPath := filepath.Join(rootDir, "database", "bobgen.yml")
+	if _, err := os.Stat(bobgenPath); os.IsNotExist(err) {
+		return fmt.Errorf("bob configuration file not found at %s", bobgenPath)
+	}
+	return nil
 }
 
 func getCurrentModulePath(fileManager *files.Manager) (string, error) {

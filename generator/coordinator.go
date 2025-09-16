@@ -62,8 +62,8 @@ func (c *Coordinator) GenerateModel(resourceName string) error {
 		return fmt.Errorf("failed to find go.mod root: %w", err)
 	}
 
-	if err := c.projectManager.ValidateSQLCConfig(rootDir); err != nil {
-		return fmt.Errorf("SQLC configuration validation failed: %w", err)
+	if err := c.projectManager.ValidateBobConfig(rootDir); err != nil {
+		return fmt.Errorf("Bob configuration validation failed: %w", err)
 	}
 
 	var modelFileName strings.Builder
@@ -72,39 +72,18 @@ func (c *Coordinator) GenerateModel(resourceName string) error {
 	modelFileName.WriteString(".go")
 	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
 
-	var sqlFileName strings.Builder
-	sqlFileName.Grow(len(tableName) + 4) // +4 for ".sql"
-	sqlFileName.WriteString(tableName)
-	sqlFileName.WriteString(".sql")
-	sqlPath := filepath.Join(c.config.Paths.Queries, sqlFileName.String())
-
 	if err := c.fileManager.ValidateFileNotExists(modelPath); err != nil {
 		return err
 	}
-	if err := c.fileManager.ValidateFileNotExists(sqlPath); err != nil {
-		return err
+
+	// Run bob first to generate database code
+	if err := c.fileManager.RunBobGenerate(); err != nil {
+		return fmt.Errorf("failed to run bob generate: %w", err)
 	}
 
-	cat, err := c.migrationManager.BuildCatalogFromMigrations(tableName)
-	if err != nil {
-		return err
-	}
-
-	if err := c.modelGenerator.GenerateModel(cat, resourceName, tableName, modelPath, sqlPath, modulePath); err != nil {
+	// Generate model from bob generated structs
+	if err := c.modelGenerator.GenerateModelFromBob(resourceName, tableName, modelPath, modulePath); err != nil {
 		return fmt.Errorf("failed to generate model: %w", err)
-	}
-
-	if err := c.fileManager.RunSQLCGenerate(); err != nil {
-		return fmt.Errorf("failed to run sqlc generate: %w", err)
-	}
-
-	constructorFileName := fmt.Sprintf("%s_constructors.go", strings.ToLower(resourceName))
-	constructorPath := filepath.Join(
-		filepath.Join(c.config.Paths.Models, "internal", "db"),
-		constructorFileName,
-	)
-	if err := c.modelGenerator.GenerateConstructors(cat, resourceName, tableName, constructorPath, modulePath); err != nil {
-		return fmt.Errorf("failed to generate constructor functions: %w", err)
 	}
 
 	fmt.Printf(
@@ -345,8 +324,8 @@ func (c *Coordinator) RefreshModel(resourceName, tableName string) error {
 		return fmt.Errorf("failed to find go.mod root: %w", err)
 	}
 
-	if err := c.projectManager.ValidateSQLCConfig(rootDir); err != nil {
-		return fmt.Errorf("SQLC configuration validation failed: %w", err)
+	if err := c.projectManager.ValidateBobConfig(rootDir); err != nil {
+		return fmt.Errorf("Bob configuration validation failed: %w", err)
 	}
 
 	pluralName := inflection.Plural(strings.ToLower(resourceName))
@@ -385,8 +364,8 @@ func (c *Coordinator) RefreshModel(resourceName, tableName string) error {
 		return fmt.Errorf("failed to refresh model: %w", err)
 	}
 
-	if err := c.fileManager.RunSQLCGenerate(); err != nil {
-		return fmt.Errorf("failed to run sqlc generate: %w", err)
+	if err := c.fileManager.RunBobGenerate(); err != nil {
+		return fmt.Errorf("failed to run bob generate: %w", err)
 	}
 
 	fmt.Printf(
@@ -411,8 +390,8 @@ func (c *Coordinator) RefreshQueries(resourceName, tableName string) error {
 		return fmt.Errorf("failed to find go.mod root: %w", err)
 	}
 
-	if err := c.projectManager.ValidateSQLCConfig(rootDir); err != nil {
-		return fmt.Errorf("SQLC configuration validation failed: %w", err)
+	if err := c.projectManager.ValidateBobConfig(rootDir); err != nil {
+		return fmt.Errorf("Bob configuration validation failed: %w", err)
 	}
 
 	pluralName := inflection.Plural(strings.ToLower(resourceName))
@@ -451,8 +430,8 @@ func (c *Coordinator) RefreshQueries(resourceName, tableName string) error {
 		return fmt.Errorf("failed to refresh queries: %w", err)
 	}
 
-	if err := c.fileManager.RunSQLCGenerate(); err != nil {
-		return fmt.Errorf("failed to run sqlc generate: %w", err)
+	if err := c.fileManager.RunBobGenerate(); err != nil {
+		return fmt.Errorf("failed to run bob generate: %w", err)
 	}
 
 	fmt.Printf(
@@ -477,8 +456,8 @@ func (c *Coordinator) RefreshConstructors(resourceName, tableName string) error 
 		return fmt.Errorf("failed to find go.mod root: %w", err)
 	}
 
-	if err := c.projectManager.ValidateSQLCConfig(rootDir); err != nil {
-		return fmt.Errorf("SQLC configuration validation failed: %w", err)
+	if err := c.projectManager.ValidateBobConfig(rootDir); err != nil {
+		return fmt.Errorf("Bob configuration validation failed: %w", err)
 	}
 
 	var modelFileName strings.Builder
@@ -524,8 +503,8 @@ func (c *Coordinator) RefreshConstructors(resourceName, tableName string) error 
 		return fmt.Errorf("failed to refresh constructor functions: %w", err)
 	}
 
-	if err := c.fileManager.RunSQLCGenerate(); err != nil {
-		return fmt.Errorf("failed to run sqlc generate: %w", err)
+	if err := c.fileManager.RunBobGenerate(); err != nil {
+		return fmt.Errorf("failed to run bob generate: %w", err)
 	}
 
 	fmt.Printf(
