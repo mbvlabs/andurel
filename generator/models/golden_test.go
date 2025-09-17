@@ -68,6 +68,15 @@ func TestModelFileGeneration__GoldenFile(t *testing.T) {
 			modulePath:    "github.com/example/sqlite",
 			databaseType:  "sqlite",
 		},
+		{
+			name:          "Should generate psql model for user with fk table",
+			fileName:      "user_table_with_fk_model",
+			migrationsDir: "user_table_with_fk_table",
+			tableName:     "users",
+			resourceName:  "User",
+			modulePath:    "github.com/example/psql",
+			databaseType:  "postgresql",
+		},
 	}
 
 	for _, tt := range tests {
@@ -203,12 +212,20 @@ func TestModelFileGeneration_InvalidPrimaryKeyTypes(t *testing.T) {
 			}
 
 			if !strings.Contains(err.Error(), tt.expectedErrorMsg) {
-				t.Errorf("Expected error message to contain '%s', but got: %s", tt.expectedErrorMsg, err.Error())
+				t.Errorf(
+					"Expected error message to contain '%s', but got: %s",
+					tt.expectedErrorMsg,
+					err.Error(),
+				)
 			}
 
 			// Verify the error message also contains the migration file name
-			if !strings.Contains(err.Error(), "001_users_text_pk.sql") && !strings.Contains(err.Error(), "001_users_uuid_pk.sql") {
-				t.Errorf("Expected error message to contain migration file name, but got: %s", err.Error())
+			if !strings.Contains(err.Error(), "001_users_text_pk.sql") &&
+				!strings.Contains(err.Error(), "001_users_uuid_pk.sql") {
+				t.Errorf(
+					"Expected error message to contain migration file name, but got: %s",
+					err.Error(),
+				)
 			}
 		})
 	}
@@ -223,6 +240,14 @@ func TestQueriesFileGeneration__GoldenFile(t *testing.T) {
 		resourceName  string
 		databaseType  string
 	}{
+		{
+			name:          "Should generate SQL for users table with fk",
+			fileName:      "user_table_with_fk_queries",
+			migrationsDir: "user_table_with_fk_table",
+			tableName:     "users",
+			resourceName:  "User",
+			databaseType:  "postgresql",
+		},
 		{
 			name:          "Should generate SQL for simple users table",
 			fileName:      "simple_user_table_queries",
@@ -431,7 +456,9 @@ func TestQueryRefresh__PreservesModelFunctions__GoldenFile(t *testing.T) {
 
 			// Verify that the model file content remains exactly the same (no model functions were changed)
 			if string(refreshedContent) != string(beforeRefreshContent) {
-				t.Error("Model file content changed during query refresh, but it should remain unchanged")
+				t.Error(
+					"Model file content changed during query refresh, but it should remain unchanged",
+				)
 				t.Logf("Expected model to remain unchanged, but content differs")
 			}
 
@@ -545,7 +572,11 @@ func TestRefreshQueries__ValidatesIDColumns(t *testing.T) {
 			if err != nil && tt.shouldFail {
 				// Expected failure during catalog building due to ID validation
 				if !strings.Contains(err.Error(), tt.expectedErrorMsg) {
-					t.Errorf("Expected error message to contain '%s', but got: %s", tt.expectedErrorMsg, err.Error())
+					t.Errorf(
+						"Expected error message to contain '%s', but got: %s",
+						tt.expectedErrorMsg,
+						err.Error(),
+					)
 				}
 				return
 			}
@@ -557,7 +588,11 @@ func TestRefreshQueries__ValidatesIDColumns(t *testing.T) {
 					t.Fatal("Expected error due to invalid primary key type, but got none")
 				}
 				if !strings.Contains(err.Error(), tt.expectedErrorMsg) {
-					t.Errorf("Expected error message to contain '%s', but got: %s", tt.expectedErrorMsg, err.Error())
+					t.Errorf(
+						"Expected error message to contain '%s', but got: %s",
+						tt.expectedErrorMsg,
+						err.Error(),
+					)
 				}
 			} else {
 				if err != nil {
@@ -670,7 +705,10 @@ func TestConstructorRefresh__UpdatesOnlyConstructors__GoldenFile(t *testing.T) {
 			}
 
 			// Use RefreshConstructors - now it works on model-specific constructor file
-			constructorFileName := fmt.Sprintf("%s_constructors.go", strings.ToLower(tt.resourceName))
+			constructorFileName := fmt.Sprintf(
+				"%s_constructors.go",
+				strings.ToLower(tt.resourceName),
+			)
 			constructorPath := filepath.Join(internalDbDir, constructorFileName)
 			err = generator.RefreshConstructors(
 				cat,
@@ -690,17 +728,27 @@ func TestConstructorRefresh__UpdatesOnlyConstructors__GoldenFile(t *testing.T) {
 
 			// Verify that custom functions are preserved in the model file
 			refreshedStr := string(refreshedContent)
-			if !strings.Contains(refreshedStr, "// Custom functions added by developer - these should be preserved during refresh") {
+			if !strings.Contains(
+				refreshedStr,
+				"// Custom functions added by developer - these should be preserved during refresh",
+			) {
 				t.Error("Custom functions comment was not preserved during constructor refresh")
 			}
 			if !strings.Contains(refreshedStr, "func (u User) IsAdult() bool {") {
 				t.Error("Custom IsAdult function was not preserved during constructor refresh")
 			}
 			if !strings.Contains(refreshedStr, "func CustomUserHelper(id uuid.UUID) string {") {
-				t.Error("Custom CustomUserHelper function was not preserved during constructor refresh")
+				t.Error(
+					"Custom CustomUserHelper function was not preserved during constructor refresh",
+				)
 			}
-			if !strings.Contains(refreshedStr, "func GetActiveUsersCount(ctx context.Context, dbtx db.DBTX) (int64, error) {") {
-				t.Error("Custom GetActiveUsersCount function was not preserved during constructor refresh")
+			if !strings.Contains(
+				refreshedStr,
+				"func GetActiveUsersCount(ctx context.Context, dbtx db.DBTX) (int64, error) {",
+			) {
+				t.Error(
+					"Custom GetActiveUsersCount function was not preserved during constructor refresh",
+				)
 			}
 
 			// Verify that model functions now use db.New* constructors
@@ -748,7 +796,10 @@ func TestConstructorRefresh__UpdatesOnlyConstructors__GoldenFile(t *testing.T) {
 
 			for _, unexpectedImport := range unexpectedImports {
 				if strings.Contains(constructorStr, unexpectedImport) {
-					t.Errorf("Constructor file should NOT contain unused import %s", unexpectedImport)
+					t.Errorf(
+						"Constructor file should NOT contain unused import %s",
+						unexpectedImport,
+					)
 				}
 			}
 
@@ -834,10 +885,19 @@ func TestConstructorImports__OnlyNecessaryImports(t *testing.T) {
 				t.Fatalf("Failed to build catalog: %v", err)
 			}
 
-			constructorFileName := fmt.Sprintf("%s_constructors.go", strings.ToLower(tt.resourceName))
+			constructorFileName := fmt.Sprintf(
+				"%s_constructors.go",
+				strings.ToLower(tt.resourceName),
+			)
 			constructorPath := filepath.Join(internalDbDir, constructorFileName)
 
-			err = generator.GenerateConstructors(cat, tt.resourceName, tt.tableName, constructorPath, tt.modulePath)
+			err = generator.GenerateConstructors(
+				cat,
+				tt.resourceName,
+				tt.tableName,
+				constructorPath,
+				tt.modulePath,
+			)
 			if err != nil {
 				t.Fatalf("Failed to generate constructors: %v", err)
 			}
@@ -859,7 +919,10 @@ func TestConstructorImports__OnlyNecessaryImports(t *testing.T) {
 			// Verify unexpected imports are not present
 			for _, unexpectedImport := range tt.unexpectedImports {
 				if strings.Contains(constructorStr, unexpectedImport) {
-					t.Errorf("Constructor file should NOT contain unused import %s", unexpectedImport)
+					t.Errorf(
+						"Constructor file should NOT contain unused import %s",
+						unexpectedImport,
+					)
 				}
 			}
 		})
