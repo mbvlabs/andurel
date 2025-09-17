@@ -13,12 +13,12 @@ type FileManager interface {
 	FormatGoFile(path string) error
 	ValidateFileNotExists(path string) error
 	FindGoModRoot() (string, error)
-	RunSQLCGenerate() error
+	RunBobGenerate() error
 }
 
 type ProjectManagerInterface interface {
 	GetModulePath() (string, error)
-	ValidateSQLCConfig(rootDir string) error
+	ValidateBobConfig(rootDir string) error
 }
 
 type MigrationManagerInterface interface {

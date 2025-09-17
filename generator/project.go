@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/files"
-	"github.com/mbvlabs/andurel/generator/internal/types"
 	"github.com/mbvlabs/andurel/pkg/cache"
 )
 
@@ -41,8 +40,12 @@ func (pm *ProjectManager) GetModulePath() (string, error) {
 	return pm.modulePath, nil
 }
 
-func (pm *ProjectManager) ValidateSQLCConfig(rootDir string) error {
-	return types.ValidateSQLCConfig(rootDir)
+func (pm *ProjectManager) ValidateBobConfig(rootDir string) error {
+	bobgenPath := filepath.Join(rootDir, "database", "bobgen.yaml")
+	if _, err := os.Stat(bobgenPath); os.IsNotExist(err) {
+		return fmt.Errorf("bob configuration file not found at %s", bobgenPath)
+	}
+	return nil
 }
 
 func getCurrentModulePath(fileManager *files.Manager) (string, error) {

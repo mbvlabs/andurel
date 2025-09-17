@@ -47,39 +47,38 @@ func (m *Manager) WriteFile(path, content string) error {
 	return os.WriteFile(path, []byte(content), constants.FilePermissionPrivate)
 }
 
-func (m *Manager) RunSQLCGenerate() error {
+func (m *Manager) RunBobGenerate(dbType string) error {
 	rootDir, err := m.FindGoModRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find go.mod root: %w", err)
 	}
 
-	compileCmd := exec.CommandContext(
-		context.Background(),
-		"go", "tool", "sqlc", "-f", "./database/sqlc.yaml", "compile",
-	)
-	compileCmd.Dir = rootDir
-	if output, err := compileCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf(
-			"failed to run 'go tool sqlc compile': %w\nOutput: %s",
-			err,
-			output,
-		)
+	bobGen := "bobgen-psql"
+	if dbType == "sqlite" {
+		bobGen = "bobgen-sqlite"
 	}
+
+	root, err := m.FindGoModRoot()
+	if err != nil {
+		return err
+	}
+
+	bobGenPath := filepath.Join(root, "database", "bobgen.yaml")
 
 	generateCmd := exec.CommandContext(
 		context.Background(),
-		"go", "tool", "sqlc", "-f", "./database/sqlc.yaml", "generate",
+		"go", "tool", bobGen, "-c", bobGenPath,
 	)
 	generateCmd.Dir = rootDir
 	if output, err := generateCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf(
-			"failed to run 'go tool sqlc generate': %w\nOutput: %s",
+			"failed to run bob generate: %w\nOutput: %s",
 			err,
 			output,
 		)
 	}
 
-	fmt.Println("Generated database functions with sqlc")
+	fmt.Println("Generated database functions with bob")
 	return nil
 }
 

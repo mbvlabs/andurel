@@ -39,55 +39,52 @@ type PathConfig struct {
 	Queries     string
 }
 
-type SQLCConfig struct {
-	SQL []SQLConfig `yaml:"sql"`
+type BobGenConfig struct {
+	Sqlite Sqlite `yaml:"sqlite,omitempty"`
+	PSQL   PSQL   `yaml:"psql,omitempty"`
 }
 
-type SQLConfig struct {
-	Engine string `yaml:"engine"`
+type Sqlite struct {
+	DSN string `yaml:"dsn"`
 }
 
-func readDatabaseTypeFromSQLCYAML() (string, error) {
+type PSQL struct {
+	DSN string `yaml:"dsn"`
+}
+
+func readDatabaseTypeFromBobYaml() (string, error) {
 	manager := files.NewManager()
 	rootDir, err := manager.FindGoModRoot()
 	if err != nil {
 		return "", fmt.Errorf("failed to find go.mod root: %w", err)
 	}
 
-	sqlcPath := filepath.Join(rootDir, "database", "sqlc.yaml")
+	bobGenPath := filepath.Join(rootDir, "database", "bobgen.yaml")
 
-	if _, err := os.Stat(sqlcPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("sqlc.yaml not found at %s", sqlcPath)
+	if _, err := os.Stat(bobGenPath); os.IsNotExist(err) {
+		return "", fmt.Errorf("sqlc.yaml not found at %s", bobGenPath)
 	}
 
-	data, err := os.ReadFile(sqlcPath)
+	data, err := os.ReadFile(bobGenPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read sqlc.yaml: %w", err)
 	}
 
-	var config SQLCConfig
+	var config BobGenConfig
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return "", fmt.Errorf("failed to parse sqlc.yaml: %w", err)
 	}
 
-	if len(config.SQL) == 0 {
-		return "", fmt.Errorf("no SQL configuration found in sqlc.yaml")
+	if config.PSQL.DSN == "" && config.Sqlite.DSN != "" {
+		return "sqlite", nil
 	}
 
-	engine := config.SQL[0].Engine
-	if engine != "postgresql" && engine != "sqlite" {
-		return "", fmt.Errorf(
-			"unsupported database engine: %s (supported: postgresql, sqlite)",
-			engine,
-		)
-	}
-
-	return engine, nil
+	return "postgresql", nil
 }
 
 func NewDefaultAppConfig() *AppConfig {
 	databaseType := "postgresql" // fallback default
-	if dbType, err := readDatabaseTypeFromSQLCYAML(); err == nil {
+	if dbType, err := readDatabaseTypeFromBobYaml(); err == nil {
 		databaseType = dbType
 	}
 

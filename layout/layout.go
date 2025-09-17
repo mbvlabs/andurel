@@ -67,13 +67,26 @@ var Layout = []Element{
 			{
 				RootDir: "migrations",
 			},
-			{
-				RootDir: "queries",
-			},
 		},
 	},
 	{
 		RootDir: "models",
+		SubDirs: []Element{
+			{
+				RootDir: "internal",
+				SubDirs: []Element{
+					{
+						RootDir: "db",
+					},
+					{
+						RootDir: "queries",
+					},
+					{
+						RootDir: "enums",
+					},
+				},
+			},
+		},
 	},
 	{
 		RootDir: "router",
@@ -127,7 +140,7 @@ func ScaffoldWithDatabase(targetDir, projectName, repo, database string) error {
 		return fmt.Errorf("failed to process templated files: %w", err)
 	}
 
-	if err := createGoMod(targetDir, moduleName); err != nil {
+	if err := createGoMod(targetDir, moduleName, database); err != nil {
 		return fmt.Errorf("failed to create go.mod: %w", err)
 	}
 
@@ -164,7 +177,7 @@ func processTemplatedFiles(targetDir string, data TemplateData) error {
 		// Core files
 		"database.tmpl":  "database/database.go",
 		"env.tmpl":       ".env.example",
-		"sqlc.tmpl":      "database/sqlc.yaml",
+		"bobgen.tmpl":    "database/bobgen.yaml",
 		"gitignore.tmpl": ".gitignore",
 		"justfile.tmpl":  "justfile",
 
@@ -195,7 +208,7 @@ func processTemplatedFiles(targetDir string, data TemplateData) error {
 
 		// Database
 		"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
-		"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
+		// "database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
 
 		// Models
 		"models_errors.tmpl":    "models/errors.go",
@@ -302,12 +315,18 @@ func createDirectoryStructure(targetDir string, element Element) error {
 
 const goVersion = "1.25.0"
 
-func createGoMod(targetDir, projectName string) error {
+func createGoMod(targetDir, projectName, dbType string) error {
 	goModPath := filepath.Join(targetDir, "go.mod")
+	db := "psql"
+	if dbType == "sqlite" {
+		db = "sqlite"
+	}
+
 	goModContent := fmt.Sprintf(
-		"module %s\n\ngo %s\n\ntool (\n    github.com/a-h/templ/cmd/templ\n    github.com/sqlc-dev/sqlc/cmd/sqlc\n    github.com/pressly/goose/v3/cmd/goose\n    github.com/air-verse/air\n)\n",
+		"module %s\n\ngo %s\n\ntool (\n    github.com/a-h/templ/cmd/templ\n    github.com/stephenafamo/bob/gen/bobgen-%s\n    github.com/pressly/goose/v3/cmd/goose\n    github.com/air-verse/air\n)\n",
 		projectName,
 		goVersion,
+		db,
 	)
 
 	return os.WriteFile(goModPath, []byte(goModContent), 0o644)
