@@ -36,14 +36,15 @@ type GeneratedField struct {
 }
 
 type GeneratedModel struct {
-	Name         string
-	Package      string
-	Fields       []GeneratedField
-	Imports      []string
-	TableName    string
-	ModulePath   string
-	DatabaseType string
-	HasRelations bool
+    Name         string
+    Package      string
+    Fields       []GeneratedField
+    Imports      []string
+    TableName    string
+    ModulePath   string
+    DatabaseType string
+    HasRelations bool
+    IDIsString   bool
 }
 
 type Config struct {
@@ -197,7 +198,7 @@ func (g *Generator) addTypeImports(sqlcType, goType string) map[string]bool {
 }
 
 func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string) (string, error) {
-	funcMap := template.FuncMap{
+    funcMap := template.FuncMap{
 		// "SQLCTypeName": func(tableName string) string {
 		// 	singular := strings.TrimSuffix(tableName, "s") // Simple singularization
 		// 	return types.FormatFieldName(singular)
@@ -1187,6 +1188,11 @@ func (g *Generator) convertBobStructToModel(
 
 		model.Fields = append(model.Fields, field)
 
+		// Track if ID type is string in bob model
+		if field.Name == "ID" && field.Type == "string" {
+			model.IDIsString = true
+		}
+
 		// Add imports
 		for _, imp := range imports {
 			importSet[imp] = true
@@ -1202,8 +1208,10 @@ func (g *Generator) convertBobStructToModel(
 	}
 	importSet["github.com/stephenafamo/bob"] = true
 
-	// Add required imports for bob models based on usage
-	// time and uuid are added based on actual field usage
+    // Add required imports for bob models based on usage
+    // time is added based on actual field usage
+    // uuid is always required because constructors generate UUIDs
+    importSet["github.com/google/uuid"] = true
 
 	for imp := range importSet {
 		model.Imports = append(model.Imports, imp)
@@ -1295,10 +1303,20 @@ func (g *Generator) GenerateModelFileForBob(
 		"lower": func(s string) string {
 			return strings.ToLower(s)
 		},
-		"uuidParam": func(param string) string {
-			// Bob handles UUIDs natively
-			return param
-		},
+        "uuidParam": func(param string) string {
+            // If bob model uses string ID, pass UUID as string
+            if model.IDIsString {
+                return param + ".String()"
+            }
+            return param
+        },
+        "uuidCtor": func() string {
+            // If bob model uses string ID, generate string UUIDs
+            if model.IDIsString {
+                return "uuid.New().String()"
+            }
+            return "uuid.New()"
+        },
 		"hasErrorHandling": func() bool {
 			// For now, assume no special error handling needed
 			return false

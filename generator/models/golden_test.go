@@ -36,22 +36,22 @@ func TestCompleteModelGeneration__GoldenFile(t *testing.T) {
 			modulePath:   "bob-new",
 			databaseType: "postgresql",
 		},
-		{
-			name:         "[SQLITE] Should generate complete model files from user table migration",
-			referenceDir: "sqlite_user",
-			tableName:    "users",
-			resourceName: "User",
-			modulePath:   "bob-new",
-			databaseType: "sqlite",
-		},
-		{
-			name:         "[SQLITE] Should generate complete model files from user and team table migration",
-			referenceDir: "spqlite_user_team_relation",
-			tableName:    "users",
-			resourceName: "User",
-			modulePath:   "bob-new",
-			databaseType: "sqlite",
-		},
+        {
+            name:         "[SQLITE] Should generate complete model files from user table migration",
+            referenceDir: "sqlite_user",
+            tableName:    "users",
+            resourceName: "User",
+            modulePath:   "bob-sqlite",
+            databaseType: "sqlite",
+        },
+        {
+            name:         "[SQLITE] Should generate complete model files from user and team table migration",
+            referenceDir: "sqlite_user_team_relation",
+            tableName:    "users",
+            resourceName: "User",
+            modulePath:   "bob-new",
+            databaseType: "sqlite",
+        },
 	}
 
 	for _, tt := range tests {

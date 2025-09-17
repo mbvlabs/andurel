@@ -1,28 +1,41 @@
 package models
 
 import (
-{{- if .HasRelations }}
+{{- if .IDIsString }}
 	"{{.ModulePath}}/models/internal/db"
 	"context"
 	"errors"
 	"time"
 
-{{- /* Separate external imports when relations exist */}}
+	{{/* String ID (sqlite bob): time before externals */}}
+
+{{ range .Imports -}}
+{{- if isExternal .}}
+	"{{.}}"
+{{- end}}
+{{- end}}
+{{- else if .HasRelations }}
+	"{{.ModulePath}}/models/internal/db"
+	"context"
+	"errors"
+
+{{- /* With relations: externals before time */}}
 {{- range .Imports}}
 {{- if isExternal .}}
 	"{{.}}"
 {{- end}}
 {{- end}}
+	"time"
 {{- else }}
     	"context"
 	"errors"
-	"time"
-{{- /* No relations: keep externals in same group */}}
+{{- /* Postgres without relations: externals then time, internal db last */}}
 {{- range .Imports}}
 {{- if isExternal .}}
 	"{{.}}"
 {{- end}}
 {{- end}}
+	"time"
 
 	"{{.ModulePath}}/models/internal/db"
 {{- end }}
@@ -39,7 +52,7 @@ func Find{{.Name}}(
 	exec bob.Executor,
 	id uuid.UUID,
 ) ({{.Name}}, error) {
-	row, err := db.Find{{.Name}}(ctx, exec, id)
+	row, err := db.Find{{.Name}}(ctx, exec, {{uuidParam "id"}})
 	if err != nil {
 		return {{.Name}}{}, err
 	}
@@ -79,7 +92,7 @@ func Create{{.Name}}(
 {{- if eq .Name "UpdatedAt"}}{{$hasUpdatedAt = true}}{{end}}
 {{- end}}
 {{- if $hasID}}
-		ID:        omit.From(uuid.New()),
+		ID:        omit.From({{uuidCtor}}),
 {{- end}}
 {{- if $hasCreatedAt}}
 {{- range .Fields}}{{if eq .Name "CreatedAt"}}
@@ -120,7 +133,7 @@ func Update{{.Name}}(
 	}
 
 	// First get the existing record
-	existing, err := db.Find{{.Name}}(ctx, exec, data.ID)
+	existing, err := db.Find{{.Name}}(ctx, exec, {{uuidParam "data.ID"}})
 	if err != nil {
 		return {{.Name}}{}, err
 	}
@@ -146,7 +159,7 @@ func Destroy{{.Name}}(
 	exec bob.Executor,
 	id uuid.UUID,
 ) error {
-	existing, err := db.Find{{.Name}}(ctx, exec, id)
+	existing, err := db.Find{{.Name}}(ctx, exec, {{uuidParam "id"}})
 	if err != nil {
 		return err
 	}
