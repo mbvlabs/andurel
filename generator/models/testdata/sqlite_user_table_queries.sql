@@ -30,4 +30,3 @@ limit ? offset ?;
 
 -- name: CountUsers :one
 select count(*) from users;
-

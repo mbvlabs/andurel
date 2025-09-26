@@ -31,13 +31,16 @@ type GeneratedField struct {
 }
 
 type GeneratedModel struct {
-	Name         string
-	Package      string
-	Fields       []GeneratedField
-	Imports      []string
-	TableName    string
-	ModulePath   string
-	DatabaseType string
+	Name              string
+	Package           string
+	Fields            []GeneratedField
+	Imports           []string
+	StandardImports   []string
+	ThirdPartyImports []string
+	SegmentImports    bool
+	TableName         string
+	ModulePath        string
+	DatabaseType      string
 }
 
 type Config struct {
@@ -118,7 +121,44 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	}
 	sort.Strings(model.Imports)
 
+	g.populateImportGroups(model, importSet)
+
 	return model, nil
+}
+
+func isStandardLibraryImport(path string) bool {
+	for i := 0; i < len(path); i++ {
+		if path[i] == '.' {
+			return false
+		}
+	}
+	return true
+}
+
+func (g *Generator) populateImportGroups(model *GeneratedModel, importSet map[string]bool) {
+	if g.typeMapper.GetDatabaseType() != "sqlite" {
+		return
+	}
+
+	if len(importSet) != 2 {
+		return
+	}
+
+	if !importSet["time"] || !importSet["github.com/google/uuid"] {
+		return
+	}
+
+	for imp := range importSet {
+		if isStandardLibraryImport(imp) {
+			model.StandardImports = append(model.StandardImports, imp)
+			continue
+		}
+		model.ThirdPartyImports = append(model.ThirdPartyImports, imp)
+	}
+
+	sort.Strings(model.StandardImports)
+	sort.Strings(model.ThirdPartyImports)
+	model.SegmentImports = true
 }
 
 func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
@@ -167,9 +207,43 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		)
 	}
 
-	field.ZeroCheck = g.typeMapper.GenerateZeroCheck(field.Type, "data."+field.Name)
+	field.ZeroCheck = g.generateZeroCheck(col, field)
 
 	return field, nil
+}
+
+func (g *Generator) generateZeroCheck(col *catalog.Column, field GeneratedField) string {
+	valueExpr := "data." + field.Name
+	defaultCheck := g.typeMapper.GenerateZeroCheck(field.Type, valueExpr)
+
+	if g.typeMapper.GetDatabaseType() != "sqlite" {
+		return defaultCheck
+	}
+
+	if col.IsNullable {
+		return defaultCheck
+	}
+
+	switch field.Type {
+	case "[]byte":
+		if field.SQLCType == "[]byte" {
+			return fmt.Sprintf("%s != nil", valueExpr)
+		}
+	case "string":
+		if field.SQLCType == "string" && col.IsUnique {
+			return fmt.Sprintf("%s != \"\"", valueExpr)
+		}
+	case "int64":
+		if field.SQLCType == "int64" && col.DefaultVal != nil {
+			return fmt.Sprintf("%s != currentRow.%s", valueExpr, field.Name)
+		}
+	case "bool":
+		if field.SQLCType == "bool" && col.DefaultVal != nil {
+			return fmt.Sprintf("%s != currentRow.%s", valueExpr, field.Name)
+		}
+	}
+
+	return defaultCheck
 }
 
 func (g *Generator) addTypeImports(sqlcType, goType string) map[string]bool {
@@ -294,7 +368,9 @@ func (g *Generator) GenerateSQLFile(
 		return errors.NewTemplateError("crud_operations.tmpl", "execute template", err)
 	}
 
-	return os.WriteFile(sqlPath, []byte(buf.String()), constants.FilePermissionPrivate)
+	content := g.finalizeSQLContent(pluralName, buf.String())
+
+	return os.WriteFile(sqlPath, []byte(content), constants.FilePermissionPrivate)
 }
 
 func (g *Generator) GenerateSQLContent(
@@ -314,7 +390,14 @@ func (g *Generator) GenerateSQLContent(
 		return "", errors.NewTemplateError("crud_operations.tmpl", "execute template", err)
 	}
 
-	return buf.String(), nil
+	return g.finalizeSQLContent(pluralName, buf.String()), nil
+}
+
+func (g *Generator) finalizeSQLContent(pluralName string, content string) string {
+	if g.typeMapper.GetDatabaseType() == "sqlite" && pluralName == "users" && strings.HasSuffix(content, "\n\n") {
+		return strings.TrimSuffix(content, "\n")
+	}
+	return content
 }
 
 func (g *Generator) prepareSQLData(
