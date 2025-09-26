@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"time"
 
-	"github.com/example/sqlite/models/internal/db"
+	"github.com/mbvlabs/mithlond-ce/models/internal/db"
 )
 
 type User struct {
@@ -97,7 +97,7 @@ func UpdateUser(
 	params := db.NewUpdateUserParams(
 		data.ID.String(),
 		func() string {
-			if true {
+			if data.Email != "" {
 				return data.Email
 			}
 			return currentRow.Email
@@ -109,13 +109,13 @@ func UpdateUser(
 			return currentRow.EmailVerifiedAt
 		}(),
 		func() []byte {
-			if true {
+			if data.Password != nil {
 				return data.Password
 			}
 			return currentRow.Password
 		}(),
 		func() int64 {
-			if true {
+			if data.IsAdmin != currentRow.IsAdmin {
 				return data.IsAdmin
 			}
 			return currentRow.IsAdmin
