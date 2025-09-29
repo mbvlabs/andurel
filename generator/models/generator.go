@@ -113,10 +113,18 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	importSet["time"] = true
 	importSet["github.com/google/uuid"] = true
 
+	var stdImports, extImports []string
 	for imp := range importSet {
-		model.Imports = append(model.Imports, imp)
+		if strings.Contains(imp, ".") {
+			extImports = append(extImports, imp)
+		} else {
+			stdImports = append(stdImports, imp)
+		}
 	}
-	sort.Strings(model.Imports)
+	sort.Strings(stdImports)
+	sort.Strings(extImports)
+
+	model.Imports = append(stdImports, extImports...)
 
 	return model, nil
 }
@@ -204,6 +212,9 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 				return param + ".String()"
 			}
 			return param
+		},
+		"contains": func(s, substr string) bool {
+			return strings.Contains(s, substr)
 		},
 		"hasErrorHandling": func() bool {
 			for _, field := range model.Fields {

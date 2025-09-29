@@ -49,12 +49,7 @@ func CreateUser(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.NewInsertUserParams(
-		data.Email,
-		data.Name,
-		pgtype.Int4{Int32: data.Age, Valid: true},
-		pgtype.Bool{Bool: data.IsActive, Valid: true},
-	)
+	params := db.NewInsertUserParams()
 	row, err := db.New().InsertUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err
@@ -86,33 +81,7 @@ func UpdateUser(
 		return User{}, err
 	}
 
-	params := db.NewUpdateUserParams(
-		data.ID,
-		func() string {
-			if true {
-				return data.Email
-			}
-			return currentRow.Email
-		}(),
-		func() string {
-			if true {
-				return data.Name
-			}
-			return currentRow.Name
-		}(),
-		func() pgtype.Int4 {
-			if true {
-				return pgtype.Int4{Int32: data.Age, Valid: true}
-			}
-			return currentRow.Age
-		}(),
-		func() pgtype.Bool {
-			if true {
-				return pgtype.Bool{Bool: data.IsActive, Valid: true}
-			}
-			return currentRow.IsActive
-		}(),
-	)
+	params := db.NewUpdateUserParams()
 
 	row, err := db.New().UpdateUser(ctx, dbtx, params)
 	if err != nil {

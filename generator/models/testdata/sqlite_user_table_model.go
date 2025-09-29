@@ -53,12 +53,7 @@ func CreateUser(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.NewInsertUserParams(
-		data.Email,
-		sql.NullTime{Time: data.EmailVerifiedAt, Valid: true},
-		data.Password,
-		data.IsAdmin,
-	)
+	params := db.NewInsertUserParams()
 	row, err := db.New().InsertUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err
@@ -94,33 +89,7 @@ func UpdateUser(
 		return User{}, err
 	}
 
-	params := db.NewUpdateUserParams(
-		data.ID.String(),
-		func() string {
-			if true {
-				return data.Email
-			}
-			return currentRow.Email
-		}(),
-		func() sql.NullTime {
-			if true {
-				return sql.NullTime{Time: data.EmailVerifiedAt, Valid: true}
-			}
-			return currentRow.EmailVerifiedAt
-		}(),
-		func() []byte {
-			if true {
-				return data.Password
-			}
-			return currentRow.Password
-		}(),
-		func() int64 {
-			if true {
-				return data.IsAdmin
-			}
-			return currentRow.IsAdmin
-		}(),
-	)
+	params := db.NewUpdateUserParams()
 
 	row, err := db.New().UpdateUser(ctx, dbtx, params)
 	if err != nil {

@@ -46,11 +46,7 @@ func CreatePost(
 		return Post{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.NewInsertPostParams(
-		data.Title,
-		pgtype.Int4{Int32: data.AuthorID, Valid: true},
-		pgtype.Timestamptz{Time: data.PublishedAt, Valid: true},
-	)
+	params := db.NewInsertPostParams()
 	row, err := db.New().InsertPost(ctx, dbtx, params)
 	if err != nil {
 		return Post{}, err
@@ -80,27 +76,7 @@ func UpdatePost(
 		return Post{}, err
 	}
 
-	params := db.NewUpdatePostParams(
-		data.ID,
-		func() string {
-			if true {
-				return data.Title
-			}
-			return currentRow.Title
-		}(),
-		func() pgtype.Int4 {
-			if true {
-				return pgtype.Int4{Int32: data.AuthorID, Valid: true}
-			}
-			return currentRow.AuthorID
-		}(),
-		func() pgtype.Timestamptz {
-			if true {
-				return pgtype.Timestamptz{Time: data.PublishedAt, Valid: true}
-			}
-			return currentRow.PublishedAt
-		}(),
-	)
+	params := db.NewUpdatePostParams()
 
 	row, err := db.New().UpdatePost(ctx, dbtx, params)
 	if err != nil {
