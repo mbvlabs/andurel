@@ -3,9 +3,9 @@ package models
 import (
 	"context"
 	"errors"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/example/blog/models/internal/db"
 )

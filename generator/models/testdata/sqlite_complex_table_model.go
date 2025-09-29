@@ -2,10 +2,10 @@ package models
 
 import (
 	"context"
-	"database/sql"
 	"errors"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/example/sqlite/models/internal/db"
 )
