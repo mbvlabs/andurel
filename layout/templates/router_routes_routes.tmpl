@@ -9,6 +9,7 @@ type Route struct {
 	Handler      string
 	HandleMethod string
 	Method       string
+	IncludeInSitemap bool
 	Middleware   []func(next echo.HandlerFunc) echo.HandlerFunc
 }
 
