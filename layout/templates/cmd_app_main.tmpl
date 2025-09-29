@@ -14,6 +14,11 @@ import (
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/router"
+{{if .WithAuth}}
+	"{{.ModuleName}}/services"
+
+	"github.com/gorilla/sessions"
+{{end}}
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/sync/errgroup"
@@ -59,9 +64,13 @@ func startServer(ctx context.Context, srv *http.Server, env string) error {
 }
 
 {{- if eq .Database "postgresql"}}
-func setupControllers(psql database.Postgres) (controllers.Controllers, error) {
+func setupControllers(psql database.Postgres{{if .WithAuth}}, emailService services.EmailService, store *sessions.CookieStore{{end}}) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
 		psql,
+{{if .WithAuth}}
+		emailService,
+		store,
+{{end}}
 	)
 	if err != nil {
 		return controllers.Controllers{}, err
@@ -71,9 +80,13 @@ func setupControllers(psql database.Postgres) (controllers.Controllers, error) {
 }
 
 {{- else if eq .Database "sqlite"}}
-func setupControllers(sqlite database.SQLite) (controllers.Controllers, error) {
+func setupControllers(sqlite database.SQLite{{if .WithAuth}}, emailService services.EmailService, store *sessions.CookieStore{{end}}) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
 		sqlite,
+{{if .WithAuth}}
+		emailService,
+		store,
+{{end}}
 	)
 	if err != nil {
 		return controllers.Controllers{}, err
@@ -102,13 +115,18 @@ func run(ctx context.Context) error {
 
 	cfg := config.NewConfig()
 
+{{if .WithAuth}}
+	emailService := services.NewConsoleEmailService(cfg.App.BaseURL)
+	store := sessions.NewCookieStore([]byte(cfg.Auth.SessionKey))
+{{end}}
+
 {{- if eq .Database "postgresql"}}
 	psql, err := database.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
 	}
 
-	controllers, err := setupControllers(psql)
+	controllers, err := setupControllers(psql{{if .WithAuth}}, emailService, store{{end}})
 	if err != nil {
 		return err
 	}
@@ -119,7 +137,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	controllers, err := setupControllers(sqlite)
+	controllers, err := setupControllers(sqlite{{if .WithAuth}}, emailService, store{{end}})
 	if err != nil {
 		return err
 	}
