@@ -55,9 +55,10 @@ func newProject(cmd *cobra.Command, args []string) error {
 	fmt.Printf("\n🎉 Successfully created project: %s\n", projectName)
 	fmt.Printf("\nNext steps:\n")
 	fmt.Printf("  cd %s\n", args[0])
-	fmt.Printf("  just setup <platform> # (mac, linux, or windows)\n")
-	fmt.Printf("  cp .env.example .env and fill it out\n")
-	fmt.Printf("  and just run\n")
+	if database == "postgresql" {
+		fmt.Printf("  cp .env.example .env and fill it out\n")
+	}
+	fmt.Printf("  and andurel a run\n")
 
 	return nil
 }
