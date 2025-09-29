@@ -1,0 +1,489 @@
+package controllers
+
+import (
+	"database/sql"
+	"errors"
+	"net/http"
+	"time"
+
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/services"
+	"{{.ModuleName}}/views/auth"
+	"github.com/google/uuid"
+	"github.com/gorilla/sessions"
+	"github.com/labstack/echo/v4"
+	"github.com/mbvlabs/datastar"
+)
+
+type Auth struct {
+{{if eq .Database "postgresql"}}
+	db           database.Postgres
+{{else}}
+	db           database.SQLite
+{{end}}
+	emailService services.EmailService
+	store        *sessions.CookieStore
+}
+
+{{if eq .Database "postgresql"}}
+func newAuth(db database.Postgres, emailService services.EmailService, store *sessions.CookieStore) Auth {
+	return Auth{db, emailService, store}
+}
+{{else}}
+func newAuth(db database.SQLite, emailService services.EmailService, store *sessions.CookieStore) Auth {
+	return Auth{db, emailService, store}
+}
+{{end}}
+
+func (a Auth) ShowLogin(c echo.Context) error {
+	sess, _ := a.store.Get(c.Request(), "session")
+	if authenticated, ok := sess.Values["authenticated"].(bool); ok && authenticated {
+		return c.Redirect(http.StatusSeeOther, "/")
+	}
+
+	return Render(c, http.StatusOK, auth.Login())
+}
+
+func (a Auth) Login(c echo.Context) error {
+	email := c.FormValue("email")
+	password := c.FormValue("password")
+
+	if email == "" || password == "" {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Email and password are required.</p>",
+			datastar.WithSelectorID("loginRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	user, err := models.GetUserByEmail(c.Request().Context(), a.db, email)
+	if err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Invalid email or password.</p>",
+			datastar.WithSelectorID("loginRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	if !models.VerifyPassword(user.Password, password) {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Invalid email or password.</p>",
+			datastar.WithSelectorID("loginRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	sess, _ := a.store.Get(c.Request(), "session")
+	sess.Values["user_id"] = user.ID.String()
+	sess.Values["authenticated"] = true
+	sess.Values["created_at"] = time.Now()
+
+	if err := sess.Save(c.Request(), c.Response()); err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Failed to create session. Please try again.</p>",
+			datastar.WithSelectorID("loginRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	sse := datastar.NewSSE(c.Response(), c.Request())
+	sse.RedirectURL("/")
+	return nil
+}
+
+func (a Auth) ShowSignup(c echo.Context) error {
+	sess, _ := a.store.Get(c.Request(), "session")
+	if authenticated, ok := sess.Values["authenticated"].(bool); ok && authenticated {
+		return c.Redirect(http.StatusSeeOther, "/")
+	}
+
+	return Render(c, http.StatusOK, auth.Signup())
+}
+
+func (a Auth) Signup(c echo.Context) error {
+	email := c.FormValue("email")
+	password := c.FormValue("password")
+	passwordConfirm := c.FormValue("password_confirm")
+
+	if email == "" || password == "" || passwordConfirm == "" {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>All fields are required.</p>",
+			datastar.WithSelectorID("signupRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	if password != passwordConfirm {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Passwords do not match.</p>",
+			datastar.WithSelectorID("signupRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	user, err := models.CreateUser(c.Request().Context(), a.db, email, password)
+	if err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Failed to create account. Email may already be in use.</p>",
+			datastar.WithSelectorID("signupRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	token, err := models.NewHashedToken(c.Request().Context(), a.db, models.NewTokenPayload{
+		Expiration: time.Now().Add(24 * time.Hour),
+		Meta: models.MetaInformation{
+			Resource:   models.ResourceUser,
+			ResourceID: user.ID,
+			Scope:      models.ScopeEmailVerification,
+		},
+	})
+	if err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Failed to generate verification email. Please contact support.</p>",
+			datastar.WithSelectorID("signupRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	if err := a.emailService.SendVerificationEmail(c.Request().Context(), user.Email, token.Value); err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Failed to send verification email. Please contact support.</p>",
+			datastar.WithSelectorID("signupRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	sess, _ := a.store.Get(c.Request(), "session")
+	sess.Values["user_id"] = user.ID.String()
+	sess.Values["authenticated"] = true
+	sess.Values["created_at"] = time.Now()
+
+	if err := sess.Save(c.Request(), c.Response()); err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Failed to create session. Please try again.</p>",
+			datastar.WithSelectorID("signupRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	sse := datastar.NewSSE(c.Response(), c.Request())
+	sse.RedirectURL("/resend-verification")
+	return nil
+}
+
+func (a Auth) Logout(c echo.Context) error {
+	sess, _ := a.store.Get(c.Request(), "session")
+	sess.Options.MaxAge = -1
+	sess.Save(c.Request(), c.Response())
+
+	return c.Redirect(http.StatusSeeOther, "/login")
+}
+
+func (a Auth) VerifyEmail(c echo.Context) error {
+	tokenValue := c.QueryParam("token")
+	if tokenValue == "" {
+		return c.Redirect(http.StatusSeeOther, "/resend-verification")
+	}
+
+	token, err := models.GetHashedToken(c.Request().Context(), a.db, tokenValue)
+	if err != nil {
+		return c.Redirect(http.StatusSeeOther, "/resend-verification")
+	}
+
+	if !token.IsValid() {
+		models.DeleteToken(c.Request().Context(), a.db, token.ID)
+		return c.Redirect(http.StatusSeeOther, "/resend-verification")
+	}
+
+	if token.Meta.Scope != models.ScopeEmailVerification {
+		return c.Redirect(http.StatusSeeOther, "/resend-verification")
+	}
+
+	if err := models.MarkEmailVerified(c.Request().Context(), a.db, token.Meta.ResourceID); err != nil {
+		return c.String(http.StatusInternalServerError, "Failed to verify email")
+	}
+
+	models.DeleteToken(c.Request().Context(), a.db, token.ID)
+
+	return Render(c, http.StatusOK, auth.VerifyEmail())
+}
+
+func (a Auth) ShowResendVerification(c echo.Context) error {
+	sess, _ := a.store.Get(c.Request(), "session")
+
+	userIDStr, ok := sess.Values["user_id"].(string)
+	if !ok {
+		return c.Redirect(http.StatusSeeOther, "/login")
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return c.Redirect(http.StatusSeeOther, "/login")
+	}
+
+	user, err := models.GetUserByID(c.Request().Context(), a.db, userID)
+	if err != nil {
+		return c.Redirect(http.StatusSeeOther, "/login")
+	}
+
+	if user.EmailVerified {
+		return c.Redirect(http.StatusSeeOther, "/")
+	}
+
+	return Render(c, http.StatusOK, auth.ResendVerification(user.Email))
+}
+
+func (a Auth) ResendVerification(c echo.Context) error {
+	sess, _ := a.store.Get(c.Request(), "session")
+
+	userIDStr, ok := sess.Values["user_id"].(string)
+	if !ok {
+		return c.Redirect(http.StatusSeeOther, "/login")
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return c.Redirect(http.StatusSeeOther, "/login")
+	}
+
+	user, err := models.GetUserByID(c.Request().Context(), a.db, userID)
+	if err != nil {
+		return c.Redirect(http.StatusSeeOther, "/login")
+	}
+
+	if user.EmailVerified {
+		return c.Redirect(http.StatusSeeOther, "/")
+	}
+
+	models.DeleteUserTokensByScope(c.Request().Context(), a.db, user.ID, models.ScopeEmailVerification)
+
+	token, err := models.NewHashedToken(c.Request().Context(), a.db, models.NewTokenPayload{
+		Expiration: time.Now().Add(24 * time.Hour),
+		Meta: models.MetaInformation{
+			Resource:   models.ResourceUser,
+			ResourceID: user.ID,
+			Scope:      models.ScopeEmailVerification,
+		},
+	})
+	if err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Failed to generate verification email. Please try again.</p>",
+			datastar.WithSelectorID("resendRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	if err := a.emailService.SendVerificationEmail(c.Request().Context(), user.Email, token.Value); err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Failed to send verification email. Please try again.</p>",
+			datastar.WithSelectorID("resendRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	sse := datastar.NewSSE(c.Response(), c.Request())
+	sse.PatchElements(
+		"<p class='text-success-content'>Verification email sent! Check your inbox.</p>",
+		datastar.WithSelectorID("resendRes"),
+		datastar.WithModeInner(),
+	)
+	return nil
+}
+
+func (a Auth) ShowForgotPassword(c echo.Context) error {
+	return Render(c, http.StatusOK, auth.ForgotPassword())
+}
+
+func (a Auth) ForgotPassword(c echo.Context) error {
+	email := c.FormValue("email")
+	if email == "" {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Email is required.</p>",
+			datastar.WithSelectorID("forgotRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	user, err := models.GetUserByEmail(c.Request().Context(), a.db, email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			sse := datastar.NewSSE(c.Response(), c.Request())
+			sse.PatchElements(
+				"<p class='text-success-content'>If an account exists with that email, a password reset link has been sent.</p>",
+				datastar.WithSelectorID("forgotRes"),
+				datastar.WithModeInner(),
+			)
+			return nil
+		}
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>An error occurred. Please try again.</p>",
+			datastar.WithSelectorID("forgotRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	models.DeleteUserTokensByScope(c.Request().Context(), a.db, user.ID, models.ScopeResetPassword)
+
+	token, err := models.NewHashedToken(c.Request().Context(), a.db, models.NewTokenPayload{
+		Expiration: time.Now().Add(1 * time.Hour),
+		Meta: models.MetaInformation{
+			Resource:   models.ResourceUser,
+			ResourceID: user.ID,
+			Scope:      models.ScopeResetPassword,
+		},
+	})
+	if err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Failed to generate password reset link. Please try again.</p>",
+			datastar.WithSelectorID("forgotRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	if err := a.emailService.SendPasswordResetEmail(c.Request().Context(), user.Email, token.Value); err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Failed to send password reset email. Please try again.</p>",
+			datastar.WithSelectorID("forgotRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	sse := datastar.NewSSE(c.Response(), c.Request())
+	sse.PatchElements(
+		"<p class='text-success-content'>If an account exists with that email, a password reset link has been sent.</p>",
+		datastar.WithSelectorID("forgotRes"),
+		datastar.WithModeInner(),
+	)
+	return nil
+}
+
+func (a Auth) ShowResetPassword(c echo.Context) error {
+	tokenValue := c.QueryParam("token")
+	if tokenValue == "" {
+		return c.Redirect(http.StatusSeeOther, "/login")
+	}
+
+	token, err := models.GetHashedToken(c.Request().Context(), a.db, tokenValue)
+	if err != nil {
+		return c.Redirect(http.StatusSeeOther, "/forgot-password")
+	}
+
+	if !token.IsValid() {
+		models.DeleteToken(c.Request().Context(), a.db, token.ID)
+		return c.Redirect(http.StatusSeeOther, "/forgot-password")
+	}
+
+	if token.Meta.Scope != models.ScopeResetPassword {
+		return c.Redirect(http.StatusSeeOther, "/forgot-password")
+	}
+
+	return Render(c, http.StatusOK, auth.ResetPassword(tokenValue))
+}
+
+func (a Auth) ResetPassword(c echo.Context) error {
+	tokenValue := c.FormValue("token")
+	newPassword := c.FormValue("password")
+	passwordConfirm := c.FormValue("password_confirm")
+
+	if tokenValue == "" || newPassword == "" || passwordConfirm == "" {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>All fields are required.</p>",
+			datastar.WithSelectorID("resetRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	if newPassword != passwordConfirm {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Passwords do not match.</p>",
+			datastar.WithSelectorID("resetRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	token, err := models.GetHashedToken(c.Request().Context(), a.db, tokenValue)
+	if err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Invalid or expired token.</p>",
+			datastar.WithSelectorID("resetRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	if !token.IsValid() {
+		models.DeleteToken(c.Request().Context(), a.db, token.ID)
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Token has expired. Please request a new password reset.</p>",
+			datastar.WithSelectorID("resetRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	if token.Meta.Scope != models.ScopeResetPassword {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Invalid token.</p>",
+			datastar.WithSelectorID("resetRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	if err := models.UpdatePassword(c.Request().Context(), a.db, token.Meta.ResourceID, newPassword); err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		sse.PatchElements(
+			"<p class='text-error-content'>Failed to update password. Please try again.</p>",
+			datastar.WithSelectorID("resetRes"),
+			datastar.WithModeInner(),
+		)
+		return nil
+	}
+
+	models.DeleteToken(c.Request().Context(), a.db, token.ID)
+
+	sse := datastar.NewSSE(c.Response(), c.Request())
+	sse.RedirectURL("/login")
+	return nil
+}
