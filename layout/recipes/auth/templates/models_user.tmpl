@@ -1,0 +1,268 @@
+package models
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"fmt"
+
+	"{{.ModuleName}}/database"
+	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/argon2"
+{{if eq .Database "postgresql"}}
+	"github.com/jackc/pgx/v5/pgtype"
+{{else}}
+	"time"
+{{end}}
+)
+
+type User struct {
+	ID            uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	Email         string
+	IsAdmin       bool
+	Password      []byte
+	EmailVerified bool
+}
+
+type CreateUserPayload struct {
+	Email    string `validate:"required,email,max=255"`
+	Password string `validate:"required,min=8,max=72"`
+}
+
+var validate = validator.New()
+
+func HashPassword(password string) ([]byte, error) {
+	salt := make([]byte, 16)
+	if _, err := rand.Read(salt); err != nil {
+		return nil, fmt.Errorf("failed to generate salt: %w", err)
+	}
+
+	hash := argon2.IDKey([]byte(password), salt, 2, 19456, 1, 32)
+
+	result := make([]byte, 0, len(salt)+len(hash))
+	result = append(result, salt...)
+	result = append(result, hash...)
+
+	return result, nil
+}
+
+func VerifyPassword(hashedPassword []byte, plainPassword string) bool {
+	if len(hashedPassword) < 16 {
+		return false
+	}
+
+	salt := hashedPassword[:16]
+	storedHash := hashedPassword[16:]
+
+	computedHash := argon2.IDKey([]byte(plainPassword), salt, 2, 19456, 1, 32)
+
+	return subtle.ConstantTimeCompare(storedHash, computedHash) == 1
+}
+
+{{if eq .Database "postgresql"}}
+func CreateUser(ctx context.Context, dbtx database.Postgres, email, password string) (User, error) {
+	payload := CreateUserPayload{
+		Email:    email,
+		Password: password,
+	}
+
+	if err := validate.Struct(payload); err != nil {
+		return User{}, fmt.Errorf("validation failed: %w", err)
+	}
+
+	hashedPassword, err := HashPassword(password)
+	if err != nil {
+		return User{}, fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	dbUser, err := dbtx.CreateUser(ctx, database.CreateUserParams{
+		Email:         email,
+		Password:      hashedPassword,
+		EmailVerified: false,
+		IsAdmin:       false,
+	})
+	if err != nil {
+		return User{}, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	return User{
+		ID:            dbUser.ID.Bytes,
+		CreatedAt:     dbUser.CreatedAt.Time,
+		UpdatedAt:     dbUser.UpdatedAt.Time,
+		Email:         dbUser.Email,
+		IsAdmin:       dbUser.IsAdmin,
+		Password:      dbUser.Password,
+		EmailVerified: dbUser.EmailVerified,
+	}, nil
+}
+
+func GetUserByEmail(ctx context.Context, dbtx database.Postgres, email string) (User, error) {
+	dbUser, err := dbtx.GetUserByEmail(ctx, email)
+	if err != nil {
+		return User{}, fmt.Errorf("failed to get user by email: %w", err)
+	}
+
+	return User{
+		ID:            dbUser.ID.Bytes,
+		CreatedAt:     dbUser.CreatedAt.Time,
+		UpdatedAt:     dbUser.UpdatedAt.Time,
+		Email:         dbUser.Email,
+		IsAdmin:       dbUser.IsAdmin,
+		Password:      dbUser.Password,
+		EmailVerified: dbUser.EmailVerified,
+	}, nil
+}
+
+func GetUserByID(ctx context.Context, dbtx database.Postgres, userID uuid.UUID) (User, error) {
+	dbUser, err := dbtx.GetUserByID(ctx, pgtype.UUID{Bytes: userID, Valid: true})
+	if err != nil {
+		return User{}, fmt.Errorf("failed to get user by ID: %w", err)
+	}
+
+	return User{
+		ID:            dbUser.ID.Bytes,
+		CreatedAt:     dbUser.CreatedAt.Time,
+		UpdatedAt:     dbUser.UpdatedAt.Time,
+		Email:         dbUser.Email,
+		IsAdmin:       dbUser.IsAdmin,
+		Password:      dbUser.Password,
+		EmailVerified: dbUser.EmailVerified,
+	}, nil
+}
+
+func UpdatePassword(ctx context.Context, dbtx database.Postgres, userID uuid.UUID, newPassword string) error {
+	hashedPassword, err := HashPassword(newPassword)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	if err := dbtx.UpdateUserPassword(ctx, database.UpdateUserPasswordParams{
+		Password: hashedPassword,
+		ID:       pgtype.UUID{Bytes: userID, Valid: true},
+	}); err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+
+	return nil
+}
+
+func MarkEmailVerified(ctx context.Context, dbtx database.Postgres, userID uuid.UUID) error {
+	if err := dbtx.MarkEmailVerified(ctx, pgtype.UUID{Bytes: userID, Valid: true}); err != nil {
+		return fmt.Errorf("failed to mark email as verified: %w", err)
+	}
+
+	return nil
+}
+{{else}}
+func CreateUser(ctx context.Context, dbtx database.SQLite, email, password string) (User, error) {
+	payload := CreateUserPayload{
+		Email:    email,
+		Password: password,
+	}
+
+	if err := validate.Struct(payload); err != nil {
+		return User{}, fmt.Errorf("validation failed: %w", err)
+	}
+
+	hashedPassword, err := HashPassword(password)
+	if err != nil {
+		return User{}, fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	userID := uuid.New()
+
+	dbUser, err := dbtx.CreateUser(ctx, database.CreateUserParams{
+		ID:            userID.String(),
+		Email:         email,
+		Password:      hashedPassword,
+		EmailVerified: 0,
+		IsAdmin:       0,
+	})
+	if err != nil {
+		return User{}, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	parsedID, _ := uuid.Parse(dbUser.ID)
+	createdAt, _ := time.Parse("2006-01-02 15:04:05", dbUser.CreatedAt)
+	updatedAt, _ := time.Parse("2006-01-02 15:04:05", dbUser.UpdatedAt)
+
+	return User{
+		ID:            parsedID,
+		CreatedAt:     createdAt,
+		UpdatedAt:     updatedAt,
+		Email:         dbUser.Email,
+		IsAdmin:       dbUser.IsAdmin == 1,
+		Password:      dbUser.Password,
+		EmailVerified: dbUser.EmailVerified == 1,
+	}, nil
+}
+
+func GetUserByEmail(ctx context.Context, dbtx database.SQLite, email string) (User, error) {
+	dbUser, err := dbtx.GetUserByEmail(ctx, email)
+	if err != nil {
+		return User{}, fmt.Errorf("failed to get user by email: %w", err)
+	}
+
+	parsedID, _ := uuid.Parse(dbUser.ID)
+	createdAt, _ := time.Parse("2006-01-02 15:04:05", dbUser.CreatedAt)
+	updatedAt, _ := time.Parse("2006-01-02 15:04:05", dbUser.UpdatedAt)
+
+	return User{
+		ID:            parsedID,
+		CreatedAt:     createdAt,
+		UpdatedAt:     updatedAt,
+		Email:         dbUser.Email,
+		IsAdmin:       dbUser.IsAdmin == 1,
+		Password:      dbUser.Password,
+		EmailVerified: dbUser.EmailVerified == 1,
+	}, nil
+}
+
+func GetUserByID(ctx context.Context, dbtx database.SQLite, userID uuid.UUID) (User, error) {
+	dbUser, err := dbtx.GetUserByID(ctx, userID.String())
+	if err != nil {
+		return User{}, fmt.Errorf("failed to get user by ID: %w", err)
+	}
+
+	parsedID, _ := uuid.Parse(dbUser.ID)
+	createdAt, _ := time.Parse("2006-01-02 15:04:05", dbUser.CreatedAt)
+	updatedAt, _ := time.Parse("2006-01-02 15:04:05", dbUser.UpdatedAt)
+
+	return User{
+		ID:            parsedID,
+		CreatedAt:     createdAt,
+		UpdatedAt:     updatedAt,
+		Email:         dbUser.Email,
+		IsAdmin:       dbUser.IsAdmin == 1,
+		Password:      dbUser.Password,
+		EmailVerified: dbUser.EmailVerified == 1,
+	}, nil
+}
+
+func UpdatePassword(ctx context.Context, dbtx database.SQLite, userID uuid.UUID, newPassword string) error {
+	hashedPassword, err := HashPassword(newPassword)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	if err := dbtx.UpdateUserPassword(ctx, database.UpdateUserPasswordParams{
+		Password: hashedPassword,
+		ID:       userID.String(),
+	}); err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+
+	return nil
+}
+
+func MarkEmailVerified(ctx context.Context, dbtx database.SQLite, userID uuid.UUID) error {
+	if err := dbtx.MarkEmailVerified(ctx, userID.String()); err != nil {
+		return fmt.Errorf("failed to mark email as verified: %w", err)
+	}
+
+	return nil
+}
+{{end}}
