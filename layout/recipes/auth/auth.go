@@ -3,16 +3,27 @@ package auth
 import (
 	"fmt"
 	"path/filepath"
-
-	"github.com/mbvlabs/andurel/layout"
 )
 
-func ProcessAuthRecipe(targetDir string, data layout.TemplateData) error {
+type TemplateData struct {
+	ProjectName          string
+	ModuleName           string
+	Database             string
+	SessionKey           string
+	SessionEncryptionKey string
+	TokenSigningKey      string
+	PasswordSalt         string
+	WithAuth             bool
+}
+
+type ProcessTemplateFunc func(targetDir, templateFile, targetPath string, data TemplateData) error
+
+func ProcessAuthRecipe(targetDir string, data TemplateData, processTemplate ProcessTemplateFunc) error {
 	mappings := getTemplateMappings(data.Database)
 
 	for tmplFile, targetPath := range mappings {
-		fullTmplPath := filepath.Join("auth", "templates", tmplFile)
-		if err := layout.ProcessTemplateFromRecipe(targetDir, fullTmplPath, targetPath, data); err != nil {
+		fullTmplPath := filepath.Join("recipes", "auth", tmplFile)
+		if err := processTemplate(targetDir, fullTmplPath, targetPath, data); err != nil {
 			return fmt.Errorf("failed to process auth template %s: %w", tmplFile, err)
 		}
 	}

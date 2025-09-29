@@ -87,7 +87,19 @@ func Scaffold(targetDir, projectName, repo, database string, recipes []string) e
 
 	if templateData.WithAuth {
 		fmt.Print("Processing auth recipe...\n")
-		if err := auth.ProcessAuthRecipe(targetDir, templateData); err != nil {
+		authData := auth.TemplateData{
+			ProjectName:          templateData.ProjectName,
+			ModuleName:           templateData.ModuleName,
+			Database:             templateData.Database,
+			SessionKey:           templateData.SessionKey,
+			SessionEncryptionKey: templateData.SessionEncryptionKey,
+			TokenSigningKey:      templateData.TokenSigningKey,
+			PasswordSalt:         templateData.PasswordSalt,
+			WithAuth:             templateData.WithAuth,
+		}
+		if err := auth.ProcessAuthRecipe(targetDir, authData, func(targetDir, templateFile, targetPath string, data auth.TemplateData) error {
+			return ProcessTemplateFromRecipe(targetDir, templateFile, targetPath, templateData)
+		}); err != nil {
 			return fmt.Errorf("failed to process auth recipe: %w", err)
 		}
 	}
