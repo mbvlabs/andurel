@@ -1,0 +1,16 @@
+-- +goose Up
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+    password BYTEA NOT NULL,
+    email_verified BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE INDEX idx_users_email ON users(email);
+
+-- +goose Down
+DROP INDEX IF EXISTS idx_users_email;
+DROP TABLE IF EXISTS users;
