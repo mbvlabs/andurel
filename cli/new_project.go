@@ -48,6 +48,13 @@ func newProject(cmd *cobra.Command, args []string) error {
 		database = "postgresql"
 	}
 
+	if database != "" && database != "sqlite" && database != "postgresql" {
+		return fmt.Errorf(
+			"invalid database provided: %s - valid options are 'postgresql' and 'sqlite'",
+			database,
+		)
+	}
+
 	if err := layout.Scaffold(basePath, projectName, repo, database); err != nil {
 		return err
 	}
