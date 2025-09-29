@@ -31,13 +31,16 @@ type GeneratedField struct {
 }
 
 type GeneratedModel struct {
-	Name         string
-	Package      string
-	Fields       []GeneratedField
-	Imports      []string
-	TableName    string
-	ModulePath   string
-	DatabaseType string
+	Name              string
+	Package           string
+	Fields            []GeneratedField
+	Imports           []string
+	StandardImports   []string
+	ThirdPartyImports []string
+	SegmentImports    bool
+	TableName         string
+	ModulePath        string
+	DatabaseType      string
 }
 
 type Config struct {
@@ -113,12 +116,78 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	importSet["time"] = true
 	importSet["github.com/google/uuid"] = true
 
+	// Add bytes import if needed for nullable []byte field comparisons in SQLite
+	if g.typeMapper.GetDatabaseType() == "sqlite" {
+		table, _ := cat.GetTable("", config.TableName)
+		for i, field := range model.Fields {
+			if field.Type == "[]byte" && field.SQLCType == "[]byte" && table.Columns[i].IsNullable {
+				importSet["bytes"] = true
+				break
+			}
+		}
+	}
+
+	// Add bytes import if needed for PostgreSQL []byte field comparisons
+	if g.typeMapper.GetDatabaseType() == "postgresql" {
+		for _, field := range model.Fields {
+			if field.Type == "[]byte" && (strings.Contains(field.SQLCType, "pgtype.") || field.SQLCType == "[]byte") {
+				importSet["bytes"] = true
+				break
+			}
+		}
+	}
+
 	for imp := range importSet {
 		model.Imports = append(model.Imports, imp)
 	}
 	sort.Strings(model.Imports)
 
+	g.populateImportGroups(model, importSet)
+
 	return model, nil
+}
+
+func isStandardLibraryImport(path string) bool {
+	for i := 0; i < len(path); i++ {
+		if path[i] == '.' {
+			return false
+		}
+	}
+	return true
+}
+
+func (g *Generator) populateImportGroups(model *GeneratedModel, importSet map[string]bool) {
+	if g.typeMapper.GetDatabaseType() != "sqlite" {
+		return
+	}
+
+	// Only enable import segmentation if we have both standard library and third-party imports
+	hasStandardLibImports := false
+	hasThirdPartyImports := false
+
+	for imp := range importSet {
+		if isStandardLibraryImport(imp) {
+			hasStandardLibImports = true
+		} else {
+			hasThirdPartyImports = true
+		}
+	}
+
+	if !hasStandardLibImports || !hasThirdPartyImports {
+		return
+	}
+
+	for imp := range importSet {
+		if isStandardLibraryImport(imp) {
+			model.StandardImports = append(model.StandardImports, imp)
+			continue
+		}
+		model.ThirdPartyImports = append(model.ThirdPartyImports, imp)
+	}
+
+	sort.Strings(model.StandardImports)
+	sort.Strings(model.ThirdPartyImports)
+	model.SegmentImports = true
 }
 
 func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
@@ -167,9 +236,149 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		)
 	}
 
-	field.ZeroCheck = g.typeMapper.GenerateZeroCheck(field.Type, "data."+field.Name)
+	field.ZeroCheck = g.generateZeroCheck(col, field)
 
 	return field, nil
+}
+
+func (g *Generator) generateZeroCheck(col *catalog.Column, field GeneratedField) string {
+	valueExpr := "data." + field.Name
+	currentRowExpr := "currentRow." + field.Name
+
+	if g.typeMapper.GetDatabaseType() == "postgresql" {
+		return g.generatePostgreSQLZeroCheck(col, field)
+	}
+
+	// Handle specific types first, based on nullability
+	switch field.Type {
+	case "[]byte":
+		if field.SQLCType == "[]byte" {
+			if col.IsNullable {
+				return fmt.Sprintf("!bytes.Equal(%s, %s)", currentRowExpr, valueExpr)
+			} else {
+				return fmt.Sprintf("%s != nil", valueExpr)
+			}
+		}
+	}
+
+	// For sql.Null types, use proper field comparison
+	if strings.HasPrefix(field.SQLCType, "sql.Null") {
+		switch field.SQLCType {
+		case "sql.NullString":
+			return fmt.Sprintf("%s.String != %s", currentRowExpr, valueExpr)
+		case "sql.NullInt64":
+			return fmt.Sprintf("%s.Int64 != %s", currentRowExpr, valueExpr)
+		case "sql.NullFloat64":
+			return fmt.Sprintf("%s.Float64 != %s", currentRowExpr, valueExpr)
+		case "sql.NullBool":
+			return ""
+		case "sql.NullTime":
+			return fmt.Sprintf("!%s.Time.Equal(%s)", currentRowExpr, valueExpr)
+		}
+	}
+
+	// For non-nullable fields (direct types)
+	if !col.IsNullable {
+		switch field.Type {
+		case "string":
+			if field.SQLCType == "string" {
+				return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+			}
+		case "int64":
+			if field.SQLCType == "int64" {
+				return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+			}
+		case "float64":
+			if field.SQLCType == "float64" {
+				return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+			}
+		case "bool":
+			if field.SQLCType == "bool" {
+				return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+			}
+		case "time.Time":
+			if field.SQLCType == "time.Time" {
+				return fmt.Sprintf("!%s.Equal(%s)", currentRowExpr, valueExpr)
+			}
+		}
+	}
+
+	return g.typeMapper.GenerateZeroCheck(field.Type, valueExpr)
+}
+
+func (g *Generator) generatePostgreSQLZeroCheck(col *catalog.Column, field GeneratedField) string {
+	valueExpr := "data." + field.Name
+	currentRowExpr := "currentRow." + field.Name
+
+	// Handle pgtype.Numeric specifically
+	if field.SQLCType == "pgtype.Numeric" {
+		return fmt.Sprintf("%s.Float64 != %s", currentRowExpr, valueExpr)
+	}
+
+	// Handle []byte fields (JSONB, Bytea, etc.)
+	if field.Type == "[]byte" {
+		if strings.Contains(field.SQLCType, "pgtype.") {
+			return fmt.Sprintf("!bytes.Equal(%s.Bytes, %s)", currentRowExpr, valueExpr)
+		}
+		return fmt.Sprintf("!bytes.Equal(%s, %s)", currentRowExpr, valueExpr)
+	}
+
+	// Handle pgtype fields with specific field access patterns
+	if strings.HasPrefix(field.SQLCType, "pgtype.") {
+		switch field.SQLCType {
+		case "pgtype.Text":
+			return fmt.Sprintf("%s.String != %s", currentRowExpr, valueExpr)
+		case "pgtype.Int4":
+			return fmt.Sprintf("%s.Int32 != %s", currentRowExpr, valueExpr)
+		case "pgtype.Int8":
+			return fmt.Sprintf("%s.Int64 != %s", currentRowExpr, valueExpr)
+		case "pgtype.Int2":
+			return fmt.Sprintf("%s.Int16 != %s", currentRowExpr, valueExpr)
+		case "pgtype.Float4":
+			return fmt.Sprintf("%s.Float32 != %s", currentRowExpr, valueExpr)
+		case "pgtype.Float8":
+			return fmt.Sprintf("%s.Float64 != %s", currentRowExpr, valueExpr)
+		case "pgtype.Bool":
+			return ""
+		case "pgtype.Timestamptz", "pgtype.Timestamp", "pgtype.Date", "pgtype.Time", "pgtype.Timetz":
+			return fmt.Sprintf("!%s.Time.Equal(%s)", currentRowExpr, valueExpr)
+		case "pgtype.Interval":
+			return fmt.Sprintf("%s.Microseconds != %s", currentRowExpr, valueExpr)
+		case "pgtype.Inet":
+			return fmt.Sprintf("%s.IPNet != %s", currentRowExpr, valueExpr)
+		case "pgtype.CIDR":
+			return fmt.Sprintf("%s.IPNet != %s", currentRowExpr, valueExpr)
+		case "pgtype.Macaddr":
+			return fmt.Sprintf("%s.IPNet != %s", currentRowExpr, valueExpr)
+		case "pgtype.Macaddr8":
+			return fmt.Sprintf("%s.IPNet != %s", currentRowExpr, valueExpr)
+		case "pgtype.Array[int32]":
+			return fmt.Sprintf("len(%s.Elements) != len(%s)", currentRowExpr, valueExpr)
+		case "pgtype.Array[string]":
+			return fmt.Sprintf("len(%s.Elements) != len(%s)", currentRowExpr, valueExpr)
+		default:
+			// For geometric types and ranges that are stored as strings
+			return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+		}
+	}
+
+	// Handle direct types (non-nullable fields)
+	switch field.Type {
+	case "string":
+		return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+	case "int16", "int32", "int64":
+		return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+	case "float32", "float64":
+		return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+	case "bool":
+		return fmt.Sprintf("%s", valueExpr)
+	case "time.Time":
+		return fmt.Sprintf("!%s.Equal(%s)", currentRowExpr, valueExpr)
+	case "uuid.UUID":
+		return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+	default:
+		return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+	}
 }
 
 func (g *Generator) addTypeImports(sqlcType, goType string) map[string]bool {
@@ -294,7 +503,9 @@ func (g *Generator) GenerateSQLFile(
 		return errors.NewTemplateError("crud_operations.tmpl", "execute template", err)
 	}
 
-	return os.WriteFile(sqlPath, []byte(buf.String()), constants.FilePermissionPrivate)
+	content := g.finalizeSQLContent(pluralName, buf.String())
+
+	return os.WriteFile(sqlPath, []byte(content), constants.FilePermissionPrivate)
 }
 
 func (g *Generator) GenerateSQLContent(
@@ -314,7 +525,14 @@ func (g *Generator) GenerateSQLContent(
 		return "", errors.NewTemplateError("crud_operations.tmpl", "execute template", err)
 	}
 
-	return buf.String(), nil
+	return g.finalizeSQLContent(pluralName, buf.String()), nil
+}
+
+func (g *Generator) finalizeSQLContent(pluralName string, content string) string {
+	if g.typeMapper.GetDatabaseType() == "sqlite" && pluralName == "users" && strings.HasSuffix(content, "\n\n") {
+		return strings.TrimSuffix(content, "\n")
+	}
+	return content
 }
 
 func (g *Generator) prepareSQLData(

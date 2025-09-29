@@ -3,8 +3,20 @@ package models
 import (
 	"context"
 	"errors"
+{{- if .SegmentImports}}
+{{- range .StandardImports}}
+	"{{.}}"
+{{- end}}
+{{if and .StandardImports .ThirdPartyImports}}
+
+{{end}}
+{{- range .ThirdPartyImports}}
+	"{{.}}"
+{{- end}}
+{{- else}}
 {{- range .Imports}}
 	"{{.}}"
+{{- end}}
 {{- end}}
 
 	"{{.ModulePath}}/models/internal/db"
@@ -97,10 +109,14 @@ func Update{{.Name}}(
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		func() {{.SQLCType}} {
+{{- if .ZeroCheck}}
 			if {{.ZeroCheck}} {
 				return {{.ConversionToDBForUpdate}}
 			}
 			return currentRow.{{.Name}}
+{{- else}}
+			return {{.ConversionToDBForUpdate}}
+{{- end}}
 		}(),
 {{- end}}
 {{- end}}
@@ -237,5 +253,3 @@ func rowTo{{.Name}}(row db.{{SQLCTypeName .TableName}}) {{.Name}} {
 	}
 }
 {{end}}
-
-

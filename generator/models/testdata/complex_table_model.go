@@ -1,11 +1,13 @@
 package models
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	"time"
 
 	"github.com/example/complex/models/internal/db"
 )
@@ -253,309 +255,311 @@ func UpdateComprehensiveExample(
 	if err := validate.Struct(data); err != nil {
 		return ComprehensiveExample{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	currentRow, err := db.New().QueryComprehensiveExampleByID(ctx, dbtx, data.ID)
 	if err != nil {
 		return ComprehensiveExample{}, err
 	}
-
 	params := db.NewUpdateComprehensiveExampleParams(
 		data.ID,
 		func() uuid.UUID {
-			if data.UuidID != uuid.Nil {
+			if currentRow.UuidID != data.UuidID {
 				return data.UuidID
 			}
 			return currentRow.UuidID
 		}(),
 		func() int16 {
-			if true {
+			if currentRow.SmallInt != data.SmallInt {
 				return data.SmallInt
 			}
 			return currentRow.SmallInt
 		}(),
 		func() pgtype.Int4 {
-			if true {
+			if currentRow.RegularInt.Int32 != data.RegularInt {
 				return pgtype.Int4{Int32: data.RegularInt, Valid: true}
 			}
 			return currentRow.RegularInt
 		}(),
 		func() int64 {
-			if true {
+			if currentRow.BigInt != data.BigInt {
 				return data.BigInt
 			}
 			return currentRow.BigInt
 		}(),
 		func() pgtype.Numeric {
-			if true {
+			if currentRow.DecimalPrecise != data.DecimalPrecise {
 				return data.DecimalPrecise
 			}
 			return currentRow.DecimalPrecise
 		}(),
 		func() pgtype.Numeric {
-			if true {
+			if currentRow.NumericField != data.NumericField {
 				return data.NumericField
 			}
 			return currentRow.NumericField
 		}(),
 		func() pgtype.Float4 {
-			if true {
+			if currentRow.RealFloat.Float32 != data.RealFloat {
 				return pgtype.Float4{Float32: data.RealFloat, Valid: true}
 			}
 			return currentRow.RealFloat
 		}(),
 		func() float64 {
-			if true {
+			if currentRow.DoubleFloat != data.DoubleFloat {
 				return data.DoubleFloat
 			}
 			return currentRow.DoubleFloat
 		}(),
 		func() int16 {
-			if true {
+			if currentRow.SmallSerial != data.SmallSerial {
 				return data.SmallSerial
 			}
 			return currentRow.SmallSerial
 		}(),
 		func() pgtype.Int8 {
-			if true {
+			if currentRow.BigSerial.Int64 != data.BigSerial {
 				return pgtype.Int8{Int64: data.BigSerial, Valid: true}
 			}
 			return currentRow.BigSerial
 		}(),
 		func() pgtype.Text {
-			if true {
+			if currentRow.FixedChar.String != data.FixedChar {
 				return pgtype.Text{String: data.FixedChar, Valid: true}
 			}
 			return currentRow.FixedChar
 		}(),
 		func() string {
-			if true {
+			if currentRow.VariableChar != data.VariableChar {
 				return data.VariableChar
 			}
 			return currentRow.VariableChar
 		}(),
 		func() pgtype.Text {
-			if true {
+			if currentRow.UnlimitedText.String != data.UnlimitedText {
 				return pgtype.Text{String: data.UnlimitedText, Valid: true}
 			}
 			return currentRow.UnlimitedText
 		}(),
 		func() pgtype.Text {
-			if true {
+			if currentRow.TextWithDefault.String != data.TextWithDefault {
 				return pgtype.Text{String: data.TextWithDefault, Valid: true}
 			}
 			return currentRow.TextWithDefault
 		}(),
 		func() string {
-			if true {
+			if currentRow.TextNotNull != data.TextNotNull {
 				return data.TextNotNull
 			}
 			return currentRow.TextNotNull
 		}(),
 		func() pgtype.Bool {
-			if true {
-				return pgtype.Bool{Bool: data.IsActive, Valid: true}
-			}
-			return currentRow.IsActive
+			return pgtype.Bool{Bool: data.IsActive, Valid: true}
 		}(),
 		func() bool {
-			if true {
-				return data.IsVerified
-			}
-			return currentRow.IsVerified
+			return data.IsVerified
 		}(),
 		func() pgtype.Bool {
-			if true {
-				return pgtype.Bool{Bool: data.NullableFlag, Valid: true}
-			}
-			return currentRow.NullableFlag
+			return pgtype.Bool{Bool: data.NullableFlag, Valid: true}
 		}(),
 		func() pgtype.Date {
-			if true {
+			if !currentRow.CreatedDate.Time.Equal(data.CreatedDate) {
 				return pgtype.Date{Time: data.CreatedDate, Valid: true}
 			}
 			return currentRow.CreatedDate
 		}(),
 		func() pgtype.Date {
-			if true {
+			if !currentRow.BirthDate.Time.Equal(data.BirthDate) {
 				return pgtype.Date{Time: data.BirthDate, Valid: true}
 			}
 			return currentRow.BirthDate
 		}(),
 		func() pgtype.Time {
-			if true {
+			if !currentRow.ExactTime.Time.Equal(data.ExactTime) {
 				return pgtype.Time{Time: data.ExactTime, Valid: true}
 			}
 			return currentRow.ExactTime
 		}(),
 		func() pgtype.Timetz {
-			if true {
+			if !currentRow.TimeWithZone.Time.Equal(data.TimeWithZone) {
 				return pgtype.Timetz{Time: data.TimeWithZone, Valid: true}
 			}
 			return currentRow.TimeWithZone
 		}(),
 		func() pgtype.Timestamp {
-			if true {
+			if !currentRow.CreatedTimestamp.Time.Equal(data.CreatedTimestamp) {
 				return pgtype.Timestamp{Time: data.CreatedTimestamp, Valid: true}
 			}
 			return currentRow.CreatedTimestamp
 		}(),
 		func() pgtype.Timestamp {
-			if true {
+			if !currentRow.UpdatedTimestamp.Time.Equal(data.UpdatedTimestamp) {
 				return pgtype.Timestamp{Time: data.UpdatedTimestamp, Valid: true}
 			}
 			return currentRow.UpdatedTimestamp
 		}(),
 		func() pgtype.Timestamptz {
-			if true {
+			if !currentRow.TimestampWithZone.Time.Equal(data.TimestampWithZone) {
 				return pgtype.Timestamptz{Time: data.TimestampWithZone, Valid: true}
 			}
 			return currentRow.TimestampWithZone
 		}(),
 		func() pgtype.Interval {
-			if true {
+			if currentRow.DurationInterval.Microseconds != data.DurationInterval {
 				return pgtype.Interval{Microseconds: data.DurationInterval, Valid: true}
 			}
 			return currentRow.DurationInterval
 		}(),
 		func() pgtype.Interval {
-			if true {
+			if currentRow.WorkHours.Microseconds != data.WorkHours {
 				return pgtype.Interval{Microseconds: data.WorkHours, Valid: true}
 			}
 			return currentRow.WorkHours
 		}(),
 		func() pgtype.Bytea {
-			if true {
+			if !bytes.Equal(currentRow.FileData, data.FileData) {
 				return data.FileData
 			}
 			return currentRow.FileData
 		}(),
 		func() []byte {
-			if true {
+			if !bytes.Equal(currentRow.RequiredBinary, data.RequiredBinary) {
 				return data.RequiredBinary
 			}
 			return currentRow.RequiredBinary
 		}(),
 		func() pgtype.Inet {
-			if true {
+			if currentRow.IpAddress.IPNet != data.IpAddress {
 				return pgtype.Inet{IPNet: data.IpAddress, Valid: true}
 			}
 			return currentRow.IpAddress
 		}(),
 		func() pgtype.CIDR {
-			if true {
+			if currentRow.IpNetwork.IPNet != data.IpNetwork {
 				return pgtype.Inet{IPNet: data.IpNetwork, Valid: true}
 			}
 			return currentRow.IpNetwork
 		}(),
 		func() pgtype.Macaddr {
-			if true {
+			if currentRow.MacAddress.IPNet != data.MacAddress {
 				return pgtype.Inet{IPNet: data.MacAddress, Valid: true}
 			}
 			return currentRow.MacAddress
 		}(),
 		func() pgtype.Macaddr8 {
-			if true {
+			if currentRow.Mac8Address.IPNet != data.Mac8Address {
 				return pgtype.Inet{IPNet: data.Mac8Address, Valid: true}
 			}
 			return currentRow.Mac8Address
 		}(),
 		func() pgtype.Point {
-			if true {
+			if currentRow.PointLocation != data.PointLocation {
 				return data.PointLocation
 			}
 			return currentRow.PointLocation
 		}(),
 		func() pgtype.Lseg {
-			if true {
+			if currentRow.LineSegment != data.LineSegment {
 				return data.LineSegment
 			}
 			return currentRow.LineSegment
 		}(),
 		func() pgtype.Box {
-			if true {
+			if currentRow.RectangularBox != data.RectangularBox {
 				return data.RectangularBox
 			}
 			return currentRow.RectangularBox
 		}(),
 		func() pgtype.Path {
-			if true {
+			if currentRow.PathData != data.PathData {
 				return data.PathData
 			}
 			return currentRow.PathData
 		}(),
 		func() pgtype.Polygon {
-			if true {
+			if currentRow.PolygonShape != data.PolygonShape {
 				return data.PolygonShape
 			}
 			return currentRow.PolygonShape
 		}(),
 		func() pgtype.Circle {
-			if true {
+			if currentRow.CircleArea != data.CircleArea {
 				return data.CircleArea
 			}
 			return currentRow.CircleArea
 		}(),
 		func() pgtype.JSON {
-			if true {
+			if !bytes.Equal(currentRow.JsonData.Bytes, data.JsonData) {
 				return pgtype.JSON{Bytes: data.JsonData, Valid: true}
 			}
 			return currentRow.JsonData
 		}(),
 		func() pgtype.JSONB {
-			if true {
+			if !bytes.Equal(currentRow.JsonbData.Bytes, data.JsonbData) {
 				return pgtype.JSONB{Bytes: data.JsonbData, Valid: true}
 			}
 			return currentRow.JsonbData
 		}(),
 		func() pgtype.JSONB {
-			if true {
+			if !bytes.Equal(currentRow.JsonbNotNull.Bytes, data.JsonbNotNull) {
 				return pgtype.JSONB{Bytes: data.JsonbNotNull, Valid: true}
 			}
 			return currentRow.JsonbNotNull
 		}(),
 		func() pgtype.Array[int32] {
-			if true {
+			if len(currentRow.IntegerArray.Elements) != len(data.IntegerArray) {
 				return pgtype.Array[int32]{Elements: data.IntegerArray, Valid: true}
+			}
+			for i := range currentRow.IntegerArray.Elements {
+				if currentRow.IntegerArray.Elements[i] != data.IntegerArray[i] {
+					return pgtype.Array[int32]{Elements: data.IntegerArray, Valid: true}
+				}
 			}
 			return currentRow.IntegerArray
 		}(),
 		func() pgtype.Array[string] {
-			if true {
+			if len(currentRow.TextArray.Elements) != len(data.TextArray) {
 				return pgtype.Array[string]{Elements: data.TextArray, Valid: true}
+			}
+			for i := range currentRow.TextArray.Elements {
+				if currentRow.TextArray.Elements[i] != data.TextArray[i] {
+					return pgtype.Array[string]{Elements: data.TextArray, Valid: true}
+				}
 			}
 			return currentRow.TextArray
 		}(),
 		func() pgtype.Array[int32] {
-			if true {
+			if len(currentRow.MultidimArray.Elements) != len(data.MultidimArray) {
 				return pgtype.Array[int32]{Elements: data.MultidimArray, Valid: true}
+			}
+			for i := range currentRow.MultidimArray.Elements {
+				if currentRow.MultidimArray.Elements[i] != data.MultidimArray[i] {
+					return pgtype.Array[int32]{Elements: data.MultidimArray, Valid: true}
+				}
 			}
 			return currentRow.MultidimArray
 		}(),
 		func() pgtype.Int4range {
-			if true {
+			if currentRow.IntRange != data.IntRange {
 				return data.IntRange
 			}
 			return currentRow.IntRange
 		}(),
 		func() pgtype.Int8range {
-			if true {
+			if currentRow.BigintRange != data.BigintRange {
 				return data.BigintRange
 			}
 			return currentRow.BigintRange
 		}(),
 		func() pgtype.Numrange {
-			if true {
+			if currentRow.NumericRange != data.NumericRange {
 				return data.NumericRange
 			}
 			return currentRow.NumericRange
 		}(),
 	)
-
 	row, err := db.New().UpdateComprehensiveExample(ctx, dbtx, params)
 	if err != nil {
 		return ComprehensiveExample{}, err
 	}
-
 	return rowToComprehensiveExample(row), nil
 }
 

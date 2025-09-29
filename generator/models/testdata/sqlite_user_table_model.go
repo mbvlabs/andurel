@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"github.com/google/uuid"
 	"time"
 
-	"github.com/example/sqlite/models/internal/db"
+	"github.com/google/uuid"
+
+	"github.com/mbvlabs/mithlond-ce/models/internal/db"
 )
 
 type User struct {
@@ -97,25 +98,25 @@ func UpdateUser(
 	params := db.NewUpdateUserParams(
 		data.ID.String(),
 		func() string {
-			if true {
+			if currentRow.Email != data.Email {
 				return data.Email
 			}
 			return currentRow.Email
 		}(),
 		func() sql.NullTime {
-			if true {
+			if !currentRow.EmailVerifiedAt.Time.Equal(data.EmailVerifiedAt) {
 				return sql.NullTime{Time: data.EmailVerifiedAt, Valid: true}
 			}
 			return currentRow.EmailVerifiedAt
 		}(),
 		func() []byte {
-			if true {
+			if data.Password != nil {
 				return data.Password
 			}
 			return currentRow.Password
 		}(),
 		func() int64 {
-			if true {
+			if currentRow.IsAdmin != data.IsAdmin {
 				return data.IsAdmin
 			}
 			return currentRow.IsAdmin

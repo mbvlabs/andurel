@@ -1,11 +1,13 @@
 package models
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/example/sqlite/models/internal/db"
 )
@@ -242,247 +244,238 @@ func UpdateProduct(
 	params := db.NewUpdateProductParams(
 		data.ID.String(),
 		func() sql.NullInt64 {
-			if true {
+			if currentRow.IntField.Int64 != data.IntField {
 				return sql.NullInt64{Int64: data.IntField, Valid: true}
 			}
 			return currentRow.IntField
 		}(),
 		func() sql.NullInt64 {
-			if true {
+			if currentRow.IntegerField.Int64 != data.IntegerField {
 				return sql.NullInt64{Int64: data.IntegerField, Valid: true}
 			}
 			return currentRow.IntegerField
 		}(),
 		func() sql.NullInt64 {
-			if true {
+			if currentRow.TinyintField.Int64 != data.TinyintField {
 				return sql.NullInt64{Int64: data.TinyintField, Valid: true}
 			}
 			return currentRow.TinyintField
 		}(),
 		func() sql.NullInt64 {
-			if true {
+			if currentRow.SmallintField.Int64 != data.SmallintField {
 				return sql.NullInt64{Int64: data.SmallintField, Valid: true}
 			}
 			return currentRow.SmallintField
 		}(),
 		func() sql.NullInt64 {
-			if true {
+			if currentRow.MediumintField.Int64 != data.MediumintField {
 				return sql.NullInt64{Int64: data.MediumintField, Valid: true}
 			}
 			return currentRow.MediumintField
 		}(),
 		func() sql.NullInt64 {
-			if true {
+			if currentRow.BigintField.Int64 != data.BigintField {
 				return sql.NullInt64{Int64: data.BigintField, Valid: true}
 			}
 			return currentRow.BigintField
 		}(),
 		func() sql.NullInt64 {
-			if true {
+			if currentRow.UnsignedBigintField.Int64 != data.UnsignedBigintField {
 				return sql.NullInt64{Int64: data.UnsignedBigintField, Valid: true}
 			}
 			return currentRow.UnsignedBigintField
 		}(),
 		func() sql.NullInt64 {
-			if true {
+			if currentRow.Int2Field.Int64 != data.Int2Field {
 				return sql.NullInt64{Int64: data.Int2Field, Valid: true}
 			}
 			return currentRow.Int2Field
 		}(),
 		func() sql.NullInt64 {
-			if true {
+			if currentRow.Int8Field.Int64 != data.Int8Field {
 				return sql.NullInt64{Int64: data.Int8Field, Valid: true}
 			}
 			return currentRow.Int8Field
 		}(),
 		func() sql.NullBool {
-			if true {
-				return sql.NullBool{Bool: data.BooleanField, Valid: true}
-			}
-			return currentRow.BooleanField
+			return sql.NullBool{Bool: data.BooleanField, Valid: true}
 		}(),
 		func() sql.NullBool {
-			if true {
-				return sql.NullBool{Bool: data.BoolField, Valid: true}
-			}
-			return currentRow.BoolField
+			return sql.NullBool{Bool: data.BoolField, Valid: true}
 		}(),
 		func() sql.NullString {
-			if true {
+			if currentRow.CharacterField.String != data.CharacterField {
 				return sql.NullString{String: data.CharacterField, Valid: true}
 			}
 			return currentRow.CharacterField
 		}(),
 		func() sql.NullString {
-			if true {
+			if currentRow.VarcharField.String != data.VarcharField {
 				return sql.NullString{String: data.VarcharField, Valid: true}
 			}
 			return currentRow.VarcharField
 		}(),
 		func() sql.NullString {
-			if true {
+			if currentRow.VaryingCharacterField.String != data.VaryingCharacterField {
 				return sql.NullString{String: data.VaryingCharacterField, Valid: true}
 			}
 			return currentRow.VaryingCharacterField
 		}(),
 		func() sql.NullString {
-			if true {
+			if currentRow.NcharField.String != data.NcharField {
 				return sql.NullString{String: data.NcharField, Valid: true}
 			}
 			return currentRow.NcharField
 		}(),
 		func() sql.NullString {
-			if true {
+			if currentRow.NativeCharacterField.String != data.NativeCharacterField {
 				return sql.NullString{String: data.NativeCharacterField, Valid: true}
 			}
 			return currentRow.NativeCharacterField
 		}(),
 		func() sql.NullString {
-			if true {
+			if currentRow.NvarcharField.String != data.NvarcharField {
 				return sql.NullString{String: data.NvarcharField, Valid: true}
 			}
 			return currentRow.NvarcharField
 		}(),
 		func() sql.NullString {
-			if true {
+			if currentRow.TextField.String != data.TextField {
 				return sql.NullString{String: data.TextField, Valid: true}
 			}
 			return currentRow.TextField
 		}(),
 		func() sql.NullString {
-			if true {
+			if currentRow.ClobField.String != data.ClobField {
 				return sql.NullString{String: data.ClobField, Valid: true}
 			}
 			return currentRow.ClobField
 		}(),
 		func() sql.NullString {
-			if true {
+			if currentRow.CharField.String != data.CharField {
 				return sql.NullString{String: data.CharField, Valid: true}
 			}
 			return currentRow.CharField
 		}(),
 		func() sql.NullFloat64 {
-			if true {
+			if currentRow.RealField.Float64 != data.RealField {
 				return sql.NullFloat64{Float64: data.RealField, Valid: true}
 			}
 			return currentRow.RealField
 		}(),
 		func() sql.NullFloat64 {
-			if true {
+			if currentRow.DoubleField.Float64 != data.DoubleField {
 				return sql.NullFloat64{Float64: data.DoubleField, Valid: true}
 			}
 			return currentRow.DoubleField
 		}(),
 		func() sql.NullFloat64 {
-			if true {
+			if currentRow.DoublePrecisionField.Float64 != data.DoublePrecisionField {
 				return sql.NullFloat64{Float64: data.DoublePrecisionField, Valid: true}
 			}
 			return currentRow.DoublePrecisionField
 		}(),
 		func() sql.NullFloat64 {
-			if true {
+			if currentRow.FloatField.Float64 != data.FloatField {
 				return sql.NullFloat64{Float64: data.FloatField, Valid: true}
 			}
 			return currentRow.FloatField
 		}(),
 		func() sql.NullFloat64 {
-			if true {
+			if currentRow.NumericField.Float64 != data.NumericField {
 				return sql.NullFloat64{Float64: data.NumericField, Valid: true}
 			}
 			return currentRow.NumericField
 		}(),
 		func() sql.NullFloat64 {
-			if true {
+			if currentRow.DecimalField.Float64 != data.DecimalField {
 				return sql.NullFloat64{Float64: data.DecimalField, Valid: true}
 			}
 			return currentRow.DecimalField
 		}(),
 		func() sql.NullFloat64 {
-			if true {
+			if currentRow.DecField.Float64 != data.DecField {
 				return sql.NullFloat64{Float64: data.DecField, Valid: true}
 			}
 			return currentRow.DecField
 		}(),
 		func() []byte {
-			if true {
+			if !bytes.Equal(currentRow.BlobField, data.BlobField) {
 				return data.BlobField
 			}
 			return currentRow.BlobField
 		}(),
 		func() sql.NullTime {
-			if true {
+			if !currentRow.DateAsText.Time.Equal(data.DateAsText) {
 				return sql.NullTime{Time: data.DateAsText, Valid: true}
 			}
 			return currentRow.DateAsText
 		}(),
 		func() sql.NullTime {
-			if true {
+			if !currentRow.DatetimeAsText.Time.Equal(data.DatetimeAsText) {
 				return sql.NullTime{Time: data.DatetimeAsText, Valid: true}
 			}
 			return currentRow.DatetimeAsText
 		}(),
 		func() sql.NullTime {
-			if true {
+			if !currentRow.TimestampField.Time.Equal(data.TimestampField) {
 				return sql.NullTime{Time: data.TimestampField, Valid: true}
 			}
 			return currentRow.TimestampField
 		}(),
 		func() sql.NullTime {
-			if true {
+			if !currentRow.TimeField.Time.Equal(data.TimeField) {
 				return sql.NullTime{Time: data.TimeField, Valid: true}
 			}
 			return currentRow.TimeField
 		}(),
 		func() string {
-			if true {
+			if currentRow.RequiredText != data.RequiredText {
 				return data.RequiredText
 			}
 			return currentRow.RequiredText
 		}(),
 		func() int64 {
-			if true {
+			if currentRow.RequiredInt != data.RequiredInt {
 				return data.RequiredInt
 			}
 			return currentRow.RequiredInt
 		}(),
 		func() sql.NullString {
-			if true {
+			if currentRow.DefaultText.String != data.DefaultText {
 				return sql.NullString{String: data.DefaultText, Valid: true}
 			}
 			return currentRow.DefaultText
 		}(),
 		func() sql.NullInt64 {
-			if true {
+			if currentRow.DefaultInt.Int64 != data.DefaultInt {
 				return sql.NullInt64{Int64: data.DefaultInt, Valid: true}
 			}
 			return currentRow.DefaultInt
 		}(),
 		func() sql.NullFloat64 {
-			if true {
+			if currentRow.DefaultReal.Float64 != data.DefaultReal {
 				return sql.NullFloat64{Float64: data.DefaultReal, Valid: true}
 			}
 			return currentRow.DefaultReal
 		}(),
 		func() sql.NullBool {
-			if true {
-				return sql.NullBool{Bool: data.DefaultBool, Valid: true}
-			}
-			return currentRow.DefaultBool
+			return sql.NullBool{Bool: data.DefaultBool, Valid: true}
 		}(),
 		func() sql.NullTime {
-			if true {
+			if !currentRow.DefaultTimestamp.Time.Equal(data.DefaultTimestamp) {
 				return sql.NullTime{Time: data.DefaultTimestamp, Valid: true}
 			}
 			return currentRow.DefaultTimestamp
 		}(),
 		func() sql.NullInt64 {
-			if true {
+			if currentRow.PositiveInt.Int64 != data.PositiveInt {
 				return sql.NullInt64{Int64: data.PositiveInt, Valid: true}
 			}
 			return currentRow.PositiveInt
 		}(),
 		func() sql.NullString {
-			if true {
+			if currentRow.EmailText.String != data.EmailText {
 				return sql.NullString{String: data.EmailText, Valid: true}
 			}
 			return currentRow.EmailText

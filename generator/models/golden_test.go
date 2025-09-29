@@ -56,7 +56,7 @@ func TestModelFileGeneration__GoldenFile(t *testing.T) {
 			migrationsDir: "sqlite_user_table",
 			tableName:     "users",
 			resourceName:  "User",
-			modulePath:    "github.com/example/sqlite",
+			modulePath:    "github.com/mbvlabs/mithlond-ce",
 			databaseType:  "sqlite",
 		},
 		{
