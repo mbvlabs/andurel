@@ -1,10 +1,8 @@
 package cli
 
 import (
-	"strings"
-
-	"github.com/jinzhu/inflection"
 	"github.com/mbvlabs/andurel/generator"
+	"github.com/mbvlabs/andurel/pkg/naming"
 
 	"github.com/spf13/cobra"
 )
@@ -83,7 +81,7 @@ func generateModel(cmd *cobra.Command, args []string) error {
 	if refresh {
 		return gen.RefreshConstructors(
 			resourceName,
-			inflection.Plural(strings.ToLower(resourceName)),
+			naming.DeriveTableName(resourceName),
 		)
 	}
 

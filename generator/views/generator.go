@@ -15,8 +15,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/mbvlabs/andurel/pkg/errors"
-
-	"github.com/jinzhu/inflection"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type ViewField struct {
@@ -258,7 +257,7 @@ func (g *Generator) GenerateViewWithController(
 	modulePath string,
 	withController bool,
 ) error {
-	pluralName := inflection.Plural(strings.ToLower(resourceName))
+	pluralName := naming.DeriveTableName(resourceName)
 	viewPath := filepath.Join("views", pluralName+"_resource.templ")
 
 	if _, err := os.Stat(viewPath); err == nil {

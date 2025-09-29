@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/jinzhu/inflection"
 )
 
 type InputValidator struct{}
@@ -35,12 +37,16 @@ func (v *InputValidator) ValidateTableName(tableName string) error {
 		return fmt.Errorf("table name cannot be empty")
 	}
 
-	validSQLIdentifier := regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+	validSQLIdentifier := regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
 	if !validSQLIdentifier.MatchString(tableName) {
 		return fmt.Errorf(
-			"table name '%s' must be a valid SQL identifier (letters, numbers, underscore only)",
+			"table name '%s' must be snake_case using lowercase letters, numbers, and underscores",
 			tableName,
 		)
+	}
+
+	if inflection.Plural(tableName) != tableName {
+		return fmt.Errorf("table name '%s' must be plural snake_case", tableName)
 	}
 
 	reservedKeywords := []string{

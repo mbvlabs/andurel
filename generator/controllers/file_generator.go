@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jinzhu/inflection"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/pkg/constants"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type FileGenerator struct {
@@ -34,7 +34,7 @@ func (fg *FileGenerator) GenerateController(
 	modulePath string,
 	databaseType string,
 ) error {
-	pluralName := inflection.Plural(strings.ToLower(resourceName))
+	pluralName := naming.DeriveTableName(resourceName)
 	controllerPath := filepath.Join("controllers", pluralName+".go")
 
 	if _, err := os.Stat(controllerPath); err == nil {
