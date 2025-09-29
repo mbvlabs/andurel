@@ -9,10 +9,10 @@ templ base(headOpts ...components.HeadDataOption) {
 	<!DOCTYPE html>
 	<html lang="en" data-theme="grafto">
 		@components.SetupHead(ctx, headOpts...)
-		<body class="container mx-auto min-h-screen flex flex-col bg-base-200 text-base-content">
+		<body class="min-h-screen flex flex-col bg-base-200 text-base-content">
 			{ children... }
 		</body>
-		<div class="fixed top-4 right-4 z-50 space-y-2">
+		<div id="flashContainer" class="fixed top-4 right-4 z-50 space-y-2">
 			for _, flash := range cookies.GetFlashesCtx(ctx) {
 				@components.ToastMessage(flash)
 			}

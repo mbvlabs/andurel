@@ -6,7 +6,6 @@ assets/css/tw.css
 assets/js/datastar_1-0-0-rc5.min.js
 assets/js/scripts.js
 cmd/app/main.go
-config/app.go
 config/auth.go
 config/config.go
 config/database.go
@@ -23,10 +22,10 @@ database/sqlc.yaml
 go.mod
 justfile
 models/errors.go
-models/validator.go
+models/model.go
 router/cookies/cookies.go
 router/cookies/flash.go
-router/middleware/logging.go
+router/middleware/middleware.go
 router/router.go
 router/routes/api.go
 router/routes/assets.go
@@ -46,26 +45,21 @@ views/layout.templ
 views/layout_templ.go
 views/not_found.templ
 views/not_found_templ.go
+webapp.db
 
 === .env.example ===
 ENVIRONMENT=development
 
-SERVER_HOST=localhost
-SERVER_PORT=8080
 DEFAULT_SENDER_SIGNATURE=info@andurel.com
 
-DB_KIND=postgres
-DB_PORT=5432
-DB_HOST=127.0.0.1
-DB_NAME=andurel
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_SSL_MODE=disable
+
+DB_KIND=sqlite3
+DB_PATH=./webapp.db
 
 PASSWORD_SALT=test_password_salt_value
 
-PROJECT_NAME=myapp
-APP_DOMAIN=localhost
+PROJECT_NAME=webapp
+APP_DOMAIN=localhost:8080
 APP_PROTOCOL=http
 
 SESSION_KEY=test_session_key_value
@@ -78,10 +72,11 @@ TOKEN_SIGNING_KEY=test_token_signing_key_value
 node_modules
 .env
 bin
-myapp.db
+webapp.db
 
 
 === assets/assets.go ===
+// Package assets contains embedded static assets.
 package assets
 
 import "embed"
@@ -91,6 +86,580 @@ var Files embed.FS
 
 
 === assets/css/tw.css ===
+/*! tailwindcss v4.1.13 | MIT License | https://tailwindcss.com */
+@layer properties;
+@layer theme, base, components, utilities;
+@layer theme {
+  :root, :host {
+    --font-sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+    'Noto Color Emoji';
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+    --color-gray-300: oklch(87.2% 0.01 258.338);
+    --color-gray-400: oklch(70.7% 0.022 261.325);
+    --color-gray-500: oklch(55.1% 0.027 264.364);
+    --color-black: #000;
+    --color-white: #fff;
+    --spacing: 0.25rem;
+    --text-2xl: 1.5rem;
+    --text-2xl--line-height: calc(2 / 1.5);
+    --font-weight-bold: 700;
+    --default-font-family: var(--font-sans);
+    --default-mono-font-family: var(--font-mono);
+    --color-base-200: oklch(26.805% 0.02 277.508);
+    --color-base-content: oklch(97.747% 0.007 106.545);
+    --color-info: oklch(88.263% 0.093 212.846);
+    --color-success: oklch(87.099% 0.219 148.024);
+    --color-warning: oklch(95.533% 0.134 112.757);
+    --color-error: oklch(68.22% 0.206 24.43);
+  }
+}
+@layer base {
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+  }
+  html, :host {
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+    font-family: var(--default-font-family, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji');
+    font-feature-settings: var(--default-font-feature-settings, normal);
+    font-variation-settings: var(--default-font-variation-settings, normal);
+    -webkit-tap-highlight-color: transparent;
+  }
+  hr {
+    height: 0;
+    color: inherit;
+    border-top-width: 1px;
+  }
+  abbr:where([title]) {
+    -webkit-text-decoration: underline dotted;
+    text-decoration: underline dotted;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  a {
+    color: inherit;
+    -webkit-text-decoration: inherit;
+    text-decoration: inherit;
+  }
+  b, strong {
+    font-weight: bolder;
+  }
+  code, kbd, samp, pre {
+    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace);
+    font-feature-settings: var(--default-mono-font-feature-settings, normal);
+    font-variation-settings: var(--default-mono-font-variation-settings, normal);
+    font-size: 1em;
+  }
+  small {
+    font-size: 80%;
+  }
+  sub, sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+  }
+  sub {
+    bottom: -0.25em;
+  }
+  sup {
+    top: -0.5em;
+  }
+  table {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+  }
+  :-moz-focusring {
+    outline: auto;
+  }
+  progress {
+    vertical-align: baseline;
+  }
+  summary {
+    display: list-item;
+  }
+  ol, ul, menu {
+    list-style: none;
+  }
+  img, svg, video, canvas, audio, iframe, embed, object {
+    display: block;
+    vertical-align: middle;
+  }
+  img, video {
+    max-width: 100%;
+    height: auto;
+  }
+  button, input, select, optgroup, textarea, ::file-selector-button {
+    font: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    border-radius: 0;
+    background-color: transparent;
+    opacity: 1;
+  }
+  :where(select:is([multiple], [size])) optgroup {
+    font-weight: bolder;
+  }
+  :where(select:is([multiple], [size])) optgroup option {
+    padding-inline-start: 20px;
+  }
+  ::file-selector-button {
+    margin-inline-end: 4px;
+  }
+  ::placeholder {
+    opacity: 1;
+  }
+  @supports (not (-webkit-appearance: -apple-pay-button))  or (contain-intrinsic-size: 1px) {
+    ::placeholder {
+      color: currentcolor;
+      @supports (color: color-mix(in lab, red, red)) {
+        color: color-mix(in oklab, currentcolor 50%, transparent);
+      }
+    }
+  }
+  textarea {
+    resize: vertical;
+  }
+  ::-webkit-search-decoration {
+    -webkit-appearance: none;
+  }
+  ::-webkit-date-and-time-value {
+    min-height: 1lh;
+    text-align: inherit;
+  }
+  ::-webkit-datetime-edit {
+    display: inline-flex;
+  }
+  ::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+  }
+  ::-webkit-datetime-edit, ::-webkit-datetime-edit-year-field, ::-webkit-datetime-edit-month-field, ::-webkit-datetime-edit-day-field, ::-webkit-datetime-edit-hour-field, ::-webkit-datetime-edit-minute-field, ::-webkit-datetime-edit-second-field, ::-webkit-datetime-edit-millisecond-field, ::-webkit-datetime-edit-meridiem-field {
+    padding-block: 0;
+  }
+  ::-webkit-calendar-picker-indicator {
+    line-height: 1;
+  }
+  :-moz-ui-invalid {
+    box-shadow: none;
+  }
+  button, input:where([type='button'], [type='reset'], [type='submit']), ::file-selector-button {
+    appearance: button;
+  }
+  ::-webkit-inner-spin-button, ::-webkit-outer-spin-button {
+    height: auto;
+  }
+  [hidden]:where(:not([hidden='until-found'])) {
+    display: none !important;
+  }
+}
+@layer utilities {
+  .fixed {
+    position: fixed;
+  }
+  .top-4 {
+    top: calc(var(--spacing) * 4);
+  }
+  .right-4 {
+    right: calc(var(--spacing) * 4);
+  }
+  .z-50 {
+    z-index: 50;
+  }
+  .container {
+    width: 100%;
+    @media (width >= 40rem) {
+      max-width: 40rem;
+    }
+    @media (width >= 48rem) {
+      max-width: 48rem;
+    }
+    @media (width >= 64rem) {
+      max-width: 64rem;
+    }
+    @media (width >= 80rem) {
+      max-width: 80rem;
+    }
+    @media (width >= 96rem) {
+      max-width: 96rem;
+    }
+  }
+  .mx-auto {
+    margin-inline: auto;
+  }
+  .ml-2 {
+    margin-left: calc(var(--spacing) * 2);
+  }
+  .flex {
+    display: flex;
+  }
+  .hidden {
+    display: none;
+  }
+  .h-4 {
+    height: calc(var(--spacing) * 4);
+  }
+  .min-h-screen {
+    min-height: 100vh;
+  }
+  .w-4 {
+    width: calc(var(--spacing) * 4);
+  }
+  .max-w-96 {
+    max-width: calc(var(--spacing) * 96);
+  }
+  .flex-1 {
+    flex: 1;
+  }
+  .cursor-pointer {
+    cursor: pointer;
+  }
+  .flex-col {
+    flex-direction: column;
+  }
+  .items-center {
+    align-items: center;
+  }
+  .justify-between {
+    justify-content: space-between;
+  }
+  .justify-center {
+    justify-content: center;
+  }
+  .space-y-2 {
+    :where(& > :not(:last-child)) {
+      --tw-space-y-reverse: 0;
+      margin-block-start: calc(calc(var(--spacing) * 2) * var(--tw-space-y-reverse));
+      margin-block-end: calc(calc(var(--spacing) * 2) * calc(1 - var(--tw-space-y-reverse)));
+    }
+  }
+  .rounded {
+    border-radius: 0.25rem;
+  }
+  .border {
+    border-style: var(--tw-border-style);
+    border-width: 1px;
+  }
+  .border-b-1 {
+    border-bottom-style: var(--tw-border-style);
+    border-bottom-width: 1px;
+  }
+  .border-gray-500 {
+    border-color: var(--color-gray-500);
+  }
+  .border-b-gray-300 {
+    border-bottom-color: var(--color-gray-300);
+  }
+  .bg-base-200 {
+    background-color: var(--color-base-200);
+  }
+  .bg-black {
+    background-color: var(--color-black);
+  }
+  .bg-error {
+    background-color: var(--color-error);
+  }
+  .bg-info {
+    background-color: var(--color-info);
+  }
+  .bg-success {
+    background-color: var(--color-success);
+  }
+  .bg-warning {
+    background-color: var(--color-warning);
+  }
+  .fill-white {
+    fill: var(--color-white);
+  }
+  .p-4 {
+    padding: calc(var(--spacing) * 4);
+  }
+  .px-4 {
+    padding-inline: calc(var(--spacing) * 4);
+  }
+  .py-2 {
+    padding-block: calc(var(--spacing) * 2);
+  }
+  .text-2xl {
+    font-size: var(--text-2xl);
+    line-height: var(--tw-leading, var(--text-2xl--line-height));
+  }
+  .font-bold {
+    --tw-font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-bold);
+  }
+  .text-base-content {
+    color: var(--color-base-content);
+  }
+  .filter {
+    filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
+  }
+  .hover\:fill-gray-400 {
+    &:hover {
+      @media (hover: hover) {
+        fill: var(--color-gray-400);
+      }
+    }
+  }
+}
+body {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: -0.0125em;
+  line-height: 1.5;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  text-rendering: optimizeLegibility;
+}
+@layer base {
+  [type='text'],input:where(:not([type])),[type='email'],[type='url'],[type='password'],[type='number'],[type='date'],[type='datetime-local'],[type='month'],[type='search'],[type='tel'],[type='time'],[type='week'],[multiple],textarea,select {
+    appearance: none;
+    background-color: #fff;
+    border-color: oklch(55.1% 0.027 264.364);
+    border-width: 1px;
+    border-radius: 0px;
+    padding-top: 0.5rem;
+    padding-right: 0.75rem;
+    padding-bottom: 0.5rem;
+    padding-left: 0.75rem;
+    font-size: 1rem;
+    line-height: 1.5rem;
+    --tw-shadow: 0 0 #0000;
+    &:focus {
+      outline: 2px solid transparent;
+      outline-offset: 2px;
+      --tw-ring-inset: var(--tw-empty,/*!*/ /*!*/);
+      --tw-ring-offset-width: 0px;
+      --tw-ring-offset-color: #fff;
+      --tw-ring-color: oklch(54.6% 0.245 262.881);
+      --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+      --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+      box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+      border-color: oklch(54.6% 0.245 262.881);
+    }
+  }
+  input::placeholder,textarea::placeholder {
+    color: oklch(55.1% 0.027 264.364);
+    opacity: 1;
+  }
+  ::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+  }
+  ::-webkit-date-and-time-value {
+    min-height: 1.5em;
+  }
+  ::-webkit-date-and-time-value {
+    text-align: inherit;
+  }
+  ::-webkit-datetime-edit {
+    display: inline-flex;
+  }
+  ::-webkit-datetime-edit,::-webkit-datetime-edit-year-field,::-webkit-datetime-edit-month-field,::-webkit-datetime-edit-day-field,::-webkit-datetime-edit-hour-field,::-webkit-datetime-edit-minute-field,::-webkit-datetime-edit-second-field,::-webkit-datetime-edit-millisecond-field,::-webkit-datetime-edit-meridiem-field {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='oklch(55.1%25 0.027 264.364)' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+    print-color-adjust: exact;
+  }
+  [multiple],[size]:where(select:not([size="1"])) {
+    background-image: initial;
+    background-position: initial;
+    background-repeat: unset;
+    background-size: initial;
+    padding-right: 0.75rem;
+    print-color-adjust: unset;
+  }
+  [type='checkbox'],[type='radio'] {
+    appearance: none;
+    padding: 0;
+    print-color-adjust: exact;
+    display: inline-block;
+    vertical-align: middle;
+    background-origin: border-box;
+    user-select: none;
+    flex-shrink: 0;
+    height: 1rem;
+    width: 1rem;
+    color: oklch(54.6% 0.245 262.881);
+    background-color: #fff;
+    border-color: oklch(55.1% 0.027 264.364);
+    border-width: 1px;
+    --tw-shadow: 0 0 #0000;
+  }
+  [type='checkbox'] {
+    border-radius: 0px;
+  }
+  [type='radio'] {
+    border-radius: 100%;
+  }
+  [type='checkbox']:focus,[type='radio']:focus {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    --tw-ring-inset: var(--tw-empty,/*!*/ /*!*/);
+    --tw-ring-offset-width: 2px;
+    --tw-ring-offset-color: #fff;
+    --tw-ring-color: oklch(54.6% 0.245 262.881);
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  [type='checkbox']:checked,[type='radio']:checked {
+    border-color: transparent;
+    background-color: currentColor;
+    background-size: 100% 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+  [type='checkbox']:checked {
+    background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+    @media (forced-colors: active) {
+      appearance: auto;
+    }
+  }
+  [type='radio']:checked {
+    background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='8' cy='8' r='3'/%3e%3c/svg%3e");
+    @media (forced-colors: active) {
+      appearance: auto;
+    }
+  }
+  [type='checkbox']:checked:hover,[type='checkbox']:checked:focus,[type='radio']:checked:hover,[type='radio']:checked:focus {
+    border-color: transparent;
+    background-color: currentColor;
+  }
+  [type='checkbox']:indeterminate {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 16 16'%3e%3cpath stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 8h8'/%3e%3c/svg%3e");
+    border-color: transparent;
+    background-color: currentColor;
+    background-size: 100% 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+    @media (forced-colors: active) {
+      appearance: auto;
+    }
+  }
+  [type='checkbox']:indeterminate:hover,[type='checkbox']:indeterminate:focus {
+    border-color: transparent;
+    background-color: currentColor;
+  }
+  [type='file'] {
+    background: unset;
+    border-color: inherit;
+    border-width: 0;
+    border-radius: 0;
+    padding: 0;
+    font-size: unset;
+    line-height: inherit;
+  }
+  [type='file']:focus {
+    outline: 1px solid ButtonText;
+    outline: 1px auto -webkit-focus-ring-color;
+  }
+}
+@property --tw-space-y-reverse {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0;
+}
+@property --tw-border-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+@property --tw-font-weight {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-blur {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-brightness {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-contrast {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-grayscale {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-hue-rotate {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-invert {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-opacity {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-saturate {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-sepia {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-drop-shadow {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-drop-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-drop-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-drop-shadow-size {
+  syntax: "*";
+  inherits: false;
+}
+@layer properties {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+    *, ::before, ::after, ::backdrop {
+      --tw-space-y-reverse: 0;
+      --tw-border-style: solid;
+      --tw-font-weight: initial;
+      --tw-blur: initial;
+      --tw-brightness: initial;
+      --tw-contrast: initial;
+      --tw-grayscale: initial;
+      --tw-hue-rotate: initial;
+      --tw-invert: initial;
+      --tw-opacity: initial;
+      --tw-saturate: initial;
+      --tw-sepia: initial;
+      --tw-drop-shadow: initial;
+      --tw-drop-shadow-color: initial;
+      --tw-drop-shadow-alpha: 100%;
+      --tw-drop-shadow-size: initial;
+    }
+  }
+}
 
 
 === assets/js/datastar_1-0-0-rc5.min.js ===
@@ -123,10 +692,10 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/testuser/myapp/config"
-	"github.com/testuser/myapp/controllers"
-	"github.com/testuser/myapp/database"
-	"github.com/testuser/myapp/router"
+	"myorg/webapp/config"
+	"myorg/webapp/controllers"
+	"myorg/webapp/database"
+	"myorg/webapp/router"
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/sync/errgroup"
@@ -170,9 +739,9 @@ func startServer(ctx context.Context, srv *http.Server, env string) error {
 
 	return srv.ListenAndServe()
 }
-func setupControllers(psql database.Postgres) (controllers.Controllers, error) {
+func setupControllers(sqlite database.SQLite) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
-		psql,
+		sqlite,
 	)
 	if err != nil {
 		return controllers.Controllers{}, err
@@ -181,9 +750,10 @@ func setupControllers(psql database.Postgres) (controllers.Controllers, error) {
 	return ctrl, nil
 }
 
-func setupRouter(ctrl controllers.Controllers) (*echo.Echo, error) {
+func setupRouter(ctrl controllers.Controllers, cfg config.Config) (*echo.Echo, error) {
 	router, err := router.New(
 		ctrl,
+		cfg,
 	)
 	if err != nil {
 		return nil, err
@@ -195,23 +765,25 @@ func setupRouter(ctrl controllers.Controllers) (*echo.Echo, error) {
 func run(ctx context.Context) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
-	psql, err := database.NewPostgres(ctx)
+
+	cfg := config.NewConfig()
+	sqlite, err := database.NewSQLite(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
 	}
 
-	controllers, err := setupControllers(psql)
+	controllers, err := setupControllers(sqlite)
 	if err != nil {
 		return err
 	}
 
-	handler, err := setupRouter(controllers)
+	handler, err := setupRouter(controllers, cfg)
 	if err != nil {
 		return err
 	}
 
-	port := config.App.ServerPort
-	host := config.App.ServerHost
+	port := "8080"
+	host := "0.0.0.0"
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf("%v:%v", host, port),
@@ -222,7 +794,7 @@ func run(ctx context.Context) error {
 	}
 
 	slog.InfoContext(ctx, "starting server", "host", host, "port", port)
-	return startServer(ctx, srv, config.App.Env)
+	return startServer(ctx, srv, config.Env)
 }
 
 func main() {
@@ -231,55 +803,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
-}
-
-
-=== config/app.go ===
-package config
-
-import (
-	"fmt"
-
-	"github.com/caarlos0/env/v10"
-)
-
-const (
-	DevEnvironment  = "development"
-	ProdEnvironment = "production"
-	TestEnvironment = "testing"
-)
-
-type app struct {
-	ServerHost  string `env:"SERVER_HOST"`
-	ServerPort  string `env:"SERVER_PORT"`
-	Domain      string `env:"APP_DOMAIN"`
-	ProjectName string `env:"PROJECT_NAME"`
-	Env         string `env:"ENVIRONMENT"`
-}
-
-func (a app) GetFullDomain() string {
-	if a.Env == ProdEnvironment {
-		return fmt.Sprintf("%v://%v", "https", a.Domain)
-	}
-
-	return fmt.Sprintf(
-		"%v://%v:%v",
-		"http",
-		a.Domain,
-		a.ServerPort,
-	)
-}
-
-func newAppConfig() app {
-	appCfg := app{}
-
-	if err := env.ParseWithOptions(&appCfg, env.Options{
-		RequiredIfNoDef: true,
-	}); err != nil {
-		panic(err)
-	}
-
-	return appCfg
 }
 
 
@@ -309,39 +832,89 @@ func newAuthConfig() auth {
 
 
 === config/config.go ===
+// Package config provides application-wide configuration settings.
 package config
 
-var (
-	App  = newAppConfig()
-	Auth = newAuthConfig()
-	DB   = newDatabaseConfig()
+import (
+	"fmt"
+	"os"
+	"strings"
 )
+
+const (
+	DevEnvironment  = "development"
+	ProdEnvironment = "production"
+	TestEnvironment = "testing"
+)
+
+// Global application settings that can be used throughout the codebase with defaults.
+var (
+	Env = func() string {
+		if os.Getenv("ENVIRONMENT") != "" {
+			return os.Getenv("ENVIRONMENT")
+		}
+
+		return DevEnvironment
+	}()
+	ProjectName = func() string {
+		if os.Getenv("PROJECT_NAME") != "" {
+			return os.Getenv("PROJECT_NAME")
+		}
+
+		return "andurel"
+	}()
+	Domain = func() string {
+		var domain string
+		var protocol string
+
+		if os.Getenv("APP_PROTOCOL") != "" {
+			protocol = os.Getenv("APP_PROTOCOL")
+		} else {
+			protocol = "http"
+		}
+
+		if os.Getenv("APP_DOMAIN") != "" {
+			domain = os.Getenv("APP_DOMAIN")
+		} else {
+			domain = "localhost:8080"
+		}
+
+		return fmt.Sprintf(
+			"%v://%v", protocol, domain,
+		)
+	}()
+	AuthenticatedSessionName = func() string {
+		return "ua-" + strings.ToLower(ProjectName) + "-" + Env
+	}()
+)
+
+type Config struct {
+	Auth auth
+	DB   database
+}
+
+func NewConfig() Config {
+	return Config{
+		Auth: newAuthConfig(),
+		DB:   newDatabaseConfig(),
+	}
+}
 
 
 === config/database.go ===
 package config
 
 import (
-	"fmt"
-
 	"github.com/caarlos0/env/v10"
 )
 
 type database struct {
-	Port         string `env:"DB_PORT"`
-	Host         string `env:"DB_HOST"`
-	Name         string `env:"DB_NAME"`
-	User         string `env:"DB_USER"`
-	Password     string `env:"DB_PASSWORD"`
 	DatabaseKind string `env:"DB_KIND"`
-	SslMode      string `env:"DB_SSL_MODE"`
+	Path         string `env:"DB_PATH"`
 }
 
 func (d database) GetDatabaseURL() string {
-	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
-		d.DatabaseKind, d.User, d.Password, d.Host, d.Port,
-		d.Name, d.SslMode,
-	)
+	return d.Path
 }
 
 func newDatabaseConfig() database {
@@ -361,16 +934,17 @@ func newDatabaseConfig() database {
 package controllers
 
 import (
-	"github.com/testuser/myapp/database"
+	"myorg/webapp/database"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 )
 
 type API struct {
-	db database.Postgres
+	db database.SQLite
 }
-func newAPI(db database.Postgres) API {
+
+func newAPI(db database.SQLite) API {
 	return API{db}
 }
 
@@ -390,9 +964,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/testuser/myapp/assets"
-	"github.com/testuser/myapp/config"
-	"github.com/testuser/myapp/router/routes"
+	"myorg/webapp/assets"
+	"myorg/webapp/config"
+	"myorg/webapp/router/routes"
 
 	"github.com/labstack/echo/v4"
 	"github.com/maypok86/otter"
@@ -436,7 +1010,7 @@ func newAssets() Assets {
 }
 
 func (a Assets) enableCaching(c echo.Context, content []byte) echo.Context {
-	// if config.Cfg.App.Env == config.PROD_ENVIRONMENT {
+	// if config.Env == config.PROD_ENVIRONMENT {
 	// 	//nolint:gosec //only needed for browser caching
 	// 	hash := md5.Sum(content)
 	// 	etag := fmt.Sprintf(`W/"%x-%x"`, hash, len(content))
@@ -471,7 +1045,7 @@ func (a Assets) Robots(c echo.Context) error {
 		Allow:     "/",
 		Sitemap: fmt.Sprintf(
 			"%s%s",
-			config.App.GetFullDomain(),
+			config.Domain,
 			routes.Sitemap.Path,
 		),
 	})
@@ -519,7 +1093,7 @@ type Sitemap struct {
 }
 
 func createSitemap(c echo.Context) (Sitemap, error) {
-	baseURL := config.App.GetFullDomain()
+	baseURL := config.Domain
 
 	var urls []URL
 
@@ -591,13 +1165,14 @@ func (a Assets) Script(c echo.Context) error {
 
 
 === controllers/controller.go ===
+// Package controllers provides HTTP handlers for the web application.
 package controllers
 
 import (
 	"context"
+	"myorg/webapp/database"
+	"myorg/webapp/router/cookies"
 	"net/http"
-	"github.com/testuser/myapp/database"
-	"github.com/testuser/myapp/router/cookies"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
@@ -609,8 +1184,9 @@ type Controllers struct {
 	API    API
 	Pages  Pages
 }
+
 func New(
-	db database.Postgres,
+	db database.SQLite,
 ) (Controllers, error) {
 	cacheBuilder, err := otter.NewBuilder[string, templ.Component](20)
 	if err != nil {
@@ -663,9 +1239,9 @@ func render(ctx echo.Context, t templ.Component) error {
 package controllers
 
 import (
-	"github.com/testuser/myapp/database"
+	"myorg/webapp/database"
 
-	"github.com/testuser/myapp/views"
+	"myorg/webapp/views"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
@@ -673,11 +1249,12 @@ import (
 )
 
 type Pages struct {
-	db    database.Postgres
+	db    database.SQLite
 	cache otter.CacheWithVariableTTL[string, templ.Component]
 }
+
 func newPages(
-	db database.Postgres,
+	db database.SQLite,
 	cache otter.CacheWithVariableTTL[string, templ.Component],
 ) Pages {
 	return Pages{db, cache}
@@ -748,19 +1325,17 @@ body {
 
 
 === database/database.go ===
-
+// Package database provides database connection and transaction management.
 package database
 
 import (
 	"context"
+	"database/sql"
 	"embed"
 	"errors"
 	"log/slog"
 
-	"github.com/testuser/myapp/config"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var (
@@ -772,37 +1347,31 @@ var (
 //go:embed migrations/*
 var Migrations embed.FS
 
-type Postgres struct {
-	pool *pgxpool.Pool
+type SQLite struct {
+	db *sql.DB
 }
 
-func NewPostgres(ctx context.Context) (Postgres, error) {
-	cfg, err := pgxpool.ParseConfig(config.DB.GetDatabaseURL())
+func NewSQLite(ctx context.Context, databaseURL string) (SQLite, error) {
+	db, err := sql.Open("sqlite3", databaseURL)
 	if err != nil {
-		slog.ErrorContext(ctx, "could not parse database connection string", "error", err)
-		return Postgres{}, err
+		slog.ErrorContext(ctx, "could not open sqlite database", "error", err)
+		return SQLite{}, err
 	}
 
-	pool, err := pgxpool.NewWithConfig(ctx, cfg)
-	if err != nil {
-		slog.ErrorContext(ctx, "could not establish connection to database", "error", err)
-		return Postgres{}, err
-	}
-
-	if err := pool.Ping(ctx); err != nil {
+	if err := db.PingContext(ctx); err != nil {
 		slog.ErrorContext(ctx, "could not ping database", "error", err)
-		return Postgres{}, err
+		return SQLite{}, err
 	}
 
-	return Postgres{pool}, nil
+	return SQLite{db}, nil
 }
 
-func (p *Postgres) Pool() *pgxpool.Pool {
-	return p.pool
+func (s *SQLite) Conn() *sql.DB {
+	return s.db
 }
 
-func (p *Postgres) BeginTx(ctx context.Context) (pgx.Tx, error) {
-	tx, err := p.pool.Begin(ctx)
+func (s *SQLite) BeginTx(ctx context.Context) (*sql.Tx, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not begin transaction", "reason", err)
 		return nil, errors.Join(ErrBeginTx, err)
@@ -811,8 +1380,8 @@ func (p *Postgres) BeginTx(ctx context.Context) (pgx.Tx, error) {
 	return tx, nil
 }
 
-func (p *Postgres) RollBackTx(ctx context.Context, tx pgx.Tx) error {
-	if err := tx.Rollback(ctx); err != nil {
+func (s *SQLite) RollBackTx(ctx context.Context, tx *sql.Tx) error {
+	if err := tx.Rollback(); err != nil {
 		slog.ErrorContext(ctx, "could not rollback transaction", "reason", err)
 		return errors.Join(ErrRollbackTx, err)
 	}
@@ -820,8 +1389,8 @@ func (p *Postgres) RollBackTx(ctx context.Context, tx pgx.Tx) error {
 	return nil
 }
 
-func (p *Postgres) CommitTx(ctx context.Context, tx pgx.Tx) error {
-	if err := tx.Commit(ctx); err != nil {
+func (s *SQLite) CommitTx(ctx context.Context, tx *sql.Tx) error {
+	if err := tx.Commit(); err != nil {
 		slog.ErrorContext(ctx, "could not commit transaction", "reason", err)
 		return errors.Join(ErrCommitTx, err)
 	}
@@ -841,7 +1410,7 @@ version: "2"
 sql:
   - schema: migrations
     queries: queries
-    engine: postgresql
+    engine: sqlite
     gen:
       go:
         package: db
@@ -850,14 +1419,14 @@ sql:
         output_models_file_name: entities.go
         emit_sql_as_comment: true
         emit_methods_with_db_argument: true
-        sql_package: pgx/v5
+        sql_package: "database/sql"
         overrides:
           - db_type: uuid
             go_type: github.com/google/uuid.UUID
 
 
 === go.mod ===
-module github.com/testuser/myapp
+module myorg/webapp
 
 go 1.25.0
 
@@ -871,13 +1440,13 @@ tool (
 require (
 	github.com/a-h/templ v0.3.943
 	github.com/caarlos0/env/v10 v10.0.0
-	github.com/dromara/carbon/v2 v2.6.11
+	github.com/dromara/carbon/v2 v2.6.12
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/sessions v1.4.0
-	github.com/jackc/pgx/v5 v5.7.5
 	github.com/labstack/echo-contrib v0.17.4
 	github.com/labstack/echo/v4 v4.13.4
+	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/maypok86/otter v1.2.4
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.63.0
 	go.opentelemetry.io/otel v1.38.0
@@ -932,6 +1501,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.7.5 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
@@ -1010,27 +1580,23 @@ set dotenv-load
 
 # alias
 alias r := run
-alias cdd := connect-database-docker
 
 default:
     @just --list
 
 # database 
-connect-database-docker conntainer_id name:
-	docker exec -it {{conntainer_id}} psql -U postgres {{name}}
-
 create-migration name:
-	go tool goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME create {{name}} sql
+	go tool goose -dir database/migrations sqlite3 ./webapp.db create {{name}} sql
 
 fix-migrations:
-	go tool goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME fix
+	go tool goose -dir database/migrations sqlite3 ./webapp.db fix
 
 new-migration name: 
 	just create-migration {{name}}
 	just fix-migrations
 
 up-migrations:
-	go tool goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME up
+	go tool goose -dir database/migrations sqlite3 ./webapp.db up
 
 # sqlc
 compile-queries:
@@ -1105,7 +1671,8 @@ import "errors"
 var ErrDomainValidation = errors.New("the provided payload failed validations")
 
 
-=== models/validator.go ===
+=== models/model.go ===
+// Package models contains data models and validation logic.
 package models
 
 import (
@@ -1121,28 +1688,17 @@ func setupValidator() *validator.Validate {
 
 
 === router/cookies/cookies.go ===
+// Package cookies provides utilities for managing application context and session data in an Echo web application.
 package cookies
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
-	"github.com/testuser/myapp/config"
+	"myorg/webapp/config"
 
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 )
-
-var authenticatedSessionName = fmt.Sprintf(
-	"ua-%s-%s",
-	strings.ToLower(config.App.ProjectName),
-	strings.ToLower(config.App.Env),
-)
-
-func GetAuthenticatedSessionName() string {
-	return authenticatedSessionName
-}
 
 var AppKey appKey = "app_context"
 
@@ -1168,7 +1724,7 @@ func GetAppCtx(ctx context.Context) App {
 }
 
 func GetApp(c echo.Context) App {
-	sess, err := session.Get(authenticatedSessionName, c)
+	sess, err := session.Get(config.AuthenticatedSessionName, c)
 	if err != nil {
 		return App{}
 	}
@@ -1187,7 +1743,10 @@ package cookies
 
 import (
 	"context"
+	"strings"
 	"time"
+
+	"myorg/webapp/config"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/session"
@@ -1203,11 +1762,15 @@ type FlashMessage struct {
 }
 
 var (
-	FlashKey     flashKey = "flash_key"
-	flashSession          = "flash_session"
-)
+	FlashKey = func() string {
+		if config.Env == config.ProdEnvironment {
+			return strings.ToLower(config.ProjectName) + "_" + "flash_key"
+		}
 
-type flashKey string
+		return strings.ToLower(config.ProjectName) + "_" + "dev_flash_key"
+	}()
+	flashSession = "flash_session"
+)
 
 type FlashType string
 
@@ -1266,7 +1829,8 @@ func GetFlashesCtx(ctx context.Context) []FlashMessage {
 }
 
 
-=== router/middleware/logging.go ===
+=== router/middleware/middleware.go ===
+// Package middleware provides HTTP middleware for the Echo web framework,
 package middleware
 
 import (
@@ -1354,6 +1918,7 @@ func Logging(
 
 
 === router/router.go ===
+// Package router provides the application routes and middleware setup.
 package router
 
 import (
@@ -1366,10 +1931,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/testuser/myapp/config"
-	"github.com/testuser/myapp/controllers"
-	"github.com/testuser/myapp/router/cookies"
-	"github.com/testuser/myapp/router/routes"
+	"myorg/webapp/config"
+	"myorg/webapp/controllers"
+	"myorg/webapp/router/cookies"
+	"myorg/webapp/router/routes"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
@@ -1386,23 +1951,29 @@ type Router struct {
 
 func New(
 	controllers controllers.Controllers,
+	cfg config.Config,
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
 
 	router := echo.New()
 
-	if config.App.Env != config.ProdEnvironment {
+	if config.Env != config.ProdEnvironment {
 		router.Debug = true
 	}
 
-	authKey, err := hex.DecodeString(config.Auth.SessionKey)
+	authKey, err := hex.DecodeString(cfg.Auth.SessionKey)
 	if err != nil {
 		return nil, err
 	}
-	encKey, err := hex.DecodeString(config.Auth.SessionEncryptionKey)
+	encKey, err := hex.DecodeString(cfg.Auth.SessionEncryptionKey)
 	if err != nil {
 		return nil, err
+	}
+
+	csrfName := strings.ToLower(config.ProjectName) + "_" + "dev_csrf"
+	if config.Env == config.ProdEnvironment {
+		csrfName = strings.ToLower(config.ProjectName) + "_" + "csrf"
 	}
 
 	router.Use(
@@ -1418,13 +1989,13 @@ func New(
 		echomw.CSRFWithConfig(echomw.CSRFConfig{Skipper: func(c echo.Context) bool {
 			return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
 				strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
-		}, TokenLookup: "cookie:_csrf", CookiePath: "/", CookieDomain: func() string {
-			if config.App.Env == config.ProdEnvironment {
-				return config.App.Domain
+		}, TokenLookup: "cookie:_" + csrfName, CookiePath: "/", CookieDomain: func() string {
+			if config.Env == config.ProdEnvironment {
+				return config.Domain
 			}
 
 			return ""
-		}(), CookieSecure: config.App.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
+		}(), CookieName: csrfName, CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
 
 		echomw.Recover(),
 		echomw.Logger(),
@@ -1612,7 +2183,7 @@ var startTime = time.Now().Unix()
 
 var Robots = Route{
 	Name:         assetsNamePrefix + ".robots",
-	Path:         assetsNamePrefix + "/robots.txt",
+	Path:         AssetsRoutePrefix + "/robots.txt",
 	Method:       http.MethodGet,
 	Handler:      "Assets",
 	HandleMethod: "Robots",
@@ -1620,7 +2191,7 @@ var Robots = Route{
 
 var Sitemap = Route{
 	Name:         assetsNamePrefix + ".sitemap",
-	Path:         assetsNamePrefix + "/sitemap.xml",
+	Path:         AssetsRoutePrefix + "/sitemap.xml",
 	Method:       http.MethodGet,
 	Handler:      "Assets",
 	HandleMethod: "Sitemap",
@@ -1628,7 +2199,7 @@ var Sitemap = Route{
 
 var Stylesheet = Route{
 	Name:         assetsNamePrefix + "css.stylesheet",
-	Path:         assetsNamePrefix + fmt.Sprintf("/css/%v/tw.css", startTime),
+	Path:         AssetsRoutePrefix + fmt.Sprintf("/css/%v/tw.css", startTime),
 	Method:       http.MethodGet,
 	Handler:      "Assets",
 	HandleMethod: "Stylesheet",
@@ -1636,7 +2207,7 @@ var Stylesheet = Route{
 
 var Scripts = Route{
 	Name:         assetsNamePrefix + "js.scripts",
-	Path:         assetsNamePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime),
+	Path:         AssetsRoutePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime),
 	Method:       http.MethodGet,
 	Handler:      "Assets",
 	HandleMethod: "Scripts",
@@ -1644,7 +2215,7 @@ var Scripts = Route{
 
 var Script = Route{
 	Name:         assetsNamePrefix + "js.script",
-	Path:         assetsNamePrefix + fmt.Sprintf("/js/%v/:file", startTime),
+	Path:         AssetsRoutePrefix + fmt.Sprintf("/js/%v/:file", startTime),
 	Method:       http.MethodGet,
 	Handler:      "Assets",
 	HandleMethod: "Script",
@@ -1672,6 +2243,7 @@ var HomePage = Route{
 
 
 === router/routes/routes.go ===
+// Package routes provides the application route definitions.
 package routes
 
 import "github.com/labstack/echo/v4"
@@ -1783,8 +2355,8 @@ package components
 
 import (
 	"context"
-	"github.com/testuser/myapp/config"
-	"github.com/testuser/myapp/router/routes"
+	"myorg/webapp/config"
+	"myorg/webapp/router/routes"
 )
 
 type HeadDataOption func(*HeadData)
@@ -1796,14 +2368,19 @@ type MetaContent struct {
 }
 
 type HeadData struct {
-	Title          string
-	Description    string
-	Image          string
-	Slug           string
-	MetaType       string
-	StylesheetHref string
-	ScriptSrc      string
-	ExtraMeta      []MetaContent
+	siteName           string
+	Title              string
+	Description        string
+	TwitterTitle       string
+	TwitterDescription string
+	Image              string
+	ImageAlt           string
+	Slug               string
+	canonical          string
+	MetaType           string
+	stylesheetHref     string
+	scriptSrc          string
+	ExtraMeta          []MetaContent
 }
 
 templ head(data HeadData) {
@@ -1815,14 +2392,23 @@ templ head(data HeadData) {
 		<title>
 			{ data.Title }
 		</title>
-		<link href={ data.StylesheetHref } rel="stylesheet"/>
+		<link href={ data.stylesheetHref } rel="stylesheet"/>
 		<meta property="og:type" content={ data.MetaType }/>
 		<meta property="og:title" content={ data.Title }/>
 		<meta property="og:description" content={ data.Description }/>
-		<meta property="og:url" content={ data.Slug }/>
-		<meta property="og:site_name" content={ data.Title }/>
+		<meta property="og:url" content={ data.canonical + data.Slug }/>
+		<meta property="og:site_name" content={ data.siteName }/>
+		<meta property="og:locale" content="en_US"/>
+		if data.TwitterTitle != "" && data.TwitterDescription != "" {
+			<meta name="twitter:title" content={ data.TwitterTitle }/>
+			<meta name="twitter:description" content={ data.TwitterDescription }/>
+			if data.Image != "" {
+				<meta name="twitter:image" content={ data.Image }/>
+			}
+		}
 		if data.Image != "" {
 			<meta property="og:image" content={ data.Image }/>
+			<meta property="og:image:alt" content={ data.ImageAlt }/>
 		}
 		for _, extraMeta := range data.ExtraMeta {
 			<meta
@@ -1840,21 +2426,23 @@ templ head(data HeadData) {
 		<meta name="description" content={ data.Description }/>
 		<link
 			rel="canonical"
-			href={ data.Slug }
+			href={ data.canonical + data.Slug }
 		/>
-		<script src={ data.ScriptSrc } type="module"></script>
+		<script src={ data.scriptSrc } type="module"></script>
 	</head>
 }
 
 func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 
 	data := &HeadData{
-		Title:          config.App.ProjectName,
-		Description:    "The web development framework for Go.",
+		siteName:       config.ProjectName,
+		Title:          config.ProjectName,
+		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
+		canonical:      config.Domain,
 		MetaType:       "website",
-		StylesheetHref: routes.Stylesheet.Path,
-		ScriptSrc:      routes.Scripts.Path,
+		stylesheetHref: routes.Stylesheet.Path,
+		scriptSrc:      routes.Scripts.Path,
 	}
 
 	for _, opt := range opts {
@@ -1878,8 +2466,8 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"context"
-	"github.com/testuser/myapp/config"
-	"github.com/testuser/myapp/router/routes"
+	"myorg/webapp/config"
+	"myorg/webapp/router/routes"
 )
 
 type HeadDataOption func(*HeadData)
@@ -1891,14 +2479,19 @@ type MetaContent struct {
 }
 
 type HeadData struct {
-	Title          string
-	Description    string
-	Image          string
-	Slug           string
-	MetaType       string
-	StylesheetHref string
-	ScriptSrc      string
-	ExtraMeta      []MetaContent
+	siteName           string
+	Title              string
+	Description        string
+	TwitterTitle       string
+	TwitterDescription string
+	Image              string
+	ImageAlt           string
+	Slug               string
+	canonical          string
+	MetaType           string
+	stylesheetHref     string
+	scriptSrc          string
+	ExtraMeta          []MetaContent
 }
 
 func head(data HeadData) templ.Component {
@@ -1929,7 +2522,7 @@ func head(data HeadData) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(data.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 35, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 40, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -1940,9 +2533,9 @@ func head(data HeadData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 templ.SafeURL
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(data.StylesheetHref)
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(data.stylesheetHref)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 37, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 42, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -1955,7 +2548,7 @@ func head(data HeadData) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.MetaType)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 38, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 43, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -1968,7 +2561,7 @@ func head(data HeadData) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 39, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 44, Col: 48}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -1981,7 +2574,7 @@ func head(data HeadData) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.Description)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 40, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 45, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -1992,9 +2585,9 @@ func head(data HeadData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.Slug)
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.canonical + data.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 41, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 46, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -2005,144 +2598,208 @@ func head(data HeadData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.Title)
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.siteName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 42, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 47, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"><meta property=\"og:locale\" content=\"en_US\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if data.Image != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<meta property=\"og:image\" content=\"")
+		if data.TwitterTitle != "" && data.TwitterDescription != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<meta name=\"twitter:title\" content=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var9 string
-			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(data.Image)
+			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(data.TwitterTitle)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 44, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 50, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\"><meta name=\"twitter:description\" content=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		}
-		for _, extraMeta := range data.ExtraMeta {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<meta")
+			var templ_7745c5c3_Var10 string
+			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(data.TwitterDescription)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 51, Col: 69}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if extraMeta.Name != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " name=\"")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var10 string
-				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(extraMeta.Name)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 49, Col: 26}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\"")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
 			}
-			if extraMeta.Property != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " property=\"")
+			if data.Image != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<meta name=\"twitter:image\" content=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var11 string
-				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(extraMeta.Property)
+				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(data.Image)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 52, Col: 34}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 53, Col: 51}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+		}
+		if data.Image != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<meta property=\"og:image\" content=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var12 string
+			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(data.Image)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 57, Col: 49}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\"><meta property=\"og:image:alt\" content=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var13 string
+			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(data.ImageAlt)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 58, Col: 56}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		for _, extraMeta := range data.ExtraMeta {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<meta")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if extraMeta.Name != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, " name=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var14 string
+				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(extraMeta.Name)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 63, Col: 26}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			if extraMeta.Property != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, " property=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var15 string
+				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(extraMeta.Property)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 66, Col: 34}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if extraMeta.Content != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, " content=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, " content=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var12 string
-				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(extraMeta.Content)
+				var templ_7745c5c3_Var16 string
+				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(extraMeta.Content)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 55, Col: 32}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 69, Col: 32}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, ">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, ">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<meta name=\"description\" content=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<meta name=\"description\" content=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var13 string
-		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(data.Description)
+		var templ_7745c5c3_Var17 string
+		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(data.Description)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 59, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 73, Col: 53}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\"><link rel=\"canonical\" href=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var14 templ.SafeURL
-		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinURLErrs(data.Slug)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 62, Col: 19}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "\"><link rel=\"canonical\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\"><script src=\"")
+		var templ_7745c5c3_Var18 templ.SafeURL
+		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinURLErrs(data.canonical + data.Slug)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 76, Col: 36}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var15 string
-		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(data.ScriptSrc)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/head.templ`, Line: 64, Col: 30}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\"><script src=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\" type=\"module\"></script></head>")
+		var templ_7745c5c3_Var19 string
+		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(data.scriptSrc)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/head.templ`, Line: 78, Col: 30}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "\" type=\"module\"></script></head>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2153,12 +2810,14 @@ func head(data HeadData) templ.Component {
 func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 
 	data := &HeadData{
-		Title:          config.App.ProjectName,
-		Description:    "The web development framework for Go.",
+		siteName:       config.ProjectName,
+		Title:          config.ProjectName,
+		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
+		canonical:      config.Domain,
 		MetaType:       "website",
-		StylesheetHref: routes.Stylesheet.Path,
-		ScriptSrc:      routes.Scripts.Path,
+		stylesheetHref: routes.Stylesheet.Path,
+		scriptSrc:      routes.Scripts.Path,
 	}
 
 	for _, opt := range opts {
@@ -2177,7 +2836,7 @@ package components
 import (
 	"fmt"
 	"github.com/dromara/carbon/v2"
-	"github.com/testuser/myapp/router/cookies"
+	"myorg/webapp/router/cookies"
 )
 
 templ toastBase(tType string, flash cookies.FlashMessage) {
@@ -2230,7 +2889,7 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"fmt"
 	"github.com/dromara/carbon/v2"
-	"github.com/testuser/myapp/router/cookies"
+	"myorg/webapp/router/cookies"
 )
 
 func toastBase(tType string, flash cookies.FlashMessage) templ.Component {
@@ -2261,7 +2920,7 @@ func toastBase(tType string, flash cookies.FlashMessage) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs("toast-" + flash.ID.String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/toasts.templ`, Line: 12, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 12, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -2283,7 +2942,7 @@ func toastBase(tType string, flash cookies.FlashMessage) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var3).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/toasts.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -2296,7 +2955,7 @@ func toastBase(tType string, flash cookies.FlashMessage) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(carbon.CreateFromStdTime(flash.CreatedAt).DiffForHumans())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/toasts.templ`, Line: 17, Col: 92}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 17, Col: 92}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -2309,7 +2968,7 @@ func toastBase(tType string, flash cookies.FlashMessage) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("evt.target.closest('#%s').remove(); evt.stopPropagation();", "toast-"+flash.ID.String()))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/toasts.templ`, Line: 18, Col: 129}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 18, Col: 129}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -2322,7 +2981,7 @@ func toastBase(tType string, flash cookies.FlashMessage) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(flash.Message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout/elements/views/components/toasts.templ`, Line: 26, Col: 18}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 26, Col: 18}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -2391,8 +3050,10 @@ package views
 
 templ Home() {
 	@base() {
-		<h1>Welcome to the Home Page</h1>
-		<p>This is a simple home page template.</p>
+		<main class="container mx-auto flex-1 flex flex-col items-center justify-center p-4">
+			<h1 class="text-2xl font-bold">Welcome to the Andurel Framework!</h1>
+			<p>This is a simple home page template to get you started.</p>
+		</main>
 	}
 }
 
@@ -2441,7 +3102,7 @@ func Home() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<h1>Welcome to the Home Page</h1><p>This is a simple home page template.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main class=\"container mx-auto flex-1 flex flex-col items-center justify-center p-4\"><h1 class=\"text-2xl font-bold\">Welcome to the Andurel Framework!</h1><p>This is a simple home page template to get you started.</p></main>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2533,18 +3194,18 @@ var _ = templruntime.GeneratedTemplate
 package views
 
 import (
-	"github.com/testuser/myapp/views/components"
-	"github.com/testuser/myapp/router/cookies"
+	"myorg/webapp/router/cookies"
+	"myorg/webapp/views/components"
 )
 
 templ base(headOpts ...components.HeadDataOption) {
 	<!DOCTYPE html>
 	<html lang="en" data-theme="grafto">
 		@components.SetupHead(ctx, headOpts...)
-		<body class="container mx-auto min-h-screen flex flex-col bg-base-200 text-base-content">
+		<body class="min-h-screen flex flex-col bg-base-200 text-base-content">
 			{ children... }
 		</body>
-		<div class="fixed top-4 right-4 z-50 space-y-2">
+		<div id="flashContainer" class="fixed top-4 right-4 z-50 space-y-2">
 			for _, flash := range cookies.GetFlashesCtx(ctx) {
 				@components.ToastMessage(flash)
 			}
@@ -2565,8 +3226,8 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/testuser/myapp/router/cookies"
-	"github.com/testuser/myapp/views/components"
+	"myorg/webapp/router/cookies"
+	"myorg/webapp/views/components"
 )
 
 func base(headOpts ...components.HeadDataOption) templ.Component {
@@ -2598,7 +3259,7 @@ func base(headOpts ...components.HeadDataOption) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<body class=\"container mx-auto min-h-screen flex flex-col bg-base-200 text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<body class=\"min-h-screen flex flex-col bg-base-200 text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2606,7 +3267,7 @@ func base(headOpts ...components.HeadDataOption) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</body><div class=\"fixed top-4 right-4 z-50 space-y-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</body><div id=\"flashContainer\" class=\"fixed top-4 right-4 z-50 space-y-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2696,5 +3357,8 @@ func NotFound() templ.Component {
 }
 
 var _ = templruntime.GeneratedTemplate
+
+
+=== webapp.db ===
 
 
