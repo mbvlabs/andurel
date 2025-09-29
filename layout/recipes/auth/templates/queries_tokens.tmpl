@@ -1,0 +1,44 @@
+-- name: InsertToken :exec
+{{if eq .Database "postgresql"}}
+INSERT INTO tokens (id, created_at, hash, expires_at, meta_information)
+VALUES ($1, $2, $3, $4, $5);
+{{else}}
+INSERT INTO tokens (id, created_at, hash, expires_at, meta_information)
+VALUES (?, ?, ?, ?, ?);
+{{end}}
+
+-- name: QueryTokenByHash :one
+{{if eq .Database "postgresql"}}
+SELECT id, created_at, hash, expires_at, meta_information
+FROM tokens
+WHERE hash = $1;
+{{else}}
+SELECT id, created_at, hash, expires_at, meta_information
+FROM tokens
+WHERE hash = ?;
+{{end}}
+
+-- name: DeleteToken :exec
+{{if eq .Database "postgresql"}}
+DELETE FROM tokens WHERE id = $1;
+{{else}}
+DELETE FROM tokens WHERE id = ?;
+{{end}}
+
+-- name: DeleteExpiredTokens :exec
+{{if eq .Database "postgresql"}}
+DELETE FROM tokens WHERE expires_at < NOW();
+{{else}}
+DELETE FROM tokens WHERE expires_at < datetime('now');
+{{end}}
+
+-- name: DeleteUserTokensByScope :exec
+{{if eq .Database "postgresql"}}
+DELETE FROM tokens
+WHERE meta_information->>'resource_id' = $1
+  AND meta_information->>'scope' = $2;
+{{else}}
+DELETE FROM tokens
+WHERE json_extract(meta_information, '$.resource_id') = ?
+  AND json_extract(meta_information, '$.scope') = ?;
+{{end}}
