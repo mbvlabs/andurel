@@ -23,7 +23,7 @@ var startTime = time.Now().Unix()
 
 var Robots = Route{
 	Name:         assetsNamePrefix + ".robots",
-	Path:         assetsNamePrefix + "/robots.txt",
+	Path:         AssetsRoutePrefix + "/robots.txt",
 	Method:       http.MethodGet,
 	Handler:      "Assets",
 	HandleMethod: "Robots",
@@ -31,7 +31,7 @@ var Robots = Route{
 
 var Sitemap = Route{
 	Name:         assetsNamePrefix + ".sitemap",
-	Path:         assetsNamePrefix + "/sitemap.xml",
+	Path:         AssetsRoutePrefix + "/sitemap.xml",
 	Method:       http.MethodGet,
 	Handler:      "Assets",
 	HandleMethod: "Sitemap",
@@ -39,7 +39,7 @@ var Sitemap = Route{
 
 var Stylesheet = Route{
 	Name:         assetsNamePrefix + "css.stylesheet",
-	Path:         assetsNamePrefix + fmt.Sprintf("/css/%v/tw.css", startTime),
+	Path:         AssetsRoutePrefix + fmt.Sprintf("/css/%v/tw.css", startTime),
 	Method:       http.MethodGet,
 	Handler:      "Assets",
 	HandleMethod: "Stylesheet",
@@ -47,7 +47,7 @@ var Stylesheet = Route{
 
 var Scripts = Route{
 	Name:         assetsNamePrefix + "js.scripts",
-	Path:         assetsNamePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime),
+	Path:         AssetsRoutePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime),
 	Method:       http.MethodGet,
 	Handler:      "Assets",
 	HandleMethod: "Scripts",
@@ -55,7 +55,7 @@ var Scripts = Route{
 
 var Script = Route{
 	Name:         assetsNamePrefix + "js.script",
-	Path:         assetsNamePrefix + fmt.Sprintf("/js/%v/:file", startTime),
+	Path:         AssetsRoutePrefix + fmt.Sprintf("/js/%v/:file", startTime),
 	Method:       http.MethodGet,
 	Handler:      "Assets",
 	HandleMethod: "Script",
