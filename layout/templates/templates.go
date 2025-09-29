@@ -2,5 +2,5 @@ package templates
 
 import "embed"
 
-//go:embed *.tmpl
+//go:embed *.tmpl recipes/**/*.tmpl
 var Files embed.FS

@@ -15,8 +15,10 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/mbvlabs/andurel/layout/recipes/auth"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
+	"golang.org/x/exp/slices"
 )
 
 type Element struct {
@@ -32,11 +34,12 @@ type TemplateData struct {
 	SessionEncryptionKey string
 	TokenSigningKey      string
 	PasswordSalt         string
+	WithAuth             bool
 }
 
 // Scaffold TODO: figure out a way to have full repo path on init, i.e. github.com/mbvlabs/andurel
 // breaks because go mod tidy will look up that path and not find it
-func Scaffold(targetDir, projectName, repo, database string) error {
+func Scaffold(targetDir, projectName, repo, database string, recipes []string) error {
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
 
 	if strings.Contains(repo, "github.com/") {
@@ -59,6 +62,7 @@ func Scaffold(targetDir, projectName, repo, database string) error {
 		SessionEncryptionKey: generateRandomHex(32),
 		TokenSigningKey:      generateRandomHex(32),
 		PasswordSalt:         generateRandomHex(16),
+		WithAuth:             slices.Contains(recipes, "auth"),
 	}
 
 	fmt.Print("Creating project structure...\n")
@@ -79,6 +83,13 @@ func Scaffold(targetDir, projectName, repo, database string) error {
 	fmt.Print("Processing templated files...\n")
 	if err := processTemplatedFiles(targetDir, templateData); err != nil {
 		return fmt.Errorf("failed to process templated files: %w", err)
+	}
+
+	if templateData.WithAuth {
+		fmt.Print("Processing auth recipe...\n")
+		if err := auth.ProcessAuthRecipe(targetDir, templateData); err != nil {
+			return fmt.Errorf("failed to process auth recipe: %w", err)
+		}
 	}
 
 	if database == "sqlite" {
@@ -232,6 +243,37 @@ func processTemplatedFiles(targetDir string, data TemplateData) error {
 
 func processTemplate(targetDir, templateFile, targetPath string, data TemplateData) error {
 	content, err := templates.Files.ReadFile(templateFile)
+	if err != nil {
+		return fmt.Errorf("failed to read template %s: %w", templateFile, err)
+	}
+
+	contentStr := string(content)
+
+	tmpl, err := template.New(templateFile).Parse(contentStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse template %s: %w", templateFile, err)
+	}
+
+	fullTargetPath := filepath.Join(targetDir, targetPath)
+	if err := os.MkdirAll(filepath.Dir(fullTargetPath), constants.DirPermissionDefault); err != nil {
+		return fmt.Errorf("failed to create directory for %s: %w", targetPath, err)
+	}
+
+	file, err := os.Create(fullTargetPath)
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %w", targetPath, err)
+	}
+	defer file.Close()
+
+	if err := tmpl.Execute(file, data); err != nil {
+		return fmt.Errorf("failed to execute template %s: %w", templateFile, err)
+	}
+
+	return nil
+}
+
+func ProcessTemplateFromRecipe(targetDir, templateFile, targetPath string, data TemplateData) error {
+	content, err := templates.Files.ReadFile(filepath.Join("recipes", templateFile))
 	if err != nil {
 		return fmt.Errorf("failed to read template %s: %w", templateFile, err)
 	}
