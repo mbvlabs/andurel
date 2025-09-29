@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/jinzhu/inflection"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type InputValidator struct{}
@@ -27,6 +28,38 @@ func (v *InputValidator) ValidateResourceName(resourceName string) error {
 			"resource name '%s' must be a valid Go identifier starting with uppercase letter",
 			resourceName,
 		)
+	}
+
+	snake := naming.ToSnakeCase(resourceName)
+	parts := strings.Split(snake, "_")
+	if len(parts) == 0 {
+		return fmt.Errorf("resource name '%s' could not be parsed", resourceName)
+	}
+
+	for idx, part := range parts {
+		if part == "" {
+			return fmt.Errorf("resource name '%s' contains an empty segment", resourceName)
+		}
+
+		singular := inflection.Singular(part)
+		if idx == 0 {
+			if singular != part {
+				return fmt.Errorf(
+					"resource name '%s' must start with a singular word; found '%s'",
+					resourceName,
+					part,
+				)
+			}
+			continue
+		}
+
+		if idx < len(parts)-1 && singular != part {
+			return fmt.Errorf(
+				"resource name '%s' must use singular words before the final segment; found '%s'",
+				resourceName,
+				part,
+			)
+		}
 	}
 
 	return nil

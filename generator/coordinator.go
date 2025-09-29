@@ -52,6 +52,10 @@ func (c *Coordinator) GenerateModel(resourceName string) error {
 		return err
 	}
 
+	if err := c.validator.ValidateResourceName(resourceName); err != nil {
+		return err
+	}
+
 	tableName := naming.DeriveTableName(resourceName)
 
 	if err := c.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
@@ -179,6 +183,10 @@ func (c *Coordinator) GenerateControllerFromModel(resourceName string, withViews
 			modelPath,
 			resourceName,
 		)
+	}
+
+	if err := c.validator.ValidateResourceName(resourceName); err != nil {
+		return err
 	}
 
 	tableName := naming.DeriveTableName(resourceName)
@@ -336,6 +344,10 @@ func (c *Coordinator) RefreshModel(resourceName, tableName string) error {
 		return err
 	}
 
+	if err := c.validator.ValidateResourceName(resourceName); err != nil {
+		return err
+	}
+
 	if err := c.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
 		return err
 	}
@@ -402,6 +414,10 @@ func (c *Coordinator) RefreshQueries(resourceName, tableName string) error {
 		return err
 	}
 
+	if err := c.validator.ValidateResourceName(resourceName); err != nil {
+		return err
+	}
+
 	if err := c.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
 		return err
 	}
@@ -465,6 +481,10 @@ func (c *Coordinator) RefreshQueries(resourceName, tableName string) error {
 func (c *Coordinator) RefreshConstructors(resourceName, tableName string) error {
 	modulePath, err := c.projectManager.GetModulePath()
 	if err != nil {
+		return err
+	}
+
+	if err := c.validator.ValidateResourceName(resourceName); err != nil {
 		return err
 	}
 
@@ -552,6 +572,10 @@ func (c *Coordinator) GenerateViewFromModel(resourceName string, withController 
 			modelPath,
 			resourceName,
 		)
+	}
+
+	if err := c.validator.ValidateResourceName(resourceName); err != nil {
+		return err
 	}
 
 	tableName := naming.DeriveTableName(resourceName)

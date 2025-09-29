@@ -30,3 +30,35 @@ func TestValidateTableName(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateResourceName(t *testing.T) {
+	validator := NewInputValidator()
+
+	valid := []string{
+		"User",
+		"CompanyAccount",
+		"CompanyAccounts",
+		"CompanyIntelligenceReport",
+		"CompanyIntelligenceReports",
+		"StatusReport",
+		"AnalysisReport",
+	}
+
+	for _, resource := range valid {
+		if err := validator.ValidateResourceName(resource); err != nil {
+			t.Fatalf("ValidateResourceName(%q) returned error: %v", resource, err)
+		}
+	}
+
+	invalid := map[string]string{
+		"Users":           "single-word plurals must be rejected",
+		"UsersConfuser":   "first word must be singular",
+		"CompaniesReport": "intermediate segment must be singular",
+	}
+
+	for resource, reason := range invalid {
+		if err := validator.ValidateResourceName(resource); err == nil {
+			t.Fatalf("ValidateResourceName(%q) succeeded but should fail: %s", resource, reason)
+		}
+	}
+}
