@@ -5,16 +5,16 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
 )
-
-// const moduleName = "github.com/mbvlabs/andurel/layout/elements"
 
 type Element struct {
 	RootDir string
@@ -31,7 +31,16 @@ type TemplateData struct {
 	PasswordSalt         string
 }
 
+// Scaffold TODO: figure out a way to have full repo path on init, i.e. github.com/mbvlabs/andurel
+// breaks because go mod tidy will look up that path and not find it
 func Scaffold(targetDir, projectName, repo, database string) error {
+	if strings.Contains(repo, "github.com/") {
+		slog.Warn(
+			"The 'github.com/' prefix is not supported currently as it breaks the setup process due to the repo not _yet_ existing on GH and will be removed.",
+		)
+		repo = strings.TrimPrefix(repo, "github.com/")
+	}
+
 	moduleName := projectName
 	if repo != "" {
 		moduleName = repo + "/" + projectName
@@ -136,14 +145,14 @@ func processTemplatedFiles(targetDir string, data TemplateData) error {
 		"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
 
 		// Models
-		"models_errors.tmpl":    "models/errors.go",
-		"models_validator.tmpl": "models/validator.go",
+		"models_errors.tmpl": "models/errors.go",
+		"models_model.tmpl":  "models/model.go",
 
 		// Router
-		"router_router.tmpl":             "router/router.go",
-		"router_cookies_cookies.tmpl":    "router/cookies/cookies.go",
-		"router_cookies_flash.tmpl":      "router/cookies/flash.go",
-		"router_middleware_logging.tmpl": "router/middleware/logging.go",
+		"router_router.tmpl":                "router/router.go",
+		"router_cookies_cookies.tmpl":       "router/cookies/cookies.go",
+		"router_cookies_flash.tmpl":         "router/cookies/flash.go",
+		"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
 
 		// Routes
 		"router_routes_routes.tmpl": "router/routes/routes.go",
@@ -207,33 +216,13 @@ func processTemplate(targetDir, templateFile, targetPath string, data TemplateDa
 	return nil
 }
 
-func createDirectoryStructure(targetDir string, element Element) error {
-	elementTargetPath := filepath.Join(targetDir, element.RootDir)
-
-	if err := os.MkdirAll(elementTargetPath, constants.DirPermissionDefault); err != nil {
-		return fmt.Errorf("failed to create directory %s: %w", elementTargetPath, err)
-	}
-
-	for _, subElement := range element.SubDirs {
-		if err := createDirectoryStructure(elementTargetPath, subElement); err != nil {
-			return fmt.Errorf(
-				"failed to create sub-directory structure %s: %w",
-				subElement.RootDir,
-				err,
-			)
-		}
-	}
-
-	return nil
-}
-
 const goVersion = "1.25.0"
 
-func createGoMod(targetDir, projectName string) error {
+func createGoMod(targetDir, moduleName string) error {
 	goModPath := filepath.Join(targetDir, "go.mod")
 	goModContent := fmt.Sprintf(
 		"module %s\n\ngo %s\n\ntool (\n    github.com/a-h/templ/cmd/templ\n    github.com/sqlc-dev/sqlc/cmd/sqlc\n    github.com/pressly/goose/v3/cmd/goose\n    github.com/air-verse/air\n)\n",
-		projectName,
+		moduleName,
 		goVersion,
 	)
 

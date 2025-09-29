@@ -1,4 +1,5 @@
 {{- if eq .Database "postgresql"}}
+// Package database provides database connection and transaction management.
 package database
 
 import (
@@ -77,6 +78,7 @@ func (p *Postgres) CommitTx(ctx context.Context, tx pgx.Tx) error {
 	return nil
 }
 {{- else if eq .Database "sqlite"}}
+// Package database provides database connection and transaction management.
 package database
 
 import (
