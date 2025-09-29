@@ -116,6 +116,17 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	importSet["time"] = true
 	importSet["github.com/google/uuid"] = true
 
+	// Add bytes import if needed for nullable []byte field comparisons in SQLite
+	if g.typeMapper.GetDatabaseType() == "sqlite" {
+		table, _ := cat.GetTable("", config.TableName)
+		for i, field := range model.Fields {
+			if field.Type == "[]byte" && field.SQLCType == "[]byte" && table.Columns[i].IsNullable {
+				importSet["bytes"] = true
+				break
+			}
+		}
+	}
+
 	for imp := range importSet {
 		model.Imports = append(model.Imports, imp)
 	}
@@ -140,11 +151,19 @@ func (g *Generator) populateImportGroups(model *GeneratedModel, importSet map[st
 		return
 	}
 
-	if len(importSet) != 2 {
-		return
+	// Only enable import segmentation if we have both standard library and third-party imports
+	hasStandardLibImports := false
+	hasThirdPartyImports := false
+
+	for imp := range importSet {
+		if isStandardLibraryImport(imp) {
+			hasStandardLibImports = true
+		} else {
+			hasThirdPartyImports = true
+		}
 	}
 
-	if !importSet["time"] || !importSet["github.com/google/uuid"] {
+	if !hasStandardLibImports || !hasThirdPartyImports {
 		return
 	}
 
@@ -214,36 +233,67 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 
 func (g *Generator) generateZeroCheck(col *catalog.Column, field GeneratedField) string {
 	valueExpr := "data." + field.Name
-	defaultCheck := g.typeMapper.GenerateZeroCheck(field.Type, valueExpr)
+	currentRowExpr := "currentRow." + field.Name
 
 	if g.typeMapper.GetDatabaseType() != "sqlite" {
-		return defaultCheck
+		return g.typeMapper.GenerateZeroCheck(field.Type, valueExpr)
 	}
 
-	if col.IsNullable {
-		return defaultCheck
-	}
-
+	// Handle specific types first, based on nullability
 	switch field.Type {
 	case "[]byte":
 		if field.SQLCType == "[]byte" {
-			return fmt.Sprintf("%s != nil", valueExpr)
-		}
-	case "string":
-		if field.SQLCType == "string" && col.IsUnique {
-			return fmt.Sprintf("%s != \"\"", valueExpr)
-		}
-	case "int64":
-		if field.SQLCType == "int64" && col.DefaultVal != nil {
-			return fmt.Sprintf("%s != currentRow.%s", valueExpr, field.Name)
-		}
-	case "bool":
-		if field.SQLCType == "bool" && col.DefaultVal != nil {
-			return fmt.Sprintf("%s != currentRow.%s", valueExpr, field.Name)
+			if col.IsNullable {
+				return fmt.Sprintf("!bytes.Equal(%s, %s)", currentRowExpr, valueExpr)
+			} else {
+				return fmt.Sprintf("%s != nil", valueExpr)
+			}
 		}
 	}
 
-	return defaultCheck
+	// For sql.Null types, use proper field comparison
+	if strings.HasPrefix(field.SQLCType, "sql.Null") {
+		switch field.SQLCType {
+		case "sql.NullString":
+			return fmt.Sprintf("%s.String != %s", currentRowExpr, valueExpr)
+		case "sql.NullInt64":
+			return fmt.Sprintf("%s.Int64 != %s", currentRowExpr, valueExpr)
+		case "sql.NullFloat64":
+			return fmt.Sprintf("%s.Float64 != %s", currentRowExpr, valueExpr)
+		case "sql.NullBool":
+			return ""
+		case "sql.NullTime":
+			return fmt.Sprintf("!%s.Time.Equal(%s)", currentRowExpr, valueExpr)
+		}
+	}
+
+	// For non-nullable fields (direct types)
+	if !col.IsNullable {
+		switch field.Type {
+		case "string":
+			if field.SQLCType == "string" {
+				return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+			}
+		case "int64":
+			if field.SQLCType == "int64" {
+				return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+			}
+		case "float64":
+			if field.SQLCType == "float64" {
+				return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+			}
+		case "bool":
+			if field.SQLCType == "bool" {
+				return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+			}
+		case "time.Time":
+			if field.SQLCType == "time.Time" {
+				return fmt.Sprintf("!%s.Equal(%s)", currentRowExpr, valueExpr)
+			}
+		}
+	}
+
+	return g.typeMapper.GenerateZeroCheck(field.Type, valueExpr)
 }
 
 func (g *Generator) addTypeImports(sqlcType, goType string) map[string]bool {

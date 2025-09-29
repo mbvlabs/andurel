@@ -109,10 +109,14 @@ func Update{{.Name}}(
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		func() {{.SQLCType}} {
+{{- if .ZeroCheck}}
 			if {{.ZeroCheck}} {
 				return {{.ConversionToDBForUpdate}}
 			}
 			return currentRow.{{.Name}}
+{{- else}}
+			return {{.ConversionToDBForUpdate}}
+{{- end}}
 		}(),
 {{- end}}
 {{- end}}

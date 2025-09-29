@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/mbvlabs/mithlond-ce/models/internal/db"
 )
@@ -97,13 +98,13 @@ func UpdateUser(
 	params := db.NewUpdateUserParams(
 		data.ID.String(),
 		func() string {
-			if data.Email != "" {
+			if currentRow.Email != data.Email {
 				return data.Email
 			}
 			return currentRow.Email
 		}(),
 		func() sql.NullTime {
-			if true {
+			if !currentRow.EmailVerifiedAt.Time.Equal(data.EmailVerifiedAt) {
 				return sql.NullTime{Time: data.EmailVerifiedAt, Valid: true}
 			}
 			return currentRow.EmailVerifiedAt
@@ -115,7 +116,7 @@ func UpdateUser(
 			return currentRow.Password
 		}(),
 		func() int64 {
-			if data.IsAdmin != currentRow.IsAdmin {
+			if currentRow.IsAdmin != data.IsAdmin {
 				return data.IsAdmin
 			}
 			return currentRow.IsAdmin
