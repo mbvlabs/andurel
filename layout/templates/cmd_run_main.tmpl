@@ -1,0 +1,192 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"os"
+	"os/exec"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
+
+	"github.com/joho/godotenv"
+)
+
+var (
+	runningProcesses []*exec.Cmd
+	processMutex     sync.Mutex
+)
+
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		cancel()
+		cleanup()
+	}()
+
+	if err := godotenv.Load(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not load .env file: %v\n", err)
+	}
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	var wg sync.WaitGroup
+	errChan := make(chan error, 3)
+
+	wg.Add(3)
+
+	go func() {
+		defer wg.Done()
+		if err := runLiveServer(ctx); err != nil {
+			errChan <- fmt.Errorf("live-server: %w", err)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		if err := runLiveTempl(ctx); err != nil {
+			errChan <- fmt.Errorf("live-templ: %w", err)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		if err := runLiveTailwind(ctx); err != nil {
+			errChan <- fmt.Errorf("live-tailwind: %w", err)
+		}
+	}()
+
+	go func() {
+		select {
+		case sig := <-sigChan:
+			fmt.Printf("\nReceived signal: %v\n", sig)
+			cancel()
+		case err := <-errChan:
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Shutting down all processes...\n")
+				cancel()
+			}
+		}
+	}()
+
+	wg.Wait()
+	close(errChan)
+
+	hasErrors := false
+	for err := range errChan {
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			hasErrors = true
+		}
+	}
+
+	if hasErrors {
+		os.Exit(1)
+	}
+}
+
+func addProcess(cmd *exec.Cmd) {
+	processMutex.Lock()
+	defer processMutex.Unlock()
+	runningProcesses = append(runningProcesses, cmd)
+}
+
+func cleanup() {
+	fmt.Printf("\nCleaning up processes...\n")
+
+	processMutex.Lock()
+	processes := make([]*exec.Cmd, len(runningProcesses))
+	copy(processes, runningProcesses)
+	processMutex.Unlock()
+
+	for _, cmd := range processes {
+		if cmd != nil && cmd.Process != nil {
+			cmd.Process.Kill()
+		}
+	}
+
+	exec.Command("pkill", "-f", "tmp/bin/main").Run()
+	exec.Command("fuser", "-k", "8080/tcp").Run()
+
+	time.Sleep(500 * time.Millisecond)
+	fmt.Printf("Cleanup complete.\n")
+}
+
+func runLiveServer(ctx context.Context) error {
+	cmd := exec.CommandContext(ctx, "go", "tool", "air",
+		"-build.cmd", "go build -o tmp/bin/main cmd/app/main.go",
+		"-build.bin", "tmp/bin/main",
+		"-build.exclude_dir", "node_modules",
+		"-build.include_ext", "go,css,js",
+		"-build.stop_on_error", "false",
+		"-misc.clean_on_exit", "true",
+	)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	addProcess(cmd)
+
+	<-ctx.Done()
+	if cmd.Process != nil {
+		return cmd.Process.Kill()
+	}
+	return nil
+}
+
+func runLiveTempl(ctx context.Context) error {
+	cmd := exec.CommandContext(ctx, "go", "tool", "templ", "generate", "--watch")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	addProcess(cmd)
+
+	<-ctx.Done()
+	if cmd.Process != nil {
+		return cmd.Process.Kill()
+	}
+	return nil
+}
+
+func runLiveTailwind(ctx context.Context) error {
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.CommandContext(ctx, wd+"/bin/tailwindcli",
+		"-i", "./css/base.css",
+		"-o", "./assets/css/tw.css",
+		"--watch=always",
+	)
+
+	cmd.Dir = wd
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		slog.Info(
+			"Tailwind CLI not found. Please install it using the 'andurel app tailwind' command.",
+		)
+		return err
+	}
+
+	addProcess(cmd)
+
+	<-ctx.Done()
+	if cmd.Process != nil {
+		return cmd.Process.Kill()
+	}
+	return nil
+}
