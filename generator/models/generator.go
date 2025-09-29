@@ -127,6 +127,16 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		}
 	}
 
+	// Add bytes import if needed for PostgreSQL []byte field comparisons
+	if g.typeMapper.GetDatabaseType() == "postgresql" {
+		for _, field := range model.Fields {
+			if field.Type == "[]byte" && (strings.Contains(field.SQLCType, "pgtype.") || field.SQLCType == "[]byte") {
+				importSet["bytes"] = true
+				break
+			}
+		}
+	}
+
 	for imp := range importSet {
 		model.Imports = append(model.Imports, imp)
 	}
@@ -235,8 +245,8 @@ func (g *Generator) generateZeroCheck(col *catalog.Column, field GeneratedField)
 	valueExpr := "data." + field.Name
 	currentRowExpr := "currentRow." + field.Name
 
-	if g.typeMapper.GetDatabaseType() != "sqlite" {
-		return g.typeMapper.GenerateZeroCheck(field.Type, valueExpr)
+	if g.typeMapper.GetDatabaseType() == "postgresql" {
+		return g.generatePostgreSQLZeroCheck(col, field)
 	}
 
 	// Handle specific types first, based on nullability
@@ -294,6 +304,81 @@ func (g *Generator) generateZeroCheck(col *catalog.Column, field GeneratedField)
 	}
 
 	return g.typeMapper.GenerateZeroCheck(field.Type, valueExpr)
+}
+
+func (g *Generator) generatePostgreSQLZeroCheck(col *catalog.Column, field GeneratedField) string {
+	valueExpr := "data." + field.Name
+	currentRowExpr := "currentRow." + field.Name
+
+	// Handle pgtype.Numeric specifically
+	if field.SQLCType == "pgtype.Numeric" {
+		return fmt.Sprintf("%s.Float64 != %s", currentRowExpr, valueExpr)
+	}
+
+	// Handle []byte fields (JSONB, Bytea, etc.)
+	if field.Type == "[]byte" {
+		if strings.Contains(field.SQLCType, "pgtype.") {
+			return fmt.Sprintf("!bytes.Equal(%s.Bytes, %s)", currentRowExpr, valueExpr)
+		}
+		return fmt.Sprintf("!bytes.Equal(%s, %s)", currentRowExpr, valueExpr)
+	}
+
+	// Handle pgtype fields with specific field access patterns
+	if strings.HasPrefix(field.SQLCType, "pgtype.") {
+		switch field.SQLCType {
+		case "pgtype.Text":
+			return fmt.Sprintf("%s.String != %s", currentRowExpr, valueExpr)
+		case "pgtype.Int4":
+			return fmt.Sprintf("%s.Int32 != %s", currentRowExpr, valueExpr)
+		case "pgtype.Int8":
+			return fmt.Sprintf("%s.Int64 != %s", currentRowExpr, valueExpr)
+		case "pgtype.Int2":
+			return fmt.Sprintf("%s.Int16 != %s", currentRowExpr, valueExpr)
+		case "pgtype.Float4":
+			return fmt.Sprintf("%s.Float32 != %s", currentRowExpr, valueExpr)
+		case "pgtype.Float8":
+			return fmt.Sprintf("%s.Float64 != %s", currentRowExpr, valueExpr)
+		case "pgtype.Bool":
+			return ""
+		case "pgtype.Timestamptz", "pgtype.Timestamp", "pgtype.Date", "pgtype.Time", "pgtype.Timetz":
+			return fmt.Sprintf("!%s.Time.Equal(%s)", currentRowExpr, valueExpr)
+		case "pgtype.Interval":
+			return fmt.Sprintf("%s.Microseconds != %s", currentRowExpr, valueExpr)
+		case "pgtype.Inet":
+			return fmt.Sprintf("%s.IPNet != %s", currentRowExpr, valueExpr)
+		case "pgtype.CIDR":
+			return fmt.Sprintf("%s.IPNet != %s", currentRowExpr, valueExpr)
+		case "pgtype.Macaddr":
+			return fmt.Sprintf("%s.IPNet != %s", currentRowExpr, valueExpr)
+		case "pgtype.Macaddr8":
+			return fmt.Sprintf("%s.IPNet != %s", currentRowExpr, valueExpr)
+		case "pgtype.Array[int32]":
+			return fmt.Sprintf("len(%s.Elements) != len(%s)", currentRowExpr, valueExpr)
+		case "pgtype.Array[string]":
+			return fmt.Sprintf("len(%s.Elements) != len(%s)", currentRowExpr, valueExpr)
+		default:
+			// For geometric types and ranges that are stored as strings
+			return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+		}
+	}
+
+	// Handle direct types (non-nullable fields)
+	switch field.Type {
+	case "string":
+		return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+	case "int16", "int32", "int64":
+		return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+	case "float32", "float64":
+		return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+	case "bool":
+		return fmt.Sprintf("%s", valueExpr)
+	case "time.Time":
+		return fmt.Sprintf("!%s.Equal(%s)", currentRowExpr, valueExpr)
+	case "uuid.UUID":
+		return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+	default:
+		return fmt.Sprintf("%s != %s", currentRowExpr, valueExpr)
+	}
 }
 
 func (g *Generator) addTypeImports(sqlcType, goType string) map[string]bool {
