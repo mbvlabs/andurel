@@ -3,7 +3,13 @@ package models
 import (
 	"context"
 	"errors"
-{{- range .Imports}}
+{{- range .StandardImports}}
+	"{{.}}"
+{{- end}}
+{{if and (gt (len .StandardImports) 0) (gt (len .ExternalImports) 0)}}
+
+{{end}}
+{{- range .ExternalImports}}
 	"{{.}}"
 {{- end}}
 
@@ -50,13 +56,7 @@ func Create{{.Name}}(
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.NewInsert{{.Name}}Params(
-{{- range .Fields}}
-{{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
-		{{.ConversionToDB}},
-{{- end}}
-{{- end}}
-	)
+	params := db.NewInsert{{.Name}}Params()
 	row, err := db.New().Insert{{.Name}}(ctx, dbtx, params)
 	if err != nil {
 		return {{.Name}}{}, err
@@ -92,19 +92,7 @@ func Update{{.Name}}(
 		return {{.Name}}{}, err
 	}
 
-	params := db.NewUpdate{{.Name}}Params(
-		{{uuidParam "data.ID"}},
-{{- range .Fields}}
-{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
-		func() {{.SQLCType}} {
-			if {{.ZeroCheck}} {
-				return {{.ConversionToDBForUpdate}}
-			}
-			return currentRow.{{.Name}}
-		}(),
-{{- end}}
-{{- end}}
-	)
+	params := db.NewUpdate{{.Name}}Params()
 
 	row, err := db.New().Update{{.Name}}(ctx, dbtx, params)
 	if err != nil {
@@ -237,5 +225,4 @@ func rowTo{{.Name}}(row db.{{SQLCTypeName .TableName}}) {{.Name}} {
 	}
 }
 {{end}}
-
 

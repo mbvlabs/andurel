@@ -5,7 +5,13 @@
 package db
 
 import (
-{{- range .Imports}}
+{{- range .StandardImports}}
+	"{{.}}"
+{{- end}}
+{{if and (gt (len .StandardImports) 0) (gt (len .ExternalImports) 0)}}
+
+{{end}}
+{{- range .ExternalImports}}
 	"{{.}}"
 {{- end}}
 )
