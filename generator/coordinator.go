@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jinzhu/inflection"
 	"github.com/mbvlabs/andurel/generator/controllers"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/models"
 	"github.com/mbvlabs/andurel/generator/views"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type Coordinator struct {
@@ -52,7 +52,11 @@ func (c *Coordinator) GenerateModel(resourceName string) error {
 		return err
 	}
 
-	tableName := inflection.Plural(strings.ToLower(resourceName))
+	if err := c.validator.ValidateResourceName(resourceName); err != nil {
+		return err
+	}
+
+	tableName := naming.DeriveTableName(resourceName)
 
 	if err := c.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
 		return err
@@ -181,7 +185,11 @@ func (c *Coordinator) GenerateControllerFromModel(resourceName string, withViews
 		)
 	}
 
-	tableName := inflection.Plural(strings.ToLower(resourceName))
+	if err := c.validator.ValidateResourceName(resourceName); err != nil {
+		return err
+	}
+
+	tableName := naming.DeriveTableName(resourceName)
 
 	if err := c.validator.ValidateTableName(tableName); err != nil {
 		return fmt.Errorf("derived table name validation failed: %w", err)
@@ -336,6 +344,10 @@ func (c *Coordinator) RefreshModel(resourceName, tableName string) error {
 		return err
 	}
 
+	if err := c.validator.ValidateResourceName(resourceName); err != nil {
+		return err
+	}
+
 	if err := c.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
 		return err
 	}
@@ -349,7 +361,7 @@ func (c *Coordinator) RefreshModel(resourceName, tableName string) error {
 		return fmt.Errorf("SQLC configuration validation failed: %w", err)
 	}
 
-	pluralName := inflection.Plural(strings.ToLower(resourceName))
+	pluralName := naming.DeriveTableName(resourceName)
 
 	var modelFileName strings.Builder
 	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
@@ -402,6 +414,10 @@ func (c *Coordinator) RefreshQueries(resourceName, tableName string) error {
 		return err
 	}
 
+	if err := c.validator.ValidateResourceName(resourceName); err != nil {
+		return err
+	}
+
 	if err := c.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
 		return err
 	}
@@ -415,7 +431,7 @@ func (c *Coordinator) RefreshQueries(resourceName, tableName string) error {
 		return fmt.Errorf("SQLC configuration validation failed: %w", err)
 	}
 
-	pluralName := inflection.Plural(strings.ToLower(resourceName))
+	pluralName := naming.DeriveTableName(resourceName)
 
 	var modelFileName strings.Builder
 	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
@@ -465,6 +481,10 @@ func (c *Coordinator) RefreshQueries(resourceName, tableName string) error {
 func (c *Coordinator) RefreshConstructors(resourceName, tableName string) error {
 	modulePath, err := c.projectManager.GetModulePath()
 	if err != nil {
+		return err
+	}
+
+	if err := c.validator.ValidateResourceName(resourceName); err != nil {
 		return err
 	}
 
@@ -554,7 +574,11 @@ func (c *Coordinator) GenerateViewFromModel(resourceName string, withController 
 		)
 	}
 
-	tableName := inflection.Plural(strings.ToLower(resourceName))
+	if err := c.validator.ValidateResourceName(resourceName); err != nil {
+		return err
+	}
+
+	tableName := naming.DeriveTableName(resourceName)
 
 	if err := c.validator.ValidateTableName(tableName); err != nil {
 		return fmt.Errorf("derived table name validation failed: %w", err)

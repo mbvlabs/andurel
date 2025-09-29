@@ -6,6 +6,9 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/jinzhu/inflection"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type InputValidator struct{}
@@ -27,6 +30,38 @@ func (v *InputValidator) ValidateResourceName(resourceName string) error {
 		)
 	}
 
+	snake := naming.ToSnakeCase(resourceName)
+	parts := strings.Split(snake, "_")
+	if len(parts) == 0 {
+		return fmt.Errorf("resource name '%s' could not be parsed", resourceName)
+	}
+
+	for idx, part := range parts {
+		if part == "" {
+			return fmt.Errorf("resource name '%s' contains an empty segment", resourceName)
+		}
+
+		singular := inflection.Singular(part)
+		if idx == 0 {
+			if singular != part {
+				return fmt.Errorf(
+					"resource name '%s' must start with a singular word; found '%s'",
+					resourceName,
+					part,
+				)
+			}
+			continue
+		}
+
+		if idx < len(parts)-1 && singular != part {
+			return fmt.Errorf(
+				"resource name '%s' must use singular words before the final segment; found '%s'",
+				resourceName,
+				part,
+			)
+		}
+	}
+
 	return nil
 }
 
@@ -35,12 +70,16 @@ func (v *InputValidator) ValidateTableName(tableName string) error {
 		return fmt.Errorf("table name cannot be empty")
 	}
 
-	validSQLIdentifier := regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+	validSQLIdentifier := regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
 	if !validSQLIdentifier.MatchString(tableName) {
 		return fmt.Errorf(
-			"table name '%s' must be a valid SQL identifier (letters, numbers, underscore only)",
+			"table name '%s' must be snake_case using lowercase letters, numbers, and underscores",
 			tableName,
 		)
+	}
+
+	if inflection.Plural(tableName) != tableName {
+		return fmt.Errorf("table name '%s' must be plural snake_case", tableName)
 	}
 
 	reservedKeywords := []string{
