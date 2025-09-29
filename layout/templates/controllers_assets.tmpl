@@ -148,17 +148,16 @@ func createSitemap(c echo.Context) (Sitemap, error) {
 		Priority:   "1",
 	})
 
-	for _, r := range c.Echo().Routes() {
-		switch r.Name {
-		// case routes.AboutPage.Name:
-		// 	urls = append(urls, URL{
-		// 		Loc: fmt.Sprintf(
-		// 			"%s%s",
-		// 			baseUrl,
-		// 			r.Path,
-		// 		),
-		// 		ChangeFreq: "monthly",
-		// 	})
+	for _, r := range routes.BuildRoutes {
+		if r.Method == http.MethodGet && r.IncludeInSitemap {
+			urls = append(urls, URL{
+				Loc: fmt.Sprintf(
+					"%s%s",
+					baseURL,
+					r.Path,
+				),
+				ChangeFreq: "monthly",
+			})
 		}
 	}
 

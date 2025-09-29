@@ -1117,17 +1117,16 @@ func createSitemap(c echo.Context) (Sitemap, error) {
 		Priority:   "1",
 	})
 
-	for _, r := range c.Echo().Routes() {
-		switch r.Name {
-		// case routes.AboutPage.Name:
-		// 	urls = append(urls, URL{
-		// 		Loc: fmt.Sprintf(
-		// 			"%s%s",
-		// 			baseUrl,
-		// 			r.Path,
-		// 		),
-		// 		ChangeFreq: "monthly",
-		// 	})
+	for _, r := range routes.BuildRoutes {
+		if r.Method == http.MethodGet && r.IncludeInSitemap {
+			urls = append(urls, URL{
+				Loc: fmt.Sprintf(
+					"%s%s",
+					baseURL,
+					r.Path,
+				),
+				ChangeFreq: "monthly",
+			})
 		}
 	}
 
@@ -2256,11 +2255,12 @@ var pageRoutes = []Route{
 }
 
 var HomePage = Route{
-	Name:         pageNamePrefix + ".home",
-	Path:         "/",
-	Method:       http.MethodGet,
-	Handler:      "Pages",
-	HandleMethod: "Home",
+	Name:             pageNamePrefix + ".home",
+	Path:             "/",
+	Method:           http.MethodGet,
+	Handler:          "Pages",
+	HandleMethod:     "Home",
+	IncludeInSitemap: true,
 }
 
 
@@ -2271,12 +2271,13 @@ package routes
 import "github.com/labstack/echo/v4"
 
 type Route struct {
-	Name         string
-	Path         string
-	Handler      string
-	HandleMethod string
-	Method       string
-	Middleware   []func(next echo.HandlerFunc) echo.HandlerFunc
+	Name             string
+	Path             string
+	Handler          string
+	HandleMethod     string
+	Method           string
+	IncludeInSitemap bool
+	Middleware       []func(next echo.HandlerFunc) echo.HandlerFunc
 }
 
 var BuildRoutes = func() []Route {
