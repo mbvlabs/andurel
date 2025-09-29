@@ -10,7 +10,7 @@ import (
 func newGenerateCommand() *cobra.Command {
 	generateCmd := &cobra.Command{
 		Use:     "generate",
-		Aliases: []string{"g"},
+		Aliases: []string{"g", "gen"},
 		Short:   "Generate code and scaffolds",
 		Long:    `Generate models, controllers, views, resources, and more.`,
 	}
