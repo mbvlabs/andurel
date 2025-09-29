@@ -8,14 +8,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"text/template"
 
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
 )
 
-const moduleName = "github.com/mbvlabs/andurel/layout/elements"
+// const moduleName = "github.com/mbvlabs/andurel/layout/elements"
 
 type Element struct {
 	RootDir string
@@ -32,78 +31,7 @@ type TemplateData struct {
 	PasswordSalt         string
 }
 
-var Layout = []Element{
-	{
-		RootDir: "assets",
-		SubDirs: []Element{
-			{
-				RootDir: "css",
-			},
-			{
-				RootDir: "js",
-			},
-		},
-	},
-	{
-		RootDir: "cmd",
-		SubDirs: []Element{
-			{
-				RootDir: "app",
-			},
-		},
-	},
-	{
-		RootDir: "config",
-	},
-	{
-		RootDir: "css",
-	},
-	{
-		RootDir: "controllers",
-	},
-	{
-		RootDir: "database",
-		SubDirs: []Element{
-			{
-				RootDir: "migrations",
-			},
-			{
-				RootDir: "queries",
-			},
-		},
-	},
-	{
-		RootDir: "models",
-	},
-	{
-		RootDir: "router",
-		SubDirs: []Element{
-			{
-				RootDir: "cookies",
-			},
-			{
-				RootDir: "middleware",
-			},
-			{
-				RootDir: "routes",
-			},
-		},
-	},
-	{
-		RootDir: "views",
-		SubDirs: []Element{
-			{
-				RootDir: "components",
-			},
-		},
-	},
-}
-
 func Scaffold(targetDir, projectName, repo, database string) error {
-	return ScaffoldWithDatabase(targetDir, projectName, repo, database)
-}
-
-func ScaffoldWithDatabase(targetDir, projectName, repo, database string) error {
 	moduleName := projectName
 	if repo != "" {
 		moduleName = repo + "/" + projectName
@@ -123,18 +51,16 @@ func ScaffoldWithDatabase(targetDir, projectName, repo, database string) error {
 		return fmt.Errorf("failed to create target directory: %w", err)
 	}
 
-	if err := processTemplatedFiles(targetDir, templateData); err != nil {
-		return fmt.Errorf("failed to process templated files: %w", err)
+	if err := initializeGit(targetDir); err != nil {
+		return fmt.Errorf("failed to initialize git: %w", err)
 	}
 
 	if err := createGoMod(targetDir, moduleName); err != nil {
 		return fmt.Errorf("failed to create go.mod: %w", err)
 	}
 
-	for _, element := range Layout {
-		if err := createDirectoryStructure(targetDir, element); err != nil {
-			return fmt.Errorf("failed to create directory structure %s: %w", element.RootDir, err)
-		}
+	if err := processTemplatedFiles(targetDir, templateData); err != nil {
+		return fmt.Errorf("failed to process templated files: %w", err)
 	}
 
 	if database == "sqlite" {
@@ -143,12 +69,25 @@ func ScaffoldWithDatabase(targetDir, projectName, repo, database string) error {
 		}
 	}
 
+	if err := runGoFmt(targetDir); err != nil {
+		return fmt.Errorf("failed to run go fmt: %w", err)
+	}
+
 	if err := runGoModTidy(targetDir); err != nil {
 		return fmt.Errorf("failed to run go mod tidy: %w", err)
 	}
 
-	if err := initializeGit(targetDir); err != nil {
-		return fmt.Errorf("failed to initialize git: %w", err)
+	if err := runTemplFmt(targetDir); err != nil {
+		return fmt.Errorf("failed to run templ fmt: %w", err)
+	}
+
+	if err := runTemplGenerate(targetDir); err != nil {
+		return fmt.Errorf("failed to run templ generate: %w", err)
+	}
+
+	// calling go mod tidy again to ensure everything is in place after templ generation
+	if err := runGoModTidy(targetDir); err != nil {
+		return fmt.Errorf("failed to run go mod tidy: %w", err)
 	}
 
 	return nil
@@ -182,7 +121,6 @@ func processTemplatedFiles(targetDir string, data TemplateData) error {
 		"cmd_app_main.tmpl": "cmd/app/main.go",
 
 		// Config
-		"config_app.tmpl":      "config/app.go",
 		"config_auth.tmpl":     "config/auth.go",
 		"config_config.tmpl":   "config/config.go",
 		"config_database.tmpl": "config/database.go",
@@ -223,17 +161,6 @@ func processTemplatedFiles(targetDir string, data TemplateData) error {
 		// View Components
 		"views_components_head.tmpl":   "views/components/head.templ",
 		"views_components_toasts.tmpl": "views/components/toasts.templ",
-
-		// Generated Template Files
-		"views_layout_templ.tmpl":         "views/layout_templ.go",
-		"views_home_templ.tmpl":           "views/home_templ.go",
-		"views_bad_request_templ.tmpl":    "views/bad_request_templ.go",
-		"views_internal_error_templ.tmpl": "views/internal_error_templ.go",
-		"views_not_found_templ.tmpl":      "views/not_found_templ.go",
-
-		// Generated Component Files
-		"views_components_head_templ.tmpl":   "views/components/head_templ.go",
-		"views_components_toasts_templ.tmpl": "views/components/toasts_templ.go",
 	}
 
 	for templateFile, targetPath := range templateMappings {
@@ -253,9 +180,9 @@ func processTemplate(targetDir, templateFile, targetPath string, data TemplateDa
 
 	contentStr := string(content)
 
-	if strings.HasSuffix(templateFile, "_templ.tmpl") {
-		contentStr = strings.ReplaceAll(contentStr, moduleName, data.ModuleName)
-	}
+	// if strings.HasSuffix(templateFile, "_templ.tmpl") {
+	// 	contentStr = strings.ReplaceAll(contentStr, moduleName, data.ModuleName)
+	// }
 
 	tmpl, err := template.New(templateFile).Parse(contentStr)
 	if err != nil {
@@ -321,6 +248,24 @@ func createSqliteDB(targetDir, projectName string) error {
 
 func runGoModTidy(targetDir string) error {
 	cmd := exec.Command("go", "mod", "tidy")
+	cmd.Dir = targetDir
+	return cmd.Run()
+}
+
+func runGoFmt(targetDir string) error {
+	cmd := exec.Command("go", "fmt", "./...")
+	cmd.Dir = targetDir
+	return cmd.Run()
+}
+
+func runTemplGenerate(targetDir string) error {
+	cmd := exec.Command("go", "tool", "templ", "generate", "./views")
+	cmd.Dir = targetDir
+	return cmd.Run()
+}
+
+func runTemplFmt(targetDir string) error {
+	cmd := exec.Command("go", "tool", "templ", "fmt", "./views")
 	cmd.Dir = targetDir
 	return cmd.Run()
 }

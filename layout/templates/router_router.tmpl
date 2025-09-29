@@ -30,23 +30,29 @@ type Router struct {
 
 func New(
 	controllers controllers.Controllers,
+	cfg config.Config,
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
 
 	router := echo.New()
 
-	if config.App.Env != config.ProdEnvironment {
+	if config.Env != config.ProdEnvironment {
 		router.Debug = true
 	}
 
-	authKey, err := hex.DecodeString(config.Auth.SessionKey)
+	authKey, err := hex.DecodeString(cfg.Auth.SessionKey)
 	if err != nil {
 		return nil, err
 	}
-	encKey, err := hex.DecodeString(config.Auth.SessionEncryptionKey)
+	encKey, err := hex.DecodeString(cfg.Auth.SessionEncryptionKey)
 	if err != nil {
 		return nil, err
+	}
+
+	csrfName := strings.ToLower(config.ProjectName) + "_" + "dev_csrf"
+	if config.Env == config.ProdEnvironment {
+		csrfName = strings.ToLower(config.ProjectName) + "_" + "csrf"
 	}
 
 	router.Use(
@@ -62,13 +68,13 @@ func New(
 		echomw.CSRFWithConfig(echomw.CSRFConfig{Skipper: func(c echo.Context) bool {
 			return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
 				strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
-		}, TokenLookup: "cookie:_csrf", CookiePath: "/", CookieDomain: func() string {
-			if config.App.Env == config.ProdEnvironment {
-				return config.App.Domain
+		}, TokenLookup: "cookie:_" + csrfName, CookiePath: "/", CookieDomain: func() string {
+			if config.Env == config.ProdEnvironment {
+				return config.Domain
 			}
 
 			return ""
-		}(), CookieSecure: config.App.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
+		}(), CookieName: csrfName, CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
 
 		echomw.Recover(),
 		echomw.Logger(),

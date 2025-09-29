@@ -20,19 +20,6 @@ type app struct {
 	Env         string `env:"ENVIRONMENT"`
 }
 
-func (a app) GetFullDomain() string {
-	if a.Env == ProdEnvironment {
-		return fmt.Sprintf("%v://%v", "https", a.Domain)
-	}
-
-	return fmt.Sprintf(
-		"%v://%v:%v",
-		"http",
-		a.Domain,
-		a.ServerPort,
-	)
-}
-
 func newAppConfig() app {
 	appCfg := app{}
 

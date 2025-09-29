@@ -15,14 +15,19 @@ type MetaContent struct {
 }
 
 type HeadData struct {
-	Title          string
-	Description    string
-	Image          string
-	Slug           string
-	MetaType       string
-	StylesheetHref string
-	ScriptSrc      string
-	ExtraMeta      []MetaContent
+	siteName 	   		  string
+	Title          		  string
+	Description    		  string
+	TwitterTitle          string
+	TwitterDescription    string
+	Image                 string
+	ImageAlt 	          string
+	Slug                  string
+	canonical             string
+	MetaType              string
+	stylesheetHref        string
+	scriptSrc             string
+	ExtraMeta             []MetaContent
 }
 
 templ head(data HeadData) {
@@ -34,14 +39,24 @@ templ head(data HeadData) {
 		<title>
 			{ data.Title }
 		</title>
-		<link href={ data.StylesheetHref } rel="stylesheet"/>
+		<link href={ data.stylesheetHref } rel="stylesheet"/>
 		<meta property="og:type" content={ data.MetaType }/>
 		<meta property="og:title" content={ data.Title }/>
 		<meta property="og:description" content={ data.Description }/>
-		<meta property="og:url" content={ data.Slug }/>
-		<meta property="og:site_name" content={ data.Title }/>
+		<meta property="og:url" content={ data.canonical + data.Slug }/>
+		<meta property="og:site_name" content={ data.siteName }/>
+		<meta property="og:locale" content="en_US" />
+		if data.TwitterTitle != "" && data.TwitterDescription != "" {
+		    <meta name="twitter:title" content={ data.TwitterTitle }/>
+		    <meta name="twitter:description" content={ data.TwitterDescription }/>
+
+			if data.Image != "" {
+			    <meta name="twitter:image" content={ data.Image }/>
+			}
+		}
 		if data.Image != "" {
 			<meta property="og:image" content={ data.Image }/>
+    		<meta property="og:image:alt" content={ data.ImageAlt }/>
 		}
 		for _, extraMeta := range data.ExtraMeta {
 			<meta
@@ -59,21 +74,23 @@ templ head(data HeadData) {
 		<meta name="description" content={ data.Description }/>
 		<link
 			rel="canonical"
-			href={ data.Slug }
+			href={ data.canonical + data.Slug }
 		/>
-		<script src={ data.ScriptSrc } type="module"></script>
+		<script src={ data.scriptSrc } type="module"></script>
 	</head>
 }
 
 func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 
 	data := &HeadData{
-		Title:          config.App.ProjectName,
-		Description:    "The web development framework for Go.",
+		siteName:       config.ProjectName,
+		Title: 		    config.ProjectName,
+		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
+		canonical:      config.Domain,
 		MetaType:       "website",
-		StylesheetHref: routes.Stylesheet.Path,
-		ScriptSrc:      routes.Scripts.Path,
+		stylesheetHref: routes.Stylesheet.Path,
+		scriptSrc:      routes.Scripts.Path,
 	}
 
 	for _, opt := range opts {
