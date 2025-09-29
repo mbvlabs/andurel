@@ -1,0 +1,34 @@
+package auth
+
+import "{{.ModuleName}}/views/layout"
+
+templ Login() {
+	@layout.Base() {
+		<div class="container mx-auto max-w-md mt-8 px-4">
+			<h1 class="text-3xl font-bold mb-6">Login</h1>
+			<form method="POST" action="/login" data-on-submit="$$post('/login')">
+				<div class="form-control mb-4">
+					<label class="label" for="email">
+						<span class="label-text">Email</span>
+					</label>
+					<input type="email" name="email" id="email" class="input input-bordered w-full" required/>
+				</div>
+				<div class="form-control mb-4">
+					<label class="label" for="password">
+						<span class="label-text">Password</span>
+					</label>
+					<input type="password" name="password" id="password" class="input input-bordered w-full" required/>
+				</div>
+				<div id="loginRes" class="mb-4"></div>
+				<button type="submit" class="btn btn-primary w-full">Login</button>
+			</form>
+			<div class="mt-4 text-center">
+				<a href="/forgot-password" class="link link-primary">Forgot password?</a>
+			</div>
+			<div class="mt-4 text-center">
+				<span>Don't have an account?</span>
+				<a href="/signup" class="link link-primary ml-1">Sign up</a>
+			</div>
+		</div>
+	}
+}
