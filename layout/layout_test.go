@@ -13,6 +13,13 @@ import (
 )
 
 func TestProjectScaffoldingSqlite__GoldenFile(t *testing.T) {
+	if err := os.Setenv("ANDUREL_SKIP_TAILWIND", "true"); err != nil {
+		t.Fatalf("Failed to set ANDUREL_SKIP_TAILWIND env var: %v", err)
+	}
+	if err := os.Setenv("ANDUREL_SKIP_BUILD", "true"); err != nil {
+		t.Fatalf("Failed to set ANDUREL_SKIP_TAILWIND env var: %v", err)
+	}
+
 	tests := []struct {
 		name           string
 		projectName    string
@@ -159,7 +166,7 @@ func captureScaffoldedProject(t *testing.T, projectDir string) string {
 		}
 
 		contentStr := string(content)
-		if strings.HasSuffix(file, ".env.example") {
+		if strings.HasSuffix(file, ".env.example") || strings.HasSuffix(file, ".env") {
 			contentStr = normalizeEnvSecrets(contentStr)
 		}
 
