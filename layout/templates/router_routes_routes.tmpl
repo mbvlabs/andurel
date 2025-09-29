@@ -31,5 +31,12 @@ var BuildRoutes = func() []Route {
 		apiRoutes...,
 	)
 
+{{if .WithAuth}}
+	r = append(
+		r,
+		authRoutes...,
+	)
+{{end}}
+
 	return r
 }()
