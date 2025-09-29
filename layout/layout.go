@@ -230,10 +230,6 @@ func processTemplate(targetDir, templateFile, targetPath string, data TemplateDa
 
 	contentStr := string(content)
 
-	// if strings.HasSuffix(templateFile, "_templ.tmpl") {
-	// 	contentStr = strings.ReplaceAll(contentStr, moduleName, data.ModuleName)
-	// }
-
 	tmpl, err := template.New(templateFile).Parse(contentStr)
 	if err != nil {
 		return fmt.Errorf("failed to parse template %s: %w", templateFile, err)
@@ -383,73 +379,3 @@ func getTailwindDownloadURL() (string, error) {
 
 	return fmt.Sprintf("%s/tailwindcss-%s", baseURL, arch), nil
 }
-
-// func downloadTailwindBinary(targetDir string) error {
-// 	binPath := filepath.Join("bin", "tailwindcli")
-//
-// 	if _, err := os.Stat(binPath); err == nil {
-// 		fmt.Printf("Tailwind binary found at: %s\n", binPath)
-// 		return nil
-// 	}
-//
-// 	fmt.Println("Tailwind binary not found, downloading...")
-//
-// 	if err := os.MkdirAll("bin", 0o755); err != nil {
-// 		return fmt.Errorf("failed to create bin directory: %w", err)
-// 	}
-//
-// 	downloadURL, err := getTailwindDownloadURL()
-// 	if err != nil {
-// 		return err
-// 	}
-//
-// 	fmt.Printf("Downloading latest Tailwind CLI for %s...\n", runtime.GOOS)
-//
-// 	resp, err := http.Get(downloadURL)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to download Tailwind: %w", err)
-// 	}
-// 	defer resp.Body.Close()
-//
-// 	if resp.StatusCode != http.StatusOK {
-// 		return fmt.Errorf("failed to download Tailwind: status %d", resp.StatusCode)
-// 	}
-//
-// 	out, err := os.Create(binPath)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to create binary file: %w", err)
-// 	}
-// 	defer out.Close()
-//
-// 	if _, err := io.Copy(out, resp.Body); err != nil {
-// 		return fmt.Errorf("failed to write binary: %w", err)
-// 	}
-//
-// 	if err := os.Chmod(binPath, 0o755); err != nil {
-// 		return fmt.Errorf("failed to make binary executable: %w", err)
-// 	}
-//
-// 	fmt.Printf("Tailwind CLI downloaded to %s\n", binPath)
-// 	return nil
-// }
-//
-// func getTailwindDownloadURL() (string, error) {
-// 	baseURL := "https://github.com/tailwindlabs/tailwindcss/releases/latest/download"
-//
-// 	var arch string
-// 	switch runtime.GOOS {
-// 	case "darwin":
-// 		arch = "macos-x64"
-// 	case "linux":
-// 		arch = "linux-x64"
-// 	case "windows":
-// 		arch = "windows-x64.exe"
-// 	default:
-// 		return "", fmt.Errorf(
-// 			"unsupported platform: %s. Supported platforms: darwin (mac), linux, windows",
-// 			runtime.GOOS,
-// 		)
-// 	}
-//
-// 	return fmt.Sprintf("%s/tailwindcss-%s", baseURL, arch), nil
-// }
