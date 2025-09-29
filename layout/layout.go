@@ -114,7 +114,14 @@ func Scaffold(targetDir, projectName, repo, database string) error {
 	// Need to skip build for testing purposes
 	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
 		if err := runGoRunBin(targetDir); err != nil {
-			return fmt.Errorf("failed to run go fmt: %w", err)
+			return fmt.Errorf("failed to build run binary: %w", err)
+		}
+	}
+
+	fmt.Print("Building migration binary...\n")
+	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
+		if err := runGoMigrationBin(targetDir); err != nil {
+			return fmt.Errorf("failed to build migration binary: %w", err)
 		}
 	}
 
@@ -167,8 +174,9 @@ func processTemplatedFiles(targetDir string, data TemplateData) error {
 		"css_theme.tmpl": "css/theme.css",
 
 		// Commands
-		"cmd_app_main.tmpl": "cmd/app/main.go",
-		"cmd_run_main.tmpl": "cmd/run/main.go",
+		"cmd_app_main.tmpl":       "cmd/app/main.go",
+		"cmd_migration_main.tmpl": "cmd/migration/main.go",
+		"cmd_run_main.tmpl":       "cmd/run/main.go",
 
 		// Config
 		"config_auth.tmpl":     "config/auth.go",
@@ -286,6 +294,12 @@ func runGoFmt(targetDir string) error {
 
 func runGoRunBin(targetDir string) error {
 	cmd := exec.Command("go", "build", "-o", "bin/run", "cmd/run/main.go")
+	cmd.Dir = targetDir
+	return cmd.Run()
+}
+
+func runGoMigrationBin(targetDir string) error {
+	cmd := exec.Command("go", "build", "-o", "bin/migration", "cmd/migration/main.go")
 	cmd.Dir = targetDir
 	return cmd.Run()
 }
