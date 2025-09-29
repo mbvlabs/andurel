@@ -6,6 +6,7 @@ assets/css/tw.css
 assets/js/datastar_1-0-0-rc5.min.js
 assets/js/scripts.js
 cmd/app/main.go
+cmd/migration/main.go
 cmd/run/main.go
 config/auth.go
 config/config.go
@@ -807,6 +808,210 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
+}
+
+
+=== cmd/migration/main.go ===
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
+	"testuser/myapp/config"
+
+	"github.com/joho/godotenv"
+	"gopkg.in/yaml.v3"
+)
+
+const (
+	sqlcConfigPath    = "database/sqlc.yaml"
+	migrationsDir     = "database/migrations"
+	cmdCreate         = "create"
+	cmdFix            = "fix"
+	cmdNew            = "new"
+	cmdUp             = "up"
+	cmdDown           = "down"
+	cmdReset          = "reset"
+	cmdDownTo         = "down-to"
+	cmdUpTo           = "up-to"
+	gooseDriverPg     = "postgres"
+	gooseDriverSQLite = "sqlite3"
+)
+
+type sqlcConfig struct {
+	SQL []struct {
+		Engine string `yaml:"engine"`
+	} `yaml:"sql"`
+}
+
+func main() {
+	if err := execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
+}
+
+func execute() error {
+	if err := godotenv.Load(); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not load .env file: %v\n", err)
+	}
+
+	if len(os.Args) < 2 {
+		printUsage()
+		return errors.New("missing migration command")
+	}
+
+	engine, err := detectEngine(sqlcConfigPath)
+	if err != nil {
+		return err
+	}
+
+	driver, err := gooseDriver(engine)
+	if err != nil {
+		return err
+	}
+
+	cfg := config.NewConfig()
+	dsn := cfg.DB.GetDatabaseURL()
+
+	command := os.Args[1]
+	args := os.Args[2:]
+
+	switch command {
+	case cmdCreate:
+		if len(args) == 0 {
+			return errors.New("create requires a migration name")
+		}
+		name := sanitizeMigrationName(args)
+		if name == "" {
+			return errors.New("provided migration name results in an empty identifier")
+		}
+		return runGoose(driver, dsn, cmdCreate, name, "sql")
+	case cmdFix:
+		return runGoose(driver, dsn, cmdFix)
+	case cmdNew:
+		if len(args) == 0 {
+			return errors.New("new requires a migration name")
+		}
+		name := sanitizeMigrationName(args)
+		if name == "" {
+			return errors.New("provided migration name results in an empty identifier")
+		}
+		if err := runGoose(driver, dsn, cmdCreate, name, "sql"); err != nil {
+			return err
+		}
+		return runGoose(driver, dsn, cmdFix)
+	case cmdUp:
+		return runGoose(driver, dsn, cmdUp)
+	case cmdDown:
+		return runGoose(driver, dsn, cmdDown)
+	case cmdReset:
+		if err := runGoose(driver, dsn, cmdDownTo, "0"); err != nil {
+			return err
+		}
+		return runGoose(driver, dsn, cmdUp)
+	case cmdDownTo:
+		if len(args) == 0 {
+			return errors.New("down-to requires a target version")
+		}
+		return runGoose(driver, dsn, cmdDownTo, args[0])
+	case cmdUpTo:
+		if len(args) == 0 {
+			return errors.New("up-to requires a target version")
+		}
+		return runGoose(driver, dsn, cmdUpTo, args[0])
+	default:
+		printUsage()
+		return fmt.Errorf("unknown migration command: %s", command)
+	}
+}
+
+func printUsage() {
+	fmt.Fprintln(os.Stderr, "usage: migration <command> [args]")
+	fmt.Fprintln(os.Stderr, "\nAvailable commands:")
+	fmt.Fprintln(os.Stderr, "  new <name>   create a new SQL migration (auto-fixes numbering)")
+	fmt.Fprintln(os.Stderr, "  up           apply all pending migrations")
+	fmt.Fprintln(os.Stderr, "  down         roll back the most recent migration")
+	fmt.Fprintln(os.Stderr, "  reset        roll back everything and re-apply all migrations")
+	fmt.Fprintln(os.Stderr, "  up-to <ver>  apply migrations up to the specified version")
+	fmt.Fprintln(os.Stderr, "  down-to <ver> roll back to the specified version")
+	fmt.Fprintln(os.Stderr, "  fix          renumber migrations to fix gaps")
+}
+
+func sanitizeMigrationName(parts []string) string {
+	joined := strings.Join(parts, "_")
+	replaced := strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z':
+			return r
+		case r >= '0' && r <= '9':
+			return r
+		case r >= 'A' && r <= 'Z':
+			return r + ('a' - 'A')
+		case r == '-' || r == ' ':
+			return '_'
+		case r == '_':
+			return r
+		default:
+			return -1
+		}
+	}, joined)
+
+	return strings.Trim(replaced, "_")
+}
+
+func gooseDriver(engine string) (string, error) {
+	switch engine {
+	case "postgresql":
+		return gooseDriverPg, nil
+	case "sqlite", "sqlite3":
+		return gooseDriverSQLite, nil
+	default:
+		return "", fmt.Errorf("unsupported database engine: %s", engine)
+	}
+}
+
+func detectEngine(path string) (string, error) {
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("unable to read sqlc config: %w", err)
+	}
+
+	var cfg sqlcConfig
+	if err := yaml.Unmarshal(contents, &cfg); err != nil {
+		return "", fmt.Errorf("unable to parse sqlc config: %w", err)
+	}
+
+	if len(cfg.SQL) == 0 || cfg.SQL[0].Engine == "" {
+		return "", errors.New("no engine defined in sqlc config")
+	}
+
+	return cfg.SQL[0].Engine, nil
+}
+
+func runGoose(driver, dsn string, action string, extra ...string) error {
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("could not determine working directory: %w", err)
+	}
+
+	args := []string{"tool", "goose", "-dir", filepath.Join(wd, migrationsDir), driver, dsn, action}
+	if len(extra) > 0 {
+		args = append(args, extra...)
+	}
+
+	cmd := exec.Command("go", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	cmd.Dir = wd
+
+	return cmd.Run()
 }
 
 
@@ -1669,6 +1874,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.38.0
 	golang.org/x/sync v0.16.0
 	gopkg.in/yaml.v2 v2.4.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -1779,7 +1985,6 @@ require (
 	google.golang.org/grpc v1.75.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v1.0.1 // indirect
 	modernc.org/libc v1.66.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
@@ -1802,19 +2007,6 @@ default:
 connect-database-docker conntainer_id name:
 	docker exec -it {{conntainer_id}} psql -U postgres {{name}}
 
-create-migration name:
-	go tool goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME create {{name}} sql
-
-fix-migrations:
-	go tool goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME fix
-
-new-migration name: 
-	just create-migration {{name}}
-	just fix-migrations
-
-up-migrations:
-	go tool goose -dir database/migrations postgres $DB_KIND://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME up
-
 # sqlc
 compile-queries:
 	go tool sqlc -f ./database/sqlc.yaml compile
@@ -1823,51 +2015,6 @@ generate-queries:
 	go tool sqlc -f ./database/sqlc.yaml generate
 
 compile-generate-queries: compile-queries generate-queries
-
-# server
-live-server:
-	go tool air -build.cmd "go build -o tmp/bin/main cmd/app/main.go" -build.bin "tmp/bin/main" -build.exclude_dir "node_modules" -build.include_ext "go,css,js" -build.stop_on_error false -misc.clean_on_exit true
-
-# setup
-setup platform:
-	#!/usr/bin/env bash
-	set -euo pipefail
-	
-	mkdir -p bin
-	
-	case "{{platform}}" in
-		"mac"|"darwin")
-			ARCH="macos-x64"
-			;;
-		"linux")
-			ARCH="linux-x64"
-			;;
-		"windows")
-			ARCH="windows-x64.exe"
-			;;
-		*)
-			echo "Unsupported platform: {{platform}}"
-			echo "Supported platforms: mac, linux, windows"
-			exit 1
-			;;
-	esac
-	
-	URL="https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-$ARCH"
-	
-	echo "Downloading latest Tailwind CLI for {{platform}}..."
-	curl -sL "$URL" -o bin/tailwindcli
-	chmod +x bin/tailwindcli
-	echo "Tailwind CLI downloaded to bin/tailwindcli"
-
-# generation
-live-templ:
-	go tool air -build.cmd "go tool templ generate --watch" -build.include_ext "templ" -build.bin "true" -build.include_dir "views" -build.exclude_regex "_templ.go"
-
-live-tailwind:
-	./bin/tailwindcli -i ./css/base.css -o ./assets/css/tw.css --watch
-
-[parallel]
-run: live-tailwind live-templ live-server 
 
 # code quality
 golangci:

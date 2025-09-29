@@ -11,9 +11,10 @@ import (
 
 func newMigrationCommand() *cobra.Command {
 	migrationCmd := &cobra.Command{
-		Use:   "migration",
-		Short: "Database migration helpers",
-		Long:  "Manage database migrations for the current project using the generated migration binary.",
+		Use:     "migration",
+		Aliases: []string{"m", "mig"},
+		Short:   "Database migration helpers",
+		Long:    "Manage database migrations for the current project using the generated migration binary.",
 	}
 
 	migrationCmd.AddCommand(
@@ -116,7 +117,10 @@ func runMigrationBinary(args ...string) error {
 	binPath := filepath.Join(wd, "bin", "migration")
 	if _, err := os.Stat(binPath); err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("migration binary not found at %s; build it with 'go build ./cmd/migration'", binPath)
+			return fmt.Errorf(
+				"migration binary not found at %s; build it with 'go build ./cmd/migration'",
+				binPath,
+			)
 		}
 		return err
 	}
