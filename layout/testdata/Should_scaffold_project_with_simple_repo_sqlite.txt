@@ -2006,15 +2006,6 @@ alias r := run
 default:
     @just --list
 
-# sqlc
-compile-queries:
-	go tool sqlc -f ./database/sqlc.yaml compile
-
-generate-queries:
-	go tool sqlc -f ./database/sqlc.yaml generate
-
-compile-generate-queries: compile-queries generate-queries
-
 # code quality
 golangci:
 	golangci-lint run
