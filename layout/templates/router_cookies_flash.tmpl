@@ -2,7 +2,10 @@ package cookies
 
 import (
 	"context"
+	"strings"
 	"time"
+
+	"{{.ModuleName}}/config"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/session"
@@ -18,11 +21,15 @@ type FlashMessage struct {
 }
 
 var (
-	FlashKey     flashKey = "flash_key"
+	FlashKey = func() string {
+		if config.Env == config.ProdEnvironment {
+			return strings.ToLower(config.ProjectName) + "_" + "flash_key"
+		}
+
+		return strings.ToLower(config.ProjectName) + "_" + "dev_flash_key"
+	}()
 	flashSession          = "flash_session"
 )
-
-type flashKey string
 
 type FlashType string
 

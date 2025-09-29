@@ -84,9 +84,10 @@ func setupControllers(sqlite database.SQLite) (controllers.Controllers, error) {
 
 {{- end}}
 
-func setupRouter(ctrl controllers.Controllers) (*echo.Echo, error) {
+func setupRouter(ctrl controllers.Controllers, cfg config.Config) (*echo.Echo, error) {
 	router, err := router.New(
 		ctrl,
+		cfg,
 	)
 	if err != nil {
 		return nil, err
@@ -99,8 +100,10 @@ func run(ctx context.Context) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
+	cfg := config.NewConfig()
+
 {{- if eq .Database "postgresql"}}
-	psql, err := database.NewPostgres(ctx)
+	psql, err := database.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
 	}
@@ -111,7 +114,7 @@ func run(ctx context.Context) error {
 	}
 
 {{- else if eq .Database "sqlite"}}
-	sqlite, err := database.NewSQLite(ctx)
+	sqlite, err := database.NewSQLite(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
 	}
@@ -123,13 +126,13 @@ func run(ctx context.Context) error {
 
 {{- end}}
 
-	handler, err := setupRouter(controllers)
+	handler, err := setupRouter(controllers, cfg)
 	if err != nil {
 		return err
 	}
 
-	port := config.App.ServerPort
-	host := config.App.ServerHost
+	port := "8080"
+	host := "0.0.0.0"
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf("%v:%v", host, port),
@@ -140,7 +143,7 @@ func run(ctx context.Context) error {
 	}
 
 	slog.InfoContext(ctx, "starting server", "host", host, "port", port)
-	return startServer(ctx, srv, config.App.Env)
+	return startServer(ctx, srv, config.Env)
 }
 
 func main() {
