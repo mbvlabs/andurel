@@ -31,13 +31,15 @@ type GeneratedField struct {
 }
 
 type GeneratedModel struct {
-	Name         string
-	Package      string
-	Fields       []GeneratedField
-	Imports      []string
-	TableName    string
-	ModulePath   string
-	DatabaseType string
+	Name            string
+	Package         string
+	Fields          []GeneratedField
+	StandardImports []string
+	ExternalImports []string
+	Imports         []string
+	TableName       string
+	ModulePath      string
+	DatabaseType    string
 }
 
 type Config struct {
@@ -82,13 +84,15 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	g.typeMapper.Overrides = append(g.typeMapper.Overrides, config.CustomTypes...)
 
 	model := &GeneratedModel{
-		Name:         config.ResourceName,
-		Package:      config.PackageName,
-		TableName:    config.TableName,
-		ModulePath:   config.ModulePath,
-		DatabaseType: g.typeMapper.GetDatabaseType(),
-		Fields:       make([]GeneratedField, 0, len(table.Columns)),
-		Imports:      make([]string, 0),
+		Name:            config.ResourceName,
+		Package:         config.PackageName,
+		TableName:       config.TableName,
+		ModulePath:      config.ModulePath,
+		DatabaseType:    g.typeMapper.GetDatabaseType(),
+		Fields:          make([]GeneratedField, 0, len(table.Columns)),
+		StandardImports: make([]string, 0),
+		ExternalImports: make([]string, 0),
+		Imports:         make([]string, 0),
 	}
 
 	importSet := make(map[string]bool)
@@ -103,17 +107,25 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 			importSet[field.Package] = true
 		}
 
-		typeImports := g.addTypeImports(field.SQLCType, field.Type)
+		typeImports := g.addModelTypeImports(field.Type)
 		for imp := range typeImports {
 			importSet[imp] = true
 		}
 		model.Fields = append(model.Fields, field)
 	}
 
-	importSet["time"] = true
+	// Don't force all imports - only add them if they're actually needed
 	importSet["github.com/google/uuid"] = true
 
-	var stdImports, extImports []string
+	stdImports, extImports := groupAndSortImports(importSet)
+	model.StandardImports = stdImports
+	model.ExternalImports = extImports
+	model.Imports = append(append(make([]string, 0, len(stdImports)+len(extImports)), stdImports...), extImports...)
+
+	return model, nil
+}
+
+func groupAndSortImports(importSet map[string]bool) (stdImports []string, extImports []string) {
 	for imp := range importSet {
 		if strings.Contains(imp, ".") {
 			extImports = append(extImports, imp)
@@ -123,10 +135,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	}
 	sort.Strings(stdImports)
 	sort.Strings(extImports)
-
-	model.Imports = append(stdImports, extImports...)
-
-	return model, nil
+	return stdImports, extImports
 }
 
 func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
@@ -143,6 +152,11 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		if err != nil {
 			return GeneratedField{}, err
 		}
+
+		// For model generation, use simple Go types in the struct, not pgtype
+		// The conversion from SQLC types happens in the rowToModel function
+		goType = g.getSimpleGoType(goType, sqlcType)
+		pkg = g.getSimpleGoTypePackage(goType)
 	}
 
 	field := GeneratedField{
@@ -180,6 +194,17 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 	return field, nil
 }
 
+func (g *Generator) addModelTypeImports(goType string) map[string]bool {
+	importSet := map[string]bool{}
+	if strings.Contains(goType, "time.Time") {
+		importSet["time"] = true
+	}
+	if strings.Contains(goType, "uuid.UUID") {
+		importSet["github.com/google/uuid"] = true
+	}
+	return importSet
+}
+
 func (g *Generator) addTypeImports(sqlcType, goType string) map[string]bool {
 	importSet := map[string]bool{}
 	if strings.Contains(sqlcType, "pgtype.") {
@@ -198,6 +223,56 @@ func (g *Generator) addTypeImports(sqlcType, goType string) map[string]bool {
 	return importSet
 }
 
+func (g *Generator) getSimpleGoType(goType, sqlcType string) string {
+	// If it's already a simple Go type, keep it
+	if !strings.Contains(goType, "pgtype.") && !strings.Contains(goType, "sql.") {
+		return goType
+	}
+
+	// Convert pgtype and sql types to simple Go types
+	switch {
+	case strings.Contains(sqlcType, "pgtype.Int4"):
+		return "int32"
+	case strings.Contains(sqlcType, "pgtype.Int8"):
+		return "int64"
+	case strings.Contains(sqlcType, "pgtype.Int2"):
+		return "int16"
+	case strings.Contains(sqlcType, "pgtype.Float4"):
+		return "float32"
+	case strings.Contains(sqlcType, "pgtype.Float8"):
+		return "float64"
+	case strings.Contains(sqlcType, "pgtype.Bool"):
+		return "bool"
+	case strings.Contains(sqlcType, "pgtype.Text"):
+		return "string"
+	case strings.Contains(sqlcType, "pgtype.Timestamp"), strings.Contains(sqlcType, "pgtype.Date"), strings.Contains(sqlcType, "pgtype.Time"):
+		return "time.Time"
+	case strings.Contains(sqlcType, "sql.NullString"):
+		return "string"
+	case strings.Contains(sqlcType, "sql.NullInt64"):
+		return "int64"
+	case strings.Contains(sqlcType, "sql.NullFloat64"):
+		return "float64"
+	case strings.Contains(sqlcType, "sql.NullBool"):
+		return "bool"
+	case strings.Contains(sqlcType, "sql.NullTime"):
+		return "time.Time"
+	default:
+		return goType
+	}
+}
+
+func (g *Generator) getSimpleGoTypePackage(goType string) string {
+	switch {
+	case strings.Contains(goType, "time.Time"):
+		return "" // time is handled by addModelTypeImports
+	case strings.Contains(goType, "uuid.UUID"):
+		return "" // uuid is handled by addModelTypeImports
+	default:
+		return ""
+	}
+}
+
 func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string) (string, error) {
 	funcMap := template.FuncMap{
 		"SQLCTypeName": func(tableName string) string {
@@ -212,9 +287,6 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 				return param + ".String()"
 			}
 			return param
-		},
-		"contains": func(s, substr string) bool {
-			return strings.Contains(s, substr)
 		},
 		"hasErrorHandling": func() bool {
 			for _, field := range model.Fields {
@@ -615,12 +687,10 @@ func (g *Generator) calculateConstructorImports(model *GeneratedModel) []string 
 		}
 	}
 
-	var imports []string
-	for imp := range importSet {
-		imports = append(imports, imp)
-	}
-	sort.Strings(imports)
-
+	stdImports, extImports := groupAndSortImports(importSet)
+	model.StandardImports = stdImports
+	model.ExternalImports = extImports
+	imports := append(append(make([]string, 0, len(stdImports)+len(extImports)), stdImports...), extImports...)
 	return imports
 }
 

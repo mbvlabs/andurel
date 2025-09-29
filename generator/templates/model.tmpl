@@ -3,16 +3,14 @@ package models
 import (
 	"context"
 	"errors"
-{{- range .Imports}}
-{{- if not (contains . ".")}}
+{{- range .StandardImports}}
 	"{{.}}"
 {{- end}}
-{{- end}}
+{{if and (gt (len .StandardImports) 0) (gt (len .ExternalImports) 0)}}
 
-{{- range .Imports}}
-{{- if contains . "."}}
+{{end}}
+{{- range .ExternalImports}}
 	"{{.}}"
-{{- end}}
 {{- end}}
 
 	"{{.ModulePath}}/models/internal/db"
@@ -227,5 +225,4 @@ func rowTo{{.Name}}(row db.{{SQLCTypeName .TableName}}) {{.Name}} {
 	}
 }
 {{end}}
-
 
