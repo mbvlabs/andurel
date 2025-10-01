@@ -18,9 +18,6 @@ type app struct {
 	Domain      string `env:"APP_DOMAIN"`
 	ProjectName string `env:"PROJECT_NAME"`
 	Env         string `env:"ENVIRONMENT"`
-{{if .WithAuth}}
-	BaseURL     string `env:"BASE_URL"`
-{{end}}
 }
 
 func newAppConfig() app {

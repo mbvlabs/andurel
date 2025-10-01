@@ -14,11 +14,6 @@ import (
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/router"
-{{if .WithAuth}}
-	"{{.ModuleName}}/services"
-
-	"github.com/gorilla/sessions"
-{{end}}
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/sync/errgroup"
@@ -64,13 +59,12 @@ func startServer(ctx context.Context, srv *http.Server, env string) error {
 }
 
 {{- if eq .Database "postgresql"}}
-func setupControllers(psql database.Postgres{{if .WithAuth}}, emailService services.EmailService, store *sessions.CookieStore{{end}}) (controllers.Controllers, error) {
+func setupControllers({{if .WithSimpleAuth}}cfg config.Config, {{end}}psql database.Postgres) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
-		psql,
-{{if .WithAuth}}
-		emailService,
-		store,
+{{if .WithSimpleAuth}}
+		cfg,
 {{end}}
+		psql,
 	)
 	if err != nil {
 		return controllers.Controllers{}, err
@@ -80,13 +74,12 @@ func setupControllers(psql database.Postgres{{if .WithAuth}}, emailService servi
 }
 
 {{- else if eq .Database "sqlite"}}
-func setupControllers(sqlite database.SQLite{{if .WithAuth}}, emailService services.EmailService, store *sessions.CookieStore{{end}}) (controllers.Controllers, error) {
+func setupControllers({{if .WithSimpleAuth}}cfg config.Config, {{end}}sqlite database.SQLite) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
-		sqlite,
-{{if .WithAuth}}
-		emailService,
-		store,
+{{if .WithSimpleAuth}}
+		cfg,
 {{end}}
+		sqlite,
 	)
 	if err != nil {
 		return controllers.Controllers{}, err
@@ -115,18 +108,13 @@ func run(ctx context.Context) error {
 
 	cfg := config.NewConfig()
 
-{{if .WithAuth}}
-	emailService := services.NewConsoleEmailService(cfg.App.BaseURL)
-	store := sessions.NewCookieStore([]byte(cfg.Auth.SessionKey))
-{{end}}
-
 {{- if eq .Database "postgresql"}}
 	psql, err := database.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
 	}
 
-	controllers, err := setupControllers(psql{{if .WithAuth}}, emailService, store{{end}})
+	controllers, err := setupControllers({{if .WithSimpleAuth}}cfg, {{end}}psql)
 	if err != nil {
 		return err
 	}
@@ -137,7 +125,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	controllers, err := setupControllers(sqlite{{if .WithAuth}}, emailService, store{{end}})
+	controllers, err := setupControllers({{if .WithSimpleAuth}}cfg, {{end}}sqlite)
 	if err != nil {
 		return err
 	}

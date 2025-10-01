@@ -17,9 +17,8 @@ import (
 const (
 	sqlcConfigPath    = "database/sqlc.yaml"
 	migrationsDir     = "database/migrations"
-	cmdCreate         = "create"
 	cmdFix            = "fix"
-	cmdNew            = "new"
+	cmdCreate         = "create"
 	cmdUp             = "up"
 	cmdDown           = "down"
 	cmdReset          = "reset"
@@ -69,18 +68,9 @@ func execute() error {
 	args := os.Args[2:]
 
 	switch command {
-	case cmdCreate:
-		if len(args) == 0 {
-			return errors.New("create requires a migration name")
-		}
-		name := sanitizeMigrationName(args)
-		if name == "" {
-			return errors.New("provided migration name results in an empty identifier")
-		}
-		return runGoose(driver, dsn, cmdCreate, name, "sql")
 	case cmdFix:
 		return runGoose(driver, dsn, cmdFix)
-	case cmdNew:
+	case cmdCreate:
 		if len(args) == 0 {
 			return errors.New("new requires a migration name")
 		}
@@ -88,10 +78,7 @@ func execute() error {
 		if name == "" {
 			return errors.New("provided migration name results in an empty identifier")
 		}
-		if err := runGoose(driver, dsn, cmdCreate, name, "sql"); err != nil {
-			return err
-		}
-		return runGoose(driver, dsn, cmdFix)
+		return runGoose(driver, dsn, cmdCreate, name, "sql")
 	case cmdUp:
 		return runGoose(driver, dsn, cmdUp)
 	case cmdDown:
@@ -120,7 +107,7 @@ func execute() error {
 func printUsage() {
 	fmt.Fprintln(os.Stderr, "usage: migration <command> [args]")
 	fmt.Fprintln(os.Stderr, "\nAvailable commands:")
-	fmt.Fprintln(os.Stderr, "  new <name>   create a new SQL migration (auto-fixes numbering)")
+	fmt.Fprintln(os.Stderr, "  new <name>   create a new SQL migration")
 	fmt.Fprintln(os.Stderr, "  up           apply all pending migrations")
 	fmt.Fprintln(os.Stderr, "  down         roll back the most recent migration")
 	fmt.Fprintln(os.Stderr, "  reset        roll back everything and re-apply all migrations")

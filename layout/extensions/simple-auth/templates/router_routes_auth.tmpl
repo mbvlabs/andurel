@@ -1,0 +1,62 @@
+package routes
+
+import (
+	"net/http"
+
+	"{{.ModuleName}}/router/middleware"
+
+	"github.com/labstack/echo/v4"
+)
+
+const authNamePrefix = "auth"
+
+var authRoutes = []Route{
+	LoginPage,
+	SessionCreate,
+	SignupPage,
+	SignupCreate,
+	SessionDestroy,
+}
+
+var LoginPage = Route	{
+		Name:         authNamePrefix + ".show_login",
+		Path:         "/login",
+		Method:       http.MethodGet,
+		Handler:      "Auth",
+		HandleMethod: "ShowLogin",
+	}
+
+var SessionCreate = Route	{
+		Name:         authNamePrefix + ".login",
+		Path:         "/login",
+		Method:       http.MethodPost,
+		Handler:      "Auth",
+		HandleMethod: "SessionCreate",
+		Middleware: []func(echo.HandlerFunc) echo.HandlerFunc{
+			middleware.LoginRateLimiter(),
+		},
+	}
+
+var SignupPage = Route	{
+		Name:         authNamePrefix + ".show_signup",
+		Path:         "/signup",
+		Method:       http.MethodGet,
+		Handler:      "Auth",
+		HandleMethod: "ShowSignup",
+	}
+
+var SignupCreate = Route {
+		Name:         authNamePrefix + ".signup",
+		Path:         "/signup",
+		Method:       http.MethodPost,
+		Handler:      "Auth",
+		HandleMethod: "Signup",
+	}
+
+var SessionDestroy = Route {	
+		Name:         authNamePrefix + ".logout",
+		Path:         "/logout",
+		Method:       http.MethodPost,
+		Handler:      "Auth",
+		HandleMethod: "Logout",
+}

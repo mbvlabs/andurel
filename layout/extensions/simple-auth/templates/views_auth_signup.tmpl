@@ -1,12 +1,16 @@
 package auth
 
-import "{{.ModuleName}}/views/layout"
+import (
+	"fmt"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/views"
+)
 
 templ Signup() {
-	@layout.Base() {
+	@views.Layout() {
 		<div class="container mx-auto max-w-md mt-8 px-4">
 			<h1 class="text-3xl font-bold mb-6">Sign Up</h1>
-			<form method="POST" action="/signup" data-on-submit="$$post('/signup')">
+			<form data-on-submit={fmt.Sprintf("@post('%s')", routes.SignupCreate.Path)}>
 				<div class="form-control mb-4">
 					<label class="label" for="email">
 						<span class="label-text">Email</span>
@@ -30,7 +34,7 @@ templ Signup() {
 			</form>
 			<div class="mt-4 text-center">
 				<span>Already have an account?</span>
-				<a href="/login" class="link link-primary ml-1">Login</a>
+				<a href={templ.SafeURL(routes.LoginPage.Path)} class="link link-primary ml-1">Login</a>
 			</div>
 		</div>
 	}

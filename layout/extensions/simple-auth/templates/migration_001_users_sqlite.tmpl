@@ -1,4 +1,6 @@
 -- +goose Up
+-- +goose StatementBegin
+SELECT 'up SQL query';
 CREATE TABLE users (
     id TEXT NOT NULL PRIMARY KEY,
     created_at DATETIME NOT NULL,
@@ -8,9 +10,10 @@ CREATE TABLE users (
     password BLOB NOT NULL,
     email_verified INTEGER NOT NULL DEFAULT 0
 );
-
-CREATE INDEX idx_users_email ON users(email);
+-- +goose StatementEnd
 
 -- +goose Down
-DROP INDEX IF EXISTS idx_users_email;
+-- +goose StatementBegin
+SELECT 'down SQL query';
 DROP TABLE IF EXISTS users;
+-- +goose StatementEnd

@@ -29,7 +29,7 @@ dependencies, and configuration.`,
 		StringP("database", "d", "", "Database to use (postgresql, sqlite) (optional, default: postgres)")
 
 	projectCmd.Flags().
-		StringSliceP("recipes", "R", []string{}, "Recipes to include (comma-separated: auth, etc.)")
+		StringSliceP("extensions", "e", []string{}, "Extensions to include (comma-separated: simple-auth, etc.)")
 
 	return projectCmd
 }
@@ -60,24 +60,28 @@ func newProject(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	recipes, err := cmd.Flags().GetStringSlice("recipes")
+	extensions, err := cmd.Flags().GetStringSlice("extensions")
 	if err != nil {
 		return err
 	}
 
-	validRecipes := []string{"auth"}
-	for _, recipe := range recipes {
-		if !slices.Contains(validRecipes, recipe) {
-			return fmt.Errorf("invalid recipe: %s - valid options are: %s", recipe, strings.Join(validRecipes, ", "))
+	validRecipes := []string{"simple-auth"}
+	for _, extension := range extensions {
+		if !slices.Contains(validRecipes, extension) {
+			return fmt.Errorf(
+				"invalid recipe: %s - valid options are: %s",
+				extension,
+				strings.Join(validRecipes, ", "),
+			)
 		}
 	}
 
-	if err := layout.Scaffold(basePath, projectName, repo, database, recipes); err != nil {
+	if err := layout.Scaffold(basePath, projectName, repo, database, extensions); err != nil {
 		return err
 	}
 
 	fmt.Printf("\n🎉 Successfully created project: %s\n", projectName)
-	if slices.Contains(recipes, "auth") {
+	if slices.Contains(extensions, "simple-auth") {
 		fmt.Printf("  Auth recipe enabled - visit /login or /signup\n")
 	}
 	fmt.Printf("\nNext steps:\n")

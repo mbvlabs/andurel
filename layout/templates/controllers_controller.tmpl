@@ -3,23 +3,17 @@ package controllers
 
 import (
 	"context"
-	"net/http"
 
+	"{{.ModuleName}}/config"
 {{- if eq .Database "postgresql"}}
 	"{{.ModuleName}}/database"
 {{- else if eq .Database "sqlite"}}
 	"{{.ModuleName}}/database"
 {{- end}}
 	"{{.ModuleName}}/router/cookies"
-{{if .WithAuth}}
-	"{{.ModuleName}}/services"
-{{end}}
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
-{{if .WithAuth}}
-	"github.com/gorilla/sessions"
-{{end}}
 	"github.com/maypok86/otter"
 )
 
@@ -27,26 +21,22 @@ type Controllers struct {
 	Assets Assets
 	API    API
 	Pages  Pages
-{{if .WithAuth}}
+{{if .WithSimpleAuth}}
 	Auth   Auth
 {{end}}
 }
 
 {{- if eq .Database "postgresql"}}
 func New(
-	db database.Postgres,
-{{if .WithAuth}}
-	emailService services.EmailService,
-	store *sessions.CookieStore,
+{{if .WithSimpleAuth}}
+	cfg config.Config,
 {{end}}
+	db database.Postgres,
 ) (Controllers, error) {
 {{- else if eq .Database "sqlite"}}
 func New(
+	cfg config.Config,
 	db database.SQLite,
-{{if .WithAuth}}
-	emailService services.EmailService,
-	store *sessions.CookieStore,
-{{end}}
 ) (Controllers, error) {
 {{- end}}
 	cacheBuilder, err := otter.NewBuilder[string, templ.Component](20)
@@ -62,15 +52,15 @@ func New(
 	assets := newAssets()
 	pages := newPages(db, pageCacher)
 	api := newAPI(db)
-{{if .WithAuth}}
-	auth := newAuth(db, emailService, store)
+{{if .WithSimpleAuth}}
+	auth := newAuth(cfg, db)
 {{end}}
 
 	return Controllers{
 		assets,
 		api,
 		pages,
-{{if .WithAuth}}
+{{if .WithSimpleAuth}}
 		auth,
 {{end}}
 	}, nil

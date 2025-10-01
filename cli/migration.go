@@ -18,7 +18,7 @@ func newMigrationCommand() *cobra.Command {
 	}
 
 	migrationCmd.AddCommand(
-		newMigrationNewCommand(),
+		newMigrationCreateCommand(),
 		newMigrationUpCommand(),
 		newMigrationDownCommand(),
 		newMigrationFixCommand(),
@@ -30,15 +30,16 @@ func newMigrationCommand() *cobra.Command {
 	return migrationCmd
 }
 
-func newMigrationNewCommand() *cobra.Command {
+func newMigrationCreateCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "new [name]",
-		Short: "Create a new SQL migration",
-		Args:  cobra.MinimumNArgs(1),
+		Use:     "create [name]",
+		Aliases: []string{"new", "c"},
+		Short:   "Create a new SQL migration",
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runMigrationBinary(append([]string{"new"}, args...)...)
+			return runMigrationBinary(append([]string{"create"}, args...)...)
 		},
-		Example: "andurel migration new create_users_table",
+		Example: "andurel migration create create_users_table",
 	}
 }
 

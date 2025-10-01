@@ -1,12 +1,16 @@
 package auth
 
-import "{{.ModuleName}}/views/layout"
+import (
+	"fmt"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/views"
+)
 
 templ Login() {
-	@layout.Base() {
+	@views.Layout() {
 		<div class="container mx-auto max-w-md mt-8 px-4">
 			<h1 class="text-3xl font-bold mb-6">Login</h1>
-			<form method="POST" action="/login" data-on-submit="$$post('/login')">
+			<form data-on-submit={fmt.Sprintf("@post('%s')", routes.LoginPage.Path)}>
 				<div class="form-control mb-4">
 					<label class="label" for="email">
 						<span class="label-text">Email</span>
@@ -23,11 +27,8 @@ templ Login() {
 				<button type="submit" class="btn btn-primary w-full">Login</button>
 			</form>
 			<div class="mt-4 text-center">
-				<a href="/forgot-password" class="link link-primary">Forgot password?</a>
-			</div>
-			<div class="mt-4 text-center">
 				<span>Don't have an account?</span>
-				<a href="/signup" class="link link-primary ml-1">Sign up</a>
+				<a href={templ.SafeURL(routes.SignupPage.Path)} class="link link-primary ml-1">Sign up</a>
 			</div>
 		</div>
 	}

@@ -1,4 +1,6 @@
 -- +goose Up
+-- +goose StatementBegin
+SELECT 'up SQL query';
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -8,9 +10,10 @@ CREATE TABLE users (
     password BYTEA NOT NULL,
     email_verified BOOLEAN NOT NULL DEFAULT FALSE
 );
-
-CREATE INDEX idx_users_email ON users(email);
+-- +goose StatementEnd
 
 -- +goose Down
-DROP INDEX IF EXISTS idx_users_email;
+-- +goose StatementBegin
+SELECT 'down SQL query';
 DROP TABLE IF EXISTS users;
+-- +goose StatementEnd
