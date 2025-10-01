@@ -125,6 +125,13 @@ func Scaffold(targetDir, projectName, repo, database string) error {
 		}
 	}
 
+	fmt.Print("Building console binary...\n")
+	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
+		if err := runConsoleBin(targetDir); err != nil {
+			return fmt.Errorf("failed to build console binary: %w", err)
+		}
+	}
+
 	fmt.Print("Running templ fmt...\n")
 	if err := runTemplFmt(targetDir); err != nil {
 		return fmt.Errorf("failed to run templ fmt: %w", err)
@@ -177,6 +184,7 @@ func processTemplatedFiles(targetDir string, data TemplateData) error {
 		"cmd_app_main.tmpl":       "cmd/app/main.go",
 		"cmd_migration_main.tmpl": "cmd/migration/main.go",
 		"cmd_run_main.tmpl":       "cmd/run/main.go",
+		"cmd_console_main.tmpl":   "cmd/console/main.go",
 
 		// Config
 		"config_auth.tmpl":     "config/auth.go",
@@ -263,15 +271,24 @@ func processTemplate(targetDir, templateFile, targetPath string, data TemplateDa
 
 const goVersion = "1.25.0"
 
+const goModTemplate = `module %s
+
+go %s
+
+tool (
+	github.com/a-h/templ/cmd/templ
+	github.com/xo/usql
+	github.com/sqlc-dev/sqlc/cmd/sqlc
+	github.com/pressly/goose/v3/cmd/goose
+	github.com/air-verse/air
+)
+`
+
 func createGoMod(targetDir, moduleName string) error {
 	goModPath := filepath.Join(targetDir, "go.mod")
-	goModContent := fmt.Sprintf(
-		"module %s\n\ngo %s\n\ntool (\n    github.com/a-h/templ/cmd/templ\n    github.com/sqlc-dev/sqlc/cmd/sqlc\n    github.com/pressly/goose/v3/cmd/goose\n    github.com/air-verse/air\n)\n",
-		moduleName,
-		goVersion,
-	)
+	content := fmt.Sprintf(goModTemplate, moduleName, goVersion)
 
-	return os.WriteFile(goModPath, []byte(goModContent), 0o644)
+	return os.WriteFile(goModPath, []byte(content), 0o644)
 }
 
 func createSqliteDB(targetDir, projectName string) error {
@@ -300,6 +317,12 @@ func runGoRunBin(targetDir string) error {
 
 func runGoMigrationBin(targetDir string) error {
 	cmd := exec.Command("go", "build", "-o", "bin/migration", "cmd/migration/main.go")
+	cmd.Dir = targetDir
+	return cmd.Run()
+}
+
+func runConsoleBin(targetDir string) error {
+	cmd := exec.Command("go", "build", "-o", "bin/console", "cmd/console/main.go")
 	cmd.Dir = targetDir
 	return cmd.Run()
 }
