@@ -1,0 +1,34 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+
+	"{{.ModuleName}}/config"
+
+	"github.com/joho/godotenv"
+)
+
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		cancel()
+	}()
+
+	if err := godotenv.Load(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not load .env file: %v\n", err)
+	}
+
+	cfg := config.NewConfig()
+	cmd := exec.CommandContext(ctx, "go", "tool", "usql", cfg.DB.GetDatabaseURL())
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "error running usql: %v\n", err)
+		os.Exit(1)
+	}
+}
