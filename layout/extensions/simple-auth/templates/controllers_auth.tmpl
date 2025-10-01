@@ -1,0 +1,154 @@
+package controllers
+
+import (
+	"net/http"
+
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/views/auth"
+
+	"github.com/labstack/echo/v4"
+	"github.com/starfederation/datastar-go/datastar"
+)
+
+type Auth struct {
+	cfg config.Config
+{{if eq .Database "postgresql"}}
+	db           database.Postgres
+{{else}}
+	db           database.SQLite
+{{end}}
+}
+
+{{if eq .Database "postgresql"}}
+func newAuth(cfg config.Config, db database.Postgres) Auth {
+	return Auth{cfg, db}
+}
+{{else}}
+func newAuth(cfg config.Config, db database.SQLite) Auth {
+	return Auth{cfg, db}
+}
+{{end}}
+
+func (a Auth) LoginPage(c echo.Context) error {
+	return Render(c, http.StatusOK, auth.Login())
+}
+
+type LoginFormPayload struct {
+	Email    string `form:"email"`
+	Password string `form:"password"`
+}
+
+func (a Auth) SessionCreate(c echo.Context) error {
+	var payload LoginFormPayload
+	if err := c.Bind(&payload); err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		return sse.PatchElements(
+			"<p class='text-error-content'>Invalid form submission.</p>",
+			datastar.WithSelectorID("loginRes"),
+			datastar.WithModeInner(),
+		)
+	}
+
+	user, err := models.FincUserByEmail(c.Request().Context(), a.db.Conn(), payload.Email)
+	if err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		return sse.PatchElements(
+			"<p class='text-error-content'>Invalid email or password.</p>",
+			datastar.WithSelectorID("loginRes"),
+			datastar.WithModeInner(),
+		)
+	}
+
+	if !models.VerifyPassword(user.Password, payload.Password) {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		return sse.PatchElements(
+			"<p class='text-error-content'>Invalid email or password.</p>",
+			datastar.WithSelectorID("loginRes"),
+			datastar.WithModeInner(),
+		)
+	}
+
+	if err := cookies.CreateAuthSession(c, false, user); err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		return sse.PatchElements(
+			"<p class='text-error-content'>Failed to create session. Please try again.</p>",
+			datastar.WithSelectorID("loginRes"),
+			datastar.WithModeInner(),
+		)
+	}
+
+	return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.HomePage.Path)
+}
+
+func (a Auth) SignupPage(c echo.Context) error {
+	return Render(c, http.StatusOK, auth.Signup())
+}
+
+type SignupFormPayload struct {
+	Email           string `form:"email"`
+	Password        string `form:"password"`
+	PasswordConfirm string `form:"password_confirm"`
+}
+
+func (a Auth) UserCreate(c echo.Context) error {
+	var payload SignupFormPayload
+	if err := c.Bind(&payload); err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		return sse.PatchElements(
+			"<p class='text-error-content'>Invalid form submission.</p>",
+			datastar.WithSelectorID("signupRes"),
+			datastar.WithModeInner(),
+		)
+	}
+
+	user, err := models.NewUser(
+		c.Request().Context(),
+		a.db.Conn(),
+		a.cfg.Auth.PasswordSalt,
+		models.NewUserPayload{
+			Email: payload.Email,
+			PasswordPair: models.PasswordPair{
+				Password:        payload.Password,
+				ConfirmPassword: payload.PasswordConfirm,
+			},
+		},
+	)
+	if err != nil {
+		// TODO handle validation errors
+
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		return sse.PatchElements(
+			"<p class='text-error-content'>Failed to create account. Email may already be in use.</p>",
+			datastar.WithSelectorID("signupRes"),
+			datastar.WithModeInner(),
+		)
+	}
+
+	if err := cookies.CreateAuthSession(c, false, user); err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		return sse.PatchElements(
+			"<p class='text-error-content'>Failed to create session. Please try again.</p>",
+			datastar.WithSelectorID("loginRes"),
+			datastar.WithModeInner(),
+		)
+	}
+
+	return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.HomePage.Path)
+}
+
+func (a Auth) SessionDestroy(c echo.Context) error {
+	if err := cookies.DestroyAuthSession(c); err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		return sse.PatchElements(
+			"<p class='text-error-content'>Failed to log out. Please try again.</p>",
+			datastar.WithSelectorID("logoutRes"),
+			datastar.WithModeInner(),
+		)
+	}
+
+	return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.HomePage.Path)
+}

@@ -15,8 +15,11 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/mbvlabs/andurel/layout/extensions"
+	simpleauth "github.com/mbvlabs/andurel/layout/extensions/simple-auth"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
+	"golang.org/x/exp/slices"
 )
 
 type Element struct {
@@ -32,11 +35,12 @@ type TemplateData struct {
 	SessionEncryptionKey string
 	TokenSigningKey      string
 	PasswordSalt         string
+	WithSimpleAuth       bool
 }
 
 // Scaffold TODO: figure out a way to have full repo path on init, i.e. github.com/mbvlabs/andurel
 // breaks because go mod tidy will look up that path and not find it
-func Scaffold(targetDir, projectName, repo, database string) error {
+func Scaffold(targetDir, projectName, repo, database string, extensions []string) error {
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
 
 	if strings.Contains(repo, "github.com/") {
@@ -59,6 +63,7 @@ func Scaffold(targetDir, projectName, repo, database string) error {
 		SessionEncryptionKey: generateRandomHex(32),
 		TokenSigningKey:      generateRandomHex(32),
 		PasswordSalt:         generateRandomHex(16),
+		WithSimpleAuth:       slices.Contains(extensions, "simple-auth"),
 	}
 
 	fmt.Print("Creating project structure...\n")
@@ -101,7 +106,9 @@ func Scaffold(targetDir, projectName, repo, database string) error {
 	// Need to skip download for testing purposes
 	if os.Getenv("ANDUREL_SKIP_TAILWIND") != "true" {
 		if err := SetupTailwind(targetDir); err != nil {
-			return fmt.Errorf("failed to download Tailwind binary: %w", err)
+			fmt.Printf("Failed to download Tailwind binary: %s \n", err.Error())
+			fmt.Print("Continuing without Tailwind setup...\n")
+			fmt.Print("You can run 'andurel app tailwind' after setup to fix this\n")
 		}
 	}
 
@@ -129,6 +136,29 @@ func Scaffold(targetDir, projectName, repo, database string) error {
 	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
 		if err := runConsoleBin(targetDir); err != nil {
 			return fmt.Errorf("failed to build console binary: %w", err)
+		}
+	}
+
+	if templateData.WithSimpleAuth {
+		fmt.Print("Processing auth recipe...\n")
+		authData := simpleauth.TemplateData{
+			ProjectName:          templateData.ProjectName,
+			ModuleName:           templateData.ModuleName,
+			Database:             templateData.Database,
+			SessionKey:           templateData.SessionKey,
+			SessionEncryptionKey: templateData.SessionEncryptionKey,
+			TokenSigningKey:      templateData.TokenSigningKey,
+			PasswordSalt:         templateData.PasswordSalt,
+			WithSimpleAuth:       templateData.WithSimpleAuth,
+		}
+		if err := simpleauth.ProcessAuthRecipe(targetDir, authData, func(targetDir, templateFile, targetPath string, data simpleauth.TemplateData) error {
+			return ProcessTemplateFromRecipe(targetDir, templateFile, targetPath, templateData)
+		}); err != nil {
+			return fmt.Errorf("failed to process auth recipe: %w", err)
+		}
+
+		if err := RunSqlcGenerate(targetDir); err != nil {
+			return fmt.Errorf("failed to run sqlc generate: %w", err)
 		}
 	}
 
@@ -269,6 +299,40 @@ func processTemplate(targetDir, templateFile, targetPath string, data TemplateDa
 	return nil
 }
 
+func ProcessTemplateFromRecipe(
+	targetDir, templateFile, targetPath string,
+	data TemplateData,
+) error {
+	content, err := extensions.Files.ReadFile(templateFile)
+	if err != nil {
+		return fmt.Errorf("failed to read template %s: %w", templateFile, err)
+	}
+
+	contentStr := string(content)
+
+	tmpl, err := template.New(templateFile).Parse(contentStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse template %s: %w", templateFile, err)
+	}
+
+	fullTargetPath := filepath.Join(targetDir, targetPath)
+	if err := os.MkdirAll(filepath.Dir(fullTargetPath), constants.DirPermissionDefault); err != nil {
+		return fmt.Errorf("failed to create directory for %s: %w", targetPath, err)
+	}
+
+	file, err := os.Create(fullTargetPath)
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %w", targetPath, err)
+	}
+	defer file.Close()
+
+	if err := tmpl.Execute(file, data); err != nil {
+		return fmt.Errorf("failed to execute template %s: %w", templateFile, err)
+	}
+
+	return nil
+}
+
 const goVersion = "1.25.0"
 
 const goModTemplate = `module %s
@@ -335,6 +399,12 @@ func runTemplGenerate(targetDir string) error {
 
 func runTemplFmt(targetDir string) error {
 	cmd := exec.Command("go", "tool", "templ", "fmt", "./views")
+	cmd.Dir = targetDir
+	return cmd.Run()
+}
+
+func RunSqlcGenerate(targetDir string) error {
+	cmd := exec.Command("go", "tool", "sqlc", "generate", "-f", "database/sqlc.yaml")
 	cmd.Dir = targetDir
 	return cmd.Run()
 }

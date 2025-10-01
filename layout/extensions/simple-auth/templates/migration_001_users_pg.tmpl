@@ -1,0 +1,19 @@
+-- +goose Up
+-- +goose StatementBegin
+SELECT 'up SQL query';
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+    password BYTEA NOT NULL,
+    email_verified BOOLEAN NOT NULL DEFAULT FALSE
+);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+SELECT 'down SQL query';
+DROP TABLE IF EXISTS users;
+-- +goose StatementEnd

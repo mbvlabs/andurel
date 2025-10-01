@@ -3,8 +3,8 @@ package controllers
 
 import (
 	"context"
-	"net/http"
 
+	"{{.ModuleName}}/config"
 {{- if eq .Database "postgresql"}}
 	"{{.ModuleName}}/database"
 {{- else if eq .Database "sqlite"}}
@@ -21,14 +21,21 @@ type Controllers struct {
 	Assets Assets
 	API    API
 	Pages  Pages
+{{if .WithSimpleAuth}}
+	Auth   Auth
+{{end}}
 }
 
 {{- if eq .Database "postgresql"}}
 func New(
+{{if .WithSimpleAuth}}
+	cfg config.Config,
+{{end}}
 	db database.Postgres,
 ) (Controllers, error) {
 {{- else if eq .Database "sqlite"}}
 func New(
+	cfg config.Config,
 	db database.SQLite,
 ) (Controllers, error) {
 {{- end}}
@@ -45,15 +52,21 @@ func New(
 	assets := newAssets()
 	pages := newPages(db, pageCacher)
 	api := newAPI(db)
+{{if .WithSimpleAuth}}
+	auth := newAuth(cfg, db)
+{{end}}
 
 	return Controllers{
 		assets,
 		api,
 		pages,
+{{if .WithSimpleAuth}}
+		auth,
+{{end}}
 	}, nil
 }
 
-func render(ctx echo.Context, t templ.Component) error {
+func Render(ctx echo.Context, statusCode int, t templ.Component) error {
 	buf := templ.GetBuffer()
 	defer templ.ReleaseBuffer(buf)
 
@@ -75,5 +88,5 @@ func render(ctx echo.Context, t templ.Component) error {
 		return err
 	}
 
-	return ctx.HTML(http.StatusOK, buf.String())
+	return ctx.HTML(statusCode, buf.String())
 }

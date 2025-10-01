@@ -2,10 +2,12 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/mbvlabs/andurel/layout"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/slices"
 )
 
 func newProjectCommand() *cobra.Command {
@@ -25,6 +27,9 @@ dependencies, and configuration.`,
 
 	projectCmd.Flags().
 		StringP("database", "d", "", "Database to use (postgresql, sqlite) (optional, default: postgres)")
+
+	projectCmd.Flags().
+		StringSliceP("extensions", "e", []string{}, "Extensions to include (comma-separated: simple-auth, etc.)")
 
 	return projectCmd
 }
@@ -55,11 +60,30 @@ func newProject(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	if err := layout.Scaffold(basePath, projectName, repo, database); err != nil {
+	extensions, err := cmd.Flags().GetStringSlice("extensions")
+	if err != nil {
+		return err
+	}
+
+	validRecipes := []string{"simple-auth"}
+	for _, extension := range extensions {
+		if !slices.Contains(validRecipes, extension) {
+			return fmt.Errorf(
+				"invalid recipe: %s - valid options are: %s",
+				extension,
+				strings.Join(validRecipes, ", "),
+			)
+		}
+	}
+
+	if err := layout.Scaffold(basePath, projectName, repo, database, extensions); err != nil {
 		return err
 	}
 
 	fmt.Printf("\n🎉 Successfully created project: %s\n", projectName)
+	if slices.Contains(extensions, "simple-auth") {
+		fmt.Printf("  Auth recipe enabled - visit /login or /signup\n")
+	}
 	fmt.Printf("\nNext steps:\n")
 	fmt.Printf("  cd %s\n", args[0])
 	if database == "postgresql" {

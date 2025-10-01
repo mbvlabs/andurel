@@ -1,0 +1,65 @@
+-- name: CreateUser :one
+{{if eq .Database "postgresql"}}
+INSERT INTO users (email, password, email_verified, is_admin, created_at, updated_at)
+VALUES ($1, $2, $3, $4, NOW(), NOW())
+RETURNING id, created_at, updated_at, email, is_admin, password, email_verified;
+{{else}}
+INSERT INTO users (id, email, password, email_verified, is_admin, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+RETURNING id, created_at, updated_at, email, is_admin, password, email_verified;
+{{end}}
+
+-- name: GetUserByEmail :one
+{{if eq .Database "postgresql"}}
+SELECT id, created_at, updated_at, email, is_admin, password, email_verified
+FROM users
+WHERE email = $1;
+{{else}}
+SELECT id, created_at, updated_at, email, is_admin, password, email_verified
+FROM users
+WHERE email = ?;
+{{end}}
+
+-- name: GetUserByID :one
+{{if eq .Database "postgresql"}}
+SELECT id, created_at, updated_at, email, is_admin, password, email_verified
+FROM users
+WHERE id = $1;
+{{else}}
+SELECT id, created_at, updated_at, email, is_admin, password, email_verified
+FROM users
+WHERE id = ?;
+{{end}}
+
+-- name: UpdateUserPassword :exec
+{{if eq .Database "postgresql"}}
+UPDATE users
+SET password = $1, updated_at = NOW()
+WHERE id = $2;
+{{else}}
+UPDATE users
+SET password = ?, updated_at = datetime('now')
+WHERE id = ?;
+{{end}}
+
+-- name: MarkEmailVerified :exec
+{{if eq .Database "postgresql"}}
+UPDATE users
+SET email_verified = TRUE, updated_at = NOW()
+WHERE id = $1;
+{{else}}
+UPDATE users
+SET email_verified = 1, updated_at = datetime('now')
+WHERE id = ?;
+{{end}}
+
+-- name: UpdateUser :exec
+{{if eq .Database "postgresql"}}
+UPDATE users
+SET email = $1, is_admin = $2, updated_at = NOW()
+WHERE id = $3;
+{{else}}
+UPDATE users
+SET email = ?, is_admin = ?, updated_at = datetime('now')
+WHERE id = ?;
+{{end}}
