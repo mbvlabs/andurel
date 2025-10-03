@@ -4,6 +4,7 @@ package layout
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -407,20 +408,50 @@ func renderTemplate(
 	}
 
 	fullTargetPath := filepath.Join(targetDir, targetPath)
-	if err := os.MkdirAll(filepath.Dir(fullTargetPath), constants.DirPermissionDefault); err != nil {
+	dir := filepath.Dir(fullTargetPath)
+	if err := os.MkdirAll(dir, constants.DirPermissionDefault); err != nil {
 		return fmt.Errorf("failed to create directory for %s: %w", targetPath, err)
 	}
 
-	file, err := os.Create(fullTargetPath)
+	tmpFile, err := os.CreateTemp(dir, ".layout-tmp-*")
 	if err != nil {
-		return fmt.Errorf("failed to create file %s: %w", targetPath, err)
+		return fmt.Errorf("failed to create temporary file for %s: %w", targetPath, err)
 	}
-	defer file.Close()
+	tmpPath := tmpFile.Name()
+	shouldCleanup := true
+	defer func() {
+		if shouldCleanup {
+			if removeErr := os.Remove(tmpPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+				slog.Debug("layout: failed to cleanup temporary file", "path", tmpPath, "error", removeErr)
+			}
+		}
+	}()
 
-	if err := tmpl.Execute(file, data); err != nil {
+	if err := tmpl.Execute(tmpFile, data); err != nil {
+		tmpFile.Close()
 		return fmt.Errorf("failed to execute template %s: %w", templateFile, err)
 	}
 
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temporary file for %s: %w", targetPath, err)
+	}
+
+	if err := os.Chmod(tmpPath, constants.FilePermissionPublic); err != nil {
+		return fmt.Errorf("failed to set permissions for %s: %w", targetPath, err)
+	}
+
+	if err := os.Rename(tmpPath, fullTargetPath); err != nil {
+		if removeErr := os.Remove(fullTargetPath); removeErr == nil || errors.Is(removeErr, os.ErrNotExist) {
+			if renameErr := os.Rename(tmpPath, fullTargetPath); renameErr == nil {
+				shouldCleanup = false
+				return nil
+			}
+		}
+
+		return fmt.Errorf("failed to move temporary file into place for %s: %w", targetPath, err)
+	}
+
+	shouldCleanup = false
 	return nil
 }
 
