@@ -5,37 +5,34 @@ import (
 	"context"
 
 	"{{.ModuleName}}/config"
-{{- if eq .Database "postgresql"}}
 	"{{.ModuleName}}/database"
-{{- else if eq .Database "sqlite"}}
-	"{{.ModuleName}}/database"
-{{- end}}
 	"{{.ModuleName}}/router/cookies"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
 	"github.com/maypok86/otter"
+{{/* slot controllers:imports */}}
+{{range .Slot "controllers:imports"}}{{printf "\t%s\n" .}}{{end}}
 )
 
 type Controllers struct {
 	Assets Assets
 	API    API
 	Pages  Pages
-{{if .WithSimpleAuth}}
-	Auth   Auth
-{{end}}
+{{/* slot controllers:structFields */}}
+{{range .Slot "controllers:structFields"}}{{printf "\t%s\n" .}}{{end}}
 }
 
 {{- if eq .Database "postgresql"}}
 func New(
-{{if .WithSimpleAuth}}
-	cfg config.Config,
-{{end}}
+{{/* slot controllers:newArgs */}}
+{{range .Slot "controllers:newArgs"}}{{printf "\t%s,\n" .}}{{end}}
 	db database.Postgres,
 ) (Controllers, error) {
 {{- else if eq .Database "sqlite"}}
 func New(
-	cfg config.Config,
+{{/* slot controllers:newArgs */}}
+{{range .Slot "controllers:newArgs"}}{{printf "\t%s,\n" .}}{{end}}
 	db database.SQLite,
 ) (Controllers, error) {
 {{- end}}
@@ -52,17 +49,15 @@ func New(
 	assets := newAssets()
 	pages := newPages(db, pageCacher)
 	api := newAPI(db)
-{{if .WithSimpleAuth}}
-	auth := newAuth(cfg, db)
-{{end}}
+{{/* slot controllers:newSetup */}}
+{{range .Slot "controllers:newSetup"}}{{printf "\t%s\n" .}}{{end}}
 
 	return Controllers{
 		assets,
 		api,
 		pages,
-{{if .WithSimpleAuth}}
-		auth,
-{{end}}
+{{/* slot controllers:newReturn */}}
+{{range .Slot "controllers:newReturn"}}{{printf "\t\t%s,\n" .}}{{end}}
 	}, nil
 }
 
