@@ -1,37 +1,127 @@
-// Package simpleauth is an extension that provides functionality to integrate authentication features into a Go web application with no email validation.
 package simpleauth
 
 import (
 	"fmt"
-	"path/filepath"
+	"os/exec"
+	"path"
 	"time"
+
+	"github.com/mbvlabs/andurel/layout/extensions"
 )
 
-type TemplateData struct {
-	ProjectName          string
-	ModuleName           string
-	Database             string
-	SessionKey           string
-	SessionEncryptionKey string
-	TokenSigningKey      string
-	PasswordSalt         string
-	WithSimpleAuth       bool
+type simpleAuthExtension struct{}
+
+const passwordValidationFunction = "func validatePasswordsMatch(sl validator.StructLevel) {\n" +
+	"\tpwPair := sl.Current().Interface().(PasswordPair)\n\n" +
+	"\tif pwPair.Password != pwPair.ConfirmPassword {\n" +
+	"\t\tsl.ReportError(\n" +
+	"\t\t\tpwPair.Password,\n" +
+	"\t\t\t\"Password\",\n" +
+	"\t\t\t\"Password\",\n" +
+	"\t\t\t\"must match confirm password\",\n" +
+	"\t\t\t\"\",\n" +
+	"\t\t)\n" +
+	"\t\tsl.ReportError(\n" +
+	"\t\t\tpwPair.Password,\n" +
+	"\t\t\t\"ConfirmPassword\",\n" +
+	"\t\t\t\"ConfirmPassword\",\n" +
+	"\t\t\t\"must match password\",\n" +
+	"\t\t\t\"\",\n" +
+	"\t\t)\n" +
+	"\t}\n" +
+	"}"
+
+func Extension() extensions.Extension {
+	return simpleAuthExtension{}
 }
 
-type ProcessTemplateFunc func(targetDir, templateFile, targetPath string, data TemplateData) error
+func (simpleAuthExtension) Name() string {
+	return "simple-auth"
+}
 
-func ProcessAuthRecipe(
-	targetDir string,
-	data TemplateData,
-	processTemplate ProcessTemplateFunc,
-) error {
-	mappings := getTemplateMappings(data.Database)
+func (simpleAuthExtension) Apply(ctx *extensions.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("simple-auth: context is nil")
+	}
+
+	if ctx.ProcessTemplate == nil {
+		return fmt.Errorf("simple-auth: process template callback is nil")
+	}
+
+	if ctx.Data == nil {
+		return fmt.Errorf("simple-auth: template data is nil")
+	}
+
+	if err := addSlotContributions(ctx); err != nil {
+		return err
+	}
+
+	mappings := getTemplateMappings(ctx.Data.Database)
 
 	for tmplFile, targetPath := range mappings {
-		fullTmplPath := filepath.Join("simple-auth", "templates", tmplFile)
-		if err := processTemplate(targetDir, fullTmplPath, targetPath, data); err != nil {
+		fullTmplPath := path.Join("simple-auth", "templates", tmplFile)
+		if err := ctx.ProcessTemplate(fullTmplPath, targetPath, ctx.Data); err != nil {
 			return fmt.Errorf("failed to process auth template %s: %w", tmplFile, err)
 		}
+	}
+
+	if ctx.AddPostStep != nil {
+		ctx.AddPostStep(func() error {
+			cmd := exec.Command("go", "tool", "sqlc", "generate", "-f", "database/sqlc.yaml")
+			cmd.Dir = ctx.TargetDir
+
+			if err := cmd.Run(); err != nil {
+				return fmt.Errorf("sqlc generate failed: %w", err)
+			}
+
+			return nil
+		})
+	}
+
+	return nil
+}
+
+func addSlotContributions(ctx *extensions.Context) error {
+	slotSnippets := map[string][]string{
+		"controllers:structFields": {
+			"Auth   Auth",
+		},
+		"controllers:newArgs": {
+			"cfg config.Config",
+		},
+		"controllers:newSetup": {
+			"auth := newAuth(cfg, db)",
+		},
+		"controllers:newReturn": {
+			"auth",
+		},
+		"cmd/app:setupArgs": {
+			"cfg config.Config",
+		},
+		"cmd/app:controllerArgs": {
+			"cfg",
+		},
+		"cmd/app:setupCallArgs": {
+			"cfg",
+		},
+		"models:validatorRegistrations": {
+			"v.RegisterStructValidation(validatePasswordsMatch, PasswordPair{})",
+		},
+		"routes:build": {
+			"r = append(r, authRoutes...)",
+		},
+	}
+
+	for slot, snippets := range slotSnippets {
+		for _, snippet := range snippets {
+			if err := ctx.AddSlotSnippet(slot, snippet); err != nil {
+				return fmt.Errorf("simple-auth: failed to add snippet for %s: %w", slot, err)
+			}
+		}
+	}
+
+	if err := ctx.AddSlotSnippet("models:functions", passwordValidationFunction); err != nil {
+		return fmt.Errorf("simple-auth: failed to add password validator: %w", err)
 	}
 
 	return nil
