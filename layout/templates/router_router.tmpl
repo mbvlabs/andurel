@@ -101,22 +101,22 @@ func (r *Router) SetupRoutes() *echo.Echo {
 			)
 		}
 
-		if route.Handler == "" || route.HandleMethod == "" {
-			panic("Route must specify Handler and HandleMethod fields")
-		}
+                if route.Controller == "" || route.ControllerMethod == "" {
+                        panic("Route must specify Controller and ControllerMethod fields")
+                }
 
-		controllerField := controllersValue.FieldByName(route.Handler)
-		if !controllerField.IsValid() {
-			panic(
-				fmt.Sprintf(
-					"Controller field %s not found in controllers struct",
-					route.Handler,
-				),
-			)
-		}
+                controllerField := controllersValue.FieldByName(route.Controller)
+                if !controllerField.IsValid() {
+                        panic(
+                                fmt.Sprintf(
+                                        "Controller field %s not found in controllers struct",
+                                        route.Controller,
+                                ),
+                        )
+                }
 
-		controller := controllerField.Interface()
-		controllerFunc := getHandlerFunc(controller, route.HandleMethod)
+                controller := controllerField.Interface()
+		controllerFunc := getHandlerFunc(controller, route.ControllerMethod)
 
 		var middlewareFuncs []echo.MiddlewareFunc
 		for _, mw := range route.Middleware {
@@ -126,18 +126,18 @@ func (r *Router) SetupRoutes() *echo.Echo {
 		switch route.Method {
 		case http.MethodGet:
 			registeredRoutes = append(registeredRoutes, route.Name)
-			r.Handler.GET(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
-		case http.MethodPost:
-			registeredRoutes = append(registeredRoutes, route.Name)
-			r.Handler.POST(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
-		case http.MethodPut:
-			registeredRoutes = append(registeredRoutes, route.Name)
-			r.Handler.PUT(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
-		case http.MethodDelete:
-			registeredRoutes = append(registeredRoutes, route.Name)
-			r.Handler.DELETE(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
-		}
-	}
+                        r.Handler.GET(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
+                case http.MethodPost:
+                        registeredRoutes = append(registeredRoutes, route.Name)
+                        r.Handler.POST(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
+                case http.MethodPut:
+                        registeredRoutes = append(registeredRoutes, route.Name)
+                        r.Handler.PUT(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
+                case http.MethodDelete:
+                        registeredRoutes = append(registeredRoutes, route.Name)
+                        r.Handler.DELETE(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
+                }
+        }
 
 	r.Handler.RouteNotFound(
 		"/*",

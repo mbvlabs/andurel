@@ -22,41 +22,41 @@ var assetRoutes = []Route{
 var startTime = time.Now().Unix()
 
 var Robots = Route{
-	Name:         assetsNamePrefix + ".robots",
-	Path:         AssetsRoutePrefix + "/robots.txt",
-	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "Robots",
+        Name:         assetsNamePrefix + ".robots",
+        Path:         AssetsRoutePrefix + "/robots.txt",
+        Method:       http.MethodGet,
+        Controller:   "Assets",
+        ControllerMethod: "Robots",
 }
 
 var Sitemap = Route{
-	Name:         assetsNamePrefix + ".sitemap",
-	Path:         AssetsRoutePrefix + "/sitemap.xml",
-	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "Sitemap",
+        Name:         assetsNamePrefix + ".sitemap",
+        Path:         AssetsRoutePrefix + "/sitemap.xml",
+        Method:       http.MethodGet,
+        Controller:   "Assets",
+        ControllerMethod: "Sitemap",
 }
 
 var Stylesheet = Route{
-	Name:         assetsNamePrefix + "css.stylesheet",
-	Path:         AssetsRoutePrefix + fmt.Sprintf("/css/%v/tw.css", startTime),
-	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "Stylesheet",
+        Name:         assetsNamePrefix + "css.stylesheet",
+        Path:         AssetsRoutePrefix + fmt.Sprintf("/css/%v/tw.css", startTime),
+        Method:       http.MethodGet,
+        Controller:   "Assets",
+        ControllerMethod: "Stylesheet",
 }
 
 var Scripts = Route{
-	Name:         assetsNamePrefix + "js.scripts",
-	Path:         AssetsRoutePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime),
-	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "Scripts",
+        Name:         assetsNamePrefix + "js.scripts",
+        Path:         AssetsRoutePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime),
+        Method:       http.MethodGet,
+        Controller:   "Assets",
+        ControllerMethod: "Scripts",
 }
 
 var Script = Route{
-	Name:         assetsNamePrefix + "js.script",
-	Path:         AssetsRoutePrefix + fmt.Sprintf("/js/%v/:file", startTime),
-	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "Script",
+        Name:         assetsNamePrefix + "js.script",
+        Path:         AssetsRoutePrefix + fmt.Sprintf("/js/%v/:file", startTime),
+        Method:       http.MethodGet,
+        Controller:   "Assets",
+        ControllerMethod: "Script",
 }

@@ -1625,7 +1625,7 @@ func (a Assets) Script(c echo.Context) error {
 
 
 === controllers/controller.go ===
-// Package controllers provides HTTP handlers for the web application.
+// Package controllers provides HTTP controllers for the web application.
 package controllers
 
 import (
@@ -2669,22 +2669,22 @@ func (r *Router) SetupRoutes() *echo.Echo {
 			)
 		}
 
-		if route.Handler == "" || route.HandleMethod == "" {
-			panic("Route must specify Handler and HandleMethod fields")
+		if route.Controller == "" || route.ControllerMethod == "" {
+			panic("Route must specify Controller and ControllerMethod fields")
 		}
 
-		controllerField := controllersValue.FieldByName(route.Handler)
+		controllerField := controllersValue.FieldByName(route.Controller)
 		if !controllerField.IsValid() {
 			panic(
 				fmt.Sprintf(
 					"Controller field %s not found in controllers struct",
-					route.Handler,
+					route.Controller,
 				),
 			)
 		}
 
 		controller := controllerField.Interface()
-		controllerFunc := getHandlerFunc(controller, route.HandleMethod)
+		controllerFunc := getHandlerFunc(controller, route.ControllerMethod)
 
 		var middlewareFuncs []echo.MiddlewareFunc
 		for _, mw := range route.Middleware {
@@ -2800,8 +2800,8 @@ var Health = Route{
 	Name:         apiNamePrefix + ".health",
 	Path:         APIRoutePrefix + "/health",
 	Method:       http.MethodGet,
-	Handler:      "API",
-	HandleMethod: "Health",
+	Controller:   "API",
+	ControllerMethod: "Health",
 }
 
 
@@ -2833,40 +2833,40 @@ var Robots = Route{
 	Name:         assetsNamePrefix + ".robots",
 	Path:         AssetsRoutePrefix + "/robots.txt",
 	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "Robots",
+	Controller:   "Assets",
+	ControllerMethod: "Robots",
 }
 
 var Sitemap = Route{
 	Name:         assetsNamePrefix + ".sitemap",
 	Path:         AssetsRoutePrefix + "/sitemap.xml",
 	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "Sitemap",
+	Controller:   "Assets",
+	ControllerMethod: "Sitemap",
 }
 
 var Stylesheet = Route{
 	Name:         assetsNamePrefix + "css.stylesheet",
 	Path:         AssetsRoutePrefix + fmt.Sprintf("/css/%v/tw.css", startTime),
 	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "Stylesheet",
+	Controller:   "Assets",
+	ControllerMethod: "Stylesheet",
 }
 
 var Scripts = Route{
 	Name:         assetsNamePrefix + "js.scripts",
 	Path:         AssetsRoutePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime),
 	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "Scripts",
+	Controller:   "Assets",
+	ControllerMethod: "Scripts",
 }
 
 var Script = Route{
 	Name:         assetsNamePrefix + "js.script",
 	Path:         AssetsRoutePrefix + fmt.Sprintf("/js/%v/:file", startTime),
 	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "Script",
+	Controller:   "Assets",
+	ControllerMethod: "Script",
 }
 
 
@@ -2885,8 +2885,8 @@ var HomePage = Route{
 	Name:             pageNamePrefix + ".home",
 	Path:             "/",
 	Method:           http.MethodGet,
-	Handler:          "Pages",
-	HandleMethod:     "Home",
+	Controller:   "Pages",
+	ControllerMethod: "Home",
 	IncludeInSitemap: true,
 }
 
@@ -2900,8 +2900,8 @@ import "github.com/labstack/echo/v4"
 type Route struct {
 	Name             string
 	Path             string
-	Handler          string
-	HandleMethod     string
+	Controller       string
+	ControllerMethod string
 	Method           string
 	IncludeInSitemap bool
 	Middleware       []func(next echo.HandlerFunc) echo.HandlerFunc

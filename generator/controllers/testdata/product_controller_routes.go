@@ -23,20 +23,20 @@ var ProductRoutes = []Route{
 }
 
 var ProductIndex = Route{
-	Name:         productsNamePrefix + ".index",
-	Path:         productsRoutePrefix,
-	Method:       http.MethodGet,
-	Handler:      "Products",
-	HandleMethod: "Index",
+	Name:             productsNamePrefix + ".index",
+	Path:             productsRoutePrefix,
+	Method:           http.MethodGet,
+	Controller:       "Products",
+	ControllerMethod: "Index",
 }
 
 var ProductShow = productsShow{
 	Route: Route{
-		Name:         productsNamePrefix + ".show",
-		Path:         productsRoutePrefix + "/:id",
-		Method:       http.MethodGet,
-		Handler:      "Products",
-		HandleMethod: "Show",
+		Name:             productsNamePrefix + ".show",
+		Path:             productsRoutePrefix + "/:id",
+		Method:           http.MethodGet,
+		Controller:       "Products",
+		ControllerMethod: "Show",
 	},
 }
 
@@ -49,28 +49,28 @@ func (r productsShow) GetPath(id uuid.UUID) string {
 }
 
 var ProductNew = Route{
-	Name:         productsNamePrefix + ".new",
-	Path:         productsRoutePrefix + "/new",
-	Method:       http.MethodGet,
-	Handler:      "Products",
-	HandleMethod: "New",
+	Name:             productsNamePrefix + ".new",
+	Path:             productsRoutePrefix + "/new",
+	Method:           http.MethodGet,
+	Controller:       "Products",
+	ControllerMethod: "New",
 }
 
 var ProductCreate = Route{
-	Name:         productsNamePrefix + ".create",
-	Path:         productsRoutePrefix,
-	Method:       http.MethodPost,
-	Handler:      "Products",
-	HandleMethod: "Create",
+	Name:             productsNamePrefix + ".create",
+	Path:             productsRoutePrefix,
+	Method:           http.MethodPost,
+	Controller:       "Products",
+	ControllerMethod: "Create",
 }
 
 var ProductEdit = productsEdit{
 	Route: Route{
-		Name:         productsNamePrefix + ".edit",
-		Path:         productsRoutePrefix + "/:id/edit",
-		Method:       http.MethodGet,
-		Handler:      "Products",
-		HandleMethod: "Edit",
+		Name:             productsNamePrefix + ".edit",
+		Path:             productsRoutePrefix + "/:id/edit",
+		Method:           http.MethodGet,
+		Controller:       "Products",
+		ControllerMethod: "Edit",
 	},
 }
 
@@ -84,11 +84,11 @@ func (r productsEdit) GetPath(id uuid.UUID) string {
 
 var ProductUpdate = productsUpdate{
 	Route: Route{
-		Name:         productsNamePrefix + ".update",
-		Path:         productsRoutePrefix + "/:id",
-		Method:       http.MethodPut,
-		Handler:      "Products",
-		HandleMethod: "Update",
+		Name:             productsNamePrefix + ".update",
+		Path:             productsRoutePrefix + "/:id",
+		Method:           http.MethodPut,
+		Controller:       "Products",
+		ControllerMethod: "Update",
 	},
 }
 
@@ -102,11 +102,11 @@ func (r productsUpdate) GetPath(id uuid.UUID) string {
 
 var ProductDestroy = productsDestroy{
 	Route: Route{
-		Name:         productsNamePrefix + ".destroy",
-		Path:         productsRoutePrefix + "/:id",
-		Method:       http.MethodDelete,
-		Handler:      "Products",
-		HandleMethod: "Destroy",
+		Name:             productsNamePrefix + ".destroy",
+		Path:             productsRoutePrefix + "/:id",
+		Method:           http.MethodDelete,
+		Controller:       "Products",
+		ControllerMethod: "Destroy",
 	},
 }
 
