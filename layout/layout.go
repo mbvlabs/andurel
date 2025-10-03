@@ -58,7 +58,6 @@ func Scaffold(targetDir, projectName, repo, database string, extensionNames []st
 		SessionEncryptionKey: generateRandomHex(32),
 		TokenSigningKey:      generateRandomHex(32),
 		PasswordSalt:         generateRandomHex(16),
-		ExtensionFlags:       map[string]bool{},
 	}
 
 	if err := registerBuiltinExtensions(); err != nil {
