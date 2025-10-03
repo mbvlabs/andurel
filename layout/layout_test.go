@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/layout/extensions"
 	"github.com/sebdah/goldie/v2"
 )
 
@@ -194,6 +195,47 @@ func normalizeEnvSecrets(content string) string {
 	)
 	content = replaceEnvValue(content, "TOKEN_SIGNING_KEY=", "test_token_signing_key_value")
 	return content
+}
+
+func TestSlotContributionRerender(t *testing.T) {
+	if err := os.Setenv("ANDUREL_SKIP_TAILWIND", "true"); err != nil {
+		t.Fatalf("Failed to set ANDUREL_SKIP_TAILWIND env var: %v", err)
+	}
+	if err := os.Setenv("ANDUREL_SKIP_BUILD", "true"); err != nil {
+		t.Fatalf("Failed to set ANDUREL_SKIP_BUILD env var: %v", err)
+	}
+
+	extensions.Register(slotTestExtension{})
+
+	tempDir := t.TempDir()
+
+	if err := layout.Scaffold(tempDir, "slotapp", "", "sqlite", []string{"test-slot"}); err != nil {
+		t.Fatalf("Failed to scaffold project with slot extension: %v", err)
+	}
+
+	routesFile := filepath.Join(tempDir, "router", "routes", "routes.go")
+	content, err := os.ReadFile(routesFile)
+	if err != nil {
+		t.Fatalf("Failed to read routes file: %v", err)
+	}
+
+	if !strings.Contains(string(content), "// test-slot routes hook") {
+		t.Fatalf("Expected slot contribution in routes.go, but not found. Content: %s", content)
+	}
+}
+
+type slotTestExtension struct{}
+
+func (slotTestExtension) Name() string {
+	return "test-slot"
+}
+
+func (slotTestExtension) Apply(ctx *extensions.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("slot extension context is nil")
+	}
+
+	return ctx.AddSlotSnippet("routes:build", "// test-slot routes hook")
 }
 
 func replaceEnvValue(content, prefix, testValue string) string {
