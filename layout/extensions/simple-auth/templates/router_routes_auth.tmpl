@@ -23,7 +23,7 @@ var LoginPage = Route	{
 		Path:         "/login",
 		Method:       http.MethodGet,
 		Handler:      "Auth",
-		HandleMethod: "ShowLogin",
+		HandleMethod: "LoginPage",
 	}
 
 var SessionCreate = Route	{
@@ -42,7 +42,7 @@ var SignupPage = Route	{
 		Path:         "/signup",
 		Method:       http.MethodGet,
 		Handler:      "Auth",
-		HandleMethod: "ShowSignup",
+		HandleMethod: "SignupPage",
 	}
 
 var SignupCreate = Route {
@@ -50,7 +50,7 @@ var SignupCreate = Route {
 		Path:         "/signup",
 		Method:       http.MethodPost,
 		Handler:      "Auth",
-		HandleMethod: "Signup",
+		HandleMethod: "UserCreate",
 	}
 
 var SessionDestroy = Route {	
@@ -58,5 +58,5 @@ var SessionDestroy = Route {
 		Path:         "/logout",
 		Method:       http.MethodPost,
 		Handler:      "Auth",
-		HandleMethod: "Logout",
+		HandleMethod: "SessionDestroy",
 }
