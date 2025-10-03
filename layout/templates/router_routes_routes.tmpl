@@ -1,7 +1,11 @@
 // Package routes provides the application route definitions.
 package routes
 
-import "github.com/labstack/echo/v4"
+import (
+	"github.com/labstack/echo/v4"
+{{/* slot routes:imports */}}
+{{range .Slot "routes:imports"}}{{printf "\t%s\n" .}}{{end}}
+)
 
 type Route struct {
 	Name         string
@@ -31,12 +35,8 @@ var BuildRoutes = func() []Route {
 		apiRoutes...,
 	)
 
-{{if .WithSimpleAuth}}
-	r = append(
-		r,
-		authRoutes...,
-	)
-{{end}}
+{{/* slot routes:build */}}
+{{range .Slot "routes:build"}}{{printf "\t%s\n" .}}{{end}}
 
 	return r
 }()
