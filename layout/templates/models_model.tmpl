@@ -3,38 +3,19 @@ package models
 
 import (
 	"github.com/go-playground/validator/v10"
+{{/* slot models:imports */}}
+{{range .Slot "models:imports"}}{{printf "\t%s\n" .}}{{end}}
 )
 
 var validate = setupValidator()
 
 func setupValidator() *validator.Validate {
 	v := validator.New(validator.WithRequiredStructEnabled())
-{{if .WithSimpleAuth}}
-	v.RegisterStructValidation(validatePasswordsMatch, PasswordPair{})
-{{end}}
+{{/* slot models:validatorRegistrations */}}
+{{range .Slot "models:validatorRegistrations"}}{{printf "\t%s\n" .}}{{end}}
 
 	return v
 }
 
-{{if .WithSimpleAuth}}
-func validatePasswordsMatch(sl validator.StructLevel) {
-	pwPair := sl.Current().Interface().(PasswordPair)
-
-	if pwPair.Password != pwPair.ConfirmPassword {
-		sl.ReportError(
-			pwPair.Password,
-			"Password",
-			"Password",
-			"must match confirm password",
-			"",
-		)
-		sl.ReportError(
-			pwPair.Password,
-			"ConfirmPassword",
-			"ConfirmPassword",
-			"must match password",
-			"",
-		)
-	}
-}
-{{end}}
+{{/* slot models:functions */}}
+{{range .Slot "models:functions"}}{{printf "%s\n" .}}{{end}}
