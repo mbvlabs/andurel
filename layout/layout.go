@@ -12,14 +12,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
+	"sync"
 	"text/template"
 
 	"github.com/mbvlabs/andurel/layout/extensions"
 	simpleauth "github.com/mbvlabs/andurel/layout/extensions/simple-auth"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
-	"golang.org/x/exp/slices"
 )
 
 type Element struct {
@@ -27,20 +28,14 @@ type Element struct {
 	SubDirs []Element
 }
 
-type TemplateData struct {
-	ProjectName          string
-	ModuleName           string
-	Database             string
-	SessionKey           string
-	SessionEncryptionKey string
-	TokenSigningKey      string
-	PasswordSalt         string
-	WithSimpleAuth       bool
-}
+var (
+	registerBuiltinOnce sync.Once
+	registerBuiltinErr  error
+)
 
 // Scaffold TODO: figure out a way to have full repo path on init, i.e. github.com/mbvlabs/andurel
 // breaks because go mod tidy will look up that path and not find it
-func Scaffold(targetDir, projectName, repo, database string, extensions []string) error {
+func Scaffold(targetDir, projectName, repo, database string, extensionNames []string) error {
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
 
 	if strings.Contains(repo, "github.com/") {
@@ -55,7 +50,7 @@ func Scaffold(targetDir, projectName, repo, database string, extensions []string
 		moduleName = repo + "/" + projectName
 	}
 
-	templateData := TemplateData{
+	templateData := extensions.TemplateData{
 		ProjectName:          projectName,
 		ModuleName:           moduleName,
 		Database:             database,
@@ -63,7 +58,16 @@ func Scaffold(targetDir, projectName, repo, database string, extensions []string
 		SessionEncryptionKey: generateRandomHex(32),
 		TokenSigningKey:      generateRandomHex(32),
 		PasswordSalt:         generateRandomHex(16),
-		WithSimpleAuth:       slices.Contains(extensions, "simple-auth"),
+		ExtensionFlags:       map[string]bool{},
+	}
+
+	if err := registerBuiltinExtensions(); err != nil {
+		return fmt.Errorf("failed to register builtin extensions: %w", err)
+	}
+
+	requestedExtensions, err := resolveExtensions(extensionNames)
+	if err != nil {
+		return err
 	}
 
 	fmt.Print("Creating project structure...\n")
@@ -82,7 +86,7 @@ func Scaffold(targetDir, projectName, repo, database string, extensions []string
 	}
 
 	fmt.Print("Processing templated files...\n")
-	if err := processTemplatedFiles(targetDir, templateData); err != nil {
+	if err := processTemplatedFiles(targetDir, &templateData); err != nil {
 		return fmt.Errorf("failed to process templated files: %w", err)
 	}
 
@@ -139,26 +143,55 @@ func Scaffold(targetDir, projectName, repo, database string, extensions []string
 		}
 	}
 
-	if templateData.WithSimpleAuth {
-		fmt.Print("Processing auth recipe...\n")
-		authData := simpleauth.TemplateData{
-			ProjectName:          templateData.ProjectName,
-			ModuleName:           templateData.ModuleName,
-			Database:             templateData.Database,
-			SessionKey:           templateData.SessionKey,
-			SessionEncryptionKey: templateData.SessionEncryptionKey,
-			TokenSigningKey:      templateData.TokenSigningKey,
-			PasswordSalt:         templateData.PasswordSalt,
-			WithSimpleAuth:       templateData.WithSimpleAuth,
-		}
-		if err := simpleauth.ProcessAuthRecipe(targetDir, authData, func(targetDir, templateFile, targetPath string, data simpleauth.TemplateData) error {
-			return ProcessTemplateFromRecipe(targetDir, templateFile, targetPath, templateData)
-		}); err != nil {
-			return fmt.Errorf("failed to process auth recipe: %w", err)
+	type postStep struct {
+		extensionName string
+		fn            func() error
+	}
+
+	var postExtensionSteps []postStep
+
+	if len(requestedExtensions) > 0 {
+		fmt.Print("Applying extensions...\n")
+	}
+
+	for _, ext := range requestedExtensions {
+		currentExt := ext
+		fmt.Printf(" - %s\n", currentExt.Name())
+
+		ctx := extensions.Context{
+			TargetDir: targetDir,
+			Data:      &templateData,
+			ProcessTemplate: func(templateFile, targetPath string, data *extensions.TemplateData) error {
+				if data == nil {
+					data = &templateData
+				}
+
+				return ProcessTemplateFromRecipe(targetDir, templateFile, targetPath, data)
+			},
+			AddPostStep: func(fn func() error) {
+				if fn == nil {
+					return
+				}
+
+				postExtensionSteps = append(postExtensionSteps, postStep{
+					extensionName: currentExt.Name(),
+					fn:            fn,
+				})
+			},
 		}
 
-		if err := RunSqlcGenerate(targetDir); err != nil {
-			return fmt.Errorf("failed to run sqlc generate: %w", err)
+		if err := currentExt.Apply(&ctx); err != nil {
+			return fmt.Errorf("failed to apply extension %s: %w", currentExt.Name(), err)
+		}
+	}
+
+	if err := rerenderSlotTemplates(targetDir, &templateData); err != nil {
+		return fmt.Errorf("failed to re-render slot templates: %w", err)
+	}
+
+	for _, step := range postExtensionSteps {
+		if err := step.fn(); err != nil {
+			return fmt.Errorf("extension %s post-step failed: %w", step.extensionName, err)
 		}
 	}
 
@@ -191,75 +224,82 @@ type (
 	TmplTargetPath string
 )
 
-func processTemplatedFiles(targetDir string, data TemplateData) error {
-	templateMappings := map[TmplTarget]TmplTargetPath{
-		// Core files
-		"database.tmpl":  "database/database.go",
-		"env.tmpl":       ".env.example",
-		"sqlc.tmpl":      "database/sqlc.yaml",
-		"gitignore.tmpl": ".gitignore",
-		"justfile.tmpl":  "justfile",
+var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
+	// Core files
+	"database.tmpl":  "database/database.go",
+	"env.tmpl":       ".env.example",
+	"sqlc.tmpl":      "database/sqlc.yaml",
+	"gitignore.tmpl": ".gitignore",
+	"justfile.tmpl":  "justfile",
 
-		// Assets
-		"assets_assets.tmpl":      "assets/assets.go",
-		"assets_css_tw.tmpl":      "assets/css/tw.css",
-		"assets_js_scripts.tmpl":  "assets/js/scripts.js",
-		"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc5.min.js",
+	// Assets
+	"assets_assets.tmpl":      "assets/assets.go",
+	"assets_css_tw.tmpl":      "assets/css/tw.css",
+	"assets_js_scripts.tmpl":  "assets/js/scripts.js",
+	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc5.min.js",
 
-		// CSS
-		"css_base.tmpl":  "css/base.css",
-		"css_theme.tmpl": "css/theme.css",
+	// CSS
+	"css_base.tmpl":  "css/base.css",
+	"css_theme.tmpl": "css/theme.css",
 
-		// Commands
-		"cmd_app_main.tmpl":       "cmd/app/main.go",
-		"cmd_migration_main.tmpl": "cmd/migration/main.go",
-		"cmd_run_main.tmpl":       "cmd/run/main.go",
-		"cmd_console_main.tmpl":   "cmd/console/main.go",
+	// Commands
+	"cmd_app_main.tmpl":       "cmd/app/main.go",
+	"cmd_migration_main.tmpl": "cmd/migration/main.go",
+	"cmd_run_main.tmpl":       "cmd/run/main.go",
+	"cmd_console_main.tmpl":   "cmd/console/main.go",
 
-		// Config
-		"config_auth.tmpl":     "config/auth.go",
-		"config_config.tmpl":   "config/config.go",
-		"config_database.tmpl": "config/database.go",
+	// Config
+	"config_auth.tmpl":     "config/auth.go",
+	"config_config.tmpl":   "config/config.go",
+	"config_database.tmpl": "config/database.go",
 
-		// Controllers
-		"controllers_api.tmpl":        "controllers/api.go",
-		"controllers_assets.tmpl":     "controllers/assets.go",
-		"controllers_controller.tmpl": "controllers/controller.go",
-		"controllers_pages.tmpl":      "controllers/pages.go",
+	// Controllers
+	"controllers_api.tmpl":        "controllers/api.go",
+	"controllers_assets.tmpl":     "controllers/assets.go",
+	"controllers_controller.tmpl": "controllers/controller.go",
+	"controllers_pages.tmpl":      "controllers/pages.go",
 
-		// Database
-		"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
-		"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
+	// Database
+	"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
+	"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
 
-		// Models
-		"models_errors.tmpl": "models/errors.go",
-		"models_model.tmpl":  "models/model.go",
+	// Models
+	"models_errors.tmpl": "models/errors.go",
+	"models_model.tmpl":  "models/model.go",
 
-		// Router
-		"router_router.tmpl":                "router/router.go",
-		"router_cookies_cookies.tmpl":       "router/cookies/cookies.go",
-		"router_cookies_flash.tmpl":         "router/cookies/flash.go",
-		"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
+	// Router
+	"router_router.tmpl":                "router/router.go",
+	"router_cookies_cookies.tmpl":       "router/cookies/cookies.go",
+	"router_cookies_flash.tmpl":         "router/cookies/flash.go",
+	"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
 
-		// Routes
-		"router_routes_routes.tmpl": "router/routes/routes.go",
-		"router_routes_api.tmpl":    "router/routes/api.go",
-		"router_routes_assets.tmpl": "router/routes/assets.go",
-		"router_routes_pages.tmpl":  "router/routes/pages.go",
+	// Routes
+	"router_routes_routes.tmpl": "router/routes/routes.go",
+	"router_routes_api.tmpl":    "router/routes/api.go",
+	"router_routes_assets.tmpl": "router/routes/assets.go",
+	"router_routes_pages.tmpl":  "router/routes/pages.go",
 
-		// Views
-		"views_layout.tmpl":         "views/layout.templ",
-		"views_home.tmpl":           "views/home.templ",
-		"views_bad_request.tmpl":    "views/bad_request.templ",
-		"views_internal_error.tmpl": "views/internal_error.templ",
-		"views_not_found.tmpl":      "views/not_found.templ",
+	// Views
+	"views_layout.tmpl":         "views/layout.templ",
+	"views_home.tmpl":           "views/home.templ",
+	"views_bad_request.tmpl":    "views/bad_request.templ",
+	"views_internal_error.tmpl": "views/internal_error.templ",
+	"views_not_found.tmpl":      "views/not_found.templ",
 
-		// View Components
-		"views_components_head.tmpl":   "views/components/head.templ",
-		"views_components_toasts.tmpl": "views/components/toasts.templ",
-	}
+	// View Components
+	"views_components_head.tmpl":   "views/components/head.templ",
+	"views_components_toasts.tmpl": "views/components/toasts.templ",
+}
 
-	for templateFile, targetPath := range templateMappings {
+var slotScopeTemplates = map[string]TmplTarget{
+	"controllers": "controllers_controller.tmpl",
+	"cmd/app":     "cmd_app_main.tmpl",
+	"models":      "models_model.tmpl",
+	"routes":      "router_routes_routes.tmpl",
+}
+
+func processTemplatedFiles(targetDir string, data *extensions.TemplateData) error {
+	for templateFile, targetPath := range baseTemplateMappings {
 		if err := processTemplate(targetDir, string(templateFile), string(targetPath), data); err != nil {
 			return fmt.Errorf("failed to process template %s: %w", templateFile, err)
 		}
@@ -268,7 +308,71 @@ func processTemplatedFiles(targetDir string, data TemplateData) error {
 	return nil
 }
 
-func processTemplate(targetDir, templateFile, targetPath string, data TemplateData) error {
+func rerenderSlotTemplates(targetDir string, data *extensions.TemplateData) error {
+	if data == nil {
+		return fmt.Errorf("template data is nil")
+	}
+
+	slotNames := data.SlotNames()
+	if len(slotNames) == 0 {
+		return nil
+	}
+
+	neededScopes := make(map[string]struct{}, len(slotNames))
+	for _, name := range slotNames {
+		scope := slotScope(name)
+		if scope == "" {
+			continue
+		}
+		neededScopes[scope] = struct{}{}
+	}
+
+	if len(neededScopes) == 0 {
+		return nil
+	}
+
+	scopes := make([]string, 0, len(neededScopes))
+	for scope := range neededScopes {
+		scopes = append(scopes, scope)
+	}
+	sort.Strings(scopes)
+
+	for _, scope := range scopes {
+		tmplName, ok := slotScopeTemplates[scope]
+		if !ok {
+			return fmt.Errorf("no template registered for slot scope %q", scope)
+		}
+
+		targetPath, ok := baseTemplateMappings[tmplName]
+		if !ok {
+			return fmt.Errorf("template mapping missing for scope %q (template %s)", scope, tmplName)
+		}
+
+		if err := processTemplate(targetDir, string(tmplName), string(targetPath), data); err != nil {
+			return fmt.Errorf("failed to render slot template %s: %w", tmplName, err)
+		}
+	}
+
+	return nil
+}
+
+func slotScope(slot string) string {
+	slot = strings.TrimSpace(slot)
+	if slot == "" {
+		return ""
+	}
+
+	if idx := strings.Index(slot, ":"); idx >= 0 {
+		return slot[:idx]
+	}
+
+	return slot
+}
+
+func processTemplate(
+	targetDir, templateFile, targetPath string,
+	data *extensions.TemplateData,
+) error {
 	content, err := templates.Files.ReadFile(templateFile)
 	if err != nil {
 		return fmt.Errorf("failed to read template %s: %w", templateFile, err)
@@ -301,7 +405,7 @@ func processTemplate(targetDir, templateFile, targetPath string, data TemplateDa
 
 func ProcessTemplateFromRecipe(
 	targetDir, templateFile, targetPath string,
-	data TemplateData,
+	data *extensions.TemplateData,
 ) error {
 	content, err := extensions.Files.ReadFile(templateFile)
 	if err != nil {
@@ -331,6 +435,52 @@ func ProcessTemplateFromRecipe(
 	}
 
 	return nil
+}
+
+func registerBuiltinExtensions() error {
+	registerBuiltinOnce.Do(func() {
+		registerBuiltinErr = extensions.Register(simpleauth.Extension())
+	})
+
+	return registerBuiltinErr
+}
+
+func resolveExtensions(names []string) ([]extensions.Extension, error) {
+	if len(names) == 0 {
+		return nil, nil
+	}
+
+	seen := make(map[string]struct{}, len(names))
+	resolved := make([]extensions.Extension, 0, len(names))
+
+	for _, name := range names {
+		if name == "" {
+			return nil, fmt.Errorf("extension name cannot be empty")
+		}
+
+		if _, exists := seen[name]; exists {
+			return nil, fmt.Errorf("extension %s specified multiple times", name)
+		}
+
+		ext, ok := extensions.Get(name)
+		if !ok {
+			available := strings.Join(extensions.Names(), ", ")
+			if available == "" {
+				return nil, fmt.Errorf("unknown extension %q", name)
+			}
+
+			return nil, fmt.Errorf(
+				"unknown extension %q. available extensions: %s",
+				name,
+				available,
+			)
+		}
+
+		seen[name] = struct{}{}
+		resolved = append(resolved, ext)
+	}
+
+	return resolved, nil
 }
 
 const goVersion = "1.25.0"
