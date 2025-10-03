@@ -23,7 +23,6 @@ type TemplateData struct {
 	SessionEncryptionKey string
 	TokenSigningKey      string
 	PasswordSalt         string
-	ExtensionFlags       map[string]bool
 
 	slotSnippets    map[string][]string
 	structuredSlots map[string][]any
