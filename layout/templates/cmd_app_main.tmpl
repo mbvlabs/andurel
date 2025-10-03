@@ -17,6 +17,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/sync/errgroup"
+{{/* slot cmd/app:imports */}}
+{{range .Slot "cmd/app:imports"}}{{printf "\t%s\n" .}}{{end}}
 )
 
 var appVersion string
@@ -59,11 +61,14 @@ func startServer(ctx context.Context, srv *http.Server, env string) error {
 }
 
 {{- if eq .Database "postgresql"}}
-func setupControllers({{if .WithSimpleAuth}}cfg config.Config, {{end}}psql database.Postgres) (controllers.Controllers, error) {
+func setupControllers(
+{{/* slot cmd/app:setupArgs */}}
+{{range .Slot "cmd/app:setupArgs"}}{{printf "\t%s,\n" .}}{{end}}
+	psql database.Postgres,
+) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
-{{if .WithSimpleAuth}}
-		cfg,
-{{end}}
+{{/* slot cmd/app:controllerArgs */}}
+{{range .Slot "cmd/app:controllerArgs"}}{{printf "\t\t%s,\n" .}}{{end}}
 		psql,
 	)
 	if err != nil {
@@ -74,11 +79,14 @@ func setupControllers({{if .WithSimpleAuth}}cfg config.Config, {{end}}psql datab
 }
 
 {{- else if eq .Database "sqlite"}}
-func setupControllers({{if .WithSimpleAuth}}cfg config.Config, {{end}}sqlite database.SQLite) (controllers.Controllers, error) {
+func setupControllers(
+{{/* slot cmd/app:setupArgs */}}
+{{range .Slot "cmd/app:setupArgs"}}{{printf "\t%s,\n" .}}{{end}}
+	sqlite database.SQLite,
+) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
-{{if .WithSimpleAuth}}
-		cfg,
-{{end}}
+{{/* slot cmd/app:controllerArgs */}}
+{{range .Slot "cmd/app:controllerArgs"}}{{printf "\t\t%s,\n" .}}{{end}}
 		sqlite,
 	)
 	if err != nil {
@@ -114,7 +122,11 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	controllers, err := setupControllers({{if .WithSimpleAuth}}cfg, {{end}}psql)
+	controllers, err := setupControllers(
+{{/* slot cmd/app:setupCallArgs */}}
+{{range .Slot "cmd/app:setupCallArgs"}}{{printf "\t\t%s,\n" .}}{{end}}
+		psql,
+	)
 	if err != nil {
 		return err
 	}
@@ -125,7 +137,11 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	controllers, err := setupControllers({{if .WithSimpleAuth}}cfg, {{end}}sqlite)
+	controllers, err := setupControllers(
+{{/* slot cmd/app:setupCallArgs */}}
+{{range .Slot "cmd/app:setupCallArgs"}}{{printf "\t\t%s,\n" .}}{{end}}
+		sqlite,
+	)
 	if err != nil {
 		return err
 	}
