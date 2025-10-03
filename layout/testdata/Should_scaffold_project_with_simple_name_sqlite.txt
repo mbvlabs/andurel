@@ -764,8 +764,12 @@ func startServer(ctx context.Context, srv *http.Server, env string) error {
 
 	return srv.ListenAndServe()
 }
-func setupControllers(sqlite database.SQLite) (controllers.Controllers, error) {
+func setupControllers(
+
+	sqlite database.SQLite,
+) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
+
 		sqlite,
 	)
 	if err != nil {
@@ -797,7 +801,10 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	controllers, err := setupControllers(sqlite)
+	controllers, err := setupControllers(
+
+		sqlite,
+	)
 	if err != nil {
 		return err
 	}
@@ -888,9 +895,8 @@ import (
 const (
 	sqlcConfigPath    = "database/sqlc.yaml"
 	migrationsDir     = "database/migrations"
-	cmdCreate         = "create"
 	cmdFix            = "fix"
-	cmdNew            = "new"
+	cmdCreate         = "create"
 	cmdUp             = "up"
 	cmdDown           = "down"
 	cmdReset          = "reset"
@@ -940,18 +946,9 @@ func execute() error {
 	args := os.Args[2:]
 
 	switch command {
-	case cmdCreate:
-		if len(args) == 0 {
-			return errors.New("create requires a migration name")
-		}
-		name := sanitizeMigrationName(args)
-		if name == "" {
-			return errors.New("provided migration name results in an empty identifier")
-		}
-		return runGoose(driver, dsn, cmdCreate, name, "sql")
 	case cmdFix:
 		return runGoose(driver, dsn, cmdFix)
-	case cmdNew:
+	case cmdCreate:
 		if len(args) == 0 {
 			return errors.New("new requires a migration name")
 		}
@@ -959,10 +956,7 @@ func execute() error {
 		if name == "" {
 			return errors.New("provided migration name results in an empty identifier")
 		}
-		if err := runGoose(driver, dsn, cmdCreate, name, "sql"); err != nil {
-			return err
-		}
-		return runGoose(driver, dsn, cmdFix)
+		return runGoose(driver, dsn, cmdCreate, name, "sql")
 	case cmdUp:
 		return runGoose(driver, dsn, cmdUp)
 	case cmdDown:
@@ -991,7 +985,7 @@ func execute() error {
 func printUsage() {
 	fmt.Fprintln(os.Stderr, "usage: migration <command> [args]")
 	fmt.Fprintln(os.Stderr, "\nAvailable commands:")
-	fmt.Fprintln(os.Stderr, "  new <name>   create a new SQL migration (auto-fixes numbering)")
+	fmt.Fprintln(os.Stderr, "  new <name>   create a new SQL migration")
 	fmt.Fprintln(os.Stderr, "  up           apply all pending migrations")
 	fmt.Fprintln(os.Stderr, "  down         roll back the most recent migration")
 	fmt.Fprintln(os.Stderr, "  reset        roll back everything and re-apply all migrations")
@@ -1630,7 +1624,8 @@ package controllers
 
 import (
 	"context"
-	"net/http"
+
+	"testapp/config"
 	"testapp/database"
 	"testapp/router/cookies"
 
@@ -1646,6 +1641,7 @@ type Controllers struct {
 }
 
 func New(
+
 	db database.SQLite,
 ) (Controllers, error) {
 	cacheBuilder, err := otter.NewBuilder[string, templ.Component](20)
@@ -1669,7 +1665,7 @@ func New(
 	}, nil
 }
 
-func render(ctx echo.Context, t templ.Component) error {
+func Render(ctx echo.Context, statusCode int, t templ.Component) error {
 	buf := templ.GetBuffer()
 	defer templ.ReleaseBuffer(buf)
 
@@ -1691,7 +1687,7 @@ func render(ctx echo.Context, t templ.Component) error {
 		return err
 	}
 
-	return ctx.HTML(http.StatusOK, buf.String())
+	return ctx.HTML(statusCode, buf.String())
 }
 
 
@@ -1721,11 +1717,11 @@ func newPages(
 }
 
 func (p Pages) Home(c echo.Context) error {
-	return render(c, views.Home())
+	return Render(c, 200, views.Home())
 }
 
 func (p Pages) NotFound(c echo.Context) error {
-	return render(c, views.NotFound())
+	return Render(c, 404, views.NotFound())
 }
 
 
@@ -2175,7 +2171,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/pressly/goose/v3 v3.25.0 // indirect
+	github.com/pressly/goose/v3 v3.26.0 // indirect
 	github.com/prestodb/presto-go-client v0.0.0-20240426182841-905ac40a1783 // indirect
 	github.com/prometheus/client_golang v1.22.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
@@ -2331,6 +2327,7 @@ var validate = setupValidator()
 
 func setupValidator() *validator.Validate {
 	v := validator.New(validator.WithRequiredStructEnabled())
+
 	return v
 }
 
@@ -2895,7 +2892,9 @@ var HomePage = Route{
 // Package routes provides the application route definitions.
 package routes
 
-import "github.com/labstack/echo/v4"
+import (
+	"github.com/labstack/echo/v4"
+)
 
 type Route struct {
 	Name             string
@@ -2936,7 +2935,7 @@ var BuildRoutes = func() []Route {
 package views
 
 templ BadRequest() {
-	@base() {
+	@Layout() {
 		<h1>The request made was invalid</h1>
 	}
 }
@@ -2992,7 +2991,7 @@ func BadRequest() templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = base().Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Layout().Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3702,7 +3701,7 @@ var _ = templruntime.GeneratedTemplate
 package views
 
 templ Home() {
-	@base() {
+	@Layout() {
 		<main class="container mx-auto flex-1 flex flex-col items-center justify-center p-4">
 			<h1 class="text-2xl font-bold">Welcome to the Andurel Framework!</h1>
 			<p>This is a simple home page template to get you started.</p>
@@ -3761,7 +3760,7 @@ func Home() templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = base().Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Layout().Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3776,7 +3775,7 @@ var _ = templruntime.GeneratedTemplate
 package views
 
 templ InternalError() {
-	@base() {
+	@Layout() {
 		<h1>something went wrong on our end.</h1>
 	}
 }
@@ -3832,7 +3831,7 @@ func InternalError() templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = base().Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Layout().Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3851,7 +3850,7 @@ import (
 	"testapp/views/components"
 )
 
-templ base(headOpts ...components.HeadDataOption) {
+templ Layout(headOpts ...components.HeadDataOption) {
 	<!DOCTYPE html>
 	<html lang="en" data-theme="grafto">
 		@components.SetupHead(ctx, headOpts...)
@@ -3883,7 +3882,7 @@ import (
 	"testapp/views/components"
 )
 
-func base(headOpts ...components.HeadDataOption) templ.Component {
+func Layout(headOpts ...components.HeadDataOption) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -3945,7 +3944,7 @@ var _ = templruntime.GeneratedTemplate
 package views
 
 templ NotFound() {
-	@base() {
+	@Layout() {
 		<h1>Not found</h1>
 	}
 }
@@ -4001,7 +4000,7 @@ func NotFound() templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = base().Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Layout().Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
