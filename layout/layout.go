@@ -450,9 +450,11 @@ func resolveExtensions(names []string) ([]extensions.Extension, error) {
 	}
 
 	seen := make(map[string]struct{}, len(names))
-	resolved := make([]extensions.Extension, 0, len(names))
+	lookup := make(map[string]extensions.Extension, len(names))
+	uniqueNames := make([]string, 0, len(names))
 
-	for _, name := range names {
+	for _, rawName := range names {
+		name := strings.TrimSpace(rawName)
 		if name == "" {
 			return nil, fmt.Errorf("extension name cannot be empty")
 		}
@@ -476,7 +478,15 @@ func resolveExtensions(names []string) ([]extensions.Extension, error) {
 		}
 
 		seen[name] = struct{}{}
-		resolved = append(resolved, ext)
+		uniqueNames = append(uniqueNames, name)
+		lookup[name] = ext
+	}
+
+	sort.Strings(uniqueNames)
+
+	resolved := make([]extensions.Extension, 0, len(uniqueNames))
+	for _, name := range uniqueNames {
+		resolved = append(resolved, lookup[name])
 	}
 
 	return resolved, nil
