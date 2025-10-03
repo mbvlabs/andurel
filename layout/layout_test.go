@@ -224,6 +224,57 @@ func TestSlotContributionRerender(t *testing.T) {
 	}
 }
 
+func TestExtensionOrderingDeterministic(t *testing.T) {
+	if err := os.Setenv("ANDUREL_SKIP_TAILWIND", "true"); err != nil {
+		t.Fatalf("Failed to set ANDUREL_SKIP_TAILWIND env var: %v", err)
+	}
+	if err := os.Setenv("ANDUREL_SKIP_BUILD", "true"); err != nil {
+		t.Fatalf("Failed to set ANDUREL_SKIP_BUILD env var: %v", err)
+	}
+
+	alpha := orderTestExtension{name: "order-alpha", snippet: "// order-alpha hook"}
+	beta := orderTestExtension{name: "order-beta", snippet: "// order-beta hook"}
+
+	if err := extensions.Register(alpha); err != nil {
+		t.Fatalf("Failed to register alpha extension: %v", err)
+	}
+	if err := extensions.Register(beta); err != nil {
+		t.Fatalf("Failed to register beta extension: %v", err)
+	}
+
+	tempDir := t.TempDir()
+
+	if err := layout.Scaffold(
+		tempDir,
+		"orderapp",
+		"",
+		"sqlite",
+		[]string{"order-beta", "order-alpha"},
+	); err != nil {
+		t.Fatalf("Failed to scaffold project with ordering extensions: %v", err)
+	}
+
+	routesFile := filepath.Join(tempDir, "router", "routes", "routes.go")
+	content, err := os.ReadFile(routesFile)
+	if err != nil {
+		t.Fatalf("Failed to read routes file: %v", err)
+	}
+
+	material := string(content)
+	alphaIdx := strings.Index(material, "// order-alpha hook")
+	if alphaIdx == -1 {
+		t.Fatalf("Expected order-alpha snippet to be present. Content: %s", material)
+	}
+	betaIdx := strings.Index(material, "// order-beta hook")
+	if betaIdx == -1 {
+		t.Fatalf("Expected order-beta snippet to be present. Content: %s", material)
+	}
+
+	if alphaIdx > betaIdx {
+		t.Fatalf("Expected alpha snippet to appear before beta snippet. Content: %s", material)
+	}
+}
+
 type slotTestExtension struct{}
 
 func (slotTestExtension) Name() string {
@@ -236,6 +287,23 @@ func (slotTestExtension) Apply(ctx *extensions.Context) error {
 	}
 
 	return ctx.AddSlotSnippet("routes:build", "// test-slot routes hook")
+}
+
+type orderTestExtension struct {
+	name    string
+	snippet string
+}
+
+func (e orderTestExtension) Name() string {
+	return e.name
+}
+
+func (e orderTestExtension) Apply(ctx *extensions.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("order extension context is nil")
+	}
+
+	return ctx.AddSlotSnippet("routes:build", e.snippet)
 }
 
 func replaceEnvValue(content, prefix, testValue string) string {
