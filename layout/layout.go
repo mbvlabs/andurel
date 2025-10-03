@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -372,14 +373,35 @@ func processTemplate(
 	targetDir, templateFile, targetPath string,
 	data *extensions.TemplateData,
 ) error {
-	content, err := templates.Files.ReadFile(templateFile)
+	return renderTemplate(targetDir, templateFile, targetPath, templates.Files, data)
+}
+
+func ProcessTemplateFromRecipe(
+	targetDir, templateFile, targetPath string,
+	data *extensions.TemplateData,
+) error {
+	return renderTemplate(targetDir, templateFile, targetPath, extensions.Files, data)
+}
+
+func renderTemplate(
+	targetDir, templateFile, targetPath string,
+	fsys fs.FS,
+	data *extensions.TemplateData,
+) error {
+	content, err := fs.ReadFile(fsys, templateFile)
 	if err != nil {
 		return fmt.Errorf("failed to read template %s: %w", templateFile, err)
 	}
 
+	if data == nil {
+		data = &extensions.TemplateData{}
+	}
+
 	contentStr := string(content)
 
-	tmpl, err := template.New(templateFile).Parse(contentStr)
+	tmpl, err := template.New(templateFile).
+		Funcs(slotFuncMap(data)).
+		Parse(contentStr)
 	if err != nil {
 		return fmt.Errorf("failed to parse template %s: %w", templateFile, err)
 	}
@@ -402,38 +424,30 @@ func processTemplate(
 	return nil
 }
 
-func ProcessTemplateFromRecipe(
-	targetDir, templateFile, targetPath string,
-	data *extensions.TemplateData,
-) error {
-	content, err := extensions.Files.ReadFile(templateFile)
-	if err != nil {
-		return fmt.Errorf("failed to read template %s: %w", templateFile, err)
+func slotFuncMap(data *extensions.TemplateData) template.FuncMap {
+	return template.FuncMap{
+		"slot": func(name string) []string {
+			if data == nil {
+				return nil
+			}
+
+			return data.Slot(name)
+		},
+		"slotJoined": func(name, sep string) string {
+			if data == nil {
+				return ""
+			}
+
+			return data.SlotJoined(name, sep)
+		},
+		"slotData": func(name string) []any {
+			if data == nil {
+				return nil
+			}
+
+			return data.SlotData(name)
+		},
 	}
-
-	contentStr := string(content)
-
-	tmpl, err := template.New(templateFile).Parse(contentStr)
-	if err != nil {
-		return fmt.Errorf("failed to parse template %s: %w", templateFile, err)
-	}
-
-	fullTargetPath := filepath.Join(targetDir, targetPath)
-	if err := os.MkdirAll(filepath.Dir(fullTargetPath), constants.DirPermissionDefault); err != nil {
-		return fmt.Errorf("failed to create directory for %s: %w", targetPath, err)
-	}
-
-	file, err := os.Create(fullTargetPath)
-	if err != nil {
-		return fmt.Errorf("failed to create file %s: %w", targetPath, err)
-	}
-	defer file.Close()
-
-	if err := tmpl.Execute(file, data); err != nil {
-		return fmt.Errorf("failed to execute template %s: %w", templateFile, err)
-	}
-
-	return nil
 }
 
 func registerBuiltinExtensions() error {
