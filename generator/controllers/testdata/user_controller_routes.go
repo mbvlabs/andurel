@@ -23,20 +23,20 @@ var UserRoutes = []Route{
 }
 
 var UserIndex = Route{
-	Name:         usersNamePrefix + ".index",
-	Path:         usersRoutePrefix,
-	Method:       http.MethodGet,
-	Handler:      "Users",
-	HandleMethod: "Index",
+	Name:             usersNamePrefix + ".index",
+	Path:             usersRoutePrefix,
+	Method:           http.MethodGet,
+	Controller:       "Users",
+	ControllerMethod: "Index",
 }
 
 var UserShow = usersShow{
 	Route: Route{
-		Name:         usersNamePrefix + ".show",
-		Path:         usersRoutePrefix + "/:id",
-		Method:       http.MethodGet,
-		Handler:      "Users",
-		HandleMethod: "Show",
+		Name:             usersNamePrefix + ".show",
+		Path:             usersRoutePrefix + "/:id",
+		Method:           http.MethodGet,
+		Controller:       "Users",
+		ControllerMethod: "Show",
 	},
 }
 
@@ -49,28 +49,28 @@ func (r usersShow) GetPath(id uuid.UUID) string {
 }
 
 var UserNew = Route{
-	Name:         usersNamePrefix + ".new",
-	Path:         usersRoutePrefix + "/new",
-	Method:       http.MethodGet,
-	Handler:      "Users",
-	HandleMethod: "New",
+	Name:             usersNamePrefix + ".new",
+	Path:             usersRoutePrefix + "/new",
+	Method:           http.MethodGet,
+	Controller:       "Users",
+	ControllerMethod: "New",
 }
 
 var UserCreate = Route{
-	Name:         usersNamePrefix + ".create",
-	Path:         usersRoutePrefix,
-	Method:       http.MethodPost,
-	Handler:      "Users",
-	HandleMethod: "Create",
+	Name:             usersNamePrefix + ".create",
+	Path:             usersRoutePrefix,
+	Method:           http.MethodPost,
+	Controller:       "Users",
+	ControllerMethod: "Create",
 }
 
 var UserEdit = usersEdit{
 	Route: Route{
-		Name:         usersNamePrefix + ".edit",
-		Path:         usersRoutePrefix + "/:id/edit",
-		Method:       http.MethodGet,
-		Handler:      "Users",
-		HandleMethod: "Edit",
+		Name:             usersNamePrefix + ".edit",
+		Path:             usersRoutePrefix + "/:id/edit",
+		Method:           http.MethodGet,
+		Controller:       "Users",
+		ControllerMethod: "Edit",
 	},
 }
 
@@ -84,11 +84,11 @@ func (r usersEdit) GetPath(id uuid.UUID) string {
 
 var UserUpdate = usersUpdate{
 	Route: Route{
-		Name:         usersNamePrefix + ".update",
-		Path:         usersRoutePrefix + "/:id",
-		Method:       http.MethodPut,
-		Handler:      "Users",
-		HandleMethod: "Update",
+		Name:             usersNamePrefix + ".update",
+		Path:             usersRoutePrefix + "/:id",
+		Method:           http.MethodPut,
+		Controller:       "Users",
+		ControllerMethod: "Update",
 	},
 }
 
@@ -102,11 +102,11 @@ func (r usersUpdate) GetPath(id uuid.UUID) string {
 
 var UserDestroy = usersDestroy{
 	Route: Route{
-		Name:         usersNamePrefix + ".destroy",
-		Path:         usersRoutePrefix + "/:id",
-		Method:       http.MethodDelete,
-		Handler:      "Users",
-		HandleMethod: "Destroy",
+		Name:             usersNamePrefix + ".destroy",
+		Path:             usersRoutePrefix + "/:id",
+		Method:           http.MethodDelete,
+		Controller:       "Users",
+		ControllerMethod: "Destroy",
 	},
 }
 

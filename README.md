@@ -50,7 +50,7 @@ myapp/
 │   ├── app/         # Main application entry point
 │   └── migrate/     # Database migration tool
 ├── config/          # Application configuration
-├── controllers/     # Request handlers and business logic
+├── controllers/     # Request controllers and business logic
 ├── css/            # Tailwind CSS and custom styles
 ├── database/
 │   ├── migrations/  # SQL migration files

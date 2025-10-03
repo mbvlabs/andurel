@@ -9,10 +9,10 @@ var pageRoutes = []Route{
 }
 
 var HomePage = Route{
-	Name:         pageNamePrefix + ".home",
-	Path:         "/",
-	Method:       http.MethodGet,
-	Handler:      "Pages",
-	HandleMethod: "Home",
-	IncludeInSitemap: true,
+        Name:         pageNamePrefix + ".home",
+        Path:         "/",
+        Method:       http.MethodGet,
+        Controller:   "Pages",
+        ControllerMethod: "Home",
+        IncludeInSitemap: true,
 }
