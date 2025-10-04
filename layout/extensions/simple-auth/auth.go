@@ -9,7 +9,7 @@ import (
 	"github.com/mbvlabs/andurel/layout/extensions"
 )
 
-type simpleAuthExtension struct{}
+type Extension struct{}
 
 const passwordValidationFunction = "func validatePasswordsMatch(sl validator.StructLevel) {\n" +
 	"\tpwPair := sl.Current().Interface().(PasswordPair)\n\n" +
@@ -31,15 +31,11 @@ const passwordValidationFunction = "func validatePasswordsMatch(sl validator.Str
 	"\t}\n" +
 	"}"
 
-func Extension() extensions.Extension {
-	return simpleAuthExtension{}
-}
-
-func (simpleAuthExtension) Name() string {
+func (Extension) Name() string {
 	return "simple-auth"
 }
 
-func (simpleAuthExtension) Apply(ctx *extensions.Context) error {
+func (Extension) Apply(ctx *extensions.Context) error {
 	if ctx == nil {
 		return fmt.Errorf("simple-auth: context is nil")
 	}

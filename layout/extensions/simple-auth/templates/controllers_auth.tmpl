@@ -102,7 +102,7 @@ func (a Auth) SignupPage(c echo.Context) error {
 type SignupFormPayload struct {
 	Email           string `form:"email"`
 	Password        string `form:"password"`
-	ConfirmPassword string `form:"password_confirm"`
+	ConfirmPassword string `form:"confirmPassword"`
 }
 
 func (a Auth) UserCreate(c echo.Context) error {

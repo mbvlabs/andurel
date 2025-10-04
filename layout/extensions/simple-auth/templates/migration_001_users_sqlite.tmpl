@@ -6,8 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at DATETIME NOT NULL DEFAULT (datetime('now')),
     email TEXT NOT NULL UNIQUE,
     password BLOB NOT NULL,
-    is_admin INTEGER NOT NULL DEFAULT 0,
-    email_verified INTEGER NOT NULL DEFAULT 0
+    is_admin INTEGER NOT NULL DEFAULT 0
 );
 -- +goose StatementEnd
 

@@ -493,7 +493,7 @@ func slotFuncMap(data extensions.TemplateData) template.FuncMap {
 
 func registerBuiltinExtensions() error {
 	registerBuiltinOnce.Do(func() {
-		if err := extensions.Register(simpleauth.Extension()); err != nil {
+		if err := extensions.Register(simpleauth.Extension{}); err != nil {
 			registerBuiltinErr = err
 			return
 		}

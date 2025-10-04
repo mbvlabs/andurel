@@ -51,10 +51,12 @@ func New(
 		return nil, err
 	}
 
-	csrfName := strings.ToLower(config.ProjectName) + "_" + "dev_csrf"
-	if config.Env == config.ProdEnvironment {
-		csrfName = strings.ToLower(config.ProjectName) + "_" + "csrf"
-	}
+	// TODO: figure out a way to make this work with d-*
+	// csrfName := strings.ToLower(config.ProjectName) + "_" + "dev_csrf"
+	// if config.Env == config.ProdEnvironment {
+	// 	csrfName = strings.ToLower(config.ProjectName) + "_" + "csrf"
+	// }
+	csrfName := "_csrf" // using default name for now
 
 	router.Use(
 		session.Middleware(
@@ -75,7 +77,7 @@ func New(
 			}
 
 			return ""
-		}(), CookieName: csrfName, CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
+		}(), CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
 
 		echomw.Recover(),
 		echomw.Logger(),
