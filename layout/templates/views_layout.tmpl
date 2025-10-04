@@ -5,7 +5,7 @@ import (
 	"{{.ModuleName}}/router/cookies"
 )
 
-templ base(headOpts ...components.HeadDataOption) {
+templ Layout(headOpts ...components.HeadDataOption) {
 	<!DOCTYPE html>
 	<html lang="en" data-theme="grafto">
 		@components.SetupHead(ctx, headOpts...)
