@@ -1,0 +1,43 @@
+package auth
+
+import (
+	"fmt"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/views"
+
+	"github.com/a-h/templ"
+)
+
+templ Signup() {
+	@views.Layout() {
+		<div class="container mx-auto max-w-md mt-8 px-4">
+			<h1 class="text-3xl font-bold mb-6">Sign Up</h1>
+			<form data-on-submit={ fmt.Sprintf("@post('%s')", routes.SignupCreate.Path) }>
+				<div class="form-control mb-4">
+					<label class="label" for="email">
+						<span class="label-text">Email</span>
+					</label>
+					<input type="email" name="email" id="email" class="input input-bordered w-full" required/>
+				</div>
+				<div class="form-control mb-4">
+					<label class="label" for="password">
+						<span class="label-text">Password</span>
+					</label>
+					<input type="password" name="password" id="password" class="input input-bordered w-full" required minlength="8"/>
+				</div>
+				<div class="form-control mb-4">
+					<label class="label" for="password_confirm">
+						<span class="label-text">Confirm Password</span>
+					</label>
+					<input type="password" name="password_confirm" id="password_confirm" class="input input-bordered w-full" required minlength="8"/>
+				</div>
+				<div id="signupRes" class="mb-4"></div>
+				<button type="submit" class="btn btn-primary w-full">Sign Up</button>
+			</form>
+			<div class="mt-4 text-center">
+				<span>Already have an account?</span>
+				<a href={ templ.SafeURL(routes.LoginPage.Path) } class="link link-primary ml-1">Login</a>
+			</div>
+		</div>
+	}
+}

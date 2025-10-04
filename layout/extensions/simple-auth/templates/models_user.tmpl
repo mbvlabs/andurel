@@ -1,0 +1,129 @@
+package models
+
+import (
+	"context"
+	"crypto/subtle"
+	"fmt"
+	"time"
+
+	"{{.ModuleName}}/models/internal/db"
+
+	"github.com/google/uuid"
+	"golang.org/x/crypto/argon2"
+)
+
+type User struct {
+	ID        uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Email     string
+	IsAdmin   bool
+	Password  []byte
+}
+
+type PasswordPair struct {
+	Password        string `validate:"required,min=8,max=72"`
+	ConfirmPassword string `validate:"required,min=8,max=72"`
+}
+
+type NewUserPayload struct {
+	Email        string `validate:"required,email,max=255"`
+	PasswordPair PasswordPair
+}
+
+func HashPassword(password, salt string) []byte {
+	return argon2.IDKey(
+		[]byte(password),
+		[]byte(salt),
+		2,
+		19*1024,
+		1,
+		32,
+	)
+}
+
+func VerifyPassword(hashedPassword []byte, plainPassword, salt string) bool {
+	candidate := HashPassword(plainPassword, salt)
+	return subtle.ConstantTimeCompare(hashedPassword, candidate) == 1
+}
+
+func NewUser(
+	ctx context.Context,
+	dbtx db.DBTX,
+	passwordSalt string,
+	payload NewUserPayload,
+) (User, error) {
+	if err := validate.Struct(payload); err != nil {
+		return User{}, fmt.Errorf("validation failed: %w", err)
+	}
+
+	passwordHash := HashPassword(payload.PasswordPair.Password, passwordSalt)
+
+{{- if eq .Database "postgresql"}}
+	dbUser, err := db.New().CreateUser(ctx, dbtx, db.CreateUserParams{
+		ID:       uuid.New(),
+		Email:    payload.Email,
+		Password: passwordHash,
+	})
+{{- else if eq .Database "sqlite"}}
+	dbUser, err := db.New().CreateUser(ctx, dbtx, db.CreateUserParams{
+		ID:       uuid.New().String(),
+		Email:    payload.Email,
+		Password: passwordHash,
+	})
+{{- end}}
+	if err != nil {
+		return User{}, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	return rowToUser(dbUser)
+}
+
+func FindUserByEmail(ctx context.Context, dbtx db.DBTX, email string) (User, error) {
+	dbUser, err := db.New().GetUserByEmail(ctx, dbtx, email)
+	if err != nil {
+		return User{}, fmt.Errorf("failed to get user by email: %w", err)
+	}
+
+	return rowToUser(dbUser)
+}
+
+func FindUser(ctx context.Context, dbtx db.DBTX, userID uuid.UUID) (User, error) {
+{{- if eq .Database "postgresql"}}
+	dbUser, err := db.New().GetUserByID(ctx, dbtx, userID)
+{{- else if eq .Database "sqlite"}}
+	dbUser, err := db.New().GetUserByID(ctx, dbtx, userID.String())
+{{- end}}
+	if err != nil {
+		return User{}, fmt.Errorf("failed to get user by ID: %w", err)
+	}
+
+	return rowToUser(dbUser)
+}
+
+func rowToUser(row db.User) (User, error) {
+{{- if eq .Database "postgresql"}}
+	return User{
+		ID:        row.ID,
+		CreatedAt: row.CreatedAt,
+		UpdatedAt: row.UpdatedAt,
+		Email:     row.Email,
+		IsAdmin:   row.IsAdmin,
+		Password:  row.Password,
+	}, nil
+{{- else if eq .Database "sqlite"}}
+	id, err := uuid.Parse(row.ID)
+	if err != nil {
+		return User{}, err
+	}
+
+	return User{
+		ID:        id,
+		CreatedAt: row.CreatedAt,
+		UpdatedAt: row.UpdatedAt,
+		Email:     row.Email,
+		IsAdmin:   row.IsAdmin == 1,
+		Password:  row.Password,
+	}, nil
+{{- end}}
+}

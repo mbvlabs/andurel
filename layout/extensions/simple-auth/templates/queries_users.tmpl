@@ -1,0 +1,61 @@
+{{- if eq .Database "postgresql" -}}
+-- name: CreateUser :one
+INSERT INTO users (id, email, password)
+VALUES ($1, $2, $3)
+RETURNING id, created_at, updated_at, email, is_admin, password, email_verified;
+
+-- name: GetUserByEmail :one
+SELECT id, created_at, updated_at, email, is_admin, password, email_verified
+FROM users
+WHERE email = $1;
+
+-- name: GetUserByID :one
+SELECT id, created_at, updated_at, email, is_admin, password, email_verified
+FROM users
+WHERE id = $1;
+
+-- name: UpdateUserPassword :exec
+UPDATE users
+SET password = $1, updated_at = NOW()
+WHERE id = $2;
+
+-- name: MarkEmailVerified :exec
+UPDATE users
+SET email_verified = TRUE, updated_at = NOW()
+WHERE id = $1;
+
+-- name: UpdateUser :exec
+UPDATE users
+SET email = $1, is_admin = $2, updated_at = NOW()
+WHERE id = $3;
+{{- else if eq .Database "sqlite" -}}
+-- name: CreateUser :one
+INSERT INTO users (id, email, password)
+VALUES (?, ?, ?)
+RETURNING id, created_at, updated_at, email, is_admin, password, email_verified;
+
+-- name: GetUserByEmail :one
+SELECT id, created_at, updated_at, email, is_admin, password, email_verified
+FROM users
+WHERE email = ?;
+
+-- name: GetUserByID :one
+SELECT id, created_at, updated_at, email, is_admin, password, email_verified
+FROM users
+WHERE id = ?;
+
+-- name: UpdateUserPassword :exec
+UPDATE users
+SET password = ?, updated_at = datetime('now')
+WHERE id = ?;
+
+-- name: MarkEmailVerified :exec
+UPDATE users
+SET email_verified = 1, updated_at = datetime('now')
+WHERE id = ?;
+
+-- name: UpdateUser :exec
+UPDATE users
+SET email = ?, is_admin = ?, updated_at = datetime('now')
+WHERE id = ?;
+{{- end -}}
