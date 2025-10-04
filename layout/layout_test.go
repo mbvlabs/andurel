@@ -54,7 +54,7 @@ func TestProjectScaffoldingSqlite__GoldenFile(t *testing.T) {
 
 			originalWd, _ := os.Getwd()
 
-			err := layout.Scaffold(projectDir, tt.projectName, tt.repoFlag, "sqlite")
+			err := layout.Scaffold(projectDir, tt.projectName, tt.repoFlag, "sqlite", nil)
 			if err != nil {
 				t.Fatalf("Failed to scaffold project: %v", err)
 			}
@@ -110,7 +110,7 @@ func TestProjectScaffoldingPostgresql__GoldenFile(t *testing.T) {
 
 			originalWd, _ := os.Getwd()
 
-			err := layout.Scaffold(projectDir, tt.projectName, tt.repoFlag, "postgresql")
+			err := layout.Scaffold(projectDir, tt.projectName, tt.repoFlag, "postgresql", nil)
 			if err != nil {
 				t.Fatalf("Failed to scaffold project: %v", err)
 			}
