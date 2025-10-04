@@ -43,7 +43,6 @@ just run
 
 - Slot-aware `TemplateData` is now part of the layout package, giving extensions deterministic hooks for injecting code and metadata during scaffolding.
 - Extensions interact with the scaffold flow through a shared context and registry; templates contributed by extensions are rendered with the same helpers as the core layout.
-- A stubbed `simple-auth` extension is registered by default to exercise the pipeline while keeping behaviour unchanged for generated projects.
 
 ## Architecture
 
