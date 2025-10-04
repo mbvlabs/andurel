@@ -55,7 +55,7 @@ func newProject(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	if err := layout.Scaffold(basePath, projectName, repo, database); err != nil {
+	if err := layout.Scaffold(basePath, projectName, repo, database, nil); err != nil {
 		return err
 	}
 
