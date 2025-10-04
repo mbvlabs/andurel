@@ -20,6 +20,7 @@ import (
 	"text/template"
 
 	"github.com/mbvlabs/andurel/layout/extensions"
+	simpleauth "github.com/mbvlabs/andurel/layout/extensions/simple-auth"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
 )
@@ -492,6 +493,10 @@ func slotFuncMap(data extensions.TemplateData) template.FuncMap {
 
 func registerBuiltinExtensions() error {
 	registerBuiltinOnce.Do(func() {
+		if err := extensions.Register(simpleauth.Extension()); err != nil {
+			registerBuiltinErr = err
+			return
+		}
 	})
 
 	return registerBuiltinErr

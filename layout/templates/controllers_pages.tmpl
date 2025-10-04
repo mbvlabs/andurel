@@ -1,12 +1,9 @@
 package controllers
 
 import (
-{{- if eq .Database "postgresql"}}
-	"{{.ModuleName}}/database"
-{{- else if eq .Database "sqlite"}}
-	"{{.ModuleName}}/database"
-{{- end}}
+	"net/http"
 
+	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/views"
 
 	"github.com/a-h/templ"
@@ -42,9 +39,9 @@ func newPages(
 {{- end}}
 
 func (p Pages) Home(c echo.Context) error {
-	return render(c, views.Home())
+	return Render(c, http.StatusOK, views.Home())
 }
 
 func (p Pages) NotFound(c echo.Context) error {
-	return render(c, views.NotFound())
+	return Render(c, http.StatusOK, views.NotFound())
 }

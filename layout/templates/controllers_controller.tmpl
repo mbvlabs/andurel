@@ -3,34 +3,30 @@ package controllers
 
 import (
 	"context"
-	"net/http"
 
-{{- if eq .Database "postgresql"}}
-	"{{.ModuleName}}/database"
-{{- else if eq .Database "sqlite"}}
-	"{{.ModuleName}}/database"
+{{- if .HasSlot "controllers:newArgs"}}
+	"{{.ModuleName}}/config"
 {{- end}}
+	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/router/cookies"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
 	"github.com/maypok86/otter"
-)
+{{/* slot controllers:imports */}}{{- range .Slot "controllers:imports"}}
+{{printf "\t%s\n" .}}{{- end}})
 
 type Controllers struct {
 	Assets Assets
 	API    API
 	Pages  Pages
-}
+{{/* slot controllers:structFields */}}{{- range .Slot "controllers:structFields"}}
+{{printf "\t%s\n" .}}{{- end}}}
 
 {{- if eq .Database "postgresql"}}
-func New(
-	db database.Postgres,
-) (Controllers, error) {
+func New({{/* slot controllers:newArgs */}}{{- range $i, $arg := .Slot "controllers:newArgs"}}{{if $i}}, {{end}}{{$arg}}{{- end}}{{if .HasSlot "controllers:newArgs"}}, {{end}}db database.Postgres) (Controllers, error) {
 {{- else if eq .Database "sqlite"}}
-func New(
-	db database.SQLite,
-) (Controllers, error) {
+func New({{/* slot controllers:newArgs */}}{{- range $i, $arg := .Slot "controllers:newArgs"}}{{if $i}}, {{end}}{{$arg}}{{- end}}{{if .HasSlot "controllers:newArgs"}}, {{end}}db database.SQLite) (Controllers, error) {
 {{- end}}
 	cacheBuilder, err := otter.NewBuilder[string, templ.Component](20)
 	if err != nil {
@@ -45,15 +41,13 @@ func New(
 	assets := newAssets()
 	pages := newPages(db, pageCacher)
 	api := newAPI(db)
+{{/* slot controllers:newSetup */}}{{- range .Slot "controllers:newSetup"}}
+{{printf "\t%s\n" .}}{{- end}}
 
-	return Controllers{
-		assets,
-		api,
-		pages,
-	}, nil
+	return Controllers{assets, api, pages{{/* slot controllers:newReturn */}}{{- range .Slot "controllers:newReturn"}}, {{.}}{{- end}}}, nil
 }
 
-func render(ctx echo.Context, t templ.Component) error {
+func Render(ctx echo.Context, statusCode int, t templ.Component) error {
 	buf := templ.GetBuffer()
 	defer templ.ReleaseBuffer(buf)
 
@@ -75,5 +69,5 @@ func render(ctx echo.Context, t templ.Component) error {
 		return err
 	}
 
-	return ctx.HTML(http.StatusOK, buf.String())
+	return ctx.HTML(statusCode, buf.String())
 }

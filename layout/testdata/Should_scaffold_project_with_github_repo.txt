@@ -745,8 +745,12 @@ func startServer(ctx context.Context, srv *http.Server, env string) error {
 
 	return srv.ListenAndServe()
 }
-func setupControllers(psql database.Postgres) (controllers.Controllers, error) {
+func setupControllers(
+
+	psql database.Postgres,
+) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
+
 		psql,
 	)
 	if err != nil {
@@ -778,7 +782,10 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	controllers, err := setupControllers(psql)
+	controllers, err := setupControllers(
+
+		psql,
+	)
 	if err != nil {
 		return err
 	}
@@ -1621,7 +1628,6 @@ package controllers
 
 import (
 	"context"
-	"net/http"
 	"testuser/myapp/database"
 	"testuser/myapp/router/cookies"
 
@@ -1636,9 +1642,7 @@ type Controllers struct {
 	Pages  Pages
 }
 
-func New(
-	db database.Postgres,
-) (Controllers, error) {
+func New(db database.Postgres) (Controllers, error) {
 	cacheBuilder, err := otter.NewBuilder[string, templ.Component](20)
 	if err != nil {
 		return Controllers{}, err
@@ -1653,14 +1657,10 @@ func New(
 	pages := newPages(db, pageCacher)
 	api := newAPI(db)
 
-	return Controllers{
-		assets,
-		api,
-		pages,
-	}, nil
+	return Controllers{assets, api, pages}, nil
 }
 
-func render(ctx echo.Context, t templ.Component) error {
+func Render(ctx echo.Context, statusCode int, t templ.Component) error {
 	buf := templ.GetBuffer()
 	defer templ.ReleaseBuffer(buf)
 
@@ -1682,7 +1682,7 @@ func render(ctx echo.Context, t templ.Component) error {
 		return err
 	}
 
-	return ctx.HTML(http.StatusOK, buf.String())
+	return ctx.HTML(statusCode, buf.String())
 }
 
 
@@ -1690,8 +1690,9 @@ func render(ctx echo.Context, t templ.Component) error {
 package controllers
 
 import (
-	"testuser/myapp/database"
+	"net/http"
 
+	"testuser/myapp/database"
 	"testuser/myapp/views"
 
 	"github.com/a-h/templ"
@@ -1712,11 +1713,11 @@ func newPages(
 }
 
 func (p Pages) Home(c echo.Context) error {
-	return render(c, views.Home())
+	return Render(c, http.StatusOK, views.Home())
 }
 
 func (p Pages) NotFound(c echo.Context) error {
-	return render(c, views.NotFound())
+	return Render(c, http.StatusOK, views.NotFound())
 }
 
 
@@ -2172,7 +2173,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/pressly/goose/v3 v3.25.0 // indirect
+	github.com/pressly/goose/v3 v3.26.0 // indirect
 	github.com/prestodb/presto-go-client v0.0.0-20240426182841-905ac40a1783 // indirect
 	github.com/prometheus/client_golang v1.22.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
@@ -2333,6 +2334,7 @@ var validate = setupValidator()
 
 func setupValidator() *validator.Validate {
 	v := validator.New(validator.WithRequiredStructEnabled())
+
 	return v
 }
 
@@ -2897,7 +2899,9 @@ var HomePage = Route{
 // Package routes provides the application route definitions.
 package routes
 
-import "github.com/labstack/echo/v4"
+import (
+	"github.com/labstack/echo/v4"
+)
 
 type Route struct {
 	Name             string

@@ -1,16 +1,19 @@
 // Package routes provides the application route definitions.
 package routes
 
-import "github.com/labstack/echo/v4"
+import (
+	"github.com/labstack/echo/v4"
+{{/* slot routes:imports */}}{{- range .Slot "routes:imports"}}
+{{printf "\t%s\n" .}}{{- end}})
 
 type Route struct {
-	Name         string
-	Path         string
-	Handler      string
-	HandleMethod string
-	Method       string
+	Name             string
+	Path             string
+	Handler          string
+	HandleMethod     string
+	Method           string
 	IncludeInSitemap bool
-	Middleware   []func(next echo.HandlerFunc) echo.HandlerFunc
+	Middleware       []func(next echo.HandlerFunc) echo.HandlerFunc
 }
 
 var BuildRoutes = func() []Route {
@@ -30,6 +33,9 @@ var BuildRoutes = func() []Route {
 		r,
 		apiRoutes...,
 	)
+
+{{/* slot routes:build */}}{{- range .Slot "routes:build"}}
+{{printf "\t%s\n" .}}{{- end}}
 
 	return r
 }()

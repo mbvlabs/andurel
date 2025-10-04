@@ -3,11 +3,18 @@ package models
 
 import (
 	"github.com/go-playground/validator/v10"
-)
+{{/* slot models:imports */}}{{- range .Slot "models:imports"}}
+{{printf "\t%s\n" .}}{{- end}})
 
 var validate = setupValidator()
 
 func setupValidator() *validator.Validate {
 	v := validator.New(validator.WithRequiredStructEnabled())
+{{/* slot models:validatorRegistrations */}}{{- range .Slot "models:validatorRegistrations"}}
+{{printf "\t%s\n" .}}{{- end}}
+
 	return v
 }
+
+{{/* slot models:functions */}}{{- range .Slot "models:functions"}}
+{{printf "%s\n" .}}{{- end}}

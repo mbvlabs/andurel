@@ -44,7 +44,7 @@ just run
 The extension workflow lives in `layout/layout.go` and executes the same sequence for every scaffold run:
 
 1. **Bootstrap template state** – `Scaffold` creates a `TemplateData` value populated with project metadata and randomly generated secrets. This struct (defined in `layout/template_data.go`) also exposes the slot helpers that extensions use to coordinate text and structured data.
-2. **Register built-ins** – `registerBuiltinExtensions` runs once per process and wires in extensions shipped with Andurel (currently the stubbed `simple-auth` package). Behind the scenes each extension calls `extensions.Register`, which keeps the registry synchronized and prevents duplicate names.
+2. **Register built-ins** – `registerBuiltinExtensions` runs once per process and wires in extensions shipped with Andurel (today that includes the auth-aware `simple-auth` package). Behind the scenes each extension calls `extensions.Register`, which keeps the registry synchronized and prevents duplicate names.
 3. **Resolve requested extensions** – `resolveExtensions` validates user input, trims whitespace, de-duplicates names, and fetches the concrete `extensions.Extension` implementations. If the name is unknown the function reports an error that includes the list of registered extensions.
 4. **Apply extensions** – For each resolved extension, `Scaffold` builds an `extensions.Context` containing:
    - `TargetDir`: the directory being scaffolded.
@@ -52,13 +52,13 @@ The extension workflow lives in `layout/layout.go` and executes the same sequenc
    - `ProcessTemplate`: a closure that renders files through `ProcessTemplateFromRecipe`, allowing extensions to emit templates from their own embedded `layout/extensions/*/templates` directories.
    - `AddPostStep`: a mechanism for deferring additional work (such as formatting, migrations, or asset generation) until after all slot data is collected.
 
-   Each extension’s `Apply` method can create files, update slots, or schedule post steps. The bundled `simple-auth` extension currently exercises the plumbing while leaving the scaffold output untouched.
+   Each extension’s `Apply` method can create files, update slots, or schedule post steps. The bundled `simple-auth` extension now layers in controllers, models, routes, views, and validator hooks when requested, showcasing how slot contributions and post steps compose with the base scaffold.
 5. **Re-render slot scopes** – After every extension finishes, `rerenderSlotTemplates` inspects `TemplateData.SlotNames()` to figure out which base templates need another render. Slots follow a `<scope>:<region>` naming scheme; `slotScopeTemplates` maps those scopes to the corresponding base template so that injected snippets land in the correct files.
 6. **Run post steps and formatters** – Deferred callbacks execute next, followed by the templ/go fmt/go mod tidy pipeline. Both base templates and extension recipes are rendered via `renderTemplate`, which injects `slot`, `slotJoined`, and `slotData` helper functions so templates can pull structured information back out of `TemplateData`.
 
 The contract that extensions implement lives in `layout/extensions/extension.go`. It defines the `TemplateData` interface, the `Context` type that flows through `Apply`, and an embedded filesystem (`//go:embed */templates/*.tmpl`) that collects template recipes next to their extension code. This shared surface area allows downstream packages to plug in without import cycles while giving them access to the same rendering facilities as the core layout.
 
-In short, extensions collaborate around a single `TemplateData` instance, render customized templates through the provided context, and schedule any finishing tasks as post steps. The default scaffold remains unchanged when no extensions are supplied, but the pipeline is ready for richer behaviours as new extensions are introduced.
+In short, extensions collaborate around a single `TemplateData` instance, render customized templates through the provided context, and schedule any finishing tasks as post steps. The default scaffold remains unchanged when no extensions are supplied, yet opting into `simple-auth` now demonstrates how extensions can reshape controllers, validation, and routing end-to-end.
 
 ## Architecture
 
