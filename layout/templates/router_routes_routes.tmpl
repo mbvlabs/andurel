@@ -3,8 +3,8 @@ package routes
 
 import (
 	"github.com/labstack/echo/v4"
-{{/* slot routes:imports */}}
-{{range .Slot "routes:imports"}}{{printf "\t%s\n" .}}{{end}}
+{{/* slot routes:imports */}}{{- range .Slot "routes:imports"}}
+{{printf "\t%s\n" .}}{{- end}}
 )
 
 type Route struct {
@@ -35,8 +35,8 @@ var BuildRoutes = func() []Route {
 		apiRoutes...,
 	)
 
-{{/* slot routes:build */}}
-{{range .Slot "routes:build"}}{{printf "\t%s\n" .}}{{end}}
+{{/* slot routes:build */}}{{- range .Slot "routes:build"}}
+{{printf "\t%s\n" .}}{{- end}}
 
 	return r
 }()

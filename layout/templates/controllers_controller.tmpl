@@ -11,30 +11,22 @@ import (
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
 	"github.com/maypok86/otter"
-{{/* slot controllers:imports */}}
-{{range .Slot "controllers:imports"}}{{printf "\t%s\n" .}}{{end}}
+{{/* slot controllers:imports */}}{{- range .Slot "controllers:imports"}}
+{{printf "\t%s\n" .}}{{- end}}
 )
 
 type Controllers struct {
 	Assets Assets
 	API    API
 	Pages  Pages
-{{/* slot controllers:structFields */}}
-{{range .Slot "controllers:structFields"}}{{printf "\t%s\n" .}}{{end}}
+{{/* slot controllers:structFields */}}{{- range .Slot "controllers:structFields"}}
+{{printf "\t%s\n" .}}{{- end}}
 }
 
 {{- if eq .Database "postgresql"}}
-func New(
-{{/* slot controllers:newArgs */}}
-{{range .Slot "controllers:newArgs"}}{{printf "\t%s,\n" .}}{{end}}
-	db database.Postgres,
-) (Controllers, error) {
+func New({{/* slot controllers:newArgs */}}{{- range $i, $arg := .Slot "controllers:newArgs"}}{{if $i}}, {{end}}{{$arg}}{{- end}}{{if .HasSlot "controllers:newArgs"}}, {{end}}db database.Postgres) (Controllers, error) {
 {{- else if eq .Database "sqlite"}}
-func New(
-{{/* slot controllers:newArgs */}}
-{{range .Slot "controllers:newArgs"}}{{printf "\t%s,\n" .}}{{end}}
-	db database.SQLite,
-) (Controllers, error) {
+func New({{/* slot controllers:newArgs */}}{{- range $i, $arg := .Slot "controllers:newArgs"}}{{if $i}}, {{end}}{{$arg}}{{- end}}{{if .HasSlot "controllers:newArgs"}}, {{end}}db database.SQLite) (Controllers, error) {
 {{- end}}
 	cacheBuilder, err := otter.NewBuilder[string, templ.Component](20)
 	if err != nil {
@@ -49,16 +41,10 @@ func New(
 	assets := newAssets()
 	pages := newPages(db, pageCacher)
 	api := newAPI(db)
-{{/* slot controllers:newSetup */}}
-{{range .Slot "controllers:newSetup"}}{{printf "\t%s\n" .}}{{end}}
+{{/* slot controllers:newSetup */}}{{- range .Slot "controllers:newSetup"}}
+{{printf "\t%s\n" .}}{{- end}}
 
-	return Controllers{
-		assets,
-		api,
-		pages,
-{{/* slot controllers:newReturn */}}
-{{range .Slot "controllers:newReturn"}}{{printf "\t\t%s,\n" .}}{{end}}
-	}, nil
+	return Controllers{assets, api, pages{{/* slot controllers:newReturn */}}{{- range .Slot "controllers:newReturn"}}, {{.}}{{- end}}}, nil
 }
 
 func Render(ctx echo.Context, statusCode int, t templ.Component) error {

@@ -56,7 +56,7 @@ func (simpleAuthExtension) Apply(ctx *extensions.Context) error {
 		return err
 	}
 
-	mappings := getTemplateMappings(ctx.Data.Database)
+	mappings := getTemplateMappings(ctx.Data.DatabaseDialect())
 
 	for tmplFile, targetPath := range mappings {
 		fullTmplPath := path.Join("simple-auth", "templates", tmplFile)

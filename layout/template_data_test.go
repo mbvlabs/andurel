@@ -1,4 +1,4 @@
-package templatedata
+package layout
 
 import "testing"
 
@@ -132,5 +132,17 @@ func TestTemplateDataHasSlotEmpty(t *testing.T) {
 	}
 	if !td.HasSlotData("routes:data") {
 		t.Fatalf("expected HasSlotData to be true after adding data")
+	}
+}
+
+func TestTemplateDataDatabaseDialect(t *testing.T) {
+	td := &TemplateData{Database: "sqlite"}
+	if got := td.DatabaseDialect(); got != "sqlite" {
+		t.Fatalf("unexpected dialect: %q", got)
+	}
+
+	var nilData *TemplateData
+	if got := nilData.DatabaseDialect(); got != "" {
+		t.Fatalf("expected empty dialect for nil, got %q", got)
 	}
 }

@@ -5,18 +5,28 @@ import (
 	"fmt"
 	"sort"
 	"sync"
-
-	"github.com/mbvlabs/andurel/layout/templatedata"
 )
 
 //go:embed */templates/*.tmpl
 var Files embed.FS
 
-type ProcessTemplateFunc func(templateFile, targetPath string, data *templatedata.TemplateData) error
+type TemplateData interface {
+	AddSlotSnippet(slot, snippet string) error
+	AddSlotData(slot string, value any) error
+	Slot(slot string) []string
+	SlotJoined(slot, sep string) string
+	SlotData(slot string) []any
+	SlotNames() []string
+	HasSlot(slot string) bool
+	HasSlotData(slot string) bool
+	DatabaseDialect() string
+}
+
+type ProcessTemplateFunc func(templateFile, targetPath string, data TemplateData) error
 
 type Context struct {
 	TargetDir       string
-	Data            *templatedata.TemplateData
+	Data            TemplateData
 	ProcessTemplate ProcessTemplateFunc
 	AddPostStep     func(func() error)
 }

@@ -1,9 +1,11 @@
-package templatedata
+package layout
 
 import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/mbvlabs/andurel/layout/extensions"
 )
 
 // TemplateData carries the values available to base templates and extension
@@ -28,12 +30,12 @@ type TemplateData struct {
 // slot.
 func (td *TemplateData) AddSlotSnippet(slot, snippet string) error {
 	if td == nil {
-		return fmt.Errorf("templatedata: template data is nil")
+		return fmt.Errorf("layout: template data is nil")
 	}
 
 	slot = strings.TrimSpace(slot)
 	if slot == "" {
-		return fmt.Errorf("templatedata: slot name cannot be empty")
+		return fmt.Errorf("layout: slot name cannot be empty")
 	}
 
 	if td.slotSnippets == nil {
@@ -48,12 +50,12 @@ func (td *TemplateData) AddSlotSnippet(slot, snippet string) error {
 // for cases where extensions need to coordinate on richer data than raw text.
 func (td *TemplateData) AddSlotData(slot string, value any) error {
 	if td == nil {
-		return fmt.Errorf("templatedata: template data is nil")
+		return fmt.Errorf("layout: template data is nil")
 	}
 
 	slot = strings.TrimSpace(slot)
 	if slot == "" {
-		return fmt.Errorf("templatedata: slot name cannot be empty")
+		return fmt.Errorf("layout: slot name cannot be empty")
 	}
 
 	if td.structuredSlots == nil {
@@ -132,3 +134,13 @@ func (td *TemplateData) HasSlotData(slot string) bool {
 
 	return len(td.structuredSlots[slot]) > 0
 }
+
+// DatabaseDialect returns the configured database identifier (e.g. sqlite).
+func (td *TemplateData) DatabaseDialect() string {
+	if td == nil {
+		return ""
+	}
+	return td.Database
+}
+
+var _ extensions.TemplateData = (*TemplateData)(nil)

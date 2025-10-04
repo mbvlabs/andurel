@@ -162,7 +162,7 @@ func Scaffold(targetDir, projectName, repo, database string, extensionNames []st
 		ctx := extensions.Context{
 			TargetDir: targetDir,
 			Data:      &templateData,
-			ProcessTemplate: func(templateFile, targetPath string, data *TemplateData) error {
+			ProcessTemplate: func(templateFile, targetPath string, data extensions.TemplateData) error {
 				if data == nil {
 					data = &templateData
 				}
@@ -299,7 +299,7 @@ var slotScopeTemplates = map[string]TmplTarget{
 	"routes":      "router_routes_routes.tmpl",
 }
 
-func processTemplatedFiles(targetDir string, data *TemplateData) error {
+func processTemplatedFiles(targetDir string, data extensions.TemplateData) error {
 	for templateFile, targetPath := range baseTemplateMappings {
 		if err := processTemplate(targetDir, string(templateFile), string(targetPath), data); err != nil {
 			return fmt.Errorf("failed to process template %s: %w", templateFile, err)
@@ -309,7 +309,7 @@ func processTemplatedFiles(targetDir string, data *TemplateData) error {
 	return nil
 }
 
-func rerenderSlotTemplates(targetDir string, data *TemplateData) error {
+func rerenderSlotTemplates(targetDir string, data extensions.TemplateData) error {
 	if data == nil {
 		return fmt.Errorf("template data is nil")
 	}
@@ -376,14 +376,14 @@ func slotScope(slot string) string {
 
 func processTemplate(
 	targetDir, templateFile, targetPath string,
-	data *TemplateData,
+	data extensions.TemplateData,
 ) error {
 	return renderTemplate(targetDir, templateFile, targetPath, templates.Files, data)
 }
 
 func ProcessTemplateFromRecipe(
 	targetDir, templateFile, targetPath string,
-	data *TemplateData,
+	data extensions.TemplateData,
 ) error {
 	return renderTemplate(targetDir, templateFile, targetPath, extensions.Files, data)
 }
@@ -391,7 +391,7 @@ func ProcessTemplateFromRecipe(
 func renderTemplate(
 	targetDir, templateFile, targetPath string,
 	fsys fs.FS,
-	data *TemplateData,
+	data extensions.TemplateData,
 ) error {
 	content, err := fs.ReadFile(fsys, templateFile)
 	if err != nil {
@@ -467,7 +467,7 @@ func renderTemplate(
 	return nil
 }
 
-func slotFuncMap(data *TemplateData) template.FuncMap {
+func slotFuncMap(data extensions.TemplateData) template.FuncMap {
 	return template.FuncMap{
 		"slot": func(name string) []string {
 			if data == nil {
