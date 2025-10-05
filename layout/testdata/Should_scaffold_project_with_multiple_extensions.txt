@@ -1,5 +1,4 @@
 === PROJECT STRUCTURE ===
-.env
 .env.example
 .gitignore
 assets/assets.go
@@ -16,17 +15,21 @@ config/database.go
 controllers/api.go
 controllers/assets.go
 controllers/controller.go
+controllers/email_service.go
 controllers/pages.go
+controllers/queue_worker.go
 css/base.css
 css/theme.css
 database/database.go
 database/migrations/.gitkeep
 database/queries/.gitkeep
 database/sqlc.yaml
+email/email.go
 go.mod
 justfile
 models/errors.go
 models/model.go
+queue/queue.go
 router/cookies/cookies.go
 router/cookies/flash.go
 router/middleware/middleware.go
@@ -49,41 +52,23 @@ views/layout.templ
 views/layout_templ.go
 views/not_found.templ
 views/not_found_templ.go
-webapp.db
-
-=== .env ===
-ENVIRONMENT=development
-
-DEFAULT_SENDER_SIGNATURE=info@andurel.com
-
-
-DB_KIND=sqlite3
-DB_PATH=./webapp.db
-
-PASSWORD_SALT=test_password_salt_value
-
-PROJECT_NAME=webapp
-APP_DOMAIN=localhost:8080
-APP_PROTOCOL=http
-
-SESSION_KEY=test_session_key_value
-SESSION_ENCRYPTION_KEY=test_session_encryption_key_value
-
-TOKEN_SIGNING_KEY=test_token_signing_key_value
-
 
 === .env.example ===
 ENVIRONMENT=development
 
 DEFAULT_SENDER_SIGNATURE=info@andurel.com
 
-
-DB_KIND=sqlite3
-DB_PATH=./webapp.db
+DB_KIND=postgres
+DB_PORT=5432
+DB_HOST=127.0.0.1
+DB_NAME=andurel
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_SSL_MODE=disable
 
 PASSWORD_SALT=test_password_salt_value
 
-PROJECT_NAME=webapp
+PROJECT_NAME=testapp
 APP_DOMAIN=localhost:8080
 APP_PROTOCOL=http
 
@@ -97,7 +82,7 @@ TOKEN_SIGNING_KEY=test_token_signing_key_value
 node_modules
 .env
 bin
-webapp.db
+testapp.db
 
 
 === assets/assets.go ===
@@ -717,10 +702,12 @@ import (
 	"os/signal"
 	"time"
 
-	"myorg/webapp/config"
-	"myorg/webapp/controllers"
-	"myorg/webapp/database"
-	"myorg/webapp/router"
+	"testapp/config"
+	"testapp/controllers"
+	"testapp/database"
+	"testapp/email"
+	"testapp/queue"
+	"testapp/router"
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/sync/errgroup"
@@ -766,10 +753,14 @@ func startServer(ctx context.Context, srv *http.Server, env string) error {
 }
 
 func setupControllers(
-	db database.SQLite,
+	db database.Postgres,
+	emailSvc email.Service,
+	q queue.Queue,
 ) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
 		db,
+		emailSvc,
+		q,
 	)
 	if err != nil {
 		return controllers.Controllers{}, err
@@ -795,13 +786,17 @@ func run(ctx context.Context) error {
 	defer cancel()
 
 	cfg := config.NewConfig()
-	db, err := database.NewSQLite(ctx, cfg.DB.GetDatabaseURL())
+	db, err := database.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
 	}
+	emailSvc := email.NewMockService()
+	q := queue.NewInMemoryQueue()
 
 	controllers, err := setupControllers(
 		db,
+		emailSvc,
+		q,
 	)
 	if err != nil {
 		return err
@@ -845,7 +840,7 @@ import (
 	"os"
 	"os/exec"
 
-	"myorg/webapp/config"
+	"testapp/config"
 
 	"github.com/joho/godotenv"
 )
@@ -884,7 +879,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"myorg/webapp/config"
+	"testapp/config"
 
 	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
@@ -1371,16 +1366,26 @@ func NewConfig() Config {
 package config
 
 import (
+	"fmt"
+
 	"github.com/caarlos0/env/v10"
 )
 
 type database struct {
+	Port         string `env:"DB_PORT"`
+	Host         string `env:"DB_HOST"`
+	Name         string `env:"DB_NAME"`
+	User         string `env:"DB_USER"`
+	Password     string `env:"DB_PASSWORD"`
 	DatabaseKind string `env:"DB_KIND"`
-	Path         string `env:"DB_PATH"`
+	SslMode      string `env:"DB_SSL_MODE"`
 }
 
 func (d database) GetDatabaseURL() string {
-	return d.Path
+	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
+		d.DatabaseKind, d.User, d.Password, d.Host, d.Port,
+		d.Name, d.SslMode,
+	)
 }
 
 func newDatabaseConfig() database {
@@ -1400,17 +1405,17 @@ func newDatabaseConfig() database {
 package controllers
 
 import (
-	"myorg/webapp/database"
 	"net/http"
+	"testapp/database"
 
 	"github.com/labstack/echo/v4"
 )
 
 type API struct {
-	db database.SQLite
+	db database.Postgres
 }
 
-func newAPI(db database.SQLite) API {
+func newAPI(db database.Postgres) API {
 	return API{db}
 }
 
@@ -1430,9 +1435,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	"myorg/webapp/assets"
-	"myorg/webapp/config"
-	"myorg/webapp/router/routes"
+	"testapp/assets"
+	"testapp/config"
+	"testapp/router/routes"
 
 	"github.com/labstack/echo/v4"
 	"github.com/maypok86/otter"
@@ -1638,19 +1643,25 @@ import (
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
 	"github.com/maypok86/otter"
-	"myorg/webapp/database"
-	"myorg/webapp/router/cookies"
 	"net/http"
+	"testapp/database"
+	"testapp/email"
+	"testapp/queue"
+	"testapp/router/cookies"
 )
 
 type Controllers struct {
-	Assets Assets
-	API    API
-	Pages  Pages
+	Assets       Assets
+	EmailService EmailService
+	QueueWorker  QueueWorker
+	API          API
+	Pages        Pages
 }
 
 func New(
-	db database.SQLite,
+	db database.Postgres,
+	emailSvc email.Service,
+	q queue.Queue,
 ) (Controllers, error) {
 	cacheBuilder, err := otter.NewBuilder[string, templ.Component](20)
 	if err != nil {
@@ -1662,13 +1673,17 @@ func New(
 		return Controllers{}, err
 	}
 	assets := newAssets()
+	emailService := newEmailService(emailSvc)
+	queueWorker := newQueueWorker(q)
 	pages := newPages(db, pageCacher)
 	api := newAPI(db)
 
 	return Controllers{
-		Assets: assets,
-		Pages:  pages,
-		API:    api,
+		Assets:       assets,
+		EmailService: emailService,
+		QueueWorker:  queueWorker,
+		Pages:        pages,
+		API:          api,
 	}, nil
 }
 
@@ -1698,13 +1713,36 @@ func render(ctx echo.Context, t templ.Component) error {
 }
 
 
+=== controllers/email_service.go ===
+package controllers
+
+import (
+	"testapp/email"
+)
+
+type EmailService struct {
+	service email.Service
+}
+
+func newEmailService(svc email.Service) EmailService {
+	return EmailService{
+		service: svc,
+	}
+}
+
+// SendEmail sends an email
+func (es *EmailService) SendEmail(to, subject, body string) error {
+	return es.service.Send(to, subject, body)
+}
+
+
 === controllers/pages.go ===
 package controllers
 
 import (
-	"myorg/webapp/database"
+	"testapp/database"
 
-	"myorg/webapp/views"
+	"testapp/views"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
@@ -1712,12 +1750,12 @@ import (
 )
 
 type Pages struct {
-	db    database.SQLite
+	db    database.Postgres
 	cache otter.CacheWithVariableTTL[string, templ.Component]
 }
 
 func newPages(
-	db database.SQLite,
+	db database.Postgres,
 	cache otter.CacheWithVariableTTL[string, templ.Component],
 ) Pages {
 	return Pages{db, cache}
@@ -1729,6 +1767,30 @@ func (p Pages) Home(c echo.Context) error {
 
 func (p Pages) NotFound(c echo.Context) error {
 	return render(c, views.NotFound())
+}
+
+
+=== controllers/queue_worker.go ===
+package controllers
+
+import (
+	"testapp/queue"
+)
+
+type QueueWorker struct {
+	queue queue.Queue
+}
+
+func newQueueWorker(q queue.Queue) QueueWorker {
+	return QueueWorker{
+		queue: q,
+	}
+}
+
+// ProcessJob processes a job from the queue
+func (qw *QueueWorker) ProcessJob(jobID string) error {
+	// Implementation here
+	return nil
 }
 
 
@@ -1793,12 +1855,12 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"embed"
 	"errors"
 	"log/slog"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
@@ -1810,31 +1872,37 @@ var (
 //go:embed migrations/*
 var Migrations embed.FS
 
-type SQLite struct {
-	db *sql.DB
+type Postgres struct {
+	pool *pgxpool.Pool
 }
 
-func NewSQLite(ctx context.Context, databaseURL string) (SQLite, error) {
-	db, err := sql.Open("sqlite3", databaseURL)
+func NewPostgres(ctx context.Context, databaseURL string) (Postgres, error) {
+	pgxCfg, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
-		slog.ErrorContext(ctx, "could not open sqlite database", "error", err)
-		return SQLite{}, err
+		slog.ErrorContext(ctx, "could not parse database connection string", "error", err)
+		return Postgres{}, err
 	}
 
-	if err := db.PingContext(ctx); err != nil {
+	pool, err := pgxpool.NewWithConfig(ctx, pgxCfg)
+	if err != nil {
+		slog.ErrorContext(ctx, "could not establish connection to database", "error", err)
+		return Postgres{}, err
+	}
+
+	if err := pool.Ping(ctx); err != nil {
 		slog.ErrorContext(ctx, "could not ping database", "error", err)
-		return SQLite{}, err
+		return Postgres{}, err
 	}
 
-	return SQLite{db}, nil
+	return Postgres{pool}, nil
 }
 
-func (s *SQLite) Conn() *sql.DB {
-	return s.db
+func (p *Postgres) Pool() *pgxpool.Pool {
+	return p.pool
 }
 
-func (s *SQLite) BeginTx(ctx context.Context) (*sql.Tx, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
+func (p *Postgres) BeginTx(ctx context.Context) (pgx.Tx, error) {
+	tx, err := p.pool.Begin(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not begin transaction", "reason", err)
 		return nil, errors.Join(ErrBeginTx, err)
@@ -1843,8 +1911,8 @@ func (s *SQLite) BeginTx(ctx context.Context) (*sql.Tx, error) {
 	return tx, nil
 }
 
-func (s *SQLite) RollBackTx(ctx context.Context, tx *sql.Tx) error {
-	if err := tx.Rollback(); err != nil {
+func (p *Postgres) RollBackTx(ctx context.Context, tx pgx.Tx) error {
+	if err := tx.Rollback(ctx); err != nil {
 		slog.ErrorContext(ctx, "could not rollback transaction", "reason", err)
 		return errors.Join(ErrRollbackTx, err)
 	}
@@ -1852,8 +1920,8 @@ func (s *SQLite) RollBackTx(ctx context.Context, tx *sql.Tx) error {
 	return nil
 }
 
-func (s *SQLite) CommitTx(ctx context.Context, tx *sql.Tx) error {
-	if err := tx.Commit(); err != nil {
+func (p *Postgres) CommitTx(ctx context.Context, tx pgx.Tx) error {
+	if err := tx.Commit(ctx); err != nil {
 		slog.ErrorContext(ctx, "could not commit transaction", "reason", err)
 		return errors.Join(ErrCommitTx, err)
 	}
@@ -1873,7 +1941,7 @@ version: "2"
 sql:
   - schema: migrations
     queries: queries
-    engine: sqlite
+    engine: postgresql
     gen:
       go:
         package: db
@@ -1882,14 +1950,39 @@ sql:
         output_models_file_name: entities.go
         emit_sql_as_comment: true
         emit_methods_with_db_argument: true
-        sql_package: "database/sql"
+        sql_package: pgx/v5
         overrides:
           - db_type: uuid
             go_type: github.com/google/uuid.UUID
 
 
+=== email/email.go ===
+// Package email provides email sending functionality
+package email
+
+import "fmt"
+
+// Service represents an email service
+type Service interface {
+	Send(to, subject, body string) error
+}
+
+// MockService is a mock email service for development
+type MockService struct{}
+
+// NewMockService creates a new mock email service
+func NewMockService() Service {
+	return &MockService{}
+}
+
+func (s *MockService) Send(to, subject, body string) error {
+	fmt.Printf("MOCK EMAIL: To=%s, Subject=%s, Body=%s\n", to, subject, body)
+	return nil
+}
+
+
 === go.mod ===
-module myorg/webapp
+module testapp
 
 go 1.25.0
 
@@ -1908,10 +2001,10 @@ require (
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/sessions v1.4.0
+	github.com/jackc/pgx/v5 v5.7.6
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo-contrib v0.17.4
 	github.com/labstack/echo/v4 v4.13.4
-	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/maypok86/otter v1.2.4
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.63.0
 	go.opentelemetry.io/otel v1.38.0
@@ -2112,7 +2205,6 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgx/v5 v5.7.6 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
@@ -2145,6 +2237,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mattn/go-sixel v0.0.5 // indirect
+	github.com/mattn/go-sqlite3 v1.14.32 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/mfridman/xflag v0.1.0 // indirect
 	github.com/microsoft/go-mssqldb v1.9.3 // indirect
@@ -2299,9 +2392,14 @@ set dotenv-load
 
 # alias
 alias r := run
+alias cdd := connect-database-docker
 
 default:
     @just --list
+
+# database 
+connect-database-docker conntainer_id name:
+	docker exec -it {{conntainer_id}} psql -U postgres {{name}}
 
 # code quality
 golangci:
@@ -2338,6 +2436,43 @@ func setupValidator() *validator.Validate {
 }
 
 
+=== queue/queue.go ===
+// Package queue provides job queue functionality
+package queue
+
+// Queue represents a job queue
+type Queue interface {
+	Push(job string) error
+	Pop() (string, error)
+}
+
+// InMemoryQueue is a simple in-memory queue implementation
+type InMemoryQueue struct {
+	jobs []string
+}
+
+// NewInMemoryQueue creates a new in-memory queue
+func NewInMemoryQueue() Queue {
+	return &InMemoryQueue{
+		jobs: make([]string, 0),
+	}
+}
+
+func (q *InMemoryQueue) Push(job string) error {
+	q.jobs = append(q.jobs, job)
+	return nil
+}
+
+func (q *InMemoryQueue) Pop() (string, error) {
+	if len(q.jobs) == 0 {
+		return "", nil
+	}
+	job := q.jobs[0]
+	q.jobs = q.jobs[1:]
+	return job, nil
+}
+
+
 === router/cookies/cookies.go ===
 // Package cookies provides utilities for managing application context and session data in an Echo web application.
 package cookies
@@ -2345,7 +2480,7 @@ package cookies
 import (
 	"context"
 
-	"myorg/webapp/config"
+	"testapp/config"
 
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
@@ -2397,7 +2532,7 @@ import (
 	"strings"
 	"time"
 
-	"myorg/webapp/config"
+	"testapp/config"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/session"
@@ -2582,10 +2717,10 @@ import (
 	"slices"
 	"strings"
 
-	"myorg/webapp/config"
-	"myorg/webapp/controllers"
-	"myorg/webapp/router/cookies"
-	"myorg/webapp/router/routes"
+	"testapp/config"
+	"testapp/controllers"
+	"testapp/router/cookies"
+	"testapp/router/routes"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
@@ -3008,8 +3143,8 @@ package components
 
 import (
 	"context"
-	"myorg/webapp/config"
-	"myorg/webapp/router/routes"
+	"testapp/config"
+	"testapp/router/routes"
 )
 
 type HeadDataOption func(*HeadData)
@@ -3119,8 +3254,8 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"context"
-	"myorg/webapp/config"
-	"myorg/webapp/router/routes"
+	"testapp/config"
+	"testapp/router/routes"
 )
 
 type HeadDataOption func(*HeadData)
@@ -3489,7 +3624,7 @@ package components
 import (
 	"fmt"
 	"github.com/dromara/carbon/v2"
-	"myorg/webapp/router/cookies"
+	"testapp/router/cookies"
 )
 
 templ toastBase(tType string, flash cookies.FlashMessage) {
@@ -3542,7 +3677,7 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"fmt"
 	"github.com/dromara/carbon/v2"
-	"myorg/webapp/router/cookies"
+	"testapp/router/cookies"
 )
 
 func toastBase(tType string, flash cookies.FlashMessage) templ.Component {
@@ -3847,8 +3982,8 @@ var _ = templruntime.GeneratedTemplate
 package views
 
 import (
-	"myorg/webapp/router/cookies"
-	"myorg/webapp/views/components"
+	"testapp/router/cookies"
+	"testapp/views/components"
 )
 
 templ base(headOpts ...components.HeadDataOption) {
@@ -3879,8 +4014,8 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"myorg/webapp/router/cookies"
-	"myorg/webapp/views/components"
+	"testapp/router/cookies"
+	"testapp/views/components"
 )
 
 func base(headOpts ...components.HeadDataOption) templ.Component {
@@ -4010,8 +4145,5 @@ func NotFound() templ.Component {
 }
 
 var _ = templruntime.GeneratedTemplate
-
-
-=== webapp.db ===
 
 

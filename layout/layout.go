@@ -19,7 +19,10 @@ import (
 	"sync"
 	"text/template"
 
+	"github.com/mbvlabs/andurel/layout/blueprint"
 	"github.com/mbvlabs/andurel/layout/extensions"
+	emailservice "github.com/mbvlabs/andurel/layout/extensions/email-service"
+	queueworker "github.com/mbvlabs/andurel/layout/extensions/queue-worker"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
 )
@@ -51,6 +54,9 @@ func Scaffold(targetDir, projectName, repo, database string, extensionNames []st
 		moduleName = repo + "/" + projectName
 	}
 
+	// Initialize blueprint with base configuration
+	bp := initializeBaseBlueprint(moduleName, database)
+
 	templateData := TemplateData{
 		ProjectName:          projectName,
 		ModuleName:           moduleName,
@@ -59,6 +65,7 @@ func Scaffold(targetDir, projectName, repo, database string, extensionNames []st
 		SessionEncryptionKey: generateRandomHex(32),
 		TokenSigningKey:      generateRandomHex(32),
 		PasswordSalt:         generateRandomHex(16),
+		blueprint:            bp,
 	}
 
 	if err := registerBuiltinExtensions(); err != nil {
@@ -183,8 +190,11 @@ func Scaffold(targetDir, projectName, repo, database string, extensionNames []st
 		}
 	}
 
-	if err := rerenderSlotTemplates(targetDir, &templateData); err != nil {
-		return fmt.Errorf("failed to re-render slot templates: %w", err)
+	// Re-render templates that use blueprint data after extensions have been applied
+	if len(requestedExtensions) > 0 {
+		if err := rerenderBlueprintTemplates(targetDir, &templateData); err != nil {
+			return fmt.Errorf("failed to re-render blueprint templates: %w", err)
+		}
 	}
 
 	for _, step := range postExtensionSteps {
@@ -289,13 +299,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"views_components_toasts.tmpl": "views/components/toasts.templ",
 }
 
-var slotScopeTemplates = map[string]TmplTarget{
-	"controllers": "controllers_controller.tmpl",
-	"cmd/app":     "cmd_app_main.tmpl",
-	"models":      "models_model.tmpl",
-	"routes":      "router_routes_routes.tmpl",
-}
-
 func processTemplatedFiles(targetDir string, data extensions.TemplateData) error {
 	for templateFile, targetPath := range baseTemplateMappings {
 		if err := processTemplate(targetDir, string(templateFile), string(targetPath), data); err != nil {
@@ -306,69 +309,29 @@ func processTemplatedFiles(targetDir string, data extensions.TemplateData) error
 	return nil
 }
 
-func rerenderSlotTemplates(targetDir string, data extensions.TemplateData) error {
+func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) error {
 	if data == nil {
 		return fmt.Errorf("template data is nil")
 	}
 
-	slotNames := data.SlotNames()
-	if len(slotNames) == 0 {
-		return nil
+	// List of templates that consume blueprint data and should be re-rendered after extensions
+	blueprintTemplates := []TmplTarget{
+		"controllers_controller.tmpl",
+		"cmd_app_main.tmpl",
 	}
 
-	neededScopes := make(map[string]struct{}, len(slotNames))
-	for _, name := range slotNames {
-		scope := slotScope(name)
-		if scope == "" {
-			continue
-		}
-		neededScopes[scope] = struct{}{}
-	}
-
-	if len(neededScopes) == 0 {
-		return nil
-	}
-
-	scopes := make([]string, 0, len(neededScopes))
-	for scope := range neededScopes {
-		scopes = append(scopes, scope)
-	}
-	sort.Strings(scopes)
-
-	for _, scope := range scopes {
-		tmplName, ok := slotScopeTemplates[scope]
-		if !ok {
-			return fmt.Errorf("no template registered for slot scope %q", scope)
-		}
-
+	for _, tmplName := range blueprintTemplates {
 		targetPath, ok := baseTemplateMappings[tmplName]
 		if !ok {
-			return fmt.Errorf(
-				"template mapping missing for scope %q (template %s)",
-				scope,
-				tmplName,
-			)
+			return fmt.Errorf("template mapping missing for blueprint template %s", tmplName)
 		}
 
 		if err := processTemplate(targetDir, string(tmplName), string(targetPath), data); err != nil {
-			return fmt.Errorf("failed to render slot template %s: %w", tmplName, err)
+			return fmt.Errorf("failed to render blueprint template %s: %w", tmplName, err)
 		}
 	}
 
 	return nil
-}
-
-func slotScope(slot string) string {
-	slot = strings.TrimSpace(slot)
-	if slot == "" {
-		return ""
-	}
-
-	if idx := strings.Index(slot, ":"); idx >= 0 {
-		return slot[:idx]
-	}
-
-	return slot
 }
 
 func processTemplate(
@@ -402,7 +365,7 @@ func renderTemplate(
 	contentStr := string(content)
 
 	tmpl, err := template.New(templateFile).
-		Funcs(slotFuncMap(data)).
+		Funcs(templateFuncMap()).
 		Parse(contentStr)
 	if err != nil {
 		return fmt.Errorf("failed to parse template %s: %w", templateFile, err)
@@ -464,34 +427,25 @@ func renderTemplate(
 	return nil
 }
 
-func slotFuncMap(data extensions.TemplateData) template.FuncMap {
+func templateFuncMap() template.FuncMap {
 	return template.FuncMap{
-		"slot": func(name string) []string {
-			if data == nil {
-				return nil
-			}
-
-			return data.Slot(name)
-		},
-		"slotJoined": func(name, sep string) string {
-			if data == nil {
-				return ""
-			}
-
-			return data.SlotJoined(name, sep)
-		},
-		"slotData": func(name string) []any {
-			if data == nil {
-				return nil
-			}
-
-			return data.SlotData(name)
-		},
+		"lower": strings.ToLower,
 	}
 }
 
 func registerBuiltinExtensions() error {
 	registerBuiltinOnce.Do(func() {
+		builtin := []extensions.Extension{
+			emailservice.Extension{},
+			queueworker.Extension{},
+		}
+
+		for _, ext := range builtin {
+			if err := extensions.Register(ext); err != nil {
+				registerBuiltinErr = fmt.Errorf("register %s: %w", ext.Name(), err)
+				return
+			}
+		}
 	})
 
 	return registerBuiltinErr
@@ -697,4 +651,46 @@ func getTailwindDownloadURL() (string, error) {
 	}
 
 	return fmt.Sprintf("%s/tailwindcss-%s", baseURL, arch), nil
+}
+
+// initializeBaseBlueprint creates a blueprint with default base configuration
+// for controllers, routes, and other scaffold components.
+func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
+	builder := blueprint.NewBuilder(nil)
+
+	// Controller imports
+	builder.
+		AddCtrlImport("context").
+		AddCtrlImport("net/http").
+		AddCtrlImport(fmt.Sprintf("%s/database", moduleName)).
+		AddCtrlImport(fmt.Sprintf("%s/router/cookies", moduleName)).
+		AddCtrlImport("github.com/a-h/templ").
+		AddCtrlImport("github.com/labstack/echo/v4").
+		AddCtrlImport("github.com/maypok86/otter")
+
+	// Controller dependencies - database is the primary dependency
+	var dbType string
+	switch database {
+	case "postgresql":
+		dbType = "database.Postgres"
+	case "sqlite":
+		dbType = "database.SQLite"
+	default:
+		dbType = "database.DB"
+	}
+	builder.AddCtrlDependency("db", dbType)
+
+	// Controller fields - the main sub-controllers
+	builder.
+		AddControllerField("Assets", "Assets").
+		AddControllerField("API", "API").
+		AddControllerField("Pages", "Pages")
+
+	// Constructor initializations
+	builder.
+		AddConstructor("assets", "newAssets()").
+		AddConstructor("pages", "newPages(db, pageCacher)").
+		AddConstructor("api", "newAPI(db)")
+
+	return builder.Blueprint()
 }

@@ -205,3 +205,68 @@ func replaceEnvValue(content, prefix, testValue string) string {
 	}
 	return strings.Join(lines, "\n")
 }
+
+func TestProjectScaffoldingWithExtensions__GoldenFile(t *testing.T) {
+	if err := os.Setenv("ANDUREL_SKIP_TAILWIND", "true"); err != nil {
+		t.Fatalf("Failed to set ANDUREL_SKIP_TAILWIND env var: %v", err)
+	}
+	if err := os.Setenv("ANDUREL_SKIP_BUILD", "true"); err != nil {
+		t.Fatalf("Failed to set ANDUREL_SKIP_BUILD env var: %v", err)
+	}
+
+	tests := []struct {
+		name           string
+		projectName    string
+		repoFlag       string
+		database       string
+		extensions     []string
+		expectedModule string
+	}{
+		{
+			name:           "Should_scaffold_project_with_queue_worker_extension",
+			projectName:    "testapp",
+			repoFlag:       "",
+			database:       "postgresql",
+			extensions:     []string{"queue-worker"},
+			expectedModule: "testapp",
+		},
+		{
+			name:           "Should_scaffold_project_with_email_service_extension",
+			projectName:    "testapp",
+			repoFlag:       "",
+			database:       "postgresql",
+			extensions:     []string{"email-service"},
+			expectedModule: "testapp",
+		},
+		{
+			name:           "Should_scaffold_project_with_multiple_extensions",
+			projectName:    "testapp",
+			repoFlag:       "",
+			database:       "postgresql",
+			extensions:     []string{"queue-worker", "email-service"},
+			expectedModule: "testapp",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+
+			projectDir := filepath.Join(tempDir, tt.projectName)
+
+			originalWd, _ := os.Getwd()
+
+			err := layout.Scaffold(projectDir, tt.projectName, tt.repoFlag, tt.database, tt.extensions)
+			if err != nil {
+				t.Fatalf("Failed to scaffold project: %v", err)
+			}
+
+			scaffoldOutput := captureScaffoldedProject(t, projectDir)
+
+			fixtureDir := filepath.Join(originalWd, "testdata")
+			g := goldie.New(t, goldie.WithFixtureDir(fixtureDir), goldie.WithNameSuffix(".txt"))
+
+			g.Assert(t, tt.name, []byte(scaffoldOutput))
+		})
+	}
+}

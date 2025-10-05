@@ -2,36 +2,22 @@
 package controllers
 
 import (
-	"context"
-	"net/http"
-
-{{- if eq .Database "postgresql"}}
-	"{{.ModuleName}}/database"
-{{- else if eq .Database "sqlite"}}
-	"{{.ModuleName}}/database"
+{{- range .Blueprint.Controllers.Imports.SortedItems}}
+	"{{.}}"
 {{- end}}
-	"{{.ModuleName}}/router/cookies"
-
-	"github.com/a-h/templ"
-	"github.com/labstack/echo/v4"
-	"github.com/maypok86/otter"
 )
 
 type Controllers struct {
-	Assets Assets
-	API    API
-	Pages  Pages
+{{- range .Blueprint.Controllers.SortedFields}}
+	{{.Name}} {{.Type}}
+{{- end}}
 }
 
-{{- if eq .Database "postgresql"}}
 func New(
-	db database.Postgres,
-) (Controllers, error) {
-{{- else if eq .Database "sqlite"}}
-func New(
-	db database.SQLite,
-) (Controllers, error) {
+{{- range $i, $dep := .Blueprint.Controllers.SortedDependencies}}
+	{{$dep.Name}} {{$dep.Type}},
 {{- end}}
+) (Controllers, error) {
 	cacheBuilder, err := otter.NewBuilder[string, templ.Component](20)
 	if err != nil {
 		return Controllers{}, err
@@ -42,14 +28,14 @@ func New(
 		return Controllers{}, err
 	}
 
-	assets := newAssets()
-	pages := newPages(db, pageCacher)
-	api := newAPI(db)
+{{- range .Blueprint.Controllers.SortedConstructors}}
+	{{.VarName}} := {{.Expression}}
+{{- end}}
 
 	return Controllers{
-		assets,
-		api,
-		pages,
+{{- range .Blueprint.Controllers.SortedConstructors}}
+		{{.FieldName}}: {{.VarName}},
+{{- end}}
 	}, nil
 }
 

@@ -14,6 +14,11 @@ import (
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/router"
+{{- range .Blueprint.Controllers.SortedDependencies}}
+{{- if .ImportPath}}
+	"{{.ImportPath}}"
+{{- end}}
+{{- end}}
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/sync/errgroup"
@@ -58,31 +63,22 @@ func startServer(ctx context.Context, srv *http.Server, env string) error {
 	return srv.ListenAndServe()
 }
 
-{{- if eq .Database "postgresql"}}
-func setupControllers(psql database.Postgres) (controllers.Controllers, error) {
-	ctrl, err := controllers.New(
-		psql,
-	)
-	if err != nil {
-		return controllers.Controllers{}, err
-	}
-
-	return ctrl, nil
-}
-
-{{- else if eq .Database "sqlite"}}
-func setupControllers(sqlite database.SQLite) (controllers.Controllers, error) {
-	ctrl, err := controllers.New(
-		sqlite,
-	)
-	if err != nil {
-		return controllers.Controllers{}, err
-	}
-
-	return ctrl, nil
-}
-
+func setupControllers(
+{{- range $i, $dep := .Blueprint.Controllers.SortedDependencies}}
+	{{$dep.Name}} {{$dep.Type}},
 {{- end}}
+) (controllers.Controllers, error) {
+	ctrl, err := controllers.New(
+{{- range .Blueprint.Controllers.SortedDependencies}}
+		{{.Name}},
+{{- end}}
+	)
+	if err != nil {
+		return controllers.Controllers{}, err
+	}
+
+	return ctrl, nil
+}
 
 func setupRouter(ctrl controllers.Controllers, cfg config.Config) (*echo.Echo, error) {
 	router, err := router.New(
@@ -103,28 +99,31 @@ func run(ctx context.Context) error {
 	cfg := config.NewConfig()
 
 {{- if eq .Database "postgresql"}}
-	psql, err := database.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
+	db, err := database.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
 	}
-
-	controllers, err := setupControllers(psql)
-	if err != nil {
-		return err
-	}
-
 {{- else if eq .Database "sqlite"}}
-	sqlite, err := database.NewSQLite(ctx, cfg.DB.GetDatabaseURL())
+	db, err := database.NewSQLite(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
 	}
-
-	controllers, err := setupControllers(sqlite)
-	if err != nil {
-		return err
-	}
-
 {{- end}}
+
+{{- range .Blueprint.Controllers.SortedDependencies}}
+{{- if .InitExpr}}
+	{{.Name}} := {{.InitExpr}}
+{{- end}}
+{{- end}}
+
+	controllers, err := setupControllers(
+{{- range .Blueprint.Controllers.SortedDependencies}}
+		{{.Name}},
+{{- end}}
+	)
+	if err != nil {
+		return err
+	}
 
 	handler, err := setupRouter(controllers, cfg)
 	if err != nil {

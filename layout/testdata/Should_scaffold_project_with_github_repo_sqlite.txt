@@ -764,9 +764,12 @@ func startServer(ctx context.Context, srv *http.Server, env string) error {
 
 	return srv.ListenAndServe()
 }
-func setupControllers(sqlite database.SQLite) (controllers.Controllers, error) {
+
+func setupControllers(
+	db database.SQLite,
+) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
-		sqlite,
+		db,
 	)
 	if err != nil {
 		return controllers.Controllers{}, err
@@ -792,12 +795,14 @@ func run(ctx context.Context) error {
 	defer cancel()
 
 	cfg := config.NewConfig()
-	sqlite, err := database.NewSQLite(ctx, cfg.DB.GetDatabaseURL())
+	db, err := database.NewSQLite(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
 	}
 
-	controllers, err := setupControllers(sqlite)
+	controllers, err := setupControllers(
+		db,
+	)
 	if err != nil {
 		return err
 	}
@@ -1630,13 +1635,12 @@ package controllers
 
 import (
 	"context"
-	"net/http"
-	"testuser/myapp/database"
-	"testuser/myapp/router/cookies"
-
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
 	"github.com/maypok86/otter"
+	"net/http"
+	"testuser/myapp/database"
+	"testuser/myapp/router/cookies"
 )
 
 type Controllers struct {
@@ -1657,15 +1661,14 @@ func New(
 	if err != nil {
 		return Controllers{}, err
 	}
-
 	assets := newAssets()
 	pages := newPages(db, pageCacher)
 	api := newAPI(db)
 
 	return Controllers{
-		assets,
-		api,
-		pages,
+		Assets: assets,
+		Pages:  pages,
+		API:    api,
 	}, nil
 }
 
@@ -2175,7 +2178,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/pressly/goose/v3 v3.25.0 // indirect
+	github.com/pressly/goose/v3 v3.26.0 // indirect
 	github.com/prestodb/presto-go-client v0.0.0-20240426182841-905ac40a1783 // indirect
 	github.com/prometheus/client_golang v1.22.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect

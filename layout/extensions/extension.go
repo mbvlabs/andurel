@@ -10,16 +10,30 @@ import (
 //go:embed */templates/*.tmpl
 var Files embed.FS
 
+// Blueprint is a forward reference to avoid import cycles. Extensions should
+// use the builder methods on Context to interact with the blueprint.
+type Blueprint interface{}
+
+// Builder provides the typed API for extensions to add to the scaffold.
+// Methods modify the builder in place and do not return values to avoid
+// type compatibility issues with different concrete implementations.
+type Builder interface {
+	AddImport(importPath string)
+	AddControllerDependency(name, typeName string)
+	AddControllerDependencyWithInit(name, typeName, initExpr string)
+	AddControllerDependencyWithInitAndImport(name, typeName, initExpr, importPath string)
+	AddControllerField(name, typeName string)
+	AddConstructor(varName, expression string)
+	AddRouteImport(importPath string)
+	AddModelImport(importPath string)
+	AddConfigField(name, typeName string)
+	AddEnvVar(key, configField, defaultValue string)
+}
+
 type TemplateData interface {
-	AddSlotSnippet(slot, snippet string) error
-	AddSlotData(slot string, value any) error
-	Slot(slot string) []string
-	SlotJoined(slot, sep string) string
-	SlotData(slot string) []any
-	SlotNames() []string
-	HasSlot(slot string) bool
-	HasSlotData(slot string) bool
 	DatabaseDialect() string
+	GetModuleName() string
+	Builder() Builder
 }
 
 type ProcessTemplateFunc func(templateFile, targetPath string, data TemplateData) error
@@ -31,32 +45,13 @@ type Context struct {
 	AddPostStep     func(func() error)
 }
 
-// AddSlotSnippet appends a snippet to the targeted slot using the context's
-// template data.
-func (ctx *Context) AddSlotSnippet(slot, snippet string) error {
-	if ctx == nil {
-		return fmt.Errorf("extensions: context is nil")
+// Builder returns the blueprint builder for structured contributions.
+func (ctx *Context) Builder() Builder {
+	if ctx == nil || ctx.Data == nil {
+		return nil
 	}
 
-	if ctx.Data == nil {
-		return fmt.Errorf("extensions: template data is nil")
-	}
-
-	return ctx.Data.AddSlotSnippet(slot, snippet)
-}
-
-// AddSlotData appends a structured value to the targeted slot using the
-// context's template data.
-func (ctx *Context) AddSlotData(slot string, value any) error {
-	if ctx == nil {
-		return fmt.Errorf("extensions: context is nil")
-	}
-
-	if ctx.Data == nil {
-		return fmt.Errorf("extensions: template data is nil")
-	}
-
-	return ctx.Data.AddSlotData(slot, value)
+	return ctx.Data.Builder()
 }
 
 type Extension interface {
