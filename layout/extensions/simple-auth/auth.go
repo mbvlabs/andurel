@@ -46,7 +46,7 @@ func (e Extension) Apply(ctx *extensions.Context) error {
 
 func (e Extension) addAuthController(builder extensions.Builder, moduleName string) error {
 	// Add config import - needed for the cfg config.Config dependency parameter
-	builder.AddImport(fmt.Sprintf("%s/config", moduleName))
+	builder.AddControllerImport(fmt.Sprintf("%s/config", moduleName))
 
 	// Add config dependency to controller constructor
 	builder.AddControllerDependency("cfg", "config.Config")

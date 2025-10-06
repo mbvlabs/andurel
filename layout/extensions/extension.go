@@ -18,10 +18,8 @@ type Blueprint any
 // Methods modify the builder in place and do not return values to avoid
 // type compatibility issues with different concrete implementations.
 type Builder interface {
-	AddImport(importPath string)
+	AddControllerImport(importPath string)
 	AddControllerDependency(name, typeName string)
-	AddControllerDependencyWithInit(name, typeName, initExpr string)
-	AddControllerDependencyWithInitAndImport(name, typeName, initExpr, importPath string)
 	AddControllerField(name, typeName string)
 	AddConstructor(varName, expression string)
 	AddRouteImport(importPath string)
