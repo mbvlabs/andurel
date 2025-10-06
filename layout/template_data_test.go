@@ -37,7 +37,7 @@ func TestTemplateDataBuilderUsesBlueprint(t *testing.T) {
 		t.Fatalf("expected Builder to return a non-nil adapter")
 	}
 
-	builder.AddImport("example.com/foo")
+	builder.AddControllerImport("example.com/foo")
 	builder.AddControllerDependency("foo", "foo.Service")
 
 	deps := td.Blueprint().Controllers.SortedDependencies()

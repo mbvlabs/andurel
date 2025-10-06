@@ -32,7 +32,10 @@ func TestNewBuilder_NilBlueprint(t *testing.T) {
 func TestBuilder_AddImport(t *testing.T) {
 	builder := NewBuilder(nil)
 
-	builder.AddCtrlImport("fmt").AddCtrlImport("strings").AddCtrlImport("fmt") // duplicate
+	builder.AddControllerImport("fmt").
+		AddControllerImport("strings").
+		AddControllerImport("fmt")
+		// duplicate
 
 	imports := builder.Blueprint().Controllers.Imports.Items()
 
@@ -233,15 +236,15 @@ func TestBuilder_AddMigration(t *testing.T) {
 func TestBuilder_Merge(t *testing.T) {
 	builder1 := NewBuilder(nil)
 	builder1.
-		AddCtrlImport("fmt").
+		AddControllerImport("fmt").
 		AddCtrlDependency("db", "database.DB").
 		AddControllerField("Pages", "Pages").
 		AddConstructor("pages", "newPages(db)")
 
 	builder2 := NewBuilder(nil)
 	builder2.
-		AddCtrlImport("strings").                  // new
-		AddCtrlImport("fmt").                      // duplicate
+		AddControllerImport("strings").            // new
+		AddControllerImport("fmt").                // duplicate
 		AddCtrlDependency("cache", "cache.Cache"). // new
 		AddCtrlDependency("db", "database.DB").    // duplicate
 		AddControllerField("API", "API").          // new
@@ -291,7 +294,7 @@ func TestBuilder_Chaining(t *testing.T) {
 
 	// Test that all methods return builder for chaining
 	result := builder.
-		AddCtrlImport("fmt").
+		AddControllerImport("fmt").
 		AddCtrlDependency("db", "database.DB").
 		AddControllerField("Pages", "Pages").
 		AddConstructor("pages", "newPages(db)").
@@ -313,7 +316,6 @@ func TestBuilder_EmptyValues(t *testing.T) {
 
 	// These should be no-ops
 	builder.
-		AddCtrlImport("").
 		AddCtrlDependency("", "Type").
 		AddCtrlDependency("name", "").
 		AddControllerField("", "Type").

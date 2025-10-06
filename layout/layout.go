@@ -116,7 +116,9 @@ func Scaffold(targetDir, projectName, repo, database string, extensionNames []st
 	// Need to skip download for testing purposes
 	if os.Getenv("ANDUREL_SKIP_TAILWIND") != "true" {
 		if err := SetupTailwind(targetDir); err != nil {
-			return fmt.Errorf("failed to download Tailwind binary: %w", err)
+			fmt.Print(
+				"Failed to download tailwind binary. Run 'andurel app tailwind' after setup is done to fix.",
+			)
 		}
 	}
 
@@ -659,13 +661,13 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 
 	// Controller imports
 	builder.
-		AddCtrlImport("context").
-		AddCtrlImport("net/http").
-		AddCtrlImport(fmt.Sprintf("%s/database", moduleName)).
-		AddCtrlImport(fmt.Sprintf("%s/router/cookies", moduleName)).
-		AddCtrlImport("github.com/a-h/templ").
-		AddCtrlImport("github.com/labstack/echo/v4").
-		AddCtrlImport("github.com/maypok86/otter")
+		AddControllerImport("context").
+		AddControllerImport("net/http").
+		AddControllerImport(fmt.Sprintf("%s/database", moduleName)).
+		AddControllerImport(fmt.Sprintf("%s/router/cookies", moduleName)).
+		AddControllerImport("github.com/a-h/templ").
+		AddControllerImport("github.com/labstack/echo/v4").
+		AddControllerImport("github.com/maypok86/otter")
 
 	// Controller dependencies - database is the primary dependency
 	var dbType string

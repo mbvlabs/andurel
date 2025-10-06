@@ -38,7 +38,7 @@ func (b *Builder) Blueprint() *Blueprint {
 }
 
 // AddCtrlImport adds an import path to the controllers section.
-func (b *Builder) AddCtrlImport(importPath string) *Builder {
+func (b *Builder) AddControllerImport(importPath string) *Builder {
 	if importPath != "" {
 		b.bp.Controllers.Imports.Add(importPath)
 	}
@@ -350,8 +350,8 @@ func NewBuilderAdapter(b *Builder) *BuilderAdapter {
 // The following methods implement interface contracts that require void returns.
 // They delegate to the underlying Builder methods and discard return values.
 
-func (a *BuilderAdapter) AddImport(importPath string) {
-	a.Builder.AddCtrlImport(importPath)
+func (a *BuilderAdapter) AddControllerImport(importPath string) {
+	a.Builder.AddControllerImport(importPath)
 }
 
 func (a *BuilderAdapter) AddControllerDependency(name, typeName string) {
