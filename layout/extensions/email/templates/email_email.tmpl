@@ -1,0 +1,13 @@
+package email
+
+type Payload struct {
+	To string
+	From string
+	Subject string
+	HtmlBody string
+	TxtBody string
+}
+
+type Sender interface {
+	SendTransactional(ctx context.Context, payload Payload) error
+}
