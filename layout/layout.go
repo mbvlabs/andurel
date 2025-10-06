@@ -21,8 +21,7 @@ import (
 
 	"github.com/mbvlabs/andurel/layout/blueprint"
 	"github.com/mbvlabs/andurel/layout/extensions"
-	emailservice "github.com/mbvlabs/andurel/layout/extensions/email-service"
-	queueworker "github.com/mbvlabs/andurel/layout/extensions/queue-worker"
+	simpleauth "github.com/mbvlabs/andurel/layout/extensions/simple-auth"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
 )
@@ -318,6 +317,7 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 	blueprintTemplates := []TmplTarget{
 		"controllers_controller.tmpl",
 		"cmd_app_main.tmpl",
+		"router_routes_routes.tmpl",
 	}
 
 	for _, tmplName := range blueprintTemplates {
@@ -436,8 +436,7 @@ func templateFuncMap() template.FuncMap {
 func registerBuiltinExtensions() error {
 	registerBuiltinOnce.Do(func() {
 		builtin := []extensions.Extension{
-			emailservice.Extension{},
-			queueworker.Extension{},
+			simpleauth.Extension{},
 		}
 
 		for _, ext := range builtin {

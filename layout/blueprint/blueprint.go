@@ -43,6 +43,10 @@ type RouteSection struct {
 	// Route definitions
 	Routes []Route
 
+	// Route groups (e.g., "auth" for authRoutes, "admin" for adminRoutes)
+	// Used to aggregate routes in the router_routes_routes.tmpl aggregator
+	RouteGroups *OrderedSet
+
 	// Route group imports (for middleware, etc.)
 	Imports *OrderedSet
 }
@@ -153,8 +157,9 @@ func New() *Blueprint {
 			Constructors: make([]Constructor, 0),
 		},
 		Routes: RouteSection{
-			Routes:  make([]Route, 0),
-			Imports: NewOrderedSet(),
+			Routes:      make([]Route, 0),
+			RouteGroups: NewOrderedSet(),
+			Imports:     NewOrderedSet(),
 		},
 		Models: ModelSection{
 			Imports: NewOrderedSet(),

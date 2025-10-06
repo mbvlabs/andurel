@@ -181,6 +181,15 @@ func (b *Builder) AddRouteImport(importPath string) *Builder {
 	return b
 }
 
+// AddRouteGroup adds a route group name (e.g., "auth" for authRoutes).
+// These are used by the router aggregator template to combine all route groups.
+func (b *Builder) AddRouteGroup(groupName string) *Builder {
+	if groupName != "" {
+		b.bp.Routes.RouteGroups.Add(groupName)
+	}
+	return b
+}
+
 // AddModel adds a model definition.
 func (b *Builder) AddModel(model Model) *Builder {
 	if model.Name == "" {
@@ -299,6 +308,7 @@ func (b *Builder) Merge(other *Blueprint) error {
 
 	// Merge routes
 	b.bp.Routes.Imports.Merge(other.Routes.Imports)
+	b.bp.Routes.RouteGroups.Merge(other.Routes.RouteGroups)
 	for _, route := range other.Routes.Routes {
 		b.AddRoute(route)
 	}
@@ -368,6 +378,10 @@ func (a *BuilderAdapter) AddConstructor(varName, expression string) {
 
 func (a *BuilderAdapter) AddRouteImport(importPath string) {
 	a.Builder.AddRouteImport(importPath)
+}
+
+func (a *BuilderAdapter) AddRouteGroup(groupName string) {
+	a.Builder.AddRouteGroup(groupName)
 }
 
 func (a *BuilderAdapter) AddModelImport(importPath string) {

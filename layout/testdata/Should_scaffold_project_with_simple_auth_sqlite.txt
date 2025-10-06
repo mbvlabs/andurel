@@ -1,4 +1,5 @@
 === PROJECT STRUCTURE ===
+.env
 .env.example
 .gitignore
 assets/assets.go
@@ -14,26 +15,34 @@ config/config.go
 config/database.go
 controllers/api.go
 controllers/assets.go
+controllers/auth.go
 controllers/controller.go
 controllers/pages.go
 css/base.css
 css/theme.css
 database/database.go
 database/migrations/.gitkeep
+database/migrations/001_users.sql
 database/queries/.gitkeep
+database/queries/users.sql
 database/sqlc.yaml
 go.mod
 justfile
 models/errors.go
 models/model.go
+models/user.go
+router/cookies/auth.go
 router/cookies/cookies.go
 router/cookies/flash.go
+router/middleware/auth.go
 router/middleware/middleware.go
 router/router.go
 router/routes/api.go
 router/routes/assets.go
+router/routes/auth.go
 router/routes/pages.go
 router/routes/routes.go
+testapp.db
 views/bad_request.templ
 views/bad_request_templ.go
 views/components/head.templ
@@ -46,25 +55,46 @@ views/internal_error.templ
 views/internal_error_templ.go
 views/layout.templ
 views/layout_templ.go
+views/login.templ
+views/login_templ.go
 views/not_found.templ
 views/not_found_templ.go
+views/signup.templ
+views/signup_templ.go
+
+=== .env ===
+ENVIRONMENT=development
+
+DEFAULT_SENDER_SIGNATURE=info@andurel.com
+
+
+DB_KIND=sqlite3
+DB_PATH=./testapp.db
+
+PASSWORD_SALT=test_password_salt_value
+
+PROJECT_NAME=testapp
+APP_DOMAIN=localhost:8080
+APP_PROTOCOL=http
+
+SESSION_KEY=test_session_key_value
+SESSION_ENCRYPTION_KEY=test_session_encryption_key_value
+
+TOKEN_SIGNING_KEY=test_token_signing_key_value
+
 
 === .env.example ===
 ENVIRONMENT=development
 
 DEFAULT_SENDER_SIGNATURE=info@andurel.com
 
-DB_KIND=postgres
-DB_PORT=5432
-DB_HOST=127.0.0.1
-DB_NAME=andurel
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_SSL_MODE=disable
+
+DB_KIND=sqlite3
+DB_PATH=./testapp.db
 
 PASSWORD_SALT=test_password_salt_value
 
-PROJECT_NAME=webapp
+PROJECT_NAME=testapp
 APP_DOMAIN=localhost:8080
 APP_PROTOCOL=http
 
@@ -78,7 +108,7 @@ TOKEN_SIGNING_KEY=test_token_signing_key_value
 node_modules
 .env
 bin
-webapp.db
+testapp.db
 
 
 === assets/assets.go ===
@@ -698,10 +728,10 @@ import (
 	"os/signal"
 	"time"
 
-	"myorg/webapp/config"
-	"myorg/webapp/controllers"
-	"myorg/webapp/database"
-	"myorg/webapp/router"
+	"testapp/config"
+	"testapp/controllers"
+	"testapp/database"
+	"testapp/router"
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/sync/errgroup"
@@ -747,10 +777,12 @@ func startServer(ctx context.Context, srv *http.Server, env string) error {
 }
 
 func setupControllers(
-	db database.Postgres,
+	db database.SQLite,
+	cfg config.Config,
 ) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
 		db,
+		cfg,
 	)
 	if err != nil {
 		return controllers.Controllers{}, err
@@ -776,13 +808,14 @@ func run(ctx context.Context) error {
 	defer cancel()
 
 	cfg := config.NewConfig()
-	db, err := database.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
+	db, err := database.NewSQLite(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
 	}
 
 	controllers, err := setupControllers(
 		db,
+		cfg,
 	)
 	if err != nil {
 		return err
@@ -826,7 +859,7 @@ import (
 	"os"
 	"os/exec"
 
-	"myorg/webapp/config"
+	"testapp/config"
 
 	"github.com/joho/godotenv"
 )
@@ -865,7 +898,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"myorg/webapp/config"
+	"testapp/config"
 
 	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
@@ -1352,26 +1385,16 @@ func NewConfig() Config {
 package config
 
 import (
-	"fmt"
-
 	"github.com/caarlos0/env/v10"
 )
 
 type database struct {
-	Port         string `env:"DB_PORT"`
-	Host         string `env:"DB_HOST"`
-	Name         string `env:"DB_NAME"`
-	User         string `env:"DB_USER"`
-	Password     string `env:"DB_PASSWORD"`
 	DatabaseKind string `env:"DB_KIND"`
-	SslMode      string `env:"DB_SSL_MODE"`
+	Path         string `env:"DB_PATH"`
 }
 
 func (d database) GetDatabaseURL() string {
-	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
-		d.DatabaseKind, d.User, d.Password, d.Host, d.Port,
-		d.Name, d.SslMode,
-	)
+	return d.Path
 }
 
 func newDatabaseConfig() database {
@@ -1391,17 +1414,17 @@ func newDatabaseConfig() database {
 package controllers
 
 import (
-	"myorg/webapp/database"
 	"net/http"
+	"testapp/database"
 
 	"github.com/labstack/echo/v4"
 )
 
 type API struct {
-	db database.Postgres
+	db database.SQLite
 }
 
-func newAPI(db database.Postgres) API {
+func newAPI(db database.SQLite) API {
 	return API{db}
 }
 
@@ -1421,9 +1444,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	"myorg/webapp/assets"
-	"myorg/webapp/config"
-	"myorg/webapp/router/routes"
+	"testapp/assets"
+	"testapp/config"
+	"testapp/router/routes"
 
 	"github.com/labstack/echo/v4"
 	"github.com/maypok86/otter"
@@ -1620,6 +1643,147 @@ func (a Assets) Script(c echo.Context) error {
 }
 
 
+=== controllers/auth.go ===
+package controllers
+
+import (
+	"testapp/config"
+	"testapp/database"
+	"testapp/models"
+	"testapp/router/cookies"
+	"testapp/router/routes"
+	"testapp/views"
+
+	"github.com/labstack/echo/v4"
+	"github.com/starfederation/datastar-go/datastar"
+)
+
+type Auth struct {
+	cfg config.Config
+	db  database.SQLite
+}
+
+func newAuth(cfg config.Config, db database.SQLite) Auth {
+	return Auth{cfg, db}
+}
+
+func (a Auth) LoginPage(c echo.Context) error {
+	return render(c, views.Login())
+}
+
+type LoginFormPayload struct {
+	Email    string `form:"email"`
+	Password string `form:"password"`
+}
+
+func (a Auth) SessionCreate(c echo.Context) error {
+	var payload LoginFormPayload
+	if err := c.Bind(&payload); err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		return sse.PatchElements(
+			"<p class='text-error-content'>Invalid form submission.</p>",
+			datastar.WithSelectorID("loginRes"),
+			datastar.WithModeInner(),
+		)
+	}
+	user, err := models.FindUserByEmail(c.Request().Context(), a.db.Conn(), payload.Email)
+	if err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		return sse.PatchElements(
+			"<p class='text-error-content'>Invalid email or password.</p>",
+			datastar.WithSelectorID("loginRes"),
+			datastar.WithModeInner(),
+		)
+	}
+
+	if !models.VerifyPassword(user.Password, payload.Password, a.cfg.Auth.PasswordSalt) {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		return sse.PatchElements(
+			"<p class='text-error-content'>Invalid email or password.</p>",
+			datastar.WithSelectorID("loginRes"),
+			datastar.WithModeInner(),
+		)
+	}
+
+	if err := cookies.CreateAuthSession(c, false, user); err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		return sse.PatchElements(
+			"<p class='text-error-content'>Failed to create session. Please try again.</p>",
+			datastar.WithSelectorID("loginRes"),
+			datastar.WithModeInner(),
+		)
+	}
+
+	return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.HomePage.Path)
+}
+
+func (a Auth) SignupPage(c echo.Context) error {
+	return render(c, views.Signup())
+}
+
+type SignupFormPayload struct {
+	Email           string `form:"email"`
+	Password        string `form:"password"`
+	ConfirmPassword string `form:"confirmPassword"`
+}
+
+func (a Auth) UserCreate(c echo.Context) error {
+	var payload SignupFormPayload
+	if err := c.Bind(&payload); err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		return sse.PatchElements(
+			"<p class='text-error-content'>Invalid form submission.</p>",
+			datastar.WithSelectorID("signupRes"),
+			datastar.WithModeInner(),
+		)
+	}
+	user, err := models.NewUser(
+		c.Request().Context(),
+		a.db.Conn(),
+		a.cfg.Auth.PasswordSalt,
+		models.NewUserPayload{
+			Email: payload.Email,
+			PasswordPair: models.PasswordPair{
+				Password:        payload.Password,
+				ConfirmPassword: payload.ConfirmPassword,
+			},
+		},
+	)
+	if err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		return sse.PatchElements(
+			"<p class='text-error-content'>Failed to create account. Email may already be in use.</p>",
+			datastar.WithSelectorID("signupRes"),
+			datastar.WithModeInner(),
+		)
+	}
+
+	if err := cookies.CreateAuthSession(c, false, user); err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		return sse.PatchElements(
+			"<p class='text-error-content'>Failed to create session. Please try again.</p>",
+			datastar.WithSelectorID("signupRes"),
+			datastar.WithModeInner(),
+		)
+	}
+
+	return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.HomePage.Path)
+}
+
+func (a Auth) SessionDestroy(c echo.Context) error {
+	if err := cookies.DestroyAuthSession(c); err != nil {
+		sse := datastar.NewSSE(c.Response(), c.Request())
+		return sse.PatchElements(
+			"<p class='text-error-content'>Failed to log out. Please try again.</p>",
+			datastar.WithSelectorID("logoutRes"),
+			datastar.WithModeInner(),
+		)
+	}
+
+	return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.HomePage.Path)
+}
+
+
 === controllers/controller.go ===
 // Package controllers provides HTTP handlers for the web application.
 package controllers
@@ -1629,19 +1793,22 @@ import (
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
 	"github.com/maypok86/otter"
-	"myorg/webapp/database"
-	"myorg/webapp/router/cookies"
 	"net/http"
+	"testapp/config"
+	"testapp/database"
+	"testapp/router/cookies"
 )
 
 type Controllers struct {
 	Assets Assets
+	Auth   Auth
 	API    API
 	Pages  Pages
 }
 
 func New(
-	db database.Postgres,
+	db database.SQLite,
+	cfg config.Config,
 ) (Controllers, error) {
 	cacheBuilder, err := otter.NewBuilder[string, templ.Component](20)
 	if err != nil {
@@ -1653,11 +1820,13 @@ func New(
 		return Controllers{}, err
 	}
 	assets := newAssets()
+	auth := newAuth(cfg, db)
 	pages := newPages(db, pageCacher)
 	api := newAPI(db)
 
 	return Controllers{
 		Assets: assets,
+		Auth:   auth,
 		Pages:  pages,
 		API:    api,
 	}, nil
@@ -1693,9 +1862,9 @@ func render(ctx echo.Context, t templ.Component) error {
 package controllers
 
 import (
-	"myorg/webapp/database"
+	"testapp/database"
 
-	"myorg/webapp/views"
+	"testapp/views"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
@@ -1703,12 +1872,12 @@ import (
 )
 
 type Pages struct {
-	db    database.Postgres
+	db    database.SQLite
 	cache otter.CacheWithVariableTTL[string, templ.Component]
 }
 
 func newPages(
-	db database.Postgres,
+	db database.SQLite,
 	cache otter.CacheWithVariableTTL[string, templ.Component],
 ) Pages {
 	return Pages{db, cache}
@@ -1784,12 +1953,12 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"embed"
 	"errors"
 	"log/slog"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var (
@@ -1801,37 +1970,31 @@ var (
 //go:embed migrations/*
 var Migrations embed.FS
 
-type Postgres struct {
-	pool *pgxpool.Pool
+type SQLite struct {
+	db *sql.DB
 }
 
-func NewPostgres(ctx context.Context, databaseURL string) (Postgres, error) {
-	pgxCfg, err := pgxpool.ParseConfig(databaseURL)
+func NewSQLite(ctx context.Context, databaseURL string) (SQLite, error) {
+	db, err := sql.Open("sqlite3", databaseURL)
 	if err != nil {
-		slog.ErrorContext(ctx, "could not parse database connection string", "error", err)
-		return Postgres{}, err
+		slog.ErrorContext(ctx, "could not open sqlite database", "error", err)
+		return SQLite{}, err
 	}
 
-	pool, err := pgxpool.NewWithConfig(ctx, pgxCfg)
-	if err != nil {
-		slog.ErrorContext(ctx, "could not establish connection to database", "error", err)
-		return Postgres{}, err
-	}
-
-	if err := pool.Ping(ctx); err != nil {
+	if err := db.PingContext(ctx); err != nil {
 		slog.ErrorContext(ctx, "could not ping database", "error", err)
-		return Postgres{}, err
+		return SQLite{}, err
 	}
 
-	return Postgres{pool}, nil
+	return SQLite{db}, nil
 }
 
-func (p *Postgres) Pool() *pgxpool.Pool {
-	return p.pool
+func (s *SQLite) Conn() *sql.DB {
+	return s.db
 }
 
-func (p *Postgres) BeginTx(ctx context.Context) (pgx.Tx, error) {
-	tx, err := p.pool.Begin(ctx)
+func (s *SQLite) BeginTx(ctx context.Context) (*sql.Tx, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not begin transaction", "reason", err)
 		return nil, errors.Join(ErrBeginTx, err)
@@ -1840,8 +2003,8 @@ func (p *Postgres) BeginTx(ctx context.Context) (pgx.Tx, error) {
 	return tx, nil
 }
 
-func (p *Postgres) RollBackTx(ctx context.Context, tx pgx.Tx) error {
-	if err := tx.Rollback(ctx); err != nil {
+func (s *SQLite) RollBackTx(ctx context.Context, tx *sql.Tx) error {
+	if err := tx.Rollback(); err != nil {
 		slog.ErrorContext(ctx, "could not rollback transaction", "reason", err)
 		return errors.Join(ErrRollbackTx, err)
 	}
@@ -1849,8 +2012,8 @@ func (p *Postgres) RollBackTx(ctx context.Context, tx pgx.Tx) error {
 	return nil
 }
 
-func (p *Postgres) CommitTx(ctx context.Context, tx pgx.Tx) error {
-	if err := tx.Commit(ctx); err != nil {
+func (s *SQLite) CommitTx(ctx context.Context, tx *sql.Tx) error {
+	if err := tx.Commit(); err != nil {
 		slog.ErrorContext(ctx, "could not commit transaction", "reason", err)
 		return errors.Join(ErrCommitTx, err)
 	}
@@ -1862,15 +2025,50 @@ func (p *Postgres) CommitTx(ctx context.Context, tx pgx.Tx) error {
 === database/migrations/.gitkeep ===
 
 
+=== database/migrations/001_users.sql ===
+-- +goose Up
+-- +goose StatementBegin
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+    updated_at DATETIME NOT NULL DEFAULT (datetime('now')),
+    email TEXT NOT NULL UNIQUE,
+    password BLOB NOT NULL,
+    is_admin INTEGER NOT NULL DEFAULT 0
+);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS users;
+-- +goose StatementEnd
+
+
 === database/queries/.gitkeep ===
 
+
+=== database/queries/users.sql ===
+-- name: CreateUser :one
+INSERT INTO users (id, email, password)
+VALUES (?, ?, ?)
+RETURNING *;
+
+-- name: GetUserByEmail :one
+SELECT *
+FROM users
+WHERE email = ?;
+
+-- name: GetUserByID :one
+SELECT *
+FROM users
+WHERE id = ?;
 
 === database/sqlc.yaml ===
 version: "2"
 sql:
   - schema: migrations
     queries: queries
-    engine: postgresql
+    engine: sqlite
     gen:
       go:
         package: db
@@ -1879,14 +2077,14 @@ sql:
         output_models_file_name: entities.go
         emit_sql_as_comment: true
         emit_methods_with_db_argument: true
-        sql_package: pgx/v5
+        sql_package: "database/sql"
         overrides:
           - db_type: uuid
             go_type: github.com/google/uuid.UUID
 
 
 === go.mod ===
-module myorg/webapp
+module testapp
 
 go 1.25.0
 
@@ -1905,15 +2103,17 @@ require (
 	github.com/go-playground/validator/v10 v10.28.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/sessions v1.4.0
-	github.com/jackc/pgx/v5 v5.7.6
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo-contrib v0.17.4
 	github.com/labstack/echo/v4 v4.13.4
+	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/maypok86/otter v1.2.4
+	github.com/starfederation/datastar-go v1.0.2
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.63.0
 	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/metric v1.38.0
 	go.opentelemetry.io/otel/trace v1.38.0
+	golang.org/x/crypto v0.42.0
 	golang.org/x/sync v0.17.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -1940,6 +2140,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.2 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.4.2 // indirect
 	github.com/BurntSushi/toml v1.5.0 // indirect
+	github.com/CAFxX/httpcompression v0.0.9 // indirect
 	github.com/ClickHouse/ch-go v0.68.0 // indirect
 	github.com/ClickHouse/clickhouse-go/v2 v2.40.3 // indirect
 	github.com/DATA-DOG/go-sqlmock v1.5.2 // indirect
@@ -2109,6 +2310,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.7.6 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
@@ -2141,7 +2343,6 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mattn/go-sixel v0.0.5 // indirect
-	github.com/mattn/go-sqlite3 v1.14.32 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/mfridman/xflag v0.1.0 // indirect
 	github.com/microsoft/go-mssqldb v1.9.3 // indirect
@@ -2244,7 +2445,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.42.0 // indirect
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
 	golang.org/x/mod v0.28.0 // indirect
 	golang.org/x/net v0.44.0 // indirect
@@ -2296,14 +2496,9 @@ set dotenv-load
 
 # alias
 alias r := run
-alias cdd := connect-database-docker
 
 default:
     @just --list
-
-# database 
-connect-database-docker conntainer_id name:
-	docker exec -it {{conntainer_id}} psql -U postgres {{name}}
 
 # code quality
 golangci:
@@ -2340,6 +2535,194 @@ func setupValidator() *validator.Validate {
 }
 
 
+=== models/user.go ===
+package models
+
+import (
+	"context"
+	"crypto/subtle"
+	"fmt"
+	"time"
+
+	"testapp/models/internal/db"
+
+	"github.com/google/uuid"
+	"golang.org/x/crypto/argon2"
+)
+
+type User struct {
+	ID        uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Email     string
+	IsAdmin   bool
+	Password  []byte
+}
+
+type PasswordPair struct {
+	Password        string `validate:"required,min=8,max=72"`
+	ConfirmPassword string `validate:"required,min=8,max=72"`
+}
+
+type NewUserPayload struct {
+	Email        string `validate:"required,email,max=255"`
+	PasswordPair PasswordPair
+}
+
+func HashPassword(password, salt string) []byte {
+	return argon2.IDKey(
+		[]byte(password),
+		[]byte(salt),
+		2,
+		19*1024,
+		1,
+		32,
+	)
+}
+
+func VerifyPassword(hashedPassword []byte, plainPassword, salt string) bool {
+	candidate := HashPassword(plainPassword, salt)
+	return subtle.ConstantTimeCompare(hashedPassword, candidate) == 1
+}
+
+func NewUser(
+	ctx context.Context,
+	dbtx db.DBTX,
+	passwordSalt string,
+	payload NewUserPayload,
+) (User, error) {
+	if err := validate.Struct(payload); err != nil {
+		return User{}, fmt.Errorf("validation failed: %w", err)
+	}
+
+	passwordHash := HashPassword(payload.PasswordPair.Password, passwordSalt)
+	dbUser, err := db.New().CreateUser(ctx, dbtx, db.CreateUserParams{
+		ID:       uuid.New().String(),
+		Email:    payload.Email,
+		Password: passwordHash,
+	})
+	if err != nil {
+		return User{}, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	return rowToUser(dbUser)
+}
+
+func FindUserByEmail(ctx context.Context, dbtx db.DBTX, email string) (User, error) {
+	dbUser, err := db.New().GetUserByEmail(ctx, dbtx, email)
+	if err != nil {
+		return User{}, fmt.Errorf("failed to get user by email: %w", err)
+	}
+
+	return rowToUser(dbUser)
+}
+
+func FindUser(ctx context.Context, dbtx db.DBTX, userID uuid.UUID) (User, error) {
+	dbUser, err := db.New().GetUserByID(ctx, dbtx, userID.String())
+	if err != nil {
+		return User{}, fmt.Errorf("failed to get user by ID: %w", err)
+	}
+
+	return rowToUser(dbUser)
+}
+
+func rowToUser(row db.User) (User, error) {
+	id, err := uuid.Parse(row.ID)
+	if err != nil {
+		return User{}, err
+	}
+
+	return User{
+		ID:        id,
+		CreatedAt: row.CreatedAt,
+		UpdatedAt: row.UpdatedAt,
+		Email:     row.Email,
+		IsAdmin:   row.IsAdmin == 1,
+		Password:  row.Password,
+	}, nil
+}
+
+
+=== router/cookies/auth.go ===
+package cookies
+
+import (
+	"log/slog"
+
+	"testapp/config"
+	"testapp/models"
+
+	"github.com/gorilla/sessions"
+	"github.com/labstack/echo-contrib/session"
+	"github.com/labstack/echo/v4"
+)
+
+const (
+	oneWeekInSeconds    = 604800
+	SessIsAuthenticated = "is_authenticated"
+	SessUserID          = "user_id"
+	SessUserEmail       = "user_email"
+	SessIsAdmin         = "is_admin"
+)
+
+func CreateAuthSession(
+	c echo.Context,
+	extend bool,
+	user models.User,
+) error {
+	sess, err := session.Get(config.AuthenticatedSessionName, c)
+	if err != nil {
+		return err
+	}
+
+	maxAge := oneWeekInSeconds
+	if extend {
+		maxAge = oneWeekInSeconds * 2
+	}
+
+	sess.Options = &sessions.Options{
+		Path:     "/",
+		MaxAge:   maxAge,
+		HttpOnly: true,
+	}
+	sess.Values[SessIsAuthenticated] = true
+	sess.Values[SessUserID] = user.ID
+	sess.Values[SessUserEmail] = user.Email
+	sess.Values[SessIsAdmin] = user.IsAdmin
+
+	if err := sess.Save(c.Request(), c.Response()); err != nil {
+		slog.Error("error saving session", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func DestroyAuthSession(c echo.Context) error {
+	sess, err := session.Get(config.AuthenticatedSessionName, c)
+	if err != nil {
+		return err
+	}
+
+	sess.Options = &sessions.Options{
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+	}
+
+	sess.Values[SessIsAuthenticated] = false
+	sess.Values[SessUserID] = ""
+	sess.Values[SessUserEmail] = ""
+	sess.Values[SessIsAdmin] = false
+
+	if err := sess.Save(c.Request(), c.Response()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+
 === router/cookies/cookies.go ===
 // Package cookies provides utilities for managing application context and session data in an Echo web application.
 package cookies
@@ -2347,7 +2730,7 @@ package cookies
 import (
 	"context"
 
-	"myorg/webapp/config"
+	"testapp/config"
 
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
@@ -2399,7 +2782,7 @@ import (
 	"strings"
 	"time"
 
-	"myorg/webapp/config"
+	"testapp/config"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/session"
@@ -2479,6 +2862,72 @@ func GetFlashesCtx(ctx context.Context) []FlashMessage {
 	}
 
 	return value
+}
+
+
+=== router/middleware/auth.go ===
+package middleware
+
+import (
+	"net/http"
+	"time"
+
+	"testapp/router/cookies"
+
+	"github.com/labstack/echo/v4"
+	"github.com/maypok86/otter"
+	"github.com/starfederation/datastar-go/datastar"
+)
+
+func RequireAuth(redirect string) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			appCtx := cookies.GetAppCtx(c.Request().Context())
+			if appCtx.IsAuthenticated {
+				return next(c)
+			}
+
+			return c.Redirect(http.StatusSeeOther, redirect)
+		}
+	}
+}
+
+func LoginRateLimiter() echo.MiddlewareFunc {
+	rateLimitCacheBuilder, _ := otter.NewBuilder[string, int32](10_000)
+	rateLimit, _ := rateLimitCacheBuilder.WithTTL(10 * time.Minute).Build()
+
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			ip := c.RealIP()
+
+			hits, found := rateLimit.Get(ip)
+			if !found {
+				if ok := rateLimit.Set(ip, 1); !ok {
+					return next(c)
+				}
+				return next(c)
+			}
+
+			if hits <= 5 {
+				if ok := rateLimit.Set(ip, hits+1); !ok {
+					return next(c)
+				}
+				return next(c)
+			}
+
+			if hits > 5 {
+				sse := datastar.NewSSE(c.Response(), c.Request())
+				sse.PatchElements(
+					"<p class='text-error-content'>Too many login attempts from your IP address. Please try again later.</p>",
+					datastar.WithSelectorID("loginRes"),
+					datastar.WithModeInner(),
+				)
+				return nil
+			}
+
+			return next(c)
+		}
+	}
 }
 
 
@@ -2584,10 +3033,10 @@ import (
 	"slices"
 	"strings"
 
-	"myorg/webapp/config"
-	"myorg/webapp/controllers"
-	"myorg/webapp/router/cookies"
-	"myorg/webapp/router/routes"
+	"testapp/config"
+	"testapp/controllers"
+	"testapp/router/cookies"
+	"testapp/router/routes"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
@@ -2875,6 +3324,71 @@ var Script = Route{
 }
 
 
+=== router/routes/auth.go ===
+package routes
+
+import (
+	"net/http"
+
+	"testapp/router/middleware"
+
+	"github.com/labstack/echo/v4"
+)
+
+const authNamePrefix = "auth"
+
+var authRoutes = []Route{
+	LoginPage,
+	SessionCreate,
+	SignupPage,
+	SignupCreate,
+	SessionDestroy,
+}
+
+var LoginPage = Route{
+	Name:         authNamePrefix + ".show_login",
+	Path:         "/login",
+	Method:       http.MethodGet,
+	Handler:      "Auth",
+	HandleMethod: "LoginPage",
+}
+
+var SessionCreate = Route{
+	Name:         authNamePrefix + ".login",
+	Path:         "/login",
+	Method:       http.MethodPost,
+	Handler:      "Auth",
+	HandleMethod: "SessionCreate",
+	Middleware: []func(echo.HandlerFunc) echo.HandlerFunc{
+		middleware.LoginRateLimiter(),
+	},
+}
+
+var SignupPage = Route{
+	Name:         authNamePrefix + ".show_signup",
+	Path:         "/signup",
+	Method:       http.MethodGet,
+	Handler:      "Auth",
+	HandleMethod: "SignupPage",
+}
+
+var SignupCreate = Route{
+	Name:         authNamePrefix + ".signup",
+	Path:         "/signup",
+	Method:       http.MethodPost,
+	Handler:      "Auth",
+	HandleMethod: "UserCreate",
+}
+
+var SessionDestroy = Route{
+	Name:         authNamePrefix + ".logout",
+	Path:         "/logout",
+	Method:       http.MethodPost,
+	Handler:      "Auth",
+	HandleMethod: "SessionDestroy",
+}
+
+
 === router/routes/pages.go ===
 package routes
 
@@ -2929,9 +3443,16 @@ var BuildRoutes = func() []Route {
 		r,
 		apiRoutes...,
 	)
+	r = append(
+		r,
+		authRoutes...,
+	)
 
 	return r
 }()
+
+
+=== testapp.db ===
 
 
 === views/bad_request.templ ===
@@ -3010,8 +3531,8 @@ package components
 
 import (
 	"context"
-	"myorg/webapp/config"
-	"myorg/webapp/router/routes"
+	"testapp/config"
+	"testapp/router/routes"
 )
 
 type HeadDataOption func(*HeadData)
@@ -3121,8 +3642,8 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"context"
-	"myorg/webapp/config"
-	"myorg/webapp/router/routes"
+	"testapp/config"
+	"testapp/router/routes"
 )
 
 type HeadDataOption func(*HeadData)
@@ -3491,7 +4012,7 @@ package components
 import (
 	"fmt"
 	"github.com/dromara/carbon/v2"
-	"myorg/webapp/router/cookies"
+	"testapp/router/cookies"
 )
 
 templ toastBase(tType string, flash cookies.FlashMessage) {
@@ -3544,7 +4065,7 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"fmt"
 	"github.com/dromara/carbon/v2"
-	"myorg/webapp/router/cookies"
+	"testapp/router/cookies"
 )
 
 func toastBase(tType string, flash cookies.FlashMessage) templ.Component {
@@ -3849,8 +4370,8 @@ var _ = templruntime.GeneratedTemplate
 package views
 
 import (
-	"myorg/webapp/router/cookies"
-	"myorg/webapp/views/components"
+	"testapp/router/cookies"
+	"testapp/views/components"
 )
 
 templ base(headOpts ...components.HeadDataOption) {
@@ -3881,8 +4402,8 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"myorg/webapp/router/cookies"
-	"myorg/webapp/views/components"
+	"testapp/router/cookies"
+	"testapp/views/components"
 )
 
 func base(headOpts ...components.HeadDataOption) templ.Component {
@@ -3933,6 +4454,135 @@ func base(headOpts ...components.HeadDataOption) templ.Component {
 			}
 		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div></html>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+var _ = templruntime.GeneratedTemplate
+
+
+=== views/login.templ ===
+package views
+
+import (
+	"fmt"
+	"testapp/router/routes"
+)
+
+templ Login() {
+	@base() {
+		<div class="container mx-auto max-w-md mt-8 px-4">
+			<h1 class="text-3xl font-bold mb-6">Login</h1>
+			<form data-on-submit={ fmt.Sprintf("@post('%s')", routes.LoginPage.Path) }>
+				<div class="form-control mb-4">
+					<label class="label" for="email">
+						<span class="label-text">Email</span>
+					</label>
+					<input type="email" name="email" id="email" class="input input-bordered w-full" required/>
+				</div>
+				<div class="form-control mb-4">
+					<label class="label" for="password">
+						<span class="label-text">Password</span>
+					</label>
+					<input type="password" name="password" id="password" class="input input-bordered w-full" required/>
+				</div>
+				<div id="loginRes" class="mb-4"></div>
+				<button type="submit" class="btn btn-primary w-full">Login</button>
+			</form>
+			<div class="mt-4 text-center">
+				<span>Don't have an account?</span>
+				<a href={ templ.SafeURL(routes.SignupPage.Path) } class="link link-primary ml-1">Sign up</a>
+			</div>
+		</div>
+	}
+}
+
+
+=== views/login_templ.go ===
+// Code generated by templ - DO NOT EDIT.
+
+// templ: version: v0.3.943
+package views
+
+//lint:file-ignore SA4006 This context is only used if a nested component is present.
+
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
+
+import (
+	"fmt"
+	"testapp/router/routes"
+)
+
+func Login() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var1 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var1 == nil {
+			templ_7745c5c3_Var1 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Var2 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+			if !templ_7745c5c3_IsBuffer {
+				defer func() {
+					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err == nil {
+						templ_7745c5c3_Err = templ_7745c5c3_BufErr
+					}
+				}()
+			}
+			ctx = templ.InitializeContext(ctx)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"container mx-auto max-w-md mt-8 px-4\"><h1 class=\"text-3xl font-bold mb-6\">Login</h1><form data-on-submit=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var3 string
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("@post('%s')", routes.LoginPage.Path))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/login.templ`, Line: 12, Col: 75}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><div class=\"form-control mb-4\"><label class=\"label\" for=\"email\"><span class=\"label-text\">Email</span></label> <input type=\"email\" name=\"email\" id=\"email\" class=\"input input-bordered w-full\" required></div><div class=\"form-control mb-4\"><label class=\"label\" for=\"password\"><span class=\"label-text\">Password</span></label> <input type=\"password\" name=\"password\" id=\"password\" class=\"input input-bordered w-full\" required></div><div id=\"loginRes\" class=\"mb-4\"></div><button type=\"submit\" class=\"btn btn-primary w-full\">Login</button></form><div class=\"mt-4 text-center\"><span>Don't have an account?</span> <a href=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var4 templ.SafeURL
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(routes.SignupPage.Path))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/login.templ`, Line: 30, Col: 51}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" class=\"link link-primary ml-1\">Sign up</a></div></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			return nil
+		})
+		templ_7745c5c3_Err = base().Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3998,6 +4648,141 @@ func NotFound() templ.Component {
 			}
 			ctx = templ.InitializeContext(ctx)
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<h1>Not found</h1>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			return nil
+		})
+		templ_7745c5c3_Err = base().Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+var _ = templruntime.GeneratedTemplate
+
+
+=== views/signup.templ ===
+package views
+
+import (
+	"fmt"
+	"testapp/router/routes"
+)
+
+templ Signup() {
+	@base() {
+		<div class="container mx-auto max-w-md mt-8 px-4">
+			<h1 class="text-3xl font-bold mb-6">Sign Up</h1>
+			<form data-on-submit={ fmt.Sprintf("@post('%s')", routes.SignupCreate.Path) }>
+				<div class="form-control mb-4">
+					<label class="label" for="email">
+						<span class="label-text">Email</span>
+					</label>
+					<input type="email" name="email" id="email" class="input input-bordered w-full" required/>
+				</div>
+				<div class="form-control mb-4">
+					<label class="label" for="password">
+						<span class="label-text">Password</span>
+					</label>
+					<input type="password" name="password" id="password" class="input input-bordered w-full" required minlength="8"/>
+				</div>
+				<div class="form-control mb-4">
+					<label class="label" for="confirmPassword">
+						<span class="label-text">Confirm Password</span>
+					</label>
+					<input type="password" name="confirmPassword" id="confirmPassword" class="input input-bordered w-full" required minlength="8"/>
+				</div>
+				<div id="signupRes" class="mb-4"></div>
+				<button type="submit" class="btn btn-primary w-full">Sign Up</button>
+			</form>
+			<div class="mt-4 text-center">
+				<span>Already have an account?</span>
+				<a href={ templ.SafeURL(routes.LoginPage.Path) } class="link link-primary ml-1">Login</a>
+			</div>
+		</div>
+	}
+}
+
+
+=== views/signup_templ.go ===
+// Code generated by templ - DO NOT EDIT.
+
+// templ: version: v0.3.943
+package views
+
+//lint:file-ignore SA4006 This context is only used if a nested component is present.
+
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
+
+import (
+	"fmt"
+	"testapp/router/routes"
+)
+
+func Signup() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var1 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var1 == nil {
+			templ_7745c5c3_Var1 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Var2 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+			if !templ_7745c5c3_IsBuffer {
+				defer func() {
+					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err == nil {
+						templ_7745c5c3_Err = templ_7745c5c3_BufErr
+					}
+				}()
+			}
+			ctx = templ.InitializeContext(ctx)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"container mx-auto max-w-md mt-8 px-4\"><h1 class=\"text-3xl font-bold mb-6\">Sign Up</h1><form data-on-submit=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var3 string
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("@post('%s')", routes.SignupCreate.Path))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/signup.templ`, Line: 12, Col: 78}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><div class=\"form-control mb-4\"><label class=\"label\" for=\"email\"><span class=\"label-text\">Email</span></label> <input type=\"email\" name=\"email\" id=\"email\" class=\"input input-bordered w-full\" required></div><div class=\"form-control mb-4\"><label class=\"label\" for=\"password\"><span class=\"label-text\">Password</span></label> <input type=\"password\" name=\"password\" id=\"password\" class=\"input input-bordered w-full\" required minlength=\"8\"></div><div class=\"form-control mb-4\"><label class=\"label\" for=\"confirmPassword\"><span class=\"label-text\">Confirm Password</span></label> <input type=\"password\" name=\"confirmPassword\" id=\"confirmPassword\" class=\"input input-bordered w-full\" required minlength=\"8\"></div><div id=\"signupRes\" class=\"mb-4\"></div><button type=\"submit\" class=\"btn btn-primary w-full\">Sign Up</button></form><div class=\"mt-4 text-center\"><span>Already have an account?</span> <a href=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var4 templ.SafeURL
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(routes.LoginPage.Path))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/signup.templ`, Line: 36, Col: 50}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" class=\"link link-primary ml-1\">Login</a></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

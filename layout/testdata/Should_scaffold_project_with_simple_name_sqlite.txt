@@ -1905,7 +1905,7 @@ require (
 	github.com/a-h/templ v0.3.943
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/dromara/carbon/v2 v2.6.12
-	github.com/go-playground/validator/v10 v10.27.0
+	github.com/go-playground/validator/v10 v10.28.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/sessions v1.4.0
 	github.com/joho/godotenv v1.5.1

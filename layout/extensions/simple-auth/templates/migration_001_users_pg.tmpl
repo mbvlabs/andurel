@@ -1,0 +1,17 @@
+-- +goose Up
+-- +goose StatementBegin
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    email TEXT NOT NULL UNIQUE,
+    password BYTEA NOT NULL,
+    is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+    email_verified BOOLEAN NOT NULL DEFAULT FALSE
+);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS users;
+-- +goose StatementEnd

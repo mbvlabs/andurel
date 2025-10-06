@@ -223,27 +223,19 @@ func TestProjectScaffoldingWithExtensions__GoldenFile(t *testing.T) {
 		expectedModule string
 	}{
 		{
-			name:           "Should_scaffold_project_with_queue_worker_extension",
+			name:           "Should_scaffold_project_with_simple_auth_postgresql",
 			projectName:    "testapp",
 			repoFlag:       "",
 			database:       "postgresql",
-			extensions:     []string{"queue-worker"},
+			extensions:     []string{"simple-auth"},
 			expectedModule: "testapp",
 		},
 		{
-			name:           "Should_scaffold_project_with_email_service_extension",
+			name:           "Should_scaffold_project_with_simple_auth_sqlite",
 			projectName:    "testapp",
 			repoFlag:       "",
-			database:       "postgresql",
-			extensions:     []string{"email-service"},
-			expectedModule: "testapp",
-		},
-		{
-			name:           "Should_scaffold_project_with_multiple_extensions",
-			projectName:    "testapp",
-			repoFlag:       "",
-			database:       "postgresql",
-			extensions:     []string{"queue-worker", "email-service"},
+			database:       "sqlite",
+			extensions:     []string{"simple-auth"},
 			expectedModule: "testapp",
 		},
 	}

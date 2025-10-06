@@ -25,6 +25,7 @@ type Builder interface {
 	AddControllerField(name, typeName string)
 	AddConstructor(varName, expression string)
 	AddRouteImport(importPath string)
+	AddRouteGroup(groupName string)
 	AddModelImport(importPath string)
 	AddConfigField(name, typeName string)
 	AddEnvVar(key, configField, defaultValue string)

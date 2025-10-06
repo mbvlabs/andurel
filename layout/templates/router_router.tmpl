@@ -51,10 +51,12 @@ func New(
 		return nil, err
 	}
 
-	csrfName := strings.ToLower(config.ProjectName) + "_" + "dev_csrf"
-	if config.Env == config.ProdEnvironment {
-		csrfName = strings.ToLower(config.ProjectName) + "_" + "csrf"
-	}
+	// TODO: does not work with d-*, figure out why
+	// csrfName := strings.ToLower(config.ProjectName) + "_" + "dev_csrf"
+	// if config.Env == config.ProdEnvironment {
+	// 	csrfName = strings.ToLower(config.ProjectName) + "_" + "csrf"
+	// }
+	csrfName := "_csrf"
 
 	router.Use(
 		session.Middleware(
