@@ -1,36 +1,65 @@
-package views
+package auth
 
 import (
 	"fmt"
 	"{{.ModuleName}}/router/routes"
-
-	"github.com/a-h/templ"
+	"{{.ModuleName}}/views"
 )
 
 templ Login() {
-	@base() {
-		<div class="container mx-auto max-w-md mt-8 px-4">
-			<h1 class="text-3xl font-bold mb-6">Login</h1>
-			<form data-on-submit={ fmt.Sprintf("@post('%s')", routes.LoginPage.Path) }>
-				<div class="form-control mb-4">
-					<label class="label" for="email">
-						<span class="label-text">Email</span>
-					</label>
-					<input type="email" name="email" id="email" class="input input-bordered w-full" required/>
+	@views.Layout() {
+		<main class="flex-1 flex flex-col justify-center container mx-auto">
+			<div class="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+				<div class="sm:mx-auto sm:w-full sm:max-w-sm">
+					<h2 class="mt-10 text-center text-2xl/9 font-bold tracking-tight text-white">Sign in to your account</h2>
 				</div>
-				<div class="form-control mb-4">
-					<label class="label" for="password">
-						<span class="label-text">Password</span>
-					</label>
-					<input type="password" name="password" id="password" class="input input-bordered w-full" required/>
+				<div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+					<form data-on-submit={ fmt.Sprintf("@post('%s')", routes.SessionCreate.Path) } class="space-y-6">
+						<div>
+							<label for="email" class="block text-sm/6 font-medium text-gray-100">Email address</label>
+							<div class="mt-2">
+								<input
+									id="email"
+									type="email"
+									data-bind="email"
+									required
+									class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-primary sm:text-sm/6"
+								/>
+							</div>
+						</div>
+						<div>
+							<div class="flex items-center justify-between">
+								<label for="password" class="block text-sm/6 font-medium text-gray-100">Password</label>
+							</div>
+							<div class="mt-2">
+								<input
+									id="password"
+									type="password"
+									data-bind="password"
+									required
+									class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-primary sm:text-sm/6"
+								/>
+							</div>
+						</div>
+						<div>
+							<button
+								type="submit"
+								class="flex w-full justify-center rounded-md bg-primary px-3 py-1.5 text-sm/6 font-semibold text-white hover:bg-primary/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+							>
+								Sign
+								in
+							</button>
+						</div>
+					</form>
+					<p class="mt-10 text-center text-sm/6 text-gray-400">
+						Don't have an account?
+						<a
+							href={ templ.SafeURL(routes.SignupPage.Path) }
+							class="font-semibold text-secondary hover:text-secondary/80"
+						>Signup</a>
+					</p>
 				</div>
-				<div id="loginRes" class="mb-4"></div>
-				<button type="submit" class="btn btn-primary w-full">Login</button>
-			</form>
-			<div class="mt-4 text-center">
-				<span>Don't have an account?</span>
-				<a href={ templ.SafeURL(routes.SignupPage.Path) } class="link link-primary ml-1">Sign up</a>
 			</div>
-		</div>
+		</main>
 	}
 }

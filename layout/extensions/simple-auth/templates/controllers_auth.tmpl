@@ -10,7 +10,7 @@ import (
 	"{{.ModuleName}}/models"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
-	"{{.ModuleName}}/views"
+	"{{.ModuleName}}/views/auth"
 
 	"github.com/labstack/echo/v4"
 	"github.com/starfederation/datastar-go/datastar"
@@ -39,7 +39,7 @@ func newAuth(cfg config.Config, db database.SQLite) Auth {
 {{- end}}
 
 func (a Auth) LoginPage(c echo.Context) error {
-	return render(c, views.Login())
+	return render(c, auth.Login())
 }
 
 type LoginFormPayload struct {
@@ -94,7 +94,7 @@ func (a Auth) SessionCreate(c echo.Context) error {
 }
 
 func (a Auth) SignupPage(c echo.Context) error {
-	return render(c, views.Signup())
+	return render(c, auth.Signup())
 }
 
 type SignupFormPayload struct {

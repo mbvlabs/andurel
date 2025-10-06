@@ -89,7 +89,7 @@ func (e Extension) renderTemplates(ctx *extensions.Context, database string) err
 
 	templates[migrationTemplate] = fmt.Sprintf(
 		"database/migrations/%s_create_users_table.sql",
-		time.Now().Format(""),
+		time.Now().Format("20060102150405"),
 	)
 
 	// Process each template

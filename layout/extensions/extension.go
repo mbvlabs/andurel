@@ -12,7 +12,7 @@ var Files embed.FS
 
 // Blueprint is a forward reference to avoid import cycles. Extensions should
 // use the builder methods on Context to interact with the blueprint.
-type Blueprint interface{}
+type Blueprint any
 
 // Builder provides the typed API for extensions to add to the scaffold.
 // Methods modify the builder in place and do not return values to avoid
