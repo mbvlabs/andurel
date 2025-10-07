@@ -1,0 +1,110 @@
+package emails
+
+import (
+	"context"
+	"net/smtp"
+	"strings"
+	"testing"
+)
+
+type stubSendMail struct {
+	addr string
+	from string
+	to   []string
+	msg  []byte
+	err  error
+}
+
+func (s *stubSendMail) send(addr string, _ smtp.Auth, from string, to []string, msg []byte) error {
+	s.addr = addr
+	s.from = from
+	s.to = append([]string(nil), to...)
+	s.msg = append([]byte(nil), msg...)
+	return s.err
+}
+
+func TestMailHogSenderDispatchesTransactionalEmail(t *testing.T) {
+	stub := &stubSendMail{}
+	sender := newMailHogSender("", "from@example.com", stub.send)
+
+	err := sender.SendTransaction(
+		context.Background(),
+		Message{To: "user@example.com", Subject: "Hello", HTMLBody: "<p>Hi</p>", TextBody: "Hi"},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if stub.addr != defaultMailHogAddress {
+		t.Fatalf("unexpected address: %q", stub.addr)
+	}
+
+	if stub.from != "from@example.com" {
+		t.Fatalf("unexpected from: %q", stub.from)
+	}
+
+	if len(stub.to) != 1 || stub.to[0] != "user@example.com" {
+		t.Fatalf("unexpected recipients: %v", stub.to)
+	}
+
+	payload := string(stub.msg)
+	if !strings.Contains(payload, "multipart/alternative") {
+		t.Fatalf("expected multipart content, got %q", payload)
+	}
+
+	if !strings.Contains(payload, "Content-Type: text/plain") {
+		t.Fatalf("expected text/plain content, got %q", payload)
+	}
+
+	if !strings.Contains(payload, "Content-Type: text/html") {
+		t.Fatalf("expected text/html content, got %q", payload)
+	}
+}
+
+func TestMailHogSenderRequiresRecipient(t *testing.T) {
+	sender := NewMailHogSender("", "from@example.com")
+
+	err := sender.SendTransaction(context.Background(), Message{Subject: "None"})
+	if err == nil {
+		t.Fatalf("expected error when recipient missing")
+	}
+}
+
+func TestMailHogSenderRefusesEmptyBodies(t *testing.T) {
+	sender := NewMailHogSender("", "from@example.com")
+
+	err := sender.SendMarketing(
+		context.Background(),
+		Message{To: "user@example.com", Subject: "Hi"},
+	)
+	if err == nil {
+		t.Fatalf("expected error when body is missing")
+	}
+}
+
+func TestMailHogSenderHonorsContextCancellation(t *testing.T) {
+	sender := NewMailHogSender("", "from@example.com")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := sender.SendTransaction(ctx, Message{To: "user@example.com", Subject: "Hi", TextBody: "body"})
+	if err == nil {
+		t.Fatalf("expected context error")
+	}
+}
+
+func TestMailHogSenderAllowsNilContext(t *testing.T) {
+	stub := &stubSendMail{}
+	sender := newMailHogSender("", "from@example.com", stub.send)
+
+	var ctx context.Context
+	err := sender.SendMarketing(ctx, Message{To: "user@example.com", Subject: "Hello", TextBody: "body"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if stub.addr != defaultMailHogAddress {
+		t.Fatalf("unexpected address: %q", stub.addr)
+	}
+}

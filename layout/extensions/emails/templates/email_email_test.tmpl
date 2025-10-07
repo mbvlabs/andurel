@@ -1,0 +1,257 @@
+package emails
+
+import (
+	"context"
+	"strings"
+	"testing"
+
+	appconfig "{{.ModuleName}}/config"
+	emailtemplates "{{.ModuleName}}/emails/templates"
+)
+
+type recordingSender struct {
+	transactional Message
+	marketing     Message
+}
+
+func (r *recordingSender) SendTransaction(_ context.Context, msg Message) error {
+	r.transactional = msg
+	return nil
+}
+
+func (r *recordingSender) SendMarketing(_ context.Context, msg Message) error {
+	r.marketing = msg
+	return nil
+}
+
+func TestNewServiceDefaultsToMailHogInDevelopment(t *testing.T) {
+	originalEnv := appconfig.Env
+	appconfig.Env = appconfig.DevEnvironment
+	t.Cleanup(func() { appconfig.Env = originalEnv })
+	t.Setenv(envEmailProvider, "")
+	t.Setenv(envDefaultSenderSignature, "team@example.com")
+
+	called := false
+	originalMailhog := mailHogFactory
+	mailHogFactory = func(defaultFrom string) (Sender, error) {
+		called = true
+		if defaultFrom != "team@example.com" {
+			t.Fatalf("unexpected default from: %q", defaultFrom)
+		}
+
+		return &recordingSender{}, nil
+	}
+	t.Cleanup(func() { mailHogFactory = originalMailhog })
+
+	svc, err := NewService(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error creating service: %v", err)
+	}
+
+	if svc == nil {
+		t.Fatalf("expected service instance")
+	}
+
+	if !called {
+		t.Fatalf("expected mailhog factory to be used")
+	}
+}
+
+func TestNewServiceUsesSESInProductionByDefault(t *testing.T) {
+	originalEnv := appconfig.Env
+	appconfig.Env = appconfig.ProdEnvironment
+	t.Cleanup(func() { appconfig.Env = originalEnv })
+	t.Setenv(envEmailProvider, "")
+	t.Setenv(envDefaultSenderSignature, "team@example.com")
+	t.Setenv(envSESRegion, "us-east-1")
+
+	called := false
+	originalSES := sesFactory
+	sesFactory = func(ctx context.Context, defaultFrom string) (Sender, error) {
+		called = true
+		if defaultFrom != "team@example.com" {
+			t.Fatalf("unexpected default from: %q", defaultFrom)
+		}
+
+		return &recordingSender{}, nil
+	}
+	t.Cleanup(func() { sesFactory = originalSES })
+
+	svc, err := NewService(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error creating service: %v", err)
+	}
+
+	if svc == nil {
+		t.Fatalf("expected service instance")
+	}
+
+	if !called {
+		t.Fatalf("expected ses factory to be used")
+	}
+}
+
+func TestNewServiceRequiresDefaultSender(t *testing.T) {
+	originalEnv := appconfig.Env
+	appconfig.Env = appconfig.DevEnvironment
+	t.Cleanup(func() { appconfig.Env = originalEnv })
+	// Ensure no default is available.
+	t.Setenv(envDefaultSenderSignature, "")
+	t.Setenv(envMailHogFrom, "")
+
+	if _, err := NewService(context.Background()); err == nil {
+		t.Fatalf("expected error when default sender signature missing")
+	}
+}
+
+func TestServiceRendersTransactionalEmail(t *testing.T) {
+	recorder := &recordingSender{}
+	originalMailhog := mailHogFactory
+	mailHogFactory = func(defaultFrom string) (Sender, error) {
+		return recorder, nil
+	}
+	t.Cleanup(func() { mailHogFactory = originalMailhog })
+
+	originalEnv := appconfig.Env
+	appconfig.Env = appconfig.DevEnvironment
+	t.Cleanup(func() { appconfig.Env = originalEnv })
+	t.Setenv(envDefaultSenderSignature, "team@example.com")
+
+	svc, err := NewService(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error creating service: %v", err)
+	}
+
+	data := emailtemplates.TransactionalData{
+		RecipientName: "Jamie",
+		Intro:         "We processed your request.",
+		Body:          "Everything is complete.",
+		ActionText:    "View request",
+		ActionURL:     "https://example.com/request",
+	}
+
+	err = svc.SendTransactional(
+		context.Background(),
+		TransactionalEmail{To: "user@example.com", Subject: "Update", Data: data},
+	)
+	if err != nil {
+		t.Fatalf("unexpected send error: %v", err)
+	}
+
+	if recorder.transactional.From != "team@example.com" {
+		t.Fatalf("unexpected from address: %q", recorder.transactional.From)
+	}
+
+	if !strings.Contains(recorder.transactional.HTMLBody, "View request") {
+		t.Fatalf("expected html body to contain action text, got %q", recorder.transactional.HTMLBody)
+	}
+
+	if !strings.Contains(recorder.transactional.TextBody, "https://example.com/request") {
+		t.Fatalf("expected text body to contain action url, got %q", recorder.transactional.TextBody)
+	}
+}
+
+func TestServiceRendersMarketingEmail(t *testing.T) {
+	recorder := &recordingSender{}
+	originalMailhog := mailHogFactory
+	mailHogFactory = func(defaultFrom string) (Sender, error) {
+		return recorder, nil
+	}
+	t.Cleanup(func() { mailHogFactory = originalMailhog })
+
+	originalEnv := appconfig.Env
+	appconfig.Env = appconfig.DevEnvironment
+	t.Cleanup(func() { appconfig.Env = originalEnv })
+	t.Setenv(envDefaultSenderSignature, "team@example.com")
+
+	svc, err := NewService(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error creating service: %v", err)
+	}
+
+	data := emailtemplates.MarketingData{
+		Headline: "Big news",
+		Intro:    "We have launched something new.",
+		Sections: []string{"Item one", "Item two"},
+		CTAButton: "Explore",
+		CTAURL:    "https://example.com/launch",
+	}
+
+	err = svc.SendMarketing(
+		context.Background(),
+		MarketingEmail{To: "user@example.com", Subject: "Launch", Data: data},
+	)
+	if err != nil {
+		t.Fatalf("unexpected send error: %v", err)
+	}
+
+	if !strings.Contains(recorder.marketing.HTMLBody, "Big news") {
+		t.Fatalf("expected html headline, got %q", recorder.marketing.HTMLBody)
+	}
+
+	if !strings.Contains(recorder.marketing.TextBody, "Item two") {
+		t.Fatalf("expected text content, got %q", recorder.marketing.TextBody)
+	}
+}
+
+func TestServiceValidatesInputs(t *testing.T) {
+	recorder := &recordingSender{}
+	originalMailhog := mailHogFactory
+	mailHogFactory = func(defaultFrom string) (Sender, error) {
+		return recorder, nil
+	}
+	t.Cleanup(func() { mailHogFactory = originalMailhog })
+
+	originalEnv := appconfig.Env
+	appconfig.Env = appconfig.DevEnvironment
+	t.Cleanup(func() { appconfig.Env = originalEnv })
+	t.Setenv(envDefaultSenderSignature, "team@example.com")
+
+	svc, err := NewService(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error creating service: %v", err)
+	}
+
+	if err := svc.SendTransactional(context.Background(), TransactionalEmail{Subject: "Missing"}); err == nil {
+		t.Fatalf("expected error for missing recipient")
+	}
+
+	if err := svc.SendMarketing(context.Background(), MarketingEmail{To: "user@example.com"}); err == nil {
+		t.Fatalf("expected error for missing subject")
+	}
+}
+
+func TestServiceAllowsNilContext(t *testing.T) {
+	recorder := &recordingSender{}
+	originalMailhog := mailHogFactory
+	mailHogFactory = func(defaultFrom string) (Sender, error) {
+		return recorder, nil
+	}
+	t.Cleanup(func() { mailHogFactory = originalMailhog })
+
+	originalEnv := appconfig.Env
+	appconfig.Env = appconfig.DevEnvironment
+	t.Cleanup(func() { appconfig.Env = originalEnv })
+	t.Setenv(envDefaultSenderSignature, "team@example.com")
+
+	svc, err := NewService(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error creating service: %v", err)
+	}
+
+	var ctx context.Context
+	err = svc.SendTransactional(ctx, TransactionalEmail{
+		To:      "user@example.com",
+		Subject: "Greetings",
+		Data: emailtemplates.TransactionalData{
+			Body: "Hello",
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if recorder.transactional.To != "user@example.com" {
+		t.Fatalf("unexpected recipient: %q", recorder.transactional.To)
+	}
+}

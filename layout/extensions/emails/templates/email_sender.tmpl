@@ -1,0 +1,19 @@
+// Package emails provides email sending capabilities for the application.
+package emails
+
+import "context"
+
+// Message represents the common payload shared by all email providers.
+type Message struct {
+	From     string
+	To       string
+	Subject  string
+	HTMLBody string
+	TextBody string
+}
+
+// Sender defines the minimal contract for delivering transactional and marketing emails.
+type Sender interface {
+	SendTransaction(ctx context.Context, msg Message) error
+	SendMarketing(ctx context.Context, msg Message) error
+}

@@ -1,0 +1,103 @@
+package emailtemplates
+
+import (
+	"strings"
+
+	"github.com/a-h/templ"
+)
+
+type MarketingData struct {
+	ProjectName   string
+	RecipientName string
+	Headline      string
+	Intro         string
+	Sections      []string
+	CTAButton     string
+	CTAURL        string
+	Footer        string
+	PreviewText   string
+}
+
+func marketingHeadline(data MarketingData) string {
+	if strings.TrimSpace(data.Headline) != "" {
+		return strings.TrimSpace(data.Headline)
+	}
+
+	return "What's new"
+}
+
+func hasSections(sections []string) bool {
+	for _, section := range sections {
+		if strings.TrimSpace(section) != "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+templ MarketingHTML(data MarketingData) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<body style="font-family: Arial, sans-serif; background-color: #1f2937; padding: 24px;">
+			<div style="max-width: 640px; margin: 0 auto; background-color: #111827; border-radius: 12px; padding: 36px; color:#f9fafb;">
+				<p style="color:#9ca3af; font-size: 14px; margin: 0 0 16px 0;">
+					{ strings.TrimSpace(data.PreviewText) }
+				</p>
+				<h1 style="font-size: 28px; margin: 0 0 16px 0;">{ marketingHeadline(data) }</h1>
+				if strings.TrimSpace(data.Intro) != "" {
+					<p style="font-size: 16px; line-height: 1.6; color:#d1d5db;">{ data.Intro }</p>
+				}
+				if hasSections(data.Sections) {
+					for _, section := range data.Sections {
+						if strings.TrimSpace(section) != "" {
+							<div style="margin: 24px 0; padding: 20px; background-color: #111827; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;">
+								<p style="margin: 0; color:#e5e7eb; line-height: 1.6;">{ section }</p>
+							</div>
+						}
+					}
+				}
+				if strings.TrimSpace(data.CTAURL) != "" {
+					<p style="text-align: center; margin: 32px 0 24px;">
+						<a href={ templ.SafeURL(data.CTAURL) } style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#ffffff;padding:14px 28px;border-radius:999px;text-decoration:none;font-weight:700;display:inline-block;">
+							{ fallback(data.CTAButton, "Learn more") }
+						</a>
+					</p>
+				}
+				if strings.TrimSpace(data.Footer) != "" {
+					<p style="font-size: 14px; color:#9ca3af; text-align: center;">{ data.Footer }</p>
+				} else {
+					<p style="font-size: 14px; color:#9ca3af; text-align: center;">
+						From the { fallback(data.ProjectName, "team") } team
+					</p>
+				}
+			</div>
+		</body>
+	</html>
+}
+
+templ MarketingText(data MarketingData) {
+	{ marketingHeadline(data) }
+
+	if strings.TrimSpace(data.Intro) != "" {
+		{ data.Intro }
+
+	}
+	if hasSections(data.Sections) {
+		for _, section := range data.Sections {
+			if strings.TrimSpace(section) != "" {
+{ strings.TrimSpace(section) }
+
+			}
+		}
+	}
+	if strings.TrimSpace(data.CTAURL) != "" {
+{ fallback(data.CTAButton, "Learn more") }: { data.CTAURL }
+
+	}
+	if strings.TrimSpace(data.Footer) != "" {
+		{ data.Footer }
+	} else {
+Thanks for being part of { fallback(data.ProjectName, "our") } community.
+	}
+}

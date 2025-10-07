@@ -1,0 +1,282 @@
+package emails
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"strings"
+
+	appconfig "{{.ModuleName}}/config"
+	emailtemplates "{{.ModuleName}}/emails/templates"
+
+	awscfg "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
+	"github.com/a-h/templ"
+)
+
+const (
+	ProviderMailHog = "mailhog"
+	ProviderSES     = "ses"
+
+	envEmailProvider          = "EMAIL_PROVIDER"
+	envMailHogAddress         = "MAILHOG_SMTP_ADDR"
+	envMailHogFrom            = "MAILHOG_FROM_EMAIL"
+	envDefaultSenderSignature = "DEFAULT_SENDER_SIGNATURE"
+	envSESRegion              = "AWS_SES_REGION"
+	envSESSourceEmail         = "AWS_SES_SOURCE_EMAIL"
+	envSESConfigurationSet    = "AWS_SES_CONFIGURATION_SET"
+)
+
+var (
+	mailHogFactory = defaultMailHogFactory
+	sesFactory     = defaultSESFactory
+	loadAWSConfig  = awscfg.LoadDefaultConfig
+)
+
+// Service coordinates email rendering and delivery across providers.
+type Service struct {
+	sender      Sender
+	defaultFrom string
+}
+
+// TransactionalEmail captures the data required to send transactional messages.
+type TransactionalEmail struct {
+	To      string
+	From    string
+	Subject string
+	Data    emailtemplates.TransactionalData
+}
+
+// MarketingEmail captures the data required to send marketing messages.
+type MarketingEmail struct {
+	To      string
+	From    string
+	Subject string
+	Data    emailtemplates.MarketingData
+}
+
+// NewService creates a new Service using environment variables to decide which
+// provider should be used.
+func NewService(ctx context.Context) (*Service, error) {
+	provider := resolveProvider()
+	defaultFrom := resolveDefaultFrom(provider)
+	if strings.TrimSpace(defaultFrom) == "" {
+		return nil, fmt.Errorf("emails: DEFAULT_SENDER_SIGNATURE is required")
+	}
+
+	var (
+		sender Sender
+		err   error
+	)
+
+	switch provider {
+	case ProviderMailHog:
+		sender, err = mailHogFactory(defaultFrom)
+	case ProviderSES:
+		sender, err = sesFactory(ctx, defaultFrom)
+	default:
+		err = fmt.Errorf("emails: unsupported provider %q", provider)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if sender == nil {
+		return nil, fmt.Errorf("emails: no sender configured")
+	}
+
+	return &Service{sender: sender, defaultFrom: defaultFrom}, nil
+}
+
+// SendTransactional renders the transactional templates and delivers the
+// resulting message via the configured sender.
+func (s *Service) SendTransactional(ctx context.Context, email TransactionalEmail) error {
+	if s == nil {
+		return fmt.Errorf("emails: service is nil")
+	}
+
+	msg, err := s.renderTransactional(ctx, email)
+	if err != nil {
+		return err
+	}
+
+	return s.sender.SendTransaction(ctx, msg)
+}
+
+// SendMarketing renders the marketing templates and delivers the resulting
+// message via the configured sender.
+func (s *Service) SendMarketing(ctx context.Context, email MarketingEmail) error {
+	if s == nil {
+		return fmt.Errorf("emails: service is nil")
+	}
+
+	msg, err := s.renderMarketing(ctx, email)
+	if err != nil {
+		return err
+	}
+
+	return s.sender.SendMarketing(ctx, msg)
+}
+
+func (s *Service) renderTransactional(ctx context.Context, email TransactionalEmail) (Message, error) {
+	recipient := strings.TrimSpace(email.To)
+	if recipient == "" {
+		return Message{}, fmt.Errorf("emails: transactional recipient is required")
+	}
+
+	subject := strings.TrimSpace(email.Subject)
+	if subject == "" {
+		return Message{}, fmt.Errorf("emails: transactional subject is required")
+	}
+
+	data := email.Data
+	if strings.TrimSpace(data.ProjectName) == "" {
+		data.ProjectName = appconfig.ProjectName
+	}
+
+	htmlBody, err := renderComponent(ctx, emailtemplates.TransactionalHTML(data))
+	if err != nil {
+		return Message{}, fmt.Errorf("emails: render transactional html: %w", err)
+	}
+
+	textBody, err := renderComponent(ctx, emailtemplates.TransactionalText(data))
+	if err != nil {
+		return Message{}, fmt.Errorf("emails: render transactional text: %w", err)
+	}
+
+	from := s.resolveFrom(email.From)
+	if strings.TrimSpace(from) == "" {
+		return Message{}, fmt.Errorf("emails: transactional sender address is required")
+	}
+
+	return Message{
+		From:     from,
+		To:       recipient,
+		Subject:  subject,
+		HTMLBody: htmlBody,
+		TextBody: textBody,
+	}, nil
+}
+
+func (s *Service) renderMarketing(ctx context.Context, email MarketingEmail) (Message, error) {
+	recipient := strings.TrimSpace(email.To)
+	if recipient == "" {
+		return Message{}, fmt.Errorf("emails: marketing recipient is required")
+	}
+
+	subject := strings.TrimSpace(email.Subject)
+	if subject == "" {
+		return Message{}, fmt.Errorf("emails: marketing subject is required")
+	}
+
+	data := email.Data
+	if strings.TrimSpace(data.ProjectName) == "" {
+		data.ProjectName = appconfig.ProjectName
+	}
+
+	htmlBody, err := renderComponent(ctx, emailtemplates.MarketingHTML(data))
+	if err != nil {
+		return Message{}, fmt.Errorf("emails: render marketing html: %w", err)
+	}
+
+	textBody, err := renderComponent(ctx, emailtemplates.MarketingText(data))
+	if err != nil {
+		return Message{}, fmt.Errorf("emails: render marketing text: %w", err)
+	}
+
+	from := s.resolveFrom(email.From)
+	if strings.TrimSpace(from) == "" {
+		return Message{}, fmt.Errorf("emails: marketing sender address is required")
+	}
+
+	return Message{
+		From:     from,
+		To:       recipient,
+		Subject:  subject,
+		HTMLBody: htmlBody,
+		TextBody: textBody,
+	}, nil
+}
+
+func (s *Service) resolveFrom(candidate string) string {
+	if strings.TrimSpace(candidate) != "" {
+		return strings.TrimSpace(candidate)
+	}
+
+	return s.defaultFrom
+}
+
+func renderComponent(ctx context.Context, component templ.Component) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	buf := templ.GetBuffer()
+	defer templ.ReleaseBuffer(buf)
+
+	if err := component.Render(ctx, buf); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
+func resolveProvider() string {
+	provider := strings.ToLower(strings.TrimSpace(os.Getenv(envEmailProvider)))
+	if provider != "" {
+		return provider
+	}
+
+	if appconfig.Env == appconfig.ProdEnvironment {
+		return ProviderSES
+	}
+
+	return ProviderMailHog
+}
+
+func resolveDefaultFrom(provider string) string {
+	switch provider {
+	case ProviderMailHog:
+		if from := strings.TrimSpace(os.Getenv(envMailHogFrom)); from != "" {
+			return from
+		}
+	case ProviderSES:
+		if from := strings.TrimSpace(os.Getenv(envSESSourceEmail)); from != "" {
+			return from
+		}
+	}
+
+	return strings.TrimSpace(os.Getenv(envDefaultSenderSignature))
+}
+
+func defaultMailHogFactory(defaultFrom string) (Sender, error) {
+	address := strings.TrimSpace(os.Getenv(envMailHogAddress))
+	return NewMailHogSender(address, defaultFrom), nil
+}
+
+func defaultSESFactory(ctx context.Context, defaultFrom string) (Sender, error) {
+	region := strings.TrimSpace(os.Getenv(envSESRegion))
+	if region == "" {
+		return nil, fmt.Errorf("emails: AWS_SES_REGION is required when EMAIL_PROVIDER=ses")
+	}
+
+	source := strings.TrimSpace(os.Getenv(envSESSourceEmail))
+	if source == "" {
+		source = defaultFrom
+	}
+
+	if source == "" {
+		return nil, fmt.Errorf("emails: AWS_SES_SOURCE_EMAIL or DEFAULT_SENDER_SIGNATURE is required")
+	}
+
+	cfg, err := loadAWSConfig(ctx, awscfg.WithRegion(region))
+	if err != nil {
+		return nil, fmt.Errorf("emails: load aws config: %w", err)
+	}
+
+	client := ses.NewFromConfig(cfg)
+	configurationSet := strings.TrimSpace(os.Getenv(envSESConfigurationSet))
+
+	return NewSESSender(client, source, configurationSet)
+}

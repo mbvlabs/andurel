@@ -65,7 +65,7 @@ func newProject(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	validRecipes := []string{"simple-auth"}
+	validRecipes := []string{"simple-auth", "emails"}
 	for _, extension := range extensions {
 		if !slices.Contains(validRecipes, extension) {
 			return fmt.Errorf(
@@ -83,6 +83,9 @@ func newProject(cmd *cobra.Command, args []string) error {
 	fmt.Printf("\n🎉 Successfully created project: %s\n", projectName)
 	if slices.Contains(extensions, "simple-auth") {
 		fmt.Printf("  Auth recipe enabled - visit /login or /signup\n")
+	}
+	if slices.Contains(extensions, "emails") {
+		fmt.Printf("  Emails extension scaffolds MailHog + SES providers\n")
 	}
 	fmt.Printf("\nNext steps:\n")
 	fmt.Printf("  cd %s\n", args[0])

@@ -1,0 +1,101 @@
+package emailtemplates
+
+import (
+	"strings"
+
+	"github.com/a-h/templ"
+)
+
+type TransactionalData struct {
+	ProjectName   string
+	RecipientName string
+	Intro         string
+	Body          string
+	ActionText    string
+	ActionURL     string
+	Footer        string
+	PreviewText   string
+}
+
+func transactionalGreeting(name string) string {
+	if strings.TrimSpace(name) == "" {
+		return "there"
+	}
+
+	return strings.TrimSpace(name)
+}
+
+func fallback(value, orElse string) string {
+	if strings.TrimSpace(value) == "" {
+		return orElse
+	}
+
+	return value
+}
+
+func projectSignature(name string) string {
+	if strings.TrimSpace(name) == "" {
+		return "The Team"
+	}
+
+	return strings.TrimSpace(name) + " Team"
+}
+
+templ TransactionalHTML(data TransactionalData) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<body style="font-family: Arial, sans-serif; background-color: #f9fafb; padding: 24px;">
+			<div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; padding: 32px;">
+				<p style="color:#6b7280; font-size: 14px; margin-top: 0;">
+					{ fallback(data.PreviewText, data.Intro) }
+				</p>
+				<p style="font-size: 16px; color:#111827;">
+					Hello { transactionalGreeting(data.RecipientName) },
+				</p>
+				if strings.TrimSpace(data.Intro) != "" {
+					<p style="font-size: 16px; color:#374151;">{ data.Intro }</p>
+				}
+				<p style="font-size: 16px; color:#374151;">{ data.Body }</p>
+				if strings.TrimSpace(data.ActionURL) != "" {
+					<p style="margin: 32px 0 24px;">
+						<a
+							href={ templ.SafeURL(data.ActionURL) }
+							style="background-color:#2563eb;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:600;"
+						>
+							{ fallback(data.ActionText, "View details") }
+						</a>
+					</p>
+				}
+				if strings.TrimSpace(data.Footer) != "" {
+					<p style="font-size: 14px; color:#6b7280;">{ data.Footer }</p>
+				} else {
+					<p style="font-size: 14px; color:#6b7280;">
+						Thanks,<br/>
+						{ projectSignature(data.ProjectName) }
+					</p>
+				}
+			</div>
+		</body>
+	</html>
+}
+
+templ TransactionalText(data TransactionalData) {
+	Hello { transactionalGreeting(data.RecipientName) },
+
+	if strings.TrimSpace(data.Intro) != "" {
+		{ data.Intro }
+
+	}
+	{ data.Body }
+
+	if strings.TrimSpace(data.ActionURL) != "" {
+		{ fallback(data.ActionText, "View details") }: { data.ActionURL }
+
+	}
+	if strings.TrimSpace(data.Footer) != "" {
+		{ data.Footer }
+	} else {
+		Thanks,
+		{ projectSignature(data.ProjectName) }
+	}
+}

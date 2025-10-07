@@ -1,0 +1,145 @@
+package emails
+
+import (
+	"context"
+	"fmt"
+	"net/smtp"
+	"strings"
+	"time"
+)
+
+type sendMailFunc func(addr string, a smtp.Auth, from string, to []string, msg []byte) error
+
+// MailHogSender sends email through a local MailHog SMTP server.
+type MailHogSender struct {
+	address     string
+	defaultFrom string
+	sendMail    sendMailFunc
+}
+
+const defaultMailHogAddress = "localhost:1025"
+
+// NewMailHogSender creates a MailHog-backed sender. When address is empty the
+// default MailHog SMTP address is used.
+func NewMailHogSender(address, defaultFrom string) *MailHogSender {
+	return newMailHogSender(address, defaultFrom, smtp.SendMail)
+}
+
+func newMailHogSender(address, defaultFrom string, fn sendMailFunc) *MailHogSender {
+	addr := strings.TrimSpace(address)
+	if addr == "" {
+		addr = defaultMailHogAddress
+	}
+
+	return &MailHogSender{
+		address:     addr,
+		defaultFrom: strings.TrimSpace(defaultFrom),
+		sendMail:    fn,
+	}
+}
+
+// SendTransaction delivers a transactional email via MailHog.
+func (s *MailHogSender) SendTransaction(ctx context.Context, msg Message) error {
+	return s.dispatch(ctx, msg)
+}
+
+// SendMarketing delivers a marketing email via MailHog.
+func (s *MailHogSender) SendMarketing(ctx context.Context, msg Message) error {
+	return s.dispatch(ctx, msg)
+}
+
+func (s *MailHogSender) dispatch(ctx context.Context, msg Message) error {
+	if s == nil {
+		return fmt.Errorf("emails: mailhog sender is nil")
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	recipient := strings.TrimSpace(msg.To)
+	if recipient == "" {
+		return fmt.Errorf("emails: message recipient is required")
+	}
+
+	subject := strings.TrimSpace(msg.Subject)
+	if subject == "" {
+		return fmt.Errorf("emails: message subject is required")
+	}
+	msg.Subject = subject
+	msg.To = recipient
+
+	msg.From = strings.TrimSpace(msg.From)
+	if msg.From == "" {
+		msg.From = s.defaultFrom
+	}
+
+	if msg.From == "" {
+		return fmt.Errorf("emails: from address is required")
+	}
+
+	if !hasBody(msg) {
+		return fmt.Errorf("emails: message body is empty")
+	}
+
+	emailData, err := buildMimeMessage(msg)
+	if err != nil {
+		return err
+	}
+
+	return s.sendMail(s.address, nil, msg.From, []string{msg.To}, emailData)
+}
+
+func hasBody(msg Message) bool {
+	return strings.TrimSpace(msg.HTMLBody) != "" || strings.TrimSpace(msg.TextBody) != ""
+}
+
+func buildMimeMessage(msg Message) ([]byte, error) {
+	boundary := fmt.Sprintf("----=_Andurel_%d", time.Now().UnixNano())
+
+	var b strings.Builder
+	b.WriteString("From: ")
+	b.WriteString(msg.From)
+	b.WriteString("\r\n")
+	b.WriteString("To: ")
+	b.WriteString(msg.To)
+	b.WriteString("\r\n")
+	b.WriteString("Subject: ")
+	b.WriteString(msg.Subject)
+	b.WriteString("\r\n")
+	b.WriteString("MIME-Version: 1.0\r\n")
+	b.WriteString("Content-Type: multipart/alternative; boundary=")
+	b.WriteString(boundary)
+	b.WriteString("\r\n\r\n")
+
+	appendPart := func(contentType, body string) {
+		if strings.TrimSpace(body) == "" {
+			return
+		}
+
+		b.WriteString("--")
+		b.WriteString(boundary)
+		b.WriteString("\r\n")
+		b.WriteString("Content-Type: ")
+		b.WriteString(contentType)
+		b.WriteString("; charset=UTF-8\r\n\r\n")
+		b.WriteString(body)
+		if !strings.HasSuffix(body, "\n") {
+			b.WriteString("\r\n")
+		}
+		b.WriteString("\r\n")
+	}
+
+	appendPart("text/plain", msg.TextBody)
+	appendPart("text/html", msg.HTMLBody)
+
+	b.WriteString("--")
+	b.WriteString(boundary)
+	b.WriteString("--\r\n")
+
+	return []byte(b.String()), nil
+}

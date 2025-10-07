@@ -1,0 +1,114 @@
+package emails
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
+	"github.com/aws/aws-sdk-go-v2/service/ses/types"
+)
+
+type sesClient interface {
+	SendEmail(ctx context.Context, params *ses.SendEmailInput, optFns ...func(*ses.Options)) (*ses.SendEmailOutput, error)
+}
+
+// SESSender delivers email via Amazon Simple Email Service.
+type SESSender struct {
+	client            sesClient
+	source            string
+	configurationSet string
+}
+
+// NewSESSender constructs an SES-backed sender.
+func NewSESSender(client sesClient, source, configurationSet string) (*SESSender, error) {
+	if client == nil {
+		return nil, fmt.Errorf("emails: ses client is nil")
+	}
+
+	if strings.TrimSpace(source) == "" {
+		return nil, fmt.Errorf("emails: ses source address is required")
+	}
+
+	return &SESSender{
+		client:            client,
+		source:            strings.TrimSpace(source),
+		configurationSet: strings.TrimSpace(configurationSet),
+	}, nil
+}
+
+// SendTransaction delivers a transactional email using SES.
+func (s *SESSender) SendTransaction(ctx context.Context, msg Message) error {
+	return s.dispatch(ctx, msg)
+}
+
+// SendMarketing delivers a marketing email using SES.
+func (s *SESSender) SendMarketing(ctx context.Context, msg Message) error {
+	return s.dispatch(ctx, msg)
+}
+
+func (s *SESSender) dispatch(ctx context.Context, msg Message) error {
+	if s == nil {
+		return fmt.Errorf("emails: ses sender is nil")
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	recipient := strings.TrimSpace(msg.To)
+	if recipient == "" {
+		return fmt.Errorf("emails: message recipient is required")
+	}
+
+	subject := strings.TrimSpace(msg.Subject)
+	if subject == "" {
+		return fmt.Errorf("emails: message subject is required")
+	}
+	msg.Subject = subject
+
+	if !hasBody(msg) {
+		return fmt.Errorf("emails: message body is empty")
+	}
+
+	source := strings.TrimSpace(msg.From)
+	if source == "" {
+		source = s.source
+	}
+
+	if source == "" {
+		return fmt.Errorf("emails: ses sender requires a source address")
+	}
+
+	body := &types.Body{}
+	if strings.TrimSpace(msg.HTMLBody) != "" {
+		body.Html = &types.Content{
+			Charset: aws.String("UTF-8"),
+			Data:    aws.String(msg.HTMLBody),
+		}
+	}
+
+	if strings.TrimSpace(msg.TextBody) != "" {
+		body.Text = &types.Content{
+			Charset: aws.String("UTF-8"),
+			Data:    aws.String(msg.TextBody),
+		}
+	}
+
+	input := &ses.SendEmailInput{
+		Destination: &types.Destination{ToAddresses: []string{recipient}},
+		Message: &types.Message{
+			Subject: &types.Content{Charset: aws.String("UTF-8"), Data: aws.String(subject)},
+			Body:    body,
+		},
+		Source: aws.String(source),
+	}
+
+	if s.configurationSet != "" {
+		input.ConfigurationSetName = aws.String(s.configurationSet)
+	}
+
+	_, err := s.client.SendEmail(ctx, input)
+	return err
+}

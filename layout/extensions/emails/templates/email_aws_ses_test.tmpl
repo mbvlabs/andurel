@@ -1,0 +1,107 @@
+package emails
+
+import (
+	"context"
+	"testing"
+
+	"github.com/aws/aws-sdk-go-v2/service/ses"
+)
+
+type mockSESClient struct {
+	input *ses.SendEmailInput
+	err   error
+}
+
+func (m *mockSESClient) SendEmail(ctx context.Context, input *ses.SendEmailInput, _ ...func(*ses.Options)) (*ses.SendEmailOutput, error) {
+	m.input = input
+	return nil, m.err
+}
+
+func TestSESSenderDispatchesMessage(t *testing.T) {
+	client := &mockSESClient{}
+	sender, err := NewSESSender(client, "from@example.com", "")
+	if err != nil {
+		t.Fatalf("unexpected error creating sender: %v", err)
+	}
+
+	err = sender.SendTransaction(
+		context.Background(),
+		Message{To: "user@example.com", Subject: "Hello", HTMLBody: "<p>Hi</p>", TextBody: "Hi"},
+	)
+	if err != nil {
+		t.Fatalf("unexpected send error: %v", err)
+	}
+
+	if client.input == nil {
+		t.Fatalf("expected SendEmail to be called")
+	}
+
+	if got := *client.input.Source; got != "from@example.com" {
+		t.Fatalf("unexpected source: %q", got)
+	}
+
+	if len(client.input.Destination.ToAddresses) != 1 || client.input.Destination.ToAddresses[0] != "user@example.com" {
+		t.Fatalf("unexpected destination: %v", client.input.Destination.ToAddresses)
+	}
+
+	if client.input.Message.Body.Html == nil || client.input.Message.Body.Text == nil {
+		t.Fatalf("expected both html and text bodies to be set")
+	}
+}
+
+func TestSESSenderPrefersMessageFrom(t *testing.T) {
+	client := &mockSESClient{}
+	sender, err := NewSESSender(client, "from@example.com", "")
+	if err != nil {
+		t.Fatalf("unexpected error creating sender: %v", err)
+	}
+
+	err = sender.SendMarketing(
+		context.Background(),
+		Message{To: "user@example.com", From: "custom@example.com", Subject: "Hi", TextBody: "body"},
+	)
+	if err != nil {
+		t.Fatalf("unexpected send error: %v", err)
+	}
+
+	if client.input == nil || *client.input.Source != "custom@example.com" {
+		t.Fatalf("expected custom source address, got %v", client.input)
+	}
+}
+
+func TestNewSESSenderValidatesArguments(t *testing.T) {
+	if _, err := NewSESSender(nil, "", ""); err == nil {
+		t.Fatalf("expected error when client is nil")
+	}
+}
+
+func TestSESSenderRequiresBody(t *testing.T) {
+	client := &mockSESClient{}
+	sender, err := NewSESSender(client, "from@example.com", "")
+	if err != nil {
+		t.Fatalf("unexpected error creating sender: %v", err)
+	}
+
+	err = sender.SendTransaction(context.Background(), Message{To: "user@example.com", Subject: "Hi"})
+	if err == nil {
+		t.Fatalf("expected error due to empty body")
+	}
+}
+
+func TestSESSenderAllowsNilContext(t *testing.T) {
+	client := &mockSESClient{}
+	sender, err := NewSESSender(client, "from@example.com", "")
+	if err != nil {
+		t.Fatalf("unexpected error creating sender: %v", err)
+	}
+
+	var ctx context.Context
+	err = sender.SendTransaction(ctx, Message{To: "user@example.com", Subject: "Hi", TextBody: "plain"})
+	if err != nil {
+		t.Fatalf("unexpected send error: %v", err)
+	}
+
+	if client.input == nil {
+		t.Fatalf("expected SendEmail to be called")
+	}
+}

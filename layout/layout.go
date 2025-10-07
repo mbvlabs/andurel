@@ -20,6 +20,7 @@ import (
 	"text/template"
 
 	"github.com/mbvlabs/andurel/layout/extensions"
+	emailsext "github.com/mbvlabs/andurel/layout/extensions/emails"
 	simpleauth "github.com/mbvlabs/andurel/layout/extensions/simple-auth"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
@@ -291,6 +292,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 }
 
 var slotScopeTemplates = map[string]TmplTarget{
+	"env":         "env.tmpl",
 	"controllers": "controllers_controller.tmpl",
 	"cmd/app":     "cmd_app_main.tmpl",
 	"models":      "models_model.tmpl",
@@ -497,6 +499,11 @@ func registerBuiltinExtensions() error {
 			registerBuiltinErr = err
 			return
 		}
+
+		if err := extensions.Register(emailsext.Extension{}); err != nil {
+			registerBuiltinErr = err
+			return
+		}
 	})
 
 	return registerBuiltinErr
@@ -611,13 +618,43 @@ func runConsoleBin(targetDir string) error {
 func runTemplGenerate(targetDir string) error {
 	cmd := exec.Command("go", "tool", "templ", "generate", "./views")
 	cmd.Dir = targetDir
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	emailsTemplatesDir := filepath.Join(targetDir, "emails", "templates")
+	if info, err := os.Stat(emailsTemplatesDir); err == nil && info.IsDir() {
+		emailsCmd := exec.Command("go", "tool", "templ", "generate", "./emails")
+		emailsCmd.Dir = targetDir
+		if err := emailsCmd.Run(); err != nil {
+			return err
+		}
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+
+	return nil
 }
 
 func runTemplFmt(targetDir string) error {
 	cmd := exec.Command("go", "tool", "templ", "fmt", "./views")
 	cmd.Dir = targetDir
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	emailsTemplatesDir := filepath.Join(targetDir, "emails", "templates")
+	if info, err := os.Stat(emailsTemplatesDir); err == nil && info.IsDir() {
+		emailsCmd := exec.Command("go", "tool", "templ", "fmt", "./emails")
+		emailsCmd.Dir = targetDir
+		if err := emailsCmd.Run(); err != nil {
+			return err
+		}
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+
+	return nil
 }
 
 func RunSqlcGenerate(targetDir string) error {
