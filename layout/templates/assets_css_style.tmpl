@@ -1,0 +1,7 @@
+{{- if eq .CSSFramework "tailwind"}}
+{{- end}}
+{{- if eq .CSSFramework "vanilla"}}
+@import url('/assets/css/normalize.css');
+@import url('/assets/css/open_props.css');
+@import url('/assets/css/buttons.css');
+{{- end}}

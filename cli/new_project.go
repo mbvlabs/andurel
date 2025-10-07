@@ -27,6 +27,9 @@ dependencies, and configuration.`,
 		StringP("database", "d", "", "Database to use (postgresql, sqlite) (optional, default: postgres)")
 
 	projectCmd.Flags().
+		StringP("css", "c", "", "CSS framework to use (tailwind, vanilla) (optional, default: tailwind)")
+
+	projectCmd.Flags().
 		StringSliceP("extensions", "e", nil, "Extensions to enable (comma-separated list)")
 
 	return projectCmd
@@ -58,11 +61,27 @@ func newProject(cmd *cobra.Command, args []string) error {
 		)
 	}
 
+	cssFramework, err := cmd.Flags().GetString("css")
+	if err != nil {
+		return err
+	}
+
+	if cssFramework == "" {
+		cssFramework = "tailwind"
+	}
+
+	if cssFramework != "tailwind" && cssFramework != "vanilla" {
+		return fmt.Errorf(
+			"invalid css framework provided: %s - valid options are 'tailwind' and 'vanilla'",
+			cssFramework,
+		)
+	}
+
 	extensions, err := cmd.Flags().GetStringSlice("extensions")
 	if err != nil {
 		return err
 	}
-	if err := layout.Scaffold(basePath, projectName, repo, database, extensions); err != nil {
+	if err := layout.Scaffold(basePath, projectName, repo, database, cssFramework, extensions); err != nil {
 		return err
 	}
 

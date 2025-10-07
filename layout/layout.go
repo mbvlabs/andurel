@@ -37,7 +37,10 @@ var (
 
 // Scaffold TODO: figure out a way to have full repo path on init, i.e. github.com/mbvlabs/andurel
 // breaks because go mod tidy will look up that path and not find it
-func Scaffold(targetDir, projectName, repo, database string, extensionNames []string) error {
+func Scaffold(
+	targetDir, projectName, repo, database, cssFramework string,
+	extensionNames []string,
+) error {
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
 
 	if strings.Contains(repo, "github.com/") {
@@ -56,6 +59,7 @@ func Scaffold(targetDir, projectName, repo, database string, extensionNames []st
 		ProjectName:          projectName,
 		ModuleName:           moduleName,
 		Database:             database,
+		CSSFramework:         cssFramework,
 		SessionKey:           generateRandomHex(64),
 		SessionEncryptionKey: generateRandomHex(32),
 		TokenSigningKey:      generateRandomHex(32),
@@ -88,7 +92,7 @@ func Scaffold(targetDir, projectName, repo, database string, extensionNames []st
 	}
 
 	fmt.Print("Processing templated files...\n")
-	if err := processTemplatedFiles(targetDir, &templateData); err != nil {
+	if err := processTemplatedFiles(targetDir, templateData.CSSFramework, &templateData); err != nil {
 		return fmt.Errorf("failed to process templated files: %w", err)
 	}
 
@@ -108,9 +112,10 @@ func Scaffold(targetDir, projectName, repo, database string, extensionNames []st
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
 
-	fmt.Print("Setting up Tailwind CSS...\n")
 	// Need to skip download for testing purposes
-	if os.Getenv("ANDUREL_SKIP_TAILWIND") != "true" {
+	switch {
+	case templateData.CSSFramework == "tailwind" && os.Getenv("ANDUREL_SKIP_TAILWIND") == "false":
+		fmt.Print("Setting up Tailwind CSS...\n")
 		if err := SetupTailwind(targetDir); err != nil {
 			fmt.Println(
 				"Failed to download tailwind binary. Run 'andurel app tailwind' after setup is done to fix.",
@@ -229,6 +234,39 @@ type (
 	TmplTargetPath string
 )
 
+var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
+	"tw_css_theme.tmpl": "css/theme.css",
+	"tw_css_base.tmpl":  "css/base.css",
+
+	// Views
+	"tw_views_layout.tmpl":         "views/layout.templ",
+	"tw_views_home.tmpl":           "views/home.templ",
+	"tw_views_bad_request.tmpl":    "views/bad_request.templ",
+	"tw_views_internal_error.tmpl": "views/internal_error.templ",
+	"tw_views_not_found.tmpl":      "views/not_found.templ",
+
+	// View Components
+	"tw_views_components_head.tmpl":   "views/components/head.templ",
+	"tw_views_components_toasts.tmpl": "views/components/toasts.templ",
+}
+
+var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
+	"assets_vanilla_css_normalize.tmpl":  "assets/css/normalize.css",
+	"assets_vanilla_css_open-props.tmpl": "assets/css/open_props.css",
+	"assets_vanilla_css_buttons.tmpl":    "assets/css/buttons.css",
+
+	// Views
+	"vanilla_views_layout.tmpl":         "views/layout.templ",
+	"vanilla_views_home.tmpl":           "views/home.templ",
+	"vanilla_views_bad_request.tmpl":    "views/bad_request.templ",
+	"vanilla_views_internal_error.tmpl": "views/internal_error.templ",
+	"vanilla_views_not_found.tmpl":      "views/not_found.templ",
+
+	// View Components
+	"vanilla_views_components_head.tmpl":   "views/components/head.templ",
+	"vanilla_views_components_toasts.tmpl": "views/components/toasts.templ",
+}
+
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Core files
 	"database.tmpl":  "database/database.go",
@@ -239,13 +277,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
-	"assets_css_tw.tmpl":      "assets/css/tw.css",
+	"assets_css_style.tmpl":   "assets/css/style.css",
 	"assets_js_scripts.tmpl":  "assets/js/scripts.js",
 	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc5.min.js",
-
-	// CSS
-	"css_base.tmpl":  "css/base.css",
-	"css_theme.tmpl": "css/theme.css",
 
 	// Commands
 	"cmd_app_main.tmpl":       "cmd/app/main.go",
@@ -283,23 +317,36 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_routes_api.tmpl":    "router/routes/api.go",
 	"router_routes_assets.tmpl": "router/routes/assets.go",
 	"router_routes_pages.tmpl":  "router/routes/pages.go",
-
-	// Views
-	"views_layout.tmpl":         "views/layout.templ",
-	"views_home.tmpl":           "views/home.templ",
-	"views_bad_request.tmpl":    "views/bad_request.templ",
-	"views_internal_error.tmpl": "views/internal_error.templ",
-	"views_not_found.tmpl":      "views/not_found.templ",
-
-	// View Components
-	"views_components_head.tmpl":   "views/components/head.templ",
-	"views_components_toasts.tmpl": "views/components/toasts.templ",
 }
 
-func processTemplatedFiles(targetDir string, data extensions.TemplateData) error {
+func processTemplatedFiles(
+	targetDir string,
+	cssFramework string,
+	data extensions.TemplateData,
+) error {
 	for templateFile, targetPath := range baseTemplateMappings {
 		if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
 			return fmt.Errorf("failed to process template %s: %w", templateFile, err)
+		}
+	}
+
+	if cssFramework == "tailwind" {
+		for templateFile, targetPath := range baseTailwindTemplateMappings {
+			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
+				return fmt.Errorf("failed to process tailwind template %s: %w", templateFile, err)
+			}
+		}
+	}
+
+	if cssFramework == "vanilla" {
+		for templateFile, targetPath := range baseVanillaCSSTemplateMappings {
+			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
+				return fmt.Errorf(
+					"failed to process vanilla css template %s: %w",
+					templateFile,
+					err,
+				)
+			}
 		}
 	}
 
