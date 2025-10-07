@@ -4,25 +4,27 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
-
-	"github.com/mbvlabs/andurel/layout/extensions"
 )
 
 // Builder provides a typed API for adding elements to a blueprint while
 // enforcing uniqueness and maintaining deterministic ordering.
 type Builder struct {
 	bp *Blueprint
-
-	nextControllerDepOrder   int
-	nextControllerFieldOrder int
-	nextConstructorOrder     int
-	nextRouteOrder           int
-	nextModelOrder           int
-	nextConfigFieldOrder     int
-	nextEnvVarOrder          int
-	nextMigrationOrder       int
+	// Track next order values for each category
+	nextControllerDepOrder    int
+	nextControllerFieldOrder  int
+	nextConstructorOrder      int
+	nextRouteOrder            int
+	nextModelOrder            int
+	nextConfigFieldOrder      int
+	nextEnvVarOrder           int
+	nextMigrationOrder        int
+	nextInitializationOrder   int
+	nextBackgroundWorkerOrder int
+	nextPreRunHookOrder       int
 }
 
+// NewBuilder creates a builder wrapping the provided blueprint.
 func NewBuilder(bp *Blueprint) *Builder {
 	if bp == nil {
 		bp = New()
@@ -33,34 +35,37 @@ func NewBuilder(bp *Blueprint) *Builder {
 	}
 }
 
+// Blueprint returns the underlying blueprint.
 func (b *Builder) Blueprint() *Blueprint {
 	return b.bp
 }
 
-func (b *Builder) addControllerImport(importPath string) *Builder {
+// AddControllerImport adds an import path to the controllers section.
+func (b *Builder) AddControllerImport(importPath string) *Builder {
 	if importPath != "" {
 		b.bp.Controllers.Imports.Add(importPath)
 	}
-
 	return b
 }
 
-func (b *Builder) AddControllerImport(importPath string) {
-	b.addControllerImport(importPath)
-}
-
-func (b *Builder) AddControllerDependency(name, typeName string) {
-	b.addControllerDependencyWithInitAndImport(name, typeName, "", "")
+// AddControllerDependency adds a dependency parameter to the controller
+// constructor. The order is automatically assigned based on insertion sequence.
+// Use AddControllerDependencyWithInit to provide an initialization expression.
+func (b *Builder) AddControllerDependency(name, typeName string) *Builder {
+	return b.AddControllerDependencyWithInit(name, typeName, "")
 }
 
 // AddControllerDependencyWithInit adds a dependency with an optional initialization expression.
 // If initExpr is provided, it will be used to initialize the dependency in main.go.
 // If initExpr is empty, the dependency is assumed to be provided externally (like db).
-func (b *Builder) AddControllerDependencyWithInit(name, typeName, initExpr string) {
-	b.addControllerDependencyWithInitAndImport(name, typeName, initExpr, "")
+func (b *Builder) AddControllerDependencyWithInit(name, typeName, initExpr string) *Builder {
+	return b.addCtrlDependencyWithInitAndImport(name, typeName, initExpr, "")
 }
 
-func (b *Builder) addControllerDependencyWithInitAndImport(
+// addControllerDependencyWithInitAndImport adds a dependency with initialization expression
+// and the import path needed for that expression. This is the internal implementation used
+// by the extension API.
+func (b *Builder) addCtrlDependencyWithInitAndImport(
 	name, typeName, initExpr, importPath string,
 ) *Builder {
 	if name == "" || typeName == "" {
@@ -81,22 +86,12 @@ func (b *Builder) addControllerDependencyWithInitAndImport(
 		ImportPath: importPath,
 		Order:      b.nextControllerDepOrder,
 	})
-
 	b.nextControllerDepOrder++
-
 	return b
 }
 
-// AddControllerDependencyWithInitAndImport adds a dependency with initialization expression
-// and the import path needed for that expression. This is the internal implementation used
-// by the extension API.
-func (b *Builder) AddControllerDependencyWithInitAndImport(
-	name, typeName, initExpr, importPath string,
-) {
-	b.addControllerDependencyWithInitAndImport(name, typeName, initExpr, importPath)
-}
-
-func (b *Builder) addControllerField(name, typeName string) *Builder {
+// AddControllerField adds a field to the Controllers struct.
+func (b *Builder) AddControllerField(name, typeName string) *Builder {
 	if name == "" || typeName == "" {
 		return b
 	}
@@ -117,19 +112,10 @@ func (b *Builder) addControllerField(name, typeName string) *Builder {
 	return b
 }
 
-// AddControllerField adds a field to the Controllers struct.
-func (b *Builder) AddControllerField(name, typeName string) {
-	b.addControllerField(name, typeName)
-}
-
 // AddConstructor adds a constructor initialization statement.
 // The fieldName is automatically derived by finding a matching controller field.
 // If no match is found, it capitalizes the first letter of varName.
-func (b *Builder) AddConstructor(varName, expression string) {
-	b.addConstructor(varName, expression)
-}
-
-func (b *Builder) addConstructor(varName, expression string) *Builder {
+func (b *Builder) AddConstructor(varName, expression string) *Builder {
 	if varName == "" || expression == "" {
 		return b
 	}
@@ -190,16 +176,21 @@ func (b *Builder) AddRoute(route Route) *Builder {
 	return b
 }
 
-func (b *Builder) addRouteImport(importPath string) *Builder {
+// AddRouteImport adds an import to the routes section.
+func (b *Builder) AddRouteImport(importPath string) *Builder {
 	if importPath != "" {
 		b.bp.Routes.Imports.Add(importPath)
 	}
 	return b
 }
 
-// AddRouteImport adds an import to the routes section.
-func (b *Builder) AddRouteImport(importPath string) {
-	b.addRouteImport(importPath)
+// AddRouteGroup adds a route group name (e.g., "auth" for authRoutes).
+// These are used by the router aggregator template to combine all route groups.
+func (b *Builder) AddRouteGroup(groupName string) *Builder {
+	if groupName != "" {
+		b.bp.Routes.RouteGroups.Add(groupName)
+	}
+	return b
 }
 
 // AddModel adds a model definition.
@@ -221,19 +212,16 @@ func (b *Builder) AddModel(model Model) *Builder {
 	return b
 }
 
-func (b *Builder) addModelImport(importPath string) *Builder {
+// AddModelImport adds an import to the models section.
+func (b *Builder) AddModelImport(importPath string) *Builder {
 	if importPath != "" {
 		b.bp.Models.Imports.Add(importPath)
 	}
 	return b
 }
 
-// AddModelImport adds an import to the models section.
-func (b *Builder) AddModelImport(importPath string) {
-	b.addModelImport(importPath)
-}
-
-func (b *Builder) addConfigField(name, typeName string) *Builder {
+// AddConfigField adds a field to the config struct.
+func (b *Builder) AddConfigField(name, typeName string) *Builder {
 	if name == "" || typeName == "" {
 		return b
 	}
@@ -254,12 +242,8 @@ func (b *Builder) addConfigField(name, typeName string) *Builder {
 	return b
 }
 
-// AddConfigField adds a field to the config struct.
-func (b *Builder) AddConfigField(name, typeName string) {
-	b.addConfigField(name, typeName)
-}
-
-func (b *Builder) addEnvVar(key, configField, defaultValue string) *Builder {
+// AddEnvVar adds an environment variable mapping.
+func (b *Builder) AddEnvVar(key, configField, defaultValue string) *Builder {
 	if key == "" || configField == "" {
 		return b
 	}
@@ -281,11 +265,6 @@ func (b *Builder) addEnvVar(key, configField, defaultValue string) *Builder {
 	return b
 }
 
-// AddEnvVar adds an environment variable mapping.
-func (b *Builder) AddEnvVar(key, configField, defaultValue string) {
-	b.addEnvVar(key, configField, defaultValue)
-}
-
 // AddMigration adds a migration definition.
 func (b *Builder) AddMigration(migration Migration) *Builder {
 	if migration.Name == "" {
@@ -305,6 +284,84 @@ func (b *Builder) AddMigration(migration Migration) *Builder {
 	return b
 }
 
+// AddMainImport adds an import path to the main.go file.
+func (b *Builder) AddMainImport(importPath string) *Builder {
+	if importPath != "" {
+		b.bp.Main.Imports.Add(importPath)
+	}
+	return b
+}
+
+// AddMainInitialization adds an initialization code block to main.go.
+// The varName is the variable name, expression is the initialization code.
+// DependsOn can be used to specify ordering dependencies.
+func (b *Builder) AddMainInitialization(varName, expression string, dependsOn ...string) *Builder {
+	if varName == "" || expression == "" {
+		return b
+	}
+
+	// Check if already exists by varName
+	for _, init := range b.bp.Main.Initializations {
+		if init.VarName == varName {
+			return b
+		}
+	}
+
+	b.bp.Main.Initializations = append(b.bp.Main.Initializations, Initialization{
+		VarName:    varName,
+		Expression: expression,
+		DependsOn:  dependsOn,
+		Order:      b.nextInitializationOrder,
+	})
+	b.nextInitializationOrder++
+	return b
+}
+
+// AddBackgroundWorker adds a background worker goroutine to main.go.
+func (b *Builder) AddBackgroundWorker(name, functionCall string, dependsOn ...string) *Builder {
+	if name == "" || functionCall == "" {
+		return b
+	}
+
+	// Check if already exists by name
+	for _, worker := range b.bp.Main.BackgroundWorkers {
+		if worker.Name == name {
+			return b
+		}
+	}
+
+	b.bp.Main.BackgroundWorkers = append(b.bp.Main.BackgroundWorkers, BackgroundWorker{
+		Name:         name,
+		FunctionCall: functionCall,
+		DependsOn:    dependsOn,
+		Order:        b.nextBackgroundWorkerOrder,
+	})
+	b.nextBackgroundWorkerOrder++
+	return b
+}
+
+// AddPreRunHook adds a pre-run hook to execute before the server starts.
+func (b *Builder) AddPreRunHook(name, code string) *Builder {
+	if name == "" || code == "" {
+		return b
+	}
+
+	// Check if already exists by name
+	for _, hook := range b.bp.Main.PreRunHooks {
+		if hook.Name == name {
+			return b
+		}
+	}
+
+	b.bp.Main.PreRunHooks = append(b.bp.Main.PreRunHooks, PreRunHook{
+		Name:  name,
+		Code:  code,
+		Order: b.nextPreRunHookOrder,
+	})
+	b.nextPreRunHookOrder++
+	return b
+}
+
 // Merge combines another blueprint into this one, maintaining uniqueness and
 // order. Items from the other blueprint are added after existing items.
 func (b *Builder) Merge(other *Blueprint) error {
@@ -317,7 +374,7 @@ func (b *Builder) Merge(other *Blueprint) error {
 
 	// Merge controller dependencies (check for duplicates by name)
 	for _, dep := range other.Controllers.Dependencies {
-		b.addControllerDependencyWithInitAndImport(dep.Name, dep.Type, dep.InitExpr, dep.ImportPath)
+		b.addCtrlDependencyWithInitAndImport(dep.Name, dep.Type, dep.InitExpr, dep.ImportPath)
 	}
 
 	// Merge controller fields
@@ -332,6 +389,7 @@ func (b *Builder) Merge(other *Blueprint) error {
 
 	// Merge routes
 	b.bp.Routes.Imports.Merge(other.Routes.Imports)
+	b.bp.Routes.RouteGroups.Merge(other.Routes.RouteGroups)
 	for _, route := range other.Routes.Routes {
 		b.AddRoute(route)
 	}
@@ -355,7 +413,17 @@ func (b *Builder) Merge(other *Blueprint) error {
 		b.AddMigration(migration)
 	}
 
+	// Merge main section
+	b.bp.Main.Imports.Merge(other.Main.Imports)
+	for _, init := range other.Main.Initializations {
+		b.AddMainInitialization(init.VarName, init.Expression, init.DependsOn...)
+	}
+	for _, worker := range other.Main.BackgroundWorkers {
+		b.AddBackgroundWorker(worker.Name, worker.FunctionCall, worker.DependsOn...)
+	}
+	for _, hook := range other.Main.PreRunHooks {
+		b.AddPreRunHook(hook.Name, hook.Code)
+	}
+
 	return nil
 }
-
-var _ extensions.Builder = (*Builder)(nil)
