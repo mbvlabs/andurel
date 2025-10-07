@@ -26,6 +26,9 @@ dependencies, and configuration.`,
 	projectCmd.Flags().
 		StringP("database", "d", "", "Database to use (postgresql, sqlite) (optional, default: postgres)")
 
+	projectCmd.Flags().
+		StringSliceP("extensions", "e", nil, "Extensions to enable (comma-separated list)")
+
 	return projectCmd
 }
 
@@ -55,7 +58,11 @@ func newProject(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	if err := layout.Scaffold(basePath, projectName, repo, database); err != nil {
+	extensions, err := cmd.Flags().GetStringSlice("extensions")
+	if err != nil {
+		return err
+	}
+	if err := layout.Scaffold(basePath, projectName, repo, database, extensions); err != nil {
 		return err
 	}
 

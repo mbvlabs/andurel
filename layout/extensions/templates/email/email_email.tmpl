@@ -1,0 +1,24 @@
+package email
+
+import (
+	"context"
+	
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/clients"
+)
+
+type Sender interface {
+	SendTransactional(ctx context.Context, to, from, subject, htmlBody, textBody string) error
+}
+
+type Client struct {
+	sender Sender
+}
+
+func New() Client {
+	if config.Env == config.DevEnvironment {
+		return Client{clients.NewMailHog()}
+	}
+
+	return Client{clients.NewSES()}
+}

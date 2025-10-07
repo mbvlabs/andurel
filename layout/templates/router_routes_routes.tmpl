@@ -30,6 +30,13 @@ var BuildRoutes = func() []Route {
 		r,
 		apiRoutes...,
 	)
+	
+{{- range .Blueprint.Routes.RouteGroups.SortedItems}}
+	r = append(
+		r,
+		{{.}}Routes...,
+	)
+{{- end}}
 
 	return r
 }()
