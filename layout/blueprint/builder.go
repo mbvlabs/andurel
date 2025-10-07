@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+
+	"github.com/mbvlabs/andurel/layout/extensions"
 )
 
 // Builder provides a typed API for adding elements to a blueprint while
 // enforcing uniqueness and maintaining deterministic ordering.
 type Builder struct {
 	bp *Blueprint
-	// Track next order values for each category
+
 	nextControllerDepOrder   int
 	nextControllerFieldOrder int
 	nextConstructorOrder     int
@@ -21,7 +23,6 @@ type Builder struct {
 	nextMigrationOrder       int
 }
 
-// NewBuilder creates a builder wrapping the provided blueprint.
 func NewBuilder(bp *Blueprint) *Builder {
 	if bp == nil {
 		bp = New()
@@ -32,37 +33,34 @@ func NewBuilder(bp *Blueprint) *Builder {
 	}
 }
 
-// Blueprint returns the underlying blueprint.
 func (b *Builder) Blueprint() *Blueprint {
 	return b.bp
 }
 
-// AddCtrlImport adds an import path to the controllers section.
-func (b *Builder) AddCtrlImport(importPath string) *Builder {
+func (b *Builder) addControllerImport(importPath string) *Builder {
 	if importPath != "" {
 		b.bp.Controllers.Imports.Add(importPath)
 	}
+
 	return b
 }
 
-// AddCtrlDependency adds a dependency parameter to the controller
-// constructor. The order is automatically assigned based on insertion sequence.
-// Use AddControllerDependencyWithInit to provide an initialization expression.
-func (b *Builder) AddCtrlDependency(name, typeName string) *Builder {
-	return b.AddCtrlDependencyWithInit(name, typeName, "")
+func (b *Builder) AddControllerImport(importPath string) {
+	b.addControllerImport(importPath)
 }
 
-// AddCtrlDependencyWithInit adds a dependency with an optional initialization expression.
+func (b *Builder) AddControllerDependency(name, typeName string) {
+	b.addControllerDependencyWithInitAndImport(name, typeName, "", "")
+}
+
+// AddControllerDependencyWithInit adds a dependency with an optional initialization expression.
 // If initExpr is provided, it will be used to initialize the dependency in main.go.
 // If initExpr is empty, the dependency is assumed to be provided externally (like db).
-func (b *Builder) AddCtrlDependencyWithInit(name, typeName, initExpr string) *Builder {
-	return b.addCtrlDependencyWithInitAndImport(name, typeName, initExpr, "")
+func (b *Builder) AddControllerDependencyWithInit(name, typeName, initExpr string) {
+	b.addControllerDependencyWithInitAndImport(name, typeName, initExpr, "")
 }
 
-// AddControllerDependencyWithInitAndImport adds a dependency with initialization expression
-// and the import path needed for that expression. This is the internal implementation used
-// by the extension API.
-func (b *Builder) addCtrlDependencyWithInitAndImport(
+func (b *Builder) addControllerDependencyWithInitAndImport(
 	name, typeName, initExpr, importPath string,
 ) *Builder {
 	if name == "" || typeName == "" {
@@ -83,12 +81,22 @@ func (b *Builder) addCtrlDependencyWithInitAndImport(
 		ImportPath: importPath,
 		Order:      b.nextControllerDepOrder,
 	})
+
 	b.nextControllerDepOrder++
+
 	return b
 }
 
-// AddControllerField adds a field to the Controllers struct.
-func (b *Builder) AddControllerField(name, typeName string) *Builder {
+// AddControllerDependencyWithInitAndImport adds a dependency with initialization expression
+// and the import path needed for that expression. This is the internal implementation used
+// by the extension API.
+func (b *Builder) AddControllerDependencyWithInitAndImport(
+	name, typeName, initExpr, importPath string,
+) {
+	b.addControllerDependencyWithInitAndImport(name, typeName, initExpr, importPath)
+}
+
+func (b *Builder) addControllerField(name, typeName string) *Builder {
 	if name == "" || typeName == "" {
 		return b
 	}
@@ -109,10 +117,19 @@ func (b *Builder) AddControllerField(name, typeName string) *Builder {
 	return b
 }
 
+// AddControllerField adds a field to the Controllers struct.
+func (b *Builder) AddControllerField(name, typeName string) {
+	b.addControllerField(name, typeName)
+}
+
 // AddConstructor adds a constructor initialization statement.
 // The fieldName is automatically derived by finding a matching controller field.
 // If no match is found, it capitalizes the first letter of varName.
-func (b *Builder) AddConstructor(varName, expression string) *Builder {
+func (b *Builder) AddConstructor(varName, expression string) {
+	b.addConstructor(varName, expression)
+}
+
+func (b *Builder) addConstructor(varName, expression string) *Builder {
 	if varName == "" || expression == "" {
 		return b
 	}
@@ -173,12 +190,16 @@ func (b *Builder) AddRoute(route Route) *Builder {
 	return b
 }
 
-// AddRouteImport adds an import to the routes section.
-func (b *Builder) AddRouteImport(importPath string) *Builder {
+func (b *Builder) addRouteImport(importPath string) *Builder {
 	if importPath != "" {
 		b.bp.Routes.Imports.Add(importPath)
 	}
 	return b
+}
+
+// AddRouteImport adds an import to the routes section.
+func (b *Builder) AddRouteImport(importPath string) {
+	b.addRouteImport(importPath)
 }
 
 // AddModel adds a model definition.
@@ -200,16 +221,19 @@ func (b *Builder) AddModel(model Model) *Builder {
 	return b
 }
 
-// AddModelImport adds an import to the models section.
-func (b *Builder) AddModelImport(importPath string) *Builder {
+func (b *Builder) addModelImport(importPath string) *Builder {
 	if importPath != "" {
 		b.bp.Models.Imports.Add(importPath)
 	}
 	return b
 }
 
-// AddConfigField adds a field to the config struct.
-func (b *Builder) AddConfigField(name, typeName string) *Builder {
+// AddModelImport adds an import to the models section.
+func (b *Builder) AddModelImport(importPath string) {
+	b.addModelImport(importPath)
+}
+
+func (b *Builder) addConfigField(name, typeName string) *Builder {
 	if name == "" || typeName == "" {
 		return b
 	}
@@ -230,8 +254,12 @@ func (b *Builder) AddConfigField(name, typeName string) *Builder {
 	return b
 }
 
-// AddEnvVar adds an environment variable mapping.
-func (b *Builder) AddEnvVar(key, configField, defaultValue string) *Builder {
+// AddConfigField adds a field to the config struct.
+func (b *Builder) AddConfigField(name, typeName string) {
+	b.addConfigField(name, typeName)
+}
+
+func (b *Builder) addEnvVar(key, configField, defaultValue string) *Builder {
 	if key == "" || configField == "" {
 		return b
 	}
@@ -251,6 +279,11 @@ func (b *Builder) AddEnvVar(key, configField, defaultValue string) *Builder {
 	})
 	b.nextEnvVarOrder++
 	return b
+}
+
+// AddEnvVar adds an environment variable mapping.
+func (b *Builder) AddEnvVar(key, configField, defaultValue string) {
+	b.addEnvVar(key, configField, defaultValue)
 }
 
 // AddMigration adds a migration definition.
@@ -284,7 +317,7 @@ func (b *Builder) Merge(other *Blueprint) error {
 
 	// Merge controller dependencies (check for duplicates by name)
 	for _, dep := range other.Controllers.Dependencies {
-		b.addCtrlDependencyWithInitAndImport(dep.Name, dep.Type, dep.InitExpr, dep.ImportPath)
+		b.addControllerDependencyWithInitAndImport(dep.Name, dep.Type, dep.InitExpr, dep.ImportPath)
 	}
 
 	// Merge controller fields
@@ -325,67 +358,4 @@ func (b *Builder) Merge(other *Blueprint) error {
 	return nil
 }
 
-// BuilderAdapter wraps a *Builder to implement interfaces that require
-// void return types. This adapter discards return values from the fluent
-// builder methods.
-type BuilderAdapter struct {
-	*Builder
-}
-
-// NewBuilderAdapter creates an adapter wrapping the provided builder.
-func NewBuilderAdapter(b *Builder) *BuilderAdapter {
-	return &BuilderAdapter{Builder: b}
-}
-
-// The following methods implement interface contracts that require void returns.
-// They delegate to the underlying Builder methods and discard return values.
-
-func (a *BuilderAdapter) AddImport(importPath string) {
-	a.Builder.AddCtrlImport(importPath)
-}
-
-func (a *BuilderAdapter) AddControllerDependency(name, typeName string) {
-	a.Builder.AddCtrlDependency(name, typeName)
-}
-
-func (a *BuilderAdapter) AddControllerDependencyWithInit(name, typeName, initExpr string) {
-	a.Builder.AddCtrlDependencyWithInit(name, typeName, initExpr)
-}
-
-func (a *BuilderAdapter) AddControllerDependencyWithInitAndImport(
-	name, typeName, initExpr, importPath string,
-) {
-	a.addCtrlDependencyWithInitAndImport(name, typeName, initExpr, importPath)
-}
-
-func (a *BuilderAdapter) AddControllerField(name, typeName string) {
-	a.Builder.AddControllerField(name, typeName)
-}
-
-func (a *BuilderAdapter) AddConstructor(varName, expression string) {
-	a.Builder.AddConstructor(varName, expression)
-}
-
-func (a *BuilderAdapter) AddRouteImport(importPath string) {
-	a.Builder.AddRouteImport(importPath)
-}
-
-func (a *BuilderAdapter) AddModelImport(importPath string) {
-	a.Builder.AddModelImport(importPath)
-}
-
-func (a *BuilderAdapter) AddConfigField(name, typeName string) {
-	a.Builder.AddConfigField(name, typeName)
-}
-
-func (a *BuilderAdapter) AddEnvVar(key, configField, defaultValue string) {
-	a.Builder.AddEnvVar(key, configField, defaultValue)
-}
-
-// Ensure BuilderAdapter implements the extensions.Builder interface at compile time.
-// This will fail to compile if the adapter doesn't properly implement the interface.
-// The import is intentionally not added to avoid circular dependencies - this is just
-// a compile-time check that will be validated when the adapter is used.
-//
-// Uncomment to verify (requires extensions import):
-// var _ extensions.Builder = (*BuilderAdapter)(nil)
+var _ extensions.Builder = (*Builder)(nil)
