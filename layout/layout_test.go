@@ -54,7 +54,7 @@ func TestProjectScaffoldingSqlite__GoldenFile(t *testing.T) {
 
 			originalWd, _ := os.Getwd()
 
-			err := layout.Scaffold(projectDir, tt.projectName, tt.repoFlag, "sqlite")
+			err := layout.Scaffold(projectDir, tt.projectName, tt.repoFlag, "sqlite", []string{})
 			if err != nil {
 				t.Fatalf("Failed to scaffold project: %v", err)
 			}
@@ -110,7 +110,13 @@ func TestProjectScaffoldingPostgresql__GoldenFile(t *testing.T) {
 
 			originalWd, _ := os.Getwd()
 
-			err := layout.Scaffold(projectDir, tt.projectName, tt.repoFlag, "postgresql")
+			err := layout.Scaffold(
+				projectDir,
+				tt.projectName,
+				tt.repoFlag,
+				"postgresql",
+				[]string{},
+			)
 			if err != nil {
 				t.Fatalf("Failed to scaffold project: %v", err)
 			}
@@ -142,7 +148,8 @@ func captureScaffoldedProject(t *testing.T, projectDir string) string {
 
 			if strings.Contains(relPath, ".git/") ||
 				strings.HasSuffix(relPath, ".mod.sum") ||
-				strings.HasSuffix(relPath, "go.sum") {
+				strings.HasSuffix(relPath, "go.sum") ||
+				strings.HasSuffix(relPath, "go.mod") {
 				return nil
 			}
 
