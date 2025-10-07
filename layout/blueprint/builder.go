@@ -59,13 +59,13 @@ func (b *Builder) AddControllerDependency(name, typeName string) *Builder {
 // If initExpr is provided, it will be used to initialize the dependency in main.go.
 // If initExpr is empty, the dependency is assumed to be provided externally (like db).
 func (b *Builder) AddControllerDependencyWithInit(name, typeName, initExpr string) *Builder {
-	return b.addCtrlDependencyWithInitAndImport(name, typeName, initExpr, "")
+	return b.addControllerDependencyWithInitAndImport(name, typeName, initExpr, "")
 }
 
 // addControllerDependencyWithInitAndImport adds a dependency with initialization expression
 // and the import path needed for that expression. This is the internal implementation used
 // by the extension API.
-func (b *Builder) addCtrlDependencyWithInitAndImport(
+func (b *Builder) addControllerDependencyWithInitAndImport(
 	name, typeName, initExpr, importPath string,
 ) *Builder {
 	if name == "" || typeName == "" {
@@ -112,10 +112,11 @@ func (b *Builder) AddControllerField(name, typeName string) *Builder {
 	return b
 }
 
-// AddConstructor adds a constructor initialization statement.
+// AddControllerConstructor adds a constructor initialization statement.
 // The fieldName is automatically derived by finding a matching controller field.
 // If no match is found, it capitalizes the first letter of varName.
-func (b *Builder) AddConstructor(varName, expression string) *Builder {
+// TODO: naming
+func (b *Builder) AddControllerConstructor(varName, expression string) *Builder {
 	if varName == "" || expression == "" {
 		return b
 	}
@@ -374,7 +375,7 @@ func (b *Builder) Merge(other *Blueprint) error {
 
 	// Merge controller dependencies (check for duplicates by name)
 	for _, dep := range other.Controllers.Dependencies {
-		b.addCtrlDependencyWithInitAndImport(dep.Name, dep.Type, dep.InitExpr, dep.ImportPath)
+		b.addControllerDependencyWithInitAndImport(dep.Name, dep.Type, dep.InitExpr, dep.ImportPath)
 	}
 
 	// Merge controller fields
@@ -384,7 +385,7 @@ func (b *Builder) Merge(other *Blueprint) error {
 
 	// Merge constructors
 	for _, ctor := range other.Controllers.Constructors {
-		b.AddConstructor(ctor.VarName, ctor.Expression)
+		b.AddControllerConstructor(ctor.VarName, ctor.Expression)
 	}
 
 	// Merge routes

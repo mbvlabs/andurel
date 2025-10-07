@@ -101,9 +101,9 @@ func TestBuilder_AddConstructor(t *testing.T) {
 	builder := blueprint.NewBuilder(nil)
 
 	builder.
-		AddConstructor("pages", "newPages(db)").
-		AddConstructor("api", "newAPI(db)").
-		AddConstructor("pages", "newPages(db)") // duplicate
+		AddControllerConstructor("pages", "newPages(db)").
+		AddControllerConstructor("api", "newAPI(db)").
+		AddControllerConstructor("pages", "newPages(db)") // duplicate
 
 	ctors := builder.Blueprint().Controllers.SortedConstructors()
 
@@ -241,7 +241,7 @@ func TestBuilder_Merge(t *testing.T) {
 		AddControllerImport("fmt").
 		AddControllerDependency("db", "database.DB").
 		AddControllerField("Pages", "Pages").
-		AddConstructor("pages", "newPages(db)")
+		AddControllerConstructor("pages", "newPages(db)")
 
 	builder2 := blueprint.NewBuilder(nil)
 	builder2.
@@ -250,7 +250,7 @@ func TestBuilder_Merge(t *testing.T) {
 		AddControllerDependency("cache", "cache.Cache"). // new
 		AddControllerDependency("db", "database.DB").    // duplicate
 		AddControllerField("API", "API").                // new
-		AddConstructor("api", "newAPI(db)")              // new
+		AddControllerConstructor("api", "newAPI(db)")    // new
 
 	err := builder1.Merge(builder2.Blueprint())
 	if err != nil {
@@ -299,7 +299,7 @@ func TestBuilder_Chaining(t *testing.T) {
 		AddControllerImport("fmt").
 		AddControllerDependency("db", "database.DB").
 		AddControllerField("Pages", "Pages").
-		AddConstructor("pages", "newPages(db)").
+		AddControllerConstructor("pages", "newPages(db)").
 		AddRoute(blueprint.Route{Name: "home", Path: "/"}).
 		AddRouteImport("middleware").
 		AddModel(blueprint.Model{Name: "User"}).
@@ -322,8 +322,8 @@ func TestBuilder_EmptyValues(t *testing.T) {
 		AddControllerDependency("name", "").
 		AddControllerField("", "Type").
 		AddControllerField("name", "").
-		AddConstructor("", "expr").
-		AddConstructor("var", "").
+		AddControllerConstructor("", "expr").
+		AddControllerConstructor("var", "").
 		AddRoute(blueprint.Route{Name: "", Path: "/"}).    // missing name
 		AddRoute(blueprint.Route{Name: "name", Path: ""}). // missing path
 		AddRouteImport("").
