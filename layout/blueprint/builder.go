@@ -19,6 +19,9 @@ type Builder struct {
 	nextConfigFieldOrder     int
 	nextEnvVarOrder          int
 	nextMigrationOrder       int
+	nextInitializationOrder     int
+	nextBackgroundWorkerOrder   int
+	nextPreRunHookOrder         int
 }
 
 // NewBuilder creates a builder wrapping the provided blueprint.
@@ -281,6 +284,84 @@ func (b *Builder) AddMigration(migration Migration) *Builder {
 	return b
 }
 
+// AddMainImport adds an import path to the main.go file.
+func (b *Builder) AddMainImport(importPath string) *Builder {
+	if importPath != "" {
+		b.bp.Main.Imports.Add(importPath)
+	}
+	return b
+}
+
+// AddMainInitialization adds an initialization code block to main.go.
+// The varName is the variable name, expression is the initialization code.
+// DependsOn can be used to specify ordering dependencies.
+func (b *Builder) AddMainInitialization(varName, expression string, dependsOn ...string) *Builder {
+	if varName == "" || expression == "" {
+		return b
+	}
+
+	// Check if already exists by varName
+	for _, init := range b.bp.Main.Initializations {
+		if init.VarName == varName {
+			return b
+		}
+	}
+
+	b.bp.Main.Initializations = append(b.bp.Main.Initializations, Initialization{
+		VarName:    varName,
+		Expression: expression,
+		DependsOn:  dependsOn,
+		Order:      b.nextInitializationOrder,
+	})
+	b.nextInitializationOrder++
+	return b
+}
+
+// AddBackgroundWorker adds a background worker goroutine to main.go.
+func (b *Builder) AddBackgroundWorker(name, functionCall string, dependsOn ...string) *Builder {
+	if name == "" || functionCall == "" {
+		return b
+	}
+
+	// Check if already exists by name
+	for _, worker := range b.bp.Main.BackgroundWorkers {
+		if worker.Name == name {
+			return b
+		}
+	}
+
+	b.bp.Main.BackgroundWorkers = append(b.bp.Main.BackgroundWorkers, BackgroundWorker{
+		Name:         name,
+		FunctionCall: functionCall,
+		DependsOn:    dependsOn,
+		Order:        b.nextBackgroundWorkerOrder,
+	})
+	b.nextBackgroundWorkerOrder++
+	return b
+}
+
+// AddPreRunHook adds a pre-run hook to execute before the server starts.
+func (b *Builder) AddPreRunHook(name, code string) *Builder {
+	if name == "" || code == "" {
+		return b
+	}
+
+	// Check if already exists by name
+	for _, hook := range b.bp.Main.PreRunHooks {
+		if hook.Name == name {
+			return b
+		}
+	}
+
+	b.bp.Main.PreRunHooks = append(b.bp.Main.PreRunHooks, PreRunHook{
+		Name:  name,
+		Code:  code,
+		Order: b.nextPreRunHookOrder,
+	})
+	b.nextPreRunHookOrder++
+	return b
+}
+
 // Merge combines another blueprint into this one, maintaining uniqueness and
 // order. Items from the other blueprint are added after existing items.
 func (b *Builder) Merge(other *Blueprint) error {
@@ -330,6 +411,18 @@ func (b *Builder) Merge(other *Blueprint) error {
 	// Merge migrations
 	for _, migration := range other.Migrations.Migrations {
 		b.AddMigration(migration)
+	}
+
+	// Merge main section
+	b.bp.Main.Imports.Merge(other.Main.Imports)
+	for _, init := range other.Main.Initializations {
+		b.AddMainInitialization(init.VarName, init.Expression, init.DependsOn...)
+	}
+	for _, worker := range other.Main.BackgroundWorkers {
+		b.AddBackgroundWorker(worker.Name, worker.FunctionCall, worker.DependsOn...)
+	}
+	for _, hook := range other.Main.PreRunHooks {
+		b.AddPreRunHook(hook.Name, hook.Code)
 	}
 
 	return nil
@@ -394,6 +487,22 @@ func (a *BuilderAdapter) AddConfigField(name, typeName string) {
 
 func (a *BuilderAdapter) AddEnvVar(key, configField, defaultValue string) {
 	a.Builder.AddEnvVar(key, configField, defaultValue)
+}
+
+func (a *BuilderAdapter) AddMainImport(importPath string) {
+	a.Builder.AddMainImport(importPath)
+}
+
+func (a *BuilderAdapter) AddMainInitialization(varName, expression string, dependsOn ...string) {
+	a.Builder.AddMainInitialization(varName, expression, dependsOn...)
+}
+
+func (a *BuilderAdapter) AddBackgroundWorker(name, functionCall string, dependsOn ...string) {
+	a.Builder.AddBackgroundWorker(name, functionCall, dependsOn...)
+}
+
+func (a *BuilderAdapter) AddPreRunHook(name, code string) {
+	a.Builder.AddPreRunHook(name, code)
 }
 
 // Ensure BuilderAdapter implements the extensions.Builder interface at compile time.

@@ -19,6 +19,9 @@ import (
 	"{{.ImportPath}}"
 {{- end}}
 {{- end}}
+{{- range .Blueprint.Main.Imports.Items}}
+	"{{.}}"
+{{- end}}
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/sync/errgroup"
@@ -116,6 +119,15 @@ func run(ctx context.Context) error {
 {{- end}}
 {{- end}}
 
+{{- range .Blueprint.Main.SortedInitializations}}
+	{{.VarName}} := {{.Expression}}
+{{- end}}
+
+{{- range .Blueprint.Main.SortedPreRunHooks}}
+	// Pre-run hook: {{.Name}}
+	{{.Code}}
+{{- end}}
+
 	controllers, err := setupControllers(
 {{- range .Blueprint.Controllers.SortedDependencies}}
 		{{.Name}},
@@ -129,6 +141,11 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+{{- range .Blueprint.Main.SortedBackgroundWorkers}}
+	// Start background worker: {{.Name}}
+	go {{.FunctionCall}}
+{{- end}}
 
 	port := "8080"
 	host := "0.0.0.0"

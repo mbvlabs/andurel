@@ -1,7 +1,13 @@
 package email
 
-type MailHog struct {}
+import "context"
 
-func (m MailHog) SendTransactional(ctx context.Context, payload Payload) error {
+type MailHog struct{}
+
+func NewMailHog() *MailHog {
+	return &MailHog{}
+}
+
+func (m *MailHog) SendTransactional(ctx context.Context, payload Payload) error {
 	return nil
 }

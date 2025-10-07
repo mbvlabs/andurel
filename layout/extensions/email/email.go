@@ -14,26 +14,35 @@ func (e Extension) Name() string {
 
 func (e Extension) Apply(ctx *extensions.Context) error {
 	if ctx == nil || ctx.Data == nil {
-		return fmt.Errorf("simple-auth: context or data is nil")
+		return fmt.Errorf("email: context or data is nil")
 	}
 
 	builder := ctx.Builder()
 	if builder == nil {
-		return fmt.Errorf("simple-auth: builder is nil")
+		return fmt.Errorf("email: builder is nil")
 	}
 
 	moduleName := ctx.Data.GetModuleName()
 
-	// Add config import - needed for the cfg config.Config dependency parameter
-	builder.AddControllerImport(fmt.Sprintf("%s/config", moduleName))
+	// Add email package import to main.go
+	builder.AddMainImport(fmt.Sprintf("%s/email", moduleName))
 
-	// Add config dependency to controller constructor
-	builder.AddControllerDependency("cfg", "config.Config")
-	builder.AddControllerDependency("email", "email.Sender")
+	// Add email package import to controllers
+	builder.AddControllerImport(fmt.Sprintf("%s/email", moduleName))
+
+	// Add email service initialization in main.go
+	builder.AddMainInitialization(
+		"emailSender",
+		"email.NewMailHog()",
+		"cfg", // depends on config
+	)
+
+	// Add email sender as controller dependency
+	builder.AddControllerDependency("emailSender", "email.Sender")
 
 	// Render all template files
 	if err := e.renderTemplates(ctx); err != nil {
-		return fmt.Errorf("simple-auth: failed to render templates: %w", err)
+		return fmt.Errorf("email: failed to render templates: %w", err)
 	}
 
 	return nil

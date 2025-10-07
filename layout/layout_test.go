@@ -262,3 +262,55 @@ func TestProjectScaffoldingWithExtensions__GoldenFile(t *testing.T) {
 		})
 	}
 }
+
+func TestScaffold_WithEmailExtension(t *testing.T) {
+	if err := os.Setenv("ANDUREL_SKIP_TAILWIND", "true"); err != nil {
+		t.Fatalf("Failed to set ANDUREL_SKIP_TAILWIND env var: %v", err)
+	}
+	if err := os.Setenv("ANDUREL_SKIP_BUILD", "true"); err != nil {
+		t.Fatalf("Failed to set ANDUREL_SKIP_BUILD env var: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	targetDir := filepath.Join(tmpDir, "test-email-app")
+
+	err := layout.Scaffold(targetDir, "test-email-app", "", "sqlite", []string{"email"})
+	if err != nil {
+		t.Fatalf("Scaffold failed: %v", err)
+	}
+
+	// Check email package was created
+	emailFile := filepath.Join(targetDir, "email", "email.go")
+	if _, err := os.Stat(emailFile); os.IsNotExist(err) {
+		t.Error("email/email.go was not created")
+	}
+
+	mailHogFile := filepath.Join(targetDir, "email", "mail_hog.go")
+	if _, err := os.Stat(mailHogFile); os.IsNotExist(err) {
+		t.Error("email/mail_hog.go was not created")
+	}
+
+	// Check main.go contains email initialization
+	mainFile := filepath.Join(targetDir, "cmd", "app", "main.go")
+	content, err := os.ReadFile(mainFile)
+	if err != nil {
+		t.Fatalf("failed to read main.go: %v", err)
+	}
+
+	mainContent := string(content)
+
+	// Check for email import
+	if !strings.Contains(mainContent, "test-email-app/email") {
+		t.Error("main.go missing email import")
+	}
+
+	// Check for email initialization
+	if !strings.Contains(mainContent, "emailSender := email.NewMailHog()") {
+		t.Error("main.go missing emailSender initialization")
+	}
+
+	// Check for emailSender in setupControllers call
+	if !strings.Contains(mainContent, "emailSender,") {
+		t.Error("main.go missing emailSender in setupControllers")
+	}
+}

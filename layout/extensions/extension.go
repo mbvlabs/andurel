@@ -27,6 +27,11 @@ type Builder interface {
 	AddModelImport(importPath string)
 	AddConfigField(name, typeName string)
 	AddEnvVar(key, configField, defaultValue string)
+
+	AddMainImport(importPath string)
+	AddMainInitialization(varName, expression string, dependsOn ...string)
+	AddBackgroundWorker(name, functionCall string, dependsOn ...string)
+	AddPreRunHook(name, code string)
 }
 
 type TemplateData interface {

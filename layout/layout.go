@@ -21,6 +21,7 @@ import (
 
 	"github.com/mbvlabs/andurel/layout/blueprint"
 	"github.com/mbvlabs/andurel/layout/extensions"
+	"github.com/mbvlabs/andurel/layout/extensions/email"
 	simpleauth "github.com/mbvlabs/andurel/layout/extensions/simple-auth"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
@@ -439,6 +440,7 @@ func registerBuiltinExtensions() error {
 	registerBuiltinOnce.Do(func() {
 		builtin := []extensions.Extension{
 			simpleauth.Extension{},
+			email.Extension{},
 		}
 
 		for _, ext := range builtin {

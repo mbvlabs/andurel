@@ -371,3 +371,87 @@ func TestBuilder_EmptyValues(t *testing.T) {
 		t.Error("expected no migrations for empty values")
 	}
 }
+
+func TestBuilder_MainSection(t *testing.T) {
+	b := NewBuilder(nil)
+
+	// Test AddMainImport
+	b.AddMainImport("myapp/email")
+	b.AddMainImport("myapp/queue")
+	b.AddMainImport("myapp/email") // duplicate
+
+	imports := b.Blueprint().Main.Imports.Items()
+	if len(imports) != 2 {
+		t.Errorf("expected 2 imports, got %d", len(imports))
+	}
+
+	// Test AddMainInitialization
+	b.AddMainInitialization("emailSender", "email.NewMailHog()", "cfg")
+	b.AddMainInitialization("queue", "queue.New()", "db", "cfg")
+	b.AddMainInitialization("emailSender", "email.NewSMTP()") // duplicate
+
+	inits := b.Blueprint().Main.SortedInitializations()
+	if len(inits) != 2 {
+		t.Errorf("expected 2 initializations, got %d", len(inits))
+	}
+	if inits[0].VarName != "emailSender" {
+		t.Errorf("expected first init to be emailSender, got %s", inits[0].VarName)
+	}
+	if len(inits[1].DependsOn) != 2 {
+		t.Errorf("expected queue to have 2 dependencies, got %d", len(inits[1].DependsOn))
+	}
+
+	// Test AddBackgroundWorker
+	b.AddBackgroundWorker("queue-worker", "worker.Start(ctx, queue)", "queue")
+	b.AddBackgroundWorker("scheduler", "scheduler.Start(ctx)")
+	b.AddBackgroundWorker("queue-worker", "worker.StartAgain(ctx)") // duplicate
+
+	workers := b.Blueprint().Main.SortedBackgroundWorkers()
+	if len(workers) != 2 {
+		t.Errorf("expected 2 workers, got %d", len(workers))
+	}
+
+	// Test AddPreRunHook
+	b.AddPreRunHook("migrate", "if err := migrate(db); err != nil { return err }")
+	b.AddPreRunHook("seed", "seed(db)")
+	b.AddPreRunHook("migrate", "if err := migrate2(db); err != nil { return err }") // duplicate
+
+	hooks := b.Blueprint().Main.SortedPreRunHooks()
+	if len(hooks) != 2 {
+		t.Errorf("expected 2 hooks, got %d", len(hooks))
+	}
+}
+
+func TestBuilder_MergeMainSection(t *testing.T) {
+	b1 := NewBuilder(nil)
+	b1.AddMainImport("myapp/email")
+	b1.AddMainInitialization("emailSender", "email.New()")
+
+	b2 := NewBuilder(nil)
+	b2.AddMainImport("myapp/queue")
+	b2.AddMainInitialization("queue", "queue.New()")
+	b2.AddBackgroundWorker("worker", "worker.Start()")
+
+	err := b1.Merge(b2.Blueprint())
+	if err != nil {
+		t.Fatalf("merge failed: %v", err)
+	}
+
+	// Check merged imports
+	imports := b1.Blueprint().Main.Imports.Items()
+	if len(imports) != 2 {
+		t.Errorf("expected 2 imports after merge, got %d", len(imports))
+	}
+
+	// Check merged initializations
+	inits := b1.Blueprint().Main.SortedInitializations()
+	if len(inits) != 2 {
+		t.Errorf("expected 2 initializations after merge, got %d", len(inits))
+	}
+
+	// Check merged workers
+	workers := b1.Blueprint().Main.SortedBackgroundWorkers()
+	if len(workers) != 1 {
+		t.Errorf("expected 1 worker after merge, got %d", len(workers))
+	}
+}

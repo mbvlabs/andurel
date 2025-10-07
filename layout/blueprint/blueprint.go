@@ -21,6 +21,9 @@ type Blueprint struct {
 
 	// Migrations and database
 	Migrations MigrationSection
+
+	// Main holds configuration for the main.go application setup
+	Main MainSection
 }
 
 // ControllerSection holds controller-related configuration.
@@ -73,6 +76,55 @@ type ConfigSection struct {
 type MigrationSection struct {
 	// Migration file paths
 	Migrations []Migration
+}
+
+// MainSection holds application startup configuration.
+type MainSection struct {
+	// Import paths needed in main.go (beyond controller dependencies)
+	Imports *OrderedSet
+
+	// Initialization code blocks (e.g., service creation)
+	Initializations []Initialization
+
+	// Background workers to start
+	BackgroundWorkers []BackgroundWorker
+
+	// Pre-run hooks executed before server starts
+	PreRunHooks []PreRunHook
+}
+
+// Initialization represents a service/dependency initialization in main.go
+type Initialization struct {
+	// VarName is the variable name (e.g., "emailSender")
+	VarName string
+	// Expression is the initialization code (e.g., "email.NewMailHog()")
+	Expression string
+	// DependsOn lists variable names this depends on (for ordering)
+	DependsOn []string
+	// Order for deterministic rendering
+	Order int
+}
+
+// BackgroundWorker represents a goroutine to start in main.go
+type BackgroundWorker struct {
+	// Name is a descriptive name for the worker
+	Name string
+	// FunctionCall is the function to call (e.g., "worker.StartQueue(ctx, queue)")
+	FunctionCall string
+	// DependsOn lists variables this worker needs
+	DependsOn []string
+	// Order for deterministic rendering
+	Order int
+}
+
+// PreRunHook represents setup code to run before starting the server
+type PreRunHook struct {
+	// Name is a descriptive name for the hook
+	Name string
+	// Code is the Go code to execute (e.g., "if err := migrate(db); err != nil { return err }")
+	Code string
+	// Order for deterministic rendering
+	Order int
 }
 
 // Dependency represents a constructor parameter.
@@ -172,6 +224,12 @@ func New() *Blueprint {
 		Migrations: MigrationSection{
 			Migrations: make([]Migration, 0),
 		},
+		Main: MainSection{
+			Imports:           NewOrderedSet(),
+			Initializations:   make([]Initialization, 0),
+			BackgroundWorkers: make([]BackgroundWorker, 0),
+			PreRunHooks:       make([]PreRunHook, 0),
+		},
 	}
 }
 
@@ -253,4 +311,34 @@ func (ms *MigrationSection) SortedMigrations() []Migration {
 		return migrations[i].Order < migrations[j].Order
 	})
 	return migrations
+}
+
+// SortedInitializations returns initializations sorted by order.
+func (ms *MainSection) SortedInitializations() []Initialization {
+	inits := make([]Initialization, len(ms.Initializations))
+	copy(inits, ms.Initializations)
+	sort.Slice(inits, func(i, j int) bool {
+		return inits[i].Order < inits[j].Order
+	})
+	return inits
+}
+
+// SortedBackgroundWorkers returns background workers sorted by order.
+func (ms *MainSection) SortedBackgroundWorkers() []BackgroundWorker {
+	workers := make([]BackgroundWorker, len(ms.BackgroundWorkers))
+	copy(workers, ms.BackgroundWorkers)
+	sort.Slice(workers, func(i, j int) bool {
+		return workers[i].Order < workers[j].Order
+	})
+	return workers
+}
+
+// SortedPreRunHooks returns pre-run hooks sorted by order.
+func (ms *MainSection) SortedPreRunHooks() []PreRunHook {
+	hooks := make([]PreRunHook, len(ms.PreRunHooks))
+	copy(hooks, ms.PreRunHooks)
+	sort.Slice(hooks, func(i, j int) bool {
+		return hooks[i].Order < hooks[j].Order
+	})
+	return hooks
 }
