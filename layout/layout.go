@@ -37,7 +37,7 @@ var (
 
 // Scaffold TODO: figure out a way to have full repo path on init, i.e. github.com/mbvlabs/andurel
 // breaks because go mod tidy will look up that path and not find it
-func Scaffold(targetDir, projectName, repo, database string) error {
+func Scaffold(targetDir, projectName, repo, database string, extensionNames []string) error {
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
 
 	if strings.Contains(repo, "github.com/") {
@@ -67,7 +67,7 @@ func Scaffold(targetDir, projectName, repo, database string) error {
 		return fmt.Errorf("failed to register builtin extensions: %w", err)
 	}
 
-	requestedExtensions, err := resolveExtensions([]string{""})
+	requestedExtensions, err := resolveExtensions(extensionNames)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func Scaffold(targetDir, projectName, repo, database string) error {
 	}
 
 	fmt.Print("Processing templated files...\n")
-	if err := processTemplatedFiles(targetDir, templateData); err != nil {
+	if err := processTemplatedFiles(targetDir, &templateData); err != nil {
 		return fmt.Errorf("failed to process templated files: %w", err)
 	}
 
@@ -112,7 +112,9 @@ func Scaffold(targetDir, projectName, repo, database string) error {
 	// Need to skip download for testing purposes
 	if os.Getenv("ANDUREL_SKIP_TAILWIND") != "true" {
 		if err := SetupTailwind(targetDir); err != nil {
-			return fmt.Errorf("failed to download Tailwind binary: %w", err)
+			fmt.Println(
+				"Failed to download tailwind binary. Run 'andurel app tailwind' after setup is done to fix.",
+			)
 		}
 	}
 
@@ -166,13 +168,7 @@ func Scaffold(targetDir, projectName, repo, database string) error {
 					data = &templateData
 				}
 
-				return processTemplateExtension(
-					targetDir,
-					templateFile,
-					targetPath,
-					extensions.Files,
-					data,
-				)
+				return renderTemplate(targetDir, templateFile, targetPath, extensions.Files, data)
 			},
 			AddPostStep: func(fn func() error) {
 				if fn == nil {
@@ -188,6 +184,19 @@ func Scaffold(targetDir, projectName, repo, database string) error {
 
 		if err := currentExt.Apply(&ctx); err != nil {
 			return fmt.Errorf("failed to apply extension %s: %w", currentExt.Name(), err)
+		}
+	}
+
+	// Re-render templates that use blueprint data after extensions have been applied
+	if len(requestedExtensions) > 0 {
+		if err := rerenderBlueprintTemplates(targetDir, &templateData); err != nil {
+			return fmt.Errorf("failed to re-render blueprint templates: %w", err)
+		}
+	}
+
+	for _, step := range postExtensionSteps {
+		if err := step.fn(); err != nil {
+			return fmt.Errorf("extension %s post-step failed: %w", step.extensionName, err)
 		}
 	}
 
@@ -220,76 +229,76 @@ type (
 	TmplTargetPath string
 )
 
-func processTemplatedFiles(targetDir string, data TemplateData) error {
-	templateMappings := map[TmplTarget]TmplTargetPath{
-		// Core files
-		"database.tmpl":  "database/database.go",
-		"env.tmpl":       ".env.example",
-		"sqlc.tmpl":      "database/sqlc.yaml",
-		"gitignore.tmpl": ".gitignore",
-		"justfile.tmpl":  "justfile",
+var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
+	// Core files
+	"database.tmpl":  "database/database.go",
+	"env.tmpl":       ".env.example",
+	"sqlc.tmpl":      "database/sqlc.yaml",
+	"gitignore.tmpl": ".gitignore",
+	"justfile.tmpl":  "justfile",
 
-		// Assets
-		"assets_assets.tmpl":      "assets/assets.go",
-		"assets_css_tw.tmpl":      "assets/css/tw.css",
-		"assets_js_scripts.tmpl":  "assets/js/scripts.js",
-		"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc5.min.js",
+	// Assets
+	"assets_assets.tmpl":      "assets/assets.go",
+	"assets_css_tw.tmpl":      "assets/css/tw.css",
+	"assets_js_scripts.tmpl":  "assets/js/scripts.js",
+	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc5.min.js",
 
-		// CSS
-		"css_base.tmpl":  "css/base.css",
-		"css_theme.tmpl": "css/theme.css",
+	// CSS
+	"css_base.tmpl":  "css/base.css",
+	"css_theme.tmpl": "css/theme.css",
 
-		// Commands
-		"cmd_app_main.tmpl":       "cmd/app/main.go",
-		"cmd_migration_main.tmpl": "cmd/migration/main.go",
-		"cmd_run_main.tmpl":       "cmd/run/main.go",
-		"cmd_console_main.tmpl":   "cmd/console/main.go",
+	// Commands
+	"cmd_app_main.tmpl":       "cmd/app/main.go",
+	"cmd_migration_main.tmpl": "cmd/migration/main.go",
+	"cmd_run_main.tmpl":       "cmd/run/main.go",
+	"cmd_console_main.tmpl":   "cmd/console/main.go",
 
-		// Config
-		"config_auth.tmpl":     "config/auth.go",
-		"config_config.tmpl":   "config/config.go",
-		"config_database.tmpl": "config/database.go",
+	// Config
+	"config_auth.tmpl":     "config/auth.go",
+	"config_config.tmpl":   "config/config.go",
+	"config_database.tmpl": "config/database.go",
 
-		// Controllers
-		"controllers_api.tmpl":        "controllers/api.go",
-		"controllers_assets.tmpl":     "controllers/assets.go",
-		"controllers_controller.tmpl": "controllers/controller.go",
-		"controllers_pages.tmpl":      "controllers/pages.go",
+	// Controllers
+	"controllers_api.tmpl":        "controllers/api.go",
+	"controllers_assets.tmpl":     "controllers/assets.go",
+	"controllers_controller.tmpl": "controllers/controller.go",
+	"controllers_pages.tmpl":      "controllers/pages.go",
 
-		// Database
-		"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
-		"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
+	// Database
+	"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
+	"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
 
-		// Models
-		"models_errors.tmpl": "models/errors.go",
-		"models_model.tmpl":  "models/model.go",
+	// Models
+	"models_errors.tmpl": "models/errors.go",
+	"models_model.tmpl":  "models/model.go",
 
-		// Router
-		"router_router.tmpl":                "router/router.go",
-		"router_cookies_cookies.tmpl":       "router/cookies/cookies.go",
-		"router_cookies_flash.tmpl":         "router/cookies/flash.go",
-		"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
+	// Router
+	"router_router.tmpl":                "router/router.go",
+	"router_cookies_cookies.tmpl":       "router/cookies/cookies.go",
+	"router_cookies_flash.tmpl":         "router/cookies/flash.go",
+	"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
 
-		// Routes
-		"router_routes_routes.tmpl": "router/routes/routes.go",
-		"router_routes_api.tmpl":    "router/routes/api.go",
-		"router_routes_assets.tmpl": "router/routes/assets.go",
-		"router_routes_pages.tmpl":  "router/routes/pages.go",
+	// Routes
+	"router_routes_routes.tmpl": "router/routes/routes.go",
+	"router_routes_api.tmpl":    "router/routes/api.go",
+	"router_routes_assets.tmpl": "router/routes/assets.go",
+	"router_routes_pages.tmpl":  "router/routes/pages.go",
 
-		// Views
-		"views_layout.tmpl":         "views/layout.templ",
-		"views_home.tmpl":           "views/home.templ",
-		"views_bad_request.tmpl":    "views/bad_request.templ",
-		"views_internal_error.tmpl": "views/internal_error.templ",
-		"views_not_found.tmpl":      "views/not_found.templ",
+	// Views
+	"views_layout.tmpl":         "views/layout.templ",
+	"views_home.tmpl":           "views/home.templ",
+	"views_bad_request.tmpl":    "views/bad_request.templ",
+	"views_internal_error.tmpl": "views/internal_error.templ",
+	"views_not_found.tmpl":      "views/not_found.templ",
 
-		// View Components
-		"views_components_head.tmpl":   "views/components/head.templ",
-		"views_components_toasts.tmpl": "views/components/toasts.templ",
-	}
+	// View Components
+	"views_components_head.tmpl":   "views/components/head.templ",
+	"views_components_toasts.tmpl": "views/components/toasts.templ",
+}
 
-	for templateFile, targetPath := range templateMappings {
-		if err := processTemplate(targetDir, string(templateFile), string(targetPath), data); err != nil {
+func processTemplatedFiles(targetDir string, data extensions.TemplateData) error {
+	for templateFile, targetPath := range baseTemplateMappings {
+		if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
 			return fmt.Errorf("failed to process template %s: %w", templateFile, err)
 		}
 	}
@@ -297,35 +306,194 @@ func processTemplatedFiles(targetDir string, data TemplateData) error {
 	return nil
 }
 
-func processTemplate(targetDir, templateFile, targetPath string, data TemplateData) error {
-	content, err := templates.Files.ReadFile(templateFile)
+func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) error {
+	if data == nil {
+		return fmt.Errorf("template data is nil")
+	}
+
+	// List of templates that consume blueprint data and should be re-rendered after extensions
+	blueprintTemplates := []TmplTarget{
+		"controllers_controller.tmpl",
+		"cmd_app_main.tmpl",
+		"router_routes_routes.tmpl",
+	}
+
+	for _, tmplName := range blueprintTemplates {
+		targetPath, ok := baseTemplateMappings[tmplName]
+		if !ok {
+			return fmt.Errorf("template mapping missing for blueprint template %s", tmplName)
+		}
+
+		if err := renderTemplate(targetDir, string(tmplName), string(targetPath), templates.Files, data); err != nil {
+			return fmt.Errorf("failed to render blueprint template %s: %w", tmplName, err)
+		}
+	}
+
+	return nil
+}
+
+// func processTemplate(
+// 	targetDir, templateFile, targetPath string,
+// 	data extensions.TemplateData,
+// ) error {
+// 	return renderTemplate(targetDir, templateFile, targetPath, templates.Files, data)
+// }
+//
+// func ProcessTemplateFromRecipe(
+// 	targetDir, templateFile, targetPath string,
+// 	data extensions.TemplateData,
+// ) error {
+// 	return renderTemplate(targetDir, templateFile, targetPath, extensions.Files, data)
+// }
+
+func renderTemplate(
+	targetDir, templateFile, targetPath string,
+	fsys fs.FS,
+	data extensions.TemplateData,
+) error {
+	content, err := fs.ReadFile(fsys, templateFile)
 	if err != nil {
 		return fmt.Errorf("failed to read template %s: %w", templateFile, err)
 	}
 
+	if data == nil {
+		data = &TemplateData{}
+	}
+
 	contentStr := string(content)
 
-	tmpl, err := template.New(templateFile).Parse(contentStr)
+	tmpl, err := template.New(templateFile).
+		Funcs(templateFuncMap()).
+		Parse(contentStr)
 	if err != nil {
 		return fmt.Errorf("failed to parse template %s: %w", templateFile, err)
 	}
 
 	fullTargetPath := filepath.Join(targetDir, targetPath)
-	if err := os.MkdirAll(filepath.Dir(fullTargetPath), constants.DirPermissionDefault); err != nil {
+	dir := filepath.Dir(fullTargetPath)
+	if err := os.MkdirAll(dir, constants.DirPermissionDefault); err != nil {
 		return fmt.Errorf("failed to create directory for %s: %w", targetPath, err)
 	}
 
-	file, err := os.Create(fullTargetPath)
+	tmpFile, err := os.CreateTemp(dir, ".layout-tmp-*")
 	if err != nil {
-		return fmt.Errorf("failed to create file %s: %w", targetPath, err)
+		return fmt.Errorf("failed to create temporary file for %s: %w", targetPath, err)
 	}
-	defer file.Close()
+	tmpPath := tmpFile.Name()
+	shouldCleanup := true
+	defer func() {
+		if shouldCleanup {
+			if removeErr := os.Remove(tmpPath); removeErr != nil &&
+				!errors.Is(removeErr, os.ErrNotExist) {
+				slog.Debug(
+					"layout: failed to cleanup temporary file",
+					"path",
+					tmpPath,
+					"error",
+					removeErr,
+				)
+			}
+		}
+	}()
 
-	if err := tmpl.Execute(file, data); err != nil {
+	if err := tmpl.Execute(tmpFile, data); err != nil {
+		tmpFile.Close()
 		return fmt.Errorf("failed to execute template %s: %w", templateFile, err)
 	}
 
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temporary file for %s: %w", targetPath, err)
+	}
+
+	if err := os.Chmod(tmpPath, constants.FilePermissionPublic); err != nil {
+		return fmt.Errorf("failed to set permissions for %s: %w", targetPath, err)
+	}
+
+	if err := os.Rename(tmpPath, fullTargetPath); err != nil {
+		if removeErr := os.Remove(fullTargetPath); removeErr == nil ||
+			errors.Is(removeErr, os.ErrNotExist) {
+			if renameErr := os.Rename(tmpPath, fullTargetPath); renameErr == nil {
+				shouldCleanup = false
+				return nil
+			}
+		}
+
+		return fmt.Errorf("failed to move temporary file into place for %s: %w", targetPath, err)
+	}
+
+	shouldCleanup = false
 	return nil
+}
+
+func templateFuncMap() template.FuncMap {
+	return template.FuncMap{
+		"lower": strings.ToLower,
+	}
+}
+
+func registerBuiltinExtensions() error {
+	registerBuiltinOnce.Do(func() {
+		builtin := []extensions.Extension{
+			extensions.Email{},
+		}
+
+		for _, ext := range builtin {
+			if err := extensions.Register(ext); err != nil {
+				registerBuiltinErr = fmt.Errorf("register %s: %w", ext.Name(), err)
+				return
+			}
+		}
+	})
+
+	return registerBuiltinErr
+}
+
+func resolveExtensions(names []string) ([]extensions.Extension, error) {
+	if len(names) == 0 {
+		return nil, nil
+	}
+
+	seen := make(map[string]struct{}, len(names))
+	lookup := make(map[string]extensions.Extension, len(names))
+	uniqueNames := make([]string, 0, len(names))
+
+	for _, rawName := range names {
+		name := strings.TrimSpace(rawName)
+		if name == "" {
+			return nil, fmt.Errorf("extension name cannot be empty")
+		}
+
+		if _, exists := seen[name]; exists {
+			return nil, fmt.Errorf("extension %s specified multiple times", name)
+		}
+
+		ext, ok := extensions.Get(name)
+		if !ok {
+			available := strings.Join(extensions.Names(), ", ")
+			if available == "" {
+				return nil, fmt.Errorf("unknown extension %q", name)
+			}
+
+			return nil, fmt.Errorf(
+				"unknown extension %q. available extensions: %s",
+				name,
+				available,
+			)
+		}
+
+		seen[name] = struct{}{}
+		uniqueNames = append(uniqueNames, name)
+		lookup[name] = ext
+	}
+
+	sort.Strings(uniqueNames)
+
+	resolved := make([]extensions.Extension, 0, len(uniqueNames))
+	for _, name := range uniqueNames {
+		resolved = append(resolved, lookup[name])
+	}
+
+	return resolved, nil
 }
 
 const goVersion = "1.25.0"
@@ -335,11 +503,11 @@ const goModTemplate = `module %s
 go %s
 
 tool (
-	github.com/a-h/templ/cmd/templ
-	github.com/xo/usql
-	github.com/sqlc-dev/sqlc/cmd/sqlc
-	github.com/pressly/goose/v3/cmd/goose
-	github.com/air-verse/air
+    github.com/a-h/templ/cmd/templ
+    github.com/xo/usql
+    github.com/sqlc-dev/sqlc/cmd/sqlc
+    github.com/pressly/goose/v3/cmd/goose
+    github.com/air-verse/air
 )
 `
 
@@ -394,6 +562,12 @@ func runTemplGenerate(targetDir string) error {
 
 func runTemplFmt(targetDir string) error {
 	cmd := exec.Command("go", "tool", "templ", "fmt", "./views")
+	cmd.Dir = targetDir
+	return cmd.Run()
+}
+
+func RunSqlcGenerate(targetDir string) error {
+	cmd := exec.Command("go", "tool", "sqlc", "generate", "-f", "database/sqlc.yaml")
 	cmd.Dir = targetDir
 	return cmd.Run()
 }
@@ -516,154 +690,4 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 		AddControllerConstructor("api", "newAPI(db)")
 
 	return builder.Blueprint()
-}
-
-func resolveExtensions(names []string) ([]extensions.Extension, error) {
-	if len(names) == 0 {
-		return nil, nil
-	}
-
-	seen := make(map[string]struct{}, len(names))
-	lookup := make(map[string]extensions.Extension, len(names))
-	uniqueNames := make([]string, 0, len(names))
-
-	for _, rawName := range names {
-		name := strings.TrimSpace(rawName)
-		if name == "" {
-			return nil, fmt.Errorf("extension name cannot be empty")
-		}
-
-		if _, exists := seen[name]; exists {
-			return nil, fmt.Errorf("extension %s specified multiple times", name)
-		}
-
-		ext, ok := extensions.Get(name)
-		if !ok {
-			available := strings.Join(extensions.Names(), ", ")
-			if available == "" {
-				return nil, fmt.Errorf("unknown extension %q", name)
-			}
-
-			return nil, fmt.Errorf(
-				"unknown extension %q. available extensions: %s",
-				name,
-				available,
-			)
-		}
-
-		seen[name] = struct{}{}
-		uniqueNames = append(uniqueNames, name)
-		lookup[name] = ext
-	}
-
-	sort.Strings(uniqueNames)
-
-	resolved := make([]extensions.Extension, 0, len(uniqueNames))
-	for _, name := range uniqueNames {
-		resolved = append(resolved, lookup[name])
-	}
-
-	return resolved, nil
-}
-
-func processTemplateExtension(
-	targetDir string,
-	templateFile string,
-	targetPath string,
-	fsys fs.FS,
-	data extensions.TemplateData,
-) error {
-	content, err := fs.ReadFile(fsys, templateFile)
-	if err != nil {
-		return fmt.Errorf("failed to read template %s: %w", templateFile, err)
-	}
-
-	if data == nil {
-		data = &TemplateData{}
-	}
-
-	contentStr := string(content)
-
-	tmpl, err := template.New(templateFile).
-		Funcs(templateFuncMap()).
-		Parse(contentStr)
-	if err != nil {
-		return fmt.Errorf("failed to parse template %s: %w", templateFile, err)
-	}
-
-	fullTargetPath := filepath.Join(targetDir, targetPath)
-	dir := filepath.Dir(fullTargetPath)
-	if err := os.MkdirAll(dir, constants.DirPermissionDefault); err != nil {
-		return fmt.Errorf("failed to create directory for %s: %w", targetPath, err)
-	}
-
-	tmpFile, err := os.CreateTemp(dir, ".layout-tmp-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temporary file for %s: %w", targetPath, err)
-	}
-	tmpPath := tmpFile.Name()
-	shouldCleanup := true
-	defer func() {
-		if shouldCleanup {
-			if removeErr := os.Remove(tmpPath); removeErr != nil &&
-				!errors.Is(removeErr, os.ErrNotExist) {
-				slog.Debug(
-					"layout: failed to cleanup temporary file",
-					"path",
-					tmpPath,
-					"error",
-					removeErr,
-				)
-			}
-		}
-	}()
-
-	if err := tmpl.Execute(tmpFile, data); err != nil {
-		tmpFile.Close()
-		return fmt.Errorf("failed to execute template %s: %w", templateFile, err)
-	}
-
-	if err := tmpFile.Close(); err != nil {
-		return fmt.Errorf("failed to close temporary file for %s: %w", targetPath, err)
-	}
-
-	if err := os.Chmod(tmpPath, constants.FilePermissionPublic); err != nil {
-		return fmt.Errorf("failed to set permissions for %s: %w", targetPath, err)
-	}
-
-	if err := os.Rename(tmpPath, fullTargetPath); err != nil {
-		if removeErr := os.Remove(fullTargetPath); removeErr == nil ||
-			errors.Is(removeErr, os.ErrNotExist) {
-			if renameErr := os.Rename(tmpPath, fullTargetPath); renameErr == nil {
-				shouldCleanup = false
-				return nil
-			}
-		}
-
-		return fmt.Errorf("failed to move temporary file into place for %s: %w", targetPath, err)
-	}
-
-	shouldCleanup = false
-	return nil
-}
-
-func templateFuncMap() template.FuncMap {
-	return template.FuncMap{
-		"lower": strings.ToLower,
-	}
-}
-
-func registerBuiltinExtensions() error {
-	registerBuiltinOnce.Do(func() {
-		builtin := []extensions.Extension{}
-
-		for _, ext := range builtin {
-			if err := extensions.Register(ext); err != nil {
-				registerBuiltinErr = fmt.Errorf("register %s: %w", ext.Name(), err)
-				return
-			}
-		}
-	})
-
-	return registerBuiltinErr
 }

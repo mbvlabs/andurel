@@ -1,0 +1,13 @@
+package clients
+
+import "context"
+
+type MailHog struct{}
+
+func NewMailHog() *MailHog {
+	return &MailHog{}
+}
+
+func (m *MailHog) SendTransactional(ctx context.Context, to, from, subject, htmlBody, textBody string) error {
+	return nil
+}

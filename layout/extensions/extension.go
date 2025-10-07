@@ -18,6 +18,7 @@ type TemplateData interface {
 	DatabaseDialect() string
 	GetModuleName() string
 	Builder() *blueprint.Builder
+	SetBlueprint(bp *blueprint.Blueprint)
 }
 
 type ProcessTemplateFunc func(templateFile, targetPath string, data TemplateData) error
