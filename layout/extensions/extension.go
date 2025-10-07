@@ -14,22 +14,6 @@ import (
 //go:embed templates/*/*.tmpl
 var Files embed.FS
 
-// Builder provides the typed API for extensions to add to the scaffold.
-// Methods modify the builder in place and do not return values to avoid
-// type compatibility issues with different concrete implementations.
-// type Builder interface {
-// 	AddControllerImport(importPath string)
-// 	AddControllerDependency(name, typeName string)
-// 	AddControllerDependencyWithInit(name, typeName, initExpr string)
-// 	AddControllerDependencyWithInitAndImport(name, typeName, initExpr, importPath string)
-// 	AddControllerField(name, typeName string)
-// 	AddConstructor(varName, expression string)
-// 	AddRouteImport(importPath string)
-// 	AddModelImport(importPath string)
-// 	AddConfigField(name, typeName string)
-// 	AddEnvVar(key, configField, defaultValue string)
-// }
-
 type TemplateData interface {
 	DatabaseDialect() string
 	GetModuleName() string
