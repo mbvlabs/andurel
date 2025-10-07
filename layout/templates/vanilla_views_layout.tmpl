@@ -1,0 +1,21 @@
+package views
+
+import (
+	"{{.ModuleName}}/views/components"
+	"{{.ModuleName}}/router/cookies"
+)
+
+templ base(headOpts ...components.HeadDataOption) {
+	<!DOCTYPE html>
+	<html lang="en">
+		@components.SetupHead(ctx, headOpts...)
+		<body>
+			{ children... }
+		</body>
+		<div id="flashContainer">
+			for _, flash := range cookies.GetFlashesCtx(ctx) {
+				@components.ToastMessage(flash)
+			}
+		</div>
+	</html>
+}

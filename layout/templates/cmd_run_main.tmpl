@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+{{- if eq .CSSFramework "tailwind"}}
 	"log/slog"
+{{- end}}
 	"os"
 	"os/exec"
 	"os/signal"
@@ -34,9 +36,19 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	var wg sync.WaitGroup
+{{- if eq .CSSFramework "tailwind"}}
 	errChan := make(chan error, 3)
+{{- end}}
+{{- if eq .CSSFramework "vanilla"}}
+	errChan := make(chan error, 2)
+{{- end}}
 
+{{- if eq .CSSFramework "tailwind"}}
 	wg.Add(3)
+{{- end}}
+{{- if eq .CSSFramework "vanilla"}}
+	wg.Add(2)
+{{- end}}
 
 	go func() {
 		defer wg.Done()
@@ -52,12 +64,14 @@ func main() {
 		}
 	}()
 
+{{- if eq .CSSFramework "tailwind"}}
 	go func() {
 		defer wg.Done()
 		if err := runLiveTailwind(ctx); err != nil {
 			errChan <- fmt.Errorf("live-tailwind: %w", err)
 		}
 	}()
+{{- end}}
 
 	go func() {
 		select {
@@ -159,6 +173,7 @@ func runLiveTempl(ctx context.Context) error {
 	return nil
 }
 
+{{- if eq .CSSFramework "tailwind"}}
 func runLiveTailwind(ctx context.Context) error {
 	wd, err := os.Getwd()
 	if err != nil {
@@ -167,7 +182,7 @@ func runLiveTailwind(ctx context.Context) error {
 
 	cmd := exec.CommandContext(ctx, wd+"/bin/tailwindcli",
 		"-i", "./css/base.css",
-		"-o", "./assets/css/tw.css",
+		"-o", "./assets/css/style.css",
 		"--watch=always",
 	)
 
@@ -190,3 +205,4 @@ func runLiveTailwind(ctx context.Context) error {
 	}
 	return nil
 }
+{{- end}}

@@ -12,6 +12,7 @@ type TemplateData struct {
 	ProjectName          string
 	ModuleName           string
 	Database             string
+	CSSFramework         string
 	SessionKey           string
 	SessionEncryptionKey string
 	TokenSigningKey      string

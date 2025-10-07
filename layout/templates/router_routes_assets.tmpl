@@ -15,6 +15,9 @@ var assetRoutes = []Route{
 	Robots,
 	Sitemap,
 	Stylesheet,
+{{- if eq .CSSFramework "vanilla"}}
+	StyleImport,
+{{- end}}
 	Scripts,
 	Script,
 }
@@ -37,9 +40,20 @@ var Sitemap = Route{
 	HandleMethod: "Sitemap",
 }
 
+
+{{- if eq .CSSFramework "vanilla"}}
+var StyleImport = Route{
+	Name:         assetsNamePrefix + "css.file",
+	Path:         AssetsRoutePrefix + "/css/:file",
+	Method:       http.MethodGet,
+	Handler:      "Assets",
+	HandleMethod: "StyleImport",
+}
+{{- end}}
+
 var Stylesheet = Route{
 	Name:         assetsNamePrefix + "css.stylesheet",
-	Path:         AssetsRoutePrefix + fmt.Sprintf("/css/%v/tw.css", startTime),
+	Path:         AssetsRoutePrefix + fmt.Sprintf("/css/%v/style.css", startTime),
 	Method:       http.MethodGet,
 	Handler:      "Assets",
 	HandleMethod: "Stylesheet",

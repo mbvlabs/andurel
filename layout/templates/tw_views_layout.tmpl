@@ -7,7 +7,7 @@ import (
 
 templ base(headOpts ...components.HeadDataOption) {
 	<!DOCTYPE html>
-	<html lang="en" data-theme="grafto">
+	<html lang="en">
 		@components.SetupHead(ctx, headOpts...)
 		<body class="min-h-screen flex flex-col bg-base-200 text-base-content">
 			{ children... }

@@ -171,7 +171,7 @@ func createSitemap(c echo.Context) (Sitemap, error) {
 
 func (a Assets) Stylesheet(c echo.Context) error {
 	stylesheet, err := assets.Files.ReadFile(
-		"css/tw.css",
+		"css/style.css",
 	)
 	if err != nil {
 		return err
@@ -180,6 +180,21 @@ func (a Assets) Stylesheet(c echo.Context) error {
 	c = a.enableCaching(c, stylesheet)
 	return c.Blob(http.StatusOK, "text/css", stylesheet)
 }
+
+{{- if eq .CSSFramework "vanilla"}}
+func (a Assets) StyleImport(c echo.Context) error {
+	param := c.Param("file")
+	stylesheet, err := assets.Files.ReadFile(
+		fmt.Sprintf("css/%s", param),
+	)
+	if err != nil {
+		return err
+	}
+
+	c = a.enableCaching(c, stylesheet)
+	return c.Blob(http.StatusOK, "text/css", stylesheet)
+}
+{{- end}}
 
 func (a Assets) Scripts(c echo.Context) error {
 	stylesheet, err := assets.Files.ReadFile(
