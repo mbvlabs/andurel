@@ -7,31 +7,17 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+
+	"github.com/mbvlabs/andurel/layout/blueprint"
 )
 
 //go:embed templates/*/*.tmpl
 var Files embed.FS
 
-// Builder provides the typed API for extensions to add to the scaffold.
-// Methods modify the builder in place and do not return values to avoid
-// type compatibility issues with different concrete implementations.
-type Builder interface {
-	AddControllerImport(importPath string)
-	AddControllerDependency(name, typeName string)
-	AddControllerDependencyWithInit(name, typeName, initExpr string)
-	AddControllerDependencyWithInitAndImport(name, typeName, initExpr, importPath string)
-	AddControllerField(name, typeName string)
-	AddConstructor(varName, expression string)
-	AddRouteImport(importPath string)
-	AddModelImport(importPath string)
-	AddConfigField(name, typeName string)
-	AddEnvVar(key, configField, defaultValue string)
-}
-
 type TemplateData interface {
 	DatabaseDialect() string
 	GetModuleName() string
-	Builder() Builder
+	Builder() *blueprint.Builder
 }
 
 type ProcessTemplateFunc func(templateFile, targetPath string, data TemplateData) error
@@ -44,7 +30,7 @@ type Context struct {
 }
 
 // Builder returns the blueprint builder for structured contributions.
-func (ctx *Context) Builder() Builder {
+func (ctx *Context) Builder() *blueprint.Builder {
 	if ctx == nil || ctx.Data == nil {
 		return nil
 	}
