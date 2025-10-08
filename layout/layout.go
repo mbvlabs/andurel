@@ -363,6 +363,7 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		"controllers_controller.tmpl",
 		"cmd_app_main.tmpl",
 		"router_routes_routes.tmpl",
+		"config_config.tmpl",
 	}
 
 	for _, tmplName := range blueprintTemplates {
