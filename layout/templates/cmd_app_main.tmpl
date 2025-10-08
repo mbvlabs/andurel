@@ -83,8 +83,9 @@ func setupControllers(
 	return ctrl, nil
 }
 
-func setupRouter(ctrl controllers.Controllers, cfg config.Config) (*echo.Echo, error) {
+func setupRouter(ctx context.Context, ctrl controllers.Controllers, cfg config.Config) (*echo.Echo, error) {
 	router, err := router.New(
+		ctx,
 		ctrl,
 		cfg,
 	)
@@ -100,6 +101,20 @@ func run(ctx context.Context) error {
 	defer cancel()
 
 	cfg := config.NewConfig()
+
+	stdoutExporter := &router.StdoutExporter{
+		LogLevel:   slog.LevelInfo,
+	}
+
+	logger, shutdownLogger := router.NewLogger(ctx, stdoutExporter)
+	defer func() {
+		if err := shutdownLogger(ctx); err != nil {
+			slog.Error("Error shutting down logger", "error", err)
+		}
+	}()
+
+	slog.SetDefault(logger)
+
 
 {{- if eq .Database "postgresql"}}
 	db, err := database.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
@@ -137,7 +152,8 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	handler, err := setupRouter(controllers, cfg)
+
+	handler, err := setupRouter(ctx, controllers, cfg)
 	if err != nil {
 		return err
 	}

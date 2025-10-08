@@ -308,6 +308,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Router
 	"router_router.tmpl":                "router/router.go",
+	"router_std_out_logger.tmpl":        "router/stdout_logger.go",
 	"router_cookies_cookies.tmpl":       "router/cookies/cookies.go",
 	"router_cookies_flash.tmpl":         "router/cookies/flash.go",
 	"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
