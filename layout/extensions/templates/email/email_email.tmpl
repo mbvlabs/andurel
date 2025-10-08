@@ -15,10 +15,6 @@ type Client struct {
 	sender Sender
 }
 
-func New() Client {
-	if config.Env == config.DevEnvironment {
-		return Client{clients.NewMailHog()}
-	}
-
-	return Client{clients.NewSES()}
+func New(cfg config.Config) Client {
+	return Client{clients.NewMailHog(cfg.MailHogHost, cfg.MailHogPort)}
 }
