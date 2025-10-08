@@ -28,16 +28,16 @@ var Robots = Route{
 	Name:         assetsNamePrefix + ".robots",
 	Path:         AssetsRoutePrefix + "/robots.txt",
 	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "Robots",
+	Controller:      "Assets",
+	ControllerMethod: "Robots",
 }
 
 var Sitemap = Route{
 	Name:         assetsNamePrefix + ".sitemap",
 	Path:         AssetsRoutePrefix + "/sitemap.xml",
 	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "Sitemap",
+	Controller:      "Assets",
+	ControllerMethod: "Sitemap",
 }
 
 
@@ -46,8 +46,8 @@ var StyleImport = Route{
 	Name:         assetsNamePrefix + "css.file",
 	Path:         AssetsRoutePrefix + "/css/:file",
 	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "StyleImport",
+	Controller:      "Assets",
+	ControllerMethod: "StyleImport",
 }
 {{- end}}
 
@@ -55,22 +55,22 @@ var Stylesheet = Route{
 	Name:         assetsNamePrefix + "css.stylesheet",
 	Path:         AssetsRoutePrefix + fmt.Sprintf("/css/%v/style.css", startTime),
 	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "Stylesheet",
+	Controller:      "Assets",
+	ControllerMethod: "Stylesheet",
 }
 
 var Scripts = Route{
 	Name:         assetsNamePrefix + "js.scripts",
 	Path:         AssetsRoutePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime),
 	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "Scripts",
+	Controller:      "Assets",
+	ControllerMethod: "Scripts",
 }
 
 var Script = Route{
 	Name:         assetsNamePrefix + "js.script",
 	Path:         AssetsRoutePrefix + fmt.Sprintf("/js/%v/:file", startTime),
 	Method:       http.MethodGet,
-	Handler:      "Assets",
-	HandleMethod: "Script",
+	Controller:      "Assets",
+	ControllerMethod: "Script",
 }

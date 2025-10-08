@@ -26,8 +26,8 @@ var {{.ResourceName}}Index = Route{
 	Name:         {{.PluralName | ToLower}}NamePrefix + ".index",
 	Path:         {{.PluralName | ToLower}}RoutePrefix,
 	Method:       http.MethodGet,
-	Handler:      "{{.ResourceName}}s",
-	HandleMethod: "Index",
+	Controller:      "{{.ResourceName}}s",
+	ControllerMethod: "Index",
 }
 
 var {{.ResourceName}}Show = {{.PluralName | ToLower}}Show{
@@ -35,8 +35,8 @@ var {{.ResourceName}}Show = {{.PluralName | ToLower}}Show{
 		Name:         {{.PluralName | ToLower}}NamePrefix + ".show",
 		Path:         {{.PluralName | ToLower}}RoutePrefix + "/:id",
 		Method:       http.MethodGet,
-		Handler:      "{{.ResourceName}}s",
-		HandleMethod: "Show",
+		Controller:      "{{.ResourceName}}s",
+		ControllerMethod: "Show",
 	},
 }
 
@@ -52,16 +52,16 @@ var {{.ResourceName}}New = Route{
 	Name:         {{.PluralName | ToLower}}NamePrefix + ".new",
 	Path:         {{.PluralName | ToLower}}RoutePrefix + "/new",
 	Method:       http.MethodGet,
-	Handler:      "{{.ResourceName}}s",
-	HandleMethod: "New",
+	Controller:      "{{.ResourceName}}s",
+	ControllerMethod: "New",
 }
 
 var {{.ResourceName}}Create = Route{
 	Name:         {{.PluralName | ToLower}}NamePrefix + ".create",
 	Path:         {{.PluralName | ToLower}}RoutePrefix,
 	Method:       http.MethodPost,
-	Handler:      "{{.ResourceName}}s",
-	HandleMethod: "Create",
+	Controller:      "{{.ResourceName}}s",
+	ControllerMethod: "Create",
 }
 
 var {{.ResourceName}}Edit = {{.PluralName | ToLower}}Edit{
@@ -69,8 +69,8 @@ var {{.ResourceName}}Edit = {{.PluralName | ToLower}}Edit{
 		Name:         {{.PluralName | ToLower}}NamePrefix + ".edit",
 		Path:         {{.PluralName | ToLower}}RoutePrefix + "/:id/edit",
 		Method:       http.MethodGet,
-		Handler:      "{{.ResourceName}}s",
-		HandleMethod: "Edit",
+		Controller:      "{{.ResourceName}}s",
+		ControllerMethod: "Edit",
 	},
 }
 
@@ -87,8 +87,8 @@ var {{.ResourceName}}Update = {{.PluralName | ToLower}}Update{
 		Name:         {{.PluralName | ToLower}}NamePrefix + ".update",
 		Path:         {{.PluralName | ToLower}}RoutePrefix + "/:id",
 		Method:       http.MethodPut,
-		Handler:      "{{.ResourceName}}s",
-		HandleMethod: "Update",
+		Controller:      "{{.ResourceName}}s",
+		ControllerMethod: "Update",
 	},
 }
 
@@ -105,8 +105,8 @@ var {{.ResourceName}}Destroy = {{.PluralName | ToLower}}Destroy{
 		Name:         {{.PluralName | ToLower}}NamePrefix + ".destroy",
 		Path:         {{.PluralName | ToLower}}RoutePrefix + "/:id",
 		Method:       http.MethodDelete,
-		Handler:      "{{.ResourceName}}s",
-		HandleMethod: "Destroy",
+		Controller:      "{{.ResourceName}}s",
+		ControllerMethod: "Destroy",
 	},
 }
 

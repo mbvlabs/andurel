@@ -101,22 +101,22 @@ func (r *Router) SetupRoutes() *echo.Echo {
 			)
 		}
 
-		if route.Handler == "" || route.HandleMethod == "" {
-			panic("Route must specify Handler and HandleMethod fields")
+		if route.Controller == "" || route.ControllerMethod == "" {
+			panic("Route must specify Controller and ControllerMethod fields")
 		}
 
-		controllerField := controllersValue.FieldByName(route.Handler)
+		controllerField := controllersValue.FieldByName(route.Controller)
 		if !controllerField.IsValid() {
 			panic(
 				fmt.Sprintf(
 					"Controller field %s not found in controllers struct",
-					route.Handler,
+					route.Controller,
 				),
 			)
 		}
 
 		controller := controllerField.Interface()
-		controllerFunc := getHandlerFunc(controller, route.HandleMethod)
+		controllerFunc := getHandlerFunc(controller, route.ControllerMethod)
 
 		var middlewareFuncs []echo.MiddlewareFunc
 		for _, mw := range route.Middleware {
