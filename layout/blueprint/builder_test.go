@@ -119,8 +119,8 @@ func TestBuilder_AddConstructor(t *testing.T) {
 func TestBuilder_AddRoute(t *testing.T) {
 	builder := blueprint.NewBuilder(nil)
 
-	route1 := blueprint.Route{Name: "home", Path: "/", Handler: "Pages.Home"}
-	route2 := blueprint.Route{Name: "about", Path: "/about", Handler: "Pages.About"}
+	route1 := blueprint.Route{Name: "home", Path: "/", Controller: "Pages.Home"}
+	route2 := blueprint.Route{Name: "about", Path: "/about", Controller: "Pages.About"}
 
 	builder.AddRoute(route1).AddRoute(route2).AddRoute(route1) // duplicate
 

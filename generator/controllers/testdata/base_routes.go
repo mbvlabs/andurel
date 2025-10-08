@@ -5,8 +5,8 @@ import "github.com/labstack/echo/v4"
 type Route struct {
 	Name         string
 	Path         string
-	Handler      string
-	HandleMethod string
+	Controller      string
+	ControllerMethod string
 	Method       string
 	Middleware   []func(next echo.HandlerFunc) echo.HandlerFunc
 }

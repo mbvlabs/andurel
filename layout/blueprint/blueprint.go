@@ -165,8 +165,8 @@ type Constructor struct {
 type Route struct {
 	Name             string
 	Path             string
-	Handler          string
-	HandleMethod     string
+	Controller          string
+	ControllerMethod     string
 	Method           string
 	IncludeInSitemap bool
 	// Order for deterministic rendering
