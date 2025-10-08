@@ -267,11 +267,19 @@ var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"vanilla_views_components_toasts.tmpl": "views/components/toasts.templ",
 }
 
+var basePSQLTemplateMappings = map[TmplTarget]TmplTargetPath{
+	"psql_database.tmpl": "database/database.go",
+	"psql_sqlc.tmpl":     "database/sqlc.yaml",
+}
+
+var baseSqliteTemplateMappings = map[TmplTarget]TmplTargetPath{
+	"sqlite_database.tmpl": "database/database.go",
+	"sqlite_sqlc.tmpl":     "database/sqlc.yaml",
+}
+
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Core files
-	"database.tmpl":  "database/database.go",
 	"env.tmpl":       ".env.example",
-	"sqlc.tmpl":      "database/sqlc.yaml",
 	"gitignore.tmpl": ".gitignore",
 
 	// Assets
@@ -327,6 +335,21 @@ func processTemplatedFiles(
 	for templateFile, targetPath := range baseTemplateMappings {
 		if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
 			return fmt.Errorf("failed to process template %s: %w", templateFile, err)
+		}
+	}
+
+	if data.DatabaseDialect() == "postgresql" {
+		for templateFile, targetPath := range basePSQLTemplateMappings {
+			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
+				return fmt.Errorf("failed to process psql template %s: %w", templateFile, err)
+			}
+		}
+	}
+	if data.DatabaseDialect() == "sqlite" {
+		for templateFile, targetPath := range baseSqliteTemplateMappings {
+			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
+				return fmt.Errorf("failed to process sqlite template %s: %w", templateFile, err)
+			}
 		}
 	}
 
