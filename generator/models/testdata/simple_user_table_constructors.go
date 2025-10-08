@@ -16,14 +16,14 @@ func NewInsertUserParams(
 	email string,
 	name string,
 	age pgtype.Int4,
-	isactive pgtype.Bool,
+	isActive pgtype.Bool,
 ) InsertUserParams {
 	return InsertUserParams{
 		ID:       uuid.New(),
 		Email:    email,
 		Name:     name,
 		Age:      age,
-		IsActive: isactive,
+		IsActive: isActive,
 	}
 }
 
@@ -32,14 +32,14 @@ func NewUpdateUserParams(
 	email string,
 	name string,
 	age pgtype.Int4,
-	isactive pgtype.Bool,
+	isActive pgtype.Bool,
 ) UpdateUserParams {
 	return UpdateUserParams{
 		ID:       id,
 		Email:    email,
 		Name:     name,
 		Age:      age,
-		IsActive: isactive,
+		IsActive: isActive,
 	}
 }
 

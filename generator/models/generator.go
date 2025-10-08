@@ -602,6 +602,13 @@ func (g *Generator) GenerateConstructorFile(
 		"lower": func(s string) string {
 			return strings.ToLower(s)
 		},
+		"camelCase": func(s string) string {
+			if len(s) == 0 {
+				return s
+			}
+			// Convert first character to lowercase
+			return strings.ToLower(s[:1]) + s[1:]
+		},
 		"uuidParam": func(param string) string {
 			if model.DatabaseType == "sqlite" {
 				return param + ".String()"
