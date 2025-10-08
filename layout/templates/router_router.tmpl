@@ -51,10 +51,12 @@ func New(
 		return nil, err
 	}
 
-	csrfName := strings.ToLower(config.ProjectName) + "_" + "dev_csrf"
-	if config.Env == config.ProdEnvironment {
-		csrfName = strings.ToLower(config.ProjectName) + "_" + "csrf"
-	}
+	//csrfName := strings.ToLower(config.ProjectName) + "_" + "dev_csrf"
+	//if config.Env == config.ProdEnvironment {
+	//	csrfName = strings.ToLower(config.ProjectName) + "_" + "csrf"
+	//}
+	// TODO: make changing name work with d-*
+	csrfName := "_csrf"
 
 	router.Use(
 		session.Middleware(
@@ -69,13 +71,13 @@ func New(
 		echomw.CSRFWithConfig(echomw.CSRFConfig{Skipper: func(c echo.Context) bool {
 			return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
 				strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
-		}, TokenLookup: "cookie:_" + csrfName, CookiePath: "/", CookieDomain: func() string {
+		}, TokenLookup: "cookie:" + csrfName, CookiePath: "/", CookieDomain: func() string {
 			if config.Env == config.ProdEnvironment {
 				return config.Domain
 			}
 
 			return ""
-		}(), CookieName: csrfName, CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
+		}(), CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
 
 		echomw.Recover(),
 		echomw.Logger(),
