@@ -22,7 +22,7 @@ import (
 func NewInsert{{.Name}}Params(
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
-	{{lower .Name}} {{.SQLCType}},
+	{{camelCase .Name}} {{.SQLCType}},
 {{- end}}
 {{- end}}
 ) Insert{{.Name}}Params {
@@ -30,7 +30,7 @@ func NewInsert{{.Name}}Params(
 		ID: {{uuidParam "uuid.New()"}},
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
-		{{.Name}}: {{lower .Name}},
+		{{.Name}}: {{camelCase .Name}},
 {{- end}}
 {{- end}}
 	}
@@ -40,7 +40,7 @@ func NewUpdate{{.Name}}Params(
 	id {{if eq .DatabaseType "sqlite"}}string{{else}}uuid.UUID{{end}},
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
-	{{lower .Name}} {{.SQLCType}},
+	{{camelCase .Name}} {{.SQLCType}},
 {{- end}}
 {{- end}}
 ) Update{{.Name}}Params {
@@ -48,7 +48,7 @@ func NewUpdate{{.Name}}Params(
 		ID: id,
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
-		{{.Name}}: {{lower .Name}},
+		{{.Name}}: {{camelCase .Name}},
 {{- end}}
 {{- end}}
 	}
