@@ -383,6 +383,67 @@ func TestControllerRegistration__GoldenFile(t *testing.T) {
 	}
 }
 
+func TestMultipleControllerRegistration__GoldenFile(t *testing.T) {
+	t.Run("Should register multiple controllers sequentially", func(t *testing.T) {
+		tempDir := t.TempDir()
+		controllersDir := filepath.Join(tempDir, "controllers")
+
+		err := os.MkdirAll(controllersDir, constants.DirPermissionDefault)
+		if err != nil {
+			t.Fatalf("Failed to create controllers directory: %v", err)
+		}
+
+		originalWd, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get working directory: %v", err)
+		}
+
+		initialControllerGoldenPath := filepath.Join(
+			originalWd,
+			"testdata",
+			"base_controller.go",
+		)
+		initialControllerContent, err := os.ReadFile(initialControllerGoldenPath)
+		if err != nil {
+			t.Fatalf("Failed to read initial controller golden file: %v", err)
+		}
+
+		controllerFile := filepath.Join(controllersDir, "controller.go")
+		err = os.WriteFile(controllerFile, initialControllerContent, 0o644)
+		if err != nil {
+			t.Fatalf("Failed to create controller.go: %v", err)
+		}
+
+		oldWd, _ := os.Getwd()
+		defer os.Chdir(oldWd)
+		os.Chdir(tempDir)
+
+		fileGenerator := NewFileGenerator()
+
+		// Register first controller (User)
+		err = fileGenerator.registerController("User")
+		if err != nil {
+			t.Fatalf("Failed to register User controller: %v", err)
+		}
+
+		// Register second controller (Product)
+		err = fileGenerator.registerController("Product")
+		if err != nil {
+			t.Fatalf("Failed to register Product controller: %v", err)
+		}
+
+		updatedControllerContent, err := os.ReadFile(controllerFile)
+		if err != nil {
+			t.Fatalf("Failed to read updated controller file: %v", err)
+		}
+
+		fixtureDir := filepath.Join(originalWd, "testdata")
+		g := goldie.New(t, goldie.WithFixtureDir(fixtureDir), goldie.WithNameSuffix(".go"))
+
+		g.Assert(t, "multiple_controllers_registration", updatedControllerContent)
+	})
+}
+
 func formatGoFile(filePath string) error {
 	routeGenerator := NewRouteGenerator()
 	return routeGenerator.formatGoFile(filePath)

@@ -757,8 +757,8 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	// Constructor initializations
 	builder.
 		AddControllerConstructor("assets", "newAssets()").
-		AddControllerConstructor("pages", "newPages(db, pageCacher)").
-		AddControllerConstructor("api", "newAPI(db)")
+		AddControllerConstructor("api", "newAPI(db)").
+		AddControllerConstructor("pages", "newPages(db, pageCacher)")
 
 	return builder.Blueprint()
 }

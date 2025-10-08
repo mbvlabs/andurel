@@ -34,7 +34,7 @@ func New(
 
 	return Controllers{
 {{- range .Blueprint.Controllers.SortedConstructors}}
-		{{.FieldName}}: {{.VarName}},
+		{{.VarName}},
 {{- end}}
 	}, nil
 }
