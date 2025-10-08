@@ -120,7 +120,9 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	stdImports, extImports := groupAndSortImports(importSet)
 	model.StandardImports = stdImports
 	model.ExternalImports = extImports
-	model.Imports = append(append(make([]string, 0, len(stdImports)+len(extImports)), stdImports...), extImports...)
+	model.Imports = append(
+		append(make([]string, 0, len(stdImports)+len(extImports)), stdImports...),
+		extImports...)
 
 	return model, nil
 }
@@ -148,7 +150,7 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		sqlcType = "string"
 		pkg = "github.com/google/uuid"
 	} else {
-		goType, sqlcType, pkg, err = g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
+		goType, sqlcType, _, err = g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
 		if err != nil {
 			return GeneratedField{}, err
 		}
@@ -205,24 +207,6 @@ func (g *Generator) addModelTypeImports(goType string) map[string]bool {
 	return importSet
 }
 
-func (g *Generator) addTypeImports(sqlcType, goType string) map[string]bool {
-	importSet := map[string]bool{}
-	if strings.Contains(sqlcType, "pgtype.") {
-		importSet["github.com/jackc/pgx/v5/pgtype"] = true
-	}
-	if strings.Contains(sqlcType, "sql.Null") {
-		importSet["database/sql"] = true
-	}
-	if strings.Contains(goType, "time.Time") || strings.Contains(sqlcType, "time.Time") {
-		importSet["time"] = true
-	}
-	if strings.Contains(goType, "uuid.UUID") || strings.Contains(sqlcType, "uuid.UUID") {
-		importSet["github.com/google/uuid"] = true
-	}
-
-	return importSet
-}
-
 func (g *Generator) getSimpleGoType(goType, sqlcType string) string {
 	// If it's already a simple Go type, keep it
 	if !strings.Contains(goType, "pgtype.") && !strings.Contains(goType, "sql.") {
@@ -245,7 +229,9 @@ func (g *Generator) getSimpleGoType(goType, sqlcType string) string {
 		return "bool"
 	case strings.Contains(sqlcType, "pgtype.Text"):
 		return "string"
-	case strings.Contains(sqlcType, "pgtype.Timestamp"), strings.Contains(sqlcType, "pgtype.Date"), strings.Contains(sqlcType, "pgtype.Time"):
+	case strings.Contains(sqlcType, "pgtype.Timestamp"),
+		strings.Contains(sqlcType, "pgtype.Date"),
+		strings.Contains(sqlcType, "pgtype.Time"):
 		return "time.Time"
 	case strings.Contains(sqlcType, "sql.NullString"):
 		return "string"
@@ -697,7 +683,9 @@ func (g *Generator) calculateConstructorImports(model *GeneratedModel) []string 
 	stdImports, extImports := groupAndSortImports(importSet)
 	model.StandardImports = stdImports
 	model.ExternalImports = extImports
-	imports := append(append(make([]string, 0, len(stdImports)+len(extImports)), stdImports...), extImports...)
+	imports := append(
+		append(make([]string, 0, len(stdImports)+len(extImports)), stdImports...),
+		extImports...)
 	return imports
 }
 
