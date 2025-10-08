@@ -22,7 +22,6 @@ database/database.go
 database/migrations/.gitkeep
 database/queries/.gitkeep
 database/sqlc.yaml
-justfile
 models/errors.go
 models/model.go
 router/cookies/cookies.go
@@ -33,6 +32,7 @@ router/routes/api.go
 router/routes/assets.go
 router/routes/pages.go
 router/routes/routes.go
+router/stdout_logger.go
 views/bad_request.templ
 views/bad_request_templ.go
 views/components/head.templ
@@ -185,8 +185,9 @@ func setupControllers(
 	return ctrl, nil
 }
 
-func setupRouter(ctrl controllers.Controllers, cfg config.Config) (*echo.Echo, error) {
+func setupRouter(ctx context.Context, ctrl controllers.Controllers, cfg config.Config) (*echo.Echo, error) {
 	router, err := router.New(
+		ctx,
 		ctrl,
 		cfg,
 	)
@@ -202,6 +203,19 @@ func run(ctx context.Context) error {
 	defer cancel()
 
 	cfg := config.NewConfig()
+
+	stdoutExporter := &router.StdoutExporter{
+		LogLevel: slog.LevelInfo,
+	}
+
+	logger, shutdownLogger := router.NewLogger(ctx, stdoutExporter)
+	defer func() {
+		if err := shutdownLogger(ctx); err != nil {
+			slog.Error("Error shutting down logger", "error", err)
+		}
+	}()
+
+	slog.SetDefault(logger)
 	db, err := database.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
@@ -214,7 +228,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	handler, err := setupRouter(controllers, cfg)
+	handler, err := setupRouter(ctx, controllers, cfg)
 	if err != nil {
 		return err
 	}
@@ -1076,13 +1090,13 @@ func New(
 		return Controllers{}, err
 	}
 	assets := newAssets()
-	pages := newPages(db, pageCacher)
 	api := newAPI(db)
+	pages := newPages(db, pageCacher)
 
 	return Controllers{
-		Assets: assets,
-		Pages:  pages,
-		API:    api,
+		assets,
+		api,
+		pages,
 	}, nil
 }
 
@@ -1306,31 +1320,6 @@ sql:
         overrides:
           - db_type: uuid
             go_type: github.com/google/uuid.UUID
-
-
-=== justfile ===
-set dotenv-load
-
-# alias
-alias r := run
-alias cdd := connect-database-docker
-
-default:
-    @just --list
-
-# database 
-connect-database-docker conntainer_id name:
-	docker exec -it {{conntainer_id}} psql -U postgres {{name}}
-
-# code quality
-golangci:
-	golangci-lint run
-
-vet:
-	@go vet ./...
-
-golines:
-	@golines -w -m 100 controllers models router router/routes 
 
 
 === models/errors.go ===
@@ -1592,6 +1581,7 @@ func Logging(
 package router
 
 import (
+	"context"
 	"encoding/gob"
 	"encoding/hex"
 	"fmt"
@@ -1600,6 +1590,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"time"
 
 	"testapp/config"
 	"testapp/controllers"
@@ -1610,6 +1601,7 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 
 	echomw "github.com/labstack/echo/v4/middleware"
 )
@@ -1620,6 +1612,7 @@ type Router struct {
 }
 
 func New(
+	ctx context.Context,
 	controllers controllers.Controllers,
 	cfg config.Config,
 ) (*Router, error) {
@@ -1641,12 +1634,15 @@ func New(
 		return nil, err
 	}
 
-	csrfName := strings.ToLower(config.ProjectName) + "_" + "dev_csrf"
-	if config.Env == config.ProdEnvironment {
-		csrfName = strings.ToLower(config.ProjectName) + "_" + "csrf"
-	}
+	//csrfName := strings.ToLower(config.ProjectName) + "_" + "dev_csrf"
+	//if config.Env == config.ProdEnvironment {
+	//	csrfName = strings.ToLower(config.ProjectName) + "_" + "csrf"
+	//}
+	// TODO: make changing name work with d-*
+	csrfName := "_csrf"
 
 	router.Use(
+		logger(),
 		session.Middleware(
 			sessions.NewCookieStore(
 				authKey,
@@ -1659,16 +1655,15 @@ func New(
 		echomw.CSRFWithConfig(echomw.CSRFConfig{Skipper: func(c echo.Context) bool {
 			return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
 				strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
-		}, TokenLookup: "cookie:_" + csrfName, CookiePath: "/", CookieDomain: func() string {
+		}, TokenLookup: "cookie:" + csrfName, CookiePath: "/", CookieDomain: func() string {
 			if config.Env == config.ProdEnvironment {
 				return config.Domain
 			}
 
 			return ""
-		}(), CookieName: csrfName, CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
+		}(), CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
 
 		echomw.Recover(),
-		echomw.Logger(),
 	)
 
 	return &Router{
@@ -1800,6 +1795,64 @@ func registerFlashMessagesContext(
 		c.Set(string(cookies.FlashKey), flashes)
 
 		return next(c)
+	}
+}
+
+type LogExporter interface {
+	Name() string
+	GetSlogHandler(
+		ctx context.Context,
+	) (slog.Handler, error)
+
+	Shutdown(ctx context.Context) error
+}
+
+func NewLogger(
+	ctx context.Context,
+	exporter LogExporter,
+) (*slog.Logger, func(ctx context.Context) error) {
+	handler, err := exporter.GetSlogHandler(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	return slog.New(handler), exporter.Shutdown
+}
+
+func logger() echo.MiddlewareFunc {
+	otelMiddleware := otelecho.Middleware(
+		config.ProjectName,
+	)
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if strings.Contains(c.Request().URL.Path, routes.APIRoutePrefix) ||
+				strings.Contains(c.Request().URL.Path, routes.AssetsRoutePrefix) {
+				return next(c)
+			}
+
+			start := time.Now()
+
+			var statusCode int
+			wrappedNext := func(c echo.Context) error {
+				err := next(c)
+				statusCode = c.Response().Status
+				return err
+			}
+
+			err := otelMiddleware(wrappedNext)(c)
+			duration := time.Since(start)
+
+			slog.InfoContext(c.Request().Context(), "HTTP request completed",
+				"method", c.Request().Method,
+				"path", c.Request().URL.Path,
+				"status", statusCode,
+				"remote_addr", c.RealIP(),
+				"user_agent", c.Request().UserAgent(),
+				"duration", duration.String(),
+			)
+
+			return err
+		}
 	}
 }
 
@@ -1949,6 +2002,45 @@ var BuildRoutes = func() []Route {
 
 	return r
 }()
+
+
+=== router/stdout_logger.go ===
+package router
+
+import (
+	"context"
+	"log/slog"
+	"os"
+
+	"github.com/lmittmann/tint"
+)
+
+type StdoutExporter struct {
+	LogLevel slog.Level
+}
+
+// GetSlogHandler implements LogExporter.
+func (s *StdoutExporter) GetSlogHandler(
+	ctx context.Context,
+) (slog.Handler, error) {
+	handler := tint.NewHandler(os.Stdout, &tint.Options{
+		Level:      s.LogLevel,
+		TimeFormat: "15:04:05",
+		AddSource:  true,
+	})
+
+	return handler, nil
+}
+
+// Name implements LogExporter.
+func (s *StdoutExporter) Name() string {
+	return "stdout"
+}
+
+// Shutdown implements LogExporter.
+func (s *StdoutExporter) Shutdown(ctx context.Context) error {
+	return nil
+}
 
 
 === views/bad_request.templ ===

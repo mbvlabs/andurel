@@ -7,41 +7,41 @@ import (
 
 templ UserIndex(users []models.User) {
 	@base() {
-		<div class="container mx-auto p-6">
-			<div class="flex items-center justify-between mb-8">
-				<h1 class="text-2xl font-semibold text-white">Users</h1>
-				<a href="/" class="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">New User</a>
+		<div>
+			<div>
+				<h1>Users</h1>
+				<a href="/">New User</a>
 			</div>
-			<div class="bg-white/5 rounded-lg border border-white/10">
-				<div class="p-6">
+			<div>
+				<div>
 					if len(users) == 0 {
-						<p class="text-gray-400">No users found.</p>
+						<p>No users found.</p>
 					} else {
-						<div class="overflow-x-auto">
-							<table class="table w-full">
+						<div>
+							<table>
 								<thead>
 									<tr>
-										<th class="text-white font-semibold">Email</th>
-										<th class="text-white font-semibold">Name</th>
-										<th class="text-white font-semibold">Age</th>
-										<th class="text-white font-semibold">Is Active</th>
-										<th class="text-white font-semibold">Created At</th>
-										<th class="text-white font-semibold">Updated At</th>
-										<th class="text-white font-semibold">Actions</th>
+										<th>Email</th>
+										<th>Name</th>
+										<th>Age</th>
+										<th>Is Active</th>
+										<th>Created At</th>
+										<th>Updated At</th>
+										<th>Actions</th>
 									</tr>
 								</thead>
 								<tbody>
 									for _, user := range users {
 										<tr>
-											<td class="text-white">{ user.Email }</td>
-											<td class="text-white">{ user.Name }</td>
-											<td class="text-white">{ fmt.Sprintf("%d", user.Age) }</td>
-											<td class="text-white">{ fmt.Sprintf("%t", user.IsActive) }</td>
-											<td class="text-white">{ user.CreatedAt.String() }</td>
-											<td class="text-white">{ user.UpdatedAt.String() }</td>
-											<td class="flex gap-2">
-												<a href="/" class="btn btn-sm btn-primary">View</a>
-												<a href="/" class="btn btn-sm btn-outline">Edit</a>
+											<td>{ user.Email }</td>
+											<td>{ user.Name }</td>
+											<td>{ fmt.Sprintf("%d", user.Age) }</td>
+											<td>{ fmt.Sprintf("%t", user.IsActive) }</td>
+											<td>{ user.CreatedAt.String() }</td>
+											<td>{ user.UpdatedAt.String() }</td>
+											<td>
+												<a href="/">View</a>
+												<a href="/">Edit</a>
 											</td>
 										</tr>
 									}
@@ -57,40 +57,40 @@ templ UserIndex(users []models.User) {
 
 templ UserShow(user models.User) {
 	@base() {
-		<div class="container mx-auto p-6">
-			<div class="flex items-center justify-between mb-8">
-				<h1 class="text-2xl font-semibold text-white">User Details</h1>
-				<div class="flex gap-2">
-					<a href="/" class="rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Edit</a>
-					<a href="/" class="text-sm font-semibold text-gray-400 hover:text-white">Back to List</a>
+		<div>
+			<div>
+				<h1>User Details</h1>
+				<div>
+					<a href="/">Edit</a>
+					<a href="/">Back to List</a>
 				</div>
 			</div>
-			<div class="bg-white/5 rounded-lg border border-white/10">
-				<div class="p-6">
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+			<div>
+				<div>
+					<div>
 						<div>
-							<label class="block text-sm font-medium text-white mb-1">Email</label>
-							<p class="text-lg text-gray-300">{ user.Email }</p>
+							<label>Email</label>
+							<p>{ user.Email }</p>
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-white mb-1">Name</label>
-							<p class="text-lg text-gray-300">{ user.Name }</p>
+							<label>Name</label>
+							<p>{ user.Name }</p>
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-white mb-1">Age</label>
-							<p class="text-lg text-gray-300">{ fmt.Sprintf("%d", user.Age) }</p>
+							<label>Age</label>
+							<p>{ fmt.Sprintf("%d", user.Age) }</p>
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-white mb-1">Is Active</label>
-							<p class="text-lg text-gray-300">{ fmt.Sprintf("%t", user.IsActive) }</p>
+							<label>Is Active</label>
+							<p>{ fmt.Sprintf("%t", user.IsActive) }</p>
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-white mb-1">Created At</label>
-							<p class="text-lg text-gray-300">{ user.CreatedAt.String() }</p>
+							<label>Created At</label>
+							<p>{ user.CreatedAt.String() }</p>
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-white mb-1">Updated At</label>
-							<p class="text-lg text-gray-300">{ user.UpdatedAt.String() }</p>
+							<label>Updated At</label>
+							<p>{ user.UpdatedAt.String() }</p>
 						</div>
 						
 					</div>
@@ -102,57 +102,57 @@ templ UserShow(user models.User) {
 
 templ UserNew() {
 	@base() {
-		<div class="container mx-auto p-6">
-			<div class="flex items-center justify-between mb-8">
-				<h1 class="text-2xl font-semibold text-white">New User</h1>
-				<a href="/" class="text-sm font-semibold text-gray-400 hover:text-white">Back to List</a>
+		<div>
+			<div>
+				<h1>New User</h1>
+				<a href="/">Back to List</a>
 			</div>
-			<div class="bg-white/5 rounded-lg border border-white/10">
-				<div class="p-6">
+			<div>
+				<div>
 					<form data-on-submit={ fmt.Sprintf("@post('%s')", "/") }>
-						<div class="space-y-6">
-							<div class="border-b border-white/10 pb-6">
-								<h2 class="text-base font-semibold text-white">User Information</h2>
-								<p class="mt-1 text-sm text-gray-400">Enter the details for the new user.</p>
-								<div class="mt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-									<div class="sm:col-span-3">
-										<label for="email" class="block text-sm font-medium text-white">
+						<div>
+							<div>
+								<h2>User Information</h2>
+								<p>Enter the details for the new user.</p>
+								<div>
+									<div>
+										<label for="email">
 											Email
 										</label>
-										<div class="mt-2">
-											<input id="email" type="text" data-bind="email" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+										<div>
+											<input id="email" type="text" data-bind="email" />
 										</div>
 									</div>
-									<div class="sm:col-span-3">
-										<label for="name" class="block text-sm font-medium text-white">
+									<div>
+										<label for="name">
 											Name
 										</label>
-										<div class="mt-2">
-											<input id="name" type="text" data-bind="name" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+										<div>
+											<input id="name" type="text" data-bind="name" />
 										</div>
 									</div>
-									<div class="sm:col-span-3">
-										<label for="age" class="block text-sm font-medium text-white">
+									<div>
+										<label for="age">
 											Age
 										</label>
-										<div class="mt-2">
-											<input id="age" type="number" data-bind="age" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+										<div>
+											<input id="age" type="number" data-bind="age" />
 										</div>
 									</div>
-									<div class="sm:col-span-3">
-										<label for="is_active" class="block text-sm font-medium text-white">
+									<div>
+										<label for="is_active">
 											Is Active
 										</label>
-										<div class="mt-2">
-											<input id="is_active" type="checkbox" data-bind="is_active" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+										<div>
+											<input id="is_active" type="checkbox" data-bind="is_active" />
 										</div>
 									</div>
 									</div>
 							</div>
 						</div>
-						<div class="mt-6 flex items-center justify-end gap-x-6">
-							<a href="/" class="text-sm font-semibold text-white hover:text-gray-300">Cancel</a>
-							<button type="submit" class="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">Create User</button>
+						<div>
+							<a href="/">Cancel</a>
+							<button type="submit">Create User</button>
 						</div>
 					</form>
 				</div>
@@ -163,63 +163,62 @@ templ UserNew() {
 
 templ UserEdit(user models.User) {
 	@base() {
-		<div class="container mx-auto p-6">
-			<div class="flex items-center justify-between mb-8">
-				<h1 class="text-2xl font-semibold text-white">Edit User</h1>
-				<a href="/" class="text-sm font-semibold text-gray-400 hover:text-white">Back to List</a>
+		<div>
+			<div>
+				<h1>Edit User</h1>
+				<a href="/">Back to List</a>
 			</div>
-			<div class="bg-white/5 rounded-lg border border-white/10">
-				<div class="p-6">
+			<div>
+				<div>
 					<form data-on-submit={ fmt.Sprintf("@put('%s')", "/") }>
-						<div class="space-y-6">
-							<div class="border-b border-white/10 pb-6">
-								<h2 class="text-base font-semibold text-white">User Information</h2>
-								<p class="mt-1 text-sm text-gray-400">Update the details for this user.</p>
-								<div class="mt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-									<div class="sm:col-span-3">
-										<label for="email" class="block text-sm font-medium text-white">
+						<div>
+							<div>
+								<h2>User Information</h2>
+								<p>Update the details for this user.</p>
+								<div>
+									<div>
+										<label for="email">
 											Email
 										</label>
-										<div class="mt-2">
-											<input id="email" type="text" data-bind="email" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ user.Email } />
+										<div>
+											<input id="email" type="text" data-bind="email" value={ user.Email } />
 										</div>
 									</div>
-									<div class="sm:col-span-3">
-										<label for="name" class="block text-sm font-medium text-white">
+									<div>
+										<label for="name">
 											Name
 										</label>
-										<div class="mt-2">
-											<input id="name" type="text" data-bind="name" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ user.Name } />
+										<div>
+											<input id="name" type="text" data-bind="name" value={ user.Name } />
 										</div>
 									</div>
-									<div class="sm:col-span-3">
-										<label for="age" class="block text-sm font-medium text-white">
+									<div>
+										<label for="age">
 											Age
 										</label>
-										<div class="mt-2">
-											<input id="age" type="number" data-bind="age" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ fmt.Sprintf("%d", user.Age) } />
+										<div>
+											<input id="age" type="number" data-bind="age" value={ fmt.Sprintf("%d", user.Age) } />
 										</div>
 									</div>
-									<div class="sm:col-span-3">
-										<label for="is_active" class="block text-sm font-medium text-white">
+									<div>
+										<label for="is_active">
 											Is Active
 										</label>
-										<div class="mt-2">
-											<input id="is_active" type="checkbox" data-bind="is_active" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ fmt.Sprintf("%t", user.IsActive) } />
+										<div>
+											<input id="is_active" type="checkbox" data-bind="is_active" value={ fmt.Sprintf("%t", user.IsActive) } />
 										</div>
 									</div>
 									</div>
 							</div>
 						</div>
-						<div class="mt-6 flex items-center justify-end gap-x-6">
-							<a href="/" class="text-sm font-semibold text-white hover:text-gray-300">Cancel</a>
-							<button type="submit" class="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">Update User</button>
+						<div>
+							<a href="/">Cancel</a>
+							<button type="submit">Update User</button>
 						</div>
 					</form>
-					<div class="mt-6 pt-6 border-t border-white/10">
-						<button 
-							data-on-click={ fmt.Sprintf("@delete('%s')", "/")) }
-							class="rounded-md bg-red-500 px-3 py-2 text-sm font-semibold text-white hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500">Destroy User</button>
+					<div>
+						<button
+							data-on-click={ fmt.Sprintf("@delete('%s')", "/")) }>Destroy User</button>
 					</div>
 				</div>
 			</div>
