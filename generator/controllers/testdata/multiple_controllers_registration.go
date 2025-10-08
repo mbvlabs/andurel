@@ -16,6 +16,7 @@ type Controllers struct {
 	Assets   Assets
 	API      API
 	Pages    Pages
+	Users    Users
 	Products Products
 }
 
@@ -35,12 +36,14 @@ func New(
 	assets := newAssets()
 	api := newAPI(db)
 	pages := newPages(db, pageCacher)
+	users := newUsers(db)
 	products := newProducts(db)
 
 	return Controllers{
 		assets,
 		api,
 		pages,
+		users,
 		products,
 	}, nil
 }

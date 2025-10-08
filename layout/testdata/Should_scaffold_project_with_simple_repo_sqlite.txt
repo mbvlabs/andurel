@@ -1089,9 +1089,9 @@ func New(
 	api := newAPI(db)
 
 	return Controllers{
-		Assets: assets,
-		Pages:  pages,
-		API:    api,
+		assets,
+		pages,
+		api,
 	}, nil
 }
 
