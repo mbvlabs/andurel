@@ -35,8 +35,7 @@ func (e Email) Apply(ctx *Context) error {
 	// Add email sender as controller dependency
 	builder.AddControllerDependency("emailClient", "email.Client")
 
-	builder.AddConfigField("MailHogHost", "MAIL_HOG_HOST")
-	builder.AddConfigField("MailHogPort", "MAIL_HOG_PORT")
+	builder.AddConfigField("Email", "email")
 
 	// Render all template files
 	if err := e.renderTemplates(ctx); err != nil {
@@ -52,6 +51,7 @@ func (e Email) renderTemplates(ctx *Context) error {
 		"email_base_layout.tmpl": "email/base_layout.templ",
 		"email_components.tmpl":  "email/components.templ",
 		"clients_mail_hog.tmpl":  "clients/mail_hog.go",
+		"config_email.tmpl":      "config/email.go",
 	}
 
 	// Process each template

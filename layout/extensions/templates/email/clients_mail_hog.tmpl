@@ -13,17 +13,9 @@ type MailHog struct {
 }
 
 func NewMailHog(host, port string) *MailHog {
-	if host == "" {
-		host = "localhost"
-	}
-
-	if port == "" {
-		port = "1025"
-	}
-
 	return &MailHog{
-		host: host,
-		port: port,
+		host,
+		port,
 	}
 }
 

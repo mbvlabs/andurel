@@ -1,0 +1,22 @@
+package config
+
+import (
+	"github.com/caarlos0/env/v10"
+)
+
+type email struct {
+	MailHogHost string `env:"MAIL_HOG_HOST" envDefault:"0.0.0.0"`
+	MailHogPort string `env:"MAIL_HOG_PORT" envDefault:"1025"`
+}
+
+func newEmailConfig() email {
+	cfg := email{}
+
+	if err := env.ParseWithOptions(&cfg, env.Options{
+		RequiredIfNoDef: true,
+	}); err != nil {
+		panic(err)
+	}
+
+	return cfg
+}

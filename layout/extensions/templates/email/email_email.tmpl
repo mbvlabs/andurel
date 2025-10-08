@@ -16,5 +16,7 @@ type Client struct {
 }
 
 func New(cfg config.Config) Client {
-	return Client{clients.NewMailHog(cfg.MailHogHost, cfg.MailHogPort)}
+	return Client{
+		clients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort),
+	}
 }
