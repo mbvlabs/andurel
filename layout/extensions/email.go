@@ -28,7 +28,7 @@ func (e Email) Apply(ctx *Context) error {
 	// Add email service initialization in main.go
 	builder.AddMainInitialization(
 		"emailClient",
-		"email.New()",
+		"email.New(cfg)",
 		"cfg",
 	)
 
