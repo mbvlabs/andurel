@@ -2,6 +2,7 @@
 package router
 
 import (
+	"context"
 	"encoding/gob"
 	"encoding/hex"
 	"fmt"
@@ -30,6 +31,7 @@ type Router struct {
 }
 
 func New(
+	ctx context.Context,
 	controllers controllers.Controllers,
 	cfg config.Config,
 ) (*Router, error) {
@@ -59,6 +61,7 @@ func New(
 	csrfName := "_csrf"
 
 	router.Use(
+		logger(),
 		session.Middleware(
 			sessions.NewCookieStore(
 				authKey,
@@ -80,7 +83,6 @@ func New(
 		}(), CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
 
 		echomw.Recover(),
-		echomw.Logger(),
 	)
 
 	return &Router{
@@ -212,5 +214,63 @@ func registerFlashMessagesContext(
 		c.Set(string(cookies.FlashKey), flashes)
 
 		return next(c)
+	}
+}
+
+type LogExporter interface {
+	Name() string
+	GetSlogHandler(
+		ctx context.Context,
+	) (slog.Handler, error)
+
+	Shutdown(ctx context.Context) error
+}
+
+func NewLogger(
+	ctx context.Context,
+	exporter LogExporter,
+) (*slog.Logger, func(ctx context.Context) error) {
+	handler, err := exporter.GetSlogHandler(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	return slog.New(handler), exporter.Shutdown
+}
+
+func logger() echo.MiddlewareFunc {
+	otelMiddleware := otelecho.Middleware(
+		config.ProjectName,
+	)
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if strings.Contains(c.Request().URL.Path, routes.APIRoutePrefix) ||
+				strings.Contains(c.Request().URL.Path, routes.AssetsRoutePrefix) {
+				return next(c)
+			}
+
+			start := time.Now()
+
+			var statusCode int
+			wrappedNext := func(c echo.Context) error {
+				err := next(c)
+				statusCode = c.Response().Status
+				return err
+			}
+
+			err := otelMiddleware(wrappedNext)(c)
+			duration := time.Since(start)
+
+			slog.InfoContext(c.Request().Context(), "HTTP request completed",
+				"method", c.Request().Method,
+				"path", c.Request().URL.Path,
+				"status", statusCode,
+				"remote_addr", c.RealIP(),
+				"user_agent", c.Request().UserAgent(),
+				"duration", duration.String(),
+			)
+
+			return err
+		}
 	}
 }
