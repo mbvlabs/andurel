@@ -273,7 +273,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"env.tmpl":       ".env.example",
 	"sqlc.tmpl":      "database/sqlc.yaml",
 	"gitignore.tmpl": ".gitignore",
-	"justfile.tmpl":  "justfile",
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
