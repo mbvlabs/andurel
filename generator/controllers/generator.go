@@ -44,13 +44,13 @@ type Config struct {
 
 type Generator struct {
 	typeMapper  *types.TypeMapper
-	fileManager *files.Manager
+	fileManager files.FileManager
 }
 
 func NewGenerator(databaseType string) *Generator {
 	return &Generator{
 		typeMapper:  types.NewTypeMapper(databaseType),
-		fileManager: files.NewManager(),
+		fileManager: files.NewUnifiedFileManager(),
 	}
 }
 

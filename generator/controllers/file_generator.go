@@ -17,14 +17,14 @@ import (
 )
 
 type FileGenerator struct {
-	fileManager      *files.Manager
+	fileManager      files.FileManager
 	templateRenderer *TemplateRenderer
 	routeGenerator   *RouteGenerator
 }
 
 func NewFileGenerator() *FileGenerator {
 	return &FileGenerator{
-		fileManager:      files.NewManager(),
+		fileManager:      files.NewUnifiedFileManager(),
 		templateRenderer: NewTemplateRenderer(),
 		routeGenerator:   NewRouteGenerator(),
 	}
@@ -61,7 +61,7 @@ func (fg *FileGenerator) GenerateController(
 		return fmt.Errorf("failed to render controller file: %w", err)
 	}
 
-	if err := fg.fileManager.EnsureDirectoryExists("controllers"); err != nil {
+	if err := fg.fileManager.EnsureDir("controllers"); err != nil {
 		return err
 	}
 

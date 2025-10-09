@@ -1,0 +1,380 @@
+package generator
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/mbvlabs/andurel/generator/files"
+	"gopkg.in/yaml.v3"
+)
+
+// UnifiedConfig represents the single source of truth for all configuration
+type UnifiedConfig struct {
+	Database   DatabaseConfig   `yaml:"database"`
+	Paths      PathConfig       `yaml:"paths"`
+	Templates  TemplateConfig   `yaml:"templates"`
+	Files      FileConfig       `yaml:"files"`
+	Project    ProjectConfig    `yaml:"project"`
+	Generation GenerationConfig `yaml:"generation"`
+}
+
+// DatabaseConfig contains database-specific configuration
+type DatabaseConfig struct {
+	Type          string   `yaml:"type"`
+	MigrationDirs []string `yaml:"migration_dirs"`
+	DefaultSchema string   `yaml:"default_schema"`
+	Driver        string   `yaml:"driver"`
+	Method        string   `yaml:"method"`
+}
+
+// PathConfig contains path configurations
+type PathConfig struct {
+	Models      string `yaml:"models"`
+	Controllers string `yaml:"controllers"`
+	Views       string `yaml:"views"`
+	Routes      string `yaml:"routes"`
+	Queries     string `yaml:"queries"`
+	Migrations  string `yaml:"migrations"`
+	Database    string `yaml:"database"`
+}
+
+// TemplateConfig contains template-related configuration
+type TemplateConfig struct {
+	CacheEnabled bool `yaml:"cache_enabled"`
+	CacheTTL     int  `yaml:"cache_ttl"`
+}
+
+// FileConfig contains file-related configuration
+type FileConfig struct {
+	PrivatePermission os.FileMode `yaml:"private_permission"`
+	DirPermission     os.FileMode `yaml:"dir_permission"`
+}
+
+// ProjectConfig contains project-specific configuration
+type ProjectConfig struct {
+	Name        string `yaml:"name"`
+	ModulePath  string `yaml:"module_path"`
+	PackageName string `yaml:"package_name"`
+}
+
+// GenerationConfig contains code generation configuration
+type GenerationConfig struct {
+	GenerateJSON bool   `yaml:"generate_json"`
+	OutputFormat string `yaml:"output_format"`
+}
+
+// ConfigManager manages configuration loading and validation
+type ConfigManager struct {
+	config    *UnifiedConfig
+	validator *ConfigValidator
+}
+
+// ConfigValidator validates configuration values
+type ConfigValidator struct{}
+
+// NewConfigManager creates a new configuration manager
+func NewConfigManager() *ConfigManager {
+	return &ConfigManager{
+		validator: &ConfigValidator{},
+	}
+}
+
+// Load loads configuration from multiple sources (file, env, defaults)
+func (cm *ConfigManager) Load() (*UnifiedConfig, error) {
+	config := cm.getDefaultConfig()
+
+	// Try to load from config file
+	if err := cm.loadFromFile(config); err != nil {
+		// Log warning but continue with defaults
+		fmt.Printf("Warning: Could not load config file: %v\n", err)
+	}
+
+	// Load from environment variables
+	cm.loadFromEnv(config)
+
+	// Validate configuration
+	if err := cm.validator.Validate(config); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	cm.config = config
+	return config, nil
+}
+
+// GetConfig returns the current configuration
+func (cm *ConfigManager) GetConfig() *UnifiedConfig {
+	if cm.config == nil {
+		config, _ := cm.Load()
+		return config
+	}
+	return cm.config
+}
+
+// loadFromFile loads configuration from YAML file
+func (cm *ConfigManager) loadFromFile(config *UnifiedConfig) error {
+	manager := files.NewUnifiedFileManager()
+	rootDir, err := manager.FindGoModRoot()
+	if err != nil {
+		return fmt.Errorf("failed to find go.mod root: %w", err)
+	}
+
+	configPath := filepath.Join(rootDir, "andurel.yaml")
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return fmt.Errorf("config file not found at %s", configPath)
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	if err := yaml.Unmarshal(data, config); err != nil {
+		return fmt.Errorf("failed to parse config file: %w", err)
+	}
+
+	return nil
+}
+
+// loadFromEnv loads configuration from environment variables
+func (cm *ConfigManager) loadFromEnv(config *UnifiedConfig) {
+	if dbType := os.Getenv("ANDUREL_DB_TYPE"); dbType != "" {
+		config.Database.Type = dbType
+	}
+	if modulePath := os.Getenv("ANDUREL_MODULE_PATH"); modulePath != "" {
+		config.Project.ModulePath = modulePath
+	}
+	if projectName := os.Getenv("ANDUREL_PROJECT_NAME"); projectName != "" {
+		config.Project.Name = projectName
+	}
+}
+
+// getDefaultConfig returns the default configuration
+func (cm *ConfigManager) getDefaultConfig() *UnifiedConfig {
+	databaseType := "postgresql" // fallback default
+	if dbType, err := readDatabaseTypeFromSQLCYAML(); err == nil {
+		databaseType = dbType
+	}
+
+	return &UnifiedConfig{
+		Database: DatabaseConfig{
+			Type:          databaseType,
+			MigrationDirs: []string{"database/migrations"},
+			DefaultSchema: "public",
+			Driver:        cm.getDatabaseDriver(databaseType),
+			Method:        "Conn",
+		},
+		Paths: PathConfig{
+			Models:      "models",
+			Controllers: "controllers",
+			Views:       "views",
+			Routes:      "router/routes",
+			Queries:     "database/queries",
+			Migrations:  "database/migrations",
+			Database:    "database",
+		},
+		Templates: TemplateConfig{
+			CacheEnabled: true,
+			CacheTTL:     3600, // 1 hour
+		},
+		Files: FileConfig{
+			PrivatePermission: 0o600,
+			DirPermission:     0o755,
+		},
+		Project: ProjectConfig{
+			PackageName: "models",
+		},
+		Generation: GenerationConfig{
+			GenerateJSON: true,
+			OutputFormat: "go",
+		},
+	}
+}
+
+// getDatabaseDriver returns the appropriate driver for the database type
+func (cm *ConfigManager) getDatabaseDriver(dbType string) string {
+	switch dbType {
+	case "postgresql":
+		return "pgx"
+	case "sqlite":
+		return "sqlite3"
+	default:
+		return ""
+	}
+}
+
+// Validate validates the configuration
+func (cv *ConfigValidator) Validate(config *UnifiedConfig) error {
+	// Validate database type
+	if config.Database.Type != "postgresql" && config.Database.Type != "sqlite" {
+		return fmt.Errorf("unsupported database type: %s (supported: postgresql, sqlite)", config.Database.Type)
+	}
+
+	// Validate required paths
+	if config.Paths.Models == "" {
+		return fmt.Errorf("models path cannot be empty")
+	}
+	if config.Paths.Controllers == "" {
+		return fmt.Errorf("controllers path cannot be empty")
+	}
+	if config.Paths.Views == "" {
+		return fmt.Errorf("views path cannot be empty")
+	}
+
+	// Validate file permissions
+	if config.Files.PrivatePermission == 0 {
+		config.Files.PrivatePermission = 0o600
+	}
+	if config.Files.DirPermission == 0 {
+		config.Files.DirPermission = 0o755
+	}
+
+	return nil
+}
+
+// GetModelConfig returns configuration for model generation
+func (uc *UnifiedConfig) GetModelConfig() ModelConfig {
+	return ModelConfig{
+		TableName:    "", // Set per generation
+		ResourceName: "", // Set per generation
+		PackageName:  uc.Project.PackageName,
+		DatabaseType: uc.Database.Type,
+		ModulePath:   uc.Project.ModulePath,
+		Paths: ModelPaths{
+			Models:  uc.Paths.Models,
+			Queries: uc.Paths.Queries,
+		},
+		Generation: uc.Generation,
+	}
+}
+
+// GetControllerConfig returns configuration for controller generation
+func (uc *UnifiedConfig) GetControllerConfig() ControllerConfig {
+	return ControllerConfig{
+		ResourceName: "", // Set per generation
+		PluralName:   "", // Set per generation
+		PackageName:  uc.Project.PackageName,
+		ModulePath:   uc.Project.ModulePath,
+		Paths: ControllerPaths{
+			Controllers: uc.Paths.Controllers,
+			Routes:      uc.Paths.Routes,
+		},
+	}
+}
+
+// GetViewConfig returns configuration for view generation
+func (uc *UnifiedConfig) GetViewConfig() ViewConfig {
+	return ViewConfig{
+		ResourceName: "", // Set per generation
+		PluralName:   "", // Set per generation
+		ModulePath:   uc.Project.ModulePath,
+		Paths: ViewPaths{
+			Views: uc.Paths.Views,
+		},
+	}
+}
+
+// Helper structs for specific generator configurations
+type ModelConfig struct {
+	TableName    string           `json:"table_name"`
+	ResourceName string           `json:"resource_name"`
+	PackageName  string           `json:"package_name"`
+	DatabaseType string           `json:"database_type"`
+	ModulePath   string           `json:"module_path"`
+	Paths        ModelPaths       `json:"paths"`
+	Generation   GenerationConfig `json:"generation"`
+}
+
+type ModelPaths struct {
+	Models  string `json:"models"`
+	Queries string `json:"queries"`
+}
+
+type ControllerConfig struct {
+	ResourceName string          `json:"resource_name"`
+	PluralName   string          `json:"plural_name"`
+	PackageName  string          `json:"package_name"`
+	ModulePath   string          `json:"module_path"`
+	Paths        ControllerPaths `json:"paths"`
+}
+
+type ControllerPaths struct {
+	Controllers string `json:"controllers"`
+	Routes      string `json:"routes"`
+}
+
+type ViewConfig struct {
+	ResourceName string    `json:"resource_name"`
+	PluralName   string    `json:"plural_name"`
+	ModulePath   string    `json:"module_path"`
+	Paths        ViewPaths `json:"paths"`
+}
+
+type ViewPaths struct {
+	Views string `json:"views"`
+}
+
+// Global config manager instance
+var globalConfigManager *ConfigManager
+
+// GetGlobalConfigManager returns the global configuration manager
+func GetGlobalConfigManager() *ConfigManager {
+	if globalConfigManager == nil {
+		globalConfigManager = NewConfigManager()
+	}
+	return globalConfigManager
+}
+
+// GetGlobalConfig returns the global configuration
+func GetGlobalConfig() *UnifiedConfig {
+	return GetGlobalConfigManager().GetConfig()
+}
+
+
+// SQLCConfig for reading sqlc.yaml files
+type SQLCConfig struct {
+	SQL []SQLConfig `yaml:"sql"`
+}
+
+type SQLConfig struct {
+	Engine string `yaml:"engine"`
+}
+
+// readDatabaseTypeFromSQLCYAML reads database type from sqlc.yaml
+func readDatabaseTypeFromSQLCYAML() (string, error) {
+	manager := files.NewUnifiedFileManager()
+	rootDir, err := manager.FindGoModRoot()
+	if err != nil {
+		return "", fmt.Errorf("failed to find go.mod root: %w", err)
+	}
+
+	sqlcPath := filepath.Join(rootDir, "database", "sqlc.yaml")
+
+	if _, err := os.Stat(sqlcPath); os.IsNotExist(err) {
+		return "", fmt.Errorf("sqlc.yaml not found at %s", sqlcPath)
+	}
+
+	data, err := os.ReadFile(sqlcPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read sqlc.yaml: %w", err)
+	}
+
+	var config SQLCConfig
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return "", fmt.Errorf("failed to parse sqlc.yaml: %w", err)
+	}
+
+	if len(config.SQL) == 0 {
+		return "", fmt.Errorf("no SQL configuration found in sqlc.yaml")
+	}
+
+	engine := config.SQL[0].Engine
+	if engine != "postgresql" && engine != "sqlite" {
+		return "", fmt.Errorf(
+			"unsupported database engine: %s (supported: postgresql, sqlite)",
+			engine,
+		)
+	}
+
+	return engine, nil
+}
