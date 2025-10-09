@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	{{.PluralName | ToLower}}RoutePrefix = "/{{.PluralName}}"
-	{{.PluralName | ToLower}}NamePrefix  = "{{.PluralName}}"
+	{{.PluralName | ToCamelCase}}RoutePrefix = "/{{.PluralName}}"
+	{{.PluralName | ToCamelCase}}NamePrefix  = "{{.PluralName}}"
 )
 
 var {{.ResourceName}}Routes = []Route{
@@ -23,98 +23,98 @@ var {{.ResourceName}}Routes = []Route{
 }
 
 var {{.ResourceName}}Index = Route{
-	Name:         {{.PluralName | ToLower}}NamePrefix + ".index",
-	Path:         {{.PluralName | ToLower}}RoutePrefix,
+	Name:         {{.PluralName | ToCamelCase}}NamePrefix + ".index",
+	Path:         {{.PluralName | ToCamelCase}}RoutePrefix,
 	Method:       http.MethodGet,
 	Controller:      "{{.ResourceName}}s",
 	ControllerMethod: "Index",
 }
 
-var {{.ResourceName}}Show = {{.PluralName | ToLower}}Show{
+var {{.ResourceName}}Show = {{.PluralName | ToCamelCase}}Show{
 	Route: Route{
-		Name:         {{.PluralName | ToLower}}NamePrefix + ".show",
-		Path:         {{.PluralName | ToLower}}RoutePrefix + "/:id",
+		Name:         {{.PluralName | ToCamelCase}}NamePrefix + ".show",
+		Path:         {{.PluralName | ToCamelCase}}RoutePrefix + "/:id",
 		Method:       http.MethodGet,
 		Controller:      "{{.ResourceName}}s",
 		ControllerMethod: "Show",
 	},
 }
 
-type {{.PluralName | ToLower}}Show struct {
+type {{.PluralName | ToCamelCase}}Show struct {
 	Route
 }
 
-func (r {{.PluralName | ToLower}}Show) GetPath(id uuid.UUID) string {
+func (r {{.PluralName | ToCamelCase}}Show) GetPath(id uuid.UUID) string {
 	return strings.Replace(r.Path, ":id", id.String(), 1)
 }
 
 var {{.ResourceName}}New = Route{
-	Name:         {{.PluralName | ToLower}}NamePrefix + ".new",
-	Path:         {{.PluralName | ToLower}}RoutePrefix + "/new",
+	Name:         {{.PluralName | ToCamelCase}}NamePrefix + ".new",
+	Path:         {{.PluralName | ToCamelCase}}RoutePrefix + "/new",
 	Method:       http.MethodGet,
 	Controller:      "{{.ResourceName}}s",
 	ControllerMethod: "New",
 }
 
 var {{.ResourceName}}Create = Route{
-	Name:         {{.PluralName | ToLower}}NamePrefix + ".create",
-	Path:         {{.PluralName | ToLower}}RoutePrefix,
+	Name:         {{.PluralName | ToCamelCase}}NamePrefix + ".create",
+	Path:         {{.PluralName | ToCamelCase}}RoutePrefix,
 	Method:       http.MethodPost,
 	Controller:      "{{.ResourceName}}s",
 	ControllerMethod: "Create",
 }
 
-var {{.ResourceName}}Edit = {{.PluralName | ToLower}}Edit{
+var {{.ResourceName}}Edit = {{.PluralName | ToCamelCase}}Edit{
 	Route: Route{
-		Name:         {{.PluralName | ToLower}}NamePrefix + ".edit",
-		Path:         {{.PluralName | ToLower}}RoutePrefix + "/:id/edit",
+		Name:         {{.PluralName | ToCamelCase}}NamePrefix + ".edit",
+		Path:         {{.PluralName | ToCamelCase}}RoutePrefix + "/:id/edit",
 		Method:       http.MethodGet,
 		Controller:      "{{.ResourceName}}s",
 		ControllerMethod: "Edit",
 	},
 }
 
-type {{.PluralName | ToLower}}Edit struct {
+type {{.PluralName | ToCamelCase}}Edit struct {
 	Route
 }
 
-func (r {{.PluralName | ToLower}}Edit) GetPath(id uuid.UUID) string {
+func (r {{.PluralName | ToCamelCase}}Edit) GetPath(id uuid.UUID) string {
 	return strings.Replace(r.Path, ":id", id.String(), 1)
 }
 
-var {{.ResourceName}}Update = {{.PluralName | ToLower}}Update{
+var {{.ResourceName}}Update = {{.PluralName | ToCamelCase}}Update{
 	Route: Route{
-		Name:         {{.PluralName | ToLower}}NamePrefix + ".update",
-		Path:         {{.PluralName | ToLower}}RoutePrefix + "/:id",
+		Name:         {{.PluralName | ToCamelCase}}NamePrefix + ".update",
+		Path:         {{.PluralName | ToCamelCase}}RoutePrefix + "/:id",
 		Method:       http.MethodPut,
 		Controller:      "{{.ResourceName}}s",
 		ControllerMethod: "Update",
 	},
 }
 
-type {{.PluralName | ToLower}}Update struct {
+type {{.PluralName | ToCamelCase}}Update struct {
 	Route
 }
 
-func (r {{.PluralName | ToLower}}Update) GetPath(id uuid.UUID) string {
+func (r {{.PluralName | ToCamelCase}}Update) GetPath(id uuid.UUID) string {
 	return strings.Replace(r.Path, ":id", id.String(), 1)
 }
 
-var {{.ResourceName}}Destroy = {{.PluralName | ToLower}}Destroy{
+var {{.ResourceName}}Destroy = {{.PluralName | ToCamelCase}}Destroy{
 	Route: Route{
-		Name:         {{.PluralName | ToLower}}NamePrefix + ".destroy",
-		Path:         {{.PluralName | ToLower}}RoutePrefix + "/:id",
+		Name:         {{.PluralName | ToCamelCase}}NamePrefix + ".destroy",
+		Path:         {{.PluralName | ToCamelCase}}RoutePrefix + "/:id",
 		Method:       http.MethodDelete,
 		Controller:      "{{.ResourceName}}s",
 		ControllerMethod: "Destroy",
 	},
 }
 
-type {{.PluralName | ToLower}}Destroy struct {
+type {{.PluralName | ToCamelCase}}Destroy struct {
 	Route
 }
 
-func (r {{.PluralName | ToLower}}Destroy) GetPath(id uuid.UUID) string {
+func (r {{.PluralName | ToCamelCase}}Destroy) GetPath(id uuid.UUID) string {
 	return strings.Replace(r.Path, ":id", id.String(), 1)
 }
 

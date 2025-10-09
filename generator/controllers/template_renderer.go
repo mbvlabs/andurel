@@ -3,6 +3,7 @@ package controllers
 import (
 	"strings"
 	"text/template"
+	"unicode"
 
 	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/pkg/errors"
@@ -26,7 +27,9 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 	}
 
 	funcMap := template.FuncMap{
-		"ToLower": strings.ToLower,
+		"ToLower":           strings.ToLower,
+		"ToLowerCamelCase": tr.toLowerCamelCase,
+		"ToCamelCase":       tr.toCamelCase,
 		"DatabaseType": func() string {
 			return controller.DatabaseType
 		},
@@ -64,7 +67,8 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName string
 	}
 
 	funcMap := template.FuncMap{
-		"ToLower": strings.ToLower,
+		"ToLower":      strings.ToLower,
+		"ToCamelCase": tr.toCamelCase,
 	}
 
 	tmpl, err := templates.GetCachedTemplate("route.tmpl", funcMap)
@@ -78,4 +82,50 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName string
 	}
 
 	return buf.String(), nil
+}
+
+// toCamelCase converts snake_case to camelCase for use in templates
+func (tr *TemplateRenderer) toCamelCase(s string) string {
+	if s == "" {
+		return ""
+	}
+
+	parts := strings.Split(s, "_")
+	if len(parts) == 0 {
+		return s
+	}
+
+	var builder strings.Builder
+	builder.Grow(len(s))
+
+	// First part stays lowercase
+	builder.WriteString(strings.ToLower(parts[0]))
+
+	// Capitalize first letter of remaining parts
+	for i := 1; i < len(parts); i++ {
+		if len(parts[i]) > 0 {
+			builder.WriteString(strings.ToUpper(parts[i][:1]))
+			if len(parts[i]) > 1 {
+				builder.WriteString(strings.ToLower(parts[i][1:]))
+			}
+		}
+	}
+
+	return builder.String()
+}
+
+// toLowerCamelCase converts PascalCase to camelCase for use in templates
+func (tr *TemplateRenderer) toLowerCamelCase(s string) string {
+	if s == "" {
+		return ""
+	}
+
+	runes := []rune(s)
+	if len(runes) == 0 {
+		return s
+	}
+
+	// Convert first character to lowercase
+	runes[0] = unicode.ToLower(runes[0])
+	return string(runes)
 }

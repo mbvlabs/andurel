@@ -49,7 +49,7 @@ func (r {{.ResourceName}}s) Index(c echo.Context) error {
 		}
 	}
 
-	{{.PluralName}}List, err := models.Paginate{{.ResourceName}}s(
+	{{.PluralName | ToCamelCase}}List, err := models.Paginate{{.ResourceName}}s(
 		c.Request().Context(),
 		r.db.{{DatabaseMethod}}(),
 		page,
@@ -59,25 +59,25 @@ func (r {{.ResourceName}}s) Index(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return c.HTML(http.StatusOK, "{{.ResourceName | ToLower}}s index - no views implemented")
+	return c.HTML(http.StatusOK, "{{.ResourceName | ToLowerCamelCase}}s index - no views implemented")
 }
 
 func (r {{.ResourceName}}s) Show(c echo.Context) error {
-	{{.ResourceName | ToLower}}ID, err := uuid.Parse(c.Param("id"))
+	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
 	}
 
-	{{.ResourceName | ToLower}}, err := models.Find{{.ResourceName}}(c.Request().Context(), r.db.{{DatabaseMethod}}(), {{.ResourceName | ToLower}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(c.Request().Context(), r.db.{{DatabaseMethod}}(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return render(c, views.NotFound())
 	}
 
-	return c.HTML(http.StatusOK, "{{.ResourceName | ToLower}} show - no views implemented")
+	return c.HTML(http.StatusOK, "{{.ResourceName | ToLowerCamelCase}} show - no views implemented")
 }
 
 func (r {{.ResourceName}}s) New(c echo.Context) error {
-	return c.HTML(http.StatusOK, "{{.ResourceName | ToLower}} new - no views implemented")
+	return c.HTML(http.StatusOK, "{{.ResourceName | ToLowerCamelCase}} new - no views implemented")
 }
 
 type Create{{.ResourceName}}FormPayload struct {
@@ -125,13 +125,13 @@ func (r {{.ResourceName}}s) Create(c echo.Context) error {
 {{- end}}
 	}
 
-	{{.ResourceName | ToLower}}, err := models.Create{{.ResourceName}}(
+	{{.ResourceName | ToLowerCamelCase}}, err := models.Create{{.ResourceName}}(
 		c.Request().Context(),
 		r.db.{{DatabaseMethod}}(),
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to create {{.ResourceName | ToLower}}: %v", err)); flashErr != nil {
+		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to create {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return flashErr
 		}
 		return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}New.Path)
@@ -141,21 +141,21 @@ func (r {{.ResourceName}}s) Create(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.GetPath({{.ResourceName | ToLower}}.ID))
+	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.GetPath({{.ResourceName | ToLowerCamelCase}}.ID))
 }
 
 func (r {{.ResourceName}}s) Edit(c echo.Context) error {
-	{{.ResourceName | ToLower}}ID, err := uuid.Parse(c.Param("id"))
+	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
 	}
 
-	{{.ResourceName | ToLower}}, err := models.Find{{.ResourceName}}(c.Request().Context(), r.db.{{DatabaseMethod}}(), {{.ResourceName | ToLower}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(c.Request().Context(), r.db.{{DatabaseMethod}}(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return render(c, views.NotFound())
 	}
 
-	return c.HTML(http.StatusOK, "{{.ResourceName | ToLower}} edit - no views implemented")
+	return c.HTML(http.StatusOK, "{{.ResourceName | ToLowerCamelCase}} edit - no views implemented")
 }
 
 type Update{{.ResourceName}}FormPayload struct {
@@ -171,7 +171,7 @@ type Update{{.ResourceName}}FormPayload struct {
 }
 
 func (r {{.ResourceName}}s) Update(c echo.Context) error {
-	{{.ResourceName | ToLower}}ID, err := uuid.Parse(c.Param("id"))
+	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
 	}
@@ -189,7 +189,7 @@ func (r {{.ResourceName}}s) Update(c echo.Context) error {
 	}
 
 	data := models.Update{{.ResourceName}}Data{
-		ID:      {{.ResourceName | ToLower}}ID,
+		ID:      {{.ResourceName | ToLowerCamelCase}}ID,
 {{- range .Fields}}
 {{- if not .IsSystemField}}
 		{{- if eq .GoFormType "time.Time"}}
@@ -209,18 +209,18 @@ func (r {{.ResourceName}}s) Update(c echo.Context) error {
 {{- end}}
 	}
 
-	{{.ResourceName | ToLower}}, err := models.Update{{.ResourceName}}(
+	{{.ResourceName | ToLowerCamelCase}}, err := models.Update{{.ResourceName}}(
 		c.Request().Context(),
 		r.db.{{DatabaseMethod}}(),
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLower}}: %v", err)); flashErr != nil {
+		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return render(c, views.InternalError())
 		}
 		return c.Redirect(
 			http.StatusSeeOther,
-			routes.{{.ResourceName}}Edit.GetPath({{.ResourceName | ToLower}}ID),
+			routes.{{.ResourceName}}Edit.GetPath({{.ResourceName | ToLowerCamelCase}}ID),
 		)
 	}
 
@@ -228,18 +228,18 @@ func (r {{.ResourceName}}s) Update(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.GetPath({{.ResourceName | ToLower}}.ID))
+	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.GetPath({{.ResourceName | ToLowerCamelCase}}.ID))
 }
 
 func (r {{.ResourceName}}s) Destroy(c echo.Context) error {
-	{{.ResourceName | ToLower}}ID, err := uuid.Parse(c.Param("id"))
+	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
 	}
 
-	err = models.Destroy{{.ResourceName}}(c.Request().Context(), r.db.{{DatabaseMethod}}(), {{.ResourceName | ToLower}}ID)
+	err = models.Destroy{{.ResourceName}}(c.Request().Context(), r.db.{{DatabaseMethod}}(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
-		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLower}}: %v", err)); flashErr != nil {
+		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return render(c, views.InternalError())
 		}
 		return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.Path)

@@ -101,7 +101,7 @@ func (fg *FileGenerator) registerController(resourceName string) error {
 
 	pluralName := resourceName + "s"
 	fieldName := pluralName
-	varName := strings.ToLower(resourceName) + "s"
+	varName := naming.ToCamelCase(naming.ToSnakeCase(resourceName)) + "s"
 	constructorName := "new" + pluralName
 
 	// Check if controller already registered

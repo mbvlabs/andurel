@@ -9,8 +9,6 @@ import (
 
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/pkg/constants"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 type RouteGenerator struct {
@@ -49,10 +47,10 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName string) error 
 		return fmt.Errorf("failed to format routes file: %w", err)
 	}
 
-	return rg.registerRoutes(pluralName)
+	return rg.registerRoutes(resourceName)
 }
 
-func (rg *RouteGenerator) registerRoutes(pluralName string) error {
+func (rg *RouteGenerator) registerRoutes(resourceName string) error {
 	routesFilePath := "router/routes/routes.go"
 
 	content, err := os.ReadFile(routesFilePath)
@@ -62,8 +60,6 @@ func (rg *RouteGenerator) registerRoutes(pluralName string) error {
 
 	contentStr := string(content)
 
-	resourceName := cases.Title(language.English).
-		String(strings.TrimSuffix(pluralName, "s"))
 	routeSliceName := resourceName + "Routes"
 
 	if strings.Contains(contentStr, routeSliceName) {

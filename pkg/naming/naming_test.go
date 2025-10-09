@@ -45,3 +45,53 @@ func TestDeriveTableName(t *testing.T) {
 		})
 	}
 }
+
+func TestToCamelCase(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{name: "single word", input: "users", expected: "users"},
+		{name: "two words", input: "admin_users", expected: "adminUsers"},
+		{name: "three words", input: "product_categories", expected: "productCategories"},
+		{name: "many words", input: "user_profile_settings", expected: "userProfileSettings"},
+		{name: "empty string", input: "", expected: ""},
+		{name: "already camelCase", input: "adminUsers", expected: "adminusers"},
+		{name: "single char parts", input: "a_b_c", expected: "aBC"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ToCamelCase(tt.input)
+			if got != tt.expected {
+				t.Fatalf("ToCamelCase(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestToLowerCamelCase(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{name: "single word", input: "User", expected: "user"},
+		{name: "two words", input: "NewUser", expected: "newUser"},
+		{name: "three words", input: "AdminUser", expected: "adminUser"},
+		{name: "many words", input: "UserProfileSettings", expected: "userProfileSettings"},
+		{name: "empty string", input: "", expected: ""},
+		{name: "already camelCase", input: "user", expected: "user"},
+		{name: "single char", input: "U", expected: "u"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ToLowerCamelCase(tt.input)
+			if got != tt.expected {
+				t.Fatalf("ToLowerCamelCase(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
