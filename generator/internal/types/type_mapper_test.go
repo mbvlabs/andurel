@@ -273,7 +273,13 @@ func TestGenerateConversionFromDB(t *testing.T) {
 			"pgtype.Timestamptz",
 			"row.CreatedAt.Time",
 		},
-		{"pgtype.Timestamp", "UpdatedAt", "pgtype.Timestamp", "pgtype.Timestamp", "row.UpdatedAt.Time"},
+		{
+			"pgtype.Timestamp",
+			"UpdatedAt",
+			"pgtype.Timestamp",
+			"pgtype.Timestamp",
+			"row.UpdatedAt.Time",
+		},
 		{"pgtype.Numeric", "Amount", "pgtype.Numeric", "pgtype.Numeric", "row.Amount"},
 		{"pgtype.JSONB", "Metadata", "pgtype.JSONB", "pgtype.JSONB", "row.Metadata.Bytes"},
 	}
@@ -299,13 +305,55 @@ func TestGenerateConversionToDB(t *testing.T) {
 		valueExpr    string
 		expectedCode string
 	}{
-		{"pgtype.Text", "pgtype.Text", "pgtype.Text", "data.Name", "pgtype.Text{String: data.Name, Valid: true}"},
-		{"pgtype.Bool", "pgtype.Bool", "pgtype.Bool", "data.IsActive", "pgtype.Bool{Bool: data.IsActive, Valid: true}"},
-		{"pgtype.Int2", "pgtype.Int2", "pgtype.Int2", "data.SmallAge", "pgtype.Int2{Int16: data.SmallAge, Valid: true}"},
-		{"pgtype.Int4", "pgtype.Int4", "pgtype.Int4", "data.Age", "pgtype.Int4{Int32: data.Age, Valid: true}"},
-		{"pgtype.Int8", "pgtype.Int8", "pgtype.Int8", "data.BigAge", "pgtype.Int8{Int64: data.BigAge, Valid: true}"},
-		{"pgtype.Float4", "pgtype.Float4", "pgtype.Float4", "data.SmallPrice", "pgtype.Float4{Float32: data.SmallPrice, Valid: true}"},
-		{"pgtype.Float8", "pgtype.Float8", "pgtype.Float8", "data.Price", "pgtype.Float8{Float64: data.Price, Valid: true}"},
+		{
+			"pgtype.Text",
+			"pgtype.Text",
+			"pgtype.Text",
+			"data.Name",
+			"pgtype.Text{String: data.Name, Valid: true}",
+		},
+		{
+			"pgtype.Bool",
+			"pgtype.Bool",
+			"pgtype.Bool",
+			"data.IsActive",
+			"pgtype.Bool{Bool: data.IsActive, Valid: true}",
+		},
+		{
+			"pgtype.Int2",
+			"pgtype.Int2",
+			"pgtype.Int2",
+			"data.SmallAge",
+			"pgtype.Int2{Int16: data.SmallAge, Valid: true}",
+		},
+		{
+			"pgtype.Int4",
+			"pgtype.Int4",
+			"pgtype.Int4",
+			"data.Age",
+			"pgtype.Int4{Int32: data.Age, Valid: true}",
+		},
+		{
+			"pgtype.Int8",
+			"pgtype.Int8",
+			"pgtype.Int8",
+			"data.BigAge",
+			"pgtype.Int8{Int64: data.BigAge, Valid: true}",
+		},
+		{
+			"pgtype.Float4",
+			"pgtype.Float4",
+			"pgtype.Float4",
+			"data.SmallPrice",
+			"pgtype.Float4{Float32: data.SmallPrice, Valid: true}",
+		},
+		{
+			"pgtype.Float8",
+			"pgtype.Float8",
+			"pgtype.Float8",
+			"data.Price",
+			"pgtype.Float8{Float64: data.Price, Valid: true}",
+		},
 		{"uuid direct", "uuid.UUID", "uuid.UUID", "data.ID", "data.ID"},
 		{
 			"pgtype.Timestamptz",
@@ -322,7 +370,13 @@ func TestGenerateConversionToDB(t *testing.T) {
 			"pgtype.Timestamp{Time: data.UpdatedAt, Valid: true}",
 		},
 		{"pgtype.Numeric", "pgtype.Numeric", "pgtype.Numeric", "data.Amount", "data.Amount"},
-		{"pgtype.JSONB", "pgtype.JSONB", "pgtype.JSONB", "data.Metadata", "pgtype.JSONB{Bytes: data.Metadata, Valid: true}"},
+		{
+			"pgtype.JSONB",
+			"pgtype.JSONB",
+			"pgtype.JSONB",
+			"data.Metadata",
+			"pgtype.JSONB{Bytes: data.Metadata, Valid: true}",
+		},
 	}
 
 	tm := NewTypeMapper("postgresql")

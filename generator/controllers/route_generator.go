@@ -12,13 +12,13 @@ import (
 )
 
 type RouteGenerator struct {
-	fileManager      *files.Manager
+	fileManager      files.Manager
 	templateRenderer *TemplateRenderer
 }
 
 func NewRouteGenerator() *RouteGenerator {
 	return &RouteGenerator{
-		fileManager:      files.NewManager(),
+		fileManager:      files.NewUnifiedFileManager(),
 		templateRenderer: NewTemplateRenderer(),
 	}
 }
@@ -35,7 +35,7 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName string) error 
 		return fmt.Errorf("failed to generate route content: %w", err)
 	}
 
-	if err := rg.fileManager.EnsureDirectoryExists("router/routes"); err != nil {
+	if err := rg.fileManager.EnsureDir("router/routes"); err != nil {
 		return err
 	}
 

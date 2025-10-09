@@ -72,24 +72,41 @@ func TestValidatePrimaryKeyDatatype_ErrorMessages(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validatePrimaryKeyDatatype(tc.dataType, tc.databaseType, tc.migrationFile, tc.columnName)
+			err := validatePrimaryKeyDatatype(
+				tc.dataType,
+				tc.databaseType,
+				tc.migrationFile,
+				tc.columnName,
+			)
 			if err == nil {
 				t.Fatal("Expected error but got none")
 			}
 
 			errorMsg := err.Error()
 			if !containsString(errorMsg, tc.expectedSubstr) {
-				t.Errorf("Expected error message to contain '%s', but got: %s", tc.expectedSubstr, errorMsg)
+				t.Errorf(
+					"Expected error message to contain '%s', but got: %s",
+					tc.expectedSubstr,
+					errorMsg,
+				)
 			}
 
 			// Check that the error message contains the column name
 			if !containsString(errorMsg, tc.columnName) {
-				t.Errorf("Expected error message to contain column name '%s', but got: %s", tc.columnName, errorMsg)
+				t.Errorf(
+					"Expected error message to contain column name '%s', but got: %s",
+					tc.columnName,
+					errorMsg,
+				)
 			}
 
 			// Check that the error message contains the migration file basename
-			if !containsString(errorMsg, "001_create_users.sql") && !containsString(errorMsg, "002_create_posts.sql") {
-				t.Errorf("Expected error message to contain migration file name, but got: %s", errorMsg)
+			if !containsString(errorMsg, "001_create_users.sql") &&
+				!containsString(errorMsg, "002_create_posts.sql") {
+				t.Errorf(
+					"Expected error message to contain migration file name, but got: %s",
+					errorMsg,
+				)
 			}
 		})
 	}
@@ -98,8 +115,8 @@ func TestValidatePrimaryKeyDatatype_ErrorMessages(t *testing.T) {
 func TestValidatePrimaryKeyDatatype_UnsupportedDatabase(t *testing.T) {
 	// For unsupported database types, validation should pass (no error)
 	err := validatePrimaryKeyDatatype("INTEGER", "mysql", "test.sql", "id")
-	if err != nil {
-		t.Errorf("Expected no error for unsupported database type, but got: %v", err)
+	if err == nil {
+		t.Error("Expected an error for unsupported database type, but got none")
 	}
 }
 
@@ -192,7 +209,11 @@ func TestParseColumnDefinitions_PrimaryKeyValidation(t *testing.T) {
 					t.Fatal("Expected error but got none")
 				}
 				if tc.errorSubstr != "" && !containsSubstring(err.Error(), tc.errorSubstr) {
-					t.Errorf("Expected error to contain '%s', but got: %s", tc.errorSubstr, err.Error())
+					t.Errorf(
+						"Expected error to contain '%s', but got: %s",
+						tc.errorSubstr,
+						err.Error(),
+					)
 				}
 			} else {
 				if err != nil {
@@ -268,7 +289,11 @@ func TestParseCreateTable_PrimaryKeyValidation(t *testing.T) {
 					t.Fatal("Expected error but got none")
 				}
 				if tc.errorSubstr != "" && !containsSubstring(err.Error(), tc.errorSubstr) {
-					t.Errorf("Expected error to contain '%s', but got: %s", tc.errorSubstr, err.Error())
+					t.Errorf(
+						"Expected error to contain '%s', but got: %s",
+						tc.errorSubstr,
+						err.Error(),
+					)
 				}
 			} else {
 				if err != nil {

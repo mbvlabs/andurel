@@ -353,17 +353,17 @@ func (g *Generator) GenerateSQLFile(
 ) error {
 	data := g.prepareSQLData(resourceName, pluralName, table)
 
-	tmpl, err := templates.GetCachedTemplate("crud_operations.tmpl", template.FuncMap{})
+	// Use the unified template service
+	service := templates.GetGlobalTemplateService()
+	content, err := service.RenderTemplate("crud_operations.tmpl", data)
 	if err != nil {
-		return errors.NewTemplateError("crud_operations.tmpl", "get template", err)
+		return errors.WrapTemplateError(err, "generate SQL", "crud_operations.tmpl")
 	}
 
-	var buf strings.Builder
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return errors.NewTemplateError("crud_operations.tmpl", "execute template", err)
+	if err := os.WriteFile(sqlPath, []byte(content), constants.FilePermissionPrivate); err != nil {
+		return errors.WrapFileError(err, "write SQL file", sqlPath)
 	}
-
-	return os.WriteFile(sqlPath, []byte(buf.String()), constants.FilePermissionPrivate)
+	return nil
 }
 
 func (g *Generator) GenerateSQLContent(
@@ -373,17 +373,13 @@ func (g *Generator) GenerateSQLContent(
 ) (string, error) {
 	data := g.prepareSQLData(resourceName, pluralName, table)
 
-	tmpl, err := templates.GetCachedTemplate("crud_operations.tmpl", template.FuncMap{})
+	// Use the unified template service
+	service := templates.GetGlobalTemplateService()
+	result, err := service.RenderTemplate("crud_operations.tmpl", data)
 	if err != nil {
-		return "", errors.NewTemplateError("crud_operations.tmpl", "get template", err)
+		return "", errors.WrapTemplateError(err, "generate SQL content", "crud_operations.tmpl")
 	}
-
-	var buf strings.Builder
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", errors.NewTemplateError("crud_operations.tmpl", "execute template", err)
-	}
-
-	return buf.String(), nil
+	return result, nil
 }
 
 func (g *Generator) prepareSQLData(

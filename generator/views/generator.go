@@ -46,13 +46,13 @@ type Config struct {
 
 type Generator struct {
 	typeMapper  *types.TypeMapper
-	fileManager *files.Manager
+	fileManager files.Manager
 }
 
 func NewGenerator(databaseType string) *Generator {
 	return &Generator{
 		typeMapper:  types.NewTypeMapper(databaseType),
-		fileManager: files.NewManager(),
+		fileManager: files.NewUnifiedFileManager(),
 	}
 }
 
@@ -159,8 +159,8 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 }
 
 func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool) (string, error) {
-	funcMap := template.FuncMap{
-		"ToLower": strings.ToLower,
+	// Custom template functions for view-specific operations
+	customFuncs := template.FuncMap{
 		"StringDisplay": func(field ViewField, resourceName string) string {
 			if field.StringConverter == "" {
 				return fmt.Sprintf(
@@ -230,17 +230,13 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool) (
 		templateName = "resource_view.tmpl"
 	}
 
-	tmpl, err := templates.GetCachedTemplate(templateName, funcMap)
+	// Use the unified template service with custom functions
+	service := templates.GetGlobalTemplateService()
+	result, err := service.RenderTemplateWithCustomFunctions(templateName, view, customFuncs)
 	if err != nil {
-		return "", errors.NewTemplateError(templateName, "get template", err)
+		return "", errors.WrapTemplateError(err, "render view", templateName)
 	}
-
-	var buf strings.Builder
-	if err := tmpl.Execute(&buf, view); err != nil {
-		return "", errors.NewTemplateError(templateName, "execute template", err)
-	}
-
-	return buf.String(), nil
+	return result, nil
 }
 
 func (g *Generator) GenerateView(
@@ -278,7 +274,7 @@ func (g *Generator) GenerateViewWithController(
 		return fmt.Errorf("failed to render view file: %w", err)
 	}
 
-	if err := g.fileManager.EnsureDirectoryExists("views"); err != nil {
+	if err := g.fileManager.EnsureDir("views"); err != nil {
 		return err
 	}
 

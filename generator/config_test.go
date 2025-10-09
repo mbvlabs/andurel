@@ -154,7 +154,11 @@ sql:
 				t.Fatalf("Failed to write sqlc.yaml: %v", err)
 			}
 
-			config := NewDefaultAppConfig()
+			configManager := NewConfigManager()
+			config, err := configManager.Load()
+			if err != nil {
+				t.Fatalf("Failed to load config: %v", err)
+			}
 
 			if config.Database.Type != tt.expected {
 				t.Errorf("Expected database type %s, got %s", tt.expected, config.Database.Type)
@@ -183,7 +187,11 @@ func TestNewDefaultAppConfig_FallbackWhenNoSQLCYAML(t *testing.T) {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
-	config := NewDefaultAppConfig()
+	configManager := NewConfigManager()
+	config, err := configManager.Load()
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
 
 	if config.Database.Type != "postgresql" {
 		t.Errorf("Expected fallback to postgresql, got %s", config.Database.Type)
