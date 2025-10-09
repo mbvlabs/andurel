@@ -11,20 +11,20 @@ import (
 
 // TemplateData represents the unified data structure for all templates
 type TemplateData struct {
-	Resource ResourceData           `json:"resource"`
-	Database DatabaseData           `json:"database"`
-	Project  ProjectData            `json:"project"`
-	Custom   map[string]interface{} `json:"custom"`
+	Resource ResourceData   `json:"resource"`
+	Database DatabaseData   `json:"database"`
+	Project  ProjectData    `json:"project"`
+	Custom   map[string]any `json:"custom"`
 }
 
 // ResourceData contains resource-specific template data
 type ResourceData struct {
-	Name         string      `json:"name"`
-	PluralName   string      `json:"plural_name"`
-	Fields       interface{} `json:"fields"`
-	ModulePath   string      `json:"module_path"`
-	Type         string      `json:"type"`
-	DatabaseType string      `json:"database_type"`
+	Name         string `json:"name"`
+	PluralName   string `json:"plural_name"`
+	Fields       any    `json:"fields"`
+	ModulePath   string `json:"module_path"`
+	Type         string `json:"type"`
+	DatabaseType string `json:"database_type"`
 }
 
 // DatabaseData contains database-specific template data
@@ -65,13 +65,16 @@ func NewTemplateBuilder(service *TemplateService) *TemplateBuilder {
 	return &TemplateBuilder{
 		service: service,
 		data: &TemplateData{
-			Custom: make(map[string]interface{}),
+			Custom: make(map[string]any),
 		},
 	}
 }
 
 // WithResource sets resource data
-func (tb *TemplateBuilder) WithResource(name, pluralName, modulePath, resourceType, databaseType string, fields interface{}) *TemplateBuilder {
+func (tb *TemplateBuilder) WithResource(
+	name, pluralName, modulePath, resourceType, databaseType string,
+	fields any,
+) *TemplateBuilder {
 	tb.data.Resource = ResourceData{
 		Name:         name,
 		PluralName:   pluralName,
@@ -103,7 +106,7 @@ func (tb *TemplateBuilder) WithProject(modulePath, name string) *TemplateBuilder
 }
 
 // WithCustom adds custom data
-func (tb *TemplateBuilder) WithCustom(key string, value interface{}) *TemplateBuilder {
+func (tb *TemplateBuilder) WithCustom(key string, value any) *TemplateBuilder {
 	tb.data.Custom[key] = value
 	return tb
 }
@@ -114,7 +117,7 @@ func (tb *TemplateBuilder) Render(templateName string) (string, error) {
 }
 
 // RenderTemplate renders a template with the given data
-func (ts *TemplateService) RenderTemplate(templateName string, data interface{}) (string, error) {
+func (ts *TemplateService) RenderTemplate(templateName string, data any) (string, error) {
 	tmpl, err := ts.cache.GetTemplate(templateName, ts.functions)
 	if err != nil {
 		return "", errors.WrapTemplateError(err, "get template", templateName)
@@ -129,7 +132,11 @@ func (ts *TemplateService) RenderTemplate(templateName string, data interface{})
 }
 
 // RenderTemplateWithCustomFunctions renders a template with custom function map
-func (ts *TemplateService) RenderTemplateWithCustomFunctions(templateName string, data interface{}, funcMap template.FuncMap) (string, error) {
+func (ts *TemplateService) RenderTemplateWithCustomFunctions(
+	templateName string,
+	data any,
+	funcMap template.FuncMap,
+) (string, error) {
 	// Merge default functions with custom functions
 	mergedFuncs := make(template.FuncMap)
 	for k, v := range ts.functions {
@@ -161,13 +168,13 @@ func getDefaultTemplateFunctions() template.FuncMap {
 		"ToCamelCase":      naming.ToCamelCase,
 		"ToLowerCamelCase": naming.ToLowerCamelCase,
 		"DeriveTableName":  naming.DeriveTableName,
-		"DatabaseType": func(data interface{}) string {
+		"DatabaseType": func(data any) string {
 			if td, ok := data.(*TemplateData); ok {
 				return td.Database.Type
 			}
 			return ""
 		},
-		"DatabaseMethod": func(data interface{}) string {
+		"DatabaseMethod": func(data any) string {
 			if td, ok := data.(*TemplateData); ok {
 				if td.Database.Method != "" {
 					return td.Database.Method
@@ -242,7 +249,7 @@ func GetGlobalTemplateService() *TemplateService {
 }
 
 // RenderTemplateUsingGlobal renders a template using the global service
-func RenderTemplateUsingGlobal(templateName string, data interface{}) (string, error) {
+func RenderTemplateUsingGlobal(templateName string, data any) (string, error) {
 	return globalTemplateService.RenderTemplate(templateName, data)
 }
 
