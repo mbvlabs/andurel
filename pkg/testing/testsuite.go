@@ -7,8 +7,8 @@ import (
 // TestData represents a generic test case structure
 type TestData struct {
 	Name     string
-	Input    interface{}
-	Expected interface{}
+	Input    any
+	Expected any
 	Error    error
 }
 
@@ -63,7 +63,11 @@ func (ts *TestSuite) AddUnitTest(name, description string, testFunc func(t *test
 }
 
 // AddIntegrationTest adds an integration test to the suite
-func (ts *TestSuite) AddIntegrationTest(name, description string, setup, teardown func() error, testFunc func(t *testing.T)) {
+func (ts *TestSuite) AddIntegrationTest(
+	name, description string,
+	setup, teardown func() error,
+	testFunc func(t *testing.T),
+) {
 	ts.Integration[name] = IntegrationTest{
 		Name:        name,
 		Description: description,
@@ -74,7 +78,11 @@ func (ts *TestSuite) AddIntegrationTest(name, description string, setup, teardow
 }
 
 // AddE2ETest adds an end-to-end test to the suite
-func (ts *TestSuite) AddE2ETest(name, description string, setup, teardown func() error, testFunc func(t *testing.T)) {
+func (ts *TestSuite) AddE2ETest(
+	name, description string,
+	setup, teardown func() error,
+	testFunc func(t *testing.T),
+) {
 	ts.E2E[name] = EndToEndTest{
 		Name:        name,
 		Description: description,
@@ -157,7 +165,11 @@ func (tdt *TableDrivenTest) Run(t *testing.T) {
 }
 
 // NewTableDrivenTest creates a new table-driven test
-func NewTableDrivenTest(name string, tests []TestData, testFunc func(t *testing.T, test TestData)) *TableDrivenTest {
+func NewTableDrivenTest(
+	name string,
+	tests []TestData,
+	testFunc func(t *testing.T, test TestData),
+) *TableDrivenTest {
 	return &TableDrivenTest{
 		Name:     name,
 		Tests:    tests,

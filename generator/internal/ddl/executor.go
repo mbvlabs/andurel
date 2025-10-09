@@ -108,6 +108,13 @@ func parseCreateTable(sql, migrationFile string, databaseType string) (*DDLState
 	ifNotExists := matches[1] != ""
 	schemaName := matches[2]
 	tableName := matches[3]
+	columnDefs := matches[4]
+
+	// Parse and validate column definitions to trigger primary key validation
+	_, err = parseColumnDefinitions(columnDefs, migrationFile, databaseType)
+	if err != nil {
+		return nil, err
+	}
 
 	return &DDLStatement{
 		Type:        CreateTable,

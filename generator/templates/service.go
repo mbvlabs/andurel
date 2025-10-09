@@ -1,6 +1,7 @@
 package templates
 
 import (
+	"maps"
 	"strings"
 	"text/template"
 	"unicode"
@@ -139,12 +140,8 @@ func (ts *TemplateService) RenderTemplateWithCustomFunctions(
 ) (string, error) {
 	// Merge default functions with custom functions
 	mergedFuncs := make(template.FuncMap)
-	for k, v := range ts.functions {
-		mergedFuncs[k] = v
-	}
-	for k, v := range funcMap {
-		mergedFuncs[k] = v
-	}
+	maps.Copy(mergedFuncs, ts.functions)
+	maps.Copy(mergedFuncs, funcMap)
 
 	tmpl, err := ts.cache.GetTemplate(templateName, mergedFuncs)
 	if err != nil {

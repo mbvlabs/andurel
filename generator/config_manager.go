@@ -80,83 +80,14 @@ func NewConfigManager() *ConfigManager {
 	}
 }
 
-// Load loads configuration from multiple sources (file, env, defaults)
+// Load loads configuration from defaults
 func (cm *ConfigManager) Load() (*UnifiedConfig, error) {
-	config := cm.getDefaultConfig()
-
-	// Try to load from config file
-	if err := cm.loadFromFile(config); err != nil {
-		// Log warning but continue with defaults
-		fmt.Printf("Warning: Could not load config file: %v\n", err)
-	}
-
-	// Load from environment variables
-	cm.loadFromEnv(config)
-
-	// Validate configuration
-	if err := cm.validator.Validate(config); err != nil {
-		return nil, fmt.Errorf("configuration validation failed: %w", err)
-	}
-
-	cm.config = config
-	return config, nil
-}
-
-// GetConfig returns the current configuration
-func (cm *ConfigManager) GetConfig() *UnifiedConfig {
-	if cm.config == nil {
-		config, _ := cm.Load()
-		return config
-	}
-	return cm.config
-}
-
-// loadFromFile loads configuration from YAML file
-func (cm *ConfigManager) loadFromFile(config *UnifiedConfig) error {
-	manager := files.NewUnifiedFileManager()
-	rootDir, err := manager.FindGoModRoot()
-	if err != nil {
-		return fmt.Errorf("failed to find go.mod root: %w", err)
-	}
-
-	configPath := filepath.Join(rootDir, "andurel.yaml")
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return fmt.Errorf("config file not found at %s", configPath)
-	}
-
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return fmt.Errorf("failed to read config file: %w", err)
-	}
-
-	if err := yaml.Unmarshal(data, config); err != nil {
-		return fmt.Errorf("failed to parse config file: %w", err)
-	}
-
-	return nil
-}
-
-// loadFromEnv loads configuration from environment variables
-func (cm *ConfigManager) loadFromEnv(config *UnifiedConfig) {
-	if dbType := os.Getenv("ANDUREL_DB_TYPE"); dbType != "" {
-		config.Database.Type = dbType
-	}
-	if modulePath := os.Getenv("ANDUREL_MODULE_PATH"); modulePath != "" {
-		config.Project.ModulePath = modulePath
-	}
-	if projectName := os.Getenv("ANDUREL_PROJECT_NAME"); projectName != "" {
-		config.Project.Name = projectName
-	}
-}
-
-// getDefaultConfig returns the default configuration
-func (cm *ConfigManager) getDefaultConfig() *UnifiedConfig {
 	databaseType := "postgresql" // fallback default
 	if dbType, err := readDatabaseTypeFromSQLCYAML(); err == nil {
 		databaseType = dbType
 	}
 
-	return &UnifiedConfig{
+	config := &UnifiedConfig{
 		Database: DatabaseConfig{
 			Type:          databaseType,
 			MigrationDirs: []string{"database/migrations"},
@@ -189,6 +120,23 @@ func (cm *ConfigManager) getDefaultConfig() *UnifiedConfig {
 			OutputFormat: "go",
 		},
 	}
+
+	// Validate configuration
+	if err := cm.validator.Validate(config); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	cm.config = config
+	return config, nil
+}
+
+// GetConfig returns the current configuration
+func (cm *ConfigManager) GetConfig() *UnifiedConfig {
+	if cm.config == nil {
+		config, _ := cm.Load()
+		return config
+	}
+	return cm.config
 }
 
 // getDatabaseDriver returns the appropriate driver for the database type
@@ -207,7 +155,10 @@ func (cm *ConfigManager) getDatabaseDriver(dbType string) string {
 func (cv *ConfigValidator) Validate(config *UnifiedConfig) error {
 	// Validate database type
 	if config.Database.Type != "postgresql" && config.Database.Type != "sqlite" {
-		return fmt.Errorf("unsupported database type: %s (supported: postgresql, sqlite)", config.Database.Type)
+		return fmt.Errorf(
+			"unsupported database type: %s (supported: postgresql, sqlite)",
+			config.Database.Type,
+		)
 	}
 
 	// Validate required paths
@@ -274,7 +225,6 @@ func (uc *UnifiedConfig) GetViewConfig() ViewConfig {
 	}
 }
 
-// Helper structs for specific generator configurations
 type ModelConfig struct {
 	TableName    string           `json:"table_name"`
 	ResourceName string           `json:"resource_name"`
@@ -330,16 +280,6 @@ func GetGlobalConfig() *UnifiedConfig {
 	return GetGlobalConfigManager().GetConfig()
 }
 
-
-// SQLCConfig for reading sqlc.yaml files
-type SQLCConfig struct {
-	SQL []SQLConfig `yaml:"sql"`
-}
-
-type SQLConfig struct {
-	Engine string `yaml:"engine"`
-}
-
 // readDatabaseTypeFromSQLCYAML reads database type from sqlc.yaml
 func readDatabaseTypeFromSQLCYAML() (string, error) {
 	manager := files.NewUnifiedFileManager()
@@ -377,4 +317,13 @@ func readDatabaseTypeFromSQLCYAML() (string, error) {
 	}
 
 	return engine, nil
+}
+
+// SQLCConfig for reading sqlc.yaml files
+type SQLCConfig struct {
+	SQL []SQLConfig `yaml:"sql"`
+}
+
+type SQLConfig struct {
+	Engine string `yaml:"engine"`
 }
