@@ -40,3 +40,51 @@ func ToSnakeCase(s string) string {
 
 	return builder.String()
 }
+
+// ToCamelCase converts a snake_case identifier into camelCase.
+// Examples: "admin_users" -> "adminUsers", "product_categories" -> "productCategories"
+func ToCamelCase(s string) string {
+	if s == "" {
+		return ""
+	}
+
+	parts := strings.Split(s, "_")
+	if len(parts) == 0 {
+		return s
+	}
+
+	var builder strings.Builder
+	builder.Grow(len(s))
+
+	// First part stays lowercase
+	builder.WriteString(strings.ToLower(parts[0]))
+
+	// Capitalize first letter of remaining parts
+	for i := 1; i < len(parts); i++ {
+		if len(parts[i]) > 0 {
+			builder.WriteString(strings.ToUpper(parts[i][:1]))
+			if len(parts[i]) > 1 {
+				builder.WriteString(strings.ToLower(parts[i][1:]))
+			}
+		}
+	}
+
+	return builder.String()
+}
+
+// ToLowerCamelCase converts a PascalCase identifier into camelCase by lowercasing the first character.
+// Examples: "NewUser" -> "newUser", "AdminUser" -> "adminUser", "User" -> "user"
+func ToLowerCamelCase(s string) string {
+	if s == "" {
+		return ""
+	}
+
+	runes := []rune(s)
+	if len(runes) == 0 {
+		return s
+	}
+
+	// Convert first character to lowercase
+	runes[0] = unicode.ToLower(runes[0])
+	return string(runes)
+}

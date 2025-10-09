@@ -50,6 +50,24 @@ func TestControllerFileGeneration__GoldenFile(t *testing.T) {
 			modulePath:    "github.com/example/shop",
 			ctrlType:      ResourceControllerNoViews,
 		},
+		{
+			name:          "Should generate admin user controller with views",
+			fileName:      "admin_user_controller",
+			migrationsDir: "admin_user_table",
+			tableName:     "admin_users",
+			resourceName:  "AdminUser",
+			modulePath:    "github.com/example/myapp",
+			ctrlType:      ResourceController,
+		},
+		{
+			name:          "Should generate new user controller with no views",
+			fileName:      "new_user_controller_no_view",
+			migrationsDir: "new_user_table",
+			tableName:     "new_users",
+			resourceName:  "NewUser",
+			modulePath:    "github.com/example/myapp",
+			ctrlType:      ResourceControllerNoViews,
+		},
 	}
 
 	for _, tt := range tests {
@@ -141,6 +159,12 @@ func TestRoutesFileGeneration__GoldenFile(t *testing.T) {
 			fileName:     "product_controller_routes",
 			tableName:    "products",
 			resourceName: "Product",
+		},
+		{
+			name:         "Should generate routes for admin users controller",
+			fileName:     "admin_user_controller_routes",
+			tableName:    "admin_users",
+			resourceName: "AdminUser",
 		},
 	}
 
@@ -259,6 +283,12 @@ func TestRoutesRegistration__GoldenFile(t *testing.T) {
 			tableName:    "products",
 			resourceName: "Product",
 		},
+		{
+			name:         "Should register routes for admin users table",
+			fileName:     "admin_user_controller_routes_registration",
+			tableName:    "admin_users",
+			resourceName: "AdminUser",
+		},
 	}
 
 	for _, tt := range tests {
@@ -293,7 +323,7 @@ func TestRoutesRegistration__GoldenFile(t *testing.T) {
 			os.Chdir(tempDir)
 
 			routeGenerator := NewRouteGenerator()
-			err = routeGenerator.registerRoutes(tt.tableName)
+			err = routeGenerator.registerRoutes(tt.resourceName)
 			if err != nil {
 				t.Fatalf("Failed to register routes: %v", err)
 			}
@@ -326,6 +356,11 @@ func TestControllerRegistration__GoldenFile(t *testing.T) {
 			name:         "Should register Product controller",
 			fileName:     "product_controller_registration",
 			resourceName: "Product",
+		},
+		{
+			name:         "Should register AdminUser controller",
+			fileName:     "admin_user_controller_registration",
+			resourceName: "AdminUser",
 		},
 	}
 
@@ -442,9 +477,4 @@ func TestMultipleControllerRegistration__GoldenFile(t *testing.T) {
 
 		g.Assert(t, "multiple_controllers_registration", updatedControllerContent)
 	})
-}
-
-func formatGoFile(filePath string) error {
-	routeGenerator := NewRouteGenerator()
-	return routeGenerator.formatGoFile(filePath)
 }

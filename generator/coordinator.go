@@ -72,7 +72,7 @@ func (c *Coordinator) GenerateModel(resourceName string) error {
 
 	var modelFileName strings.Builder
 	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
-	modelFileName.WriteString(strings.ToLower(resourceName))
+	modelFileName.WriteString(naming.ToSnakeCase(resourceName))
 	modelFileName.WriteString(".go")
 	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
 
@@ -102,7 +102,7 @@ func (c *Coordinator) GenerateModel(resourceName string) error {
 		return fmt.Errorf("failed to run sqlc generate: %w", err)
 	}
 
-	constructorFileName := fmt.Sprintf("%s_constructors.go", strings.ToLower(resourceName))
+	constructorFileName := fmt.Sprintf("%s_constructors.go", naming.ToSnakeCase(resourceName))
 	constructorPath := filepath.Join(
 		filepath.Join(c.config.Paths.Models, "internal", "db"),
 		constructorFileName,
@@ -130,7 +130,7 @@ func (c *Coordinator) GenerateController(resourceName, tableName string, withVie
 
 	var modelFileName strings.Builder
 	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
-	modelFileName.WriteString(strings.ToLower(resourceName))
+	modelFileName.WriteString(naming.ToSnakeCase(resourceName))
 	modelFileName.WriteString(".go")
 	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
@@ -174,7 +174,7 @@ func (c *Coordinator) GenerateControllerFromModel(resourceName string, withViews
 
 	var modelFileName strings.Builder
 	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
-	modelFileName.WriteString(strings.ToLower(resourceName))
+	modelFileName.WriteString(naming.ToSnakeCase(resourceName))
 	modelFileName.WriteString(".go")
 	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
@@ -227,7 +227,7 @@ func (c *Coordinator) GenerateControllerFromModel(resourceName string, withViews
 	}
 
 	controllerFieldName := resourceName + "s"
-	controllerVarName := strings.ToLower(resourceName) + "s"
+	controllerVarName := naming.ToCamelCase(naming.ToSnakeCase(resourceName)) + "s"
 	controllerConstructor := controllerVarName + " := new" + resourceName + "s(db)"
 	controllerReturnField := controllerVarName + ","
 	contentStr := string(content)
@@ -314,7 +314,7 @@ func (c *Coordinator) GenerateView(resourceName, tableName string) error {
 
 	var modelFileName strings.Builder
 	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
-	modelFileName.WriteString(strings.ToLower(resourceName))
+	modelFileName.WriteString(naming.ToSnakeCase(resourceName))
 	modelFileName.WriteString(".go")
 	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
@@ -365,7 +365,7 @@ func (c *Coordinator) RefreshModel(resourceName, tableName string) error {
 
 	var modelFileName strings.Builder
 	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
-	modelFileName.WriteString(strings.ToLower(resourceName))
+	modelFileName.WriteString(naming.ToSnakeCase(resourceName))
 	modelFileName.WriteString(".go")
 	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
 
@@ -435,7 +435,7 @@ func (c *Coordinator) RefreshQueries(resourceName, tableName string) error {
 
 	var modelFileName strings.Builder
 	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
-	modelFileName.WriteString(strings.ToLower(resourceName))
+	modelFileName.WriteString(naming.ToSnakeCase(resourceName))
 	modelFileName.WriteString(".go")
 	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
 
@@ -503,7 +503,7 @@ func (c *Coordinator) RefreshConstructors(resourceName, tableName string) error 
 
 	var modelFileName strings.Builder
 	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
-	modelFileName.WriteString(strings.ToLower(resourceName))
+	modelFileName.WriteString(naming.ToSnakeCase(resourceName))
 	modelFileName.WriteString(".go")
 	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
 
@@ -535,7 +535,7 @@ func (c *Coordinator) RefreshConstructors(resourceName, tableName string) error 
 		return fmt.Errorf("failed to refresh queries: %w", err)
 	}
 
-	constructorFileName := fmt.Sprintf("%s_constructors.go", strings.ToLower(resourceName))
+	constructorFileName := fmt.Sprintf("%s_constructors.go", naming.ToSnakeCase(resourceName))
 	constructorPath := filepath.Join(
 		filepath.Join(c.config.Paths.Models, "internal", "db"),
 		constructorFileName,
@@ -563,7 +563,7 @@ func (c *Coordinator) GenerateViewFromModel(resourceName string, withController 
 
 	var modelFileName strings.Builder
 	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
-	modelFileName.WriteString(strings.ToLower(resourceName))
+	modelFileName.WriteString(naming.ToSnakeCase(resourceName))
 	modelFileName.WriteString(".go")
 	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
@@ -629,7 +629,7 @@ func (c *Coordinator) GenerateViewFromModel(resourceName string, withController 
 		}
 
 		controllerFieldName := resourceName + "s"
-		controllerVarName := strings.ToLower(resourceName) + "s"
+		controllerVarName := naming.ToCamelCase(naming.ToSnakeCase(resourceName)) + "s"
 		controllerConstructor := controllerVarName + " := new" + resourceName + "s(db)"
 		controllerReturnField := controllerVarName + ","
 		contentStr := string(content)
