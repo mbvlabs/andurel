@@ -31,10 +31,7 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 			return controller.DatabaseType
 		},
 		"DatabaseMethod": func() string {
-			if controller.DatabaseType == "sqlite" {
-				return "Conn"
-			}
-			return "Pool"
+			return "Conn"
 		},
 		"uuidParam": func(param string) string {
 			if controller.DatabaseType == "sqlite" {
