@@ -1263,7 +1263,7 @@ func NewPostgres(ctx context.Context, databaseURL string) (Postgres, error) {
 	return Postgres{pool}, nil
 }
 
-func (p *Postgres) Pool() *pgxpool.Pool {
+func (p *Postgres) Conn() *pgxpool.Pool {
 	return p.pool
 }
 
