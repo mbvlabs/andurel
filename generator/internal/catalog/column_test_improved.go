@@ -18,13 +18,21 @@ func TestColumnSuite(t *testing.T) {
 	suite := testsuite.NewTestSuite()
 
 	// Unit Tests
-	suite.AddUnitTest("ValidatePrimaryKeyDatatype", "Tests primary key datatype validation", testValidatePrimaryKeyDatatype)
+	suite.AddUnitTest(
+		"ValidatePrimaryKeyDatatype",
+		"Tests primary key datatype validation",
+		testValidatePrimaryKeyDatatype,
+	)
 	suite.AddUnitTest("SetPrimaryKey", "Tests setting column as primary key", testSetPrimaryKey)
 	suite.AddUnitTest("SetNotNull", "Tests setting column as not null", testSetNotNull)
 	suite.AddUnitTest("SetUnique", "Tests setting column as unique", testSetUnique)
 	suite.AddUnitTest("SetDefault", "Tests setting column default value", testSetDefault)
 	suite.AddUnitTest("SetLength", "Tests setting column length", testSetLength)
-	suite.AddUnitTest("SetPrecisionScale", "Tests setting column precision and scale", testSetPrecisionScale)
+	suite.AddUnitTest(
+		"SetPrecisionScale",
+		"Tests setting column precision and scale",
+		testSetPrecisionScale,
+	)
 	suite.AddUnitTest("SetArray", "Tests setting column as array", testSetArray)
 	suite.AddUnitTest("Clone", "Tests column cloning functionality", testClone)
 
@@ -122,26 +130,30 @@ func testValidatePrimaryKeyDatatype(t *testing.T) {
 		},
 	}
 
-	tableTest := testsuite.NewTableDrivenTest("ValidatePrimaryKeyDatatype", tests, func(t *testing.T, test testsuite.TestData) {
-		input := test.Input.(struct {
-			column        *Column
-			databaseType  string
-			migrationFile string
-		})
+	tableTest := testsuite.NewTableDrivenTest(
+		"ValidatePrimaryKeyDatatype",
+		tests,
+		func(t *testing.T, test testsuite.TestData) {
+			input := test.Input.(struct {
+				column        *Column
+				databaseType  string
+				migrationFile string
+			})
 
-		err := input.column.ValidatePrimaryKeyDatatype(input.databaseType, input.migrationFile)
+			err := input.column.ValidatePrimaryKeyDatatype(input.databaseType, input.migrationFile)
 
-		if test.Error != nil {
-			if err == nil {
-				t.Fatal("Expected error but got none")
+			if test.Error != nil {
+				if err == nil {
+					t.Fatal("Expected error but got none")
+				}
+				// Additional error message validation could be added here
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error but got: %v", err)
+				}
 			}
-			// Additional error message validation could be added here
-		} else {
-			if err != nil {
-				t.Errorf("Expected no error but got: %v", err)
-			}
-		}
-	})
+		},
+	)
 
 	tableTest.Run(t)
 }

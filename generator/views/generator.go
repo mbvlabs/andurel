@@ -46,7 +46,7 @@ type Config struct {
 
 type Generator struct {
 	typeMapper  *types.TypeMapper
-	fileManager files.FileManager
+	fileManager files.Manager
 }
 
 func NewGenerator(databaseType string) *Generator {

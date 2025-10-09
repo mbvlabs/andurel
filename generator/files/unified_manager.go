@@ -10,23 +10,23 @@ import (
 	"github.com/mbvlabs/andurel/pkg/constants"
 )
 
-// UnifiedFileManager provides centralized file operations with consistent error handling
-type UnifiedFileManager struct {
-	permissions FilePermissions
+// UnifiedManager provides centralized file operations with consistent error handling
+type UnifiedManager struct {
+	permissions Permissions
 	cache       *cache.FileSystemCache
 }
 
-// FilePermissions defines file permission settings
-type FilePermissions struct {
+// Permissions defines file permission settings
+type Permissions struct {
 	FilePrivate   os.FileMode
 	FilePublic    os.FileMode
 	DirDefault    os.FileMode
 	DirExecutable os.FileMode
 }
 
-// DefaultFilePermissions returns standard permission settings
-func DefaultFilePermissions() FilePermissions {
-	return FilePermissions{
+// DefaultPermissions returns standard permission settings
+func DefaultPermissions() Permissions {
+	return Permissions{
 		FilePrivate:   constants.FilePermissionPrivate,
 		FilePublic:    constants.FilePermissionPublic,
 		DirDefault:    constants.DirPermissionDefault,
@@ -35,15 +35,15 @@ func DefaultFilePermissions() FilePermissions {
 }
 
 // NewUnifiedFileManager creates a new unified file manager
-func NewUnifiedFileManager() *UnifiedFileManager {
-	return &UnifiedFileManager{
-		permissions: DefaultFilePermissions(),
+func NewUnifiedFileManager() *UnifiedManager {
+	return &UnifiedManager{
+		permissions: DefaultPermissions(),
 		cache:       cache.NewFileSystemCache(5 * time.Minute),
 	}
 }
 
 // WriteFile writes content to a file, creating directories as needed
-func (fm *UnifiedFileManager) WriteFile(path, content string) error {
+func (fm *UnifiedManager) WriteFile(path, content string) error {
 	dir := filepath.Dir(path)
 	if err := fm.EnsureDir(dir); err != nil {
 		return err
@@ -53,7 +53,7 @@ func (fm *UnifiedFileManager) WriteFile(path, content string) error {
 }
 
 // WriteFileWithPermissions writes content to a file with specific permissions
-func (fm *UnifiedFileManager) WriteFileWithPermissions(path, content string, perm os.FileMode) error {
+func (fm *UnifiedManager) WriteFileWithPermissions(path, content string, perm os.FileMode) error {
 	dir := filepath.Dir(path)
 	if err := fm.EnsureDir(dir); err != nil {
 		return err
@@ -63,7 +63,7 @@ func (fm *UnifiedFileManager) WriteFileWithPermissions(path, content string, per
 }
 
 // ReadFile reads content from a file
-func (fm *UnifiedFileManager) ReadFile(path string) (string, error) {
+func (fm *UnifiedManager) ReadFile(path string) (string, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
@@ -72,7 +72,7 @@ func (fm *UnifiedFileManager) ReadFile(path string) (string, error) {
 }
 
 // FileExists checks if a file exists (with caching)
-func (fm *UnifiedFileManager) FileExists(path string) bool {
+func (fm *UnifiedManager) FileExists(path string) bool {
 	return cache.GetFileExists("file_exists:"+path, func() bool {
 		_, err := os.Stat(path)
 		return err == nil
@@ -80,17 +80,17 @@ func (fm *UnifiedFileManager) FileExists(path string) bool {
 }
 
 // EnsureDir creates a directory if it doesn't exist
-func (fm *UnifiedFileManager) EnsureDir(path string) error {
+func (fm *UnifiedManager) EnsureDir(path string) error {
 	return os.MkdirAll(path, fm.permissions.DirDefault)
 }
 
 // EnsureDirWithPermissions creates a directory with specific permissions
-func (fm *UnifiedFileManager) EnsureDirWithPermissions(path string, perm os.FileMode) error {
+func (fm *UnifiedManager) EnsureDirWithPermissions(path string, perm os.FileMode) error {
 	return os.MkdirAll(path, perm)
 }
 
 // ValidateFileNotExists returns an error if file already exists
-func (fm *UnifiedFileManager) ValidateFileNotExists(path string) error {
+func (fm *UnifiedManager) ValidateFileNotExists(path string) error {
 	if fm.FileExists(path) {
 		return &FileOperationError{
 			Operation: "validate_not_exists",
@@ -102,7 +102,7 @@ func (fm *UnifiedFileManager) ValidateFileNotExists(path string) error {
 }
 
 // ValidateFileExists returns an error if file doesn't exist
-func (fm *UnifiedFileManager) ValidateFileExists(path string) error {
+func (fm *UnifiedManager) ValidateFileExists(path string) error {
 	if !fm.FileExists(path) {
 		return &FileOperationError{
 			Operation: "validate_exists",
@@ -115,17 +115,17 @@ func (fm *UnifiedFileManager) ValidateFileExists(path string) error {
 
 // Ensure all interface methods are implemented by UnifiedFileManager
 var (
-	_ FileReader     = (*UnifiedFileManager)(nil)
-	_ FileWriter     = (*UnifiedFileManager)(nil)
-	_ FileValidator  = (*UnifiedFileManager)(nil)
-	_ FileFormatter  = (*UnifiedFileManager)(nil)
-	_ ProjectLocator = (*UnifiedFileManager)(nil)
-	_ SQLCRunner     = (*UnifiedFileManager)(nil)
-	_ FileManager    = (*UnifiedFileManager)(nil)
+	_ Reader         = (*UnifiedManager)(nil)
+	_ Writer         = (*UnifiedManager)(nil)
+	_ Validator      = (*UnifiedManager)(nil)
+	_ Formatter      = (*UnifiedManager)(nil)
+	_ ProjectLocator = (*UnifiedManager)(nil)
+	_ SQLCRunner     = (*UnifiedManager)(nil)
+	_ Manager        = (*UnifiedManager)(nil)
 )
 
 // FormatGoFile formats a Go file using gofmt
-func (fm *UnifiedFileManager) FormatGoFile(path string) error {
+func (fm *UnifiedManager) FormatGoFile(path string) error {
 	cmd := exec.Command("gofmt", "-w", path)
 	if err := cmd.Run(); err != nil {
 		return &FileOperationError{
@@ -138,7 +138,7 @@ func (fm *UnifiedFileManager) FormatGoFile(path string) error {
 }
 
 // FindGoModRoot finds the root directory containing go.mod (with caching)
-func (fm *UnifiedFileManager) FindGoModRoot() (string, error) {
+func (fm *UnifiedManager) FindGoModRoot() (string, error) {
 	return cache.GetDirectoryRoot("go_mod_root", func() (string, error) {
 		dir, err := os.Getwd()
 		if err != nil {
@@ -171,7 +171,7 @@ func (fm *UnifiedFileManager) FindGoModRoot() (string, error) {
 }
 
 // RunSQLCGenerate runs sqlc compile and generate commands
-func (fm *UnifiedFileManager) RunSQLCGenerate() error {
+func (fm *UnifiedManager) RunSQLCGenerate() error {
 	rootDir, err := fm.FindGoModRoot()
 	if err != nil {
 		return &FileOperationError{
@@ -195,7 +195,7 @@ func (fm *UnifiedFileManager) RunSQLCGenerate() error {
 }
 
 // runSQLCCommand runs a specific sqlc command
-func (fm *UnifiedFileManager) runSQLCCommand(rootDir, command string) error {
+func (fm *UnifiedManager) runSQLCCommand(rootDir, command string) error {
 	cmd := exec.Command("go", "tool", "sqlc", "-f", "./database/sqlc.yaml", command)
 	cmd.Dir = rootDir
 
@@ -213,11 +213,11 @@ func (fm *UnifiedFileManager) runSQLCCommand(rootDir, command string) error {
 }
 
 // GetPermissions returns the current file permissions
-func (fm *UnifiedFileManager) GetPermissions() FilePermissions {
+func (fm *UnifiedManager) GetPermissions() Permissions {
 	return fm.permissions
 }
 
 // SetPermissions updates file permissions
-func (fm *UnifiedFileManager) SetPermissions(permissions FilePermissions) {
+func (fm *UnifiedManager) SetPermissions(permissions Permissions) {
 	fm.permissions = permissions
 }

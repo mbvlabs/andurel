@@ -12,7 +12,7 @@ import (
 )
 
 type RouteGenerator struct {
-	fileManager      files.FileManager
+	fileManager      files.Manager
 	templateRenderer *TemplateRenderer
 }
 

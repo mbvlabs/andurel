@@ -17,7 +17,7 @@ import (
 )
 
 type FileGenerator struct {
-	fileManager      files.FileManager
+	fileManager      files.Manager
 	templateRenderer *TemplateRenderer
 	routeGenerator   *RouteGenerator
 }
@@ -162,7 +162,8 @@ func (fg *FileGenerator) registerController(resourceName string) error {
 
 		// Add constructor call before return statement (but not in error blocks)
 		if inNew && !addedConstructor {
-			if strings.Contains(line, "return Controllers{") && !strings.Contains(line, "return Controllers{}, err") {
+			if strings.Contains(line, "return Controllers{") &&
+				!strings.Contains(line, "return Controllers{}, err") {
 				// Remove return line and any preceding blank lines
 				result = result[:len(result)-1]
 
@@ -238,7 +239,11 @@ func (fg *FileGenerator) isControllerRegistered(node *ast.File, fieldName string
 	return false
 }
 
-func (fg *FileGenerator) addControllerField(node *ast.File, fieldName, typeName string, fset *token.FileSet) error {
+func (fg *FileGenerator) addControllerField(
+	node *ast.File,
+	fieldName, typeName string,
+	fset *token.FileSet,
+) error {
 	for _, decl := range node.Decls {
 		genDecl, ok := decl.(*ast.GenDecl)
 		if !ok || genDecl.Tok != token.TYPE {
@@ -268,7 +273,11 @@ func (fg *FileGenerator) addControllerField(node *ast.File, fieldName, typeName 
 	return fmt.Errorf("Controllers struct not found")
 }
 
-func (fg *FileGenerator) addControllerToNew(node *ast.File, varName, constructorName, fieldName string, fset *token.FileSet) error {
+func (fg *FileGenerator) addControllerToNew(
+	node *ast.File,
+	varName, constructorName, fieldName string,
+	fset *token.FileSet,
+) error {
 	for _, decl := range node.Decls {
 		funcDecl, ok := decl.(*ast.FuncDecl)
 		if !ok || funcDecl.Name.Name != "New" {

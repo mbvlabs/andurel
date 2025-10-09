@@ -2,26 +2,26 @@ package files
 
 import "os"
 
-// FileReader handles file reading operations
-type FileReader interface {
+// Reader handles file reading operations
+type Reader interface {
 	ReadFile(path string) (string, error)
 	FileExists(path string) bool
 }
 
-// FileWriter handles file writing operations
-type FileWriter interface {
+// Writer handles file writing operations
+type Writer interface {
 	WriteFile(path, content string) error
 	EnsureDir(path string) error
 }
 
-// FileValidator handles file validation operations
-type FileValidator interface {
+// Validator handles file validation operations
+type Validator interface {
 	ValidateFileNotExists(path string) error
 	ValidateFileExists(path string) error
 }
 
-// FileFormatter handles file formatting operations
-type FileFormatter interface {
+// Formatter handles file formatting operations
+type Formatter interface {
 	FormatGoFile(path string) error
 }
 
@@ -35,33 +35,33 @@ type SQLCRunner interface {
 	RunSQLCGenerate() error
 }
 
-// FileManager combines all file-related interfaces
-type FileManager interface {
-	FileReader
-	FileWriter
-	FileValidator
-	FileFormatter
+// Manager combines all file-related interfaces
+type Manager interface {
+	Reader
+	Writer
+	Validator
+	Formatter
 	ProjectLocator
 	SQLCRunner
 }
 
 // EnhancedFileManager extends FileManager with additional methods
 type EnhancedFileManager interface {
-	FileManager
+	Manager
 	WriteFileWithPermissions(path, content string, perm os.FileMode) error
 	EnsureDirWithPermissions(path string, perm os.FileMode) error
-	GetPermissions() FilePermissions
-	SetPermissions(permissions FilePermissions)
+	GetPermissions() Permissions
+	SetPermissions(permissions Permissions)
 }
 
 // Ensure UnifiedFileManager implements the interfaces
 var (
-	_ FileReader          = (*UnifiedFileManager)(nil)
-	_ FileWriter          = (*UnifiedFileManager)(nil)
-	_ FileValidator       = (*UnifiedFileManager)(nil)
-	_ FileFormatter       = (*UnifiedFileManager)(nil)
-	_ ProjectLocator      = (*UnifiedFileManager)(nil)
-	_ SQLCRunner          = (*UnifiedFileManager)(nil)
-	_ FileManager         = (*UnifiedFileManager)(nil)
-	_ EnhancedFileManager = (*UnifiedFileManager)(nil)
+	_ Reader              = (*UnifiedManager)(nil)
+	_ Writer              = (*UnifiedManager)(nil)
+	_ Validator           = (*UnifiedManager)(nil)
+	_ Formatter           = (*UnifiedManager)(nil)
+	_ ProjectLocator      = (*UnifiedManager)(nil)
+	_ SQLCRunner          = (*UnifiedManager)(nil)
+	_ Manager             = (*UnifiedManager)(nil)
+	_ EnhancedFileManager = (*UnifiedManager)(nil)
 )

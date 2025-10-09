@@ -149,15 +149,34 @@ func (stm *SQLiteTypeMapper) GetDatabaseType() string {
 }
 
 // getSQLiteType returns SQLite-specific type mapping
-func (stm *SQLiteTypeMapper) getSQLiteType(normalizedType string, nullable bool) (goType, sqlcType, packageName string) {
+func (stm *SQLiteTypeMapper) getSQLiteType(
+	normalizedType string,
+	nullable bool,
+) (goType, sqlcType, packageName string) {
 	switch normalizedType {
-	case "varchar", "text", "char", "clob", "character", "varying character", "nchar", "native character", "nvarchar":
+	case "varchar",
+		"text",
+		"char",
+		"clob",
+		"character",
+		"varying character",
+		"nchar",
+		"native character",
+		"nvarchar":
 		if nullable {
 			return "string", "sql.NullString", "database/sql"
 		}
 		return "string", "string", ""
 
-	case "int", "integer", "tinyint", "smallint", "mediumint", "bigint", "unsigned big int", "int2", "int8":
+	case "int",
+		"integer",
+		"tinyint",
+		"smallint",
+		"mediumint",
+		"bigint",
+		"unsigned big int",
+		"int2",
+		"int8":
 		if nullable {
 			return "int64", "sql.NullInt64", "database/sql"
 		}

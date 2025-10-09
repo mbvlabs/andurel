@@ -3,12 +3,12 @@ package routes
 import "github.com/labstack/echo/v4"
 
 type Route struct {
-	Name         string
-	Path         string
-	Controller      string
+	Name             string
+	Path             string
+	Controller       string
 	ControllerMethod string
-	Method       string
-	Middleware   []func(next echo.HandlerFunc) echo.HandlerFunc
+	Method           string
+	Middleware       []func(next echo.HandlerFunc) echo.HandlerFunc
 }
 
 var BuildRoutes = func() []Route {

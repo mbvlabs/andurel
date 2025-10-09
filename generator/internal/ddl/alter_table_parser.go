@@ -17,7 +17,10 @@ func NewAlterTableParser() *AlterTableParser {
 	}
 }
 
-func (p *AlterTableParser) Parse(sql, migrationFile string, databaseType string) (*AlterTableStatement, error) {
+func (p *AlterTableParser) Parse(
+	sql, migrationFile string,
+	databaseType string,
+) (*AlterTableStatement, error) {
 	alterRegex := regexp.MustCompile(
 		`(?is)alter\s+table\s+(?:if\s+exists\s+)?(?:(\w+)\.)?(\w+)\s+(.+)`,
 	)

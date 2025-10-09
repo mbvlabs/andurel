@@ -3,12 +3,13 @@ package ddl
 import (
 	"context"
 	"fmt"
-	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"log/slog"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/mbvlabs/andurel/generator/internal/catalog"
 )
 
 func ApplyDDL(

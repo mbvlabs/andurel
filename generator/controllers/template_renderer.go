@@ -1,9 +1,10 @@
 package controllers
 
 import (
+	"text/template"
+
 	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/pkg/errors"
-	"text/template"
 )
 
 type TemplateRenderer struct {
@@ -44,7 +45,11 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 	}
 
 	// Use the unified template service with custom functions and original data structure
-	result, err := tr.service.RenderTemplateWithCustomFunctions(templateName, controller, customFuncs)
+	result, err := tr.service.RenderTemplateWithCustomFunctions(
+		templateName,
+		controller,
+		customFuncs,
+	)
 	if err != nil {
 		return "", errors.WrapTemplateError(err, "render controller", templateName)
 	}

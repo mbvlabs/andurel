@@ -18,7 +18,10 @@ func NewCreateTableParser() *CreateTableParser {
 	return &CreateTableParser{}
 }
 
-func (p *CreateTableParser) Parse(sql, migrationFile string, databaseType string) (*CreateTableStatement, error) {
+func (p *CreateTableParser) Parse(
+	sql, migrationFile string,
+	databaseType string,
+) (*CreateTableStatement, error) {
 	createTableRegex, err := regexp.Compile(
 		`(?is)create\s+table(\s+if\s+not\s+exists)?\s+(?:(\w+)\.)?(\w+)\s*\(\s*(.*?)\s*\)`,
 	)
@@ -118,7 +121,10 @@ func (p *CreateTableParser) parseColumnDefinitions(
 	return columns, nil
 }
 
-func (p *CreateTableParser) parseColumnDefinition(def, migrationFile string, databaseType string) (*catalog.Column, error) {
+func (p *CreateTableParser) parseColumnDefinition(
+	def, migrationFile string,
+	databaseType string,
+) (*catalog.Column, error) {
 	parts := strings.Fields(def)
 	if len(parts) < 2 {
 		return nil, fmt.Errorf("invalid column definition: %s", def)
@@ -299,7 +305,9 @@ func (p *CreateTableParser) splitColumnDefinitions(defs string) []string {
 	return result
 }
 
-func (p *CreateTableParser) validatePrimaryKeyDatatype(dataType, databaseType, migrationFile, columnName string) error {
+func (p *CreateTableParser) validatePrimaryKeyDatatype(
+	dataType, databaseType, migrationFile, columnName string,
+) error {
 	normalizedDataType := strings.ToLower(dataType)
 
 	switch databaseType {

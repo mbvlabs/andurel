@@ -100,7 +100,9 @@ func (pgm *PostgreSQLTypeMapper) MapToSQLType(goType string, nullable bool) (str
 }
 
 // GenerateConversionFromDB generates conversion code from PostgreSQL to Go type
-func (pgm *PostgreSQLTypeMapper) GenerateConversionFromDB(fieldName, sqlcType, goType string) string {
+func (pgm *PostgreSQLTypeMapper) GenerateConversionFromDB(
+	fieldName, sqlcType, goType string,
+) string {
 	// Special case: UUID from string for SQLite ID fields
 	if goType == "uuid.UUID" && sqlcType == "string" {
 		return fmt.Sprintf("uuid.Parse(row.%s)", fieldName)
@@ -136,9 +138,19 @@ func (pgm *PostgreSQLTypeMapper) GenerateConversionFromDB(fieldName, sqlcType, g
 			return fmt.Sprintf("row.%s.Bytes", fieldName)
 		case "pgtype.Inet", "pgtype.CIDR", "pgtype.Macaddr", "pgtype.Macaddr8":
 			return fmt.Sprintf("row.%s.IPNet.String()", fieldName)
-		case "pgtype.Point", "pgtype.Lseg", "pgtype.Box", "pgtype.Path", "pgtype.Polygon", "pgtype.Circle":
+		case "pgtype.Point",
+			"pgtype.Lseg",
+			"pgtype.Box",
+			"pgtype.Path",
+			"pgtype.Polygon",
+			"pgtype.Circle":
 			return fmt.Sprintf("string(row.%s.Bytes)", fieldName)
-		case "pgtype.Int4range", "pgtype.Int8range", "pgtype.Numrange", "pgtype.Tsrange", "pgtype.Tstzrange", "pgtype.Daterange":
+		case "pgtype.Int4range",
+			"pgtype.Int8range",
+			"pgtype.Numrange",
+			"pgtype.Tsrange",
+			"pgtype.Tstzrange",
+			"pgtype.Daterange":
 			return fmt.Sprintf("string(row.%s.Bytes)", fieldName)
 		case "pgtype.Money":
 			return fmt.Sprintf("row.%s.String", fieldName)
@@ -230,7 +242,10 @@ func (pgm *PostgreSQLTypeMapper) GetDatabaseType() string {
 }
 
 // getPostgreSQLType returns the PostgreSQL-specific type mapping
-func (pgm *PostgreSQLTypeMapper) getPostgreSQLType(normalizedType string, nullable bool) (goType, sqlcType, packageName string) {
+func (pgm *PostgreSQLTypeMapper) getPostgreSQLType(
+	normalizedType string,
+	nullable bool,
+) (goType, sqlcType, packageName string) {
 	switch normalizedType {
 	case "varchar", "text", "char":
 		if nullable {

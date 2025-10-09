@@ -13,7 +13,7 @@ import (
 
 type ModelManager struct {
 	validator        *InputValidator
-	fileManager      files.FileManager
+	fileManager      files.Manager
 	modelGenerator   *models.Generator
 	projectManager   *ProjectManager
 	migrationManager *MigrationManager
@@ -22,7 +22,7 @@ type ModelManager struct {
 
 func NewModelManager(
 	validator *InputValidator,
-	fileManager files.FileManager,
+	fileManager files.Manager,
 	modelGenerator *models.Generator,
 	projectManager *ProjectManager,
 	migrationManager *MigrationManager,

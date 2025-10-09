@@ -34,7 +34,10 @@ func NewControllerManager(
 	}
 }
 
-func (c *ControllerManager) GenerateController(resourceName, tableName string, withViews bool) error {
+func (c *ControllerManager) GenerateController(
+	resourceName, tableName string,
+	withViews bool,
+) error {
 	modulePath, err := c.projectManager.GetModulePath()
 	if err != nil {
 		return err

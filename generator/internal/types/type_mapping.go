@@ -56,7 +56,10 @@ func (tcs *TypeConversionService) GetMapper(databaseType string) (DatabaseTypeMa
 }
 
 // MapToGoType maps a database column to a Go type using the appropriate mapper
-func (tcs *TypeConversionService) MapToGoType(databaseType string, column *catalog.Column) (TypeMapping, error) {
+func (tcs *TypeConversionService) MapToGoType(
+	databaseType string,
+	column *catalog.Column,
+) (TypeMapping, error) {
 	mapper, err := tcs.GetMapper(databaseType)
 	if err != nil {
 		return TypeMapping{}, err
@@ -66,7 +69,10 @@ func (tcs *TypeConversionService) MapToGoType(databaseType string, column *catal
 }
 
 // MapToSQLType maps a Go type to a SQL type using the appropriate mapper
-func (tcs *TypeConversionService) MapToSQLType(databaseType, goType string, nullable bool) (string, error) {
+func (tcs *TypeConversionService) MapToSQLType(
+	databaseType, goType string,
+	nullable bool,
+) (string, error) {
 	mapper, err := tcs.GetMapper(databaseType)
 	if err != nil {
 		return "", err
@@ -76,7 +82,9 @@ func (tcs *TypeConversionService) MapToSQLType(databaseType, goType string, null
 }
 
 // GenerateConversionFromDB generates conversion code from database to Go type
-func (tcs *TypeConversionService) GenerateConversionFromDB(databaseType, fieldName, sqlcType, goType string) string {
+func (tcs *TypeConversionService) GenerateConversionFromDB(
+	databaseType, fieldName, sqlcType, goType string,
+) string {
 	mapper, err := tcs.GetMapper(databaseType)
 	if err != nil {
 		return fieldName // Fallback to direct field access
@@ -86,7 +94,9 @@ func (tcs *TypeConversionService) GenerateConversionFromDB(databaseType, fieldNa
 }
 
 // GenerateConversionToDB generates conversion code from Go to database type
-func (tcs *TypeConversionService) GenerateConversionToDB(databaseType, sqlcType, goType, valueExpr string) string {
+func (tcs *TypeConversionService) GenerateConversionToDB(
+	databaseType, sqlcType, goType, valueExpr string,
+) string {
 	mapper, err := tcs.GetMapper(databaseType)
 	if err != nil {
 		return valueExpr // Fallback to direct value

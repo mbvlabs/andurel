@@ -44,7 +44,7 @@ type Config struct {
 
 type Generator struct {
 	typeMapper  *types.TypeMapper
-	fileManager files.FileManager
+	fileManager files.Manager
 }
 
 func NewGenerator(databaseType string) *Generator {
@@ -65,7 +65,8 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 		Fields:       make([]GeneratedField, 0),
 	}
 
-	if config.ControllerType == ResourceController || config.ControllerType == ResourceControllerNoViews {
+	if config.ControllerType == ResourceController ||
+		config.ControllerType == ResourceControllerNoViews {
 		table, err := cat.GetTable("", config.PluralName)
 		if err != nil {
 			return nil, fmt.Errorf("table %s not found: %w", config.PluralName, err)
@@ -133,5 +134,11 @@ func (g *Generator) GenerateController(
 	modulePath string,
 ) error {
 	fileGen := NewFileGenerator()
-	return fileGen.GenerateController(cat, resourceName, controllerType, modulePath, g.typeMapper.GetDatabaseType())
+	return fileGen.GenerateController(
+		cat,
+		resourceName,
+		controllerType,
+		modulePath,
+		g.typeMapper.GetDatabaseType(),
+	)
 }

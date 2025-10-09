@@ -23,10 +23,10 @@ type ViewManager struct {
 func NewViewManager(
 	validator *InputValidator,
 	projectManager *ProjectManager,
-	migrationManager    *MigrationManager,
-	viewGenerator       *views.Generator,
+	migrationManager *MigrationManager,
+	viewGenerator *views.Generator,
 	controllerGenerator *controllers.Generator,
-	config              *UnifiedConfig,
+	config *UnifiedConfig,
 ) *ViewManager {
 	return &ViewManager{
 		validator:           validator,
