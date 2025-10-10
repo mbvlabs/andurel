@@ -42,6 +42,7 @@ func (ctx *Context) Builder() *blueprint.Builder {
 type Extension interface {
 	Name() string
 	Apply(ctx *Context) error
+	Dependencies() []string
 }
 
 var (

@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 	"sync"
 	"text/template"
@@ -524,27 +523,19 @@ func resolveExtensions(names []string) ([]extensions.Extension, error) {
 		return nil, nil
 	}
 
-	seen := make(map[string]struct{}, len(names))
-	lookup := make(map[string]extensions.Extension, len(names))
-	uniqueNames := make([]string, 0, len(names))
-
+	// First pass: collect all requested extensions and validate they exist
+	requested := make(map[string]struct{})
 	for _, rawName := range names {
 		name := strings.TrimSpace(rawName)
 		if name == "" {
 			return nil, fmt.Errorf("extension name cannot be empty")
 		}
 
-		if _, exists := seen[name]; exists {
-			return nil, fmt.Errorf("extension %s specified multiple times", name)
-		}
-
-		ext, ok := extensions.Get(name)
-		if !ok {
+		if _, ok := extensions.Get(name); !ok {
 			available := strings.Join(extensions.Names(), ", ")
 			if available == "" {
 				return nil, fmt.Errorf("unknown extension %q", name)
 			}
-
 			return nil, fmt.Errorf(
 				"unknown extension %q. available extensions: %s",
 				name,
@@ -552,19 +543,126 @@ func resolveExtensions(names []string) ([]extensions.Extension, error) {
 			)
 		}
 
-		seen[name] = struct{}{}
-		uniqueNames = append(uniqueNames, name)
-		lookup[name] = ext
+		requested[name] = struct{}{}
 	}
 
-	sort.Strings(uniqueNames)
+	// Build complete dependency graph (includes transitive dependencies)
+	allNeeded := make(map[string]struct{})
+	if err := collectDependencies(requested, allNeeded); err != nil {
+		return nil, err
+	}
 
-	resolved := make([]extensions.Extension, 0, len(uniqueNames))
-	for _, name := range uniqueNames {
-		resolved = append(resolved, lookup[name])
+	// Topologically sort extensions so dependencies come before dependents
+	sorted, err := topologicalSort(allNeeded)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert names to extension instances
+	resolved := make([]extensions.Extension, 0, len(sorted))
+	for _, name := range sorted {
+		ext, _ := extensions.Get(name)
+		resolved = append(resolved, ext)
 	}
 
 	return resolved, nil
+}
+
+// collectDependencies recursively gathers all extensions needed, including transitive dependencies
+func collectDependencies(requested map[string]struct{}, allNeeded map[string]struct{}) error {
+	for name := range requested {
+		if _, seen := allNeeded[name]; seen {
+			continue
+		}
+
+		ext, ok := extensions.Get(name)
+		if !ok {
+			return fmt.Errorf("unknown extension %q", name)
+		}
+
+		allNeeded[name] = struct{}{}
+
+		// Recursively add dependencies
+		deps := ext.Dependencies()
+		if len(deps) > 0 {
+			depsMap := make(map[string]struct{}, len(deps))
+			for _, dep := range deps {
+				dep = strings.TrimSpace(dep)
+				if dep == "" {
+					continue
+				}
+				if dep == name {
+					return fmt.Errorf("extension %q cannot depend on itself", name)
+				}
+				depsMap[dep] = struct{}{}
+			}
+
+			if err := collectDependencies(depsMap, allNeeded); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// topologicalSort orders extensions so dependencies are applied before dependents.
+// Returns an error if a circular dependency is detected.
+func topologicalSort(extSet map[string]struct{}) ([]string, error) {
+	const (
+		unvisited = 0
+		visiting  = 1
+		visited   = 2
+	)
+
+	state := make(map[string]int)
+	var result []string
+	var path []string // for cycle detection
+
+	var visit func(string) error
+	visit = func(name string) error {
+		switch state[name] {
+		case visited:
+			return nil
+		case visiting:
+			// Found a cycle
+			cycle := append(path, name)
+			return fmt.Errorf("circular dependency detected: %s", strings.Join(cycle, " -> "))
+		}
+
+		state[name] = visiting
+		path = append(path, name)
+
+		ext, ok := extensions.Get(name)
+		if !ok {
+			return fmt.Errorf("unknown extension %q", name)
+		}
+
+		// Visit dependencies first
+		for _, dep := range ext.Dependencies() {
+			dep = strings.TrimSpace(dep)
+			if dep == "" {
+				continue
+			}
+			if err := visit(dep); err != nil {
+				return err
+			}
+		}
+
+		path = path[:len(path)-1]
+		state[name] = visited
+		result = append(result, name)
+		return nil
+	}
+
+	// Visit all extensions
+	for name := range extSet {
+		if err := visit(name); err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
 }
 
 const goVersion = "1.25.0"
