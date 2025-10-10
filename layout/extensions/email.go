@@ -45,6 +45,10 @@ func (e Email) Apply(ctx *Context) error {
 	return nil
 }
 
+func (e Email) Dependencies() []string {
+	return nil
+}
+
 func (e Email) renderTemplates(ctx *Context) error {
 	templates := map[string]string{
 		"email_email.tmpl":       "email/email.go",
