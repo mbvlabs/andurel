@@ -1,3 +1,273 @@
+{{- if eq .Database "postgresql" -}}
+package models
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+	"golang.org/x/crypto/argon2"
+
+	"{{.ModuleName}}/models/internal/db"
+)
+
+type User struct {
+	ID               uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	Email            string
+	EmailValidatedAt time.Time
+	Password         []byte
+	IsAdmin          bool
+}
+
+func HashToken(tkn, salt string) []byte {
+	return argon2.IDKey(
+		[]byte(tkn),
+		[]byte(salt),
+		2,
+		19*1024,
+		1,
+		32,
+	)
+}
+
+func FindUser(
+	ctx context.Context,
+	dbtx db.DBTX,
+	id uuid.UUID,
+) (User, error) {
+	row, err := db.New().QueryUserByID(ctx, dbtx, id)
+	if err != nil {
+		return User{}, err
+	}
+
+	return rowToUser(row)
+}
+
+func FindUserByEmail(
+	ctx context.Context,
+	dbtx db.DBTX,
+	email string,
+) (User, error) {
+	row, err := db.New().QueryUserByEmail(ctx, dbtx, email)
+	if err != nil {
+		return User{}, err
+	}
+
+	return rowToUser(row)
+}
+
+type PasswordPair struct {
+	Password        string `validate:"required,min=8,max=72"`
+	ConfirmPassword string `validate:"required,min=8,max=72"`
+}
+
+type CreateUserData struct {
+	Email        string `validate:"required,email,max=255"`
+	PasswordPair PasswordPair
+}
+
+func CreateUser(
+	ctx context.Context,
+	dbtx db.DBTX,
+	passwordSalt string,
+	data CreateUserData,
+) (User, error) {
+	if err := validate.Struct(data); err != nil {
+		return User{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	hashedPassword := HashToken(data.PasswordPair.Password, passwordSalt)
+
+	params := db.NewInsertUserParams(data.Email, sql.NullTime{}, hashedPassword, false)
+	row, err := db.New().InsertUser(ctx, dbtx, params)
+	if err != nil {
+		return User{}, err
+	}
+
+	return rowToUser(row)
+}
+
+type UpdateUserData struct {
+	ID               uuid.UUID
+	Email            string `validate:"required,email,max=255"`
+	EmailValidatedAt sql.NullTime
+	Password         []byte
+	IsAdmin          bool
+}
+
+func UpdateUser(
+	ctx context.Context,
+	dbtx db.DBTX,
+	data UpdateUserData,
+) (User, error) {
+	if err := validate.Struct(data); err != nil {
+		return User{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	currentRow, err := db.New().QueryUserByID(ctx, dbtx, data.ID)
+	if err != nil {
+		return User{}, err
+	}
+
+	email := data.Email
+	if email == "" {
+		email = currentRow.Email
+	}
+
+	currentEmailValidatedAt := sql.NullTime{}
+	if currentRow.EmailValidatedAt.Valid {
+		currentEmailValidatedAt = sql.NullTime{
+			Time:  currentRow.EmailValidatedAt.Time,
+			Valid: true,
+		}
+	}
+
+	emailValidatedAt := data.EmailValidatedAt
+	if !emailValidatedAt.Valid && currentRow.EmailValidatedAt.Valid {
+		emailValidatedAt = currentEmailValidatedAt
+	}
+
+	password := data.Password
+	if len(password) == 0 {
+		password = currentRow.Password
+	}
+
+	params := db.NewUpdateUserParams(
+		data.ID.String(),
+		email,
+		emailValidatedAt,
+		password,
+		data.IsAdmin,
+	)
+
+	row, err := db.New().UpdateUser(ctx, dbtx, params)
+	if err != nil {
+		return User{}, err
+	}
+
+	return rowToUser(row)
+}
+
+func DestroyUser(
+	ctx context.Context,
+	dbtx db.DBTX,
+	id uuid.UUID,
+) error {
+	return db.New().DeleteUser(ctx, dbtx, id)
+}
+
+func AllUsers(
+	ctx context.Context,
+	dbtx db.DBTX,
+) ([]User, error) {
+	rows, err := db.New().QueryAllUsers(ctx, dbtx)
+	if err != nil {
+		return nil, err
+	}
+
+	users := make([]User, len(rows))
+	for i, row := range rows {
+		user, convErr := rowToUser(row)
+		if convErr != nil {
+			return nil, convErr
+		}
+		users[i] = user
+	}
+
+	return users, nil
+}
+
+type PaginatedUsers struct {
+	Users      []User
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func PaginateUsers(
+	ctx context.Context,
+	dbtx db.DBTX,
+	page int64,
+	pageSize int64,
+) (PaginatedUsers, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := db.New().CountUsers(ctx, dbtx)
+	if err != nil {
+		return PaginatedUsers{}, err
+	}
+
+	rows, err := db.New().QueryPaginatedUsers(
+		ctx,
+		dbtx,
+		db.NewQueryPaginatedUsersParams(pageSize, offset),
+	)
+	if err != nil {
+		return PaginatedUsers{}, err
+	}
+
+	users := make([]User, len(rows))
+	for i, row := range rows {
+		user, convErr := rowToUser(row)
+		if convErr != nil {
+			return PaginatedUsers{}, convErr
+		}
+		users[i] = user
+	}
+
+	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+
+	return PaginatedUsers{
+		Users:      users,
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func rowToUser(row db.User) (User, error) {
+	createdAt := row.CreatedAt.Time
+	if !row.CreatedAt.Valid {
+		createdAt = time.Time{}
+	}
+
+	updatedAt := row.UpdatedAt.Time
+	if !row.UpdatedAt.Valid {
+		updatedAt = time.Time{}
+	}
+
+	emailValidatedAt := time.Time{}
+	if row.EmailValidatedAt.Valid {
+		emailValidatedAt = row.EmailValidatedAt.Time
+	}
+
+	return User{
+		ID:               row.ID,
+		CreatedAt:        createdAt,
+		UpdatedAt:        updatedAt,
+		Email:            row.Email,
+		EmailValidatedAt: emailValidatedAt,
+		Password:         row.Password,
+		IsAdmin:          row.IsAdmin,
+	}, nil
+}
+{{- else if eq .Database "sqlite" -}}
 package models
 
 import (
@@ -89,7 +359,7 @@ func CreateUser(
 
 	hashedPassword := HashToken(data.PasswordPair.Password, passwordSalt)
 
-	params := db.NewInsertUserParams(data.Email, sql.NullTime{}, hashedPassword, 0)
+	params := db.NewInsertUserParams(data.Email, sql.NullTime{}, hashedPassword, false)
 	row, err := db.New().InsertUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err
@@ -140,13 +410,13 @@ func UpdateUser(
 		password = currentRow.Password
 	}
 
-	params := db.UpdateUserParams{
-		Email:            email,
-		EmailValidatedAt: emailValidatedAt,
-		Password:         password,
-		IsAdmin:          data.IsAdmin,
-		ID:               data.ID.String(),
-	}
+	params := db.NewUpdateUserParams(
+		data.ID.String(),
+		email,
+		emailValidatedAt,
+		password,
+		data.IsAdmin > 0,
+	)
 
 	row, err := db.New().UpdateUser(ctx, dbtx, params)
 	if err != nil {
@@ -266,3 +536,4 @@ func rowToUser(row db.User) (User, error) {
 		IsAdmin:          row.IsAdmin,
 	}, nil
 }
+{{- end -}}

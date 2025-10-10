@@ -4,11 +4,20 @@
 
 package db
 
+{{ if eq .Database "postgresql" }}
+import (
+	"database/sql"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+)
+{{ else if eq .Database "sqlite" }}
 import (
 	"database/sql"
 
 	"github.com/google/uuid"
 )
+{{ end }}
 
 // Constructor functions for SQLC parameters - these get updated during refresh
 // to make schema changes compiler-enforced and visible
@@ -17,15 +26,38 @@ func NewInsertUserParams(
 	email string,
 	emailValidatedAt sql.NullTime,
 	password []byte,
-	isAdmin int64,
+	isAdmin bool,
 ) InsertUserParams {
+{{- if eq .Database "postgresql" }}
+	validated := pgtype.Timestamptz{}
+	if emailValidatedAt.Valid {
+		validated = pgtype.Timestamptz{
+			Time:  emailValidatedAt.Time,
+			Valid: true,
+		}
+	}
+
+	return InsertUserParams{
+		ID:               uuid.New(),
+		Email:            email,
+		EmailValidatedAt: validated,
+		Password:         password,
+		IsAdmin:          isAdmin,
+	}
+{{- else if eq .Database "sqlite" }}
+	var sqliteIsAdmin int64
+	if isAdmin {
+		sqliteIsAdmin = 1
+	}
+
 	return InsertUserParams{
 		ID:               uuid.New().String(),
 		Email:            email,
 		EmailValidatedAt: emailValidatedAt,
 		Password:         password,
-		IsAdmin:          isAdmin,
+		IsAdmin:          sqliteIsAdmin,
 	}
+{{- end }}
 }
 
 func NewUpdateUserParams(
@@ -33,15 +65,40 @@ func NewUpdateUserParams(
 	email string,
 	emailValidatedAt sql.NullTime,
 	password []byte,
-	isAdmin int64,
+	isAdmin bool,
 ) UpdateUserParams {
+{{- if eq .Database "postgresql" }}
+	validated := pgtype.Timestamptz{}
+	if emailValidatedAt.Valid {
+		validated = pgtype.Timestamptz{
+			Time:  emailValidatedAt.Time,
+			Valid: true,
+		}
+	}
+
+	parsedID := uuid.MustParse(id)
+
+	return UpdateUserParams{
+		ID:               parsedID,
+		Email:            email,
+		EmailValidatedAt: validated,
+		Password:         password,
+		IsAdmin:          isAdmin,
+	}
+{{- else if eq .Database "sqlite" }}
+	var sqliteIsAdmin int64
+	if isAdmin {
+		sqliteIsAdmin = 1
+	}
+
 	return UpdateUserParams{
 		ID:               id,
 		Email:            email,
 		EmailValidatedAt: emailValidatedAt,
 		Password:         password,
-		IsAdmin:          isAdmin,
+		IsAdmin:          sqliteIsAdmin,
 	}
+{{- end }}
 }
 
 func NewQueryPaginatedUsersParams(limit, offset int64) QueryPaginatedUsersParams {

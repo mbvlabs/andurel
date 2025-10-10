@@ -22,7 +22,11 @@ type LoginData struct {
 
 func AuthenticateUser(
 	ctx context.Context,
+{{- if eq .Database "postgresql" }}
+	db database.Postgres,
+{{- else if eq .Database "sqlite" }}
 	db database.SQLite,
+{{- end }}
 	salt string,
 	data LoginData,
 ) (models.User, error) {
@@ -30,7 +34,11 @@ func AuthenticateUser(
 	if err != nil {
 		return models.User{}, err
 	}
+{{- if eq .Database "postgresql" }}
+	defer tx.Rollback(ctx)
+{{- else if eq .Database "sqlite" }}
 	defer tx.Rollback()
+{{- end }}
 
 	user, err := models.FindUserByEmail(ctx, tx, data.Email)
 	if err != nil {
@@ -49,7 +57,11 @@ func AuthenticateUser(
 		return models.User{}, ErrEmailNotVerified
 	}
 
+{{- if eq .Database "postgresql" }}
+	if err := tx.Commit(ctx); err != nil {
+{{- else if eq .Database "sqlite" }}
 	if err := tx.Commit(); err != nil {
+{{- end }}
 		return models.User{}, err
 	}
 

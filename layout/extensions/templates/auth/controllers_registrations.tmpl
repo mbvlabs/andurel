@@ -16,6 +16,21 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
+{{- if eq .Database "postgresql" }}
+type Registrations struct {
+	db          database.Postgres
+	emailClient email.Client
+	cfg         config.Config
+}
+
+func newRegistrations(
+	db database.Postgres,
+	emailClient email.Client,
+	cfg config.Config,
+) Registrations {
+	return Registrations{db, emailClient, cfg}
+}
+{{- else if eq .Database "sqlite" }}
 type Registrations struct {
 	db          database.SQLite
 	emailClient email.Client
@@ -29,6 +44,7 @@ func newRegistrations(
 ) Registrations {
 	return Registrations{db, emailClient, cfg}
 }
+{{- end }}
 
 func (r Registrations) New(c echo.Context) error {
 	return render(c, views.RegistrationForm())
