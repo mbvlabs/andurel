@@ -1,0 +1,81 @@
+package controllers
+
+import (
+	"log/slog"
+	"net/http"
+
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/email"
+	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/services"
+	"{{.ModuleName}}/views"
+
+	"github.com/labstack/echo/v4"
+	"github.com/starfederation/datastar-go/datastar"
+)
+
+type Registrations struct {
+	db          database.SQLite
+	emailClient email.Client
+	cfg         config.Config
+}
+
+func newRegistrations(
+	db database.SQLite,
+	emailClient email.Client,
+	cfg config.Config,
+) Registrations {
+	return Registrations{db, emailClient, cfg}
+}
+
+func (r Registrations) New(c echo.Context) error {
+	return render(c, views.RegistrationForm())
+}
+
+func (r Registrations) Create(c echo.Context) error {
+	var payload struct {
+		Email           string `form:"email"`
+		Password        string `form:"password"`
+		ConfirmPassword string `form:"confirmPassword"`
+	}
+
+	if err := c.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"could not parse signup form payload",
+			"error",
+			err,
+		)
+		return render(c, views.BadRequest())
+	}
+
+	err := services.RegisterUser(
+		c.Request().Context(),
+		r.db,
+		r.cfg.Auth.PasswordSalt,
+		r.emailClient,
+		services.RegisterUserData{
+			Email:           payload.Email,
+			Password:        payload.Password,
+			ConfirmPassword: payload.ConfirmPassword,
+		},
+	)
+	if err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"failed to register user",
+			"error",
+			err,
+		)
+		if flashErr := cookies.AddFlash(c, cookies.FlashError, "Failed to register user"); flashErr != nil {
+			return render(c, views.InternalError())
+		}
+
+		return c.Redirect(http.StatusSeeOther, routes.RegistrationNew.Path)
+	}
+
+	return datastar.NewSSE(c.Response(), c.Request()).
+		PatchElementTempl(views.ConfirmationForm(), datastar.WithModeReplace(), datastar.WithSelector("main"))
+}

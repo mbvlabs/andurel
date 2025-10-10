@@ -1,0 +1,49 @@
+package email
+
+import (
+	"context"
+
+	"github.com/a-h/templ"
+)
+
+func (c Client) SendVerificationEmail(ctx context.Context, to, verificationCode string) error {
+	htmlBody, err := templ.ToGoHTML(ctx, VerifyEmail(verificationCode))
+	if err != nil {
+		return err
+	}
+
+	textBody, err := HTMLToText(string(htmlBody))
+	if err != nil {
+		return err
+	}
+
+	return c.sender.SendTransactional(
+		ctx,
+		to,
+		"noreply@andurel.com",
+		"Verify Your Email Address",
+		string(htmlBody),
+		textBody,
+	)
+}
+
+func (c Client) SendResetPasswordEmail(ctx context.Context, to, resetURL string) error {
+	htmlBody, err := templ.ToGoHTML(ctx, ResetPassword(resetURL))
+	if err != nil {
+		return err
+	}
+
+	textBody, err := HTMLToText(string(htmlBody))
+	if err != nil {
+		return err
+	}
+
+	return c.sender.SendTransactional(
+		ctx,
+		to,
+		"noreply@andurel.com",
+		"Reset Your Password",
+		string(htmlBody),
+		textBody,
+	)
+}

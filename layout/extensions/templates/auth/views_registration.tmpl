@@ -1,0 +1,30 @@
+package views
+
+import (
+	"fmt"
+	"{{.ModuleName}}/router/routes"
+)
+
+templ RegistrationForm() {
+	@base() {
+		<main>
+			<h1>Sign Up</h1>
+			<form data-on-submit={ fmt.Sprintf("@post('%s')", routes.RegistrationCreate.Path) }>
+				<div>
+					<label for="email">Email</label>
+					<input type="email" id="email" data-bind="email" required/>
+				</div>
+				<div>
+					<label for="password">Password</label>
+					<input type="password" id="password" data-bind="password" required minlength="8"/>
+				</div>
+				<div>
+					<label for="confirmPassword">Confirm Password</label>
+					<input type="password" id="confirmPassword" data-bind="confirmPassword" required minlength="8"/>
+				</div>
+				<button type="submit">Sign Up</button>
+			</form>
+		</main>
+	}
+}
+

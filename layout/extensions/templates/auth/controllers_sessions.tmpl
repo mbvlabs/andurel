@@ -1,0 +1,139 @@
+package controllers
+
+import (
+	"log/slog"
+	"net/http"
+
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/services"
+	"{{.ModuleName}}/views"
+
+	"github.com/labstack/echo-contrib/session"
+	"github.com/labstack/echo/v4"
+)
+
+type Sessions struct {
+	db  database.SQLite
+	cfg config.Config
+}
+
+func newSessions(db database.SQLite, cfg config.Config) Sessions {
+	return Sessions{db, cfg}
+}
+
+func (s Sessions) New(c echo.Context) error {
+	return render(c, views.LoginForm())
+}
+
+func (s Sessions) Create(c echo.Context) error {
+	var payload struct {
+		Email    string `form:"email"`
+		Password string `form:"password"`
+	}
+
+	if err := c.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"could not parse login form payload",
+			"error",
+			err,
+		)
+		return render(c, views.BadRequest())
+	}
+
+	user, err := services.AuthenticateUser(
+		c.Request().Context(),
+		s.db,
+		s.cfg.Auth.PasswordSalt,
+		services.LoginData{
+			Email:    payload.Email,
+			Password: payload.Password,
+		},
+	)
+	if err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"failed to authenticate user",
+			"error",
+			err,
+		)
+
+		var errorMsg string
+		switch err {
+		case services.ErrInvalidCredentials:
+			errorMsg = "Invalid email or password"
+		case services.ErrEmailNotVerified:
+			errorMsg = "Please verify your email before logging in"
+		default:
+			errorMsg = "Failed to log in"
+		}
+
+		if flashErr := cookies.AddFlash(c, cookies.FlashError, errorMsg); flashErr != nil {
+			return render(c, views.InternalError())
+		}
+		return c.Redirect(http.StatusSeeOther, routes.SessionNew.Path)
+	}
+
+	sess, err := session.Get(config.AuthenticatedSessionName, c)
+	if err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"failed to get session",
+			"error",
+			err,
+		)
+		return render(c, views.InternalError())
+	}
+
+	sess.Values["is_authenticated"] = true
+	sess.Values["user_id"] = user.ID.String()
+	if err := sess.Save(c.Request(), c.Response()); err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"failed to save session",
+			"error",
+			err,
+		)
+		return render(c, views.InternalError())
+	}
+
+	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Successfully logged in!"); flashErr != nil {
+		return render(c, views.InternalError())
+	}
+
+	return c.Redirect(http.StatusSeeOther, routes.HomePage.Path)
+}
+
+func (s Sessions) Destroy(c echo.Context) error {
+	sess, err := session.Get(config.AuthenticatedSessionName, c)
+	if err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"failed to get session",
+			"error",
+			err,
+		)
+		return render(c, views.InternalError())
+	}
+
+	sess.Options.MaxAge = -1
+	if err := sess.Save(c.Request(), c.Response()); err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"failed to clear session",
+			"error",
+			err,
+		)
+		return render(c, views.InternalError())
+	}
+
+	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Successfully logged out!"); flashErr != nil {
+		return render(c, views.InternalError())
+	}
+
+	return c.Redirect(http.StatusSeeOther, routes.SessionNew.Path)
+}
+

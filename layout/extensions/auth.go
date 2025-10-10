@@ -1,0 +1,100 @@
+package extensions
+
+import (
+	"fmt"
+)
+
+type Auth struct{}
+
+func (e Auth) Name() string {
+	return "auth"
+}
+
+func (e Auth) Apply(ctx *Context) error {
+	if ctx == nil || ctx.Data == nil {
+		return fmt.Errorf("auth: context or data is nil")
+	}
+
+	builder := ctx.Builder()
+
+	moduleName := ctx.Data.GetModuleName()
+
+	// Add models package import to controllers
+	builder.AddControllerImport(fmt.Sprintf("%s/config", moduleName))
+
+	// Add auth models as controller dependencies
+	builder.AddControllerDependency("cfg", "config.Config")
+
+	// Add auth configuration
+	builder.AddConfigField("Auth", "auth")
+
+	// Register auth controllers as fields on the Controllers struct
+	builder.AddControllerField("Sessions", "Sessions")
+	builder.AddControllerField("Registrations", "Registrations")
+	builder.AddControllerField("Confirmations", "Confirmations")
+	builder.AddControllerField("ResetPassword", "ResetPassword")
+
+	// Add constructors for each auth controller
+	builder.AddControllerConstructor("sessions", "newSessions(db, cfg)")
+	builder.AddControllerConstructor("registrations", "newRegistrations(db, emailClient, cfg)")
+	builder.AddControllerConstructor("confirmations", "newConfirmations(db, cfg)")
+	builder.AddControllerConstructor("resetPassword", "newResetPassword(db, emailClient, cfg)")
+
+	// Render all template files
+	if err := e.renderTemplates(ctx); err != nil {
+		return fmt.Errorf("auth: failed to render templates: %w", err)
+	}
+
+	return nil
+}
+
+func (e Auth) Dependencies() []string {
+	return []string{Email{}.Name()}
+}
+
+func (e Auth) renderTemplates(ctx *Context) error {
+	templates := map[string]string{
+		"controllers_confirmations.tmpl":   "controllers/confirmations.go",
+		"controllers_registrations.tmpl":   "controllers/registrations.go",
+		"controllers_reset_passwords.tmpl": "controllers/reset_passwords.go",
+		"controllers_sessions.tmpl":        "controllers/sessions.go",
+
+		"config_auth.tmpl": "config/auth.go",
+
+		"database_migrations_users.tmpl":  "database/migrations/001_create_users_table.sql",
+		"database_migrations_tokens.tmpl": "database/migrations/002_create_tokens_table.sql",
+		"database_queries_tokens.tmpl":    "database/queries/tokens.sql",
+		"database_queries_users.tmpl":     "database/queries/users.sql",
+
+		"email_reset_password.tmpl": "email/reset_password.templ",
+		"email_verify_email.tmpl":   "email/verify_email.templ",
+		"email_auth.tmpl":           "email/auth.go",
+
+		"models_token.tmpl": "models/token.go",
+		"models_user.tmpl":  "models/user.go",
+
+		"models_interal_db_token_constructors.tmpl": "models/internal/db/token_constructors.go",
+		"models_interal_db_user_constructors.tmpl":  "models/internal/db/user_constructors.go",
+
+		"services_authentication.tmpl": "services/authentication.go",
+		"services_registration.tmpl":   "services/registration.go",
+		"services_reset_password.tmpl": "services/reset_password.go",
+
+		"router_routes_users.tmpl": "router/routes/users.go",
+
+		"views_confirm_email.tmpl":  "views/confirm_email.templ",
+		"views_login.tmpl":          "views/login.templ",
+		"views_registration.tmpl":   "views/registration.templ",
+		"views_reset_password.tmpl": "views/reset_password.templ",
+	}
+
+	// Process each template
+	for tmpl, target := range templates {
+		templatePath := fmt.Sprintf("templates/auth/%s", tmpl)
+		if err := ctx.ProcessTemplate(templatePath, target, nil); err != nil {
+			return fmt.Errorf("failed to process %s: %w", tmpl, err)
+		}
+	}
+
+	return nil
+}
