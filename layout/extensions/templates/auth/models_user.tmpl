@@ -1,10 +1,14 @@
-{{- if eq .Database "postgresql" -}}
 package models
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
 	"database/sql"
+	"encoding/base64"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -233,27 +237,6 @@ func DestroyUser(
 	id uuid.UUID,
 ) error {
 	return db.New().DeleteUser(ctx, dbtx, id)
-}
-
-func AllUsers(
-	ctx context.Context,
-	dbtx db.DBTX,
-) ([]User, error) {
-	rows, err := db.New().QueryAllUsers(ctx, dbtx)
-	if err != nil {
-		return nil, err
-	}
-
-	users := make([]User, len(rows))
-	for i, row := range rows {
-		user, convErr := rowToUser(row)
-		if convErr != nil {
-			return nil, convErr
-		}
-		users[i] = user
-	}
-
-	return users, nil
 }
 
 type PaginatedUsers struct {

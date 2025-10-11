@@ -118,7 +118,7 @@ func VerifyEmail(
 		return ErrInvalidVerificationCode
 	}
 
-	if !token.IsValid() {
+	if !token.IsValid(data.Code, salt) {
 		return ErrExpiredVerificationCode
 	}
 

@@ -5,9 +5,6 @@ select * from tokens where id=$1;
 -- name: QueryTokens :many
 select * from tokens;
 
--- name: QueryAllTokens :many
-select * from tokens;
-
 -- name: InsertToken :one
 insert into
     tokens (id, created_at, updated_at, scope, expires_at, hash, meta_data)
@@ -39,9 +36,6 @@ select * from tokens where scope=$1 and hash=$2 limit 1;
 select * from tokens where id=?;
 
 -- name: QueryTokens :many
-select * from tokens;
-
--- name: QueryAllTokens :many
 select * from tokens;
 
 -- name: InsertToken :one

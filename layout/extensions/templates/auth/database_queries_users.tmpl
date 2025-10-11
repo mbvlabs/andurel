@@ -8,9 +8,6 @@ select * from users where email=$1;
 -- name: QueryUsers :many
 select * from users;
 
--- name: QueryAllUsers :many
-select * from users;
-
 -- name: InsertUser :one
 insert into
     users (id, created_at, updated_at, email, email_validated_at, password, is_admin)
@@ -42,9 +39,6 @@ select * from users where id=?;
 select * from users where email=?;
 
 -- name: QueryUsers :many
-select * from users;
-
--- name: QueryAllUsers :many
 select * from users;
 
 -- name: InsertUser :one

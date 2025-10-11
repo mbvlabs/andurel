@@ -40,6 +40,13 @@ func (e Auth) Apply(ctx *Context) error {
 	builder.AddControllerConstructor("confirmations", "newConfirmations(db, cfg)")
 	builder.AddControllerConstructor("resetPassword", "newResetPassword(db, emailClient, cfg)")
 
+	// Register route groups so BuildRoutes aggregates auth routes.
+	builder.AddRouteGroup("User")
+	builder.AddRouteGroup("Registration")
+	builder.AddRouteGroup("Confirmation")
+	builder.AddRouteGroup("Password")
+	builder.AddRouteGroup("Session")
+
 	// Render all template files
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("auth: failed to render templates: %w", err)

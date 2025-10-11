@@ -2,11 +2,12 @@ package models
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base32"
+	"encoding/hex"
 	"errors"
-	"math/big"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -157,6 +158,7 @@ func DestroyToken(
 ) error {
 	return db.New().DeleteToken(ctx, dbtx, id)
 }
+
 
 type PaginatedTokens struct {
 	Tokens     []Token

@@ -1,7 +1,9 @@
 package services
 
 import (
+{{- if eq .Database "sqlite" }}
 	"bytes"
+{{- end }}
 	"context"
 	"database/sql"
 	"errors"
@@ -30,15 +32,36 @@ func AuthenticateUser(
 	salt string,
 	data LoginData,
 ) (models.User, error) {
+{{- if eq .Database "postgresql" }}
+	user, err := models.FindUserByEmail(ctx, db.Conn(), data.Email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.User{}, ErrInvalidCredentials
+		}
+
+		return models.User{}, err
+	}
+
+	validPassword, err := user.ValidPassword(data.Password, salt)
+	if err != nil {
+		return models.User{}, err
+	}
+
+	if !validPassword {
+		return models.User{}, errors.New("invalid password")
+	}
+
+	if user.EmailValidatedAt.IsZero() {
+		return models.User{}, ErrEmailNotVerified
+	}
+
+	return user, nil
+{{- else if eq .Database "sqlite" }}
 	tx, err := db.BeginTx(ctx)
 	if err != nil {
 		return models.User{}, err
 	}
-{{- if eq .Database "postgresql" }}
-	defer tx.Rollback(ctx)
-{{- else if eq .Database "sqlite" }}
 	defer tx.Rollback()
-{{- end }}
 
 	user, err := models.FindUserByEmail(ctx, tx, data.Email)
 	if err != nil {
@@ -57,13 +80,10 @@ func AuthenticateUser(
 		return models.User{}, ErrEmailNotVerified
 	}
 
-{{- if eq .Database "postgresql" }}
-	if err := tx.Commit(ctx); err != nil {
-{{- else if eq .Database "sqlite" }}
 	if err := tx.Commit(); err != nil {
-{{- end }}
 		return models.User{}, err
 	}
 
 	return user, nil
+{{- end }}
 }
