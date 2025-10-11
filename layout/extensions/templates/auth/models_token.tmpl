@@ -1,4 +1,3 @@
-{{- if eq .Database "postgresql" -}}
 package models
 
 import (
@@ -25,31 +24,42 @@ type Token struct {
 	MetaData  []byte
 }
 
-func (t Token) IsValid() bool {
-	return time.Now().Before(t.ExpiresAt)
+func (t Token) IsValid(token, secret string) bool {
+	expected := HashForStorage(token, secret)
+
+	isEqual := hmac.Equal([]byte(expected), []byte(t.Hash))
+	isNotExpired := time.Now().Before(t.ExpiresAt)
+
+	return isEqual && isNotExpired
 }
 
-func generateToken() string {
-	bytes := make([]byte, 15)
-	//nolint:errcheck //can't error
-	rand.Read(bytes)
-	return strings.ToLower(base32.StdEncoding.EncodeToString(bytes))
-}
+const codeAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-func generateRandomAlphanumeric(length int) (string, error) {
-	const charset = "abcdefghjklmnpqrstuvwxyz23456789"
-	result := make([]byte, length)
-	for i := range result {
-		randomIndex, err := rand.Int(
-			rand.Reader,
-			big.NewInt(int64(len(charset))),
-		)
-		if err != nil {
-			return "", err
-		}
-		result[i] = charset[randomIndex.Int64()]
+func GenerateCode(n int) (string, error) {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
 	}
-	return string(result), nil
+	for i := range b {
+		b[i] = codeAlphabet[int(b[i])%len(codeAlphabet)]
+	}
+
+	return string(b), nil
+}
+
+func GenerateSecureToken() (string, error) {
+	b := make([]byte, 15) // 120 bits
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b), nil
+}
+
+func HashForStorage(plain, secret string) string {
+	m := hmac.New(sha256.New, []byte(secret))
+	m.Write([]byte(plain))
+
+	return hex.EncodeToString(m.Sum(nil))
 }
 
 func FindToken(
@@ -73,7 +83,7 @@ func CreateCodeToken(
 	expiresAt time.Time,
 	metaData []byte,
 ) (string, error) {
-	tkn, err := generateRandomAlphanumeric(6)
+	tkn, err := GenerateCode(6)
 	if err != nil {
 		return "", err
 	}
@@ -82,7 +92,7 @@ func CreateCodeToken(
 		Scope:     scope,
 		ExpiresAt: expiresAt,
 		MetaData:  metaData,
-		Hash:      string(HashToken(tkn, salt)),
+		Hash:      HashForStorage(tkn, salt),
 	}); err != nil {
 		return "", err
 	}
@@ -98,13 +108,16 @@ func CreateToken(
 	expiresAt time.Time,
 	metaData []byte,
 ) (string, error) {
-	tkn := generateToken()
+	tkn, err := GenerateSecureToken()
+	if err != nil {
+		return "", err
+	}
 
 	if _, err := createToken(ctx, dbtx, createTokenData{
 		Scope:     scope,
 		ExpiresAt: expiresAt,
 		MetaData:  metaData,
-		Hash:      string(HashToken(tkn, salt)),
+		Hash:      HashForStorage(tkn, salt),
 	}); err != nil {
 		return "", err
 	}
@@ -116,7 +129,7 @@ type createTokenData struct {
 	Scope     string    `validate:"required"`
 	ExpiresAt time.Time `validate:"required"`
 	Hash      string    `validate:"required"`
-	MetaData  []byte    `validate:"required" json:"meta"`
+	MetaData  []byte    `validate:"required"`
 }
 
 func createToken(
@@ -143,27 +156,6 @@ func DestroyToken(
 	id uuid.UUID,
 ) error {
 	return db.New().DeleteToken(ctx, dbtx, id)
-}
-
-func AllTokens(
-	ctx context.Context,
-	dbtx db.DBTX,
-) ([]Token, error) {
-	rows, err := db.New().QueryAllTokens(ctx, dbtx)
-	if err != nil {
-		return nil, err
-	}
-
-	tokens := make([]Token, len(rows))
-	for i, row := range rows {
-		token, convErr := rowToToken(row)
-		if convErr != nil {
-			return nil, convErr
-		}
-		tokens[i] = token
-	}
-
-	return tokens, nil
 }
 
 type PaginatedTokens struct {
@@ -233,7 +225,8 @@ func FindTokenByScopeAndHash(
 	scope string,
 	token string,
 ) (Token, error) {
-	hash := string(HashToken(token, salt))
+	hash := HashForStorage(token, salt)
+
 	row, err := db.New().QueryTokenByScopeAndHash(ctx, dbtx, db.QueryTokenByScopeAndHashParams{
 		Scope: scope,
 		Hash:  hash,
@@ -256,280 +249,3 @@ func rowToToken(row db.Token) (Token, error) {
 		MetaData:  row.MetaData,
 	}, nil
 }
-{{- else if eq .Database "sqlite" -}}
-package models
-
-import (
-	"context"
-	"crypto/rand"
-	"encoding/base32"
-	"errors"
-	"math/big"
-	"strings"
-	"time"
-
-	"github.com/google/uuid"
-
-	"{{.ModuleName}}/models/internal/db"
-)
-
-type Token struct {
-	ID        uuid.UUID
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Scope     string
-	ExpiresAt time.Time
-	Hash      string
-	MetaData  []byte
-}
-
-func (t Token) IsValid() bool {
-	return time.Now().Before(t.ExpiresAt)
-}
-
-func generateToken() string {
-	bytes := make([]byte, 15)
-	//nolint:errcheck //can't error
-	rand.Read(bytes)
-	return strings.ToLower(base32.StdEncoding.EncodeToString(bytes))
-}
-
-func generateRandomAlphanumeric(length int) (string, error) {
-	const charset = "abcdefghjklmnpqrstuvwxyz23456789"
-	result := make([]byte, length)
-	for i := range result {
-		randomIndex, err := rand.Int(
-			rand.Reader,
-			big.NewInt(int64(len(charset))),
-		)
-		if err != nil {
-			return "", err
-		}
-		result[i] = charset[randomIndex.Int64()]
-	}
-	return string(result), nil
-}
-
-func FindToken(
-	ctx context.Context,
-	dbtx db.DBTX,
-	id uuid.UUID,
-) (Token, error) {
-	row, err := db.New().QueryTokenByID(ctx, dbtx, id.String())
-	if err != nil {
-		return Token{}, err
-	}
-
-	result, err := rowToToken(row)
-	if err != nil {
-		return Token{}, err
-	}
-	return result, nil
-}
-
-func CreateCodeToken(
-	ctx context.Context,
-	dbtx db.DBTX,
-	salt string,
-	scope string,
-	expiresAt time.Time,
-	metaData []byte,
-) (string, error) {
-	tkn, err := generateRandomAlphanumeric(6)
-	if err != nil {
-		return "", err
-	}
-
-	if _, err := createToken(ctx, dbtx, createTokenData{
-		Scope:     scope,
-		ExpiresAt: expiresAt,
-		MetaData:  metaData,
-		Hash:      string(HashToken(tkn, salt)),
-	}); err != nil {
-		return "", err
-	}
-
-	return tkn, nil
-}
-
-func CreateToken(
-	ctx context.Context,
-	dbtx db.DBTX,
-	salt string,
-	scope string,
-	expiresAt time.Time,
-	metaData []byte,
-) (string, error) {
-	tkn := generateToken()
-
-	if _, err := createToken(ctx, dbtx, createTokenData{
-		Scope:     scope,
-		ExpiresAt: expiresAt,
-		MetaData:  metaData,
-		Hash:      string(HashToken(tkn, salt)),
-	}); err != nil {
-		return "", err
-	}
-
-	return tkn, nil
-}
-
-type createTokenData struct {
-	Scope     string    `validate:"required"`
-	ExpiresAt time.Time `validate:"required"`
-	Hash      string    `validate:"required"`
-	MetaData  []byte    `validate:"required" json:"meta"`
-}
-
-func createToken(
-	ctx context.Context,
-	dbtx db.DBTX,
-	data createTokenData,
-) (Token, error) {
-	if err := validate.Struct(data); err != nil {
-		return Token{}, errors.Join(ErrDomainValidation, err)
-	}
-
-	params := db.NewInsertTokenParams(data.Scope, data.ExpiresAt, data.Hash, data.MetaData)
-	row, err := db.New().InsertToken(ctx, dbtx, params)
-	if err != nil {
-		return Token{}, err
-	}
-
-	result, err := rowToToken(row)
-	if err != nil {
-		return Token{}, err
-	}
-	return result, nil
-}
-
-func DestroyToken(
-	ctx context.Context,
-	dbtx db.DBTX,
-	id uuid.UUID,
-) error {
-	return db.New().DeleteToken(ctx, dbtx, id.String())
-}
-
-func AllTokens(
-	ctx context.Context,
-	dbtx db.DBTX,
-) ([]Token, error) {
-	rows, err := db.New().QueryAllTokens(ctx, dbtx)
-	if err != nil {
-		return nil, err
-	}
-
-	tokens := make([]Token, len(rows))
-	for i, row := range rows {
-		result, err := rowToToken(row)
-		if err != nil {
-			return nil, err
-		}
-		tokens[i] = result
-	}
-
-	return tokens, nil
-}
-
-type PaginatedTokens struct {
-	Tokens     []Token
-	TotalCount int64
-	Page       int64
-	PageSize   int64
-	TotalPages int64
-}
-
-func PaginateTokens(
-	ctx context.Context,
-	dbtx db.DBTX,
-	page int64,
-	pageSize int64,
-) (PaginatedTokens, error) {
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 {
-		pageSize = 10
-	}
-	if pageSize > 100 {
-		pageSize = 100
-	}
-
-	offset := (page - 1) * pageSize
-
-	totalCount, err := db.New().CountTokens(ctx, dbtx)
-	if err != nil {
-		return PaginatedTokens{}, err
-	}
-
-	rows, err := db.New().QueryPaginatedTokens(
-		ctx,
-		dbtx,
-		db.NewQueryPaginatedTokensParams(pageSize, offset),
-	)
-	if err != nil {
-		return PaginatedTokens{}, err
-	}
-
-	tokens := make([]Token, len(rows))
-	for i, row := range rows {
-		result, err := rowToToken(row)
-		if err != nil {
-			return PaginatedTokens{}, err
-		}
-		tokens[i] = result
-	}
-
-	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
-
-	return PaginatedTokens{
-		Tokens:     tokens,
-		TotalCount: totalCount,
-		Page:       page,
-		PageSize:   pageSize,
-		TotalPages: totalPages,
-	}, nil
-}
-
-func FindTokenByScopeAndHash(
-	ctx context.Context,
-	dbtx db.DBTX,
-	salt string,
-	scope string,
-	token string,
-) (Token, error) {
-	hash := string(HashToken(token, salt))
-	row, err := db.New().QueryTokenByScopeAndHash(ctx, dbtx, db.QueryTokenByScopeAndHashParams{
-		Scope: scope,
-		Hash:  hash,
-	})
-	if err != nil {
-		return Token{}, err
-	}
-
-	result, err := rowToToken(row)
-	if err != nil {
-		return Token{}, err
-	}
-
-	return result, nil
-}
-
-func rowToToken(row db.Token) (Token, error) {
-	id, err := uuid.Parse(row.ID)
-	if err != nil {
-		return Token{}, err
-	}
-
-	return Token{
-		ID:        id,
-		CreatedAt: row.CreatedAt,
-		UpdatedAt: row.UpdatedAt,
-		Scope:     row.Scope,
-		ExpiresAt: row.ExpiresAt,
-		Hash:      row.Hash,
-		MetaData:  row.MetaData,
-	}, nil
-}
-{{- end -}}
