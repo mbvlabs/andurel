@@ -204,6 +204,11 @@ func Scaffold(
 		}
 	}
 
+	fmt.Print("Running sqlc generate...\n")
+	if err := runSqlcGenerate(targetDir); err != nil {
+		return fmt.Errorf("failed to run templ fmt: %w", err)
+	}
+
 	fmt.Print("Running templ fmt...\n")
 	if err := runTemplFmt(targetDir); err != nil {
 		return fmt.Errorf("failed to run templ fmt: %w", err)
@@ -219,10 +224,9 @@ func Scaffold(
 		return fmt.Errorf("failed to run go fmt: %w", err)
 	}
 
-	fmt.Print("Finalizing go mod tidy...\n")
-	// calling go mod tidy again to ensure everything is in place after templ generation
+	fmt.Print("Finalizing go tidy...\n")
 	if err := runGoModTidy(targetDir); err != nil {
-		return fmt.Errorf("failed to run go mod tidy: %w", err)
+		return fmt.Errorf("failed to run go fmt: %w", err)
 	}
 
 	return nil
@@ -294,7 +298,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"cmd_console_main.tmpl":   "cmd/console/main.go",
 
 	// Config
-	"config_auth.tmpl":     "config/auth.go",
+	"config_app.tmpl":      "config/app.go",
 	"config_config.tmpl":   "config/config.go",
 	"config_database.tmpl": "config/database.go",
 
@@ -505,6 +509,7 @@ func registerBuiltinExtensions() error {
 	registerBuiltinOnce.Do(func() {
 		builtin := []extensions.Extension{
 			extensions.Email{},
+			extensions.Auth{},
 		}
 
 		for _, ext := range builtin {
@@ -735,7 +740,7 @@ func runTemplFmt(targetDir string) error {
 	return cmd.Run()
 }
 
-func RunSqlcGenerate(targetDir string) error {
+func runSqlcGenerate(targetDir string) error {
 	cmd := exec.Command("go", "tool", "sqlc", "generate", "-f", "database/sqlc.yaml")
 	cmd.Dir = targetDir
 	return cmd.Run()

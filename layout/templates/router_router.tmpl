@@ -46,11 +46,11 @@ func New(
 		router.Debug = true
 	}
 
-	authKey, err := hex.DecodeString(cfg.Auth.SessionKey)
+	authKey, err := hex.DecodeString(cfg.App.SessionKey)
 	if err != nil {
 		return nil, err
 	}
-	encKey, err := hex.DecodeString(cfg.Auth.SessionEncryptionKey)
+	encKey, err := hex.DecodeString(cfg.App.SessionEncryptionKey)
 	if err != nil {
 		return nil, err
 	}

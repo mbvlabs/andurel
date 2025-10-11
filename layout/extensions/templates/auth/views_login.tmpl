@@ -1,0 +1,31 @@
+package views
+
+import (
+	"fmt"
+	"{{.ModuleName}}/router/routes"
+)
+
+templ LoginForm() {
+	@base() {
+		<main>
+			<h1>Login</h1>
+			<form data-on-submit={ fmt.Sprintf("@post('%s')", routes.SessionCreate.Path) }>
+				<div>
+					<label for="email">Email</label>
+					<input type="email" id="email" data-bind="email" required/>
+				</div>
+				<div>
+					<label for="password">Password</label>
+					<input type="password" id="password" data-bind="password" required/>
+				</div>
+				<button type="submit">Login</button>
+			</form>
+			<p>
+				<a href={ templ.SafeURL(routes.PasswordNew.Path) }>Forgot your password?</a>
+			</p>
+			<p>
+				Don't have an account? <a href={ templ.SafeURL(routes.RegistrationNew.Path) }>Sign up</a>
+			</p>
+		</main>
+	}
+}

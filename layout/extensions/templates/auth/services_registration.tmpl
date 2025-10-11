@@ -1,0 +1,163 @@
+package services
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"time"
+
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/email"
+	"{{.ModuleName}}/models"
+)
+
+const userEmailVerification = "user_email_verification"
+
+type RegisterUserData struct {
+	Email           string
+	Password        string
+	ConfirmPassword string
+}
+
+func RegisterUser(
+	ctx context.Context,
+{{- if eq .Database "postgresql" }}
+	db database.Postgres,
+{{- else if eq .Database "sqlite" }}
+	db database.SQLite,
+{{- end }}
+	salt string,
+	emailClient email.Client,
+	data RegisterUserData,
+) error {
+	tx, err := db.BeginTx(ctx)
+	if err != nil {
+		return err
+	}
+
+	user, err := models.CreateUser(ctx, tx, salt, models.CreateUserData{
+		Email: data.Email,
+		PasswordPair: models.PasswordPair{
+			Password:        data.Password,
+			ConfirmPassword: data.ConfirmPassword,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	meta, err := json.Marshal(map[string]string{
+		"email": user.Email,
+	})
+	if err != nil {
+		return err
+	}
+
+	code, err := models.CreateCodeToken(
+		ctx,
+		tx,
+		salt,
+		userEmailVerification,
+		time.Now().Add(24*time.Hour),
+		meta,
+	)
+	if err != nil {
+		return err
+	}
+
+	if err := emailClient.SendVerificationEmail(ctx, user.Email, code); err != nil {
+		return err
+	}
+
+{{- if eq .Database "postgresql" }}
+	return tx.Commit(ctx)
+{{- else if eq .Database "sqlite" }}
+	return tx.Commit()
+{{- end }}
+}
+
+var (
+	ErrInvalidVerificationCode = errors.New("invalid verification code")
+	ErrExpiredVerificationCode = errors.New("verification code has expired")
+	ErrUserNotFound            = errors.New("user not found")
+)
+
+type VerifyEmailData struct {
+	Code string
+}
+
+func VerifyEmail(
+	ctx context.Context,
+{{- if eq .Database "postgresql" }}
+	db database.Postgres,
+{{- else if eq .Database "sqlite" }}
+	db database.SQLite,
+{{- end }}
+	salt string,
+	data VerifyEmailData,
+) error {
+	tx, err := db.BeginTx(ctx)
+	if err != nil {
+		return err
+	}
+{{- if eq .Database "postgresql" }}
+	defer tx.Rollback(ctx)
+{{- else if eq .Database "sqlite" }}
+	defer tx.Rollback()
+{{- end }}
+
+	token, err := models.FindTokenByScopeAndHash(
+		ctx,
+		tx,
+		salt,
+		userEmailVerification,
+		data.Code,
+	)
+	if err != nil {
+		return ErrInvalidVerificationCode
+	}
+
+	if !token.IsValid(data.Code, salt) {
+		return ErrExpiredVerificationCode
+	}
+
+	var meta map[string]string
+	if err := json.Unmarshal(token.MetaData, &meta); err != nil {
+		return err
+	}
+
+	email, ok := meta["email"]
+	if !ok {
+		return errors.New("token metadata missing email")
+	}
+
+	user, err := models.FindUserByEmail(ctx, tx, email)
+	if err != nil {
+		return err
+	}
+
+	_, err = models.UpdateUser(ctx, tx, models.UpdateUserData{
+		ID:    user.ID,
+		Email: user.Email,
+		EmailValidatedAt: sql.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		},
+		Password: user.Password,
+		IsAdmin:  user.IsAdmin,
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := models.DestroyToken(ctx, tx, token.ID); err != nil {
+		return err
+	}
+
+{{- if eq .Database "postgresql" }}
+	return tx.Commit(ctx)
+{{- else if eq .Database "sqlite" }}
+	return tx.Commit()
+{{- end }}
+}
