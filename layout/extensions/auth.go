@@ -19,35 +19,27 @@ func (e Auth) Apply(ctx *Context) error {
 
 	moduleName := ctx.Data.GetModuleName()
 
-	// Add models package import to controllers
 	builder.AddControllerImport(fmt.Sprintf("%s/config", moduleName))
 
-	// Add auth models as controller dependencies
 	builder.AddControllerDependency("cfg", "config.Config")
 
-	// Add auth configuration
 	builder.AddConfigField("Auth", "auth")
 
-	// Register auth controllers as fields on the Controllers struct
 	builder.AddControllerField("Sessions", "Sessions")
 	builder.AddControllerField("Registrations", "Registrations")
 	builder.AddControllerField("Confirmations", "Confirmations")
 	builder.AddControllerField("ResetPassword", "ResetPassword")
 
-	// Add constructors for each auth controller
 	builder.AddControllerConstructor("sessions", "newSessions(db, cfg)")
 	builder.AddControllerConstructor("registrations", "newRegistrations(db, emailClient, cfg)")
 	builder.AddControllerConstructor("confirmations", "newConfirmations(db, cfg)")
 	builder.AddControllerConstructor("resetPassword", "newResetPassword(db, emailClient, cfg)")
 
-	// Register route groups so BuildRoutes aggregates auth routes.
-	builder.AddRouteGroup("User")
 	builder.AddRouteGroup("Registration")
 	builder.AddRouteGroup("Confirmation")
 	builder.AddRouteGroup("Password")
 	builder.AddRouteGroup("Session")
 
-	// Render all template files
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("auth: failed to render templates: %w", err)
 	}
