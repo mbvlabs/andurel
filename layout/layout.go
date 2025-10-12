@@ -59,6 +59,7 @@ func Scaffold(
 		ModuleName:           moduleName,
 		Database:             database,
 		CSSFramework:         cssFramework,
+		GoVersion:            goVersion,
 		SessionKey:           generateRandomHex(64),
 		SessionEncryptionKey: generateRandomHex(32),
 		TokenSigningKey:      generateRandomHex(32),
@@ -86,7 +87,7 @@ func Scaffold(
 	}
 
 	fmt.Print("Creating go.mod file...\n")
-	if err := createGoMod(targetDir, moduleName); err != nil {
+	if err := createGoMod(targetDir, &templateData); err != nil {
 		return fmt.Errorf("failed to create go.mod: %w", err)
 	}
 
@@ -204,6 +205,16 @@ func Scaffold(
 		}
 	}
 
+	fmt.Print("Finalizing go tidy...\n")
+	if err := runGoModTidy(targetDir); err != nil {
+		return fmt.Errorf("failed to run go fmt: %w", err)
+	}
+
+	fmt.Print("Running sqlc generate...\n")
+	if err := runSqlcGenerate(targetDir); err != nil {
+		return fmt.Errorf("failed to run templ fmt: %w", err)
+	}
+
 	fmt.Print("Running templ fmt...\n")
 	if err := runTemplFmt(targetDir); err != nil {
 		return fmt.Errorf("failed to run templ fmt: %w", err)
@@ -217,12 +228,6 @@ func Scaffold(
 	fmt.Print("Running go fmt...\n")
 	if err := runGoFmt(targetDir); err != nil {
 		return fmt.Errorf("failed to run go fmt: %w", err)
-	}
-
-	fmt.Print("Finalizing go mod tidy...\n")
-	// calling go mod tidy again to ensure everything is in place after templ generation
-	if err := runGoModTidy(targetDir); err != nil {
-		return fmt.Errorf("failed to run go mod tidy: %w", err)
 	}
 
 	return nil
@@ -397,6 +402,10 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		if err := renderTemplate(targetDir, string(tmplName), string(targetPath), templates.Files, data); err != nil {
 			return fmt.Errorf("failed to render blueprint template %s: %w", tmplName, err)
 		}
+	}
+
+	if err := renderTemplate(targetDir, "go_mod.tmpl", "go.mod", templates.Files, data); err != nil {
+		return fmt.Errorf("failed to render go.mod template: %w", err)
 	}
 
 	return nil
@@ -667,24 +676,24 @@ func topologicalSort(extSet map[string]struct{}) ([]string, error) {
 
 const goVersion = "1.25.0"
 
-const goModTemplate = `module %s
+var defaultTools = []string{
+	"github.com/a-h/templ/cmd/templ",
+	"github.com/xo/usql",
+	"github.com/sqlc-dev/sqlc/cmd/sqlc",
+	"github.com/pressly/goose/v3/cmd/goose",
+	"github.com/air-verse/air",
+}
 
-go %s
+func createGoMod(targetDir string, data *TemplateData) error {
+	if data == nil {
+		return fmt.Errorf("template data is nil")
+	}
 
-tool (
-    github.com/a-h/templ/cmd/templ
-    github.com/xo/usql
-    github.com/sqlc-dev/sqlc/cmd/sqlc
-    github.com/pressly/goose/v3/cmd/goose
-    github.com/air-verse/air
-)
-`
+	if err := renderTemplate(targetDir, "go_mod.tmpl", "go.mod", templates.Files, data); err != nil {
+		return fmt.Errorf("failed to render go.mod template: %w", err)
+	}
 
-func createGoMod(targetDir, moduleName string) error {
-	goModPath := filepath.Join(targetDir, "go.mod")
-	content := fmt.Sprintf(goModTemplate, moduleName, goVersion)
-
-	return os.WriteFile(goModPath, []byte(content), 0o644)
+	return nil
 }
 
 func createSqliteDB(targetDir, projectName string) error {
@@ -735,7 +744,7 @@ func runTemplFmt(targetDir string) error {
 	return cmd.Run()
 }
 
-func RunSqlcGenerate(targetDir string) error {
+func runSqlcGenerate(targetDir string) error {
 	cmd := exec.Command("go", "tool", "sqlc", "generate", "-f", "database/sqlc.yaml")
 	cmd.Dir = targetDir
 	return cmd.Run()
@@ -857,6 +866,10 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 		AddControllerConstructor("assets", "newAssets()").
 		AddControllerConstructor("api", "newAPI(db)").
 		AddControllerConstructor("pages", "newPages(db, pageCacher)")
+
+	for _, tool := range defaultTools {
+		builder.AddTool(tool)
+	}
 
 	return builder.Blueprint()
 }
