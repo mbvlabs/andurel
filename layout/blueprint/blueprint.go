@@ -7,6 +7,9 @@ import "sort"
 // Blueprint holds all structured configuration for a scaffold project. Each
 // section supports additive operations that maintain uniqueness and ordering.
 type Blueprint struct {
+	// Tools lists go tool dependencies for the go.mod tool directive
+	Tools *OrderedSet
+
 	// Controllers section
 	Controllers ControllerSection
 
@@ -202,6 +205,8 @@ type Migration struct {
 // New creates a new Blueprint with initialized sections.
 func New() *Blueprint {
 	return &Blueprint{
+		Tools: NewOrderedSet(),
+
 		Controllers: ControllerSection{
 			Imports:      NewOrderedSet(),
 			Dependencies: make([]Dependency, 0),
