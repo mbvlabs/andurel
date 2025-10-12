@@ -27,7 +27,7 @@ type Context struct {
 	TargetDir       string
 	Data            TemplateData
 	ProcessTemplate ProcessTemplateFunc
-	AddPostStep     func(func() error)
+	AddPostStep     func(func(targetDir string) error)
 }
 
 // Builder returns the blueprint builder for structured contributions.

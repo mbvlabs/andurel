@@ -6,19 +6,17 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"text/template"
 
 	"github.com/mbvlabs/andurel/layout/blueprint"
+	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/mbvlabs/andurel/layout/extensions"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
@@ -116,7 +114,7 @@ func Scaffold(
 	switch {
 	case templateData.CSSFramework == "tailwind" && os.Getenv("ANDUREL_SKIP_TAILWIND") != "true":
 		fmt.Print("Setting up Tailwind CSS...\n")
-		if err := SetupTailwind(targetDir); err != nil {
+		if err := cmds.SetupTailwind(targetDir); err != nil {
 			fmt.Println(
 				"Failed to download tailwind binary. Run 'andurel app tailwind' after setup is done to fix.",
 			)
@@ -124,35 +122,35 @@ func Scaffold(
 	}
 
 	fmt.Print("Running initial go mod tidy...\n")
-	if err := runGoModTidy(targetDir); err != nil {
+	if err := cmds.RunGoModTidy(targetDir); err != nil {
 		return fmt.Errorf("failed to run go mod tidy: %w", err)
 	}
 
 	fmt.Print("Building run binary...\n")
 	// Need to skip build for testing purposes
 	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
-		if err := runGoRunBin(targetDir); err != nil {
+		if err := cmds.RunGoRunBin(targetDir); err != nil {
 			return fmt.Errorf("failed to build run binary: %w", err)
 		}
 	}
 
 	fmt.Print("Building migration binary...\n")
 	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
-		if err := runGoMigrationBin(targetDir); err != nil {
+		if err := cmds.RunGoMigrationBin(targetDir); err != nil {
 			return fmt.Errorf("failed to build migration binary: %w", err)
 		}
 	}
 
 	fmt.Print("Building console binary...\n")
 	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
-		if err := runConsoleBin(targetDir); err != nil {
+		if err := cmds.RunConsoleBin(targetDir); err != nil {
 			return fmt.Errorf("failed to build console binary: %w", err)
 		}
 	}
 
 	type postStep struct {
 		extensionName string
-		fn            func() error
+		fn            func(targetDir string) error
 	}
 
 	var postExtensionSteps []postStep
@@ -175,7 +173,7 @@ func Scaffold(
 
 				return renderTemplate(targetDir, templateFile, targetPath, extensions.Files, data)
 			},
-			AddPostStep: func(fn func() error) {
+			AddPostStep: func(fn func(targetDir string) error) {
 				if fn == nil {
 					return
 				}
@@ -199,29 +197,29 @@ func Scaffold(
 		}
 	}
 
+	fmt.Print("Finalizing go tidy...\n")
+	if err := cmds.RunGoModTidy(targetDir); err != nil {
+		return fmt.Errorf("failed to run go mod tidy: %w", err)
+	}
+
 	for _, step := range postExtensionSteps {
-		if err := step.fn(); err != nil {
+		if err := step.fn(targetDir); err != nil {
 			return fmt.Errorf("extension %s post-step failed: %w", step.extensionName, err)
 		}
 	}
 
-	fmt.Print("Finalizing go tidy...\n")
-	if err := runGoModTidy(targetDir); err != nil {
-		return fmt.Errorf("failed to run go mod tidy: %w", err)
-	}
-
 	fmt.Print("Running templ fmt...\n")
-	if err := runTemplFmt(targetDir); err != nil {
+	if err := cmds.RunTemplFmt(targetDir); err != nil {
 		return fmt.Errorf("failed to run templ fmt: %w", err)
 	}
 
 	fmt.Print("Running templ generate...\n")
-	if err := runTemplGenerate(targetDir); err != nil {
+	if err := cmds.RunTemplGenerate(targetDir); err != nil {
 		return fmt.Errorf("failed to run templ generate: %w", err)
 	}
 
 	fmt.Print("Running go fmt...\n")
-	if err := runGoFmt(targetDir); err != nil {
+	if err := cmds.RunGoFmt(targetDir); err != nil {
 		return fmt.Errorf("failed to run go fmt: %w", err)
 	}
 
@@ -380,7 +378,6 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		return fmt.Errorf("template data is nil")
 	}
 
-	// List of templates that consume blueprint data and should be re-rendered after extensions
 	blueprintTemplates := []TmplTarget{
 		"controllers_controller.tmpl",
 		"cmd_app_main.tmpl",
@@ -698,54 +695,6 @@ func createSqliteDB(targetDir, projectName string) error {
 	return os.WriteFile(goModPath, nil, 0o644)
 }
 
-func runGoModTidy(targetDir string) error {
-	cmd := exec.Command("go", "mod", "tidy")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
-func runGoFmt(targetDir string) error {
-	cmd := exec.Command("go", "fmt", "./...")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
-func runGoRunBin(targetDir string) error {
-	cmd := exec.Command("go", "build", "-o", "bin/run", "cmd/run/main.go")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
-func runGoMigrationBin(targetDir string) error {
-	cmd := exec.Command("go", "build", "-o", "bin/migration", "cmd/migration/main.go")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
-func runConsoleBin(targetDir string) error {
-	cmd := exec.Command("go", "build", "-o", "bin/console", "cmd/console/main.go")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
-func runTemplGenerate(targetDir string) error {
-	cmd := exec.Command("go", "tool", "templ", "generate", "./views")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
-func runTemplFmt(targetDir string) error {
-	cmd := exec.Command("go", "tool", "templ", "fmt", "views")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
-func RunSqlcGenerate(targetDir string) error {
-	cmd := exec.Command("go", "tool", "sqlc", "generate", "-f", "database/sqlc.yaml")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
 func initializeGit(targetDir string) error {
 	cmd := exec.Command("git", "init")
 	cmd.Dir = targetDir
@@ -756,72 +705,6 @@ func generateRandomHex(bytes int) string {
 	randomBytes := make([]byte, bytes)
 	rand.Read(randomBytes)
 	return hex.EncodeToString(randomBytes)
-}
-
-func SetupTailwind(targetDir string) error {
-	binPath := filepath.Join(targetDir, "bin", "tailwindcli")
-
-	if _, err := os.Stat(binPath); err == nil {
-		fmt.Printf("Tailwind binary already exists at: %s\n", binPath)
-		return nil
-	}
-
-	binDir := filepath.Join(targetDir, "bin")
-	if err := os.MkdirAll(binDir, 0o755); err != nil {
-		return fmt.Errorf("failed to create bin directory: %w", err)
-	}
-
-	downloadURL, err := getTailwindDownloadURL()
-	if err != nil {
-		return err
-	}
-
-	resp, err := http.Get(downloadURL)
-	if err != nil {
-		return fmt.Errorf("failed to download Tailwind: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download Tailwind: status %d", resp.StatusCode)
-	}
-
-	out, err := os.Create(binPath)
-	if err != nil {
-		return fmt.Errorf("failed to create binary file: %w", err)
-	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, resp.Body); err != nil {
-		return fmt.Errorf("failed to write binary: %w", err)
-	}
-
-	if err := os.Chmod(binPath, 0o755); err != nil {
-		return fmt.Errorf("failed to make binary executable: %w", err)
-	}
-
-	return nil
-}
-
-func getTailwindDownloadURL() (string, error) {
-	baseURL := "https://github.com/tailwindlabs/tailwindcss/releases/latest/download"
-
-	var arch string
-	switch runtime.GOOS {
-	case "darwin":
-		arch = "macos-x64"
-	case "linux":
-		arch = "linux-x64"
-	case "windows":
-		arch = "windows-x64.exe"
-	default:
-		return "", fmt.Errorf(
-			"unsupported platform: %s. Supported platforms: darwin (mac), linux, windows",
-			runtime.GOOS,
-		)
-	}
-
-	return fmt.Sprintf("%s/tailwindcss-%s", baseURL, arch), nil
 }
 
 // initializeBaseBlueprint creates a blueprint with default base configuration
