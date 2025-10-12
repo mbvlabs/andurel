@@ -2,6 +2,7 @@ package extensions
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/mbvlabs/andurel/layout/cmds"
 )
@@ -86,10 +87,16 @@ func (e Auth) renderTemplates(ctx *Context) error {
 
 		"config_auth.tmpl": "config/auth.go",
 
-		"database_migrations_users.tmpl":  "database/migrations/001_create_users_table.sql",
-		"database_migrations_tokens.tmpl": "database/migrations/002_create_tokens_table.sql",
-		"database_queries_tokens.tmpl":    "database/queries/tokens.sql",
-		"database_queries_users.tmpl":     "database/queries/users.sql",
+		"database_migrations_users.tmpl": fmt.Sprintf(
+			"database/migrations/%v_create_users_table.sql",
+			time.Now().Format("20060102150405"),
+		),
+		"database_migrations_tokens.tmpl": fmt.Sprintf(
+			"database/migrations/%v_create_tokens_table.sql",
+			time.Now().Format("20060102150405"),
+		),
+		"database_queries_tokens.tmpl": "database/queries/tokens.sql",
+		"database_queries_users.tmpl":  "database/queries/users.sql",
 
 		"email_reset_password.tmpl": "email/reset_password.templ",
 		"email_verify_email.tmpl":   "email/verify_email.templ",
