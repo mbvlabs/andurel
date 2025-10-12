@@ -299,7 +299,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"cmd_console_main.tmpl":   "cmd/console/main.go",
 
 	// Config
-	"config_app.tmpl":      "config/app.go",
+	"config_auth.tmpl":     "config/auth.go",
 	"config_config.tmpl":   "config/config.go",
 	"config_database.tmpl": "config/database.go",
 
@@ -514,7 +514,6 @@ func registerBuiltinExtensions() error {
 	registerBuiltinOnce.Do(func() {
 		builtin := []extensions.Extension{
 			extensions.Email{},
-			extensions.Auth{},
 		}
 
 		for _, ext := range builtin {
