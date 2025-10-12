@@ -93,7 +93,7 @@ func (e Auth) renderTemplates(ctx *Context) error {
 		),
 		"database_migrations_tokens.tmpl": fmt.Sprintf(
 			"database/migrations/%v_create_tokens_table.sql",
-			time.Now().Format("20060102150405"),
+			time.Now().Add(1*time.Second).Format("20060102150405"),
 		),
 		"database_queries_tokens.tmpl": "database/queries/tokens.sql",
 		"database_queries_users.tmpl":  "database/queries/users.sql",
