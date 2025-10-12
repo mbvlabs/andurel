@@ -3,7 +3,7 @@ package config
 import "github.com/caarlos0/env/v10"
 
 type auth struct {
-	PasswordSalt         string `env:"PASSWORD_SALT"`
+	Pepper         string `env:"PEPPER"`
 }
 
 func newAuthConfig() auth {

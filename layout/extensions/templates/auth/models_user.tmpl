@@ -38,20 +38,16 @@ func (u User) ValidPassword(providedPassword, pepper string) (bool, error) {
 		return false, fmt.Errorf("invalid stored password format")
 	}
 
-	expectedHashB64 := parts[0]
-	saltB64 := parts[1]
-
-	expectedHash, err := base64.RawStdEncoding.DecodeString(expectedHashB64)
+	expectedHash, err := base64.RawStdEncoding.DecodeString(parts[0])
 	if err != nil {
 		return false, fmt.Errorf("failed to decode hash: %w", err)
 	}
 
-	salt, err := base64.RawStdEncoding.DecodeString(saltB64)
+	salt, err := base64.RawStdEncoding.DecodeString(parts[1])
 	if err != nil {
-		return false, fmt.Errorf("failed to decode salt: %w", err)
+		return false, fmt.Errorf("failed to decode pepper: %w", err)
 	}
 
-	// Generate a new hash using the same salt
 	newHash := argon2.IDKey(
 		[]byte(providedPassword+pepper),
 		salt,
@@ -74,7 +70,7 @@ func generateSalt(size int) ([]byte, error) {
 	return salt, nil
 }
 
-func hashPassword(password, pepper string) (string, error) {
+func HashPassword(password, pepper string) (string, error) {
 	salt, err := generateSalt(16)
 	if err != nil {
 		return "", err
@@ -94,21 +90,6 @@ func hashPassword(password, pepper string) (string, error) {
 		base64.RawStdEncoding.EncodeToString(salt))
 
 	return encodedHash, nil
-}
-
-func HashPassword(password, pepper string) (string, error) {
-	return hashPassword(password, pepper)
-}
-
-func HashToken(tkn, salt string) []byte {
-	return argon2.IDKey(
-		[]byte(tkn),
-		[]byte(salt),
-		2,
-		19*1024,
-		1,
-		32,
-	)
 }
 
 func FindUser(
@@ -157,7 +138,7 @@ func CreateUser(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	hashedPassword, err := hashPassword(data.PasswordPair.Password, pepper)
+	hashedPassword, err := HashPassword(data.PasswordPair.Password, pepper)
 	if err != nil {
 		return User{}, err
 	}
@@ -351,20 +332,16 @@ func (u User) ValidPassword(providedPassword, pepper string) (bool, error) {
 		return false, fmt.Errorf("invalid stored password format")
 	}
 
-	expectedHashB64 := parts[0]
-	saltB64 := parts[1]
-
-	expectedHash, err := base64.RawStdEncoding.DecodeString(expectedHashB64)
+	expectedHash, err := base64.RawStdEncoding.DecodeString(parts[0])
 	if err != nil {
 		return false, fmt.Errorf("failed to decode hash: %w", err)
 	}
 
-	salt, err := base64.RawStdEncoding.DecodeString(saltB64)
+	salt, err := base64.RawStdEncoding.DecodeString(parts[1])
 	if err != nil {
-		return false, fmt.Errorf("failed to decode salt: %w", err)
+		return false, fmt.Errorf("failed to decode pepper: %w", err)
 	}
 
-	// Generate a new hash using the same salt
 	newHash := argon2.IDKey(
 		[]byte(providedPassword+pepper),
 		salt,
@@ -387,7 +364,7 @@ func generateSalt(size int) ([]byte, error) {
 	return salt, nil
 }
 
-func hashPassword(password, pepper string) (string, error) {
+func HashPassword(password, pepper string) (string, error) {
 	salt, err := generateSalt(16)
 	if err != nil {
 		return "", err
@@ -407,21 +384,6 @@ func hashPassword(password, pepper string) (string, error) {
 		base64.RawStdEncoding.EncodeToString(salt))
 
 	return encodedHash, nil
-}
-
-func HashPassword(password, pepper string) (string, error) {
-	return hashPassword(password, pepper)
-}
-
-func HashToken(tkn, salt string) []byte {
-	return argon2.IDKey(
-		[]byte(tkn),
-		[]byte(salt),
-		2,
-		19*1024,
-		1,
-		32,
-	)
 }
 
 func FindUser(
@@ -470,7 +432,7 @@ func CreateUser(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	hashedPassword, err := hashPassword(data.PasswordPair.Password, pepper)
+	hashedPassword, err := HashPassword(data.PasswordPair.Password, pepper)
 	if err != nil {
 		return User{}, err
 	}

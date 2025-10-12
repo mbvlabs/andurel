@@ -87,7 +87,6 @@ func (e Auth) renderTemplates(ctx *Context) error {
 		"views_reset_password.tmpl": "views/reset_password.templ",
 	}
 
-	// Process each template
 	for tmpl, target := range templates {
 		templatePath := fmt.Sprintf("templates/auth/%s", tmpl)
 		if err := ctx.ProcessTemplate(templatePath, target, nil); err != nil {

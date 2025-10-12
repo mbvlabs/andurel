@@ -58,7 +58,7 @@ func (r Confirmations) Create(c echo.Context) error {
 	if err := services.VerifyEmail(
 		c.Request().Context(),
 		r.db,
-		r.cfg.Auth.PasswordSalt,
+		r.cfg.Auth.Pepper,
 		services.VerifyEmailData{
 			Code: payload.Code,
 		},

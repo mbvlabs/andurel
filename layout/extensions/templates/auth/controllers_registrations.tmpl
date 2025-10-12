@@ -70,7 +70,7 @@ func (r Registrations) Create(c echo.Context) error {
 	err := services.RegisterUser(
 		c.Request().Context(),
 		r.db,
-		r.cfg.Auth.PasswordSalt,
+		r.cfg.Auth.Pepper,
 		r.emailClient,
 		services.RegisterUserData{
 			Email:           payload.Email,
@@ -92,6 +92,5 @@ func (r Registrations) Create(c echo.Context) error {
 		return c.Redirect(http.StatusSeeOther, routes.RegistrationNew.Path)
 	}
 
-	return datastar.NewSSE(c.Response(), c.Request()).
-		PatchElementTempl(views.ConfirmationForm(), datastar.WithModeReplace(), datastar.WithSelector("main"))
+	return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.ConfirmationNew.Path)
 }

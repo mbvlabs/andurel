@@ -58,7 +58,7 @@ func (s Sessions) Create(c echo.Context) error {
 	user, err := services.AuthenticateUser(
 		c.Request().Context(),
 		s.db,
-		s.cfg.Auth.PasswordSalt,
+		s.cfg.Auth.Pepper,
 		services.LoginData{
 			Email:    payload.Email,
 			Password: payload.Password,

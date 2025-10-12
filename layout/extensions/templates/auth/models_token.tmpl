@@ -80,7 +80,7 @@ func FindToken(
 func CreateCodeToken(
 	ctx context.Context,
 	dbtx db.DBTX,
-	salt string,
+	pepper string,
 	scope string,
 	expiresAt time.Time,
 	metaData []byte,
@@ -94,7 +94,7 @@ func CreateCodeToken(
 		Scope:     scope,
 		ExpiresAt: expiresAt,
 		MetaData:  metaData,
-		Hash:      HashForStorage(tkn, salt),
+		Hash:      HashForStorage(tkn, pepper),
 	}); err != nil {
 		return "", err
 	}
@@ -105,7 +105,7 @@ func CreateCodeToken(
 func CreateToken(
 	ctx context.Context,
 	dbtx db.DBTX,
-	salt string,
+	pepper string,
 	scope string,
 	expiresAt time.Time,
 	metaData []byte,
@@ -119,7 +119,7 @@ func CreateToken(
 		Scope:     scope,
 		ExpiresAt: expiresAt,
 		MetaData:  metaData,
-		Hash:      HashForStorage(tkn, salt),
+		Hash:      HashForStorage(tkn, pepper),
 	}); err != nil {
 		return "", err
 	}
@@ -224,11 +224,11 @@ func PaginateTokens(
 func FindTokenByScopeAndHash(
 	ctx context.Context,
 	dbtx db.DBTX,
-	salt string,
+	pepper string,
 	scope string,
 	token string,
 ) (Token, error) {
-	hash := HashForStorage(token, salt)
+	hash := HashForStorage(token, pepper)
 
 	row, err := db.New().QueryTokenByScopeAndHash(ctx, dbtx, db.QueryTokenByScopeAndHashParams{
 		Scope: scope,
@@ -334,7 +334,7 @@ func FindToken(
 func CreateCodeToken(
 	ctx context.Context,
 	dbtx db.DBTX,
-	salt string,
+	pepper string,
 	scope string,
 	expiresAt time.Time,
 	metaData []byte,
@@ -348,7 +348,7 @@ func CreateCodeToken(
 		Scope:     scope,
 		ExpiresAt: expiresAt,
 		MetaData:  metaData,
-		Hash:      HashForStorage(tkn, salt),
+		Hash:      HashForStorage(tkn, pepper),
 	}); err != nil {
 		return "", err
 	}
@@ -359,7 +359,7 @@ func CreateCodeToken(
 func CreateToken(
 	ctx context.Context,
 	dbtx db.DBTX,
-	salt string,
+	pepper string,
 	scope string,
 	expiresAt time.Time,
 	metaData []byte,
@@ -373,7 +373,7 @@ func CreateToken(
 		Scope:     scope,
 		ExpiresAt: expiresAt,
 		MetaData:  metaData,
-		Hash:      HashForStorage(tkn, salt),
+		Hash:      HashForStorage(tkn, pepper),
 	}); err != nil {
 		return "", err
 	}
@@ -477,11 +477,11 @@ func PaginateTokens(
 func FindTokenByScopeAndHash(
 	ctx context.Context,
 	dbtx db.DBTX,
-	salt string,
+	pepper string,
 	scope string,
 	token string,
 ) (Token, error) {
-	hash := HashForStorage(token, salt)
+	hash := HashForStorage(token, pepper)
 
 	row, err := db.New().QueryTokenByScopeAndHash(ctx, dbtx, db.QueryTokenByScopeAndHashParams{
 		Scope: scope,

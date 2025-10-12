@@ -3,8 +3,6 @@ package routes
 import (
 	"net/http"
 	"strings"
-
-	"github.com/google/uuid"
 )
 
 const (
@@ -29,7 +27,7 @@ var SessionRoutes = []Route{
 }
 
 var SessionNew = Route{
-	Name:             "new_user_session",
+	Name:             usersNamePrefix + ".new_user_session",
 	Path:             usersRoutePrefix + "/sign_in",
 	Method:           http.MethodGet,
 	Controller:       "Sessions",
@@ -37,7 +35,7 @@ var SessionNew = Route{
 }
 
 var SessionCreate = Route{
-	Name:             "user_session",
+	Name:             usersNamePrefix + ".user_session",
 	Path:             usersRoutePrefix + "/sign_in",
 	Method:           http.MethodPost,
 	Controller:       "Sessions",
@@ -45,7 +43,7 @@ var SessionCreate = Route{
 }
 
 var SessionDestroy = Route{
-	Name:             "destroy_user_session",
+	Name:             usersNamePrefix + ".destroy_user_session",
 	Path:             usersRoutePrefix + "/sign_out",
 	Method:           http.MethodPost,
 	Controller:       "Sessions",
@@ -60,7 +58,7 @@ var PasswordRoutes = []Route{
 }
 
 var PasswordNew = Route{
-	Name:             "new_user_password",
+	Name:             usersNamePrefix + ".new_user_password",
 	Path:             usersRoutePrefix + "/password/new",
 	Method:           http.MethodGet,
 	Controller:       "ResetPassword",
@@ -68,7 +66,7 @@ var PasswordNew = Route{
 }
 
 var PasswordCreate = Route{
-	Name:             "user_password",
+	Name:             usersNamePrefix + ".user_password",
 	Path:             usersRoutePrefix + "/password",
 	Method:           http.MethodPost,
 	Controller:       "ResetPassword",
@@ -77,7 +75,7 @@ var PasswordCreate = Route{
 
 var PasswordEdit = passwordEdit{
 	Route: Route{
-		Name:             "edit_user_password",
+		Name:             usersNamePrefix + ".edit_user_password",
 		Path:             usersRoutePrefix + "/password/:token/edit",
 		Method:           http.MethodGet,
 		Controller:       "ResetPassword",
@@ -94,7 +92,7 @@ func (r passwordEdit) GetPath(token string) string {
 }
 
 var PasswordUpdate = Route{
-	Name:             "user_password_update",
+	Name:             usersNamePrefix + ".user_password_update",
 	Path:             usersRoutePrefix + "/password",
 	Method:           http.MethodPut,
 	Controller:       "ResetPassword",
@@ -102,7 +100,7 @@ var PasswordUpdate = Route{
 }
 
 var RegistrationNew = Route{
-	Name:             "new_user_registration",
+	Name:             usersNamePrefix + ".new_user_registration",
 	Path:             usersRoutePrefix + "/sign_up",
 	Method:           http.MethodGet,
 	Controller:       "Registrations",
@@ -110,7 +108,7 @@ var RegistrationNew = Route{
 }
 
 var RegistrationCreate = Route{
-	Name:             "user_registration",
+	Name:             usersNamePrefix + ".user_registration",
 	Path:             usersRoutePrefix,
 	Method:           http.MethodPost,
 	Controller:       "Registrations",
@@ -118,7 +116,7 @@ var RegistrationCreate = Route{
 }
 
 var ConfirmationNew = Route{
-	Name:             "new_user_confirmation",
+	Name:             usersNamePrefix + ".new_user_confirmation",
 	Path:             usersRoutePrefix + "/confirmation/new",
 	Method:           http.MethodGet,
 	Controller:       "Confirmations",
@@ -126,7 +124,7 @@ var ConfirmationNew = Route{
 }
 
 var ConfirmationCreate = Route{
-	Name:             "user_confirmation",
+	Name:             usersNamePrefix + ".user_confirmation",
 	Path:             usersRoutePrefix + "/confirmation",
 	Method:           http.MethodPost,
 	Controller:       "Confirmations",
