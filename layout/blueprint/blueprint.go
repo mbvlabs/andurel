@@ -53,6 +53,9 @@ type RouteSection struct {
 	// Used to aggregate routes in the router_routes_routes.tmpl aggregator
 	RouteGroups *OrderedSet
 
+	// RouteCollections holds grouped route expressions to include in BuildRoutes.
+	RouteCollections []RouteCollection
+
 	// Route group imports (for middleware, etc.)
 	Imports *OrderedSet
 }
@@ -176,6 +179,13 @@ type Route struct {
 	Order int
 }
 
+// RouteCollection represents grouped route variables for BuildRoutes.
+type RouteCollection struct {
+	Routes []string
+	// Order for deterministic rendering
+	Order int
+}
+
 // Model represents a model struct definition.
 type Model struct {
 	Name   string
@@ -214,9 +224,10 @@ func New() *Blueprint {
 			Constructors: make([]Constructor, 0),
 		},
 		Routes: RouteSection{
-			Routes:      make([]Route, 0),
-			RouteGroups: NewOrderedSet(),
-			Imports:     NewOrderedSet(),
+			Routes:           make([]Route, 0),
+			RouteGroups:      NewOrderedSet(),
+			RouteCollections: make([]RouteCollection, 0),
+			Imports:          NewOrderedSet(),
 		},
 		Models: ModelSection{
 			Imports: NewOrderedSet(),
@@ -276,6 +287,20 @@ func (rs *RouteSection) SortedRoutes() []Route {
 		return routes[i].Order < routes[j].Order
 	})
 	return routes
+}
+
+// SortedRouteCollections returns grouped route expressions sorted by order.
+func (rs *RouteSection) SortedRouteCollections() []RouteCollection {
+	if len(rs.RouteCollections) == 0 {
+		return nil
+	}
+
+	result := make([]RouteCollection, len(rs.RouteCollections))
+	copy(result, rs.RouteCollections)
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Order < result[j].Order
+	})
+	return result
 }
 
 // SortedModels returns models sorted by order.

@@ -11,28 +11,22 @@ type Route struct {
 	Middleware       []func(next echo.HandlerFunc) echo.HandlerFunc
 }
 
-var BuildRoutes = func() []Route {
-	var r []Route
+var BuildRoutes = []Route{
+	Health,
 
-	r = append(
-		r,
-		assetRoutes...,
-	)
+	Robots,
+	Sitemap,
+	Stylesheet,
+	Scripts,
+	Script,
 
-	r = append(
-		r,
-		pageRoutes...,
-	)
+	HomePage,
 
-	r = append(
-		r,
-		apiRoutes...,
-	)
-
-	r = append(
-		r,
-		ProductRoutes...,
-	)
-
-	return r
-}()
+	ProductIndex,
+	ProductShow.Route,
+	ProductNew,
+	ProductCreate,
+	ProductEdit.Route,
+	ProductUpdate.Route,
+	ProductDestroy.Route,
+}

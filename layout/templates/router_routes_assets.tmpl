@@ -11,17 +11,6 @@ const (
 	assetsNamePrefix  = "assets"
 )
 
-var assetRoutes = []Route{
-	Robots,
-	Sitemap,
-	Stylesheet,
-{{- if eq .CSSFramework "vanilla"}}
-	StyleImport,
-{{- end}}
-	Scripts,
-	Script,
-}
-
 var startTime = time.Now().Unix()
 
 var Robots = Route{

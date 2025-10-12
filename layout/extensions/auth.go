@@ -41,6 +41,26 @@ func (e Auth) Apply(ctx *Context) error {
 	builder.AddRouteGroup("Confirmation")
 	builder.AddRouteGroup("Password")
 	builder.AddRouteGroup("Session")
+	builder.
+		AddRouteCollection(
+			"RegistrationNew",
+			"RegistrationCreate",
+		).
+		AddRouteCollection(
+			"ConfirmationNew",
+			"ConfirmationCreate",
+		).
+		AddRouteCollection(
+			"SessionNew",
+			"SessionCreate",
+			"SessionDestroy",
+		).
+		AddRouteCollection(
+			"PasswordNew",
+			"PasswordCreate",
+			"PasswordEdit.Route",
+			"PasswordUpdate",
+		)
 
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("auth: failed to render templates: %w", err)
