@@ -1,0 +1,37 @@
+{{- if eq .Database "postgresql" -}}
+-- +goose Up
+-- +goose StatementBegin
+CREATE TABLE IF NOT EXISTS tokens (
+    id uuid PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    scope VARCHAR(255) NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    hash TEXT NOT NULL,
+    meta_data JSONB NOT NULL
+);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS tokens;
+-- +goose StatementEnd
+{{- else if eq .Database "sqlite" -}}
+-- +goose Up
+-- +goose StatementBegin
+CREATE TABLE IF NOT EXISTS tokens (
+    id TEXT PRIMARY KEY,
+    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+    updated_at DATETIME NOT NULL DEFAULT (datetime('now')),
+    scope VARCHAR(255) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    hash TEXT NOT NULL,
+    meta_data BLOB NOT NULL
+);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS tokens;
+-- +goose StatementEnd
+{{- end -}}

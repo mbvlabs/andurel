@@ -1,23 +1,11 @@
 package config
 
-import (
-	"fmt"
-
-	"github.com/caarlos0/env/v10"
-)
-
-const (
-	DevEnvironment  = "development"
-	ProdEnvironment = "production"
-	TestEnvironment = "testing"
-)
+import "github.com/caarlos0/env/v10"
 
 type app struct {
-	ServerHost  string `env:"SERVER_HOST"`
-	ServerPort  string `env:"SERVER_PORT"`
-	Domain      string `env:"APP_DOMAIN"`
-	ProjectName string `env:"PROJECT_NAME"`
-	Env         string `env:"ENVIRONMENT"`
+	SessionKey           string `env:"SESSION_KEY"`
+	SessionEncryptionKey string `env:"SESSION_ENCRYPTION_KEY"`
+	TokenSigningKey      string `env:"TOKEN_SIGNING_KEY"`
 }
 
 func newAppConfig() app {

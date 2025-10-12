@@ -2,6 +2,10 @@ package email
 
 import (
 	"context"
+
+	"strings"
+
+	"golang.org/x/net/html"
 	
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/clients"
@@ -19,4 +23,100 @@ func New(cfg config.Config) Client {
 	return Client{
 		clients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort),
 	}
+}
+
+func HTMLToText(htmlContent string) (string, error) {
+	doc, err := html.Parse(strings.NewReader(htmlContent))
+	if err != nil {
+		return "", err
+	}
+
+	var result strings.Builder
+	var extract func(*html.Node)
+
+	extract = func(n *html.Node) {
+		// Skip style, script, and head elements entirely
+		if n.Type == html.ElementNode {
+			switch n.Data {
+			case "style", "script", "head":
+				return
+			case "a":
+				// Extract link text first
+				var linkText strings.Builder
+				var extractLinkText func(*html.Node)
+				extractLinkText = func(node *html.Node) {
+					if node.Type == html.TextNode {
+						linkText.WriteString(node.Data)
+					}
+					for child := node.FirstChild; child != nil; child = child.NextSibling {
+						extractLinkText(child)
+					}
+				}
+				extractLinkText(n)
+
+				// Get href attribute
+				var href string
+				for _, attr := range n.Attr {
+					if attr.Key == "href" {
+						href = attr.Val
+						break
+					}
+				}
+
+				// Write link text
+				text := strings.TrimSpace(linkText.String())
+				if text != "" {
+					result.WriteString(text)
+				}
+
+				// Append URL if it exists and is different from text
+				if href != "" && href != text {
+					result.WriteString(" (")
+					result.WriteString(href)
+					result.WriteString(")")
+				}
+				result.WriteString(" ")
+				return // Don't process children again
+			}
+		}
+
+		if n.Type == html.TextNode {
+			text := strings.TrimSpace(n.Data)
+			if text != "" {
+				result.WriteString(text)
+				result.WriteString(" ")
+			}
+		}
+
+		if n.Type == html.ElementNode {
+			switch n.Data {
+			case "p", "div", "br", "h1", "h2", "h3", "h4", "h5", "h6":
+				result.WriteString("\n")
+			case "tr", "li":
+				result.WriteString("\n")
+			}
+		}
+
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			extract(c)
+		}
+
+		if n.Type == html.ElementNode {
+			switch n.Data {
+			case "p", "div", "h1", "h2", "h3", "h4", "h5", "h6":
+				result.WriteString("\n")
+			}
+		}
+	}
+
+	extract(doc)
+
+	text := result.String()
+	text = strings.TrimSpace(text)
+
+	for strings.Contains(text, "\n\n\n") {
+		text = strings.ReplaceAll(text, "\n\n\n", "\n\n")
+	}
+
+	return text, nil
 }

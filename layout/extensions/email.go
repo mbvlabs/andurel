@@ -19,25 +19,22 @@ func (e Email) Apply(ctx *Context) error {
 
 	moduleName := ctx.Data.GetModuleName()
 
-	// Add email package import to main.go
 	builder.AddMainImport(fmt.Sprintf("%s/email", moduleName))
 
-	// Add email package import to controllers
 	builder.AddControllerImport(fmt.Sprintf("%s/email", moduleName))
 
-	// Add email service initialization in main.go
 	builder.AddMainInitialization(
 		"emailClient",
 		"email.New(cfg)",
 		"cfg",
 	)
 
-	// Add email sender as controller dependency
 	builder.AddControllerDependency("emailClient", "email.Client")
 
 	builder.AddConfigField("Email", "email")
 
-	// Render all template files
+	builder.AddTool("github.com/mailhog/MailHog")
+
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("email: failed to render templates: %w", err)
 	}
@@ -58,7 +55,6 @@ func (e Email) renderTemplates(ctx *Context) error {
 		"config_email.tmpl":      "config/email.go",
 	}
 
-	// Process each template
 	for tmpl, target := range templates {
 		templatePath := fmt.Sprintf("templates/email/%s", tmpl)
 		if err := ctx.ProcessTemplate(templatePath, target, nil); err != nil {

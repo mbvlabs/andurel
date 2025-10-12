@@ -1,0 +1,94 @@
+package controllers
+
+import (
+	"log/slog"
+	"net/http"
+
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/services"
+	"{{.ModuleName}}/views"
+
+	"github.com/labstack/echo/v4"
+)
+
+{{- if eq .Database "postgresql" }}
+type Confirmations struct {
+	db  database.Postgres
+	cfg config.Config
+}
+
+func newConfirmations(db database.Postgres, cfg config.Config) Confirmations {
+	return Confirmations{db, cfg}
+}
+{{- else if eq .Database "sqlite" }}
+type Confirmations struct {
+	db  database.SQLite
+	cfg config.Config
+}
+
+func newConfirmations(db database.SQLite, cfg config.Config) Confirmations {
+	return Confirmations{db, cfg}
+}
+{{- end }}
+
+// New renders the email verification form
+func (r Confirmations) New(c echo.Context) error {
+	return render(c, views.ConfirmationForm())
+}
+
+// Create handles the verification code submission
+func (r Confirmations) Create(c echo.Context) error {
+	var payload struct {
+		Code string `form:"code"`
+	}
+
+	if err := c.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"could not parse verification form payload",
+			"error",
+			err,
+		)
+		return render(c, views.BadRequest())
+	}
+
+	if err := services.VerifyEmail(
+		c.Request().Context(),
+		r.db,
+		r.cfg.Auth.Pepper,
+		services.VerifyEmailData{
+			Code: payload.Code,
+		},
+	); err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"failed to verify email",
+			"error",
+			err,
+		)
+
+		var errorMsg string
+		switch err {
+		case services.ErrInvalidVerificationCode:
+			errorMsg = "Invalid verification code"
+		case services.ErrExpiredVerificationCode:
+			errorMsg = "Verification code has expired"
+		default:
+			errorMsg = "Failed to verify email"
+		}
+
+		if flashErr := cookies.AddFlash(c, cookies.FlashError, errorMsg); flashErr != nil {
+			return render(c, views.InternalError())
+		}
+		return c.Redirect(http.StatusSeeOther, routes.ConfirmationNew.Path)
+	}
+
+	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Email verified successfully!"); flashErr != nil {
+		return render(c, views.InternalError())
+	}
+
+	return c.Redirect(http.StatusSeeOther, routes.HomePage.Path)
+}
