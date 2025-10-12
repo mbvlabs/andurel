@@ -39,6 +39,14 @@ func NewViewManager(
 }
 
 func (v *ViewManager) GenerateView(resourceName, tableName string) error {
+	return v.generateView(resourceName, tableName, false)
+}
+
+func (v *ViewManager) GenerateViewWithController(resourceName, tableName string) error {
+	return v.generateView(resourceName, tableName, true)
+}
+
+func (v *ViewManager) generateView(resourceName, tableName string, withController bool) error {
 	modulePath, err := v.projectManager.GetModulePath()
 	if err != nil {
 		return err
@@ -65,7 +73,7 @@ func (v *ViewManager) GenerateView(resourceName, tableName string) error {
 		return err
 	}
 
-	if err := v.viewGenerator.GenerateView(cat, resourceName, modulePath); err != nil {
+	if err := v.viewGenerator.GenerateViewWithController(cat, resourceName, modulePath, withController); err != nil {
 		return fmt.Errorf("failed to generate view: %w", err)
 	}
 

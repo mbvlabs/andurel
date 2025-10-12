@@ -2,7 +2,6 @@ package views
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -295,12 +294,6 @@ func (g *Generator) GenerateViewWithController(
 }
 
 func (g *Generator) formatTemplFile(filePath string) error {
-	rootDir, err := g.fileManager.FindGoModRoot()
-	if err != nil {
-		return fmt.Errorf("failed to find go.mod root: %w", err)
-	}
-	slog.Info("Go mod root", "dir", rootDir)
-
 	cmd := exec.Command("go", "tool", "templ", "fmt", filePath)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to run templ fmt on %s: %w", filePath, err)
