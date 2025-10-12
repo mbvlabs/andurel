@@ -33,6 +33,8 @@ func (e Email) Apply(ctx *Context) error {
 
 	builder.AddConfigField("Email", "email")
 
+	builder.AddTool("github.com/mailhog/MailHog")
+
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("email: failed to render templates: %w", err)
 	}
