@@ -40,6 +40,20 @@ func (b *Builder) Blueprint() *Blueprint {
 	return b.bp
 }
 
+// AddTool registers a go tool binary to include in the go.mod tool directive.
+func (b *Builder) AddTool(tool string) *Builder {
+	if b == nil || b.bp == nil || tool == "" {
+		return b
+	}
+
+	if b.bp.Tools == nil {
+		b.bp.Tools = NewOrderedSet()
+	}
+
+	b.bp.Tools.Add(tool)
+	return b
+}
+
 // AddControllerImport adds an import path to the controllers section.
 func (b *Builder) AddControllerImport(importPath string) *Builder {
 	if importPath != "" {
@@ -372,6 +386,12 @@ func (b *Builder) Merge(other *Blueprint) error {
 
 	// Merge controller imports
 	b.bp.Controllers.Imports.Merge(other.Controllers.Imports)
+
+	// Merge go tools
+	if b.bp.Tools == nil {
+		b.bp.Tools = NewOrderedSet()
+	}
+	b.bp.Tools.Merge(other.Tools)
 
 	// Merge controller dependencies (check for duplicates by name)
 	for _, dep := range other.Controllers.Dependencies {
