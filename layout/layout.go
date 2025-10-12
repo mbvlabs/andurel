@@ -114,7 +114,7 @@ func Scaffold(
 
 	// Need to skip download for testing purposes
 	switch {
-	case templateData.CSSFramework == "tailwind" && os.Getenv("ANDUREL_SKIP_TAILWIND") == "false":
+	case templateData.CSSFramework == "tailwind" && os.Getenv("ANDUREL_SKIP_TAILWIND") != "true":
 		fmt.Print("Setting up Tailwind CSS...\n")
 		if err := SetupTailwind(targetDir); err != nil {
 			fmt.Println(
@@ -207,12 +207,7 @@ func Scaffold(
 
 	fmt.Print("Finalizing go tidy...\n")
 	if err := runGoModTidy(targetDir); err != nil {
-		return fmt.Errorf("failed to run go fmt: %w", err)
-	}
-
-	fmt.Print("Running sqlc generate...\n")
-	if err := runSqlcGenerate(targetDir); err != nil {
-		return fmt.Errorf("failed to run templ fmt: %w", err)
+		return fmt.Errorf("failed to run go mod tidy: %w", err)
 	}
 
 	fmt.Print("Running templ fmt...\n")
@@ -740,12 +735,12 @@ func runTemplGenerate(targetDir string) error {
 }
 
 func runTemplFmt(targetDir string) error {
-	cmd := exec.Command("go", "tool", "templ", "fmt", "./views")
+	cmd := exec.Command("go", "tool", "templ", "fmt", "views")
 	cmd.Dir = targetDir
 	return cmd.Run()
 }
 
-func runSqlcGenerate(targetDir string) error {
+func RunSqlcGenerate(targetDir string) error {
 	cmd := exec.Command("go", "tool", "sqlc", "generate", "-f", "database/sqlc.yaml")
 	cmd.Dir = targetDir
 	return cmd.Run()
