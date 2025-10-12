@@ -2,6 +2,8 @@ package extensions
 
 import (
 	"fmt"
+
+	"github.com/mbvlabs/andurel/layout/cmds"
 )
 
 type Auth struct{}
@@ -43,6 +45,10 @@ func (e Auth) Apply(ctx *Context) error {
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("auth: failed to render templates: %w", err)
 	}
+
+	ctx.AddPostStep(func(targetDir string) error {
+		return cmds.RunSqlcGenerate(targetDir)
+	})
 
 	return nil
 }

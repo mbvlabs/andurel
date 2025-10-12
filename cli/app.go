@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +31,7 @@ func newTailwindCommand() *cobra.Command {
 		Long:  "Sets up Tailwind CSS for the project. If no system is specified, it defaults to 'npm'",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return layout.SetupTailwind(".")
+			return cmds.SetupTailwind(".")
 		},
 	}
 
