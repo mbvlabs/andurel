@@ -15,6 +15,7 @@ type Builder struct {
 	nextControllerFieldOrder  int
 	nextConstructorOrder      int
 	nextRouteOrder            int
+	nextRouteCollectionOrder  int
 	nextModelOrder            int
 	nextConfigFieldOrder      int
 	nextEnvVarOrder           int
@@ -205,6 +206,41 @@ func (b *Builder) AddRouteGroup(groupName string) *Builder {
 	if groupName != "" {
 		b.bp.Routes.RouteGroups.Add(groupName)
 	}
+	return b
+}
+
+// AddRouteCollection records route expressions to include in the BuildRoutes literal.
+func (b *Builder) AddRouteCollection(routes ...string) *Builder {
+	if b == nil || b.bp == nil || len(routes) == 0 {
+		return b
+	}
+
+	cleaned := make([]string, 0, len(routes))
+	seen := make(map[string]struct{}, len(routes))
+	for _, route := range routes {
+		route = strings.TrimSpace(route)
+		if route == "" {
+			continue
+		}
+		if _, exists := seen[route]; exists {
+			continue
+		}
+		seen[route] = struct{}{}
+		cleaned = append(cleaned, route)
+	}
+
+	if len(cleaned) == 0 {
+		return b
+	}
+
+	b.bp.Routes.RouteCollections = append(
+		b.bp.Routes.RouteCollections,
+		RouteCollection{
+			Routes: cleaned,
+			Order:  b.nextRouteCollectionOrder,
+		},
+	)
+	b.nextRouteCollectionOrder++
 	return b
 }
 
@@ -413,6 +449,9 @@ func (b *Builder) Merge(other *Blueprint) error {
 	b.bp.Routes.RouteGroups.Merge(other.Routes.RouteGroups)
 	for _, route := range other.Routes.Routes {
 		b.AddRoute(route)
+	}
+	for _, collection := range other.Routes.RouteCollections {
+		b.AddRouteCollection(collection.Routes...)
 	}
 
 	// Merge models

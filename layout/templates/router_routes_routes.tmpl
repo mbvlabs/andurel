@@ -13,30 +13,24 @@ type Route struct {
 	Middleware   []func(next echo.HandlerFunc) echo.HandlerFunc
 }
 
-var BuildRoutes = func() []Route {
-	var r []Route
-
-	r = append(
-		r,
-		assetRoutes...,
-	)
-
-	r = append(
-		r,
-		pageRoutes...,
-	)
-
-	r = append(
-		r,
-		apiRoutes...,
-	)
-	
-{{- range .Blueprint.Routes.RouteGroups.SortedItems}}
-	r = append(
-		r,
-		{{.}}Routes...,
-	)
+var BuildRoutes = []Route{
+	Health,
+{{- with $collections := .Blueprint.Routes.SortedRouteCollections}}
+{{- range $collection := $collections}}
+{{- range $route := $collection.Routes}}
+	{{$route}},
+{{- end}}
+{{- end}}
 {{- end}}
 
-	return r
-}()
+	Robots,
+	Sitemap,
+	Stylesheet,
+{{- if eq .CSSFramework "vanilla"}}
+	StyleImport,
+{{- end}}
+	Scripts,
+	Script,
+
+	HomePage,
+}

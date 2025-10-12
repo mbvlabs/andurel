@@ -10,7 +10,7 @@ cmd/app/main.go
 cmd/console/main.go
 cmd/migration/main.go
 cmd/run/main.go
-config/auth.go
+config/app.go
 config/config.go
 config/database.go
 controllers/api.go
@@ -709,28 +709,27 @@ func runLiveTailwind(ctx context.Context) error {
 }
 
 
-=== config/auth.go ===
+=== config/app.go ===
 package config
 
 import "github.com/caarlos0/env/v10"
 
-type auth struct {
-	PasswordSalt         string `env:"PASSWORD_SALT"`
+type app struct {
 	SessionKey           string `env:"SESSION_KEY"`
 	SessionEncryptionKey string `env:"SESSION_ENCRYPTION_KEY"`
 	TokenSigningKey      string `env:"TOKEN_SIGNING_KEY"`
 }
 
-func newAuthConfig() auth {
-	authenticationCfg := auth{}
+func newAppConfig() app {
+	appCfg := app{}
 
-	if err := env.ParseWithOptions(&authenticationCfg, env.Options{
+	if err := env.ParseWithOptions(&appCfg, env.Options{
 		RequiredIfNoDef: true,
 	}); err != nil {
 		panic(err)
 	}
 
-	return authenticationCfg
+	return appCfg
 }
 
 
@@ -792,14 +791,14 @@ var (
 )
 
 type Config struct {
-	Auth auth
-	DB   database
+	App app
+	DB  database
 }
 
 func NewConfig() Config {
 	return Config{
-		Auth: newAuthConfig(),
-		DB:   newDatabaseConfig(),
+		App: newAppConfig(),
+		DB:  newDatabaseConfig(),
 	}
 }
 
@@ -1429,13 +1428,15 @@ type FlashMessage struct {
 	Message   string
 }
 
+type flashKey string
+
 var (
-	FlashKey = func() string {
+	FlashKey = func() flashKey {
 		if config.Env == config.ProdEnvironment {
-			return strings.ToLower(config.ProjectName) + "_" + "flash_key"
+			return flashKey(strings.ToLower(config.ProjectName) + "_" + "flash_key")
 		}
 
-		return strings.ToLower(config.ProjectName) + "_" + "dev_flash_key"
+		return flashKey(strings.ToLower(config.ProjectName) + "_" + "dev_flash_key")
 	}()
 	flashSession = "flash_session"
 )
@@ -1634,11 +1635,11 @@ func New(
 		router.Debug = true
 	}
 
-	authKey, err := hex.DecodeString(cfg.Auth.SessionKey)
+	authKey, err := hex.DecodeString(cfg.App.SessionKey)
 	if err != nil {
 		return nil, err
 	}
-	encKey, err := hex.DecodeString(cfg.Auth.SessionEncryptionKey)
+	encKey, err := hex.DecodeString(cfg.App.SessionEncryptionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -1876,10 +1877,6 @@ const (
 	apiNamePrefix  = "api"
 )
 
-var apiRoutes = []Route{
-	Health,
-}
-
 var Health = Route{
 	Name:             apiNamePrefix + ".health",
 	Path:             APIRoutePrefix + "/health",
@@ -1902,14 +1899,6 @@ const (
 	AssetsRoutePrefix = "/assets"
 	assetsNamePrefix  = "assets"
 )
-
-var assetRoutes = []Route{
-	Robots,
-	Sitemap,
-	Stylesheet,
-	Scripts,
-	Script,
-}
 
 var startTime = time.Now().Unix()
 
@@ -1961,10 +1950,6 @@ import "net/http"
 
 const pageNamePrefix = "pages"
 
-var pageRoutes = []Route{
-	HomePage,
-}
-
 var HomePage = Route{
 	Name:             pageNamePrefix + ".home",
 	Path:             "/",
@@ -1991,26 +1976,17 @@ type Route struct {
 	Middleware       []func(next echo.HandlerFunc) echo.HandlerFunc
 }
 
-var BuildRoutes = func() []Route {
-	var r []Route
+var BuildRoutes = []Route{
+	Health,
 
-	r = append(
-		r,
-		assetRoutes...,
-	)
+	Robots,
+	Sitemap,
+	Stylesheet,
+	Scripts,
+	Script,
 
-	r = append(
-		r,
-		pageRoutes...,
-	)
-
-	r = append(
-		r,
-		apiRoutes...,
-	)
-
-	return r
-}()
+	HomePage,
+}
 
 
 === router/stdout_logger.go ===
@@ -2609,11 +2585,7 @@ var _ = templruntime.GeneratedTemplate
 === views/components/toasts.templ ===
 package components
 
-import (
-	"fmt"
-	"github.com/dromara/carbon/v2"
-	"testapp/router/cookies"
-)
+import "testapp/router/cookies"
 
 templ toastBase(tType string, flash cookies.FlashMessage) {
 	<div
@@ -2623,8 +2595,8 @@ templ toastBase(tType string, flash cookies.FlashMessage) {
 		<div class="px-4 py-2 flex justify-between items-center border-b-1 border-b-gray-300">
 			<div class={ "w-4 h-4 rounded", tType }></div>
 			<span class="flex">
-				<p class="text-base-content">{ carbon.CreateFromStdTime(flash.CreatedAt).DiffForHumans() }</p>
-				<button data-on-click={ fmt.Sprintf("evt.target.closest('#%s').remove(); evt.stopPropagation();", "toast-"+flash.ID.String()) }>
+				<p class="text-base-content">{ flash.CreatedAt.String() }</p>
+				<button>
 					<svg class="ml-2 w-4 h-4 fill-white cursor-pointer hover:fill-gray-400" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="100" height="100" viewBox="0 0 30 30">
 						<path d="M 7 4 C 6.744125 4 6.4879687 4.0974687 6.2929688 4.2929688 L 4.2929688 6.2929688 C 3.9019687 6.6839688 3.9019687 7.3170313 4.2929688 7.7070312 L 11.585938 15 L 4.2929688 22.292969 C 3.9019687 22.683969 3.9019687 23.317031 4.2929688 23.707031 L 6.2929688 25.707031 C 6.6839688 26.098031 7.3170313 26.098031 7.7070312 25.707031 L 15 18.414062 L 22.292969 25.707031 C 22.682969 26.098031 23.317031 26.098031 23.707031 25.707031 L 25.707031 23.707031 C 26.098031 23.316031 26.098031 22.682969 25.707031 22.292969 L 18.414062 15 L 25.707031 7.7070312 C 26.098031 7.3170312 26.098031 6.6829688 25.707031 6.2929688 L 23.707031 4.2929688 C 23.316031 3.9019687 22.682969 3.9019687 22.292969 4.2929688 L 15 11.585938 L 7.7070312 4.2929688 C 7.5115312 4.0974687 7.255875 4 7 4 z"></path>
 					</svg>
@@ -2662,11 +2634,7 @@ package components
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import (
-	"fmt"
-	"github.com/dromara/carbon/v2"
-	"testapp/router/cookies"
-)
+import "testapp/router/cookies"
 
 func toastBase(tType string, flash cookies.FlashMessage) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -2696,7 +2664,7 @@ func toastBase(tType string, flash cookies.FlashMessage) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs("toast-" + flash.ID.String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 12, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 8, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -2729,41 +2697,28 @@ func toastBase(tType string, flash cookies.FlashMessage) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(carbon.CreateFromStdTime(flash.CreatedAt).DiffForHumans())
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(flash.CreatedAt.String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 17, Col: 92}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 13, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p><button data-on-click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p><button><svg class=\"ml-2 w-4 h-4 fill-white cursor-pointer hover:fill-gray-400\" xmlns=\"http://www.w3.org/2000/svg\" x=\"0px\" y=\"0px\" width=\"100\" height=\"100\" viewBox=\"0 0 30 30\"><path d=\"M 7 4 C 6.744125 4 6.4879687 4.0974687 6.2929688 4.2929688 L 4.2929688 6.2929688 C 3.9019687 6.6839688 3.9019687 7.3170313 4.2929688 7.7070312 L 11.585938 15 L 4.2929688 22.292969 C 3.9019687 22.683969 3.9019687 23.317031 4.2929688 23.707031 L 6.2929688 25.707031 C 6.6839688 26.098031 7.3170313 26.098031 7.7070312 25.707031 L 15 18.414062 L 22.292969 25.707031 C 22.682969 26.098031 23.317031 26.098031 23.707031 25.707031 L 25.707031 23.707031 C 26.098031 23.316031 26.098031 22.682969 25.707031 22.292969 L 18.414062 15 L 25.707031 7.7070312 C 26.098031 7.3170312 26.098031 6.6829688 25.707031 6.2929688 L 23.707031 4.2929688 C 23.316031 3.9019687 22.682969 3.9019687 22.292969 4.2929688 L 15 11.585938 L 7.7070312 4.2929688 C 7.5115312 4.0974687 7.255875 4 7 4 z\"></path></svg></button></span></div><span class=\"text-base-content px-4 py-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
-		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("evt.target.closest('#%s').remove(); evt.stopPropagation();", "toast-"+flash.ID.String()))
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(flash.Message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 18, Col: 129}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 22, Col: 18}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><svg class=\"ml-2 w-4 h-4 fill-white cursor-pointer hover:fill-gray-400\" xmlns=\"http://www.w3.org/2000/svg\" x=\"0px\" y=\"0px\" width=\"100\" height=\"100\" viewBox=\"0 0 30 30\"><path d=\"M 7 4 C 6.744125 4 6.4879687 4.0974687 6.2929688 4.2929688 L 4.2929688 6.2929688 C 3.9019687 6.6839688 3.9019687 7.3170313 4.2929688 7.7070312 L 11.585938 15 L 4.2929688 22.292969 C 3.9019687 22.683969 3.9019687 23.317031 4.2929688 23.707031 L 6.2929688 25.707031 C 6.6839688 26.098031 7.3170313 26.098031 7.7070312 25.707031 L 15 18.414062 L 22.292969 25.707031 C 22.682969 26.098031 23.317031 26.098031 23.707031 25.707031 L 25.707031 23.707031 C 26.098031 23.316031 26.098031 22.682969 25.707031 22.292969 L 18.414062 15 L 25.707031 7.7070312 C 26.098031 7.3170312 26.098031 6.6829688 25.707031 6.2929688 L 23.707031 4.2929688 C 23.316031 3.9019687 22.682969 3.9019687 22.292969 4.2929688 L 15 11.585938 L 7.7070312 4.2929688 C 7.5115312 4.0974687 7.255875 4 7 4 z\"></path></svg></button></span></div><span class=\"text-base-content px-4 py-2\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var7 string
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(flash.Message)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 26, Col: 18}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2787,9 +2742,9 @@ func ToastMessage(flash cookies.FlashMessage) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var8 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var8 == nil {
-			templ_7745c5c3_Var8 = templ.NopComponent
+		templ_7745c5c3_Var7 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var7 == nil {
+			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		switch flash.Type {

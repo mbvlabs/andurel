@@ -60,34 +60,51 @@ func (rg *RouteGenerator) registerRoutes(resourceName string) error {
 
 	contentStr := string(content)
 
-	routeSliceName := resourceName + "Routes"
+	routeIdentifier := resourceName + "Index"
 
-	if strings.Contains(contentStr, routeSliceName) {
+	if strings.Contains(contentStr, routeIdentifier) {
 		return nil
 	}
 
 	lines := strings.Split(contentStr, "\n")
-	var modifiedLines []string
-	added := false
-
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "return r" && !added {
-			modifiedLines = append(modifiedLines, "")
-			modifiedLines = append(modifiedLines, "\tr = append(")
-			modifiedLines = append(modifiedLines, "\t\tr,")
-			modifiedLines = append(modifiedLines, fmt.Sprintf("\t\t%s...,", routeSliceName))
-			modifiedLines = append(modifiedLines, "\t)")
-			modifiedLines = append(modifiedLines, "")
-			added = true
+	insertIdx := len(lines)
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "HomePage," {
+			insertIdx = i + 1
+			break
 		}
-		modifiedLines = append(modifiedLines, line)
 	}
 
-	if !added {
-		return fmt.Errorf("could not find appropriate place to register routes")
+	if insertIdx == len(lines) {
+		for i, line := range lines {
+			if strings.TrimSpace(line) == "}" {
+				insertIdx = i
+				break
+			}
+		}
 	}
 
-	if err := os.WriteFile(routesFilePath, []byte(strings.Join(modifiedLines, "\n")), constants.FilePermissionPrivate); err != nil {
+	if insertIdx == len(lines) {
+		return fmt.Errorf("could not determine insertion point for generated routes")
+	}
+
+	routeEntries := []string{
+		fmt.Sprintf("\t%sIndex,", resourceName),
+		fmt.Sprintf("\t%sShow.Route,", resourceName),
+		fmt.Sprintf("\t%sNew,", resourceName),
+		fmt.Sprintf("\t%sCreate,", resourceName),
+		fmt.Sprintf("\t%sEdit.Route,", resourceName),
+		fmt.Sprintf("\t%sUpdate.Route,", resourceName),
+		fmt.Sprintf("\t%sDestroy.Route,", resourceName),
+	}
+
+	block := append([]string{""}, routeEntries...)
+
+	updatedLines := append([]string{}, lines[:insertIdx]...)
+	updatedLines = append(updatedLines, block...)
+	updatedLines = append(updatedLines, lines[insertIdx:]...)
+
+	if err := os.WriteFile(routesFilePath, []byte(strings.Join(updatedLines, "\n")), constants.FilePermissionPrivate); err != nil {
 		return fmt.Errorf("failed to write modified routes file: %w", err)
 	}
 

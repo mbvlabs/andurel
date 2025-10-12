@@ -4,15 +4,11 @@ import "net/http"
 
 const pageNamePrefix = "pages"
 
-var pageRoutes = []Route{
-	HomePage,
-}
-
 var HomePage = Route{
-	Name:         pageNamePrefix + ".home",
-	Path:         "/",
-	Method:       http.MethodGet,
-	Controller:      "Pages",
+	Name:             pageNamePrefix + ".home",
+	Path:             "/",
+	Method:           http.MethodGet,
+	Controller:       "Pages",
 	ControllerMethod: "Home",
 	IncludeInSitemap: true,
 }

@@ -7,14 +7,10 @@ const (
 	apiNamePrefix  = "api"
 )
 
-var apiRoutes = []Route{
-	Health,
-}
-
 var Health = Route{
-	Name:         apiNamePrefix + ".health",
-	Path:         APIRoutePrefix + "/health",
-	Method:       http.MethodGet,
-	Controller:      "API",
+	Name:             apiNamePrefix + ".health",
+	Path:             APIRoutePrefix + "/health",
+	Method:           http.MethodGet,
+	Controller:       "API",
 	ControllerMethod: "Health",
 }
