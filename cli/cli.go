@@ -36,7 +36,7 @@ func newRunAppCommand() *cobra.Command {
 		Short: "Runs the app",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			wd, err := os.Getwd()
+			wd, err := findGoModRoot()
 			if err != nil {
 				return err
 			}
