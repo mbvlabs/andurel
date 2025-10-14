@@ -16,7 +16,6 @@ type TemplateData struct {
 	SessionKey           string
 	SessionEncryptionKey string
 	TokenSigningKey      string
-	PasswordSalt         string
 
 	// Blueprint holds the structured scaffold configuration
 	blueprint *blueprint.Blueprint
