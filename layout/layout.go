@@ -61,7 +61,6 @@ func Scaffold(
 		SessionKey:           generateRandomHex(64),
 		SessionEncryptionKey: generateRandomHex(32),
 		TokenSigningKey:      generateRandomHex(32),
-		PasswordSalt:         generateRandomHex(16),
 		blueprint:            initializeBaseBlueprint(moduleName, database),
 	}
 
