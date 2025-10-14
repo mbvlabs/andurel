@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 
+	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/spf13/cobra"
 )
 
@@ -48,7 +50,7 @@ func newSqlcGenerateCommand() *cobra.Command {
 }
 
 func runSqlc(action string) error {
-	wd, err := os.Getwd()
+	wd, err := findGoModRoot()
 	if err != nil {
 		return err
 	}
@@ -71,4 +73,28 @@ func runSqlc(action string) error {
 	cmd.Dir = wd
 
 	return cmd.Run()
+}
+
+func findGoModRoot() (string, error) {
+	return cache.GetDirectoryRoot("go_mod_root", func() (string, error) {
+		dir, err := os.Getwd()
+		if err != nil {
+			return "", errors.New("could not get working directory")
+		}
+
+		for {
+			goModPath := filepath.Join(dir, "go.mod")
+			if _, err := os.Stat(goModPath); err == nil {
+				return dir, nil
+			}
+
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			dir = parent
+		}
+
+		return "", errors.New("go mod could not be found")
+	})
 }

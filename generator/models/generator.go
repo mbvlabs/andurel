@@ -120,7 +120,9 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	stdImports, extImports := groupAndSortImports(importSet)
 	model.StandardImports = stdImports
 	model.ExternalImports = extImports
-	model.Imports = append(append(make([]string, 0, len(stdImports)+len(extImports)), stdImports...), extImports...)
+	model.Imports = append(
+		append(make([]string, 0, len(stdImports)+len(extImports)), stdImports...),
+		extImports...)
 
 	return model, nil
 }
@@ -148,7 +150,7 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		sqlcType = "string"
 		pkg = "github.com/google/uuid"
 	} else {
-		goType, sqlcType, pkg, err = g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
+		goType, sqlcType, _, err = g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
 		if err != nil {
 			return GeneratedField{}, err
 		}
@@ -205,24 +207,6 @@ func (g *Generator) addModelTypeImports(goType string) map[string]bool {
 	return importSet
 }
 
-func (g *Generator) addTypeImports(sqlcType, goType string) map[string]bool {
-	importSet := map[string]bool{}
-	if strings.Contains(sqlcType, "pgtype.") {
-		importSet["github.com/jackc/pgx/v5/pgtype"] = true
-	}
-	if strings.Contains(sqlcType, "sql.Null") {
-		importSet["database/sql"] = true
-	}
-	if strings.Contains(goType, "time.Time") || strings.Contains(sqlcType, "time.Time") {
-		importSet["time"] = true
-	}
-	if strings.Contains(goType, "uuid.UUID") || strings.Contains(sqlcType, "uuid.UUID") {
-		importSet["github.com/google/uuid"] = true
-	}
-
-	return importSet
-}
-
 func (g *Generator) getSimpleGoType(goType, sqlcType string) string {
 	// If it's already a simple Go type, keep it
 	if !strings.Contains(goType, "pgtype.") && !strings.Contains(goType, "sql.") {
@@ -245,7 +229,9 @@ func (g *Generator) getSimpleGoType(goType, sqlcType string) string {
 		return "bool"
 	case strings.Contains(sqlcType, "pgtype.Text"):
 		return "string"
-	case strings.Contains(sqlcType, "pgtype.Timestamp"), strings.Contains(sqlcType, "pgtype.Date"), strings.Contains(sqlcType, "pgtype.Time"):
+	case strings.Contains(sqlcType, "pgtype.Timestamp"),
+		strings.Contains(sqlcType, "pgtype.Date"),
+		strings.Contains(sqlcType, "pgtype.Time"):
 		return "time.Time"
 	case strings.Contains(sqlcType, "sql.NullString"):
 		return "string"
@@ -367,17 +353,17 @@ func (g *Generator) GenerateSQLFile(
 ) error {
 	data := g.prepareSQLData(resourceName, pluralName, table)
 
-	tmpl, err := templates.GetCachedTemplate("crud_operations.tmpl", template.FuncMap{})
+	// Use the unified template service
+	service := templates.GetGlobalTemplateService()
+	content, err := service.RenderTemplate("crud_operations.tmpl", data)
 	if err != nil {
-		return errors.NewTemplateError("crud_operations.tmpl", "get template", err)
+		return errors.WrapTemplateError(err, "generate SQL", "crud_operations.tmpl")
 	}
 
-	var buf strings.Builder
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return errors.NewTemplateError("crud_operations.tmpl", "execute template", err)
+	if err := os.WriteFile(sqlPath, []byte(content), constants.FilePermissionPrivate); err != nil {
+		return errors.WrapFileError(err, "write SQL file", sqlPath)
 	}
-
-	return os.WriteFile(sqlPath, []byte(buf.String()), constants.FilePermissionPrivate)
+	return nil
 }
 
 func (g *Generator) GenerateSQLContent(
@@ -387,17 +373,13 @@ func (g *Generator) GenerateSQLContent(
 ) (string, error) {
 	data := g.prepareSQLData(resourceName, pluralName, table)
 
-	tmpl, err := templates.GetCachedTemplate("crud_operations.tmpl", template.FuncMap{})
+	// Use the unified template service
+	service := templates.GetGlobalTemplateService()
+	result, err := service.RenderTemplate("crud_operations.tmpl", data)
 	if err != nil {
-		return "", errors.NewTemplateError("crud_operations.tmpl", "get template", err)
+		return "", errors.WrapTemplateError(err, "generate SQL content", "crud_operations.tmpl")
 	}
-
-	var buf strings.Builder
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", errors.NewTemplateError("crud_operations.tmpl", "execute template", err)
-	}
-
-	return buf.String(), nil
+	return result, nil
 }
 
 func (g *Generator) prepareSQLData(
@@ -602,6 +584,13 @@ func (g *Generator) GenerateConstructorFile(
 		"lower": func(s string) string {
 			return strings.ToLower(s)
 		},
+		"camelCase": func(s string) string {
+			if len(s) == 0 {
+				return s
+			}
+			// Convert first character to lowercase
+			return strings.ToLower(s[:1]) + s[1:]
+		},
 		"uuidParam": func(param string) string {
 			if model.DatabaseType == "sqlite" {
 				return param + ".String()"
@@ -690,7 +679,9 @@ func (g *Generator) calculateConstructorImports(model *GeneratedModel) []string 
 	stdImports, extImports := groupAndSortImports(importSet)
 	model.StandardImports = stdImports
 	model.ExternalImports = extImports
-	imports := append(append(make([]string, 0, len(stdImports)+len(extImports)), stdImports...), extImports...)
+	imports := append(
+		append(make([]string, 0, len(stdImports)+len(extImports)), stdImports...),
+		extImports...)
 	return imports
 }
 

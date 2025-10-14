@@ -20,13 +20,15 @@ type FlashMessage struct {
 	Message   string
 }
 
+type flashKey string
+
 var (
-	FlashKey = func() string {
+	FlashKey = func() flashKey {
 		if config.Env == config.ProdEnvironment {
-			return strings.ToLower(config.ProjectName) + "_" + "flash_key"
+			return flashKey(strings.ToLower(config.ProjectName) + "_" + "flash_key")
 		}
 
-		return strings.ToLower(config.ProjectName) + "_" + "dev_flash_key"
+		return flashKey(strings.ToLower(config.ProjectName) + "_" + "dev_flash_key")
 	}()
 	flashSession          = "flash_session"
 )

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
-	"github.com/mbvlabs/andurel/generator/internal/config"
 	"github.com/mbvlabs/andurel/generator/internal/ddl"
 	"github.com/mbvlabs/andurel/generator/internal/migrations"
 )
@@ -18,10 +17,13 @@ func NewMigrationManager() *MigrationManager {
 }
 
 func (mm *MigrationManager) BuildCatalogFromMigrations(tableName string) (*catalog.Catalog, error) {
-	cfg := config.NewDefaultConfig()
-	appCfg := NewDefaultAppConfig()
-	databaseType := appCfg.Database.Type
-	migrationsList, err := migrations.DiscoverMigrations(cfg.MigrationDirs)
+	configManager := NewConfigManager()
+	unifiedConfig, err := configManager.Load()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
+	databaseType := unifiedConfig.Database.Type
+	migrationsList, err := migrations.DiscoverMigrations(unifiedConfig.Database.MigrationDirs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover migrations: %w", err)
 	}

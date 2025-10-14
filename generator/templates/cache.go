@@ -16,7 +16,10 @@ func NewTemplateCache() *TemplateCache {
 	}
 }
 
-func (tc *TemplateCache) GetTemplate(templateName string, funcMap template.FuncMap) (*template.Template, error) {
+func (tc *TemplateCache) GetTemplate(
+	templateName string,
+	funcMap template.FuncMap,
+) (*template.Template, error) {
 	cacheKey := templateName
 
 	tc.mutex.RLock()

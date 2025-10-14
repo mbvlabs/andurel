@@ -14,11 +14,11 @@ import (
 
 type ProjectManager struct {
 	modulePath  string
-	fileManager *files.Manager
+	fileManager files.Manager
 }
 
 func NewProjectManager() (*ProjectManager, error) {
-	fm := files.NewManager()
+	fm := files.NewUnifiedFileManager()
 	modulePath, err := getCurrentModulePath(fm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get module path: %w", err)
@@ -45,7 +45,7 @@ func (pm *ProjectManager) ValidateSQLCConfig(rootDir string) error {
 	return types.ValidateSQLCConfig(rootDir)
 }
 
-func getCurrentModulePath(fileManager *files.Manager) (string, error) {
+func getCurrentModulePath(fileManager files.Manager) (string, error) {
 	return cache.GetModulePath("current_module_path", func() (string, error) {
 		rootDir, err := fileManager.FindGoModRoot()
 		if err != nil {

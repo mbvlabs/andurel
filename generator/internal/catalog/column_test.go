@@ -81,7 +81,11 @@ func TestColumn_ValidatePrimaryKeyDatatype(t *testing.T) {
 					t.Fatal("Expected error but got none")
 				}
 				if tc.errorSubstr != "" && !containsSubstring(err.Error(), tc.errorSubstr) {
-					t.Errorf("Expected error to contain '%s', but got: %s", tc.errorSubstr, err.Error())
+					t.Errorf(
+						"Expected error to contain '%s', but got: %s",
+						tc.errorSubstr,
+						err.Error(),
+					)
 				}
 			} else {
 				if err != nil {

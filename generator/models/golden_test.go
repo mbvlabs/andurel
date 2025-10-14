@@ -731,7 +731,10 @@ func TestConstructorFileGeneration__GoldenFile(t *testing.T) {
 				t.Fatalf("Failed to build catalog from migrations: %v", err)
 			}
 
-			constructorPath := filepath.Join(internalDBDir, strings.ToLower(tt.resourceName)+"_constructors.go")
+			constructorPath := filepath.Join(
+				internalDBDir,
+				strings.ToLower(tt.resourceName)+"_constructors.go",
+			)
 
 			err = generator.GenerateConstructors(
 				cat,

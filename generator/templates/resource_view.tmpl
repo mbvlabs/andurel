@@ -8,31 +8,31 @@ import (
 
 templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 	@base() {
-		<div class="container mx-auto p-6">
-			<div class="flex items-center justify-between mb-8">
-				<h1 class="text-2xl font-semibold text-white">{{.ResourceName}}s</h1>
-				<a href={ templ.URL(routes.{{.ResourceName}}New.Path) } class="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">New {{.ResourceName}}</a>
+		<div>
+			<div>
+				<h1>{{.ResourceName}}s</h1>
+				<a href={ templ.URL(routes.{{.ResourceName}}New.Path) }>New {{.ResourceName}}</a>
 			</div>
-			<div class="bg-white/5 rounded-lg border border-white/10">
-				<div class="p-6">
+			<div>
+				<div>
 					if len({{.PluralName}}) == 0 {
-						<p class="text-gray-400">No {{.PluralName}} found.</p>
+						<p>No {{.PluralName}} found.</p>
 					} else {
-						<div class="overflow-x-auto">
-							<table class="table w-full">
+						<div>
+							<table>
 								<thead>
 									<tr>
-										{{range .Fields}}<th class="text-white font-semibold">{{.DisplayName}}</th>
-										{{end}}<th class="text-white font-semibold">Actions</th>
+										{{range .Fields}}<th>{{.DisplayName}}</th>
+										{{end}}<th>Actions</th>
 									</tr>
 								</thead>
 								<tbody>
 									for _, {{.ResourceName | ToLower}} := range {{.PluralName}} {
 										<tr>
-											{{range .Fields}}<td class="text-white">{{StringTableDisplay . $.ResourceName}}</td>
-											{{end}}<td class="flex gap-2">
-												<a href={ templ.URL(routes.{{.ResourceName}}Show.GetPath({{.ResourceName | ToLower}}.ID)) } class="btn btn-sm btn-primary">View</a>
-												<a href={ templ.URL(routes.{{.ResourceName}}Edit.GetPath({{.ResourceName | ToLower}}.ID)) } class="btn btn-sm btn-outline">Edit</a>
+											{{range .Fields}}<td>{{StringTableDisplay . $.ResourceName}}</td>
+											{{end}}<td>
+												<a href={ templ.URL(routes.{{.ResourceName}}Show.GetPath({{.ResourceName | ToLower}}.ID)) }>View</a>
+												<a href={ templ.URL(routes.{{.ResourceName}}Edit.GetPath({{.ResourceName | ToLower}}.ID)) }>Edit</a>
 											</td>
 										</tr>
 									}
@@ -48,20 +48,20 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 
 templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
 	@base() {
-		<div class="container mx-auto p-6">
-			<div class="flex items-center justify-between mb-8">
-				<h1 class="text-2xl font-semibold text-white">{{.ResourceName}} Details</h1>
-				<div class="flex gap-2">
-					<a href={ templ.URL(routes.{{.ResourceName}}Edit.GetPath({{.ResourceName | ToLower}}.ID)) } class="rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Edit</a>
-					<a href={ templ.URL(routes.{{.ResourceName}}Index.Path) } class="text-sm font-semibold text-gray-400 hover:text-white">Back to List</a>
+		<div>
+			<div>
+				<h1>{{.ResourceName}} Details</h1>
+				<div>
+					<a href={ templ.URL(routes.{{.ResourceName}}Edit.GetPath({{.ResourceName | ToLower}}.ID)) }>Edit</a>
+					<a href={ templ.URL(routes.{{.ResourceName}}Index.Path) }>Back to List</a>
 				</div>
 			</div>
-			<div class="bg-white/5 rounded-lg border border-white/10">
-				<div class="p-6">
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+			<div>
+				<div>
+					<div>
 						{{range .Fields}}<div>
-							<label class="block text-sm font-medium text-white mb-1">{{.DisplayName}}</label>
-							<p class="text-lg text-gray-300">{{StringDisplay . $.ResourceName}}</p>
+							<label>{{.DisplayName}}</label>
+							<p>{{StringDisplay . $.ResourceName}}</p>
 						</div>
 						{{end}}
 					</div>
@@ -73,33 +73,33 @@ templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}
 
 templ {{.ResourceName}}New() {
 	@base() {
-		<div class="container mx-auto p-6">
-			<div class="flex items-center justify-between mb-8">
-				<h1 class="text-2xl font-semibold text-white">New {{.ResourceName}}</h1>
-				<a href={ templ.URL(routes.{{.ResourceName}}Index.Path) } class="text-sm font-semibold text-gray-400 hover:text-white">Back to List</a>
+		<div>
+			<div>
+				<h1>New {{.ResourceName}}</h1>
+				<a href={ templ.URL(routes.{{.ResourceName}}Index.Path) }>Back to List</a>
 			</div>
-			<div class="bg-white/5 rounded-lg border border-white/10">
-				<div class="p-6">
+			<div>
+				<div>
 					<form data-on-submit={ fmt.Sprintf("@post('%s')", routes.{{.ResourceName}}Create.Path) }>
-						<div class="space-y-6">
-							<div class="border-b border-white/10 pb-6">
-								<h2 class="text-base font-semibold text-white">{{.ResourceName}} Information</h2>
-								<p class="mt-1 text-sm text-gray-400">Enter the details for the new {{.ResourceName | ToLower}}.</p>
-								<div class="mt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-									{{range .Fields}}{{if not .IsSystemField}}<div class="sm:col-span-3">
-										<label for="{{.DBName}}" class="block text-sm font-medium text-white">
+						<div>
+							<div>
+								<h2>{{.ResourceName}} Information</h2>
+								<p>Enter the details for the new {{.ResourceName | ToLower}}.</p>
+								<div>
+									{{range .Fields}}{{if not .IsSystemField}}<div>
+										<label for="{{.DBName}}">
 											{{.DisplayName}}
 										</label>
-										<div class="mt-2">
-											<input id="{{.DBName}}" type="{{.InputType}}" data-bind="{{.DBName}}" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" />
+										<div>
+											<input id="{{.DBName}}" type="{{.InputType}}" data-bind="{{.DBName}}" />
 										</div>
 									</div>
 									{{end}}{{end}}</div>
 							</div>
 						</div>
-						<div class="mt-6 flex items-center justify-end gap-x-6">
-							<a href={ templ.URL(routes.{{.ResourceName}}Index.Path) } class="text-sm font-semibold text-white hover:text-gray-300">Cancel</a>
-							<button type="submit" class="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">Create {{.ResourceName}}</button>
+						<div>
+							<a href={ templ.URL(routes.{{.ResourceName}}Index.Path) }>Cancel</a>
+							<button type="submit">Create {{.ResourceName}}</button>
 						</div>
 					</form>
 				</div>
@@ -110,39 +110,38 @@ templ {{.ResourceName}}New() {
 
 templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
 	@base() {
-		<div class="container mx-auto p-6">
-			<div class="flex items-center justify-between mb-8">
-				<h1 class="text-2xl font-semibold text-white">Edit {{.ResourceName}}</h1>
-				<a href={ templ.URL(routes.{{.ResourceName}}Index.Path) } class="text-sm font-semibold text-gray-400 hover:text-white">Back to List</a>
+		<div>
+			<div>
+				<h1>Edit {{.ResourceName}}</h1>
+				<a href={ templ.URL(routes.{{.ResourceName}}Index.Path) }>Back to List</a>
 			</div>
-			<div class="bg-white/5 rounded-lg border border-white/10">
-				<div class="p-6">
+			<div>
+				<div>
 					<form data-on-submit={ fmt.Sprintf("@put('%s')", routes.{{.ResourceName}}Update.GetPath({{.ResourceName | ToLower}}.ID)) }>
-						<div class="space-y-6">
-							<div class="border-b border-white/10 pb-6">
-								<h2 class="text-base font-semibold text-white">{{.ResourceName}} Information</h2>
-								<p class="mt-1 text-sm text-gray-400">Update the details for this {{.ResourceName | ToLower}}.</p>
-								<div class="mt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-									{{range .Fields}}{{if not .IsSystemField}}<div class="sm:col-span-3">
-										<label for="{{.DBName}}" class="block text-sm font-medium text-white">
+						<div>
+							<div>
+								<h2>{{.ResourceName}} Information</h2>
+								<p>Update the details for this {{.ResourceName | ToLower}}.</p>
+								<div>
+									{{range .Fields}}{{if not .IsSystemField}}<div>
+										<label for="{{.DBName}}">
 											{{.DisplayName}}
 										</label>
-										<div class="mt-2">
-											<input id="{{.DBName}}" type="{{.InputType}}" data-bind="{{.DBName}}" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm" value={ {{StringValue . $.ResourceName}} } />
+										<div>
+											<input id="{{.DBName}}" type="{{.InputType}}" data-bind="{{.DBName}}" value={ {{StringValue . $.ResourceName}} } />
 										</div>
 									</div>
 									{{end}}{{end}}</div>
 							</div>
 						</div>
-						<div class="mt-6 flex items-center justify-end gap-x-6">
-							<a href={ templ.URL(routes.{{.ResourceName}}Index.Path) } class="text-sm font-semibold text-white hover:text-gray-300">Cancel</a>
-							<button type="submit" class="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">Update {{.ResourceName}}</button>
+						<div>
+							<a href={ templ.URL(routes.{{.ResourceName}}Index.Path) }>Cancel</a>
+							<button type="submit">Update {{.ResourceName}}</button>
 						</div>
 					</form>
-					<div class="mt-6 pt-6 border-t border-white/10">
-						<button 
-							data-on-click={ fmt.Sprintf("@delete('%s')", routes.{{.ResourceName}}Destroy.GetPath({{.ResourceName | ToLower}}.ID)) }
-							class="rounded-md bg-red-500 px-3 py-2 text-sm font-semibold text-white hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500">Destroy {{.ResourceName}}</button>
+					<div>
+						<button
+							data-on-click={ fmt.Sprintf("@delete('%s')", routes.{{.ResourceName}}Destroy.GetPath({{.ResourceName | ToLower}}.ID)) }>Destroy {{.ResourceName}}</button>
 					</div>
 				</div>
 			</div>

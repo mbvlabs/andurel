@@ -13,6 +13,7 @@ type TemplateData struct {
 	ModuleName           string
 	Database             string
 	CSSFramework         string
+	GoVersion            string
 	SessionKey           string
 	SessionEncryptionKey string
 	TokenSigningKey      string

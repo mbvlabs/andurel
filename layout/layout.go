@@ -6,20 +6,17 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
-	"sort"
 	"strings"
 	"sync"
 	"text/template"
 
 	"github.com/mbvlabs/andurel/layout/blueprint"
+	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/mbvlabs/andurel/layout/extensions"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
@@ -60,6 +57,7 @@ func Scaffold(
 		ModuleName:           moduleName,
 		Database:             database,
 		CSSFramework:         cssFramework,
+		GoVersion:            goVersion,
 		SessionKey:           generateRandomHex(64),
 		SessionEncryptionKey: generateRandomHex(32),
 		TokenSigningKey:      generateRandomHex(32),
@@ -86,7 +84,7 @@ func Scaffold(
 	}
 
 	fmt.Print("Creating go.mod file...\n")
-	if err := createGoMod(targetDir, moduleName); err != nil {
+	if err := createGoMod(targetDir, &templateData); err != nil {
 		return fmt.Errorf("failed to create go.mod: %w", err)
 	}
 
@@ -113,9 +111,9 @@ func Scaffold(
 
 	// Need to skip download for testing purposes
 	switch {
-	case templateData.CSSFramework == "tailwind" && os.Getenv("ANDUREL_SKIP_TAILWIND") == "false":
+	case templateData.CSSFramework == "tailwind" && os.Getenv("ANDUREL_SKIP_TAILWIND") != "true":
 		fmt.Print("Setting up Tailwind CSS...\n")
-		if err := SetupTailwind(targetDir); err != nil {
+		if err := cmds.SetupTailwind(targetDir); err != nil {
 			fmt.Println(
 				"Failed to download tailwind binary. Run 'andurel app tailwind' after setup is done to fix.",
 			)
@@ -123,35 +121,35 @@ func Scaffold(
 	}
 
 	fmt.Print("Running initial go mod tidy...\n")
-	if err := runGoModTidy(targetDir); err != nil {
+	if err := cmds.RunGoModTidy(targetDir); err != nil {
 		return fmt.Errorf("failed to run go mod tidy: %w", err)
 	}
 
 	fmt.Print("Building run binary...\n")
 	// Need to skip build for testing purposes
 	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
-		if err := runGoRunBin(targetDir); err != nil {
+		if err := cmds.RunGoRunBin(targetDir); err != nil {
 			return fmt.Errorf("failed to build run binary: %w", err)
 		}
 	}
 
 	fmt.Print("Building migration binary...\n")
 	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
-		if err := runGoMigrationBin(targetDir); err != nil {
+		if err := cmds.RunGoMigrationBin(targetDir); err != nil {
 			return fmt.Errorf("failed to build migration binary: %w", err)
 		}
 	}
 
 	fmt.Print("Building console binary...\n")
 	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
-		if err := runConsoleBin(targetDir); err != nil {
+		if err := cmds.RunConsoleBin(targetDir); err != nil {
 			return fmt.Errorf("failed to build console binary: %w", err)
 		}
 	}
 
 	type postStep struct {
 		extensionName string
-		fn            func() error
+		fn            func(targetDir string) error
 	}
 
 	var postExtensionSteps []postStep
@@ -174,7 +172,7 @@ func Scaffold(
 
 				return renderTemplate(targetDir, templateFile, targetPath, extensions.Files, data)
 			},
-			AddPostStep: func(fn func() error) {
+			AddPostStep: func(fn func(targetDir string) error) {
 				if fn == nil {
 					return
 				}
@@ -198,31 +196,30 @@ func Scaffold(
 		}
 	}
 
+	fmt.Print("Finalizing go tidy...\n")
+	if err := cmds.RunGoModTidy(targetDir); err != nil {
+		return fmt.Errorf("failed to run go mod tidy: %w", err)
+	}
+
 	for _, step := range postExtensionSteps {
-		if err := step.fn(); err != nil {
+		if err := step.fn(targetDir); err != nil {
 			return fmt.Errorf("extension %s post-step failed: %w", step.extensionName, err)
 		}
 	}
 
 	fmt.Print("Running templ fmt...\n")
-	if err := runTemplFmt(targetDir); err != nil {
+	if err := cmds.RunTemplFmt(targetDir); err != nil {
 		return fmt.Errorf("failed to run templ fmt: %w", err)
 	}
 
 	fmt.Print("Running templ generate...\n")
-	if err := runTemplGenerate(targetDir); err != nil {
+	if err := cmds.RunTemplGenerate(targetDir); err != nil {
 		return fmt.Errorf("failed to run templ generate: %w", err)
 	}
 
 	fmt.Print("Running go fmt...\n")
-	if err := runGoFmt(targetDir); err != nil {
+	if err := cmds.RunGoFmt(targetDir); err != nil {
 		return fmt.Errorf("failed to run go fmt: %w", err)
-	}
-
-	fmt.Print("Finalizing go mod tidy...\n")
-	// calling go mod tidy again to ensure everything is in place after templ generation
-	if err := runGoModTidy(targetDir); err != nil {
-		return fmt.Errorf("failed to run go mod tidy: %w", err)
 	}
 
 	return nil
@@ -266,11 +263,19 @@ var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"vanilla_views_components_toasts.tmpl": "views/components/toasts.templ",
 }
 
+var basePSQLTemplateMappings = map[TmplTarget]TmplTargetPath{
+	"psql_database.tmpl": "database/database.go",
+	"psql_sqlc.tmpl":     "database/sqlc.yaml",
+}
+
+var baseSqliteTemplateMappings = map[TmplTarget]TmplTargetPath{
+	"sqlite_database.tmpl": "database/database.go",
+	"sqlite_sqlc.tmpl":     "database/sqlc.yaml",
+}
+
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Core files
-	"database.tmpl":  "database/database.go",
 	"env.tmpl":       ".env.example",
-	"sqlc.tmpl":      "database/sqlc.yaml",
 	"gitignore.tmpl": ".gitignore",
 
 	// Assets
@@ -286,7 +291,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"cmd_console_main.tmpl":   "cmd/console/main.go",
 
 	// Config
-	"config_auth.tmpl":     "config/auth.go",
+	"config_app.tmpl":      "config/app.go",
 	"config_config.tmpl":   "config/config.go",
 	"config_database.tmpl": "config/database.go",
 
@@ -329,6 +334,21 @@ func processTemplatedFiles(
 		}
 	}
 
+	if data.DatabaseDialect() == "postgresql" {
+		for templateFile, targetPath := range basePSQLTemplateMappings {
+			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
+				return fmt.Errorf("failed to process psql template %s: %w", templateFile, err)
+			}
+		}
+	}
+	if data.DatabaseDialect() == "sqlite" {
+		for templateFile, targetPath := range baseSqliteTemplateMappings {
+			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
+				return fmt.Errorf("failed to process sqlite template %s: %w", templateFile, err)
+			}
+		}
+	}
+
 	if cssFramework == "tailwind" {
 		for templateFile, targetPath := range baseTailwindTemplateMappings {
 			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
@@ -357,11 +377,11 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		return fmt.Errorf("template data is nil")
 	}
 
-	// List of templates that consume blueprint data and should be re-rendered after extensions
 	blueprintTemplates := []TmplTarget{
 		"controllers_controller.tmpl",
 		"cmd_app_main.tmpl",
 		"router_routes_routes.tmpl",
+		"config_config.tmpl",
 	}
 
 	for _, tmplName := range blueprintTemplates {
@@ -373,6 +393,10 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		if err := renderTemplate(targetDir, string(tmplName), string(targetPath), templates.Files, data); err != nil {
 			return fmt.Errorf("failed to render blueprint template %s: %w", tmplName, err)
 		}
+	}
+
+	if err := renderTemplate(targetDir, "go_mod.tmpl", "go.mod", templates.Files, data); err != nil {
+		return fmt.Errorf("failed to render go.mod template: %w", err)
 	}
 
 	return nil
@@ -481,6 +505,7 @@ func registerBuiltinExtensions() error {
 	registerBuiltinOnce.Do(func() {
 		builtin := []extensions.Extension{
 			extensions.Email{},
+			extensions.Auth{},
 		}
 
 		for _, ext := range builtin {
@@ -499,27 +524,19 @@ func resolveExtensions(names []string) ([]extensions.Extension, error) {
 		return nil, nil
 	}
 
-	seen := make(map[string]struct{}, len(names))
-	lookup := make(map[string]extensions.Extension, len(names))
-	uniqueNames := make([]string, 0, len(names))
-
+	// First pass: collect all requested extensions and validate they exist
+	requested := make(map[string]struct{})
 	for _, rawName := range names {
 		name := strings.TrimSpace(rawName)
 		if name == "" {
 			return nil, fmt.Errorf("extension name cannot be empty")
 		}
 
-		if _, exists := seen[name]; exists {
-			return nil, fmt.Errorf("extension %s specified multiple times", name)
-		}
-
-		ext, ok := extensions.Get(name)
-		if !ok {
+		if _, ok := extensions.Get(name); !ok {
 			available := strings.Join(extensions.Names(), ", ")
 			if available == "" {
 				return nil, fmt.Errorf("unknown extension %q", name)
 			}
-
 			return nil, fmt.Errorf(
 				"unknown extension %q. available extensions: %s",
 				name,
@@ -527,95 +544,154 @@ func resolveExtensions(names []string) ([]extensions.Extension, error) {
 			)
 		}
 
-		seen[name] = struct{}{}
-		uniqueNames = append(uniqueNames, name)
-		lookup[name] = ext
+		requested[name] = struct{}{}
 	}
 
-	sort.Strings(uniqueNames)
+	// Build complete dependency graph (includes transitive dependencies)
+	allNeeded := make(map[string]struct{})
+	if err := collectDependencies(requested, allNeeded); err != nil {
+		return nil, err
+	}
 
-	resolved := make([]extensions.Extension, 0, len(uniqueNames))
-	for _, name := range uniqueNames {
-		resolved = append(resolved, lookup[name])
+	// Topologically sort extensions so dependencies come before dependents
+	sorted, err := topologicalSort(allNeeded)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert names to extension instances
+	resolved := make([]extensions.Extension, 0, len(sorted))
+	for _, name := range sorted {
+		ext, _ := extensions.Get(name)
+		resolved = append(resolved, ext)
 	}
 
 	return resolved, nil
 }
 
+// collectDependencies recursively gathers all extensions needed, including transitive dependencies
+func collectDependencies(requested map[string]struct{}, allNeeded map[string]struct{}) error {
+	for name := range requested {
+		if _, seen := allNeeded[name]; seen {
+			continue
+		}
+
+		ext, ok := extensions.Get(name)
+		if !ok {
+			return fmt.Errorf("unknown extension %q", name)
+		}
+
+		allNeeded[name] = struct{}{}
+
+		// Recursively add dependencies
+		deps := ext.Dependencies()
+		if len(deps) > 0 {
+			depsMap := make(map[string]struct{}, len(deps))
+			for _, dep := range deps {
+				dep = strings.TrimSpace(dep)
+				if dep == "" {
+					continue
+				}
+				if dep == name {
+					return fmt.Errorf("extension %q cannot depend on itself", name)
+				}
+				depsMap[dep] = struct{}{}
+			}
+
+			if err := collectDependencies(depsMap, allNeeded); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// topologicalSort orders extensions so dependencies are applied before dependents.
+// Returns an error if a circular dependency is detected.
+func topologicalSort(extSet map[string]struct{}) ([]string, error) {
+	const (
+		unvisited = 0
+		visiting  = 1
+		visited   = 2
+	)
+
+	state := make(map[string]int)
+	var result []string
+	var path []string // for cycle detection
+
+	var visit func(string) error
+	visit = func(name string) error {
+		switch state[name] {
+		case visited:
+			return nil
+		case visiting:
+			// Found a cycle
+			cycle := append(path, name)
+			return fmt.Errorf("circular dependency detected: %s", strings.Join(cycle, " -> "))
+		}
+
+		state[name] = visiting
+		path = append(path, name)
+
+		ext, ok := extensions.Get(name)
+		if !ok {
+			return fmt.Errorf("unknown extension %q", name)
+		}
+
+		// Visit dependencies first
+		for _, dep := range ext.Dependencies() {
+			dep = strings.TrimSpace(dep)
+			if dep == "" {
+				continue
+			}
+			if err := visit(dep); err != nil {
+				return err
+			}
+		}
+
+		path = path[:len(path)-1]
+		state[name] = visited
+		result = append(result, name)
+		return nil
+	}
+
+	// Visit all extensions
+	for name := range extSet {
+		if err := visit(name); err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
+}
+
 const goVersion = "1.25.0"
 
-const goModTemplate = `module %s
+var defaultTools = []string{
+	"github.com/a-h/templ/cmd/templ",
+	"github.com/xo/usql",
+	"github.com/sqlc-dev/sqlc/cmd/sqlc",
+	"github.com/pressly/goose/v3/cmd/goose",
+	"github.com/air-verse/air",
+}
 
-go %s
+func createGoMod(targetDir string, data *TemplateData) error {
+	if data == nil {
+		return fmt.Errorf("template data is nil")
+	}
 
-tool (
-    github.com/a-h/templ/cmd/templ
-    github.com/xo/usql
-    github.com/sqlc-dev/sqlc/cmd/sqlc
-    github.com/pressly/goose/v3/cmd/goose
-    github.com/air-verse/air
-)
-`
+	if err := renderTemplate(targetDir, "go_mod.tmpl", "go.mod", templates.Files, data); err != nil {
+		return fmt.Errorf("failed to render go.mod template: %w", err)
+	}
 
-func createGoMod(targetDir, moduleName string) error {
-	goModPath := filepath.Join(targetDir, "go.mod")
-	content := fmt.Sprintf(goModTemplate, moduleName, goVersion)
-
-	return os.WriteFile(goModPath, []byte(content), 0o644)
+	return nil
 }
 
 func createSqliteDB(targetDir, projectName string) error {
 	goModPath := filepath.Join(targetDir, projectName+".db")
 
 	return os.WriteFile(goModPath, nil, 0o644)
-}
-
-func runGoModTidy(targetDir string) error {
-	cmd := exec.Command("go", "mod", "tidy")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
-func runGoFmt(targetDir string) error {
-	cmd := exec.Command("go", "fmt", "./...")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
-func runGoRunBin(targetDir string) error {
-	cmd := exec.Command("go", "build", "-o", "bin/run", "cmd/run/main.go")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
-func runGoMigrationBin(targetDir string) error {
-	cmd := exec.Command("go", "build", "-o", "bin/migration", "cmd/migration/main.go")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
-func runConsoleBin(targetDir string) error {
-	cmd := exec.Command("go", "build", "-o", "bin/console", "cmd/console/main.go")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
-func runTemplGenerate(targetDir string) error {
-	cmd := exec.Command("go", "tool", "templ", "generate", "./views")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
-func runTemplFmt(targetDir string) error {
-	cmd := exec.Command("go", "tool", "templ", "fmt", "./views")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
-func RunSqlcGenerate(targetDir string) error {
-	cmd := exec.Command("go", "tool", "sqlc", "generate", "-f", "database/sqlc.yaml")
-	cmd.Dir = targetDir
-	return cmd.Run()
 }
 
 func initializeGit(targetDir string) error {
@@ -628,72 +704,6 @@ func generateRandomHex(bytes int) string {
 	randomBytes := make([]byte, bytes)
 	rand.Read(randomBytes)
 	return hex.EncodeToString(randomBytes)
-}
-
-func SetupTailwind(targetDir string) error {
-	binPath := filepath.Join(targetDir, "bin", "tailwindcli")
-
-	if _, err := os.Stat(binPath); err == nil {
-		fmt.Printf("Tailwind binary already exists at: %s\n", binPath)
-		return nil
-	}
-
-	binDir := filepath.Join(targetDir, "bin")
-	if err := os.MkdirAll(binDir, 0o755); err != nil {
-		return fmt.Errorf("failed to create bin directory: %w", err)
-	}
-
-	downloadURL, err := getTailwindDownloadURL()
-	if err != nil {
-		return err
-	}
-
-	resp, err := http.Get(downloadURL)
-	if err != nil {
-		return fmt.Errorf("failed to download Tailwind: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download Tailwind: status %d", resp.StatusCode)
-	}
-
-	out, err := os.Create(binPath)
-	if err != nil {
-		return fmt.Errorf("failed to create binary file: %w", err)
-	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, resp.Body); err != nil {
-		return fmt.Errorf("failed to write binary: %w", err)
-	}
-
-	if err := os.Chmod(binPath, 0o755); err != nil {
-		return fmt.Errorf("failed to make binary executable: %w", err)
-	}
-
-	return nil
-}
-
-func getTailwindDownloadURL() (string, error) {
-	baseURL := "https://github.com/tailwindlabs/tailwindcss/releases/latest/download"
-
-	var arch string
-	switch runtime.GOOS {
-	case "darwin":
-		arch = "macos-x64"
-	case "linux":
-		arch = "linux-x64"
-	case "windows":
-		arch = "windows-x64.exe"
-	default:
-		return "", fmt.Errorf(
-			"unsupported platform: %s. Supported platforms: darwin (mac), linux, windows",
-			runtime.GOOS,
-		)
-	}
-
-	return fmt.Sprintf("%s/tailwindcss-%s", baseURL, arch), nil
 }
 
 // initializeBaseBlueprint creates a blueprint with default base configuration
@@ -732,8 +742,12 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	// Constructor initializations
 	builder.
 		AddControllerConstructor("assets", "newAssets()").
-		AddControllerConstructor("pages", "newPages(db, pageCacher)").
-		AddControllerConstructor("api", "newAPI(db)")
+		AddControllerConstructor("api", "newAPI(db)").
+		AddControllerConstructor("pages", "newPages(db, pageCacher)")
+
+	for _, tool := range defaultTools {
+		builder.AddTool(tool)
+	}
 
 	return builder.Blueprint()
 }

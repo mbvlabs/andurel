@@ -1,0 +1,132 @@
+package routes
+
+import (
+	"net/http"
+	"strings"
+)
+
+const (
+	usersRoutePrefix = "/users"
+	usersNamePrefix  = "users"
+)
+
+var RegistrationRoutes = []Route{
+	RegistrationNew,
+	RegistrationCreate,
+}
+
+var ConfirmationRoutes = []Route{
+	ConfirmationNew,
+	ConfirmationCreate,
+}
+
+var SessionRoutes = []Route{
+	SessionNew,
+	SessionCreate,
+	SessionDestroy,
+}
+
+var SessionNew = Route{
+	Name:             usersNamePrefix + ".new_user_session",
+	Path:             usersRoutePrefix + "/sign_in",
+	Method:           http.MethodGet,
+	Controller:       "Sessions",
+	ControllerMethod: "New",
+}
+
+var SessionCreate = Route{
+	Name:             usersNamePrefix + ".user_session",
+	Path:             usersRoutePrefix + "/sign_in",
+	Method:           http.MethodPost,
+	Controller:       "Sessions",
+	ControllerMethod: "Create",
+}
+
+var SessionDestroy = Route{
+	Name:             usersNamePrefix + ".destroy_user_session",
+	Path:             usersRoutePrefix + "/sign_out",
+	Method:           http.MethodPost,
+	Controller:       "Sessions",
+	ControllerMethod: "Destroy",
+}
+
+var PasswordRoutes = []Route{
+	PasswordNew,
+	PasswordCreate,
+	PasswordEdit.Route,
+	PasswordUpdate,
+}
+
+var PasswordNew = Route{
+	Name:             usersNamePrefix + ".new_user_password",
+	Path:             usersRoutePrefix + "/password/new",
+	Method:           http.MethodGet,
+	Controller:       "ResetPassword",
+	ControllerMethod: "New",
+}
+
+var PasswordCreate = Route{
+	Name:             usersNamePrefix + ".user_password",
+	Path:             usersRoutePrefix + "/password",
+	Method:           http.MethodPost,
+	Controller:       "ResetPassword",
+	ControllerMethod: "Create",
+}
+
+var PasswordEdit = passwordEdit{
+	Route: Route{
+		Name:             usersNamePrefix + ".edit_user_password",
+		Path:             usersRoutePrefix + "/password/:token/edit",
+		Method:           http.MethodGet,
+		Controller:       "ResetPassword",
+		ControllerMethod: "Edit",
+	},
+}
+
+type passwordEdit struct {
+	Route
+}
+
+func (r passwordEdit) GetPath(token string) string {
+	return strings.Replace(r.Path, ":token", token, 1)
+}
+
+var PasswordUpdate = Route{
+	Name:             usersNamePrefix + ".user_password_update",
+	Path:             usersRoutePrefix + "/password",
+	Method:           http.MethodPut,
+	Controller:       "ResetPassword",
+	ControllerMethod: "Update",
+}
+
+var RegistrationNew = Route{
+	Name:             usersNamePrefix + ".new_user_registration",
+	Path:             usersRoutePrefix + "/sign_up",
+	Method:           http.MethodGet,
+	Controller:       "Registrations",
+	ControllerMethod: "New",
+}
+
+var RegistrationCreate = Route{
+	Name:             usersNamePrefix + ".user_registration",
+	Path:             usersRoutePrefix,
+	Method:           http.MethodPost,
+	Controller:       "Registrations",
+	ControllerMethod: "Create",
+}
+
+var ConfirmationNew = Route{
+	Name:             usersNamePrefix + ".new_user_confirmation",
+	Path:             usersRoutePrefix + "/confirmation/new",
+	Method:           http.MethodGet,
+	Controller:       "Confirmations",
+	ControllerMethod: "New",
+}
+
+var ConfirmationCreate = Route{
+	Name:             usersNamePrefix + ".user_confirmation",
+	Path:             usersRoutePrefix + "/confirmation",
+	Method:           http.MethodPost,
+	Controller:       "Confirmations",
+	ControllerMethod: "Create",
+}

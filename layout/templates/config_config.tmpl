@@ -55,13 +55,19 @@ var (
 )
 
 type Config struct {
-	Auth auth
+	App app
 	DB   database
+{{- range .Blueprint.Config.SortedFields}}
+	{{.Name}} {{.Type}}
+{{- end}}
 }
 
 func NewConfig() Config {
 	return Config{
-		Auth: newAuthConfig(),
+		App: newAppConfig(),
 		DB:   newDatabaseConfig(),
+{{- range .Blueprint.Config.SortedFields}}
+		{{.Name}}: new{{.Name}}Config(),
+{{- end}}
 	}
 }

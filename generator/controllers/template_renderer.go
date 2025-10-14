@@ -1,17 +1,20 @@
 package controllers
 
 import (
-	"strings"
 	"text/template"
 
 	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/pkg/errors"
 )
 
-type TemplateRenderer struct{}
+type TemplateRenderer struct {
+	service *templates.TemplateService
+}
 
 func NewTemplateRenderer() *TemplateRenderer {
-	return &TemplateRenderer{}
+	return &TemplateRenderer{
+		service: templates.GetGlobalTemplateService(),
+	}
 }
 
 func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController) (string, error) {
@@ -25,16 +28,13 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 		templateName = "controller.tmpl"
 	}
 
-	funcMap := template.FuncMap{
-		"ToLower": strings.ToLower,
+	// Custom template functions for controller-specific operations
+	customFuncs := template.FuncMap{
 		"DatabaseType": func() string {
 			return controller.DatabaseType
 		},
 		"DatabaseMethod": func() string {
-			if controller.DatabaseType == "sqlite" {
-				return "Conn"
-			}
-			return "Pool"
+			return "Conn"
 		},
 		"uuidParam": func(param string) string {
 			if controller.DatabaseType == "sqlite" {
@@ -44,20 +44,20 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 		},
 	}
 
-	tmpl, err := templates.GetCachedTemplate(templateName, funcMap)
+	// Use the unified template service with custom functions and original data structure
+	result, err := tr.service.RenderTemplateWithCustomFunctions(
+		templateName,
+		controller,
+		customFuncs,
+	)
 	if err != nil {
-		return "", errors.NewTemplateError(templateName, "get template", err)
+		return "", errors.WrapTemplateError(err, "render controller", templateName)
 	}
-
-	var buf strings.Builder
-	if err := tmpl.Execute(&buf, controller); err != nil {
-		return "", errors.NewTemplateError(templateName, "execute template", err)
-	}
-
-	return buf.String(), nil
+	return result, nil
 }
 
 func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName string) (string, error) {
+	// Create custom data structure for route template
 	data := struct {
 		ResourceName string
 		PluralName   string
@@ -66,19 +66,9 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName string
 		PluralName:   pluralName,
 	}
 
-	funcMap := template.FuncMap{
-		"ToLower": strings.ToLower,
-	}
-
-	tmpl, err := templates.GetCachedTemplate("route.tmpl", funcMap)
+	result, err := tr.service.RenderTemplate("route.tmpl", data)
 	if err != nil {
-		return "", errors.NewTemplateError("route.tmpl", "get template", err)
+		return "", errors.WrapTemplateError(err, "render route", "route.tmpl")
 	}
-
-	var buf strings.Builder
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", errors.NewTemplateError("route.tmpl", "execute template", err)
-	}
-
-	return buf.String(), nil
+	return result, nil
 }

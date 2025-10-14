@@ -33,8 +33,8 @@ func New(
 	}
 
 	assets := newAssets()
-	pages := newPages(db, pageCacher)
 	api := newAPI(db)
+	pages := newPages(db, pageCacher)
 	products := newProducts(db)
 
 	return Controllers{

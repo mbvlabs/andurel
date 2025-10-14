@@ -135,6 +135,27 @@ func TestBuilder_AddRoute(t *testing.T) {
 	}
 }
 
+func TestBuilder_AddRouteCollection(t *testing.T) {
+	builder := blueprint.NewBuilder(nil)
+
+	builder.
+		AddRouteCollection("RouteA", "RouteB", "RouteA").
+		AddRouteCollection("RouteC")
+
+	collections := builder.Blueprint().Routes.SortedRouteCollections()
+	if len(collections) != 2 {
+		t.Fatalf("expected 2 route collections, got %d", len(collections))
+	}
+
+	if got := collections[0].Routes; len(got) != 2 || got[0] != "RouteA" || got[1] != "RouteB" {
+		t.Fatalf("unexpected routes in first collection: %#v", got)
+	}
+
+	if got := collections[1].Routes; len(got) != 1 || got[0] != "RouteC" {
+		t.Fatalf("unexpected routes in second collection: %#v", got)
+	}
+}
+
 func TestBuilder_AddRouteImport(t *testing.T) {
 	builder := blueprint.NewBuilder(nil)
 
@@ -301,6 +322,7 @@ func TestBuilder_Chaining(t *testing.T) {
 		AddControllerField("Pages", "Pages").
 		AddControllerConstructor("pages", "newPages(db)").
 		AddRoute(blueprint.Route{Name: "home", Path: "/"}).
+		AddRouteCollection("HomePage").
 		AddRouteImport("middleware").
 		AddModel(blueprint.Model{Name: "User"}).
 		AddModelImport("time").
@@ -326,6 +348,7 @@ func TestBuilder_EmptyValues(t *testing.T) {
 		AddControllerConstructor("var", "").
 		AddRoute(blueprint.Route{Name: "", Path: "/"}).    // missing name
 		AddRoute(blueprint.Route{Name: "name", Path: ""}). // missing path
+		AddRouteCollection("", "  ").
 		AddRouteImport("").
 		AddModel(blueprint.Model{Name: ""}). // missing name
 		AddModelImport("").
@@ -355,6 +378,9 @@ func TestBuilder_EmptyValues(t *testing.T) {
 
 	if len(bp.Routes.Routes) != 0 {
 		t.Error("expected no routes for empty values")
+	}
+	if len(bp.Routes.RouteCollections) != 0 {
+		t.Error("expected no route collections for empty values")
 	}
 
 	if len(bp.Models.Models) != 0 {

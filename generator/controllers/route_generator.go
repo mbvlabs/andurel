@@ -9,18 +9,16 @@ import (
 
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/pkg/constants"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 type RouteGenerator struct {
-	fileManager      *files.Manager
+	fileManager      files.Manager
 	templateRenderer *TemplateRenderer
 }
 
 func NewRouteGenerator() *RouteGenerator {
 	return &RouteGenerator{
-		fileManager:      files.NewManager(),
+		fileManager:      files.NewUnifiedFileManager(),
 		templateRenderer: NewTemplateRenderer(),
 	}
 }
@@ -37,7 +35,7 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName string) error 
 		return fmt.Errorf("failed to generate route content: %w", err)
 	}
 
-	if err := rg.fileManager.EnsureDirectoryExists("router/routes"); err != nil {
+	if err := rg.fileManager.EnsureDir("router/routes"); err != nil {
 		return err
 	}
 
@@ -49,10 +47,10 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName string) error 
 		return fmt.Errorf("failed to format routes file: %w", err)
 	}
 
-	return rg.registerRoutes(pluralName)
+	return rg.registerRoutes(resourceName)
 }
 
-func (rg *RouteGenerator) registerRoutes(pluralName string) error {
+func (rg *RouteGenerator) registerRoutes(resourceName string) error {
 	routesFilePath := "router/routes/routes.go"
 
 	content, err := os.ReadFile(routesFilePath)
@@ -62,36 +60,51 @@ func (rg *RouteGenerator) registerRoutes(pluralName string) error {
 
 	contentStr := string(content)
 
-	resourceName := cases.Title(language.English).
-		String(strings.TrimSuffix(pluralName, "s"))
-	routeSliceName := resourceName + "Routes"
+	routeIdentifier := resourceName + "Index"
 
-	if strings.Contains(contentStr, routeSliceName) {
+	if strings.Contains(contentStr, routeIdentifier) {
 		return nil
 	}
 
 	lines := strings.Split(contentStr, "\n")
-	var modifiedLines []string
-	added := false
-
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "return r" && !added {
-			modifiedLines = append(modifiedLines, "")
-			modifiedLines = append(modifiedLines, "\tr = append(")
-			modifiedLines = append(modifiedLines, "\t\tr,")
-			modifiedLines = append(modifiedLines, fmt.Sprintf("\t\t%s...,", routeSliceName))
-			modifiedLines = append(modifiedLines, "\t)")
-			modifiedLines = append(modifiedLines, "")
-			added = true
+	insertIdx := len(lines)
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "HomePage," {
+			insertIdx = i + 1
+			break
 		}
-		modifiedLines = append(modifiedLines, line)
 	}
 
-	if !added {
-		return fmt.Errorf("could not find appropriate place to register routes")
+	if insertIdx == len(lines) {
+		for i, line := range lines {
+			if strings.TrimSpace(line) == "}" {
+				insertIdx = i
+				break
+			}
+		}
 	}
 
-	if err := os.WriteFile(routesFilePath, []byte(strings.Join(modifiedLines, "\n")), constants.FilePermissionPrivate); err != nil {
+	if insertIdx == len(lines) {
+		return fmt.Errorf("could not determine insertion point for generated routes")
+	}
+
+	routeEntries := []string{
+		fmt.Sprintf("\t%sIndex,", resourceName),
+		fmt.Sprintf("\t%sShow.Route,", resourceName),
+		fmt.Sprintf("\t%sNew,", resourceName),
+		fmt.Sprintf("\t%sCreate,", resourceName),
+		fmt.Sprintf("\t%sEdit.Route,", resourceName),
+		fmt.Sprintf("\t%sUpdate.Route,", resourceName),
+		fmt.Sprintf("\t%sDestroy.Route,", resourceName),
+	}
+
+	block := append([]string{""}, routeEntries...)
+
+	updatedLines := append([]string{}, lines[:insertIdx]...)
+	updatedLines = append(updatedLines, block...)
+	updatedLines = append(updatedLines, lines[insertIdx:]...)
+
+	if err := os.WriteFile(routesFilePath, []byte(strings.Join(updatedLines, "\n")), constants.FilePermissionPrivate); err != nil {
 		return fmt.Errorf("failed to write modified routes file: %w", err)
 	}
 

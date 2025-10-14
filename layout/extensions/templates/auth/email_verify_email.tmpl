@@ -1,0 +1,32 @@
+package email
+
+templ VerifyEmail(verificationCode string) {
+	@baseLayout("Verify Your Email Address", "Complete your registration by verifying your email address.", "#") {
+		<h1 style="margin-top: 0; margin-bottom: 24px; font-size: 24px; font-weight: bold; color: #333333;">
+			Verify Your Email
+			Address
+		</h1>
+		<p>Hi, </p>
+		<p>
+			Thank you for signing up! To complete your registration, please verify your email address by entering the following
+			code on our website:
+		</p>
+		<div style="background-color: #f4f5f6; border-radius: 8px; padding: 24px; margin: 24px 0; text-align: center;">
+			<div style="font-size: 14px; color: #6b7280; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">
+				Verification Code
+			</div>
+			<div
+				style="font-size: 36px; font-weight: bold; color: #0867ec; letter-spacing: 8px; font-family: 'Courier New', monospace;"
+			>
+				{ verificationCode }
+			</div>
+		</div>
+		<p>This code will expire in 15 minutes for security reasons.</p>
+		<p>If you didn't create an account with us, please ignore this email.</p>
+		<p style="margin-bottom: 0;">
+			Best regards,
+			<br/>
+			The Andurel Team
+		</p>
+	}
+}

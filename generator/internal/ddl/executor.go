@@ -3,9 +3,13 @@ package ddl
 import (
 	"context"
 	"fmt"
-	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"log/slog"
 	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"github.com/mbvlabs/andurel/generator/internal/catalog"
 )
 
 func ApplyDDL(
@@ -86,6 +90,40 @@ func applyCreateTable(
 	}
 
 	return catalog.AddTable(schemaName, table)
+}
+
+// parseCreateTable parses CREATE TABLE statements (legacy compatibility)
+func parseCreateTable(sql, migrationFile string, databaseType string) (*DDLStatement, error) {
+	createTableRegex, err := regexp.Compile(
+		`(?is)create\s+table(\s+if\s+not\s+exists)?\s+(?:(\w+)\.)?(\w+)\s*\(\s*(.*?)\s*\)`,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	matches := createTableRegex.FindStringSubmatch(sql)
+	if len(matches) < 5 {
+		return nil, fmt.Errorf("invalid CREATE TABLE syntax: %s", sql)
+	}
+
+	ifNotExists := matches[1] != ""
+	schemaName := matches[2]
+	tableName := matches[3]
+	columnDefs := matches[4]
+
+	// Parse and validate column definitions to trigger primary key validation
+	_, err = parseColumnDefinitions(columnDefs, migrationFile, databaseType)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DDLStatement{
+		Type:        CreateTable,
+		SchemaName:  schemaName,
+		TableName:   tableName,
+		IfNotExists: ifNotExists,
+		Raw:         sql,
+	}, nil
 }
 
 func parseCreateTableToTable(
@@ -324,4 +362,143 @@ func applyDropTable(
 	}
 
 	return catalog.DropTable(schemaName, stmt.TableName)
+}
+
+// Legacy functions for backward compatibility
+// TODO: Remove these once all code is updated to use the new visitor pattern
+
+func parseColumnDefinitions(
+	columnDefs, migrationFile string,
+	databaseType string,
+) ([]*catalog.Column, error) {
+	parser := NewCreateTableParser()
+	return parser.parseColumnDefinitions(columnDefs, migrationFile, databaseType)
+}
+
+func parseDataType(
+	typeStr string,
+) (dataType string, length *int32, precision *int32, scale *int32) {
+	typeStrLower := strings.ToLower(typeStr)
+
+	if strings.Contains(typeStrLower, "timestamp with time zone") {
+		return "timestamp with time zone", nil, nil, nil
+	}
+	if strings.Contains(typeStrLower, "timestamp without time zone") {
+		return "timestamp without time zone", nil, nil, nil
+	}
+
+	// Handle varchar(n)
+	varcharRegex := regexp.MustCompile(`varchar\((\d+)\)`)
+	if matches := varcharRegex.FindStringSubmatch(typeStrLower); len(matches) > 1 {
+		if n, err := strconv.Atoi(matches[1]); err == nil {
+			length := int32(n)
+			return "varchar", &length, nil, nil
+		}
+	}
+
+	// Handle char(n)
+	charRegex := regexp.MustCompile(`char\((\d+)\)`)
+	if matches := charRegex.FindStringSubmatch(typeStrLower); len(matches) > 1 {
+		if n, err := strconv.Atoi(matches[1]); err == nil {
+			length := int32(n)
+			return "char", &length, nil, nil
+		}
+	}
+
+	// Handle decimal(p,s)
+	decimalRegex := regexp.MustCompile(`decimal\((\d+),(\d+)\)`)
+	if matches := decimalRegex.FindStringSubmatch(typeStrLower); len(matches) > 2 {
+		if p, err1 := strconv.Atoi(matches[1]); err1 == nil {
+			if s, err2 := strconv.Atoi(matches[2]); err2 == nil {
+				precision := int32(p)
+				scale := int32(s)
+				return "decimal", nil, &precision, &scale
+			}
+		}
+	}
+
+	// Handle numeric(p,s)
+	numericRegex := regexp.MustCompile(`numeric\((\d+),(\d+)\)`)
+	if matches := numericRegex.FindStringSubmatch(typeStrLower); len(matches) > 2 {
+		if p, err1 := strconv.Atoi(matches[1]); err1 == nil {
+			if s, err2 := strconv.Atoi(matches[2]); err2 == nil {
+				precision := int32(p)
+				scale := int32(s)
+				return "numeric", nil, &precision, &scale
+			}
+		}
+	}
+
+	// Simple types without parameters
+	switch typeStrLower {
+	case "integer", "int", "int4":
+		return "integer", nil, nil, nil
+	case "bigint", "int8":
+		return "bigint", nil, nil, nil
+	case "smallint", "int2":
+		return "smallint", nil, nil, nil
+	case "serial":
+		return "serial", nil, nil, nil
+	case "bigserial":
+		return "bigserial", nil, nil, nil
+	case "text":
+		return "text", nil, nil, nil
+	case "boolean", "bool":
+		return "boolean", nil, nil, nil
+	case "date":
+		return "date", nil, nil, nil
+	case "time":
+		return "time", nil, nil, nil
+	case "timestamp":
+		return "timestamp", nil, nil, nil
+	case "real", "float4":
+		return "real", nil, nil, nil
+	case "double precision", "float8":
+		return "double precision", nil, nil, nil
+	case "uuid":
+		return "uuid", nil, nil, nil
+	case "json":
+		return "json", nil, nil, nil
+	case "jsonb":
+		return "jsonb", nil, nil, nil
+	default:
+		// Return as-is for unknown types
+		return strings.TrimSpace(typeStr), nil, nil, nil
+	}
+}
+
+// validatePrimaryKeyDatatype validates primary key data types based on database
+func validatePrimaryKeyDatatype(dataType, databaseType, migrationFile, columnName string) error {
+	normalizedDataType := strings.ToLower(dataType)
+
+	switch databaseType {
+	case "postgresql":
+		if normalizedDataType != "uuid" {
+			return fmt.Errorf(`Primary key validation failed in migration '%s':
+Column '%s' has datatype '%s' but PostgreSQL primary keys must use 'uuid'.
+
+To fix this, change:
+  %s %s PRIMARY KEY
+to:
+  %s UUID PRIMARY KEY`,
+				filepath.Base(migrationFile), columnName, dataType,
+				columnName, dataType, columnName)
+		}
+	case "sqlite":
+		if normalizedDataType != "text" {
+			return fmt.Errorf(`Primary key validation failed in migration '%s':
+Column '%s' has datatype '%s' but SQLite primary keys must use 'text'.
+
+To fix this, change:
+  %s %s PRIMARY KEY
+to:
+  %s TEXT PRIMARY KEY`,
+				filepath.Base(migrationFile), columnName, dataType,
+				columnName, dataType, columnName)
+		}
+	default:
+		return fmt.Errorf("unsupported database type for primary key validation: %s", databaseType)
+	}
+
+	return nil
 }

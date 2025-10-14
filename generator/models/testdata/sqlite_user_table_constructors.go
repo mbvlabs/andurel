@@ -15,32 +15,32 @@ import (
 
 func NewInsertUserParams(
 	email string,
-	emailverifiedat sql.NullTime,
+	emailVerifiedAt sql.NullTime,
 	password []byte,
-	isadmin int64,
+	isAdmin int64,
 ) InsertUserParams {
 	return InsertUserParams{
 		ID:              uuid.New().String(),
 		Email:           email,
-		EmailVerifiedAt: emailverifiedat,
+		EmailVerifiedAt: emailVerifiedAt,
 		Password:        password,
-		IsAdmin:         isadmin,
+		IsAdmin:         isAdmin,
 	}
 }
 
 func NewUpdateUserParams(
 	id string,
 	email string,
-	emailverifiedat sql.NullTime,
+	emailVerifiedAt sql.NullTime,
 	password []byte,
-	isadmin int64,
+	isAdmin int64,
 ) UpdateUserParams {
 	return UpdateUserParams{
 		ID:              id,
 		Email:           email,
-		EmailVerifiedAt: emailverifiedat,
+		EmailVerifiedAt: emailVerifiedAt,
 		Password:        password,
-		IsAdmin:         isadmin,
+		IsAdmin:         isAdmin,
 	}
 }
 
