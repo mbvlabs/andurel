@@ -5,7 +5,10 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var validate = setupValidator()
+var (
+	validate = setupValidator()
+	queries  = db.New()
+)
 
 func setupValidator() *validator.Validate {
 	v := validator.New(validator.WithRequiredStructEnabled())

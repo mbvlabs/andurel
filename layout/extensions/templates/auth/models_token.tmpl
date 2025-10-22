@@ -69,7 +69,7 @@ func FindToken(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) (Token, error) {
-	row, err := db.New().QueryTokenByID(ctx, dbtx, id)
+	row, err := queries.QueryTokenByID(ctx, dbtx, id)
 	if err != nil {
 		return Token{}, err
 	}
@@ -144,7 +144,7 @@ func createToken(
 	}
 
 	params := db.CreateInsertTokenParams(data.Scope, data.ExpiresAt, data.Hash, data.MetaData)
-	row, err := db.New().InsertToken(ctx, dbtx, params)
+	row, err := queries.InsertToken(ctx, dbtx, params)
 	if err != nil {
 		return Token{}, err
 	}
@@ -157,7 +157,7 @@ func DestroyToken(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) error {
-	return db.New().DeleteToken(ctx, dbtx, id)
+	return queries.DeleteToken(ctx, dbtx, id)
 }
 
 
@@ -187,12 +187,12 @@ func PaginateTokens(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.New().CountTokens(ctx, dbtx)
+	totalCount, err := queries.CountTokens(ctx, dbtx)
 	if err != nil {
 		return PaginatedTokens{}, err
 	}
 
-	rows, err := db.New().QueryPaginatedTokens(
+	rows, err := queries.QueryPaginatedTokens(
 		ctx,
 		dbtx,
 		db.CreateQueryPaginatedTokensParams(pageSize, offset),
@@ -230,7 +230,7 @@ func FindTokenByScopeAndHash(
 ) (Token, error) {
 	hash := HashForStorage(token, pepper)
 
-	row, err := db.New().QueryTokenByScopeAndHash(ctx, dbtx, db.QueryTokenByScopeAndHashParams{
+	row, err := queries.QueryTokenByScopeAndHash(ctx, dbtx, db.QueryTokenByScopeAndHashParams{
 		Scope: scope,
 		Hash:  hash,
 	})
@@ -323,7 +323,7 @@ func FindToken(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) (Token, error) {
-	row, err := db.New().QueryTokenByID(ctx, dbtx, id.String())
+	row, err := queries.QueryTokenByID(ctx, dbtx, id.String())
 	if err != nil {
 		return Token{}, err
 	}
@@ -398,7 +398,7 @@ func createToken(
 	}
 
 	params := db.CreateInsertTokenParams(data.Scope, data.ExpiresAt, data.Hash, data.MetaData)
-	row, err := db.New().InsertToken(ctx, dbtx, params)
+	row, err := queries.InsertToken(ctx, dbtx, params)
 	if err != nil {
 		return Token{}, err
 	}
@@ -411,7 +411,7 @@ func DestroyToken(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) error {
-	return db.New().DeleteToken(ctx, dbtx, id.String())
+	return queries.DeleteToken(ctx, dbtx, id.String())
 }
 
 type PaginatedTokens struct {
@@ -440,12 +440,12 @@ func PaginateTokens(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.New().CountTokens(ctx, dbtx)
+	totalCount, err := queries.CountTokens(ctx, dbtx)
 	if err != nil {
 		return PaginatedTokens{}, err
 	}
 
-	rows, err := db.New().QueryPaginatedTokens(
+	rows, err := queries.QueryPaginatedTokens(
 		ctx,
 		dbtx,
 		db.CreateQueryPaginatedTokensParams(pageSize, offset),
@@ -483,7 +483,7 @@ func FindTokenByScopeAndHash(
 ) (Token, error) {
 	hash := HashForStorage(token, pepper)
 
-	row, err := db.New().QueryTokenByScopeAndHash(ctx, dbtx, db.QueryTokenByScopeAndHashParams{
+	row, err := queries.QueryTokenByScopeAndHash(ctx, dbtx, db.QueryTokenByScopeAndHashParams{
 		Scope: scope,
 		Hash:  hash,
 	})

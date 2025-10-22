@@ -27,7 +27,7 @@ func Find{{.Name}}(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) ({{.Name}}, error) {
-	row, err := db.New().Query{{.Name}}ByID(ctx, dbtx, {{uuidParam "id"}})
+	row, err := queries.Query{{.Name}}ByID(ctx, dbtx, {{uuidParam "id"}})
 	if err != nil {
 		return {{.Name}}{}, err
 	}
@@ -57,7 +57,7 @@ func Create{{.Name}}(
 	}
 
 	params := db.NewInsert{{.Name}}Params()
-	row, err := db.New().Insert{{.Name}}(ctx, dbtx, params)
+	row, err := queries.Insert{{.Name}}(ctx, dbtx, params)
 	if err != nil {
 		return {{.Name}}{}, err
 	}
@@ -87,14 +87,14 @@ func Update{{.Name}}(
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := db.New().Query{{.Name}}ByID(ctx, dbtx, {{uuidParam "data.ID"}})
+	currentRow, err := queries.Query{{.Name}}ByID(ctx, dbtx, {{uuidParam "data.ID"}})
 	if err != nil {
 		return {{.Name}}{}, err
 	}
 
 	params := db.NewUpdate{{.Name}}Params()
 
-	row, err := db.New().Update{{.Name}}(ctx, dbtx, params)
+	row, err := queries.Update{{.Name}}(ctx, dbtx, params)
 	if err != nil {
 		return {{.Name}}{}, err
 	}
@@ -111,14 +111,14 @@ func Destroy{{.Name}}(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) error {
-	return db.New().Delete{{.Name}}(ctx, dbtx, {{uuidParam "id"}})
+	return queries.Delete{{.Name}}(ctx, dbtx, {{uuidParam "id"}})
 }
 
 func All{{.Name}}s(
 	ctx context.Context,
 	dbtx db.DBTX,
 ) ([]{{.Name}}, error) {
-	rows, err := db.New().QueryAll{{.Name}}s(ctx, dbtx)
+	rows, err := queries.QueryAll{{.Name}}s(ctx, dbtx)
 	if err != nil {
 		return nil, err
 	}
@@ -161,12 +161,12 @@ func Paginate{{.Name}}s(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.New().Count{{.Name}}s(ctx, dbtx)
+	totalCount, err := queries.Count{{.Name}}s(ctx, dbtx)
 	if err != nil {
 		return Paginated{{.Name}}s{}, err
 	}
 
-	rows, err := db.New().QueryPaginated{{.Name}}s(
+	rows, err := queries.QueryPaginated{{.Name}}s(
 		ctx,
 		dbtx,
 		db.NewQueryPaginated{{.Name}}sParams(pageSize, offset),

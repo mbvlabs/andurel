@@ -97,7 +97,7 @@ func FindUser(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) (User, error) {
-	row, err := db.New().QueryUserByID(ctx, dbtx, id)
+	row, err := queries.QueryUserByID(ctx, dbtx, id)
 	if err != nil {
 		return User{}, err
 	}
@@ -110,7 +110,7 @@ func FindUserByEmail(
 	dbtx db.DBTX,
 	email string,
 ) (User, error) {
-	row, err := db.New().QueryUserByEmail(ctx, dbtx, email)
+	row, err := queries.QueryUserByEmail(ctx, dbtx, email)
 	if err != nil {
 		return User{}, err
 	}
@@ -144,7 +144,7 @@ func CreateUser(
 	}
 
 	params := db.CreateInsertUserParams(data.Email, sql.NullTime{}, []byte(hashedPassword), false)
-	row, err := db.New().InsertUser(ctx, dbtx, params)
+	row, err := queries.InsertUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err
 	}
@@ -169,7 +169,7 @@ func UpdateUser(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := db.New().QueryUserByID(ctx, dbtx, data.ID)
+	currentRow, err := queries.QueryUserByID(ctx, dbtx, data.ID)
 	if err != nil {
 		return User{}, err
 	}
@@ -205,7 +205,7 @@ func UpdateUser(
 		data.IsAdmin,
 	)
 
-	row, err := db.New().UpdateUser(ctx, dbtx, params)
+	row, err := queries.UpdateUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err
 	}
@@ -218,7 +218,7 @@ func DestroyUser(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) error {
-	return db.New().DeleteUser(ctx, dbtx, id)
+	return queries.DeleteUser(ctx, dbtx, id)
 }
 
 type PaginatedUsers struct {
@@ -247,12 +247,12 @@ func PaginateUsers(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.New().CountUsers(ctx, dbtx)
+	totalCount, err := queries.CountUsers(ctx, dbtx)
 	if err != nil {
 		return PaginatedUsers{}, err
 	}
 
-	rows, err := db.New().QueryPaginatedUsers(
+	rows, err := queries.QueryPaginatedUsers(
 		ctx,
 		dbtx,
 		db.CreateQueryPaginatedUsersParams(pageSize, offset),
@@ -391,7 +391,7 @@ func FindUser(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) (User, error) {
-	row, err := db.New().QueryUserByID(ctx, dbtx, id.String())
+	row, err := queries.QueryUserByID(ctx, dbtx, id.String())
 	if err != nil {
 		return User{}, err
 	}
@@ -404,7 +404,7 @@ func FindUserByEmail(
 	dbtx db.DBTX,
 	email string,
 ) (User, error) {
-	row, err := db.New().QueryUserByEmail(ctx, dbtx, email)
+	row, err := queries.QueryUserByEmail(ctx, dbtx, email)
 	if err != nil {
 		return User{}, err
 	}
@@ -438,7 +438,7 @@ func CreateUser(
 	}
 
 	params := db.CreateInsertUserParams(data.Email, sql.NullTime{}, []byte(hashedPassword), false)
-	row, err := db.New().InsertUser(ctx, dbtx, params)
+	row, err := queries.InsertUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err
 	}
@@ -463,7 +463,7 @@ func UpdateUser(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := db.New().QueryUserByID(ctx, dbtx, data.ID.String())
+	currentRow, err := queries.QueryUserByID(ctx, dbtx, data.ID.String())
 	if err != nil {
 		return User{}, err
 	}
@@ -499,7 +499,7 @@ func UpdateUser(
 		data.IsAdmin,
 	)
 
-	row, err := db.New().UpdateUser(ctx, dbtx, params)
+	row, err := queries.UpdateUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err
 	}
@@ -512,7 +512,7 @@ func DestroyUser(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) error {
-	return db.New().DeleteUser(ctx, dbtx, id.String())
+	return queries.DeleteUser(ctx, dbtx, id.String())
 }
 
 type PaginatedUsers struct {
@@ -541,12 +541,12 @@ func PaginateUsers(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.New().CountUsers(ctx, dbtx)
+	totalCount, err := queries.CountUsers(ctx, dbtx)
 	if err != nil {
 		return PaginatedUsers{}, err
 	}
 
-	rows, err := db.New().QueryPaginatedUsers(
+	rows, err := queries.QueryPaginatedUsers(
 		ctx,
 		dbtx,
 		db.CreateQueryPaginatedUsersParams(pageSize, offset),
