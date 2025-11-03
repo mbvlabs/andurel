@@ -148,7 +148,7 @@ func createSitemap(c echo.Context) (Sitemap, error) {
 		Priority:   "1",
 	})
 
-	for _, r := range routes.BuildRoutes {
+	for _, r := range routes.Registry {
 		if r.Method == http.MethodGet && r.IncludeInSitemap {
 			urls = append(urls, URL{
 				Loc: fmt.Sprintf(

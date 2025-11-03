@@ -98,7 +98,7 @@ func (r *Router) SetupRoutes() *echo.Echo {
 	registeredRoutes := []string{}
 	controllersValue := reflect.ValueOf(r.controllers)
 
-	for _, route := range routes.BuildRoutes {
+	for _, route := range routes.Registry {
 		if registered := slices.Contains(registeredRoutes, route.Name); registered {
 			fmt.Fprintf(os.Stderr, "Error: Route '%s' (Path: %s) is registered more than once\n", route.Name, route.Path)
 			os.Exit(1)

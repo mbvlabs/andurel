@@ -13,53 +13,46 @@ const (
 
 var startTime = time.Now().Unix()
 
-var Robots = Route{
-	Name:         assetsNamePrefix + ".robots",
-	Path:         AssetsRoutePrefix + "/robots.txt",
-	Method:       http.MethodGet,
-	Controller:      "Assets",
-	ControllerMethod: "Robots",
-}
+var Robots = newRouteBuilder("robots").
+	SetNamePrefix(assetsNamePrefix).
+	SetPath(AssetsRoutePrefix + "/robots.txt").
+	SetMethod(http.MethodGet).
+	SetCtrl("Assets", "Robots").
+	Register()
 
-var Sitemap = Route{
-	Name:         assetsNamePrefix + ".sitemap",
-	Path:         AssetsRoutePrefix + "/sitemap.xml",
-	Method:       http.MethodGet,
-	Controller:      "Assets",
-	ControllerMethod: "Sitemap",
-}
-
+var Sitemap = newRouteBuilder("sitemap").
+	SetNamePrefix(assetsNamePrefix).
+	SetPath(AssetsRoutePrefix + "/sitemap.xml").
+	SetMethod(http.MethodGet).
+	SetCtrl("Assets", "Sitemap").
+	Register()
 
 {{- if eq .CSSFramework "vanilla"}}
-var StyleImport = Route{
-	Name:         assetsNamePrefix + "css.file",
-	Path:         AssetsRoutePrefix + "/css/:file",
-	Method:       http.MethodGet,
-	Controller:      "Assets",
-	ControllerMethod: "StyleImport",
-}
+var StyleImport = newRouteBuilder("css.file").
+	SetNamePrefix(assetsNamePrefix).
+	SetPath(AssetsRoutePrefix + "/css/:file").
+	SetMethod(http.MethodGet).
+	SetCtrl("Assets", "StyleImport").
+	Register()
 {{- end}}
 
-var Stylesheet = Route{
-	Name:         assetsNamePrefix + "css.stylesheet",
-	Path:         AssetsRoutePrefix + fmt.Sprintf("/css/%v/style.css", startTime),
-	Method:       http.MethodGet,
-	Controller:      "Assets",
-	ControllerMethod: "Stylesheet",
-}
+var Stylesheet = newRouteBuilder("css.stylesheet").
+	SetNamePrefix(assetsNamePrefix).
+	SetPath(AssetsRoutePrefix + fmt.Sprintf("/css/%v/style.css", startTime)).
+	SetMethod(http.MethodGet).
+	SetCtrl("Assets", "Stylesheet").
+	Register()
 
-var Scripts = Route{
-	Name:         assetsNamePrefix + "js.scripts",
-	Path:         AssetsRoutePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime),
-	Method:       http.MethodGet,
-	Controller:      "Assets",
-	ControllerMethod: "Scripts",
-}
+var Scripts = newRouteBuilder("js.scripts").
+	SetNamePrefix(assetsNamePrefix).
+	SetPath(AssetsRoutePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime)).
+	SetMethod(http.MethodGet).
+	SetCtrl("Assets", "Scripts").
+	Register()
 
-var Script = Route{
-	Name:         assetsNamePrefix + "js.script",
-	Path:         AssetsRoutePrefix + fmt.Sprintf("/js/%v/:file", startTime),
-	Method:       http.MethodGet,
-	Controller:      "Assets",
-	ControllerMethod: "Script",
-}
+var Script = newRouteBuilder("js.script").
+	SetNamePrefix(assetsNamePrefix).
+	SetPath(AssetsRoutePrefix + fmt.Sprintf("/js/%v/:file", startTime)).
+	SetMethod(http.MethodGet).
+	SetCtrl("Assets", "Script").
+	Register()

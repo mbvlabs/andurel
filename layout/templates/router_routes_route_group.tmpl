@@ -1,0 +1,36 @@
+package routes
+
+import "github.com/labstack/echo/v4"
+
+type RouteGroup struct {
+	namePrefix string
+	pathPrefix string
+	middleware []func(next echo.HandlerFunc) echo.HandlerFunc
+}
+
+func NewRouteGroup(namePrefix, pathPrefix string) RouteGroup {
+	return RouteGroup{
+		namePrefix: namePrefix,
+		pathPrefix: pathPrefix,
+		middleware: []func(next echo.HandlerFunc) echo.HandlerFunc{},
+	}
+}
+
+func (g RouteGroup) WithMiddleware(
+	mw ...func(next echo.HandlerFunc) echo.HandlerFunc,
+) RouteGroup {
+	g.middleware = append(g.middleware, mw...)
+	return g
+}
+
+func (g RouteGroup) Route(name string) routeBuilder {
+	builder := newRouteBuilder(name)
+	builder = builder.SetNamePrefix(g.namePrefix)
+	builder = builder.SetPath(g.pathPrefix)
+
+	if len(g.middleware) > 0 {
+		builder = builder.WithMiddleware(g.middleware...)
+	}
+
+	return builder
+}

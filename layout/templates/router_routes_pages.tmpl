@@ -4,11 +4,10 @@ import "net/http"
 
 const pageNamePrefix = "pages"
 
-var HomePage = Route{
-	Name:             pageNamePrefix + ".home",
-	Path:             "/",
-	Method:           http.MethodGet,
-	Controller:       "Pages",
-	ControllerMethod: "Home",
-	IncludeInSitemap: true,
-}
+var HomePage = newRouteBuilder("home").
+	SetNamePrefix(pageNamePrefix).
+	SetPath("/").
+	SetMethod(http.MethodGet).
+	SetCtrl("Pages", "Home").
+	WithSitemap().
+	Register()
