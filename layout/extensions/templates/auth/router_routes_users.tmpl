@@ -1,132 +1,80 @@
 package routes
 
-import (
-	"net/http"
-	"strings"
-)
+import "net/http"
 
 const (
 	usersRoutePrefix = "/users"
 	usersNamePrefix  = "users"
 )
 
-var RegistrationRoutes = []Route{
-	RegistrationNew,
-	RegistrationCreate,
-}
+var usersGroup = NewRouteGroup(usersNamePrefix, usersRoutePrefix)
 
-var ConfirmationRoutes = []Route{
-	ConfirmationNew,
-	ConfirmationCreate,
-}
+// Session routes
+var SessionNew = usersGroup.Route("new_user_session").
+	SetPath("/sign_in").
+	SetMethod(http.MethodGet).
+	SetCtrl("Sessions", "New").
+	Register()
 
-var SessionRoutes = []Route{
-	SessionNew,
-	SessionCreate,
-	SessionDestroy,
-}
+var SessionCreate = usersGroup.Route("user_session").
+	SetPath("/sign_in").
+	SetMethod(http.MethodPost).
+	SetCtrl("Sessions", "Create").
+	Register()
 
-var SessionNew = Route{
-	Name:             usersNamePrefix + ".new_user_session",
-	Path:             usersRoutePrefix + "/sign_in",
-	Method:           http.MethodGet,
-	Controller:       "Sessions",
-	ControllerMethod: "New",
-}
+var SessionDestroy = usersGroup.Route("destroy_user_session").
+	SetPath("/sign_out").
+	SetMethod(http.MethodPost).
+	SetCtrl("Sessions", "Destroy").
+	Register()
 
-var SessionCreate = Route{
-	Name:             usersNamePrefix + ".user_session",
-	Path:             usersRoutePrefix + "/sign_in",
-	Method:           http.MethodPost,
-	Controller:       "Sessions",
-	ControllerMethod: "Create",
-}
+// Password reset routes
+var PasswordNew = usersGroup.Route("new_user_password").
+	SetPath("/password/new").
+	SetMethod(http.MethodGet).
+	SetCtrl("ResetPassword", "New").
+	Register()
 
-var SessionDestroy = Route{
-	Name:             usersNamePrefix + ".destroy_user_session",
-	Path:             usersRoutePrefix + "/sign_out",
-	Method:           http.MethodPost,
-	Controller:       "Sessions",
-	ControllerMethod: "Destroy",
-}
+var PasswordCreate = usersGroup.Route("user_password").
+	SetPath("/password").
+	SetMethod(http.MethodPost).
+	SetCtrl("ResetPassword", "Create").
+	Register()
 
-var PasswordRoutes = []Route{
-	PasswordNew,
-	PasswordCreate,
-	PasswordEdit.Route,
-	PasswordUpdate,
-}
+var PasswordEdit = usersGroup.Route("edit_user_password").
+	SetPath("/password/:token/edit").
+	SetMethod(http.MethodGet).
+	SetCtrl("ResetPassword", "Edit").
+	RegisterWithToken()
 
-var PasswordNew = Route{
-	Name:             usersNamePrefix + ".new_user_password",
-	Path:             usersRoutePrefix + "/password/new",
-	Method:           http.MethodGet,
-	Controller:       "ResetPassword",
-	ControllerMethod: "New",
-}
+var PasswordUpdate = usersGroup.Route("user_password_update").
+	SetPath("/password").
+	SetMethod(http.MethodPut).
+	SetCtrl("ResetPassword", "Update").
+	Register()
 
-var PasswordCreate = Route{
-	Name:             usersNamePrefix + ".user_password",
-	Path:             usersRoutePrefix + "/password",
-	Method:           http.MethodPost,
-	Controller:       "ResetPassword",
-	ControllerMethod: "Create",
-}
+// Registration routes
+var RegistrationNew = usersGroup.Route("new_user_registration").
+	SetPath("/sign_up").
+	SetMethod(http.MethodGet).
+	SetCtrl("Registrations", "New").
+	Register()
 
-var PasswordEdit = passwordEdit{
-	Route: Route{
-		Name:             usersNamePrefix + ".edit_user_password",
-		Path:             usersRoutePrefix + "/password/:token/edit",
-		Method:           http.MethodGet,
-		Controller:       "ResetPassword",
-		ControllerMethod: "Edit",
-	},
-}
+var RegistrationCreate = usersGroup.Route("user_registration").
+	SetPath("").
+	SetMethod(http.MethodPost).
+	SetCtrl("Registrations", "Create").
+	Register()
 
-type passwordEdit struct {
-	Route
-}
+// Confirmation routes
+var ConfirmationNew = usersGroup.Route("new_user_confirmation").
+	SetPath("/confirmation/new").
+	SetMethod(http.MethodGet).
+	SetCtrl("Confirmations", "New").
+	Register()
 
-func (r passwordEdit) GetPath(token string) string {
-	return strings.Replace(r.Path, ":token", token, 1)
-}
-
-var PasswordUpdate = Route{
-	Name:             usersNamePrefix + ".user_password_update",
-	Path:             usersRoutePrefix + "/password",
-	Method:           http.MethodPut,
-	Controller:       "ResetPassword",
-	ControllerMethod: "Update",
-}
-
-var RegistrationNew = Route{
-	Name:             usersNamePrefix + ".new_user_registration",
-	Path:             usersRoutePrefix + "/sign_up",
-	Method:           http.MethodGet,
-	Controller:       "Registrations",
-	ControllerMethod: "New",
-}
-
-var RegistrationCreate = Route{
-	Name:             usersNamePrefix + ".user_registration",
-	Path:             usersRoutePrefix,
-	Method:           http.MethodPost,
-	Controller:       "Registrations",
-	ControllerMethod: "Create",
-}
-
-var ConfirmationNew = Route{
-	Name:             usersNamePrefix + ".new_user_confirmation",
-	Path:             usersRoutePrefix + "/confirmation/new",
-	Method:           http.MethodGet,
-	Controller:       "Confirmations",
-	ControllerMethod: "New",
-}
-
-var ConfirmationCreate = Route{
-	Name:             usersNamePrefix + ".user_confirmation",
-	Path:             usersRoutePrefix + "/confirmation",
-	Method:           http.MethodPost,
-	Controller:       "Confirmations",
-	ControllerMethod: "Create",
-}
+var ConfirmationCreate = usersGroup.Route("user_confirmation").
+	SetPath("/confirmation").
+	SetMethod(http.MethodPost).
+	SetCtrl("Confirmations", "Create").
+	Register()

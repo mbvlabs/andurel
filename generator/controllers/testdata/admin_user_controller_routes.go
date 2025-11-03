@@ -1,119 +1,57 @@
 package routes
 
-import (
-	"net/http"
-	"strings"
-
-	"github.com/google/uuid"
-)
+import "net/http"
 
 const (
 	adminUsersRoutePrefix = "/admin_users"
 	adminUsersNamePrefix  = "admin_users"
 )
 
-var AdminUserRoutes = []Route{
-	AdminUserIndex,
-	AdminUserShow.Route,
-	AdminUserNew,
-	AdminUserCreate,
-	AdminUserEdit.Route,
-	AdminUserUpdate.Route,
-	AdminUserDestroy.Route,
-}
+var adminUsersGroup = NewRouteGroup(adminUsersNamePrefix, adminUsersRoutePrefix)
 
-var AdminUserIndex = Route{
-	Name:             adminUsersNamePrefix + ".index",
-	Path:             adminUsersRoutePrefix,
-	Method:           http.MethodGet,
-	Controller:       "AdminUsers",
-	ControllerMethod: "Index",
-}
+// Index: GET /admin_users
+var AdminUserIndex = adminUsersGroup.Route("index").
+	SetMethod(http.MethodGet).
+	SetCtrl("AdminUsers", "Index").
+	Register()
 
-var AdminUserShow = adminUsersShow{
-	Route: Route{
-		Name:             adminUsersNamePrefix + ".show",
-		Path:             adminUsersRoutePrefix + "/:id",
-		Method:           http.MethodGet,
-		Controller:       "AdminUsers",
-		ControllerMethod: "Show",
-	},
-}
+// Show: GET /admin_users/:id
+var AdminUserShow = adminUsersGroup.Route("show").
+	SetPath("/:id").
+	SetMethod(http.MethodGet).
+	SetCtrl("AdminUsers", "Show").
+	RegisterWithID()
 
-type adminUsersShow struct {
-	Route
-}
+// New: GET /admin_users/new
+var AdminUserNew = adminUsersGroup.Route("new").
+	SetPath("/new").
+	SetMethod(http.MethodGet).
+	SetCtrl("AdminUsers", "New").
+	Register()
 
-func (r adminUsersShow) GetPath(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
+// Create: POST /admin_users
+var AdminUserCreate = adminUsersGroup.Route("create").
+	SetMethod(http.MethodPost).
+	SetCtrl("AdminUsers", "Create").
+	Register()
 
-var AdminUserNew = Route{
-	Name:             adminUsersNamePrefix + ".new",
-	Path:             adminUsersRoutePrefix + "/new",
-	Method:           http.MethodGet,
-	Controller:       "AdminUsers",
-	ControllerMethod: "New",
-}
+// Edit: GET /admin_users/:id/edit
+var AdminUserEdit = adminUsersGroup.Route("edit").
+	SetPath("/:id/edit").
+	SetMethod(http.MethodGet).
+	SetCtrl("AdminUsers", "Edit").
+	RegisterWithID()
 
-var AdminUserCreate = Route{
-	Name:             adminUsersNamePrefix + ".create",
-	Path:             adminUsersRoutePrefix,
-	Method:           http.MethodPost,
-	Controller:       "AdminUsers",
-	ControllerMethod: "Create",
-}
+// Update: PUT /admin_users/:id
+var AdminUserUpdate = adminUsersGroup.Route("update").
+	SetPath("/:id").
+	SetMethod(http.MethodPut).
+	SetCtrl("AdminUsers", "Update").
+	RegisterWithID()
 
-var AdminUserEdit = adminUsersEdit{
-	Route: Route{
-		Name:             adminUsersNamePrefix + ".edit",
-		Path:             adminUsersRoutePrefix + "/:id/edit",
-		Method:           http.MethodGet,
-		Controller:       "AdminUsers",
-		ControllerMethod: "Edit",
-	},
-}
-
-type adminUsersEdit struct {
-	Route
-}
-
-func (r adminUsersEdit) GetPath(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
-
-var AdminUserUpdate = adminUsersUpdate{
-	Route: Route{
-		Name:             adminUsersNamePrefix + ".update",
-		Path:             adminUsersRoutePrefix + "/:id",
-		Method:           http.MethodPut,
-		Controller:       "AdminUsers",
-		ControllerMethod: "Update",
-	},
-}
-
-type adminUsersUpdate struct {
-	Route
-}
-
-func (r adminUsersUpdate) GetPath(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
-
-var AdminUserDestroy = adminUsersDestroy{
-	Route: Route{
-		Name:             adminUsersNamePrefix + ".destroy",
-		Path:             adminUsersRoutePrefix + "/:id",
-		Method:           http.MethodDelete,
-		Controller:       "AdminUsers",
-		ControllerMethod: "Destroy",
-	},
-}
-
-type adminUsersDestroy struct {
-	Route
-}
-
-func (r adminUsersDestroy) GetPath(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
+// Destroy: DELETE /admin_users/:id
+var AdminUserDestroy = adminUsersGroup.Route("destroy").
+	SetPath("/:id").
+	SetMethod(http.MethodDelete).
+	SetCtrl("AdminUsers", "Destroy").
+	RegisterWithID()
