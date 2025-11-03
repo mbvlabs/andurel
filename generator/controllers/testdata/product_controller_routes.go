@@ -7,43 +7,43 @@ const (
 	productsNamePrefix  = "products"
 )
 
-var productsGroup = NewRouteGroup(productsNamePrefix, productsRoutePrefix)
+var productsGroup = newRouteGroup(productsNamePrefix, productsRoutePrefix)
 
-var ProductIndex = productsGroup.Route("index").
+var ProductIndex = productsGroup.route("index").
 	SetMethod(http.MethodGet).
 	SetCtrl("Products", "Index").
 	Register()
 
-var ProductShow = productsGroup.Route("show").
+var ProductShow = productsGroup.route("show").
 	SetPath("/:id").
 	SetMethod(http.MethodGet).
 	SetCtrl("Products", "Show").
 	RegisterWithID()
 
-var ProductNew = productsGroup.Route("new").
+var ProductNew = productsGroup.route("new").
 	SetPath("/new").
 	SetMethod(http.MethodGet).
 	SetCtrl("Products", "New").
 	Register()
 
-var ProductCreate = productsGroup.Route("create").
+var ProductCreate = productsGroup.route("create").
 	SetMethod(http.MethodPost).
 	SetCtrl("Products", "Create").
 	Register()
 
-var ProductEdit = productsGroup.Route("edit").
+var ProductEdit = productsGroup.route("edit").
 	SetPath("/:id/edit").
 	SetMethod(http.MethodGet).
 	SetCtrl("Products", "Edit").
 	RegisterWithID()
 
-var ProductUpdate = productsGroup.Route("update").
+var ProductUpdate = productsGroup.route("update").
 	SetPath("/:id").
 	SetMethod(http.MethodPut).
 	SetCtrl("Products", "Update").
 	RegisterWithID()
 
-var ProductDestroy = productsGroup.Route("destroy").
+var ProductDestroy = productsGroup.route("destroy").
 	SetPath("/:id").
 	SetMethod(http.MethodDelete).
 	SetCtrl("Products", "Destroy").

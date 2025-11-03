@@ -3,7 +3,7 @@ package routes
 import (
 	"net/http"
 
-	"{{.Data.GetModuleName}}/router/cookies"
+	"{{.ModuleName}}/router/cookies"
 	"github.com/labstack/echo/v4"
 )
 
@@ -13,9 +13,7 @@ var authOnly = newMiddleware(func(next echo.HandlerFunc) echo.HandlerFunc {
 			return next(c)
 		}
 
-		app := cookies.GetApp(c)
-
-		if app.IsAuthenticated {
+		if cookies.GetApp(c).IsAuthenticated {
 			return next(c)
 		}
 

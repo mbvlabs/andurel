@@ -1,25 +1,25 @@
 package routes
 
-type RouteGroup struct {
+type routeGroup struct {
 	namePrefix string
 	pathPrefix string
 	middleware []routeMiddleware
 }
 
-func NewRouteGroup(namePrefix, pathPrefix string) RouteGroup {
-	return RouteGroup{
+func newRouteGroup(namePrefix, pathPrefix string) routeGroup {
+	return routeGroup{
 		namePrefix: namePrefix,
 		pathPrefix: pathPrefix,
 		middleware: []routeMiddleware{},
 	}
 }
 
-func (g RouteGroup) WithMiddleware(mw ...routeMiddleware) RouteGroup {
+func (g routeGroup) withMiddleware(mw ...routeMiddleware) routeGroup {
 	g.middleware = append(g.middleware, mw...)
 	return g
 }
 
-func (g RouteGroup) Route(name string) routeBuilder {
+func (g routeGroup) route(name string) routeBuilder {
 	builder := newRouteBuilder(name)
 	builder = builder.SetNamePrefix(g.namePrefix)
 	builder = builder.SetPath(g.pathPrefix)

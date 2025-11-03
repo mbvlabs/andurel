@@ -35,19 +35,19 @@ type Route struct {
 	Middleware       []routeMiddleware
 }
 
-type RouteWithID Route
+type routeWithID Route
 
 func (r RouteWithID) URL(id uuid.UUID) string {
 	return strings.Replace(r.Path, ":id", id.String(), 1)
 }
 
-type RouteWithSlug Route
+type routeWithSlug Route
 
 func (r RouteWithSlug) URL(slug string) string {
 	return strings.Replace(r.Path, ":slug", slug, 1)
 }
 
-type RouteWithToken Route
+type routeWithToken Route
 
 func (r RouteWithToken) URL(token string) string {
 	return strings.Replace(r.Path, ":token", token, 1)
@@ -102,20 +102,20 @@ func (r routeBuilder) Register() Route {
 	return Route(r)
 }
 
-func (r routeBuilder) RegisterWithID() RouteWithID {
+func (r routeBuilder) RegisterWithID() routeWithID {
 	Registry = append(Registry, Route(r))
 
-	return RouteWithID(r)
+	return routeWithID(r)
 }
 
-func (r routeBuilder) RegisterWithSlug() RouteWithSlug {
+func (r routeBuilder) RegisterWithSlug() routeWithSlug {
 	Registry = append(Registry, Route(r))
 
-	return RouteWithSlug(r)
+	return routeWithSlug(r)
 }
 
-func (r routeBuilder) RegisterWithToken() RouteWithToken {
+func (r routeBuilder) RegisterWithToken() routeWithToken {
 	Registry = append(Registry, Route(r))
 
-	return RouteWithToken(r)
+	return routeWithToken(r)
 }
