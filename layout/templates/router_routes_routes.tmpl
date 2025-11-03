@@ -10,7 +10,7 @@ import (
 )
 
 type routeMiddleware interface {
-	handler() func(next echo.HandlerFunc) echo.HandlerFunc
+	Handler() func(next echo.HandlerFunc) echo.HandlerFunc
 }
 
 type Route struct {
