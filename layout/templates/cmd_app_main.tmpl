@@ -14,6 +14,10 @@ import (
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/router"
+{{- if eq .Database "postgresql"}}
+	"{{.ModuleName}}/queue"
+	"{{.ModuleName}}/queue/workers"
+{{- end}}
 {{- range .Blueprint.Controllers.SortedDependencies}}
 {{- if .ImportPath}}
 	"{{.ImportPath}}"
@@ -29,7 +33,11 @@ import (
 
 var appVersion string
 
+{{- if eq .Database "postgresql"}}
+func startServer(ctx context.Context, srv *http.Server, processor queue.Processor, env string) error {
+{{- else}}
 func startServer(ctx context.Context, srv *http.Server, env string) error {
+{{- end}}
 	if env == config.ProdEnvironment {
 		eg, egCtx := errgroup.WithContext(ctx)
 
@@ -49,6 +57,12 @@ func startServer(ctx context.Context, srv *http.Server, env string) error {
 				10*time.Second,
 			)
 			defer cancel()
+{{- if eq .Database "postgresql"}}
+			slog.InfoContext(ctx, "shutting down processor")
+			if err := processor.Stop(shutdownCtx); err != nil {
+				return fmt.Errorf("processor shutdown error: %w", err)
+			}
+{{- end}}
 			if err := srv.Shutdown(shutdownCtx); err != nil {
 				return fmt.Errorf("shutdown error: %w", err)
 			}
@@ -70,10 +84,16 @@ func setupControllers(
 {{- range $i, $dep := .Blueprint.Controllers.SortedDependencies}}
 	{{$dep.Name}} {{$dep.Type}},
 {{- end}}
+{{- if eq .Database "postgresql"}}
+	insertOnly queue.InsertOnly,
+{{- end}}
 ) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
 {{- range .Blueprint.Controllers.SortedDependencies}}
 		{{.Name}},
+{{- end}}
+{{- if eq .Database "postgresql"}}
+		insertOnly,
 {{- end}}
 	)
 	if err != nil {
@@ -121,6 +141,28 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	wrks, err := workers.Register()
+	if err != nil {
+		return err
+	}
+
+	insertOnly, err := queue.NewInsertOnly(
+		db.Conn(),
+		wrks,
+	)
+	if err != nil {
+		return err
+	}
+
+	processor, err := queue.NewProcessor(
+		ctx,
+		db.Conn(),
+		wrks,
+	)
+	if err != nil {
+		return err
+	}
 {{- else if eq .Database "sqlite"}}
 	db, err := database.NewSQLite(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
@@ -147,6 +189,9 @@ func run(ctx context.Context) error {
 {{- range .Blueprint.Controllers.SortedDependencies}}
 		{{.Name}},
 {{- end}}
+{{- if eq .Database "postgresql"}}
+		insertOnly,
+{{- end}}
 	)
 	if err != nil {
 		return err
@@ -157,6 +202,18 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+{{- if eq .Database "postgresql"}}
+	go func() error {
+		slog.InfoContext(ctx, "starting queue processor")
+		if err := processor.Start(ctx); err != nil {
+			slog.ErrorContext(ctx, "error stopping queue processor", "error", err)
+			return err
+		}
+
+		return nil
+	}()
+{{- end}}
 
 {{- range .Blueprint.Main.SortedBackgroundWorkers}}
 	// Start background worker: {{.Name}}
@@ -175,7 +232,11 @@ func run(ctx context.Context) error {
 	}
 
 	slog.InfoContext(ctx, "starting server", "host", host, "port", port)
+{{- if eq .Database "postgresql"}}
+	return startServer(ctx, srv, processor, config.Env)
+{{- else}}
 	return startServer(ctx, srv, config.Env)
+{{- end}}
 }
 
 func main() {

@@ -3,6 +3,7 @@ package controllers
 import (
 {{- if eq .Database "postgresql"}}
 	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/queue"
 {{- else if eq .Database "sqlite"}}
 	"{{.ModuleName}}/database"
 {{- end}}
@@ -16,19 +17,21 @@ import (
 
 type Pages struct {
 {{- if eq .Database "postgresql"}}
-	db    database.Postgres
+	db         database.Postgres
+	insertOnly queue.InsertOnly
 {{- else if eq .Database "sqlite"}}
-	db    database.SQLite
+	db         database.SQLite
 {{- end}}
-	cache otter.CacheWithVariableTTL[string, templ.Component]
+	cache      otter.CacheWithVariableTTL[string, templ.Component]
 }
 
 {{- if eq .Database "postgresql"}}
 func newPages(
 	db database.Postgres,
 	cache otter.CacheWithVariableTTL[string, templ.Component],
+	insertOnly queue.InsertOnly,
 ) Pages {
-	return Pages{db, cache}
+	return Pages{db, insertOnly, cache}
 }
 
 {{- else if eq .Database "sqlite"}}

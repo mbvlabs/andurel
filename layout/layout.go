@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+	"time"
 
 	"github.com/mbvlabs/andurel/layout/blueprint"
 	"github.com/mbvlabs/andurel/layout/cmds"
@@ -92,6 +93,13 @@ func Scaffold(
 	fmt.Print("Processing templated files...\n")
 	if err := processTemplatedFiles(targetDir, templateData.CSSFramework, &templateData); err != nil {
 		return fmt.Errorf("failed to process templated files: %w", err)
+	}
+
+	if database == "postgresql" {
+		fmt.Print("Processing PostgreSQL River queue migrations...\n")
+		if err := processPostgreSQLMigrations(targetDir, &templateData); err != nil {
+			return fmt.Errorf("failed to process PostgreSQL migrations: %w", err)
+		}
 	}
 
 	if database == "sqlite" {
@@ -272,6 +280,12 @@ var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
 var basePSQLTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"psql_database.tmpl": "database/database.go",
 	"psql_sqlc.tmpl":     "database/sqlc.yaml",
+
+	// Queue package
+	"psql_queue_queue.tmpl":             "queue/queue.go",
+	"psql_queue_jobs_sort_jobs.tmpl":    "queue/jobs/sort_jobs.go",
+	"psql_queue_workers_workers.tmpl":   "queue/workers/workers.go",
+	"psql_queue_workers_sort_jobs.tmpl": "queue/workers/sort_jobs.go",
 }
 
 var baseSqliteTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -374,6 +388,46 @@ func processTemplatedFiles(
 					err,
 				)
 			}
+		}
+	}
+
+	return nil
+}
+
+func processPostgreSQLMigrations(targetDir string, data extensions.TemplateData) error {
+	baseTime := time.Now()
+
+	migrations := []struct {
+		template string
+		name     string
+		offset   time.Duration
+	}{
+		{"psql_riverqueue_migration_one.tmpl", "create_river_migration_table", 0},
+		{
+			"psql_riverqueue_migration_two.tmpl",
+			"create_river_job_and_leader_tables",
+			1 * time.Second,
+		},
+		{"psql_riverqueue_migration_three.tmpl", "alter_river_job_tags", 2 * time.Second},
+		{
+			"psql_riverqueue_migration_four.tmpl",
+			"alter_river_job_args_metadata_add_queue",
+			3 * time.Second,
+		},
+		{
+			"psql_riverqueue_migration_five.tmpl",
+			"add_river_job_unique_key_and_clients",
+			4 * time.Second,
+		},
+		{"psql_riverqueue_migration_six.tmpl", "add_river_job_unique_states", 5 * time.Second},
+	}
+
+	for _, migration := range migrations {
+		timestamp := baseTime.Add(migration.offset).Format("20060102150405")
+		targetPath := fmt.Sprintf("database/migrations/%s_%s.sql", timestamp, migration.name)
+
+		if err := renderTemplate(targetDir, migration.template, targetPath, templates.Files, data); err != nil {
+			return fmt.Errorf("failed to process migration %s: %w", migration.template, err)
 		}
 	}
 
