@@ -49,7 +49,7 @@ func CreateUser(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.NewInsertUserParams()
+	params := db.CreateInsertUserParams()
 	row, err := queries.InsertUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err
@@ -81,7 +81,7 @@ func UpdateUser(
 		return User{}, err
 	}
 
-	params := db.NewUpdateUserParams()
+	params := db.CreateUpdateUserParams()
 
 	row, err := queries.UpdateUser(ctx, dbtx, params)
 	if err != nil {
@@ -150,7 +150,7 @@ func PaginateUsers(
 	rows, err := queries.QueryPaginatedUsers(
 		ctx,
 		dbtx,
-		db.NewQueryPaginatedUsersParams(pageSize, offset),
+		db.CreateQueryPaginatedUsersParams(pageSize, offset),
 	)
 	if err != nil {
 		return PaginatedUsers{}, err

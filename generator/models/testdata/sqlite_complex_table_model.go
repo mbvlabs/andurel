@@ -125,7 +125,7 @@ func CreateProduct(
 		return Product{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.NewInsertProductParams()
+	params := db.CreateInsertProductParams()
 	row, err := queries.InsertProduct(ctx, dbtx, params)
 	if err != nil {
 		return Product{}, err
@@ -197,7 +197,7 @@ func UpdateProduct(
 		return Product{}, err
 	}
 
-	params := db.NewUpdateProductParams()
+	params := db.CreateUpdateProductParams()
 
 	row, err := queries.UpdateProduct(ctx, dbtx, params)
 	if err != nil {
@@ -274,7 +274,7 @@ func PaginateProducts(
 	rows, err := queries.QueryPaginatedProducts(
 		ctx,
 		dbtx,
-		db.NewQueryPaginatedProductsParams(pageSize, offset),
+		db.CreateQueryPaginatedProductsParams(pageSize, offset),
 	)
 	if err != nil {
 		return PaginatedProducts{}, err

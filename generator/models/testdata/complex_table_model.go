@@ -135,7 +135,7 @@ func CreateComprehensiveExample(
 		return ComprehensiveExample{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.NewInsertComprehensiveExampleParams()
+	params := db.CreateInsertComprehensiveExampleParams()
 	row, err := queries.InsertComprehensiveExample(ctx, dbtx, params)
 	if err != nil {
 		return ComprehensiveExample{}, err
@@ -210,7 +210,7 @@ func UpdateComprehensiveExample(
 		return ComprehensiveExample{}, err
 	}
 
-	params := db.NewUpdateComprehensiveExampleParams()
+	params := db.CreateUpdateComprehensiveExampleParams()
 
 	row, err := queries.UpdateComprehensiveExample(ctx, dbtx, params)
 	if err != nil {
@@ -279,7 +279,7 @@ func PaginateComprehensiveExamples(
 	rows, err := queries.QueryPaginatedComprehensiveExamples(
 		ctx,
 		dbtx,
-		db.NewQueryPaginatedComprehensiveExamplesParams(pageSize, offset),
+		db.CreateQueryPaginatedComprehensiveExamplesParams(pageSize, offset),
 	)
 	if err != nil {
 		return PaginatedComprehensiveExamples{}, err

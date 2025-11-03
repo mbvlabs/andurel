@@ -46,7 +46,7 @@ func CreatePost(
 		return Post{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.NewInsertPostParams()
+	params := db.CreateInsertPostParams()
 	row, err := queries.InsertPost(ctx, dbtx, params)
 	if err != nil {
 		return Post{}, err
@@ -76,7 +76,7 @@ func UpdatePost(
 		return Post{}, err
 	}
 
-	params := db.NewUpdatePostParams()
+	params := db.CreateUpdatePostParams()
 
 	row, err := queries.UpdatePost(ctx, dbtx, params)
 	if err != nil {
@@ -145,7 +145,7 @@ func PaginatePosts(
 	rows, err := queries.QueryPaginatedPosts(
 		ctx,
 		dbtx,
-		db.NewQueryPaginatedPostsParams(pageSize, offset),
+		db.CreateQueryPaginatedPostsParams(pageSize, offset),
 	)
 	if err != nil {
 		return PaginatedPosts{}, err
