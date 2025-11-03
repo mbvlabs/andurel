@@ -58,13 +58,7 @@ func (r routeBuilder) SetNamePrefix(prefix string) routeBuilder {
 }
 
 func (r routeBuilder) SetPath(path string) routeBuilder {
-	// TODO: revisit naming here
-	if r.Path == "" {
-		r.Path = path
-	}
-	if r.Path != "" {
-		r.Path = r.Path + path
-	}
+	r.Path = r.Path + path
 
 	return r
 }
