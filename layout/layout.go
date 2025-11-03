@@ -223,6 +223,11 @@ func Scaffold(
 		return fmt.Errorf("failed to run go fmt: %w", err)
 	}
 
+	// TODO remove this step
+	if err := cmds.RunGoModTidy(targetDir); err != nil {
+		return fmt.Errorf("failed to run go mod tidy: %w", err)
+	}
+
 	return nil
 }
 
@@ -307,8 +312,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
 
 	// Models
-	"models_errors.tmpl": "models/errors.go",
-	"models_model.tmpl":  "models/model.go",
+	"models_errors.tmpl":         "models/errors.go",
+	"models_model.tmpl":          "models/model.go",
+	"models_internal_db_db.tmpl": "models/internal/db/db.go",
 
 	// Router
 	"router_router.tmpl":                "router/router.go",
