@@ -731,7 +731,7 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	case "sqlite":
 		dbType = "database.SQLite"
 	default:
-		dbType = "database.DB"
+		dbType = "database.Postgres"
 	}
 	builder.AddControllerDependency("db", dbType)
 
