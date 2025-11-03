@@ -23,17 +23,18 @@ const llmDocumentation = `# Andurel Project - LLM Quick Reference
 ## File Locations (Quick Lookup)
 
 ` + "```" + `
-models/<resource>_model.go              - Model structs (edit freely)
-models/internal/db/<resource>.sql.go    - SQLC generated (DO NOT EDIT)
-models/internal/db/<resource>_constructors.go - Generated (DO NOT EDIT)
-controllers/<resource>_controller.go    - Controllers (edit freely, add logic)
-router/routes/<resource>_routes.go      - Routes (edit freely)
-views/<table>_resource.templ            - Views (edit freely)
-database/queries/<table>.sql            - SQL queries (DO NOT EDIT - regenerate with --refresh)
-database/migrations/*.sql               - Migrations (create with 'andurel m new')
-config/                                 - App config (edit freely)
-router/routes/routes.go                 - Route registration (MUST update when adding resources)
-database/sqlc.yaml                      - SQLC config (rarely edit)
+models/<resource>.go              - Model structs (edit freely)
+models/internal/db/<resource>.sql.go    		- SQLC generated (DO NOT EDIT)
+models/internal/db/<resource>_constructors.go 	- Generated (DO NOT EDIT)
+controllers/<resource>.go    					- Controllers (edit freely, add logic)
+router/routes/<resource>.go      				- Routes (edit freely)
+views/<table>_resource.templ            		- View Resources (edit freely)
+views/<table>.templ            					- View (edit freely)
+database/queries/<table>.sql            		- SQL queries
+database/migrations/*.sql               		- Migrations (create with 'andurel m new')
+config/                                 		- App config (edit freely)
+router/routes/routes.go                 		- Route registration
+database/sqlc.yaml                      		- SQLC config (never edit)
 ` + "```" + `
 
 ## Common Tasks (Optimized Patterns)
@@ -67,13 +68,11 @@ andurel g resource <Resource>
 - Do NOT delete functions - comment out if not needed
 
 ### Add custom query
-- File: ` + "`database/queries/<table>.sql`" + `
-- Will be regenerated on ` + "`--refresh`" + `, so add custom queries elsewhere OR
-- Use raw SQL in controllers if one-off
+- Never use raw SQL in controllers
 
 ### Modify views
 - File: ` + "`views/<table>_resource.templ`" + `
-- After editing, run: ` + "`templ generate`" + ` or restart dev server
+- After editing, run: ` + "`go tool templ generate`" + `
 
 ## Naming Rules (Auto-Applied)
 
@@ -121,7 +120,6 @@ Every resource controller has:
 andurel m new <name>        # Create migration
 andurel m up                # Apply all pending
 andurel m down              # Rollback last
-andurel m reset             # Rollback all + reapply
 
 # Generation
 andurel g model <Resource>           # Model only (requires migration exists)
@@ -133,10 +131,6 @@ andurel g resource <Resource>                 # All of above
 # SQLC
 andurel s compile           # Check SQL validity
 andurel s generate          # Generate Go from SQL (auto-run by g model)
-
-# App
-andurel app tailwind        # Setup Tailwind CSS
-andurel app console         # Interactive console
 ` + "```" + `
 
 ## Quick Debugging
@@ -155,10 +149,11 @@ andurel app console         # Interactive console
 
 ## Search Patterns (When You Need to Find Files)
 
-- Controllers: ` + "`controllers/*_controller.go`" + `
-- Models: ` + "`models/*_model.go`" + `
-- Views: ` + "`views/*_resource.templ`" + `
-- Routes: ` + "`router/routes/*_routes.go`" + `
+- Controllers: ` + "`controllers/*.go`" + `
+- Models: ` + "`models/*.go`" + `
+- Views (Resources): ` + "`views/*_resource.templ`" + `
+- Views: ` + "`views/*.templ`" + `
+- Routes: ` + "`router/routes/*.go`" + `
 - Migrations: ` + "`database/migrations/*.sql`" + `
 - SQLC queries: ` + "`database/queries/*.sql`" + `
 
