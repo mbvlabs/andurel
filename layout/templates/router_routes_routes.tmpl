@@ -13,18 +13,6 @@ type routeMiddleware interface {
 	handler() func(next echo.HandlerFunc) echo.HandlerFunc
 }
 
-type middlewareHandler struct {
-	fn func(next echo.HandlerFunc) echo.HandlerFunc
-}
-
-func (m middlewareHandler) handler() func(next echo.HandlerFunc) echo.HandlerFunc {
-	return m.fn
-}
-
-func newMiddleware(fn func(next echo.HandlerFunc) echo.HandlerFunc) routeMiddleware {
-	return middlewareHandler{fn: fn}
-}
-
 type Route struct {
 	Name             string
 	Path             string
@@ -70,7 +58,14 @@ func (r routeBuilder) SetNamePrefix(prefix string) routeBuilder {
 }
 
 func (r routeBuilder) SetPath(path string) routeBuilder {
-	r.Path = path
+	// TODO: revisit naming here
+	if r.Path == "" {
+		r.Path = path
+	}
+	if r.Path != "" {
+		r.Path = r.Path + path
+	}
+
 	return r
 }
 
