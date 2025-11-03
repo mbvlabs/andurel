@@ -31,6 +31,7 @@ router/router.go
 router/routes/api.go
 router/routes/assets.go
 router/routes/pages.go
+router/routes/route_group.go
 router/routes/routes.go
 router/stdout_logger.go
 views/bad_request.templ
@@ -61,8 +62,6 @@ DB_USER=postgres
 DB_PASSWORD=postgres
 DB_SSL_MODE=disable
 
-PASSWORD_SALT=test_password_salt_value
-
 PROJECT_NAME=webapp
 APP_DOMAIN=localhost:8080
 APP_PROTOCOL=http
@@ -71,6 +70,8 @@ SESSION_KEY=test_session_key_value
 SESSION_ENCRYPTION_KEY=test_session_encryption_key_value
 
 TOKEN_SIGNING_KEY=test_token_signing_key_value
+
+PEPPER=test_pepper_value
 
 
 === .gitignore ===
@@ -875,7 +876,7 @@ const (
 
 type Assets struct {
 	sitemapCache otter.Cache[string, Sitemap]
-	assetsCache  otter.Cache[string, string]
+	robotsCache  otter.Cache[string, string]
 }
 
 func newAssets() Assets {
@@ -923,7 +924,7 @@ func (a Assets) enableCaching(c echo.Context, content []byte) echo.Context {
 }
 
 func (a Assets) Robots(c echo.Context) error {
-	if value, ok := a.assetsCache.Get(robotsCacheKey); ok {
+	if value, ok := a.robotsCache.Get(robotsCacheKey); ok {
 		return c.String(http.StatusOK, string(value))
 	}
 
@@ -997,7 +998,7 @@ func createSitemap(c echo.Context) (Sitemap, error) {
 		Priority:   "1",
 	})
 
-	for _, r := range routes.BuildRoutes {
+	for _, r := range routes.Registry {
 		if r.Method == http.MethodGet && r.IncludeInSitemap {
 			urls = append(urls, URL{
 				Loc: fmt.Sprintf(
@@ -1334,10 +1335,15 @@ var ErrDomainValidation = errors.New("the provided payload failed validations")
 package models
 
 import (
+	"myorg/webapp/models/internal/db"
+
 	"github.com/go-playground/validator/v10"
 )
 
-var validate = setupValidator()
+var (
+	validate = setupValidator()
+	queries  = db.New()
+)
 
 func setupValidator() *validator.Validate {
 	v := validator.New(validator.WithRequiredStructEnabled())
@@ -1588,6 +1594,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"reflect"
 	"slices"
 	"strings"
@@ -1677,28 +1684,22 @@ func (r *Router) SetupRoutes() *echo.Echo {
 	registeredRoutes := []string{}
 	controllersValue := reflect.ValueOf(r.controllers)
 
-	for _, route := range routes.BuildRoutes {
+	for _, route := range routes.Registry {
 		if registered := slices.Contains(registeredRoutes, route.Name); registered {
-			panic(
-				fmt.Sprintf(
-					"%s is registered more than once",
-					route.Name,
-				),
-			)
+			fmt.Fprintf(os.Stderr, "Error: Route '%s' (Path: %s) is registered more than once\n", route.Name, route.Path)
+			os.Exit(1)
 		}
 
 		if route.Controller == "" || route.ControllerMethod == "" {
-			panic("Route must specify Controller and ControllerMethod fields")
+			fmt.Fprintf(os.Stderr, "Error: Route '%s' (Path: %s) must specify Controller and ControllerMethod fields\n", route.Name, route.Path)
+			os.Exit(1)
 		}
 
 		controllerField := controllersValue.FieldByName(route.Controller)
 		if !controllerField.IsValid() {
-			panic(
-				fmt.Sprintf(
-					"Controller field %s not found in controllers struct",
-					route.Controller,
-				),
-			)
+			fmt.Fprintf(os.Stderr, "Error: Tried to register Route '%s' (Path: %s) on Controller: %s Method: %s but Controller '%s' does not exist\n",
+				route.Name, route.Path, route.Controller, route.ControllerMethod, route.Controller)
+			os.Exit(1)
 		}
 
 		controller := controllerField.Interface()
@@ -1706,7 +1707,7 @@ func (r *Router) SetupRoutes() *echo.Echo {
 
 		var middlewareFuncs []echo.MiddlewareFunc
 		for _, mw := range route.Middleware {
-			middlewareFuncs = append(middlewareFuncs, echo.MiddlewareFunc(mw))
+			middlewareFuncs = append(middlewareFuncs, echo.MiddlewareFunc(mw.Handler()))
 		}
 
 		switch route.Method {
@@ -1737,7 +1738,9 @@ func getHandlerFunc(controller any, methodName string) echo.HandlerFunc {
 	appType := reflect.TypeOf(controller)
 	method, found := appType.MethodByName(methodName)
 	if !found {
-		panic(fmt.Sprintf("Controller method %s not found", methodName))
+		controllerName := appType.String()
+		fmt.Fprintf(os.Stderr, "Error: Controller method '%s' not found on Controller: %s\n", methodName, controllerName)
+		os.Exit(1)
 	}
 
 	return func(c echo.Context) error {
@@ -1868,13 +1871,12 @@ const (
 	apiNamePrefix  = "api"
 )
 
-var Health = Route{
-	Name:             apiNamePrefix + ".health",
-	Path:             APIRoutePrefix + "/health",
-	Method:           http.MethodGet,
-	Controller:       "API",
-	ControllerMethod: "Health",
-}
+var Health = newRouteBuilder("health").
+	SetNamePrefix(apiNamePrefix).
+	SetPath(APIRoutePrefix+"/health").
+	SetMethod(http.MethodGet).
+	SetCtrl("API", "Health").
+	Register()
 
 
 === router/routes/assets.go ===
@@ -1893,45 +1895,40 @@ const (
 
 var startTime = time.Now().Unix()
 
-var Robots = Route{
-	Name:             assetsNamePrefix + ".robots",
-	Path:             AssetsRoutePrefix + "/robots.txt",
-	Method:           http.MethodGet,
-	Controller:       "Assets",
-	ControllerMethod: "Robots",
-}
+var Robots = newRouteBuilder("robots").
+	SetNamePrefix(assetsNamePrefix).
+	SetPath(AssetsRoutePrefix+"/robots.txt").
+	SetMethod(http.MethodGet).
+	SetCtrl("Assets", "Robots").
+	Register()
 
-var Sitemap = Route{
-	Name:             assetsNamePrefix + ".sitemap",
-	Path:             AssetsRoutePrefix + "/sitemap.xml",
-	Method:           http.MethodGet,
-	Controller:       "Assets",
-	ControllerMethod: "Sitemap",
-}
+var Sitemap = newRouteBuilder("sitemap").
+	SetNamePrefix(assetsNamePrefix).
+	SetPath(AssetsRoutePrefix+"/sitemap.xml").
+	SetMethod(http.MethodGet).
+	SetCtrl("Assets", "Sitemap").
+	Register()
 
-var Stylesheet = Route{
-	Name:             assetsNamePrefix + "css.stylesheet",
-	Path:             AssetsRoutePrefix + fmt.Sprintf("/css/%v/style.css", startTime),
-	Method:           http.MethodGet,
-	Controller:       "Assets",
-	ControllerMethod: "Stylesheet",
-}
+var Stylesheet = newRouteBuilder("css.stylesheet").
+	SetNamePrefix(assetsNamePrefix).
+	SetPath(AssetsRoutePrefix+fmt.Sprintf("/css/%v/style.css", startTime)).
+	SetMethod(http.MethodGet).
+	SetCtrl("Assets", "Stylesheet").
+	Register()
 
-var Scripts = Route{
-	Name:             assetsNamePrefix + "js.scripts",
-	Path:             AssetsRoutePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime),
-	Method:           http.MethodGet,
-	Controller:       "Assets",
-	ControllerMethod: "Scripts",
-}
+var Scripts = newRouteBuilder("js.scripts").
+	SetNamePrefix(assetsNamePrefix).
+	SetPath(AssetsRoutePrefix+fmt.Sprintf("/js/%v/scripts.js", startTime)).
+	SetMethod(http.MethodGet).
+	SetCtrl("Assets", "Scripts").
+	Register()
 
-var Script = Route{
-	Name:             assetsNamePrefix + "js.script",
-	Path:             AssetsRoutePrefix + fmt.Sprintf("/js/%v/:file", startTime),
-	Method:           http.MethodGet,
-	Controller:       "Assets",
-	ControllerMethod: "Script",
-}
+var Script = newRouteBuilder("js.script").
+	SetNamePrefix(assetsNamePrefix).
+	SetPath(AssetsRoutePrefix+fmt.Sprintf("/js/%v/:file", startTime)).
+	SetMethod(http.MethodGet).
+	SetCtrl("Assets", "Script").
+	Register()
 
 
 === router/routes/pages.go ===
@@ -1941,13 +1938,47 @@ import "net/http"
 
 const pageNamePrefix = "pages"
 
-var HomePage = Route{
-	Name:             pageNamePrefix + ".home",
-	Path:             "/",
-	Method:           http.MethodGet,
-	Controller:       "Pages",
-	ControllerMethod: "Home",
-	IncludeInSitemap: true,
+var HomePage = newRouteBuilder("home").
+	SetNamePrefix(pageNamePrefix).
+	SetPath("/").
+	SetMethod(http.MethodGet).
+	SetCtrl("Pages", "Home").
+	WithSitemap().
+	Register()
+
+
+=== router/routes/route_group.go ===
+package routes
+
+type routeGroup struct {
+	namePrefix string
+	pathPrefix string
+	middleware []routeMiddleware
+}
+
+func newRouteGroup(namePrefix, pathPrefix string) routeGroup {
+	return routeGroup{
+		namePrefix: namePrefix,
+		pathPrefix: pathPrefix,
+		middleware: []routeMiddleware{},
+	}
+}
+
+func (g routeGroup) withMiddleware(mw ...routeMiddleware) routeGroup {
+	g.middleware = append(g.middleware, mw...)
+	return g
+}
+
+func (g routeGroup) route(name string) routeBuilder {
+	builder := newRouteBuilder(name)
+	builder = builder.SetNamePrefix(g.namePrefix)
+	builder = builder.SetPath(g.pathPrefix)
+
+	if len(g.middleware) > 0 {
+		builder = builder.WithMiddleware(g.middleware...)
+	}
+
+	return builder
 }
 
 
@@ -1955,7 +1986,17 @@ var HomePage = Route{
 // Package routes provides the application route definitions.
 package routes
 
-import "github.com/labstack/echo/v4"
+import (
+	"net/http"
+	"strings"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
+)
+
+type routeMiddleware interface {
+	Handler() func(next echo.HandlerFunc) echo.HandlerFunc
+}
 
 type Route struct {
 	Name             string
@@ -1964,19 +2005,93 @@ type Route struct {
 	ControllerMethod string
 	Method           string
 	IncludeInSitemap bool
-	Middleware       []func(next echo.HandlerFunc) echo.HandlerFunc
+	Middleware       []routeMiddleware
 }
 
-var BuildRoutes = []Route{
-	Health,
+type routeWithID Route
 
-	Robots,
-	Sitemap,
-	Stylesheet,
-	Scripts,
-	Script,
+func (r routeWithID) URL(id uuid.UUID) string {
+	return strings.Replace(r.Path, ":id", id.String(), 1)
+}
 
-	HomePage,
+type routeWithSlug Route
+
+func (r routeWithSlug) URL(slug string) string {
+	return strings.Replace(r.Path, ":slug", slug, 1)
+}
+
+type routeWithToken Route
+
+func (r routeWithToken) URL(token string) string {
+	return strings.Replace(r.Path, ":token", token, 1)
+}
+
+var Registry = []Route{}
+
+type routeBuilder Route
+
+func newRouteBuilder(name string) routeBuilder {
+	return routeBuilder{
+		Name:   name,
+		Method: http.MethodGet,
+	}
+}
+
+func (r routeBuilder) SetNamePrefix(prefix string) routeBuilder {
+	r.Name = prefix + "." + r.Name
+	return r
+}
+
+func (r routeBuilder) SetPath(path string) routeBuilder {
+	r.Path = r.Path + path
+
+	return r
+}
+
+func (r routeBuilder) SetMethod(method string) routeBuilder {
+	r.Method = method
+	return r
+}
+
+func (r routeBuilder) SetCtrl(ctrlName, ctrlMethod string) routeBuilder {
+	r.Controller = ctrlName
+	r.ControllerMethod = ctrlMethod
+
+	return r
+}
+
+func (r routeBuilder) WithMiddleware(mw ...routeMiddleware) routeBuilder {
+	r.Middleware = append(r.Middleware, mw...)
+	return r
+}
+
+func (r routeBuilder) WithSitemap() routeBuilder {
+	r.IncludeInSitemap = true
+	return r
+}
+
+func (r routeBuilder) Register() Route {
+	Registry = append(Registry, Route(r))
+
+	return Route(r)
+}
+
+func (r routeBuilder) RegisterWithID() routeWithID {
+	Registry = append(Registry, Route(r))
+
+	return routeWithID(r)
+}
+
+func (r routeBuilder) RegisterWithSlug() routeWithSlug {
+	Registry = append(Registry, Route(r))
+
+	return routeWithSlug(r)
+}
+
+func (r routeBuilder) RegisterWithToken() routeWithToken {
+	Registry = append(Registry, Route(r))
+
+	return routeWithToken(r)
 }
 
 
@@ -2032,7 +2147,7 @@ templ BadRequest() {
 === views/bad_request_templ.go ===
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.943
+// templ: version: v0.3.960
 package views
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -2196,7 +2311,7 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 === views/components/head_templ.go ===
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.943
+// templ: version: v0.3.960
 package components
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -2573,18 +2688,25 @@ var _ = templruntime.GeneratedTemplate
 === views/components/toasts.templ ===
 package components
 
-import "myorg/webapp/router/cookies"
+import (
+	"github.com/dromara/carbon/v2"
+	"myorg/webapp/router/cookies"
+)
 
 templ toastBase(tType string, flash cookies.FlashMessage) {
 	<div
 		class="max-w-96 border border-gray-500 rounded bg-black flex flex-col"
 		id={ "toast-" + flash.ID.String() }
+		data-init="$visible = true; setTimeout(() => { $visible = false }, 5000);"
+		data-show="$visible"
 	>
 		<div class="px-4 py-2 flex justify-between items-center border-b-1 border-b-gray-300">
 			<div class={ "w-4 h-4 rounded", tType }></div>
 			<span class="flex">
-				<p class="text-base-content">{ flash.CreatedAt.String() }</p>
-				<button>
+				<p class="text-base-content">{ carbon.CreateFromStdTime(flash.CreatedAt).DiffForHumans() }</p>
+				<button
+					data-on:click="$visible = false"
+				>
 					<svg class="ml-2 w-4 h-4 fill-white cursor-pointer hover:fill-gray-400" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="100" height="100" viewBox="0 0 30 30">
 						<path d="M 7 4 C 6.744125 4 6.4879687 4.0974687 6.2929688 4.2929688 L 4.2929688 6.2929688 C 3.9019687 6.6839688 3.9019687 7.3170313 4.2929688 7.7070312 L 11.585938 15 L 4.2929688 22.292969 C 3.9019687 22.683969 3.9019687 23.317031 4.2929688 23.707031 L 6.2929688 25.707031 C 6.6839688 26.098031 7.3170313 26.098031 7.7070312 25.707031 L 15 18.414062 L 22.292969 25.707031 C 22.682969 26.098031 23.317031 26.098031 23.707031 25.707031 L 25.707031 23.707031 C 26.098031 23.316031 26.098031 22.682969 25.707031 22.292969 L 18.414062 15 L 25.707031 7.7070312 C 26.098031 7.3170312 26.098031 6.6829688 25.707031 6.2929688 L 23.707031 4.2929688 C 23.316031 3.9019687 22.682969 3.9019687 22.292969 4.2929688 L 15 11.585938 L 7.7070312 4.2929688 C 7.5115312 4.0974687 7.255875 4 7 4 z"></path>
 					</svg>
@@ -2614,7 +2736,7 @@ templ ToastMessage(flash cookies.FlashMessage) {
 === views/components/toasts_templ.go ===
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.943
+// templ: version: v0.3.960
 package components
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -2622,7 +2744,10 @@ package components
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "myorg/webapp/router/cookies"
+import (
+	"github.com/dromara/carbon/v2"
+	"myorg/webapp/router/cookies"
+)
 
 func toastBase(tType string, flash cookies.FlashMessage) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -2652,13 +2777,13 @@ func toastBase(tType string, flash cookies.FlashMessage) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs("toast-" + flash.ID.String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 8, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 11, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><div class=\"px-4 py-2 flex justify-between items-center border-b-1 border-b-gray-300\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-init=\"$visible = true; setTimeout(() => { $visible = false }, 5000);\" data-show=\"$visible\"><div class=\"px-4 py-2 flex justify-between items-center border-b-1 border-b-gray-300\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2685,22 +2810,22 @@ func toastBase(tType string, flash cookies.FlashMessage) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(flash.CreatedAt.String())
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(carbon.CreateFromStdTime(flash.CreatedAt).DiffForHumans())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 13, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 18, Col: 92}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p><button><svg class=\"ml-2 w-4 h-4 fill-white cursor-pointer hover:fill-gray-400\" xmlns=\"http://www.w3.org/2000/svg\" x=\"0px\" y=\"0px\" width=\"100\" height=\"100\" viewBox=\"0 0 30 30\"><path d=\"M 7 4 C 6.744125 4 6.4879687 4.0974687 6.2929688 4.2929688 L 4.2929688 6.2929688 C 3.9019687 6.6839688 3.9019687 7.3170313 4.2929688 7.7070312 L 11.585938 15 L 4.2929688 22.292969 C 3.9019687 22.683969 3.9019687 23.317031 4.2929688 23.707031 L 6.2929688 25.707031 C 6.6839688 26.098031 7.3170313 26.098031 7.7070312 25.707031 L 15 18.414062 L 22.292969 25.707031 C 22.682969 26.098031 23.317031 26.098031 23.707031 25.707031 L 25.707031 23.707031 C 26.098031 23.316031 26.098031 22.682969 25.707031 22.292969 L 18.414062 15 L 25.707031 7.7070312 C 26.098031 7.3170312 26.098031 6.6829688 25.707031 6.2929688 L 23.707031 4.2929688 C 23.316031 3.9019687 22.682969 3.9019687 22.292969 4.2929688 L 15 11.585938 L 7.7070312 4.2929688 C 7.5115312 4.0974687 7.255875 4 7 4 z\"></path></svg></button></span></div><span class=\"text-base-content px-4 py-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p><button data-on:click=\"$visible = false\"><svg class=\"ml-2 w-4 h-4 fill-white cursor-pointer hover:fill-gray-400\" xmlns=\"http://www.w3.org/2000/svg\" x=\"0px\" y=\"0px\" width=\"100\" height=\"100\" viewBox=\"0 0 30 30\"><path d=\"M 7 4 C 6.744125 4 6.4879687 4.0974687 6.2929688 4.2929688 L 4.2929688 6.2929688 C 3.9019687 6.6839688 3.9019687 7.3170313 4.2929688 7.7070312 L 11.585938 15 L 4.2929688 22.292969 C 3.9019687 22.683969 3.9019687 23.317031 4.2929688 23.707031 L 6.2929688 25.707031 C 6.6839688 26.098031 7.3170313 26.098031 7.7070312 25.707031 L 15 18.414062 L 22.292969 25.707031 C 22.682969 26.098031 23.317031 26.098031 23.707031 25.707031 L 25.707031 23.707031 C 26.098031 23.316031 26.098031 22.682969 25.707031 22.292969 L 18.414062 15 L 25.707031 7.7070312 C 26.098031 7.3170312 26.098031 6.6829688 25.707031 6.2929688 L 23.707031 4.2929688 C 23.316031 3.9019687 22.682969 3.9019687 22.292969 4.2929688 L 15 11.585938 L 7.7070312 4.2929688 C 7.5115312 4.0974687 7.255875 4 7 4 z\"></path></svg></button></span></div><span class=\"text-base-content px-4 py-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(flash.Message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 22, Col: 18}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toasts.templ`, Line: 29, Col: 18}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -2780,7 +2905,7 @@ templ Home() {
 === views/home_templ.go ===
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.943
+// templ: version: v0.3.960
 package views
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -2851,7 +2976,7 @@ templ InternalError() {
 === views/internal_error_templ.go ===
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.943
+// templ: version: v0.3.960
 package views
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -2936,7 +3061,7 @@ templ base(headOpts ...components.HeadDataOption) {
 === views/layout_templ.go ===
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.943
+// templ: version: v0.3.960
 package views
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -3020,7 +3145,7 @@ templ NotFound() {
 === views/not_found_templ.go ===
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.943
+// templ: version: v0.3.960
 package views
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
