@@ -1,119 +1,50 @@
 package routes
 
-import (
-	"net/http"
-	"strings"
-
-	"github.com/google/uuid"
-)
+import "net/http"
 
 const (
 	productsRoutePrefix = "/products"
 	productsNamePrefix  = "products"
 )
 
-var ProductRoutes = []Route{
-	ProductIndex,
-	ProductShow.Route,
-	ProductNew,
-	ProductCreate,
-	ProductEdit.Route,
-	ProductUpdate.Route,
-	ProductDestroy.Route,
-}
+var productsGroup = newRouteGroup(productsNamePrefix, productsRoutePrefix)
 
-var ProductIndex = Route{
-	Name:             productsNamePrefix + ".index",
-	Path:             productsRoutePrefix,
-	Method:           http.MethodGet,
-	Controller:       "Products",
-	ControllerMethod: "Index",
-}
+var ProductIndex = productsGroup.route("index").
+	SetMethod(http.MethodGet).
+	SetCtrl("Products", "Index").
+	Register()
 
-var ProductShow = productsShow{
-	Route: Route{
-		Name:             productsNamePrefix + ".show",
-		Path:             productsRoutePrefix + "/:id",
-		Method:           http.MethodGet,
-		Controller:       "Products",
-		ControllerMethod: "Show",
-	},
-}
+var ProductShow = productsGroup.route("show").
+	SetPath("/:id").
+	SetMethod(http.MethodGet).
+	SetCtrl("Products", "Show").
+	RegisterWithID()
 
-type productsShow struct {
-	Route
-}
+var ProductNew = productsGroup.route("new").
+	SetPath("/new").
+	SetMethod(http.MethodGet).
+	SetCtrl("Products", "New").
+	Register()
 
-func (r productsShow) GetPath(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
+var ProductCreate = productsGroup.route("create").
+	SetMethod(http.MethodPost).
+	SetCtrl("Products", "Create").
+	Register()
 
-var ProductNew = Route{
-	Name:             productsNamePrefix + ".new",
-	Path:             productsRoutePrefix + "/new",
-	Method:           http.MethodGet,
-	Controller:       "Products",
-	ControllerMethod: "New",
-}
+var ProductEdit = productsGroup.route("edit").
+	SetPath("/:id/edit").
+	SetMethod(http.MethodGet).
+	SetCtrl("Products", "Edit").
+	RegisterWithID()
 
-var ProductCreate = Route{
-	Name:             productsNamePrefix + ".create",
-	Path:             productsRoutePrefix,
-	Method:           http.MethodPost,
-	Controller:       "Products",
-	ControllerMethod: "Create",
-}
+var ProductUpdate = productsGroup.route("update").
+	SetPath("/:id").
+	SetMethod(http.MethodPut).
+	SetCtrl("Products", "Update").
+	RegisterWithID()
 
-var ProductEdit = productsEdit{
-	Route: Route{
-		Name:             productsNamePrefix + ".edit",
-		Path:             productsRoutePrefix + "/:id/edit",
-		Method:           http.MethodGet,
-		Controller:       "Products",
-		ControllerMethod: "Edit",
-	},
-}
-
-type productsEdit struct {
-	Route
-}
-
-func (r productsEdit) GetPath(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
-
-var ProductUpdate = productsUpdate{
-	Route: Route{
-		Name:             productsNamePrefix + ".update",
-		Path:             productsRoutePrefix + "/:id",
-		Method:           http.MethodPut,
-		Controller:       "Products",
-		ControllerMethod: "Update",
-	},
-}
-
-type productsUpdate struct {
-	Route
-}
-
-func (r productsUpdate) GetPath(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
-
-var ProductDestroy = productsDestroy{
-	Route: Route{
-		Name:             productsNamePrefix + ".destroy",
-		Path:             productsRoutePrefix + "/:id",
-		Method:           http.MethodDelete,
-		Controller:       "Products",
-		ControllerMethod: "Destroy",
-	},
-}
-
-type productsDestroy struct {
-	Route
-}
-
-func (r productsDestroy) GetPath(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
+var ProductDestroy = productsGroup.route("destroy").
+	SetPath("/:id").
+	SetMethod(http.MethodDelete).
+	SetCtrl("Products", "Destroy").
+	RegisterWithID()

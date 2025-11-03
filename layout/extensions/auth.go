@@ -38,31 +38,6 @@ func (e Auth) Apply(ctx *Context) error {
 	builder.AddControllerConstructor("confirmations", "newConfirmations(db, cfg)")
 	builder.AddControllerConstructor("resetPassword", "newResetPassword(db, emailClient, cfg)")
 
-	builder.AddRouteGroup("Registration")
-	builder.AddRouteGroup("Confirmation")
-	builder.AddRouteGroup("Password")
-	builder.AddRouteGroup("Session")
-	builder.
-		AddRouteCollection(
-			"RegistrationNew",
-			"RegistrationCreate",
-		).
-		AddRouteCollection(
-			"ConfirmationNew",
-			"ConfirmationCreate",
-		).
-		AddRouteCollection(
-			"SessionNew",
-			"SessionCreate",
-			"SessionDestroy",
-		).
-		AddRouteCollection(
-			"PasswordNew",
-			"PasswordCreate",
-			"PasswordEdit.Route",
-			"PasswordUpdate",
-		)
-
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("auth: failed to render templates: %w", err)
 	}
@@ -112,7 +87,8 @@ func (e Auth) renderTemplates(ctx *Context) error {
 		"services_registration.tmpl":   "services/registration.go",
 		"services_reset_password.tmpl": "services/reset_password.go",
 
-		"router_routes_users.tmpl": "router/routes/users.go",
+		"router_routes_users.tmpl":      "router/routes/users.go",
+		"router_routes_middleware.tmpl": "router/routes/middleware.go",
 
 		"views_confirm_email.tmpl":  "views/confirm_email.templ",
 		"views_login.tmpl":          "views/login.templ",

@@ -1,119 +1,50 @@
 package routes
 
-import (
-	"net/http"
-	"strings"
-
-	"github.com/google/uuid"
-)
+import "net/http"
 
 const (
 	usersRoutePrefix = "/users"
 	usersNamePrefix  = "users"
 )
 
-var UserRoutes = []Route{
-	UserIndex,
-	UserShow.Route,
-	UserNew,
-	UserCreate,
-	UserEdit.Route,
-	UserUpdate.Route,
-	UserDestroy.Route,
-}
+var usersGroup = newRouteGroup(usersNamePrefix, usersRoutePrefix)
 
-var UserIndex = Route{
-	Name:             usersNamePrefix + ".index",
-	Path:             usersRoutePrefix,
-	Method:           http.MethodGet,
-	Controller:       "Users",
-	ControllerMethod: "Index",
-}
+var UserIndex = usersGroup.route("index").
+	SetMethod(http.MethodGet).
+	SetCtrl("Users", "Index").
+	Register()
 
-var UserShow = usersShow{
-	Route: Route{
-		Name:             usersNamePrefix + ".show",
-		Path:             usersRoutePrefix + "/:id",
-		Method:           http.MethodGet,
-		Controller:       "Users",
-		ControllerMethod: "Show",
-	},
-}
+var UserShow = usersGroup.route("show").
+	SetPath("/:id").
+	SetMethod(http.MethodGet).
+	SetCtrl("Users", "Show").
+	RegisterWithID()
 
-type usersShow struct {
-	Route
-}
+var UserNew = usersGroup.route("new").
+	SetPath("/new").
+	SetMethod(http.MethodGet).
+	SetCtrl("Users", "New").
+	Register()
 
-func (r usersShow) GetPath(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
+var UserCreate = usersGroup.route("create").
+	SetMethod(http.MethodPost).
+	SetCtrl("Users", "Create").
+	Register()
 
-var UserNew = Route{
-	Name:             usersNamePrefix + ".new",
-	Path:             usersRoutePrefix + "/new",
-	Method:           http.MethodGet,
-	Controller:       "Users",
-	ControllerMethod: "New",
-}
+var UserEdit = usersGroup.route("edit").
+	SetPath("/:id/edit").
+	SetMethod(http.MethodGet).
+	SetCtrl("Users", "Edit").
+	RegisterWithID()
 
-var UserCreate = Route{
-	Name:             usersNamePrefix + ".create",
-	Path:             usersRoutePrefix,
-	Method:           http.MethodPost,
-	Controller:       "Users",
-	ControllerMethod: "Create",
-}
+var UserUpdate = usersGroup.route("update").
+	SetPath("/:id").
+	SetMethod(http.MethodPut).
+	SetCtrl("Users", "Update").
+	RegisterWithID()
 
-var UserEdit = usersEdit{
-	Route: Route{
-		Name:             usersNamePrefix + ".edit",
-		Path:             usersRoutePrefix + "/:id/edit",
-		Method:           http.MethodGet,
-		Controller:       "Users",
-		ControllerMethod: "Edit",
-	},
-}
-
-type usersEdit struct {
-	Route
-}
-
-func (r usersEdit) GetPath(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
-
-var UserUpdate = usersUpdate{
-	Route: Route{
-		Name:             usersNamePrefix + ".update",
-		Path:             usersRoutePrefix + "/:id",
-		Method:           http.MethodPut,
-		Controller:       "Users",
-		ControllerMethod: "Update",
-	},
-}
-
-type usersUpdate struct {
-	Route
-}
-
-func (r usersUpdate) GetPath(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
-
-var UserDestroy = usersDestroy{
-	Route: Route{
-		Name:             usersNamePrefix + ".destroy",
-		Path:             usersRoutePrefix + "/:id",
-		Method:           http.MethodDelete,
-		Controller:       "Users",
-		ControllerMethod: "Destroy",
-	},
-}
-
-type usersDestroy struct {
-	Route
-}
-
-func (r usersDestroy) GetPath(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
+var UserDestroy = usersGroup.route("destroy").
+	SetPath("/:id").
+	SetMethod(http.MethodDelete).
+	SetCtrl("Users", "Destroy").
+	RegisterWithID()

@@ -7,10 +7,9 @@ const (
 	apiNamePrefix  = "api"
 )
 
-var Health = Route{
-	Name:             apiNamePrefix + ".health",
-	Path:             APIRoutePrefix + "/health",
-	Method:           http.MethodGet,
-	Controller:       "API",
-	ControllerMethod: "Health",
-}
+var Health = newRouteBuilder("health").
+	SetNamePrefix(apiNamePrefix).
+	SetPath(APIRoutePrefix + "/health").
+	SetMethod(http.MethodGet).
+	SetCtrl("API", "Health").
+	Register()

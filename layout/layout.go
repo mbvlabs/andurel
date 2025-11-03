@@ -317,10 +317,11 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
 
 	// Routes
-	"router_routes_routes.tmpl": "router/routes/routes.go",
-	"router_routes_api.tmpl":    "router/routes/api.go",
-	"router_routes_assets.tmpl": "router/routes/assets.go",
-	"router_routes_pages.tmpl":  "router/routes/pages.go",
+	"router_routes_routes.tmpl":      "router/routes/routes.go",
+	"router_routes_route_group.tmpl": "router/routes/route_group.go",
+	"router_routes_api.tmpl":         "router/routes/api.go",
+	"router_routes_assets.tmpl":      "router/routes/assets.go",
+	"router_routes_pages.tmpl":       "router/routes/pages.go",
 }
 
 func processTemplatedFiles(

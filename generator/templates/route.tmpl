@@ -1,120 +1,50 @@
 package routes
 
-import (
-	"net/http"
-	"strings"
-
-	"github.com/google/uuid"
-)
+import "net/http"
 
 const (
 	{{.PluralName | ToCamelCase}}RoutePrefix = "/{{.PluralName}}"
 	{{.PluralName | ToCamelCase}}NamePrefix  = "{{.PluralName}}"
 )
 
-var {{.ResourceName}}Routes = []Route{
-	{{.ResourceName}}Index,
-	{{.ResourceName}}Show.Route,
-	{{.ResourceName}}New,
-	{{.ResourceName}}Create,
-	{{.ResourceName}}Edit.Route,
-	{{.ResourceName}}Update.Route,
-	{{.ResourceName}}Destroy.Route,
-}
+var {{.PluralName | ToCamelCase}}Group = newRouteGroup({{.PluralName | ToCamelCase}}NamePrefix, {{.PluralName | ToCamelCase}}RoutePrefix)
 
-var {{.ResourceName}}Index = Route{
-	Name:         {{.PluralName | ToCamelCase}}NamePrefix + ".index",
-	Path:         {{.PluralName | ToCamelCase}}RoutePrefix,
-	Method:       http.MethodGet,
-	Controller:      "{{.ResourceName}}s",
-	ControllerMethod: "Index",
-}
+var {{.ResourceName}}Index = {{.PluralName | ToCamelCase}}Group.route("index").
+	SetMethod(http.MethodGet).
+	SetCtrl("{{.ResourceName}}s", "Index").
+	Register()
 
-var {{.ResourceName}}Show = {{.PluralName | ToCamelCase}}Show{
-	Route: Route{
-		Name:         {{.PluralName | ToCamelCase}}NamePrefix + ".show",
-		Path:         {{.PluralName | ToCamelCase}}RoutePrefix + "/:id",
-		Method:       http.MethodGet,
-		Controller:      "{{.ResourceName}}s",
-		ControllerMethod: "Show",
-	},
-}
+var {{.ResourceName}}Show = {{.PluralName | ToCamelCase}}Group.route("show").
+	SetPath("/:id").
+	SetMethod(http.MethodGet).
+	SetCtrl("{{.ResourceName}}s", "Show").
+	RegisterWithID()
 
-type {{.PluralName | ToCamelCase}}Show struct {
-	Route
-}
+var {{.ResourceName}}New = {{.PluralName | ToCamelCase}}Group.route("new").
+	SetPath("/new").
+	SetMethod(http.MethodGet).
+	SetCtrl("{{.ResourceName}}s", "New").
+	Register()
 
-func (r {{.PluralName | ToCamelCase}}Show) GetPath(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
+var {{.ResourceName}}Create = {{.PluralName | ToCamelCase}}Group.route("create").
+	SetMethod(http.MethodPost).
+	SetCtrl("{{.ResourceName}}s", "Create").
+	Register()
 
-var {{.ResourceName}}New = Route{
-	Name:         {{.PluralName | ToCamelCase}}NamePrefix + ".new",
-	Path:         {{.PluralName | ToCamelCase}}RoutePrefix + "/new",
-	Method:       http.MethodGet,
-	Controller:      "{{.ResourceName}}s",
-	ControllerMethod: "New",
-}
+var {{.ResourceName}}Edit = {{.PluralName | ToCamelCase}}Group.route("edit").
+	SetPath("/:id/edit").
+	SetMethod(http.MethodGet).
+	SetCtrl("{{.ResourceName}}s", "Edit").
+	RegisterWithID()
 
-var {{.ResourceName}}Create = Route{
-	Name:         {{.PluralName | ToCamelCase}}NamePrefix + ".create",
-	Path:         {{.PluralName | ToCamelCase}}RoutePrefix,
-	Method:       http.MethodPost,
-	Controller:      "{{.ResourceName}}s",
-	ControllerMethod: "Create",
-}
+var {{.ResourceName}}Update = {{.PluralName | ToCamelCase}}Group.route("update").
+	SetPath("/:id").
+	SetMethod(http.MethodPut).
+	SetCtrl("{{.ResourceName}}s", "Update").
+	RegisterWithID()
 
-var {{.ResourceName}}Edit = {{.PluralName | ToCamelCase}}Edit{
-	Route: Route{
-		Name:         {{.PluralName | ToCamelCase}}NamePrefix + ".edit",
-		Path:         {{.PluralName | ToCamelCase}}RoutePrefix + "/:id/edit",
-		Method:       http.MethodGet,
-		Controller:      "{{.ResourceName}}s",
-		ControllerMethod: "Edit",
-	},
-}
-
-type {{.PluralName | ToCamelCase}}Edit struct {
-	Route
-}
-
-func (r {{.PluralName | ToCamelCase}}Edit) GetPath(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
-
-var {{.ResourceName}}Update = {{.PluralName | ToCamelCase}}Update{
-	Route: Route{
-		Name:         {{.PluralName | ToCamelCase}}NamePrefix + ".update",
-		Path:         {{.PluralName | ToCamelCase}}RoutePrefix + "/:id",
-		Method:       http.MethodPut,
-		Controller:      "{{.ResourceName}}s",
-		ControllerMethod: "Update",
-	},
-}
-
-type {{.PluralName | ToCamelCase}}Update struct {
-	Route
-}
-
-func (r {{.PluralName | ToCamelCase}}Update) GetPath(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
-
-var {{.ResourceName}}Destroy = {{.PluralName | ToCamelCase}}Destroy{
-	Route: Route{
-		Name:         {{.PluralName | ToCamelCase}}NamePrefix + ".destroy",
-		Path:         {{.PluralName | ToCamelCase}}RoutePrefix + "/:id",
-		Method:       http.MethodDelete,
-		Controller:      "{{.ResourceName}}s",
-		ControllerMethod: "Destroy",
-	},
-}
-
-type {{.PluralName | ToCamelCase}}Destroy struct {
-	Route
-}
-
-func (r {{.PluralName | ToCamelCase}}Destroy) GetPath(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
-
+var {{.ResourceName}}Destroy = {{.PluralName | ToCamelCase}}Group.route("destroy").
+	SetPath("/:id").
+	SetMethod(http.MethodDelete).
+	SetCtrl("{{.ResourceName}}s", "Destroy").
+	RegisterWithID()
