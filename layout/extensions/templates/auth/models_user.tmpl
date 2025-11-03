@@ -110,7 +110,7 @@ func FindUserByEmail(
 	dbtx db.DBTX,
 	email string,
 ) (User, error) {
-	row, err := queries.QueryUserByEmail(ctx, dbtx, email)
+	row, err := queries.QueryUserByEmail(ctx, dbtx, strings.ToLower(email))
 	if err != nil {
 		return User{}, err
 	}
@@ -143,7 +143,7 @@ func CreateUser(
 		return User{}, err
 	}
 
-	params := db.CreateInsertUserParams(data.Email, sql.NullTime{}, []byte(hashedPassword), false)
+	params := db.CreateInsertUserParams(strings.ToLower(data.Email), sql.NullTime{}, []byte(hashedPassword), false)
 	row, err := queries.InsertUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err
@@ -174,7 +174,7 @@ func UpdateUser(
 		return User{}, err
 	}
 
-	email := data.Email
+	email := strings.ToLower(data.Email)
 	if email == "" {
 		email = currentRow.Email
 	}
@@ -404,7 +404,7 @@ func FindUserByEmail(
 	dbtx db.DBTX,
 	email string,
 ) (User, error) {
-	row, err := queries.QueryUserByEmail(ctx, dbtx, email)
+	row, err := queries.QueryUserByEmail(ctx, dbtx, strings.ToLower(email))
 	if err != nil {
 		return User{}, err
 	}
@@ -437,7 +437,7 @@ func CreateUser(
 		return User{}, err
 	}
 
-	params := db.CreateInsertUserParams(data.Email, sql.NullTime{}, []byte(hashedPassword), false)
+	params := db.CreateInsertUserParams(strings.ToLower(data.Email), sql.NullTime{}, []byte(hashedPassword), false)
 	row, err := queries.InsertUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err
@@ -468,7 +468,7 @@ func UpdateUser(
 		return User{}, err
 	}
 
-	email := data.Email
+	email := strings.ToLower(data.Email)
 	if email == "" {
 		email = currentRow.Email
 	}
