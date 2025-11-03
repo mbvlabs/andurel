@@ -9,47 +9,40 @@ const (
 
 var {{.PluralName | ToCamelCase}}Group = NewRouteGroup({{.PluralName | ToCamelCase}}NamePrefix, {{.PluralName | ToCamelCase}}RoutePrefix)
 
-// Index: GET /{{.PluralName}}
 var {{.ResourceName}}Index = {{.PluralName | ToCamelCase}}Group.Route("index").
 	SetMethod(http.MethodGet).
 	SetCtrl("{{.ResourceName}}s", "Index").
 	Register()
 
-// Show: GET /{{.PluralName}}/:id
 var {{.ResourceName}}Show = {{.PluralName | ToCamelCase}}Group.Route("show").
 	SetPath("/:id").
 	SetMethod(http.MethodGet).
 	SetCtrl("{{.ResourceName}}s", "Show").
 	RegisterWithID()
 
-// New: GET /{{.PluralName}}/new
 var {{.ResourceName}}New = {{.PluralName | ToCamelCase}}Group.Route("new").
 	SetPath("/new").
 	SetMethod(http.MethodGet).
 	SetCtrl("{{.ResourceName}}s", "New").
 	Register()
 
-// Create: POST /{{.PluralName}}
 var {{.ResourceName}}Create = {{.PluralName | ToCamelCase}}Group.Route("create").
 	SetMethod(http.MethodPost).
 	SetCtrl("{{.ResourceName}}s", "Create").
 	Register()
 
-// Edit: GET /{{.PluralName}}/:id/edit
 var {{.ResourceName}}Edit = {{.PluralName | ToCamelCase}}Group.Route("edit").
 	SetPath("/:id/edit").
 	SetMethod(http.MethodGet).
 	SetCtrl("{{.ResourceName}}s", "Edit").
 	RegisterWithID()
 
-// Update: PUT /{{.PluralName}}/:id
 var {{.ResourceName}}Update = {{.PluralName | ToCamelCase}}Group.Route("update").
 	SetPath("/:id").
 	SetMethod(http.MethodPut).
 	SetCtrl("{{.ResourceName}}s", "Update").
 	RegisterWithID()
 
-// Destroy: DELETE /{{.PluralName}}/:id
 var {{.ResourceName}}Destroy = {{.PluralName | ToCamelCase}}Group.Route("destroy").
 	SetPath("/:id").
 	SetMethod(http.MethodDelete).

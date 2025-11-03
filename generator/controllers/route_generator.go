@@ -46,12 +46,6 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName string) error 
 		return fmt.Errorf("failed to format routes file: %w", err)
 	}
 
-	return rg.registerRoutes(resourceName)
-}
-
-func (rg *RouteGenerator) registerRoutes(resourceName string) error {
-	// Routes now auto-register themselves via the builder pattern when the file is loaded.
-	// This function is kept for backwards compatibility but no longer performs any operations.
 	return nil
 }
 
