@@ -60,7 +60,7 @@ func FindProduct(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) (Product, error) {
-	row, err := db.New().QueryProductByID(ctx, dbtx, id.String())
+	row, err := queries.QueryProductByID(ctx, dbtx, id.String())
 	if err != nil {
 		return Product{}, err
 	}
@@ -126,7 +126,7 @@ func CreateProduct(
 	}
 
 	params := db.NewInsertProductParams()
-	row, err := db.New().InsertProduct(ctx, dbtx, params)
+	row, err := queries.InsertProduct(ctx, dbtx, params)
 	if err != nil {
 		return Product{}, err
 	}
@@ -192,14 +192,14 @@ func UpdateProduct(
 		return Product{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := db.New().QueryProductByID(ctx, dbtx, data.ID.String())
+	currentRow, err := queries.QueryProductByID(ctx, dbtx, data.ID.String())
 	if err != nil {
 		return Product{}, err
 	}
 
 	params := db.NewUpdateProductParams()
 
-	row, err := db.New().UpdateProduct(ctx, dbtx, params)
+	row, err := queries.UpdateProduct(ctx, dbtx, params)
 	if err != nil {
 		return Product{}, err
 	}
@@ -216,14 +216,14 @@ func DestroyProduct(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) error {
-	return db.New().DeleteProduct(ctx, dbtx, id.String())
+	return queries.DeleteProduct(ctx, dbtx, id.String())
 }
 
 func AllProducts(
 	ctx context.Context,
 	dbtx db.DBTX,
 ) ([]Product, error) {
-	rows, err := db.New().QueryAllProducts(ctx, dbtx)
+	rows, err := queries.QueryAllProducts(ctx, dbtx)
 	if err != nil {
 		return nil, err
 	}
@@ -266,12 +266,12 @@ func PaginateProducts(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.New().CountProducts(ctx, dbtx)
+	totalCount, err := queries.CountProducts(ctx, dbtx)
 	if err != nil {
 		return PaginatedProducts{}, err
 	}
 
-	rows, err := db.New().QueryPaginatedProducts(
+	rows, err := queries.QueryPaginatedProducts(
 		ctx,
 		dbtx,
 		db.NewQueryPaginatedProductsParams(pageSize, offset),

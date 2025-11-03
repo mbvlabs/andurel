@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/files"
-	"github.com/mbvlabs/andurel/generator/internal/types"
 	"github.com/mbvlabs/andurel/pkg/cache"
 )
 
@@ -30,19 +29,8 @@ func NewProjectManager() (*ProjectManager, error) {
 	}, nil
 }
 
-func (pm *ProjectManager) GetModulePath() (string, error) {
-	if pm.modulePath == "" {
-		modulePath, err := getCurrentModulePath(pm.fileManager)
-		if err != nil {
-			return "", err
-		}
-		pm.modulePath = modulePath
-	}
-	return pm.modulePath, nil
-}
-
-func (pm *ProjectManager) ValidateSQLCConfig(rootDir string) error {
-	return types.ValidateSQLCConfig(rootDir)
+func (pm *ProjectManager) GetModulePath() string {
+	return pm.modulePath
 }
 
 func getCurrentModulePath(fileManager files.Manager) (string, error) {

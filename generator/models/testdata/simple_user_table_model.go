@@ -25,7 +25,7 @@ func FindUser(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) (User, error) {
-	row, err := db.New().QueryUserByID(ctx, dbtx, id)
+	row, err := queries.QueryUserByID(ctx, dbtx, id)
 	if err != nil {
 		return User{}, err
 	}
@@ -50,7 +50,7 @@ func CreateUser(
 	}
 
 	params := db.NewInsertUserParams()
-	row, err := db.New().InsertUser(ctx, dbtx, params)
+	row, err := queries.InsertUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err
 	}
@@ -76,14 +76,14 @@ func UpdateUser(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := db.New().QueryUserByID(ctx, dbtx, data.ID)
+	currentRow, err := queries.QueryUserByID(ctx, dbtx, data.ID)
 	if err != nil {
 		return User{}, err
 	}
 
 	params := db.NewUpdateUserParams()
 
-	row, err := db.New().UpdateUser(ctx, dbtx, params)
+	row, err := queries.UpdateUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err
 	}
@@ -96,14 +96,14 @@ func DestroyUser(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) error {
-	return db.New().DeleteUser(ctx, dbtx, id)
+	return queries.DeleteUser(ctx, dbtx, id)
 }
 
 func AllUsers(
 	ctx context.Context,
 	dbtx db.DBTX,
 ) ([]User, error) {
-	rows, err := db.New().QueryAllUsers(ctx, dbtx)
+	rows, err := queries.QueryAllUsers(ctx, dbtx)
 	if err != nil {
 		return nil, err
 	}
@@ -142,12 +142,12 @@ func PaginateUsers(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.New().CountUsers(ctx, dbtx)
+	totalCount, err := queries.CountUsers(ctx, dbtx)
 	if err != nil {
 		return PaginatedUsers{}, err
 	}
 
-	rows, err := db.New().QueryPaginatedUsers(
+	rows, err := queries.QueryPaginatedUsers(
 		ctx,
 		dbtx,
 		db.NewQueryPaginatedUsersParams(pageSize, offset),

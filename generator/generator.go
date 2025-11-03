@@ -16,7 +16,7 @@ func New() (Generator, error) {
 }
 
 func (g *Generator) GenerateModel(resourceName string) error {
-	return g.coordinator.GenerateModel(resourceName)
+	return g.coordinator.ModelManager.GenerateModel(resourceName)
 }
 
 func (g *Generator) GenerateController(resourceName, tableName string, withViews bool) error {
@@ -28,21 +28,21 @@ func (g *Generator) GenerateControllerFromModel(resourceName string, withViews b
 }
 
 func (g *Generator) GenerateView(resourceName, tableName string) error {
-	return g.coordinator.GenerateView(resourceName, tableName)
+	return g.coordinator.ViewManager.GenerateView(resourceName, tableName)
 }
 
 func (g *Generator) GenerateViewFromModel(resourceName string, withController bool) error {
-	return g.coordinator.GenerateViewFromModel(resourceName, withController)
+	return g.coordinator.ViewManager.GenerateViewFromModel(resourceName, withController)
 }
 
 func (g *Generator) RefreshModel(resourceName, tableName string) error {
-	return g.coordinator.RefreshModel(resourceName, tableName)
+	return g.coordinator.ModelManager.RefreshModel(resourceName, tableName)
 }
 
 func (g *Generator) RefreshQueries(resourceName, tableName string) error {
-	return g.coordinator.RefreshQueries(resourceName, tableName)
+	return g.coordinator.ModelManager.RefreshQueries(resourceName, tableName)
 }
 
 func (g *Generator) RefreshConstructors(resourceName, tableName string) error {
-	return g.coordinator.RefreshConstructors(resourceName, tableName)
+	return g.coordinator.ModelManager.RefreshConstructors(resourceName, tableName)
 }

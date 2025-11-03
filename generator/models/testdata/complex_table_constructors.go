@@ -12,7 +12,7 @@ import (
 // Constructor functions for SQLC parameters - these get updated during refresh
 // to make schema changes compiler-enforced and visible
 
-func NewInsertComprehensiveExampleParams(
+func CreateInsertComprehensiveExampleParams(
 	uuidID uuid.UUID,
 	smallInt int16,
 	regularInt pgtype.Int4,
@@ -115,7 +115,7 @@ func NewInsertComprehensiveExampleParams(
 	}
 }
 
-func NewUpdateComprehensiveExampleParams(
+func CreateUpdateComprehensiveExampleParams(
 	id uuid.UUID,
 	uuidID uuid.UUID,
 	smallInt int16,
@@ -219,7 +219,7 @@ func NewUpdateComprehensiveExampleParams(
 	}
 }
 
-func NewQueryPaginatedComprehensiveExamplesParams(limit, offset int64) QueryPaginatedComprehensiveExamplesParams {
+func CreateQueryPaginatedComprehensiveExamplesParams(limit, offset int64) QueryPaginatedComprehensiveExamplesParams {
 	return QueryPaginatedComprehensiveExamplesParams{
 		Limit:  limit,
 		Offset: offset,

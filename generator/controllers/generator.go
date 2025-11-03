@@ -126,19 +126,3 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 
 	return field, nil
 }
-
-func (g *Generator) GenerateController(
-	cat *catalog.Catalog,
-	resourceName string,
-	controllerType ControllerType,
-	modulePath string,
-) error {
-	fileGen := NewFileGenerator()
-	return fileGen.GenerateController(
-		cat,
-		resourceName,
-		controllerType,
-		modulePath,
-		g.typeMapper.GetDatabaseType(),
-	)
-}

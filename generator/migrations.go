@@ -16,14 +16,12 @@ func NewMigrationManager() *MigrationManager {
 	return &MigrationManager{}
 }
 
-func (mm *MigrationManager) BuildCatalogFromMigrations(tableName string) (*catalog.Catalog, error) {
-	configManager := NewConfigManager()
-	unifiedConfig, err := configManager.Load()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %w", err)
-	}
-	databaseType := unifiedConfig.Database.Type
-	migrationsList, err := migrations.DiscoverMigrations(unifiedConfig.Database.MigrationDirs)
+func (mm *MigrationManager) BuildCatalogFromMigrations(
+	tableName string,
+	config *UnifiedConfig,
+) (*catalog.Catalog, error) {
+	databaseType := config.Database.Type
+	migrationsList, err := migrations.DiscoverMigrations(config.Database.MigrationDirs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover migrations: %w", err)
 	}
