@@ -11,26 +11,23 @@ import (
 )
 
 type ControllerManager struct {
-	validator           *InputValidator
-	projectManager      *ProjectManager
-	migrationManager    *MigrationManager
-	controllerGenerator *controllers.Generator
-	config              *UnifiedConfig
+	validator        *InputValidator
+	projectManager   *ProjectManager
+	migrationManager *MigrationManager
+	config           *UnifiedConfig
 }
 
 func NewControllerManager(
 	validator *InputValidator,
 	projectManager *ProjectManager,
 	migrationManager *MigrationManager,
-	controllerGenerator *controllers.Generator,
 	config *UnifiedConfig,
 ) *ControllerManager {
 	return &ControllerManager{
-		validator:           validator,
-		projectManager:      projectManager,
-		migrationManager:    migrationManager,
-		controllerGenerator: controllerGenerator,
-		config:              config,
+		validator:        validator,
+		projectManager:   projectManager,
+		migrationManager: migrationManager,
+		config:           config,
 	}
 }
 
@@ -38,10 +35,7 @@ func (c *ControllerManager) GenerateController(
 	resourceName, tableName string,
 	withViews bool,
 ) error {
-	modulePath, err := c.projectManager.GetModulePath()
-	if err != nil {
-		return err
-	}
+	modulePath := c.projectManager.GetModulePath()
 
 	if err := c.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
 		return err
@@ -59,7 +53,7 @@ func (c *ControllerManager) GenerateController(
 		)
 	}
 
-	cat, err := c.migrationManager.BuildCatalogFromMigrations(tableName)
+	cat, err := c.migrationManager.BuildCatalogFromMigrations(tableName, c.config)
 	if err != nil {
 		return err
 	}
@@ -69,7 +63,8 @@ func (c *ControllerManager) GenerateController(
 		controllerType = controllers.ResourceController
 	}
 
-	if err := c.controllerGenerator.GenerateController(cat, resourceName, controllerType, modulePath); err != nil {
+	fileGen := controllers.NewFileGenerator()
+	if err := fileGen.GenerateController(cat, resourceName, controllerType, modulePath, c.config.Database.Type); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
@@ -83,10 +78,7 @@ func (c *ControllerManager) GenerateController(
 }
 
 func (c *ControllerManager) GenerateControllerFromModel(resourceName string, withViews bool) error {
-	modulePath, err := c.projectManager.GetModulePath()
-	if err != nil {
-		return err
-	}
+	modulePath := c.projectManager.GetModulePath()
 
 	var modelFileName strings.Builder
 	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
@@ -111,71 +103,9 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 		return fmt.Errorf("derived table name validation failed: %w", err)
 	}
 
-	routesFilePath := filepath.Join(c.config.Paths.Routes, "routes.go")
-	if _, err := os.Stat(routesFilePath); os.IsNotExist(err) {
-		return fmt.Errorf(
-			"routes file %s does not exist. Please ensure your project has a routes.go file before generating controllers",
-			routesFilePath,
-		)
-	}
-
-	individualRoutePath := filepath.Join("router/routes", tableName+".go")
-	if _, err := os.Stat(individualRoutePath); err == nil {
-		return fmt.Errorf("routes file %s already exists", individualRoutePath)
-	}
-
-	controllerPath := filepath.Join(c.config.Paths.Controllers, tableName+".go")
-	if _, err := os.Stat(controllerPath); err == nil {
-		return fmt.Errorf("controller file %s already exists", controllerPath)
-	}
-
-	controllerFilePath := filepath.Join(c.config.Paths.Controllers, "controller.go")
-	if _, err := os.Stat(controllerFilePath); os.IsNotExist(err) {
-		return fmt.Errorf(
-			"main controller file %s does not exist. Please ensure your project has a controller.go file before generating controllers",
-			controllerFilePath,
-		)
-	}
-
-	content, err := os.ReadFile(controllerFilePath)
-	if err != nil {
-		return fmt.Errorf("failed to read controller.go: %w", err)
-	}
-
-	controllerFieldName := resourceName + "s"
-	controllerVarName := naming.ToCamelCase(naming.ToSnakeCase(resourceName)) + "s"
-	controllerConstructor := controllerVarName + " := new" + resourceName + "s(db)"
-	controllerReturnField := controllerVarName + ","
-	contentStr := string(content)
-	lines := strings.SplitSeq(contentStr, "\n")
-
-	for line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-
-		if strings.HasPrefix(trimmedLine, controllerFieldName+" ") &&
-			strings.HasSuffix(trimmedLine, " "+controllerFieldName) {
-			return fmt.Errorf(
-				"controller %s is already registered in %s (struct field found)",
-				resourceName,
-				controllerFilePath,
-			)
-		}
-
-		if strings.Contains(trimmedLine, controllerConstructor) {
-			return fmt.Errorf(
-				"controller %s is already registered in %s (constructor call found)",
-				resourceName,
-				controllerFilePath,
-			)
-		}
-
-		if trimmedLine == controllerReturnField {
-			return fmt.Errorf(
-				"controller %s is already registered in %s (return field found)",
-				resourceName,
-				controllerFilePath,
-			)
-		}
+	validationCtx := newControllerValidationContext(resourceName, tableName, c.config)
+	if err := validateControllerNotExists(validationCtx); err != nil {
+		return err
 	}
 
 	if withViews {
@@ -192,7 +122,7 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 		}
 	}
 
-	cat, err := c.migrationManager.BuildCatalogFromMigrations(tableName)
+	cat, err := c.migrationManager.BuildCatalogFromMigrations(tableName, c.config)
 	if err != nil {
 		return err
 	}
@@ -202,7 +132,8 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 		controllerType = controllers.ResourceController
 	}
 
-	if err := c.controllerGenerator.GenerateController(cat, resourceName, controllerType, modulePath); err != nil {
+	fileGen := controllers.NewFileGenerator()
+	if err := fileGen.GenerateController(cat, resourceName, controllerType, modulePath, c.config.Database.Type); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 

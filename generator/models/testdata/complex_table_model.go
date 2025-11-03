@@ -67,7 +67,7 @@ func FindComprehensiveExample(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) (ComprehensiveExample, error) {
-	row, err := db.New().QueryComprehensiveExampleByID(ctx, dbtx, id)
+	row, err := queries.QueryComprehensiveExampleByID(ctx, dbtx, id)
 	if err != nil {
 		return ComprehensiveExample{}, err
 	}
@@ -135,8 +135,8 @@ func CreateComprehensiveExample(
 		return ComprehensiveExample{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.NewInsertComprehensiveExampleParams()
-	row, err := db.New().InsertComprehensiveExample(ctx, dbtx, params)
+	params := db.CreateInsertComprehensiveExampleParams()
+	row, err := queries.InsertComprehensiveExample(ctx, dbtx, params)
 	if err != nil {
 		return ComprehensiveExample{}, err
 	}
@@ -205,14 +205,14 @@ func UpdateComprehensiveExample(
 		return ComprehensiveExample{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := db.New().QueryComprehensiveExampleByID(ctx, dbtx, data.ID)
+	currentRow, err := queries.QueryComprehensiveExampleByID(ctx, dbtx, data.ID)
 	if err != nil {
 		return ComprehensiveExample{}, err
 	}
 
-	params := db.NewUpdateComprehensiveExampleParams()
+	params := db.CreateUpdateComprehensiveExampleParams()
 
-	row, err := db.New().UpdateComprehensiveExample(ctx, dbtx, params)
+	row, err := queries.UpdateComprehensiveExample(ctx, dbtx, params)
 	if err != nil {
 		return ComprehensiveExample{}, err
 	}
@@ -225,14 +225,14 @@ func DestroyComprehensiveExample(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) error {
-	return db.New().DeleteComprehensiveExample(ctx, dbtx, id)
+	return queries.DeleteComprehensiveExample(ctx, dbtx, id)
 }
 
 func AllComprehensiveExamples(
 	ctx context.Context,
 	dbtx db.DBTX,
 ) ([]ComprehensiveExample, error) {
-	rows, err := db.New().QueryAllComprehensiveExamples(ctx, dbtx)
+	rows, err := queries.QueryAllComprehensiveExamples(ctx, dbtx)
 	if err != nil {
 		return nil, err
 	}
@@ -271,15 +271,15 @@ func PaginateComprehensiveExamples(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.New().CountComprehensiveExamples(ctx, dbtx)
+	totalCount, err := queries.CountComprehensiveExamples(ctx, dbtx)
 	if err != nil {
 		return PaginatedComprehensiveExamples{}, err
 	}
 
-	rows, err := db.New().QueryPaginatedComprehensiveExamples(
+	rows, err := queries.QueryPaginatedComprehensiveExamples(
 		ctx,
 		dbtx,
-		db.NewQueryPaginatedComprehensiveExamplesParams(pageSize, offset),
+		db.CreateQueryPaginatedComprehensiveExamplesParams(pageSize, offset),
 	)
 	if err != nil {
 		return PaginatedComprehensiveExamples{}, err

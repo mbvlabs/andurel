@@ -23,7 +23,7 @@ func FindPost(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) (Post, error) {
-	row, err := db.New().QueryPostByID(ctx, dbtx, id)
+	row, err := queries.QueryPostByID(ctx, dbtx, id)
 	if err != nil {
 		return Post{}, err
 	}
@@ -46,8 +46,8 @@ func CreatePost(
 		return Post{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.NewInsertPostParams()
-	row, err := db.New().InsertPost(ctx, dbtx, params)
+	params := db.CreateInsertPostParams()
+	row, err := queries.InsertPost(ctx, dbtx, params)
 	if err != nil {
 		return Post{}, err
 	}
@@ -71,14 +71,14 @@ func UpdatePost(
 		return Post{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := db.New().QueryPostByID(ctx, dbtx, data.ID)
+	currentRow, err := queries.QueryPostByID(ctx, dbtx, data.ID)
 	if err != nil {
 		return Post{}, err
 	}
 
-	params := db.NewUpdatePostParams()
+	params := db.CreateUpdatePostParams()
 
-	row, err := db.New().UpdatePost(ctx, dbtx, params)
+	row, err := queries.UpdatePost(ctx, dbtx, params)
 	if err != nil {
 		return Post{}, err
 	}
@@ -91,14 +91,14 @@ func DestroyPost(
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) error {
-	return db.New().DeletePost(ctx, dbtx, id)
+	return queries.DeletePost(ctx, dbtx, id)
 }
 
 func AllPosts(
 	ctx context.Context,
 	dbtx db.DBTX,
 ) ([]Post, error) {
-	rows, err := db.New().QueryAllPosts(ctx, dbtx)
+	rows, err := queries.QueryAllPosts(ctx, dbtx)
 	if err != nil {
 		return nil, err
 	}
@@ -137,15 +137,15 @@ func PaginatePosts(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.New().CountPosts(ctx, dbtx)
+	totalCount, err := queries.CountPosts(ctx, dbtx)
 	if err != nil {
 		return PaginatedPosts{}, err
 	}
 
-	rows, err := db.New().QueryPaginatedPosts(
+	rows, err := queries.QueryPaginatedPosts(
 		ctx,
 		dbtx,
-		db.NewQueryPaginatedPostsParams(pageSize, offset),
+		db.CreateQueryPaginatedPostsParams(pageSize, offset),
 	)
 	if err != nil {
 		return PaginatedPosts{}, err

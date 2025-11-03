@@ -12,7 +12,7 @@ import (
 // Constructor functions for SQLC parameters - these get updated during refresh
 // to make schema changes compiler-enforced and visible
 
-func NewInsertUserParams(
+func CreateInsertUserParams(
 	email string,
 	name string,
 	age pgtype.Int4,
@@ -27,7 +27,7 @@ func NewInsertUserParams(
 	}
 }
 
-func NewUpdateUserParams(
+func CreateUpdateUserParams(
 	id uuid.UUID,
 	email string,
 	name string,
@@ -43,7 +43,7 @@ func NewUpdateUserParams(
 	}
 }
 
-func NewQueryPaginatedUsersParams(limit, offset int64) QueryPaginatedUsersParams {
+func CreateQueryPaginatedUsersParams(limit, offset int64) QueryPaginatedUsersParams {
 	return QueryPaginatedUsersParams{
 		Limit:  limit,
 		Offset: offset,

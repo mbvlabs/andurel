@@ -56,7 +56,7 @@ func Create{{.Name}}(
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.NewInsert{{.Name}}Params()
+	params := db.CreateInsert{{.Name}}Params()
 	row, err := queries.Insert{{.Name}}(ctx, dbtx, params)
 	if err != nil {
 		return {{.Name}}{}, err
@@ -92,7 +92,7 @@ func Update{{.Name}}(
 		return {{.Name}}{}, err
 	}
 
-	params := db.NewUpdate{{.Name}}Params()
+	params := db.CreateUpdate{{.Name}}Params()
 
 	row, err := queries.Update{{.Name}}(ctx, dbtx, params)
 	if err != nil {
@@ -169,7 +169,7 @@ func Paginate{{.Name}}s(
 	rows, err := queries.QueryPaginated{{.Name}}s(
 		ctx,
 		dbtx,
-		db.NewQueryPaginated{{.Name}}sParams(pageSize, offset),
+		db.CreateQueryPaginated{{.Name}}sParams(pageSize, offset),
 	)
 	if err != nil {
 		return Paginated{{.Name}}s{}, err

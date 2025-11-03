@@ -202,6 +202,7 @@ func captureScaffoldedProject(t *testing.T, projectDir string) string {
 func normalizeEnvSecrets(content string) string {
 	content = replaceEnvValue(content, "PASSWORD_SALT=", "test_password_salt_value")
 	content = replaceEnvValue(content, "SESSION_KEY=", "test_session_key_value")
+	content = replaceEnvValue(content, "PEPPER=", "test_pepper_value")
 	content = replaceEnvValue(
 		content,
 		"SESSION_ENCRYPTION_KEY=",

@@ -3,7 +3,6 @@ package generator
 import (
 	"fmt"
 
-	"github.com/mbvlabs/andurel/generator/controllers"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/models"
 	"github.com/mbvlabs/andurel/generator/views"
@@ -11,9 +10,9 @@ import (
 )
 
 type Coordinator struct {
-	modelManager      *ModelManager
-	controllerManager *ControllerManager
-	viewManager       *ViewManager
+	ModelManager      *ModelManager
+	ControllerManager *ControllerManager
+	ViewManager       *ViewManager
 	projectManager    *ProjectManager
 }
 
@@ -35,7 +34,6 @@ func NewCoordinator() (Coordinator, error) {
 
 	// Create generators
 	modelGenerator := models.NewGenerator(unifiedConfig.Database.Type)
-	controllerGenerator := controllers.NewGenerator(unifiedConfig.Database.Type)
 	viewGenerator := views.NewGenerator(unifiedConfig.Database.Type)
 
 	// Create managers
@@ -52,7 +50,6 @@ func NewCoordinator() (Coordinator, error) {
 		validator,
 		projectManager,
 		migrationManager,
-		controllerGenerator,
 		unifiedConfig,
 	)
 
@@ -61,29 +58,25 @@ func NewCoordinator() (Coordinator, error) {
 		projectManager,
 		migrationManager,
 		viewGenerator,
-		controllerGenerator,
 		unifiedConfig,
 	)
 
 	return Coordinator{
-		modelManager:      modelManager,
-		controllerManager: controllerManager,
-		viewManager:       viewManager,
+		ModelManager:      modelManager,
+		ControllerManager: controllerManager,
+		ViewManager:       viewManager,
 		projectManager:    projectManager,
 	}, nil
 }
 
-func (c *Coordinator) GenerateModel(resourceName string) error {
-	return c.modelManager.GenerateModel(resourceName)
-}
-
+// GenerateController coordinates controller and optional view generation
 func (c *Coordinator) GenerateController(resourceName, tableName string, withViews bool) error {
-	if err := c.controllerManager.GenerateController(resourceName, tableName, withViews); err != nil {
+	if err := c.ControllerManager.GenerateController(resourceName, tableName, withViews); err != nil {
 		return err
 	}
 
 	if withViews {
-		if err := c.viewManager.GenerateViewWithController(resourceName, tableName); err != nil {
+		if err := c.ViewManager.GenerateViewWithController(resourceName, tableName); err != nil {
 			return err
 		}
 	}
@@ -91,37 +84,18 @@ func (c *Coordinator) GenerateController(resourceName, tableName string, withVie
 	return nil
 }
 
+// GenerateControllerFromModel coordinates controller and optional view generation from existing model
 func (c *Coordinator) GenerateControllerFromModel(resourceName string, withViews bool) error {
-	if err := c.controllerManager.GenerateControllerFromModel(resourceName, withViews); err != nil {
+	if err := c.ControllerManager.GenerateControllerFromModel(resourceName, withViews); err != nil {
 		return err
 	}
 
 	if withViews {
 		tableName := naming.DeriveTableName(resourceName)
-		if err := c.viewManager.GenerateViewWithController(resourceName, tableName); err != nil {
+		if err := c.ViewManager.GenerateViewWithController(resourceName, tableName); err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-func (c *Coordinator) GenerateView(resourceName, tableName string) error {
-	return c.viewManager.GenerateView(resourceName, tableName)
-}
-
-func (c *Coordinator) GenerateViewFromModel(resourceName string, withController bool) error {
-	return c.viewManager.GenerateViewFromModel(resourceName, withController)
-}
-
-func (c *Coordinator) RefreshModel(resourceName, tableName string) error {
-	return c.modelManager.RefreshModel(resourceName, tableName)
-}
-
-func (c *Coordinator) RefreshQueries(resourceName, tableName string) error {
-	return c.modelManager.RefreshQueries(resourceName, tableName)
-}
-
-func (c *Coordinator) RefreshConstructors(resourceName, tableName string) error {
-	return c.modelManager.RefreshConstructors(resourceName, tableName)
 }
