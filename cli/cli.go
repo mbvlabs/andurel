@@ -36,12 +36,12 @@ func newRunAppCommand() *cobra.Command {
 		Short: "Runs the app",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			wd, err := os.Getwd()
+			rootDir, err := findGoModRoot()
 			if err != nil {
 				return err
 			}
 
-			binPath := filepath.Join(wd, "bin", "run")
+			binPath := filepath.Join(rootDir, "bin", "run")
 
 			runCmd := exec.Command(binPath)
 			runCmd.Stdout = os.Stdout
