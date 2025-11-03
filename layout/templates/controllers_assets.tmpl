@@ -26,7 +26,7 @@ const (
 
 type Assets struct {
 	sitemapCache otter.Cache[string, Sitemap]
-	assetsCache  otter.Cache[string, string]
+	robotsCache  otter.Cache[string, string]
 }
 
 func newAssets() Assets {
@@ -74,7 +74,7 @@ func (a Assets) enableCaching(c echo.Context, content []byte) echo.Context {
 }
 
 func (a Assets) Robots(c echo.Context) error {
-	if value, ok := a.assetsCache.Get(robotsCacheKey); ok {
+	if value, ok := a.robotsCache.Get(robotsCacheKey); ok {
 		return c.String(http.StatusOK, string(value))
 	}
 
