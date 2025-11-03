@@ -121,7 +121,7 @@ func (r *Router) SetupRoutes() *echo.Echo {
 
 		var middlewareFuncs []echo.MiddlewareFunc
 		for _, mw := range route.Middleware {
-			middlewareFuncs = append(middlewareFuncs, echo.MiddlewareFunc(mw))
+			middlewareFuncs = append(middlewareFuncs, echo.MiddlewareFunc(mw.handler()))
 		}
 
 		switch route.Method {

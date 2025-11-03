@@ -9,7 +9,6 @@ const (
 
 var usersGroup = NewRouteGroup(usersNamePrefix, usersRoutePrefix)
 
-// Session routes
 var SessionNew = usersGroup.Route("new_user_session").
 	SetPath("/sign_in").
 	SetMethod(http.MethodGet).
@@ -28,7 +27,6 @@ var SessionDestroy = usersGroup.Route("destroy_user_session").
 	SetCtrl("Sessions", "Destroy").
 	Register()
 
-// Password reset routes
 var PasswordNew = usersGroup.Route("new_user_password").
 	SetPath("/password/new").
 	SetMethod(http.MethodGet).
@@ -53,7 +51,6 @@ var PasswordUpdate = usersGroup.Route("user_password_update").
 	SetCtrl("ResetPassword", "Update").
 	Register()
 
-// Registration routes
 var RegistrationNew = usersGroup.Route("new_user_registration").
 	SetPath("/sign_up").
 	SetMethod(http.MethodGet).
@@ -66,7 +63,6 @@ var RegistrationCreate = usersGroup.Route("user_registration").
 	SetCtrl("Registrations", "Create").
 	Register()
 
-// Confirmation routes
 var ConfirmationNew = usersGroup.Route("new_user_confirmation").
 	SetPath("/confirmation/new").
 	SetMethod(http.MethodGet).

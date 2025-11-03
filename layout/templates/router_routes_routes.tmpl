@@ -9,6 +9,22 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+type routeMiddleware interface {
+	handler() func(next echo.HandlerFunc) echo.HandlerFunc
+}
+
+type middlewareHandler struct {
+	fn func(next echo.HandlerFunc) echo.HandlerFunc
+}
+
+func (m middlewareHandler) handler() func(next echo.HandlerFunc) echo.HandlerFunc {
+	return m.fn
+}
+
+func newMiddleware(fn func(next echo.HandlerFunc) echo.HandlerFunc) routeMiddleware {
+	return middlewareHandler{fn: fn}
+}
+
 type Route struct {
 	Name             string
 	Path             string
@@ -16,7 +32,7 @@ type Route struct {
 	ControllerMethod string
 	Method           string
 	IncludeInSitemap bool
-	Middleware       []func(next echo.HandlerFunc) echo.HandlerFunc
+	Middleware       []routeMiddleware
 }
 
 type RouteWithID Route
@@ -70,9 +86,7 @@ func (r routeBuilder) SetCtrl(ctrlName, ctrlMethod string) routeBuilder {
 	return r
 }
 
-func (r routeBuilder) WithMiddleware(
-	mw ...func(next echo.HandlerFunc) echo.HandlerFunc,
-) routeBuilder {
+func (r routeBuilder) WithMiddleware(mw ...routeMiddleware) routeBuilder {
 	r.Middleware = append(r.Middleware, mw...)
 	return r
 }

@@ -87,7 +87,8 @@ func (e Auth) renderTemplates(ctx *Context) error {
 		"services_registration.tmpl":   "services/registration.go",
 		"services_reset_password.tmpl": "services/reset_password.go",
 
-		"router_routes_users.tmpl": "router/routes/users.go",
+		"router_routes_users.tmpl":      "router/routes/users.go",
+		"router_routes_middleware.tmpl": "router/routes/middleware.go",
 
 		"views_confirm_email.tmpl":  "views/confirm_email.templ",
 		"views_login.tmpl":          "views/login.templ",

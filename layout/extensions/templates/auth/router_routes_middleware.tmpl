@@ -1,0 +1,24 @@
+package routes
+
+import (
+	"net/http"
+
+	"{{.Data.GetModuleName}}/router/cookies"
+	"github.com/labstack/echo/v4"
+)
+
+var authOnly = newMiddleware(func(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if c.Path() == SessionNew.Path || c.Path() == SessionCreate.Path {
+			return next(c)
+		}
+
+		app := cookies.GetApp(c)
+
+		if app.IsAuthenticated {
+			return next(c)
+		}
+
+		return c.Redirect(http.StatusSeeOther, SessionNew.Path)
+	}
+})
