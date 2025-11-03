@@ -1,0 +1,20 @@
+package workers
+
+import (
+	"context"
+	"sort"
+
+	"{{ .ModuleName }}/queue/jobs"
+
+	"github.com/riverqueue/river"
+)
+
+// SortWorker is a placeholder worker that sorts a list of strings.
+type SortWorker struct {
+	river.WorkerDefaults[jobs.SortArgs]
+}
+
+func (w *SortWorker) Work(ctx context.Context, job *river.Job[jobs.SortArgs]) error {
+	sort.Strings(job.Args.Strings)
+	return nil
+}

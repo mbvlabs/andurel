@@ -5,6 +5,9 @@ import (
 {{- range .Blueprint.Controllers.Imports.SortedItems}}
 	"{{.}}"
 {{- end}}
+{{- if eq .Database "postgresql"}}
+	"{{.ModuleName}}/queue"
+{{- end}}
 )
 
 type Controllers struct {
@@ -17,6 +20,9 @@ func New(
 {{- range $i, $dep := .Blueprint.Controllers.SortedDependencies}}
 	{{$dep.Name}} {{$dep.Type}},
 {{- end}}
+{{- if eq .Database "postgresql"}}
+	insertOnly queue.InsertOnly,
+{{- end}}
 ) (Controllers, error) {
 	cacheBuilder, err := otter.NewBuilder[string, templ.Component](20)
 	if err != nil {
@@ -28,13 +34,25 @@ func New(
 		return Controllers{}, err
 	}
 
+{{- if eq .Database "postgresql"}}
+	assets := newAssets()
+	api := newAPI(db)
+	pages := newPages(db, pageCacher, insertOnly)
+{{- else}}
 {{- range .Blueprint.Controllers.SortedConstructors}}
 	{{.VarName}} := {{.Expression}}
 {{- end}}
+{{- end}}
 
 	return Controllers{
+{{- if eq .Database "postgresql"}}
+		assets,
+		api,
+		pages,
+{{- else}}
 {{- range .Blueprint.Controllers.SortedConstructors}}
 		{{.VarName}},
+{{- end}}
 {{- end}}
 	}, nil
 }

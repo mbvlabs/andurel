@@ -1,0 +1,14 @@
+// Package workers provides a centralized place to register all background workers for the application.
+package workers
+
+import "github.com/riverqueue/river"
+
+func Register() (*river.Workers, error) {
+	wrks := river.NewWorkers()
+
+	if err := river.AddWorkerSafely(wrks, &SortWorker{}); err != nil {
+		return nil, err
+	}
+
+	return wrks, nil
+}
