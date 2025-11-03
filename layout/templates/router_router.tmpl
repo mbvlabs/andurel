@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"reflect"
 	"slices"
 	"strings"
@@ -99,26 +100,20 @@ func (r *Router) SetupRoutes() *echo.Echo {
 
 	for _, route := range routes.BuildRoutes {
 		if registered := slices.Contains(registeredRoutes, route.Name); registered {
-			panic(
-				fmt.Sprintf(
-					"%s is registered more than once",
-					route.Name,
-				),
-			)
+			fmt.Fprintf(os.Stderr, "Error: Route '%s' (Path: %s) is registered more than once\n", route.Name, route.Path)
+			os.Exit(1)
 		}
 
 		if route.Controller == "" || route.ControllerMethod == "" {
-			panic("Route must specify Controller and ControllerMethod fields")
+			fmt.Fprintf(os.Stderr, "Error: Route '%s' (Path: %s) must specify Controller and ControllerMethod fields\n", route.Name, route.Path)
+			os.Exit(1)
 		}
 
 		controllerField := controllersValue.FieldByName(route.Controller)
 		if !controllerField.IsValid() {
-			panic(
-				fmt.Sprintf(
-					"Controller field %s not found in controllers struct",
-					route.Controller,
-				),
-			)
+			fmt.Fprintf(os.Stderr, "Error: Tried to register Route '%s' (Path: %s) on Controller: %s Method: %s but Controller '%s' does not exist\n",
+				route.Name, route.Path, route.Controller, route.ControllerMethod, route.Controller)
+			os.Exit(1)
 		}
 
 		controller := controllerField.Interface()
@@ -157,7 +152,9 @@ func getHandlerFunc(controller any, methodName string) echo.HandlerFunc {
 	appType := reflect.TypeOf(controller)
 	method, found := appType.MethodByName(methodName)
 	if !found {
-		panic(fmt.Sprintf("Controller method %s not found", methodName))
+		controllerName := appType.String()
+		fmt.Fprintf(os.Stderr, "Error: Controller method '%s' not found on Controller: %s\n", methodName, controllerName)
+		os.Exit(1)
 	}
 
 	return func(c echo.Context) error {
