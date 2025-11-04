@@ -26,6 +26,7 @@ func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd.AddCommand(newSqlcCommand())
 
 	rootCmd.AddCommand(newAppCommand())
+	rootCmd.AddCommand(newLlmCommand())
 
 	return rootCmd
 }
