@@ -89,8 +89,8 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 		Slug:           "/",
 		canonical:      config.Domain,
 		MetaType:       "website",
-		stylesheetHref: routes.Stylesheet.Path,
-		scriptSrc:      routes.Scripts.Path,
+		stylesheetHref: routes.Stylesheet.URL(),
+		scriptSrc:      routes.Scripts.URL(),
 	}
 
 	for _, opt := range opts {

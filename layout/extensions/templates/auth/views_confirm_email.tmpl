@@ -9,7 +9,7 @@ templ ConfirmationForm() {
 	<main>
 		<h1>Verify Your Email</h1>
 		<p>Please enter the 6-digit verification code sent to your email.</p>
-		<form method="POST" data-on-submit={ fmt.Sprintf("@post('%s')", routes.ConfirmationCreate.Path) }>
+		<form method="POST" data-on-submit={ fmt.Sprintf("@post('%s')", routes.ConfirmationCreate.URL()) }>
 			<div>
 				<label for="code">Verification Code</label>
 				<input

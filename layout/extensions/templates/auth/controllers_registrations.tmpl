@@ -89,8 +89,8 @@ func (r Registrations) Create(c echo.Context) error {
 			return render(c, views.InternalError())
 		}
 
-		return c.Redirect(http.StatusSeeOther, routes.RegistrationNew.Path)
+		return c.Redirect(http.StatusSeeOther, routes.RegistrationNew.URL())
 	}
 
-	return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.ConfirmationNew.Path)
+	return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.ConfirmationNew.URL())
 }

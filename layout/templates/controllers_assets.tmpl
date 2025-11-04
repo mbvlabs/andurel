@@ -90,7 +90,7 @@ func (a Assets) Robots(c echo.Context) error {
 		Sitemap: fmt.Sprintf(
 			"%s%s",
 			config.Domain,
-			routes.Sitemap.Path,
+			routes.Sitemap.URL(),
 		),
 	})
 	if err != nil {

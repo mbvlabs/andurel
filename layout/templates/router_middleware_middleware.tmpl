@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"{{.ModuleName}}/router/routes"
+
 	"github.com/labstack/echo/v4"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.opentelemetry.io/otel/attribute"
@@ -27,7 +29,7 @@ func Logging(
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			if strings.Contains(c.Request().URL.Path, "/assets/") {
+			if strings.Contains(c.Request().URL.Path, routes.AssetsRoutePrefix) {
 				return next(c)
 			}
 
