@@ -83,12 +83,12 @@ func (r Confirmations) Create(c echo.Context) error {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, errorMsg); flashErr != nil {
 			return render(c, views.InternalError())
 		}
-		return c.Redirect(http.StatusSeeOther, routes.ConfirmationNew.Path)
+		return c.Redirect(http.StatusSeeOther, routes.ConfirmationNew.URL())
 	}
 
 	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Email verified successfully!"); flashErr != nil {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.HomePage.Path)
+	return c.Redirect(http.StatusSeeOther, routes.HomePage.URL())
 }

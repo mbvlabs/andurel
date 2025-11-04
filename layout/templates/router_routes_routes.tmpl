@@ -13,7 +13,31 @@ type routeMiddleware interface {
 	Handler() func(next echo.HandlerFunc) echo.HandlerFunc
 }
 
-type Route struct {
+type Route string
+
+func (r Route) URL() string {
+	return string(r)
+}
+
+type RouteWithID Route
+
+func (r RouteWithID) URL(id uuid.UUID) string {
+	return strings.Replace(string(r), ":id", id.String(), 1)
+}
+
+type RouteWithSlug Route
+
+func (r RouteWithSlug) URL(slug string) string {
+	return strings.Replace(string(r), ":slug", slug, 1)
+}
+
+type RouteWithToken Route
+
+func (r RouteWithToken) URL(token string) string {
+	return strings.Replace(string(r), ":token", token, 1)
+}
+
+type RouteDefinition struct {
 	Name             string
 	Path             string
 	Controller       string
@@ -23,27 +47,9 @@ type Route struct {
 	Middleware       []routeMiddleware
 }
 
-type routeWithID Route
+var Registry = []RouteDefinition{}
 
-func (r routeWithID) URL(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
-
-type routeWithSlug Route
-
-func (r routeWithSlug) URL(slug string) string {
-	return strings.Replace(r.Path, ":slug", slug, 1)
-}
-
-type routeWithToken Route
-
-func (r routeWithToken) URL(token string) string {
-	return strings.Replace(r.Path, ":token", token, 1)
-}
-
-var Registry = []Route{}
-
-type routeBuilder Route
+type routeBuilder RouteDefinition
 
 func newRouteBuilder(name string) routeBuilder {
 	return routeBuilder{
@@ -86,25 +92,25 @@ func (r routeBuilder) WithSitemap() routeBuilder {
 }
 
 func (r routeBuilder) Register() Route {
-	Registry = append(Registry, Route(r))
+	Registry = append(Registry, RouteDefinition(r))
 
-	return Route(r)
+	return Route(r.Path)
 }
 
-func (r routeBuilder) RegisterWithID() routeWithID {
-	Registry = append(Registry, Route(r))
+func (r routeBuilder) RegisterWithID() RouteWithID {
+	Registry = append(Registry, RouteDefinition(r))
 
-	return routeWithID(r)
+	return RouteWithID(r.Path)
 }
 
-func (r routeBuilder) RegisterWithSlug() routeWithSlug {
-	Registry = append(Registry, Route(r))
+func (r routeBuilder) RegisterWithSlug() RouteWithSlug {
+	Registry = append(Registry, RouteDefinition(r))
 
-	return routeWithSlug(r)
+	return RouteWithSlug(r.Path)
 }
 
-func (r routeBuilder) RegisterWithToken() routeWithToken {
-	Registry = append(Registry, Route(r))
+func (r routeBuilder) RegisterWithToken() RouteWithToken {
+	Registry = append(Registry, RouteDefinition(r))
 
-	return routeWithToken(r)
+	return RouteWithToken(r.Path)
 }

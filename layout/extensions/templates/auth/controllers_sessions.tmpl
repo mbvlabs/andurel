@@ -85,7 +85,7 @@ func (s Sessions) Create(c echo.Context) error {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, errorMsg); flashErr != nil {
 			return render(c, views.InternalError())
 		}
-		return c.Redirect(http.StatusSeeOther, routes.SessionNew.Path)
+		return c.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 	}
 
 	sess, err := session.Get(config.AuthenticatedSessionName, c)
@@ -115,7 +115,7 @@ func (s Sessions) Create(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.HomePage.Path)
+	return c.Redirect(http.StatusSeeOther, routes.HomePage.URL())
 }
 
 func (s Sessions) Destroy(c echo.Context) error {
@@ -145,6 +145,6 @@ func (s Sessions) Destroy(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.SessionNew.Path)
+	return c.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 }
 

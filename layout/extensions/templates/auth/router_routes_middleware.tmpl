@@ -13,17 +13,11 @@ type AuthOnly struct{}
 func (a AuthOnly) Handler() func(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			if c.Path() == SessionNew.Path || c.Path() == SessionCreate.Path ||
-				c.Path() == RegistrationNew.Path ||
-				c.Path() == RegistrationCreate.Path {
-				return next(c)
-			}
-
 			if cookies.GetApp(c).IsAuthenticated {
 				return next(c)
 			}
 
-			return c.Redirect(http.StatusSeeOther, SessionNew.Path)
+			return c.Redirect(http.StatusSeeOther, SessionNew.URL())
 		}
 	}
 }
