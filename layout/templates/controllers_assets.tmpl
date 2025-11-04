@@ -1,8 +1,7 @@
 package controllers
 
 import (
-	//nolint:gosec //only needed for browser caching
-
+	"crypto/md5"
 	"encoding/xml"
 	"fmt"
 	"log/slog"
@@ -18,10 +17,11 @@ import (
 )
 
 const (
-	sitemapCacheKey = "assets.sitemap"
-	robotsCacheKey  = "assets.robots"
-	weekInHours     = 168
-	threeInHours    = 72
+	sitemapCacheKey  = "assets.sitemap"
+	robotsCacheKey   = "assets.robots"
+	threeDaysInHours     = 72
+	weekInHours      = 168
+	threeMonthsCache = "7776000"
 )
 
 type Assets struct {
@@ -35,7 +35,7 @@ func newAssets() Assets {
 		panic(err)
 	}
 
-	sitemapCache, err := sitemapCacheBuilder.WithTTL(threeInHours).Build()
+	sitemapCache, err := sitemapCacheBuilder.WithTTL(threeDaysInHours).Build()
 	if err != nil {
 		panic(err)
 	}
