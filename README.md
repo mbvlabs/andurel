@@ -17,16 +17,19 @@ Development speed is everything. Andurel eliminates boilerplate and lets you foc
 - **Instant Scaffolding** - Generate complete CRUD resources with one command
 - **Live Reload** - Hot reloading for Go, templates, and CSS with `andurel run`
 - **Type Safety Everywhere** - SQLC for SQL, Templ for HTML, Go for logic
-- **Batteries Included** - Echo, PostgreSQL, background jobs, sessions, CSRF protection
+- **Batteries Included** - Echo, Datastar, background jobs, sessions, CSRF protection, optional auth and email
 - **Convention over Configuration** - Sensible defaults that just work
+- **Your Choice** - Pick PostgreSQL or SQLite, Tailwind or vanilla CSS
 
 ## Core Technologies
 
 - **[Echo](https://echo.labstack.com/)** - High-performance HTTP framework
 - **[SQLC](https://sqlc.dev/)** - Type-safe SQL code generation
 - **[Templ](https://templ.guide/)** - Type-safe HTML templates
+- **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity
 - **[River](https://riverqueue.com/)** - PostgreSQL-backed background jobs
-- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS (optional)
+- **PostgreSQL or SQLite** - Choose your database
+- **Tailwind CSS or vanilla CSS** - Choose your styling approach
 
 ## Quick Start
 
@@ -38,9 +41,22 @@ go install github.com/mbvlabs/andurel@latest
 
 ### Create Your First Project
 
+Andurel gives you choices when creating a new project:
+
 ```bash
-# Create a new project
+# Create a new project with defaults (PostgreSQL + Tailwind CSS)
 andurel new myapp
+
+# Or customize your stack:
+andurel new myapp -d sqlite              # Use SQLite instead of PostgreSQL
+andurel new myapp -c vanilla             # Use vanilla CSS instead of Tailwind
+andurel new myapp -d sqlite -c vanilla   # SQLite + vanilla CSS
+
+# Add extensions for common features:
+andurel new myapp -e auth                # Add authentication
+andurel new myapp -e email               # Add email support
+andurel new myapp -e auth,email          # Add multiple extensions
+
 cd myapp
 
 # Configure environment
@@ -189,9 +205,21 @@ andurel a c          # short alias
 ### Project Creation
 
 ```bash
-# Create a new project
+# Create a new project with defaults (PostgreSQL + Tailwind CSS)
 andurel new myapp
-andurel new myapp --repo username  # With custom GitHub repo
+
+# Customize your stack:
+andurel new myapp -d sqlite              # Use SQLite
+andurel new myapp -c vanilla             # Use vanilla CSS
+andurel new myapp -d sqlite -c vanilla   # Both options
+
+# Add extensions:
+andurel new myapp -e auth                # Authentication
+andurel new myapp -e email               # Email support
+andurel new myapp -e auth,email          # Multiple extensions
+
+# With custom GitHub repo:
+andurel new myapp --repo username
 ```
 
 ### LLM Documentation
@@ -230,8 +258,12 @@ insertOnly.Client.Insert(ctx, EmailJobArgs{UserID: userID}, nil)
 
 ### Database Support
 
-- **PostgreSQL** (recommended for production) - Full feature support including River jobs
-- **SQLite** (suitable for development) - Fast local development without server setup
+Choose your database when creating a project:
+
+- **PostgreSQL** (default) - Full feature support including River background jobs, ideal for production and concurrent workloads
+- **SQLite** - Lightweight, serverless database perfect for simpler applications, prototypes, or when you don't need background jobs
+
+Both databases are fully supported with type-safe SQLC code generation. The choice depends on your application requirements, not just development vs production.
 
 ### Live Development Experience
 
@@ -264,6 +296,33 @@ var UserShowPage = newRouteBuilder("show").
 // Generate URLs type-safely
 url := routes.UserShowPage.URL(userID)
 ```
+
+### Extensions
+
+Andurel includes optional extensions that add common functionality to your projects:
+
+- **auth** - Complete authentication system with login, registration, password reset, and session management
+- **email** - Email sending capabilities with template support, perfect for transactional emails and notifications
+
+Add extensions when creating a project with the `-e` flag:
+
+```bash
+andurel new myapp -e auth,email
+```
+
+Extensions integrate seamlessly with your chosen database and CSS framework, generating all necessary models, controllers, views, and routes.
+
+### Frontend Interactivity with Datastar
+
+Andurel uses Datastar for hypermedia-driven interactivity, allowing you to build dynamic user interfaces without writing JavaScript:
+
+- Server-side rendering with progressive enhancement
+- Reactive updates using HTML attributes
+- Form validation and submission without page reloads
+- Real-time updates and polling
+- Clean separation between backend logic and frontend behavior
+
+Datastar keeps your application logic on the server while providing a smooth, modern user experience.
 
 ## Framework Philosophy
 
@@ -366,10 +425,11 @@ Andurel is built on top of excellent open-source projects:
 - **[Echo](https://echo.labstack.com/)** - High-performance HTTP router and framework
 - **[SQLC](https://sqlc.dev/)** - Type-safe SQL code generation
 - **[Templ](https://templ.guide/)** - Type-safe Go templates
+- **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity
 - **[River](https://riverqueue.com/)** - Fast PostgreSQL-backed job queue
 - **[pgx](https://github.com/jackc/pgx)** - PostgreSQL driver and toolkit
 - **[Air](https://github.com/cosmtrek/air)** - Live reload for Go apps
-- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
+- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework (optional)
 - **[Cobra](https://cobra.dev/)** - CLI framework
 
 ## Acknowledgments
