@@ -220,18 +220,15 @@ func run(ctx context.Context) error {
 	go {{.FunctionCall}}
 {{- end}}
 
-	port := "8080"
-	host := "0.0.0.0"
-
 	srv := &http.Server{
-		Addr:         fmt.Sprintf("%v:%v", host, port),
+		Addr:         fmt.Sprintf("%v:%v", cfg.App.Host, cfg.App.Port),
 		Handler:      handler,
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 5 * time.Second,
 		BaseContext:  func(_ net.Listener) context.Context { return ctx },
 	}
 
-	slog.InfoContext(ctx, "starting server", "host", host, "port", port)
+	slog.InfoContext(ctx, "starting server", "host", cfg.App.Host, "port", cfg.App.Port)
 {{- if eq .Database "postgresql"}}
 	return startServer(ctx, srv, processor, config.Env)
 {{- else}}

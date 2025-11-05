@@ -3,6 +3,8 @@ package config
 import "github.com/caarlos0/env/v10"
 
 type app struct {
+	Host                 string `env:"HOST" envDefault:"localhost"`
+	Port                 string `env:"PORT" envDefault:"8080"`
 	SessionKey           string `env:"SESSION_KEY"`
 	SessionEncryptionKey string `env:"SESSION_ENCRYPTION_KEY"`
 	TokenSigningKey      string `env:"TOKEN_SIGNING_KEY"`

@@ -285,18 +285,15 @@ func run(ctx context.Context) error {
 		return nil
 	}()
 
-	port := "8080"
-	host := "0.0.0.0"
-
 	srv := &http.Server{
-		Addr:         fmt.Sprintf("%v:%v", host, port),
+		Addr:         fmt.Sprintf("%v:%v", cfg.App.Host, cfg.App.Port),
 		Handler:      handler,
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 5 * time.Second,
 		BaseContext:  func(_ net.Listener) context.Context { return ctx },
 	}
 
-	slog.InfoContext(ctx, "starting server", "host", host, "port", port)
+	slog.InfoContext(ctx, "starting server", "host", cfg.App.Host, "port", cfg.App.Port)
 	return startServer(ctx, srv, processor, config.Env)
 }
 
@@ -660,8 +657,16 @@ func cleanup() {
 		}
 	}
 
-	exec.Command("pkill", "-f", "tmp/bin/main").Run()
-	exec.Command("fuser", "-k", "8080/tcp").Run()
+	wd, err := os.Getwd()
+	if err == nil {
+		exec.Command("pkill", "-f", wd+"/tmp/bin/main").Run()
+	}
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	exec.Command("fuser", "-k", port+"/tcp").Run()
 
 	time.Sleep(500 * time.Millisecond)
 	fmt.Printf("Cleanup complete.\n")
@@ -748,6 +753,8 @@ package config
 import "github.com/caarlos0/env/v10"
 
 type app struct {
+	Host                 string `env:"HOST" envDefault:"localhost"`
+	Port                 string `env:"PORT" envDefault:"8080"`
 	SessionKey           string `env:"SESSION_KEY"`
 	SessionEncryptionKey string `env:"SESSION_ENCRYPTION_KEY"`
 	TokenSigningKey      string `env:"TOKEN_SIGNING_KEY"`
