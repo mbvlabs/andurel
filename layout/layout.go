@@ -103,6 +103,11 @@ func Scaffold(
 	}
 
 	if database == "sqlite" {
+		fmt.Print("Processing SQLite goqite queue migrations...\n")
+		if err := processSQLiteMigrations(targetDir, &templateData); err != nil {
+			return fmt.Errorf("failed to process SQLite migrations: %w", err)
+		}
+
 		if err := createSqliteDB(targetDir, projectName); err != nil {
 			return fmt.Errorf("failed to create go.mod: %w", err)
 		}
@@ -291,6 +296,11 @@ var basePSQLTemplateMappings = map[TmplTarget]TmplTargetPath{
 var baseSqliteTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"sqlite_database.tmpl": "database/database.go",
 	"sqlite_sqlc.tmpl":     "database/sqlc.yaml",
+
+	"sqlite_queue_queue.tmpl":             "queue/queue.go",
+	"sqlite_queue_jobs_sort_jobs.tmpl":    "queue/jobs/sort_jobs.go",
+	"sqlite_queue_workers_workers.tmpl":   "queue/workers/workers.go",
+	"sqlite_queue_workers_sort_jobs.tmpl": "queue/workers/sort_jobs.go",
 }
 
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -424,6 +434,33 @@ func processPostgreSQLMigrations(targetDir string, data extensions.TemplateData)
 			4 * time.Second,
 		},
 		{"psql_riverqueue_migration_six.tmpl", "add_river_job_unique_states", 5 * time.Second},
+	}
+
+	for _, migration := range migrations {
+		timestamp := baseTime.Add(migration.offset).Format("20060102150405")
+		targetPath := fmt.Sprintf("database/migrations/%s_%s.sql", timestamp, migration.name)
+
+		if err := renderTemplate(targetDir, migration.template, targetPath, templates.Files, data); err != nil {
+			return fmt.Errorf("failed to process migration %s: %w", migration.template, err)
+		}
+	}
+
+	return nil
+}
+
+func processSQLiteMigrations(targetDir string, data extensions.TemplateData) error {
+	baseTime := time.Now()
+
+	if os.Getenv("ANDUREL_TEST_MODE") == "true" {
+		baseTime = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	}
+
+	migrations := []struct {
+		template string
+		name     string
+		offset   time.Duration
+	}{
+		{"sqlite_goqite_migration_one.tmpl", "create_goqite_table", 0},
 	}
 
 	for _, migration := range migrations {

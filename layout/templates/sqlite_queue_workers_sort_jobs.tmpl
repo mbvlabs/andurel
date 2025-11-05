@@ -1,0 +1,19 @@
+package workers
+
+import (
+	"context"
+	"encoding/json"
+	"sort"
+
+	"{{ .ModuleName }}/queue/jobs"
+)
+
+func HandleSort(ctx context.Context, m []byte) error {
+	var args jobs.SortArgs
+	if err := json.Unmarshal(m, &args); err != nil {
+		return err
+	}
+
+	sort.Strings(args.Strings)
+	return nil
+}
