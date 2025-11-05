@@ -861,8 +861,7 @@ func (a API) Health(ctx echo.Context) error {
 package controllers
 
 import (
-	//nolint:gosec //only needed for browser caching
-
+	"crypto/md5"
 	"encoding/xml"
 	"fmt"
 	"log/slog"
@@ -878,10 +877,11 @@ import (
 )
 
 const (
-	sitemapCacheKey = "assets.sitemap"
-	robotsCacheKey  = "assets.robots"
-	weekInHours     = 168
-	threeInHours    = 72
+	sitemapCacheKey  = "assets.sitemap"
+	robotsCacheKey   = "assets.robots"
+	threeDaysInHours = 72
+	weekInHours      = 168
+	threeMonthsCache = "7776000"
 )
 
 type Assets struct {
@@ -895,7 +895,7 @@ func newAssets() Assets {
 		panic(err)
 	}
 
-	sitemapCache, err := sitemapCacheBuilder.WithTTL(threeInHours).Build()
+	sitemapCache, err := sitemapCacheBuilder.WithTTL(threeDaysInHours).Build()
 	if err != nil {
 		panic(err)
 	}
@@ -914,21 +914,32 @@ func newAssets() Assets {
 }
 
 func (a Assets) enableCaching(c echo.Context, content []byte) echo.Context {
-	// if config.Env == config.PROD_ENVIRONMENT {
-	// 	//nolint:gosec //only needed for browser caching
-	// 	hash := md5.Sum(content)
-	// 	etag := fmt.Sprintf(`W/"%x-%x"`, hash, len(content))
-	//
-	// 	c.Response().
-	// 		Header().
-	// 		Set("Cache-Control", fmt.Sprintf("public, max-age=%s", threeMonthsCache))
-	// 	c.Response().
-	// 		Header().
-	// 		Set("Vary", "Accept-Encoding")
-	// 	c.Response().
-	// 		Header().
-	// 		Set("ETag", etag)
-	// }
+	if config.Env == config.ProdEnvironment {
+		//nolint:gosec //only needed for browser caching
+		hash := md5.Sum(content)
+		etag := fmt.Sprintf(`"%x-%x"`, hash, len(content))
+
+		if match := c.Request().Header.Get("If-None-Match"); match == etag {
+			c.Response().
+				Header().
+				Set("Cache-Control", fmt.Sprintf("public, max-age=%s, immutable", threeMonthsCache))
+			c.Response().
+				Header().
+				Set("ETag", etag)
+			c.NoContent(http.StatusNotModified)
+			return c
+		}
+
+		c.Response().
+			Header().
+			Set("Cache-Control", fmt.Sprintf("public, max-age=%s, immutable", threeMonthsCache))
+		c.Response().
+			Header().
+			Set("Vary", "Accept-Encoding")
+		c.Response().
+			Header().
+			Set("ETag", etag)
+	}
 
 	return c
 }
@@ -950,7 +961,7 @@ func (a Assets) Robots(c echo.Context) error {
 		Sitemap: fmt.Sprintf(
 			"%s%s",
 			config.Domain,
-			routes.Sitemap.Path,
+			routes.Sitemap.URL(),
 		),
 	})
 	if err != nil {
@@ -1542,6 +1553,8 @@ import (
 	"strings"
 	"time"
 
+	"testapp/router/routes"
+
 	"github.com/labstack/echo/v4"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.opentelemetry.io/otel/attribute"
@@ -1562,7 +1575,7 @@ func Logging(
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			if strings.Contains(c.Request().URL.Path, "/assets/") {
+			if strings.Contains(c.Request().URL.Path, routes.AssetsRoutePrefix) {
 				return next(c)
 			}
 
@@ -2035,7 +2048,31 @@ type routeMiddleware interface {
 	Handler() func(next echo.HandlerFunc) echo.HandlerFunc
 }
 
-type Route struct {
+type Route string
+
+func (r Route) URL() string {
+	return string(r)
+}
+
+type RouteWithID Route
+
+func (r RouteWithID) URL(id uuid.UUID) string {
+	return strings.Replace(string(r), ":id", id.String(), 1)
+}
+
+type RouteWithSlug Route
+
+func (r RouteWithSlug) URL(slug string) string {
+	return strings.Replace(string(r), ":slug", slug, 1)
+}
+
+type RouteWithToken Route
+
+func (r RouteWithToken) URL(token string) string {
+	return strings.Replace(string(r), ":token", token, 1)
+}
+
+type RouteDefinition struct {
 	Name             string
 	Path             string
 	Controller       string
@@ -2045,27 +2082,9 @@ type Route struct {
 	Middleware       []routeMiddleware
 }
 
-type routeWithID Route
+var Registry = []RouteDefinition{}
 
-func (r routeWithID) URL(id uuid.UUID) string {
-	return strings.Replace(r.Path, ":id", id.String(), 1)
-}
-
-type routeWithSlug Route
-
-func (r routeWithSlug) URL(slug string) string {
-	return strings.Replace(r.Path, ":slug", slug, 1)
-}
-
-type routeWithToken Route
-
-func (r routeWithToken) URL(token string) string {
-	return strings.Replace(r.Path, ":token", token, 1)
-}
-
-var Registry = []Route{}
-
-type routeBuilder Route
+type routeBuilder RouteDefinition
 
 func newRouteBuilder(name string) routeBuilder {
 	return routeBuilder{
@@ -2108,27 +2127,27 @@ func (r routeBuilder) WithSitemap() routeBuilder {
 }
 
 func (r routeBuilder) Register() Route {
-	Registry = append(Registry, Route(r))
+	Registry = append(Registry, RouteDefinition(r))
 
-	return Route(r)
+	return Route(r.Path)
 }
 
-func (r routeBuilder) RegisterWithID() routeWithID {
-	Registry = append(Registry, Route(r))
+func (r routeBuilder) RegisterWithID() RouteWithID {
+	Registry = append(Registry, RouteDefinition(r))
 
-	return routeWithID(r)
+	return RouteWithID(r.Path)
 }
 
-func (r routeBuilder) RegisterWithSlug() routeWithSlug {
-	Registry = append(Registry, Route(r))
+func (r routeBuilder) RegisterWithSlug() RouteWithSlug {
+	Registry = append(Registry, RouteDefinition(r))
 
-	return routeWithSlug(r)
+	return RouteWithSlug(r.Path)
 }
 
-func (r routeBuilder) RegisterWithToken() routeWithToken {
-	Registry = append(Registry, Route(r))
+func (r routeBuilder) RegisterWithToken() RouteWithToken {
+	Registry = append(Registry, RouteDefinition(r))
 
-	return routeWithToken(r)
+	return RouteWithToken(r.Path)
 }
 
 
@@ -2336,8 +2355,8 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 		Slug:           "/",
 		canonical:      config.Domain,
 		MetaType:       "website",
-		stylesheetHref: routes.Stylesheet.Path,
-		scriptSrc:      routes.Scripts.Path,
+		stylesheetHref: routes.Stylesheet.URL(),
+		scriptSrc:      routes.Scripts.URL(),
 	}
 
 	for _, opt := range opts {
@@ -2711,8 +2730,8 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 		Slug:           "/",
 		canonical:      config.Domain,
 		MetaType:       "website",
-		stylesheetHref: routes.Stylesheet.Path,
-		scriptSrc:      routes.Scripts.Path,
+		stylesheetHref: routes.Stylesheet.URL(),
+		scriptSrc:      routes.Scripts.URL(),
 	}
 
 	for _, opt := range opts {

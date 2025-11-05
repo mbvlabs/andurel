@@ -397,6 +397,10 @@ func processTemplatedFiles(
 func processPostgreSQLMigrations(targetDir string, data extensions.TemplateData) error {
 	baseTime := time.Now()
 
+	if os.Getenv("ANDUREL_TEST_MODE") == "true" {
+		baseTime = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	}
+
 	migrations := []struct {
 		template string
 		name     string
@@ -804,8 +808,13 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	// Constructor initializations
 	builder.
 		AddControllerConstructor("assets", "newAssets()").
-		AddControllerConstructor("api", "newAPI(db)").
-		AddControllerConstructor("pages", "newPages(db, pageCacher)")
+		AddControllerConstructor("api", "newAPI(db)")
+
+	if database == "postgresql" {
+		builder.AddControllerConstructor("pages", "newPages(db, pageCacher, insertOnly)")
+	} else {
+		builder.AddControllerConstructor("pages", "newPages(db, pageCacher)")
+	}
 
 	for _, tool := range defaultTools {
 		builder.AddTool(tool)

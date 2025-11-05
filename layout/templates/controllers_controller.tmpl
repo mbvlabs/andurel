@@ -34,25 +34,13 @@ func New(
 		return Controllers{}, err
 	}
 
-{{- if eq .Database "postgresql"}}
-	assets := newAssets()
-	api := newAPI(db)
-	pages := newPages(db, pageCacher, insertOnly)
-{{- else}}
 {{- range .Blueprint.Controllers.SortedConstructors}}
 	{{.VarName}} := {{.Expression}}
 {{- end}}
-{{- end}}
 
 	return Controllers{
-{{- if eq .Database "postgresql"}}
-		assets,
-		api,
-		pages,
-{{- else}}
 {{- range .Blueprint.Controllers.SortedConstructors}}
 		{{.VarName}},
-{{- end}}
 {{- end}}
 	}, nil
 }
