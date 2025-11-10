@@ -97,27 +97,31 @@ func New(
 func (r *Router) SetupRoutes() *echo.Echo {
 	registeredRoutes := []string{}
 	controllersValue := reflect.ValueOf(r.controllers)
+	var errors []string
 
 	for _, route := range routes.Registry {
 		if registered := slices.Contains(registeredRoutes, route.Name); registered {
-			fmt.Fprintf(os.Stderr, "Error: Route '%s' (Path: %s) is registered more than once\n", route.Name, route.Path)
-			os.Exit(1)
+			errors = append(errors, fmt.Sprintf("  - Route '%s' (Path: %s) is registered more than once", route.Name, route.Path))
+			continue
 		}
 
 		if route.Controller == "" || route.ControllerMethod == "" {
-			fmt.Fprintf(os.Stderr, "Error: Route '%s' (Path: %s) must specify Controller and ControllerMethod fields\n", route.Name, route.Path)
-			os.Exit(1)
+			errors = append(errors, fmt.Sprintf("  - Route '%s' (Path: %s) must specify Controller and ControllerMethod fields", route.Name, route.Path))
+			continue
 		}
 
 		controllerField := controllersValue.FieldByName(route.Controller)
 		if !controllerField.IsValid() {
-			fmt.Fprintf(os.Stderr, "Error: Tried to register Route '%s' (Path: %s) on Controller: %s Method: %s but Controller '%s' does not exist\n",
-				route.Name, route.Path, route.Controller, route.ControllerMethod, route.Controller)
-			os.Exit(1)
+			errors = append(errors, fmt.Sprintf("  - Route '%s' expects Controller '%s' to exist but it was not found", route.Name, route.Controller))
+			continue
 		}
 
 		controller := controllerField.Interface()
-		controllerFunc := getHandlerFunc(controller, route.ControllerMethod)
+		controllerFunc, err := getHandlerFunc(controller, route.ControllerMethod)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("  - Route '%s' expects Controller '%s' to have method '%s' but none was found", route.Name, route.Controller, route.ControllerMethod))
+			continue
+		}
 
 		var middlewareFuncs []echo.MiddlewareFunc
 		for _, mw := range route.Middleware {
@@ -140,21 +144,30 @@ func (r *Router) SetupRoutes() *echo.Echo {
 		}
 	}
 
-	r.Handler.RouteNotFound(
-		"/*",
-		getHandlerFunc(r.controllers.Pages, "NotFound"),
-	)
+	if len(errors) > 0 {
+		fmt.Fprintf(os.Stderr, "Found %d route configuration error(s):\n", len(errors))
+		for _, err := range errors {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		os.Exit(1)
+	}
+
+	notFoundHandler, err := getHandlerFunc(r.controllers.Pages, "NotFound")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: Failed to setup NotFound handler: %v\n", err)
+		os.Exit(1)
+	}
+
+	r.Handler.RouteNotFound("/*", notFoundHandler)
 
 	return r.Handler
 }
 
-func getHandlerFunc(controller any, methodName string) echo.HandlerFunc {
+func getHandlerFunc(controller any, methodName string) (echo.HandlerFunc, error) {
 	appType := reflect.TypeOf(controller)
 	method, found := appType.MethodByName(methodName)
 	if !found {
-		controllerName := appType.String()
-		fmt.Fprintf(os.Stderr, "Error: Controller method '%s' not found on Controller: %s\n", methodName, controllerName)
-		os.Exit(1)
+		return nil, fmt.Errorf("method '%s' not found on controller", methodName)
 	}
 
 	return func(c echo.Context) error {
@@ -177,7 +190,7 @@ func getHandlerFunc(controller any, methodName string) echo.HandlerFunc {
 		}
 
 		return values[0].Interface().(error)
-	}
+	}, nil
 }
 
 func registerAppContext(
