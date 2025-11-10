@@ -369,15 +369,15 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_routes_pages.tmpl":       "router/routes/pages.go",
 
 	// Telemetry
-	"telemetry_telemetry.tmpl":         "telemetry/telemetry.go",
-	"telemetry_options.tmpl":           "telemetry/options.go",
-	"telemetry_logger.tmpl":            "telemetry/logger.go",
-	"telemetry_log_exporters.tmpl":     "telemetry/log_exporters.go",
-	"telemetry_metrics.tmpl":           "telemetry/metrics.go",
-	"telemetry_metric_exporters.tmpl":  "telemetry/metric_exporters.go",
-	"telemetry_tracer.tmpl":            "telemetry/tracer.go",
-	"telemetry_trace_exporters.tmpl":   "telemetry/trace_exporters.go",
-	"telemetry_helpers.tmpl":           "telemetry/helpers.go",
+	"telemetry_telemetry.tmpl":         "pkg/telemetry/telemetry.go",
+	"telemetry_options.tmpl":           "pkg/telemetry/options.go",
+	"telemetry_logger.tmpl":            "pkg/telemetry/logger.go",
+	"telemetry_log_exporters.tmpl":     "pkg/telemetry/log_exporters.go",
+	"telemetry_metrics.tmpl":           "pkg/telemetry/metrics.go",
+	"telemetry_metric_exporters.tmpl":  "pkg/telemetry/metric_exporters.go",
+	"telemetry_tracer.tmpl":            "pkg/telemetry/tracer.go",
+	"telemetry_trace_exporters.tmpl":   "pkg/telemetry/trace_exporters.go",
+	"telemetry_helpers.tmpl":           "pkg/telemetry/helpers.go",
 }
 
 func processTemplatedFiles(

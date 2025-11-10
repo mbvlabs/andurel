@@ -14,8 +14,8 @@ import (
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/pkg/telemetry"
 	"{{.ModuleName}}/router"
-	"{{.ModuleName}}/telemetry"
 {{- if eq .Database "postgresql"}}
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/queue/workers"
