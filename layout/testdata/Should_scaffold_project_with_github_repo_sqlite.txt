@@ -21,7 +21,7 @@ css/base.css
 css/theme.css
 database/database.go
 database/migrations/.gitkeep
-database/migrations/20251105124832_create_goqite_table.sql
+database/migrations/20250101000000_create_goqite_table.sql
 database/queries/.gitkeep
 database/sqlc.yaml
 models/errors.go
@@ -1332,7 +1332,7 @@ func (s *SQLite) CommitTx(ctx context.Context, tx *sql.Tx) error {
 === database/migrations/.gitkeep ===
 
 
-=== database/migrations/20251105124832_create_goqite_table.sql ===
+=== database/migrations/20250101000000_create_goqite_table.sql ===
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE goqite (
