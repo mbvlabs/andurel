@@ -59,6 +59,12 @@ func RunSqlcGenerate(targetDir string) error {
 	return cmd.Run()
 }
 
+func RunGooseFix(targetDir string) error {
+	cmd := exec.Command("go", "tool", "goose", "-dir", "database/migrations", "fix")
+	cmd.Dir = targetDir
+	return cmd.Run()
+}
+
 func SetupTailwind(targetDir string) error {
 	binPath := filepath.Join(targetDir, "bin", "tailwindcli")
 
