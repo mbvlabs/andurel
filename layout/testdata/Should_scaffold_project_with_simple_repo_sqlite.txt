@@ -21,11 +21,16 @@ css/base.css
 css/theme.css
 database/database.go
 database/migrations/.gitkeep
+database/migrations/20250101000000_create_goqite_table.sql
 database/queries/.gitkeep
 database/sqlc.yaml
 models/errors.go
 models/internal/db/db.go
 models/model.go
+queue/jobs/sort_jobs.go
+queue/queue.go
+queue/workers/sort_jobs.go
+queue/workers/workers.go
 router/cookies/cookies.go
 router/cookies/flash.go
 router/middleware/middleware.go
@@ -1327,6 +1332,35 @@ func (s *SQLite) CommitTx(ctx context.Context, tx *sql.Tx) error {
 === database/migrations/.gitkeep ===
 
 
+=== database/migrations/20250101000000_create_goqite_table.sql ===
+-- +goose Up
+-- +goose StatementBegin
+CREATE TABLE goqite (
+  id TEXT PRIMARY KEY DEFAULT ('m_' || lower(hex(randomblob(16)))),
+  created TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ')),
+  updated TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ')),
+  queue TEXT NOT NULL,
+  body BLOB NOT NULL,
+  timeout TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ')),
+  received INTEGER NOT NULL DEFAULT 0,
+  priority INTEGER NOT NULL DEFAULT 0
+) STRICT;
+
+CREATE TRIGGER goqite_updated_timestamp AFTER UPDATE ON goqite BEGIN
+  UPDATE goqite SET updated = strftime('%Y-%m-%dT%H:%M:%fZ') WHERE id = old.id;
+END;
+
+CREATE INDEX goqite_queue_priority_created_idx ON goqite (queue, priority DESC, created);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP INDEX IF EXISTS goqite_queue_priority_created_idx;
+DROP TRIGGER IF EXISTS goqite_updated_timestamp;
+DROP TABLE IF EXISTS goqite;
+-- +goose StatementEnd
+
+
 === database/queries/.gitkeep ===
 
 
@@ -1403,6 +1437,114 @@ var (
 func setupValidator() *validator.Validate {
 	v := validator.New(validator.WithRequiredStructEnabled())
 	return v
+}
+
+
+=== queue/jobs/sort_jobs.go ===
+package jobs
+
+type SortArgs struct {
+	Strings []string `json:"strings"`
+}
+
+
+=== queue/queue.go ===
+package queue
+
+import (
+	"context"
+	"database/sql"
+	"log/slog"
+	"time"
+
+	"maragu.dev/goqite"
+	"maragu.dev/goqite/jobs"
+)
+
+type InsertOnly struct {
+	queue *goqite.Queue
+}
+
+func NewInsertOnly(db *sql.DB) (InsertOnly, error) {
+	q := goqite.New(goqite.NewOpts{
+		DB:   db,
+		Name: "jobs",
+	})
+
+	return InsertOnly{q}, nil
+}
+
+func (i InsertOnly) Queue() *goqite.Queue {
+	return i.queue
+}
+
+type Processor struct {
+	runner *jobs.Runner
+}
+
+func (p Processor) Start(ctx context.Context) error {
+	p.runner.Start(ctx)
+	return nil
+}
+
+func (p Processor) Stop(ctx context.Context) error {
+	return nil
+}
+
+type RegisterFunc func(runner *jobs.Runner)
+
+func NewProcessor(
+	ctx context.Context,
+	db *sql.DB,
+	register RegisterFunc,
+) (Processor, error) {
+	q := goqite.New(goqite.NewOpts{
+		DB:   db,
+		Name: "jobs",
+	})
+
+	runner := jobs.NewRunner(jobs.NewRunnerOpts{
+		Limit:        100,
+		Log:          slog.Default(),
+		PollInterval: 100 * time.Millisecond,
+		Queue:        q,
+	})
+
+	register(runner)
+
+	return Processor{runner}, nil
+}
+
+
+=== queue/workers/sort_jobs.go ===
+package workers
+
+import (
+	"context"
+	"encoding/json"
+	"sort"
+
+	"myorg/webapp/queue/jobs"
+)
+
+func HandleSort(ctx context.Context, m []byte) error {
+	var args jobs.SortArgs
+	if err := json.Unmarshal(m, &args); err != nil {
+		return err
+	}
+
+	sort.Strings(args.Strings)
+	return nil
+}
+
+
+=== queue/workers/workers.go ===
+package workers
+
+import "maragu.dev/goqite/jobs"
+
+func Register(runner *jobs.Runner) {
+	runner.Register("sort", HandleSort)
 }
 
 
