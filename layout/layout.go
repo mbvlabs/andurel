@@ -95,16 +95,22 @@ func Scaffold(
 		return fmt.Errorf("failed to process templated files: %w", err)
 	}
 
+	var nextMigrationTime time.Time
+
 	if database == "postgresql" {
 		fmt.Print("Processing PostgreSQL River queue migrations...\n")
-		if err := processPostgreSQLMigrations(targetDir, &templateData); err != nil {
+		var err error
+		nextMigrationTime, err = processPostgreSQLMigrations(targetDir, &templateData)
+		if err != nil {
 			return fmt.Errorf("failed to process PostgreSQL migrations: %w", err)
 		}
 	}
 
 	if database == "sqlite" {
 		fmt.Print("Processing SQLite goqite queue migrations...\n")
-		if err := processSQLiteMigrations(targetDir, &templateData); err != nil {
+		var err error
+		nextMigrationTime, err = processSQLiteMigrations(targetDir, &templateData)
+		if err != nil {
 			return fmt.Errorf("failed to process SQLite migrations: %w", err)
 		}
 
@@ -196,11 +202,14 @@ func Scaffold(
 					fn:            fn,
 				})
 			},
+			NextMigrationTime: &nextMigrationTime,
 		}
 
 		if err := currentExt.Apply(&ctx); err != nil {
 			return fmt.Errorf("failed to apply extension %s: %w", currentExt.Name(), err)
 		}
+
+		nextMigrationTime = nextMigrationTime.Add(10 * time.Second)
 	}
 
 	// Re-render templates that use blueprint data after extensions have been applied
@@ -219,6 +228,11 @@ func Scaffold(
 		if err := step.fn(targetDir); err != nil {
 			return fmt.Errorf("extension %s post-step failed: %w", step.extensionName, err)
 		}
+	}
+
+	fmt.Print("Fixing migration timestamps...\n")
+	if err := cmds.RunGooseFix(targetDir); err != nil {
+		return fmt.Errorf("failed to run goose fix: %w", err)
 	}
 
 	fmt.Print("Running templ fmt...\n")
@@ -404,7 +418,7 @@ func processTemplatedFiles(
 	return nil
 }
 
-func processPostgreSQLMigrations(targetDir string, data extensions.TemplateData) error {
+func processPostgreSQLMigrations(targetDir string, data extensions.TemplateData) (time.Time, error) {
 	baseTime := time.Now()
 
 	if os.Getenv("ANDUREL_TEST_MODE") == "true" {
@@ -436,19 +450,21 @@ func processPostgreSQLMigrations(targetDir string, data extensions.TemplateData)
 		{"psql_riverqueue_migration_six.tmpl", "add_river_job_unique_states", 5 * time.Second},
 	}
 
+	var lastTime time.Time
 	for _, migration := range migrations {
-		timestamp := baseTime.Add(migration.offset).Format("20060102150405")
+		lastTime = baseTime.Add(migration.offset)
+		timestamp := lastTime.Format("20060102150405")
 		targetPath := fmt.Sprintf("database/migrations/%s_%s.sql", timestamp, migration.name)
 
 		if err := renderTemplate(targetDir, migration.template, targetPath, templates.Files, data); err != nil {
-			return fmt.Errorf("failed to process migration %s: %w", migration.template, err)
+			return time.Time{}, fmt.Errorf("failed to process migration %s: %w", migration.template, err)
 		}
 	}
 
-	return nil
+	return lastTime.Add(1 * time.Second), nil
 }
 
-func processSQLiteMigrations(targetDir string, data extensions.TemplateData) error {
+func processSQLiteMigrations(targetDir string, data extensions.TemplateData) (time.Time, error) {
 	baseTime := time.Now()
 
 	if os.Getenv("ANDUREL_TEST_MODE") == "true" {
@@ -463,16 +479,18 @@ func processSQLiteMigrations(targetDir string, data extensions.TemplateData) err
 		{"sqlite_goqite_migration_one.tmpl", "create_goqite_table", 0},
 	}
 
+	var lastTime time.Time
 	for _, migration := range migrations {
-		timestamp := baseTime.Add(migration.offset).Format("20060102150405")
+		lastTime = baseTime.Add(migration.offset)
+		timestamp := lastTime.Format("20060102150405")
 		targetPath := fmt.Sprintf("database/migrations/%s_%s.sql", timestamp, migration.name)
 
 		if err := renderTemplate(targetDir, migration.template, targetPath, templates.Files, data); err != nil {
-			return fmt.Errorf("failed to process migration %s: %w", migration.template, err)
+			return time.Time{}, fmt.Errorf("failed to process migration %s: %w", migration.template, err)
 		}
 	}
 
-	return nil
+	return lastTime.Add(1 * time.Second), nil
 }
 
 func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) error {

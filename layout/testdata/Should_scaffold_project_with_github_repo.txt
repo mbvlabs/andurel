@@ -20,12 +20,12 @@ css/base.css
 css/theme.css
 database/database.go
 database/migrations/.gitkeep
-database/migrations/20250101000000_create_river_migration_table.sql
-database/migrations/20250101000001_create_river_job_and_leader_tables.sql
-database/migrations/20250101000002_alter_river_job_tags.sql
-database/migrations/20250101000003_alter_river_job_args_metadata_add_queue.sql
-database/migrations/20250101000004_add_river_job_unique_key_and_clients.sql
-database/migrations/20250101000005_add_river_job_unique_states.sql
+database/migrations/00001_create_river_migration_table.sql
+database/migrations/00002_create_river_job_and_leader_tables.sql
+database/migrations/00003_alter_river_job_tags.sql
+database/migrations/00004_alter_river_job_args_metadata_add_queue.sql
+database/migrations/00005_add_river_job_unique_key_and_clients.sql
+database/migrations/00006_add_river_job_unique_states.sql
 database/queries/.gitkeep
 database/sqlc.yaml
 models/errors.go
@@ -1373,7 +1373,7 @@ func (p *Postgres) CommitTx(ctx context.Context, tx pgx.Tx) error {
 === database/migrations/.gitkeep ===
 
 
-=== database/migrations/20250101000000_create_river_migration_table.sql ===
+=== database/migrations/00001_create_river_migration_table.sql ===
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE river_migration(
@@ -1392,7 +1392,7 @@ DROP TABLE river_migration;
 -- +goose StatementEnd
 
 
-=== database/migrations/20250101000001_create_river_job_and_leader_tables.sql ===
+=== database/migrations/00002_create_river_job_and_leader_tables.sql ===
 -- +goose Up
 -- +goose StatementBegin
 CREATE TYPE river_job_state AS ENUM(
@@ -1503,7 +1503,7 @@ DROP TABLE river_leader;
 -- +goose StatementEnd
 
 
-=== database/migrations/20250101000002_alter_river_job_tags.sql ===
+=== database/migrations/00003_alter_river_job_tags.sql ===
 -- +goose Up
 -- +goose StatementBegin
 ALTER TABLE river_job ALTER COLUMN tags SET DEFAULT '{}';
@@ -1519,7 +1519,7 @@ ALTER TABLE river_job
 -- +goose StatementEnd
 
 
-=== database/migrations/20250101000003_alter_river_job_args_metadata_add_queue.sql ===
+=== database/migrations/00004_alter_river_job_args_metadata_add_queue.sql ===
 -- +goose Up
 -- +goose StatementBegin
 -- The args column never had a NOT NULL constraint or default value at the
@@ -1616,7 +1616,7 @@ ALTER TABLE river_leader
 -- +goose StatementEnd
 
 
-=== database/migrations/20250101000004_add_river_job_unique_key_and_clients.sql ===
+=== database/migrations/00005_add_river_job_unique_key_and_clients.sql ===
 -- +goose Up
 -- +goose StatementBegin
 --
@@ -1762,7 +1762,7 @@ DROP TABLE river_client;
 -- +goose StatementEnd
 
 
-=== database/migrations/20250101000005_add_river_job_unique_states.sql ===
+=== database/migrations/00006_add_river_job_unique_states.sql ===
 -- +goose Up
 -- +goose StatementBegin
 CREATE OR REPLACE FUNCTION river_job_state_in_bitmask(bitmask BIT(8), state river_job_state)
