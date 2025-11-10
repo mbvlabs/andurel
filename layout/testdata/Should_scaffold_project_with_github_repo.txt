@@ -1395,6 +1395,7 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -1418,6 +1419,8 @@ func NewPostgres(ctx context.Context, databaseURL string) (Postgres, error) {
 		slog.ErrorContext(ctx, "could not parse database connection string", "error", err)
 		return Postgres{}, err
 	}
+
+	pgxCfg.ConnConfig.Tracer = otelpgx.NewTracer()
 
 	pool, err := pgxpool.NewWithConfig(ctx, pgxCfg)
 	if err != nil {
