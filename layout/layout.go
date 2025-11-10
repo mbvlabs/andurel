@@ -335,9 +335,10 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"cmd_console_main.tmpl":   "cmd/console/main.go",
 
 	// Config
-	"config_app.tmpl":      "config/app.go",
-	"config_config.tmpl":   "config/config.go",
-	"config_database.tmpl": "config/database.go",
+	"config_app.tmpl":       "config/app.go",
+	"config_config.tmpl":    "config/config.go",
+	"config_database.tmpl":  "config/database.go",
+	"config_telemetry.tmpl": "config/telemetry.go",
 
 	// Controllers
 	"controllers_api.tmpl":        "controllers/api.go",
@@ -356,7 +357,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Router
 	"router_router.tmpl":                "router/router.go",
-	"router_std_out_logger.tmpl":        "router/stdout_logger.go",
 	"router_cookies_cookies.tmpl":       "router/cookies/cookies.go",
 	"router_cookies_flash.tmpl":         "router/cookies/flash.go",
 	"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
@@ -367,6 +367,17 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_routes_api.tmpl":         "router/routes/api.go",
 	"router_routes_assets.tmpl":      "router/routes/assets.go",
 	"router_routes_pages.tmpl":       "router/routes/pages.go",
+
+	// Telemetry
+	"telemetry_telemetry.tmpl":         "pkg/telemetry/telemetry.go",
+	"telemetry_options.tmpl":           "pkg/telemetry/options.go",
+	"telemetry_logger.tmpl":            "pkg/telemetry/logger.go",
+	"telemetry_log_exporters.tmpl":     "pkg/telemetry/log_exporters.go",
+	"telemetry_metrics.tmpl":           "pkg/telemetry/metrics.go",
+	"telemetry_metric_exporters.tmpl":  "pkg/telemetry/metric_exporters.go",
+	"telemetry_tracer.tmpl":            "pkg/telemetry/tracer.go",
+	"telemetry_trace_exporters.tmpl":   "pkg/telemetry/trace_exporters.go",
+	"telemetry_helpers.tmpl":           "pkg/telemetry/helpers.go",
 }
 
 func processTemplatedFiles(

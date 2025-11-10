@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/gosimple/slug"
 )
 
 const (
@@ -28,6 +30,13 @@ var (
 		}
 
 		return "andurel"
+	}()
+	ServiceName = func() string {
+		if os.Getenv("TELEMETRY_SERVICE_NAME") != "" {
+			return os.Getenv("TELEMETRY_SERVICE_NAME")
+		}
+
+		return slug.Make(ProjectName)
 	}()
 	Domain = func() string {
 		var domain string
@@ -55,8 +64,9 @@ var (
 )
 
 type Config struct {
-	App app
-	DB   database
+	App       app
+	DB        database
+	Telemetry telemetry
 {{- range .Blueprint.Config.SortedFields}}
 	{{.Name}} {{.Type}}
 {{- end}}
@@ -64,8 +74,9 @@ type Config struct {
 
 func NewConfig() Config {
 	return Config{
-		App: newAppConfig(),
-		DB:   newDatabaseConfig(),
+		App:       newAppConfig(),
+		DB:        newDatabaseConfig(),
+		Telemetry: newTelemetryConfig(),
 {{- range .Blueprint.Config.SortedFields}}
 		{{.Name}}: new{{.Name}}Config(),
 {{- end}}

@@ -8,11 +8,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/pkg/telemetry"
 	"{{.ModuleName}}/router"
 {{- if eq .Database "postgresql"}}
 	"{{.ModuleName}}/queue"
@@ -103,11 +105,12 @@ func setupControllers(
 	return ctrl, nil
 }
 
-func setupRouter(ctx context.Context, ctrl controllers.Controllers, cfg config.Config) (*echo.Echo, error) {
+func setupRouter(ctx context.Context, ctrl controllers.Controllers, cfg config.Config, tel *telemetry.Telemetry) (*echo.Echo, error) {
 	router, err := router.New(
 		ctx,
 		ctrl,
 		cfg,
+		tel,
 	)
 	if err != nil {
 		return nil, err
@@ -116,24 +119,67 @@ func setupRouter(ctx context.Context, ctrl controllers.Controllers, cfg config.C
 	return router.SetupRoutes(), nil
 }
 
+func parseHeaders(headersStr string) map[string]string {
+	headers := make(map[string]string)
+	if headersStr == "" {
+		return headers
+	}
+
+	pairs := strings.Split(headersStr, ",")
+	for _, pair := range pairs {
+		kv := strings.SplitN(pair, "=", 2)
+		if len(kv) == 2 {
+			headers[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+		}
+	}
+	return headers
+}
+
+func buildTelemetry(ctx context.Context, cfg config.Config) (*telemetry.Telemetry, error) {
+	opts := []telemetry.Option{
+		telemetry.WithService(cfg.Telemetry.ServiceName, cfg.Telemetry.ServiceVersion),
+		telemetry.WithBatchConfig(cfg.Telemetry.BatchSize, cfg.Telemetry.BatchTimeoutMs, 2048),
+		telemetry.WithTraceSampleRate(cfg.Telemetry.TraceSampleRate),
+	}
+
+	opts = append(opts, telemetry.WithLogExporters(telemetry.NewStdoutExporter()))
+
+	if cfg.Telemetry.OtlpMetricsEndpoint != "" {
+		opts = append(opts, telemetry.WithMetricExporters(
+			telemetry.NewOtlpMetricExporter(cfg.Telemetry.OtlpMetricsEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders))))
+	}
+
+	if cfg.Telemetry.OtlpTracesEndpoint != "" {
+		opts = append(opts, telemetry.WithTraceExporters(
+			telemetry.NewOtlpTraceExporter(cfg.Telemetry.OtlpTracesEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders))))
+	} else {
+		opts = append(opts, telemetry.WithTraceExporters(telemetry.NewNoopTraceExporter()))
+	}
+
+	return telemetry.New(ctx, opts...)
+}
+
 func run(ctx context.Context) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
 	cfg := config.NewConfig()
 
-	stdoutExporter := &router.StdoutExporter{
-		LogLevel:   slog.LevelInfo,
+	tel, err := buildTelemetry(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("failed to initialize telemetry: %w", err)
 	}
-
-	logger, shutdownLogger := router.NewLogger(ctx, stdoutExporter)
 	defer func() {
-		if err := shutdownLogger(ctx); err != nil {
-			slog.Error("Error shutting down logger", "error", err)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := tel.Shutdown(shutdownCtx); err != nil {
+			slog.Error("telemetry shutdown error", "error", err)
 		}
 	}()
 
-	slog.SetDefault(logger)
+	if err := tel.HealthCheck(ctx); err != nil {
+		slog.Warn("telemetry health check failed", "error", err)
+	}
 
 
 {{- if eq .Database "postgresql"}}
@@ -198,7 +244,7 @@ func run(ctx context.Context) error {
 	}
 
 
-	handler, err := setupRouter(ctx, controllers, cfg)
+	handler, err := setupRouter(ctx, controllers, cfg, tel)
 	if err != nil {
 		return err
 	}

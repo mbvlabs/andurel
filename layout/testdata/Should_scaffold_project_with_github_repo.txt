@@ -12,6 +12,7 @@ cmd/run/main.go
 config/app.go
 config/config.go
 config/database.go
+config/telemetry.go
 controllers/api.go
 controllers/assets.go
 controllers/controller.go
@@ -31,6 +32,15 @@ database/sqlc.yaml
 models/errors.go
 models/internal/db/db.go
 models/model.go
+pkg/telemetry/helpers.go
+pkg/telemetry/log_exporters.go
+pkg/telemetry/logger.go
+pkg/telemetry/metric_exporters.go
+pkg/telemetry/metrics.go
+pkg/telemetry/options.go
+pkg/telemetry/telemetry.go
+pkg/telemetry/trace_exporters.go
+pkg/telemetry/tracer.go
 queue/jobs/sort_jobs.go
 queue/queue.go
 queue/workers/sort_jobs.go
@@ -44,7 +54,6 @@ router/routes/assets.go
 router/routes/pages.go
 router/routes/route_group.go
 router/routes/routes.go
-router/stdout_logger.go
 views/bad_request.templ
 views/bad_request_templ.go
 views/components/head.templ
@@ -134,11 +143,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"testuser/myapp/config"
 	"testuser/myapp/controllers"
 	"testuser/myapp/database"
+	"testuser/myapp/pkg/telemetry"
 	"testuser/myapp/queue"
 	"testuser/myapp/queue/workers"
 	"testuser/myapp/router"
@@ -205,11 +216,12 @@ func setupControllers(
 	return ctrl, nil
 }
 
-func setupRouter(ctx context.Context, ctrl controllers.Controllers, cfg config.Config) (*echo.Echo, error) {
+func setupRouter(ctx context.Context, ctrl controllers.Controllers, cfg config.Config, tel *telemetry.Telemetry) (*echo.Echo, error) {
 	router, err := router.New(
 		ctx,
 		ctrl,
 		cfg,
+		tel,
 	)
 	if err != nil {
 		return nil, err
@@ -218,24 +230,67 @@ func setupRouter(ctx context.Context, ctrl controllers.Controllers, cfg config.C
 	return router.SetupRoutes(), nil
 }
 
+func parseHeaders(headersStr string) map[string]string {
+	headers := make(map[string]string)
+	if headersStr == "" {
+		return headers
+	}
+
+	pairs := strings.Split(headersStr, ",")
+	for _, pair := range pairs {
+		kv := strings.SplitN(pair, "=", 2)
+		if len(kv) == 2 {
+			headers[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+		}
+	}
+	return headers
+}
+
+func buildTelemetry(ctx context.Context, cfg config.Config) (*telemetry.Telemetry, error) {
+	opts := []telemetry.Option{
+		telemetry.WithService(cfg.Telemetry.ServiceName, cfg.Telemetry.ServiceVersion),
+		telemetry.WithBatchConfig(cfg.Telemetry.BatchSize, cfg.Telemetry.BatchTimeoutMs, 2048),
+		telemetry.WithTraceSampleRate(cfg.Telemetry.TraceSampleRate),
+	}
+
+	opts = append(opts, telemetry.WithLogExporters(telemetry.NewStdoutExporter()))
+
+	if cfg.Telemetry.OtlpMetricsEndpoint != "" {
+		opts = append(opts, telemetry.WithMetricExporters(
+			telemetry.NewOtlpMetricExporter(cfg.Telemetry.OtlpMetricsEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders))))
+	}
+
+	if cfg.Telemetry.OtlpTracesEndpoint != "" {
+		opts = append(opts, telemetry.WithTraceExporters(
+			telemetry.NewOtlpTraceExporter(cfg.Telemetry.OtlpTracesEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders))))
+	} else {
+		opts = append(opts, telemetry.WithTraceExporters(telemetry.NewNoopTraceExporter()))
+	}
+
+	return telemetry.New(ctx, opts...)
+}
+
 func run(ctx context.Context) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
 	cfg := config.NewConfig()
 
-	stdoutExporter := &router.StdoutExporter{
-		LogLevel: slog.LevelInfo,
+	tel, err := buildTelemetry(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("failed to initialize telemetry: %w", err)
 	}
-
-	logger, shutdownLogger := router.NewLogger(ctx, stdoutExporter)
 	defer func() {
-		if err := shutdownLogger(ctx); err != nil {
-			slog.Error("Error shutting down logger", "error", err)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := tel.Shutdown(shutdownCtx); err != nil {
+			slog.Error("telemetry shutdown error", "error", err)
 		}
 	}()
 
-	slog.SetDefault(logger)
+	if err := tel.HealthCheck(ctx); err != nil {
+		slog.Warn("telemetry health check failed", "error", err)
+	}
 	db, err := database.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
@@ -271,7 +326,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	handler, err := setupRouter(ctx, controllers, cfg)
+	handler, err := setupRouter(ctx, controllers, cfg, tel)
 	if err != nil {
 		return err
 	}
@@ -781,6 +836,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/gosimple/slug"
 )
 
 const (
@@ -804,6 +861,13 @@ var (
 		}
 
 		return "andurel"
+	}()
+	ServiceName = func() string {
+		if os.Getenv("TELEMETRY_SERVICE_NAME") != "" {
+			return os.Getenv("TELEMETRY_SERVICE_NAME")
+		}
+
+		return slug.Make(ProjectName)
 	}()
 	Domain = func() string {
 		var domain string
@@ -831,14 +895,16 @@ var (
 )
 
 type Config struct {
-	App app
-	DB  database
+	App       app
+	DB        database
+	Telemetry telemetry
 }
 
 func NewConfig() Config {
 	return Config{
-		App: newAppConfig(),
-		DB:  newDatabaseConfig(),
+		App:       newAppConfig(),
+		DB:        newDatabaseConfig(),
+		Telemetry: newTelemetryConfig(),
 	}
 }
 
@@ -879,6 +945,36 @@ func newDatabaseConfig() database {
 	}
 
 	return dataCfg
+}
+
+
+=== config/telemetry.go ===
+package config
+
+import "github.com/caarlos0/env/v10"
+
+type telemetry struct {
+	ServiceName         string  `env:"TELEMETRY_SERVICE_NAME" envDefault:"myapp"`
+	ServiceVersion      string  `env:"TELEMETRY_SERVICE_VERSION" envDefault:"1.0.0"`
+	OtlpLogsEndpoint    string  `env:"OTLP_LOGS_ENDPOINT" envDefault:""`
+	OtlpMetricsEndpoint string  `env:"OTLP_METRICS_ENDPOINT" envDefault:""`
+	OtlpTracesEndpoint  string  `env:"OTLP_TRACES_ENDPOINT" envDefault:""`
+	OtlpHeaders         string  `env:"OTLP_HEADERS" envDefault:""`
+	TraceSampleRate     float64 `env:"TRACE_SAMPLE_RATE" envDefault:"1.0"`
+	BatchSize           int     `env:"TELEMETRY_BATCH_SIZE" envDefault:"512"`
+	BatchTimeoutMs      int     `env:"TELEMETRY_BATCH_TIMEOUT_MS" envDefault:"5000"`
+}
+
+func newTelemetryConfig() telemetry {
+	telemetryCfg := telemetry{}
+
+	if err := env.ParseWithOptions(&telemetryCfg, env.Options{
+		RequiredIfNoDef: true,
+	}); err != nil {
+		panic(err)
+	}
+
+	return telemetryCfg
 }
 
 
@@ -1299,6 +1395,7 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -1322,6 +1419,8 @@ func NewPostgres(ctx context.Context, databaseURL string) (Postgres, error) {
 		slog.ErrorContext(ctx, "could not parse database connection string", "error", err)
 		return Postgres{}, err
 	}
+
+	pgxCfg.ConnConfig.Tracer = otelpgx.NewTracer()
 
 	pool, err := pgxpool.NewWithConfig(ctx, pgxCfg)
 	if err != nil {
@@ -1906,6 +2005,1215 @@ func setupValidator() *validator.Validate {
 }
 
 
+=== pkg/telemetry/helpers.go ===
+package telemetry
+
+import (
+	"context"
+
+	"testuser/myapp/config"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+)
+
+// StartSpan starts a new span with the given name using the global tracer.
+func StartSpan(ctx context.Context, spanName string) (context.Context, trace.Span) {
+	tracer := GetTracer(config.ServiceName)
+	return tracer.Start(ctx, spanName)
+}
+
+// StartSpanAttrs starts a new span with the given name and attributes using the global tracer.
+func StartSpanAttrs(ctx context.Context, spanName string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
+	tracer := GetTracer(config.ServiceName)
+	ctx, span := tracer.Start(ctx, spanName)
+	span.SetAttributes(attrs...)
+	return ctx, span
+}
+
+// RecErr records an error in the given span and sets its status to error.
+func RecErr(span trace.Span, err error) {
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+}
+
+// AddEvent adds an event with the given name and attributes to the span.
+func AddEvent(span trace.Span, name string, attrs ...attribute.KeyValue) {
+	span.AddEvent(name, trace.WithAttributes(attrs...))
+}
+
+
+=== pkg/telemetry/log_exporters.go ===
+package telemetry
+
+import (
+	"context"
+	"log/slog"
+	"os"
+
+	"github.com/lmittmann/tint"
+)
+
+type StdoutExporter struct {
+	LogLevel slog.Level
+}
+
+func NewStdoutExporter() *StdoutExporter {
+	return &StdoutExporter{
+		LogLevel: slog.LevelInfo,
+	}
+}
+
+func NewStdoutExporterWithLevel(level slog.Level) *StdoutExporter {
+	return &StdoutExporter{
+		LogLevel: level,
+	}
+}
+
+func (s *StdoutExporter) GetSlogHandler(ctx context.Context) (slog.Handler, error) {
+	handler := tint.NewHandler(os.Stdout, &tint.Options{
+		Level:      s.LogLevel,
+		TimeFormat: "15:04:05",
+		AddSource:  true,
+	})
+
+	return handler, nil
+}
+
+func (s *StdoutExporter) Name() string {
+	return "stdout"
+}
+
+func (s *StdoutExporter) Shutdown(ctx context.Context) error {
+	return nil
+}
+
+var _ LogExporter = (*StdoutExporter)(nil)
+
+
+=== pkg/telemetry/logger.go ===
+package telemetry
+
+import (
+	"context"
+	"log/slog"
+
+	"go.opentelemetry.io/otel/trace"
+)
+
+type LogExporter interface {
+	Name() string
+	GetSlogHandler(ctx context.Context) (slog.Handler, error)
+	Shutdown(ctx context.Context) error
+}
+
+type traceLogHandler struct {
+	handler slog.Handler
+}
+
+func (h *traceLogHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.handler.Enabled(ctx, level)
+}
+
+func (h *traceLogHandler) Handle(ctx context.Context, record slog.Record) error {
+	traceAttrs := traceAttrsFromContext(ctx)
+	for _, attr := range traceAttrs {
+		record.AddAttrs(attr)
+	}
+
+	return h.handler.Handle(ctx, record)
+}
+
+func (h *traceLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &traceLogHandler{
+		handler: h.handler.WithAttrs(attrs),
+	}
+}
+
+func (h *traceLogHandler) WithGroup(name string) slog.Handler {
+	return &traceLogHandler{
+		handler: h.handler.WithGroup(name),
+	}
+}
+
+func traceAttrsFromContext(ctx context.Context) []slog.Attr {
+	var attrs []slog.Attr
+
+	spanCtx := trace.SpanContextFromContext(ctx)
+	if spanCtx.IsValid() {
+		attrs = append(attrs,
+			slog.String("trace_id", spanCtx.TraceID().String()),
+			slog.String("span_id", spanCtx.SpanID().String()),
+		)
+	}
+
+	return attrs
+}
+
+
+=== pkg/telemetry/metric_exporters.go ===
+package telemetry
+
+import (
+	"context"
+	"crypto/tls"
+	"fmt"
+	"strings"
+
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	"go.opentelemetry.io/otel/sdk/resource"
+)
+
+type OtlpHttpMetricExporter struct {
+	endpoint string
+	insecure bool
+	headers  map[string]string
+	exporter sdkmetric.Exporter
+}
+
+func NewOtlpMetricExporter(endpoint string, headers map[string]string) *OtlpHttpMetricExporter {
+	if endpoint == "" {
+		return nil
+	}
+	return &OtlpHttpMetricExporter{
+		endpoint: endpoint,
+		insecure: false,
+		headers:  headers,
+		exporter: nil,
+	}
+}
+
+func NewOtlpMetricExporterInsecure(endpoint string, headers map[string]string) *OtlpHttpMetricExporter {
+	if endpoint == "" {
+		return nil
+	}
+	return &OtlpHttpMetricExporter{
+		endpoint: endpoint,
+		insecure: true,
+		headers:  headers,
+		exporter: nil,
+	}
+}
+
+func (o *OtlpHttpMetricExporter) Name() string {
+	return "otlp-http-metrics"
+}
+
+func (o *OtlpHttpMetricExporter) GetSdkMetricExporter(ctx context.Context, res *resource.Resource) (sdkmetric.Exporter, error) {
+	endpoint := strings.TrimPrefix(o.endpoint, "http://")
+	endpoint = strings.TrimPrefix(endpoint, "https://")
+
+	opts := []otlpmetrichttp.Option{
+		otlpmetrichttp.WithEndpoint(endpoint),
+	}
+
+	if o.insecure {
+		opts = append(opts, otlpmetrichttp.WithInsecure())
+	} else {
+		opts = append(opts, otlpmetrichttp.WithTLSClientConfig(&tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}))
+	}
+
+	if len(o.headers) > 0 {
+		opts = append(opts, otlpmetrichttp.WithHeaders(o.headers))
+	}
+
+	exporter, err := otlpmetrichttp.New(ctx, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OTLP HTTP metric exporter: %w", err)
+	}
+
+	o.exporter = exporter
+	return exporter, nil
+}
+
+func (o *OtlpHttpMetricExporter) Shutdown(ctx context.Context) error {
+	if o.exporter != nil {
+		if err := o.exporter.Shutdown(ctx); err != nil {
+			return fmt.Errorf("failed to shutdown OTLP HTTP metric exporter: %w", err)
+		}
+	}
+	return nil
+}
+
+var _ MetricExporter = (*OtlpHttpMetricExporter)(nil)
+
+type noopSdkMetricExporter struct{}
+
+func (n *noopSdkMetricExporter) Aggregation(sdkmetric.InstrumentKind) sdkmetric.Aggregation {
+	return nil
+}
+
+func (n *noopSdkMetricExporter) Export(context.Context, *metricdata.ResourceMetrics) error {
+	return nil
+}
+
+func (n *noopSdkMetricExporter) ForceFlush(context.Context) error {
+	return nil
+}
+
+func (n *noopSdkMetricExporter) Shutdown(context.Context) error {
+	return nil
+}
+
+func (n *noopSdkMetricExporter) Temporality(sdkmetric.InstrumentKind) metricdata.Temporality {
+	return 0
+}
+
+var _ sdkmetric.Exporter = (*noopSdkMetricExporter)(nil)
+
+type NoopMetricExporter struct{}
+
+func NewNoopMetricExporter() *NoopMetricExporter {
+	return &NoopMetricExporter{}
+}
+
+func (n *NoopMetricExporter) Name() string {
+	return "noop-metrics"
+}
+
+func (n *NoopMetricExporter) GetSdkMetricExporter(ctx context.Context, res *resource.Resource) (sdkmetric.Exporter, error) {
+	return &noopSdkMetricExporter{}, nil
+}
+
+func (n *NoopMetricExporter) Shutdown(ctx context.Context) error {
+	return nil
+}
+
+var _ MetricExporter = (*NoopMetricExporter)(nil)
+
+
+=== pkg/telemetry/metrics.go ===
+package telemetry
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"runtime"
+	"time"
+
+	"testuser/myapp/config"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
+)
+
+type MetricExporter interface {
+	Name() string
+	GetSdkMetricExporter(ctx context.Context, res *resource.Resource) (sdkmetric.Exporter, error)
+	Shutdown(ctx context.Context) error
+}
+
+func GetMeter(serviceName string) metric.Meter {
+	return otel.Meter(serviceName)
+}
+
+func HTTPRequestsTotal() (metric.Int64Counter, error) {
+	counter, err := GetMeter(config.ServiceName).Int64Counter(
+		"http_requests_total",
+		metric.WithDescription("Total number of HTTP requests"),
+		metric.WithUnit("1"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http_requests_total counter: %w", err)
+	}
+	return counter, nil
+}
+
+func HTTPRequestsInFlight() (metric.Int64UpDownCounter, error) {
+	counter, err := GetMeter(config.ServiceName).Int64UpDownCounter(
+		"http_requests_in_flight",
+		metric.WithDescription("Current number of HTTP requests being served"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http_requests_in_flight counter: %w", err)
+	}
+	return counter, nil
+}
+
+func HTTPRequestDuration() (metric.Float64Histogram, error) {
+	histogram, err := GetMeter(config.ServiceName).Float64Histogram(
+		"http_request_duration_seconds",
+		metric.WithDescription("HTTP request duration in seconds"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http_request_duration_seconds histogram: %w", err)
+	}
+	return histogram, nil
+}
+
+func HTTPRequestSize() (metric.Float64Histogram, error) {
+	histogram, err := GetMeter(config.ServiceName).Float64Histogram(
+		"http_request_size_bytes",
+		metric.WithDescription("HTTP request size in bytes"),
+		metric.WithUnit("By"),
+		metric.WithExplicitBucketBoundaries(1024, 2048, 5120, 10240, 102400, 512000, 1048576, 2621440, 5242880, 10485760),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http_request_size_bytes histogram: %w", err)
+	}
+	return histogram, nil
+}
+
+func HTTPResponseSize() (metric.Float64Histogram, error) {
+	histogram, err := GetMeter(config.ServiceName).Float64Histogram(
+		"http_response_size_bytes",
+		metric.WithDescription("HTTP response size in bytes"),
+		metric.WithUnit("By"),
+		metric.WithExplicitBucketBoundaries(1024, 2048, 5120, 10240, 102400, 512000, 1048576, 2621440, 5242880, 10485760),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http_response_size_bytes histogram: %w", err)
+	}
+	return histogram, nil
+}
+
+func SetupRuntimeMetricsInCallback(meter metric.Meter) error {
+	_, err := meter.Int64ObservableGauge(
+		"go_goroutines",
+		metric.WithDescription("Number of goroutines that currently exist"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				o.Observe(int64(runtime.NumGoroutine()))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_goroutines gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_alloc_bytes",
+		metric.WithDescription("Number of bytes allocated and still in use"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.Alloc))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_alloc_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_heap_alloc_bytes",
+		metric.WithDescription("Number of heap bytes allocated and still in use"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.HeapAlloc))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_heap_alloc_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_heap_sys_bytes",
+		metric.WithDescription("Number of heap bytes obtained from system"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.HeapSys))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_heap_sys_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_heap_idle_bytes",
+		metric.WithDescription("Number of heap bytes waiting to be used"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.HeapIdle))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_heap_idle_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_heap_inuse_bytes",
+		metric.WithDescription("Number of heap bytes that are in use"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.HeapInuse))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_heap_inuse_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_heap_released_bytes",
+		metric.WithDescription("Number of heap bytes released to OS"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.HeapReleased))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_heap_released_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_sys_bytes",
+		metric.WithDescription("Number of bytes obtained from system"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.Sys))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_sys_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableCounter(
+		"go_memstats_mallocs_total",
+		metric.WithDescription("Total number of mallocs"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.Mallocs))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_mallocs_total counter: %w", err)
+	}
+
+	_, err = meter.Int64ObservableCounter(
+		"go_memstats_frees_total",
+		metric.WithDescription("Total number of frees"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.Frees))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_frees_total counter: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_heap_objects",
+		metric.WithDescription("Number of allocated objects"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.HeapObjects))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_heap_objects gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_next_gc_bytes",
+		metric.WithDescription("Number of heap bytes when next garbage collection will take place"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.NextGC))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_next_gc_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Float64ObservableGauge(
+		"go_memstats_last_gc_time_seconds",
+		metric.WithDescription("Number of seconds since 1970 of last garbage collection"),
+		metric.WithUnit("s"),
+		metric.WithFloat64Callback(
+			func(ctx context.Context, o metric.Float64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(float64(m.LastGC) / 1e9)
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_last_gc_time_seconds gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_gc_sys_bytes",
+		metric.WithDescription("Number of bytes used for garbage collection system metadata"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.GCSys))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_gc_sys_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_threads",
+		metric.WithDescription("Number of OS threads created"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				o.Observe(int64(runtime.GOMAXPROCS(0)))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_threads gauge: %w", err)
+	}
+
+	var previousNumGC uint32
+	var totalPauseNs uint64
+
+	_, err = meter.Float64ObservableGauge(
+		"go_gc_duration_seconds_sum",
+		metric.WithDescription("Total pause duration of garbage collection cycles"),
+		metric.WithUnit("s"),
+		metric.WithFloat64Callback(
+			func(ctx context.Context, o metric.Float64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+
+				if m.NumGC > previousNumGC {
+					for i := previousNumGC; i < m.NumGC; i++ {
+						idx := i % uint32(len(m.PauseNs))
+						totalPauseNs += m.PauseNs[idx]
+					}
+					previousNumGC = m.NumGC
+				}
+
+				o.Observe(float64(totalPauseNs) / 1e9)
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_gc_duration_seconds_sum gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_gc_duration_seconds_count",
+		metric.WithDescription("Number of garbage collection cycles"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.NumGC))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_gc_duration_seconds_count gauge: %w", err)
+	}
+
+	startTime := time.Now()
+	_, err = meter.Float64ObservableGauge(
+		"process_start_time_seconds",
+		metric.WithDescription("Start time of the process since unix epoch in seconds"),
+		metric.WithUnit("s"),
+		metric.WithFloat64Callback(
+			func(ctx context.Context, o metric.Float64Observer) error {
+				o.Observe(float64(startTime.Unix()))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create process_start_time_seconds gauge: %w", err)
+	}
+
+	return nil
+}
+
+func ComputeApproximateRequestSize(r *http.Request) int {
+	s := 0
+	if r.URL != nil {
+		s = len(r.URL.Path)
+	}
+
+	s += len(r.Method)
+	s += len(r.Proto)
+	for name, values := range r.Header {
+		s += len(name)
+		for _, value := range values {
+			s += len(value)
+		}
+	}
+	s += len(r.Host)
+
+	if r.ContentLength != -1 {
+		s += int(r.ContentLength)
+	}
+	return s
+}
+
+
+=== pkg/telemetry/options.go ===
+package telemetry
+
+import (
+	"fmt"
+	"time"
+)
+
+type Option func(*telemetryOptions) error
+
+type telemetryOptions struct {
+	serviceName     string
+	serviceVersion  string
+	logExporters    []LogExporter
+	metricExporters []MetricExporter
+	traceExporters  []TraceExporter
+	batchSize       int
+	batchTimeout    time.Duration
+	queueSize       int
+	traceSampleRate float64
+}
+
+func defaultConfig() *telemetryOptions {
+	return &telemetryOptions{
+		serviceName:     "unknown-service",
+		serviceVersion:  "0.0.0",
+		batchSize:       512,
+		batchTimeout:    5 * time.Second,
+		queueSize:       2048,
+		traceSampleRate: 1.0,
+	}
+}
+
+func WithService(name, version string) Option {
+	return func(c *telemetryOptions) error {
+		if name == "" {
+			return fmt.Errorf("service name cannot be empty")
+		}
+		if version == "" {
+			return fmt.Errorf("service version cannot be empty")
+		}
+		c.serviceName = name
+		c.serviceVersion = version
+		return nil
+	}
+}
+
+func WithLogExporters(exporters ...LogExporter) Option {
+	return func(c *telemetryOptions) error {
+		for i, exp := range exporters {
+			if exp == nil {
+				return fmt.Errorf("log exporter at index %d is nil", i)
+			}
+		}
+		c.logExporters = exporters
+		return nil
+	}
+}
+
+func WithMetricExporters(exporters ...MetricExporter) Option {
+	return func(c *telemetryOptions) error {
+		for i, exp := range exporters {
+			if exp == nil {
+				return fmt.Errorf("metric exporter at index %d is nil", i)
+			}
+		}
+		c.metricExporters = exporters
+		return nil
+	}
+}
+
+func WithTraceExporters(exporters ...TraceExporter) Option {
+	return func(c *telemetryOptions) error {
+		for i, exp := range exporters {
+			if exp == nil {
+				return fmt.Errorf("trace exporter at index %d is nil", i)
+			}
+		}
+		c.traceExporters = exporters
+		return nil
+	}
+}
+
+func WithBatchConfig(size int, timeoutMs int, queueSize int) Option {
+	return func(c *telemetryOptions) error {
+		if size <= 0 {
+			return fmt.Errorf("batch size must be positive, got %d", size)
+		}
+		if timeoutMs <= 0 {
+			return fmt.Errorf("batch timeout must be positive, got %d", timeoutMs)
+		}
+		if queueSize <= 0 {
+			return fmt.Errorf("queue size must be positive, got %d", queueSize)
+		}
+		c.batchSize = size
+		c.batchTimeout = time.Duration(timeoutMs) * time.Millisecond
+		c.queueSize = queueSize
+		return nil
+	}
+}
+
+func WithTraceSampleRate(rate float64) Option {
+	return func(c *telemetryOptions) error {
+		if rate < 0.0 || rate > 1.0 {
+			return fmt.Errorf("trace sample rate must be between 0.0 and 1.0, got %f", rate)
+		}
+		c.traceSampleRate = rate
+		return nil
+	}
+}
+
+
+=== pkg/telemetry/telemetry.go ===
+package telemetry
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"os"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"golang.org/x/sync/errgroup"
+
+	sdklog "go.opentelemetry.io/otel/sdk/log"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+)
+
+type Telemetry struct {
+	resource       *resource.Resource
+	loggerProvider *sdklog.LoggerProvider
+	meterProvider  *sdkmetric.MeterProvider
+	tracerProvider *sdktrace.TracerProvider
+	shutdownFuncs  []func(context.Context) error
+	config         *telemetryOptions
+}
+
+func New(ctx context.Context, opts ...Option) (*Telemetry, error) {
+	cfg := defaultConfig()
+	for _, opt := range opts {
+		if err := opt(cfg); err != nil {
+			return nil, fmt.Errorf("failed to apply option: %w", err)
+		}
+	}
+
+	res, err := resource.New(ctx,
+		resource.WithAttributes(
+			semconv.ServiceNameKey.String(cfg.serviceName),
+			semconv.ServiceVersionKey.String(cfg.serviceVersion),
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create resource: %w", err)
+	}
+
+	t := &Telemetry{
+		resource:      res,
+		shutdownFuncs: make([]func(context.Context) error, 0),
+		config:        cfg,
+	}
+
+	if err := t.initLogging(ctx); err != nil {
+		return nil, fmt.Errorf("failed to initialize logging: %w", err)
+	}
+
+	if err := t.initMetrics(ctx); err != nil {
+		_ = t.Shutdown(ctx)
+		return nil, fmt.Errorf("failed to initialize metrics: %w", err)
+	}
+
+	if err := t.initTracing(ctx); err != nil {
+		_ = t.Shutdown(ctx)
+		return nil, fmt.Errorf("failed to initialize tracing: %w", err)
+	}
+
+	return t, nil
+}
+
+func (t *Telemetry) initLogging(ctx context.Context) error {
+	if len(t.config.logExporters) == 0 {
+		return nil
+	}
+
+	handlers := make([]slog.Handler, 0, len(t.config.logExporters))
+	for _, exporter := range t.config.logExporters {
+		handler, err := exporter.GetSlogHandler(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get slog handler from %s: %w", exporter.Name(), err)
+		}
+		handlers = append(handlers, handler)
+		t.shutdownFuncs = append(t.shutdownFuncs, exporter.Shutdown)
+	}
+
+	var finalHandler slog.Handler
+	if len(handlers) == 1 {
+		finalHandler = handlers[0]
+	} else {
+		finalHandler = &multiHandler{handlers: handlers}
+	}
+
+	wrappedHandler := &traceLogHandler{handler: finalHandler}
+	logger := slog.New(wrappedHandler)
+	slog.SetDefault(logger)
+
+	return nil
+}
+
+func (t *Telemetry) initMetrics(ctx context.Context) error {
+	if len(t.config.metricExporters) == 0 {
+		return nil
+	}
+
+	exporters := make([]sdkmetric.Exporter, 0, len(t.config.metricExporters))
+	for _, exporter := range t.config.metricExporters {
+		exp, err := exporter.GetSdkMetricExporter(ctx, t.resource)
+		if err != nil {
+			return fmt.Errorf("failed to get metric exporter from %s: %w", exporter.Name(), err)
+		}
+		exporters = append(exporters, exp)
+		t.shutdownFuncs = append(t.shutdownFuncs, exporter.Shutdown)
+	}
+
+	opts := []sdkmetric.Option{
+		sdkmetric.WithResource(t.resource),
+	}
+
+	for _, exp := range exporters {
+		reader := sdkmetric.NewPeriodicReader(exp,
+			sdkmetric.WithInterval(t.config.batchTimeout),
+		)
+		opts = append(opts, sdkmetric.WithReader(reader))
+	}
+
+	meterProvider := sdkmetric.NewMeterProvider(opts...)
+
+	t.meterProvider = meterProvider
+	t.shutdownFuncs = append(t.shutdownFuncs, meterProvider.Shutdown)
+	otel.SetMeterProvider(meterProvider)
+
+	return nil
+}
+
+func (t *Telemetry) initTracing(ctx context.Context) error {
+	if len(t.config.traceExporters) == 0 {
+		return nil
+	}
+
+	exporters := make([]sdktrace.SpanExporter, 0, len(t.config.traceExporters))
+	for _, exporter := range t.config.traceExporters {
+		exp, err := exporter.GetSpanExporter(ctx, t.resource)
+		if err != nil {
+			return fmt.Errorf("failed to get span exporter from %s: %w", exporter.Name(), err)
+		}
+		exporters = append(exporters, exp)
+		t.shutdownFuncs = append(t.shutdownFuncs, exporter.Shutdown)
+	}
+
+	opts := []sdktrace.TracerProviderOption{
+		sdktrace.WithResource(t.resource),
+		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(t.config.traceSampleRate)),
+	}
+
+	for _, exp := range exporters {
+		processor := sdktrace.NewBatchSpanProcessor(exp,
+			sdktrace.WithMaxQueueSize(t.config.queueSize),
+			sdktrace.WithMaxExportBatchSize(t.config.batchSize),
+			sdktrace.WithBatchTimeout(t.config.batchTimeout),
+		)
+		opts = append(opts, sdktrace.WithSpanProcessor(processor))
+	}
+
+	tracerProvider := sdktrace.NewTracerProvider(opts...)
+
+	t.tracerProvider = tracerProvider
+	t.shutdownFuncs = append(t.shutdownFuncs, tracerProvider.Shutdown)
+	otel.SetTracerProvider(tracerProvider)
+
+	return nil
+}
+
+func (t *Telemetry) Shutdown(ctx context.Context) error {
+	eg := errgroup.Group{}
+	for _, fn := range t.shutdownFuncs {
+		fn := fn
+		eg.Go(func() error {
+			if err := fn(ctx); err != nil {
+				fmt.Fprintf(os.Stderr, "[telemetry] shutdown error: %v\n", err)
+				return err
+			}
+			return nil
+		})
+	}
+	return eg.Wait()
+}
+
+func (t *Telemetry) HealthCheck(ctx context.Context) error {
+	if len(t.config.logExporters) == 0 && len(t.config.metricExporters) == 0 && len(t.config.traceExporters) == 0 {
+		return fmt.Errorf("no exporters configured")
+	}
+	return nil
+}
+
+func (t *Telemetry) HasMetrics() bool {
+	return t.meterProvider != nil
+}
+
+func (t *Telemetry) HasTracing() bool {
+	return t.tracerProvider != nil
+}
+
+func (t *Telemetry) HasLogging() bool {
+	return len(t.config.logExporters) > 0
+}
+
+type multiHandler struct {
+	handlers []slog.Handler
+}
+
+func (m *multiHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	for _, h := range m.handlers {
+		if h.Enabled(ctx, level) {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *multiHandler) Handle(ctx context.Context, r slog.Record) error {
+	for _, h := range m.handlers {
+		if err := h.Handle(ctx, r); err != nil {
+			fmt.Fprintf(os.Stderr, "[telemetry] handler error: %v\n", err)
+		}
+	}
+	return nil
+}
+
+func (m *multiHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	newHandlers := make([]slog.Handler, len(m.handlers))
+	for i, h := range m.handlers {
+		newHandlers[i] = h.WithAttrs(attrs)
+	}
+	return &multiHandler{handlers: newHandlers}
+}
+
+func (m *multiHandler) WithGroup(name string) slog.Handler {
+	newHandlers := make([]slog.Handler, len(m.handlers))
+	for i, h := range m.handlers {
+		newHandlers[i] = h.WithGroup(name)
+	}
+	return &multiHandler{handlers: newHandlers}
+}
+
+
+=== pkg/telemetry/trace_exporters.go ===
+package telemetry
+
+import (
+	"context"
+	"crypto/tls"
+	"fmt"
+	"strings"
+
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+)
+
+type OtlpHttpTraceExporter struct {
+	endpoint string
+	insecure bool
+	headers  map[string]string
+	exporter sdktrace.SpanExporter
+}
+
+func NewOtlpTraceExporter(endpoint string, headers map[string]string) *OtlpHttpTraceExporter {
+	if endpoint == "" {
+		return nil
+	}
+	return &OtlpHttpTraceExporter{
+		endpoint: endpoint,
+		insecure: false,
+		headers:  headers,
+		exporter: nil,
+	}
+}
+
+func NewOtlpTraceExporterInsecure(endpoint string, headers map[string]string) *OtlpHttpTraceExporter {
+	if endpoint == "" {
+		return nil
+	}
+	return &OtlpHttpTraceExporter{
+		endpoint: endpoint,
+		insecure: true,
+		headers:  headers,
+		exporter: nil,
+	}
+}
+
+func (o *OtlpHttpTraceExporter) Name() string {
+	return "otlp-http-traces"
+}
+
+func (o *OtlpHttpTraceExporter) GetSpanExporter(ctx context.Context, res *resource.Resource) (sdktrace.SpanExporter, error) {
+	endpoint := strings.TrimPrefix(o.endpoint, "http://")
+	endpoint = strings.TrimPrefix(endpoint, "https://")
+
+	opts := []otlptracehttp.Option{
+		otlptracehttp.WithEndpoint(endpoint),
+	}
+
+	if o.insecure {
+		opts = append(opts, otlptracehttp.WithInsecure())
+	} else {
+		opts = append(opts, otlptracehttp.WithTLSClientConfig(&tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}))
+	}
+
+	if len(o.headers) > 0 {
+		opts = append(opts, otlptracehttp.WithHeaders(o.headers))
+	}
+
+	exporter, err := otlptracehttp.New(ctx, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OTLP HTTP trace exporter: %w", err)
+	}
+
+	o.exporter = exporter
+	return exporter, nil
+}
+
+func (o *OtlpHttpTraceExporter) Shutdown(ctx context.Context) error {
+	if o.exporter != nil {
+		if err := o.exporter.Shutdown(ctx); err != nil {
+			return fmt.Errorf("failed to shutdown OTLP HTTP trace exporter: %w", err)
+		}
+	}
+	return nil
+}
+
+var _ TraceExporter = (*OtlpHttpTraceExporter)(nil)
+
+type noopSpanExporter struct{}
+
+func (e *noopSpanExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
+	return nil
+}
+
+func (e *noopSpanExporter) Shutdown(ctx context.Context) error {
+	return nil
+}
+
+var _ sdktrace.SpanExporter = (*noopSpanExporter)(nil)
+
+type NoopTraceExporter struct{}
+
+func NewNoopTraceExporter() *NoopTraceExporter {
+	return &NoopTraceExporter{}
+}
+
+func (n *NoopTraceExporter) Name() string {
+	return "noop-traces"
+}
+
+func (n *NoopTraceExporter) GetSpanExporter(ctx context.Context, res *resource.Resource) (sdktrace.SpanExporter, error) {
+	return &noopSpanExporter{}, nil
+}
+
+func (n *NoopTraceExporter) Shutdown(ctx context.Context) error {
+	return nil
+}
+
+var _ TraceExporter = (*NoopTraceExporter)(nil)
+
+
+=== pkg/telemetry/tracer.go ===
+package telemetry
+
+import (
+	"context"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
+)
+
+type TraceExporter interface {
+	Name() string
+	GetSpanExporter(ctx context.Context, res *resource.Resource) (sdktrace.SpanExporter, error)
+	Shutdown(ctx context.Context) error
+}
+
+func GetTracer(serviceName string) trace.Tracer {
+	return otel.Tracer(serviceName)
+}
+
+
 === queue/jobs/sort_jobs.go ===
 // Package jobs provides job definitions for background processing.
 package jobs
@@ -2272,6 +3580,7 @@ import (
 
 	"testuser/myapp/config"
 	"testuser/myapp/controllers"
+	"testuser/myapp/pkg/telemetry"
 	"testuser/myapp/router/cookies"
 	"testuser/myapp/router/routes"
 
@@ -2280,6 +3589,8 @@ import (
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 
 	echomw "github.com/labstack/echo/v4/middleware"
 )
@@ -2287,12 +3598,14 @@ import (
 type Router struct {
 	Handler     *echo.Echo
 	controllers controllers.Controllers
+	telemetry   *telemetry.Telemetry
 }
 
 func New(
 	ctx context.Context,
 	controllers controllers.Controllers,
 	cfg config.Config,
+	tel *telemetry.Telemetry,
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
@@ -2319,8 +3632,9 @@ func New(
 	// TODO: make changing name work with d-*
 	csrfName := "_csrf"
 
-	router.Use(
-		logger(),
+	middleware := []echo.MiddlewareFunc{
+		otelecho.Middleware(config.ServiceName),
+		logger(tel),
 		session.Middleware(
 			sessions.NewCookieStore(
 				authKey,
@@ -2342,11 +3656,14 @@ func New(
 		}(), CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
 
 		echomw.Recover(),
-	)
+	}
+
+	router.Use(middleware...)
 
 	return &Router{
 		router,
 		controllers,
+		tel,
 	}, nil
 }
 
@@ -2485,31 +3802,32 @@ func registerFlashMessagesContext(
 	}
 }
 
-type LogExporter interface {
-	Name() string
-	GetSlogHandler(
-		ctx context.Context,
-	) (slog.Handler, error)
+func logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
+	var httpRequestsTotal metric.Int64Counter
+	var httpDuration metric.Float64Histogram
+	var httpInFlight metric.Int64UpDownCounter
 
-	Shutdown(ctx context.Context) error
-}
+	if tel.HasMetrics() {
+		var err error
+		httpRequestsTotal, err = telemetry.HTTPRequestsTotal()
+		if err != nil {
+			slog.Warn("failed to create http_requests_total metric", "error", err)
+		}
+		httpDuration, err = telemetry.HTTPRequestDuration()
+		if err != nil {
+			slog.Warn("failed to create http_request_duration metric", "error", err)
+		}
+		httpInFlight, err = telemetry.HTTPRequestsInFlight()
+		if err != nil {
+			slog.Warn("failed to create http_requests_in_flight metric", "error", err)
+		}
 
-func NewLogger(
-	ctx context.Context,
-	exporter LogExporter,
-) (*slog.Logger, func(ctx context.Context) error) {
-	handler, err := exporter.GetSlogHandler(ctx)
-	if err != nil {
-		panic(err)
+		meter := telemetry.GetMeter(config.ServiceName)
+		if err := telemetry.SetupRuntimeMetricsInCallback(meter); err != nil {
+			slog.Warn("failed to setup runtime metrics", "error", err)
+		}
 	}
 
-	return slog.New(handler), exporter.Shutdown
-}
-
-func logger() echo.MiddlewareFunc {
-	otelMiddleware := otelecho.Middleware(
-		config.ProjectName,
-	)
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			if strings.Contains(c.Request().URL.Path, routes.APIRoutePrefix) ||
@@ -2517,19 +3835,29 @@ func logger() echo.MiddlewareFunc {
 				return next(c)
 			}
 
+			ctx := c.Request().Context()
 			start := time.Now()
 
-			var statusCode int
-			wrappedNext := func(c echo.Context) error {
-				err := next(c)
-				statusCode = c.Response().Status
-				return err
+			if tel.HasMetrics() && httpInFlight != nil {
+				httpInFlight.Add(ctx, 1)
+				defer httpInFlight.Add(ctx, -1)
 			}
 
-			err := otelMiddleware(wrappedNext)(c)
+			err := next(c)
 			duration := time.Since(start)
+			statusCode := c.Response().Status
 
-			slog.InfoContext(c.Request().Context(), "HTTP request completed",
+			if tel.HasMetrics() && httpRequestsTotal != nil && httpDuration != nil {
+				attrs := []attribute.KeyValue{
+					attribute.String("method", c.Request().Method),
+					attribute.String("route", c.Path()),
+					attribute.Int("status_code", statusCode),
+				}
+				httpRequestsTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
+				httpDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
+			}
+
+			slog.InfoContext(ctx, "HTTP request completed",
 				"method", c.Request().Method,
 				"path", c.Request().URL.Path,
 				"status", statusCode,
@@ -2781,45 +4109,6 @@ func (r routeBuilder) RegisterWithToken() RouteWithToken {
 	Registry = append(Registry, RouteDefinition(r))
 
 	return RouteWithToken(r.Path)
-}
-
-
-=== router/stdout_logger.go ===
-package router
-
-import (
-	"context"
-	"log/slog"
-	"os"
-
-	"github.com/lmittmann/tint"
-)
-
-type StdoutExporter struct {
-	LogLevel slog.Level
-}
-
-// GetSlogHandler implements LogExporter.
-func (s *StdoutExporter) GetSlogHandler(
-	ctx context.Context,
-) (slog.Handler, error) {
-	handler := tint.NewHandler(os.Stdout, &tint.Options{
-		Level:      s.LogLevel,
-		TimeFormat: "15:04:05",
-		AddSource:  true,
-	})
-
-	return handler, nil
-}
-
-// Name implements LogExporter.
-func (s *StdoutExporter) Name() string {
-	return "stdout"
-}
-
-// Shutdown implements LogExporter.
-func (s *StdoutExporter) Shutdown(ctx context.Context) error {
-	return nil
 }
 
 
