@@ -377,6 +377,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"telemetry_metric_exporters.tmpl":  "telemetry/metric_exporters.go",
 	"telemetry_tracer.tmpl":            "telemetry/tracer.go",
 	"telemetry_trace_exporters.tmpl":   "telemetry/trace_exporters.go",
+	"telemetry_helpers.tmpl":           "telemetry/helpers.go",
 }
 
 func processTemplatedFiles(

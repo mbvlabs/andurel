@@ -142,12 +142,7 @@ func buildTelemetry(ctx context.Context, cfg config.Config) (*telemetry.Telemetr
 		telemetry.WithTraceSampleRate(cfg.Telemetry.TraceSampleRate),
 	}
 
-	logExporters := []telemetry.LogExporter{telemetry.NewStdoutExporter()}
-	if cfg.Telemetry.OtlpLogsEndpoint != "" {
-		logExporters = append(logExporters,
-			telemetry.NewOtlpLogExporter(cfg.Telemetry.OtlpLogsEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders)))
-	}
-	opts = append(opts, telemetry.WithLogExporters(logExporters...))
+	opts = append(opts, telemetry.WithLogExporters(telemetry.NewStdoutExporter()))
 
 	if cfg.Telemetry.OtlpMetricsEndpoint != "" {
 		opts = append(opts, telemetry.WithMetricExporters(
@@ -157,6 +152,8 @@ func buildTelemetry(ctx context.Context, cfg config.Config) (*telemetry.Telemetr
 	if cfg.Telemetry.OtlpTracesEndpoint != "" {
 		opts = append(opts, telemetry.WithTraceExporters(
 			telemetry.NewOtlpTraceExporter(cfg.Telemetry.OtlpTracesEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders))))
+	} else {
+		opts = append(opts, telemetry.WithTraceExporters(telemetry.NewNoopTraceExporter()))
 	}
 
 	return telemetry.New(ctx, opts...)

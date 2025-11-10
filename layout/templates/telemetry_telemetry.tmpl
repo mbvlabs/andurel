@@ -110,18 +110,18 @@ func (t *Telemetry) initMetrics(ctx context.Context) error {
 		t.shutdownFuncs = append(t.shutdownFuncs, exporter.Shutdown)
 	}
 
-	readers := make([]sdkmetric.Reader, 0, len(exporters))
+	opts := []sdkmetric.Option{
+		sdkmetric.WithResource(t.resource),
+	}
+
 	for _, exp := range exporters {
 		reader := sdkmetric.NewPeriodicReader(exp,
 			sdkmetric.WithInterval(t.config.batchTimeout),
 		)
-		readers = append(readers, reader)
+		opts = append(opts, sdkmetric.WithReader(reader))
 	}
 
-	meterProvider := sdkmetric.NewMeterProvider(
-		sdkmetric.WithResource(t.resource),
-		sdkmetric.WithReader(readers...),
-	)
+	meterProvider := sdkmetric.NewMeterProvider(opts...)
 
 	t.meterProvider = meterProvider
 	t.shutdownFuncs = append(t.shutdownFuncs, meterProvider.Shutdown)
@@ -145,21 +145,21 @@ func (t *Telemetry) initTracing(ctx context.Context) error {
 		t.shutdownFuncs = append(t.shutdownFuncs, exporter.Shutdown)
 	}
 
-	batchProcessors := make([]sdktrace.SpanProcessor, 0, len(exporters))
+	opts := []sdktrace.TracerProviderOption{
+		sdktrace.WithResource(t.resource),
+		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(t.config.traceSampleRate)),
+	}
+
 	for _, exp := range exporters {
 		processor := sdktrace.NewBatchSpanProcessor(exp,
 			sdktrace.WithMaxQueueSize(t.config.queueSize),
 			sdktrace.WithMaxExportBatchSize(t.config.batchSize),
 			sdktrace.WithBatchTimeout(t.config.batchTimeout),
 		)
-		batchProcessors = append(batchProcessors, processor)
+		opts = append(opts, sdktrace.WithSpanProcessor(processor))
 	}
 
-	tracerProvider := sdktrace.NewTracerProvider(
-		sdktrace.WithResource(t.resource),
-		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(t.config.traceSampleRate)),
-		sdktrace.WithSpanProcessor(sdktrace.NewCompositeSpanProcessor(batchProcessors...)),
-	)
+	tracerProvider := sdktrace.NewTracerProvider(opts...)
 
 	t.tracerProvider = tracerProvider
 	t.shutdownFuncs = append(t.shutdownFuncs, tracerProvider.Shutdown)

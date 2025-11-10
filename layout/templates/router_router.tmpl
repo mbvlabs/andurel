@@ -69,7 +69,8 @@ func New(
 	csrfName := "_csrf"
 
 	middleware := []echo.MiddlewareFunc{
-		logger(tel, cfg.Telemetry.ServiceName),
+		otelecho.Middleware(config.ServiceName),
+		logger(tel),
 		session.Middleware(
 			sessions.NewCookieStore(
 				authKey,
@@ -91,10 +92,6 @@ func New(
 		}(), CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
 
 		echomw.Recover(),
-	}
-
-	if tel.HasTracing() {
-		middleware = append([]echo.MiddlewareFunc{otelecho.Middleware(cfg.Telemetry.ServiceName)}, middleware...)
 	}
 
 	router.Use(middleware...)
@@ -242,27 +239,27 @@ func registerFlashMessagesContext(
 }
 
 
-func logger(tel *telemetry.Telemetry, serviceName string) echo.MiddlewareFunc {
+func logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 	var httpRequestsTotal metric.Int64Counter
 	var httpDuration metric.Float64Histogram
 	var httpInFlight metric.Int64UpDownCounter
 
 	if tel.HasMetrics() {
 		var err error
-		httpRequestsTotal, err = telemetry.HTTPRequestsTotal(serviceName)
+		httpRequestsTotal, err = telemetry.HTTPRequestsTotal()
 		if err != nil {
 			slog.Warn("failed to create http_requests_total metric", "error", err)
 		}
-		httpDuration, err = telemetry.HTTPRequestDuration(serviceName)
+		httpDuration, err = telemetry.HTTPRequestDuration()
 		if err != nil {
 			slog.Warn("failed to create http_request_duration metric", "error", err)
 		}
-		httpInFlight, err = telemetry.HTTPRequestsInFlight(serviceName)
+		httpInFlight, err = telemetry.HTTPRequestsInFlight()
 		if err != nil {
 			slog.Warn("failed to create http_requests_in_flight metric", "error", err)
 		}
 
-		meter := telemetry.GetMeter(serviceName)
+		meter := telemetry.GetMeter(config.ServiceName)
 		if err := telemetry.SetupRuntimeMetricsInCallback(meter); err != nil {
 			slog.Warn("failed to setup runtime metrics", "error", err)
 		}

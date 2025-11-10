@@ -41,6 +41,7 @@ router/routes/assets.go
 router/routes/pages.go
 router/routes/route_group.go
 router/routes/routes.go
+telemetry/helpers.go
 telemetry/log_exporters.go
 telemetry/logger.go
 telemetry/metric_exporters.go
@@ -258,12 +259,7 @@ func buildTelemetry(ctx context.Context, cfg config.Config) (*telemetry.Telemetr
 		telemetry.WithTraceSampleRate(cfg.Telemetry.TraceSampleRate),
 	}
 
-	logExporters := []telemetry.LogExporter{telemetry.NewStdoutExporter()}
-	if cfg.Telemetry.OtlpLogsEndpoint != "" {
-		logExporters = append(logExporters,
-			telemetry.NewOtlpLogExporter(cfg.Telemetry.OtlpLogsEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders)))
-	}
-	opts = append(opts, telemetry.WithLogExporters(logExporters...))
+	opts = append(opts, telemetry.WithLogExporters(telemetry.NewStdoutExporter()))
 
 	if cfg.Telemetry.OtlpMetricsEndpoint != "" {
 		opts = append(opts, telemetry.WithMetricExporters(
@@ -273,6 +269,8 @@ func buildTelemetry(ctx context.Context, cfg config.Config) (*telemetry.Telemetr
 	if cfg.Telemetry.OtlpTracesEndpoint != "" {
 		opts = append(opts, telemetry.WithTraceExporters(
 			telemetry.NewOtlpTraceExporter(cfg.Telemetry.OtlpTracesEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders))))
+	} else {
+		opts = append(opts, telemetry.WithTraceExporters(telemetry.NewNoopTraceExporter()))
 	}
 
 	return telemetry.New(ctx, opts...)
@@ -835,6 +833,13 @@ var (
 		}
 
 		return "andurel"
+	}()
+	ServiceName = func() string {
+		if os.Getenv("TELEMETRY_SERVICE_NAME") != "" {
+			return os.Getenv("TELEMETRY_SERVICE_NAME")
+		}
+
+		return ProjectName
 	}()
 	Domain = func() string {
 		var domain string
@@ -1943,7 +1948,8 @@ func New(
 	csrfName := "_csrf"
 
 	middleware := []echo.MiddlewareFunc{
-		logger(tel, cfg.Telemetry.ServiceName),
+		otelecho.Middleware(config.ServiceName),
+		logger(tel),
 		session.Middleware(
 			sessions.NewCookieStore(
 				authKey,
@@ -1965,10 +1971,6 @@ func New(
 		}(), CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
 
 		echomw.Recover(),
-	}
-
-	if tel.HasTracing() {
-		middleware = append([]echo.MiddlewareFunc{otelecho.Middleware(cfg.Telemetry.ServiceName)}, middleware...)
 	}
 
 	router.Use(middleware...)
@@ -2115,27 +2117,27 @@ func registerFlashMessagesContext(
 	}
 }
 
-func logger(tel *telemetry.Telemetry, serviceName string) echo.MiddlewareFunc {
+func logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 	var httpRequestsTotal metric.Int64Counter
 	var httpDuration metric.Float64Histogram
 	var httpInFlight metric.Int64UpDownCounter
 
 	if tel.HasMetrics() {
 		var err error
-		httpRequestsTotal, err = telemetry.HTTPRequestsTotal(serviceName)
+		httpRequestsTotal, err = telemetry.HTTPRequestsTotal()
 		if err != nil {
 			slog.Warn("failed to create http_requests_total metric", "error", err)
 		}
-		httpDuration, err = telemetry.HTTPRequestDuration(serviceName)
+		httpDuration, err = telemetry.HTTPRequestDuration()
 		if err != nil {
 			slog.Warn("failed to create http_request_duration metric", "error", err)
 		}
-		httpInFlight, err = telemetry.HTTPRequestsInFlight(serviceName)
+		httpInFlight, err = telemetry.HTTPRequestsInFlight()
 		if err != nil {
 			slog.Warn("failed to create http_requests_in_flight metric", "error", err)
 		}
 
-		meter := telemetry.GetMeter(serviceName)
+		meter := telemetry.GetMeter(config.ServiceName)
 		if err := telemetry.SetupRuntimeMetricsInCallback(meter); err != nil {
 			slog.Warn("failed to setup runtime metrics", "error", err)
 		}
@@ -2425,21 +2427,52 @@ func (r routeBuilder) RegisterWithToken() RouteWithToken {
 }
 
 
+=== telemetry/helpers.go ===
+package telemetry
+
+import (
+	"context"
+
+	"myorg/webapp/config"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+)
+
+func StartSpan(ctx context.Context, spanName string) (context.Context, trace.Span) {
+	tracer := GetTracer(config.ServiceName)
+	return tracer.Start(ctx, spanName)
+}
+
+func StartSpanWithAttributes(ctx context.Context, spanName string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
+	tracer := GetTracer(config.ServiceName)
+	ctx, span := tracer.Start(ctx, spanName)
+	span.SetAttributes(attrs...)
+	return ctx, span
+}
+
+func RecordError(span trace.Span, err error) {
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+}
+
+func AddEvent(span trace.Span, name string, attrs ...attribute.KeyValue) {
+	span.AddEvent(name, trace.WithAttributes(attrs...))
+}
+
+
 === telemetry/log_exporters.go ===
 package telemetry
 
 import (
 	"context"
-	"crypto/tls"
-	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
-	"strings"
 
 	"github.com/lmittmann/tint"
-	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
-	sdklog "go.opentelemetry.io/otel/sdk/log"
 )
 
 type StdoutExporter struct {
@@ -2477,138 +2510,6 @@ func (s *StdoutExporter) Shutdown(ctx context.Context) error {
 }
 
 var _ LogExporter = (*StdoutExporter)(nil)
-
-type OtlpLogExporter struct {
-	endpoint  string
-	headers   map[string]string
-	insecure  bool
-	exporter  *otlploghttp.Exporter
-	processor *sdklog.BatchProcessor
-}
-
-func NewOtlpLogExporter(endpoint string, headers map[string]string) *OtlpLogExporter {
-	if endpoint == "" {
-		return nil
-	}
-	return &OtlpLogExporter{
-		endpoint: endpoint,
-		headers:  headers,
-		insecure: false,
-	}
-}
-
-func NewOtlpLogExporterInsecure(endpoint string, headers map[string]string) *OtlpLogExporter {
-	if endpoint == "" {
-		return nil
-	}
-	return &OtlpLogExporter{
-		endpoint: endpoint,
-		headers:  headers,
-		insecure: true,
-	}
-}
-
-func (o *OtlpLogExporter) GetSlogHandler(ctx context.Context) (slog.Handler, error) {
-	opts := []otlploghttp.Option{
-		otlploghttp.WithEndpoint(o.endpoint),
-	}
-
-	if o.insecure {
-		opts = append(opts, otlploghttp.WithInsecure())
-	} else {
-		opts = append(opts, otlploghttp.WithTLSClientConfig(&tls.Config{
-			MinVersion: tls.VersionTLS12,
-		}))
-	}
-
-	if len(o.headers) > 0 {
-		opts = append(opts, otlploghttp.WithHeaders(o.headers))
-	}
-
-	exporter, err := otlploghttp.New(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create OTLP log exporter: %w", err)
-	}
-	o.exporter = exporter
-
-	processor := sdklog.NewBatchProcessor(exporter)
-	o.processor = processor
-
-	provider := sdklog.NewLoggerProvider(
-		sdklog.WithProcessor(processor),
-	)
-
-	handler := &otlpLogHandler{
-		provider: provider,
-		logger:   provider.Logger("default"),
-	}
-
-	return handler, nil
-}
-
-func (o *OtlpLogExporter) Name() string {
-	return "otlp-http-logs"
-}
-
-func (o *OtlpLogExporter) Shutdown(ctx context.Context) error {
-	var errs []string
-	if o.processor != nil {
-		if err := o.processor.Shutdown(ctx); err != nil {
-			errs = append(errs, fmt.Sprintf("processor shutdown: %v", err))
-		}
-	}
-	if o.exporter != nil {
-		if err := o.exporter.Shutdown(ctx); err != nil {
-			errs = append(errs, fmt.Sprintf("exporter shutdown: %v", err))
-		}
-	}
-	if len(errs) > 0 {
-		return fmt.Errorf("OTLP log exporter shutdown errors: %s", strings.Join(errs, "; "))
-	}
-	return nil
-}
-
-var _ LogExporter = (*OtlpLogExporter)(nil)
-
-type otlpLogHandler struct {
-	provider *sdklog.LoggerProvider
-	logger   sdklog.Logger
-	attrs    []slog.Attr
-	group    string
-}
-
-func (h *otlpLogHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	return true
-}
-
-func (h *otlpLogHandler) Handle(ctx context.Context, record slog.Record) error {
-	return nil
-}
-
-func (h *otlpLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	newAttrs := make([]slog.Attr, len(h.attrs)+len(attrs))
-	copy(newAttrs, h.attrs)
-	copy(newAttrs[len(h.attrs):], attrs)
-	return &otlpLogHandler{
-		provider: h.provider,
-		logger:   h.logger,
-		attrs:    newAttrs,
-		group:    h.group,
-	}
-}
-
-func (h *otlpLogHandler) WithGroup(name string) slog.Handler {
-	groupName := name
-	if h.group != "" {
-		groupName = h.group + "." + name
-	}
-	return &otlpLogHandler{
-		provider: h.provider,
-		logger:   h.logger,
-		attrs:    h.attrs,
-		group:    groupName,
-	}
-}
 
 
 === telemetry/logger.go ===
@@ -2816,6 +2717,8 @@ import (
 	"runtime"
 	"time"
 
+	"myorg/webapp/config"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -2832,8 +2735,8 @@ func GetMeter(serviceName string) metric.Meter {
 	return otel.Meter(serviceName)
 }
 
-func HTTPRequestsTotal(serviceName string) (metric.Int64Counter, error) {
-	counter, err := GetMeter(serviceName).Int64Counter(
+func HTTPRequestsTotal() (metric.Int64Counter, error) {
+	counter, err := GetMeter(config.ServiceName).Int64Counter(
 		"http_requests_total",
 		metric.WithDescription("Total number of HTTP requests"),
 		metric.WithUnit("1"),
@@ -2844,8 +2747,8 @@ func HTTPRequestsTotal(serviceName string) (metric.Int64Counter, error) {
 	return counter, nil
 }
 
-func HTTPRequestsInFlight(serviceName string) (metric.Int64UpDownCounter, error) {
-	counter, err := GetMeter(serviceName).Int64UpDownCounter(
+func HTTPRequestsInFlight() (metric.Int64UpDownCounter, error) {
+	counter, err := GetMeter(config.ServiceName).Int64UpDownCounter(
 		"http_requests_in_flight",
 		metric.WithDescription("Current number of HTTP requests being served"),
 	)
@@ -2855,8 +2758,8 @@ func HTTPRequestsInFlight(serviceName string) (metric.Int64UpDownCounter, error)
 	return counter, nil
 }
 
-func HTTPRequestDuration(serviceName string) (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(serviceName).Float64Histogram(
+func HTTPRequestDuration() (metric.Float64Histogram, error) {
+	histogram, err := GetMeter(config.ServiceName).Float64Histogram(
 		"http_request_duration_seconds",
 		metric.WithDescription("HTTP request duration in seconds"),
 		metric.WithUnit("s"),
@@ -2868,8 +2771,8 @@ func HTTPRequestDuration(serviceName string) (metric.Float64Histogram, error) {
 	return histogram, nil
 }
 
-func HTTPRequestSize(serviceName string) (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(serviceName).Float64Histogram(
+func HTTPRequestSize() (metric.Float64Histogram, error) {
+	histogram, err := GetMeter(config.ServiceName).Float64Histogram(
 		"http_request_size_bytes",
 		metric.WithDescription("HTTP request size in bytes"),
 		metric.WithUnit("By"),
@@ -2881,8 +2784,8 @@ func HTTPRequestSize(serviceName string) (metric.Float64Histogram, error) {
 	return histogram, nil
 }
 
-func HTTPResponseSize(serviceName string) (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(serviceName).Float64Histogram(
+func HTTPResponseSize() (metric.Float64Histogram, error) {
+	histogram, err := GetMeter(config.ServiceName).Float64Histogram(
 		"http_response_size_bytes",
 		metric.WithDescription("HTTP response size in bytes"),
 		metric.WithUnit("By"),
@@ -3453,18 +3356,18 @@ func (t *Telemetry) initMetrics(ctx context.Context) error {
 		t.shutdownFuncs = append(t.shutdownFuncs, exporter.Shutdown)
 	}
 
-	readers := make([]sdkmetric.Reader, 0, len(exporters))
+	opts := []sdkmetric.Option{
+		sdkmetric.WithResource(t.resource),
+	}
+
 	for _, exp := range exporters {
 		reader := sdkmetric.NewPeriodicReader(exp,
 			sdkmetric.WithInterval(t.config.batchTimeout),
 		)
-		readers = append(readers, reader)
+		opts = append(opts, sdkmetric.WithReader(reader))
 	}
 
-	meterProvider := sdkmetric.NewMeterProvider(
-		sdkmetric.WithResource(t.resource),
-		sdkmetric.WithReader(readers...),
-	)
+	meterProvider := sdkmetric.NewMeterProvider(opts...)
 
 	t.meterProvider = meterProvider
 	t.shutdownFuncs = append(t.shutdownFuncs, meterProvider.Shutdown)
@@ -3488,21 +3391,21 @@ func (t *Telemetry) initTracing(ctx context.Context) error {
 		t.shutdownFuncs = append(t.shutdownFuncs, exporter.Shutdown)
 	}
 
-	batchProcessors := make([]sdktrace.SpanProcessor, 0, len(exporters))
+	opts := []sdktrace.TracerProviderOption{
+		sdktrace.WithResource(t.resource),
+		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(t.config.traceSampleRate)),
+	}
+
 	for _, exp := range exporters {
 		processor := sdktrace.NewBatchSpanProcessor(exp,
 			sdktrace.WithMaxQueueSize(t.config.queueSize),
 			sdktrace.WithMaxExportBatchSize(t.config.batchSize),
 			sdktrace.WithBatchTimeout(t.config.batchTimeout),
 		)
-		batchProcessors = append(batchProcessors, processor)
+		opts = append(opts, sdktrace.WithSpanProcessor(processor))
 	}
 
-	tracerProvider := sdktrace.NewTracerProvider(
-		sdktrace.WithResource(t.resource),
-		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(t.config.traceSampleRate)),
-		sdktrace.WithSpanProcessor(sdktrace.NewCompositeSpanProcessor(batchProcessors...)),
-	)
+	tracerProvider := sdktrace.NewTracerProvider(opts...)
 
 	t.tracerProvider = tracerProvider
 	t.shutdownFuncs = append(t.shutdownFuncs, tracerProvider.Shutdown)
