@@ -836,6 +836,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/gosimple/slug"
 )
 
 const (
@@ -865,7 +867,7 @@ var (
 			return os.Getenv("TELEMETRY_SERVICE_NAME")
 		}
 
-		return ProjectName
+		return slug.Make(ProjectName)
 	}()
 	Domain = func() string {
 		var domain string
@@ -2911,25 +2913,29 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// StartSpan starts a new span with the given name using the global tracer.
 func StartSpan(ctx context.Context, spanName string) (context.Context, trace.Span) {
 	tracer := GetTracer(config.ServiceName)
 	return tracer.Start(ctx, spanName)
 }
 
-func StartSpanWithAttributes(ctx context.Context, spanName string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
+// StartSpanAttrs starts a new span with the given name and attributes using the global tracer.
+func StartSpanAttrs(ctx context.Context, spanName string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
 	tracer := GetTracer(config.ServiceName)
 	ctx, span := tracer.Start(ctx, spanName)
 	span.SetAttributes(attrs...)
 	return ctx, span
 }
 
-func RecordError(span trace.Span, err error) {
+// RecErr records an error in the given span and sets its status to error.
+func RecErr(span trace.Span, err error) {
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 	}
 }
 
+// AddEvent adds an event with the given name and attributes to the span.
 func AddEvent(span trace.Span, name string, attrs ...attribute.KeyValue) {
 	span.AddEvent(name, trace.WithAttributes(attrs...))
 }
