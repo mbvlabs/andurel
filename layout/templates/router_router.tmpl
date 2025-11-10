@@ -18,12 +18,15 @@ import (
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/telemetry"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 
 	echomw "github.com/labstack/echo/v4/middleware"
 )
@@ -31,12 +34,14 @@ import (
 type Router struct {
 	Handler     *echo.Echo
 	controllers controllers.Controllers
+	telemetry   *telemetry.Telemetry
 }
 
 func New(
 	ctx context.Context,
 	controllers controllers.Controllers,
 	cfg config.Config,
+	tel *telemetry.Telemetry,
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
@@ -63,8 +68,8 @@ func New(
 	// TODO: make changing name work with d-*
 	csrfName := "_csrf"
 
-	router.Use(
-		logger(),
+	middleware := []echo.MiddlewareFunc{
+		logger(tel, cfg.Telemetry.ServiceName),
 		session.Middleware(
 			sessions.NewCookieStore(
 				authKey,
@@ -86,11 +91,18 @@ func New(
 		}(), CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
 
 		echomw.Recover(),
-	)
+	}
+
+	if tel.HasTracing() {
+		middleware = append([]echo.MiddlewareFunc{otelecho.Middleware(cfg.Telemetry.ServiceName)}, middleware...)
+	}
+
+	router.Use(middleware...)
 
 	return &Router{
 		router,
 		controllers,
+		tel,
 	}, nil
 }
 
@@ -216,31 +228,33 @@ func registerFlashMessagesContext(
 	}
 }
 
-type LogExporter interface {
-	Name() string
-	GetSlogHandler(
-		ctx context.Context,
-	) (slog.Handler, error)
 
-	Shutdown(ctx context.Context) error
-}
+func logger(tel *telemetry.Telemetry, serviceName string) echo.MiddlewareFunc {
+	var httpRequestsTotal metric.Int64Counter
+	var httpDuration metric.Float64Histogram
+	var httpInFlight metric.Int64UpDownCounter
 
-func NewLogger(
-	ctx context.Context,
-	exporter LogExporter,
-) (*slog.Logger, func(ctx context.Context) error) {
-	handler, err := exporter.GetSlogHandler(ctx)
-	if err != nil {
-		panic(err)
+	if tel.HasMetrics() {
+		var err error
+		httpRequestsTotal, err = telemetry.HTTPRequestsTotal(serviceName)
+		if err != nil {
+			slog.Warn("failed to create http_requests_total metric", "error", err)
+		}
+		httpDuration, err = telemetry.HTTPRequestDuration(serviceName)
+		if err != nil {
+			slog.Warn("failed to create http_request_duration metric", "error", err)
+		}
+		httpInFlight, err = telemetry.HTTPRequestsInFlight(serviceName)
+		if err != nil {
+			slog.Warn("failed to create http_requests_in_flight metric", "error", err)
+		}
+
+		meter := telemetry.GetMeter(serviceName)
+		if err := telemetry.SetupRuntimeMetricsInCallback(meter); err != nil {
+			slog.Warn("failed to setup runtime metrics", "error", err)
+		}
 	}
 
-	return slog.New(handler), exporter.Shutdown
-}
-
-func logger() echo.MiddlewareFunc {
-	otelMiddleware := otelecho.Middleware(
-		config.ProjectName,
-	)
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			if strings.Contains(c.Request().URL.Path, routes.APIRoutePrefix) ||
@@ -248,19 +262,29 @@ func logger() echo.MiddlewareFunc {
 				return next(c)
 			}
 
+			ctx := c.Request().Context()
 			start := time.Now()
 
-			var statusCode int
-			wrappedNext := func(c echo.Context) error {
-				err := next(c)
-				statusCode = c.Response().Status
-				return err
+			if tel.HasMetrics() && httpInFlight != nil {
+				httpInFlight.Add(ctx, 1)
+				defer httpInFlight.Add(ctx, -1)
 			}
 
-			err := otelMiddleware(wrappedNext)(c)
+			err := next(c)
 			duration := time.Since(start)
+			statusCode := c.Response().Status
 
-			slog.InfoContext(c.Request().Context(), "HTTP request completed",
+			if tel.HasMetrics() && httpRequestsTotal != nil && httpDuration != nil {
+				attrs := []attribute.KeyValue{
+					attribute.String("method", c.Request().Method),
+					attribute.String("route", c.Path()),
+					attribute.Int("status_code", statusCode),
+				}
+				httpRequestsTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
+				httpDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
+			}
+
+			slog.InfoContext(ctx, "HTTP request completed",
 				"method", c.Request().Method,
 				"path", c.Request().URL.Path,
 				"status", statusCode,

@@ -1,0 +1,419 @@
+package telemetry
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"runtime"
+	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
+)
+
+type MetricExporter interface {
+	Name() string
+	GetSdkMetricExporter(ctx context.Context, res *resource.Resource) (sdkmetric.Exporter, error)
+	Shutdown(ctx context.Context) error
+}
+
+func GetMeter(serviceName string) metric.Meter {
+	return otel.Meter(serviceName)
+}
+
+func HTTPRequestsTotal(serviceName string) (metric.Int64Counter, error) {
+	counter, err := GetMeter(serviceName).Int64Counter(
+		"http_requests_total",
+		metric.WithDescription("Total number of HTTP requests"),
+		metric.WithUnit("1"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http_requests_total counter: %w", err)
+	}
+	return counter, nil
+}
+
+func HTTPRequestsInFlight(serviceName string) (metric.Int64UpDownCounter, error) {
+	counter, err := GetMeter(serviceName).Int64UpDownCounter(
+		"http_requests_in_flight",
+		metric.WithDescription("Current number of HTTP requests being served"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http_requests_in_flight counter: %w", err)
+	}
+	return counter, nil
+}
+
+func HTTPRequestDuration(serviceName string) (metric.Float64Histogram, error) {
+	histogram, err := GetMeter(serviceName).Float64Histogram(
+		"http_request_duration_seconds",
+		metric.WithDescription("HTTP request duration in seconds"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http_request_duration_seconds histogram: %w", err)
+	}
+	return histogram, nil
+}
+
+func HTTPRequestSize(serviceName string) (metric.Float64Histogram, error) {
+	histogram, err := GetMeter(serviceName).Float64Histogram(
+		"http_request_size_bytes",
+		metric.WithDescription("HTTP request size in bytes"),
+		metric.WithUnit("By"),
+		metric.WithExplicitBucketBoundaries(1024, 2048, 5120, 10240, 102400, 512000, 1048576, 2621440, 5242880, 10485760),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http_request_size_bytes histogram: %w", err)
+	}
+	return histogram, nil
+}
+
+func HTTPResponseSize(serviceName string) (metric.Float64Histogram, error) {
+	histogram, err := GetMeter(serviceName).Float64Histogram(
+		"http_response_size_bytes",
+		metric.WithDescription("HTTP response size in bytes"),
+		metric.WithUnit("By"),
+		metric.WithExplicitBucketBoundaries(1024, 2048, 5120, 10240, 102400, 512000, 1048576, 2621440, 5242880, 10485760),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http_response_size_bytes histogram: %w", err)
+	}
+	return histogram, nil
+}
+
+func SetupRuntimeMetricsInCallback(meter metric.Meter) error {
+	_, err := meter.Int64ObservableGauge(
+		"go_goroutines",
+		metric.WithDescription("Number of goroutines that currently exist"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				o.Observe(int64(runtime.NumGoroutine()))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_goroutines gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_alloc_bytes",
+		metric.WithDescription("Number of bytes allocated and still in use"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.Alloc))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_alloc_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_heap_alloc_bytes",
+		metric.WithDescription("Number of heap bytes allocated and still in use"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.HeapAlloc))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_heap_alloc_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_heap_sys_bytes",
+		metric.WithDescription("Number of heap bytes obtained from system"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.HeapSys))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_heap_sys_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_heap_idle_bytes",
+		metric.WithDescription("Number of heap bytes waiting to be used"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.HeapIdle))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_heap_idle_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_heap_inuse_bytes",
+		metric.WithDescription("Number of heap bytes that are in use"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.HeapInuse))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_heap_inuse_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_heap_released_bytes",
+		metric.WithDescription("Number of heap bytes released to OS"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.HeapReleased))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_heap_released_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_sys_bytes",
+		metric.WithDescription("Number of bytes obtained from system"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.Sys))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_sys_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableCounter(
+		"go_memstats_mallocs_total",
+		metric.WithDescription("Total number of mallocs"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.Mallocs))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_mallocs_total counter: %w", err)
+	}
+
+	_, err = meter.Int64ObservableCounter(
+		"go_memstats_frees_total",
+		metric.WithDescription("Total number of frees"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.Frees))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_frees_total counter: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_heap_objects",
+		metric.WithDescription("Number of allocated objects"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.HeapObjects))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_heap_objects gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_next_gc_bytes",
+		metric.WithDescription("Number of heap bytes when next garbage collection will take place"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.NextGC))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_next_gc_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Float64ObservableGauge(
+		"go_memstats_last_gc_time_seconds",
+		metric.WithDescription("Number of seconds since 1970 of last garbage collection"),
+		metric.WithUnit("s"),
+		metric.WithFloat64Callback(
+			func(ctx context.Context, o metric.Float64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(float64(m.LastGC) / 1e9)
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_last_gc_time_seconds gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_memstats_gc_sys_bytes",
+		metric.WithDescription("Number of bytes used for garbage collection system metadata"),
+		metric.WithUnit("bytes"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.GCSys))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_memstats_gc_sys_bytes gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_threads",
+		metric.WithDescription("Number of OS threads created"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				o.Observe(int64(runtime.GOMAXPROCS(0)))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_threads gauge: %w", err)
+	}
+
+	var previousNumGC uint32
+	var totalPauseNs uint64
+
+	_, err = meter.Float64ObservableGauge(
+		"go_gc_duration_seconds_sum",
+		metric.WithDescription("Total pause duration of garbage collection cycles"),
+		metric.WithUnit("s"),
+		metric.WithFloat64Callback(
+			func(ctx context.Context, o metric.Float64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+
+				if m.NumGC > previousNumGC {
+					for i := previousNumGC; i < m.NumGC; i++ {
+						idx := i % uint32(len(m.PauseNs))
+						totalPauseNs += m.PauseNs[idx]
+					}
+					previousNumGC = m.NumGC
+				}
+
+				o.Observe(float64(totalPauseNs) / 1e9)
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_gc_duration_seconds_sum gauge: %w", err)
+	}
+
+	_, err = meter.Int64ObservableGauge(
+		"go_gc_duration_seconds_count",
+		metric.WithDescription("Number of garbage collection cycles"),
+		metric.WithInt64Callback(
+			func(ctx context.Context, o metric.Int64Observer) error {
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				o.Observe(int64(m.NumGC))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create go_gc_duration_seconds_count gauge: %w", err)
+	}
+
+	startTime := time.Now()
+	_, err = meter.Float64ObservableGauge(
+		"process_start_time_seconds",
+		metric.WithDescription("Start time of the process since unix epoch in seconds"),
+		metric.WithUnit("s"),
+		metric.WithFloat64Callback(
+			func(ctx context.Context, o metric.Float64Observer) error {
+				o.Observe(float64(startTime.Unix()))
+				return nil
+			},
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create process_start_time_seconds gauge: %w", err)
+	}
+
+	return nil
+}
+
+func ComputeApproximateRequestSize(r *http.Request) int {
+	s := 0
+	if r.URL != nil {
+		s = len(r.URL.Path)
+	}
+
+	s += len(r.Method)
+	s += len(r.Proto)
+	for name, values := range r.Header {
+		s += len(name)
+		for _, value := range values {
+			s += len(value)
+		}
+	}
+	s += len(r.Host)
+
+	if r.ContentLength != -1 {
+		s += int(r.ContentLength)
+	}
+	return s
+}
