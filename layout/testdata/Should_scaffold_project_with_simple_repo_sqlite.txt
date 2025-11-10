@@ -2252,9 +2252,9 @@ import (
 	"time"
 )
 
-type Option func(*config) error
+type Option func(*telemetryOptions) error
 
-type config struct {
+type telemetryOptions struct {
 	serviceName     string
 	serviceVersion  string
 	logExporters    []LogExporter
@@ -2266,8 +2266,8 @@ type config struct {
 	traceSampleRate float64
 }
 
-func defaultConfig() *config {
-	return &config{
+func defaultConfig() *telemetryOptions {
+	return &telemetryOptions{
 		serviceName:     "unknown-service",
 		serviceVersion:  "0.0.0",
 		batchSize:       512,
@@ -2278,7 +2278,7 @@ func defaultConfig() *config {
 }
 
 func WithService(name, version string) Option {
-	return func(c *config) error {
+	return func(c *telemetryOptions) error {
 		if name == "" {
 			return fmt.Errorf("service name cannot be empty")
 		}
@@ -2292,7 +2292,7 @@ func WithService(name, version string) Option {
 }
 
 func WithLogExporters(exporters ...LogExporter) Option {
-	return func(c *config) error {
+	return func(c *telemetryOptions) error {
 		for i, exp := range exporters {
 			if exp == nil {
 				return fmt.Errorf("log exporter at index %d is nil", i)
@@ -2304,7 +2304,7 @@ func WithLogExporters(exporters ...LogExporter) Option {
 }
 
 func WithMetricExporters(exporters ...MetricExporter) Option {
-	return func(c *config) error {
+	return func(c *telemetryOptions) error {
 		for i, exp := range exporters {
 			if exp == nil {
 				return fmt.Errorf("metric exporter at index %d is nil", i)
@@ -2316,7 +2316,7 @@ func WithMetricExporters(exporters ...MetricExporter) Option {
 }
 
 func WithTraceExporters(exporters ...TraceExporter) Option {
-	return func(c *config) error {
+	return func(c *telemetryOptions) error {
 		for i, exp := range exporters {
 			if exp == nil {
 				return fmt.Errorf("trace exporter at index %d is nil", i)
@@ -2328,7 +2328,7 @@ func WithTraceExporters(exporters ...TraceExporter) Option {
 }
 
 func WithBatchConfig(size int, timeoutMs int, queueSize int) Option {
-	return func(c *config) error {
+	return func(c *telemetryOptions) error {
 		if size <= 0 {
 			return fmt.Errorf("batch size must be positive, got %d", size)
 		}
@@ -2346,7 +2346,7 @@ func WithBatchConfig(size int, timeoutMs int, queueSize int) Option {
 }
 
 func WithTraceSampleRate(rate float64) Option {
-	return func(c *config) error {
+	return func(c *telemetryOptions) error {
 		if rate < 0.0 || rate > 1.0 {
 			return fmt.Errorf("trace sample rate must be between 0.0 and 1.0, got %f", rate)
 		}
@@ -2381,7 +2381,7 @@ type Telemetry struct {
 	meterProvider  *sdkmetric.MeterProvider
 	tracerProvider *sdktrace.TracerProvider
 	shutdownFuncs  []func(context.Context) error
-	config         *config
+	config         *telemetryOptions
 }
 
 func New(ctx context.Context, opts ...Option) (*Telemetry, error) {
