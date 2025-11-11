@@ -108,7 +108,16 @@ func (a Assets) Robots(c echo.Context) error {
 		return err
 	}
 
-	return c.String(http.StatusOK, string(robots))
+	robotsStr := string(robots)
+
+	if ok := a.robotsCache.Set(robotsCacheKey, robotsStr); !ok {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"could not set robots cache",
+		)
+	}
+
+	return c.String(http.StatusOK, robotsStr)
 }
 
 func (a Assets) Sitemap(c echo.Context) error {

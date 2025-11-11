@@ -24,12 +24,7 @@ func New(
 	insertOnly queue.InsertOnly,
 {{- end}}
 ) (Controllers, error) {
-	cacheBuilder, err := otter.NewBuilder[string, templ.Component](20)
-	if err != nil {
-		return Controllers{}, err
-	}
-
-	pageCacher, err := cacheBuilder.WithVariableTTL().Build()
+	cacheManager, err := newCacheManager()
 	if err != nil {
 		return Controllers{}, err
 	}

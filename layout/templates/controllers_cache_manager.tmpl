@@ -1,0 +1,127 @@
+package controllers
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/a-h/templ"
+	"github.com/maypok86/otter"
+)
+
+const (
+	defaultPageCacheSize     = 50
+	defaultQueryCacheSize    = 200
+	defaultComputedCacheSize = 100
+
+	defaultPageTTL     = 15 * time.Minute
+	defaultQueryTTL    = 30 * time.Minute
+	defaultComputedTTL = 1 * time.Hour
+)
+
+type CacheManager struct {
+	pageCache     otter.CacheWithVariableTTL[string, templ.Component]
+	queryCache    otter.Cache[string, interface{}]
+	computedCache otter.CacheWithVariableTTL[string, interface{}]
+}
+
+func newCacheManager() (CacheManager, error) {
+	pageCache, err := createPageCache()
+	if err != nil {
+		return CacheManager{}, fmt.Errorf("failed to create page cache: %w", err)
+	}
+
+	queryCache, err := createQueryCache()
+	if err != nil {
+		return CacheManager{}, fmt.Errorf("failed to create query cache: %w", err)
+	}
+
+	computedCache, err := createComputedCache()
+	if err != nil {
+		return CacheManager{}, fmt.Errorf("failed to create computed cache: %w", err)
+	}
+
+	return CacheManager{
+		pageCache:     pageCache,
+		queryCache:    queryCache,
+		computedCache: computedCache,
+	}, nil
+}
+
+func createPageCache() (otter.CacheWithVariableTTL[string, templ.Component], error) {
+	builder, err := otter.NewBuilder[string, templ.Component](defaultPageCacheSize)
+	if err != nil {
+		return nil, err
+	}
+
+	return builder.WithVariableTTL().Build()
+}
+
+func createQueryCache() (otter.Cache[string, interface{}], error) {
+	builder, err := otter.NewBuilder[string, interface{}](defaultQueryCacheSize)
+	if err != nil {
+		return nil, err
+	}
+
+	return builder.WithTTL(defaultQueryTTL).Build()
+}
+
+func createComputedCache() (otter.CacheWithVariableTTL[string, interface{}], error) {
+	builder, err := otter.NewBuilder[string, interface{}](defaultComputedCacheSize)
+	if err != nil {
+		return nil, err
+	}
+
+	return builder.WithVariableTTL().Build()
+}
+
+func (cm CacheManager) GetPage(ctx context.Context, key string, loader func() (templ.Component, error)) (templ.Component, error) {
+	return cm.pageCache.Get(ctx, key, loader)
+}
+
+func (cm CacheManager) SetPage(key string, component templ.Component, ttl time.Duration) bool {
+	return cm.pageCache.SetWithTTL(key, component, ttl)
+}
+
+func (cm CacheManager) GetPageIfPresent(key string) (templ.Component, bool) {
+	return cm.pageCache.GetIfPresent(key)
+}
+
+func (cm CacheManager) GetQuery(ctx context.Context, key string, loader func() (interface{}, error)) (interface{}, error) {
+	return cm.queryCache.Get(ctx, key, loader)
+}
+
+func (cm CacheManager) GetQueryIfPresent(key string) (interface{}, bool) {
+	return cm.queryCache.GetIfPresent(key)
+}
+
+func (cm CacheManager) InvalidateQuery(key string) {
+	cm.queryCache.Delete(key)
+}
+
+func (cm CacheManager) GetComputed(ctx context.Context, key string, loader func() (interface{}, error)) (interface{}, error) {
+	return cm.computedCache.Get(ctx, key, loader)
+}
+
+func (cm CacheManager) SetComputed(key string, value interface{}, ttl time.Duration) bool {
+	return cm.computedCache.SetWithTTL(key, value, ttl)
+}
+
+func (cm CacheManager) GetComputedIfPresent(key string) (interface{}, bool) {
+	return cm.computedCache.GetIfPresent(key)
+}
+
+func (cm CacheManager) InvalidateComputed(key string) {
+	cm.computedCache.Delete(key)
+}
+
+func CacheKey(parts ...string) string {
+	key := ""
+	for i, part := range parts {
+		if i > 0 {
+			key += ":"
+		}
+		key += part
+	}
+	return key
+}
