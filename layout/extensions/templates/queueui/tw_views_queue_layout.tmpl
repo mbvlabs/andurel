@@ -1,0 +1,46 @@
+package views
+
+import (
+	"{{.ModuleName}}/router/routes"
+)
+
+templ QueueLayout(currentPath string) {
+	@base() {
+		<div class="min-h-screen bg-base-200">
+			<nav class="bg-base-100 border-b border-base-300">
+				<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+					<div class="flex justify-between h-16">
+						<div class="flex">
+							<div class="flex-shrink-0 flex items-center">
+								<h1 class="text-xl font-bold">Queue Manager</h1>
+							</div>
+							<div class="ml-6 flex space-x-8">
+								<a
+									href={ templ.SafeURL(routes.QueueDashboard.URL()) }
+									class={ "inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium", templ.KV("border-primary text-primary", currentPath == "dashboard"), templ.KV("border-transparent text-base-content hover:text-primary hover:border-primary", currentPath != "dashboard") }
+								>
+									Dashboard
+								</a>
+								<a
+									href={ templ.SafeURL(routes.QueueJobsList.URL()) }
+									class={ "inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium", templ.KV("border-primary text-primary", currentPath == "jobs"), templ.KV("border-transparent text-base-content hover:text-primary hover:border-primary", currentPath != "jobs") }
+								>
+									Jobs
+								</a>
+								<a
+									href={ templ.SafeURL(routes.QueueQueuesList.URL()) }
+									class={ "inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium", templ.KV("border-primary text-primary", currentPath == "queues"), templ.KV("border-transparent text-base-content hover:text-primary hover:border-primary", currentPath != "queues") }
+								>
+									Queues
+								</a>
+							</div>
+						</div>
+					</div>
+				</div>
+			</nav>
+			<main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+				{ children... }
+			</main>
+		</div>
+	}
+}

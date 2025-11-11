@@ -1,0 +1,71 @@
+package views
+
+import (
+	"fmt"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/router/routes"
+)
+
+templ QueueQueues(queueStats []models.QueueWithStats) {
+	@QueueLayout("queues") {
+		<div class="px-4 py-6 sm:px-0">
+			<div class="mb-6">
+				<h2 class="text-2xl font-bold">Queues</h2>
+			</div>
+			<div class="bg-base-100 shadow overflow-hidden sm:rounded-lg">
+				<table class="min-w-full divide-y divide-base-300">
+					<thead class="bg-base-200">
+						<tr>
+							<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Name</th>
+							<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Status</th>
+							<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Available</th>
+							<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Running</th>
+							<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Scheduled</th>
+							<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Completed</th>
+							<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Failed</th>
+							<th scope="col" class="relative px-6 py-3">
+								<span class="sr-only">Actions</span>
+							</th>
+						</tr>
+					</thead>
+					<tbody class="bg-base-100 divide-y divide-base-300">
+						if len(queueStats) == 0 {
+							<tr>
+								<td colspan="8" class="px-6 py-4 text-center text-base-content text-opacity-60">
+									No queues found
+								</td>
+							</tr>
+						}
+						for _, qs := range queueStats {
+							<tr>
+								<td class="px-6 py-4 whitespace-nowrap">
+									<div class="text-sm font-medium">{ qs.Queue.Name }</div>
+								</td>
+								<td class="px-6 py-4 whitespace-nowrap">
+									if qs.Queue.PausedAt.IsZero() == false {
+										<span class="px-2 py-1 text-xs rounded bg-warning text-warning-content">Paused</span>
+									}
+									if !qs.Queue.PausedAt.IsZero() == false {
+										<span class="px-2 py-1 text-xs rounded bg-success text-success-content">Active</span>
+									}
+								</td>
+								<td class="px-6 py-4 whitespace-nowrap text-sm">{ fmt.Sprintf("%d", qs.Stats.AvailableCount) }</td>
+								<td class="px-6 py-4 whitespace-nowrap text-sm">{ fmt.Sprintf("%d", qs.Stats.RunningCount) }</td>
+								<td class="px-6 py-4 whitespace-nowrap text-sm">{ fmt.Sprintf("%d", qs.Stats.ScheduledCount) }</td>
+								<td class="px-6 py-4 whitespace-nowrap text-sm">{ fmt.Sprintf("%d", qs.Stats.CompletedCount) }</td>
+								<td class="px-6 py-4 whitespace-nowrap text-sm">
+									{ fmt.Sprintf("%d", qs.Stats.CancelledCount + qs.Stats.DiscardedCount) }
+								</td>
+								<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+									<a href={ templ.SafeURL(routes.QueueQueueDetail.URL(qs.Queue.Name)) } class="text-primary hover:text-primary-focus">
+										View
+									</a>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	}
+}

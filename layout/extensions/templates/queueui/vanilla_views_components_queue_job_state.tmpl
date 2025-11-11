@@ -1,0 +1,28 @@
+package components
+
+templ QueueJobStateBadge(state string) {
+	if state == "available" {
+		<span class="job-state-badge job-state-available">Available</span>
+	}
+	if state == "running" {
+		<span class="job-state-badge job-state-running">Running</span>
+	}
+	if state == "completed" {
+		<span class="job-state-badge job-state-completed">Completed</span>
+	}
+	if state == "cancelled" {
+		<span class="job-state-badge job-state-cancelled">Cancelled</span>
+	}
+	if state == "discarded" {
+		<span class="job-state-badge job-state-discarded">Discarded</span>
+	}
+	if state == "retryable" {
+		<span class="job-state-badge job-state-retryable">Retryable</span>
+	}
+	if state == "scheduled" {
+		<span class="job-state-badge job-state-scheduled">Scheduled</span>
+	}
+	if state == "pending" {
+		<span class="job-state-badge job-state-pending">Pending</span>
+	}
+}

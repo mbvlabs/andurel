@@ -1,0 +1,67 @@
+package views
+
+import (
+	"fmt"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/router/routes"
+)
+
+templ QueueQueues(queueStats []models.QueueWithStats, stateCounts []models.JobStateCount) {
+	@QueueLayout("queues", stateCounts) {
+		<div class="queue-queues">
+			<div class="page-header">
+				<h2>Queues</h2>
+			</div>
+			<div class="card">
+				<div class="table-responsive">
+					<table class="data-table">
+						<thead>
+							<tr>
+								<th>Name</th>
+								<th>Status</th>
+								<th>Available</th>
+								<th>Running</th>
+								<th>Scheduled</th>
+								<th>Completed</th>
+								<th>Failed</th>
+								<th></th>
+							</tr>
+						</thead>
+						<tbody>
+							if len(queueStats) == 0 {
+								<tr>
+									<td colspan="8" class="empty-cell">
+										No queues found
+									</td>
+								</tr>
+							}
+							for _, qs := range queueStats {
+								<tr>
+									<td class="font-medium">{ qs.Queue.Name }</td>
+									<td>
+										if qs.Queue.PausedAt.IsZero() == false {
+											<span class="badge badge-warning">Paused</span>
+										}
+										if !qs.Queue.PausedAt.IsZero() == false {
+											<span class="badge badge-success">Active</span>
+										}
+									</td>
+									<td>{ fmt.Sprintf("%d", qs.Stats.AvailableCount) }</td>
+									<td>{ fmt.Sprintf("%d", qs.Stats.RunningCount) }</td>
+									<td>{ fmt.Sprintf("%d", qs.Stats.ScheduledCount) }</td>
+									<td>{ fmt.Sprintf("%d", qs.Stats.CompletedCount) }</td>
+									<td>{ fmt.Sprintf("%d", qs.Stats.CancelledCount + qs.Stats.DiscardedCount) }</td>
+									<td class="text-right">
+										<a href={ templ.SafeURL(routes.QueueQueueDetail.URL(qs.Queue.Name)) } class="link">
+											View
+										</a>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	}
+}

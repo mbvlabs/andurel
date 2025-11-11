@@ -1,0 +1,56 @@
+{{- if eq .Database "postgresql" -}}
+-- name: ListJobs :many
+SELECT * FROM river_job
+WHERE
+  (sqlc.narg('state')::text IS NULL OR river_job.state = sqlc.narg('state'))
+  AND (sqlc.narg('queue')::text IS NULL OR river_job.queue = sqlc.narg('queue'))
+  AND (sqlc.narg('kind')::text IS NULL OR river_job.kind = sqlc.narg('kind'))
+ORDER BY river_job.created_at DESC
+LIMIT sqlc.arg('limit')::bigint OFFSET sqlc.arg('offset')::bigint;
+
+-- name: GetJob :one
+SELECT * FROM river_job WHERE river_job.id = $1;
+
+-- name: CountJobs :one
+SELECT COUNT(*) FROM river_job
+WHERE
+  (sqlc.narg('state')::text IS NULL OR river_job.state = sqlc.narg('state'))
+  AND (sqlc.narg('queue')::text IS NULL OR river_job.queue = sqlc.narg('queue'))
+  AND (sqlc.narg('kind')::text IS NULL OR river_job.kind = sqlc.narg('kind'));
+
+-- name: CountJobsByState :many
+SELECT river_job.state, COUNT(*) as count
+FROM river_job
+GROUP BY river_job.state
+ORDER BY river_job.state;
+
+-- name: ListQueues :many
+SELECT * FROM river_queue
+ORDER BY river_queue.name;
+
+-- name: GetQueue :one
+SELECT * FROM river_queue WHERE river_queue.name = $1;
+
+-- name: GetQueueStats :one
+SELECT
+  (SELECT COUNT(*) FROM river_job WHERE river_job.queue = $1 AND river_job.state = 'available') as available_count,
+  (SELECT COUNT(*) FROM river_job WHERE river_job.queue = $1 AND river_job.state = 'running') as running_count,
+  (SELECT COUNT(*) FROM river_job WHERE river_job.queue = $1 AND river_job.state = 'scheduled') as scheduled_count,
+  (SELECT COUNT(*) FROM river_job WHERE river_job.queue = $1 AND river_job.state = 'completed') as completed_count,
+  (SELECT COUNT(*) FROM river_job WHERE river_job.queue = $1 AND river_job.state = 'retryable') as retryable_count,
+  (SELECT COUNT(*) FROM river_job WHERE river_job.queue = $1 AND river_job.state = 'cancelled') as cancelled_count,
+  (SELECT COUNT(*) FROM river_job WHERE river_job.queue = $1 AND river_job.state = 'discarded') as discarded_count;
+
+-- name: GetRecentJobs :many
+SELECT * FROM river_job
+ORDER BY river_job.created_at DESC
+LIMIT $1;
+
+-- name: ListJobKinds :many
+SELECT DISTINCT river_job.kind FROM river_job
+ORDER BY river_job.kind;
+
+-- name: ListQueueNames :many
+SELECT DISTINCT river_job.queue FROM river_job
+ORDER BY river_job.queue;
+{{- end -}}

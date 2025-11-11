@@ -1,0 +1,46 @@
+package components
+
+import (
+	"fmt"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/router/routes"
+)
+
+templ QueueJobRow(job models.Job) {
+	<tr>
+		<td class="px-6 py-4 whitespace-nowrap">
+			<input
+				type="checkbox"
+				class="checkbox checkbox-sm"
+				data-bind={ fmt.Sprintf("selectedJobs.includes(%d)", job.ID) }
+				data-on-change={ fmt.Sprintf("$selectedJobs = $event.target.checked ? [...$selectedJobs, %d] : $selectedJobs.filter(id => id !== %d)", job.ID, job.ID) }
+			/>
+		</td>
+		<td class="px-6 py-4 whitespace-nowrap text-sm">
+			{ fmt.Sprintf("%d", job.ID) }
+		</td>
+		<td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+			{ job.Kind }
+		</td>
+		<td class="px-6 py-4 whitespace-nowrap text-sm">
+			{ job.Queue }
+		</td>
+		<td class="px-6 py-4 whitespace-nowrap">
+			@QueueJobStateBadge(job.State)
+		</td>
+		<td class="px-6 py-4 whitespace-nowrap text-sm">
+			{ fmt.Sprintf("%d", job.Priority) }
+		</td>
+		<td class="px-6 py-4 whitespace-nowrap text-sm">
+			{ fmt.Sprintf("%d / %d", job.Attempt, job.MaxAttempts) }
+		</td>
+		<td class="px-6 py-4 whitespace-nowrap text-sm">
+			@QueueTime(job.CreatedAt)
+		</td>
+		<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+			<a href={ templ.SafeURL(routes.QueueJobDetail.URL(fmt.Sprintf("%d", job.ID))) } class="text-primary hover:text-primary-focus">
+				View
+			</a>
+		</td>
+	</tr>
+}

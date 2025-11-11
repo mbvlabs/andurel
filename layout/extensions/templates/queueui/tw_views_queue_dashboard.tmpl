@@ -1,0 +1,94 @@
+package views
+
+import (
+	"fmt"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/views/components"
+)
+
+templ QueueDashboard(stateCounts []models.JobStateCount, queues []models.Queue, recentJobs []models.Job) {
+	@QueueLayout("dashboard") {
+		<div class="px-4 py-6 sm:px-0">
+			<h2 class="text-2xl font-bold mb-6">Dashboard</h2>
+			<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+				for _, count := range stateCounts {
+					<div class="bg-base-100 overflow-hidden shadow rounded-lg">
+						<div class="p-5">
+							<div class="flex items-center">
+								<div class="flex-1">
+									<dt class="text-sm font-medium text-base-content truncate">
+										{ count.State }
+									</dt>
+									<dd class="mt-1 text-3xl font-semibold">
+										{ fmt.Sprintf("%d", count.Count) }
+									</dd>
+								</div>
+								<div class="ml-4">
+									@components.QueueJobStateBadge(count.State)
+								</div>
+							</div>
+						</div>
+					</div>
+				}
+			</div>
+			<div class="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+				<div class="bg-base-100 shadow rounded-lg">
+					<div class="px-4 py-5 sm:p-6">
+						<h3 class="text-lg font-medium mb-4">Active Queues</h3>
+						if len(queues) == 0 {
+							<p class="text-base-content text-opacity-60">No queues found</p>
+						}
+						if len(queues) > 0 {
+							<div class="space-y-2">
+								for _, queue := range queues {
+									<div class="flex items-center justify-between p-3 bg-base-200 rounded">
+										<div class="flex items-center">
+											<span class="font-medium">{ queue.Name }</span>
+											if queue.PausedAt.IsZero() == false {
+												<span class="ml-2 px-2 py-1 text-xs rounded bg-warning text-warning-content">Paused</span>
+											}
+										</div>
+										<a href={ templ.SafeURL(routes.QueueQueueDetail.URL(queue.Name)) } class="text-primary hover:text-primary-focus">
+											View
+										</a>
+									</div>
+								}
+							</div>
+						}
+					</div>
+				</div>
+				<div class="bg-base-100 shadow rounded-lg">
+					<div class="px-4 py-5 sm:p-6">
+						<h3 class="text-lg font-medium mb-4">Recent Jobs</h3>
+						if len(recentJobs) == 0 {
+							<p class="text-base-content text-opacity-60">No recent jobs</p>
+						}
+						if len(recentJobs) > 0 {
+							<div class="space-y-2">
+								for _, job := range recentJobs {
+									<div class="flex items-center justify-between p-3 bg-base-200 rounded">
+										<div class="flex-1">
+											<div class="flex items-center">
+												<span class="font-medium">{ job.Kind }</span>
+												<span class="ml-2">
+													@components.QueueJobStateBadge(job.State)
+												</span>
+											</div>
+											<div class="text-xs text-base-content text-opacity-60 mt-1">
+												{ job.Queue } • @components.QueueTime(job.CreatedAt)
+											</div>
+										</div>
+										<a href={ templ.SafeURL(routes.QueueJobDetail.URL(fmt.Sprintf("%d", job.ID))) } class="text-primary hover:text-primary-focus">
+											View
+										</a>
+									</div>
+								}
+							</div>
+						}
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}

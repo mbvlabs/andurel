@@ -1,0 +1,235 @@
+{{- if eq .Database "postgresql" }}
+package models
+
+import (
+	"context"
+	"encoding/json"
+	"time"
+
+	"{{.ModuleName}}/models/internal/db"
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+type Job struct {
+	ID           int64
+	CreatedAt    time.Time
+	State        string
+	Queue        string
+	Kind         string
+	Priority     int16
+	Attempt      int16
+	MaxAttempts  int16
+	Args         json.RawMessage
+	Errors       []json.RawMessage
+	Tags         []string
+	Metadata     json.RawMessage
+	ScheduledAt  time.Time
+	AttemptedAt  time.Time
+	FinalizedAt  time.Time
+}
+
+type Queue struct {
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	PausedAt  time.Time
+	Metadata  json.RawMessage
+}
+
+type JobStateCount struct {
+	State string
+	Count int64
+}
+
+type QueueStats struct {
+	AvailableCount  int64
+	RunningCount    int64
+	ScheduledCount  int64
+	CompletedCount  int64
+	RetryableCount  int64
+	CancelledCount  int64
+	DiscardedCount  int64
+}
+
+type QueueWithStats struct {
+	Queue Queue
+	Stats QueueStats
+}
+
+func ListJobs(
+	ctx context.Context,
+	dbtx db.DBTX,
+	state, queue, kind pgtype.Text,
+	limit, offset int64,
+) ([]Job, error) {
+	rows, err := queries.ListJobs(ctx, dbtx, db.ListJobsParams{
+		State:  state,
+		Queue:  queue,
+		Kind:   kind,
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	jobs := make([]Job, len(rows))
+	for i, row := range rows {
+		jobs[i] = rowToJob(row)
+	}
+
+	return jobs, nil
+}
+
+func GetJob(ctx context.Context, dbtx db.DBTX, id int64) (Job, error) {
+	row, err := queries.GetJob(ctx, dbtx, id)
+	if err != nil {
+		return Job{}, err
+	}
+
+	return rowToJob(row), nil
+}
+
+func CountJobs(
+	ctx context.Context,
+	dbtx db.DBTX,
+	state, queue, kind pgtype.Text,
+) (int64, error) {
+	return queries.CountJobs(ctx, dbtx, db.CountJobsParams{
+		State: state,
+		Queue: queue,
+		Kind:  kind,
+	})
+}
+
+func CountJobsByState(ctx context.Context, dbtx db.DBTX) ([]JobStateCount, error) {
+	rows, err := queries.CountJobsByState(ctx, dbtx)
+	if err != nil {
+		return nil, err
+	}
+
+	counts := make([]JobStateCount, len(rows))
+	for i, row := range rows {
+		counts[i] = JobStateCount{
+			State: string(row.State),
+			Count: row.Count,
+		}
+	}
+
+	return counts, nil
+}
+
+func ListQueues(ctx context.Context, dbtx db.DBTX) ([]Queue, error) {
+	rows, err := queries.ListQueues(ctx, dbtx)
+	if err != nil {
+		return nil, err
+	}
+
+	queues := make([]Queue, len(rows))
+	for i, row := range rows {
+		queues[i] = rowToQueue(row)
+	}
+
+	return queues, nil
+}
+
+func GetQueue(ctx context.Context, dbtx db.DBTX, name string) (Queue, error) {
+	row, err := queries.GetQueue(ctx, dbtx, name)
+	if err != nil {
+		return Queue{}, err
+	}
+
+	return rowToQueue(row), nil
+}
+
+func GetQueueStats(ctx context.Context, dbtx db.DBTX, queueName string) (QueueStats, error) {
+	row, err := queries.GetQueueStats(ctx, dbtx, queueName)
+	if err != nil {
+		return QueueStats{}, err
+	}
+
+	return QueueStats{
+		AvailableCount:  row.AvailableCount,
+		RunningCount:    row.RunningCount,
+		ScheduledCount:  row.ScheduledCount,
+		CompletedCount:  row.CompletedCount,
+		RetryableCount:  row.RetryableCount,
+		CancelledCount:  row.CancelledCount,
+		DiscardedCount:  row.DiscardedCount,
+	}, nil
+}
+
+func GetRecentJobs(ctx context.Context, dbtx db.DBTX, limit int32) ([]Job, error) {
+	rows, err := queries.GetRecentJobs(ctx, dbtx, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	jobs := make([]Job, len(rows))
+	for i, row := range rows {
+		jobs[i] = rowToJob(row)
+	}
+
+	return jobs, nil
+}
+
+func ListJobKinds(ctx context.Context, dbtx db.DBTX) ([]string, error) {
+	return queries.ListJobKinds(ctx, dbtx)
+}
+
+func ListQueueNames(ctx context.Context, dbtx db.DBTX) ([]string, error) {
+	return queries.ListQueueNames(ctx, dbtx)
+}
+
+func rowToJob(row db.RiverJob) Job {
+	job := Job{
+		ID:          row.ID,
+		CreatedAt:   row.CreatedAt.Time,
+		State:       string(row.State),
+		Queue:       row.Queue,
+		Kind:        row.Kind,
+		Priority:    row.Priority,
+		Attempt:     row.Attempt,
+		MaxAttempts: row.MaxAttempts,
+		Args:        json.RawMessage(row.Args),
+		Tags:        row.Tags,
+		Metadata:    json.RawMessage(row.Metadata),
+	}
+
+	if row.ScheduledAt.Valid {
+		job.ScheduledAt = row.ScheduledAt.Time
+	}
+
+	if row.AttemptedAt.Valid {
+		job.AttemptedAt = row.AttemptedAt.Time
+	}
+
+	if row.FinalizedAt.Valid {
+		job.FinalizedAt = row.FinalizedAt.Time
+	}
+
+	if len(row.Errors) > 0 {
+		job.Errors = make([]json.RawMessage, len(row.Errors))
+		for i, err := range row.Errors {
+			job.Errors[i] = json.RawMessage(err)
+		}
+	}
+
+	return job
+}
+
+func rowToQueue(row db.RiverQueue) Queue {
+	queue := Queue{
+		Name:      row.Name,
+		CreatedAt: row.CreatedAt.Time,
+		UpdatedAt: row.UpdatedAt.Time,
+		Metadata:  json.RawMessage(row.Metadata),
+	}
+
+	if row.PausedAt.Valid {
+		queue.PausedAt = row.PausedAt.Time
+	}
+
+	return queue
+}
+{{- end }}

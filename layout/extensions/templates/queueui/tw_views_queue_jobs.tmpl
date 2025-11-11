@@ -1,0 +1,64 @@
+package views
+
+import (
+	"fmt"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/views/components"
+)
+
+templ QueueJobs(jobs []models.Job, kinds []string, queueNames []string, currentPage, totalPages int, stateFilter, queueFilter, kindFilter string) {
+	@QueueLayout("jobs") {
+		<div class="px-4 py-6 sm:px-0" data-signals={ fmt.Sprintf("{selectedJobs: [], page: %d, state: '%s', queue: '%s', kind: '%s'}", currentPage, stateFilter, queueFilter, kindFilter) }>
+			<div class="flex justify-between items-center mb-6">
+				<h2 class="text-2xl font-bold">Jobs</h2>
+				<div data-show="$selectedJobs.length > 0" class="flex space-x-2">
+					@components.QueueActions()
+				</div>
+			</div>
+			@components.QueueFilters(stateFilter, queueFilter, kindFilter, kinds, queueNames)
+			<div class="bg-base-100 shadow rounded-lg overflow-hidden">
+				<div id="jobsTable" data-on-load={ fmt.Sprintf("@get('%s?state=%s&queue=%s&kind=%s')", routes.QueueJobsStream.URL(), stateFilter, queueFilter, kindFilter) }>
+					@QueueJobsTable(jobs)
+				</div>
+			</div>
+			if totalPages > 1 {
+				@components.QueuePagination(currentPage, totalPages)
+			}
+		</div>
+	}
+}
+
+templ QueueJobsTable(jobs []models.Job) {
+	<table class="min-w-full divide-y divide-base-300">
+		<thead class="bg-base-200">
+			<tr>
+				<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+					<input type="checkbox" class="checkbox checkbox-sm" data-on-change="$selectedJobs = $event.target.checked ? $jobs.map(j => j.id) : []"/>
+				</th>
+				<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">ID</th>
+				<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Kind</th>
+				<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Queue</th>
+				<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">State</th>
+				<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Priority</th>
+				<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Attempts</th>
+				<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Created</th>
+				<th scope="col" class="relative px-6 py-3">
+					<span class="sr-only">Actions</span>
+				</th>
+			</tr>
+		</thead>
+		<tbody class="bg-base-100 divide-y divide-base-300">
+			if len(jobs) == 0 {
+				<tr>
+					<td colspan="9" class="px-6 py-4 text-center text-base-content text-opacity-60">
+						No jobs found
+					</td>
+				</tr>
+			}
+			for _, job := range jobs {
+				@components.QueueJobRow(job)
+			}
+		</tbody>
+	</table>
+}

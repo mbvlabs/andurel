@@ -369,15 +369,15 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_routes_pages.tmpl":       "router/routes/pages.go",
 
 	// Telemetry
-	"telemetry_telemetry.tmpl":         "pkg/telemetry/telemetry.go",
-	"telemetry_options.tmpl":           "pkg/telemetry/options.go",
-	"telemetry_logger.tmpl":            "pkg/telemetry/logger.go",
-	"telemetry_log_exporters.tmpl":     "pkg/telemetry/log_exporters.go",
-	"telemetry_metrics.tmpl":           "pkg/telemetry/metrics.go",
-	"telemetry_metric_exporters.tmpl":  "pkg/telemetry/metric_exporters.go",
-	"telemetry_tracer.tmpl":            "pkg/telemetry/tracer.go",
-	"telemetry_trace_exporters.tmpl":   "pkg/telemetry/trace_exporters.go",
-	"telemetry_helpers.tmpl":           "pkg/telemetry/helpers.go",
+	"telemetry_telemetry.tmpl":        "pkg/telemetry/telemetry.go",
+	"telemetry_options.tmpl":          "pkg/telemetry/options.go",
+	"telemetry_logger.tmpl":           "pkg/telemetry/logger.go",
+	"telemetry_log_exporters.tmpl":    "pkg/telemetry/log_exporters.go",
+	"telemetry_metrics.tmpl":          "pkg/telemetry/metrics.go",
+	"telemetry_metric_exporters.tmpl": "pkg/telemetry/metric_exporters.go",
+	"telemetry_tracer.tmpl":           "pkg/telemetry/tracer.go",
+	"telemetry_trace_exporters.tmpl":  "pkg/telemetry/trace_exporters.go",
+	"telemetry_helpers.tmpl":          "pkg/telemetry/helpers.go",
 }
 
 func processTemplatedFiles(
@@ -429,7 +429,10 @@ func processTemplatedFiles(
 	return nil
 }
 
-func processPostgreSQLMigrations(targetDir string, data extensions.TemplateData) (time.Time, error) {
+func processPostgreSQLMigrations(
+	targetDir string,
+	data extensions.TemplateData,
+) (time.Time, error) {
 	baseTime := time.Now()
 
 	if os.Getenv("ANDUREL_TEST_MODE") == "true" {
@@ -468,7 +471,11 @@ func processPostgreSQLMigrations(targetDir string, data extensions.TemplateData)
 		targetPath := fmt.Sprintf("database/migrations/%s_%s.sql", timestamp, migration.name)
 
 		if err := renderTemplate(targetDir, migration.template, targetPath, templates.Files, data); err != nil {
-			return time.Time{}, fmt.Errorf("failed to process migration %s: %w", migration.template, err)
+			return time.Time{}, fmt.Errorf(
+				"failed to process migration %s: %w",
+				migration.template,
+				err,
+			)
 		}
 	}
 
@@ -497,7 +504,11 @@ func processSQLiteMigrations(targetDir string, data extensions.TemplateData) (ti
 		targetPath := fmt.Sprintf("database/migrations/%s_%s.sql", timestamp, migration.name)
 
 		if err := renderTemplate(targetDir, migration.template, targetPath, templates.Files, data); err != nil {
-			return time.Time{}, fmt.Errorf("failed to process migration %s: %w", migration.template, err)
+			return time.Time{}, fmt.Errorf(
+				"failed to process migration %s: %w",
+				migration.template,
+				err,
+			)
 		}
 	}
 
@@ -638,6 +649,7 @@ func registerBuiltinExtensions() error {
 		builtin := []extensions.Extension{
 			extensions.Email{},
 			extensions.Auth{},
+			extensions.QueueUI{},
 		}
 
 		for _, ext := range builtin {

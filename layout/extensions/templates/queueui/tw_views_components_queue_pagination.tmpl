@@ -1,0 +1,97 @@
+package components
+
+import (
+	"fmt"
+	"{{.ModuleName}}/router/routes"
+)
+
+templ QueuePagination(currentPage, totalPages int) {
+	<div class="bg-base-100 px-4 py-3 flex items-center justify-between border-t border-base-300 sm:px-6 mt-4 rounded-lg">
+		<div class="flex-1 flex justify-between sm:hidden">
+			if currentPage > 1 {
+				<a
+					href={ templ.SafeURL(fmt.Sprintf("%s?page=%d", routes.QueueJobsList.URL(), currentPage-1)) }
+					class="btn btn-sm"
+				>
+					Previous
+				</a>
+			}
+			if currentPage < totalPages {
+				<a
+					href={ templ.SafeURL(fmt.Sprintf("%s?page=%d", routes.QueueJobsList.URL(), currentPage+1)) }
+					class="btn btn-sm"
+				>
+					Next
+				</a>
+			}
+		</div>
+		<div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+			<div>
+				<p class="text-sm">
+					Page <span class="font-medium">{ fmt.Sprintf("%d", currentPage) }</span> of <span class="font-medium">{ fmt.Sprintf("%d", totalPages) }</span>
+				</p>
+			</div>
+			<div>
+				<nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+					if currentPage > 1 {
+						<a
+							href={ templ.SafeURL(fmt.Sprintf("%s?page=%d", routes.QueueJobsList.URL(), currentPage-1)) }
+							class="btn btn-sm"
+						>
+							Previous
+						</a>
+					}
+					if currentPage > 2 {
+						<a
+							href={ templ.SafeURL(fmt.Sprintf("%s?page=1", routes.QueueJobsList.URL())) }
+							class="btn btn-sm btn-ghost"
+						>
+							1
+						</a>
+					}
+					if currentPage > 3 {
+						<span class="btn btn-sm btn-ghost btn-disabled">...</span>
+					}
+					if currentPage > 1 {
+						<a
+							href={ templ.SafeURL(fmt.Sprintf("%s?page=%d", routes.QueueJobsList.URL(), currentPage-1)) }
+							class="btn btn-sm btn-ghost"
+						>
+							{ fmt.Sprintf("%d", currentPage-1) }
+						</a>
+					}
+					<span class="btn btn-sm btn-primary">
+						{ fmt.Sprintf("%d", currentPage) }
+					</span>
+					if currentPage < totalPages {
+						<a
+							href={ templ.SafeURL(fmt.Sprintf("%s?page=%d", routes.QueueJobsList.URL(), currentPage+1)) }
+							class="btn btn-sm btn-ghost"
+						>
+							{ fmt.Sprintf("%d", currentPage+1) }
+						</a>
+					}
+					if currentPage < totalPages - 2 {
+						<span class="btn btn-sm btn-ghost btn-disabled">...</span>
+					}
+					if currentPage < totalPages - 1 {
+						<a
+							href={ templ.SafeURL(fmt.Sprintf("%s?page=%d", routes.QueueJobsList.URL(), totalPages)) }
+							class="btn btn-sm btn-ghost"
+						>
+							{ fmt.Sprintf("%d", totalPages) }
+						</a>
+					}
+					if currentPage < totalPages {
+						<a
+							href={ templ.SafeURL(fmt.Sprintf("%s?page=%d", routes.QueueJobsList.URL(), currentPage+1)) }
+							class="btn btn-sm"
+						>
+							Next
+						</a>
+					}
+				</nav>
+			</div>
+		</div>
+	</div>
+}

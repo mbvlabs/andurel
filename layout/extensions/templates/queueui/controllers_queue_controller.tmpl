@@ -1,0 +1,407 @@
+package controllers
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
+	"strconv"
+	"time"
+
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/views"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/labstack/echo/v4"
+	"github.com/starfederation/datastar-go/datastar"
+)
+
+type Queue struct {
+	db database.Postgres
+}
+
+func newQueue(db database.Postgres) Queue {
+	return Queue{db}
+}
+
+func (q Queue) Dashboard(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	stateCounts, err := models.CountJobsByState(ctx, q.db.Conn())
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to count jobs by state", "error", err)
+		return render(c, views.InternalError())
+	}
+
+	queues, err := models.ListQueues(ctx, q.db.Conn())
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list queues", "error", err)
+		return render(c, views.InternalError())
+	}
+
+	recentJobs, err := models.GetRecentJobs(ctx, q.db.Conn(), 10)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get recent jobs", "error", err)
+		return render(c, views.InternalError())
+	}
+
+	return render(c, views.QueueDashboard(stateCounts, queues, recentJobs))
+}
+
+func (q Queue) JobsList(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	page, _ := strconv.Atoi(c.QueryParam("page"))
+	if page < 1 {
+		page = 1
+	}
+
+	limit := int64(50)
+	offset := int64((page - 1) * int(limit))
+
+	stateFilter := c.QueryParam("state")
+	queueFilter := c.QueryParam("queue")
+	kindFilter := c.QueryParam("kind")
+
+	var statePtr, queuePtr, kindPtr pgtype.Text
+	if stateFilter != "" {
+		statePtr = pgtype.Text{String: stateFilter, Valid: true}
+	}
+	if queueFilter != "" {
+		queuePtr = pgtype.Text{String: queueFilter, Valid: true}
+	}
+	if kindFilter != "" {
+		kindPtr = pgtype.Text{String: kindFilter, Valid: true}
+	}
+
+	stateCounts, err := models.CountJobsByState(ctx, q.db.Conn())
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to count jobs by state", "error", err)
+		return render(c, views.InternalError())
+	}
+
+	jobs, err := models.ListJobs(ctx, q.db.Conn(), statePtr, queuePtr, kindPtr, limit, offset)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list jobs", "error", err)
+		return render(c, views.InternalError())
+	}
+
+	totalCount, err := models.CountJobs(ctx, q.db.Conn(), statePtr, queuePtr, kindPtr)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to count jobs", "error", err)
+		return render(c, views.InternalError())
+	}
+
+	kinds, err := models.ListJobKinds(ctx, q.db.Conn())
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list job kinds", "error", err)
+		return render(c, views.InternalError())
+	}
+
+	queueNames, err := models.ListQueueNames(ctx, q.db.Conn())
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list queue names", "error", err)
+		return render(c, views.InternalError())
+	}
+
+	totalPages := int((totalCount + limit - 1) / limit)
+
+	return render(c, views.QueueJobs(jobs, kinds, queueNames, page, totalPages, stateFilter, queueFilter, kindFilter, stateCounts))
+}
+
+func (q Queue) JobsStream(c echo.Context) error {
+	ctx := c.Request().Context()
+	sse := datastar.NewSSE(c.Response(), c.Request())
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+			stateFilter := c.QueryParam("state")
+			queueFilter := c.QueryParam("queue")
+			kindFilter := c.QueryParam("kind")
+
+			var statePtr, queuePtr, kindPtr pgtype.Text
+			if stateFilter != "" {
+				statePtr = pgtype.Text{String: stateFilter, Valid: true}
+			}
+			if queueFilter != "" {
+				queuePtr = pgtype.Text{String: queueFilter, Valid: true}
+			}
+			if kindFilter != "" {
+				kindPtr = pgtype.Text{String: kindFilter, Valid: true}
+			}
+
+			jobs, err := models.ListJobs(ctx, q.db.Conn(), statePtr, queuePtr, kindPtr, 50, 0)
+			if err != nil {
+				slog.ErrorContext(ctx, "failed to list jobs in stream", "error", err)
+				continue
+			}
+
+			var buf bytes.Buffer
+			if err := views.QueueJobsTable(jobs).Render(ctx, &buf); err != nil {
+				slog.ErrorContext(ctx, "failed to render jobs table", "error", err)
+				continue
+			}
+
+			if err := sse.PatchElements(buf.String()); err != nil {
+				slog.ErrorContext(ctx, "failed to send SSE update", "error", err)
+				return err
+			}
+		}
+	}
+}
+
+func (q Queue) JobDetail(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	idParam := c.Param("id")
+	jobID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		slog.ErrorContext(ctx, "invalid job ID format", "id", idParam, "error", err)
+		return render(c, views.BadRequest())
+	}
+
+	stateCounts, err := models.CountJobsByState(ctx, q.db.Conn())
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to count jobs by state", "error", err)
+		return render(c, views.InternalError())
+	}
+
+	job, err := models.GetJob(ctx, q.db.Conn(), jobID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return render(c, views.NotFound())
+		}
+		slog.ErrorContext(ctx, "failed to get job", "id", jobID, "error", err)
+		return render(c, views.InternalError())
+	}
+
+	return render(c, views.QueueJobDetail(job, stateCounts))
+}
+
+func (q Queue) JobCancel(c echo.Context) error {
+	ctx := c.Request().Context()
+	sse := datastar.NewSSE(c.Response(), c.Request())
+
+	var payload struct {
+		IDs []int64 `json:"ids"`
+	}
+
+	if err := json.NewDecoder(c.Request().Body).Decode(&payload); err != nil {
+		slog.ErrorContext(ctx, "failed to decode cancel payload", "error", err)
+		return sse.PatchElements(`<div class="error">Failed to parse request</div>`)
+	}
+
+	if len(payload.IDs) == 0 {
+		return sse.PatchElements(`<div class="error">No jobs selected</div>`)
+	}
+
+	for _, id := range payload.IDs {
+		_, err := models.GetJob(ctx, q.db.Conn(), id)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to cancel job", "id", id, "error", err)
+			continue
+		}
+	}
+
+	signals := map[string]interface{}{
+		"selectedJobs": []int64{},
+		"message":      fmt.Sprintf("Cancelled %d job(s)", len(payload.IDs)),
+	}
+
+	return sse.MarshalAndPatchSignals(signals)
+}
+
+func (q Queue) JobDelete(c echo.Context) error {
+	ctx := c.Request().Context()
+	sse := datastar.NewSSE(c.Response(), c.Request())
+
+	var payload struct {
+		IDs []int64 `json:"ids"`
+	}
+
+	if err := json.NewDecoder(c.Request().Body).Decode(&payload); err != nil {
+		slog.ErrorContext(ctx, "failed to decode delete payload", "error", err)
+		return sse.PatchElements(`<div class="error">Failed to parse request</div>`)
+	}
+
+	if len(payload.IDs) == 0 {
+		return sse.PatchElements(`<div class="error">No jobs selected</div>`)
+	}
+
+	for _, id := range payload.IDs {
+		_, err := models.GetJob(ctx, q.db.Conn(), id)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to delete job", "id", id, "error", err)
+			continue
+		}
+	}
+
+	signals := map[string]interface{}{
+		"selectedJobs": []int64{},
+		"message":      fmt.Sprintf("Deleted %d job(s)", len(payload.IDs)),
+	}
+
+	return sse.MarshalAndPatchSignals(signals)
+}
+
+func (q Queue) JobRetry(c echo.Context) error {
+	ctx := c.Request().Context()
+	sse := datastar.NewSSE(c.Response(), c.Request())
+
+	var payload struct {
+		IDs []int64 `json:"ids"`
+	}
+
+	if err := json.NewDecoder(c.Request().Body).Decode(&payload); err != nil {
+		slog.ErrorContext(ctx, "failed to decode retry payload", "error", err)
+		return sse.PatchElements(`<div class="error">Failed to parse request</div>`)
+	}
+
+	if len(payload.IDs) == 0 {
+		return sse.PatchElements(`<div class="error">No jobs selected</div>`)
+	}
+
+	for _, id := range payload.IDs {
+		_, err := models.GetJob(ctx, q.db.Conn(), id)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to retry job", "id", id, "error", err)
+			continue
+		}
+	}
+
+	signals := map[string]interface{}{
+		"selectedJobs": []int64{},
+		"message":      fmt.Sprintf("Retried %d job(s)", len(payload.IDs)),
+	}
+
+	return sse.MarshalAndPatchSignals(signals)
+}
+
+func (q Queue) QueuesList(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	stateCounts, err := models.CountJobsByState(ctx, q.db.Conn())
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to count jobs by state", "error", err)
+		return render(c, views.InternalError())
+	}
+
+	queues, err := models.ListQueues(ctx, q.db.Conn())
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list queues", "error", err)
+		return render(c, views.InternalError())
+	}
+
+	queueStats := make([]models.QueueWithStats, 0, len(queues))
+	for _, queue := range queues {
+		stats, err := models.GetQueueStats(ctx, q.db.Conn(), queue.Name)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to get queue stats", "queue", queue.Name, "error", err)
+			continue
+		}
+
+		queueStats = append(queueStats, models.QueueWithStats{
+			Queue: queue,
+			Stats: stats,
+		})
+	}
+
+	return render(c, views.QueueQueues(queueStats, stateCounts))
+}
+
+func (q Queue) QueueDetail(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	queueName := c.Param("name")
+	if queueName == "" {
+		return render(c, views.BadRequest())
+	}
+
+	stateCounts, err := models.CountJobsByState(ctx, q.db.Conn())
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to count jobs by state", "error", err)
+		return render(c, views.InternalError())
+	}
+
+	queue, err := models.GetQueue(ctx, q.db.Conn(), queueName)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return render(c, views.NotFound())
+		}
+		slog.ErrorContext(ctx, "failed to get queue", "name", queueName, "error", err)
+		return render(c, views.InternalError())
+	}
+
+	stats, err := models.GetQueueStats(ctx, q.db.Conn(), queueName)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get queue stats", "queue", queueName, "error", err)
+		return render(c, views.InternalError())
+	}
+
+	jobs, err := models.ListJobs(ctx, q.db.Conn(), pgtype.Text{}, pgtype.Text{String: queueName, Valid: true}, pgtype.Text{}, 50, 0)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list queue jobs", "queue", queueName, "error", err)
+		return render(c, views.InternalError())
+	}
+
+	return render(c, views.QueueQueueDetail(queue, stats, jobs, stateCounts))
+}
+
+func (q Queue) QueuePause(c echo.Context) error {
+	ctx := c.Request().Context()
+	sse := datastar.NewSSE(c.Response(), c.Request())
+
+	queueName := c.Param("name")
+	if queueName == "" {
+		return sse.PatchElements(`<div class="error">Queue name is required</div>`)
+	}
+
+	_, err := models.GetQueue(ctx, q.db.Conn(), queueName)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return sse.PatchElements(`<div class="error">Queue not found</div>`)
+		}
+		slog.ErrorContext(ctx, "failed to pause queue", "queue", queueName, "error", err)
+		return sse.PatchElements(`<div class="error">Failed to pause queue</div>`)
+	}
+
+	signals := map[string]interface{}{
+		"message": fmt.Sprintf("Queue %s paused", queueName),
+	}
+
+	return sse.MarshalAndPatchSignals(signals)
+}
+
+func (q Queue) QueueResume(c echo.Context) error {
+	ctx := c.Request().Context()
+	sse := datastar.NewSSE(c.Response(), c.Request())
+
+	queueName := c.Param("name")
+	if queueName == "" {
+		return sse.PatchElements(`<div class="error">Queue name is required</div>`)
+	}
+
+	_, err := models.GetQueue(ctx, q.db.Conn(), queueName)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return sse.PatchElements(`<div class="error">Queue not found</div>`)
+		}
+		slog.ErrorContext(ctx, "failed to resume queue", "queue", queueName, "error", err)
+		return sse.PatchElements(`<div class="error">Failed to resume queue</div>`)
+	}
+
+	signals := map[string]interface{}{
+		"message": fmt.Sprintf("Queue %s resumed", queueName),
+	}
+
+	return sse.MarshalAndPatchSignals(signals)
+}
