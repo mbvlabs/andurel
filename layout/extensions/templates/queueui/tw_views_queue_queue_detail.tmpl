@@ -7,8 +7,8 @@ import (
 	"{{.ModuleName}}/views/components"
 )
 
-templ QueueQueueDetail(queue models.Queue, stats models.QueueStats, jobs []models.Job) {
-	@QueueLayout("queues") {
+templ QueueQueueDetail(queue models.Queue, stats models.QueueStats, jobs []models.Job, stateCounts []models.JobStateCount) {
+	@QueueLayout("queues", stateCounts) {
 		<div class="px-4 py-6 sm:px-0">
 			<div class="mb-6">
 				<div class="flex justify-between items-center">

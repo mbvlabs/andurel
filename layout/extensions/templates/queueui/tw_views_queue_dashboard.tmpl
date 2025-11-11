@@ -8,7 +8,7 @@ import (
 )
 
 templ QueueDashboard(stateCounts []models.JobStateCount, queues []models.Queue, recentJobs []models.Job) {
-	@QueueLayout("dashboard") {
+	@QueueLayout("dashboard", stateCounts) {
 		<div class="px-4 py-6 sm:px-0">
 			<h2 class="text-2xl font-bold mb-6">Dashboard</h2>
 			<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
