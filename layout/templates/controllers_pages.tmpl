@@ -1,16 +1,12 @@
 package controllers
 
 import (
-	"fmt"
-	"time"
-
 {{- if eq .Database "postgresql"}}
 	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/queue"
 {{- else if eq .Database "sqlite"}}
 	"{{.ModuleName}}/database"
 {{- end}}
-
 	"{{.ModuleName}}/views"
 
 	"github.com/a-h/templ"
@@ -24,14 +20,14 @@ type Pages struct {
 {{- else if eq .Database "sqlite"}}
 	db         database.SQLite
 {{- end}}
-	cache      CacheManager
+	cache      *Cache[templ.Component]
 }
 
 {{- if eq .Database "postgresql"}}
 func newPages(
 	db database.Postgres,
-	cache CacheManager,
 	insertOnly queue.InsertOnly,
+	cache *Cache[templ.Component],
 ) Pages {
 	return Pages{db, insertOnly, cache}
 }
@@ -39,7 +35,7 @@ func newPages(
 {{- else if eq .Database "sqlite"}}
 func newPages(
 	db database.SQLite,
-	cache CacheManager,
+	cache *Cache[templ.Component],
 ) Pages {
 	return Pages{db, cache}
 }
@@ -47,9 +43,9 @@ func newPages(
 {{- end}}
 
 func (p Pages) Home(c echo.Context) error {
-	cacheKey := CacheKey("page", "home")
+	cacheKey := "home"
 
-	component, err := p.cache.GetPage(c.Request().Context(), cacheKey, func() (templ.Component, error) {
+	component, err := p.cache.Get(cacheKey, func() (templ.Component, error) {
 		return views.Home(), nil
 	})
 	if err != nil {
@@ -60,9 +56,9 @@ func (p Pages) Home(c echo.Context) error {
 }
 
 func (p Pages) NotFound(c echo.Context) error {
-	cacheKey := CacheKey("page", "not_found")
+	cacheKey := "not_found"
 
-	component, err := p.cache.GetPage(c.Request().Context(), cacheKey, func() (templ.Component, error) {
+	component, err := p.cache.Get(cacheKey, func() (templ.Component, error) {
 		return views.NotFound(), nil
 	})
 	if err != nil {

@@ -6,51 +6,28 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"{{.ModuleName}}/assets"
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/router/routes"
 
 	"github.com/labstack/echo/v4"
-	"github.com/maypok86/otter"
 	"gopkg.in/yaml.v2"
 )
 
 const (
-	sitemapCacheKey  = "assets.sitemap"
-	robotsCacheKey   = "assets.robots"
-	threeDaysInHours     = 72
-	weekInHours      = 168
+	threeDaysTTL     = 72 * time.Hour
+	weekTTL          = 168 * time.Hour
 	threeMonthsCache = "7776000"
 )
 
 type Assets struct {
-	sitemapCache otter.Cache[string, Sitemap]
-	robotsCache  otter.Cache[string, string]
+	cache *Cache[string]
 }
 
-func newAssets() Assets {
-	sitemapCacheBuilder, err := otter.NewBuilder[string, Sitemap](1)
-	if err != nil {
-		panic(err)
-	}
-
-	sitemapCache, err := sitemapCacheBuilder.WithTTL(threeDaysInHours).Build()
-	if err != nil {
-		panic(err)
-	}
-
-	robotsCacheBuilder, err := otter.NewBuilder[string, string](1)
-	if err != nil {
-		panic(err)
-	}
-
-	robotsCache, err := robotsCacheBuilder.WithTTL(weekInHours).Build()
-	if err != nil {
-		panic(err)
-	}
-
-	return Assets{sitemapCache, robotsCache}
+func newAssets(cache *Cache[string]) Assets {
+	return Assets{cache}
 }
 
 func (a Assets) enableCaching(c echo.Context, content []byte) echo.Context {
@@ -84,11 +61,7 @@ func (a Assets) enableCaching(c echo.Context, content []byte) echo.Context {
 	return c
 }
 
-func (a Assets) Robots(c echo.Context) error {
-	if value, ok := a.robotsCache.Get(robotsCacheKey); ok {
-		return c.String(http.StatusOK, string(value))
-	}
-
+func createRobotsTxt() (string, error) {
 	type robotsTxt struct {
 		UserAgent string `yaml:"User-agent"`
 		Allow     string `yaml:"Allow"`
@@ -105,41 +78,54 @@ func (a Assets) Robots(c echo.Context) error {
 		),
 	})
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	robotsStr := string(robots)
+	return string(robots), nil
+}
 
-	if ok := a.robotsCache.Set(robotsCacheKey, robotsStr); !ok {
+
+func (a Assets) Robots(c echo.Context) error {
+	cacheKey := "assets:robots"
+
+	robotsTxt, err := a.cache.Get(cacheKey, func() (string, error) {
+		return createRobotsTxt()
+	})
+	if err != nil {
 		slog.ErrorContext(
 			c.Request().Context(),
-			"could not set robots cache",
+			"failed to get robots.txt from cache",
+			"error", err,
 		)
+		result, _ := createRobotsTxt()
+		return c.String(http.StatusOK, result)
 	}
 
-	return c.String(http.StatusOK, robotsStr)
+	return c.String(http.StatusOK, robotsTxt)
 }
 
 func (a Assets) Sitemap(c echo.Context) error {
-	if value, ok := a.sitemapCache.Get(sitemapCacheKey); ok {
-		return c.XML(http.StatusOK, value)
-	}
+	cacheKey := "assets:sitemap"
 
-	sitemap, err := createSitemap(c)
+	sitemap, err := a.cache.Get(cacheKey, func() (string, error) {
+		return createSitemap(c)
+	})
 	if err != nil {
-		return err
-	}
-
-	if ok := a.sitemapCache.Set(sitemapCacheKey, sitemap); !ok {
 		slog.ErrorContext(
 			c.Request().Context(),
-			"could not set sitemap cache",
-			"error",
-			err,
+			"failed to get sitemap from cache",
+			"error", err,
 		)
+
+		result, err := createSitemap(c)
+		if err != nil {
+			return err
+		}
+
+		return c.Blob(http.StatusOK, "application/xml", []byte(result))
 	}
 
-	return c.XML(http.StatusOK, sitemap)
+	return c.Blob(http.StatusOK, "application/xml", []byte(sitemap))
 }
 
 type URL struct {
@@ -156,7 +142,7 @@ type Sitemap struct {
 	URL     []URL    `xml:"url"`
 }
 
-func createSitemap(c echo.Context) (Sitemap, error) {
+func createSitemap(c echo.Context) (string, error) {
 	baseURL := config.Domain
 
 	var urls []URL
@@ -186,7 +172,12 @@ func createSitemap(c echo.Context) (Sitemap, error) {
 		URL:   urls,
 	}
 
-	return sitemap, nil
+	xmlBytes, err := xml.MarshalIndent(sitemap, "", "  ")
+    if err != nil {
+    	return "", err
+    }
+
+    return xml.Header + string(xmlBytes), nil
 }
 
 func (a Assets) Stylesheet(c echo.Context) error {
