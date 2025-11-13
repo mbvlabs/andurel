@@ -81,7 +81,7 @@ func ListJobs(
 	return jobs, nil
 }
 
-func GetJob(ctx context.Context, dbtx db.DBTX, id int64) (Job, error) {
+func FindJob(ctx context.Context, dbtx db.DBTX, id int64) (Job, error) {
 	row, err := queries.GetJob(ctx, dbtx, id)
 	if err != nil {
 		return Job{}, err
@@ -133,7 +133,7 @@ func ListQueues(ctx context.Context, dbtx db.DBTX) ([]Queue, error) {
 	return queues, nil
 }
 
-func GetQueue(ctx context.Context, dbtx db.DBTX, name string) (Queue, error) {
+func FindQueue(ctx context.Context, dbtx db.DBTX, name string) (Queue, error) {
 	row, err := queries.GetQueue(ctx, dbtx, name)
 	if err != nil {
 		return Queue{}, err
@@ -142,7 +142,7 @@ func GetQueue(ctx context.Context, dbtx db.DBTX, name string) (Queue, error) {
 	return rowToQueue(row), nil
 }
 
-func GetQueueStats(ctx context.Context, dbtx db.DBTX, queueName string) (QueueStats, error) {
+func FindQueueStats(ctx context.Context, dbtx db.DBTX, queueName string) (QueueStats, error) {
 	row, err := queries.GetQueueStats(ctx, dbtx, queueName)
 	if err != nil {
 		return QueueStats{}, err
@@ -159,7 +159,7 @@ func GetQueueStats(ctx context.Context, dbtx db.DBTX, queueName string) (QueueSt
 	}, nil
 }
 
-func GetRecentJobs(ctx context.Context, dbtx db.DBTX, limit int32) ([]Job, error) {
+func RecentJobs(ctx context.Context, dbtx db.DBTX, limit int32) ([]Job, error) {
 	rows, err := queries.GetRecentJobs(ctx, dbtx, limit)
 	if err != nil {
 		return nil, err

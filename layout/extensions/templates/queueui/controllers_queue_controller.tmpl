@@ -42,7 +42,7 @@ func (q Queue) Dashboard(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	recentJobs, err := models.GetRecentJobs(ctx, q.db.Conn(), 10)
+	recentJobs, err := models.RecentJobs(ctx, q.db.Conn(), 10)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get recent jobs", "error", err)
 		return render(c, views.InternalError())
@@ -175,7 +175,7 @@ func (q Queue) JobDetail(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	job, err := models.GetJob(ctx, q.db.Conn(), jobID)
+	job, err := models.FindJob(ctx, q.db.Conn(), jobID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return render(c, views.NotFound())
@@ -205,7 +205,7 @@ func (q Queue) JobCancel(c echo.Context) error {
 	}
 
 	for _, id := range payload.IDs {
-		_, err := models.GetJob(ctx, q.db.Conn(), id)
+		_, err := models.FindJob(ctx, q.db.Conn(), id)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to cancel job", "id", id, "error", err)
 			continue
@@ -238,7 +238,7 @@ func (q Queue) JobDelete(c echo.Context) error {
 	}
 
 	for _, id := range payload.IDs {
-		_, err := models.GetJob(ctx, q.db.Conn(), id)
+		_, err := models.FindJob(ctx, q.db.Conn(), id)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to delete job", "id", id, "error", err)
 			continue
@@ -271,7 +271,7 @@ func (q Queue) JobRetry(c echo.Context) error {
 	}
 
 	for _, id := range payload.IDs {
-		_, err := models.GetJob(ctx, q.db.Conn(), id)
+		_, err := models.FindJob(ctx, q.db.Conn(), id)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to retry job", "id", id, "error", err)
 			continue
@@ -303,7 +303,7 @@ func (q Queue) QueuesList(c echo.Context) error {
 
 	queueStats := make([]models.QueueWithStats, 0, len(queues))
 	for _, queue := range queues {
-		stats, err := models.GetQueueStats(ctx, q.db.Conn(), queue.Name)
+		stats, err := models.FindQueueStats(ctx, q.db.Conn(), queue.Name)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to get queue stats", "queue", queue.Name, "error", err)
 			continue
@@ -332,7 +332,7 @@ func (q Queue) QueueDetail(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	queue, err := models.GetQueue(ctx, q.db.Conn(), queueName)
+	queue, err := models.FindQueue(ctx, q.db.Conn(), queueName)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return render(c, views.NotFound())
@@ -341,7 +341,7 @@ func (q Queue) QueueDetail(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	stats, err := models.GetQueueStats(ctx, q.db.Conn(), queueName)
+	stats, err := models.FindQueueStats(ctx, q.db.Conn(), queueName)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get queue stats", "queue", queueName, "error", err)
 		return render(c, views.InternalError())
@@ -365,7 +365,7 @@ func (q Queue) QueuePause(c echo.Context) error {
 		return sse.PatchElements(`<div class="error">Queue name is required</div>`)
 	}
 
-	_, err := models.GetQueue(ctx, q.db.Conn(), queueName)
+	_, err := models.FindQueue(ctx, q.db.Conn(), queueName)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return sse.PatchElements(`<div class="error">Queue not found</div>`)
@@ -390,7 +390,7 @@ func (q Queue) QueueResume(c echo.Context) error {
 		return sse.PatchElements(`<div class="error">Queue name is required</div>`)
 	}
 
-	_, err := models.GetQueue(ctx, q.db.Conn(), queueName)
+	_, err := models.FindQueue(ctx, q.db.Conn(), queueName)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return sse.PatchElements(`<div class="error">Queue not found</div>`)
