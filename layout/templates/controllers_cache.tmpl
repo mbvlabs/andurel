@@ -1,0 +1,95 @@
+package controllers
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/maypok86/otter"
+)
+
+const (
+	defaultCacheSize  = 50
+	defaultTTL  	  = 15 * time.Minute
+)
+
+type Cache[T any] struct {
+	cache      otter.CacheWithVariableTTL[string, T]
+	defaultTTL time.Duration
+}
+
+type CacheBuilder[T any] struct {
+	size       int
+	defaultTTL time.Duration
+}
+
+func NewCacheBuilder[T any]() *CacheBuilder[T] {
+	return &CacheBuilder[T]{
+		size:       defaultCacheSize,
+		defaultTTL: defaultTTL,
+	}
+}
+
+func (b *CacheBuilder[T]) WithSize(size int) *CacheBuilder[T] {
+	b.size = size
+	return b
+}
+
+func (b *CacheBuilder[T]) WithDefaultTTL(ttl time.Duration) *CacheBuilder[T] {
+	b.defaultTTL = ttl
+	return b
+}
+
+func (b *CacheBuilder[T]) Build() (*Cache[T], error) {
+	builder, err := otter.NewBuilder[string, T](b.size)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cache builder: %w", err)
+	}
+
+	cache, err := builder.WithVariableTTL().Build()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build cache: %w", err)
+	}
+
+	return &Cache[T]{
+		cache:      cache,
+		defaultTTL: b.defaultTTL,
+	}, nil
+}
+
+func (c *Cache[T]) Get(key string, loader func() (T, error)) (T, error) {
+	if value, ok := c.cache.Get(key); ok {
+		return value, nil
+	}
+
+	result, err := loader()
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+
+	c.cache.Set(key, result, c.defaultTTL)
+	return result, nil
+}
+
+func (c *Cache[T]) GetIfPresent(ctx context.Context, key string) (T, bool) {
+	value, ok := c.cache.Get(key)
+	if !ok {
+		var zero T
+		return zero, false
+	}
+
+	return value, true
+}
+
+func (c *Cache[T]) Set(key string, value T, ttl time.Duration) bool {
+	return c.cache.Set(key, value, ttl)
+}
+
+func (c *Cache[T]) SetDefault(key string, value T) bool {
+	return c.cache.Set(key, value, c.defaultTTL)
+}
+
+func (c *Cache[T]) Invalidate(key string) {
+	c.cache.Delete(key)
+}

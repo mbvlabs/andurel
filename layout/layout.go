@@ -343,6 +343,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Controllers
 	"controllers_api.tmpl":        "controllers/api.go",
 	"controllers_assets.tmpl":     "controllers/assets.go",
+	"controllers_cache.tmpl":      "controllers/cache.go",
 	"controllers_controller.tmpl": "controllers/controller.go",
 	"controllers_pages.tmpl":      "controllers/pages.go",
 
@@ -369,15 +370,15 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_routes_pages.tmpl":       "router/routes/pages.go",
 
 	// Telemetry
-	"telemetry_telemetry.tmpl":         "pkg/telemetry/telemetry.go",
-	"telemetry_options.tmpl":           "pkg/telemetry/options.go",
-	"telemetry_logger.tmpl":            "pkg/telemetry/logger.go",
-	"telemetry_log_exporters.tmpl":     "pkg/telemetry/log_exporters.go",
-	"telemetry_metrics.tmpl":           "pkg/telemetry/metrics.go",
-	"telemetry_metric_exporters.tmpl":  "pkg/telemetry/metric_exporters.go",
-	"telemetry_tracer.tmpl":            "pkg/telemetry/tracer.go",
-	"telemetry_trace_exporters.tmpl":   "pkg/telemetry/trace_exporters.go",
-	"telemetry_helpers.tmpl":           "pkg/telemetry/helpers.go",
+	"telemetry_telemetry.tmpl":        "pkg/telemetry/telemetry.go",
+	"telemetry_options.tmpl":          "pkg/telemetry/options.go",
+	"telemetry_logger.tmpl":           "pkg/telemetry/logger.go",
+	"telemetry_log_exporters.tmpl":    "pkg/telemetry/log_exporters.go",
+	"telemetry_metrics.tmpl":          "pkg/telemetry/metrics.go",
+	"telemetry_metric_exporters.tmpl": "pkg/telemetry/metric_exporters.go",
+	"telemetry_tracer.tmpl":           "pkg/telemetry/tracer.go",
+	"telemetry_trace_exporters.tmpl":  "pkg/telemetry/trace_exporters.go",
+	"telemetry_helpers.tmpl":          "pkg/telemetry/helpers.go",
 }
 
 func processTemplatedFiles(
@@ -429,7 +430,10 @@ func processTemplatedFiles(
 	return nil
 }
 
-func processPostgreSQLMigrations(targetDir string, data extensions.TemplateData) (time.Time, error) {
+func processPostgreSQLMigrations(
+	targetDir string,
+	data extensions.TemplateData,
+) (time.Time, error) {
 	baseTime := time.Now()
 
 	if os.Getenv("ANDUREL_TEST_MODE") == "true" {
@@ -468,7 +472,11 @@ func processPostgreSQLMigrations(targetDir string, data extensions.TemplateData)
 		targetPath := fmt.Sprintf("database/migrations/%s_%s.sql", timestamp, migration.name)
 
 		if err := renderTemplate(targetDir, migration.template, targetPath, templates.Files, data); err != nil {
-			return time.Time{}, fmt.Errorf("failed to process migration %s: %w", migration.template, err)
+			return time.Time{}, fmt.Errorf(
+				"failed to process migration %s: %w",
+				migration.template,
+				err,
+			)
 		}
 	}
 
@@ -497,7 +505,11 @@ func processSQLiteMigrations(targetDir string, data extensions.TemplateData) (ti
 		targetPath := fmt.Sprintf("database/migrations/%s_%s.sql", timestamp, migration.name)
 
 		if err := renderTemplate(targetDir, migration.template, targetPath, templates.Files, data); err != nil {
-			return time.Time{}, fmt.Errorf("failed to process migration %s: %w", migration.template, err)
+			return time.Time{}, fmt.Errorf(
+				"failed to process migration %s: %w",
+				migration.template,
+				err,
+			)
 		}
 	}
 
@@ -843,16 +855,6 @@ func generateRandomHex(bytes int) string {
 func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	builder := blueprint.NewBuilder(nil)
 
-	// Controller imports
-	builder.
-		AddControllerImport("context").
-		AddControllerImport("net/http").
-		AddControllerImport(fmt.Sprintf("%s/database", moduleName)).
-		AddControllerImport(fmt.Sprintf("%s/router/cookies", moduleName)).
-		AddControllerImport("github.com/a-h/templ").
-		AddControllerImport("github.com/labstack/echo/v4").
-		AddControllerImport("github.com/maypok86/otter")
-
 	// Controller dependencies - database is the primary dependency
 	var dbType string
 	switch database {
@@ -873,13 +875,13 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 
 	// Constructor initializations
 	builder.
-		AddControllerConstructor("assets", "newAssets()").
+		AddControllerConstructor("assets", "newAssets(assetsCache)").
 		AddControllerConstructor("api", "newAPI(db)")
 
 	if database == "postgresql" {
-		builder.AddControllerConstructor("pages", "newPages(db, pageCacher, insertOnly)")
+		builder.AddControllerConstructor("pages", "newPages(db, insertOnly, pagesCache)")
 	} else {
-		builder.AddControllerConstructor("pages", "newPages(db, pageCacher)")
+		builder.AddControllerConstructor("pages", "newPages(db, pagesCache)")
 	}
 
 	for _, tool := range defaultTools {
