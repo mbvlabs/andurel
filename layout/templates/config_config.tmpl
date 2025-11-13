@@ -39,24 +39,22 @@ var (
 		return slug.Make(ProjectName)
 	}()
 	Domain = func() string {
-		var domain string
+		if os.Getenv("DOMAIN") != "" {
+			return os.Getenv("DOMAIN")
+		}
+
+		return "localhost:8080"
+	}()
+	BaseURL = func() string {
 		var protocol string
 
-		if os.Getenv("APP_PROTOCOL") != "" {
-			protocol = os.Getenv("APP_PROTOCOL")
+		if os.Getenv("PROTOCOL") != "" {
+			protocol = os.Getenv("PROTOCOL")
 		} else {
 			protocol = "http"
 		}
 
-		if os.Getenv("APP_DOMAIN") != "" {
-			domain = os.Getenv("APP_DOMAIN")
-		} else {
-			domain = "localhost:8080"
-		}
-
-		return fmt.Sprintf(
-			"%v://%v", protocol, domain,
-		)
+		return fmt.Sprintf("%s://%s", protocol, Domain)
 	}()
 	AuthenticatedSessionName = func() string {
 		return "ua-" + strings.ToLower(ProjectName) + "-" + Env

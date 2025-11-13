@@ -87,7 +87,7 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 		Title: 		    config.ProjectName,
 		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
-		canonical:      config.Domain,
+		canonical:      config.BaseURL,
 		MetaType:       "website",
 		stylesheetHref: routes.Stylesheet.URL(),
 		scriptSrc:      routes.Scripts.URL(),

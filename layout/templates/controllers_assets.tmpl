@@ -68,7 +68,7 @@ func createRobotsTxt() (string, error) {
 		Allow:     "/",
 		Sitemap: fmt.Sprintf(
 			"%s%s",
-			config.Domain,
+			config.BaseURL,
 			routes.Sitemap.URL(),
 		),
 	})
@@ -138,7 +138,7 @@ type Sitemap struct {
 }
 
 func createSitemap() (string, error) {
-	baseURL := config.Domain
+	baseURL := config.BaseURL
 
 	var urls []URL
 
