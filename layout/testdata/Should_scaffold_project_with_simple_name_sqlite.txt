@@ -77,8 +77,8 @@ DB_KIND=sqlite3
 DB_PATH=./testapp.db
 
 PROJECT_NAME=testapp
-APP_DOMAIN=localhost:8080
-APP_PROTOCOL=http
+DOMAIN=localhost:8080
+PROTOCOL=http
 
 SESSION_KEY=test_session_key_value
 SESSION_ENCRYPTION_KEY=test_session_encryption_key_value
@@ -98,8 +98,8 @@ DB_KIND=sqlite3
 DB_PATH=./testapp.db
 
 PROJECT_NAME=testapp
-APP_DOMAIN=localhost:8080
-APP_PROTOCOL=http
+DOMAIN=localhost:8080
+PROTOCOL=http
 
 SESSION_KEY=test_session_key_value
 SESSION_ENCRYPTION_KEY=test_session_encryption_key_value
@@ -845,24 +845,22 @@ var (
 		return slug.Make(ProjectName)
 	}()
 	Domain = func() string {
-		var domain string
+		if os.Getenv("DOMAIN") != "" {
+			return os.Getenv("DOMAIN")
+		}
+
+		return "localhost:8080"
+	}()
+	BaseURL = func() string {
 		var protocol string
 
-		if os.Getenv("APP_PROTOCOL") != "" {
-			protocol = os.Getenv("APP_PROTOCOL")
+		if os.Getenv("PROTOCOL") != "" {
+			protocol = os.Getenv("PROTOCOL")
 		} else {
 			protocol = "http"
 		}
 
-		if os.Getenv("APP_DOMAIN") != "" {
-			domain = os.Getenv("APP_DOMAIN")
-		} else {
-			domain = "localhost:8080"
-		}
-
-		return fmt.Sprintf(
-			"%v://%v", protocol, domain,
-		)
+		return fmt.Sprintf("%s://%s", protocol, Domain)
 	}()
 	AuthenticatedSessionName = func() string {
 		return "ua-" + strings.ToLower(ProjectName) + "-" + Env
@@ -1037,7 +1035,7 @@ func createRobotsTxt() (string, error) {
 		Allow:     "/",
 		Sitemap: fmt.Sprintf(
 			"%s%s",
-			config.Domain,
+			config.BaseURL,
 			routes.Sitemap.URL(),
 		),
 	})
@@ -1106,7 +1104,7 @@ type Sitemap struct {
 }
 
 func createSitemap() (string, error) {
-	baseURL := config.Domain
+	baseURL := config.BaseURL
 
 	var urls []URL
 
@@ -3911,7 +3909,7 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 		Title:          config.ProjectName,
 		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
-		canonical:      config.Domain,
+		canonical:      config.BaseURL,
 		MetaType:       "website",
 		stylesheetHref: routes.Stylesheet.URL(),
 		scriptSrc:      routes.Scripts.URL(),
@@ -4286,7 +4284,7 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 		Title:          config.ProjectName,
 		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
-		canonical:      config.Domain,
+		canonical:      config.BaseURL,
 		MetaType:       "website",
 		stylesheetHref: routes.Stylesheet.URL(),
 		scriptSrc:      routes.Scripts.URL(),
