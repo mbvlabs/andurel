@@ -16,11 +16,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const (
-	threeDaysTTL     = 72 * time.Hour
-	weekTTL          = 168 * time.Hour
-	threeMonthsCache = "7776000"
-)
+const threeMonthsCache = "7776000"
 
 type Assets struct {
 	cache *Cache[string]
@@ -108,7 +104,7 @@ func (a Assets) Sitemap(c echo.Context) error {
 	cacheKey := "assets:sitemap"
 
 	sitemap, err := a.cache.Get(cacheKey, func() (string, error) {
-		return createSitemap(c)
+		return createSitemap()
 	})
 	if err != nil {
 		slog.ErrorContext(
@@ -117,7 +113,7 @@ func (a Assets) Sitemap(c echo.Context) error {
 			"error", err,
 		)
 
-		result, err := createSitemap(c)
+		result, err := createSitemap()
 		if err != nil {
 			return err
 		}
@@ -142,7 +138,7 @@ type Sitemap struct {
 	URL     []URL    `xml:"url"`
 }
 
-func createSitemap(c echo.Context) (string, error) {
+func createSitemap() (string, error) {
 	baseURL := config.Domain
 
 	var urls []URL
