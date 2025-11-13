@@ -382,8 +382,8 @@ DB_SSL_MODE=disable
 
 # Application
 PROJECT_NAME=llmtext
-APP_DOMAIN=localhost:8080
-APP_PROTOCOL=http
+DOMAIN=localhost:8080
+PROTOCOL=http
 
 # Security (generate with ` + "`openssl rand -hex 32`" + `)
 SESSION_KEY=<hex-string>

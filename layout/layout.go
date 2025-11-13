@@ -343,6 +343,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Controllers
 	"controllers_api.tmpl":        "controllers/api.go",
 	"controllers_assets.tmpl":     "controllers/assets.go",
+	"controllers_cache.tmpl":      "controllers/cache.go",
 	"controllers_controller.tmpl": "controllers/controller.go",
 	"controllers_pages.tmpl":      "controllers/pages.go",
 
@@ -855,16 +856,6 @@ func generateRandomHex(bytes int) string {
 func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	builder := blueprint.NewBuilder(nil)
 
-	// Controller imports
-	builder.
-		AddControllerImport("context").
-		AddControllerImport("net/http").
-		AddControllerImport(fmt.Sprintf("%s/database", moduleName)).
-		AddControllerImport(fmt.Sprintf("%s/router/cookies", moduleName)).
-		AddControllerImport("github.com/a-h/templ").
-		AddControllerImport("github.com/labstack/echo/v4").
-		AddControllerImport("github.com/maypok86/otter")
-
 	// Controller dependencies - database is the primary dependency
 	var dbType string
 	switch database {
@@ -885,13 +876,13 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 
 	// Constructor initializations
 	builder.
-		AddControllerConstructor("assets", "newAssets()").
+		AddControllerConstructor("assets", "newAssets(assetsCache)").
 		AddControllerConstructor("api", "newAPI(db)")
 
 	if database == "postgresql" {
-		builder.AddControllerConstructor("pages", "newPages(db, pageCacher, insertOnly)")
+		builder.AddControllerConstructor("pages", "newPages(db, insertOnly, pagesCache)")
 	} else {
-		builder.AddControllerConstructor("pages", "newPages(db, pageCacher)")
+		builder.AddControllerConstructor("pages", "newPages(db, pagesCache)")
 	}
 
 	for _, tool := range defaultTools {

@@ -16,6 +16,7 @@ config/database.go
 config/telemetry.go
 controllers/api.go
 controllers/assets.go
+controllers/cache.go
 controllers/controller.go
 controllers/pages.go
 css/base.css
@@ -76,8 +77,8 @@ DB_KIND=sqlite3
 DB_PATH=./webapp.db
 
 PROJECT_NAME=webapp
-APP_DOMAIN=localhost:8080
-APP_PROTOCOL=http
+DOMAIN=localhost:8080
+PROTOCOL=http
 
 SESSION_KEY=test_session_key_value
 SESSION_ENCRYPTION_KEY=test_session_encryption_key_value
@@ -97,8 +98,8 @@ DB_KIND=sqlite3
 DB_PATH=./webapp.db
 
 PROJECT_NAME=webapp
-APP_DOMAIN=localhost:8080
-APP_PROTOCOL=http
+DOMAIN=localhost:8080
+PROTOCOL=http
 
 SESSION_KEY=test_session_key_value
 SESSION_ENCRYPTION_KEY=test_session_encryption_key_value
@@ -844,24 +845,22 @@ var (
 		return slug.Make(ProjectName)
 	}()
 	Domain = func() string {
-		var domain string
+		if os.Getenv("DOMAIN") != "" {
+			return os.Getenv("DOMAIN")
+		}
+
+		return "localhost:8080"
+	}()
+	BaseURL = func() string {
 		var protocol string
 
-		if os.Getenv("APP_PROTOCOL") != "" {
-			protocol = os.Getenv("APP_PROTOCOL")
+		if os.Getenv("PROTOCOL") != "" {
+			protocol = os.Getenv("PROTOCOL")
 		} else {
 			protocol = "http"
 		}
 
-		if os.Getenv("APP_DOMAIN") != "" {
-			domain = os.Getenv("APP_DOMAIN")
-		} else {
-			domain = "localhost:8080"
-		}
-
-		return fmt.Sprintf(
-			"%v://%v", protocol, domain,
-		)
+		return fmt.Sprintf("%s://%s", protocol, Domain)
 	}()
 	AuthenticatedSessionName = func() string {
 		return "ua-" + strings.ToLower(ProjectName) + "-" + Env
@@ -980,45 +979,17 @@ import (
 	"myorg/webapp/router/routes"
 
 	"github.com/labstack/echo/v4"
-	"github.com/maypok86/otter"
 	"gopkg.in/yaml.v2"
 )
 
-const (
-	sitemapCacheKey  = "assets.sitemap"
-	robotsCacheKey   = "assets.robots"
-	threeDaysInHours = 72
-	weekInHours      = 168
-	threeMonthsCache = "7776000"
-)
+const threeMonthsCache = "7776000"
 
 type Assets struct {
-	sitemapCache otter.Cache[string, Sitemap]
-	robotsCache  otter.Cache[string, string]
+	cache *Cache[string]
 }
 
-func newAssets() Assets {
-	sitemapCacheBuilder, err := otter.NewBuilder[string, Sitemap](1)
-	if err != nil {
-		panic(err)
-	}
-
-	sitemapCache, err := sitemapCacheBuilder.WithTTL(threeDaysInHours).Build()
-	if err != nil {
-		panic(err)
-	}
-
-	robotsCacheBuilder, err := otter.NewBuilder[string, string](1)
-	if err != nil {
-		panic(err)
-	}
-
-	robotsCache, err := robotsCacheBuilder.WithTTL(weekInHours).Build()
-	if err != nil {
-		panic(err)
-	}
-
-	return Assets{sitemapCache, robotsCache}
+func newAssets(cache *Cache[string]) Assets {
+	return Assets{cache}
 }
 
 func (a Assets) enableCaching(c echo.Context, content []byte) echo.Context {
@@ -1052,11 +1023,7 @@ func (a Assets) enableCaching(c echo.Context, content []byte) echo.Context {
 	return c
 }
 
-func (a Assets) Robots(c echo.Context) error {
-	if value, ok := a.robotsCache.Get(robotsCacheKey); ok {
-		return c.String(http.StatusOK, string(value))
-	}
-
+func createRobotsTxt() (string, error) {
 	type robotsTxt struct {
 		UserAgent string `yaml:"User-agent"`
 		Allow     string `yaml:"Allow"`
@@ -1068,37 +1035,58 @@ func (a Assets) Robots(c echo.Context) error {
 		Allow:     "/",
 		Sitemap: fmt.Sprintf(
 			"%s%s",
-			config.Domain,
+			config.BaseURL,
 			routes.Sitemap.URL(),
 		),
 	})
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return c.String(http.StatusOK, string(robots))
+	return string(robots), nil
+}
+
+func (a Assets) Robots(c echo.Context) error {
+	cacheKey := "assets:robots"
+
+	robotsTxt, err := a.cache.Get(cacheKey, func() (string, error) {
+		return createRobotsTxt()
+	})
+	if err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"failed to get robots.txt from cache",
+			"error", err,
+		)
+		result, _ := createRobotsTxt()
+		return c.String(http.StatusOK, result)
+	}
+
+	return c.String(http.StatusOK, robotsTxt)
 }
 
 func (a Assets) Sitemap(c echo.Context) error {
-	if value, ok := a.sitemapCache.Get(sitemapCacheKey); ok {
-		return c.XML(http.StatusOK, value)
-	}
+	cacheKey := "assets:sitemap"
 
-	sitemap, err := createSitemap(c)
+	sitemap, err := a.cache.Get(cacheKey, func() (string, error) {
+		return createSitemap()
+	})
 	if err != nil {
-		return err
-	}
-
-	if ok := a.sitemapCache.Set(sitemapCacheKey, sitemap); !ok {
 		slog.ErrorContext(
 			c.Request().Context(),
-			"could not set sitemap cache",
-			"error",
-			err,
+			"failed to get sitemap from cache",
+			"error", err,
 		)
+
+		result, err := createSitemap()
+		if err != nil {
+			return err
+		}
+
+		return c.Blob(http.StatusOK, "application/xml", []byte(result))
 	}
 
-	return c.XML(http.StatusOK, sitemap)
+	return c.Blob(http.StatusOK, "application/xml", []byte(sitemap))
 }
 
 type URL struct {
@@ -1115,8 +1103,8 @@ type Sitemap struct {
 	URL     []URL    `xml:"url"`
 }
 
-func createSitemap(c echo.Context) (Sitemap, error) {
-	baseURL := config.Domain
+func createSitemap() (string, error) {
+	baseURL := config.BaseURL
 
 	var urls []URL
 
@@ -1145,7 +1133,12 @@ func createSitemap(c echo.Context) (Sitemap, error) {
 		URL:   urls,
 	}
 
-	return sitemap, nil
+	xmlBytes, err := xml.MarshalIndent(sitemap, "", "  ")
+	if err != nil {
+		return "", err
+	}
+
+	return xml.Header + string(xmlBytes), nil
 }
 
 func (a Assets) Stylesheet(c echo.Context) error {
@@ -1186,18 +1179,117 @@ func (a Assets) Script(c echo.Context) error {
 }
 
 
+=== controllers/cache.go ===
+package controllers
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/maypok86/otter"
+)
+
+const (
+	defaultCacheSize = 50
+	defaultTTL       = 15 * time.Minute
+)
+
+type Cache[T any] struct {
+	cache      otter.CacheWithVariableTTL[string, T]
+	defaultTTL time.Duration
+}
+
+type CacheBuilder[T any] struct {
+	size       int
+	defaultTTL time.Duration
+}
+
+func NewCacheBuilder[T any]() *CacheBuilder[T] {
+	return &CacheBuilder[T]{
+		size:       defaultCacheSize,
+		defaultTTL: defaultTTL,
+	}
+}
+
+func (b *CacheBuilder[T]) WithSize(size int) *CacheBuilder[T] {
+	b.size = size
+	return b
+}
+
+func (b *CacheBuilder[T]) WithDefaultTTL(ttl time.Duration) *CacheBuilder[T] {
+	b.defaultTTL = ttl
+	return b
+}
+
+func (b *CacheBuilder[T]) Build() (*Cache[T], error) {
+	builder, err := otter.NewBuilder[string, T](b.size)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cache builder: %w", err)
+	}
+
+	cache, err := builder.WithVariableTTL().Build()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build cache: %w", err)
+	}
+
+	return &Cache[T]{
+		cache:      cache,
+		defaultTTL: b.defaultTTL,
+	}, nil
+}
+
+func (c *Cache[T]) Get(key string, loader func() (T, error)) (T, error) {
+	if value, ok := c.cache.Get(key); ok {
+		return value, nil
+	}
+
+	result, err := loader()
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+
+	c.cache.Set(key, result, c.defaultTTL)
+	return result, nil
+}
+
+func (c *Cache[T]) GetIfPresent(ctx context.Context, key string) (T, bool) {
+	value, ok := c.cache.Get(key)
+	if !ok {
+		var zero T
+		return zero, false
+	}
+
+	return value, true
+}
+
+func (c *Cache[T]) Set(key string, value T, ttl time.Duration) bool {
+	return c.cache.Set(key, value, ttl)
+}
+
+func (c *Cache[T]) SetDefault(key string, value T) bool {
+	return c.cache.Set(key, value, c.defaultTTL)
+}
+
+func (c *Cache[T]) Invalidate(key string) {
+	c.cache.Delete(key)
+}
+
+
 === controllers/controller.go ===
 // Package controllers provides HTTP handlers for the web application.
 package controllers
 
 import (
 	"context"
-	"github.com/a-h/templ"
-	"github.com/labstack/echo/v4"
-	"github.com/maypok86/otter"
+	"net/http"
+
 	"myorg/webapp/database"
 	"myorg/webapp/router/cookies"
-	"net/http"
+
+	"github.com/a-h/templ"
+	"github.com/labstack/echo/v4"
 )
 
 type Controllers struct {
@@ -1209,18 +1301,18 @@ type Controllers struct {
 func New(
 	db database.SQLite,
 ) (Controllers, error) {
-	cacheBuilder, err := otter.NewBuilder[string, templ.Component](20)
+	pagesCache, err := NewCacheBuilder[templ.Component]().Build()
 	if err != nil {
 		return Controllers{}, err
 	}
 
-	pageCacher, err := cacheBuilder.WithVariableTTL().Build()
+	assetsCache, err := NewCacheBuilder[string]().WithSize(2).Build()
 	if err != nil {
 		return Controllers{}, err
 	}
-	assets := newAssets()
+	assets := newAssets(assetsCache)
 	api := newAPI(db)
-	pages := newPages(db, pageCacher)
+	pages := newPages(db, pagesCache)
 
 	return Controllers{
 		assets,
@@ -1260,32 +1352,48 @@ package controllers
 
 import (
 	"myorg/webapp/database"
-
 	"myorg/webapp/views"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
-	"github.com/maypok86/otter"
 )
 
 type Pages struct {
 	db    database.SQLite
-	cache otter.CacheWithVariableTTL[string, templ.Component]
+	cache *Cache[templ.Component]
 }
 
 func newPages(
 	db database.SQLite,
-	cache otter.CacheWithVariableTTL[string, templ.Component],
+	cache *Cache[templ.Component],
 ) Pages {
 	return Pages{db, cache}
 }
 
 func (p Pages) Home(c echo.Context) error {
-	return render(c, views.Home())
+	cacheKey := "home"
+
+	component, err := p.cache.Get(cacheKey, func() (templ.Component, error) {
+		return views.Home(), nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return render(c, component)
 }
 
 func (p Pages) NotFound(c echo.Context) error {
-	return render(c, views.NotFound())
+	cacheKey := "not_found"
+
+	component, err := p.cache.Get(cacheKey, func() (templ.Component, error) {
+		return views.NotFound(), nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return render(c, component)
 }
 
 
@@ -3798,7 +3906,7 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 		Title:          config.ProjectName,
 		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
-		canonical:      config.Domain,
+		canonical:      config.BaseURL,
 		MetaType:       "website",
 		stylesheetHref: routes.Stylesheet.URL(),
 		scriptSrc:      routes.Scripts.URL(),
@@ -4173,7 +4281,7 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 		Title:          config.ProjectName,
 		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
-		canonical:      config.Domain,
+		canonical:      config.BaseURL,
 		MetaType:       "website",
 		stylesheetHref: routes.Stylesheet.URL(),
 		scriptSrc:      routes.Scripts.URL(),
