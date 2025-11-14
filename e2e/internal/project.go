@@ -7,10 +7,11 @@ import (
 )
 
 type Project struct {
-	Dir       string
-	Name      string
-	T         *testing.T
+	Dir        string
+	Name       string
+	T          *testing.T
 	BinaryPath string
+	Database   string
 }
 
 func NewProject(t *testing.T, andurelBinary string) *Project {
@@ -24,6 +25,22 @@ func NewProject(t *testing.T, andurelBinary string) *Project {
 		Name:       projectName,
 		T:          t,
 		BinaryPath: andurelBinary,
+		Database:   "",
+	}
+}
+
+func NewProjectWithDatabase(t *testing.T, andurelBinary, database string) *Project {
+	t.Helper()
+
+	tmpDir := t.TempDir()
+	projectName := "testapp"
+
+	return &Project{
+		Dir:        filepath.Join(tmpDir, projectName),
+		Name:       projectName,
+		T:          t,
+		BinaryPath: andurelBinary,
+		Database:   database,
 	}
 }
 
