@@ -23,32 +23,32 @@ var SessionCreate = usersGroup.route("user_session").
 
 var SessionDestroy = usersGroup.route("destroy_user_session").
 	SetPath("/sign_out").
-	SetMethod(http.MethodPost).
+	SetMethod(http.MethodDelete).
 	SetCtrl("Sessions", "Destroy").
 	Register()
 
 var PasswordNew = usersGroup.route("new_user_password").
 	SetPath("/password/new").
 	SetMethod(http.MethodGet).
-	SetCtrl("ResetPassword", "New").
+	SetCtrl("ResetPasswords", "New").
 	Register()
 
 var PasswordCreate = usersGroup.route("user_password").
 	SetPath("/password").
 	SetMethod(http.MethodPost).
-	SetCtrl("ResetPassword", "Create").
+	SetCtrl("ResetPasswords", "Create").
 	Register()
 
 var PasswordEdit = usersGroup.route("edit_user_password").
 	SetPath("/password/:token/edit").
 	SetMethod(http.MethodGet).
-	SetCtrl("ResetPassword", "Edit").
+	SetCtrl("ResetPasswords", "Edit").
 	RegisterWithToken()
 
-var PasswordUpdate = usersGroup.route("user_password_update").
+var PasswordUpdate = usersGroup.route("user_password").
 	SetPath("/password").
 	SetMethod(http.MethodPut).
-	SetCtrl("ResetPassword", "Update").
+	SetCtrl("ResetPasswords", "Update").
 	Register()
 
 var RegistrationNew = usersGroup.route("new_user_registration").
