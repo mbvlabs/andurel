@@ -31,12 +31,12 @@ func (e Auth) Apply(ctx *Context) error {
 	builder.AddControllerField("Sessions", "Sessions")
 	builder.AddControllerField("Registrations", "Registrations")
 	builder.AddControllerField("Confirmations", "Confirmations")
-	builder.AddControllerField("ResetPassword", "ResetPassword")
+	builder.AddControllerField("ResetPasswords", "ResetPasswords")
 
 	builder.AddControllerConstructor("sessions", "newSessions(db, cfg)")
 	builder.AddControllerConstructor("registrations", "newRegistrations(db, emailClient, cfg)")
 	builder.AddControllerConstructor("confirmations", "newConfirmations(db, cfg)")
-	builder.AddControllerConstructor("resetPassword", "newResetPassword(db, emailClient, cfg)")
+	builder.AddControllerConstructor("resetPasswords", "newResetPasswords(db, emailClient, cfg)")
 
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("auth: failed to render templates: %w", err)
