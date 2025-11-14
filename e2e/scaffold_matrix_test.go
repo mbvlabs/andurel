@@ -109,7 +109,6 @@ func TestScaffoldMatrix(t *testing.T) {
 	configs := getScaffoldConfigs()
 
 	for _, config := range configs {
-		config := config
 		t.Run(config.Name, func(t *testing.T) {
 			if isCriticalOnly() && !config.Critical {
 				t.Skip("Skipping non-critical test in critical-only mode")
@@ -161,8 +160,16 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 	internal.AssertFilesExist(t, project, coreFiles)
 
 	if config.Database == "postgresql" {
-		internal.AssertFileExists(t, project, "database/migrations/00001_create_river_migration_table.sql")
-		internal.AssertFileExists(t, project, "database/migrations/00002_create_river_job_and_leader_tables.sql")
+		internal.AssertFileExists(
+			t,
+			project,
+			"database/migrations/00001_create_river_migration_table.sql",
+		)
+		internal.AssertFileExists(
+			t,
+			project,
+			"database/migrations/00002_create_river_job_and_leader_tables.sql",
+		)
 	}
 
 	if config.Database == "sqlite" {
