@@ -1,58 +1,51 @@
 ARG GO_VERSION={{.GoVersion}}
-FROM golang:${GO_VERSION}-bookworm as builder
+{{- if eq .CSSFramework "tailwind"}}
+FROM debian:bookworm-slim AS css-builder
 
 WORKDIR /usr/src/app
 
-{{if eq .Database "sqlite"}}
+COPY bin/tailwindcli ./bin/tailwindcli
+COPY css ./css
+COPY views ./views
+
+RUN ./bin/tailwindcli -i ./css/base.css -o ./assets/css/style.css --minify
+{{- end}}
+
+FROM golang:${GO_VERSION}-bookworm AS builder
+
+WORKDIR /usr/src/app
+{{- if eq .Database "sqlite"}}
+
 RUN apt-get update && apt-get install -y \
     gcc \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
-{{end}}
+{{- end}}
 
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
 COPY . .
+{{- if eq .CSSFramework "tailwind"}}
+COPY --from=css-builder /usr/src/app/assets/css/style.css ./assets/css/style.css
+{{- end}}
 
-{{if eq .Database "sqlite"}}
+{{- if eq .Database "sqlite"}}
 RUN CGO_ENABLED=1 GOOS=linux go build -v -o /run-app ./cmd/app
-{{else}}
+{{- else}}
 RUN CGO_ENABLED=0 GOOS=linux go build -v -o /run-app ./cmd/app
-{{end}}
-
-{{if eq .CSSFramework "tailwind"}}
-FROM builder as css-builder
-
-WORKDIR /usr/src/app
-
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && curl -sLO https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64 \
-    && chmod +x tailwindcss-linux-x64 \
-    && mv tailwindcss-linux-x64 /usr/local/bin/tailwindcli
-
-RUN /usr/local/bin/tailwindcli -i ./css/base.css -o ./assets/css/style.css --minify
-{{end}}
+{{- end}}
 
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \
-{{if eq .Database "sqlite"}}    libsqlite3-0 \
-{{end}}    && rm -rf /var/lib/apt/lists/*
+{{- if eq .Database "sqlite"}}
+    libsqlite3-0 \
+{{- end}}
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /run-app /usr/local/bin/run-app
-
-{{if eq .CSSFramework "tailwind"}}
-COPY --from=css-builder /usr/src/app/assets/css/style.css /app/assets/css/style.css
-COPY --from=builder /usr/src/app/assets /app/assets
-{{else}}
-COPY --from=builder /usr/src/app/assets /app/assets
-{{end}}
-
-COPY --from=builder /usr/src/app/views /app/views
 
 WORKDIR /app
 
