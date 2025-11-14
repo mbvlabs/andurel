@@ -1,0 +1,129 @@
+package views
+
+import (
+	"fmt"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/views/components"
+)
+
+templ QueueJobDetail(job models.Job, stateCounts []models.JobStateCount) {
+	@QueueLayout("jobs", stateCounts) {
+		<div class="px-4 py-6 sm:px-0">
+			<div class="mb-6">
+				<h2 class="text-2xl font-bold">Job Details</h2>
+				<p class="text-base-content text-opacity-60">Job ID: { fmt.Sprintf("%d", job.ID) }</p>
+			</div>
+			<div class="bg-base-100 shadow overflow-hidden sm:rounded-lg">
+				<div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+					<div>
+						<h3 class="text-lg leading-6 font-medium">{ job.Kind }</h3>
+						<p class="mt-1 max-w-2xl text-sm text-base-content text-opacity-60">
+							Queue: { job.Queue }
+						</p>
+					</div>
+					<div>
+						@components.QueueJobStateBadge(job.State)
+					</div>
+				</div>
+				<div class="border-t border-base-300">
+					<dl>
+						<div class="bg-base-200 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+							<dt class="text-sm font-medium">ID</dt>
+							<dd class="mt-1 text-sm sm:mt-0 sm:col-span-2">{ fmt.Sprintf("%d", job.ID) }</dd>
+						</div>
+						<div class="bg-base-100 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+							<dt class="text-sm font-medium">Kind</dt>
+							<dd class="mt-1 text-sm sm:mt-0 sm:col-span-2">{ job.Kind }</dd>
+						</div>
+						<div class="bg-base-200 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+							<dt class="text-sm font-medium">Queue</dt>
+							<dd class="mt-1 text-sm sm:mt-0 sm:col-span-2">{ job.Queue }</dd>
+						</div>
+						<div class="bg-base-100 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+							<dt class="text-sm font-medium">State</dt>
+							<dd class="mt-1 text-sm sm:mt-0 sm:col-span-2">
+								@components.QueueJobStateBadge(job.State)
+							</dd>
+						</div>
+						<div class="bg-base-200 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+							<dt class="text-sm font-medium">Priority</dt>
+							<dd class="mt-1 text-sm sm:mt-0 sm:col-span-2">{ fmt.Sprintf("%d", job.Priority) }</dd>
+						</div>
+						<div class="bg-base-100 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+							<dt class="text-sm font-medium">Attempts</dt>
+							<dd class="mt-1 text-sm sm:mt-0 sm:col-span-2">{ fmt.Sprintf("%d / %d", job.Attempt, job.MaxAttempts) }</dd>
+						</div>
+						<div class="bg-base-200 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+							<dt class="text-sm font-medium">Created At</dt>
+							<dd class="mt-1 text-sm sm:mt-0 sm:col-span-2">
+								@components.QueueTime(job.CreatedAt)
+							</dd>
+						</div>
+						if job.ScheduledAt.IsZero() == false {
+							<div class="bg-base-100 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+								<dt class="text-sm font-medium">Scheduled At</dt>
+								<dd class="mt-1 text-sm sm:mt-0 sm:col-span-2">
+									@components.QueueTime(job.ScheduledAt)
+								</dd>
+							</div>
+						}
+						if job.AttemptedAt.IsZero() == false {
+							<div class="bg-base-200 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+								<dt class="text-sm font-medium">Attempted At</dt>
+								<dd class="mt-1 text-sm sm:mt-0 sm:col-span-2">
+									@components.QueueTime(job.AttemptedAt)
+								</dd>
+							</div>
+						}
+						if job.FinalizedAt.IsZero() == false {
+							<div class="bg-base-100 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+								<dt class="text-sm font-medium">Finalized At</dt>
+								<dd class="mt-1 text-sm sm:mt-0 sm:col-span-2">
+									@components.QueueTime(job.FinalizedAt)
+								</dd>
+							</div>
+						}
+						<div class="bg-base-200 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+							<dt class="text-sm font-medium">Arguments</dt>
+							<dd class="mt-1 text-sm sm:mt-0 sm:col-span-2">
+								<pre class="bg-base-300 p-4 rounded overflow-x-auto">{ string(job.Args) }</pre>
+							</dd>
+						</div>
+						if len(job.Errors) > 0 {
+							<div class="bg-base-100 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+								<dt class="text-sm font-medium">Errors</dt>
+								<dd class="mt-1 text-sm sm:mt-0 sm:col-span-2">
+									<div class="space-y-2">
+										for _, errBytes := range job.Errors {
+											<pre class="bg-error bg-opacity-10 text-error p-4 rounded overflow-x-auto">{ string(errBytes) }</pre>
+										}
+									</div>
+								</dd>
+							</div>
+						}
+						if len(job.Tags) > 0 {
+							<div class="bg-base-200 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+								<dt class="text-sm font-medium">Tags</dt>
+								<dd class="mt-1 text-sm sm:mt-0 sm:col-span-2">
+									<div class="flex flex-wrap gap-2">
+										for _, tag := range job.Tags {
+											<span class="px-2 py-1 text-xs rounded bg-base-300">{ tag }</span>
+										}
+									</div>
+								</dd>
+							</div>
+						}
+						if len(job.Metadata) > 0 && string(job.Metadata) != "{}" {
+							<div class="bg-base-100 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+								<dt class="text-sm font-medium">Metadata</dt>
+								<dd class="mt-1 text-sm sm:mt-0 sm:col-span-2">
+									<pre class="bg-base-300 p-4 rounded overflow-x-auto">{ string(job.Metadata) }</pre>
+								</dd>
+							</div>
+						}
+					</dl>
+				</div>
+			</div>
+		</div>
+	}
+}

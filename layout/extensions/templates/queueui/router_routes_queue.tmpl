@@ -1,0 +1,76 @@
+package routes
+
+import "net/http"
+
+const (
+	queueRoutePrefix = "/admin/queue"
+	queueNamePrefix  = "queue"
+)
+
+var queueGroup = newRouteGroup(queueNamePrefix, queueRoutePrefix)
+
+var QueueDashboard = queueGroup.route("dashboard").
+	SetPath("").
+	SetMethod(http.MethodGet).
+	SetCtrl("Queue", "Dashboard").
+	Register()
+
+var QueueJobsList = queueGroup.route("jobs").
+	SetPath("/jobs").
+	SetMethod(http.MethodGet).
+	SetCtrl("Queue", "JobsList").
+	Register()
+
+var QueueJobsStream = queueGroup.route("jobs_stream").
+	SetPath("/jobs/stream").
+	SetMethod(http.MethodGet).
+	SetCtrl("Queue", "JobsStream").
+	Register()
+
+var QueueJobDetail = queueGroup.route("job_detail").
+	SetPath("/jobs/:id").
+	SetMethod(http.MethodGet).
+	SetCtrl("Queue", "JobDetail").
+	RegisterWithSlug()
+
+var QueueJobCancel = queueGroup.route("job_cancel").
+	SetPath("/jobs/cancel").
+	SetMethod(http.MethodPost).
+	SetCtrl("Queue", "JobCancel").
+	Register()
+
+var QueueJobDelete = queueGroup.route("job_delete").
+	SetPath("/jobs/delete").
+	SetMethod(http.MethodPost).
+	SetCtrl("Queue", "JobDelete").
+	Register()
+
+var QueueJobRetry = queueGroup.route("job_retry").
+	SetPath("/jobs/retry").
+	SetMethod(http.MethodPost).
+	SetCtrl("Queue", "JobRetry").
+	Register()
+
+var QueueQueuesList = queueGroup.route("queues").
+	SetPath("/queues").
+	SetMethod(http.MethodGet).
+	SetCtrl("Queue", "QueuesList").
+	Register()
+
+var QueueQueueDetail = queueGroup.route("queue_detail").
+	SetPath("/queues/:name").
+	SetMethod(http.MethodGet).
+	SetCtrl("Queue", "QueueDetail").
+	RegisterWithSlug()
+
+var QueueQueuePause = queueGroup.route("queue_pause").
+	SetPath("/queues/:name/pause").
+	SetMethod(http.MethodPut).
+	SetCtrl("Queue", "QueuePause").
+	RegisterWithSlug()
+
+var QueueQueueResume = queueGroup.route("queue_resume").
+	SetPath("/queues/:name/resume").
+	SetMethod(http.MethodPut).
+	SetCtrl("Queue", "QueueResume").
+	RegisterWithSlug()

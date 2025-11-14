@@ -1,0 +1,61 @@
+package components
+
+import (
+	"time"
+	"fmt"
+)
+
+templ QueueTime(t time.Time) {
+	<span class="time-relative" title={ t.Format("2006-01-02 15:04:05") }>
+		{ formatRelativeTime(t) }
+	</span>
+}
+
+func formatRelativeTime(t time.Time) string {
+	now := time.Now()
+	diff := now.Sub(t)
+
+	if diff < time.Minute {
+		return "just now"
+	}
+	if diff < time.Hour {
+		minutes := int(diff.Minutes())
+		if minutes == 1 {
+			return "1 minute ago"
+		}
+		return fmt.Sprintf("%d minutes ago", minutes)
+	}
+	if diff < 24*time.Hour {
+		hours := int(diff.Hours())
+		if hours == 1 {
+			return "1 hour ago"
+		}
+		return fmt.Sprintf("%d hours ago", hours)
+	}
+	if diff < 7*24*time.Hour {
+		days := int(diff.Hours() / 24)
+		if days == 1 {
+			return "1 day ago"
+		}
+		return fmt.Sprintf("%d days ago", days)
+	}
+	if diff < 30*24*time.Hour {
+		weeks := int(diff.Hours() / (24 * 7))
+		if weeks == 1 {
+			return "1 week ago"
+		}
+		return fmt.Sprintf("%d weeks ago", weeks)
+	}
+	if diff < 365*24*time.Hour {
+		months := int(diff.Hours() / (24 * 30))
+		if months == 1 {
+			return "1 month ago"
+		}
+		return fmt.Sprintf("%d months ago", months)
+	}
+	years := int(diff.Hours() / (24 * 365))
+	if years == 1 {
+		return "1 year ago"
+	}
+	return fmt.Sprintf("%d years ago", years)
+}

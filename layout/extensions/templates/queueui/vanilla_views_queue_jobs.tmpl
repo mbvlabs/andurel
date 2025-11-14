@@ -1,0 +1,62 @@
+package views
+
+import (
+	"fmt"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/views/components"
+)
+
+templ QueueJobs(jobs []models.Job, kinds []string, queueNames []string, currentPage, totalPages int, stateFilter, queueFilter, kindFilter string, stateCounts []models.JobStateCount) {
+	@QueueLayout("jobs", stateCounts) {
+		<div class="queue-jobs" data-signals={ fmt.Sprintf("{selectedJobs: [], page: %d, state: '%s', queue: '%s', kind: '%s'}", currentPage, stateFilter, queueFilter, kindFilter) }>
+			<div class="page-header">
+				<h2>Jobs</h2>
+				<div class="actions-bar">
+					@components.QueueActions()
+				</div>
+			</div>
+			@components.QueueFilters(stateFilter, queueFilter, kindFilter, kinds, queueNames)
+			<div class="card">
+				<div id="jobsTable" data-on-load={ fmt.Sprintf("@get('%s?state=%s&queue=%s&kind=%s')", routes.QueueJobsStream.URL(), stateFilter, queueFilter, kindFilter) }>
+					@QueueJobsTable(jobs)
+				</div>
+			</div>
+			if totalPages > 1 {
+				@components.QueuePagination(currentPage, totalPages)
+			}
+		</div>
+	}
+}
+
+templ QueueJobsTable(jobs []models.Job) {
+	<div class="table-responsive">
+		<table class="data-table">
+			<thead>
+				<tr>
+					<th></th>
+					<th>ID</th>
+					<th>Kind</th>
+					<th>Queue</th>
+					<th>State</th>
+					<th>Priority</th>
+					<th>Attempts</th>
+					<th>Created</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+				if len(jobs) == 0 {
+					<tr>
+						<td colspan="9" class="empty-cell">
+							No jobs found
+						</td>
+					</tr>
+				}
+				for _, job := range jobs {
+					@components.QueueJobRow(job)
+				}
+			</tbody>
+		</table>
+	</div>
+}

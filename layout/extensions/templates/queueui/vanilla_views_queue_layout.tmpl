@@ -1,0 +1,56 @@
+package views
+
+import (
+	"fmt"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/router/routes"
+)
+
+templ QueueLayout(currentPath string, stateCounts []models.JobStateCount) {
+	@base() {
+		<div class="queue-manager">
+			<aside class="queue-sidebar">
+				<div class="queue-brand">
+					<svg class="queue-logo" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+						<polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+						<line x1="12" y1="22.08" x2="12" y2="12"></line>
+					</svg>
+					<h1>River</h1>
+				</div>
+				<nav class="queue-nav">
+					<div class="queue-nav-section">
+						<div class="queue-nav-section-title">States</div>
+						for _, count := range stateCounts {
+							<a
+								href={ templ.SafeURL(fmt.Sprintf("%s?state=%s", routes.QueueJobsList.URL(), count.State)) }
+								class="queue-nav-link"
+							>
+								<span class="queue-nav-link-text">{ count.State }</span>
+								<span class="queue-nav-link-count">{ fmt.Sprintf("%d", count.Count) }</span>
+							</a>
+						}
+					</div>
+					<div class="queue-nav-section">
+						<div class="queue-nav-section-title">Views</div>
+						<a
+							href={ templ.SafeURL(routes.QueueDashboard.URL()) }
+							class={ "queue-nav-link", templ.KV("active", currentPath == "dashboard") }
+						>
+							<span class="queue-nav-link-text">Dashboard</span>
+						</a>
+						<a
+							href={ templ.SafeURL(routes.QueueQueuesList.URL()) }
+							class={ "queue-nav-link", templ.KV("active", currentPath == "queues") }
+						>
+							<span class="queue-nav-link-text">Queues</span>
+						</a>
+					</div>
+				</nav>
+			</aside>
+			<main class="queue-main">
+				{ children... }
+			</main>
+		</div>
+	}
+}

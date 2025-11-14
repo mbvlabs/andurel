@@ -1,0 +1,28 @@
+package components
+
+templ QueueJobStateBadge(state string) {
+	if state == "available" {
+		<span class="px-2 py-1 text-xs rounded bg-info text-info-content">Available</span>
+	}
+	if state == "running" {
+		<span class="px-2 py-1 text-xs rounded bg-primary text-primary-content">Running</span>
+	}
+	if state == "completed" {
+		<span class="px-2 py-1 text-xs rounded bg-success text-success-content">Completed</span>
+	}
+	if state == "cancelled" {
+		<span class="px-2 py-1 text-xs rounded bg-warning text-warning-content">Cancelled</span>
+	}
+	if state == "discarded" {
+		<span class="px-2 py-1 text-xs rounded bg-error text-error-content">Discarded</span>
+	}
+	if state == "retryable" {
+		<span class="px-2 py-1 text-xs rounded bg-warning text-warning-content">Retryable</span>
+	}
+	if state == "scheduled" {
+		<span class="px-2 py-1 text-xs rounded bg-accent text-accent-content">Scheduled</span>
+	}
+	if state == "pending" {
+		<span class="px-2 py-1 text-xs rounded bg-base-300 text-base-content">Pending</span>
+	}
+}

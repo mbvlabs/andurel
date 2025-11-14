@@ -1,0 +1,117 @@
+package views
+
+import (
+	"fmt"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/views/components"
+)
+
+templ QueueQueueDetail(queue models.Queue, stats models.QueueStats, jobs []models.Job, stateCounts []models.JobStateCount) {
+	@QueueLayout("queues", stateCounts) {
+		<div class="px-4 py-6 sm:px-0">
+			<div class="mb-6">
+				<div class="flex justify-between items-center">
+					<div>
+						<h2 class="text-2xl font-bold">{ queue.Name }</h2>
+						<p class="text-base-content text-opacity-60">Queue Details</p>
+					</div>
+					<div class="flex space-x-2">
+						if queue.PausedAt.IsZero() == false {
+							<button
+								data-on-click={ fmt.Sprintf("@put('%s')", routes.QueueQueueResume.URL(queue.Name)) }
+								class="btn btn-primary"
+							>
+								Resume
+							</button>
+						}
+						if !queue.PausedAt.IsZero() == false {
+							<button
+								data-on-click={ fmt.Sprintf("@put('%s')", routes.QueueQueuePause.URL(queue.Name)) }
+								class="btn btn-warning"
+							>
+								Pause
+							</button>
+						}
+					</div>
+				</div>
+			</div>
+			<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+				<div class="bg-base-100 overflow-hidden shadow rounded-lg">
+					<div class="p-5">
+						<dt class="text-sm font-medium text-base-content truncate">Available</dt>
+						<dd class="mt-1 text-3xl font-semibold">{ fmt.Sprintf("%d", stats.AvailableCount) }</dd>
+					</div>
+				</div>
+				<div class="bg-base-100 overflow-hidden shadow rounded-lg">
+					<div class="p-5">
+						<dt class="text-sm font-medium text-base-content truncate">Running</dt>
+						<dd class="mt-1 text-3xl font-semibold">{ fmt.Sprintf("%d", stats.RunningCount) }</dd>
+					</div>
+				</div>
+				<div class="bg-base-100 overflow-hidden shadow rounded-lg">
+					<div class="p-5">
+						<dt class="text-sm font-medium text-base-content truncate">Scheduled</dt>
+						<dd class="mt-1 text-3xl font-semibold">{ fmt.Sprintf("%d", stats.ScheduledCount) }</dd>
+					</div>
+				</div>
+				<div class="bg-base-100 overflow-hidden shadow rounded-lg">
+					<div class="p-5">
+						<dt class="text-sm font-medium text-base-content truncate">Completed</dt>
+						<dd class="mt-1 text-3xl font-semibold">{ fmt.Sprintf("%d", stats.CompletedCount) }</dd>
+					</div>
+				</div>
+			</div>
+			<div class="bg-base-100 shadow rounded-lg">
+				<div class="px-4 py-5 sm:px-6">
+					<h3 class="text-lg leading-6 font-medium">Recent Jobs</h3>
+				</div>
+				<div class="border-t border-base-300">
+					<table class="min-w-full divide-y divide-base-300">
+						<thead class="bg-base-200">
+							<tr>
+								<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">ID</th>
+								<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Kind</th>
+								<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">State</th>
+								<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Attempts</th>
+								<th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Created</th>
+								<th scope="col" class="relative px-6 py-3">
+									<span class="sr-only">Actions</span>
+								</th>
+							</tr>
+						</thead>
+						<tbody class="bg-base-100 divide-y divide-base-300">
+							if len(jobs) == 0 {
+								<tr>
+									<td colspan="6" class="px-6 py-4 text-center text-base-content text-opacity-60">
+										No jobs found
+									</td>
+								</tr>
+							}
+							for _, job := range jobs {
+								<tr>
+									<td class="px-6 py-4 whitespace-nowrap text-sm">{ fmt.Sprintf("%d", job.ID) }</td>
+									<td class="px-6 py-4 whitespace-nowrap text-sm font-medium">{ job.Kind }</td>
+									<td class="px-6 py-4 whitespace-nowrap">
+										@components.QueueJobStateBadge(job.State)
+									</td>
+									<td class="px-6 py-4 whitespace-nowrap text-sm">
+										{ fmt.Sprintf("%d / %d", job.Attempt, job.MaxAttempts) }
+									</td>
+									<td class="px-6 py-4 whitespace-nowrap text-sm">
+										@components.QueueTime(job.CreatedAt)
+									</td>
+									<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+										<a href={ templ.SafeURL(routes.QueueJobDetail.URL(fmt.Sprintf("%d", job.ID))) } class="text-primary hover:text-primary-focus">
+											View
+										</a>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	}
+}

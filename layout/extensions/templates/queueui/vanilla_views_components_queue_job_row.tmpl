@@ -1,0 +1,35 @@
+package components
+
+import (
+	"fmt"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/router/routes"
+)
+
+templ QueueJobRow(job models.Job) {
+	<tr>
+		<td>
+			<input
+				type="checkbox"
+				value={ fmt.Sprintf("%d", job.ID) }
+				data-bind-selectedJobs
+			/>
+		</td>
+		<td>{ fmt.Sprintf("%d", job.ID) }</td>
+		<td class="font-medium">{ job.Kind }</td>
+		<td>{ job.Queue }</td>
+		<td>
+			@QueueJobStateBadge(job.State)
+		</td>
+		<td>{ fmt.Sprintf("%d", job.Priority) }</td>
+		<td>{ fmt.Sprintf("%d / %d", job.Attempt, job.MaxAttempts) }</td>
+		<td>
+			@QueueTime(job.CreatedAt)
+		</td>
+		<td class="text-right">
+			<a href={ templ.SafeURL(routes.QueueJobDetail.URL(fmt.Sprintf("%d", job.ID))) } class="link">
+				View
+			</a>
+		</td>
+	</tr>
+}

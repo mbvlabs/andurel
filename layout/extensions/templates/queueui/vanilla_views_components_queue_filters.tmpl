@@ -1,0 +1,60 @@
+package components
+
+import (
+	"fmt"
+	"{{.ModuleName}}/router/routes"
+)
+
+templ QueueFilters(stateFilter, queueFilter, kindFilter string, kinds []string, queueNames []string) {
+	<div class="filters-container">
+		<div class="filters-grid">
+			<div class="filter-group">
+				<label for="state" class="filter-label">State</label>
+				<select
+					id="state"
+					data-bind-state
+					data-on-change={ fmt.Sprintf("@get('%s?state=' + $state + '&queue=' + $queue + '&kind=' + $kind)", routes.QueueJobsList.URL()) }
+					class="filter-select"
+				>
+					<option value="">All States</option>
+					<option value="available" selected?={ stateFilter == "available" }>Available</option>
+					<option value="running" selected?={ stateFilter == "running" }>Running</option>
+					<option value="completed" selected?={ stateFilter == "completed" }>Completed</option>
+					<option value="scheduled" selected?={ stateFilter == "scheduled" }>Scheduled</option>
+					<option value="retryable" selected?={ stateFilter == "retryable" }>Retryable</option>
+					<option value="cancelled" selected?={ stateFilter == "cancelled" }>Cancelled</option>
+					<option value="discarded" selected?={ stateFilter == "discarded" }>Discarded</option>
+					<option value="pending" selected?={ stateFilter == "pending" }>Pending</option>
+				</select>
+			</div>
+			<div class="filter-group">
+				<label for="queue" class="filter-label">Queue</label>
+				<select
+					id="queue"
+					data-bind-queue
+					data-on-change={ fmt.Sprintf("@get('%s?state=' + $state + '&queue=' + $queue + '&kind=' + $kind)", routes.QueueJobsList.URL()) }
+					class="filter-select"
+				>
+					<option value="">All Queues</option>
+					for _, queueName := range queueNames {
+						<option value={ queueName } selected?={ queueFilter == queueName }>{ queueName }</option>
+					}
+				</select>
+			</div>
+			<div class="filter-group">
+				<label for="kind" class="filter-label">Kind</label>
+				<select
+					id="kind"
+					data-bind-kind
+					data-on-change={ fmt.Sprintf("@get('%s?state=' + $state + '&queue=' + $queue + '&kind=' + $kind)", routes.QueueJobsList.URL()) }
+					class="filter-select"
+				>
+					<option value="">All Kinds</option>
+					for _, kind := range kinds {
+						<option value={ kind } selected?={ kindFilter == kind }>{ kind }</option>
+					}
+				</select>
+			</div>
+		</div>
+	</div>
+}
