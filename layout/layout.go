@@ -650,6 +650,7 @@ func registerBuiltinExtensions() error {
 		builtin := []extensions.Extension{
 			extensions.Email{},
 			extensions.Auth{},
+			extensions.Docker{},
 		}
 
 		for _, ext := range builtin {
