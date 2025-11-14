@@ -151,12 +151,12 @@ func TestCoordinator_GenerateModelValidation(t *testing.T) {
 	}
 
 	// Test that validation errors are properly returned via ModelManager
-	err = coord.ModelManager.GenerateModel("")
+	err = coord.ModelManager.GenerateModel("", "")
 	if err == nil {
 		t.Error("Expected validation error for empty resource name")
 	}
 
-	err = coord.ModelManager.GenerateModel("invalid-name")
+	err = coord.ModelManager.GenerateModel("invalid-name", "")
 	if err == nil {
 		t.Error("Expected validation error for invalid resource name")
 	}

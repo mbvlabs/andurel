@@ -32,14 +32,17 @@ The model will include CRUD operations and database functions.
 The table name is automatically inferred as the plural form of the model name.
 
 Examples:
-  andurel generate model User           # Create new model for 'users' table
-  andurel generate model User --refresh # Refresh SQL queries and constructor functions`,
+  andurel generate model User                        # Create new model for 'users' table
+  andurel generate model User --table-name=accounts  # Create model using custom 'accounts' table
+  andurel generate model User --refresh              # Refresh SQL queries and constructor functions`,
 		Args: cobra.ExactArgs(1),
 		RunE: generateModel,
 	}
 
 	cmd.Flags().
 		Bool("refresh", false, "Refresh SQL queries and constructor functions - makes schema changes compiler-enforced")
+	cmd.Flags().
+		String("table-name", "", "Override the default table name (defaults to plural form of model name)")
 
 	return cmd
 }
@@ -73,6 +76,11 @@ func generateModel(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	tableNameOverride, err := cmd.Flags().GetString("table-name")
+	if err != nil {
+		return err
+	}
+
 	gen, err := generator.New()
 	if err != nil {
 		return err
@@ -85,7 +93,7 @@ func generateModel(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	return gen.GenerateModel(resourceName)
+	return gen.GenerateModel(resourceName, tableNameOverride)
 }
 
 func newControllerCommand() *cobra.Command {
@@ -153,7 +161,7 @@ func generateResource(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := gen.GenerateModel(resourceName); err != nil {
+	if err := gen.GenerateModel(resourceName, ""); err != nil {
 		return err
 	}
 
