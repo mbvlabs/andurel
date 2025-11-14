@@ -59,42 +59,42 @@ func getScaffoldConfigs() []ScaffoldConfig {
 			Database:   "postgresql",
 			CSS:        "tailwind",
 			Extensions: []string{"email"},
-			Critical:   false,
+			Critical:   true,
 		},
 		{
 			Name:       "sqlite-tailwind-auth",
 			Database:   "sqlite",
 			CSS:        "tailwind",
 			Extensions: []string{"auth"},
-			Critical:   false,
+			Critical:   true,
 		},
 		{
 			Name:       "postgresql-vanilla-auth",
 			Database:   "postgresql",
 			CSS:        "vanilla",
 			Extensions: []string{"auth"},
-			Critical:   false,
+			Critical:   true,
 		},
 		{
 			Name:       "sqlite-vanilla-auth",
 			Database:   "sqlite",
 			CSS:        "vanilla",
 			Extensions: []string{"auth"},
-			Critical:   false,
+			Critical:   true,
 		},
 		{
 			Name:       "postgresql-tailwind-all-extensions",
 			Database:   "postgresql",
 			CSS:        "tailwind",
 			Extensions: []string{"auth", "email", "docker"},
-			Critical:   false,
+			Critical:   true,
 		},
 		{
 			Name:       "sqlite-vanilla-all-extensions",
 			Database:   "sqlite",
 			CSS:        "vanilla",
 			Extensions: []string{"auth", "email", "docker"},
-			Critical:   false,
+			Critical:   true,
 		},
 	}
 }
@@ -210,8 +210,10 @@ func verifyExtension(t *testing.T, project *internal.Project, extension string) 
 
 	case "email":
 		emailFiles := []string{
-			"pkg/email/client.go",
-			"views/emails/layouts/base.templ",
+			"email/email.go",
+			"email/base_layout.templ",
+			"clients/mail_hog.go",
+			"config/email.go",
 		}
 		internal.AssertFilesExist(t, project, emailFiles)
 
