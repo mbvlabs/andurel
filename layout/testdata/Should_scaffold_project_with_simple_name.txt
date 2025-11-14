@@ -147,6 +147,7 @@ import (
 	"strings"
 	"time"
 
+	"riverqueue.com/riverui"
 	"testapp/config"
 	"testapp/controllers"
 	"testapp/database"
@@ -217,12 +218,19 @@ func setupControllers(
 	return ctrl, nil
 }
 
-func setupRouter(ctx context.Context, ctrl controllers.Controllers, cfg config.Config, tel *telemetry.Telemetry) (*echo.Echo, error) {
+func setupRouter(
+	ctx context.Context,
+	ctrl controllers.Controllers,
+	cfg config.Config,
+	tel *telemetry.Telemetry,
+	riverHandler *riverui.Handler,
+) (*echo.Echo, error) {
 	router, err := router.New(
 		ctx,
 		ctrl,
 		cfg,
 		tel,
+		riverHandler,
 	)
 	if err != nil {
 		return nil, err
@@ -326,8 +334,20 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	endpoints := riverui.NewEndpoints(processor.Client, nil)
+	opts := &riverui.HandlerOpts{
+		Endpoints: endpoints,
+		Logger:    slog.Default(),
+		Prefix:    "/riverui", // mount the UI and its APIs under /riverui or another path
+	}
+	riverHandler, err := riverui.NewHandler(opts)
+	if err != nil {
+		return err
+	}
 
-	handler, err := setupRouter(ctx, controllers, cfg, tel)
+	riverHandler.Start(ctx)
+
+	handler, err := setupRouter(ctx, controllers, cfg, tel, riverHandler)
 	if err != nil {
 		return err
 	}
@@ -3364,15 +3384,15 @@ func NewInsertOnly(pool *pgxpool.Pool, workers *river.Workers) (InsertOnly, erro
 }
 
 type Processor struct {
-	client *river.Client[pgx.Tx]
+	Client *river.Client[pgx.Tx]
 }
 
 func (p Processor) Start(ctx context.Context) error {
-	return p.client.Start(ctx)
+	return p.Client.Start(ctx)
 }
 
 func (p Processor) Stop(ctx context.Context) error {
-	return p.client.Stop(ctx)
+	return p.Client.Stop(ctx)
 }
 
 func NewProcessor(
@@ -3699,6 +3719,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	"riverqueue.com/riverui"
 
 	echomw "github.com/labstack/echo/v4/middleware"
 )
@@ -3714,6 +3735,7 @@ func New(
 	controllers controllers.Controllers,
 	cfg config.Config,
 	tel *telemetry.Telemetry,
+	riverHandler *riverui.Handler,
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
@@ -3767,6 +3789,7 @@ func New(
 	}
 
 	router.Use(middleware...)
+	router.Any("/riverui*", echo.WrapHandler(riverHandler))
 
 	return &Router{
 		router,

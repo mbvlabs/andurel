@@ -19,6 +19,7 @@ import (
 {{- if eq .Database "postgresql"}}
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/queue/workers"
+	"riverqueue.com/riverui"
 {{- end}}
 {{- range .Blueprint.Controllers.SortedDependencies}}
 {{- if .ImportPath}}
@@ -105,12 +106,23 @@ func setupControllers(
 	return ctrl, nil
 }
 
-func setupRouter(ctx context.Context, ctrl controllers.Controllers, cfg config.Config, tel *telemetry.Telemetry) (*echo.Echo, error) {
+func setupRouter(
+	ctx context.Context, 
+	ctrl controllers.Controllers, 
+	cfg config.Config, 
+	tel *telemetry.Telemetry,
+{{- if eq .Database "postgresql"}}
+	riverHandler *riverui.Handler,
+{{- end}}
+) (*echo.Echo, error) {
 	router, err := router.New(
 		ctx,
 		ctrl,
 		cfg,
 		tel,
+{{- if eq .Database "postgresql"}}
+		riverHandler,
+{{- end}}
 	)
 	if err != nil {
 		return nil, err
@@ -243,8 +255,22 @@ func run(ctx context.Context) error {
 		return err
 	}
 
+{{- if eq .Database "postgresql"}}
+	endpoints := riverui.NewEndpoints(processor.Client, nil)
+	opts := &riverui.HandlerOpts{
+		Endpoints: endpoints,
+		Logger:    slog.Default(),
+		Prefix:    "/riverui", // mount the UI and its APIs under /riverui or another path
+	}
+	riverHandler, err := riverui.NewHandler(opts)
+	if err != nil {
+		return err
+	}
 
-	handler, err := setupRouter(ctx, controllers, cfg, tel)
+	riverHandler.Start(ctx)
+{{- end}}
+
+	handler, err := setupRouter(ctx, controllers, cfg, tel, {{- if eq .Database "postgresql"}} riverHandler {{- end}})
 	if err != nil {
 		return err
 	}
