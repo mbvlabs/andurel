@@ -92,7 +92,6 @@ templ UserShow(user models.User) {
 							<label>Updated At</label>
 							<p>{ user.UpdatedAt.String() }</p>
 						</div>
-						
 					</div>
 				</div>
 			</div>
@@ -120,7 +119,7 @@ templ UserNew() {
 											Email
 										</label>
 										<div>
-											<input id="email" type="text" data-bind="email" />
+											<input id="email" type="text" data-bind="email"/>
 										</div>
 									</div>
 									<div>
@@ -128,7 +127,7 @@ templ UserNew() {
 											Name
 										</label>
 										<div>
-											<input id="name" type="text" data-bind="name" />
+											<input id="name" type="text" data-bind="name"/>
 										</div>
 									</div>
 									<div>
@@ -136,7 +135,7 @@ templ UserNew() {
 											Age
 										</label>
 										<div>
-											<input id="age" type="number" data-bind="age" />
+											<input id="age" type="number" data-bind="age"/>
 										</div>
 									</div>
 									<div>
@@ -144,10 +143,10 @@ templ UserNew() {
 											Is Active
 										</label>
 										<div>
-											<input id="is_active" type="checkbox" data-bind="is_active" />
+											<input id="is_active" type="checkbox" data-bind="is_active"/>
 										</div>
 									</div>
-									</div>
+								</div>
 							</div>
 						</div>
 						<div>
@@ -181,7 +180,7 @@ templ UserEdit(user models.User) {
 											Email
 										</label>
 										<div>
-											<input id="email" type="text" data-bind="email" value={ user.Email } />
+											<input id="email" type="text" data-bind="email" value={ user.Email }/>
 										</div>
 									</div>
 									<div>
@@ -189,7 +188,7 @@ templ UserEdit(user models.User) {
 											Name
 										</label>
 										<div>
-											<input id="name" type="text" data-bind="name" value={ user.Name } />
+											<input id="name" type="text" data-bind="name" value={ user.Name }/>
 										</div>
 									</div>
 									<div>
@@ -197,7 +196,7 @@ templ UserEdit(user models.User) {
 											Age
 										</label>
 										<div>
-											<input id="age" type="number" data-bind="age" value={ fmt.Sprintf("%d", user.Age) } />
+											<input id="age" type="number" data-bind="age" value={ fmt.Sprintf("%d", user.Age) }/>
 										</div>
 									</div>
 									<div>
@@ -205,10 +204,10 @@ templ UserEdit(user models.User) {
 											Is Active
 										</label>
 										<div>
-											<input id="is_active" type="checkbox" data-bind="is_active" value={ fmt.Sprintf("%t", user.IsActive) } />
+											<input id="is_active" type="checkbox" data-bind="is_active" value={ fmt.Sprintf("%t", user.IsActive) }/>
 										</div>
 									</div>
-									</div>
+								</div>
 							</div>
 						</div>
 						<div>
@@ -218,7 +217,8 @@ templ UserEdit(user models.User) {
 					</form>
 					<div>
 						<button
-							data-on-click={ fmt.Sprintf("@delete('%s')", "/")) }>Destroy User</button>
+							data-on-click={ fmt.Sprintf("@delete('%s')", "/") }
+						>Destroy User</button>
 					</div>
 				</div>
 			</div>

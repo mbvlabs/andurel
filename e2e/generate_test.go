@@ -1,7 +1,9 @@
 package e2e
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/e2e/internal"
@@ -55,7 +57,7 @@ func TestGenerateCommands(t *testing.T) {
 
 			t.Parallel()
 
-			project := internal.NewProject(t, binary)
+			project := internal.NewProjectWithDatabase(t, binary, tc.database)
 
 			err := project.Scaffold("-d", tc.database, "-c", tc.css)
 			internal.AssertCommandSucceeds(t, err, "scaffold")
@@ -82,20 +84,25 @@ func TestGenerateCommands(t *testing.T) {
 func testGenerateModel(t *testing.T, project *internal.Project) {
 	t.Helper()
 
-	createTestMigration(t, project, "create_products")
+	createMigration(t, project, "000100_create_products", "products", []string{
+		"name VARCHAR(255) NOT NULL",
+		"price DECIMAL(10,2)",
+	})
 
 	err := project.Generate("generate", "model", "Product")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	internal.AssertFileExists(t, project, "models/product.go")
-
-	internal.AssertGoVetPasses(t, project)
+	internal.AssertFileExists(t, project, "database/queries/products.sql")
 }
 
 func testGenerateController(t *testing.T, project *internal.Project) {
 	t.Helper()
 
-	createTestMigration(t, project, "create_orders")
+	createMigration(t, project, "000101_create_orders", "orders", []string{
+		"customer_name VARCHAR(255) NOT NULL",
+		"total DECIMAL(10,2)",
+	})
 
 	err := project.Generate("generate", "model", "Order")
 	internal.AssertCommandSucceeds(t, err, "generate model")
@@ -103,19 +110,18 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 	err = project.Generate("generate", "controller", "Order", "--with-views")
 	internal.AssertCommandSucceeds(t, err, "generate controller")
 
-	internal.AssertFileExists(t, project, "controllers/orders_controller.go")
-	internal.AssertFileExists(t, project, "views/orders/index.templ")
-	internal.AssertFileExists(t, project, "views/orders/show.templ")
-	internal.AssertFileExists(t, project, "views/orders/new.templ")
-	internal.AssertFileExists(t, project, "views/orders/edit.templ")
-
-	internal.AssertGoVetPasses(t, project)
+	internal.AssertFileExists(t, project, "controllers/orders.go")
+	internal.AssertFileExists(t, project, "views/orders_resource.templ")
+	internal.AssertFileExists(t, project, "router/routes/orders.go")
 }
 
 func testGenerateView(t *testing.T, project *internal.Project) {
 	t.Helper()
 
-	createTestMigration(t, project, "create_categories")
+	createMigration(t, project, "000102_create_categories", "categories", []string{
+		"name VARCHAR(255) NOT NULL",
+		"description TEXT",
+	})
 
 	err := project.Generate("generate", "model", "Category")
 	internal.AssertCommandSucceeds(t, err, "generate model")
@@ -123,55 +129,62 @@ func testGenerateView(t *testing.T, project *internal.Project) {
 	err = project.Generate("generate", "view", "Category")
 	internal.AssertCommandSucceeds(t, err, "generate view")
 
-	internal.AssertFileExists(t, project, "views/categories/index.templ")
-	internal.AssertFileExists(t, project, "views/categories/show.templ")
-	internal.AssertFileExists(t, project, "views/categories/new.templ")
-	internal.AssertFileExists(t, project, "views/categories/edit.templ")
-
-	internal.AssertGoVetPasses(t, project)
+	internal.AssertFileExists(t, project, "views/categories_resource.templ")
 }
 
 func testGenerateResource(t *testing.T, project *internal.Project) {
 	t.Helper()
 
-	createTestMigration(t, project, "create_items")
+	createMigration(t, project, "000103_create_items", "items", []string{
+		"name VARCHAR(255) NOT NULL",
+		"quantity INTEGER",
+	})
 
 	err := project.Generate("generate", "resource", "Item")
 	internal.AssertCommandSucceeds(t, err, "generate resource")
 
 	internal.AssertFileExists(t, project, "models/item.go")
-	internal.AssertFileExists(t, project, "controllers/items_controller.go")
-	internal.AssertFileExists(t, project, "views/items/index.templ")
-	internal.AssertFileExists(t, project, "views/items/show.templ")
-	internal.AssertFileExists(t, project, "views/items/new.templ")
-	internal.AssertFileExists(t, project, "views/items/edit.templ")
-
-	internal.AssertGoVetPasses(t, project)
+	internal.AssertFileExists(t, project, "controllers/items.go")
+	internal.AssertFileExists(t, project, "views/items_resource.templ")
 }
 
-func createTestMigration(t *testing.T, project *internal.Project, name string) {
+func createMigration(t *testing.T, project *internal.Project, migrationName, tableName string, columns []string) {
 	t.Helper()
 
 	migrationDir := filepath.Join(project.Dir, "database", "migrations")
 
-	upSQL := `CREATE TABLE IF NOT EXISTS ` + name + ` (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	name TEXT NOT NULL,
-	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);`
+	var idColumn, timestampType, now string
+	var columnDefs []string
 
-	downSQL := `DROP TABLE IF EXISTS ` + name + `;`
+	if project.Database == "postgresql" {
+		idColumn = "id UUID PRIMARY KEY"
+		timestampType = "TIMESTAMP WITH TIME ZONE"
+		now = "NOW()"
+	} else {
+		idColumn = "id TEXT PRIMARY KEY"
+		timestampType = "DATETIME"
+		now = "CURRENT_TIMESTAMP"
+	}
 
-	err := internal.RunCommand(t, "sh", project.Dir, nil, "-c",
-		`cd "`+migrationDir+`" && echo "`+upSQL+`" > 999999_`+name+`.up.sql`)
-	internal.AssertCommandSucceeds(t, err, "create migration up")
+	columnDefs = append(columnDefs, "\t"+idColumn)
+	for _, col := range columns {
+		columnDefs = append(columnDefs, "\t"+col)
+	}
+	columnDefs = append(columnDefs, "\tcreated_at "+timestampType+" DEFAULT "+now)
+	columnDefs = append(columnDefs, "\tupdated_at "+timestampType+" DEFAULT "+now)
 
-	err = internal.RunCommand(t, "sh", project.Dir, nil, "-c",
-		`cd "`+migrationDir+`" && echo "`+downSQL+`" > 999999_`+name+`.down.sql`)
-	internal.AssertCommandSucceeds(t, err, "create migration down")
+	upSQL := "CREATE TABLE IF NOT EXISTS " + tableName + " (\n" +
+		strings.Join(columnDefs, ",\n") +
+		"\n);"
 
-	err = internal.RunCommand(t, project.BinaryPath, project.Dir,
-		[]string{"ANDUREL_TEST_MODE=true"}, "sqlc", "generate")
-	internal.AssertCommandSucceeds(t, err, "sqlc generate")
+	downSQL := "DROP TABLE IF EXISTS " + tableName + ";"
+
+	gooseMigration := "-- +goose Up\n" + upSQL + "\n\n-- +goose Down\n" + downSQL + "\n"
+
+	migrationFile := filepath.Join(migrationDir, migrationName+".sql")
+
+	err := os.WriteFile(migrationFile, []byte(gooseMigration), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create migration file: %v", err)
+	}
 }

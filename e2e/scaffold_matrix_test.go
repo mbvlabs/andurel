@@ -148,24 +148,21 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 		"go.sum",
 		".env.example",
 		".gitignore",
-		"main.go",
-		"Makefile",
-		"sqlc.yaml",
 		"cmd/app/main.go",
 		"cmd/console/main.go",
 		"cmd/migration/main.go",
 		"cmd/run/main.go",
-		"controllers/home_controller.go",
-		"database/db.go",
-		"routes/routes.go",
-		"views/layouts/base.templ",
-		"views/home/index.templ",
+		"controllers/pages.go",
+		"database/sqlc.yaml",
+		"router/routes/routes.go",
+		"views/layout.templ",
+		"views/home.templ",
 	}
 	internal.AssertFilesExist(t, project, coreFiles)
 
 	if config.Database == "postgresql" {
-		internal.AssertFileExists(t, project, "database/migrations/000001_create_river_tables.up.sql")
-		internal.AssertFileExists(t, project, "database/migrations/000001_create_river_tables.down.sql")
+		internal.AssertFileExists(t, project, "database/migrations/00001_create_river_migration_table.sql")
+		internal.AssertFileExists(t, project, "database/migrations/00002_create_river_job_and_leader_tables.sql")
 	}
 
 	if config.Database == "sqlite" {
@@ -173,8 +170,7 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 	}
 
 	if config.CSS == "tailwind" {
-		internal.AssertDirExists(t, project, "css")
-		internal.AssertFileExists(t, project, "tailwind.config.js")
+		internal.AssertDirExists(t, project, "assets/css")
 	}
 
 	if config.CSS == "vanilla" {
@@ -192,12 +188,16 @@ func verifyExtension(t *testing.T, project *internal.Project, extension string) 
 	switch extension {
 	case "auth":
 		authFiles := []string{
-			"controllers/auth_controller.go",
-			"controllers/sessions_controller.go",
+			"controllers/sessions.go",
+			"controllers/registrations.go",
+			"controllers/reset_passwords.go",
+			"controllers/confirmations.go",
 			"models/user.go",
 			"models/token.go",
-			"views/auth/login.templ",
-			"views/auth/register.templ",
+			"views/login.templ",
+			"views/registration.templ",
+			"views/reset_password.templ",
+			"views/confirm_email.templ",
 		}
 		internal.AssertFilesExist(t, project, authFiles)
 
