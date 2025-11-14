@@ -46,8 +46,7 @@ func (mm *MigrationManager) BuildCatalogFromMigrations(
 
 	if !foundTable {
 		return nil, fmt.Errorf(
-			"no migration found for table '%s'. Please create a migration first using: just create-migration create_%s_table",
-			tableName,
+			"no migration found for table '%s'. Create a migration for this table or use --table-name to specify a different table name",
 			tableName,
 		)
 	}

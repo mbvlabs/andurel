@@ -87,7 +87,7 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"model file %s does not exist. Generate the model first with: andurel generate model %s <table_name>",
+			"model file %s does not exist. Generate the model first: andurel generate model %s",
 			modelPath,
 			resourceName,
 		)
@@ -111,7 +111,7 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 	if withViews {
 		if _, err := os.Stat(c.config.Paths.Views); os.IsNotExist(err) {
 			return fmt.Errorf(
-				"views directory %s does not exist. Please create the views directory structure before using --with-views",
+				"views directory %s does not exist. Create views directory before using --with-views",
 				c.config.Paths.Views,
 			)
 		}

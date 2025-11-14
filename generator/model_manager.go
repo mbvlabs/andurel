@@ -195,13 +195,13 @@ func (m *ModelManager) RefreshModel(resourceName, tableName string) error {
 
 	if _, err := os.Stat(ctx.ModelPath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"model file %s does not exist. Use 'generate model' to create it first",
+			"model file %s does not exist. Generate model first",
 			ctx.ModelPath,
 		)
 	}
 	if _, err := os.Stat(ctx.SQLPath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"SQL file %s does not exist. Use 'generate model' to create it first",
+			"SQL file %s does not exist. Generate model first",
 			ctx.SQLPath,
 		)
 	}
@@ -241,13 +241,13 @@ func (m *ModelManager) RefreshQueries(resourceName, tableName string) error {
 
 	if _, err := os.Stat(ctx.ModelPath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"model file %s does not exist. Use 'generate model' to create it first",
+			"model file %s does not exist. Generate model first",
 			ctx.ModelPath,
 		)
 	}
 	if _, err := os.Stat(ctx.SQLPath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"SQL file %s does not exist. Use 'generate model' to create it first",
+			"SQL file %s does not exist. Generate model first",
 			ctx.SQLPath,
 		)
 	}
@@ -287,13 +287,13 @@ func (m *ModelManager) RefreshConstructors(resourceName, tableName string) error
 
 	if _, err := os.Stat(ctx.ModelPath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"model file %s does not exist. Use 'generate model' to create it first",
+			"model file %s does not exist. Generate model first",
 			ctx.ModelPath,
 		)
 	}
 	if _, err := os.Stat(ctx.SQLPath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"SQL file %s does not exist. Use 'generate model' to create it first",
+			"SQL file %s does not exist. Generate model first",
 			ctx.SQLPath,
 		)
 	}
