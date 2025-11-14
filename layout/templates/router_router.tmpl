@@ -27,6 +27,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	"riverqueue.com/riverui"
 
 	echomw "github.com/labstack/echo/v4/middleware"
 )
@@ -42,6 +43,9 @@ func New(
 	controllers controllers.Controllers,
 	cfg config.Config,
 	tel *telemetry.Telemetry,
+{{- if eq .Database "postgresql"}}
+	riverHandler *riverui.Handler,
+{{- end}}
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
@@ -95,6 +99,10 @@ func New(
 	}
 
 	router.Use(middleware...)
+
+{{- if eq .Database "postgresql"}}
+	router.Any("/riverui*", echo.WrapHandler(riverHandler))
+{{- end}}
 
 	return &Router{
 		router,
