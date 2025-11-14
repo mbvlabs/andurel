@@ -45,7 +45,7 @@ func newControllerValidationContext(resourceName, tableName string, config *Unif
 func validateControllerNotExists(ctx *controllerValidationContext) error {
 	if _, err := os.Stat(ctx.RoutesFilePath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"routes file %s does not exist. Please ensure your project has a routes.go file before generating controllers",
+			"routes file %s does not exist. Create routes.go file before generating controllers",
 			ctx.RoutesFilePath,
 		)
 	}
@@ -60,7 +60,7 @@ func validateControllerNotExists(ctx *controllerValidationContext) error {
 
 	if _, err := os.Stat(ctx.ControllerFilePath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"main controller file %s does not exist. Please ensure your project has a controller.go file before generating controllers",
+			"main controller file %s does not exist. Create controller.go file before generating controllers",
 			ctx.ControllerFilePath,
 		)
 	}
