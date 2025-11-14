@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"runtime/debug"
 	"time"
@@ -28,7 +27,6 @@ func main() {
 	rootCmd := cli.NewRootCommand(version, date)
 
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
-		log.Printf("Error: %v", err)
 		os.Exit(1)
 	}
 }
