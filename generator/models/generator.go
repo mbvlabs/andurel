@@ -31,15 +31,16 @@ type GeneratedField struct {
 }
 
 type GeneratedModel struct {
-	Name            string
-	Package         string
-	Fields          []GeneratedField
-	StandardImports []string
-	ExternalImports []string
-	Imports         []string
-	TableName       string
-	ModulePath      string
-	DatabaseType    string
+	Name              string
+	Package           string
+	Fields            []GeneratedField
+	StandardImports   []string
+	ExternalImports   []string
+	Imports           []string
+	TableName         string
+	TableNameOverride string
+	ModulePath        string
+	DatabaseType      string
 }
 
 type Config struct {
@@ -268,6 +269,9 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 		"lower": func(s string) string {
 			return strings.ToLower(s)
 		},
+		"toUpper": func(s string) string {
+			return strings.ToUpper(s)
+		},
 		"uuidParam": func(param string) string {
 			if model.DatabaseType == "sqlite" {
 				return param + ".String()"
@@ -303,6 +307,7 @@ func (g *Generator) GenerateModel(
 	pluralName string,
 	modelPath, sqlPath string,
 	modulePath string,
+	tableNameOverride string,
 ) error {
 	table, err := cat.GetTable("", pluralName)
 	if err != nil {
@@ -323,6 +328,8 @@ func (g *Generator) GenerateModel(
 	if err != nil {
 		return fmt.Errorf("failed to build model: %w", err)
 	}
+
+	model.TableNameOverride = tableNameOverride
 
 	templateContent, err := templates.Files.ReadFile("model.tmpl")
 	if err != nil {
@@ -532,7 +539,7 @@ func (g *Generator) GenerateModelFromMigrations(
 		return fmt.Errorf("failed to build catalog from migrations: %w", err)
 	}
 
-	return g.GenerateModel(cat, resourceName, tableName, modelPath, sqlPath, modulePath)
+	return g.GenerateModel(cat, resourceName, tableName, modelPath, sqlPath, modulePath, "")
 }
 
 func (g *Generator) formatGoFile(filePath string) error {
