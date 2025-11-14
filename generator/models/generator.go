@@ -311,7 +311,14 @@ func (g *Generator) GenerateModel(
 ) error {
 	table, err := cat.GetTable("", pluralName)
 	if err != nil {
-		return fmt.Errorf("table '%s' not found in catalog: %w", pluralName, err)
+		return fmt.Errorf(`table '%s' not found in catalog: %w
+
+Convention: Model names must be singular, table names must be plural snake_case.
+Example: Model 'UserAccount' expects table 'user_accounts'
+
+To use a different table name, run:
+  andurel generate model %s --table-name=your_table_name`,
+			pluralName, err, resourceName)
 	}
 
 	if err := g.GenerateSQLFile(resourceName, pluralName, table, sqlPath); err != nil {
@@ -741,7 +748,13 @@ func (g *Generator) refreshSQLFile(
 
 	table, err := cat.GetTable("", pluralName)
 	if err != nil {
-		return fmt.Errorf("table '%s' not found in catalog: %w", pluralName, err)
+		return fmt.Errorf(`table '%s' not found in catalog: %w
+
+Convention: Model names must be singular, table names must be plural snake_case.
+Example: Model 'UserAccount' expects table 'user_accounts'
+
+To use a different table name, add the override comment to your model file`,
+			pluralName, err)
 	}
 
 	newSQLContent, err := g.GenerateSQLContent(resourceName, pluralName, table)
