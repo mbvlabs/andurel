@@ -2,10 +2,12 @@ package routes
 
 import (
 	"net/http"
+	"time"
 
 	"{{.ModuleName}}/router/cookies"
 
 	"github.com/labstack/echo/v4"
+	"github.com/maypok86/otter/v2"
 )
 
 type AuthOnly struct{}
@@ -23,3 +25,50 @@ func (a AuthOnly) Handler() func(next echo.HandlerFunc) echo.HandlerFunc {
 }
 
 var _ routeMiddleware = AuthOnly{}
+
+type IPRateLimiter struct {
+	limit         int32
+	redirectRoute Route
+}
+
+func (l IPRateLimiter) Handler() func(next echo.HandlerFunc) echo.HandlerFunc {
+	builder, err := otter.NewBuilder[string, int32](1000)
+	if err != nil {
+		return func(next echo.HandlerFunc) echo.HandlerFunc {
+			return next
+		}
+	}
+
+	cache, err := builder.WithTTL(10 * time.Minute).Build()
+	if err != nil {
+		return func(next echo.HandlerFunc) echo.HandlerFunc {
+			return next
+		}
+	}
+
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			ip := c.RealIP()
+
+			hits, found := cache.Get(ip)
+			if !found {
+				if ok := cache.Set(ip, 1); !ok {
+					return next(c)
+				}
+			}
+			if hits <= l.limit {
+				if ok := cache.Set(ip, hits+1); !ok {
+					return next(c)
+				}
+			}
+
+			if hits > l.limit {
+				return c.String(http.StatusTooManyRequests, l.redirectRoute.URL())
+			}
+
+			return next(c)
+		}
+	}
+}
+
+var _ routeMiddleware = IPRateLimiter{}
