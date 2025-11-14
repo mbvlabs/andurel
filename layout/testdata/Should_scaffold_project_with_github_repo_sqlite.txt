@@ -223,7 +223,12 @@ func setupControllers(
 	return ctrl, nil
 }
 
-func setupRouter(ctx context.Context, ctrl controllers.Controllers, cfg config.Config, tel *telemetry.Telemetry) (*echo.Echo, error) {
+func setupRouter(
+	ctx context.Context,
+	ctrl controllers.Controllers,
+	cfg config.Config,
+	tel *telemetry.Telemetry,
+) (*echo.Echo, error) {
 	router, err := router.New(
 		ctx,
 		ctrl,
@@ -3228,6 +3233,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	"riverqueue.com/riverui"
 
 	echomw "github.com/labstack/echo/v4/middleware"
 )
