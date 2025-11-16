@@ -1,0 +1,236 @@
+package workflow
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log/slog"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
+)
+
+type DependencyChecker struct {
+	pool     *pgxpool.Pool
+	client   *river.Client[pgx.Tx]
+	interval time.Duration
+	logger   *slog.Logger
+	stopChan chan struct{}
+}
+
+func NewDependencyChecker(
+	pool *pgxpool.Pool,
+	interval time.Duration,
+) *DependencyChecker {
+	return &DependencyChecker{
+		pool:     pool,
+		interval: interval,
+		logger:   slog.Default(),
+		stopChan: make(chan struct{}),
+	}
+}
+
+func (dc *DependencyChecker) Start(ctx context.Context) error {
+	ticker := time.NewTicker(dc.interval)
+	defer ticker.Stop()
+
+	dc.logger.Info("dependency checker started", "interval", dc.interval)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-dc.stopChan:
+			return nil
+		case <-ticker.C:
+			if err := dc.checkDependencies(ctx); err != nil {
+				dc.logger.Error("failed to check dependencies", "error", err)
+			}
+		}
+	}
+}
+
+func (dc *DependencyChecker) Stop() {
+	close(dc.stopChan)
+}
+
+func (dc *DependencyChecker) checkDependencies(ctx context.Context) error {
+	query := `
+		SELECT id, kind, args, metadata, scheduled_at
+		FROM river_job
+		WHERE metadata->>'workflow_state' = $1
+		AND state IN ('scheduled', 'available', 'retryable')
+		ORDER BY id
+		LIMIT 100
+	`
+
+	rows, err := dc.pool.Query(ctx, query, WorkflowStatePending)
+	if err != nil {
+		return fmt.Errorf("failed to query pending workflow jobs: %w", err)
+	}
+	defer rows.Close()
+
+	type pendingJob struct {
+		id          int64
+		kind        string
+		args        []byte
+		metadata    []byte
+		scheduledAt time.Time
+	}
+
+	var pending []pendingJob
+	for rows.Next() {
+		var job pendingJob
+		if err := rows.Scan(&job.id, &job.kind, &job.args, &job.metadata, &job.scheduledAt); err != nil {
+			dc.logger.Error("failed to scan job row", "error", err)
+			continue
+		}
+		pending = append(pending, job)
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	for _, job := range pending {
+		if err := dc.checkJobDependencies(ctx, job); err != nil {
+			dc.logger.Error("failed to check job dependencies",
+				"job_id", job.id,
+				"error", err)
+		}
+	}
+
+	return nil
+}
+
+func (dc *DependencyChecker) checkJobDependencies(ctx context.Context, job any) error {
+	pj, ok := job.(struct {
+		id          int64
+		kind        string
+		args        []byte
+		metadata    []byte
+		scheduledAt time.Time
+	})
+	if !ok {
+		return fmt.Errorf("invalid job type")
+	}
+
+	var metadata WorkflowMetadata
+	if err := json.Unmarshal(pj.metadata, &metadata); err != nil {
+		return fmt.Errorf("failed to unmarshal metadata for job %d: %w", pj.id, err)
+	}
+
+	if len(metadata.Dependencies) == 0 {
+		return dc.markJobReady(ctx, pj.id)
+	}
+
+	allComplete, anyFailed, err := dc.checkDependencyStates(ctx, metadata.WorkflowID, metadata.Dependencies)
+	if err != nil {
+		return err
+	}
+
+	if anyFailed && !metadata.IgnoreFailed {
+		return dc.markJobFailed(ctx, pj.id, "dependency failed")
+	}
+
+	if allComplete {
+		return dc.markJobReady(ctx, pj.id)
+	}
+
+	return nil
+}
+
+func (dc *DependencyChecker) checkDependencyStates(ctx context.Context, workflowID string, deps []string) (allComplete bool, anyFailed bool, err error) {
+	query := `
+		SELECT metadata->>'task_name', state, metadata->>'workflow_state'
+		FROM river_job
+		WHERE metadata->>'workflow_id' = $1
+		AND metadata->>'task_name' = ANY($2)
+	`
+
+	rows, err := dc.pool.Query(ctx, query, workflowID, deps)
+	if err != nil {
+		return false, false, fmt.Errorf("failed to query dependency states: %w", err)
+	}
+	defer rows.Close()
+
+	foundDeps := make(map[string]struct {
+		state         string
+		workflowState string
+	})
+
+	for rows.Next() {
+		var taskName, state, workflowState string
+		if err := rows.Scan(&taskName, &state, &workflowState); err != nil {
+			return false, false, fmt.Errorf("failed to scan dependency row: %w", err)
+		}
+		foundDeps[taskName] = struct {
+			state         string
+			workflowState string
+		}{state, workflowState}
+	}
+
+	if err := rows.Err(); err != nil {
+		return false, false, fmt.Errorf("error iterating dependency rows: %w", err)
+	}
+
+	if len(foundDeps) != len(deps) {
+		return false, false, fmt.Errorf("not all dependencies found: expected %d, got %d", len(deps), len(foundDeps))
+	}
+
+	allComplete = true
+	for _, dep := range foundDeps {
+		if dep.workflowState == WorkflowStateFailed {
+			anyFailed = true
+		}
+		if dep.workflowState != WorkflowStateCompleted {
+			allComplete = false
+		}
+	}
+
+	return allComplete, anyFailed, nil
+}
+
+func (dc *DependencyChecker) markJobReady(ctx context.Context, jobID int64) error {
+	query := `
+		UPDATE river_job
+		SET metadata = jsonb_set(metadata, '{workflow_state}', '"ready"'),
+		    scheduled_at = NOW()
+		WHERE id = $1
+		AND metadata->>'workflow_state' = $2
+	`
+
+	result, err := dc.pool.Exec(ctx, query, jobID, WorkflowStatePending)
+	if err != nil {
+		return fmt.Errorf("failed to mark job %d as ready: %w", jobID, err)
+	}
+
+	if result.RowsAffected() > 0 {
+		dc.logger.Info("marked job as ready", "job_id", jobID)
+	}
+
+	return nil
+}
+
+func (dc *DependencyChecker) markJobFailed(ctx context.Context, jobID int64, reason string) error {
+	query := `
+		UPDATE river_job
+		SET metadata = jsonb_set(metadata, '{workflow_state}', '"failed"'),
+		    state = 'cancelled'
+		WHERE id = $1
+		AND metadata->>'workflow_state' = $2
+	`
+
+	result, err := dc.pool.Exec(ctx, query, jobID, WorkflowStatePending)
+	if err != nil {
+		return fmt.Errorf("failed to mark job %d as failed: %w", jobID, err)
+	}
+
+	if result.RowsAffected() > 0 {
+		dc.logger.Warn("marked job as failed", "job_id", jobID, "reason", reason)
+	}
+
+	return nil
+}

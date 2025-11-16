@@ -1,0 +1,15 @@
+-- +goose Up
+-- +goose StatementBegin
+CREATE INDEX river_job_workflow_id_index ON river_job
+USING GIN((metadata -> 'workflow_id'));
+
+CREATE INDEX river_job_workflow_state_index ON river_job
+((metadata ->> 'workflow_state'))
+WHERE metadata ? 'workflow_state';
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP INDEX IF EXISTS river_job_workflow_id_index;
+DROP INDEX IF EXISTS river_job_workflow_state_index;
+-- +goose StatementEnd
