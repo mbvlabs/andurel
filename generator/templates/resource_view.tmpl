@@ -81,7 +81,7 @@ templ {{.ResourceName}}New() {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={DataAction(http.MethodPost, routes.{{.ResourceName}}Create.URL(), "")}>
+					<form data-on:submit={DataAction(http.MethodPost, routes.{{.ResourceName}}Create.URL(), ActionTypeForm)}>
 						<div>
 							<div>
 								<h2>{{.ResourceName}} Information</h2>
@@ -113,7 +113,7 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{.ResourceName | ToLower}}.ID), "")}>
+					<form data-on:submit={DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{.ResourceName | ToLower}}.ID), ActionTypeForm)}>
 						<div>
 							<div>
 								<h2>{{.ResourceName}} Information</h2>
@@ -134,7 +134,7 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 					</form>
 					<div>
 						<button
-							data-on:click={DataAction(http.MethodDelete, routes.{{.ResourceName}}Destroy.URL({{.ResourceName | ToLower}}.ID), "") }>Destroy {{.ResourceName}}</button>
+							data-on:click={DataAction(http.MethodDelete, routes.{{.ResourceName}}Destroy.URL({{.ResourceName | ToLower}}.ID)) }>Destroy {{.ResourceName}}</button>
 					</div>
 				</div>
 			</div>
