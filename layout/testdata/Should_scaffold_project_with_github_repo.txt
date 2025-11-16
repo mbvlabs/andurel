@@ -5,6 +5,7 @@ assets/assets.go
 assets/css/style.css
 assets/js/datastar_1-0-0-rc6.min.js
 assets/js/scripts.js
+clients/mail_hog.go
 cmd/app/main.go
 cmd/console/main.go
 cmd/migration/main.go
@@ -12,6 +13,7 @@ cmd/run/main.go
 config/app.go
 config/config.go
 config/database.go
+config/email.go
 config/telemetry.go
 controllers/api.go
 controllers/assets.go
@@ -30,6 +32,11 @@ database/migrations/00005_add_river_job_unique_key_and_clients.sql
 database/migrations/00006_add_river_job_unique_states.sql
 database/queries/.gitkeep
 database/sqlc.yaml
+email/base_layout.templ
+email/base_layout_templ.go
+email/components.templ
+email/components_templ.go
+email/email.go
 models/errors.go
 models/internal/db/db.go
 models/model.go
@@ -135,6 +142,73 @@ ${l}`:l;break;case"event":r.event=l;break;case"id":e(r.id=l);break;case"retry":{
 import "./datastar_1-0-0-rc6.min.js"
 
 
+=== clients/mail_hog.go ===
+package clients
+
+import (
+	"context"
+	"fmt"
+	"net/smtp"
+	"strings"
+)
+
+type MailHog struct {
+	host string
+	port string
+}
+
+func NewMailHog(host, port string) *MailHog {
+	return &MailHog{
+		host,
+		port,
+	}
+}
+
+func (m *MailHog) SendTransactional(ctx context.Context, to, from, subject, htmlBody, textBody string) error {
+	addr := fmt.Sprintf("%s:%s", m.host, m.port)
+
+	boundary := "boundary-mailhog-client"
+	headers := make(map[string]string)
+	headers["From"] = from
+	headers["To"] = to
+	headers["Subject"] = subject
+	headers["MIME-Version"] = "1.0"
+	headers["Content-Type"] = fmt.Sprintf("multipart/alternative; boundary=\"%s\"", boundary)
+
+	var message strings.Builder
+	for k, v := range headers {
+		message.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
+	}
+	message.WriteString("\r\n")
+
+	if textBody != "" {
+		message.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+		message.WriteString("Content-Type: text/plain; charset=\"UTF-8\"\r\n")
+		message.WriteString("\r\n")
+		message.WriteString(textBody)
+		message.WriteString("\r\n")
+	}
+
+	if htmlBody != "" {
+		message.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+		message.WriteString("Content-Type: text/html; charset=\"UTF-8\"\r\n")
+		message.WriteString("\r\n")
+		message.WriteString(htmlBody)
+		message.WriteString("\r\n")
+	}
+
+	message.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
+
+	return smtp.SendMail(
+		addr,
+		nil,
+		from,
+		[]string{to},
+		[]byte(message.String()),
+	)
+}
+
+
 === cmd/app/main.go ===
 package main
 
@@ -150,9 +224,11 @@ import (
 	"time"
 
 	"riverqueue.com/riverui"
+	"testuser/myapp/clients"
 	"testuser/myapp/config"
 	"testuser/myapp/controllers"
 	"testuser/myapp/database"
+	"testuser/myapp/email"
 	"testuser/myapp/pkg/telemetry"
 	"testuser/myapp/queue"
 	"testuser/myapp/queue/workers"
@@ -207,10 +283,12 @@ func startServer(ctx context.Context, srv *http.Server, processor queue.Processo
 
 func setupControllers(
 	db database.Postgres,
+	emailClient email.Client,
 	insertOnly queue.InsertOnly,
 ) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
 		db,
+		emailClient,
 		insertOnly,
 	)
 	if err != nil {
@@ -328,9 +406,11 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	emailClient := email.New(clients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort))
 
 	controllers, err := setupControllers(
 		db,
+		emailClient,
 		insertOnly,
 	)
 	if err != nil {
@@ -919,6 +999,7 @@ type Config struct {
 	App       app
 	DB        database
 	Telemetry telemetry
+	Email     email
 }
 
 func NewConfig() Config {
@@ -926,6 +1007,7 @@ func NewConfig() Config {
 		App:       newAppConfig(),
 		DB:        newDatabaseConfig(),
 		Telemetry: newTelemetryConfig(),
+		Email:     newEmailConfig(),
 	}
 }
 
@@ -966,6 +1048,31 @@ func newDatabaseConfig() database {
 	}
 
 	return dataCfg
+}
+
+
+=== config/email.go ===
+package config
+
+import (
+	"github.com/caarlos0/env/v10"
+)
+
+type email struct {
+	MailHogHost string `env:"MAIL_HOG_HOST" envDefault:"0.0.0.0"`
+	MailHogPort string `env:"MAIL_HOG_PORT" envDefault:"1025"`
+}
+
+func newEmailConfig() email {
+	cfg := email{}
+
+	if err := env.ParseWithOptions(&cfg, env.Options{
+		RequiredIfNoDef: true,
+	}); err != nil {
+		panic(err)
+	}
+
+	return cfg
 }
 
 
@@ -1338,6 +1445,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
+	"testuser/myapp/email"
 	"testuser/myapp/queue"
 )
 
@@ -1349,6 +1457,7 @@ type Controllers struct {
 
 func New(
 	db database.Postgres,
+	emailClient email.Client,
 	insertOnly queue.InsertOnly,
 ) (Controllers, error) {
 	pagesCache, err := NewCacheBuilder[templ.Component]().Build()
@@ -2067,6 +2176,726 @@ sql:
         overrides:
           - db_type: uuid
             go_type: github.com/google/uuid.UUID
+
+
+=== email/base_layout.templ ===
+package email
+
+templ baseLayout(title, preHeader, unsubscribeLink string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+			<title>{title}</title>
+			<style media="all" type="text/css">
+		/* -------------------------------------
+    GLOBAL RESETS
+------------------------------------- */
+
+		body {
+			font-family: Helvetica, sans-serif;
+			-webkit-font-smoothing: antialiased;
+			font-size: 16px;
+			line-height: 1.3;
+			-ms-text-size-adjust: 100%;
+			-webkit-text-size-adjust: 100%;
+		}
+
+		table {
+			border-collapse: separate;
+			mso-table-lspace: 0pt;
+			mso-table-rspace: 0pt;
+			width: 100%;
+		}
+
+		table td {
+			font-family: Helvetica, sans-serif;
+			font-size: 16px;
+			vertical-align: top;
+		}
+
+		/* -------------------------------------
+    BODY & CONTAINER
+------------------------------------- */
+
+		body {
+			background-color: #f4f5f6;
+			margin: 0;
+			padding: 0;
+		}
+
+		.body {
+			background-color: #f4f5f6;
+			width: 100%;
+		}
+
+		.container {
+			margin: 0 auto !important;
+			max-width: 600px;
+			padding: 0;
+			padding-top: 24px;
+			width: 600px;
+		}
+
+		.content {
+			box-sizing: border-box;
+			display: block;
+			margin: 0 auto;
+			max-width: 600px;
+			padding: 0;
+		}
+
+		/* -------------------------------------
+    HEADER, FOOTER, MAIN
+------------------------------------- */
+
+		.main {
+			background: #ffffff;
+			border: 1px solid #eaebed;
+			border-radius: 16px;
+			width: 100%;
+		}
+
+		.wrapper {
+			box-sizing: border-box;
+			padding: 24px;
+		}
+
+		.footer {
+			clear: both;
+			padding-top: 24px;
+			text-align: center;
+			width: 100%;
+		}
+
+		.footer td,
+		.footer p,
+		.footer span,
+		.footer a {
+			color: #9a9ea6;
+			font-size: 16px;
+			text-align: center;
+		}
+
+		/* -------------------------------------
+    TYPOGRAPHY
+------------------------------------- */
+
+		p {
+			font-family: Helvetica, sans-serif;
+			font-size: 16px;
+			font-weight: normal;
+			margin: 0;
+			margin-bottom: 16px;
+		}
+
+		a {
+			color: #0867ec;
+			text-decoration: underline;
+		}
+
+		/* -------------------------------------
+    BUTTONS
+------------------------------------- */
+
+		.btn {
+			box-sizing: border-box;
+			min-width: 100% !important;
+			width: 100%;
+		}
+
+		.btn>tbody>tr>td {
+			padding-bottom: 16px;
+		}
+
+		.btn table {
+			width: auto;
+		}
+
+		.btn table td {
+			background-color: #ffffff;
+			border-radius: 4px;
+			text-align: center;
+		}
+
+		.btn a {
+			background-color: #ffffff;
+			border: solid 2px #0867ec;
+			border-radius: 4px;
+			box-sizing: border-box;
+			color: #0867ec;
+			cursor: pointer;
+			display: inline-block;
+			font-size: 16px;
+			font-weight: bold;
+			margin: 0;
+			padding: 12px 24px;
+			text-decoration: none;
+			text-transform: capitalize;
+		}
+
+		/* -------------------------------------
+    OTHER STYLES THAT MIGHT BE USEFUL
+------------------------------------- */
+
+		.last {
+			margin-bottom: 0;
+		}
+
+		.first {
+			margin-top: 0;
+		}
+
+		.align-center {
+			text-align: center;
+		}
+
+		.align-right {
+			text-align: right;
+		}
+
+		.align-left {
+			text-align: left;
+		}
+
+		.text-link {
+			color: #0867ec !important;
+			text-decoration: underline !important;
+		}
+
+		.clear {
+			clear: both;
+		}
+
+		.mt0 {
+			margin-top: 0;
+		}
+
+		.mb0 {
+			margin-bottom: 0;
+		}
+
+		.preheader {
+			color: transparent;
+			display: none;
+			height: 0;
+			max-height: 0;
+			max-width: 0;
+			opacity: 0;
+			overflow: hidden;
+			mso-hide: all;
+			visibility: hidden;
+			width: 0;
+		}
+
+		.powered-by a {
+			text-decoration: none;
+		}
+
+		/* -------------------------------------
+    RESPONSIVE AND MOBILE FRIENDLY STYLES
+------------------------------------- */
+
+		@media only screen and (max-width: 640px) {
+
+			.main p,
+			.main td,
+			.main span {
+				font-size: 16px !important;
+			}
+
+			.wrapper {
+				padding: 8px !important;
+			}
+
+			.content {
+				padding: 0 !important;
+			}
+
+			.container {
+				padding: 0 !important;
+				padding-top: 8px !important;
+				width: 100% !important;
+			}
+
+			.main {
+				border-left-width: 0 !important;
+				border-radius: 0 !important;
+				border-right-width: 0 !important;
+			}
+
+			.btn table {
+				max-width: 100% !important;
+				width: 100% !important;
+			}
+
+			.btn a {
+				font-size: 16px !important;
+				max-width: 100% !important;
+				width: 100% !important;
+			}
+		}
+
+		/* -------------------------------------
+    PRESERVE THESE STYLES IN THE HEAD
+------------------------------------- */
+
+		@media all {
+			.ExternalClass {
+				width: 100%;
+			}
+
+			.ExternalClass,
+			.ExternalClass p,
+			.ExternalClass span,
+			.ExternalClass font,
+			.ExternalClass td,
+			.ExternalClass div {
+				line-height: 100%;
+			}
+
+			.apple-link a {
+				color: inherit !important;
+				font-family: inherit !important;
+				font-size: inherit !important;
+				font-weight: inherit !important;
+				line-height: inherit !important;
+				text-decoration: none !important;
+			}
+
+			#MessageViewBody a {
+				color: inherit;
+				text-decoration: none;
+				font-size: inherit;
+				font-family: inherit;
+				font-weight: inherit;
+				line-height: inherit;
+			}
+		}
+	</style>
+		</head>
+		<body>
+			<table role="presentation" border="0" cellpadding="0" cellspacing="0" class="body">
+				<tr>
+					<td>&nbsp;</td>
+					<td class="container">
+						<div class="content">
+							<!-- START CENTERED WHITE CONTAINER -->
+							<span class="preheader">
+								{preHeader}
+							</span>
+							<table role="presentation" border="0" cellpadding="0" cellspacing="0" class="main">
+								<!-- START MAIN CONTENT AREA -->
+								<tr>
+									<td class="wrapper">
+										{children...}
+									</td>
+								</tr>
+								<!-- END MAIN CONTENT AREA -->
+							</table>
+							<!-- START FOOTER -->
+							@footer(unsubscribeLink)
+							<!-- END FOOTER -->
+							<!-- END CENTERED WHITE CONTAINER -->
+						</div>
+					</td>
+					<td>&nbsp;</td>
+				</tr>
+			</table>
+		</body>
+	</html>
+}
+
+
+=== email/base_layout_templ.go ===
+// Code generated by templ - DO NOT EDIT.
+
+// templ: version: v0.3.960
+package email
+
+//lint:file-ignore SA4006 This context is only used if a nested component is present.
+
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
+
+func baseLayout(title, preHeader, unsubscribeLink string) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var1 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var1 == nil {
+			templ_7745c5c3_Var1 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"><title>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var2 string
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(title)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `email/base_layout.templ`, Line: 9, Col: 16}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><style media=\"all\" type=\"text/css\">\n\t\t/* -------------------------------------\n    GLOBAL RESETS\n------------------------------------- */\n\n\t\tbody {\n\t\t\tfont-family: Helvetica, sans-serif;\n\t\t\t-webkit-font-smoothing: antialiased;\n\t\t\tfont-size: 16px;\n\t\t\tline-height: 1.3;\n\t\t\t-ms-text-size-adjust: 100%;\n\t\t\t-webkit-text-size-adjust: 100%;\n\t\t}\n\n\t\ttable {\n\t\t\tborder-collapse: separate;\n\t\t\tmso-table-lspace: 0pt;\n\t\t\tmso-table-rspace: 0pt;\n\t\t\twidth: 100%;\n\t\t}\n\n\t\ttable td {\n\t\t\tfont-family: Helvetica, sans-serif;\n\t\t\tfont-size: 16px;\n\t\t\tvertical-align: top;\n\t\t}\n\n\t\t/* -------------------------------------\n    BODY & CONTAINER\n------------------------------------- */\n\n\t\tbody {\n\t\t\tbackground-color: #f4f5f6;\n\t\t\tmargin: 0;\n\t\t\tpadding: 0;\n\t\t}\n\n\t\t.body {\n\t\t\tbackground-color: #f4f5f6;\n\t\t\twidth: 100%;\n\t\t}\n\n\t\t.container {\n\t\t\tmargin: 0 auto !important;\n\t\t\tmax-width: 600px;\n\t\t\tpadding: 0;\n\t\t\tpadding-top: 24px;\n\t\t\twidth: 600px;\n\t\t}\n\n\t\t.content {\n\t\t\tbox-sizing: border-box;\n\t\t\tdisplay: block;\n\t\t\tmargin: 0 auto;\n\t\t\tmax-width: 600px;\n\t\t\tpadding: 0;\n\t\t}\n\n\t\t/* -------------------------------------\n    HEADER, FOOTER, MAIN\n------------------------------------- */\n\n\t\t.main {\n\t\t\tbackground: #ffffff;\n\t\t\tborder: 1px solid #eaebed;\n\t\t\tborder-radius: 16px;\n\t\t\twidth: 100%;\n\t\t}\n\n\t\t.wrapper {\n\t\t\tbox-sizing: border-box;\n\t\t\tpadding: 24px;\n\t\t}\n\n\t\t.footer {\n\t\t\tclear: both;\n\t\t\tpadding-top: 24px;\n\t\t\ttext-align: center;\n\t\t\twidth: 100%;\n\t\t}\n\n\t\t.footer td,\n\t\t.footer p,\n\t\t.footer span,\n\t\t.footer a {\n\t\t\tcolor: #9a9ea6;\n\t\t\tfont-size: 16px;\n\t\t\ttext-align: center;\n\t\t}\n\n\t\t/* -------------------------------------\n    TYPOGRAPHY\n------------------------------------- */\n\n\t\tp {\n\t\t\tfont-family: Helvetica, sans-serif;\n\t\t\tfont-size: 16px;\n\t\t\tfont-weight: normal;\n\t\t\tmargin: 0;\n\t\t\tmargin-bottom: 16px;\n\t\t}\n\n\t\ta {\n\t\t\tcolor: #0867ec;\n\t\t\ttext-decoration: underline;\n\t\t}\n\n\t\t/* -------------------------------------\n    BUTTONS\n------------------------------------- */\n\n\t\t.btn {\n\t\t\tbox-sizing: border-box;\n\t\t\tmin-width: 100% !important;\n\t\t\twidth: 100%;\n\t\t}\n\n\t\t.btn>tbody>tr>td {\n\t\t\tpadding-bottom: 16px;\n\t\t}\n\n\t\t.btn table {\n\t\t\twidth: auto;\n\t\t}\n\n\t\t.btn table td {\n\t\t\tbackground-color: #ffffff;\n\t\t\tborder-radius: 4px;\n\t\t\ttext-align: center;\n\t\t}\n\n\t\t.btn a {\n\t\t\tbackground-color: #ffffff;\n\t\t\tborder: solid 2px #0867ec;\n\t\t\tborder-radius: 4px;\n\t\t\tbox-sizing: border-box;\n\t\t\tcolor: #0867ec;\n\t\t\tcursor: pointer;\n\t\t\tdisplay: inline-block;\n\t\t\tfont-size: 16px;\n\t\t\tfont-weight: bold;\n\t\t\tmargin: 0;\n\t\t\tpadding: 12px 24px;\n\t\t\ttext-decoration: none;\n\t\t\ttext-transform: capitalize;\n\t\t}\n\n\t\t/* -------------------------------------\n    OTHER STYLES THAT MIGHT BE USEFUL\n------------------------------------- */\n\n\t\t.last {\n\t\t\tmargin-bottom: 0;\n\t\t}\n\n\t\t.first {\n\t\t\tmargin-top: 0;\n\t\t}\n\n\t\t.align-center {\n\t\t\ttext-align: center;\n\t\t}\n\n\t\t.align-right {\n\t\t\ttext-align: right;\n\t\t}\n\n\t\t.align-left {\n\t\t\ttext-align: left;\n\t\t}\n\n\t\t.text-link {\n\t\t\tcolor: #0867ec !important;\n\t\t\ttext-decoration: underline !important;\n\t\t}\n\n\t\t.clear {\n\t\t\tclear: both;\n\t\t}\n\n\t\t.mt0 {\n\t\t\tmargin-top: 0;\n\t\t}\n\n\t\t.mb0 {\n\t\t\tmargin-bottom: 0;\n\t\t}\n\n\t\t.preheader {\n\t\t\tcolor: transparent;\n\t\t\tdisplay: none;\n\t\t\theight: 0;\n\t\t\tmax-height: 0;\n\t\t\tmax-width: 0;\n\t\t\topacity: 0;\n\t\t\toverflow: hidden;\n\t\t\tmso-hide: all;\n\t\t\tvisibility: hidden;\n\t\t\twidth: 0;\n\t\t}\n\n\t\t.powered-by a {\n\t\t\ttext-decoration: none;\n\t\t}\n\n\t\t/* -------------------------------------\n    RESPONSIVE AND MOBILE FRIENDLY STYLES\n------------------------------------- */\n\n\t\t@media only screen and (max-width: 640px) {\n\n\t\t\t.main p,\n\t\t\t.main td,\n\t\t\t.main span {\n\t\t\t\tfont-size: 16px !important;\n\t\t\t}\n\n\t\t\t.wrapper {\n\t\t\t\tpadding: 8px !important;\n\t\t\t}\n\n\t\t\t.content {\n\t\t\t\tpadding: 0 !important;\n\t\t\t}\n\n\t\t\t.container {\n\t\t\t\tpadding: 0 !important;\n\t\t\t\tpadding-top: 8px !important;\n\t\t\t\twidth: 100% !important;\n\t\t\t}\n\n\t\t\t.main {\n\t\t\t\tborder-left-width: 0 !important;\n\t\t\t\tborder-radius: 0 !important;\n\t\t\t\tborder-right-width: 0 !important;\n\t\t\t}\n\n\t\t\t.btn table {\n\t\t\t\tmax-width: 100% !important;\n\t\t\t\twidth: 100% !important;\n\t\t\t}\n\n\t\t\t.btn a {\n\t\t\t\tfont-size: 16px !important;\n\t\t\t\tmax-width: 100% !important;\n\t\t\t\twidth: 100% !important;\n\t\t\t}\n\t\t}\n\n\t\t/* -------------------------------------\n    PRESERVE THESE STYLES IN THE HEAD\n------------------------------------- */\n\n\t\t@media all {\n\t\t\t.ExternalClass {\n\t\t\t\twidth: 100%;\n\t\t\t}\n\n\t\t\t.ExternalClass,\n\t\t\t.ExternalClass p,\n\t\t\t.ExternalClass span,\n\t\t\t.ExternalClass font,\n\t\t\t.ExternalClass td,\n\t\t\t.ExternalClass div {\n\t\t\t\tline-height: 100%;\n\t\t\t}\n\n\t\t\t.apple-link a {\n\t\t\t\tcolor: inherit !important;\n\t\t\t\tfont-family: inherit !important;\n\t\t\t\tfont-size: inherit !important;\n\t\t\t\tfont-weight: inherit !important;\n\t\t\t\tline-height: inherit !important;\n\t\t\t\ttext-decoration: none !important;\n\t\t\t}\n\n\t\t\t#MessageViewBody a {\n\t\t\t\tcolor: inherit;\n\t\t\t\ttext-decoration: none;\n\t\t\t\tfont-size: inherit;\n\t\t\t\tfont-family: inherit;\n\t\t\t\tfont-weight: inherit;\n\t\t\t\tline-height: inherit;\n\t\t\t}\n\t\t}\n\t</style></head><body><table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" class=\"body\"><tr><td>&nbsp;</td><td class=\"container\"><div class=\"content\"><!-- START CENTERED WHITE CONTAINER --><span class=\"preheader\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 string
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(preHeader)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `email/base_layout.templ`, Line: 305, Col: 18}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</span><table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" class=\"main\"><!-- START MAIN CONTENT AREA --><tr><td class=\"wrapper\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templ_7745c5c3_Var1.Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</td></tr><!-- END MAIN CONTENT AREA --></table><!-- START FOOTER -->")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = footer(unsubscribeLink).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<!-- END FOOTER --><!-- END CENTERED WHITE CONTAINER --></div></td><td>&nbsp;</td></tr></table></body></html>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+var _ = templruntime.GeneratedTemplate
+
+
+=== email/components.templ ===
+package email
+
+templ button(link, callToAction string) {
+	<style>
+		.btn-primary table td {
+			background-color: #0867ec;
+		}
+
+		.btn-primary a {
+			background-color: #0867ec;
+			border-color: #0867ec;
+			color: #ffffff;
+		}
+
+		@media all {
+			.btn-primary table td:hover {
+				background-color: #ec0867 !important;
+			}
+
+			.btn-primary a:hover {
+				background-color: #ec0867 !important;
+				border-color: #ec0867 !important;
+			}
+		}
+	</style>
+	<table
+		role="presentation"
+		border="0"
+		cellpadding="0"
+		cellspacing="0"
+		class="btn btn-primary"
+	>
+		<tbody>
+			<tr>
+				<td align="left">
+					<table role="presentation" border="0" cellpadding="0" cellspacing="0">
+						<tbody>
+							<tr>
+								<td>
+									<a href={templ.SafeURL(link)} target="_blank">
+										{callToAction}
+									</a>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+}
+
+templ footer(unsubscribeLink string) {
+	<div class="footer">
+		<table role="presentation" border="0" cellpadding="0" cellspacing="0">
+			<tr>
+				<td class="content-block">
+					<span class="apple-link">andurel @ mbvlabs</span>
+					<br/>
+					Don't like these emails? <a href={templ.SafeURL(unsubscribeLink)}>Unsubscribe</a>.
+				</td>
+			</tr>
+			<tr>
+				<td class="content-block powered-by">
+					Powered by <a href="https://andurel.com">Andurel</a>
+				</td>
+			</tr>
+		</table>
+	</div>
+}
+
+
+=== email/components_templ.go ===
+// Code generated by templ - DO NOT EDIT.
+
+// templ: version: v0.3.960
+package email
+
+//lint:file-ignore SA4006 This context is only used if a nested component is present.
+
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
+
+func button(link, callToAction string) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var1 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var1 == nil {
+			templ_7745c5c3_Var1 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<style>\n\t\t.btn-primary table td {\n\t\t\tbackground-color: #0867ec;\n\t\t}\n\n\t\t.btn-primary a {\n\t\t\tbackground-color: #0867ec;\n\t\t\tborder-color: #0867ec;\n\t\t\tcolor: #ffffff;\n\t\t}\n\n\t\t@media all {\n\t\t\t.btn-primary table td:hover {\n\t\t\t\tbackground-color: #ec0867 !important;\n\t\t\t}\n\n\t\t\t.btn-primary a:hover {\n\t\t\t\tbackground-color: #ec0867 !important;\n\t\t\t\tborder-color: #ec0867 !important;\n\t\t\t}\n\t\t}\n\t</style><table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" class=\"btn btn-primary\"><tbody><tr><td align=\"left\"><table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tbody><tr><td><a href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var2 templ.SafeURL
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(link))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `email/components.templ`, Line: 40, Col: 37}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" target=\"_blank\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 string
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(callToAction)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `email/components.templ`, Line: 41, Col: 23}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</a></td></tr></tbody></table></td></tr></tbody></table>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func footer(unsubscribeLink string) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var4 == nil {
+			templ_7745c5c3_Var4 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"footer\"><table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tr><td class=\"content-block\"><span class=\"apple-link\">andurel @ mbvlabs</span><br>Don't like these emails? <a href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var5 templ.SafeURL
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(unsubscribeLink))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `email/components.templ`, Line: 60, Col: 69}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\">Unsubscribe</a>.</td></tr><tr><td class=\"content-block powered-by\">Powered by <a href=\"https://andurel.com\">Andurel</a></td></tr></table></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+var _ = templruntime.GeneratedTemplate
+
+
+=== email/email.go ===
+package email
+
+import (
+	"context"
+
+	"strings"
+
+	"golang.org/x/net/html"
+)
+
+type Sender interface {
+	SendTransactional(ctx context.Context, to, from, subject, htmlBody, textBody string) error
+}
+
+type Client struct {
+	sender Sender
+}
+
+func New(sender Sender) Client {
+	return Client{
+		sender: sender,
+	}
+}
+
+func (c Client) SendTransactional(ctx context.Context, to, from, subject, htmlBody, textBody string) error {
+	return c.sender.SendTransactional(ctx, to, from, subject, htmlBody, textBody)
+}
+
+func HTMLToText(htmlContent string) (string, error) {
+	doc, err := html.Parse(strings.NewReader(htmlContent))
+	if err != nil {
+		return "", err
+	}
+
+	var result strings.Builder
+	var extract func(*html.Node)
+
+	extract = func(n *html.Node) {
+		if n.Type == html.ElementNode {
+			switch n.Data {
+			case "style", "script", "head":
+				return
+			case "a":
+				var linkText strings.Builder
+				var extractLinkText func(*html.Node)
+				extractLinkText = func(node *html.Node) {
+					if node.Type == html.TextNode {
+						linkText.WriteString(node.Data)
+					}
+					for child := node.FirstChild; child != nil; child = child.NextSibling {
+						extractLinkText(child)
+					}
+				}
+				extractLinkText(n)
+
+				var href string
+				for _, attr := range n.Attr {
+					if attr.Key == "href" {
+						href = attr.Val
+						break
+					}
+				}
+
+				text := strings.TrimSpace(linkText.String())
+				if text != "" {
+					result.WriteString(text)
+				}
+
+				if href != "" && href != text {
+					result.WriteString(" (")
+					result.WriteString(href)
+					result.WriteString(")")
+				}
+				result.WriteString(" ")
+				return
+			}
+		}
+
+		if n.Type == html.TextNode {
+			text := strings.TrimSpace(n.Data)
+			if text != "" {
+				result.WriteString(text)
+				result.WriteString(" ")
+			}
+		}
+
+		if n.Type == html.ElementNode {
+			switch n.Data {
+			case "p", "div", "br", "h1", "h2", "h3", "h4", "h5", "h6":
+				result.WriteString("\n")
+			case "tr", "li":
+				result.WriteString("\n")
+			}
+		}
+
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			extract(c)
+		}
+
+		if n.Type == html.ElementNode {
+			switch n.Data {
+			case "p", "div", "h1", "h2", "h3", "h4", "h5", "h6":
+				result.WriteString("\n")
+			}
+		}
+	}
+
+	extract(doc)
+
+	text := result.String()
+	text = strings.TrimSpace(text)
+
+	for strings.Contains(text, "\n\n\n") {
+		text = strings.ReplaceAll(text, "\n\n\n", "\n\n")
+	}
+
+	return text, nil
+}
 
 
 === models/errors.go ===
