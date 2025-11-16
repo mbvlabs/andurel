@@ -9,8 +9,9 @@ templ toastBase(tType string, flash cookies.FlashMessage) {
 	<div
 		class="max-w-96 border border-gray-500 rounded bg-black flex flex-col"
 		id={ "toast-" + flash.ID.String() }
-		data-init="$visible = true; setTimeout(() => { $visible = false }, 5000);"
+		data-signals:visible="true"
 		data-show="$visible"
+		data-init__delay.5000ms="$visible = false"
 	>
 		<div class="px-4 py-2 flex justify-between items-center border-b-1 border-b-gray-300">
 			<div class={ "w-4 h-4 rounded", tType }></div>
