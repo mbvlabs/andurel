@@ -122,7 +122,7 @@ templ ProductNew() {
 			</div>
 			<div>
 				<div>
-					<form data-on-submit={ fmt.Sprintf("@post('%s')", routes.ProductCreate.Path) }>
+					<form data-on:submit={ fmt.Sprintf("@post('%s')", routes.ProductCreate.Path) }>
 						<div>
 							<div>
 								<h2>Product Information</h2>
@@ -199,7 +199,7 @@ templ ProductEdit(product models.Product) {
 			</div>
 			<div>
 				<div>
-					<form data-on-submit={ fmt.Sprintf("@put('%s')", routes.ProductUpdate.GetPath(product.ID)) }>
+					<form data-on:submit={ fmt.Sprintf("@put('%s')", routes.ProductUpdate.GetPath(product.ID)) }>
 						<div>
 							<div>
 								<h2>Product Information</h2>
@@ -263,7 +263,7 @@ templ ProductEdit(product models.Product) {
 					</form>
 					<div>
 						<button
-							data-on-click={ fmt.Sprintf("@delete('%s')", routes.ProductDestroy.GetPath(product.ID)) }>Destroy Product</button>
+							data-on:click={ fmt.Sprintf("@delete('%s')", routes.ProductDestroy.GetPath(product.ID)) }>Destroy Product</button>
 					</div>
 				</div>
 			</div>

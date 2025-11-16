@@ -110,7 +110,7 @@ templ UserNew() {
 			</div>
 			<div>
 				<div>
-					<form data-on-submit={ fmt.Sprintf("@post('%s')", routes.UserCreate.Path) }>
+					<form data-on:submit={ fmt.Sprintf("@post('%s')", routes.UserCreate.Path) }>
 						<div>
 							<div>
 								<h2>User Information</h2>
@@ -171,7 +171,7 @@ templ UserEdit(user models.User) {
 			</div>
 			<div>
 				<div>
-					<form data-on-submit={ fmt.Sprintf("@put('%s')", routes.UserUpdate.GetPath(user.ID)) }>
+					<form data-on:submit={ fmt.Sprintf("@put('%s')", routes.UserUpdate.GetPath(user.ID)) }>
 						<div>
 							<div>
 								<h2>User Information</h2>
@@ -219,7 +219,7 @@ templ UserEdit(user models.User) {
 					</form>
 					<div>
 						<button
-							data-on-click={ fmt.Sprintf("@delete('%s')", routes.UserDestroy.GetPath(user.ID)) }>Destroy User</button>
+							data-on:click={ fmt.Sprintf("@delete('%s')", routes.UserDestroy.GetPath(user.ID)) }>Destroy User</button>
 					</div>
 				</div>
 			</div>
