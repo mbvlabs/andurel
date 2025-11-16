@@ -140,6 +140,15 @@ func Scaffold(
 		}
 	}
 
+	if os.Getenv("ANDUREL_SKIP_MAILHOG") != "true" {
+		fmt.Print("Setting up MailHog...\n")
+		if err := cmds.SetupMailHog(targetDir); err != nil {
+			fmt.Println(
+				"Failed to download MailHog binary. Run 'andurel app mailhog' after setup is done to fix.",
+			)
+		}
+	}
+
 	fmt.Print("Running initial go mod tidy...\n")
 	if err := cmds.RunGoModTidy(targetDir); err != nil {
 		return fmt.Errorf("failed to run go mod tidy: %w", err)
@@ -328,7 +337,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_email.tmpl":     "config/email.go",
 
 	// Clients
-	"clients_mail_hog.tmpl": "clients/mail_hog.go",
+	"clients_mail_hog.tmpl": "clients/email/mailhog.go",
 
 	// Controllers
 	"controllers_api.tmpl":        "controllers/api.go",
@@ -890,12 +899,12 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	builder := blueprint.NewBuilder(nil)
 
 	builder.AddMainImport(fmt.Sprintf("%s/email", moduleName))
-	builder.AddMainImport(fmt.Sprintf("%s/clients", moduleName))
+	builder.AddMainImport(fmt.Sprintf("%s/clients/email", moduleName))
 	builder.AddControllerImport(fmt.Sprintf("%s/email", moduleName))
 
 	builder.AddMainInitialization(
 		"emailClient",
-		"email.New(clients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort))",
+		"email.New(mailclients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort))",
 		"cfg",
 	)
 

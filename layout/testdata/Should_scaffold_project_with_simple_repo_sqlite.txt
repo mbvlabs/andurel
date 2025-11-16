@@ -6,7 +6,7 @@ assets/assets.go
 assets/css/style.css
 assets/js/datastar_1-0-0-rc6.min.js
 assets/js/scripts.js
-clients/mail_hog.go
+clients/email/mailhog.go
 cmd/app/main.go
 cmd/console/main.go
 cmd/migration/main.go
@@ -156,15 +156,19 @@ ${l}`:l;break;case"event":r.event=l;break;case"id":e(r.id=l);break;case"retry":{
 import "./datastar_1-0-0-rc6.min.js"
 
 
-=== clients/mail_hog.go ===
-package clients
+=== clients/email/mailhog.go ===
+package mailclients
 
 import (
 	"context"
 	"fmt"
 	"net/smtp"
 	"strings"
+
+	"myorg/webapp/email"
 )
+
+var _ email.Sender = (*MailHog)(nil)
 
 type MailHog struct {
 	host string
@@ -178,14 +182,14 @@ func NewMailHog(host, port string) *MailHog {
 	}
 }
 
-func (m *MailHog) SendTransactional(ctx context.Context, to, from, subject, htmlBody, textBody string) error {
+func (m *MailHog) SendTransactional(ctx context.Context, payload email.TransactionalPayload) error {
 	addr := fmt.Sprintf("%s:%s", m.host, m.port)
 
 	boundary := "boundary-mailhog-client"
 	headers := make(map[string]string)
-	headers["From"] = from
-	headers["To"] = to
-	headers["Subject"] = subject
+	headers["From"] = payload.From
+	headers["To"] = payload.To
+	headers["Subject"] = payload.Subject
 	headers["MIME-Version"] = "1.0"
 	headers["Content-Type"] = fmt.Sprintf("multipart/alternative; boundary=\"%s\"", boundary)
 
@@ -195,19 +199,19 @@ func (m *MailHog) SendTransactional(ctx context.Context, to, from, subject, html
 	}
 	message.WriteString("\r\n")
 
-	if textBody != "" {
+	if payload.TextBody != "" {
 		message.WriteString(fmt.Sprintf("--%s\r\n", boundary))
 		message.WriteString("Content-Type: text/plain; charset=\"UTF-8\"\r\n")
 		message.WriteString("\r\n")
-		message.WriteString(textBody)
+		message.WriteString(payload.TextBody)
 		message.WriteString("\r\n")
 	}
 
-	if htmlBody != "" {
+	if payload.HTMLBody != "" {
 		message.WriteString(fmt.Sprintf("--%s\r\n", boundary))
 		message.WriteString("Content-Type: text/html; charset=\"UTF-8\"\r\n")
 		message.WriteString("\r\n")
-		message.WriteString(htmlBody)
+		message.WriteString(payload.HTMLBody)
 		message.WriteString("\r\n")
 	}
 
@@ -216,8 +220,8 @@ func (m *MailHog) SendTransactional(ctx context.Context, to, from, subject, html
 	return smtp.SendMail(
 		addr,
 		nil,
-		from,
-		[]string{to},
+		payload.From,
+		[]string{payload.To},
 		[]byte(message.String()),
 	)
 }
@@ -237,7 +241,7 @@ import (
 	"strings"
 	"time"
 
-	"myorg/webapp/clients"
+	"myorg/webapp/clients/email"
 	"myorg/webapp/config"
 	"myorg/webapp/controllers"
 	"myorg/webapp/database"
@@ -387,7 +391,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	emailClient := email.New(clients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort))
+	emailClient := email.New(mailclients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort))
 
 	controllers, err := setupControllers(
 		db,
@@ -2304,8 +2308,16 @@ import (
 	"golang.org/x/net/html"
 )
 
+type TransactionalPayload struct {
+	To       string
+	From     string
+	Subject  string
+	HTMLBody string
+	TextBody string
+}
+
 type Sender interface {
-	SendTransactional(ctx context.Context, to, from, subject, htmlBody, textBody string) error
+	SendTransactional(ctx context.Context, payload TransactionalPayload) error
 }
 
 type Client struct {
@@ -2318,8 +2330,8 @@ func New(sender Sender) Client {
 	}
 }
 
-func (c Client) SendTransactional(ctx context.Context, to, from, subject, htmlBody, textBody string) error {
-	return c.sender.SendTransactional(ctx, to, from, subject, htmlBody, textBody)
+func (c Client) SendTransactional(ctx context.Context, payload TransactionalPayload) error {
+	return c.sender.SendTransactional(ctx, payload)
 }
 
 func HTMLToText(htmlContent string) (string, error) {

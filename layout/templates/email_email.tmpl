@@ -8,8 +8,16 @@ import (
 	"golang.org/x/net/html"
 )
 
+type TransactionalPayload struct {
+	To       string
+	From     string
+	Subject  string
+	HTMLBody string
+	TextBody string
+}
+
 type Sender interface {
-	SendTransactional(ctx context.Context, to, from, subject, htmlBody, textBody string) error
+	SendTransactional(ctx context.Context, payload TransactionalPayload) error
 }
 
 type Client struct {
@@ -22,8 +30,8 @@ func New(sender Sender) Client {
 	}
 }
 
-func (c Client) SendTransactional(ctx context.Context, to, from, subject, htmlBody, textBody string) error {
-	return c.sender.SendTransactional(ctx, to, from, subject, htmlBody, textBody)
+func (c Client) SendTransactional(ctx context.Context, payload TransactionalPayload) error {
+	return c.sender.SendTransactional(ctx, payload)
 }
 
 func HTMLToText(htmlContent string) (string, error) {

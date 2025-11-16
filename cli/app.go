@@ -20,6 +20,8 @@ func newAppCommand() *cobra.Command {
 
 	appCmd.AddCommand(newTailwindCommand())
 	appCmd.AddCommand(newConsoleCommand())
+	appCmd.AddCommand(newMailhogCommand())
+	appCmd.AddCommand(newMailhogSetupCommand())
 
 	return appCmd
 }
@@ -67,6 +69,68 @@ func newConsoleCommand() *cobra.Command {
 			command.Stdin = os.Stdin
 
 			return command.Run()
+		},
+	}
+
+	return cmd
+}
+
+func newMailhogCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "mailhog",
+		Aliases: []string{"m"},
+		Short:   "Runs the MailHog email server",
+		Long: `Runs the MailHog email server with default configuration.
+
+Default bindings:
+  - SMTP: 0.0.0.0:1025
+  - HTTP: 0.0.0.0:8025
+
+Override defaults by passing flags, e.g.:
+  andurel app mailhog --smtp-bind-addr=0.0.0.0:2525`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			wd, err := os.Getwd()
+			if err != nil {
+				return err
+			}
+
+			binPath := filepath.Join(wd, "bin", "mailhog")
+			if _, err := os.Stat(binPath); err != nil {
+				if os.IsNotExist(err) {
+					return fmt.Errorf(
+						"mailhog binary not found at %s; run 'andurel app mailhog-setup' to download it",
+						binPath,
+					)
+				}
+				return err
+			}
+
+			defaultArgs := []string{
+				"--smtp-bind-addr=0.0.0.0:1025",
+				"--api-bind-addr=0.0.0.0:8025",
+			}
+
+			finalArgs := append(defaultArgs, args...)
+
+			command := exec.Command(binPath, finalArgs...)
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
+			command.Stdin = os.Stdin
+
+			return command.Run()
+		},
+	}
+
+	return cmd
+}
+
+func newMailhogSetupCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "mailhog-setup",
+		Short: "Downloads and sets up MailHog binary",
+		Args:  cobra.ExactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmds.SetupMailHog(".")
 		},
 	}
 
