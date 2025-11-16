@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"net/http"
 	"{{.ModulePath}}/models"
 	"{{.ModulePath}}/router/routes"
 )
@@ -11,7 +12,7 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 		<div>
 			<div>
 				<h1>{{.ResourceName}}s</h1>
-				<a href={ templ.URL(routes.{{.ResourceName}}New.Path) }>New {{.ResourceName}}</a>
+				<a href={ templ.URL(routes.{{.ResourceName}}New.URL()) }>New {{.ResourceName}}</a>
 			</div>
 			<div>
 				<div>
@@ -31,8 +32,8 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 										<tr>
 											{{range .Fields}}<td>{{StringTableDisplay . $.ResourceName}}</td>
 											{{end}}<td>
-												<a href={ templ.URL(routes.{{.ResourceName}}Show.GetPath({{.ResourceName | ToLower}}.ID)) }>View</a>
-												<a href={ templ.URL(routes.{{.ResourceName}}Edit.GetPath({{.ResourceName | ToLower}}.ID)) }>Edit</a>
+												<a href={ templ.URL(routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLower}}.ID)) }>View</a>
+												<a href={ templ.URL(routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLower}}.ID)) }>Edit</a>
 											</td>
 										</tr>
 									}
@@ -52,8 +53,8 @@ templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}
 			<div>
 				<h1>{{.ResourceName}} Details</h1>
 				<div>
-					<a href={ templ.URL(routes.{{.ResourceName}}Edit.GetPath({{.ResourceName | ToLower}}.ID)) }>Edit</a>
-					<a href={ templ.URL(routes.{{.ResourceName}}Index.Path) }>Back to List</a>
+					<a href={ templ.URL(routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLower}}.ID)) }>Edit</a>
+					<a href={ templ.URL(routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -76,11 +77,11 @@ templ {{.ResourceName}}New() {
 		<div>
 			<div>
 				<h1>New {{.ResourceName}}</h1>
-				<a href={ templ.URL(routes.{{.ResourceName}}Index.Path) }>Back to List</a>
+				<a href={ templ.URL(routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ fmt.Sprintf("@post('%s')", routes.{{.ResourceName}}Create.Path) }>
+					<form data-on:submit={DataAction(http.MethodPost, routes.{{.ResourceName}}Create.URL(), "")}>
 						<div>
 							<div>
 								<h2>{{.ResourceName}} Information</h2>
@@ -98,7 +99,7 @@ templ {{.ResourceName}}New() {
 							</div>
 						</div>
 						<div>
-							<a href={ templ.URL(routes.{{.ResourceName}}Index.Path) }>Cancel</a>
+							<a href={ templ.URL(routes.{{.ResourceName}}Index.URL()) }>Cancel</a>
 							<button type="submit">Create {{.ResourceName}}</button>
 						</div>
 					</form>
@@ -113,11 +114,11 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 		<div>
 			<div>
 				<h1>Edit {{.ResourceName}}</h1>
-				<a href={ templ.URL(routes.{{.ResourceName}}Index.Path) }>Back to List</a>
+				<a href={ templ.URL(routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ fmt.Sprintf("@put('%s')", routes.{{.ResourceName}}Update.GetPath({{.ResourceName | ToLower}}.ID)) }>
+					<form data-on:submit={DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{.ResourceName | ToLower}}.ID), "")}>
 						<div>
 							<div>
 								<h2>{{.ResourceName}} Information</h2>
@@ -135,13 +136,13 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 							</div>
 						</div>
 						<div>
-							<a href={ templ.URL(routes.{{.ResourceName}}Index.Path) }>Cancel</a>
+							<a href={ templ.URL(routes.{{.ResourceName}}Index.URL()) }>Cancel</a>
 							<button type="submit">Update {{.ResourceName}}</button>
 						</div>
 					</form>
 					<div>
 						<button
-							data-on:click={ fmt.Sprintf("@delete('%s')", routes.{{.ResourceName}}Destroy.GetPath({{.ResourceName | ToLower}}.ID)) }>Destroy {{.ResourceName}}</button>
+							data-on:click={DataAction(http.MethodDelete, routes.{{.ResourceName}}Destroy.URL({{.ResourceName | ToLower}}.ID), "") }>Destroy {{.ResourceName}}</button>
 					</div>
 				</div>
 			</div>

@@ -1,0 +1,14 @@
+package views
+
+import (
+	"fmt"
+	"strings"
+)
+
+func DataAction(method, route string, options string) string {
+	if options != "" {
+		return fmt.Sprintf("@%s('%s', %s)", strings.ToLower(method), route, options)
+	}
+
+	return fmt.Sprintf("@%s('%s')", strings.ToLower(method), route)
+}

@@ -273,6 +273,7 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"tw_views_bad_request.tmpl":    "views/bad_request.templ",
 	"tw_views_internal_error.tmpl": "views/internal_error.templ",
 	"tw_views_not_found.tmpl":      "views/not_found.templ",
+	"views_datastar_helpers.tmpl":  "views/datastar.go",
 
 	// View Components
 	"tw_views_components_head.tmpl":   "views/components/head.templ",
@@ -290,6 +291,7 @@ var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"vanilla_views_bad_request.tmpl":    "views/bad_request.templ",
 	"vanilla_views_internal_error.tmpl": "views/internal_error.templ",
 	"vanilla_views_not_found.tmpl":      "views/not_found.templ",
+	"views_datastar_helpers.tmpl":       "views/datastar.go",
 
 	// View Components
 	"vanilla_views_components_head.tmpl":   "views/components/head.templ",
