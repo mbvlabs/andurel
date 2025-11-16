@@ -326,7 +326,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_assets.tmpl":      "assets/assets.go",
 	"assets_css_style.tmpl":   "assets/css/style.css",
 	"assets_js_scripts.tmpl":  "assets/js/scripts.js",
-	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc5.min.js",
+	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc6.min.js",
 
 	// Commands
 	"cmd_app_main.tmpl":       "cmd/app/main.go",
@@ -387,6 +387,12 @@ func processTemplatedFiles(
 	data extensions.TemplateData,
 ) error {
 	for templateFile, targetPath := range baseTemplateMappings {
+		if templateFile == "assets_js_datastar.tmpl" {
+			if err := copyFile(targetDir, string(templateFile), string(targetPath), templates.Files); err != nil {
+				return fmt.Errorf("failed to copy file %s: %w", templateFile, err)
+			}
+			continue
+		}
 		if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
 			return fmt.Errorf("failed to process template %s: %w", templateFile, err)
 		}
@@ -559,6 +565,28 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 // ) error {
 // 	return renderTemplate(targetDir, templateFile, targetPath, extensions.Files, data)
 // }
+
+func copyFile(
+	targetDir, sourceFile, targetPath string,
+	fsys fs.FS,
+) error {
+	content, err := fs.ReadFile(fsys, sourceFile)
+	if err != nil {
+		return fmt.Errorf("failed to read file %s: %w", sourceFile, err)
+	}
+
+	fullTargetPath := filepath.Join(targetDir, targetPath)
+	dir := filepath.Dir(fullTargetPath)
+	if err := os.MkdirAll(dir, constants.DirPermissionDefault); err != nil {
+		return fmt.Errorf("failed to create directory for %s: %w", targetPath, err)
+	}
+
+	if err := os.WriteFile(fullTargetPath, content, constants.FilePermissionPublic); err != nil {
+		return fmt.Errorf("failed to write file %s: %w", targetPath, err)
+	}
+
+	return nil
+}
 
 func renderTemplate(
 	targetDir, templateFile, targetPath string,
