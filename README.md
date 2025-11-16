@@ -17,7 +17,7 @@ Development speed is everything. Andurel eliminates boilerplate and lets you foc
 - **Instant Scaffolding** - Generate complete CRUD resources with one command
 - **Live Reload** - Hot reloading for Go, templates, and CSS with `andurel run`
 - **Type Safety Everywhere** - SQLC for SQL, Templ for HTML, Go for logic
-- **Batteries Included** - Echo, Datastar, background jobs, sessions, CSRF protection, optional auth and email
+- **Batteries Included** - Echo, Datastar, background jobs, sessions, CSRF protection, telemetry, optional extensions (auth, email, workflows, docker)
 - **Convention over Configuration** - Sensible defaults that just work
 - **Your Choice** - Pick PostgreSQL or SQLite, Tailwind or vanilla CSS
 
@@ -26,9 +26,10 @@ Development speed is everything. Andurel eliminates boilerplate and lets you foc
 - **[Echo](https://echo.labstack.com/)** - High-performance HTTP framework
 - **[SQLC](https://sqlc.dev/)** - Type-safe SQL code generation
 - **[Templ](https://templ.guide/)** - Type-safe HTML templates
-- **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity
-- **[River](https://riverqueue.com/)** - PostgreSQL-backed background jobs
-- **PostgreSQL or SQLite** - Choose your database
+- **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity (RC6)
+- **[River](https://riverqueue.com/)** - PostgreSQL-backed background jobs and workflows
+- **[OpenTelemetry](https://opentelemetry.io/)** - Built-in observability
+- **PostgreSQL or SQLite** - Choose your database (both support background jobs)
 - **Tailwind CSS or vanilla CSS** - Choose your styling approach
 
 ## Quick Start
@@ -55,7 +56,9 @@ andurel new myapp -d sqlite -c vanilla   # SQLite + vanilla CSS
 # Add extensions for common features:
 andurel new myapp -e auth                # Add authentication
 andurel new myapp -e email               # Add email support
-andurel new myapp -e auth,email          # Add multiple extensions
+andurel new myapp -e workflows           # Add workflow orchestration (PostgreSQL only)
+andurel new myapp -e docker              # Add Dockerfile for containerization
+andurel new myapp -e auth,email,docker   # Add multiple extensions
 
 cd myapp
 
@@ -97,9 +100,11 @@ myapp/
 ├── config/              # Application configuration
 │   ├── app.go          # Sessions, tokens, security
 │   ├── database.go     # Database connection
+│   ├── telemetry.go    # Logging, tracing, metrics config
 │   └── config.go       # Main config aggregator
 ├── controllers/         # HTTP request handlers
 │   ├── controller.go   # Base controller utilities
+│   ├── cache.go        # Cache control utilities
 │   ├── pages.go        # Page controllers
 │   └── assets.go       # Asset serving
 ├── css/                 # Source CSS files (Tailwind input)
@@ -110,18 +115,25 @@ myapp/
 ├── models/              # Data models and business logic
 │   ├── model.go        # Base model setup
 │   └── internal/db/    # Generated SQLC code (do not edit)
-├── queue/               # Background job processing (River)
+├── queue/               # Background job processing
 │   ├── jobs/           # Job definitions
-│   └── workers/        # Worker implementations
+│   ├── workers/        # Worker implementations
+│   └── workflow/       # Workflow orchestration (workflows ext)
 ├── router/              # Routes and middleware
 │   ├── router.go       # Main router setup
 │   ├── routes/         # Route definitions
 │   ├── cookies/        # Cookie and session helpers
 │   └── middleware/     # Custom middleware
+├── telemetry/           # Observability setup
+│   ├── logger.go       # Structured logging
+│   ├── tracer.go       # Distributed tracing
+│   ├── metrics.go      # Application metrics
+│   └── helpers.go      # Telemetry utilities
 ├── views/               # Templ templates
 │   ├── *.templ         # Template source files
 │   └── *_templ.go      # Generated Go code (do not edit)
 ├── .env.example         # Example environment variables
+├── Dockerfile           # Container build (docker ext)
 └── go.mod               # Go module definition
 ```
 
@@ -150,6 +162,7 @@ andurel g resource Product  # short alias
 # Generate individual components
 andurel generate model User              # Create model
 andurel generate model User --refresh    # Refresh after schema changes
+andurel generate model Product --table products_catalog  # Use custom table name
 andurel generate controller User         # Controller only
 andurel generate controller User --with-views  # Controller + views
 andurel generate view User               # Views only
@@ -216,7 +229,9 @@ andurel new myapp -d sqlite -c vanilla   # Both options
 # Add extensions:
 andurel new myapp -e auth                # Authentication
 andurel new myapp -e email               # Email support
-andurel new myapp -e auth,email          # Multiple extensions
+andurel new myapp -e workflows           # Workflow orchestration (PostgreSQL only)
+andurel new myapp -e docker              # Docker containerization
+andurel new myapp -e auth,email,docker   # Multiple extensions
 
 # With custom GitHub repo:
 andurel new myapp --repo username
@@ -240,10 +255,19 @@ Andurel enforces type safety at every layer:
 - **Echo** - Strongly-typed HTTP handlers and middleware
 - **Validation** - Built-in struct validation with go-playground/validator
 
-### Background Jobs with River
+### Flexible Model Generation
 
-Built-in PostgreSQL-backed job queue for async processing:
+Models support flexible table name mapping for working with existing databases or custom naming conventions:
 
+- **Default Convention** - Automatically pluralizes model names to table names (User → users)
+- **Custom Table Names** - Override with `--table` flag to map to any table name
+- **Legacy Database Support** - Work with existing schemas that don't follow Rails conventions
+
+### Background Jobs
+
+Built-in background job processing with database-backed queues:
+
+**PostgreSQL** - River-based job queue with web UI:
 ```go
 // Define a job
 type EmailJobArgs struct {
@@ -256,14 +280,18 @@ func (EmailJobArgs) Kind() string { return "email_job" }
 insertOnly.Client.Insert(ctx, EmailJobArgs{UserID: userID}, nil)
 ```
 
+**Queue Management** - RiverUI provides a web interface for monitoring and managing background jobs (PostgreSQL only). Access it during development to view job status, retry failed jobs, and monitor queue performance.
+
+**SQLite** - goqite-based job queue for lightweight async processing with the same API as River.
+
 ### Database Support
 
 Choose your database when creating a project:
 
-- **PostgreSQL** (default) - Full feature support including River background jobs, ideal for production and concurrent workloads
-- **SQLite** - Lightweight, serverless database perfect for simpler applications, prototypes, or when you don't need background jobs
+- **PostgreSQL** (default) - Full feature support including River background jobs and workflows, ideal for production and concurrent workloads
+- **SQLite** - Lightweight, serverless database with goqite-based background jobs, perfect for simpler applications and prototypes
 
-Both databases are fully supported with type-safe SQLC code generation. The choice depends on your application requirements, not just development vs production.
+Both databases are fully supported with type-safe SQLC code generation and background job processing. The choice depends on your application requirements, not just development vs production.
 
 ### Live Development Experience
 
@@ -279,6 +307,16 @@ Both databases are fully supported with type-safe SQLC code generation. The choi
 - **Session Management** - Encrypted cookie sessions with gorilla/sessions
 - **Flash Messages** - Built-in support for temporary user notifications
 - **Secure Defaults** - Password hashing, SQL injection prevention, XSS protection
+
+### Telemetry and Observability
+
+Built-in OpenTelemetry integration for comprehensive application monitoring:
+
+- **Structured Logging** - JSON-formatted logs with configurable levels and exporters (stdout, file, OTLP)
+- **Distributed Tracing** - Request tracing with support for Jaeger, Zipkin, and OTLP exporters
+- **Metrics Collection** - Application metrics with Prometheus and OTLP exporters
+- **Resource Detection** - Automatic environment and runtime metadata collection
+- **Production Ready** - Pre-configured exporters and sensible defaults for immediate use
 
 ### RESTful Routing
 
@@ -301,28 +339,33 @@ url := routes.UserShowPage.URL(userID)
 
 Andurel includes optional extensions that add common functionality to your projects:
 
-- **auth** - Complete authentication system with login, registration, password reset, and session management
+- **auth** - Complete authentication system with login, registration, password reset, session management, and IP-based rate limiting for security
 - **email** - Email sending capabilities with template support, perfect for transactional emails and notifications
+- **workflows** - River-based workflow orchestration for managing complex multi-step background processes with task dependencies (PostgreSQL only)
+- **docker** - Production-ready Dockerfile and .dockerignore for containerized deployments
 
 Add extensions when creating a project with the `-e` flag:
 
 ```bash
 andurel new myapp -e auth,email
+andurel new myapp -e workflows,docker
+andurel new myapp -e auth,email,workflows,docker
 ```
 
 Extensions integrate seamlessly with your chosen database and CSS framework, generating all necessary models, controllers, views, and routes.
 
 ### Frontend Interactivity with Datastar
 
-Andurel uses Datastar for hypermedia-driven interactivity, allowing you to build dynamic user interfaces without writing JavaScript:
+Andurel uses Datastar (RC6) for hypermedia-driven interactivity, allowing you to build dynamic user interfaces without writing JavaScript:
 
 - Server-side rendering with progressive enhancement
 - Reactive updates using HTML attributes
 - Form validation and submission without page reloads
 - Real-time updates and polling
 - Clean separation between backend logic and frontend behavior
+- Built-in helper functions for common form elements and patterns
 
-Datastar keeps your application logic on the server while providing a smooth, modern user experience.
+Datastar keeps your application logic on the server while providing a smooth, modern user experience. Generated views include pre-built form elements and helpers to accelerate development.
 
 ## Framework Philosophy
 
@@ -425,8 +468,10 @@ Andurel is built on top of excellent open-source projects:
 - **[Echo](https://echo.labstack.com/)** - High-performance HTTP router and framework
 - **[SQLC](https://sqlc.dev/)** - Type-safe SQL code generation
 - **[Templ](https://templ.guide/)** - Type-safe Go templates
-- **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity
-- **[River](https://riverqueue.com/)** - Fast PostgreSQL-backed job queue
+- **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity (RC6)
+- **[River](https://riverqueue.com/)** - Fast PostgreSQL-backed job queue and workflows
+- **[goqite](https://github.com/maragudk/goqite)** - SQLite-backed job queue
+- **[OpenTelemetry](https://opentelemetry.io/)** - Observability framework for logs, traces, and metrics
 - **[pgx](https://github.com/jackc/pgx)** - PostgreSQL driver and toolkit
 - **[Air](https://github.com/cosmtrek/air)** - Live reload for Go apps
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework (optional)
