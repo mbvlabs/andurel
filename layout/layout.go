@@ -268,15 +268,7 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"tw_css_base.tmpl":  "css/base.css",
 
 	// Views
-	"tw_views_layout.tmpl":         "views/layout.templ",
-	"tw_views_home.tmpl":           "views/home.templ",
-	"tw_views_bad_request.tmpl":    "views/bad_request.templ",
-	"tw_views_internal_error.tmpl": "views/internal_error.templ",
-	"tw_views_not_found.tmpl":      "views/not_found.templ",
-	"views_datastar_helpers.tmpl":  "views/datastar.go",
-
-	// View Components
-	"tw_views_components_head.tmpl":   "views/components/head.templ",
+	"tw_views_layout.tmpl":            "views/layout.templ",
 	"tw_views_components_toasts.tmpl": "views/components/toasts.templ",
 }
 
@@ -286,15 +278,7 @@ var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_vanilla_css_buttons.tmpl":    "assets/css/buttons.css",
 
 	// Views
-	"vanilla_views_layout.tmpl":         "views/layout.templ",
-	"vanilla_views_home.tmpl":           "views/home.templ",
-	"vanilla_views_bad_request.tmpl":    "views/bad_request.templ",
-	"vanilla_views_internal_error.tmpl": "views/internal_error.templ",
-	"vanilla_views_not_found.tmpl":      "views/not_found.templ",
-	"views_datastar_helpers.tmpl":       "views/datastar.go",
-
-	// View Components
-	"vanilla_views_components_head.tmpl":   "views/components/head.templ",
+	"vanilla_views_layout.tmpl":            "views/layout.templ",
 	"vanilla_views_components_toasts.tmpl": "views/components/toasts.templ",
 }
 
@@ -381,6 +365,16 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"telemetry_tracer.tmpl":           "pkg/telemetry/tracer.go",
 	"telemetry_trace_exporters.tmpl":  "pkg/telemetry/trace_exporters.go",
 	"telemetry_helpers.tmpl":          "pkg/telemetry/helpers.go",
+
+	// Views
+	"views_home.tmpl":                     "views/home.templ",
+	"views_bad_request.tmpl":              "views/bad_request.templ",
+	"views_internal_error.tmpl":           "views/internal_error.templ",
+	"views_not_found.tmpl":                "views/not_found.templ",
+	"views_components_head.tmpl":          "views/components/head.templ",
+	"views_components_form_elements.tmpl": "views/components/form_elements.templ",
+
+	"views_datastar_helpers.tmpl": "views/datastar.go",
 }
 
 func processTemplatedFiles(
