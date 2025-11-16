@@ -1,0 +1,143 @@
+package workflow
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+func CancelWorkflow(ctx context.Context, pool *pgxpool.Pool, workflowID string, opts *CancelWorkflowOpts) error {
+	return CancelWorkflowTx(ctx, pool, nil, workflowID, opts)
+}
+
+func CancelWorkflowTx(ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, workflowID string, opts *CancelWorkflowOpts) error {
+	if workflowID == "" {
+		return fmt.Errorf("workflow ID cannot be empty")
+	}
+
+	if opts == nil {
+		opts = &CancelWorkflowOpts{}
+	}
+
+	conn := getConn(pool, tx)
+
+	query := `
+		UPDATE river_job
+		SET
+			state = CASE
+				WHEN state = 'running' AND $2 = true THEN 'cancelled'
+				WHEN state IN ('scheduled', 'available', 'retryable') THEN 'cancelled'
+				ELSE state
+			END,
+			metadata = jsonb_set(
+				metadata,
+				'{workflow_state}',
+				'"cancelled"'::jsonb
+			),
+			finalized_at = CASE
+				WHEN state NOT IN ('cancelled', 'completed', 'discarded')
+					AND (state != 'running' OR $2 = true)
+					THEN NOW()
+				ELSE finalized_at
+			END
+		WHERE metadata->>'workflow_id' = $1
+		  AND state NOT IN ('completed', 'discarded')
+		  AND (state != 'cancelled' OR metadata->>'workflow_state' != 'cancelled')
+		RETURNING id
+	`
+
+	rows, err := conn.Query(ctx, query, workflowID, opts.CancelRunning)
+	if err != nil {
+		return fmt.Errorf("failed to cancel workflow: %w", err)
+	}
+	defer rows.Close()
+
+	cancelledCount := 0
+	for rows.Next() {
+		var jobID int64
+		if err := rows.Scan(&jobID); err != nil {
+			return fmt.Errorf("failed to scan cancelled job ID: %w", err)
+		}
+		cancelledCount++
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("error iterating cancelled jobs: %w", err)
+	}
+
+	if cancelledCount == 0 {
+		exists, err := WorkflowExistsTx(ctx, pool, tx, workflowID)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return ErrWorkflowNotFound
+		}
+	}
+
+	if cancelledCount > 0 {
+		if err := DeleteWorkflowOutputsTx(ctx, pool, tx, workflowID); err != nil {
+			return fmt.Errorf("failed to delete outputs during cancellation: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func RetryFailedTasks(ctx context.Context, pool *pgxpool.Pool, workflowID string) ([]int64, error) {
+	return RetryFailedTasksTx(ctx, pool, nil, workflowID)
+}
+
+func RetryFailedTasksTx(ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, workflowID string) ([]int64, error) {
+	if workflowID == "" {
+		return nil, fmt.Errorf("workflow ID cannot be empty")
+	}
+
+	conn := getConn(pool, tx)
+
+	query := `
+		UPDATE river_job
+		SET
+			state = 'available',
+			scheduled_at = NOW(),
+			metadata = jsonb_set(
+				jsonb_set(
+					metadata,
+					'{workflow_state}',
+					'"pending"'::jsonb
+				),
+				'{retry_from_failed}',
+				'true'::jsonb
+			),
+			finalized_at = NULL,
+			errors = '[]'::jsonb,
+			attempt = 0
+		WHERE metadata->>'workflow_id' = $1
+		  AND metadata->>'workflow_state' = 'failed'
+		  AND state IN ('cancelled', 'discarded')
+		RETURNING id
+	`
+
+	rows, err := conn.Query(ctx, query, workflowID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retry failed tasks: %w", err)
+	}
+	defer rows.Close()
+
+	var jobIDs []int64
+	for rows.Next() {
+		var jobID int64
+		if err := rows.Scan(&jobID); err != nil {
+			return nil, fmt.Errorf("failed to scan retried job ID: %w", err)
+		}
+		jobIDs = append(jobIDs, jobID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating retried jobs: %w", err)
+	}
+
+	return jobIDs, nil
+}
