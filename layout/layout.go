@@ -325,6 +325,10 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_config.tmpl":    "config/config.go",
 	"config_database.tmpl":  "config/database.go",
 	"config_telemetry.tmpl": "config/telemetry.go",
+	"config_email.tmpl":     "config/email.go",
+
+	// Clients
+	"clients_mail_hog.tmpl": "clients/mail_hog.go",
 
 	// Controllers
 	"controllers_api.tmpl":        "controllers/api.go",
@@ -336,6 +340,11 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Database
 	"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
 	"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
+
+	// Email
+	"email_email.tmpl":        "email/email.go",
+	"email_base_layout.tmpl":  "email/base_layout.templ",
+	"email_components.tmpl":   "email/components.templ",
 
 	// Models
 	"models_errors.tmpl":         "models/errors.go",
@@ -672,7 +681,6 @@ func templateFuncMap() template.FuncMap {
 func registerBuiltinExtensions() error {
 	registerBuiltinOnce.Do(func() {
 		builtin := []extensions.Extension{
-			extensions.Email{},
 			extensions.Auth{},
 			extensions.Docker{},
 			extensions.Workflows{},
@@ -881,6 +889,18 @@ func generateRandomHex(bytes int) string {
 func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	builder := blueprint.NewBuilder(nil)
 
+	builder.AddMainImport(fmt.Sprintf("%s/email", moduleName))
+	builder.AddMainImport(fmt.Sprintf("%s/clients", moduleName))
+	builder.AddControllerImport(fmt.Sprintf("%s/email", moduleName))
+
+	builder.AddMainInitialization(
+		"emailClient",
+		"email.New(clients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort))",
+		"cfg",
+	)
+
+	builder.AddConfigField("Email", "email")
+
 	// Controller dependencies - database is the primary dependency
 	var dbType string
 	switch database {
@@ -892,6 +912,7 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 		dbType = "database.Postgres"
 	}
 	builder.AddControllerDependency("db", dbType)
+	builder.AddControllerDependency("emailClient", "email.Client")
 
 	// Controller fields - the main sub-controllers
 	builder.
@@ -913,6 +934,8 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	for _, tool := range defaultTools {
 		builder.AddTool(tool)
 	}
+
+	builder.AddTool("github.com/mailhog/MailHog")
 
 	return builder.Blueprint()
 }

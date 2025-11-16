@@ -56,7 +56,7 @@ func (m *MailHog) SendTransactional(ctx context.Context, to, from, subject, html
 
 	return smtp.SendMail(
 		addr,
-		nil, // No auth required for MailHog
+		nil,
 		from,
 		[]string{to},
 		[]byte(message.String()),
