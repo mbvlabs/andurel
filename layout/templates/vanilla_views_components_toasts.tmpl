@@ -8,8 +8,9 @@ import (
 templ toastBase(tType string, flash cookies.FlashMessage) {
 	<div
 		id={ "toast-" + flash.ID.String() }
-		data-init="$visible = true; setTimeout(() => { $visible = false }, 5000);"
+		data-signals:visible="true"
 		data-show="$visible"
+		data-init__delay.5000ms="$visible = false"
 	>
 		<div>
 			<div></div>

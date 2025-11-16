@@ -1,9 +1,10 @@
 package views
 
 import (
-	"fmt"
+	"net/http"
 	"github.com/example/myapp/models"
 	"github.com/example/myapp/router/routes"
+	"github.com/example/myapp/views/components"
 )
 
 templ UserIndex(users []models.User) {
@@ -11,7 +12,7 @@ templ UserIndex(users []models.User) {
 		<div>
 			<div>
 				<h1>Users</h1>
-				<a href={ templ.URL(routes.UserNew.Path) }>New User</a>
+				<a href={ templ.URL(routes.UserNew.URL()) }>New User</a>
 			</div>
 			<div>
 				<div>
@@ -41,8 +42,8 @@ templ UserIndex(users []models.User) {
 											<td>{ user.CreatedAt.String() }</td>
 											<td>{ user.UpdatedAt.String() }</td>
 											<td>
-												<a href={ templ.URL(routes.UserShow.GetPath(user.ID)) }>View</a>
-												<a href={ templ.URL(routes.UserEdit.GetPath(user.ID)) }>Edit</a>
+												<a href={ templ.URL(routes.UserShow.URL(user.ID)) }>View</a>
+												<a href={ templ.URL(routes.UserEdit.URL(user.ID)) }>Edit</a>
 											</td>
 										</tr>
 									}
@@ -62,8 +63,8 @@ templ UserShow(user models.User) {
 			<div>
 				<h1>User Details</h1>
 				<div>
-					<a href={ templ.URL(routes.UserEdit.GetPath(user.ID)) }>Edit</a>
-					<a href={ templ.URL(routes.UserIndex.Path) }>Back to List</a>
+					<a href={ templ.URL(routes.UserEdit.URL(user.ID)) }>Edit</a>
+					<a href={ templ.URL(routes.UserIndex.URL()) }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -106,53 +107,33 @@ templ UserNew() {
 		<div>
 			<div>
 				<h1>New User</h1>
-				<a href={ templ.URL(routes.UserIndex.Path) }>Back to List</a>
+				<a href={ templ.URL(routes.UserIndex.URL()) }>Back to List</a>
 			</div>
 			<div>
 				<div>
-					<form data-on-submit={ fmt.Sprintf("@post('%s')", routes.UserCreate.Path) }>
+					<form data-on:submit={DataAction(http.MethodPost, routes.UserCreate.URL(), ActionTypeForm)}>
 						<div>
 							<div>
 								<h2>User Information</h2>
 								<p>Enter the details for the new user.</p>
 								<div>
 									<div>
-										<label for="email">
-											Email
-										</label>
-										<div>
-											<input id="email" type="text" data-bind="email" />
-										</div>
+										@components.InputField("Email", "email", "text", "", false, components.FieldProp{})
 									</div>
 									<div>
-										<label for="name">
-											Name
-										</label>
-										<div>
-											<input id="name" type="text" data-bind="name" />
-										</div>
+										@components.InputField("Name", "name", "text", "", false, components.FieldProp{})
 									</div>
 									<div>
-										<label for="age">
-											Age
-										</label>
-										<div>
-											<input id="age" type="number" data-bind="age" />
-										</div>
+										@components.InputField("Age", "age", "number", "", false, components.FieldProp{})
 									</div>
 									<div>
-										<label for="is_active">
-											Is Active
-										</label>
-										<div>
-											<input id="is_active" type="checkbox" data-bind="is_active" />
-										</div>
+										@components.InputField("Is Active", "is_active", "checkbox", "", false, components.FieldProp{})
 									</div>
 									</div>
 							</div>
 						</div>
 						<div>
-							<a href={ templ.URL(routes.UserIndex.Path) }>Cancel</a>
+							<a href={ templ.URL(routes.UserIndex.URL()) }>Cancel</a>
 							<button type="submit">Create User</button>
 						</div>
 					</form>
@@ -167,59 +148,47 @@ templ UserEdit(user models.User) {
 		<div>
 			<div>
 				<h1>Edit User</h1>
-				<a href={ templ.URL(routes.UserIndex.Path) }>Back to List</a>
+				<a href={ templ.URL(routes.UserIndex.URL()) }>Back to List</a>
 			</div>
 			<div>
 				<div>
-					<form data-on-submit={ fmt.Sprintf("@put('%s')", routes.UserUpdate.GetPath(user.ID)) }>
+					<form data-on:submit={DataAction(http.MethodPut, routes.UserUpdate.URL(user.ID), ActionTypeForm)}>
 						<div>
 							<div>
 								<h2>User Information</h2>
 								<p>Update the details for this user.</p>
 								<div>
 									<div>
-										<label for="email">
-											Email
-										</label>
-										<div>
-											<input id="email" type="text" data-bind="email" value={ user.Email } />
-										</div>
+										@components.InputField("Email", "email", "text", "", false, components.FieldProp{
+											Value: user.Email,
+										})
 									</div>
 									<div>
-										<label for="name">
-											Name
-										</label>
-										<div>
-											<input id="name" type="text" data-bind="name" value={ user.Name } />
-										</div>
+										@components.InputField("Name", "name", "text", "", false, components.FieldProp{
+											Value: user.Name,
+										})
 									</div>
 									<div>
-										<label for="age">
-											Age
-										</label>
-										<div>
-											<input id="age" type="number" data-bind="age" value={ fmt.Sprintf("%d", user.Age) } />
-										</div>
+										@components.InputField("Age", "age", "number", "", false, components.FieldProp{
+											Value: fmt.Sprintf("%d", user.Age),
+										})
 									</div>
 									<div>
-										<label for="is_active">
-											Is Active
-										</label>
-										<div>
-											<input id="is_active" type="checkbox" data-bind="is_active" value={ fmt.Sprintf("%t", user.IsActive) } />
-										</div>
+										@components.InputField("Is Active", "is_active", "checkbox", "", false, components.FieldProp{
+											Value: fmt.Sprintf("%t", user.IsActive),
+										})
 									</div>
 									</div>
 							</div>
 						</div>
 						<div>
-							<a href={ templ.URL(routes.UserIndex.Path) }>Cancel</a>
+							<a href={ templ.URL(routes.UserIndex.URL()) }>Cancel</a>
 							<button type="submit">Update User</button>
 						</div>
 					</form>
 					<div>
 						<button
-							data-on-click={ fmt.Sprintf("@delete('%s')", routes.UserDestroy.GetPath(user.ID)) }>Destroy User</button>
+							data-on:click={DataAction(http.MethodDelete, routes.UserDestroy.URL(user.ID)) }>Destroy User</button>
 					</div>
 				</div>
 			</div>

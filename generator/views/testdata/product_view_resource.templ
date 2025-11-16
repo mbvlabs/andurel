@@ -1,9 +1,10 @@
 package views
 
 import (
-	"fmt"
+	"net/http"
 	"github.com/example/shop/models"
 	"github.com/example/shop/router/routes"
+	"github.com/example/shop/views/components"
 )
 
 templ ProductIndex(products []models.Product) {
@@ -11,7 +12,7 @@ templ ProductIndex(products []models.Product) {
 		<div>
 			<div>
 				<h1>Products</h1>
-				<a href={ templ.URL(routes.ProductNew.Path) }>New Product</a>
+				<a href={ templ.URL(routes.ProductNew.URL()) }>New Product</a>
 			</div>
 			<div>
 				<div>
@@ -45,8 +46,8 @@ templ ProductIndex(products []models.Product) {
 											<td>{ product.CreatedAt.String() }</td>
 											<td>{ product.UpdatedAt.String() }</td>
 											<td>
-												<a href={ templ.URL(routes.ProductShow.GetPath(product.ID)) }>View</a>
-												<a href={ templ.URL(routes.ProductEdit.GetPath(product.ID)) }>Edit</a>
+												<a href={ templ.URL(routes.ProductShow.URL(product.ID)) }>View</a>
+												<a href={ templ.URL(routes.ProductEdit.URL(product.ID)) }>Edit</a>
 											</td>
 										</tr>
 									}
@@ -66,8 +67,8 @@ templ ProductShow(product models.Product) {
 			<div>
 				<h1>Product Details</h1>
 				<div>
-					<a href={ templ.URL(routes.ProductEdit.GetPath(product.ID)) }>Edit</a>
-					<a href={ templ.URL(routes.ProductIndex.Path) }>Back to List</a>
+					<a href={ templ.URL(routes.ProductEdit.URL(product.ID)) }>Edit</a>
+					<a href={ templ.URL(routes.ProductIndex.URL()) }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -118,69 +119,39 @@ templ ProductNew() {
 		<div>
 			<div>
 				<h1>New Product</h1>
-				<a href={ templ.URL(routes.ProductIndex.Path) }>Back to List</a>
+				<a href={ templ.URL(routes.ProductIndex.URL()) }>Back to List</a>
 			</div>
 			<div>
 				<div>
-					<form data-on-submit={ fmt.Sprintf("@post('%s')", routes.ProductCreate.Path) }>
+					<form data-on:submit={DataAction(http.MethodPost, routes.ProductCreate.URL(), ActionTypeForm)}>
 						<div>
 							<div>
 								<h2>Product Information</h2>
 								<p>Enter the details for the new product.</p>
 								<div>
 									<div>
-										<label for="name">
-											Name
-										</label>
-										<div>
-											<input id="name" type="text" data-bind="name" />
-										</div>
+										@components.InputField("Name", "name", "text", "", false, components.FieldProp{})
 									</div>
 									<div>
-										<label for="price">
-											Price
-										</label>
-										<div>
-											<input id="price" type="number" data-bind="price" />
-										</div>
+										@components.InputField("Price", "price", "number", "", false, components.FieldProp{})
 									</div>
 									<div>
-										<label for="description">
-											Description
-										</label>
-										<div>
-											<input id="description" type="text" data-bind="description" />
-										</div>
+										@components.InputField("Description", "description", "text", "", false, components.FieldProp{})
 									</div>
 									<div>
-										<label for="category_id">
-											Category Id
-										</label>
-										<div>
-											<input id="category_id" type="number" data-bind="category_id" />
-										</div>
+										@components.InputField("Category Id", "category_id", "number", "", false, components.FieldProp{})
 									</div>
 									<div>
-										<label for="in_stock">
-											In Stock
-										</label>
-										<div>
-											<input id="in_stock" type="checkbox" data-bind="in_stock" />
-										</div>
+										@components.InputField("In Stock", "in_stock", "checkbox", "", false, components.FieldProp{})
 									</div>
 									<div>
-										<label for="metadata">
-											Metadata
-										</label>
-										<div>
-											<input id="metadata" type="text" data-bind="metadata" />
-										</div>
+										@components.InputField("Metadata", "metadata", "text", "", false, components.FieldProp{})
 									</div>
 									</div>
 							</div>
 						</div>
 						<div>
-							<a href={ templ.URL(routes.ProductIndex.Path) }>Cancel</a>
+							<a href={ templ.URL(routes.ProductIndex.URL()) }>Cancel</a>
 							<button type="submit">Create Product</button>
 						</div>
 					</form>
@@ -195,75 +166,57 @@ templ ProductEdit(product models.Product) {
 		<div>
 			<div>
 				<h1>Edit Product</h1>
-				<a href={ templ.URL(routes.ProductIndex.Path) }>Back to List</a>
+				<a href={ templ.URL(routes.ProductIndex.URL()) }>Back to List</a>
 			</div>
 			<div>
 				<div>
-					<form data-on-submit={ fmt.Sprintf("@put('%s')", routes.ProductUpdate.GetPath(product.ID)) }>
+					<form data-on:submit={DataAction(http.MethodPut, routes.ProductUpdate.URL(product.ID), ActionTypeForm)}>
 						<div>
 							<div>
 								<h2>Product Information</h2>
 								<p>Update the details for this product.</p>
 								<div>
 									<div>
-										<label for="name">
-											Name
-										</label>
-										<div>
-											<input id="name" type="text" data-bind="name" value={ product.Name } />
-										</div>
+										@components.InputField("Name", "name", "text", "", false, components.FieldProp{
+											Value: product.Name,
+										})
 									</div>
 									<div>
-										<label for="price">
-											Price
-										</label>
-										<div>
-											<input id="price" type="number" data-bind="price" value={ fmt.Sprintf("%f", product.Price) } />
-										</div>
+										@components.InputField("Price", "price", "number", "", false, components.FieldProp{
+											Value: fmt.Sprintf("%f", product.Price),
+										})
 									</div>
 									<div>
-										<label for="description">
-											Description
-										</label>
-										<div>
-											<input id="description" type="text" data-bind="description" value={ product.Description } />
-										</div>
+										@components.InputField("Description", "description", "text", "", false, components.FieldProp{
+											Value: product.Description,
+										})
 									</div>
 									<div>
-										<label for="category_id">
-											Category Id
-										</label>
-										<div>
-											<input id="category_id" type="number" data-bind="category_id" value={ fmt.Sprintf("%d", product.CategoryID) } />
-										</div>
+										@components.InputField("Category Id", "category_id", "number", "", false, components.FieldProp{
+											Value: fmt.Sprintf("%d", product.CategoryID),
+										})
 									</div>
 									<div>
-										<label for="in_stock">
-											In Stock
-										</label>
-										<div>
-											<input id="in_stock" type="checkbox" data-bind="in_stock" value={ fmt.Sprintf("%t", product.InStock) } />
-										</div>
+										@components.InputField("In Stock", "in_stock", "checkbox", "", false, components.FieldProp{
+											Value: fmt.Sprintf("%t", product.InStock),
+										})
 									</div>
 									<div>
-										<label for="metadata">
-											Metadata
-										</label>
-										<div>
-											<input id="metadata" type="text" data-bind="metadata" value={ string(product.Metadata) } />
-										</div>
+										@components.InputField("Metadata", "metadata", "text", "", false, components.FieldProp{
+											Value: string(product.Metadata),
+										})
 									</div>
 									</div>
 							</div>
 						</div>
 						<div>
-							<a href={ templ.URL(routes.ProductIndex.Path) }>Cancel</a>
+							<a href={ templ.URL(routes.ProductIndex.URL()) }>Cancel</a>
 							<button type="submit">Update Product</button>
 						</div>
 					</form>
 					<div>
 						<button
-							data-on-click={ fmt.Sprintf("@delete('%s')", routes.ProductDestroy.GetPath(product.ID)) }>Destroy Product</button>
+							data-on:click={DataAction(http.MethodDelete, routes.ProductDestroy.URL(product.ID)) }>Destroy Product</button>
 					</div>
 				</div>
 			</div>
