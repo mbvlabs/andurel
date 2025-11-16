@@ -3405,6 +3405,7 @@ func NewProcessor(
 	riverClient, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
 		Queues: map[string]river.QueueConfig{
 			river.QueueDefault: {MaxWorkers: 100},
+			"workflow":         {MaxWorkers: 100},
 		},
 		Logger:  slog.Default(),
 		Workers: workers,
