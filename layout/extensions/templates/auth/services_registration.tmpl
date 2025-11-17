@@ -10,6 +10,10 @@ import (
 	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/email"
 	"{{.ModuleName}}/models"
+{{- if eq .Database "postgresql" }}
+	"{{.ModuleName}}/queue"
+	"{{.ModuleName}}/queue/jobs"
+{{- end }}
 )
 
 const userEmailVerification = "user_email_verification"
@@ -24,11 +28,12 @@ func RegisterUser(
 	ctx context.Context,
 {{- if eq .Database "postgresql" }}
 	db database.Postgres,
+	insertOnly queue.InsertOnly,
 {{- else if eq .Database "sqlite" }}
 	db database.SQLite,
+	emailClient email.Client,
 {{- end }}
 	salt string,
-	emailClient email.Client,
 	data RegisterUserData,
 ) error {
 	tx, err := db.BeginTx(ctx)
@@ -66,13 +71,25 @@ func RegisterUser(
 		return err
 	}
 
+{{- if eq .Database "postgresql" }}
+	_, err = insertOnly.Client.InsertTx(ctx, tx, jobs.SendTransactionalEmailArgs{
+		Data: email.TransactionalData{
+			To:        user.Email,
+			From:      "noreply@andurel.com",
+			Subject:   "Verify Your Email Address",
+			Component: email.VerifyEmail(code),
+		},
+	}, nil)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+{{- else if eq .Database "sqlite" }}
 	if err := emailClient.SendVerificationEmail(ctx, user.Email, code); err != nil {
 		return err
 	}
 
-{{- if eq .Database "postgresql" }}
-	return tx.Commit(ctx)
-{{- else if eq .Database "sqlite" }}
 	return tx.Commit()
 {{- end }}
 }

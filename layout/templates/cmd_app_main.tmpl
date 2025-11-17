@@ -200,7 +200,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	wrks, err := workers.Register()
+	wrks, err := workers.Register(emailClient)
 	if err != nil {
 		return err
 	}

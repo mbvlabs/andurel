@@ -11,7 +11,80 @@ import (
 	"golang.org/x/net/html"
 )
 
-var ErrUnsubscribeURLRequired = errors.New("marketing emails require unsubscribe URL")
+var (
+	ErrUnsubscribeURLRequired = errors.New("marketing emails require unsubscribe URL")
+	ErrMissingRecipient       = errors.New("missing recipient email address")
+	ErrMissingSender          = errors.New("missing sender email address")
+	ErrMissingSubject         = errors.New("missing email subject")
+	ErrMissingComponent       = errors.New("missing email component")
+)
+
+type ValidationError struct {
+	Err error
+}
+
+func (e ValidationError) Error() string {
+	return e.Err.Error()
+}
+
+func (e ValidationError) Unwrap() error {
+	return e.Err
+}
+
+type TemporaryError struct {
+	Err error
+}
+
+func (e TemporaryError) Error() string {
+	return e.Err.Error()
+}
+
+func (e TemporaryError) Unwrap() error {
+	return e.Err
+}
+
+type PermanentError struct {
+	Err error
+}
+
+func (e PermanentError) Error() string {
+	return e.Err.Error()
+}
+
+func (e PermanentError) Unwrap() error {
+	return e.Err
+}
+
+func IsValidationError(err error) bool {
+	var validationErr ValidationError
+	if errors.As(err, &validationErr) {
+		return true
+	}
+
+	return errors.Is(err, ErrUnsubscribeURLRequired) ||
+		errors.Is(err, ErrMissingRecipient) ||
+		errors.Is(err, ErrMissingSender) ||
+		errors.Is(err, ErrMissingSubject) ||
+		errors.Is(err, ErrMissingComponent)
+}
+
+func IsRetryable(err error) bool {
+	var tempErr TemporaryError
+	if errors.As(err, &tempErr) {
+		return true
+	}
+
+	var permErr PermanentError
+	if errors.As(err, &permErr) {
+		return false
+	}
+
+	if IsValidationError(err) {
+		return false
+	}
+
+	return true
+}
 
 type TransactionalData struct {
 	To          string
@@ -90,6 +163,22 @@ func New(sender Sender) Client {
 }
 
 func (c Client) SendTransactional(ctx context.Context, data TransactionalData) error {
+	if data.To == "" && len(data.Cc) == 0 && len(data.Bcc) == 0 {
+		return ValidationError{Err: ErrMissingRecipient}
+	}
+
+	if data.From == "" {
+		return ValidationError{Err: ErrMissingSender}
+	}
+
+	if data.Subject == "" {
+		return ValidationError{Err: ErrMissingSubject}
+	}
+
+	if data.Component == nil {
+		return ValidationError{Err: ErrMissingComponent}
+	}
+
 	html, err := renderComponent(data.Component)
 	if err != nil {
 		return err
