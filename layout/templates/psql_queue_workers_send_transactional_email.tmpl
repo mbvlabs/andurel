@@ -1,0 +1,33 @@
+package workers
+
+import (
+	"context"
+
+	"github.com/riverqueue/river"
+
+	"{{.ModuleName}}/email"
+	"{{.ModuleName}}/queue/jobs"
+)
+
+type SendTransactionalEmailWorker struct {
+	river.WorkerDefaults[jobs.SendTransactionalEmailArgs]
+	emailClient email.Client
+}
+
+func NewSendTransactionalEmailWorker(emailClient email.Client) *SendTransactionalEmailWorker {
+	return &SendTransactionalEmailWorker{
+		emailClient: emailClient,
+	}
+}
+
+func (w *SendTransactionalEmailWorker) Work(ctx context.Context, job *river.Job[jobs.SendTransactionalEmailArgs]) error {
+	err := w.emailClient.SendTransactional(ctx, job.Args.Data)
+	if err != nil {
+		if !email.IsRetryable(err) {
+			return river.JobCancel(err)
+		}
+		return err
+	}
+
+	return nil
+}

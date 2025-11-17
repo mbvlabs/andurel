@@ -33,10 +33,25 @@ func (e Auth) Apply(ctx *Context) error {
 	builder.AddControllerField("Confirmations", "Confirmations")
 	builder.AddControllerField("ResetPasswords", "ResetPasswords")
 
+	db := ctx.Data.DatabaseDialect()
+
 	builder.AddControllerConstructor("sessions", "newSessions(db, cfg)")
-	builder.AddControllerConstructor("registrations", "newRegistrations(db, emailClient, cfg)")
+
+	if db == "postgresql" {
+		builder.AddControllerConstructor("registrations", "newRegistrations(db, insertOnly, cfg)")
+	}
+	if db == "sqlite" {
+		builder.AddControllerConstructor("registrations", "newRegistrations(db, emailClient, cfg)")
+	}
+
 	builder.AddControllerConstructor("confirmations", "newConfirmations(db, cfg)")
-	builder.AddControllerConstructor("resetPasswords", "newResetPasswords(db, emailClient, cfg)")
+
+	if db == "postgresql" {
+		builder.AddControllerConstructor("resetPasswords", "newResetPasswords(db, insertOnly, cfg)")
+	}
+	if db == "sqlite" {
+		builder.AddControllerConstructor("resetPasswords", "newResetPasswords(db, emailClient, cfg)")
+	}
 
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("auth: failed to render templates: %w", err)
@@ -80,7 +95,6 @@ func (e Auth) renderTemplates(ctx *Context) error {
 
 		"email_reset_password.tmpl": "email/reset_password.templ",
 		"email_verify_email.tmpl":   "email/verify_email.templ",
-		"email_auth.tmpl":           "email/auth.go",
 
 		"models_token.tmpl": "models/token.go",
 		"models_user.tmpl":  "models/user.go",

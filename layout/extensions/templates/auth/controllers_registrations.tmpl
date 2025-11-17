@@ -6,7 +6,11 @@ import (
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/database"
+{{- if eq .Database "postgresql" }}
+	"{{.ModuleName}}/queue"
+{{- else if eq .Database "sqlite" }}
 	"{{.ModuleName}}/email"
+{{- end }}
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
@@ -18,17 +22,17 @@ import (
 
 {{- if eq .Database "postgresql" }}
 type Registrations struct {
-	db          database.Postgres
-	emailClient email.Client
-	cfg         config.Config
+	db         database.Postgres
+	insertOnly queue.InsertOnly
+	cfg        config.Config
 }
 
 func newRegistrations(
 	db database.Postgres,
-	emailClient email.Client,
+	insertOnly queue.InsertOnly,
 	cfg config.Config,
 ) Registrations {
-	return Registrations{db, emailClient, cfg}
+	return Registrations{db, insertOnly, cfg}
 }
 {{- else if eq .Database "sqlite" }}
 type Registrations struct {
@@ -70,8 +74,12 @@ func (r Registrations) Create(c echo.Context) error {
 	err := services.RegisterUser(
 		c.Request().Context(),
 		r.db,
-		r.cfg.Auth.Pepper,
+{{- if eq .Database "postgresql" }}
+		r.insertOnly,
+{{- else if eq .Database "sqlite" }}
 		r.emailClient,
+{{- end }}
+		r.cfg.Auth.Pepper,
 		services.RegisterUserData{
 			Email:           payload.Email,
 			Password:        payload.Password,

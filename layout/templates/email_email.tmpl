@@ -1,23 +1,155 @@
 package email
 
 import (
+	"bytes"
 	"context"
+	"errors"
 
 	"strings"
 
+	"github.com/a-h/templ"
 	"golang.org/x/net/html"
 )
 
+var (
+	ErrUnsubscribeURLRequired = errors.New("marketing emails require unsubscribe URL")
+	ErrMissingRecipient       = errors.New("missing recipient email address")
+	ErrMissingSender          = errors.New("missing sender email address")
+	ErrMissingSubject         = errors.New("missing email subject")
+	ErrMissingComponent       = errors.New("missing email component")
+)
+
+type ValidationError struct {
+	Err error
+}
+
+func (e ValidationError) Error() string {
+	return e.Err.Error()
+}
+
+func (e ValidationError) Unwrap() error {
+	return e.Err
+}
+
+type TemporaryError struct {
+	Err error
+}
+
+func (e TemporaryError) Error() string {
+	return e.Err.Error()
+}
+
+func (e TemporaryError) Unwrap() error {
+	return e.Err
+}
+
+type PermanentError struct {
+	Err error
+}
+
+func (e PermanentError) Error() string {
+	return e.Err.Error()
+}
+
+func (e PermanentError) Unwrap() error {
+	return e.Err
+}
+
+func IsValidationError(err error) bool {
+	var validationErr ValidationError
+	if errors.As(err, &validationErr) {
+		return true
+	}
+
+	return errors.Is(err, ErrUnsubscribeURLRequired) ||
+		errors.Is(err, ErrMissingRecipient) ||
+		errors.Is(err, ErrMissingSender) ||
+		errors.Is(err, ErrMissingSubject) ||
+		errors.Is(err, ErrMissingComponent)
+}
+
+func IsRetryable(err error) bool {
+	var tempErr TemporaryError
+	if errors.As(err, &tempErr) {
+		return true
+	}
+
+	var permErr PermanentError
+	if errors.As(err, &permErr) {
+		return false
+	}
+
+	if IsValidationError(err) {
+		return false
+	}
+
+	return true
+}
+
+type TransactionalData struct {
+	To          string
+	Cc          []string
+	Bcc         []string
+	From        string
+	ReplyTo     string
+	Subject     string
+	Component   templ.Component
+	Attachments []Attachment
+	Metadata    map[string]string
+}
+
+type MarketingData struct {
+	To               []string
+	From             string
+	ReplyTo          string
+	Subject          string
+	Component        templ.Component
+	UnsubscribeURL   string
+	UnsubscribeGroup string
+	Tags             []string
+	Metadata         map[string]string
+	TrackOpens       bool
+	TrackClicks      bool
+}
+
+type Attachment struct {
+	Name        string
+	Content     []byte
+	ContentType string
+	Inline      bool
+}
+
 type TransactionalPayload struct {
-	To       string
-	From     string
-	Subject  string
-	HTMLBody string
-	TextBody string
+	To          string
+	Cc          []string
+	Bcc         []string
+	From        string
+	ReplyTo     string
+	Subject     string
+	HTMLBody    string
+	TextBody    string
+	Attachments []Attachment
+	Metadata    map[string]string
+}
+
+type MarketingPayload struct {
+	To               []string
+	From             string
+	ReplyTo          string
+	Subject          string
+	HTMLBody         string
+	TextBody         string
+	UnsubscribeURL   string
+	UnsubscribeGroup string
+	Tags             []string
+	Metadata         map[string]string
+	TrackOpens       bool
+	TrackClicks      bool
 }
 
 type Sender interface {
 	SendTransactional(ctx context.Context, payload TransactionalPayload) error
+	SendMarketing(ctx context.Context, payload MarketingPayload) error
 }
 
 type Client struct {
@@ -30,8 +162,88 @@ func New(sender Sender) Client {
 	}
 }
 
-func (c Client) SendTransactional(ctx context.Context, payload TransactionalPayload) error {
+func (c Client) SendTransactional(ctx context.Context, data TransactionalData) error {
+	if data.To == "" && len(data.Cc) == 0 && len(data.Bcc) == 0 {
+		return ValidationError{Err: ErrMissingRecipient}
+	}
+
+	if data.From == "" {
+		return ValidationError{Err: ErrMissingSender}
+	}
+
+	if data.Subject == "" {
+		return ValidationError{Err: ErrMissingSubject}
+	}
+
+	if data.Component == nil {
+		return ValidationError{Err: ErrMissingComponent}
+	}
+
+	html, err := renderComponent(data.Component)
+	if err != nil {
+		return err
+	}
+
+	text, err := HTMLToText(html)
+	if err != nil {
+		return err
+	}
+
+	payload := TransactionalPayload{
+		To:          data.To,
+		Cc:          data.Cc,
+		Bcc:         data.Bcc,
+		From:        data.From,
+		ReplyTo:     data.ReplyTo,
+		Subject:     data.Subject,
+		HTMLBody:    html,
+		TextBody:    text,
+		Attachments: data.Attachments,
+		Metadata:    data.Metadata,
+	}
+
 	return c.sender.SendTransactional(ctx, payload)
+}
+
+func (c Client) SendMarketing(ctx context.Context, data MarketingData) error {
+	if data.UnsubscribeURL == "" {
+		return ErrUnsubscribeURLRequired
+	}
+
+	html, err := renderComponent(data.Component)
+	if err != nil {
+		return err
+	}
+
+	text, err := HTMLToText(html)
+	if err != nil {
+		return err
+	}
+
+	payload := MarketingPayload{
+		To:               data.To,
+		From:             data.From,
+		ReplyTo:          data.ReplyTo,
+		Subject:          data.Subject,
+		HTMLBody:         html,
+		TextBody:         text,
+		UnsubscribeURL:   data.UnsubscribeURL,
+		UnsubscribeGroup: data.UnsubscribeGroup,
+		Tags:             data.Tags,
+		Metadata:         data.Metadata,
+		TrackOpens:       data.TrackOpens,
+		TrackClicks:      data.TrackClicks,
+	}
+
+	return c.sender.SendMarketing(ctx, payload)
+}
+
+func renderComponent(component templ.Component) (string, error) {
+	var buf bytes.Buffer
+	if err := component.Render(context.Background(), &buf); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 func HTMLToText(htmlContent string) (string, error) {
