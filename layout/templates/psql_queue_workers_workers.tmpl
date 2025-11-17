@@ -10,10 +10,6 @@ import (
 func Register(emailClient email.Client) (*river.Workers, error) {
 	wrks := river.NewWorkers()
 
-	if err := river.AddWorkerSafely(wrks, &SortWorker{}); err != nil {
-		return nil, err
-	}
-
 	if err := river.AddWorkerSafely(wrks, NewSendTransactionalEmailWorker(emailClient)); err != nil {
 		return nil, err
 	}

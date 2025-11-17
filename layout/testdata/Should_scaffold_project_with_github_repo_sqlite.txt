@@ -46,9 +46,7 @@ pkg/telemetry/options.go
 pkg/telemetry/telemetry.go
 pkg/telemetry/trace_exporters.go
 pkg/telemetry/tracer.go
-queue/jobs/sort_jobs.go
 queue/queue.go
-queue/workers/sort_jobs.go
 queue/workers/workers.go
 router/cookies/cookies.go
 router/cookies/flash.go
@@ -3927,14 +3925,6 @@ func GetTracer(serviceName string) trace.Tracer {
 }
 
 
-=== queue/jobs/sort_jobs.go ===
-package jobs
-
-type SortArgs struct {
-	Strings []string `json:"strings"`
-}
-
-
 === queue/queue.go ===
 package queue
 
@@ -4003,35 +3993,12 @@ func NewProcessor(
 }
 
 
-=== queue/workers/sort_jobs.go ===
-package workers
-
-import (
-	"context"
-	"encoding/json"
-	"sort"
-
-	"testuser/myapp/queue/jobs"
-)
-
-func HandleSort(ctx context.Context, m []byte) error {
-	var args jobs.SortArgs
-	if err := json.Unmarshal(m, &args); err != nil {
-		return err
-	}
-
-	sort.Strings(args.Strings)
-	return nil
-}
-
-
 === queue/workers/workers.go ===
 package workers
 
 import "maragu.dev/goqite/jobs"
 
 func Register(runner *jobs.Runner) {
-	runner.Register("sort", HandleSort)
 }
 
 

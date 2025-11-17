@@ -297,10 +297,8 @@ var basePSQLTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Queue package
 	"psql_queue_queue.tmpl":                              "queue/queue.go",
-	"psql_queue_jobs_sort_jobs.tmpl":                     "queue/jobs/sort_jobs.go",
 	"psql_queue_jobs_send_transactional_email.tmpl":      "queue/jobs/send_transactional_email.go",
 	"psql_queue_workers_workers.tmpl":                    "queue/workers/workers.go",
-	"psql_queue_workers_sort_jobs.tmpl":                  "queue/workers/sort_jobs.go",
 	"psql_queue_workers_send_transactional_email.tmpl":   "queue/workers/send_transactional_email.go",
 }
 
@@ -308,10 +306,8 @@ var baseSqliteTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"sqlite_database.tmpl": "database/database.go",
 	"sqlite_sqlc.tmpl":     "database/sqlc.yaml",
 
-	"sqlite_queue_queue.tmpl":             "queue/queue.go",
-	"sqlite_queue_jobs_sort_jobs.tmpl":    "queue/jobs/sort_jobs.go",
-	"sqlite_queue_workers_workers.tmpl":   "queue/workers/workers.go",
-	"sqlite_queue_workers_sort_jobs.tmpl": "queue/workers/sort_jobs.go",
+	"sqlite_queue_queue.tmpl":           "queue/queue.go",
+	"sqlite_queue_workers_workers.tmpl": "queue/workers/workers.go",
 }
 
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{

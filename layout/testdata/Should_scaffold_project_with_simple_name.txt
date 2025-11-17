@@ -50,10 +50,8 @@ pkg/telemetry/telemetry.go
 pkg/telemetry/trace_exporters.go
 pkg/telemetry/tracer.go
 queue/jobs/send_transactional_email.go
-queue/jobs/sort_jobs.go
 queue/queue.go
 queue/workers/send_transactional_email.go
-queue/workers/sort_jobs.go
 queue/workers/workers.go
 router/cookies/cookies.go
 router/cookies/flash.go
@@ -4421,18 +4419,6 @@ type SendTransactionalEmailArgs struct {
 func (SendTransactionalEmailArgs) Kind() string { return "send_transactional_email" }
 
 
-=== queue/jobs/sort_jobs.go ===
-// Package jobs provides job definitions for background processing.
-package jobs
-
-// SortArgs placeholder file to make the jobs package exist.
-type SortArgs struct {
-	Strings []string `json:"strings"`
-}
-
-func (SortArgs) Kind() string { return "sort" }
-
-
 === queue/queue.go ===
 // Package queue provides an InsertOnly queue implementation using River with pgx v5.
 package queue
@@ -4531,29 +4517,6 @@ func (w *SendTransactionalEmailWorker) Work(ctx context.Context, job *river.Job[
 }
 
 
-=== queue/workers/sort_jobs.go ===
-package workers
-
-import (
-	"context"
-	"sort"
-
-	"testapp/queue/jobs"
-
-	"github.com/riverqueue/river"
-)
-
-// SortWorker is a placeholder worker that sorts a list of strings.
-type SortWorker struct {
-	river.WorkerDefaults[jobs.SortArgs]
-}
-
-func (w *SortWorker) Work(ctx context.Context, job *river.Job[jobs.SortArgs]) error {
-	sort.Strings(job.Args.Strings)
-	return nil
-}
-
-
 === queue/workers/workers.go ===
 // Package workers provides a centralized place to register all background workers for the application.
 package workers
@@ -4566,10 +4529,6 @@ import (
 
 func Register(emailClient email.Client) (*river.Workers, error) {
 	wrks := river.NewWorkers()
-
-	if err := river.AddWorkerSafely(wrks, &SortWorker{}); err != nil {
-		return nil, err
-	}
 
 	if err := river.AddWorkerSafely(wrks, NewSendTransactionalEmailWorker(emailClient)); err != nil {
 		return nil, err
