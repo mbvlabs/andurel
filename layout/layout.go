@@ -337,7 +337,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_email.tmpl":     "config/email.go",
 
 	// Clients
-	"clients_mail_hog.tmpl": "clients/email/mailhog.go",
+	"clients_email_mailhog.tmpl": "clients/email/mailhog.go",
 
 	// Controllers
 	"controllers_api.tmpl":        "controllers/api.go",
@@ -351,9 +351,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
 
 	// Email
-	"email_email.tmpl":        "email/email.go",
-	"email_base_layout.tmpl":  "email/base_layout.templ",
-	"email_components.tmpl":   "email/components.templ",
+	"email_email.tmpl":       "email/email.go",
+	"email_base_layout.tmpl": "email/base_layout.templ",
+	"email_components.tmpl":  "email/components.templ",
 
 	// Models
 	"models_errors.tmpl":         "models/errors.go",
