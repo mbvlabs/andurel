@@ -33,10 +33,25 @@ func (e Auth) Apply(ctx *Context) error {
 	builder.AddControllerField("Confirmations", "Confirmations")
 	builder.AddControllerField("ResetPasswords", "ResetPasswords")
 
+	db := ctx.Data.DatabaseDialect()
+
 	builder.AddControllerConstructor("sessions", "newSessions(db, cfg)")
-	builder.AddControllerConstructor("registrations", "newRegistrations(db, insertOnly, cfg)")
+
+	if db == "postgresql" {
+		builder.AddControllerConstructor("registrations", "newRegistrations(db, insertOnly, cfg)")
+	}
+	if db == "sqlite" {
+		builder.AddControllerConstructor("registrations", "newRegistrations(db, emailClient, cfg)")
+	}
+
 	builder.AddControllerConstructor("confirmations", "newConfirmations(db, cfg)")
-	builder.AddControllerConstructor("resetPasswords", "newResetPasswords(db, insertOnly, cfg)")
+
+	if db == "postgresql" {
+		builder.AddControllerConstructor("resetPasswords", "newResetPasswords(db, insertOnly, cfg)")
+	}
+	if db == "sqlite" {
+		builder.AddControllerConstructor("resetPasswords", "newResetPasswords(db, emailClient, cfg)")
+	}
 
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("auth: failed to render templates: %w", err)
@@ -86,9 +101,6 @@ func (e Auth) renderTemplates(ctx *Context) error {
 
 		"models_interal_db_token_constructors.tmpl": "models/internal/db/token_constructors.go",
 		"models_interal_db_user_constructors.tmpl":  "models/internal/db/user_constructors.go",
-
-		"queue_jobs_send_transactional_email.tmpl":    "queue/jobs/send_transactional_email.go",
-		"queue_workers_send_transactional_email.tmpl": "queue/workers/send_transactional_email.go",
 
 		"services_authentication.tmpl": "services/authentication.go",
 		"services_registration.tmpl":   "services/registration.go",

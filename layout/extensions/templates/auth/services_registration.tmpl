@@ -86,7 +86,12 @@ func RegisterUser(
 
 	return tx.Commit(ctx)
 {{- else if eq .Database "sqlite" }}
-	if err := emailClient.SendVerificationEmail(ctx, user.Email, code); err != nil {
+	if err := emailClient.SendTransactional(ctx, email.TransactionalData{
+		To:        user.Email,
+		From:      "noreply@andurel.com",
+		Subject:   "Verify Your Email Address",
+		Component: email.VerifyEmail(code),
+	}); err != nil {
 		return err
 	}
 

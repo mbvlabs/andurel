@@ -49,8 +49,10 @@ pkg/telemetry/options.go
 pkg/telemetry/telemetry.go
 pkg/telemetry/trace_exporters.go
 pkg/telemetry/tracer.go
+queue/jobs/send_transactional_email.go
 queue/jobs/sort_jobs.go
 queue/queue.go
+queue/workers/send_transactional_email.go
 queue/workers/sort_jobs.go
 queue/workers/workers.go
 router/cookies/cookies.go
@@ -409,7 +411,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
+	emailClient := email.New(mailclients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort))
 	wrks, err := workers.Register(emailClient)
 	if err != nil {
 		return err
@@ -431,7 +433,6 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	emailClient := email.New(mailclients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort))
 
 	controllers, err := setupControllers(
 		db,
@@ -4408,6 +4409,18 @@ func GetTracer(serviceName string) trace.Tracer {
 }
 
 
+=== queue/jobs/send_transactional_email.go ===
+package jobs
+
+import "testapp/email"
+
+type SendTransactionalEmailArgs struct {
+	Data email.TransactionalData
+}
+
+func (SendTransactionalEmailArgs) Kind() string { return "send_transactional_email" }
+
+
 === queue/jobs/sort_jobs.go ===
 // Package jobs provides job definitions for background processing.
 package jobs
@@ -4479,6 +4492,42 @@ func NewProcessor(
 	}
 
 	return Processor{riverClient}, nil
+}
+
+
+=== queue/workers/send_transactional_email.go ===
+package workers
+
+import (
+	"context"
+
+	"github.com/riverqueue/river"
+
+	"testapp/email"
+	"testapp/queue/jobs"
+)
+
+type SendTransactionalEmailWorker struct {
+	river.WorkerDefaults[jobs.SendTransactionalEmailArgs]
+	emailClient email.Client
+}
+
+func NewSendTransactionalEmailWorker(emailClient email.Client) *SendTransactionalEmailWorker {
+	return &SendTransactionalEmailWorker{
+		emailClient: emailClient,
+	}
+}
+
+func (w *SendTransactionalEmailWorker) Work(ctx context.Context, job *river.Job[jobs.SendTransactionalEmailArgs]) error {
+	err := w.emailClient.SendTransactional(ctx, job.Args.Data)
+	if err != nil {
+		if !email.IsRetryable(err) {
+			return river.JobCancel(err)
+		}
+		return err
+	}
+
+	return nil
 }
 
 

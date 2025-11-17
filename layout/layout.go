@@ -296,10 +296,12 @@ var basePSQLTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"psql_sqlc.tmpl":     "database/sqlc.yaml",
 
 	// Queue package
-	"psql_queue_queue.tmpl":             "queue/queue.go",
-	"psql_queue_jobs_sort_jobs.tmpl":    "queue/jobs/sort_jobs.go",
-	"psql_queue_workers_workers.tmpl":   "queue/workers/workers.go",
-	"psql_queue_workers_sort_jobs.tmpl": "queue/workers/sort_jobs.go",
+	"psql_queue_queue.tmpl":                              "queue/queue.go",
+	"psql_queue_jobs_sort_jobs.tmpl":                     "queue/jobs/sort_jobs.go",
+	"psql_queue_jobs_send_transactional_email.tmpl":      "queue/jobs/send_transactional_email.go",
+	"psql_queue_workers_workers.tmpl":                    "queue/workers/workers.go",
+	"psql_queue_workers_sort_jobs.tmpl":                  "queue/workers/sort_jobs.go",
+	"psql_queue_workers_send_transactional_email.tmpl":   "queue/workers/send_transactional_email.go",
 }
 
 var baseSqliteTemplateMappings = map[TmplTarget]TmplTargetPath{

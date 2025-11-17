@@ -199,7 +199,24 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+{{- else if eq .Database "sqlite"}}
+	db, err := database.NewSQLite(ctx, cfg.DB.GetDatabaseURL())
+	if err != nil {
+		return err
+	}
+{{- end}}
 
+{{- range .Blueprint.Controllers.SortedDependencies}}
+{{- if .InitExpr}}
+	{{.Name}} := {{.InitExpr}}
+{{- end}}
+{{- end}}
+
+{{- range .Blueprint.Main.SortedInitializations}}
+	{{.VarName}} := {{.Expression}}
+{{- end}}
+
+{{- if eq .Database "postgresql"}}
 	wrks, err := workers.Register(emailClient)
 	if err != nil {
 		return err
@@ -221,21 +238,6 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-{{- else if eq .Database "sqlite"}}
-	db, err := database.NewSQLite(ctx, cfg.DB.GetDatabaseURL())
-	if err != nil {
-		return err
-	}
-{{- end}}
-
-{{- range .Blueprint.Controllers.SortedDependencies}}
-{{- if .InitExpr}}
-	{{.Name}} := {{.InitExpr}}
-{{- end}}
-{{- end}}
-
-{{- range .Blueprint.Main.SortedInitializations}}
-	{{.VarName}} := {{.Expression}}
 {{- end}}
 
 {{- range .Blueprint.Main.SortedPreRunHooks}}
