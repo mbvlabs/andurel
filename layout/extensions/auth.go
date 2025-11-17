@@ -50,7 +50,7 @@ func (e Auth) Apply(ctx *Context) error {
 }
 
 func (e Auth) Dependencies() []string {
-	return []string{Email{}.Name()}
+	return nil
 }
 
 func (e Auth) renderTemplates(ctx *Context) error {

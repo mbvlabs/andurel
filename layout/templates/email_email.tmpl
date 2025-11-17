@@ -6,23 +6,32 @@ import (
 	"strings"
 
 	"golang.org/x/net/html"
-	
-	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/clients"
 )
 
+type TransactionalPayload struct {
+	To       string
+	From     string
+	Subject  string
+	HTMLBody string
+	TextBody string
+}
+
 type Sender interface {
-	SendTransactional(ctx context.Context, to, from, subject, htmlBody, textBody string) error
+	SendTransactional(ctx context.Context, payload TransactionalPayload) error
 }
 
 type Client struct {
 	sender Sender
 }
 
-func New(cfg config.Config) Client {
+func New(sender Sender) Client {
 	return Client{
-		clients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort),
+		sender: sender,
 	}
+}
+
+func (c Client) SendTransactional(ctx context.Context, payload TransactionalPayload) error {
+	return c.sender.SendTransactional(ctx, payload)
 }
 
 func HTMLToText(htmlContent string) (string, error) {
@@ -35,13 +44,11 @@ func HTMLToText(htmlContent string) (string, error) {
 	var extract func(*html.Node)
 
 	extract = func(n *html.Node) {
-		// Skip style, script, and head elements entirely
 		if n.Type == html.ElementNode {
 			switch n.Data {
 			case "style", "script", "head":
 				return
 			case "a":
-				// Extract link text first
 				var linkText strings.Builder
 				var extractLinkText func(*html.Node)
 				extractLinkText = func(node *html.Node) {
@@ -54,7 +61,6 @@ func HTMLToText(htmlContent string) (string, error) {
 				}
 				extractLinkText(n)
 
-				// Get href attribute
 				var href string
 				for _, attr := range n.Attr {
 					if attr.Key == "href" {
@@ -63,20 +69,18 @@ func HTMLToText(htmlContent string) (string, error) {
 					}
 				}
 
-				// Write link text
 				text := strings.TrimSpace(linkText.String())
 				if text != "" {
 					result.WriteString(text)
 				}
 
-				// Append URL if it exists and is different from text
 				if href != "" && href != text {
 					result.WriteString(" (")
 					result.WriteString(href)
 					result.WriteString(")")
 				}
 				result.WriteString(" ")
-				return // Don't process children again
+				return
 			}
 		}
 

@@ -1,11 +1,15 @@
-package clients
+package mailclients
 
 import (
 	"context"
 	"fmt"
 	"net/smtp"
 	"strings"
+
+	"{{.ModuleName}}/email"
 )
+
+var _ email.Sender = (*MailHog)(nil)
 
 type MailHog struct {
 	host string
@@ -19,14 +23,14 @@ func NewMailHog(host, port string) *MailHog {
 	}
 }
 
-func (m *MailHog) SendTransactional(ctx context.Context, to, from, subject, htmlBody, textBody string) error {
+func (m *MailHog) SendTransactional(ctx context.Context, payload email.TransactionalPayload) error {
 	addr := fmt.Sprintf("%s:%s", m.host, m.port)
 
 	boundary := "boundary-mailhog-client"
 	headers := make(map[string]string)
-	headers["From"] = from
-	headers["To"] = to
-	headers["Subject"] = subject
+	headers["From"] = payload.From
+	headers["To"] = payload.To
+	headers["Subject"] = payload.Subject
 	headers["MIME-Version"] = "1.0"
 	headers["Content-Type"] = fmt.Sprintf("multipart/alternative; boundary=\"%s\"", boundary)
 
@@ -36,19 +40,19 @@ func (m *MailHog) SendTransactional(ctx context.Context, to, from, subject, html
 	}
 	message.WriteString("\r\n")
 
-	if textBody != "" {
+	if payload.TextBody != "" {
 		message.WriteString(fmt.Sprintf("--%s\r\n", boundary))
 		message.WriteString("Content-Type: text/plain; charset=\"UTF-8\"\r\n")
 		message.WriteString("\r\n")
-		message.WriteString(textBody)
+		message.WriteString(payload.TextBody)
 		message.WriteString("\r\n")
 	}
 
-	if htmlBody != "" {
+	if payload.HTMLBody != "" {
 		message.WriteString(fmt.Sprintf("--%s\r\n", boundary))
 		message.WriteString("Content-Type: text/html; charset=\"UTF-8\"\r\n")
 		message.WriteString("\r\n")
-		message.WriteString(htmlBody)
+		message.WriteString(payload.HTMLBody)
 		message.WriteString("\r\n")
 	}
 
@@ -56,9 +60,9 @@ func (m *MailHog) SendTransactional(ctx context.Context, to, from, subject, html
 
 	return smtp.SendMail(
 		addr,
-		nil, // No auth required for MailHog
-		from,
-		[]string{to},
+		nil,
+		payload.From,
+		[]string{payload.To},
 		[]byte(message.String()),
 	)
 }

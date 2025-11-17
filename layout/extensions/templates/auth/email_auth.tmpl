@@ -17,14 +17,13 @@ func (c Client) SendVerificationEmail(ctx context.Context, to, verificationCode 
 		return err
 	}
 
-	return c.sender.SendTransactional(
-		ctx,
-		to,
-		"noreply@andurel.com",
-		"Verify Your Email Address",
-		string(htmlBody),
-		textBody,
-	)
+	return c.sender.SendTransactional(ctx, TransactionalPayload{
+		To:       to,
+		From:     "noreply@andurel.com",
+		Subject:  "Verify Your Email Address",
+		HTMLBody: string(htmlBody),
+		TextBody: textBody,
+	})
 }
 
 func (c Client) SendResetPasswordEmail(ctx context.Context, to, resetURL string) error {
@@ -38,12 +37,11 @@ func (c Client) SendResetPasswordEmail(ctx context.Context, to, resetURL string)
 		return err
 	}
 
-	return c.sender.SendTransactional(
-		ctx,
-		to,
-		"noreply@andurel.com",
-		"Reset Your Password",
-		string(htmlBody),
-		textBody,
-	)
+	return c.sender.SendTransactional(ctx, TransactionalPayload{
+		To:       to,
+		From:     "noreply@andurel.com",
+		Subject:  "Reset Your Password",
+		HTMLBody: string(htmlBody),
+		TextBody: textBody,
+	})
 }
