@@ -30,6 +30,19 @@ func (m *MailHog) SendTransactional(ctx context.Context, payload email.Transacti
 	headers := make(map[string]string)
 	headers["From"] = payload.From
 	headers["To"] = payload.To
+
+	if len(payload.Cc) > 0 {
+		headers["Cc"] = strings.Join(payload.Cc, ", ")
+	}
+
+	if len(payload.Bcc) > 0 {
+		headers["Bcc"] = strings.Join(payload.Bcc, ", ")
+	}
+
+	if payload.ReplyTo != "" {
+		headers["Reply-To"] = payload.ReplyTo
+	}
+
 	headers["Subject"] = payload.Subject
 	headers["MIME-Version"] = "1.0"
 	headers["Content-Type"] = fmt.Sprintf("multipart/alternative; boundary=\"%s\"", boundary)
@@ -58,11 +71,19 @@ func (m *MailHog) SendTransactional(ctx context.Context, payload email.Transacti
 
 	message.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
 
+	recipients := []string{payload.To}
+	recipients = append(recipients, payload.Cc...)
+	recipients = append(recipients, payload.Bcc...)
+
 	return smtp.SendMail(
 		addr,
 		nil,
 		payload.From,
-		[]string{payload.To},
+		recipients,
 		[]byte(message.String()),
 	)
+}
+
+func (m *MailHog) SendMarketing(ctx context.Context, payload email.MarketingPayload) error {
+	return fmt.Errorf("MailHog does not support marketing emails")
 }
