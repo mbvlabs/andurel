@@ -55,13 +55,6 @@ func getScaffoldConfigs() []ScaffoldConfig {
 			Critical:   true,
 		},
 		{
-			Name:       "postgresql-tailwind-email",
-			Database:   "postgresql",
-			CSS:        "tailwind",
-			Extensions: []string{"email"},
-			Critical:   true,
-		},
-		{
 			Name:       "sqlite-tailwind-auth",
 			Database:   "sqlite",
 			CSS:        "tailwind",
@@ -86,14 +79,14 @@ func getScaffoldConfigs() []ScaffoldConfig {
 			Name:       "postgresql-tailwind-all-extensions",
 			Database:   "postgresql",
 			CSS:        "tailwind",
-			Extensions: []string{"auth", "email", "docker"},
+			Extensions: []string{"auth", "docker"},
 			Critical:   true,
 		},
 		{
 			Name:       "sqlite-vanilla-all-extensions",
 			Database:   "sqlite",
 			CSS:        "vanilla",
-			Extensions: []string{"auth", "email", "docker"},
+			Extensions: []string{"auth", "docker"},
 			Critical:   true,
 		},
 	}

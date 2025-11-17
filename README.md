@@ -17,7 +17,7 @@ Development speed is everything. Andurel eliminates boilerplate and lets you foc
 - **Instant Scaffolding** - Generate complete CRUD resources with one command
 - **Live Reload** - Hot reloading for Go, templates, and CSS with `andurel run`
 - **Type Safety Everywhere** - SQLC for SQL, Templ for HTML, Go for logic
-- **Batteries Included** - Echo, Datastar, background jobs, sessions, CSRF protection, telemetry, optional extensions (auth, email, workflows, docker)
+- **Batteries Included** - Echo, Datastar, background jobs, sessions, CSRF protection, telemetry, email support, optional extensions (auth, workflows, docker)
 - **Convention over Configuration** - Sensible defaults that just work
 - **Your Choice** - Pick PostgreSQL or SQLite, Tailwind or vanilla CSS
 
@@ -55,10 +55,9 @@ andurel new myapp -d sqlite -c vanilla   # SQLite + vanilla CSS
 
 # Add extensions for common features:
 andurel new myapp -e auth                # Add authentication
-andurel new myapp -e email               # Add email support
 andurel new myapp -e workflows           # Add workflow orchestration (PostgreSQL only)
 andurel new myapp -e docker              # Add Dockerfile for containerization
-andurel new myapp -e auth,email,docker   # Add multiple extensions
+andurel new myapp -e auth,workflows,docker   # Add multiple extensions
 
 cd myapp
 
@@ -97,9 +96,12 @@ myapp/
 │   ├── console/        # Interactive database console
 │   ├── migration/      # Migration runner
 │   └── run/            # Development server orchestrator
+├── clients/             # External service clients
+│   └── mail_hog.go     # MailHog email client
 ├── config/              # Application configuration
 │   ├── app.go          # Sessions, tokens, security
 │   ├── database.go     # Database connection
+│   ├── email.go        # Email configuration
 │   ├── telemetry.go    # Logging, tracing, metrics config
 │   └── config.go       # Main config aggregator
 ├── controllers/         # HTTP request handlers
@@ -112,6 +114,10 @@ myapp/
 │   ├── migrations/     # SQL migration files
 │   ├── queries/        # SQLC query definitions
 │   └── sqlc.yaml       # SQLC configuration
+├── email/               # Email functionality
+│   ├── email.go        # Email client and sending logic
+│   ├── base_layout.templ    # Base email template layout
+│   └── components.templ     # Reusable email components
 ├── models/              # Data models and business logic
 │   ├── model.go        # Base model setup
 │   └── internal/db/    # Generated SQLC code (do not edit)
@@ -228,10 +234,9 @@ andurel new myapp -d sqlite -c vanilla   # Both options
 
 # Add extensions:
 andurel new myapp -e auth                # Authentication
-andurel new myapp -e email               # Email support
 andurel new myapp -e workflows           # Workflow orchestration (PostgreSQL only)
 andurel new myapp -e docker              # Docker containerization
-andurel new myapp -e auth,email,docker   # Multiple extensions
+andurel new myapp -e auth,workflows,docker   # Multiple extensions
 
 # With custom GitHub repo:
 andurel new myapp --repo username
@@ -308,6 +313,15 @@ Both databases are fully supported with type-safe SQLC code generation and backg
 - **Flash Messages** - Built-in support for temporary user notifications
 - **Secure Defaults** - Password hashing, SQL injection prevention, XSS protection
 
+### Email Support
+
+Built-in email functionality for sending transactional emails and notifications:
+
+- **Template Support** - Type-safe email templates using Templ
+- **MailHog Integration** - Pre-configured MailHog client for development testing
+- **Flexible Configuration** - Easy-to-configure SMTP settings via environment variables
+- **Ready to Use** - Email infrastructure included in every new project by default
+
 ### Telemetry and Observability
 
 Built-in OpenTelemetry integration for comprehensive application monitoring:
@@ -340,16 +354,15 @@ url := routes.UserShowPage.URL(userID)
 Andurel includes optional extensions that add common functionality to your projects:
 
 - **auth** - Complete authentication system with login, registration, password reset, session management, and IP-based rate limiting for security
-- **email** - Email sending capabilities with template support, perfect for transactional emails and notifications
 - **workflows** - River-based workflow orchestration for managing complex multi-step background processes with task dependencies (PostgreSQL only)
 - **docker** - Production-ready Dockerfile and .dockerignore for containerized deployments
 
 Add extensions when creating a project with the `-e` flag:
 
 ```bash
-andurel new myapp -e auth,email
+andurel new myapp -e auth
 andurel new myapp -e workflows,docker
-andurel new myapp -e auth,email,workflows,docker
+andurel new myapp -e auth,workflows,docker
 ```
 
 Extensions integrate seamlessly with your chosen database and CSS framework, generating all necessary models, controllers, views, and routes.

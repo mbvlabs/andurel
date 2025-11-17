@@ -140,6 +140,15 @@ func Scaffold(
 		}
 	}
 
+	if os.Getenv("ANDUREL_SKIP_MAILHOG") != "true" {
+		fmt.Print("Setting up MailHog...\n")
+		if err := cmds.SetupMailHog(targetDir); err != nil {
+			fmt.Println(
+				"Failed to download MailHog binary. Run 'andurel app mailhog' after setup is done to fix.",
+			)
+		}
+	}
+
 	fmt.Print("Running initial go mod tidy...\n")
 	if err := cmds.RunGoModTidy(targetDir); err != nil {
 		return fmt.Errorf("failed to run go mod tidy: %w", err)
@@ -325,6 +334,10 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_config.tmpl":    "config/config.go",
 	"config_database.tmpl":  "config/database.go",
 	"config_telemetry.tmpl": "config/telemetry.go",
+	"config_email.tmpl":     "config/email.go",
+
+	// Clients
+	"clients_email_mailhog.tmpl": "clients/email/mailhog.go",
 
 	// Controllers
 	"controllers_api.tmpl":        "controllers/api.go",
@@ -336,6 +349,11 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Database
 	"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
 	"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
+
+	// Email
+	"email_email.tmpl":       "email/email.go",
+	"email_base_layout.tmpl": "email/base_layout.templ",
+	"email_components.tmpl":  "email/components.templ",
 
 	// Models
 	"models_errors.tmpl":         "models/errors.go",
@@ -672,7 +690,6 @@ func templateFuncMap() template.FuncMap {
 func registerBuiltinExtensions() error {
 	registerBuiltinOnce.Do(func() {
 		builtin := []extensions.Extension{
-			extensions.Email{},
 			extensions.Auth{},
 			extensions.Docker{},
 			extensions.Workflows{},
@@ -881,6 +898,18 @@ func generateRandomHex(bytes int) string {
 func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	builder := blueprint.NewBuilder(nil)
 
+	builder.AddMainImport(fmt.Sprintf("%s/email", moduleName))
+	builder.AddMainImport(fmt.Sprintf("%s/clients/email", moduleName))
+	builder.AddControllerImport(fmt.Sprintf("%s/email", moduleName))
+
+	builder.AddMainInitialization(
+		"emailClient",
+		"email.New(mailclients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort))",
+		"cfg",
+	)
+
+	builder.AddConfigField("Email", "email")
+
 	// Controller dependencies - database is the primary dependency
 	var dbType string
 	switch database {
@@ -892,6 +921,7 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 		dbType = "database.Postgres"
 	}
 	builder.AddControllerDependency("db", dbType)
+	builder.AddControllerDependency("emailClient", "email.Client")
 
 	// Controller fields - the main sub-controllers
 	builder.
@@ -913,6 +943,8 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	for _, tool := range defaultTools {
 		builder.AddTool(tool)
 	}
+
+	builder.AddTool("github.com/mailhog/MailHog")
 
 	return builder.Blueprint()
 }

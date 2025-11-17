@@ -130,3 +130,70 @@ func getTailwindDownloadURL() (string, error) {
 
 	return fmt.Sprintf("%s/tailwindcss-%s", baseURL, arch), nil
 }
+
+func SetupMailHog(targetDir string) error {
+	binPath := filepath.Join(targetDir, "bin", "mailhog")
+
+	if _, err := os.Stat(binPath); err == nil {
+		fmt.Printf("MailHog binary already exists at: %s\n", binPath)
+		return nil
+	}
+
+	binDir := filepath.Join(targetDir, "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create bin directory: %w", err)
+	}
+
+	downloadURL, err := getMailHogDownloadURL()
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Get(downloadURL)
+	if err != nil {
+		return fmt.Errorf("failed to download MailHog: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download MailHog: status %d", resp.StatusCode)
+	}
+
+	out, err := os.Create(binPath)
+	if err != nil {
+		return fmt.Errorf("failed to create binary file: %w", err)
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		return fmt.Errorf("failed to write binary: %w", err)
+	}
+
+	if err := os.Chmod(binPath, 0o755); err != nil {
+		return fmt.Errorf("failed to make binary executable: %w", err)
+	}
+
+	return nil
+}
+
+func getMailHogDownloadURL() (string, error) {
+	version := "v1.0.1"
+	baseURL := fmt.Sprintf("https://github.com/mailhog/MailHog/releases/download/%s", version)
+
+	var platform string
+	switch runtime.GOOS {
+	case "darwin":
+		platform = "MailHog_darwin_amd64"
+	case "linux":
+		platform = "MailHog_linux_amd64"
+	case "windows":
+		platform = "MailHog_windows_amd64.exe"
+	default:
+		return "", fmt.Errorf(
+			"unsupported platform: %s. Supported platforms: darwin (mac), linux, windows",
+			runtime.GOOS,
+		)
+	}
+
+	return fmt.Sprintf("%s/%s", baseURL, platform), nil
+}
