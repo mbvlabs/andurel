@@ -17,7 +17,10 @@ func TestProjectScaffoldingSqlite__GoldenFile(t *testing.T) {
 		t.Fatalf("Failed to set ANDUREL_SKIP_TAILWIND env var: %v", err)
 	}
 	if err := os.Setenv("ANDUREL_SKIP_BUILD", "true"); err != nil {
-		t.Fatalf("Failed to set ANDUREL_SKIP_TAILWIND env var: %v", err)
+		t.Fatalf("Failed to set ANDUREL_SKIP_BUILD env var: %v", err)
+	}
+	if err := os.Setenv("ANDUREL_SKIP_MAILHOG", "true"); err != nil {
+		t.Fatalf("Failed to set ANDUREL_SKIP_MAILHOG env var: %v", err)
 	}
 	if err := os.Setenv("ANDUREL_TEST_MODE", "true"); err != nil {
 		t.Fatalf("Failed to set ANDUREL_TEST_MODE env var: %v", err)
@@ -84,7 +87,10 @@ func TestProjectScaffoldingPostgresql__GoldenFile(t *testing.T) {
 		t.Fatalf("Failed to set ANDUREL_SKIP_TAILWIND env var: %v", err)
 	}
 	if err := os.Setenv("ANDUREL_SKIP_BUILD", "true"); err != nil {
-		t.Fatalf("Failed to set ANDUREL_SKIP_TAILWIND env var: %v", err)
+		t.Fatalf("Failed to set ANDUREL_SKIP_BUILD env var: %v", err)
+	}
+	if err := os.Setenv("ANDUREL_SKIP_MAILHOG", "true"); err != nil {
+		t.Fatalf("Failed to set ANDUREL_SKIP_MAILHOG env var: %v", err)
 	}
 	if err := os.Setenv("ANDUREL_TEST_MODE", "true"); err != nil {
 		t.Fatalf("Failed to set ANDUREL_TEST_MODE env var: %v", err)
