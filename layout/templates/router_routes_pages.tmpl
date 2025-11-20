@@ -1,13 +1,8 @@
 package routes
 
-import "net/http"
-
 const pageNamePrefix = "pages"
 
 var HomePage = newRouteBuilder("home").
 	SetNamePrefix(pageNamePrefix).
 	SetPath("/").
-	SetMethod(http.MethodGet).
-	SetCtrl("Pages", "Home").
-	WithSitemap().
 	Register()

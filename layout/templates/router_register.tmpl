@@ -1,0 +1,48 @@
+package router
+
+import (
+	"net/http"
+
+	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/router/routes"
+
+	"github.com/labstack/echo/v4"
+)
+
+func registrar(handler *echo.Echo, ctrls controllers.Controllers) {
+	handler.Add(
+		http.MethodGet, routes.Health.URL(), ctrls.API.Health,
+	).Name = routes.Health.Name()
+
+	handler.Add(
+		http.MethodGet, routes.Robots.URL(), ctrls.Assets.Robots,
+	).Name = routes.Robots.Name()
+
+	handler.Add(
+		http.MethodGet, routes.Sitemap.URL(), ctrls.Assets.Sitemap,
+	).Name = routes.Sitemap.Name()
+
+	handler.Add(
+		http.MethodGet, routes.Stylesheet.URL(), ctrls.Assets.Stylesheet,
+	).Name = routes.Stylesheet.Name()
+
+{{- if eq .CSSFramework "vanilla"}}
+	handler.Add(
+		http.MethodGet, routes.StyleImport.URL(), ctrls.Assets.StyleImport,
+	).Name = routes.StyleImport.Name()
+{{- end}}
+
+	handler.Add(
+		http.MethodGet, routes.Scripts.URL(), ctrls.Assets.Scripts,
+	).Name = routes.Scripts.Name()
+
+	handler.Add(
+		http.MethodGet, routes.Script.URL(), ctrls.Assets.Script,
+	).Name = routes.Script.Name()
+
+	handler.Add(
+		http.MethodGet, routes.HomePage.URL(), ctrls.Pages.Home,
+	).Name = routes.HomePage.Name()
+
+	handler.RouteNotFound("/*", ctrls.Pages.NotFound)
+}

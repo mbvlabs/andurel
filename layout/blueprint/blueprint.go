@@ -58,6 +58,9 @@ type RouteSection struct {
 
 	// Route group imports (for middleware, etc.)
 	Imports *OrderedSet
+
+	// RouteRegistrations holds route registration entries for the registrar function
+	Registrations []RouteRegistration
 }
 
 // ModelSection holds model configuration.
@@ -186,6 +189,20 @@ type RouteCollection struct {
 	Order int
 }
 
+// RouteRegistration represents a route registration entry for the registrar function.
+type RouteRegistration struct {
+	// Method is the HTTP method (e.g., "http.MethodGet")
+	Method string
+	// RouteVariable is the route variable name (e.g., "routes.Health")
+	RouteVariable string
+	// ControllerRef is the controller method reference (e.g., "ctrls.API.Health")
+	ControllerRef string
+	// Middleware is optional middleware to apply to this route
+	Middleware []string
+	// Order for deterministic rendering
+	Order int
+}
+
 // Model represents a model struct definition.
 type Model struct {
 	Name   string
@@ -228,6 +245,7 @@ func New() *Blueprint {
 			RouteGroups:      NewOrderedSet(),
 			RouteCollections: make([]RouteCollection, 0),
 			Imports:          NewOrderedSet(),
+			Registrations:    make([]RouteRegistration, 0),
 		},
 		Models: ModelSection{
 			Imports: NewOrderedSet(),
@@ -301,6 +319,16 @@ func (rs *RouteSection) SortedRouteCollections() []RouteCollection {
 		return result[i].Order < result[j].Order
 	})
 	return result
+}
+
+// SortedRegistrations returns route registrations sorted by order.
+func (rs *RouteSection) SortedRegistrations() []RouteRegistration {
+	registrations := make([]RouteRegistration, len(rs.Registrations))
+	copy(registrations, rs.Registrations)
+	sort.Slice(registrations, func(i, j int) bool {
+		return registrations[i].Order < registrations[j].Order
+	})
+	return registrations
 }
 
 // SortedModels returns models sorted by order.

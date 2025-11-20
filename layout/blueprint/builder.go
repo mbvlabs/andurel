@@ -16,6 +16,7 @@ type Builder struct {
 	nextConstructorOrder      int
 	nextRouteOrder            int
 	nextRouteCollectionOrder  int
+	nextRouteRegistrationOrder int
 	nextModelOrder            int
 	nextConfigFieldOrder      int
 	nextEnvVarOrder           int
@@ -244,6 +245,31 @@ func (b *Builder) AddRouteCollection(routes ...string) *Builder {
 	return b
 }
 
+// AddRouteRegistration adds a route registration entry for the registrar function.
+// The method is the HTTP method constant (e.g., "http.MethodGet"),
+// routeVariable is the route variable (e.g., "routes.Health"),
+// controllerRef is the controller method reference (e.g., "ctrls.API.Health"),
+// and middleware is optional middleware to apply.
+func (b *Builder) AddRouteRegistration(method, routeVariable, controllerRef string, middleware ...string) *Builder {
+	if b == nil || b.bp == nil {
+		return b
+	}
+
+	if method == "" || routeVariable == "" || controllerRef == "" {
+		return b
+	}
+
+	b.bp.Routes.Registrations = append(b.bp.Routes.Registrations, RouteRegistration{
+		Method:        method,
+		RouteVariable: routeVariable,
+		ControllerRef: controllerRef,
+		Middleware:    middleware,
+		Order:         b.nextRouteRegistrationOrder,
+	})
+	b.nextRouteRegistrationOrder++
+	return b
+}
+
 // AddModel adds a model definition.
 func (b *Builder) AddModel(model Model) *Builder {
 	if model.Name == "" {
@@ -452,6 +478,9 @@ func (b *Builder) Merge(other *Blueprint) error {
 	}
 	for _, collection := range other.Routes.RouteCollections {
 		b.AddRouteCollection(collection.Routes...)
+	}
+	for _, registration := range other.Routes.Registrations {
+		b.AddRouteRegistration(registration.Method, registration.RouteVariable, registration.ControllerRef, registration.Middleware...)
 	}
 
 	// Merge models
