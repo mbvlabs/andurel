@@ -53,6 +53,18 @@ func (e Auth) Apply(ctx *Context) error {
 		builder.AddControllerConstructor("resetPasswords", "newResetPasswords(db, emailClient, cfg)")
 	}
 
+	builder.AddRouteRegistration("http.MethodGet", "routes.SessionNew", "ctrls.Sessions.New")
+	builder.AddRouteRegistration("http.MethodPost", "routes.SessionCreate", "ctrls.Sessions.Create")
+	builder.AddRouteRegistration("http.MethodDelete", "routes.SessionDestroy", "ctrls.Sessions.Destroy")
+	builder.AddRouteRegistration("http.MethodGet", "routes.PasswordNew", "ctrls.ResetPasswords.New")
+	builder.AddRouteRegistration("http.MethodPost", "routes.PasswordCreate", "ctrls.ResetPasswords.Create")
+	builder.AddRouteRegistration("http.MethodGet", "routes.PasswordEdit", "ctrls.ResetPasswords.Edit")
+	builder.AddRouteRegistration("http.MethodPut", "routes.PasswordUpdate", "ctrls.ResetPasswords.Update")
+	builder.AddRouteRegistration("http.MethodGet", "routes.RegistrationNew", "ctrls.Registrations.New")
+	builder.AddRouteRegistration("http.MethodPost", "routes.RegistrationCreate", "ctrls.Registrations.Create")
+	builder.AddRouteRegistration("http.MethodGet", "routes.ConfirmationNew", "ctrls.Confirmations.New")
+	builder.AddRouteRegistration("http.MethodPost", "routes.ConfirmationCreate", "ctrls.Confirmations.Create")
+
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("auth: failed to render templates: %w", err)
 	}

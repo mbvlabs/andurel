@@ -134,14 +134,14 @@ func (r {{.ResourceName}}s) Create(c echo.Context) error {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to create {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return flashErr
 		}
-		return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}New.Path)
+		return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}New.URL())
 	}
 
 	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "{{.ResourceName}} created successfully"); flashErr != nil {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.GetPath({{.ResourceName | ToLowerCamelCase}}.ID))
+	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.ID))
 }
 
 func (r {{.ResourceName}}s) Edit(c echo.Context) error {
@@ -220,7 +220,7 @@ func (r {{.ResourceName}}s) Update(c echo.Context) error {
 		}
 		return c.Redirect(
 			http.StatusSeeOther,
-			routes.{{.ResourceName}}Edit.GetPath({{.ResourceName | ToLowerCamelCase}}ID),
+			routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLowerCamelCase}}ID),
 		)
 	}
 
@@ -228,7 +228,7 @@ func (r {{.ResourceName}}s) Update(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.GetPath({{.ResourceName | ToLowerCamelCase}}.ID))
+	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.ID))
 }
 
 func (r {{.ResourceName}}s) Destroy(c echo.Context) error {
@@ -242,13 +242,12 @@ func (r {{.ResourceName}}s) Destroy(c echo.Context) error {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return render(c, views.InternalError())
 		}
-		return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.Path)
+		return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
 	}
 
 	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "{{.ResourceName}} destroyed successfully"); flashErr != nil {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.Path)
+	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
 }
-

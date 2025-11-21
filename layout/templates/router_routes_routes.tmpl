@@ -24,10 +24,18 @@ func (r Route) URL() string {
 	return r[routePath]
 }
 
+func (r Route) Path() string {
+	return r[routePath]
+}
+
 type RouteWithID Route
 
 func (r RouteWithID) Name() string {
 	return r[routeName]
+}
+
+func (r RouteWithID) Path() string {
+	return r[routePath]
 }
 
 func (r RouteWithID) URL(id uuid.UUID) string {
@@ -40,6 +48,10 @@ func (r RouteWithSlug) Name() string {
 	return r[routeName]
 }
 
+func (r RouteWithSlug) Path() string {
+	return r[routePath]
+}
+
 func (r RouteWithSlug) URL(slug string) string {
 	return strings.Replace(r[routePath], ":slug", slug, 1)
 }
@@ -50,7 +62,12 @@ func (r RouteWithToken) Name() string {
 	return r[routeName]
 }
 
+func (r RouteWithToken) Path() string {
+	return r[routePath]
+}
+
 func (r RouteWithToken) URL(token string) string {
+
 	return strings.Replace(r[routePath], ":token", token, 1)
 }
 
@@ -69,11 +86,13 @@ func newRouteBuilder(name string) routeBuilder {
 
 func (r routeBuilder) SetNamePrefix(prefix string) routeBuilder {
 	r.Name = prefix + "." + r.Name
+
 	return r
 }
 
 func (r routeBuilder) SetPath(path string) routeBuilder {
 	r.Path = r.Path + path
+
 	return r
 }
 
@@ -81,6 +100,7 @@ func (r routeBuilder) Register() Route {
 	route := make(Route, 2)
 	route[routeName] = r.Name
 	route[routePath] = r.Path
+
 	return Route(route)
 }
 
@@ -88,6 +108,7 @@ func (r routeBuilder) RegisterWithID() RouteWithID {
 	route := make(Route, 2)
 	route[routeName] = r.Name
 	route[routePath] = r.Path
+
 	return RouteWithID(route)
 }
 
@@ -95,6 +116,7 @@ func (r routeBuilder) RegisterWithSlug() RouteWithSlug {
 	route := make(Route, 2)
 	route[routeName] = r.Name
 	route[routePath] = r.Path
+
 	return RouteWithSlug(route)
 }
 
@@ -102,5 +124,6 @@ func (r routeBuilder) RegisterWithToken() RouteWithToken {
 	route := make(Route, 2)
 	route[routeName] = r.Name
 	route[routePath] = r.Path
+
 	return RouteWithToken(route)
 }

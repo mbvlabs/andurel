@@ -11,38 +11,44 @@ import (
 
 func registrar(handler *echo.Echo, ctrls controllers.Controllers) {
 	handler.Add(
-		http.MethodGet, routes.Health.URL(), ctrls.API.Health,
+		http.MethodGet, routes.Health.Path(), ctrls.API.Health,
 	).Name = routes.Health.Name()
 
 	handler.Add(
-		http.MethodGet, routes.Robots.URL(), ctrls.Assets.Robots,
+		http.MethodGet, routes.Robots.Path(), ctrls.Assets.Robots,
 	).Name = routes.Robots.Name()
 
 	handler.Add(
-		http.MethodGet, routes.Sitemap.URL(), ctrls.Assets.Sitemap,
+		http.MethodGet, routes.Sitemap.Path(), ctrls.Assets.Sitemap,
 	).Name = routes.Sitemap.Name()
 
 	handler.Add(
-		http.MethodGet, routes.Stylesheet.URL(), ctrls.Assets.Stylesheet,
+		http.MethodGet, routes.Stylesheet.Path(), ctrls.Assets.Stylesheet,
 	).Name = routes.Stylesheet.Name()
 
 {{- if eq .CSSFramework "vanilla"}}
 	handler.Add(
-		http.MethodGet, routes.StyleImport.URL(), ctrls.Assets.StyleImport,
+		http.MethodGet, routes.StyleImport.Path(), ctrls.Assets.StyleImport,
 	).Name = routes.StyleImport.Name()
 {{- end}}
 
 	handler.Add(
-		http.MethodGet, routes.Scripts.URL(), ctrls.Assets.Scripts,
+		http.MethodGet, routes.Scripts.Path(), ctrls.Assets.Scripts,
 	).Name = routes.Scripts.Name()
 
 	handler.Add(
-		http.MethodGet, routes.Script.URL(), ctrls.Assets.Script,
+		http.MethodGet, routes.Script.Path(), ctrls.Assets.Script,
 	).Name = routes.Script.Name()
 
 	handler.Add(
-		http.MethodGet, routes.HomePage.URL(), ctrls.Pages.Home,
+		http.MethodGet, routes.HomePage.Path(), ctrls.Pages.Home,
 	).Name = routes.HomePage.Name()
+{{- range .Blueprint.Routes.SortedRegistrations}}
+
+	handler.Add(
+		{{.Method}}, {{.RouteVariable}}.Path(), {{.ControllerRef}},
+	).Name = {{.RouteVariable}}.Name()
+{{- end}}
 
 	handler.RouteNotFound("/*", ctrls.Pages.NotFound)
 }

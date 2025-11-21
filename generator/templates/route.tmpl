@@ -1,7 +1,5 @@
 package routes
 
-import "net/http"
-
 const (
 	{{.PluralName | ToCamelCase}}RoutePrefix = "/{{.PluralName}}"
 	{{.PluralName | ToCamelCase}}NamePrefix  = "{{.PluralName}}"
@@ -10,41 +8,27 @@ const (
 var {{.PluralName | ToCamelCase}}Group = newRouteGroup({{.PluralName | ToCamelCase}}NamePrefix, {{.PluralName | ToCamelCase}}RoutePrefix)
 
 var {{.ResourceName}}Index = {{.PluralName | ToCamelCase}}Group.route("index").
-	SetMethod(http.MethodGet).
-	SetCtrl("{{.ResourceName}}s", "Index").
 	Register()
 
 var {{.ResourceName}}Show = {{.PluralName | ToCamelCase}}Group.route("show").
 	SetPath("/:id").
-	SetMethod(http.MethodGet).
-	SetCtrl("{{.ResourceName}}s", "Show").
 	RegisterWithID()
 
 var {{.ResourceName}}New = {{.PluralName | ToCamelCase}}Group.route("new").
 	SetPath("/new").
-	SetMethod(http.MethodGet).
-	SetCtrl("{{.ResourceName}}s", "New").
 	Register()
 
 var {{.ResourceName}}Create = {{.PluralName | ToCamelCase}}Group.route("create").
-	SetMethod(http.MethodPost).
-	SetCtrl("{{.ResourceName}}s", "Create").
 	Register()
 
 var {{.ResourceName}}Edit = {{.PluralName | ToCamelCase}}Group.route("edit").
 	SetPath("/:id/edit").
-	SetMethod(http.MethodGet).
-	SetCtrl("{{.ResourceName}}s", "Edit").
 	RegisterWithID()
 
 var {{.ResourceName}}Update = {{.PluralName | ToCamelCase}}Group.route("update").
 	SetPath("/:id").
-	SetMethod(http.MethodPut).
-	SetCtrl("{{.ResourceName}}s", "Update").
 	RegisterWithID()
 
 var {{.ResourceName}}Destroy = {{.PluralName | ToCamelCase}}Group.route("destroy").
 	SetPath("/:id").
-	SetMethod(http.MethodDelete).
-	SetCtrl("{{.ResourceName}}s", "Destroy").
 	RegisterWithID()
