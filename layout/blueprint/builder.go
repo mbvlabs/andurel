@@ -11,19 +11,22 @@ import (
 type Builder struct {
 	bp *Blueprint
 	// Track next order values for each category
-	nextControllerDepOrder    int
-	nextControllerFieldOrder  int
-	nextConstructorOrder      int
-	nextRouteOrder            int
-	nextRouteCollectionOrder  int
-	nextRouteRegistrationOrder int
-	nextModelOrder            int
-	nextConfigFieldOrder      int
-	nextEnvVarOrder           int
-	nextMigrationOrder        int
-	nextInitializationOrder   int
-	nextBackgroundWorkerOrder int
-	nextPreRunHookOrder       int
+	nextControllerDepOrder       int
+	nextControllerFieldOrder     int
+	nextConstructorOrder         int
+	nextRouteOrder               int
+	nextRouteCollectionOrder     int
+	nextRouteRegistrationOrder   int
+	nextRegistrationFunctionOrder int
+	nextModelOrder               int
+	nextConfigFieldOrder         int
+	nextEnvVarOrder              int
+	nextMigrationOrder           int
+	nextInitializationOrder      int
+	nextBackgroundWorkerOrder    int
+	nextPreRunHookOrder          int
+	// Track current registration function being built
+	currentRegistrationFunction *RegistrationFunction
 }
 
 // NewBuilder creates a builder wrapping the provided blueprint.
@@ -250,6 +253,8 @@ func (b *Builder) AddRouteCollection(routes ...string) *Builder {
 // routeVariable is the route variable (e.g., "routes.Health"),
 // controllerRef is the controller method reference (e.g., "ctrls.API.Health"),
 // and middleware is optional middleware to apply.
+// If a registration function is currently being built (via StartRouteRegistrationFunction),
+// the registration is added to that function. Otherwise, it's added to the main registrations.
 func (b *Builder) AddRouteRegistration(method, routeVariable, controllerRef string, middleware ...string) *Builder {
 	if b == nil || b.bp == nil {
 		return b
@@ -259,14 +264,77 @@ func (b *Builder) AddRouteRegistration(method, routeVariable, controllerRef stri
 		return b
 	}
 
-	b.bp.Routes.Registrations = append(b.bp.Routes.Registrations, RouteRegistration{
+	registration := RouteRegistration{
 		Method:        method,
 		RouteVariable: routeVariable,
 		ControllerRef: controllerRef,
 		Middleware:    middleware,
 		Order:         b.nextRouteRegistrationOrder,
-	})
+	}
 	b.nextRouteRegistrationOrder++
+
+	if b.currentRegistrationFunction != nil {
+		b.currentRegistrationFunction.Registrations = append(
+			b.currentRegistrationFunction.Registrations,
+			registration,
+		)
+	} else {
+		b.bp.Routes.Registrations = append(b.bp.Routes.Registrations, registration)
+	}
+
+	return b
+}
+
+// StartRouteRegistrationFunction begins building a registration function.
+// All subsequent AddRouteRegistration calls will be added to this function
+// until EndRouteRegistrationFunction is called.
+func (b *Builder) StartRouteRegistrationFunction(functionName string) *Builder {
+	if b == nil || b.bp == nil {
+		return b
+	}
+
+	if functionName == "" {
+		return b
+	}
+
+	if b.currentRegistrationFunction != nil {
+		return b
+	}
+
+	b.currentRegistrationFunction = &RegistrationFunction{
+		FunctionName:  functionName,
+		Registrations: make([]RouteRegistration, 0),
+		Order:         b.nextRegistrationFunctionOrder,
+	}
+	b.nextRegistrationFunctionOrder++
+
+	return b
+}
+
+// EndRouteRegistrationFunction completes the current registration function
+// and adds it to the blueprint.
+func (b *Builder) EndRouteRegistrationFunction() *Builder {
+	if b == nil || b.bp == nil {
+		return b
+	}
+
+	if b.currentRegistrationFunction == nil {
+		return b
+	}
+
+	for _, existing := range b.bp.Routes.RegistrationFunctions {
+		if existing.FunctionName == b.currentRegistrationFunction.FunctionName {
+			b.currentRegistrationFunction = nil
+			return b
+		}
+	}
+
+	b.bp.Routes.RegistrationFunctions = append(
+		b.bp.Routes.RegistrationFunctions,
+		*b.currentRegistrationFunction,
+	)
+	b.currentRegistrationFunction = nil
+
 	return b
 }
 
@@ -481,6 +549,13 @@ func (b *Builder) Merge(other *Blueprint) error {
 	}
 	for _, registration := range other.Routes.Registrations {
 		b.AddRouteRegistration(registration.Method, registration.RouteVariable, registration.ControllerRef, registration.Middleware...)
+	}
+	for _, regFunc := range other.Routes.RegistrationFunctions {
+		b.StartRouteRegistrationFunction(regFunc.FunctionName)
+		for _, registration := range regFunc.Registrations {
+			b.AddRouteRegistration(registration.Method, registration.RouteVariable, registration.ControllerRef, registration.Middleware...)
+		}
+		b.EndRouteRegistrationFunction()
 	}
 
 	// Merge models

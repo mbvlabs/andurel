@@ -61,6 +61,9 @@ type RouteSection struct {
 
 	// RouteRegistrations holds route registration entries for the registrar function
 	Registrations []RouteRegistration
+
+	// RegistrationFunctions holds grouped registration functions
+	RegistrationFunctions []RegistrationFunction
 }
 
 // ModelSection holds model configuration.
@@ -203,6 +206,16 @@ type RouteRegistration struct {
 	Order int
 }
 
+// RegistrationFunction represents a named registration function that groups route registrations.
+type RegistrationFunction struct {
+	// FunctionName is the name of the registration function (e.g., "registerAuthRoutes")
+	FunctionName string
+	// Registrations contains all route registrations for this function
+	Registrations []RouteRegistration
+	// Order for deterministic rendering
+	Order int
+}
+
 // Model represents a model struct definition.
 type Model struct {
 	Name   string
@@ -241,11 +254,12 @@ func New() *Blueprint {
 			Constructors: make([]Constructor, 0),
 		},
 		Routes: RouteSection{
-			Routes:           make([]Route, 0),
-			RouteGroups:      NewOrderedSet(),
-			RouteCollections: make([]RouteCollection, 0),
-			Imports:          NewOrderedSet(),
-			Registrations:    make([]RouteRegistration, 0),
+			Routes:                make([]Route, 0),
+			RouteGroups:           NewOrderedSet(),
+			RouteCollections:      make([]RouteCollection, 0),
+			Imports:               NewOrderedSet(),
+			Registrations:         make([]RouteRegistration, 0),
+			RegistrationFunctions: make([]RegistrationFunction, 0),
 		},
 		Models: ModelSection{
 			Imports: NewOrderedSet(),
@@ -329,6 +343,16 @@ func (rs *RouteSection) SortedRegistrations() []RouteRegistration {
 		return registrations[i].Order < registrations[j].Order
 	})
 	return registrations
+}
+
+// SortedRegistrationFunctions returns registration functions sorted by order.
+func (rs *RouteSection) SortedRegistrationFunctions() []RegistrationFunction {
+	functions := make([]RegistrationFunction, len(rs.RegistrationFunctions))
+	copy(functions, rs.RegistrationFunctions)
+	sort.Slice(functions, func(i, j int) bool {
+		return functions[i].Order < functions[j].Order
+	})
+	return functions
 }
 
 // SortedModels returns models sorted by order.

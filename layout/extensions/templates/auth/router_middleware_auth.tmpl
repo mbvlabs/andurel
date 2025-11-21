@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/router/routes"
 
 	"github.com/labstack/echo/v4"
 	"github.com/maypok86/otter/v2"
@@ -20,7 +21,10 @@ func AuthOnly(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-func IPRateLimiter func() echo.HandlerFunc {
+func IPRateLimiter(
+	limit int32,
+	redirectURL routes.Route,
+) func(next echo.HandlerFunc) echo.HandlerFunc {
 	cache := otter.Must(&otter.Options[string, int32]{
 		MaximumSize:      1000,
 		ExpiryCalculator: otter.ExpiryCreating[string, int32](10 * time.Minute),
@@ -36,12 +40,12 @@ func IPRateLimiter func() echo.HandlerFunc {
 				return next(c)
 			}
 
-			if hits <= l.limit {
+			if hits <= limit {
 				cache.Set(ip, hits+1)
 			}
 
-			if hits > l.limit {
-				return c.String(http.StatusTooManyRequests, l.redirectRoute.URL())
+			if hits > limit {
+				return c.String(http.StatusTooManyRequests, redirectURL.URL())
 			}
 
 			return next(c)

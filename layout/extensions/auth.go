@@ -56,6 +56,7 @@ func (e Auth) Apply(ctx *Context) error {
 		)
 	}
 
+	builder.StartRouteRegistrationFunction("registerAuthRoutes")
 	builder.AddRouteRegistration("http.MethodGet", "routes.SessionNew", "ctrls.Sessions.New")
 	builder.AddRouteRegistration("http.MethodPost", "routes.SessionCreate", "ctrls.Sessions.Create")
 	builder.AddRouteRegistration(
@@ -99,6 +100,7 @@ func (e Auth) Apply(ctx *Context) error {
 		"routes.ConfirmationCreate",
 		"ctrls.Confirmations.Create",
 	)
+	builder.EndRouteRegistrationFunction()
 
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("auth: failed to render templates: %w", err)

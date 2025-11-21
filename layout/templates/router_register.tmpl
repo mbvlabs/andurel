@@ -49,6 +49,20 @@ func registrar(handler *echo.Echo, ctrls controllers.Controllers) {
 		{{.Method}}, {{.RouteVariable}}.Path(), {{.ControllerRef}},
 	).Name = {{.RouteVariable}}.Name()
 {{- end}}
+{{- range .Blueprint.Routes.SortedRegistrationFunctions}}
+
+	{{.FunctionName}}(handler, ctrls)
+{{- end}}
 
 	handler.RouteNotFound("/*", ctrls.Pages.NotFound)
 }
+{{- range .Blueprint.Routes.SortedRegistrationFunctions}}
+
+func {{.FunctionName}}(handler *echo.Echo, ctrls controllers.Controllers) {
+{{- range .Registrations}}
+	handler.Add(
+		{{.Method}}, {{.RouteVariable}}.Path(), {{.ControllerRef}},
+	).Name = {{.RouteVariable}}.Name()
+{{- end}}
+}
+{{- end}}
