@@ -50,20 +50,55 @@ func (e Auth) Apply(ctx *Context) error {
 		builder.AddControllerConstructor("resetPasswords", "newResetPasswords(db, insertOnly, cfg)")
 	}
 	if db == "sqlite" {
-		builder.AddControllerConstructor("resetPasswords", "newResetPasswords(db, emailClient, cfg)")
+		builder.AddControllerConstructor(
+			"resetPasswords",
+			"newResetPasswords(db, emailClient, cfg)",
+		)
 	}
 
 	builder.AddRouteRegistration("http.MethodGet", "routes.SessionNew", "ctrls.Sessions.New")
 	builder.AddRouteRegistration("http.MethodPost", "routes.SessionCreate", "ctrls.Sessions.Create")
-	builder.AddRouteRegistration("http.MethodDelete", "routes.SessionDestroy", "ctrls.Sessions.Destroy")
+	builder.AddRouteRegistration(
+		"http.MethodDelete",
+		"routes.SessionDestroy",
+		"ctrls.Sessions.Destroy",
+	)
 	builder.AddRouteRegistration("http.MethodGet", "routes.PasswordNew", "ctrls.ResetPasswords.New")
-	builder.AddRouteRegistration("http.MethodPost", "routes.PasswordCreate", "ctrls.ResetPasswords.Create")
-	builder.AddRouteRegistration("http.MethodGet", "routes.PasswordEdit", "ctrls.ResetPasswords.Edit")
-	builder.AddRouteRegistration("http.MethodPut", "routes.PasswordUpdate", "ctrls.ResetPasswords.Update")
-	builder.AddRouteRegistration("http.MethodGet", "routes.RegistrationNew", "ctrls.Registrations.New")
-	builder.AddRouteRegistration("http.MethodPost", "routes.RegistrationCreate", "ctrls.Registrations.Create")
-	builder.AddRouteRegistration("http.MethodGet", "routes.ConfirmationNew", "ctrls.Confirmations.New")
-	builder.AddRouteRegistration("http.MethodPost", "routes.ConfirmationCreate", "ctrls.Confirmations.Create")
+	builder.AddRouteRegistration(
+		"http.MethodPost",
+		"routes.PasswordCreate",
+		"ctrls.ResetPasswords.Create",
+	)
+	builder.AddRouteRegistration(
+		"http.MethodGet",
+		"routes.PasswordEdit",
+		"ctrls.ResetPasswords.Edit",
+	)
+	builder.AddRouteRegistration(
+		"http.MethodPut",
+		"routes.PasswordUpdate",
+		"ctrls.ResetPasswords.Update",
+	)
+	builder.AddRouteRegistration(
+		"http.MethodGet",
+		"routes.RegistrationNew",
+		"ctrls.Registrations.New",
+	)
+	builder.AddRouteRegistration(
+		"http.MethodPost",
+		"routes.RegistrationCreate",
+		"ctrls.Registrations.Create",
+	)
+	builder.AddRouteRegistration(
+		"http.MethodGet",
+		"routes.ConfirmationNew",
+		"ctrls.Confirmations.New",
+	)
+	builder.AddRouteRegistration(
+		"http.MethodPost",
+		"routes.ConfirmationCreate",
+		"ctrls.Confirmations.Create",
+	)
 
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("auth: failed to render templates: %w", err)
@@ -118,8 +153,8 @@ func (e Auth) renderTemplates(ctx *Context) error {
 		"services_registration.tmpl":   "services/registration.go",
 		"services_reset_password.tmpl": "services/reset_password.go",
 
-		"router_routes_users.tmpl":      "router/routes/users.go",
-		"router_routes_middleware.tmpl": "router/routes/middleware.go",
+		"router_routes_users.tmpl":    "router/routes/users.go",
+		"router_middleware_auth.tmpl": "router/middleware/auth.go",
 
 		"views_confirm_email.tmpl":  "views/confirm_email.templ",
 		"views_login.tmpl":          "views/login.templ",

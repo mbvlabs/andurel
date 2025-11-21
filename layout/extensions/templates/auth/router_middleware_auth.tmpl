@@ -1,4 +1,4 @@
-package routes
+package middleware
 
 import (
 	"net/http"
@@ -10,28 +10,17 @@ import (
 	"github.com/maypok86/otter/v2"
 )
 
-type AuthOnly struct{}
-
-func (a AuthOnly) Handler() func(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			if cookies.GetApp(c).IsAuthenticated {
-				return next(c)
-			}
-
-			return c.Redirect(http.StatusSeeOther, SessionNew.URL())
+func AuthOnly(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if cookies.GetApp(c).IsAuthenticated {
+			return next(c)
 		}
+
+		return c.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 	}
 }
 
-var _ routeMiddleware = AuthOnly{}
-
-type IPRateLimiter struct {
-	limit         int32
-	redirectRoute Route
-}
-
-func (l IPRateLimiter) Handler() func(next echo.HandlerFunc) echo.HandlerFunc {
+func IPRateLimiter func() echo.HandlerFunc {
 	cache := otter.Must(&otter.Options[string, int32]{
 		MaximumSize:      1000,
 		ExpiryCalculator: otter.ExpiryCreating[string, int32](10 * time.Minute),
@@ -59,5 +48,3 @@ func (l IPRateLimiter) Handler() func(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 	}
 }
-
-var _ routeMiddleware = IPRateLimiter{}

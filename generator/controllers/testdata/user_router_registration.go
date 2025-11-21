@@ -33,30 +33,30 @@ func registrar(handler *echo.Echo, ctrls controllers.Controllers) {
 
 func registerUsersRoutes(handler *echo.Echo, ctrls controllers.Controllers) {
 	handler.Add(
-		http.MethodGet, routes.UserIndex.URL(), ctrls.Users.Index,
+		http.MethodGet, routes.UserIndex.Path(), ctrls.Users.Index,
 	).Name = routes.UserIndex.Name()
 
 	handler.Add(
-		http.MethodGet, routes.UserShow.URL(), ctrls.Users.Show,
+		http.MethodGet, routes.UserShow.Path(), ctrls.Users.Show,
 	).Name = routes.UserShow.Name()
 
 	handler.Add(
-		http.MethodGet, routes.UserNew.URL(), ctrls.Users.New,
+		http.MethodGet, routes.UserNew.Path(), ctrls.Users.New,
 	).Name = routes.UserNew.Name()
 
 	handler.Add(
-		http.MethodPost, routes.UserCreate.URL(), ctrls.Users.Create,
+		http.MethodPost, routes.UserCreate.Path(), ctrls.Users.Create,
 	).Name = routes.UserCreate.Name()
 
 	handler.Add(
-		http.MethodGet, routes.UserEdit.URL(), ctrls.Users.Edit,
+		http.MethodGet, routes.UserEdit.Path(), ctrls.Users.Edit,
 	).Name = routes.UserEdit.Name()
 
 	handler.Add(
-		http.MethodPut, routes.UserUpdate.URL(), ctrls.Users.Update,
+		http.MethodPut, routes.UserUpdate.Path(), ctrls.Users.Update,
 	).Name = routes.UserUpdate.Name()
 
 	handler.Add(
-		http.MethodDelete, routes.UserDestroy.URL(), ctrls.Users.Destroy,
+		http.MethodDelete, routes.UserDestroy.Path(), ctrls.Users.Destroy,
 	).Name = routes.UserDestroy.Name()
 }

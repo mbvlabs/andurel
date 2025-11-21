@@ -1,7 +1,5 @@
 package routes
 
-import "net/http"
-
 const (
 	adminUsersRoutePrefix = "/admin_users"
 	adminUsersNamePrefix  = "admin_users"

@@ -110,14 +110,14 @@ func (r Products) Create(c echo.Context) error {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to create product: %v", err)); flashErr != nil {
 			return flashErr
 		}
-		return c.Redirect(http.StatusSeeOther, routes.ProductNew.Path)
+		return c.Redirect(http.StatusSeeOther, routes.ProductNew.URL())
 	}
 
 	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Product created successfully"); flashErr != nil {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.ProductShow.GetPath(product.ID))
+	return c.Redirect(http.StatusSeeOther, routes.ProductShow.URL(product.ID))
 }
 
 func (r Products) Edit(c echo.Context) error {
@@ -182,7 +182,7 @@ func (r Products) Update(c echo.Context) error {
 		}
 		return c.Redirect(
 			http.StatusSeeOther,
-			routes.ProductEdit.GetPath(productID),
+			routes.ProductEdit.URL(productID),
 		)
 	}
 
@@ -190,7 +190,7 @@ func (r Products) Update(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.ProductShow.GetPath(product.ID))
+	return c.Redirect(http.StatusSeeOther, routes.ProductShow.URL(product.ID))
 }
 
 func (r Products) Destroy(c echo.Context) error {
@@ -204,12 +204,12 @@ func (r Products) Destroy(c echo.Context) error {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete product: %v", err)); flashErr != nil {
 			return render(c, views.InternalError())
 		}
-		return c.Redirect(http.StatusSeeOther, routes.ProductIndex.Path)
+		return c.Redirect(http.StatusSeeOther, routes.ProductIndex.URL())
 	}
 
 	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Product destroyed successfully"); flashErr != nil {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.ProductIndex.Path)
+	return c.Redirect(http.StatusSeeOther, routes.ProductIndex.URL())
 }

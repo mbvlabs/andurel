@@ -1,7 +1,5 @@
 package routes
 
-import "net/http"
-
 const (
 	productsRoutePrefix = "/products"
 	productsNamePrefix  = "products"

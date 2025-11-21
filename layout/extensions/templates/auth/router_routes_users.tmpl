@@ -1,7 +1,5 @@
 package routes
 
-import "net/http"
-
 const (
 	usersRoutePrefix = "/users"
 	usersNamePrefix  = "users"
