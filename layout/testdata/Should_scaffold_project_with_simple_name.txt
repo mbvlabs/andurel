@@ -50,8 +50,10 @@ pkg/telemetry/options.go
 pkg/telemetry/telemetry.go
 pkg/telemetry/trace_exporters.go
 pkg/telemetry/tracer.go
+queue/jobs/send_marketing_email.go
 queue/jobs/send_transactional_email.go
 queue/queue.go
+queue/workers/send_marketing_email.go
 queue/workers/send_transactional_email.go
 queue/workers/workers.go
 router/cookies/cookies.go
@@ -630,6 +632,7 @@ import (
 )
 
 var _ email.TransactionalSender = (*MailHog)(nil)
+var _ email.MarketingSender = (*MailHog)(nil)
 
 type MailHog struct {
 	host string
@@ -700,6 +703,58 @@ func (m *MailHog) SendTransactional(ctx context.Context, payload email.Transacti
 		nil,
 		payload.From,
 		recipients,
+		[]byte(message.String()),
+	)
+}
+
+func (m *MailHog) SendMarketing(ctx context.Context, payload email.MarketingPayload) error {
+	addr := fmt.Sprintf("%s:%s", m.host, m.port)
+
+	boundary := "boundary-mailhog-client"
+	headers := make(map[string]string)
+	headers["From"] = payload.From
+
+	if len(payload.To) > 0 {
+		headers["To"] = strings.Join(payload.To, ", ")
+	}
+
+	if payload.ReplyTo != "" {
+		headers["Reply-To"] = payload.ReplyTo
+	}
+
+	headers["Subject"] = payload.Subject
+	headers["MIME-Version"] = "1.0"
+	headers["Content-Type"] = fmt.Sprintf("multipart/alternative; boundary=\"%s\"", boundary)
+
+	var message strings.Builder
+	for k, v := range headers {
+		message.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
+	}
+	message.WriteString("\r\n")
+
+	if payload.TextBody != "" {
+		message.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+		message.WriteString("Content-Type: text/plain; charset=\"UTF-8\"\r\n")
+		message.WriteString("\r\n")
+		message.WriteString(payload.TextBody)
+		message.WriteString("\r\n")
+	}
+
+	if payload.HTMLBody != "" {
+		message.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+		message.WriteString("Content-Type: text/html; charset=\"UTF-8\"\r\n")
+		message.WriteString("\r\n")
+		message.WriteString(payload.HTMLBody)
+		message.WriteString("\r\n")
+	}
+
+	message.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
+
+	return smtp.SendMail(
+		addr,
+		nil,
+		payload.From,
+		payload.To,
 		[]byte(message.String()),
 	)
 }
@@ -881,7 +936,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	emailClient := mailclients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort)
-	wrks, err := workers.Register(emailClient)
+	wrks, err := workers.Register(emailClient, emailClient)
 	if err != nil {
 		return err
 	}
@@ -4861,6 +4916,18 @@ func GetTracer(serviceName string) trace.Tracer {
 }
 
 
+=== queue/jobs/send_marketing_email.go ===
+package jobs
+
+import "testapp/email"
+
+type SendMarketingEmailArgs struct {
+	Data email.MarketingData
+}
+
+func (SendMarketingEmailArgs) Kind() string { return "send_marketing_email" }
+
+
 === queue/jobs/send_transactional_email.go ===
 package jobs
 
@@ -4935,6 +5002,42 @@ func NewProcessor(
 }
 
 
+=== queue/workers/send_marketing_email.go ===
+package workers
+
+import (
+	"context"
+
+	"github.com/riverqueue/river"
+
+	"testapp/email"
+	"testapp/queue/jobs"
+)
+
+type SendMarketingEmailWorker struct {
+	river.WorkerDefaults[jobs.SendMarketingEmailArgs]
+	sender email.MarketingSender
+}
+
+func NewSendMarketingEmailWorker(sender email.MarketingSender) *SendMarketingEmailWorker {
+	return &SendMarketingEmailWorker{
+		sender: sender,
+	}
+}
+
+func (w *SendMarketingEmailWorker) Work(ctx context.Context, job *river.Job[jobs.SendMarketingEmailArgs]) error {
+	err := email.SendMarketing(ctx, job.Args.Data, w.sender)
+	if err != nil {
+		if !email.IsRetryable(err) {
+			return river.JobCancel(err)
+		}
+		return err
+	}
+
+	return nil
+}
+
+
 === queue/workers/send_transactional_email.go ===
 package workers
 
@@ -4981,10 +5084,14 @@ import (
 	"testapp/email"
 )
 
-func Register(sender email.TransactionalSender) (*river.Workers, error) {
+func Register(transactionalSender email.TransactionalSender, marketingSender email.MarketingSender) (*river.Workers, error) {
 	wrks := river.NewWorkers()
 
-	if err := river.AddWorkerSafely(wrks, NewSendTransactionalEmailWorker(sender)); err != nil {
+	if err := river.AddWorkerSafely(wrks, NewSendTransactionalEmailWorker(transactionalSender)); err != nil {
+		return nil, err
+	}
+
+	if err := river.AddWorkerSafely(wrks, NewSendMarketingEmailWorker(marketingSender)); err != nil {
 		return nil, err
 	}
 

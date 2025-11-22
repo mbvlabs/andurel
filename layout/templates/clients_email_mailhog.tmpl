@@ -10,6 +10,7 @@ import (
 )
 
 var _ email.TransactionalSender = (*MailHog)(nil)
+var _ email.MarketingSender = (*MailHog)(nil)
 
 type MailHog struct {
 	host string
@@ -80,6 +81,58 @@ func (m *MailHog) SendTransactional(ctx context.Context, payload email.Transacti
 		nil,
 		payload.From,
 		recipients,
+		[]byte(message.String()),
+	)
+}
+
+func (m *MailHog) SendMarketing(ctx context.Context, payload email.MarketingPayload) error {
+	addr := fmt.Sprintf("%s:%s", m.host, m.port)
+
+	boundary := "boundary-mailhog-client"
+	headers := make(map[string]string)
+	headers["From"] = payload.From
+
+	if len(payload.To) > 0 {
+		headers["To"] = strings.Join(payload.To, ", ")
+	}
+
+	if payload.ReplyTo != "" {
+		headers["Reply-To"] = payload.ReplyTo
+	}
+
+	headers["Subject"] = payload.Subject
+	headers["MIME-Version"] = "1.0"
+	headers["Content-Type"] = fmt.Sprintf("multipart/alternative; boundary=\"%s\"", boundary)
+
+	var message strings.Builder
+	for k, v := range headers {
+		message.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
+	}
+	message.WriteString("\r\n")
+
+	if payload.TextBody != "" {
+		message.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+		message.WriteString("Content-Type: text/plain; charset=\"UTF-8\"\r\n")
+		message.WriteString("\r\n")
+		message.WriteString(payload.TextBody)
+		message.WriteString("\r\n")
+	}
+
+	if payload.HTMLBody != "" {
+		message.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+		message.WriteString("Content-Type: text/html; charset=\"UTF-8\"\r\n")
+		message.WriteString("\r\n")
+		message.WriteString(payload.HTMLBody)
+		message.WriteString("\r\n")
+	}
+
+	message.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
+
+	return smtp.SendMail(
+		addr,
+		nil,
+		payload.From,
+		payload.To,
 		[]byte(message.String()),
 	)
 }

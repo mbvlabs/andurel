@@ -217,7 +217,7 @@ func run(ctx context.Context) error {
 {{- end}}
 
 {{- if eq .Database "postgresql"}}
-	wrks, err := workers.Register(emailClient)
+	wrks, err := workers.Register(emailClient, emailClient)
 	if err != nil {
 		return err
 	}
