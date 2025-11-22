@@ -56,115 +56,94 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName string) error 
 }
 
 func (rg *RouteGenerator) updateRouterRegister(resourceName, pluralName string) error {
+	registryPath := "router/registry.go"
 	registerPath := "router/register.go"
 
+	capitalizedPluralName := naming.Capitalize(naming.ToCamelCase(pluralName))
+	functionName := fmt.Sprintf("register%sRoutes", capitalizedPluralName)
+
+	// Update router/registry.go with the new addEntry call
+	if err := rg.updateRegistryFile(functionName, registryPath); err != nil {
+		return err
+	}
+
+	// Append the registration function to router/register.go
+	if err := rg.appendRegistrationFunction(resourceName, pluralName, registerPath); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (rg *RouteGenerator) updateRegistryFile(functionName, registryPath string) error {
+	content, err := os.ReadFile(registryPath)
+	if err != nil {
+		return fmt.Errorf("failed to read router/registry.go: %w", err)
+	}
+
+	lines := splitLines(string(content))
+
+	// Find the var registrar line and the last addEntry in the chain
+	registrarVarIndex := -1
+	lastAddEntryIndex := -1
+
+	for i, line := range lines {
+		if contains(line, "var registrar = newRegistrarBuilder()") {
+			registrarVarIndex = i
+		}
+		if registrarVarIndex != -1 && contains(line, "addEntry(") {
+			lastAddEntryIndex = i
+		}
+	}
+
+	if registrarVarIndex == -1 {
+		return fmt.Errorf("could not find var registrar in router/registry.go")
+	}
+
+	if lastAddEntryIndex == -1 {
+		return fmt.Errorf("could not find addEntry in router/registry.go")
+	}
+
+	// Insert the new addEntry call after the last one
+	// First, check if the last addEntry line ends with a dot
+	if !strings.HasSuffix(strings.TrimSpace(lines[lastAddEntryIndex]), ".") {
+		// Add a dot to the end of the last addEntry line
+		lines[lastAddEntryIndex] = lines[lastAddEntryIndex] + "."
+	}
+
+	// Create the new addEntry line (without leading dot)
+	newAddEntry := fmt.Sprintf("\taddEntry(%s)", functionName)
+
+	result := append(
+		lines[:lastAddEntryIndex+1],
+		append([]string{newAddEntry}, lines[lastAddEntryIndex+1:]...)...)
+
+	output := joinLines(result)
+
+	if err := os.WriteFile(registryPath, []byte(output), constants.FilePermissionPrivate); err != nil {
+		return fmt.Errorf("failed to write router/registry.go: %w", err)
+	}
+
+	return rg.formatGoFile(registryPath)
+}
+
+func (rg *RouteGenerator) appendRegistrationFunction(resourceName, pluralName, registerPath string) error {
+	// Generate the registration function
+	routeRegistrationFunc, err := rg.templateRenderer.generateRouteRegistrationFunction(resourceName, pluralName)
+	if err != nil {
+		return fmt.Errorf("failed to generate route registration function: %w", err)
+	}
+
+	// Read existing content
 	content, err := os.ReadFile(registerPath)
 	if err != nil {
 		return fmt.Errorf("failed to read router/register.go: %w", err)
 	}
 
-	lines := []string{}
-	lines = append(lines, splitLines(string(content))...)
+	// Append the new function
+	newContent := string(content) + "\n" + routeRegistrationFunc + "\n"
 
-	routeNotFoundIndex := -1
-	closingBraceIndex := -1
-
-	for i, line := range lines {
-		if contains(line, "handler.RouteNotFound") {
-			routeNotFoundIndex = i
-		}
-		if routeNotFoundIndex != -1 && strings.TrimSpace(line) == "}" {
-			closingBraceIndex = i
-			break
-		}
-	}
-
-	if routeNotFoundIndex == -1 {
-		return fmt.Errorf("could not find RouteNotFound in router/register.go")
-	}
-
-	if closingBraceIndex == -1 {
-		return fmt.Errorf("could not find closing brace of registrar function")
-	}
-
-	capitalizedPluralName := naming.Capitalize(naming.ToCamelCase(pluralName))
-	functionName := fmt.Sprintf("register%sRoutes", capitalizedPluralName)
-
-	functionCall := []string{
-		"",
-		fmt.Sprintf("\t%s(handler, ctrls)", functionName),
-	}
-
-	result := append(
-		lines[:closingBraceIndex],
-		append(functionCall, lines[closingBraceIndex:]...)...)
-
-	registerFunction := []string{
-		"",
-		fmt.Sprintf("func %s(handler *echo.Echo, ctrls controllers.Controllers) {", functionName),
-		"\thandler.Add(",
-		fmt.Sprintf(
-			"\t\thttp.MethodGet, routes.%sIndex.Path(), ctrls.%s.Index,",
-			resourceName,
-			capitalizedPluralName,
-		),
-		fmt.Sprintf("\t).Name = routes.%sIndex.Name()", resourceName),
-		"",
-		"\thandler.Add(",
-		fmt.Sprintf(
-			"\t\thttp.MethodGet, routes.%sShow.Path(), ctrls.%s.Show,",
-			resourceName,
-			capitalizedPluralName,
-		),
-		fmt.Sprintf("\t).Name = routes.%sShow.Name()", resourceName),
-		"",
-		"\thandler.Add(",
-		fmt.Sprintf(
-			"\t\thttp.MethodGet, routes.%sNew.Path(), ctrls.%s.New,",
-			resourceName,
-			capitalizedPluralName,
-		),
-		fmt.Sprintf("\t).Name = routes.%sNew.Name()", resourceName),
-		"",
-		"\thandler.Add(",
-		fmt.Sprintf(
-			"\t\thttp.MethodPost, routes.%sCreate.Path(), ctrls.%s.Create,",
-			resourceName,
-			capitalizedPluralName,
-		),
-		fmt.Sprintf("\t).Name = routes.%sCreate.Name()", resourceName),
-		"",
-		"\thandler.Add(",
-		fmt.Sprintf(
-			"\t\thttp.MethodGet, routes.%sEdit.Path(), ctrls.%s.Edit,",
-			resourceName,
-			capitalizedPluralName,
-		),
-		fmt.Sprintf("\t).Name = routes.%sEdit.Name()", resourceName),
-		"",
-		"\thandler.Add(",
-		fmt.Sprintf(
-			"\t\thttp.MethodPut, routes.%sUpdate.Path(), ctrls.%s.Update,",
-			resourceName,
-			capitalizedPluralName,
-		),
-		fmt.Sprintf("\t).Name = routes.%sUpdate.Name()", resourceName),
-		"",
-		"\thandler.Add(",
-		fmt.Sprintf(
-			"\t\thttp.MethodDelete, routes.%sDestroy.Path(), ctrls.%s.Destroy,",
-			resourceName,
-			capitalizedPluralName,
-		),
-		fmt.Sprintf("\t).Name = routes.%sDestroy.Name()", resourceName),
-		"}",
-	}
-
-	result = append(result, registerFunction...)
-
-	output := joinLines(result)
-
-	if err := os.WriteFile(registerPath, []byte(output), constants.FilePermissionPrivate); err != nil {
+	if err := os.WriteFile(registerPath, []byte(newContent), constants.FilePermissionPrivate); err != nil {
 		return fmt.Errorf("failed to write router/register.go: %w", err)
 	}
 

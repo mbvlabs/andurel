@@ -360,6 +360,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Router
 	"router_router.tmpl":                "router/router.go",
+	"router_registry.tmpl":              "router/registry.go",
 	"router_register.tmpl":              "router/register.go",
 	"router_cookies_cookies.tmpl":       "router/cookies/cookies.go",
 	"router_cookies_flash.tmpl":         "router/cookies/flash.go",
@@ -544,6 +545,7 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		"controllers_controller.tmpl",
 		"cmd_app_main.tmpl",
 		"router_routes_routes.tmpl",
+		"router_registry.tmpl",
 		"router_register.tmpl",
 		"config_config.tmpl",
 	}

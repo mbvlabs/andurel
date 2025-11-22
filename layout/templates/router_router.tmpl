@@ -99,7 +99,9 @@ func New(
 	router.Any("/riverui*", echo.WrapHandler(riverHandler))
 {{- end}}
 
-	registrar(router, controllers)
+	registrar.register(router, controllers)
+
+	router.RouteNotFound("/*", controllers.Pages.NotFound)
 
 	return &Router{
 		router,
