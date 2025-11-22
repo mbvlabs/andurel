@@ -138,33 +138,34 @@ A full-stack web application built with [Andurel](https://github.com/mbvlabs/and
 testapp/
 ├── assets/              # Static assets (compiled CSS, images)
 ├── bin/                 # Command-line tools
-│   ├── app             # Main application binary
-│   ├── console         # Database console
-│   ├── migration       # Migration runner
-│   └── run             # Development server
+│   ├── app              # Main application binary
+│   ├── console          # Database console
+│   ├── migration        # Migration runner
+│   └── run              # Development server
 ├── cmd/                 # Command entry points
-│   ├── app/            # Main web application
-│   ├── console/        # Database console
-│   ├── migration/      # Migration management
-│   └── run/            # Development orchestrator
+│   ├── app/             # Main web application
+│   ├── console/         # Database console
+│   ├── migration/       # Migration management
+│   └── run/             # Development orchestrator
 ├── clients/             # External service clients
 ├── config/              # Application configuration
 ├── controllers/         # HTTP request handlers
 ├── css/                 # Source CSS files (Tailwind)
 ├── database/
-│   ├── migrations/     # SQL migration files
-│   └── queries/        # SQLC query definitions
+│   ├── migrations/      # SQL migration files
+│   └── queries/         # SQLC query definitions
 ├── email/               # Email templates and sending
 ├── models/              # Data models and business logic
-│   └── internal/db/    # Generated SQLC code (don't edit)
+│   └── internal/db/     # Generated SQLC code (don't edit)
 ├── queue/               # Background job processing
-│   ├── jobs/           # Job definitions
-│   └── workers/        # Worker implementations
+│   ├── jobs/            # Job definitions
+│   └── workers/         # Worker implementations
 ├── router/              # Routes and middleware
-│   ├── routes/         # Route definitions
-│   ├── cookies/        # Session helpers
-│   └── middleware/     # Custom middleware
-├── telemetry/           # Observability (logs, traces, metrics)
+│   ├── routes/          # Route definitions
+│   ├── cookies/         # Session helpers
+│   └── middleware/      # Custom middleware
+├── pkg/
+│ 	└──telemetry/        # Observability (logs, traces, metrics)
 ├── views/               # Templ templates
 ├── .env.example         # Example environment configuration
 └── go.mod               # Go dependencies
@@ -200,14 +201,11 @@ Your application is now running at `http://localhost:8080` with live reload for 
 
 ## Available Commands
 
-Andurel provides a comprehensive CLI for development tasks. You can use the `andurel` commands or the local binaries in `bin/`:
-
 ### Development Server
 
 ```bash
 # Run development server with hot reload for Go, Templ, and CSS
 andurel run
-# Or use the local binary: ./bin/run
 ```
 
 This orchestrates Air (Go), Templ watch, and Tailwind CSS compilation.
@@ -217,7 +215,6 @@ This orchestrates Air (Go), Templ watch, and Tailwind CSS compilation.
 ```bash
 # Open interactive database console
 andurel app console
-# Or use the local binary: ./bin/console
 ```
 
 Provides a SQL console connected to your database for ad-hoc queries and exploration.
@@ -227,11 +224,9 @@ Provides a SQL console connected to your database for ad-hoc queries and explora
 ```bash
 # Create a new migration
 andurel migration new create_users_table
-# Or use the local binary: ./bin/migration new create_users_table
 
 # Run all pending migrations
 andurel migration up
-# Or use the local binary: ./bin/migration up
 
 # Rollback last migration
 andurel migration down
