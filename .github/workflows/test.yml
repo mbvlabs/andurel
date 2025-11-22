@@ -8,6 +8,26 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/testdb?sslmode=disable"
+      E2E_CRITICAL_ONLY: "true"
 
     steps:
     - name: Checkout code
@@ -40,3 +60,15 @@ jobs:
       with:
         file: ./coverage.txt
         fail_ci_if_error: false
+
+    - name: Run E2E critical tests
+      run: go test ./e2e/... -v -timeout 25m
+
+    - name: Upload E2E failure artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: e2e-pr-failures
+        path: |
+          /tmp/andurel-e2e-*
+        retention-days: 7
