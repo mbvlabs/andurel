@@ -1,0 +1,63 @@
+package controllers
+
+import (
+	"log/slog"
+
+	"{{.ModuleName}}/clients/payment"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/router/middleware"
+	"{{.ModuleName}}/views"
+
+	"github.com/labstack/echo/v4"
+)
+
+{{- if eq .Database "postgresql" }}
+type PaddleAccount struct {
+	db     database.Postgres
+	client *payment.PaddleClient
+}
+
+func newPaddleAccount(db database.Postgres, client *payment.PaddleClient) PaddleAccount {
+	return PaddleAccount{db, client}
+}
+{{- else if eq .Database "sqlite" }}
+type PaddleAccount struct {
+	db     database.SQLite
+	client *payment.PaddleClient
+}
+
+func newPaddleAccount(db database.SQLite, client *payment.PaddleClient) PaddleAccount {
+	return PaddleAccount{db, client}
+}
+{{- end }}
+
+func (pa PaddleAccount) Index(c echo.Context) error {
+	// Get current user from context (set by auth middleware)
+	user, err := middleware.GetAuthenticatedUser(c)
+	if err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"failed to get authenticated user",
+			"error",
+			err,
+		)
+		return render(c, views.Unauthorized())
+	}
+
+	// Get user's transactions
+	transactions, err := models.ListUserTransactions(c.Request().Context(), pa.db, user.ID)
+	if err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"failed to list user transactions",
+			"error",
+			err,
+			"user_id",
+			user.ID,
+		)
+		return render(c, views.InternalError())
+	}
+
+	return render(c, views.PaddleAccount(transactions))
+}

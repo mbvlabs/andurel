@@ -1,0 +1,165 @@
+package views
+
+import (
+	"fmt"
+	"{{.ModuleName}}/models"
+)
+
+{{- if eq .Css "tailwind" }}
+templ PaddleAccount(transactions []models.PaddleTransaction) {
+	@base() {
+		<main class="container mx-auto px-4 py-8">
+			<div class="max-w-4xl mx-auto">
+				<h1 class="text-3xl font-bold mb-6">Purchase History</h1>
+
+				if len(transactions) == 0 {
+					<div class="bg-white rounded-lg shadow p-8 text-center">
+						<p class="text-gray-500 text-lg">You haven't made any purchases yet.</p>
+						<a
+							href="/paddle/pricing"
+							class="inline-block mt-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200"
+						>
+							View Products
+						</a>
+					</div>
+				} else {
+					<div class="bg-white rounded-lg shadow overflow-hidden">
+						<table class="min-w-full divide-y divide-gray-200">
+							<thead class="bg-gray-50">
+								<tr>
+									<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+										Invoice
+									</th>
+									<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+										Date
+									</th>
+									<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+										Amount
+									</th>
+									<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+										Status
+									</th>
+								</tr>
+							</thead>
+							<tbody class="bg-white divide-y divide-gray-200">
+								for _, tx := range transactions {
+									<tr>
+										<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+											if tx.InvoiceNumber != "" {
+												{ tx.InvoiceNumber }
+											} else {
+												<span class="text-gray-400">-</span>
+											}
+										</td>
+										<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+											{ tx.CreatedAt.Format("Jan 2, 2006") }
+										</td>
+										<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+											{ tx.Amount } { tx.Currency }
+										</td>
+										<td class="px-6 py-4 whitespace-nowrap">
+											if tx.Status == "completed" {
+												<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+													Completed
+												</span>
+											} else if tx.Status == "pending" {
+												<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+													Pending
+												</span>
+											} else {
+												<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+													{ tx.Status }
+												</span>
+											}
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+		</main>
+	}
+}
+{{- else }}
+templ PaddleAccount(transactions []models.PaddleTransaction) {
+	@base() {
+		<main>
+			<div class="container">
+				<h1>Purchase History</h1>
+
+				if len(transactions) == 0 {
+					<div class="card" style="text-align: center; padding: var(--size-8);">
+						<p style="color: var(--gray-6); font-size: var(--font-size-3);">
+							You haven't made any purchases yet.
+						</p>
+						<a
+							href="/paddle/pricing"
+							class="button"
+							style="margin-top: var(--size-4); display: inline-block;"
+						>
+							View Products
+						</a>
+					</div>
+				} else {
+					<div class="card" style="overflow-x: auto;">
+						<table style="width: 100%; border-collapse: collapse;">
+							<thead>
+								<tr style="border-bottom: 2px solid var(--gray-3);">
+									<th style="padding: var(--size-3); text-align: left; font-weight: 600;">
+										Invoice
+									</th>
+									<th style="padding: var(--size-3); text-align: left; font-weight: 600;">
+										Date
+									</th>
+									<th style="padding: var(--size-3); text-align: left; font-weight: 600;">
+										Amount
+									</th>
+									<th style="padding: var(--size-3); text-align: left; font-weight: 600;">
+										Status
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, tx := range transactions {
+									<tr style="border-bottom: 1px solid var(--gray-2);">
+										<td style="padding: var(--size-3);">
+											if tx.InvoiceNumber != "" {
+												{ tx.InvoiceNumber }
+											} else {
+												<span style="color: var(--gray-5);">-</span>
+											}
+										</td>
+										<td style="padding: var(--size-3); color: var(--gray-6);">
+											{ tx.CreatedAt.Format("Jan 2, 2006") }
+										</td>
+										<td style="padding: var(--size-3);">
+											{ tx.Amount } { tx.Currency }
+										</td>
+										<td style="padding: var(--size-3);">
+											if tx.Status == "completed" {
+												<span style="padding: var(--size-1) var(--size-2); background: var(--green-2); color: var(--green-9); border-radius: var(--radius-2); font-size: var(--font-size-0); font-weight: 600;">
+													Completed
+												</span>
+											} else if tx.Status == "pending" {
+												<span style="padding: var(--size-1) var(--size-2); background: var(--yellow-2); color: var(--yellow-9); border-radius: var(--radius-2); font-size: var(--font-size-0); font-weight: 600;">
+													Pending
+												</span>
+											} else {
+												<span style="padding: var(--size-1) var(--size-2); background: var(--gray-2); color: var(--gray-9); border-radius: var(--radius-2); font-size: var(--font-size-0); font-weight: 600;">
+													{ tx.Status }
+												</span>
+											}
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+		</main>
+	}
+}
+{{- end }}
