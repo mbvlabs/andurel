@@ -1,0 +1,539 @@
+# {{.AppName}}
+
+A full-stack web application built with [Andurel](https://github.com/mbvlabs/andurel), a Rails-like web framework for Go that prioritizes development speed.
+
+## Project Structure
+
+```
+{{.AppName}}/
+├── assets/              # Static assets (compiled CSS, images)
+├── bin/                 # Command-line tools
+│   ├── app              # Main application binary
+│   ├── console          # Database console
+│   ├── migration        # Migration runner
+│   └── run              # Development server
+├── cmd/                 # Command entry points
+│   ├── app/             # Main web application
+│   ├── console/         # Database console
+│   ├── migration/       # Migration management
+│   └── run/             # Development orchestrator
+├── clients/             # External service clients
+├── config/              # Application configuration
+├── controllers/         # HTTP request handlers
+{{if eq .CSSFramework "tailwind"}}├── css/                 # Source CSS files (Tailwind)
+{{end}}├── database/
+│   ├── migrations/      # SQL migration files
+│   └── queries/         # SQLC query definitions
+├── email/               # Email templates and sending
+├── models/              # Data models and business logic
+│   └── internal/db/     # Generated SQLC code (don't edit)
+├── queue/               # Background job processing
+│   ├── jobs/            # Job definitions
+│   └── workers/         # Worker implementations
+├── router/              # Routes and middleware
+│   ├── routes/          # Route definitions
+│   ├── cookies/         # Session helpers
+│   └── middleware/      # Custom middleware
+├── pkg/
+│ 	└──telemetry/        # Observability (logs, traces, metrics)
+├── views/               # Templ templates
+├── .env.example         # Example environment configuration
+└── go.mod               # Go dependencies
+```
+
+## Quick Start
+
+### Prerequisites
+
+- Go 1.24.4 or higher
+{{if eq .Database "postgres"}}- PostgreSQL database
+{{else}}- SQLite (included with Go)
+{{end}}- Andurel CLI: `go install github.com/mbvlabs/andurel@latest`
+
+### Setup
+
+1. **Configure environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+{{if eq .Database "postgres"}}
+2. **Create database**
+   ```bash
+   createdb {{.AppName}}_development
+   ```
+
+3. **Run migrations**
+{{else}}
+2. **Run migrations**
+{{end}}   ```bash
+   andurel migration up
+   ```
+
+{{if eq .Database "postgres"}}4{{else}}3{{end}}. **Start the development server**
+   ```bash
+   andurel run
+   ```
+
+Your application is now running at `http://localhost:8080` with live reload for Go, Templ, and CSS changes!
+
+## Available Commands
+
+### Development Server
+
+```bash
+# Run development server with hot reload for Go, Templ, and CSS
+andurel run
+```
+
+This orchestrates {{if eq .CSSFramework "tailwind"}}Air (Go), Templ watch, and Tailwind CSS compilation{{else}}Air (Go) and Templ watch{{end}}.
+
+### Database Console
+
+```bash
+# Open interactive database console
+andurel app console
+```
+
+Provides a SQL console connected to your database for ad-hoc queries and exploration.
+
+### Migration Management
+
+```bash
+# Create a new migration
+andurel migration new create_users_table
+
+# Run all pending migrations
+andurel migration up
+
+# Rollback last migration
+andurel migration down
+
+# Rollback to specific version
+andurel migration down-to [version]
+
+# Apply up to specific version
+andurel migration up-to [version]
+
+# Reset database (rollback all, then reapply)
+andurel migration reset
+
+# Fix migration version gaps
+andurel migration fix
+```
+
+## How-To Guides
+
+### Generate a New Resource
+
+The Andurel generator creates complete CRUD resources with models, controllers, views, and routes.
+
+**Prerequisites**: You need a database table first. Create a migration:
+
+```bash
+# 1. Create a migration for your table
+andurel migration new create_products_table
+```
+
+Edit the generated migration file in `database/migrations/` to define your table schema:
+
+```sql
+-- +goose Up
+CREATE TABLE products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    description TEXT,
+    price DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- +goose Down
+DROP TABLE products;
+```
+
+Apply the migration:
+
+```bash
+andurel migration up
+```
+
+**Generate the resource**:
+
+```bash
+# Generate model + controller + views + routes
+andurel generate resource Product
+
+# Or use shorthand
+andurel g resource Product
+```
+
+This creates:
+- `models/product.go` - Data model with CRUD methods
+- `controllers/products.go` - HTTP handlers for CRUD operations
+- `views/products_*.templ` - Template files for all CRUD views
+- Routes automatically registered in `router/routes/products.go`
+
+The generator also:
+- Updates `database/queries/` with SQLC queries
+- Regenerates SQLC code
+- Creates a complete CRUD interface at `/products`
+
+**Custom table names**: If your table doesn't follow Rails naming conventions (model `Product` → table `products`):
+
+```bash
+# Map Product model to a custom table name
+andurel g resource Product --table products_catalog
+```
+
+**Individual components**:
+
+```bash
+# Generate only the model
+andurel g model Product
+
+# Generate controller with views
+andurel g controller Product --with-views
+
+# Generate views with controller
+andurel g view Product --with-controller
+
+# Refresh model after schema changes
+andurel g model Product --refresh
+```
+
+### Setup Background Jobs{{if eq .Database "postgres"}}
+
+This project uses [River](https://riverqueue.com/) for background job processing with PostgreSQL.{{else}}
+
+This project uses [goqite](https://github.com/maragudk/goqite) for background job processing with SQLite.{{end}}
+
+**1. Define a job**
+
+Create a new job type in `queue/jobs/`:
+
+```go
+// queue/jobs/my_job.go
+package jobs
+
+type MyJobArgs struct {
+    UserID   string
+    Action   string
+}
+
+func (MyJobArgs) Kind() string { return "my_job" }
+```
+
+**2. Implement a worker**
+
+Create the worker in `queue/workers/`:
+
+```go
+// queue/workers/my_job.go
+package workers
+
+import (
+    "context"
+{{if eq .Database "postgres"}}    "github.com/riverqueue/river"
+{{end}}    "{{.ModuleName}}/queue/jobs"
+)
+{{if eq .Database "postgres"}}
+type MyJobWorker struct {
+    river.WorkerDefaults[jobs.MyJobArgs]
+}
+
+func (w *MyJobWorker) Work(ctx context.Context, job *river.Job[jobs.MyJobArgs]) error {
+    // Your job logic here
+    // Access job arguments: job.Args.UserID, job.Args.Action
+    return nil
+}{{else}}
+func ProcessMyJob(ctx context.Context, msg []byte) error {
+    // Your job logic here
+    // Unmarshal msg to jobs.MyJobArgs and process
+    return nil
+}{{end}}
+```
+
+**3. Register the worker**
+
+Add your worker to `queue/workers/workers.go`:
+
+```go
+{{if eq .Database "postgres"}}river.AddWorker(workers, &MyJobWorker{}){{else}}// Register in your queue setup{{end}}
+```
+
+**4. Enqueue jobs**
+
+From anywhere in your application:
+
+```go
+{{if eq .Database "postgres"}}import (
+    "github.com/riverqueue/river"
+    "{{.ModuleName}}/queue/jobs"
+)
+
+// Enqueue a job
+_, err := insertOnly.Client.Insert(ctx, jobs.MyJobArgs{
+    UserID: "123",
+    Action: "send_welcome_email",
+}, nil){{else}}import "{{.ModuleName}}/queue/jobs"
+
+// Enqueue a job through your queue client
+err := queue.Enqueue(ctx, jobs.MyJobArgs{
+    UserID: "123",
+    Action: "send_welcome_email",
+}){{end}}
+```
+{{if eq .Database "postgres"}}
+**Job Monitoring**
+
+River provides a web UI for monitoring jobs. During development, you can access RiverUI to:
+- View job status and history
+- Retry failed jobs
+- Monitor queue performance
+- Inspect job details{{end}}
+
+**Job Options**
+
+Customize job behavior:
+
+```go
+{{if eq .Database "postgres"}}_, err := insertOnly.Client.Insert(ctx, jobs.MyJobArgs{
+    UserID: "123",
+}, &river.InsertOpts{
+    MaxAttempts: 5,
+    Priority:    1,
+    Queue:       "critical",
+}){{else}}// Configure retry behavior and priorities in your queue setup{{end}}
+```
+
+### Send Emails
+
+This project includes built-in email functionality with MailHog for development testing.
+
+**1. Create an email template**
+
+Add your template in `email/`:
+
+```go
+// email/welcome.templ
+package email
+
+templ WelcomeEmail(userName string) {
+    @BaseLayout() {
+        <h1>Welcome, { userName }!</h1>
+        <p>Thank you for joining us.</p>
+    }
+}
+```
+
+**2. Send the email**
+
+```go
+import "{{.ModuleName}}/email"
+
+// Send an email
+data := email.TransactionalData{
+    From:    "noreply@example.com",
+    To:      []string{"user@example.com"},
+    Subject: "Welcome!",
+    Body:    WelcomeEmail("John Doe"),
+}
+
+err := email.SendTransactional(ctx, data, sender)
+```
+
+**3. Background email jobs**
+
+For better performance, send emails asynchronously:
+
+```go
+{{if eq .Database "postgres"}}import (
+    "{{.ModuleName}}/queue/jobs"
+)
+
+_, err := insertOnly.Client.Insert(ctx, jobs.SendTransactionalEmailArgs{
+    Data: email.TransactionalData{
+        From:    "noreply@example.com",
+        To:      []string{"user@example.com"},
+        Subject: "Welcome!",
+        Body:    WelcomeEmail("John Doe"),
+    },
+}, nil){{else}}// Enqueue email job through your queue{{end}}
+```
+
+**Development Testing**
+
+Emails are sent to MailHog in development. Access the web UI at `http://localhost:8025` to view sent emails.
+
+### Working with the Database
+
+**Add queries**
+
+Create SQL queries in `database/queries/`:
+
+```sql
+-- name: GetUserByEmail :one
+SELECT * FROM users WHERE email = $1 LIMIT 1;
+
+-- name: ListActiveUsers :many
+SELECT * FROM users WHERE active = true ORDER BY created_at DESC;
+```
+
+**Generate type-safe code**
+
+```bash
+andurel sqlc generate
+```
+
+**Use generated code**
+
+```go
+import "{{.ModuleName}}/models/internal/db"
+
+user, err := queries.GetUserByEmail(ctx, "user@example.com")
+users, err := queries.ListActiveUsers(ctx)
+```
+
+### Schema Changes
+
+When modifying your database schema:
+
+```bash
+# 1. Create a migration
+andurel migration new add_email_to_users
+
+# 2. Edit the migration file
+# Add your ALTER TABLE statements
+
+# 3. Apply the migration
+andurel migration up
+
+# 4. Update queries if needed (in database/queries/)
+
+# 5. Regenerate SQLC code
+andurel sqlc generate
+
+# 6. Refresh affected models
+andurel g model User --refresh
+```
+{{if eq .CSSFramework "tailwind"}}
+### Customize Styling
+
+This project uses Tailwind CSS. Customize your theme in `css/theme.css`:
+
+```css
+@layer theme {
+  :root {
+    --color-primary: theme('colors.blue.600');
+    --color-secondary: theme('colors.gray.600');
+  }
+}
+```
+
+Add custom utilities in `css/base.css`. The development server automatically rebuilds CSS on changes.
+{{end}}
+
+## Environment Configuration
+
+Key environment variables (see `.env.example` for all options):
+
+```bash
+# Application
+ENVIRONMENT=development
+HOST=localhost
+PORT=8080
+PROJECT_NAME={{.AppName}}
+DOMAIN=localhost:8080
+PROTOCOL=http
+
+# Database{{if eq .Database "postgres"}}
+DB_KIND=postgres
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_NAME={{.AppName}}_development
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_SSL_MODE=disable{{else}}
+DB_KIND=sqlite3
+DB_PATH=./{{.AppName}}.db{{end}}
+
+# Email (MailHog for development)
+MAIL_HOG_HOST=0.0.0.0
+MAIL_HOG_PORT=1025
+DEFAULT_SENDER_SIGNATURE=info@{{.AppName}}.com
+
+# Security (auto-generated during scaffolding)
+SESSION_KEY=<auto-generated>
+SESSION_ENCRYPTION_KEY=<auto-generated>
+TOKEN_SIGNING_KEY=<auto-generated>
+PEPPER=<auto-generated>
+
+# Telemetry (optional)
+TELEMETRY_SERVICE_NAME={{.AppName}}
+TELEMETRY_SERVICE_VERSION=1.0.0
+OTLP_LOGS_ENDPOINT=
+OTLP_METRICS_ENDPOINT=
+OTLP_TRACES_ENDPOINT=
+TRACE_SAMPLE_RATE=1.0
+```
+
+## Development Tips
+
+1. **Live Reload**: Use `andurel run` during development for automatic reloading
+2. **Type Safety**: Let SQLC and Templ catch errors at compile time
+3. **Database Console**: Use `andurel app console` for quick database queries
+4. **Hot Reload**: Changes to Go, Templ, or CSS automatically trigger rebuilds{{if eq .CSSFramework "tailwind"}}
+5. **Tailwind**: Use Tailwind's utility classes in your Templ templates{{end}}
+
+## Common Tasks
+
+```bash
+# Start development
+andurel run
+
+# Create a new resource
+andurel g resource Product
+
+# Add a migration
+andurel migration new add_field_to_products
+
+# Run migrations
+andurel migration up
+
+# Regenerate SQLC code
+andurel sqlc generate
+
+# Access database console
+andurel app console
+```
+{{if .Extensions}}
+## Extensions
+
+This project includes the following extensions:
+{{range .Extensions}}
+### {{.}}
+
+<!-- Extension-specific documentation will be added here -->
+{{end}}
+{{end}}
+## Learn More
+
+- [Andurel Documentation](https://github.com/mbvlabs/andurel)
+- [Echo Framework](https://echo.labstack.com/)
+- [SQLC](https://sqlc.dev/)
+- [Templ](https://templ.guide/)
+- [Datastar](https://data-star.dev/){{if eq .Database "postgres"}}
+- [River](https://riverqueue.com/){{else}}
+- [goqite](https://github.com/maragudk/goqite){{end}}
+- [OpenTelemetry](https://opentelemetry.io/)
+
+## Getting Help
+
+For Andurel-specific questions and issues:
+- GitHub Issues: https://github.com/mbvlabs/andurel/issues
+- Documentation: https://github.com/mbvlabs/andurel
+
+## License
+
+This project is licensed under the MIT License.
