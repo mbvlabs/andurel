@@ -1,0 +1,331 @@
+package mailclients
+
+import (
+	"bytes"
+	"context"
+	"encoding/base64"
+	"fmt"
+	"mime/multipart"
+	"net/textproto"
+	"strings"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/sesv2"
+	"github.com/aws/aws-sdk-go-v2/service/sesv2/types"
+
+	"{{.ModuleName}}/email"
+)
+
+var _ email.TransactionalSender = (*AwsSes)(nil)
+var _ email.MarketingSender = (*AwsSes)(nil)
+
+type AwsSes struct {
+	client           *sesv2.Client
+	configurationSet string
+}
+
+func NewAwsSes(region, accessKeyID, secretAccessKey, configurationSet string) *AwsSes {
+	cfg, err := config.LoadDefaultConfig(context.Background(),
+		config.WithRegion(region),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			accessKeyID,
+			secretAccessKey,
+			"",
+		)),
+	)
+	if err != nil {
+		panic(fmt.Sprintf("failed to load AWS SES config: %v", err))
+	}
+
+	client := sesv2.NewFromConfig(cfg)
+
+	return &AwsSes{
+		client:           client,
+		configurationSet: configurationSet,
+	}
+}
+
+func (a *AwsSes) SendTransactional(ctx context.Context, payload email.TransactionalPayload) error {
+	// If there are attachments, use raw email format
+	if len(payload.Attachments) > 0 {
+		return a.sendRawEmail(ctx, payload, nil)
+	}
+
+	// Build destination
+	destination := &types.Destination{
+		ToAddresses: []string{payload.To},
+	}
+	if len(payload.Cc) > 0 {
+		destination.CcAddresses = payload.Cc
+	}
+	if len(payload.Bcc) > 0 {
+		destination.BccAddresses = payload.Bcc
+	}
+
+	// Build email content
+	content := &types.EmailContent{
+		Simple: &types.Message{
+			Subject: &types.Content{
+				Data: aws.String(payload.Subject),
+			},
+			Body: &types.Body{},
+		},
+	}
+
+	if payload.TextBody != "" {
+		content.Simple.Body.Text = &types.Content{
+			Data: aws.String(payload.TextBody),
+		}
+	}
+
+	if payload.HTMLBody != "" {
+		content.Simple.Body.Html = &types.Content{
+			Data: aws.String(payload.HTMLBody),
+		}
+	}
+
+	// Build send request
+	input := &sesv2.SendEmailInput{
+		Destination: destination,
+		Content:     content,
+		FromEmailAddress: aws.String(payload.From),
+	}
+
+	if payload.ReplyTo != "" {
+		input.ReplyToAddresses = []string{payload.ReplyTo}
+	}
+
+	if a.configurationSet != "" {
+		input.ConfigurationSetName = aws.String(a.configurationSet)
+	}
+
+	// Add metadata as email tags
+	if len(payload.Metadata) > 0 {
+		var tags []types.MessageTag
+		for key, value := range payload.Metadata {
+			tags = append(tags, types.MessageTag{
+				Name:  aws.String(key),
+				Value: aws.String(value),
+			})
+		}
+		input.EmailTags = tags
+	}
+
+	// Send email
+	_, err := a.client.SendEmail(ctx, input)
+	if err != nil {
+		return mapSESError(err)
+	}
+
+	return nil
+}
+
+func (a *AwsSes) SendMarketing(ctx context.Context, payload email.MarketingPayload) error {
+	// Extract first recipient (queue pattern sends one email per job)
+	if len(payload.To) == 0 {
+		return email.NewValidationError("no recipients specified")
+	}
+
+	recipient := payload.To[0]
+
+	// Build destination
+	destination := &types.Destination{
+		ToAddresses: []string{recipient},
+	}
+
+	// Build email content
+	content := &types.EmailContent{
+		Simple: &types.Message{
+			Subject: &types.Content{
+				Data: aws.String(payload.Subject),
+			},
+			Body: &types.Body{},
+		},
+	}
+
+	if payload.TextBody != "" {
+		content.Simple.Body.Text = &types.Content{
+			Data: aws.String(payload.TextBody),
+		}
+	}
+
+	if payload.HTMLBody != "" {
+		content.Simple.Body.Html = &types.Content{
+			Data: aws.String(payload.HTMLBody),
+		}
+	}
+
+	// Build send request
+	input := &sesv2.SendEmailInput{
+		Destination:      destination,
+		Content:          content,
+		FromEmailAddress: aws.String(payload.From),
+	}
+
+	if payload.ReplyTo != "" {
+		input.ReplyToAddresses = []string{payload.ReplyTo}
+	}
+
+	if a.configurationSet != "" {
+		input.ConfigurationSetName = aws.String(a.configurationSet)
+	}
+
+	// Add tags and metadata
+	var tags []types.MessageTag
+	for _, tag := range payload.Tags {
+		tags = append(tags, types.MessageTag{
+			Name:  aws.String("tag"),
+			Value: aws.String(tag),
+		})
+	}
+	for key, value := range payload.Metadata {
+		tags = append(tags, types.MessageTag{
+			Name:  aws.String(key),
+			Value: aws.String(value),
+		})
+	}
+	if len(tags) > 0 {
+		input.EmailTags = tags
+	}
+
+	// Send email
+	_, err := a.client.SendEmail(ctx, input)
+	if err != nil {
+		return mapSESError(err)
+	}
+
+	return nil
+}
+
+func (a *AwsSes) sendRawEmail(ctx context.Context, payload email.TransactionalPayload, marketingPayload *email.MarketingPayload) error {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	// Write headers
+	headers := make(textproto.MIMEHeader)
+	headers.Set("From", payload.From)
+	headers.Set("To", payload.To)
+
+	if len(payload.Cc) > 0 {
+		headers.Set("Cc", strings.Join(payload.Cc, ", "))
+	}
+	if len(payload.Bcc) > 0 {
+		headers.Set("Bcc", strings.Join(payload.Bcc, ", "))
+	}
+	if payload.ReplyTo != "" {
+		headers.Set("Reply-To", payload.ReplyTo)
+	}
+	headers.Set("Subject", payload.Subject)
+	headers.Set("MIME-Version", "1.0")
+	headers.Set("Content-Type", fmt.Sprintf("multipart/mixed; boundary=%s", writer.Boundary()))
+
+	// Write headers to buffer
+	var headerBuf bytes.Buffer
+	for key, values := range headers {
+		for _, value := range values {
+			headerBuf.WriteString(fmt.Sprintf("%s: %s\r\n", key, value))
+		}
+	}
+	headerBuf.WriteString("\r\n")
+
+	// Create the raw message
+	var rawMessage bytes.Buffer
+	rawMessage.Write(headerBuf.Bytes())
+
+	// Write text part
+	if payload.TextBody != "" {
+		part, _ := writer.CreatePart(textproto.MIMEHeader{
+			"Content-Type": []string{"text/plain; charset=UTF-8"},
+		})
+		part.Write([]byte(payload.TextBody))
+	}
+
+	// Write HTML part
+	if payload.HTMLBody != "" {
+		part, _ := writer.CreatePart(textproto.MIMEHeader{
+			"Content-Type": []string{"text/html; charset=UTF-8"},
+		})
+		part.Write([]byte(payload.HTMLBody))
+	}
+
+	// Write attachments
+	for _, attachment := range payload.Attachments {
+		part, _ := writer.CreatePart(textproto.MIMEHeader{
+			"Content-Type":              []string{attachment.ContentType},
+			"Content-Disposition":       []string{fmt.Sprintf("attachment; filename=%s", attachment.Filename)},
+			"Content-Transfer-Encoding": []string{"base64"},
+		})
+		encoded := base64.StdEncoding.EncodeToString(attachment.Content)
+		part.Write([]byte(encoded))
+	}
+
+	writer.Close()
+	rawMessage.Write(buf.Bytes())
+
+	// Build raw email input
+	input := &sesv2.SendEmailInput{
+		Content: &types.EmailContent{
+			Raw: &types.RawMessage{
+				Data: rawMessage.Bytes(),
+			},
+		},
+	}
+
+	if a.configurationSet != "" {
+		input.ConfigurationSetName = aws.String(a.configurationSet)
+	}
+
+	// Add metadata as email tags
+	if len(payload.Metadata) > 0 {
+		var tags []types.MessageTag
+		for key, value := range payload.Metadata {
+			tags = append(tags, types.MessageTag{
+				Name:  aws.String(key),
+				Value: aws.String(value),
+			})
+		}
+		input.EmailTags = tags
+	}
+
+	// Send raw email
+	_, err := a.client.SendEmail(ctx, input)
+	if err != nil {
+		return mapSESError(err)
+	}
+
+	return nil
+}
+
+func mapSESError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	errStr := err.Error()
+
+	// Validation errors (don't retry)
+	if strings.Contains(errStr, "ValidationError") ||
+		strings.Contains(errStr, "InvalidParameterValue") ||
+		strings.Contains(errStr, "MessageRejected") {
+		return email.NewValidationError(err.Error())
+	}
+
+	// Permanent errors (don't retry)
+	if strings.Contains(errStr, "AccountSendingPausedException") ||
+		strings.Contains(errStr, "MailFromDomainNotVerifiedException") ||
+		strings.Contains(errStr, "ConfigurationSetDoesNotExist") {
+		return email.NewPermanentError(err.Error())
+	}
+
+	// Temporary errors (retry)
+	if strings.Contains(errStr, "Throttling") ||
+		strings.Contains(errStr, "ServiceUnavailable") ||
+		strings.Contains(errStr, "TooManyRequests") {
+		return email.NewTemporaryError(err.Error())
+	}
+
+	// Default to temporary error for unknown cases
+	return email.NewTemporaryError(err.Error())
+}

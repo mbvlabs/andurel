@@ -408,7 +408,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	emailClient := mailclients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort)
-	wrks, err := workers.Register(emailClient)
+	wrks, err := workers.Register(emailClient, emailClient)
 	if err != nil {
 		return err
 	}
@@ -4508,10 +4508,14 @@ import (
 	"testapp/email"
 )
 
-func Register(sender email.TransactionalSender) (*river.Workers, error) {
+func Register(transactionalSender email.TransactionalSender, marketingSender email.MarketingSender) (*river.Workers, error) {
 	wrks := river.NewWorkers()
 
-	if err := river.AddWorkerSafely(wrks, NewSendTransactionalEmailWorker(sender)); err != nil {
+	if err := river.AddWorkerSafely(wrks, NewSendTransactionalEmailWorker(transactionalSender)); err != nil {
+		return nil, err
+	}
+
+	if err := river.AddWorkerSafely(wrks, NewSendMarketingEmailWorker(marketingSender)); err != nil {
 		return nil, err
 	}
 

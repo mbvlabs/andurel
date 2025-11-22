@@ -89,6 +89,27 @@ func getScaffoldConfigs() []ScaffoldConfig {
 			Extensions: []string{"auth", "docker"},
 			Critical:   true,
 		},
+		{
+			Name:       "postgresql-tailwind-aws-ses",
+			Database:   "postgresql",
+			CSS:        "tailwind",
+			Extensions: []string{"aws-ses"},
+			Critical:   false,
+		},
+		{
+			Name:       "sqlite-vanilla-aws-ses",
+			Database:   "sqlite",
+			CSS:        "vanilla",
+			Extensions: []string{"aws-ses"},
+			Critical:   false,
+		},
+		{
+			Name:       "postgresql-tailwind-auth-aws-ses",
+			Database:   "postgresql",
+			CSS:        "tailwind",
+			Extensions: []string{"auth", "aws-ses"},
+			Critical:   false,
+		},
 	}
 }
 

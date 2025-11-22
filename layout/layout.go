@@ -693,6 +693,7 @@ func registerBuiltinExtensions() error {
 	registerBuiltinOnce.Do(func() {
 		builtin := []extensions.Extension{
 			extensions.Auth{},
+			extensions.AwsSes{},
 			extensions.Docker{},
 			extensions.Workflows{},
 		}
