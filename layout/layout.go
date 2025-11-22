@@ -300,8 +300,10 @@ var basePSQLTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Queue package
 	"psql_queue_queue.tmpl":                              "queue/queue.go",
 	"psql_queue_jobs_send_transactional_email.tmpl":      "queue/jobs/send_transactional_email.go",
+	"psql_queue_jobs_send_marketing_email.tmpl":          "queue/jobs/send_marketing_email.go",
 	"psql_queue_workers_workers.tmpl":                    "queue/workers/workers.go",
 	"psql_queue_workers_send_transactional_email.tmpl":   "queue/workers/send_transactional_email.go",
+	"psql_queue_workers_send_marketing_email.tmpl":       "queue/workers/send_marketing_email.go",
 }
 
 var baseSqliteTemplateMappings = map[TmplTarget]TmplTargetPath{

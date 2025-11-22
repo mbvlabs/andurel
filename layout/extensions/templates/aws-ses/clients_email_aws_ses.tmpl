@@ -125,7 +125,7 @@ func (a *AwsSes) SendTransactional(ctx context.Context, payload email.Transactio
 func (a *AwsSes) SendMarketing(ctx context.Context, payload email.MarketingPayload) error {
 	// Extract first recipient (queue pattern sends one email per job)
 	if len(payload.To) == 0 {
-		return email.NewValidationError("no recipients specified")
+		return email.ValidationError{Err: fmt.Errorf("no recipients specified")}
 	}
 
 	recipient := payload.To[0]
@@ -254,7 +254,7 @@ func (a *AwsSes) sendRawEmail(ctx context.Context, payload email.TransactionalPa
 	for _, attachment := range payload.Attachments {
 		part, _ := writer.CreatePart(textproto.MIMEHeader{
 			"Content-Type":              []string{attachment.ContentType},
-			"Content-Disposition":       []string{fmt.Sprintf("attachment; filename=%s", attachment.Filename)},
+			"Content-Disposition":       []string{fmt.Sprintf("attachment; filename=%s", attachment.Name)},
 			"Content-Transfer-Encoding": []string{"base64"},
 		})
 		encoded := base64.StdEncoding.EncodeToString(attachment.Content)
@@ -309,23 +309,23 @@ func mapSESError(err error) error {
 	if strings.Contains(errStr, "ValidationError") ||
 		strings.Contains(errStr, "InvalidParameterValue") ||
 		strings.Contains(errStr, "MessageRejected") {
-		return email.NewValidationError(err.Error())
+		return email.ValidationError{Err: err}
 	}
 
 	// Permanent errors (don't retry)
 	if strings.Contains(errStr, "AccountSendingPausedException") ||
 		strings.Contains(errStr, "MailFromDomainNotVerifiedException") ||
 		strings.Contains(errStr, "ConfigurationSetDoesNotExist") {
-		return email.NewPermanentError(err.Error())
+		return email.PermanentError{Err: err}
 	}
 
 	// Temporary errors (retry)
 	if strings.Contains(errStr, "Throttling") ||
 		strings.Contains(errStr, "ServiceUnavailable") ||
 		strings.Contains(errStr, "TooManyRequests") {
-		return email.NewTemporaryError(err.Error())
+		return email.TemporaryError{Err: err}
 	}
 
 	// Default to temporary error for unknown cases
-	return email.NewTemporaryError(err.Error())
+	return email.TemporaryError{Err: err}
 }

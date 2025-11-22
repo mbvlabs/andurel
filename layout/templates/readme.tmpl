@@ -513,8 +513,287 @@ andurel app console
 This project includes the following extensions:
 {{range .Extensions}}
 ### {{.}}
+{{if eq . "aws-ses"}}
+This project uses Amazon SES (Simple Email Service) for sending transactional and marketing emails in production.
 
+#### Setup
+
+**1. AWS Configuration**
+
+You'll need an AWS account with SES configured:
+
+```bash
+# Verify your sender email address or domain in AWS SES Console
+# https://console.aws.amazon.com/ses/
+
+# Create IAM credentials with SES sending permissions
+# Required policy: AmazonSESFullAccess or custom policy with ses:SendEmail
+```
+
+**2. Environment Variables**
+
+Add these to your `.env` file:
+
+```bash
+# AWS SES Configuration
+AWS_REGION=us-east-1                      # Your AWS region
+AWS_SES_ACCESS_KEY_ID=your_access_key     # IAM access key
+AWS_SES_SECRET_ACCESS_KEY=your_secret     # IAM secret key
+AWS_SES_CONFIGURATION_SET=                # Optional: for open/click tracking
+```
+
+**3. Configuration Set (Optional)**
+
+For email tracking (opens, clicks), create a Configuration Set in AWS SES:
+
+1. Go to AWS SES Console → Configuration Sets
+2. Create a new configuration set
+3. Add event destinations (SNS, CloudWatch, Kinesis, etc.)
+4. Set `AWS_SES_CONFIGURATION_SET` environment variable
+
+#### Sending Transactional Emails
+
+Transactional emails are one-to-one messages like password resets, order confirmations, and account notifications.
+
+**Create an email template:**
+
+```go
+// email/order_confirmation.templ
+package email
+
+templ OrderConfirmation(orderID string, total string) {
+    @BaseLayout() {
+        <h1>Order Confirmed!</h1>
+        <p>Thank you for your order #{orderID}.</p>
+        <p>Total: {total}</p>
+    }
+}
+```
+
+**Send immediately (synchronous):**
+
+```go
+import "{{$.ModuleName}}/email"
+
+err := email.SendTransactional(ctx, email.TransactionalData{
+    To:      "customer@example.com",
+    Cc:      []string{"manager@example.com"},  // Optional
+    From:    "orders@yourapp.com",
+    Subject: "Order Confirmation",
+    Component: email.OrderConfirmation("12345", "$99.99"),
+    Attachments: []email.Attachment{  // Optional
+        {
+            Filename:    "invoice.pdf",
+            ContentType: "application/pdf",
+            Content:     pdfBytes,
+        },
+    },
+}, emailClient)
+```
+{{if eq $.Database "postgresql"}}
+**Send via background queue (recommended):**
+
+```go
+import "{{$.ModuleName}}/queue/jobs"
+
+_, err := insertOnly.Client.Insert(ctx, jobs.SendTransactionalEmailArgs{
+    Data: email.TransactionalData{
+        To:      "customer@example.com",
+        From:    "orders@yourapp.com",
+        Subject: "Order Confirmation",
+        Component: email.OrderConfirmation("12345", "$99.99"),
+    },
+}, nil)
+```
+
+Benefits of queuing:
+- Non-blocking: Returns immediately without waiting for AWS SES
+- Automatic retries: Failed sends retry with exponential backoff
+- Better reliability: Survives temporary AWS outages
+- Observability: Track job status through River
+{{end}}
+#### Sending Marketing Emails
+
+Marketing emails are bulk messages like newsletters, promotions, and announcements sent to multiple recipients.
+
+**Important:** Marketing emails must include an unsubscribe link to comply with email regulations (CAN-SPAM, GDPR).
+
+**Create a newsletter template:**
+
+```go
+// email/newsletter.templ
+package email
+
+templ Newsletter(recipientName string, unsubscribeURL string) {
+    @BaseLayout() {
+        <h1>Monthly Newsletter</h1>
+        <p>Hi {recipientName},</p>
+        <p>Here's what's new this month...</p>
+
+        <footer>
+            <a href={templ.URL(unsubscribeURL)}>Unsubscribe</a>
+        </footer>
+    }
+}
+```
+{{if eq $.Database "postgresql"}}
+**Send to multiple recipients (queued pattern):**
+
+```go
+import "{{$.ModuleName}}/queue/jobs"
+
+// Queue individual emails for each recipient
+recipients := []struct{
+    Email string
+    Name  string
+    ID    string
+}{
+    {Email: "user1@example.com", Name: "Alice", ID: "user-123"},
+    {Email: "user2@example.com", Name: "Bob", ID: "user-456"},
+}
+
+for _, recipient := range recipients {
+    unsubscribeURL := fmt.Sprintf("https://yourapp.com/unsubscribe/%s", recipient.ID)
+
+    _, err := insertOnly.Client.Insert(ctx, jobs.SendMarketingEmailArgs{
+        Data: email.MarketingData{
+            To:             []string{recipient.Email},
+            From:           "newsletter@yourapp.com",
+            Subject:        "Your Monthly Newsletter",
+            Component:      email.Newsletter(recipient.Name, unsubscribeURL),
+            UnsubscribeURL: unsubscribeURL,  // Required!
+            Tags:           []string{"newsletter", "monthly"},
+            TrackOpens:     true,   // Requires Configuration Set
+            TrackClicks:    true,   // Requires Configuration Set
+        },
+    }, nil)
+
+    if err != nil {
+        // Handle error (log, retry, etc.)
+        continue
+    }
+}
+```
+
+**Why queue individual emails?**
+
+- **Personalization**: Each recipient gets customized content (name, preferences, etc.)
+- **Tracking**: Individual delivery status and bounce tracking per recipient
+- **Rate limiting**: AWS SES has sending limits; queuing prevents hitting them
+- **Retries**: Failed emails retry automatically without affecting successful sends
+- **Unsubscribe compliance**: Each email has a unique unsubscribe link
+{{else}}
+**Send to a recipient:**
+
+```go
+import "{{$.ModuleName}}/email"
+
+unsubscribeURL := "https://yourapp.com/unsubscribe/user-123"
+
+err := email.SendMarketing(ctx, email.MarketingData{
+    To:             []string{"user@example.com"},
+    From:           "newsletter@yourapp.com",
+    Subject:        "Your Monthly Newsletter",
+    Component:      email.Newsletter("Alice", unsubscribeURL),
+    UnsubscribeURL: unsubscribeURL,  // Required!
+    Tags:           []string{"newsletter", "monthly"},
+    TrackOpens:     true,   // Requires Configuration Set
+    TrackClicks:    true,   // Requires Configuration Set
+}, emailClient)
+```
+
+**Bulk sending:** For sending to multiple recipients, send individual emails in a loop or use background jobs for better reliability.
+{{end}}
+#### Email Tracking
+
+Enable open and click tracking by configuring a Configuration Set in AWS SES:
+
+```go
+// Tracking is enabled per email
+Data: email.MarketingData{
+    // ... other fields
+    TrackOpens:  true,
+    TrackClicks: true,
+}
+```
+
+**View tracking data:**
+- Configure event destinations in your AWS SES Configuration Set
+- Send events to CloudWatch, SNS, or Kinesis
+- Build dashboards to visualize open/click rates
+
+#### Testing in Development
+
+During development, emails are sent to MailHog instead of AWS SES:
+
+```bash
+# MailHog configuration (automatically used in development)
+MAIL_HOG_HOST=0.0.0.0
+MAIL_HOG_PORT=1025
+```
+
+View test emails at `http://localhost:8025`
+
+To test with real AWS SES in development:
+
+1. Use the `aws-ses` extension
+2. Set `ENVIRONMENT=production` or configure your app to use AWS SES in dev
+3. Ensure your AWS credentials are valid
+
+#### Error Handling
+
+AWS SES provides detailed error information:
+
+```go
+err := email.SendTransactional(ctx, data, emailClient)
+if err != nil {
+    if email.IsValidationError(err) {
+        // Invalid email address, missing required fields, etc.
+        // Don't retry - fix the data
+        log.Error("Invalid email data", "error", err)
+    } else if email.IsTemporaryError(err) {
+        // AWS throttling, service unavailable, etc.
+        // Safe to retry
+        log.Warn("Temporary email error, will retry", "error", err)
+    } else if email.IsPermanentError(err) {
+        // Account suspended, domain not verified, etc.
+        // Don't retry - requires AWS console action
+        log.Error("Permanent email error", "error", err)
+    }
+}
+```
+{{if eq $.Database "postgresql"}}
+The background queue automatically handles retries for temporary errors and cancels jobs with validation or permanent errors.
+{{end}}
+#### AWS SES Limits
+
+Be aware of AWS SES sending limits:
+
+- **Sandbox**: 200 emails/day, verified recipients only
+- **Production**: Request limit increase (up to millions/day)
+- **Rate limit**: 14 emails/second (default, can be increased)
+
+Request production access: AWS SES Console → Account Dashboard → Request Production Access
+
+#### Best Practices
+
+1. **Verify your domain**: Use domain verification instead of email verification for better deliverability
+2. **Use Configuration Sets**: Enable tracking and monitoring
+3. **Monitor bounce rates**: High bounce rates can hurt your sender reputation
+4. **Handle suppression lists**: AWS SES automatically suppresses bounced/complained addresses
+5. **Warm up your sending**: Gradually increase volume when starting with a new domain
+6. **Use templates**: Create reusable email templates in AWS SES for simple use cases
+7. **Queue emails**: Use background jobs for reliability and non-blocking sends
+
+#### Resources
+
+- [AWS SES Documentation](https://docs.aws.amazon.com/ses/)
+- [AWS SES Pricing](https://aws.amazon.com/ses/pricing/) - $0.10 per 1,000 emails
+- [SES Best Practices](https://docs.aws.amazon.com/ses/latest/dg/best-practices.html)
+- [Moving out of Sandbox](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html)
+{{else}}
 <!-- Extension-specific documentation will be added here -->
+{{end}}
 {{end}}
 {{end}}
 ## Learn More
