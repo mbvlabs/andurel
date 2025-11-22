@@ -9,7 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func registrar(handler *echo.Echo, ctrls controllers.Controllers) {
+func registerCoreRoutes(handler *echo.Echo, ctrls controllers.Controllers) {
 	handler.Add(
 		http.MethodGet, routes.Health.URL(), ctrls.API.Health,
 	).Name = routes.Health.Name()
@@ -25,10 +25,6 @@ func registrar(handler *echo.Echo, ctrls controllers.Controllers) {
 	handler.Add(
 		http.MethodGet, routes.HomePage.URL(), ctrls.Pages.Home,
 	).Name = routes.HomePage.Name()
-
-	handler.RouteNotFound("/*", ctrls.Pages.NotFound)
-
-	registerUsersRoutes(handler, ctrls)
 }
 
 func registerUsersRoutes(handler *echo.Echo, ctrls controllers.Controllers) {

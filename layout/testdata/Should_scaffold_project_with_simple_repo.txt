@@ -57,6 +57,7 @@ router/cookies/cookies.go
 router/cookies/flash.go
 router/middleware/middleware.go
 router/register.go
+router/registry.go
 router/router.go
 router/routes/api.go
 router/routes/assets.go
@@ -4807,7 +4808,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func registrar(handler *echo.Echo, ctrls controllers.Controllers) {
+func registerCoreRoutes(handler *echo.Echo, ctrls controllers.Controllers) {
 	handler.Add(
 		http.MethodGet, routes.Health.Path(), ctrls.API.Health,
 	).Name = routes.Health.Name()
@@ -4823,7 +4824,6 @@ func registrar(handler *echo.Echo, ctrls controllers.Controllers) {
 	handler.Add(
 		http.MethodGet, routes.Stylesheet.Path(), ctrls.Assets.Stylesheet,
 	).Name = routes.Stylesheet.Name()
-
 	handler.Add(
 		http.MethodGet, routes.Scripts.Path(), ctrls.Assets.Scripts,
 	).Name = routes.Scripts.Name()
@@ -4835,9 +4835,46 @@ func registrar(handler *echo.Echo, ctrls controllers.Controllers) {
 	handler.Add(
 		http.MethodGet, routes.HomePage.Path(), ctrls.Pages.Home,
 	).Name = routes.HomePage.Name()
-
-	handler.RouteNotFound("/*", ctrls.Pages.NotFound)
 }
+
+
+=== router/registry.go ===
+package router
+
+import (
+	"myorg/webapp/controllers"
+
+	"github.com/labstack/echo/v4"
+)
+
+type registrarBuilder struct {
+	routeFuncs []func(*echo.Echo, controllers.Controllers)
+}
+
+func newRegistrarBuilder() *registrarBuilder {
+	return &registrarBuilder{
+		routeFuncs: make([]func(*echo.Echo, controllers.Controllers), 0),
+	}
+}
+
+func (rb *registrarBuilder) addEntry(fn func(*echo.Echo, controllers.Controllers)) *registrarBuilder {
+	rb.routeFuncs = append(rb.routeFuncs, fn)
+	return rb
+}
+
+func (rb *registrarBuilder) addEntries(fns ...func(*echo.Echo, controllers.Controllers)) *registrarBuilder {
+	rb.routeFuncs = append(rb.routeFuncs, fns...)
+	return rb
+}
+
+func (rb *registrarBuilder) register(handler *echo.Echo, ctrls controllers.Controllers) {
+	for _, fn := range rb.routeFuncs {
+		fn(handler, ctrls)
+	}
+}
+
+var registrar = newRegistrarBuilder().
+	addEntry(registerCoreRoutes)
 
 
 === router/router.go ===
@@ -4935,7 +4972,9 @@ func New(
 	router.Use(middleware...)
 	router.Any("/riverui*", echo.WrapHandler(riverHandler))
 
-	registrar(router, controllers)
+	registrar.register(router, controllers)
+
+	router.RouteNotFound("/*", controllers.Pages.NotFound)
 
 	return &Router{
 		router,
