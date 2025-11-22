@@ -2,6 +2,7 @@
 .env
 .env.example
 .gitignore
+README.md
 assets/assets.go
 assets/css/style.css
 assets/js/datastar_1-0-0-rc6.min.js
@@ -124,6 +125,479 @@ node_modules
 .env
 bin
 webapp.db
+
+
+=== README.md ===
+# webapp
+
+A full-stack web application built with [Andurel](https://github.com/mbvlabs/andurel), a Rails-like web framework for Go that prioritizes development speed.
+
+## About This Project
+
+This project was scaffolded with Andurel and includes:
+
+- **SQLite** - Type-safe database access with SQLC
+- **Tailwind CSS** - Modern styling
+- **[Echo](https://echo.labstack.com/)** - High-performance HTTP framework
+- **[Templ](https://templ.guide/)** - Type-safe HTML templates
+- **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity
+- **[goqite](https://github.com/maragudk/goqite)** - Background job processing
+- **[OpenTelemetry](https://opentelemetry.io/)** - Built-in observability (logging, tracing, metrics)
+- **Email Support** - Pre-configured email sending with MailHog for development
+
+## Quick Start
+
+### Prerequisites
+
+- Go 1.24.4 or higher
+- SQLite (included with Go)
+- Andurel CLI: `go install github.com/mbvlabs/andurel@latest`
+
+### Setup
+
+1. **Configure environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+2. **Run migrations**
+   ```bash
+   ./bin/migration up
+   ```
+
+3. **Start the development server**
+   ```bash
+   ./bin/run
+   ```
+
+Your application is now running at `http://localhost:8080` with live reload for Go, Templ, and CSS changes!
+
+## Available Commands
+
+After scaffolding, your project includes several command-line tools in the `bin/` directory:
+
+### Development Server
+
+```bash
+# Run development server with hot reload for Go, Templ, and CSS
+./bin/run
+```
+
+This orchestrates Air (Go), Templ watch, and Tailwind CSS compilation.
+
+### Database Console
+
+```bash
+# Open interactive database console
+./bin/console
+```
+
+Provides a SQL console connected to your database for ad-hoc queries and exploration.
+
+### Migration Management
+
+```bash
+# Create a new migration
+./bin/migration new create_users_table
+
+# Run all pending migrations
+./bin/migration up
+
+# Rollback last migration
+./bin/migration down
+
+# Rollback to specific version
+./bin/migration down-to [version]
+
+# Apply up to specific version
+./bin/migration up-to [version]
+
+# Reset database (rollback all, then reapply)
+./bin/migration reset
+
+# Fix migration version gaps
+./bin/migration fix
+```
+
+## How-To Guides
+
+### Generate a New Resource
+
+The Andurel generator creates complete CRUD resources with models, controllers, views, and routes.
+
+**Prerequisites**: You need a database table first. Create a migration:
+
+```bash
+# 1. Create a migration for your table
+./bin/migration new create_products_table
+```
+
+Edit the generated migration file in `database/migrations/` to define your table schema:
+
+```sql
+-- +goose Up
+CREATE TABLE products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    description TEXT,
+    price DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- +goose Down
+DROP TABLE products;
+```
+
+Apply the migration:
+
+```bash
+./bin/migration up
+```
+
+**Generate the resource**:
+
+```bash
+# Generate model + controller + views + routes
+andurel generate resource Product
+
+# Or use shorthand
+andurel g resource Product
+```
+
+This creates:
+- `models/product.go` - Data model with CRUD methods
+- `controllers/products.go` - HTTP handlers for CRUD operations
+- `views/products_*.templ` - Template files for all CRUD views
+- Routes automatically registered in `router/routes/products.go`
+
+The generator also:
+- Updates `database/queries/` with SQLC queries
+- Regenerates SQLC code
+- Creates a complete CRUD interface at `/products`
+
+**Custom table names**: If your table doesn't follow Rails naming conventions (model `Product` → table `products`):
+
+```bash
+# Map Product model to a custom table name
+andurel g resource Product --table products_catalog
+```
+
+**Individual components**:
+
+```bash
+# Generate only the model
+andurel g model Product
+
+# Generate controller with views
+andurel g controller Product --with-views
+
+# Generate views with controller
+andurel g view Product --with-controller
+
+# Refresh model after schema changes
+andurel g model Product --refresh
+```
+
+### Setup Background Jobs
+
+This project uses [goqite](https://github.com/maragudk/goqite) for background job processing with SQLite.
+
+**1. Define a job**
+
+Create a new job type in `queue/jobs/`:
+
+```go
+// queue/jobs/my_job.go
+package jobs
+
+type MyJobArgs struct {
+    UserID   string
+    Action   string
+}
+
+func (MyJobArgs) Kind() string { return "my_job" }
+```
+
+**2. Implement a worker**
+
+Create the worker in `queue/workers/`:
+
+```go
+// queue/workers/my_job.go
+package workers
+
+import (
+    "context"
+    "myorg/webapp/queue/jobs"
+)
+
+func ProcessMyJob(ctx context.Context, msg []byte) error {
+    // Your job logic here
+    // Unmarshal msg to jobs.MyJobArgs and process
+    return nil
+}
+```
+
+**3. Register the worker**
+
+Add your worker to `queue/workers/workers.go`:
+
+```go
+// Register in your queue setup
+```
+
+**4. Enqueue jobs**
+
+From anywhere in your application:
+
+```go
+import "myorg/webapp/queue/jobs"
+
+// Enqueue a job through your queue client
+err := queue.Enqueue(ctx, jobs.MyJobArgs{
+    UserID: "123",
+    Action: "send_welcome_email",
+})
+```
+
+
+**Job Options**
+
+Customize job behavior:
+
+```go
+// Configure retry behavior and priorities in your queue setup
+```
+
+### Send Emails
+
+This project includes built-in email functionality with MailHog for development testing.
+
+**1. Create an email template**
+
+Add your template in `email/`:
+
+```go
+// email/welcome.templ
+package email
+
+templ WelcomeEmail(userName string) {
+    @BaseLayout() {
+        <h1>Welcome, { userName }!</h1>
+        <p>Thank you for joining us.</p>
+    }
+}
+```
+
+**2. Send the email**
+
+```go
+import "myorg/webapp/email"
+
+// Send an email
+data := email.TransactionalData{
+    From:    "noreply@example.com",
+    To:      []string{"user@example.com"},
+    Subject: "Welcome!",
+    Body:    WelcomeEmail("John Doe"),
+}
+
+err := email.SendTransactional(ctx, data, sender)
+```
+
+**3. Background email jobs**
+
+For better performance, send emails asynchronously:
+
+```go
+// Enqueue email job through your queue
+```
+
+**Development Testing**
+
+Emails are sent to MailHog in development. Access the web UI at `http://localhost:8025` to view sent emails.
+
+### Working with the Database
+
+**Add queries**
+
+Create SQL queries in `database/queries/`:
+
+```sql
+-- name: GetUserByEmail :one
+SELECT * FROM users WHERE email = $1 LIMIT 1;
+
+-- name: ListActiveUsers :many
+SELECT * FROM users WHERE active = true ORDER BY created_at DESC;
+```
+
+**Generate type-safe code**
+
+```bash
+andurel sqlc generate
+```
+
+**Use generated code**
+
+```go
+import "myorg/webapp/models/internal/db"
+
+user, err := queries.GetUserByEmail(ctx, "user@example.com")
+users, err := queries.ListActiveUsers(ctx)
+```
+
+### Schema Changes
+
+When modifying your database schema:
+
+```bash
+# 1. Create a migration
+./bin/migration new add_email_to_users
+
+# 2. Edit the migration file
+# Add your ALTER TABLE statements
+
+# 3. Apply the migration
+./bin/migration up
+
+# 4. Update queries if needed (in database/queries/)
+
+# 5. Regenerate SQLC code
+andurel sqlc generate
+
+# 6. Refresh affected models
+andurel g model User --refresh
+```
+
+### Customize Styling
+
+This project uses Tailwind CSS. Customize your theme in `css/theme.css`:
+
+```css
+@layer theme {
+  :root {
+    --color-primary: theme('colors.blue.600');
+    --color-secondary: theme('colors.gray.600');
+  }
+}
+```
+
+Add custom utilities in `css/base.css`. The development server automatically rebuilds CSS on changes.
+
+
+## Project Structure
+
+```
+webapp/
+├── assets/              # Static assets (compiled CSS, images)
+├── bin/                 # Command-line tools
+│   ├── app             # Main application binary
+│   ├── console         # Database console
+│   ├── migration       # Migration runner
+│   └── run             # Development server
+├── cmd/                 # Command entry points
+│   ├── app/            # Main web application
+│   ├── console/        # Database console
+│   ├── migration/      # Migration management
+│   └── run/            # Development orchestrator
+├── clients/             # External service clients
+├── config/              # Application configuration
+├── controllers/         # HTTP request handlers
+├── css/                 # Source CSS files (Tailwind)
+├── database/
+│   ├── migrations/     # SQL migration files
+│   └── queries/        # SQLC query definitions
+├── email/               # Email templates and sending
+├── models/              # Data models and business logic
+│   └── internal/db/    # Generated SQLC code (don't edit)
+├── queue/               # Background job processing
+│   ├── jobs/           # Job definitions
+│   └── workers/        # Worker implementations
+├── router/              # Routes and middleware
+│   ├── routes/         # Route definitions
+│   ├── cookies/        # Session helpers
+│   └── middleware/     # Custom middleware
+├── telemetry/           # Observability (logs, traces, metrics)
+├── views/               # Templ templates
+├── .env.example         # Example environment configuration
+└── go.mod               # Go dependencies
+```
+
+## Environment Configuration
+
+Key environment variables (see `.env.example` for all options):
+
+```bash
+# Server
+PORT=8080
+
+# Database
+DATABASE_URL=webapp.db
+
+# Email (MailHog for development)
+SMTP_HOST=localhost
+SMTP_PORT=1025
+
+# Security
+SESSION_SECRET=your-secret-key-here
+CSRF_SECRET=your-csrf-secret-here
+
+# Telemetry
+LOG_LEVEL=info
+OTEL_EXPORTER_TYPE=stdout
+```
+
+## Development Tips
+
+1. **Live Reload**: Use `./bin/run` during development for automatic reloading
+2. **Type Safety**: Let SQLC and Templ catch errors at compile time
+3. **Database Console**: Use `./bin/console` for quick database queries
+4. **Hot Reload**: Changes to Go, Templ, or CSS automatically trigger rebuilds
+5. **Tailwind**: Use Tailwind's utility classes in your Templ templates
+
+## Common Tasks
+
+```bash
+# Start development
+./bin/run
+
+# Create a new resource
+andurel g resource Product
+
+# Add a migration
+./bin/migration new add_field_to_products
+
+# Run migrations
+./bin/migration up
+
+# Regenerate SQLC code
+andurel sqlc generate
+
+# Access database console
+./bin/console
+```
+
+## Learn More
+
+- [Andurel Documentation](https://github.com/mbvlabs/andurel)
+- [Echo Framework](https://echo.labstack.com/)
+- [SQLC](https://sqlc.dev/)
+- [Templ](https://templ.guide/)
+- [Datastar](https://data-star.dev/)
+- [goqite](https://github.com/maragudk/goqite)
+- [OpenTelemetry](https://opentelemetry.io/)
+
+## Getting Help
+
+For Andurel-specific questions and issues:
+- GitHub Issues: https://github.com/mbvlabs/andurel/issues
+- Documentation: https://github.com/mbvlabs/andurel
+
+## License
+
+This project is licensed under the MIT License.
 
 
 === assets/assets.go ===
