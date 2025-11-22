@@ -9,7 +9,7 @@ import (
 	"{{.ModuleName}}/email"
 )
 
-var _ email.Sender = (*MailHog)(nil)
+var _ email.TransactionalSender = (*MailHog)(nil)
 
 type MailHog struct {
 	host string
@@ -82,8 +82,4 @@ func (m *MailHog) SendTransactional(ctx context.Context, payload email.Transacti
 		recipients,
 		[]byte(message.String()),
 	)
-}
-
-func (m *MailHog) SendMarketing(ctx context.Context, payload email.MarketingPayload) error {
-	return fmt.Errorf("MailHog does not support marketing emails")
 }

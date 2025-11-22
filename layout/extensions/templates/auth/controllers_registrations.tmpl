@@ -36,17 +36,17 @@ func newRegistrations(
 }
 {{- else if eq .Database "sqlite" }}
 type Registrations struct {
-	db          database.SQLite
-	emailClient email.Client
-	cfg         config.Config
+	db     database.SQLite
+	sender email.TransactionalSender
+	cfg    config.Config
 }
 
 func newRegistrations(
 	db database.SQLite,
-	emailClient email.Client,
+	sender email.TransactionalSender,
 	cfg config.Config,
 ) Registrations {
-	return Registrations{db, emailClient, cfg}
+	return Registrations{db, sender, cfg}
 }
 {{- end }}
 
@@ -77,7 +77,7 @@ func (r Registrations) Create(c echo.Context) error {
 {{- if eq .Database "postgresql" }}
 		r.insertOnly,
 {{- else if eq .Database "sqlite" }}
-		r.emailClient,
+		r.sender,
 {{- end }}
 		r.cfg.Auth.Pepper,
 		services.RegisterUserData{

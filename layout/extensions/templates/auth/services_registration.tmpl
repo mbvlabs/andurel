@@ -31,7 +31,7 @@ func RegisterUser(
 	insertOnly queue.InsertOnly,
 {{- else if eq .Database "sqlite" }}
 	db database.SQLite,
-	emailClient email.Client,
+	sender email.TransactionalSender,
 {{- end }}
 	salt string,
 	data RegisterUserData,
@@ -86,12 +86,12 @@ func RegisterUser(
 
 	return tx.Commit(ctx)
 {{- else if eq .Database "sqlite" }}
-	if err := emailClient.SendTransactional(ctx, email.TransactionalData{
+	if err := email.SendTransactional(ctx, email.TransactionalData{
 		To:        user.Email,
 		From:      "noreply@andurel.com",
 		Subject:   "Verify Your Email Address",
 		Component: email.VerifyEmail(code),
-	}); err != nil {
+	}, sender); err != nil {
 		return err
 	}
 

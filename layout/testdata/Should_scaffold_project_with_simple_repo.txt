@@ -156,7 +156,7 @@ import (
 	"myorg/webapp/email"
 )
 
-var _ email.Sender = (*MailHog)(nil)
+var _ email.TransactionalSender = (*MailHog)(nil)
 
 type MailHog struct {
 	host string
@@ -229,10 +229,6 @@ func (m *MailHog) SendTransactional(ctx context.Context, payload email.Transacti
 		recipients,
 		[]byte(message.String()),
 	)
-}
-
-func (m *MailHog) SendMarketing(ctx context.Context, payload email.MarketingPayload) error {
-	return fmt.Errorf("MailHog does not support marketing emails")
 }
 
 
@@ -310,7 +306,7 @@ func startServer(ctx context.Context, srv *http.Server, processor queue.Processo
 
 func setupControllers(
 	db database.Postgres,
-	emailClient email.Client,
+	emailClient email.TransactionalSender,
 	insertOnly queue.InsertOnly,
 ) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
@@ -411,7 +407,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	emailClient := email.New(mailclients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort))
+	emailClient := mailclients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort)
 	wrks, err := workers.Register(emailClient)
 	if err != nil {
 		return err
@@ -1470,7 +1466,7 @@ type Controllers struct {
 
 func New(
 	db database.Postgres,
-	emailClient email.Client,
+	emailClient email.TransactionalSender,
 	insertOnly queue.InsertOnly,
 ) (Controllers, error) {
 	pagesCache, err := NewCacheBuilder[templ.Component]().Build()
@@ -2797,7 +2793,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-
 	"strings"
 
 	"github.com/a-h/templ"
@@ -2940,22 +2935,19 @@ type MarketingPayload struct {
 	TrackClicks      bool
 }
 
-type Sender interface {
+type TransactionalSender interface {
 	SendTransactional(ctx context.Context, payload TransactionalPayload) error
+}
+
+type MarketingSender interface {
 	SendMarketing(ctx context.Context, payload MarketingPayload) error
 }
 
-type Client struct {
-	sender Sender
-}
-
-func New(sender Sender) Client {
-	return Client{
-		sender: sender,
-	}
-}
-
-func (c Client) SendTransactional(ctx context.Context, data TransactionalData) error {
+func SendTransactional(
+	ctx context.Context,
+	data TransactionalData,
+	sender TransactionalSender,
+) error {
 	if data.To == "" && len(data.Cc) == 0 && len(data.Bcc) == 0 {
 		return ValidationError{Err: ErrMissingRecipient}
 	}
@@ -2995,10 +2987,10 @@ func (c Client) SendTransactional(ctx context.Context, data TransactionalData) e
 		Metadata:    data.Metadata,
 	}
 
-	return c.sender.SendTransactional(ctx, payload)
+	return sender.SendTransactional(ctx, payload)
 }
 
-func (c Client) SendMarketing(ctx context.Context, data MarketingData) error {
+func SendMarketing(ctx context.Context, data MarketingData, sender MarketingSender) error {
 	if data.UnsubscribeURL == "" {
 		return ErrUnsubscribeURLRequired
 	}
@@ -3028,7 +3020,7 @@ func (c Client) SendMarketing(ctx context.Context, data MarketingData) error {
 		TrackClicks:      data.TrackClicks,
 	}
 
-	return c.sender.SendMarketing(ctx, payload)
+	return sender.SendMarketing(ctx, payload)
 }
 
 func renderComponent(component templ.Component) (string, error) {
@@ -4484,17 +4476,17 @@ import (
 
 type SendTransactionalEmailWorker struct {
 	river.WorkerDefaults[jobs.SendTransactionalEmailArgs]
-	emailClient email.Client
+	sender email.TransactionalSender
 }
 
-func NewSendTransactionalEmailWorker(emailClient email.Client) *SendTransactionalEmailWorker {
+func NewSendTransactionalEmailWorker(sender email.TransactionalSender) *SendTransactionalEmailWorker {
 	return &SendTransactionalEmailWorker{
-		emailClient: emailClient,
+		sender: sender,
 	}
 }
 
 func (w *SendTransactionalEmailWorker) Work(ctx context.Context, job *river.Job[jobs.SendTransactionalEmailArgs]) error {
-	err := w.emailClient.SendTransactional(ctx, job.Args.Data)
+	err := email.SendTransactional(ctx, job.Args.Data, w.sender)
 	if err != nil {
 		if !email.IsRetryable(err) {
 			return river.JobCancel(err)
@@ -4516,10 +4508,10 @@ import (
 	"myorg/webapp/email"
 )
 
-func Register(emailClient email.Client) (*river.Workers, error) {
+func Register(sender email.TransactionalSender) (*river.Workers, error) {
 	wrks := river.NewWorkers()
 
-	if err := river.AddWorkerSafely(wrks, NewSendTransactionalEmailWorker(emailClient)); err != nil {
+	if err := river.AddWorkerSafely(wrks, NewSendTransactionalEmailWorker(sender)); err != nil {
 		return nil, err
 	}
 
