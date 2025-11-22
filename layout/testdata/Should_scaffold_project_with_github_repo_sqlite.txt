@@ -132,18 +132,43 @@ myapp.db
 
 A full-stack web application built with [Andurel](https://github.com/mbvlabs/andurel), a Rails-like web framework for Go that prioritizes development speed.
 
-## About This Project
+## Project Structure
 
-This project was scaffolded with Andurel and includes:
-
-- **SQLite** - Type-safe database access with SQLC
-- **Tailwind CSS** - Modern styling
-- **[Echo](https://echo.labstack.com/)** - High-performance HTTP framework
-- **[Templ](https://templ.guide/)** - Type-safe HTML templates
-- **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity
-- **[goqite](https://github.com/maragudk/goqite)** - Background job processing
-- **[OpenTelemetry](https://opentelemetry.io/)** - Built-in observability (logging, tracing, metrics)
-- **Email Support** - Pre-configured email sending with MailHog for development
+```
+myapp/
+├── assets/              # Static assets (compiled CSS, images)
+├── bin/                 # Command-line tools
+│   ├── app             # Main application binary
+│   ├── console         # Database console
+│   ├── migration       # Migration runner
+│   └── run             # Development server
+├── cmd/                 # Command entry points
+│   ├── app/            # Main web application
+│   ├── console/        # Database console
+│   ├── migration/      # Migration management
+│   └── run/            # Development orchestrator
+├── clients/             # External service clients
+├── config/              # Application configuration
+├── controllers/         # HTTP request handlers
+├── css/                 # Source CSS files (Tailwind)
+├── database/
+│   ├── migrations/     # SQL migration files
+│   └── queries/        # SQLC query definitions
+├── email/               # Email templates and sending
+├── models/              # Data models and business logic
+│   └── internal/db/    # Generated SQLC code (don't edit)
+├── queue/               # Background job processing
+│   ├── jobs/           # Job definitions
+│   └── workers/        # Worker implementations
+├── router/              # Routes and middleware
+│   ├── routes/         # Route definitions
+│   ├── cookies/        # Session helpers
+│   └── middleware/     # Custom middleware
+├── telemetry/           # Observability (logs, traces, metrics)
+├── views/               # Templ templates
+├── .env.example         # Example environment configuration
+└── go.mod               # Go dependencies
+```
 
 ## Quick Start
 
@@ -163,25 +188,26 @@ This project was scaffolded with Andurel and includes:
 
 2. **Run migrations**
    ```bash
-   ./bin/migration up
+   andurel migration up
    ```
 
 3. **Start the development server**
    ```bash
-   ./bin/run
+   andurel run
    ```
 
 Your application is now running at `http://localhost:8080` with live reload for Go, Templ, and CSS changes!
 
 ## Available Commands
 
-After scaffolding, your project includes several command-line tools in the `bin/` directory:
+Andurel provides a comprehensive CLI for development tasks. You can use the `andurel` commands or the local binaries in `bin/`:
 
 ### Development Server
 
 ```bash
 # Run development server with hot reload for Go, Templ, and CSS
-./bin/run
+andurel run
+# Or use the local binary: ./bin/run
 ```
 
 This orchestrates Air (Go), Templ watch, and Tailwind CSS compilation.
@@ -190,7 +216,8 @@ This orchestrates Air (Go), Templ watch, and Tailwind CSS compilation.
 
 ```bash
 # Open interactive database console
-./bin/console
+andurel app console
+# Or use the local binary: ./bin/console
 ```
 
 Provides a SQL console connected to your database for ad-hoc queries and exploration.
@@ -199,25 +226,27 @@ Provides a SQL console connected to your database for ad-hoc queries and explora
 
 ```bash
 # Create a new migration
-./bin/migration new create_users_table
+andurel migration new create_users_table
+# Or use the local binary: ./bin/migration new create_users_table
 
 # Run all pending migrations
-./bin/migration up
+andurel migration up
+# Or use the local binary: ./bin/migration up
 
 # Rollback last migration
-./bin/migration down
+andurel migration down
 
 # Rollback to specific version
-./bin/migration down-to [version]
+andurel migration down-to [version]
 
 # Apply up to specific version
-./bin/migration up-to [version]
+andurel migration up-to [version]
 
 # Reset database (rollback all, then reapply)
-./bin/migration reset
+andurel migration reset
 
 # Fix migration version gaps
-./bin/migration fix
+andurel migration fix
 ```
 
 ## How-To Guides
@@ -230,7 +259,7 @@ The Andurel generator creates complete CRUD resources with models, controllers, 
 
 ```bash
 # 1. Create a migration for your table
-./bin/migration new create_products_table
+andurel migration new create_products_table
 ```
 
 Edit the generated migration file in `database/migrations/` to define your table schema:
@@ -253,7 +282,7 @@ DROP TABLE products;
 Apply the migration:
 
 ```bash
-./bin/migration up
+andurel migration up
 ```
 
 **Generate the resource**:
@@ -454,13 +483,13 @@ When modifying your database schema:
 
 ```bash
 # 1. Create a migration
-./bin/migration new add_email_to_users
+andurel migration new add_email_to_users
 
 # 2. Edit the migration file
 # Add your ALTER TABLE statements
 
 # 3. Apply the migration
-./bin/migration up
+andurel migration up
 
 # 4. Update queries if needed (in database/queries/)
 
@@ -487,73 +516,48 @@ This project uses Tailwind CSS. Customize your theme in `css/theme.css`:
 Add custom utilities in `css/base.css`. The development server automatically rebuilds CSS on changes.
 
 
-## Project Structure
-
-```
-myapp/
-├── assets/              # Static assets (compiled CSS, images)
-├── bin/                 # Command-line tools
-│   ├── app             # Main application binary
-│   ├── console         # Database console
-│   ├── migration       # Migration runner
-│   └── run             # Development server
-├── cmd/                 # Command entry points
-│   ├── app/            # Main web application
-│   ├── console/        # Database console
-│   ├── migration/      # Migration management
-│   └── run/            # Development orchestrator
-├── clients/             # External service clients
-├── config/              # Application configuration
-├── controllers/         # HTTP request handlers
-├── css/                 # Source CSS files (Tailwind)
-├── database/
-│   ├── migrations/     # SQL migration files
-│   └── queries/        # SQLC query definitions
-├── email/               # Email templates and sending
-├── models/              # Data models and business logic
-│   └── internal/db/    # Generated SQLC code (don't edit)
-├── queue/               # Background job processing
-│   ├── jobs/           # Job definitions
-│   └── workers/        # Worker implementations
-├── router/              # Routes and middleware
-│   ├── routes/         # Route definitions
-│   ├── cookies/        # Session helpers
-│   └── middleware/     # Custom middleware
-├── telemetry/           # Observability (logs, traces, metrics)
-├── views/               # Templ templates
-├── .env.example         # Example environment configuration
-└── go.mod               # Go dependencies
-```
-
 ## Environment Configuration
 
 Key environment variables (see `.env.example` for all options):
 
 ```bash
-# Server
+# Application
+ENVIRONMENT=development
+HOST=localhost
 PORT=8080
+PROJECT_NAME=myapp
+DOMAIN=localhost:8080
+PROTOCOL=http
 
 # Database
-DATABASE_URL=myapp.db
+DB_KIND=sqlite3
+DB_PATH=./myapp.db
 
 # Email (MailHog for development)
-SMTP_HOST=localhost
-SMTP_PORT=1025
+MAIL_HOG_HOST=0.0.0.0
+MAIL_HOG_PORT=1025
+DEFAULT_SENDER_SIGNATURE=info@myapp.com
 
-# Security
-SESSION_SECRET=your-secret-key-here
-CSRF_SECRET=your-csrf-secret-here
+# Security (auto-generated during scaffolding)
+SESSION_KEY=<auto-generated>
+SESSION_ENCRYPTION_KEY=<auto-generated>
+TOKEN_SIGNING_KEY=<auto-generated>
+PEPPER=<auto-generated>
 
-# Telemetry
-LOG_LEVEL=info
-OTEL_EXPORTER_TYPE=stdout
+# Telemetry (optional)
+TELEMETRY_SERVICE_NAME=myapp
+TELEMETRY_SERVICE_VERSION=1.0.0
+OTLP_LOGS_ENDPOINT=
+OTLP_METRICS_ENDPOINT=
+OTLP_TRACES_ENDPOINT=
+TRACE_SAMPLE_RATE=1.0
 ```
 
 ## Development Tips
 
-1. **Live Reload**: Use `./bin/run` during development for automatic reloading
+1. **Live Reload**: Use `andurel run` during development for automatic reloading
 2. **Type Safety**: Let SQLC and Templ catch errors at compile time
-3. **Database Console**: Use `./bin/console` for quick database queries
+3. **Database Console**: Use `andurel app console` for quick database queries
 4. **Hot Reload**: Changes to Go, Templ, or CSS automatically trigger rebuilds
 5. **Tailwind**: Use Tailwind's utility classes in your Templ templates
 
@@ -561,22 +565,22 @@ OTEL_EXPORTER_TYPE=stdout
 
 ```bash
 # Start development
-./bin/run
+andurel run
 
 # Create a new resource
 andurel g resource Product
 
 # Add a migration
-./bin/migration new add_field_to_products
+andurel migration new add_field_to_products
 
 # Run migrations
-./bin/migration up
+andurel migration up
 
 # Regenerate SQLC code
 andurel sqlc generate
 
 # Access database console
-./bin/console
+andurel app console
 ```
 
 ## Learn More
