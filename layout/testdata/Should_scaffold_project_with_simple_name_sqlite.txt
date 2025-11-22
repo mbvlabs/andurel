@@ -168,7 +168,7 @@ import (
 	"testapp/email"
 )
 
-var _ email.Sender = (*MailHog)(nil)
+var _ email.TransactionalSender = (*MailHog)(nil)
 
 type MailHog struct {
 	host string
@@ -243,10 +243,6 @@ func (m *MailHog) SendTransactional(ctx context.Context, payload email.Transacti
 	)
 }
 
-func (m *MailHog) SendMarketing(ctx context.Context, payload email.MarketingPayload) error {
-	return fmt.Errorf("MailHog does not support marketing emails")
-}
-
 
 === cmd/app/main.go ===
 package main
@@ -315,7 +311,7 @@ func startServer(ctx context.Context, srv *http.Server, env string) error {
 
 func setupControllers(
 	db database.SQLite,
-	emailClient email.Client,
+	emailClient email.TransactionalSender,
 ) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
 		db,
@@ -412,7 +408,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	emailClient := email.New(mailclients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort))
+	emailClient := mailclients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort)
 
 	controllers, err := setupControllers(
 		db,
@@ -1417,7 +1413,7 @@ type Controllers struct {
 
 func New(
 	db database.SQLite,
-	emailClient email.Client,
+	emailClient email.TransactionalSender,
 ) (Controllers, error) {
 	pagesCache, err := NewCacheBuilder[templ.Component]().Build()
 	if err != nil {
@@ -2312,7 +2308,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-
 	"strings"
 
 	"github.com/a-h/templ"
@@ -2455,22 +2450,19 @@ type MarketingPayload struct {
 	TrackClicks      bool
 }
 
-type Sender interface {
+type TransactionalSender interface {
 	SendTransactional(ctx context.Context, payload TransactionalPayload) error
+}
+
+type MarketingSender interface {
 	SendMarketing(ctx context.Context, payload MarketingPayload) error
 }
 
-type Client struct {
-	sender Sender
-}
-
-func New(sender Sender) Client {
-	return Client{
-		sender: sender,
-	}
-}
-
-func (c Client) SendTransactional(ctx context.Context, data TransactionalData) error {
+func SendTransactional(
+	ctx context.Context,
+	data TransactionalData,
+	sender TransactionalSender,
+) error {
 	if data.To == "" && len(data.Cc) == 0 && len(data.Bcc) == 0 {
 		return ValidationError{Err: ErrMissingRecipient}
 	}
@@ -2510,10 +2502,10 @@ func (c Client) SendTransactional(ctx context.Context, data TransactionalData) e
 		Metadata:    data.Metadata,
 	}
 
-	return c.sender.SendTransactional(ctx, payload)
+	return sender.SendTransactional(ctx, payload)
 }
 
-func (c Client) SendMarketing(ctx context.Context, data MarketingData) error {
+func SendMarketing(ctx context.Context, data MarketingData, sender MarketingSender) error {
 	if data.UnsubscribeURL == "" {
 		return ErrUnsubscribeURLRequired
 	}
@@ -2543,7 +2535,7 @@ func (c Client) SendMarketing(ctx context.Context, data MarketingData) error {
 		TrackClicks:      data.TrackClicks,
 	}
 
-	return c.sender.SendMarketing(ctx, payload)
+	return sender.SendMarketing(ctx, payload)
 }
 
 func renderComponent(component templ.Component) (string, error) {

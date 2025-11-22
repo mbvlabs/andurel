@@ -906,7 +906,7 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 
 	builder.AddMainInitialization(
 		"emailClient",
-		"email.New(mailclients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort))",
+		"mailclients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort)",
 		"cfg",
 	)
 
@@ -923,7 +923,7 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 		dbType = "database.Postgres"
 	}
 	builder.AddControllerDependency("db", dbType)
-	builder.AddControllerDependency("emailClient", "email.Client")
+	builder.AddControllerDependency("emailClient", "email.TransactionalSender")
 
 	// Controller fields - the main sub-controllers
 	builder.

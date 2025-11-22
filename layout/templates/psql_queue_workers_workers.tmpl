@@ -7,10 +7,10 @@ import (
 	"{{.ModuleName}}/email"
 )
 
-func Register(emailClient email.Client) (*river.Workers, error) {
+func Register(sender email.TransactionalSender) (*river.Workers, error) {
 	wrks := river.NewWorkers()
 
-	if err := river.AddWorkerSafely(wrks, NewSendTransactionalEmailWorker(emailClient)); err != nil {
+	if err := river.AddWorkerSafely(wrks, NewSendTransactionalEmailWorker(sender)); err != nil {
 		return nil, err
 	}
 
