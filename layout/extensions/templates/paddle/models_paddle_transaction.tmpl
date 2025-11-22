@@ -1,0 +1,321 @@
+{{- if eq .Database "postgresql" }}
+package models
+
+import (
+	"context"
+	"database/sql"
+	"time"
+
+	"github.com/google/uuid"
+
+	"{{.ModuleName}}/models/internal/db"
+)
+
+type PaddleTransaction struct {
+	ID                   uuid.UUID
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+	PaddleTransactionID  string
+	PaddleCustomerID     string
+	UserID               uuid.UUID
+	Status               string
+	Amount               string
+	Currency             string
+	InvoiceNumber        string
+	BilledAt             time.Time
+	CompletedAt          time.Time
+	RawData              []byte
+}
+
+func FindPaddleTransactionByID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	id uuid.UUID,
+) (PaddleTransaction, error) {
+	row, err := queries.QueryPaddleTransactionByID(ctx, dbtx, id)
+	if err != nil {
+		return PaddleTransaction{}, err
+	}
+
+	return rowToPaddleTransaction(row)
+}
+
+func FindPaddleTransactionByPaddleID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	paddleTransactionID string,
+) (PaddleTransaction, error) {
+	row, err := queries.QueryPaddleTransactionByPaddleID(ctx, dbtx, paddleTransactionID)
+	if err != nil {
+		return PaddleTransaction{}, err
+	}
+
+	return rowToPaddleTransaction(row)
+}
+
+func ListUserTransactions(
+	ctx context.Context,
+	dbtx db.DBTX,
+	userID uuid.UUID,
+) ([]PaddleTransaction, error) {
+	rows, err := queries.QueryUserTransactions(ctx, dbtx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	transactions := make([]PaddleTransaction, len(rows))
+	for i, row := range rows {
+		transaction, convErr := rowToPaddleTransaction(row)
+		if convErr != nil {
+			return nil, convErr
+		}
+		transactions[i] = transaction
+	}
+
+	return transactions, nil
+}
+
+type CreatePaddleTransactionData struct {
+	PaddleTransactionID string
+	PaddleCustomerID    string
+	UserID              uuid.UUID
+	Status              string
+	Amount              string
+	Currency            string
+	InvoiceNumber       string
+	BilledAt            time.Time
+	CompletedAt         time.Time
+	RawData             []byte
+}
+
+func CreatePaddleTransaction(
+	ctx context.Context,
+	dbtx db.DBTX,
+	data CreatePaddleTransactionData,
+) (PaddleTransaction, error) {
+	params := db.CreateInsertPaddleTransactionParams(
+		uuid.New(),
+		data.PaddleTransactionID,
+		data.PaddleCustomerID,
+		data.UserID,
+		data.Status,
+		data.Amount,
+		data.Currency,
+		sql.NullString{String: data.InvoiceNumber, Valid: data.InvoiceNumber != ""},
+		sql.NullTime{Time: data.BilledAt, Valid: !data.BilledAt.IsZero()},
+		sql.NullTime{Time: data.CompletedAt, Valid: !data.CompletedAt.IsZero()},
+		data.RawData,
+	)
+
+	row, err := queries.InsertPaddleTransaction(ctx, dbtx, params)
+	if err != nil {
+		return PaddleTransaction{}, err
+	}
+
+	return rowToPaddleTransaction(row)
+}
+
+func UpdatePaddleTransactionStatus(
+	ctx context.Context,
+	dbtx db.DBTX,
+	paddleTransactionID string,
+	status string,
+	completedAt time.Time,
+) (PaddleTransaction, error) {
+	params := db.CreateUpdatePaddleTransactionStatusParams(
+		paddleTransactionID,
+		status,
+		sql.NullTime{Time: completedAt, Valid: !completedAt.IsZero()},
+	)
+
+	row, err := queries.UpdatePaddleTransactionStatus(ctx, dbtx, params)
+	if err != nil {
+		return PaddleTransaction{}, err
+	}
+
+	return rowToPaddleTransaction(row)
+}
+
+func rowToPaddleTransaction(row db.PaddleTransaction) (PaddleTransaction, error) {
+	return PaddleTransaction{
+		ID:                  row.ID,
+		CreatedAt:           row.CreatedAt.Time,
+		UpdatedAt:           row.UpdatedAt.Time,
+		PaddleTransactionID: row.PaddleTransactionID,
+		PaddleCustomerID:    row.PaddleCustomerID,
+		UserID:              row.UserID,
+		Status:              row.Status,
+		Amount:              row.Amount,
+		Currency:            row.Currency,
+		InvoiceNumber:       row.InvoiceNumber.String,
+		BilledAt:            row.BilledAt.Time,
+		CompletedAt:         row.CompletedAt.Time,
+		RawData:             row.RawData,
+	}, nil
+}
+{{- else if eq .Database "sqlite" }}
+package models
+
+import (
+	"context"
+	"database/sql"
+	"time"
+
+	"github.com/google/uuid"
+
+	"{{.ModuleName}}/models/internal/db"
+)
+
+type PaddleTransaction struct {
+	ID                   uuid.UUID
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+	PaddleTransactionID  string
+	PaddleCustomerID     string
+	UserID               uuid.UUID
+	Status               string
+	Amount               string
+	Currency             string
+	InvoiceNumber        string
+	BilledAt             time.Time
+	CompletedAt          time.Time
+	RawData              string
+}
+
+func FindPaddleTransactionByID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	id uuid.UUID,
+) (PaddleTransaction, error) {
+	row, err := queries.QueryPaddleTransactionByID(ctx, dbtx, id.String())
+	if err != nil {
+		return PaddleTransaction{}, err
+	}
+
+	return rowToPaddleTransaction(row)
+}
+
+func FindPaddleTransactionByPaddleID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	paddleTransactionID string,
+) (PaddleTransaction, error) {
+	row, err := queries.QueryPaddleTransactionByPaddleID(ctx, dbtx, paddleTransactionID)
+	if err != nil {
+		return PaddleTransaction{}, err
+	}
+
+	return rowToPaddleTransaction(row)
+}
+
+func ListUserTransactions(
+	ctx context.Context,
+	dbtx db.DBTX,
+	userID uuid.UUID,
+) ([]PaddleTransaction, error) {
+	rows, err := queries.QueryUserTransactions(ctx, dbtx, userID.String())
+	if err != nil {
+		return nil, err
+	}
+
+	transactions := make([]PaddleTransaction, len(rows))
+	for i, row := range rows {
+		transaction, convErr := rowToPaddleTransaction(row)
+		if convErr != nil {
+			return nil, convErr
+		}
+		transactions[i] = transaction
+	}
+
+	return transactions, nil
+}
+
+type CreatePaddleTransactionData struct {
+	PaddleTransactionID string
+	PaddleCustomerID    string
+	UserID              uuid.UUID
+	Status              string
+	Amount              string
+	Currency            string
+	InvoiceNumber       string
+	BilledAt            time.Time
+	CompletedAt         time.Time
+	RawData             string
+}
+
+func CreatePaddleTransaction(
+	ctx context.Context,
+	dbtx db.DBTX,
+	data CreatePaddleTransactionData,
+) (PaddleTransaction, error) {
+	params := db.CreateInsertPaddleTransactionParams(
+		uuid.New().String(),
+		data.PaddleTransactionID,
+		data.PaddleCustomerID,
+		data.UserID.String(),
+		data.Status,
+		data.Amount,
+		data.Currency,
+		sql.NullString{String: data.InvoiceNumber, Valid: data.InvoiceNumber != ""},
+		sql.NullTime{Time: data.BilledAt, Valid: !data.BilledAt.IsZero()},
+		sql.NullTime{Time: data.CompletedAt, Valid: !data.CompletedAt.IsZero()},
+		sql.NullString{String: data.RawData, Valid: data.RawData != ""},
+	)
+
+	row, err := queries.InsertPaddleTransaction(ctx, dbtx, params)
+	if err != nil {
+		return PaddleTransaction{}, err
+	}
+
+	return rowToPaddleTransaction(row)
+}
+
+func UpdatePaddleTransactionStatus(
+	ctx context.Context,
+	dbtx db.DBTX,
+	paddleTransactionID string,
+	status string,
+	completedAt time.Time,
+) (PaddleTransaction, error) {
+	params := db.CreateUpdatePaddleTransactionStatusParams(
+		paddleTransactionID,
+		status,
+		sql.NullTime{Time: completedAt, Valid: !completedAt.IsZero()},
+	)
+
+	row, err := queries.UpdatePaddleTransactionStatus(ctx, dbtx, params)
+	if err != nil {
+		return PaddleTransaction{}, err
+	}
+
+	return rowToPaddleTransaction(row)
+}
+
+func rowToPaddleTransaction(row db.PaddleTransaction) (PaddleTransaction, error) {
+	id, err := uuid.Parse(row.ID)
+	if err != nil {
+		return PaddleTransaction{}, err
+	}
+
+	userID, err := uuid.Parse(row.UserID)
+	if err != nil {
+		return PaddleTransaction{}, err
+	}
+
+	return PaddleTransaction{
+		ID:                  id,
+		CreatedAt:           row.CreatedAt,
+		UpdatedAt:           row.UpdatedAt,
+		PaddleTransactionID: row.PaddleTransactionID,
+		PaddleCustomerID:    row.PaddleCustomerID,
+		UserID:              userID,
+		Status:              row.Status,
+		Amount:              row.Amount,
+		Currency:            row.Currency,
+		InvoiceNumber:       row.InvoiceNumber.String,
+		BilledAt:            row.BilledAt.Time,
+		CompletedAt:         row.CompletedAt.Time,
+		RawData:             row.RawData.String,
+	}, nil
+}
+{{- end }}

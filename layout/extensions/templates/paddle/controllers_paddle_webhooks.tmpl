@@ -1,0 +1,204 @@
+package controllers
+
+import (
+	"encoding/json"
+	"io"
+	"log/slog"
+	"net/http"
+	"time"
+
+	"{{.ModuleName}}/clients/payment"
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/models"
+
+	"github.com/labstack/echo/v4"
+)
+
+{{- if eq .Database "postgresql" }}
+type PaddleWebhooks struct {
+	db     database.Postgres
+	client *payment.PaddleClient
+	cfg    config.Config
+}
+
+func newPaddleWebhooks(db database.Postgres, client *payment.PaddleClient, cfg config.Config) PaddleWebhooks {
+	return PaddleWebhooks{db, client, cfg}
+}
+{{- else if eq .Database "sqlite" }}
+type PaddleWebhooks struct {
+	db     database.SQLite
+	client *payment.PaddleClient
+	cfg    config.Config
+}
+
+func newPaddleWebhooks(db database.SQLite, client *payment.PaddleClient, cfg config.Config) PaddleWebhooks {
+	return PaddleWebhooks{db, client, cfg}
+}
+{{- end }}
+
+func (w PaddleWebhooks) Handle(c echo.Context) error {
+	// Read request body
+	bodyBytes, err := io.ReadAll(c.Request().Body)
+	if err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"failed to read webhook body",
+			"error",
+			err,
+		)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
+	}
+
+	// Verify webhook signature
+	signature := c.Request().Header.Get("Paddle-Signature")
+	if !w.client.VerifyWebhookSignature(signature, string(bodyBytes), w.cfg.Paddle.WebhookSecret) {
+		slog.WarnContext(
+			c.Request().Context(),
+			"invalid webhook signature",
+		)
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid signature"})
+	}
+
+	// Parse webhook event
+	event, err := payment.ParseWebhookEvent(bodyBytes)
+	if err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"failed to parse webhook event",
+			"error",
+			err,
+		)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid event data"})
+	}
+
+	// Handle different event types
+	switch event.EventType {
+	case "transaction.completed":
+		if err := w.handleTransactionCompleted(c, event); err != nil {
+			slog.ErrorContext(
+				c.Request().Context(),
+				"failed to handle transaction.completed",
+				"error",
+				err,
+				"event_id",
+				event.EventID,
+			)
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to process event"})
+		}
+
+	case "transaction.updated":
+		if err := w.handleTransactionUpdated(c, event); err != nil {
+			slog.ErrorContext(
+				c.Request().Context(),
+				"failed to handle transaction.updated",
+				"error",
+				err,
+				"event_id",
+				event.EventID,
+			)
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to process event"})
+		}
+
+	default:
+		slog.InfoContext(
+			c.Request().Context(),
+			"unhandled webhook event type",
+			"event_type",
+			event.EventType,
+			"event_id",
+			event.EventID,
+		)
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"status": "received"})
+}
+
+type transactionData struct {
+	ID           string `json:"id"`
+	Status       string `json:"status"`
+	CustomerID   string `json:"customer_id"`
+	CurrencyCode string `json:"currency_code"`
+	Details      struct {
+		Totals struct {
+			Total string `json:"total"`
+		} `json:"totals"`
+	} `json:"details"`
+	InvoiceNumber string    `json:"invoice_number"`
+	BilledAt      time.Time `json:"billed_at"`
+}
+
+func (w PaddleWebhooks) handleTransactionCompleted(c echo.Context, event *payment.WebhookEvent) error {
+	var txData transactionData
+	if err := json.Unmarshal(event.Data, &txData); err != nil {
+		return err
+	}
+
+	// Check if transaction already exists
+	existingTx, err := models.FindPaddleTransactionByPaddleID(
+		c.Request().Context(),
+		w.db,
+		txData.ID,
+	)
+
+	if err == nil {
+		// Transaction exists, update status
+		_, err = models.UpdatePaddleTransactionStatus(
+			c.Request().Context(),
+			w.db,
+			txData.ID,
+			txData.Status,
+			time.Now(),
+		)
+		return err
+	}
+
+	// Transaction doesn't exist - this is expected for new transactions
+	// In a real implementation, you would need to:
+	// 1. Get the user_id from the paddle_customer_id
+	// 2. Create the transaction record
+	slog.InfoContext(
+		c.Request().Context(),
+		"new transaction completed",
+		"transaction_id",
+		txData.ID,
+		"customer_id",
+		txData.CustomerID,
+		"status",
+		txData.Status,
+		"total",
+		txData.Details.Totals.Total,
+	)
+
+	return nil
+}
+
+func (w PaddleWebhooks) handleTransactionUpdated(c echo.Context, event *payment.WebhookEvent) error {
+	var txData transactionData
+	if err := json.Unmarshal(event.Data, &txData); err != nil {
+		return err
+	}
+
+	// Update transaction status
+	_, err := models.UpdatePaddleTransactionStatus(
+		c.Request().Context(),
+		w.db,
+		txData.ID,
+		txData.Status,
+		time.Now(),
+	)
+
+	if err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"failed to update transaction",
+			"error",
+			err,
+			"transaction_id",
+			txData.ID,
+		)
+		return err
+	}
+
+	return nil
+}

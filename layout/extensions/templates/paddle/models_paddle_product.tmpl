@@ -1,0 +1,258 @@
+{{- if eq .Database "postgresql" }}
+package models
+
+import (
+	"context"
+	"database/sql"
+	"time"
+
+	"github.com/google/uuid"
+
+	"{{.ModuleName}}/models/internal/db"
+)
+
+type PaddleProduct struct {
+	ID              uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	PaddleProductID string
+	PaddlePriceID   string
+	Name            string
+	Description     string
+	PriceAmount     string
+	PriceCurrency   string
+	ImageURL        string
+	IsActive        bool
+}
+
+func FindPaddleProductByID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	id uuid.UUID,
+) (PaddleProduct, error) {
+	row, err := queries.QueryPaddleProductByID(ctx, dbtx, id)
+	if err != nil {
+		return PaddleProduct{}, err
+	}
+
+	return rowToPaddleProduct(row)
+}
+
+func FindPaddleProductByPaddleID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	paddleProductID string,
+) (PaddleProduct, error) {
+	row, err := queries.QueryPaddleProductByPaddleID(ctx, dbtx, paddleProductID)
+	if err != nil {
+		return PaddleProduct{}, err
+	}
+
+	return rowToPaddleProduct(row)
+}
+
+func ListActiveProducts(
+	ctx context.Context,
+	dbtx db.DBTX,
+) ([]PaddleProduct, error) {
+	rows, err := queries.QueryActiveProducts(ctx, dbtx)
+	if err != nil {
+		return nil, err
+	}
+
+	products := make([]PaddleProduct, len(rows))
+	for i, row := range rows {
+		product, convErr := rowToPaddleProduct(row)
+		if convErr != nil {
+			return nil, convErr
+		}
+		products[i] = product
+	}
+
+	return products, nil
+}
+
+type CreatePaddleProductData struct {
+	PaddleProductID string
+	PaddlePriceID   string
+	Name            string
+	Description     string
+	PriceAmount     string
+	PriceCurrency   string
+	ImageURL        string
+	IsActive        bool
+}
+
+func CreatePaddleProduct(
+	ctx context.Context,
+	dbtx db.DBTX,
+	data CreatePaddleProductData,
+) (PaddleProduct, error) {
+	params := db.CreateInsertPaddleProductParams(
+		uuid.New(),
+		data.PaddleProductID,
+		data.PaddlePriceID,
+		data.Name,
+		sql.NullString{String: data.Description, Valid: data.Description != ""},
+		data.PriceAmount,
+		data.PriceCurrency,
+		sql.NullString{String: data.ImageURL, Valid: data.ImageURL != ""},
+		data.IsActive,
+	)
+
+	row, err := queries.InsertPaddleProduct(ctx, dbtx, params)
+	if err != nil {
+		return PaddleProduct{}, err
+	}
+
+	return rowToPaddleProduct(row)
+}
+
+func rowToPaddleProduct(row db.PaddleProduct) (PaddleProduct, error) {
+	return PaddleProduct{
+		ID:              row.ID,
+		CreatedAt:       row.CreatedAt.Time,
+		UpdatedAt:       row.UpdatedAt.Time,
+		PaddleProductID: row.PaddleProductID,
+		PaddlePriceID:   row.PaddlePriceID,
+		Name:            row.Name,
+		Description:     row.Description.String,
+		PriceAmount:     row.PriceAmount,
+		PriceCurrency:   row.PriceCurrency,
+		ImageURL:        row.ImageUrl.String,
+		IsActive:        row.IsActive,
+	}, nil
+}
+{{- else if eq .Database "sqlite" }}
+package models
+
+import (
+	"context"
+	"database/sql"
+	"time"
+
+	"github.com/google/uuid"
+
+	"{{.ModuleName}}/models/internal/db"
+)
+
+type PaddleProduct struct {
+	ID              uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	PaddleProductID string
+	PaddlePriceID   string
+	Name            string
+	Description     string
+	PriceAmount     string
+	PriceCurrency   string
+	ImageURL        string
+	IsActive        bool
+}
+
+func FindPaddleProductByID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	id uuid.UUID,
+) (PaddleProduct, error) {
+	row, err := queries.QueryPaddleProductByID(ctx, dbtx, id.String())
+	if err != nil {
+		return PaddleProduct{}, err
+	}
+
+	return rowToPaddleProduct(row)
+}
+
+func FindPaddleProductByPaddleID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	paddleProductID string,
+) (PaddleProduct, error) {
+	row, err := queries.QueryPaddleProductByPaddleID(ctx, dbtx, paddleProductID)
+	if err != nil {
+		return PaddleProduct{}, err
+	}
+
+	return rowToPaddleProduct(row)
+}
+
+func ListActiveProducts(
+	ctx context.Context,
+	dbtx db.DBTX,
+) ([]PaddleProduct, error) {
+	rows, err := queries.QueryActiveProducts(ctx, dbtx)
+	if err != nil {
+		return nil, err
+	}
+
+	products := make([]PaddleProduct, len(rows))
+	for i, row := range rows {
+		product, convErr := rowToPaddleProduct(row)
+		if convErr != nil {
+			return nil, convErr
+		}
+		products[i] = product
+	}
+
+	return products, nil
+}
+
+type CreatePaddleProductData struct {
+	PaddleProductID string
+	PaddlePriceID   string
+	Name            string
+	Description     string
+	PriceAmount     string
+	PriceCurrency   string
+	ImageURL        string
+	IsActive        bool
+}
+
+func CreatePaddleProduct(
+	ctx context.Context,
+	dbtx db.DBTX,
+	data CreatePaddleProductData,
+) (PaddleProduct, error) {
+	params := db.CreateInsertPaddleProductParams(
+		uuid.New().String(),
+		data.PaddleProductID,
+		data.PaddlePriceID,
+		data.Name,
+		sql.NullString{String: data.Description, Valid: data.Description != ""},
+		data.PriceAmount,
+		data.PriceCurrency,
+		sql.NullString{String: data.ImageURL, Valid: data.ImageURL != ""},
+		data.IsActive,
+	)
+
+	row, err := queries.InsertPaddleProduct(ctx, dbtx, params)
+	if err != nil {
+		return PaddleProduct{}, err
+	}
+
+	return rowToPaddleProduct(row)
+}
+
+func rowToPaddleProduct(row db.PaddleProduct) (PaddleProduct, error) {
+	id, err := uuid.Parse(row.ID)
+	if err != nil {
+		return PaddleProduct{}, err
+	}
+
+	isActive := row.IsActive == 1
+
+	return PaddleProduct{
+		ID:              id,
+		CreatedAt:       row.CreatedAt,
+		UpdatedAt:       row.UpdatedAt,
+		PaddleProductID: row.PaddleProductID,
+		PaddlePriceID:   row.PaddlePriceID,
+		Name:            row.Name,
+		Description:     row.Description.String,
+		PriceAmount:     row.PriceAmount,
+		PriceCurrency:   row.PriceCurrency,
+		ImageURL:        row.ImageUrl.String,
+		IsActive:        isActive,
+	}, nil
+}
+{{- end }}

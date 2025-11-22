@@ -1,0 +1,177 @@
+{{- if eq .Database "postgresql" }}
+package models
+
+import (
+	"context"
+	"time"
+
+	"github.com/google/uuid"
+
+	"{{.ModuleName}}/models/internal/db"
+)
+
+type PaddleCustomer struct {
+	ID               uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	UserID           uuid.UUID
+	PaddleCustomerID string
+	Email            string
+}
+
+func FindPaddleCustomerByUserID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	userID uuid.UUID,
+) (PaddleCustomer, error) {
+	row, err := queries.QueryPaddleCustomerByUserID(ctx, dbtx, userID)
+	if err != nil {
+		return PaddleCustomer{}, err
+	}
+
+	return rowToPaddleCustomer(row)
+}
+
+func FindPaddleCustomerByPaddleID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	paddleCustomerID string,
+) (PaddleCustomer, error) {
+	row, err := queries.QueryPaddleCustomerByPaddleID(ctx, dbtx, paddleCustomerID)
+	if err != nil {
+		return PaddleCustomer{}, err
+	}
+
+	return rowToPaddleCustomer(row)
+}
+
+type CreatePaddleCustomerData struct {
+	UserID           uuid.UUID
+	PaddleCustomerID string
+	Email            string
+}
+
+func CreatePaddleCustomer(
+	ctx context.Context,
+	dbtx db.DBTX,
+	data CreatePaddleCustomerData,
+) (PaddleCustomer, error) {
+	params := db.CreateInsertPaddleCustomerParams(
+		uuid.New(),
+		data.UserID,
+		data.PaddleCustomerID,
+		data.Email,
+	)
+
+	row, err := queries.InsertPaddleCustomer(ctx, dbtx, params)
+	if err != nil {
+		return PaddleCustomer{}, err
+	}
+
+	return rowToPaddleCustomer(row)
+}
+
+func rowToPaddleCustomer(row db.PaddleCustomer) (PaddleCustomer, error) {
+	return PaddleCustomer{
+		ID:               row.ID,
+		CreatedAt:        row.CreatedAt.Time,
+		UpdatedAt:        row.UpdatedAt.Time,
+		UserID:           row.UserID,
+		PaddleCustomerID: row.PaddleCustomerID,
+		Email:            row.Email,
+	}, nil
+}
+{{- else if eq .Database "sqlite" }}
+package models
+
+import (
+	"context"
+	"time"
+
+	"github.com/google/uuid"
+
+	"{{.ModuleName}}/models/internal/db"
+)
+
+type PaddleCustomer struct {
+	ID               uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	UserID           uuid.UUID
+	PaddleCustomerID string
+	Email            string
+}
+
+func FindPaddleCustomerByUserID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	userID uuid.UUID,
+) (PaddleCustomer, error) {
+	row, err := queries.QueryPaddleCustomerByUserID(ctx, dbtx, userID.String())
+	if err != nil {
+		return PaddleCustomer{}, err
+	}
+
+	return rowToPaddleCustomer(row)
+}
+
+func FindPaddleCustomerByPaddleID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	paddleCustomerID string,
+) (PaddleCustomer, error) {
+	row, err := queries.QueryPaddleCustomerByPaddleID(ctx, dbtx, paddleCustomerID)
+	if err != nil {
+		return PaddleCustomer{}, err
+	}
+
+	return rowToPaddleCustomer(row)
+}
+
+type CreatePaddleCustomerData struct {
+	UserID           uuid.UUID
+	PaddleCustomerID string
+	Email            string
+}
+
+func CreatePaddleCustomer(
+	ctx context.Context,
+	dbtx db.DBTX,
+	data CreatePaddleCustomerData,
+) (PaddleCustomer, error) {
+	params := db.CreateInsertPaddleCustomerParams(
+		uuid.New().String(),
+		data.UserID.String(),
+		data.PaddleCustomerID,
+		data.Email,
+	)
+
+	row, err := queries.InsertPaddleCustomer(ctx, dbtx, params)
+	if err != nil {
+		return PaddleCustomer{}, err
+	}
+
+	return rowToPaddleCustomer(row)
+}
+
+func rowToPaddleCustomer(row db.PaddleCustomer) (PaddleCustomer, error) {
+	id, err := uuid.Parse(row.ID)
+	if err != nil {
+		return PaddleCustomer{}, err
+	}
+
+	userID, err := uuid.Parse(row.UserID)
+	if err != nil {
+		return PaddleCustomer{}, err
+	}
+
+	return PaddleCustomer{
+		ID:               id,
+		CreatedAt:        row.CreatedAt,
+		UpdatedAt:        row.UpdatedAt,
+		UserID:           userID,
+		PaddleCustomerID: row.PaddleCustomerID,
+		Email:            row.Email,
+	}, nil
+}
+{{- end }}
