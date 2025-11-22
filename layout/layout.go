@@ -54,6 +54,7 @@ func Scaffold(
 	}
 
 	templateData := TemplateData{
+		AppName:              projectName,
 		ProjectName:          projectName,
 		ModuleName:           moduleName,
 		Database:             database,
@@ -63,6 +64,7 @@ func Scaffold(
 		SessionEncryptionKey: generateRandomHex(32),
 		TokenSigningKey:      generateRandomHex(32),
 		Pepper:               generateRandomHex(12),
+		Extensions:           extensionNames,
 		blueprint:            initializeBaseBlueprint(moduleName, database),
 	}
 
@@ -314,6 +316,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Core files
 	"env.tmpl":       ".env.example",
 	"gitignore.tmpl": ".gitignore",
+	"readme.tmpl":    "README.md",
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
