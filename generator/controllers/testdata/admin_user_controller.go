@@ -104,14 +104,14 @@ func (r AdminUsers) Create(c echo.Context) error {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to create adminUser: %v", err)); flashErr != nil {
 			return flashErr
 		}
-		return c.Redirect(http.StatusSeeOther, routes.AdminUserNew.Path)
+		return c.Redirect(http.StatusSeeOther, routes.AdminUserNew.URL())
 	}
 
 	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "AdminUser created successfully"); flashErr != nil {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.AdminUserShow.GetPath(adminUser.ID))
+	return c.Redirect(http.StatusSeeOther, routes.AdminUserShow.URL(adminUser.ID))
 }
 
 func (r AdminUsers) Edit(c echo.Context) error {
@@ -170,7 +170,7 @@ func (r AdminUsers) Update(c echo.Context) error {
 		}
 		return c.Redirect(
 			http.StatusSeeOther,
-			routes.AdminUserEdit.GetPath(adminUserID),
+			routes.AdminUserEdit.URL(adminUserID),
 		)
 	}
 
@@ -178,7 +178,7 @@ func (r AdminUsers) Update(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.AdminUserShow.GetPath(adminUser.ID))
+	return c.Redirect(http.StatusSeeOther, routes.AdminUserShow.URL(adminUser.ID))
 }
 
 func (r AdminUsers) Destroy(c echo.Context) error {
@@ -192,12 +192,12 @@ func (r AdminUsers) Destroy(c echo.Context) error {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete adminUser: %v", err)); flashErr != nil {
 			return render(c, views.InternalError())
 		}
-		return c.Redirect(http.StatusSeeOther, routes.AdminUserIndex.Path)
+		return c.Redirect(http.StatusSeeOther, routes.AdminUserIndex.URL())
 	}
 
 	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "AdminUser destroyed successfully"); flashErr != nil {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.AdminUserIndex.Path)
+	return c.Redirect(http.StatusSeeOther, routes.AdminUserIndex.URL())
 }

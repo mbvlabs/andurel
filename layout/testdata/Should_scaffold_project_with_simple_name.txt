@@ -56,6 +56,8 @@ queue/workers/workers.go
 router/cookies/cookies.go
 router/cookies/flash.go
 router/middleware/middleware.go
+router/register.go
+router/registry.go
 router/router.go
 router/routes/api.go
 router/routes/assets.go
@@ -330,7 +332,7 @@ func setupRouter(
 	tel *telemetry.Telemetry,
 	riverHandler *riverui.Handler,
 ) (*echo.Echo, error) {
-	router, err := router.New(
+	r, err := router.New(
 		ctx,
 		ctrl,
 		cfg,
@@ -341,7 +343,7 @@ func setupRouter(
 		return nil, err
 	}
 
-	return router.SetupRoutes(), nil
+	return r.Handler, nil
 }
 
 func parseHeaders(headersStr string) map[string]string {
@@ -1258,7 +1260,7 @@ func (a Assets) Sitemap(c echo.Context) error {
 	cacheKey := "assets:sitemap"
 
 	sitemap, err := a.cache.Get(cacheKey, func() (string, error) {
-		return createSitemap()
+		return createSitemap([]routes.Route{})
 	})
 	if err != nil {
 		slog.ErrorContext(
@@ -1267,7 +1269,7 @@ func (a Assets) Sitemap(c echo.Context) error {
 			"error", err,
 		)
 
-		result, err := createSitemap()
+		result, err := createSitemap([]routes.Route{})
 		if err != nil {
 			return err
 		}
@@ -1292,7 +1294,7 @@ type Sitemap struct {
 	URL     []URL    `xml:"url"`
 }
 
-func createSitemap() (string, error) {
+func createSitemap(routes []routes.Route) (string, error) {
 	baseURL := config.BaseURL
 
 	var urls []URL
@@ -1303,19 +1305,6 @@ func createSitemap() (string, error) {
 		LastMod:    "2024-10-22T09:43:09+00:00",
 		Priority:   "1",
 	})
-
-	for _, r := range routes.Registry {
-		if r.Method == http.MethodGet && r.IncludeInSitemap {
-			urls = append(urls, URL{
-				Loc: fmt.Sprintf(
-					"%s%s",
-					baseURL,
-					r.Path,
-				),
-				ChangeFreq: "monthly",
-			})
-		}
-	}
 
 	sitemap := Sitemap{
 		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
@@ -4687,300 +4676,21 @@ func GetFlashesCtx(ctx context.Context) []FlashMessage {
 package middleware
 
 import (
-	"context"
 	"log/slog"
-	"strings"
-	"time"
-
-	"testapp/router/routes"
-
-	"github.com/labstack/echo/v4"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/trace"
-)
-
-func Logging(
-	tp trace.TracerProvider,
-	httpRequestsTotal metric.Int64Counter,
-	httpDuration metric.Float64Histogram,
-	httpInFlight metric.Int64UpDownCounter,
-) echo.MiddlewareFunc {
-	otelMiddleware := otelecho.Middleware(
-		"grafto",
-		otelecho.WithTracerProvider(tp),
-	)
-
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			if strings.Contains(c.Request().URL.Path, routes.AssetsRoutePrefix) {
-				return next(c)
-			}
-
-			var ctx context.Context
-			var requestDuration time.Duration
-
-			httpInFlight.Add(ctx, 1)
-
-			wrappedNext := func(c echo.Context) error {
-				ctx = c.Request().Context()
-
-				start := time.Now()
-				err := next(c)
-				requestDuration = time.Since(start)
-
-				return err
-			}
-
-			err := otelMiddleware(wrappedNext)(c)
-
-			httpInFlight.Add(ctx, -1)
-
-			statusCode := c.Response().Status
-
-			attrs := []attribute.KeyValue{
-				attribute.String("method", c.Request().Method),
-				attribute.String("route", c.Path()),
-				attribute.Int("status_code", statusCode),
-			}
-
-			httpRequestsTotal.Add(
-				ctx,
-				1,
-				metric.WithAttributes(attrs...),
-			)
-
-			httpDuration.Record(
-				ctx,
-				requestDuration.Seconds(),
-				metric.WithAttributes(attrs...),
-			)
-
-			slog.InfoContext(ctx, "HTTP request completed",
-				"method", c.Request().Method,
-				"path", c.Request().URL.Path,
-				"status", statusCode,
-				"duration", requestDuration.Seconds(),
-				"remote_addr", c.RealIP(),
-				"user_agent", c.Request().UserAgent(),
-			)
-
-			return err
-		}
-	}
-}
-
-
-=== router/router.go ===
-// Package router provides the application routes and middleware setup.
-package router
-
-import (
-	"context"
-	"encoding/gob"
-	"encoding/hex"
-	"fmt"
-	"log/slog"
-	"net/http"
-	"os"
-	"reflect"
-	"slices"
 	"strings"
 	"time"
 
 	"testapp/config"
-	"testapp/controllers"
 	"testapp/pkg/telemetry"
 	"testapp/router/cookies"
 	"testapp/router/routes"
 
-	"github.com/google/uuid"
-	"github.com/gorilla/sessions"
-	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"riverqueue.com/riverui"
-
-	echomw "github.com/labstack/echo/v4/middleware"
 )
 
-type Router struct {
-	Handler     *echo.Echo
-	controllers controllers.Controllers
-	telemetry   *telemetry.Telemetry
-}
-
-func New(
-	ctx context.Context,
-	controllers controllers.Controllers,
-	cfg config.Config,
-	tel *telemetry.Telemetry,
-	riverHandler *riverui.Handler,
-) (*Router, error) {
-	gob.Register(uuid.UUID{})
-	gob.Register(cookies.FlashMessage{})
-
-	router := echo.New()
-
-	if config.Env != config.ProdEnvironment {
-		router.Debug = true
-	}
-
-	authKey, err := hex.DecodeString(cfg.App.SessionKey)
-	if err != nil {
-		return nil, err
-	}
-	encKey, err := hex.DecodeString(cfg.App.SessionEncryptionKey)
-	if err != nil {
-		return nil, err
-	}
-
-	//csrfName := strings.ToLower(config.ProjectName) + "_" + "dev_csrf"
-	//if config.Env == config.ProdEnvironment {
-	//	csrfName = strings.ToLower(config.ProjectName) + "_" + "csrf"
-	//}
-	// TODO: make changing name work with d-*
-	csrfName := "_csrf"
-
-	middleware := []echo.MiddlewareFunc{
-		otelecho.Middleware(config.ServiceName),
-		logger(tel),
-		session.Middleware(
-			sessions.NewCookieStore(
-				authKey,
-				encKey,
-			),
-		),
-		registerAppContext,
-		registerFlashMessagesContext,
-
-		echomw.CSRFWithConfig(echomw.CSRFConfig{Skipper: func(c echo.Context) bool {
-			return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
-				strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
-		}, TokenLookup: "cookie:" + csrfName, CookiePath: "/", CookieDomain: func() string {
-			if config.Env == config.ProdEnvironment {
-				return config.Domain
-			}
-
-			return ""
-		}(), CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
-
-		echomw.Recover(),
-	}
-
-	router.Use(middleware...)
-	router.Any("/riverui*", echo.WrapHandler(riverHandler))
-
-	return &Router{
-		router,
-		controllers,
-		tel,
-	}, nil
-}
-
-func (r *Router) SetupRoutes() *echo.Echo {
-	registeredRoutes := []string{}
-	controllersValue := reflect.ValueOf(r.controllers)
-	var errors []string
-
-	for _, route := range routes.Registry {
-		if registered := slices.Contains(registeredRoutes, route.Name); registered {
-			errors = append(errors, fmt.Sprintf("  - Route '%s' (Path: %s) is registered more than once", route.Name, route.Path))
-			continue
-		}
-
-		if route.Controller == "" || route.ControllerMethod == "" {
-			errors = append(errors, fmt.Sprintf("  - Route '%s' (Path: %s) must specify Controller and ControllerMethod fields", route.Name, route.Path))
-			continue
-		}
-
-		controllerField := controllersValue.FieldByName(route.Controller)
-		if !controllerField.IsValid() {
-			errors = append(errors, fmt.Sprintf("  - Route '%s' expects Controller '%s' to exist but it was not found", route.Name, route.Controller))
-			continue
-		}
-
-		controller := controllerField.Interface()
-		controllerFunc, err := getHandlerFunc(controller, route.ControllerMethod)
-		if err != nil {
-			errors = append(errors, fmt.Sprintf("  - Route '%s' expects Controller '%s' to have method '%s' but none was found", route.Name, route.Controller, route.ControllerMethod))
-			continue
-		}
-
-		var middlewareFuncs []echo.MiddlewareFunc
-		for _, mw := range route.Middleware {
-			middlewareFuncs = append(middlewareFuncs, echo.MiddlewareFunc(mw.Handler()))
-		}
-
-		switch route.Method {
-		case http.MethodGet:
-			registeredRoutes = append(registeredRoutes, route.Name)
-			r.Handler.GET(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
-		case http.MethodPost:
-			registeredRoutes = append(registeredRoutes, route.Name)
-			r.Handler.POST(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
-		case http.MethodPut:
-			registeredRoutes = append(registeredRoutes, route.Name)
-			r.Handler.PUT(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
-		case http.MethodDelete:
-			registeredRoutes = append(registeredRoutes, route.Name)
-			r.Handler.DELETE(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
-		}
-	}
-
-	if len(errors) > 0 {
-		fmt.Fprintf(os.Stderr, "Found %d route configuration error(s):\n", len(errors))
-		for _, err := range errors {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		os.Exit(1)
-	}
-
-	notFoundHandler, err := getHandlerFunc(r.controllers.Pages, "NotFound")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Failed to setup NotFound handler: %v\n", err)
-		os.Exit(1)
-	}
-
-	r.Handler.RouteNotFound("/*", notFoundHandler)
-
-	return r.Handler
-}
-
-func getHandlerFunc(controller any, methodName string) (echo.HandlerFunc, error) {
-	appType := reflect.TypeOf(controller)
-	method, found := appType.MethodByName(methodName)
-	if !found {
-		return nil, fmt.Errorf("method '%s' not found on controller", methodName)
-	}
-
-	return func(c echo.Context) error {
-		values := method.Func.Call([]reflect.Value{
-			reflect.ValueOf(controller),
-			reflect.ValueOf(c),
-		})
-
-		if len(values) != 1 {
-			panic(
-				fmt.Sprintf(
-					"Controller method %s does not return exactly one value",
-					methodName,
-				),
-			)
-		}
-
-		if values[0].IsNil() {
-			return nil
-		}
-
-		return values[0].Interface().(error)
-	}, nil
-}
-
-func registerAppContext(
+func RegisterAppContext(
 	next echo.HandlerFunc,
 ) echo.HandlerFunc {
 	return func(c echo.Context) error {
@@ -4995,7 +4705,7 @@ func registerAppContext(
 	}
 }
 
-func registerFlashMessagesContext(
+func RegisterFlashMessagesContext(
 	next echo.HandlerFunc,
 ) echo.HandlerFunc {
 	return func(c echo.Context) error {
@@ -5016,7 +4726,7 @@ func registerFlashMessagesContext(
 	}
 }
 
-func logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
+func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 	var httpRequestsTotal metric.Int64Counter
 	var httpDuration metric.Float64Histogram
 	var httpInFlight metric.Int64UpDownCounter
@@ -5086,10 +4796,196 @@ func logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 }
 
 
+=== router/register.go ===
+package router
+
+import (
+	"net/http"
+
+	"testapp/controllers"
+	"testapp/router/routes"
+
+	"github.com/labstack/echo/v4"
+)
+
+func registerCoreRoutes(handler *echo.Echo, ctrls controllers.Controllers) {
+	handler.Add(
+		http.MethodGet, routes.Health.Path(), ctrls.API.Health,
+	).Name = routes.Health.Name()
+
+	handler.Add(
+		http.MethodGet, routes.Robots.Path(), ctrls.Assets.Robots,
+	).Name = routes.Robots.Name()
+
+	handler.Add(
+		http.MethodGet, routes.Sitemap.Path(), ctrls.Assets.Sitemap,
+	).Name = routes.Sitemap.Name()
+
+	handler.Add(
+		http.MethodGet, routes.Stylesheet.Path(), ctrls.Assets.Stylesheet,
+	).Name = routes.Stylesheet.Name()
+	handler.Add(
+		http.MethodGet, routes.Scripts.Path(), ctrls.Assets.Scripts,
+	).Name = routes.Scripts.Name()
+
+	handler.Add(
+		http.MethodGet, routes.Script.Path(), ctrls.Assets.Script,
+	).Name = routes.Script.Name()
+
+	handler.Add(
+		http.MethodGet, routes.HomePage.Path(), ctrls.Pages.Home,
+	).Name = routes.HomePage.Name()
+}
+
+
+=== router/registry.go ===
+package router
+
+import (
+	"testapp/controllers"
+
+	"github.com/labstack/echo/v4"
+)
+
+type registrarBuilder struct {
+	routeFuncs []func(*echo.Echo, controllers.Controllers)
+}
+
+func newRegistrarBuilder() *registrarBuilder {
+	return &registrarBuilder{
+		routeFuncs: make([]func(*echo.Echo, controllers.Controllers), 0),
+	}
+}
+
+func (rb *registrarBuilder) addEntry(fn func(*echo.Echo, controllers.Controllers)) *registrarBuilder {
+	rb.routeFuncs = append(rb.routeFuncs, fn)
+	return rb
+}
+
+func (rb *registrarBuilder) addEntries(fns ...func(*echo.Echo, controllers.Controllers)) *registrarBuilder {
+	rb.routeFuncs = append(rb.routeFuncs, fns...)
+	return rb
+}
+
+func (rb *registrarBuilder) register(handler *echo.Echo, ctrls controllers.Controllers) {
+	for _, fn := range rb.routeFuncs {
+		fn(handler, ctrls)
+	}
+}
+
+var registrar = newRegistrarBuilder().
+	addEntry(registerCoreRoutes)
+
+
+=== router/router.go ===
+// Package router provides the application routes and middleware setup.
+package router
+
+import (
+	"context"
+	"encoding/gob"
+	"encoding/hex"
+	"net/http"
+	"strings"
+
+	"testapp/config"
+	"testapp/controllers"
+	"testapp/pkg/telemetry"
+	"testapp/router/cookies"
+	"testapp/router/middleware"
+	"testapp/router/routes"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/sessions"
+	"github.com/labstack/echo-contrib/session"
+	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
+	"riverqueue.com/riverui"
+
+	echomw "github.com/labstack/echo/v4/middleware"
+)
+
+type Router struct {
+	Handler     *echo.Echo
+	controllers controllers.Controllers
+	telemetry   *telemetry.Telemetry
+}
+
+func New(
+	ctx context.Context,
+	controllers controllers.Controllers,
+	cfg config.Config,
+	tel *telemetry.Telemetry,
+	riverHandler *riverui.Handler,
+) (*Router, error) {
+	gob.Register(uuid.UUID{})
+	gob.Register(cookies.FlashMessage{})
+
+	router := echo.New()
+
+	if config.Env != config.ProdEnvironment {
+		router.Debug = true
+	}
+
+	authKey, err := hex.DecodeString(cfg.App.SessionKey)
+	if err != nil {
+		return nil, err
+	}
+	encKey, err := hex.DecodeString(cfg.App.SessionEncryptionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	//csrfName := strings.ToLower(config.ProjectName) + "_" + "dev_csrf"
+	//if config.Env == config.ProdEnvironment {
+	//	csrfName = strings.ToLower(config.ProjectName) + "_" + "csrf"
+	//}
+	// TODO: make changing name work with d-*
+	csrfName := "_csrf"
+
+	middleware := []echo.MiddlewareFunc{
+		otelecho.Middleware(config.ServiceName),
+		middleware.Logger(tel),
+		session.Middleware(
+			sessions.NewCookieStore(
+				authKey,
+				encKey,
+			),
+		),
+		middleware.RegisterAppContext,
+		middleware.RegisterFlashMessagesContext,
+
+		echomw.CSRFWithConfig(echomw.CSRFConfig{Skipper: func(c echo.Context) bool {
+			return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
+				strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
+		}, TokenLookup: "cookie:" + csrfName, CookiePath: "/", CookieDomain: func() string {
+			if config.Env == config.ProdEnvironment {
+				return config.Domain
+			}
+
+			return ""
+		}(), CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
+
+		echomw.Recover(),
+	}
+
+	router.Use(middleware...)
+	router.Any("/riverui*", echo.WrapHandler(riverHandler))
+
+	registrar.register(router, controllers)
+
+	router.RouteNotFound("/*", controllers.Pages.NotFound)
+
+	return &Router{
+		router,
+		controllers,
+		tel,
+	}, nil
+}
+
+
 === router/routes/api.go ===
 package routes
-
-import "net/http"
 
 const (
 	APIRoutePrefix = "/api"
@@ -5098,9 +4994,7 @@ const (
 
 var Health = newRouteBuilder("health").
 	SetNamePrefix(apiNamePrefix).
-	SetPath(APIRoutePrefix+"/health").
-	SetMethod(http.MethodGet).
-	SetCtrl("API", "Health").
+	SetPath(APIRoutePrefix + "/health").
 	Register()
 
 
@@ -5109,7 +5003,6 @@ package routes
 
 import (
 	"fmt"
-	"net/http"
 	"time"
 )
 
@@ -5122,53 +5015,38 @@ var startTime = time.Now().Unix()
 
 var Robots = newRouteBuilder("robots").
 	SetNamePrefix(assetsNamePrefix).
-	SetPath(AssetsRoutePrefix+"/robots.txt").
-	SetMethod(http.MethodGet).
-	SetCtrl("Assets", "Robots").
+	SetPath(AssetsRoutePrefix + "/robots.txt").
 	Register()
 
 var Sitemap = newRouteBuilder("sitemap").
 	SetNamePrefix(assetsNamePrefix).
-	SetPath(AssetsRoutePrefix+"/sitemap.xml").
-	SetMethod(http.MethodGet).
-	SetCtrl("Assets", "Sitemap").
+	SetPath(AssetsRoutePrefix + "/sitemap.xml").
 	Register()
 
 var Stylesheet = newRouteBuilder("css.stylesheet").
 	SetNamePrefix(assetsNamePrefix).
-	SetPath(AssetsRoutePrefix+fmt.Sprintf("/css/%v/style.css", startTime)).
-	SetMethod(http.MethodGet).
-	SetCtrl("Assets", "Stylesheet").
+	SetPath(AssetsRoutePrefix + fmt.Sprintf("/css/%v/style.css", startTime)).
 	Register()
 
 var Scripts = newRouteBuilder("js.scripts").
 	SetNamePrefix(assetsNamePrefix).
-	SetPath(AssetsRoutePrefix+fmt.Sprintf("/js/%v/scripts.js", startTime)).
-	SetMethod(http.MethodGet).
-	SetCtrl("Assets", "Scripts").
+	SetPath(AssetsRoutePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime)).
 	Register()
 
 var Script = newRouteBuilder("js.script").
 	SetNamePrefix(assetsNamePrefix).
-	SetPath(AssetsRoutePrefix+fmt.Sprintf("/js/%v/:file", startTime)).
-	SetMethod(http.MethodGet).
-	SetCtrl("Assets", "Script").
+	SetPath(AssetsRoutePrefix + fmt.Sprintf("/js/%v/:file", startTime)).
 	Register()
 
 
 === router/routes/pages.go ===
 package routes
 
-import "net/http"
-
 const pageNamePrefix = "pages"
 
 var HomePage = newRouteBuilder("home").
 	SetNamePrefix(pageNamePrefix).
 	SetPath("/").
-	SetMethod(http.MethodGet).
-	SetCtrl("Pages", "Home").
-	WithSitemap().
 	Register()
 
 
@@ -5178,30 +5056,19 @@ package routes
 type routeGroup struct {
 	namePrefix string
 	pathPrefix string
-	middleware []routeMiddleware
 }
 
 func newRouteGroup(namePrefix, pathPrefix string) routeGroup {
 	return routeGroup{
 		namePrefix: namePrefix,
 		pathPrefix: pathPrefix,
-		middleware: []routeMiddleware{},
 	}
-}
-
-func (g routeGroup) withMiddleware(mw ...routeMiddleware) routeGroup {
-	g.middleware = append(g.middleware, mw...)
-	return g
 }
 
 func (g routeGroup) route(name string) routeBuilder {
 	builder := newRouteBuilder(name)
 	builder = builder.SetNamePrefix(g.namePrefix)
 	builder = builder.SetPath(g.pathPrefix)
-
-	if len(g.middleware) > 0 {
-		builder = builder.WithMiddleware(g.middleware...)
-	}
 
 	return builder
 }
@@ -5212,64 +5079,91 @@ func (g routeGroup) route(name string) routeBuilder {
 package routes
 
 import (
-	"net/http"
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
 )
 
-type routeMiddleware interface {
-	Handler() func(next echo.HandlerFunc) echo.HandlerFunc
+type routeKey string
+
+const (
+	routeName routeKey = "name"
+	routePath routeKey = "path"
+)
+
+type Route map[routeKey]string
+
+func (r Route) Name() string {
+	return r[routeName]
 }
 
-type Route string
-
 func (r Route) URL() string {
-	return string(r)
+	return r[routePath]
+}
+
+func (r Route) Path() string {
+	return r[routePath]
 }
 
 type RouteWithID Route
 
+func (r RouteWithID) Name() string {
+	return r[routeName]
+}
+
+func (r RouteWithID) Path() string {
+	return r[routePath]
+}
+
 func (r RouteWithID) URL(id uuid.UUID) string {
-	return strings.Replace(string(r), ":id", id.String(), 1)
+	return strings.Replace(r[routePath], ":id", id.String(), 1)
 }
 
 type RouteWithSlug Route
 
+func (r RouteWithSlug) Name() string {
+	return r[routeName]
+}
+
+func (r RouteWithSlug) Path() string {
+	return r[routePath]
+}
+
 func (r RouteWithSlug) URL(slug string) string {
-	return strings.Replace(string(r), ":slug", slug, 1)
+	return strings.Replace(r[routePath], ":slug", slug, 1)
 }
 
 type RouteWithToken Route
 
+func (r RouteWithToken) Name() string {
+	return r[routeName]
+}
+
+func (r RouteWithToken) Path() string {
+	return r[routePath]
+}
+
 func (r RouteWithToken) URL(token string) string {
-	return strings.Replace(string(r), ":token", token, 1)
+
+	return strings.Replace(r[routePath], ":token", token, 1)
 }
 
-type RouteDefinition struct {
-	Name             string
-	Path             string
-	Controller       string
-	ControllerMethod string
-	Method           string
-	IncludeInSitemap bool
-	Middleware       []routeMiddleware
+type routeBuilder routeDefinition
+
+type routeDefinition struct {
+	Name string
+	Path string
 }
-
-var Registry = []RouteDefinition{}
-
-type routeBuilder RouteDefinition
 
 func newRouteBuilder(name string) routeBuilder {
 	return routeBuilder{
-		Name:   name,
-		Method: http.MethodGet,
+		Name: name,
 	}
 }
 
 func (r routeBuilder) SetNamePrefix(prefix string) routeBuilder {
 	r.Name = prefix + "." + r.Name
+
 	return r
 }
 
@@ -5279,50 +5173,36 @@ func (r routeBuilder) SetPath(path string) routeBuilder {
 	return r
 }
 
-func (r routeBuilder) SetMethod(method string) routeBuilder {
-	r.Method = method
-	return r
-}
-
-func (r routeBuilder) SetCtrl(ctrlName, ctrlMethod string) routeBuilder {
-	r.Controller = ctrlName
-	r.ControllerMethod = ctrlMethod
-
-	return r
-}
-
-func (r routeBuilder) WithMiddleware(mw ...routeMiddleware) routeBuilder {
-	r.Middleware = append(r.Middleware, mw...)
-	return r
-}
-
-func (r routeBuilder) WithSitemap() routeBuilder {
-	r.IncludeInSitemap = true
-	return r
-}
-
 func (r routeBuilder) Register() Route {
-	Registry = append(Registry, RouteDefinition(r))
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
 
-	return Route(r.Path)
+	return Route(route)
 }
 
 func (r routeBuilder) RegisterWithID() RouteWithID {
-	Registry = append(Registry, RouteDefinition(r))
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
 
-	return RouteWithID(r.Path)
+	return RouteWithID(route)
 }
 
 func (r routeBuilder) RegisterWithSlug() RouteWithSlug {
-	Registry = append(Registry, RouteDefinition(r))
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
 
-	return RouteWithSlug(r.Path)
+	return RouteWithSlug(route)
 }
 
 func (r routeBuilder) RegisterWithToken() RouteWithToken {
-	Registry = append(Registry, RouteDefinition(r))
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
 
-	return RouteWithToken(r.Path)
+	return RouteWithToken(route)
 }
 
 

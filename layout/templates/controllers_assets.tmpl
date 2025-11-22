@@ -103,7 +103,7 @@ func (a Assets) Sitemap(c echo.Context) error {
 	cacheKey := "assets:sitemap"
 
 	sitemap, err := a.cache.Get(cacheKey, func() (string, error) {
-		return createSitemap()
+		return createSitemap([]routes.Route{})
 	})
 	if err != nil {
 		slog.ErrorContext(
@@ -112,7 +112,7 @@ func (a Assets) Sitemap(c echo.Context) error {
 			"error", err,
 		)
 
-		result, err := createSitemap()
+		result, err := createSitemap([]routes.Route{})
 		if err != nil {
 			return err
 		}
@@ -137,7 +137,7 @@ type Sitemap struct {
 	URL     []URL    `xml:"url"`
 }
 
-func createSitemap() (string, error) {
+func createSitemap(routes []routes.Route) (string, error) {
 	baseURL := config.BaseURL
 
 	var urls []URL
@@ -148,19 +148,6 @@ func createSitemap() (string, error) {
 		LastMod:    "2024-10-22T09:43:09+00:00",
 		Priority:   "1",
 	})
-
-	for _, r := range routes.Registry {
-		if r.Method == http.MethodGet && r.IncludeInSitemap {
-			urls = append(urls, URL{
-				Loc: fmt.Sprintf(
-					"%s%s",
-					baseURL,
-					r.Path,
-				),
-				ChangeFreq: "monthly",
-			})
-		}
-	}
 
 	sitemap := Sitemap{
 		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",

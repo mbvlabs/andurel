@@ -1,0 +1,38 @@
+package router
+
+import (
+	"github.com/example/testapp/controllers"
+
+	"github.com/labstack/echo/v4"
+)
+
+type registrarBuilder struct {
+	routeFuncs []func(*echo.Echo, controllers.Controllers)
+}
+
+func newRegistrarBuilder() *registrarBuilder {
+	return &registrarBuilder{
+		routeFuncs: make([]func(*echo.Echo, controllers.Controllers), 0),
+	}
+}
+
+func (rb *registrarBuilder) addEntry(fn func(*echo.Echo, controllers.Controllers)) *registrarBuilder {
+	rb.routeFuncs = append(rb.routeFuncs, fn)
+	return rb
+}
+
+func (rb *registrarBuilder) addEntries(fns ...func(*echo.Echo, controllers.Controllers)) *registrarBuilder {
+	rb.routeFuncs = append(rb.routeFuncs, fns...)
+	return rb
+}
+
+func (rb *registrarBuilder) register(handler *echo.Echo, ctrls controllers.Controllers) {
+	for _, fn := range rb.routeFuncs {
+		fn(handler, ctrls)
+	}
+}
+
+var registrar = newRegistrarBuilder().
+	addEntry(registerCoreRoutes).
+	addEntry(registerUsersRoutes).
+	addEntry(registerProductsRoutes)

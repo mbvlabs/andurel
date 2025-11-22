@@ -401,3 +401,151 @@ func TestMultipleControllerRegistration__GoldenFile(t *testing.T) {
 		g.Assert(t, "multiple_controllers_registration", updatedControllerContent)
 	})
 }
+
+func TestRouterRegistration__GoldenFile(t *testing.T) {
+	t.Run("Should register User routes in separate function", func(t *testing.T) {
+		tempDir := t.TempDir()
+		routerDir := filepath.Join(tempDir, "router")
+
+		err := os.MkdirAll(routerDir, constants.DirPermissionDefault)
+		if err != nil {
+			t.Fatalf("Failed to create router directory: %v", err)
+		}
+
+		originalWd, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get working directory: %v", err)
+		}
+
+		// Set up base registry.go file
+		baseRegistryPath := filepath.Join(originalWd, "testdata", "base_router_registry.go")
+		baseRegistryContent, err := os.ReadFile(baseRegistryPath)
+		if err != nil {
+			t.Fatalf("Failed to read base router registry file: %v", err)
+		}
+
+		registryFile := filepath.Join(routerDir, "registry.go")
+		err = os.WriteFile(registryFile, baseRegistryContent, 0o644)
+		if err != nil {
+			t.Fatalf("Failed to create registry.go: %v", err)
+		}
+
+		// Set up base register.go file
+		baseRegisterPath := filepath.Join(originalWd, "testdata", "base_router_register.go")
+		baseRegisterContent, err := os.ReadFile(baseRegisterPath)
+		if err != nil {
+			t.Fatalf("Failed to read base router register file: %v", err)
+		}
+
+		registerFile := filepath.Join(routerDir, "register.go")
+		err = os.WriteFile(registerFile, baseRegisterContent, 0o644)
+		if err != nil {
+			t.Fatalf("Failed to create register.go: %v", err)
+		}
+
+		oldWd, _ := os.Getwd()
+		defer os.Chdir(oldWd)
+		os.Chdir(tempDir)
+
+		routeGenerator := NewRouteGenerator()
+		err = routeGenerator.updateRouterRegister("User", "users")
+		if err != nil {
+			t.Fatalf("Failed to update router register: %v", err)
+		}
+
+		// Check registry.go
+		updatedRegistryContent, err := os.ReadFile(registryFile)
+		if err != nil {
+			t.Fatalf("Failed to read updated router registry file: %v", err)
+		}
+
+		// Check register.go
+		updatedRegisterContent, err := os.ReadFile(registerFile)
+		if err != nil {
+			t.Fatalf("Failed to read updated router register file: %v", err)
+		}
+
+		fixtureDir := filepath.Join(originalWd, "testdata")
+		g := goldie.New(t, goldie.WithFixtureDir(fixtureDir), goldie.WithNameSuffix(".go"))
+
+		g.Assert(t, "user_router_registry_registration", updatedRegistryContent)
+		g.Assert(t, "user_router_registration", updatedRegisterContent)
+	})
+}
+
+func TestMultipleRouterRegistration__GoldenFile(t *testing.T) {
+	t.Run("Should register multiple route sets in separate functions", func(t *testing.T) {
+		tempDir := t.TempDir()
+		routerDir := filepath.Join(tempDir, "router")
+
+		err := os.MkdirAll(routerDir, constants.DirPermissionDefault)
+		if err != nil {
+			t.Fatalf("Failed to create router directory: %v", err)
+		}
+
+		originalWd, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get working directory: %v", err)
+		}
+
+		// Set up base registry.go file
+		baseRegistryPath := filepath.Join(originalWd, "testdata", "base_router_registry.go")
+		baseRegistryContent, err := os.ReadFile(baseRegistryPath)
+		if err != nil {
+			t.Fatalf("Failed to read base router registry file: %v", err)
+		}
+
+		registryFile := filepath.Join(routerDir, "registry.go")
+		err = os.WriteFile(registryFile, baseRegistryContent, 0o644)
+		if err != nil {
+			t.Fatalf("Failed to create registry.go: %v", err)
+		}
+
+		// Set up base register.go file
+		baseRegisterPath := filepath.Join(originalWd, "testdata", "base_router_register.go")
+		baseRegisterContent, err := os.ReadFile(baseRegisterPath)
+		if err != nil {
+			t.Fatalf("Failed to read base router register file: %v", err)
+		}
+
+		registerFile := filepath.Join(routerDir, "register.go")
+		err = os.WriteFile(registerFile, baseRegisterContent, 0o644)
+		if err != nil {
+			t.Fatalf("Failed to create register.go: %v", err)
+		}
+
+		oldWd, _ := os.Getwd()
+		defer os.Chdir(oldWd)
+		os.Chdir(tempDir)
+
+		routeGenerator := NewRouteGenerator()
+
+		err = routeGenerator.updateRouterRegister("User", "users")
+		if err != nil {
+			t.Fatalf("Failed to update router register with User: %v", err)
+		}
+
+		err = routeGenerator.updateRouterRegister("Product", "products")
+		if err != nil {
+			t.Fatalf("Failed to update router register with Product: %v", err)
+		}
+
+		// Check registry.go
+		updatedRegistryContent, err := os.ReadFile(registryFile)
+		if err != nil {
+			t.Fatalf("Failed to read updated router registry file: %v", err)
+		}
+
+		// Check register.go
+		updatedRegisterContent, err := os.ReadFile(registerFile)
+		if err != nil {
+			t.Fatalf("Failed to read updated router register file: %v", err)
+		}
+
+		fixtureDir := filepath.Join(originalWd, "testdata")
+		g := goldie.New(t, goldie.WithFixtureDir(fixtureDir), goldie.WithNameSuffix(".go"))
+
+		g.Assert(t, "multiple_router_registry_registrations", updatedRegistryContent)
+		g.Assert(t, "multiple_router_registrations", updatedRegisterContent)
+	})
+}

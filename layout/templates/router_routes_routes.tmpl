@@ -2,64 +2,91 @@
 package routes
 
 import (
-	"net/http"
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
 )
 
-type routeMiddleware interface {
-	Handler() func(next echo.HandlerFunc) echo.HandlerFunc
+type routeKey string
+
+const (
+	routeName routeKey = "name"
+	routePath routeKey = "path"
+)
+
+type Route map[routeKey]string
+
+func (r Route) Name() string {
+	return r[routeName]
 }
 
-type Route string
-
 func (r Route) URL() string {
-	return string(r)
+	return r[routePath]
+}
+
+func (r Route) Path() string {
+	return r[routePath]
 }
 
 type RouteWithID Route
 
+func (r RouteWithID) Name() string {
+	return r[routeName]
+}
+
+func (r RouteWithID) Path() string {
+	return r[routePath]
+}
+
 func (r RouteWithID) URL(id uuid.UUID) string {
-	return strings.Replace(string(r), ":id", id.String(), 1)
+	return strings.Replace(r[routePath], ":id", id.String(), 1)
 }
 
 type RouteWithSlug Route
 
+func (r RouteWithSlug) Name() string {
+	return r[routeName]
+}
+
+func (r RouteWithSlug) Path() string {
+	return r[routePath]
+}
+
 func (r RouteWithSlug) URL(slug string) string {
-	return strings.Replace(string(r), ":slug", slug, 1)
+	return strings.Replace(r[routePath], ":slug", slug, 1)
 }
 
 type RouteWithToken Route
 
+func (r RouteWithToken) Name() string {
+	return r[routeName]
+}
+
+func (r RouteWithToken) Path() string {
+	return r[routePath]
+}
+
 func (r RouteWithToken) URL(token string) string {
-	return strings.Replace(string(r), ":token", token, 1)
+
+	return strings.Replace(r[routePath], ":token", token, 1)
 }
 
-type RouteDefinition struct {
-	Name             string
-	Path             string
-	Controller       string
-	ControllerMethod string
-	Method           string
-	IncludeInSitemap bool
-	Middleware       []routeMiddleware
+type routeBuilder routeDefinition
+
+type routeDefinition struct {
+	Name string
+	Path string
 }
-
-var Registry = []RouteDefinition{}
-
-type routeBuilder RouteDefinition
 
 func newRouteBuilder(name string) routeBuilder {
 	return routeBuilder{
-		Name:   name,
-		Method: http.MethodGet,
+		Name: name,
 	}
 }
 
 func (r routeBuilder) SetNamePrefix(prefix string) routeBuilder {
 	r.Name = prefix + "." + r.Name
+
 	return r
 }
 
@@ -69,48 +96,34 @@ func (r routeBuilder) SetPath(path string) routeBuilder {
 	return r
 }
 
-func (r routeBuilder) SetMethod(method string) routeBuilder {
-	r.Method = method
-	return r
-}
-
-func (r routeBuilder) SetCtrl(ctrlName, ctrlMethod string) routeBuilder {
-	r.Controller = ctrlName
-	r.ControllerMethod = ctrlMethod
-
-	return r
-}
-
-func (r routeBuilder) WithMiddleware(mw ...routeMiddleware) routeBuilder {
-	r.Middleware = append(r.Middleware, mw...)
-	return r
-}
-
-func (r routeBuilder) WithSitemap() routeBuilder {
-	r.IncludeInSitemap = true
-	return r
-}
-
 func (r routeBuilder) Register() Route {
-	Registry = append(Registry, RouteDefinition(r))
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
 
-	return Route(r.Path)
+	return Route(route)
 }
 
 func (r routeBuilder) RegisterWithID() RouteWithID {
-	Registry = append(Registry, RouteDefinition(r))
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
 
-	return RouteWithID(r.Path)
+	return RouteWithID(route)
 }
 
 func (r routeBuilder) RegisterWithSlug() RouteWithSlug {
-	Registry = append(Registry, RouteDefinition(r))
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
 
-	return RouteWithSlug(r.Path)
+	return RouteWithSlug(route)
 }
 
 func (r routeBuilder) RegisterWithToken() RouteWithToken {
-	Registry = append(Registry, RouteDefinition(r))
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
 
-	return RouteWithToken(r.Path)
+	return RouteWithToken(route)
 }

@@ -58,6 +58,12 @@ type RouteSection struct {
 
 	// Route group imports (for middleware, etc.)
 	Imports *OrderedSet
+
+	// RouteRegistrations holds route registration entries for the registrar function
+	Registrations []RouteRegistration
+
+	// RegistrationFunctions holds grouped registration functions
+	RegistrationFunctions []RegistrationFunction
 }
 
 // ModelSection holds model configuration.
@@ -186,6 +192,30 @@ type RouteCollection struct {
 	Order int
 }
 
+// RouteRegistration represents a route registration entry for the registrar function.
+type RouteRegistration struct {
+	// Method is the HTTP method (e.g., "http.MethodGet")
+	Method string
+	// RouteVariable is the route variable name (e.g., "routes.Health")
+	RouteVariable string
+	// ControllerRef is the controller method reference (e.g., "ctrls.API.Health")
+	ControllerRef string
+	// Middleware is optional middleware to apply to this route
+	Middleware []string
+	// Order for deterministic rendering
+	Order int
+}
+
+// RegistrationFunction represents a named registration function that groups route registrations.
+type RegistrationFunction struct {
+	// FunctionName is the name of the registration function (e.g., "registerAuthRoutes")
+	FunctionName string
+	// Registrations contains all route registrations for this function
+	Registrations []RouteRegistration
+	// Order for deterministic rendering
+	Order int
+}
+
 // Model represents a model struct definition.
 type Model struct {
 	Name   string
@@ -224,10 +254,12 @@ func New() *Blueprint {
 			Constructors: make([]Constructor, 0),
 		},
 		Routes: RouteSection{
-			Routes:           make([]Route, 0),
-			RouteGroups:      NewOrderedSet(),
-			RouteCollections: make([]RouteCollection, 0),
-			Imports:          NewOrderedSet(),
+			Routes:                make([]Route, 0),
+			RouteGroups:           NewOrderedSet(),
+			RouteCollections:      make([]RouteCollection, 0),
+			Imports:               NewOrderedSet(),
+			Registrations:         make([]RouteRegistration, 0),
+			RegistrationFunctions: make([]RegistrationFunction, 0),
 		},
 		Models: ModelSection{
 			Imports: NewOrderedSet(),
@@ -301,6 +333,26 @@ func (rs *RouteSection) SortedRouteCollections() []RouteCollection {
 		return result[i].Order < result[j].Order
 	})
 	return result
+}
+
+// SortedRegistrations returns route registrations sorted by order.
+func (rs *RouteSection) SortedRegistrations() []RouteRegistration {
+	registrations := make([]RouteRegistration, len(rs.Registrations))
+	copy(registrations, rs.Registrations)
+	sort.Slice(registrations, func(i, j int) bool {
+		return registrations[i].Order < registrations[j].Order
+	})
+	return registrations
+}
+
+// SortedRegistrationFunctions returns registration functions sorted by order.
+func (rs *RouteSection) SortedRegistrationFunctions() []RegistrationFunction {
+	functions := make([]RegistrationFunction, len(rs.RegistrationFunctions))
+	copy(functions, rs.RegistrationFunctions)
+	sort.Slice(functions, func(i, j int) bool {
+		return functions[i].Order < functions[j].Order
+	})
+	return functions
 }
 
 // SortedModels returns models sorted by order.

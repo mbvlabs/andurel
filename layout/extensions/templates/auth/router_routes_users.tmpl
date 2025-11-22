@@ -1,7 +1,5 @@
 package routes
 
-import "net/http"
-
 const (
 	usersRoutePrefix = "/users"
 	usersNamePrefix  = "users"
@@ -11,66 +9,44 @@ var usersGroup = newRouteGroup(usersNamePrefix, usersRoutePrefix)
 
 var SessionNew = usersGroup.route("new_user_session").
 	SetPath("/sign_in").
-	SetMethod(http.MethodGet).
-	SetCtrl("Sessions", "New").
 	Register()
 
 var SessionCreate = usersGroup.route("user_session").
 	SetPath("/sign_in").
-	SetMethod(http.MethodPost).
-	SetCtrl("Sessions", "Create").
 	Register()
 
 var SessionDestroy = usersGroup.route("destroy_user_session").
 	SetPath("/sign_out").
-	SetMethod(http.MethodDelete).
-	SetCtrl("Sessions", "Destroy").
 	Register()
 
 var PasswordNew = usersGroup.route("new_user_password").
 	SetPath("/password/new").
-	SetMethod(http.MethodGet).
-	SetCtrl("ResetPasswords", "New").
 	Register()
 
 var PasswordCreate = usersGroup.route("user_password").
 	SetPath("/password").
-	SetMethod(http.MethodPost).
-	SetCtrl("ResetPasswords", "Create").
 	Register()
 
 var PasswordEdit = usersGroup.route("edit_user_password").
 	SetPath("/password/:token/edit").
-	SetMethod(http.MethodGet).
-	SetCtrl("ResetPasswords", "Edit").
 	RegisterWithToken()
 
 var PasswordUpdate = usersGroup.route("user_password").
 	SetPath("/password").
-	SetMethod(http.MethodPut).
-	SetCtrl("ResetPasswords", "Update").
 	Register()
 
 var RegistrationNew = usersGroup.route("new_user_registration").
 	SetPath("/sign_up").
-	SetMethod(http.MethodGet).
-	SetCtrl("Registrations", "New").
 	Register()
 
 var RegistrationCreate = usersGroup.route("user_registration").
 	SetPath("").
-	SetMethod(http.MethodPost).
-	SetCtrl("Registrations", "Create").
 	Register()
 
 var ConfirmationNew = usersGroup.route("new_user_confirmation").
 	SetPath("/confirmation/new").
-	SetMethod(http.MethodGet).
-	SetCtrl("Confirmations", "New").
 	Register()
 
 var ConfirmationCreate = usersGroup.route("user_confirmation").
 	SetPath("/confirmation").
-	SetMethod(http.MethodPost).
-	SetCtrl("Confirmations", "Create").
 	Register()
