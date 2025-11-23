@@ -1,6 +1,33 @@
 package email
 
-templ VerifyEmail(verificationCode string) {
+import (
+	"bytes"
+	"context"
+)
+
+type VerifyEmail struct {
+	VerificationCode string
+}
+
+var _ Transformer = (*VerifyEmail)(nil)
+
+func (v VerifyEmail) ToHTML() (string, error) {
+	var buf bytes.Buffer
+	if err := v.render().Render(context.Background(), &buf); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+func (v VerifyEmail) ToText() (string, error) {
+	html, err := v.ToHTML()
+	if err != nil {
+		return "", err
+	}
+	return HTMLToText(html)
+}
+
+templ (v VerifyEmail) render() {
 	@baseLayout("Verify Your Email Address", "Complete your registration by verifying your email address.", "#") {
 		<h1 style="margin-top: 0; margin-bottom: 24px; font-size: 24px; font-weight: bold; color: #333333;">
 			Verify Your Email
@@ -18,7 +45,7 @@ templ VerifyEmail(verificationCode string) {
 			<div
 				style="font-size: 36px; font-weight: bold; color: #0867ec; letter-spacing: 8px; font-family: 'Courier New', monospace;"
 			>
-				{ verificationCode }
+				{ v.VerificationCode }
 			</div>
 		</div>
 		<p>This code will expire in 15 minutes for security reasons.</p>

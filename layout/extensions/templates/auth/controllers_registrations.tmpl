@@ -71,6 +71,12 @@ func (r Registrations) Create(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
+	slog.DebugContext(c.Request().Context(), "################################################################################")
+	slog.DebugContext(c.Request().Context(), "################################################################################")
+	slog.DebugContext(c.Request().Context(), "registering new user")
+	slog.DebugContext(c.Request().Context(), "################################################################################")
+	slog.DebugContext(c.Request().Context(), "################################################################################")
+
 	err := services.RegisterUser(
 		c.Request().Context(),
 		r.db,

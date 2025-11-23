@@ -9,7 +9,7 @@ templ LoginForm() {
 	@base() {
 		<main>
 			<h1>Login</h1>
-			<form data-on-submit={ fmt.Sprintf("@post('%s')", routes.SessionCreate.URL()) }>
+			<form data-on:submit={ fmt.Sprintf("@post('%s')", routes.SessionCreate.URL()) }>
 				<div>
 					<label for="email">Email</label>
 					<input type="email" id="email" data-bind="email" required/>
