@@ -1,43 +1,43 @@
 {{- if eq .Database "postgresql" -}}
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE IF NOT EXISTS paddle_customers (
+CREATE TABLE IF NOT EXISTS payment_customers (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    paddle_customer_id VARCHAR(255) NOT NULL UNIQUE,
+    provider_customer_id VARCHAR(255) NOT NULL UNIQUE,
     email VARCHAR(255) NOT NULL,
     UNIQUE(user_id)
 );
 
-CREATE INDEX idx_paddle_customers_user_id ON paddle_customers(user_id);
-CREATE INDEX idx_paddle_customers_paddle_customer_id ON paddle_customers(paddle_customer_id);
+CREATE INDEX idx_payment_customers_user_id ON payment_customers(user_id);
+CREATE INDEX idx_payment_customers_provider_customer_id ON payment_customers(provider_customer_id);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS paddle_customers;
+DROP TABLE IF EXISTS payment_customers;
 -- +goose StatementEnd
 {{- else if eq .Database "sqlite" -}}
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE IF NOT EXISTS paddle_customers (
+CREATE TABLE IF NOT EXISTS payment_customers (
     id TEXT PRIMARY KEY,
     created_at DATETIME NOT NULL DEFAULT (datetime('now')),
     updated_at DATETIME NOT NULL DEFAULT (datetime('now')),
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    paddle_customer_id TEXT NOT NULL UNIQUE,
+    provider_customer_id TEXT NOT NULL UNIQUE,
     email TEXT NOT NULL,
     UNIQUE(user_id)
 );
 
-CREATE INDEX idx_paddle_customers_user_id ON paddle_customers(user_id);
-CREATE INDEX idx_paddle_customers_paddle_customer_id ON paddle_customers(paddle_customer_id);
+CREATE INDEX idx_payment_customers_user_id ON payment_customers(user_id);
+CREATE INDEX idx_payment_customers_provider_customer_id ON payment_customers(provider_customer_id);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS paddle_customers;
+DROP TABLE IF EXISTS payment_customers;
 -- +goose StatementEnd
 {{- end -}}

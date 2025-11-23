@@ -9,7 +9,7 @@ script paddleScript(environment string) {
 	}
 }
 
-templ PaddleCheckout(environment string) {
+templ PaymentCheckout(environment string) {
 	@base() {
 		<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
 		<input type="hidden" id="paddle-vendor-id" value="YOUR_VENDOR_ID"/>
@@ -52,7 +52,7 @@ script paddleScript(environment string) {
 	}
 }
 
-templ PaddleCheckout(environment string) {
+templ PaymentCheckout(environment string) {
 	@base() {
 		<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
 		<input type="hidden" id="paddle-vendor-id" value="YOUR_VENDOR_ID"/>

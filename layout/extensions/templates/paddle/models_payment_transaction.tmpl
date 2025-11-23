@@ -11,12 +11,12 @@ import (
 	"{{.ModuleName}}/models/internal/db"
 )
 
-type PaddleTransaction struct {
+type PaymentTransaction struct {
 	ID                   uuid.UUID
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
-	PaddleTransactionID  string
-	PaddleCustomerID     string
+	ProviderTransactionID  string
+	ProviderCustomerID     string
 	UserID               uuid.UUID
 	Status               string
 	Amount               string
@@ -27,30 +27,30 @@ type PaddleTransaction struct {
 	RawData              []byte
 }
 
-func FindPaddleTransactionByID(
+func FindPaymentTransactionByID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) (PaddleTransaction, error) {
-	row, err := queries.QueryPaddleTransactionByID(ctx, dbtx, id)
+	row, err := queries.QueryPaymentTransactionByID(ctx, dbtx, id)
 	if err != nil {
 		return PaddleTransaction{}, err
 	}
 
-	return rowToPaddleTransaction(row)
+	return rowToPaymentTransaction(row)
 }
 
-func FindPaddleTransactionByPaddleID(
+func FindPaymentTransactionByProviderID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	paddleTransactionID string,
 ) (PaddleTransaction, error) {
-	row, err := queries.QueryPaddleTransactionByPaddleID(ctx, dbtx, paddleTransactionID)
+	row, err := queries.QueryPaymentTransactionByProviderID(ctx, dbtx, paddleTransactionID)
 	if err != nil {
 		return PaddleTransaction{}, err
 	}
 
-	return rowToPaddleTransaction(row)
+	return rowToPaymentTransaction(row)
 }
 
 func ListUserTransactions(
@@ -65,7 +65,7 @@ func ListUserTransactions(
 
 	transactions := make([]PaddleTransaction, len(rows))
 	for i, row := range rows {
-		transaction, convErr := rowToPaddleTransaction(row)
+		transaction, convErr := rowToPaymentTransaction(row)
 		if convErr != nil {
 			return nil, convErr
 		}
@@ -75,9 +75,9 @@ func ListUserTransactions(
 	return transactions, nil
 }
 
-type CreatePaddleTransactionData struct {
-	PaddleTransactionID string
-	PaddleCustomerID    string
+type CreatePaymentTransactionData struct {
+	ProviderTransactionID string
+	ProviderCustomerID    string
 	UserID              uuid.UUID
 	Status              string
 	Amount              string
@@ -88,15 +88,15 @@ type CreatePaddleTransactionData struct {
 	RawData             []byte
 }
 
-func CreatePaddleTransaction(
+func CreatePaymentTransaction(
 	ctx context.Context,
 	dbtx db.DBTX,
-	data CreatePaddleTransactionData,
+	data CreatePaymentTransactionData,
 ) (PaddleTransaction, error) {
-	params := db.CreateInsertPaddleTransactionParams(
+	params := db.CreateInsertPaymentTransactionParams(
 		uuid.New(),
-		data.PaddleTransactionID,
-		data.PaddleCustomerID,
+		data.ProviderTransactionID,
+		data.ProviderCustomerID,
 		data.UserID,
 		data.Status,
 		data.Amount,
@@ -107,42 +107,42 @@ func CreatePaddleTransaction(
 		data.RawData,
 	)
 
-	row, err := queries.InsertPaddleTransaction(ctx, dbtx, params)
+	row, err := queries.InsertPaymentTransaction(ctx, dbtx, params)
 	if err != nil {
 		return PaddleTransaction{}, err
 	}
 
-	return rowToPaddleTransaction(row)
+	return rowToPaymentTransaction(row)
 }
 
-func UpdatePaddleTransactionStatus(
+func UpdatePaymentTransactionStatus(
 	ctx context.Context,
 	dbtx db.DBTX,
 	paddleTransactionID string,
 	status string,
 	completedAt time.Time,
 ) (PaddleTransaction, error) {
-	params := db.CreateUpdatePaddleTransactionStatusParams(
+	params := db.CreateUpdatePaymentTransactionStatusParams(
 		paddleTransactionID,
 		status,
 		sql.NullTime{Time: completedAt, Valid: !completedAt.IsZero()},
 	)
 
-	row, err := queries.UpdatePaddleTransactionStatus(ctx, dbtx, params)
+	row, err := queries.UpdatePaymentTransactionStatus(ctx, dbtx, params)
 	if err != nil {
 		return PaddleTransaction{}, err
 	}
 
-	return rowToPaddleTransaction(row)
+	return rowToPaymentTransaction(row)
 }
 
-func rowToPaddleTransaction(row db.PaddleTransaction) (PaddleTransaction, error) {
+func rowToPaymentTransaction(row db.PaymentTransaction) (PaddleTransaction, error) {
 	return PaddleTransaction{
 		ID:                  row.ID,
 		CreatedAt:           row.CreatedAt.Time,
 		UpdatedAt:           row.UpdatedAt.Time,
-		PaddleTransactionID: row.PaddleTransactionID,
-		PaddleCustomerID:    row.PaddleCustomerID,
+		ProviderTransactionID: row.ProviderTransactionID,
+		ProviderCustomerID:    row.ProviderCustomerID,
 		UserID:              row.UserID,
 		Status:              row.Status,
 		Amount:              row.Amount,
@@ -166,12 +166,12 @@ import (
 	"{{.ModuleName}}/models/internal/db"
 )
 
-type PaddleTransaction struct {
+type PaymentTransaction struct {
 	ID                   uuid.UUID
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
-	PaddleTransactionID  string
-	PaddleCustomerID     string
+	ProviderTransactionID  string
+	ProviderCustomerID     string
 	UserID               uuid.UUID
 	Status               string
 	Amount               string
@@ -182,30 +182,30 @@ type PaddleTransaction struct {
 	RawData              string
 }
 
-func FindPaddleTransactionByID(
+func FindPaymentTransactionByID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) (PaddleTransaction, error) {
-	row, err := queries.QueryPaddleTransactionByID(ctx, dbtx, id.String())
+	row, err := queries.QueryPaymentTransactionByID(ctx, dbtx, id.String())
 	if err != nil {
 		return PaddleTransaction{}, err
 	}
 
-	return rowToPaddleTransaction(row)
+	return rowToPaymentTransaction(row)
 }
 
-func FindPaddleTransactionByPaddleID(
+func FindPaymentTransactionByProviderID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	paddleTransactionID string,
 ) (PaddleTransaction, error) {
-	row, err := queries.QueryPaddleTransactionByPaddleID(ctx, dbtx, paddleTransactionID)
+	row, err := queries.QueryPaymentTransactionByProviderID(ctx, dbtx, paddleTransactionID)
 	if err != nil {
 		return PaddleTransaction{}, err
 	}
 
-	return rowToPaddleTransaction(row)
+	return rowToPaymentTransaction(row)
 }
 
 func ListUserTransactions(
@@ -220,7 +220,7 @@ func ListUserTransactions(
 
 	transactions := make([]PaddleTransaction, len(rows))
 	for i, row := range rows {
-		transaction, convErr := rowToPaddleTransaction(row)
+		transaction, convErr := rowToPaymentTransaction(row)
 		if convErr != nil {
 			return nil, convErr
 		}
@@ -230,9 +230,9 @@ func ListUserTransactions(
 	return transactions, nil
 }
 
-type CreatePaddleTransactionData struct {
-	PaddleTransactionID string
-	PaddleCustomerID    string
+type CreatePaymentTransactionData struct {
+	ProviderTransactionID string
+	ProviderCustomerID    string
 	UserID              uuid.UUID
 	Status              string
 	Amount              string
@@ -243,15 +243,15 @@ type CreatePaddleTransactionData struct {
 	RawData             string
 }
 
-func CreatePaddleTransaction(
+func CreatePaymentTransaction(
 	ctx context.Context,
 	dbtx db.DBTX,
-	data CreatePaddleTransactionData,
+	data CreatePaymentTransactionData,
 ) (PaddleTransaction, error) {
-	params := db.CreateInsertPaddleTransactionParams(
+	params := db.CreateInsertPaymentTransactionParams(
 		uuid.New().String(),
-		data.PaddleTransactionID,
-		data.PaddleCustomerID,
+		data.ProviderTransactionID,
+		data.ProviderCustomerID,
 		data.UserID.String(),
 		data.Status,
 		data.Amount,
@@ -262,36 +262,36 @@ func CreatePaddleTransaction(
 		sql.NullString{String: data.RawData, Valid: data.RawData != ""},
 	)
 
-	row, err := queries.InsertPaddleTransaction(ctx, dbtx, params)
+	row, err := queries.InsertPaymentTransaction(ctx, dbtx, params)
 	if err != nil {
 		return PaddleTransaction{}, err
 	}
 
-	return rowToPaddleTransaction(row)
+	return rowToPaymentTransaction(row)
 }
 
-func UpdatePaddleTransactionStatus(
+func UpdatePaymentTransactionStatus(
 	ctx context.Context,
 	dbtx db.DBTX,
 	paddleTransactionID string,
 	status string,
 	completedAt time.Time,
 ) (PaddleTransaction, error) {
-	params := db.CreateUpdatePaddleTransactionStatusParams(
+	params := db.CreateUpdatePaymentTransactionStatusParams(
 		paddleTransactionID,
 		status,
 		sql.NullTime{Time: completedAt, Valid: !completedAt.IsZero()},
 	)
 
-	row, err := queries.UpdatePaddleTransactionStatus(ctx, dbtx, params)
+	row, err := queries.UpdatePaymentTransactionStatus(ctx, dbtx, params)
 	if err != nil {
 		return PaddleTransaction{}, err
 	}
 
-	return rowToPaddleTransaction(row)
+	return rowToPaymentTransaction(row)
 }
 
-func rowToPaddleTransaction(row db.PaddleTransaction) (PaddleTransaction, error) {
+func rowToPaymentTransaction(row db.PaymentTransaction) (PaddleTransaction, error) {
 	id, err := uuid.Parse(row.ID)
 	if err != nil {
 		return PaddleTransaction{}, err
@@ -306,8 +306,8 @@ func rowToPaddleTransaction(row db.PaddleTransaction) (PaddleTransaction, error)
 		ID:                  id,
 		CreatedAt:           row.CreatedAt,
 		UpdatedAt:           row.UpdatedAt,
-		PaddleTransactionID: row.PaddleTransactionID,
-		PaddleCustomerID:    row.PaddleCustomerID,
+		ProviderTransactionID: row.ProviderTransactionID,
+		ProviderCustomerID:    row.ProviderCustomerID,
 		UserID:              userID,
 		Status:              row.Status,
 		Amount:              row.Amount,

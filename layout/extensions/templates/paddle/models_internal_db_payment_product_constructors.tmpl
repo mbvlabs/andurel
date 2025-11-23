@@ -21,22 +21,22 @@ import (
 // Constructor functions for SQLC parameters - these get updated during refresh
 // to make schema changes compiler-enforced and visible
 
-func CreateInsertPaddleProductParams(
+func CreateInsertPaymentProductParams(
 	id uuid.UUID,
-	paddleProductID string,
-	paddlePriceID string,
+	providerProductID string,
+	providerPriceID string,
 	name string,
 	description sql.NullString,
 	priceAmount string,
 	priceCurrency string,
 	imageURL sql.NullString,
 	isActive bool,
-) InsertPaddleProductParams {
+) InsertPaymentProductParams {
 {{- if eq .Database "postgresql" }}
-	return InsertPaddleProductParams{
+	return InsertPaymentProductParams{
 		ID:              id,
-		PaddleProductID: paddleProductID,
-		PaddlePriceID:   paddlePriceID,
+		PaymentProductID: providerProductID,
+		PaddlePriceID:   providerPriceID,
 		Name:            name,
 		Description:     description,
 		PriceAmount:     priceAmount,
@@ -50,10 +50,10 @@ func CreateInsertPaddleProductParams(
 		sqliteIsActive = 1
 	}
 
-	return InsertPaddleProductParams{
+	return InsertPaymentProductParams{
 		ID:              id.String(),
-		PaddleProductID: paddleProductID,
-		PaddlePriceID:   paddlePriceID,
+		PaymentProductID: providerProductID,
+		PaddlePriceID:   providerPriceID,
 		Name:            name,
 		Description:     description,
 		PriceAmount:     priceAmount,
@@ -64,7 +64,7 @@ func CreateInsertPaddleProductParams(
 {{- end }}
 }
 
-func CreateUpdatePaddleProductParams(
+func CreateUpdatePaymentProductParams(
 	id uuid.UUID,
 	name string,
 	description sql.NullString,
@@ -72,9 +72,9 @@ func CreateUpdatePaddleProductParams(
 	priceCurrency string,
 	imageURL sql.NullString,
 	isActive bool,
-) UpdatePaddleProductParams {
+) UpdatePaymentProductParams {
 {{- if eq .Database "postgresql" }}
-	return UpdatePaddleProductParams{
+	return UpdatePaymentProductParams{
 		ID:            id,
 		Name:          name,
 		Description:   description,
@@ -89,7 +89,7 @@ func CreateUpdatePaddleProductParams(
 		sqliteIsActive = 1
 	}
 
-	return UpdatePaddleProductParams{
+	return UpdatePaymentProductParams{
 		ID:            id.String(),
 		Name:          name,
 		Description:   description,

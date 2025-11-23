@@ -3,7 +3,7 @@ package views
 import "{{.ModuleName}}/models"
 
 {{- if eq .Css "tailwind" }}
-templ PaddlePricing(products []models.PaddleProduct) {
+templ PaymentPricing(products []models.PaymentProduct) {
 	@base() {
 		<main class="container mx-auto px-4 py-8">
 			<div class="max-w-6xl mx-auto">
@@ -32,7 +32,7 @@ templ PaddlePricing(products []models.PaddleProduct) {
 									</div>
 									<button
 										class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200"
-										onclick={ templ.ComponentScript{Call: "buyProduct('" + product.PaddlePriceID + "')"} }
+										onclick={ templ.ComponentScript{Call: "buyProduct('" + product.ProviderPriceID + "')"} }
 									>
 										Purchase
 									</button>
@@ -45,13 +45,13 @@ templ PaddlePricing(products []models.PaddleProduct) {
 		</main>
 		<script>
 			function buyProduct(priceId) {
-				window.location.href = '/paddle/checkout?price_id=' + priceId;
+				window.location.href = '/billing/checkout?price_id=' + priceId;
 			}
 		</script>
 	}
 }
 {{- else }}
-templ PaddlePricing(products []models.PaddleProduct) {
+templ PaymentPricing(products []models.PaymentProduct) {
 	@base() {
 		<main>
 			<div class="container">
@@ -95,7 +95,7 @@ templ PaddlePricing(products []models.PaddleProduct) {
 									<button
 										class="button"
 										style="width: 100%;"
-										onclick={ templ.ComponentScript{Call: "buyProduct('" + product.PaddlePriceID + "')"} }
+										onclick={ templ.ComponentScript{Call: "buyProduct('" + product.ProviderPriceID + "')"} }
 									>
 										Purchase
 									</button>
@@ -108,7 +108,7 @@ templ PaddlePricing(products []models.PaddleProduct) {
 		</main>
 		<script>
 			function buyProduct(priceId) {
-				window.location.href = '/paddle/checkout?price_id=' + priceId;
+				window.location.href = '/billing/checkout?price_id=' + priceId;
 			}
 		</script>
 	}

@@ -40,23 +40,23 @@ func (e Paddle) Apply(ctx *Context) error {
 	builder.AddControllerDependency("cfg", "config.Config")
 
 	// Add controller fields
-	builder.AddControllerField("PaddleWebhooks", "PaddleWebhooks")
-	builder.AddControllerField("PaddleCheckout", "PaddleCheckout")
-	builder.AddControllerField("PaddlePricing", "PaddlePricing")
-	builder.AddControllerField("PaddleAccount", "PaddleAccount")
+	builder.AddControllerField("PaymentWebhooks", "PaymentWebhooks")
+	builder.AddControllerField("PaymentCheckout", "PaymentCheckout")
+	builder.AddControllerField("PaymentPricing", "PaymentPricing")
+	builder.AddControllerField("PaymentAccount", "PaymentAccount")
 
 	// Add controller constructors
-	builder.AddControllerConstructor("paddleWebhooks", "newPaddleWebhooks(db, paddleClient, cfg)")
-	builder.AddControllerConstructor("paddleCheckout", "newPaddleCheckout(db, paddleClient, cfg)")
-	builder.AddControllerConstructor("paddlePricing", "newPaddlePricing(db, paddleClient)")
-	builder.AddControllerConstructor("paddleAccount", "newPaddleAccount(db, paddleClient)")
+	builder.AddControllerConstructor("paymentWebhooks", "newPaymentWebhooks(db, paddleClient, cfg)")
+	builder.AddControllerConstructor("paymentCheckout", "newPaymentCheckout(db, paddleClient, cfg)")
+	builder.AddControllerConstructor("paymentPricing", "newPaymentPricing(db, paddleClient)")
+	builder.AddControllerConstructor("paymentAccount", "newPaymentAccount(db, paddleClient)")
 
 	// Register routes
-	builder.StartRouteRegistrationFunction("registerPaddleRoutes")
-	builder.AddRouteRegistration("http.MethodPost", "routes.PaddleWebhook", "ctrls.PaddleWebhooks.Handle")
-	builder.AddRouteRegistration("http.MethodGet", "routes.PaddleCheckout", "ctrls.PaddleCheckout.Show")
-	builder.AddRouteRegistration("http.MethodGet", "routes.PaddlePricing", "ctrls.PaddlePricing.Index")
-	builder.AddRouteRegistration("http.MethodGet", "routes.PaddleAccount", "ctrls.PaddleAccount.Index")
+	builder.StartRouteRegistrationFunction("registerPaymentRoutes")
+	builder.AddRouteRegistration("http.MethodPost", "routes.PaymentWebhook", "ctrls.PaymentWebhooks.Handle")
+	builder.AddRouteRegistration("http.MethodGet", "routes.PaymentCheckout", "ctrls.PaymentCheckout.Show")
+	builder.AddRouteRegistration("http.MethodGet", "routes.PaymentPricing", "ctrls.PaymentPricing.Index")
+	builder.AddRouteRegistration("http.MethodGet", "routes.PaymentAccount", "ctrls.PaymentAccount.Index")
 	builder.EndRouteRegistrationFunction()
 
 	if err := e.renderTemplates(ctx); err != nil {
@@ -85,41 +85,41 @@ func (e Paddle) renderTemplates(ctx *Context) error {
 
 		"clients_payment_paddle.tmpl": "clients/payment/paddle.go",
 
-		"controllers_paddle_webhooks.tmpl": "controllers/paddle_webhooks.go",
-		"controllers_paddle_checkout.tmpl": "controllers/paddle_checkout.go",
-		"controllers_paddle_pricing.tmpl":  "controllers/paddle_pricing.go",
-		"controllers_paddle_account.tmpl":  "controllers/paddle_account.go",
+		"controllers_payment_webhooks.tmpl": "controllers/payment_webhooks.go",
+		"controllers_payment_checkout.tmpl": "controllers/payment_checkout.go",
+		"controllers_payment_pricing.tmpl":  "controllers/payment_pricing.go",
+		"controllers_payment_account.tmpl":  "controllers/payment_account.go",
 
-		"database_migrations_paddle_customers.tmpl": fmt.Sprintf(
-			"database/migrations/%v_create_paddle_customers_table.sql",
+		"database_migrations_payment_customers.tmpl": fmt.Sprintf(
+			"database/migrations/%v_create_payment_customers_table.sql",
 			baseTime.Format("20060102150405"),
 		),
-		"database_migrations_paddle_products.tmpl": fmt.Sprintf(
-			"database/migrations/%v_create_paddle_products_table.sql",
+		"database_migrations_payment_products.tmpl": fmt.Sprintf(
+			"database/migrations/%v_create_payment_products_table.sql",
 			baseTime.Add(1*time.Second).Format("20060102150405"),
 		),
-		"database_migrations_paddle_transactions.tmpl": fmt.Sprintf(
-			"database/migrations/%v_create_paddle_transactions_table.sql",
+		"database_migrations_payment_transactions.tmpl": fmt.Sprintf(
+			"database/migrations/%v_create_payment_transactions_table.sql",
 			baseTime.Add(2*time.Second).Format("20060102150405"),
 		),
 
-		"database_queries_paddle_customers.tmpl":    "database/queries/paddle_customers.sql",
-		"database_queries_paddle_products.tmpl":     "database/queries/paddle_products.sql",
-		"database_queries_paddle_transactions.tmpl": "database/queries/paddle_transactions.sql",
+		"database_queries_payment_customers.tmpl":    "database/queries/payment_customers.sql",
+		"database_queries_payment_products.tmpl":     "database/queries/payment_products.sql",
+		"database_queries_payment_transactions.tmpl": "database/queries/payment_transactions.sql",
 
-		"models_paddle_customer.tmpl":    "models/paddle_customer.go",
-		"models_paddle_product.tmpl":     "models/paddle_product.go",
-		"models_paddle_transaction.tmpl": "models/paddle_transaction.go",
+		"models_payment_customer.tmpl":    "models/payment_customer.go",
+		"models_payment_product.tmpl":     "models/payment_product.go",
+		"models_payment_transaction.tmpl": "models/payment_transaction.go",
 
-		"models_internal_db_paddle_customer_constructors.tmpl":    "models/internal/db/paddle_customer_constructors.go",
-		"models_internal_db_paddle_product_constructors.tmpl":     "models/internal/db/paddle_product_constructors.go",
-		"models_internal_db_paddle_transaction_constructors.tmpl": "models/internal/db/paddle_transaction_constructors.go",
+		"models_internal_db_payment_customer_constructors.tmpl":    "models/internal/db/payment_customer_constructors.go",
+		"models_internal_db_payment_product_constructors.tmpl":     "models/internal/db/payment_product_constructors.go",
+		"models_internal_db_payment_transaction_constructors.tmpl": "models/internal/db/payment_transaction_constructors.go",
 
-		"router_routes_paddle.tmpl": "router/routes/paddle.go",
+		"router_routes_payment.tmpl": "router/routes/payment.go",
 
-		"views_paddle_checkout.tmpl": "views/paddle_checkout.templ",
-		"views_paddle_pricing.tmpl":  "views/paddle_pricing.templ",
-		"views_paddle_account.tmpl":  "views/paddle_account.templ",
+		"views_payment_checkout.tmpl": "views/payment_checkout.templ",
+		"views_payment_pricing.tmpl":  "views/payment_pricing.templ",
+		"views_payment_account.tmpl":  "views/payment_account.templ",
 	}
 
 	for tmpl, target := range templates {

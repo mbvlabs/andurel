@@ -1,0 +1,36 @@
+package controllers
+
+import (
+	"{{.ModuleName}}/clients/payment"
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/views"
+
+	"github.com/labstack/echo/v4"
+)
+
+{{- if eq .Database "postgresql" }}
+type PaymentCheckout struct {
+	db     database.Postgres
+	client *payment.PaddleClient
+	cfg    config.Config
+}
+
+func newPaymentCheckout(db database.Postgres, client *payment.PaddleClient, cfg config.Config) PaymentCheckout {
+	return PaymentCheckout{db, client, cfg}
+}
+{{- else if eq .Database "sqlite" }}
+type PaymentCheckout struct {
+	db     database.SQLite
+	client *payment.PaddleClient
+	cfg    config.Config
+}
+
+func newPaymentCheckout(db database.SQLite, client *payment.PaddleClient, cfg config.Config) PaymentCheckout {
+	return PaymentCheckout{db, client, cfg}
+}
+{{- end }}
+
+func (pc PaymentCheckout) Show(c echo.Context) error {
+	return render(c, views.PaymentCheckout(pc.cfg.Paddle.Environment))
+}

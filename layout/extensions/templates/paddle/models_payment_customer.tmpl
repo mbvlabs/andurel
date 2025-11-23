@@ -10,74 +10,74 @@ import (
 	"{{.ModuleName}}/models/internal/db"
 )
 
-type PaddleCustomer struct {
+type PaymentCustomer struct {
 	ID               uuid.UUID
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	UserID           uuid.UUID
-	PaddleCustomerID string
+	ProviderCustomerID string
 	Email            string
 }
 
-func FindPaddleCustomerByUserID(
+func FindPaymentCustomerByUserID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	userID uuid.UUID,
 ) (PaddleCustomer, error) {
-	row, err := queries.QueryPaddleCustomerByUserID(ctx, dbtx, userID)
+	row, err := queries.QueryPaymentCustomerByUserID(ctx, dbtx, userID)
 	if err != nil {
 		return PaddleCustomer{}, err
 	}
 
-	return rowToPaddleCustomer(row)
+	return rowToPaymentCustomer(row)
 }
 
-func FindPaddleCustomerByPaddleID(
+func FindPaymentCustomerByProviderID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	paddleCustomerID string,
 ) (PaddleCustomer, error) {
-	row, err := queries.QueryPaddleCustomerByPaddleID(ctx, dbtx, paddleCustomerID)
+	row, err := queries.QueryPaymentCustomerByProviderID(ctx, dbtx, paddleCustomerID)
 	if err != nil {
 		return PaddleCustomer{}, err
 	}
 
-	return rowToPaddleCustomer(row)
+	return rowToPaymentCustomer(row)
 }
 
-type CreatePaddleCustomerData struct {
+type CreatePaymentCustomerData struct {
 	UserID           uuid.UUID
-	PaddleCustomerID string
+	ProviderCustomerID string
 	Email            string
 }
 
-func CreatePaddleCustomer(
+func CreatePaymentCustomer(
 	ctx context.Context,
 	dbtx db.DBTX,
-	data CreatePaddleCustomerData,
+	data CreatePaymentCustomerData,
 ) (PaddleCustomer, error) {
-	params := db.CreateInsertPaddleCustomerParams(
+	params := db.CreateInsertPaymentCustomerParams(
 		uuid.New(),
 		data.UserID,
-		data.PaddleCustomerID,
+		data.ProviderCustomerID,
 		data.Email,
 	)
 
-	row, err := queries.InsertPaddleCustomer(ctx, dbtx, params)
+	row, err := queries.InsertPaymentCustomer(ctx, dbtx, params)
 	if err != nil {
 		return PaddleCustomer{}, err
 	}
 
-	return rowToPaddleCustomer(row)
+	return rowToPaymentCustomer(row)
 }
 
-func rowToPaddleCustomer(row db.PaddleCustomer) (PaddleCustomer, error) {
+func rowToPaymentCustomer(row db.PaymentCustomer) (PaddleCustomer, error) {
 	return PaddleCustomer{
 		ID:               row.ID,
 		CreatedAt:        row.CreatedAt.Time,
 		UpdatedAt:        row.UpdatedAt.Time,
 		UserID:           row.UserID,
-		PaddleCustomerID: row.PaddleCustomerID,
+		ProviderCustomerID: row.ProviderCustomerID,
 		Email:            row.Email,
 	}, nil
 }
@@ -93,68 +93,68 @@ import (
 	"{{.ModuleName}}/models/internal/db"
 )
 
-type PaddleCustomer struct {
+type PaymentCustomer struct {
 	ID               uuid.UUID
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	UserID           uuid.UUID
-	PaddleCustomerID string
+	ProviderCustomerID string
 	Email            string
 }
 
-func FindPaddleCustomerByUserID(
+func FindPaymentCustomerByUserID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	userID uuid.UUID,
 ) (PaddleCustomer, error) {
-	row, err := queries.QueryPaddleCustomerByUserID(ctx, dbtx, userID.String())
+	row, err := queries.QueryPaymentCustomerByUserID(ctx, dbtx, userID.String())
 	if err != nil {
 		return PaddleCustomer{}, err
 	}
 
-	return rowToPaddleCustomer(row)
+	return rowToPaymentCustomer(row)
 }
 
-func FindPaddleCustomerByPaddleID(
+func FindPaymentCustomerByProviderID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	paddleCustomerID string,
 ) (PaddleCustomer, error) {
-	row, err := queries.QueryPaddleCustomerByPaddleID(ctx, dbtx, paddleCustomerID)
+	row, err := queries.QueryPaymentCustomerByProviderID(ctx, dbtx, paddleCustomerID)
 	if err != nil {
 		return PaddleCustomer{}, err
 	}
 
-	return rowToPaddleCustomer(row)
+	return rowToPaymentCustomer(row)
 }
 
-type CreatePaddleCustomerData struct {
+type CreatePaymentCustomerData struct {
 	UserID           uuid.UUID
-	PaddleCustomerID string
+	ProviderCustomerID string
 	Email            string
 }
 
-func CreatePaddleCustomer(
+func CreatePaymentCustomer(
 	ctx context.Context,
 	dbtx db.DBTX,
-	data CreatePaddleCustomerData,
+	data CreatePaymentCustomerData,
 ) (PaddleCustomer, error) {
-	params := db.CreateInsertPaddleCustomerParams(
+	params := db.CreateInsertPaymentCustomerParams(
 		uuid.New().String(),
 		data.UserID.String(),
-		data.PaddleCustomerID,
+		data.ProviderCustomerID,
 		data.Email,
 	)
 
-	row, err := queries.InsertPaddleCustomer(ctx, dbtx, params)
+	row, err := queries.InsertPaymentCustomer(ctx, dbtx, params)
 	if err != nil {
 		return PaddleCustomer{}, err
 	}
 
-	return rowToPaddleCustomer(row)
+	return rowToPaymentCustomer(row)
 }
 
-func rowToPaddleCustomer(row db.PaddleCustomer) (PaddleCustomer, error) {
+func rowToPaymentCustomer(row db.PaymentCustomer) (PaddleCustomer, error) {
 	id, err := uuid.Parse(row.ID)
 	if err != nil {
 		return PaddleCustomer{}, err
@@ -170,7 +170,7 @@ func rowToPaddleCustomer(row db.PaddleCustomer) (PaddleCustomer, error) {
 		CreatedAt:        row.CreatedAt,
 		UpdatedAt:        row.UpdatedAt,
 		UserID:           userID,
-		PaddleCustomerID: row.PaddleCustomerID,
+		ProviderCustomerID: row.ProviderCustomerID,
 		Email:            row.Email,
 	}, nil
 }

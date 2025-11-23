@@ -16,28 +16,28 @@ import (
 )
 
 {{- if eq .Database "postgresql" }}
-type PaddleWebhooks struct {
+type PaymentWebhooks struct {
 	db     database.Postgres
 	client *payment.PaddleClient
 	cfg    config.Config
 }
 
-func newPaddleWebhooks(db database.Postgres, client *payment.PaddleClient, cfg config.Config) PaddleWebhooks {
-	return PaddleWebhooks{db, client, cfg}
+func newPaymentWebhooks(db database.Postgres, client *payment.PaddleClient, cfg config.Config) PaymentWebhooks {
+	return PaymentWebhooks{db, client, cfg}
 }
 {{- else if eq .Database "sqlite" }}
-type PaddleWebhooks struct {
+type PaymentWebhooks struct {
 	db     database.SQLite
 	client *payment.PaddleClient
 	cfg    config.Config
 }
 
-func newPaddleWebhooks(db database.SQLite, client *payment.PaddleClient, cfg config.Config) PaddleWebhooks {
-	return PaddleWebhooks{db, client, cfg}
+func newPaymentWebhooks(db database.SQLite, client *payment.PaddleClient, cfg config.Config) PaymentWebhooks {
+	return PaymentWebhooks{db, client, cfg}
 }
 {{- end }}
 
-func (w PaddleWebhooks) Handle(c echo.Context) error {
+func (w PaymentWebhooks) Handle(c echo.Context) error {
 	// Read request body
 	bodyBytes, err := io.ReadAll(c.Request().Body)
 	if err != nil {
@@ -128,14 +128,14 @@ type transactionData struct {
 	BilledAt      time.Time `json:"billed_at"`
 }
 
-func (w PaddleWebhooks) handleTransactionCompleted(c echo.Context, event *payment.WebhookEvent) error {
+func (w PaymentWebhooks) handleTransactionCompleted(c echo.Context, event *payment.WebhookEvent) error {
 	var txData transactionData
 	if err := json.Unmarshal(event.Data, &txData); err != nil {
 		return err
 	}
 
 	// Check if transaction already exists
-	existingTx, err := models.FindPaddleTransactionByPaddleID(
+	existingTx, err := models.FindPaymentTransactionByProviderID(
 		c.Request().Context(),
 		w.db,
 		txData.ID,
@@ -143,7 +143,7 @@ func (w PaddleWebhooks) handleTransactionCompleted(c echo.Context, event *paymen
 
 	if err == nil {
 		// Transaction exists, update status
-		_, err = models.UpdatePaddleTransactionStatus(
+		_, err = models.UpdatePaymentTransactionStatus(
 			c.Request().Context(),
 			w.db,
 			txData.ID,
@@ -173,14 +173,14 @@ func (w PaddleWebhooks) handleTransactionCompleted(c echo.Context, event *paymen
 	return nil
 }
 
-func (w PaddleWebhooks) handleTransactionUpdated(c echo.Context, event *payment.WebhookEvent) error {
+func (w PaymentWebhooks) handleTransactionUpdated(c echo.Context, event *payment.WebhookEvent) error {
 	var txData transactionData
 	if err := json.Unmarshal(event.Data, &txData); err != nil {
 		return err
 	}
 
 	// Update transaction status
-	_, err := models.UpdatePaddleTransactionStatus(
+	_, err := models.UpdatePaymentTransactionStatus(
 		c.Request().Context(),
 		w.db,
 		txData.ID,

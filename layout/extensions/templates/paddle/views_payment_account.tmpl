@@ -6,7 +6,7 @@ import (
 )
 
 {{- if eq .Css "tailwind" }}
-templ PaddleAccount(transactions []models.PaddleTransaction) {
+templ PaymentAccount(transactions []models.PaymentTransaction) {
 	@base() {
 		<main class="container mx-auto px-4 py-8">
 			<div class="max-w-4xl mx-auto">
@@ -16,7 +16,7 @@ templ PaddleAccount(transactions []models.PaddleTransaction) {
 					<div class="bg-white rounded-lg shadow p-8 text-center">
 						<p class="text-gray-500 text-lg">You haven't made any purchases yet.</p>
 						<a
-							href="/paddle/pricing"
+							href="/billing/pricing"
 							class="inline-block mt-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200"
 						>
 							View Products
@@ -83,7 +83,7 @@ templ PaddleAccount(transactions []models.PaddleTransaction) {
 	}
 }
 {{- else }}
-templ PaddleAccount(transactions []models.PaddleTransaction) {
+templ PaymentAccount(transactions []models.PaymentTransaction) {
 	@base() {
 		<main>
 			<div class="container">
@@ -95,7 +95,7 @@ templ PaddleAccount(transactions []models.PaddleTransaction) {
 							You haven't made any purchases yet.
 						</p>
 						<a
-							href="/paddle/pricing"
+							href="/billing/pricing"
 							class="button"
 							style="margin-top: var(--size-4); display: inline-block;"
 						>

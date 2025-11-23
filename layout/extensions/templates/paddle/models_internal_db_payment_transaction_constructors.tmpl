@@ -22,10 +22,10 @@ import (
 // Constructor functions for SQLC parameters - these get updated during refresh
 // to make schema changes compiler-enforced and visible
 
-func CreateInsertPaddleTransactionParams(
+func CreateInsertPaymentTransactionParams(
 	id uuid.UUID,
-	paddleTransactionID string,
-	paddleCustomerID string,
+	providerTransactionID string,
+	providerCustomerID string,
 	userID uuid.UUID,
 	status string,
 	amount string,
@@ -34,7 +34,7 @@ func CreateInsertPaddleTransactionParams(
 	billedAt sql.NullTime,
 	completedAt sql.NullTime,
 	rawData interface{},
-) InsertPaddleTransactionParams {
+) InsertPaymentTransactionParams {
 {{- if eq .Database "postgresql" }}
 	billed := pgtype.Timestamptz{}
 	if billedAt.Valid {
@@ -52,10 +52,10 @@ func CreateInsertPaddleTransactionParams(
 		}
 	}
 
-	return InsertPaddleTransactionParams{
+	return InsertPaymentTransactionParams{
 		ID:                  id,
-		PaddleTransactionID: paddleTransactionID,
-		PaddleCustomerID:    paddleCustomerID,
+		PaymentTransactionID: providerTransactionID,
+		PaddleCustomerID:    providerCustomerID,
 		UserID:              userID,
 		Status:              status,
 		Amount:              amount,
@@ -66,10 +66,10 @@ func CreateInsertPaddleTransactionParams(
 		RawData:             rawData,
 	}
 {{- else if eq .Database "sqlite" }}
-	return InsertPaddleTransactionParams{
+	return InsertPaymentTransactionParams{
 		ID:                  id.String(),
-		PaddleTransactionID: paddleTransactionID,
-		PaddleCustomerID:    paddleCustomerID,
+		PaymentTransactionID: providerTransactionID,
+		PaddleCustomerID:    providerCustomerID,
 		UserID:              userID.String(),
 		Status:              status,
 		Amount:              amount,
@@ -82,7 +82,7 @@ func CreateInsertPaddleTransactionParams(
 {{- end }}
 }
 
-func CreateUpdatePaddleTransactionParams(
+func CreateUpdatePaymentTransactionParams(
 	id uuid.UUID,
 	status string,
 	amount string,
@@ -91,7 +91,7 @@ func CreateUpdatePaddleTransactionParams(
 	billedAt sql.NullTime,
 	completedAt sql.NullTime,
 	rawData interface{},
-) UpdatePaddleTransactionParams {
+) UpdatePaymentTransactionParams {
 {{- if eq .Database "postgresql" }}
 	billed := pgtype.Timestamptz{}
 	if billedAt.Valid {
@@ -109,7 +109,7 @@ func CreateUpdatePaddleTransactionParams(
 		}
 	}
 
-	return UpdatePaddleTransactionParams{
+	return UpdatePaymentTransactionParams{
 		ID:            id,
 		Status:        status,
 		Amount:        amount,
@@ -120,7 +120,7 @@ func CreateUpdatePaddleTransactionParams(
 		RawData:       rawData,
 	}
 {{- else if eq .Database "sqlite" }}
-	return UpdatePaddleTransactionParams{
+	return UpdatePaymentTransactionParams{
 		ID:            id.String(),
 		Status:        status,
 		Amount:        amount,
@@ -133,11 +133,11 @@ func CreateUpdatePaddleTransactionParams(
 {{- end }}
 }
 
-func CreateUpdatePaddleTransactionStatusParams(
-	paddleTransactionID string,
+func CreateUpdatePaymentTransactionStatusParams(
+	providerTransactionID string,
 	status string,
 	completedAt sql.NullTime,
-) UpdatePaddleTransactionStatusParams {
+) UpdatePaymentTransactionStatusParams {
 {{- if eq .Database "postgresql" }}
 	completed := pgtype.Timestamptz{}
 	if completedAt.Valid {
@@ -147,14 +147,14 @@ func CreateUpdatePaddleTransactionStatusParams(
 		}
 	}
 
-	return UpdatePaddleTransactionStatusParams{
-		PaddleTransactionID: paddleTransactionID,
+	return UpdatePaymentTransactionStatusParams{
+		PaymentTransactionID: providerTransactionID,
 		Status:              status,
 		CompletedAt:         completed,
 	}
 {{- else if eq .Database "sqlite" }}
-	return UpdatePaddleTransactionStatusParams{
-		PaddleTransactionID: paddleTransactionID,
+	return UpdatePaymentTransactionStatusParams{
+		PaymentTransactionID: providerTransactionID,
 		Status:              status,
 		CompletedAt:         completedAt,
 	}

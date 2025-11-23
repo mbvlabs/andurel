@@ -17,40 +17,40 @@ import (
 // Constructor functions for SQLC parameters - these get updated during refresh
 // to make schema changes compiler-enforced and visible
 
-func CreateInsertPaddleCustomerParams(
+func CreateInsertPaymentCustomerParams(
 	id uuid.UUID,
 	userID uuid.UUID,
-	paddleCustomerID string,
+	providerCustomerID string,
 	email string,
-) InsertPaddleCustomerParams {
+) InsertPaymentCustomerParams {
 {{- if eq .Database "postgresql" }}
-	return InsertPaddleCustomerParams{
+	return InsertPaymentCustomerParams{
 		ID:               id,
 		UserID:           userID,
-		PaddleCustomerID: paddleCustomerID,
+		PaymentCustomerID: providerCustomerID,
 		Email:            email,
 	}
 {{- else if eq .Database "sqlite" }}
-	return InsertPaddleCustomerParams{
+	return InsertPaymentCustomerParams{
 		ID:               id.String(),
 		UserID:           userID.String(),
-		PaddleCustomerID: paddleCustomerID,
+		PaymentCustomerID: providerCustomerID,
 		Email:            email,
 	}
 {{- end }}
 }
 
-func CreateUpdatePaddleCustomerParams(
+func CreateUpdatePaymentCustomerParams(
 	id uuid.UUID,
 	email string,
-) UpdatePaddleCustomerParams {
+) UpdatePaymentCustomerParams {
 {{- if eq .Database "postgresql" }}
-	return UpdatePaddleCustomerParams{
+	return UpdatePaymentCustomerParams{
 		ID:    id,
 		Email: email,
 	}
 {{- else if eq .Database "sqlite" }}
-	return UpdatePaddleCustomerParams{
+	return UpdatePaymentCustomerParams{
 		ID:    id.String(),
 		Email: email,
 	}

@@ -11,12 +11,12 @@ import (
 	"{{.ModuleName}}/models/internal/db"
 )
 
-type PaddleProduct struct {
+type PaymentProduct struct {
 	ID              uuid.UUID
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
-	PaddleProductID string
-	PaddlePriceID   string
+	ProviderProductID string
+	ProviderPriceID   string
 	Name            string
 	Description     string
 	PriceAmount     string
@@ -25,30 +25,30 @@ type PaddleProduct struct {
 	IsActive        bool
 }
 
-func FindPaddleProductByID(
+func FindPaymentProductByID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) (PaddleProduct, error) {
-	row, err := queries.QueryPaddleProductByID(ctx, dbtx, id)
+	row, err := queries.QueryPaymentProductByID(ctx, dbtx, id)
 	if err != nil {
 		return PaddleProduct{}, err
 	}
 
-	return rowToPaddleProduct(row)
+	return rowToPaymentProduct(row)
 }
 
-func FindPaddleProductByPaddleID(
+func FindPaymentProductByProviderID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	paddleProductID string,
 ) (PaddleProduct, error) {
-	row, err := queries.QueryPaddleProductByPaddleID(ctx, dbtx, paddleProductID)
+	row, err := queries.QueryPaymentProductByProviderID(ctx, dbtx, paddleProductID)
 	if err != nil {
 		return PaddleProduct{}, err
 	}
 
-	return rowToPaddleProduct(row)
+	return rowToPaymentProduct(row)
 }
 
 func ListActiveProducts(
@@ -62,7 +62,7 @@ func ListActiveProducts(
 
 	products := make([]PaddleProduct, len(rows))
 	for i, row := range rows {
-		product, convErr := rowToPaddleProduct(row)
+		product, convErr := rowToPaymentProduct(row)
 		if convErr != nil {
 			return nil, convErr
 		}
@@ -72,9 +72,9 @@ func ListActiveProducts(
 	return products, nil
 }
 
-type CreatePaddleProductData struct {
-	PaddleProductID string
-	PaddlePriceID   string
+type CreatePaymentProductData struct {
+	ProviderProductID string
+	ProviderPriceID   string
 	Name            string
 	Description     string
 	PriceAmount     string
@@ -83,15 +83,15 @@ type CreatePaddleProductData struct {
 	IsActive        bool
 }
 
-func CreatePaddleProduct(
+func CreatePaymentProduct(
 	ctx context.Context,
 	dbtx db.DBTX,
-	data CreatePaddleProductData,
+	data CreatePaymentProductData,
 ) (PaddleProduct, error) {
-	params := db.CreateInsertPaddleProductParams(
+	params := db.CreateInsertPaymentProductParams(
 		uuid.New(),
-		data.PaddleProductID,
-		data.PaddlePriceID,
+		data.ProviderProductID,
+		data.ProviderPriceID,
 		data.Name,
 		sql.NullString{String: data.Description, Valid: data.Description != ""},
 		data.PriceAmount,
@@ -100,21 +100,21 @@ func CreatePaddleProduct(
 		data.IsActive,
 	)
 
-	row, err := queries.InsertPaddleProduct(ctx, dbtx, params)
+	row, err := queries.InsertPaymentProduct(ctx, dbtx, params)
 	if err != nil {
 		return PaddleProduct{}, err
 	}
 
-	return rowToPaddleProduct(row)
+	return rowToPaymentProduct(row)
 }
 
-func rowToPaddleProduct(row db.PaddleProduct) (PaddleProduct, error) {
+func rowToPaymentProduct(row db.PaymentProduct) (PaddleProduct, error) {
 	return PaddleProduct{
 		ID:              row.ID,
 		CreatedAt:       row.CreatedAt.Time,
 		UpdatedAt:       row.UpdatedAt.Time,
-		PaddleProductID: row.PaddleProductID,
-		PaddlePriceID:   row.PaddlePriceID,
+		ProviderProductID: row.ProviderProductID,
+		ProviderPriceID:   row.ProviderPriceID,
 		Name:            row.Name,
 		Description:     row.Description.String,
 		PriceAmount:     row.PriceAmount,
@@ -136,12 +136,12 @@ import (
 	"{{.ModuleName}}/models/internal/db"
 )
 
-type PaddleProduct struct {
+type PaymentProduct struct {
 	ID              uuid.UUID
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
-	PaddleProductID string
-	PaddlePriceID   string
+	ProviderProductID string
+	ProviderPriceID   string
 	Name            string
 	Description     string
 	PriceAmount     string
@@ -150,30 +150,30 @@ type PaddleProduct struct {
 	IsActive        bool
 }
 
-func FindPaddleProductByID(
+func FindPaymentProductByID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	id uuid.UUID,
 ) (PaddleProduct, error) {
-	row, err := queries.QueryPaddleProductByID(ctx, dbtx, id.String())
+	row, err := queries.QueryPaymentProductByID(ctx, dbtx, id.String())
 	if err != nil {
 		return PaddleProduct{}, err
 	}
 
-	return rowToPaddleProduct(row)
+	return rowToPaymentProduct(row)
 }
 
-func FindPaddleProductByPaddleID(
+func FindPaymentProductByProviderID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	paddleProductID string,
 ) (PaddleProduct, error) {
-	row, err := queries.QueryPaddleProductByPaddleID(ctx, dbtx, paddleProductID)
+	row, err := queries.QueryPaymentProductByProviderID(ctx, dbtx, paddleProductID)
 	if err != nil {
 		return PaddleProduct{}, err
 	}
 
-	return rowToPaddleProduct(row)
+	return rowToPaymentProduct(row)
 }
 
 func ListActiveProducts(
@@ -187,7 +187,7 @@ func ListActiveProducts(
 
 	products := make([]PaddleProduct, len(rows))
 	for i, row := range rows {
-		product, convErr := rowToPaddleProduct(row)
+		product, convErr := rowToPaymentProduct(row)
 		if convErr != nil {
 			return nil, convErr
 		}
@@ -197,9 +197,9 @@ func ListActiveProducts(
 	return products, nil
 }
 
-type CreatePaddleProductData struct {
-	PaddleProductID string
-	PaddlePriceID   string
+type CreatePaymentProductData struct {
+	ProviderProductID string
+	ProviderPriceID   string
 	Name            string
 	Description     string
 	PriceAmount     string
@@ -208,15 +208,15 @@ type CreatePaddleProductData struct {
 	IsActive        bool
 }
 
-func CreatePaddleProduct(
+func CreatePaymentProduct(
 	ctx context.Context,
 	dbtx db.DBTX,
-	data CreatePaddleProductData,
+	data CreatePaymentProductData,
 ) (PaddleProduct, error) {
-	params := db.CreateInsertPaddleProductParams(
+	params := db.CreateInsertPaymentProductParams(
 		uuid.New().String(),
-		data.PaddleProductID,
-		data.PaddlePriceID,
+		data.ProviderProductID,
+		data.ProviderPriceID,
 		data.Name,
 		sql.NullString{String: data.Description, Valid: data.Description != ""},
 		data.PriceAmount,
@@ -225,15 +225,15 @@ func CreatePaddleProduct(
 		data.IsActive,
 	)
 
-	row, err := queries.InsertPaddleProduct(ctx, dbtx, params)
+	row, err := queries.InsertPaymentProduct(ctx, dbtx, params)
 	if err != nil {
 		return PaddleProduct{}, err
 	}
 
-	return rowToPaddleProduct(row)
+	return rowToPaymentProduct(row)
 }
 
-func rowToPaddleProduct(row db.PaddleProduct) (PaddleProduct, error) {
+func rowToPaymentProduct(row db.PaymentProduct) (PaddleProduct, error) {
 	id, err := uuid.Parse(row.ID)
 	if err != nil {
 		return PaddleProduct{}, err
@@ -245,8 +245,8 @@ func rowToPaddleProduct(row db.PaddleProduct) (PaddleProduct, error) {
 		ID:              id,
 		CreatedAt:       row.CreatedAt,
 		UpdatedAt:       row.UpdatedAt,
-		PaddleProductID: row.PaddleProductID,
-		PaddlePriceID:   row.PaddlePriceID,
+		ProviderProductID: row.ProviderProductID,
+		ProviderPriceID:   row.ProviderPriceID,
 		Name:            row.Name,
 		Description:     row.Description.String,
 		PriceAmount:     row.PriceAmount,

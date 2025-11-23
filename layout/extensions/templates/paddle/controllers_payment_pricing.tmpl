@@ -12,26 +12,26 @@ import (
 )
 
 {{- if eq .Database "postgresql" }}
-type PaddlePricing struct {
+type PaymentPricing struct {
 	db     database.Postgres
 	client *payment.PaddleClient
 }
 
-func newPaddlePricing(db database.Postgres, client *payment.PaddleClient) PaddlePricing {
-	return PaddlePricing{db, client}
+func newPaymentPricing(db database.Postgres, client *payment.PaddleClient) PaymentPricing {
+	return PaymentPricing{db, client}
 }
 {{- else if eq .Database "sqlite" }}
-type PaddlePricing struct {
+type PaymentPricing struct {
 	db     database.SQLite
 	client *payment.PaddleClient
 }
 
-func newPaddlePricing(db database.SQLite, client *payment.PaddleClient) PaddlePricing {
-	return PaddlePricing{db, client}
+func newPaymentPricing(db database.SQLite, client *payment.PaddleClient) PaymentPricing {
+	return PaymentPricing{db, client}
 }
 {{- end }}
 
-func (pp PaddlePricing) Index(c echo.Context) error {
+func (pp PaymentPricing) Index(c echo.Context) error {
 	// Get active products from database
 	products, err := models.ListActiveProducts(c.Request().Context(), pp.db)
 	if err != nil {
@@ -44,5 +44,5 @@ func (pp PaddlePricing) Index(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return render(c, views.PaddlePricing(products))
+	return render(c, views.PaymentPricing(products))
 }

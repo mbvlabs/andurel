@@ -1,12 +1,12 @@
 {{- if eq .Database "postgresql" -}}
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE IF NOT EXISTS paddle_transactions (
+CREATE TABLE IF NOT EXISTS payment_transactions (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    paddle_transaction_id VARCHAR(255) NOT NULL UNIQUE,
-    paddle_customer_id VARCHAR(255) NOT NULL,
+    provider_transaction_id VARCHAR(255) NOT NULL UNIQUE,
+    provider_customer_id VARCHAR(255) NOT NULL,
     user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     status VARCHAR(50) NOT NULL,
     amount VARCHAR(50) NOT NULL,
@@ -17,25 +17,25 @@ CREATE TABLE IF NOT EXISTS paddle_transactions (
     raw_data JSONB
 );
 
-CREATE INDEX idx_paddle_transactions_user_id ON paddle_transactions(user_id);
-CREATE INDEX idx_paddle_transactions_paddle_transaction_id ON paddle_transactions(paddle_transaction_id);
-CREATE INDEX idx_paddle_transactions_status ON paddle_transactions(status);
-CREATE INDEX idx_paddle_transactions_paddle_customer_id ON paddle_transactions(paddle_customer_id);
+CREATE INDEX idx_payment_transactions_user_id ON payment_transactions(user_id);
+CREATE INDEX idx_payment_transactions_provider_transaction_id ON payment_transactions(provider_transaction_id);
+CREATE INDEX idx_payment_transactions_status ON payment_transactions(status);
+CREATE INDEX idx_payment_transactions_provider_customer_id ON payment_transactions(provider_customer_id);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS paddle_transactions;
+DROP TABLE IF EXISTS payment_transactions;
 -- +goose StatementEnd
 {{- else if eq .Database "sqlite" -}}
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE IF NOT EXISTS paddle_transactions (
+CREATE TABLE IF NOT EXISTS payment_transactions (
     id TEXT PRIMARY KEY,
     created_at DATETIME NOT NULL DEFAULT (datetime('now')),
     updated_at DATETIME NOT NULL DEFAULT (datetime('now')),
-    paddle_transaction_id TEXT NOT NULL UNIQUE,
-    paddle_customer_id TEXT NOT NULL,
+    provider_transaction_id TEXT NOT NULL UNIQUE,
+    provider_customer_id TEXT NOT NULL,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     status TEXT NOT NULL,
     amount TEXT NOT NULL,
@@ -46,14 +46,14 @@ CREATE TABLE IF NOT EXISTS paddle_transactions (
     raw_data TEXT
 );
 
-CREATE INDEX idx_paddle_transactions_user_id ON paddle_transactions(user_id);
-CREATE INDEX idx_paddle_transactions_paddle_transaction_id ON paddle_transactions(paddle_transaction_id);
-CREATE INDEX idx_paddle_transactions_status ON paddle_transactions(status);
-CREATE INDEX idx_paddle_transactions_paddle_customer_id ON paddle_transactions(paddle_customer_id);
+CREATE INDEX idx_payment_transactions_user_id ON payment_transactions(user_id);
+CREATE INDEX idx_payment_transactions_provider_transaction_id ON payment_transactions(provider_transaction_id);
+CREATE INDEX idx_payment_transactions_status ON payment_transactions(status);
+CREATE INDEX idx_payment_transactions_provider_customer_id ON payment_transactions(provider_customer_id);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS paddle_transactions;
+DROP TABLE IF EXISTS payment_transactions;
 -- +goose StatementEnd
 {{- end -}}

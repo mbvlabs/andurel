@@ -1,0 +1,24 @@
+package routes
+
+const (
+	billingRoutePrefix = "/billing"
+	billingNamePrefix  = "billing"
+)
+
+var billingGroup = newRouteGroup(billingNamePrefix, billingRoutePrefix)
+
+var PaymentWebhook = billingGroup.route("webhook").
+	SetPath("/webhook").
+	Register()
+
+var PaymentCheckout = billingGroup.route("checkout").
+	SetPath("/checkout").
+	Register()
+
+var PaymentPricing = billingGroup.route("pricing").
+	SetPath("/pricing").
+	Register()
+
+var PaymentAccount = billingGroup.route("account").
+	SetPath("/account").
+	Register()
