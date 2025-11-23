@@ -29,10 +29,10 @@ func FindPaymentProductByID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	id uuid.UUID,
-) (PaddleProduct, error) {
+) (PaymentProduct, error) {
 	row, err := queries.QueryPaymentProductByID(ctx, dbtx, id)
 	if err != nil {
-		return PaddleProduct{}, err
+		return PaymentProduct{}, err
 	}
 
 	return rowToPaymentProduct(row)
@@ -42,10 +42,10 @@ func FindPaymentProductByProviderID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	paddleProductID string,
-) (PaddleProduct, error) {
+) (PaymentProduct, error) {
 	row, err := queries.QueryPaymentProductByProviderID(ctx, dbtx, paddleProductID)
 	if err != nil {
-		return PaddleProduct{}, err
+		return PaymentProduct{}, err
 	}
 
 	return rowToPaymentProduct(row)
@@ -54,13 +54,13 @@ func FindPaymentProductByProviderID(
 func ListActiveProducts(
 	ctx context.Context,
 	dbtx db.DBTX,
-) ([]PaddleProduct, error) {
+) ([]PaymentProduct, error) {
 	rows, err := queries.QueryActiveProducts(ctx, dbtx)
 	if err != nil {
 		return nil, err
 	}
 
-	products := make([]PaddleProduct, len(rows))
+	products := make([]PaymentProduct, len(rows))
 	for i, row := range rows {
 		product, convErr := rowToPaymentProduct(row)
 		if convErr != nil {
@@ -87,7 +87,7 @@ func CreatePaymentProduct(
 	ctx context.Context,
 	dbtx db.DBTX,
 	data CreatePaymentProductData,
-) (PaddleProduct, error) {
+) (PaymentProduct, error) {
 	params := db.CreateInsertPaymentProductParams(
 		uuid.New(),
 		data.ProviderProductID,
@@ -102,14 +102,14 @@ func CreatePaymentProduct(
 
 	row, err := queries.InsertPaymentProduct(ctx, dbtx, params)
 	if err != nil {
-		return PaddleProduct{}, err
+		return PaymentProduct{}, err
 	}
 
 	return rowToPaymentProduct(row)
 }
 
-func rowToPaymentProduct(row db.PaymentProduct) (PaddleProduct, error) {
-	return PaddleProduct{
+func rowToPaymentProduct(row db.PaymentProduct) (PaymentProduct, error) {
+	return PaymentProduct{
 		ID:              row.ID,
 		CreatedAt:       row.CreatedAt.Time,
 		UpdatedAt:       row.UpdatedAt.Time,
@@ -154,10 +154,10 @@ func FindPaymentProductByID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	id uuid.UUID,
-) (PaddleProduct, error) {
+) (PaymentProduct, error) {
 	row, err := queries.QueryPaymentProductByID(ctx, dbtx, id.String())
 	if err != nil {
-		return PaddleProduct{}, err
+		return PaymentProduct{}, err
 	}
 
 	return rowToPaymentProduct(row)
@@ -167,10 +167,10 @@ func FindPaymentProductByProviderID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	paddleProductID string,
-) (PaddleProduct, error) {
+) (PaymentProduct, error) {
 	row, err := queries.QueryPaymentProductByProviderID(ctx, dbtx, paddleProductID)
 	if err != nil {
-		return PaddleProduct{}, err
+		return PaymentProduct{}, err
 	}
 
 	return rowToPaymentProduct(row)
@@ -179,13 +179,13 @@ func FindPaymentProductByProviderID(
 func ListActiveProducts(
 	ctx context.Context,
 	dbtx db.DBTX,
-) ([]PaddleProduct, error) {
+) ([]PaymentProduct, error) {
 	rows, err := queries.QueryActiveProducts(ctx, dbtx)
 	if err != nil {
 		return nil, err
 	}
 
-	products := make([]PaddleProduct, len(rows))
+	products := make([]PaymentProduct, len(rows))
 	for i, row := range rows {
 		product, convErr := rowToPaymentProduct(row)
 		if convErr != nil {
@@ -212,9 +212,9 @@ func CreatePaymentProduct(
 	ctx context.Context,
 	dbtx db.DBTX,
 	data CreatePaymentProductData,
-) (PaddleProduct, error) {
+) (PaymentProduct, error) {
 	params := db.CreateInsertPaymentProductParams(
-		uuid.New().String(),
+		uuid.New(),
 		data.ProviderProductID,
 		data.ProviderPriceID,
 		data.Name,
@@ -227,21 +227,21 @@ func CreatePaymentProduct(
 
 	row, err := queries.InsertPaymentProduct(ctx, dbtx, params)
 	if err != nil {
-		return PaddleProduct{}, err
+		return PaymentProduct{}, err
 	}
 
 	return rowToPaymentProduct(row)
 }
 
-func rowToPaymentProduct(row db.PaymentProduct) (PaddleProduct, error) {
+func rowToPaymentProduct(row db.PaymentProduct) (PaymentProduct, error) {
 	id, err := uuid.Parse(row.ID)
 	if err != nil {
-		return PaddleProduct{}, err
+		return PaymentProduct{}, err
 	}
 
 	isActive := row.IsActive == 1
 
-	return PaddleProduct{
+	return PaymentProduct{
 		ID:              id,
 		CreatedAt:       row.CreatedAt,
 		UpdatedAt:       row.UpdatedAt,

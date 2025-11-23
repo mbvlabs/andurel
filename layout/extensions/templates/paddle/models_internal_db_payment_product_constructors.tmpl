@@ -9,6 +9,7 @@ import (
 	"database/sql"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 {{ else if eq .Database "sqlite" }}
 import (
@@ -34,15 +35,15 @@ func CreateInsertPaymentProductParams(
 ) InsertPaymentProductParams {
 {{- if eq .Database "postgresql" }}
 	return InsertPaymentProductParams{
-		ID:              id,
-		PaymentProductID: providerProductID,
-		PaddlePriceID:   providerPriceID,
-		Name:            name,
-		Description:     description,
-		PriceAmount:     priceAmount,
-		PriceCurrency:   priceCurrency,
-		ImageUrl:        imageURL,
-		IsActive:        isActive,
+		ID:                id,
+		ProviderProductID: providerProductID,
+		ProviderPriceID:   providerPriceID,
+		Name:              name,
+		Description:       pgtype.Text{String: description.String, Valid: description.Valid},
+		PriceAmount:       priceAmount,
+		PriceCurrency:     priceCurrency,
+		ImageUrl:          pgtype.Text{String: imageURL.String, Valid: imageURL.Valid},
+		IsActive:          isActive,
 	}
 {{- else if eq .Database "sqlite" }}
 	var sqliteIsActive int64
@@ -51,15 +52,15 @@ func CreateInsertPaymentProductParams(
 	}
 
 	return InsertPaymentProductParams{
-		ID:              id.String(),
-		PaymentProductID: providerProductID,
-		PaddlePriceID:   providerPriceID,
-		Name:            name,
-		Description:     description,
-		PriceAmount:     priceAmount,
-		PriceCurrency:   priceCurrency,
-		ImageUrl:        imageURL,
-		IsActive:        sqliteIsActive,
+		ID:                id.String(),
+		ProviderProductID: providerProductID,
+		ProviderPriceID:   providerPriceID,
+		Name:              name,
+		Description:       description,
+		PriceAmount:       priceAmount,
+		PriceCurrency:     priceCurrency,
+		ImageUrl:          imageURL,
+		IsActive:          sqliteIsActive,
 	}
 {{- end }}
 }
@@ -77,10 +78,10 @@ func CreateUpdatePaymentProductParams(
 	return UpdatePaymentProductParams{
 		ID:            id,
 		Name:          name,
-		Description:   description,
+		Description:   pgtype.Text{String: description.String, Valid: description.Valid},
 		PriceAmount:   priceAmount,
 		PriceCurrency: priceCurrency,
-		ImageUrl:      imageURL,
+		ImageUrl:      pgtype.Text{String: imageURL.String, Valid: imageURL.Valid},
 		IsActive:      isActive,
 	}
 {{- else if eq .Database "sqlite" }}

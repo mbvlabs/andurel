@@ -135,9 +135,9 @@ func (w PaymentWebhooks) handleTransactionCompleted(c echo.Context, event *payme
 	}
 
 	// Check if transaction already exists
-	existingTx, err := models.FindPaymentTransactionByProviderID(
+	_, err := models.FindPaymentTransactionByProviderID(
 		c.Request().Context(),
-		w.db,
+		w.db.Conn(),
 		txData.ID,
 	)
 
@@ -145,7 +145,7 @@ func (w PaymentWebhooks) handleTransactionCompleted(c echo.Context, event *payme
 		// Transaction exists, update status
 		_, err = models.UpdatePaymentTransactionStatus(
 			c.Request().Context(),
-			w.db,
+			w.db.Conn(),
 			txData.ID,
 			txData.Status,
 			time.Now(),
@@ -182,7 +182,7 @@ func (w PaymentWebhooks) handleTransactionUpdated(c echo.Context, event *payment
 	// Update transaction status
 	_, err := models.UpdatePaymentTransactionStatus(
 		c.Request().Context(),
-		w.db,
+		w.db.Conn(),
 		txData.ID,
 		txData.Status,
 		time.Now(),

@@ -108,7 +108,7 @@ func CreatePaymentCustomer(
 	data CreatePaymentCustomerData,
 ) (PaymentCustomer, error) {
 	params := db.CreateInsertPaymentCustomerParams(
-		uuid.New().String(),
+		uuid.New(),
 		data.ProviderCustomerID,
 		data.Email,
 	)

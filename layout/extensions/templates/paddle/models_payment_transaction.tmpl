@@ -199,7 +199,7 @@ func CreatePaymentTransaction(
 	data CreatePaymentTransactionData,
 ) (PaymentTransaction, error) {
 	params := db.CreateInsertPaymentTransactionParams(
-		uuid.New().String(),
+		uuid.New(),
 		data.ProviderTransactionID,
 		data.ProviderCustomerID,
 		data.Status,

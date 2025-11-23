@@ -1,10 +1,11 @@
 package controllers
 
 import (
+	"net/http"
+
 	"{{.ModuleName}}/clients/payment"
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/database"
-	"{{.ModuleName}}/views"
 
 	"github.com/labstack/echo/v4"
 )
@@ -32,5 +33,9 @@ func newPaymentCheckout(db database.SQLite, client *payment.PaddleClient, cfg co
 {{- end }}
 
 func (pc PaymentCheckout) Show(c echo.Context) error {
-	return render(c, views.PaymentCheckout(pc.cfg.Paddle.Environment))
+	// TODO: Implement checkout view
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Checkout page - implement your own view",
+		"environment": pc.cfg.Paddle.Environment,
+	})
 }

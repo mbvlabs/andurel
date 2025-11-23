@@ -270,16 +270,13 @@ func verifyExtension(t *testing.T, project *internal.Project, extension string) 
 			"models/payment_transaction.go",
 			"clients/payment/paddle.go",
 			"config/paddle.go",
-			"views/payment_pricing.templ",
-			"views/payment_checkout.templ",
-			"views/payment_account.templ",
 			"router/routes/payment.go",
 		}
 		internal.AssertFilesExist(t, project, paddleFiles)
 
 	case "aws-ses":
 		awsSesFiles := []string{
-			"clients/aws_ses.go",
+			"clients/email/aws_ses.go",
 			"config/aws_ses.go",
 		}
 		internal.AssertFilesExist(t, project, awsSesFiles)

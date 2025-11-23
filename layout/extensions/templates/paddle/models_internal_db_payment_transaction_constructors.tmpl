@@ -58,10 +58,10 @@ func CreateInsertPaymentTransactionParams(
 		Status:                  status,
 		Amount:                  amount,
 		Currency:                currency,
-		InvoiceNumber:           invoiceNumber,
+		InvoiceNumber:           pgtype.Text{String: invoiceNumber.String, Valid: invoiceNumber.Valid},
 		BilledAt:                billed,
 		CompletedAt:             completed,
-		RawData:                 rawData,
+		RawData:                 rawData.([]byte),
 	}
 {{- else if eq .Database "sqlite" }}
 	return InsertPaymentTransactionParams{
@@ -111,10 +111,10 @@ func CreateUpdatePaymentTransactionParams(
 		Status:        status,
 		Amount:        amount,
 		Currency:      currency,
-		InvoiceNumber: invoiceNumber,
+		InvoiceNumber: pgtype.Text{String: invoiceNumber.String, Valid: invoiceNumber.Valid},
 		BilledAt:      billed,
 		CompletedAt:   completed,
-		RawData:       rawData,
+		RawData:       rawData.([]byte),
 	}
 {{- else if eq .Database "sqlite" }}
 	return UpdatePaymentTransactionParams{

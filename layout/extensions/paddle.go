@@ -23,6 +23,7 @@ func (e Paddle) Apply(ctx *Context) error {
 
 	// Add imports
 	builder.AddMainImport(fmt.Sprintf("%s/clients/payment", moduleName))
+	builder.AddControllerImport(fmt.Sprintf("%s/clients/payment", moduleName))
 	builder.AddControllerImport(fmt.Sprintf("%s/config", moduleName))
 
 	// Add config field
@@ -116,10 +117,6 @@ func (e Paddle) renderTemplates(ctx *Context) error {
 		"models_internal_db_payment_transaction_constructors.tmpl": "models/internal/db/payment_transaction_constructors.go",
 
 		"router_routes_payment.tmpl": "router/routes/payment.go",
-
-		"views_payment_checkout.tmpl": "views/payment_checkout.templ",
-		"views_payment_pricing.tmpl":  "views/payment_pricing.templ",
-		"views_payment_account.tmpl":  "views/payment_account.templ",
 	}
 
 	for tmpl, target := range templates {

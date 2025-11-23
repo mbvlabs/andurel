@@ -2,11 +2,11 @@ package controllers
 
 import (
 	"log/slog"
+	"net/http"
 
 	"{{.ModuleName}}/clients/payment"
 	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/models"
-	"{{.ModuleName}}/views"
 
 	"github.com/labstack/echo/v4"
 )
@@ -33,7 +33,7 @@ func newPaymentPricing(db database.SQLite, client *payment.PaddleClient) Payment
 
 func (pp PaymentPricing) Index(c echo.Context) error {
 	// Get active products from database
-	products, err := models.ListActiveProducts(c.Request().Context(), pp.db)
+	products, err := models.ListActiveProducts(c.Request().Context(), pp.db.Conn())
 	if err != nil {
 		slog.ErrorContext(
 			c.Request().Context(),
@@ -41,8 +41,12 @@ func (pp PaymentPricing) Index(c echo.Context) error {
 			"error",
 			err,
 		)
-		return render(c, views.InternalError())
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to load products"})
 	}
 
-	return render(c, views.PaymentPricing(products))
+	// TODO: Implement pricing view
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message": "Pricing page - implement your own view",
+		"products": products,
+	})
 }
