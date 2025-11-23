@@ -1,0 +1,264 @@
+{{- if eq .Database "postgresql" }}
+package models
+
+import (
+	"context"
+	"database/sql"
+	"time"
+
+	"github.com/google/uuid"
+
+	"{{.ModuleName}}/models/internal/db"
+)
+
+type PaymentTransaction struct {
+	ID                   uuid.UUID
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+	ProviderTransactionID  string
+	ProviderCustomerID     string
+	Status               string
+	Amount               string
+	Currency             string
+	InvoiceNumber        string
+	BilledAt             time.Time
+	CompletedAt          time.Time
+	RawData              []byte
+}
+
+func FindPaymentTransactionByID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	id uuid.UUID,
+) (PaymentTransaction, error) {
+	row, err := queries.QueryPaymentTransactionByID(ctx, dbtx, id)
+	if err != nil {
+		return PaymentTransaction{}, err
+	}
+
+	return rowToPaymentTransaction(row)
+}
+
+func FindPaymentTransactionByProviderID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	paddleTransactionID string,
+) (PaymentTransaction, error) {
+	row, err := queries.QueryPaymentTransactionByProviderID(ctx, dbtx, paddleTransactionID)
+	if err != nil {
+		return PaymentTransaction{}, err
+	}
+
+	return rowToPaymentTransaction(row)
+}
+
+type CreatePaymentTransactionData struct {
+	ProviderTransactionID string
+	ProviderCustomerID    string
+	Status                string
+	Amount              string
+	Currency            string
+	InvoiceNumber       string
+	BilledAt            time.Time
+	CompletedAt         time.Time
+	RawData             []byte
+}
+
+func CreatePaymentTransaction(
+	ctx context.Context,
+	dbtx db.DBTX,
+	data CreatePaymentTransactionData,
+) (PaymentTransaction, error) {
+	params := db.CreateInsertPaymentTransactionParams(
+		uuid.New(),
+		data.ProviderTransactionID,
+		data.ProviderCustomerID,
+		data.Status,
+		data.Amount,
+		data.Currency,
+		sql.NullString{String: data.InvoiceNumber, Valid: data.InvoiceNumber != ""},
+		sql.NullTime{Time: data.BilledAt, Valid: !data.BilledAt.IsZero()},
+		sql.NullTime{Time: data.CompletedAt, Valid: !data.CompletedAt.IsZero()},
+		data.RawData,
+	)
+
+	row, err := queries.InsertPaymentTransaction(ctx, dbtx, params)
+	if err != nil {
+		return PaymentTransaction{}, err
+	}
+
+	return rowToPaymentTransaction(row)
+}
+
+func UpdatePaymentTransactionStatus(
+	ctx context.Context,
+	dbtx db.DBTX,
+	paddleTransactionID string,
+	status string,
+	completedAt time.Time,
+) (PaymentTransaction, error) {
+	params := db.CreateUpdatePaymentTransactionStatusParams(
+		paddleTransactionID,
+		status,
+		sql.NullTime{Time: completedAt, Valid: !completedAt.IsZero()},
+	)
+
+	row, err := queries.UpdatePaymentTransactionStatus(ctx, dbtx, params)
+	if err != nil {
+		return PaymentTransaction{}, err
+	}
+
+	return rowToPaymentTransaction(row)
+}
+
+func rowToPaymentTransaction(row db.PaymentTransaction) (PaymentTransaction, error) {
+	return PaymentTransaction{
+		ID:                    row.ID,
+		CreatedAt:             row.CreatedAt.Time,
+		UpdatedAt:             row.UpdatedAt.Time,
+		ProviderTransactionID: row.ProviderTransactionID,
+		ProviderCustomerID:    row.ProviderCustomerID,
+		Status:                row.Status,
+		Amount:                row.Amount,
+		Currency:              row.Currency,
+		InvoiceNumber:         row.InvoiceNumber.String,
+		BilledAt:              row.BilledAt.Time,
+		CompletedAt:           row.CompletedAt.Time,
+		RawData:               row.RawData,
+	}, nil
+}
+{{- else if eq .Database "sqlite" }}
+package models
+
+import (
+	"context"
+	"database/sql"
+	"time"
+
+	"github.com/google/uuid"
+
+	"{{.ModuleName}}/models/internal/db"
+)
+
+type PaymentTransaction struct {
+	ID                   uuid.UUID
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+	ProviderTransactionID  string
+	ProviderCustomerID     string
+	Status               string
+	Amount               string
+	Currency             string
+	InvoiceNumber        string
+	BilledAt             time.Time
+	CompletedAt          time.Time
+	RawData              string
+}
+
+func FindPaymentTransactionByID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	id uuid.UUID,
+) (PaymentTransaction, error) {
+	row, err := queries.QueryPaymentTransactionByID(ctx, dbtx, id.String())
+	if err != nil {
+		return PaymentTransaction{}, err
+	}
+
+	return rowToPaymentTransaction(row)
+}
+
+func FindPaymentTransactionByProviderID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	paddleTransactionID string,
+) (PaymentTransaction, error) {
+	row, err := queries.QueryPaymentTransactionByProviderID(ctx, dbtx, paddleTransactionID)
+	if err != nil {
+		return PaymentTransaction{}, err
+	}
+
+	return rowToPaymentTransaction(row)
+}
+
+type CreatePaymentTransactionData struct {
+	ProviderTransactionID string
+	ProviderCustomerID    string
+	Status                string
+	Amount              string
+	Currency            string
+	InvoiceNumber       string
+	BilledAt            time.Time
+	CompletedAt         time.Time
+	RawData             string
+}
+
+func CreatePaymentTransaction(
+	ctx context.Context,
+	dbtx db.DBTX,
+	data CreatePaymentTransactionData,
+) (PaymentTransaction, error) {
+	params := db.CreateInsertPaymentTransactionParams(
+		uuid.New(),
+		data.ProviderTransactionID,
+		data.ProviderCustomerID,
+		data.Status,
+		data.Amount,
+		data.Currency,
+		sql.NullString{String: data.InvoiceNumber, Valid: data.InvoiceNumber != ""},
+		sql.NullTime{Time: data.BilledAt, Valid: !data.BilledAt.IsZero()},
+		sql.NullTime{Time: data.CompletedAt, Valid: !data.CompletedAt.IsZero()},
+		sql.NullString{String: data.RawData, Valid: data.RawData != ""},
+	)
+
+	row, err := queries.InsertPaymentTransaction(ctx, dbtx, params)
+	if err != nil {
+		return PaymentTransaction{}, err
+	}
+
+	return rowToPaymentTransaction(row)
+}
+
+func UpdatePaymentTransactionStatus(
+	ctx context.Context,
+	dbtx db.DBTX,
+	paddleTransactionID string,
+	status string,
+	completedAt time.Time,
+) (PaymentTransaction, error) {
+	params := db.CreateUpdatePaymentTransactionStatusParams(
+		paddleTransactionID,
+		status,
+		sql.NullTime{Time: completedAt, Valid: !completedAt.IsZero()},
+	)
+
+	row, err := queries.UpdatePaymentTransactionStatus(ctx, dbtx, params)
+	if err != nil {
+		return PaymentTransaction{}, err
+	}
+
+	return rowToPaymentTransaction(row)
+}
+
+func rowToPaymentTransaction(row db.PaymentTransaction) (PaymentTransaction, error) {
+	id, err := uuid.Parse(row.ID)
+	if err != nil {
+		return PaymentTransaction{}, err
+	}
+
+	return PaymentTransaction{
+		ID:                    id,
+		CreatedAt:             row.CreatedAt,
+		UpdatedAt:             row.UpdatedAt,
+		ProviderTransactionID: row.ProviderTransactionID,
+		ProviderCustomerID:    row.ProviderCustomerID,
+		Status:                row.Status,
+		Amount:                row.Amount,
+		Currency:              row.Currency,
+		InvoiceNumber:         row.InvoiceNumber.String,
+		BilledAt:              row.BilledAt.Time,
+		CompletedAt:           row.CompletedAt.Time,
+		RawData:               row.RawData.String,
+	}, nil
+}
+{{- end }}

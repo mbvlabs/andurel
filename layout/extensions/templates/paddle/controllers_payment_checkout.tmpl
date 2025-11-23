@@ -1,0 +1,41 @@
+package controllers
+
+import (
+	"net/http"
+
+	"{{.ModuleName}}/clients/payment"
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/database"
+
+	"github.com/labstack/echo/v4"
+)
+
+{{- if eq .Database "postgresql" }}
+type PaymentCheckout struct {
+	db     database.Postgres
+	client *payment.PaddleClient
+	cfg    config.Config
+}
+
+func newPaymentCheckout(db database.Postgres, client *payment.PaddleClient, cfg config.Config) PaymentCheckout {
+	return PaymentCheckout{db, client, cfg}
+}
+{{- else if eq .Database "sqlite" }}
+type PaymentCheckout struct {
+	db     database.SQLite
+	client *payment.PaddleClient
+	cfg    config.Config
+}
+
+func newPaymentCheckout(db database.SQLite, client *payment.PaddleClient, cfg config.Config) PaymentCheckout {
+	return PaymentCheckout{db, client, cfg}
+}
+{{- end }}
+
+func (pc PaymentCheckout) Show(c echo.Context) error {
+	// TODO: Implement checkout view
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Checkout page - implement your own view",
+		"environment": pc.cfg.Paddle.Environment,
+	})
+}

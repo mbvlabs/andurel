@@ -700,6 +700,7 @@ func registerBuiltinExtensions() error {
 			extensions.Auth{},
 			extensions.AwsSes{},
 			extensions.Docker{},
+			extensions.Paddle{},
 			extensions.Workflows{},
 		}
 

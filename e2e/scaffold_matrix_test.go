@@ -94,21 +94,42 @@ func getScaffoldConfigs() []ScaffoldConfig {
 			Database:   "postgresql",
 			CSS:        "tailwind",
 			Extensions: []string{"aws-ses"},
-			Critical:   false,
+			Critical:   true,
 		},
 		{
 			Name:       "sqlite-vanilla-aws-ses",
 			Database:   "sqlite",
 			CSS:        "vanilla",
 			Extensions: []string{"aws-ses"},
-			Critical:   false,
+			Critical:   true,
 		},
 		{
 			Name:       "postgresql-tailwind-auth-aws-ses",
 			Database:   "postgresql",
 			CSS:        "tailwind",
 			Extensions: []string{"auth", "aws-ses"},
-			Critical:   false,
+			Critical:   true,
+		},
+		{
+			Name:       "postgresql-tailwind-paddle",
+			Database:   "postgresql",
+			CSS:        "tailwind",
+			Extensions: []string{"paddle"},
+			Critical:   true,
+		},
+		{
+			Name:       "sqlite-vanilla-paddle",
+			Database:   "sqlite",
+			CSS:        "vanilla",
+			Extensions: []string{"paddle"},
+			Critical:   true,
+		},
+		{
+			Name:       "postgresql-tailwind-auth-paddle",
+			Database:   "postgresql",
+			CSS:        "tailwind",
+			Extensions: []string{"auth", "paddle"},
+			Critical:   true,
 		},
 	}
 }
@@ -237,5 +258,27 @@ func verifyExtension(t *testing.T, project *internal.Project, extension string) 
 			".dockerignore",
 		}
 		internal.AssertFilesExist(t, project, dockerFiles)
+
+	case "paddle":
+		paddleFiles := []string{
+			"controllers/payment_webhooks.go",
+			"controllers/payment_checkout.go",
+			"controllers/payment_pricing.go",
+			"controllers/payment_account.go",
+			"models/payment_customer.go",
+			"models/payment_product.go",
+			"models/payment_transaction.go",
+			"clients/payment/paddle.go",
+			"config/paddle.go",
+			"router/routes/payment.go",
+		}
+		internal.AssertFilesExist(t, project, paddleFiles)
+
+	case "aws-ses":
+		awsSesFiles := []string{
+			"clients/email/aws_ses.go",
+			"config/aws_ses.go",
+		}
+		internal.AssertFilesExist(t, project, awsSesFiles)
 	}
 }
