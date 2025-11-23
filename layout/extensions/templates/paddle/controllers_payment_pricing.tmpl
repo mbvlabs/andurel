@@ -1,0 +1,52 @@
+package controllers
+
+import (
+	"log/slog"
+	"net/http"
+
+	"{{.ModuleName}}/clients/payment"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/models"
+
+	"github.com/labstack/echo/v4"
+)
+
+{{- if eq .Database "postgresql" }}
+type PaymentPricing struct {
+	db     database.Postgres
+	client *payment.PaddleClient
+}
+
+func newPaymentPricing(db database.Postgres, client *payment.PaddleClient) PaymentPricing {
+	return PaymentPricing{db, client}
+}
+{{- else if eq .Database "sqlite" }}
+type PaymentPricing struct {
+	db     database.SQLite
+	client *payment.PaddleClient
+}
+
+func newPaymentPricing(db database.SQLite, client *payment.PaddleClient) PaymentPricing {
+	return PaymentPricing{db, client}
+}
+{{- end }}
+
+func (pp PaymentPricing) Index(c echo.Context) error {
+	// Get active products from database
+	products, err := models.ListActiveProducts(c.Request().Context(), pp.db.Conn())
+	if err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"failed to list products",
+			"error",
+			err,
+		)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to load products"})
+	}
+
+	// TODO: Implement pricing view
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message": "Pricing page - implement your own view",
+		"products": products,
+	})
+}

@@ -5,6 +5,7 @@ import (
 
 	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/pkg/errors"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type TemplateRenderer struct {
@@ -57,7 +58,7 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 }
 
 func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName string) (string, error) {
-	// Create custom data structure for route template
+	// Create custom data structure for route template (router/routes/users.go)
 	data := struct {
 		ResourceName string
 		PluralName   string
@@ -69,6 +70,25 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName string
 	result, err := tr.service.RenderTemplate("route.tmpl", data)
 	if err != nil {
 		return "", errors.WrapTemplateError(err, "render route", "route.tmpl")
+	}
+	return result, nil
+}
+
+func (tr *TemplateRenderer) generateRouteRegistrationFunction(resourceName, pluralName string) (string, error) {
+	// Create custom data structure for route registration template
+	data := struct {
+		ResourceName          string
+		PluralName            string
+		CapitalizedPluralName string
+	}{
+		ResourceName:          resourceName,
+		PluralName:            pluralName,
+		CapitalizedPluralName: naming.Capitalize(naming.ToCamelCase(pluralName)),
+	}
+
+	result, err := tr.service.RenderTemplate("route_registration.tmpl", data)
+	if err != nil {
+		return "", errors.WrapTemplateError(err, "render route registration", "route_registration.tmpl")
 	}
 	return result, nil
 }

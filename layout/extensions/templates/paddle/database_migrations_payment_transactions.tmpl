@@ -1,0 +1,47 @@
+{{- if eq .Database "postgresql" -}}
+-- +goose Up
+-- +goose StatementBegin
+CREATE TABLE IF NOT EXISTS payment_transactions (
+    id uuid PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    provider_transaction_id VARCHAR(255) NOT NULL UNIQUE,
+    provider_customer_id VARCHAR(255) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    amount VARCHAR(50) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    invoice_number VARCHAR(255),
+    billed_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    raw_data JSONB
+);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS payment_transactions;
+-- +goose StatementEnd
+{{- else if eq .Database "sqlite" -}}
+-- +goose Up
+-- +goose StatementBegin
+CREATE TABLE IF NOT EXISTS payment_transactions (
+    id TEXT PRIMARY KEY,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    provider_transaction_id TEXT NOT NULL UNIQUE,
+    provider_customer_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    amount TEXT NOT NULL,
+    currency TEXT NOT NULL,
+    invoice_number TEXT,
+    billed_at DATETIME,
+    completed_at DATETIME,
+    raw_data TEXT
+);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS payment_transactions;
+-- +goose StatementEnd
+{{- end -}}

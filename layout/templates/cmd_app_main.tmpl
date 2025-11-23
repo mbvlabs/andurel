@@ -107,15 +107,15 @@ func setupControllers(
 }
 
 func setupRouter(
-	ctx context.Context, 
-	ctrl controllers.Controllers, 
-	cfg config.Config, 
+	ctx context.Context,
+	ctrl controllers.Controllers,
+	cfg config.Config,
 	tel *telemetry.Telemetry,
 {{- if eq .Database "postgresql"}}
 	riverHandler *riverui.Handler,
 {{- end}}
 ) (*echo.Echo, error) {
-	router, err := router.New(
+	r, err := router.New(
 		ctx,
 		ctrl,
 		cfg,
@@ -128,7 +128,7 @@ func setupRouter(
 		return nil, err
 	}
 
-	return router.SetupRoutes(), nil
+	return r.Handler, nil
 }
 
 func parseHeaders(headersStr string) map[string]string {
@@ -217,7 +217,7 @@ func run(ctx context.Context) error {
 {{- end}}
 
 {{- if eq .Database "postgresql"}}
-	wrks, err := workers.Register(emailClient)
+	wrks, err := workers.Register(emailClient, emailClient)
 	if err != nil {
 		return err
 	}

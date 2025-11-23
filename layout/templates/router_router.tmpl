@@ -5,28 +5,21 @@ import (
 	"context"
 	"encoding/gob"
 	"encoding/hex"
-	"fmt"
-	"log/slog"
 	"net/http"
-	"os"
-	"reflect"
-	"slices"
 	"strings"
-	"time"
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/pkg/telemetry"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/router/middleware"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 {{- if eq .Database "postgresql"}}
 	"riverqueue.com/riverui"
 {{- end}}
@@ -76,15 +69,15 @@ func New(
 
 	middleware := []echo.MiddlewareFunc{
 		otelecho.Middleware(config.ServiceName),
-		logger(tel),
+		middleware.Logger(tel),
 		session.Middleware(
 			sessions.NewCookieStore(
 				authKey,
 				encKey,
 			),
 		),
-		registerAppContext,
-		registerFlashMessagesContext,
+		middleware.RegisterAppContext,
+		middleware.RegisterFlashMessagesContext,
 
 		echomw.CSRFWithConfig(echomw.CSRFConfig{Skipper: func(c echo.Context) bool {
 			return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
@@ -106,214 +99,13 @@ func New(
 	router.Any("/riverui*", echo.WrapHandler(riverHandler))
 {{- end}}
 
+	registrar.register(router, controllers)
+
+	router.RouteNotFound("/*", controllers.Pages.NotFound)
+
 	return &Router{
 		router,
 		controllers,
 		tel,
 	}, nil
-}
-
-func (r *Router) SetupRoutes() *echo.Echo {
-	registeredRoutes := []string{}
-	controllersValue := reflect.ValueOf(r.controllers)
-	var errors []string
-
-	for _, route := range routes.Registry {
-		if registered := slices.Contains(registeredRoutes, route.Name); registered {
-			errors = append(errors, fmt.Sprintf("  - Route '%s' (Path: %s) is registered more than once", route.Name, route.Path))
-			continue
-		}
-
-		if route.Controller == "" || route.ControllerMethod == "" {
-			errors = append(errors, fmt.Sprintf("  - Route '%s' (Path: %s) must specify Controller and ControllerMethod fields", route.Name, route.Path))
-			continue
-		}
-
-		controllerField := controllersValue.FieldByName(route.Controller)
-		if !controllerField.IsValid() {
-			errors = append(errors, fmt.Sprintf("  - Route '%s' expects Controller '%s' to exist but it was not found", route.Name, route.Controller))
-			continue
-		}
-
-		controller := controllerField.Interface()
-		controllerFunc, err := getHandlerFunc(controller, route.ControllerMethod)
-		if err != nil {
-			errors = append(errors, fmt.Sprintf("  - Route '%s' expects Controller '%s' to have method '%s' but none was found", route.Name, route.Controller, route.ControllerMethod))
-			continue
-		}
-
-		var middlewareFuncs []echo.MiddlewareFunc
-		for _, mw := range route.Middleware {
-			middlewareFuncs = append(middlewareFuncs, echo.MiddlewareFunc(mw.Handler()))
-		}
-
-		switch route.Method {
-		case http.MethodGet:
-			registeredRoutes = append(registeredRoutes, route.Name)
-			r.Handler.GET(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
-		case http.MethodPost:
-			registeredRoutes = append(registeredRoutes, route.Name)
-			r.Handler.POST(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
-		case http.MethodPut:
-			registeredRoutes = append(registeredRoutes, route.Name)
-			r.Handler.PUT(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
-		case http.MethodDelete:
-			registeredRoutes = append(registeredRoutes, route.Name)
-			r.Handler.DELETE(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
-		}
-	}
-
-	if len(errors) > 0 {
-		fmt.Fprintf(os.Stderr, "Found %d route configuration error(s):\n", len(errors))
-		for _, err := range errors {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		os.Exit(1)
-	}
-
-	notFoundHandler, err := getHandlerFunc(r.controllers.Pages, "NotFound")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Failed to setup NotFound handler: %v\n", err)
-		os.Exit(1)
-	}
-
-	r.Handler.RouteNotFound("/*", notFoundHandler)
-
-	return r.Handler
-}
-
-func getHandlerFunc(controller any, methodName string) (echo.HandlerFunc, error) {
-	appType := reflect.TypeOf(controller)
-	method, found := appType.MethodByName(methodName)
-	if !found {
-		return nil, fmt.Errorf("method '%s' not found on controller", methodName)
-	}
-
-	return func(c echo.Context) error {
-		values := method.Func.Call([]reflect.Value{
-			reflect.ValueOf(controller),
-			reflect.ValueOf(c),
-		})
-
-		if len(values) != 1 {
-			panic(
-				fmt.Sprintf(
-					"Controller method %s does not return exactly one value",
-					methodName,
-				),
-			)
-		}
-
-		if values[0].IsNil() {
-			return nil
-		}
-
-		return values[0].Interface().(error)
-	}, nil
-}
-
-func registerAppContext(
-	next echo.HandlerFunc,
-) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		if strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix) ||
-			strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) {
-			return next(c)
-		}
-
-		c.Set(string(cookies.AppKey), cookies.GetApp(c))
-
-		return next(c)
-	}
-}
-
-func registerFlashMessagesContext(
-	next echo.HandlerFunc,
-) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		if strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix) ||
-			strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) {
-			return next(c)
-		}
-
-		flashes, err := cookies.GetFlashes(c)
-		if err != nil {
-			slog.Error("Error getting flash messages from session", "error", err)
-			return next(c)
-		}
-
-		c.Set(string(cookies.FlashKey), flashes)
-
-		return next(c)
-	}
-}
-
-
-func logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
-	var httpRequestsTotal metric.Int64Counter
-	var httpDuration metric.Float64Histogram
-	var httpInFlight metric.Int64UpDownCounter
-
-	if tel.HasMetrics() {
-		var err error
-		httpRequestsTotal, err = telemetry.HTTPRequestsTotal()
-		if err != nil {
-			slog.Warn("failed to create http_requests_total metric", "error", err)
-		}
-		httpDuration, err = telemetry.HTTPRequestDuration()
-		if err != nil {
-			slog.Warn("failed to create http_request_duration metric", "error", err)
-		}
-		httpInFlight, err = telemetry.HTTPRequestsInFlight()
-		if err != nil {
-			slog.Warn("failed to create http_requests_in_flight metric", "error", err)
-		}
-
-		meter := telemetry.GetMeter(config.ServiceName)
-		if err := telemetry.SetupRuntimeMetricsInCallback(meter); err != nil {
-			slog.Warn("failed to setup runtime metrics", "error", err)
-		}
-	}
-
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			if strings.Contains(c.Request().URL.Path, routes.APIRoutePrefix) ||
-				strings.Contains(c.Request().URL.Path, routes.AssetsRoutePrefix) {
-				return next(c)
-			}
-
-			ctx := c.Request().Context()
-			start := time.Now()
-
-			if tel.HasMetrics() && httpInFlight != nil {
-				httpInFlight.Add(ctx, 1)
-				defer httpInFlight.Add(ctx, -1)
-			}
-
-			err := next(c)
-			duration := time.Since(start)
-			statusCode := c.Response().Status
-
-			if tel.HasMetrics() && httpRequestsTotal != nil && httpDuration != nil {
-				attrs := []attribute.KeyValue{
-					attribute.String("method", c.Request().Method),
-					attribute.String("route", c.Path()),
-					attribute.Int("status_code", statusCode),
-				}
-				httpRequestsTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
-				httpDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
-			}
-
-			slog.InfoContext(ctx, "HTTP request completed",
-				"method", c.Request().Method,
-				"path", c.Request().URL.Path,
-				"status", statusCode,
-				"remote_addr", c.RealIP(),
-				"user_agent", c.Request().UserAgent(),
-				"duration", duration.String(),
-			)
-
-			return err
-		}
-	}
 }
