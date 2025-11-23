@@ -791,6 +791,236 @@ Request production access: AWS SES Console → Account Dashboard → Request Pro
 - [AWS SES Pricing](https://aws.amazon.com/ses/pricing/) - $0.10 per 1,000 emails
 - [SES Best Practices](https://docs.aws.amazon.com/ses/latest/dg/best-practices.html)
 - [Moving out of Sandbox](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html)
+{{else if eq . "paddle"}}
+This project includes Paddle integration for accepting payments. The payment system is provider-agnostic in the codebase, with Paddle-specific code isolated to the payment client layer.
+
+#### Setup
+
+**1. Paddle Account**
+
+You'll need a Paddle account:
+
+```bash
+# Sign up at https://paddle.com
+# Get your API credentials from the Paddle Dashboard
+# https://vendors.paddle.com/authentication
+```
+
+**2. Environment Variables**
+
+Add these to your `.env` file:
+
+```bash
+# Paddle Configuration
+PADDLE_API_KEY=your_api_key                    # Your Paddle API key
+PADDLE_WEBHOOK_SECRET=your_webhook_secret       # Webhook signature secret
+PADDLE_ENVIRONMENT=sandbox                      # 'sandbox' or 'production'
+```
+
+**3. Configure Webhooks**
+
+Set up webhooks in your Paddle Dashboard to point to your application:
+
+```
+https://yourdomain.com/billing/webhooks
+```
+
+Subscribe to these events:
+- `transaction.completed` - Payment successfully processed
+- `transaction.updated` - Payment status changed
+
+#### Database Schema
+
+The payment extension creates three tables:
+
+**payment_customers**: Links Paddle customer IDs to your application
+- `provider_customer_id` - Paddle customer ID
+- `email` - Customer email
+
+**payment_products**: Stores product/pricing information
+- `provider_product_id` - Paddle product ID
+- `provider_price_id` - Paddle price ID
+- `name`, `description`, `price_amount`, `price_currency`
+- `is_active` - Enable/disable products
+
+**payment_transactions**: Tracks payment transactions
+- `provider_transaction_id` - Paddle transaction ID
+- `provider_customer_id` - Links to payment_customers
+- `status`, `amount`, `currency`
+- `invoice_number`, `billed_at`, `completed_at`
+- `raw_data` - Full webhook payload for debugging
+
+**Note:** These tables do NOT include user foreign keys by default. You implement your own user-payment linking logic based on your application's needs.
+
+#### Routes
+
+The extension provides these routes under `/billing`:
+
+- `GET /billing/pricing` - Display available products
+- `GET /billing/checkout` - Checkout page for purchasing
+- `GET /billing/account` - User's payment history (placeholder)
+- `POST /billing/webhooks` - Paddle webhook handler
+
+#### Linking Payments to Users
+
+The payment system is intentionally flexible - it doesn't assume how you link payments to users. Here are common patterns:
+
+**Pattern 1: Link via customer email**
+
+```go
+// In your user registration or profile
+customer, err := models.FindPaymentCustomerByProviderID(ctx, db, paddleCustomerID)
+if err == nil {
+    // Associate customer.Email with your user
+}
+```
+
+**Pattern 2: Add user_id to tables**
+
+Create a migration to add user relationships:
+
+```sql
+-- Add user_id to payment_customers
+ALTER TABLE payment_customers
+ADD COLUMN user_id UUID REFERENCES users(id);
+
+CREATE INDEX idx_payment_customers_user_id ON payment_customers(user_id);
+
+-- Add user_id to payment_transactions
+ALTER TABLE payment_transactions
+ADD COLUMN user_id UUID REFERENCES users(id);
+
+CREATE INDEX idx_payment_transactions_user_id ON payment_transactions(user_id);
+```
+
+Then update your models and queries accordingly.
+
+**Pattern 3: Separate linking table**
+
+```sql
+CREATE TABLE user_payment_customers (
+    user_id UUID REFERENCES users(id),
+    payment_customer_id UUID REFERENCES payment_customers(id),
+    PRIMARY KEY (user_id, payment_customer_id)
+);
+```
+
+#### Managing Products
+
+Add products to your database that match your Paddle catalog:
+
+```go
+import "{{$.ModuleName}}/models"
+
+product, err := models.CreatePaymentProduct(ctx, db, models.CreatePaymentProductData{
+    ProviderProductID: "pro_01234",     // From Paddle
+    ProviderPriceID:   "pri_01234",     // From Paddle
+    Name:              "Pro Plan",
+    Description:       "Full access to all features",
+    PriceAmount:       "29.99",
+    PriceCurrency:     "USD",
+    ImageURL:          "https://...",
+    IsActive:          true,
+})
+```
+
+Products are displayed on the `/billing/pricing` page. Users can purchase from the `/billing/checkout` page.
+
+#### Handling Webhooks
+
+The webhook handler processes Paddle events automatically:
+
+**transaction.completed**: Creates or updates transaction records
+**transaction.updated**: Updates transaction status
+
+The webhook handler verifies signatures and stores the full webhook payload in `raw_data` for debugging.
+
+**Implementing custom webhook logic:**
+
+Edit `controllers/payment_webhooks.go` to add your business logic:
+
+```go
+func (w PaymentWebhooks) handleTransactionCompleted(c echo.Context, event *payment.WebhookEvent) error {
+    // Parse transaction data
+    var txData transactionData
+    json.Unmarshal(event.Data, &txData)
+
+    // Your custom logic here:
+    // 1. Find or create the user based on txData.CustomerID
+    // 2. Grant access, update subscription status, etc.
+    // 3. Create the transaction record
+
+    _, err := models.CreatePaymentTransaction(ctx, w.db, models.CreatePaymentTransactionData{
+        ProviderTransactionID: txData.ID,
+        ProviderCustomerID:    txData.CustomerID,
+        Status:                txData.Status,
+        Amount:                txData.Details.Totals.Total,
+        Currency:              txData.CurrencyCode,
+        // ... other fields
+    })
+
+    return err
+}
+```
+
+#### Testing
+
+**Development**: Use Paddle's sandbox mode
+
+```bash
+PADDLE_ENVIRONMENT=sandbox
+PADDLE_API_KEY=test_...
+```
+
+**Webhook testing**: Use Paddle's webhook testing tool or ngrok:
+
+```bash
+# Expose local server
+ngrok http 8080
+
+# Configure webhook URL in Paddle Dashboard
+https://your-ngrok-url.ngrok.io/billing/webhooks
+```
+
+**View webhook logs**: Check application logs for webhook processing details
+
+#### Account Page Implementation
+
+The `/billing/account` route provides a placeholder. Implement it based on your user system:
+
+```go
+// controllers/payment_account.go
+func (pa PaymentAccount) Index(c echo.Context) error {
+    // Get current user from session/context
+    userID := getUserFromContext(c)
+
+    // Query transactions linked to this user
+    // (requires you to add user_id column or linking logic)
+    transactions, err := models.ListUserTransactions(ctx, pa.db, userID)
+
+    return render(c, views.PaymentAccount(transactions))
+}
+```
+
+#### Production Checklist
+
+Before going live with Paddle:
+
+1. Switch to production environment and API keys
+2. Verify webhook signature validation is working
+3. Test complete purchase flow in sandbox mode
+4. Add error handling and logging to webhook handlers
+5. Implement user-payment linking logic
+6. Set up monitoring for failed transactions
+7. Configure Paddle email notifications
+8. Review Paddle's compliance and tax requirements
+
+#### Resources
+
+- [Paddle Documentation](https://developer.paddle.com/)
+- [Paddle API Reference](https://developer.paddle.com/api-reference)
+- [Webhook Events](https://developer.paddle.com/webhooks/overview)
+- [Paddle Dashboard](https://vendors.paddle.com/)
 {{else}}
 <!-- Extension-specific documentation will be added here -->
 {{end}}
