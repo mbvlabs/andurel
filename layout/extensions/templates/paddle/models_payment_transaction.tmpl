@@ -17,7 +17,6 @@ type PaymentTransaction struct {
 	UpdatedAt            time.Time
 	ProviderTransactionID  string
 	ProviderCustomerID     string
-	UserID               uuid.UUID
 	Status               string
 	Amount               string
 	Currency             string
@@ -31,10 +30,10 @@ func FindPaymentTransactionByID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	id uuid.UUID,
-) (PaddleTransaction, error) {
+) (PaymentTransaction, error) {
 	row, err := queries.QueryPaymentTransactionByID(ctx, dbtx, id)
 	if err != nil {
-		return PaddleTransaction{}, err
+		return PaymentTransaction{}, err
 	}
 
 	return rowToPaymentTransaction(row)
@@ -44,42 +43,19 @@ func FindPaymentTransactionByProviderID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	paddleTransactionID string,
-) (PaddleTransaction, error) {
+) (PaymentTransaction, error) {
 	row, err := queries.QueryPaymentTransactionByProviderID(ctx, dbtx, paddleTransactionID)
 	if err != nil {
-		return PaddleTransaction{}, err
+		return PaymentTransaction{}, err
 	}
 
 	return rowToPaymentTransaction(row)
 }
 
-func ListUserTransactions(
-	ctx context.Context,
-	dbtx db.DBTX,
-	userID uuid.UUID,
-) ([]PaddleTransaction, error) {
-	rows, err := queries.QueryUserTransactions(ctx, dbtx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	transactions := make([]PaddleTransaction, len(rows))
-	for i, row := range rows {
-		transaction, convErr := rowToPaymentTransaction(row)
-		if convErr != nil {
-			return nil, convErr
-		}
-		transactions[i] = transaction
-	}
-
-	return transactions, nil
-}
-
 type CreatePaymentTransactionData struct {
 	ProviderTransactionID string
 	ProviderCustomerID    string
-	UserID              uuid.UUID
-	Status              string
+	Status                string
 	Amount              string
 	Currency            string
 	InvoiceNumber       string
@@ -92,12 +68,11 @@ func CreatePaymentTransaction(
 	ctx context.Context,
 	dbtx db.DBTX,
 	data CreatePaymentTransactionData,
-) (PaddleTransaction, error) {
+) (PaymentTransaction, error) {
 	params := db.CreateInsertPaymentTransactionParams(
 		uuid.New(),
 		data.ProviderTransactionID,
 		data.ProviderCustomerID,
-		data.UserID,
 		data.Status,
 		data.Amount,
 		data.Currency,
@@ -109,7 +84,7 @@ func CreatePaymentTransaction(
 
 	row, err := queries.InsertPaymentTransaction(ctx, dbtx, params)
 	if err != nil {
-		return PaddleTransaction{}, err
+		return PaymentTransaction{}, err
 	}
 
 	return rowToPaymentTransaction(row)
@@ -121,7 +96,7 @@ func UpdatePaymentTransactionStatus(
 	paddleTransactionID string,
 	status string,
 	completedAt time.Time,
-) (PaddleTransaction, error) {
+) (PaymentTransaction, error) {
 	params := db.CreateUpdatePaymentTransactionStatusParams(
 		paddleTransactionID,
 		status,
@@ -130,27 +105,26 @@ func UpdatePaymentTransactionStatus(
 
 	row, err := queries.UpdatePaymentTransactionStatus(ctx, dbtx, params)
 	if err != nil {
-		return PaddleTransaction{}, err
+		return PaymentTransaction{}, err
 	}
 
 	return rowToPaymentTransaction(row)
 }
 
-func rowToPaymentTransaction(row db.PaymentTransaction) (PaddleTransaction, error) {
-	return PaddleTransaction{
-		ID:                  row.ID,
-		CreatedAt:           row.CreatedAt.Time,
-		UpdatedAt:           row.UpdatedAt.Time,
+func rowToPaymentTransaction(row db.PaymentTransaction) (PaymentTransaction, error) {
+	return PaymentTransaction{
+		ID:                    row.ID,
+		CreatedAt:             row.CreatedAt.Time,
+		UpdatedAt:             row.UpdatedAt.Time,
 		ProviderTransactionID: row.ProviderTransactionID,
 		ProviderCustomerID:    row.ProviderCustomerID,
-		UserID:              row.UserID,
-		Status:              row.Status,
-		Amount:              row.Amount,
-		Currency:            row.Currency,
-		InvoiceNumber:       row.InvoiceNumber.String,
-		BilledAt:            row.BilledAt.Time,
-		CompletedAt:         row.CompletedAt.Time,
-		RawData:             row.RawData,
+		Status:                row.Status,
+		Amount:                row.Amount,
+		Currency:              row.Currency,
+		InvoiceNumber:         row.InvoiceNumber.String,
+		BilledAt:              row.BilledAt.Time,
+		CompletedAt:           row.CompletedAt.Time,
+		RawData:               row.RawData,
 	}, nil
 }
 {{- else if eq .Database "sqlite" }}
@@ -172,7 +146,6 @@ type PaymentTransaction struct {
 	UpdatedAt            time.Time
 	ProviderTransactionID  string
 	ProviderCustomerID     string
-	UserID               uuid.UUID
 	Status               string
 	Amount               string
 	Currency             string
@@ -186,10 +159,10 @@ func FindPaymentTransactionByID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	id uuid.UUID,
-) (PaddleTransaction, error) {
+) (PaymentTransaction, error) {
 	row, err := queries.QueryPaymentTransactionByID(ctx, dbtx, id.String())
 	if err != nil {
-		return PaddleTransaction{}, err
+		return PaymentTransaction{}, err
 	}
 
 	return rowToPaymentTransaction(row)
@@ -199,42 +172,19 @@ func FindPaymentTransactionByProviderID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	paddleTransactionID string,
-) (PaddleTransaction, error) {
+) (PaymentTransaction, error) {
 	row, err := queries.QueryPaymentTransactionByProviderID(ctx, dbtx, paddleTransactionID)
 	if err != nil {
-		return PaddleTransaction{}, err
+		return PaymentTransaction{}, err
 	}
 
 	return rowToPaymentTransaction(row)
 }
 
-func ListUserTransactions(
-	ctx context.Context,
-	dbtx db.DBTX,
-	userID uuid.UUID,
-) ([]PaddleTransaction, error) {
-	rows, err := queries.QueryUserTransactions(ctx, dbtx, userID.String())
-	if err != nil {
-		return nil, err
-	}
-
-	transactions := make([]PaddleTransaction, len(rows))
-	for i, row := range rows {
-		transaction, convErr := rowToPaymentTransaction(row)
-		if convErr != nil {
-			return nil, convErr
-		}
-		transactions[i] = transaction
-	}
-
-	return transactions, nil
-}
-
 type CreatePaymentTransactionData struct {
 	ProviderTransactionID string
 	ProviderCustomerID    string
-	UserID              uuid.UUID
-	Status              string
+	Status                string
 	Amount              string
 	Currency            string
 	InvoiceNumber       string
@@ -247,12 +197,11 @@ func CreatePaymentTransaction(
 	ctx context.Context,
 	dbtx db.DBTX,
 	data CreatePaymentTransactionData,
-) (PaddleTransaction, error) {
+) (PaymentTransaction, error) {
 	params := db.CreateInsertPaymentTransactionParams(
 		uuid.New().String(),
 		data.ProviderTransactionID,
 		data.ProviderCustomerID,
-		data.UserID.String(),
 		data.Status,
 		data.Amount,
 		data.Currency,
@@ -264,7 +213,7 @@ func CreatePaymentTransaction(
 
 	row, err := queries.InsertPaymentTransaction(ctx, dbtx, params)
 	if err != nil {
-		return PaddleTransaction{}, err
+		return PaymentTransaction{}, err
 	}
 
 	return rowToPaymentTransaction(row)
@@ -276,7 +225,7 @@ func UpdatePaymentTransactionStatus(
 	paddleTransactionID string,
 	status string,
 	completedAt time.Time,
-) (PaddleTransaction, error) {
+) (PaymentTransaction, error) {
 	params := db.CreateUpdatePaymentTransactionStatusParams(
 		paddleTransactionID,
 		status,
@@ -285,37 +234,31 @@ func UpdatePaymentTransactionStatus(
 
 	row, err := queries.UpdatePaymentTransactionStatus(ctx, dbtx, params)
 	if err != nil {
-		return PaddleTransaction{}, err
+		return PaymentTransaction{}, err
 	}
 
 	return rowToPaymentTransaction(row)
 }
 
-func rowToPaymentTransaction(row db.PaymentTransaction) (PaddleTransaction, error) {
+func rowToPaymentTransaction(row db.PaymentTransaction) (PaymentTransaction, error) {
 	id, err := uuid.Parse(row.ID)
 	if err != nil {
-		return PaddleTransaction{}, err
+		return PaymentTransaction{}, err
 	}
 
-	userID, err := uuid.Parse(row.UserID)
-	if err != nil {
-		return PaddleTransaction{}, err
-	}
-
-	return PaddleTransaction{
-		ID:                  id,
-		CreatedAt:           row.CreatedAt,
-		UpdatedAt:           row.UpdatedAt,
+	return PaymentTransaction{
+		ID:                    id,
+		CreatedAt:             row.CreatedAt,
+		UpdatedAt:             row.UpdatedAt,
 		ProviderTransactionID: row.ProviderTransactionID,
 		ProviderCustomerID:    row.ProviderCustomerID,
-		UserID:              userID,
-		Status:              row.Status,
-		Amount:              row.Amount,
-		Currency:            row.Currency,
-		InvoiceNumber:       row.InvoiceNumber.String,
-		BilledAt:            row.BilledAt.Time,
-		CompletedAt:         row.CompletedAt.Time,
-		RawData:             row.RawData.String,
+		Status:                row.Status,
+		Amount:                row.Amount,
+		Currency:              row.Currency,
+		InvoiceNumber:         row.InvoiceNumber.String,
+		BilledAt:              row.BilledAt.Time,
+		CompletedAt:           row.CompletedAt.Time,
+		RawData:               row.RawData.String,
 	}, nil
 }
 {{- end }}

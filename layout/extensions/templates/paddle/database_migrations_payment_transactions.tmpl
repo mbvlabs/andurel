@@ -2,12 +2,11 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS payment_transactions (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id uuid PRIMARY KEY,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     provider_transaction_id VARCHAR(255) NOT NULL UNIQUE,
     provider_customer_id VARCHAR(255) NOT NULL,
-    user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     status VARCHAR(50) NOT NULL,
     amount VARCHAR(50) NOT NULL,
     currency VARCHAR(3) NOT NULL,
@@ -16,11 +15,6 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
     completed_at TIMESTAMP WITH TIME ZONE,
     raw_data JSONB
 );
-
-CREATE INDEX idx_payment_transactions_user_id ON payment_transactions(user_id);
-CREATE INDEX idx_payment_transactions_provider_transaction_id ON payment_transactions(provider_transaction_id);
-CREATE INDEX idx_payment_transactions_status ON payment_transactions(status);
-CREATE INDEX idx_payment_transactions_provider_customer_id ON payment_transactions(provider_customer_id);
 -- +goose StatementEnd
 
 -- +goose Down
@@ -36,7 +30,6 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
     updated_at DATETIME NOT NULL DEFAULT (datetime('now')),
     provider_transaction_id TEXT NOT NULL UNIQUE,
     provider_customer_id TEXT NOT NULL,
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     status TEXT NOT NULL,
     amount TEXT NOT NULL,
     currency TEXT NOT NULL,
@@ -45,11 +38,6 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
     completed_at DATETIME,
     raw_data TEXT
 );
-
-CREATE INDEX idx_payment_transactions_user_id ON payment_transactions(user_id);
-CREATE INDEX idx_payment_transactions_provider_transaction_id ON payment_transactions(provider_transaction_id);
-CREATE INDEX idx_payment_transactions_status ON payment_transactions(status);
-CREATE INDEX idx_payment_transactions_provider_customer_id ON payment_transactions(provider_customer_id);
 -- +goose StatementEnd
 
 -- +goose Down

@@ -19,23 +19,20 @@ import (
 
 func CreateInsertPaymentCustomerParams(
 	id uuid.UUID,
-	userID uuid.UUID,
 	providerCustomerID string,
 	email string,
 ) InsertPaymentCustomerParams {
 {{- if eq .Database "postgresql" }}
 	return InsertPaymentCustomerParams{
-		ID:               id,
-		UserID:           userID,
-		PaymentCustomerID: providerCustomerID,
-		Email:            email,
+		ID:                 id,
+		ProviderCustomerID: providerCustomerID,
+		Email:              email,
 	}
 {{- else if eq .Database "sqlite" }}
 	return InsertPaymentCustomerParams{
-		ID:               id.String(),
-		UserID:           userID.String(),
-		PaymentCustomerID: providerCustomerID,
-		Email:            email,
+		ID:                 id.String(),
+		ProviderCustomerID: providerCustomerID,
+		Email:              email,
 	}
 {{- end }}
 }

@@ -2,7 +2,7 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS payment_products (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id uuid PRIMARY KEY,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     provider_product_id VARCHAR(255) NOT NULL UNIQUE,
@@ -14,9 +14,6 @@ CREATE TABLE IF NOT EXISTS payment_products (
     image_url TEXT,
     is_active BOOLEAN NOT NULL DEFAULT true
 );
-
-CREATE INDEX idx_payment_products_provider_product_id ON payment_products(provider_product_id);
-CREATE INDEX idx_payment_products_is_active ON payment_products(is_active);
 -- +goose StatementEnd
 
 -- +goose Down
@@ -39,9 +36,6 @@ CREATE TABLE IF NOT EXISTS payment_products (
     image_url TEXT,
     is_active INTEGER NOT NULL DEFAULT 1
 );
-
-CREATE INDEX idx_payment_products_provider_product_id ON payment_products(provider_product_id);
-CREATE INDEX idx_payment_products_is_active ON payment_products(is_active);
 -- +goose StatementEnd
 
 -- +goose Down

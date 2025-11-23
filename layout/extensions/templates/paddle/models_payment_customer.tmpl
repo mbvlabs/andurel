@@ -14,39 +14,24 @@ type PaymentCustomer struct {
 	ID               uuid.UUID
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
-	UserID           uuid.UUID
 	ProviderCustomerID string
 	Email            string
-}
-
-func FindPaymentCustomerByUserID(
-	ctx context.Context,
-	dbtx db.DBTX,
-	userID uuid.UUID,
-) (PaddleCustomer, error) {
-	row, err := queries.QueryPaymentCustomerByUserID(ctx, dbtx, userID)
-	if err != nil {
-		return PaddleCustomer{}, err
-	}
-
-	return rowToPaymentCustomer(row)
 }
 
 func FindPaymentCustomerByProviderID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	paddleCustomerID string,
-) (PaddleCustomer, error) {
+) (PaymentCustomer, error) {
 	row, err := queries.QueryPaymentCustomerByProviderID(ctx, dbtx, paddleCustomerID)
 	if err != nil {
-		return PaddleCustomer{}, err
+		return PaymentCustomer{}, err
 	}
 
 	return rowToPaymentCustomer(row)
 }
 
 type CreatePaymentCustomerData struct {
-	UserID           uuid.UUID
 	ProviderCustomerID string
 	Email            string
 }
@@ -55,28 +40,26 @@ func CreatePaymentCustomer(
 	ctx context.Context,
 	dbtx db.DBTX,
 	data CreatePaymentCustomerData,
-) (PaddleCustomer, error) {
+) (PaymentCustomer, error) {
 	params := db.CreateInsertPaymentCustomerParams(
 		uuid.New(),
-		data.UserID,
 		data.ProviderCustomerID,
 		data.Email,
 	)
 
 	row, err := queries.InsertPaymentCustomer(ctx, dbtx, params)
 	if err != nil {
-		return PaddleCustomer{}, err
+		return PaymentCustomer{}, err
 	}
 
 	return rowToPaymentCustomer(row)
 }
 
-func rowToPaymentCustomer(row db.PaymentCustomer) (PaddleCustomer, error) {
-	return PaddleCustomer{
+func rowToPaymentCustomer(row db.PaymentCustomer) (PaymentCustomer, error) {
+	return PaymentCustomer{
 		ID:               row.ID,
 		CreatedAt:        row.CreatedAt.Time,
 		UpdatedAt:        row.UpdatedAt.Time,
-		UserID:           row.UserID,
 		ProviderCustomerID: row.ProviderCustomerID,
 		Email:            row.Email,
 	}, nil
@@ -97,39 +80,24 @@ type PaymentCustomer struct {
 	ID               uuid.UUID
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
-	UserID           uuid.UUID
 	ProviderCustomerID string
 	Email            string
-}
-
-func FindPaymentCustomerByUserID(
-	ctx context.Context,
-	dbtx db.DBTX,
-	userID uuid.UUID,
-) (PaddleCustomer, error) {
-	row, err := queries.QueryPaymentCustomerByUserID(ctx, dbtx, userID.String())
-	if err != nil {
-		return PaddleCustomer{}, err
-	}
-
-	return rowToPaymentCustomer(row)
 }
 
 func FindPaymentCustomerByProviderID(
 	ctx context.Context,
 	dbtx db.DBTX,
 	paddleCustomerID string,
-) (PaddleCustomer, error) {
+) (PaymentCustomer, error) {
 	row, err := queries.QueryPaymentCustomerByProviderID(ctx, dbtx, paddleCustomerID)
 	if err != nil {
-		return PaddleCustomer{}, err
+		return PaymentCustomer{}, err
 	}
 
 	return rowToPaymentCustomer(row)
 }
 
 type CreatePaymentCustomerData struct {
-	UserID           uuid.UUID
 	ProviderCustomerID string
 	Email            string
 }
@@ -138,38 +106,31 @@ func CreatePaymentCustomer(
 	ctx context.Context,
 	dbtx db.DBTX,
 	data CreatePaymentCustomerData,
-) (PaddleCustomer, error) {
+) (PaymentCustomer, error) {
 	params := db.CreateInsertPaymentCustomerParams(
 		uuid.New().String(),
-		data.UserID.String(),
 		data.ProviderCustomerID,
 		data.Email,
 	)
 
 	row, err := queries.InsertPaymentCustomer(ctx, dbtx, params)
 	if err != nil {
-		return PaddleCustomer{}, err
+		return PaymentCustomer{}, err
 	}
 
 	return rowToPaymentCustomer(row)
 }
 
-func rowToPaymentCustomer(row db.PaymentCustomer) (PaddleCustomer, error) {
+func rowToPaymentCustomer(row db.PaymentCustomer) (PaymentCustomer, error) {
 	id, err := uuid.Parse(row.ID)
 	if err != nil {
-		return PaddleCustomer{}, err
+		return PaymentCustomer{}, err
 	}
 
-	userID, err := uuid.Parse(row.UserID)
-	if err != nil {
-		return PaddleCustomer{}, err
-	}
-
-	return PaddleCustomer{
+	return PaymentCustomer{
 		ID:               id,
 		CreatedAt:        row.CreatedAt,
 		UpdatedAt:        row.UpdatedAt,
-		UserID:           userID,
 		ProviderCustomerID: row.ProviderCustomerID,
 		Email:            row.Email,
 	}, nil

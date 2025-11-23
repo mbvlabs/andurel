@@ -154,9 +154,9 @@ func (w PaymentWebhooks) handleTransactionCompleted(c echo.Context, event *payme
 	}
 
 	// Transaction doesn't exist - this is expected for new transactions
-	// In a real implementation, you would need to:
-	// 1. Get the user_id from the paddle_customer_id
-	// 2. Create the transaction record
+	// NOTE: Users should implement their own logic here to:
+	// 1. Link the transaction to their user system (if applicable)
+	// 2. Create the transaction record with appropriate business logic
 	slog.InfoContext(
 		c.Request().Context(),
 		"new transaction completed",

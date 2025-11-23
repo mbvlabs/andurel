@@ -71,7 +71,7 @@ func (e Paddle) Apply(ctx *Context) error {
 }
 
 func (e Paddle) Dependencies() []string {
-	return []string{"auth"}
+	return nil
 }
 
 func (e Paddle) renderTemplates(ctx *Context) error {
