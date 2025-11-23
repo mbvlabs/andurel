@@ -3,8 +3,8 @@
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS payment_products (
     id uuid PRIMARY KEY,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
     provider_product_id VARCHAR(255) NOT NULL UNIQUE,
     provider_price_id VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -25,8 +25,8 @@ DROP TABLE IF EXISTS payment_products;
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS payment_products (
     id TEXT PRIMARY KEY,
-    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
-    updated_at DATETIME NOT NULL DEFAULT (datetime('now')),
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
     provider_product_id TEXT NOT NULL UNIQUE,
     provider_price_id TEXT NOT NULL,
     name TEXT NOT NULL,
