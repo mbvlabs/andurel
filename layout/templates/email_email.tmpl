@@ -10,12 +10,17 @@ import (
 	"golang.org/x/net/html"
 )
 
+type Transformer interface {
+	ToHTML() (string, error)
+	ToText() (string, error)
+}
+
 var (
 	ErrUnsubscribeURLRequired = errors.New("marketing emails require unsubscribe URL")
 	ErrMissingRecipient       = errors.New("missing recipient email address")
 	ErrMissingSender          = errors.New("missing sender email address")
 	ErrMissingSubject         = errors.New("missing email subject")
-	ErrMissingComponent       = errors.New("missing email component")
+	ErrMissingHTMLBody        = errors.New("missing email HTML body")
 )
 
 type ValidationError struct {
@@ -64,7 +69,7 @@ func IsValidationError(err error) bool {
 		errors.Is(err, ErrMissingRecipient) ||
 		errors.Is(err, ErrMissingSender) ||
 		errors.Is(err, ErrMissingSubject) ||
-		errors.Is(err, ErrMissingComponent)
+		errors.Is(err, ErrMissingHTMLBody)
 }
 
 func IsRetryable(err error) bool {
@@ -92,7 +97,8 @@ type TransactionalData struct {
 	From        string
 	ReplyTo     string
 	Subject     string
-	Component   templ.Component
+	HTMLBody    string
+	TextBody    string
 	Attachments []Attachment
 	Metadata    map[string]string
 }
@@ -102,7 +108,8 @@ type MarketingData struct {
 	From             string
 	ReplyTo          string
 	Subject          string
-	Component        templ.Component
+	HTMLBody         string
+	TextBody         string
 	UnsubscribeURL   string
 	UnsubscribeGroup string
 	Tags             []string
@@ -171,18 +178,8 @@ func SendTransactional(
 		return ValidationError{Err: ErrMissingSubject}
 	}
 
-	if data.Component == nil {
-		return ValidationError{Err: ErrMissingComponent}
-	}
-
-	html, err := renderComponent(data.Component)
-	if err != nil {
-		return err
-	}
-
-	text, err := HTMLToText(html)
-	if err != nil {
-		return err
+	if data.HTMLBody == "" {
+		return ValidationError{Err: ErrMissingHTMLBody}
 	}
 
 	payload := TransactionalPayload{
@@ -192,8 +189,8 @@ func SendTransactional(
 		From:        data.From,
 		ReplyTo:     data.ReplyTo,
 		Subject:     data.Subject,
-		HTMLBody:    html,
-		TextBody:    text,
+		HTMLBody:    data.HTMLBody,
+		TextBody:    data.TextBody,
 		Attachments: data.Attachments,
 		Metadata:    data.Metadata,
 	}
@@ -206,14 +203,8 @@ func SendMarketing(ctx context.Context, data MarketingData, sender MarketingSend
 		return ErrUnsubscribeURLRequired
 	}
 
-	html, err := renderComponent(data.Component)
-	if err != nil {
-		return err
-	}
-
-	text, err := HTMLToText(html)
-	if err != nil {
-		return err
+	if data.HTMLBody == "" {
+		return ValidationError{Err: ErrMissingHTMLBody}
 	}
 
 	payload := MarketingPayload{
@@ -221,8 +212,8 @@ func SendMarketing(ctx context.Context, data MarketingData, sender MarketingSend
 		From:             data.From,
 		ReplyTo:          data.ReplyTo,
 		Subject:          data.Subject,
-		HTMLBody:         html,
-		TextBody:         text,
+		HTMLBody:         data.HTMLBody,
+		TextBody:         data.TextBody,
 		UnsubscribeURL:   data.UnsubscribeURL,
 		UnsubscribeGroup: data.UnsubscribeGroup,
 		Tags:             data.Tags,
