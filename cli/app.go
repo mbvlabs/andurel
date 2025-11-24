@@ -23,7 +23,6 @@ func newAppCommand() *cobra.Command {
 	return appCmd
 }
 
-
 func newConsoleCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "console",
@@ -107,4 +106,3 @@ Override defaults by passing flags, e.g.:
 
 	return cmd
 }
-
