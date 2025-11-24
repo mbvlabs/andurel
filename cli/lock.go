@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/layout/cmds"
@@ -110,11 +111,11 @@ func setVersion(projectRoot, binaryName, version string) error {
 	downloadErr := retryDownload(binaryName, func() error {
 		switch binaryName {
 		case "tailwindcli":
-			return cmds.SetupTailwindWithVersion(projectRoot, versionWithV)
+			return cmds.SetupTailwindWithVersion(projectRoot, versionWithV, 30*time.Second)
 		case "mailpit":
-			return cmds.SetupMailpitWithVersion(projectRoot, versionWithV)
+			return cmds.SetupMailpitWithVersion(projectRoot, versionWithV, 30*time.Second)
 		case "usql":
-			return cmds.SetupUsqlWithVersion(projectRoot, versionWithV)
+			return cmds.SetupUsqlWithVersion(projectRoot, versionWithV, 30*time.Second)
 		default:
 			return fmt.Errorf("unknown binary: %s", binaryName)
 		}
