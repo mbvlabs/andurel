@@ -3,6 +3,7 @@ package cmds
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"compress/bzip2"
 	"fmt"
 	"io"
@@ -197,6 +198,9 @@ func SetupUsql(targetDir string) error {
 
 func SetupUsqlWithVersion(targetDir, version string) error {
 	binPath := filepath.Join(targetDir, "bin", "usql")
+	if runtime.GOOS == "windows" {
+		binPath += ".exe"
+	}
 
 	if _, err := os.Stat(binPath); err == nil {
 		fmt.Printf("usql binary already exists at: %s\n", binPath)
@@ -220,7 +224,15 @@ func SetupUsqlWithVersion(targetDir, version string) error {
 		return fmt.Errorf("failed to download usql: status %d", resp.StatusCode)
 	}
 
-	bzr := bzip2.NewReader(resp.Body)
+	if runtime.GOOS == "windows" {
+		return extractUsqlFromZip(resp.Body, binPath)
+	}
+
+	return extractUsqlFromTarBz2(resp.Body, binPath)
+}
+
+func extractUsqlFromTarBz2(r io.Reader, binPath string) error {
+	bzr := bzip2.NewReader(r)
 	tr := tar.NewReader(bzr)
 
 	for {
@@ -254,18 +266,73 @@ func SetupUsqlWithVersion(targetDir, version string) error {
 	return fmt.Errorf("usql binary not found in archive")
 }
 
+func extractUsqlFromZip(r io.Reader, binPath string) error {
+	tmpFile, err := os.CreateTemp("", "usql-*.zip")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	if _, err := io.Copy(tmpFile, r); err != nil {
+		return fmt.Errorf("failed to write temp file: %w", err)
+	}
+
+	tmpFile.Close()
+
+	zr, err := zip.OpenReader(tmpFile.Name())
+	if err != nil {
+		return fmt.Errorf("failed to open zip: %w", err)
+	}
+	defer zr.Close()
+
+	for _, f := range zr.File {
+		if f.Name == "usql.exe" {
+			rc, err := f.Open()
+			if err != nil {
+				return fmt.Errorf("failed to open file in zip: %w", err)
+			}
+			defer rc.Close()
+
+			out, err := os.Create(binPath)
+			if err != nil {
+				return fmt.Errorf("failed to create binary file: %w", err)
+			}
+			defer out.Close()
+
+			if _, err := io.Copy(out, rc); err != nil {
+				return fmt.Errorf("failed to write binary: %w", err)
+			}
+
+			return nil
+		}
+	}
+
+	return fmt.Errorf("usql.exe not found in zip archive")
+}
+
 func getUsqlDownloadURL(version string) string {
 	var platform string
+	var ext string
 	switch runtime.GOOS {
 	case "darwin":
 		platform = "darwin-amd64"
+		ext = "tar.bz2"
 	case "linux":
 		platform = "linux-amd64"
+		ext = "tar.bz2"
 	case "windows":
 		platform = "windows-amd64"
+		ext = "zip"
 	default:
 		platform = "linux-amd64"
+		ext = "tar.bz2"
 	}
 
-	return fmt.Sprintf("https://github.com/xo/usql/releases/download/%s/usql-%s-%s.tar.bz2", version, version, platform)
+	versionWithoutV := version
+	if len(version) > 0 && version[0] == 'v' {
+		versionWithoutV = version[1:]
+	}
+
+	return fmt.Sprintf("https://github.com/xo/usql/releases/download/%s/usql-%s-%s.%s", version, versionWithoutV, platform, ext)
 }

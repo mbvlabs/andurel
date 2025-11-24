@@ -137,7 +137,7 @@ func Scaffold(
 		fmt.Print("Setting up Tailwind CSS...\n")
 		if err := cmds.SetupTailwind(targetDir); err != nil {
 			fmt.Println(
-				"Failed to download tailwind binary. Run 'andurel app tailwind' after setup is done to fix.",
+				"Failed to download tailwind binary. Run 'andurel sync' after setup is done to fix.",
 			)
 		}
 	}
@@ -146,7 +146,7 @@ func Scaffold(
 		fmt.Print("Setting up MailHog...\n")
 		if err := cmds.SetupMailHog(targetDir); err != nil {
 			fmt.Println(
-				"Failed to download MailHog binary. Run 'andurel app mailhog' after setup is done to fix.",
+				"Failed to download MailHog binary. Run 'andurel sync' after setup is done to fix.",
 			)
 		}
 	}
@@ -155,7 +155,7 @@ func Scaffold(
 		fmt.Print("Setting up usql...\n")
 		if err := cmds.SetupUsql(targetDir); err != nil {
 			fmt.Println(
-				"Failed to download usql binary. Run 'andurel app usql-setup' after setup is done to fix.",
+				"Failed to download usql binary. Run 'andurel sync' after setup is done to fix.",
 			)
 		}
 	}
@@ -880,7 +880,6 @@ const goVersion = "1.25.0"
 
 var defaultTools = []string{
 	"github.com/a-h/templ/cmd/templ",
-	"github.com/xo/usql",
 	"github.com/sqlc-dev/sqlc/cmd/sqlc",
 	"github.com/pressly/goose/v3/cmd/goose",
 	"github.com/air-verse/air",
@@ -967,8 +966,6 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 		builder.AddTool(tool)
 	}
 
-	builder.AddTool("github.com/mailhog/MailHog")
-
 	return builder.Blueprint()
 }
 
@@ -978,48 +975,66 @@ func generateLockFile(targetDir string, hasTailwind bool) error {
 	if hasTailwind {
 		tailwindVersion := "v4.1.17"
 		tailwindPath := filepath.Join(targetDir, "bin", "tailwindcli")
+		checksum := ""
 		if _, err := os.Stat(tailwindPath); err == nil {
-			checksum, err := CalculateBinaryChecksum(tailwindPath)
+			checksum, err = CalculateBinaryChecksum(tailwindPath)
 			if err != nil {
-				return fmt.Errorf("failed to calculate tailwind checksum: %w", err)
+				fmt.Printf("Warning: failed to calculate tailwind checksum: %v\n", err)
 			}
-			lock.AddBinary(
-				"tailwindcli",
-				tailwindVersion,
-				GetTailwindDownloadURL(tailwindVersion),
-				checksum,
-			)
 		}
+		lock.AddBinary(
+			"tailwindcli",
+			tailwindVersion,
+			GetTailwindDownloadURL(tailwindVersion),
+			checksum,
+		)
 	}
 
 	mailhogVersion := "v1.0.1"
 	mailhogPath := filepath.Join(targetDir, "bin", "mailhog")
+	mailhogChecksum := ""
 	if _, err := os.Stat(mailhogPath); err == nil {
-		checksum, err := CalculateBinaryChecksum(mailhogPath)
+		mailhogChecksum, err = CalculateBinaryChecksum(mailhogPath)
 		if err != nil {
-			return fmt.Errorf("failed to calculate mailhog checksum: %w", err)
+			fmt.Printf("Warning: failed to calculate mailhog checksum: %v\n", err)
 		}
-		lock.AddBinary(
-			"mailhog",
-			mailhogVersion,
-			GetMailHogDownloadURL(mailhogVersion),
-			checksum,
-		)
 	}
+	lock.AddBinary(
+		"mailhog",
+		mailhogVersion,
+		GetMailHogDownloadURL(mailhogVersion),
+		mailhogChecksum,
+	)
 
 	usqlVersion := "v0.19.26"
 	usqlPath := filepath.Join(targetDir, "bin", "usql")
+	usqlChecksum := ""
 	if _, err := os.Stat(usqlPath); err == nil {
-		checksum, err := CalculateBinaryChecksum(usqlPath)
+		usqlChecksum, err = CalculateBinaryChecksum(usqlPath)
 		if err != nil {
-			return fmt.Errorf("failed to calculate usql checksum: %w", err)
+			fmt.Printf("Warning: failed to calculate usql checksum: %v\n", err)
 		}
-		lock.AddBinary(
-			"usql",
-			usqlVersion,
-			GetUsqlDownloadURL(usqlVersion),
-			checksum,
-		)
+	}
+	lock.AddBinary(
+		"usql",
+		usqlVersion,
+		GetUsqlDownloadURL(usqlVersion),
+		usqlChecksum,
+	)
+
+	lock.Binaries["run"] = &Binary{
+		Type:   "built",
+		Source: "cmd/run/main.go",
+	}
+
+	lock.Binaries["migration"] = &Binary{
+		Type:   "built",
+		Source: "cmd/migration/main.go",
+	}
+
+	lock.Binaries["console"] = &Binary{
+		Type:   "built",
+		Source: "cmd/console/main.go",
 	}
 
 	return lock.WriteLockFile(targetDir)

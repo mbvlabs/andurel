@@ -29,6 +29,7 @@ func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd.AddCommand(newAppCommand())
 	rootCmd.AddCommand(newLlmCommand())
 	rootCmd.AddCommand(newSyncCommand())
+	rootCmd.AddCommand(newLockCommand())
 
 	return rootCmd
 }
@@ -79,7 +80,7 @@ func checkBinaries(rootDir string) error {
 
 	binPath := filepath.Join(rootDir, "bin", "run")
 	if _, err := os.Stat(binPath); err != nil {
-		return fmt.Errorf("bin/run not found. Run 'go build -o bin/run cmd/run/main.go' to build it")
+		return fmt.Errorf("bin/run not found. Run 'andurel sync' to build it")
 	}
 
 	return nil

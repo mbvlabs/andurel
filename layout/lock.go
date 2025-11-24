@@ -16,9 +16,11 @@ type AndurelLock struct {
 }
 
 type Binary struct {
-	Version  string `json:"version"`
-	URL      string `json:"url"`
-	Checksum string `json:"checksum"`
+	Version  string `json:"version,omitempty"`
+	URL      string `json:"url,omitempty"`
+	Checksum string `json:"checksum,omitempty"`
+	Type     string `json:"type,omitempty"`
+	Source   string `json:"source,omitempty"`
 }
 
 func NewAndurelLock() *AndurelLock {
@@ -115,7 +117,17 @@ func GetMailHogDownloadURL(version string) string {
 
 func GetUsqlDownloadURL(version string) string {
 	platform := getUsqlPlatform()
-	return fmt.Sprintf("https://github.com/xo/usql/releases/download/%s/usql-%s-%s.tar.bz2", version, version, platform)
+	ext := "tar.bz2"
+	if runtime.GOOS == "windows" {
+		ext = "zip"
+	}
+
+	versionWithoutV := version
+	if len(version) > 0 && version[0] == 'v' {
+		versionWithoutV = version[1:]
+	}
+
+	return fmt.Sprintf("https://github.com/xo/usql/releases/download/%s/usql-%s-%s.%s", version, versionWithoutV, platform, ext)
 }
 
 func getTailwindPlatform() string {
