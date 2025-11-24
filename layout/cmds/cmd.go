@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 )
 
 func RunGoModTidy(targetDir string) error {
@@ -88,7 +89,10 @@ func SetupTailwindWithVersion(targetDir, version string) error {
 
 	downloadURL := getTailwindDownloadURL(version)
 
-	resp, err := http.Get(downloadURL)
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Get(downloadURL)
 	if err != nil {
 		return fmt.Errorf("failed to download Tailwind: %w", err)
 	}
@@ -153,7 +157,10 @@ func SetupMailpitWithVersion(targetDir, version string) error {
 
 	downloadURL := getMailpitDownloadURL(version)
 
-	resp, err := http.Get(downloadURL)
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Get(downloadURL)
 	if err != nil {
 		return fmt.Errorf("failed to download Mailpit: %w", err)
 	}
@@ -298,7 +305,10 @@ func SetupUsqlWithVersion(targetDir, version string) error {
 
 	downloadURL := getUsqlDownloadURL(version)
 
-	resp, err := http.Get(downloadURL)
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Get(downloadURL)
 	if err != nil {
 		return fmt.Errorf("failed to download usql: %w", err)
 	}
