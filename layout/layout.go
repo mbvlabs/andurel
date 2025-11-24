@@ -366,6 +366,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Database
 	"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
 	"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
+	"database_test_helper.tmpl":        "database/test_helper.go",
 
 	// Email
 	"email_email.tmpl":       "email/email.go",
@@ -376,6 +377,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"models_errors.tmpl":         "models/errors.go",
 	"models_model.tmpl":          "models/model.go",
 	"models_internal_db_db.tmpl": "models/internal/db/db.go",
+	"models_factories_factories.tmpl": "models/factories/factories.go",
 
 	// Router
 	"router_router.tmpl":                "router/router.go",

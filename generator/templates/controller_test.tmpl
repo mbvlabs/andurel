@@ -1,0 +1,112 @@
+package controllers_test
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+
+	"github.com/labstack/echo/v4"
+{{- if eq .DatabaseType "postgresql" }}
+	"github.com/jackc/pgx/v5"
+{{- else }}
+	"database/sql"
+{{- end }}
+
+	"{{.ModulePath}}/controllers"
+	"{{.ModulePath}}/database"
+	"{{.ModulePath}}/models"
+	"{{.ModulePath}}/models/factories"
+)
+
+var testDB *database.TestDB
+
+func TestMain(m *testing.M) {
+	var err error
+	testDB, err = database.NewTestDB()
+	if err != nil {
+		panic(err)
+	}
+	defer testDB.Close()
+
+	m.Run()
+}
+
+func Test{{.ResourceName}}s_Create(t *testing.T) {
+{{- if eq .DatabaseType "postgresql" }}
+	testDB.WithTx(t, func(tx pgx.Tx) {
+{{- else }}
+	testDB.WithTx(t, func(tx *sql.Tx) {
+{{- end }}
+		controller := controllers.New{{.ResourceName}}s(testDB.DB)
+
+		form := url.Values{}
+{{- range .Fields}}
+{{- if not .IsSystemField}}
+		form.Set("{{.DBName}}", {{.TestValue}})
+{{- end}}
+{{- end}}
+
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodPost, "/{{.PluralName | ToLower}}", strings.NewReader(form.Encode()))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		err := controller.Create(c)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+
+		if rec.Code != http.StatusSeeOther {
+			t.Errorf("expected status %d, got %d", http.StatusSeeOther, rec.Code)
+		}
+
+		{{.PluralName | ToCamelCase}}, err := models.All{{.ResourceName}}s(c.Request().Context(), tx)
+		if err != nil {
+			t.Fatalf("failed to query {{.PluralName | ToLower}}: %v", err)
+		}
+
+		if len({{.PluralName | ToCamelCase}}) != 1 {
+			t.Errorf("expected 1 {{.ResourceName | ToLower}}, got %d", len({{.PluralName | ToCamelCase}}))
+		}
+
+{{- range .Fields}}
+{{- if and (not .IsSystemField) (not (eq .GoFormType "time.Time"))}}
+		if {{$.PluralName | ToCamelCase}}[0].{{.Name}} != {{.TestValue}} {
+			t.Errorf("expected {{.Name}} to be {{.TestValue}}, got %v", {{$.PluralName | ToCamelCase}}[0].{{.Name}})
+		}
+{{- end}}
+{{- end}}
+	})
+}
+
+func Test{{.ResourceName}}s_Show(t *testing.T) {
+{{- if eq .DatabaseType "postgresql" }}
+	testDB.WithTx(t, func(tx pgx.Tx) {
+{{- else }}
+	testDB.WithTx(t, func(tx *sql.Tx) {
+{{- end }}
+		controller := controllers.New{{.ResourceName}}s(testDB.DB)
+
+		{{.ResourceName | ToLowerCamelCase}} := factories.{{.ResourceName}}().Create(tx)
+
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetPath("/{{.PluralName | ToLower}}/:id")
+		c.SetParamNames("id")
+		c.SetParamValues({{.ResourceName | ToLowerCamelCase}}.ID.String())
+
+		err := controller.Show(c)
+		if err != nil {
+			t.Fatalf("Show failed: %v", err)
+		}
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected status %d, got %d", http.StatusOK, rec.Code)
+		}
+	})
+}
