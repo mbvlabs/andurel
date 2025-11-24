@@ -2,6 +2,9 @@
 package cmds
 
 import (
+	"archive/tar"
+	"archive/zip"
+	"compress/bzip2"
 	"fmt"
 	"io"
 	"net/http"
@@ -66,6 +69,10 @@ func RunGooseFix(targetDir string) error {
 }
 
 func SetupTailwind(targetDir string) error {
+	return SetupTailwindWithVersion(targetDir, "v4.1.17")
+}
+
+func SetupTailwindWithVersion(targetDir, version string) error {
 	binPath := filepath.Join(targetDir, "bin", "tailwindcli")
 
 	if _, err := os.Stat(binPath); err == nil {
@@ -78,10 +85,7 @@ func SetupTailwind(targetDir string) error {
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
 
-	downloadURL, err := getTailwindDownloadURL()
-	if err != nil {
-		return err
-	}
+	downloadURL := getTailwindDownloadURL(version)
 
 	resp, err := http.Get(downloadURL)
 	if err != nil {
@@ -110,9 +114,7 @@ func SetupTailwind(targetDir string) error {
 	return nil
 }
 
-func getTailwindDownloadURL() (string, error) {
-	baseURL := "https://github.com/tailwindlabs/tailwindcss/releases/latest/download"
-
+func getTailwindDownloadURL(version string) string {
 	var arch string
 	switch runtime.GOOS {
 	case "darwin":
@@ -122,16 +124,17 @@ func getTailwindDownloadURL() (string, error) {
 	case "windows":
 		arch = "windows-x64.exe"
 	default:
-		return "", fmt.Errorf(
-			"unsupported platform: %s. Supported platforms: darwin (mac), linux, windows",
-			runtime.GOOS,
-		)
+		arch = "linux-x64"
 	}
 
-	return fmt.Sprintf("%s/tailwindcss-%s", baseURL, arch), nil
+	return fmt.Sprintf("https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s", version, arch)
 }
 
 func SetupMailHog(targetDir string) error {
+	return SetupMailHogWithVersion(targetDir, "v1.0.1")
+}
+
+func SetupMailHogWithVersion(targetDir, version string) error {
 	binPath := filepath.Join(targetDir, "bin", "mailhog")
 
 	if _, err := os.Stat(binPath); err == nil {
@@ -144,10 +147,7 @@ func SetupMailHog(targetDir string) error {
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
 
-	downloadURL, err := getMailHogDownloadURL()
-	if err != nil {
-		return err
-	}
+	downloadURL := getMailHogDownloadURL(version)
 
 	resp, err := http.Get(downloadURL)
 	if err != nil {
@@ -176,10 +176,7 @@ func SetupMailHog(targetDir string) error {
 	return nil
 }
 
-func getMailHogDownloadURL() (string, error) {
-	version := "v1.0.1"
-	baseURL := fmt.Sprintf("https://github.com/mailhog/MailHog/releases/download/%s", version)
-
+func getMailHogDownloadURL(version string) string {
 	var platform string
 	switch runtime.GOOS {
 	case "darwin":
@@ -189,11 +186,153 @@ func getMailHogDownloadURL() (string, error) {
 	case "windows":
 		platform = "MailHog_windows_amd64.exe"
 	default:
-		return "", fmt.Errorf(
-			"unsupported platform: %s. Supported platforms: darwin (mac), linux, windows",
-			runtime.GOOS,
-		)
+		platform = "MailHog_linux_amd64"
 	}
 
-	return fmt.Sprintf("%s/%s", baseURL, platform), nil
+	return fmt.Sprintf("https://github.com/mailhog/MailHog/releases/download/%s/%s", version, platform)
+}
+
+func SetupUsql(targetDir string) error {
+	return SetupUsqlWithVersion(targetDir, "v0.19.26")
+}
+
+func SetupUsqlWithVersion(targetDir, version string) error {
+	binPath := filepath.Join(targetDir, "bin", "usql")
+	if runtime.GOOS == "windows" {
+		binPath += ".exe"
+	}
+
+	if _, err := os.Stat(binPath); err == nil {
+		fmt.Printf("usql binary already exists at: %s\n", binPath)
+		return nil
+	}
+
+	binDir := filepath.Join(targetDir, "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create bin directory: %w", err)
+	}
+
+	downloadURL := getUsqlDownloadURL(version)
+
+	resp, err := http.Get(downloadURL)
+	if err != nil {
+		return fmt.Errorf("failed to download usql: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download usql: status %d", resp.StatusCode)
+	}
+
+	if runtime.GOOS == "windows" {
+		return extractUsqlFromZip(resp.Body, binPath)
+	}
+
+	return extractUsqlFromTarBz2(resp.Body, binPath)
+}
+
+func extractUsqlFromTarBz2(r io.Reader, binPath string) error {
+	bzr := bzip2.NewReader(r)
+	tr := tar.NewReader(bzr)
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read tar: %w", err)
+		}
+
+		if header.Name == "usql" {
+			out, err := os.Create(binPath)
+			if err != nil {
+				return fmt.Errorf("failed to create binary file: %w", err)
+			}
+			defer out.Close()
+
+			if _, err := io.Copy(out, tr); err != nil {
+				return fmt.Errorf("failed to write binary: %w", err)
+			}
+
+			if err := os.Chmod(binPath, 0o755); err != nil {
+				return fmt.Errorf("failed to make binary executable: %w", err)
+			}
+
+			return nil
+		}
+	}
+
+	return fmt.Errorf("usql binary not found in archive")
+}
+
+func extractUsqlFromZip(r io.Reader, binPath string) error {
+	tmpFile, err := os.CreateTemp("", "usql-*.zip")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	if _, err := io.Copy(tmpFile, r); err != nil {
+		return fmt.Errorf("failed to write temp file: %w", err)
+	}
+
+	tmpFile.Close()
+
+	zr, err := zip.OpenReader(tmpFile.Name())
+	if err != nil {
+		return fmt.Errorf("failed to open zip: %w", err)
+	}
+	defer zr.Close()
+
+	for _, f := range zr.File {
+		if f.Name == "usql.exe" {
+			rc, err := f.Open()
+			if err != nil {
+				return fmt.Errorf("failed to open file in zip: %w", err)
+			}
+			defer rc.Close()
+
+			out, err := os.Create(binPath)
+			if err != nil {
+				return fmt.Errorf("failed to create binary file: %w", err)
+			}
+			defer out.Close()
+
+			if _, err := io.Copy(out, rc); err != nil {
+				return fmt.Errorf("failed to write binary: %w", err)
+			}
+
+			return nil
+		}
+	}
+
+	return fmt.Errorf("usql.exe not found in zip archive")
+}
+
+func getUsqlDownloadURL(version string) string {
+	var platform string
+	var ext string
+	switch runtime.GOOS {
+	case "darwin":
+		platform = "darwin-amd64"
+		ext = "tar.bz2"
+	case "linux":
+		platform = "linux-amd64"
+		ext = "tar.bz2"
+	case "windows":
+		platform = "windows-amd64"
+		ext = "zip"
+	default:
+		platform = "linux-amd64"
+		ext = "tar.bz2"
+	}
+
+	versionWithoutV := version
+	if len(version) > 0 && version[0] == 'v' {
+		versionWithoutV = version[1:]
+	}
+
+	return fmt.Sprintf("https://github.com/xo/usql/releases/download/%s/usql-%s-%s.%s", version, versionWithoutV, platform, ext)
 }

@@ -44,7 +44,7 @@ func newConsoleCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "console",
 		Aliases: []string{"c"},
-		Short:   "Runs an interactive 'console' to interact with the database.",
+		Short:   "Runs an interactive database console",
 		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			wd, err := os.Getwd()
@@ -56,7 +56,7 @@ func newConsoleCommand() *cobra.Command {
 			if _, err := os.Stat(binPath); err != nil {
 				if os.IsNotExist(err) {
 					return fmt.Errorf(
-						"console binary not found at %s; build it with 'go build ./cmd/console'",
+						"console binary not found at %s\nRun 'andurel sync' to build it",
 						binPath,
 					)
 				}

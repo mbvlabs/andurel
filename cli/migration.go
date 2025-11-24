@@ -118,7 +118,7 @@ func runMigrationBinary(args ...string) error {
 	if _, err := os.Stat(binPath); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf(
-				"migration binary not found at %s; build it with 'go build ./cmd/migration'",
+				"migration binary not found at %s\nRun 'andurel sync' to build it",
 				binPath,
 			)
 		}

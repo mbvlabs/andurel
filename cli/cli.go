@@ -28,6 +28,8 @@ func NewRootCommand(version, date string) *cobra.Command {
 
 	rootCmd.AddCommand(newAppCommand())
 	rootCmd.AddCommand(newLlmCommand())
+	rootCmd.AddCommand(newSyncCommand())
+	rootCmd.AddCommand(newLockCommand())
 
 	return rootCmd
 }
@@ -43,6 +45,10 @@ func newRunAppCommand() *cobra.Command {
 				return err
 			}
 
+			if err := checkBinaries(rootDir); err != nil {
+				return err
+			}
+
 			binPath := filepath.Join(rootDir, "bin", "run")
 
 			runCmd := exec.Command(binPath)
@@ -55,4 +61,27 @@ func newRunAppCommand() *cobra.Command {
 	}
 
 	return cmd
+}
+
+func checkBinaries(rootDir string) error {
+	lockPath := filepath.Join(rootDir, "andurel.lock")
+	if _, err := os.Stat(lockPath); err != nil {
+		return nil
+	}
+
+	lock, err := os.ReadFile(lockPath)
+	if err != nil {
+		return nil
+	}
+
+	if len(lock) == 0 {
+		return nil
+	}
+
+	binPath := filepath.Join(rootDir, "bin", "run")
+	if _, err := os.Stat(binPath); err != nil {
+		return fmt.Errorf("bin/run not found. Run 'andurel sync' to build it")
+	}
+
+	return nil
 }
