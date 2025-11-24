@@ -56,9 +56,9 @@ func (r Registrations) New(c echo.Context) error {
 
 func (r Registrations) Create(c echo.Context) error {
 	var payload struct {
-		Email           string `form:"email"`
-		Password        string `form:"password"`
-		ConfirmPassword string `form:"confirmPassword"`
+		Email           string `json:"email"`
+		Password        string `json:"password"`
+		ConfirmPassword string `json:"confirmPassword"`
 	}
 
 	if err := c.Bind(&payload); err != nil {
@@ -70,6 +70,12 @@ func (r Registrations) Create(c echo.Context) error {
 		)
 		return render(c, views.BadRequest())
 	}
+
+	slog.DebugContext(c.Request().Context(), "################################################################################")
+	slog.DebugContext(c.Request().Context(), "################################################################################")
+	slog.DebugContext(c.Request().Context(), "registering new user")
+	slog.DebugContext(c.Request().Context(), "################################################################################")
+	slog.DebugContext(c.Request().Context(), "################################################################################")
 
 	err := services.RegisterUser(
 		c.Request().Context(),

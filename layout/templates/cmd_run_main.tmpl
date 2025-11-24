@@ -200,7 +200,7 @@ func runLiveTailwind(ctx context.Context) error {
 
 	if err := cmd.Start(); err != nil {
 		slog.Info(
-			"Tailwind CLI not found. Please install it using the 'andurel app tailwind' command.",
+			"Tailwind CLI not found. Run 'andurel sync' to download it.",
 		)
 		return err
 	}

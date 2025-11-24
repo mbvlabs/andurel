@@ -137,18 +137,32 @@ func Scaffold(
 		fmt.Print("Setting up Tailwind CSS...\n")
 		if err := cmds.SetupTailwind(targetDir); err != nil {
 			fmt.Println(
-				"Failed to download tailwind binary. Run 'andurel app tailwind' after setup is done to fix.",
+				"Failed to download tailwind binary. Run 'andurel sync' after setup is done to fix.",
 			)
 		}
 	}
 
-	if os.Getenv("ANDUREL_SKIP_MAILHOG") != "true" {
-		fmt.Print("Setting up MailHog...\n")
-		if err := cmds.SetupMailHog(targetDir); err != nil {
+	if os.Getenv("ANDUREL_SKIP_MAILPIT") != "true" {
+		fmt.Print("Setting up Mailpit...\n")
+		if err := cmds.SetupMailpit(targetDir); err != nil {
 			fmt.Println(
-				"Failed to download MailHog binary. Run 'andurel app mailhog' after setup is done to fix.",
+				"Failed to download Mailpit binary. Run 'andurel sync' after setup is done to fix.",
 			)
 		}
+	}
+
+	if os.Getenv("ANDUREL_SKIP_USQL") != "true" {
+		fmt.Print("Setting up usql...\n")
+		if err := cmds.SetupUsql(targetDir); err != nil {
+			fmt.Println(
+				"Failed to download usql binary. Run 'andurel sync' after setup is done to fix.",
+			)
+		}
+	}
+
+	fmt.Print("Generating andurel.lock file...\n")
+	if err := generateLockFile(targetDir, templateData.CSSFramework == "tailwind"); err != nil {
+		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
 	}
 
 	fmt.Print("Running initial go mod tidy...\n")
@@ -340,7 +354,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_email.tmpl":     "config/email.go",
 
 	// Clients
-	"clients_email_mailhog.tmpl": "clients/email/mailhog.go",
+	"clients_email_mailpit.tmpl": "clients/email/mailpit.go",
 
 	// Controllers
 	"controllers_api.tmpl":        "controllers/api.go",
@@ -866,7 +880,6 @@ const goVersion = "1.25.0"
 
 var defaultTools = []string{
 	"github.com/a-h/templ/cmd/templ",
-	"github.com/xo/usql",
 	"github.com/sqlc-dev/sqlc/cmd/sqlc",
 	"github.com/pressly/goose/v3/cmd/goose",
 	"github.com/air-verse/air",
@@ -913,7 +926,7 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 
 	builder.AddMainInitialization(
 		"emailClient",
-		"mailclients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort)",
+		"mailclients.NewMailpit(cfg.Email.MailpitHost, cfg.Email.MailpitPort)",
 		"cfg",
 	)
 
@@ -953,7 +966,76 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 		builder.AddTool(tool)
 	}
 
-	builder.AddTool("github.com/mailhog/MailHog")
-
 	return builder.Blueprint()
+}
+
+func generateLockFile(targetDir string, hasTailwind bool) error {
+	lock := NewAndurelLock()
+
+	if hasTailwind {
+		tailwindVersion := "v4.1.17"
+		tailwindPath := filepath.Join(targetDir, "bin", "tailwindcli")
+		checksum := ""
+		if _, err := os.Stat(tailwindPath); err == nil {
+			checksum, err = CalculateBinaryChecksum(tailwindPath)
+			if err != nil {
+				fmt.Printf("Warning: failed to calculate tailwind checksum: %v\n", err)
+			}
+		}
+		lock.AddBinary(
+			"tailwindcli",
+			tailwindVersion,
+			GetTailwindDownloadURL(tailwindVersion),
+			checksum,
+		)
+	}
+
+	mailpitVersion := "v1.27.11"
+	mailpitPath := filepath.Join(targetDir, "bin", "mailpit")
+	mailpitChecksum := ""
+	if _, err := os.Stat(mailpitPath); err == nil {
+		mailpitChecksum, err = CalculateBinaryChecksum(mailpitPath)
+		if err != nil {
+			fmt.Printf("Warning: failed to calculate mailpit checksum: %v\n", err)
+		}
+	}
+	lock.AddBinary(
+		"mailpit",
+		mailpitVersion,
+		GetMailpitDownloadURL(mailpitVersion),
+		mailpitChecksum,
+	)
+
+	usqlVersion := "v0.19.26"
+	usqlPath := filepath.Join(targetDir, "bin", "usql")
+	usqlChecksum := ""
+	if _, err := os.Stat(usqlPath); err == nil {
+		usqlChecksum, err = CalculateBinaryChecksum(usqlPath)
+		if err != nil {
+			fmt.Printf("Warning: failed to calculate usql checksum: %v\n", err)
+		}
+	}
+	lock.AddBinary(
+		"usql",
+		usqlVersion,
+		GetUsqlDownloadURL(usqlVersion),
+		usqlChecksum,
+	)
+
+	lock.Binaries["run"] = &Binary{
+		Type:   "built",
+		Source: "cmd/run/main.go",
+	}
+
+	lock.Binaries["migration"] = &Binary{
+		Type:   "built",
+		Source: "cmd/migration/main.go",
+	}
+
+	lock.Binaries["console"] = &Binary{
+		Type:   "built",
+		Source: "cmd/console/main.go",
+	}
+
+	return lock.WriteLockFile(targetDir)
 }

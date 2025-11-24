@@ -71,13 +71,26 @@ func RegisterUser(
 		return err
 	}
 
+	vEmail := email.VerifyEmail{VerificationCode: code}
+
+	html, err := vEmail.ToHTML()
+	if err != nil {
+		return err
+	}
+
+	text, err := vEmail.ToText()
+	if err != nil {
+		return err
+	}
+
 {{- if eq .Database "postgresql" }}
 	_, err = insertOnly.Client.InsertTx(ctx, tx, jobs.SendTransactionalEmailArgs{
 		Data: email.TransactionalData{
-			To:        user.Email,
-			From:      "noreply@andurel.com",
-			Subject:   "Verify Your Email Address",
-			Component: email.VerifyEmail(code),
+			To:       user.Email,
+			From:     "noreply@andurel.com",
+			Subject:  "Verify Your Email Address",
+			HTMLBody: html,
+			TextBody: text,
 		},
 	}, nil)
 	if err != nil {
@@ -87,10 +100,11 @@ func RegisterUser(
 	return tx.Commit(ctx)
 {{- else if eq .Database "sqlite" }}
 	if err := email.SendTransactional(ctx, email.TransactionalData{
-		To:        user.Email,
-		From:      "noreply@andurel.com",
-		Subject:   "Verify Your Email Address",
-		Component: email.VerifyEmail(code),
+		To:       user.Email,
+		From:     "noreply@andurel.com",
+		Subject:  "Verify Your Email Address",
+		HTMLBody: html,
+		TextBody: text,
 	}, sender); err != nil {
 		return err
 	}

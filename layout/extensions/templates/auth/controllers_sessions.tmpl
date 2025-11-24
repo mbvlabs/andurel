@@ -41,8 +41,8 @@ func (s Sessions) New(c echo.Context) error {
 
 func (s Sessions) Create(c echo.Context) error {
 	var payload struct {
-		Email    string `form:"email"`
-		Password string `form:"password"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	if err := c.Bind(&payload); err != nil {

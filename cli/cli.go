@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/spf13/cobra"
 )
 
@@ -28,6 +29,8 @@ func NewRootCommand(version, date string) *cobra.Command {
 
 	rootCmd.AddCommand(newAppCommand())
 	rootCmd.AddCommand(newLlmCommand())
+	rootCmd.AddCommand(newSyncCommand())
+	rootCmd.AddCommand(newLockCommand())
 
 	return rootCmd
 }
@@ -43,16 +46,68 @@ func newRunAppCommand() *cobra.Command {
 				return err
 			}
 
+			if err := checkBinaries(rootDir); err != nil {
+				return err
+			}
+
 			binPath := filepath.Join(rootDir, "bin", "run")
 
 			runCmd := exec.Command(binPath)
 			runCmd.Stdout = os.Stdout
 			runCmd.Stderr = os.Stderr
 			runCmd.Stdin = os.Stdin
+			runCmd.Dir = rootDir
 
 			return runCmd.Run()
 		},
 	}
 
 	return cmd
+}
+
+func findGoModRoot() (string, error) {
+	return cache.GetDirectoryRoot("go_mod_root", func() (string, error) {
+		dir, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("could not get working directory: %w", err)
+		}
+
+		for {
+			goModPath := filepath.Join(dir, "go.mod")
+			if _, err := os.Stat(goModPath); err == nil {
+				return dir, nil
+			}
+
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			dir = parent
+		}
+
+		return "", fmt.Errorf("not in an andurel project: go.mod could not be found")
+	})
+}
+
+func checkBinaries(rootDir string) error {
+	lockPath := filepath.Join(rootDir, "andurel.lock")
+	if _, err := os.Stat(lockPath); err != nil {
+		return nil
+	}
+
+	lock, err := os.ReadFile(lockPath)
+	if err != nil {
+		return nil
+	}
+
+	if len(lock) == 0 {
+		return nil
+	}
+
+	binPath := filepath.Join(rootDir, "bin", "run")
+	if _, err := os.Stat(binPath); err != nil {
+		return fmt.Errorf("bin/run not found. Run 'andurel sync' to build it")
+	}
+
+	return nil
 }

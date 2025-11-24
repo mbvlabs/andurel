@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"{{.ModuleName}}/config"
-
-	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -17,12 +16,16 @@ func main() {
 		cancel()
 	}()
 
-	if err := godotenv.Load(); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: could not load .env file: %v\n", err)
+	projectRoot, err := findGoModRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error finding project root: %v\n", err)
+		os.Exit(1)
 	}
 
 	cfg := config.NewConfig()
-	cmd := exec.CommandContext(ctx, "go", "tool", "usql", cfg.DB.GetDatabaseURL())
+	usqlPath := filepath.Join(projectRoot, "bin", "usql")
+
+	cmd := exec.CommandContext(ctx, usqlPath, cfg.DB.GetDatabaseURL())
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -30,5 +33,25 @@ func main() {
 	if err := cmd.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "error running usql: %v\n", err)
 		os.Exit(1)
+	}
+}
+
+func findGoModRoot() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	for {
+		goModPath := filepath.Join(dir, "go.mod")
+		if _, err := os.Stat(goModPath); err == nil {
+			return dir, nil
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("could not find go.mod in any parent directory")
+		}
+		dir = parent
 	}
 }

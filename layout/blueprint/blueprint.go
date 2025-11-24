@@ -109,7 +109,7 @@ type MainSection struct {
 type Initialization struct {
 	// VarName is the variable name (e.g., "emailSender")
 	VarName string
-	// Expression is the initialization code (e.g., "email.NewMailHog()")
+	// Expression is the initialization code (e.g., "email.NewMailpit()")
 	Expression string
 	// DependsOn lists variable names this depends on (for ordering)
 	DependsOn []string
