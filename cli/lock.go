@@ -107,19 +107,21 @@ func setVersion(projectRoot, binaryName, version string) error {
 
 	fmt.Printf("  - Downloading %s %s...\n", binaryName, version)
 
-	switch binaryName {
-	case "tailwindcli":
-		if err := cmds.SetupTailwindWithVersion(projectRoot, versionWithV); err != nil {
-			return fmt.Errorf("failed to download %s: %w", binaryName, err)
+	downloadErr := retryDownload(binaryName, func() error {
+		switch binaryName {
+		case "tailwindcli":
+			return cmds.SetupTailwindWithVersion(projectRoot, versionWithV)
+		case "mailpit":
+			return cmds.SetupMailpitWithVersion(projectRoot, versionWithV)
+		case "usql":
+			return cmds.SetupUsqlWithVersion(projectRoot, versionWithV)
+		default:
+			return fmt.Errorf("unknown binary: %s", binaryName)
 		}
-	case "mailpit":
-		if err := cmds.SetupMailpitWithVersion(projectRoot, versionWithV); err != nil {
-			return fmt.Errorf("failed to download %s: %w", binaryName, err)
-		}
-	case "usql":
-		if err := cmds.SetupUsqlWithVersion(projectRoot, versionWithV); err != nil {
-			return fmt.Errorf("failed to download %s: %w", binaryName, err)
-		}
+	})
+
+	if downloadErr != nil {
+		return fmt.Errorf("failed to download %s: %w", binaryName, downloadErr)
 	}
 
 	fmt.Printf("  - Calculating checksum...\n")
