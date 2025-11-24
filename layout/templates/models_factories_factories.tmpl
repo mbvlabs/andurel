@@ -2,20 +2,10 @@ package factories
 
 import (
 	"context"
-{{- if eq .Database "postgresql" }}
-	"github.com/jackc/pgx/v5"
-{{- else }}
-	"database/sql"
-{{- end }}
 
-	"{{.ModuleName}}/models"
 	"{{.ModuleName}}/models/internal/db"
 )
 
-{{- if eq .Database "postgresql" }}
 type DBTX = db.DBTX
-{{- else }}
-type DBTX = db.DBTX
-{{- end }}
 
 var ctx = context.Background()

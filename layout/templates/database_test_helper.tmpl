@@ -8,15 +8,15 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+{{- if eq .Database "postgresql" }}
 	"time"
 
-{{- if eq .Database "postgresql" }}
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 {{- else }}
+
 	_ "github.com/mattn/go-sqlite3"
 {{- end }}
 )
