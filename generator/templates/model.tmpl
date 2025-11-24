@@ -58,7 +58,13 @@ func Create{{.Name}}(
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.CreateInsert{{.Name}}Params()
+	params := db.CreateInsert{{.Name}}Params(
+{{- range .Fields}}
+{{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
+		{{.ConversionToDB}},
+{{- end}}
+{{- end}}
+	)
 	row, err := queries.Insert{{.Name}}(ctx, dbtx, params)
 	if err != nil {
 		return {{.Name}}{}, err
@@ -94,7 +100,14 @@ func Update{{.Name}}(
 		return {{.Name}}{}, err
 	}
 
-	params := db.CreateUpdate{{.Name}}Params()
+	params := db.CreateUpdate{{.Name}}Params(
+		{{if eq .DatabaseType "sqlite"}}data.ID.String(){{else}}data.ID{{end}},
+{{- range .Fields}}
+{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+		{{.ConversionToDBForUpdate}},
+{{- end}}
+{{- end}}
+	)
 
 	row, err := queries.Update{{.Name}}(ctx, dbtx, params)
 	if err != nil {
