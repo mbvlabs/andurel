@@ -30,12 +30,12 @@ func newConsoleCommand() *cobra.Command {
 		Short:   "Runs an interactive database console",
 		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			wd, err := os.Getwd()
+			rootDir, err := findGoModRoot()
 			if err != nil {
 				return err
 			}
 
-			binPath := filepath.Join(wd, "bin", "console")
+			binPath := filepath.Join(rootDir, "bin", "console")
 			if _, err := os.Stat(binPath); err != nil {
 				if os.IsNotExist(err) {
 					return fmt.Errorf(
@@ -50,6 +50,7 @@ func newConsoleCommand() *cobra.Command {
 			command.Stdout = os.Stdout
 			command.Stderr = os.Stderr
 			command.Stdin = os.Stdin
+			command.Dir = rootDir
 
 			return command.Run()
 		},
@@ -72,12 +73,12 @@ Default bindings:
 Override defaults by passing flags, e.g.:
   andurel app mailpit --smtp=0.0.0.0:2525`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			wd, err := os.Getwd()
+			rootDir, err := findGoModRoot()
 			if err != nil {
 				return err
 			}
 
-			binPath := filepath.Join(wd, "bin", "mailpit")
+			binPath := filepath.Join(rootDir, "bin", "mailpit")
 			if _, err := os.Stat(binPath); err != nil {
 				if os.IsNotExist(err) {
 					return fmt.Errorf(
@@ -99,6 +100,7 @@ Override defaults by passing flags, e.g.:
 			command.Stdout = os.Stdout
 			command.Stderr = os.Stderr
 			command.Stdin = os.Stdin
+			command.Dir = rootDir
 
 			return command.Run()
 		},

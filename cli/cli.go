@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/spf13/cobra"
 )
 
@@ -55,12 +56,37 @@ func newRunAppCommand() *cobra.Command {
 			runCmd.Stdout = os.Stdout
 			runCmd.Stderr = os.Stderr
 			runCmd.Stdin = os.Stdin
+			runCmd.Dir = rootDir
 
 			return runCmd.Run()
 		},
 	}
 
 	return cmd
+}
+
+func findGoModRoot() (string, error) {
+	return cache.GetDirectoryRoot("go_mod_root", func() (string, error) {
+		dir, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("could not get working directory: %w", err)
+		}
+
+		for {
+			goModPath := filepath.Join(dir, "go.mod")
+			if _, err := os.Stat(goModPath); err == nil {
+				return dir, nil
+			}
+
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			dir = parent
+		}
+
+		return "", fmt.Errorf("not in an andurel project: go.mod could not be found")
+	})
 }
 
 func checkBinaries(rootDir string) error {
