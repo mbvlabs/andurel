@@ -1,0 +1,201 @@
+package database
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"testing"
+{{- if eq .Database "postgresql" }}
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/testcontainers/testcontainers-go/wait"
+{{- else }}
+
+	_ "github.com/mattn/go-sqlite3"
+{{- end }}
+)
+
+{{- if eq .Database "postgresql" }}
+
+type TestDB struct {
+	DB        Postgres
+	Container *postgres.PostgresContainer
+	DSN       string
+}
+
+func NewTestDB() (*TestDB, error) {
+	ctx := context.Background()
+
+	pgContainer, err := postgres.Run(ctx,
+		"postgres:17-alpine",
+		postgres.WithDatabase("testdb"),
+		postgres.WithUsername("testuser"),
+		postgres.WithPassword("testpass"),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
+				WithStartupTimeout(60*time.Second)),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start postgres container: %w", err)
+	}
+
+	dsn, err := pgContainer.ConnectionString(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get connection string: %w", err)
+	}
+
+	if err := runMigrations("postgres", dsn); err != nil {
+		pgContainer.Terminate(ctx)
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	db, err := NewPostgres(ctx, dsn)
+	if err != nil {
+		pgContainer.Terminate(ctx)
+		return nil, fmt.Errorf("failed to connect to test database: %w", err)
+	}
+
+	return &TestDB{
+		DB:        db,
+		Container: pgContainer,
+		DSN:       dsn,
+	}, nil
+}
+
+func (tdb *TestDB) Close() error {
+	ctx := context.Background()
+	if tdb.Container != nil {
+		return tdb.Container.Terminate(ctx)
+	}
+	return nil
+}
+
+func (tdb *TestDB) WithTx(t *testing.T, fn func(tx pgx.Tx)) {
+	t.Helper()
+	ctx := context.Background()
+
+	tx, err := tdb.DB.BeginTx(ctx)
+	if err != nil {
+		t.Fatalf("failed to begin transaction: %v", err)
+	}
+
+	defer func() {
+		if err := tx.Rollback(ctx); err != nil {
+			if err != pgx.ErrTxClosed {
+				t.Errorf("failed to rollback transaction: %v", err)
+			}
+		}
+	}()
+
+	fn(tx)
+}
+
+{{- else }}
+
+type TestDB struct {
+	DB     SQLite
+	dbPath string
+}
+
+func NewTestDB() (*TestDB, error) {
+	ctx := context.Background()
+
+	tmpFile, err := os.CreateTemp("", "test-*.db")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp database file: %w", err)
+	}
+	tmpFile.Close()
+
+	dbPath := tmpFile.Name()
+
+	if err := runMigrations("sqlite3", dbPath); err != nil {
+		os.Remove(dbPath)
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	db, err := NewSQLite(ctx, dbPath)
+	if err != nil {
+		os.Remove(dbPath)
+		return nil, fmt.Errorf("failed to connect to test database: %w", err)
+	}
+
+	return &TestDB{
+		DB:     db,
+		dbPath: dbPath,
+	}, nil
+}
+
+func (tdb *TestDB) Close() error {
+	if tdb.dbPath != "" {
+		return os.Remove(tdb.dbPath)
+	}
+	return nil
+}
+
+func (tdb *TestDB) WithTx(t *testing.T, fn func(tx *sql.Tx)) {
+	t.Helper()
+	ctx := context.Background()
+
+	tx, err := tdb.DB.BeginTx(ctx)
+	if err != nil {
+		t.Fatalf("failed to begin transaction: %v", err)
+	}
+
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			if err != sql.ErrTxDone {
+				t.Errorf("failed to rollback transaction: %v", err)
+			}
+		}
+	}()
+
+	fn(tx)
+}
+
+{{- end }}
+
+func runMigrations(driver, dsn string) error {
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	migrationsDir := filepath.Join(wd, "database", "migrations")
+
+	if _, err := os.Stat(migrationsDir); os.IsNotExist(err) {
+		cwd, _ := os.Getwd()
+		log.Printf("Warning: migrations directory not found at %s (cwd: %s)", migrationsDir, cwd)
+		return nil
+	}
+
+	db, err := sql.Open(driver, dsn)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	files, err := filepath.Glob(filepath.Join(migrationsDir, "*.sql"))
+	if err != nil {
+		return fmt.Errorf("failed to list migrations: %w", err)
+	}
+
+	for _, file := range files {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			return fmt.Errorf("failed to read migration %s: %w", file, err)
+		}
+
+		if _, err := db.Exec(string(content)); err != nil {
+			return fmt.Errorf("failed to execute migration %s: %w", file, err)
+		}
+	}
+
+	return nil
+}

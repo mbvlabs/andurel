@@ -506,7 +506,275 @@ andurel sqlc generate
 
 # Access database console
 andurel app console
+
+# Run tests
+go test ./...
 ```
+
+## Integration Testing
+
+This project includes a built-in integration testing framework that makes it easy to test controllers and models with real database interactions.
+
+### Test Infrastructure
+
+The framework provides:
+- **Automatic test database setup**: {{if eq .Database "postgresql"}}Uses [testcontainers](https://golang.testcontainers.org/) to spin up PostgreSQL in Docker{{else}}Creates temporary SQLite databases{{end}}
+- **Transaction-based tests**: Each test runs in a transaction that automatically rolls back, keeping tests isolated
+- **Factory pattern**: Simple builders for creating test data with sensible defaults
+
+### Writing Controller Tests
+
+**1. Create a test file** (e.g., `controllers/products_controller_test.go`):
+
+```go
+package controllers_test
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/labstack/echo/v4"
+{{if eq .Database "postgresql"}}	"github.com/jackc/pgx/v5"
+{{else}}	"database/sql"
+{{end}}
+	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/models/factories"
+)
+
+var testDB *database.TestDB
+
+func TestMain(m *testing.M) {
+	var err error
+	testDB, err = database.NewTestDB()
+	if err != nil {
+		panic(err)
+	}
+	defer testDB.Close()
+
+	m.Run()
+}
+
+func TestProducts_Create(t *testing.T) {
+{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx pgx.Tx) {
+{{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
+{{end}}		controller := controllers.NewProducts(testDB.DB)
+
+		// Create test request
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodPost, "/products", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		// Test the controller action
+		err := controller.Create(c)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+
+		// Assert database state
+		products, err := models.AllProducts(c.Request().Context(), tx)
+		if err != nil {
+			t.Fatalf("failed to query products: %v", err)
+		}
+
+		if len(products) != 1 {
+			t.Errorf("expected 1 product, got %d", len(products))
+		}
+	})
+}
+```
+
+### Creating Test Factories
+
+**1. Create a factory** in `models/factories/product_factory.go`:
+
+```go
+package factories
+
+import (
+	"{{.ModuleName}}/models"
+)
+
+type ProductBuilder struct {
+	data models.CreateProductData
+}
+
+func Product() *ProductBuilder {
+	return &ProductBuilder{
+		data: models.CreateProductData{
+			Name:        "Test Product",
+			Description: "Test description",
+			Price:       "29.99",
+		},
+	}
+}
+
+func (b *ProductBuilder) WithName(name string) *ProductBuilder {
+	b.data.Name = name
+	return b
+}
+
+func (b *ProductBuilder) WithPrice(price string) *ProductBuilder {
+	b.data.Price = price
+	return b
+}
+
+func (b *ProductBuilder) Create(dbtx DBTX) models.Product {
+	product, err := models.CreateProduct(ctx, dbtx, b.data)
+	if err != nil {
+		panic(err)
+	}
+	return product
+}
+
+func (b *ProductBuilder) Build() models.CreateProductData {
+	return b.data
+}
+```
+
+**2. Use factories in tests**:
+
+```go
+func TestProducts_Show(t *testing.T) {
+{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx pgx.Tx) {
+{{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
+{{end}}		// Create test data with default values
+		product := factories.Product().Create(tx)
+
+		// Or customize specific fields
+		premiumProduct := factories.Product().
+			WithName("Premium Product").
+			WithPrice("99.99").
+			Create(tx)
+
+		// Test your controller with the created data
+		// ...
+	})
+}
+```
+
+### Testing Patterns
+
+**Test database queries**:
+
+```go
+func TestFindProduct(t *testing.T) {
+{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx pgx.Tx) {
+{{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
+{{end}}		product := factories.Product().Create(tx)
+
+		found, err := models.FindProduct(context.Background(), tx, product.ID)
+		if err != nil {
+			t.Fatalf("FindProduct failed: %v", err)
+		}
+
+		if found.Name != product.Name {
+			t.Errorf("expected name %s, got %s", product.Name, found.Name)
+		}
+	})
+}
+```
+
+**Test with multiple records**:
+
+```go
+func TestPaginateProducts(t *testing.T) {
+{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx pgx.Tx) {
+{{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
+{{end}}		// Create test data
+		for i := 0; i < 25; i++ {
+			factories.Product().Create(tx)
+		}
+
+		// Test pagination
+		result, err := models.PaginateProducts(context.Background(), tx, 1, 10)
+		if err != nil {
+			t.Fatalf("PaginateProducts failed: %v", err)
+		}
+
+		if len(result.Products) != 10 {
+			t.Errorf("expected 10 products, got %d", len(result.Products))
+		}
+
+		if result.TotalCount != 25 {
+			t.Errorf("expected total count 25, got %d", result.TotalCount)
+		}
+	})
+}
+```
+
+**Test with related data**:
+
+```go
+func TestCreateOrder(t *testing.T) {
+{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx pgx.Tx) {
+{{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
+{{end}}		// Create dependencies
+		user := factories.User().Create(tx)
+		product := factories.Product().Create(tx)
+
+		// Test order creation
+		order := factories.Order().
+			WithUserID(user.ID).
+			WithProductID(product.ID).
+			Create(tx)
+
+		if order.UserID != user.ID {
+			t.Errorf("order user_id mismatch")
+		}
+	})
+}
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+go test ./...
+
+# Run tests in a specific package
+go test ./controllers
+
+# Run tests with coverage
+go test -cover ./...
+
+# Run a specific test
+go test ./controllers -run TestProducts_Create
+
+# Verbose output
+go test -v ./...
+```
+
+### Test Database Setup
+{{if eq .Database "postgresql"}}
+**Prerequisites**: Docker must be running to use testcontainers.
+
+The test helper automatically:
+1. Starts a PostgreSQL container with `postgres:17-alpine`
+2. Runs all migrations from `database/migrations/`
+3. Provides a clean database for each test suite
+4. Cleans up containers when tests complete
+
+**Note**: The first test run will download the PostgreSQL Docker image, which may take a moment.
+{{else}}
+The test helper automatically:
+1. Creates a temporary SQLite database file
+2. Runs all migrations from `database/migrations/`
+3. Provides a clean database for each test suite
+4. Deletes the temporary file when tests complete
+{{end}}
+
+### Best Practices
+
+1. **Use transactions**: Always wrap test logic in `testDB.WithTx()` for automatic cleanup
+2. **Use factories**: Create test data with factories instead of manual model creation
+3. **Test isolation**: Each test should be independent and not rely on other tests
+4. **Descriptive names**: Name tests clearly (e.g., `TestProducts_Create_WithInvalidData`)
+5. **Assert clearly**: Check both success cases and expected database state
+6. **Don't test frameworks**: Focus on your business logic, not Echo or SQLC behavior
 {{if .Extensions}}
 ## Extensions
 

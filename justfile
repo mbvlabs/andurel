@@ -56,22 +56,27 @@ test-cover:
 
 # Run critical e2e tests only (~25 min, 15 test scenarios)
 test-e2e-critical:
+	go clean -testcache
 	E2E_CRITICAL_ONLY=true go test ./e2e/... -v -timeout 25m
 
 # Run full e2e test suite (~55 min, 19 test scenarios)
 test-e2e-full:
+	go clean -testcache
 	go test ./e2e/... -v -timeout 55m
 
 # Run specific e2e test suite - scaffold tests
 test-e2e-scaffold:
+	go clean -testcache
 	go test ./e2e -run TestScaffoldMatrix -v -timeout 30m
 
 # Run specific e2e test suite - generate command tests
 test-e2e-generate:
+	go clean -testcache
 	go test ./e2e -run TestGenerateCommands -v -timeout 15m
 
 # Run specific e2e test suite - migration workflow tests
 test-e2e-migration:
+	go clean -testcache
 	go test ./e2e -run TestMigrationWorkflow -v -timeout 10m
 
 # Run critical tests (unit + critical e2e, recommended for PRs)
@@ -105,7 +110,8 @@ ci:
 	@just test-e2e-critical
 	@echo "\n✅ All CI checks passed!"
 
-# Clean test artifacts
+# Clean test artifacts and cache
 clean-test:
+	go clean -testcache
 	rm -f coverage.txt
 	rm -rf /tmp/andurel-e2e-*
