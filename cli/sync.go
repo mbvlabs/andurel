@@ -90,11 +90,11 @@ func syncBinaries(projectRoot string) error {
 		downloadErr := retryDownload(name, func() error {
 			switch name {
 			case "tailwindcli":
-				return cmds.SetupTailwindWithVersion(projectRoot, binary.Version)
+				return cmds.SetupTailwindWithVersion(projectRoot, binary.Version, 30*time.Second)
 			case "mailpit":
-				return cmds.SetupMailpitWithVersion(projectRoot, binary.Version)
+				return cmds.SetupMailpitWithVersion(projectRoot, binary.Version, 30*time.Second)
 			case "usql":
-				return cmds.SetupUsqlWithVersion(projectRoot, binary.Version)
+				return cmds.SetupUsqlWithVersion(projectRoot, binary.Version, 30*time.Second)
 			default:
 				return fmt.Errorf("unknown binary: %s", name)
 			}

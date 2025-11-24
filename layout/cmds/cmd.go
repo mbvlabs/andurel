@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 )
 
 func RunGoModTidy(targetDir string) error {
@@ -70,10 +71,10 @@ func RunGooseFix(targetDir string) error {
 }
 
 func SetupTailwind(targetDir string) error {
-	return SetupTailwindWithVersion(targetDir, "v4.1.17")
+	return SetupTailwindWithVersion(targetDir, "v4.1.17", 10*time.Second)
 }
 
-func SetupTailwindWithVersion(targetDir, version string) error {
+func SetupTailwindWithVersion(targetDir, version string, timeout time.Duration) error {
 	binPath := filepath.Join(targetDir, "bin", "tailwindcli")
 
 	if _, err := os.Stat(binPath); err == nil {
@@ -88,7 +89,10 @@ func SetupTailwindWithVersion(targetDir, version string) error {
 
 	downloadURL := getTailwindDownloadURL(version)
 
-	resp, err := http.Get(downloadURL)
+	client := &http.Client{
+		Timeout: timeout,
+	}
+	resp, err := client.Get(downloadURL)
 	if err != nil {
 		return fmt.Errorf("failed to download Tailwind: %w", err)
 	}
@@ -132,10 +136,10 @@ func getTailwindDownloadURL(version string) string {
 }
 
 func SetupMailpit(targetDir string) error {
-	return SetupMailpitWithVersion(targetDir, "v1.27.11")
+	return SetupMailpitWithVersion(targetDir, "v1.27.11", 10*time.Second)
 }
 
-func SetupMailpitWithVersion(targetDir, version string) error {
+func SetupMailpitWithVersion(targetDir, version string, timeout time.Duration) error {
 	binPath := filepath.Join(targetDir, "bin", "mailpit")
 	if runtime.GOOS == "windows" {
 		binPath += ".exe"
@@ -153,7 +157,10 @@ func SetupMailpitWithVersion(targetDir, version string) error {
 
 	downloadURL := getMailpitDownloadURL(version)
 
-	resp, err := http.Get(downloadURL)
+	client := &http.Client{
+		Timeout: timeout,
+	}
+	resp, err := client.Get(downloadURL)
 	if err != nil {
 		return fmt.Errorf("failed to download Mailpit: %w", err)
 	}
@@ -277,10 +284,10 @@ func getMailpitDownloadURL(version string) string {
 }
 
 func SetupUsql(targetDir string) error {
-	return SetupUsqlWithVersion(targetDir, "v0.19.26")
+	return SetupUsqlWithVersion(targetDir, "v0.19.26", 10*time.Second)
 }
 
-func SetupUsqlWithVersion(targetDir, version string) error {
+func SetupUsqlWithVersion(targetDir, version string, timeout time.Duration) error {
 	binPath := filepath.Join(targetDir, "bin", "usql")
 	if runtime.GOOS == "windows" {
 		binPath += ".exe"
@@ -298,7 +305,10 @@ func SetupUsqlWithVersion(targetDir, version string) error {
 
 	downloadURL := getUsqlDownloadURL(version)
 
-	resp, err := http.Get(downloadURL)
+	client := &http.Client{
+		Timeout: timeout,
+	}
+	resp, err := client.Get(downloadURL)
 	if err != nil {
 		return fmt.Errorf("failed to download usql: %w", err)
 	}
