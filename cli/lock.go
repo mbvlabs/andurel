@@ -29,14 +29,14 @@ func newLockSetVersionCommand() *cobra.Command {
 
 Supported binaries:
   tailwindcli  - Tailwind CSS CLI
-  mailhog      - MailHog email testing tool
+  mailpit      - Mailpit email testing tool
   usql         - Universal SQL CLI
 
 The version should be specified WITHOUT the "v" prefix.
 
 Examples:
   andurel lock set-version tailwindcli 4.1.17
-  andurel lock set-version mailhog 1.0.1
+  andurel lock set-version mailpit 1.27.11
   andurel lock set-version usql 0.19.26
 
 This command will:
@@ -47,7 +47,7 @@ This command will:
 
 To see available versions, check the GitHub releases:
   - tailwindcli: https://github.com/tailwindlabs/tailwindcss/releases
-  - mailhog:     https://github.com/mailhog/MailHog/releases
+  - mailpit:     https://github.com/axllent/mailpit/releases
   - usql:        https://github.com/xo/usql/releases`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -67,12 +67,12 @@ To see available versions, check the GitHub releases:
 func setVersion(projectRoot, binaryName, version string) error {
 	validBinaries := map[string]bool{
 		"tailwindcli": true,
-		"mailhog":     true,
+		"mailpit":     true,
 		"usql":        true,
 	}
 
 	if !validBinaries[binaryName] {
-		return fmt.Errorf("unknown binary: %s\n\nSupported binaries:\n  - tailwindcli\n  - mailhog\n  - usql\n\nRun 'andurel lock set-version --help' for more information", binaryName)
+		return fmt.Errorf("unknown binary: %s\n\nSupported binaries:\n  - tailwindcli\n  - mailpit\n  - usql\n\nRun 'andurel lock set-version --help' for more information", binaryName)
 	}
 
 	if version == "" {
@@ -112,8 +112,8 @@ func setVersion(projectRoot, binaryName, version string) error {
 		if err := cmds.SetupTailwindWithVersion(projectRoot, versionWithV); err != nil {
 			return fmt.Errorf("failed to download %s: %w", binaryName, err)
 		}
-	case "mailhog":
-		if err := cmds.SetupMailHogWithVersion(projectRoot, versionWithV); err != nil {
+	case "mailpit":
+		if err := cmds.SetupMailpitWithVersion(projectRoot, versionWithV); err != nil {
 			return fmt.Errorf("failed to download %s: %w", binaryName, err)
 		}
 	case "usql":
@@ -132,8 +132,8 @@ func setVersion(projectRoot, binaryName, version string) error {
 	switch binaryName {
 	case "tailwindcli":
 		url = layout.GetTailwindDownloadURL(versionWithV)
-	case "mailhog":
-		url = layout.GetMailHogDownloadURL(versionWithV)
+	case "mailpit":
+		url = layout.GetMailpitDownloadURL(versionWithV)
 	case "usql":
 		url = layout.GetUsqlDownloadURL(versionWithV)
 	}

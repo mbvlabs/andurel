@@ -18,7 +18,7 @@ func newAppCommand() *cobra.Command {
 	}
 
 	appCmd.AddCommand(newConsoleCommand())
-	appCmd.AddCommand(newMailhogCommand())
+	appCmd.AddCommand(newMailpitCommand())
 
 	return appCmd
 }
@@ -59,30 +59,30 @@ func newConsoleCommand() *cobra.Command {
 	return cmd
 }
 
-func newMailhogCommand() *cobra.Command {
+func newMailpitCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "mailhog",
+		Use:     "mailpit",
 		Aliases: []string{"m"},
-		Short:   "Runs the MailHog email server",
-		Long: `Runs the MailHog email server with default configuration.
+		Short:   "Runs the Mailpit email server",
+		Long: `Runs the Mailpit email server with default configuration.
 
 Default bindings:
   - SMTP: 0.0.0.0:1025
   - HTTP: 0.0.0.0:8025
 
 Override defaults by passing flags, e.g.:
-  andurel app mailhog --smtp-bind-addr=0.0.0.0:2525`,
+  andurel app mailpit --smtp=0.0.0.0:2525`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			wd, err := os.Getwd()
 			if err != nil {
 				return err
 			}
 
-			binPath := filepath.Join(wd, "bin", "mailhog")
+			binPath := filepath.Join(wd, "bin", "mailpit")
 			if _, err := os.Stat(binPath); err != nil {
 				if os.IsNotExist(err) {
 					return fmt.Errorf(
-						"mailhog binary not found at %s\nRun 'andurel sync' to download it",
+						"mailpit binary not found at %s\nRun 'andurel sync' to download it",
 						binPath,
 					)
 				}
@@ -90,8 +90,8 @@ Override defaults by passing flags, e.g.:
 			}
 
 			defaultArgs := []string{
-				"--smtp-bind-addr=0.0.0.0:1025",
-				"--api-bind-addr=0.0.0.0:8025",
+				"--smtp=0.0.0.0:1025",
+				"--listen=0.0.0.0:8025",
 			}
 
 			finalArgs := append(defaultArgs, args...)

@@ -142,11 +142,11 @@ func Scaffold(
 		}
 	}
 
-	if os.Getenv("ANDUREL_SKIP_MAILHOG") != "true" {
-		fmt.Print("Setting up MailHog...\n")
-		if err := cmds.SetupMailHog(targetDir); err != nil {
+	if os.Getenv("ANDUREL_SKIP_MAILPIT") != "true" {
+		fmt.Print("Setting up Mailpit...\n")
+		if err := cmds.SetupMailpit(targetDir); err != nil {
 			fmt.Println(
-				"Failed to download MailHog binary. Run 'andurel sync' after setup is done to fix.",
+				"Failed to download Mailpit binary. Run 'andurel sync' after setup is done to fix.",
 			)
 		}
 	}
@@ -354,7 +354,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_email.tmpl":     "config/email.go",
 
 	// Clients
-	"clients_email_mailhog.tmpl": "clients/email/mailhog.go",
+	"clients_email_mailpit.tmpl": "clients/email/mailpit.go",
 
 	// Controllers
 	"controllers_api.tmpl":        "controllers/api.go",
@@ -926,7 +926,7 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 
 	builder.AddMainInitialization(
 		"emailClient",
-		"mailclients.NewMailHog(cfg.Email.MailHogHost, cfg.Email.MailHogPort)",
+		"mailclients.NewMailpit(cfg.Email.MailpitHost, cfg.Email.MailpitPort)",
 		"cfg",
 	)
 
@@ -990,20 +990,20 @@ func generateLockFile(targetDir string, hasTailwind bool) error {
 		)
 	}
 
-	mailhogVersion := "v1.0.1"
-	mailhogPath := filepath.Join(targetDir, "bin", "mailhog")
-	mailhogChecksum := ""
-	if _, err := os.Stat(mailhogPath); err == nil {
-		mailhogChecksum, err = CalculateBinaryChecksum(mailhogPath)
+	mailpitVersion := "v1.27.11"
+	mailpitPath := filepath.Join(targetDir, "bin", "mailpit")
+	mailpitChecksum := ""
+	if _, err := os.Stat(mailpitPath); err == nil {
+		mailpitChecksum, err = CalculateBinaryChecksum(mailpitPath)
 		if err != nil {
-			fmt.Printf("Warning: failed to calculate mailhog checksum: %v\n", err)
+			fmt.Printf("Warning: failed to calculate mailpit checksum: %v\n", err)
 		}
 	}
 	lock.AddBinary(
-		"mailhog",
-		mailhogVersion,
-		GetMailHogDownloadURL(mailhogVersion),
-		mailhogChecksum,
+		"mailpit",
+		mailpitVersion,
+		GetMailpitDownloadURL(mailpitVersion),
+		mailpitChecksum,
 	)
 
 	usqlVersion := "v0.19.26"
