@@ -414,7 +414,7 @@ func TestBuilder_MainSection(t *testing.T) {
 	}
 
 	// Test AddMainInitialization
-	b.AddMainInitialization("emailSender", "email.NewMailHog()", "cfg")
+	b.AddMainInitialization("emailSender", "email.NewMailpit()", "cfg")
 	b.AddMainInitialization("queue", "queue.New()", "db", "cfg")
 	b.AddMainInitialization("emailSender", "email.NewSMTP()") // duplicate
 

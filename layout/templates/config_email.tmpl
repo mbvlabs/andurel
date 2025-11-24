@@ -5,8 +5,8 @@ import (
 )
 
 type email struct {
-	MailHogHost string `env:"MAIL_HOG_HOST" envDefault:"0.0.0.0"`
-	MailHogPort string `env:"MAIL_HOG_PORT" envDefault:"1025"`
+	MailpitHost string `env:"MAILPIT_HOST" envDefault:"0.0.0.0"`
+	MailpitPort string `env:"MAILPIT_PORT" envDefault:"1025"`
 }
 
 func newEmailConfig() email {

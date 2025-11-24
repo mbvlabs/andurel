@@ -110,9 +110,13 @@ func GetTailwindDownloadURL(version string) string {
 	return fmt.Sprintf("https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s", version, platform)
 }
 
-func GetMailHogDownloadURL(version string) string {
-	platform := getMailHogPlatform()
-	return fmt.Sprintf("https://github.com/mailhog/MailHog/releases/download/%s/MailHog_%s_amd64", version, platform)
+func GetMailpitDownloadURL(version string) string {
+	platform := getMailpitPlatform()
+	ext := "tar.gz"
+	if runtime.GOOS == "windows" {
+		ext = "zip"
+	}
+	return fmt.Sprintf("https://github.com/axllent/mailpit/releases/download/%s/mailpit-%s-amd64.%s", version, platform, ext)
 }
 
 func GetUsqlDownloadURL(version string) string {
@@ -144,7 +148,7 @@ func getTailwindPlatform() string {
 	}
 }
 
-func getMailHogPlatform() string {
+func getMailpitPlatform() string {
 	goos := runtime.GOOS
 	switch goos {
 	case "darwin":

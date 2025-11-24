@@ -5,6 +5,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/bzip2"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"net/http"
@@ -130,15 +131,18 @@ func getTailwindDownloadURL(version string) string {
 	return fmt.Sprintf("https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s", version, arch)
 }
 
-func SetupMailHog(targetDir string) error {
-	return SetupMailHogWithVersion(targetDir, "v1.0.1")
+func SetupMailpit(targetDir string) error {
+	return SetupMailpitWithVersion(targetDir, "v1.27.11")
 }
 
-func SetupMailHogWithVersion(targetDir, version string) error {
-	binPath := filepath.Join(targetDir, "bin", "mailhog")
+func SetupMailpitWithVersion(targetDir, version string) error {
+	binPath := filepath.Join(targetDir, "bin", "mailpit")
+	if runtime.GOOS == "windows" {
+		binPath += ".exe"
+	}
 
 	if _, err := os.Stat(binPath); err == nil {
-		fmt.Printf("MailHog binary already exists at: %s\n", binPath)
+		fmt.Printf("Mailpit binary already exists at: %s\n", binPath)
 		return nil
 	}
 
@@ -147,49 +151,129 @@ func SetupMailHogWithVersion(targetDir, version string) error {
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
 
-	downloadURL := getMailHogDownloadURL(version)
+	downloadURL := getMailpitDownloadURL(version)
 
 	resp, err := http.Get(downloadURL)
 	if err != nil {
-		return fmt.Errorf("failed to download MailHog: %w", err)
+		return fmt.Errorf("failed to download Mailpit: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download MailHog: status %d", resp.StatusCode)
+		return fmt.Errorf("failed to download Mailpit: status %d", resp.StatusCode)
 	}
 
-	out, err := os.Create(binPath)
-	if err != nil {
-		return fmt.Errorf("failed to create binary file: %w", err)
-	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, resp.Body); err != nil {
-		return fmt.Errorf("failed to write binary: %w", err)
+	if runtime.GOOS == "windows" {
+		return extractMailpitFromZip(resp.Body, binPath)
 	}
 
-	if err := os.Chmod(binPath, 0o755); err != nil {
-		return fmt.Errorf("failed to make binary executable: %w", err)
-	}
-
-	return nil
+	return extractMailpitFromTarGz(resp.Body, binPath)
 }
 
-func getMailHogDownloadURL(version string) string {
-	var platform string
-	switch runtime.GOOS {
-	case "darwin":
-		platform = "MailHog_darwin_amd64"
-	case "linux":
-		platform = "MailHog_linux_amd64"
-	case "windows":
-		platform = "MailHog_windows_amd64.exe"
-	default:
-		platform = "MailHog_linux_amd64"
+func extractMailpitFromTarGz(r io.Reader, binPath string) error {
+	gzr, err := gzip.NewReader(r)
+	if err != nil {
+		return fmt.Errorf("failed to create gzip reader: %w", err)
+	}
+	defer gzr.Close()
+
+	tr := tar.NewReader(gzr)
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read tar: %w", err)
+		}
+
+		if header.Name == "mailpit" {
+			out, err := os.Create(binPath)
+			if err != nil {
+				return fmt.Errorf("failed to create binary file: %w", err)
+			}
+			defer out.Close()
+
+			if _, err := io.Copy(out, tr); err != nil {
+				return fmt.Errorf("failed to write binary: %w", err)
+			}
+
+			if err := os.Chmod(binPath, 0o755); err != nil {
+				return fmt.Errorf("failed to make binary executable: %w", err)
+			}
+
+			return nil
+		}
 	}
 
-	return fmt.Sprintf("https://github.com/mailhog/MailHog/releases/download/%s/%s", version, platform)
+	return fmt.Errorf("mailpit binary not found in archive")
+}
+
+func extractMailpitFromZip(r io.Reader, binPath string) error {
+	tmpFile, err := os.CreateTemp("", "mailpit-*.zip")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	if _, err := io.Copy(tmpFile, r); err != nil {
+		return fmt.Errorf("failed to write temp file: %w", err)
+	}
+
+	tmpFile.Close()
+
+	zr, err := zip.OpenReader(tmpFile.Name())
+	if err != nil {
+		return fmt.Errorf("failed to open zip: %w", err)
+	}
+	defer zr.Close()
+
+	for _, f := range zr.File {
+		if f.Name == "mailpit.exe" {
+			rc, err := f.Open()
+			if err != nil {
+				return fmt.Errorf("failed to open file in zip: %w", err)
+			}
+			defer rc.Close()
+
+			out, err := os.Create(binPath)
+			if err != nil {
+				return fmt.Errorf("failed to create binary file: %w", err)
+			}
+			defer out.Close()
+
+			if _, err := io.Copy(out, rc); err != nil {
+				return fmt.Errorf("failed to write binary: %w", err)
+			}
+
+			return nil
+		}
+	}
+
+	return fmt.Errorf("mailpit.exe not found in zip archive")
+}
+
+func getMailpitDownloadURL(version string) string {
+	var platform string
+	var ext string
+	switch runtime.GOOS {
+	case "darwin":
+		platform = "mailpit-darwin-amd64"
+		ext = "tar.gz"
+	case "linux":
+		platform = "mailpit-linux-amd64"
+		ext = "tar.gz"
+	case "windows":
+		platform = "mailpit-windows-amd64"
+		ext = "zip"
+	default:
+		platform = "mailpit-linux-amd64"
+		ext = "tar.gz"
+	}
+
+	return fmt.Sprintf("https://github.com/axllent/mailpit/releases/download/%s/%s.%s", version, platform, ext)
 }
 
 func SetupUsql(targetDir string) error {

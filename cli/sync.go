@@ -91,8 +91,8 @@ func syncBinaries(projectRoot string) error {
 			switch name {
 			case "tailwindcli":
 				return cmds.SetupTailwindWithVersion(projectRoot, binary.Version)
-			case "mailhog":
-				return cmds.SetupMailHogWithVersion(projectRoot, binary.Version)
+			case "mailpit":
+				return cmds.SetupMailpitWithVersion(projectRoot, binary.Version)
 			case "usql":
 				return cmds.SetupUsqlWithVersion(projectRoot, binary.Version)
 			default:

@@ -97,7 +97,7 @@ myapp/
 │   ├── migration/      # Migration runner
 │   └── run/            # Development server orchestrator
 ├── clients/             # External service clients
-│   └── mail_hog.go     # MailHog email client
+│   └── mailpit.go      # Mailpit email client
 ├── config/              # Application configuration
 │   ├── app.go          # Sessions, tokens, security
 │   ├── database.go     # Database connection
@@ -318,7 +318,7 @@ Both databases are fully supported with type-safe SQLC code generation and backg
 Built-in email functionality for sending transactional emails and notifications:
 
 - **Template Support** - Type-safe email templates using Templ
-- **MailHog Integration** - Pre-configured MailHog client for development testing
+- **Mailpit Integration** - Pre-configured Mailpit client for development testing
 - **Flexible Configuration** - Easy-to-configure SMTP settings via environment variables
 - **Ready to Use** - Email infrastructure included in every new project by default
 
