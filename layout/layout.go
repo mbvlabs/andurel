@@ -151,6 +151,20 @@ func Scaffold(
 		}
 	}
 
+	if os.Getenv("ANDUREL_SKIP_USQL") != "true" {
+		fmt.Print("Setting up usql...\n")
+		if err := cmds.SetupUsql(targetDir); err != nil {
+			fmt.Println(
+				"Failed to download usql binary. Run 'andurel app usql-setup' after setup is done to fix.",
+			)
+		}
+	}
+
+	fmt.Print("Generating andurel.lock file...\n")
+	if err := generateLockFile(targetDir, templateData.CSSFramework == "tailwind"); err != nil {
+		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
+	}
+
 	fmt.Print("Running initial go mod tidy...\n")
 	if err := cmds.RunGoModTidy(targetDir); err != nil {
 		return fmt.Errorf("failed to run go mod tidy: %w", err)
@@ -956,4 +970,57 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	builder.AddTool("github.com/mailhog/MailHog")
 
 	return builder.Blueprint()
+}
+
+func generateLockFile(targetDir string, hasTailwind bool) error {
+	lock := NewAndurelLock()
+
+	if hasTailwind {
+		tailwindVersion := "v4.1.17"
+		tailwindPath := filepath.Join(targetDir, "bin", "tailwindcli")
+		if _, err := os.Stat(tailwindPath); err == nil {
+			checksum, err := CalculateBinaryChecksum(tailwindPath)
+			if err != nil {
+				return fmt.Errorf("failed to calculate tailwind checksum: %w", err)
+			}
+			lock.AddBinary(
+				"tailwindcli",
+				tailwindVersion,
+				GetTailwindDownloadURL(tailwindVersion),
+				checksum,
+			)
+		}
+	}
+
+	mailhogVersion := "v1.0.1"
+	mailhogPath := filepath.Join(targetDir, "bin", "mailhog")
+	if _, err := os.Stat(mailhogPath); err == nil {
+		checksum, err := CalculateBinaryChecksum(mailhogPath)
+		if err != nil {
+			return fmt.Errorf("failed to calculate mailhog checksum: %w", err)
+		}
+		lock.AddBinary(
+			"mailhog",
+			mailhogVersion,
+			GetMailHogDownloadURL(mailhogVersion),
+			checksum,
+		)
+	}
+
+	usqlVersion := "v0.19.26"
+	usqlPath := filepath.Join(targetDir, "bin", "usql")
+	if _, err := os.Stat(usqlPath); err == nil {
+		checksum, err := CalculateBinaryChecksum(usqlPath)
+		if err != nil {
+			return fmt.Errorf("failed to calculate usql checksum: %w", err)
+		}
+		lock.AddBinary(
+			"usql",
+			usqlVersion,
+			GetUsqlDownloadURL(usqlVersion),
+			checksum,
+		)
+	}
+
+	return lock.WriteLockFile(targetDir)
 }
