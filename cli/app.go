@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/spf13/cobra"
 )
 
@@ -18,27 +17,12 @@ func newAppCommand() *cobra.Command {
 		Long:    "Commands related to running and managing the application.",
 	}
 
-	appCmd.AddCommand(newTailwindCommand())
 	appCmd.AddCommand(newConsoleCommand())
 	appCmd.AddCommand(newMailhogCommand())
-	appCmd.AddCommand(newMailhogSetupCommand())
 
 	return appCmd
 }
 
-func newTailwindCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "tailwind",
-		Short: "Sets up Tailwind CSS for the project",
-		Long:  "Sets up Tailwind CSS for the project. If no system is specified, it defaults to 'npm'",
-		Args:  cobra.ExactArgs(0),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmds.SetupTailwind(".")
-		},
-	}
-
-	return cmd
-}
 
 func newConsoleCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -98,7 +82,7 @@ Override defaults by passing flags, e.g.:
 			if _, err := os.Stat(binPath); err != nil {
 				if os.IsNotExist(err) {
 					return fmt.Errorf(
-						"mailhog binary not found at %s; run 'andurel app mailhog-setup' to download it",
+						"mailhog binary not found at %s\nRun 'andurel sync' to download it",
 						binPath,
 					)
 				}
@@ -124,15 +108,3 @@ Override defaults by passing flags, e.g.:
 	return cmd
 }
 
-func newMailhogSetupCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "mailhog-setup",
-		Short: "Downloads and sets up MailHog binary",
-		Args:  cobra.ExactArgs(0),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmds.SetupMailHog(".")
-		},
-	}
-
-	return cmd
-}
