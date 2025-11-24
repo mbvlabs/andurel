@@ -9,25 +9,25 @@ import (
 	"{{.ModuleName}}/email"
 )
 
-var _ email.TransactionalSender = (*MailHog)(nil)
-var _ email.MarketingSender = (*MailHog)(nil)
+var _ email.TransactionalSender = (*Mailpit)(nil)
+var _ email.MarketingSender = (*Mailpit)(nil)
 
-type MailHog struct {
+type Mailpit struct {
 	host string
 	port string
 }
 
-func NewMailHog(host, port string) *MailHog {
-	return &MailHog{
+func NewMailpit(host, port string) *Mailpit {
+	return &Mailpit{
 		host,
 		port,
 	}
 }
 
-func (m *MailHog) SendTransactional(ctx context.Context, payload email.TransactionalPayload) error {
+func (m *Mailpit) SendTransactional(ctx context.Context, payload email.TransactionalPayload) error {
 	addr := fmt.Sprintf("%s:%s", m.host, m.port)
 
-	boundary := "boundary-mailhog-client"
+	boundary := "boundary-mailpit-client"
 	headers := make(map[string]string)
 	headers["From"] = payload.From
 	headers["To"] = payload.To
@@ -85,10 +85,10 @@ func (m *MailHog) SendTransactional(ctx context.Context, payload email.Transacti
 	)
 }
 
-func (m *MailHog) SendMarketing(ctx context.Context, payload email.MarketingPayload) error {
+func (m *Mailpit) SendMarketing(ctx context.Context, payload email.MarketingPayload) error {
 	addr := fmt.Sprintf("%s:%s", m.host, m.port)
 
-	boundary := "boundary-mailhog-client"
+	boundary := "boundary-mailpit-client"
 	headers := make(map[string]string)
 	headers["From"] = payload.From
 

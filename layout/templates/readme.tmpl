@@ -309,7 +309,7 @@ Customize job behavior:
 
 ### Send Emails
 
-This project includes built-in email functionality with MailHog for development testing.
+This project includes built-in email functionality with Mailpit for development testing.
 
 **1. Create an email template**
 
@@ -364,7 +364,7 @@ _, err := insertOnly.Client.Insert(ctx, jobs.SendTransactionalEmailArgs{
 
 **Development Testing**
 
-Emails are sent to MailHog in development. Access the web UI at `http://localhost:8025` to view sent emails.
+Emails are sent to Mailpit in development. Access the web UI at `http://localhost:8025` to view sent emails.
 
 ### Working with the Database
 
@@ -458,9 +458,9 @@ DB_SSL_MODE=disable{{else}}
 DB_KIND=sqlite3
 DB_PATH=./{{.AppName}}.db{{end}}
 
-# Email (MailHog for development)
-MAIL_HOG_HOST=0.0.0.0
-MAIL_HOG_PORT=1025
+# Email (Mailpit for development)
+MAILPIT_HOST=0.0.0.0
+MAILPIT_PORT=1025
 DEFAULT_SENDER_SIGNATURE=info@{{.AppName}}.com
 
 # Security (auto-generated during scaffolding)
@@ -724,12 +724,12 @@ Data: email.MarketingData{
 
 #### Testing in Development
 
-During development, emails are sent to MailHog instead of AWS SES:
+During development, emails are sent to Mailpit instead of AWS SES:
 
 ```bash
-# MailHog configuration (automatically used in development)
-MAIL_HOG_HOST=0.0.0.0
-MAIL_HOG_PORT=1025
+# Mailpit configuration (automatically used in development)
+MAILPIT_HOST=0.0.0.0
+MAILPIT_PORT=1025
 ```
 
 View test emails at `http://localhost:8025`
