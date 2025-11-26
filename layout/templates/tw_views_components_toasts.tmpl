@@ -5,9 +5,16 @@ import (
 	"{{.ModuleName}}/router/cookies"
 )
 
-templ toastBase(tType string, flash cookies.FlashMessage) {
+templ Toast(flash cookies.FlashMessage) {
 	<div
-		class="max-w-96 border border-gray-500 rounded bg-black flex flex-col"
+		class={
+			"max-w-96 rounded p-4 shadow-lg flex flex-col gap-1 items-start",
+			templ.KV("bg-success/10 border border-success/20", flash.Type == cookies.FlashSuccess),
+			templ.KV("bg-warning/10 border border-warning/20", flash.Type == cookies.FlashWarning),
+			templ.KV("bg-error/10 border border-error/20", flash.Type == cookies.FlashError),
+			templ.KV("bg-info/10 border border-info/20", flash.Type == cookies.FlashInfo),
+		}
+
 		id={ "toast-" + flash.ID.String() }
 		data-signals:visible="true"
 		data-show="$visible"
@@ -32,15 +39,3 @@ templ toastBase(tType string, flash cookies.FlashMessage) {
 	</div>
 }
 
-templ ToastMessage(flash cookies.FlashMessage) {
-	switch flash.Type {
-		case cookies.FlashSuccess:
-			@toastBase("bg-success", flash)
-		case cookies.FlashInfo:
-			@toastBase("bg-info", flash)
-		case cookies.FlashError:
-			@toastBase("bg-error", flash)
-		case cookies.FlashWarning:
-			@toastBase("bg-warning", flash)
-	}
-}
