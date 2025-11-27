@@ -9,6 +9,7 @@ import (
 // contributions. It wraps a Blueprint for structured data alongside
 // project-level metadata.
 type TemplateData struct {
+	AppName              string
 	ProjectName          string
 	ModuleName           string
 	Database             string
@@ -17,7 +18,8 @@ type TemplateData struct {
 	SessionKey           string
 	SessionEncryptionKey string
 	TokenSigningKey      string
-	Pepper      string
+	Pepper               string
+	Extensions           []string
 
 	// Blueprint holds the structured scaffold configuration
 	blueprint *blueprint.Blueprint

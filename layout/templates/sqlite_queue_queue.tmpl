@@ -1,0 +1,65 @@
+package queue
+
+import (
+	"context"
+	"database/sql"
+	"log/slog"
+	"time"
+
+	"maragu.dev/goqite"
+	"maragu.dev/goqite/jobs"
+)
+
+type InsertOnly struct {
+	queue *goqite.Queue
+}
+
+func NewInsertOnly(db *sql.DB) (InsertOnly, error) {
+	q := goqite.New(goqite.NewOpts{
+		DB:   db,
+		Name: "jobs",
+	})
+
+	return InsertOnly{q}, nil
+}
+
+func (i InsertOnly) Queue() *goqite.Queue {
+	return i.queue
+}
+
+type Processor struct {
+	runner *jobs.Runner
+}
+
+func (p Processor) Start(ctx context.Context) error {
+	p.runner.Start(ctx)
+	return nil
+}
+
+func (p Processor) Stop(ctx context.Context) error {
+	return nil
+}
+
+type RegisterFunc func(runner *jobs.Runner)
+
+func NewProcessor(
+	ctx context.Context,
+	db *sql.DB,
+	register RegisterFunc,
+) (Processor, error) {
+	q := goqite.New(goqite.NewOpts{
+		DB:   db,
+		Name: "jobs",
+	})
+
+	runner := jobs.NewRunner(jobs.NewRunnerOpts{
+		Limit:        100,
+		Log:          slog.Default(),
+		PollInterval: 100 * time.Millisecond,
+		Queue:        q,
+	})
+
+	register(runner)
+
+	return Processor{runner}, nil
+}

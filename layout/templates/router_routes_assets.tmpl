@@ -2,7 +2,6 @@ package routes
 
 import (
 	"fmt"
-	"net/http"
 	"time"
 )
 
@@ -16,43 +15,31 @@ var startTime = time.Now().Unix()
 var Robots = newRouteBuilder("robots").
 	SetNamePrefix(assetsNamePrefix).
 	SetPath(AssetsRoutePrefix + "/robots.txt").
-	SetMethod(http.MethodGet).
-	SetCtrl("Assets", "Robots").
 	Register()
 
 var Sitemap = newRouteBuilder("sitemap").
 	SetNamePrefix(assetsNamePrefix).
 	SetPath(AssetsRoutePrefix + "/sitemap.xml").
-	SetMethod(http.MethodGet).
-	SetCtrl("Assets", "Sitemap").
 	Register()
 
 {{- if eq .CSSFramework "vanilla"}}
 var StyleImport = newRouteBuilder("css.file").
 	SetNamePrefix(assetsNamePrefix).
 	SetPath(AssetsRoutePrefix + "/css/:file").
-	SetMethod(http.MethodGet).
-	SetCtrl("Assets", "StyleImport").
 	Register()
 {{- end}}
 
 var Stylesheet = newRouteBuilder("css.stylesheet").
 	SetNamePrefix(assetsNamePrefix).
 	SetPath(AssetsRoutePrefix + fmt.Sprintf("/css/%v/style.css", startTime)).
-	SetMethod(http.MethodGet).
-	SetCtrl("Assets", "Stylesheet").
 	Register()
 
 var Scripts = newRouteBuilder("js.scripts").
 	SetNamePrefix(assetsNamePrefix).
 	SetPath(AssetsRoutePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime)).
-	SetMethod(http.MethodGet).
-	SetCtrl("Assets", "Scripts").
 	Register()
 
 var Script = newRouteBuilder("js.script").
 	SetNamePrefix(assetsNamePrefix).
 	SetPath(AssetsRoutePrefix + fmt.Sprintf("/js/%v/:file", startTime)).
-	SetMethod(http.MethodGet).
-	SetCtrl("Assets", "Script").
 	Register()

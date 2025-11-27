@@ -2,6 +2,14 @@
 package controllers
 
 import (
+	"context"
+	"net/http"
+
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/router/cookies"
+
+	"github.com/a-h/templ"
+	"github.com/labstack/echo/v4"
 {{- range .Blueprint.Controllers.Imports.SortedItems}}
 	"{{.}}"
 {{- end}}
@@ -24,35 +32,23 @@ func New(
 	insertOnly queue.InsertOnly,
 {{- end}}
 ) (Controllers, error) {
-	cacheBuilder, err := otter.NewBuilder[string, templ.Component](20)
+	pagesCache, err := NewCacheBuilder[templ.Component]().Build()
 	if err != nil {
 		return Controllers{}, err
 	}
 
-	pageCacher, err := cacheBuilder.WithVariableTTL().Build()
+	assetsCache, err := NewCacheBuilder[string]().WithSize(2).Build()
 	if err != nil {
 		return Controllers{}, err
 	}
 
-{{- if eq .Database "postgresql"}}
-	assets := newAssets()
-	api := newAPI(db)
-	pages := newPages(db, pageCacher, insertOnly)
-{{- else}}
 {{- range .Blueprint.Controllers.SortedConstructors}}
 	{{.VarName}} := {{.Expression}}
 {{- end}}
-{{- end}}
 
 	return Controllers{
-{{- if eq .Database "postgresql"}}
-		assets,
-		api,
-		pages,
-{{- else}}
 {{- range .Blueprint.Controllers.SortedConstructors}}
 		{{.VarName}},
-{{- end}}
 {{- end}}
 	}, nil
 }

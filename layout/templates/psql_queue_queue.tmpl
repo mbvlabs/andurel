@@ -27,15 +27,15 @@ func NewInsertOnly(pool *pgxpool.Pool, workers *river.Workers) (InsertOnly, erro
 }
 
 type Processor struct {
-	client *river.Client[pgx.Tx]
+	Client *river.Client[pgx.Tx]
 }
 
 func (p Processor) Start(ctx context.Context) error {
-	return p.client.Start(ctx)
+	return p.Client.Start(ctx)
 }
 
 func (p Processor) Stop(ctx context.Context) error {
-	return p.client.Stop(ctx)
+	return p.Client.Stop(ctx)
 }
 
 func NewProcessor(
@@ -46,6 +46,7 @@ func NewProcessor(
 	riverClient, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
 		Queues: map[string]river.QueueConfig{
 			river.QueueDefault: {MaxWorkers: 100},
+			"workflow":         {MaxWorkers: 100},
 		},
 		Logger:  slog.Default(),
 		Workers: workers,

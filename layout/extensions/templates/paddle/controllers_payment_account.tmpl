@@ -1,0 +1,44 @@
+package controllers
+
+import (
+	"net/http"
+
+	"{{.ModuleName}}/clients/payment"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/models"
+
+	"github.com/labstack/echo/v4"
+)
+
+{{- if eq .Database "postgresql" }}
+type PaymentAccount struct {
+	db     database.Postgres
+	client *payment.PaddleClient
+}
+
+func newPaymentAccount(db database.Postgres, client *payment.PaddleClient) PaymentAccount {
+	return PaymentAccount{db, client}
+}
+{{- else if eq .Database "sqlite" }}
+type PaymentAccount struct {
+	db     database.SQLite
+	client *payment.PaddleClient
+}
+
+func newPaymentAccount(db database.SQLite, client *payment.PaddleClient) PaymentAccount {
+	return PaymentAccount{db, client}
+}
+{{- end }}
+
+func (pa PaymentAccount) Index(c echo.Context) error {
+	// NOTE: This is a placeholder account page
+	// Users should implement their own user-transaction linking logic
+	// and query for transactions based on the logged-in user
+	var transactions []models.PaymentTransaction
+
+	// TODO: Implement account view and transaction listing
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message": "Payment account page - implement your own view",
+		"transactions": transactions,
+	})
+}

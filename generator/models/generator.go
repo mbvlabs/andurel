@@ -31,15 +31,16 @@ type GeneratedField struct {
 }
 
 type GeneratedModel struct {
-	Name            string
-	Package         string
-	Fields          []GeneratedField
-	StandardImports []string
-	ExternalImports []string
-	Imports         []string
-	TableName       string
-	ModulePath      string
-	DatabaseType    string
+	Name              string
+	Package           string
+	Fields            []GeneratedField
+	StandardImports   []string
+	ExternalImports   []string
+	Imports           []string
+	TableName         string
+	TableNameOverride string
+	ModulePath        string
+	DatabaseType      string
 }
 
 type Config struct {
@@ -268,6 +269,9 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 		"lower": func(s string) string {
 			return strings.ToLower(s)
 		},
+		"toUpper": func(s string) string {
+			return strings.ToUpper(s)
+		},
 		"uuidParam": func(param string) string {
 			if model.DatabaseType == "sqlite" {
 				return param + ".String()"
@@ -303,10 +307,18 @@ func (g *Generator) GenerateModel(
 	pluralName string,
 	modelPath, sqlPath string,
 	modulePath string,
+	tableNameOverride string,
 ) error {
 	table, err := cat.GetTable("", pluralName)
 	if err != nil {
-		return fmt.Errorf("table '%s' not found in catalog: %w", pluralName, err)
+		return fmt.Errorf(`table '%s' not found in catalog: %w
+
+Convention: Model names must be singular, table names must be plural snake_case.
+Example: Model 'UserAccount' expects table 'user_accounts'
+
+To use a different table name, run:
+  andurel generate model %s --table-name=your_table_name`,
+			pluralName, err, resourceName)
 	}
 
 	if err := g.GenerateSQLFile(resourceName, pluralName, table, sqlPath); err != nil {
@@ -323,6 +335,8 @@ func (g *Generator) GenerateModel(
 	if err != nil {
 		return fmt.Errorf("failed to build model: %w", err)
 	}
+
+	model.TableNameOverride = tableNameOverride
 
 	templateContent, err := templates.Files.ReadFile("model.tmpl")
 	if err != nil {
@@ -532,7 +546,7 @@ func (g *Generator) GenerateModelFromMigrations(
 		return fmt.Errorf("failed to build catalog from migrations: %w", err)
 	}
 
-	return g.GenerateModel(cat, resourceName, tableName, modelPath, sqlPath, modulePath)
+	return g.GenerateModel(cat, resourceName, tableName, modelPath, sqlPath, modulePath, "")
 }
 
 func (g *Generator) formatGoFile(filePath string) error {
@@ -734,7 +748,13 @@ func (g *Generator) refreshSQLFile(
 
 	table, err := cat.GetTable("", pluralName)
 	if err != nil {
-		return fmt.Errorf("table '%s' not found in catalog: %w", pluralName, err)
+		return fmt.Errorf(`table '%s' not found in catalog: %w
+
+Convention: Model names must be singular, table names must be plural snake_case.
+Example: Model 'UserAccount' expects table 'user_accounts'
+
+To use a different table name, add the override comment to your model file`,
+			pluralName, err)
 	}
 
 	newSQLContent, err := g.GenerateSQLContent(resourceName, pluralName, table)

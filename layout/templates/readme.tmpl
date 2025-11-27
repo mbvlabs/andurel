@@ -1,0 +1,1316 @@
+# {{.AppName}}
+
+A full-stack web application built with [Andurel](https://github.com/mbvlabs/andurel), a Rails-like web framework for Go that prioritizes development speed.
+
+## Project Structure
+
+```
+{{.AppName}}/
+├── assets/              # Static assets (compiled CSS, images)
+├── bin/                 # Command-line tools
+│   ├── app              # Main application binary
+│   ├── console          # Database console
+│   ├── migration        # Migration runner
+│   └── run              # Development server
+├── cmd/                 # Command entry points
+│   ├── app/             # Main web application
+│   ├── console/         # Database console
+│   ├── migration/       # Migration management
+│   └── run/             # Development orchestrator
+├── clients/             # External service clients
+├── config/              # Application configuration
+├── controllers/         # HTTP request handlers
+{{if eq .CSSFramework "tailwind"}}├── css/                 # Source CSS files (Tailwind)
+{{end}}├── database/
+│   ├── migrations/      # SQL migration files
+│   └── queries/         # SQLC query definitions
+├── email/               # Email templates and sending
+├── models/              # Data models and business logic
+│   └── internal/db/     # Generated SQLC code (don't edit)
+├── queue/               # Background job processing
+│   ├── jobs/            # Job definitions
+│   └── workers/         # Worker implementations
+├── router/              # Routes and middleware
+│   ├── routes/          # Route definitions
+│   ├── cookies/         # Session helpers
+│   └── middleware/      # Custom middleware
+├── pkg/
+│ 	└──telemetry/        # Observability (logs, traces, metrics)
+├── views/               # Templ templates
+├── .env.example         # Example environment configuration
+└── go.mod               # Go dependencies
+```
+
+## Quick Start
+
+### Prerequisites
+
+- Go 1.24.4 or higher
+{{if eq .Database "postgres"}}- PostgreSQL database
+{{else}}- SQLite (included with Go)
+{{end}}- Andurel CLI: `go install github.com/mbvlabs/andurel@latest`
+
+### Setup
+
+1. **Configure environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+{{if eq .Database "postgres"}}
+2. **Create database**
+   ```bash
+   createdb {{.AppName}}_development
+   ```
+
+3. **Run migrations**
+{{else}}
+2. **Run migrations**
+{{end}}   ```bash
+   andurel migration up
+   ```
+
+{{if eq .Database "postgres"}}4{{else}}3{{end}}. **Start the development server**
+   ```bash
+   andurel run
+   ```
+
+Your application is now running at `http://localhost:8080` with live reload for Go, Templ, and CSS changes!
+
+## Available Commands
+
+### Development Server
+
+```bash
+# Run development server with hot reload for Go, Templ, and CSS
+andurel run
+```
+
+This orchestrates {{if eq .CSSFramework "tailwind"}}Air (Go), Templ watch, and Tailwind CSS compilation{{else}}Air (Go) and Templ watch{{end}}.
+
+### Database Console
+
+```bash
+# Open interactive database console
+andurel app console
+```
+
+Provides a SQL console connected to your database for ad-hoc queries and exploration.
+
+### Migration Management
+
+```bash
+# Create a new migration
+andurel migration new create_users_table
+
+# Run all pending migrations
+andurel migration up
+
+# Rollback last migration
+andurel migration down
+
+# Rollback to specific version
+andurel migration down-to [version]
+
+# Apply up to specific version
+andurel migration up-to [version]
+
+# Reset database (rollback all, then reapply)
+andurel migration reset
+
+# Fix migration version gaps
+andurel migration fix
+```
+
+## How-To Guides
+
+### Generate a New Resource
+
+The Andurel generator creates complete CRUD resources with models, controllers, views, and routes.
+
+**Prerequisites**: You need a database table first. Create a migration:
+
+```bash
+# 1. Create a migration for your table
+andurel migration new create_products_table
+```
+
+Edit the generated migration file in `database/migrations/` to define your table schema:
+
+```sql
+-- +goose Up
+CREATE TABLE products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    description TEXT,
+    price DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- +goose Down
+DROP TABLE products;
+```
+
+Apply the migration:
+
+```bash
+andurel migration up
+```
+
+**Generate the resource**:
+
+```bash
+# Generate model + controller + views + routes
+andurel generate resource Product
+
+# Or use shorthand
+andurel g resource Product
+```
+
+This creates:
+- `models/product.go` - Data model with CRUD methods
+- `controllers/products.go` - HTTP handlers for CRUD operations
+- `views/products_*.templ` - Template files for all CRUD views
+- Routes automatically registered in `router/routes/products.go`
+
+The generator also:
+- Updates `database/queries/` with SQLC queries
+- Regenerates SQLC code
+- Creates a complete CRUD interface at `/products`
+
+**Custom table names**: If your table doesn't follow Rails naming conventions (model `Product` → table `products`):
+
+```bash
+# Map Product model to a custom table name
+andurel g resource Product --table products_catalog
+```
+
+**Individual components**:
+
+```bash
+# Generate only the model
+andurel g model Product
+
+# Generate controller with views
+andurel g controller Product --with-views
+
+# Generate views with controller
+andurel g view Product --with-controller
+
+# Refresh model after schema changes
+andurel g model Product --refresh
+```
+
+### Setup Background Jobs{{if eq .Database "postgres"}}
+
+This project uses [River](https://riverqueue.com/) for background job processing with PostgreSQL.{{else}}
+
+This project uses [goqite](https://github.com/maragudk/goqite) for background job processing with SQLite.{{end}}
+
+**1. Define a job**
+
+Create a new job type in `queue/jobs/`:
+
+```go
+// queue/jobs/my_job.go
+package jobs
+
+type MyJobArgs struct {
+    UserID   string
+    Action   string
+}
+
+func (MyJobArgs) Kind() string { return "my_job" }
+```
+
+**2. Implement a worker**
+
+Create the worker in `queue/workers/`:
+
+```go
+// queue/workers/my_job.go
+package workers
+
+import (
+    "context"
+{{if eq .Database "postgres"}}    "github.com/riverqueue/river"
+{{end}}    "{{.ModuleName}}/queue/jobs"
+)
+{{if eq .Database "postgres"}}
+type MyJobWorker struct {
+    river.WorkerDefaults[jobs.MyJobArgs]
+}
+
+func (w *MyJobWorker) Work(ctx context.Context, job *river.Job[jobs.MyJobArgs]) error {
+    // Your job logic here
+    // Access job arguments: job.Args.UserID, job.Args.Action
+    return nil
+}{{else}}
+func ProcessMyJob(ctx context.Context, msg []byte) error {
+    // Your job logic here
+    // Unmarshal msg to jobs.MyJobArgs and process
+    return nil
+}{{end}}
+```
+
+**3. Register the worker**
+
+Add your worker to `queue/workers/workers.go`:
+
+```go
+{{if eq .Database "postgres"}}river.AddWorker(workers, &MyJobWorker{}){{else}}// Register in your queue setup{{end}}
+```
+
+**4. Enqueue jobs**
+
+From anywhere in your application:
+
+```go
+{{if eq .Database "postgres"}}import (
+    "github.com/riverqueue/river"
+    "{{.ModuleName}}/queue/jobs"
+)
+
+// Enqueue a job
+_, err := insertOnly.Client.Insert(ctx, jobs.MyJobArgs{
+    UserID: "123",
+    Action: "send_welcome_email",
+}, nil){{else}}import "{{.ModuleName}}/queue/jobs"
+
+// Enqueue a job through your queue client
+err := queue.Enqueue(ctx, jobs.MyJobArgs{
+    UserID: "123",
+    Action: "send_welcome_email",
+}){{end}}
+```
+{{if eq .Database "postgres"}}
+**Job Monitoring**
+
+River provides a web UI for monitoring jobs. During development, you can access RiverUI to:
+- View job status and history
+- Retry failed jobs
+- Monitor queue performance
+- Inspect job details{{end}}
+
+**Job Options**
+
+Customize job behavior:
+
+```go
+{{if eq .Database "postgres"}}_, err := insertOnly.Client.Insert(ctx, jobs.MyJobArgs{
+    UserID: "123",
+}, &river.InsertOpts{
+    MaxAttempts: 5,
+    Priority:    1,
+    Queue:       "critical",
+}){{else}}// Configure retry behavior and priorities in your queue setup{{end}}
+```
+
+### Send Emails
+
+This project includes built-in email functionality with Mailpit for development testing.
+
+**1. Create an email template**
+
+Add your template in `email/`:
+
+```go
+// email/welcome.templ
+package email
+
+templ WelcomeEmail(userName string) {
+    @BaseLayout() {
+        <h1>Welcome, { userName }!</h1>
+        <p>Thank you for joining us.</p>
+    }
+}
+```
+
+**2. Send the email**
+
+```go
+import "{{.ModuleName}}/email"
+
+// Send an email
+data := email.TransactionalData{
+    From:    "noreply@example.com",
+    To:      []string{"user@example.com"},
+    Subject: "Welcome!",
+    Body:    WelcomeEmail("John Doe"),
+}
+
+err := email.SendTransactional(ctx, data, sender)
+```
+
+**3. Background email jobs**
+
+For better performance, send emails asynchronously:
+
+```go
+{{if eq .Database "postgres"}}import (
+    "{{.ModuleName}}/queue/jobs"
+)
+
+_, err := insertOnly.Client.Insert(ctx, jobs.SendTransactionalEmailArgs{
+    Data: email.TransactionalData{
+        From:    "noreply@example.com",
+        To:      []string{"user@example.com"},
+        Subject: "Welcome!",
+        Body:    WelcomeEmail("John Doe"),
+    },
+}, nil){{else}}// Enqueue email job through your queue{{end}}
+```
+
+**Development Testing**
+
+Emails are sent to Mailpit in development. Access the web UI at `http://localhost:8025` to view sent emails.
+
+### Working with the Database
+
+**Add queries**
+
+Create SQL queries in `database/queries/`:
+
+```sql
+-- name: GetUserByEmail :one
+SELECT * FROM users WHERE email = $1 LIMIT 1;
+
+-- name: ListActiveUsers :many
+SELECT * FROM users WHERE active = true ORDER BY created_at DESC;
+```
+
+**Generate type-safe code**
+
+```bash
+andurel sqlc generate
+```
+
+**Use generated code**
+
+```go
+import "{{.ModuleName}}/models/internal/db"
+
+user, err := queries.GetUserByEmail(ctx, "user@example.com")
+users, err := queries.ListActiveUsers(ctx)
+```
+
+### Schema Changes
+
+When modifying your database schema:
+
+```bash
+# 1. Create a migration
+andurel migration new add_email_to_users
+
+# 2. Edit the migration file
+# Add your ALTER TABLE statements
+
+# 3. Apply the migration
+andurel migration up
+
+# 4. Update queries if needed (in database/queries/)
+
+# 5. Regenerate SQLC code
+andurel sqlc generate
+
+# 6. Refresh affected models
+andurel g model User --refresh
+```
+{{if eq .CSSFramework "tailwind"}}
+### Customize Styling
+
+This project uses Tailwind CSS. Customize your theme in `css/theme.css`:
+
+```css
+@layer theme {
+  :root {
+    --color-primary: theme('colors.blue.600');
+    --color-secondary: theme('colors.gray.600');
+  }
+}
+```
+
+Add custom utilities in `css/base.css`. The development server automatically rebuilds CSS on changes.
+{{end}}
+
+## Environment Configuration
+
+Key environment variables (see `.env.example` for all options):
+
+```bash
+# Application
+ENVIRONMENT=development
+HOST=localhost
+PORT=8080
+PROJECT_NAME={{.AppName}}
+DOMAIN=localhost:8080
+PROTOCOL=http
+
+# Database{{if eq .Database "postgres"}}
+DB_KIND=postgres
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_NAME={{.AppName}}_development
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_SSL_MODE=disable{{else}}
+DB_KIND=sqlite3
+DB_PATH=./{{.AppName}}.db{{end}}
+
+# Email (Mailpit for development)
+MAILPIT_HOST=0.0.0.0
+MAILPIT_PORT=1025
+DEFAULT_SENDER_SIGNATURE=info@{{.AppName}}.com
+
+# Security (auto-generated during scaffolding)
+SESSION_KEY=<auto-generated>
+SESSION_ENCRYPTION_KEY=<auto-generated>
+TOKEN_SIGNING_KEY=<auto-generated>
+PEPPER=<auto-generated>
+
+# Telemetry (optional)
+TELEMETRY_SERVICE_NAME={{.AppName}}
+TELEMETRY_SERVICE_VERSION=1.0.0
+OTLP_LOGS_ENDPOINT=
+OTLP_METRICS_ENDPOINT=
+OTLP_TRACES_ENDPOINT=
+TRACE_SAMPLE_RATE=1.0
+```
+
+## Development Tips
+
+1. **Live Reload**: Use `andurel run` during development for automatic reloading
+2. **Type Safety**: Let SQLC and Templ catch errors at compile time
+3. **Database Console**: Use `andurel app console` for quick database queries
+4. **Hot Reload**: Changes to Go, Templ, or CSS automatically trigger rebuilds{{if eq .CSSFramework "tailwind"}}
+5. **Tailwind**: Use Tailwind's utility classes in your Templ templates{{end}}
+
+## Common Tasks
+
+```bash
+# Start development
+andurel run
+
+# Create a new resource
+andurel g resource Product
+
+# Add a migration
+andurel migration new add_field_to_products
+
+# Run migrations
+andurel migration up
+
+# Regenerate SQLC code
+andurel sqlc generate
+
+# Access database console
+andurel app console
+
+# Run tests
+go test ./...
+```
+
+## Integration Testing
+
+This project includes a built-in integration testing framework that makes it easy to test controllers and models with real database interactions.
+
+### Test Infrastructure
+
+The framework provides:
+- **Automatic test database setup**: {{if eq .Database "postgresql"}}Uses [testcontainers](https://golang.testcontainers.org/) to spin up PostgreSQL in Docker{{else}}Creates temporary SQLite databases{{end}}
+- **Transaction-based tests**: Each test runs in a transaction that automatically rolls back, keeping tests isolated
+- **Factory pattern**: Simple builders for creating test data with sensible defaults
+
+### Writing Controller Tests
+
+**1. Create a test file** (e.g., `controllers/products_controller_test.go`):
+
+```go
+package controllers_test
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/labstack/echo/v4"
+{{if eq .Database "postgresql"}}	"github.com/jackc/pgx/v5"
+{{else}}	"database/sql"
+{{end}}
+	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/models/factories"
+)
+
+var testDB *database.TestDB
+
+func TestMain(m *testing.M) {
+	var err error
+	testDB, err = database.NewTestDB()
+	if err != nil {
+		panic(err)
+	}
+	defer testDB.Close()
+
+	m.Run()
+}
+
+func TestProducts_Create(t *testing.T) {
+{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx pgx.Tx) {
+{{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
+{{end}}		controller := controllers.NewProducts(testDB.DB)
+
+		// Create test request
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodPost, "/products", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		// Test the controller action
+		err := controller.Create(c)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+
+		// Assert database state
+		products, err := models.AllProducts(c.Request().Context(), tx)
+		if err != nil {
+			t.Fatalf("failed to query products: %v", err)
+		}
+
+		if len(products) != 1 {
+			t.Errorf("expected 1 product, got %d", len(products))
+		}
+	})
+}
+```
+
+### Creating Test Factories
+
+**1. Create a factory** in `models/factories/product_factory.go`:
+
+```go
+package factories
+
+import (
+	"{{.ModuleName}}/models"
+)
+
+type ProductBuilder struct {
+	data models.CreateProductData
+}
+
+func Product() *ProductBuilder {
+	return &ProductBuilder{
+		data: models.CreateProductData{
+			Name:        "Test Product",
+			Description: "Test description",
+			Price:       "29.99",
+		},
+	}
+}
+
+func (b *ProductBuilder) WithName(name string) *ProductBuilder {
+	b.data.Name = name
+	return b
+}
+
+func (b *ProductBuilder) WithPrice(price string) *ProductBuilder {
+	b.data.Price = price
+	return b
+}
+
+func (b *ProductBuilder) Create(dbtx DBTX) models.Product {
+	product, err := models.CreateProduct(ctx, dbtx, b.data)
+	if err != nil {
+		panic(err)
+	}
+	return product
+}
+
+func (b *ProductBuilder) Build() models.CreateProductData {
+	return b.data
+}
+```
+
+**2. Use factories in tests**:
+
+```go
+func TestProducts_Show(t *testing.T) {
+{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx pgx.Tx) {
+{{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
+{{end}}		// Create test data with default values
+		product := factories.Product().Create(tx)
+
+		// Or customize specific fields
+		premiumProduct := factories.Product().
+			WithName("Premium Product").
+			WithPrice("99.99").
+			Create(tx)
+
+		// Test your controller with the created data
+		// ...
+	})
+}
+```
+
+### Testing Patterns
+
+**Test database queries**:
+
+```go
+func TestFindProduct(t *testing.T) {
+{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx pgx.Tx) {
+{{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
+{{end}}		product := factories.Product().Create(tx)
+
+		found, err := models.FindProduct(context.Background(), tx, product.ID)
+		if err != nil {
+			t.Fatalf("FindProduct failed: %v", err)
+		}
+
+		if found.Name != product.Name {
+			t.Errorf("expected name %s, got %s", product.Name, found.Name)
+		}
+	})
+}
+```
+
+**Test with multiple records**:
+
+```go
+func TestPaginateProducts(t *testing.T) {
+{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx pgx.Tx) {
+{{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
+{{end}}		// Create test data
+		for i := 0; i < 25; i++ {
+			factories.Product().Create(tx)
+		}
+
+		// Test pagination
+		result, err := models.PaginateProducts(context.Background(), tx, 1, 10)
+		if err != nil {
+			t.Fatalf("PaginateProducts failed: %v", err)
+		}
+
+		if len(result.Products) != 10 {
+			t.Errorf("expected 10 products, got %d", len(result.Products))
+		}
+
+		if result.TotalCount != 25 {
+			t.Errorf("expected total count 25, got %d", result.TotalCount)
+		}
+	})
+}
+```
+
+**Test with related data**:
+
+```go
+func TestCreateOrder(t *testing.T) {
+{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx pgx.Tx) {
+{{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
+{{end}}		// Create dependencies
+		user := factories.User().Create(tx)
+		product := factories.Product().Create(tx)
+
+		// Test order creation
+		order := factories.Order().
+			WithUserID(user.ID).
+			WithProductID(product.ID).
+			Create(tx)
+
+		if order.UserID != user.ID {
+			t.Errorf("order user_id mismatch")
+		}
+	})
+}
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+go test ./...
+
+# Run tests in a specific package
+go test ./controllers
+
+# Run tests with coverage
+go test -cover ./...
+
+# Run a specific test
+go test ./controllers -run TestProducts_Create
+
+# Verbose output
+go test -v ./...
+```
+
+### Test Database Setup
+{{if eq .Database "postgresql"}}
+**Prerequisites**: Docker must be running to use testcontainers.
+
+The test helper automatically:
+1. Starts a PostgreSQL container with `postgres:17-alpine`
+2. Runs all migrations from `database/migrations/`
+3. Provides a clean database for each test suite
+4. Cleans up containers when tests complete
+
+**Note**: The first test run will download the PostgreSQL Docker image, which may take a moment.
+{{else}}
+The test helper automatically:
+1. Creates a temporary SQLite database file
+2. Runs all migrations from `database/migrations/`
+3. Provides a clean database for each test suite
+4. Deletes the temporary file when tests complete
+{{end}}
+
+### Best Practices
+
+1. **Use transactions**: Always wrap test logic in `testDB.WithTx()` for automatic cleanup
+2. **Use factories**: Create test data with factories instead of manual model creation
+3. **Test isolation**: Each test should be independent and not rely on other tests
+4. **Descriptive names**: Name tests clearly (e.g., `TestProducts_Create_WithInvalidData`)
+5. **Assert clearly**: Check both success cases and expected database state
+6. **Don't test frameworks**: Focus on your business logic, not Echo or SQLC behavior
+{{if .Extensions}}
+## Extensions
+
+This project includes the following extensions:
+{{range .Extensions}}
+### {{.}}
+{{if eq . "aws-ses"}}
+This project uses Amazon SES (Simple Email Service) for sending transactional and marketing emails in production.
+
+#### Setup
+
+**1. AWS Configuration**
+
+You'll need an AWS account with SES configured:
+
+```bash
+# Verify your sender email address or domain in AWS SES Console
+# https://console.aws.amazon.com/ses/
+
+# Create IAM credentials with SES sending permissions
+# Required policy: AmazonSESFullAccess or custom policy with ses:SendEmail
+```
+
+**2. Environment Variables**
+
+Add these to your `.env` file:
+
+```bash
+# AWS SES Configuration
+AWS_REGION=us-east-1                      # Your AWS region
+AWS_SES_ACCESS_KEY_ID=your_access_key     # IAM access key
+AWS_SES_SECRET_ACCESS_KEY=your_secret     # IAM secret key
+AWS_SES_CONFIGURATION_SET=                # Optional: for open/click tracking
+```
+
+**3. Configuration Set (Optional)**
+
+For email tracking (opens, clicks), create a Configuration Set in AWS SES:
+
+1. Go to AWS SES Console → Configuration Sets
+2. Create a new configuration set
+3. Add event destinations (SNS, CloudWatch, Kinesis, etc.)
+4. Set `AWS_SES_CONFIGURATION_SET` environment variable
+
+#### Sending Transactional Emails
+
+Transactional emails are one-to-one messages like password resets, order confirmations, and account notifications.
+
+**Create an email template:**
+
+```go
+// email/order_confirmation.templ
+package email
+
+templ OrderConfirmation(orderID string, total string) {
+    @BaseLayout() {
+        <h1>Order Confirmed!</h1>
+        <p>Thank you for your order #{orderID}.</p>
+        <p>Total: {total}</p>
+    }
+}
+```
+
+**Send immediately (synchronous):**
+
+```go
+import "{{$.ModuleName}}/email"
+
+err := email.SendTransactional(ctx, email.TransactionalData{
+    To:      "customer@example.com",
+    Cc:      []string{"manager@example.com"},  // Optional
+    From:    "orders@yourapp.com",
+    Subject: "Order Confirmation",
+    Component: email.OrderConfirmation("12345", "$99.99"),
+    Attachments: []email.Attachment{  // Optional
+        {
+            Filename:    "invoice.pdf",
+            ContentType: "application/pdf",
+            Content:     pdfBytes,
+        },
+    },
+}, emailClient)
+```
+{{if eq $.Database "postgresql"}}
+**Send via background queue (recommended):**
+
+```go
+import "{{$.ModuleName}}/queue/jobs"
+
+_, err := insertOnly.Client.Insert(ctx, jobs.SendTransactionalEmailArgs{
+    Data: email.TransactionalData{
+        To:      "customer@example.com",
+        From:    "orders@yourapp.com",
+        Subject: "Order Confirmation",
+        Component: email.OrderConfirmation("12345", "$99.99"),
+    },
+}, nil)
+```
+
+Benefits of queuing:
+- Non-blocking: Returns immediately without waiting for AWS SES
+- Automatic retries: Failed sends retry with exponential backoff
+- Better reliability: Survives temporary AWS outages
+- Observability: Track job status through River
+{{end}}
+#### Sending Marketing Emails
+
+Marketing emails are bulk messages like newsletters, promotions, and announcements sent to multiple recipients.
+
+**Important:** Marketing emails must include an unsubscribe link to comply with email regulations (CAN-SPAM, GDPR).
+
+**Create a newsletter template:**
+
+```go
+// email/newsletter.templ
+package email
+
+templ Newsletter(recipientName string, unsubscribeURL string) {
+    @BaseLayout() {
+        <h1>Monthly Newsletter</h1>
+        <p>Hi {recipientName},</p>
+        <p>Here's what's new this month...</p>
+
+        <footer>
+            <a href={templ.URL(unsubscribeURL)}>Unsubscribe</a>
+        </footer>
+    }
+}
+```
+{{if eq $.Database "postgresql"}}
+**Send to multiple recipients (queued pattern):**
+
+```go
+import "{{$.ModuleName}}/queue/jobs"
+
+// Queue individual emails for each recipient
+recipients := []struct{
+    Email string
+    Name  string
+    ID    string
+}{
+    {Email: "user1@example.com", Name: "Alice", ID: "user-123"},
+    {Email: "user2@example.com", Name: "Bob", ID: "user-456"},
+}
+
+for _, recipient := range recipients {
+    unsubscribeURL := fmt.Sprintf("https://yourapp.com/unsubscribe/%s", recipient.ID)
+
+    _, err := insertOnly.Client.Insert(ctx, jobs.SendMarketingEmailArgs{
+        Data: email.MarketingData{
+            To:             []string{recipient.Email},
+            From:           "newsletter@yourapp.com",
+            Subject:        "Your Monthly Newsletter",
+            Component:      email.Newsletter(recipient.Name, unsubscribeURL),
+            UnsubscribeURL: unsubscribeURL,  // Required!
+            Tags:           []string{"newsletter", "monthly"},
+            TrackOpens:     true,   // Requires Configuration Set
+            TrackClicks:    true,   // Requires Configuration Set
+        },
+    }, nil)
+
+    if err != nil {
+        // Handle error (log, retry, etc.)
+        continue
+    }
+}
+```
+
+**Why queue individual emails?**
+
+- **Personalization**: Each recipient gets customized content (name, preferences, etc.)
+- **Tracking**: Individual delivery status and bounce tracking per recipient
+- **Rate limiting**: AWS SES has sending limits; queuing prevents hitting them
+- **Retries**: Failed emails retry automatically without affecting successful sends
+- **Unsubscribe compliance**: Each email has a unique unsubscribe link
+{{else}}
+**Send to a recipient:**
+
+```go
+import "{{$.ModuleName}}/email"
+
+unsubscribeURL := "https://yourapp.com/unsubscribe/user-123"
+
+err := email.SendMarketing(ctx, email.MarketingData{
+    To:             []string{"user@example.com"},
+    From:           "newsletter@yourapp.com",
+    Subject:        "Your Monthly Newsletter",
+    Component:      email.Newsletter("Alice", unsubscribeURL),
+    UnsubscribeURL: unsubscribeURL,  // Required!
+    Tags:           []string{"newsletter", "monthly"},
+    TrackOpens:     true,   // Requires Configuration Set
+    TrackClicks:    true,   // Requires Configuration Set
+}, emailClient)
+```
+
+**Bulk sending:** For sending to multiple recipients, send individual emails in a loop or use background jobs for better reliability.
+{{end}}
+#### Email Tracking
+
+Enable open and click tracking by configuring a Configuration Set in AWS SES:
+
+```go
+// Tracking is enabled per email
+Data: email.MarketingData{
+    // ... other fields
+    TrackOpens:  true,
+    TrackClicks: true,
+}
+```
+
+**View tracking data:**
+- Configure event destinations in your AWS SES Configuration Set
+- Send events to CloudWatch, SNS, or Kinesis
+- Build dashboards to visualize open/click rates
+
+#### Testing in Development
+
+During development, emails are sent to Mailpit instead of AWS SES:
+
+```bash
+# Mailpit configuration (automatically used in development)
+MAILPIT_HOST=0.0.0.0
+MAILPIT_PORT=1025
+```
+
+View test emails at `http://localhost:8025`
+
+To test with real AWS SES in development:
+
+1. Use the `aws-ses` extension
+2. Set `ENVIRONMENT=production` or configure your app to use AWS SES in dev
+3. Ensure your AWS credentials are valid
+
+#### Error Handling
+
+AWS SES provides detailed error information:
+
+```go
+err := email.SendTransactional(ctx, data, emailClient)
+if err != nil {
+    if email.IsValidationError(err) {
+        // Invalid email address, missing required fields, etc.
+        // Don't retry - fix the data
+        log.Error("Invalid email data", "error", err)
+    } else if email.IsTemporaryError(err) {
+        // AWS throttling, service unavailable, etc.
+        // Safe to retry
+        log.Warn("Temporary email error, will retry", "error", err)
+    } else if email.IsPermanentError(err) {
+        // Account suspended, domain not verified, etc.
+        // Don't retry - requires AWS console action
+        log.Error("Permanent email error", "error", err)
+    }
+}
+```
+{{if eq $.Database "postgresql"}}
+The background queue automatically handles retries for temporary errors and cancels jobs with validation or permanent errors.
+{{end}}
+#### AWS SES Limits
+
+Be aware of AWS SES sending limits:
+
+- **Sandbox**: 200 emails/day, verified recipients only
+- **Production**: Request limit increase (up to millions/day)
+- **Rate limit**: 14 emails/second (default, can be increased)
+
+Request production access: AWS SES Console → Account Dashboard → Request Production Access
+
+#### Best Practices
+
+1. **Verify your domain**: Use domain verification instead of email verification for better deliverability
+2. **Use Configuration Sets**: Enable tracking and monitoring
+3. **Monitor bounce rates**: High bounce rates can hurt your sender reputation
+4. **Handle suppression lists**: AWS SES automatically suppresses bounced/complained addresses
+5. **Warm up your sending**: Gradually increase volume when starting with a new domain
+6. **Use templates**: Create reusable email templates in AWS SES for simple use cases
+7. **Queue emails**: Use background jobs for reliability and non-blocking sends
+
+#### Resources
+
+- [AWS SES Documentation](https://docs.aws.amazon.com/ses/)
+- [AWS SES Pricing](https://aws.amazon.com/ses/pricing/) - $0.10 per 1,000 emails
+- [SES Best Practices](https://docs.aws.amazon.com/ses/latest/dg/best-practices.html)
+- [Moving out of Sandbox](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html)
+{{else if eq . "paddle"}}
+This project includes Paddle integration for accepting payments. The payment system is provider-agnostic in the codebase, with Paddle-specific code isolated to the payment client layer.
+
+#### Setup
+
+**1. Paddle Account**
+
+You'll need a Paddle account:
+
+```bash
+# Sign up at https://paddle.com
+# Get your API credentials from the Paddle Dashboard
+# https://vendors.paddle.com/authentication
+```
+
+**2. Environment Variables**
+
+Add these to your `.env` file:
+
+```bash
+# Paddle Configuration
+PADDLE_API_KEY=your_api_key                    # Your Paddle API key
+PADDLE_WEBHOOK_SECRET=your_webhook_secret       # Webhook signature secret
+PADDLE_ENVIRONMENT=sandbox                      # 'sandbox' or 'production'
+```
+
+**3. Configure Webhooks**
+
+Set up webhooks in your Paddle Dashboard to point to your application:
+
+```
+https://yourdomain.com/billing/webhooks
+```
+
+Subscribe to these events:
+- `transaction.completed` - Payment successfully processed
+- `transaction.updated` - Payment status changed
+
+#### Database Schema
+
+The payment extension creates three tables:
+
+**payment_customers**: Links Paddle customer IDs to your application
+- `provider_customer_id` - Paddle customer ID
+- `email` - Customer email
+
+**payment_products**: Stores product/pricing information
+- `provider_product_id` - Paddle product ID
+- `provider_price_id` - Paddle price ID
+- `name`, `description`, `price_amount`, `price_currency`
+- `is_active` - Enable/disable products
+
+**payment_transactions**: Tracks payment transactions
+- `provider_transaction_id` - Paddle transaction ID
+- `provider_customer_id` - Links to payment_customers
+- `status`, `amount`, `currency`
+- `invoice_number`, `billed_at`, `completed_at`
+- `raw_data` - Full webhook payload for debugging
+
+**Note:** These tables do NOT include user foreign keys by default. You implement your own user-payment linking logic based on your application's needs.
+
+#### Routes
+
+The extension provides these routes under `/billing`:
+
+- `GET /billing/pricing` - Display available products
+- `GET /billing/checkout` - Checkout page for purchasing
+- `GET /billing/account` - User's payment history (placeholder)
+- `POST /billing/webhooks` - Paddle webhook handler
+
+#### Linking Payments to Users
+
+The payment system is intentionally flexible - it doesn't assume how you link payments to users. Here are common patterns:
+
+**Pattern 1: Link via customer email**
+
+```go
+// In your user registration or profile
+customer, err := models.FindPaymentCustomerByProviderID(ctx, db, paddleCustomerID)
+if err == nil {
+    // Associate customer.Email with your user
+}
+```
+
+**Pattern 2: Add user_id to tables**
+
+Create a migration to add user relationships:
+
+```sql
+-- Add user_id to payment_customers
+ALTER TABLE payment_customers
+ADD COLUMN user_id UUID REFERENCES users(id);
+
+CREATE INDEX idx_payment_customers_user_id ON payment_customers(user_id);
+
+-- Add user_id to payment_transactions
+ALTER TABLE payment_transactions
+ADD COLUMN user_id UUID REFERENCES users(id);
+
+CREATE INDEX idx_payment_transactions_user_id ON payment_transactions(user_id);
+```
+
+Then update your models and queries accordingly.
+
+**Pattern 3: Separate linking table**
+
+```sql
+CREATE TABLE user_payment_customers (
+    user_id UUID REFERENCES users(id),
+    payment_customer_id UUID REFERENCES payment_customers(id),
+    PRIMARY KEY (user_id, payment_customer_id)
+);
+```
+
+#### Managing Products
+
+Add products to your database that match your Paddle catalog:
+
+```go
+import "{{$.ModuleName}}/models"
+
+product, err := models.CreatePaymentProduct(ctx, db, models.CreatePaymentProductData{
+    ProviderProductID: "pro_01234",     // From Paddle
+    ProviderPriceID:   "pri_01234",     // From Paddle
+    Name:              "Pro Plan",
+    Description:       "Full access to all features",
+    PriceAmount:       "29.99",
+    PriceCurrency:     "USD",
+    ImageURL:          "https://...",
+    IsActive:          true,
+})
+```
+
+Products are displayed on the `/billing/pricing` page. Users can purchase from the `/billing/checkout` page.
+
+#### Handling Webhooks
+
+The webhook handler processes Paddle events automatically:
+
+**transaction.completed**: Creates or updates transaction records
+**transaction.updated**: Updates transaction status
+
+The webhook handler verifies signatures and stores the full webhook payload in `raw_data` for debugging.
+
+**Implementing custom webhook logic:**
+
+Edit `controllers/payment_webhooks.go` to add your business logic:
+
+```go
+func (w PaymentWebhooks) handleTransactionCompleted(c echo.Context, event *payment.WebhookEvent) error {
+    // Parse transaction data
+    var txData transactionData
+    json.Unmarshal(event.Data, &txData)
+
+    // Your custom logic here:
+    // 1. Find or create the user based on txData.CustomerID
+    // 2. Grant access, update subscription status, etc.
+    // 3. Create the transaction record
+
+    _, err := models.CreatePaymentTransaction(ctx, w.db, models.CreatePaymentTransactionData{
+        ProviderTransactionID: txData.ID,
+        ProviderCustomerID:    txData.CustomerID,
+        Status:                txData.Status,
+        Amount:                txData.Details.Totals.Total,
+        Currency:              txData.CurrencyCode,
+        // ... other fields
+    })
+
+    return err
+}
+```
+
+#### Testing
+
+**Development**: Use Paddle's sandbox mode
+
+```bash
+PADDLE_ENVIRONMENT=sandbox
+PADDLE_API_KEY=test_...
+```
+
+**Webhook testing**: Use Paddle's webhook testing tool or ngrok:
+
+```bash
+# Expose local server
+ngrok http 8080
+
+# Configure webhook URL in Paddle Dashboard
+https://your-ngrok-url.ngrok.io/billing/webhooks
+```
+
+**View webhook logs**: Check application logs for webhook processing details
+
+#### Account Page Implementation
+
+The `/billing/account` route provides a placeholder. Implement it based on your user system:
+
+```go
+// controllers/payment_account.go
+func (pa PaymentAccount) Index(c echo.Context) error {
+    // Get current user from session/context
+    userID := getUserFromContext(c)
+
+    // Query transactions linked to this user
+    // (requires you to add user_id column or linking logic)
+    transactions, err := models.ListUserTransactions(ctx, pa.db, userID)
+
+    return render(c, views.PaymentAccount(transactions))
+}
+```
+
+#### Production Checklist
+
+Before going live with Paddle:
+
+1. Switch to production environment and API keys
+2. Verify webhook signature validation is working
+3. Test complete purchase flow in sandbox mode
+4. Add error handling and logging to webhook handlers
+5. Implement user-payment linking logic
+6. Set up monitoring for failed transactions
+7. Configure Paddle email notifications
+8. Review Paddle's compliance and tax requirements
+
+#### Resources
+
+- [Paddle Documentation](https://developer.paddle.com/)
+- [Paddle API Reference](https://developer.paddle.com/api-reference)
+- [Webhook Events](https://developer.paddle.com/webhooks/overview)
+- [Paddle Dashboard](https://vendors.paddle.com/)
+{{else}}
+<!-- Extension-specific documentation will be added here -->
+{{end}}
+{{end}}
+{{end}}
+## Learn More
+
+- [Andurel Documentation](https://github.com/mbvlabs/andurel)
+- [Echo Framework](https://echo.labstack.com/)
+- [SQLC](https://sqlc.dev/)
+- [Templ](https://templ.guide/)
+- [Datastar](https://data-star.dev/){{if eq .Database "postgres"}}
+- [River](https://riverqueue.com/){{else}}
+- [goqite](https://github.com/maragudk/goqite){{end}}
+- [OpenTelemetry](https://opentelemetry.io/)
+
+## Getting Help
+
+For Andurel-specific questions and issues:
+- GitHub Issues: https://github.com/mbvlabs/andurel/issues
+- Documentation: https://github.com/mbvlabs/andurel
+
+## License
+
+This project is licensed under the MIT License.

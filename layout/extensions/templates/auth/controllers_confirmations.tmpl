@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"log/slog"
-	"net/http"
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/database"
@@ -12,6 +11,7 @@ import (
 	"{{.ModuleName}}/views"
 
 	"github.com/labstack/echo/v4"
+	"github.com/starfederation/datastar-go/datastar"
 )
 
 {{- if eq .Database "postgresql" }}
@@ -42,7 +42,7 @@ func (r Confirmations) New(c echo.Context) error {
 // Create handles the verification code submission
 func (r Confirmations) Create(c echo.Context) error {
 	var payload struct {
-		Code string `form:"code"`
+		Code string `json:"code"`
 	}
 
 	if err := c.Bind(&payload); err != nil {
@@ -83,12 +83,12 @@ func (r Confirmations) Create(c echo.Context) error {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, errorMsg); flashErr != nil {
 			return render(c, views.InternalError())
 		}
-		return c.Redirect(http.StatusSeeOther, routes.ConfirmationNew.URL())
+		return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.ConfirmationNew.URL())
 	}
 
 	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Email verified successfully!"); flashErr != nil {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.HomePage.URL())
+	return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.HomePage.URL())
 }

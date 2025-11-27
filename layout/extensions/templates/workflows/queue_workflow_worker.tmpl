@@ -1,0 +1,92 @@
+package workflow
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log/slog"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
+)
+
+type WorkflowWorker interface {
+	WorkflowWork(ctx context.Context, job *river.Job[river.JobArgs]) error
+}
+
+func UpdateWorkflowState(ctx context.Context, pool *pgxpool.Pool, jobID int64, state string) error {
+	query := `
+		UPDATE river_job
+		SET metadata = jsonb_set(metadata, '{workflow_state}', $2)
+		WHERE id = $1
+	`
+
+	stateJSON, err := json.Marshal(state)
+	if err != nil {
+		return fmt.Errorf("failed to marshal state: %w", err)
+	}
+
+	_, err = pool.Exec(ctx, query, jobID, stateJSON)
+	if err != nil {
+		return fmt.Errorf("failed to update workflow state for job %d: %w", jobID, err)
+	}
+
+	return nil
+}
+
+func WrapWorker[T river.JobArgs](pool *pgxpool.Pool, workFunc func(context.Context, *river.Job[T]) error) func(context.Context, *river.Job[T]) error {
+	return func(ctx context.Context, job *river.Job[T]) error {
+		logger := slog.Default()
+
+		var metadata WorkflowMetadata
+		if len(job.Metadata) > 0 {
+			if err := json.Unmarshal(job.Metadata, &metadata); err == nil {
+				if err := UpdateWorkflowState(ctx, pool, job.ID, WorkflowStateRunning); err != nil {
+					logger.Error("failed to update workflow state to running",
+						"job_id", job.ID,
+						"error", err)
+				}
+
+				err := workFunc(ctx, job)
+
+				if err != nil {
+					if updateErr := UpdateWorkflowState(ctx, pool, job.ID, WorkflowStateFailed); updateErr != nil {
+						logger.Error("failed to update workflow state to failed",
+							"job_id", job.ID,
+							"error", updateErr)
+					}
+					return err
+				}
+
+				if err := UpdateWorkflowState(ctx, pool, job.ID, WorkflowStateCompleted); err != nil {
+					logger.Error("failed to update workflow state to completed",
+						"job_id", job.ID,
+						"error", err)
+				}
+
+				if err := checkAndCleanupWorkflow(ctx, pool, metadata.WorkflowID); err != nil {
+					logger.Warn("failed to cleanup workflow outputs",
+						"workflow_id", metadata.WorkflowID,
+						"error", err)
+				}
+
+				return nil
+			}
+		}
+
+		return workFunc(ctx, job)
+	}
+}
+
+func checkAndCleanupWorkflow(ctx context.Context, pool *pgxpool.Pool, workflowID string) error {
+	info, err := GetWorkflow(ctx, pool, workflowID)
+	if err != nil {
+		return err
+	}
+
+	if info.State == OverallWorkflowStateCompleted || info.State == OverallWorkflowStateFailed {
+		return SetWorkflowOutputsExpiration(ctx, pool, workflowID, DefaultOutputConfig.TTL)
+	}
+
+	return nil
+}

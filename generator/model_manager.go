@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -94,8 +95,49 @@ func (m *ModelManager) setupModelContext(resourceName, tableName string) (*model
 	}, nil
 }
 
-func (m *ModelManager) GenerateModel(resourceName string) error {
-	tableName := naming.DeriveTableName(resourceName)
+func (m *ModelManager) extractTableNameOverride(modelPath string, resourceName string) (string, bool) {
+	file, err := os.Open(modelPath)
+	if err != nil {
+		return "", false
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	marker := fmt.Sprintf("// %s_MODEL_TABLE_NAME:", strings.ToUpper(resourceName))
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		if strings.HasPrefix(line, marker) {
+			tableName := strings.TrimSpace(strings.TrimPrefix(line, marker))
+			if tableName != "" {
+				return tableName, true
+			}
+		}
+
+		if strings.HasPrefix(line, "package ") {
+			continue
+		}
+
+		if line != "" && !strings.HasPrefix(line, "//") && !strings.HasPrefix(line, "import") {
+			break
+		}
+	}
+
+	return "", false
+}
+
+func (m *ModelManager) GenerateModel(resourceName string, tableNameOverride string) error {
+	tableName := tableNameOverride
+	if tableName == "" {
+		tableName = naming.DeriveTableName(resourceName)
+	}
+
+	if tableNameOverride != "" {
+		if err := m.validator.ValidateTableNameOverride(resourceName, tableNameOverride); err != nil {
+			return err
+		}
+	}
 
 	ctx, err := m.setupModelContext(resourceName, tableName)
 	if err != nil {
@@ -114,7 +156,7 @@ func (m *ModelManager) GenerateModel(resourceName string) error {
 		return err
 	}
 
-	if err := m.modelGenerator.GenerateModel(cat, ctx.ResourceName, ctx.TableName, ctx.ModelPath, ctx.SQLPath, ctx.ModulePath); err != nil {
+	if err := m.modelGenerator.GenerateModel(cat, ctx.ResourceName, ctx.TableName, ctx.ModelPath, ctx.SQLPath, ctx.ModulePath, tableNameOverride); err != nil {
 		return fmt.Errorf("failed to generate model: %w", err)
 	}
 
@@ -139,6 +181,13 @@ func (m *ModelManager) GenerateModel(resourceName string) error {
 }
 
 func (m *ModelManager) RefreshModel(resourceName, tableName string) error {
+	modelFileName := naming.ToSnakeCase(resourceName) + ".go"
+	modelPath := filepath.Join(m.config.Paths.Models, modelFileName)
+
+	if overriddenTableName, found := m.extractTableNameOverride(modelPath, resourceName); found {
+		tableName = overriddenTableName
+	}
+
 	ctx, err := m.setupModelContext(resourceName, tableName)
 	if err != nil {
 		return err
@@ -146,13 +195,13 @@ func (m *ModelManager) RefreshModel(resourceName, tableName string) error {
 
 	if _, err := os.Stat(ctx.ModelPath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"model file %s does not exist. Use 'generate model' to create it first",
+			"model file %s does not exist. Generate model first",
 			ctx.ModelPath,
 		)
 	}
 	if _, err := os.Stat(ctx.SQLPath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"SQL file %s does not exist. Use 'generate model' to create it first",
+			"SQL file %s does not exist. Generate model first",
 			ctx.SQLPath,
 		)
 	}
@@ -178,6 +227,13 @@ func (m *ModelManager) RefreshModel(resourceName, tableName string) error {
 }
 
 func (m *ModelManager) RefreshQueries(resourceName, tableName string) error {
+	modelFileName := naming.ToSnakeCase(resourceName) + ".go"
+	modelPath := filepath.Join(m.config.Paths.Models, modelFileName)
+
+	if overriddenTableName, found := m.extractTableNameOverride(modelPath, resourceName); found {
+		tableName = overriddenTableName
+	}
+
 	ctx, err := m.setupModelContext(resourceName, tableName)
 	if err != nil {
 		return err
@@ -185,13 +241,13 @@ func (m *ModelManager) RefreshQueries(resourceName, tableName string) error {
 
 	if _, err := os.Stat(ctx.ModelPath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"model file %s does not exist. Use 'generate model' to create it first",
+			"model file %s does not exist. Generate model first",
 			ctx.ModelPath,
 		)
 	}
 	if _, err := os.Stat(ctx.SQLPath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"SQL file %s does not exist. Use 'generate model' to create it first",
+			"SQL file %s does not exist. Generate model first",
 			ctx.SQLPath,
 		)
 	}
@@ -217,6 +273,13 @@ func (m *ModelManager) RefreshQueries(resourceName, tableName string) error {
 }
 
 func (m *ModelManager) RefreshConstructors(resourceName, tableName string) error {
+	modelFileName := naming.ToSnakeCase(resourceName) + ".go"
+	modelPath := filepath.Join(m.config.Paths.Models, modelFileName)
+
+	if overriddenTableName, found := m.extractTableNameOverride(modelPath, resourceName); found {
+		tableName = overriddenTableName
+	}
+
 	ctx, err := m.setupModelContext(resourceName, tableName)
 	if err != nil {
 		return err
@@ -224,13 +287,13 @@ func (m *ModelManager) RefreshConstructors(resourceName, tableName string) error
 
 	if _, err := os.Stat(ctx.ModelPath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"model file %s does not exist. Use 'generate model' to create it first",
+			"model file %s does not exist. Generate model first",
 			ctx.ModelPath,
 		)
 	}
 	if _, err := os.Stat(ctx.SQLPath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"SQL file %s does not exist. Use 'generate model' to create it first",
+			"SQL file %s does not exist. Generate model first",
 			ctx.SQLPath,
 		)
 	}

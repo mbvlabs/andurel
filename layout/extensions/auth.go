@@ -31,12 +31,76 @@ func (e Auth) Apply(ctx *Context) error {
 	builder.AddControllerField("Sessions", "Sessions")
 	builder.AddControllerField("Registrations", "Registrations")
 	builder.AddControllerField("Confirmations", "Confirmations")
-	builder.AddControllerField("ResetPassword", "ResetPassword")
+	builder.AddControllerField("ResetPasswords", "ResetPasswords")
+
+	db := ctx.Data.DatabaseDialect()
 
 	builder.AddControllerConstructor("sessions", "newSessions(db, cfg)")
-	builder.AddControllerConstructor("registrations", "newRegistrations(db, emailClient, cfg)")
+
+	if db == "postgresql" {
+		builder.AddControllerConstructor("registrations", "newRegistrations(db, insertOnly, cfg)")
+	}
+	if db == "sqlite" {
+		builder.AddControllerConstructor("registrations", "newRegistrations(db, emailClient, cfg)")
+	}
+
 	builder.AddControllerConstructor("confirmations", "newConfirmations(db, cfg)")
-	builder.AddControllerConstructor("resetPassword", "newResetPassword(db, emailClient, cfg)")
+
+	if db == "postgresql" {
+		builder.AddControllerConstructor("resetPasswords", "newResetPasswords(db, insertOnly, cfg)")
+	}
+	if db == "sqlite" {
+		builder.AddControllerConstructor(
+			"resetPasswords",
+			"newResetPasswords(db, emailClient, cfg)",
+		)
+	}
+
+	builder.StartRouteRegistrationFunction("registerAuthRoutes")
+	builder.AddRouteRegistration("http.MethodGet", "routes.SessionNew", "ctrls.Sessions.New")
+	builder.AddRouteRegistration("http.MethodPost", "routes.SessionCreate", "ctrls.Sessions.Create")
+	builder.AddRouteRegistration(
+		"http.MethodDelete",
+		"routes.SessionDestroy",
+		"ctrls.Sessions.Destroy",
+	)
+	builder.AddRouteRegistration("http.MethodGet", "routes.PasswordNew", "ctrls.ResetPasswords.New")
+	builder.AddRouteRegistration(
+		"http.MethodPost",
+		"routes.PasswordCreate",
+		"ctrls.ResetPasswords.Create",
+	)
+	builder.AddRouteRegistration(
+		"http.MethodGet",
+		"routes.PasswordEdit",
+		"ctrls.ResetPasswords.Edit",
+	)
+	builder.AddRouteRegistration(
+		"http.MethodPut",
+		"routes.PasswordUpdate",
+		"ctrls.ResetPasswords.Update",
+	)
+	builder.AddRouteRegistration(
+		"http.MethodGet",
+		"routes.RegistrationNew",
+		"ctrls.Registrations.New",
+	)
+	builder.AddRouteRegistration(
+		"http.MethodPost",
+		"routes.RegistrationCreate",
+		"ctrls.Registrations.Create",
+	)
+	builder.AddRouteRegistration(
+		"http.MethodGet",
+		"routes.ConfirmationNew",
+		"ctrls.Confirmations.New",
+	)
+	builder.AddRouteRegistration(
+		"http.MethodPost",
+		"routes.ConfirmationCreate",
+		"ctrls.Confirmations.Create",
+	)
+	builder.EndRouteRegistrationFunction()
 
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("auth: failed to render templates: %w", err)
@@ -50,10 +114,15 @@ func (e Auth) Apply(ctx *Context) error {
 }
 
 func (e Auth) Dependencies() []string {
-	return []string{Email{}.Name()}
+	return nil
 }
 
 func (e Auth) renderTemplates(ctx *Context) error {
+	baseTime := time.Now()
+	if ctx.NextMigrationTime != nil && !ctx.NextMigrationTime.IsZero() {
+		baseTime = *ctx.NextMigrationTime
+	}
+
 	templates := map[string]string{
 		"controllers_confirmations.tmpl":   "controllers/confirmations.go",
 		"controllers_registrations.tmpl":   "controllers/registrations.go",
@@ -64,18 +133,17 @@ func (e Auth) renderTemplates(ctx *Context) error {
 
 		"database_migrations_users.tmpl": fmt.Sprintf(
 			"database/migrations/%v_create_users_table.sql",
-			time.Now().Format("20060102150405"),
+			baseTime.Format("20060102150405"),
 		),
 		"database_migrations_tokens.tmpl": fmt.Sprintf(
 			"database/migrations/%v_create_tokens_table.sql",
-			time.Now().Add(1*time.Second).Format("20060102150405"),
+			baseTime.Add(1*time.Second).Format("20060102150405"),
 		),
 		"database_queries_tokens.tmpl": "database/queries/tokens.sql",
 		"database_queries_users.tmpl":  "database/queries/users.sql",
 
 		"email_reset_password.tmpl": "email/reset_password.templ",
 		"email_verify_email.tmpl":   "email/verify_email.templ",
-		"email_auth.tmpl":           "email/auth.go",
 
 		"models_token.tmpl": "models/token.go",
 		"models_user.tmpl":  "models/user.go",
@@ -87,8 +155,8 @@ func (e Auth) renderTemplates(ctx *Context) error {
 		"services_registration.tmpl":   "services/registration.go",
 		"services_reset_password.tmpl": "services/reset_password.go",
 
-		"router_routes_users.tmpl":      "router/routes/users.go",
-		"router_routes_middleware.tmpl": "router/routes/middleware.go",
+		"router_routes_users.tmpl":    "router/routes/users.go",
+		"router_middleware_auth.tmpl": "router/middleware/auth.go",
 
 		"views_confirm_email.tmpl":  "views/confirm_email.templ",
 		"views_login.tmpl":          "views/login.templ",

@@ -6,7 +6,11 @@ import (
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/database"
+{{- if eq .Database "postgresql" }}
+	"{{.ModuleName}}/queue"
+{{- else if eq .Database "sqlite" }}
 	"{{.ModuleName}}/email"
+{{- end }}
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
@@ -18,31 +22,31 @@ import (
 
 {{- if eq .Database "postgresql" }}
 type Registrations struct {
-	db          database.Postgres
-	emailClient email.Client
-	cfg         config.Config
+	db         database.Postgres
+	insertOnly queue.InsertOnly
+	cfg        config.Config
 }
 
 func newRegistrations(
 	db database.Postgres,
-	emailClient email.Client,
+	insertOnly queue.InsertOnly,
 	cfg config.Config,
 ) Registrations {
-	return Registrations{db, emailClient, cfg}
+	return Registrations{db, insertOnly, cfg}
 }
 {{- else if eq .Database "sqlite" }}
 type Registrations struct {
-	db          database.SQLite
-	emailClient email.Client
-	cfg         config.Config
+	db     database.SQLite
+	sender email.TransactionalSender
+	cfg    config.Config
 }
 
 func newRegistrations(
 	db database.SQLite,
-	emailClient email.Client,
+	sender email.TransactionalSender,
 	cfg config.Config,
 ) Registrations {
-	return Registrations{db, emailClient, cfg}
+	return Registrations{db, sender, cfg}
 }
 {{- end }}
 
@@ -52,9 +56,9 @@ func (r Registrations) New(c echo.Context) error {
 
 func (r Registrations) Create(c echo.Context) error {
 	var payload struct {
-		Email           string `form:"email"`
-		Password        string `form:"password"`
-		ConfirmPassword string `form:"confirmPassword"`
+		Email           string `json:"email"`
+		Password        string `json:"password"`
+		ConfirmPassword string `json:"confirmPassword"`
 	}
 
 	if err := c.Bind(&payload); err != nil {
@@ -67,11 +71,21 @@ func (r Registrations) Create(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
+	slog.DebugContext(c.Request().Context(), "################################################################################")
+	slog.DebugContext(c.Request().Context(), "################################################################################")
+	slog.DebugContext(c.Request().Context(), "registering new user")
+	slog.DebugContext(c.Request().Context(), "################################################################################")
+	slog.DebugContext(c.Request().Context(), "################################################################################")
+
 	err := services.RegisterUser(
 		c.Request().Context(),
 		r.db,
+{{- if eq .Database "postgresql" }}
+		r.insertOnly,
+{{- else if eq .Database "sqlite" }}
+		r.sender,
+{{- end }}
 		r.cfg.Auth.Pepper,
-		r.emailClient,
 		services.RegisterUserData{
 			Email:           payload.Email,
 			Password:        payload.Password,

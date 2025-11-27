@@ -1,0 +1,30 @@
+func register{{.CapitalizedPluralName}}Routes(handler *echo.Echo, ctrls controllers.Controllers) {
+	handler.Add(
+		http.MethodGet, routes.{{.ResourceName}}Index.Path(), ctrls.{{.CapitalizedPluralName}}.Index,
+	).Name = routes.{{.ResourceName}}Index.Name()
+
+	handler.Add(
+		http.MethodGet, routes.{{.ResourceName}}Show.Path(), ctrls.{{.CapitalizedPluralName}}.Show,
+	).Name = routes.{{.ResourceName}}Show.Name()
+
+	handler.Add(
+		http.MethodGet, routes.{{.ResourceName}}New.Path(), ctrls.{{.CapitalizedPluralName}}.New,
+	).Name = routes.{{.ResourceName}}New.Name()
+
+	handler.Add(
+		http.MethodPost, routes.{{.ResourceName}}Create.Path(), ctrls.{{.CapitalizedPluralName}}.Create,
+	).Name = routes.{{.ResourceName}}Create.Name()
+
+	handler.Add(
+		http.MethodGet, routes.{{.ResourceName}}Edit.Path(), ctrls.{{.CapitalizedPluralName}}.Edit,
+	).Name = routes.{{.ResourceName}}Edit.Name()
+
+	handler.Add(
+		http.MethodPut, routes.{{.ResourceName}}Update.Path(), ctrls.{{.CapitalizedPluralName}}.Update,
+	).Name = routes.{{.ResourceName}}Update.Name()
+
+	handler.Add(
+		http.MethodDelete, routes.{{.ResourceName}}Destroy.Path(), ctrls.{{.CapitalizedPluralName}}.Destroy,
+	).Name = routes.{{.ResourceName}}Destroy.Name()
+}
+

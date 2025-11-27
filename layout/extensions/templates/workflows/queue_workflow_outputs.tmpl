@@ -1,0 +1,324 @@
+package workflow
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
+)
+
+const (
+	DefaultMaxOutputSize = 1024 * 1024
+	DefaultOutputTTL     = 24 * time.Hour
+)
+
+type OutputConfig struct {
+	MaxSize int
+	TTL     time.Duration
+}
+
+var DefaultOutputConfig = &OutputConfig{
+	MaxSize: DefaultMaxOutputSize,
+	TTL:     DefaultOutputTTL,
+}
+
+var (
+	ErrOutputNotFound    = fmt.Errorf("output not found")
+	ErrOutputTooLarge    = fmt.Errorf("output exceeds maximum size")
+	ErrInvalidOutputData = fmt.Errorf("invalid output data")
+)
+
+type TaskOutput struct {
+	WorkflowID string
+	TaskName   string
+	Data       interface{}
+	SizeBytes  int
+	CreatedAt  time.Time
+	ExpiresAt  *time.Time
+}
+
+type WorkflowTasks struct {
+	tasks map[string]*TaskOutput
+}
+
+func (wt *WorkflowTasks) Get(taskName string) (*TaskOutput, bool) {
+	output, ok := wt.tasks[taskName]
+	return output, ok
+}
+
+func (wt *WorkflowTasks) Names() []string {
+	names := make([]string, 0, len(wt.tasks))
+	for name := range wt.tasks {
+		names = append(names, name)
+	}
+	return names
+}
+
+func (wt *WorkflowTasks) Count() int {
+	return len(wt.tasks)
+}
+
+func (wt *WorkflowTasks) Output(taskName string, dest interface{}) error {
+	output, ok := wt.tasks[taskName]
+	if !ok {
+		return fmt.Errorf("task %q not found in loaded outputs", taskName)
+	}
+
+	data, err := json.Marshal(output.Data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal output: %w", err)
+	}
+
+	if err := json.Unmarshal(data, dest); err != nil {
+		return fmt.Errorf("failed to unmarshal output: %w", err)
+	}
+
+	return nil
+}
+
+func SaveOutput(ctx context.Context, pool *pgxpool.Pool, workflowID, taskName string, data interface{}) error {
+	return SaveOutputWithConfig(ctx, pool, nil, workflowID, taskName, data, DefaultOutputConfig)
+}
+
+func SaveOutputTx(ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, workflowID, taskName string, data interface{}) error {
+	return SaveOutputWithConfig(ctx, pool, tx, workflowID, taskName, data, DefaultOutputConfig)
+}
+
+func SaveOutputWithConfig(ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, workflowID, taskName string, data interface{}, config *OutputConfig) error {
+	if workflowID == "" {
+		return fmt.Errorf("workflow ID cannot be empty")
+	}
+	if taskName == "" {
+		return fmt.Errorf("task name cannot be empty")
+	}
+	if config == nil {
+		config = DefaultOutputConfig
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal output data: %w", err)
+	}
+
+	size := len(jsonData)
+	if size > config.MaxSize {
+		return fmt.Errorf("%w: %d bytes exceeds maximum %d bytes", ErrOutputTooLarge, size, config.MaxSize)
+	}
+
+	conn := getConn(pool, tx)
+
+	query := `
+		INSERT INTO workflow_outputs (workflow_id, task_name, output_data, output_size_bytes)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (workflow_id, task_name)
+		DO UPDATE SET
+			output_data = EXCLUDED.output_data,
+			output_size_bytes = EXCLUDED.output_size_bytes,
+			created_at = NOW()
+	`
+
+	_, err = conn.Exec(ctx, query, workflowID, taskName, jsonData, size)
+	if err != nil {
+		return fmt.Errorf("failed to save output: %w", err)
+	}
+
+	return nil
+}
+
+func SaveTypedOutput[T any](ctx context.Context, pool *pgxpool.Pool, workflowID, taskName string, data T) error {
+	return SaveOutput(ctx, pool, workflowID, taskName, data)
+}
+
+func SaveTypedOutputTx[T any](ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, workflowID, taskName string, data T) error {
+	return SaveOutputTx(ctx, pool, tx, workflowID, taskName, data)
+}
+
+func LoadOutput(ctx context.Context, pool *pgxpool.Pool, workflowID, taskName string) (*TaskOutput, error) {
+	return LoadOutputTx(ctx, pool, nil, workflowID, taskName)
+}
+
+func LoadOutputTx(ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, workflowID, taskName string) (*TaskOutput, error) {
+	if workflowID == "" {
+		return nil, fmt.Errorf("workflow ID cannot be empty")
+	}
+	if taskName == "" {
+		return nil, fmt.Errorf("task name cannot be empty")
+	}
+
+	conn := getConn(pool, tx)
+
+	query := `
+		SELECT output_data, output_size_bytes, created_at, expires_at
+		FROM workflow_outputs
+		WHERE workflow_id = $1 AND task_name = $2
+	`
+
+	var jsonData []byte
+	var output TaskOutput
+
+	err := conn.QueryRow(ctx, query, workflowID, taskName).Scan(
+		&jsonData,
+		&output.SizeBytes,
+		&output.CreatedAt,
+		&output.ExpiresAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("%w for task %q in workflow %q", ErrOutputNotFound, taskName, workflowID)
+		}
+		return nil, fmt.Errorf("failed to load output: %w", err)
+	}
+
+	var data interface{}
+	if err := json.Unmarshal(jsonData, &data); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidOutputData, err)
+	}
+
+	output.WorkflowID = workflowID
+	output.TaskName = taskName
+	output.Data = data
+
+	return &output, nil
+}
+
+func LoadTypedOutput[T any](ctx context.Context, pool *pgxpool.Pool, workflowID, taskName string) (T, error) {
+	return LoadTypedOutputTx[T](ctx, pool, nil, workflowID, taskName)
+}
+
+func LoadTypedOutputTx[T any](ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, workflowID, taskName string) (T, error) {
+	var result T
+
+	output, err := LoadOutputTx(ctx, pool, tx, workflowID, taskName)
+	if err != nil {
+		return result, err
+	}
+
+	data, err := json.Marshal(output.Data)
+	if err != nil {
+		return result, fmt.Errorf("failed to marshal output: %w", err)
+	}
+
+	if err := json.Unmarshal(data, &result); err != nil {
+		return result, fmt.Errorf("failed to unmarshal to type: %w", err)
+	}
+
+	return result, nil
+}
+
+func LoadDeps(ctx context.Context, pool *pgxpool.Pool, job *river.Job[river.JobArgs]) (*WorkflowTasks, error) {
+	return LoadDepsTx(ctx, pool, nil, job)
+}
+
+func LoadDepsTx(ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, job *river.Job[river.JobArgs]) (*WorkflowTasks, error) {
+	metadata, err := GetWorkflowMetadata(job)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get workflow metadata: %w", err)
+	}
+
+	if len(metadata.Dependencies) == 0 {
+		return &WorkflowTasks{tasks: make(map[string]*TaskOutput)}, nil
+	}
+
+	tasks := &WorkflowTasks{tasks: make(map[string]*TaskOutput)}
+
+	for _, depName := range metadata.Dependencies {
+		output, err := LoadOutputTx(ctx, pool, tx, metadata.WorkflowID, depName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load output for dependency %q: %w", depName, err)
+		}
+		tasks.tasks[depName] = output
+	}
+
+	return tasks, nil
+}
+
+func LoadDepsTyped[T river.JobArgs](ctx context.Context, pool *pgxpool.Pool, job *river.Job[T]) (*WorkflowTasks, error) {
+	return LoadDepsTypedTx(ctx, pool, nil, job)
+}
+
+func LoadDepsTypedTx[T river.JobArgs](ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, job *river.Job[T]) (*WorkflowTasks, error) {
+	metadata, err := GetWorkflowMetadata(job)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get workflow metadata: %w", err)
+	}
+
+	if len(metadata.Dependencies) == 0 {
+		return &WorkflowTasks{tasks: make(map[string]*TaskOutput)}, nil
+	}
+
+	tasks := &WorkflowTasks{tasks: make(map[string]*TaskOutput)}
+
+	for _, depName := range metadata.Dependencies {
+		output, err := LoadOutputTx(ctx, pool, tx, metadata.WorkflowID, depName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load output for dependency %q: %w", depName, err)
+		}
+		tasks.tasks[depName] = output
+	}
+
+	return tasks, nil
+}
+
+func SetWorkflowOutputsExpiration(ctx context.Context, pool *pgxpool.Pool, workflowID string, ttl time.Duration) error {
+	return SetWorkflowOutputsExpirationTx(ctx, pool, nil, workflowID, ttl)
+}
+
+func SetWorkflowOutputsExpirationTx(ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, workflowID string, ttl time.Duration) error {
+	if workflowID == "" {
+		return fmt.Errorf("workflow ID cannot be empty")
+	}
+
+	conn := getConn(pool, tx)
+
+	query := `
+		UPDATE workflow_outputs
+		SET expires_at = NOW() + $2::interval
+		WHERE workflow_id = $1 AND expires_at IS NULL
+	`
+
+	_, err := conn.Exec(ctx, query, workflowID, ttl)
+	if err != nil {
+		return fmt.Errorf("failed to set expiration: %w", err)
+	}
+
+	return nil
+}
+
+func DeleteWorkflowOutputs(ctx context.Context, pool *pgxpool.Pool, workflowID string) error {
+	return DeleteWorkflowOutputsTx(ctx, pool, nil, workflowID)
+}
+
+func DeleteWorkflowOutputsTx(ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, workflowID string) error {
+	if workflowID == "" {
+		return fmt.Errorf("workflow ID cannot be empty")
+	}
+
+	conn := getConn(pool, tx)
+
+	query := `DELETE FROM workflow_outputs WHERE workflow_id = $1`
+
+	_, err := conn.Exec(ctx, query, workflowID)
+	if err != nil {
+		return fmt.Errorf("failed to delete outputs: %w", err)
+	}
+
+	return nil
+}
+
+func CleanupExpiredOutputs(ctx context.Context, pool *pgxpool.Pool) (int64, error) {
+	query := `
+		DELETE FROM workflow_outputs
+		WHERE expires_at IS NOT NULL AND expires_at < NOW()
+	`
+
+	result, err := pool.Exec(ctx, query)
+	if err != nil {
+		return 0, fmt.Errorf("failed to cleanup expired outputs: %w", err)
+	}
+
+	return result.RowsAffected(), nil
+}

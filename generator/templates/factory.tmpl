@@ -1,0 +1,45 @@
+package factories
+
+import (
+	"github.com/google/uuid"
+
+	"{{.ModulePath}}/models"
+)
+
+type {{.Name}}Builder struct {
+	data models.Create{{.Name}}Data
+}
+
+func {{.Name}}() *{{.Name}}Builder {
+	return &{{.Name}}Builder{
+		data: models.Create{{.Name}}Data{
+{{- range .Fields}}
+{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+			{{.Name}}: {{.DefaultValue}},
+{{- end}}
+{{- end}}
+		},
+	}
+}
+
+{{- range .Fields}}
+{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+
+func (b *{{$.Name}}Builder) With{{.Name}}(val {{.Type}}) *{{$.Name}}Builder {
+	b.data.{{.Name}} = val
+	return b
+}
+{{- end}}
+{{- end}}
+
+func (b *{{.Name}}Builder) Create(dbtx DBTX) models.{{.Name}} {
+	{{lower .Name}}, err := models.Create{{.Name}}(ctx, dbtx, b.data)
+	if err != nil {
+		panic(err)
+	}
+	return {{lower .Name}}
+}
+
+func (b *{{.Name}}Builder) Build() models.Create{{.Name}}Data {
+	return b.data
+}

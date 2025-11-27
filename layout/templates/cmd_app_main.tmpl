@@ -8,15 +8,18 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/pkg/telemetry"
 	"{{.ModuleName}}/router"
 {{- if eq .Database "postgresql"}}
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/queue/workers"
+	"riverqueue.com/riverui"
 {{- end}}
 {{- range .Blueprint.Controllers.SortedDependencies}}
 {{- if .ImportPath}}
@@ -103,17 +106,69 @@ func setupControllers(
 	return ctrl, nil
 }
 
-func setupRouter(ctx context.Context, ctrl controllers.Controllers, cfg config.Config) (*echo.Echo, error) {
-	router, err := router.New(
+func setupRouter(
+	ctx context.Context,
+	ctrl controllers.Controllers,
+	cfg config.Config,
+	tel *telemetry.Telemetry,
+{{- if eq .Database "postgresql"}}
+	riverHandler *riverui.Handler,
+{{- end}}
+) (*echo.Echo, error) {
+	r, err := router.New(
 		ctx,
 		ctrl,
 		cfg,
+		tel,
+{{- if eq .Database "postgresql"}}
+		riverHandler,
+{{- end}}
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return router.SetupRoutes(), nil
+	return r.Handler, nil
+}
+
+func parseHeaders(headersStr string) map[string]string {
+	headers := make(map[string]string)
+	if headersStr == "" {
+		return headers
+	}
+
+	pairs := strings.Split(headersStr, ",")
+	for _, pair := range pairs {
+		kv := strings.SplitN(pair, "=", 2)
+		if len(kv) == 2 {
+			headers[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+		}
+	}
+	return headers
+}
+
+func buildTelemetry(ctx context.Context, cfg config.Config) (*telemetry.Telemetry, error) {
+	opts := []telemetry.Option{
+		telemetry.WithService(cfg.Telemetry.ServiceName, cfg.Telemetry.ServiceVersion),
+		telemetry.WithBatchConfig(cfg.Telemetry.BatchSize, cfg.Telemetry.BatchTimeoutMs, 2048),
+		telemetry.WithTraceSampleRate(cfg.Telemetry.TraceSampleRate),
+	}
+
+	opts = append(opts, telemetry.WithLogExporters(telemetry.NewStdoutExporter()))
+
+	if cfg.Telemetry.OtlpMetricsEndpoint != "" {
+		opts = append(opts, telemetry.WithMetricExporters(
+			telemetry.NewOtlpMetricExporter(cfg.Telemetry.OtlpMetricsEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders))))
+	}
+
+	if cfg.Telemetry.OtlpTracesEndpoint != "" {
+		opts = append(opts, telemetry.WithTraceExporters(
+			telemetry.NewOtlpTraceExporter(cfg.Telemetry.OtlpTracesEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders))))
+	} else {
+		opts = append(opts, telemetry.WithTraceExporters(telemetry.NewNoopTraceExporter()))
+	}
+
+	return telemetry.New(ctx, opts...)
 }
 
 func run(ctx context.Context) error {
@@ -122,44 +177,25 @@ func run(ctx context.Context) error {
 
 	cfg := config.NewConfig()
 
-	stdoutExporter := &router.StdoutExporter{
-		LogLevel:   slog.LevelInfo,
+	tel, err := buildTelemetry(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("failed to initialize telemetry: %w", err)
 	}
-
-	logger, shutdownLogger := router.NewLogger(ctx, stdoutExporter)
 	defer func() {
-		if err := shutdownLogger(ctx); err != nil {
-			slog.Error("Error shutting down logger", "error", err)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := tel.Shutdown(shutdownCtx); err != nil {
+			slog.Error("telemetry shutdown error", "error", err)
 		}
 	}()
 
-	slog.SetDefault(logger)
+	if err := tel.HealthCheck(ctx); err != nil {
+		slog.Warn("telemetry health check failed", "error", err)
+	}
 
 
 {{- if eq .Database "postgresql"}}
 	db, err := database.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
-	if err != nil {
-		return err
-	}
-
-	wrks, err := workers.Register()
-	if err != nil {
-		return err
-	}
-
-	insertOnly, err := queue.NewInsertOnly(
-		db.Conn(),
-		wrks,
-	)
-	if err != nil {
-		return err
-	}
-
-	processor, err := queue.NewProcessor(
-		ctx,
-		db.Conn(),
-		wrks,
-	)
 	if err != nil {
 		return err
 	}
@@ -180,6 +216,30 @@ func run(ctx context.Context) error {
 	{{.VarName}} := {{.Expression}}
 {{- end}}
 
+{{- if eq .Database "postgresql"}}
+	wrks, err := workers.Register(emailClient, emailClient)
+	if err != nil {
+		return err
+	}
+
+	insertOnly, err := queue.NewInsertOnly(
+		db.Conn(),
+		wrks,
+	)
+	if err != nil {
+		return err
+	}
+
+	processor, err := queue.NewProcessor(
+		ctx,
+		db.Conn(),
+		wrks,
+	)
+	if err != nil {
+		return err
+	}
+{{- end}}
+
 {{- range .Blueprint.Main.SortedPreRunHooks}}
 	// Pre-run hook: {{.Name}}
 	{{.Code}}
@@ -197,8 +257,22 @@ func run(ctx context.Context) error {
 		return err
 	}
 
+{{- if eq .Database "postgresql"}}
+	endpoints := riverui.NewEndpoints(processor.Client, nil)
+	opts := &riverui.HandlerOpts{
+		Endpoints: endpoints,
+		Logger:    slog.Default(),
+		Prefix:    "/riverui", // mount the UI and its APIs under /riverui or another path
+	}
+	riverHandler, err := riverui.NewHandler(opts)
+	if err != nil {
+		return err
+	}
 
-	handler, err := setupRouter(ctx, controllers, cfg)
+	riverHandler.Start(ctx)
+{{- end}}
+
+	handler, err := setupRouter(ctx, controllers, cfg, tel, {{- if eq .Database "postgresql"}} riverHandler {{- end}})
 	if err != nil {
 		return err
 	}
@@ -220,18 +294,15 @@ func run(ctx context.Context) error {
 	go {{.FunctionCall}}
 {{- end}}
 
-	port := "8080"
-	host := "0.0.0.0"
-
 	srv := &http.Server{
-		Addr:         fmt.Sprintf("%v:%v", host, port),
+		Addr:         fmt.Sprintf("%v:%v", cfg.App.Host, cfg.App.Port),
 		Handler:      handler,
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 5 * time.Second,
 		BaseContext:  func(_ net.Listener) context.Context { return ctx },
 	}
 
-	slog.InfoContext(ctx, "starting server", "host", host, "port", port)
+	slog.InfoContext(ctx, "starting server", "host", cfg.App.Host, "port", cfg.App.Port)
 {{- if eq .Database "postgresql"}}
 	return startServer(ctx, srv, processor, config.Env)
 {{- else}}

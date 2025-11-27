@@ -109,16 +109,16 @@ func newMigrationDownToCommand() *cobra.Command {
 }
 
 func runMigrationBinary(args ...string) error {
-	wd, err := os.Getwd()
+	rootDir, err := findGoModRoot()
 	if err != nil {
 		return err
 	}
 
-	binPath := filepath.Join(wd, "bin", "migration")
+	binPath := filepath.Join(rootDir, "bin", "migration")
 	if _, err := os.Stat(binPath); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf(
-				"migration binary not found at %s; build it with 'go build ./cmd/migration'",
+				"migration binary not found at %s\nRun 'andurel sync' to build it",
 				binPath,
 			)
 		}
@@ -129,6 +129,7 @@ func runMigrationBinary(args ...string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
+	cmd.Dir = rootDir
 
 	return cmd.Run()
 }

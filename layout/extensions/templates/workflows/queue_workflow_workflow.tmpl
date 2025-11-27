@@ -1,0 +1,202 @@
+package workflow
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/riverqueue/river"
+)
+
+const (
+	WorkflowStatePending   = "pending"
+	WorkflowStateReady     = "ready"
+	WorkflowStateRunning   = "running"
+	WorkflowStateCompleted = "completed"
+	WorkflowStateFailed    = "failed"
+)
+
+type WorkflowMetadata struct {
+	WorkflowID     string   `json:"workflow_id"`
+	TaskName       string   `json:"task_name"`
+	Dependencies   []string `json:"dependencies,omitempty"`
+	WorkflowState  string   `json:"workflow_state"`
+	IgnoreFailed   bool     `json:"ignore_failed,omitempty"`
+	IgnoreCanceled bool     `json:"ignore_canceled,omitempty"`
+}
+
+type Task struct {
+	Name string
+	Args river.JobArgs
+	Opts *river.InsertOpts
+	Deps []string
+}
+
+type Builder struct {
+	workflowID string
+	tasks      map[string]*Task
+	graph      map[string][]string
+}
+
+func New() *Builder {
+	return &Builder{
+		workflowID: uuid.New().String(),
+		tasks:      make(map[string]*Task),
+		graph:      make(map[string][]string),
+	}
+}
+
+func NewWithID(workflowID string) *Builder {
+	return &Builder{
+		workflowID: workflowID,
+		tasks:      make(map[string]*Task),
+		graph:      make(map[string][]string),
+	}
+}
+
+func (b *Builder) ID() string {
+	return b.workflowID
+}
+
+func (b *Builder) AddTask(name string, args river.JobArgs, opts *river.InsertOpts, deps []string) error {
+	if name == "" {
+		return errors.New("task name cannot be empty")
+	}
+
+	if _, exists := b.tasks[name]; exists {
+		return fmt.Errorf("task %q already exists in workflow", name)
+	}
+
+	for _, dep := range deps {
+		if _, exists := b.tasks[dep]; !exists {
+			return fmt.Errorf("dependency %q does not exist", dep)
+		}
+	}
+
+	b.tasks[name] = &Task{
+		Name: name,
+		Args: args,
+		Opts: opts,
+		Deps: deps,
+	}
+
+	b.graph[name] = deps
+
+	return nil
+}
+
+func (b *Builder) Validate() error {
+	if len(b.tasks) == 0 {
+		return errors.New("workflow must have at least one task")
+	}
+
+	visited := make(map[string]bool)
+	recStack := make(map[string]bool)
+
+	for task := range b.tasks {
+		if !visited[task] {
+			if b.hasCycle(task, visited, recStack) {
+				return errors.New("workflow contains a cycle")
+			}
+		}
+	}
+
+	return nil
+}
+
+func (b *Builder) hasCycle(task string, visited, recStack map[string]bool) bool {
+	visited[task] = true
+	recStack[task] = true
+
+	for _, dep := range b.graph[task] {
+		if !visited[dep] {
+			if b.hasCycle(dep, visited, recStack) {
+				return true
+			}
+		}
+		if recStack[dep] {
+			return true
+		}
+	}
+
+	recStack[task] = false
+	return false
+}
+
+func (b *Builder) Insert(ctx context.Context, client *river.Client[pgx.Tx]) ([]int64, error) {
+	if err := b.Validate(); err != nil {
+		return nil, err
+	}
+
+	params := make([]river.InsertManyParams, 0, len(b.tasks))
+	farFuture := time.Now().Add(365 * 24 * time.Hour)
+
+	for _, task := range b.tasks {
+		metadata := WorkflowMetadata{
+			WorkflowID:    b.workflowID,
+			TaskName:      task.Name,
+			Dependencies:  task.Deps,
+			WorkflowState: WorkflowStatePending,
+		}
+
+		if len(task.Deps) == 0 {
+			metadata.WorkflowState = WorkflowStateReady
+		}
+
+		metadataJSON, err := json.Marshal(metadata)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal metadata for task %q: %w", task.Name, err)
+		}
+
+		opts := task.Opts
+		if opts == nil {
+			opts = &river.InsertOpts{}
+		}
+
+		if opts.Metadata == nil {
+			opts.Metadata = make([]byte, 0)
+		}
+
+		opts.Metadata = metadataJSON
+
+		if len(task.Deps) > 0 {
+			opts.ScheduledAt = farFuture
+		}
+
+		opts.Queue = "workflow"
+
+		params = append(params, river.InsertManyParams{
+			Args:       task.Args,
+			InsertOpts: opts,
+		})
+	}
+
+	count, err := client.InsertMany(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert workflow jobs: %w", err)
+	}
+
+	jobIDs := make([]int64, len(count))
+	for i, job := range count {
+		jobIDs[i] = job.Job.ID
+	}
+
+	return jobIDs, nil
+}
+
+func GetWorkflowMetadata[T river.JobArgs](job *river.Job[T]) (*WorkflowMetadata, error) {
+	if len(job.Metadata) == 0 {
+		return nil, errors.New("job has no metadata")
+	}
+
+	var metadata WorkflowMetadata
+	if err := json.Unmarshal(job.Metadata, &metadata); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal workflow metadata: %w", err)
+	}
+
+	return &metadata, nil
+}

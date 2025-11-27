@@ -15,8 +15,8 @@ func New() (Generator, error) {
 	}, nil
 }
 
-func (g *Generator) GenerateModel(resourceName string) error {
-	return g.coordinator.ModelManager.GenerateModel(resourceName)
+func (g *Generator) GenerateModel(resourceName string, tableNameOverride string) error {
+	return g.coordinator.ModelManager.GenerateModel(resourceName, tableNameOverride)
 }
 
 func (g *Generator) GenerateController(resourceName, tableName string, withViews bool) error {

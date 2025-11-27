@@ -1,0 +1,32 @@
+-- +goose Up
+-- +goose StatementBegin
+CREATE TABLE workflow_outputs (
+    workflow_id TEXT NOT NULL,
+    task_name TEXT NOT NULL,
+    output_data JSONB NOT NULL,
+    output_size_bytes INT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ,
+    PRIMARY KEY (workflow_id, task_name)
+);
+
+CREATE INDEX idx_workflow_outputs_expires
+ON workflow_outputs(expires_at)
+WHERE expires_at IS NOT NULL;
+
+CREATE INDEX idx_workflow_outputs_created
+ON workflow_outputs(created_at);
+
+CREATE INDEX idx_workflow_outputs_workflow_id
+ON workflow_outputs(workflow_id);
+
+COMMENT ON TABLE workflow_outputs IS 'Stores task outputs for inter-task data passing in workflows';
+COMMENT ON COLUMN workflow_outputs.output_data IS 'JSONB-encoded task output data';
+COMMENT ON COLUMN workflow_outputs.output_size_bytes IS 'Size of serialized output in bytes for monitoring and limits';
+COMMENT ON COLUMN workflow_outputs.expires_at IS 'NULL means no expiration, set after workflow completion for TTL-based cleanup';
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS workflow_outputs;
+-- +goose StatementEnd

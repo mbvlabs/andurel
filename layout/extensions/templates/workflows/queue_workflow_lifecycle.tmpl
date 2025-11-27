@@ -1,0 +1,351 @@
+package workflow
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+func GetWorkflow(ctx context.Context, pool *pgxpool.Pool, workflowID string) (*WorkflowInfo, error) {
+	return GetWorkflowTx(ctx, pool, nil, workflowID)
+}
+
+func GetWorkflowTx(ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, workflowID string) (*WorkflowInfo, error) {
+	if workflowID == "" {
+		return nil, fmt.Errorf("workflow ID cannot be empty")
+	}
+
+	conn := getConn(pool, tx)
+
+	query := `
+		WITH workflow_tasks AS (
+			SELECT
+				COUNT(*) as total_tasks,
+				MIN(created_at) as created_at,
+				MAX(CASE WHEN state IN ('running', 'completed', 'cancelled', 'discarded')
+					THEN attempted_at END) as updated_at,
+				MIN(CASE WHEN metadata->>'workflow_state' = 'running'
+					THEN attempted_at END) as started_at,
+				MAX(CASE WHEN metadata->>'workflow_state' = 'completed'
+					THEN finalized_at END) as completed_at,
+				MAX(CASE WHEN metadata->>'workflow_state' = 'failed'
+					THEN finalized_at END) as failed_at,
+				MAX(CASE WHEN state = 'cancelled'
+					THEN finalized_at END) as cancelled_at,
+
+				COUNT(*) FILTER (WHERE metadata->>'workflow_state' = 'pending') as pending,
+				COUNT(*) FILTER (WHERE metadata->>'workflow_state' = 'ready') as ready,
+				COUNT(*) FILTER (WHERE metadata->>'workflow_state' = 'running') as running,
+				COUNT(*) FILTER (WHERE metadata->>'workflow_state' = 'completed') as completed,
+				COUNT(*) FILTER (WHERE metadata->>'workflow_state' = 'failed') as failed,
+				COUNT(*) FILTER (WHERE state = 'cancelled') as cancelled
+			FROM river_job
+			WHERE metadata->>'workflow_id' = $1
+		),
+		first_error AS (
+			SELECT
+				id,
+				metadata->>'task_name' as task_name,
+				errors[array_upper(errors, 1)]->>'error' as error,
+				finalized_at
+			FROM river_job
+			WHERE metadata->>'workflow_id' = $1
+			  AND metadata->>'workflow_state' = 'failed'
+			ORDER BY finalized_at ASC
+			LIMIT 1
+		)
+		SELECT
+			wt.*,
+			fe.task_name as error_task_name,
+			fe.id as error_job_id,
+			fe.error as error_message,
+			fe.finalized_at as error_occurred_at
+		FROM workflow_tasks wt
+		LEFT JOIN first_error fe ON true
+	`
+
+	var info WorkflowInfo
+	var errorTaskName, errorMessage *string
+	var errorJobID *int64
+	var errorOccurredAt *time.Time
+
+	row := conn.QueryRow(ctx, query, workflowID)
+	err := row.Scan(
+		&info.TotalTasks,
+		&info.CreatedAt,
+		&info.UpdatedAt,
+		&info.StartedAt,
+		&info.CompletedAt,
+		&info.FailedAt,
+		&info.CancelledAt,
+		&info.TaskBreakdown.Pending,
+		&info.TaskBreakdown.Ready,
+		&info.TaskBreakdown.Running,
+		&info.TaskBreakdown.Completed,
+		&info.TaskBreakdown.Failed,
+		&info.TaskBreakdown.Cancelled,
+		&errorTaskName,
+		&errorJobID,
+		&errorMessage,
+		&errorOccurredAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query workflow: %w", err)
+	}
+
+	if info.TotalTasks == 0 {
+		return nil, ErrWorkflowNotFound
+	}
+
+	info.WorkflowID = workflowID
+	info.State = deriveWorkflowState(info.TaskBreakdown, info.TotalTasks)
+	info.Duration = calculateDuration(info.StartedAt, info.CompletedAt, info.FailedAt, info.CancelledAt)
+
+	if errorTaskName != nil && errorJobID != nil && errorMessage != nil && errorOccurredAt != nil {
+		info.FirstError = &WorkflowError{
+			TaskName:   *errorTaskName,
+			JobID:      *errorJobID,
+			Error:      *errorMessage,
+			OccurredAt: *errorOccurredAt,
+		}
+	}
+
+	return &info, nil
+}
+
+func WorkflowExists(ctx context.Context, pool *pgxpool.Pool, workflowID string) (bool, error) {
+	return WorkflowExistsTx(ctx, pool, nil, workflowID)
+}
+
+func WorkflowExistsTx(ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, workflowID string) (bool, error) {
+	if workflowID == "" {
+		return false, fmt.Errorf("workflow ID cannot be empty")
+	}
+
+	conn := getConn(pool, tx)
+
+	query := `
+		SELECT EXISTS(
+			SELECT 1 FROM river_job
+			WHERE metadata->>'workflow_id' = $1
+			LIMIT 1
+		)
+	`
+
+	var exists bool
+	err := conn.QueryRow(ctx, query, workflowID).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("failed to check workflow existence: %w", err)
+	}
+
+	return exists, nil
+}
+
+func GetWorkflowProgress(ctx context.Context, pool *pgxpool.Pool, workflowID string) (float64, error) {
+	return GetWorkflowProgressTx(ctx, pool, nil, workflowID)
+}
+
+func GetWorkflowProgressTx(ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, workflowID string) (float64, error) {
+	info, err := GetWorkflowTx(ctx, pool, tx, workflowID)
+	if err != nil {
+		return 0, err
+	}
+
+	if info.TotalTasks == 0 {
+		return 0, nil
+	}
+
+	return float64(info.TaskBreakdown.Completed) / float64(info.TotalTasks), nil
+}
+
+func ListWorkflows(ctx context.Context, pool *pgxpool.Pool, filter WorkflowListFilter) (*WorkflowList, error) {
+	return ListWorkflowsTx(ctx, pool, nil, filter)
+}
+
+func ListWorkflowsTx(ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, filter WorkflowListFilter) (*WorkflowList, error) {
+	conn := getConn(pool, tx)
+
+	if filter.Limit <= 0 {
+		filter.Limit = 20
+	}
+	if filter.Limit > 100 {
+		filter.Limit = 100
+	}
+
+	query := `
+		WITH workflow_summaries AS (
+			SELECT
+				metadata->>'workflow_id' as workflow_id,
+				COUNT(*) as total_tasks,
+				COUNT(*) FILTER (WHERE metadata->>'workflow_state' = 'completed') as completed_tasks,
+				COUNT(*) FILTER (WHERE metadata->>'workflow_state' = 'pending') as pending,
+				COUNT(*) FILTER (WHERE metadata->>'workflow_state' = 'failed') as failed,
+				COUNT(*) FILTER (WHERE state = 'cancelled') as cancelled,
+				MIN(created_at) as created_at,
+				MIN(CASE WHEN metadata->>'workflow_state' = 'running'
+					THEN attempted_at END) as started_at,
+				MAX(CASE WHEN metadata->>'workflow_state' = 'completed'
+					THEN finalized_at END) as completed_at,
+				MAX(CASE WHEN metadata->>'workflow_state' = 'failed'
+					THEN finalized_at END) as failed_at,
+				MAX(CASE WHEN state = 'cancelled'
+					THEN finalized_at END) as cancelled_at
+			FROM river_job
+			WHERE metadata ? 'workflow_id'
+			GROUP BY metadata->>'workflow_id'
+		)
+		SELECT
+			workflow_id,
+			total_tasks,
+			completed_tasks,
+			pending,
+			failed,
+			cancelled,
+			created_at,
+			started_at,
+			completed_at,
+			failed_at,
+			cancelled_at
+		FROM workflow_summaries
+		WHERE 1=1
+	`
+
+	args := []interface{}{}
+	argCount := 0
+
+	if filter.CreatedAfter != nil {
+		argCount++
+		query += fmt.Sprintf(" AND created_at >= $%d", argCount)
+		args = append(args, *filter.CreatedAfter)
+	}
+
+	if filter.CreatedBefore != nil {
+		argCount++
+		query += fmt.Sprintf(" AND created_at <= $%d", argCount)
+		args = append(args, *filter.CreatedBefore)
+	}
+
+	query += " ORDER BY created_at DESC"
+	argCount++
+	query += fmt.Sprintf(" LIMIT $%d", argCount)
+	args = append(args, filter.Limit+1)
+
+	if filter.Offset > 0 {
+		argCount++
+		query += fmt.Sprintf(" OFFSET $%d", argCount)
+		args = append(args, filter.Offset)
+	}
+
+	rows, err := conn.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query workflows: %w", err)
+	}
+	defer rows.Close()
+
+	var summaries []WorkflowSummary
+	for rows.Next() {
+		var s WorkflowSummary
+		var pending, failed, cancelled int
+		var startedAt, completedAt, failedAt, cancelledAt *time.Time
+
+		err := rows.Scan(
+			&s.WorkflowID,
+			&s.TotalTasks,
+			&s.CompletedTasks,
+			&pending,
+			&failed,
+			&cancelled,
+			&s.CreatedAt,
+			&startedAt,
+			&completedAt,
+			&failedAt,
+			&cancelledAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan workflow summary: %w", err)
+		}
+
+		breakdown := TaskBreakdown{
+			Pending:   pending,
+			Completed: s.CompletedTasks,
+			Failed:    failed,
+			Cancelled: cancelled,
+		}
+		s.State = deriveWorkflowState(breakdown, s.TotalTasks)
+		s.Duration = calculateDuration(startedAt, completedAt, failedAt, cancelledAt)
+
+		if filter.State != nil && s.State != *filter.State {
+			continue
+		}
+
+		summaries = append(summaries, s)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating workflows: %w", err)
+	}
+
+	hasMore := len(summaries) > filter.Limit
+	if hasMore {
+		summaries = summaries[:filter.Limit]
+	}
+
+	return &WorkflowList{
+		Workflows:  summaries,
+		TotalCount: len(summaries),
+		HasMore:    hasMore,
+	}, nil
+}
+
+func GetDependencyGraph(ctx context.Context, pool *pgxpool.Pool, workflowID string) (map[string][]string, error) {
+	return GetDependencyGraphTx(ctx, pool, nil, workflowID)
+}
+
+func GetDependencyGraphTx(ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, workflowID string) (map[string][]string, error) {
+	if workflowID == "" {
+		return nil, fmt.Errorf("workflow ID cannot be empty")
+	}
+
+	conn := getConn(pool, tx)
+
+	query := `
+		SELECT
+			metadata->>'task_name' as task_name,
+			COALESCE(metadata->'dependencies', '[]'::jsonb) as dependencies
+		FROM river_job
+		WHERE metadata->>'workflow_id' = $1
+		ORDER BY id
+	`
+
+	rows, err := conn.Query(ctx, query, workflowID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query dependency graph: %w", err)
+	}
+	defer rows.Close()
+
+	graph := make(map[string][]string)
+	for rows.Next() {
+		var taskName string
+		var dependencies []string
+
+		err := rows.Scan(&taskName, &dependencies)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan task dependencies: %w", err)
+		}
+
+		graph[taskName] = dependencies
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating tasks: %w", err)
+	}
+
+	if len(graph) == 0 {
+		return nil, ErrWorkflowNotFound
+	}
+
+	return graph, nil
+}

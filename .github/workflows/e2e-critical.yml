@@ -1,0 +1,57 @@
+name: E2E Critical Suite
+
+on:
+  push:
+    branches:
+      - master
+      - main
+
+jobs:
+  e2e-critical:
+    name: E2E Critical Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      E2E_CRITICAL_ONLY: "true"
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/testdb?sslmode=disable"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.4'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run E2E critical tests
+        run: go test ./e2e/... -v -timeout 25m
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-critical-failures
+          path: |
+            /tmp/andurel-e2e-*
+          retention-days: 7

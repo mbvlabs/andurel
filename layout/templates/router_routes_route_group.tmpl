@@ -3,30 +3,19 @@ package routes
 type routeGroup struct {
 	namePrefix string
 	pathPrefix string
-	middleware []routeMiddleware
 }
 
 func newRouteGroup(namePrefix, pathPrefix string) routeGroup {
 	return routeGroup{
 		namePrefix: namePrefix,
 		pathPrefix: pathPrefix,
-		middleware: []routeMiddleware{},
 	}
-}
-
-func (g routeGroup) withMiddleware(mw ...routeMiddleware) routeGroup {
-	g.middleware = append(g.middleware, mw...)
-	return g
 }
 
 func (g routeGroup) route(name string) routeBuilder {
 	builder := newRouteBuilder(name)
 	builder = builder.SetNamePrefix(g.namePrefix)
 	builder = builder.SetPath(g.pathPrefix)
-
-	if len(g.middleware) > 0 {
-		builder = builder.WithMiddleware(g.middleware...)
-	}
 
 	return builder
 }

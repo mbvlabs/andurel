@@ -1,0 +1,159 @@
+package workflow
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+func GetTask(ctx context.Context, pool *pgxpool.Pool, workflowID, taskName string) (*TaskInfo, error) {
+	return GetTaskTx(ctx, pool, nil, workflowID, taskName)
+}
+
+func GetTaskTx(ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, workflowID, taskName string) (*TaskInfo, error) {
+	if workflowID == "" {
+		return nil, fmt.Errorf("workflow ID cannot be empty")
+	}
+	if taskName == "" {
+		return nil, fmt.Errorf("task name cannot be empty")
+	}
+
+	tasks, err := ListTasksTx(ctx, pool, tx, workflowID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, task := range tasks {
+		if task.TaskName == taskName {
+			return &task, nil
+		}
+	}
+
+	return nil, ErrTaskNotFound
+}
+
+func ListTasks(ctx context.Context, pool *pgxpool.Pool, workflowID string) ([]TaskInfo, error) {
+	return ListTasksTx(ctx, pool, nil, workflowID)
+}
+
+func ListTasksTx(ctx context.Context, pool *pgxpool.Pool, tx pgx.Tx, workflowID string) ([]TaskInfo, error) {
+	if workflowID == "" {
+		return nil, fmt.Errorf("workflow ID cannot be empty")
+	}
+
+	conn := getConn(pool, tx)
+
+	query := `
+		WITH task_dependents AS (
+			SELECT
+				metadata->>'workflow_id' as workflow_id,
+				jsonb_array_elements_text(
+					COALESCE(metadata->'dependencies', '[]'::jsonb)
+				) as depends_on,
+				metadata->>'task_name' as task_name
+			FROM river_job
+			WHERE metadata->>'workflow_id' = $1
+		)
+		SELECT
+			j.id,
+			j.metadata->>'task_name' as task_name,
+			j.state,
+			j.metadata->>'workflow_state' as workflow_state,
+			COALESCE(j.metadata->'dependencies', '[]'::jsonb) as dependencies,
+			COALESCE(
+				jsonb_agg(DISTINCT td.task_name) FILTER (WHERE td.task_name IS NOT NULL),
+				'[]'::jsonb
+			) as dependents,
+			j.priority,
+			j.queue,
+			j.created_at,
+			j.scheduled_at,
+			j.attempted_at,
+			j.finalized_at,
+			j.attempt,
+			j.max_attempts,
+			COALESCE(j.errors, '[]'::jsonb) as errors
+		FROM river_job j
+		LEFT JOIN task_dependents td
+			ON td.workflow_id = j.metadata->>'workflow_id'
+			AND td.depends_on = j.metadata->>'task_name'
+		WHERE j.metadata->>'workflow_id' = $1
+		GROUP BY j.id
+		ORDER BY j.id
+	`
+
+	rows, err := conn.Query(ctx, query, workflowID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query tasks: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []TaskInfo
+	for rows.Next() {
+		var task TaskInfo
+		var dependenciesJSON, dependentsJSON, errorsJSON []byte
+
+		err := rows.Scan(
+			&task.JobID,
+			&task.TaskName,
+			&task.State,
+			&task.WorkflowState,
+			&dependenciesJSON,
+			&dependentsJSON,
+			&task.Priority,
+			&task.Queue,
+			&task.CreatedAt,
+			&task.ScheduledAt,
+			&task.AttemptedAt,
+			&task.FinalizedAt,
+			&task.Attempt,
+			&task.MaxAttempts,
+			&errorsJSON,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan task: %w", err)
+		}
+
+		if err := json.Unmarshal(dependenciesJSON, &task.Dependencies); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal dependencies: %w", err)
+		}
+
+		if err := json.Unmarshal(dependentsJSON, &task.Dependents); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal dependents: %w", err)
+		}
+
+		var riverErrors []struct {
+			Attempt int16     `json:"attempt"`
+			At      time.Time `json:"at"`
+			Error   string    `json:"error"`
+			Trace   string    `json:"trace"`
+		}
+		if err := json.Unmarshal(errorsJSON, &riverErrors); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal errors: %w", err)
+		}
+
+		for _, re := range riverErrors {
+			task.Errors = append(task.Errors, TaskError{
+				Attempt:    re.Attempt,
+				Error:      re.Error,
+				OccurredAt: re.At,
+			})
+		}
+
+		tasks = append(tasks, task)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating tasks: %w", err)
+	}
+
+	if len(tasks) == 0 {
+		return nil, ErrWorkflowNotFound
+	}
+
+	return tasks, nil
+}

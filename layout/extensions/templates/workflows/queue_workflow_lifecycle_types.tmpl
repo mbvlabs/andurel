@@ -1,0 +1,107 @@
+package workflow
+
+import (
+	"time"
+)
+
+type OverallWorkflowState string
+
+const (
+	OverallWorkflowStateInitializing OverallWorkflowState = "initializing"
+	OverallWorkflowStateActive       OverallWorkflowState = "active"
+	OverallWorkflowStateCompleted    OverallWorkflowState = "completed"
+	OverallWorkflowStateFailed       OverallWorkflowState = "failed"
+	OverallWorkflowStateCancelled    OverallWorkflowState = "cancelled"
+)
+
+type WorkflowInfo struct {
+	WorkflowID string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	State      OverallWorkflowState
+	TotalTasks int
+
+	TaskBreakdown TaskBreakdown
+
+	StartedAt   *time.Time
+	CompletedAt *time.Time
+	FailedAt    *time.Time
+	CancelledAt *time.Time
+
+	Duration time.Duration
+
+	FirstError *WorkflowError
+}
+
+type TaskBreakdown struct {
+	Pending   int
+	Ready     int
+	Running   int
+	Completed int
+	Failed    int
+	Cancelled int
+}
+
+type WorkflowError struct {
+	TaskName   string
+	JobID      int64
+	Error      string
+	OccurredAt time.Time
+}
+
+type TaskInfo struct {
+	TaskName      string
+	JobID         int64
+	State         string
+	WorkflowState string
+
+	Dependencies []string
+	Dependents   []string
+
+	Priority int16
+	Queue    string
+
+	CreatedAt   time.Time
+	ScheduledAt time.Time
+	AttemptedAt *time.Time
+	FinalizedAt *time.Time
+
+	Attempt     int16
+	MaxAttempts int16
+
+	Errors []TaskError
+}
+
+type TaskError struct {
+	Attempt    int16
+	Error      string
+	OccurredAt time.Time
+}
+
+type WorkflowListFilter struct {
+	State         *OverallWorkflowState
+	CreatedAfter  *time.Time
+	CreatedBefore *time.Time
+	Limit         int
+	Offset        int
+}
+
+type WorkflowList struct {
+	Workflows  []WorkflowSummary
+	TotalCount int
+	HasMore    bool
+}
+
+type WorkflowSummary struct {
+	WorkflowID     string
+	State          OverallWorkflowState
+	TotalTasks     int
+	CompletedTasks int
+	CreatedAt      time.Time
+	Duration       time.Duration
+}
+
+type CancelWorkflowOpts struct {
+	Reason        string
+	CancelRunning bool
+}

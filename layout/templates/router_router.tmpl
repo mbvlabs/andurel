@@ -5,25 +5,24 @@ import (
 	"context"
 	"encoding/gob"
 	"encoding/hex"
-	"fmt"
-	"log/slog"
 	"net/http"
-	"os"
-	"reflect"
-	"slices"
 	"strings"
-	"time"
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/pkg/telemetry"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/router/middleware"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
+{{- if eq .Database "postgresql"}}
+	"riverqueue.com/riverui"
+{{- end}}
 
 	echomw "github.com/labstack/echo/v4/middleware"
 )
@@ -31,12 +30,17 @@ import (
 type Router struct {
 	Handler     *echo.Echo
 	controllers controllers.Controllers
+	telemetry   *telemetry.Telemetry
 }
 
 func New(
 	ctx context.Context,
 	controllers controllers.Controllers,
 	cfg config.Config,
+	tel *telemetry.Telemetry,
+{{- if eq .Database "postgresql"}}
+	riverHandler *riverui.Handler,
+{{- end}}
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
@@ -63,16 +67,17 @@ func New(
 	// TODO: make changing name work with d-*
 	csrfName := "_csrf"
 
-	router.Use(
-		logger(),
+	middleware := []echo.MiddlewareFunc{
+		otelecho.Middleware(config.ServiceName),
+		middleware.Logger(tel),
 		session.Middleware(
 			sessions.NewCookieStore(
 				authKey,
 				encKey,
 			),
 		),
-		registerAppContext,
-		registerFlashMessagesContext,
+		middleware.RegisterAppContext,
+		middleware.RegisterFlashMessagesContext,
 
 		echomw.CSRFWithConfig(echomw.CSRFConfig{Skipper: func(c echo.Context) bool {
 			return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
@@ -86,190 +91,21 @@ func New(
 		}(), CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
 
 		echomw.Recover(),
-	)
+	}
+
+	router.Use(middleware...)
+
+{{- if eq .Database "postgresql"}}
+	router.Any("/riverui*", echo.WrapHandler(riverHandler))
+{{- end}}
+
+	registrar.register(router, controllers)
+
+	router.RouteNotFound("/*", controllers.Pages.NotFound)
 
 	return &Router{
 		router,
 		controllers,
+		tel,
 	}, nil
-}
-
-func (r *Router) SetupRoutes() *echo.Echo {
-	registeredRoutes := []string{}
-	controllersValue := reflect.ValueOf(r.controllers)
-
-	for _, route := range routes.Registry {
-		if registered := slices.Contains(registeredRoutes, route.Name); registered {
-			fmt.Fprintf(os.Stderr, "Error: Route '%s' (Path: %s) is registered more than once\n", route.Name, route.Path)
-			os.Exit(1)
-		}
-
-		if route.Controller == "" || route.ControllerMethod == "" {
-			fmt.Fprintf(os.Stderr, "Error: Route '%s' (Path: %s) must specify Controller and ControllerMethod fields\n", route.Name, route.Path)
-			os.Exit(1)
-		}
-
-		controllerField := controllersValue.FieldByName(route.Controller)
-		if !controllerField.IsValid() {
-			fmt.Fprintf(os.Stderr, "Error: Tried to register Route '%s' (Path: %s) on Controller: %s Method: %s but Controller '%s' does not exist\n",
-				route.Name, route.Path, route.Controller, route.ControllerMethod, route.Controller)
-			os.Exit(1)
-		}
-
-		controller := controllerField.Interface()
-		controllerFunc := getHandlerFunc(controller, route.ControllerMethod)
-
-		var middlewareFuncs []echo.MiddlewareFunc
-		for _, mw := range route.Middleware {
-			middlewareFuncs = append(middlewareFuncs, echo.MiddlewareFunc(mw.Handler()))
-		}
-
-		switch route.Method {
-		case http.MethodGet:
-			registeredRoutes = append(registeredRoutes, route.Name)
-			r.Handler.GET(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
-		case http.MethodPost:
-			registeredRoutes = append(registeredRoutes, route.Name)
-			r.Handler.POST(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
-		case http.MethodPut:
-			registeredRoutes = append(registeredRoutes, route.Name)
-			r.Handler.PUT(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
-		case http.MethodDelete:
-			registeredRoutes = append(registeredRoutes, route.Name)
-			r.Handler.DELETE(route.Path, controllerFunc, middlewareFuncs...).Name = route.Name
-		}
-	}
-
-	r.Handler.RouteNotFound(
-		"/*",
-		getHandlerFunc(r.controllers.Pages, "NotFound"),
-	)
-
-	return r.Handler
-}
-
-func getHandlerFunc(controller any, methodName string) echo.HandlerFunc {
-	appType := reflect.TypeOf(controller)
-	method, found := appType.MethodByName(methodName)
-	if !found {
-		controllerName := appType.String()
-		fmt.Fprintf(os.Stderr, "Error: Controller method '%s' not found on Controller: %s\n", methodName, controllerName)
-		os.Exit(1)
-	}
-
-	return func(c echo.Context) error {
-		values := method.Func.Call([]reflect.Value{
-			reflect.ValueOf(controller),
-			reflect.ValueOf(c),
-		})
-
-		if len(values) != 1 {
-			panic(
-				fmt.Sprintf(
-					"Controller method %s does not return exactly one value",
-					methodName,
-				),
-			)
-		}
-
-		if values[0].IsNil() {
-			return nil
-		}
-
-		return values[0].Interface().(error)
-	}
-}
-
-func registerAppContext(
-	next echo.HandlerFunc,
-) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		if strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix) ||
-			strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) {
-			return next(c)
-		}
-
-		c.Set(string(cookies.AppKey), cookies.GetApp(c))
-
-		return next(c)
-	}
-}
-
-func registerFlashMessagesContext(
-	next echo.HandlerFunc,
-) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		if strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix) ||
-			strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) {
-			return next(c)
-		}
-
-		flashes, err := cookies.GetFlashes(c)
-		if err != nil {
-			slog.Error("Error getting flash messages from session", "error", err)
-			return next(c)
-		}
-
-		c.Set(string(cookies.FlashKey), flashes)
-
-		return next(c)
-	}
-}
-
-type LogExporter interface {
-	Name() string
-	GetSlogHandler(
-		ctx context.Context,
-	) (slog.Handler, error)
-
-	Shutdown(ctx context.Context) error
-}
-
-func NewLogger(
-	ctx context.Context,
-	exporter LogExporter,
-) (*slog.Logger, func(ctx context.Context) error) {
-	handler, err := exporter.GetSlogHandler(ctx)
-	if err != nil {
-		panic(err)
-	}
-
-	return slog.New(handler), exporter.Shutdown
-}
-
-func logger() echo.MiddlewareFunc {
-	otelMiddleware := otelecho.Middleware(
-		config.ProjectName,
-	)
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			if strings.Contains(c.Request().URL.Path, routes.APIRoutePrefix) ||
-				strings.Contains(c.Request().URL.Path, routes.AssetsRoutePrefix) {
-				return next(c)
-			}
-
-			start := time.Now()
-
-			var statusCode int
-			wrappedNext := func(c echo.Context) error {
-				err := next(c)
-				statusCode = c.Response().Status
-				return err
-			}
-
-			err := otelMiddleware(wrappedNext)(c)
-			duration := time.Since(start)
-
-			slog.InfoContext(c.Request().Context(), "HTTP request completed",
-				"method", c.Request().Method,
-				"path", c.Request().URL.Path,
-				"status", statusCode,
-				"remote_addr", c.RealIP(),
-				"user_agent", c.Request().UserAgent(),
-				"duration", duration.String(),
-			)
-
-			return err
-		}
-	}
 }

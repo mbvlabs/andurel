@@ -123,8 +123,16 @@ func cleanup() {
 		}
 	}
 
-	exec.Command("pkill", "-f", "tmp/bin/main").Run()
-	exec.Command("fuser", "-k", "8080/tcp").Run()
+	wd, err := os.Getwd()
+	if err == nil {
+		exec.Command("pkill", "-f", wd+"/tmp/bin/main").Run()
+	}
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	exec.Command("fuser", "-k", port+"/tcp").Run()
 
 	time.Sleep(500 * time.Millisecond)
 	fmt.Printf("Cleanup complete.\n")
@@ -192,7 +200,7 @@ func runLiveTailwind(ctx context.Context) error {
 
 	if err := cmd.Start(); err != nil {
 		slog.Info(
-			"Tailwind CLI not found. Please install it using the 'andurel app tailwind' command.",
+			"Tailwind CLI not found. Run 'andurel sync' to download it.",
 		)
 		return err
 	}

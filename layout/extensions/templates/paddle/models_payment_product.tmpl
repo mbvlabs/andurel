@@ -1,0 +1,258 @@
+{{- if eq .Database "postgresql" }}
+package models
+
+import (
+	"context"
+	"database/sql"
+	"time"
+
+	"github.com/google/uuid"
+
+	"{{.ModuleName}}/models/internal/db"
+)
+
+type PaymentProduct struct {
+	ID              uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	ProviderProductID string
+	ProviderPriceID   string
+	Name            string
+	Description     string
+	PriceAmount     string
+	PriceCurrency   string
+	ImageURL        string
+	IsActive        bool
+}
+
+func FindPaymentProductByID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	id uuid.UUID,
+) (PaymentProduct, error) {
+	row, err := queries.QueryPaymentProductByID(ctx, dbtx, id)
+	if err != nil {
+		return PaymentProduct{}, err
+	}
+
+	return rowToPaymentProduct(row)
+}
+
+func FindPaymentProductByProviderID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	paddleProductID string,
+) (PaymentProduct, error) {
+	row, err := queries.QueryPaymentProductByProviderID(ctx, dbtx, paddleProductID)
+	if err != nil {
+		return PaymentProduct{}, err
+	}
+
+	return rowToPaymentProduct(row)
+}
+
+func ListActiveProducts(
+	ctx context.Context,
+	dbtx db.DBTX,
+) ([]PaymentProduct, error) {
+	rows, err := queries.QueryActiveProducts(ctx, dbtx)
+	if err != nil {
+		return nil, err
+	}
+
+	products := make([]PaymentProduct, len(rows))
+	for i, row := range rows {
+		product, convErr := rowToPaymentProduct(row)
+		if convErr != nil {
+			return nil, convErr
+		}
+		products[i] = product
+	}
+
+	return products, nil
+}
+
+type CreatePaymentProductData struct {
+	ProviderProductID string
+	ProviderPriceID   string
+	Name            string
+	Description     string
+	PriceAmount     string
+	PriceCurrency   string
+	ImageURL        string
+	IsActive        bool
+}
+
+func CreatePaymentProduct(
+	ctx context.Context,
+	dbtx db.DBTX,
+	data CreatePaymentProductData,
+) (PaymentProduct, error) {
+	params := db.CreateInsertPaymentProductParams(
+		uuid.New(),
+		data.ProviderProductID,
+		data.ProviderPriceID,
+		data.Name,
+		sql.NullString{String: data.Description, Valid: data.Description != ""},
+		data.PriceAmount,
+		data.PriceCurrency,
+		sql.NullString{String: data.ImageURL, Valid: data.ImageURL != ""},
+		data.IsActive,
+	)
+
+	row, err := queries.InsertPaymentProduct(ctx, dbtx, params)
+	if err != nil {
+		return PaymentProduct{}, err
+	}
+
+	return rowToPaymentProduct(row)
+}
+
+func rowToPaymentProduct(row db.PaymentProduct) (PaymentProduct, error) {
+	return PaymentProduct{
+		ID:              row.ID,
+		CreatedAt:       row.CreatedAt.Time,
+		UpdatedAt:       row.UpdatedAt.Time,
+		ProviderProductID: row.ProviderProductID,
+		ProviderPriceID:   row.ProviderPriceID,
+		Name:            row.Name,
+		Description:     row.Description.String,
+		PriceAmount:     row.PriceAmount,
+		PriceCurrency:   row.PriceCurrency,
+		ImageURL:        row.ImageUrl.String,
+		IsActive:        row.IsActive,
+	}, nil
+}
+{{- else if eq .Database "sqlite" }}
+package models
+
+import (
+	"context"
+	"database/sql"
+	"time"
+
+	"github.com/google/uuid"
+
+	"{{.ModuleName}}/models/internal/db"
+)
+
+type PaymentProduct struct {
+	ID              uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	ProviderProductID string
+	ProviderPriceID   string
+	Name            string
+	Description     string
+	PriceAmount     string
+	PriceCurrency   string
+	ImageURL        string
+	IsActive        bool
+}
+
+func FindPaymentProductByID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	id uuid.UUID,
+) (PaymentProduct, error) {
+	row, err := queries.QueryPaymentProductByID(ctx, dbtx, id.String())
+	if err != nil {
+		return PaymentProduct{}, err
+	}
+
+	return rowToPaymentProduct(row)
+}
+
+func FindPaymentProductByProviderID(
+	ctx context.Context,
+	dbtx db.DBTX,
+	paddleProductID string,
+) (PaymentProduct, error) {
+	row, err := queries.QueryPaymentProductByProviderID(ctx, dbtx, paddleProductID)
+	if err != nil {
+		return PaymentProduct{}, err
+	}
+
+	return rowToPaymentProduct(row)
+}
+
+func ListActiveProducts(
+	ctx context.Context,
+	dbtx db.DBTX,
+) ([]PaymentProduct, error) {
+	rows, err := queries.QueryActiveProducts(ctx, dbtx)
+	if err != nil {
+		return nil, err
+	}
+
+	products := make([]PaymentProduct, len(rows))
+	for i, row := range rows {
+		product, convErr := rowToPaymentProduct(row)
+		if convErr != nil {
+			return nil, convErr
+		}
+		products[i] = product
+	}
+
+	return products, nil
+}
+
+type CreatePaymentProductData struct {
+	ProviderProductID string
+	ProviderPriceID   string
+	Name            string
+	Description     string
+	PriceAmount     string
+	PriceCurrency   string
+	ImageURL        string
+	IsActive        bool
+}
+
+func CreatePaymentProduct(
+	ctx context.Context,
+	dbtx db.DBTX,
+	data CreatePaymentProductData,
+) (PaymentProduct, error) {
+	params := db.CreateInsertPaymentProductParams(
+		uuid.New(),
+		data.ProviderProductID,
+		data.ProviderPriceID,
+		data.Name,
+		sql.NullString{String: data.Description, Valid: data.Description != ""},
+		data.PriceAmount,
+		data.PriceCurrency,
+		sql.NullString{String: data.ImageURL, Valid: data.ImageURL != ""},
+		data.IsActive,
+	)
+
+	row, err := queries.InsertPaymentProduct(ctx, dbtx, params)
+	if err != nil {
+		return PaymentProduct{}, err
+	}
+
+	return rowToPaymentProduct(row)
+}
+
+func rowToPaymentProduct(row db.PaymentProduct) (PaymentProduct, error) {
+	id, err := uuid.Parse(row.ID)
+	if err != nil {
+		return PaymentProduct{}, err
+	}
+
+	isActive := row.IsActive == 1
+
+	return PaymentProduct{
+		ID:              id,
+		CreatedAt:       row.CreatedAt,
+		UpdatedAt:       row.UpdatedAt,
+		ProviderProductID: row.ProviderProductID,
+		ProviderPriceID:   row.ProviderPriceID,
+		Name:            row.Name,
+		Description:     row.Description.String,
+		PriceAmount:     row.PriceAmount,
+		PriceCurrency:   row.PriceCurrency,
+		ImageURL:        row.ImageUrl.String,
+		IsActive:        isActive,
+	}, nil
+}
+{{- end }}

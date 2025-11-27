@@ -54,6 +54,7 @@ func Scaffold(
 	}
 
 	templateData := TemplateData{
+		AppName:              projectName,
 		ProjectName:          projectName,
 		ModuleName:           moduleName,
 		Database:             database,
@@ -63,6 +64,7 @@ func Scaffold(
 		SessionEncryptionKey: generateRandomHex(32),
 		TokenSigningKey:      generateRandomHex(32),
 		Pepper:               generateRandomHex(12),
+		Extensions:           extensionNames,
 		blueprint:            initializeBaseBlueprint(moduleName, database),
 	}
 
@@ -95,14 +97,25 @@ func Scaffold(
 		return fmt.Errorf("failed to process templated files: %w", err)
 	}
 
+	var nextMigrationTime time.Time
+
 	if database == "postgresql" {
 		fmt.Print("Processing PostgreSQL River queue migrations...\n")
-		if err := processPostgreSQLMigrations(targetDir, &templateData); err != nil {
+		var err error
+		nextMigrationTime, err = processPostgreSQLMigrations(targetDir, &templateData)
+		if err != nil {
 			return fmt.Errorf("failed to process PostgreSQL migrations: %w", err)
 		}
 	}
 
 	if database == "sqlite" {
+		fmt.Print("Processing SQLite goqite queue migrations...\n")
+		var err error
+		nextMigrationTime, err = processSQLiteMigrations(targetDir, &templateData)
+		if err != nil {
+			return fmt.Errorf("failed to process SQLite migrations: %w", err)
+		}
+
 		if err := createSqliteDB(targetDir, projectName); err != nil {
 			return fmt.Errorf("failed to create go.mod: %w", err)
 		}
@@ -124,9 +137,32 @@ func Scaffold(
 		fmt.Print("Setting up Tailwind CSS...\n")
 		if err := cmds.SetupTailwind(targetDir); err != nil {
 			fmt.Println(
-				"Failed to download tailwind binary. Run 'andurel app tailwind' after setup is done to fix.",
+				"Failed to download tailwind binary. Run 'andurel sync' after setup is done to fix.",
 			)
 		}
+	}
+
+	if os.Getenv("ANDUREL_SKIP_MAILPIT") != "true" {
+		fmt.Print("Setting up Mailpit...\n")
+		if err := cmds.SetupMailpit(targetDir); err != nil {
+			fmt.Println(
+				"Failed to download Mailpit binary. Run 'andurel sync' after setup is done to fix.",
+			)
+		}
+	}
+
+	if os.Getenv("ANDUREL_SKIP_USQL") != "true" {
+		fmt.Print("Setting up usql...\n")
+		if err := cmds.SetupUsql(targetDir); err != nil {
+			fmt.Println(
+				"Failed to download usql binary. Run 'andurel sync' after setup is done to fix.",
+			)
+		}
+	}
+
+	fmt.Print("Generating andurel.lock file...\n")
+	if err := generateLockFile(targetDir, templateData.CSSFramework == "tailwind"); err != nil {
+		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
 	}
 
 	fmt.Print("Running initial go mod tidy...\n")
@@ -191,11 +227,14 @@ func Scaffold(
 					fn:            fn,
 				})
 			},
+			NextMigrationTime: &nextMigrationTime,
 		}
 
 		if err := currentExt.Apply(&ctx); err != nil {
 			return fmt.Errorf("failed to apply extension %s: %w", currentExt.Name(), err)
 		}
+
+		nextMigrationTime = nextMigrationTime.Add(10 * time.Second)
 	}
 
 	// Re-render templates that use blueprint data after extensions have been applied
@@ -214,6 +253,11 @@ func Scaffold(
 		if err := step.fn(targetDir); err != nil {
 			return fmt.Errorf("extension %s post-step failed: %w", step.extensionName, err)
 		}
+	}
+
+	fmt.Print("Fixing migration timestamps...\n")
+	if err := cmds.RunGooseFix(targetDir); err != nil {
+		return fmt.Errorf("failed to run goose fix: %w", err)
 	}
 
 	fmt.Print("Running templ fmt...\n")
@@ -249,14 +293,7 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"tw_css_base.tmpl":  "css/base.css",
 
 	// Views
-	"tw_views_layout.tmpl":         "views/layout.templ",
-	"tw_views_home.tmpl":           "views/home.templ",
-	"tw_views_bad_request.tmpl":    "views/bad_request.templ",
-	"tw_views_internal_error.tmpl": "views/internal_error.templ",
-	"tw_views_not_found.tmpl":      "views/not_found.templ",
-
-	// View Components
-	"tw_views_components_head.tmpl":   "views/components/head.templ",
+	"tw_views_layout.tmpl":            "views/layout.templ",
 	"tw_views_components_toasts.tmpl": "views/components/toasts.templ",
 }
 
@@ -266,14 +303,7 @@ var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_vanilla_css_buttons.tmpl":    "assets/css/buttons.css",
 
 	// Views
-	"vanilla_views_layout.tmpl":         "views/layout.templ",
-	"vanilla_views_home.tmpl":           "views/home.templ",
-	"vanilla_views_bad_request.tmpl":    "views/bad_request.templ",
-	"vanilla_views_internal_error.tmpl": "views/internal_error.templ",
-	"vanilla_views_not_found.tmpl":      "views/not_found.templ",
-
-	// View Components
-	"vanilla_views_components_head.tmpl":   "views/components/head.templ",
+	"vanilla_views_layout.tmpl":            "views/layout.templ",
 	"vanilla_views_components_toasts.tmpl": "views/components/toasts.templ",
 }
 
@@ -282,27 +312,33 @@ var basePSQLTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"psql_sqlc.tmpl":     "database/sqlc.yaml",
 
 	// Queue package
-	"psql_queue_queue.tmpl":             "queue/queue.go",
-	"psql_queue_jobs_sort_jobs.tmpl":    "queue/jobs/sort_jobs.go",
-	"psql_queue_workers_workers.tmpl":   "queue/workers/workers.go",
-	"psql_queue_workers_sort_jobs.tmpl": "queue/workers/sort_jobs.go",
+	"psql_queue_queue.tmpl":                              "queue/queue.go",
+	"psql_queue_jobs_send_transactional_email.tmpl":      "queue/jobs/send_transactional_email.go",
+	"psql_queue_jobs_send_marketing_email.tmpl":          "queue/jobs/send_marketing_email.go",
+	"psql_queue_workers_workers.tmpl":                    "queue/workers/workers.go",
+	"psql_queue_workers_send_transactional_email.tmpl":   "queue/workers/send_transactional_email.go",
+	"psql_queue_workers_send_marketing_email.tmpl":       "queue/workers/send_marketing_email.go",
 }
 
 var baseSqliteTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"sqlite_database.tmpl": "database/database.go",
 	"sqlite_sqlc.tmpl":     "database/sqlc.yaml",
+
+	"sqlite_queue_queue.tmpl":           "queue/queue.go",
+	"sqlite_queue_workers_workers.tmpl": "queue/workers/workers.go",
 }
 
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Core files
 	"env.tmpl":       ".env.example",
 	"gitignore.tmpl": ".gitignore",
+	"readme.tmpl":    "README.md",
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
 	"assets_css_style.tmpl":   "assets/css/style.css",
 	"assets_js_scripts.tmpl":  "assets/js/scripts.js",
-	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc5.min.js",
+	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc6.min.js",
 
 	// Commands
 	"cmd_app_main.tmpl":       "cmd/app/main.go",
@@ -311,28 +347,42 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"cmd_console_main.tmpl":   "cmd/console/main.go",
 
 	// Config
-	"config_app.tmpl":      "config/app.go",
-	"config_config.tmpl":   "config/config.go",
-	"config_database.tmpl": "config/database.go",
+	"config_app.tmpl":       "config/app.go",
+	"config_config.tmpl":    "config/config.go",
+	"config_database.tmpl":  "config/database.go",
+	"config_telemetry.tmpl": "config/telemetry.go",
+	"config_email.tmpl":     "config/email.go",
+
+	// Clients
+	"clients_email_mailpit.tmpl": "clients/email/mailpit.go",
 
 	// Controllers
 	"controllers_api.tmpl":        "controllers/api.go",
 	"controllers_assets.tmpl":     "controllers/assets.go",
+	"controllers_cache.tmpl":      "controllers/cache.go",
 	"controllers_controller.tmpl": "controllers/controller.go",
 	"controllers_pages.tmpl":      "controllers/pages.go",
 
 	// Database
 	"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
 	"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
+	"database_test_helper.tmpl":        "database/test_helper.go",
+
+	// Email
+	"email_email.tmpl":       "email/email.go",
+	"email_base_layout.tmpl": "email/base_layout.templ",
+	"email_components.tmpl":  "email/components.templ",
 
 	// Models
 	"models_errors.tmpl":         "models/errors.go",
 	"models_model.tmpl":          "models/model.go",
 	"models_internal_db_db.tmpl": "models/internal/db/db.go",
+	"models_factories_factories.tmpl": "models/factories/factories.go",
 
 	// Router
 	"router_router.tmpl":                "router/router.go",
-	"router_std_out_logger.tmpl":        "router/stdout_logger.go",
+	"router_registry.tmpl":              "router/registry.go",
+	"router_register.tmpl":              "router/register.go",
 	"router_cookies_cookies.tmpl":       "router/cookies/cookies.go",
 	"router_cookies_flash.tmpl":         "router/cookies/flash.go",
 	"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
@@ -343,6 +393,27 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_routes_api.tmpl":         "router/routes/api.go",
 	"router_routes_assets.tmpl":      "router/routes/assets.go",
 	"router_routes_pages.tmpl":       "router/routes/pages.go",
+
+	// Telemetry
+	"telemetry_telemetry.tmpl":        "pkg/telemetry/telemetry.go",
+	"telemetry_options.tmpl":          "pkg/telemetry/options.go",
+	"telemetry_logger.tmpl":           "pkg/telemetry/logger.go",
+	"telemetry_log_exporters.tmpl":    "pkg/telemetry/log_exporters.go",
+	"telemetry_metrics.tmpl":          "pkg/telemetry/metrics.go",
+	"telemetry_metric_exporters.tmpl": "pkg/telemetry/metric_exporters.go",
+	"telemetry_tracer.tmpl":           "pkg/telemetry/tracer.go",
+	"telemetry_trace_exporters.tmpl":  "pkg/telemetry/trace_exporters.go",
+	"telemetry_helpers.tmpl":          "pkg/telemetry/helpers.go",
+
+	// Views
+	"views_home.tmpl":                     "views/home.templ",
+	"views_bad_request.tmpl":              "views/bad_request.templ",
+	"views_internal_error.tmpl":           "views/internal_error.templ",
+	"views_not_found.tmpl":                "views/not_found.templ",
+	"views_components_head.tmpl":          "views/components/head.templ",
+	"views_components_form_elements.tmpl": "views/components/form_elements.templ",
+
+	"views_datastar_helpers.tmpl": "views/datastar.go",
 }
 
 func processTemplatedFiles(
@@ -351,6 +422,12 @@ func processTemplatedFiles(
 	data extensions.TemplateData,
 ) error {
 	for templateFile, targetPath := range baseTemplateMappings {
+		if templateFile == "assets_js_datastar.tmpl" {
+			if err := copyFile(targetDir, string(templateFile), string(targetPath), templates.Files); err != nil {
+				return fmt.Errorf("failed to copy file %s: %w", templateFile, err)
+			}
+			continue
+		}
 		if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
 			return fmt.Errorf("failed to process template %s: %w", templateFile, err)
 		}
@@ -394,8 +471,15 @@ func processTemplatedFiles(
 	return nil
 }
 
-func processPostgreSQLMigrations(targetDir string, data extensions.TemplateData) error {
+func processPostgreSQLMigrations(
+	targetDir string,
+	data extensions.TemplateData,
+) (time.Time, error) {
 	baseTime := time.Now()
+
+	if os.Getenv("ANDUREL_TEST_MODE") == "true" {
+		baseTime = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	}
 
 	migrations := []struct {
 		template string
@@ -422,16 +506,55 @@ func processPostgreSQLMigrations(targetDir string, data extensions.TemplateData)
 		{"psql_riverqueue_migration_six.tmpl", "add_river_job_unique_states", 5 * time.Second},
 	}
 
+	var lastTime time.Time
 	for _, migration := range migrations {
-		timestamp := baseTime.Add(migration.offset).Format("20060102150405")
+		lastTime = baseTime.Add(migration.offset)
+		timestamp := lastTime.Format("20060102150405")
 		targetPath := fmt.Sprintf("database/migrations/%s_%s.sql", timestamp, migration.name)
 
 		if err := renderTemplate(targetDir, migration.template, targetPath, templates.Files, data); err != nil {
-			return fmt.Errorf("failed to process migration %s: %w", migration.template, err)
+			return time.Time{}, fmt.Errorf(
+				"failed to process migration %s: %w",
+				migration.template,
+				err,
+			)
 		}
 	}
 
-	return nil
+	return lastTime.Add(1 * time.Second), nil
+}
+
+func processSQLiteMigrations(targetDir string, data extensions.TemplateData) (time.Time, error) {
+	baseTime := time.Now()
+
+	if os.Getenv("ANDUREL_TEST_MODE") == "true" {
+		baseTime = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	}
+
+	migrations := []struct {
+		template string
+		name     string
+		offset   time.Duration
+	}{
+		{"sqlite_goqite_migration_one.tmpl", "create_goqite_table", 0},
+	}
+
+	var lastTime time.Time
+	for _, migration := range migrations {
+		lastTime = baseTime.Add(migration.offset)
+		timestamp := lastTime.Format("20060102150405")
+		targetPath := fmt.Sprintf("database/migrations/%s_%s.sql", timestamp, migration.name)
+
+		if err := renderTemplate(targetDir, migration.template, targetPath, templates.Files, data); err != nil {
+			return time.Time{}, fmt.Errorf(
+				"failed to process migration %s: %w",
+				migration.template,
+				err,
+			)
+		}
+	}
+
+	return lastTime.Add(1 * time.Second), nil
 }
 
 func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) error {
@@ -443,6 +566,8 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		"controllers_controller.tmpl",
 		"cmd_app_main.tmpl",
 		"router_routes_routes.tmpl",
+		"router_registry.tmpl",
+		"router_register.tmpl",
 		"config_config.tmpl",
 	}
 
@@ -477,6 +602,28 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 // ) error {
 // 	return renderTemplate(targetDir, templateFile, targetPath, extensions.Files, data)
 // }
+
+func copyFile(
+	targetDir, sourceFile, targetPath string,
+	fsys fs.FS,
+) error {
+	content, err := fs.ReadFile(fsys, sourceFile)
+	if err != nil {
+		return fmt.Errorf("failed to read file %s: %w", sourceFile, err)
+	}
+
+	fullTargetPath := filepath.Join(targetDir, targetPath)
+	dir := filepath.Dir(fullTargetPath)
+	if err := os.MkdirAll(dir, constants.DirPermissionDefault); err != nil {
+		return fmt.Errorf("failed to create directory for %s: %w", targetPath, err)
+	}
+
+	if err := os.WriteFile(fullTargetPath, content, constants.FilePermissionPublic); err != nil {
+		return fmt.Errorf("failed to write file %s: %w", targetPath, err)
+	}
+
+	return nil
+}
 
 func renderTemplate(
 	targetDir, templateFile, targetPath string,
@@ -566,8 +713,11 @@ func templateFuncMap() template.FuncMap {
 func registerBuiltinExtensions() error {
 	registerBuiltinOnce.Do(func() {
 		builtin := []extensions.Extension{
-			extensions.Email{},
 			extensions.Auth{},
+			extensions.AwsSes{},
+			extensions.Docker{},
+			extensions.Paddle{},
+			extensions.Workflows{},
 		}
 
 		for _, ext := range builtin {
@@ -732,7 +882,6 @@ const goVersion = "1.25.0"
 
 var defaultTools = []string{
 	"github.com/a-h/templ/cmd/templ",
-	"github.com/xo/usql",
 	"github.com/sqlc-dev/sqlc/cmd/sqlc",
 	"github.com/pressly/goose/v3/cmd/goose",
 	"github.com/air-verse/air",
@@ -773,15 +922,17 @@ func generateRandomHex(bytes int) string {
 func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	builder := blueprint.NewBuilder(nil)
 
-	// Controller imports
-	builder.
-		AddControllerImport("context").
-		AddControllerImport("net/http").
-		AddControllerImport(fmt.Sprintf("%s/database", moduleName)).
-		AddControllerImport(fmt.Sprintf("%s/router/cookies", moduleName)).
-		AddControllerImport("github.com/a-h/templ").
-		AddControllerImport("github.com/labstack/echo/v4").
-		AddControllerImport("github.com/maypok86/otter")
+	builder.AddMainImport(fmt.Sprintf("%s/email", moduleName))
+	builder.AddMainImport(fmt.Sprintf("%s/clients/email", moduleName))
+	builder.AddControllerImport(fmt.Sprintf("%s/email", moduleName))
+
+	builder.AddMainInitialization(
+		"emailClient",
+		"mailclients.NewMailpit(cfg.Email.MailpitHost, cfg.Email.MailpitPort)",
+		"cfg",
+	)
+
+	builder.AddConfigField("Email", "email")
 
 	// Controller dependencies - database is the primary dependency
 	var dbType string
@@ -794,6 +945,7 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 		dbType = "database.Postgres"
 	}
 	builder.AddControllerDependency("db", dbType)
+	builder.AddControllerDependency("emailClient", "email.TransactionalSender")
 
 	// Controller fields - the main sub-controllers
 	builder.
@@ -803,13 +955,89 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 
 	// Constructor initializations
 	builder.
-		AddControllerConstructor("assets", "newAssets()").
-		AddControllerConstructor("api", "newAPI(db)").
-		AddControllerConstructor("pages", "newPages(db, pageCacher)")
+		AddControllerConstructor("assets", "newAssets(assetsCache)").
+		AddControllerConstructor("api", "newAPI(db)")
+
+	if database == "postgresql" {
+		builder.AddControllerConstructor("pages", "newPages(db, insertOnly, pagesCache)")
+	} else {
+		builder.AddControllerConstructor("pages", "newPages(db, pagesCache)")
+	}
 
 	for _, tool := range defaultTools {
 		builder.AddTool(tool)
 	}
 
 	return builder.Blueprint()
+}
+
+func generateLockFile(targetDir string, hasTailwind bool) error {
+	lock := NewAndurelLock()
+
+	if hasTailwind {
+		tailwindVersion := "v4.1.17"
+		tailwindPath := filepath.Join(targetDir, "bin", "tailwindcli")
+		checksum := ""
+		if _, err := os.Stat(tailwindPath); err == nil {
+			checksum, err = CalculateBinaryChecksum(tailwindPath)
+			if err != nil {
+				fmt.Printf("Warning: failed to calculate tailwind checksum: %v\n", err)
+			}
+		}
+		lock.AddBinary(
+			"tailwindcli",
+			tailwindVersion,
+			GetTailwindDownloadURL(tailwindVersion),
+			checksum,
+		)
+	}
+
+	mailpitVersion := "v1.27.11"
+	mailpitPath := filepath.Join(targetDir, "bin", "mailpit")
+	mailpitChecksum := ""
+	if _, err := os.Stat(mailpitPath); err == nil {
+		mailpitChecksum, err = CalculateBinaryChecksum(mailpitPath)
+		if err != nil {
+			fmt.Printf("Warning: failed to calculate mailpit checksum: %v\n", err)
+		}
+	}
+	lock.AddBinary(
+		"mailpit",
+		mailpitVersion,
+		GetMailpitDownloadURL(mailpitVersion),
+		mailpitChecksum,
+	)
+
+	usqlVersion := "v0.19.26"
+	usqlPath := filepath.Join(targetDir, "bin", "usql")
+	usqlChecksum := ""
+	if _, err := os.Stat(usqlPath); err == nil {
+		usqlChecksum, err = CalculateBinaryChecksum(usqlPath)
+		if err != nil {
+			fmt.Printf("Warning: failed to calculate usql checksum: %v\n", err)
+		}
+	}
+	lock.AddBinary(
+		"usql",
+		usqlVersion,
+		GetUsqlDownloadURL(usqlVersion),
+		usqlChecksum,
+	)
+
+	lock.Binaries["run"] = &Binary{
+		Type:   "built",
+		Source: "cmd/run/main.go",
+	}
+
+	lock.Binaries["migration"] = &Binary{
+		Type:   "built",
+		Source: "cmd/migration/main.go",
+	}
+
+	lock.Binaries["console"] = &Binary{
+		Type:   "built",
+		Source: "cmd/console/main.go",
+	}
+
+	return lock.WriteLockFile(targetDir)
 }

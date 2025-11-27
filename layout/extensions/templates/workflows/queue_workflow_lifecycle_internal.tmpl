@@ -1,0 +1,70 @@
+package workflow
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+var (
+	ErrWorkflowNotFound = errors.New("workflow not found")
+	ErrTaskNotFound     = errors.New("task not found")
+	ErrWorkflowEmpty    = errors.New("workflow has no tasks")
+	ErrInvalidState     = errors.New("invalid workflow state")
+)
+
+type dbConn interface {
+	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
+	Exec(ctx context.Context, sql string, args ...interface{}) (pgconn.CommandTag, error)
+}
+
+func getConn(pool *pgxpool.Pool, tx pgx.Tx) dbConn {
+	if tx != nil {
+		return tx
+	}
+	return pool
+}
+
+func deriveWorkflowState(breakdown TaskBreakdown, totalTasks int) OverallWorkflowState {
+	if totalTasks == 0 {
+		return OverallWorkflowStateInitializing
+	}
+
+	if breakdown.Cancelled > 0 {
+		return OverallWorkflowStateCancelled
+	}
+
+	if breakdown.Failed > 0 {
+		return OverallWorkflowStateFailed
+	}
+
+	if breakdown.Completed == totalTasks {
+		return OverallWorkflowStateCompleted
+	}
+
+	return OverallWorkflowStateActive
+}
+
+func calculateDuration(startedAt, completedAt, failedAt, cancelledAt *time.Time) time.Duration {
+	if startedAt == nil {
+		return 0
+	}
+
+	endTime := time.Now()
+	if completedAt != nil {
+		endTime = *completedAt
+	}
+	if failedAt != nil {
+		endTime = *failedAt
+	}
+	if cancelledAt != nil {
+		endTime = *cancelledAt
+	}
+
+	return endTime.Sub(*startedAt)
+}

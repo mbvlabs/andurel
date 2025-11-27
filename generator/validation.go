@@ -100,6 +100,48 @@ func (v *InputValidator) ValidateTableName(tableName string) error {
 	return nil
 }
 
+func (v *InputValidator) ValidateTableNameOverride(resourceName, tableNameOverride string) error {
+	if tableNameOverride == "" {
+		return fmt.Errorf("table name override cannot be empty")
+	}
+
+	conventionalTableName := naming.DeriveTableName(resourceName)
+
+	validSQLIdentifier := regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
+	if !validSQLIdentifier.MatchString(tableNameOverride) {
+		return fmt.Errorf(
+			"table name '%s' must be snake_case using lowercase letters, numbers, and underscores",
+			tableNameOverride,
+		)
+	}
+
+	reservedKeywords := []string{
+		"select", "insert", "update", "delete", "drop", "create", "alter",
+		"table", "index", "view", "database", "schema", "user", "group",
+		"order", "by", "where", "from", "join", "union", "having",
+	}
+
+	lowerTableName := strings.ToLower(tableNameOverride)
+	if slices.Contains(reservedKeywords, lowerTableName) {
+		return fmt.Errorf("table name '%s' is a reserved SQL keyword", tableNameOverride)
+	}
+
+	if len(tableNameOverride) > 63 {
+		return fmt.Errorf("table name '%s' is too long (max 63 characters)", tableNameOverride)
+	}
+
+	if tableNameOverride != conventionalTableName {
+		fmt.Printf("⚠️  Using custom table name '%s' instead of conventional '%s'\n", tableNameOverride, conventionalTableName)
+		fmt.Printf("⚠️  Ensure migration creates the '%s' table\n", tableNameOverride)
+	}
+
+	if inflection.Plural(tableNameOverride) != tableNameOverride {
+		fmt.Printf("⚠️  Table name '%s' does not appear to be plural. Convention suggests using plural names.\n", tableNameOverride)
+	}
+
+	return nil
+}
+
 func (v *InputValidator) ValidateFilePath(filePath string) error {
 	if filePath == "" {
 		return fmt.Errorf("file path cannot be empty")
