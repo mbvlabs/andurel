@@ -3,6 +3,7 @@ package generator
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/pkg/cache"
@@ -299,4 +300,89 @@ func TestExtractTableNameOverride_ResourceNameMatching(t *testing.T) {
 			os.Remove(modelPath)
 		})
 	}
+}
+
+func TestGenerateQueriesOnly_InvalidResourceName(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	tests := []struct {
+		name         string
+		resourceName string
+	}{
+		{"lowercase", "user"},
+		{"snake_case", "user_role"},
+		{"with spaces", "User Role"},
+		{"empty", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := manager.GenerateQueriesOnly(tt.resourceName, "")
+			if err == nil {
+				t.Errorf("GenerateQueriesOnly(%q) expected error for invalid resource name, got nil", tt.resourceName)
+			}
+		})
+	}
+}
+
+func TestGenerateQueriesOnly_InvalidTableNameOverride(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	tests := []struct {
+		name              string
+		resourceName      string
+		tableNameOverride string
+	}{
+		{"reserved keyword SELECT", "User", "select"},
+		{"reserved keyword FROM", "User", "from"},
+		{"reserved keyword WHERE", "User", "where"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := manager.GenerateQueriesOnly(tt.resourceName, tt.tableNameOverride)
+			if err == nil {
+				t.Errorf("GenerateQueriesOnly(%q, %q) expected error for reserved SQL keyword, got nil", tt.resourceName, tt.tableNameOverride)
+			}
+		})
+	}
+}
+
+func TestRefreshQueriesOnly_RequiresExistingSQLFile(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	err := manager.RefreshQueriesOnly("NonExistent", "non_existents")
+	if err == nil {
+		t.Error("RefreshQueriesOnly() expected error when SQL file doesn't exist, got nil")
+	}
+
+	expectedMsg := "does not exist"
+	if err != nil && !strings.Contains(err.Error(), expectedMsg) {
+		t.Errorf("RefreshQueriesOnly() error = %v, want error containing %q", err, expectedMsg)
+	}
+}
+
+func TestCheckExistingModel_WarnsWhenModelExists(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	modelPath := filepath.Join("models", "user.go")
+	if err := os.WriteFile(modelPath, []byte("package models\ntype User struct{}"), 0o644); err != nil {
+		t.Fatalf("Failed to create model file: %v", err)
+	}
+	defer os.Remove(modelPath)
+
+	// This should not panic - just prints a warning
+	manager.checkExistingModel("User")
+}
+
+func TestCheckExistingModel_NoWarningWhenModelNotExists(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	// This should not panic when model doesn't exist
+	manager.checkExistingModel("NonExistent")
 }
