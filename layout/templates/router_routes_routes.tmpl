@@ -81,6 +81,30 @@ func (r RouteWithFile) Path() string {
 	return r[routePath]
 }
 
+type RouteParams interface {
+	ToMap() map[string]string
+}
+
+type TypedRoute[T RouteParams] struct {
+	route Route
+}
+
+func (r TypedRoute[T]) Name() string {
+	return r.route[routeName]
+}
+
+func (r TypedRoute[T]) Path() string {
+	return r.route[routePath]
+}
+
+func (r TypedRoute[T]) URL(params T) string {
+	path := r.route[routePath]
+	for placeholder, value := range params.ToMap() {
+		path = strings.Replace(path, ":"+placeholder, value, 1)
+	}
+	return path
+}
+
 type routeBuilder routeDefinition
 
 type routeDefinition struct {
@@ -144,4 +168,12 @@ func (r routeBuilder) RegisterWithFile() RouteWithFile {
 	route[routePath] = r.Path
 
 	return RouteWithFile(route)
+}
+
+func (r routeBuilder) RegisterTyped[T RouteParams]() TypedRoute[T] {
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
+
+	return TypedRoute[T]{route: route}
 }

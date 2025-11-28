@@ -1,0 +1,93 @@
+package routes
+
+import (
+	"testing"
+
+	"github.com/google/uuid"
+)
+
+type testUserPostParams struct {
+	UserID uuid.UUID
+	PostID uuid.UUID
+}
+
+func (p testUserPostParams) ToMap() map[string]string {
+	return map[string]string{
+		"user_id": p.UserID.String(),
+		"post_id": p.PostID.String(),
+	}
+}
+
+type testOrgMemberParams struct {
+	OrgSlug  string
+	MemberID uuid.UUID
+}
+
+func (p testOrgMemberParams) ToMap() map[string]string {
+	return map[string]string{
+		"slug": p.OrgSlug,
+		"id":   p.MemberID.String(),
+	}
+}
+
+func TestTypedRoute_URL(t *testing.T) {
+	userID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	postID := uuid.MustParse("22222222-2222-2222-2222-222222222222")
+	memberID := uuid.MustParse("33333333-3333-3333-3333-333333333333")
+
+	tests := []struct {
+		name     string
+		route    func() string
+		expected string
+	}{
+		{
+			name: "two uuid params",
+			route: func() string {
+				r := newRouteBuilder("posts.show").
+					SetPath("/users/:user_id/posts/:post_id").
+					RegisterTyped[testUserPostParams]()
+				return r.URL(testUserPostParams{UserID: userID, PostID: postID})
+			},
+			expected: "/users/11111111-1111-1111-1111-111111111111/posts/22222222-2222-2222-2222-222222222222",
+		},
+		{
+			name: "mixed string and uuid params",
+			route: func() string {
+				r := newRouteBuilder("members.show").
+					SetPath("/orgs/:slug/members/:id").
+					RegisterTyped[testOrgMemberParams]()
+				return r.URL(testOrgMemberParams{OrgSlug: "acme-corp", MemberID: memberID})
+			},
+			expected: "/orgs/acme-corp/members/33333333-3333-3333-3333-333333333333",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.route()
+			if got != tt.expected {
+				t.Fatalf("URL() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestTypedRoute_Name(t *testing.T) {
+	r := newRouteBuilder("posts.show").
+		SetPath("/users/:user_id/posts/:post_id").
+		RegisterTyped[testUserPostParams]()
+
+	if got := r.Name(); got != "posts.show" {
+		t.Fatalf("Name() = %q, want %q", got, "posts.show")
+	}
+}
+
+func TestTypedRoute_Path(t *testing.T) {
+	r := newRouteBuilder("posts.show").
+		SetPath("/users/:user_id/posts/:post_id").
+		RegisterTyped[testUserPostParams]()
+
+	if got := r.Path(); got != "/users/:user_id/posts/:post_id" {
+		t.Fatalf("Path() = %q, want %q", got, "/users/:user_id/posts/:post_id")
+	}
+}
