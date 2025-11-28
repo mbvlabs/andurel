@@ -77,6 +77,10 @@ func TestGenerateCommands(t *testing.T) {
 			t.Run("generate_resource", func(t *testing.T) {
 				testGenerateResource(t, project)
 			})
+
+			t.Run("generate_resource_with_table_name_override", func(t *testing.T) {
+				testGenerateResourceWithTableNameOverride(t, project)
+			})
 		})
 	}
 }
@@ -146,6 +150,31 @@ func testGenerateResource(t *testing.T, project *internal.Project) {
 	internal.AssertFileExists(t, project, "models/item.go")
 	internal.AssertFileExists(t, project, "controllers/items.go")
 	internal.AssertFileExists(t, project, "views/items_resource.templ")
+}
+
+func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	createMigration(t, project, "000104_create_student_feedback", "student_feedback", []string{
+		"student_id VARCHAR(255) NOT NULL",
+		"feedback TEXT NOT NULL",
+		"rating INTEGER",
+	})
+
+	err := project.Generate("generate", "resource", "StudentFeedback", "--table-name=student_feedback")
+	internal.AssertCommandSucceeds(t, err, "generate resource with table-name override")
+
+	internal.AssertFileExists(t, project, "models/student_feedback.go")
+	internal.AssertFileExists(t, project, "controllers/student_feedback.go")
+	internal.AssertFileExists(t, project, "views/student_feedback_resource.templ")
+
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/student_feedback.go"))
+	if err != nil {
+		t.Fatalf("Failed to read model file: %v", err)
+	}
+	if !strings.Contains(string(modelContent), "STUDENTFEEDBACK_MODEL_TABLE_NAME: student_feedback") {
+		t.Errorf("Model file should contain table name override marker")
+	}
 }
 
 func createMigration(t *testing.T, project *internal.Project, migrationName, tableName string, columns []string) {

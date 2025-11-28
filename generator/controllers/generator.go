@@ -37,6 +37,7 @@ type GeneratedController struct {
 type Config struct {
 	ResourceName   string
 	PluralName     string
+	TableName      string
 	PackageName    string
 	ModulePath     string
 	ControllerType ControllerType
@@ -67,9 +68,13 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 
 	if config.ControllerType == ResourceController ||
 		config.ControllerType == ResourceControllerNoViews {
-		table, err := cat.GetTable("", config.PluralName)
+		tableName := config.TableName
+		if tableName == "" {
+			tableName = config.PluralName
+		}
+		table, err := cat.GetTable("", tableName)
 		if err != nil {
-			return nil, fmt.Errorf("table %s not found: %w", config.PluralName, err)
+			return nil, fmt.Errorf("table %s not found: %w", tableName, err)
 		}
 
 		for _, col := range table.Columns {

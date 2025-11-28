@@ -6,7 +6,6 @@ import (
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/models"
 	"github.com/mbvlabs/andurel/generator/views"
-	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type Coordinator struct {
@@ -14,6 +13,7 @@ type Coordinator struct {
 	ControllerManager *ControllerManager
 	ViewManager       *ViewManager
 	projectManager    *ProjectManager
+	config            *UnifiedConfig
 }
 
 func NewCoordinator() (Coordinator, error) {
@@ -66,6 +66,7 @@ func NewCoordinator() (Coordinator, error) {
 		ControllerManager: controllerManager,
 		ViewManager:       viewManager,
 		projectManager:    projectManager,
+		config:            unifiedConfig,
 	}, nil
 }
 
@@ -91,7 +92,7 @@ func (c *Coordinator) GenerateControllerFromModel(resourceName string, withViews
 	}
 
 	if withViews {
-		tableName := naming.DeriveTableName(resourceName)
+		tableName := ResolveTableName(c.config.Paths.Models, resourceName)
 		if err := c.ViewManager.GenerateViewWithController(resourceName, tableName); err != nil {
 			return err
 		}
