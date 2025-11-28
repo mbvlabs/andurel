@@ -19,6 +19,7 @@ func newGenerateCommand() *cobra.Command {
 	generateCmd.AddCommand(newControllerCommand())
 	generateCmd.AddCommand(newViewCommand())
 	generateCmd.AddCommand(newResourceCommand())
+	generateCmd.AddCommand(newQueriesCommand())
 
 	return generateCmd
 }
@@ -182,4 +183,61 @@ func generateView(cmd *cobra.Command, args []string) error {
 	}
 
 	return gen.GenerateViewFromModel(resourceName, withController)
+}
+
+func newQueriesCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "queries [name]",
+		Short: "Generate SQL queries for a table (without model)",
+		Long: `Generate SQL query file and SQLC types for a database table.
+This is useful for junction/connection tables that don't need a full model wrapper.
+
+The command generates:
+  - SQL queries file (database/queries/{tablename}.sql)
+  - SQLC-generated query functions and types
+
+Examples:
+  andurel generate queries UserRole                       # Generate queries for 'user_roles' table
+  andurel generate queries UserRole --table-name=users_roles  # Use custom table name
+  andurel generate queries UserRole --refresh             # Refresh existing queries file`,
+		Args: cobra.ExactArgs(1),
+		RunE: generateQueries,
+	}
+
+	cmd.Flags().
+		Bool("refresh", false, "Refresh existing SQL queries file")
+	cmd.Flags().
+		String("table-name", "", "Override the default table name (defaults to plural form of resource name)")
+
+	return cmd
+}
+
+func generateQueries(cmd *cobra.Command, args []string) error {
+	resourceName := args[0]
+
+	refresh, err := cmd.Flags().GetBool("refresh")
+	if err != nil {
+		return err
+	}
+
+	tableNameOverride, err := cmd.Flags().GetString("table-name")
+	if err != nil {
+		return err
+	}
+
+	gen, err := generator.New()
+	if err != nil {
+		return err
+	}
+
+	tableName := tableNameOverride
+	if tableName == "" {
+		tableName = naming.DeriveTableName(resourceName)
+	}
+
+	if refresh {
+		return gen.RefreshQueriesOnly(resourceName, tableName)
+	}
+
+	return gen.GenerateQueriesOnly(resourceName, tableNameOverride)
 }

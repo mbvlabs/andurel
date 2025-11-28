@@ -326,3 +326,152 @@ func (m *ModelManager) RefreshConstructors(resourceName, tableName string) error
 	)
 	return nil
 }
+
+type queriesSetupContext struct {
+	ModulePath   string
+	RootDir      string
+	SQLPath      string
+	ResourceName string
+	TableName    string
+	PluralName   string
+}
+
+func (m *ModelManager) setupQueriesContext(resourceName, tableName string) (*queriesSetupContext, error) {
+	modulePath := m.projectManager.GetModulePath()
+
+	if err := m.validator.ValidateResourceName(resourceName); err != nil {
+		return nil, err
+	}
+
+	if err := m.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
+		return nil, err
+	}
+
+	rootDir, err := m.fileManager.FindGoModRoot()
+	if err != nil {
+		return nil, fmt.Errorf("failed to find go.mod root: %w", err)
+	}
+
+	if err := types.ValidateSQLCConfig(rootDir); err != nil {
+		return nil, fmt.Errorf("SQLC configuration validation failed: %w", err)
+	}
+
+	pluralName := naming.DeriveTableName(resourceName)
+
+	var sqlFileName strings.Builder
+	sqlFileName.Grow(len(tableName) + 4)
+	sqlFileName.WriteString(tableName)
+	sqlFileName.WriteString(".sql")
+	sqlPath := filepath.Join(m.config.Paths.Queries, sqlFileName.String())
+
+	return &queriesSetupContext{
+		ModulePath:   modulePath,
+		RootDir:      rootDir,
+		SQLPath:      sqlPath,
+		ResourceName: resourceName,
+		TableName:    tableName,
+		PluralName:   pluralName,
+	}, nil
+}
+
+func (m *ModelManager) checkExistingModel(resourceName string) {
+	modelFileName := naming.ToSnakeCase(resourceName) + ".go"
+	modelPath := filepath.Join(m.config.Paths.Models, modelFileName)
+
+	if _, err := os.Stat(modelPath); err == nil {
+		fmt.Printf(
+			"Warning: Model file %s already exists for this resource. Consider using 'generate model --refresh' instead if you need both model and queries.\n",
+			modelPath,
+		)
+	}
+}
+
+func (m *ModelManager) GenerateQueriesOnly(resourceName string, tableNameOverride string) error {
+	tableName := tableNameOverride
+	if tableName == "" {
+		tableName = naming.DeriveTableName(resourceName)
+	}
+
+	if tableNameOverride != "" {
+		if err := m.validator.ValidateTableNameOverride(resourceName, tableNameOverride); err != nil {
+			return err
+		}
+	}
+
+	ctx, err := m.setupQueriesContext(resourceName, tableName)
+	if err != nil {
+		return err
+	}
+
+	m.checkExistingModel(resourceName)
+
+	if err := m.fileManager.ValidateFileNotExists(ctx.SQLPath); err != nil {
+		return err
+	}
+
+	cat, err := m.migrationManager.BuildCatalogFromMigrations(ctx.TableName, m.config)
+	if err != nil {
+		return err
+	}
+
+	table, err := cat.GetTable("", ctx.TableName)
+	if err != nil {
+		return fmt.Errorf(`table '%s' not found in catalog: %w
+
+Convention: Resource names must be singular PascalCase, table names must be plural snake_case.
+Example: Resource 'UserRole' expects table 'user_roles'
+
+To use a different table name, run:
+  andurel generate queries %s --table-name=your_table_name`,
+			ctx.TableName, err, resourceName)
+	}
+
+	if err := m.modelGenerator.GenerateSQLFile(ctx.ResourceName, ctx.TableName, table, ctx.SQLPath); err != nil {
+		return fmt.Errorf("failed to generate SQL file: %w", err)
+	}
+
+	if err := m.fileManager.RunSQLCGenerate(); err != nil {
+		return fmt.Errorf("failed to run sqlc generate: %w", err)
+	}
+
+	fmt.Printf(
+		"Successfully generated SQL queries for %s (table: %s)\n",
+		ctx.ResourceName,
+		ctx.TableName,
+	)
+	return nil
+}
+
+func (m *ModelManager) RefreshQueriesOnly(resourceName, tableName string) error {
+	ctx, err := m.setupQueriesContext(resourceName, tableName)
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(ctx.SQLPath); os.IsNotExist(err) {
+		return fmt.Errorf(
+			"SQL file %s does not exist. Use 'generate queries %s' without --refresh to create it first",
+			ctx.SQLPath,
+			resourceName,
+		)
+	}
+
+	cat, err := m.migrationManager.BuildCatalogFromMigrations(ctx.TableName, m.config)
+	if err != nil {
+		return err
+	}
+
+	if err := m.modelGenerator.RefreshQueries(cat, ctx.ResourceName, ctx.TableName, ctx.SQLPath); err != nil {
+		return fmt.Errorf("failed to refresh queries: %w", err)
+	}
+
+	if err := m.fileManager.RunSQLCGenerate(); err != nil {
+		return fmt.Errorf("failed to run sqlc generate: %w", err)
+	}
+
+	fmt.Printf(
+		"Successfully refreshed SQL queries for %s\n",
+		ctx.ResourceName,
+	)
+	return nil
+}
