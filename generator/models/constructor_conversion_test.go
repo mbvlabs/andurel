@@ -31,14 +31,14 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 			modulePath:    "github.com/example/myapp",
 			databaseType:  "postgresql",
 			expectedCreateParams: []string{
-				"params := db.CreateInsertUserParams(",
+				"params := db.BuildInsertUserParams(",
 				"data.Email,",
 				"data.Name,",
 				"pgtype.Int4{Int32: data.Age, Valid: true}",
 				"pgtype.Bool{Bool: data.IsActive, Valid: true}",
 			},
 			expectedUpdateParams: []string{
-				"params := db.CreateUpdateUserParams(",
+				"params := db.BuildUpdateUserParams(",
 				"data.ID,",
 				"data.Email,",
 				"data.Name,",
@@ -46,10 +46,10 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 				"pgtype.Bool{Bool: data.IsActive, Valid: true}",
 			},
 			unexpectedCreateCode: []string{
-				"CreateInsertUserParams()",
+				"BuildInsertUserParams()",
 			},
 			unexpectedUpdateCode: []string{
-				"CreateUpdateUserParams()",
+				"BuildUpdateUserParams()",
 			},
 		},
 		{
@@ -60,14 +60,14 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 			modulePath:    "github.com/example/myapp",
 			databaseType:  "sqlite",
 			expectedCreateParams: []string{
-				"params := db.CreateInsertUserParams(",
+				"params := db.BuildInsertUserParams(",
 				"data.Email,",
 				"sql.NullTime{Time: data.EmailVerifiedAt, Valid: true}",
 				"data.Password,",
 				"data.IsAdmin,",
 			},
 			expectedUpdateParams: []string{
-				"params := db.CreateUpdateUserParams(",
+				"params := db.BuildUpdateUserParams(",
 				"data.ID.String(),",
 				"data.Email,",
 				"sql.NullTime{Time: data.EmailVerifiedAt, Valid: true}",
@@ -75,10 +75,10 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 				"data.IsAdmin,",
 			},
 			unexpectedCreateCode: []string{
-				"CreateInsertUserParams()",
+				"BuildInsertUserParams()",
 			},
 			unexpectedUpdateCode: []string{
-				"CreateUpdateUserParams()",
+				"BuildUpdateUserParams()",
 			},
 		},
 	}
@@ -287,7 +287,7 @@ func TestConstructorConversions__FieldsExcludedCorrectly(t *testing.T) {
 			createFunc := modelStr[createStart : createStart+createEnd]
 
 			for _, unexpected := range tt.unexpectedInCreate {
-				paramsStart := strings.Index(createFunc, "params := db.CreateInsertUserParams(")
+				paramsStart := strings.Index(createFunc, "params := db.BuildInsertUserParams(")
 				paramsEnd := strings.Index(createFunc[paramsStart:], ")")
 				paramsSection := createFunc[paramsStart : paramsStart+paramsEnd]
 
@@ -305,7 +305,7 @@ func TestConstructorConversions__FieldsExcludedCorrectly(t *testing.T) {
 			updateFunc := modelStr[updateStart : updateStart+updateEnd]
 
 			for _, unexpected := range tt.unexpectedInUpdate {
-				paramsStart := strings.Index(updateFunc, "params := db.CreateUpdateUserParams(")
+				paramsStart := strings.Index(updateFunc, "params := db.BuildUpdateUserParams(")
 				paramsEnd := strings.Index(updateFunc[paramsStart:], ")")
 				paramsSection := updateFunc[paramsStart : paramsStart+paramsEnd]
 
