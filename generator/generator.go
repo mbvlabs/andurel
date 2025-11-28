@@ -51,6 +51,6 @@ func (g *Generator) GenerateQueriesOnly(resourceName string, tableNameOverride s
 	return g.coordinator.ModelManager.GenerateQueriesOnly(resourceName, tableNameOverride)
 }
 
-func (g *Generator) RefreshQueriesOnly(resourceName, tableName string) error {
-	return g.coordinator.ModelManager.RefreshQueriesOnly(resourceName, tableName)
+func (g *Generator) RefreshQueriesOnly(resourceName, tableName string, tableNameOverridden bool) error {
+	return g.coordinator.ModelManager.RefreshQueriesOnly(resourceName, tableName, tableNameOverridden)
 }

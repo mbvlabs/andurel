@@ -354,7 +354,7 @@ func TestRefreshQueriesOnly_RequiresExistingSQLFile(t *testing.T) {
 	manager, cleanup := setupModelManagerTest(t)
 	defer cleanup()
 
-	err := manager.RefreshQueriesOnly("NonExistent", "non_existents")
+	err := manager.RefreshQueriesOnly("NonExistent", "non_existents", false)
 	if err == nil {
 		t.Error("RefreshQueriesOnly() expected error when SQL file doesn't exist, got nil")
 	}
@@ -383,6 +383,127 @@ func TestCheckExistingModel_NoWarningWhenModelNotExists(t *testing.T) {
 	manager, cleanup := setupModelManagerTest(t)
 	defer cleanup()
 
-	// This should not panic when model doesn't exist
 	manager.checkExistingModel("NonExistent")
+}
+
+func TestSetupModelContext_SingularTableNameWithOverride(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	ctx, err := manager.setupModelContext("UserFeedback", "user_feedback", true)
+	if err != nil {
+		t.Errorf("setupModelContext() with singular table name override returned error: %v", err)
+	}
+
+	if ctx == nil {
+		t.Fatal("setupModelContext() returned nil context")
+	}
+
+	if ctx.TableName != "user_feedback" {
+		t.Errorf("setupModelContext() TableName = %q, want %q", ctx.TableName, "user_feedback")
+	}
+}
+
+func TestSetupModelContext_SingularTableNameWithoutOverride(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	_, err := manager.setupModelContext("UserFeedback", "user_feedback", false)
+	if err == nil {
+		t.Error("setupModelContext() without override flag should reject singular table name")
+	}
+
+	if !strings.Contains(err.Error(), "must be plural") {
+		t.Errorf("setupModelContext() error = %v, want error containing 'must be plural'", err)
+	}
+}
+
+func TestSetupModelContext_PluralTableNameWithoutOverride(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	ctx, err := manager.setupModelContext("User", "users", false)
+	if err != nil {
+		t.Errorf("setupModelContext() with plural table name returned error: %v", err)
+	}
+
+	if ctx == nil {
+		t.Fatal("setupModelContext() returned nil context")
+	}
+
+	if ctx.TableName != "users" {
+		t.Errorf("setupModelContext() TableName = %q, want %q", ctx.TableName, "users")
+	}
+}
+
+func TestSetupQueriesContext_SingularTableNameWithOverride(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	ctx, err := manager.setupQueriesContext("UserFeedback", "user_feedback", true)
+	if err != nil {
+		t.Errorf("setupQueriesContext() with singular table name override returned error: %v", err)
+	}
+
+	if ctx == nil {
+		t.Fatal("setupQueriesContext() returned nil context")
+	}
+
+	if ctx.TableName != "user_feedback" {
+		t.Errorf("setupQueriesContext() TableName = %q, want %q", ctx.TableName, "user_feedback")
+	}
+}
+
+func TestSetupQueriesContext_SingularTableNameWithoutOverride(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	_, err := manager.setupQueriesContext("UserFeedback", "user_feedback", false)
+	if err == nil {
+		t.Error("setupQueriesContext() without override flag should reject singular table name")
+	}
+
+	if !strings.Contains(err.Error(), "must be plural") {
+		t.Errorf("setupQueriesContext() error = %v, want error containing 'must be plural'", err)
+	}
+}
+
+func TestGenerateModel_SingularTableNameOverride(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	migrationsDir := filepath.Join("database", "migrations")
+	migrationContent := `CREATE TABLE user_feedback (
+		id SERIAL PRIMARY KEY,
+		message TEXT NOT NULL
+	);`
+	if err := os.WriteFile(filepath.Join(migrationsDir, "001_create_user_feedback.up.sql"), []byte(migrationContent), 0o644); err != nil {
+		t.Fatalf("Failed to create migration file: %v", err)
+	}
+
+	err := manager.GenerateModel("UserFeedback", "user_feedback")
+
+	if err != nil && strings.Contains(err.Error(), "must be plural") {
+		t.Errorf("GenerateModel() with --table-name override should not fail with plural validation: %v", err)
+	}
+}
+
+func TestGenerateQueriesOnly_SingularTableNameOverride(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	migrationsDir := filepath.Join("database", "migrations")
+	migrationContent := `CREATE TABLE user_feedback (
+		id SERIAL PRIMARY KEY,
+		message TEXT NOT NULL
+	);`
+	if err := os.WriteFile(filepath.Join(migrationsDir, "001_create_user_feedback.up.sql"), []byte(migrationContent), 0o644); err != nil {
+		t.Fatalf("Failed to create migration file: %v", err)
+	}
+
+	err := manager.GenerateQueriesOnly("UserFeedback", "user_feedback")
+
+	if err != nil && strings.Contains(err.Error(), "must be plural") {
+		t.Errorf("GenerateQueriesOnly() with --table-name override should not fail with plural validation: %v", err)
+	}
 }

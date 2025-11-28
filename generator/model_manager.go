@@ -50,15 +50,21 @@ func NewModelManager(
 	}
 }
 
-func (m *ModelManager) setupModelContext(resourceName, tableName string) (*modelSetupContext, error) {
+func (m *ModelManager) setupModelContext(resourceName, tableName string, tableNameOverridden bool) (*modelSetupContext, error) {
 	modulePath := m.projectManager.GetModulePath()
 
 	if err := m.validator.ValidateResourceName(resourceName); err != nil {
 		return nil, err
 	}
 
-	if err := m.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
-		return nil, err
+	if tableNameOverridden {
+		if err := m.validator.ValidateModulePath(modulePath); err != nil {
+			return nil, fmt.Errorf("module path validation failed: %w", err)
+		}
+	} else {
+		if err := m.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
+			return nil, err
+		}
 	}
 
 	rootDir, err := m.fileManager.FindGoModRoot()
@@ -139,7 +145,7 @@ func (m *ModelManager) GenerateModel(resourceName string, tableNameOverride stri
 		}
 	}
 
-	ctx, err := m.setupModelContext(resourceName, tableName)
+	ctx, err := m.setupModelContext(resourceName, tableName, tableNameOverride != "")
 	if err != nil {
 		return err
 	}
@@ -184,11 +190,13 @@ func (m *ModelManager) RefreshModel(resourceName, tableName string) error {
 	modelFileName := naming.ToSnakeCase(resourceName) + ".go"
 	modelPath := filepath.Join(m.config.Paths.Models, modelFileName)
 
+	tableNameOverridden := false
 	if overriddenTableName, found := m.extractTableNameOverride(modelPath, resourceName); found {
 		tableName = overriddenTableName
+		tableNameOverridden = true
 	}
 
-	ctx, err := m.setupModelContext(resourceName, tableName)
+	ctx, err := m.setupModelContext(resourceName, tableName, tableNameOverridden)
 	if err != nil {
 		return err
 	}
@@ -230,11 +238,13 @@ func (m *ModelManager) RefreshQueries(resourceName, tableName string) error {
 	modelFileName := naming.ToSnakeCase(resourceName) + ".go"
 	modelPath := filepath.Join(m.config.Paths.Models, modelFileName)
 
+	tableNameOverridden := false
 	if overriddenTableName, found := m.extractTableNameOverride(modelPath, resourceName); found {
 		tableName = overriddenTableName
+		tableNameOverridden = true
 	}
 
-	ctx, err := m.setupModelContext(resourceName, tableName)
+	ctx, err := m.setupModelContext(resourceName, tableName, tableNameOverridden)
 	if err != nil {
 		return err
 	}
@@ -276,11 +286,13 @@ func (m *ModelManager) RefreshConstructors(resourceName, tableName string) error
 	modelFileName := naming.ToSnakeCase(resourceName) + ".go"
 	modelPath := filepath.Join(m.config.Paths.Models, modelFileName)
 
+	tableNameOverridden := false
 	if overriddenTableName, found := m.extractTableNameOverride(modelPath, resourceName); found {
 		tableName = overriddenTableName
+		tableNameOverridden = true
 	}
 
-	ctx, err := m.setupModelContext(resourceName, tableName)
+	ctx, err := m.setupModelContext(resourceName, tableName, tableNameOverridden)
 	if err != nil {
 		return err
 	}
@@ -336,15 +348,21 @@ type queriesSetupContext struct {
 	PluralName   string
 }
 
-func (m *ModelManager) setupQueriesContext(resourceName, tableName string) (*queriesSetupContext, error) {
+func (m *ModelManager) setupQueriesContext(resourceName, tableName string, tableNameOverridden bool) (*queriesSetupContext, error) {
 	modulePath := m.projectManager.GetModulePath()
 
 	if err := m.validator.ValidateResourceName(resourceName); err != nil {
 		return nil, err
 	}
 
-	if err := m.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
-		return nil, err
+	if tableNameOverridden {
+		if err := m.validator.ValidateModulePath(modulePath); err != nil {
+			return nil, fmt.Errorf("module path validation failed: %w", err)
+		}
+	} else {
+		if err := m.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
+			return nil, err
+		}
 	}
 
 	rootDir, err := m.fileManager.FindGoModRoot()
@@ -398,7 +416,7 @@ func (m *ModelManager) GenerateQueriesOnly(resourceName string, tableNameOverrid
 		}
 	}
 
-	ctx, err := m.setupQueriesContext(resourceName, tableName)
+	ctx, err := m.setupQueriesContext(resourceName, tableName, tableNameOverride != "")
 	if err != nil {
 		return err
 	}
@@ -442,8 +460,8 @@ To use a different table name, run:
 	return nil
 }
 
-func (m *ModelManager) RefreshQueriesOnly(resourceName, tableName string) error {
-	ctx, err := m.setupQueriesContext(resourceName, tableName)
+func (m *ModelManager) RefreshQueriesOnly(resourceName, tableName string, tableNameOverridden bool) error {
+	ctx, err := m.setupQueriesContext(resourceName, tableName, tableNameOverridden)
 	if err != nil {
 		return err
 	}
