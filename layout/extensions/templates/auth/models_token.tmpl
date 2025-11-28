@@ -143,7 +143,7 @@ func createToken(
 		return Token{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.CreateInsertTokenParams(data.Scope, data.ExpiresAt, data.Hash, data.MetaData)
+	params := db.CreateInsertTokenParams(uuid.New(), data.Scope, data.ExpiresAt, data.Hash, data.MetaData)
 	row, err := queries.InsertToken(ctx, dbtx, params)
 	if err != nil {
 		return Token{}, err

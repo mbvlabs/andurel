@@ -23,6 +23,7 @@ import (
 // to make schema changes compiler-enforced and visible
 
 func CreateInsertUserParams(
+	id uuid.UUID,
 	email string,
 	emailValidatedAt sql.NullTime,
 	password []byte,
@@ -38,7 +39,7 @@ func CreateInsertUserParams(
 	}
 
 	return InsertUserParams{
-		ID:               uuid.New(),
+		ID:               id,
 		Email:            email,
 		EmailValidatedAt: validated,
 		Password:         password,
@@ -51,7 +52,7 @@ func CreateInsertUserParams(
 	}
 
 	return InsertUserParams{
-		ID:               uuid.New().String(),
+		ID:               id.String(),
 		Email:            email,
 		EmailValidatedAt: emailValidatedAt,
 		Password:         password,

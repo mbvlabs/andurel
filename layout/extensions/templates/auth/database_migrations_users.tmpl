@@ -3,8 +3,8 @@
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS users (
     id uuid PRIMARY KEY,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     email_validated_at TIMESTAMP WITH TIME ZONE,
     password BYTEA NOT NULL,
@@ -21,8 +21,8 @@ DROP TABLE IF EXISTS users;
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
-    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
-    updated_at DATETIME NOT NULL DEFAULT (datetime('now')),
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
     email TEXT NOT NULL UNIQUE,
     email_validated_at DATETIME,
     password BLOB NOT NULL,

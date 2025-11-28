@@ -143,7 +143,7 @@ func CreateUser(
 		return User{}, err
 	}
 
-	params := db.CreateInsertUserParams(strings.ToLower(data.Email), sql.NullTime{}, []byte(hashedPassword), false)
+	params := db.CreateInsertUserParams(uuid.New(), strings.ToLower(data.Email), sql.NullTime{}, []byte(hashedPassword), false)
 	row, err := queries.InsertUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err
@@ -437,7 +437,7 @@ func CreateUser(
 		return User{}, err
 	}
 
-	params := db.CreateInsertUserParams(strings.ToLower(data.Email), sql.NullTime{}, []byte(hashedPassword), false)
+	params := db.CreateInsertUserParams(uuid.New(), strings.ToLower(data.Email), sql.NullTime{}, []byte(hashedPassword), false)
 	row, err := queries.InsertUser(ctx, dbtx, params)
 	if err != nil {
 		return User{}, err

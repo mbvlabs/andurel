@@ -3,8 +3,8 @@
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS tokens (
     id uuid PRIMARY KEY,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
     scope VARCHAR(255) NOT NULL,
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     hash TEXT NOT NULL,
@@ -21,8 +21,8 @@ DROP TABLE IF EXISTS tokens;
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS tokens (
     id TEXT PRIMARY KEY,
-    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
-    updated_at DATETIME NOT NULL DEFAULT (datetime('now')),
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
     scope VARCHAR(255) NOT NULL,
     expires_at DATETIME NOT NULL,
     hash TEXT NOT NULL,
