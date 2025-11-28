@@ -20,6 +20,7 @@ import (
 // to make schema changes compiler-enforced and visible
 
 func CreateInsert{{.Name}}Params(
+	id uuid.UUID,
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
 	{{camelCase .Name}} {{.SQLCType}},
@@ -27,7 +28,7 @@ func CreateInsert{{.Name}}Params(
 {{- end}}
 ) Insert{{.Name}}Params {
 	return Insert{{.Name}}Params{
-		ID: {{uuidParam "uuid.New()"}},
+		ID: {{if eq .DatabaseType "sqlite"}}id.String(){{else}}id{{end}},
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
 		{{.Name}}: {{camelCase .Name}},

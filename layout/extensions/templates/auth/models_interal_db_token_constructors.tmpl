@@ -23,6 +23,7 @@ import (
 // to make schema changes compiler-enforced and visible
 
 func CreateInsertTokenParams(
+    id uuid.UUID,
 	scope string,
 	expiresAt time.Time,
 	hash string,
@@ -30,7 +31,7 @@ func CreateInsertTokenParams(
 ) InsertTokenParams {
 {{- if eq .Database "postgresql" }}
 	return InsertTokenParams{
-		ID:    uuid.New(),
+		ID:    id,
 		Scope: scope,
 		ExpiresAt: pgtype.Timestamptz{
 			Time:  expiresAt,
@@ -41,7 +42,7 @@ func CreateInsertTokenParams(
 	}
 {{- else if eq .Database "sqlite" }}
 	return InsertTokenParams{
-		ID:        uuid.New().String(),
+		ID:        id.String(),
 		Scope:     scope,
 		ExpiresAt: expiresAt,
 		Hash:      hash,
