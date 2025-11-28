@@ -27,6 +27,9 @@ type Blueprint struct {
 
 	// Main holds configuration for the main.go application setup
 	Main MainSection
+
+	// Cookies section for router/cookies package
+	Cookies CookiesSection
 }
 
 // ControllerSection holds controller-related configuration.
@@ -136,6 +139,30 @@ type PreRunHook struct {
 	// Code is the Go code to execute (e.g., "if err := migrate(db); err != nil { return err }")
 	Code string
 	// Order for deterministic rendering
+	Order int
+}
+
+// CookiesSection holds cookies package configuration
+type CookiesSection struct {
+	Imports          *OrderedSet
+	Constants        []Constant
+	AppFields        []Field
+	Functions        []Function
+	CreateSessionCode string
+	GetSessionCode    string
+}
+
+// Constant represents a const declaration
+type Constant struct {
+	Name  string
+	Value string
+	Order int
+}
+
+// Function represents a function definition
+type Function struct {
+	Name string
+	Code string
 	Order int
 }
 
@@ -277,6 +304,12 @@ func New() *Blueprint {
 			Initializations:   make([]Initialization, 0),
 			BackgroundWorkers: make([]BackgroundWorker, 0),
 			PreRunHooks:       make([]PreRunHook, 0),
+		},
+		Cookies: CookiesSection{
+			Imports:   NewOrderedSet(),
+			Constants: make([]Constant, 0),
+			AppFields: make([]Field, 0),
+			Functions: make([]Function, 0),
 		},
 	}
 }
@@ -423,4 +456,34 @@ func (ms *MainSection) SortedPreRunHooks() []PreRunHook {
 		return hooks[i].Order < hooks[j].Order
 	})
 	return hooks
+}
+
+// SortedConstants returns cookies constants sorted by order.
+func (cs *CookiesSection) SortedConstants() []Constant {
+	constants := make([]Constant, len(cs.Constants))
+	copy(constants, cs.Constants)
+	sort.Slice(constants, func(i, j int) bool {
+		return constants[i].Order < constants[j].Order
+	})
+	return constants
+}
+
+// SortedAppFields returns cookies app fields sorted by order.
+func (cs *CookiesSection) SortedAppFields() []Field {
+	fields := make([]Field, len(cs.AppFields))
+	copy(fields, cs.AppFields)
+	sort.Slice(fields, func(i, j int) bool {
+		return fields[i].Order < fields[j].Order
+	})
+	return fields
+}
+
+// SortedFunctions returns cookies functions sorted by order.
+func (cs *CookiesSection) SortedFunctions() []Function {
+	functions := make([]Function, len(cs.Functions))
+	copy(functions, cs.Functions)
+	sort.Slice(functions, func(i, j int) bool {
+		return functions[i].Order < functions[j].Order
+	})
+	return functions
 }
