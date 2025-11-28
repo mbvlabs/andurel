@@ -4,7 +4,6 @@ package cmds
 import (
 	"archive/tar"
 	"archive/zip"
-	"compress/bzip2"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -283,18 +282,18 @@ func getMailpitDownloadURL(version string) string {
 	return fmt.Sprintf("https://github.com/axllent/mailpit/releases/download/%s/%s.%s", version, platform, ext)
 }
 
-func SetupUsql(targetDir string) error {
-	return SetupUsqlWithVersion(targetDir, "v0.19.26", 10*time.Second)
+func SetupDblab(targetDir string) error {
+	return SetupDblabWithVersion(targetDir, "v0.34.2", 10*time.Second)
 }
 
-func SetupUsqlWithVersion(targetDir, version string, timeout time.Duration) error {
-	binPath := filepath.Join(targetDir, "bin", "usql")
+func SetupDblabWithVersion(targetDir, version string, timeout time.Duration) error {
+	binPath := filepath.Join(targetDir, "bin", "dblab")
 	if runtime.GOOS == "windows" {
 		binPath += ".exe"
 	}
 
 	if _, err := os.Stat(binPath); err == nil {
-		fmt.Printf("usql binary already exists at: %s\n", binPath)
+		fmt.Printf("dblab binary already exists at: %s\n", binPath)
 		return nil
 	}
 
@@ -303,31 +302,37 @@ func SetupUsqlWithVersion(targetDir, version string, timeout time.Duration) erro
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
 
-	downloadURL := getUsqlDownloadURL(version)
+	downloadURL := getDblabDownloadURL(version)
 
 	client := &http.Client{
 		Timeout: timeout,
 	}
 	resp, err := client.Get(downloadURL)
 	if err != nil {
-		return fmt.Errorf("failed to download usql: %w", err)
+		return fmt.Errorf("failed to download dblab: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download usql: status %d", resp.StatusCode)
+		return fmt.Errorf("failed to download dblab: status %d", resp.StatusCode)
 	}
 
-	if runtime.GOOS == "windows" {
-		return extractUsqlFromZip(resp.Body, binPath)
-	}
-
-	return extractUsqlFromTarBz2(resp.Body, binPath)
+	return extractDblabFromTarGz(resp.Body, binPath)
 }
 
-func extractUsqlFromTarBz2(r io.Reader, binPath string) error {
-	bzr := bzip2.NewReader(r)
-	tr := tar.NewReader(bzr)
+func extractDblabFromTarGz(r io.Reader, binPath string) error {
+	gzr, err := gzip.NewReader(r)
+	if err != nil {
+		return fmt.Errorf("failed to create gzip reader: %w", err)
+	}
+	defer gzr.Close()
+
+	tr := tar.NewReader(gzr)
+
+	binaryName := "dblab"
+	if runtime.GOOS == "windows" {
+		binaryName = "dblab.exe"
+	}
 
 	for {
 		header, err := tr.Next()
@@ -338,7 +343,7 @@ func extractUsqlFromTarBz2(r io.Reader, binPath string) error {
 			return fmt.Errorf("failed to read tar: %w", err)
 		}
 
-		if header.Name == "usql" {
+		if header.Name == binaryName {
 			out, err := os.Create(binPath)
 			if err != nil {
 				return fmt.Errorf("failed to create binary file: %w", err)
@@ -357,70 +362,25 @@ func extractUsqlFromTarBz2(r io.Reader, binPath string) error {
 		}
 	}
 
-	return fmt.Errorf("usql binary not found in archive")
+	return fmt.Errorf("dblab binary not found in archive")
 }
 
-func extractUsqlFromZip(r io.Reader, binPath string) error {
-	tmpFile, err := os.CreateTemp("", "usql-*.zip")
-	if err != nil {
-		return fmt.Errorf("failed to create temp file: %w", err)
-	}
-	defer os.Remove(tmpFile.Name())
-	defer tmpFile.Close()
-
-	if _, err := io.Copy(tmpFile, r); err != nil {
-		return fmt.Errorf("failed to write temp file: %w", err)
-	}
-
-	tmpFile.Close()
-
-	zr, err := zip.OpenReader(tmpFile.Name())
-	if err != nil {
-		return fmt.Errorf("failed to open zip: %w", err)
-	}
-	defer zr.Close()
-
-	for _, f := range zr.File {
-		if f.Name == "usql.exe" {
-			rc, err := f.Open()
-			if err != nil {
-				return fmt.Errorf("failed to open file in zip: %w", err)
-			}
-			defer rc.Close()
-
-			out, err := os.Create(binPath)
-			if err != nil {
-				return fmt.Errorf("failed to create binary file: %w", err)
-			}
-			defer out.Close()
-
-			if _, err := io.Copy(out, rc); err != nil {
-				return fmt.Errorf("failed to write binary: %w", err)
-			}
-
-			return nil
-		}
-	}
-
-	return fmt.Errorf("usql.exe not found in zip archive")
-}
-
-func getUsqlDownloadURL(version string) string {
+func getDblabDownloadURL(version string) string {
 	var platform string
-	var ext string
+	var arch string
 	switch runtime.GOOS {
 	case "darwin":
-		platform = "darwin-amd64"
-		ext = "tar.bz2"
+		platform = "darwin"
+		arch = "amd64"
 	case "linux":
-		platform = "linux-amd64"
-		ext = "tar.bz2"
+		platform = "linux"
+		arch = "amd64"
 	case "windows":
-		platform = "windows-amd64"
-		ext = "zip"
+		platform = "windows"
+		arch = "amd64"
 	default:
-		platform = "linux-amd64"
-		ext = "tar.bz2"
+		platform = "linux"
+		arch = "amd64"
 	}
 
 	versionWithoutV := version
@@ -428,5 +388,5 @@ func getUsqlDownloadURL(version string) string {
 		versionWithoutV = version[1:]
 	}
 
-	return fmt.Sprintf("https://github.com/xo/usql/releases/download/%s/usql-%s-%s.%s", version, versionWithoutV, platform, ext)
+	return fmt.Sprintf("https://github.com/danvergara/dblab/releases/download/%s/dblab_%s_%s_%s.tar.gz", version, versionWithoutV, platform, arch)
 }

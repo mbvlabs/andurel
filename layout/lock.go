@@ -119,19 +119,15 @@ func GetMailpitDownloadURL(version string) string {
 	return fmt.Sprintf("https://github.com/axllent/mailpit/releases/download/%s/mailpit-%s-amd64.%s", version, platform, ext)
 }
 
-func GetUsqlDownloadURL(version string) string {
-	platform := getUsqlPlatform()
-	ext := "tar.bz2"
-	if runtime.GOOS == "windows" {
-		ext = "zip"
-	}
+func GetDblabDownloadURL(version string) string {
+	platform := getDblabPlatform()
 
 	versionWithoutV := version
 	if len(version) > 0 && version[0] == 'v' {
 		versionWithoutV = version[1:]
 	}
 
-	return fmt.Sprintf("https://github.com/xo/usql/releases/download/%s/usql-%s-%s.%s", version, versionWithoutV, platform, ext)
+	return fmt.Sprintf("https://github.com/danvergara/dblab/releases/download/%s/dblab_%s_%s.tar.gz", version, versionWithoutV, platform)
 }
 
 func getTailwindPlatform() string {
@@ -162,16 +158,16 @@ func getMailpitPlatform() string {
 	}
 }
 
-func getUsqlPlatform() string {
+func getDblabPlatform() string {
 	goos := runtime.GOOS
 	switch goos {
 	case "darwin":
-		return "darwin-amd64"
+		return "darwin_amd64"
 	case "linux":
-		return "linux-amd64"
+		return "linux_amd64"
 	case "windows":
-		return "windows-amd64"
+		return "windows_amd64"
 	default:
-		return "linux-amd64"
+		return "linux_amd64"
 	}
 }

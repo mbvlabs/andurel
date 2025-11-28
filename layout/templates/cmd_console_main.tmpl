@@ -29,15 +29,15 @@ func main() {
 	}
 
 	cfg := config.NewConfig()
-	usqlPath := filepath.Join(projectRoot, "bin", "usql")
+	dblabPath := filepath.Join(projectRoot, "bin", "dblab")
 
-	cmd := exec.CommandContext(ctx, usqlPath, cfg.DB.GetDatabaseURL())
+	cmd := exec.CommandContext(ctx, dblabPath, "--url", cfg.DB.GetDatabaseURL())
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "error running usql: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error running dblab: %v\n", err)
 		os.Exit(1)
 	}
 }

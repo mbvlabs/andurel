@@ -151,11 +151,11 @@ func Scaffold(
 		}
 	}
 
-	if os.Getenv("ANDUREL_SKIP_USQL") != "true" {
-		fmt.Print("Setting up usql...\n")
-		if err := cmds.SetupUsql(targetDir); err != nil {
+	if os.Getenv("ANDUREL_SKIP_DBLAB") != "true" {
+		fmt.Print("Setting up dblab...\n")
+		if err := cmds.SetupDblab(targetDir); err != nil {
 			fmt.Println(
-				"Failed to download usql binary. Run 'andurel sync' after setup is done to fix.",
+				"Failed to download dblab binary. Run 'andurel sync' after setup is done to fix.",
 			)
 		}
 	}
@@ -1010,20 +1010,20 @@ func generateLockFile(targetDir string, hasTailwind bool) error {
 		mailpitChecksum,
 	)
 
-	usqlVersion := "v0.19.26"
-	usqlPath := filepath.Join(targetDir, "bin", "usql")
-	usqlChecksum := ""
-	if _, err := os.Stat(usqlPath); err == nil {
-		usqlChecksum, err = CalculateBinaryChecksum(usqlPath)
+	dblabVersion := "v0.34.2"
+	dblabPath := filepath.Join(targetDir, "bin", "dblab")
+	dblabChecksum := ""
+	if _, err := os.Stat(dblabPath); err == nil {
+		dblabChecksum, err = CalculateBinaryChecksum(dblabPath)
 		if err != nil {
-			fmt.Printf("Warning: failed to calculate usql checksum: %v\n", err)
+			fmt.Printf("Warning: failed to calculate dblab checksum: %v\n", err)
 		}
 	}
 	lock.AddBinary(
-		"usql",
-		usqlVersion,
-		GetUsqlDownloadURL(usqlVersion),
-		usqlChecksum,
+		"dblab",
+		dblabVersion,
+		GetDblabDownloadURL(dblabVersion),
+		dblabChecksum,
 	)
 
 	lock.Binaries["run"] = &Binary{
