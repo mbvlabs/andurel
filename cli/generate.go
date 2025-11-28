@@ -130,10 +130,14 @@ This is equivalent to running model, controller, and view generators together.
 The table name is automatically inferred as the plural form of the model name.
 
 Examples:
-  andurel generate resource Product    # Model + controller + views + routes for 'products' table`,
+  andurel generate resource Product                        # Model + controller + views + routes for 'products' table
+  andurel generate resource Feedback --table-name=user_feedback  # Use custom table name`,
 		Args: cobra.ExactArgs(1),
 		RunE: generateResource,
 	}
+
+	cmd.Flags().
+		String("table-name", "", "Override the default table name (defaults to plural form of model name)")
 
 	return cmd
 }
@@ -157,12 +161,17 @@ func generateController(cmd *cobra.Command, args []string) error {
 func generateResource(cmd *cobra.Command, args []string) error {
 	resourceName := args[0]
 
+	tableNameOverride, err := cmd.Flags().GetString("table-name")
+	if err != nil {
+		return err
+	}
+
 	gen, err := generator.New()
 	if err != nil {
 		return err
 	}
 
-	if err := gen.GenerateModel(resourceName, ""); err != nil {
+	if err := gen.GenerateModel(resourceName, tableNameOverride); err != nil {
 		return err
 	}
 
@@ -236,7 +245,7 @@ func generateQueries(cmd *cobra.Command, args []string) error {
 	}
 
 	if refresh {
-		return gen.RefreshQueriesOnly(resourceName, tableName)
+		return gen.RefreshQueriesOnly(resourceName, tableName, tableNameOverride != "")
 	}
 
 	return gen.GenerateQueriesOnly(resourceName, tableNameOverride)
