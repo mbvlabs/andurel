@@ -59,6 +59,7 @@ func Create{{.Name}}(
 	}
 
 	params := db.BuildInsert{{.Name}}Params(
+		uuid.New(),
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
 		{{.ConversionToDB}},
@@ -263,6 +264,7 @@ func Upsert{{.Name}}(
 	}
 
 	params := db.BuildUpsert{{.Name}}Params(
+		uuid.New(),
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
 		{{.ConversionToDB}},
@@ -304,6 +306,7 @@ func FindOrCreate{{.Name}}(
 	}
 
 	params := db.BuildInsert{{.Name}}Params(
+		data.ID,
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
 		{{.ConversionToDB}},
