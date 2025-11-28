@@ -40,6 +40,7 @@ type GeneratedView struct {
 type Config struct {
 	ResourceName string
 	PluralName   string
+	TableName    string
 	ModulePath   string
 }
 
@@ -63,9 +64,13 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 		Fields:       make([]ViewField, 0),
 	}
 
-	table, err := cat.GetTable("", config.PluralName)
+	tableName := config.TableName
+	if tableName == "" {
+		tableName = config.PluralName
+	}
+	table, err := cat.GetTable("", tableName)
 	if err != nil {
-		return nil, errors.NewDatabaseError("get table", config.PluralName, err)
+		return nil, errors.NewDatabaseError("get table", tableName, err)
 	}
 
 	for _, col := range table.Columns {
@@ -241,19 +246,21 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool) (
 func (g *Generator) GenerateView(
 	cat *catalog.Catalog,
 	resourceName string,
+	tableName string,
 	modulePath string,
 ) error {
-	return g.GenerateViewWithController(cat, resourceName, modulePath, false)
+	return g.GenerateViewWithController(cat, resourceName, tableName, modulePath, false)
 }
 
 func (g *Generator) GenerateViewWithController(
 	cat *catalog.Catalog,
 	resourceName string,
+	tableName string,
 	modulePath string,
 	withController bool,
 ) error {
 	pluralName := naming.DeriveTableName(resourceName)
-	viewPath := filepath.Join("views", pluralName+"_resource.templ")
+	viewPath := filepath.Join("views", tableName+"_resource.templ")
 
 	if _, err := os.Stat(viewPath); err == nil {
 		return fmt.Errorf("view file %s already exists", viewPath)
@@ -262,6 +269,7 @@ func (g *Generator) GenerateViewWithController(
 	view, err := g.Build(cat, Config{
 		ResourceName: resourceName,
 		PluralName:   pluralName,
+		TableName:    tableName,
 		ModulePath:   modulePath,
 	})
 	if err != nil {

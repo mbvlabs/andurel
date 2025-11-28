@@ -46,15 +46,27 @@ func (v *ViewManager) GenerateViewWithController(resourceName, tableName string)
 func (v *ViewManager) generateView(resourceName, tableName string, withController bool) error {
 	modulePath := v.projectManager.GetModulePath()
 
-	if err := v.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
+	modelPath := BuildModelPath(v.config.Paths.Models, resourceName)
+	_, tableNameOverridden := ExtractTableNameOverride(modelPath, resourceName)
+
+	if err := v.validator.ValidateResourceName(resourceName); err != nil {
 		return err
 	}
 
-	var modelFileName strings.Builder
-	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
-	modelFileName.WriteString(naming.ToSnakeCase(resourceName))
-	modelFileName.WriteString(".go")
-	modelPath := filepath.Join(v.config.Paths.Models, modelFileName.String())
+	if tableNameOverridden {
+		if err := v.validator.ValidateTableNameOverride(resourceName, tableName); err != nil {
+			return fmt.Errorf("table name validation failed: %w", err)
+		}
+	} else {
+		if err := v.validator.ValidateTableName(tableName); err != nil {
+			return fmt.Errorf("table name validation failed: %w", err)
+		}
+	}
+
+	if err := v.validator.ValidateModulePath(modulePath); err != nil {
+		return fmt.Errorf("module path validation failed: %w", err)
+	}
+
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
 		return fmt.Errorf(
 			"model file %s does not exist. Generate model first",
@@ -67,7 +79,7 @@ func (v *ViewManager) generateView(resourceName, tableName string, withControlle
 		return err
 	}
 
-	if err := v.viewGenerator.GenerateViewWithController(cat, resourceName, modulePath, withController); err != nil {
+	if err := v.viewGenerator.GenerateViewWithController(cat, resourceName, tableName, modulePath, withController); err != nil {
 		return fmt.Errorf("failed to generate view: %w", err)
 	}
 
@@ -96,10 +108,16 @@ func (v *ViewManager) GenerateViewFromModel(resourceName string, withController 
 		return err
 	}
 
-	tableName := naming.DeriveTableName(resourceName)
+	tableName, tableNameOverridden := ResolveTableNameWithFlag(v.config.Paths.Models, resourceName)
 
-	if err := v.validator.ValidateTableName(tableName); err != nil {
-		return fmt.Errorf("derived table name validation failed: %w", err)
+	if tableNameOverridden {
+		if err := v.validator.ValidateTableNameOverride(resourceName, tableName); err != nil {
+			return fmt.Errorf("table name validation failed: %w", err)
+		}
+	} else {
+		if err := v.validator.ValidateTableName(tableName); err != nil {
+			return fmt.Errorf("table name validation failed: %w", err)
+		}
 	}
 
 	if _, err := os.Stat(v.config.Paths.Views); os.IsNotExist(err) {
@@ -126,14 +144,14 @@ func (v *ViewManager) GenerateViewFromModel(resourceName string, withController 
 		return err
 	}
 
-	if err := v.viewGenerator.GenerateViewWithController(cat, resourceName, modulePath, withController); err != nil {
+	if err := v.viewGenerator.GenerateViewWithController(cat, resourceName, tableName, modulePath, withController); err != nil {
 		return fmt.Errorf("failed to generate view: %w", err)
 	}
 
 	if withController {
 		controllerType := controllers.ResourceController // with views since we're generating both
 		fileGen := controllers.NewFileGenerator()
-		if err := fileGen.GenerateController(cat, resourceName, controllerType, modulePath, v.config.Database.Type); err != nil {
+		if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, v.config.Database.Type); err != nil {
 			return fmt.Errorf("failed to generate controller: %w", err)
 		}
 		fmt.Printf("Successfully generated resource view for %s with controller\n", resourceName)
