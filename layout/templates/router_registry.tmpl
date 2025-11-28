@@ -21,11 +21,6 @@ func (rb *registrarBuilder) addEntry(fn func(*echo.Echo, controllers.Controllers
 	return rb
 }
 
-func (rb *registrarBuilder) addEntries(fns ...func(*echo.Echo, controllers.Controllers)) *registrarBuilder {
-	rb.routeFuncs = append(rb.routeFuncs, fns...)
-	return rb
-}
-
 func (rb *registrarBuilder) register(handler *echo.Echo, ctrls controllers.Controllers) {
 	for _, fn := range rb.routeFuncs {
 		fn(handler, ctrls)
