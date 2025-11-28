@@ -142,23 +142,6 @@ func Scaffold(
 		}
 	}
 
-	if os.Getenv("ANDUREL_SKIP_MAILPIT") != "true" {
-		fmt.Print("Setting up Mailpit...\n")
-		if err := cmds.SetupMailpit(targetDir); err != nil {
-			fmt.Println(
-				"Failed to download Mailpit binary. Run 'andurel sync' after setup is done to fix.",
-			)
-		}
-	}
-
-	if os.Getenv("ANDUREL_SKIP_USQL") != "true" {
-		fmt.Print("Setting up usql...\n")
-		if err := cmds.SetupUsql(targetDir); err != nil {
-			fmt.Println(
-				"Failed to download usql binary. Run 'andurel sync' after setup is done to fix.",
-			)
-		}
-	}
 
 	fmt.Print("Generating andurel.lock file...\n")
 	if err := generateLockFile(targetDir, templateData.CSSFramework == "tailwind"); err != nil {
@@ -882,11 +865,28 @@ func topologicalSort(extSet map[string]struct{}) ([]string, error) {
 
 const goVersion = "1.25.0"
 
+type GoTool struct {
+	Name    string
+	Module  string
+	Version string
+}
+
+var defaultGoTools = []GoTool{
+	{Name: "templ", Module: "github.com/a-h/templ/cmd/templ", Version: "v0.3.857"},
+	{Name: "sqlc", Module: "github.com/sqlc-dev/sqlc/cmd/sqlc", Version: "v1.28.0"},
+	{Name: "goose", Module: "github.com/pressly/goose/v3/cmd/goose", Version: "v3.24.1"},
+	{Name: "air", Module: "github.com/air-verse/air", Version: "v1.61.7"},
+	{Name: "mailpit", Module: "github.com/axllent/mailpit", Version: "v1.21.8"},
+	{Name: "usql", Module: "github.com/xo/usql", Version: "v0.19.14"},
+}
+
 var defaultTools = []string{
 	"github.com/a-h/templ/cmd/templ",
 	"github.com/sqlc-dev/sqlc/cmd/sqlc",
 	"github.com/pressly/goose/v3/cmd/goose",
 	"github.com/air-verse/air",
+	"github.com/axllent/mailpit",
+	"github.com/xo/usql",
 }
 
 func createGoMod(targetDir string, data *TemplateData) error {
@@ -976,6 +976,13 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 func generateLockFile(targetDir string, hasTailwind bool) error {
 	lock := NewAndurelLock()
 
+	for _, tool := range defaultGoTools {
+		lock.Binaries[tool.Name] = &Binary{
+			Version: tool.Version,
+			Source:  "go.mod",
+		}
+	}
+
 	if hasTailwind {
 		tailwindVersion := "v4.1.17"
 		tailwindPath := filepath.Join(targetDir, "bin", "tailwindcli")
@@ -989,42 +996,10 @@ func generateLockFile(targetDir string, hasTailwind bool) error {
 		lock.AddBinary(
 			"tailwindcli",
 			tailwindVersion,
-			GetTailwindDownloadURL(tailwindVersion),
+			"",
 			checksum,
 		)
 	}
-
-	mailpitVersion := "v1.27.11"
-	mailpitPath := filepath.Join(targetDir, "bin", "mailpit")
-	mailpitChecksum := ""
-	if _, err := os.Stat(mailpitPath); err == nil {
-		mailpitChecksum, err = CalculateBinaryChecksum(mailpitPath)
-		if err != nil {
-			fmt.Printf("Warning: failed to calculate mailpit checksum: %v\n", err)
-		}
-	}
-	lock.AddBinary(
-		"mailpit",
-		mailpitVersion,
-		GetMailpitDownloadURL(mailpitVersion),
-		mailpitChecksum,
-	)
-
-	usqlVersion := "v0.19.26"
-	usqlPath := filepath.Join(targetDir, "bin", "usql")
-	usqlChecksum := ""
-	if _, err := os.Stat(usqlPath); err == nil {
-		usqlChecksum, err = CalculateBinaryChecksum(usqlPath)
-		if err != nil {
-			fmt.Printf("Warning: failed to calculate usql checksum: %v\n", err)
-		}
-	}
-	lock.AddBinary(
-		"usql",
-		usqlVersion,
-		GetUsqlDownloadURL(usqlVersion),
-		usqlChecksum,
-	)
 
 	lock.Binaries["run"] = &Binary{
 		Type:   "built",

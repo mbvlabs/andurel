@@ -38,7 +38,13 @@ func syncBinaries(projectRoot string) error {
 		return fmt.Errorf("failed to read lock file: %w", err)
 	}
 
-	fmt.Println("Syncing binaries from andurel.lock...")
+	fmt.Println("Syncing Go tools...")
+	if err := cmds.RunGoModTidy(projectRoot); err != nil {
+		return fmt.Errorf("failed to run go mod tidy: %w", err)
+	}
+	fmt.Println("✓ Go tools synced")
+
+	fmt.Println("\nSyncing binaries from andurel.lock...")
 
 	for name, binary := range lock.Binaries {
 		binPath := filepath.Join(projectRoot, "bin", name)
@@ -91,10 +97,6 @@ func syncBinaries(projectRoot string) error {
 			switch name {
 			case "tailwindcli":
 				return cmds.SetupTailwindWithVersion(projectRoot, binary.Version, 30*time.Second)
-			case "mailpit":
-				return cmds.SetupMailpitWithVersion(projectRoot, binary.Version, 30*time.Second)
-			case "usql":
-				return cmds.SetupUsqlWithVersion(projectRoot, binary.Version, 30*time.Second)
 			default:
 				return fmt.Errorf("unknown binary: %s", name)
 			}
@@ -104,19 +106,12 @@ func syncBinaries(projectRoot string) error {
 			return fmt.Errorf("failed to download %s: %w", name, downloadErr)
 		}
 
-		if binary.Checksum != "" {
-			if err := layout.ValidateBinaryChecksum(binPath, binary.Checksum); err != nil {
-				return fmt.Errorf("checksum validation failed for %s: %w", name, err)
-			}
-			fmt.Printf("✓ %s (%s) - downloaded and verified\n", name, binary.Version)
-		} else {
-			checksum, err := layout.CalculateBinaryChecksum(binPath)
-			if err != nil {
-				return fmt.Errorf("failed to calculate checksum for %s: %w", name, err)
-			}
-			binary.Checksum = checksum
-			fmt.Printf("✓ %s (%s) - downloaded and checksum calculated\n", name, binary.Version)
+		checksum, err := layout.CalculateBinaryChecksum(binPath)
+		if err != nil {
+			return fmt.Errorf("failed to calculate checksum for %s: %w", name, err)
 		}
+		binary.Checksum = checksum
+		fmt.Printf("✓ %s (%s) - downloaded successfully\n", name, binary.Version)
 	}
 
 	if err := lock.WriteLockFile(projectRoot); err != nil {

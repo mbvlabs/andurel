@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 )
 
 type AndurelLock struct {
@@ -105,73 +104,3 @@ func CalculateBinaryChecksum(binaryPath string) (string, error) {
 	return fmt.Sprintf("sha256:%x", h.Sum(nil)), nil
 }
 
-func GetTailwindDownloadURL(version string) string {
-	platform := getTailwindPlatform()
-	return fmt.Sprintf("https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s", version, platform)
-}
-
-func GetMailpitDownloadURL(version string) string {
-	platform := getMailpitPlatform()
-	ext := "tar.gz"
-	if runtime.GOOS == "windows" {
-		ext = "zip"
-	}
-	return fmt.Sprintf("https://github.com/axllent/mailpit/releases/download/%s/mailpit-%s-amd64.%s", version, platform, ext)
-}
-
-func GetUsqlDownloadURL(version string) string {
-	platform := getUsqlPlatform()
-	ext := "tar.bz2"
-	if runtime.GOOS == "windows" {
-		ext = "zip"
-	}
-
-	versionWithoutV := version
-	if len(version) > 0 && version[0] == 'v' {
-		versionWithoutV = version[1:]
-	}
-
-	return fmt.Sprintf("https://github.com/xo/usql/releases/download/%s/usql-%s-%s.%s", version, versionWithoutV, platform, ext)
-}
-
-func getTailwindPlatform() string {
-	goos := runtime.GOOS
-	switch goos {
-	case "darwin":
-		return "macos-x64"
-	case "linux":
-		return "linux-x64"
-	case "windows":
-		return "windows-x64.exe"
-	default:
-		return "linux-x64"
-	}
-}
-
-func getMailpitPlatform() string {
-	goos := runtime.GOOS
-	switch goos {
-	case "darwin":
-		return "darwin"
-	case "linux":
-		return "linux"
-	case "windows":
-		return "windows"
-	default:
-		return "linux"
-	}
-}
-
-func getUsqlPlatform() string {
-	goos := runtime.GOOS
-	switch goos {
-	case "darwin":
-		return "darwin-amd64"
-	case "linux":
-		return "linux-amd64"
-	case "windows":
-		return "windows-amd64"
-	default:
-		return "linux-amd64"
-	}
-}
