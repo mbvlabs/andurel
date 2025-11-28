@@ -41,7 +41,6 @@ type GeneratedModel struct {
 	TableNameOverride string
 	ModulePath        string
 	DatabaseType      string
-	PluckableColumns  []PluckColumn
 }
 
 type Config struct {
@@ -51,13 +50,6 @@ type Config struct {
 	DatabaseType string
 	ModulePath   string
 	CustomTypes  []types.TypeOverride
-}
-
-type PluckColumn struct {
-	SQLName   string
-	FieldName string
-	GoType    string
-	SQLCType  string
 }
 
 type SQLData struct {
@@ -71,7 +63,6 @@ type SQLData struct {
 	LimitOffsetClause  string
 	NowFunction        string
 	UpsertUpdateSet    string
-	PluckableColumns   []PluckColumn
 }
 
 type Generator struct {
@@ -128,13 +119,6 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		}
 
 		model.Fields = append(model.Fields, field)
-
-		model.PluckableColumns = append(model.PluckableColumns, PluckColumn{
-			SQLName:   col.Name,
-			FieldName: field.Name,
-			GoType:    field.Type,
-			SQLCType:  field.SQLCType,
-		})
 	}
 
 	// Don't force all imports - only add them if they're actually needed
@@ -291,12 +275,6 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 		"lower": func(s string) string {
 			return strings.ToLower(s)
 		},
-		"lowerFirst": func(s string) string {
-			if len(s) == 0 {
-				return s
-			}
-			return strings.ToLower(s[:1]) + s[1:]
-		},
 		"toUpper": func(s string) string {
 			return strings.ToUpper(s)
 		},
@@ -433,7 +411,6 @@ func (g *Generator) prepareSQLData(
 	var insertPlaceholders []string
 	var updateColumns []string
 	var upsertUpdateColumns []string
-	var pluckableColumns []PluckColumn
 
 	var placeholderFunc func(int) string
 	var nowFunc string
@@ -467,21 +444,6 @@ func (g *Generator) prepareSQLData(
 			)
 			placeholderIndex++
 		}
-
-		goType, sqlcType, _, _ := g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
-		goType = g.getSimpleGoType(goType, sqlcType)
-
-		if col.Name == "id" && g.typeMapper.GetDatabaseType() == "sqlite" {
-			goType = "uuid.UUID"
-			sqlcType = "string"
-		}
-
-		pluckableColumns = append(pluckableColumns, PluckColumn{
-			SQLName:   col.Name,
-			FieldName: types.FormatFieldName(col.Name),
-			GoType:    goType,
-			SQLCType:  sqlcType,
-		})
 	}
 
 	placeholderIndex = 2
@@ -515,7 +477,6 @@ func (g *Generator) prepareSQLData(
 		LimitOffsetClause:  limitOffsetClause,
 		NowFunction:        nowFunc,
 		UpsertUpdateSet:    strings.Join(upsertUpdateColumns, ", "),
-		PluckableColumns:   pluckableColumns,
 	}
 }
 
@@ -924,19 +885,6 @@ func (g *Generator) extractGeneratedParts(content, resourceName string) map[stri
 		}
 	}
 
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, fmt.Sprintf("func Find%sBy", resourceName)) ||
-			strings.HasPrefix(trimmed, fmt.Sprintf("func Pluck%s", resourceName)) {
-			funcName := strings.Split(trimmed, "(")[0]
-			signature := funcName + "("
-			part := g.extractPartBySignature(lines, signature)
-			if part != "" {
-				parts[signature] = part
-			}
-		}
-	}
-
 	return parts
 }
 
@@ -1061,21 +1009,6 @@ func (g *Generator) extractGeneratedSQLQueries(content, resourceName string) map
 		query := g.extractSQLQueryByName(lines, queryName)
 		if query != "" {
 			queries[queryName] = query
-		}
-	}
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "-- name: Find"+resourceName+"By") ||
-			strings.HasPrefix(trimmed, "-- name: Pluck"+resourceName) {
-			parts := strings.Fields(trimmed)
-			if len(parts) >= 3 {
-				queryName := parts[2]
-				query := g.extractSQLQueryByName(lines, queryName)
-				if query != "" {
-					queries[queryName] = query
-				}
-			}
 		}
 	}
 
