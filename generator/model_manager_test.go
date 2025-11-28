@@ -64,7 +64,7 @@ sql:
 }
 
 func TestExtractTableNameOverride(t *testing.T) {
-	manager, cleanup := setupModelManagerTest(t)
+	_, cleanup := setupModelManagerTest(t)
 	defer cleanup()
 
 	tests := []struct {
@@ -220,14 +220,14 @@ type User struct {
 				t.Fatalf("Failed to write test model file: %v", err)
 			}
 
-			gotTable, gotFound := manager.extractTableNameOverride(modelPath, tt.resourceName)
+			gotTable, gotFound := ExtractTableNameOverride(modelPath, tt.resourceName)
 
 			if gotFound != tt.wantFound {
-				t.Errorf("extractTableNameOverride() gotFound = %v, wantFound %v", gotFound, tt.wantFound)
+				t.Errorf("ExtractTableNameOverride() gotFound = %v, wantFound %v", gotFound, tt.wantFound)
 			}
 
 			if gotTable != tt.wantTable {
-				t.Errorf("extractTableNameOverride() gotTable = %v, wantTable %v", gotTable, tt.wantTable)
+				t.Errorf("ExtractTableNameOverride() gotTable = %v, wantTable %v", gotTable, tt.wantTable)
 			}
 
 			os.Remove(modelPath)
@@ -236,24 +236,24 @@ type User struct {
 }
 
 func TestExtractTableNameOverride_FileNotFound(t *testing.T) {
-	manager, cleanup := setupModelManagerTest(t)
+	_, cleanup := setupModelManagerTest(t)
 	defer cleanup()
 
 	modelPath := filepath.Join("models", "nonexistent.go")
 
-	gotTable, gotFound := manager.extractTableNameOverride(modelPath, "User")
+	gotTable, gotFound := ExtractTableNameOverride(modelPath, "User")
 
 	if gotFound {
-		t.Errorf("extractTableNameOverride() for nonexistent file: gotFound = true, want false")
+		t.Errorf("ExtractTableNameOverride() for nonexistent file: gotFound = true, want false")
 	}
 
 	if gotTable != "" {
-		t.Errorf("extractTableNameOverride() for nonexistent file: gotTable = %v, want empty string", gotTable)
+		t.Errorf("ExtractTableNameOverride() for nonexistent file: gotTable = %v, want empty string", gotTable)
 	}
 }
 
 func TestExtractTableNameOverride_ResourceNameMatching(t *testing.T) {
-	manager, cleanup := setupModelManagerTest(t)
+	_, cleanup := setupModelManagerTest(t)
 	defer cleanup()
 
 	tests := []struct {
@@ -291,10 +291,10 @@ func TestExtractTableNameOverride_ResourceNameMatching(t *testing.T) {
 				t.Fatalf("Failed to write test model file: %v", err)
 			}
 
-			_, gotFound := manager.extractTableNameOverride(modelPath, tt.resourceName)
+			_, gotFound := ExtractTableNameOverride(modelPath, tt.resourceName)
 
 			if gotFound != tt.wantFound {
-				t.Errorf("extractTableNameOverride() gotFound = %v, wantFound %v", gotFound, tt.wantFound)
+				t.Errorf("ExtractTableNameOverride() gotFound = %v, wantFound %v", gotFound, tt.wantFound)
 			}
 
 			os.Remove(modelPath)

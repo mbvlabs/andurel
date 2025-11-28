@@ -64,7 +64,7 @@ func (c *ControllerManager) GenerateController(
 	}
 
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateController(cat, resourceName, controllerType, modulePath, c.config.Database.Type); err != nil {
+	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
@@ -97,10 +97,16 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 		return err
 	}
 
-	tableName := naming.DeriveTableName(resourceName)
+	tableName, tableNameOverridden := ResolveTableNameWithFlag(c.config.Paths.Models, resourceName)
 
-	if err := c.validator.ValidateTableName(tableName); err != nil {
-		return fmt.Errorf("derived table name validation failed: %w", err)
+	if tableNameOverridden {
+		if err := c.validator.ValidateTableNameOverride(resourceName, tableName); err != nil {
+			return fmt.Errorf("table name validation failed: %w", err)
+		}
+	} else {
+		if err := c.validator.ValidateTableName(tableName); err != nil {
+			return fmt.Errorf("table name validation failed: %w", err)
+		}
 	}
 
 	validationCtx := newControllerValidationContext(resourceName, tableName, c.config)
@@ -133,7 +139,7 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 	}
 
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateController(cat, resourceName, controllerType, modulePath, c.config.Database.Type); err != nil {
+	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 

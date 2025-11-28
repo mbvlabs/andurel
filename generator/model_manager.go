@@ -1,7 +1,6 @@
 package generator
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -101,37 +100,6 @@ func (m *ModelManager) setupModelContext(resourceName, tableName string, tableNa
 	}, nil
 }
 
-func (m *ModelManager) extractTableNameOverride(modelPath string, resourceName string) (string, bool) {
-	file, err := os.Open(modelPath)
-	if err != nil {
-		return "", false
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	marker := fmt.Sprintf("// %s_MODEL_TABLE_NAME:", strings.ToUpper(resourceName))
-
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-
-		if strings.HasPrefix(line, marker) {
-			tableName := strings.TrimSpace(strings.TrimPrefix(line, marker))
-			if tableName != "" {
-				return tableName, true
-			}
-		}
-
-		if strings.HasPrefix(line, "package ") {
-			continue
-		}
-
-		if line != "" && !strings.HasPrefix(line, "//") && !strings.HasPrefix(line, "import") {
-			break
-		}
-	}
-
-	return "", false
-}
 
 func (m *ModelManager) GenerateModel(resourceName string, tableNameOverride string) error {
 	tableName := tableNameOverride
@@ -187,11 +155,10 @@ func (m *ModelManager) GenerateModel(resourceName string, tableNameOverride stri
 }
 
 func (m *ModelManager) RefreshModel(resourceName, tableName string) error {
-	modelFileName := naming.ToSnakeCase(resourceName) + ".go"
-	modelPath := filepath.Join(m.config.Paths.Models, modelFileName)
+	modelPath := BuildModelPath(m.config.Paths.Models, resourceName)
 
 	tableNameOverridden := false
-	if overriddenTableName, found := m.extractTableNameOverride(modelPath, resourceName); found {
+	if overriddenTableName, found := ExtractTableNameOverride(modelPath, resourceName); found {
 		tableName = overriddenTableName
 		tableNameOverridden = true
 	}
@@ -235,11 +202,10 @@ func (m *ModelManager) RefreshModel(resourceName, tableName string) error {
 }
 
 func (m *ModelManager) RefreshQueries(resourceName, tableName string) error {
-	modelFileName := naming.ToSnakeCase(resourceName) + ".go"
-	modelPath := filepath.Join(m.config.Paths.Models, modelFileName)
+	modelPath := BuildModelPath(m.config.Paths.Models, resourceName)
 
 	tableNameOverridden := false
-	if overriddenTableName, found := m.extractTableNameOverride(modelPath, resourceName); found {
+	if overriddenTableName, found := ExtractTableNameOverride(modelPath, resourceName); found {
 		tableName = overriddenTableName
 		tableNameOverridden = true
 	}
@@ -283,11 +249,10 @@ func (m *ModelManager) RefreshQueries(resourceName, tableName string) error {
 }
 
 func (m *ModelManager) RefreshConstructors(resourceName, tableName string) error {
-	modelFileName := naming.ToSnakeCase(resourceName) + ".go"
-	modelPath := filepath.Join(m.config.Paths.Models, modelFileName)
+	modelPath := BuildModelPath(m.config.Paths.Models, resourceName)
 
 	tableNameOverridden := false
-	if overriddenTableName, found := m.extractTableNameOverride(modelPath, resourceName); found {
+	if overriddenTableName, found := ExtractTableNameOverride(modelPath, resourceName); found {
 		tableName = overriddenTableName
 		tableNameOverridden = true
 	}
