@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 
 	"{{.ModuleName}}/config"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -15,6 +17,10 @@ func main() {
 	defer func() {
 		cancel()
 	}()
+
+	if err := godotenv.Load(); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not load .env file: %v\n", err)
+	}
 
 	projectRoot, err := findGoModRoot()
 	if err != nil {
