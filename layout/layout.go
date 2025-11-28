@@ -389,7 +389,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Routes
 	"router_routes_routes.tmpl":      "router/routes/routes.go",
-	"router_routes_routes_test.tmpl": "router/routes/routes_test.go",
 	"router_routes_route_group.tmpl": "router/routes/route_group.go",
 	"router_routes_api.tmpl":         "router/routes/api.go",
 	"router_routes_assets.tmpl":      "router/routes/assets.go",

@@ -2,6 +2,7 @@
 package routes
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
@@ -81,26 +82,29 @@ func (r RouteWithFile) Path() string {
 	return r[routePath]
 }
 
-type RouteParams interface {
-	ToMap() map[string]string
+type RouteWithParams Route
+
+func (r RouteWithParams) Name() string {
+	return r[routeName]
 }
 
-type TypedRoute[T RouteParams] struct {
-	route Route
+func (r RouteWithParams) Path() string {
+	return r[routePath]
 }
 
-func (r TypedRoute[T]) Name() string {
-	return r.route[routeName]
-}
-
-func (r TypedRoute[T]) Path() string {
-	return r.route[routePath]
-}
-
-func (r TypedRoute[T]) URL(params T) string {
-	path := r.route[routePath]
-	for placeholder, value := range params.ToMap() {
-		path = strings.Replace(path, ":"+placeholder, value, 1)
+func (r RouteWithParams) URL(params map[string]any) string {
+	path := r[routePath]
+	for placeholder, value := range params {
+		var str string
+		switch v := value.(type) {
+		case string:
+			str = v
+		case uuid.UUID:
+			str = v.String()
+		default:
+			str = fmt.Sprintf("%v", v)
+		}
+		path = strings.Replace(path, ":"+placeholder, str, 1)
 	}
 	return path
 }
@@ -170,10 +174,10 @@ func (r routeBuilder) RegisterWithFile() RouteWithFile {
 	return RouteWithFile(route)
 }
 
-func (r routeBuilder) RegisterTyped[T RouteParams]() TypedRoute[T] {
+func (r routeBuilder) RegisterWithParams() RouteWithParams {
 	route := make(Route, 2)
 	route[routeName] = r.Name
 	route[routePath] = r.Path
 
-	return TypedRoute[T]{route: route}
+	return RouteWithParams(route)
 }
