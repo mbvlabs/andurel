@@ -18,8 +18,6 @@ type HeadData struct {
 	siteName 	   		  string
 	Title          		  string
 	Description    		  string
-	TwitterTitle          string
-	TwitterDescription    string
 	Image                 string
 	ImageAlt 	          string
 	Slug                  string
@@ -28,6 +26,42 @@ type HeadData struct {
 	stylesheetHref        string
 	scriptSrc             string
 	ExtraMeta             []MetaContent
+}
+
+func SetTitle(title string) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.Title = title + " - " + hd.siteName
+	}
+}
+
+func SetDescription(description string) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.Description = description
+	}
+}
+
+func SetSlug(slug string) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.Slug = slug
+	}
+}
+
+func SetImage(imageSrc string) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.Image = imageSrc
+	}
+}
+
+func SetImageAlt(imageAlt string) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.ImageAlt = imageAlt
+	}
+}
+
+func SetExtraMeta(extra MetaContent) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.ExtraMeta = append(hd.ExtraMeta, extra)
+	}
 }
 
 templ head(data HeadData) {
@@ -46,13 +80,10 @@ templ head(data HeadData) {
 		<meta property="og:url" content={ data.canonical + data.Slug }/>
 		<meta property="og:site_name" content={ data.siteName }/>
 		<meta property="og:locale" content="en_US" />
-		if data.TwitterTitle != "" && data.TwitterDescription != "" {
-		    <meta name="twitter:title" content={ data.TwitterTitle }/>
-		    <meta name="twitter:description" content={ data.TwitterDescription }/>
-
-			if data.Image != "" {
-			    <meta name="twitter:image" content={ data.Image }/>
-			}
+		<meta name="twitter:title" content={ data.MetaType }/>
+		<meta name="twitter:description" content={ data.Description }/>
+		if data.Image != "" {
+			<meta name="twitter:image" content={ data.Image }/>
 		}
 		if data.Image != "" {
 			<meta property="og:image" content={ data.Image }/>
