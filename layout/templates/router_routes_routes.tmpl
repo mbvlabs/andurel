@@ -71,6 +71,16 @@ func (r RouteWithToken) URL(token string) string {
 	return strings.Replace(r[routePath], ":token", token, 1)
 }
 
+type RouteWithFile Route
+
+func (r RouteWithFile) Name() string {
+	return r[routeName]
+}
+
+func (r RouteWithFile) Path() string {
+	return r[routePath]
+}
+
 type routeBuilder routeDefinition
 
 type routeDefinition struct {
@@ -126,4 +136,12 @@ func (r routeBuilder) RegisterWithToken() RouteWithToken {
 	route[routePath] = r.Path
 
 	return RouteWithToken(route)
+}
+
+func (r routeBuilder) RegisterWithFile() RouteWithFile {
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
+
+	return RouteWithFile(route)
 }

@@ -42,4 +42,4 @@ var Scripts = newRouteBuilder("js.scripts").
 var Script = newRouteBuilder("js.script").
 	SetNamePrefix(assetsNamePrefix).
 	SetPath(AssetsRoutePrefix + fmt.Sprintf("/js/%v/:file", startTime)).
-	Register()
+	RegisterWithFile()
