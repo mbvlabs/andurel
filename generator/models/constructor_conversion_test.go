@@ -12,16 +12,18 @@ import (
 
 func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 	tests := []struct {
-		name                  string
-		migrationsDir         string
-		tableName             string
-		resourceName          string
-		modulePath            string
-		databaseType          string
-		expectedCreateParams  []string
-		expectedUpdateParams  []string
-		unexpectedCreateCode  []string
-		unexpectedUpdateCode  []string
+		name                       string
+		migrationsDir              string
+		tableName                  string
+		resourceName               string
+		modulePath                 string
+		databaseType               string
+		expectedCreateParams       []string
+		expectedUpdateParams       []string
+		expectedUpsertParams       []string
+		expectedFindOrCreateParams []string
+		unexpectedCreateCode       []string
+		unexpectedUpdateCode       []string
 	}{
 		{
 			name:          "PostgreSQL should properly convert nullable and non-nullable columns",
@@ -32,6 +34,7 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 			databaseType:  "postgresql",
 			expectedCreateParams: []string{
 				"params := db.BuildInsertUserParams(",
+				"uuid.New(),",
 				"data.Email,",
 				"data.Name,",
 				"pgtype.Int4{Int32: data.Age, Valid: true}",
@@ -44,6 +47,13 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 				"data.Name,",
 				"pgtype.Int4{Int32: data.Age, Valid: true}",
 				"pgtype.Bool{Bool: data.IsActive, Valid: true}",
+			},
+			expectedUpsertParams: []string{
+				"params := db.BuildUpsertUserParams(",
+				"uuid.New(),",
+			},
+			expectedFindOrCreateParams: []string{
+				"data.ID,",
 			},
 			unexpectedCreateCode: []string{
 				"BuildInsertUserParams()",
@@ -61,6 +71,7 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 			databaseType:  "sqlite",
 			expectedCreateParams: []string{
 				"params := db.BuildInsertUserParams(",
+				"uuid.New(),",
 				"data.Email,",
 				"sql.NullTime{Time: data.EmailVerifiedAt, Valid: true}",
 				"data.Password,",
@@ -73,6 +84,13 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 				"sql.NullTime{Time: data.EmailVerifiedAt, Valid: true}",
 				"data.Password,",
 				"data.IsAdmin,",
+			},
+			expectedUpsertParams: []string{
+				"params := db.BuildUpsertUserParams(",
+				"uuid.New(),",
+			},
+			expectedFindOrCreateParams: []string{
+				"data.ID,",
 			},
 			unexpectedCreateCode: []string{
 				"BuildInsertUserParams()",
@@ -161,6 +179,26 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 				if !strings.Contains(modelStr, expectedParam) {
 					t.Errorf(
 						"Model file should contain Update constructor parameter: %s\nGenerated content:\n%s",
+						expectedParam,
+						modelStr,
+					)
+				}
+			}
+
+			for _, expectedParam := range tt.expectedUpsertParams {
+				if !strings.Contains(modelStr, expectedParam) {
+					t.Errorf(
+						"Model file should contain Upsert constructor parameter: %s\nGenerated content:\n%s",
+						expectedParam,
+						modelStr,
+					)
+				}
+			}
+
+			for _, expectedParam := range tt.expectedFindOrCreateParams {
+				if !strings.Contains(modelStr, expectedParam) {
+					t.Errorf(
+						"Model file should contain FindOrCreate constructor parameter: %s\nGenerated content:\n%s",
 						expectedParam,
 						modelStr,
 					)
