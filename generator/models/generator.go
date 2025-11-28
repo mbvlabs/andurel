@@ -112,6 +112,11 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		for imp := range typeImports {
 			importSet[imp] = true
 		}
+
+		if strings.Contains(field.SQLCType, "pgtype.") {
+			importSet["github.com/jackc/pgx/v5/pgtype"] = true
+		}
+
 		model.Fields = append(model.Fields, field)
 	}
 
