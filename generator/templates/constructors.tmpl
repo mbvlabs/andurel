@@ -61,3 +61,21 @@ func BuildQueryPaginated{{.Name}}sParams(limit, offset int64) QueryPaginated{{.N
 		Offset: offset,
 	}
 }
+
+func BuildUpsert{{.Name}}Params(
+	id uuid.UUID,
+{{- range .Fields}}
+{{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
+	{{camelCase .Name}} {{.SQLCType}},
+{{- end}}
+{{- end}}
+) Upsert{{.Name}}Params {
+	return Upsert{{.Name}}Params{
+		ID: {{if eq .DatabaseType "sqlite"}}id.String(){{else}}id{{end}},
+{{- range .Fields}}
+{{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
+		{{.Name}}: {{camelCase .Name}},
+{{- end}}
+{{- end}}
+	}
+}
