@@ -19,7 +19,7 @@ import (
 // Constructor functions for SQLC parameters - these get updated during refresh
 // to make schema changes compiler-enforced and visible
 
-func CreateInsert{{.Name}}Params(
+func BuildInsert{{.Name}}Params(
 	id uuid.UUID,
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
@@ -37,7 +37,7 @@ func CreateInsert{{.Name}}Params(
 	}
 }
 
-func CreateUpdate{{.Name}}Params(
+func BuildUpdate{{.Name}}Params(
 	id {{if eq .DatabaseType "sqlite"}}string{{else}}uuid.UUID{{end}},
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
@@ -55,7 +55,7 @@ func CreateUpdate{{.Name}}Params(
 	}
 }
 
-func CreateQueryPaginated{{.Name}}sParams(limit, offset int64) QueryPaginated{{.Name}}sParams {
+func BuildQueryPaginated{{.Name}}sParams(limit, offset int64) QueryPaginated{{.Name}}sParams {
 	return QueryPaginated{{.Name}}sParams{
 		Limit:  limit,
 		Offset: offset,

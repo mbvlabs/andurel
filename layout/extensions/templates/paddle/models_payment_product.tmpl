@@ -88,7 +88,7 @@ func CreatePaymentProduct(
 	dbtx db.DBTX,
 	data CreatePaymentProductData,
 ) (PaymentProduct, error) {
-	params := db.CreateInsertPaymentProductParams(
+	params := db.BuildInsertPaymentProductParams(
 		uuid.New(),
 		data.ProviderProductID,
 		data.ProviderPriceID,
@@ -213,7 +213,7 @@ func CreatePaymentProduct(
 	dbtx db.DBTX,
 	data CreatePaymentProductData,
 ) (PaymentProduct, error) {
-	params := db.CreateInsertPaymentProductParams(
+	params := db.BuildInsertPaymentProductParams(
 		uuid.New(),
 		data.ProviderProductID,
 		data.ProviderPriceID,

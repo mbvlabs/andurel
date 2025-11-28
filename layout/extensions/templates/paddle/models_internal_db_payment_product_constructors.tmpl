@@ -22,7 +22,7 @@ import (
 // Constructor functions for SQLC parameters - these get updated during refresh
 // to make schema changes compiler-enforced and visible
 
-func CreateInsertPaymentProductParams(
+func BuildInsertPaymentProductParams(
 	id uuid.UUID,
 	providerProductID string,
 	providerPriceID string,
@@ -65,7 +65,7 @@ func CreateInsertPaymentProductParams(
 {{- end }}
 }
 
-func CreateUpdatePaymentProductParams(
+func BuildUpdatePaymentProductParams(
 	id uuid.UUID,
 	name string,
 	description sql.NullString,

@@ -41,7 +41,7 @@ func CreatePaymentCustomer(
 	dbtx db.DBTX,
 	data CreatePaymentCustomerData,
 ) (PaymentCustomer, error) {
-	params := db.CreateInsertPaymentCustomerParams(
+	params := db.BuildInsertPaymentCustomerParams(
 		uuid.New(),
 		data.ProviderCustomerID,
 		data.Email,
@@ -107,7 +107,7 @@ func CreatePaymentCustomer(
 	dbtx db.DBTX,
 	data CreatePaymentCustomerData,
 ) (PaymentCustomer, error) {
-	params := db.CreateInsertPaymentCustomerParams(
+	params := db.BuildInsertPaymentCustomerParams(
 		uuid.New(),
 		data.ProviderCustomerID,
 		data.Email,
