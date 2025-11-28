@@ -569,6 +569,7 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		"router_registry.tmpl",
 		"router_register.tmpl",
 		"config_config.tmpl",
+		"router_cookies_cookies.tmpl",
 	}
 
 	for _, tmplName := range blueprintTemplates {

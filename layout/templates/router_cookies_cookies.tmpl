@@ -1,27 +1,62 @@
-// Package cookies provides utilities for managing application context and session data in an Echo web application.
 package cookies
 
 import (
 	"context"
 
 	"{{.ModuleName}}/config"
+{{- range .Blueprint.Cookies.Imports.Items}}
+	"{{.}}"
+{{- end}}
 
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 )
 
-var AppKey appKey = "app_context"
+var AppKey appKey = "app_cookie_context"
 
 type appKey string
 
+{{- if gt (len .Blueprint.Cookies.SortedConstants) 0}}
+
 const (
-	isAuthenticated = "is_authenticated"
+{{- range .Blueprint.Cookies.SortedConstants}}
+	{{.Name}} = "{{.Value}}"
+{{- end}}
 )
+{{- end}}
 
 type App struct {
 	echo.Context
-	IsAuthenticated bool
-	FlashMessages   []FlashMessage
+{{- range .Blueprint.Cookies.SortedAppFields}}
+	{{.Name}} {{.Type}}
+{{- end}}
+}
+
+{{- if not (len .Blueprint.Cookies.SortedAppFields)}}
+func CreateAppSession(c echo.Context) error {
+{{- else}}
+func CreateAppSession(c echo.Context, user models.User) error {
+{{- end}}
+	sess, err := session.Get(config.AppCookieSessionName, c)
+	if err != nil {
+		return err
+	}
+{{- if .Blueprint.Cookies.CreateSessionCode}}
+
+{{.Blueprint.Cookies.CreateSessionCode}}
+{{- end}}
+
+	return sess.Save(c.Request(), c.Response())
+}
+
+func DestroyAppSession(c echo.Context) error {
+	sess, err := session.Get(config.AppCookieSessionName, c)
+	if err != nil {
+		return err
+	}
+
+	sess.Options.MaxAge = -1
+	return sess.Save(c.Request(), c.Response())
 }
 
 func GetAppCtx(ctx context.Context) App {
@@ -34,15 +69,24 @@ func GetAppCtx(ctx context.Context) App {
 }
 
 func GetApp(c echo.Context) App {
-	sess, err := session.Get(config.AuthenticatedSessionName, c)
+{{- if not (len .Blueprint.Cookies.SortedAppFields)}}
+	_, err := session.Get(config.AppCookieSessionName, c)
+{{- else}}
+	sess, err := session.Get(config.AppCookieSessionName, c)
+{{- end}}
 	if err != nil {
 		return App{}
 	}
-	app := App{Context: c}
 
-	if _, ok := sess.Values[isAuthenticated].(bool); ok {
-		app.IsAuthenticated = true
-	}
+	app := App{Context: c}
+{{- if .Blueprint.Cookies.GetSessionCode}}
+
+{{.Blueprint.Cookies.GetSessionCode}}
+{{- end}}
 
 	return app
 }
+{{- range .Blueprint.Cookies.SortedFunctions}}
+
+{{.Code}}
+{{- end}}

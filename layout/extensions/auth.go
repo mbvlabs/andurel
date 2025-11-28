@@ -56,6 +56,31 @@ func (e Auth) Apply(ctx *Context) error {
 		)
 	}
 
+	builder.AddCookiesImport("github.com/google/uuid")
+	builder.AddCookiesImport(fmt.Sprintf("%s/models", moduleName))
+
+	builder.AddCookiesConstant("isAuthenticated", "is_authenticated")
+	builder.AddCookiesConstant("isAdmin", "is_admin")
+	builder.AddCookiesConstant("userID", "user_id")
+
+	builder.AddCookiesAppField("UserID", "uuid.UUID")
+	builder.AddCookiesAppField("IsAdmin", "bool")
+	builder.AddCookiesAppField("IsAuthenticated", "bool")
+
+	builder.SetCookiesCreateSessionCode(`	sess.Values[isAuthenticated] = true
+	sess.Values[isAdmin] = user.IsAdmin
+	sess.Values[userID] = user.ID.String()`)
+
+	builder.SetCookiesGetSessionCode(`	if v, ok := sess.Values[isAuthenticated].(bool); ok {
+		app.IsAuthenticated = v
+	}
+	if v, ok := sess.Values[isAdmin].(bool); ok {
+		app.IsAdmin = v
+	}
+	if v, ok := sess.Values[userID].(string); ok {
+		app.UserID, _ = uuid.Parse(v)
+	}`)
+
 	builder.StartRouteRegistrationFunction("registerAuthRoutes")
 	builder.AddRouteRegistration("http.MethodGet", "routes.SessionNew", "ctrls.Sessions.New")
 	builder.AddRouteRegistration("http.MethodPost", "routes.SessionCreate", "ctrls.Sessions.Create")

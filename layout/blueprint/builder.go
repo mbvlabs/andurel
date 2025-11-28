@@ -25,6 +25,9 @@ type Builder struct {
 	nextInitializationOrder      int
 	nextBackgroundWorkerOrder    int
 	nextPreRunHookOrder          int
+	nextCookiesConstantOrder     int
+	nextCookiesAppFieldOrder     int
+	nextCookiesFunctionOrder     int
 	// Track current registration function being built
 	currentRegistrationFunction *RegistrationFunction
 }
@@ -507,6 +510,89 @@ func (b *Builder) AddPreRunHook(name, code string) *Builder {
 	return b
 }
 
+// AddCookiesImport adds an import path to the cookies section.
+func (b *Builder) AddCookiesImport(importPath string) *Builder {
+	if importPath != "" {
+		b.bp.Cookies.Imports.Add(importPath)
+	}
+	return b
+}
+
+// AddCookiesConstant adds a constant to the cookies section.
+func (b *Builder) AddCookiesConstant(name, value string) *Builder {
+	if name == "" || value == "" {
+		return b
+	}
+
+	for _, c := range b.bp.Cookies.Constants {
+		if c.Name == name {
+			return b
+		}
+	}
+
+	b.bp.Cookies.Constants = append(b.bp.Cookies.Constants, Constant{
+		Name:  name,
+		Value: value,
+		Order: b.nextCookiesConstantOrder,
+	})
+	b.nextCookiesConstantOrder++
+	return b
+}
+
+// AddCookiesAppField adds a field to the App struct in cookies.
+func (b *Builder) AddCookiesAppField(name, typeName string) *Builder {
+	if name == "" || typeName == "" {
+		return b
+	}
+
+	for _, f := range b.bp.Cookies.AppFields {
+		if f.Name == name {
+			return b
+		}
+	}
+
+	b.bp.Cookies.AppFields = append(b.bp.Cookies.AppFields, Field{
+		Name:  name,
+		Type:  typeName,
+		Order: b.nextCookiesAppFieldOrder,
+	})
+	b.nextCookiesAppFieldOrder++
+	return b
+}
+
+// AddCookiesFunction adds a function to the cookies section.
+func (b *Builder) AddCookiesFunction(name, code string) *Builder {
+	if name == "" || code == "" {
+		return b
+	}
+
+	for _, f := range b.bp.Cookies.Functions {
+		if f.Name == name {
+			return b
+		}
+	}
+
+	b.bp.Cookies.Functions = append(b.bp.Cookies.Functions, Function{
+		Name:  name,
+		Code:  code,
+		Order: b.nextCookiesFunctionOrder,
+	})
+	b.nextCookiesFunctionOrder++
+	return b
+}
+
+// SetCookiesCreateSessionCode sets the code to execute when creating a session.
+func (b *Builder) SetCookiesCreateSessionCode(code string) *Builder {
+	b.bp.Cookies.CreateSessionCode = code
+	return b
+}
+
+// SetCookiesGetSessionCode sets the code to execute when getting session data.
+func (b *Builder) SetCookiesGetSessionCode(code string) *Builder {
+	b.bp.Cookies.GetSessionCode = code
+	return b
+}
+
 // Merge combines another blueprint into this one, maintaining uniqueness and
 // order. Items from the other blueprint are added after existing items.
 func (b *Builder) Merge(other *Blueprint) error {
@@ -587,6 +673,24 @@ func (b *Builder) Merge(other *Blueprint) error {
 	}
 	for _, hook := range other.Main.PreRunHooks {
 		b.AddPreRunHook(hook.Name, hook.Code)
+	}
+
+	// Merge cookies section
+	b.bp.Cookies.Imports.Merge(other.Cookies.Imports)
+	for _, c := range other.Cookies.Constants {
+		b.AddCookiesConstant(c.Name, c.Value)
+	}
+	for _, f := range other.Cookies.AppFields {
+		b.AddCookiesAppField(f.Name, f.Type)
+	}
+	for _, f := range other.Cookies.Functions {
+		b.AddCookiesFunction(f.Name, f.Code)
+	}
+	if other.Cookies.CreateSessionCode != "" {
+		b.SetCookiesCreateSessionCode(other.Cookies.CreateSessionCode)
+	}
+	if other.Cookies.GetSessionCode != "" {
+		b.SetCookiesGetSessionCode(other.Cookies.GetSessionCode)
 	}
 
 	return nil
