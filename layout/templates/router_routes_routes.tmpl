@@ -2,6 +2,7 @@
 package routes
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
@@ -81,6 +82,33 @@ func (r RouteWithFile) Path() string {
 	return r[routePath]
 }
 
+type RouteWithParams Route
+
+func (r RouteWithParams) Name() string {
+	return r[routeName]
+}
+
+func (r RouteWithParams) Path() string {
+	return r[routePath]
+}
+
+func (r RouteWithParams) URL(params map[string]any) string {
+	path := r[routePath]
+	for placeholder, value := range params {
+		var str string
+		switch v := value.(type) {
+		case string:
+			str = v
+		case uuid.UUID:
+			str = v.String()
+		default:
+			str = fmt.Sprintf("%v", v)
+		}
+		path = strings.Replace(path, ":"+placeholder, str, 1)
+	}
+	return path
+}
+
 type routeBuilder routeDefinition
 
 type routeDefinition struct {
@@ -144,4 +172,12 @@ func (r routeBuilder) RegisterWithFile() RouteWithFile {
 	route[routePath] = r.Path
 
 	return RouteWithFile(route)
+}
+
+func (r routeBuilder) RegisterWithParams() RouteWithParams {
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
+
+	return RouteWithParams(route)
 }
