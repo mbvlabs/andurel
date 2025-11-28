@@ -5,7 +5,7 @@ import (
 )
 
 type paddle struct {
-	ApiKey        string `env:"PADDLE_API_KEY"`
+	APIKey        string `env:"PADDLE_API_KEY"`
 	Environment   string `env:"PADDLE_ENVIRONMENT" envDefault:"sandbox"`
 	WebhookSecret string `env:"PADDLE_WEBHOOK_SECRET"`
 }
