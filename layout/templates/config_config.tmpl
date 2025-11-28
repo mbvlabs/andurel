@@ -56,8 +56,8 @@ var (
 
 		return fmt.Sprintf("%s://%s", protocol, Domain)
 	}()
-	AuthenticatedSessionName = func() string {
-		return "ua-" + slug.Make(strings.ToLower(ProjectName)) + "-" + Env
+	AppCookieSessionName = func() string {
+		return "app_sess"+slug.Make(strings.ToLower(ProjectName)) + "-" + Env
 	}()
 )
 
