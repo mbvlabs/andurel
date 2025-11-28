@@ -29,6 +29,11 @@ func (e Paddle) Apply(ctx *Context) error {
 	// Add config field
 	builder.AddConfigField("Paddle", "paddle")
 
+	// Add env vars
+	builder.AddEnvVar("PADDLE_API_KEY", "Paddle", "")
+	builder.AddEnvVar("PADDLE_ENVIRONMENT", "Paddle", "sandbox")
+	builder.AddEnvVar("PADDLE_WEBHOOK_SECRET", "Paddle", "")
+
 	// Add Paddle client initialization
 	builder.AddMainInitialization(
 		"paddleClient",
