@@ -312,12 +312,12 @@ var basePSQLTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"psql_sqlc.tmpl":     "database/sqlc.yaml",
 
 	// Queue package
-	"psql_queue_queue.tmpl":                              "queue/queue.go",
-	"psql_queue_jobs_send_transactional_email.tmpl":      "queue/jobs/send_transactional_email.go",
-	"psql_queue_jobs_send_marketing_email.tmpl":          "queue/jobs/send_marketing_email.go",
-	"psql_queue_workers_workers.tmpl":                    "queue/workers/workers.go",
-	"psql_queue_workers_send_transactional_email.tmpl":   "queue/workers/send_transactional_email.go",
-	"psql_queue_workers_send_marketing_email.tmpl":       "queue/workers/send_marketing_email.go",
+	"psql_queue_queue.tmpl":                            "queue/queue.go",
+	"psql_queue_jobs_send_transactional_email.tmpl":    "queue/jobs/send_transactional_email.go",
+	"psql_queue_jobs_send_marketing_email.tmpl":        "queue/jobs/send_marketing_email.go",
+	"psql_queue_workers_workers.tmpl":                  "queue/workers/workers.go",
+	"psql_queue_workers_send_transactional_email.tmpl": "queue/workers/send_transactional_email.go",
+	"psql_queue_workers_send_marketing_email.tmpl":     "queue/workers/send_marketing_email.go",
 }
 
 var baseSqliteTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -374,9 +374,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"email_components.tmpl":  "email/components.templ",
 
 	// Models
-	"models_errors.tmpl":         "models/errors.go",
-	"models_model.tmpl":          "models/model.go",
-	"models_internal_db_db.tmpl": "models/internal/db/db.go",
+	"models_errors.tmpl":              "models/errors.go",
+	"models_model.tmpl":               "models/model.go",
+	"models_internal_db_db.tmpl":      "models/internal/db/db.go",
 	"models_factories_factories.tmpl": "models/factories/factories.go",
 
 	// Router
@@ -563,12 +563,13 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 	}
 
 	blueprintTemplates := []TmplTarget{
-		"controllers_controller.tmpl",
 		"cmd_app_main.tmpl",
+		"controllers_controller.tmpl",
+		"config_config.tmpl",
+		"env.tmpl",
 		"router_routes_routes.tmpl",
 		"router_registry.tmpl",
 		"router_register.tmpl",
-		"config_config.tmpl",
 		"router_cookies_cookies.tmpl",
 	}
 
