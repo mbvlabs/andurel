@@ -31,14 +31,14 @@ func newLockSetVersionCommand() *cobra.Command {
 Supported binaries:
   tailwindcli  - Tailwind CSS CLI
   mailpit      - Mailpit email testing tool
-  usql         - Universal SQL CLI
+  dblab        - Database lab CLI
 
 The version should be specified WITHOUT the "v" prefix.
 
 Examples:
   andurel lock set-version tailwindcli 4.1.17
   andurel lock set-version mailpit 1.27.11
-  andurel lock set-version usql 0.19.26
+  andurel lock set-version dblab 0.34.2
 
 This command will:
   1. Update the version in andurel.lock
@@ -49,7 +49,7 @@ This command will:
 To see available versions, check the GitHub releases:
   - tailwindcli: https://github.com/tailwindlabs/tailwindcss/releases
   - mailpit:     https://github.com/axllent/mailpit/releases
-  - usql:        https://github.com/xo/usql/releases`,
+  - dblab:       https://github.com/danvergara/dblab/releases`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			binaryName := args[0]
@@ -69,11 +69,11 @@ func setVersion(projectRoot, binaryName, version string) error {
 	validBinaries := map[string]bool{
 		"tailwindcli": true,
 		"mailpit":     true,
-		"usql":        true,
+		"dblab":       true,
 	}
 
 	if !validBinaries[binaryName] {
-		return fmt.Errorf("unknown binary: %s\n\nSupported binaries:\n  - tailwindcli\n  - mailpit\n  - usql\n\nRun 'andurel lock set-version --help' for more information", binaryName)
+		return fmt.Errorf("unknown binary: %s\n\nSupported binaries:\n  - tailwindcli\n  - mailpit\n  - dblab\n\nRun 'andurel lock set-version --help' for more information", binaryName)
 	}
 
 	if version == "" {
@@ -114,8 +114,8 @@ func setVersion(projectRoot, binaryName, version string) error {
 			return cmds.SetupTailwindWithVersion(projectRoot, versionWithV, 30*time.Second)
 		case "mailpit":
 			return cmds.SetupMailpitWithVersion(projectRoot, versionWithV, 30*time.Second)
-		case "usql":
-			return cmds.SetupUsqlWithVersion(projectRoot, versionWithV, 30*time.Second)
+		case "dblab":
+			return cmds.SetupDblabWithVersion(projectRoot, versionWithV, 30*time.Second)
 		default:
 			return fmt.Errorf("unknown binary: %s", binaryName)
 		}
@@ -137,8 +137,8 @@ func setVersion(projectRoot, binaryName, version string) error {
 		url = layout.GetTailwindDownloadURL(versionWithV)
 	case "mailpit":
 		url = layout.GetMailpitDownloadURL(versionWithV)
-	case "usql":
-		url = layout.GetUsqlDownloadURL(versionWithV)
+	case "dblab":
+		url = layout.GetDblabDownloadURL(versionWithV)
 	}
 
 	lock.Binaries[binaryName] = &layout.Binary{
