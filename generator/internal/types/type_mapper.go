@@ -63,6 +63,9 @@ func (tm *TypeMapper) MapSQLTypeToGo(
 	}
 
 	if normalizedType == "uuid" {
+		if nullable && tm.DatabaseType == "postgresql" {
+			return "uuid.UUID", "pgtype.UUID", "github.com/jackc/pgx/v5/pgtype", nil
+		}
 		return "uuid.UUID", "uuid.UUID", "github.com/google/uuid", nil
 	}
 
@@ -114,6 +117,8 @@ func (tm *TypeMapper) GenerateConversionFromDB(fieldName, sqlcType, goType strin
 			return fmt.Sprintf("row.%s.Time", fieldName)
 		case "pgtype.Interval":
 			return fmt.Sprintf("row.%s.Microseconds", fieldName)
+		case "pgtype.UUID":
+			return fmt.Sprintf("uuid.UUID(row.%s.Bytes)", fieldName)
 		case "pgtype.JSONB", "pgtype.JSON":
 			return fmt.Sprintf("row.%s.Bytes", fieldName)
 		case "pgtype.Inet", "pgtype.CIDR", "pgtype.Macaddr", "pgtype.Macaddr8":
@@ -493,6 +498,8 @@ func (tm *TypeMapper) GenerateConversionToDB(
 			return fmt.Sprintf("pgtype.JSONB{Bytes: %s, Valid: true}", valueExpr)
 		case "pgtype.JSON":
 			return fmt.Sprintf("pgtype.JSON{Bytes: %s, Valid: true}", valueExpr)
+		case "pgtype.UUID":
+			return fmt.Sprintf("pgtype.UUID{Bytes: %s, Valid: true}", valueExpr)
 		case "pgtype.Inet", "pgtype.CIDR", "pgtype.Macaddr", "pgtype.Macaddr8":
 			return fmt.Sprintf("pgtype.Inet{IPNet: %s, Valid: true}", valueExpr)
 		case "pgtype.Money":

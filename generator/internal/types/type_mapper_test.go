@@ -208,7 +208,7 @@ func TestMapSQLTypeToGo_NullableTypes(t *testing.T) {
 			"github.com/jackc/pgx/v5/pgtype",
 		},
 
-		{"uuid nullable", "uuid", "uuid.UUID", "uuid.UUID", "github.com/google/uuid"},
+		{"uuid nullable", "uuid", "uuid.UUID", "pgtype.UUID", "github.com/jackc/pgx/v5/pgtype"},
 	}
 
 	tm := NewTypeMapper("postgresql")
@@ -266,6 +266,7 @@ func TestGenerateConversionFromDB(t *testing.T) {
 		{"pgtype.Float4", "SmallPrice", "pgtype.Float4", "pgtype.Float4", "row.SmallPrice.Float32"},
 		{"pgtype.Float8", "Price", "pgtype.Float8", "pgtype.Float8", "row.Price.Float64"},
 		{"uuid direct", "ID", "uuid.UUID", "uuid.UUID", "row.ID"},
+		{"pgtype.UUID", "RefID", "pgtype.UUID", "uuid.UUID", "uuid.UUID(row.RefID.Bytes)"},
 		{
 			"pgtype.Timestamptz",
 			"CreatedAt",
@@ -355,6 +356,13 @@ func TestGenerateConversionToDB(t *testing.T) {
 			"pgtype.Float8{Float64: data.Price, Valid: true}",
 		},
 		{"uuid direct", "uuid.UUID", "uuid.UUID", "data.ID", "data.ID"},
+		{
+			"pgtype.UUID",
+			"pgtype.UUID",
+			"uuid.UUID",
+			"data.RefID",
+			"pgtype.UUID{Bytes: data.RefID, Valid: true}",
+		},
 		{
 			"pgtype.Timestamptz",
 			"pgtype.Timestamptz",
