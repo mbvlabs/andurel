@@ -1,12 +1,3 @@
 module {{.ModuleName}}
 
 go {{.GoVersion}}
-
-{{- if gt (.Blueprint.Tools.Len) 0 }}
-tool (
-{{- range .Blueprint.Tools.Items}}
-    {{.}}
-{{- end}}
-)
-{{- end}}
-

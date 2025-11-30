@@ -139,7 +139,12 @@ func cleanup() {
 }
 
 func runLiveServer(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, "go", "tool", "air",
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.CommandContext(ctx, wd+"/bin/air",
 		"-build.cmd", "go build -o tmp/bin/main cmd/app/main.go",
 		"-build.bin", "tmp/bin/main",
 		"-build.exclude_dir", "node_modules",
@@ -164,7 +169,12 @@ func runLiveServer(ctx context.Context) error {
 }
 
 func runLiveTempl(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, "go", "tool", "templ", "generate", "--watch")
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.CommandContext(ctx, wd+"/bin/templ", "generate", "--watch")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 

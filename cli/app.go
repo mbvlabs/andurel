@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
 
@@ -35,18 +36,25 @@ func newConsoleCommand() *cobra.Command {
 				return err
 			}
 
-			binPath := filepath.Join(rootDir, "bin", "console")
-			if _, err := os.Stat(binPath); err != nil {
+			godotenv.Load()
+
+			databaseURL := os.Getenv("DATABASE_URL")
+			if databaseURL == "" {
+				return fmt.Errorf("DATABASE_URL not set in environment")
+			}
+
+			usqlPath := filepath.Join(rootDir, "bin", "usql")
+			if _, err := os.Stat(usqlPath); err != nil {
 				if os.IsNotExist(err) {
 					return fmt.Errorf(
-						"console binary not found at %s\nRun 'andurel sync' to build it",
-						binPath,
+						"usql binary not found at %s\nRun 'andurel tool sync' to download it",
+						usqlPath,
 					)
 				}
 				return err
 			}
 
-			command := exec.Command(binPath, args...)
+			command := exec.Command(usqlPath, databaseURL)
 			command.Stdout = os.Stdout
 			command.Stderr = os.Stderr
 			command.Stdin = os.Stdin

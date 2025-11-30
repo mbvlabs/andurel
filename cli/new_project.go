@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newProjectCommand() *cobra.Command {
+func newProjectCommand(version string) *cobra.Command {
 	projectCmd := &cobra.Command{
 		Use:   "new [project-name]",
 		Short: "Create a new Andurel project",
@@ -17,7 +17,9 @@ func newProjectCommand() *cobra.Command {
 This will scaffold a complete project structure with all necessary files,
 dependencies, and configuration.`,
 		Args: cobra.ExactArgs(1),
-		RunE: newProject,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return newProject(cmd, args, version)
+		},
 	}
 
 	projectCmd.Flags().
@@ -35,7 +37,7 @@ dependencies, and configuration.`,
 	return projectCmd
 }
 
-func newProject(cmd *cobra.Command, args []string) error {
+func newProject(cmd *cobra.Command, args []string, version string) error {
 	projectName := args[0]
 
 	basePath := "./" + projectName
@@ -81,7 +83,7 @@ func newProject(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := layout.Scaffold(basePath, projectName, repo, database, cssFramework, extensions); err != nil {
+	if err := layout.Scaffold(basePath, projectName, repo, database, cssFramework, version, extensions); err != nil {
 		return err
 	}
 

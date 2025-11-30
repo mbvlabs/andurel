@@ -5,7 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
 
@@ -114,22 +116,51 @@ func runMigrationBinary(args ...string) error {
 		return err
 	}
 
-	binPath := filepath.Join(rootDir, "bin", "migration")
-	if _, err := os.Stat(binPath); err != nil {
+	godotenv.Load()
+
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		return fmt.Errorf("DATABASE_URL not set in environment")
+	}
+
+	driver, dbString := parseDatabaseURL(databaseURL)
+
+	goosePath := filepath.Join(rootDir, "bin", "goose")
+	if _, err := os.Stat(goosePath); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf(
-				"migration binary not found at %s\nRun 'andurel sync' to build it",
-				binPath,
+				"goose binary not found at %s\nRun 'andurel tool sync' to download it",
+				goosePath,
 			)
 		}
 		return err
 	}
 
-	cmd := exec.Command(binPath, args...)
+	migrationDir := filepath.Join(rootDir, "db", "migrations")
+
+	gooseArgs := append([]string{"-dir", migrationDir, driver, dbString}, args...)
+
+	cmd := exec.Command(goosePath, gooseArgs...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	cmd.Dir = rootDir
 
 	return cmd.Run()
+}
+
+func parseDatabaseURL(url string) (driver, dbString string) {
+	if strings.HasPrefix(url, "postgres://") || strings.HasPrefix(url, "postgresql://") {
+		return "postgres", url
+	}
+	if strings.HasPrefix(url, "mysql://") {
+		return "mysql", url
+	}
+	if strings.HasPrefix(url, "sqlite://") {
+		return "sqlite3", strings.TrimPrefix(url, "sqlite://")
+	}
+	if strings.HasPrefix(url, "sqlite3://") {
+		return "sqlite3", strings.TrimPrefix(url, "sqlite3://")
+	}
+	return "postgres", url
 }

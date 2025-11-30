@@ -7,34 +7,65 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 )
 
 type AndurelLock struct {
-	Version  string              `json:"version"`
-	Binaries map[string]*Binary  `json:"binaries"`
+	Version    string                `json:"version"`
+	Extensions map[string]*Extension `json:"extensions,omitempty"`
+	Tools      map[string]*Tool      `json:"tools"`
 }
 
-type Binary struct {
-	Version  string `json:"version,omitempty"`
-	URL      string `json:"url,omitempty"`
+type Extension struct {
+	AppliedAt string `json:"appliedAt"`
+}
+
+type Tool struct {
+	Source   string `json:"source"`
+	Version  string `json:"version"`
+	Module   string `json:"module,omitempty"`
 	Checksum string `json:"checksum,omitempty"`
-	Type     string `json:"type,omitempty"`
-	Source   string `json:"source,omitempty"`
+	Path     string `json:"path,omitempty"`
 }
 
-func NewAndurelLock() *AndurelLock {
+func NewAndurelLock(version string) *AndurelLock {
 	return &AndurelLock{
-		Version:  "1",
-		Binaries: make(map[string]*Binary),
+		Version:    version,
+		Extensions: make(map[string]*Extension),
+		Tools:      make(map[string]*Tool),
 	}
 }
 
-func (l *AndurelLock) AddBinary(name, version, url, checksum string) {
-	l.Binaries[name] = &Binary{
+func NewGoTool(module, version, checksum string) *Tool {
+	return &Tool{
+		Source:   "go",
+		Module:   module,
 		Version:  version,
-		URL:      url,
 		Checksum: checksum,
+	}
+}
+
+func NewBinaryTool(version, checksum string) *Tool {
+	return &Tool{
+		Source:   "binary",
+		Version:  version,
+		Checksum: checksum,
+	}
+}
+
+func NewBuiltTool(path string) *Tool {
+	return &Tool{
+		Source: "built",
+		Path:   path,
+	}
+}
+
+func (l *AndurelLock) AddTool(name string, tool *Tool) {
+	l.Tools[name] = tool
+}
+
+func (l *AndurelLock) AddExtension(name, appliedAt string) {
+	l.Extensions[name] = &Extension{
+		AppliedAt: appliedAt,
 	}
 }
 
@@ -105,73 +136,3 @@ func CalculateBinaryChecksum(binaryPath string) (string, error) {
 	return fmt.Sprintf("sha256:%x", h.Sum(nil)), nil
 }
 
-func GetTailwindDownloadURL(version string) string {
-	platform := getTailwindPlatform()
-	return fmt.Sprintf("https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s", version, platform)
-}
-
-func GetMailpitDownloadURL(version string) string {
-	platform := getMailpitPlatform()
-	ext := "tar.gz"
-	if runtime.GOOS == "windows" {
-		ext = "zip"
-	}
-	return fmt.Sprintf("https://github.com/axllent/mailpit/releases/download/%s/mailpit-%s-amd64.%s", version, platform, ext)
-}
-
-func GetUsqlDownloadURL(version string) string {
-	platform := getUsqlPlatform()
-	ext := "tar.bz2"
-	if runtime.GOOS == "windows" {
-		ext = "zip"
-	}
-
-	versionWithoutV := version
-	if len(version) > 0 && version[0] == 'v' {
-		versionWithoutV = version[1:]
-	}
-
-	return fmt.Sprintf("https://github.com/xo/usql/releases/download/%s/usql-%s-%s.%s", version, versionWithoutV, platform, ext)
-}
-
-func getTailwindPlatform() string {
-	goos := runtime.GOOS
-	switch goos {
-	case "darwin":
-		return "macos-x64"
-	case "linux":
-		return "linux-x64"
-	case "windows":
-		return "windows-x64.exe"
-	default:
-		return "linux-x64"
-	}
-}
-
-func getMailpitPlatform() string {
-	goos := runtime.GOOS
-	switch goos {
-	case "darwin":
-		return "darwin"
-	case "linux":
-		return "linux"
-	case "windows":
-		return "windows"
-	default:
-		return "linux"
-	}
-}
-
-func getUsqlPlatform() string {
-	goos := runtime.GOOS
-	switch goos {
-	case "darwin":
-		return "darwin-amd64"
-	case "linux":
-		return "linux-amd64"
-	case "windows":
-		return "windows-amd64"
-	default:
-		return "linux-amd64"
-	}
-}
