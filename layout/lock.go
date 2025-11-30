@@ -10,30 +10,62 @@ import (
 )
 
 type AndurelLock struct {
-	Version  string              `json:"version"`
-	Binaries map[string]*Binary  `json:"binaries"`
+	Version    string                `json:"version"`
+	Extensions map[string]*Extension `json:"extensions,omitempty"`
+	Tools      map[string]*Tool      `json:"tools"`
 }
 
-type Binary struct {
-	Version  string `json:"version,omitempty"`
-	URL      string `json:"url,omitempty"`
+type Extension struct {
+	AppliedAt string `json:"appliedAt"`
+}
+
+type Tool struct {
+	Source   string `json:"source"`
+	Version  string `json:"version"`
+	Module   string `json:"module,omitempty"`
 	Checksum string `json:"checksum,omitempty"`
-	Type     string `json:"type,omitempty"`
-	Source   string `json:"source,omitempty"`
+	Path     string `json:"path,omitempty"`
 }
 
-func NewAndurelLock() *AndurelLock {
+func NewAndurelLock(version string) *AndurelLock {
 	return &AndurelLock{
-		Version:  "1",
-		Binaries: make(map[string]*Binary),
+		Version:    version,
+		Extensions: make(map[string]*Extension),
+		Tools:      make(map[string]*Tool),
 	}
 }
 
-func (l *AndurelLock) AddBinary(name, version, url, checksum string) {
-	l.Binaries[name] = &Binary{
+func NewGoTool(module, version, checksum string) *Tool {
+	return &Tool{
+		Source:   "go",
+		Module:   module,
 		Version:  version,
-		URL:      url,
 		Checksum: checksum,
+	}
+}
+
+func NewBinaryTool(version, checksum string) *Tool {
+	return &Tool{
+		Source:   "binary",
+		Version:  version,
+		Checksum: checksum,
+	}
+}
+
+func NewBuiltTool(path string) *Tool {
+	return &Tool{
+		Source: "built",
+		Path:   path,
+	}
+}
+
+func (l *AndurelLock) AddTool(name string, tool *Tool) {
+	l.Tools[name] = tool
+}
+
+func (l *AndurelLock) AddExtension(name, appliedAt string) {
+	l.Extensions[name] = &Extension{
+		AppliedAt: appliedAt,
 	}
 }
 

@@ -36,7 +36,7 @@ var (
 // Scaffold TODO: figure out a way to have full repo path on init, i.e. github.com/mbvlabs/andurel
 // breaks because go mod tidy will look up that path and not find it
 func Scaffold(
-	targetDir, projectName, repo, database, cssFramework string,
+	targetDir, projectName, repo, database, cssFramework, version string,
 	extensionNames []string,
 ) error {
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
@@ -144,7 +144,7 @@ func Scaffold(
 
 
 	fmt.Print("Generating andurel.lock file...\n")
-	if err := generateLockFile(targetDir, templateData.CSSFramework == "tailwind"); err != nil {
+	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", extensionNames); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
 	}
 
@@ -158,20 +158,6 @@ func Scaffold(
 	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
 		if err := cmds.RunGoRunBin(targetDir); err != nil {
 			return fmt.Errorf("failed to build run binary: %w", err)
-		}
-	}
-
-	fmt.Print("Building migration binary...\n")
-	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
-		if err := cmds.RunGoMigrationBin(targetDir); err != nil {
-			return fmt.Errorf("failed to build migration binary: %w", err)
-		}
-	}
-
-	fmt.Print("Building console binary...\n")
-	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
-		if err := cmds.RunConsoleBin(targetDir); err != nil {
-			return fmt.Errorf("failed to build console binary: %w", err)
 		}
 	}
 
@@ -324,10 +310,8 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc6.min.js",
 
 	// Commands
-	"cmd_app_main.tmpl":       "cmd/app/main.go",
-	"cmd_migration_main.tmpl": "cmd/migration/main.go",
-	"cmd_run_main.tmpl":       "cmd/run/main.go",
-	"cmd_console_main.tmpl":   "cmd/console/main.go",
+	"cmd_app_main.tmpl": "cmd/app/main.go",
+	"cmd_run_main.tmpl": "cmd/run/main.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
@@ -973,48 +957,32 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	return builder.Blueprint()
 }
 
-func generateLockFile(targetDir string, hasTailwind bool) error {
-	lock := NewAndurelLock()
+func generateLockFile(targetDir, version string, hasTailwind bool, extensions []string) error {
+	lock := NewAndurelLock(version)
 
 	for _, tool := range defaultGoTools {
-		lock.Binaries[tool.Name] = &Binary{
-			Version: tool.Version,
-			Source:  "go.mod",
-		}
+		moduleRepo := extractRepo(tool.Module)
+		lock.AddTool(tool.Name, NewGoTool(moduleRepo, tool.Version, ""))
 	}
 
 	if hasTailwind {
 		tailwindVersion := "v4.1.17"
-		tailwindPath := filepath.Join(targetDir, "bin", "tailwindcli")
-		checksum := ""
-		if _, err := os.Stat(tailwindPath); err == nil {
-			checksum, err = CalculateBinaryChecksum(tailwindPath)
-			if err != nil {
-				fmt.Printf("Warning: failed to calculate tailwind checksum: %v\n", err)
-			}
-		}
-		lock.AddBinary(
-			"tailwindcli",
-			tailwindVersion,
-			"",
-			checksum,
-		)
+		lock.AddTool("tailwindcli", NewBinaryTool(tailwindVersion, ""))
 	}
 
-	lock.Binaries["run"] = &Binary{
-		Type:   "built",
-		Source: "cmd/run/main.go",
-	}
+	lock.AddTool("run", NewBuiltTool("cmd/run/main.go"))
 
-	lock.Binaries["migration"] = &Binary{
-		Type:   "built",
-		Source: "cmd/migration/main.go",
-	}
-
-	lock.Binaries["console"] = &Binary{
-		Type:   "built",
-		Source: "cmd/console/main.go",
+	for _, ext := range extensions {
+		lock.AddExtension(ext, time.Now().Format(time.RFC3339))
 	}
 
 	return lock.WriteLockFile(targetDir)
+}
+
+func extractRepo(module string) string {
+	parts := strings.Split(module, "/")
+	if len(parts) >= 3 {
+		return strings.Join(parts[:3], "/")
+	}
+	return module
 }

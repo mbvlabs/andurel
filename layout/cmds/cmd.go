@@ -30,18 +30,6 @@ func RunGoRunBin(targetDir string) error {
 	return cmd.Run()
 }
 
-func RunGoMigrationBin(targetDir string) error {
-	cmd := exec.Command("go", "build", "-o", "bin/migration", "cmd/migration/main.go")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
-func RunConsoleBin(targetDir string) error {
-	cmd := exec.Command("go", "build", "-o", "bin/console", "cmd/console/main.go")
-	cmd.Dir = targetDir
-	return cmd.Run()
-}
-
 func RunTemplGenerate(targetDir string) error {
 	cmd := exec.Command("go", "tool", "templ", "generate", "./views")
 	cmd.Dir = targetDir
