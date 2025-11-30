@@ -22,7 +22,7 @@ func NewRootCommand(version, date string) *cobra.Command {
 
 	rootCmd.AddCommand(newRunAppCommand())
 
-	rootCmd.AddCommand(newProjectCommand())
+	rootCmd.AddCommand(newProjectCommand(version))
 	rootCmd.AddCommand(newGenerateCommand())
 	rootCmd.AddCommand(newMigrationCommand())
 	rootCmd.AddCommand(newSqlcCommand())
@@ -31,6 +31,7 @@ func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd.AddCommand(newAppCommand())
 	rootCmd.AddCommand(newLlmCommand())
 	rootCmd.AddCommand(newToolCommand())
+	rootCmd.AddCommand(newExtensionCommand())
 
 	return rootCmd
 }

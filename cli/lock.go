@@ -5,7 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
+	"runtime"
+	"strings"
 
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/layout/cmds"
@@ -109,10 +110,8 @@ func setGoToolVersion(projectRoot, toolName, version string) error {
 	if _, err := os.Stat(lockPath); err == nil {
 		lock, err := layout.ReadLockFile(projectRoot)
 		if err == nil {
-			lock.Binaries[toolName] = &layout.Binary{
-				Version: version,
-				Source:  "go.mod",
-			}
+			moduleRepo := extractModulePath(modulePath)
+			lock.AddTool(toolName, layout.NewGoTool(moduleRepo, version, ""))
 			if err := lock.WriteLockFile(projectRoot); err != nil {
 				fmt.Printf("Warning: failed to update andurel.lock: %v\n", err)
 			}
@@ -121,6 +120,14 @@ func setGoToolVersion(projectRoot, toolName, version string) error {
 
 	fmt.Printf("\n✓ Successfully updated %s to %s\n", toolName, version)
 	return nil
+}
+
+func extractModulePath(module string) string {
+	parts := strings.Split(module, "/")
+	if len(parts) >= 3 {
+		return strings.Join(parts[:3], "/")
+	}
+	return module
 }
 
 func setBinaryToolVersion(projectRoot, toolName, version string) error {
@@ -146,29 +153,21 @@ func setBinaryToolVersion(projectRoot, toolName, version string) error {
 
 	fmt.Printf("  - Downloading %s %s...\n", toolName, version)
 
-	downloadErr := retryDownload(toolName, func() error {
-		switch toolName {
-		case "tailwindcli":
-			return cmds.SetupTailwindWithVersion(projectRoot, version, 30*time.Second)
-		default:
-			return fmt.Errorf("unknown binary: %s", toolName)
+	if toolName == "tailwindcli" {
+		if err := cmds.DownloadTailwindCLI(version, runtime.GOOS, runtime.GOARCH, binPath); err != nil {
+			return fmt.Errorf("failed to download %s: %w", toolName, err)
 		}
-	})
-
-	if downloadErr != nil {
-		return fmt.Errorf("failed to download %s: %w", toolName, downloadErr)
+	} else {
+		return fmt.Errorf("unknown binary tool: %s", toolName)
 	}
 
 	fmt.Printf("  - Calculating checksum...\n")
-	checksum, err := layout.CalculateBinaryChecksum(binPath)
+	checksum, err := cmds.CalculateChecksum(binPath)
 	if err != nil {
 		return fmt.Errorf("failed to calculate checksum: %w", err)
 	}
 
-	lock.Binaries[toolName] = &layout.Binary{
-		Version:  version,
-		Checksum: checksum,
-	}
+	lock.AddTool(toolName, layout.NewBinaryTool(version, checksum))
 
 	if err := lock.WriteLockFile(projectRoot); err != nil {
 		return fmt.Errorf("failed to update lock file: %w", err)
