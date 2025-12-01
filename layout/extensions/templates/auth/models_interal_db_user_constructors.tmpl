@@ -22,7 +22,8 @@ import (
 // Constructor functions for SQLC parameters - these get updated during refresh
 // to make schema changes compiler-enforced and visible
 
-func CreateInsertUserParams(
+func BuildInsertUserParams(
+	id uuid.UUID,
 	email string,
 	emailValidatedAt sql.NullTime,
 	password []byte,
@@ -38,7 +39,7 @@ func CreateInsertUserParams(
 	}
 
 	return InsertUserParams{
-		ID:               uuid.New(),
+		ID:               id,
 		Email:            email,
 		EmailValidatedAt: validated,
 		Password:         password,
@@ -51,7 +52,7 @@ func CreateInsertUserParams(
 	}
 
 	return InsertUserParams{
-		ID:               uuid.New().String(),
+		ID:               id.String(),
 		Email:            email,
 		EmailValidatedAt: emailValidatedAt,
 		Password:         password,
@@ -60,7 +61,7 @@ func CreateInsertUserParams(
 {{- end }}
 }
 
-func CreateUpdateUserParams(
+func BuildUpdateUserParams(
 	id string,
 	email string,
 	emailValidatedAt sql.NullTime,
@@ -101,7 +102,7 @@ func CreateUpdateUserParams(
 {{- end }}
 }
 
-func CreateQueryPaginatedUsersParams(limit, offset int64) QueryPaginatedUsersParams {
+func BuildQueryPaginatedUsersParams(limit, offset int64) QueryPaginatedUsersParams {
 	return QueryPaginatedUsersParams{
 		Limit:  limit,
 		Offset: offset,

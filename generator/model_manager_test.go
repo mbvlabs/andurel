@@ -3,6 +3,7 @@ package generator
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/pkg/cache"
@@ -63,7 +64,7 @@ sql:
 }
 
 func TestExtractTableNameOverride(t *testing.T) {
-	manager, cleanup := setupModelManagerTest(t)
+	_, cleanup := setupModelManagerTest(t)
 	defer cleanup()
 
 	tests := []struct {
@@ -219,14 +220,14 @@ type User struct {
 				t.Fatalf("Failed to write test model file: %v", err)
 			}
 
-			gotTable, gotFound := manager.extractTableNameOverride(modelPath, tt.resourceName)
+			gotTable, gotFound := ExtractTableNameOverride(modelPath, tt.resourceName)
 
 			if gotFound != tt.wantFound {
-				t.Errorf("extractTableNameOverride() gotFound = %v, wantFound %v", gotFound, tt.wantFound)
+				t.Errorf("ExtractTableNameOverride() gotFound = %v, wantFound %v", gotFound, tt.wantFound)
 			}
 
 			if gotTable != tt.wantTable {
-				t.Errorf("extractTableNameOverride() gotTable = %v, wantTable %v", gotTable, tt.wantTable)
+				t.Errorf("ExtractTableNameOverride() gotTable = %v, wantTable %v", gotTable, tt.wantTable)
 			}
 
 			os.Remove(modelPath)
@@ -235,24 +236,24 @@ type User struct {
 }
 
 func TestExtractTableNameOverride_FileNotFound(t *testing.T) {
-	manager, cleanup := setupModelManagerTest(t)
+	_, cleanup := setupModelManagerTest(t)
 	defer cleanup()
 
 	modelPath := filepath.Join("models", "nonexistent.go")
 
-	gotTable, gotFound := manager.extractTableNameOverride(modelPath, "User")
+	gotTable, gotFound := ExtractTableNameOverride(modelPath, "User")
 
 	if gotFound {
-		t.Errorf("extractTableNameOverride() for nonexistent file: gotFound = true, want false")
+		t.Errorf("ExtractTableNameOverride() for nonexistent file: gotFound = true, want false")
 	}
 
 	if gotTable != "" {
-		t.Errorf("extractTableNameOverride() for nonexistent file: gotTable = %v, want empty string", gotTable)
+		t.Errorf("ExtractTableNameOverride() for nonexistent file: gotTable = %v, want empty string", gotTable)
 	}
 }
 
 func TestExtractTableNameOverride_ResourceNameMatching(t *testing.T) {
-	manager, cleanup := setupModelManagerTest(t)
+	_, cleanup := setupModelManagerTest(t)
 	defer cleanup()
 
 	tests := []struct {
@@ -290,13 +291,219 @@ func TestExtractTableNameOverride_ResourceNameMatching(t *testing.T) {
 				t.Fatalf("Failed to write test model file: %v", err)
 			}
 
-			_, gotFound := manager.extractTableNameOverride(modelPath, tt.resourceName)
+			_, gotFound := ExtractTableNameOverride(modelPath, tt.resourceName)
 
 			if gotFound != tt.wantFound {
-				t.Errorf("extractTableNameOverride() gotFound = %v, wantFound %v", gotFound, tt.wantFound)
+				t.Errorf("ExtractTableNameOverride() gotFound = %v, wantFound %v", gotFound, tt.wantFound)
 			}
 
 			os.Remove(modelPath)
 		})
+	}
+}
+
+func TestGenerateQueriesOnly_InvalidResourceName(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	tests := []struct {
+		name         string
+		resourceName string
+	}{
+		{"lowercase", "user"},
+		{"snake_case", "user_role"},
+		{"with spaces", "User Role"},
+		{"empty", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := manager.GenerateQueriesOnly(tt.resourceName, "")
+			if err == nil {
+				t.Errorf("GenerateQueriesOnly(%q) expected error for invalid resource name, got nil", tt.resourceName)
+			}
+		})
+	}
+}
+
+func TestGenerateQueriesOnly_InvalidTableNameOverride(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	tests := []struct {
+		name              string
+		resourceName      string
+		tableNameOverride string
+	}{
+		{"reserved keyword SELECT", "User", "select"},
+		{"reserved keyword FROM", "User", "from"},
+		{"reserved keyword WHERE", "User", "where"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := manager.GenerateQueriesOnly(tt.resourceName, tt.tableNameOverride)
+			if err == nil {
+				t.Errorf("GenerateQueriesOnly(%q, %q) expected error for reserved SQL keyword, got nil", tt.resourceName, tt.tableNameOverride)
+			}
+		})
+	}
+}
+
+func TestRefreshQueriesOnly_RequiresExistingSQLFile(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	err := manager.RefreshQueriesOnly("NonExistent", "non_existents", false)
+	if err == nil {
+		t.Error("RefreshQueriesOnly() expected error when SQL file doesn't exist, got nil")
+	}
+
+	expectedMsg := "does not exist"
+	if err != nil && !strings.Contains(err.Error(), expectedMsg) {
+		t.Errorf("RefreshQueriesOnly() error = %v, want error containing %q", err, expectedMsg)
+	}
+}
+
+func TestCheckExistingModel_WarnsWhenModelExists(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	modelPath := filepath.Join("models", "user.go")
+	if err := os.WriteFile(modelPath, []byte("package models\ntype User struct{}"), 0o644); err != nil {
+		t.Fatalf("Failed to create model file: %v", err)
+	}
+	defer os.Remove(modelPath)
+
+	// This should not panic - just prints a warning
+	manager.checkExistingModel("User")
+}
+
+func TestCheckExistingModel_NoWarningWhenModelNotExists(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	manager.checkExistingModel("NonExistent")
+}
+
+func TestSetupModelContext_SingularTableNameWithOverride(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	ctx, err := manager.setupModelContext("UserFeedback", "user_feedback", true)
+	if err != nil {
+		t.Errorf("setupModelContext() with singular table name override returned error: %v", err)
+	}
+
+	if ctx == nil {
+		t.Fatal("setupModelContext() returned nil context")
+	}
+
+	if ctx.TableName != "user_feedback" {
+		t.Errorf("setupModelContext() TableName = %q, want %q", ctx.TableName, "user_feedback")
+	}
+}
+
+func TestSetupModelContext_SingularTableNameWithoutOverride(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	_, err := manager.setupModelContext("UserFeedback", "user_feedback", false)
+	if err == nil {
+		t.Error("setupModelContext() without override flag should reject singular table name")
+	}
+
+	if !strings.Contains(err.Error(), "must be plural") {
+		t.Errorf("setupModelContext() error = %v, want error containing 'must be plural'", err)
+	}
+}
+
+func TestSetupModelContext_PluralTableNameWithoutOverride(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	ctx, err := manager.setupModelContext("User", "users", false)
+	if err != nil {
+		t.Errorf("setupModelContext() with plural table name returned error: %v", err)
+	}
+
+	if ctx == nil {
+		t.Fatal("setupModelContext() returned nil context")
+	}
+
+	if ctx.TableName != "users" {
+		t.Errorf("setupModelContext() TableName = %q, want %q", ctx.TableName, "users")
+	}
+}
+
+func TestSetupQueriesContext_SingularTableNameWithOverride(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	ctx, err := manager.setupQueriesContext("UserFeedback", "user_feedback", true)
+	if err != nil {
+		t.Errorf("setupQueriesContext() with singular table name override returned error: %v", err)
+	}
+
+	if ctx == nil {
+		t.Fatal("setupQueriesContext() returned nil context")
+	}
+
+	if ctx.TableName != "user_feedback" {
+		t.Errorf("setupQueriesContext() TableName = %q, want %q", ctx.TableName, "user_feedback")
+	}
+}
+
+func TestSetupQueriesContext_SingularTableNameWithoutOverride(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	_, err := manager.setupQueriesContext("UserFeedback", "user_feedback", false)
+	if err == nil {
+		t.Error("setupQueriesContext() without override flag should reject singular table name")
+	}
+
+	if !strings.Contains(err.Error(), "must be plural") {
+		t.Errorf("setupQueriesContext() error = %v, want error containing 'must be plural'", err)
+	}
+}
+
+func TestGenerateModel_SingularTableNameOverride(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	migrationsDir := filepath.Join("database", "migrations")
+	migrationContent := `CREATE TABLE user_feedback (
+		id SERIAL PRIMARY KEY,
+		message TEXT NOT NULL
+	);`
+	if err := os.WriteFile(filepath.Join(migrationsDir, "001_create_user_feedback.up.sql"), []byte(migrationContent), 0o644); err != nil {
+		t.Fatalf("Failed to create migration file: %v", err)
+	}
+
+	err := manager.GenerateModel("UserFeedback", "user_feedback")
+
+	if err != nil && strings.Contains(err.Error(), "must be plural") {
+		t.Errorf("GenerateModel() with --table-name override should not fail with plural validation: %v", err)
+	}
+}
+
+func TestGenerateQueriesOnly_SingularTableNameOverride(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	migrationsDir := filepath.Join("database", "migrations")
+	migrationContent := `CREATE TABLE user_feedback (
+		id SERIAL PRIMARY KEY,
+		message TEXT NOT NULL
+	);`
+	if err := os.WriteFile(filepath.Join(migrationsDir, "001_create_user_feedback.up.sql"), []byte(migrationContent), 0o644); err != nil {
+		t.Fatalf("Failed to create migration file: %v", err)
+	}
+
+	err := manager.GenerateQueriesOnly("UserFeedback", "user_feedback")
+
+	if err != nil && strings.Contains(err.Error(), "must be plural") {
+		t.Errorf("GenerateQueriesOnly() with --table-name override should not fail with plural validation: %v", err)
 	}
 }

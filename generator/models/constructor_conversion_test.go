@@ -12,16 +12,18 @@ import (
 
 func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 	tests := []struct {
-		name                  string
-		migrationsDir         string
-		tableName             string
-		resourceName          string
-		modulePath            string
-		databaseType          string
-		expectedCreateParams  []string
-		expectedUpdateParams  []string
-		unexpectedCreateCode  []string
-		unexpectedUpdateCode  []string
+		name                       string
+		migrationsDir              string
+		tableName                  string
+		resourceName               string
+		modulePath                 string
+		databaseType               string
+		expectedCreateParams       []string
+		expectedUpdateParams       []string
+		expectedUpsertParams       []string
+		expectedFindOrCreateParams []string
+		unexpectedCreateCode       []string
+		unexpectedUpdateCode       []string
 	}{
 		{
 			name:          "PostgreSQL should properly convert nullable and non-nullable columns",
@@ -31,25 +33,33 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 			modulePath:    "github.com/example/myapp",
 			databaseType:  "postgresql",
 			expectedCreateParams: []string{
-				"params := db.CreateInsertUserParams(",
+				"params := db.BuildInsertUserParams(",
+				"uuid.New(),",
 				"data.Email,",
 				"data.Name,",
 				"pgtype.Int4{Int32: data.Age, Valid: true}",
 				"pgtype.Bool{Bool: data.IsActive, Valid: true}",
 			},
 			expectedUpdateParams: []string{
-				"params := db.CreateUpdateUserParams(",
+				"params := db.BuildUpdateUserParams(",
 				"data.ID,",
 				"data.Email,",
 				"data.Name,",
 				"pgtype.Int4{Int32: data.Age, Valid: true}",
 				"pgtype.Bool{Bool: data.IsActive, Valid: true}",
 			},
+			expectedUpsertParams: []string{
+				"params := db.BuildUpsertUserParams(",
+				"uuid.New(),",
+			},
+			expectedFindOrCreateParams: []string{
+				"data.ID,",
+			},
 			unexpectedCreateCode: []string{
-				"CreateInsertUserParams()",
+				"BuildInsertUserParams()",
 			},
 			unexpectedUpdateCode: []string{
-				"CreateUpdateUserParams()",
+				"BuildUpdateUserParams()",
 			},
 		},
 		{
@@ -60,25 +70,33 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 			modulePath:    "github.com/example/myapp",
 			databaseType:  "sqlite",
 			expectedCreateParams: []string{
-				"params := db.CreateInsertUserParams(",
+				"params := db.BuildInsertUserParams(",
+				"uuid.New(),",
 				"data.Email,",
 				"sql.NullTime{Time: data.EmailVerifiedAt, Valid: true}",
 				"data.Password,",
 				"data.IsAdmin,",
 			},
 			expectedUpdateParams: []string{
-				"params := db.CreateUpdateUserParams(",
+				"params := db.BuildUpdateUserParams(",
 				"data.ID.String(),",
 				"data.Email,",
 				"sql.NullTime{Time: data.EmailVerifiedAt, Valid: true}",
 				"data.Password,",
 				"data.IsAdmin,",
 			},
+			expectedUpsertParams: []string{
+				"params := db.BuildUpsertUserParams(",
+				"uuid.New(),",
+			},
+			expectedFindOrCreateParams: []string{
+				"data.ID,",
+			},
 			unexpectedCreateCode: []string{
-				"CreateInsertUserParams()",
+				"BuildInsertUserParams()",
 			},
 			unexpectedUpdateCode: []string{
-				"CreateUpdateUserParams()",
+				"BuildUpdateUserParams()",
 			},
 		},
 	}
@@ -161,6 +179,26 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 				if !strings.Contains(modelStr, expectedParam) {
 					t.Errorf(
 						"Model file should contain Update constructor parameter: %s\nGenerated content:\n%s",
+						expectedParam,
+						modelStr,
+					)
+				}
+			}
+
+			for _, expectedParam := range tt.expectedUpsertParams {
+				if !strings.Contains(modelStr, expectedParam) {
+					t.Errorf(
+						"Model file should contain Upsert constructor parameter: %s\nGenerated content:\n%s",
+						expectedParam,
+						modelStr,
+					)
+				}
+			}
+
+			for _, expectedParam := range tt.expectedFindOrCreateParams {
+				if !strings.Contains(modelStr, expectedParam) {
+					t.Errorf(
+						"Model file should contain FindOrCreate constructor parameter: %s\nGenerated content:\n%s",
 						expectedParam,
 						modelStr,
 					)
@@ -287,7 +325,7 @@ func TestConstructorConversions__FieldsExcludedCorrectly(t *testing.T) {
 			createFunc := modelStr[createStart : createStart+createEnd]
 
 			for _, unexpected := range tt.unexpectedInCreate {
-				paramsStart := strings.Index(createFunc, "params := db.CreateInsertUserParams(")
+				paramsStart := strings.Index(createFunc, "params := db.BuildInsertUserParams(")
 				paramsEnd := strings.Index(createFunc[paramsStart:], ")")
 				paramsSection := createFunc[paramsStart : paramsStart+paramsEnd]
 
@@ -305,7 +343,7 @@ func TestConstructorConversions__FieldsExcludedCorrectly(t *testing.T) {
 			updateFunc := modelStr[updateStart : updateStart+updateEnd]
 
 			for _, unexpected := range tt.unexpectedInUpdate {
-				paramsStart := strings.Index(updateFunc, "params := db.CreateUpdateUserParams(")
+				paramsStart := strings.Index(updateFunc, "params := db.BuildUpdateUserParams(")
 				paramsEnd := strings.Index(updateFunc[paramsStart:], ")")
 				paramsSection := updateFunc[paramsStart : paramsStart+paramsEnd]
 

@@ -12,6 +12,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/internal/types"
 	"github.com/mbvlabs/andurel/generator/templates"
+	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/mbvlabs/andurel/pkg/errors"
 	"github.com/mbvlabs/andurel/pkg/naming"
@@ -40,6 +41,7 @@ type GeneratedView struct {
 type Config struct {
 	ResourceName string
 	PluralName   string
+	TableName    string
 	ModulePath   string
 }
 
@@ -63,9 +65,13 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 		Fields:       make([]ViewField, 0),
 	}
 
-	table, err := cat.GetTable("", config.PluralName)
+	tableName := config.TableName
+	if tableName == "" {
+		tableName = config.PluralName
+	}
+	table, err := cat.GetTable("", tableName)
 	if err != nil {
-		return nil, errors.NewDatabaseError("get table", config.PluralName, err)
+		return nil, errors.NewDatabaseError("get table", tableName, err)
 	}
 
 	for _, col := range table.Columns {
@@ -241,19 +247,21 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool) (
 func (g *Generator) GenerateView(
 	cat *catalog.Catalog,
 	resourceName string,
+	tableName string,
 	modulePath string,
 ) error {
-	return g.GenerateViewWithController(cat, resourceName, modulePath, false)
+	return g.GenerateViewWithController(cat, resourceName, tableName, modulePath, false)
 }
 
 func (g *Generator) GenerateViewWithController(
 	cat *catalog.Catalog,
 	resourceName string,
+	tableName string,
 	modulePath string,
 	withController bool,
 ) error {
 	pluralName := naming.DeriveTableName(resourceName)
-	viewPath := filepath.Join("views", pluralName+"_resource.templ")
+	viewPath := filepath.Join("views", tableName+"_resource.templ")
 
 	if _, err := os.Stat(viewPath); err == nil {
 		return fmt.Errorf("view file %s already exists", viewPath)
@@ -262,6 +270,7 @@ func (g *Generator) GenerateViewWithController(
 	view, err := g.Build(cat, Config{
 		ResourceName: resourceName,
 		PluralName:   pluralName,
+		TableName:    tableName,
 		ModulePath:   modulePath,
 	})
 	if err != nil {
@@ -294,7 +303,19 @@ func (g *Generator) GenerateViewWithController(
 }
 
 func (g *Generator) formatTemplFile(filePath string) error {
-	cmd := exec.Command("go", "tool", "templ", "fmt", filePath)
+	var cmd *exec.Cmd
+
+	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
+		cmd = exec.Command("go", "run", "github.com/a-h/templ/cmd/templ@"+versions.Templ, "fmt", filePath)
+	} else {
+		rootDir, err := g.fileManager.FindGoModRoot()
+		if err != nil {
+			return fmt.Errorf("failed to find project root: %w", err)
+		}
+		templBin := filepath.Join(rootDir, "bin", "templ")
+		cmd = exec.Command(templBin, "fmt", filePath)
+	}
+
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to run templ fmt on %s: %w", filePath, err)
 	}
@@ -308,10 +329,18 @@ func (g *Generator) runCompileTemplates() error {
 		return nil
 	}
 
-	cmd := exec.Command("go", "tool", "templ", "generate")
+	var cmd *exec.Cmd
+
+	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
+		cmd = exec.Command("go", "run", "github.com/a-h/templ/cmd/templ@"+versions.Templ, "generate")
+	} else {
+		templBin := filepath.Join(rootDir, "bin", "templ")
+		cmd = exec.Command(templBin, "generate")
+	}
+
 	cmd.Dir = rootDir
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to run 'go tool templ generate': %w", err)
+		return fmt.Errorf("failed to run templ generate: %w", err)
 	}
 	return nil
 }

@@ -62,6 +62,7 @@ type SQLData struct {
 	IDPlaceholder      string
 	LimitOffsetClause  string
 	NowFunction        string
+	UpsertUpdateSet    string
 }
 
 type Generator struct {
@@ -112,6 +113,11 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		for imp := range typeImports {
 			importSet[imp] = true
 		}
+
+		if strings.Contains(field.SQLCType, "pgtype.") {
+			importSet["github.com/jackc/pgx/v5/pgtype"] = true
+		}
+
 		model.Fields = append(model.Fields, field)
 	}
 
@@ -404,6 +410,7 @@ func (g *Generator) prepareSQLData(
 	var insertColumns []string
 	var insertPlaceholders []string
 	var updateColumns []string
+	var upsertUpdateColumns []string
 
 	var placeholderFunc func(int) string
 	var nowFunc string
@@ -444,10 +451,15 @@ func (g *Generator) prepareSQLData(
 		if col.Name != "id" && col.Name != "created_at" {
 			if col.Name == "updated_at" {
 				updateColumns = append(updateColumns, "updated_at="+nowFunc)
+				upsertUpdateColumns = append(upsertUpdateColumns, "updated_at="+nowFunc)
 			} else {
 				updateColumns = append(
 					updateColumns,
 					fmt.Sprintf("%s=%s", col.Name, placeholderFunc(placeholderIndex)),
+				)
+				upsertUpdateColumns = append(
+					upsertUpdateColumns,
+					fmt.Sprintf("%s=excluded.%s", col.Name, col.Name),
 				)
 				placeholderIndex++
 			}
@@ -464,6 +476,7 @@ func (g *Generator) prepareSQLData(
 		IDPlaceholder:      idPlaceholder,
 		LimitOffsetClause:  limitOffsetClause,
 		NowFunction:        nowFunc,
+		UpsertUpdateSet:    strings.Join(upsertUpdateColumns, ", "),
 	}
 }
 
@@ -849,6 +862,7 @@ func (g *Generator) extractGeneratedParts(content, resourceName string) map[stri
 		fmt.Sprintf("type Create%sData struct", resourceName),
 		fmt.Sprintf("type Update%sData struct", resourceName),
 		fmt.Sprintf("type Paginated%ss struct", resourceName),
+		fmt.Sprintf("type FindOrCreate%sData struct", resourceName),
 		fmt.Sprintf("func Find%s(", resourceName),
 		fmt.Sprintf("func Create%s(", resourceName),
 		fmt.Sprintf("func Update%s(", resourceName),
@@ -859,6 +873,9 @@ func (g *Generator) extractGeneratedParts(content, resourceName string) map[stri
 		fmt.Sprintf("func newInsert%sParams(", resourceName),
 		fmt.Sprintf("func newUpdate%sParams(", resourceName),
 		fmt.Sprintf("func newQueryPaginated%ssParams(", resourceName),
+		fmt.Sprintf("func %sExists(", resourceName),
+		fmt.Sprintf("func Upsert%s(", resourceName),
+		fmt.Sprintf("func FindOrCreate%s(", resourceName),
 	}
 
 	for _, signature := range signatures {
@@ -984,6 +1001,8 @@ func (g *Generator) extractGeneratedSQLQueries(content, resourceName string) map
 		fmt.Sprintf("Delete%s", resourceName),
 		fmt.Sprintf("QueryPaginated%ss", resourceName),
 		fmt.Sprintf("Count%ss", resourceName),
+		fmt.Sprintf("Upsert%s", resourceName),
+		fmt.Sprintf("%sExists", resourceName),
 	}
 
 	for _, queryName := range queryNames {

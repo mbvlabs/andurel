@@ -22,7 +22,8 @@ import (
 // Constructor functions for SQLC parameters - these get updated during refresh
 // to make schema changes compiler-enforced and visible
 
-func CreateInsertTokenParams(
+func BuildInsertTokenParams(
+    id uuid.UUID,
 	scope string,
 	expiresAt time.Time,
 	hash string,
@@ -30,7 +31,7 @@ func CreateInsertTokenParams(
 ) InsertTokenParams {
 {{- if eq .Database "postgresql" }}
 	return InsertTokenParams{
-		ID:    uuid.New(),
+		ID:    id,
 		Scope: scope,
 		ExpiresAt: pgtype.Timestamptz{
 			Time:  expiresAt,
@@ -41,7 +42,7 @@ func CreateInsertTokenParams(
 	}
 {{- else if eq .Database "sqlite" }}
 	return InsertTokenParams{
-		ID:        uuid.New().String(),
+		ID:        id.String(),
 		Scope:     scope,
 		ExpiresAt: expiresAt,
 		Hash:      hash,
@@ -50,7 +51,7 @@ func CreateInsertTokenParams(
 {{- end }}
 }
 
-func CreateUpdateTokenParams(
+func BuildUpdateTokenParams(
 {{- if eq .Database "postgresql" }}
 	id uuid.UUID,
 {{- else if eq .Database "sqlite" }}
@@ -83,7 +84,7 @@ func CreateUpdateTokenParams(
 {{- end }}
 }
 
-func CreateQueryPaginatedTokensParams(limit, offset int64) QueryPaginatedTokensParams {
+func BuildQueryPaginatedTokensParams(limit, offset int64) QueryPaginatedTokensParams {
 	return QueryPaginatedTokensParams{
 		Limit:  limit,
 		Offset: offset,

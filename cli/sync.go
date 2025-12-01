@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
+	"runtime"
 
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/layout/cmds"
@@ -38,115 +38,58 @@ func syncBinaries(projectRoot string) error {
 		return fmt.Errorf("failed to read lock file: %w", err)
 	}
 
-	fmt.Println("Syncing binaries from andurel.lock...")
+	goos := runtime.GOOS
+	goarch := runtime.GOARCH
 
-	for name, binary := range lock.Binaries {
+	fmt.Println("Syncing tools from andurel.lock...")
+
+	for name, tool := range lock.Tools {
 		binPath := filepath.Join(projectRoot, "bin", name)
 
 		if _, err := os.Stat(binPath); err == nil {
-			if binary.Type == "built" {
+			if tool.Source == "built" {
 				fmt.Printf("✓ %s - already built\n", name)
-				continue
-			}
-			if binary.Checksum != "" {
-				if err := layout.ValidateBinaryChecksum(binPath, binary.Checksum); err == nil {
-					fmt.Printf("✓ %s (%s) - already present and valid\n", name, binary.Version)
-					continue
-				}
-				fmt.Printf("⚠ %s - checksum mismatch, re-downloading...\n", name)
-				os.Remove(binPath)
 			} else {
-				fmt.Printf("✓ %s (%s) - already present (no checksum to validate)\n", name, binary.Version)
-				continue
+				fmt.Printf("✓ %s (%s) - already present\n", name, tool.Version)
 			}
-		}
-
-		if binary.Type == "built" {
-			fmt.Printf("🔨 Building %s from %s...\n", name, binary.Source)
-
-			switch name {
-			case "run":
-				if err := cmds.RunGoRunBin(projectRoot); err != nil {
-					return fmt.Errorf("failed to build %s: %w", name, err)
-				}
-			case "migration":
-				if err := cmds.RunGoMigrationBin(projectRoot); err != nil {
-					return fmt.Errorf("failed to build %s: %w", name, err)
-				}
-			case "console":
-				if err := cmds.RunConsoleBin(projectRoot); err != nil {
-					return fmt.Errorf("failed to build %s: %w", name, err)
-				}
-			default:
-				return fmt.Errorf("unknown built binary: %s", name)
-			}
-
-			fmt.Printf("✓ %s - built successfully\n", name)
 			continue
 		}
 
-		fmt.Printf("⬇ Downloading %s %s...\n", name, binary.Version)
-
-		downloadErr := retryDownload(name, func() error {
-			switch name {
-			case "tailwindcli":
-				return cmds.SetupTailwindWithVersion(projectRoot, binary.Version, 30*time.Second)
-			case "mailpit":
-				return cmds.SetupMailpitWithVersion(projectRoot, binary.Version, 30*time.Second)
-			case "usql":
-				return cmds.SetupUsqlWithVersion(projectRoot, binary.Version, 30*time.Second)
-			default:
-				return fmt.Errorf("unknown binary: %s", name)
+		switch tool.Source {
+		case "go":
+			fmt.Printf("⬇ Downloading %s %s for %s/%s...\n", name, tool.Version, goos, goarch)
+			if err := cmds.DownloadGoTool(name, tool.Module, tool.Version, goos, goarch, binPath); err != nil {
+				return fmt.Errorf("failed to download %s: %w", name, err)
 			}
-		})
+			fmt.Printf("✓ %s (%s) - downloaded successfully\n", name, tool.Version)
 
-		if downloadErr != nil {
-			return fmt.Errorf("failed to download %s: %w", name, downloadErr)
-		}
+		case "binary":
+			fmt.Printf("⬇ Downloading %s %s for %s/%s...\n", name, tool.Version, goos, goarch)
+			if name == "tailwindcli" {
+				if err := cmds.DownloadTailwindCLI(tool.Version, goos, goarch, binPath); err != nil {
+					return fmt.Errorf("failed to download %s: %w", name, err)
+				}
+			} else {
+				return fmt.Errorf("unknown binary tool: %s", name)
+			}
+			fmt.Printf("✓ %s (%s) - downloaded successfully\n", name, tool.Version)
 
-		if binary.Checksum != "" {
-			if err := layout.ValidateBinaryChecksum(binPath, binary.Checksum); err != nil {
-				return fmt.Errorf("checksum validation failed for %s: %w", name, err)
+		case "built":
+			fmt.Printf("🔨 Building %s from %s...\n", name, tool.Path)
+			if name == "run" {
+				if err := cmds.RunGoRunBin(projectRoot); err != nil {
+					return fmt.Errorf("failed to build %s: %w", name, err)
+				}
+			} else {
+				return fmt.Errorf("unknown built binary: %s", name)
 			}
-			fmt.Printf("✓ %s (%s) - downloaded and verified\n", name, binary.Version)
-		} else {
-			checksum, err := layout.CalculateBinaryChecksum(binPath)
-			if err != nil {
-				return fmt.Errorf("failed to calculate checksum for %s: %w", name, err)
-			}
-			binary.Checksum = checksum
-			fmt.Printf("✓ %s (%s) - downloaded and checksum calculated\n", name, binary.Version)
+			fmt.Printf("✓ %s - built successfully\n", name)
+
+		default:
+			return fmt.Errorf("unknown tool source: %s for %s", tool.Source, name)
 		}
 	}
 
-	if err := lock.WriteLockFile(projectRoot); err != nil {
-		return fmt.Errorf("failed to update lock file: %w", err)
-	}
-
-	fmt.Println("\nAll binaries synced successfully!")
+	fmt.Println("\nAll tools synced successfully!")
 	return nil
-}
-
-func retryDownload(name string, downloadFn func() error) error {
-	maxRetries := 3
-	var lastErr error
-
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		if attempt > 1 {
-			fmt.Printf("  Retry %d/%d...\n", attempt-1, maxRetries-1)
-			time.Sleep(time.Second * 2)
-		}
-
-		err := downloadFn()
-		if err == nil {
-			return nil
-		}
-
-		lastErr = err
-		if attempt < maxRetries {
-			fmt.Printf("  Download failed: %v\n", err)
-		}
-	}
-
-	return fmt.Errorf("failed after %d attempts: %w", maxRetries, lastErr)
 }

@@ -9,7 +9,7 @@ import (
 
 templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 	@base() {
-		<div>
+		<main>
 			<div>
 				<h1>{{.ResourceName}}s</h1>
 				<a href={ templ.URL(routes.{{.ResourceName}}New.URL()) }>New {{.ResourceName}}</a>
@@ -43,13 +43,13 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 					}
 				</div>
 			</div>
-		</div>
+		</main>
 	}
 }
 
 templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
 	@base() {
-		<div>
+		<main>
 			<div>
 				<h1>{{.ResourceName}} Details</h1>
 				<div>
@@ -68,13 +68,13 @@ templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}
 					</div>
 				</div>
 			</div>
-		</div>
+		</main>
 	}
 }
 
 templ {{.ResourceName}}New() {
 	@base() {
-		<div>
+		<main>
 			<div>
 				<h1>New {{.ResourceName}}</h1>
 				<a href={ templ.URL(routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
@@ -100,13 +100,13 @@ templ {{.ResourceName}}New() {
 					</form>
 				</div>
 			</div>
-		</div>
+		</main>
 	}
 }
 
 templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
 	@base() {
-		<div>
+		<main>
 			<div>
 				<h1>Edit {{.ResourceName}}</h1>
 				<a href={ templ.URL(routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
@@ -138,6 +138,6 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 					</div>
 				</div>
 			</div>
-		</div>
+		</main>
 	}
 }

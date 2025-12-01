@@ -69,7 +69,7 @@ func CreatePaymentTransaction(
 	dbtx db.DBTX,
 	data CreatePaymentTransactionData,
 ) (PaymentTransaction, error) {
-	params := db.CreateInsertPaymentTransactionParams(
+	params := db.BuildInsertPaymentTransactionParams(
 		uuid.New(),
 		data.ProviderTransactionID,
 		data.ProviderCustomerID,
@@ -97,7 +97,7 @@ func UpdatePaymentTransactionStatus(
 	status string,
 	completedAt time.Time,
 ) (PaymentTransaction, error) {
-	params := db.CreateUpdatePaymentTransactionStatusParams(
+	params := db.BuildUpdatePaymentTransactionStatusParams(
 		paddleTransactionID,
 		status,
 		sql.NullTime{Time: completedAt, Valid: !completedAt.IsZero()},
@@ -198,7 +198,7 @@ func CreatePaymentTransaction(
 	dbtx db.DBTX,
 	data CreatePaymentTransactionData,
 ) (PaymentTransaction, error) {
-	params := db.CreateInsertPaymentTransactionParams(
+	params := db.BuildInsertPaymentTransactionParams(
 		uuid.New(),
 		data.ProviderTransactionID,
 		data.ProviderCustomerID,
@@ -226,7 +226,7 @@ func UpdatePaymentTransactionStatus(
 	status string,
 	completedAt time.Time,
 ) (PaymentTransaction, error) {
-	params := db.CreateUpdatePaymentTransactionStatusParams(
+	params := db.BuildUpdatePaymentTransactionStatusParams(
 		paddleTransactionID,
 		status,
 		sql.NullTime{Time: completedAt, Valid: !completedAt.IsZero()},

@@ -33,12 +33,13 @@ func NewFileGenerator() *FileGenerator {
 func (fg *FileGenerator) GenerateController(
 	cat *catalog.Catalog,
 	resourceName string,
+	tableName string,
 	controllerType ControllerType,
 	modulePath string,
 	databaseType string,
 ) error {
 	pluralName := naming.DeriveTableName(resourceName)
-	controllerPath := filepath.Join("controllers", pluralName+".go")
+	controllerPath := filepath.Join("controllers", tableName+".go")
 
 	if _, err := os.Stat(controllerPath); err == nil {
 		return fmt.Errorf("controller file %s already exists", controllerPath)
@@ -48,6 +49,7 @@ func (fg *FileGenerator) GenerateController(
 	controller, err := generator.Build(cat, Config{
 		ResourceName:   resourceName,
 		PluralName:     pluralName,
+		TableName:      tableName,
 		PackageName:    "controllers",
 		ModulePath:     modulePath,
 		ControllerType: controllerType,

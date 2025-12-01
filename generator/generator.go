@@ -46,3 +46,11 @@ func (g *Generator) RefreshQueries(resourceName, tableName string) error {
 func (g *Generator) RefreshConstructors(resourceName, tableName string) error {
 	return g.coordinator.ModelManager.RefreshConstructors(resourceName, tableName)
 }
+
+func (g *Generator) GenerateQueriesOnly(resourceName string, tableNameOverride string) error {
+	return g.coordinator.ModelManager.GenerateQueriesOnly(resourceName, tableNameOverride)
+}
+
+func (g *Generator) RefreshQueriesOnly(resourceName, tableName string, tableNameOverridden bool) error {
+	return g.coordinator.ModelManager.RefreshQueriesOnly(resourceName, tableName, tableNameOverridden)
+}

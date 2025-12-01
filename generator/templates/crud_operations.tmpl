@@ -31,3 +31,13 @@ order by created_at desc
 -- name: Count{{.ResourceName}}s :one
 select count(*) from {{.PluralName}};
 
+-- name: Upsert{{.ResourceName}} :one
+insert into
+    {{.PluralName}} ({{.InsertColumns}})
+values
+    ({{.InsertPlaceholders}})
+on conflict (id) do update set {{.UpsertUpdateSet}}
+returning *;
+
+-- name: {{.ResourceName}}Exists :one
+{{if eq .DatabaseType "sqlite"}}select exists(select 1 from {{.PluralName}} where id={{.IDPlaceholder}});{{else}}select exists(select 1 from {{.PluralName}} where id={{.IDPlaceholder}}) as "exists";{{end}}

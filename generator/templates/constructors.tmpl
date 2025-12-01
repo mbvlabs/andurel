@@ -19,7 +19,8 @@ import (
 // Constructor functions for SQLC parameters - these get updated during refresh
 // to make schema changes compiler-enforced and visible
 
-func CreateInsert{{.Name}}Params(
+func BuildInsert{{.Name}}Params(
+	id uuid.UUID,
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
 	{{camelCase .Name}} {{.SQLCType}},
@@ -27,7 +28,7 @@ func CreateInsert{{.Name}}Params(
 {{- end}}
 ) Insert{{.Name}}Params {
 	return Insert{{.Name}}Params{
-		ID: {{uuidParam "uuid.New()"}},
+		ID: {{if eq .DatabaseType "sqlite"}}id.String(){{else}}id{{end}},
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
 		{{.Name}}: {{camelCase .Name}},
@@ -36,7 +37,7 @@ func CreateInsert{{.Name}}Params(
 	}
 }
 
-func CreateUpdate{{.Name}}Params(
+func BuildUpdate{{.Name}}Params(
 	id {{if eq .DatabaseType "sqlite"}}string{{else}}uuid.UUID{{end}},
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
@@ -54,9 +55,27 @@ func CreateUpdate{{.Name}}Params(
 	}
 }
 
-func CreateQueryPaginated{{.Name}}sParams(limit, offset int64) QueryPaginated{{.Name}}sParams {
+func BuildQueryPaginated{{.Name}}sParams(limit, offset int64) QueryPaginated{{.Name}}sParams {
 	return QueryPaginated{{.Name}}sParams{
 		Limit:  limit,
 		Offset: offset,
+	}
+}
+
+func BuildUpsert{{.Name}}Params(
+	id uuid.UUID,
+{{- range .Fields}}
+{{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
+	{{camelCase .Name}} {{.SQLCType}},
+{{- end}}
+{{- end}}
+) Upsert{{.Name}}Params {
+	return Upsert{{.Name}}Params{
+		ID: {{if eq .DatabaseType "sqlite"}}id.String(){{else}}id{{end}},
+{{- range .Fields}}
+{{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
+		{{.Name}}: {{camelCase .Name}},
+{{- end}}
+{{- end}}
 	}
 }

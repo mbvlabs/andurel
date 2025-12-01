@@ -22,6 +22,12 @@ func (e AwsSes) Apply(ctx *Context) error {
 	// Add config field
 	builder.AddConfigField("AwsSes", "awsSes")
 
+	// Add env vars
+	builder.AddEnvVar("AWS_REGION", "AwsSes", "us-east-1")
+	builder.AddEnvVar("AWS_SES_ACCESS_KEY_ID", "AwsSes", "")
+	builder.AddEnvVar("AWS_SES_SECRET_ACCESS_KEY", "AwsSes", "")
+	builder.AddEnvVar("AWS_SES_CONFIGURATION_SET", "AwsSes", "")
+
 	// Add email client initialization
 	builder.AddMainInitialization(
 		"emailClient",

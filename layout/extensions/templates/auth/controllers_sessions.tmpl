@@ -11,8 +11,8 @@ import (
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/views"
 
-	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
+	"github.com/starfederation/datastar-go/datastar"
 )
 
 {{- if eq .Database "postgresql" }}
@@ -88,23 +88,10 @@ func (s Sessions) Create(c echo.Context) error {
 		return c.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 	}
 
-	sess, err := session.Get(config.AuthenticatedSessionName, c)
-	if err != nil {
+	if err := cookies.CreateAppSession(c, user); err != nil {
 		slog.ErrorContext(
 			c.Request().Context(),
-			"failed to get session",
-			"error",
-			err,
-		)
-		return render(c, views.InternalError())
-	}
-
-	sess.Values["is_authenticated"] = true
-	sess.Values["user_id"] = user.ID.String()
-	if err := sess.Save(c.Request(), c.Response()); err != nil {
-		slog.ErrorContext(
-			c.Request().Context(),
-			"failed to save session",
+			"failed to create session",
 			"error",
 			err,
 		)
@@ -115,26 +102,14 @@ func (s Sessions) Create(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.HomePage.URL())
+	return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.HomePage.URL())
 }
 
 func (s Sessions) Destroy(c echo.Context) error {
-	sess, err := session.Get(config.AuthenticatedSessionName, c)
-	if err != nil {
+	if err := cookies.DestroyAppSession(c); err != nil {
 		slog.ErrorContext(
 			c.Request().Context(),
-			"failed to get session",
-			"error",
-			err,
-		)
-		return render(c, views.InternalError())
-	}
-
-	sess.Options.MaxAge = -1
-	if err := sess.Save(c.Request(), c.Response()); err != nil {
-		slog.ErrorContext(
-			c.Request().Context(),
-			"failed to clear session",
+			"failed to destroy session",
 			"error",
 			err,
 		)

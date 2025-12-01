@@ -7,14 +7,14 @@ import (
 
 	"{{.ModuleName}}/config"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/xid"
 )
 
 type FlashMessage struct {
 	echo.Context
-	ID        uuid.UUID
+	ID        xid.ID
 	Type      FlashType
 	CreatedAt time.Time
 	Message   string
@@ -51,7 +51,7 @@ func AddFlash(
 	}
 
 	sess.AddFlash(FlashMessage{
-		ID:        uuid.New(),
+		ID:        xid.New(),
 		Type:      flashType,
 		CreatedAt: time.Now(),
 		Message:   msg,

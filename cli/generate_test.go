@@ -18,6 +18,7 @@ func TestGenerateCommands(t *testing.T) {
 		{"model help", []string{"generate", "model", "--help"}},
 		{"controller help", []string{"generate", "controller", "--help"}},
 		{"resource help", []string{"generate", "resource", "--help"}},
+		{"queries help", []string{"generate", "queries", "--help"}},
 	}
 
 	for _, tt := range tests {
@@ -46,7 +47,7 @@ func TestGenerateCommandStructure(t *testing.T) {
 		t.Fatal("generate command not found")
 	}
 
-	expectedCommands := []string{"model", "controller", "view", "resource"}
+	expectedCommands := []string{"model", "controller", "view", "resource", "queries"}
 	foundCommands := make(map[string]bool)
 
 	for _, cmd := range generateCmd.Commands() {
@@ -72,4 +73,28 @@ func getCommandNames(commands []*cobra.Command) []string {
 		names = append(names, cmdName)
 	}
 	return names
+}
+
+func TestQueriesCommandFlags(t *testing.T) {
+	cmd := newQueriesCommand()
+
+	if cmd.Use != "queries [name]" {
+		t.Errorf("Expected Use 'queries [name]', got '%s'", cmd.Use)
+	}
+
+	refreshFlag := cmd.Flags().Lookup("refresh")
+	if refreshFlag == nil {
+		t.Error("Expected --refresh flag to exist")
+	}
+	if refreshFlag.DefValue != "false" {
+		t.Errorf("Expected --refresh default to be 'false', got '%s'", refreshFlag.DefValue)
+	}
+
+	tableNameFlag := cmd.Flags().Lookup("table-name")
+	if tableNameFlag == nil {
+		t.Error("Expected --table-name flag to exist")
+	}
+	if tableNameFlag.DefValue != "" {
+		t.Errorf("Expected --table-name default to be empty, got '%s'", tableNameFlag.DefValue)
+	}
 }

@@ -1,45 +1,79 @@
 package layout
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"github.com/mbvlabs/andurel/layout/cmds"
 )
 
 type AndurelLock struct {
-	Version  string              `json:"version"`
-	Binaries map[string]*Binary  `json:"binaries"`
+	Version    string                `json:"version"`
+	Extensions map[string]*Extension `json:"extensions,omitempty"`
+	Tools      map[string]*Tool      `json:"tools"`
 }
 
-type Binary struct {
-	Version  string `json:"version,omitempty"`
-	URL      string `json:"url,omitempty"`
-	Checksum string `json:"checksum,omitempty"`
-	Type     string `json:"type,omitempty"`
-	Source   string `json:"source,omitempty"`
+type Extension struct {
+	AppliedAt string `json:"appliedAt"`
 }
 
-func NewAndurelLock() *AndurelLock {
+type Tool struct {
+	Source  string `json:"source"`
+	Version string `json:"version"`
+	Module  string `json:"module,omitempty"`
+	Path    string `json:"path,omitempty"`
+}
+
+func NewAndurelLock(version string) *AndurelLock {
 	return &AndurelLock{
-		Version:  "1",
-		Binaries: make(map[string]*Binary),
+		Version:    version,
+		Extensions: make(map[string]*Extension),
+		Tools:      make(map[string]*Tool),
 	}
 }
 
-func (l *AndurelLock) AddBinary(name, version, url, checksum string) {
-	l.Binaries[name] = &Binary{
-		Version:  version,
-		URL:      url,
-		Checksum: checksum,
+func NewGoTool(module, version string) *Tool {
+	return &Tool{
+		Source:  "go",
+		Module:  module,
+		Version: version,
+	}
+}
+
+func NewBinaryTool(version string) *Tool {
+	return &Tool{
+		Source:  "binary",
+		Version: version,
+	}
+}
+
+func NewBuiltTool(path string) *Tool {
+	return &Tool{
+		Source: "built",
+		Path:   path,
+	}
+}
+
+func (l *AndurelLock) AddTool(name string, tool *Tool) {
+	l.Tools[name] = tool
+}
+
+func (l *AndurelLock) AddExtension(name, appliedAt string) {
+	l.Extensions[name] = &Extension{
+		AppliedAt: appliedAt,
 	}
 }
 
 func (l *AndurelLock) WriteLockFile(targetDir string) error {
-	lockPath := filepath.Join(targetDir, "andurel.lock")
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	lockPath := filepath.Join(absTargetDir, "andurel.lock")
 
 	data, err := json.MarshalIndent(l, "", "  ")
 	if err != nil {
@@ -53,8 +87,67 @@ func (l *AndurelLock) WriteLockFile(targetDir string) error {
 	return nil
 }
 
+func (l *AndurelLock) Sync(targetDir string, silent bool) error {
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	goos := runtime.GOOS
+	goarch := runtime.GOARCH
+
+	binDir := filepath.Join(absTargetDir, "bin")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		return fmt.Errorf("failed to create bin directory: %w", err)
+	}
+
+	for name, tool := range l.Tools {
+		binPath := filepath.Join(binDir, name)
+
+		if _, err := os.Stat(binPath); err == nil {
+			continue
+		}
+
+		switch tool.Source {
+		case "go":
+			if err := cmds.DownloadGoTool(name, tool.Module, tool.Version, goos, goarch, binPath); err != nil {
+				return fmt.Errorf("failed to download %s: %w", name, err)
+			}
+
+		case "binary":
+			if name == "tailwindcli" {
+				if err := cmds.DownloadTailwindCLI(tool.Version, goos, goarch, binPath); err != nil {
+					return fmt.Errorf("failed to download %s: %w", name, err)
+				}
+			} else {
+				return fmt.Errorf("unknown binary tool: %s", name)
+			}
+
+		case "built":
+			if name == "run" {
+				if err := cmds.RunGoRunBin(absTargetDir); err != nil {
+					return fmt.Errorf("failed to build %s: %w", name, err)
+				}
+			} else {
+				return fmt.Errorf("unknown built binary: %s", name)
+			}
+		}
+	}
+
+	if err := l.WriteLockFile(absTargetDir); err != nil {
+		return fmt.Errorf("failed to update lock file: %w", err)
+	}
+
+	return nil
+}
+
 func ReadLockFile(targetDir string) (*AndurelLock, error) {
-	lockPath := filepath.Join(targetDir, "andurel.lock")
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	lockPath := filepath.Join(absTargetDir, "andurel.lock")
 
 	data, err := os.ReadFile(lockPath)
 	if err != nil {
@@ -69,109 +162,3 @@ func ReadLockFile(targetDir string) (*AndurelLock, error) {
 	return &lock, nil
 }
 
-func ValidateBinaryChecksum(binaryPath, expectedChecksum string) error {
-	f, err := os.Open(binaryPath)
-	if err != nil {
-		return fmt.Errorf("failed to open binary: %w", err)
-	}
-	defer f.Close()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return fmt.Errorf("failed to calculate checksum: %w", err)
-	}
-
-	actualChecksum := fmt.Sprintf("sha256:%x", h.Sum(nil))
-
-	if actualChecksum != expectedChecksum {
-		return fmt.Errorf("checksum mismatch: expected %s, got %s", expectedChecksum, actualChecksum)
-	}
-
-	return nil
-}
-
-func CalculateBinaryChecksum(binaryPath string) (string, error) {
-	f, err := os.Open(binaryPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open binary: %w", err)
-	}
-	defer f.Close()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", fmt.Errorf("failed to calculate checksum: %w", err)
-	}
-
-	return fmt.Sprintf("sha256:%x", h.Sum(nil)), nil
-}
-
-func GetTailwindDownloadURL(version string) string {
-	platform := getTailwindPlatform()
-	return fmt.Sprintf("https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s", version, platform)
-}
-
-func GetMailpitDownloadURL(version string) string {
-	platform := getMailpitPlatform()
-	ext := "tar.gz"
-	if runtime.GOOS == "windows" {
-		ext = "zip"
-	}
-	return fmt.Sprintf("https://github.com/axllent/mailpit/releases/download/%s/mailpit-%s-amd64.%s", version, platform, ext)
-}
-
-func GetUsqlDownloadURL(version string) string {
-	platform := getUsqlPlatform()
-	ext := "tar.bz2"
-	if runtime.GOOS == "windows" {
-		ext = "zip"
-	}
-
-	versionWithoutV := version
-	if len(version) > 0 && version[0] == 'v' {
-		versionWithoutV = version[1:]
-	}
-
-	return fmt.Sprintf("https://github.com/xo/usql/releases/download/%s/usql-%s-%s.%s", version, versionWithoutV, platform, ext)
-}
-
-func getTailwindPlatform() string {
-	goos := runtime.GOOS
-	switch goos {
-	case "darwin":
-		return "macos-x64"
-	case "linux":
-		return "linux-x64"
-	case "windows":
-		return "windows-x64.exe"
-	default:
-		return "linux-x64"
-	}
-}
-
-func getMailpitPlatform() string {
-	goos := runtime.GOOS
-	switch goos {
-	case "darwin":
-		return "darwin"
-	case "linux":
-		return "linux"
-	case "windows":
-		return "windows"
-	default:
-		return "linux"
-	}
-}
-
-func getUsqlPlatform() string {
-	goos := runtime.GOOS
-	switch goos {
-	case "darwin":
-		return "darwin-amd64"
-	case "linux":
-		return "linux-amd64"
-	case "windows":
-		return "windows-amd64"
-	default:
-		return "linux-amd64"
-	}
-}

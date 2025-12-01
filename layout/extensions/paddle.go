@@ -29,10 +29,15 @@ func (e Paddle) Apply(ctx *Context) error {
 	// Add config field
 	builder.AddConfigField("Paddle", "paddle")
 
+	// Add env vars
+	builder.AddEnvVar("PADDLE_API_KEY", "Paddle", "")
+	builder.AddEnvVar("PADDLE_ENVIRONMENT", "Paddle", "sandbox")
+	builder.AddEnvVar("PADDLE_WEBHOOK_SECRET", "Paddle", "")
+
 	// Add Paddle client initialization
 	builder.AddMainInitialization(
 		"paddleClient",
-		"payment.NewPaddleClient(cfg.Paddle.ApiKey, cfg.Paddle.Environment)",
+		"payment.NewPaddleClient(cfg.Paddle.APIKey, cfg.Paddle.Environment)",
 		"cfg",
 	)
 
@@ -54,10 +59,26 @@ func (e Paddle) Apply(ctx *Context) error {
 
 	// Register routes
 	builder.StartRouteRegistrationFunction("registerPaymentRoutes")
-	builder.AddRouteRegistration("http.MethodPost", "routes.PaymentWebhook", "ctrls.PaymentWebhooks.Handle")
-	builder.AddRouteRegistration("http.MethodGet", "routes.PaymentCheckout", "ctrls.PaymentCheckout.Show")
-	builder.AddRouteRegistration("http.MethodGet", "routes.PaymentPricing", "ctrls.PaymentPricing.Index")
-	builder.AddRouteRegistration("http.MethodGet", "routes.PaymentAccount", "ctrls.PaymentAccount.Index")
+	builder.AddRouteRegistration(
+		"http.MethodPost",
+		"routes.PaymentWebhook",
+		"ctrls.PaymentWebhooks.Handle",
+	)
+	builder.AddRouteRegistration(
+		"http.MethodGet",
+		"routes.PaymentCheckout",
+		"ctrls.PaymentCheckout.Show",
+	)
+	builder.AddRouteRegistration(
+		"http.MethodGet",
+		"routes.PaymentPricing",
+		"ctrls.PaymentPricing.Index",
+	)
+	builder.AddRouteRegistration(
+		"http.MethodGet",
+		"routes.PaymentAccount",
+		"ctrls.PaymentAccount.Index",
+	)
 	builder.EndRouteRegistrationFunction()
 
 	if err := e.renderTemplates(ctx); err != nil {

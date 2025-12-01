@@ -5,7 +5,7 @@ CREATE TABLE workflow_outputs (
     task_name TEXT NOT NULL,
     output_data JSONB NOT NULL,
     output_size_bytes INT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL,
     expires_at TIMESTAMPTZ,
     PRIMARY KEY (workflow_id, task_name)
 );
