@@ -47,6 +47,13 @@ func RunTemplGenerate(targetDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
+
+	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
+		cmd := exec.Command("go", "run", "github.com/a-h/templ/cmd/templ@v0.3.857", "generate", "./views")
+		cmd.Dir = absTargetDir
+		return cmd.Run()
+	}
+
 	templBin := filepath.Join(absTargetDir, "bin", "templ")
 	cmd := exec.Command(templBin, "generate", "./views")
 	cmd.Dir = absTargetDir
@@ -58,6 +65,13 @@ func RunTemplFmt(targetDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
+
+	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
+		cmd := exec.Command("go", "run", "github.com/a-h/templ/cmd/templ@v0.3.857", "fmt", "views")
+		cmd.Dir = absTargetDir
+		return cmd.Run()
+	}
+
 	templBin := filepath.Join(absTargetDir, "bin", "templ")
 	cmd := exec.Command(templBin, "fmt", "views")
 	cmd.Dir = absTargetDir
@@ -69,6 +83,13 @@ func RunSqlcGenerate(targetDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
+
+	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
+		cmd := exec.Command("go", "run", "github.com/sqlc-dev/sqlc/cmd/sqlc@v1.28.0", "generate", "-f", "database/sqlc.yaml")
+		cmd.Dir = absTargetDir
+		return cmd.Run()
+	}
+
 	sqlcBin := filepath.Join(absTargetDir, "bin", "sqlc")
 	cmd := exec.Command(sqlcBin, "generate", "-f", "database/sqlc.yaml")
 	cmd.Dir = absTargetDir
@@ -80,6 +101,13 @@ func RunGooseFix(targetDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
+
+	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
+		cmd := exec.Command("go", "run", "github.com/pressly/goose/v3/cmd/goose@v3.24.1", "-dir", "database/migrations", "fix")
+		cmd.Dir = absTargetDir
+		return cmd.Run()
+	}
+
 	gooseBin := filepath.Join(absTargetDir, "bin", "goose")
 	cmd := exec.Command(gooseBin, "-dir", "database/migrations", "fix")
 	cmd.Dir = absTargetDir
