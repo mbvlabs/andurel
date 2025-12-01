@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
-	"time"
 )
 
 type GitAnalyzer struct {
@@ -34,50 +33,6 @@ func (g *GitAnalyzer) IsClean() (bool, error) {
 	return len(output) == 0, nil
 }
 
-func (g *GitAnalyzer) CreateBackup() (string, error) {
-	clean, err := g.IsClean()
-	if err != nil {
-		return "", err
-	}
-
-	timestamp := time.Now().Format("20060102-150405")
-	branchName := fmt.Sprintf("andurel-upgrade-backup-%s", timestamp)
-	commitMsg := fmt.Sprintf("andurel upgrade backup - %s", timestamp)
-
-	if !clean {
-		cmd := exec.Command("git", "add", "-A")
-		cmd.Dir = g.projectRoot
-		if err := cmd.Run(); err != nil {
-			return "", fmt.Errorf("failed to stage changes: %w", err)
-		}
-
-		cmd = exec.Command("git", "commit", "-m", commitMsg)
-		cmd.Dir = g.projectRoot
-		if err := cmd.Run(); err != nil {
-			return "", fmt.Errorf("failed to create backup commit: %w", err)
-		}
-	}
-
-	cmd := exec.Command("git", "branch", branchName)
-	cmd.Dir = g.projectRoot
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to create backup branch: %w", err)
-	}
-
-	return branchName, nil
-}
-
-func (g *GitAnalyzer) getCurrentBranch() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-	cmd.Dir = g.projectRoot
-
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to get current branch: %w", err)
-	}
-
-	return strings.TrimSpace(string(output)), nil
-}
 
 func (g *GitAnalyzer) getFirstCommit() (string, error) {
 	cmd := exec.Command("git", "rev-list", "--max-parents=0", "HEAD")
@@ -102,7 +57,7 @@ func (g *GitAnalyzer) GetModifiedFiles() (map[string]bool, error) {
 		return nil, err
 	}
 
-	cmd := exec.Command("git", "diff", "--name-only", fmt.Sprintf("%s..HEAD", firstCommit))
+	cmd := exec.Command("git", "diff", "--name-only", firstCommit)
 	cmd.Dir = g.projectRoot
 
 	output, err := cmd.Output()
@@ -121,29 +76,25 @@ func (g *GitAnalyzer) GetModifiedFiles() (map[string]bool, error) {
 	return modifiedFiles, nil
 }
 
-func (g *GitAnalyzer) RestoreBackup(backupRef string) error {
-	if backupRef == "" {
-		return fmt.Errorf("backup reference is empty")
-	}
-
-	clean, err := g.IsClean()
+func (g *GitAnalyzer) GetFileFromInitialCommit(relPath string) ([]byte, error) {
+	firstCommit, err := g.getFirstCommit()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if !clean {
-		cmd := exec.Command("git", "reset", "--hard")
-		cmd.Dir = g.projectRoot
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("failed to reset working directory: %w", err)
-		}
-	}
-
-	cmd := exec.Command("git", "reset", "--hard", backupRef)
+	cmd := exec.Command("git", "show", fmt.Sprintf("%s:%s", firstCommit, relPath))
 	cmd.Dir = g.projectRoot
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to restore backup: %w", err)
+
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderrStr := string(exitErr.Stderr)
+			if strings.Contains(stderrStr, "does not exist") || strings.Contains(stderrStr, "exists on disk, but not in") {
+				return nil, nil
+			}
+		}
+		return nil, fmt.Errorf("failed to get file from initial commit: %w", err)
 	}
 
-	return nil
+	return output, nil
 }

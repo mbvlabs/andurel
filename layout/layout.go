@@ -143,7 +143,6 @@ func Scaffold(
 		}
 	}
 
-
 	fmt.Print("Generating andurel.lock file...\n")
 	scaffoldConfig := &ScaffoldConfig{
 		ProjectName:  projectName,
@@ -252,6 +251,9 @@ func Scaffold(
 
 	fmt.Print("Running go fmt...\n")
 	if err := cmds.RunGoFmt(targetDir); err != nil {
+		return fmt.Errorf("failed to run go fmt: %w", err)
+	}
+	if err := cmds.RunGolines(targetDir); err != nil {
 		return fmt.Errorf("failed to run go fmt: %w", err)
 	}
 

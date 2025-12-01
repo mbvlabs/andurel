@@ -116,6 +116,54 @@ func (d *FileDiffer) Compare(oldPath, newPath, userPath string) (*DiffResult, er
 	return result, nil
 }
 
+func (d *FileDiffer) CompareWithOriginal(originalContent []byte, newPath, userPath string) (*DiffResult, error) {
+	result := &DiffResult{
+		Path: filepath.Base(userPath),
+	}
+
+	newExists := fileExists(newPath)
+	userExists := fileExists(userPath)
+
+	if !userExists {
+		return result, fmt.Errorf("user file does not exist: %s", userPath)
+	}
+
+	if !newExists {
+		result.Status = DiffStatusDeletedFile
+		return result, nil
+	}
+
+	newContent, err := os.ReadFile(newPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read new file: %w", err)
+	}
+
+	userContent, err := os.ReadFile(userPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read user file: %w", err)
+	}
+
+	templateUnchanged := bytes.Equal(originalContent, newContent)
+	if templateUnchanged {
+		result.Status = DiffStatusIdentical
+		return result, nil
+	}
+
+	userUnmodified := bytes.Equal(originalContent, userContent)
+	if userUnmodified {
+		result.Status = DiffStatusChanged
+		diff, err := d.generateUnifiedDiff(string(originalContent), string(newContent), "original", newPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate diff: %w", err)
+		}
+		result.UnifiedDiff = diff
+		return result, nil
+	}
+
+	result.Status = DiffStatusUserModified
+	return result, nil
+}
+
 func (d *FileDiffer) generateUnifiedDiff(oldContent, newContent, oldPath, newPath string) (string, error) {
 	diff := difflib.UnifiedDiff{
 		A:        difflib.SplitLines(oldContent),

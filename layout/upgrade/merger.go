@@ -2,8 +2,10 @@ package upgrade
 
 import (
 	"bytes"
-	"fmt"
+	"io"
 	"strings"
+
+	"github.com/epiclabs-io/diff3"
 )
 
 type MergeResult struct {
@@ -36,131 +38,53 @@ func (m *FileMerger) Merge(oldContent, userContent, newContent []byte) (*MergeRe
 		}, nil
 	}
 
-	oldLines := strings.Split(string(oldContent), "\n")
-	userLines := strings.Split(string(userContent), "\n")
-	newLines := strings.Split(string(newContent), "\n")
-
-	merged, conflicts := m.merge3Way(oldLines, userLines, newLines)
-
-	result := &MergeResult{
-		Success:      len(conflicts) == 0,
-		Content:      []byte(strings.Join(merged, "\n")),
-		HasConflicts: len(conflicts) > 0,
+	if bytes.Equal(userContent, newContent) {
+		return &MergeResult{
+			Success:      true,
+			Content:      userContent,
+			HasConflicts: false,
+		}, nil
 	}
 
-	if len(conflicts) > 0 {
-		result.ConflictInfo = fmt.Sprintf("%d conflict(s) detected", len(conflicts))
-	}
-
-	return result, nil
+	return m.performDiff3Merge(oldContent, userContent, newContent)
 }
 
-func (m *FileMerger) merge3Way(oldLines, userLines, newLines []string) ([]string, []conflictRegion) {
-	var result []string
-	var conflicts []conflictRegion
+func (m *FileMerger) performDiff3Merge(baseContent, oursContent, theirsContent []byte) (*MergeResult, error) {
+	oursReader := bytes.NewReader(oursContent)
+	baseReader := bytes.NewReader(baseContent)
+	theirsReader := bytes.NewReader(theirsContent)
 
-	oldLen := len(oldLines)
-	userLen := len(userLines)
-	newLen := len(newLines)
-
-	maxLen := max(oldLen, max(userLen, newLen))
-
-	i := 0
-	for i < maxLen {
-		if i >= oldLen && i >= userLen && i >= newLen {
-			break
-		}
-
-		oldLine := getLineAt(oldLines, i)
-		userLine := getLineAt(userLines, i)
-		newLine := getLineAt(newLines, i)
-
-		if oldLine == userLine && userLine == newLine {
-			result = append(result, oldLine)
-			i++
-			continue
-		}
-
-		if oldLine == userLine && userLine != newLine {
-			result = append(result, newLine)
-			i++
-			continue
-		}
-
-		if oldLine == newLine && userLine != oldLine {
-			result = append(result, userLine)
-			i++
-			continue
-		}
-
-		conflictStart := i
-		conflictEnd := i + 1
-
-		for conflictEnd < maxLen {
-			nextOld := getLineAt(oldLines, conflictEnd)
-			nextUser := getLineAt(userLines, conflictEnd)
-			nextNew := getLineAt(newLines, conflictEnd)
-
-			if nextOld == nextUser && nextUser == nextNew {
-				break
-			}
-
-			if (nextOld == nextUser && nextUser != nextNew) ||
-				(nextOld == nextNew && nextUser != nextOld) {
-				break
-			}
-
-			conflictEnd++
-		}
-
-		userConflictLines := extractLines(userLines, conflictStart, conflictEnd)
-		newConflictLines := extractLines(newLines, conflictStart, conflictEnd)
-
-		result = append(result, "<<<<<<< Current (Your changes)")
-		result = append(result, userConflictLines...)
-		result = append(result, "=======")
-		result = append(result, newConflictLines...)
-		result = append(result, ">>>>>>> Template (New version)")
-
-		conflicts = append(conflicts, conflictRegion{
-			start: conflictStart,
-			end:   conflictEnd,
-		})
-
-		i = conflictEnd
+	result, err := diff3.Merge(oursReader, baseReader, theirsReader, true, "ours", "theirs")
+	if err != nil {
+		return nil, err
 	}
 
-	return result, conflicts
+	var mergedBuf bytes.Buffer
+	_, err = io.Copy(&mergedBuf, result.Result)
+	if err != nil {
+		return nil, err
+	}
+
+	mergedContent := mergedBuf.Bytes()
+
+	hasConflicts := result.Conflicts
+
+	conflictInfo := ""
+	if hasConflicts {
+		conflictInfo = "Merge has conflicts - see conflict markers in file"
+	}
+
+	return &MergeResult{
+		Success:      !hasConflicts,
+		Content:      mergedContent,
+		HasConflicts: hasConflicts,
+		ConflictInfo: conflictInfo,
+	}, nil
 }
 
-func getLineAt(lines []string, index int) string {
-	if index >= len(lines) {
-		return ""
-	}
-	return lines[index]
-}
-
-func extractLines(lines []string, start, end int) []string {
-	if start >= len(lines) {
-		return []string{}
-	}
-
-	actualEnd := end
-	if actualEnd > len(lines) {
-		actualEnd = len(lines)
-	}
-
-	return lines[start:actualEnd]
-}
-
-type conflictRegion struct {
-	start int
-	end   int
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
+func containsConflictMarkers(content []byte) bool {
+	contentStr := string(content)
+	return strings.Contains(contentStr, "<<<<<<<") ||
+		strings.Contains(contentStr, "=======") ||
+		strings.Contains(contentStr, ">>>>>>>")
 }

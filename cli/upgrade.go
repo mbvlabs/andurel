@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	"github.com/mbvlabs/andurel/layout"
@@ -13,7 +12,6 @@ import (
 )
 
 type upgradeState struct {
-	BackupRef     string   `json:"backup_ref"`
 	FromVersion   string   `json:"from_version"`
 	ToVersion     string   `json:"to_version"`
 	ConflictFiles []string `json:"conflict_files"`
@@ -28,11 +26,14 @@ func newUpgradeCommand(version string) *cobra.Command {
 		Short: "Upgrade project to latest Andurel templates",
 		Long: `Upgrade an existing Andurel project to use the latest framework templates.
 
+⚠️  IMPORTANT: Commit or create a branch before upgrading! This command modifies files in place.
+
 This command will:
-  1. Create a backup of your current state
-  2. Generate fresh templates using the latest version
-  3. Intelligently merge changes while preserving your modifications
-  4. Mark any conflicts for manual review`,
+  1. Generate fresh templates using the latest version
+  2. Intelligently merge changes while preserving your modifications
+  3. Mark any conflicts for manual review
+
+After upgrade with conflicts, run 'andurel upgrade finalize' when resolved.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runUpgrade(cmd, version)
 		},
@@ -42,7 +43,6 @@ This command will:
 	upgradeCmd.Flags().Bool("auto", false, "Apply all safe changes without prompting")
 
 	upgradeCmd.AddCommand(newUpgradeFinalizeCommand())
-	upgradeCmd.AddCommand(newUpgradeAbortCommand())
 	upgradeCmd.AddCommand(newUpgradeStatusCommand())
 
 	return upgradeCmd
@@ -56,8 +56,11 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 
 	state, err := loadUpgradeState(projectRoot)
 	if err == nil && state.InProgress {
-		return fmt.Errorf("upgrade already in progress from %s to %s\nResolve conflicts and run 'andurel upgrade finalize' or 'andurel upgrade abort'",
-			state.FromVersion, state.ToVersion)
+		return fmt.Errorf(
+			"upgrade already in progress from %s to %s\nResolve conflicts and run 'andurel upgrade finalize' or 'andurel upgrade abort'",
+			state.FromVersion,
+			state.ToVersion,
+		)
 	}
 
 	dryRun, err := cmd.Flags().GetBool("dry-run")
@@ -65,14 +68,14 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		return err
 	}
 
-	auto, err := cmd.Flags().GetBool("auto")
-	if err != nil {
-		return err
-	}
+	// auto, err := cmd.Flags().GetBool("auto")
+	// if err != nil {
+	// 	return err
+	// }
 
 	opts := upgrade.UpgradeOptions{
 		DryRun:        dryRun,
-		Auto:          auto,
+		Auto:          false,
 		TargetVersion: targetVersion,
 	}
 
@@ -94,7 +97,6 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 
 	if len(report.ConflictFiles) > 0 {
 		state := &upgradeState{
-			BackupRef:     report.BackupRef,
 			FromVersion:   report.FromVersion,
 			ToVersion:     report.ToVersion,
 			ConflictFiles: report.ConflictFiles,
@@ -108,7 +110,6 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		fmt.Printf("\nNext steps:\n")
 		fmt.Printf("  1. Review and resolve conflicts in the files above\n")
 		fmt.Printf("  2. Run 'andurel upgrade finalize' to complete the upgrade\n")
-		fmt.Printf("  3. Or run 'andurel upgrade abort' to revert all changes\n")
 
 		return nil
 	}
@@ -129,8 +130,7 @@ func newUpgradeFinalizeCommand() *cobra.Command {
 
 This command will:
   1. Verify all conflicts have been resolved
-  2. Commit the upgrade changes
-  3. Clean up upgrade state`,
+  2. Clean up upgrade state`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runUpgradeFinalize()
 		},
@@ -162,21 +162,11 @@ func runUpgradeFinalize() error {
 		}
 
 		if hasConflictMarkers(content) {
-			return fmt.Errorf("file %s still contains conflict markers\nPlease resolve all conflicts before finalizing", file)
+			return fmt.Errorf(
+				"file %s still contains conflict markers\nPlease resolve all conflicts before finalizing",
+				file,
+			)
 		}
-	}
-
-	cmd := exec.Command("git", "add", "-A")
-	cmd.Dir = projectRoot
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to stage changes: %w", err)
-	}
-
-	commitMsg := fmt.Sprintf("Upgrade andurel from %s to %s", state.FromVersion, state.ToVersion)
-	cmd = exec.Command("git", "commit", "-m", commitMsg)
-	cmd.Dir = projectRoot
-	if err := cmd.Run(); err != nil {
-		fmt.Printf("Note: commit may have failed if no changes to commit\n")
 	}
 
 	if err := removeUpgradeState(projectRoot); err != nil {
@@ -185,55 +175,7 @@ func runUpgradeFinalize() error {
 
 	fmt.Printf("✓ Upgrade finalized successfully!\n")
 	fmt.Printf("\nYour project is now at version %s\n", state.ToVersion)
-	fmt.Printf("Backup branch available at: %s\n", state.BackupRef)
-
-	return nil
-}
-
-func newUpgradeAbortCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "abort",
-		Short: "Abort upgrade and restore backup",
-		Long: `Cancel the current upgrade and restore the project to its previous state.
-
-This command will:
-  1. Discard all upgrade changes
-  2. Restore from the backup created before upgrade
-  3. Clean up upgrade state`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runUpgradeAbort()
-		},
-	}
-}
-
-func runUpgradeAbort() error {
-	projectRoot, err := findGoModRoot()
-	if err != nil {
-		return err
-	}
-
-	state, err := loadUpgradeState(projectRoot)
-	if err != nil {
-		return fmt.Errorf("no upgrade in progress")
-	}
-
-	if !state.InProgress {
-		return fmt.Errorf("no upgrade in progress")
-	}
-
-	fmt.Printf("Aborting upgrade and restoring backup...\n\n")
-
-	gitAnalyzer := upgrade.NewGitAnalyzer(projectRoot)
-	if err := gitAnalyzer.RestoreBackup(state.BackupRef); err != nil {
-		return fmt.Errorf("failed to restore backup: %w", err)
-	}
-
-	if err := removeUpgradeState(projectRoot); err != nil {
-		fmt.Printf("Warning: failed to clean up upgrade state: %v\n", err)
-	}
-
-	fmt.Printf("✓ Upgrade aborted successfully!\n")
-	fmt.Printf("Project restored to: %s\n", state.BackupRef)
+	fmt.Printf("\nRemember to commit your changes when ready.\n")
 
 	return nil
 }
@@ -276,7 +218,6 @@ func runUpgradeStatus() error {
 	fmt.Printf("\n⚠ Upgrade in progress\n")
 	fmt.Printf("From version: %s\n", state.FromVersion)
 	fmt.Printf("To version: %s\n", state.ToVersion)
-	fmt.Printf("Backup reference: %s\n", state.BackupRef)
 
 	if len(state.ConflictFiles) > 0 {
 		fmt.Printf("\nFiles with conflicts (%d):\n", len(state.ConflictFiles))
@@ -287,7 +228,6 @@ func runUpgradeStatus() error {
 		fmt.Printf("\nNext steps:\n")
 		fmt.Printf("  1. Resolve conflicts in the files above\n")
 		fmt.Printf("  2. Run 'andurel upgrade finalize' to complete\n")
-		fmt.Printf("  3. Or run 'andurel upgrade abort' to revert\n")
 	}
 
 	return nil
@@ -317,7 +257,7 @@ func saveUpgradeState(projectRoot string, state *upgradeState) error {
 		return err
 	}
 
-	return os.WriteFile(statePath, data, 0644)
+	return os.WriteFile(statePath, data, 0o644)
 }
 
 func removeUpgradeState(projectRoot string) error {

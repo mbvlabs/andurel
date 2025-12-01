@@ -105,19 +105,10 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		return report, fmt.Errorf("project is already at version %s", u.opts.TargetVersion)
 	}
 
-	if !u.opts.DryRun {
-		fmt.Printf("Creating backup...\n")
-		backupRef, err := u.git.CreateBackup()
-		if err != nil {
-			report.Error = err
-			return report, fmt.Errorf("failed to create backup: %w", err)
-		}
-		report.BackupRef = backupRef
-		fmt.Printf("✓ Created backup: %s\n", backupRef)
-	}
-
 	if u.lock.ScaffoldConfig == nil {
-		return report, fmt.Errorf("lock file missing scaffold config - cannot determine original project settings")
+		return report, fmt.Errorf(
+			"lock file missing scaffold config - cannot determine original project settings",
+		)
 	}
 
 	fmt.Printf("Generating fresh templates...\n")
@@ -217,85 +208,102 @@ func (u *Upgrader) validatePreconditions() error {
 	return nil
 }
 
-func (u *Upgrader) analyzeFiles(shadowDir string, modifiedFiles map[string]bool) ([]*FileAction, error) {
+func (u *Upgrader) analyzeFiles(
+	shadowDir string,
+	modifiedFiles map[string]bool,
+) ([]*FileAction, error) {
 	var actions []*FileAction
 
-	projectName := filepath.Base(u.projectRoot)
-	shadowProjectDir := filepath.Join(shadowDir, projectName)
+	// projectName := filepath.Base(u.projectRoot)
+	// shadowProjectDir := filepath.Join(shadowDir, projectName)
+	shadowProjectDir := filepath.Join(shadowDir)
 
-	err := filepath.Walk(shadowProjectDir, func(shadowPath string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-
-		relPath, err := filepath.Rel(shadowProjectDir, shadowPath)
-		if err != nil {
-			return err
-		}
-
-		if u.shouldSkipFile(relPath) {
-			return nil
-		}
-
-		userPath := filepath.Join(u.projectRoot, relPath)
-
-		action := &FileAction{
-			RelativePath: relPath,
-		}
-
-		userExists := fileExists(userPath)
-		if !userExists {
-			action.Action = ActionSkip
-			action.Reason = "new file in template (not in user project)"
-			actions = append(actions, action)
-			return nil
-		}
-
-		oldTemplatePath := userPath
-		newTemplatePath := shadowPath
-
-		diffResult, err := u.differ.Compare(oldTemplatePath, newTemplatePath, userPath)
-		if err != nil {
-			return fmt.Errorf("failed to compare %s: %w", relPath, err)
-		}
-
-		action.DiffResult = diffResult
-
-		switch diffResult.Status {
-		case DiffStatusIdentical:
-			action.Action = ActionSkip
-			action.Reason = "template unchanged"
-
-		case DiffStatusChanged:
-			if modifiedFiles[relPath] {
-				action.Action = ActionMerge
-				action.Reason = "template changed, user modified"
-			} else {
-				action.Action = ActionReplace
-				action.Reason = "template changed, user unmodified"
+	err := filepath.Walk(
+		shadowProjectDir,
+		func(shadowPath string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
 			}
 
-		case DiffStatusUserModified:
-			action.Action = ActionMerge
-			action.Reason = "both template and user modified"
+			if info.IsDir() {
+				return nil
+			}
 
-		case DiffStatusNewFile:
-			action.Action = ActionSkip
-			action.Reason = "new file"
+			relPath, err := filepath.Rel(shadowProjectDir, shadowPath)
+			if err != nil {
+				return err
+			}
 
-		case DiffStatusDeletedFile:
-			action.Action = ActionSkip
-			action.Reason = "deleted from template"
-		}
+			if u.shouldSkipFile(relPath) {
+				return nil
+			}
 
-		actions = append(actions, action)
-		return nil
-	})
+			userPath := filepath.Join(u.projectRoot, relPath)
 
+			action := &FileAction{
+				RelativePath: relPath,
+			}
+
+			userExists := fileExists(userPath)
+			if !userExists {
+				action.Action = ActionSkip
+				action.Reason = "new file in template (not in user project)"
+				actions = append(actions, action)
+				return nil
+			}
+
+			originalContent, err := u.git.GetFileFromInitialCommit(relPath)
+			if err != nil {
+				return fmt.Errorf("failed to get original file %s: %w", relPath, err)
+			}
+
+			if originalContent == nil {
+				action.Action = ActionSkip
+				action.Reason = "user-created file (not in original template)"
+				actions = append(actions, action)
+				return nil
+			}
+
+			newTemplatePath := shadowPath
+
+			diffResult, err := u.differ.CompareWithOriginal(originalContent, newTemplatePath, userPath)
+			if err != nil {
+				return fmt.Errorf("failed to compare %s: %w", relPath, err)
+			}
+
+			action.DiffResult = diffResult
+
+			switch diffResult.Status {
+			case DiffStatusIdentical:
+				action.Action = ActionSkip
+				action.Reason = "template unchanged"
+
+			case DiffStatusChanged:
+				if modifiedFiles[relPath] {
+					action.Action = ActionMerge
+					action.Reason = "template changed, user modified"
+				} else {
+					action.Action = ActionReplace
+					action.Reason = "template changed, user unmodified"
+				}
+
+			case DiffStatusUserModified:
+				action.Action = ActionMerge
+				action.Reason = "both template and user modified"
+
+			case DiffStatusNewFile:
+				action.Action = ActionSkip
+				action.Reason = "new file"
+
+			case DiffStatusDeletedFile:
+				action.Action = ActionSkip
+				action.Reason = "deleted from template"
+			}
+
+			actions = append(actions, action)
+			return nil
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -344,9 +352,13 @@ func (u *Upgrader) confirmApply() bool {
 	return response == "" || response == "y" || response == "yes"
 }
 
-func (u *Upgrader) applyChanges(shadowDir string, actions []*FileAction, report *UpgradeReport) error {
-	projectName := filepath.Base(u.projectRoot)
-	shadowProjectDir := filepath.Join(shadowDir, projectName)
+func (u *Upgrader) applyChanges(
+	shadowDir string,
+	actions []*FileAction,
+	report *UpgradeReport,
+) error {
+	// projectName := filepath.Base(u.projectRoot)
+	shadowProjectDir := filepath.Join(shadowDir)
 
 	for _, action := range actions {
 		if action.Action == ActionSkip {
@@ -379,32 +391,43 @@ func (u *Upgrader) replaceFile(shadowPath, userPath string) error {
 		return fmt.Errorf("failed to read shadow file: %w", err)
 	}
 
-	if err := os.WriteFile(userPath, content, 0644); err != nil {
+	if err := os.WriteFile(userPath, content, 0o644); err != nil {
 		return fmt.Errorf("failed to write user file: %w", err)
 	}
 
 	return nil
 }
 
-func (u *Upgrader) mergeFile(shadowPath, userPath string, action *FileAction, report *UpgradeReport) error {
-	oldContent, err := os.ReadFile(userPath)
+func (u *Upgrader) mergeFile(
+	shadowPath, userPath string,
+	action *FileAction,
+	report *UpgradeReport,
+) error {
+	originalContent, err := u.git.GetFileFromInitialCommit(action.RelativePath)
 	if err != nil {
-		return fmt.Errorf("failed to read old content: %w", err)
+		return fmt.Errorf("failed to get original content: %w", err)
 	}
 
-	userContent := oldContent
+	if originalContent == nil {
+		return fmt.Errorf("original content not found for %s", action.RelativePath)
+	}
+
+	userContent, err := os.ReadFile(userPath)
+	if err != nil {
+		return fmt.Errorf("failed to read user content: %w", err)
+	}
 
 	newContent, err := os.ReadFile(shadowPath)
 	if err != nil {
 		return fmt.Errorf("failed to read new content: %w", err)
 	}
 
-	mergeResult, err := u.merger.Merge(oldContent, userContent, newContent)
+	mergeResult, err := u.merger.Merge(originalContent, userContent, newContent)
 	if err != nil {
 		return fmt.Errorf("failed to merge: %w", err)
 	}
 
-	if err := os.WriteFile(userPath, mergeResult.Content, 0644); err != nil {
+	if err := os.WriteFile(userPath, mergeResult.Content, 0o644); err != nil {
 		return fmt.Errorf("failed to write merged content: %w", err)
 	}
 
