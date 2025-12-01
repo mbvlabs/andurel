@@ -111,7 +111,7 @@ func setGoToolVersion(projectRoot, toolName, version string) error {
 		lock, err := layout.ReadLockFile(projectRoot)
 		if err == nil {
 			moduleRepo := extractModulePath(modulePath)
-			lock.AddTool(toolName, layout.NewGoTool(moduleRepo, version, ""))
+			lock.AddTool(toolName, layout.NewGoTool(moduleRepo, version))
 			if err := lock.WriteLockFile(projectRoot); err != nil {
 				fmt.Printf("Warning: failed to update andurel.lock: %v\n", err)
 			}
@@ -161,13 +161,7 @@ func setBinaryToolVersion(projectRoot, toolName, version string) error {
 		return fmt.Errorf("unknown binary tool: %s", toolName)
 	}
 
-	fmt.Printf("  - Calculating checksum...\n")
-	checksum, err := cmds.CalculateChecksum(binPath)
-	if err != nil {
-		return fmt.Errorf("failed to calculate checksum: %w", err)
-	}
-
-	lock.AddTool(toolName, layout.NewBinaryTool(version, checksum))
+	lock.AddTool(toolName, layout.NewBinaryTool(version))
 
 	if err := lock.WriteLockFile(projectRoot); err != nil {
 		return fmt.Errorf("failed to update lock file: %w", err)

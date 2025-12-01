@@ -13,44 +13,76 @@ import (
 )
 
 func RunGoModTidy(targetDir string) error {
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
 	cmd := exec.Command("go", "mod", "tidy")
-	cmd.Dir = targetDir
+	cmd.Dir = absTargetDir
 	return cmd.Run()
 }
 
 func RunGoFmt(targetDir string) error {
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
 	cmd := exec.Command("go", "fmt", "./...")
-	cmd.Dir = targetDir
+	cmd.Dir = absTargetDir
 	return cmd.Run()
 }
 
 func RunGoRunBin(targetDir string) error {
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
 	cmd := exec.Command("go", "build", "-o", "bin/run", "cmd/run/main.go")
-	cmd.Dir = targetDir
+	cmd.Dir = absTargetDir
 	return cmd.Run()
 }
 
 func RunTemplGenerate(targetDir string) error {
-	cmd := exec.Command("go", "tool", "templ", "generate", "./views")
-	cmd.Dir = targetDir
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
+	templBin := filepath.Join(absTargetDir, "bin", "templ")
+	cmd := exec.Command(templBin, "generate", "./views")
+	cmd.Dir = absTargetDir
 	return cmd.Run()
 }
 
 func RunTemplFmt(targetDir string) error {
-	cmd := exec.Command("go", "tool", "templ", "fmt", "views")
-	cmd.Dir = targetDir
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
+	templBin := filepath.Join(absTargetDir, "bin", "templ")
+	cmd := exec.Command(templBin, "fmt", "views")
+	cmd.Dir = absTargetDir
 	return cmd.Run()
 }
 
 func RunSqlcGenerate(targetDir string) error {
-	cmd := exec.Command("go", "tool", "sqlc", "generate", "-f", "database/sqlc.yaml")
-	cmd.Dir = targetDir
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
+	sqlcBin := filepath.Join(absTargetDir, "bin", "sqlc")
+	cmd := exec.Command(sqlcBin, "generate", "-f", "database/sqlc.yaml")
+	cmd.Dir = absTargetDir
 	return cmd.Run()
 }
 
 func RunGooseFix(targetDir string) error {
-	cmd := exec.Command("go", "tool", "goose", "-dir", "database/migrations", "fix")
-	cmd.Dir = targetDir
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
+	gooseBin := filepath.Join(absTargetDir, "bin", "goose")
+	cmd := exec.Command(gooseBin, "-dir", "database/migrations", "fix")
+	cmd.Dir = absTargetDir
 	return cmd.Run()
 }
 
@@ -59,14 +91,18 @@ func SetupTailwind(targetDir string) error {
 }
 
 func SetupTailwindWithVersion(targetDir, version string, timeout time.Duration) error {
-	binPath := filepath.Join(targetDir, "bin", "tailwindcli")
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
+	binPath := filepath.Join(absTargetDir, "bin", "tailwindcli")
 
 	if _, err := os.Stat(binPath); err == nil {
 		fmt.Printf("Tailwind binary already exists at: %s\n", binPath)
 		return nil
 	}
 
-	binDir := filepath.Join(targetDir, "bin")
+	binDir := filepath.Join(absTargetDir, "bin")
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}

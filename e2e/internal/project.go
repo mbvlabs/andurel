@@ -50,6 +50,7 @@ func (p *Project) Scaffold(args ...string) error {
 	env := []string{
 		"ANDUREL_TEST_MODE=true",
 		"ANDUREL_SKIP_TAILWIND=true",
+		"ANDUREL_SKIP_BUILD=true",
 	}
 
 	baseArgs := []string{"new", p.Name}

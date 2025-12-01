@@ -3,8 +3,8 @@ package cmds
 import (
 	"archive/tar"
 	"archive/zip"
+	"compress/bzip2"
 	"compress/gzip"
-	"crypto/sha256"
 	"fmt"
 	"io"
 	"net/http"
@@ -56,18 +56,18 @@ func DownloadGoTool(name, module, version, goos, goarch, destPath string) error 
 }
 
 func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, error) {
-	repo := d.Module
+	repo := extractGitHubRepo(d.Module)
 
 	switch d.Name {
 	case "templ":
 		os := capitalize(goos)
 		arch := mapArch(goarch)
 		if goos == "windows" {
-			return fmt.Sprintf("https://github.com/%s/releases/download/%s/templ_%s_%s_%s.zip",
-				repo, d.Version, os, arch, d.Version), "zip", nil
+			return fmt.Sprintf("https://github.com/%s/releases/download/%s/templ_%s_%s.zip",
+				repo, d.Version, os, arch), "zip", nil
 		}
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/templ_%s_%s_%s.tar.gz",
-			repo, d.Version, os, arch, d.Version), "tar.gz", nil
+		return fmt.Sprintf("https://github.com/%s/releases/download/%s/templ_%s_%s.tar.gz",
+			repo, d.Version, os, arch), "tar.gz", nil
 
 	case "sqlc":
 		os := goos
@@ -76,7 +76,7 @@ func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, err
 			repo, d.Version, d.Version[1:], os, arch), "tar.gz", nil
 
 	case "goose":
-		os := capitalize(goos)
+		os := goos
 		arch := mapArch(goarch)
 		ext := ""
 		if goos == "windows" {
@@ -86,16 +86,20 @@ func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, err
 			repo, d.Version, os, arch, ext), "binary", nil
 
 	case "air":
-		os := capitalize(goos)
-		arch := mapArch(goarch)
+		os := goos
+		arch := goarch
 		return fmt.Sprintf("https://github.com/%s/releases/download/%s/air_%s_%s_%s.tar.gz",
 			repo, d.Version, d.Version[1:], os, arch), "tar.gz", nil
 
 	case "mailpit":
 		os := goos
 		arch := goarch
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/mailpit-%s-%s-%s.tar.gz",
-			repo, d.Version, os, arch, d.Version[1:]), "tar.gz", nil
+		if goos == "windows" {
+			return fmt.Sprintf("https://github.com/%s/releases/download/%s/mailpit-%s-%s.zip",
+				repo, d.Version, os, arch), "zip", nil
+		}
+		return fmt.Sprintf("https://github.com/%s/releases/download/%s/mailpit-%s-%s.tar.gz",
+			repo, d.Version, os, arch), "tar.gz", nil
 
 	case "usql":
 		os := goos
@@ -158,16 +162,36 @@ func downloadFile(url, destPath string) error {
 	return nil
 }
 
+func copyFile(src, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("failed to open source file: %w", err)
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer dstFile.Close()
+
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return fmt.Errorf("failed to copy file: %w", err)
+	}
+
+	return nil
+}
+
 func extractBinary(archivePath, binaryName, destPath, archiveType string) error {
 	switch archiveType {
 	case "tar.gz":
 		return extractTarGz(archivePath, binaryName, destPath)
 	case "tar.bz2":
-		return fmt.Errorf("tar.bz2 extraction not yet implemented")
+		return extractTarBz2(archivePath, binaryName, destPath)
 	case "zip":
 		return extractZip(archivePath, binaryName, destPath)
 	case "binary":
-		return os.Rename(archivePath, destPath)
+		return copyFile(archivePath, destPath)
 	default:
 		return fmt.Errorf("unsupported archive type: %s", archiveType)
 	}
@@ -187,6 +211,46 @@ func extractTarGz(archivePath, binaryName, destPath string) error {
 	defer gzr.Close()
 
 	tr := tar.NewReader(gzr)
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read tar: %w", err)
+		}
+
+		if header.Typeflag == tar.TypeReg {
+			baseName := filepath.Base(header.Name)
+			if baseName == binaryName || baseName == binaryName+".exe" || strings.HasPrefix(baseName, binaryName) {
+				out, err := os.Create(destPath)
+				if err != nil {
+					return fmt.Errorf("failed to create output file: %w", err)
+				}
+				defer out.Close()
+
+				if _, err := io.Copy(out, tr); err != nil {
+					return fmt.Errorf("failed to extract binary: %w", err)
+				}
+
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("binary %s not found in archive", binaryName)
+}
+
+func extractTarBz2(archivePath, binaryName, destPath string) error {
+	f, err := os.Open(archivePath)
+	if err != nil {
+		return fmt.Errorf("failed to open archive: %w", err)
+	}
+	defer f.Close()
+
+	bzr := bzip2.NewReader(f)
+	tr := tar.NewReader(bzr)
 
 	for {
 		header, err := tr.Next()
@@ -251,42 +315,6 @@ func extractZip(archivePath, binaryName, destPath string) error {
 	return fmt.Errorf("binary %s not found in zip", binaryName)
 }
 
-func ValidateChecksum(filePath, expectedChecksum string) error {
-	f, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to open file: %w", err)
-	}
-	defer f.Close()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return fmt.Errorf("failed to calculate checksum: %w", err)
-	}
-
-	actualChecksum := fmt.Sprintf("sha256:%x", h.Sum(nil))
-
-	if actualChecksum != expectedChecksum {
-		return fmt.Errorf("checksum mismatch: expected %s, got %s", expectedChecksum, actualChecksum)
-	}
-
-	return nil
-}
-
-func CalculateChecksum(filePath string) (string, error) {
-	f, err := os.Open(filePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open file: %w", err)
-	}
-	defer f.Close()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", fmt.Errorf("failed to calculate checksum: %w", err)
-	}
-
-	return fmt.Sprintf("sha256:%x", h.Sum(nil)), nil
-}
-
 func capitalize(s string) string {
 	if len(s) == 0 {
 		return s
@@ -309,4 +337,13 @@ func mapArch(goarch string) string {
 
 func GetPlatform() (string, string) {
 	return runtime.GOOS, runtime.GOARCH
+}
+
+func extractGitHubRepo(module string) string {
+	module = strings.TrimPrefix(module, "github.com/")
+	parts := strings.Split(module, "/")
+	if len(parts) >= 2 {
+		return parts[0] + "/" + parts[1]
+	}
+	return module
 }

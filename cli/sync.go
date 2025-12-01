@@ -49,19 +49,10 @@ func syncBinaries(projectRoot string) error {
 		if _, err := os.Stat(binPath); err == nil {
 			if tool.Source == "built" {
 				fmt.Printf("✓ %s - already built\n", name)
-				continue
-			}
-			if tool.Checksum != "" {
-				if err := cmds.ValidateChecksum(binPath, tool.Checksum); err == nil {
-					fmt.Printf("✓ %s (%s) - already present and valid\n", name, tool.Version)
-					continue
-				}
-				fmt.Printf("⚠ %s - checksum mismatch, re-downloading...\n", name)
-				os.Remove(binPath)
 			} else {
 				fmt.Printf("✓ %s (%s) - already present\n", name, tool.Version)
-				continue
 			}
+			continue
 		}
 
 		switch tool.Source {
@@ -70,16 +61,6 @@ func syncBinaries(projectRoot string) error {
 			if err := cmds.DownloadGoTool(name, tool.Module, tool.Version, goos, goarch, binPath); err != nil {
 				return fmt.Errorf("failed to download %s: %w", name, err)
 			}
-
-			if tool.Checksum == "" {
-				checksum, err := cmds.CalculateChecksum(binPath)
-				if err != nil {
-					fmt.Printf("⚠ Failed to calculate checksum for %s: %v\n", name, err)
-				} else {
-					tool.Checksum = checksum
-				}
-			}
-
 			fmt.Printf("✓ %s (%s) - downloaded successfully\n", name, tool.Version)
 
 		case "binary":
@@ -91,16 +72,6 @@ func syncBinaries(projectRoot string) error {
 			} else {
 				return fmt.Errorf("unknown binary tool: %s", name)
 			}
-
-			if tool.Checksum == "" {
-				checksum, err := cmds.CalculateChecksum(binPath)
-				if err != nil {
-					fmt.Printf("⚠ Failed to calculate checksum for %s: %v\n", name, err)
-				} else {
-					tool.Checksum = checksum
-				}
-			}
-
 			fmt.Printf("✓ %s (%s) - downloaded successfully\n", name, tool.Version)
 
 		case "built":
@@ -117,10 +88,6 @@ func syncBinaries(projectRoot string) error {
 		default:
 			return fmt.Errorf("unknown tool source: %s for %s", tool.Source, name)
 		}
-	}
-
-	if err := lock.WriteLockFile(projectRoot); err != nil {
-		return fmt.Errorf("failed to update lock file: %w", err)
 	}
 
 	fmt.Println("\nAll tools synced successfully!")

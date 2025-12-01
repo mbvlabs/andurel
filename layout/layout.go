@@ -153,11 +153,14 @@ func Scaffold(
 		return fmt.Errorf("failed to run go mod tidy: %w", err)
 	}
 
-	fmt.Print("Building run binary...\n")
-	// Need to skip build for testing purposes
+	fmt.Print("Syncing binaries from andurel.lock...\n")
 	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
-		if err := cmds.RunGoRunBin(targetDir); err != nil {
-			return fmt.Errorf("failed to build run binary: %w", err)
+		lock, err := ReadLockFile(targetDir)
+		if err != nil {
+			return fmt.Errorf("failed to read lock file: %w", err)
+		}
+		if err := lock.Sync(targetDir, true); err != nil {
+			return fmt.Errorf("failed to sync binaries: %w", err)
 		}
 	}
 
@@ -962,12 +965,12 @@ func generateLockFile(targetDir, version string, hasTailwind bool, extensions []
 
 	for _, tool := range defaultGoTools {
 		moduleRepo := extractRepo(tool.Module)
-		lock.AddTool(tool.Name, NewGoTool(moduleRepo, tool.Version, ""))
+		lock.AddTool(tool.Name, NewGoTool(moduleRepo, tool.Version))
 	}
 
 	if hasTailwind {
 		tailwindVersion := "v4.1.17"
-		lock.AddTool("tailwindcli", NewBinaryTool(tailwindVersion, ""))
+		lock.AddTool("tailwindcli", NewBinaryTool(tailwindVersion))
 	}
 
 	lock.AddTool("run", NewBuiltTool("cmd/run/main.go"))

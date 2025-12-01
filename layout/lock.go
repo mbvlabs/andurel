@@ -1,12 +1,13 @@
 package layout
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
+	"runtime"
+
+	"github.com/mbvlabs/andurel/layout/cmds"
 )
 
 type AndurelLock struct {
@@ -20,11 +21,10 @@ type Extension struct {
 }
 
 type Tool struct {
-	Source   string `json:"source"`
-	Version  string `json:"version"`
-	Module   string `json:"module,omitempty"`
-	Checksum string `json:"checksum,omitempty"`
-	Path     string `json:"path,omitempty"`
+	Source  string `json:"source"`
+	Version string `json:"version"`
+	Module  string `json:"module,omitempty"`
+	Path    string `json:"path,omitempty"`
 }
 
 func NewAndurelLock(version string) *AndurelLock {
@@ -35,20 +35,18 @@ func NewAndurelLock(version string) *AndurelLock {
 	}
 }
 
-func NewGoTool(module, version, checksum string) *Tool {
+func NewGoTool(module, version string) *Tool {
 	return &Tool{
-		Source:   "go",
-		Module:   module,
-		Version:  version,
-		Checksum: checksum,
+		Source:  "go",
+		Module:  module,
+		Version: version,
 	}
 }
 
-func NewBinaryTool(version, checksum string) *Tool {
+func NewBinaryTool(version string) *Tool {
 	return &Tool{
-		Source:   "binary",
-		Version:  version,
-		Checksum: checksum,
+		Source:  "binary",
+		Version: version,
 	}
 }
 
@@ -70,7 +68,12 @@ func (l *AndurelLock) AddExtension(name, appliedAt string) {
 }
 
 func (l *AndurelLock) WriteLockFile(targetDir string) error {
-	lockPath := filepath.Join(targetDir, "andurel.lock")
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	lockPath := filepath.Join(absTargetDir, "andurel.lock")
 
 	data, err := json.MarshalIndent(l, "", "  ")
 	if err != nil {
@@ -84,8 +87,67 @@ func (l *AndurelLock) WriteLockFile(targetDir string) error {
 	return nil
 }
 
+func (l *AndurelLock) Sync(targetDir string, silent bool) error {
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	goos := runtime.GOOS
+	goarch := runtime.GOARCH
+
+	binDir := filepath.Join(absTargetDir, "bin")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		return fmt.Errorf("failed to create bin directory: %w", err)
+	}
+
+	for name, tool := range l.Tools {
+		binPath := filepath.Join(binDir, name)
+
+		if _, err := os.Stat(binPath); err == nil {
+			continue
+		}
+
+		switch tool.Source {
+		case "go":
+			if err := cmds.DownloadGoTool(name, tool.Module, tool.Version, goos, goarch, binPath); err != nil {
+				return fmt.Errorf("failed to download %s: %w", name, err)
+			}
+
+		case "binary":
+			if name == "tailwindcli" {
+				if err := cmds.DownloadTailwindCLI(tool.Version, goos, goarch, binPath); err != nil {
+					return fmt.Errorf("failed to download %s: %w", name, err)
+				}
+			} else {
+				return fmt.Errorf("unknown binary tool: %s", name)
+			}
+
+		case "built":
+			if name == "run" {
+				if err := cmds.RunGoRunBin(absTargetDir); err != nil {
+					return fmt.Errorf("failed to build %s: %w", name, err)
+				}
+			} else {
+				return fmt.Errorf("unknown built binary: %s", name)
+			}
+		}
+	}
+
+	if err := l.WriteLockFile(absTargetDir); err != nil {
+		return fmt.Errorf("failed to update lock file: %w", err)
+	}
+
+	return nil
+}
+
 func ReadLockFile(targetDir string) (*AndurelLock, error) {
-	lockPath := filepath.Join(targetDir, "andurel.lock")
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	lockPath := filepath.Join(absTargetDir, "andurel.lock")
 
 	data, err := os.ReadFile(lockPath)
 	if err != nil {
@@ -98,41 +160,5 @@ func ReadLockFile(targetDir string) (*AndurelLock, error) {
 	}
 
 	return &lock, nil
-}
-
-func ValidateBinaryChecksum(binaryPath, expectedChecksum string) error {
-	f, err := os.Open(binaryPath)
-	if err != nil {
-		return fmt.Errorf("failed to open binary: %w", err)
-	}
-	defer f.Close()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return fmt.Errorf("failed to calculate checksum: %w", err)
-	}
-
-	actualChecksum := fmt.Sprintf("sha256:%x", h.Sum(nil))
-
-	if actualChecksum != expectedChecksum {
-		return fmt.Errorf("checksum mismatch: expected %s, got %s", expectedChecksum, actualChecksum)
-	}
-
-	return nil
-}
-
-func CalculateBinaryChecksum(binaryPath string) (string, error) {
-	f, err := os.Open(binaryPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open binary: %w", err)
-	}
-	defer f.Close()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", fmt.Errorf("failed to calculate checksum: %w", err)
-	}
-
-	return fmt.Sprintf("sha256:%x", h.Sum(nil)), nil
 }
 
