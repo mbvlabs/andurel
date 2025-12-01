@@ -145,7 +145,14 @@ func Scaffold(
 
 
 	fmt.Print("Generating andurel.lock file...\n")
-	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", extensionNames); err != nil {
+	scaffoldConfig := &ScaffoldConfig{
+		ProjectName:  projectName,
+		Repository:   repo,
+		Database:     database,
+		CSSFramework: cssFramework,
+		Extensions:   extensionNames,
+	}
+	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", scaffoldConfig); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
 	}
 
@@ -961,8 +968,10 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	return builder.Blueprint()
 }
 
-func generateLockFile(targetDir, version string, hasTailwind bool, extensions []string) error {
+func generateLockFile(targetDir, version string, hasTailwind bool, config *ScaffoldConfig) error {
 	lock := NewAndurelLock(version)
+	lock.TemplateVersion = version
+	lock.ScaffoldConfig = config
 
 	for _, tool := range defaultGoTools {
 		moduleRepo := extractRepo(tool.Module)
@@ -976,8 +985,10 @@ func generateLockFile(targetDir, version string, hasTailwind bool, extensions []
 
 	lock.AddTool("run", NewBuiltTool("cmd/run/main.go"))
 
-	for _, ext := range extensions {
-		lock.AddExtension(ext, time.Now().Format(time.RFC3339))
+	if config != nil {
+		for _, ext := range config.Extensions {
+			lock.AddExtension(ext, time.Now().Format(time.RFC3339))
+		}
 	}
 
 	return lock.WriteLockFile(targetDir)

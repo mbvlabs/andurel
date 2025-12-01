@@ -11,9 +11,19 @@ import (
 )
 
 type AndurelLock struct {
-	Version    string                `json:"version"`
-	Extensions map[string]*Extension `json:"extensions,omitempty"`
-	Tools      map[string]*Tool      `json:"tools"`
+	Version         string                `json:"version"`
+	Extensions      map[string]*Extension `json:"extensions,omitempty"`
+	Tools           map[string]*Tool      `json:"tools"`
+	TemplateVersion string                `json:"templateVersion,omitempty"`
+	ScaffoldConfig  *ScaffoldConfig       `json:"scaffoldConfig,omitempty"`
+}
+
+type ScaffoldConfig struct {
+	ProjectName  string   `json:"projectName"`
+	Repository   string   `json:"repository,omitempty"`
+	Database     string   `json:"database"`
+	CSSFramework string   `json:"cssFramework"`
+	Extensions   []string `json:"extensions,omitempty"`
 }
 
 type Extension struct {
