@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 
+	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/spf13/cobra"
 )
 
@@ -34,16 +37,33 @@ func newTemplGenerateCommand() *cobra.Command {
 }
 
 func runTempl(action string) error {
-	wd, err := findGoModRoot()
+	rootDir, err := findGoModRoot()
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command("go", "tool", "templ", action)
+	var cmd *exec.Cmd
+
+	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
+		cmd = exec.Command("go", "run", "github.com/a-h/templ/cmd/templ@"+versions.Templ, action)
+	} else {
+		templBin := filepath.Join(rootDir, "bin", "templ")
+		if _, err := os.Stat(templBin); err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Errorf(
+					"templ binary not found at %s\nRun 'andurel tool sync' to download it",
+					templBin,
+				)
+			}
+			return err
+		}
+		cmd = exec.Command(templBin, action)
+	}
+
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-	cmd.Dir = wd
+	cmd.Dir = rootDir
 
 	return cmd.Run()
 }
