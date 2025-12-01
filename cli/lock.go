@@ -3,56 +3,58 @@ package cli
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"time"
+	"runtime"
+	"strings"
 
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/spf13/cobra"
 )
 
-func newLockCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "lock",
-		Short: "Manage binary versions in andurel.lock",
-	}
-
-	cmd.AddCommand(newLockSetVersionCommand())
-
-	return cmd
+var goTools = map[string]string{
+	"templ":   "github.com/a-h/templ/cmd/templ",
+	"sqlc":    "github.com/sqlc-dev/sqlc/cmd/sqlc",
+	"goose":   "github.com/pressly/goose/v3/cmd/goose",
+	"air":     "github.com/air-verse/air",
+	"mailpit": "github.com/axllent/mailpit",
+	"usql":    "github.com/xo/usql",
 }
 
-func newLockSetVersionCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "set-version <binary> <version>",
-		Short: "Set a specific version for a binary",
-		Long: `Set the version of a binary in andurel.lock and download it.
+var binaryTools = map[string]bool{
+	"tailwindcli": true,
+}
 
-Supported binaries:
-  tailwindcli  - Tailwind CSS CLI
-  mailpit      - Mailpit email testing tool
+func newSetVersionCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "set-version <tool> <version>",
+		Short: "Set a specific version for a tool",
+		Long: `Set the version of a tool and update it.
+
+Go tools (updated via go get):
+  templ        - Templ templating engine
+  sqlc         - SQL compiler
+  goose        - Database migrations
+  air          - Live reload
+  mailpit      - Email testing
   usql         - Universal SQL CLI
+
+Binary tools (downloaded from GitHub):
+  tailwindcli  - Tailwind CSS CLI
 
 The version should be specified WITHOUT the "v" prefix.
 
 Examples:
-  andurel lock set-version tailwindcli 4.1.17
-  andurel lock set-version mailpit 1.27.11
-  andurel lock set-version usql 0.19.26
+  andurel tool set-version templ 0.3.950
+  andurel tool set-version sqlc 1.28.0
+  andurel tool set-version tailwindcli 4.1.17
 
-This command will:
-  1. Update the version in andurel.lock
-  2. Remove the existing binary from bin/
-  3. Download the specified version
-  4. Calculate and store the checksum
-
-To see available versions, check the GitHub releases:
-  - tailwindcli: https://github.com/tailwindlabs/tailwindcss/releases
-  - mailpit:     https://github.com/axllent/mailpit/releases
-  - usql:        https://github.com/xo/usql/releases`,
+For Go tools, this runs 'go get <module>@v<version>'.
+For tailwindcli, this downloads the binary and updates andurel.lock.`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			binaryName := args[0]
+			toolName := args[0]
 			version := args[1]
 
 			projectRoot, err := findGoModRoot()
@@ -60,24 +62,21 @@ To see available versions, check the GitHub releases:
 				return fmt.Errorf("not in an andurel project directory: %w", err)
 			}
 
-			return setVersion(projectRoot, binaryName, version)
+			return setVersion(projectRoot, toolName, version)
 		},
 	}
 }
 
-func setVersion(projectRoot, binaryName, version string) error {
-	validBinaries := map[string]bool{
-		"tailwindcli": true,
-		"mailpit":     true,
-		"usql":        true,
-	}
+func setVersion(projectRoot, toolName, version string) error {
+	_, isGoTool := goTools[toolName]
+	_, isBinaryTool := binaryTools[toolName]
 
-	if !validBinaries[binaryName] {
-		return fmt.Errorf("unknown binary: %s\n\nSupported binaries:\n  - tailwindcli\n  - mailpit\n  - usql\n\nRun 'andurel lock set-version --help' for more information", binaryName)
+	if !isGoTool && !isBinaryTool {
+		return fmt.Errorf("unknown tool: %s\n\nSupported Go tools:\n  templ, sqlc, goose, air, mailpit, usql\n\nSupported binary tools:\n  tailwindcli\n\nRun 'andurel tool set-version --help' for more information", toolName)
 	}
 
 	if version == "" {
-		return fmt.Errorf("version cannot be empty\n\nExample: andurel lock set-version %s 4.1.17", binaryName)
+		return fmt.Errorf("version cannot be empty\n\nExample: andurel tool set-version %s 1.0.0", toolName)
 	}
 
 	if len(version) > 0 && version[0] == 'v' {
@@ -86,6 +85,52 @@ func setVersion(projectRoot, binaryName, version string) error {
 
 	versionWithV := "v" + version
 
+	if isGoTool {
+		return setGoToolVersion(projectRoot, toolName, versionWithV)
+	}
+
+	return setBinaryToolVersion(projectRoot, toolName, versionWithV)
+}
+
+func setGoToolVersion(projectRoot, toolName, version string) error {
+	modulePath := goTools[toolName]
+
+	fmt.Printf("Updating %s to %s...\n", toolName, version)
+
+	cmd := exec.Command("go", "get", fmt.Sprintf("%s@%s", modulePath, version))
+	cmd.Dir = projectRoot
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to update %s: %w", toolName, err)
+	}
+
+	lockPath := filepath.Join(projectRoot, "andurel.lock")
+	if _, err := os.Stat(lockPath); err == nil {
+		lock, err := layout.ReadLockFile(projectRoot)
+		if err == nil {
+			moduleRepo := extractModulePath(modulePath)
+			lock.AddTool(toolName, layout.NewGoTool(moduleRepo, version))
+			if err := lock.WriteLockFile(projectRoot); err != nil {
+				fmt.Printf("Warning: failed to update andurel.lock: %v\n", err)
+			}
+		}
+	}
+
+	fmt.Printf("\n✓ Successfully updated %s to %s\n", toolName, version)
+	return nil
+}
+
+func extractModulePath(module string) string {
+	parts := strings.Split(module, "/")
+	if len(parts) >= 3 {
+		return strings.Join(parts[:3], "/")
+	}
+	return module
+}
+
+func setBinaryToolVersion(projectRoot, toolName, version string) error {
 	lockPath := filepath.Join(projectRoot, "andurel.lock")
 	if _, err := os.Stat(lockPath); err != nil {
 		return fmt.Errorf("andurel.lock not found. Are you in an andurel project?")
@@ -96,9 +141,9 @@ func setVersion(projectRoot, binaryName, version string) error {
 		return fmt.Errorf("failed to read lock file: %w", err)
 	}
 
-	fmt.Printf("Setting %s to version %s...\n", binaryName, version)
+	fmt.Printf("Setting %s to version %s...\n", toolName, version)
 
-	binPath := filepath.Join(projectRoot, "bin", binaryName)
+	binPath := filepath.Join(projectRoot, "bin", toolName)
 	if _, err := os.Stat(binPath); err == nil {
 		fmt.Printf("  - Removing old binary...\n")
 		if err := os.Remove(binPath); err != nil {
@@ -106,51 +151,22 @@ func setVersion(projectRoot, binaryName, version string) error {
 		}
 	}
 
-	fmt.Printf("  - Downloading %s %s...\n", binaryName, version)
+	fmt.Printf("  - Downloading %s %s...\n", toolName, version)
 
-	downloadErr := retryDownload(binaryName, func() error {
-		switch binaryName {
-		case "tailwindcli":
-			return cmds.SetupTailwindWithVersion(projectRoot, versionWithV, 30*time.Second)
-		case "mailpit":
-			return cmds.SetupMailpitWithVersion(projectRoot, versionWithV, 30*time.Second)
-		case "usql":
-			return cmds.SetupUsqlWithVersion(projectRoot, versionWithV, 30*time.Second)
-		default:
-			return fmt.Errorf("unknown binary: %s", binaryName)
+	if toolName == "tailwindcli" {
+		if err := cmds.DownloadTailwindCLI(version, runtime.GOOS, runtime.GOARCH, binPath); err != nil {
+			return fmt.Errorf("failed to download %s: %w", toolName, err)
 		}
-	})
-
-	if downloadErr != nil {
-		return fmt.Errorf("failed to download %s: %w", binaryName, downloadErr)
+	} else {
+		return fmt.Errorf("unknown binary tool: %s", toolName)
 	}
 
-	fmt.Printf("  - Calculating checksum...\n")
-	checksum, err := layout.CalculateBinaryChecksum(binPath)
-	if err != nil {
-		return fmt.Errorf("failed to calculate checksum: %w", err)
-	}
-
-	var url string
-	switch binaryName {
-	case "tailwindcli":
-		url = layout.GetTailwindDownloadURL(versionWithV)
-	case "mailpit":
-		url = layout.GetMailpitDownloadURL(versionWithV)
-	case "usql":
-		url = layout.GetUsqlDownloadURL(versionWithV)
-	}
-
-	lock.Binaries[binaryName] = &layout.Binary{
-		Version:  versionWithV,
-		URL:      url,
-		Checksum: checksum,
-	}
+	lock.AddTool(toolName, layout.NewBinaryTool(version))
 
 	if err := lock.WriteLockFile(projectRoot); err != nil {
 		return fmt.Errorf("failed to update lock file: %w", err)
 	}
 
-	fmt.Printf("\n✓ Successfully updated %s to %s\n", binaryName, version)
+	fmt.Printf("\n✓ Successfully updated %s to %s\n", toolName, version)
 	return nil
 }

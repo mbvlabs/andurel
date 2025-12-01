@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/mbvlabs/andurel/pkg/constants"
 )
@@ -196,7 +197,15 @@ func (fm *UnifiedManager) RunSQLCGenerate() error {
 
 // runSQLCCommand runs a specific sqlc command
 func (fm *UnifiedManager) runSQLCCommand(rootDir, command string) error {
-	cmd := exec.Command("go", "tool", "sqlc", "-f", "./database/sqlc.yaml", command)
+	var cmd *exec.Cmd
+
+	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
+		cmd = exec.Command("go", "run", "github.com/sqlc-dev/sqlc/cmd/sqlc@"+versions.Sqlc, "-f", "./database/sqlc.yaml", command)
+	} else {
+		sqlcBin := filepath.Join(rootDir, "bin", "sqlc")
+		cmd = exec.Command(sqlcBin, "-f", "./database/sqlc.yaml", command)
+	}
+
 	cmd.Dir = rootDir
 
 	output, err := cmd.CombinedOutput()

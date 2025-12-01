@@ -22,7 +22,7 @@ func NewRootCommand(version, date string) *cobra.Command {
 
 	rootCmd.AddCommand(newRunAppCommand())
 
-	rootCmd.AddCommand(newProjectCommand())
+	rootCmd.AddCommand(newProjectCommand(version))
 	rootCmd.AddCommand(newGenerateCommand())
 	rootCmd.AddCommand(newMigrationCommand())
 	rootCmd.AddCommand(newSqlcCommand())
@@ -30,8 +30,8 @@ func NewRootCommand(version, date string) *cobra.Command {
 
 	rootCmd.AddCommand(newAppCommand())
 	rootCmd.AddCommand(newLlmCommand())
-	rootCmd.AddCommand(newSyncCommand())
-	rootCmd.AddCommand(newLockCommand())
+	rootCmd.AddCommand(newToolCommand())
+	rootCmd.AddCommand(newExtensionCommand())
 
 	return rootCmd
 }
@@ -107,7 +107,7 @@ func checkBinaries(rootDir string) error {
 
 	binPath := filepath.Join(rootDir, "bin", "run")
 	if _, err := os.Stat(binPath); err != nil {
-		return fmt.Errorf("bin/run not found. Run 'andurel sync' to build it")
+		return fmt.Errorf("bin/run not found. Run 'andurel tool sync' to build it")
 	}
 
 	return nil

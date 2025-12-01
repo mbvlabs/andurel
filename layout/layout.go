@@ -20,6 +20,7 @@ import (
 	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/mbvlabs/andurel/layout/extensions"
 	"github.com/mbvlabs/andurel/layout/templates"
+	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/mbvlabs/andurel/pkg/constants"
 )
 
@@ -36,7 +37,7 @@ var (
 // Scaffold TODO: figure out a way to have full repo path on init, i.e. github.com/mbvlabs/andurel
 // breaks because go mod tidy will look up that path and not find it
 func Scaffold(
-	targetDir, projectName, repo, database, cssFramework string,
+	targetDir, projectName, repo, database, cssFramework, version string,
 	extensionNames []string,
 ) error {
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
@@ -142,26 +143,9 @@ func Scaffold(
 		}
 	}
 
-	if os.Getenv("ANDUREL_SKIP_MAILPIT") != "true" {
-		fmt.Print("Setting up Mailpit...\n")
-		if err := cmds.SetupMailpit(targetDir); err != nil {
-			fmt.Println(
-				"Failed to download Mailpit binary. Run 'andurel sync' after setup is done to fix.",
-			)
-		}
-	}
-
-	if os.Getenv("ANDUREL_SKIP_USQL") != "true" {
-		fmt.Print("Setting up usql...\n")
-		if err := cmds.SetupUsql(targetDir); err != nil {
-			fmt.Println(
-				"Failed to download usql binary. Run 'andurel sync' after setup is done to fix.",
-			)
-		}
-	}
 
 	fmt.Print("Generating andurel.lock file...\n")
-	if err := generateLockFile(targetDir, templateData.CSSFramework == "tailwind"); err != nil {
+	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", extensionNames); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
 	}
 
@@ -170,25 +154,14 @@ func Scaffold(
 		return fmt.Errorf("failed to run go mod tidy: %w", err)
 	}
 
-	fmt.Print("Building run binary...\n")
-	// Need to skip build for testing purposes
+	fmt.Print("Syncing binaries from andurel.lock...\n")
 	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
-		if err := cmds.RunGoRunBin(targetDir); err != nil {
-			return fmt.Errorf("failed to build run binary: %w", err)
+		lock, err := ReadLockFile(targetDir)
+		if err != nil {
+			return fmt.Errorf("failed to read lock file: %w", err)
 		}
-	}
-
-	fmt.Print("Building migration binary...\n")
-	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
-		if err := cmds.RunGoMigrationBin(targetDir); err != nil {
-			return fmt.Errorf("failed to build migration binary: %w", err)
-		}
-	}
-
-	fmt.Print("Building console binary...\n")
-	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
-		if err := cmds.RunConsoleBin(targetDir); err != nil {
-			return fmt.Errorf("failed to build console binary: %w", err)
+		if err := lock.Sync(targetDir, true); err != nil {
+			return fmt.Errorf("failed to sync binaries: %w", err)
 		}
 	}
 
@@ -341,10 +314,8 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc6.min.js",
 
 	// Commands
-	"cmd_app_main.tmpl":       "cmd/app/main.go",
-	"cmd_migration_main.tmpl": "cmd/migration/main.go",
-	"cmd_run_main.tmpl":       "cmd/run/main.go",
-	"cmd_console_main.tmpl":   "cmd/console/main.go",
+	"cmd_app_main.tmpl": "cmd/app/main.go",
+	"cmd_run_main.tmpl": "cmd/run/main.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
@@ -882,11 +853,28 @@ func topologicalSort(extSet map[string]struct{}) ([]string, error) {
 
 const goVersion = "1.25.0"
 
+type GoTool struct {
+	Name    string
+	Module  string
+	Version string
+}
+
+var defaultGoTools = []GoTool{
+	{Name: "templ", Module: "github.com/a-h/templ/cmd/templ", Version: versions.Templ},
+	{Name: "sqlc", Module: "github.com/sqlc-dev/sqlc/cmd/sqlc", Version: versions.Sqlc},
+	{Name: "goose", Module: "github.com/pressly/goose/v3/cmd/goose", Version: versions.Goose},
+	{Name: "air", Module: "github.com/air-verse/air", Version: "v1.61.7"},
+	{Name: "mailpit", Module: "github.com/axllent/mailpit", Version: "v1.21.8"},
+	{Name: "usql", Module: "github.com/xo/usql", Version: "v0.19.14"},
+}
+
 var defaultTools = []string{
 	"github.com/a-h/templ/cmd/templ",
 	"github.com/sqlc-dev/sqlc/cmd/sqlc",
 	"github.com/pressly/goose/v3/cmd/goose",
 	"github.com/air-verse/air",
+	"github.com/axllent/mailpit",
+	"github.com/xo/usql",
 }
 
 func createGoMod(targetDir string, data *TemplateData) error {
@@ -973,73 +961,32 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	return builder.Blueprint()
 }
 
-func generateLockFile(targetDir string, hasTailwind bool) error {
-	lock := NewAndurelLock()
+func generateLockFile(targetDir, version string, hasTailwind bool, extensions []string) error {
+	lock := NewAndurelLock(version)
+
+	for _, tool := range defaultGoTools {
+		moduleRepo := extractRepo(tool.Module)
+		lock.AddTool(tool.Name, NewGoTool(moduleRepo, tool.Version))
+	}
 
 	if hasTailwind {
 		tailwindVersion := "v4.1.17"
-		tailwindPath := filepath.Join(targetDir, "bin", "tailwindcli")
-		checksum := ""
-		if _, err := os.Stat(tailwindPath); err == nil {
-			checksum, err = CalculateBinaryChecksum(tailwindPath)
-			if err != nil {
-				fmt.Printf("Warning: failed to calculate tailwind checksum: %v\n", err)
-			}
-		}
-		lock.AddBinary(
-			"tailwindcli",
-			tailwindVersion,
-			GetTailwindDownloadURL(tailwindVersion),
-			checksum,
-		)
+		lock.AddTool("tailwindcli", NewBinaryTool(tailwindVersion))
 	}
 
-	mailpitVersion := "v1.27.11"
-	mailpitPath := filepath.Join(targetDir, "bin", "mailpit")
-	mailpitChecksum := ""
-	if _, err := os.Stat(mailpitPath); err == nil {
-		mailpitChecksum, err = CalculateBinaryChecksum(mailpitPath)
-		if err != nil {
-			fmt.Printf("Warning: failed to calculate mailpit checksum: %v\n", err)
-		}
-	}
-	lock.AddBinary(
-		"mailpit",
-		mailpitVersion,
-		GetMailpitDownloadURL(mailpitVersion),
-		mailpitChecksum,
-	)
+	lock.AddTool("run", NewBuiltTool("cmd/run/main.go"))
 
-	usqlVersion := "v0.19.26"
-	usqlPath := filepath.Join(targetDir, "bin", "usql")
-	usqlChecksum := ""
-	if _, err := os.Stat(usqlPath); err == nil {
-		usqlChecksum, err = CalculateBinaryChecksum(usqlPath)
-		if err != nil {
-			fmt.Printf("Warning: failed to calculate usql checksum: %v\n", err)
-		}
-	}
-	lock.AddBinary(
-		"usql",
-		usqlVersion,
-		GetUsqlDownloadURL(usqlVersion),
-		usqlChecksum,
-	)
-
-	lock.Binaries["run"] = &Binary{
-		Type:   "built",
-		Source: "cmd/run/main.go",
-	}
-
-	lock.Binaries["migration"] = &Binary{
-		Type:   "built",
-		Source: "cmd/migration/main.go",
-	}
-
-	lock.Binaries["console"] = &Binary{
-		Type:   "built",
-		Source: "cmd/console/main.go",
+	for _, ext := range extensions {
+		lock.AddExtension(ext, time.Now().Format(time.RFC3339))
 	}
 
 	return lock.WriteLockFile(targetDir)
+}
+
+func extractRepo(module string) string {
+	parts := strings.Split(module, "/")
+	if len(parts) >= 3 {
+		return strings.Join(parts[:3], "/")
+	}
+	return module
 }
