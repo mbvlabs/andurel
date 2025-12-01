@@ -418,12 +418,17 @@ func (u *Upgrader) mergeFile(shadowPath, userPath string, action *FileAction, re
 
 func (u *Upgrader) runPostUpgradeHooks() error {
 	hooks := []struct {
-		name string
-		cmd  *exec.Cmd
+		name     string
+		cmd      *exec.Cmd
+		optional bool
 	}{
 		{
 			name: "go mod tidy",
 			cmd:  exec.Command("go", "mod", "tidy"),
+		},
+		{
+			name: "andurel sync",
+			cmd:  exec.Command("andurel", "sync"),
 		},
 		{
 			name: "templ generate",
@@ -433,6 +438,11 @@ func (u *Upgrader) runPostUpgradeHooks() error {
 			name: "go fmt",
 			cmd:  exec.Command("go", "fmt", "./..."),
 		},
+		{
+			name:     "go vet",
+			cmd:      exec.Command("go", "vet", "./..."),
+			optional: true,
+		},
 	}
 
 	fmt.Printf("\nRunning post-upgrade hooks...\n")
@@ -441,6 +451,10 @@ func (u *Upgrader) runPostUpgradeHooks() error {
 		hook.cmd.Dir = u.projectRoot
 
 		if err := hook.cmd.Run(); err != nil {
+			if hook.optional {
+				fmt.Printf("    ⚠ %s failed (optional): %v\n", hook.name, err)
+				continue
+			}
 			return fmt.Errorf("%s failed: %w", hook.name, err)
 		}
 	}
