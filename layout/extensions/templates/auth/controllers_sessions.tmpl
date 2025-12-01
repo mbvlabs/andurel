@@ -12,6 +12,7 @@ import (
 	"{{.ModuleName}}/views"
 
 	"github.com/labstack/echo/v4"
+	"github.com/starfederation/datastar-go/datastar"
 )
 
 {{- if eq .Database "postgresql" }}
@@ -101,7 +102,7 @@ func (s Sessions) Create(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.HomePage.URL())
+	return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.HomePage.URL())
 }
 
 func (s Sessions) Destroy(c echo.Context) error {
