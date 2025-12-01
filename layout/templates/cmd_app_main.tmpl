@@ -137,13 +137,14 @@ func parseHeaders(headersStr string) map[string]string {
 		return headers
 	}
 
-	pairs := strings.Split(headersStr, ",")
-	for _, pair := range pairs {
+	pairs := strings.SplitSeq(headersStr, ",")
+	for pair := range pairs {
 		kv := strings.SplitN(pair, "=", 2)
 		if len(kv) == 2 {
 			headers[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
 		}
 	}
+
 	return headers
 }
 

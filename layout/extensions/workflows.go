@@ -30,7 +30,7 @@ func (w Workflows) Apply(ctx *Context) error {
 	builder.AddMainInitialization(
 		"dependencyChecker",
 		"workflow.NewDependencyChecker(pool, 30*time.Second)",
-		"pool",
+		"db.Conn()",
 	)
 
 	builder.AddBackgroundWorker(
