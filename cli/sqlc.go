@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/spf13/cobra"
 )
 
@@ -48,12 +49,12 @@ func newSqlcGenerateCommand() *cobra.Command {
 }
 
 func runSqlc(action string) error {
-	wd, err := findGoModRoot()
+	rootDir, err := findGoModRoot()
 	if err != nil {
 		return err
 	}
 
-	configPath := filepath.Join(wd, "database", "sqlc.yaml")
+	configPath := filepath.Join(rootDir, "database", "sqlc.yaml")
 	if _, err := os.Stat(configPath); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf(
@@ -64,11 +65,28 @@ func runSqlc(action string) error {
 		return err
 	}
 
-	cmd := exec.Command("go", "tool", "sqlc", "-f", configPath, action)
+	var cmd *exec.Cmd
+
+	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
+		cmd = exec.Command("go", "run", "github.com/sqlc-dev/sqlc/cmd/sqlc@"+versions.Sqlc, "-f", configPath, action)
+	} else {
+		sqlcBin := filepath.Join(rootDir, "bin", "sqlc")
+		if _, err := os.Stat(sqlcBin); err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Errorf(
+					"sqlc binary not found at %s\nRun 'andurel tool sync' to download it",
+					sqlcBin,
+				)
+			}
+			return err
+		}
+		cmd = exec.Command(sqlcBin, "-f", configPath, action)
+	}
+
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-	cmd.Dir = wd
+	cmd.Dir = rootDir
 
 	return cmd.Run()
 }
