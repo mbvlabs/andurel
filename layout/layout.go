@@ -20,6 +20,7 @@ import (
 	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/mbvlabs/andurel/layout/extensions"
 	"github.com/mbvlabs/andurel/layout/templates"
+	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/mbvlabs/andurel/pkg/constants"
 )
 
@@ -859,9 +860,9 @@ type GoTool struct {
 }
 
 var defaultGoTools = []GoTool{
-	{Name: "templ", Module: "github.com/a-h/templ/cmd/templ", Version: "v0.3.857"},
-	{Name: "sqlc", Module: "github.com/sqlc-dev/sqlc/cmd/sqlc", Version: "v1.28.0"},
-	{Name: "goose", Module: "github.com/pressly/goose/v3/cmd/goose", Version: "v3.24.1"},
+	{Name: "templ", Module: "github.com/a-h/templ/cmd/templ", Version: versions.Templ},
+	{Name: "sqlc", Module: "github.com/sqlc-dev/sqlc/cmd/sqlc", Version: versions.Sqlc},
+	{Name: "goose", Module: "github.com/pressly/goose/v3/cmd/goose", Version: versions.Goose},
 	{Name: "air", Module: "github.com/air-verse/air", Version: "v1.61.7"},
 	{Name: "mailpit", Module: "github.com/axllent/mailpit", Version: "v1.21.8"},
 	{Name: "usql", Module: "github.com/xo/usql", Version: "v0.19.14"},

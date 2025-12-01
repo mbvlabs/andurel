@@ -64,6 +64,7 @@ func (p *Project) Generate(args ...string) error {
 
 	env := []string{
 		"ANDUREL_TEST_MODE=true",
+		"ANDUREL_SKIP_BUILD=true",
 	}
 
 	return RunCLI(p.T, p.BinaryPath, p.Dir, env, args...)
