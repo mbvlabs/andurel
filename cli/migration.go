@@ -118,11 +118,29 @@ func runMigrationBinary(args ...string) error {
 
 	godotenv.Load()
 
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		return fmt.Errorf("DATABASE_URL not set in environment")
+	dbKind := os.Getenv("DB_KIND")
+	dbPort := os.Getenv("DB_PORT")
+	dbHost := os.Getenv("DB_HOST")
+	dbName := os.Getenv("DB_NAME")
+	dbUser := os.Getenv("DB_USER")
+	dbPass := os.Getenv("DB_PASSWORD")
+	dbSllMode := os.Getenv("DB_SSL_MODE")
+
+	if dbKind == "" || dbPort == "" || dbHost == "" || dbName == "" || dbUser == "" ||
+		dbPass == "" ||
+		dbSllMode == "" {
+		return fmt.Errorf("database configuration environment variables are not fully set")
 	}
 
+	databaseURL := fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
+		dbKind,
+		dbUser,
+		dbPass,
+		dbHost,
+		dbPort,
+		dbName,
+		dbSllMode,
+	)
 	driver, dbString := parseDatabaseURL(databaseURL)
 
 	goosePath := filepath.Join(rootDir, "bin", "goose")
@@ -136,7 +154,7 @@ func runMigrationBinary(args ...string) error {
 		return err
 	}
 
-	migrationDir := filepath.Join(rootDir, "db", "migrations")
+	migrationDir := filepath.Join(rootDir, "database", "migrations")
 
 	gooseArgs := append([]string{"-dir", migrationDir, driver, dbString}, args...)
 
@@ -153,14 +171,11 @@ func parseDatabaseURL(url string) (driver, dbString string) {
 	if strings.HasPrefix(url, "postgres://") || strings.HasPrefix(url, "postgresql://") {
 		return "postgres", url
 	}
-	if strings.HasPrefix(url, "mysql://") {
-		return "mysql", url
+	if after, ok := strings.CutPrefix(url, "sqlite://"); ok {
+		return "sqlite3", after
 	}
-	if strings.HasPrefix(url, "sqlite://") {
-		return "sqlite3", strings.TrimPrefix(url, "sqlite://")
-	}
-	if strings.HasPrefix(url, "sqlite3://") {
-		return "sqlite3", strings.TrimPrefix(url, "sqlite3://")
+	if after, ok := strings.CutPrefix(url, "sqlite3://"); ok {
+		return "sqlite3", after
 	}
 	return "postgres", url
 }
