@@ -1,12 +1,7 @@
 package router
 
-import (
-	"{{.ModuleName}}/controllers"
-	"{{.ModuleName}}/internal/registrationbuilder"
+import "{{.ModuleName}}/internal/framework"
 
-	"github.com/labstack/echo/v4"
-)
-
-var registrar = registrationbuilder.New().
+var registrar = framework.NewRouteRegistrar().
 	AddEntry(registerCoreRoutes){{range .Blueprint.Routes.SortedRegistrationFunctions}}.
 	AddEntry({{.FunctionName}}){{end}}

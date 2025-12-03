@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"{{.ModuleName}}/internal/routebuilder"
+	"{{.ModuleName}}/internal/framework"
 )
 
 const (
@@ -14,34 +14,34 @@ const (
 
 var startTime = time.Now().Unix()
 
-var Robots = routebuilder.New("robots").
+var Robots = framework.NewRouteBuilder("robots").
 	SetNamePrefix(assetsNamePrefix).
 	SetPath(AssetsRoutePrefix + "/robots.txt").
 	Register()
 
-var Sitemap = routebuilder.New("sitemap").
+var Sitemap = framework.NewRouteBuilder("sitemap").
 	SetNamePrefix(assetsNamePrefix).
 	SetPath(AssetsRoutePrefix + "/sitemap.xml").
 	Register()
 
 {{- if eq .CSSFramework "vanilla"}}
-var StyleImport = routebuilder.New("css.file").
+var StyleImport = framework.NewRouteBuilder("css.file").
 	SetNamePrefix(assetsNamePrefix).
 	SetPath(AssetsRoutePrefix + "/css/:file").
 	Register()
 {{- end}}
 
-var Stylesheet = routebuilder.New("css.stylesheet").
+var Stylesheet = framework.NewRouteBuilder("css.stylesheet").
 	SetNamePrefix(assetsNamePrefix).
 	SetPath(AssetsRoutePrefix + fmt.Sprintf("/css/%v/style.css", startTime)).
 	Register()
 
-var Scripts = routebuilder.New("js.scripts").
+var Scripts = framework.NewRouteBuilder("js.scripts").
 	SetNamePrefix(assetsNamePrefix).
 	SetPath(AssetsRoutePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime)).
 	Register()
 
-var Script = routebuilder.New("js.script").
+var Script = framework.NewRouteBuilder("js.script").
 	SetNamePrefix(assetsNamePrefix).
 	SetPath(AssetsRoutePrefix + fmt.Sprintf("/js/%v/:file", startTime)).
 	RegisterWithFile()

@@ -7,6 +7,7 @@ import (
 
 	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/internal/framework"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
@@ -23,6 +24,8 @@ type Controllers struct {
 	{{.Name}} {{.Type}}
 {{- end}}
 }
+
+var _ framework.Controllers = Controllers{}
 
 func New(
 {{- range $i, $dep := .Blueprint.Controllers.SortedDependencies}}

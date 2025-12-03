@@ -1,13 +1,13 @@
 package routes
 
-import "{{.ModuleName}}/internal/routebuilder"
+import "{{.ModuleName}}/internal/framework"
 
 const (
 	usersRoutePrefix = "/users"
 	usersNamePrefix  = "users"
 )
 
-var usersGroup = routebuilder.NewGroup(usersNamePrefix, usersRoutePrefix)
+var usersGroup = framework.NewRouteGroup(usersNamePrefix, usersRoutePrefix)
 
 var SessionNew = usersGroup.Route("new_user_session").
 	SetPath("/sign_in").

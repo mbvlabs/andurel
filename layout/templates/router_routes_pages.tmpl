@@ -1,10 +1,10 @@
 package routes
 
-import "{{.ModuleName}}/internal/routebuilder"
+import "{{.ModuleName}}/internal/framework"
 
 const pageNamePrefix = "pages"
 
-var HomePage = routebuilder.New("home").
+var HomePage = framework.NewRouteBuilder("home").
 	SetNamePrefix(pageNamePrefix).
 	SetPath("/").
 	Register()

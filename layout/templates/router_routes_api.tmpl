@@ -1,13 +1,13 @@
 package routes
 
-import "{{.ModuleName}}/internal/routebuilder"
+import "{{.ModuleName}}/internal/framework"
 
 const (
 	APIRoutePrefix = "/api"
 	apiNamePrefix  = "api"
 )
 
-var Health = routebuilder.New("health").
+var Health = framework.NewRouteBuilder("health").
 	SetNamePrefix(apiNamePrefix).
 	SetPath(APIRoutePrefix + "/health").
 	Register()

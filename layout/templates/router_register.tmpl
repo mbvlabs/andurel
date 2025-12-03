@@ -4,12 +4,18 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/internal/framework"
 	"{{.ModuleName}}/router/routes"
 
 	"github.com/labstack/echo/v4"
 )
 
-func registerCoreRoutes(handler *echo.Echo, ctrls controllers.Controllers) {
+func registerCoreRoutes(handler *echo.Echo, c framework.Controllers) {
+	ctrls, ok := c.(controllers.Controllers)
+	if !ok {
+		panic("unable to cast controllers")
+	}
+
 	handler.Add(
 		http.MethodGet, routes.Health.Path(), ctrls.API.Health,
 	).Name = routes.Health.Name()
@@ -52,7 +58,11 @@ func registerCoreRoutes(handler *echo.Echo, ctrls controllers.Controllers) {
 }
 {{- range .Blueprint.Routes.SortedRegistrationFunctions}}
 
-func {{.FunctionName}}(handler *echo.Echo, ctrls controllers.Controllers) {
+func {{.FunctionName}}(handler *echo.Echo, c framework.Controllers) {
+	ctrls, ok := c.(controllers.Controllers)
+	if !ok {
+		panic("unable to cast controllers")
+	}
 {{- range .Registrations}}
 	handler.Add(
 		{{.Method}}, {{.RouteVariable}}.Path(), {{.ControllerRef}},

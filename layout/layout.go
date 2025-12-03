@@ -359,10 +359,10 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
 
 	// Internal packages
-	"internal_registration_registrar.tmpl": "internal/registrationbuilder/registrar.go",
-	"internal_routebuilder_types.tmpl":     "internal/routebuilder/types.go",
-	"internal_routebuilder_builder.tmpl":   "internal/routebuilder/builder.go",
-	"internal_routebuilder_group.tmpl":     "internal/routebuilder/group.go",
+	"internal_framework_route.tmpl":        "internal/framework/route.go",
+	"internal_framework_route_group.tmpl":  "internal/framework/route_group.go",
+	"internal_framework_registration.tmpl": "internal/framework/registration.go",
+	"internal_framework_controller.tmpl":   "internal/framework/controller.go",
 
 	// Routes
 	"router_routes_routes.tmpl":  "router/routes/routes.go",
@@ -543,7 +543,7 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		"controllers_controller.tmpl",
 		"config_config.tmpl",
 		"env.tmpl",
-		"internal_registration_registrar.tmpl",
+		"internal_framework_controller.tmpl",
 		"router_routes_routes.tmpl",
 		"router_registry.tmpl",
 		"router_register.tmpl",

@@ -1,11 +1,11 @@
-package routebuilder
+package framework
 
 type RouteGroup struct {
 	namePrefix string
 	pathPrefix string
 }
 
-func NewGroup(namePrefix, pathPrefix string) RouteGroup {
+func NewRouteGroup(namePrefix, pathPrefix string) RouteGroup {
 	return RouteGroup{
 		namePrefix: namePrefix,
 		pathPrefix: pathPrefix,
@@ -13,7 +13,7 @@ func NewGroup(namePrefix, pathPrefix string) RouteGroup {
 }
 
 func (g RouteGroup) Route(name string) RouteBuilder {
-	builder := New(name)
+	builder := NewRouteBuilder(name)
 	builder = builder.SetNamePrefix(g.namePrefix)
 	builder = builder.SetPath(g.pathPrefix)
 

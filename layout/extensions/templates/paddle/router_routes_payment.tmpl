@@ -1,13 +1,13 @@
 package routes
 
-import "{{.ModuleName}}/internal/routebuilder"
+import "{{.ModuleName}}/internal/framework"
 
 const (
 	billingRoutePrefix = "/billing"
 	billingNamePrefix  = "billing"
 )
 
-var billingGroup = routebuilder.NewGroup(billingNamePrefix, billingRoutePrefix)
+var billingGroup = framework.NewRouteGroup(billingNamePrefix, billingRoutePrefix)
 
 var PaymentWebhook = billingGroup.Route("webhook").
 	SetPath("/webhook").

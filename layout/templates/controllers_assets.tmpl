@@ -10,6 +10,7 @@ import (
 	"{{.ModuleName}}/assets"
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/internal/framework"
 
 	"github.com/labstack/echo/v4"
 	"gopkg.in/yaml.v2"
@@ -103,7 +104,7 @@ func (a Assets) Sitemap(c echo.Context) error {
 	cacheKey := "assets:sitemap"
 
 	sitemap, err := a.cache.Get(cacheKey, func() (string, error) {
-		return createSitemap([]routes.Route{})
+		return createSitemap([]framework.Route{})
 	})
 	if err != nil {
 		slog.ErrorContext(
@@ -112,7 +113,7 @@ func (a Assets) Sitemap(c echo.Context) error {
 			"error", err,
 		)
 
-		result, err := createSitemap([]routes.Route{})
+		result, err := createSitemap([]framework.Route{})
 		if err != nil {
 			return err
 		}
@@ -137,7 +138,7 @@ type Sitemap struct {
 	URL     []URL    `xml:"url"`
 }
 
-func createSitemap(routes []routes.Route) (string, error) {
+func createSitemap(routes []framework.Route) (string, error) {
 	baseURL := config.BaseURL
 
 	var urls []URL
