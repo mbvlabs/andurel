@@ -1,0 +1,28 @@
+package registrationbuilder
+
+import (
+	"{{.ModuleName}}/controllers"
+
+	"github.com/labstack/echo/v4"
+)
+
+type RegistrarBuilder struct {
+	routeFuncs []func(*echo.Echo, controllers.Controllers)
+}
+
+func New() *RegistrarBuilder {
+	return &RegistrarBuilder{
+		routeFuncs: make([]func(*echo.Echo, controllers.Controllers), 0),
+	}
+}
+
+func (rb *RegistrarBuilder) AddEntry(fn func(*echo.Echo, controllers.Controllers)) *RegistrarBuilder {
+	rb.routeFuncs = append(rb.routeFuncs, fn)
+	return rb
+}
+
+func (rb *RegistrarBuilder) Register(handler *echo.Echo, ctrls controllers.Controllers) {
+	for _, fn := range rb.routeFuncs {
+		fn(handler, ctrls)
+	}
+}

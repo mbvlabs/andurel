@@ -358,12 +358,17 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_cookies_flash.tmpl":         "router/cookies/flash.go",
 	"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
 
+	// Internal packages
+	"internal_registration_registrar.tmpl": "internal/registrationbuilder/registrar.go",
+	"internal_routebuilder_types.tmpl":     "internal/routebuilder/types.go",
+	"internal_routebuilder_builder.tmpl":   "internal/routebuilder/builder.go",
+	"internal_routebuilder_group.tmpl":     "internal/routebuilder/group.go",
+
 	// Routes
-	"router_routes_routes.tmpl":      "router/routes/routes.go",
-	"router_routes_route_group.tmpl": "router/routes/route_group.go",
-	"router_routes_api.tmpl":         "router/routes/api.go",
-	"router_routes_assets.tmpl":      "router/routes/assets.go",
-	"router_routes_pages.tmpl":       "router/routes/pages.go",
+	"router_routes_routes.tmpl":  "router/routes/routes.go",
+	"router_routes_api.tmpl":     "router/routes/api.go",
+	"router_routes_assets.tmpl":  "router/routes/assets.go",
+	"router_routes_pages.tmpl":   "router/routes/pages.go",
 
 	// Telemetry
 	"telemetry_telemetry.tmpl":        "pkg/telemetry/telemetry.go",
@@ -538,6 +543,7 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		"controllers_controller.tmpl",
 		"config_config.tmpl",
 		"env.tmpl",
+		"internal_registration_registrar.tmpl",
 		"router_routes_routes.tmpl",
 		"router_registry.tmpl",
 		"router_register.tmpl",

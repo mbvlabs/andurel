@@ -1,52 +1,54 @@
 package routes
 
+import "{{.ModuleName}}/internal/routebuilder"
+
 const (
 	usersRoutePrefix = "/users"
 	usersNamePrefix  = "users"
 )
 
-var usersGroup = newRouteGroup(usersNamePrefix, usersRoutePrefix)
+var usersGroup = routebuilder.NewGroup(usersNamePrefix, usersRoutePrefix)
 
-var SessionNew = usersGroup.route("new_user_session").
+var SessionNew = usersGroup.Route("new_user_session").
 	SetPath("/sign_in").
 	Register()
 
-var SessionCreate = usersGroup.route("user_session").
+var SessionCreate = usersGroup.Route("user_session").
 	SetPath("/sign_in").
 	Register()
 
-var SessionDestroy = usersGroup.route("destroy_user_session").
+var SessionDestroy = usersGroup.Route("destroy_user_session").
 	SetPath("/sign_out").
 	Register()
 
-var PasswordNew = usersGroup.route("new_user_password").
+var PasswordNew = usersGroup.Route("new_user_password").
 	SetPath("/password/new").
 	Register()
 
-var PasswordCreate = usersGroup.route("user_password").
+var PasswordCreate = usersGroup.Route("user_password").
 	SetPath("/password").
 	Register()
 
-var PasswordEdit = usersGroup.route("edit_user_password").
+var PasswordEdit = usersGroup.Route("edit_user_password").
 	SetPath("/password/:token/edit").
 	RegisterWithToken()
 
-var PasswordUpdate = usersGroup.route("user_password").
+var PasswordUpdate = usersGroup.Route("user_password").
 	SetPath("/password").
 	Register()
 
-var RegistrationNew = usersGroup.route("new_user_registration").
+var RegistrationNew = usersGroup.Route("new_user_registration").
 	SetPath("/sign_up").
 	Register()
 
-var RegistrationCreate = usersGroup.route("user_registration").
+var RegistrationCreate = usersGroup.Route("user_registration").
 	SetPath("").
 	Register()
 
-var ConfirmationNew = usersGroup.route("new_user_confirmation").
+var ConfirmationNew = usersGroup.Route("new_user_confirmation").
 	SetPath("/confirmation/new").
 	Register()
 
-var ConfirmationCreate = usersGroup.route("user_confirmation").
+var ConfirmationCreate = usersGroup.Route("user_confirmation").
 	SetPath("/confirmation").
 	Register()

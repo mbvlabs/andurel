@@ -1,24 +1,26 @@
 package routes
 
+import "{{.ModuleName}}/internal/routebuilder"
+
 const (
 	billingRoutePrefix = "/billing"
 	billingNamePrefix  = "billing"
 )
 
-var billingGroup = newRouteGroup(billingNamePrefix, billingRoutePrefix)
+var billingGroup = routebuilder.NewGroup(billingNamePrefix, billingRoutePrefix)
 
-var PaymentWebhook = billingGroup.route("webhook").
+var PaymentWebhook = billingGroup.Route("webhook").
 	SetPath("/webhook").
 	Register()
 
-var PaymentCheckout = billingGroup.route("checkout").
+var PaymentCheckout = billingGroup.Route("checkout").
 	SetPath("/checkout").
 	Register()
 
-var PaymentPricing = billingGroup.route("pricing").
+var PaymentPricing = billingGroup.Route("pricing").
 	SetPath("/pricing").
 	Register()
 
-var PaymentAccount = billingGroup.route("account").
+var PaymentAccount = billingGroup.Route("account").
 	SetPath("/account").
 	Register()

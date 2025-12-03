@@ -1,0 +1,21 @@
+package routebuilder
+
+type RouteGroup struct {
+	namePrefix string
+	pathPrefix string
+}
+
+func NewGroup(namePrefix, pathPrefix string) RouteGroup {
+	return RouteGroup{
+		namePrefix: namePrefix,
+		pathPrefix: pathPrefix,
+	}
+}
+
+func (g RouteGroup) Route(name string) RouteBuilder {
+	builder := New(name)
+	builder = builder.SetNamePrefix(g.namePrefix)
+	builder = builder.SetPath(g.pathPrefix)
+
+	return builder
+}
