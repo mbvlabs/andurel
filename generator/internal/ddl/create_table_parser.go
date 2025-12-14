@@ -2,13 +2,12 @@ package ddl
 
 import (
 	"fmt"
-	"path/filepath"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/generator/internal/validation"
 )
 
 // CreateTableParser handles CREATE TABLE statements
@@ -196,54 +195,7 @@ func (p *CreateTableParser) parseColumnDefinition(
 func (p *CreateTableParser) parseDataType(
 	typeStr string,
 ) (dataType string, length *int32, precision *int32, scale *int32) {
-	typeStrLower := strings.ToLower(typeStr)
-
-	if strings.Contains(typeStrLower, "timestamp with time zone") {
-		return "timestamp with time zone", nil, nil, nil
-	}
-	if strings.Contains(typeStrLower, "timestamp without time zone") {
-		return "timestamp without time zone", nil, nil, nil
-	}
-	if strings.Contains(typeStrLower, "time with time zone") {
-		return "time with time zone", nil, nil, nil
-	}
-	if strings.Contains(typeStrLower, "time without time zone") {
-		return "time without time zone", nil, nil, nil
-	}
-	if strings.Contains(typeStrLower, "double precision") {
-		return "double precision", nil, nil, nil
-	}
-
-	typeRegex := regexp.MustCompile(`^(\w+)(?:\(([^)]+)\))?$`)
-	matches := typeRegex.FindStringSubmatch(typeStr)
-
-	if len(matches) < 2 {
-		return typeStr, nil, nil, nil
-	}
-
-	dataType = strings.ToLower(matches[1])
-
-	if len(matches) > 2 && matches[2] != "" {
-		params := strings.Split(matches[2], ",")
-
-		if len(params) == 1 {
-			if val, err := strconv.ParseInt(strings.TrimSpace(params[0]), 10, 32); err == nil {
-				length32 := int32(val)
-				length = &length32
-			}
-		} else if len(params) == 2 {
-			if val, err := strconv.ParseInt(strings.TrimSpace(params[0]), 10, 32); err == nil {
-				precision32 := int32(val)
-				precision = &precision32
-			}
-			if val, err := strconv.ParseInt(strings.TrimSpace(params[1]), 10, 32); err == nil {
-				scale32 := int32(val)
-				scale = &scale32
-			}
-		}
-	}
-
-	return dataType, length, precision, scale
+	return ParseDataType(typeStr)
 }
 
 func (p *CreateTableParser) splitColumnDefinitions(defs string) []string {
@@ -308,34 +260,5 @@ func (p *CreateTableParser) splitColumnDefinitions(defs string) []string {
 func (p *CreateTableParser) validatePrimaryKeyDatatype(
 	dataType, databaseType, migrationFile, columnName string,
 ) error {
-	normalizedDataType := strings.ToLower(dataType)
-
-	switch databaseType {
-	case "postgresql":
-		if normalizedDataType != "uuid" {
-			return fmt.Errorf(`Primary key validation failed in migration '%s':
-Column '%s' has datatype '%s' but PostgreSQL primary keys must use 'uuid'.
-
-To fix this, change:
-  %s %s PRIMARY KEY
-to:
-  %s UUID PRIMARY KEY`,
-				filepath.Base(migrationFile), columnName, dataType,
-				columnName, dataType, columnName)
-		}
-	case "sqlite":
-		if normalizedDataType != "text" {
-			return fmt.Errorf(`Primary key validation failed in migration '%s':
-Column '%s' has datatype '%s' but SQLite primary keys must use 'text'.
-
-To fix this, change:
-  %s %s PRIMARY KEY
-to:
-  %s TEXT PRIMARY KEY`,
-				filepath.Base(migrationFile), columnName, dataType,
-				columnName, dataType, columnName)
-		}
-	}
-
-	return nil
+	return validation.ValidatePrimaryKeyDatatype(dataType, databaseType, migrationFile, columnName)
 }
