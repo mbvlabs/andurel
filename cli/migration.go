@@ -38,7 +38,7 @@ func newMigrationNewCommand() *cobra.Command {
 		Short: "Create a new SQL migration",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runMigrationBinary(append([]string{"new"}, args...)...)
+			return runMigrationBinary(append([]string{"create"}, args...)...)
 		},
 		Example: "andurel migration new create_users_table",
 	}
@@ -177,5 +177,6 @@ func parseDatabaseURL(url string) (driver, dbString string) {
 	if after, ok := strings.CutPrefix(url, "sqlite3://"); ok {
 		return "sqlite3", after
 	}
+
 	return "postgres", url
 }
