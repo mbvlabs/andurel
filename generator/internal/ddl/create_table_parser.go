@@ -22,7 +22,7 @@ func (p *CreateTableParser) Parse(
 	databaseType string,
 ) (*CreateTableStatement, error) {
 	createTableRegex, err := regexp.Compile(
-		`(?is)create\s+table(\s+if\s+not\s+exists)?\s+(?:(\w+)\.)?(\w+)\s*\(\s*(.*?)\s*\)`,
+		`(?is)create\s+table(\s+if\s+not\s+exists)?\s+(?:(\w+)\.)?(\w+)\s*\(\s*(.*)\s*\)`,
 	)
 	if err != nil {
 		return nil, err
