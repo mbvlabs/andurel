@@ -6,11 +6,7 @@ import (
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/database"
-{{- if eq .Database "postgresql" }}
 	"{{.ModuleName}}/queue"
-{{- else if eq .Database "sqlite" }}
-	"{{.ModuleName}}/email"
-{{- end }}
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
@@ -20,7 +16,6 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-{{- if eq .Database "postgresql" }}
 type Registrations struct {
 	db         database.Postgres
 	insertOnly queue.InsertOnly
@@ -34,21 +29,6 @@ func newRegistrations(
 ) Registrations {
 	return Registrations{db, insertOnly, cfg}
 }
-{{- else if eq .Database "sqlite" }}
-type Registrations struct {
-	db     database.SQLite
-	sender email.TransactionalSender
-	cfg    config.Config
-}
-
-func newRegistrations(
-	db database.SQLite,
-	sender email.TransactionalSender,
-	cfg config.Config,
-) Registrations {
-	return Registrations{db, sender, cfg}
-}
-{{- end }}
 
 func (r Registrations) New(c echo.Context) error {
 	return render(c, views.RegistrationForm())
@@ -80,11 +60,7 @@ func (r Registrations) Create(c echo.Context) error {
 	err := services.RegisterUser(
 		c.Request().Context(),
 		r.db,
-{{- if eq .Database "postgresql" }}
 		r.insertOnly,
-{{- else if eq .Database "sqlite" }}
-		r.sender,
-{{- end }}
 		r.cfg.Auth.Pepper,
 		services.RegisterUserData{
 			Email:           payload.Email,

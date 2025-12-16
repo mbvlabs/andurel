@@ -4,20 +4,12 @@
 
 package db
 
-{{ if eq .Database "postgresql" }}
 import (
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
-{{ else if eq .Database "sqlite" }}
-import (
-	"time"
-
-	"github.com/google/uuid"
-)
-{{ end }}
 
 // Constructor functions for SQLC parameters - these get updated during refresh
 // to make schema changes compiler-enforced and visible
@@ -29,7 +21,6 @@ func BuildInsertTokenParams(
 	hash string,
 	metaData []byte,
 ) InsertTokenParams {
-{{- if eq .Database "postgresql" }}
 	return InsertTokenParams{
 		ID:    id,
 		Scope: scope,
@@ -40,29 +31,15 @@ func BuildInsertTokenParams(
 		Hash:     hash,
 		MetaData: metaData,
 	}
-{{- else if eq .Database "sqlite" }}
-	return InsertTokenParams{
-		ID:        id.String(),
-		Scope:     scope,
-		ExpiresAt: expiresAt,
-		Hash:      hash,
-		MetaData:  metaData,
-	}
-{{- end }}
 }
 
 func BuildUpdateTokenParams(
-{{- if eq .Database "postgresql" }}
 	id uuid.UUID,
-{{- else if eq .Database "sqlite" }}
-	id string,
-{{- end }}
 	scope string,
 	expiresAt time.Time,
 	hash string,
 	metaData []byte,
 ) UpdateTokenParams {
-{{- if eq .Database "postgresql" }}
 	return UpdateTokenParams{
 		ID:    id,
 		Scope: scope,
@@ -73,15 +50,6 @@ func BuildUpdateTokenParams(
 		Hash:     hash,
 		MetaData: metaData,
 	}
-{{- else if eq .Database "sqlite" }}
-	return UpdateTokenParams{
-		ID:        id,
-		Scope:     scope,
-		ExpiresAt: expiresAt,
-		Hash:      hash,
-		MetaData:  metaData,
-	}
-{{- end }}
 }
 
 func BuildQueryPaginatedTokensParams(limit, offset int64) QueryPaginatedTokensParams {

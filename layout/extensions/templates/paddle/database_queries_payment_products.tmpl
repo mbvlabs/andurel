@@ -1,4 +1,3 @@
-{{- if eq .Database "postgresql" -}}
 -- name: QueryPaymentProductByID :one
 SELECT * FROM payment_products WHERE id=$1;
 
@@ -28,34 +27,3 @@ RETURNING *;
 
 -- name: DeletePaymentProduct :exec
 DELETE FROM payment_products WHERE id=$1;
-{{- else if eq .Database "sqlite" -}}
--- name: QueryPaymentProductByID :one
-SELECT * FROM payment_products WHERE id=?;
-
--- name: QueryPaymentProductByProviderID :one
-SELECT * FROM payment_products WHERE provider_product_id=?;
-
--- name: QueryActiveProducts :many
-SELECT * FROM payment_products WHERE is_active=1 ORDER BY created_at DESC;
-
--- name: QueryAllProducts :many
-SELECT * FROM payment_products ORDER BY created_at DESC;
-
--- name: InsertPaymentProduct :one
-INSERT INTO payment_products (
-    id, created_at, updated_at, provider_product_id, provider_price_id,
-    name, description, price_amount, price_currency, image_url, is_active
-)
-VALUES (?, datetime('now'), datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING *;
-
--- name: UpdatePaymentProduct :one
-UPDATE payment_products
-SET updated_at=datetime('now'), name=?, description=?, price_amount=?,
-    price_currency=?, image_url=?, is_active=?
-WHERE id = ?
-RETURNING *;
-
--- name: DeletePaymentProduct :exec
-DELETE FROM payment_products WHERE id=?;
-{{- end -}}

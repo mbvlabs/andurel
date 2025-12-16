@@ -1,4 +1,3 @@
-{{- if eq .Database "postgresql" -}}
 -- name: QueryUserByID :one
 select * from users where id=$1;
 
@@ -31,37 +30,3 @@ limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
 
 -- name: CountUsers :one
 select count(*) from users;
-{{- else if eq .Database "sqlite" -}}
--- name: QueryUserByID :one
-select * from users where id=?;
-
--- name: QueryUserByEmail :one
-select * from users where email=?;
-
--- name: QueryUsers :many
-select * from users;
-
--- name: InsertUser :one
-insert into
-    users (id, created_at, updated_at, email, email_validated_at, password, is_admin)
-values
-    (?, datetime('now'), datetime('now'), ?, ?, ?, ?)
-returning *;
-
--- name: UpdateUser :one
-update users
-    set updated_at=datetime('now'), email=?, email_validated_at=?, password=?, is_admin=?
-where id = ?
-returning *;
-
--- name: DeleteUser :exec
-delete from users where id=?;
-
--- name: QueryPaginatedUsers :many
-select * from users
-order by created_at desc
-limit ? offset ?;
-
--- name: CountUsers :one
-select count(*) from users;
-{{- end -}}

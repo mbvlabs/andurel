@@ -34,8 +34,6 @@ func NewTypeMapper(databaseType string) *TypeMapper {
 	switch databaseType {
 	case "postgresql":
 		tm.initPostgreSQLMappings()
-	case "sqlite":
-		tm.initSQLiteMappings()
 	}
 
 	return tm
@@ -43,10 +41,6 @@ func NewTypeMapper(databaseType string) *TypeMapper {
 
 func (tm *TypeMapper) initPostgreSQLMappings() {
 	tm.TypeMap["uuid"] = "uuid.UUID"
-}
-
-// TODO: is this needed?
-func (tm *TypeMapper) initSQLiteMappings() {
 }
 
 func (tm *TypeMapper) MapSQLTypeToGo(
@@ -69,14 +63,7 @@ func (tm *TypeMapper) MapSQLTypeToGo(
 		return "uuid.UUID", "uuid.UUID", "github.com/google/uuid", nil
 	}
 
-	switch tm.DatabaseType {
-	case "postgresql":
-		goType, sqlcType, packageName = tm.getPostgreSQLType(normalizedType, nullable)
-	case "sqlite":
-		goType, sqlcType, packageName = tm.getSQLiteType(normalizedType, nullable)
-	default:
-		goType, sqlcType, packageName = tm.getPostgreSQLType(normalizedType, nullable)
-	}
+	goType, sqlcType, packageName = tm.getPostgreSQLType(normalizedType, nullable)
 
 	if goType == "" {
 		return "interface{}", "interface{}", "", nil
@@ -86,11 +73,6 @@ func (tm *TypeMapper) MapSQLTypeToGo(
 }
 
 func (tm *TypeMapper) GenerateConversionFromDB(fieldName, sqlcType, goType string) string {
-	// Special case: UUID from string for SQLite ID fields
-	if goType == "uuid.UUID" && sqlcType == "string" {
-		return fmt.Sprintf("uuid.Parse(row.%s)", fieldName)
-	}
-
 	if strings.HasPrefix(sqlcType, "pgtype.") {
 		switch sqlcType {
 		case "pgtype.Text":
@@ -385,87 +367,11 @@ func (tm *TypeMapper) getPostgreSQLType(
 	}
 }
 
-func (tm *TypeMapper) getSQLiteType(
-	normalizedType string,
-	nullable bool,
-) (goType, sqlcType, packageName string) {
-	switch normalizedType {
-	case "varchar",
-		"text",
-		"char",
-		"clob",
-		"character",
-		"varying character",
-		"nchar",
-		"native character",
-		"nvarchar":
-		if nullable {
-			return "string", "sql.NullString", "database/sql"
-		}
-		return "string", "string", ""
-
-	case "int",
-		"integer",
-		"tinyint",
-		"smallint",
-		"mediumint",
-		"bigint",
-		"unsigned big int",
-		"int2",
-		"int8":
-		if nullable {
-			return "int64", "sql.NullInt64", "database/sql"
-		}
-		return "int64", "int64", ""
-
-	case "real", "double", "double precision", "float":
-		if nullable {
-			return "float64", "sql.NullFloat64", "database/sql"
-		}
-		return "float64", "float64", ""
-
-	case "numeric", "decimal", "boolean", "date", "datetime", "timestamp", "time":
-		if normalizedType == "boolean" {
-			if nullable {
-				return "bool", "sql.NullBool", "database/sql"
-			}
-			return "bool", "bool", ""
-		}
-		if normalizedType == "date" || normalizedType == "datetime" {
-			if nullable {
-				return "time.Time", "sql.NullTime", "database/sql"
-			}
-			return "time.Time", "time.Time", ""
-		}
-		if normalizedType == "timestamp" || normalizedType == "time" {
-			if nullable {
-				return "time.Time", "sql.NullTime", "database/sql"
-			}
-			return "time.Time", "time.Time", ""
-		}
-		if nullable {
-			return "float64", "sql.NullFloat64", "database/sql"
-		}
-		return "float64", "float64", ""
-
-	case "blob":
-		return "[]byte", "[]byte", ""
-
-	default:
-		return "", "", ""
-	}
-}
-
 func (tm *TypeMapper) GenerateConversionToDB(
 	sqlcType string,
 	goType string,
 	valueExpr string,
 ) string {
-	// Special case: UUID to string for SQLite ID fields
-	if goType == "uuid.UUID" && sqlcType == "string" {
-		return fmt.Sprintf("%s.String()", valueExpr)
-	}
-
 	if strings.HasPrefix(sqlcType, "pgtype.") {
 		switch sqlcType {
 		case "pgtype.Text":

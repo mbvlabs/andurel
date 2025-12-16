@@ -82,10 +82,7 @@ func NewConfigManager() *ConfigManager {
 
 // Load loads configuration from defaults
 func (cm *ConfigManager) Load() (*UnifiedConfig, error) {
-	databaseType := "postgresql" // fallback default
-	if dbType, err := readDatabaseTypeFromSQLCYAML(); err == nil {
-		databaseType = dbType
-	}
+	databaseType := "postgresql"
 
 	config := &UnifiedConfig{
 		Database: DatabaseConfig{
@@ -141,22 +138,15 @@ func (cm *ConfigManager) GetConfig() *UnifiedConfig {
 
 // getDatabaseDriver returns the appropriate driver for the database type
 func (cm *ConfigManager) getDatabaseDriver(dbType string) string {
-	switch dbType {
-	case "postgresql":
-		return "pgx"
-	case "sqlite":
-		return "sqlite3"
-	default:
-		return ""
-	}
+	return "pgx"
 }
 
 // Validate validates the configuration
 func (cv *ConfigValidator) Validate(config *UnifiedConfig) error {
 	// Validate database type
-	if config.Database.Type != "postgresql" && config.Database.Type != "sqlite" {
+	if config.Database.Type != "postgresql" {
 		return fmt.Errorf(
-			"unsupported database type: %s (supported: postgresql, sqlite)",
+			"unsupported database type: %s (only postgresql is supported)",
 			config.Database.Type,
 		)
 	}
@@ -309,9 +299,9 @@ func readDatabaseTypeFromSQLCYAML() (string, error) {
 	}
 
 	engine := config.SQL[0].Engine
-	if engine != "postgresql" && engine != "sqlite" {
+	if engine != "postgresql" {
 		return "", fmt.Errorf(
-			"unsupported database engine: %s (supported: postgresql, sqlite)",
+			"unsupported database engine: %s (only postgresql is supported)",
 			engine,
 		)
 	}

@@ -24,15 +24,6 @@ sql:
 			hasError: false,
 		},
 		{
-			name: "SQLite engine",
-			content: `version: "2"
-sql:
-  - engine: sqlite
-    schema: migrations`,
-			expected: "sqlite",
-			hasError: false,
-		},
-		{
 			name: "Unsupported engine",
 			content: `version: "2"
 sql:
@@ -105,14 +96,6 @@ func TestNewDefaultAppConfig_WithSQLCYAML(t *testing.T) {
 		sqlcContent string
 		expected    string
 	}{
-		{
-			name: "Uses SQLite from sqlc.yaml",
-			sqlcContent: `version: "2"
-sql:
-  - engine: sqlite
-    schema: migrations`,
-			expected: "sqlite",
-		},
 		{
 			name: "Uses PostgreSQL from sqlc.yaml",
 			sqlcContent: `version: "2"

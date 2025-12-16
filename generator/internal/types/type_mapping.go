@@ -32,7 +32,6 @@ func NewTypeConversionService() *TypeConversionService {
 
 	// Register default mappers
 	service.RegisterMapper("postgresql", NewPostgreSQLTypeMapper())
-	service.RegisterMapper("sqlite", NewSQLiteTypeMapper())
 
 	return service
 }
@@ -44,13 +43,9 @@ func (tcs *TypeConversionService) RegisterMapper(databaseType string, mapper Dat
 
 // GetMapper returns the type mapper for the specified database type
 func (tcs *TypeConversionService) GetMapper(databaseType string) (DatabaseTypeMapper, error) {
-	mapper, exists := tcs.mappers[databaseType]
+	mapper, exists := tcs.mappers["postgresql"]
 	if !exists {
-		// Default to PostgreSQL mapper for unknown types
-		mapper, exists = tcs.mappers["postgresql"]
-		if !exists {
-			return nil, ErrNoTypeMapperFound
-		}
+		return nil, ErrNoTypeMapperFound
 	}
 	return mapper, nil
 }

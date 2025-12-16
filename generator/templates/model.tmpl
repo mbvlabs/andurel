@@ -102,7 +102,7 @@ func Update{{.Name}}(
 	}
 
 	params := db.BuildUpdate{{.Name}}Params(
-		{{if eq .DatabaseType "sqlite"}}data.ID.String(){{else}}data.ID{{end}},
+		data.ID,
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		{{.ConversionToDBForUpdate}},

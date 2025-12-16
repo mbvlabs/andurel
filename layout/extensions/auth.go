@@ -33,28 +33,10 @@ func (e Auth) Apply(ctx *Context) error {
 	builder.AddControllerField("Confirmations", "Confirmations")
 	builder.AddControllerField("ResetPasswords", "ResetPasswords")
 
-	db := ctx.Data.DatabaseDialect()
-
 	builder.AddControllerConstructor("sessions", "newSessions(db, cfg)")
-
-	if db == "postgresql" {
-		builder.AddControllerConstructor("registrations", "newRegistrations(db, insertOnly, cfg)")
-	}
-	if db == "sqlite" {
-		builder.AddControllerConstructor("registrations", "newRegistrations(db, emailClient, cfg)")
-	}
-
+	builder.AddControllerConstructor("registrations", "newRegistrations(db, insertOnly, cfg)")
 	builder.AddControllerConstructor("confirmations", "newConfirmations(db, cfg)")
-
-	if db == "postgresql" {
-		builder.AddControllerConstructor("resetPasswords", "newResetPasswords(db, insertOnly, cfg)")
-	}
-	if db == "sqlite" {
-		builder.AddControllerConstructor(
-			"resetPasswords",
-			"newResetPasswords(db, emailClient, cfg)",
-		)
-	}
+	builder.AddControllerConstructor("resetPasswords", "newResetPasswords(db, insertOnly, cfg)")
 
 	builder.AddCookiesImport("github.com/google/uuid")
 	builder.AddCookiesImport(fmt.Sprintf("%s/models", moduleName))

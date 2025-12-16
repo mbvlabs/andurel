@@ -371,8 +371,8 @@ Required variables (see ` + "`.env.example`" + `):
 # Environment
 ENVIRONMENT=development  # development, staging, production
 
-# Database (PostgreSQL or SQLite)
-DB_KIND=postgres        # postgres or sqlite
+# Database (PostgreSQL)
+DB_KIND=postgres
 DB_PORT=5432
 DB_HOST=127.0.0.1
 DB_NAME=andurel
@@ -404,12 +404,6 @@ Andurel supports two database backends:
 - Requires PostgreSQL server
 - Full SQLC feature support
 - Background job support via River
-
-**SQLite** (suitable for development):
-- Set ` + "`DB_KIND=sqlite`" + `
-- No server required
-- Limited SQLC features
-- File-based database
 
 ### CSS Options
 

@@ -4,20 +4,12 @@
 
 package db
 
-{{ if eq .Database "postgresql" }}
 import (
 	"database/sql"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
-{{ else if eq .Database "sqlite" }}
-import (
-	"database/sql"
-
-	"github.com/google/uuid"
-)
-{{ end }}
 
 // Constructor functions for SQLC parameters - these get updated during refresh
 // to make schema changes compiler-enforced and visible
@@ -33,7 +25,6 @@ func BuildInsertPaymentProductParams(
 	imageURL sql.NullString,
 	isActive bool,
 ) InsertPaymentProductParams {
-{{- if eq .Database "postgresql" }}
 	return InsertPaymentProductParams{
 		ID:                id,
 		ProviderProductID: providerProductID,
@@ -45,24 +36,6 @@ func BuildInsertPaymentProductParams(
 		ImageUrl:          pgtype.Text{String: imageURL.String, Valid: imageURL.Valid},
 		IsActive:          isActive,
 	}
-{{- else if eq .Database "sqlite" }}
-	var sqliteIsActive int64
-	if isActive {
-		sqliteIsActive = 1
-	}
-
-	return InsertPaymentProductParams{
-		ID:                id.String(),
-		ProviderProductID: providerProductID,
-		ProviderPriceID:   providerPriceID,
-		Name:              name,
-		Description:       description,
-		PriceAmount:       priceAmount,
-		PriceCurrency:     priceCurrency,
-		ImageUrl:          imageURL,
-		IsActive:          sqliteIsActive,
-	}
-{{- end }}
 }
 
 func BuildUpdatePaymentProductParams(
@@ -74,7 +47,6 @@ func BuildUpdatePaymentProductParams(
 	imageURL sql.NullString,
 	isActive bool,
 ) UpdatePaymentProductParams {
-{{- if eq .Database "postgresql" }}
 	return UpdatePaymentProductParams{
 		ID:            id,
 		Name:          name,
@@ -84,20 +56,4 @@ func BuildUpdatePaymentProductParams(
 		ImageUrl:      pgtype.Text{String: imageURL.String, Valid: imageURL.Valid},
 		IsActive:      isActive,
 	}
-{{- else if eq .Database "sqlite" }}
-	var sqliteIsActive int64
-	if isActive {
-		sqliteIsActive = 1
-	}
-
-	return UpdatePaymentProductParams{
-		ID:            id.String(),
-		Name:          name,
-		Description:   description,
-		PriceAmount:   priceAmount,
-		PriceCurrency: priceCurrency,
-		ImageUrl:      imageURL,
-		IsActive:      sqliteIsActive,
-	}
-{{- end }}
 }

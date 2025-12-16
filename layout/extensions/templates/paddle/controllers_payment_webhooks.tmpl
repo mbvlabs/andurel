@@ -15,7 +15,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-{{- if eq .Database "postgresql" }}
 type PaymentWebhooks struct {
 	db     database.Postgres
 	client *payment.PaddleClient
@@ -25,17 +24,6 @@ type PaymentWebhooks struct {
 func newPaymentWebhooks(db database.Postgres, client *payment.PaddleClient, cfg config.Config) PaymentWebhooks {
 	return PaymentWebhooks{db, client, cfg}
 }
-{{- else if eq .Database "sqlite" }}
-type PaymentWebhooks struct {
-	db     database.SQLite
-	client *payment.PaddleClient
-	cfg    config.Config
-}
-
-func newPaymentWebhooks(db database.SQLite, client *payment.PaddleClient, cfg config.Config) PaymentWebhooks {
-	return PaymentWebhooks{db, client, cfg}
-}
-{{- end }}
 
 func (w PaymentWebhooks) Handle(c echo.Context) error {
 	// Read request body

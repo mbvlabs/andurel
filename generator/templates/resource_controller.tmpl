@@ -22,14 +22,10 @@ import (
 )
 
 type {{.ResourceName}}s struct {
-{{- if eq (DatabaseType) "sqlite"}}
-	db database.SQLite
-{{- else}}
 	db database.Postgres
-{{- end}}
 }
 
-func new{{.ResourceName}}s({{- if eq (DatabaseType) "sqlite"}}db database.SQLite{{- else}}db database.Postgres{{- end}}) {{.ResourceName}}s {
+func new{{.ResourceName}}s(db database.Postgres) {{.ResourceName}}s {
 	return {{.ResourceName}}s{db}
 }
 

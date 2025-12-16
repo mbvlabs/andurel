@@ -13,23 +13,11 @@ func TestValidatePrimaryKeyDatatype(t *testing.T) {
 		databaseType string
 		expectError  bool
 	}{
-		// PostgreSQL valid cases
 		{"postgresql_uuid_valid", "UUID", "postgresql", false},
 		{"postgresql_uuid_lowercase", "uuid", "postgresql", false},
-
-		// PostgreSQL invalid cases
 		{"postgresql_text_invalid", "TEXT", "postgresql", true},
 		{"postgresql_integer_invalid", "INTEGER", "postgresql", true},
 		{"postgresql_varchar_invalid", "VARCHAR", "postgresql", true},
-
-		// SQLite valid cases
-		{"sqlite_text_valid", "TEXT", "sqlite", false},
-		{"sqlite_text_lowercase", "text", "sqlite", false},
-
-		// SQLite invalid cases
-		{"sqlite_uuid_invalid", "UUID", "sqlite", true},
-		{"sqlite_integer_invalid", "INTEGER", "sqlite", true},
-		{"sqlite_varchar_invalid", "VARCHAR", "sqlite", true},
 	}
 
 	for _, tc := range testCases {
@@ -60,15 +48,7 @@ func TestValidatePrimaryKeyDatatype_ErrorMessages(t *testing.T) {
 			databaseType:   "postgresql",
 			columnName:     "id",
 			migrationFile:  "/path/to/001_create_users.sql",
-			expectedSubstr: "PostgreSQL primary keys must use 'uuid'",
-		},
-		{
-			name:           "sqlite_uuid_error_message",
-			dataType:       "UUID",
-			databaseType:   "sqlite",
-			columnName:     "user_id",
-			migrationFile:  "/path/to/002_create_posts.sql",
-			expectedSubstr: "SQLite primary keys must use 'text'",
+			expectedSubstr: "primary keys must use 'uuid'",
 		},
 	}
 
@@ -93,7 +73,6 @@ func TestValidatePrimaryKeyDatatype_ErrorMessages(t *testing.T) {
 				)
 			}
 
-			// Check that the error message contains the column name
 			if !containsString(errorMsg, tc.columnName) {
 				t.Errorf(
 					"Expected error message to contain column name '%s', but got: %s",
@@ -102,9 +81,7 @@ func TestValidatePrimaryKeyDatatype_ErrorMessages(t *testing.T) {
 				)
 			}
 
-			// Check that the error message contains the migration file basename
-			if !containsString(errorMsg, "001_create_users.sql") &&
-				!containsString(errorMsg, "002_create_posts.sql") {
+			if !containsString(errorMsg, "001_create_users.sql") {
 				t.Errorf(
 					"Expected error message to contain migration file name, but got: %s",
 					errorMsg,
@@ -159,20 +136,7 @@ func TestParseColumnDefinitions_PrimaryKeyValidation(t *testing.T) {
 			columnDefs:   "id TEXT PRIMARY KEY, name TEXT NOT NULL",
 			databaseType: "postgresql",
 			expectError:  true,
-			errorSubstr:  "PostgreSQL primary keys must use 'uuid'",
-		},
-		{
-			name:         "sqlite_valid_text_primary_key",
-			columnDefs:   "id TEXT PRIMARY KEY, name TEXT NOT NULL",
-			databaseType: "sqlite",
-			expectError:  false,
-		},
-		{
-			name:         "sqlite_invalid_uuid_primary_key",
-			columnDefs:   "id UUID PRIMARY KEY, name TEXT NOT NULL",
-			databaseType: "sqlite",
-			expectError:  true,
-			errorSubstr:  "SQLite primary keys must use 'text'",
+			errorSubstr:  "primary keys must use 'uuid'",
 		},
 		{
 			name:         "postgresql_separate_primary_key_constraint_valid",
@@ -185,20 +149,7 @@ func TestParseColumnDefinitions_PrimaryKeyValidation(t *testing.T) {
 			columnDefs:   "id INTEGER NOT NULL, name TEXT, PRIMARY KEY (id)",
 			databaseType: "postgresql",
 			expectError:  true,
-			errorSubstr:  "PostgreSQL primary keys must use 'uuid'",
-		},
-		{
-			name:         "sqlite_separate_primary_key_constraint_valid",
-			columnDefs:   "id TEXT NOT NULL, name TEXT, PRIMARY KEY (id)",
-			databaseType: "sqlite",
-			expectError:  false,
-		},
-		{
-			name:         "sqlite_separate_primary_key_constraint_invalid",
-			columnDefs:   "id INTEGER NOT NULL, name TEXT, PRIMARY KEY (id)",
-			databaseType: "sqlite",
-			expectError:  true,
-			errorSubstr:  "SQLite primary keys must use 'text'",
+			errorSubstr:  "primary keys must use 'uuid'",
 		},
 	}
 
@@ -266,20 +217,7 @@ func TestParseCreateTable_PrimaryKeyValidation(t *testing.T) {
 			sql:          "CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT NOT NULL)",
 			databaseType: "postgresql",
 			expectError:  true,
-			errorSubstr:  "PostgreSQL primary keys must use 'uuid'",
-		},
-		{
-			name:         "sqlite_valid_create_table",
-			sql:          "CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT NOT NULL)",
-			databaseType: "sqlite",
-			expectError:  false,
-		},
-		{
-			name:         "sqlite_invalid_create_table",
-			sql:          "CREATE TABLE users (id UUID PRIMARY KEY, email TEXT NOT NULL)",
-			databaseType: "sqlite",
-			expectError:  true,
-			errorSubstr:  "SQLite primary keys must use 'text'",
+			errorSubstr:  "primary keys must use 'uuid'",
 		},
 	}
 
