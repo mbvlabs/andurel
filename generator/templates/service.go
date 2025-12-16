@@ -181,9 +181,6 @@ func getDefaultTemplateFunctions() template.FuncMap {
 			return "Conn"
 		},
 		"uuidParam": func(param string, databaseType string) string {
-			if databaseType == "sqlite" {
-				return param + ".String()"
-			}
 			return param
 		},
 		"toLowerCamelCase": toLowerCamelCase,

@@ -40,4 +40,4 @@ on conflict (id) do update set {{.UpsertUpdateSet}}
 returning *;
 
 -- name: {{.ResourceName}}Exists :one
-{{if eq .DatabaseType "sqlite"}}select exists(select 1 from {{.PluralName}} where id={{.IDPlaceholder}});{{else}}select exists(select 1 from {{.PluralName}} where id={{.IDPlaceholder}}) as "exists";{{end}}
+select exists(select 1 from {{.PluralName}} where id={{.IDPlaceholder}}) as "exists";

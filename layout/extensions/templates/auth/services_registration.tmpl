@@ -26,13 +26,8 @@ type RegisterUserData struct {
 
 func RegisterUser(
 	ctx context.Context,
-{{- if eq .Database "postgresql" }}
 	db database.Postgres,
 	insertOnly queue.InsertOnly,
-{{- else if eq .Database "sqlite" }}
-	db database.SQLite,
-	sender email.TransactionalSender,
-{{- end }}
 	salt string,
 	data RegisterUserData,
 ) error {
@@ -98,18 +93,6 @@ func RegisterUser(
 	}
 
 	return tx.Commit(ctx)
-{{- else if eq .Database "sqlite" }}
-	if err := email.SendTransactional(ctx, email.TransactionalData{
-		To:       user.Email,
-		From:     "noreply@andurel.com",
-		Subject:  "Verify Your Email Address",
-		HTMLBody: html,
-		TextBody: text,
-	}, sender); err != nil {
-		return err
-	}
-
-	return tx.Commit()
 {{- end }}
 }
 
@@ -125,11 +108,7 @@ type VerifyEmailData struct {
 
 func VerifyEmail(
 	ctx context.Context,
-{{- if eq .Database "postgresql" }}
 	db database.Postgres,
-{{- else if eq .Database "sqlite" }}
-	db database.SQLite,
-{{- end }}
 	salt string,
 	data VerifyEmailData,
 ) error {
@@ -137,11 +116,7 @@ func VerifyEmail(
 	if err != nil {
 		return err
 	}
-{{- if eq .Database "postgresql" }}
 	defer tx.Rollback(ctx)
-{{- else if eq .Database "sqlite" }}
-	defer tx.Rollback()
-{{- end }}
 
 	token, err := models.FindTokenByScopeAndHash(
 		ctx,
@@ -191,9 +166,5 @@ func VerifyEmail(
 		return err
 	}
 
-{{- if eq .Database "postgresql" }}
 	return tx.Commit(ctx)
-{{- else if eq .Database "sqlite" }}
-	return tx.Commit()
-{{- end }}
 }

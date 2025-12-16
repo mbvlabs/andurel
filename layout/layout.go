@@ -66,7 +66,7 @@ func Scaffold(
 		TokenSigningKey:      generateRandomHex(32),
 		Pepper:               generateRandomHex(12),
 		Extensions:           extensionNames,
-		blueprint:            initializeBaseBlueprint(moduleName, database),
+		blueprint:            initializeBaseBlueprint(moduleName),
 	}
 
 	if err := registerBuiltinExtensions(); err != nil {
@@ -98,34 +98,10 @@ func Scaffold(
 		return fmt.Errorf("failed to process templated files: %w", err)
 	}
 
-	var nextMigrationTime time.Time
-
-	if database == "postgresql" {
-		fmt.Print("Processing PostgreSQL River queue migrations...\n")
-		var err error
-		nextMigrationTime, err = processPostgreSQLMigrations(targetDir, &templateData)
-		if err != nil {
-			return fmt.Errorf("failed to process PostgreSQL migrations: %w", err)
-		}
-	}
-
-	if database == "sqlite" {
-		fmt.Print("Processing SQLite goqite queue migrations...\n")
-		var err error
-		nextMigrationTime, err = processSQLiteMigrations(targetDir, &templateData)
-		if err != nil {
-			return fmt.Errorf("failed to process SQLite migrations: %w", err)
-		}
-
-		if err := createSqliteDB(targetDir, projectName); err != nil {
-			return fmt.Errorf("failed to create go.mod: %w", err)
-		}
-
-		cmd := exec.Command("cp", ".env.example", ".env")
-		cmd.Dir = targetDir
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("failed to copy .env.example to .env: %w", err)
-		}
+	fmt.Print("Processing PostgreSQL River queue migrations...\n")
+	nextMigrationTime, err := processPostgreSQLMigrations(targetDir, &templateData)
+	if err != nil {
+		return fmt.Errorf("failed to process PostgreSQL migrations: %w", err)
 	}
 
 	if err := os.Mkdir(filepath.Join(targetDir, "bin"), constants.DirPermissionDefault); err != nil {
@@ -302,14 +278,6 @@ var basePSQLTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"psql_queue_workers_send_marketing_email.tmpl":     "queue/workers/send_marketing_email.go",
 }
 
-var baseSqliteTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"sqlite_database.tmpl": "database/database.go",
-	"sqlite_sqlc.tmpl":     "database/sqlc.yaml",
-
-	"sqlite_queue_queue.tmpl":           "queue/queue.go",
-	"sqlite_queue_workers_workers.tmpl": "queue/workers/workers.go",
-}
-
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Core files
 	"env.tmpl":       ".env.example",
@@ -413,18 +381,9 @@ func processTemplatedFiles(
 		}
 	}
 
-	if data.DatabaseDialect() == "postgresql" {
-		for templateFile, targetPath := range basePSQLTemplateMappings {
-			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
-				return fmt.Errorf("failed to process psql template %s: %w", templateFile, err)
-			}
-		}
-	}
-	if data.DatabaseDialect() == "sqlite" {
-		for templateFile, targetPath := range baseSqliteTemplateMappings {
-			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
-				return fmt.Errorf("failed to process sqlite template %s: %w", templateFile, err)
-			}
+	for templateFile, targetPath := range basePSQLTemplateMappings {
+		if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
+			return fmt.Errorf("failed to process psql template %s: %w", templateFile, err)
 		}
 	}
 
@@ -484,39 +443,6 @@ func processPostgreSQLMigrations(
 			4 * time.Second,
 		},
 		{"psql_riverqueue_migration_six.tmpl", "add_river_job_unique_states", 5 * time.Second},
-	}
-
-	var lastTime time.Time
-	for _, migration := range migrations {
-		lastTime = baseTime.Add(migration.offset)
-		timestamp := lastTime.Format("20060102150405")
-		targetPath := fmt.Sprintf("database/migrations/%s_%s.sql", timestamp, migration.name)
-
-		if err := renderTemplate(targetDir, migration.template, targetPath, templates.Files, data); err != nil {
-			return time.Time{}, fmt.Errorf(
-				"failed to process migration %s: %w",
-				migration.template,
-				err,
-			)
-		}
-	}
-
-	return lastTime.Add(1 * time.Second), nil
-}
-
-func processSQLiteMigrations(targetDir string, data extensions.TemplateData) (time.Time, error) {
-	baseTime := time.Now()
-
-	if os.Getenv("ANDUREL_TEST_MODE") == "true" {
-		baseTime = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	}
-
-	migrations := []struct {
-		template string
-		name     string
-		offset   time.Duration
-	}{
-		{"sqlite_goqite_migration_one.tmpl", "create_goqite_table", 0},
 	}
 
 	var lastTime time.Time
@@ -898,12 +824,6 @@ func createGoMod(targetDir string, data *TemplateData) error {
 	return nil
 }
 
-func createSqliteDB(targetDir, projectName string) error {
-	goModPath := filepath.Join(targetDir, projectName+".db")
-
-	return os.WriteFile(goModPath, nil, 0o644)
-}
-
 func initializeGit(targetDir string) error {
 	cmd := exec.Command("git", "init")
 	cmd.Dir = targetDir
@@ -918,7 +838,7 @@ func generateRandomHex(bytes int) string {
 
 // initializeBaseBlueprint creates a blueprint with default base configuration
 // for controllers, routes, and other scaffold components.
-func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
+func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 	builder := blueprint.NewBuilder(nil)
 
 	builder.AddMainImport(fmt.Sprintf("%s/email", moduleName))
@@ -933,17 +853,7 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 
 	builder.AddConfigField("Email", "email")
 
-	// Controller dependencies - database is the primary dependency
-	var dbType string
-	switch database {
-	case "postgresql":
-		dbType = "database.Postgres"
-	case "sqlite":
-		dbType = "database.SQLite"
-	default:
-		dbType = "database.Postgres"
-	}
-	builder.AddControllerDependency("db", dbType)
+	builder.AddControllerDependency("db", "database.Postgres")
 	builder.AddControllerDependency("emailClient", "email.TransactionalSender")
 
 	// Controller fields - the main sub-controllers
@@ -955,13 +865,8 @@ func initializeBaseBlueprint(moduleName, database string) *blueprint.Blueprint {
 	// Constructor initializations
 	builder.
 		AddControllerConstructor("assets", "newAssets(assetsCache)").
-		AddControllerConstructor("api", "newAPI(db)")
-
-	if database == "postgresql" {
-		builder.AddControllerConstructor("pages", "newPages(db, insertOnly, pagesCache)")
-	} else {
-		builder.AddControllerConstructor("pages", "newPages(db, pagesCache)")
-	}
+		AddControllerConstructor("api", "newAPI(db)").
+		AddControllerConstructor("pages", "newPages(db, insertOnly, pagesCache)")
 
 	for _, tool := range defaultTools {
 		builder.AddTool(tool)

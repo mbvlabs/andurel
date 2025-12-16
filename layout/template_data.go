@@ -12,7 +12,7 @@ type TemplateData struct {
 	AppName              string
 	ProjectName          string
 	ModuleName           string
-	Database             string
+	Database             string // Always "postgresql"
 	CSSFramework         string
 	GoVersion            string
 	SessionKey           string
@@ -25,14 +25,9 @@ type TemplateData struct {
 	blueprint *blueprint.Blueprint
 }
 
-// DatabaseDialect returns the configured database for the template or an empty
-// string when not available.
+// DatabaseDialect returns the configured database, which is always PostgreSQL.
 func (td *TemplateData) DatabaseDialect() string {
-	if td == nil {
-		return ""
-	}
-
-	return td.Database
+	return "postgresql"
 }
 
 // GetModuleName returns the module name for the project.

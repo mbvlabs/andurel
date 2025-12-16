@@ -93,14 +93,9 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 	var goType string
 	var err error
 
-	// Special handling for ID fields in SQLite - always use uuid.UUID
-	if col.Name == "id" && g.typeMapper.GetDatabaseType() == "sqlite" {
-		goType = "uuid.UUID"
-	} else {
-		goType, _, _, err = g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
-		if err != nil {
-			return GeneratedField{}, err
-		}
+	goType, _, _, err = g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
+	if err != nil {
+		return GeneratedField{}, err
 	}
 
 	field := GeneratedField{

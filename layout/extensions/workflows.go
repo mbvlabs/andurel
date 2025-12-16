@@ -18,10 +18,6 @@ func (w Workflows) Apply(ctx *Context) error {
 		return fmt.Errorf("workflows: context or data is nil")
 	}
 
-	if ctx.Data.DatabaseDialect() != "postgresql" {
-		return fmt.Errorf("workflows: requires PostgreSQL database (SQLite not supported)")
-	}
-
 	builder := ctx.Builder()
 	moduleName := ctx.Data.GetModuleName()
 

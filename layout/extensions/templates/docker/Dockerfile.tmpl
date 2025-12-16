@@ -14,13 +14,6 @@ RUN ./bin/tailwindcli -i ./css/base.css -o ./assets/css/style.css --minify
 FROM golang:${GO_VERSION}-bookworm AS builder
 
 WORKDIR /usr/src/app
-{{- if eq .Database "sqlite"}}
-
-RUN apt-get update && apt-get install -y \
-    gcc \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-{{- end}}
 
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
@@ -30,19 +23,12 @@ COPY . .
 COPY --from=css-builder /usr/src/app/assets/css/style.css ./assets/css/style.css
 {{- end}}
 
-{{- if eq .Database "sqlite"}}
-RUN CGO_ENABLED=1 GOOS=linux go build -v -o /run-app ./cmd/app
-{{- else}}
 RUN CGO_ENABLED=0 GOOS=linux go build -v -o /run-app ./cmd/app
-{{- end}}
 
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \
-{{- if eq .Database "sqlite"}}
-    libsqlite3-0 \
-{{- end}}
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /run-app /usr/local/bin/run-app

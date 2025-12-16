@@ -4,15 +4,9 @@
 
 package db
 
-{{ if eq .Database "postgresql" }}
 import (
 	"github.com/google/uuid"
 )
-{{ else if eq .Database "sqlite" }}
-import (
-	"github.com/google/uuid"
-)
-{{ end }}
 
 // Constructor functions for SQLC parameters - these get updated during refresh
 // to make schema changes compiler-enforced and visible
@@ -22,34 +16,19 @@ func BuildInsertPaymentCustomerParams(
 	providerCustomerID string,
 	email string,
 ) InsertPaymentCustomerParams {
-{{- if eq .Database "postgresql" }}
 	return InsertPaymentCustomerParams{
 		ID:                 id,
 		ProviderCustomerID: providerCustomerID,
 		Email:              email,
 	}
-{{- else if eq .Database "sqlite" }}
-	return InsertPaymentCustomerParams{
-		ID:                 id.String(),
-		ProviderCustomerID: providerCustomerID,
-		Email:              email,
-	}
-{{- end }}
 }
 
 func BuildUpdatePaymentCustomerParams(
 	id uuid.UUID,
 	email string,
 ) UpdatePaymentCustomerParams {
-{{- if eq .Database "postgresql" }}
 	return UpdatePaymentCustomerParams{
 		ID:    id,
 		Email: email,
 	}
-{{- else if eq .Database "sqlite" }}
-	return UpdatePaymentCustomerParams{
-		ID:    id.String(),
-		Email: email,
-	}
-{{- end }}
 }

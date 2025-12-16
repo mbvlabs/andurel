@@ -1,12 +1,8 @@
 package controllers
 
 import (
-{{- if eq .Database "postgresql"}}
 	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/queue"
-{{- else if eq .Database "sqlite"}}
-	"{{.ModuleName}}/database"
-{{- end}}
 	"{{.ModuleName}}/views"
 
 	"github.com/a-h/templ"
@@ -14,16 +10,11 @@ import (
 )
 
 type Pages struct {
-{{- if eq .Database "postgresql"}}
 	db         database.Postgres
 	insertOnly queue.InsertOnly
-{{- else if eq .Database "sqlite"}}
-	db         database.SQLite
-{{- end}}
 	cache      *Cache[templ.Component]
 }
 
-{{- if eq .Database "postgresql"}}
 func newPages(
 	db database.Postgres,
 	insertOnly queue.InsertOnly,
@@ -31,16 +22,6 @@ func newPages(
 ) Pages {
 	return Pages{db, insertOnly, cache}
 }
-
-{{- else if eq .Database "sqlite"}}
-func newPages(
-	db database.SQLite,
-	cache *Cache[templ.Component],
-) Pages {
-	return Pages{db, cache}
-}
-
-{{- end}}
 
 func (p Pages) Home(c echo.Context) error {
 	cacheKey := "home"

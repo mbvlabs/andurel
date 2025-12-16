@@ -19,7 +19,7 @@ Development speed is everything. Andurel eliminates boilerplate and lets you foc
 - **Type Safety Everywhere** - SQLC for SQL, Templ for HTML, Go for logic
 - **Batteries Included** - Echo, Datastar, background jobs, sessions, CSRF protection, telemetry, email support, optional extensions (auth, workflows, docker)
 - **Convention over Configuration** - Sensible defaults that just work
-- **Your Choice** - Pick PostgreSQL or SQLite, Tailwind or vanilla CSS
+- **PostgreSQL-Backed** - Built on PostgreSQL with River job queues, pgx driver, and UUID support
 
 ## Core Technologies
 
@@ -29,7 +29,7 @@ Development speed is everything. Andurel eliminates boilerplate and lets you foc
 - **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity (RC6)
 - **[River](https://riverqueue.com/)** - PostgreSQL-backed background jobs and workflows
 - **[OpenTelemetry](https://opentelemetry.io/)** - Built-in observability
-- **PostgreSQL or SQLite** - Choose your database (both support background jobs)
+- **[PostgreSQL](https://www.postgresql.org/)** - Powerful open-source database with pgx driver and native UUID support
 - **Tailwind CSS or vanilla CSS** - Choose your styling approach
 
 ## Quick Start
@@ -48,14 +48,12 @@ Andurel gives you choices when creating a new project:
 # Create a new project with defaults (PostgreSQL + Tailwind CSS)
 andurel new myapp
 
-# Or customize your stack:
-andurel new myapp -d sqlite              # Use SQLite instead of PostgreSQL
+# Or customize your styling:
 andurel new myapp -c vanilla             # Use vanilla CSS instead of Tailwind
-andurel new myapp -d sqlite -c vanilla   # SQLite + vanilla CSS
 
 # Add extensions for common features:
 andurel new myapp -e auth                # Add authentication
-andurel new myapp -e workflows           # Add workflow orchestration (PostgreSQL only)
+andurel new myapp -e workflows           # Add workflow orchestration
 andurel new myapp -e docker              # Add Dockerfile for containerization
 andurel new myapp -e auth,workflows,docker   # Add multiple extensions
 
@@ -227,14 +225,12 @@ andurel a c          # short alias
 # Create a new project with defaults (PostgreSQL + Tailwind CSS)
 andurel new myapp
 
-# Customize your stack:
-andurel new myapp -d sqlite              # Use SQLite
+# Customize your styling:
 andurel new myapp -c vanilla             # Use vanilla CSS
-andurel new myapp -d sqlite -c vanilla   # Both options
 
 # Add extensions:
 andurel new myapp -e auth                # Authentication
-andurel new myapp -e workflows           # Workflow orchestration (PostgreSQL only)
+andurel new myapp -e workflows           # Workflow orchestration
 andurel new myapp -e docker              # Docker containerization
 andurel new myapp -e auth,workflows,docker   # Multiple extensions
 
@@ -270,9 +266,8 @@ Models support flexible table name mapping for working with existing databases o
 
 ### Background Jobs
 
-Built-in background job processing with database-backed queues:
+Built-in background job processing with River, PostgreSQL-backed job queue:
 
-**PostgreSQL** - River-based job queue with web UI:
 ```go
 // Define a job
 type EmailJobArgs struct {
@@ -285,18 +280,17 @@ func (EmailJobArgs) Kind() string { return "email_job" }
 insertOnly.Client.Insert(ctx, EmailJobArgs{UserID: userID}, nil)
 ```
 
-**Queue Management** - RiverUI provides a web interface for monitoring and managing background jobs (PostgreSQL only). Access it during development to view job status, retry failed jobs, and monitor queue performance.
+**Queue Management** - RiverUI provides a web interface for monitoring and managing background jobs. Access it during development to view job status, retry failed jobs, and monitor queue performance.
 
-**SQLite** - goqite-based job queue for lightweight async processing with the same API as River.
+### PostgreSQL-Powered
 
-### Database Support
+Andurel is built on PostgreSQL for robust, production-ready applications:
 
-Choose your database when creating a project:
-
-- **PostgreSQL** (default) - Full feature support including River background jobs and workflows, ideal for production and concurrent workloads
-- **SQLite** - Lightweight, serverless database with goqite-based background jobs, perfect for simpler applications and prototypes
-
-Both databases are fully supported with type-safe SQLC code generation and background job processing. The choice depends on your application requirements, not just development vs production.
+- **River Job Queue** - Fast, reliable background job processing with built-in web UI
+- **UUID Support** - Native UUID primary keys for distributed systems
+- **pgx Driver** - High-performance PostgreSQL driver with connection pooling
+- **Type-Safe Queries** - SQLC generates Go code from your SQL queries
+- **Workflow Orchestration** - Complex multi-step processes with the workflows extension
 
 ### Live Development Experience
 
@@ -354,7 +348,7 @@ url := routes.UserShowPage.URL(userID)
 Andurel includes optional extensions that add common functionality to your projects:
 
 - **auth** - Complete authentication system with login, registration, password reset, session management, and IP-based rate limiting for security
-- **workflows** - River-based workflow orchestration for managing complex multi-step background processes with task dependencies (PostgreSQL only)
+- **workflows** - River-based workflow orchestration for managing complex multi-step background processes with task dependencies
 - **docker** - Production-ready Dockerfile and .dockerignore for containerized deployments
 
 Add extensions when creating a project with the `-e` flag:
@@ -365,7 +359,7 @@ andurel new myapp -e workflows,docker
 andurel new myapp -e auth,workflows,docker
 ```
 
-Extensions integrate seamlessly with your chosen database and CSS framework, generating all necessary models, controllers, views, and routes.
+Extensions integrate seamlessly with your chosen CSS framework, generating all necessary models, controllers, views, and routes.
 
 ### Frontend Interactivity with Datastar
 
@@ -483,7 +477,6 @@ Andurel is built on top of excellent open-source projects:
 - **[Templ](https://templ.guide/)** - Type-safe Go templates
 - **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity (RC6)
 - **[River](https://riverqueue.com/)** - Fast PostgreSQL-backed job queue and workflows
-- **[goqite](https://github.com/maragudk/goqite)** - SQLite-backed job queue
 - **[OpenTelemetry](https://opentelemetry.io/)** - Observability framework for logs, traces, and metrics
 - **[pgx](https://github.com/jackc/pgx)** - PostgreSQL driver and toolkit
 - **[Air](https://github.com/cosmtrek/air)** - Live reload for Go apps

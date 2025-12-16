@@ -28,16 +28,7 @@ func TestModelFileGeneration_InvalidPrimaryKeyTypes(t *testing.T) {
 			resourceName:     "User",
 			modulePath:       "github.com/example/myapp",
 			databaseType:     "postgresql",
-			expectedErrorMsg: "PostgreSQL primary keys must use 'uuid'",
-		},
-		{
-			name:             "Should reject SQLite migration with UUID primary key",
-			migrationsDir:    "invalid_sqlite_primary_key",
-			tableName:        "users",
-			resourceName:     "User",
-			modulePath:       "github.com/example/myapp",
-			databaseType:     "sqlite",
-			expectedErrorMsg: "SQLite primary keys must use 'text'",
+			expectedErrorMsg: "primary keys must use 'uuid'",
 		},
 	}
 
@@ -71,9 +62,7 @@ func TestModelFileGeneration_InvalidPrimaryKeyTypes(t *testing.T) {
 				)
 			}
 
-			// Verify the error message also contains the migration file name
-			if !strings.Contains(err.Error(), "001_users_text_pk.sql") &&
-				!strings.Contains(err.Error(), "001_users_uuid_pk.sql") {
+			if !strings.Contains(err.Error(), "001_users_text_pk.sql") {
 				t.Errorf(
 					"Expected error message to contain migration file name, but got: %s",
 					err.Error(),
@@ -102,29 +91,12 @@ func TestRefreshQueries__ValidatesIDColumns(t *testing.T) {
 			shouldFail:    false,
 		},
 		{
-			name:          "Should succeed with valid SQLite TEXT primary key",
-			migrationsDir: "sqlite_user_table",
-			tableName:     "users",
-			resourceName:  "User",
-			databaseType:  "sqlite",
-			shouldFail:    false,
-		},
-		{
 			name:             "Should fail with invalid PostgreSQL TEXT primary key",
 			migrationsDir:    "invalid_pg_primary_key",
 			tableName:        "users",
 			resourceName:     "User",
 			databaseType:     "postgresql",
-			expectedErrorMsg: "PostgreSQL primary keys must use 'uuid'",
-			shouldFail:       true,
-		},
-		{
-			name:             "Should fail with invalid SQLite UUID primary key",
-			migrationsDir:    "invalid_sqlite_primary_key",
-			tableName:        "users",
-			resourceName:     "User",
-			databaseType:     "sqlite",
-			expectedErrorMsg: "SQLite primary keys must use 'text'",
+			expectedErrorMsg: "primary keys must use 'uuid'",
 			shouldFail:       true,
 		},
 	}

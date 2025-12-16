@@ -27,7 +27,6 @@ type GeneratedField struct {
 	ConversionToDB          string
 	ConversionToDBForUpdate string
 	ZeroCheck               string
-	RequiresErrorHandling   bool
 }
 
 type GeneratedModel struct {
@@ -151,29 +150,19 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 	var goType, sqlcType, pkg string
 	var err error
 
-	// Special handling for ID fields in SQLite - always use uuid.UUID
-	if col.Name == "id" && g.typeMapper.GetDatabaseType() == "sqlite" {
-		goType = "uuid.UUID"
-		sqlcType = "string"
-		pkg = "github.com/google/uuid"
-	} else {
-		goType, sqlcType, _, err = g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
-		if err != nil {
-			return GeneratedField{}, err
-		}
-
-		// For model generation, use simple Go types in the struct, not pgtype
-		// The conversion from SQLC types happens in the rowToModel function
-		goType = g.getSimpleGoType(goType, sqlcType)
-		pkg = g.getSimpleGoTypePackage(goType)
+	goType, sqlcType, _, err = g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
+	if err != nil {
+		return GeneratedField{}, err
 	}
 
+	goType = g.getSimpleGoType(goType, sqlcType)
+	pkg = g.getSimpleGoTypePackage(goType)
+
 	field := GeneratedField{
-		Name:                  types.FormatFieldName(col.Name),
-		Type:                  goType,
-		SQLCType:              sqlcType,
-		Package:               pkg,
-		RequiresErrorHandling: col.Name == "id" && g.typeMapper.GetDatabaseType() == "sqlite",
+		Name:     types.FormatFieldName(col.Name),
+		Type:     goType,
+		SQLCType: sqlcType,
+		Package:  pkg,
 	}
 
 	field.ConversionFromDB = g.typeMapper.GenerateConversionFromDB(
@@ -279,17 +268,9 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 			return strings.ToUpper(s)
 		},
 		"uuidParam": func(param string) string {
-			if model.DatabaseType == "sqlite" {
-				return param + ".String()"
-			}
 			return param
 		},
 		"hasErrorHandling": func() bool {
-			for _, field := range model.Fields {
-				if field.RequiresErrorHandling {
-					return true
-				}
-			}
 			return false
 		},
 	}
@@ -417,12 +398,6 @@ func (g *Generator) prepareSQLData(
 	var idPlaceholder string
 	var limitOffsetClause string
 
-	if g.typeMapper.GetDatabaseType() == "sqlite" {
-		placeholderFunc = func(i int) string { return "?" }
-		nowFunc = "datetime('now')"
-		idPlaceholder = "?"
-		limitOffsetClause = "limit ? offset ?"
-	}
 	if g.typeMapper.GetDatabaseType() == "postgresql" {
 		placeholderFunc = func(i int) string { return fmt.Sprintf("$%d", i) }
 		nowFunc = "now()"
@@ -529,7 +504,8 @@ func (g *Generator) filterMigrationsForTable(
 }
 
 func (g *Generator) statementAffectsTable(statement, tableName string) bool {
-	stmt, err := ddl.ParseDDLStatement(statement, "", g.databaseType)
+	parser := ddl.NewDDLParser()
+	stmt, err := parser.Parse(statement, "", g.databaseType)
 	if err != nil {
 		// Don't filter out statements that fail to parse - let them be processed
 		// by ApplyDDL so validation errors can be properly reported
@@ -540,9 +516,14 @@ func (g *Generator) statementAffectsTable(statement, tableName string) bool {
 		return false
 	}
 
-	switch stmt.Type {
-	case ddl.CreateTable, ddl.AlterTable, ddl.DropTable:
-		return stmt.TableName == tableName
+	// Check based on statement type
+	switch s := stmt.(type) {
+	case *ddl.CreateTableStatement:
+		return s.TableName == tableName
+	case *ddl.AlterTableStatement:
+		return s.TableName == tableName
+	case *ddl.DropTableStatement:
+		return s.TableName == tableName
 	default:
 		return false
 	}
@@ -615,14 +596,7 @@ func (g *Generator) GenerateConstructorFile(
 			if len(s) == 0 {
 				return s
 			}
-			// Convert first character to lowercase
 			return strings.ToLower(s[:1]) + s[1:]
-		},
-		"uuidParam": func(param string) string {
-			if model.DatabaseType == "sqlite" {
-				return param + ".String()"
-			}
-			return param
 		},
 	}
 

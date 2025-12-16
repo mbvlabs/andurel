@@ -1,4 +1,3 @@
-{{- if eq .Database "postgresql" -}}
 -- name: QueryPaymentCustomerByProviderID :one
 SELECT * FROM payment_customers WHERE provider_customer_id=$1;
 
@@ -15,21 +14,3 @@ RETURNING *;
 
 -- name: DeletePaymentCustomer :exec
 DELETE FROM payment_customers WHERE id=$1;
-{{- else if eq .Database "sqlite" -}}
--- name: QueryPaymentCustomerByProviderID :one
-SELECT * FROM payment_customers WHERE provider_customer_id=?;
-
--- name: InsertPaymentCustomer :one
-INSERT INTO payment_customers (id, created_at, updated_at, provider_customer_id, email)
-VALUES (?, datetime('now'), datetime('now'), ?, ?)
-RETURNING *;
-
--- name: UpdatePaymentCustomer :one
-UPDATE payment_customers
-SET updated_at=datetime('now'), email=?
-WHERE id = ?
-RETURNING *;
-
--- name: DeletePaymentCustomer :exec
-DELETE FROM payment_customers WHERE id=?;
-{{- end -}}

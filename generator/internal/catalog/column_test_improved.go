@@ -94,40 +94,6 @@ func testValidatePrimaryKeyDatatype(t *testing.T) {
 			},
 			Error: &testError{}, // We'll check for error existence
 		},
-		{
-			Name: "sqlite_valid_primary_key",
-			Input: struct {
-				column        *Column
-				databaseType  string
-				migrationFile string
-			}{
-				column: &Column{
-					Name:         "id",
-					DataType:     "text",
-					IsPrimaryKey: true,
-				},
-				databaseType:  "sqlite",
-				migrationFile: "test.sql",
-			},
-			Error: nil,
-		},
-		{
-			Name: "sqlite_invalid_primary_key",
-			Input: struct {
-				column        *Column
-				databaseType  string
-				migrationFile string
-			}{
-				column: &Column{
-					Name:         "id",
-					DataType:     "uuid",
-					IsPrimaryKey: true,
-				},
-				databaseType:  "sqlite",
-				migrationFile: "test.sql",
-			},
-			Error: &testError{}, // We'll check for error existence
-		},
 	}
 
 	tableTest := testsuite.NewTableDrivenTest(

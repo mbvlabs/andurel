@@ -103,11 +103,6 @@ func (pgm *PostgreSQLTypeMapper) MapToSQLType(goType string, nullable bool) (str
 func (pgm *PostgreSQLTypeMapper) GenerateConversionFromDB(
 	fieldName, sqlcType, goType string,
 ) string {
-	// Special case: UUID from string for SQLite ID fields
-	if goType == "uuid.UUID" && sqlcType == "string" {
-		return fmt.Sprintf("uuid.Parse(row.%s)", fieldName)
-	}
-
 	if strings.HasPrefix(sqlcType, "pgtype.") {
 		switch sqlcType {
 		case "pgtype.Text":
@@ -170,11 +165,6 @@ func (pgm *PostgreSQLTypeMapper) GenerateConversionFromDB(
 
 // GenerateConversionToDB generates conversion code from Go to PostgreSQL type
 func (pgm *PostgreSQLTypeMapper) GenerateConversionToDB(sqlcType, goType, valueExpr string) string {
-	// Special case: UUID to string for SQLite ID fields
-	if goType == "uuid.UUID" && sqlcType == "string" {
-		return fmt.Sprintf("%s.String()", valueExpr)
-	}
-
 	if strings.HasPrefix(sqlcType, "pgtype.") {
 		switch sqlcType {
 		case "pgtype.Text":

@@ -62,43 +62,6 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 				"BuildUpdateUserParams()",
 			},
 		},
-		{
-			name:          "SQLite should properly convert nullable and non-nullable columns",
-			migrationsDir: "sqlite_user_table",
-			tableName:     "users",
-			resourceName:  "User",
-			modulePath:    "github.com/example/myapp",
-			databaseType:  "sqlite",
-			expectedCreateParams: []string{
-				"params := db.BuildInsertUserParams(",
-				"uuid.New(),",
-				"data.Email,",
-				"sql.NullTime{Time: data.EmailVerifiedAt, Valid: true}",
-				"data.Password,",
-				"data.IsAdmin,",
-			},
-			expectedUpdateParams: []string{
-				"params := db.BuildUpdateUserParams(",
-				"data.ID.String(),",
-				"data.Email,",
-				"sql.NullTime{Time: data.EmailVerifiedAt, Valid: true}",
-				"data.Password,",
-				"data.IsAdmin,",
-			},
-			expectedUpsertParams: []string{
-				"params := db.BuildUpsertUserParams(",
-				"uuid.New(),",
-			},
-			expectedFindOrCreateParams: []string{
-				"data.ID,",
-			},
-			unexpectedCreateCode: []string{
-				"BuildInsertUserParams()",
-			},
-			unexpectedUpdateCode: []string{
-				"BuildUpdateUserParams()",
-			},
-		},
 	}
 
 	for _, tt := range tests {

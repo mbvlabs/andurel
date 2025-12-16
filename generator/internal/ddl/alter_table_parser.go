@@ -82,6 +82,12 @@ func (p *AlterTableParser) parseAlterTableSingleOperation(
 		return p.parseRenameColumn(stmt, operation)
 	case strings.HasPrefix(operationLower, "rename to"):
 		return p.parseRenameTable(stmt, operation)
+	case strings.HasPrefix(operationLower, "add constraint"):
+		stmt.AlterOperation = "ADD_CONSTRAINT"
+		return stmt, nil
+	case strings.HasPrefix(operationLower, "drop constraint"):
+		stmt.AlterOperation = "DROP_CONSTRAINT"
+		return stmt, nil
 	default:
 		return stmt, nil
 	}
