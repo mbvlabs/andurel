@@ -529,7 +529,8 @@ func (g *Generator) filterMigrationsForTable(
 }
 
 func (g *Generator) statementAffectsTable(statement, tableName string) bool {
-	stmt, err := ddl.ParseDDLStatement(statement, "", g.databaseType)
+	parser := ddl.NewDDLParser()
+	stmt, err := parser.Parse(statement, "", g.databaseType)
 	if err != nil {
 		// Don't filter out statements that fail to parse - let them be processed
 		// by ApplyDDL so validation errors can be properly reported
@@ -540,9 +541,14 @@ func (g *Generator) statementAffectsTable(statement, tableName string) bool {
 		return false
 	}
 
-	switch stmt.Type {
-	case ddl.CreateTable, ddl.AlterTable, ddl.DropTable:
-		return stmt.TableName == tableName
+	// Check based on statement type
+	switch s := stmt.(type) {
+	case *ddl.CreateTableStatement:
+		return s.TableName == tableName
+	case *ddl.AlterTableStatement:
+		return s.TableName == tableName
+	case *ddl.DropTableStatement:
+		return s.TableName == tableName
 	default:
 		return false
 	}
