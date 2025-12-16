@@ -447,16 +447,14 @@ PROJECT_NAME={{.AppName}}
 DOMAIN=localhost:8080
 PROTOCOL=http
 
-# Database{{if eq .Database "postgres"}}
+# Database
 DB_KIND=postgres
 DB_HOST=127.0.0.1
 DB_PORT=5432
 DB_NAME={{.AppName}}_development
 DB_USER=postgres
 DB_PASSWORD=postgres
-DB_SSL_MODE=disable{{else}}
-DB_KIND=sqlite3
-DB_PATH=./{{.AppName}}.db{{end}}
+DB_SSL_MODE=disable
 
 # Email (Mailpit for development)
 MAILPIT_HOST=0.0.0.0

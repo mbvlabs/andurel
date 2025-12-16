@@ -4,20 +4,12 @@
 
 package db
 
-{{ if eq .Database "postgresql" }}
 import (
 	"database/sql"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
-{{ else if eq .Database "sqlite" }}
-import (
-	"database/sql"
-
-	"github.com/google/uuid"
-)
-{{ end }}
 
 // Constructor functions for SQLC parameters - these get updated during refresh
 // to make schema changes compiler-enforced and visible
@@ -29,7 +21,6 @@ func BuildInsertUserParams(
 	password []byte,
 	isAdmin bool,
 ) InsertUserParams {
-{{- if eq .Database "postgresql" }}
 	validated := pgtype.Timestamptz{}
 	if emailValidatedAt.Valid {
 		validated = pgtype.Timestamptz{
@@ -45,20 +36,6 @@ func BuildInsertUserParams(
 		Password:         password,
 		IsAdmin:          isAdmin,
 	}
-{{- else if eq .Database "sqlite" }}
-	var sqliteIsAdmin int64
-	if isAdmin {
-		sqliteIsAdmin = 1
-	}
-
-	return InsertUserParams{
-		ID:               id.String(),
-		Email:            email,
-		EmailValidatedAt: emailValidatedAt,
-		Password:         password,
-		IsAdmin:          sqliteIsAdmin,
-	}
-{{- end }}
 }
 
 func BuildUpdateUserParams(
@@ -68,7 +45,6 @@ func BuildUpdateUserParams(
 	password []byte,
 	isAdmin bool,
 ) UpdateUserParams {
-{{- if eq .Database "postgresql" }}
 	validated := pgtype.Timestamptz{}
 	if emailValidatedAt.Valid {
 		validated = pgtype.Timestamptz{
@@ -86,20 +62,6 @@ func BuildUpdateUserParams(
 		Password:         password,
 		IsAdmin:          isAdmin,
 	}
-{{- else if eq .Database "sqlite" }}
-	var sqliteIsAdmin int64
-	if isAdmin {
-		sqliteIsAdmin = 1
-	}
-
-	return UpdateUserParams{
-		ID:               id,
-		Email:            email,
-		EmailValidatedAt: emailValidatedAt,
-		Password:         password,
-		IsAdmin:          sqliteIsAdmin,
-	}
-{{- end }}
 }
 
 func BuildQueryPaginatedUsersParams(limit, offset int64) QueryPaginatedUsersParams {

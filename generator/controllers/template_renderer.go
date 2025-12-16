@@ -38,9 +38,6 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 			return "Conn"
 		},
 		"uuidParam": func(param string) string {
-			if controller.DatabaseType == "sqlite" {
-				return param + ".String()"
-			}
 			return param
 		},
 	}

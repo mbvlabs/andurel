@@ -1,35 +1,19 @@
 package controllers
 
 import (
-{{- if eq .Database "postgresql"}}
 	"{{.ModuleName}}/database"
-{{- else if eq .Database "sqlite"}}
-	"{{.ModuleName}}/database"
-{{- end}}
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 )
 
 type API struct {
-{{- if eq .Database "postgresql"}}
 	db database.Postgres
-{{- else if eq .Database "sqlite"}}
-	db database.SQLite
-{{- end}}
 }
 
-{{- if eq .Database "postgresql"}}
 func newAPI(db database.Postgres) API {
 	return API{db}
 }
-
-{{- else if eq .Database "sqlite"}}
-func newAPI(db database.SQLite) API {
-	return API{db}
-}
-
-{{- end}}
 
 func (a API) Health(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, "app is healthy and running")

@@ -21,11 +21,7 @@ type LoginData struct {
 
 func AuthenticateUser(
 	ctx context.Context,
-{{- if eq .Database "postgresql" }}
 	db database.Postgres,
-{{- else if eq .Database "sqlite" }}
-	db database.SQLite,
-{{- end }}
 	salt string,
 	data LoginData,
 ) (models.User, error) {

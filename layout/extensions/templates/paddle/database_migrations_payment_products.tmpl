@@ -1,4 +1,3 @@
-{{- if eq .Database "postgresql" -}}
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS payment_products (
@@ -20,26 +19,3 @@ CREATE TABLE IF NOT EXISTS payment_products (
 -- +goose StatementBegin
 DROP TABLE IF EXISTS payment_products;
 -- +goose StatementEnd
-{{- else if eq .Database "sqlite" -}}
--- +goose Up
--- +goose StatementBegin
-CREATE TABLE IF NOT EXISTS payment_products (
-    id TEXT PRIMARY KEY,
-    created_at DATETIME NOT NULL,
-    updated_at DATETIME NOT NULL,
-    provider_product_id TEXT NOT NULL UNIQUE,
-    provider_price_id TEXT NOT NULL,
-    name TEXT NOT NULL,
-    description TEXT,
-    price_amount TEXT NOT NULL,
-    price_currency TEXT NOT NULL,
-    image_url TEXT,
-    is_active INTEGER NOT NULL DEFAULT 1
-);
--- +goose StatementEnd
-
--- +goose Down
--- +goose StatementBegin
-DROP TABLE IF EXISTS payment_products;
--- +goose StatementEnd
-{{- end -}}

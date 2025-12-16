@@ -14,7 +14,6 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-{{- if eq .Database "postgresql" }}
 type Confirmations struct {
 	db  database.Postgres
 	cfg config.Config
@@ -23,16 +22,6 @@ type Confirmations struct {
 func newConfirmations(db database.Postgres, cfg config.Config) Confirmations {
 	return Confirmations{db, cfg}
 }
-{{- else if eq .Database "sqlite" }}
-type Confirmations struct {
-	db  database.SQLite
-	cfg config.Config
-}
-
-func newConfirmations(db database.SQLite, cfg config.Config) Confirmations {
-	return Confirmations{db, cfg}
-}
-{{- end }}
 
 // New renders the email verification form
 func (r Confirmations) New(c echo.Context) error {

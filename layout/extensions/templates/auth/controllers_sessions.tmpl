@@ -15,7 +15,6 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-{{- if eq .Database "postgresql" }}
 type Sessions struct {
 	db  database.Postgres
 	cfg config.Config
@@ -24,16 +23,6 @@ type Sessions struct {
 func newSessions(db database.Postgres, cfg config.Config) Sessions {
 	return Sessions{db, cfg}
 }
-{{- else if eq .Database "sqlite" }}
-type Sessions struct {
-	db  database.SQLite
-	cfg config.Config
-}
-
-func newSessions(db database.SQLite, cfg config.Config) Sessions {
-	return Sessions{db, cfg}
-}
-{{- end }}
 
 func (s Sessions) New(c echo.Context) error {
 	return render(c, views.LoginForm())

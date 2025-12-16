@@ -4,20 +4,12 @@
 
 package db
 
-{{ if eq .Database "postgresql" }}
 import (
 	"database/sql"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
-{{ else if eq .Database "sqlite" }}
-import (
-	"database/sql"
-
-	"github.com/google/uuid"
-)
-{{ end }}
 
 // Constructor functions for SQLC parameters - these get updated during refresh
 // to make schema changes compiler-enforced and visible
@@ -63,20 +55,6 @@ func BuildInsertPaymentTransactionParams(
 		CompletedAt:             completed,
 		RawData:                 rawData.([]byte),
 	}
-{{- else if eq .Database "sqlite" }}
-	return InsertPaymentTransactionParams{
-		ID:                    id.String(),
-		ProviderTransactionID: providerTransactionID,
-		ProviderCustomerID:    providerCustomerID,
-		Status:                status,
-		Amount:                amount,
-		Currency:              currency,
-		InvoiceNumber:         invoiceNumber,
-		BilledAt:              billedAt,
-		CompletedAt:           completedAt,
-		RawData:               rawData.(sql.NullString),
-	}
-{{- end }}
 }
 
 func BuildUpdatePaymentTransactionParams(
@@ -116,18 +94,6 @@ func BuildUpdatePaymentTransactionParams(
 		CompletedAt:   completed,
 		RawData:       rawData.([]byte),
 	}
-{{- else if eq .Database "sqlite" }}
-	return UpdatePaymentTransactionParams{
-		ID:            id.String(),
-		Status:        status,
-		Amount:        amount,
-		Currency:      currency,
-		InvoiceNumber: invoiceNumber,
-		BilledAt:      billedAt,
-		CompletedAt:   completedAt,
-		RawData:       rawData.(sql.NullString),
-	}
-{{- end }}
 }
 
 func BuildUpdatePaymentTransactionStatusParams(
@@ -149,11 +115,4 @@ func BuildUpdatePaymentTransactionStatusParams(
 		Status:                status,
 		CompletedAt:           completed,
 	}
-{{- else if eq .Database "sqlite" }}
-	return UpdatePaymentTransactionStatusParams{
-		ProviderTransactionID: providerTransactionID,
-		Status:                status,
-		CompletedAt:           completedAt,
-	}
-{{- end }}
 }

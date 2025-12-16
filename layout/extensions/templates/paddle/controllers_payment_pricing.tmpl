@@ -11,7 +11,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-{{- if eq .Database "postgresql" }}
 type PaymentPricing struct {
 	db     database.Postgres
 	client *payment.PaddleClient
@@ -20,16 +19,6 @@ type PaymentPricing struct {
 func newPaymentPricing(db database.Postgres, client *payment.PaddleClient) PaymentPricing {
 	return PaymentPricing{db, client}
 }
-{{- else if eq .Database "sqlite" }}
-type PaymentPricing struct {
-	db     database.SQLite
-	client *payment.PaddleClient
-}
-
-func newPaymentPricing(db database.SQLite, client *payment.PaddleClient) PaymentPricing {
-	return PaymentPricing{db, client}
-}
-{{- end }}
 
 func (pp PaymentPricing) Index(c echo.Context) error {
 	// Get active products from database

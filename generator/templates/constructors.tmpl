@@ -28,7 +28,7 @@ func BuildInsert{{.Name}}Params(
 {{- end}}
 ) Insert{{.Name}}Params {
 	return Insert{{.Name}}Params{
-		ID: {{if eq .DatabaseType "sqlite"}}id.String(){{else}}id{{end}},
+		ID: id,
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
 		{{.Name}}: {{camelCase .Name}},
@@ -38,7 +38,7 @@ func BuildInsert{{.Name}}Params(
 }
 
 func BuildUpdate{{.Name}}Params(
-	id {{if eq .DatabaseType "sqlite"}}string{{else}}uuid.UUID{{end}},
+	id uuid.UUID,
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 	{{camelCase .Name}} {{.SQLCType}},
@@ -71,7 +71,7 @@ func BuildUpsert{{.Name}}Params(
 {{- end}}
 ) Upsert{{.Name}}Params {
 	return Upsert{{.Name}}Params{
-		ID: {{if eq .DatabaseType "sqlite"}}id.String(){{else}}id{{end}},
+		ID: id,
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
 		{{.Name}}: {{camelCase .Name}},

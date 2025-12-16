@@ -8,20 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-{{- if eq .Database "postgresql" }}
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
-{{- else }}
-
-	_ "github.com/mattn/go-sqlite3"
-{{- end }}
 )
-
-{{- if eq .Database "postgresql" }}
 
 type TestDB struct {
 	DB        Postgres
@@ -96,70 +89,6 @@ func (tdb *TestDB) WithTx(t *testing.T, fn func(tx pgx.Tx)) {
 
 	fn(tx)
 }
-
-{{- else }}
-
-type TestDB struct {
-	DB     SQLite
-	dbPath string
-}
-
-func NewTestDB() (*TestDB, error) {
-	ctx := context.Background()
-
-	tmpFile, err := os.CreateTemp("", "test-*.db")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temp database file: %w", err)
-	}
-	tmpFile.Close()
-
-	dbPath := tmpFile.Name()
-
-	if err := runMigrations("sqlite3", dbPath); err != nil {
-		os.Remove(dbPath)
-		return nil, fmt.Errorf("failed to run migrations: %w", err)
-	}
-
-	db, err := NewSQLite(ctx, dbPath)
-	if err != nil {
-		os.Remove(dbPath)
-		return nil, fmt.Errorf("failed to connect to test database: %w", err)
-	}
-
-	return &TestDB{
-		DB:     db,
-		dbPath: dbPath,
-	}, nil
-}
-
-func (tdb *TestDB) Close() error {
-	if tdb.dbPath != "" {
-		return os.Remove(tdb.dbPath)
-	}
-	return nil
-}
-
-func (tdb *TestDB) WithTx(t *testing.T, fn func(tx *sql.Tx)) {
-	t.Helper()
-	ctx := context.Background()
-
-	tx, err := tdb.DB.BeginTx(ctx)
-	if err != nil {
-		t.Fatalf("failed to begin transaction: %v", err)
-	}
-
-	defer func() {
-		if err := tx.Rollback(); err != nil {
-			if err != sql.ErrTxDone {
-				t.Errorf("failed to rollback transaction: %v", err)
-			}
-		}
-	}()
-
-	fn(tx)
-}
-
-{{- end }}
 
 func runMigrations(driver, dsn string) error {
 	wd, err := os.Getwd()

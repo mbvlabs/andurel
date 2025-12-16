@@ -398,12 +398,6 @@ func (g *Generator) prepareSQLData(
 	var idPlaceholder string
 	var limitOffsetClause string
 
-	if g.typeMapper.GetDatabaseType() == "sqlite" {
-		placeholderFunc = func(i int) string { return "?" }
-		nowFunc = "datetime('now')"
-		idPlaceholder = "?"
-		limitOffsetClause = "limit ? offset ?"
-	}
 	if g.typeMapper.GetDatabaseType() == "postgresql" {
 		placeholderFunc = func(i int) string { return fmt.Sprintf("$%d", i) }
 		nowFunc = "now()"

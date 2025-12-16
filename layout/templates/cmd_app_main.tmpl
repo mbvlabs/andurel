@@ -195,17 +195,10 @@ func run(ctx context.Context) error {
 	}
 
 
-{{- if eq .Database "postgresql"}}
 	db, err := database.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
 	}
-{{- else if eq .Database "sqlite"}}
-	db, err := database.NewSQLite(ctx, cfg.DB.GetDatabaseURL())
-	if err != nil {
-		return err
-	}
-{{- end}}
 
 {{- range .Blueprint.Controllers.SortedDependencies}}
 {{- if .InitExpr}}
