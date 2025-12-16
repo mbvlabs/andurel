@@ -3,6 +3,7 @@ package views
 import (
 	"{{.ModuleName}}/views/components"
 	"{{.ModuleName}}/router/cookies"
+	"time"
 )
 
 templ base(headOpts ...components.HeadDataOption) {
@@ -11,6 +12,11 @@ templ base(headOpts ...components.HeadDataOption) {
 		@components.SetupHead(ctx, headOpts...)
 		<body>
 			{ children... }
+			<footer>
+				<div>
+					&copy; { time.Now().Format("2006") } andurel.
+				</div>
+			</footer>
 		</body>
 		<div id="flashContainer">
 			for _, flash := range cookies.GetFlashesCtx(ctx) {

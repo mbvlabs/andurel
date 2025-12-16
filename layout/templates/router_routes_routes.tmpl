@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/a-h/templ"
 	"github.com/google/uuid"
 )
 
@@ -29,6 +30,10 @@ func (r Route) Path() string {
 	return r[routePath]
 }
 
+func (r Route) SafeURL() templ.SafeURL {
+	return templ.SafeURL(r.URL())
+}
+
 type RouteWithID Route
 
 func (r RouteWithID) Name() string {
@@ -43,6 +48,10 @@ func (r RouteWithID) URL(id uuid.UUID) string {
 	return strings.Replace(r[routePath], ":id", id.String(), 1)
 }
 
+func (r RouteWithID) SafeURL(id uuid.UUID) templ.SafeURL {
+	return templ.SafeURL(r.URL(id))
+}
+
 type RouteWithSlug Route
 
 func (r RouteWithSlug) Name() string {
@@ -55,6 +64,10 @@ func (r RouteWithSlug) Path() string {
 
 func (r RouteWithSlug) URL(slug string) string {
 	return strings.Replace(r[routePath], ":slug", slug, 1)
+}
+
+func (r RouteWithSlug) SafeURL(slug string) templ.SafeURL {
+	return templ.SafeURL(r.URL(slug))
 }
 
 type RouteWithToken Route
@@ -72,6 +85,10 @@ func (r RouteWithToken) URL(token string) string {
 	return strings.Replace(r[routePath], ":token", token, 1)
 }
 
+func (r RouteWithToken) SafeURL(token string) templ.SafeURL {
+	return templ.SafeURL(r.URL(token))
+}
+
 type RouteWithFile Route
 
 func (r RouteWithFile) Name() string {
@@ -80,6 +97,14 @@ func (r RouteWithFile) Name() string {
 
 func (r RouteWithFile) Path() string {
 	return r[routePath]
+}
+
+func (r RouteWithFile) URL() string {
+	return r[routePath]
+}
+
+func (r RouteWithFile) SafeURL() templ.SafeURL {
+	return templ.SafeURL(r.URL())
 }
 
 type RouteWithParams Route
@@ -107,6 +132,10 @@ func (r RouteWithParams) URL(params map[string]any) string {
 		path = strings.Replace(path, ":"+placeholder, str, 1)
 	}
 	return path
+}
+
+func (r RouteWithParams) SafeURL(params map[string]any) templ.SafeURL {
+	return templ.SafeURL(r.URL(params))
 }
 
 type routeBuilder routeDefinition

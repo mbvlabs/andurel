@@ -1,9 +1,7 @@
 package catalog
 
 import (
-	"fmt"
-	"path/filepath"
-	"strings"
+	"github.com/mbvlabs/andurel/generator/internal/validation"
 )
 
 type Column struct {
@@ -113,40 +111,7 @@ func (c *Column) Clone() *Column {
 
 func (c *Column) ValidatePrimaryKeyDatatype(databaseType, migrationFile string) error {
 	if c.IsPrimaryKey {
-		return validatePrimaryKeyDatatype(c.DataType, databaseType, migrationFile, c.Name)
+		return validation.ValidatePrimaryKeyDatatype(c.DataType, databaseType, migrationFile, c.Name)
 	}
-	return nil
-}
-
-func validatePrimaryKeyDatatype(dataType, databaseType, migrationFile, columnName string) error {
-	normalizedDataType := strings.ToLower(dataType)
-
-	switch databaseType {
-	case "postgresql":
-		if normalizedDataType != "uuid" {
-			return fmt.Errorf(`Primary key validation failed in migration '%s':
-Column '%s' has datatype '%s' but PostgreSQL primary keys must use 'uuid'.
-
-To fix this, change:
-  %s %s PRIMARY KEY
-to:
-  %s UUID PRIMARY KEY`,
-				filepath.Base(migrationFile), columnName, dataType,
-				columnName, dataType, columnName)
-		}
-	case "sqlite":
-		if normalizedDataType != "text" {
-			return fmt.Errorf(`Primary key validation failed in migration '%s':
-Column '%s' has datatype '%s' but SQLite primary keys must use 'text'.
-
-To fix this, change:
-  %s %s PRIMARY KEY
-to:
-  %s TEXT PRIMARY KEY`,
-				filepath.Base(migrationFile), columnName, dataType,
-				columnName, dataType, columnName)
-		}
-	}
-
 	return nil
 }

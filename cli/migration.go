@@ -5,7 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +38,11 @@ func newMigrationNewCommand() *cobra.Command {
 		Short: "Create a new SQL migration",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runMigrationBinary(append([]string{"new"}, args...)...)
+			c := []string{"create"}
+			c = append(c, args...)
+			c = append(c, "sql")
+
+			return runMigrationBinary(c...)
 		},
 		Example: "andurel migration new create_users_table",
 	}
@@ -114,22 +120,67 @@ func runMigrationBinary(args ...string) error {
 		return err
 	}
 
-	binPath := filepath.Join(rootDir, "bin", "migration")
-	if _, err := os.Stat(binPath); err != nil {
+	godotenv.Load()
+
+	dbKind := os.Getenv("DB_KIND")
+	dbPort := os.Getenv("DB_PORT")
+	dbHost := os.Getenv("DB_HOST")
+	dbName := os.Getenv("DB_NAME")
+	dbUser := os.Getenv("DB_USER")
+	dbPass := os.Getenv("DB_PASSWORD")
+	dbSllMode := os.Getenv("DB_SSL_MODE")
+
+	if dbKind == "" || dbPort == "" || dbHost == "" || dbName == "" || dbUser == "" ||
+		dbPass == "" ||
+		dbSllMode == "" {
+		return fmt.Errorf("database configuration environment variables are not fully set")
+	}
+
+	databaseURL := fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
+		dbKind,
+		dbUser,
+		dbPass,
+		dbHost,
+		dbPort,
+		dbName,
+		dbSllMode,
+	)
+	driver, dbString := parseDatabaseURL(databaseURL)
+
+	goosePath := filepath.Join(rootDir, "bin", "goose")
+	if _, err := os.Stat(goosePath); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf(
-				"migration binary not found at %s\nRun 'andurel sync' to build it",
-				binPath,
+				"goose binary not found at %s\nRun 'andurel tool sync' to download it",
+				goosePath,
 			)
 		}
 		return err
 	}
 
-	cmd := exec.Command(binPath, args...)
+	migrationDir := filepath.Join(rootDir, "database", "migrations")
+
+	gooseArgs := append([]string{"-dir", migrationDir, driver, dbString}, args...)
+
+	cmd := exec.Command(goosePath, gooseArgs...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	cmd.Dir = rootDir
 
 	return cmd.Run()
+}
+
+func parseDatabaseURL(url string) (driver, dbString string) {
+	if strings.HasPrefix(url, "postgres://") || strings.HasPrefix(url, "postgresql://") {
+		return "postgres", url
+	}
+	if after, ok := strings.CutPrefix(url, "sqlite://"); ok {
+		return "sqlite3", after
+	}
+	if after, ok := strings.CutPrefix(url, "sqlite3://"); ok {
+		return "sqlite3", after
+	}
+
+	return "postgres", url
 }

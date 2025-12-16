@@ -2,6 +2,8 @@ package ddl
 
 import (
 	"testing"
+
+	"github.com/mbvlabs/andurel/generator/internal/validation"
 )
 
 func TestValidatePrimaryKeyDatatype(t *testing.T) {
@@ -32,7 +34,7 @@ func TestValidatePrimaryKeyDatatype(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validatePrimaryKeyDatatype(tc.dataType, tc.databaseType, "test.sql", "id")
+			err := validation.ValidatePrimaryKeyDatatype(tc.dataType, tc.databaseType, "test.sql", "id")
 			if tc.expectError && err == nil {
 				t.Errorf("Expected error but got none")
 			}
@@ -72,7 +74,7 @@ func TestValidatePrimaryKeyDatatype_ErrorMessages(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validatePrimaryKeyDatatype(
+			err := validation.ValidatePrimaryKeyDatatype(
 				tc.dataType,
 				tc.databaseType,
 				tc.migrationFile,
@@ -113,8 +115,8 @@ func TestValidatePrimaryKeyDatatype_ErrorMessages(t *testing.T) {
 }
 
 func TestValidatePrimaryKeyDatatype_UnsupportedDatabase(t *testing.T) {
-	// For unsupported database types, validation should pass (no error)
-	err := validatePrimaryKeyDatatype("INTEGER", "mysql", "test.sql", "id")
+	// For unsupported database types, validation should return an error
+	err := validation.ValidatePrimaryKeyDatatype("INTEGER", "mysql", "test.sql", "id")
 	if err == nil {
 		t.Error("Expected an error for unsupported database type, but got none")
 	}
@@ -202,7 +204,8 @@ func TestParseColumnDefinitions_PrimaryKeyValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			columns, err := parseColumnDefinitions(tc.columnDefs, "test.sql", tc.databaseType)
+			parser := NewCreateTableParser()
+			columns, err := parser.parseColumnDefinitions(tc.columnDefs, "test.sql", tc.databaseType)
 
 			if tc.expectError {
 				if err == nil {
@@ -282,7 +285,8 @@ func TestParseCreateTable_PrimaryKeyValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			stmt, err := parseCreateTable(tc.sql, "test.sql", tc.databaseType)
+			parser := NewCreateTableParser()
+			stmt, err := parser.Parse(tc.sql, "test.sql", tc.databaseType)
 
 			if tc.expectError {
 				if err == nil {
@@ -304,8 +308,8 @@ func TestParseCreateTable_PrimaryKeyValidation(t *testing.T) {
 					t.Fatal("Expected statement but got nil")
 				}
 
-				if stmt.Type != CreateTable {
-					t.Errorf("Expected CREATE TABLE statement type, got %v", stmt.Type)
+				if stmt.GetType() != CreateTable {
+					t.Errorf("Expected CREATE TABLE statement type, got %v", stmt.GetType())
 				}
 			}
 		})
