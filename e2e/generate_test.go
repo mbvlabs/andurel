@@ -47,7 +47,7 @@ func TestGenerateCommands(t *testing.T) {
 
 			project := internal.NewProjectWithDatabase(t, binary, tc.database)
 
-			err := project.Scaffold("-d", tc.database, "-c", tc.css)
+			err := project.Scaffold("-c", tc.css)
 			internal.AssertCommandSucceeds(t, err, "scaffold")
 
 			t.Run("generate_model", func(t *testing.T) {

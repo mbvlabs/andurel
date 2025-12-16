@@ -100,7 +100,6 @@ func TestScaffoldMatrix(t *testing.T) {
 			project := internal.NewProject(t, binary)
 
 			args := []string{
-				"-d", config.Database,
 				"-c", config.CSS,
 			}
 

@@ -38,7 +38,7 @@ func TestMigrationWorkflow(t *testing.T) {
 
 			project := internal.NewProjectWithDatabase(t, binary, tc.database)
 
-			err := project.Scaffold("-d", tc.database, "-c", "vanilla")
+			err := project.Scaffold("-c", "vanilla")
 			internal.AssertCommandSucceeds(t, err, "scaffold")
 
 			t.Run("create_and_use_migration", func(t *testing.T) {

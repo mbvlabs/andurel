@@ -267,6 +267,12 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 		"toUpper": func(s string) string {
 			return strings.ToUpper(s)
 		},
+		"uuidParam": func(param string) string {
+			return param
+		},
+		"hasErrorHandling": func() bool {
+			return false
+		},
 	}
 
 	tmpl, err := template.New("model").Funcs(funcMap).Parse(templateStr)

@@ -45,30 +45,7 @@ func TestColumn_ValidatePrimaryKeyDatatype(t *testing.T) {
 			databaseType:  "postgresql",
 			migrationFile: "test.sql",
 			expectError:   true,
-			errorSubstr:   "PostgreSQL primary keys must use 'uuid'",
-		},
-		{
-			name: "sqlite_valid_primary_key",
-			column: &Column{
-				Name:         "id",
-				DataType:     "text",
-				IsPrimaryKey: true,
-			},
-			databaseType:  "sqlite",
-			migrationFile: "test.sql",
-			expectError:   false,
-		},
-		{
-			name: "sqlite_invalid_primary_key",
-			column: &Column{
-				Name:         "id",
-				DataType:     "uuid",
-				IsPrimaryKey: true,
-			},
-			databaseType:  "sqlite",
-			migrationFile: "test.sql",
-			expectError:   true,
-			errorSubstr:   "SQLite primary keys must use 'text'",
+			errorSubstr:   "primary keys must use 'uuid'",
 		},
 	}
 
