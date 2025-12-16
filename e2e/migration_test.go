@@ -25,11 +25,6 @@ func TestMigrationWorkflow(t *testing.T) {
 			database: "postgresql",
 			critical: true,
 		},
-		{
-			name:     "sqlite",
-			database: "sqlite",
-			critical: true,
-		},
 	}
 
 	for _, tc := range testCases {
@@ -59,27 +54,15 @@ func testCreateAndUseMigration(t *testing.T, project *internal.Project) {
 	migrationName := "000200_create_users"
 	migrationDir := filepath.Join(project.Dir, "database", "migrations")
 
-	var upSQL, downSQL string
-
-	if project.Database == "postgresql" {
-		upSQL = `CREATE TABLE IF NOT EXISTS users (
+	upSQL := `CREATE TABLE IF NOT EXISTS users (
 	id UUID PRIMARY KEY,
 	email VARCHAR(255) NOT NULL UNIQUE,
 	name VARCHAR(255) NOT NULL,
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 	updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );`
-	} else {
-		upSQL = `CREATE TABLE IF NOT EXISTS users (
-	id TEXT PRIMARY KEY,
-	email TEXT NOT NULL UNIQUE,
-	name TEXT NOT NULL,
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);`
-	}
 
-	downSQL = `DROP TABLE IF EXISTS users;`
+	downSQL := `DROP TABLE IF EXISTS users;`
 
 	gooseMigration := "-- +goose Up\n" + upSQL + "\n\n-- +goose Down\n" + downSQL + "\n"
 

@@ -29,21 +29,9 @@ func TestGenerateCommands(t *testing.T) {
 			critical: true,
 		},
 		{
-			name:     "sqlite-vanilla",
-			database: "sqlite",
-			css:      "vanilla",
-			critical: true,
-		},
-		{
 			name:     "postgresql-vanilla",
 			database: "postgresql",
 			css:      "vanilla",
-			critical: false,
-		},
-		{
-			name:     "sqlite-tailwind",
-			database: "sqlite",
-			css:      "tailwind",
 			critical: false,
 		},
 	}
@@ -182,18 +170,11 @@ func createMigration(t *testing.T, project *internal.Project, migrationName, tab
 
 	migrationDir := filepath.Join(project.Dir, "database", "migrations")
 
-	var idColumn, timestampType, now string
 	var columnDefs []string
 
-	if project.Database == "postgresql" {
-		idColumn = "id UUID PRIMARY KEY"
-		timestampType = "TIMESTAMP WITH TIME ZONE"
-		now = "NOW()"
-	} else {
-		idColumn = "id TEXT PRIMARY KEY"
-		timestampType = "DATETIME"
-		now = "CURRENT_TIMESTAMP"
-	}
+	idColumn := "id UUID PRIMARY KEY"
+	timestampType := "TIMESTAMP WITH TIME ZONE"
+	now := "NOW()"
 
 	columnDefs = append(columnDefs, "\t"+idColumn)
 	for _, col := range columns {

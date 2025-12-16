@@ -29,34 +29,8 @@ func getScaffoldConfigs() []ScaffoldConfig {
 			Critical: true,
 		},
 		{
-			Name:     "sqlite-tailwind",
-			Database: "sqlite",
-			CSS:      "tailwind",
-			Critical: true,
-		},
-		{
-			Name:     "sqlite-vanilla",
-			Database: "sqlite",
-			CSS:      "vanilla",
-			Critical: true,
-		},
-		{
 			Name:       "postgresql-tailwind-auth",
 			Database:   "postgresql",
-			CSS:        "tailwind",
-			Extensions: []string{"auth"},
-			Critical:   true,
-		},
-		{
-			Name:       "sqlite-vanilla-docker",
-			Database:   "sqlite",
-			CSS:        "vanilla",
-			Extensions: []string{"docker"},
-			Critical:   true,
-		},
-		{
-			Name:       "sqlite-tailwind-auth",
-			Database:   "sqlite",
 			CSS:        "tailwind",
 			Extensions: []string{"auth"},
 			Critical:   true,
@@ -69,13 +43,6 @@ func getScaffoldConfigs() []ScaffoldConfig {
 			Critical:   true,
 		},
 		{
-			Name:       "sqlite-vanilla-auth",
-			Database:   "sqlite",
-			CSS:        "vanilla",
-			Extensions: []string{"auth"},
-			Critical:   true,
-		},
-		{
 			Name:       "postgresql-tailwind-all-extensions",
 			Database:   "postgresql",
 			CSS:        "tailwind",
@@ -83,23 +50,9 @@ func getScaffoldConfigs() []ScaffoldConfig {
 			Critical:   true,
 		},
 		{
-			Name:       "sqlite-vanilla-all-extensions",
-			Database:   "sqlite",
-			CSS:        "vanilla",
-			Extensions: []string{"auth", "docker"},
-			Critical:   true,
-		},
-		{
 			Name:       "postgresql-tailwind-aws-ses",
 			Database:   "postgresql",
 			CSS:        "tailwind",
-			Extensions: []string{"aws-ses"},
-			Critical:   true,
-		},
-		{
-			Name:       "sqlite-vanilla-aws-ses",
-			Database:   "sqlite",
-			CSS:        "vanilla",
 			Extensions: []string{"aws-ses"},
 			Critical:   true,
 		},
@@ -114,13 +67,6 @@ func getScaffoldConfigs() []ScaffoldConfig {
 			Name:       "postgresql-tailwind-paddle",
 			Database:   "postgresql",
 			CSS:        "tailwind",
-			Extensions: []string{"paddle"},
-			Critical:   true,
-		},
-		{
-			Name:       "sqlite-vanilla-paddle",
-			Database:   "sqlite",
-			CSS:        "vanilla",
 			Extensions: []string{"paddle"},
 			Critical:   true,
 		},
@@ -192,22 +138,16 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 	}
 	internal.AssertFilesExist(t, project, coreFiles)
 
-	if config.Database == "postgresql" {
-		internal.AssertFileExists(
-			t,
-			project,
-			"database/migrations/00001_create_river_migration_table.sql",
-		)
-		internal.AssertFileExists(
-			t,
-			project,
-			"database/migrations/00002_create_river_job_and_leader_tables.sql",
-		)
-	}
-
-	if config.Database == "sqlite" {
-		internal.AssertFileExists(t, project, ".env")
-	}
+	internal.AssertFileExists(
+		t,
+		project,
+		"database/migrations/00001_create_river_migration_table.sql",
+	)
+	internal.AssertFileExists(
+		t,
+		project,
+		"database/migrations/00002_create_river_job_and_leader_tables.sql",
+	)
 
 	if config.CSS == "tailwind" {
 		internal.AssertDirExists(t, project, "assets/css")
