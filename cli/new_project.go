@@ -26,9 +26,6 @@ dependencies, and configuration.`,
 		StringP("repo", "r", "", "GitHub username (i.e. mbvlabs or github.com/mbvlabs (optional)")
 
 	projectCmd.Flags().
-		StringP("database", "d", "", "Database to use (postgresql, sqlite) (optional, default: postgres)")
-
-	projectCmd.Flags().
 		StringP("css", "c", "", "CSS framework to use (tailwind, vanilla) (optional, default: tailwind)")
 
 	projectCmd.Flags().
@@ -47,21 +44,7 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 		return err
 	}
 
-	database, err := cmd.Flags().GetString("database")
-	if err != nil {
-		return err
-	}
-
-	if database == "" {
-		database = "postgresql"
-	}
-
-	if database != "" && database != "sqlite" && database != "postgresql" {
-		return fmt.Errorf(
-			"invalid database provided: %s - valid options are 'postgresql' and 'sqlite'",
-			database,
-		)
-	}
+	database := "postgresql"
 
 	cssFramework, err := cmd.Flags().GetString("css")
 	if err != nil {
@@ -90,9 +73,7 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	fmt.Printf("\n🎉 Successfully created project: %s\n", projectName)
 	fmt.Printf("\nNext steps:\n")
 	fmt.Printf("  cd %s\n", args[0])
-	if database == "postgresql" {
-		fmt.Printf("  cp .env.example .env and fill it out\n")
-	}
+	fmt.Printf("  cp .env.example .env and fill it out\n")
 	fmt.Printf("  and andurel a run\n")
 
 	return nil

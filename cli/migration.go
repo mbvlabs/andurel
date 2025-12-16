@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
@@ -172,15 +171,5 @@ func runMigrationBinary(args ...string) error {
 }
 
 func parseDatabaseURL(url string) (driver, dbString string) {
-	if strings.HasPrefix(url, "postgres://") || strings.HasPrefix(url, "postgresql://") {
-		return "postgres", url
-	}
-	if after, ok := strings.CutPrefix(url, "sqlite://"); ok {
-		return "sqlite3", after
-	}
-	if after, ok := strings.CutPrefix(url, "sqlite3://"); ok {
-		return "sqlite3", after
-	}
-
 	return "postgres", url
 }
