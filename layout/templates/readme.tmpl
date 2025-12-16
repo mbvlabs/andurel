@@ -46,9 +46,8 @@ A full-stack web application built with [Andurel](https://github.com/mbvlabs/and
 ### Prerequisites
 
 - Go 1.24.4 or higher
-{{if eq .Database "postgres"}}- PostgreSQL database
-{{else}}- SQLite (included with Go)
-{{end}}- Andurel CLI: `go install github.com/mbvlabs/andurel@latest`
+- PostgreSQL database
+- Andurel CLI: `go install github.com/mbvlabs/andurel@latest`
 
 ### Setup
 
@@ -57,20 +56,18 @@ A full-stack web application built with [Andurel](https://github.com/mbvlabs/and
    cp .env.example .env
    # Edit .env with your configuration
    ```
-{{if eq .Database "postgres"}}
+
 2. **Create database**
    ```bash
    createdb {{.AppName}}_development
    ```
 
 3. **Run migrations**
-{{else}}
-2. **Run migrations**
-{{end}}   ```bash
+   ```bash
    andurel migration up
    ```
 
-{{if eq .Database "postgres"}}4{{else}}3{{end}}. **Start the development server**
+4. **Start the development server**
    ```bash
    andurel run
    ```
@@ -202,11 +199,9 @@ andurel g view Product --with-controller
 andurel g model Product --refresh
 ```
 
-### Setup Background Jobs{{if eq .Database "postgres"}}
+### Setup Background Jobs
 
-This project uses [River](https://riverqueue.com/) for background job processing with PostgreSQL.{{else}}
-
-This project uses [goqite](https://github.com/maragudk/goqite) for background job processing with SQLite.{{end}}
+This project uses [River](https://riverqueue.com/) for background job processing with PostgreSQL.
 
 **1. Define a job**
 
@@ -516,7 +511,7 @@ This project includes a built-in integration testing framework that makes it eas
 ### Test Infrastructure
 
 The framework provides:
-- **Automatic test database setup**: {{if eq .Database "postgresql"}}Uses [testcontainers](https://golang.testcontainers.org/) to spin up PostgreSQL in Docker{{else}}Creates temporary SQLite databases{{end}}
+- **Automatic test database setup**: Uses [testcontainers](https://golang.testcontainers.org/) to spin up PostgreSQL in Docker
 - **Transaction-based tests**: Each test runs in a transaction that automatically rolls back, keeping tests isolated
 - **Factory pattern**: Simple builders for creating test data with sensible defaults
 
@@ -747,7 +742,7 @@ go test -v ./...
 ```
 
 ### Test Database Setup
-{{if eq .Database "postgresql"}}
+
 **Prerequisites**: Docker must be running to use testcontainers.
 
 The test helper automatically:
@@ -757,13 +752,6 @@ The test helper automatically:
 4. Cleans up containers when tests complete
 
 **Note**: The first test run will download the PostgreSQL Docker image, which may take a moment.
-{{else}}
-The test helper automatically:
-1. Creates a temporary SQLite database file
-2. Runs all migrations from `database/migrations/`
-3. Provides a clean database for each test suite
-4. Deletes the temporary file when tests complete
-{{end}}
 
 ### Best Practices
 
