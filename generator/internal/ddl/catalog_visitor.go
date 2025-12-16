@@ -75,6 +75,8 @@ func (v *CatalogVisitor) VisitAlterTable(stmt *AlterTableStatement) error {
 	case "MULTIPLE_OPERATIONS":
 		// FIXED: Direct access to stmt.Operations - no conversion needed!
 		return v.applyMultipleOperations(schemaName, stmt.TableName, stmt.Operations)
+	case "ADD_CONSTRAINT", "DROP_CONSTRAINT":
+		return nil
 	default:
 		// Unknown operation, log but don't fail
 		slog.Warn("Unknown ALTER TABLE operation", "operation", stmt.AlterOperation)
