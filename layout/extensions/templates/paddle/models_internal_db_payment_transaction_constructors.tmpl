@@ -26,7 +26,6 @@ func BuildInsertPaymentTransactionParams(
 	completedAt sql.NullTime,
 	rawData interface{},
 ) InsertPaymentTransactionParams {
-{{- if eq .Database "postgresql" }}
 	billed := pgtype.Timestamptz{}
 	if billedAt.Valid {
 		billed = pgtype.Timestamptz{
@@ -55,7 +54,6 @@ func BuildInsertPaymentTransactionParams(
 		CompletedAt:             completed,
 		RawData:                 rawData.([]byte),
 	}
-{{- end }}
 }
 
 func BuildUpdatePaymentTransactionParams(
@@ -68,7 +66,6 @@ func BuildUpdatePaymentTransactionParams(
 	completedAt sql.NullTime,
 	rawData interface{},
 ) UpdatePaymentTransactionParams {
-{{- if eq .Database "postgresql" }}
 	billed := pgtype.Timestamptz{}
 	if billedAt.Valid {
 		billed = pgtype.Timestamptz{
@@ -95,7 +92,6 @@ func BuildUpdatePaymentTransactionParams(
 		CompletedAt:   completed,
 		RawData:       rawData.([]byte),
 	}
-{{- end }}
 }
 
 func BuildUpdatePaymentTransactionStatusParams(
@@ -103,7 +99,6 @@ func BuildUpdatePaymentTransactionStatusParams(
 	status string,
 	completedAt sql.NullTime,
 ) UpdatePaymentTransactionStatusParams {
-{{- if eq .Database "postgresql" }}
 	completed := pgtype.Timestamptz{}
 	if completedAt.Valid {
 		completed = pgtype.Timestamptz{
@@ -117,5 +112,4 @@ func BuildUpdatePaymentTransactionStatusParams(
 		Status:                status,
 		CompletedAt:           completed,
 	}
-{{- end }}
 }

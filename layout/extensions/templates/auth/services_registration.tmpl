@@ -10,10 +10,8 @@ import (
 	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/email"
 	"{{.ModuleName}}/models"
-{{- if eq .Database "postgresql" }}
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/queue/jobs"
-{{- end }}
 )
 
 const userEmailVerification = "user_email_verification"
@@ -78,7 +76,6 @@ func RegisterUser(
 		return err
 	}
 
-{{- if eq .Database "postgresql" }}
 	_, err = insertOnly.Client.InsertTx(ctx, tx, jobs.SendTransactionalEmailArgs{
 		Data: email.TransactionalData{
 			To:       user.Email,
@@ -93,7 +90,6 @@ func RegisterUser(
 	}
 
 	return tx.Commit(ctx)
-{{- end }}
 }
 
 var (

@@ -13,9 +13,7 @@ import (
 {{- range .Blueprint.Controllers.Imports.SortedItems}}
 	"{{.}}"
 {{- end}}
-{{- if eq .Database "postgresql"}}
 	"{{.ModuleName}}/queue"
-{{- end}}
 )
 
 type Controllers struct {
@@ -28,9 +26,7 @@ func New(
 {{- range $i, $dep := .Blueprint.Controllers.SortedDependencies}}
 	{{$dep.Name}} {{$dep.Type}},
 {{- end}}
-{{- if eq .Database "postgresql"}}
 	insertOnly queue.InsertOnly,
-{{- end}}
 ) (Controllers, error) {
 	pagesCache, err := NewCacheBuilder[templ.Component]().Build()
 	if err != nil {
