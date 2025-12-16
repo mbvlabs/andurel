@@ -55,6 +55,7 @@ func BuildInsertPaymentTransactionParams(
 		CompletedAt:             completed,
 		RawData:                 rawData.([]byte),
 	}
+{{- end }}
 }
 
 func BuildUpdatePaymentTransactionParams(
@@ -94,6 +95,7 @@ func BuildUpdatePaymentTransactionParams(
 		CompletedAt:   completed,
 		RawData:       rawData.([]byte),
 	}
+{{- end }}
 }
 
 func BuildUpdatePaymentTransactionStatusParams(
@@ -115,4 +117,5 @@ func BuildUpdatePaymentTransactionStatusParams(
 		Status:                status,
 		CompletedAt:           completed,
 	}
+{{- end }}
 }
