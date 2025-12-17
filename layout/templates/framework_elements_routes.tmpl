@@ -1,0 +1,176 @@
+package andurel
+
+import (
+	"strings"
+
+	"github.com/google/uuid"
+)
+
+type routeKey string
+
+const (
+	routeName routeKey = "name"
+	routePath routeKey = "path"
+)
+
+type Route map[routeKey]string
+
+func (r Route) Name() string {
+	return r[routeName]
+}
+
+func (r Route) URL() string {
+	return r[routePath]
+}
+
+func (r Route) Path() string {
+	return r[routePath]
+}
+
+type RouteWithID Route
+
+func (r RouteWithID) Name() string {
+	return r[routeName]
+}
+
+func (r RouteWithID) Path() string {
+	return r[routePath]
+}
+
+func (r RouteWithID) URL(id uuid.UUID) string {
+	return strings.Replace(r[routePath], ":id", id.String(), 1)
+}
+
+type RouteWithMultipleIDs Route
+
+func (r RouteWithMultipleIDs) Name() string {
+	return r[routeName]
+}
+
+func (r RouteWithMultipleIDs) Path() string {
+	return r[routePath]
+}
+
+func (r RouteWithMultipleIDs) URL(ids map[string]uuid.UUID) string {
+	route := r[routePath]
+	for param, id := range ids {
+		route = strings.Replace(route, ":"+param, id.String(), 1)
+	}
+
+	return route
+}
+
+type RouteWithSlug Route
+
+func (r RouteWithSlug) Name() string {
+	return r[routeName]
+}
+
+func (r RouteWithSlug) Path() string {
+	return r[routePath]
+}
+
+func (r RouteWithSlug) URL(slug string) string {
+	return strings.Replace(r[routePath], ":slug", slug, 1)
+}
+
+type RouteWithToken Route
+
+func (r RouteWithToken) Name() string {
+	return r[routeName]
+}
+
+func (r RouteWithToken) Path() string {
+	return r[routePath]
+}
+
+func (r RouteWithToken) URL(token string) string {
+	return strings.Replace(r[routePath], ":token", token, 1)
+}
+
+type RouteWithFile Route
+
+func (r RouteWithFile) Name() string {
+	return r[routeName]
+}
+
+func (r RouteWithFile) Path() string {
+	return r[routePath]
+}
+
+func (r RouteWithFile) URL(file string) string {
+	return strings.Replace(r[routePath], ":file", file, 1)
+}
+
+type routeBuilder routeDefinition
+
+type routeDefinition struct {
+	Name string
+	Path string
+}
+
+func NewRouteBuilder(name string) routeBuilder {
+	return routeBuilder{
+		Name: name,
+	}
+}
+
+func (r routeBuilder) SetNamePrefix(prefix string) routeBuilder {
+	r.Name = prefix + "." + r.Name
+
+	return r
+}
+
+func (r routeBuilder) SetPath(path string) routeBuilder {
+	r.Path = r.Path + path
+
+	return r
+}
+
+func (r routeBuilder) Register() Route {
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
+
+	return Route(route)
+}
+
+func (r routeBuilder) RegisterWithID() RouteWithID {
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
+
+	return RouteWithID(route)
+}
+
+func (r routeBuilder) RegisterWithMultipleIDs() RouteWithMultipleIDs {
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
+
+	return RouteWithMultipleIDs(route)
+}
+
+func (r routeBuilder) RegisterWithSlug() RouteWithSlug {
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
+
+	return RouteWithSlug(route)
+}
+
+func (r routeBuilder) RegisterWithToken() RouteWithToken {
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
+
+	return RouteWithToken(route)
+}
+
+func (r routeBuilder) RegisterWithFile() RouteWithFile {
+	route := make(Route, 2)
+	route[routeName] = r.Name
+	route[routePath] = r.Path
+
+	return RouteWithFile(route)
+}

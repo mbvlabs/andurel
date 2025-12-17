@@ -1,0 +1,11 @@
+// Code generated and maintained by the andurel framework. DO NOT EDIT.
+// This file contains abstractions for database interactions.
+
+package andurel
+
+type Database interface {
+	Conn() *pgxpool.Pool
+	BeginTx(ctx context.Context) (pgx.Tx, error)
+	RollBackTx(ctx context.Context, tx pgx.Tx) error
+	CommitTx(ctx context.Context, tx pgx.Tx) error
+}
