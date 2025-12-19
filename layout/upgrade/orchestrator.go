@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/mbvlabs/andurel/layout/versions"
 )
 
@@ -117,6 +118,14 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		fmt.Printf("  ✓ %s\n", targetPath)
 	}
 
+	// Format the upgraded framework files
+	fmt.Printf("Formatting framework files...\n")
+	if err := cmds.RunGoFmtPath(u.projectRoot, "./internal/andurel/..."); err != nil {
+		fmt.Printf("⚠ Warning: failed to format files: %v\n", err)
+	} else {
+		fmt.Printf("  ✓ Formatted internal/andurel\n")
+	}
+
 	// Update tool versions
 	fmt.Printf("Updating tool versions...\n")
 	updatedTools, err := u.updateToolVersions()
@@ -177,9 +186,9 @@ func (u *Upgrader) updateToolVersions() ([]string, error) {
 		"templ":   versions.Templ,
 		"sqlc":    versions.Sqlc,
 		"goose":   versions.Goose,
-		"air":     "v1.61.7",
-		"mailpit": "v1.21.8",
-		"usql":    "v0.19.14",
+		"air":     versions.Air,
+		"mailpit": versions.Mailpit,
+		"usql":    versions.Usql,
 	}
 
 	for toolName, latestVersion := range latestVersions {

@@ -38,6 +38,20 @@ func RunGoFmt(targetDir string) error {
 	return nil
 }
 
+func RunGoFmtPath(targetDir, path string) error {
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
+	cmd := exec.Command("go", "fmt", path)
+	cmd.Dir = absTargetDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("go fmt failed: %w\nOutput: %s", err, string(output))
+	}
+	return nil
+}
+
 func RunGolines(targetDir string) error {
 	absTargetDir, err := filepath.Abs(targetDir)
 	if err != nil {
