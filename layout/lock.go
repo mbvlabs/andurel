@@ -11,11 +11,11 @@ import (
 )
 
 type AndurelLock struct {
-	Version         string                `json:"version"`
-	Extensions      map[string]*Extension `json:"extensions,omitempty"`
-	Tools           map[string]*Tool      `json:"tools"`
-	TemplateVersion string                `json:"templateVersion,omitempty"`
-	ScaffoldConfig  *ScaffoldConfig       `json:"scaffoldConfig,omitempty"`
+	Version          string                `json:"version"`
+	Extensions       map[string]*Extension `json:"extensions,omitempty"`
+	Tools            map[string]*Tool      `json:"tools"`
+	FrameworkVersion string                `json:"frameworkVersion,omitempty"`
+	ScaffoldConfig   *ScaffoldConfig       `json:"scaffoldConfig,omitempty"`
 }
 
 type ScaffoldConfig struct {
@@ -90,7 +90,7 @@ func (l *AndurelLock) WriteLockFile(targetDir string) error {
 		return fmt.Errorf("failed to marshal lock file: %w", err)
 	}
 
-	if err := os.WriteFile(lockPath, data, 0644); err != nil {
+	if err := os.WriteFile(lockPath, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write lock file: %w", err)
 	}
 
@@ -107,7 +107,7 @@ func (l *AndurelLock) Sync(targetDir string, silent bool) error {
 	goarch := runtime.GOARCH
 
 	binDir := filepath.Join(absTargetDir, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
 

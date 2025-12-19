@@ -52,7 +52,7 @@ func NewUpgrader(projectRoot string, opts UpgradeOptions) (*Upgrader, error) {
 
 func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	report := &UpgradeReport{
-		FromVersion:   u.lock.TemplateVersion,
+		FromVersion:   u.lock.FrameworkVersion,
 		ToVersion:     u.opts.TargetVersion,
 		ReplacedFiles: []string{},
 		UpdatedTools:  []string{},
@@ -63,7 +63,7 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		return report, err
 	}
 
-	if u.lock.TemplateVersion == u.opts.TargetVersion {
+	if u.lock.FrameworkVersion == u.opts.TargetVersion {
 		return report, fmt.Errorf("project is already at version %s", u.opts.TargetVersion)
 	}
 
@@ -81,7 +81,7 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 
 	fmt.Printf(
 		"Upgrading framework from %s to %s...\n",
-		u.lock.TemplateVersion,
+		u.lock.FrameworkVersion,
 		u.opts.TargetVersion,
 	)
 
@@ -140,7 +140,7 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	}
 
 	// Update template version in lock file
-	u.lock.TemplateVersion = u.opts.TargetVersion
+	u.lock.FrameworkVersion = u.opts.TargetVersion
 	if err := u.lock.WriteLockFile(u.projectRoot); err != nil {
 		report.Error = err
 		return report, fmt.Errorf("failed to update lock file: %w", err)
@@ -170,7 +170,7 @@ func (u *Upgrader) validatePreconditions() error {
 		return fmt.Errorf("andurel.lock file not found or invalid")
 	}
 
-	if u.lock.TemplateVersion == "" {
+	if u.lock.FrameworkVersion == "" {
 		return fmt.Errorf("lock file missing template version - please manually set it")
 	}
 
