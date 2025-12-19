@@ -9,7 +9,7 @@ const (
 	apiNamePrefix  = "api"
 )
 
-var Health = andurel.NewBase(
+var Health = andurel.NewSimpleRoute(
 	APIRoutePrefix+"/health",
 	"health",
 	apiNamePrefix,

@@ -14,33 +14,33 @@ const (
 
 var startTime = time.Now().Unix()
 
-var Robots = andurel.NewBase(
+var Robots = andurel.NewSimpleRoute(
 	AssetsRoutePrefix+"/robots.txt",
 	"robots",
 	assetsNamePrefix,
 )
 
-var Sitemap = andurel.NewBase(
+var Sitemap = andurel.NewSimpleRoute(
 	AssetsRoutePrefix+"/sitemap.xml",
 	"sitemap",
 	assetsNamePrefix,
 )
 
 {{- if eq .CSSFramework "vanilla"}}
-var StyleImport = andurel.NewBase(
+var StyleImport = andurel.NewSimpleRoute(
 	AssetsRoutePrefix+"/css/:file",
 	"css.file",
 	assetsNamePrefix,
 )
 {{- end}}
 
-var Stylesheet = andurel.NewBase(
+var Stylesheet = andurel.NewSimpleRoute(
 	AssetsRoutePrefix+fmt.Sprintf("/css/%v/style.css", startTime),
 	"css.stylesheet",
 	assetsNamePrefix,
 )
 
-var Scripts = andurel.NewBase(
+var Scripts = andurel.NewSimpleRoute(
 	AssetsRoutePrefix+fmt.Sprintf("/js/%v/scripts.js", startTime),
 	"js.scripts",
 	assetsNamePrefix,

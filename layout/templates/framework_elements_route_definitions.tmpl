@@ -5,7 +5,7 @@ package andurel
 import "github.com/google/uuid"
 
 // Route represents routes with no URL parameters
-type Route interface {
+type SimpleRoute interface {
 	Name() string
 	Path() string
 	URL() string
