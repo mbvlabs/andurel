@@ -26,7 +26,7 @@ func (d Docker) Dependencies() []string {
 
 func (d Docker) renderTemplates(ctx *Context) error {
 	templates := map[string]string{
-		"Dockerfile.tmpl":    "Dockerfile",
+		"Dockerfile.tmpl":   "Dockerfile",
 		"dockerignore.tmpl": ".dockerignore",
 	}
 

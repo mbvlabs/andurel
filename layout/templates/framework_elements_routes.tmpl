@@ -1,0 +1,161 @@
+// Code generated and maintained by the andurel framework. DO NOT EDIT.
+// This file contains implementations of different kind of routes
+package andurel
+
+import (
+	"strings"
+
+	"github.com/google/uuid"
+)
+
+func configureName(name, prefix string) string {
+	if prefix == "" {
+		return name
+	}
+
+	return prefix + "." + name
+}
+
+func configurePath(path, prefix string) string {
+	if prefix == "" {
+		return path
+	}
+
+	if !strings.Contains(prefix, "/") {
+		return prefix + "/" + path
+	}
+
+	return prefix + path
+}
+
+type Base struct {
+	name   string
+	path   string
+	prefix string
+}
+
+var _ Route = (*Base)(nil)
+
+// NewBase creates a base route that takes no parameters
+func NewBase(path, name, prefix string) Base {
+	return Base{name, path, prefix}
+}
+
+func (r Base) URL() string {
+	return r.path
+}
+
+func (r Base) Name() string {
+	return configureName(r.name, r.prefix)
+}
+
+func (r Base) Path() string {
+	return configurePath(r.path, r.prefix)
+}
+
+type RouteWithID Base
+
+var _ IDRoute = (*RouteWithID)(nil)
+
+// NewRouteWithID creates an id route that takes a uuid as a parameter
+func NewRouteWithID(path, name, prefix string) RouteWithID {
+	return RouteWithID{name, path, prefix}
+}
+
+func (r RouteWithID) Name() string {
+	return configureName(r.name, r.prefix)
+}
+
+func (r RouteWithID) Path() string {
+	return configurePath(r.path, r.prefix)
+}
+
+func (r RouteWithID) URL(id uuid.UUID) string {
+	return strings.Replace(r.Path(), ":id", id.String(), 1)
+}
+
+type RouteWithIDs Base
+
+var _ IDsRoute = (*RouteWithIDs)(nil)
+
+// NewRouteWithMultipleIDs creates a route that takes a map[string]uuid as parameters
+func NewRouteWithMultipleIDs(path, name, prefix string) RouteWithIDs {
+	return RouteWithIDs{name, path, prefix}
+}
+
+func (r RouteWithIDs) Name() string {
+	return configureName(r.name, r.prefix)
+}
+
+func (r RouteWithIDs) Path() string {
+	return configurePath(r.path, r.prefix)
+}
+
+func (r RouteWithIDs) URL(ids map[string]uuid.UUID) string {
+	route := r.Path()
+	for param, id := range ids {
+		route = strings.Replace(route, ":"+param, id.String(), 1)
+	}
+
+	return route
+}
+
+type RouteWithSlug Base
+
+var _ ParamRoute = (*RouteWithSlug)(nil)
+
+func NewRouteWithSlug(path, name, prefix string) RouteWithSlug {
+	return RouteWithSlug{name, path, prefix}
+}
+
+func (r RouteWithSlug) Name() string {
+	return configureName(r.name, r.prefix)
+}
+
+func (r RouteWithSlug) Path() string {
+	return configurePath(r.path, r.prefix)
+}
+
+func (r RouteWithSlug) URL(slug string) string {
+	return strings.Replace(r.Path(), ":slug", slug, 1)
+}
+
+type RouteWithToken Base
+
+var _ ParamRoute = (*RouteWithToken)(nil)
+
+func NewRouteWithToken(path, name, prefix string) RouteWithToken {
+	return RouteWithToken{name, path, prefix}
+}
+
+func (r RouteWithToken) Name() string {
+	return configureName(r.name, r.prefix)
+}
+
+func (r RouteWithToken) Path() string {
+	return configurePath(r.path, r.prefix)
+}
+
+func (r RouteWithToken) URL(token string) string {
+	return strings.Replace(r.Path(), ":token", token, 1)
+}
+
+type RouteWithFile Base
+
+var _ ParamRoute = (*RouteWithFile)(nil)
+
+func NewRouteWithFile(path, name, prefix string) RouteWithFile {
+	return RouteWithFile{name, path, prefix}
+}
+
+func (r RouteWithFile) Name() string {
+	return configureName(r.name, r.prefix)
+}
+
+func (r RouteWithFile) Path() string {
+	return configurePath(r.path, r.prefix)
+}
+
+func (r RouteWithFile) URL(file string) string {
+	return strings.Replace(r.Path(), ":file", file, 1)
+}

@@ -119,7 +119,6 @@ func Scaffold(
 		}
 	}
 
-
 	fmt.Print("Generating andurel.lock file...\n")
 	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", extensionNames); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
@@ -256,24 +255,19 @@ var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"vanilla_views_components_toasts.tmpl": "views/components/toasts.templ",
 }
 
-var basePSQLTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"psql_database.tmpl": "database/database.go",
-	"psql_sqlc.tmpl":     "database/sqlc.yaml",
-
-	// Queue package
-	"psql_queue_queue.tmpl":                            "queue/queue.go",
-	"psql_queue_jobs_send_transactional_email.tmpl":    "queue/jobs/send_transactional_email.go",
-	"psql_queue_jobs_send_marketing_email.tmpl":        "queue/jobs/send_marketing_email.go",
-	"psql_queue_workers_workers.tmpl":                  "queue/workers/workers.go",
-	"psql_queue_workers_send_transactional_email.tmpl": "queue/workers/send_transactional_email.go",
-	"psql_queue_workers_send_marketing_email.tmpl":     "queue/workers/send_marketing_email.go",
-}
-
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
-	// Core files
 	"env.tmpl":       ".env.example",
 	"gitignore.tmpl": ".gitignore",
 	"readme.tmpl":    "README.md",
+
+	// Core files
+	"framework_elements_andurel.tmpl":           "internal/andurel/andurel.go",
+	"framework_elements_routes.tmpl":            "internal/andurel/routes.go",
+	"framework_elements_route_definitions.tmpl": "internal/andurel/route_definitions.go",
+	"framework_elements_server.tmpl":            "internal/andurel/server.go",
+	"framework_elements_database.tmpl":          "internal/andurel/database.go",
+	"framework_elements_queue.tmpl":             "internal/andurel/queue.go",
+	"framework_elements_render.tmpl":            "internal/andurel/render.go",
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
@@ -306,6 +300,17 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
 	"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
 	"database_test_helper.tmpl":        "database/test_helper.go",
+
+	"psql_database.tmpl": "database/database.go",
+	"psql_sqlc.tmpl":     "database/sqlc.yaml",
+
+	// Queue package
+	"psql_queue_queue.tmpl":                            "queue/queue.go",
+	"psql_queue_jobs_send_transactional_email.tmpl":    "queue/jobs/send_transactional_email.go",
+	"psql_queue_jobs_send_marketing_email.tmpl":        "queue/jobs/send_marketing_email.go",
+	"psql_queue_workers_workers.tmpl":                  "queue/workers/workers.go",
+	"psql_queue_workers_send_transactional_email.tmpl": "queue/workers/send_transactional_email.go",
+	"psql_queue_workers_send_marketing_email.tmpl":     "queue/workers/send_marketing_email.go",
 
 	// Email
 	"email_email.tmpl":       "email/email.go",
@@ -372,11 +377,11 @@ func processTemplatedFiles(
 		}
 	}
 
-	for templateFile, targetPath := range basePSQLTemplateMappings {
-		if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
-			return fmt.Errorf("failed to process psql template %s: %w", templateFile, err)
-		}
-	}
+	// for templateFile, targetPath := range basePSQLTemplateMappings {
+	// 	if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
+	// 		return fmt.Errorf("failed to process psql template %s: %w", templateFile, err)
+	// 	}
+	// }
 
 	if cssFramework == "tailwind" {
 		for templateFile, targetPath := range baseTailwindTemplateMappings {
