@@ -265,9 +265,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"framework_elements_routes.tmpl":            "internal/andurel/routes.go",
 	"framework_elements_route_definitions.tmpl": "internal/andurel/route_definitions.go",
 	"framework_elements_server.tmpl":            "internal/andurel/server.go",
-	"framework_elements_database.tmpl":           "internal/andurel/database.go",
-	"framework_elements_queue.tmpl":              "internal/andurel/queue.go",
-	"framework_elements_render.tmpl":             "internal/andurel/render.go",
+	"framework_elements_database.tmpl":          "internal/andurel/database.go",
+	"framework_elements_queue.tmpl":             "internal/andurel/queue.go",
+	"framework_elements_render.tmpl":            "internal/andurel/render.go",
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",

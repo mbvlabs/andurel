@@ -191,14 +191,14 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 
 func TestConstructorConversions__FieldsExcludedCorrectly(t *testing.T) {
 	tests := []struct {
-		name                string
-		migrationsDir       string
-		tableName           string
-		resourceName        string
-		modulePath          string
-		databaseType        string
-		unexpectedInCreate  []string
-		unexpectedInUpdate  []string
+		name               string
+		migrationsDir      string
+		tableName          string
+		resourceName       string
+		modulePath         string
+		databaseType       string
+		unexpectedInCreate []string
+		unexpectedInUpdate []string
 	}{
 		{
 			name:          "Create should exclude ID, CreatedAt, UpdatedAt",

@@ -11,23 +11,23 @@ import (
 type Builder struct {
 	bp *Blueprint
 	// Track next order values for each category
-	nextControllerDepOrder       int
-	nextControllerFieldOrder     int
-	nextConstructorOrder         int
-	nextRouteOrder               int
-	nextRouteCollectionOrder     int
-	nextRouteRegistrationOrder   int
+	nextControllerDepOrder        int
+	nextControllerFieldOrder      int
+	nextConstructorOrder          int
+	nextRouteOrder                int
+	nextRouteCollectionOrder      int
+	nextRouteRegistrationOrder    int
 	nextRegistrationFunctionOrder int
-	nextModelOrder               int
-	nextConfigFieldOrder         int
-	nextEnvVarOrder              int
-	nextMigrationOrder           int
-	nextInitializationOrder      int
-	nextBackgroundWorkerOrder    int
-	nextPreRunHookOrder          int
-	nextCookiesConstantOrder     int
-	nextCookiesAppFieldOrder     int
-	nextCookiesFunctionOrder     int
+	nextModelOrder                int
+	nextConfigFieldOrder          int
+	nextEnvVarOrder               int
+	nextMigrationOrder            int
+	nextInitializationOrder       int
+	nextBackgroundWorkerOrder     int
+	nextPreRunHookOrder           int
+	nextCookiesConstantOrder      int
+	nextCookiesAppFieldOrder      int
+	nextCookiesFunctionOrder      int
 	// Track current registration function being built
 	currentRegistrationFunction *RegistrationFunction
 }

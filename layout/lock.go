@@ -161,4 +161,3 @@ func ReadLockFile(targetDir string) (*AndurelLock, error) {
 
 	return &lock, nil
 }
-

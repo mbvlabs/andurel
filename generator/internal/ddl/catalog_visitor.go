@@ -8,16 +8,16 @@ import (
 )
 
 type CatalogVisitor struct {
-	catalog      *catalog.Catalog
+	catalog       *catalog.Catalog
 	migrationFile string
-	databaseType string
+	databaseType  string
 }
 
 func NewCatalogVisitor(cat *catalog.Catalog, migrationFile, databaseType string) *CatalogVisitor {
 	return &CatalogVisitor{
-		catalog:      cat,
+		catalog:       cat,
 		migrationFile: migrationFile,
-		databaseType: databaseType,
+		databaseType:  databaseType,
 	}
 }
 

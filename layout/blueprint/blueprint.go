@@ -144,10 +144,10 @@ type PreRunHook struct {
 
 // CookiesSection holds cookies package configuration
 type CookiesSection struct {
-	Imports          *OrderedSet
-	Constants        []Constant
-	AppFields        []Field
-	Functions        []Function
+	Imports           *OrderedSet
+	Constants         []Constant
+	AppFields         []Field
+	Functions         []Function
 	CreateSessionCode string
 	GetSessionCode    string
 }
@@ -161,8 +161,8 @@ type Constant struct {
 
 // Function represents a function definition
 type Function struct {
-	Name string
-	Code string
+	Name  string
+	Code  string
 	Order int
 }
 

@@ -17,10 +17,10 @@ func TestGenerateCommands(t *testing.T) {
 	binary := buildAndurelBinary(t)
 
 	testCases := []struct {
-		name       string
-		database   string
-		css        string
-		critical   bool
+		name     string
+		database string
+		css      string
+		critical bool
 	}{
 		{
 			name:     "postgresql-tailwind",

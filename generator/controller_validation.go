@@ -10,16 +10,16 @@ import (
 )
 
 type controllerValidationContext struct {
-	ResourceName           string
-	TableName              string
-	ControllerPath         string
-	RoutesFilePath         string
-	IndividualRoutePath    string
-	ControllerFilePath     string
-	ControllerFieldName    string
-	ControllerVarName      string
-	ControllerConstructor  string
-	ControllerReturnField  string
+	ResourceName          string
+	TableName             string
+	ControllerPath        string
+	RoutesFilePath        string
+	IndividualRoutePath   string
+	ControllerFilePath    string
+	ControllerFieldName   string
+	ControllerVarName     string
+	ControllerConstructor string
+	ControllerReturnField string
 }
 
 func newControllerValidationContext(resourceName, tableName string, config *UnifiedConfig) *controllerValidationContext {

@@ -61,7 +61,7 @@ func (p *Postgres) BeginTx(ctx context.Context) (pgx.Tx, error) {
 	tx, err := p.pool.Begin(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not begin transaction", "reason", err)
-		return nil, errors.Join(ErrBeginTx, err)
+		return nil, errors.Join(ErrDatabaseBeginTx, err)
 	}
 
 	return tx, nil
@@ -70,7 +70,7 @@ func (p *Postgres) BeginTx(ctx context.Context) (pgx.Tx, error) {
 func (p *Postgres) RollBackTx(ctx context.Context, tx pgx.Tx) error {
 	if err := tx.Rollback(ctx); err != nil {
 		slog.ErrorContext(ctx, "could not rollback transaction", "reason", err)
-		return errors.Join(ErrRollbackTx, err)
+		return errors.Join(ErrDatabaseRollbackTx, err)
 	}
 
 	return nil
@@ -79,7 +79,7 @@ func (p *Postgres) RollBackTx(ctx context.Context, tx pgx.Tx) error {
 func (p *Postgres) CommitTx(ctx context.Context, tx pgx.Tx) error {
 	if err := tx.Commit(ctx); err != nil {
 		slog.ErrorContext(ctx, "could not commit transaction", "reason", err)
-		return errors.Join(ErrCommitTx, err)
+		return errors.Join(ErrDatabaseCommitTx, err)
 	}
 
 	return nil

@@ -31,7 +31,11 @@ func RunGoFmt(targetDir string) error {
 	}
 	cmd := exec.Command("go", "fmt", "./...")
 	cmd.Dir = absTargetDir
-	return cmd.Run()
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("go fmt failed: %w\nOutput: %s", err, string(output))
+	}
+	return nil
 }
 
 func RunGoRunBin(targetDir string) error {
@@ -189,4 +193,3 @@ func getTailwindDownloadURL(version string) string {
 
 	return fmt.Sprintf("https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s", version, platform)
 }
-

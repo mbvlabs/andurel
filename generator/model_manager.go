@@ -100,7 +100,6 @@ func (m *ModelManager) setupModelContext(resourceName, tableName string, tableNa
 	}, nil
 }
 
-
 func (m *ModelManager) GenerateModel(resourceName string, tableNameOverride string) error {
 	tableName := tableNameOverride
 	if tableName == "" {
