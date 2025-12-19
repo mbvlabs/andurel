@@ -30,11 +30,11 @@ type Postgres struct {
 	pool *pgxpool.Pool
 }
 
-func NewPostgres(ctx context.Context, databaseURL string) (Postgres, error) {
+func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
 	pgxCfg, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not parse database connection string", "error", err)
-		return Postgres{}, err
+		return &Postgres{}, err
 	}
 
 	pgxCfg.ConnConfig.Tracer = otelpgx.NewTracer()
@@ -42,15 +42,15 @@ func NewPostgres(ctx context.Context, databaseURL string) (Postgres, error) {
 	pool, err := pgxpool.NewWithConfig(ctx, pgxCfg)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not establish connection to database", "error", err)
-		return Postgres{}, err
+		return &Postgres{}, err
 	}
 
 	if err := pool.Ping(ctx); err != nil {
 		slog.ErrorContext(ctx, "could not ping database", "error", err)
-		return Postgres{}, err
+		return &Postgres{}, err
 	}
 
-	return Postgres{pool}, nil
+	return &Postgres{pool}, nil
 }
 
 func (p *Postgres) Conn() *pgxpool.Pool {

@@ -1,8 +1,7 @@
 package controllers
 
 import (
-	"{{.ModuleName}}/database"
-	"{{.ModuleName}}/queue"
+	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/views"
 
 	"github.com/a-h/templ"
@@ -10,14 +9,14 @@ import (
 )
 
 type Pages struct {
-	db         database.Postgres
-	insertOnly queue.InsertOnly
+	db         andurel.Database
+	insertOnly andurel.InsertOnly
 	cache      *Cache[templ.Component]
 }
 
 func newPages(
-	db database.Postgres,
-	insertOnly queue.InsertOnly,
+	db andurel.Database,
+	insertOnly andurel.InsertOnly,
 	cache *Cache[templ.Component],
 ) Pages {
 	return Pages{db, insertOnly, cache}

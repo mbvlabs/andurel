@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/internal/andurel"
 {{- range .Blueprint.Cookies.Imports.Items}}
 	"{{.}}"
 {{- end}}
@@ -12,9 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-var AppKey appKey = "app_cookie_context"
-
-type appKey string
+var AppKey andurel.CookieKey = "app_cookie_context"
 
 {{- if gt (len .Blueprint.Cookies.SortedConstants) 0}}
 

@@ -1,3 +1,4 @@
+// Package andurel contains framework code that is managed and mainted by andurel.
 // Code generated and maintained by the andurel framework. DO NOT EDIT.
 // This file contains implementations of different kind of routes
 package andurel
@@ -28,32 +29,32 @@ func configurePath(path, prefix string) string {
 	return prefix + path
 }
 
-type Base struct {
+type Route struct {
 	name   string
 	path   string
 	prefix string
 }
 
-var _ Route = (*Base)(nil)
+var _ SimpleRoute = (*Route)(nil)
 
-// NewBase creates a base route that takes no parameters
-func NewBase(path, name, prefix string) Base {
-	return Base{name, path, prefix}
+// NewSimpleRoute creates a base route that takes no parameters
+func NewSimpleRoute(path, name, prefix string) Route {
+	return Route{name, path, prefix}
 }
 
-func (r Base) URL() string {
+func (r Route ) URL() string {
 	return r.path
 }
 
-func (r Base) Name() string {
+func (r Route) Name() string {
 	return configureName(r.name, r.prefix)
 }
 
-func (r Base) Path() string {
+func (r Route) Path() string {
 	return configurePath(r.path, r.prefix)
 }
 
-type RouteWithID Base
+type RouteWithID Route
 
 var _ IDRoute = (*RouteWithID)(nil)
 
@@ -74,7 +75,7 @@ func (r RouteWithID) URL(id uuid.UUID) string {
 	return strings.Replace(r.Path(), ":id", id.String(), 1)
 }
 
-type RouteWithIDs Base
+type RouteWithIDs Route
 
 var _ IDsRoute = (*RouteWithIDs)(nil)
 
@@ -100,7 +101,7 @@ func (r RouteWithIDs) URL(ids map[string]uuid.UUID) string {
 	return route
 }
 
-type RouteWithSlug Base
+type RouteWithSlug Route
 
 var _ ParamRoute = (*RouteWithSlug)(nil)
 
@@ -120,7 +121,7 @@ func (r RouteWithSlug) URL(slug string) string {
 	return strings.Replace(r.Path(), ":slug", slug, 1)
 }
 
-type RouteWithToken Base
+type RouteWithToken Route
 
 var _ ParamRoute = (*RouteWithToken)(nil)
 
@@ -140,7 +141,7 @@ func (r RouteWithToken) URL(token string) string {
 	return strings.Replace(r.Path(), ":token", token, 1)
 }
 
-type RouteWithFile Base
+type RouteWithFile Route
 
 var _ ParamRoute = (*RouteWithFile)(nil)
 

@@ -12,6 +12,7 @@ import (
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/pkg/telemetry"
 	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/router/middleware"
 
@@ -43,7 +44,7 @@ func New(
 
 	router := echo.New()
 
-	if config.Env != config.ProdEnvironment {
+	if config.Env != andurel.ProdEnvironment {
 		router.Debug = true
 	}
 
@@ -79,12 +80,12 @@ func New(
 			return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
 				strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
 		}, TokenLookup: "cookie:" + csrfName, CookiePath: "/", CookieDomain: func() string {
-			if config.Env == config.ProdEnvironment {
+			if config.Env == andurel.ProdEnvironment {
 				return config.Domain
 			}
 
 			return ""
-		}(), CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
+		}(), CookieSecure: config.Env == andurel.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
 
 		echomw.Recover(),
 	}

@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -13,10 +11,9 @@ import (
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
-	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/pkg/telemetry"
 	"{{.ModuleName}}/router"
-	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/queue/workers"
 	"riverqueue.com/riverui"
 {{- range .Blueprint.Controllers.SortedDependencies}}
@@ -29,57 +26,15 @@ import (
 {{- end}}
 
 	"github.com/labstack/echo/v4"
-	"golang.org/x/sync/errgroup"
 )
 
 var appVersion string
-
-func startServer(ctx context.Context, srv *http.Server, processor queue.Processor, env string) error {
-	if env == config.ProdEnvironment {
-		eg, egCtx := errgroup.WithContext(ctx)
-
-		eg.Go(func() error {
-			if err := srv.ListenAndServe(); err != nil &&
-				err != http.ErrServerClosed {
-				return fmt.Errorf("server error: %w", err)
-			}
-			return nil
-		})
-
-		eg.Go(func() error {
-			<-egCtx.Done()
-			slog.InfoContext(ctx, "initiating graceful shutdown")
-			shutdownCtx, cancel := context.WithTimeout(
-				ctx,
-				10*time.Second,
-			)
-			defer cancel()
-			slog.InfoContext(ctx, "shutting down processor")
-			if err := processor.Stop(shutdownCtx); err != nil {
-				return fmt.Errorf("processor shutdown error: %w", err)
-			}
-			if err := srv.Shutdown(shutdownCtx); err != nil {
-				return fmt.Errorf("shutdown error: %w", err)
-			}
-			return nil
-		})
-
-		if err := eg.Wait(); err != nil {
-			slog.InfoContext(ctx, "wait error", "e", err)
-			return err
-		}
-
-		return nil
-	}
-
-	return srv.ListenAndServe()
-}
 
 func setupControllers(
 {{- range $i, $dep := .Blueprint.Controllers.SortedDependencies}}
 	{{$dep.Name}} {{$dep.Type}},
 {{- end}}
-	insertOnly queue.InsertOnly,
+	insertOnly andurel.InsertOnly,
 ) (controllers.Controllers, error) {
 	ctrl, err := controllers.New(
 {{- range .Blueprint.Controllers.SortedDependencies}}
@@ -179,7 +134,7 @@ func run(ctx context.Context) error {
 	}
 
 
-	db, err := database.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
+	db, err := andurel.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
 	}
@@ -199,7 +154,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	insertOnly, err := queue.NewInsertOnly(
+	insertOnly, err := andurel.NewInsertOnly(
 		db.Conn(),
 		wrks,
 	)
@@ -207,7 +162,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	processor, err := queue.NewProcessor(
+	processor, err := andurel.NewProcessor(
 		ctx,
 		db.Conn(),
 		wrks,
@@ -249,31 +204,22 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	go func() error {
-		slog.InfoContext(ctx, "starting queue processor")
-		if err := processor.Start(ctx); err != nil {
-			slog.ErrorContext(ctx, "error stopping queue processor", "error", err)
-			return err
-		}
-
-		return nil
-	}()
-
 {{- range .Blueprint.Main.SortedBackgroundWorkers}}
 	// Start background worker: {{.Name}}
 	go {{.FunctionCall}}
 {{- end}}
 
-	srv := &http.Server{
-		Addr:         fmt.Sprintf("%v:%v", cfg.App.Host, cfg.App.Port),
-		Handler:      handler,
-		ReadTimeout:  1 * time.Second,
-		WriteTimeout: 5 * time.Second,
-		BaseContext:  func(_ net.Listener) context.Context { return ctx },
-	}
+	server := andurel.NewServer(
+		ctx,
+		cfg.App.Host,
+		cfg.App.Port,
+		config.Env,
+		handler,
+		[]andurel.Shutdowner{processor},
+	)
 
 	slog.InfoContext(ctx, "starting server", "host", cfg.App.Host, "port", cfg.App.Port)
-	return startServer(ctx, srv, processor, config.Env)
+	return server.Start(ctx, config.Env)
 }
 
 func main() {

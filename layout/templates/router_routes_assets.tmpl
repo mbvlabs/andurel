@@ -3,6 +3,8 @@ package routes
 import (
 	"fmt"
 	"time"
+
+	"{{.ModuleName}}/internal/andurel"
 )
 
 const (
@@ -12,34 +14,40 @@ const (
 
 var startTime = time.Now().Unix()
 
-var Robots = newRouteBuilder("robots").
-	SetNamePrefix(assetsNamePrefix).
-	SetPath(AssetsRoutePrefix + "/robots.txt").
-	Register()
+var Robots = andurel.NewSimpleRoute(
+	AssetsRoutePrefix+"/robots.txt",
+	"robots",
+	assetsNamePrefix,
+)
 
-var Sitemap = newRouteBuilder("sitemap").
-	SetNamePrefix(assetsNamePrefix).
-	SetPath(AssetsRoutePrefix + "/sitemap.xml").
-	Register()
+var Sitemap = andurel.NewSimpleRoute(
+	AssetsRoutePrefix+"/sitemap.xml",
+	"sitemap",
+	assetsNamePrefix,
+)
 
 {{- if eq .CSSFramework "vanilla"}}
-var StyleImport = newRouteBuilder("css.file").
-	SetNamePrefix(assetsNamePrefix).
-	SetPath(AssetsRoutePrefix + "/css/:file").
-	Register()
+var StyleImport = andurel.NewSimpleRoute(
+	AssetsRoutePrefix+"/css/:file",
+	"css.file",
+	assetsNamePrefix,
+)
 {{- end}}
 
-var Stylesheet = newRouteBuilder("css.stylesheet").
-	SetNamePrefix(assetsNamePrefix).
-	SetPath(AssetsRoutePrefix + fmt.Sprintf("/css/%v/style.css", startTime)).
-	Register()
+var Stylesheet = andurel.NewSimpleRoute(
+	AssetsRoutePrefix+fmt.Sprintf("/css/%v/style.css", startTime),
+	"css.stylesheet",
+	assetsNamePrefix,
+)
 
-var Scripts = newRouteBuilder("js.scripts").
-	SetNamePrefix(assetsNamePrefix).
-	SetPath(AssetsRoutePrefix + fmt.Sprintf("/js/%v/scripts.js", startTime)).
-	Register()
+var Scripts = andurel.NewSimpleRoute(
+	AssetsRoutePrefix+fmt.Sprintf("/js/%v/scripts.js", startTime),
+	"js.scripts",
+	assetsNamePrefix,
+)
 
-var Script = newRouteBuilder("js.script").
-	SetNamePrefix(assetsNamePrefix).
-	SetPath(AssetsRoutePrefix + fmt.Sprintf("/js/%v/:file", startTime)).
-	RegisterWithFile()
+var Script = andurel.NewRouteWithFile(
+	AssetsRoutePrefix+fmt.Sprintf("/js/%v/:file", startTime),
+	"js.script",
+	assetsNamePrefix,
+)
