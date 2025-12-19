@@ -1,4 +1,6 @@
-package andurel
+// Code generated and maintained by the andurel framework. DO NOT EDIT.
+// This file contains implementations of different kind of routes
+package routing
 
 import (
 	"strings"
@@ -6,53 +8,91 @@ import (
 	"github.com/google/uuid"
 )
 
-type routeKey string
+func configureName(name, prefix string) string {
+	if prefix == "" {
+		return name
+	}
 
-const (
-	routeName routeKey = "name"
-	routePath routeKey = "path"
-)
-
-type Route map[routeKey]string
-
-func (r Route) Name() string {
-	return r[routeName]
+	return prefix + "." + name
 }
 
-func (r Route) URL() string {
-	return r[routePath]
+func configurePath(path, prefix string) string {
+	if prefix == "" {
+		return path
+	}
+
+	if !strings.Contains(prefix, "/") {
+		return prefix + "/" + path
+	}
+
+	return prefix + path
 }
 
-func (r Route) Path() string {
-	return r[routePath]
+type Base struct {
+	name   string
+	path   string
+	prefix string
 }
 
-type RouteWithID Route
+var _ Route = (*Base)(nil)
+
+// NewBase creates a base route that takes no parameters
+func NewBase(path, name, prefix string) Base {
+	return Base{name, path, prefix}
+}
+
+func (r Base) URL() string {
+	return r.path
+}
+
+func (r Base) Name() string {
+	return configureName(r.name, r.prefix)
+}
+
+func (r Base) Path() string {
+	return configurePath(r.path, r.prefix)
+}
+
+type RouteWithID Base
+
+var _ IDRoute = (*RouteWithID)(nil)
+
+// NewRouteWithID creates an id route that takes a uuid as a parameter
+func NewRouteWithID(path, name, prefix string) RouteWithID {
+	return RouteWithID{name, path, prefix}
+}
 
 func (r RouteWithID) Name() string {
-	return r[routeName]
+	return configureName(r.name, r.prefix)
 }
 
 func (r RouteWithID) Path() string {
-	return r[routePath]
+	return configurePath(r.path, r.prefix)
 }
 
 func (r RouteWithID) URL(id uuid.UUID) string {
-	return strings.Replace(r[routePath], ":id", id.String(), 1)
+	return strings.Replace(r.Path(), ":id", id.String(), 1)
 }
 
-type RouteWithMultipleIDs Route
+type RouteWithIDs Base
 
-func (r RouteWithMultipleIDs) Name() string {
-	return r[routeName]
+var _ IDsRoute = (*RouteWithIDs)(nil)
+
+// NewRouteWithMultipleIDs creates a route that takes a map[string]uuid as parameters
+func NewRouteWithMultipleIDs(path, name, prefix string) RouteWithIDs {
+	return RouteWithIDs{name, path, prefix}
 }
 
-func (r RouteWithMultipleIDs) Path() string {
-	return r[routePath]
+func (r RouteWithIDs) Name() string {
+	return configureName(r.name, r.prefix)
 }
 
-func (r RouteWithMultipleIDs) URL(ids map[string]uuid.UUID) string {
-	route := r[routePath]
+func (r RouteWithIDs) Path() string {
+	return configurePath(r.path, r.prefix)
+}
+
+func (r RouteWithIDs) URL(ids map[string]uuid.UUID) string {
+	route := r.Path()
 	for param, id := range ids {
 		route = strings.Replace(route, ":"+param, id.String(), 1)
 	}
@@ -60,117 +100,62 @@ func (r RouteWithMultipleIDs) URL(ids map[string]uuid.UUID) string {
 	return route
 }
 
-type RouteWithSlug Route
+type RouteWithSlug Base
+
+var _ ParamRoute = (*RouteWithSlug)(nil)
+
+func NewRouteWithSlug(path, name, prefix string) RouteWithSlug {
+	return RouteWithSlug{name, path, prefix}
+}
 
 func (r RouteWithSlug) Name() string {
-	return r[routeName]
+	return configureName(r.name, r.prefix)
 }
 
 func (r RouteWithSlug) Path() string {
-	return r[routePath]
+	return configurePath(r.path, r.prefix)
 }
 
 func (r RouteWithSlug) URL(slug string) string {
-	return strings.Replace(r[routePath], ":slug", slug, 1)
+	return strings.Replace(r.Path(), ":slug", slug, 1)
 }
 
-type RouteWithToken Route
+type RouteWithToken Base
+
+var _ ParamRoute = (*RouteWithToken)(nil)
+
+func NewRouteWithToken(path, name, prefix string) RouteWithToken {
+	return RouteWithToken{name, path, prefix}
+}
 
 func (r RouteWithToken) Name() string {
-	return r[routeName]
+	return configureName(r.name, r.prefix)
 }
 
 func (r RouteWithToken) Path() string {
-	return r[routePath]
+	return configurePath(r.path, r.prefix)
 }
 
 func (r RouteWithToken) URL(token string) string {
-	return strings.Replace(r[routePath], ":token", token, 1)
+	return strings.Replace(r.Path(), ":token", token, 1)
 }
 
-type RouteWithFile Route
+type RouteWithFile Base
+
+var _ ParamRoute = (*RouteWithFile)(nil)
+
+func NewRouteWithFile(path, name, prefix string) RouteWithFile {
+	return RouteWithFile{name, path, prefix}
+}
 
 func (r RouteWithFile) Name() string {
-	return r[routeName]
+	return configureName(r.name, r.prefix)
 }
 
 func (r RouteWithFile) Path() string {
-	return r[routePath]
+	return configurePath(r.path, r.prefix)
 }
 
 func (r RouteWithFile) URL(file string) string {
-	return strings.Replace(r[routePath], ":file", file, 1)
-}
-
-type routeBuilder routeDefinition
-
-type routeDefinition struct {
-	Name string
-	Path string
-}
-
-func NewRouteBuilder(name string) routeBuilder {
-	return routeBuilder{
-		Name: name,
-	}
-}
-
-func (r routeBuilder) SetNamePrefix(prefix string) routeBuilder {
-	r.Name = prefix + "." + r.Name
-
-	return r
-}
-
-func (r routeBuilder) SetPath(path string) routeBuilder {
-	r.Path = r.Path + path
-
-	return r
-}
-
-func (r routeBuilder) Register() Route {
-	route := make(Route, 2)
-	route[routeName] = r.Name
-	route[routePath] = r.Path
-
-	return Route(route)
-}
-
-func (r routeBuilder) RegisterWithID() RouteWithID {
-	route := make(Route, 2)
-	route[routeName] = r.Name
-	route[routePath] = r.Path
-
-	return RouteWithID(route)
-}
-
-func (r routeBuilder) RegisterWithMultipleIDs() RouteWithMultipleIDs {
-	route := make(Route, 2)
-	route[routeName] = r.Name
-	route[routePath] = r.Path
-
-	return RouteWithMultipleIDs(route)
-}
-
-func (r routeBuilder) RegisterWithSlug() RouteWithSlug {
-	route := make(Route, 2)
-	route[routeName] = r.Name
-	route[routePath] = r.Path
-
-	return RouteWithSlug(route)
-}
-
-func (r routeBuilder) RegisterWithToken() RouteWithToken {
-	route := make(Route, 2)
-	route[routeName] = r.Name
-	route[routePath] = r.Path
-
-	return RouteWithToken(route)
-}
-
-func (r routeBuilder) RegisterWithFile() RouteWithFile {
-	route := make(Route, 2)
-	route[routeName] = r.Name
-	route[routePath] = r.Path
-
-	return RouteWithFile(route)
+	return strings.Replace(r.Path(), ":file", file, 1)
 }

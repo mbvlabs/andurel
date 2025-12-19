@@ -255,19 +255,6 @@ var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"vanilla_views_components_toasts.tmpl": "views/components/toasts.templ",
 }
 
-// var basePSQLTemplateMappings = map[TmplTarget]TmplTargetPath{
-// 	"psql_database.tmpl": "database/database.go",
-// 	"psql_sqlc.tmpl":     "database/sqlc.yaml",
-//
-// 	// Queue package
-// 	"psql_queue_queue.tmpl":                            "queue/queue.go",
-// 	"psql_queue_jobs_send_transactional_email.tmpl":    "queue/jobs/send_transactional_email.go",
-// 	"psql_queue_jobs_send_marketing_email.tmpl":        "queue/jobs/send_marketing_email.go",
-// 	"psql_queue_workers_workers.tmpl":                  "queue/workers/workers.go",
-// 	"psql_queue_workers_send_transactional_email.tmpl": "queue/workers/send_transactional_email.go",
-// 	"psql_queue_workers_send_marketing_email.tmpl":     "queue/workers/send_marketing_email.go",
-// }
-
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"env.tmpl":       ".env.example",
 	"gitignore.tmpl": ".gitignore",
@@ -276,8 +263,11 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Core files
 	"framework_elements_andurel.tmpl":      "internal/andurel/andurel.go",
 	"framework_elements_routes.tmpl":       "internal/andurel/routes.go",
-	"framework_elements_routes_group.tmpl": "internal/andurel/route_group.go",
+	"framework_elements_routes_group.tmpl": "internal/andurel/route_definitions.go",
 	"framework_elements_server.tmpl":       "internal/andurel/server.go",
+	"framework_elements_database.tmpl":     "internal/andurel/database.go",
+	"framework_elements_queue.tmpl":        "internal/andurel/queue.go",
+	"framework_elements_render.tmpl":       "internal/andurel/render.go",
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",

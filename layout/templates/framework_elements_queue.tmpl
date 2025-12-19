@@ -1,0 +1,70 @@
+// Code generated and maintained by the andurel framework. DO NOT EDIT.
+// This file contains abstractions for queue interactions as well as
+// default implementations
+package andurel
+
+import (
+	"context"
+	"log/slog"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+)
+
+type Queue interface {
+	Shutdown(ctx context.Context) error
+	Start(ctx context.Context) error
+	Stop(ctx context.Context)
+}
+
+type InsertOnly struct {
+	Client *river.Client[pgx.Tx]
+}
+
+func NewInsertOnly(pool *pgxpool.Pool, workers *river.Workers) (InsertOnly, error) {
+	riverClient, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
+		Workers: workers,
+	})
+	if err != nil {
+		return InsertOnly{}, err
+	}
+
+	return InsertOnly{riverClient}, nil
+}
+
+type Processor struct {
+	Client *river.Client[pgx.Tx]
+}
+
+func (p Processor) Shutdown(ctx context.Context) error {
+	return p.Client.Stop(ctx)
+}
+
+func (p Processor) Start(ctx context.Context) error {
+	return p.Client.Start(ctx)
+}
+
+func (p Processor) Stop(ctx context.Context) error {
+	return p.Client.Stop(ctx)
+}
+
+func NewProcessor(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	workers *river.Workers,
+) (Processor, error) {
+	riverClient, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
+		Queues: map[string]river.QueueConfig{
+			river.QueueDefault: {MaxWorkers: 100},
+		},
+		Logger:  slog.Default(),
+		Workers: workers,
+	})
+	if err != nil {
+		return Processor{}, err
+	}
+
+	return Processor{riverClient}, nil
+}
