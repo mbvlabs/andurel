@@ -120,7 +120,14 @@ func Scaffold(
 	}
 
 	fmt.Print("Generating andurel.lock file...\n")
-	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", extensionNames); err != nil {
+	scaffoldConfig := &ScaffoldConfig{
+		ProjectName:  projectName,
+		Repository:   repo,
+		Database:     database,
+		CSSFramework: cssFramework,
+		Extensions:   extensionNames,
+	}
+	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", scaffoldConfig); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
 	}
 
@@ -220,6 +227,9 @@ func Scaffold(
 
 	fmt.Print("Running go fmt...\n")
 	if err := cmds.RunGoFmt(targetDir); err != nil {
+		return fmt.Errorf("failed to run go fmt: %w", err)
+	}
+	if err := cmds.RunGolines(targetDir); err != nil {
 		return fmt.Errorf("failed to run go fmt: %w", err)
 	}
 
@@ -790,9 +800,9 @@ var defaultGoTools = []GoTool{
 	{Name: "templ", Module: "github.com/a-h/templ/cmd/templ", Version: versions.Templ},
 	{Name: "sqlc", Module: "github.com/sqlc-dev/sqlc/cmd/sqlc", Version: versions.Sqlc},
 	{Name: "goose", Module: "github.com/pressly/goose/v3/cmd/goose", Version: versions.Goose},
-	{Name: "air", Module: "github.com/air-verse/air", Version: "v1.61.7"},
-	{Name: "mailpit", Module: "github.com/axllent/mailpit", Version: "v1.21.8"},
-	{Name: "usql", Module: "github.com/xo/usql", Version: "v0.19.14"},
+	{Name: "air", Module: "github.com/air-verse/air", Version: versions.Air},
+	{Name: "mailpit", Module: "github.com/axllent/mailpit", Version: versions.Mailpit},
+	{Name: "usql", Module: "github.com/xo/usql", Version: versions.Usql},
 }
 
 var defaultTools = []string{
@@ -867,8 +877,10 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 	return builder.Blueprint()
 }
 
-func generateLockFile(targetDir, version string, hasTailwind bool, extensions []string) error {
+func generateLockFile(targetDir, version string, hasTailwind bool, config *ScaffoldConfig) error {
 	lock := NewAndurelLock(version)
+	lock.FrameworkVersion = version
+	lock.ScaffoldConfig = config
 
 	for _, tool := range defaultGoTools {
 		moduleRepo := extractRepo(tool.Module)
@@ -882,8 +894,10 @@ func generateLockFile(targetDir, version string, hasTailwind bool, extensions []
 
 	lock.AddTool("run", NewBuiltTool("cmd/run/main.go"))
 
-	for _, ext := range extensions {
-		lock.AddExtension(ext, time.Now().Format(time.RFC3339))
+	if config != nil {
+		for _, ext := range config.Extensions {
+			lock.AddExtension(ext, time.Now().Format(time.RFC3339))
+		}
 	}
 
 	return lock.WriteLockFile(targetDir)

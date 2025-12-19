@@ -38,6 +38,30 @@ func RunGoFmt(targetDir string) error {
 	return nil
 }
 
+func RunGoFmtPath(targetDir, path string) error {
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
+	cmd := exec.Command("go", "fmt", path)
+	cmd.Dir = absTargetDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("go fmt failed: %w\nOutput: %s", err, string(output))
+	}
+	return nil
+}
+
+func RunGolines(targetDir string) error {
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
+	cmd := exec.Command("golines", "-w", "-m", "100", ".")
+	cmd.Dir = absTargetDir
+	return cmd.Run()
+}
+
 func RunGoRunBin(targetDir string) error {
 	absTargetDir, err := filepath.Abs(targetDir)
 	if err != nil {
@@ -55,7 +79,13 @@ func RunTemplGenerate(targetDir string) error {
 	}
 
 	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
-		cmd := exec.Command("go", "run", "github.com/a-h/templ/cmd/templ@"+versions.Templ, "generate", "./views")
+		cmd := exec.Command(
+			"go",
+			"run",
+			"github.com/a-h/templ/cmd/templ@"+versions.Templ,
+			"generate",
+			"./views",
+		)
 		cmd.Dir = absTargetDir
 		return cmd.Run()
 	}
@@ -73,7 +103,13 @@ func RunTemplFmt(targetDir string) error {
 	}
 
 	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
-		cmd := exec.Command("go", "run", "github.com/a-h/templ/cmd/templ@"+versions.Templ, "fmt", "views")
+		cmd := exec.Command(
+			"go",
+			"run",
+			"github.com/a-h/templ/cmd/templ@"+versions.Templ,
+			"fmt",
+			"views",
+		)
 		cmd.Dir = absTargetDir
 		return cmd.Run()
 	}
@@ -91,7 +127,14 @@ func RunSqlcGenerate(targetDir string) error {
 	}
 
 	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
-		cmd := exec.Command("go", "run", "github.com/sqlc-dev/sqlc/cmd/sqlc@"+versions.Sqlc, "generate", "-f", "database/sqlc.yaml")
+		cmd := exec.Command(
+			"go",
+			"run",
+			"github.com/sqlc-dev/sqlc/cmd/sqlc@"+versions.Sqlc,
+			"generate",
+			"-f",
+			"database/sqlc.yaml",
+		)
 		cmd.Dir = absTargetDir
 		return cmd.Run()
 	}
@@ -109,7 +152,14 @@ func RunGooseFix(targetDir string) error {
 	}
 
 	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
-		cmd := exec.Command("go", "run", "github.com/pressly/goose/v3/cmd/goose@"+versions.Goose, "-dir", "database/migrations", "fix")
+		cmd := exec.Command(
+			"go",
+			"run",
+			"github.com/pressly/goose/v3/cmd/goose@"+versions.Goose,
+			"-dir",
+			"database/migrations",
+			"fix",
+		)
 		cmd.Dir = absTargetDir
 		return cmd.Run()
 	}
@@ -191,5 +241,9 @@ func getTailwindDownloadURL(version string) string {
 		platform = fmt.Sprintf("linux-%s", arch)
 	}
 
-	return fmt.Sprintf("https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s", version, platform)
+	return fmt.Sprintf(
+		"https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s",
+		version,
+		platform,
+	)
 }
