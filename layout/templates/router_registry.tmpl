@@ -1,29 +1,32 @@
 package router
 
 import (
-	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/router/middleware"
 
 	"github.com/labstack/echo/v4"
+{{- range .Blueprint.Controllers.Imports.SortedItems}}
+	"{{.}}"
+{{- end}}
 )
 
 type registrarBuilder struct {
-	routeFuncs []func(*echo.Echo, controllers.Controllers)
+	routeFuncs []func(*echo.Echo, middleware.Middleware{{range .Blueprint.Controllers.SortedConstructors}}, {{.Type}}{{end}})
 }
 
 func newRegistrarBuilder() *registrarBuilder {
 	return &registrarBuilder{
-		routeFuncs: make([]func(*echo.Echo, controllers.Controllers), 0),
+		routeFuncs: make([]func(*echo.Echo, middleware.Middleware{{range .Blueprint.Controllers.SortedConstructors}}, {{.Type}}{{end}}), 0),
 	}
 }
 
-func (rb *registrarBuilder) addEntry(fn func(*echo.Echo, controllers.Controllers)) *registrarBuilder {
+func (rb *registrarBuilder) addEntry(fn func(*echo.Echo, middleware.Middleware{{range .Blueprint.Controllers.SortedConstructors}}, {{.Type}}{{end}})) *registrarBuilder {
 	rb.routeFuncs = append(rb.routeFuncs, fn)
 	return rb
 }
 
-func (rb *registrarBuilder) register(handler *echo.Echo, ctrls controllers.Controllers) {
+func (rb *registrarBuilder) register(handler *echo.Echo, mw middleware.Middleware{{range .Blueprint.Controllers.SortedConstructors}}, {{.VarName}} {{.Type}}{{end}}) {
 	for _, fn := range rb.routeFuncs {
-		fn(handler, ctrls)
+		fn(handler, mw{{range .Blueprint.Controllers.SortedConstructors}}, {{.VarName}}{{end}})
 	}
 }
 

@@ -7,43 +7,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
-{{- range .Blueprint.Controllers.Imports.SortedItems}}
-	"{{.}}"
-{{- end}}
 )
-
-type Controllers struct {
-{{- range .Blueprint.Controllers.SortedFields}}
-	{{.Name}} {{.Type}}
-{{- end}}
-}
-
-func New(
-{{- range $i, $dep := .Blueprint.Controllers.SortedDependencies}}
-	{{$dep.Name}} {{$dep.Type}},
-{{- end}}
-	insertOnly andurel.InsertOnly,
-) (Controllers, error) {
-	pagesCache, err := NewCacheBuilder[templ.Component]().Build()
-	if err != nil {
-		return Controllers{}, err
-	}
-
-	assetsCache, err := NewCacheBuilder[string]().WithSize(2).Build()
-	if err != nil {
-		return Controllers{}, err
-	}
-
-{{- range .Blueprint.Controllers.SortedConstructors}}
-	{{.VarName}} := {{.Expression}}
-{{- end}}
-
-	return Controllers{
-{{- range .Blueprint.Controllers.SortedConstructors}}
-		{{.VarName}},
-{{- end}}
-	}, nil
-}
 
 func render(c echo.Context, t templ.Component) error {
 	return andurel.Render(
