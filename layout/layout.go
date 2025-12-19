@@ -261,10 +261,10 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"readme.tmpl":    "README.md",
 
 	// Core files
-	"framework_elements_andurel.tmpl":            "internal/andurel/andurel.go",
-	"framework_elements_routes.tmpl":             "internal/andurel/routes.go",
-	"framework_elements_routes_definitions.tmpl": "internal/andurel/route_definitions.go",
-	"framework_elements_server.tmpl":             "internal/andurel/server.go",
+	"framework_elements_andurel.tmpl":           "internal/andurel/andurel.go",
+	"framework_elements_routes.tmpl":            "internal/andurel/routes.go",
+	"framework_elements_route_definitions.tmpl": "internal/andurel/route_definitions.go",
+	"framework_elements_server.tmpl":            "internal/andurel/server.go",
 	"framework_elements_database.tmpl":           "internal/andurel/database.go",
 	"framework_elements_queue.tmpl":              "internal/andurel/queue.go",
 	"framework_elements_render.tmpl":             "internal/andurel/render.go",
