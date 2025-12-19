@@ -1,17 +1,17 @@
 package controllers
 
 import (
-	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/internal/andurel"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 )
 
 type API struct {
-	db database.Postgres
+	db andurel.Database
 }
 
-func newAPI(db database.Postgres) API {
+func newAPI(db andurel.Database) API {
 	return API{db}
 }
 

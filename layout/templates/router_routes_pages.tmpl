@@ -1,8 +1,13 @@
 package routes
 
+import (
+	"{{.ModuleName}}/internal/andurel"
+)
+
 const pageNamePrefix = "pages"
 
-var HomePage = newRouteBuilder("home").
-	SetNamePrefix(pageNamePrefix).
-	SetPath("/").
-	Register()
+var HomePage = andurel.NewBase(
+	"/",
+	"home",
+	pageNamePrefix,
+)

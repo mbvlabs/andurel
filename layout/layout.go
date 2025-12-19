@@ -332,11 +332,11 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
 
 	// Routes
-	"router_routes_routes.tmpl":      "router/routes/routes.go",
-	"router_routes_route_group.tmpl": "router/routes/route_group.go",
-	"router_routes_api.tmpl":         "router/routes/api.go",
-	"router_routes_assets.tmpl":      "router/routes/assets.go",
-	"router_routes_pages.tmpl":       "router/routes/pages.go",
+	// "router_routes_routes.tmpl":      "router/routes/routes.go",
+	// "router_routes_route_group.tmpl": "router/routes/route_group.go",
+	"router_routes_api.tmpl":    "router/routes/api.go",
+	"router_routes_assets.tmpl": "router/routes/assets.go",
+	"router_routes_pages.tmpl":  "router/routes/pages.go",
 
 	// Telemetry
 	"telemetry_telemetry.tmpl":        "pkg/telemetry/telemetry.go",
@@ -469,8 +469,6 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		"controllers_controller.tmpl",
 		"config_config.tmpl",
 		"env.tmpl",
-		"router_routes_routes.tmpl",
-		"router_registry.tmpl",
 		"router_register.tmpl",
 		"router_cookies_cookies.tmpl",
 	}
@@ -849,7 +847,7 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 
 	builder.AddConfigField("Email", "email")
 
-	builder.AddControllerDependency("db", "database.Postgres")
+	builder.AddControllerDependency("db", "andurel.Database")
 	builder.AddControllerDependency("emailClient", "email.TransactionalSender")
 
 	// Controller fields - the main sub-controllers

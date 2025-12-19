@@ -1,11 +1,16 @@
 package routes
 
+import (
+	"{{.ModuleName}}/internal/andurel"
+)
+
 const (
 	APIRoutePrefix = "/api"
 	apiNamePrefix  = "api"
 )
 
-var Health = newRouteBuilder("health").
-	SetNamePrefix(apiNamePrefix).
-	SetPath(APIRoutePrefix + "/health").
-	Register()
+var Health = andurel.NewBase(
+	APIRoutePrefix+"/health",
+	"health",
+	apiNamePrefix,
+)
