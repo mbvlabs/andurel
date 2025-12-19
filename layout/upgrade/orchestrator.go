@@ -3,11 +3,10 @@ package upgrade
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/layout/versions"
 )
 
 type UpgradeOptions struct {
@@ -21,55 +20,18 @@ type Upgrader struct {
 	lock        *layout.AndurelLock
 	git         *GitAnalyzer
 	generator   *TemplateGenerator
-	differ      *FileDiffer
-	merger      *FileMerger
 	opts        UpgradeOptions
 }
 
 type UpgradeReport struct {
-	FromVersion     string
-	ToVersion       string
-	BackupRef       string
-	FilesAnalyzed   int
-	FilesUnchanged  int
-	FilesReplaced   int
-	FilesMerged     int
-	FilesConflicted int
-	FilesSkipped    int
-	ConflictFiles   []string
-	Success         bool
-	Error           error
-}
-
-type FileAction struct {
-	RelativePath string
-	Action       ActionType
-	Reason       string
-	DiffResult   *DiffResult
-}
-
-type ActionType int
-
-const (
-	ActionSkip ActionType = iota
-	ActionReplace
-	ActionMerge
-	ActionConflict
-)
-
-func (a ActionType) String() string {
-	switch a {
-	case ActionSkip:
-		return "skip"
-	case ActionReplace:
-		return "replace"
-	case ActionMerge:
-		return "merge"
-	case ActionConflict:
-		return "conflict"
-	default:
-		return "unknown"
-	}
+	FromVersion    string
+	ToVersion      string
+	FilesReplaced  int
+	ToolsUpdated   int
+	ReplacedFiles  []string
+	UpdatedTools   []string
+	Success        bool
+	Error          error
 }
 
 func NewUpgrader(projectRoot string, opts UpgradeOptions) (*Upgrader, error) {
@@ -83,8 +45,6 @@ func NewUpgrader(projectRoot string, opts UpgradeOptions) (*Upgrader, error) {
 		lock:        lock,
 		git:         NewGitAnalyzer(projectRoot),
 		generator:   NewTemplateGenerator(opts.TargetVersion),
-		differ:      NewFileDiffer(),
-		merger:      NewFileMerger(),
 		opts:        opts,
 	}, nil
 }
@@ -93,7 +53,8 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	report := &UpgradeReport{
 		FromVersion:   u.lock.TemplateVersion,
 		ToVersion:     u.opts.TargetVersion,
-		ConflictFiles: []string{},
+		ReplacedFiles: []string{},
+		UpdatedTools:  []string{},
 	}
 
 	if err := u.validatePreconditions(); err != nil {
@@ -111,58 +72,61 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		)
 	}
 
-	fmt.Printf("Generating fresh templates...\n")
-	shadowDir, err := u.generator.Generate(*u.lock.ScaffoldConfig, u.projectRoot)
-	if err != nil {
-		report.Error = err
-		return report, fmt.Errorf("failed to generate shadow templates: %w", err)
-	}
-	defer u.generator.Cleanup(shadowDir)
-	fmt.Printf("✓ Generated templates in %s\n", shadowDir)
-
-	modifiedFiles, err := u.git.GetModifiedFiles()
-	if err != nil {
-		report.Error = err
-		return report, fmt.Errorf("failed to get modified files: %w", err)
+	// Check if internal/andurel directory exists
+	internalAndurelPath := filepath.Join(u.projectRoot, "internal", "andurel")
+	if _, err := os.Stat(internalAndurelPath); os.IsNotExist(err) {
+		return report, fmt.Errorf("internal/andurel directory not found - nothing to upgrade")
 	}
 
-	fmt.Printf("Analyzing files...\n")
-	actions, err := u.analyzeFiles(shadowDir, modifiedFiles)
+	fmt.Printf("Upgrading framework from %s to %s...\n", u.lock.TemplateVersion, u.opts.TargetVersion)
+
+	// Render framework templates
+	fmt.Printf("Rendering framework templates...\n")
+	renderedTemplates, err := u.generator.RenderFrameworkTemplates(*u.lock.ScaffoldConfig)
 	if err != nil {
 		report.Error = err
-		return report, fmt.Errorf("failed to analyze files: %w", err)
-	}
-
-	report.FilesAnalyzed = len(actions)
-	u.categorizeActions(actions, report)
-
-	if !u.opts.Auto && !u.opts.DryRun {
-		fmt.Printf("\nChanges to apply:\n")
-		fmt.Printf("  • %d files: Unchanged (skipped)\n", report.FilesSkipped)
-		fmt.Printf("  • %d files: Safe to update (will replace)\n", report.FilesReplaced)
-		fmt.Printf("  • %d files: Will attempt merge\n", report.FilesMerged)
-		fmt.Printf("\n")
-
-		if !u.confirmApply() {
-			return report, fmt.Errorf("upgrade cancelled by user")
-		}
+		return report, fmt.Errorf("failed to render framework templates: %w", err)
 	}
 
 	if u.opts.DryRun {
-		fmt.Printf("\n[DRY RUN] Would apply:\n")
-		fmt.Printf("  • %d files: Unchanged (skip)\n", report.FilesSkipped)
-		fmt.Printf("  • %d files: Safe to update (replace)\n", report.FilesReplaced)
-		fmt.Printf("  • %d files: Attempt merge\n", report.FilesMerged)
+		fmt.Printf("\n[DRY RUN] Would replace:\n")
+		for path := range renderedTemplates {
+			fmt.Printf("  • %s\n", path)
+		}
+		fmt.Printf("\nWould update tool versions in andurel.lock\n")
 		report.Success = true
 		return report, nil
 	}
 
-	fmt.Printf("Applying changes...\n")
-	if err := u.applyChanges(shadowDir, actions, report); err != nil {
-		report.Error = err
-		return report, fmt.Errorf("failed to apply changes: %w", err)
+	// Replace framework files
+	fmt.Printf("Replacing framework files in internal/andurel...\n")
+	for targetPath, content := range renderedTemplates {
+		fullPath := filepath.Join(u.projectRoot, targetPath)
+
+		if err := os.WriteFile(fullPath, content, 0o644); err != nil {
+			report.Error = err
+			return report, fmt.Errorf("failed to write %s: %w", targetPath, err)
+		}
+
+		report.FilesReplaced++
+		report.ReplacedFiles = append(report.ReplacedFiles, targetPath)
+		fmt.Printf("  ✓ %s\n", targetPath)
 	}
 
+	// Update tool versions
+	fmt.Printf("Updating tool versions...\n")
+	updatedTools, err := u.updateToolVersions()
+	if err != nil {
+		fmt.Printf("⚠ Warning: failed to update tool versions: %v\n", err)
+	} else {
+		report.ToolsUpdated = len(updatedTools)
+		report.UpdatedTools = updatedTools
+		for _, tool := range updatedTools {
+			fmt.Printf("  ✓ %s\n", tool)
+		}
+	}
+
+	// Update template version in lock file
 	u.lock.TemplateVersion = u.opts.TargetVersion
 	if err := u.lock.WriteLockFile(u.projectRoot); err != nil {
 		report.Error = err
@@ -170,21 +134,13 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	}
 	fmt.Printf("✓ Updated andurel.lock\n")
 
-	if err := u.runPostUpgradeHooks(); err != nil {
-		fmt.Printf("⚠ Warning: post-upgrade hooks failed: %v\n", err)
-	}
+	fmt.Printf("\n✓ Upgrade complete! Project is now at version %s\n", u.opts.TargetVersion)
+	fmt.Printf("\nSummary:\n")
+	fmt.Printf("  • %d framework files replaced\n", report.FilesReplaced)
+	fmt.Printf("  • %d tool versions updated\n", report.ToolsUpdated)
+	fmt.Printf("\nNote: Run 'andurel sync' to download updated tool binaries if needed.\n")
 
-	if len(report.ConflictFiles) > 0 {
-		fmt.Printf("\n⚠ %d file(s) need manual review:\n", len(report.ConflictFiles))
-		for _, f := range report.ConflictFiles {
-			fmt.Printf("  - %s\n", f)
-		}
-		fmt.Printf("\nResolve conflicts and commit the changes.\n")
-	} else {
-		fmt.Printf("\n✓ Upgrade complete! Project is now at version %s\n", u.opts.TargetVersion)
-		report.Success = true
-	}
-
+	report.Success = true
 	return report, nil
 }
 
@@ -208,280 +164,35 @@ func (u *Upgrader) validatePreconditions() error {
 	return nil
 }
 
-func (u *Upgrader) analyzeFiles(
-	shadowDir string,
-	modifiedFiles map[string]bool,
-) ([]*FileAction, error) {
-	var actions []*FileAction
+// updateToolVersions updates tool versions in the lock file to the latest versions
+func (u *Upgrader) updateToolVersions() ([]string, error) {
+	var updatedTools []string
 
-	// projectName := filepath.Base(u.projectRoot)
-	// shadowProjectDir := filepath.Join(shadowDir, projectName)
-	shadowProjectDir := filepath.Join(shadowDir)
-
-	err := filepath.Walk(
-		shadowProjectDir,
-		func(shadowPath string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-
-			if info.IsDir() {
-				return nil
-			}
-
-			relPath, err := filepath.Rel(shadowProjectDir, shadowPath)
-			if err != nil {
-				return err
-			}
-
-			if u.shouldSkipFile(relPath) {
-				return nil
-			}
-
-			userPath := filepath.Join(u.projectRoot, relPath)
-
-			action := &FileAction{
-				RelativePath: relPath,
-			}
-
-			userExists := fileExists(userPath)
-			if !userExists {
-				action.Action = ActionSkip
-				action.Reason = "new file in template (not in user project)"
-				actions = append(actions, action)
-				return nil
-			}
-
-			originalContent, err := u.git.GetFileFromInitialCommit(relPath)
-			if err != nil {
-				return fmt.Errorf("failed to get original file %s: %w", relPath, err)
-			}
-
-			if originalContent == nil {
-				action.Action = ActionSkip
-				action.Reason = "user-created file (not in original template)"
-				actions = append(actions, action)
-				return nil
-			}
-
-			newTemplatePath := shadowPath
-
-			diffResult, err := u.differ.CompareWithOriginal(originalContent, newTemplatePath, userPath)
-			if err != nil {
-				return fmt.Errorf("failed to compare %s: %w", relPath, err)
-			}
-
-			action.DiffResult = diffResult
-
-			switch diffResult.Status {
-			case DiffStatusIdentical:
-				action.Action = ActionSkip
-				action.Reason = "template unchanged"
-
-			case DiffStatusChanged:
-				if modifiedFiles[relPath] {
-					action.Action = ActionMerge
-					action.Reason = "template changed, user modified"
-				} else {
-					action.Action = ActionReplace
-					action.Reason = "template changed, user unmodified"
-				}
-
-			case DiffStatusUserModified:
-				action.Action = ActionMerge
-				action.Reason = "both template and user modified"
-
-			case DiffStatusNewFile:
-				action.Action = ActionSkip
-				action.Reason = "new file"
-
-			case DiffStatusDeletedFile:
-				action.Action = ActionSkip
-				action.Reason = "deleted from template"
-			}
-
-			actions = append(actions, action)
-			return nil
-		},
-	)
-	if err != nil {
-		return nil, err
+	// Define the latest tool versions
+	latestVersions := map[string]string{
+		"templ":  versions.Templ,
+		"sqlc":   versions.Sqlc,
+		"goose":  versions.Goose,
+		"air":    "v1.61.7",
+		"mailpit": "v1.21.8",
+		"usql":   "v0.19.14",
 	}
 
-	return actions, nil
-}
-
-func (u *Upgrader) shouldSkipFile(relPath string) bool {
-	skipPatterns := []string{
-		"andurel.lock",
-		".git/",
-		"bin/",
-		".env",
-		"go.mod",
-		"go.sum",
-	}
-
-	for _, pattern := range skipPatterns {
-		if strings.Contains(relPath, pattern) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (u *Upgrader) categorizeActions(actions []*FileAction, report *UpgradeReport) {
-	for _, action := range actions {
-		switch action.Action {
-		case ActionSkip:
-			report.FilesSkipped++
-		case ActionReplace:
-			report.FilesReplaced++
-		case ActionMerge:
-			report.FilesMerged++
-		}
-	}
-}
-
-func (u *Upgrader) confirmApply() bool {
-	fmt.Printf("Apply these changes? [Y/n] ")
-	var response string
-	fmt.Scanln(&response)
-
-	response = strings.ToLower(strings.TrimSpace(response))
-	return response == "" || response == "y" || response == "yes"
-}
-
-func (u *Upgrader) applyChanges(
-	shadowDir string,
-	actions []*FileAction,
-	report *UpgradeReport,
-) error {
-	// projectName := filepath.Base(u.projectRoot)
-	shadowProjectDir := filepath.Join(shadowDir)
-
-	for _, action := range actions {
-		if action.Action == ActionSkip {
-			continue
-		}
-
-		shadowPath := filepath.Join(shadowProjectDir, action.RelativePath)
-		userPath := filepath.Join(u.projectRoot, action.RelativePath)
-
-		switch action.Action {
-		case ActionReplace:
-			if err := u.replaceFile(shadowPath, userPath); err != nil {
-				return fmt.Errorf("failed to replace %s: %w", action.RelativePath, err)
-			}
-
-		case ActionMerge:
-			if err := u.mergeFile(shadowPath, userPath, action, report); err != nil {
-				return fmt.Errorf("failed to merge %s: %w", action.RelativePath, err)
+	for toolName, latestVersion := range latestVersions {
+		if tool, exists := u.lock.Tools[toolName]; exists {
+			if tool.Version != latestVersion {
+				tool.Version = latestVersion
+				u.lock.Tools[toolName] = tool
+				updatedTools = append(updatedTools, fmt.Sprintf("%s: %s", toolName, latestVersion))
 			}
 		}
 	}
 
-	fmt.Printf("✓ Applied %d changes\n", report.FilesReplaced+report.FilesMerged)
-	return nil
+	return updatedTools, nil
 }
 
-func (u *Upgrader) replaceFile(shadowPath, userPath string) error {
-	content, err := os.ReadFile(shadowPath)
-	if err != nil {
-		return fmt.Errorf("failed to read shadow file: %w", err)
-	}
-
-	if err := os.WriteFile(userPath, content, 0o644); err != nil {
-		return fmt.Errorf("failed to write user file: %w", err)
-	}
-
-	return nil
-}
-
-func (u *Upgrader) mergeFile(
-	shadowPath, userPath string,
-	action *FileAction,
-	report *UpgradeReport,
-) error {
-	originalContent, err := u.git.GetFileFromInitialCommit(action.RelativePath)
-	if err != nil {
-		return fmt.Errorf("failed to get original content: %w", err)
-	}
-
-	if originalContent == nil {
-		return fmt.Errorf("original content not found for %s", action.RelativePath)
-	}
-
-	userContent, err := os.ReadFile(userPath)
-	if err != nil {
-		return fmt.Errorf("failed to read user content: %w", err)
-	}
-
-	newContent, err := os.ReadFile(shadowPath)
-	if err != nil {
-		return fmt.Errorf("failed to read new content: %w", err)
-	}
-
-	mergeResult, err := u.merger.Merge(originalContent, userContent, newContent)
-	if err != nil {
-		return fmt.Errorf("failed to merge: %w", err)
-	}
-
-	if err := os.WriteFile(userPath, mergeResult.Content, 0o644); err != nil {
-		return fmt.Errorf("failed to write merged content: %w", err)
-	}
-
-	if mergeResult.HasConflicts {
-		report.FilesConflicted++
-		report.ConflictFiles = append(report.ConflictFiles, action.RelativePath)
-	}
-
-	return nil
-}
-
-func (u *Upgrader) runPostUpgradeHooks() error {
-	hooks := []struct {
-		name     string
-		cmd      *exec.Cmd
-		optional bool
-	}{
-		{
-			name: "go mod tidy",
-			cmd:  exec.Command("go", "mod", "tidy"),
-		},
-		{
-			name: "andurel sync",
-			cmd:  exec.Command("andurel", "sync"),
-		},
-		{
-			name: "templ generate",
-			cmd:  exec.Command("templ", "generate"),
-		},
-		{
-			name: "go fmt",
-			cmd:  exec.Command("go", "fmt", "./..."),
-		},
-		{
-			name:     "go vet",
-			cmd:      exec.Command("go", "vet", "./..."),
-			optional: true,
-		},
-	}
-
-	fmt.Printf("\nRunning post-upgrade hooks...\n")
-	for _, hook := range hooks {
-		fmt.Printf("  • %s...\n", hook.name)
-		hook.cmd.Dir = u.projectRoot
-
-		if err := hook.cmd.Run(); err != nil {
-			if hook.optional {
-				fmt.Printf("    ⚠ %s failed (optional): %v\n", hook.name, err)
-				continue
-			}
-			return fmt.Errorf("%s failed: %w", hook.name, err)
-		}
-	}
-
-	fmt.Printf("✓ Post-upgrade hooks completed\n")
-	return nil
+// Helper function to check if file exists
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }

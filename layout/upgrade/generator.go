@@ -1,13 +1,35 @@
 package upgrade
 
 import (
+	"bytes"
 	"fmt"
-	"os"
-	"path/filepath"
-	"time"
+	"io/fs"
+	"strings"
+	"text/template"
 
 	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/layout/templates"
 )
+
+// FrameworkTemplate represents a framework element template and its target path
+type FrameworkTemplate struct {
+	TemplateName string
+	TargetPath   string
+}
+
+// GetFrameworkTemplates returns the list of framework element templates
+// These are the only files that get upgraded when running andurel upgrade
+func GetFrameworkTemplates() []FrameworkTemplate {
+	return []FrameworkTemplate{
+		{"framework_elements_andurel.tmpl", "internal/andurel/andurel.go"},
+		{"framework_elements_routes.tmpl", "internal/andurel/routes.go"},
+		{"framework_elements_route_definitions.tmpl", "internal/andurel/route_definitions.go"},
+		{"framework_elements_server.tmpl", "internal/andurel/server.go"},
+		{"framework_elements_database.tmpl", "internal/andurel/database.go"},
+		{"framework_elements_queue.tmpl", "internal/andurel/queue.go"},
+		{"framework_elements_render.tmpl", "internal/andurel/render.go"},
+	}
+}
 
 type TemplateGenerator struct {
 	targetVersion string
@@ -19,41 +41,65 @@ func NewTemplateGenerator(targetVersion string) *TemplateGenerator {
 	}
 }
 
-func (g *TemplateGenerator) Generate(config layout.ScaffoldConfig, projectRoot string) (shadowDir string, err error) {
-	timestamp := time.Now().Format("20060102-150405")
-	shadowDirName := fmt.Sprintf(".andurel-upgrade-%s", timestamp)
+// RenderFrameworkTemplates renders all framework element templates and returns
+// a map of file paths to their rendered content
+func (g *TemplateGenerator) RenderFrameworkTemplates(config layout.ScaffoldConfig) (map[string][]byte, error) {
+	templateData := g.buildTemplateData(config)
+	result := make(map[string][]byte)
 
-	parentDir := filepath.Dir(projectRoot)
-	shadowPath := filepath.Join(parentDir, shadowDirName)
+	frameworkTemplates := GetFrameworkTemplates()
 
-	if err := os.MkdirAll(shadowPath, 0755); err != nil {
-		return "", fmt.Errorf("failed to create shadow directory: %w", err)
+	for _, ft := range frameworkTemplates {
+		content, err := renderTemplateToBytes(ft.TemplateName, templates.Files, templateData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to render %s: %w", ft.TemplateName, err)
+		}
+
+		result[ft.TargetPath] = content
 	}
 
-	if err := layout.Scaffold(
-		shadowPath,
-		config.ProjectName,
-		config.Repository,
-		config.Database,
-		config.CSSFramework,
-		g.targetVersion,
-		config.Extensions,
-	); err != nil {
-		g.Cleanup(shadowPath)
-		return "", fmt.Errorf("failed to scaffold shadow project: %w", err)
-	}
-
-	return shadowPath, nil
+	return result, nil
 }
 
-func (g *TemplateGenerator) Cleanup(shadowDir string) error {
-	if shadowDir == "" {
-		return fmt.Errorf("shadow directory path is empty")
+// buildTemplateData constructs the template data from scaffold config
+func (g *TemplateGenerator) buildTemplateData(config layout.ScaffoldConfig) *layout.TemplateData {
+	moduleName := config.ProjectName
+	if config.Repository != "" {
+		moduleName = config.Repository + "/" + config.ProjectName
 	}
 
-	if err := os.RemoveAll(shadowDir); err != nil {
-		return fmt.Errorf("failed to remove shadow directory: %w", err)
+	return &layout.TemplateData{
+		AppName:      config.ProjectName,
+		ProjectName:  config.ProjectName,
+		ModuleName:   moduleName,
+		Database:     config.Database,
+		CSSFramework: config.CSSFramework,
+		Extensions:   config.Extensions,
+	}
+}
+
+// renderTemplateToBytes renders a template from the given filesystem and returns the result as bytes
+func renderTemplateToBytes(templateFile string, fsys fs.FS, data *layout.TemplateData) ([]byte, error) {
+	content, err := fs.ReadFile(fsys, templateFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read template %s: %w", templateFile, err)
 	}
 
-	return nil
+	funcMap := template.FuncMap{
+		"lower": strings.ToLower,
+	}
+
+	tmpl, err := template.New(templateFile).
+		Funcs(funcMap).
+		Parse(string(content))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse template %s: %w", templateFile, err)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return nil, fmt.Errorf("failed to execute template %s: %w", templateFile, err)
+	}
+
+	return buf.Bytes(), nil
 }
