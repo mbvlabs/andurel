@@ -13,10 +13,10 @@ import (
 
 func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:     "andurel",
-		Short:   "Andurel - The Go Web development framework",
-		Long:    `Andurel is a comprehensive web development framework for Go,`,
-		Version: fmt.Sprintf("%s (built: %s)", version, date),
+		Use:          "andurel",
+		Short:        "Andurel - The Go Web development framework",
+		Long:         `Andurel is a comprehensive web development framework for Go,`,
+		Version:      fmt.Sprintf("%s (built: %s)", version, date),
 		SilenceUsage: true,
 	}
 

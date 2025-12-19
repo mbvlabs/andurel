@@ -12,6 +12,7 @@ import (
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/pkg/telemetry"
 	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/router/middleware"
 
@@ -20,9 +21,7 @@ import (
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
-{{- if eq .Database "postgresql"}}
 	"riverqueue.com/riverui"
-{{- end}}
 
 	echomw "github.com/labstack/echo/v4/middleware"
 )
@@ -38,16 +37,14 @@ func New(
 	controllers controllers.Controllers,
 	cfg config.Config,
 	tel *telemetry.Telemetry,
-{{- if eq .Database "postgresql"}}
 	riverHandler *riverui.Handler,
-{{- end}}
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
 
 	router := echo.New()
 
-	if config.Env != config.ProdEnvironment {
+	if config.Env != andurel.ProdEnvironment {
 		router.Debug = true
 	}
 
@@ -83,21 +80,19 @@ func New(
 			return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
 				strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
 		}, TokenLookup: "cookie:" + csrfName, CookiePath: "/", CookieDomain: func() string {
-			if config.Env == config.ProdEnvironment {
+			if config.Env == andurel.ProdEnvironment {
 				return config.Domain
 			}
 
 			return ""
-		}(), CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
+		}(), CookieSecure: config.Env == andurel.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
 
 		echomw.Recover(),
 	}
 
 	router.Use(middleware...)
 
-{{- if eq .Database "postgresql"}}
 	router.Any("/riverui*", echo.WrapHandler(riverHandler))
-{{- end}}
 
 	registrar.register(router, controllers)
 

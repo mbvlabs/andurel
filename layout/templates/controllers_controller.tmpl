@@ -2,19 +2,13 @@
 package controllers
 
 import (
-	"context"
-	"net/http"
-
-	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/router/cookies"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
 {{- range .Blueprint.Controllers.Imports.SortedItems}}
 	"{{.}}"
-{{- end}}
-{{- if eq .Database "postgresql"}}
-	"{{.ModuleName}}/queue"
 {{- end}}
 )
 
@@ -28,9 +22,7 @@ func New(
 {{- range $i, $dep := .Blueprint.Controllers.SortedDependencies}}
 	{{$dep.Name}} {{$dep.Type}},
 {{- end}}
-{{- if eq .Database "postgresql"}}
-	insertOnly queue.InsertOnly,
-{{- end}}
+	insertOnly andurel.InsertOnly,
 ) (Controllers, error) {
 	pagesCache, err := NewCacheBuilder[templ.Component]().Build()
 	if err != nil {
@@ -53,27 +45,13 @@ func New(
 	}, nil
 }
 
-func render(ctx echo.Context, t templ.Component) error {
-	buf := templ.GetBuffer()
-	defer templ.ReleaseBuffer(buf)
-
-	appCtx := ctx.Get(string(cookies.AppKey))
-	withAppCtx := context.WithValue(
-		ctx.Request().Context(),
-		cookies.AppKey,
-		appCtx,
+func render(c echo.Context, t templ.Component) error {
+	return andurel.Render(
+		c,
+		t,
+		[]andurel.CookieKey{
+			cookies.AppKey,
+			cookies.FlashKey,
+		},
 	)
-
-	flashCtx := ctx.Get(string(cookies.FlashKey))
-	withFlashCtx := context.WithValue(
-		withAppCtx,
-		cookies.FlashKey,
-		flashCtx,
-	)
-
-	if err := t.Render(withFlashCtx, buf); err != nil {
-		return err
-	}
-
-	return ctx.HTML(http.StatusOK, buf.String())
 }

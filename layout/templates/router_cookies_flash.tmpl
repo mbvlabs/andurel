@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/internal/andurel"
 
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
@@ -20,15 +21,13 @@ type FlashMessage struct {
 	Message   string
 }
 
-type flashKey string
-
 var (
-	FlashKey = func() flashKey {
-		if config.Env == config.ProdEnvironment {
-			return flashKey(strings.ToLower(config.ProjectName) + "_" + "flash_key")
+	FlashKey = func() andurel.CookieKey {
+		if config.Env == andurel.ProdEnvironment {
+			return andurel.CookieKey(strings.ToLower(config.ProjectName) + "_" + "flash_key")
 		}
 
-		return flashKey(strings.ToLower(config.ProjectName) + "_" + "dev_flash_key")
+		return andurel.CookieKey(strings.ToLower(config.ProjectName) + "_" + "dev_flash_key")
 	}()
 	flashSession          = "flash_session"
 )

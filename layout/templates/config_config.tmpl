@@ -6,13 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gosimple/slug"
-)
+	"{{.ModuleName}}/internal/andurel"
 
-const (
-	DevEnvironment  = "development"
-	ProdEnvironment = "production"
-	TestEnvironment = "testing"
+	"github.com/gosimple/slug"
 )
 
 // Global application settings that can be used throughout the codebase with defaults.
@@ -22,7 +18,7 @@ var (
 			return os.Getenv("ENVIRONMENT")
 		}
 
-		return DevEnvironment
+		return andurel.DevEnvironment
 	}()
 	ProjectName = func() string {
 		if os.Getenv("PROJECT_NAME") != "" {

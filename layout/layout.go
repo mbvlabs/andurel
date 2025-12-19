@@ -265,24 +265,19 @@ var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"vanilla_views_components_toasts.tmpl": "views/components/toasts.templ",
 }
 
-var basePSQLTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"psql_database.tmpl": "database/database.go",
-	"psql_sqlc.tmpl":     "database/sqlc.yaml",
-
-	// Queue package
-	"psql_queue_queue.tmpl":                            "queue/queue.go",
-	"psql_queue_jobs_send_transactional_email.tmpl":    "queue/jobs/send_transactional_email.go",
-	"psql_queue_jobs_send_marketing_email.tmpl":        "queue/jobs/send_marketing_email.go",
-	"psql_queue_workers_workers.tmpl":                  "queue/workers/workers.go",
-	"psql_queue_workers_send_transactional_email.tmpl": "queue/workers/send_transactional_email.go",
-	"psql_queue_workers_send_marketing_email.tmpl":     "queue/workers/send_marketing_email.go",
-}
-
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
-	// Core files
 	"env.tmpl":       ".env.example",
 	"gitignore.tmpl": ".gitignore",
 	"readme.tmpl":    "README.md",
+
+	// Core files
+	"framework_elements_andurel.tmpl":           "internal/andurel/andurel.go",
+	"framework_elements_routes.tmpl":            "internal/andurel/routes.go",
+	"framework_elements_route_definitions.tmpl": "internal/andurel/route_definitions.go",
+	"framework_elements_server.tmpl":            "internal/andurel/server.go",
+	"framework_elements_database.tmpl":          "internal/andurel/database.go",
+	"framework_elements_queue.tmpl":             "internal/andurel/queue.go",
+	"framework_elements_render.tmpl":            "internal/andurel/render.go",
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
@@ -316,6 +311,17 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
 	"database_test_helper.tmpl":        "database/test_helper.go",
 
+	"psql_database.tmpl": "database/database.go",
+	"psql_sqlc.tmpl":     "database/sqlc.yaml",
+
+	// Queue package
+	"psql_queue_queue.tmpl":                            "queue/queue.go",
+	"psql_queue_jobs_send_transactional_email.tmpl":    "queue/jobs/send_transactional_email.go",
+	"psql_queue_jobs_send_marketing_email.tmpl":        "queue/jobs/send_marketing_email.go",
+	"psql_queue_workers_workers.tmpl":                  "queue/workers/workers.go",
+	"psql_queue_workers_send_transactional_email.tmpl": "queue/workers/send_transactional_email.go",
+	"psql_queue_workers_send_marketing_email.tmpl":     "queue/workers/send_marketing_email.go",
+
 	// Email
 	"email_email.tmpl":       "email/email.go",
 	"email_base_layout.tmpl": "email/base_layout.templ",
@@ -336,11 +342,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
 
 	// Routes
-	"router_routes_routes.tmpl":      "router/routes/routes.go",
-	"router_routes_route_group.tmpl": "router/routes/route_group.go",
-	"router_routes_api.tmpl":         "router/routes/api.go",
-	"router_routes_assets.tmpl":      "router/routes/assets.go",
-	"router_routes_pages.tmpl":       "router/routes/pages.go",
+	"router_routes_api.tmpl":    "router/routes/api.go",
+	"router_routes_assets.tmpl": "router/routes/assets.go",
+	"router_routes_pages.tmpl":  "router/routes/pages.go",
 
 	// Telemetry
 	"telemetry_telemetry.tmpl":        "pkg/telemetry/telemetry.go",
@@ -381,11 +385,11 @@ func processTemplatedFiles(
 		}
 	}
 
-	for templateFile, targetPath := range basePSQLTemplateMappings {
-		if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
-			return fmt.Errorf("failed to process psql template %s: %w", templateFile, err)
-		}
-	}
+	// for templateFile, targetPath := range basePSQLTemplateMappings {
+	// 	if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
+	// 		return fmt.Errorf("failed to process psql template %s: %w", templateFile, err)
+	// 	}
+	// }
 
 	if cssFramework == "tailwind" {
 		for templateFile, targetPath := range baseTailwindTemplateMappings {
@@ -473,8 +477,6 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		"controllers_controller.tmpl",
 		"config_config.tmpl",
 		"env.tmpl",
-		"router_routes_routes.tmpl",
-		"router_registry.tmpl",
 		"router_register.tmpl",
 		"router_cookies_cookies.tmpl",
 	}
@@ -853,7 +855,7 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 
 	builder.AddConfigField("Email", "email")
 
-	builder.AddControllerDependency("db", "database.Postgres")
+	builder.AddControllerDependency("db", "andurel.Database")
 	builder.AddControllerDependency("emailClient", "email.TransactionalSender")
 
 	// Controller fields - the main sub-controllers

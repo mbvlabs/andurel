@@ -25,11 +25,11 @@ type TemplateData interface {
 type ProcessTemplateFunc func(templateFile, targetPath string, data TemplateData) error
 
 type Context struct {
-	TargetDir          string
-	Data               TemplateData
-	ProcessTemplate    ProcessTemplateFunc
-	AddPostStep        func(func(targetDir string) error)
-	NextMigrationTime  *time.Time
+	TargetDir         string
+	Data              TemplateData
+	ProcessTemplate   ProcessTemplateFunc
+	AddPostStep       func(func(targetDir string) error)
+	NextMigrationTime *time.Time
 }
 
 // Builder returns the blueprint builder for structured contributions.
