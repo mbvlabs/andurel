@@ -24,14 +24,14 @@ type Upgrader struct {
 }
 
 type UpgradeReport struct {
-	FromVersion    string
-	ToVersion      string
-	FilesReplaced  int
-	ToolsUpdated   int
-	ReplacedFiles  []string
-	UpdatedTools   []string
-	Success        bool
-	Error          error
+	FromVersion   string
+	ToVersion     string
+	FilesReplaced int
+	ToolsUpdated  int
+	ReplacedFiles []string
+	UpdatedTools  []string
+	Success       bool
+	Error         error
 }
 
 func NewUpgrader(projectRoot string, opts UpgradeOptions) (*Upgrader, error) {
@@ -78,7 +78,11 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		return report, fmt.Errorf("internal/andurel directory not found - nothing to upgrade")
 	}
 
-	fmt.Printf("Upgrading framework from %s to %s...\n", u.lock.TemplateVersion, u.opts.TargetVersion)
+	fmt.Printf(
+		"Upgrading framework from %s to %s...\n",
+		u.lock.TemplateVersion,
+		u.opts.TargetVersion,
+	)
 
 	// Render framework templates
 	fmt.Printf("Rendering framework templates...\n")
@@ -170,12 +174,12 @@ func (u *Upgrader) updateToolVersions() ([]string, error) {
 
 	// Define the latest tool versions
 	latestVersions := map[string]string{
-		"templ":  versions.Templ,
-		"sqlc":   versions.Sqlc,
-		"goose":  versions.Goose,
-		"air":    "v1.61.7",
+		"templ":   versions.Templ,
+		"sqlc":    versions.Sqlc,
+		"goose":   versions.Goose,
+		"air":     "v1.61.7",
 		"mailpit": "v1.21.8",
-		"usql":   "v0.19.14",
+		"usql":    "v0.19.14",
 	}
 
 	for toolName, latestVersion := range latestVersions {
@@ -189,10 +193,4 @@ func (u *Upgrader) updateToolVersions() ([]string, error) {
 	}
 
 	return updatedTools, nil
-}
-
-// Helper function to check if file exists
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
 }
