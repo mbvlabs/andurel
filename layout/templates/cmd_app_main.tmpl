@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/pkg/telemetry"
 	"{{.ModuleName}}/router"
+	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/queue/workers"
 	"riverqueue.com/riverui"
 {{- range .Blueprint.Controllers.SortedDependencies}}
@@ -25,6 +27,7 @@ import (
 	"{{.}}"
 {{- end}}
 
+	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
 )
 
@@ -35,39 +38,64 @@ func setupControllers(
 	{{$dep.Name}} {{$dep.Type}},
 {{- end}}
 	insertOnly andurel.InsertOnly,
-) (controllers.Controllers, error) {
-	ctrl, err := controllers.New(
-{{- range .Blueprint.Controllers.SortedDependencies}}
-		{{.Name}},
-{{- end}}
-		insertOnly,
-	)
+	rtr *router.Router,
+	riverHandler *riverui.Handler,
+	mw middleware.Middleware,
+) error {
+	pagesCache, err := controllers.NewCacheBuilder[templ.Component]().Build()
 	if err != nil {
-		return controllers.Controllers{}, err
+		return err
 	}
 
-	return ctrl, nil
+	assetsCache, err := controllers.NewCacheBuilder[string]().WithSize(2).Build()
+	if err != nil {
+		return err
+	}
+
+{{- range .Blueprint.Controllers.SortedConstructors}}
+	{{.VarName}} := {{.Expression}}
+{{- end}}
+
+	rtr.RegisterCtrlRoutes(
+		mw,
+{{- range .Blueprint.Controllers.SortedConstructors}}
+		{{.VarName}},
+{{- end}}
+	)
+
+	rtr.RegisterCustomRoutes(
+		riverHandler,
+		pages.NotFound,
+	)
+
+	return nil
 }
 
 func setupRouter(
 	ctx context.Context,
-	ctrl controllers.Controllers,
 	cfg config.Config,
 	tel *telemetry.Telemetry,
-	riverHandler *riverui.Handler,
-) (*echo.Echo, error) {
+	mw middleware.Middleware,
+) (*router.Router, error) {
+	authKey, err := hex.DecodeString(cfg.App.SessionKey)
+	if err != nil {
+		return nil, err
+	}
+	encKey, err := hex.DecodeString(cfg.App.SessionEncryptionKey)
+	if err != nil {
+		return nil, err
+	}
+
 	r, err := router.New(
 		ctx,
-		ctrl,
 		cfg,
-		tel,
-		riverHandler,
+		router.SetupGlobalMiddleware(cfg, tel, authKey, encKey, mw, "_csrf"),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.Handler, nil
+	return r, nil
 }
 
 func parseHeaders(headersStr string) map[string]string {
@@ -176,15 +204,7 @@ func run(ctx context.Context) error {
 	{{.Code}}
 {{- end}}
 
-	controllers, err := setupControllers(
-{{- range .Blueprint.Controllers.SortedDependencies}}
-		{{.Name}},
-{{- end}}
-		insertOnly,
-	)
-	if err != nil {
-		return err
-	}
+	mw := middleware.New(db)
 
 	endpoints := riverui.NewEndpoints(processor.Client, nil)
 	opts := &riverui.HandlerOpts{
@@ -199,10 +219,25 @@ func run(ctx context.Context) error {
 
 	riverHandler.Start(ctx)
 
-	handler, err := setupRouter(ctx, controllers, cfg, tel, riverHandler)
+	rtr, err := setupRouter(ctx, cfg, tel, mw)
 	if err != nil {
 		return err
 	}
+
+	err = setupControllers(
+{{- range .Blueprint.Controllers.SortedDependencies}}
+		{{.Name}},
+{{- end}}
+		insertOnly,
+		rtr,
+		riverHandler,
+		mw,
+	)
+	if err != nil {
+		return err
+	}
+
+	handler := rtr.Handler
 
 {{- range .Blueprint.Main.SortedBackgroundWorkers}}
 	// Start background worker: {{.Name}}

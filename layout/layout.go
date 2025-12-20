@@ -845,6 +845,7 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 
 	builder.AddMainImport(fmt.Sprintf("%s/email", moduleName))
 	builder.AddMainImport(fmt.Sprintf("%s/clients/email", moduleName))
+	builder.AddControllerImport(fmt.Sprintf("%s/controllers", moduleName))
 	builder.AddControllerImport(fmt.Sprintf("%s/email", moduleName))
 
 	builder.AddMainInitialization(
@@ -856,19 +857,18 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 	builder.AddConfigField("Email", "email")
 
 	builder.AddControllerDependency("db", "andurel.Database")
-	builder.AddControllerDependency("emailClient", "email.TransactionalSender")
 
 	// Controller fields - the main sub-controllers
 	builder.
-		AddControllerField("Assets", "Assets").
-		AddControllerField("API", "API").
-		AddControllerField("Pages", "Pages")
+		AddControllerField("Assets", "controllers.Assets").
+		AddControllerField("API", "controllers.API").
+		AddControllerField("Pages", "controllers.Pages")
 
 	// Constructor initializations
 	builder.
-		AddControllerConstructor("assets", "newAssets(assetsCache)").
-		AddControllerConstructor("api", "newAPI(db)").
-		AddControllerConstructor("pages", "newPages(db, insertOnly, pagesCache)")
+		AddControllerConstructor("assets", "controllers.NewAssets(assetsCache)").
+		AddControllerConstructor("api", "controllers.NewAPI(db)").
+		AddControllerConstructor("pages", "controllers.NewPages(db, insertOnly, pagesCache)")
 
 	for _, tool := range defaultTools {
 		builder.AddTool(tool)

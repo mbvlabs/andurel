@@ -4,15 +4,13 @@ package router
 import (
 	"context"
 	"encoding/gob"
-	"encoding/hex"
 	"net/http"
 	"strings"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/pkg/telemetry"
 	"{{.ModuleName}}/router/cookies"
-	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/router/middleware"
 
@@ -21,23 +19,18 @@ import (
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
-	"riverqueue.com/riverui"
 
 	echomw "github.com/labstack/echo/v4/middleware"
 )
 
 type Router struct {
-	Handler     *echo.Echo
-	controllers controllers.Controllers
-	telemetry   *telemetry.Telemetry
+	Handler *echo.Echo
 }
 
 func New(
 	ctx context.Context,
-	controllers controllers.Controllers,
 	cfg config.Config,
-	tel *telemetry.Telemetry,
-	riverHandler *riverui.Handler,
+	globalMiddleware []echo.MiddlewareFunc,
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
@@ -48,59 +41,71 @@ func New(
 		router.Debug = true
 	}
 
-	authKey, err := hex.DecodeString(cfg.App.SessionKey)
-	if err != nil {
-		return nil, err
-	}
-	encKey, err := hex.DecodeString(cfg.App.SessionEncryptionKey)
-	if err != nil {
-		return nil, err
-	}
+	router.Use(globalMiddleware...)
 
-	//csrfName := strings.ToLower(config.ProjectName) + "_" + "dev_csrf"
-	//if config.Env == config.ProdEnvironment {
-	//	csrfName = strings.ToLower(config.ProjectName) + "_" + "csrf"
-	//}
-	// TODO: make changing name work with d-*
-	csrfName := "_csrf"
+	return &Router{
+		router,
+	}, nil
+}
 
-	middleware := []echo.MiddlewareFunc{
+func SetupGlobalMiddleware(
+	cfg config.Config,
+	tel *telemetry.Telemetry,
+	authKey []byte,
+	encKey []byte,
+	mw middleware.Middleware,
+	csrfName string,
+) []echo.MiddlewareFunc {
+	return []echo.MiddlewareFunc{
 		otelecho.Middleware(config.ServiceName),
-		middleware.Logger(tel),
+		mw.Logger(tel),
 		session.Middleware(
 			sessions.NewCookieStore(
 				authKey,
 				encKey,
 			),
 		),
-		middleware.RegisterAppContext,
-		middleware.RegisterFlashMessagesContext,
+		mw.ValidateSession,
+		mw.RegisterAppContext,
+		mw.RegisterFlashMessagesContext,
+		echomw.CORSWithConfig(echomw.CORSConfig{
+			AllowOrigins:     []string{"https://*", "http://*"},
+			AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+			AllowHeaders:     []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+			AllowCredentials: true,
+			MaxAge:           300,
+		}),
+		echomw.CSRFWithConfig(
+			echomw.CSRFConfig{
+				Skipper: func(c echo.Context) bool {
+					return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
+						strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
+				}, TokenLookup: "cookie:" + csrfName, CookiePath: "/", CookieDomain: func() string {
+					if config.Env == andurel.ProdEnvironment {
+						return config.Domain
+					}
 
-		echomw.CSRFWithConfig(echomw.CSRFConfig{Skipper: func(c echo.Context) bool {
-			return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
-				strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
-		}, TokenLookup: "cookie:" + csrfName, CookiePath: "/", CookieDomain: func() string {
-			if config.Env == andurel.ProdEnvironment {
-				return config.Domain
-			}
-
-			return ""
-		}(), CookieSecure: config.Env == andurel.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode}),
+					return ""
+				}(), CookieSecure: config.Env == andurel.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode,
+			}),
 
 		echomw.Recover(),
 	}
+}
 
-	router.Use(middleware...)
+func (r *Router) RegisterCtrlRoutes(
+	mw middleware.Middleware,
+{{- range .Blueprint.Controllers.SortedConstructors}}
+	{{.VarName}} {{.Type}},
+{{- end}}
+) {
+	registrar.register(r.Handler, mw{{range .Blueprint.Controllers.SortedConstructors}}, {{.VarName}}{{end}})
+}
 
-	router.Any("/riverui*", echo.WrapHandler(riverHandler))
-
-	registrar.register(router, controllers)
-
-	router.RouteNotFound("/*", controllers.Pages.NotFound)
-
-	return &Router{
-		router,
-		controllers,
-		tel,
-	}, nil
+func (r *Router) RegisterCustomRoutes(
+	riverHandler interface{ ServeHTTP(http.ResponseWriter, *http.Request) },
+	notFoundHandler echo.HandlerFunc,
+) {
+	r.Handler.Any("/riverui*", echo.WrapHandler(riverHandler))
+	r.Handler.RouteNotFound("/*", notFoundHandler)
 }

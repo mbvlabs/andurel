@@ -194,6 +194,8 @@ type Constructor struct {
 	VarName string
 	// FieldName is the struct field this variable should be assigned to (e.g., "Pages")
 	FieldName string
+	// Type is the type of the controller (e.g., "*controllers.Pages")
+	Type string
 	// Expression is the right-hand side (e.g., "newPages(db, cache)")
 	Expression string
 	// Order for deterministic rendering
@@ -225,8 +227,8 @@ type RouteRegistration struct {
 	Method string
 	// RouteVariable is the route variable name (e.g., "routes.Health")
 	RouteVariable string
-	// ControllerRef is the controller method reference (e.g., "ctrls.API.Health")
-	ControllerRef string
+	// HandlerRef is the handler method reference (e.g., "api.Health")
+	HandlerRef string
 	// Middleware is optional middleware to apply to this route
 	Middleware []string
 	// Order for deterministic rendering
