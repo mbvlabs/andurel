@@ -857,7 +857,6 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 	builder.AddConfigField("Email", "email")
 
 	builder.AddControllerDependency("db", "andurel.Database")
-	builder.AddControllerDependency("emailClient", "email.TransactionalSender")
 
 	// Controller fields - the main sub-controllers
 	builder.
