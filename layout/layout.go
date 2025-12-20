@@ -335,7 +335,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Router
 	"router_router.tmpl":                "router/router.go",
-	"router_registry.tmpl":              "router/registry.go",
 	"router_register.tmpl":              "router/register.go",
 	"router_cookies_cookies.tmpl":       "router/cookies/cookies.go",
 	"router_cookies_flash.tmpl":         "router/cookies/flash.go",
