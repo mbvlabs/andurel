@@ -1,34 +1,52 @@
 package routes
 
+import (
+	"{{.ModulePath}}/internal/andurel"
+)
+
 const (
 	{{.PluralName | ToCamelCase}}RoutePrefix = "/{{.PluralName}}"
 	{{.PluralName | ToCamelCase}}NamePrefix  = "{{.PluralName}}"
 )
 
-var {{.PluralName | ToCamelCase}}Group = newRouteGroup({{.PluralName | ToCamelCase}}NamePrefix, {{.PluralName | ToCamelCase}}RoutePrefix)
+var {{.ResourceName}}Index = andurel.NewSimpleRoute(
+	{{.PluralName | ToCamelCase}}RoutePrefix,
+	"index",
+	{{.PluralName | ToCamelCase}}NamePrefix,
+)
 
-var {{.ResourceName}}Index = {{.PluralName | ToCamelCase}}Group.route("index").
-	Register()
+var {{.ResourceName}}Show = andurel.NewRouteWithID(
+	{{.PluralName | ToCamelCase}}RoutePrefix+"/:id",
+	"show",
+	{{.PluralName | ToCamelCase}}NamePrefix,
+)
 
-var {{.ResourceName}}Show = {{.PluralName | ToCamelCase}}Group.route("show").
-	SetPath("/:id").
-	RegisterWithID()
+var {{.ResourceName}}New = andurel.NewSimpleRoute(
+	{{.PluralName | ToCamelCase}}RoutePrefix+"/new",
+	"new",
+	{{.PluralName | ToCamelCase}}NamePrefix,
+)
 
-var {{.ResourceName}}New = {{.PluralName | ToCamelCase}}Group.route("new").
-	SetPath("/new").
-	Register()
+var {{.ResourceName}}Create = andurel.NewSimpleRoute(
+	{{.PluralName | ToCamelCase}}RoutePrefix,
+	"create",
+	{{.PluralName | ToCamelCase}}NamePrefix,
+)
 
-var {{.ResourceName}}Create = {{.PluralName | ToCamelCase}}Group.route("create").
-	Register()
+var {{.ResourceName}}Edit = andurel.NewRouteWithID(
+	{{.PluralName | ToCamelCase}}RoutePrefix+"/:id/edit",
+	"edit",
+	{{.PluralName | ToCamelCase}}NamePrefix,
+)
 
-var {{.ResourceName}}Edit = {{.PluralName | ToCamelCase}}Group.route("edit").
-	SetPath("/:id/edit").
-	RegisterWithID()
+var {{.ResourceName}}Update = andurel.NewRouteWithID(
+	{{.PluralName | ToCamelCase}}RoutePrefix+"/:id",
+	"update",
+	{{.PluralName | ToCamelCase}}NamePrefix,
+)
 
-var {{.ResourceName}}Update = {{.PluralName | ToCamelCase}}Group.route("update").
-	SetPath("/:id").
-	RegisterWithID()
-
-var {{.ResourceName}}Destroy = {{.PluralName | ToCamelCase}}Group.route("destroy").
-	SetPath("/:id").
-	RegisterWithID()
+var {{.ResourceName}}Destroy = andurel.NewRouteWithID(
+	{{.PluralName | ToCamelCase}}RoutePrefix+"/:id",
+	"destroy",
+	{{.PluralName | ToCamelCase}}NamePrefix,
+)
