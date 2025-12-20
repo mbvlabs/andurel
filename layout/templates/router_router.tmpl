@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/pkg/telemetry"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
@@ -34,11 +34,10 @@ func New(
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
-	gob.Register(models.AccessLevel(""))
 
 	router := echo.New()
 
-	if config.Env != config.ProdEnvironment {
+	if config.Env != andurel.ProdEnvironment {
 		router.Debug = true
 	}
 
@@ -80,15 +79,14 @@ func SetupGlobalMiddleware(
 			echomw.CSRFConfig{
 				Skipper: func(c echo.Context) bool {
 					return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
-						strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix) ||
-						strings.Contains(c.Request().URL.Path, routes.PaymentWebhook.URL())
+						strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
 				}, TokenLookup: "cookie:" + csrfName, CookiePath: "/", CookieDomain: func() string {
-					if config.Env == config.ProdEnvironment {
+					if config.Env == andurel.ProdEnvironment {
 						return config.Domain
 					}
 
 					return ""
-				}(), CookieSecure: config.Env == config.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode,
+				}(), CookieSecure: config.Env == andurel.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode,
 			}),
 
 		echomw.Recover(),

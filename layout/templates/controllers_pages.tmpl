@@ -14,7 +14,7 @@ type Pages struct {
 	cache      *Cache[templ.Component]
 }
 
-func newPages(
+func NewPages(
 	db andurel.Database,
 	insertOnly andurel.InsertOnly,
 	cache *Cache[templ.Component],

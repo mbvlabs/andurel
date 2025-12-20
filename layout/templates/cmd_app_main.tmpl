@@ -75,7 +75,7 @@ func setupRouter(
 	ctx context.Context,
 	cfg config.Config,
 	tel *telemetry.Telemetry,
-	mw router.Middleware,
+	mw middleware.Middleware,
 ) (*router.Router, error) {
 	authKey, err := hex.DecodeString(cfg.App.SessionKey)
 	if err != nil {

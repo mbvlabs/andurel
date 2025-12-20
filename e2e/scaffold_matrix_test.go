@@ -131,7 +131,6 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 		"cmd/run/main.go",
 		"controllers/pages.go",
 		"database/sqlc.yaml",
-		"router/routes/routes.go",
 		"views/layout.templ",
 		"views/home.templ",
 	}

@@ -152,10 +152,12 @@ func (b *Builder) AddControllerConstructor(varName, expression string) *Builder 
 
 	// Try to find matching field by case-insensitive comparison
 	fieldName := capitalizeFirst(varName) // default
+	fieldType := ""
 	varNameLower := strings.ToLower(varName)
 	for _, field := range b.bp.Controllers.Fields {
 		if strings.ToLower(field.Name) == varNameLower {
 			fieldName = field.Name
+			fieldType = field.Type
 			break
 		}
 	}
@@ -163,6 +165,7 @@ func (b *Builder) AddControllerConstructor(varName, expression string) *Builder 
 	b.bp.Controllers.Constructors = append(b.bp.Controllers.Constructors, Constructor{
 		VarName:    varName,
 		FieldName:  fieldName,
+		Type:       fieldType,
 		Expression: expression,
 		Order:      b.nextConstructorOrder,
 	})
@@ -270,7 +273,7 @@ func (b *Builder) AddRouteRegistration(method, routeVariable, controllerRef stri
 	registration := RouteRegistration{
 		Method:        method,
 		RouteVariable: routeVariable,
-		ControllerRef: controllerRef,
+		HandlerRef:    controllerRef,
 		Middleware:    middleware,
 		Order:         b.nextRouteRegistrationOrder,
 	}
@@ -634,12 +637,12 @@ func (b *Builder) Merge(other *Blueprint) error {
 		b.AddRouteCollection(collection.Routes...)
 	}
 	for _, registration := range other.Routes.Registrations {
-		b.AddRouteRegistration(registration.Method, registration.RouteVariable, registration.ControllerRef, registration.Middleware...)
+		b.AddRouteRegistration(registration.Method, registration.RouteVariable, registration.HandlerRef, registration.Middleware...)
 	}
 	for _, regFunc := range other.Routes.RegistrationFunctions {
 		b.StartRouteRegistrationFunction(regFunc.FunctionName)
 		for _, registration := range regFunc.Registrations {
-			b.AddRouteRegistration(registration.Method, registration.RouteVariable, registration.ControllerRef, registration.Middleware...)
+			b.AddRouteRegistration(registration.Method, registration.RouteVariable, registration.HandlerRef, registration.Middleware...)
 		}
 		b.EndRouteRegistrationFunction()
 	}

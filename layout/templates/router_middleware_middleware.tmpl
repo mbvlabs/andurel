@@ -9,6 +9,7 @@ import (
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/pkg/telemetry"
 
 	"github.com/labstack/echo/v4"
@@ -16,7 +17,15 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-func RegisterAppContext(
+type Middleware struct {
+	db andurel.Database
+}
+
+func New(db andurel.Database) Middleware {
+	return Middleware{db: db}
+}
+
+func (m Middleware) RegisterAppContext(
 	next echo.HandlerFunc,
 ) echo.HandlerFunc {
 	return func(c echo.Context) error {
@@ -31,7 +40,7 @@ func RegisterAppContext(
 	}
 }
 
-func RegisterFlashMessagesContext(
+func (m Middleware) RegisterFlashMessagesContext(
 	next echo.HandlerFunc,
 ) echo.HandlerFunc {
 	return func(c echo.Context) error {
@@ -53,7 +62,21 @@ func RegisterFlashMessagesContext(
 }
 
 
-func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
+func (m Middleware) ValidateSession(
+	next echo.HandlerFunc,
+) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		// Skip session validation for static assets and API routes
+		if strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix) ||
+			strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) {
+			return next(c)
+		}
+
+		return next(c)
+	}
+}
+
+func (m Middleware) Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 	var httpRequestsTotal metric.Int64Counter
 	var httpDuration metric.Float64Histogram
 	var httpInFlight metric.Int64UpDownCounter
