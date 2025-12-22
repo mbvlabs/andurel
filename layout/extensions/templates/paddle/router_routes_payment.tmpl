@@ -1,24 +1,31 @@
 package routes
 
-const (
-	billingRoutePrefix = "/billing"
-	billingNamePrefix  = "billing"
+import (
+	"{{.ModuleName}}/internal/andurel"
 )
 
-var billingGroup = newRouteGroup(billingNamePrefix, billingRoutePrefix)
+const BillingPrefix = "billing"
 
-var PaymentWebhook = billingGroup.route("webhook").
-	SetPath("/webhook").
-	Register()
+var PaymentWebhook = andurel.NewSimpleRoute(
+	"/webhook",
+	"webhook",
+	BillingPrefix,
+)
 
-var PaymentCheckout = billingGroup.route("checkout").
-	SetPath("/checkout").
-	Register()
+var PaymentCheckout = andurel.NewSimpleRoute(
+	"/checkout",
+	"checkout",
+	BillingPrefix,
+)
 
-var PaymentPricing = billingGroup.route("pricing").
-	SetPath("/pricing").
-	Register()
+var PaymentPricing = andurel.NewSimpleRoute(
+	"/pricing",
+	"pricing",
+	BillingPrefix,
+)
 
-var PaymentAccount = billingGroup.route("account").
-	SetPath("/account").
-	Register()
+var PaymentAccount = andurel.NewSimpleRoute(
+	"/account",
+	"account",
+	BillingPrefix,
+)

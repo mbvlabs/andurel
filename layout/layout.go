@@ -335,8 +335,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Router
 	"router_router.tmpl":                "router/router.go",
-	"router_registry.tmpl":              "router/registry.go",
-	"router_register.tmpl":              "router/register.go",
+	"router_connect_api_routes.tmpl":    "router/connect_api_routes.go",
+	"router_connect_assets_routes.tmpl": "router/connect_assets_routes.go",
+	"router_connect_pages_routes.tmpl":  "router/connect_pages_routes.go",
 	"router_cookies_cookies.tmpl":       "router/cookies/cookies.go",
 	"router_cookies_flash.tmpl":         "router/cookies/flash.go",
 	"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
@@ -477,7 +478,9 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		"controllers_controller.tmpl",
 		"config_config.tmpl",
 		"env.tmpl",
-		"router_register.tmpl",
+		"router_connect_api_routes.tmpl",
+		"router_connect_assets_routes.tmpl",
+		"router_connect_pages_routes.tmpl",
 		"router_cookies_cookies.tmpl",
 	}
 
@@ -843,7 +846,7 @@ func generateRandomHex(bytes int) string {
 func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 	builder := blueprint.NewBuilder(nil)
 
-	builder.AddMainImport(fmt.Sprintf("%s/email", moduleName))
+	// builder.AddMainImport(fmt.Sprintf("%s/email", moduleName))
 	builder.AddMainImport(fmt.Sprintf("%s/clients/email", moduleName))
 	builder.AddControllerImport(fmt.Sprintf("%s/controllers", moduleName))
 	builder.AddControllerImport(fmt.Sprintf("%s/email", moduleName))

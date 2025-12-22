@@ -239,6 +239,8 @@ type RouteRegistration struct {
 type RegistrationFunction struct {
 	// FunctionName is the name of the registration function (e.g., "registerAuthRoutes")
 	FunctionName string
+	// ControllerVarName is the variable name of the controller (e.g., "usersController")
+	ControllerVarName string
 	// Registrations contains all route registrations for this function
 	Registrations []RouteRegistration
 	// Order for deterministic rendering

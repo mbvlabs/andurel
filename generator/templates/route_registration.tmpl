@@ -1,30 +1,40 @@
-func register{{.CapitalizedPluralName}}Routes(handler *echo.Echo, ctrls controllers.Controllers) {
+package router
+
+import (
+	"net/http"
+
+	"{{.ModulePath}}/controllers"
+	"{{.ModulePath}}/router/routes"
+
+	"github.com/labstack/echo/v4"
+)
+
+func register{{.CapitalizedPluralName}}Routes(handler *echo.Echo, {{.LowercasePluralName}} controllers.{{.CapitalizedPluralName}}) {
 	handler.Add(
-		http.MethodGet, routes.{{.ResourceName}}Index.Path(), ctrls.{{.CapitalizedPluralName}}.Index,
+		http.MethodGet, routes.{{.ResourceName}}Index.Path(), {{.LowercasePluralName}}.Index,
 	).Name = routes.{{.ResourceName}}Index.Name()
 
 	handler.Add(
-		http.MethodGet, routes.{{.ResourceName}}Show.Path(), ctrls.{{.CapitalizedPluralName}}.Show,
+		http.MethodGet, routes.{{.ResourceName}}Show.Path(), {{.LowercasePluralName}}.Show,
 	).Name = routes.{{.ResourceName}}Show.Name()
 
 	handler.Add(
-		http.MethodGet, routes.{{.ResourceName}}New.Path(), ctrls.{{.CapitalizedPluralName}}.New,
+		http.MethodGet, routes.{{.ResourceName}}New.Path(), {{.LowercasePluralName}}.New,
 	).Name = routes.{{.ResourceName}}New.Name()
 
 	handler.Add(
-		http.MethodPost, routes.{{.ResourceName}}Create.Path(), ctrls.{{.CapitalizedPluralName}}.Create,
+		http.MethodPost, routes.{{.ResourceName}}Create.Path(), {{.LowercasePluralName}}.Create,
 	).Name = routes.{{.ResourceName}}Create.Name()
 
 	handler.Add(
-		http.MethodGet, routes.{{.ResourceName}}Edit.Path(), ctrls.{{.CapitalizedPluralName}}.Edit,
+		http.MethodGet, routes.{{.ResourceName}}Edit.Path(), {{.LowercasePluralName}}.Edit,
 	).Name = routes.{{.ResourceName}}Edit.Name()
 
 	handler.Add(
-		http.MethodPut, routes.{{.ResourceName}}Update.Path(), ctrls.{{.CapitalizedPluralName}}.Update,
+		http.MethodPut, routes.{{.ResourceName}}Update.Path(), {{.LowercasePluralName}}.Update,
 	).Name = routes.{{.ResourceName}}Update.Name()
 
 	handler.Add(
-		http.MethodDelete, routes.{{.ResourceName}}Destroy.Path(), ctrls.{{.CapitalizedPluralName}}.Destroy,
+		http.MethodDelete, routes.{{.ResourceName}}Destroy.Path(), {{.LowercasePluralName}}.Destroy,
 	).Name = routes.{{.ResourceName}}Destroy.Name()
 }
-

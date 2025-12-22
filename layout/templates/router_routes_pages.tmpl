@@ -4,10 +4,10 @@ import (
 	"{{.ModuleName}}/internal/andurel"
 )
 
-const pageNamePrefix = "pages"
+const PagePrefix = "pages"
 
 var HomePage = andurel.NewSimpleRoute(
 	"/",
 	"home",
-	pageNamePrefix,
+	PagePrefix,
 )

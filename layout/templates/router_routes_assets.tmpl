@@ -7,47 +7,44 @@ import (
 	"{{.ModuleName}}/internal/andurel"
 )
 
-const (
-	AssetsRoutePrefix = "/assets"
-	assetsNamePrefix  = "assets"
-)
+const AssetsPrefix = "assets"
 
 var startTime = time.Now().Unix()
 
 var Robots = andurel.NewSimpleRoute(
-	AssetsRoutePrefix+"/robots.txt",
+	"/robots.txt",
 	"robots",
-	assetsNamePrefix,
+	AssetsPrefix,
 )
 
 var Sitemap = andurel.NewSimpleRoute(
-	AssetsRoutePrefix+"/sitemap.xml",
+	"/sitemap.xml",
 	"sitemap",
-	assetsNamePrefix,
+	AssetsPrefix,
 )
 
 {{- if eq .CSSFramework "vanilla"}}
 var StyleImport = andurel.NewSimpleRoute(
-	AssetsRoutePrefix+"/css/:file",
+	"/css/:file",
 	"css.file",
-	assetsNamePrefix,
+	AssetsPrefix,
 )
 {{- end}}
 
 var Stylesheet = andurel.NewSimpleRoute(
-	AssetsRoutePrefix+fmt.Sprintf("/css/%v/style.css", startTime),
+	fmt.Sprintf("/css/%v/style.css", startTime),
 	"css.stylesheet",
-	assetsNamePrefix,
+	AssetsPrefix,
 )
 
 var Scripts = andurel.NewSimpleRoute(
-	AssetsRoutePrefix+fmt.Sprintf("/js/%v/scripts.js", startTime),
+	fmt.Sprintf("/js/%v/scripts.js", startTime),
 	"js.scripts",
-	assetsNamePrefix,
+	AssetsPrefix,
 )
 
 var Script = andurel.NewRouteWithFile(
-	AssetsRoutePrefix+fmt.Sprintf("/js/%v/:file", startTime),
+	fmt.Sprintf("/js/%v/:file", startTime),
 	"js.script",
-	assetsNamePrefix,
+	AssetsPrefix,
 )

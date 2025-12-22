@@ -15,17 +15,17 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"{{.ModulePath}}/models"
-	"{{.ModulePath}}/database"
+	"{{.ModulePath}}/internal/andurel"
 	"{{.ModulePath}}/router/cookies"
 	"{{.ModulePath}}/router/routes"
 	"{{.ModulePath}}/views"
 )
 
 type {{.ResourceName}}s struct {
-	db database.Postgres
+	db andurel.Database
 }
 
-func new{{.ResourceName}}s(db database.Postgres) {{.ResourceName}}s {
+func New{{.ResourceName}}s(db andurel.Database) {{.ResourceName}}s {
 	return {{.ResourceName}}s{db}
 }
 
@@ -47,7 +47,7 @@ func (r {{.ResourceName}}s) Index(c echo.Context) error {
 
 	{{.PluralName | ToCamelCase}}List, err := models.Paginate{{.ResourceName}}s(
 		c.Request().Context(),
-		r.db.{{DatabaseMethod}}(),
+		r.db.Conn(),
 		page,
 		perPage,
 	)
@@ -64,7 +64,7 @@ func (r {{.ResourceName}}s) Show(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(c.Request().Context(), r.db.{{DatabaseMethod}}(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(c.Request().Context(), r.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return render(c, views.NotFound())
 	}
@@ -123,7 +123,7 @@ func (r {{.ResourceName}}s) Create(c echo.Context) error {
 
 	{{.ResourceName | ToLowerCamelCase}}, err := models.Create{{.ResourceName}}(
 		c.Request().Context(),
-		r.db.{{DatabaseMethod}}(),
+		r.db.Conn(),
 		data,
 	)
 	if err != nil {
@@ -146,7 +146,7 @@ func (r {{.ResourceName}}s) Edit(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(c.Request().Context(), r.db.{{DatabaseMethod}}(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(c.Request().Context(), r.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return render(c, views.NotFound())
 	}
@@ -207,7 +207,7 @@ func (r {{.ResourceName}}s) Update(c echo.Context) error {
 
 	{{.ResourceName | ToLowerCamelCase}}, err := models.Update{{.ResourceName}}(
 		c.Request().Context(),
-		r.db.{{DatabaseMethod}}(),
+		r.db.Conn(),
 		data,
 	)
 	if err != nil {
@@ -233,7 +233,7 @@ func (r {{.ResourceName}}s) Destroy(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
-	err = models.Destroy{{.ResourceName}}(c.Request().Context(), r.db.{{DatabaseMethod}}(), {{.ResourceName | ToLowerCamelCase}}ID)
+	err = models.Destroy{{.ResourceName}}(c.Request().Context(), r.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return render(c, views.InternalError())

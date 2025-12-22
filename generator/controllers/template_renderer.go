@@ -1,6 +1,9 @@
 package controllers
 
 import (
+	"fmt"
+	"os"
+	"strings"
 	"text/template"
 
 	"github.com/mbvlabs/andurel/generator/templates"
@@ -55,13 +58,21 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 }
 
 func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName string) (string, error) {
+	// Get module path
+	modulePath, err := tr.getModulePath()
+	if err != nil {
+		return "", fmt.Errorf("failed to get module path: %w", err)
+	}
+
 	// Create custom data structure for route template (router/routes/users.go)
 	data := struct {
 		ResourceName string
 		PluralName   string
+		ModulePath   string
 	}{
 		ResourceName: resourceName,
 		PluralName:   pluralName,
+		ModulePath:   modulePath,
 	}
 
 	result, err := tr.service.RenderTemplate("route.tmpl", data)
@@ -71,16 +82,29 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName string
 	return result, nil
 }
 
-func (tr *TemplateRenderer) generateRouteRegistrationFunction(resourceName, pluralName string) (string, error) {
+func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, pluralName string) (string, error) {
+	capitalizedPluralName := naming.Capitalize(naming.ToCamelCase(pluralName))
+	lowercasePluralName := naming.ToLowerCamelCase(pluralName)
+
+	// Get module path
+	modulePath, err := tr.getModulePath()
+	if err != nil {
+		return "", fmt.Errorf("failed to get module path: %w", err)
+	}
+
 	// Create custom data structure for route registration template
 	data := struct {
 		ResourceName          string
 		PluralName            string
 		CapitalizedPluralName string
+		LowercasePluralName   string
+		ModulePath            string
 	}{
 		ResourceName:          resourceName,
 		PluralName:            pluralName,
-		CapitalizedPluralName: naming.Capitalize(naming.ToCamelCase(pluralName)),
+		CapitalizedPluralName: capitalizedPluralName,
+		LowercasePluralName:   lowercasePluralName,
+		ModulePath:            modulePath,
 	}
 
 	result, err := tr.service.RenderTemplate("route_registration.tmpl", data)
@@ -88,4 +112,22 @@ func (tr *TemplateRenderer) generateRouteRegistrationFunction(resourceName, plur
 		return "", errors.WrapTemplateError(err, "render route registration", "route_registration.tmpl")
 	}
 	return result, nil
+}
+
+// getModulePath reads go.mod to get the module path
+func (tr *TemplateRenderer) getModulePath() (string, error) {
+	content, err := os.ReadFile("go.mod")
+	if err != nil {
+		return "", fmt.Errorf("failed to read go.mod: %w", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "module ") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "module")), nil
+		}
+	}
+
+	return "", fmt.Errorf("module declaration not found in go.mod")
 }

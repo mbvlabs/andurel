@@ -49,6 +49,12 @@ jobs:
     - name: Download dependencies
       run: go mod download
 
+    - name: Install tools
+      run: |
+        go install github.com/a-h/templ/cmd/templ
+        go install github.com/segmentio/golines
+        go install github.com/sqlc-dev/sqlc/cmd/sqlc
+
     - name: Run go vet
       run: go vet ./...
 

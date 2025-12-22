@@ -1,34 +1,49 @@
 package routes
 
-const (
-	{{.PluralName | ToCamelCase}}RoutePrefix = "/{{.PluralName}}"
-	{{.PluralName | ToCamelCase}}NamePrefix  = "{{.PluralName}}"
+import (
+	"{{.ModulePath}}/internal/andurel"
 )
 
-var {{.PluralName | ToCamelCase}}Group = newRouteGroup({{.PluralName | ToCamelCase}}NamePrefix, {{.PluralName | ToCamelCase}}RoutePrefix)
+const {{.ResourceName}}Prefix = "{{.PluralName}}"
 
-var {{.ResourceName}}Index = {{.PluralName | ToCamelCase}}Group.route("index").
-	Register()
+var {{.ResourceName}}Index = andurel.NewSimpleRoute(
+	"/",
+	"index",
+	{{.ResourceName}}Prefix,
+)
 
-var {{.ResourceName}}Show = {{.PluralName | ToCamelCase}}Group.route("show").
-	SetPath("/:id").
-	RegisterWithID()
+var {{.ResourceName}}Show = andurel.NewRouteWithID(
+	"/:id",
+	"show",
+	{{.ResourceName}}Prefix,
+)
 
-var {{.ResourceName}}New = {{.PluralName | ToCamelCase}}Group.route("new").
-	SetPath("/new").
-	Register()
+var {{.ResourceName}}New = andurel.NewSimpleRoute(
+	"/new",
+	"new",
+	{{.ResourceName}}Prefix,
+)
 
-var {{.ResourceName}}Create = {{.PluralName | ToCamelCase}}Group.route("create").
-	Register()
+var {{.ResourceName}}Create = andurel.NewSimpleRoute(
+	"/",
+	"create",
+	{{.ResourceName}}Prefix,
+)
 
-var {{.ResourceName}}Edit = {{.PluralName | ToCamelCase}}Group.route("edit").
-	SetPath("/:id/edit").
-	RegisterWithID()
+var {{.ResourceName}}Edit = andurel.NewRouteWithID(
+	"/:id/edit",
+	"edit",
+	{{.ResourceName}}Prefix,
+)
 
-var {{.ResourceName}}Update = {{.PluralName | ToCamelCase}}Group.route("update").
-	SetPath("/:id").
-	RegisterWithID()
+var {{.ResourceName}}Update = andurel.NewRouteWithID(
+	"/:id",
+	"update",
+	{{.ResourceName}}Prefix,
+)
 
-var {{.ResourceName}}Destroy = {{.PluralName | ToCamelCase}}Group.route("destroy").
-	SetPath("/:id").
-	RegisterWithID()
+var {{.ResourceName}}Destroy = andurel.NewRouteWithID(
+	"/:id",
+	"destroy",
+	{{.ResourceName}}Prefix,
+)

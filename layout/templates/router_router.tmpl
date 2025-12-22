@@ -11,6 +11,7 @@ import (
 	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/pkg/telemetry"
 	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/router/middleware"
 
@@ -78,8 +79,8 @@ func SetupGlobalMiddleware(
 		echomw.CSRFWithConfig(
 			echomw.CSRFConfig{
 				Skipper: func(c echo.Context) bool {
-					return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
-						strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
+					return strings.Contains(c.Request().URL.Path, routes.APIPrefix) ||
+						strings.Contains(c.Request().URL.Path, routes.AssetsPrefix)
 				}, TokenLookup: "cookie:" + csrfName, CookiePath: "/", CookieDomain: func() string {
 					if config.Env == andurel.ProdEnvironment {
 						return config.Domain
@@ -99,7 +100,12 @@ func (r *Router) RegisterCtrlRoutes(
 	{{.VarName}} {{.Type}},
 {{- end}}
 ) {
-	registrar.register(r.Handler, mw{{range .Blueprint.Controllers.SortedConstructors}}, {{.VarName}}{{end}})
+	registerAPIRoutes(r.Handler, api)
+	registerAssetsRoutes(r.Handler, assets)
+	registerPagesRoutes(r.Handler, pages)
+{{- range .Blueprint.Routes.SortedRegistrationFunctions}}
+	{{.FunctionName}}(r.Handler, {{.ControllerVarName}})
+{{- end}}
 }
 
 func (r *Router) RegisterCustomRoutes(

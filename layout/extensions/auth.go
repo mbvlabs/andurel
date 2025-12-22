@@ -63,7 +63,7 @@ func (e Auth) Apply(ctx *Context) error {
 		app.UserID, _ = uuid.Parse(v)
 	}`)
 
-	builder.StartRouteRegistrationFunction("registerAuthRoutes")
+	builder.StartRouteRegistrationFunction("registerAuthRoutes", "sessionsController")
 	builder.AddRouteRegistration("http.MethodGet", "routes.SessionNew", "ctrls.Sessions.New")
 	builder.AddRouteRegistration("http.MethodPost", "routes.SessionCreate", "ctrls.Sessions.Create")
 	builder.AddRouteRegistration(

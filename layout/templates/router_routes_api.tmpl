@@ -4,13 +4,10 @@ import (
 	"{{.ModuleName}}/internal/andurel"
 )
 
-const (
-	APIRoutePrefix = "/api"
-	apiNamePrefix  = "api"
-)
+const APIPrefix = "api"
 
 var Health = andurel.NewSimpleRoute(
-	APIRoutePrefix+"/health",
+	"/health",
 	"health",
-	apiNamePrefix,
+	APIPrefix,
 )

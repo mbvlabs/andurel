@@ -58,7 +58,7 @@ func (e Paddle) Apply(ctx *Context) error {
 	builder.AddControllerConstructor("paymentAccount", "newPaymentAccount(db, paddleClient)")
 
 	// Register routes
-	builder.StartRouteRegistrationFunction("registerPaymentRoutes")
+	builder.StartRouteRegistrationFunction("registerPaymentRoutes", "paymentWebhooksController")
 	builder.AddRouteRegistration(
 		"http.MethodPost",
 		"routes.PaymentWebhook",
