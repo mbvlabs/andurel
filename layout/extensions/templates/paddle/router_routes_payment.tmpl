@@ -4,31 +4,28 @@ import (
 	"{{.ModuleName}}/internal/andurel"
 )
 
-const (
-	billingRoutePrefix = "/billing"
-	billingNamePrefix  = "billing"
-)
+const BillingPrefix = "billing"
 
 var PaymentWebhook = andurel.NewSimpleRoute(
-	billingRoutePrefix+"/webhook",
+	"/webhook",
 	"webhook",
-	billingNamePrefix,
+	BillingPrefix,
 )
 
 var PaymentCheckout = andurel.NewSimpleRoute(
-	billingRoutePrefix+"/checkout",
+	"/checkout",
 	"checkout",
-	billingNamePrefix,
+	BillingPrefix,
 )
 
 var PaymentPricing = andurel.NewSimpleRoute(
-	billingRoutePrefix+"/pricing",
+	"/pricing",
 	"pricing",
-	billingNamePrefix,
+	BillingPrefix,
 )
 
 var PaymentAccount = andurel.NewSimpleRoute(
-	billingRoutePrefix+"/account",
+	"/account",
 	"account",
-	billingNamePrefix,
+	BillingPrefix,
 )

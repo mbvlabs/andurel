@@ -4,73 +4,70 @@ import (
 	"{{.ModuleName}}/internal/andurel"
 )
 
-const (
-	usersRoutePrefix = "/users"
-	usersNamePrefix  = "users"
-)
+const UserPrefix = "users"
 
 var SessionNew = andurel.NewSimpleRoute(
-	usersRoutePrefix+"/sign_in",
+	"/sign_in",
 	"new_user_session",
-	usersNamePrefix,
+	UserPrefix,
 )
 
 var SessionCreate = andurel.NewSimpleRoute(
-	usersRoutePrefix+"/sign_in",
+	"/sign_in",
 	"user_session",
-	usersNamePrefix,
+	UserPrefix,
 )
 
 var SessionDestroy = andurel.NewSimpleRoute(
-	usersRoutePrefix+"/sign_out",
+	"/sign_out",
 	"destroy_user_session",
-	usersNamePrefix,
+	UserPrefix,
 )
 
 var PasswordNew = andurel.NewSimpleRoute(
-	usersRoutePrefix+"/password/new",
+	"/password/new",
 	"new_user_password",
-	usersNamePrefix,
+	UserPrefix,
 )
 
 var PasswordCreate = andurel.NewSimpleRoute(
-	usersRoutePrefix+"/password",
+	"/password",
 	"user_password",
-	usersNamePrefix,
+	UserPrefix,
 )
 
 var PasswordEdit = andurel.NewRouteWithToken(
-	usersRoutePrefix+"/password/:token/edit",
+	"/password/:token/edit",
 	"edit_user_password",
-	usersNamePrefix,
+	UserPrefix,
 )
 
 var PasswordUpdate = andurel.NewSimpleRoute(
-	usersRoutePrefix+"/password",
+	"/password",
 	"user_password",
-	usersNamePrefix,
+	UserPrefix,
 )
 
 var RegistrationNew = andurel.NewSimpleRoute(
-	usersRoutePrefix+"/sign_up",
+	"/sign_up",
 	"new_user_registration",
-	usersNamePrefix,
+	UserPrefix,
 )
 
 var RegistrationCreate = andurel.NewSimpleRoute(
-	usersRoutePrefix,
+	"/",
 	"user_registration",
-	usersNamePrefix,
+	UserPrefix,
 )
 
 var ConfirmationNew = andurel.NewSimpleRoute(
-	usersRoutePrefix+"/confirmation/new",
+	"/confirmation/new",
 	"new_user_confirmation",
-	usersNamePrefix,
+	UserPrefix,
 )
 
 var ConfirmationCreate = andurel.NewSimpleRoute(
-	usersRoutePrefix+"/confirmation",
+	"/confirmation",
 	"user_confirmation",
-	usersNamePrefix,
+	UserPrefix,
 )
