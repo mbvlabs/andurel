@@ -73,8 +73,9 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	fmt.Printf("\n🎉 Successfully created project: %s\n", projectName)
 	fmt.Printf("\nNext steps:\n")
 	fmt.Printf("  cd %s\n", args[0])
+	fmt.Printf("  andurel tool sync\n")
 	fmt.Printf("  cp .env.example .env and fill it out\n")
-	fmt.Printf("  and andurel a run\n")
+	fmt.Printf("  andurel run\n")
 
 	return nil
 }
