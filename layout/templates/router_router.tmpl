@@ -79,8 +79,8 @@ func SetupGlobalMiddleware(
 		echomw.CSRFWithConfig(
 			echomw.CSRFConfig{
 				Skipper: func(c echo.Context) bool {
-					return strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) ||
-						strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix)
+					return strings.Contains(c.Request().URL.Path, routes.APIPrefix) ||
+						strings.Contains(c.Request().URL.Path, routes.AssetsPrefix)
 				}, TokenLookup: "cookie:" + csrfName, CookiePath: "/", CookieDomain: func() string {
 					if config.Env == andurel.ProdEnvironment {
 						return config.Domain

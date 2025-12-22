@@ -29,8 +29,8 @@ func (m Middleware) RegisterAppContext(
 	next echo.HandlerFunc,
 ) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		if strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix) ||
-			strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) {
+		if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
+			strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
 			return next(c)
 		}
 
@@ -44,8 +44,8 @@ func (m Middleware) RegisterFlashMessagesContext(
 	next echo.HandlerFunc,
 ) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		if strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix) ||
-			strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) {
+		if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
+			strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
 			return next(c)
 		}
 
@@ -67,8 +67,8 @@ func (m Middleware) ValidateSession(
 ) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		// Skip session validation for static assets and API routes
-		if strings.HasPrefix(c.Request().URL.Path, routes.AssetsRoutePrefix) ||
-			strings.HasPrefix(c.Request().URL.Path, routes.APIRoutePrefix) {
+		if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
+			strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
 			return next(c)
 		}
 
@@ -104,8 +104,8 @@ func (m Middleware) Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			if strings.Contains(c.Request().URL.Path, routes.APIRoutePrefix) ||
-				strings.Contains(c.Request().URL.Path, routes.AssetsRoutePrefix) {
+			if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
+				strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
 				return next(c)
 			}
 
