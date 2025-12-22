@@ -294,7 +294,7 @@ func (b *Builder) AddRouteRegistration(method, routeVariable, controllerRef stri
 // StartRouteRegistrationFunction begins building a registration function.
 // All subsequent AddRouteRegistration calls will be added to this function
 // until EndRouteRegistrationFunction is called.
-func (b *Builder) StartRouteRegistrationFunction(functionName string) *Builder {
+func (b *Builder) StartRouteRegistrationFunction(functionName string, controllerVarName string) *Builder {
 	if b == nil || b.bp == nil {
 		return b
 	}
@@ -308,9 +308,10 @@ func (b *Builder) StartRouteRegistrationFunction(functionName string) *Builder {
 	}
 
 	b.currentRegistrationFunction = &RegistrationFunction{
-		FunctionName:  functionName,
-		Registrations: make([]RouteRegistration, 0),
-		Order:         b.nextRegistrationFunctionOrder,
+		FunctionName:      functionName,
+		ControllerVarName: controllerVarName,
+		Registrations:     make([]RouteRegistration, 0),
+		Order:             b.nextRegistrationFunctionOrder,
 	}
 	b.nextRegistrationFunctionOrder++
 
@@ -640,7 +641,7 @@ func (b *Builder) Merge(other *Blueprint) error {
 		b.AddRouteRegistration(registration.Method, registration.RouteVariable, registration.HandlerRef, registration.Middleware...)
 	}
 	for _, regFunc := range other.Routes.RegistrationFunctions {
-		b.StartRouteRegistrationFunction(regFunc.FunctionName)
+		b.StartRouteRegistrationFunction(regFunc.FunctionName, regFunc.ControllerVarName)
 		for _, registration := range regFunc.Registrations {
 			b.AddRouteRegistration(registration.Method, registration.RouteVariable, registration.HandlerRef, registration.Middleware...)
 		}

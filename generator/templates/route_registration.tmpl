@@ -1,4 +1,15 @@
-func register{{.CapitalizedPluralName}}Routes(handler *echo.Echo, mw middleware.Middleware{{.ControllerParams}}) {
+package router
+
+import (
+	"net/http"
+
+	"{{.ModulePath}}/controllers"
+	"{{.ModulePath}}/router/routes"
+
+	"github.com/labstack/echo/v4"
+)
+
+func register{{.CapitalizedPluralName}}Routes(handler *echo.Echo, {{.LowercasePluralName}} controllers.{{.CapitalizedPluralName}}) {
 	handler.Add(
 		http.MethodGet, routes.{{.ResourceName}}Index.Path(), {{.LowercasePluralName}}.Index,
 	).Name = routes.{{.ResourceName}}Index.Name()

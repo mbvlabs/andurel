@@ -1,52 +1,76 @@
 package routes
 
+import (
+	"{{.ModuleName}}/internal/andurel"
+)
+
 const (
 	usersRoutePrefix = "/users"
 	usersNamePrefix  = "users"
 )
 
-var usersGroup = newRouteGroup(usersNamePrefix, usersRoutePrefix)
+var SessionNew = andurel.NewSimpleRoute(
+	usersRoutePrefix+"/sign_in",
+	"new_user_session",
+	usersNamePrefix,
+)
 
-var SessionNew = usersGroup.route("new_user_session").
-	SetPath("/sign_in").
-	Register()
+var SessionCreate = andurel.NewSimpleRoute(
+	usersRoutePrefix+"/sign_in",
+	"user_session",
+	usersNamePrefix,
+)
 
-var SessionCreate = usersGroup.route("user_session").
-	SetPath("/sign_in").
-	Register()
+var SessionDestroy = andurel.NewSimpleRoute(
+	usersRoutePrefix+"/sign_out",
+	"destroy_user_session",
+	usersNamePrefix,
+)
 
-var SessionDestroy = usersGroup.route("destroy_user_session").
-	SetPath("/sign_out").
-	Register()
+var PasswordNew = andurel.NewSimpleRoute(
+	usersRoutePrefix+"/password/new",
+	"new_user_password",
+	usersNamePrefix,
+)
 
-var PasswordNew = usersGroup.route("new_user_password").
-	SetPath("/password/new").
-	Register()
+var PasswordCreate = andurel.NewSimpleRoute(
+	usersRoutePrefix+"/password",
+	"user_password",
+	usersNamePrefix,
+)
 
-var PasswordCreate = usersGroup.route("user_password").
-	SetPath("/password").
-	Register()
+var PasswordEdit = andurel.NewRouteWithToken(
+	usersRoutePrefix+"/password/:token/edit",
+	"edit_user_password",
+	usersNamePrefix,
+)
 
-var PasswordEdit = usersGroup.route("edit_user_password").
-	SetPath("/password/:token/edit").
-	RegisterWithToken()
+var PasswordUpdate = andurel.NewSimpleRoute(
+	usersRoutePrefix+"/password",
+	"user_password",
+	usersNamePrefix,
+)
 
-var PasswordUpdate = usersGroup.route("user_password").
-	SetPath("/password").
-	Register()
+var RegistrationNew = andurel.NewSimpleRoute(
+	usersRoutePrefix+"/sign_up",
+	"new_user_registration",
+	usersNamePrefix,
+)
 
-var RegistrationNew = usersGroup.route("new_user_registration").
-	SetPath("/sign_up").
-	Register()
+var RegistrationCreate = andurel.NewSimpleRoute(
+	usersRoutePrefix,
+	"user_registration",
+	usersNamePrefix,
+)
 
-var RegistrationCreate = usersGroup.route("user_registration").
-	SetPath("").
-	Register()
+var ConfirmationNew = andurel.NewSimpleRoute(
+	usersRoutePrefix+"/confirmation/new",
+	"new_user_confirmation",
+	usersNamePrefix,
+)
 
-var ConfirmationNew = usersGroup.route("new_user_confirmation").
-	SetPath("/confirmation/new").
-	Register()
-
-var ConfirmationCreate = usersGroup.route("user_confirmation").
-	SetPath("/confirmation").
-	Register()
+var ConfirmationCreate = andurel.NewSimpleRoute(
+	usersRoutePrefix+"/confirmation",
+	"user_confirmation",
+	usersNamePrefix,
+)

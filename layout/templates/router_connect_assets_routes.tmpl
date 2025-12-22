@@ -1,0 +1,38 @@
+package router
+
+import (
+	"net/http"
+
+	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/router/routes"
+
+	"github.com/labstack/echo/v4"
+)
+
+func registerAssetsRoutes(handler *echo.Echo, assetsController controllers.Assets) {
+	handler.Add(
+		http.MethodGet, routes.Robots.Path(), assetsController.Robots,
+	).Name = routes.Robots.Name()
+
+	handler.Add(
+		http.MethodGet, routes.Sitemap.Path(), assetsController.Sitemap,
+	).Name = routes.Sitemap.Name()
+
+	handler.Add(
+		http.MethodGet, routes.Stylesheet.Path(), assetsController.Stylesheet,
+	).Name = routes.Stylesheet.Name()
+
+{{- if eq .CSSFramework "vanilla"}}
+	handler.Add(
+		http.MethodGet, routes.StyleImport.Path(), assetsController.StyleImport,
+	).Name = routes.StyleImport.Name()
+
+{{- end}}
+	handler.Add(
+		http.MethodGet, routes.Scripts.Path(), assetsController.Scripts,
+	).Name = routes.Scripts.Name()
+
+	handler.Add(
+		http.MethodGet, routes.Script.Path(), assetsController.Script,
+	).Name = routes.Script.Name()
+}

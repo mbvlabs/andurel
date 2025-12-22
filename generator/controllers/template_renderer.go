@@ -3,7 +3,6 @@ package controllers
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 	"text/template"
 
@@ -83,18 +82,15 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName string
 	return result, nil
 }
 
-func (tr *TemplateRenderer) generateRouteRegistrationFunction(resourceName, pluralName string) (string, error) {
+func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, pluralName string) (string, error) {
 	capitalizedPluralName := naming.Capitalize(naming.ToCamelCase(pluralName))
 	lowercasePluralName := naming.ToLowerCamelCase(pluralName)
 
-	// Extract controller parameters from router/router.go
-	controllerParams, err := tr.extractControllerParams()
+	// Get module path
+	modulePath, err := tr.getModulePath()
 	if err != nil {
-		return "", errors.WrapTemplateError(err, "extract controller params", "router/router.go")
+		return "", fmt.Errorf("failed to get module path: %w", err)
 	}
-
-	// Add the new controller to the params
-	controllerParamsWithNew := controllerParams + ", " + lowercasePluralName + " controllers." + capitalizedPluralName
 
 	// Create custom data structure for route registration template
 	data := struct {
@@ -102,13 +98,13 @@ func (tr *TemplateRenderer) generateRouteRegistrationFunction(resourceName, plur
 		PluralName            string
 		CapitalizedPluralName string
 		LowercasePluralName   string
-		ControllerParams      string
+		ModulePath            string
 	}{
 		ResourceName:          resourceName,
 		PluralName:            pluralName,
 		CapitalizedPluralName: capitalizedPluralName,
 		LowercasePluralName:   lowercasePluralName,
-		ControllerParams:      controllerParamsWithNew,
+		ModulePath:            modulePath,
 	}
 
 	result, err := tr.service.RenderTemplate("route_registration.tmpl", data)
@@ -116,39 +112,6 @@ func (tr *TemplateRenderer) generateRouteRegistrationFunction(resourceName, plur
 		return "", errors.WrapTemplateError(err, "render route registration", "route_registration.tmpl")
 	}
 	return result, nil
-}
-
-// extractControllerParams reads router/router.go and extracts the controller parameters
-// from the RegisterCtrlRoutes method signature
-func (tr *TemplateRenderer) extractControllerParams() (string, error) {
-	routerPath := "router/router.go"
-	content, err := os.ReadFile(routerPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read %s: %w", routerPath, err)
-	}
-
-	// Look for RegisterCtrlRoutes method signature
-	// Pattern: func (r *Router) RegisterCtrlRoutes(\n\tmw middleware.Middleware,\n\t...\n)
-	pattern := `func\s+\([^)]+\)\s+RegisterCtrlRoutes\s*\([^)]*mw\s+middleware\.Middleware([^)]*)\)`
-	re := regexp.MustCompile(pattern)
-	matches := re.FindStringSubmatch(string(content))
-
-	if len(matches) < 2 {
-		// If we can't find the method, return empty string (no existing controllers)
-		return "", nil
-	}
-
-	// Extract the controller parameters (everything after mw middleware.Middleware)
-	params := strings.TrimSpace(matches[1])
-	if params == "" {
-		return "", nil
-	}
-
-	// Remove leading comma if present
-	params = strings.TrimPrefix(params, ",")
-	params = strings.TrimSpace(params)
-
-	return params, nil
 }
 
 // getModulePath reads go.mod to get the module path

@@ -13,7 +13,6 @@ type controllerValidationContext struct {
 	ResourceName          string
 	TableName             string
 	ControllerPath        string
-	RoutesFilePath        string
 	IndividualRoutePath   string
 	ControllerFilePath    string
 	ControllerFieldName   string
@@ -32,7 +31,6 @@ func newControllerValidationContext(resourceName, tableName string, config *Unif
 		ResourceName:          resourceName,
 		TableName:             tableName,
 		ControllerPath:        filepath.Join(config.Paths.Controllers, tableName+".go"),
-		RoutesFilePath:        filepath.Join(config.Paths.Routes, "routes.go"),
 		IndividualRoutePath:   filepath.Join("router/routes", tableName+".go"),
 		ControllerFilePath:    filepath.Join(config.Paths.Controllers, "controller.go"),
 		ControllerFieldName:   controllerFieldName,
@@ -43,13 +41,6 @@ func newControllerValidationContext(resourceName, tableName string, config *Unif
 }
 
 func validateControllerNotExists(ctx *controllerValidationContext) error {
-	if _, err := os.Stat(ctx.RoutesFilePath); os.IsNotExist(err) {
-		return fmt.Errorf(
-			"routes file %s does not exist. Create routes.go file before generating controllers",
-			ctx.RoutesFilePath,
-		)
-	}
-
 	if _, err := os.Stat(ctx.IndividualRoutePath); err == nil {
 		return fmt.Errorf("routes file %s already exists", ctx.IndividualRoutePath)
 	}

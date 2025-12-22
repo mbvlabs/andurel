@@ -99,7 +99,12 @@ func (r *Router) RegisterCtrlRoutes(
 	{{.VarName}} {{.Type}},
 {{- end}}
 ) {
-	registrar.register(r.Handler, mw{{range .Blueprint.Controllers.SortedConstructors}}, {{.VarName}}{{end}})
+	registerAPIRoutes(r.Handler, api)
+	registerAssetsRoutes(r.Handler, assets)
+	registerPagesRoutes(r.Handler, pages)
+{{- range .Blueprint.Routes.SortedRegistrationFunctions}}
+	{{.FunctionName}}(r.Handler, {{.ControllerVarName}})
+{{- end}}
 }
 
 func (r *Router) RegisterCustomRoutes(
