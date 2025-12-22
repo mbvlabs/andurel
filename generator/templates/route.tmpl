@@ -4,49 +4,46 @@ import (
 	"{{.ModulePath}}/internal/andurel"
 )
 
-const (
-	{{.PluralName | ToCamelCase}}RoutePrefix = "/{{.PluralName}}"
-	{{.PluralName | ToCamelCase}}NamePrefix  = "{{.PluralName}}"
-)
+const {{.ResourceName}}Prefix = "{{.PluralName}}"
 
 var {{.ResourceName}}Index = andurel.NewSimpleRoute(
-	{{.PluralName | ToCamelCase}}RoutePrefix,
+	"/",
 	"index",
-	{{.PluralName | ToCamelCase}}NamePrefix,
+	{{.ResourceName}}Prefix,
 )
 
 var {{.ResourceName}}Show = andurel.NewRouteWithID(
-	{{.PluralName | ToCamelCase}}RoutePrefix+"/:id",
+	"/:id",
 	"show",
-	{{.PluralName | ToCamelCase}}NamePrefix,
+	{{.ResourceName}}Prefix,
 )
 
 var {{.ResourceName}}New = andurel.NewSimpleRoute(
-	{{.PluralName | ToCamelCase}}RoutePrefix+"/new",
+	"/new",
 	"new",
-	{{.PluralName | ToCamelCase}}NamePrefix,
+	{{.ResourceName}}Prefix,
 )
 
 var {{.ResourceName}}Create = andurel.NewSimpleRoute(
-	{{.PluralName | ToCamelCase}}RoutePrefix,
+	"/",
 	"create",
-	{{.PluralName | ToCamelCase}}NamePrefix,
+	{{.ResourceName}}Prefix,
 )
 
 var {{.ResourceName}}Edit = andurel.NewRouteWithID(
-	{{.PluralName | ToCamelCase}}RoutePrefix+"/:id/edit",
+	"/:id/edit",
 	"edit",
-	{{.PluralName | ToCamelCase}}NamePrefix,
+	{{.ResourceName}}Prefix,
 )
 
 var {{.ResourceName}}Update = andurel.NewRouteWithID(
-	{{.PluralName | ToCamelCase}}RoutePrefix+"/:id",
+	"/:id",
 	"update",
-	{{.PluralName | ToCamelCase}}NamePrefix,
+	{{.ResourceName}}Prefix,
 )
 
 var {{.ResourceName}}Destroy = andurel.NewRouteWithID(
-	{{.PluralName | ToCamelCase}}RoutePrefix+"/:id",
+	"/:id",
 	"destroy",
-	{{.PluralName | ToCamelCase}}NamePrefix,
+	{{.ResourceName}}Prefix,
 )
