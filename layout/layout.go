@@ -183,6 +183,17 @@ func Scaffold(
 		}
 	}
 
+	fmt.Print("Fixing migration timestamps...\n")
+	if err := cmds.RunGooseFix(targetDir); err != nil {
+		slog.Error(
+			"failed to run goose fix",
+			"error",
+			err,
+			"fix",
+			"run 'andurel tool sync' then 'goose -dir database/migrations fix' after sync",
+		)
+	}
+
 	fmt.Print("Running templ generate...\n")
 	if err := cmds.RunTemplGenerate(targetDir); err != nil {
 		slog.Error(
