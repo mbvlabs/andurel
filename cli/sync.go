@@ -38,6 +38,12 @@ func syncBinaries(projectRoot string) error {
 		return fmt.Errorf("failed to read lock file: %w", err)
 	}
 
+	// Ensure bin directory exists
+	binDir := filepath.Join(projectRoot, "bin")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		return fmt.Errorf("failed to create bin directory: %w", err)
+	}
+
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
 
