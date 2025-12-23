@@ -119,22 +119,33 @@ var (
 	_ Reader         = (*UnifiedManager)(nil)
 	_ Writer         = (*UnifiedManager)(nil)
 	_ Validator      = (*UnifiedManager)(nil)
-	_ Formatter      = (*UnifiedManager)(nil)
 	_ ProjectLocator = (*UnifiedManager)(nil)
 	_ SQLCRunner     = (*UnifiedManager)(nil)
 	_ Manager        = (*UnifiedManager)(nil)
 )
 
-// FormatGoFile formats a Go file using gofmt
-func (fm *UnifiedManager) FormatGoFile(path string) error {
-	cmd := exec.Command("gofmt", "-w", path)
+// FormatGoFile formats a Go file using goimports and go fmt
+func FormatGoFile(path string) error {
+	// First run goimports to fix imports
+	cmd := exec.Command("goimports", "-w", path)
 	if err := cmd.Run(); err != nil {
 		return &FileOperationError{
-			Operation: "format_go",
+			Operation: "goimports",
 			Path:      path,
 			Err:       err,
 		}
 	}
+
+	// Then run go fmt to format
+	cmd = exec.Command("go", "fmt", path)
+	if err := cmd.Run(); err != nil {
+		return &FileOperationError{
+			Operation: "go_fmt",
+			Path:      path,
+			Err:       err,
+		}
+	}
+
 	return nil
 }
 

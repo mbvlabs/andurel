@@ -3,11 +3,11 @@ package models
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"sort"
 	"strings"
 	"text/template"
 
+	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/internal/ddl"
 	"github.com/mbvlabs/andurel/generator/internal/migrations"
@@ -342,7 +342,7 @@ To use a different table name, run:
 		return fmt.Errorf("failed to write model file: %w", err)
 	}
 
-	if err := g.formatGoFile(modelPath); err != nil {
+	if err := files.FormatGoFile(modelPath); err != nil {
 		return fmt.Errorf("failed to format model file: %w", err)
 	}
 
@@ -546,14 +546,6 @@ func (g *Generator) GenerateModelFromMigrations(
 	return g.GenerateModel(cat, resourceName, tableName, modelPath, sqlPath, modulePath, "")
 }
 
-func (g *Generator) formatGoFile(filePath string) error {
-	cmd := exec.Command("go", "fmt", filePath)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to run go fmt on %s: %w", filePath, err)
-	}
-	return nil
-}
-
 func (g *Generator) RefreshModel(
 	cat *catalog.Catalog,
 	resourceName, pluralName string,
@@ -649,7 +641,7 @@ func (g *Generator) GenerateConstructors(
 		return fmt.Errorf("failed to write constructor file: %w", err)
 	}
 
-	if err := g.formatGoFile(constructorPath); err != nil {
+	if err := files.FormatGoFile(constructorPath); err != nil {
 		return fmt.Errorf("failed to format constructor file: %w", err)
 	}
 
@@ -809,7 +801,7 @@ func (g *Generator) refreshModelFile(
 		return fmt.Errorf("failed to write updated model file: %w", err)
 	}
 
-	if err := g.formatGoFile(modelPath); err != nil {
+	if err := files.FormatGoFile(modelPath); err != nil {
 		return fmt.Errorf("failed to format model file: %w", err)
 	}
 

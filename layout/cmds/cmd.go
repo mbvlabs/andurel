@@ -78,15 +78,6 @@ func RunTemplGenerate(targetDir string) error {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
-		return nil
-	}
-
-	// templBin := filepath.Join(absTargetDir, "bin", "templ")
-	// cmd := exec.Command(templBin, "generate", "./views")
-	// cmd.Dir = absTargetDir
-	// return cmd.Run()
-
 	cmd := exec.Command(
 		"go",
 		"run",
