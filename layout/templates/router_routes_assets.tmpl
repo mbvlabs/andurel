@@ -14,13 +14,13 @@ var startTime = time.Now().Unix()
 var Robots = andurel.NewSimpleRoute(
 	"/robots.txt",
 	"robots",
-	AssetsPrefix,
+	"",
 )
 
 var Sitemap = andurel.NewSimpleRoute(
 	"/sitemap.xml",
 	"sitemap",
-	AssetsPrefix,
+	"",
 )
 
 {{- if eq .CSSFramework "vanilla"}}
