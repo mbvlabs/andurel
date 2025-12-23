@@ -79,19 +79,21 @@ func RunTemplGenerate(targetDir string) error {
 	}
 
 	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
-		cmd := exec.Command(
-			"go",
-			"run",
-			"github.com/a-h/templ/cmd/templ@"+versions.Templ,
-			"generate",
-			"./views",
-		)
-		cmd.Dir = absTargetDir
-		return cmd.Run()
+		return nil
 	}
 
-	templBin := filepath.Join(absTargetDir, "bin", "templ")
-	cmd := exec.Command(templBin, "generate", "./views")
+	// templBin := filepath.Join(absTargetDir, "bin", "templ")
+	// cmd := exec.Command(templBin, "generate", "./views")
+	// cmd.Dir = absTargetDir
+	// return cmd.Run()
+
+	cmd := exec.Command(
+		"go",
+		"run",
+		"github.com/a-h/templ/cmd/templ@"+versions.Templ,
+		"generate",
+		"./views",
+	)
 	cmd.Dir = absTargetDir
 	return cmd.Run()
 }

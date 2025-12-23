@@ -108,17 +108,6 @@ func Scaffold(
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
 
-	// Need to skip download for testing purposes
-	switch {
-	case templateData.CSSFramework == "tailwind" && os.Getenv("ANDUREL_SKIP_TAILWIND") != "true":
-		fmt.Print("Setting up Tailwind CSS...\n")
-		if err := cmds.SetupTailwind(targetDir); err != nil {
-			fmt.Println(
-				"Failed to download tailwind binary. Run 'andurel sync' after setup is done to fix.",
-			)
-		}
-	}
-
 	fmt.Print("Generating andurel.lock file...\n")
 	scaffoldConfig := &ScaffoldConfig{
 		ProjectName:  projectName,
@@ -131,20 +120,9 @@ func Scaffold(
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
 	}
 
-	fmt.Print("Running initial go mod tidy...\n")
+	fmt.Print("Running go mod tidy...\n")
 	if err := cmds.RunGoModTidy(targetDir); err != nil {
 		return fmt.Errorf("failed to run go mod tidy: %w", err)
-	}
-
-	fmt.Print("Syncing binaries from andurel.lock...\n")
-	if os.Getenv("ANDUREL_SKIP_BUILD") != "true" {
-		lock, err := ReadLockFile(targetDir)
-		if err != nil {
-			return fmt.Errorf("failed to read lock file: %w", err)
-		}
-		if err := lock.Sync(targetDir, true); err != nil {
-			return fmt.Errorf("failed to sync binaries: %w", err)
-		}
 	}
 
 	type postStep struct {
@@ -199,43 +177,32 @@ func Scaffold(
 		}
 	}
 
-	fmt.Print("Finalizing go tidy...\n")
-	if err := cmds.RunGoModTidy(targetDir); err != nil {
-		return fmt.Errorf("failed to run go mod tidy: %w", err)
-	}
-
 	for _, step := range postExtensionSteps {
 		if err := step.fn(targetDir); err != nil {
 			return fmt.Errorf("extension %s post-step failed: %w", step.extensionName, err)
 		}
 	}
 
-	fmt.Print("Fixing migration timestamps...\n")
-	if err := cmds.RunGooseFix(targetDir); err != nil {
-		return fmt.Errorf("failed to run goose fix: %w", err)
-	}
-
-	fmt.Print("Running templ fmt...\n")
-	if err := cmds.RunTemplFmt(targetDir); err != nil {
-		return fmt.Errorf("failed to run templ fmt: %w", err)
-	}
-
 	fmt.Print("Running templ generate...\n")
 	if err := cmds.RunTemplGenerate(targetDir); err != nil {
-		return fmt.Errorf("failed to run templ generate: %w", err)
+		slog.Error(
+			"failed to run templ generate",
+			"error",
+			err,
+			"fix",
+			"run 'andurel template generate' after sync",
+		)
 	}
 
-	fmt.Print("Running go fmt...\n")
-	if err := cmds.RunGoFmt(targetDir); err != nil {
-		return fmt.Errorf("failed to run go fmt: %w", err)
-	}
-	if err := cmds.RunGolines(targetDir); err != nil {
-		return fmt.Errorf("failed to run go fmt: %w", err)
-	}
-
-	// TODO remove this step
+	fmt.Print("Running go mod tidy...\n")
 	if err := cmds.RunGoModTidy(targetDir); err != nil {
-		return fmt.Errorf("failed to run go mod tidy: %w", err)
+		slog.Error(
+			"failed to run go mod tidy",
+			"error",
+			err,
+			"fix",
+			"run 'go mod tidy' after sync",
+		)
 	}
 
 	return nil
