@@ -3,7 +3,6 @@ package controllers
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	"github.com/mbvlabs/andurel/generator/files"
@@ -42,7 +41,7 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName string) error 
 		return fmt.Errorf("failed to write routes file: %w", err)
 	}
 
-	if err := rg.formatGoFile(routesPath); err != nil {
+	if err := files.FormatGoFile(routesPath); err != nil {
 		return fmt.Errorf("failed to format routes file: %w", err)
 	}
 
@@ -74,13 +73,5 @@ func (rg *RouteGenerator) createRouteRegistrationFile(resourceName, pluralName s
 		return fmt.Errorf("failed to write route registration file: %w", err)
 	}
 
-	return rg.formatGoFile(connectPath)
-}
-
-func (rg *RouteGenerator) formatGoFile(filePath string) error {
-	cmd := exec.Command("go", "fmt", filePath)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to run go fmt on %s: %w", filePath, err)
-	}
-	return nil
+	return files.FormatGoFile(connectPath)
 }

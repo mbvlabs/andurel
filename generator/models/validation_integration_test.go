@@ -3,7 +3,6 @@ package models
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -269,12 +268,4 @@ func TestConstructorImports__OnlyNecessaryImports(t *testing.T) {
 			}
 		})
 	}
-}
-
-func formatGoFile(filePath string) error {
-	cmd := exec.Command("go", "fmt", filePath)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to run go fmt on %s: %w", filePath, err)
-	}
-	return nil
 }
