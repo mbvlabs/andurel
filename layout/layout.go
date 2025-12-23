@@ -120,10 +120,10 @@ func Scaffold(
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
 	}
 
-	fmt.Print("Running go mod tidy...\n")
-	if err := cmds.RunGoModTidy(targetDir); err != nil {
-		return fmt.Errorf("failed to run go mod tidy: %w", err)
-	}
+	// fmt.Print("Running go mod tidy...\n")
+	// if err := cmds.RunGoModTidy(targetDir); err != nil {
+	// 	return fmt.Errorf("failed to run go mod tidy: %w", err)
+	// }
 
 	type postStep struct {
 		extensionName string

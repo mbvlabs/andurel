@@ -20,11 +20,6 @@ type Validator interface {
 	ValidateFileExists(path string) error
 }
 
-// Formatter handles file formatting operations
-type Formatter interface {
-	FormatGoFile(path string) error
-}
-
 // ProjectLocator handles project-related file operations
 type ProjectLocator interface {
 	FindGoModRoot() (string, error)
@@ -40,7 +35,6 @@ type Manager interface {
 	Reader
 	Writer
 	Validator
-	Formatter
 	ProjectLocator
 	SQLCRunner
 }
@@ -59,7 +53,6 @@ var (
 	_ Reader              = (*UnifiedManager)(nil)
 	_ Writer              = (*UnifiedManager)(nil)
 	_ Validator           = (*UnifiedManager)(nil)
-	_ Formatter           = (*UnifiedManager)(nil)
 	_ ProjectLocator      = (*UnifiedManager)(nil)
 	_ SQLCRunner          = (*UnifiedManager)(nil)
 	_ Manager             = (*UnifiedManager)(nil)

@@ -3,9 +3,7 @@ module github.com/mbvlabs/andurel
 go 1.24.4
 
 require (
-	github.com/epiclabs-io/diff3 v0.0.0-20241115194849-280ec18688b6
 	github.com/jinzhu/inflection v1.0.0
-	github.com/pmezard/go-difflib v1.0.0
 	github.com/spf13/cobra v1.9.1
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -18,6 +16,7 @@ require (
 	github.com/dave/dst v0.27.3 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/nxadm/tail v1.4.11 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/segmentio/golines v0.13.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
@@ -95,4 +94,5 @@ tool (
 	github.com/a-h/templ/cmd/templ
 	github.com/segmentio/golines
 	github.com/sqlc-dev/sqlc/cmd/sqlc
+	golang.org/x/tools/cmd/goimports
 )
