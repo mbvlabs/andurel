@@ -54,6 +54,7 @@ jobs:
         go install github.com/a-h/templ/cmd/templ
         go install github.com/segmentio/golines
         go install github.com/sqlc-dev/sqlc/cmd/sqlc
+        go install golang.org/x/tools/cmd/goimports
 
     - name: Run go vet
       run: go vet ./...
