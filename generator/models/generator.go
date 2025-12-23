@@ -229,6 +229,9 @@ func (g *Generator) getSimpleGoType(goType, sqlcType string) string {
 		strings.Contains(sqlcType, "pgtype.Date"),
 		strings.Contains(sqlcType, "pgtype.Time"):
 		return "time.Time"
+	case strings.Contains(sqlcType, "pgtype.JSONB"),
+		strings.Contains(sqlcType, "pgtype.JSON"):
+		return "[]byte"
 	case strings.Contains(sqlcType, "sql.NullString"):
 		return "string"
 	case strings.Contains(sqlcType, "sql.NullInt64"):
