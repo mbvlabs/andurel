@@ -185,12 +185,24 @@ func Scaffold(
 
 	fmt.Print("Running templ generate...\n")
 	if err := cmds.RunTemplGenerate(targetDir); err != nil {
-		return fmt.Errorf("failed to run templ generate: %w", err)
+		slog.Error(
+			"failed to run templ generate",
+			"error",
+			err,
+			"fix",
+			"run 'andurel template generate' after sync",
+		)
 	}
 
 	fmt.Print("Running go mod tidy...\n")
 	if err := cmds.RunGoModTidy(targetDir); err != nil {
-		return fmt.Errorf("failed to run go mod tidy: %w", err)
+		slog.Error(
+			"failed to run go mod tidy",
+			"error",
+			err,
+			"fix",
+			"run 'go mod tidy' after sync",
+		)
 	}
 
 	return nil
