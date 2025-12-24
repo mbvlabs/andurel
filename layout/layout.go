@@ -104,9 +104,9 @@ func Scaffold(
 		return fmt.Errorf("failed to process migrations: %w", err)
 	}
 
-	if err := os.Mkdir(filepath.Join(targetDir, "bin"), constants.DirPermissionDefault); err != nil {
-		return fmt.Errorf("failed to create bin directory: %w", err)
-	}
+	// if err := os.Mkdir(filepath.Join(targetDir, "bin"), constants.DirPermissionDefault); err != nil {
+	// 	return fmt.Errorf("failed to create bin directory: %w", err)
+	// }
 
 	fmt.Print("Generating andurel.lock file...\n")
 	scaffoldConfig := &ScaffoldConfig{
@@ -191,6 +191,17 @@ func Scaffold(
 			err,
 			"fix",
 			"run 'andurel tool sync' then 'goose -dir database/migrations fix' after sync",
+		)
+	}
+
+	fmt.Print("Running sqlc generate...\n")
+	if err := cmds.RunSqlcGenerate(targetDir); err != nil {
+		slog.Error(
+			"failed to run sqlc generate",
+			"error",
+			err,
+			"fix",
+			"run 'andurel db generate' after sync",
 		)
 	}
 
@@ -312,13 +323,17 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"models_factories_factories.tmpl": "models/factories/factories.go",
 
 	// Router
-	"router_router.tmpl":                "router/router.go",
-	"router_connect_api_routes.tmpl":    "router/connect_api_routes.go",
-	"router_connect_assets_routes.tmpl": "router/connect_assets_routes.go",
-	"router_connect_pages_routes.tmpl":  "router/connect_pages_routes.go",
-	"router_cookies_cookies.tmpl":       "router/cookies/cookies.go",
-	"router_cookies_flash.tmpl":         "router/cookies/flash.go",
-	"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
+	"router_router.tmpl":                       "router/router.go",
+	"router_connect_api_routes.tmpl":           "router/connect_api_routes.go",
+	"router_connect_assets_routes.tmpl":        "router/connect_assets_routes.go",
+	"router_connect_pages_routes.tmpl":         "router/connect_pages_routes.go",
+	"router_connect_sessions_routes.tmpl":      "router/connect_sessions_routes.go",
+	"router_connect_registrations_routes.tmpl": "router/connect_registrations_routes.go",
+	"router_connect_confirmations_routes.tmpl": "router/connect_confirmations_routes.go",
+	"router_connect_reset_passwords_routes.tmpl": "router/connect_reset_passwords_routes.go",
+	"router_cookies_cookies.tmpl":              "router/cookies/cookies.go",
+	"router_cookies_flash.tmpl":                "router/cookies/flash.go",
+	"router_middleware_middleware.tmpl":        "router/middleware/middleware.go",
 
 	// Routes
 	"router_routes_api.tmpl":    "router/routes/api.go",
@@ -356,10 +371,10 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_auth.tmpl": "config/auth.go",
 
 	// Auth - Models
-	"models_token.tmpl":                             "models/token.go",
-	"models_user.tmpl":                              "models/user.go",
-	"models_interal_db_token_constructors.tmpl":     "models/internal/db/token_constructors.go",
-	"models_interal_db_user_constructors.tmpl":      "models/internal/db/user_constructors.go",
+	"models_token.tmpl":                         "models/token.go",
+	"models_user.tmpl":                          "models/user.go",
+	"models_interal_db_token_constructors.tmpl": "models/internal/db/token_constructors.go",
+	"models_interal_db_user_constructors.tmpl":  "models/internal/db/user_constructors.go",
 
 	// Auth - Services
 	"services_authentication.tmpl": "services/authentication.go",
@@ -932,53 +947,6 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 	if v, ok := sess.Values[userID].(string); ok {
 		app.UserID, _ = uuid.Parse(v)
 	}`)
-
-	// Auth route registrations
-	builder.StartRouteRegistrationFunction("registerAuthRoutes", "sessionsController")
-	builder.AddRouteRegistration("http.MethodGet", "routes.SessionNew", "ctrls.Sessions.New")
-	builder.AddRouteRegistration("http.MethodPost", "routes.SessionCreate", "ctrls.Sessions.Create")
-	builder.AddRouteRegistration(
-		"http.MethodDelete",
-		"routes.SessionDestroy",
-		"ctrls.Sessions.Destroy",
-	)
-	builder.AddRouteRegistration("http.MethodGet", "routes.PasswordNew", "ctrls.ResetPasswords.New")
-	builder.AddRouteRegistration(
-		"http.MethodPost",
-		"routes.PasswordCreate",
-		"ctrls.ResetPasswords.Create",
-	)
-	builder.AddRouteRegistration(
-		"http.MethodGet",
-		"routes.PasswordEdit",
-		"ctrls.ResetPasswords.Edit",
-	)
-	builder.AddRouteRegistration(
-		"http.MethodPut",
-		"routes.PasswordUpdate",
-		"ctrls.ResetPasswords.Update",
-	)
-	builder.AddRouteRegistration(
-		"http.MethodGet",
-		"routes.RegistrationNew",
-		"ctrls.Registrations.New",
-	)
-	builder.AddRouteRegistration(
-		"http.MethodPost",
-		"routes.RegistrationCreate",
-		"ctrls.Registrations.Create",
-	)
-	builder.AddRouteRegistration(
-		"http.MethodGet",
-		"routes.ConfirmationNew",
-		"ctrls.Confirmations.New",
-	)
-	builder.AddRouteRegistration(
-		"http.MethodPost",
-		"routes.ConfirmationCreate",
-		"ctrls.Confirmations.Create",
-	)
-	builder.EndRouteRegistrationFunction()
 
 	for _, tool := range defaultTools {
 		builder.AddTool(tool)

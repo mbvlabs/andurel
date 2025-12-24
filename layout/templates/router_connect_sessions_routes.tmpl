@@ -1,0 +1,24 @@
+package router
+
+import (
+	"net/http"
+
+	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/router/routes"
+
+	"github.com/labstack/echo/v4"
+)
+
+func registerSessionsRoutes(handler *echo.Echo, sessionsController controllers.Sessions) {
+	handler.Add(
+		http.MethodGet, routes.SessionNew.Path(), sessionsController.New,
+	).Name = routes.SessionNew.Name()
+
+	handler.Add(
+		http.MethodPost, routes.SessionCreate.Path(), sessionsController.Create,
+	).Name = routes.SessionCreate.Name()
+
+	handler.Add(
+		http.MethodDelete, routes.SessionDestroy.Path(), sessionsController.Destroy,
+	).Name = routes.SessionDestroy.Name()
+}

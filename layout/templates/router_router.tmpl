@@ -103,6 +103,10 @@ func (r *Router) RegisterCtrlRoutes(
 	registerAPIRoutes(r.Handler, api)
 	registerAssetsRoutes(r.Handler, assets)
 	registerPagesRoutes(r.Handler, pages)
+	registerSessionsRoutes(r.Handler, sessions)
+	registerRegistrationsRoutes(r.Handler, registrations)
+	registerConfirmationsRoutes(r.Handler, confirmations)
+	registerResetPasswordsRoutes(r.Handler, resetPasswords)
 {{- range .Blueprint.Routes.SortedRegistrationFunctions}}
 	{{.FunctionName}}(r.Handler, {{.ControllerVarName}})
 {{- end}}
