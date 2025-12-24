@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
@@ -16,11 +16,11 @@ import (
 )
 
 type Sessions struct {
-	db  database.Postgres
+	db  andurel.Database
 	cfg config.Config
 }
 
-func newSessions(db database.Postgres, cfg config.Config) Sessions {
+func NewSessions(db andurel.Database, cfg config.Config) Sessions {
 	return Sessions{db, cfg}
 }
 

@@ -7,10 +7,9 @@ import (
 	"errors"
 	"time"
 
-	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/email"
+	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/models"
-	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/queue/jobs"
 )
 
@@ -24,8 +23,8 @@ type RegisterUserData struct {
 
 func RegisterUser(
 	ctx context.Context,
-	db database.Postgres,
-	insertOnly queue.InsertOnly,
+	db andurel.Database,
+	insertOnly andurel.InsertOnly,
 	salt string,
 	data RegisterUserData,
 ) error {
@@ -104,7 +103,7 @@ type VerifyEmailData struct {
 
 func VerifyEmail(
 	ctx context.Context,
-	db database.Postgres,
+	db andurel.Database,
 	salt string,
 	data VerifyEmailData,
 ) error {

@@ -4,7 +4,7 @@ import (
 	"log/slog"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
@@ -15,11 +15,11 @@ import (
 )
 
 type Confirmations struct {
-	db  database.Postgres
+	db  andurel.Database
 	cfg config.Config
 }
 
-func newConfirmations(db database.Postgres, cfg config.Config) Confirmations {
+func NewConfirmations(db andurel.Database, cfg config.Config) Confirmations {
 	return Confirmations{db, cfg}
 }
 

@@ -98,15 +98,15 @@ func Scaffold(
 		return fmt.Errorf("failed to process templated files: %w", err)
 	}
 
-	fmt.Print("Processing PostgreSQL River queue migrations...\n")
-	nextMigrationTime, err := processPostgreSQLMigrations(targetDir, &templateData)
+	fmt.Print("Processing database migrations...\n")
+	nextMigrationTime, err := processMigrations(targetDir, &templateData)
 	if err != nil {
-		return fmt.Errorf("failed to process PostgreSQL migrations: %w", err)
+		return fmt.Errorf("failed to process migrations: %w", err)
 	}
 
-	if err := os.Mkdir(filepath.Join(targetDir, "bin"), constants.DirPermissionDefault); err != nil {
-		return fmt.Errorf("failed to create bin directory: %w", err)
-	}
+	// if err := os.Mkdir(filepath.Join(targetDir, "bin"), constants.DirPermissionDefault); err != nil {
+	// 	return fmt.Errorf("failed to create bin directory: %w", err)
+	// }
 
 	fmt.Print("Generating andurel.lock file...\n")
 	scaffoldConfig := &ScaffoldConfig{
@@ -191,6 +191,17 @@ func Scaffold(
 			err,
 			"fix",
 			"run 'andurel tool sync' then 'goose -dir database/migrations fix' after sync",
+		)
+	}
+
+	fmt.Print("Running sqlc generate...\n")
+	if err := cmds.RunSqlcGenerate(targetDir); err != nil {
+		slog.Error(
+			"failed to run sqlc generate",
+			"error",
+			err,
+			"fix",
+			"run 'andurel db generate' after sync",
 		)
 	}
 
@@ -312,13 +323,17 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"models_factories_factories.tmpl": "models/factories/factories.go",
 
 	// Router
-	"router_router.tmpl":                "router/router.go",
-	"router_connect_api_routes.tmpl":    "router/connect_api_routes.go",
-	"router_connect_assets_routes.tmpl": "router/connect_assets_routes.go",
-	"router_connect_pages_routes.tmpl":  "router/connect_pages_routes.go",
-	"router_cookies_cookies.tmpl":       "router/cookies/cookies.go",
-	"router_cookies_flash.tmpl":         "router/cookies/flash.go",
-	"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
+	"router_router.tmpl":                       "router/router.go",
+	"router_connect_api_routes.tmpl":           "router/connect_api_routes.go",
+	"router_connect_assets_routes.tmpl":        "router/connect_assets_routes.go",
+	"router_connect_pages_routes.tmpl":         "router/connect_pages_routes.go",
+	"router_connect_sessions_routes.tmpl":      "router/connect_sessions_routes.go",
+	"router_connect_registrations_routes.tmpl": "router/connect_registrations_routes.go",
+	"router_connect_confirmations_routes.tmpl": "router/connect_confirmations_routes.go",
+	"router_connect_reset_passwords_routes.tmpl": "router/connect_reset_passwords_routes.go",
+	"router_cookies_cookies.tmpl":              "router/cookies/cookies.go",
+	"router_cookies_flash.tmpl":                "router/cookies/flash.go",
+	"router_middleware_middleware.tmpl":        "router/middleware/middleware.go",
 
 	// Routes
 	"router_routes_api.tmpl":    "router/routes/api.go",
@@ -345,6 +360,44 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"views_components_form_elements.tmpl": "views/components/form_elements.templ",
 
 	"views_datastar_helpers.tmpl": "views/datastar.go",
+
+	// Auth - Controllers
+	"controllers_confirmations.tmpl":   "controllers/confirmations.go",
+	"controllers_registrations.tmpl":   "controllers/registrations.go",
+	"controllers_reset_passwords.tmpl": "controllers/reset_passwords.go",
+	"controllers_sessions.tmpl":        "controllers/sessions.go",
+
+	// Auth - Config
+	"config_auth.tmpl": "config/auth.go",
+
+	// Auth - Models
+	"models_token.tmpl":                         "models/token.go",
+	"models_user.tmpl":                          "models/user.go",
+	"models_interal_db_token_constructors.tmpl": "models/internal/db/token_constructors.go",
+	"models_interal_db_user_constructors.tmpl":  "models/internal/db/user_constructors.go",
+
+	// Auth - Services
+	"services_authentication.tmpl": "services/authentication.go",
+	"services_registration.tmpl":   "services/registration.go",
+	"services_reset_password.tmpl": "services/reset_password.go",
+
+	// Auth - Router
+	"router_routes_users.tmpl":    "router/routes/users.go",
+	"router_middleware_auth.tmpl": "router/middleware/auth.go",
+
+	// Auth - Views
+	"views_confirm_email.tmpl":  "views/confirm_email.templ",
+	"views_login.tmpl":          "views/login.templ",
+	"views_registration.tmpl":   "views/registration.templ",
+	"views_reset_password.tmpl": "views/reset_password.templ",
+
+	// Auth - Email
+	"email_reset_password.tmpl": "email/reset_password.templ",
+	"email_verify_email.tmpl":   "email/verify_email.templ",
+
+	// Auth - Database Queries
+	"database_queries_tokens.tmpl": "database/queries/tokens.sql",
+	"database_queries_users.tmpl":  "database/queries/users.sql",
 }
 
 func processTemplatedFiles(
@@ -393,7 +446,7 @@ func processTemplatedFiles(
 	return nil
 }
 
-func processPostgreSQLMigrations(
+func processMigrations(
 	targetDir string,
 	data extensions.TemplateData,
 ) (time.Time, error) {
@@ -408,6 +461,7 @@ func processPostgreSQLMigrations(
 		name     string
 		offset   time.Duration
 	}{
+		// River queue migrations
 		{"psql_riverqueue_migration_one.tmpl", "create_river_migration_table", 0},
 		{
 			"psql_riverqueue_migration_two.tmpl",
@@ -426,6 +480,9 @@ func processPostgreSQLMigrations(
 			4 * time.Second,
 		},
 		{"psql_riverqueue_migration_six.tmpl", "add_river_job_unique_states", 5 * time.Second},
+		// Auth migrations
+		{"database_migrations_users.tmpl", "create_users_table", 6 * time.Second},
+		{"database_migrations_tokens.tmpl", "create_tokens_table", 7 * time.Second},
 	}
 
 	var lastTime time.Time
@@ -604,7 +661,6 @@ func templateFuncMap() template.FuncMap {
 func registerBuiltinExtensions() error {
 	registerBuiltinOnce.Do(func() {
 		builtin := []extensions.Extension{
-			extensions.Auth{},
 			extensions.AwsSes{},
 			extensions.Docker{},
 			extensions.Paddle{},
@@ -837,19 +893,60 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 
 	builder.AddConfigField("Email", "email")
 
+	// Auth configuration
+	builder.AddConfigField("Auth", "auth")
+
+	// Auth controller dependencies and imports
+	builder.AddControllerImport(fmt.Sprintf("%s/config", moduleName))
+	builder.AddControllerDependency("cfg", "config.Config")
+
 	builder.AddControllerDependency("db", "andurel.Database")
 
 	// Controller fields - the main sub-controllers
 	builder.
 		AddControllerField("Assets", "controllers.Assets").
 		AddControllerField("API", "controllers.API").
-		AddControllerField("Pages", "controllers.Pages")
+		AddControllerField("Pages", "controllers.Pages").
+		AddControllerField("Sessions", "controllers.Sessions").
+		AddControllerField("Registrations", "controllers.Registrations").
+		AddControllerField("Confirmations", "controllers.Confirmations").
+		AddControllerField("ResetPasswords", "controllers.ResetPasswords")
 
 	// Constructor initializations
 	builder.
 		AddControllerConstructor("assets", "controllers.NewAssets(assetsCache)").
 		AddControllerConstructor("api", "controllers.NewAPI(db)").
-		AddControllerConstructor("pages", "controllers.NewPages(db, insertOnly, pagesCache)")
+		AddControllerConstructor("pages", "controllers.NewPages(db, insertOnly, pagesCache)").
+		AddControllerConstructor("sessions", "controllers.NewSessions(db, cfg)").
+		AddControllerConstructor("registrations", "controllers.NewRegistrations(db, insertOnly, cfg)").
+		AddControllerConstructor("confirmations", "controllers.NewConfirmations(db, cfg)").
+		AddControllerConstructor("resetPasswords", "controllers.NewResetPasswords(db, insertOnly, cfg)")
+
+	// Auth cookies configuration
+	builder.AddCookiesImport("github.com/google/uuid")
+	builder.AddCookiesImport(fmt.Sprintf("%s/models", moduleName))
+
+	builder.AddCookiesConstant("isAuthenticated", "is_authenticated")
+	builder.AddCookiesConstant("isAdmin", "is_admin")
+	builder.AddCookiesConstant("userID", "user_id")
+
+	builder.AddCookiesAppField("UserID", "uuid.UUID")
+	builder.AddCookiesAppField("IsAdmin", "bool")
+	builder.AddCookiesAppField("IsAuthenticated", "bool")
+
+	builder.SetCookiesCreateSessionCode(`	sess.Values[isAuthenticated] = true
+	sess.Values[isAdmin] = user.IsAdmin
+	sess.Values[userID] = user.ID.String()`)
+
+	builder.SetCookiesGetSessionCode(`	if v, ok := sess.Values[isAuthenticated].(bool); ok {
+		app.IsAuthenticated = v
+	}
+	if v, ok := sess.Values[isAdmin].(bool); ok {
+		app.IsAdmin = v
+	}
+	if v, ok := sess.Values[userID].(string); ok {
+		app.UserID, _ = uuid.Parse(v)
+	}`)
 
 	for _, tool := range defaultTools {
 		builder.AddTool(tool)

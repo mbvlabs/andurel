@@ -1,0 +1,20 @@
+package router
+
+import (
+	"net/http"
+
+	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/router/routes"
+
+	"github.com/labstack/echo/v4"
+)
+
+func registerConfirmationsRoutes(handler *echo.Echo, confirmationsController controllers.Confirmations) {
+	handler.Add(
+		http.MethodGet, routes.ConfirmationNew.Path(), confirmationsController.New,
+	).Name = routes.ConfirmationNew.Name()
+
+	handler.Add(
+		http.MethodPost, routes.ConfirmationCreate.Path(), confirmationsController.Create,
+	).Name = routes.ConfirmationCreate.Name()
+}

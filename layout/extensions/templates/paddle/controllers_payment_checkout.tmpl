@@ -5,18 +5,18 @@ import (
 
 	"{{.ModuleName}}/clients/payment"
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/internal/andurel"
 
 	"github.com/labstack/echo/v4"
 )
 
 type PaymentCheckout struct {
-	db     database.Postgres
+	db     andurel.Database
 	client *payment.PaddleClient
 	cfg    config.Config
 }
 
-func newPaymentCheckout(db database.Postgres, client *payment.PaddleClient, cfg config.Config) PaymentCheckout {
+func newPaymentCheckout(db andurel.Database, client *payment.PaddleClient, cfg config.Config) PaymentCheckout {
 	return PaymentCheckout{db, client, cfg}
 }
 
