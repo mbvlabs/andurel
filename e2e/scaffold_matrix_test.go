@@ -29,24 +29,10 @@ func getScaffoldConfigs() []ScaffoldConfig {
 			Critical: true,
 		},
 		{
-			Name:       "postgresql-tailwind-auth",
-			Database:   "postgresql",
-			CSS:        "tailwind",
-			Extensions: []string{"auth"},
-			Critical:   true,
-		},
-		{
-			Name:       "postgresql-vanilla-auth",
-			Database:   "postgresql",
-			CSS:        "vanilla",
-			Extensions: []string{"auth"},
-			Critical:   true,
-		},
-		{
 			Name:       "postgresql-tailwind-all-extensions",
 			Database:   "postgresql",
 			CSS:        "tailwind",
-			Extensions: []string{"auth", "docker"},
+			Extensions: []string{"docker"},
 			Critical:   true,
 		},
 		{
@@ -57,24 +43,10 @@ func getScaffoldConfigs() []ScaffoldConfig {
 			Critical:   true,
 		},
 		{
-			Name:       "postgresql-tailwind-auth-aws-ses",
-			Database:   "postgresql",
-			CSS:        "tailwind",
-			Extensions: []string{"auth", "aws-ses"},
-			Critical:   true,
-		},
-		{
 			Name:       "postgresql-tailwind-paddle",
 			Database:   "postgresql",
 			CSS:        "tailwind",
 			Extensions: []string{"paddle"},
-			Critical:   true,
-		},
-		{
-			Name:       "postgresql-tailwind-auth-paddle",
-			Database:   "postgresql",
-			CSS:        "tailwind",
-			Extensions: []string{"auth", "paddle"},
 			Critical:   true,
 		},
 	}
@@ -155,6 +127,21 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 		internal.AssertDirExists(t, project, "assets/css")
 	}
 
+	// Auth is now part of base scaffold, verify auth files always exist
+	authFiles := []string{
+		"controllers/sessions.go",
+		"controllers/registrations.go",
+		"controllers/reset_passwords.go",
+		"controllers/confirmations.go",
+		"models/user.go",
+		"models/token.go",
+		"views/login.templ",
+		"views/registration.templ",
+		"views/reset_password.templ",
+		"views/confirm_email.templ",
+	}
+	internal.AssertFilesExist(t, project, authFiles)
+
 	for _, ext := range config.Extensions {
 		verifyExtension(t, project, ext)
 	}
@@ -164,21 +151,6 @@ func verifyExtension(t *testing.T, project *internal.Project, extension string) 
 	t.Helper()
 
 	switch extension {
-	case "auth":
-		authFiles := []string{
-			"controllers/sessions.go",
-			"controllers/registrations.go",
-			"controllers/reset_passwords.go",
-			"controllers/confirmations.go",
-			"models/user.go",
-			"models/token.go",
-			"views/login.templ",
-			"views/registration.templ",
-			"views/reset_password.templ",
-			"views/confirm_email.templ",
-		}
-		internal.AssertFilesExist(t, project, authFiles)
-
 	case "email":
 		emailFiles := []string{
 			"email/email.go",

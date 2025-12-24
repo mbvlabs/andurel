@@ -26,15 +26,15 @@ func (m mockExtension) Apply(ctx *extensions.Context) error {
 
 func TestResolveExtensions(t *testing.T) {
 	// Register mock extensions for testing
-	email := mockExtension{name: "email", dependencies: []string{}}
-	auth := mockExtension{name: "auth", dependencies: []string{"email"}}
-	dashboard := mockExtension{name: "dashboard", dependencies: []string{"email", "auth"}}
+	logging := mockExtension{name: "logging", dependencies: []string{}}
+	metrics := mockExtension{name: "metrics", dependencies: []string{"logging"}}
+	dashboard := mockExtension{name: "dashboard", dependencies: []string{"logging", "metrics"}}
 
-	if err := extensions.Register(email); err != nil {
-		t.Fatalf("Failed to register email extension: %v", err)
+	if err := extensions.Register(logging); err != nil {
+		t.Fatalf("Failed to register logging extension: %v", err)
 	}
-	if err := extensions.Register(auth); err != nil {
-		t.Fatalf("Failed to register auth extension: %v", err)
+	if err := extensions.Register(metrics); err != nil {
+		t.Fatalf("Failed to register metrics extension: %v", err)
 	}
 	if err := extensions.Register(dashboard); err != nil {
 		t.Fatalf("Failed to register dashboard extension: %v", err)
@@ -48,56 +48,56 @@ func TestResolveExtensions(t *testing.T) {
 	}{
 		{
 			name:     "Single extension with no dependencies",
-			input:    []string{"email"},
-			expected: []string{"email"},
+			input:    []string{"logging"},
+			expected: []string{"logging"},
 			wantErr:  false,
 		},
 		{
 			name:     "Extension with single dependency",
-			input:    []string{"auth"},
-			expected: []string{"email", "auth"},
+			input:    []string{"metrics"},
+			expected: []string{"logging", "metrics"},
 			wantErr:  false,
 		},
 		{
 			name:     "Extension with transitive dependencies",
 			input:    []string{"dashboard"},
-			expected: []string{"email", "auth", "dashboard"},
+			expected: []string{"logging", "metrics", "dashboard"},
 			wantErr:  false,
 		},
 		{
-			name:     "Multiple extensions in order (email, auth)",
-			input:    []string{"email", "auth"},
-			expected: []string{"email", "auth"},
+			name:     "Multiple extensions in order (logging, metrics)",
+			input:    []string{"logging", "metrics"},
+			expected: []string{"logging", "metrics"},
 			wantErr:  false,
 		},
 		{
-			name:     "Multiple extensions reverse order (auth, email)",
-			input:    []string{"auth", "email"},
-			expected: []string{"email", "auth"},
+			name:     "Multiple extensions reverse order (metrics, logging)",
+			input:    []string{"metrics", "logging"},
+			expected: []string{"logging", "metrics"},
 			wantErr:  false,
 		},
 		{
 			name:     "All extensions specified",
-			input:    []string{"dashboard", "email", "auth"},
-			expected: []string{"email", "auth", "dashboard"},
+			input:    []string{"dashboard", "logging", "metrics"},
+			expected: []string{"logging", "metrics", "dashboard"},
 			wantErr:  false,
 		},
 		{
 			name:     "All extensions in different order",
-			input:    []string{"auth", "dashboard", "email"},
-			expected: []string{"email", "auth", "dashboard"},
+			input:    []string{"metrics", "dashboard", "logging"},
+			expected: []string{"logging", "metrics", "dashboard"},
 			wantErr:  false,
 		},
 		{
 			name:     "Only top-level extension (auto-includes dependencies)",
 			input:    []string{"dashboard"},
-			expected: []string{"email", "auth", "dashboard"},
+			expected: []string{"logging", "metrics", "dashboard"},
 			wantErr:  false,
 		},
 		{
 			name:     "Duplicate requests get deduplicated",
-			input:    []string{"email", "email"},
-			expected: []string{"email"},
+			input:    []string{"logging", "logging"},
+			expected: []string{"logging"},
 			wantErr:  false,
 		},
 		{
