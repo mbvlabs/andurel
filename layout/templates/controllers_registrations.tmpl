@@ -5,8 +5,7 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/database"
-	"{{.ModuleName}}/queue"
+	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
@@ -17,14 +16,14 @@ import (
 )
 
 type Registrations struct {
-	db         database.Postgres
-	insertOnly queue.InsertOnly
+	db         andurel.Database
+	insertOnly andurel.InsertOnly
 	cfg        config.Config
 }
 
-func newRegistrations(
-	db database.Postgres,
-	insertOnly queue.InsertOnly,
+func NewRegistrations(
+	db andurel.Database,
+	insertOnly andurel.InsertOnly,
 	cfg config.Config,
 ) Registrations {
 	return Registrations{db, insertOnly, cfg}

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/models"
 )
 
@@ -21,7 +21,7 @@ type LoginData struct {
 
 func AuthenticateUser(
 	ctx context.Context,
-	db database.Postgres,
+	db andurel.Database,
 	salt string,
 	data LoginData,
 ) (models.User, error) {

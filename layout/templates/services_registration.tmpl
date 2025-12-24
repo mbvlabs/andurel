@@ -5,47 +5,42 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
-	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/email"
+	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/models"
-	"{{.ModuleName}}/router/routes"
-	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/queue/jobs"
 )
 
-const userResetPassword = "user_password_reset"
+const userEmailVerification = "user_email_verification"
 
-var (
-	ErrInvalidResetCode = errors.New("invalid reset code")
-	ErrExpiredResetCode = errors.New("reset code has expired")
-)
-
-type RequestResetPasswordData struct {
-	Email string
+type RegisterUserData struct {
+	Email           string
+	Password        string
+	ConfirmPassword string
 }
 
-func RequestResetPassword(
+func RegisterUser(
 	ctx context.Context,
-	db database.Postgres,
-	insertOnly queue.InsertOnly,
+	db andurel.Database,
+	insertOnly andurel.InsertOnly,
 	salt string,
-	data RequestResetPasswordData,
+	data RegisterUserData,
 ) error {
 	tx, err := db.BeginTx(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
 
-	user, err := models.FindUserByEmail(ctx, tx, data.Email)
+	user, err := models.CreateUser(ctx, tx, salt, models.CreateUserData{
+		Email: data.Email,
+		PasswordPair: models.PasswordPair{
+			Password:        data.Password,
+			ConfirmPassword: data.ConfirmPassword,
+		},
+	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil
-		}
 		return err
 	}
 
@@ -56,28 +51,26 @@ func RequestResetPassword(
 		return err
 	}
 
-	token, err := models.CreateToken(
+	code, err := models.CreateCodeToken(
 		ctx,
 		tx,
 		salt,
-		userResetPassword,
-		time.Now().Add(1*time.Hour), // 1 hour expiry
+		userEmailVerification,
+		time.Now().Add(24*time.Hour),
 		meta,
 	)
 	if err != nil {
 		return err
 	}
 
-	resetURL := fmt.Sprintf("%s%s", config.BaseURL, routes.PasswordEdit.URL(token))
+	vEmail := email.VerifyEmail{VerificationCode: code}
 
-	rpEmail := email.ResetPassword{ResetURL: resetURL}
-
-	html, err := rpEmail.ToHTML()
+	html, err := vEmail.ToHTML()
 	if err != nil {
 		return err
 	}
 
-	text, err := rpEmail.ToText()
+	text, err := vEmail.ToText()
 	if err != nil {
 		return err
 	}
@@ -86,7 +79,7 @@ func RequestResetPassword(
 		Data: email.TransactionalData{
 			To:       user.Email,
 			From:     "noreply@andurel.com",
-			Subject:  "Reset Your Password",
+			Subject:  "Verify Your Email Address",
 			HTMLBody: html,
 			TextBody: text,
 		},
@@ -98,17 +91,21 @@ func RequestResetPassword(
 	return tx.Commit(ctx)
 }
 
-type ResetPasswordData struct {
-	Token           string
-	Password        string
-	ConfirmPassword string
+var (
+	ErrInvalidVerificationCode = errors.New("invalid verification code")
+	ErrExpiredVerificationCode = errors.New("verification code has expired")
+	ErrUserNotFound            = errors.New("user not found")
+)
+
+type VerifyEmailData struct {
+	Code string
 }
 
-func ResetPassword(
+func VerifyEmail(
 	ctx context.Context,
 	db database.Postgres,
 	salt string,
-	data ResetPasswordData,
+	data VerifyEmailData,
 ) error {
 	tx, err := db.BeginTx(ctx)
 	if err != nil {
@@ -116,27 +113,19 @@ func ResetPassword(
 	}
 	defer tx.Rollback(ctx)
 
-	if data.Password != data.ConfirmPassword {
-		return errors.New("passwords do not match")
-	}
-
-	if len(data.Password) < 8 {
-		return errors.New("password must be at least 8 characters")
-	}
-
 	token, err := models.FindTokenByScopeAndHash(
 		ctx,
 		tx,
 		salt,
-		userResetPassword,
-		data.Token,
+		userEmailVerification,
+		data.Code,
 	)
 	if err != nil {
-		return ErrInvalidResetCode
+		return ErrInvalidVerificationCode
 	}
 
-	if !token.IsValid(data.Token, salt) {
-		return ErrExpiredResetCode
+	if !token.IsValid(data.Code, salt) {
+		return ErrExpiredVerificationCode
 	}
 
 	var meta map[string]string
@@ -154,19 +143,14 @@ func ResetPassword(
 		return err
 	}
 
-	hashedPassword, err := models.HashPassword(data.Password, salt)
-	if err != nil {
-		return err
-	}
-
 	_, err = models.UpdateUser(ctx, tx, models.UpdateUserData{
 		ID:    user.ID,
 		Email: user.Email,
 		EmailValidatedAt: sql.NullTime{
-			Time:  user.EmailValidatedAt,
-			Valid: !user.EmailValidatedAt.IsZero(),
+			Time:  time.Now(),
+			Valid: true,
 		},
-		Password: []byte(hashedPassword),
+		Password: user.Password,
 		IsAdmin:  user.IsAdmin,
 	})
 	if err != nil {
