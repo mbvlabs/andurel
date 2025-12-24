@@ -51,18 +51,19 @@ func TestMigrationWorkflow(t *testing.T) {
 func testCreateAndUseMigration(t *testing.T, project *internal.Project) {
 	t.Helper()
 
-	migrationName := "000200_create_users"
+	migrationName := "000200_create_products"
 	migrationDir := filepath.Join(project.Dir, "database", "migrations")
 
-	upSQL := `CREATE TABLE IF NOT EXISTS users (
+	upSQL := `CREATE TABLE IF NOT EXISTS products (
 	id UUID PRIMARY KEY,
-	email VARCHAR(255) NOT NULL UNIQUE,
 	name VARCHAR(255) NOT NULL,
+	description TEXT,
+	price DECIMAL(10, 2) NOT NULL,
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 	updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );`
 
-	downSQL := `DROP TABLE IF EXISTS users;`
+	downSQL := `DROP TABLE IF EXISTS products;`
 
 	gooseMigration := "-- +goose Up\n" + upSQL + "\n\n-- +goose Down\n" + downSQL + "\n"
 
@@ -75,9 +76,9 @@ func testCreateAndUseMigration(t *testing.T, project *internal.Project) {
 
 	internal.AssertFileExists(t, project, "database/migrations/"+migrationName+".sql")
 
-	err = project.Generate("generate", "model", "User")
+	err = project.Generate("generate", "model", "Product")
 	internal.AssertCommandSucceeds(t, err, "generate model from migration")
 
-	internal.AssertFileExists(t, project, "models/user.go")
-	internal.AssertFileExists(t, project, "database/queries/users.sql")
+	internal.AssertFileExists(t, project, "models/product.go")
+	internal.AssertFileExists(t, project, "database/queries/products.sql")
 }

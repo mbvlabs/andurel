@@ -9,19 +9,19 @@ import (
 
 	"{{.ModuleName}}/clients/payment"
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/models"
 
 	"github.com/labstack/echo/v4"
 )
 
 type PaymentWebhooks struct {
-	db     database.Postgres
+	db     andurel.Database
 	client *payment.PaddleClient
 	cfg    config.Config
 }
 
-func newPaymentWebhooks(db database.Postgres, client *payment.PaddleClient, cfg config.Config) PaymentWebhooks {
+func newPaymentWebhooks(db andurel.Database, client *payment.PaddleClient, cfg config.Config) PaymentWebhooks {
 	return PaymentWebhooks{db, client, cfg}
 }
 

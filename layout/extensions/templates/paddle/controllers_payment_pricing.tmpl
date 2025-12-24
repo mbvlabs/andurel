@@ -5,18 +5,18 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/clients/payment"
-	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/models"
 
 	"github.com/labstack/echo/v4"
 )
 
 type PaymentPricing struct {
-	db     database.Postgres
+	db     andurel.Database
 	client *payment.PaddleClient
 }
 
-func newPaymentPricing(db database.Postgres, client *payment.PaddleClient) PaymentPricing {
+func newPaymentPricing(db andurel.Database, client *payment.PaddleClient) PaymentPricing {
 	return PaymentPricing{db, client}
 }
 
