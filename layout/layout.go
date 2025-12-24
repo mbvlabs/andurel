@@ -323,17 +323,17 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"models_factories_factories.tmpl": "models/factories/factories.go",
 
 	// Router
-	"router_router.tmpl":                       "router/router.go",
-	"router_connect_api_routes.tmpl":           "router/connect_api_routes.go",
-	"router_connect_assets_routes.tmpl":        "router/connect_assets_routes.go",
-	"router_connect_pages_routes.tmpl":         "router/connect_pages_routes.go",
-	"router_connect_sessions_routes.tmpl":      "router/connect_sessions_routes.go",
-	"router_connect_registrations_routes.tmpl": "router/connect_registrations_routes.go",
-	"router_connect_confirmations_routes.tmpl": "router/connect_confirmations_routes.go",
+	"router_router.tmpl":                         "router/router.go",
+	"router_connect_api_routes.tmpl":             "router/connect_api_routes.go",
+	"router_connect_assets_routes.tmpl":          "router/connect_assets_routes.go",
+	"router_connect_pages_routes.tmpl":           "router/connect_pages_routes.go",
+	"router_connect_sessions_routes.tmpl":        "router/connect_sessions_routes.go",
+	"router_connect_registrations_routes.tmpl":   "router/connect_registrations_routes.go",
+	"router_connect_confirmations_routes.tmpl":   "router/connect_confirmations_routes.go",
 	"router_connect_reset_passwords_routes.tmpl": "router/connect_reset_passwords_routes.go",
-	"router_cookies_cookies.tmpl":              "router/cookies/cookies.go",
-	"router_cookies_flash.tmpl":                "router/cookies/flash.go",
-	"router_middleware_middleware.tmpl":        "router/middleware/middleware.go",
+	"router_cookies_cookies.tmpl":                "router/cookies/cookies.go",
+	"router_cookies_flash.tmpl":                  "router/cookies/flash.go",
+	"router_middleware_middleware.tmpl":          "router/middleware/middleware.go",
 
 	// Routes
 	"router_routes_api.tmpl":    "router/routes/api.go",
@@ -341,15 +341,15 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_routes_pages.tmpl":  "router/routes/pages.go",
 
 	// Telemetry
-	"telemetry_telemetry.tmpl":        "pkg/telemetry/telemetry.go",
-	"telemetry_options.tmpl":          "pkg/telemetry/options.go",
-	"telemetry_logger.tmpl":           "pkg/telemetry/logger.go",
-	"telemetry_log_exporters.tmpl":    "pkg/telemetry/log_exporters.go",
-	"telemetry_metrics.tmpl":          "pkg/telemetry/metrics.go",
-	"telemetry_metric_exporters.tmpl": "pkg/telemetry/metric_exporters.go",
-	"telemetry_tracer.tmpl":           "pkg/telemetry/tracer.go",
-	"telemetry_trace_exporters.tmpl":  "pkg/telemetry/trace_exporters.go",
-	"telemetry_helpers.tmpl":          "pkg/telemetry/helpers.go",
+	"telemetry_telemetry.tmpl":        "telemetry/telemetry.go",
+	"telemetry_options.tmpl":          "telemetry/options.go",
+	"telemetry_logger.tmpl":           "telemetry/logger.go",
+	"telemetry_log_exporters.tmpl":    "telemetry/log_exporters.go",
+	"telemetry_metrics.tmpl":          "telemetry/metrics.go",
+	"telemetry_metric_exporters.tmpl": "telemetry/metric_exporters.go",
+	"telemetry_tracer.tmpl":           "telemetry/tracer.go",
+	"telemetry_trace_exporters.tmpl":  "telemetry/trace_exporters.go",
+	"telemetry_helpers.tmpl":          "telemetry/helpers.go",
 
 	// Views
 	"views_home.tmpl":                     "views/home.templ",
