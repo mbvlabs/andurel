@@ -1,70 +1,238 @@
 package email
 
-templ button(link, callToAction string) {
-	<style>
-		.btn-primary table td {
-			background-color: #0867ec;
-		}
-
-		.btn-primary a {
-			background-color: #0867ec;
-			border-color: #0867ec;
-			color: #ffffff;
-		}
-
-		@media all {
-			.btn-primary table td:hover {
-				background-color: #ec0867 !important;
-			}
-
-			.btn-primary a:hover {
-				background-color: #ec0867 !important;
-				border-color: #ec0867 !important;
-			}
-		}
-	</style>
-	<table
-		role="presentation"
-		border="0"
-		cellpadding="0"
-		cellspacing="0"
-		class="btn btn-primary"
-	>
+// Spacer component - creates vertical spacing
+templ spacer(height string) {
+	<table class="st-Spacer st-Spacer--standalone st-Width st-Width--mobile" border="0" cellpadding="0" cellspacing="0" width="100%">
 		<tbody>
 			<tr>
-				<td align="left">
-					<table role="presentation" border="0" cellpadding="0" cellspacing="0">
-						<tbody>
-							<tr>
-								<td>
-									<a href={templ.SafeURL(link)} target="_blank">
-										{callToAction}
-									</a>
-								</td>
-							</tr>
-						</tbody>
-					</table>
+				<td height={ height } style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; max-height: 1px; mso-line-height-rule: exactly;">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
 				</td>
 			</tr>
 		</tbody>
 	</table>
 }
 
-templ footer(unsubscribeLink string) {
-	<div class="footer">
-		<table role="presentation" border="0" cellpadding="0" cellspacing="0">
+// Divider component - horizontal line with spacing
+templ divider() {
+	<table class="st-Divider st-Width st-Width--mobile" border="0" cellpadding="0" cellspacing="0" width="600" style="min-width: 600px;">
+		<tbody>
 			<tr>
-				<td class="content-block">
-					<span class="apple-link">andurel @ mbvlabs</span>
-					<br/>
-					Don't like these emails? <a href={templ.SafeURL(unsubscribeLink)}>Unsubscribe</a>.
+				<td class="st-Spacer st-Spacer--divider" colspan="3" height="24" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; max-height: 1px; mso-line-height-rule: exactly;">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
 				</td>
 			</tr>
 			<tr>
-				<td class="content-block powered-by">
-					Powered by <a href="https://andurel.com">Andurel</a>
+				<td class="st-Spacer st-Spacer--gutter" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; max-height: 1px; mso-line-height-rule: exactly;" width="48">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+				<td bgcolor="#e6ebf1" height="1" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; max-height: 1px; mso-line-height-rule: exactly;">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+				<td class="st-Spacer st-Spacer--gutter" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; max-height: 1px; mso-line-height-rule: exactly;" width="48">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
 				</td>
 			</tr>
+			<tr>
+				<td class="st-Spacer st-Spacer--divider" colspan="3" height="24" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; max-height: 1px; mso-line-height-rule: exactly;">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+}
+
+// Title component - main heading with gutters
+templ title(text string) {
+	<table class="st-Copy st-Copy--title st-Width st-Width--mobile" border="0" cellpadding="0" cellspacing="0" width="600" style="min-width: 600px;">
+		<tbody>
+			<tr>
+				<td class="st-Spacer st-Spacer--stacked" colspan="3" height="8" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+			</tr>
+			<tr>
+				<td class="st-Spacer st-Spacer--gutter" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;" width="48">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+				<td class="st-Font st-Font--title" style="border: 0; margin: 0; padding: 0; color: #414552; font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', 'Helvetica', sans-serif; font-weight: bold !important; sans-serif; font-size: 28px; line-height: 36px;">
+					<span class="st-Delink st-Delink--title" style="border: 0; margin: 0; padding: 0; color: #414552; text-decoration: none; font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', 'Helvetica', sans-serif; font-size: 28px; line-height: 36px; font-weight: 700 !important;">
+						{ text }
+					</span>
+				</td>
+				<td class="st-Spacer st-Spacer--gutter" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;" width="48">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+			</tr>
+			<tr>
+				<td class="st-Spacer st-Spacer--stacked" colspan="3" height="8" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+}
+
+// Copy component - body text with gutters
+templ copy() {
+	<table class="st-Copy st-Width st-Width--mobile" border="0" cellpadding="0" cellspacing="0" width="600" style="min-width: 600px;">
+		<tbody>
+			<tr>
+				<td class="st-Spacer st-Spacer--stacked" colspan="3" height="8" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+			</tr>
+			<tr>
+				<td class="st-Spacer st-Spacer--gutter" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;" width="48">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+				<td style="border: 0; margin: 0; padding: 0; color: #414552 !important; font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', 'Helvetica', sans-serif; font-weight: 400; font-size: 16px; line-height: 24px;">
+					{ children... }
+				</td>
+				<td class="st-Spacer st-Spacer--gutter" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;" width="48">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+			</tr>
+			<tr>
+				<td class="st-Spacer st-Spacer--stacked" colspan="3" height="8" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+}
+
+// Button component - Stripe-style button
+templ button(link, text string) {
+	<table class="st-Button st-Button--fullWidth st-Width st-Width--mobile" border="0" cellpadding="0" cellspacing="0" width="600" style="min-width: 600px;">
+		<tbody>
+			<tr>
+				<td class="st-Spacer st-Spacer--stacked" colspan="3" height="8" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+			</tr>
+			<tr>
+				<td class="st-Spacer st-Spacer--gutter" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;" width="48">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+				<td align="center" class="st-Button-area" height="40" valign="middle" style="border: 0; margin: 0; padding: 0; background-color: #625afa; border-radius: 5px; text-align: center;">
+					<a class="st-Button-link" style="border: 0; margin: 0; padding: 0; color: #ffffff; height: 40px; text-align: center; text-decoration: none;" href={ templ.SafeURL(link) }>
+						<span class="st-Button-internal" style="border: 0; margin: 0; padding: 0; color: #ffffff; font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', 'Helvetica', sans-serif; font-size: 16px; font-weight: bold; height: 24px; line-height: 24px; mso-line-height-rule: exactly; text-decoration: none; vertical-align: middle; white-space: nowrap; width: 100%;">
+							{ text }
+						</span>
+					</a>
+				</td>
+				<td class="st-Spacer st-Spacer--gutter" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;" width="48">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+			</tr>
+			<tr>
+				<td class="st-Spacer st-Spacer--stacked" colspan="3" height="8" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+}
+
+// Verification code box component - table-based for Gmail compatibility
+templ verificationCodeBox(code string) {
+	<table class="st-Copy st-Width st-Width--mobile" border="0" cellpadding="0" cellspacing="0" width="600" style="min-width: 600px;">
+		<tbody>
+			<tr>
+				<td class="st-Spacer st-Spacer--stacked" colspan="3" height="8" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+			</tr>
+			<tr>
+				<td class="st-Spacer st-Spacer--gutter" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;" width="48">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+				<td bgcolor="#f6f9fc" style="border: 0; margin: 0; padding: 24px; border-radius: 8px;">
+					<table border="0" cellpadding="0" cellspacing="0" width="100%">
+						<tbody>
+							<tr>
+								<td align="center" style="border: 0; margin: 0; padding: 0 0 8px 0; color: #687385; font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', 'Helvetica', sans-serif; font-size: 12px; line-height: 16px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold;">
+									VERIFICATION CODE
+								</td>
+							</tr>
+							<tr>
+								<td align="center" style="border: 0; margin: 0; padding: 0; color: #625afa; font-family: 'Courier New', Courier, monospace; font-size: 36px; line-height: 44px; font-weight: bold; letter-spacing: 8px;">
+									{ code }
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</td>
+				<td class="st-Spacer st-Spacer--gutter" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;" width="48">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+			</tr>
+			<tr>
+				<td class="st-Spacer st-Spacer--stacked" colspan="3" height="8" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+}
+
+// Footer component - Stripe-style footer
+templ footer() {
+	<div style="background-color: #f6f9fc">
+		<table class="st-Footer st-Width st-Width--mobile st-Layout-Wrapper" border="0" cellpadding="0" cellspacing="0" width="600" style="min-width: 600px; border-bottom-right-radius: 16px; border-bottom-left-radius: 16px;" bgcolor="#ffffff">
+			<tbody>
+				<tr>
+					<td class="st-Spacer st-Spacer--wrapper" height="40">
+						<div class="st-Spacer">&#160;</div>
+					</td>
+				</tr>
+			</tbody>
 		</table>
 	</div>
+	<table class="st-Footer st-Width st-Width--mobile" border="0" cellpadding="0" cellspacing="0" width="600" style="min-width: 600px;" bgcolor="#f6f9fc">
+		<tbody>
+			<tr>
+				<td class="st-Spacer st-Spacer--wrapper" height="32">
+					<div class="st-Spacer">&#160;</div>
+				</td>
+			</tr>
+			<tr>
+				<td class="st-Spacer st-Spacer--gutter" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;" width="48">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+				<td class="st-Font st-Font--caption st-Mobile--footer" style="border: 0; margin: 0; padding: 0; color: #687385; font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', 'Helvetica', sans-serif; font-size: 12px; line-height: 20px; text-align: left;">
+					<span style="border: 0; margin: 0; padding: 0; color: #687385; text-decoration: none;">
+						This email relates to your account.
+						<br/>
+						Powered by <strong>Andurel</strong>
+						<br/>
+					</span>
+				</td>
+				<td class="st-Spacer st-Spacer--gutter" style="border: 0; margin: 0; padding: 0; font-size: 1px; line-height: 1px; mso-line-height-rule: exactly;" width="48">
+					<div class="st-Spacer st-Spacer--filler">&#160;</div>
+				</td>
+			</tr>
+			<tr>
+				<td class="st-Spacer st-Spacer--wrapper" height="15">
+					<div class="st-Spacer">&#160;</div>
+				</td>
+			</tr>
+			<tr>
+				<td class="st-Spacer st-Spacer--wrapper" height="15">
+					<div class="st-Spacer">&#160;</div>
+				</td>
+			</tr>
+			<tr>
+				<td class="st-Spacer st-Spacer--wrapper" height="15">
+					<div class="st-Spacer">&#160;</div>
+				</td>
+			</tr>
+			<tr>
+				<td class="st-Spacer st-Spacer--wrapper" height="32">
+					<div class="st-Spacer st-Spacer--kill">&#160;</div>
+				</td>
+			</tr>
+		</tbody>
+	</table>
 }
