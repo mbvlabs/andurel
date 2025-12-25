@@ -21,13 +21,12 @@ type FrameworkTemplate struct {
 // These are the only files that get upgraded when running andurel upgrade
 func GetFrameworkTemplates() []FrameworkTemplate {
 	return []FrameworkTemplate{
-		{"framework_elements_andurel.tmpl", "internal/andurel/andurel.go"},
-		{"framework_elements_routes.tmpl", "internal/andurel/routes.go"},
-		{"framework_elements_route_definitions.tmpl", "internal/andurel/route_definitions.go"},
-		{"framework_elements_server.tmpl", "internal/andurel/server.go"},
-		{"framework_elements_database.tmpl", "internal/andurel/database.go"},
-		{"framework_elements_queue.tmpl", "internal/andurel/queue.go"},
-		{"framework_elements_render.tmpl", "internal/andurel/render.go"},
+		{"framework_elements_renderer_render.tmpl", "internal/renderer/render.go"},
+		{"framework_elements_routing_definitions.tmpl", "internal/routing/definitions.go"},
+		{"framework_elements_routing_routes.tmpl", "internal/routing/routes.go"},
+		{"framework_elements_server_server.tmpl", "internal/server/server.go"},
+		{"framework_elements_storage_psql.tmpl", "internal/storage/psql.go"},
+		{"framework_elements_storage_queue.tmpl", "internal/storage/queue.go"},
 	}
 }
 

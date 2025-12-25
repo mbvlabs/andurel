@@ -1,7 +1,7 @@
 // Code generated and maintained by the andurel framework. DO NOT EDIT.
 // This file contains abstractions for queue interactions as well as
 // default implementations
-package andurel
+package storage
 
 import (
 	"context"
@@ -11,12 +11,38 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+	"github.com/riverqueue/river/rivertype"
 )
 
 type Queue interface {
 	Shutdown(ctx context.Context) error
 	Start(ctx context.Context) error
 	Stop(ctx context.Context)
+}
+
+type InsertQueue interface {
+	Insert(
+		ctx context.Context,
+		args river.JobArgs,
+		opts *river.InsertOpts,
+	) (*rivertype.JobInsertResult, error)
+	InsertTx(
+		ctx context.Context,
+		tx pgx.Tx,
+		args river.JobArgs,
+		opts *river.InsertOpts,
+	) (*rivertype.JobInsertResult, error)
+	InsertMany(
+		ctx context.Context,
+		params []river.InsertManyParams,
+	) ([]*rivertype.JobInsertResult, error)
+	InsertManyTx(
+		ctx context.Context,
+		tx pgx.Tx,
+		params []river.InsertManyParams,
+	) ([]*rivertype.JobInsertResult, error)
+	InsertManyFast(ctx context.Context, params []river.InsertManyParams) (int, error)
+	InsertManyFastTx(ctx context.Context, tx pgx.Tx, params []river.InsertManyParams) (int, error)
 }
 
 type InsertOnly struct {

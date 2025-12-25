@@ -1,72 +1,72 @@
 package routes
 
 import (
-	"{{.ModuleName}}/internal/andurel"
+	"{{.ModuleName}}/internal/routing"
 )
 
 const UserPrefix = "users"
 
-var SessionNew = andurel.NewSimpleRoute(
+var SessionNew = routing.NewSimpleRoute(
 	"/sign_in",
 	"new_user_session",
 	UserPrefix,
 )
 
-var SessionCreate = andurel.NewSimpleRoute(
+var SessionCreate = routing.NewSimpleRoute(
 	"/sign_in",
 	"user_session",
 	UserPrefix,
 )
 
-var SessionDestroy = andurel.NewSimpleRoute(
+var SessionDestroy = routing.NewSimpleRoute(
 	"/sign_out",
 	"destroy_user_session",
 	UserPrefix,
 )
 
-var PasswordNew = andurel.NewSimpleRoute(
+var PasswordNew = routing.NewSimpleRoute(
 	"/password/new",
 	"new_user_password",
 	UserPrefix,
 )
 
-var PasswordCreate = andurel.NewSimpleRoute(
+var PasswordCreate = routing.NewSimpleRoute(
 	"/password",
 	"user_password",
 	UserPrefix,
 )
 
-var PasswordEdit = andurel.NewRouteWithToken(
+var PasswordEdit = routing.NewRouteWithToken(
 	"/password/:token/edit",
 	"edit_user_password",
 	UserPrefix,
 )
 
-var PasswordUpdate = andurel.NewSimpleRoute(
+var PasswordUpdate = routing.NewSimpleRoute(
 	"/password",
 	"user_password",
 	UserPrefix,
 )
 
-var RegistrationNew = andurel.NewSimpleRoute(
+var RegistrationNew = routing.NewSimpleRoute(
 	"/sign_up",
 	"new_user_registration",
 	UserPrefix,
 )
 
-var RegistrationCreate = andurel.NewSimpleRoute(
+var RegistrationCreate = routing.NewSimpleRoute(
 	"/",
 	"user_registration",
 	UserPrefix,
 )
 
-var ConfirmationNew = andurel.NewSimpleRoute(
+var ConfirmationNew = routing.NewSimpleRoute(
 	"/confirmation/new",
 	"new_user_confirmation",
 	UserPrefix,
 )
 
-var ConfirmationCreate = andurel.NewSimpleRoute(
+var ConfirmationCreate = routing.NewSimpleRoute(
 	"/confirmation",
 	"user_confirmation",
 	UserPrefix,

@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/internal/andurel"
+	"{{.ModuleName}}/internal/server"
 	"{{.ModuleName}}/telemetry"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/controllers"
@@ -38,7 +38,7 @@ func New(
 
 	router := echo.New()
 
-	if config.Env != andurel.ProdEnvironment {
+	if config.Env != server.ProdEnvironment {
 		router.Debug = true
 	}
 
@@ -82,12 +82,12 @@ func SetupGlobalMiddleware(
 					return strings.Contains(c.Request().URL.Path, routes.APIPrefix) ||
 						strings.Contains(c.Request().URL.Path, routes.AssetsPrefix)
 				}, TokenLookup: "cookie:" + csrfName, CookiePath: "/", CookieDomain: func() string {
-					if config.Env == andurel.ProdEnvironment {
+					if config.Env == server.ProdEnvironment {
 						return config.Domain
 					}
 
 					return ""
-				}(), CookieSecure: config.Env == andurel.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode,
+				}(), CookieSecure: config.Env == server.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode,
 			}),
 
 		echomw.Recover(),

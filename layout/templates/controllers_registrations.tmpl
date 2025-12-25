@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/internal/andurel"
+	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
@@ -16,14 +16,14 @@ import (
 )
 
 type Registrations struct {
-	db         andurel.Database
-	insertOnly andurel.InsertOnly
+	db         storage.Pool
+	insertOnly storage.InsertOnly
 	cfg        config.Config
 }
 
 func NewRegistrations(
-	db andurel.Database,
-	insertOnly andurel.InsertOnly,
+	db storage.Pool,
+	insertOnly storage.InsertOnly,
 	cfg config.Config,
 ) Registrations {
 	return Registrations{db, insertOnly, cfg}

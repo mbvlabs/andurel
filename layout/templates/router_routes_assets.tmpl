@@ -4,46 +4,46 @@ import (
 	"fmt"
 	"time"
 
-	"{{.ModuleName}}/internal/andurel"
+	"{{.ModuleName}}/internal/routing"
 )
 
 const AssetsPrefix = "assets"
 
 var startTime = time.Now().Unix()
 
-var Robots = andurel.NewSimpleRoute(
+var Robots = routing.NewSimpleRoute(
 	"/robots.txt",
 	"robots",
 	"",
 )
 
-var Sitemap = andurel.NewSimpleRoute(
+var Sitemap = routing.NewSimpleRoute(
 	"/sitemap.xml",
 	"sitemap",
 	"",
 )
 
 {{- if eq .CSSFramework "vanilla"}}
-var StyleImport = andurel.NewSimpleRoute(
+var StyleImport = routing.NewSimpleRoute(
 	"/css/:file",
 	"css.file",
 	AssetsPrefix,
 )
 {{- end}}
 
-var Stylesheet = andurel.NewSimpleRoute(
+var Stylesheet = routing.NewSimpleRoute(
 	fmt.Sprintf("/css/%v/style.css", startTime),
 	"css.stylesheet",
 	AssetsPrefix,
 )
 
-var Scripts = andurel.NewSimpleRoute(
+var Scripts = routing.NewSimpleRoute(
 	fmt.Sprintf("/js/%v/scripts.js", startTime),
 	"js.scripts",
 	AssetsPrefix,
 )
 
-var Script = andurel.NewRouteWithFile(
+var Script = routing.NewRouteWithFile(
 	fmt.Sprintf("/js/%v/:file", startTime),
 	"js.script",
 	AssetsPrefix,

@@ -1,7 +1,7 @@
 // Code generated and maintained by the andurel framework. DO NOT EDIT.
 // This file contains constructor function for creating an HTTP server with
 // graceful shutdown capabilities.
-package andurel
+package server
 
 import (
 	"context"
@@ -37,7 +37,7 @@ type ServerOptions struct {
 
 type ServerOption func(*ServerOptions)
 
-func NewServer(
+func New(
 	ctx context.Context,
 	host string,
 	port string,

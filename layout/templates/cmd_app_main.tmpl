@@ -12,7 +12,8 @@ import (
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
-	"{{.ModuleName}}/internal/andurel"
+	"{{.ModuleName}}/internal/server"
+	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/telemetry"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/middleware"
@@ -37,7 +38,7 @@ func setupControllers(
 {{- range $i, $dep := .Blueprint.Controllers.SortedDependencies}}
 	{{$dep.Name}} {{$dep.Type}},
 {{- end}}
-	insertOnly andurel.InsertOnly,
+	insertOnly storage.InsertOnly,
 	rtr *router.Router,
 	riverHandler *riverui.Handler,
 	mw middleware.Middleware,
@@ -162,7 +163,7 @@ func run(ctx context.Context) error {
 	}
 
 
-	db, err := andurel.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
+	db, err := storage.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
 	}
@@ -182,7 +183,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	insertOnly, err := andurel.NewInsertOnly(
+	insertOnly, err := storage.NewInsertOnly(
 		db.Conn(),
 		wrks,
 	)
@@ -190,7 +191,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	processor, err := andurel.NewProcessor(
+	processor, err := storage.NewProcessor(
 		ctx,
 		db.Conn(),
 		wrks,
@@ -244,13 +245,13 @@ func run(ctx context.Context) error {
 	go {{.FunctionCall}}
 {{- end}}
 
-	server := andurel.NewServer(
+	server := server.New(
 		ctx,
 		cfg.App.Host,
 		cfg.App.Port,
 		config.Env,
 		handler,
-		[]andurel.Shutdowner{processor},
+		[]server.Shutdowner{processor},
 	)
 
 	slog.InfoContext(ctx, "starting server", "host", cfg.App.Host, "port", cfg.App.Port)
