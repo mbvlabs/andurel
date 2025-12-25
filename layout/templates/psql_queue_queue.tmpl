@@ -1,2 +1,122 @@
 // Package queue provides queue-specific resources.
 package queue
+
+import (
+	"context"
+	"log/slog"
+
+	"{{.ModuleName}}/internal/storage"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+	"github.com/riverqueue/river/rivertype"
+)
+
+type Processor struct {
+	Client *river.Client[pgx.Tx]
+}
+
+var _ storage.Queue = (*Processor)(nil)
+
+func (p Processor) Shutdown(ctx context.Context) error {
+	return p.Client.Stop(ctx)
+}
+
+func (p Processor) Start(ctx context.Context) error {
+	return p.Client.Start(ctx)
+}
+
+func (p Processor) Stop(ctx context.Context) error {
+	return p.Client.Stop(ctx)
+}
+
+func NewProcessor(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	workers *river.Workers,
+) (Processor, error) {
+	riverClient, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
+		Queues: map[string]river.QueueConfig{
+			river.QueueDefault: {MaxWorkers: 100},
+		},
+		Logger:  slog.Default(),
+		Workers: workers,
+	})
+	if err != nil {
+		return Processor{}, err
+	}
+
+	return Processor{riverClient}, nil
+}
+
+type InsertQueue struct {
+	client *river.Client[pgx.Tx]
+}
+
+// Insert implements storage.InsertQueue.
+func (i *InsertQueue) Insert(
+	ctx context.Context,
+	args river.JobArgs,
+	opts *river.InsertOpts,
+) (*rivertype.JobInsertResult, error) {
+	return i.client.Insert(ctx, args, opts)
+}
+
+// InsertMany implements storage.InsertQueue.
+func (i *InsertQueue) InsertMany(
+	ctx context.Context,
+	params []river.InsertManyParams,
+) ([]*rivertype.JobInsertResult, error) {
+	return i.client.InsertMany(ctx, params)
+}
+
+// InsertManyFast implements storage.InsertQueue.
+func (i *InsertQueue) InsertManyFast(
+	ctx context.Context,
+	params []river.InsertManyParams,
+) (int, error) {
+	return i.client.InsertManyFast(ctx, params)
+}
+
+// InsertManyFastTx implements storage.InsertQueue.
+func (i *InsertQueue) InsertManyFastTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	params []river.InsertManyParams,
+) (int, error) {
+	return i.client.InsertManyFastTx(ctx, tx, params)
+}
+
+// InsertManyTx implements storage.InsertQueue.
+func (i *InsertQueue) InsertManyTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	params []river.InsertManyParams,
+) ([]*rivertype.JobInsertResult, error) {
+	return i.client.InsertManyTx(ctx, tx, params)
+}
+
+// InsertTx implements storage.InsertQueue.
+func (i *InsertQueue) InsertTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	args river.JobArgs,
+	opts *river.InsertOpts,
+) (*rivertype.JobInsertResult, error) {
+	return i.client.InsertTx(ctx, tx, args, opts)
+}
+
+var _ storage.InsertQueue = (*InsertQueue)(nil)
+
+func NewInsertOnlyQueue(pool *pgxpool.Pool, workers *river.Workers) (InsertQueue, error) {
+	riverClient, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
+		Workers: workers,
+	})
+	if err != nil {
+		return InsertQueue{}, err
+	}
+
+	return InsertQueue{riverClient}, nil
+}

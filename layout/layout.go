@@ -899,7 +899,7 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 	builder.AddControllerImport(fmt.Sprintf("%s/config", moduleName))
 	builder.AddControllerDependency("cfg", "config.Config")
 
-	builder.AddControllerDependency("db", "andurel.Database")
+	builder.AddControllerDependency("db", "storage.Pool")
 
 	// Controller fields - the main sub-controllers
 	builder.

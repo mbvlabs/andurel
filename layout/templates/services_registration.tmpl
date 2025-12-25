@@ -103,7 +103,7 @@ type VerifyEmailData struct {
 
 func VerifyEmail(
 	ctx context.Context,
-	db andurel.Database,
+	db storage.Pool,
 	salt string,
 	data VerifyEmailData,
 ) error {

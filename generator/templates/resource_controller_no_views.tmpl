@@ -15,17 +15,17 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"{{.ModulePath}}/models"
-	"{{.ModulePath}}/internal/andurel"
+	"{{.ModulePath}}/internal/storage"
 	"{{.ModulePath}}/router/cookies"
 	"{{.ModulePath}}/router/routes"
 	"{{.ModulePath}}/views"
 )
 
 type {{.ResourceName}}s struct {
-	db andurel.Database
+	db storage.Pool
 }
 
-func New{{.ResourceName}}s(db andurel.Database) {{.ResourceName}}s {
+func New{{.ResourceName}}s(db storage.Pool) {{.ResourceName}}s {
 	return {{.ResourceName}}s{db}
 }
 
