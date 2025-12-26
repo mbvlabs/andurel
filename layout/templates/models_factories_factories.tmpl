@@ -3,9 +3,9 @@ package factories
 import (
 	"context"
 
-	"{{.ModuleName}}/models/internal/db"
+	"{{.ModuleName}}/internal/storage"
 )
 
-type DBTX = db.DBTX
+type DBTX = storage.Executor
 
 var ctx = context.Background()

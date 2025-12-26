@@ -2,7 +2,7 @@
 package controllers
 
 import (
-	"{{.ModuleName}}/internal/andurel"
+	"{{.ModuleName}}/internal/renderer"
 	"{{.ModuleName}}/router/cookies"
 
 	"github.com/a-h/templ"
@@ -10,10 +10,10 @@ import (
 )
 
 func render(c echo.Context, t templ.Component) error {
-	return andurel.Render(
+	return renderer.Render(
 		c,
 		t,
-		[]andurel.CookieKey{
+		[]renderer.CookieKey{
 			cookies.AppKey,
 			cookies.FlashKey,
 		},

@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"{{.ModuleName}}/models/internal/db"
+	"{{.ModuleName}}/internal/storage"
 )
 
 type PaymentTransaction struct {
@@ -27,10 +28,10 @@ type PaymentTransaction struct {
 
 func FindPaymentTransactionByID(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	id uuid.UUID,
 ) (PaymentTransaction, error) {
-	row, err := queries.QueryPaymentTransactionByID(ctx, dbtx, id)
+	row, err := queries.QueryPaymentTransactionByID(ctx, exec, id)
 	if err != nil {
 		return PaymentTransaction{}, err
 	}
@@ -40,10 +41,10 @@ func FindPaymentTransactionByID(
 
 func FindPaymentTransactionByProviderID(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	paddleTransactionID string,
 ) (PaymentTransaction, error) {
-	row, err := queries.QueryPaymentTransactionByProviderID(ctx, dbtx, paddleTransactionID)
+	row, err := queries.QueryPaymentTransactionByProviderID(ctx, exec, paddleTransactionID)
 	if err != nil {
 		return PaymentTransaction{}, err
 	}
@@ -65,7 +66,7 @@ type CreatePaymentTransactionData struct {
 
 func CreatePaymentTransaction(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	data CreatePaymentTransactionData,
 ) (PaymentTransaction, error) {
 	params := db.BuildInsertPaymentTransactionParams(
@@ -81,7 +82,7 @@ func CreatePaymentTransaction(
 		data.RawData,
 	)
 
-	row, err := queries.InsertPaymentTransaction(ctx, dbtx, params)
+	row, err := queries.InsertPaymentTransaction(ctx, exec, params)
 	if err != nil {
 		return PaymentTransaction{}, err
 	}
@@ -91,7 +92,7 @@ func CreatePaymentTransaction(
 
 func UpdatePaymentTransactionStatus(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	paddleTransactionID string,
 	status string,
 	completedAt time.Time,
@@ -102,7 +103,7 @@ func UpdatePaymentTransactionStatus(
 		sql.NullTime{Time: completedAt, Valid: !completedAt.IsZero()},
 	)
 
-	row, err := queries.UpdatePaymentTransactionStatus(ctx, dbtx, params)
+	row, err := queries.UpdatePaymentTransactionStatus(ctx, exec, params)
 	if err != nil {
 		return PaymentTransaction{}, err
 	}

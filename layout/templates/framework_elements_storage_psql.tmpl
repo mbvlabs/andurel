@@ -1,0 +1,31 @@
+// Package storage provides abstractions for database interactions and default implementations.
+// Code generated and maintained by the andurel framework. DO NOT EDIT.
+package storage
+
+import (
+	"context"
+	"errors"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+var (
+	ErrBeginTx    = errors.New("could not begin transaction")
+	ErrRollbackTx = errors.New("could not rollback transaction")
+	ErrCommitTx   = errors.New("could not commit transaction")
+)
+
+type Executor interface {
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+type Pool interface {
+	Conn() *pgxpool.Pool
+	BeginTx(ctx context.Context) (pgx.Tx, error)
+	RollBackTx(ctx context.Context, tx pgx.Tx) error
+	CommitTx(ctx context.Context, tx pgx.Tx) error
+}

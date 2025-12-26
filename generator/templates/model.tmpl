@@ -16,6 +16,7 @@ import (
 {{- end}}
 
 	"{{.ModulePath}}/models/internal/db"
+	"{{.ModulePath}}/storage"
 )
 
 type {{.Name}} struct {
@@ -26,10 +27,10 @@ type {{.Name}} struct {
 
 func Find{{.Name}}(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	id uuid.UUID,
 ) ({{.Name}}, error) {
-	row, err := queries.Query{{.Name}}ByID(ctx, dbtx, {{uuidParam "id"}})
+	row, err := queries.Query{{.Name}}ByID(ctx, exec, {{uuidParam "id"}})
 	if err != nil {
 		return {{.Name}}{}, err
 	}
@@ -51,7 +52,7 @@ type Create{{.Name}}Data struct {
 
 func Create{{.Name}}(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	data Create{{.Name}}Data,
 ) ({{.Name}}, error) {
 	if err := validate.Struct(data); err != nil {
@@ -66,7 +67,7 @@ func Create{{.Name}}(
 {{- end}}
 {{- end}}
 	)
-	row, err := queries.Insert{{.Name}}(ctx, dbtx, params)
+	row, err := queries.Insert{{.Name}}(ctx, exec, params)
 	if err != nil {
 		return {{.Name}}{}, err
 	}
@@ -89,14 +90,14 @@ type Update{{.Name}}Data struct {
 
 func Update{{.Name}}(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	data Update{{.Name}}Data,
 ) ({{.Name}}, error) {
 	if err := validate.Struct(data); err != nil {
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := queries.Query{{.Name}}ByID(ctx, dbtx, {{uuidParam "data.ID"}})
+	currentRow, err := queries.Query{{.Name}}ByID(ctx, exec, {{uuidParam "data.ID"}})
 	if err != nil {
 		return {{.Name}}{}, err
 	}
@@ -110,7 +111,7 @@ func Update{{.Name}}(
 {{- end}}
 	)
 
-	row, err := queries.Update{{.Name}}(ctx, dbtx, params)
+	row, err := queries.Update{{.Name}}(ctx, exec, params)
 	if err != nil {
 		return {{.Name}}{}, err
 	}
@@ -124,17 +125,17 @@ func Update{{.Name}}(
 
 func Destroy{{.Name}}(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	id uuid.UUID,
 ) error {
-	return queries.Delete{{.Name}}(ctx, dbtx, {{uuidParam "id"}})
+	return queries.Delete{{.Name}}(ctx, exec, {{uuidParam "id"}})
 }
 
 func All{{.Name}}s(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 ) ([]{{.Name}}, error) {
-	rows, err := queries.QueryAll{{.Name}}s(ctx, dbtx)
+	rows, err := queries.QueryAll{{.Name}}s(ctx, exec)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +162,7 @@ type Paginated{{.Name}}s struct {
 
 func Paginate{{.Name}}s(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	page int64,
 	pageSize int64,
 ) (Paginated{{.Name}}s, error) {
@@ -177,14 +178,14 @@ func Paginate{{.Name}}s(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := queries.Count{{.Name}}s(ctx, dbtx)
+	totalCount, err := queries.Count{{.Name}}s(ctx, exec)
 	if err != nil {
 		return Paginated{{.Name}}s{}, err
 	}
 
 	rows, err := queries.QueryPaginated{{.Name}}s(
 		ctx,
-		dbtx,
+		exec,
 		db.BuildQueryPaginated{{.Name}}sParams(pageSize, offset),
 	)
 	if err != nil {
@@ -244,10 +245,10 @@ func rowTo{{.Name}}(row db.{{SQLCTypeName .TableName}}) {{.Name}} {
 
 func {{.Name}}Exists(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	id uuid.UUID,
 ) (bool, error) {
-	result, err := queries.{{.Name}}Exists(ctx, dbtx, {{uuidParam "id"}})
+	result, err := queries.{{.Name}}Exists(ctx, exec, {{uuidParam "id"}})
 	if err != nil {
 		return false, err
 	}
@@ -256,7 +257,7 @@ func {{.Name}}Exists(
 
 func Upsert{{.Name}}(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	data Create{{.Name}}Data,
 ) ({{.Name}}, error) {
 	if err := validate.Struct(data); err != nil {
@@ -271,7 +272,7 @@ func Upsert{{.Name}}(
 {{- end}}
 {{- end}}
 	)
-	row, err := queries.Upsert{{.Name}}(ctx, dbtx, params)
+	row, err := queries.Upsert{{.Name}}(ctx, exec, params)
 	if err != nil {
 		return {{.Name}}{}, err
 	}
@@ -293,10 +294,10 @@ type FindOrCreate{{.Name}}Data struct {
 
 func FindOrCreate{{.Name}}(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	data FindOrCreate{{.Name}}Data,
 ) ({{.Name}}, bool, error) {
-	existing, err := queries.Query{{.Name}}ByID(ctx, dbtx, {{uuidParam "data.ID"}})
+	existing, err := queries.Query{{.Name}}ByID(ctx, exec, {{uuidParam "data.ID"}})
 	if err == nil {
 {{if hasErrorHandling}}		result, convErr := rowTo{{.Name}}(existing)
 		if convErr != nil {
@@ -313,7 +314,7 @@ func FindOrCreate{{.Name}}(
 {{- end}}
 {{- end}}
 	)
-	row, err := queries.Insert{{.Name}}(ctx, dbtx, params)
+	row, err := queries.Insert{{.Name}}(ctx, exec, params)
 	if err != nil {
 		return {{.Name}}{}, false, err
 	}

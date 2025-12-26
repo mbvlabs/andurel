@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"{{.ModuleName}}/internal/andurel"
+	"{{.ModuleName}}/internal/server"
 
 	"github.com/gosimple/slug"
 )
@@ -18,7 +18,7 @@ var (
 			return os.Getenv("ENVIRONMENT")
 		}
 
-		return andurel.DevEnvironment
+		return server.DevEnvironment
 	}()
 	ProjectName = func() string {
 		if os.Getenv("PROJECT_NAME") != "" {

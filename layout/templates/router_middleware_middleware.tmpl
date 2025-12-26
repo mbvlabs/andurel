@@ -9,7 +9,7 @@ import (
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/internal/andurel"
+	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/telemetry"
 
 	"github.com/labstack/echo/v4"
@@ -18,10 +18,10 @@ import (
 )
 
 type Middleware struct {
-	db andurel.Database
+	db storage.Pool
 }
 
-func New(db andurel.Database) Middleware {
+func New(db storage.Pool) Middleware {
 	return Middleware{db: db}
 }
 

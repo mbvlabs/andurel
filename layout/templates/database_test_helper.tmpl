@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"{{.ModuleName}}/internal/andurel"
+	"{{.ModuleName}}/internal/storage"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/testcontainers/testcontainers-go"
@@ -19,7 +19,7 @@ import (
 )
 
 type TestDB struct {
-	DB        andurel.Database
+	DB        storage.Pool
 	Container *postgres.PostgresContainer
 	DSN       string
 }
@@ -51,7 +51,7 @@ func NewTestDB() (*TestDB, error) {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
-	db, err := andurel.NewPostgres(ctx, dsn)
+	db, err := NewPostgres(ctx, dsn)
 	if err != nil {
 		pgContainer.Terminate(ctx)
 		return nil, fmt.Errorf("failed to connect to test database: %w", err)

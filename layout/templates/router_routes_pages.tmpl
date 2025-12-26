@@ -1,12 +1,12 @@
 package routes
 
 import (
-	"{{.ModuleName}}/internal/andurel"
+	"{{.ModuleName}}/internal/routing"
 )
 
 const PagePrefix = "pages"
 
-var HomePage = andurel.NewSimpleRoute(
+var HomePage = routing.NewSimpleRoute(
 	"/",
 	"home",
 	PagePrefix,

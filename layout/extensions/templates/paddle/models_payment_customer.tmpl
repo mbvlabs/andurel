@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"{{.ModuleName}}/models/internal/db"
+	"{{.ModuleName}}/internal/storage"
 )
 
 type PaymentCustomer struct {
@@ -19,10 +20,10 @@ type PaymentCustomer struct {
 
 func FindPaymentCustomerByProviderID(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	paddleCustomerID string,
 ) (PaymentCustomer, error) {
-	row, err := queries.QueryPaymentCustomerByProviderID(ctx, dbtx, paddleCustomerID)
+	row, err := queries.QueryPaymentCustomerByProviderID(ctx, exec, paddleCustomerID)
 	if err != nil {
 		return PaymentCustomer{}, err
 	}
@@ -37,7 +38,7 @@ type CreatePaymentCustomerData struct {
 
 func CreatePaymentCustomer(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	data CreatePaymentCustomerData,
 ) (PaymentCustomer, error) {
 	params := db.BuildInsertPaymentCustomerParams(
@@ -46,7 +47,7 @@ func CreatePaymentCustomer(
 		data.Email,
 	)
 
-	row, err := queries.InsertPaymentCustomer(ctx, dbtx, params)
+	row, err := queries.InsertPaymentCustomer(ctx, exec, params)
 	if err != nil {
 		return PaymentCustomer{}, err
 	}

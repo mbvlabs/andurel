@@ -1,12 +1,12 @@
 package routes
 
 import (
-	"{{.ModuleName}}/internal/andurel"
+	"{{.ModuleName}}/internal/routing"
 )
 
 const APIPrefix = "api"
 
-var Health = andurel.NewSimpleRoute(
+var Health = routing.NewSimpleRoute(
 	"/health",
 	"health",
 	APIPrefix,

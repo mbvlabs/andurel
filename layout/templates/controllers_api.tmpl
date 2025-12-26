@@ -1,17 +1,17 @@
 package controllers
 
 import (
-	"{{.ModuleName}}/internal/andurel"
+	"{{.ModuleName}}/internal/storage"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 )
 
 type API struct {
-	db andurel.Database
+	db storage.Pool
 }
 
-func NewAPI(db andurel.Database) API {
+func NewAPI(db storage.Pool) API {
 	return API{db}
 }
 

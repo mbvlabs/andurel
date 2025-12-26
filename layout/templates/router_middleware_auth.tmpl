@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"{{.ModuleName}}/internal/andurel"
+	"{{.ModuleName}}/internal/routing"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
 
@@ -24,7 +24,7 @@ func AuthOnly(next echo.HandlerFunc) echo.HandlerFunc {
 
 func IPRateLimiter(
 	limit int32,
-	redirectURL andurel.Route,
+	redirectURL routing.Route,
 ) func(next echo.HandlerFunc) echo.HandlerFunc {
 	cache := otter.Must(&otter.Options[string, int32]{
 		MaximumSize:      1000,

@@ -1,48 +1,48 @@
 package routes
 
 import (
-	"{{.ModulePath}}/internal/andurel"
+	"{{.ModulePath}}/internal/routing"
 )
 
 const {{.ResourceName}}Prefix = "{{.PluralName}}"
 
-var {{.ResourceName}}Index = andurel.NewSimpleRoute(
+var {{.ResourceName}}Index = routing.NewSimpleRoute(
 	"/",
 	"index",
 	{{.ResourceName}}Prefix,
 )
 
-var {{.ResourceName}}Show = andurel.NewRouteWithID(
+var {{.ResourceName}}Show = routing.NewRouteWithID(
 	"/:id",
 	"show",
 	{{.ResourceName}}Prefix,
 )
 
-var {{.ResourceName}}New = andurel.NewSimpleRoute(
+var {{.ResourceName}}New = routing.NewSimpleRoute(
 	"/new",
 	"new",
 	{{.ResourceName}}Prefix,
 )
 
-var {{.ResourceName}}Create = andurel.NewSimpleRoute(
+var {{.ResourceName}}Create = routing.NewSimpleRoute(
 	"/",
 	"create",
 	{{.ResourceName}}Prefix,
 )
 
-var {{.ResourceName}}Edit = andurel.NewRouteWithID(
+var {{.ResourceName}}Edit = routing.NewRouteWithID(
 	"/:id/edit",
 	"edit",
 	{{.ResourceName}}Prefix,
 )
 
-var {{.ResourceName}}Update = andurel.NewRouteWithID(
+var {{.ResourceName}}Update = routing.NewRouteWithID(
 	"/:id",
 	"update",
 	{{.ResourceName}}Prefix,
 )
 
-var {{.ResourceName}}Destroy = andurel.NewRouteWithID(
+var {{.ResourceName}}Destroy = routing.NewRouteWithID(
 	"/:id",
 	"destroy",
 	{{.ResourceName}}Prefix,

@@ -1,8 +1,19 @@
+// Package controllers provides HTTP handlers for the web application.
+package controllers
+
+import (
+	"{{.ModulePath}}/internal/renderer"
+	"{{.ModulePath}}/router/cookies"
+
+	"github.com/a-h/templ"
+	"github.com/labstack/echo/v4"
+)
+
 func render(c echo.Context, t templ.Component) error {
-	return andurel.Render(
+	return renderer.Render(
 		c,
 		t,
-		[]andurel.CookieKey{
+		[]renderer.CookieKey{
 			cookies.AppKey,
 			cookies.FlashKey,
 		},

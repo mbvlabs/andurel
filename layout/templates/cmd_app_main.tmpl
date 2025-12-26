@@ -12,10 +12,13 @@ import (
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
-	"{{.ModuleName}}/internal/andurel"
-	"{{.ModuleName}}/telemetry"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/internal/server"
+	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/middleware"
+	"{{.ModuleName}}/telemetry"
 	"{{.ModuleName}}/queue/workers"
 	"riverqueue.com/riverui"
 {{- range .Blueprint.Controllers.SortedDependencies}}
@@ -37,7 +40,7 @@ func setupControllers(
 {{- range $i, $dep := .Blueprint.Controllers.SortedDependencies}}
 	{{$dep.Name}} {{$dep.Type}},
 {{- end}}
-	insertOnly andurel.InsertOnly,
+	insertOnly queue.InsertOnly,
 	rtr *router.Router,
 	riverHandler *riverui.Handler,
 	mw middleware.Middleware,
@@ -162,7 +165,7 @@ func run(ctx context.Context) error {
 	}
 
 
-	db, err := andurel.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
+	db, err := database.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
 	}
@@ -182,17 +185,17 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	insertOnly, err := andurel.NewInsertOnly(
-		db.Conn(),
+	insertOnly, err := queue.NewInsertOnly(
+		db,
 		wrks,
 	)
 	if err != nil {
 		return err
 	}
 
-	processor, err := andurel.NewProcessor(
+	processor, err := queue.NewProcessor(
 		ctx,
-		db.Conn(),
+		db,
 		wrks,
 	)
 	if err != nil {
@@ -244,13 +247,13 @@ func run(ctx context.Context) error {
 	go {{.FunctionCall}}
 {{- end}}
 
-	server := andurel.NewServer(
+	server := server.New(
 		ctx,
 		cfg.App.Host,
 		cfg.App.Port,
 		config.Env,
 		handler,
-		[]andurel.Shutdowner{processor},
+		[]server.Shutdowner{processor},
 	)
 
 	slog.InfoContext(ctx, "starting server", "host", cfg.App.Host, "port", cfg.App.Port)
