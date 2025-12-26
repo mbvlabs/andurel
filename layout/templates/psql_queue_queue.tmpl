@@ -34,10 +34,10 @@ func (p Processor) Stop(ctx context.Context) error {
 
 func NewProcessor(
 	ctx context.Context,
-	pool *pgxpool.Pool,
+	db storage.Pool,
 	workers *river.Workers,
 ) (Processor, error) {
-	riverClient, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
+	riverClient, err := river.NewClient(riverpgxv5.New(db.Conn()), &river.Config{
 		Queues: map[string]river.QueueConfig{
 			river.QueueDefault: {MaxWorkers: 100},
 		},
@@ -110,8 +110,8 @@ func (i *InsertQueue) InsertTx(
 
 var _ storage.InsertQueue = (*InsertQueue)(nil)
 
-func NewInsertOnlyQueue(pool *pgxpool.Pool, workers *river.Workers) (InsertQueue, error) {
-	riverClient, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
+func NewInsertOnlyQueue(db storage.Pool, workers *river.Workers) (InsertQueue, error) {
+	riverClient, err := river.NewClient(riverpgxv5.New(db.Conn()), &river.Config{
 		Workers: workers,
 	})
 	if err != nil {

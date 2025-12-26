@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"{{.ModuleName}}/models/internal/db"
+	"{{.ModuleName}}/storage"
 )
 
 type Token struct {
@@ -65,10 +66,10 @@ func HashForStorage(plain, secret string) string {
 
 func FindToken(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	id uuid.UUID,
 ) (Token, error) {
-	row, err := queries.QueryTokenByID(ctx, dbtx, id)
+	row, err := queries.QueryTokenByID(ctx, exec, id)
 	if err != nil {
 		return Token{}, err
 	}
@@ -78,7 +79,7 @@ func FindToken(
 
 func CreateCodeToken(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	pepper string,
 	scope string,
 	expiresAt time.Time,
@@ -89,7 +90,7 @@ func CreateCodeToken(
 		return "", err
 	}
 
-	if _, err := createToken(ctx, dbtx, createTokenData{
+	if _, err := createToken(ctx, exec, createTokenData{
 		Scope:     scope,
 		ExpiresAt: expiresAt,
 		MetaData:  metaData,
@@ -103,7 +104,7 @@ func CreateCodeToken(
 
 func CreateToken(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	pepper string,
 	scope string,
 	expiresAt time.Time,
@@ -114,7 +115,7 @@ func CreateToken(
 		return "", err
 	}
 
-	if _, err := createToken(ctx, dbtx, createTokenData{
+	if _, err := createToken(ctx, exec, createTokenData{
 		Scope:     scope,
 		ExpiresAt: expiresAt,
 		MetaData:  metaData,
@@ -135,7 +136,7 @@ type createTokenData struct {
 
 func createToken(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	data createTokenData,
 ) (Token, error) {
 	if err := validate.Struct(data); err != nil {
@@ -143,7 +144,7 @@ func createToken(
 	}
 
 	params := db.BuildInsertTokenParams(uuid.New(), data.Scope, data.ExpiresAt, data.Hash, data.MetaData)
-	row, err := queries.InsertToken(ctx, dbtx, params)
+	row, err := queries.InsertToken(ctx, exec, params)
 	if err != nil {
 		return Token{}, err
 	}
@@ -153,10 +154,10 @@ func createToken(
 
 func DestroyToken(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	id uuid.UUID,
 ) error {
-	return queries.DeleteToken(ctx, dbtx, id)
+	return queries.DeleteToken(ctx, exec, id)
 }
 
 
@@ -170,7 +171,7 @@ type PaginatedTokens struct {
 
 func PaginateTokens(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	page int64,
 	pageSize int64,
 ) (PaginatedTokens, error) {
@@ -186,14 +187,14 @@ func PaginateTokens(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := queries.CountTokens(ctx, dbtx)
+	totalCount, err := queries.CountTokens(ctx, exec)
 	if err != nil {
 		return PaginatedTokens{}, err
 	}
 
 	rows, err := queries.QueryPaginatedTokens(
 		ctx,
-		dbtx,
+		exec,
 		db.BuildQueryPaginatedTokensParams(pageSize, offset),
 	)
 	if err != nil {
@@ -222,14 +223,14 @@ func PaginateTokens(
 
 func FindTokenByScopeAndHash(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	pepper string,
 	scope string,
 	token string,
 ) (Token, error) {
 	hash := HashForStorage(token, pepper)
 
-	row, err := queries.QueryTokenByScopeAndHash(ctx, dbtx, db.QueryTokenByScopeAndHashParams{
+	row, err := queries.QueryTokenByScopeAndHash(ctx, exec, db.QueryTokenByScopeAndHashParams{
 		Scope: scope,
 		Hash:  hash,
 	})

@@ -15,6 +15,7 @@ import (
 	"golang.org/x/crypto/argon2"
 
 	"{{.ModuleName}}/models/internal/db"
+	"{{.ModuleName}}/storage"
 )
 
 type User struct {
@@ -93,10 +94,10 @@ func HashPassword(password, pepper string) (string, error) {
 
 func FindUser(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	id uuid.UUID,
 ) (User, error) {
-	row, err := queries.QueryUserByID(ctx, dbtx, id)
+	row, err := queries.QueryUserByID(ctx, exec, id)
 	if err != nil {
 		return User{}, err
 	}
@@ -106,10 +107,10 @@ func FindUser(
 
 func FindUserByEmail(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	email string,
 ) (User, error) {
-	row, err := queries.QueryUserByEmail(ctx, dbtx, strings.ToLower(email))
+	row, err := queries.QueryUserByEmail(ctx, exec, strings.ToLower(email))
 	if err != nil {
 		return User{}, err
 	}
@@ -129,7 +130,7 @@ type CreateUserData struct {
 
 func CreateUser(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	pepper string,
 	data CreateUserData,
 ) (User, error) {
@@ -143,7 +144,7 @@ func CreateUser(
 	}
 
 	params := db.BuildInsertUserParams(uuid.New(), strings.ToLower(data.Email), sql.NullTime{}, []byte(hashedPassword), false)
-	row, err := queries.InsertUser(ctx, dbtx, params)
+	row, err := queries.InsertUser(ctx, exec, params)
 	if err != nil {
 		return User{}, err
 	}
@@ -161,14 +162,14 @@ type UpdateUserData struct {
 
 func UpdateUser(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	data UpdateUserData,
 ) (User, error) {
 	if err := validate.Struct(data); err != nil {
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := queries.QueryUserByID(ctx, dbtx, data.ID)
+	currentRow, err := queries.QueryUserByID(ctx, exec, data.ID)
 	if err != nil {
 		return User{}, err
 	}
@@ -204,7 +205,7 @@ func UpdateUser(
 		data.IsAdmin,
 	)
 
-	row, err := queries.UpdateUser(ctx, dbtx, params)
+	row, err := queries.UpdateUser(ctx, exec, params)
 	if err != nil {
 		return User{}, err
 	}
@@ -214,10 +215,10 @@ func UpdateUser(
 
 func DestroyUser(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	id uuid.UUID,
 ) error {
-	return queries.DeleteUser(ctx, dbtx, id)
+	return queries.DeleteUser(ctx, exec, id)
 }
 
 type PaginatedUsers struct {
@@ -230,7 +231,7 @@ type PaginatedUsers struct {
 
 func PaginateUsers(
 	ctx context.Context,
-	dbtx db.DBTX,
+	exec storage.Executor,
 	page int64,
 	pageSize int64,
 ) (PaginatedUsers, error) {
@@ -246,14 +247,14 @@ func PaginateUsers(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := queries.CountUsers(ctx, dbtx)
+	totalCount, err := queries.CountUsers(ctx, exec)
 	if err != nil {
 		return PaginatedUsers{}, err
 	}
 
 	rows, err := queries.QueryPaginatedUsers(
 		ctx,
-		dbtx,
+		exec,
 		db.BuildQueryPaginatedUsersParams(pageSize, offset),
 	)
 	if err != nil {
