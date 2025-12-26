@@ -8,7 +8,6 @@ import (
 	"{{.ModuleName}}/internal/storage"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/riverqueue/river/rivertype"
@@ -51,12 +50,12 @@ func NewProcessor(
 	return Processor{riverClient}, nil
 }
 
-type InsertQueue struct {
+type InsertOnly struct {
 	client *river.Client[pgx.Tx]
 }
 
 // Insert implements storage.InsertQueue.
-func (i *InsertQueue) Insert(
+func (i *InsertOnly) Insert(
 	ctx context.Context,
 	args river.JobArgs,
 	opts *river.InsertOpts,
@@ -65,7 +64,7 @@ func (i *InsertQueue) Insert(
 }
 
 // InsertMany implements storage.InsertQueue.
-func (i *InsertQueue) InsertMany(
+func (i *InsertOnly) InsertMany(
 	ctx context.Context,
 	params []river.InsertManyParams,
 ) ([]*rivertype.JobInsertResult, error) {
@@ -73,7 +72,7 @@ func (i *InsertQueue) InsertMany(
 }
 
 // InsertManyFast implements storage.InsertQueue.
-func (i *InsertQueue) InsertManyFast(
+func (i *InsertOnly) InsertManyFast(
 	ctx context.Context,
 	params []river.InsertManyParams,
 ) (int, error) {
@@ -81,7 +80,7 @@ func (i *InsertQueue) InsertManyFast(
 }
 
 // InsertManyFastTx implements storage.InsertQueue.
-func (i *InsertQueue) InsertManyFastTx(
+func (i *InsertOnly) InsertManyFastTx(
 	ctx context.Context,
 	tx pgx.Tx,
 	params []river.InsertManyParams,
@@ -90,7 +89,7 @@ func (i *InsertQueue) InsertManyFastTx(
 }
 
 // InsertManyTx implements storage.InsertQueue.
-func (i *InsertQueue) InsertManyTx(
+func (i *InsertOnly) InsertManyTx(
 	ctx context.Context,
 	tx pgx.Tx,
 	params []river.InsertManyParams,
@@ -99,7 +98,7 @@ func (i *InsertQueue) InsertManyTx(
 }
 
 // InsertTx implements storage.InsertQueue.
-func (i *InsertQueue) InsertTx(
+func (i *InsertOnly) InsertTx(
 	ctx context.Context,
 	tx pgx.Tx,
 	args river.JobArgs,
@@ -108,15 +107,15 @@ func (i *InsertQueue) InsertTx(
 	return i.client.InsertTx(ctx, tx, args, opts)
 }
 
-var _ storage.InsertQueue = (*InsertQueue)(nil)
+var _ storage.InsertQueue = (*InsertOnly)(nil)
 
-func NewInsertOnlyQueue(db storage.Pool, workers *river.Workers) (InsertQueue, error) {
+func NewInsertOnly(db storage.Pool, workers *river.Workers) (InsertOnly, error) {
 	riverClient, err := river.NewClient(riverpgxv5.New(db.Conn()), &river.Config{
 		Workers: workers,
 	})
 	if err != nil {
-		return InsertQueue{}, err
+		return InsertOnly{}, err
 	}
 
-	return InsertQueue{riverClient}, nil
+	return InsertOnly{riverClient}, nil
 }

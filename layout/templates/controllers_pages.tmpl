@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/views"
 
 	"github.com/a-h/templ"
@@ -10,13 +11,13 @@ import (
 
 type Pages struct {
 	db         storage.Pool
-	insertOnly storage.InsertOnly
+	insertOnly queue.InsertOnly
 	cache      *Cache[templ.Component]
 }
 
 func NewPages(
 	db storage.Pool,
-	insertOnly storage.InsertOnly,
+	insertOnly queue.InsertOnly,
 	cache *Cache[templ.Component],
 ) Pages {
 	return Pages{db, insertOnly, cache}

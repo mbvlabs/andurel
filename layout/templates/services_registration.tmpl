@@ -10,6 +10,7 @@ import (
 	"{{.ModuleName}}/email"
 	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/queue/jobs"
 )
 
@@ -24,7 +25,7 @@ type RegisterUserData struct {
 func RegisterUser(
 	ctx context.Context,
 	db storage.Pool,
-	insertOnly storage.InsertOnly,
+	insertOnly queue.InsertOnly,
 	salt string,
 	data RegisterUserData,
 ) error {
@@ -75,7 +76,7 @@ func RegisterUser(
 		return err
 	}
 
-	_, err = insertOnly.Client.InsertTx(ctx, tx, jobs.SendTransactionalEmailArgs{
+	_, err = insertOnly.InsertTx(ctx, tx, jobs.SendTransactionalEmailArgs{
 		Data: email.TransactionalData{
 			To:       user.Email,
 			From:     "noreply@andurel.com",

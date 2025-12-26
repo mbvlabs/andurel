@@ -6,6 +6,7 @@ import (
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
@@ -17,13 +18,13 @@ import (
 
 type Registrations struct {
 	db         storage.Pool
-	insertOnly storage.InsertOnly
+	insertOnly queue.InsertOnly
 	cfg        config.Config
 }
 
 func NewRegistrations(
 	db storage.Pool,
-	insertOnly storage.InsertOnly,
+	insertOnly queue.InsertOnly,
 	cfg config.Config,
 ) Registrations {
 	return Registrations{db, insertOnly, cfg}

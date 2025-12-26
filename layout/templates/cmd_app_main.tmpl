@@ -12,11 +12,13 @@ import (
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/internal/server"
 	"{{.ModuleName}}/internal/storage"
-	"{{.ModuleName}}/telemetry"
+	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/middleware"
+	"{{.ModuleName}}/telemetry"
 	"{{.ModuleName}}/queue/workers"
 	"riverqueue.com/riverui"
 {{- range .Blueprint.Controllers.SortedDependencies}}
@@ -38,7 +40,7 @@ func setupControllers(
 {{- range $i, $dep := .Blueprint.Controllers.SortedDependencies}}
 	{{$dep.Name}} {{$dep.Type}},
 {{- end}}
-	insertOnly storage.InsertOnly,
+	insertOnly queue.InsertOnly,
 	rtr *router.Router,
 	riverHandler *riverui.Handler,
 	mw middleware.Middleware,
@@ -163,7 +165,7 @@ func run(ctx context.Context) error {
 	}
 
 
-	db, err := storage.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
+	db, err := database.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
 	if err != nil {
 		return err
 	}
@@ -183,17 +185,17 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	insertOnly, err := storage.NewInsertOnly(
-		db.GetPool(),
+	insertOnly, err := queue.NewInsertOnly(
+		db,
 		wrks,
 	)
 	if err != nil {
 		return err
 	}
 
-	processor, err := storage.NewProcessor(
+	processor, err := queue.NewProcessor(
 		ctx,
-		db.GetPool(),
+		db,
 		wrks,
 	)
 	if err != nil {
