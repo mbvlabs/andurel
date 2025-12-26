@@ -27,6 +27,7 @@ type Executor interface {
 
 type Pool interface {
 	Conn() Executor
+	GetPool() *pgxpool.Pool
 	BeginTx(ctx context.Context) (pgx.Tx, error)
 	RollBackTx(ctx context.Context, tx pgx.Tx) error
 	CommitTx(ctx context.Context, tx pgx.Tx) error
@@ -60,6 +61,10 @@ func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
 }
 
 func (p *Postgres) Conn() Executor {
+	return p.pool
+}
+
+func (p *Postgres) GetPool() *pgxpool.Pool {
 	return p.pool
 }
 

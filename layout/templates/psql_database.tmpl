@@ -50,6 +50,10 @@ func (p *Postgres) Conn() storage.Executor {
 	return p.pool
 }
 
+func (p *Postgres) GetPool() *pgxpool.Pool {
+	return p.pool
+}
+
 func (p *Postgres) BeginTx(ctx context.Context) (pgx.Tx, error) {
 	tx, err := p.pool.Begin(ctx)
 	if err != nil {

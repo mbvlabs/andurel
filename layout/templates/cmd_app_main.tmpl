@@ -184,7 +184,7 @@ func run(ctx context.Context) error {
 	}
 
 	insertOnly, err := storage.NewInsertOnly(
-		db.Conn(),
+		db.GetPool(),
 		wrks,
 	)
 	if err != nil {
@@ -193,7 +193,7 @@ func run(ctx context.Context) error {
 
 	processor, err := storage.NewProcessor(
 		ctx,
-		db.Conn(),
+		db.GetPool(),
 		wrks,
 	)
 	if err != nil {
