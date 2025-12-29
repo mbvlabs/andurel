@@ -51,13 +51,7 @@ func (r Registrations) Create(c echo.Context) error {
 		return render(c, views.BadRequest())
 	}
 
-	slog.DebugContext(c.Request().Context(), "################################################################################")
-	slog.DebugContext(c.Request().Context(), "################################################################################")
-	slog.DebugContext(c.Request().Context(), "registering new user")
-	slog.DebugContext(c.Request().Context(), "################################################################################")
-	slog.DebugContext(c.Request().Context(), "################################################################################")
-
-	err := services.RegisterUser(
+	if err := services.RegisterUser(
 		c.Request().Context(),
 		r.db,
 		r.insertOnly,
@@ -67,14 +61,14 @@ func (r Registrations) Create(c echo.Context) error {
 			Password:        payload.Password,
 			ConfirmPassword: payload.ConfirmPassword,
 		},
-	)
-	if err != nil {
+	); err != nil {
 		slog.ErrorContext(
 			c.Request().Context(),
 			"failed to register user",
 			"error",
 			err,
 		)
+
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, "Failed to register user"); flashErr != nil {
 			return render(c, views.InternalError())
 		}

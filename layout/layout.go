@@ -260,12 +260,17 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"readme.tmpl":    "README.md",
 
 	// Core files
-	"framework_elements_renderer_render.tmpl":     "internal/renderer/render.go",
-	"framework_elements_routing_definitions.tmpl": "internal/routing/definitions.go",
-	"framework_elements_routing_routes.tmpl":      "internal/routing/routes.go",
-	"framework_elements_server_server.tmpl":       "internal/server/server.go",
-	"framework_elements_storage_psql.tmpl":        "internal/storage/psql.go",
-	"framework_elements_storage_queue.tmpl":       "internal/storage/queue.go",
+	"framework_elements_renderer_render.tmpl":      "internal/renderer/render.go",
+	"framework_elements_routing_definitions.tmpl":  "internal/routing/definitions.go",
+	"framework_elements_routing_routes.tmpl":       "internal/routing/routes.go",
+	"framework_elements_server_server.tmpl":        "internal/server/server.go",
+	"framework_elements_storage_psql.tmpl":         "internal/storage/psql.go",
+	"framework_elements_storage_queue.tmpl":        "internal/storage/queue.go",
+	"framework_elements_hypermedia_signals.tmpl":   "internal/hypermedia/signals.go",
+	"framework_elements_hypermedia_core.tmpl":      "internal/hypermedia/core.go",
+	"framework_elements_hypermedia_sse.tmpl":       "internal/hypermedia/sse.go",
+	"framework_elements_hypermedia_broadcaster.tmpl": "internal/hypermedia/broadcaster.go",
+	"framework_elements_hypermedia_helpers.tmpl":   "internal/hypermedia/helpers.go",
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
@@ -357,8 +362,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"views_not_found.tmpl":                "views/not_found.templ",
 	"views_components_head.tmpl":          "views/components/head.templ",
 	"views_components_form_elements.tmpl": "views/components/form_elements.templ",
-
-	"views_datastar_helpers.tmpl": "views/datastar.go",
 
 	// Auth - Controllers
 	"controllers_confirmations.tmpl":   "controllers/confirmations.go",

@@ -23,12 +23,10 @@ func NewConfirmations(db storage.Pool, cfg config.Config) Confirmations {
 	return Confirmations{db, cfg}
 }
 
-// New renders the email verification form
 func (r Confirmations) New(c echo.Context) error {
 	return render(c, views.ConfirmationForm())
 }
 
-// Create handles the verification code submission
 func (r Confirmations) Create(c echo.Context) error {
 	var payload struct {
 		Code string `json:"code"`
