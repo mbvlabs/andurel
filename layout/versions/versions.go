@@ -7,4 +7,5 @@ const (
 	Air     = "v1.61.7"
 	Mailpit = "v1.21.8"
 	Usql    = "v0.19.14"
+	Dblab   = "v0.34.2"
 )
