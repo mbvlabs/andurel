@@ -129,10 +129,31 @@ func runMigrationBinary(args ...string) error {
 	dbPass := os.Getenv("DB_PASSWORD")
 	dbSllMode := os.Getenv("DB_SSL_MODE")
 
-	if dbKind == "" || dbPort == "" || dbHost == "" || dbName == "" || dbUser == "" ||
-		dbPass == "" ||
-		dbSllMode == "" {
-		return fmt.Errorf("database configuration environment variables are not fully set")
+	var missing []string
+	if dbKind == "" {
+		missing = append(missing, "DB_KIND")
+	}
+	if dbPort == "" {
+		missing = append(missing, "DB_PORT")
+	}
+	if dbHost == "" {
+		missing = append(missing, "DB_HOST")
+	}
+	if dbName == "" {
+		missing = append(missing, "DB_NAME")
+	}
+	if dbUser == "" {
+		missing = append(missing, "DB_USER")
+	}
+	if dbPass == "" {
+		missing = append(missing, "DB_PASSWORD")
+	}
+	if dbSllMode == "" {
+		missing = append(missing, "DB_SSL_MODE")
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("missing database configuration environment variables: %v", missing)
 	}
 
 	databaseURL := fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
