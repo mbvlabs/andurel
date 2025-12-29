@@ -107,6 +107,12 @@ func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, err
 		return fmt.Sprintf("https://github.com/%s/releases/download/%s/usql-%s-%s-%s.tar.bz2",
 			repo, d.Version, d.Version[1:], os, arch), "tar.bz2", nil
 
+	case "dblab":
+		os := goos
+		arch := goarch
+		return fmt.Sprintf("https://github.com/%s/releases/download/%s/dblab_%s_%s_%s.tar.gz",
+			repo, d.Version, d.Version[1:], os, arch), "tar.gz", nil
+
 	default:
 		return "", "", fmt.Errorf("unknown tool: %s", d.Name)
 	}

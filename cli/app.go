@@ -20,6 +20,7 @@ func newAppCommand() *cobra.Command {
 	}
 
 	appCmd.AddCommand(newConsoleCommand())
+	appCmd.AddCommand(newDatabaseCommand())
 	appCmd.AddCommand(newMailpitCommand())
 
 	return appCmd
@@ -89,6 +90,65 @@ func newConsoleCommand() *cobra.Command {
 			}
 
 			command := exec.Command(usqlPath, dataCfg.GetDatabaseURL())
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
+			command.Stdin = os.Stdin
+			command.Dir = rootDir
+
+			return command.Run()
+		},
+	}
+
+	return cmd
+}
+
+func newDatabaseCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "database",
+		Aliases: []string{"d", "db"},
+		Short:   "Runs an interactive database UI with dblab",
+		Args:    cobra.ExactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rootDir, err := findGoModRoot()
+			if err != nil {
+				return err
+			}
+
+			envPath := filepath.Join(rootDir, ".env")
+			if _, err := os.Stat(envPath); err != nil {
+				if os.IsNotExist(err) {
+					return fmt.Errorf(
+						".env file not found at %s\nCreate one to set your environment variables",
+						envPath,
+					)
+				}
+				return err
+			}
+
+			if err := godotenv.Load(envPath); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not load .env file: %v\n", err)
+			}
+
+			dataCfg := database{}
+
+			if err := env.ParseWithOptions(&dataCfg, env.Options{
+				RequiredIfNoDef: true,
+			}); err != nil {
+				return fmt.Errorf("error parsing environment variables: %w", err)
+			}
+
+			dblabPath := filepath.Join(rootDir, "bin", "dblab")
+			if _, err := os.Stat(dblabPath); err != nil {
+				if os.IsNotExist(err) {
+					return fmt.Errorf(
+						"dblab binary not found at %s\nRun 'andurel tool sync' to download it",
+						dblabPath,
+					)
+				}
+				return err
+			}
+
+			command := exec.Command(dblabPath, "--url", dataCfg.GetDatabaseURL())
 			command.Stdout = os.Stdout
 			command.Stderr = os.Stderr
 			command.Stdin = os.Stdin

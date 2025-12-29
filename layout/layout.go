@@ -842,6 +842,7 @@ var defaultGoTools = []GoTool{
 	{Name: "air", Module: "github.com/air-verse/air", Version: versions.Air},
 	{Name: "mailpit", Module: "github.com/axllent/mailpit", Version: versions.Mailpit},
 	{Name: "usql", Module: "github.com/xo/usql", Version: versions.Usql},
+	{Name: "dblab", Module: "github.com/danvergara/dblab", Version: versions.Dblab},
 }
 
 var defaultTools = []string{
@@ -851,6 +852,7 @@ var defaultTools = []string{
 	"github.com/air-verse/air",
 	"github.com/axllent/mailpit",
 	"github.com/xo/usql",
+	"github.com/danvergara/dblab",
 }
 
 func createGoMod(targetDir string, data *TemplateData) error {
