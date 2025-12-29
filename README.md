@@ -15,12 +15,11 @@ Join the discord [here](https://discord.gg/SsZpxSJX)
 
 Development speed is everything. Andurel eliminates boilerplate and lets you focus on building features:
 
-- **Lightning Fast Setup** - New projects ready in seconds with `andurel new`
 - **Instant Scaffolding** - Generate complete CRUD resources with one command
 - **Live Reload** - Hot reloading for Go, templates, and CSS with `andurel run`
 - **Type Safety Everywhere** - SQLC for SQL, Templ for HTML, Go for logic
-- **Batteries Included** - Echo, Datastar, background jobs, sessions, CSRF protection, telemetry, email support, optional extensions (auth, workflows, docker)
-- **Convention over Configuration** - Sensible defaults that just work
+- **Batteries Included** - Echo, Datastar, background jobs, sessions, CSRF protection, telemetry, email support, authentication, optional extensions (workflows, docker, aws-ses)
+- **Just enough Convention** - Convention over configuration is great to a certain point. Andurel provides just enough sensible defaults that just work and get out of your way.
 - **PostgreSQL-Backed** - Built on PostgreSQL with River job queues, pgx driver, and UUID support
 
 ## Core Technologies
@@ -53,13 +52,16 @@ andurel new myapp
 # Or customize your styling:
 andurel new myapp -c vanilla             # Use vanilla CSS instead of Tailwind
 
-# Add extensions for common features:
-andurel new myapp -e auth                # Add authentication
+# Add extensions for additional features:
 andurel new myapp -e workflows           # Add workflow orchestration
 andurel new myapp -e docker              # Add Dockerfile for containerization
-andurel new myapp -e auth,workflows,docker   # Add multiple extensions
+andurel new myapp -e aws-ses             # Add AWS SES email integration
+andurel new myapp -e workflows,docker,aws-ses   # Add multiple extensions
 
 cd myapp
+
+# Sync tools
+andurel tool sync
 
 # Configure environment
 cp .env.example .env
@@ -69,11 +71,14 @@ cp .env.example .env
 andurel run
 ```
 
-Your app is now running at `http://localhost:8080` with automatic reloading for Go, Templ, and CSS changes.
+Your app is now running at `http://localhost:8080`
 
 ### Generate Your First Resource
 
 ```bash
+# Create a migration
+andurel migration new create_products_table
+
 # Create a complete resource with model, controller, views, and routes
 andurel generate resource Product
 
@@ -85,19 +90,16 @@ This single command creates everything you need for a full CRUD interface.
 
 ## Project Structure
 
-Generated projects follow a clear, Rails-inspired structure:
-
 ```
 myapp/
-├── assets/              # Static assets (compiled CSS, images)
-├── bin/                 # Compiled binaries (console, migration, run, tailwindcli)
+├── assets/              # Static assets
+│   ├── css/            # Compiled CSS files
+│   └── js/             # JavaScript files
+├── clients/             # External service clients
+│   └── email/          # Email client (Mailpit/AWS SES)
 ├── cmd/
 │   ├── app/            # Main web application
-│   ├── console/        # Interactive database console
-│   ├── migration/      # Migration runner
 │   └── run/            # Development server orchestrator
-├── clients/             # External service clients
-│   └── mailpit.go      # Mailpit email client
 ├── config/              # Application configuration
 │   ├── app.go          # Sessions, tokens, security
 │   ├── database.go     # Database connection
@@ -118,8 +120,15 @@ myapp/
 │   ├── email.go        # Email client and sending logic
 │   ├── base_layout.templ    # Base email template layout
 │   └── components.templ     # Reusable email components
+├── internal/            # Internal framework packages
+│   ├── hypermedia/     # Datastar/SSE helpers
+│   ├── renderer/       # Template rendering
+│   ├── routing/        # Routing utilities
+│   ├── server/         # Server configuration
+│   └── storage/        # Storage utilities
 ├── models/              # Data models and business logic
 │   ├── model.go        # Base model setup
+│   ├── factories/      # Model factories for testing
 │   └── internal/db/    # Generated SQLC code (do not edit)
 ├── queue/               # Background job processing
 │   ├── jobs/           # Job definitions
@@ -130,17 +139,25 @@ myapp/
 │   ├── routes/         # Route definitions
 │   ├── cookies/        # Cookie and session helpers
 │   └── middleware/     # Custom middleware
+├── services/            # Business logic services
+│   ├── authentication.go    # Authentication service
+│   ├── registration.go      # User registration service
+│   └── reset_password.go    # Password reset service
 ├── telemetry/           # Observability setup
 │   ├── logger.go       # Structured logging
 │   ├── tracer.go       # Distributed tracing
 │   ├── metrics.go      # Application metrics
 │   └── helpers.go      # Telemetry utilities
 ├── views/               # Templ templates
+│   ├── components/     # Reusable template components
 │   ├── *.templ         # Template source files
 │   └── *_templ.go      # Generated Go code (do not edit)
 ├── .env.example         # Example environment variables
+├── .gitignore           # Git ignore patterns
+├── andurel.lock         # Framework version lock file
 ├── Dockerfile           # Container build (docker ext)
-└── go.mod               # Go module definition
+├── go.mod               # Go module definition
+└── go.sum               # Go module checksums
 ```
 
 ## CLI Commands
@@ -231,10 +248,10 @@ andurel new myapp
 andurel new myapp -c vanilla             # Use vanilla CSS
 
 # Add extensions:
-andurel new myapp -e auth                # Authentication
 andurel new myapp -e workflows           # Workflow orchestration
 andurel new myapp -e docker              # Docker containerization
-andurel new myapp -e auth,workflows,docker   # Multiple extensions
+andurel new myapp -e aws-ses             # AWS SES email integration
+andurel new myapp -e workflows,docker,aws-ses   # Multiple extensions
 
 # With custom GitHub repo:
 andurel new myapp --repo username
@@ -257,6 +274,29 @@ Andurel enforces type safety at every layer:
 - **Templ** - Type-safe HTML templates with Go syntax, no runtime template errors
 - **Echo** - Strongly-typed HTTP handlers and middleware
 - **Validation** - Built-in struct validation with go-playground/validator
+
+### CSS Framework Choice
+
+Choose your styling approach when creating a new project:
+
+```bash
+# Tailwind CSS (default) - utility-first CSS with JIT compilation
+andurel new myapp
+
+# Vanilla CSS - Open Props CSS variables with custom utilities
+andurel new myapp -c vanilla
+```
+
+**Tailwind CSS** includes:
+- `/css/base.css` - Tailwind imports and plugins (@tailwindcss/typography, @tailwindcss/forms)
+- `/css/theme.css` - Custom theme configuration
+- Live compilation via tailwindcli during development
+
+**Vanilla CSS** includes:
+- `/assets/css/normalize.css` - CSS reset
+- `/assets/css/open_props.css` - CSS custom properties
+- `/assets/css/buttons.css` - Pre-built button styles
+- `/assets/css/style.css` - Main stylesheet
 
 ### Flexible Model Generation
 
@@ -315,8 +355,17 @@ Built-in email functionality for sending transactional emails and notifications:
 
 - **Template Support** - Type-safe email templates using Templ
 - **Mailpit Integration** - Pre-configured Mailpit client for development testing
-- **Flexible Configuration** - Easy-to-configure SMTP settings via environment variables
+- **AWS SES Support** - Optional AWS Simple Email Service integration via the `aws-ses` extension
+- **Flexible Configuration** - Easy-to-configure SMTP/SES settings via environment variables
 - **Ready to Use** - Email infrastructure included in every new project by default
+
+```go
+// Mailpit (default for development)
+mailClient := mailpit.NewClient(&cfg.Mailpit)
+
+// AWS SES (production - requires aws-ses extension)
+sesClient := awsses.NewClient(ctx, &cfg.AwsSes)
+```
 
 ### Telemetry and Observability
 
@@ -349,19 +398,19 @@ url := routes.UserShowPage.URL(userID)
 
 Andurel includes optional extensions that add common functionality to your projects:
 
-- **auth** - Complete authentication system with login, registration, password reset, session management, and IP-based rate limiting for security
 - **workflows** - River-based workflow orchestration for managing complex multi-step background processes with task dependencies
 - **docker** - Production-ready Dockerfile and .dockerignore for containerized deployments
+- **aws-ses** - AWS Simple Email Service integration for production email delivery with transactional and marketing support
 
 Add extensions when creating a project with the `-e` flag:
 
 ```bash
-andurel new myapp -e auth
-andurel new myapp -e workflows,docker
-andurel new myapp -e auth,workflows,docker
+andurel new myapp -e workflows
+andurel new myapp -e aws-ses
+andurel new myapp -e workflows,docker,aws-ses
 ```
 
-Extensions integrate seamlessly with your chosen CSS framework, generating all necessary models, controllers, views, and routes.
+Extensions integrate seamlessly with your chosen CSS framework, generating all necessary configurations and code.
 
 ### Frontend Interactivity with Datastar
 
