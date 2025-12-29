@@ -2,6 +2,7 @@ package views
 
 import (
 	"net/http"
+	"{{.ModuleName}}/internal/hypermedia"
 	"{{.ModuleName}}/router/routes"
 )
 
@@ -10,7 +11,7 @@ templ ConfirmationForm() {
 		<main>
 			<h1>Verify Your Email</h1>
 			<p>Please enter the 6-digit verification code sent to your email.</p>
-			<form data-on:submit={ DataAction(http.MethodPost, routes.ConfirmationCreate.URL()) }>
+			<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.ConfirmationCreate.URL()) }>
 				<div>
 					<label for="code">Verification Code</label>
 					<input

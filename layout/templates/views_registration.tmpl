@@ -2,6 +2,7 @@ package views
 
 import (
 	"net/http"
+	"{{.ModuleName}}/internal/hypermedia"
 	"{{.ModuleName}}/router/routes"
 )
 
@@ -9,7 +10,7 @@ templ RegistrationForm() {
 	@base() {
 		<main>
 			<h1>Sign Up</h1>
-			<form class="text-black" data-on:submit={ DataAction(http.MethodPost, routes.RegistrationCreate.URL()) }>
+			<form class="text-black" data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()) }>
 				<div>
 					<label for="email">Email</label>
 					<input type="email" id="email" data-bind="email" required/>
