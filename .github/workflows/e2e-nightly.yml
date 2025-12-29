@@ -42,6 +42,13 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Install tools
+        run: |
+          go install github.com/a-h/templ/cmd/templ
+          go install github.com/segmentio/golines
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc
+          go install golang.org/x/tools/cmd/goimports
+
       - name: Run E2E full test suite
         run: go test ./e2e/... -v -timeout 55m
 
