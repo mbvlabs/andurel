@@ -17,6 +17,7 @@ func (e AwsSes) Apply(ctx *Context) error {
 	moduleName := ctx.Data.GetModuleName()
 
 	// Add imports
+	builder.AddMainImport(fmt.Sprintf("%s/email", moduleName))
 	builder.AddMainImport(fmt.Sprintf("%s/clients/email", moduleName))
 
 	// Add config field
