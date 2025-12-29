@@ -879,7 +879,6 @@ func generateRandomHex(bytes int) string {
 func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 	builder := blueprint.NewBuilder(nil)
 
-	// builder.AddMainImport(fmt.Sprintf("%s/email", moduleName))
 	builder.AddMainImport(fmt.Sprintf("%s/clients/email", moduleName))
 	builder.AddControllerImport(fmt.Sprintf("%s/controllers", moduleName))
 	builder.AddControllerImport(fmt.Sprintf("%s/email", moduleName))
