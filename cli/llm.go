@@ -293,9 +293,9 @@ cookies.SetFlash(c, cookies.FlashMessage{Type: "success", Message: "Saved!"})
 
 **New resource:**
 ` + "```bash" + `
-andurel generate resource Product
+andurel migration new create_product_table
 andurel migration up
-andurel sqlc generate
+andurel generate resource Product
 ` + "```" + `
 
 **Schema change:**
