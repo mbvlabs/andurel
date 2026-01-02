@@ -66,6 +66,16 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 
 	if report.Success {
 		fmt.Printf("\n✓ Upgrade complete!\n")
+
+		// Sync tools if any were updated
+		if report.ToolsUpdated > 0 {
+			fmt.Printf("\nSyncing updated tools...\n")
+			if err := syncBinaries(projectRoot); err != nil {
+				fmt.Printf("⚠ Warning: failed to sync tools: %v\n", err)
+				fmt.Printf("You can manually sync tools by running: andurel sync\n")
+			}
+		}
+
 		fmt.Printf("\nNext steps:\n")
 		fmt.Printf("  1. Review the changes with 'git diff'\n")
 		fmt.Printf("  2. Update your application code if needed for API changes\n")

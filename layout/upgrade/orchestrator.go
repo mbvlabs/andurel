@@ -158,7 +158,6 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  • %d framework files replaced\n", report.FilesReplaced)
 	fmt.Printf("  • %d tool versions updated\n", report.ToolsUpdated)
-	fmt.Printf("\nNote: Run 'andurel sync' to download updated tool binaries if needed.\n")
 
 	report.Success = true
 	return report, nil
