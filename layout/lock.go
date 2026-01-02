@@ -11,11 +11,10 @@ import (
 )
 
 type AndurelLock struct {
-	Version          string                `json:"version"`
-	Extensions       map[string]*Extension `json:"extensions,omitempty"`
-	Tools            map[string]*Tool      `json:"tools"`
-	FrameworkVersion string                `json:"frameworkVersion,omitempty"`
-	ScaffoldConfig   *ScaffoldConfig       `json:"scaffoldConfig,omitempty"`
+	Version        string                `json:"version"`
+	Extensions     map[string]*Extension `json:"extensions,omitempty"`
+	Tools          map[string]*Tool      `json:"tools"`
+	ScaffoldConfig *ScaffoldConfig       `json:"scaffoldConfig,omitempty"`
 }
 
 type ScaffoldConfig struct {

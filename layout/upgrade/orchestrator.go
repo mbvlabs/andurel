@@ -52,7 +52,7 @@ func NewUpgrader(projectRoot string, opts UpgradeOptions) (*Upgrader, error) {
 
 func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	report := &UpgradeReport{
-		FromVersion:   u.lock.FrameworkVersion,
+		FromVersion:   u.lock.Version,
 		ToVersion:     u.opts.TargetVersion,
 		ReplacedFiles: []string{},
 		UpdatedTools:  []string{},
@@ -63,7 +63,7 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		return report, err
 	}
 
-	if u.lock.FrameworkVersion == u.opts.TargetVersion {
+	if u.lock.Version == u.opts.TargetVersion {
 		return report, fmt.Errorf("project is already at version %s", u.opts.TargetVersion)
 	}
 
@@ -81,7 +81,7 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 
 	fmt.Printf(
 		"Upgrading framework from %s to %s...\n",
-		u.lock.FrameworkVersion,
+		u.lock.Version,
 		u.opts.TargetVersion,
 	)
 
@@ -107,6 +107,13 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	fmt.Printf("Replacing framework files in internal/andurel...\n")
 	for targetPath, content := range renderedTemplates {
 		fullPath := filepath.Join(u.projectRoot, targetPath)
+
+		// Create directory if it doesn't exist
+		dir := filepath.Dir(fullPath)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			report.Error = err
+			return report, fmt.Errorf("failed to create directory for %s: %w", targetPath, err)
+		}
 
 		if err := os.WriteFile(fullPath, content, 0o644); err != nil {
 			report.Error = err
@@ -140,7 +147,7 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	}
 
 	// Update template version in lock file
-	u.lock.FrameworkVersion = u.opts.TargetVersion
+	u.lock.Version = u.opts.TargetVersion
 	if err := u.lock.WriteLockFile(u.projectRoot); err != nil {
 		report.Error = err
 		return report, fmt.Errorf("failed to update lock file: %w", err)
@@ -170,7 +177,7 @@ func (u *Upgrader) validatePreconditions() error {
 		return fmt.Errorf("andurel.lock file not found or invalid")
 	}
 
-	if u.lock.FrameworkVersion == "" {
+	if u.lock.Version == "" {
 		return fmt.Errorf("lock file missing template version - please manually set it")
 	}
 

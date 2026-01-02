@@ -960,7 +960,6 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 
 func generateLockFile(targetDir, version string, hasTailwind bool, config *ScaffoldConfig) error {
 	lock := NewAndurelLock(version)
-	lock.FrameworkVersion = version
 	lock.ScaffoldConfig = config
 
 	for _, tool := range defaultGoTools {
