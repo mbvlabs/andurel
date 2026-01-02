@@ -31,7 +31,7 @@ type Extension struct {
 
 type Tool struct {
 	Source  string `json:"source"`
-	Version string `json:"version"`
+	Version string `json:"version,omitempty"`
 	Module  string `json:"module,omitempty"`
 	Path    string `json:"path,omitempty"`
 }
@@ -88,6 +88,9 @@ func (l *AndurelLock) WriteLockFile(targetDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal lock file: %w", err)
 	}
+
+	// Add trailing newline for proper file formatting
+	data = append(data, '\n')
 
 	if err := os.WriteFile(lockPath, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write lock file: %w", err)
