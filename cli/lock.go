@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -32,7 +31,7 @@ func newSetVersionCommand() *cobra.Command {
 		Short: "Set a specific version for a tool",
 		Long: `Set the version of a tool and update it.
 
-Go tools (updated via go get):
+Go tools (downloaded from GitHub releases):
   templ        - Templ templating engine
   sqlc         - SQL compiler
   goose        - Database migrations
@@ -50,8 +49,7 @@ Examples:
   andurel tool set-version sqlc 1.28.0
   andurel tool set-version tailwindcli 4.1.17
 
-For Go tools, this runs 'go get <module>@v<version>'.
-For tailwindcli, this downloads the binary and updates andurel.lock.`,
+This updates andurel.lock and downloads the tool binary to bin/.`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			toolName := args[0]
@@ -94,28 +92,44 @@ func setVersion(projectRoot, toolName, version string) error {
 
 func setGoToolVersion(projectRoot, toolName, version string) error {
 	modulePath := goTools[toolName]
+	moduleRepo := extractModulePath(modulePath)
 
-	fmt.Printf("Updating %s to %s...\n", toolName, version)
-
-	cmd := exec.Command("go", "get", fmt.Sprintf("%s@%s", modulePath, version))
-	cmd.Dir = projectRoot
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to update %s: %w", toolName, err)
+	// Read and update lock file
+	lockPath := filepath.Join(projectRoot, "andurel.lock")
+	if _, err := os.Stat(lockPath); err != nil {
+		return fmt.Errorf("andurel.lock not found. Are you in an andurel project?")
 	}
 
-	lockPath := filepath.Join(projectRoot, "andurel.lock")
-	if _, err := os.Stat(lockPath); err == nil {
-		lock, err := layout.ReadLockFile(projectRoot)
-		if err == nil {
-			moduleRepo := extractModulePath(modulePath)
-			lock.AddTool(toolName, layout.NewGoTool(moduleRepo, version))
-			if err := lock.WriteLockFile(projectRoot); err != nil {
-				fmt.Printf("Warning: failed to update andurel.lock: %v\n", err)
-			}
+	lock, err := layout.ReadLockFile(projectRoot)
+	if err != nil {
+		return fmt.Errorf("failed to read lock file: %w", err)
+	}
+
+	lock.AddTool(toolName, layout.NewGoTool(moduleRepo, version))
+
+	if err := lock.WriteLockFile(projectRoot); err != nil {
+		return fmt.Errorf("failed to update lock file: %w", err)
+	}
+
+	fmt.Printf("Setting %s to version %s...\n", toolName, version)
+
+	// Remove old binary if it exists
+	binPath := filepath.Join(projectRoot, "bin", toolName)
+	if _, err := os.Stat(binPath); err == nil {
+		fmt.Printf("  - Removing old binary...\n")
+		if err := os.Remove(binPath); err != nil {
+			return fmt.Errorf("failed to remove old binary: %w", err)
 		}
+	}
+
+	// Download new binary
+	fmt.Printf("  - Downloading %s %s...\n", toolName, version)
+
+	goos := runtime.GOOS
+	goarch := runtime.GOARCH
+
+	if err := cmds.DownloadGoTool(toolName, moduleRepo, version, goos, goarch, binPath); err != nil {
+		return fmt.Errorf("failed to download %s: %w", toolName, err)
 	}
 
 	fmt.Printf("\n✓ Successfully updated %s to %s\n", toolName, version)
