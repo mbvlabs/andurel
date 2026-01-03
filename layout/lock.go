@@ -59,10 +59,11 @@ func NewBinaryTool(version string) *Tool {
 	}
 }
 
-func NewBuiltTool(path string) *Tool {
+func NewBuiltTool(path, version string) *Tool {
 	return &Tool{
-		Source: "built",
-		Path:   path,
+		Source:  "built",
+		Path:    path,
+		Version: version,
 	}
 }
 

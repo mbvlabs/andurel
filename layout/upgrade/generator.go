@@ -22,11 +22,22 @@ type FrameworkTemplate struct {
 func GetFrameworkTemplates() []FrameworkTemplate {
 	return []FrameworkTemplate{
 		{"framework_elements_renderer_render.tmpl", "internal/renderer/render.go"},
+
 		{"framework_elements_routing_definitions.tmpl", "internal/routing/definitions.go"},
 		{"framework_elements_routing_routes.tmpl", "internal/routing/routes.go"},
+
 		{"framework_elements_server_server.tmpl", "internal/server/server.go"},
+
 		{"framework_elements_storage_psql.tmpl", "internal/storage/psql.go"},
 		{"framework_elements_storage_queue.tmpl", "internal/storage/queue.go"},
+
+		{"framework_elements_hypermedia_broadcaster.tmpl", "internal/hypermedia/broadcaster.go"},
+		{"framework_elements_hypermedia_core.tmpl", "internal/hypermedia/core.go"},
+		{"framework_elements_hypermedia_helpers.tmpl", "internal/hypermedia/helpers.go"},
+		{"framework_elements_hypermedia_signals.tmpl", "internal/hypermedia/signals.go"},
+		{"framework_elements_hypermedia_sse.tmpl", "internal/hypermedia/sse.go"},
+
+		{"cmd_run_main.tmpl", "cmd/run/main.go"},
 	}
 }
 
@@ -42,7 +53,9 @@ func NewTemplateGenerator(targetVersion string) *TemplateGenerator {
 
 // RenderFrameworkTemplates renders all framework element templates and returns
 // a map of file paths to their rendered content
-func (g *TemplateGenerator) RenderFrameworkTemplates(config layout.ScaffoldConfig) (map[string][]byte, error) {
+func (g *TemplateGenerator) RenderFrameworkTemplates(
+	config layout.ScaffoldConfig,
+) (map[string][]byte, error) {
 	templateData := g.buildTemplateData(config)
 	result := make(map[string][]byte)
 
@@ -68,17 +81,22 @@ func (g *TemplateGenerator) buildTemplateData(config layout.ScaffoldConfig) *lay
 	}
 
 	return &layout.TemplateData{
-		AppName:      config.ProjectName,
-		ProjectName:  config.ProjectName,
-		ModuleName:   moduleName,
-		Database:     config.Database,
-		CSSFramework: config.CSSFramework,
-		Extensions:   config.Extensions,
+		AppName:        config.ProjectName,
+		ProjectName:    config.ProjectName,
+		ModuleName:     moduleName,
+		Database:       config.Database,
+		CSSFramework:   config.CSSFramework,
+		Extensions:     config.Extensions,
+		RunToolVersion: layout.GetRunToolVersion(),
 	}
 }
 
 // renderTemplateToBytes renders a template from the given filesystem and returns the result as bytes
-func renderTemplateToBytes(templateFile string, fsys fs.FS, data *layout.TemplateData) ([]byte, error) {
+func renderTemplateToBytes(
+	templateFile string,
+	fsys fs.FS,
+	data *layout.TemplateData,
+) ([]byte, error) {
 	content, err := fs.ReadFile(fsys, templateFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read template %s: %w", templateFile, err)

@@ -66,6 +66,7 @@ func Scaffold(
 		TokenSigningKey:      generateRandomHex(32),
 		Pepper:               generateRandomHex(12),
 		Extensions:           extensionNames,
+		RunToolVersion:       GetRunToolVersion(),
 		blueprint:            initializeBaseBlueprint(moduleName),
 	}
 
@@ -835,7 +836,7 @@ type GoTool struct {
 	Version string
 }
 
-var defaultGoTools = []GoTool{
+var DefaultGoTools = []GoTool{
 	{Name: "templ", Module: "github.com/a-h/templ/cmd/templ", Version: versions.Templ},
 	{Name: "sqlc", Module: "github.com/sqlc-dev/sqlc/cmd/sqlc", Version: versions.Sqlc},
 	{Name: "goose", Module: "github.com/pressly/goose/v3/cmd/goose", Version: versions.Goose},
@@ -853,6 +854,32 @@ var defaultTools = []string{
 	"github.com/axllent/mailpit",
 	"github.com/xo/usql",
 	"github.com/danvergara/dblab",
+}
+
+// GetExpectedTools returns the list of tools that should exist for a given scaffold config
+func GetExpectedTools(config *ScaffoldConfig) map[string]*Tool {
+	expectedTools := make(map[string]*Tool)
+
+	// Add all default Go tools
+	for _, tool := range DefaultGoTools {
+		moduleRepo := extractRepo(tool.Module)
+		expectedTools[tool.Name] = NewGoTool(moduleRepo, tool.Version)
+	}
+
+	// Add tailwindcli if using Tailwind CSS
+	if config != nil && config.CSSFramework == "tailwind" {
+		expectedTools["tailwindcli"] = NewBinaryTool(versions.TailwindCLI)
+	}
+
+	// Add built tool "run"
+	expectedTools["run"] = NewBuiltTool("cmd/run/main.go", versions.RunTool)
+
+	return expectedTools
+}
+
+// GetRunToolVersion returns the version of the run built tool
+func GetRunToolVersion() string {
+	return versions.RunTool
 }
 
 func createGoMod(targetDir string, data *TemplateData) error {
@@ -962,17 +989,16 @@ func generateLockFile(targetDir, version string, hasTailwind bool, config *Scaff
 	lock := NewAndurelLock(version)
 	lock.ScaffoldConfig = config
 
-	for _, tool := range defaultGoTools {
+	for _, tool := range DefaultGoTools {
 		moduleRepo := extractRepo(tool.Module)
 		lock.AddTool(tool.Name, NewGoTool(moduleRepo, tool.Version))
 	}
 
 	if hasTailwind {
-		tailwindVersion := "v4.1.17"
-		lock.AddTool("tailwindcli", NewBinaryTool(tailwindVersion))
+		lock.AddTool("tailwindcli", NewBinaryTool(versions.TailwindCLI))
 	}
 
-	lock.AddTool("run", NewBuiltTool("cmd/run/main.go"))
+	lock.AddTool("run", NewBuiltTool("cmd/run/main.go", versions.RunTool))
 
 	if config != nil {
 		for _, ext := range config.Extensions {
