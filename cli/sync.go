@@ -54,7 +54,7 @@ func syncBinaries(projectRoot string) error {
 
 		if _, err := os.Stat(binPath); err == nil {
 			if tool.Source == "built" {
-				fmt.Printf("✓ %s - already built\n", name)
+				fmt.Printf("✓ %s (%s) - already built\n", name, tool.Version)
 			} else {
 				fmt.Printf("✓ %s (%s) - already present\n", name, tool.Version)
 			}

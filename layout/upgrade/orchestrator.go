@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/layout/cmds"
-	"github.com/mbvlabs/andurel/layout/versions"
+	"golang.org/x/mod/semver"
 )
 
 type UpgradeOptions struct {
@@ -28,11 +29,19 @@ type UpgradeReport struct {
 	FromVersion   string
 	ToVersion     string
 	FilesReplaced int
-	ToolsUpdated  int
-	ReplacedFiles []string
-	UpdatedTools  []string
-	Success       bool
-	Error         error
+
+	ToolsAdded   int
+	ToolsRemoved int
+	ToolsUpdated int
+
+	AddedTools        []string
+	RemovedTools      []string
+	UpdatedTools      []string
+	ReplacedFiles     []string
+	BuiltToolsUpdated []string // Names of built tools whose source was updated
+
+	Success bool
+	Error   error
 }
 
 func NewUpgrader(projectRoot string, opts UpgradeOptions) (*Upgrader, error) {
@@ -98,13 +107,35 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		for path := range renderedTemplates {
 			fmt.Printf("  • %s\n", path)
 		}
-		fmt.Printf("\nWould update tool versions in andurel.lock\n")
+
+		// Preview tool changes
+		fmt.Printf("\n[DRY RUN] Tool changes:\n")
+		toolSyncPreview, _ := u.syncToolsToFrameworkVersion()
+		if len(toolSyncPreview.Added) > 0 {
+			fmt.Printf("  Would add:\n")
+			for _, tool := range toolSyncPreview.Added {
+				fmt.Printf("    + %s\n", tool)
+			}
+		}
+		if len(toolSyncPreview.Updated) > 0 {
+			fmt.Printf("  Would update:\n")
+			for _, tool := range toolSyncPreview.Updated {
+				fmt.Printf("    ↑ %s\n", tool)
+			}
+		}
+		if len(toolSyncPreview.Removed) > 0 {
+			fmt.Printf("  Would remove:\n")
+			for _, tool := range toolSyncPreview.Removed {
+				fmt.Printf("    - %s\n", tool)
+			}
+		}
+
 		report.Success = true
 		return report, nil
 	}
 
 	// Replace framework files
-	fmt.Printf("Replacing framework files in internal/andurel...\n")
+	fmt.Printf("Replacing framework files...\n")
 	for targetPath, content := range renderedTemplates {
 		fullPath := filepath.Join(u.projectRoot, targetPath)
 
@@ -123,6 +154,11 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		report.FilesReplaced++
 		report.ReplacedFiles = append(report.ReplacedFiles, targetPath)
 		fmt.Printf("  ✓ %s\n", targetPath)
+
+		// Track which built tools had their source updated
+		if toolName := u.getBuiltToolNameFromPath(targetPath); toolName != "" {
+			report.BuiltToolsUpdated = append(report.BuiltToolsUpdated, toolName)
+		}
 	}
 
 	// Format the upgraded framework files
@@ -133,16 +169,47 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		fmt.Printf("  ✓ Formatted internal/andurel\n")
 	}
 
-	// Update tool versions
-	fmt.Printf("Updating tool versions...\n")
-	updatedTools, err := u.updateToolVersions()
+	// Synchronize tools with target version
+	fmt.Printf("Synchronizing tools with framework version...\n")
+	toolSyncResult, err := u.syncToolsToFrameworkVersion()
 	if err != nil {
-		fmt.Printf("⚠ Warning: failed to update tool versions: %v\n", err)
+		fmt.Printf("⚠ Warning: failed to synchronize tools: %v\n", err)
 	} else {
-		report.ToolsUpdated = len(updatedTools)
-		report.UpdatedTools = updatedTools
-		for _, tool := range updatedTools {
-			fmt.Printf("  ✓ %s\n", tool)
+		// Report added tools
+		if len(toolSyncResult.Added) > 0 {
+			fmt.Printf("  Added:\n")
+			for _, tool := range toolSyncResult.Added {
+				fmt.Printf("    + %s\n", tool)
+			}
+			report.ToolsAdded = len(toolSyncResult.Added)
+			report.AddedTools = toolSyncResult.Added
+		}
+
+		// Report updated tools
+		if len(toolSyncResult.Updated) > 0 {
+			fmt.Printf("  Updated:\n")
+			for _, tool := range toolSyncResult.Updated {
+				fmt.Printf("    ↑ %s\n", tool)
+			}
+			report.ToolsUpdated = len(toolSyncResult.Updated)
+			report.UpdatedTools = toolSyncResult.Updated
+		}
+
+		// Report removed tools
+		if len(toolSyncResult.Removed) > 0 {
+			fmt.Printf("  Removed:\n")
+			for _, tool := range toolSyncResult.Removed {
+				fmt.Printf("    - %s\n", tool)
+			}
+			report.ToolsRemoved = len(toolSyncResult.Removed)
+			report.RemovedTools = toolSyncResult.Removed
+		}
+
+		// Clean up obsolete binaries
+		if len(toolSyncResult.Removed) > 0 && !u.opts.DryRun {
+			if err := u.cleanupObsoleteBinaries(toolSyncResult.Removed); err != nil {
+				fmt.Printf("⚠ Warning: failed to clean up binaries: %v\n", err)
+			}
 		}
 	}
 
@@ -157,7 +224,15 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	fmt.Printf("\n✓ Upgrade complete! Project is now at version %s\n", u.opts.TargetVersion)
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  • %d framework files replaced\n", report.FilesReplaced)
-	fmt.Printf("  • %d tool versions updated\n", report.ToolsUpdated)
+	if report.ToolsAdded > 0 {
+		fmt.Printf("  • %d tools added\n", report.ToolsAdded)
+	}
+	if report.ToolsUpdated > 0 {
+		fmt.Printf("  • %d tools updated\n", report.ToolsUpdated)
+	}
+	if report.ToolsRemoved > 0 {
+		fmt.Printf("  • %d tools removed\n", report.ToolsRemoved)
+	}
 
 	report.Success = true
 	return report, nil
@@ -183,29 +258,160 @@ func (u *Upgrader) validatePreconditions() error {
 	return nil
 }
 
-// updateToolVersions updates tool versions in the lock file to the latest versions
-func (u *Upgrader) updateToolVersions() ([]string, error) {
-	var updatedTools []string
+// ToolSyncResult represents the result of synchronizing tools
+type ToolSyncResult struct {
+	Added   []string
+	Removed []string
+	Updated []string
+}
 
-	// Define the latest tool versions
-	latestVersions := map[string]string{
-		"templ":   versions.Templ,
-		"sqlc":    versions.Sqlc,
-		"goose":   versions.Goose,
-		"air":     versions.Air,
-		"mailpit": versions.Mailpit,
-		"usql":    versions.Usql,
+// syncToolsToFrameworkVersion synchronizes the lock file's tools with the target framework version
+// This ensures new tools are added, obsolete tools are removed, and existing tools are updated
+func (u *Upgrader) syncToolsToFrameworkVersion() (*ToolSyncResult, error) {
+	result := &ToolSyncResult{
+		Added:   []string{},
+		Removed: []string{},
+		Updated: []string{},
 	}
 
-	for toolName, latestVersion := range latestVersions {
-		if tool, exists := u.lock.Tools[toolName]; exists {
-			if tool.Version != latestVersion {
-				tool.Version = latestVersion
-				u.lock.Tools[toolName] = tool
-				updatedTools = append(updatedTools, fmt.Sprintf("%s: %s", toolName, latestVersion))
+	// Get expected tools based on the scaffold config
+	expectedTools := layout.GetExpectedTools(u.lock.ScaffoldConfig)
+
+	// Step 1: Add new tools and update existing ones
+	for toolName, expectedTool := range expectedTools {
+		existingTool, exists := u.lock.Tools[toolName]
+
+		if !exists {
+			// Tool doesn't exist in lock file - add it
+			u.lock.Tools[toolName] = expectedTool
+			result.Added = append(result.Added, fmt.Sprintf("%s (%s)", toolName, getToolVersion(expectedTool)))
+		} else if shouldUpdateTool(existingTool, expectedTool) {
+			// Tool exists but needs update
+			if existingTool.Source == "built" {
+				// Update version and path for built tools
+				existingTool.Version = expectedTool.Version
+				existingTool.Path = expectedTool.Path
+				result.Updated = append(result.Updated, fmt.Sprintf("%s: %s", toolName, expectedTool.Version))
+			} else {
+				// Update version for versioned tools
+				existingTool.Version = expectedTool.Version
+				result.Updated = append(result.Updated, fmt.Sprintf("%s: %s", toolName, getToolVersion(expectedTool)))
+			}
+			u.lock.Tools[toolName] = existingTool
+		}
+	}
+
+	// Step 2: Remove obsolete tools (tools in lock but not in expected)
+	// Only remove framework-managed tools, preserve user-added custom tools
+	for toolName := range u.lock.Tools {
+		if _, shouldExist := expectedTools[toolName]; !shouldExist {
+			if isFrameworkManagedTool(toolName, u.lock.Tools[toolName]) {
+				delete(u.lock.Tools, toolName)
+				result.Removed = append(result.Removed, toolName)
 			}
 		}
 	}
 
-	return updatedTools, nil
+	return result, nil
+}
+
+// isFrameworkManagedTool determines if a tool is managed by the framework
+// vs a user-added custom tool. Framework tools have known sources and patterns.
+func isFrameworkManagedTool(name string, tool *layout.Tool) bool {
+	// All "go" source tools with github.com modules are framework-managed
+	if tool.Source == "go" && strings.Contains(tool.Module, "github.com") {
+		// Check if it's in the known default tools list
+		for _, defaultTool := range layout.DefaultGoTools {
+			if defaultTool.Name == name {
+				return true
+			}
+		}
+	}
+
+	// Binary tools (tailwindcli)
+	if tool.Source == "binary" && name == "tailwindcli" {
+		return true
+	}
+
+	// Built tools (run)
+	if tool.Source == "built" && name == "run" {
+		return true
+	}
+
+	// Unknown tool - assume user-added, don't remove
+	return false
+}
+
+// shouldUpdateTool determines if a tool needs its version updated
+// Only upgrades tools, never downgrades (preserves user's manual version bumps)
+func shouldUpdateTool(existing, expected *layout.Tool) bool {
+	// Only update if sources match
+	if existing.Source != expected.Source {
+		return false
+	}
+
+	// For "built" tools, update if the version or path has changed
+	if existing.Source == "built" {
+		return existing.Version != expected.Version || existing.Path != expected.Path
+	}
+
+	// Don't update if versions are the same
+	if existing.Version == expected.Version {
+		return false
+	}
+
+	// Use semver comparison to only upgrade, never downgrade
+	// semver.Compare returns:
+	//   -1 if v1 < v2
+	//    0 if v1 == v2
+	//   +1 if v1 > v2
+	// We only update if expected > existing (comparison returns +1)
+	cmp := semver.Compare(expected.Version, existing.Version)
+	return cmp > 0
+}
+
+// getToolVersion safely extracts version from a tool
+func getToolVersion(tool *layout.Tool) string {
+	return tool.Version
+}
+
+// getBuiltToolNameFromPath returns the tool name if the path corresponds to a built tool, empty string otherwise
+func (u *Upgrader) getBuiltToolNameFromPath(path string) string {
+	// Map of built tool paths to their names
+	builtToolPaths := map[string]string{
+		"cmd/run/main.go": "run",
+	}
+	return builtToolPaths[path]
+}
+
+// cleanupObsoleteBinaries removes binary files for tools that no longer exist in the lock file
+func (u *Upgrader) cleanupObsoleteBinaries(removedTools []string) error {
+	if len(removedTools) == 0 {
+		return nil
+	}
+
+	binDir := filepath.Join(u.projectRoot, "bin")
+
+	// Check if bin directory exists
+	if _, err := os.Stat(binDir); os.IsNotExist(err) {
+		// No bin directory, nothing to clean
+		return nil
+	}
+
+	for _, toolName := range removedTools {
+		binPath := filepath.Join(binDir, toolName)
+
+		// Check if binary exists
+		if _, err := os.Stat(binPath); err == nil {
+			// Binary exists, remove it
+			if err := os.Remove(binPath); err != nil {
+				// Log warning but don't fail upgrade
+				fmt.Printf("  ⚠ Warning: failed to remove obsolete binary %s: %v\n", toolName, err)
+			} else {
+				fmt.Printf("  ✓ Removed obsolete binary: %s\n", toolName)
+			}
+		}
+	}
+
+	return nil
 }

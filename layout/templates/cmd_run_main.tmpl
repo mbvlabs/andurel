@@ -16,6 +16,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const Version = "{{.RunToolVersion}}"
+
 var (
 	runningProcesses []*exec.Cmd
 	processMutex     sync.Mutex
@@ -31,6 +33,8 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: could not load .env file: %v\n", err)
 	}
+
+	fmt.Printf("Starting run tool (version %s)\n", Version)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
