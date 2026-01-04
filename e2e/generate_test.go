@@ -69,6 +69,14 @@ func TestGenerateCommands(t *testing.T) {
 			t.Run("generate_resource_with_table_name_override", func(t *testing.T) {
 				testGenerateResourceWithTableNameOverride(t, project)
 			})
+
+			t.Run("generate_model_with_factory", func(t *testing.T) {
+				testGenerateModelWithFactory(t, project)
+			})
+
+			t.Run("generate_model_skip_factory", func(t *testing.T) {
+				testGenerateModelSkipFactory(t, project)
+			})
 		})
 	}
 }
@@ -162,6 +170,87 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 	}
 	if !strings.Contains(string(modelContent), "STUDENTFEEDBACK_MODEL_TABLE_NAME: student_feedback") {
 		t.Errorf("Model file should contain table name override marker")
+	}
+}
+
+func testGenerateModelWithFactory(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	createMigration(t, project, "000105_create_books", "books", []string{
+		"title VARCHAR(255) NOT NULL",
+		"author VARCHAR(255) NOT NULL",
+		"price DECIMAL(10,2)",
+		"pages INTEGER",
+	})
+
+	err := project.Generate("generate", "model", "Book")
+	internal.AssertCommandSucceeds(t, err, "generate model")
+
+	// Verify model files exist
+	internal.AssertFileExists(t, project, "models/book.go")
+	internal.AssertFileExists(t, project, "database/queries/books.sql")
+
+	// Verify factory file exists (default behavior)
+	internal.AssertFileExists(t, project, "models/factories/book.go")
+
+	// Verify factory content
+	factoryContent, err := os.ReadFile(filepath.Join(project.Dir, "models/factories/book.go"))
+	if err != nil {
+		t.Fatalf("Failed to read factory file: %v", err)
+	}
+
+	factoryStr := string(factoryContent)
+
+	// Check for required factory elements
+	requiredElements := []string{
+		"package factories",
+		"type BookFactory struct",
+		"type BookOption func(*BookFactory)",
+		"func BuildBook(opts ...BookOption) models.Book",
+		"func CreateBook(ctx context.Context, exec storage.Executor, opts ...BookOption) (models.Book, error)",
+		"func CreateBooks(ctx context.Context, exec storage.Executor, count int, opts ...BookOption) ([]models.Book, error)",
+		// Field-specific option functions
+		"func WithBooksTitle(value string) BookOption",
+		"func WithBooksAuthor(value string) BookOption",
+	}
+
+	for _, element := range requiredElements {
+		if !strings.Contains(factoryStr, element) {
+			t.Errorf("Factory file should contain %q", element)
+		}
+	}
+
+	// Verify factory uses faker for defaults
+	fakerElements := []string{
+		"github.com/go-faker/faker/v4",
+	}
+
+	for _, element := range fakerElements {
+		if !strings.Contains(factoryStr, element) {
+			t.Errorf("Factory file should contain faker import: %q", element)
+		}
+	}
+}
+
+func testGenerateModelSkipFactory(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	createMigration(t, project, "000106_create_articles", "articles", []string{
+		"title VARCHAR(255) NOT NULL",
+		"content TEXT",
+		"published BOOLEAN DEFAULT false",
+	})
+
+	err := project.Generate("generate", "model", "Article", "--skip-factory")
+	internal.AssertCommandSucceeds(t, err, "generate model with --skip-factory")
+
+	// Verify model files exist
+	internal.AssertFileExists(t, project, "models/article.go")
+	internal.AssertFileExists(t, project, "database/queries/articles.sql")
+
+	// Verify factory file does NOT exist
+	if project.FileExists("models/factories/article.go") {
+		t.Error("Factory file should NOT exist when using --skip-factory flag")
 	}
 }
 
