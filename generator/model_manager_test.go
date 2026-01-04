@@ -481,7 +481,7 @@ func TestGenerateModel_SingularTableNameOverride(t *testing.T) {
 		t.Fatalf("Failed to create migration file: %v", err)
 	}
 
-	err := manager.GenerateModel("UserFeedback", "user_feedback")
+	err := manager.GenerateModel("UserFeedback", "user_feedback", false)
 
 	if err != nil && strings.Contains(err.Error(), "must be plural") {
 		t.Errorf("GenerateModel() with --table-name override should not fail with plural validation: %v", err)

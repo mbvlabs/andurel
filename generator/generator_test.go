@@ -92,7 +92,7 @@ func TestGenerator_MethodsExist(t *testing.T) {
 			name: "GenerateModel",
 			fn: func() error {
 				// This will fail validation, but that's expected
-				return gen.GenerateModel("", "")
+				return gen.GenerateModel("", "", false)
 			},
 		},
 		{
@@ -161,8 +161,8 @@ func TestGenerator_DelegationToCoordinator(t *testing.T) {
 	// Test delegation by calling methods with invalid input
 	// Both should return the same validation error
 	t.Run("GenerateModel delegation", func(t *testing.T) {
-		genErr := gen.GenerateModel("", "")
-		coordErr := gen.coordinator.ModelManager.GenerateModel("", "")
+		genErr := gen.GenerateModel("", "", false)
+		coordErr := gen.coordinator.ModelManager.GenerateModel("", "", false)
 
 		if genErr == nil || coordErr == nil {
 			t.Skip("Expected validation errors for empty resource name")
@@ -199,21 +199,21 @@ func TestGenerator_GenerateModelWithTableOverride(t *testing.T) {
 	}
 
 	t.Run("validates empty resource name", func(t *testing.T) {
-		err := gen.GenerateModel("", "")
+		err := gen.GenerateModel("", "", false)
 		if err == nil {
 			t.Error("Expected error for empty resource name, got nil")
 		}
 	})
 
 	t.Run("accepts empty table override", func(t *testing.T) {
-		err := gen.GenerateModel("User", "")
+		err := gen.GenerateModel("User", "", false)
 		if err == nil {
 			t.Skip("Expected error due to missing migrations")
 		}
 	})
 
 	t.Run("validates invalid table override", func(t *testing.T) {
-		err := gen.GenerateModel("User", "InvalidTableName")
+		err := gen.GenerateModel("User", "InvalidTableName", false)
 		if err == nil {
 			t.Error("Expected error for invalid table name, got nil")
 		}

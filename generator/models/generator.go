@@ -1044,3 +1044,241 @@ func (g *Generator) replaceSQLQueryByName(content, queryName, newQuery string) s
 func (g *Generator) queryExistsInContent(content, queryName string) bool {
 	return strings.Contains(content, fmt.Sprintf("-- name: %s ", queryName))
 }
+
+// GeneratedFactory represents a factory for a model
+type GeneratedFactory struct {
+	ModelName         string
+	Package           string
+	Fields            []FactoryField
+	ModulePath        string
+	StandardImports   []string
+	ExternalImports   []string
+	HasCreateFunction bool
+}
+
+// FactoryField represents a field in a factory
+type FactoryField struct {
+	Name          string
+	Type          string
+	GoZero        string
+	DefaultValue  string
+	OptionName    string
+	IsFK          bool
+	IsTimestamp   bool
+	IsID          bool
+	IsAutoManaged bool
+}
+
+// BuildFactory generates factory metadata from a model
+func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *GeneratedModel) (*GeneratedFactory, error) {
+	// Import the factory analyzer
+	factoryFields := make([]FactoryField, 0, len(genModel.Fields))
+
+	for _, field := range genModel.Fields {
+		fieldInfo := g.analyzeFactoryField(field, config.TableName)
+		factoryFields = append(factoryFields, fieldInfo)
+	}
+
+	// Collect imports
+	standardImports := []string{"context", "fmt"}
+	externalImports := []string{
+		"github.com/go-faker/faker/v4",
+		"github.com/google/uuid",
+	}
+
+	// Add time import if needed
+	for _, field := range factoryFields {
+		if field.IsTimestamp {
+			standardImports = append(standardImports, "time")
+			break
+		}
+	}
+
+	return &GeneratedFactory{
+		ModelName:         genModel.Name,
+		Package:           "factories",
+		Fields:            factoryFields,
+		ModulePath:        config.ModulePath,
+		StandardImports:   standardImports,
+		ExternalImports:   externalImports,
+		HasCreateFunction: true, // Assume Create function exists
+	}, nil
+}
+
+// analyzeFactoryField analyzes a field and returns factory metadata
+func (g *Generator) analyzeFactoryField(field GeneratedField, tableName string) FactoryField {
+	info := FactoryField{
+		Name:          field.Name,
+		Type:          field.Type,
+		OptionName:    fmt.Sprintf("With%s%s", toCamelCase(tableName), field.Name),
+		IsID:          field.Name == "ID",
+		IsTimestamp:   field.Type == "time.Time" || strings.Contains(field.Type, "Time"),
+		IsAutoManaged: field.Name == "ID" || field.Name == "CreatedAt" || field.Name == "UpdatedAt",
+		IsFK:          strings.HasSuffix(field.Name, "ID") && field.Name != "ID",
+	}
+
+	// Determine default value
+	info.DefaultValue = g.determineFactoryDefault(field.Name, field.Type, field.SQLCType)
+	info.GoZero = g.getFactoryGoZero(field.Type)
+
+	return info
+}
+
+func (g *Generator) determineFactoryDefault(fieldName, goType, sqlcType string) string {
+	// Handle by type first
+	switch goType {
+	case "string":
+		return g.stringFactoryDefault(fieldName)
+	case "int32", "int64", "int":
+		return g.intFactoryDefault(fieldName)
+	case "bool":
+		return "false"
+	case "time.Time":
+		return "time.Time{}"
+	case "uuid.UUID":
+		return "uuid.UUID{}"
+	case "[]byte":
+		return "[]byte{}"
+	}
+
+	// Handle pgtype wrappers
+	if strings.Contains(goType, "pgtype") {
+		return fmt.Sprintf("%s{}", goType)
+	}
+
+	// Default fallback
+	return fmt.Sprintf("%s{}", goType)
+}
+
+func (g *Generator) stringFactoryDefault(fieldName string) string {
+	lower := strings.ToLower(fieldName)
+
+	// Field name heuristics
+	switch {
+	case lower == "email":
+		return "faker.Email()"
+	case lower == "name" || strings.HasSuffix(lower, "name"):
+		return "faker.Name()"
+	case lower == "phone" || strings.Contains(lower, "phone"):
+		return "faker.Phonenumber()"
+	case lower == "url" || strings.Contains(lower, "url"):
+		return "faker.URL()"
+	case lower == "description" || strings.HasSuffix(lower, "description"):
+		return "faker.Sentence()"
+	case lower == "title" || strings.HasSuffix(lower, "title"):
+		return "faker.Word()"
+	case lower == "address" || strings.Contains(lower, "address"):
+		return "faker.GetRealAddress().Address"
+	case lower == "city":
+		return "faker.GetRealAddress().City"
+	case lower == "country":
+		return "faker.GetRealAddress().Country"
+	case lower == "zipcode" || lower == "postalcode":
+		return "faker.GetRealAddress().PostalCode"
+	case strings.Contains(lower, "color"):
+		return "faker.GetRandomColor()"
+	default:
+		return "faker.Word()"
+	}
+}
+
+func (g *Generator) intFactoryDefault(fieldName string) string {
+	lower := strings.ToLower(fieldName)
+
+	switch {
+	case strings.Contains(lower, "price") || strings.Contains(lower, "amount"):
+		return "faker.RandomInt(100, 10000)" // Price in cents
+	case strings.Contains(lower, "count") || strings.Contains(lower, "quantity"):
+		return "faker.RandomInt(1, 100)"
+	case strings.Contains(lower, "age"):
+		return "faker.RandomInt(18, 80)"
+	default:
+		return "faker.RandomInt(1, 1000)"
+	}
+}
+
+func (g *Generator) getFactoryGoZero(goType string) string {
+	switch goType {
+	case "string":
+		return `""`
+	case "int", "int32", "int64", "float32", "float64":
+		return "0"
+	case "bool":
+		return "false"
+	case "time.Time":
+		return "time.Time{}"
+	case "uuid.UUID":
+		return "uuid.UUID{}"
+	case "[]byte":
+		return "nil"
+	default:
+		if strings.HasPrefix(goType, "[]") {
+			return "nil"
+		}
+		return fmt.Sprintf("%s{}", goType)
+	}
+}
+
+func toCamelCase(s string) string {
+	if s == "" {
+		return ""
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// GenerateFactoryFile renders a factory file from a template
+func (g *Generator) GenerateFactoryFile(factory *GeneratedFactory, templateStr string) (string, error) {
+	funcMap := template.FuncMap{
+		"toLower": func(s string) string {
+			return strings.ToLower(s)
+		},
+	}
+
+	tmpl, err := template.New("factory").Funcs(funcMap).Parse(templateStr)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse factory template: %w", err)
+	}
+
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, factory); err != nil {
+		return "", fmt.Errorf("failed to execute factory template: %w", err)
+	}
+
+	return buf.String(), nil
+}
+
+// WriteFactoryFile writes a factory file to disk
+func (g *Generator) WriteFactoryFile(factory *GeneratedFactory, outputDir string) error {
+	// Read factory template
+	templateContent, err := templates.Files.ReadFile("factory.tmpl")
+	if err != nil {
+		return fmt.Errorf("failed to read factory template: %w", err)
+	}
+
+	// Generate factory content
+	factoryContent, err := g.GenerateFactoryFile(factory, string(templateContent))
+	if err != nil {
+		return fmt.Errorf("failed to render factory file: %w", err)
+	}
+
+	// Determine output path
+	fileName := fmt.Sprintf("%s.go", strings.ToLower(factory.ModelName))
+	outputPath := fmt.Sprintf("%s/models/factories/%s", outputDir, fileName)
+
+	// Ensure directory exists
+	if err := os.MkdirAll(fmt.Sprintf("%s/models/factories", outputDir), 0755); err != nil {
+		return fmt.Errorf("failed to create factories directory: %w", err)
+	}
+
+	// Write file
+	if err := os.WriteFile(outputPath, []byte(factoryContent), constants.FilePermissionPrivate); err != nil {
+		return fmt.Errorf("failed to write factory file: %w", err)
+	}
+
+	// Format the file
+	if err := files.FormatGoFile(outputPath); err != nil {
+		return fmt.Errorf("failed to format factory file: %w", err)
+	}
+
+	return nil
+}

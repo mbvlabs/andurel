@@ -35,7 +35,8 @@ The table name is automatically inferred as the plural form of the model name.
 Examples:
   andurel generate model User                        # Create new model for 'users' table
   andurel generate model User --table-name=accounts  # Create model using custom 'accounts' table
-  andurel generate model User --refresh              # Refresh SQL queries and constructor functions`,
+  andurel generate model User --refresh              # Refresh SQL queries and constructor functions
+  andurel generate model User --skip-factory         # Skip factory generation`,
 		Args: cobra.ExactArgs(1),
 		RunE: generateModel,
 	}
@@ -44,6 +45,8 @@ Examples:
 		Bool("refresh", false, "Refresh SQL queries and constructor functions - makes schema changes compiler-enforced")
 	cmd.Flags().
 		String("table-name", "", "Override the default table name (defaults to plural form of model name)")
+	cmd.Flags().
+		Bool("skip-factory", false, "Skip factory generation")
 
 	return cmd
 }
@@ -82,6 +85,11 @@ func generateModel(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	skipFactory, err := cmd.Flags().GetBool("skip-factory")
+	if err != nil {
+		return err
+	}
+
 	gen, err := generator.New()
 	if err != nil {
 		return err
@@ -94,7 +102,7 @@ func generateModel(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	return gen.GenerateModel(resourceName, tableNameOverride)
+	return gen.GenerateModel(resourceName, tableNameOverride, skipFactory)
 }
 
 func newControllerCommand() *cobra.Command {
@@ -171,7 +179,8 @@ func generateResource(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := gen.GenerateModel(resourceName, tableNameOverride); err != nil {
+	// Generate resource always generates factory by default
+	if err := gen.GenerateModel(resourceName, tableNameOverride, false); err != nil {
 		return err
 	}
 

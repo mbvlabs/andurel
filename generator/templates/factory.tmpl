@@ -1,45 +1,106 @@
 package factories
 
 import (
-	"github.com/google/uuid"
+	"context"
+	"fmt"
+{{- range .StandardImports}}
+	"{{.}}"
+{{- end}}
 
 	"{{.ModulePath}}/models"
+	"{{.ModulePath}}/storage"
+{{- range .ExternalImports}}
+	"{{.}}"
+{{- end}}
 )
 
-type {{.Name}}Builder struct {
-	data models.Create{{.Name}}Data
+// {{.ModelName}}Factory wraps models.{{.ModelName}} for testing
+type {{.ModelName}}Factory struct {
+	models.{{.ModelName}}  // Embedded
 }
 
-func {{.Name}}() *{{.Name}}Builder {
-	return &{{.Name}}Builder{
-		data: models.Create{{.Name}}Data{
+type {{.ModelName}}Option func(*{{.ModelName}}Factory)
+
+// Build{{.ModelName}} creates an in-memory {{.ModelName}} with default test values
+func Build{{.ModelName}}(opts ...{{.ModelName}}Option) models.{{.ModelName}} {
+	f := &{{.ModelName}}Factory{
+		{{.ModelName}}: models.{{.ModelName}}{
 {{- range .Fields}}
-{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+{{- if .IsID}}
+			{{.Name}}: uuid.New(),
+{{- else if .IsTimestamp}}
+{{- if eq .Name "CreatedAt"}}
+			{{.Name}}: time.Now(),
+{{- else if eq .Name "UpdatedAt"}}
+			{{.Name}}: time.Now(),
+{{- else}}
+			{{.Name}}: {{.GoZero}},  // Optional timestamp - zero by default
+{{- end}}
+{{- else if .IsFK}}
+			{{.Name}}: uuid.UUID{},  // Foreign key - must be provided via option
+{{- else}}
 			{{.Name}}: {{.DefaultValue}},
 {{- end}}
 {{- end}}
 		},
 	}
-}
 
-{{- range .Fields}}
-{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
-
-func (b *{{$.Name}}Builder) With{{.Name}}(val {{.Type}}) *{{$.Name}}Builder {
-	b.data.{{.Name}} = val
-	return b
-}
-{{- end}}
-{{- end}}
-
-func (b *{{.Name}}Builder) Create(dbtx DBTX) models.{{.Name}} {
-	{{lower .Name}}, err := models.Create{{.Name}}(ctx, dbtx, b.data)
-	if err != nil {
-		panic(err)
+	for _, opt := range opts {
+		opt(f)
 	}
-	return {{lower .Name}}
+
+	return f.{{.ModelName}}
 }
 
-func (b *{{.Name}}Builder) Build() models.Create{{.Name}}Data {
-	return b.data
+{{if .HasCreateFunction}}
+// Create{{.ModelName}} creates and persists a {{.ModelName}} to the database
+func Create{{.ModelName}}(ctx context.Context, exec storage.Executor, opts ...{{.ModelName}}Option) (models.{{.ModelName}}, error) {
+	// Build with defaults
+	built := Build{{.ModelName}}(opts...)
+
+	// Prepare creation data
+	data := models.Create{{.ModelName}}Data{
+{{- range .Fields}}
+{{- if not .IsAutoManaged}}
+		{{.Name}}: built.{{.Name}},
+{{- end}}
+{{- end}}
+	}
+
+	// Use model's Create function
+	{{.ModelName | toLower}}, err := models.Create{{.ModelName}}(ctx, exec, data)
+	if err != nil {
+		return models.{{.ModelName}}{}, err
+	}
+
+	return {{.ModelName | toLower}}, nil
 }
+
+// Create{{.ModelName}}s creates multiple {{.ModelName}} records at once
+func Create{{.ModelName}}s(ctx context.Context, exec storage.Executor, count int, opts ...{{.ModelName}}Option) ([]models.{{.ModelName}}, error) {
+	{{.ModelName | toLower}}s := make([]models.{{.ModelName}}, 0, count)
+
+	for i := 0; i < count; i++ {
+		{{.ModelName | toLower}}, err := Create{{.ModelName}}(ctx, exec, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create {{.ModelName | toLower}} %d: %w", i+1, err)
+		}
+		{{.ModelName | toLower}}s = append({{.ModelName | toLower}}s, {{.ModelName | toLower}})
+	}
+
+	return {{.ModelName | toLower}}s, nil
+}
+{{end}}
+
+// Option functions
+{{- range .Fields}}
+{{- if not .IsAutoManaged}}
+
+// {{.OptionName}} sets the {{.Name}} field
+func {{.OptionName}}(value {{.Type}}) {{$.ModelName}}Option {
+	return func(f *{{$.ModelName}}Factory) {
+		f.{{$.ModelName}}.{{.Name}} = value
+	}
+}
+{{- end}}
+{{- end}}
