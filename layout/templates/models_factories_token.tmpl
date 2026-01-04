@@ -54,9 +54,14 @@ func BuildToken(opts ...TokenOption) models.Token {
 // hashed with HMAC-SHA256. Default expiration is 1 hour from now.
 //
 // Example:
-//   token, plainToken, err := factories.CreateToken(ctx, db)
-//   token, plainToken, err := factories.CreateToken(ctx, db, factories.WithScope("session"))
-func CreateToken(ctx context.Context, exec storage.Executor, opts ...TokenOption) (models.Token, string, error) {
+//
+//	token, plainToken, err := factories.CreateToken(ctx, db)
+//	token, plainToken, err := factories.CreateToken(ctx, db, factories.WithScope("session"))
+func CreateToken(
+	ctx context.Context,
+	exec storage.Executor,
+	opts ...TokenOption,
+) (models.Token, string, error) {
 	// Build the factory with defaults
 	f := &TokenFactory{
 		Token: models.Token{
@@ -72,13 +77,13 @@ func CreateToken(ctx context.Context, exec storage.Executor, opts ...TokenOption
 	}
 
 	// Generate actual token using models package
-	plainToken, err := models.CreateToken(ctx, exec, TestPepper, f.Token.Scope, f.Token.ExpiresAt, f.Token.MetaData)
+	plainToken, err := models.CreateToken(ctx, exec, TestPepper, f.Scope, f.ExpiresAt, f.MetaData)
 	if err != nil {
 		return models.Token{}, "", err
 	}
 
 	// Find and return the created token
-	token, err := models.FindTokenByScopeAndHash(ctx, exec, TestPepper, f.Token.Scope, plainToken)
+	token, err := models.FindTokenByScopeAndHash(ctx, exec, TestPepper, f.Scope, plainToken)
 	if err != nil {
 		return models.Token{}, "", err
 	}
@@ -90,13 +95,19 @@ func CreateToken(ctx context.Context, exec storage.Executor, opts ...TokenOption
 // Returns slices of both the Token models and the plain token strings.
 //
 // Example:
-//   tokens, plainTokens, err := factories.CreateTokens(ctx, db, 5)
-//   tokens, plainTokens, err := factories.CreateTokens(ctx, db, 3, factories.WithScope("reset_password"))
-func CreateTokens(ctx context.Context, exec storage.Executor, count int, opts ...TokenOption) ([]models.Token, []string, error) {
+//
+//	tokens, plainTokens, err := factories.CreateTokens(ctx, db, 5)
+//	tokens, plainTokens, err := factories.CreateTokens(ctx, db, 3, factories.WithScope("reset_password"))
+func CreateTokens(
+	ctx context.Context,
+	exec storage.Executor,
+	count int,
+	opts ...TokenOption,
+) ([]models.Token, []string, error) {
 	tokens := make([]models.Token, 0, count)
 	plainTokens := make([]string, 0, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		token, plainToken, err := CreateToken(ctx, exec, opts...)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to create token %d: %w", i+1, err)
@@ -111,21 +122,21 @@ func CreateTokens(ctx context.Context, exec storage.Executor, count int, opts ..
 // WithScope sets the scope for the token
 func WithScope(scope string) TokenOption {
 	return func(f *TokenFactory) {
-		f.Token.Scope = scope
+		f.Scope = scope
 	}
 }
 
 // WithExpiresAt sets the expiration time for the token
 func WithExpiresAt(t time.Time) TokenOption {
 	return func(f *TokenFactory) {
-		f.Token.ExpiresAt = t
+		f.ExpiresAt = t
 	}
 }
 
 // WithMetaData sets the metadata for the token
 func WithMetaData(data []byte) TokenOption {
 	return func(f *TokenFactory) {
-		f.Token.MetaData = data
+		f.MetaData = data
 	}
 }
 
@@ -139,6 +150,6 @@ func WithExpired() TokenOption {
 // CreateToken always generates a new token and hash via models.CreateToken.
 func WithHash(hash string) TokenOption {
 	return func(f *TokenFactory) {
-		f.Token.Hash = hash
+		f.Hash = hash
 	}
 }

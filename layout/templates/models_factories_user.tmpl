@@ -69,9 +69,14 @@ func BuildUser(opts ...UserOption) models.User {
 // All users get unique email addresses via the faker library.
 //
 // Example:
-//   user, err := factories.CreateUser(ctx, db)
-//   user, err := factories.CreateUser(ctx, db, factories.WithEmail("test@example.com"))
-func CreateUser(ctx context.Context, exec storage.Executor, opts ...UserOption) (models.User, error) {
+//
+//	user, err := factories.CreateUser(ctx, db)
+//	user, err := factories.CreateUser(ctx, db, factories.WithEmail("test@example.com"))
+func CreateUser(
+	ctx context.Context,
+	exec storage.Executor,
+	opts ...UserOption,
+) (models.User, error) {
 	// Build the factory with defaults
 	f := &UserFactory{
 		User: models.User{
@@ -88,7 +93,7 @@ func CreateUser(ctx context.Context, exec storage.Executor, opts ...UserOption) 
 
 	// Create the user using the models package
 	data := models.CreateUserData{
-		Email: f.User.Email,
+		Email: f.Email,
 		PasswordPair: models.PasswordPair{
 			Password:        "password123",
 			ConfirmPassword: "password123",
@@ -101,14 +106,17 @@ func CreateUser(ctx context.Context, exec storage.Executor, opts ...UserOption) 
 	}
 
 	// Apply post-creation updates if needed (e.g., IsAdmin, EmailValidatedAt)
-	needsUpdate := f.User.IsAdmin || !f.User.EmailValidatedAt.IsZero()
+	needsUpdate := f.IsAdmin || !f.EmailValidatedAt.IsZero()
 	if needsUpdate {
 		updateData := models.UpdateUserData{
-			ID:               user.ID,
-			Email:            user.Email,
-			EmailValidatedAt: sql.NullTime{Time: f.User.EmailValidatedAt, Valid: !f.User.EmailValidatedAt.IsZero()},
-			Password:         user.Password,
-			IsAdmin:          f.User.IsAdmin,
+			ID:    user.ID,
+			Email: user.Email,
+			EmailValidatedAt: sql.NullTime{
+				Time:  f.EmailValidatedAt,
+				Valid: !f.EmailValidatedAt.IsZero(),
+			},
+			Password: user.Password,
+			IsAdmin:  f.IsAdmin,
 		}
 		return models.UpdateUser(ctx, exec, updateData)
 	}
@@ -120,12 +128,18 @@ func CreateUser(ctx context.Context, exec storage.Executor, opts ...UserOption) 
 // Each user gets a unique email address from the faker library.
 //
 // Example:
-//   users, err := factories.CreateUsers(ctx, db, 5)
-//   users, err := factories.CreateUsers(ctx, db, 10, factories.WithIsAdmin(true))
-func CreateUsers(ctx context.Context, exec storage.Executor, count int, opts ...UserOption) ([]models.User, error) {
+//
+//	users, err := factories.CreateUsers(ctx, db, 5)
+//	users, err := factories.CreateUsers(ctx, db, 10, factories.WithIsAdmin(true))
+func CreateUsers(
+	ctx context.Context,
+	exec storage.Executor,
+	count int,
+	opts ...UserOption,
+) ([]models.User, error) {
 	users := make([]models.User, 0, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		user, err := CreateUser(ctx, exec, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create user %d: %w", i+1, err)
@@ -139,21 +153,21 @@ func CreateUsers(ctx context.Context, exec storage.Executor, count int, opts ...
 // WithEmail sets the email address for the user
 func WithEmail(email string) UserOption {
 	return func(f *UserFactory) {
-		f.User.Email = email
+		f.Email = email
 	}
 }
 
 // WithIsAdmin sets whether the user is an admin
 func WithIsAdmin(isAdmin bool) UserOption {
 	return func(f *UserFactory) {
-		f.User.IsAdmin = isAdmin
+		f.IsAdmin = isAdmin
 	}
 }
 
 // WithEmailValidatedAt sets the email validation timestamp
 func WithEmailValidatedAt(t time.Time) UserOption {
 	return func(f *UserFactory) {
-		f.User.EmailValidatedAt = t
+		f.EmailValidatedAt = t
 	}
 }
 
@@ -167,6 +181,6 @@ func WithValidatedEmail() UserOption {
 // CreateUser always uses models.CreateUser which hashes "password123".
 func WithPassword(password []byte) UserOption {
 	return func(f *UserFactory) {
-		f.User.Password = password
+		f.Password = password
 	}
 }

@@ -1,22 +1,6 @@
+// Package factories contains functionality for creating seed and development data
 package factories
-
-import (
-	"sync/atomic"
-
-	"{{.ModuleName}}/internal/storage"
-)
-
-// DBTX is an alias for storage.Executor to make it easier to use in factories
-type DBTX = storage.Executor
 
 // TestPepper is the default pepper for testing
 // DO NOT use this in production - it should be overridden with your app's actual pepper
 const TestPepper = "test-pepper-do-not-use-in-production"
-
-// sequenceCounter is used to generate unique sequential values
-var sequenceCounter int64
-
-// nextSequence returns the next unique sequence number
-func nextSequence() int64 {
-	return atomic.AddInt64(&sequenceCounter, 1)
-}
