@@ -326,6 +326,8 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"models_model.tmpl":               "models/model.go",
 	"models_internal_db_db.tmpl":      "models/internal/db/db.go",
 	"models_factories_factories.tmpl": "models/factories/factories.go",
+	"models_factories_user.tmpl":      "models/factories/user.go",
+	"models_factories_token.tmpl":     "models/factories/token.go",
 
 	// Router
 	"router_router.tmpl":                         "router/router.go",
