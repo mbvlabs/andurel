@@ -7,7 +7,7 @@
 [![Go Version](https://img.shields.io/badge/go-1.24.4%2B-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**Andurel is a comprehensive web development framework for Go that prioritizes development speed.** Inspired by Ruby on Rails, it combines convention over configuration with Go's performance and type safety to help you build full-stack web applications incredibly fast.
+**Andurel is a comprehensive web development framework for Go that prioritizes development speed.** Inspired by Ruby on Rails, it uses just enough conventions to let you build full-stack web applications incredibly fast.
 
 Join the discord [here](https://discord.gg/SsZpxSJX)
 
@@ -27,7 +27,7 @@ Development speed is everything. Andurel eliminates boilerplate and lets you foc
 - **[Echo](https://echo.labstack.com/)** - High-performance HTTP framework
 - **[SQLC](https://sqlc.dev/)** - Type-safe SQL code generation
 - **[Templ](https://templ.guide/)** - Type-safe HTML templates
-- **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity (RC6)
+- **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity
 - **[River](https://riverqueue.com/)** - PostgreSQL-backed background jobs and workflows
 - **[OpenTelemetry](https://opentelemetry.io/)** - Built-in observability
 - **[PostgreSQL](https://www.postgresql.org/)** - Powerful open-source database with pgx driver and native UUID support
@@ -81,9 +81,6 @@ andurel migration new create_products_table
 
 # Create a complete resource with model, controller, views, and routes
 andurel generate resource Product
-
-# Or use the shorthand
-andurel g resource Product
 ```
 
 This single command creates everything you need for a full CRUD interface.
@@ -264,18 +261,7 @@ andurel new myapp --repo username
 andurel llm
 ```
 
-## Key Features
-
-### Type Safety Everywhere
-
-Andurel enforces type safety at every layer:
-
-- **SQLC** - Generate type-safe Go code from SQL queries, catch errors at compile time
-- **Templ** - Type-safe HTML templates with Go syntax, no runtime template errors
-- **Echo** - Strongly-typed HTTP handlers and middleware
-- **Validation** - Built-in struct validation with go-playground/validator
-
-### CSS Framework Choice
+## CSS Framework Choice
 
 Choose your styling approach when creating a new project:
 
@@ -298,7 +284,7 @@ andurel new myapp -c vanilla
 - `/assets/css/buttons.css` - Pre-built button styles
 - `/assets/css/style.css` - Main stylesheet
 
-### Flexible Model Generation
+## Flexible Model Generation
 
 Models support flexible table name mapping for working with existing databases or custom naming conventions:
 
@@ -306,7 +292,7 @@ Models support flexible table name mapping for working with existing databases o
 - **Custom Table Names** - Override with `--table` flag to map to any table name
 - **Legacy Database Support** - Work with existing schemas that don't follow Rails conventions
 
-### Background Jobs
+## Background Jobs
 
 Built-in background job processing with River, PostgreSQL-backed job queue:
 
@@ -334,7 +320,7 @@ Andurel is built on PostgreSQL for robust, production-ready applications:
 - **Type-Safe Queries** - SQLC generates Go code from your SQL queries
 - **Workflow Orchestration** - Complex multi-step processes with the workflows extension
 
-### Live Development Experience
+## Live Development Experience
 
 `andurel run` orchestrates three watch processes:
 
@@ -342,14 +328,7 @@ Andurel is built on PostgreSQL for robust, production-ready applications:
 2. **Templ** - Recompiles templates on save
 3. **Tailwind CSS** - Regenerates styles as you write
 
-### Security Built-in
-
-- **CSRF Protection** - Automatic token validation for non-API routes
-- **Session Management** - Encrypted cookie sessions with gorilla/sessions
-- **Flash Messages** - Built-in support for temporary user notifications
-- **Secure Defaults** - Password hashing, SQL injection prevention, XSS protection
-
-### Email Support
+## Email Support
 
 Built-in email functionality for sending transactional emails and notifications:
 
@@ -367,7 +346,7 @@ mailClient := mailpit.NewClient(&cfg.Mailpit)
 sesClient := awsses.NewClient(ctx, &cfg.AwsSes)
 ```
 
-### Telemetry and Observability
+## Telemetry and Observability
 
 Built-in OpenTelemetry integration for comprehensive application monitoring:
 
@@ -382,19 +361,19 @@ Built-in OpenTelemetry integration for comprehensive application monitoring:
 Fluent route builder with type-safe URL generation:
 
 ```go
-var UserShowPage = newRouteBuilder("show").
-    SetNamePrefix("users").
-    SetPath("/users/:id").
-    SetMethod(http.MethodGet).
-    SetCtrl("Users", "Show").
-    WithMiddleware(auth.Required).
-    RegisterWithID()
+const UserPrefix = "users"
+
+var PasswordEdit = routing.NewRouteWithToken(
+	"/password/:token/edit",
+	"edit_user_password",
+	UserPrefix,
+)
 
 // Generate URLs type-safely
-url := routes.UserShowPage.URL(userID)
+url := routes.PasswordEdit.URL(token)
 ```
 
-### Extensions
+## Extensions
 
 Andurel includes optional extensions that add common functionality to your projects:
 
@@ -412,77 +391,15 @@ andurel new myapp -e workflows,docker,aws-ses
 
 Extensions integrate seamlessly with your chosen CSS framework, generating all necessary configurations and code.
 
-### Frontend Interactivity with Datastar
-
-Andurel uses Datastar (RC6) for hypermedia-driven interactivity, allowing you to build dynamic user interfaces without writing JavaScript:
-
-- Server-side rendering with progressive enhancement
-- Reactive updates using HTML attributes
-- Form validation and submission without page reloads
-- Real-time updates and polling
-- Clean separation between backend logic and frontend behavior
-- Built-in helper functions for common form elements and patterns
-
-Datastar keeps your application logic on the server while providing a smooth, modern user experience. Generated views include pre-built form elements and helpers to accelerate development.
-
 ## Framework Philosophy
 
 Andurel combines Rails conventions with Go's strengths:
 
-1. **Convention over Configuration** - Sensible defaults, minimal setup
+1. **Just enough conventions** - Sensible defaults, minimal setup
 2. **Development Speed First** - Code generation eliminates boilerplate
 3. **Type Safety** - Compile-time guarantees prevent runtime errors
 4. **MVC Architecture** - Clear separation of concerns
 5. **RESTful Design** - Standard HTTP patterns and routing
-
-## Development Workflow
-
-### Creating a New Feature
-
-Here's a typical workflow for adding a new resource:
-
-```bash
-# 1. Create a migration for your database table
-andurel m new create_products_table
-
-# 2. Edit the migration file in database/migrations/
-# Add your CREATE TABLE statement
-
-# 3. Run the migration
-andurel m up
-
-# 4. Generate the complete resource (model + controller + views + routes)
-andurel g resource Product
-
-# 5. Start the development server
-andurel run
-
-# Your CRUD interface is ready at http://localhost:8080/products
-```
-
-### Making Schema Changes
-
-```bash
-# 1. Create a migration
-andurel m new add_description_to_products
-
-# 2. Edit the migration file
-# Add your ALTER TABLE statement
-
-# 3. Apply the migration
-andurel m up
-
-# 4. Refresh the model to regenerate code
-andurel g model Product --refresh
-```
-
-### Working with Background Jobs
-
-```bash
-# 1. Define your job in queue/jobs/
-# 2. Implement the worker in queue/workers/
-# 3. Enqueue jobs from controllers or models using insertOnly.Client.Insert()
-```
 
 ## AI-Friendly
 
