@@ -9,17 +9,18 @@ type FieldProps map[string]FieldProp
 
 templ InputField(label, name, inputType, placeholder string, required bool, prop FieldProp) {
 	<div>
-		<label 
+		<label
 			for={ name }
 		>
 			{ label }
 		</label>
-		<input 
+		<input
 			type={ inputType }
 			id={ name }
 			value={ prop.Value }
 			placeholder={ placeholder }
 			data-bind={ name }
+			data-attr:disabled="$submitting"
 			if required {
 				required
 			}
@@ -32,15 +33,16 @@ templ InputField(label, name, inputType, placeholder string, required bool, prop
 
 templ Textarea(label, name, placeholder string, required bool, prop FieldProp) {
 	<div>
-		<label 
+		<label
 			for={ name }
 		>
 			{ label }
 		</label>
-		<textarea 
+		<textarea
 			id={ name }
 			placeholder={ placeholder }
 			data-bind={ name }
+			data-attr:disabled="$submitting"
 			if required {
 				required
 			}
@@ -51,4 +53,22 @@ templ Textarea(label, name, placeholder string, required bool, prop FieldProp) {
 			<span>{ prop.Error }</span>
 		}
 	</div>
+}
+
+templ SubmitButton(title string) {
+	<button
+		type="submit"
+		data-attr:disabled="$submitting"
+	>
+		<span
+			data-show="!$submitting"
+		>
+			{ title }
+		</span>
+		<span
+			data-show="$submitting"
+		>
+			Loading
+		</span>
+	</button>
 }

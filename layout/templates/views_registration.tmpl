@@ -4,26 +4,27 @@ import (
 	"net/http"
 	"{{.ModuleName}}/internal/hypermedia"
 	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/views/components"
 )
 
 templ RegistrationForm() {
 	@base() {
 		<main>
 			<h1>Sign Up</h1>
-			<form class="text-black" data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()) }>
+			<form class="text-black" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()) }>
 				<div>
 					<label for="email">Email</label>
-					<input type="email" id="email" data-bind="email" required/>
+					<input type="email" id="email" data-bind="email" data-attr:disabled="$submitting" required/>
 				</div>
 				<div>
 					<label for="password">Password</label>
-					<input type="password" id="password" data-bind="password" required minlength="8"/>
+					<input type="password" id="password" data-bind="password" data-attr:disabled="$submitting" required minlength="8"/>
 				</div>
 				<div>
 					<label for="confirmPassword">Confirm Password</label>
-					<input type="password" id="confirmPassword" data-bind="confirmPassword" required minlength="8"/>
+					<input type="password" id="confirmPassword" data-bind="confirmPassword" data-attr:disabled="$submitting" required minlength="8"/>
 				</div>
-				<button type="submit">Sign Up</button>
+				@components.SubmitButton("Sign Up")
 			</form>
 		</main>
 	}
