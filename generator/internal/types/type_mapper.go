@@ -102,7 +102,8 @@ func (tm *TypeMapper) GenerateConversionFromDB(fieldName, sqlcType, goType strin
 		case "pgtype.UUID":
 			return fmt.Sprintf("uuid.UUID(row.%s.Bytes)", fieldName)
 		case "pgtype.JSONB", "pgtype.JSON":
-			return fmt.Sprintf("row.%s.Bytes", fieldName)
+			// pgtype.JSONB and pgtype.JSON are type aliases for []byte in pgx v5
+			return fmt.Sprintf("row.%s", fieldName)
 		case "pgtype.Inet", "pgtype.CIDR", "pgtype.Macaddr", "pgtype.Macaddr8":
 			return fmt.Sprintf("row.%s.IPNet.String()", fieldName)
 		case "pgtype.Point",
