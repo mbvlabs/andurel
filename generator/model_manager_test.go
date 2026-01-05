@@ -481,7 +481,7 @@ func TestGenerateModel_SingularTableNameOverride(t *testing.T) {
 		t.Fatalf("Failed to create migration file: %v", err)
 	}
 
-	err := manager.GenerateModel("UserFeedback", "user_feedback")
+	err := manager.GenerateModel("UserFeedback", "user_feedback", false)
 
 	if err != nil && strings.Contains(err.Error(), "must be plural") {
 		t.Errorf("GenerateModel() with --table-name override should not fail with plural validation: %v", err)
@@ -507,3 +507,89 @@ func TestGenerateQueriesOnly_SingularTableNameOverride(t *testing.T) {
 		t.Errorf("GenerateQueriesOnly() with --table-name override should not fail with plural validation: %v", err)
 	}
 }
+
+func TestGenerateModel_WithFactory(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	// Create queries directory
+	queriesDir := filepath.Join("database", "queries")
+	if err := os.MkdirAll(queriesDir, 0o755); err != nil {
+		t.Fatalf("Failed to create queries directory: %v", err)
+	}
+
+	// Create migration for authors table
+	migrationsDir := filepath.Join("database", "migrations")
+	migrationContent := `-- +goose Up
+CREATE TABLE authors (
+	id UUID PRIMARY KEY,
+	name VARCHAR(255) NOT NULL,
+	email VARCHAR(255) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- +goose Down
+DROP TABLE authors;`
+	if err := os.WriteFile(filepath.Join(migrationsDir, "001_create_authors.sql"), []byte(migrationContent), 0o644); err != nil {
+		t.Fatalf("Failed to create migration file: %v", err)
+	}
+
+	// Generate model with factory (skipFactory = false)
+	// This will fail at sqlc step in unit tests, but we're just checking
+	// that the function can be called with the skipFactory parameter
+	err := manager.GenerateModel("Author", "", false)
+	
+	// We expect an error about sqlc since it's not available in unit tests
+	// The important part is that the function accepts the skipFactory parameter
+	if err == nil {
+		t.Error("Expected error due to missing sqlc in test environment")
+	}
+	
+	if err != nil && !strings.Contains(err.Error(), "sqlc") {
+		t.Logf("Got error (expected sqlc error): %v", err)
+	}
+}
+
+func TestGenerateModel_SkipFactory(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	// Create queries directory
+	queriesDir := filepath.Join("database", "queries")
+	if err := os.MkdirAll(queriesDir, 0o755); err != nil {
+		t.Fatalf("Failed to create queries directory: %v", err)
+	}
+
+	// Create migration for publishers table
+	migrationsDir := filepath.Join("database", "migrations")
+	migrationContent := `-- +goose Up
+CREATE TABLE publishers (
+	id UUID PRIMARY KEY,
+	name VARCHAR(255) NOT NULL,
+	country VARCHAR(100),
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- +goose Down
+DROP TABLE publishers;`
+	if err := os.WriteFile(filepath.Join(migrationsDir, "002_create_publishers.sql"), []byte(migrationContent), 0o644); err != nil {
+		t.Fatalf("Failed to create migration file: %v", err)
+	}
+
+	// Generate model without factory (skipFactory = true)
+	// This will also fail at sqlc step, but we're checking the parameter is accepted
+	err := manager.GenerateModel("Publisher", "", true)
+	
+	// We expect an error about sqlc since it's not available in unit tests
+	if err == nil {
+		t.Error("Expected error due to missing sqlc in test environment")
+	}
+	
+	if err != nil && !strings.Contains(err.Error(), "sqlc") {
+		t.Logf("Got error (expected sqlc error): %v", err)
+	}
+}
+
+

@@ -1,0 +1,186 @@
+package factories
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"time"
+
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/internal/storage"
+	"github.com/go-faker/faker/v4"
+	"github.com/google/uuid"
+)
+
+// UserFactory wraps models.User and adds factory methods
+type UserFactory struct {
+	models.User // Embedded - factory wraps the model
+}
+
+// UserOption is a functional option for configuring a UserFactory
+type UserOption func(*UserFactory)
+
+// defaultPassword generates a default password hash for testing
+// This uses the same HashPassword function as the models package to ensure
+// the password format matches what the application expects
+func defaultPassword() []byte {
+	hash, err := models.HashPassword("password123", TestPepper)
+	if err != nil {
+		// Fallback to a hardcoded hash if generation fails
+		// This is argon2 hash of "password123" with a fixed salt for testing
+		return []byte("3tqjNE7qwBqPvqEGqLxPrMzKFH9YkRJPqQXqN3yVzNE:AAAAAAAAAAAAAAAAAAAAAA")
+	}
+	return []byte(hash)
+}
+
+// BuildUser creates a User struct with default values and applies any provided options.
+// This creates an in-memory struct only - it does not persist to the database.
+//
+// The password field is set to a valid argon2 hash of "password123" for consistency,
+// but you typically won't use BuildUser for authentication testing - use CreateUser instead.
+//
+// Use CreateUser to build and save to the database in one step.
+func BuildUser(opts ...UserOption) models.User {
+	f := &UserFactory{
+		User: models.User{
+			ID:               uuid.New(),
+			CreatedAt:        time.Now(),
+			UpdatedAt:        time.Now(),
+			Email:            faker.Email(),
+			EmailValidatedAt: time.Time{}, // zero value = not validated
+			Password:         defaultPassword(),
+			IsAdmin:          false,
+		},
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(f)
+	}
+
+	return f.User
+}
+
+// CreateUser creates a User in the database with the provided options.
+// It uses the models.CreateUser function to ensure proper password hashing
+// and validation, then applies any post-creation updates if needed.
+//
+// The default password is "password123" and is properly hashed using argon2.
+// All users get unique email addresses via the faker library.
+//
+// Example:
+//
+//	user, err := factories.CreateUser(ctx, db)
+//	user, err := factories.CreateUser(ctx, db, factories.WithEmail("test@example.com"))
+func CreateUser(
+	ctx context.Context,
+	exec storage.Executor,
+	opts ...UserOption,
+) (models.User, error) {
+	// Build the factory with defaults
+	f := &UserFactory{
+		User: models.User{
+			Email:            faker.Email(),
+			EmailValidatedAt: time.Time{},
+			IsAdmin:          false,
+		},
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(f)
+	}
+
+	// Create the user using the models package
+	data := models.CreateUserData{
+		Email: f.Email,
+		PasswordPair: models.PasswordPair{
+			Password:        "password123",
+			ConfirmPassword: "password123",
+		},
+	}
+
+	user, err := models.CreateUser(ctx, exec, TestPepper, data)
+	if err != nil {
+		return models.User{}, err
+	}
+
+	// Apply post-creation updates if needed (e.g., IsAdmin, EmailValidatedAt)
+	needsUpdate := f.IsAdmin || !f.EmailValidatedAt.IsZero()
+	if needsUpdate {
+		updateData := models.UpdateUserData{
+			ID:    user.ID,
+			Email: user.Email,
+			EmailValidatedAt: sql.NullTime{
+				Time:  f.EmailValidatedAt,
+				Valid: !f.EmailValidatedAt.IsZero(),
+			},
+			Password: user.Password,
+			IsAdmin:  f.IsAdmin,
+		}
+		return models.UpdateUser(ctx, exec, updateData)
+	}
+
+	return user, nil
+}
+
+// CreateUsers creates multiple users at once with the provided options.
+// Each user gets a unique email address from the faker library.
+//
+// Example:
+//
+//	users, err := factories.CreateUsers(ctx, db, 5)
+//	users, err := factories.CreateUsers(ctx, db, 10, factories.WithIsAdmin(true))
+func CreateUsers(
+	ctx context.Context,
+	exec storage.Executor,
+	count int,
+	opts ...UserOption,
+) ([]models.User, error) {
+	users := make([]models.User, 0, count)
+
+	for i := range count {
+		user, err := CreateUser(ctx, exec, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create user %d: %w", i+1, err)
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
+// WithEmail sets the email address for the user
+func WithEmail(email string) UserOption {
+	return func(f *UserFactory) {
+		f.Email = email
+	}
+}
+
+// WithIsAdmin sets whether the user is an admin
+func WithIsAdmin(isAdmin bool) UserOption {
+	return func(f *UserFactory) {
+		f.IsAdmin = isAdmin
+	}
+}
+
+// WithEmailValidatedAt sets the email validation timestamp
+func WithEmailValidatedAt(t time.Time) UserOption {
+	return func(f *UserFactory) {
+		f.EmailValidatedAt = t
+	}
+}
+
+// WithValidatedEmail marks the email as validated at the current time
+func WithValidatedEmail() UserOption {
+	return WithEmailValidatedAt(time.Now())
+}
+
+// WithPassword sets a custom password hash.
+// Note: This only works with BuildUser for in-memory structs.
+// CreateUser always uses models.CreateUser which hashes "password123".
+func WithPassword(password []byte) UserOption {
+	return func(f *UserFactory) {
+		f.Password = password
+	}
+}

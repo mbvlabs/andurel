@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/files"
+	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/internal/types"
 	"github.com/mbvlabs/andurel/generator/models"
 	"github.com/mbvlabs/andurel/pkg/naming"
@@ -100,7 +101,7 @@ func (m *ModelManager) setupModelContext(resourceName, tableName string, tableNa
 	}, nil
 }
 
-func (m *ModelManager) GenerateModel(resourceName string, tableNameOverride string) error {
+func (m *ModelManager) GenerateModel(resourceName string, tableNameOverride string, skipFactory bool) error {
 	tableName := tableNameOverride
 	if tableName == "" {
 		tableName = naming.DeriveTableName(resourceName)
@@ -146,10 +147,60 @@ func (m *ModelManager) GenerateModel(resourceName string, tableNameOverride stri
 		return fmt.Errorf("failed to generate constructor functions: %w", err)
 	}
 
+	// Generate factory (unless skipped)
+	if !skipFactory {
+		if err := m.generateFactory(cat, ctx); err != nil {
+			// Log the error but don't fail the entire generation
+			fmt.Printf("Warning: failed to generate factory: %v\n", err)
+		} else {
+			fmt.Printf("✓ Generated factory: models/factories/%s.go\n", strings.ToLower(ctx.ResourceName))
+		}
+	}
+
 	fmt.Printf(
 		"Successfully generated complete model for %s with database functions\n",
 		ctx.ResourceName,
 	)
+	return nil
+}
+
+// generateFactory creates a factory file for the model
+func (m *ModelManager) generateFactory(cat *catalog.Catalog, ctx *modelSetupContext) error {
+	// Build the model first
+	genModel, err := m.modelGenerator.Build(cat, models.Config{
+		TableName:    ctx.TableName,
+		ResourceName: ctx.ResourceName,
+		PackageName:  "models",
+		DatabaseType: m.config.Database.Type,
+		ModulePath:   ctx.ModulePath,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to build model for factory: %w", err)
+	}
+
+	// Build factory metadata
+	genFactory, err := m.modelGenerator.BuildFactory(cat, models.Config{
+		TableName:    ctx.TableName,
+		ResourceName: ctx.ResourceName,
+		PackageName:  "factories",
+		DatabaseType: m.config.Database.Type,
+		ModulePath:   ctx.ModulePath,
+	}, genModel)
+	if err != nil {
+		return fmt.Errorf("failed to build factory: %w", err)
+	}
+
+	// Get root directory
+	rootDir, err := m.fileManager.FindGoModRoot()
+	if err != nil {
+		return fmt.Errorf("failed to find go.mod root: %w", err)
+	}
+
+	// Write factory file
+	if err := m.modelGenerator.WriteFactoryFile(genFactory, rootDir); err != nil {
+		return fmt.Errorf("failed to write factory: %w", err)
+	}
+
 	return nil
 }
 
