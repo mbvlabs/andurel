@@ -77,28 +77,11 @@ func Create{{.ModelName}}(ctx context.Context, exec storage.Executor, {{- range 
 }
 
 // Create{{.ModelName}}s creates multiple {{.ModelName}} records at once
-{{- if .HasForeignKey}}
-func Create{{.ModelName}}s(ctx context.Context, exec storage.Executor, counts map[{{.ForeignKeyField.Type}}]int, opts ...{{.ModelName}}Option) ([]models.{{.ModelName}}, error) {
-	{{.ModelName | toLower}}s := make([]models.{{.ModelName}}, 0)
-
-	for {{.ForeignKeyField.ArgumentName}}, count := range counts {
-		for i := 0; i < count; i++ {
-			{{.ModelName | toLower}}, err := Create{{.ModelName}}(ctx, exec, {{.ForeignKeyField.ArgumentName}}, opts...)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create {{.ModelName | toLower}} with {{.ForeignKeyField.ArgumentName}}=%s: %w", {{.ForeignKeyField.ArgumentName}}, err)
-			}
-			{{.ModelName | toLower}}s = append({{.ModelName | toLower}}s, {{.ModelName | toLower}})
-		}
-	}
-
-	return {{.ModelName | toLower}}s, nil
-}
-{{- else}}
-func Create{{.ModelName}}s(ctx context.Context, exec storage.Executor, count int, opts ...{{.ModelName}}Option) ([]models.{{.ModelName}}, error) {
+func Create{{.ModelName}}s(ctx context.Context, exec storage.Executor, {{range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}count int, opts ...{{.ModelName}}Option) ([]models.{{.ModelName}}, error) {
 	{{.ModelName | toLower}}s := make([]models.{{.ModelName}}, 0, count)
 
 	for i := 0; i < count; i++ {
-		{{.ModelName | toLower}}, err := Create{{.ModelName}}(ctx, exec, opts...)
+		{{.ModelName | toLower}}, err := Create{{.ModelName}}(ctx, exec, {{range .ForeignKeyFields}}{{.ArgumentName}}, {{end}}opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create {{.ModelName | toLower}} %d: %w", i+1, err)
 		}
@@ -107,7 +90,6 @@ func Create{{.ModelName}}s(ctx context.Context, exec storage.Executor, count int
 
 	return {{.ModelName | toLower}}s, nil
 }
-{{- end}}
 {{end}}
 
 // Option functions

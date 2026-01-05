@@ -1057,8 +1057,8 @@ type GeneratedFactory struct {
 	StandardImports   []string
 	ExternalImports   []string
 	HasCreateFunction bool
-	HasForeignKey     bool
-	ForeignKeyField   *FactoryField // Set if there's exactly one FK
+	HasForeignKeys    bool           // True if there are 1+ FKs
+	ForeignKeyFields  []FactoryField // All FK fields
 }
 
 // FactoryField represents a field in a factory
@@ -1093,11 +1093,6 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 		}
 	}
 
-	var foreignKeyField *FactoryField
-	if len(fkFields) == 1 {
-		foreignKeyField = &fkFields[0]
-	}
-
 	// Collect imports
 	standardImports := []string{"context", "fmt"}
 	externalImports := []string{
@@ -1121,8 +1116,8 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 		StandardImports:   standardImports,
 		ExternalImports:   externalImports,
 		HasCreateFunction: true, // Assume Create function exists
-		HasForeignKey:     len(fkFields) == 1,
-		ForeignKeyField:   foreignKeyField,
+		HasForeignKeys:    len(fkFields) > 0,
+		ForeignKeyFields:  fkFields,
 	}, nil
 }
 
