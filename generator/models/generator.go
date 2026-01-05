@@ -1057,11 +1057,14 @@ type GeneratedFactory struct {
 	StandardImports   []string
 	ExternalImports   []string
 	HasCreateFunction bool
+	HasForeignKey     bool
+	ForeignKeyField   *FactoryField // Set if there's exactly one FK
 }
 
 // FactoryField represents a field in a factory
 type FactoryField struct {
 	Name          string
+	ArgumentName  string
 	Type          string
 	GoZero        string
 	DefaultValue  string
@@ -1080,6 +1083,19 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 	for _, field := range genModel.Fields {
 		fieldInfo := g.analyzeFactoryField(field, config.TableName)
 		factoryFields = append(factoryFields, fieldInfo)
+	}
+
+	// Check for foreign keys
+	var fkFields []FactoryField
+	for _, field := range factoryFields {
+		if field.IsFK {
+			fkFields = append(fkFields, field)
+		}
+	}
+
+	var foreignKeyField *FactoryField
+	if len(fkFields) == 1 {
+		foreignKeyField = &fkFields[0]
 	}
 
 	// Collect imports
@@ -1105,6 +1121,8 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 		StandardImports:   standardImports,
 		ExternalImports:   externalImports,
 		HasCreateFunction: true, // Assume Create function exists
+		HasForeignKey:     len(fkFields) == 1,
+		ForeignKeyField:   foreignKeyField,
 	}, nil
 }
 
@@ -1112,6 +1130,7 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 func (g *Generator) analyzeFactoryField(field GeneratedField, tableName string) FactoryField {
 	info := FactoryField{
 		Name:          field.Name,
+		ArgumentName:  naming.ToLowerCamelCase(field.Name),
 		Type:          field.Type,
 		OptionName:    fmt.Sprintf("With%s%s", toCamelCase(tableName), field.Name),
 		IsID:          field.Name == "ID",
