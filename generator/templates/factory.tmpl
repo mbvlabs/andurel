@@ -22,7 +22,7 @@ type {{.ModelName}}Factory struct {
 type {{.ModelName}}Option func(*{{.ModelName}}Factory)
 
 // Build{{.ModelName}} creates an in-memory {{.ModelName}} with default test values
-func Build{{.ModelName}}(opts ...{{.ModelName}}Option) models.{{.ModelName}} {
+func Build{{.ModelName}}({{- range .Fields}}{{- if .IsFK}}{{.Name}} {{.Type}}, {{end}}{{end}}opts ...{{.ModelName}}Option) models.{{.ModelName}} {
 	f := &{{.ModelName}}Factory{
 		{{.ModelName}}: models.{{.ModelName}}{
 {{- range .Fields}}
@@ -37,7 +37,7 @@ func Build{{.ModelName}}(opts ...{{.ModelName}}Option) models.{{.ModelName}} {
 			{{.Name}}: {{.GoZero}},  // Optional timestamp - zero by default
 {{- end}}
 {{- else if .IsFK}}
-			{{.Name}}: {{.GoZero}},  // Foreign key - must be provided via option
+			{{.Name}}: {{.Name}},  // Foreign key - required parameter
 {{- else}}
 			{{.Name}}: {{.DefaultValue}},
 {{- end}}
@@ -54,9 +54,9 @@ func Build{{.ModelName}}(opts ...{{.ModelName}}Option) models.{{.ModelName}} {
 
 {{if .HasCreateFunction}}
 // Create{{.ModelName}} creates and persists a {{.ModelName}} to the database
-func Create{{.ModelName}}(ctx context.Context, exec storage.Executor, opts ...{{.ModelName}}Option) (models.{{.ModelName}}, error) {
-	// Build with defaults
-	built := Build{{.ModelName}}(opts...)
+func Create{{.ModelName}}(ctx context.Context, exec storage.Executor, {{- range .Fields}}{{- if .IsFK}}{{.Name}} {{.Type}}, {{end}}{{end}}opts ...{{.ModelName}}Option) (models.{{.ModelName}}, error) {
+	// Build with defaults and required FKs
+	built := Build{{.ModelName}}({{- range .Fields}}{{- if .IsFK}}{{.Name}}, {{end}}{{end}}opts...)
 
 	// Prepare creation data
 	data := models.Create{{.ModelName}}Data{
@@ -77,11 +77,11 @@ func Create{{.ModelName}}(ctx context.Context, exec storage.Executor, opts ...{{
 }
 
 // Create{{.ModelName}}s creates multiple {{.ModelName}} records at once
-func Create{{.ModelName}}s(ctx context.Context, exec storage.Executor, count int, opts ...{{.ModelName}}Option) ([]models.{{.ModelName}}, error) {
+func Create{{.ModelName}}s(ctx context.Context, exec storage.Executor, count int, {{- range .Fields}}{{- if .IsFK}}{{.Name}} {{.Type}}, {{end}}{{end}}opts ...{{.ModelName}}Option) ([]models.{{.ModelName}}, error) {
 	{{.ModelName | toLower}}s := make([]models.{{.ModelName}}, 0, count)
 
 	for i := 0; i < count; i++ {
-		{{.ModelName | toLower}}, err := Create{{.ModelName}}(ctx, exec, opts...)
+		{{.ModelName | toLower}}, err := Create{{.ModelName}}(ctx, exec, {{- range .Fields}}{{- if .IsFK}}{{.Name}}, {{end}}{{end}}opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create {{.ModelName | toLower}} %d: %w", i+1, err)
 		}
