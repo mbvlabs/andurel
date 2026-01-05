@@ -3,7 +3,6 @@ package models
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/pkg/constants"
@@ -261,21 +260,21 @@ func TestJSONBFieldGeneration(t *testing.T) {
 		t.Errorf("Metadata field SQLCType = %s, want pgtype.JSON", metadataField.SQLCType)
 	}
 
-	// Verify conversion from DB extracts bytes
-	if !strings.Contains(settingsField.ConversionFromDB, ".Bytes") {
-		t.Errorf("Settings ConversionFromDB = %s, expected to contain '.Bytes'", settingsField.ConversionFromDB)
+	// Verify conversion from DB - in pgx v5, JSONB/JSON are []byte type aliases, so no .Bytes needed
+	if settingsField.ConversionFromDB != "row.Settings" {
+		t.Errorf("Settings ConversionFromDB = %s, expected 'row.Settings'", settingsField.ConversionFromDB)
 	}
 
-	if !strings.Contains(metadataField.ConversionFromDB, ".Bytes") {
-		t.Errorf("Metadata ConversionFromDB = %s, expected to contain '.Bytes'", metadataField.ConversionFromDB)
+	if metadataField.ConversionFromDB != "row.Metadata" {
+		t.Errorf("Metadata ConversionFromDB = %s, expected 'row.Metadata'", metadataField.ConversionFromDB)
 	}
 
-	// Verify conversion to DB wraps bytes in pgtype struct
-	if !strings.Contains(settingsField.ConversionToDB, "pgtype.JSONB") {
-		t.Errorf("Settings ConversionToDB = %s, expected to contain 'pgtype.JSONB'", settingsField.ConversionToDB)
+	// Verify conversion to DB - in pgx v5, []byte is passed directly without wrapping
+	if settingsField.ConversionToDB != "data.Settings" {
+		t.Errorf("Settings ConversionToDB = %s, expected 'data.Settings'", settingsField.ConversionToDB)
 	}
 
-	if !strings.Contains(metadataField.ConversionToDB, "pgtype.JSON") {
-		t.Errorf("Metadata ConversionToDB = %s, expected to contain 'pgtype.JSON'", metadataField.ConversionToDB)
+	if metadataField.ConversionToDB != "data.Metadata" {
+		t.Errorf("Metadata ConversionToDB = %s, expected 'data.Metadata'", metadataField.ConversionToDB)
 	}
 }

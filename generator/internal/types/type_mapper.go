@@ -102,7 +102,8 @@ func (tm *TypeMapper) GenerateConversionFromDB(fieldName, sqlcType, goType strin
 		case "pgtype.UUID":
 			return fmt.Sprintf("uuid.UUID(row.%s.Bytes)", fieldName)
 		case "pgtype.JSONB", "pgtype.JSON":
-			return fmt.Sprintf("row.%s.Bytes", fieldName)
+			// pgtype.JSONB and pgtype.JSON are type aliases for []byte in pgx v5
+			return fmt.Sprintf("row.%s", fieldName)
 		case "pgtype.Inet", "pgtype.CIDR", "pgtype.Macaddr", "pgtype.Macaddr8":
 			return fmt.Sprintf("row.%s.IPNet.String()", fieldName)
 		case "pgtype.Point",
@@ -400,10 +401,9 @@ func (tm *TypeMapper) GenerateConversionToDB(
 			return fmt.Sprintf("pgtype.Timetz{Time: %s, Valid: true}", valueExpr)
 		case "pgtype.Interval":
 			return fmt.Sprintf("pgtype.Interval{Microseconds: %s, Valid: true}", valueExpr)
-		case "pgtype.JSONB":
-			return fmt.Sprintf("pgtype.JSONB{Bytes: %s, Valid: true}", valueExpr)
-		case "pgtype.JSON":
-			return fmt.Sprintf("pgtype.JSON{Bytes: %s, Valid: true}", valueExpr)
+		case "pgtype.JSONB", "pgtype.JSON":
+			// JSONB and JSON types accept []byte directly without wrapping
+			return valueExpr
 		case "pgtype.UUID":
 			return fmt.Sprintf("pgtype.UUID{Bytes: %s, Valid: true}", valueExpr)
 		case "pgtype.Inet", "pgtype.CIDR", "pgtype.Macaddr", "pgtype.Macaddr8":

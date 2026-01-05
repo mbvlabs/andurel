@@ -282,7 +282,7 @@ func TestGenerateConversionFromDB(t *testing.T) {
 			"row.UpdatedAt.Time",
 		},
 		{"pgtype.Numeric", "Amount", "pgtype.Numeric", "pgtype.Numeric", "row.Amount"},
-		{"pgtype.JSONB", "Metadata", "pgtype.JSONB", "pgtype.JSONB", "row.Metadata.Bytes"},
+		{"pgtype.JSONB", "Metadata", "pgtype.JSONB", "pgtype.JSONB", "row.Metadata"},
 	}
 
 	tm := NewTypeMapper("postgresql")
@@ -383,7 +383,7 @@ func TestGenerateConversionToDB(t *testing.T) {
 			"pgtype.JSONB",
 			"pgtype.JSONB",
 			"data.Metadata",
-			"pgtype.JSONB{Bytes: data.Metadata, Valid: true}",
+			"data.Metadata",
 		},
 	}
 
