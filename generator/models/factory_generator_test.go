@@ -22,7 +22,7 @@ func TestGenerator_BuildFactory(t *testing.T) {
 			{Name: "description", DataType: "text", IsNullable: true},
 			{Name: "price", DataType: "integer", IsNullable: false},
 			{Name: "in_stock", DataType: "boolean", IsNullable: false},
-			{Name: "category_id", DataType: "uuid", IsNullable: true},
+			{Name: "category_id", DataType: "uuid", IsNullable: true, ForeignKey: &catalog.ForeignKey{ReferencedTable: "categories", ReferencedColumn: "id"}},
 		},
 	}
 	if err := cat.AddTable("", table); err != nil {
@@ -96,8 +96,8 @@ func TestGenerator_BuildFactory(t *testing.T) {
 	if priceField == nil {
 		t.Error("Price field not found")
 	} else {
-		if !strings.Contains(priceField.DefaultValue, "faker.RandomInt") {
-			t.Errorf("Price field should use faker.RandomInt, got: %s", priceField.DefaultValue)
+		if !strings.Contains(priceField.DefaultValue, "randomInt") {
+			t.Errorf("Price field should use randomInt, got: %s", priceField.DefaultValue)
 		}
 	}
 

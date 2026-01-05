@@ -38,7 +38,7 @@ func (fa *FieldAnalyzer) AnalyzeField(field models.GeneratedField, tableName str
 		IsID:          field.Name == "ID",
 		IsTimestamp:   field.Type == "time.Time" || strings.Contains(field.Type, "Time"),
 		IsAutoManaged: field.Name == "ID" || field.Name == "CreatedAt" || field.Name == "UpdatedAt",
-		IsFK:          strings.HasSuffix(field.Name, "ID") && field.Name != "ID",
+		IsFK:          field.IsForeignKey,
 	}
 
 	// Determine default value
@@ -52,11 +52,15 @@ func (fa *FieldAnalyzer) determineDefault(fieldName, goType, sqlcType string) st
 	// Handle by type first
 	switch goType {
 	case "string":
-		return fa.stringDefault(fieldName)
-	case "int32", "int64", "int":
-		return fa.intDefault(fieldName)
+		return "faker.Word()"
+	case "int32", "int":
+		return "randomInt(1, 1000, 100)"
+	case "int64":
+		return "randomInt64(1, 1000, 100)"
+	case "int16":
+		return "randomInt16(1, 1000, 100)"
 	case "bool":
-		return "false"
+		return "faker.Bool()"
 	case "time.Time":
 		return "time.Time{}"
 	case "uuid.UUID":
@@ -107,18 +111,8 @@ func (fa *FieldAnalyzer) stringDefault(fieldName string) string {
 }
 
 func (fa *FieldAnalyzer) intDefault(fieldName string) string {
-	lower := strings.ToLower(fieldName)
-
-	switch {
-	case strings.Contains(lower, "price") || strings.Contains(lower, "amount"):
-		return "faker.RandomInt(100, 10000)" // Price in cents
-	case strings.Contains(lower, "count") || strings.Contains(lower, "quantity"):
-		return "faker.RandomInt(1, 100)"
-	case strings.Contains(lower, "age"):
-		return "faker.RandomInt(18, 80)"
-	default:
-		return "faker.RandomInt(1, 1000)"
-	}
+	// Use randomInt helper which handles faker.RandomInt errors
+	return "randomInt(1, 1000, 100)"
 }
 
 func (fa *FieldAnalyzer) pgtypeDefault(goType string) string {

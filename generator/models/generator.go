@@ -27,6 +27,7 @@ type GeneratedField struct {
 	ConversionToDB          string
 	ConversionToDBForUpdate string
 	ZeroCheck               string
+	IsForeignKey            bool
 }
 
 type GeneratedModel struct {
@@ -159,10 +160,11 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 	pkg = g.getSimpleGoTypePackage(goType)
 
 	field := GeneratedField{
-		Name:     types.FormatFieldName(col.Name),
-		Type:     goType,
-		SQLCType: sqlcType,
-		Package:  pkg,
+		Name:         types.FormatFieldName(col.Name),
+		Type:         goType,
+		SQLCType:     sqlcType,
+		Package:      pkg,
+		IsForeignKey: col.ForeignKey != nil,
 	}
 
 	field.ConversionFromDB = g.typeMapper.GenerateConversionFromDB(
@@ -1114,7 +1116,7 @@ func (g *Generator) analyzeFactoryField(field GeneratedField, tableName string) 
 		IsID:          field.Name == "ID",
 		IsTimestamp:   field.Type == "time.Time" || strings.Contains(field.Type, "Time"),
 		IsAutoManaged: field.Name == "ID" || field.Name == "CreatedAt" || field.Name == "UpdatedAt",
-		IsFK:          strings.HasSuffix(field.Name, "ID") && field.Name != "ID",
+		IsFK:          field.IsForeignKey,
 	}
 
 	// Determine default value
@@ -1128,11 +1130,15 @@ func (g *Generator) determineFactoryDefault(fieldName, goType, sqlcType string) 
 	// Handle by type first
 	switch goType {
 	case "string":
-		return g.stringFactoryDefault(fieldName)
-	case "int32", "int64", "int":
-		return g.intFactoryDefault(fieldName)
+		return "faker.Word()"
+	case "int32", "int":
+		return "randomInt(1, 1000, 100)"
+	case "int64":
+		return "randomInt64(1, 1000, 100)"
+	case "int16":
+		return "randomInt16(1, 1000, 100)"
 	case "bool":
-		return "false"
+		return "faker.Bool()"
 	case "time.Time":
 		return "time.Time{}"
 	case "uuid.UUID":

@@ -4,6 +4,11 @@ import (
 	"github.com/mbvlabs/andurel/generator/internal/validation"
 )
 
+type ForeignKey struct {
+	ReferencedTable  string
+	ReferencedColumn string
+}
+
 type Column struct {
 	Name         string
 	DataType     string
@@ -17,6 +22,7 @@ type Column struct {
 	ModifiedBy   string // migration file that last modified this column
 	IsPrimaryKey bool
 	IsUnique     bool
+	ForeignKey   *ForeignKey // nil if not a foreign key
 }
 
 func NewColumn(name, dataType string) *Column {
@@ -64,6 +70,14 @@ func (c *Column) SetArray() *Column {
 	return c
 }
 
+func (c *Column) SetForeignKey(referencedTable, referencedColumn string) *Column {
+	c.ForeignKey = &ForeignKey{
+		ReferencedTable:  referencedTable,
+		ReferencedColumn: referencedColumn,
+	}
+	return c
+}
+
 func (c *Column) SetCreatedBy(migrationFile string) *Column {
 	c.CreatedBy = migrationFile
 	return c
@@ -104,6 +118,13 @@ func (c *Column) Clone() *Column {
 	if c.DefaultVal != nil {
 		defaultVal := *c.DefaultVal
 		clone.DefaultVal = &defaultVal
+	}
+
+	if c.ForeignKey != nil {
+		clone.ForeignKey = &ForeignKey{
+			ReferencedTable:  c.ForeignKey.ReferencedTable,
+			ReferencedColumn: c.ForeignKey.ReferencedColumn,
+		}
 	}
 
 	return clone

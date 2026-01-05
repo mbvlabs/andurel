@@ -58,6 +58,11 @@ func (p *CreateTableParser) parseColumnDefinitions(
 ) ([]*catalog.Column, error) {
 	var columns []*catalog.Column
 	var primaryKeyColumns []string
+	var foreignKeys []struct {
+		column           string
+		referencedTable  string
+		referencedColumn string
+	}
 
 	defs := p.splitColumnDefinitions(columnDefs)
 
@@ -85,8 +90,27 @@ func (p *CreateTableParser) parseColumnDefinitions(
 			continue
 		}
 
-		if strings.HasPrefix(defLower, "foreign key") ||
-			strings.HasPrefix(defLower, "constraint") ||
+		if strings.HasPrefix(defLower, "foreign key") {
+			// Parse table-level FOREIGN KEY constraint
+			// Format: FOREIGN KEY (column) REFERENCES table(column)
+			fkRegex := regexp.MustCompile(
+				`(?i)foreign\s+key\s*\(\s*(\w+)\s*\)\s+references\s+(\w+)\s*\(\s*(\w+)\s*\)`,
+			)
+			if matches := fkRegex.FindStringSubmatch(def); len(matches) > 3 {
+				foreignKeys = append(foreignKeys, struct {
+					column           string
+					referencedTable  string
+					referencedColumn string
+				}{
+					column:           matches[1],
+					referencedTable:  matches[2],
+					referencedColumn: matches[3],
+				})
+			}
+			continue
+		}
+
+		if strings.HasPrefix(defLower, "constraint") ||
 			strings.HasPrefix(defLower, "unique") ||
 			strings.HasPrefix(defLower, "check") {
 			continue
@@ -113,6 +137,16 @@ func (p *CreateTableParser) parseColumnDefinitions(
 				if err := p.validatePrimaryKeyDatatype(col.DataType, databaseType, migrationFile, col.Name); err != nil {
 					return nil, err
 				}
+			}
+		}
+	}
+
+	// Apply table-level foreign keys
+	for _, fk := range foreignKeys {
+		for _, col := range columns {
+			if col.Name == fk.column {
+				col.SetForeignKey(fk.referencedTable, fk.referencedColumn)
+				break
 			}
 		}
 	}
@@ -187,6 +221,18 @@ func (p *CreateTableParser) parseColumnDefinition(
 	defaultRegex := regexp.MustCompile(`(?i)default\s+([^,\s]+(?:\s+[^,\s]+)*)`)
 	if matches := defaultRegex.FindStringSubmatch(def); len(matches) > 1 {
 		col.SetDefault(strings.TrimSpace(matches[1]))
+	}
+
+	// Parse inline REFERENCES clause
+	// Format: REFERENCES table(column) or REFERENCES table
+	referencesRegex := regexp.MustCompile(`(?i)references\s+(\w+)(?:\s*\(\s*(\w+)\s*\))?`)
+	if matches := referencesRegex.FindStringSubmatch(def); len(matches) > 1 {
+		referencedTable := matches[1]
+		referencedColumn := "id" // default to id if not specified
+		if len(matches) > 2 && matches[2] != "" {
+			referencedColumn = matches[2]
+		}
+		col.SetForeignKey(referencedTable, referencedColumn)
 	}
 
 	return col, nil

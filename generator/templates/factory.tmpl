@@ -8,7 +8,7 @@ import (
 {{- end}}
 
 	"{{.ModulePath}}/models"
-	"{{.ModulePath}}/storage"
+	"{{.ModulePath}}/internal/storage"
 {{- range .ExternalImports}}
 	"{{.}}"
 {{- end}}
@@ -37,7 +37,7 @@ func Build{{.ModelName}}(opts ...{{.ModelName}}Option) models.{{.ModelName}} {
 			{{.Name}}: {{.GoZero}},  // Optional timestamp - zero by default
 {{- end}}
 {{- else if .IsFK}}
-			{{.Name}}: uuid.UUID{},  // Foreign key - must be provided via option
+			{{.Name}}: {{.GoZero}},  // Foreign key - must be provided via option
 {{- else}}
 			{{.Name}}: {{.DefaultValue}},
 {{- end}}

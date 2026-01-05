@@ -35,26 +35,13 @@ func TestFieldAnalyzer_StringDefaults(t *testing.T) {
 }
 
 func TestFieldAnalyzer_IntDefaults(t *testing.T) {
-	tests := []struct {
-		fieldName string
-		expected  string
-	}{
-		{"Price", "faker.RandomInt(100, 10000)"},
-		{"Amount", "faker.RandomInt(100, 10000)"},
-		{"Count", "faker.RandomInt(1, 100)"},
-		{"Quantity", "faker.RandomInt(1, 100)"},
-		{"Age", "faker.RandomInt(18, 80)"},
-		{"RandomNumber", "faker.RandomInt(1, 1000)"},
-	}
-
 	analyzer := NewFieldAnalyzer("postgres")
-	for _, tt := range tests {
-		t.Run(tt.fieldName, func(t *testing.T) {
-			got := analyzer.intDefault(tt.fieldName)
-			if got != tt.expected {
-				t.Errorf("intDefault(%s) = %s, want %s", tt.fieldName, got, tt.expected)
-			}
-		})
+
+	// intDefault now returns a generic random int call for all fields
+	expected := "randomInt(1, 1000, 100)"
+	got := analyzer.intDefault("anyField")
+	if got != expected {
+		t.Errorf("intDefault(anyField) = %s, want %s", got, expected)
 	}
 }
 
@@ -85,8 +72,9 @@ func TestFieldAnalyzer_AnalyzeField(t *testing.T) {
 		{
 			name: "Foreign key field",
 			field: models.GeneratedField{
-				Name: "CategoryID",
-				Type: "uuid.UUID",
+				Name:         "CategoryID",
+				Type:         "uuid.UUID",
+				IsForeignKey: true,
 			},
 			tableName:    "products",
 			expectedName: "CategoryID",
