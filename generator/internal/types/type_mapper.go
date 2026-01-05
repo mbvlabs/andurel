@@ -400,10 +400,9 @@ func (tm *TypeMapper) GenerateConversionToDB(
 			return fmt.Sprintf("pgtype.Timetz{Time: %s, Valid: true}", valueExpr)
 		case "pgtype.Interval":
 			return fmt.Sprintf("pgtype.Interval{Microseconds: %s, Valid: true}", valueExpr)
-		case "pgtype.JSONB":
-			return fmt.Sprintf("pgtype.JSONB{Bytes: %s, Valid: true}", valueExpr)
-		case "pgtype.JSON":
-			return fmt.Sprintf("pgtype.JSON{Bytes: %s, Valid: true}", valueExpr)
+		case "pgtype.JSONB", "pgtype.JSON":
+			// JSONB and JSON types accept []byte directly without wrapping
+			return valueExpr
 		case "pgtype.UUID":
 			return fmt.Sprintf("pgtype.UUID{Bytes: %s, Valid: true}", valueExpr)
 		case "pgtype.Inet", "pgtype.CIDR", "pgtype.Macaddr", "pgtype.Macaddr8":

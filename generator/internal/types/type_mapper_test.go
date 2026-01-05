@@ -383,7 +383,7 @@ func TestGenerateConversionToDB(t *testing.T) {
 			"pgtype.JSONB",
 			"pgtype.JSONB",
 			"data.Metadata",
-			"pgtype.JSONB{Bytes: data.Metadata, Valid: true}",
+			"data.Metadata",
 		},
 	}
 
