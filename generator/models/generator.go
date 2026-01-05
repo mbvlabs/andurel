@@ -15,6 +15,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/mbvlabs/andurel/pkg/errors"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type GeneratedField struct {
@@ -1267,8 +1268,8 @@ func (g *Generator) WriteFactoryFile(factory *GeneratedFactory, outputDir string
 		return fmt.Errorf("failed to render factory file: %w", err)
 	}
 
-	// Determine output path
-	fileName := fmt.Sprintf("%s.go", strings.ToLower(factory.ModelName))
+	// Determine output path using snake_case for consistency with model files
+	fileName := fmt.Sprintf("%s.go", naming.ToSnakeCase(factory.ModelName))
 	outputPath := fmt.Sprintf("%s/models/factories/%s", outputDir, fileName)
 
 	// Ensure directory exists

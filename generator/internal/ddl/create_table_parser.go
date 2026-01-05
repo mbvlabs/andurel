@@ -90,9 +90,10 @@ func (p *CreateTableParser) parseColumnDefinitions(
 			continue
 		}
 
-		if strings.HasPrefix(defLower, "foreign key") {
+		if strings.HasPrefix(defLower, "foreign key") || strings.Contains(defLower, "foreign key") {
 			// Parse table-level FOREIGN KEY constraint
 			// Format: FOREIGN KEY (column) REFERENCES table(column)
+			// Also handles: CONSTRAINT name FOREIGN KEY (column) REFERENCES table(column)
 			fkRegex := regexp.MustCompile(
 				`(?i)foreign\s+key\s*\(\s*(\w+)\s*\)\s+references\s+(\w+)\s*\(\s*(\w+)\s*\)`,
 			)
