@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"{{.ModuleName}}/models/internal/db"
 	"{{.ModuleName}}/internal/storage"
@@ -144,11 +145,14 @@ func createToken(
 	}
 
 	params := db.InsertTokenParams{
-		ID:        uuid.New(),
-		Scope:     data.Scope,
-		ExpiresAt: data.ExpiresAt,
-		Hash:      data.Hash,
-		MetaData:  data.MetaData,
+		ID:    uuid.New(),
+		Scope: data.Scope,
+		ExpiresAt: pgtype.Timestamptz{
+			Time:  data.ExpiresAt,
+			Valid: true,
+		},
+		Hash:     data.Hash,
+		MetaData: data.MetaData,
 	}
 	row, err := queries.InsertToken(ctx, exec, params)
 	if err != nil {

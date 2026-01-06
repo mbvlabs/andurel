@@ -710,25 +710,13 @@ func (g *Generator) extractGeneratedParts(content, resourceName string) map[stri
 	parts := make(map[string]string)
 	lines := strings.Split(content, "\n")
 
+	// On --refresh: ONLY replace the main model struct and rowToModel function
+	// The model struct needs to match the current DB schema
+	// The rowToModel function maps sqlc rows to the domain model
+	// Do NOT replace domain data structs or CRUD functions - user will fix compilation errors
 	signatures := []string{
 		fmt.Sprintf("type %s struct", resourceName),
-		fmt.Sprintf("type Create%sData struct", resourceName),
-		fmt.Sprintf("type Update%sData struct", resourceName),
-		fmt.Sprintf("type Paginated%ss struct", resourceName),
-		fmt.Sprintf("type FindOrCreate%sData struct", resourceName),
-		fmt.Sprintf("func Find%s(", resourceName),
-		fmt.Sprintf("func Create%s(", resourceName),
-		fmt.Sprintf("func Update%s(", resourceName),
-		fmt.Sprintf("func Destroy%s(", resourceName),
-		fmt.Sprintf("func All%ss(", resourceName),
-		fmt.Sprintf("func Paginate%ss(", resourceName),
 		fmt.Sprintf("func rowTo%s(", resourceName),
-		fmt.Sprintf("func newInsert%sParams(", resourceName),
-		fmt.Sprintf("func newUpdate%sParams(", resourceName),
-		fmt.Sprintf("func newQueryPaginated%ssParams(", resourceName),
-		fmt.Sprintf("func %sExists(", resourceName),
-		fmt.Sprintf("func Upsert%s(", resourceName),
-		fmt.Sprintf("func FindOrCreate%s(", resourceName),
 	}
 
 	for _, signature := range signatures {

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/crypto/argon2"
 
 	"{{.ModuleName}}/models/internal/db"
@@ -204,7 +205,7 @@ func UpdateUser(
 	}
 
 	params := db.UpdateUserParams{
-		ID:    data.ID.String(),
+		ID:    data.ID,
 		Email: email,
 		EmailValidatedAt: pgtype.Timestamptz{
 			Time:  emailValidatedAt.Time,

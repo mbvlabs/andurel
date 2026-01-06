@@ -215,37 +215,6 @@ func Paginate{{.Name}}s(
 	}, nil
 }
 
-{{if hasErrorHandling}}
-func rowTo{{.Name}}(row db.{{SQLCTypeName .TableName}}) ({{.Name}}, error) {
-{{- range .Fields}}
-{{- if .RequiresErrorHandling}}
-	{{lower .Name}}, err := {{.ConversionFromDB}}
-	if err != nil {
-		return {{$.Name}}{}, err
-	}
-{{- end}}
-{{- end}}
-
-	return {{.Name}}{
-{{- range .Fields}}
-{{- if .RequiresErrorHandling}}
-		{{.Name}}: {{lower .Name}},
-{{- else}}
-		{{.Name}}: {{.ConversionFromDB}},
-{{- end}}
-{{- end}}
-	}, nil
-}
-{{else}}
-func rowTo{{.Name}}(row db.{{SQLCTypeName .TableName}}) {{.Name}} {
-	return {{.Name}}{
-{{- range .Fields}}
-		{{.Name}}: {{.ConversionFromDB}},
-{{- end}}
-	}
-}
-{{end}}
-
 func {{.Name}}Exists(
 	ctx context.Context,
 	exec storage.Executor,
@@ -328,3 +297,34 @@ func FindOrCreate{{.Name}}(
 	}
 	return result, true, nil{{else}}	return rowTo{{.Name}}(row), true, nil{{end}}
 }
+
+{{if hasErrorHandling}}
+func rowTo{{.Name}}(row db.{{SQLCTypeName .TableName}}) ({{.Name}}, error) {
+{{- range .Fields}}
+{{- if .RequiresErrorHandling}}
+	{{lower .Name}}, err := {{.ConversionFromDB}}
+	if err != nil {
+		return {{$.Name}}{}, err
+	}
+{{- end}}
+{{- end}}
+
+	return {{.Name}}{
+{{- range .Fields}}
+{{- if .RequiresErrorHandling}}
+		{{.Name}}: {{lower .Name}},
+{{- else}}
+		{{.Name}}: {{.ConversionFromDB}},
+{{- end}}
+{{- end}}
+	}, nil
+}
+{{else}}
+func rowTo{{.Name}}(row db.{{SQLCTypeName .TableName}}) {{.Name}} {
+	return {{.Name}}{
+{{- range .Fields}}
+		{{.Name}}: {{.ConversionFromDB}},
+{{- end}}
+	}
+}
+{{end}}
