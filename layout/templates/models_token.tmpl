@@ -143,7 +143,13 @@ func createToken(
 		return Token{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.BuildInsertTokenParams(uuid.New(), data.Scope, data.ExpiresAt, data.Hash, data.MetaData)
+	params := db.InsertTokenParams{
+		ID:        uuid.New(),
+		Scope:     data.Scope,
+		ExpiresAt: data.ExpiresAt,
+		Hash:      data.Hash,
+		MetaData:  data.MetaData,
+	}
 	row, err := queries.InsertToken(ctx, exec, params)
 	if err != nil {
 		return Token{}, err
@@ -195,7 +201,10 @@ func PaginateTokens(
 	rows, err := queries.QueryPaginatedTokens(
 		ctx,
 		exec,
-		db.BuildQueryPaginatedTokensParams(pageSize, offset),
+		db.QueryPaginatedTokensParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
 	)
 	if err != nil {
 		return PaginatedTokens{}, err

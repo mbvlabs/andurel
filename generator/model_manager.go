@@ -138,15 +138,6 @@ func (m *ModelManager) GenerateModel(resourceName string, tableNameOverride stri
 		return fmt.Errorf("failed to run sqlc generate: %w", err)
 	}
 
-	constructorFileName := fmt.Sprintf("%s_constructors.go", naming.ToSnakeCase(ctx.ResourceName))
-	constructorPath := filepath.Join(
-		filepath.Join(m.config.Paths.Models, "internal", "db"),
-		constructorFileName,
-	)
-	if err := m.modelGenerator.GenerateConstructors(cat, ctx.ResourceName, ctx.TableName, constructorPath, ctx.ModulePath); err != nil {
-		return fmt.Errorf("failed to generate constructor functions: %w", err)
-	}
-
 	// Generate factory (unless skipped)
 	if !skipFactory {
 		if err := m.generateFactory(cat, ctx); err != nil {
@@ -298,61 +289,6 @@ func (m *ModelManager) RefreshQueries(resourceName, tableName string) error {
 	return nil
 }
 
-func (m *ModelManager) RefreshConstructors(resourceName, tableName string) error {
-	modelPath := BuildModelPath(m.config.Paths.Models, resourceName)
-
-	tableNameOverridden := false
-	if overriddenTableName, found := ExtractTableNameOverride(modelPath, resourceName); found {
-		tableName = overriddenTableName
-		tableNameOverridden = true
-	}
-
-	ctx, err := m.setupModelContext(resourceName, tableName, tableNameOverridden)
-	if err != nil {
-		return err
-	}
-
-	if _, err := os.Stat(ctx.ModelPath); os.IsNotExist(err) {
-		return fmt.Errorf(
-			"model file %s does not exist. Generate model first",
-			ctx.ModelPath,
-		)
-	}
-	if _, err := os.Stat(ctx.SQLPath); os.IsNotExist(err) {
-		return fmt.Errorf(
-			"SQL file %s does not exist. Generate model first",
-			ctx.SQLPath,
-		)
-	}
-
-	cat, err := m.migrationManager.BuildCatalogFromMigrations(ctx.TableName, m.config)
-	if err != nil {
-		return err
-	}
-
-	if err := m.modelGenerator.RefreshQueries(cat, ctx.ResourceName, ctx.TableName, ctx.SQLPath); err != nil {
-		return fmt.Errorf("failed to refresh queries: %w", err)
-	}
-
-	constructorFileName := fmt.Sprintf("%s_constructors.go", naming.ToSnakeCase(ctx.ResourceName))
-	constructorPath := filepath.Join(
-		filepath.Join(m.config.Paths.Models, "internal", "db"),
-		constructorFileName,
-	)
-	if err := m.modelGenerator.RefreshConstructors(cat, ctx.ResourceName, ctx.TableName, constructorPath, ctx.ModulePath); err != nil {
-		return fmt.Errorf("failed to refresh constructor functions: %w", err)
-	}
-
-	if err := m.fileManager.RunSQLCGenerate(); err != nil {
-		return fmt.Errorf("failed to run sqlc generate: %w", err)
-	}
-
-	fmt.Printf(
-		"Successfully refreshed SQL queries and constructor functions for %s - schema changes are now compiler-enforced\n",
-		ctx.ResourceName,
-	)
-	return nil
-}
 
 type queriesSetupContext struct {
 	ModulePath   string

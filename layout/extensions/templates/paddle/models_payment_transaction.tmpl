@@ -69,18 +69,18 @@ func CreatePaymentTransaction(
 	exec storage.Executor,
 	data CreatePaymentTransactionData,
 ) (PaymentTransaction, error) {
-	params := db.BuildInsertPaymentTransactionParams(
-		uuid.New(),
-		data.ProviderTransactionID,
-		data.ProviderCustomerID,
-		data.Status,
-		data.Amount,
-		data.Currency,
-		sql.NullString{String: data.InvoiceNumber, Valid: data.InvoiceNumber != ""},
-		sql.NullTime{Time: data.BilledAt, Valid: !data.BilledAt.IsZero()},
-		sql.NullTime{Time: data.CompletedAt, Valid: !data.CompletedAt.IsZero()},
-		data.RawData,
-	)
+	params := db.InsertPaymentTransactionParams{
+		ID:                    uuid.New(),
+		ProviderTransactionID: data.ProviderTransactionID,
+		ProviderCustomerID:    data.ProviderCustomerID,
+		Status:                data.Status,
+		Amount:                data.Amount,
+		Currency:              data.Currency,
+		InvoiceNumber:         sql.NullString{String: data.InvoiceNumber, Valid: data.InvoiceNumber != ""},
+		BilledAt:              sql.NullTime{Time: data.BilledAt, Valid: !data.BilledAt.IsZero()},
+		CompletedAt:           sql.NullTime{Time: data.CompletedAt, Valid: !data.CompletedAt.IsZero()},
+		RawData:               data.RawData,
+	}
 
 	row, err := queries.InsertPaymentTransaction(ctx, exec, params)
 	if err != nil {
@@ -97,11 +97,11 @@ func UpdatePaymentTransactionStatus(
 	status string,
 	completedAt time.Time,
 ) (PaymentTransaction, error) {
-	params := db.BuildUpdatePaymentTransactionStatusParams(
-		paddleTransactionID,
-		status,
-		sql.NullTime{Time: completedAt, Valid: !completedAt.IsZero()},
-	)
+	params := db.UpdatePaymentTransactionStatusParams{
+		ProviderTransactionID: paddleTransactionID,
+		Status:                status,
+		CompletedAt:           sql.NullTime{Time: completedAt, Valid: !completedAt.IsZero()},
+	}
 
 	row, err := queries.UpdatePaymentTransactionStatus(ctx, exec, params)
 	if err != nil {

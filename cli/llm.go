@@ -157,7 +157,11 @@ func CreateProduct(ctx context.Context, exec storage.Executor, data CreateProduc
     if err := validate.Struct(data); err != nil {
         return Product{}, errors.Join(ErrDomainValidation, err)
     }
-    params := db.BuildInsertProductParams(uuid.New(), data.Name, data.Price)
+    params := db.InsertProductParams{
+        ID:    uuid.New(),
+        Name:  data.Name,
+        Price: data.Price,
+    }
     row, err := queries.InsertProduct(ctx, exec, params)
     if err != nil {
         return Product{}, err

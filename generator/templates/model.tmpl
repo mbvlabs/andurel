@@ -59,14 +59,14 @@ func Create{{.Name}}(
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.BuildInsert{{.Name}}Params(
-		uuid.New(),
+	params := db.Insert{{.Name}}Params{
+		ID: uuid.New(),
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
-		{{.ConversionToDB}},
+		{{.Name}}: {{.ConversionToDB}},
 {{- end}}
 {{- end}}
-	)
+	}
 	row, err := queries.Insert{{.Name}}(ctx, exec, params)
 	if err != nil {
 		return {{.Name}}{}, err
@@ -102,14 +102,14 @@ func Update{{.Name}}(
 		return {{.Name}}{}, err
 	}
 
-	params := db.BuildUpdate{{.Name}}Params(
-		data.ID,
+	params := db.Update{{.Name}}Params{
+		ID: data.ID,
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
-		{{.ConversionToDBForUpdate}},
+		{{.Name}}: {{.ConversionToDBForUpdate}},
 {{- end}}
 {{- end}}
-	)
+	}
 
 	row, err := queries.Update{{.Name}}(ctx, exec, params)
 	if err != nil {
@@ -186,7 +186,10 @@ func Paginate{{.Name}}s(
 	rows, err := queries.QueryPaginated{{.Name}}s(
 		ctx,
 		exec,
-		db.BuildQueryPaginated{{.Name}}sParams(pageSize, offset),
+		db.QueryPaginated{{.Name}}sParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
 	)
 	if err != nil {
 		return Paginated{{.Name}}s{}, err
@@ -264,14 +267,14 @@ func Upsert{{.Name}}(
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.BuildUpsert{{.Name}}Params(
-		uuid.New(),
+	params := db.Upsert{{.Name}}Params{
+		ID: uuid.New(),
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
-		{{.ConversionToDB}},
+		{{.Name}}: {{.ConversionToDB}},
 {{- end}}
 {{- end}}
-	)
+	}
 	row, err := queries.Upsert{{.Name}}(ctx, exec, params)
 	if err != nil {
 		return {{.Name}}{}, err
@@ -306,14 +309,14 @@ func FindOrCreate{{.Name}}(
 		return result, false, nil{{else}}		return rowTo{{.Name}}(existing), false, nil{{end}}
 	}
 
-	params := db.BuildInsert{{.Name}}Params(
-		data.ID,
+	params := db.Insert{{.Name}}Params{
+		ID: data.ID,
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
-		{{.ConversionToDB}},
+		{{.Name}}: {{.ConversionToDB}},
 {{- end}}
 {{- end}}
-	)
+	}
 	row, err := queries.Insert{{.Name}}(ctx, exec, params)
 	if err != nil {
 		return {{.Name}}{}, false, err

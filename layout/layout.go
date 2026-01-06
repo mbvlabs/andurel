@@ -376,10 +376,8 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_auth.tmpl": "config/auth.go",
 
 	// Auth - Models
-	"models_token.tmpl":                         "models/token.go",
-	"models_user.tmpl":                          "models/user.go",
-	"models_interal_db_token_constructors.tmpl": "models/internal/db/token_constructors.go",
-	"models_interal_db_user_constructors.tmpl":  "models/internal/db/user_constructors.go",
+	"models_token.tmpl": "models/token.go",
+	"models_user.tmpl":  "models/user.go",
 
 	// Auth - Services
 	"services_authentication.tmpl": "services/authentication.go",

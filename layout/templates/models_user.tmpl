@@ -143,7 +143,13 @@ func CreateUser(
 		return User{}, err
 	}
 
-	params := db.BuildInsertUserParams(uuid.New(), strings.ToLower(data.Email), sql.NullTime{}, []byte(hashedPassword), false)
+	params := db.InsertUserParams{
+		ID:               uuid.New(),
+		Email:            strings.ToLower(data.Email),
+		EmailValidatedAt: pgtype.Timestamptz{},
+		Password:         []byte(hashedPassword),
+		IsAdmin:          false,
+	}
 	row, err := queries.InsertUser(ctx, exec, params)
 	if err != nil {
 		return User{}, err
@@ -197,13 +203,16 @@ func UpdateUser(
 		password = currentRow.Password
 	}
 
-	params := db.BuildUpdateUserParams(
-		data.ID.String(),
-		email,
-		emailValidatedAt,
-		password,
-		data.IsAdmin,
-	)
+	params := db.UpdateUserParams{
+		ID:    data.ID.String(),
+		Email: email,
+		EmailValidatedAt: pgtype.Timestamptz{
+			Time:  emailValidatedAt.Time,
+			Valid: emailValidatedAt.Valid,
+		},
+		Password: password,
+		IsAdmin:  data.IsAdmin,
+	}
 
 	row, err := queries.UpdateUser(ctx, exec, params)
 	if err != nil {
@@ -255,7 +264,10 @@ func PaginateUsers(
 	rows, err := queries.QueryPaginatedUsers(
 		ctx,
 		exec,
-		db.BuildQueryPaginatedUsersParams(pageSize, offset),
+		db.QueryPaginatedUsersParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
 	)
 	if err != nil {
 		return PaginatedUsers{}, err

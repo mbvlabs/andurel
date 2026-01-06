@@ -96,10 +96,8 @@ func generateModel(cmd *cobra.Command, args []string) error {
 	}
 
 	if refresh {
-		return gen.RefreshConstructors(
-			resourceName,
-			naming.DeriveTableName(resourceName),
-		)
+		tableName := naming.DeriveTableName(resourceName)
+		return gen.RefreshModel(resourceName, tableName)
 	}
 
 	return gen.GenerateModel(resourceName, tableNameOverride, skipFactory)
