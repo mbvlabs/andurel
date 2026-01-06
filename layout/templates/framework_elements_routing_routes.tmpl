@@ -42,7 +42,7 @@ func NewSimpleRoute(path, name, prefix string) Route {
 }
 
 func (r Route ) URL() string {
-	return r.path
+	return configurePath(r.path, r.prefix)
 }
 
 func (r Route) Name() string {
