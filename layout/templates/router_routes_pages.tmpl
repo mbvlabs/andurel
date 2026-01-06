@@ -7,7 +7,7 @@ import (
 const PagePrefix = "pages"
 
 var HomePage = routing.NewSimpleRoute(
-	"/",
+	"",
 	"home",
-	PagePrefix,
+	"",
 )

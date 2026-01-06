@@ -121,7 +121,6 @@ func (s *Server) Start(
 		return nil
 	}
 
-	slog.InfoContext(ctx, "starting server", "addr", s.srv.Addr)
 	return s.srv.ListenAndServe()
 }
 
