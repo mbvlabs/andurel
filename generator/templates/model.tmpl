@@ -59,14 +59,14 @@ func Create{{.Name}}(
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.BuildInsert{{.Name}}Params(
-		uuid.New(),
+	params := db.Insert{{.Name}}Params{
+		ID: uuid.New(),
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
-		{{.ConversionToDB}},
+		{{.Name}}: {{.ConversionToDB}},
 {{- end}}
 {{- end}}
-	)
+	}
 	row, err := queries.Insert{{.Name}}(ctx, exec, params)
 	if err != nil {
 		return {{.Name}}{}, err
@@ -102,14 +102,14 @@ func Update{{.Name}}(
 		return {{.Name}}{}, err
 	}
 
-	params := db.BuildUpdate{{.Name}}Params(
-		data.ID,
+	params := db.Update{{.Name}}Params{
+		ID: data.ID,
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
-		{{.ConversionToDBForUpdate}},
+		{{.Name}}: {{.ConversionToDBForUpdate}},
 {{- end}}
 {{- end}}
-	)
+	}
 
 	row, err := queries.Update{{.Name}}(ctx, exec, params)
 	if err != nil {
@@ -186,7 +186,10 @@ func Paginate{{.Name}}s(
 	rows, err := queries.QueryPaginated{{.Name}}s(
 		ctx,
 		exec,
-		db.BuildQueryPaginated{{.Name}}sParams(pageSize, offset),
+		db.QueryPaginated{{.Name}}sParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
 	)
 	if err != nil {
 		return Paginated{{.Name}}s{}, err
@@ -210,6 +213,35 @@ func Paginate{{.Name}}s(
 		PageSize:   pageSize,
 		TotalPages: totalPages,
 	}, nil
+}
+
+func Upsert{{.Name}}(
+	ctx context.Context,
+	exec storage.Executor,
+	data Create{{.Name}}Data,
+) ({{.Name}}, error) {
+	if err := validate.Struct(data); err != nil {
+		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.Upsert{{.Name}}Params{
+		ID: uuid.New(),
+{{- range .Fields}}
+{{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
+		{{.Name}}: {{.ConversionToDB}},
+{{- end}}
+{{- end}}
+	}
+	row, err := queries.Upsert{{.Name}}(ctx, exec, params)
+	if err != nil {
+		return {{.Name}}{}, err
+	}
+
+{{if hasErrorHandling}}	result, err := rowTo{{.Name}}(row)
+	if err != nil {
+		return {{.Name}}{}, err
+	}
+	return result, nil{{else}}	return rowTo{{.Name}}(row), nil{{end}}
 }
 
 {{if hasErrorHandling}}
@@ -242,86 +274,3 @@ func rowTo{{.Name}}(row db.{{SQLCTypeName .TableName}}) {{.Name}} {
 	}
 }
 {{end}}
-
-func {{.Name}}Exists(
-	ctx context.Context,
-	exec storage.Executor,
-	id uuid.UUID,
-) (bool, error) {
-	result, err := queries.{{.Name}}Exists(ctx, exec, {{uuidParam "id"}})
-	if err != nil {
-		return false, err
-	}
-	return result, nil
-}
-
-func Upsert{{.Name}}(
-	ctx context.Context,
-	exec storage.Executor,
-	data Create{{.Name}}Data,
-) ({{.Name}}, error) {
-	if err := validate.Struct(data); err != nil {
-		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
-	}
-
-	params := db.BuildUpsert{{.Name}}Params(
-		uuid.New(),
-{{- range .Fields}}
-{{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
-		{{.ConversionToDB}},
-{{- end}}
-{{- end}}
-	)
-	row, err := queries.Upsert{{.Name}}(ctx, exec, params)
-	if err != nil {
-		return {{.Name}}{}, err
-	}
-
-{{if hasErrorHandling}}	result, err := rowTo{{.Name}}(row)
-	if err != nil {
-		return {{.Name}}{}, err
-	}
-	return result, nil{{else}}	return rowTo{{.Name}}(row), nil{{end}}
-}
-
-type FindOrCreate{{.Name}}Data struct {
-{{- range .Fields}}
-{{- if and (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
-	{{.Name}} {{.Type}}
-{{- end}}
-{{- end}}
-}
-
-func FindOrCreate{{.Name}}(
-	ctx context.Context,
-	exec storage.Executor,
-	data FindOrCreate{{.Name}}Data,
-) ({{.Name}}, bool, error) {
-	existing, err := queries.Query{{.Name}}ByID(ctx, exec, {{uuidParam "data.ID"}})
-	if err == nil {
-{{if hasErrorHandling}}		result, convErr := rowTo{{.Name}}(existing)
-		if convErr != nil {
-			return {{.Name}}{}, false, convErr
-		}
-		return result, false, nil{{else}}		return rowTo{{.Name}}(existing), false, nil{{end}}
-	}
-
-	params := db.BuildInsert{{.Name}}Params(
-		data.ID,
-{{- range .Fields}}
-{{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
-		{{.ConversionToDB}},
-{{- end}}
-{{- end}}
-	)
-	row, err := queries.Insert{{.Name}}(ctx, exec, params)
-	if err != nil {
-		return {{.Name}}{}, false, err
-	}
-
-{{if hasErrorHandling}}	result, err := rowTo{{.Name}}(row)
-	if err != nil {
-		return {{.Name}}{}, false, err
-	}
-	return result, true, nil{{else}}	return rowTo{{.Name}}(row), true, nil{{end}}
-}

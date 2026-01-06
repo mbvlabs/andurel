@@ -133,10 +133,6 @@ func (e Paddle) renderTemplates(ctx *Context) error {
 		"models_payment_product.tmpl":     "models/payment_product.go",
 		"models_payment_transaction.tmpl": "models/payment_transaction.go",
 
-		"models_internal_db_payment_customer_constructors.tmpl":    "models/internal/db/payment_customer_constructors.go",
-		"models_internal_db_payment_product_constructors.tmpl":     "models/internal/db/payment_product_constructors.go",
-		"models_internal_db_payment_transaction_constructors.tmpl": "models/internal/db/payment_transaction_constructors.go",
-
 		"router_routes_payment.tmpl": "router/routes/payment.go",
 	}
 

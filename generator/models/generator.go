@@ -582,125 +582,6 @@ func (g *Generator) RefreshQueries(
 	return nil
 }
 
-func (g *Generator) GenerateConstructorFile(
-	model *GeneratedModel,
-	templateStr string,
-) (string, error) {
-	funcMap := template.FuncMap{
-		"lower": func(s string) string {
-			return strings.ToLower(s)
-		},
-		"camelCase": func(s string) string {
-			if len(s) == 0 {
-				return s
-			}
-			return strings.ToLower(s[:1]) + s[1:]
-		},
-	}
-
-	tmpl, err := template.New("constructors").Funcs(funcMap).Parse(templateStr)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse constructor template: %w", err)
-	}
-
-	var buf strings.Builder
-	if err := tmpl.Execute(&buf, model); err != nil {
-		return "", fmt.Errorf("failed to execute constructor template: %w", err)
-	}
-
-	return buf.String(), nil
-}
-
-func (g *Generator) GenerateConstructors(
-	cat *catalog.Catalog,
-	resourceName, pluralName string,
-	constructorPath string,
-	modulePath string,
-) error {
-	model, err := g.Build(cat, Config{
-		TableName:    pluralName,
-		ResourceName: resourceName,
-		PackageName:  "db",
-		DatabaseType: g.typeMapper.GetDatabaseType(),
-		ModulePath:   modulePath,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to build model for constructors: %w", err)
-	}
-
-	model.Imports = g.calculateConstructorImports(model)
-
-	templateContent, err := templates.Files.ReadFile("constructors.tmpl")
-	if err != nil {
-		return fmt.Errorf("failed to read constructor template: %w", err)
-	}
-
-	constructorContent, err := g.GenerateConstructorFile(model, string(templateContent))
-	if err != nil {
-		return fmt.Errorf("failed to render constructor file: %w", err)
-	}
-
-	if err := os.WriteFile(constructorPath, []byte(constructorContent), constants.FilePermissionPrivate); err != nil {
-		return fmt.Errorf("failed to write constructor file: %w", err)
-	}
-
-	if err := files.FormatGoFile(constructorPath); err != nil {
-		return fmt.Errorf("failed to format constructor file: %w", err)
-	}
-
-	return nil
-}
-
-func (g *Generator) calculateConstructorImports(model *GeneratedModel) []string {
-	importSet := make(map[string]bool)
-
-	importSet["github.com/google/uuid"] = true
-
-	for _, field := range model.Fields {
-		if field.Name == "ID" || field.Name == "CreatedAt" || field.Name == "UpdatedAt" {
-			continue
-		}
-
-		if strings.Contains(field.SQLCType, "pgtype.") {
-			importSet["github.com/jackc/pgx/v5/pgtype"] = true
-		}
-		if strings.Contains(field.SQLCType, "sql.") {
-			importSet["database/sql"] = true
-		}
-		if strings.Contains(field.SQLCType, "time.Time") {
-			importSet["time"] = true
-		}
-		if strings.Contains(field.SQLCType, "uuid.UUID") {
-			importSet["github.com/google/uuid"] = true
-		}
-	}
-
-	stdImports, extImports := groupAndSortImports(importSet)
-	model.StandardImports = stdImports
-	model.ExternalImports = extImports
-	imports := append(
-		append(make([]string, 0, len(stdImports)+len(extImports)), stdImports...),
-		extImports...)
-	return imports
-}
-
-func (g *Generator) RefreshConstructors(
-	cat *catalog.Catalog,
-	resourceName string,
-	pluralName string,
-	constructorPath string,
-	modulePath string,
-) error {
-	if err := g.validateIDColumnConstraints(cat, pluralName); err != nil {
-		return fmt.Errorf("ID validation failed: %w", err)
-	}
-
-	if err := g.GenerateConstructors(cat, resourceName, pluralName, constructorPath, modulePath); err != nil {
-		return fmt.Errorf("failed to generate constructor functions: %w", err)
-	}
-
-	return nil
-}
 
 func (g *Generator) validateIDColumnConstraints(cat *catalog.Catalog, tableName string) error {
 	table, err := cat.GetTable("", tableName)
@@ -829,25 +710,13 @@ func (g *Generator) extractGeneratedParts(content, resourceName string) map[stri
 	parts := make(map[string]string)
 	lines := strings.Split(content, "\n")
 
+	// On --refresh: ONLY replace the main model struct and rowToModel function
+	// The model struct needs to match the current DB schema
+	// The rowToModel function maps sqlc rows to the domain model
+	// Do NOT replace domain data structs or CRUD functions - user will fix compilation errors
 	signatures := []string{
 		fmt.Sprintf("type %s struct", resourceName),
-		fmt.Sprintf("type Create%sData struct", resourceName),
-		fmt.Sprintf("type Update%sData struct", resourceName),
-		fmt.Sprintf("type Paginated%ss struct", resourceName),
-		fmt.Sprintf("type FindOrCreate%sData struct", resourceName),
-		fmt.Sprintf("func Find%s(", resourceName),
-		fmt.Sprintf("func Create%s(", resourceName),
-		fmt.Sprintf("func Update%s(", resourceName),
-		fmt.Sprintf("func Destroy%s(", resourceName),
-		fmt.Sprintf("func All%ss(", resourceName),
-		fmt.Sprintf("func Paginate%ss(", resourceName),
 		fmt.Sprintf("func rowTo%s(", resourceName),
-		fmt.Sprintf("func newInsert%sParams(", resourceName),
-		fmt.Sprintf("func newUpdate%sParams(", resourceName),
-		fmt.Sprintf("func newQueryPaginated%ssParams(", resourceName),
-		fmt.Sprintf("func %sExists(", resourceName),
-		fmt.Sprintf("func Upsert%s(", resourceName),
-		fmt.Sprintf("func FindOrCreate%s(", resourceName),
 	}
 
 	for _, signature := range signatures {

@@ -88,17 +88,17 @@ func CreatePaymentProduct(
 	exec storage.Executor,
 	data CreatePaymentProductData,
 ) (PaymentProduct, error) {
-	params := db.BuildInsertPaymentProductParams(
-		uuid.New(),
-		data.ProviderProductID,
-		data.ProviderPriceID,
-		data.Name,
-		sql.NullString{String: data.Description, Valid: data.Description != ""},
-		data.PriceAmount,
-		data.PriceCurrency,
-		sql.NullString{String: data.ImageURL, Valid: data.ImageURL != ""},
-		data.IsActive,
-	)
+	params := db.InsertPaymentProductParams{
+		ID:                uuid.New(),
+		ProviderProductID: data.ProviderProductID,
+		ProviderPriceID:   data.ProviderPriceID,
+		Name:              data.Name,
+		Description:       sql.NullString{String: data.Description, Valid: data.Description != ""},
+		PriceAmount:       data.PriceAmount,
+		PriceCurrency:     data.PriceCurrency,
+		ImageURL:          sql.NullString{String: data.ImageURL, Valid: data.ImageURL != ""},
+		IsActive:          data.IsActive,
+	}
 
 	row, err := queries.InsertPaymentProduct(ctx, exec, params)
 	if err != nil {

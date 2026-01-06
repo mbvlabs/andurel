@@ -43,10 +43,6 @@ func (g *Generator) RefreshQueries(resourceName, tableName string) error {
 	return g.coordinator.ModelManager.RefreshQueries(resourceName, tableName)
 }
 
-func (g *Generator) RefreshConstructors(resourceName, tableName string) error {
-	return g.coordinator.ModelManager.RefreshConstructors(resourceName, tableName)
-}
-
 func (g *Generator) GenerateQueriesOnly(resourceName string, tableNameOverride string) error {
 	return g.coordinator.ModelManager.GenerateQueriesOnly(resourceName, tableNameOverride)
 }

@@ -33,7 +33,7 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 			modulePath:    "github.com/example/myapp",
 			databaseType:  "postgresql",
 			expectedCreateParams: []string{
-				"params := db.BuildInsertUserParams(",
+				"params := db.InsertUserParams{",
 				"uuid.New(),",
 				"data.Email,",
 				"data.Name,",
@@ -41,7 +41,7 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 				"pgtype.Bool{Bool: data.IsActive, Valid: true}",
 			},
 			expectedUpdateParams: []string{
-				"params := db.BuildUpdateUserParams(",
+				"params := db.UpdateUserParams{",
 				"data.ID,",
 				"data.Email,",
 				"data.Name,",
@@ -49,17 +49,21 @@ func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
 				"pgtype.Bool{Bool: data.IsActive, Valid: true}",
 			},
 			expectedUpsertParams: []string{
-				"params := db.BuildUpsertUserParams(",
+				"params := db.UpsertUserParams{",
 				"uuid.New(),",
 			},
 			expectedFindOrCreateParams: []string{
 				"data.ID,",
 			},
 			unexpectedCreateCode: []string{
-				"BuildInsertUserParams()",
+				"BuildInsertUserParams",
+				"BuildUpdateUserParams",
+				"BuildQueryPaginated",
 			},
 			unexpectedUpdateCode: []string{
-				"BuildUpdateUserParams()",
+				"BuildInsertUserParams",
+				"BuildUpdateUserParams",
+				"BuildQueryPaginated",
 			},
 		},
 	}
@@ -288,8 +292,8 @@ func TestConstructorConversions__FieldsExcludedCorrectly(t *testing.T) {
 			createFunc := modelStr[createStart : createStart+createEnd]
 
 			for _, unexpected := range tt.unexpectedInCreate {
-				paramsStart := strings.Index(createFunc, "params := db.BuildInsertUserParams(")
-				paramsEnd := strings.Index(createFunc[paramsStart:], ")")
+				paramsStart := strings.Index(createFunc, "params := db.InsertUserParams{")
+				paramsEnd := strings.Index(createFunc[paramsStart:], "}")
 				paramsSection := createFunc[paramsStart : paramsStart+paramsEnd]
 
 				if strings.Contains(paramsSection, unexpected) {
@@ -306,8 +310,8 @@ func TestConstructorConversions__FieldsExcludedCorrectly(t *testing.T) {
 			updateFunc := modelStr[updateStart : updateStart+updateEnd]
 
 			for _, unexpected := range tt.unexpectedInUpdate {
-				paramsStart := strings.Index(updateFunc, "params := db.BuildUpdateUserParams(")
-				paramsEnd := strings.Index(updateFunc[paramsStart:], ")")
+				paramsStart := strings.Index(updateFunc, "params := db.UpdateUserParams{")
+				paramsEnd := strings.Index(updateFunc[paramsStart:], "}")
 				paramsSection := updateFunc[paramsStart : paramsStart+paramsEnd]
 
 				if strings.Contains(paramsSection, unexpected) {

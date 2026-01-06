@@ -131,12 +131,6 @@ func TestGenerator_MethodsExist(t *testing.T) {
 				return gen.RefreshQueries("", "")
 			},
 		},
-		{
-			name: "RefreshConstructors",
-			fn: func() error {
-				return gen.RefreshConstructors("", "")
-			},
-		},
 	}
 
 	for _, tt := range tests {

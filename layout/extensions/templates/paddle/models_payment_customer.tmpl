@@ -41,11 +41,11 @@ func CreatePaymentCustomer(
 	exec storage.Executor,
 	data CreatePaymentCustomerData,
 ) (PaymentCustomer, error) {
-	params := db.BuildInsertPaymentCustomerParams(
-		uuid.New(),
-		data.ProviderCustomerID,
-		data.Email,
-	)
+	params := db.InsertPaymentCustomerParams{
+		ID:                 uuid.New(),
+		ProviderCustomerID: data.ProviderCustomerID,
+		Email:              data.Email,
+	}
 
 	row, err := queries.InsertPaymentCustomer(ctx, exec, params)
 	if err != nil {

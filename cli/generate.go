@@ -35,14 +35,14 @@ The table name is automatically inferred as the plural form of the model name.
 Examples:
   andurel generate model User                        # Create new model for 'users' table
   andurel generate model User --table-name=accounts  # Create model using custom 'accounts' table
-  andurel generate model User --refresh              # Refresh SQL queries and constructor functions
+  andurel generate model User --refresh              # Refresh SQL queries after schema changes
   andurel generate model User --skip-factory         # Skip factory generation`,
 		Args: cobra.ExactArgs(1),
 		RunE: generateModel,
 	}
 
 	cmd.Flags().
-		Bool("refresh", false, "Refresh SQL queries and constructor functions - makes schema changes compiler-enforced")
+		Bool("refresh", false, "Refresh SQL queries after schema changes - makes changes compiler-enforced")
 	cmd.Flags().
 		String("table-name", "", "Override the default table name (defaults to plural form of model name)")
 	cmd.Flags().
@@ -96,10 +96,8 @@ func generateModel(cmd *cobra.Command, args []string) error {
 	}
 
 	if refresh {
-		return gen.RefreshConstructors(
-			resourceName,
-			naming.DeriveTableName(resourceName),
-		)
+		tableName := naming.DeriveTableName(resourceName)
+		return gen.RefreshModel(resourceName, tableName)
 	}
 
 	return gen.GenerateModel(resourceName, tableNameOverride, skipFactory)
