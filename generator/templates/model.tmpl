@@ -215,18 +215,6 @@ func Paginate{{.Name}}s(
 	}, nil
 }
 
-func {{.Name}}Exists(
-	ctx context.Context,
-	exec storage.Executor,
-	id uuid.UUID,
-) (bool, error) {
-	result, err := queries.{{.Name}}Exists(ctx, exec, {{uuidParam "id"}})
-	if err != nil {
-		return false, err
-	}
-	return result, nil
-}
-
 func Upsert{{.Name}}(
 	ctx context.Context,
 	exec storage.Executor,
@@ -254,48 +242,6 @@ func Upsert{{.Name}}(
 		return {{.Name}}{}, err
 	}
 	return result, nil{{else}}	return rowTo{{.Name}}(row), nil{{end}}
-}
-
-type FindOrCreate{{.Name}}Data struct {
-{{- range .Fields}}
-{{- if and (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
-	{{.Name}} {{.Type}}
-{{- end}}
-{{- end}}
-}
-
-func FindOrCreate{{.Name}}(
-	ctx context.Context,
-	exec storage.Executor,
-	data FindOrCreate{{.Name}}Data,
-) ({{.Name}}, bool, error) {
-	existing, err := queries.Query{{.Name}}ByID(ctx, exec, {{uuidParam "data.ID"}})
-	if err == nil {
-{{if hasErrorHandling}}		result, convErr := rowTo{{.Name}}(existing)
-		if convErr != nil {
-			return {{.Name}}{}, false, convErr
-		}
-		return result, false, nil{{else}}		return rowTo{{.Name}}(existing), false, nil{{end}}
-	}
-
-	params := db.Insert{{.Name}}Params{
-		ID: data.ID,
-{{- range .Fields}}
-{{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
-		{{.Name}}: {{.ConversionToDB}},
-{{- end}}
-{{- end}}
-	}
-	row, err := queries.Insert{{.Name}}(ctx, exec, params)
-	if err != nil {
-		return {{.Name}}{}, false, err
-	}
-
-{{if hasErrorHandling}}	result, err := rowTo{{.Name}}(row)
-	if err != nil {
-		return {{.Name}}{}, false, err
-	}
-	return result, true, nil{{else}}	return rowTo{{.Name}}(row), true, nil{{end}}
 }
 
 {{if hasErrorHandling}}
