@@ -3,6 +3,7 @@
 package routing
 
 import (
+	"log/slog"
 	"strings"
 
 	"github.com/google/uuid"
@@ -21,11 +22,25 @@ func configurePath(path, prefix string) string {
 		return path
 	}
 
-	if !strings.Contains(prefix, "/") {
-		return prefix + "/" + path
+	prefixEndsWithSlash := strings.HasSuffix(prefix, "/")
+	pathStartsWithSlash := strings.HasPrefix(path, "/")
+
+	if prefixEndsWithSlash != pathStartsWithSlash {
+		return prefix + path
 	}
 
-	return prefix + path
+	if prefixEndsWithSlash && pathStartsWithSlash {
+		slog.Warn("unexpected prefix/path configuration. double slash between prefix and path", "prefix", prefix, "path", path)
+		path, ok := strings.CutPrefix(path, "/")
+		if !ok {
+			slog.Warn("unable to cut prefix from path", "path", path)
+		}
+
+		return prefix + path
+	}
+
+	slog.Warn("unexpected prefix/path configuration. missing slash between prefix and path", "prefix", prefix, "path", path)
+	return prefix + "/" + path
 }
 
 type Route struct {
