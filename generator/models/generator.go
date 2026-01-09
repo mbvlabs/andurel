@@ -263,10 +263,6 @@ func (g *Generator) getSimpleGoTypePackage(goType string) string {
 
 func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string) (string, error) {
 	funcMap := template.FuncMap{
-		"SQLCTypeName": func(tableName string) string {
-			singular := strings.TrimSuffix(tableName, "s") // Simple singularization
-			return types.FormatFieldName(singular)
-		},
 		"lower": func(s string) string {
 			return strings.ToLower(s)
 		},

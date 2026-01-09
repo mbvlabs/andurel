@@ -1,0 +1,216 @@
+package models
+
+import (
+	"context"
+	"errors"
+	"time"
+
+
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/example/test/models/internal/db"
+	"github.com/example/test/internal/storage"
+)
+
+type Story struct {
+	ID uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Title string
+	Content string
+}
+
+func FindStory(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) (Story, error) {
+	row, err := queries.QueryStoryByID(ctx, exec, id)
+	if err != nil {
+		return Story{}, err
+	}
+
+	return rowToStory(row), nil
+}
+
+type CreateStoryData struct {
+	Title string
+	Content string
+}
+
+func CreateStory(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateStoryData,
+) (Story, error) {
+	if err := validate.Struct(data); err != nil {
+		return Story{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.InsertStoryParams{
+		ID: uuid.New(),
+		Title: data.Title,
+		Content: pgtype.Text{String: data.Content, Valid: true},
+	}
+	row, err := queries.InsertStory(ctx, exec, params)
+	if err != nil {
+		return Story{}, err
+	}
+
+	return rowToStory(row), nil
+}
+
+type UpdateStoryData struct {
+	ID uuid.UUID
+	UpdatedAt time.Time
+	Title string
+	Content string
+}
+
+func UpdateStory(
+	ctx context.Context,
+	exec storage.Executor,
+	data UpdateStoryData,
+) (Story, error) {
+	if err := validate.Struct(data); err != nil {
+		return Story{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	currentRow, err := queries.QueryStoryByID(ctx, exec, data.ID)
+	if err != nil {
+		return Story{}, err
+	}
+
+	params := db.UpdateStoryParams{
+		ID: data.ID,
+		Title: data.Title,
+		Content: pgtype.Text{String: data.Content, Valid: true},
+	}
+
+	row, err := queries.UpdateStory(ctx, exec, params)
+	if err != nil {
+		return Story{}, err
+	}
+
+	return rowToStory(row), nil
+}
+
+func DestroyStory(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) error {
+	return queries.DeleteStory(ctx, exec, id)
+}
+
+func AllStorys(
+	ctx context.Context,
+	exec storage.Executor,
+) ([]Story, error) {
+	rows, err := queries.QueryAllStorys(ctx, exec)
+	if err != nil {
+		return nil, err
+	}
+
+	storys := make([]Story, len(rows))
+	for i, row := range rows {
+		storys[i] = rowToStory(row)
+	}
+
+	return storys, nil
+}
+
+type PaginatedStorys struct {
+	Storys []Story
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func PaginateStorys(
+	ctx context.Context,
+	exec storage.Executor,
+	page int64,
+	pageSize int64,
+) (PaginatedStorys, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := queries.CountStorys(ctx, exec)
+	if err != nil {
+		return PaginatedStorys{}, err
+	}
+
+	rows, err := queries.QueryPaginatedStorys(
+		ctx,
+		exec,
+		db.QueryPaginatedStorysParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
+	)
+	if err != nil {
+		return PaginatedStorys{}, err
+	}
+
+	storys := make([]Story, len(rows))
+	for i, row := range rows {
+		storys[i] = rowToStory(row)
+	}
+
+	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+
+	return PaginatedStorys{
+		Storys:    storys,
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func UpsertStory(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateStoryData,
+) (Story, error) {
+	if err := validate.Struct(data); err != nil {
+		return Story{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpsertStoryParams{
+		ID: uuid.New(),
+		Title: data.Title,
+		Content: pgtype.Text{String: data.Content, Valid: true},
+	}
+	row, err := queries.UpsertStory(ctx, exec, params)
+	if err != nil {
+		return Story{}, err
+	}
+
+	return rowToStory(row), nil
+}
+
+
+func rowToStory(row db.Story) Story {
+	return Story{
+		ID: row.ID,
+		CreatedAt: row.CreatedAt.Time,
+		UpdatedAt: row.UpdatedAt.Time,
+		Title: row.Title,
+		Content: row.Content.String,
+	}
+}
+

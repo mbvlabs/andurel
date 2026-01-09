@@ -1,0 +1,216 @@
+package models
+
+import (
+	"context"
+	"errors"
+	"time"
+
+
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/example/test/models/internal/db"
+	"github.com/example/test/internal/storage"
+)
+
+type Factory struct {
+	ID uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Name string
+	Location string
+}
+
+func FindFactory(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) (Factory, error) {
+	row, err := queries.QueryFactoryByID(ctx, exec, id)
+	if err != nil {
+		return Factory{}, err
+	}
+
+	return rowToFactory(row), nil
+}
+
+type CreateFactoryData struct {
+	Name string
+	Location string
+}
+
+func CreateFactory(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateFactoryData,
+) (Factory, error) {
+	if err := validate.Struct(data); err != nil {
+		return Factory{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.InsertFactoryParams{
+		ID: uuid.New(),
+		Name: data.Name,
+		Location: pgtype.Text{String: data.Location, Valid: true},
+	}
+	row, err := queries.InsertFactory(ctx, exec, params)
+	if err != nil {
+		return Factory{}, err
+	}
+
+	return rowToFactory(row), nil
+}
+
+type UpdateFactoryData struct {
+	ID uuid.UUID
+	UpdatedAt time.Time
+	Name string
+	Location string
+}
+
+func UpdateFactory(
+	ctx context.Context,
+	exec storage.Executor,
+	data UpdateFactoryData,
+) (Factory, error) {
+	if err := validate.Struct(data); err != nil {
+		return Factory{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	currentRow, err := queries.QueryFactoryByID(ctx, exec, data.ID)
+	if err != nil {
+		return Factory{}, err
+	}
+
+	params := db.UpdateFactoryParams{
+		ID: data.ID,
+		Name: data.Name,
+		Location: pgtype.Text{String: data.Location, Valid: true},
+	}
+
+	row, err := queries.UpdateFactory(ctx, exec, params)
+	if err != nil {
+		return Factory{}, err
+	}
+
+	return rowToFactory(row), nil
+}
+
+func DestroyFactory(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) error {
+	return queries.DeleteFactory(ctx, exec, id)
+}
+
+func AllFactorys(
+	ctx context.Context,
+	exec storage.Executor,
+) ([]Factory, error) {
+	rows, err := queries.QueryAllFactorys(ctx, exec)
+	if err != nil {
+		return nil, err
+	}
+
+	factorys := make([]Factory, len(rows))
+	for i, row := range rows {
+		factorys[i] = rowToFactory(row)
+	}
+
+	return factorys, nil
+}
+
+type PaginatedFactorys struct {
+	Factorys []Factory
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func PaginateFactorys(
+	ctx context.Context,
+	exec storage.Executor,
+	page int64,
+	pageSize int64,
+) (PaginatedFactorys, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := queries.CountFactorys(ctx, exec)
+	if err != nil {
+		return PaginatedFactorys{}, err
+	}
+
+	rows, err := queries.QueryPaginatedFactorys(
+		ctx,
+		exec,
+		db.QueryPaginatedFactorysParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
+	)
+	if err != nil {
+		return PaginatedFactorys{}, err
+	}
+
+	factorys := make([]Factory, len(rows))
+	for i, row := range rows {
+		factorys[i] = rowToFactory(row)
+	}
+
+	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+
+	return PaginatedFactorys{
+		Factorys:    factorys,
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func UpsertFactory(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateFactoryData,
+) (Factory, error) {
+	if err := validate.Struct(data); err != nil {
+		return Factory{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpsertFactoryParams{
+		ID: uuid.New(),
+		Name: data.Name,
+		Location: pgtype.Text{String: data.Location, Valid: true},
+	}
+	row, err := queries.UpsertFactory(ctx, exec, params)
+	if err != nil {
+		return Factory{}, err
+	}
+
+	return rowToFactory(row), nil
+}
+
+
+func rowToFactory(row db.Factory) Factory {
+	return Factory{
+		ID: row.ID,
+		CreatedAt: row.CreatedAt.Time,
+		UpdatedAt: row.UpdatedAt.Time,
+		Name: row.Name,
+		Location: row.Location.String,
+	}
+}
+

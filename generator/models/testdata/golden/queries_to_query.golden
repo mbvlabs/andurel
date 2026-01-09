@@ -1,0 +1,216 @@
+package models
+
+import (
+	"context"
+	"errors"
+	"time"
+
+
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/example/test/models/internal/db"
+	"github.com/example/test/internal/storage"
+)
+
+type Query struct {
+	ID uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	SqlText string
+	Status string
+}
+
+func FindQuery(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) (Query, error) {
+	row, err := queries.QueryQueryByID(ctx, exec, id)
+	if err != nil {
+		return Query{}, err
+	}
+
+	return rowToQuery(row), nil
+}
+
+type CreateQueryData struct {
+	SqlText string
+	Status string
+}
+
+func CreateQuery(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateQueryData,
+) (Query, error) {
+	if err := validate.Struct(data); err != nil {
+		return Query{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.InsertQueryParams{
+		ID: uuid.New(),
+		SqlText: data.SqlText,
+		Status: data.Status,
+	}
+	row, err := queries.InsertQuery(ctx, exec, params)
+	if err != nil {
+		return Query{}, err
+	}
+
+	return rowToQuery(row), nil
+}
+
+type UpdateQueryData struct {
+	ID uuid.UUID
+	UpdatedAt time.Time
+	SqlText string
+	Status string
+}
+
+func UpdateQuery(
+	ctx context.Context,
+	exec storage.Executor,
+	data UpdateQueryData,
+) (Query, error) {
+	if err := validate.Struct(data); err != nil {
+		return Query{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	currentRow, err := queries.QueryQueryByID(ctx, exec, data.ID)
+	if err != nil {
+		return Query{}, err
+	}
+
+	params := db.UpdateQueryParams{
+		ID: data.ID,
+		SqlText: data.SqlText,
+		Status: data.Status,
+	}
+
+	row, err := queries.UpdateQuery(ctx, exec, params)
+	if err != nil {
+		return Query{}, err
+	}
+
+	return rowToQuery(row), nil
+}
+
+func DestroyQuery(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) error {
+	return queries.DeleteQuery(ctx, exec, id)
+}
+
+func AllQuerys(
+	ctx context.Context,
+	exec storage.Executor,
+) ([]Query, error) {
+	rows, err := queries.QueryAllQuerys(ctx, exec)
+	if err != nil {
+		return nil, err
+	}
+
+	querys := make([]Query, len(rows))
+	for i, row := range rows {
+		querys[i] = rowToQuery(row)
+	}
+
+	return querys, nil
+}
+
+type PaginatedQuerys struct {
+	Querys []Query
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func PaginateQuerys(
+	ctx context.Context,
+	exec storage.Executor,
+	page int64,
+	pageSize int64,
+) (PaginatedQuerys, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := queries.CountQuerys(ctx, exec)
+	if err != nil {
+		return PaginatedQuerys{}, err
+	}
+
+	rows, err := queries.QueryPaginatedQuerys(
+		ctx,
+		exec,
+		db.QueryPaginatedQuerysParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
+	)
+	if err != nil {
+		return PaginatedQuerys{}, err
+	}
+
+	querys := make([]Query, len(rows))
+	for i, row := range rows {
+		querys[i] = rowToQuery(row)
+	}
+
+	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+
+	return PaginatedQuerys{
+		Querys:    querys,
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func UpsertQuery(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateQueryData,
+) (Query, error) {
+	if err := validate.Struct(data); err != nil {
+		return Query{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpsertQueryParams{
+		ID: uuid.New(),
+		SqlText: data.SqlText,
+		Status: data.Status,
+	}
+	row, err := queries.UpsertQuery(ctx, exec, params)
+	if err != nil {
+		return Query{}, err
+	}
+
+	return rowToQuery(row), nil
+}
+
+
+func rowToQuery(row db.Query) Query {
+	return Query{
+		ID: row.ID,
+		CreatedAt: row.CreatedAt.Time,
+		UpdatedAt: row.UpdatedAt.Time,
+		SqlText: row.SqlText,
+		Status: row.Status,
+	}
+}
+

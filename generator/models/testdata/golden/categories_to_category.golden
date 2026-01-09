@@ -1,0 +1,216 @@
+package models
+
+import (
+	"context"
+	"errors"
+	"time"
+
+
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/example/test/models/internal/db"
+	"github.com/example/test/internal/storage"
+)
+
+type Category struct {
+	ID uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Name string
+	Slug string
+}
+
+func FindCategory(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) (Category, error) {
+	row, err := queries.QueryCategoryByID(ctx, exec, id)
+	if err != nil {
+		return Category{}, err
+	}
+
+	return rowToCategory(row), nil
+}
+
+type CreateCategoryData struct {
+	Name string
+	Slug string
+}
+
+func CreateCategory(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateCategoryData,
+) (Category, error) {
+	if err := validate.Struct(data); err != nil {
+		return Category{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.InsertCategoryParams{
+		ID: uuid.New(),
+		Name: data.Name,
+		Slug: data.Slug,
+	}
+	row, err := queries.InsertCategory(ctx, exec, params)
+	if err != nil {
+		return Category{}, err
+	}
+
+	return rowToCategory(row), nil
+}
+
+type UpdateCategoryData struct {
+	ID uuid.UUID
+	UpdatedAt time.Time
+	Name string
+	Slug string
+}
+
+func UpdateCategory(
+	ctx context.Context,
+	exec storage.Executor,
+	data UpdateCategoryData,
+) (Category, error) {
+	if err := validate.Struct(data); err != nil {
+		return Category{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	currentRow, err := queries.QueryCategoryByID(ctx, exec, data.ID)
+	if err != nil {
+		return Category{}, err
+	}
+
+	params := db.UpdateCategoryParams{
+		ID: data.ID,
+		Name: data.Name,
+		Slug: data.Slug,
+	}
+
+	row, err := queries.UpdateCategory(ctx, exec, params)
+	if err != nil {
+		return Category{}, err
+	}
+
+	return rowToCategory(row), nil
+}
+
+func DestroyCategory(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) error {
+	return queries.DeleteCategory(ctx, exec, id)
+}
+
+func AllCategorys(
+	ctx context.Context,
+	exec storage.Executor,
+) ([]Category, error) {
+	rows, err := queries.QueryAllCategorys(ctx, exec)
+	if err != nil {
+		return nil, err
+	}
+
+	categorys := make([]Category, len(rows))
+	for i, row := range rows {
+		categorys[i] = rowToCategory(row)
+	}
+
+	return categorys, nil
+}
+
+type PaginatedCategorys struct {
+	Categorys []Category
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func PaginateCategorys(
+	ctx context.Context,
+	exec storage.Executor,
+	page int64,
+	pageSize int64,
+) (PaginatedCategorys, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := queries.CountCategorys(ctx, exec)
+	if err != nil {
+		return PaginatedCategorys{}, err
+	}
+
+	rows, err := queries.QueryPaginatedCategorys(
+		ctx,
+		exec,
+		db.QueryPaginatedCategorysParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
+	)
+	if err != nil {
+		return PaginatedCategorys{}, err
+	}
+
+	categorys := make([]Category, len(rows))
+	for i, row := range rows {
+		categorys[i] = rowToCategory(row)
+	}
+
+	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+
+	return PaginatedCategorys{
+		Categorys:    categorys,
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func UpsertCategory(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateCategoryData,
+) (Category, error) {
+	if err := validate.Struct(data); err != nil {
+		return Category{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpsertCategoryParams{
+		ID: uuid.New(),
+		Name: data.Name,
+		Slug: data.Slug,
+	}
+	row, err := queries.UpsertCategory(ctx, exec, params)
+	if err != nil {
+		return Category{}, err
+	}
+
+	return rowToCategory(row), nil
+}
+
+
+func rowToCategory(row db.Category) Category {
+	return Category{
+		ID: row.ID,
+		CreatedAt: row.CreatedAt.Time,
+		UpdatedAt: row.UpdatedAt.Time,
+		Name: row.Name,
+		Slug: row.Slug,
+	}
+}
+
