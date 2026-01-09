@@ -6,6 +6,7 @@ import (
 	"text/template"
 	"unicode"
 
+	"github.com/jinzhu/inflection"
 	"github.com/mbvlabs/andurel/pkg/errors"
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
@@ -165,6 +166,7 @@ func getDefaultTemplateFunctions() template.FuncMap {
 		"ToCamelCase":      naming.ToCamelCase,
 		"ToLowerCamelCase": naming.ToLowerCamelCase,
 		"DeriveTableName":  naming.DeriveTableName,
+		"Plural":           inflection.Plural,
 		"DatabaseType": func(data any) string {
 			if td, ok := data.(*TemplateData); ok {
 				return td.Database.Type

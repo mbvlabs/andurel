@@ -105,37 +105,37 @@ func DestroyCategory(
 	return queries.DeleteCategory(ctx, exec, id)
 }
 
-func AllCategorys(
+func AllCategories(
 	ctx context.Context,
 	exec storage.Executor,
 ) ([]Category, error) {
-	rows, err := queries.QueryAllCategorys(ctx, exec)
+	rows, err := queries.QueryAllCategories(ctx, exec)
 	if err != nil {
 		return nil, err
 	}
 
-	categorys := make([]Category, len(rows))
+	categories := make([]Category, len(rows))
 	for i, row := range rows {
-		categorys[i] = rowToCategory(row)
+		categories[i] = rowToCategory(row)
 	}
 
-	return categorys, nil
+	return categories, nil
 }
 
-type PaginatedCategorys struct {
-	Categorys []Category
+type PaginatedCategories struct {
+	Categories []Category
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func PaginateCategorys(
+func PaginateCategories(
 	ctx context.Context,
 	exec storage.Executor,
 	page int64,
 	pageSize int64,
-) (PaginatedCategorys, error) {
+) (PaginatedCategories, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -148,32 +148,32 @@ func PaginateCategorys(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := queries.CountCategorys(ctx, exec)
+	totalCount, err := queries.CountCategories(ctx, exec)
 	if err != nil {
-		return PaginatedCategorys{}, err
+		return PaginatedCategories{}, err
 	}
 
-	rows, err := queries.QueryPaginatedCategorys(
+	rows, err := queries.QueryPaginatedCategories(
 		ctx,
 		exec,
-		db.QueryPaginatedCategorysParams{
+		db.QueryPaginatedCategoriesParams{
 			Limit:  pageSize,
 			Offset: offset,
 		},
 	)
 	if err != nil {
-		return PaginatedCategorys{}, err
+		return PaginatedCategories{}, err
 	}
 
-	categorys := make([]Category, len(rows))
+	categories := make([]Category, len(rows))
 	for i, row := range rows {
-		categorys[i] = rowToCategory(row)
+		categories[i] = rowToCategory(row)
 	}
 
 	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
 
-	return PaginatedCategorys{
-		Categorys:    categorys,
+	return PaginatedCategories{
+		Categories:    categories,
 		TotalCount: totalCount,
 		Page:       page,
 		PageSize:   pageSize,

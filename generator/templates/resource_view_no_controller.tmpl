@@ -9,7 +9,7 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 	@base() {
 		<div>
 			<div>
-				<h1>{{.ResourceName}}s</h1>
+				<h1>{{Plural .ResourceName}}</h1>
 				<a href="/">New {{.ResourceName}}</a>
 			</div>
 			<div>

@@ -105,37 +105,37 @@ func DestroyCompany(
 	return queries.DeleteCompany(ctx, exec, id)
 }
 
-func AllCompanys(
+func AllCompanies(
 	ctx context.Context,
 	exec storage.Executor,
 ) ([]Company, error) {
-	rows, err := queries.QueryAllCompanys(ctx, exec)
+	rows, err := queries.QueryAllCompanies(ctx, exec)
 	if err != nil {
 		return nil, err
 	}
 
-	companys := make([]Company, len(rows))
+	companies := make([]Company, len(rows))
 	for i, row := range rows {
-		companys[i] = rowToCompany(row)
+		companies[i] = rowToCompany(row)
 	}
 
-	return companys, nil
+	return companies, nil
 }
 
-type PaginatedCompanys struct {
-	Companys []Company
+type PaginatedCompanies struct {
+	Companies []Company
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func PaginateCompanys(
+func PaginateCompanies(
 	ctx context.Context,
 	exec storage.Executor,
 	page int64,
 	pageSize int64,
-) (PaginatedCompanys, error) {
+) (PaginatedCompanies, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -148,32 +148,32 @@ func PaginateCompanys(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := queries.CountCompanys(ctx, exec)
+	totalCount, err := queries.CountCompanies(ctx, exec)
 	if err != nil {
-		return PaginatedCompanys{}, err
+		return PaginatedCompanies{}, err
 	}
 
-	rows, err := queries.QueryPaginatedCompanys(
+	rows, err := queries.QueryPaginatedCompanies(
 		ctx,
 		exec,
-		db.QueryPaginatedCompanysParams{
+		db.QueryPaginatedCompaniesParams{
 			Limit:  pageSize,
 			Offset: offset,
 		},
 	)
 	if err != nil {
-		return PaginatedCompanys{}, err
+		return PaginatedCompanies{}, err
 	}
 
-	companys := make([]Company, len(rows))
+	companies := make([]Company, len(rows))
 	for i, row := range rows {
-		companys[i] = rowToCompany(row)
+		companies[i] = rowToCompany(row)
 	}
 
 	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
 
-	return PaginatedCompanys{
-		Companys:    companys,
+	return PaginatedCompanies{
+		Companies:    companies,
 		TotalCount: totalCount,
 		Page:       page,
 		PageSize:   pageSize,

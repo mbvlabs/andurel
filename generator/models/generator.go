@@ -7,6 +7,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/jinzhu/inflection"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/internal/ddl"
@@ -275,6 +276,7 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 		"hasErrorHandling": func() bool {
 			return false
 		},
+		"Plural": inflection.Plural,
 	}
 
 	tmpl, err := template.New("model").Funcs(funcMap).Parse(templateStr)

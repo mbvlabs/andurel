@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jinzhu/inflection"
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
@@ -22,9 +23,10 @@ type controllerValidationContext struct {
 }
 
 func newControllerValidationContext(resourceName, tableName string, config *UnifiedConfig) *controllerValidationContext {
-	controllerFieldName := resourceName + "s"
-	controllerVarName := naming.ToCamelCase(naming.ToSnakeCase(resourceName)) + "s"
-	controllerConstructor := controllerVarName + " := new" + resourceName + "s(db)"
+	pluralResourceName := inflection.Plural(resourceName)
+	controllerFieldName := pluralResourceName
+	controllerVarName := naming.ToCamelCase(naming.ToSnakeCase(pluralResourceName))
+	controllerConstructor := controllerVarName + " := new" + pluralResourceName + "(db)"
 	controllerReturnField := controllerVarName + ","
 
 	return &controllerValidationContext{

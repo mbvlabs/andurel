@@ -131,41 +131,41 @@ func Destroy{{.Name}}(
 	return queries.Delete{{.Name}}(ctx, exec, {{uuidParam "id"}})
 }
 
-func All{{.Name}}s(
+func All{{Plural .Name}}(
 	ctx context.Context,
 	exec storage.Executor,
 ) ([]{{.Name}}, error) {
-	rows, err := queries.QueryAll{{.Name}}s(ctx, exec)
+	rows, err := queries.QueryAll{{Plural .Name}}(ctx, exec)
 	if err != nil {
 		return nil, err
 	}
 
-	{{lower .Name}}s := make([]{{.Name}}, len(rows))
+	{{lower (Plural .Name)}} := make([]{{.Name}}, len(rows))
 	for i, row := range rows {
 {{if hasErrorHandling}}		result, err := rowTo{{.Name}}(row)
 		if err != nil {
 			return nil, err
 		}
-		{{lower .Name}}s[i] = result{{else}}		{{lower .Name}}s[i] = rowTo{{.Name}}(row){{end}}
+		{{lower (Plural .Name)}}[i] = result{{else}}		{{lower (Plural .Name)}}[i] = rowTo{{.Name}}(row){{end}}
 	}
 
-	return {{lower .Name}}s, nil
+	return {{lower (Plural .Name)}}, nil
 }
 
-type Paginated{{.Name}}s struct {
-	{{.Name}}s []{{.Name}}
+type Paginated{{Plural .Name}} struct {
+	{{Plural .Name}} []{{.Name}}
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func Paginate{{.Name}}s(
+func Paginate{{Plural .Name}}(
 	ctx context.Context,
 	exec storage.Executor,
 	page int64,
 	pageSize int64,
-) (Paginated{{.Name}}s, error) {
+) (Paginated{{Plural .Name}}, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -178,36 +178,36 @@ func Paginate{{.Name}}s(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := queries.Count{{.Name}}s(ctx, exec)
+	totalCount, err := queries.Count{{Plural .Name}}(ctx, exec)
 	if err != nil {
-		return Paginated{{.Name}}s{}, err
+		return Paginated{{Plural .Name}}{}, err
 	}
 
-	rows, err := queries.QueryPaginated{{.Name}}s(
+	rows, err := queries.QueryPaginated{{Plural .Name}}(
 		ctx,
 		exec,
-		db.QueryPaginated{{.Name}}sParams{
+		db.QueryPaginated{{Plural .Name}}Params{
 			Limit:  pageSize,
 			Offset: offset,
 		},
 	)
 	if err != nil {
-		return Paginated{{.Name}}s{}, err
+		return Paginated{{Plural .Name}}{}, err
 	}
 
-	{{lower .Name}}s := make([]{{.Name}}, len(rows))
+	{{lower (Plural .Name)}} := make([]{{.Name}}, len(rows))
 	for i, row := range rows {
 {{if hasErrorHandling}}		result, err := rowTo{{.Name}}(row)
 		if err != nil {
-			return Paginated{{.Name}}s{}, err
+			return Paginated{{Plural .Name}}{}, err
 		}
-		{{lower .Name}}s[i] = result{{else}}		{{lower .Name}}s[i] = rowTo{{.Name}}(row){{end}}
+		{{lower (Plural .Name)}}[i] = result{{else}}		{{lower (Plural .Name)}}[i] = rowTo{{.Name}}(row){{end}}
 	}
 
 	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
 
-	return Paginated{{.Name}}s{
-		{{.Name}}s:    {{lower .Name}}s,
+	return Paginated{{Plural .Name}}{
+		{{Plural .Name}}:    {{lower (Plural .Name)}},
 		TotalCount: totalCount,
 		Page:       page,
 		PageSize:   pageSize,

@@ -21,15 +21,15 @@ import (
 	"{{.ModulePath}}/views"
 )
 
-type {{.ResourceName}}s struct {
+type {{Plural .ResourceName}} struct {
 	db storage.Pool
 }
 
-func New{{.ResourceName}}s(db storage.Pool) {{.ResourceName}}s {
-	return {{.ResourceName}}s{db}
+func New{{Plural .ResourceName}}(db storage.Pool) {{Plural .ResourceName}} {
+	return {{Plural .ResourceName}}{db}
 }
 
-func (r {{.ResourceName}}s) Index(c echo.Context) error {
+func (r {{Plural .ResourceName}}) Index(c echo.Context) error {
 	page := int64(1)
 	if p := c.QueryParam("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
@@ -45,7 +45,7 @@ func (r {{.ResourceName}}s) Index(c echo.Context) error {
 		}
 	}
 
-	{{.PluralName | ToCamelCase}}List, err := models.Paginate{{.ResourceName}}s(
+	{{.PluralName | ToCamelCase}}List, err := models.Paginate{{Plural .ResourceName}}(
 		c.Request().Context(),
 		r.db.Conn(),
 		page,
@@ -55,10 +55,10 @@ func (r {{.ResourceName}}s) Index(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return render(c, views.{{.ResourceName}}Index({{.PluralName | ToCamelCase}}List.{{.ResourceName}}s))
+	return render(c, views.{{.ResourceName}}Index({{.PluralName | ToCamelCase}}List.{{Plural .ResourceName}}))
 }
 
-func (r {{.ResourceName}}s) Show(c echo.Context) error {
+func (r {{Plural .ResourceName}}) Show(c echo.Context) error {
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
@@ -72,7 +72,7 @@ func (r {{.ResourceName}}s) Show(c echo.Context) error {
 	return render(c, views.{{.ResourceName}}Show({{.ResourceName | ToLowerCamelCase}}))
 }
 
-func (r {{.ResourceName}}s) New(c echo.Context) error {
+func (r {{Plural .ResourceName}}) New(c echo.Context) error {
 	return render(c, views.{{.ResourceName}}New())
 }
 
@@ -88,7 +88,7 @@ type Create{{.ResourceName}}FormPayload struct {
 {{- end}}
 }
 
-func (r {{.ResourceName}}s) Create(c echo.Context) error {
+func (r {{Plural .ResourceName}}) Create(c echo.Context) error {
 	var payload Create{{.ResourceName}}FormPayload
 	if err := c.Bind(&payload); err != nil {
 		slog.ErrorContext(
@@ -140,7 +140,7 @@ func (r {{.ResourceName}}s) Create(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.ID))
 }
 
-func (r {{.ResourceName}}s) Edit(c echo.Context) error {
+func (r {{Plural .ResourceName}}) Edit(c echo.Context) error {
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
@@ -166,7 +166,7 @@ type Update{{.ResourceName}}FormPayload struct {
 {{- end}}
 }
 
-func (r {{.ResourceName}}s) Update(c echo.Context) error {
+func (r {{Plural .ResourceName}}) Update(c echo.Context) error {
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
@@ -227,7 +227,7 @@ func (r {{.ResourceName}}s) Update(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.ID))
 }
 
-func (r {{.ResourceName}}s) Destroy(c echo.Context) error {
+func (r {{Plural .ResourceName}}) Destroy(c echo.Context) error {
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())

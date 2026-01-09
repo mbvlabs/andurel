@@ -105,37 +105,37 @@ func DestroyQuery(
 	return queries.DeleteQuery(ctx, exec, id)
 }
 
-func AllQuerys(
+func AllQueries(
 	ctx context.Context,
 	exec storage.Executor,
 ) ([]Query, error) {
-	rows, err := queries.QueryAllQuerys(ctx, exec)
+	rows, err := queries.QueryAllQueries(ctx, exec)
 	if err != nil {
 		return nil, err
 	}
 
-	querys := make([]Query, len(rows))
+	queries := make([]Query, len(rows))
 	for i, row := range rows {
-		querys[i] = rowToQuery(row)
+		queries[i] = rowToQuery(row)
 	}
 
-	return querys, nil
+	return queries, nil
 }
 
-type PaginatedQuerys struct {
-	Querys []Query
+type PaginatedQueries struct {
+	Queries []Query
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func PaginateQuerys(
+func PaginateQueries(
 	ctx context.Context,
 	exec storage.Executor,
 	page int64,
 	pageSize int64,
-) (PaginatedQuerys, error) {
+) (PaginatedQueries, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -148,32 +148,32 @@ func PaginateQuerys(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := queries.CountQuerys(ctx, exec)
+	totalCount, err := queries.CountQueries(ctx, exec)
 	if err != nil {
-		return PaginatedQuerys{}, err
+		return PaginatedQueries{}, err
 	}
 
-	rows, err := queries.QueryPaginatedQuerys(
+	rows, err := queries.QueryPaginatedQueries(
 		ctx,
 		exec,
-		db.QueryPaginatedQuerysParams{
+		db.QueryPaginatedQueriesParams{
 			Limit:  pageSize,
 			Offset: offset,
 		},
 	)
 	if err != nil {
-		return PaginatedQuerys{}, err
+		return PaginatedQueries{}, err
 	}
 
-	querys := make([]Query, len(rows))
+	queries := make([]Query, len(rows))
 	for i, row := range rows {
-		querys[i] = rowToQuery(row)
+		queries[i] = rowToQuery(row)
 	}
 
 	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
 
-	return PaginatedQuerys{
-		Querys:    querys,
+	return PaginatedQueries{
+		Queries:    queries,
 		TotalCount: totalCount,
 		Page:       page,
 		PageSize:   pageSize,
