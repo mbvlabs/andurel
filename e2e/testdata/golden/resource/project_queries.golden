@@ -1,0 +1,40 @@
+-- name: QueryProjectByID :one
+select * from projects where id=$1;
+
+-- name: QueryProjects :many
+select * from projects;
+
+-- name: QueryAllProjects :many
+select * from projects;
+
+-- name: InsertProject :one
+insert into
+    projects (id, name, description, created_at, updated_at)
+values
+    ($1, $2, $3, now(), now())
+returning *;
+
+-- name: UpdateProject :one
+update projects
+    set name=$2, description=$3, updated_at=now()
+where id = $1
+returning *;
+
+-- name: DeleteProject :exec
+delete from projects where id=$1;
+
+-- name: QueryPaginatedProjects :many
+select * from projects
+order by created_at desc
+limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
+
+-- name: CountProjects :one
+select count(*) from projects;
+
+-- name: UpsertProject :one
+insert into
+    projects (id, name, description, created_at, updated_at)
+values
+    ($1, $2, $3, now(), now())
+on conflict (id) do update set name=excluded.name, description=excluded.description, updated_at=now()
+returning *;

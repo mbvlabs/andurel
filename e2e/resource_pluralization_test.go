@@ -46,7 +46,7 @@ func TestResourcePluralization(t *testing.T) {
 		columns          []string
 	}{
 		{
-			name:             "company_irregular_plural",
+			name:             "company",
 			resourceName:     "Company",
 			tableName:        "companies",
 			expectedPlural:   "Companies",
@@ -54,6 +54,17 @@ func TestResourcePluralization(t *testing.T) {
 			columns: []string{
 				"name VARCHAR(200) NOT NULL",
 				"industry VARCHAR(100)",
+			},
+		},
+		{
+			name:             "project",
+			resourceName:     "Project",
+			tableName:        "projects",
+			expectedPlural:   "Projects",
+			expectedSingular: "Project",
+			columns: []string{
+				"name VARCHAR(200) NOT NULL",
+				"description TEXT",
 			},
 		},
 	}
@@ -82,6 +93,7 @@ func TestResourcePluralization(t *testing.T) {
 				"controllers/" + tc.tableName + ".go",
 				"views/" + tc.tableName + "_resource.templ",
 				"router/routes/" + tc.tableName + ".go",
+				"router/connect_" + tc.tableName + "_routes.go",
 			}
 
 			for _, f := range expectedFiles {
@@ -107,6 +119,10 @@ func TestResourcePluralization(t *testing.T) {
 
 			t.Run("routes_pluralization", func(t *testing.T) {
 				validateRoutesPluralization(t, project, tc)
+			})
+
+			t.Run("router_registration_pluralization", func(t *testing.T) {
+				validateRouterRegistrationPluralization(t, project, tc)
 			})
 		})
 	}
@@ -390,6 +406,57 @@ func validateRoutesPluralization(
 
 	// Golden file comparison
 	goldenPath := filepath.Join("testdata", "golden", "resource", tc.name+"_routes.golden")
+	compareOrUpdateGolden(t, goldenPath, contentStr)
+}
+
+func validateRouterRegistrationPluralization(
+	t *testing.T,
+	project *internal.Project,
+	tc pluralizationTestCase,
+) {
+	t.Helper()
+
+	routerPath := filepath.Join(project.Dir, "router", "connect_"+tc.tableName+"_routes.go")
+	content, err := os.ReadFile(routerPath)
+	if err != nil {
+		t.Fatalf("Failed to read router registration file: %v", err)
+	}
+
+	contentStr := string(content)
+
+	lowercasePlural := strings.ToLower(tc.expectedPlural)
+
+	// Check for correct patterns
+	correctPatterns := []struct {
+		pattern string
+		desc    string
+	}{
+		{
+			"func register" + tc.expectedPlural + "Routes(",
+			"Registration function uses correct plural",
+		},
+		{
+			lowercasePlural + " controllers." + tc.expectedPlural,
+			"Controller parameter uses correct plural",
+		},
+		{
+			"routes." + tc.expectedSingular + "Index",
+			"Uses singular for route constants",
+		},
+		{
+			lowercasePlural + ".Index",
+			"Uses lowercase plural for controller method calls",
+		},
+	}
+
+	for _, p := range correctPatterns {
+		if !strings.Contains(contentStr, p.pattern) {
+			t.Errorf("Router registration file should contain %q (%s)", p.pattern, p.desc)
+		}
+	}
+
+	// Golden file comparison
+	goldenPath := filepath.Join("testdata", "golden", "resource", tc.name+"_router.golden")
 	compareOrUpdateGolden(t, goldenPath, contentStr)
 }
 

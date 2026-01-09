@@ -1,0 +1,200 @@
+package controllers
+
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+	"strconv"
+
+	"testapp/internal/storage"
+	"testapp/models"
+	"testapp/router/cookies"
+	"testapp/router/routes"
+	"testapp/views"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
+)
+
+type Projects struct {
+	db storage.Pool
+}
+
+func NewProjects(db storage.Pool) Projects {
+	return Projects{db}
+}
+
+func (r Projects) Index(c echo.Context) error {
+	page := int64(1)
+	if p := c.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := c.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	projectsList, err := models.PaginateProjects(
+		c.Request().Context(),
+		r.db.Conn(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return render(c, views.InternalError())
+	}
+
+	return render(c, views.ProjectIndex(projectsList.Projects))
+}
+
+func (r Projects) Show(c echo.Context) error {
+	projectID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return render(c, views.BadRequest())
+	}
+
+	project, err := models.FindProject(c.Request().Context(), r.db.Conn(), projectID)
+	if err != nil {
+		return render(c, views.NotFound())
+	}
+
+	return render(c, views.ProjectShow(project))
+}
+
+func (r Projects) New(c echo.Context) error {
+	return render(c, views.ProjectNew())
+}
+
+type CreateProjectFormPayload struct {
+	Name        string `form:"name"`
+	Description string `form:"description"`
+}
+
+func (r Projects) Create(c echo.Context) error {
+	var payload CreateProjectFormPayload
+	if err := c.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"could not parse CreateProjectFormPayload",
+			"error",
+			err,
+		)
+
+		return render(c, views.NotFound())
+	}
+
+	data := models.CreateProjectData{
+		Name:        payload.Name,
+		Description: payload.Description,
+	}
+
+	project, err := models.CreateProject(
+		c.Request().Context(),
+		r.db.Conn(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to create project: %v", err)); flashErr != nil {
+			return flashErr
+		}
+		return c.Redirect(http.StatusSeeOther, routes.ProjectNew.URL())
+	}
+
+	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Project created successfully"); flashErr != nil {
+		return render(c, views.InternalError())
+	}
+
+	return c.Redirect(http.StatusSeeOther, routes.ProjectShow.URL(project.ID))
+}
+
+func (r Projects) Edit(c echo.Context) error {
+	projectID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return render(c, views.BadRequest())
+	}
+
+	project, err := models.FindProject(c.Request().Context(), r.db.Conn(), projectID)
+	if err != nil {
+		return render(c, views.NotFound())
+	}
+
+	return render(c, views.ProjectEdit(project))
+}
+
+type UpdateProjectFormPayload struct {
+	Name        string `form:"name"`
+	Description string `form:"description"`
+}
+
+func (r Projects) Update(c echo.Context) error {
+	projectID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return render(c, views.BadRequest())
+	}
+
+	var payload UpdateProjectFormPayload
+	if err := c.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"could not parse UpdateProjectFormPayload",
+			"error",
+			err,
+		)
+
+		return render(c, views.NotFound())
+	}
+
+	data := models.UpdateProjectData{
+		ID:          projectID,
+		Name:        payload.Name,
+		Description: payload.Description,
+	}
+
+	project, err := models.UpdateProject(
+		c.Request().Context(),
+		r.db.Conn(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to update project: %v", err)); flashErr != nil {
+			return render(c, views.InternalError())
+		}
+		return c.Redirect(
+			http.StatusSeeOther,
+			routes.ProjectEdit.URL(projectID),
+		)
+	}
+
+	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Project updated successfully"); flashErr != nil {
+		return render(c, views.InternalError())
+	}
+
+	return c.Redirect(http.StatusSeeOther, routes.ProjectShow.URL(project.ID))
+}
+
+func (r Projects) Destroy(c echo.Context) error {
+	projectID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return render(c, views.BadRequest())
+	}
+
+	err = models.DestroyProject(c.Request().Context(), r.db.Conn(), projectID)
+	if err != nil {
+		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete project: %v", err)); flashErr != nil {
+			return render(c, views.InternalError())
+		}
+		return c.Redirect(http.StatusSeeOther, routes.ProjectIndex.URL())
+	}
+
+	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Project destroyed successfully"); flashErr != nil {
+		return render(c, views.InternalError())
+	}
+
+	return c.Redirect(http.StatusSeeOther, routes.ProjectIndex.URL())
+}

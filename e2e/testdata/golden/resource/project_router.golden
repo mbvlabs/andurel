@@ -1,0 +1,40 @@
+package router
+
+import (
+	"net/http"
+
+	"testapp/controllers"
+	"testapp/router/routes"
+
+	"github.com/labstack/echo/v4"
+)
+
+func registerProjectsRoutes(handler *echo.Echo, projects controllers.Projects) {
+	handler.Add(
+		http.MethodGet, routes.ProjectIndex.Path(), projects.Index,
+	).Name = routes.ProjectIndex.Name()
+
+	handler.Add(
+		http.MethodGet, routes.ProjectShow.Path(), projects.Show,
+	).Name = routes.ProjectShow.Name()
+
+	handler.Add(
+		http.MethodGet, routes.ProjectNew.Path(), projects.New,
+	).Name = routes.ProjectNew.Name()
+
+	handler.Add(
+		http.MethodPost, routes.ProjectCreate.Path(), projects.Create,
+	).Name = routes.ProjectCreate.Name()
+
+	handler.Add(
+		http.MethodGet, routes.ProjectEdit.Path(), projects.Edit,
+	).Name = routes.ProjectEdit.Name()
+
+	handler.Add(
+		http.MethodPut, routes.ProjectUpdate.Path(), projects.Update,
+	).Name = routes.ProjectUpdate.Name()
+
+	handler.Add(
+		http.MethodDelete, routes.ProjectDestroy.Path(), projects.Destroy,
+	).Name = routes.ProjectDestroy.Name()
+}

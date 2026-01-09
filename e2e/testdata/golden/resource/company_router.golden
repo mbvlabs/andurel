@@ -1,0 +1,40 @@
+package router
+
+import (
+	"net/http"
+
+	"testapp/controllers"
+	"testapp/router/routes"
+
+	"github.com/labstack/echo/v4"
+)
+
+func registerCompaniesRoutes(handler *echo.Echo, companies controllers.Companies) {
+	handler.Add(
+		http.MethodGet, routes.CompanyIndex.Path(), companies.Index,
+	).Name = routes.CompanyIndex.Name()
+
+	handler.Add(
+		http.MethodGet, routes.CompanyShow.Path(), companies.Show,
+	).Name = routes.CompanyShow.Name()
+
+	handler.Add(
+		http.MethodGet, routes.CompanyNew.Path(), companies.New,
+	).Name = routes.CompanyNew.Name()
+
+	handler.Add(
+		http.MethodPost, routes.CompanyCreate.Path(), companies.Create,
+	).Name = routes.CompanyCreate.Name()
+
+	handler.Add(
+		http.MethodGet, routes.CompanyEdit.Path(), companies.Edit,
+	).Name = routes.CompanyEdit.Name()
+
+	handler.Add(
+		http.MethodPut, routes.CompanyUpdate.Path(), companies.Update,
+	).Name = routes.CompanyUpdate.Name()
+
+	handler.Add(
+		http.MethodDelete, routes.CompanyDestroy.Path(), companies.Destroy,
+	).Name = routes.CompanyDestroy.Name()
+}

@@ -1,0 +1,212 @@
+package models
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"testapp/internal/storage"
+	"testapp/models/internal/db"
+)
+
+type Project struct {
+	ID          uuid.UUID
+	Name        string
+	Description string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+func FindProject(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) (Project, error) {
+	row, err := queries.QueryProjectByID(ctx, exec, id)
+	if err != nil {
+		return Project{}, err
+	}
+
+	return rowToProject(row), nil
+}
+
+type CreateProjectData struct {
+	Name        string
+	Description string
+}
+
+func CreateProject(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateProjectData,
+) (Project, error) {
+	if err := validate.Struct(data); err != nil {
+		return Project{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.InsertProjectParams{
+		ID:          uuid.New(),
+		Name:        data.Name,
+		Description: pgtype.Text{String: data.Description, Valid: true},
+	}
+	row, err := queries.InsertProject(ctx, exec, params)
+	if err != nil {
+		return Project{}, err
+	}
+
+	return rowToProject(row), nil
+}
+
+type UpdateProjectData struct {
+	ID          uuid.UUID
+	Name        string
+	Description string
+	UpdatedAt   time.Time
+}
+
+func UpdateProject(
+	ctx context.Context,
+	exec storage.Executor,
+	data UpdateProjectData,
+) (Project, error) {
+	if err := validate.Struct(data); err != nil {
+		return Project{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	currentRow, err := queries.QueryProjectByID(ctx, exec, data.ID)
+	if err != nil {
+		return Project{}, err
+	}
+
+	params := db.UpdateProjectParams{
+		ID:          data.ID,
+		Name:        data.Name,
+		Description: pgtype.Text{String: data.Description, Valid: true},
+	}
+
+	row, err := queries.UpdateProject(ctx, exec, params)
+	if err != nil {
+		return Project{}, err
+	}
+
+	return rowToProject(row), nil
+}
+
+func DestroyProject(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) error {
+	return queries.DeleteProject(ctx, exec, id)
+}
+
+func AllProjects(
+	ctx context.Context,
+	exec storage.Executor,
+) ([]Project, error) {
+	rows, err := queries.QueryAllProjects(ctx, exec)
+	if err != nil {
+		return nil, err
+	}
+
+	projects := make([]Project, len(rows))
+	for i, row := range rows {
+		projects[i] = rowToProject(row)
+	}
+
+	return projects, nil
+}
+
+type PaginatedProjects struct {
+	Projects   []Project
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func PaginateProjects(
+	ctx context.Context,
+	exec storage.Executor,
+	page int64,
+	pageSize int64,
+) (PaginatedProjects, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := queries.CountProjects(ctx, exec)
+	if err != nil {
+		return PaginatedProjects{}, err
+	}
+
+	rows, err := queries.QueryPaginatedProjects(
+		ctx,
+		exec,
+		db.QueryPaginatedProjectsParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
+	)
+	if err != nil {
+		return PaginatedProjects{}, err
+	}
+
+	projects := make([]Project, len(rows))
+	for i, row := range rows {
+		projects[i] = rowToProject(row)
+	}
+
+	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+
+	return PaginatedProjects{
+		Projects:   projects,
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func UpsertProject(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateProjectData,
+) (Project, error) {
+	if err := validate.Struct(data); err != nil {
+		return Project{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpsertProjectParams{
+		ID:          uuid.New(),
+		Name:        data.Name,
+		Description: pgtype.Text{String: data.Description, Valid: true},
+	}
+	row, err := queries.UpsertProject(ctx, exec, params)
+	if err != nil {
+		return Project{}, err
+	}
+
+	return rowToProject(row), nil
+}
+
+func rowToProject(row db.Project) Project {
+	return Project{
+		ID:          row.ID,
+		Name:        row.Name,
+		Description: row.Description.String,
+		CreatedAt:   row.CreatedAt.Time,
+		UpdatedAt:   row.UpdatedAt.Time,
+	}
+}
