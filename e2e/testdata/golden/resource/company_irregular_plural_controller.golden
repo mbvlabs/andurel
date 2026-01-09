@@ -1,0 +1,200 @@
+package controllers
+
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+	"strconv"
+
+	"testapp/internal/storage"
+	"testapp/models"
+	"testapp/router/cookies"
+	"testapp/router/routes"
+	"testapp/views"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
+)
+
+type Companies struct {
+	db storage.Pool
+}
+
+func NewCompanies(db storage.Pool) Companies {
+	return Companies{db}
+}
+
+func (r Companies) Index(c echo.Context) error {
+	page := int64(1)
+	if p := c.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := c.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	companiesList, err := models.PaginateCompanies(
+		c.Request().Context(),
+		r.db.Conn(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return render(c, views.InternalError())
+	}
+
+	return render(c, views.CompanyIndex(companiesList.Companies))
+}
+
+func (r Companies) Show(c echo.Context) error {
+	companyID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return render(c, views.BadRequest())
+	}
+
+	company, err := models.FindCompany(c.Request().Context(), r.db.Conn(), companyID)
+	if err != nil {
+		return render(c, views.NotFound())
+	}
+
+	return render(c, views.CompanyShow(company))
+}
+
+func (r Companies) New(c echo.Context) error {
+	return render(c, views.CompanyNew())
+}
+
+type CreateCompanyFormPayload struct {
+	Name     string `form:"name"`
+	Industry string `form:"industry"`
+}
+
+func (r Companies) Create(c echo.Context) error {
+	var payload CreateCompanyFormPayload
+	if err := c.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"could not parse CreateCompanyFormPayload",
+			"error",
+			err,
+		)
+
+		return render(c, views.NotFound())
+	}
+
+	data := models.CreateCompanyData{
+		Name:     payload.Name,
+		Industry: payload.Industry,
+	}
+
+	company, err := models.CreateCompany(
+		c.Request().Context(),
+		r.db.Conn(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to create company: %v", err)); flashErr != nil {
+			return flashErr
+		}
+		return c.Redirect(http.StatusSeeOther, routes.CompanyNew.URL())
+	}
+
+	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Company created successfully"); flashErr != nil {
+		return render(c, views.InternalError())
+	}
+
+	return c.Redirect(http.StatusSeeOther, routes.CompanyShow.URL(company.ID))
+}
+
+func (r Companies) Edit(c echo.Context) error {
+	companyID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return render(c, views.BadRequest())
+	}
+
+	company, err := models.FindCompany(c.Request().Context(), r.db.Conn(), companyID)
+	if err != nil {
+		return render(c, views.NotFound())
+	}
+
+	return render(c, views.CompanyEdit(company))
+}
+
+type UpdateCompanyFormPayload struct {
+	Name     string `form:"name"`
+	Industry string `form:"industry"`
+}
+
+func (r Companies) Update(c echo.Context) error {
+	companyID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return render(c, views.BadRequest())
+	}
+
+	var payload UpdateCompanyFormPayload
+	if err := c.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"could not parse UpdateCompanyFormPayload",
+			"error",
+			err,
+		)
+
+		return render(c, views.NotFound())
+	}
+
+	data := models.UpdateCompanyData{
+		ID:       companyID,
+		Name:     payload.Name,
+		Industry: payload.Industry,
+	}
+
+	company, err := models.UpdateCompany(
+		c.Request().Context(),
+		r.db.Conn(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to update company: %v", err)); flashErr != nil {
+			return render(c, views.InternalError())
+		}
+		return c.Redirect(
+			http.StatusSeeOther,
+			routes.CompanyEdit.URL(companyID),
+		)
+	}
+
+	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Company updated successfully"); flashErr != nil {
+		return render(c, views.InternalError())
+	}
+
+	return c.Redirect(http.StatusSeeOther, routes.CompanyShow.URL(company.ID))
+}
+
+func (r Companies) Destroy(c echo.Context) error {
+	companyID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return render(c, views.BadRequest())
+	}
+
+	err = models.DestroyCompany(c.Request().Context(), r.db.Conn(), companyID)
+	if err != nil {
+		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete company: %v", err)); flashErr != nil {
+			return render(c, views.InternalError())
+		}
+		return c.Redirect(http.StatusSeeOther, routes.CompanyIndex.URL())
+	}
+
+	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Company destroyed successfully"); flashErr != nil {
+		return render(c, views.InternalError())
+	}
+
+	return c.Redirect(http.StatusSeeOther, routes.CompanyIndex.URL())
+}

@@ -1,0 +1,49 @@
+package routes
+
+import (
+	"testapp/internal/routing"
+)
+
+const CompanyPrefix = "companies"
+
+var CompanyIndex = routing.NewSimpleRoute(
+	"/",
+	"index",
+	CompanyPrefix,
+)
+
+var CompanyShow = routing.NewRouteWithID(
+	"/:id",
+	"show",
+	CompanyPrefix,
+)
+
+var CompanyNew = routing.NewSimpleRoute(
+	"/new",
+	"new",
+	CompanyPrefix,
+)
+
+var CompanyCreate = routing.NewSimpleRoute(
+	"/",
+	"create",
+	CompanyPrefix,
+)
+
+var CompanyEdit = routing.NewRouteWithID(
+	"/:id/edit",
+	"edit",
+	CompanyPrefix,
+)
+
+var CompanyUpdate = routing.NewRouteWithID(
+	"/:id",
+	"update",
+	CompanyPrefix,
+)
+
+var CompanyDestroy = routing.NewRouteWithID(
+	"/:id",
+	"destroy",
+	CompanyPrefix,
+)

@@ -1,0 +1,169 @@
+package views
+
+import (
+	"net/http"
+	"testapp/models"
+	"testapp/router/routes"
+	"testapp/views/components"
+)
+
+templ CompanyIndex(companies []models.Company) {
+	@base() {
+		<main>
+			<div>
+				<h1>Companies</h1>
+				<a href={ templ.URL(routes.CompanyNew.URL()) }>New Company</a>
+			</div>
+			<div>
+				<div>
+					if len(companies) == 0 {
+						<p>No companies found.</p>
+					} else {
+						<div>
+							<table>
+								<thead>
+									<tr>
+										<th>Name</th>
+										<th>Industry</th>
+										<th>Created At</th>
+										<th>Updated At</th>
+										<th>Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									for _, company := range companies {
+										<tr>
+											<td>{ company.Name }</td>
+											<td>{ company.Industry }</td>
+											<td>{ company.CreatedAt.String() }</td>
+											<td>{ company.UpdatedAt.String() }</td>
+											<td>
+												<a href={ templ.URL(routes.CompanyShow.URL(company.ID)) }>View</a>
+												<a href={ templ.URL(routes.CompanyEdit.URL(company.ID)) }>Edit</a>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</div>
+			</div>
+		</main>
+	}
+}
+
+templ CompanyShow(company models.Company) {
+	@base() {
+		<main>
+			<div>
+				<h1>Company Details</h1>
+				<div>
+					<a href={ templ.URL(routes.CompanyEdit.URL(company.ID)) }>Edit</a>
+					<a href={ templ.URL(routes.CompanyIndex.URL()) }>Back to List</a>
+				</div>
+			</div>
+			<div>
+				<div>
+					<div>
+						<div>
+							<label>Name</label>
+							<p>{ company.Name }</p>
+						</div>
+						<div>
+							<label>Industry</label>
+							<p>{ company.Industry }</p>
+						</div>
+						<div>
+							<label>Created At</label>
+							<p>{ company.CreatedAt.String() }</p>
+						</div>
+						<div>
+							<label>Updated At</label>
+							<p>{ company.UpdatedAt.String() }</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</main>
+	}
+}
+
+templ CompanyNew() {
+	@base() {
+		<main>
+			<div>
+				<h1>New Company</h1>
+				<a href={ templ.URL(routes.CompanyIndex.URL()) }>Back to List</a>
+			</div>
+			<div>
+				<div>
+					<form data-on:submit={ DataAction(http.MethodPost, routes.CompanyCreate.URL(), ActionTypeForm) }>
+						<div>
+							<div>
+								<h2>Company Information</h2>
+								<p>Enter the details for the new company.</p>
+								<div>
+									<div>
+										@components.InputField("Name", "name", "text", "", false, components.FieldProp{})
+									</div>
+									<div>
+										@components.InputField("Industry", "industry", "text", "", false, components.FieldProp{})
+									</div>
+								</div>
+							</div>
+						</div>
+						<div>
+							<a href={ templ.URL(routes.CompanyIndex.URL()) }>Cancel</a>
+							<button type="submit">Create Company</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</main>
+	}
+}
+
+templ CompanyEdit(company models.Company) {
+	@base() {
+		<main>
+			<div>
+				<h1>Edit Company</h1>
+				<a href={ templ.URL(routes.CompanyIndex.URL()) }>Back to List</a>
+			</div>
+			<div>
+				<div>
+					<form data-on:submit={ DataAction(http.MethodPut, routes.CompanyUpdate.URL(company.ID), ActionTypeForm) }>
+						<div>
+							<div>
+								<h2>Company Information</h2>
+								<p>Update the details for this company.</p>
+								<div>
+									<div>
+										@components.InputField("Name", "name", "text", "", false, components.FieldProp{
+											Value: company.Name,
+										})
+									</div>
+									<div>
+										@components.InputField("Industry", "industry", "text", "", false, components.FieldProp{
+											Value: company.Industry,
+										})
+									</div>
+								</div>
+							</div>
+						</div>
+						<div>
+							<a href={ templ.URL(routes.CompanyIndex.URL()) }>Cancel</a>
+							<button type="submit">Update Company</button>
+						</div>
+					</form>
+					<div>
+						<button
+							data-on:click={ DataAction(http.MethodDelete, routes.CompanyDestroy.URL(company.ID)) }
+						>Destroy Company</button>
+					</div>
+				</div>
+			</div>
+		</main>
+	}
+}
