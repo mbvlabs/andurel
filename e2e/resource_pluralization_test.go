@@ -386,7 +386,7 @@ func validateRoutesPluralization(
 		desc    string
 	}{
 		{
-			"const " + tc.expectedSingular + "Prefix = \"" + tc.tableName + "\"",
+			"const " + tc.expectedSingular + "Prefix = \"/" + tc.tableName + "\"",
 			"Prefix constant uses singular with plural value",
 		},
 		{"var " + tc.expectedSingular + "Index", "Index route uses singular prefix"},

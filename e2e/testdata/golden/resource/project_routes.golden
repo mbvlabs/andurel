@@ -4,7 +4,7 @@ import (
 	"testapp/internal/routing"
 )
 
-const ProjectPrefix = "projects"
+const ProjectPrefix = "/projects"
 
 var ProjectIndex = routing.NewSimpleRoute(
 	"/",

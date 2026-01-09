@@ -4,7 +4,7 @@ import (
 	"testapp/internal/routing"
 )
 
-const CompanyPrefix = "companies"
+const CompanyPrefix = "/companies"
 
 var CompanyIndex = routing.NewSimpleRoute(
 	"/",
