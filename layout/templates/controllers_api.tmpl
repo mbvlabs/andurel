@@ -15,6 +15,6 @@ func NewAPI(db storage.Pool) API {
 	return API{db}
 }
 
-func (a API) Health(ctx echo.Context) error {
-	return ctx.JSON(http.StatusOK, "app is healthy and running")
+func (a API) Health(eCtx echo.Context) error {
+	return eCtx.JSON(http.StatusOK, "app is healthy and running")
 }

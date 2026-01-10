@@ -9,32 +9,32 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func registerCompaniesRoutes(handler *echo.Echo, companies controllers.Companies) {
+func registerCompanyRoutes(handler *echo.Echo, company controllers.Company) {
 	handler.Add(
-		http.MethodGet, routes.CompanyIndex.Path(), companies.Index,
+		http.MethodGet, routes.CompanyIndex.Path(), company.Index,
 	).Name = routes.CompanyIndex.Name()
 
 	handler.Add(
-		http.MethodGet, routes.CompanyShow.Path(), companies.Show,
+		http.MethodGet, routes.CompanyShow.Path(), company.Show,
 	).Name = routes.CompanyShow.Name()
 
 	handler.Add(
-		http.MethodGet, routes.CompanyNew.Path(), companies.New,
+		http.MethodGet, routes.CompanyNew.Path(), company.New,
 	).Name = routes.CompanyNew.Name()
 
 	handler.Add(
-		http.MethodPost, routes.CompanyCreate.Path(), companies.Create,
+		http.MethodPost, routes.CompanyCreate.Path(), company.Create,
 	).Name = routes.CompanyCreate.Name()
 
 	handler.Add(
-		http.MethodGet, routes.CompanyEdit.Path(), companies.Edit,
+		http.MethodGet, routes.CompanyEdit.Path(), company.Edit,
 	).Name = routes.CompanyEdit.Name()
 
 	handler.Add(
-		http.MethodPut, routes.CompanyUpdate.Path(), companies.Update,
+		http.MethodPut, routes.CompanyUpdate.Path(), company.Update,
 	).Name = routes.CompanyUpdate.Name()
 
 	handler.Add(
-		http.MethodDelete, routes.CompanyDestroy.Path(), companies.Destroy,
+		http.MethodDelete, routes.CompanyDestroy.Path(), company.Destroy,
 	).Name = routes.CompanyDestroy.Name()
 }

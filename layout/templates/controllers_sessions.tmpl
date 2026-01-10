@@ -24,28 +24,28 @@ func NewSessions(db storage.Pool, cfg config.Config) Sessions {
 	return Sessions{db, cfg}
 }
 
-func (s Sessions) New(c echo.Context) error {
-	return render(c, views.LoginForm())
+func (s Sessions) New(eCtx echo.Context) error {
+	return render(eCtx, views.LoginForm())
 }
 
-func (s Sessions) Create(c echo.Context) error {
+func (s Sessions) Create(eCtx echo.Context) error {
 	var payload struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 
-	if err := c.Bind(&payload); err != nil {
+	if err := eCtx.Bind(&payload); err != nil {
 		slog.ErrorContext(
-			c.Request().Context(),
+			eCtx.Request().Context(),
 			"could not parse login form payload",
 			"error",
 			err,
 		)
-		return render(c, views.BadRequest())
+		return render(eCtx, views.BadRequest())
 	}
 
 	user, err := services.AuthenticateUser(
-		c.Request().Context(),
+		eCtx.Request().Context(),
 		s.db,
 		s.cfg.Auth.Pepper,
 		services.LoginData{
@@ -55,7 +55,7 @@ func (s Sessions) Create(c echo.Context) error {
 	)
 	if err != nil {
 		slog.ErrorContext(
-			c.Request().Context(),
+			eCtx.Request().Context(),
 			"failed to authenticate user",
 			"error",
 			err,
@@ -71,45 +71,45 @@ func (s Sessions) Create(c echo.Context) error {
 			errorMsg = "Failed to log in"
 		}
 
-		if flashErr := cookies.AddFlash(c, cookies.FlashError, errorMsg); flashErr != nil {
-			return render(c, views.InternalError())
+		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, errorMsg); flashErr != nil {
+			return render(eCtx, views.InternalError())
 		}
 
-		return c.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
+		return eCtx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 	}
 
-	if err := cookies.CreateAppSession(c, user); err != nil {
+	if err := cookies.CreateAppSession(eCtx, user); err != nil {
 		slog.ErrorContext(
-			c.Request().Context(),
+			eCtx.Request().Context(),
 			"failed to create session",
 			"error",
 			err,
 		)
 
-		return render(c, views.InternalError())
+		return render(eCtx, views.InternalError())
 	}
 
-	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Successfully logged in!"); flashErr != nil {
-		return render(c, views.InternalError())
+	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "Successfully logged in!"); flashErr != nil {
+		return render(eCtx, views.InternalError())
 	}
 
-	return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.HomePage.URL())
+	return datastar.NewSSE(eCtx.Response(), eCtx.Request()).Redirect(routes.HomePage.URL())
 }
 
-func (s Sessions) Destroy(c echo.Context) error {
-	if err := cookies.DestroyAppSession(c); err != nil {
+func (s Sessions) Destroy(eCtx echo.Context) error {
+	if err := cookies.DestroyAppSession(eCtx); err != nil {
 		slog.ErrorContext(
-			c.Request().Context(),
+			eCtx.Request().Context(),
 			"failed to destroy session",
 			"error",
 			err,
 		)
-		return render(c, views.InternalError())
+		return render(eCtx, views.InternalError())
 	}
 
-	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Successfully logged out!"); flashErr != nil {
-		return render(c, views.InternalError())
+	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "Successfully logged out!"); flashErr != nil {
+		return render(eCtx, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
+	return eCtx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 }

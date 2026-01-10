@@ -29,16 +29,16 @@ func New{{.ResourceName}}(db storage.Pool) {{.ResourceName}} {
 	return {{.ResourceName}}{db}
 }
 
-func ({{.ReceiverName}} {{.ResourceName}}) Index(c echo.Context) error {
+func ({{.ReceiverName}} {{.ResourceName}}) Index(eCtx echo.Context) error {
 	page := int64(1)
-	if p := c.QueryParam("page"); p != "" {
+	if p := eCtx.QueryParam("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
 			page = int64(parsed)
 		}
 	}
 
 	perPage := int64(25)
-	if pp := c.QueryParam("per_page"); pp != "" {
+	if pp := eCtx.QueryParam("per_page"); pp != "" {
 		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
 			parsed <= 100 {
 			perPage = int64(parsed)
@@ -46,34 +46,34 @@ func ({{.ReceiverName}} {{.ResourceName}}) Index(c echo.Context) error {
 	}
 
 	{{.PluralName | ToCamelCase}}List, err := models.Paginate{{.PluralResourceName}}(
-		c.Request().Context(),
+		eCtx.Request().Context(),
 		{{.ReceiverName}}.db.Conn(),
 		page,
 		perPage,
 	)
 	if err != nil {
-		return render(c, views.InternalError())
+		return render(eCtx, views.InternalError())
 	}
 
-	return render(c, views.{{.ResourceName}}Index({{.PluralName | ToCamelCase}}List.{{.PluralResourceName}}))
+	return render(eCtx, views.{{.ResourceName}}Index({{.PluralName | ToCamelCase}}List.{{.PluralResourceName}}))
 }
 
-func ({{.ReceiverName}} {{.ResourceName}}) Show(c echo.Context) error {
-	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(c.Param("id"))
+func ({{.ReceiverName}} {{.ResourceName}}) Show(eCtx echo.Context) error {
+	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(eCtx.Param("id"))
 	if err != nil {
-		return render(c, views.BadRequest())
+		return render(eCtx, views.BadRequest())
 	}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(c.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(eCtx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
-		return render(c, views.NotFound())
+		return render(eCtx, views.NotFound())
 	}
 
-	return render(c, views.{{.ResourceName}}Show({{.ResourceName | ToLowerCamelCase}}))
+	return render(eCtx, views.{{.ResourceName}}Show({{.ResourceName | ToLowerCamelCase}}))
 }
 
-func ({{.ReceiverName}} {{.ResourceName}}) New(c echo.Context) error {
-	return render(c, views.{{.ResourceName}}New())
+func ({{.ReceiverName}} {{.ResourceName}}) New(eCtx echo.Context) error {
+	return render(eCtx, views.{{.ResourceName}}New())
 }
 
 type Create{{.ResourceName}}FormPayload struct {
@@ -88,17 +88,17 @@ type Create{{.ResourceName}}FormPayload struct {
 {{- end}}
 }
 
-func ({{.ReceiverName}} {{.ResourceName}}) Create(c echo.Context) error {
+func ({{.ReceiverName}} {{.ResourceName}}) Create(eCtx echo.Context) error {
 	var payload Create{{.ResourceName}}FormPayload
-	if err := c.Bind(&payload); err != nil {
+	if err := eCtx.Bind(&payload); err != nil {
 		slog.ErrorContext(
-			c.Request().Context(),
+			eCtx.Request().Context(),
 			"could not parse Create{{.ResourceName}}FormPayload",
 			"error",
 			err,
 		)
 
-		return render(c, views.NotFound())
+		return render(eCtx, views.NotFound())
 	}
 
 	data := models.Create{{.ResourceName}}Data{
@@ -122,36 +122,36 @@ func ({{.ReceiverName}} {{.ResourceName}}) Create(c echo.Context) error {
 	}
 
 	{{.ResourceName | ToLowerCamelCase}}, err := models.Create{{.ResourceName}}(
-		c.Request().Context(),
+		eCtx.Request().Context(),
 		{{.ReceiverName}}.db.Conn(),
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to create {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
+		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to create {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return flashErr
 		}
-		return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}New.URL())
+		return eCtx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}New.URL())
 	}
 
-	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "{{.ResourceName}} created successfully"); flashErr != nil {
-		return render(c, views.InternalError())
+	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "{{.ResourceName}} created successfully"); flashErr != nil {
+		return render(eCtx, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.ID))
+	return eCtx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.ID))
 }
 
-func ({{.ReceiverName}} {{.ResourceName}}) Edit(c echo.Context) error {
-	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(c.Param("id"))
+func ({{.ReceiverName}} {{.ResourceName}}) Edit(eCtx echo.Context) error {
+	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(eCtx.Param("id"))
 	if err != nil {
-		return render(c, views.BadRequest())
+		return render(eCtx, views.BadRequest())
 	}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(c.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(eCtx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
-		return render(c, views.NotFound())
+		return render(eCtx, views.NotFound())
 	}
 
-	return render(c, views.{{.ResourceName}}Edit({{.ResourceName | ToLowerCamelCase}}))
+	return render(eCtx, views.{{.ResourceName}}Edit({{.ResourceName | ToLowerCamelCase}}))
 }
 
 type Update{{.ResourceName}}FormPayload struct {
@@ -166,22 +166,22 @@ type Update{{.ResourceName}}FormPayload struct {
 {{- end}}
 }
 
-func ({{.ReceiverName}} {{.ResourceName}}) Update(c echo.Context) error {
-	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(c.Param("id"))
+func ({{.ReceiverName}} {{.ResourceName}}) Update(eCtx echo.Context) error {
+	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(eCtx.Param("id"))
 	if err != nil {
-		return render(c, views.BadRequest())
+		return render(eCtx, views.BadRequest())
 	}
 
 	var payload Update{{.ResourceName}}FormPayload
-	if err := c.Bind(&payload ); err != nil {
+	if err := eCtx.Bind(&payload ); err != nil {
 		slog.ErrorContext(
-			c.Request().Context(),
+			eCtx.Request().Context(),
 			"could not parse Update{{.ResourceName}}FormPayload",
 			"error",
 			err,
 		)
 
-		return render(c, views.NotFound())
+		return render(eCtx, views.NotFound())
 	}
 
 	data := models.Update{{.ResourceName}}Data{
@@ -206,44 +206,44 @@ func ({{.ReceiverName}} {{.ResourceName}}) Update(c echo.Context) error {
 	}
 
 	{{.ResourceName | ToLowerCamelCase}}, err := models.Update{{.ResourceName}}(
-		c.Request().Context(),
+		eCtx.Request().Context(),
 		{{.ReceiverName}}.db.Conn(),
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
-			return render(c, views.InternalError())
+		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
+			return render(eCtx, views.InternalError())
 		}
-		return c.Redirect(
+		return eCtx.Redirect(
 			http.StatusSeeOther,
 			routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLowerCamelCase}}ID),
 		)
 	}
 
-	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "{{.ResourceName}} updated successfully"); flashErr != nil {
-		return render(c, views.InternalError())
+	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "{{.ResourceName}} updated successfully"); flashErr != nil {
+		return render(eCtx, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.ID))
+	return eCtx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.ID))
 }
 
-func ({{.ReceiverName}} {{.ResourceName}}) Destroy(c echo.Context) error {
-	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(c.Param("id"))
+func ({{.ReceiverName}} {{.ResourceName}}) Destroy(eCtx echo.Context) error {
+	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(eCtx.Param("id"))
 	if err != nil {
-		return render(c, views.BadRequest())
+		return render(eCtx, views.BadRequest())
 	}
 
-	err = models.Destroy{{.ResourceName}}(c.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
+	err = models.Destroy{{.ResourceName}}(eCtx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
-		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
-			return render(c, views.InternalError())
+		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
+			return render(eCtx, views.InternalError())
 		}
-		return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
+		return eCtx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
 	}
 
-	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "{{.ResourceName}} destroyed successfully"); flashErr != nil {
-		return render(c, views.InternalError())
+	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "{{.ResourceName}} destroyed successfully"); flashErr != nil {
+		return render(eCtx, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
+	return eCtx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
 }

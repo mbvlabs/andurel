@@ -24,16 +24,16 @@ func NewStudentFeedback(db storage.Pool) StudentFeedback {
 	return StudentFeedback{db}
 }
 
-func (sf StudentFeedback) Index(c echo.Context) error {
+func (sf StudentFeedback) Index(eCtx echo.Context) error {
 	page := int64(1)
-	if p := c.QueryParam("page"); p != "" {
+	if p := eCtx.QueryParam("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
 			page = int64(parsed)
 		}
 	}
 
 	perPage := int64(25)
-	if pp := c.QueryParam("per_page"); pp != "" {
+	if pp := eCtx.QueryParam("per_page"); pp != "" {
 		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
 			parsed <= 100 {
 			perPage = int64(parsed)
@@ -41,34 +41,34 @@ func (sf StudentFeedback) Index(c echo.Context) error {
 	}
 
 	studentFeedbackList, err := models.PaginateStudentFeedback(
-		c.Request().Context(),
+		eCtx.Request().Context(),
 		sf.db.Conn(),
 		page,
 		perPage,
 	)
 	if err != nil {
-		return render(c, views.InternalError())
+		return render(eCtx, views.InternalError())
 	}
 
-	return render(c, views.StudentFeedbackIndex(studentFeedbackList.StudentFeedback))
+	return render(eCtx, views.StudentFeedbackIndex(studentFeedbackList.StudentFeedback))
 }
 
-func (sf StudentFeedback) Show(c echo.Context) error {
-	studentFeedbackID, err := uuid.Parse(c.Param("id"))
+func (sf StudentFeedback) Show(eCtx echo.Context) error {
+	studentFeedbackID, err := uuid.Parse(eCtx.Param("id"))
 	if err != nil {
-		return render(c, views.BadRequest())
+		return render(eCtx, views.BadRequest())
 	}
 
-	studentFeedback, err := models.FindStudentFeedback(c.Request().Context(), sf.db.Conn(), studentFeedbackID)
+	studentFeedback, err := models.FindStudentFeedback(eCtx.Request().Context(), sf.db.Conn(), studentFeedbackID)
 	if err != nil {
-		return render(c, views.NotFound())
+		return render(eCtx, views.NotFound())
 	}
 
-	return render(c, views.StudentFeedbackShow(studentFeedback))
+	return render(eCtx, views.StudentFeedbackShow(studentFeedback))
 }
 
-func (sf StudentFeedback) New(c echo.Context) error {
-	return render(c, views.StudentFeedbackNew())
+func (sf StudentFeedback) New(eCtx echo.Context) error {
+	return render(eCtx, views.StudentFeedbackNew())
 }
 
 type CreateStudentFeedbackFormPayload struct {
@@ -77,17 +77,17 @@ type CreateStudentFeedbackFormPayload struct {
 	Rating    int32  `form:"rating"`
 }
 
-func (sf StudentFeedback) Create(c echo.Context) error {
+func (sf StudentFeedback) Create(eCtx echo.Context) error {
 	var payload CreateStudentFeedbackFormPayload
-	if err := c.Bind(&payload); err != nil {
+	if err := eCtx.Bind(&payload); err != nil {
 		slog.ErrorContext(
-			c.Request().Context(),
+			eCtx.Request().Context(),
 			"could not parse CreateStudentFeedbackFormPayload",
 			"error",
 			err,
 		)
 
-		return render(c, views.NotFound())
+		return render(eCtx, views.NotFound())
 	}
 
 	data := models.CreateStudentFeedbackData{
@@ -97,36 +97,36 @@ func (sf StudentFeedback) Create(c echo.Context) error {
 	}
 
 	studentFeedback, err := models.CreateStudentFeedback(
-		c.Request().Context(),
+		eCtx.Request().Context(),
 		sf.db.Conn(),
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to create studentFeedback: %v", err)); flashErr != nil {
+		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to create studentFeedback: %v", err)); flashErr != nil {
 			return flashErr
 		}
-		return c.Redirect(http.StatusSeeOther, routes.StudentFeedbackNew.URL())
+		return eCtx.Redirect(http.StatusSeeOther, routes.StudentFeedbackNew.URL())
 	}
 
-	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "StudentFeedback created successfully"); flashErr != nil {
-		return render(c, views.InternalError())
+	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "StudentFeedback created successfully"); flashErr != nil {
+		return render(eCtx, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.StudentFeedbackShow.URL(studentFeedback.ID))
+	return eCtx.Redirect(http.StatusSeeOther, routes.StudentFeedbackShow.URL(studentFeedback.ID))
 }
 
-func (sf StudentFeedback) Edit(c echo.Context) error {
-	studentFeedbackID, err := uuid.Parse(c.Param("id"))
+func (sf StudentFeedback) Edit(eCtx echo.Context) error {
+	studentFeedbackID, err := uuid.Parse(eCtx.Param("id"))
 	if err != nil {
-		return render(c, views.BadRequest())
+		return render(eCtx, views.BadRequest())
 	}
 
-	studentFeedback, err := models.FindStudentFeedback(c.Request().Context(), sf.db.Conn(), studentFeedbackID)
+	studentFeedback, err := models.FindStudentFeedback(eCtx.Request().Context(), sf.db.Conn(), studentFeedbackID)
 	if err != nil {
-		return render(c, views.NotFound())
+		return render(eCtx, views.NotFound())
 	}
 
-	return render(c, views.StudentFeedbackEdit(studentFeedback))
+	return render(eCtx, views.StudentFeedbackEdit(studentFeedback))
 }
 
 type UpdateStudentFeedbackFormPayload struct {
@@ -135,22 +135,22 @@ type UpdateStudentFeedbackFormPayload struct {
 	Rating    int32  `form:"rating"`
 }
 
-func (sf StudentFeedback) Update(c echo.Context) error {
-	studentFeedbackID, err := uuid.Parse(c.Param("id"))
+func (sf StudentFeedback) Update(eCtx echo.Context) error {
+	studentFeedbackID, err := uuid.Parse(eCtx.Param("id"))
 	if err != nil {
-		return render(c, views.BadRequest())
+		return render(eCtx, views.BadRequest())
 	}
 
 	var payload UpdateStudentFeedbackFormPayload
-	if err := c.Bind(&payload); err != nil {
+	if err := eCtx.Bind(&payload); err != nil {
 		slog.ErrorContext(
-			c.Request().Context(),
+			eCtx.Request().Context(),
 			"could not parse UpdateStudentFeedbackFormPayload",
 			"error",
 			err,
 		)
 
-		return render(c, views.NotFound())
+		return render(eCtx, views.NotFound())
 	}
 
 	data := models.UpdateStudentFeedbackData{
@@ -161,44 +161,44 @@ func (sf StudentFeedback) Update(c echo.Context) error {
 	}
 
 	studentFeedback, err := models.UpdateStudentFeedback(
-		c.Request().Context(),
+		eCtx.Request().Context(),
 		sf.db.Conn(),
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to update studentFeedback: %v", err)); flashErr != nil {
-			return render(c, views.InternalError())
+		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to update studentFeedback: %v", err)); flashErr != nil {
+			return render(eCtx, views.InternalError())
 		}
-		return c.Redirect(
+		return eCtx.Redirect(
 			http.StatusSeeOther,
 			routes.StudentFeedbackEdit.URL(studentFeedbackID),
 		)
 	}
 
-	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "StudentFeedback updated successfully"); flashErr != nil {
-		return render(c, views.InternalError())
+	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "StudentFeedback updated successfully"); flashErr != nil {
+		return render(eCtx, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.StudentFeedbackShow.URL(studentFeedback.ID))
+	return eCtx.Redirect(http.StatusSeeOther, routes.StudentFeedbackShow.URL(studentFeedback.ID))
 }
 
-func (sf StudentFeedback) Destroy(c echo.Context) error {
-	studentFeedbackID, err := uuid.Parse(c.Param("id"))
+func (sf StudentFeedback) Destroy(eCtx echo.Context) error {
+	studentFeedbackID, err := uuid.Parse(eCtx.Param("id"))
 	if err != nil {
-		return render(c, views.BadRequest())
+		return render(eCtx, views.BadRequest())
 	}
 
-	err = models.DestroyStudentFeedback(c.Request().Context(), sf.db.Conn(), studentFeedbackID)
+	err = models.DestroyStudentFeedback(eCtx.Request().Context(), sf.db.Conn(), studentFeedbackID)
 	if err != nil {
-		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete studentFeedback: %v", err)); flashErr != nil {
-			return render(c, views.InternalError())
+		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to delete studentFeedback: %v", err)); flashErr != nil {
+			return render(eCtx, views.InternalError())
 		}
-		return c.Redirect(http.StatusSeeOther, routes.StudentFeedbackIndex.URL())
+		return eCtx.Redirect(http.StatusSeeOther, routes.StudentFeedbackIndex.URL())
 	}
 
-	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "StudentFeedback destroyed successfully"); flashErr != nil {
-		return render(c, views.InternalError())
+	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "StudentFeedback destroyed successfully"); flashErr != nil {
+		return render(eCtx, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.StudentFeedbackIndex.URL())
+	return eCtx.Redirect(http.StatusSeeOther, routes.StudentFeedbackIndex.URL())
 }

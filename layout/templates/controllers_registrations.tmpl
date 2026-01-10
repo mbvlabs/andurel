@@ -30,29 +30,29 @@ func NewRegistrations(
 	return Registrations{db, insertOnly, cfg}
 }
 
-func (r Registrations) New(c echo.Context) error {
-	return render(c, views.RegistrationForm())
+func (r Registrations) New(eCtx echo.Context) error {
+	return render(eCtx, views.RegistrationForm())
 }
 
-func (r Registrations) Create(c echo.Context) error {
+func (r Registrations) Create(eCtx echo.Context) error {
 	var payload struct {
 		Email           string `json:"email"`
 		Password        string `json:"password"`
 		ConfirmPassword string `json:"confirmPassword"`
 	}
 
-	if err := c.Bind(&payload); err != nil {
+	if err := eCtx.Bind(&payload); err != nil {
 		slog.ErrorContext(
-			c.Request().Context(),
+			eCtx.Request().Context(),
 			"could not parse signup form payload",
 			"error",
 			err,
 		)
-		return render(c, views.BadRequest())
+		return render(eCtx, views.BadRequest())
 	}
 
 	if err := services.RegisterUser(
-		c.Request().Context(),
+		eCtx.Request().Context(),
 		r.db,
 		r.insertOnly,
 		r.cfg.Auth.Pepper,
@@ -63,18 +63,18 @@ func (r Registrations) Create(c echo.Context) error {
 		},
 	); err != nil {
 		slog.ErrorContext(
-			c.Request().Context(),
+			eCtx.Request().Context(),
 			"failed to register user",
 			"error",
 			err,
 		)
 
-		if flashErr := cookies.AddFlash(c, cookies.FlashError, "Failed to register user"); flashErr != nil {
-			return render(c, views.InternalError())
+		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, "Failed to register user"); flashErr != nil {
+			return render(eCtx, views.InternalError())
 		}
 
-		return c.Redirect(http.StatusSeeOther, routes.RegistrationNew.URL())
+		return eCtx.Redirect(http.StatusSeeOther, routes.RegistrationNew.URL())
 	}
 
-	return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.ConfirmationNew.URL())
+	return datastar.NewSSE(eCtx.Response(), eCtx.Request()).Redirect(routes.ConfirmationNew.URL())
 }

@@ -28,7 +28,8 @@ var updateResourceGolden = flag.Bool(
 //   - Model functions should use proper plurals: `AllCompanies`, `PaginateCompanies`
 //   - Table name should be plural: `companies`
 //   - Query names should use proper plurals: `QueryCompanies`, `CountCompanies`
-//   - Controller type should use proper plurals: `type Companies struct`
+//   - Controller type should be singular: `type Company struct`
+//   - Controller receiver should use proper naming (e.g., `c Company`)
 //   - View headings should use proper plurals: `<h1>Companies</h1>`
 func TestResourcePluralization(t *testing.T) {
 	if testing.Short() {
@@ -271,17 +272,19 @@ func validateControllerPluralization(
 	contentStr := string(content)
 
 	// Check for correct patterns
+	// Note: Controllers now use singular type names (e.g., Company, not Companies)
+	// and the receiver name is derived from the type name (e.g., c Company, p Project)
 	correctPatterns := []struct {
 		pattern string
 		desc    string
 	}{
-		{"type " + tc.expectedPlural + " struct", "Controller type uses correct plural"},
-		{"func New" + tc.expectedPlural + "(", "Constructor uses correct plural"},
-		{"func (r " + tc.expectedPlural + ") Index", "Index receiver uses correct plural"},
-		{"func (r " + tc.expectedPlural + ") Show", "Show receiver uses correct plural"},
-		{"func (r " + tc.expectedPlural + ") Create", "Create receiver uses correct plural"},
-		{"func (r " + tc.expectedPlural + ") Update", "Update receiver uses correct plural"},
-		{"func (r " + tc.expectedPlural + ") Destroy", "Destroy receiver uses correct plural"},
+		{"type " + tc.expectedSingular + " struct", "Controller type uses singular"},
+		{"func New" + tc.expectedSingular + "(", "Constructor uses singular"},
+		{") Index(eCtx echo.Context)", "Index uses eCtx parameter"},
+		{") Show(eCtx echo.Context)", "Show uses eCtx parameter"},
+		{") Create(eCtx echo.Context)", "Create uses eCtx parameter"},
+		{") Update(eCtx echo.Context)", "Update uses eCtx parameter"},
+		{") Destroy(eCtx echo.Context)", "Destroy uses eCtx parameter"},
 		{"models.Paginate" + tc.expectedPlural + "(", "Calls model with correct plural"},
 		{"models.Find" + tc.expectedSingular + "(", "Calls Find with singular"},
 		{"models.Create" + tc.expectedSingular + "(", "Calls Create with singular"},
@@ -303,6 +306,7 @@ func validateControllerPluralization(
 		{"type Companys struct", "Should NOT use naive plural 'Companys'"},
 		{"func NewCompanys(", "Should NOT use naive plural"},
 		{"models.PaginateCompanys(", "Should NOT use naive plural"},
+		{"(c echo.Context)", "Should NOT use 'c' for echo.Context (use eCtx)"},
 	}
 
 	for _, p := range incorrectPatterns {
@@ -424,28 +428,29 @@ func validateRouterRegistrationPluralization(
 
 	contentStr := string(content)
 
-	lowercasePlural := strings.ToLower(tc.expectedPlural)
+	lowercaseSingular := strings.ToLower(tc.expectedSingular)
 
 	// Check for correct patterns
+	// Note: Controllers now use singular type names (e.g., Company, not Companies)
 	correctPatterns := []struct {
 		pattern string
 		desc    string
 	}{
 		{
-			"func register" + tc.expectedPlural + "Routes(",
-			"Registration function uses correct plural",
+			"func register" + tc.expectedSingular + "Routes(",
+			"Registration function uses singular",
 		},
 		{
-			lowercasePlural + " controllers." + tc.expectedPlural,
-			"Controller parameter uses correct plural",
+			lowercaseSingular + " controllers." + tc.expectedSingular,
+			"Controller parameter uses singular",
 		},
 		{
 			"routes." + tc.expectedSingular + "Index",
 			"Uses singular for route constants",
 		},
 		{
-			lowercasePlural + ".Index",
-			"Uses lowercase plural for controller method calls",
+			lowercaseSingular + ".Index",
+			"Uses lowercase singular for controller method calls",
 		},
 	}
 

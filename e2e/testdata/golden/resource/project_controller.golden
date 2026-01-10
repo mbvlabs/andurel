@@ -16,24 +16,24 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type Projects struct {
+type Project struct {
 	db storage.Pool
 }
 
-func NewProjects(db storage.Pool) Projects {
-	return Projects{db}
+func NewProject(db storage.Pool) Project {
+	return Project{db}
 }
 
-func (p Projects) Index(c echo.Context) error {
+func (p Project) Index(eCtx echo.Context) error {
 	page := int64(1)
-	if p := c.QueryParam("page"); p != "" {
+	if p := eCtx.QueryParam("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
 			page = int64(parsed)
 		}
 	}
 
 	perPage := int64(25)
-	if pp := c.QueryParam("per_page"); pp != "" {
+	if pp := eCtx.QueryParam("per_page"); pp != "" {
 		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
 			parsed <= 100 {
 			perPage = int64(parsed)
@@ -41,34 +41,34 @@ func (p Projects) Index(c echo.Context) error {
 	}
 
 	projectsList, err := models.PaginateProjects(
-		c.Request().Context(),
-		r.db.Conn(),
+		eCtx.Request().Context(),
+		p.db.Conn(),
 		page,
 		perPage,
 	)
 	if err != nil {
-		return render(c, views.InternalError())
+		return render(eCtx, views.InternalError())
 	}
 
-	return render(c, views.ProjectIndex(projectsList.Projects))
+	return render(eCtx, views.ProjectIndex(projectsList.Projects))
 }
 
-func (p Projects) Show(c echo.Context) error {
-	projectID, err := uuid.Parse(c.Param("id"))
+func (p Project) Show(eCtx echo.Context) error {
+	projectID, err := uuid.Parse(eCtx.Param("id"))
 	if err != nil {
-		return render(c, views.BadRequest())
+		return render(eCtx, views.BadRequest())
 	}
 
-	project, err := models.FindProject(c.Request().Context(), r.db.Conn(), projectID)
+	project, err := models.FindProject(eCtx.Request().Context(), p.db.Conn(), projectID)
 	if err != nil {
-		return render(c, views.NotFound())
+		return render(eCtx, views.NotFound())
 	}
 
-	return render(c, views.ProjectShow(project))
+	return render(eCtx, views.ProjectShow(project))
 }
 
-func (p Projects) New(c echo.Context) error {
-	return render(c, views.ProjectNew())
+func (p Project) New(eCtx echo.Context) error {
+	return render(eCtx, views.ProjectNew())
 }
 
 type CreateProjectFormPayload struct {
@@ -76,17 +76,17 @@ type CreateProjectFormPayload struct {
 	Description string `form:"description"`
 }
 
-func (p Projects) Create(c echo.Context) error {
+func (p Project) Create(eCtx echo.Context) error {
 	var payload CreateProjectFormPayload
-	if err := c.Bind(&payload); err != nil {
+	if err := eCtx.Bind(&payload); err != nil {
 		slog.ErrorContext(
-			c.Request().Context(),
+			eCtx.Request().Context(),
 			"could not parse CreateProjectFormPayload",
 			"error",
 			err,
 		)
 
-		return render(c, views.NotFound())
+		return render(eCtx, views.NotFound())
 	}
 
 	data := models.CreateProjectData{
@@ -95,36 +95,36 @@ func (p Projects) Create(c echo.Context) error {
 	}
 
 	project, err := models.CreateProject(
-		c.Request().Context(),
-		r.db.Conn(),
+		eCtx.Request().Context(),
+		p.db.Conn(),
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to create project: %v", err)); flashErr != nil {
+		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to create project: %v", err)); flashErr != nil {
 			return flashErr
 		}
-		return c.Redirect(http.StatusSeeOther, routes.ProjectNew.URL())
+		return eCtx.Redirect(http.StatusSeeOther, routes.ProjectNew.URL())
 	}
 
-	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Project created successfully"); flashErr != nil {
-		return render(c, views.InternalError())
+	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "Project created successfully"); flashErr != nil {
+		return render(eCtx, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.ProjectShow.URL(project.ID))
+	return eCtx.Redirect(http.StatusSeeOther, routes.ProjectShow.URL(project.ID))
 }
 
-func (p Projects) Edit(c echo.Context) error {
-	projectID, err := uuid.Parse(c.Param("id"))
+func (p Project) Edit(eCtx echo.Context) error {
+	projectID, err := uuid.Parse(eCtx.Param("id"))
 	if err != nil {
-		return render(c, views.BadRequest())
+		return render(eCtx, views.BadRequest())
 	}
 
-	project, err := models.FindProject(c.Request().Context(), r.db.Conn(), projectID)
+	project, err := models.FindProject(eCtx.Request().Context(), p.db.Conn(), projectID)
 	if err != nil {
-		return render(c, views.NotFound())
+		return render(eCtx, views.NotFound())
 	}
 
-	return render(c, views.ProjectEdit(project))
+	return render(eCtx, views.ProjectEdit(project))
 }
 
 type UpdateProjectFormPayload struct {
@@ -132,22 +132,22 @@ type UpdateProjectFormPayload struct {
 	Description string `form:"description"`
 }
 
-func (p Projects) Update(c echo.Context) error {
-	projectID, err := uuid.Parse(c.Param("id"))
+func (p Project) Update(eCtx echo.Context) error {
+	projectID, err := uuid.Parse(eCtx.Param("id"))
 	if err != nil {
-		return render(c, views.BadRequest())
+		return render(eCtx, views.BadRequest())
 	}
 
 	var payload UpdateProjectFormPayload
-	if err := c.Bind(&payload); err != nil {
+	if err := eCtx.Bind(&payload); err != nil {
 		slog.ErrorContext(
-			c.Request().Context(),
+			eCtx.Request().Context(),
 			"could not parse UpdateProjectFormPayload",
 			"error",
 			err,
 		)
 
-		return render(c, views.NotFound())
+		return render(eCtx, views.NotFound())
 	}
 
 	data := models.UpdateProjectData{
@@ -157,44 +157,44 @@ func (p Projects) Update(c echo.Context) error {
 	}
 
 	project, err := models.UpdateProject(
-		c.Request().Context(),
-		r.db.Conn(),
+		eCtx.Request().Context(),
+		p.db.Conn(),
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to update project: %v", err)); flashErr != nil {
-			return render(c, views.InternalError())
+		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to update project: %v", err)); flashErr != nil {
+			return render(eCtx, views.InternalError())
 		}
-		return c.Redirect(
+		return eCtx.Redirect(
 			http.StatusSeeOther,
 			routes.ProjectEdit.URL(projectID),
 		)
 	}
 
-	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Project updated successfully"); flashErr != nil {
-		return render(c, views.InternalError())
+	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "Project updated successfully"); flashErr != nil {
+		return render(eCtx, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.ProjectShow.URL(project.ID))
+	return eCtx.Redirect(http.StatusSeeOther, routes.ProjectShow.URL(project.ID))
 }
 
-func (p Projects) Destroy(c echo.Context) error {
-	projectID, err := uuid.Parse(c.Param("id"))
+func (p Project) Destroy(eCtx echo.Context) error {
+	projectID, err := uuid.Parse(eCtx.Param("id"))
 	if err != nil {
-		return render(c, views.BadRequest())
+		return render(eCtx, views.BadRequest())
 	}
 
-	err = models.DestroyProject(c.Request().Context(), r.db.Conn(), projectID)
+	err = models.DestroyProject(eCtx.Request().Context(), p.db.Conn(), projectID)
 	if err != nil {
-		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete project: %v", err)); flashErr != nil {
-			return render(c, views.InternalError())
+		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to delete project: %v", err)); flashErr != nil {
+			return render(eCtx, views.InternalError())
 		}
-		return c.Redirect(http.StatusSeeOther, routes.ProjectIndex.URL())
+		return eCtx.Redirect(http.StatusSeeOther, routes.ProjectIndex.URL())
 	}
 
-	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Project destroyed successfully"); flashErr != nil {
-		return render(c, views.InternalError())
+	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "Project destroyed successfully"); flashErr != nil {
+		return render(eCtx, views.InternalError())
 	}
 
-	return c.Redirect(http.StatusSeeOther, routes.ProjectIndex.URL())
+	return eCtx.Redirect(http.StatusSeeOther, routes.ProjectIndex.URL())
 }

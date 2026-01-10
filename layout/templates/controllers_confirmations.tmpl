@@ -23,35 +23,35 @@ func NewConfirmations(db storage.Pool, cfg config.Config) Confirmations {
 	return Confirmations{db, cfg}
 }
 
-func (r Confirmations) New(c echo.Context) error {
-	return render(c, views.ConfirmationForm())
+func (c Confirmations) New(eCtx echo.Context) error {
+	return render(eCtx, views.ConfirmationForm())
 }
 
-func (r Confirmations) Create(c echo.Context) error {
+func (c Confirmations) Create(eCtx echo.Context) error {
 	var payload struct {
 		Code string `json:"code"`
 	}
 
-	if err := c.Bind(&payload); err != nil {
+	if err := eCtx.Bind(&payload); err != nil {
 		slog.ErrorContext(
-			c.Request().Context(),
+			eCtx.Request().Context(),
 			"could not parse verification form payload",
 			"error",
 			err,
 		)
-		return render(c, views.BadRequest())
+		return render(eCtx, views.BadRequest())
 	}
 
 	if err := services.VerifyEmail(
-		c.Request().Context(),
-		r.db,
-		r.cfg.Auth.Pepper,
+		eCtx.Request().Context(),
+		c.db,
+		c.cfg.Auth.Pepper,
 		services.VerifyEmailData{
 			Code: payload.Code,
 		},
 	); err != nil {
 		slog.ErrorContext(
-			c.Request().Context(),
+			eCtx.Request().Context(),
 			"failed to verify email",
 			"error",
 			err,
@@ -67,15 +67,15 @@ func (r Confirmations) Create(c echo.Context) error {
 			errorMsg = "Failed to verify email"
 		}
 
-		if flashErr := cookies.AddFlash(c, cookies.FlashError, errorMsg); flashErr != nil {
-			return render(c, views.InternalError())
+		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, errorMsg); flashErr != nil {
+			return render(eCtx, views.InternalError())
 		}
-		return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.ConfirmationNew.URL())
+		return datastar.NewSSE(eCtx.Response(), eCtx.Request()).Redirect(routes.ConfirmationNew.URL())
 	}
 
-	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Email verified successfully!"); flashErr != nil {
-		return render(c, views.InternalError())
+	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "Email verified successfully!"); flashErr != nil {
+		return render(eCtx, views.InternalError())
 	}
 
-	return datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.HomePage.URL())
+	return datastar.NewSSE(eCtx.Response(), eCtx.Request()).Redirect(routes.HomePage.URL())
 }

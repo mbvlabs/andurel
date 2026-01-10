@@ -9,9 +9,9 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func render(c echo.Context, t templ.Component) error {
+func render(eCtx echo.Context, t templ.Component) error {
 	return renderer.Render(
-		c,
+		eCtx,
 		t,
 		[]renderer.CookieKey{
 			cookies.AppKey,
