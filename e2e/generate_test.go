@@ -77,6 +77,18 @@ func TestGenerateCommands(t *testing.T) {
 			t.Run("generate_model_skip_factory", func(t *testing.T) {
 				testGenerateModelSkipFactory(t, project)
 			})
+
+			t.Run("generate_model_standalone", func(t *testing.T) {
+				testGenerateModelStandalone(t, project)
+			})
+
+			t.Run("generate_controller_standalone", func(t *testing.T) {
+				testGenerateControllerStandalone(t, project)
+			})
+
+			t.Run("generate_view_standalone", func(t *testing.T) {
+				testGenerateViewStandalone(t, project)
+			})
 		})
 	}
 }
@@ -251,6 +263,198 @@ func testGenerateModelSkipFactory(t *testing.T, project *internal.Project) {
 	// Verify factory file does NOT exist
 	if project.FileExists("models/factories/article.go") {
 		t.Error("Factory file should NOT exist when using --skip-factory flag")
+	}
+}
+
+// testGenerateModelStandalone tests generating a model from a migration
+// and verifies all expected files are created with correct content
+func testGenerateModelStandalone(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	createMigration(t, project, "000200_create_customers", "customers", []string{
+		"email VARCHAR(255) NOT NULL",
+		"first_name VARCHAR(100)",
+		"last_name VARCHAR(100)",
+		"phone VARCHAR(20)",
+		"active BOOLEAN DEFAULT true",
+	})
+
+	err := project.Generate("generate", "model", "Customer")
+	internal.AssertCommandSucceeds(t, err, "generate model Customer")
+
+	// Verify model file exists and has correct content
+	internal.AssertFileExists(t, project, "models/customer.go")
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/customer.go"))
+	if err != nil {
+		t.Fatalf("Failed to read model file: %v", err)
+	}
+
+	modelStr := string(modelContent)
+	modelRequiredElements := []string{
+		"package models",
+		"type Customer struct",
+		"Email",
+		"FirstName",
+		"LastName",
+		"Phone",
+		"Active",
+		"CreatedAt",
+		"UpdatedAt",
+	}
+
+	for _, element := range modelRequiredElements {
+		if !strings.Contains(modelStr, element) {
+			t.Errorf("Model file should contain %q", element)
+		}
+	}
+
+	// Verify queries file exists and has correct content
+	internal.AssertFileExists(t, project, "database/queries/customers.sql")
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/customers.sql"))
+	if err != nil {
+		t.Fatalf("Failed to read queries file: %v", err)
+	}
+
+	queriesStr := string(queriesContent)
+	queriesRequiredElements := []string{
+		"-- name: GetCustomer :one",
+		"-- name: ListCustomers :many",
+		"-- name: CreateCustomer :one",
+		"-- name: UpdateCustomer :one",
+		"-- name: DeleteCustomer :exec",
+		"FROM customers",
+	}
+
+	for _, element := range queriesRequiredElements {
+		if !strings.Contains(queriesStr, element) {
+			t.Errorf("Queries file should contain %q", element)
+		}
+	}
+
+	// Verify factory file exists by default
+	internal.AssertFileExists(t, project, "models/factories/customer.go")
+}
+
+// testGenerateControllerStandalone tests generating a controller for an existing model
+// This verifies the controller generator works independently once a model exists
+func testGenerateControllerStandalone(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	// First create a migration and model
+	createMigration(t, project, "000201_create_invoices", "invoices", []string{
+		"invoice_number VARCHAR(50) NOT NULL",
+		"amount DECIMAL(10,2) NOT NULL",
+		"due_date DATE",
+		"status VARCHAR(20) DEFAULT 'pending'",
+	})
+
+	err := project.Generate("generate", "model", "Invoice")
+	internal.AssertCommandSucceeds(t, err, "generate model Invoice")
+
+	// Now generate controller without views
+	err = project.Generate("generate", "controller", "Invoice")
+	internal.AssertCommandSucceeds(t, err, "generate controller Invoice")
+
+	// Verify controller file exists and has correct content
+	internal.AssertFileExists(t, project, "controllers/invoices.go")
+	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/invoices.go"))
+	if err != nil {
+		t.Fatalf("Failed to read controller file: %v", err)
+	}
+
+	controllerStr := string(controllerContent)
+	controllerRequiredElements := []string{
+		"package controllers",
+		"type InvoicesController struct",
+		"func NewInvoicesController",
+		"func (c *InvoicesController) Index",
+		"func (c *InvoicesController) Show",
+		"func (c *InvoicesController) New",
+		"func (c *InvoicesController) Create",
+		"func (c *InvoicesController) Edit",
+		"func (c *InvoicesController) Update",
+		"func (c *InvoicesController) Delete",
+	}
+
+	for _, element := range controllerRequiredElements {
+		if !strings.Contains(controllerStr, element) {
+			t.Errorf("Controller file should contain %q", element)
+		}
+	}
+
+	// Verify routes file exists
+	internal.AssertFileExists(t, project, "router/routes/invoices.go")
+	routesContent, err := os.ReadFile(filepath.Join(project.Dir, "router/routes/invoices.go"))
+	if err != nil {
+		t.Fatalf("Failed to read routes file: %v", err)
+	}
+
+	routesStr := string(routesContent)
+	routesRequiredElements := []string{
+		"package routes",
+		"func RegisterInvoicesRoutes",
+		"/invoices",
+	}
+
+	for _, element := range routesRequiredElements {
+		if !strings.Contains(routesStr, element) {
+			t.Errorf("Routes file should contain %q", element)
+		}
+	}
+
+	// View file should NOT exist when --with-views is not passed
+	if project.FileExists("views/invoices_resource.templ") {
+		t.Error("View file should NOT exist when --with-views is not passed")
+	}
+}
+
+// testGenerateViewStandalone tests generating views for an existing model
+// This verifies the view generator works independently once a model exists
+func testGenerateViewStandalone(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	// First create a migration and model
+	createMigration(t, project, "000202_create_tasks", "tasks", []string{
+		"title VARCHAR(255) NOT NULL",
+		"description TEXT",
+		"priority INTEGER DEFAULT 0",
+		"completed BOOLEAN DEFAULT false",
+		"due_date DATE",
+	})
+
+	err := project.Generate("generate", "model", "Task")
+	internal.AssertCommandSucceeds(t, err, "generate model Task")
+
+	// Now generate view only
+	err = project.Generate("generate", "view", "Task")
+	internal.AssertCommandSucceeds(t, err, "generate view Task")
+
+	// Verify view file exists and has correct content
+	internal.AssertFileExists(t, project, "views/tasks_resource.templ")
+	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/tasks_resource.templ"))
+	if err != nil {
+		t.Fatalf("Failed to read view file: %v", err)
+	}
+
+	viewStr := string(viewContent)
+	viewRequiredElements := []string{
+		"package views",
+		"TasksIndex",
+		"TasksShow",
+		"TasksNew",
+		"TasksEdit",
+		"models.Task",
+	}
+
+	for _, element := range viewRequiredElements {
+		if !strings.Contains(viewStr, element) {
+			t.Errorf("View file should contain %q", element)
+		}
+	}
+
+	// Controller file should NOT exist when only generating views
+	if project.FileExists("controllers/tasks.go") {
+		t.Error("Controller file should NOT exist when only generating views")
 	}
 }
 
