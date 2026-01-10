@@ -4,9 +4,6 @@ select * from projects where id=$1;
 -- name: QueryProjects :many
 select * from projects;
 
--- name: QueryAllProjects :many
-select * from projects;
-
 -- name: InsertProject :one
 insert into
     projects (id, name, description, created_at, updated_at)

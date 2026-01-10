@@ -4,9 +4,6 @@ select * from {{.PluralName}} where id={{.IDPlaceholder}};
 -- name: Query{{Plural .ResourceName}} :many
 select * from {{.PluralName}};
 
--- name: QueryAll{{Plural .ResourceName}} :many
-select * from {{.PluralName}};
-
 -- name: Insert{{.ResourceName}} :one
 insert into
     {{.PluralName}} ({{.InsertColumns}})

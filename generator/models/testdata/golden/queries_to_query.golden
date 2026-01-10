@@ -109,7 +109,7 @@ func AllQueries(
 	ctx context.Context,
 	exec storage.Executor,
 ) ([]Query, error) {
-	rows, err := queries.QueryAllQueries(ctx, exec)
+	rows, err := queries.QueryQueries(ctx, exec)
 	if err != nil {
 		return nil, err
 	}

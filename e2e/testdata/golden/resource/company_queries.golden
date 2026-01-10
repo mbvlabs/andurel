@@ -4,9 +4,6 @@ select * from companies where id=$1;
 -- name: QueryCompanies :many
 select * from companies;
 
--- name: QueryAllCompanies :many
-select * from companies;
-
 -- name: InsertCompany :one
 insert into
     companies (id, name, industry, created_at, updated_at)

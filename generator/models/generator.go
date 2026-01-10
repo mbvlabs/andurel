@@ -580,7 +580,6 @@ func (g *Generator) RefreshQueries(
 	return nil
 }
 
-
 func (g *Generator) validateIDColumnConstraints(cat *catalog.Catalog, tableName string) error {
 	table, err := cat.GetTable("", tableName)
 	if err != nil {
@@ -834,7 +833,6 @@ func (g *Generator) extractGeneratedSQLQueries(content, resourceName string) map
 	queryNames := []string{
 		fmt.Sprintf("Query%sByID", resourceName),
 		fmt.Sprintf("Query%ss", resourceName),
-		fmt.Sprintf("QueryAll%ss", resourceName),
 		fmt.Sprintf("Insert%s", resourceName),
 		fmt.Sprintf("Update%s", resourceName),
 		fmt.Sprintf("Delete%s", resourceName),

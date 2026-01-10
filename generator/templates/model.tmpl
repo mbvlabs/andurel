@@ -135,7 +135,7 @@ func All{{Plural .Name}}(
 	ctx context.Context,
 	exec storage.Executor,
 ) ([]{{.Name}}, error) {
-	rows, err := queries.QueryAll{{Plural .Name}}(ctx, exec)
+	rows, err := queries.Query{{Plural .Name}}(ctx, exec)
 	if err != nil {
 		return nil, err
 	}

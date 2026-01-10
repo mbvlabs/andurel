@@ -109,7 +109,7 @@ func AllCategories(
 	ctx context.Context,
 	exec storage.Executor,
 ) ([]Category, error) {
-	rows, err := queries.QueryAllCategories(ctx, exec)
+	rows, err := queries.QueryCategories(ctx, exec)
 	if err != nil {
 		return nil, err
 	}

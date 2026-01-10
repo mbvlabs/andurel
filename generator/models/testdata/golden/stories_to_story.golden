@@ -109,7 +109,7 @@ func AllStories(
 	ctx context.Context,
 	exec storage.Executor,
 ) ([]Story, error) {
-	rows, err := queries.QueryAllStories(ctx, exec)
+	rows, err := queries.QueryStories(ctx, exec)
 	if err != nil {
 		return nil, err
 	}

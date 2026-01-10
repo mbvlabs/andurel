@@ -107,7 +107,7 @@ func AllCompanies(
 	ctx context.Context,
 	exec storage.Executor,
 ) ([]Company, error) {
-	rows, err := queries.QueryAllCompanies(ctx, exec)
+	rows, err := queries.QueryCompanies(ctx, exec)
 	if err != nil {
 		return nil, err
 	}

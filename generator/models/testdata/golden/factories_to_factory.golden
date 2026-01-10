@@ -109,7 +109,7 @@ func AllFactories(
 	ctx context.Context,
 	exec storage.Executor,
 ) ([]Factory, error) {
-	rows, err := queries.QueryAllFactories(ctx, exec)
+	rows, err := queries.QueryFactories(ctx, exec)
 	if err != nil {
 		return nil, err
 	}

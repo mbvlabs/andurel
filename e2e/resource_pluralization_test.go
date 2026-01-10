@@ -27,7 +27,7 @@ var updateResourceGolden = flag.Bool(
 //   - Model struct should be singular: `type Company struct`
 //   - Model functions should use proper plurals: `AllCompanies`, `PaginateCompanies`
 //   - Table name should be plural: `companies`
-//   - Query names should use proper plurals: `QueryAllCompanies`, `CountCompanies`
+//   - Query names should use proper plurals: `QueryCompanies`, `CountCompanies`
 //   - Controller type should use proper plurals: `type Companies struct`
 //   - View headings should use proper plurals: `<h1>Companies</h1>`
 func TestResourcePluralization(t *testing.T) {
@@ -219,7 +219,7 @@ func validateQueriesPluralization(
 		{"into\n    " + tc.tableName, "INSERT uses plural table name"},
 		{"update " + tc.tableName, "UPDATE uses plural table name"},
 		{"-- name: Query" + tc.expectedSingular + "ByID", "QueryByID uses singular"},
-		{"-- name: QueryAll" + tc.expectedPlural, "QueryAll uses correct plural"},
+		{"-- name: Query" + tc.expectedPlural, "Query uses correct plural"},
 		{"-- name: Insert" + tc.expectedSingular, "Insert uses singular"},
 		{"-- name: Update" + tc.expectedSingular, "Update uses singular"},
 		{"-- name: Delete" + tc.expectedSingular, "Delete uses singular"},
@@ -239,7 +239,7 @@ func validateQueriesPluralization(
 		pattern string
 		desc    string
 	}{
-		{"-- name: QueryAllCompanys", "Should NOT use naive plural"},
+		{"-- name: QueryCompanys", "Should NOT use naive plural"},
 		{"-- name: CountCompanys", "Should NOT use naive plural"},
 		{"-- name: QueryPaginatedCompanys", "Should NOT use naive plural"},
 	}
