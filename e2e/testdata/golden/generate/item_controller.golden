@@ -68,20 +68,20 @@ func (i Items) Show(etx echo.Context) error {
 }
 
 func (i Items) New(etx echo.Context) error {
-	return render(etx, view.ItemsNew())
+	return render(etx, view.ItemNew())
 }
 
-type CreateItemsFormPayload struct {
-	Name     string `form:"name"`
-	Quantity int32  `form:"quantity"`
+type CreateItemFormPayload struct {
+	Name     string `json:"name"`
+	Quantity int32  `json:"quantity"`
 }
 
 func (i Items) Create(etx echo.Context) error {
-	var payload CreateItemsFormPayload
+	var payload CreateItemFormPayload
 	if err := etx.Bind(&payload); err != nil {
 		slog.ErrorContext(
 			etx.Request().Context(),
-			"could not parse CreateItemsFormPayload",
+			"could not parse CreateItemFormPayload",
 			"error",
 			err,
 		)
@@ -103,14 +103,14 @@ func (i Items) Create(etx echo.Context) error {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create item: %v", err)); flashErr != nil {
 			return flashErr
 		}
-		return etx.Redirect(http.StatusSeeOther, routes.ItemsNew.URL())
+		return etx.Redirect(http.StatusSeeOther, routes.ItemNew.URL())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Items created successfully"); flashErr != nil {
 		return render(etx, view.InternalError())
 	}
 
-	return etx.Redirect(http.StatusSeeOther, routes.ItemsShow.URL(item.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.ItemShow.URL(item.ID))
 }
 
 func (i Items) Edit(etx echo.Context) error {
@@ -127,9 +127,9 @@ func (i Items) Edit(etx echo.Context) error {
 	return render(etx, views.ItemEdit(item))
 }
 
-type UpdateItemsFormPayload struct {
-	Name     string `form:"name"`
-	Quantity int32  `form:"quantity"`
+type UpdateItemFormPayload struct {
+	Name     string `json:"name"`
+	Quantity int32  `json:"quantity"`
 }
 
 func (i Items) Update(etx echo.Context) error {
@@ -138,11 +138,11 @@ func (i Items) Update(etx echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	var payload UpdateItemsFormPayload
+	var payload UpdateItemFormPayload
 	if err := etx.Bind(&payload); err != nil {
 		slog.ErrorContext(
 			etx.Request().Context(),
-			"could not parse UpdateItemsFormPayload",
+			"could not parse UpdateItemFormPayload",
 			"error",
 			err,
 		)
@@ -167,15 +167,15 @@ func (i Items) Update(etx echo.Context) error {
 		}
 		return etx.Redirect(
 			http.StatusSeeOther,
-			routes.ItemsEdit.URL(itemID),
+			routes.ItemEdit.URL(itemID),
 		)
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Items updated successfully"); flashErr != nil {
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Item updated successfully"); flashErr != nil {
 		return render(etx, views.InternalError())
 	}
 
-	return etx.Redirect(http.StatusSeeOther, routes.ItemsShow.URL(item.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.ItemShow.URL(item.ID))
 }
 
 func (i Items) Destroy(etx echo.Context) error {
@@ -189,12 +189,12 @@ func (i Items) Destroy(etx echo.Context) error {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete item: %v", err)); flashErr != nil {
 			return render(etx, views.InternalError())
 		}
-		return etx.Redirect(http.StatusSeeOther, routes.ItemsIndex.URL())
+		return etx.Redirect(http.StatusSeeOther, routes.ItemIndex.URL())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Items destroyed successfully"); flashErr != nil {
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Item destroyed successfully"); flashErr != nil {
 		return render(etx, views.InternalError())
 	}
 
-	return etx.Redirect(http.StatusSeeOther, routes.ItemsIndex.URL())
+	return etx.Redirect(http.StatusSeeOther, routes.ItemIndex.URL())
 }

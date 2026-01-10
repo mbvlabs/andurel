@@ -71,17 +71,17 @@ func (p Projects) New(etx echo.Context) error {
 	return render(etx, views.ProjectNew())
 }
 
-type CreateProjectsFormPayload struct {
-	Name        string `form:"name"`
-	Description string `form:"description"`
+type CreateProjectFormPayload struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 func (p Projects) Create(etx echo.Context) error {
-	var payload CreateProjectsFormPayload
+	var payload CreateProjectFormPayload
 	if err := etx.Bind(&payload); err != nil {
 		slog.ErrorContext(
 			etx.Request().Context(),
-			"could not parse CreateProjectsFormPayload",
+			"could not parse CreateProjectFormPayload",
 			"error",
 			err,
 		)
@@ -103,14 +103,14 @@ func (p Projects) Create(etx echo.Context) error {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create project: %v", err)); flashErr != nil {
 			return flashErr
 		}
-		return etx.Redirect(http.StatusSeeOther, routes.ProjectsNew.URL())
+		return etx.Redirect(http.StatusSeeOther, routes.ProjectNew.URL())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Projects created successfully"); flashErr != nil {
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Project created successfully"); flashErr != nil {
 		return render(etx, views.InternalError())
 	}
 
-	return etx.Redirect(http.StatusSeeOther, routes.ProjectsShow.URL(project.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.ProjectShow.URL(project.ID))
 }
 
 func (p Projects) Edit(etx echo.Context) error {
@@ -127,9 +127,9 @@ func (p Projects) Edit(etx echo.Context) error {
 	return render(etx, views.ProjectEdit(project))
 }
 
-type UpdateProjectsFormPayload struct {
-	Name        string `form:"name"`
-	Description string `form:"description"`
+type UpdateProjectFormPayload struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 func (p Projects) Update(etx echo.Context) error {
@@ -138,11 +138,11 @@ func (p Projects) Update(etx echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	var payload UpdateProjectsFormPayload
+	var payload UpdateProjectFormPayload
 	if err := etx.Bind(&payload); err != nil {
 		slog.ErrorContext(
 			etx.Request().Context(),
-			"could not parse UpdateProjectsFormPayload",
+			"could not parse UpdateProjectFormPayload",
 			"error",
 			err,
 		)
@@ -167,15 +167,15 @@ func (p Projects) Update(etx echo.Context) error {
 		}
 		return etx.Redirect(
 			http.StatusSeeOther,
-			routes.ProjectsEdit.URL(projectID),
+			routes.ProjectEdit.URL(projectID),
 		)
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Projects updated successfully"); flashErr != nil {
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Project updated successfully"); flashErr != nil {
 		return render(etx, views.InternalError())
 	}
 
-	return etx.Redirect(http.StatusSeeOther, routes.ProjectsShow.URL(project.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.ProjectShow.URL(project.ID))
 }
 
 func (p Projects) Destroy(etx echo.Context) error {
@@ -189,12 +189,12 @@ func (p Projects) Destroy(etx echo.Context) error {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete project: %v", err)); flashErr != nil {
 			return render(etx, views.InternalError())
 		}
-		return etx.Redirect(http.StatusSeeOther, routes.ProjectsIndex.URL())
+		return etx.Redirect(http.StatusSeeOther, routes.ProjectIndex.URL())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Projects destroyed successfully"); flashErr != nil {
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Project destroyed successfully"); flashErr != nil {
 		return render(etx, views.InternalError())
 	}
 
-	return etx.Redirect(http.StatusSeeOther, routes.ProjectsIndex.URL())
+	return etx.Redirect(http.StatusSeeOther, routes.ProjectIndex.URL())
 }

@@ -71,17 +71,17 @@ func (c Companies) New(etx echo.Context) error {
 	return render(etx, views.Companyew())
 }
 
-type CreateCompaniesFormPayload struct {
-	Name     string `form:"name"`
-	Industry string `form:"industry"`
+type CreateCompanyFormPayload struct {
+	Name     string `json:"name"`
+	Industry string `json:"industry"`
 }
 
 func (c Companies) Create(etx echo.Context) error {
-	var payload CreateCompaniesFormPayload
+	var payload CreateCompanyFormPayload
 	if err := etx.Bind(&payload); err != nil {
 		slog.ErrorContext(
 			etx.Request().Context(),
-			"could not parse CreateCompaniesFormPayload",
+			"could not parse CreateCompanyFormPayload",
 			"error",
 			err,
 		)
@@ -103,14 +103,14 @@ func (c Companies) Create(etx echo.Context) error {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create company: %v", err)); flashErr != nil {
 			return flashErr
 		}
-		return etx.Redirect(http.StatusSeeOther, routes.CompaniesNew.URL())
+		return etx.Redirect(http.StatusSeeOther, routes.CompanyNew.URL())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Companies created successfully"); flashErr != nil {
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Company created successfully"); flashErr != nil {
 		return render(etx, views.InternalError())
 	}
 
-	return etx.Redirect(http.StatusSeeOther, routes.CompaniesShow.URL(company.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.CompanyShow.URL(company.ID))
 }
 
 func (c Companies) Edit(etx echo.Context) error {
@@ -127,9 +127,9 @@ func (c Companies) Edit(etx echo.Context) error {
 	return render(etx, views.Companydit(company))
 }
 
-type UpdateCompaniesFormPayload struct {
-	Name     string `form:"name"`
-	Industry string `form:"industry"`
+type UpdateCompanyFormPayload struct {
+	Name     string `json:"name"`
+	Industry string `json:"industry"`
 }
 
 func (c Companies) Update(etx echo.Context) error {
@@ -138,11 +138,11 @@ func (c Companies) Update(etx echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	var payload UpdateCompaniesFormPayload
+	var payload UpdateCompanyFormPayload
 	if err := etx.Bind(&payload); err != nil {
 		slog.ErrorContext(
 			etx.Request().Context(),
-			"could not parse UpdateCompaniesFormPayload",
+			"could not parse UpdateCompanyFormPayload",
 			"error",
 			err,
 		)
@@ -167,15 +167,15 @@ func (c Companies) Update(etx echo.Context) error {
 		}
 		return etx.Redirect(
 			http.StatusSeeOther,
-			routes.CompaniesEdit.URL(companyID),
+			routes.CompanyEdit.URL(companyID),
 		)
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Companies updated successfully"); flashErr != nil {
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Company updated successfully"); flashErr != nil {
 		return render(etx, views.InternalError())
 	}
 
-	return etx.Redirect(http.StatusSeeOther, routes.CompaniesShow.URL(company.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.CompanyShow.URL(company.ID))
 }
 
 func (c Companies) Destroy(etx echo.Context) error {
@@ -189,12 +189,12 @@ func (c Companies) Destroy(etx echo.Context) error {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete company: %v", err)); flashErr != nil {
 			return render(etx, views.InternalError())
 		}
-		return etx.Redirect(http.StatusSeeOther, routes.CompaniesIndex.URL())
+		return etx.Redirect(http.StatusSeeOther, routes.CompanyIndex.URL())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Companies destroyed successfully"); flashErr != nil {
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Company destroyed successfully"); flashErr != nil {
 		return render(etx, views.InternalError())
 	}
 
-	return etx.Redirect(http.StatusSeeOther, routes.CompaniesIndex.URL())
+	return etx.Redirect(http.StatusSeeOther, routes.CompanyIndex.URL())
 }
