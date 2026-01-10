@@ -29,16 +29,16 @@ func New{{.ResourceName}}(db storage.Pool) {{.ResourceName}} {
 	return {{.ResourceName}}{db}
 }
 
-func ({{.ReceiverName}} {{.ResourceName}}) Index(eCtx echo.Context) error {
+func ({{.ReceiverName}} {{.ResourceName}}) Index(etx echo.Context) error {
 	page := int64(1)
-	if p := eCtx.QueryParam("page"); p != "" {
+	if p := etx.QueryParam("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
 			page = int64(parsed)
 		}
 	}
 
 	perPage := int64(25)
-	if pp := eCtx.QueryParam("per_page"); pp != "" {
+	if pp := etx.QueryParam("per_page"); pp != "" {
 		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
 			parsed <= 100 {
 			perPage = int64(parsed)
@@ -46,34 +46,34 @@ func ({{.ReceiverName}} {{.ResourceName}}) Index(eCtx echo.Context) error {
 	}
 
 	{{.PluralName | ToCamelCase}}List, err := models.Paginate{{.PluralResourceName}}(
-		eCtx.Request().Context(),
+		etx.Request().Context(),
 		{{.ReceiverName}}.db.Conn(),
 		page,
 		perPage,
 	)
 	if err != nil {
-		return render(eCtx, views.InternalError())
+		return render(etx, views.InternalError())
 	}
 
-	return eCtx.HTML(http.StatusOK, "{{.ResourceName | ToLowerCamelCase}}s index - no views implemented")
+	return etx.HTML(http.StatusOK, "{{.ResourceName | ToLowerCamelCase}}s index - no views implemented")
 }
 
-func ({{.ReceiverName}} {{.ResourceName}}) Show(eCtx echo.Context) error {
-	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(eCtx.Param("id"))
+func ({{.ReceiverName}} {{.ResourceName}}) Show(etx echo.Context) error {
+	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(eCtx, views.BadRequest())
+		return render(etx, views.BadRequest())
 	}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(eCtx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
-		return render(eCtx, views.NotFound())
+		return render(etx, views.NotFound())
 	}
 
-	return eCtx.HTML(http.StatusOK, "{{.ResourceName | ToLowerCamelCase}} show - no views implemented")
+	return etx.HTML(http.StatusOK, "{{.ResourceName | ToLowerCamelCase}} show - no views implemented")
 }
 
-func ({{.ReceiverName}} {{.ResourceName}}) New(eCtx echo.Context) error {
-	return eCtx.HTML(http.StatusOK, "{{.ResourceName | ToLowerCamelCase}} new - no views implemented")
+func ({{.ReceiverName}} {{.ResourceName}}) New(etx echo.Context) error {
+	return etx.HTML(http.StatusOK, "{{.ResourceName | ToLowerCamelCase}} new - no views implemented")
 }
 
 type Create{{.ResourceName}}FormPayload struct {
@@ -88,17 +88,17 @@ type Create{{.ResourceName}}FormPayload struct {
 {{- end}}
 }
 
-func ({{.ReceiverName}} {{.ResourceName}}) Create(eCtx echo.Context) error {
+func ({{.ReceiverName}} {{.ResourceName}}) Create(etx echo.Context) error {
 	var payload Create{{.ResourceName}}FormPayload
-	if err := eCtx.Bind(&payload); err != nil {
+	if err := etx.Bind(&payload); err != nil {
 		slog.ErrorContext(
-			eCtx.Request().Context(),
+			etx.Request().Context(),
 			"could not parse Create{{.ResourceName}}FormPayload",
 			"error",
 			err,
 		)
 
-		return render(eCtx, views.NotFound())
+		return render(etx, views.NotFound())
 	}
 
 	data := models.Create{{.ResourceName}}Data{
@@ -122,36 +122,36 @@ func ({{.ReceiverName}} {{.ResourceName}}) Create(eCtx echo.Context) error {
 	}
 
 	{{.ResourceName | ToLowerCamelCase}}, err := models.Create{{.ResourceName}}(
-		eCtx.Request().Context(),
+		etx.Request().Context(),
 		{{.ReceiverName}}.db.Conn(),
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to create {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return flashErr
 		}
-		return eCtx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}New.Path)
+		return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}New.Path)
 	}
 
-	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "{{.ResourceName}} created successfully"); flashErr != nil {
-		return render(eCtx, views.InternalError())
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} created successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
 	}
 
-	return eCtx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.GetPath({{.ResourceName | ToLowerCamelCase}}.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.GetPath({{.ResourceName | ToLowerCamelCase}}.ID))
 }
 
-func ({{.ReceiverName}} {{.ResourceName}}) Edit(eCtx echo.Context) error {
-	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(eCtx.Param("id"))
+func ({{.ReceiverName}} {{.ResourceName}}) Edit(etx echo.Context) error {
+	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(eCtx, views.BadRequest())
+		return render(etx, views.BadRequest())
 	}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(eCtx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
-		return render(eCtx, views.NotFound())
+		return render(etx, views.NotFound())
 	}
 
-	return eCtx.HTML(http.StatusOK, "{{.ResourceName | ToLowerCamelCase}} edit - no views implemented")
+	return etx.HTML(http.StatusOK, "{{.ResourceName | ToLowerCamelCase}} edit - no views implemented")
 }
 
 type Update{{.ResourceName}}FormPayload struct {
@@ -166,22 +166,22 @@ type Update{{.ResourceName}}FormPayload struct {
 {{- end}}
 }
 
-func ({{.ReceiverName}} {{.ResourceName}}) Update(eCtx echo.Context) error {
-	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(eCtx.Param("id"))
+func ({{.ReceiverName}} {{.ResourceName}}) Update(etx echo.Context) error {
+	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(eCtx, views.BadRequest())
+		return render(etx, views.BadRequest())
 	}
 
 	var payload Update{{.ResourceName}}FormPayload
-	if err := eCtx.Bind(&payload); err != nil {
+	if err := etx.Bind(&payload); err != nil {
 		slog.ErrorContext(
-			eCtx.Request().Context(),
+			etx.Request().Context(),
 			"could not parse Update{{.ResourceName}}FormPayload",
 			"error",
 			err,
 		)
 
-		return render(eCtx, views.NotFound())
+		return render(etx, views.NotFound())
 	}
 
 	data := models.Update{{.ResourceName}}Data{
@@ -206,45 +206,45 @@ func ({{.ReceiverName}} {{.ResourceName}}) Update(eCtx echo.Context) error {
 	}
 
 	{{.ResourceName | ToLowerCamelCase}}, err := models.Update{{.ResourceName}}(
-		eCtx.Request().Context(),
+		etx.Request().Context(),
 		{{.ReceiverName}}.db.Conn(),
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
-			return render(eCtx, views.InternalError())
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
+			return render(etx, views.InternalError())
 		}
-		return eCtx.Redirect(
+		return etx.Redirect(
 			http.StatusSeeOther,
 			routes.{{.ResourceName}}Edit.GetPath({{.ResourceName | ToLowerCamelCase}}ID),
 		)
 	}
 
-	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "{{.ResourceName}} updated successfully"); flashErr != nil {
-		return render(eCtx, views.InternalError())
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} updated successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
 	}
 
-	return eCtx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.GetPath({{.ResourceName | ToLowerCamelCase}}.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.GetPath({{.ResourceName | ToLowerCamelCase}}.ID))
 }
 
-func ({{.ReceiverName}} {{.ResourceName}}) Destroy(eCtx echo.Context) error {
-	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(eCtx.Param("id"))
+func ({{.ReceiverName}} {{.ResourceName}}) Destroy(etx echo.Context) error {
+	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(eCtx, views.BadRequest())
+		return render(etx, views.BadRequest())
 	}
 
-	err = models.Destroy{{.ResourceName}}(eCtx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
+	err = models.Destroy{{.ResourceName}}(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
-		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
-			return render(eCtx, views.InternalError())
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
+			return render(etx, views.InternalError())
 		}
-		return eCtx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.Path)
+		return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.Path)
 	}
 
-	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "{{.ResourceName}} destroyed successfully"); flashErr != nil {
-		return render(eCtx, views.InternalError())
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} destroyed successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
 	}
 
-	return eCtx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.Path)
+	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.Path)
 }
 
