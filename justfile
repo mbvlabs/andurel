@@ -66,6 +66,11 @@ test-e2e-generate:
 	go clean -testcache
 	go test ./e2e -run TestGenerateCommands -v -timeout 15m
 
+# Run a specific generate subtest (usage: just test-e2e-generate-sub generate_model)
+test-e2e-generate-sub subtest:
+	go clean -testcache
+	go test ./e2e -run "TestGenerateCommands/.*/{{subtest}}" -v -timeout 10m
+
 # Run specific e2e test suite - migration workflow tests
 test-e2e-migration:
 	go clean -testcache

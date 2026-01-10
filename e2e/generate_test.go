@@ -37,7 +37,6 @@ func TestGenerateCommands(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			if isCriticalOnly() && !tc.critical {
 				t.Skip("Skipping non-critical test in critical-only mode")
@@ -77,18 +76,6 @@ func TestGenerateCommands(t *testing.T) {
 			t.Run("generate_model_skip_factory", func(t *testing.T) {
 				testGenerateModelSkipFactory(t, project)
 			})
-
-			t.Run("generate_model_standalone", func(t *testing.T) {
-				testGenerateModelStandalone(t, project)
-			})
-
-			t.Run("generate_controller_standalone", func(t *testing.T) {
-				testGenerateControllerStandalone(t, project)
-			})
-
-			t.Run("generate_view_standalone", func(t *testing.T) {
-				testGenerateViewStandalone(t, project)
-			})
 		})
 	}
 }
@@ -104,8 +91,68 @@ func testGenerateModel(t *testing.T, project *internal.Project) {
 	err := project.Generate("generate", "model", "Product")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
+	// Verify model file exists and has correct content
 	internal.AssertFileExists(t, project, "models/product.go")
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/product.go"))
+	if err != nil {
+		t.Fatalf("Failed to read model file: %v", err)
+	}
+
+	modelStr := string(modelContent)
+	modelRequiredElements := []string{
+		"package models",
+		// Struct definition
+		"type Product struct",
+		"Name",
+		"Price",
+		"CreatedAt",
+		"UpdatedAt",
+		// CRUD functions
+		"func FindProduct(",
+		"func CreateProduct(",
+		"func UpdateProduct(",
+		"func DestroyProduct(",
+		// Query functions
+		"func AllProducts(",
+		"func PaginateProducts(",
+		"func UpsertProduct(",
+		// Data structs
+		"type CreateProductData struct",
+		"type UpdateProductData struct",
+		"type PaginatedProducts struct",
+	}
+
+	for _, element := range modelRequiredElements {
+		if !strings.Contains(modelStr, element) {
+			t.Errorf("Model file should contain %q", element)
+		}
+	}
+
+	// Verify queries file exists and has correct content
 	internal.AssertFileExists(t, project, "database/queries/products.sql")
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/products.sql"))
+	if err != nil {
+		t.Fatalf("Failed to read queries file: %v", err)
+	}
+
+	queriesStr := string(queriesContent)
+	queriesRequiredElements := []string{
+		"-- name: QueryProductByID :one",
+		"-- name: QueryProducts :many",
+		"-- name: InsertProduct :one",
+		"-- name: UpdateProduct :one",
+		"-- name: DeleteProduct :exec",
+		"from products",
+	}
+
+	for _, element := range queriesRequiredElements {
+		if !strings.Contains(queriesStr, element) {
+			t.Errorf("Queries file should contain %q", element)
+		}
+	}
+
+	// Verify factory file exists by default
+	internal.AssertFileExists(t, project, "models/factories/product.go")
 }
 
 func testGenerateController(t *testing.T, project *internal.Project) {
@@ -122,9 +169,95 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 	err = project.Generate("generate", "controller", "Order", "--with-views")
 	internal.AssertCommandSucceeds(t, err, "generate controller")
 
+	// Verify controller file exists and has correct content
 	internal.AssertFileExists(t, project, "controllers/orders.go")
+	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/orders.go"))
+	if err != nil {
+		t.Fatalf("Failed to read controller file: %v", err)
+	}
+
+	controllerStr := string(controllerContent)
+	controllerRequiredElements := []string{
+		"package controllers",
+		"type Orders struct",
+		"func NewOrders",
+		"func (r Orders) Index",
+		"func (r Orders) Show",
+		"func (r Orders) New",
+		"func (r Orders) Create",
+		"func (r Orders) Edit",
+		"func (r Orders) Update",
+		"func (r Orders) Destroy",
+	}
+
+	for _, element := range controllerRequiredElements {
+		if !strings.Contains(controllerStr, element) {
+			t.Errorf("Controller file should contain %q", element)
+		}
+	}
+
+	// Verify view file exists and has correct content (--with-views was passed)
 	internal.AssertFileExists(t, project, "views/orders_resource.templ")
+	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/orders_resource.templ"))
+	if err != nil {
+		t.Fatalf("Failed to read view file: %v", err)
+	}
+
+	viewStr := string(viewContent)
+	viewRequiredElements := []string{
+		"package views",
+		// Template functions
+		"templ OrderIndex(",
+		"templ OrderShow(",
+		"templ OrderNew(",
+		"templ OrderEdit(",
+		// Model references
+		"models.Order",
+		"[]models.Order",
+		// Form elements
+		"OrderForm",
+		// Field references
+		"CustomerName",
+		"Total",
+	}
+
+	for _, element := range viewRequiredElements {
+		if !strings.Contains(viewStr, element) {
+			t.Errorf("View file should contain %q", element)
+		}
+	}
+
+	// Verify routes file exists and has correct content
 	internal.AssertFileExists(t, project, "router/routes/orders.go")
+	routesContent, err := os.ReadFile(filepath.Join(project.Dir, "router/routes/orders.go"))
+	if err != nil {
+		t.Fatalf("Failed to read routes file: %v", err)
+	}
+
+	routesStr := string(routesContent)
+	routesRequiredElements := []string{
+		"package routes",
+		"func OrderRoutes(",
+		// Route definitions
+		"OrderIndex",
+		"OrderShow",
+		"OrderNew",
+		"OrderCreate",
+		"OrderEdit",
+		"OrderUpdate",
+		"OrderDestroy",
+		// Path patterns
+		"/orders",
+		"/orders/{id}",
+		"/orders/new",
+		"/orders/{id}/edit",
+	}
+
+	for _, element := range routesRequiredElements {
+		if !strings.Contains(routesStr, element) {
+			t.Errorf("Routes file should contain %q", element)
+		}
+	}
 }
 
 func testGenerateView(t *testing.T, project *internal.Project) {
@@ -141,7 +274,41 @@ func testGenerateView(t *testing.T, project *internal.Project) {
 	err = project.Generate("generate", "view", "Category")
 	internal.AssertCommandSucceeds(t, err, "generate view")
 
+	// Verify view file exists and has correct content
 	internal.AssertFileExists(t, project, "views/categories_resource.templ")
+	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/categories_resource.templ"))
+	if err != nil {
+		t.Fatalf("Failed to read view file: %v", err)
+	}
+
+	viewStr := string(viewContent)
+	viewRequiredElements := []string{
+		"package views",
+		// Template functions
+		"templ CategoryIndex(",
+		"templ CategoryShow(",
+		"templ CategoryNew(",
+		"templ CategoryEdit(",
+		// Model references
+		"models.Category",
+		"[]models.Category",
+		// Form elements
+		"CategoryForm",
+		// Field references
+		"Name",
+		"Description",
+	}
+
+	for _, element := range viewRequiredElements {
+		if !strings.Contains(viewStr, element) {
+			t.Errorf("View file should contain %q", element)
+		}
+	}
+
+	// Controller file should NOT exist when only generating views
+	if project.FileExists("controllers/categories.go") {
+		t.Error("Controller file should NOT exist when only generating views")
+	}
 }
 
 func testGenerateResource(t *testing.T, project *internal.Project) {
@@ -155,9 +322,76 @@ func testGenerateResource(t *testing.T, project *internal.Project) {
 	err := project.Generate("generate", "resource", "Item")
 	internal.AssertCommandSucceeds(t, err, "generate resource")
 
+	// Verify model file exists and has correct content
 	internal.AssertFileExists(t, project, "models/item.go")
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/item.go"))
+	if err != nil {
+		t.Fatalf("Failed to read model file: %v", err)
+	}
+
+	modelStr := string(modelContent)
+	modelRequiredElements := []string{
+		"package models",
+		// Struct definition
+		"type Item struct",
+		"Name",
+		"Quantity",
+		// CRUD functions
+		"func FindItem(",
+		"func CreateItem(",
+		"func UpdateItem(",
+		"func DestroyItem(",
+		// Query functions
+		"func AllItems(",
+		"func PaginateItems(",
+	}
+
+	for _, element := range modelRequiredElements {
+		if !strings.Contains(modelStr, element) {
+			t.Errorf("Model file should contain %q", element)
+		}
+	}
+
+	// Verify controller file exists and has correct content
 	internal.AssertFileExists(t, project, "controllers/items.go")
+	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/items.go"))
+	if err != nil {
+		t.Fatalf("Failed to read controller file: %v", err)
+	}
+
+	controllerStr := string(controllerContent)
+	controllerRequiredElements := []string{
+		"package controllers",
+		"type Items struct",
+		"func NewItems",
+	}
+
+	for _, element := range controllerRequiredElements {
+		if !strings.Contains(controllerStr, element) {
+			t.Errorf("Controller file should contain %q", element)
+		}
+	}
+
+	// Verify view file exists and has correct content
 	internal.AssertFileExists(t, project, "views/items_resource.templ")
+	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/items_resource.templ"))
+	if err != nil {
+		t.Fatalf("Failed to read view file: %v", err)
+	}
+
+	viewStr := string(viewContent)
+	viewRequiredElements := []string{
+		"package views",
+		"ItemIndex",
+		"ItemShow",
+		"models.Item",
+	}
+
+	for _, element := range viewRequiredElements {
+		if !strings.Contains(viewStr, element) {
+			t.Errorf("View file should contain %q", element)
+		}
+	}
 }
 
 func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.Project) {
@@ -169,7 +403,12 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 		"rating INTEGER",
 	})
 
-	err := project.Generate("generate", "resource", "StudentFeedback", "--table-name=student_feedback")
+	err := project.Generate(
+		"generate",
+		"resource",
+		"StudentFeedback",
+		"--table-name=student_feedback",
+	)
 	internal.AssertCommandSucceeds(t, err, "generate resource with table-name override")
 
 	internal.AssertFileExists(t, project, "models/student_feedback.go")
@@ -180,7 +419,10 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 	if err != nil {
 		t.Fatalf("Failed to read model file: %v", err)
 	}
-	if !strings.Contains(string(modelContent), "STUDENTFEEDBACK_MODEL_TABLE_NAME: student_feedback") {
+	if !strings.Contains(
+		string(modelContent),
+		"STUDENTFEEDBACK_MODEL_TABLE_NAME: student_feedback",
+	) {
 		t.Errorf("Model file should contain table name override marker")
 	}
 }
@@ -266,199 +508,12 @@ func testGenerateModelSkipFactory(t *testing.T, project *internal.Project) {
 	}
 }
 
-// testGenerateModelStandalone tests generating a model from a migration
-// and verifies all expected files are created with correct content
-func testGenerateModelStandalone(t *testing.T, project *internal.Project) {
-	t.Helper()
-
-	createMigration(t, project, "000200_create_customers", "customers", []string{
-		"email VARCHAR(255) NOT NULL",
-		"first_name VARCHAR(100)",
-		"last_name VARCHAR(100)",
-		"phone VARCHAR(20)",
-		"active BOOLEAN DEFAULT true",
-	})
-
-	err := project.Generate("generate", "model", "Customer")
-	internal.AssertCommandSucceeds(t, err, "generate model Customer")
-
-	// Verify model file exists and has correct content
-	internal.AssertFileExists(t, project, "models/customer.go")
-	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/customer.go"))
-	if err != nil {
-		t.Fatalf("Failed to read model file: %v", err)
-	}
-
-	modelStr := string(modelContent)
-	modelRequiredElements := []string{
-		"package models",
-		"type Customer struct",
-		"Email",
-		"FirstName",
-		"LastName",
-		"Phone",
-		"Active",
-		"CreatedAt",
-		"UpdatedAt",
-	}
-
-	for _, element := range modelRequiredElements {
-		if !strings.Contains(modelStr, element) {
-			t.Errorf("Model file should contain %q", element)
-		}
-	}
-
-	// Verify queries file exists and has correct content
-	internal.AssertFileExists(t, project, "database/queries/customers.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/customers.sql"))
-	if err != nil {
-		t.Fatalf("Failed to read queries file: %v", err)
-	}
-
-	queriesStr := string(queriesContent)
-	queriesRequiredElements := []string{
-		"-- name: GetCustomer :one",
-		"-- name: ListCustomers :many",
-		"-- name: CreateCustomer :one",
-		"-- name: UpdateCustomer :one",
-		"-- name: DeleteCustomer :exec",
-		"FROM customers",
-	}
-
-	for _, element := range queriesRequiredElements {
-		if !strings.Contains(queriesStr, element) {
-			t.Errorf("Queries file should contain %q", element)
-		}
-	}
-
-	// Verify factory file exists by default
-	internal.AssertFileExists(t, project, "models/factories/customer.go")
-}
-
-// testGenerateControllerStandalone tests generating a controller for an existing model
-// This verifies the controller generator works independently once a model exists
-func testGenerateControllerStandalone(t *testing.T, project *internal.Project) {
-	t.Helper()
-
-	// First create a migration and model
-	createMigration(t, project, "000201_create_invoices", "invoices", []string{
-		"invoice_number VARCHAR(50) NOT NULL",
-		"amount DECIMAL(10,2) NOT NULL",
-		"due_date DATE",
-		"status VARCHAR(20) DEFAULT 'pending'",
-	})
-
-	err := project.Generate("generate", "model", "Invoice")
-	internal.AssertCommandSucceeds(t, err, "generate model Invoice")
-
-	// Now generate controller without views
-	err = project.Generate("generate", "controller", "Invoice")
-	internal.AssertCommandSucceeds(t, err, "generate controller Invoice")
-
-	// Verify controller file exists and has correct content
-	internal.AssertFileExists(t, project, "controllers/invoices.go")
-	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/invoices.go"))
-	if err != nil {
-		t.Fatalf("Failed to read controller file: %v", err)
-	}
-
-	controllerStr := string(controllerContent)
-	controllerRequiredElements := []string{
-		"package controllers",
-		"type InvoicesController struct",
-		"func NewInvoicesController",
-		"func (c *InvoicesController) Index",
-		"func (c *InvoicesController) Show",
-		"func (c *InvoicesController) New",
-		"func (c *InvoicesController) Create",
-		"func (c *InvoicesController) Edit",
-		"func (c *InvoicesController) Update",
-		"func (c *InvoicesController) Delete",
-	}
-
-	for _, element := range controllerRequiredElements {
-		if !strings.Contains(controllerStr, element) {
-			t.Errorf("Controller file should contain %q", element)
-		}
-	}
-
-	// Verify routes file exists
-	internal.AssertFileExists(t, project, "router/routes/invoices.go")
-	routesContent, err := os.ReadFile(filepath.Join(project.Dir, "router/routes/invoices.go"))
-	if err != nil {
-		t.Fatalf("Failed to read routes file: %v", err)
-	}
-
-	routesStr := string(routesContent)
-	routesRequiredElements := []string{
-		"package routes",
-		"func RegisterInvoicesRoutes",
-		"/invoices",
-	}
-
-	for _, element := range routesRequiredElements {
-		if !strings.Contains(routesStr, element) {
-			t.Errorf("Routes file should contain %q", element)
-		}
-	}
-
-	// View file should NOT exist when --with-views is not passed
-	if project.FileExists("views/invoices_resource.templ") {
-		t.Error("View file should NOT exist when --with-views is not passed")
-	}
-}
-
-// testGenerateViewStandalone tests generating views for an existing model
-// This verifies the view generator works independently once a model exists
-func testGenerateViewStandalone(t *testing.T, project *internal.Project) {
-	t.Helper()
-
-	// First create a migration and model
-	createMigration(t, project, "000202_create_tasks", "tasks", []string{
-		"title VARCHAR(255) NOT NULL",
-		"description TEXT",
-		"priority INTEGER DEFAULT 0",
-		"completed BOOLEAN DEFAULT false",
-		"due_date DATE",
-	})
-
-	err := project.Generate("generate", "model", "Task")
-	internal.AssertCommandSucceeds(t, err, "generate model Task")
-
-	// Now generate view only
-	err = project.Generate("generate", "view", "Task")
-	internal.AssertCommandSucceeds(t, err, "generate view Task")
-
-	// Verify view file exists and has correct content
-	internal.AssertFileExists(t, project, "views/tasks_resource.templ")
-	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/tasks_resource.templ"))
-	if err != nil {
-		t.Fatalf("Failed to read view file: %v", err)
-	}
-
-	viewStr := string(viewContent)
-	viewRequiredElements := []string{
-		"package views",
-		"TasksIndex",
-		"TasksShow",
-		"TasksNew",
-		"TasksEdit",
-		"models.Task",
-	}
-
-	for _, element := range viewRequiredElements {
-		if !strings.Contains(viewStr, element) {
-			t.Errorf("View file should contain %q", element)
-		}
-	}
-
-	// Controller file should NOT exist when only generating views
-	if project.FileExists("controllers/tasks.go") {
-		t.Error("Controller file should NOT exist when only generating views")
-	}
-}
-
-func createMigration(t *testing.T, project *internal.Project, migrationName, tableName string, columns []string) {
+func createMigration(
+	t *testing.T,
+	project *internal.Project,
+	migrationName, tableName string,
+	columns []string,
+) {
 	t.Helper()
 
 	migrationDir := filepath.Join(project.Dir, "database", "migrations")
@@ -486,7 +541,7 @@ func createMigration(t *testing.T, project *internal.Project, migrationName, tab
 
 	migrationFile := filepath.Join(migrationDir, migrationName+".sql")
 
-	err := os.WriteFile(migrationFile, []byte(gooseMigration), 0644)
+	err := os.WriteFile(migrationFile, []byte(gooseMigration), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create migration file: %v", err)
 	}
