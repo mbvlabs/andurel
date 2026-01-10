@@ -50,7 +50,7 @@ func (c Companies) Index(etx echo.Context) error {
 		return render(etx, views.InternalError())
 	}
 
-	return render(etx, views.CompaniesIndex(companiesList.Companies))
+	return render(etx, views.Companyndex(companiesList.Companies))
 }
 
 func (c Companies) Show(etx echo.Context) error {
@@ -64,11 +64,11 @@ func (c Companies) Show(etx echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.CompaniesShow(company))
+	return render(etx, views.Companyhow(company))
 }
 
 func (c Companies) New(etx echo.Context) error {
-	return render(etx, views.CompaniesNew())
+	return render(etx, views.Companyew())
 }
 
 type CreateCompaniesFormPayload struct {
@@ -124,7 +124,7 @@ func (c Companies) Edit(etx echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.CompaniesEdit(company))
+	return render(etx, views.Companydit(company))
 }
 
 type UpdateCompaniesFormPayload struct {

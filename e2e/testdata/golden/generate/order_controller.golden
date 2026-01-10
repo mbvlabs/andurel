@@ -50,7 +50,7 @@ func (o Orders) Index(etx echo.Context) error {
 		return render(etx, views.InternalError())
 	}
 
-	return render(etx, views.OrdersIndex(ordersList.Orderss))
+	return render(etx, views.OrderIndex(ordersList.Orderss))
 }
 
 func (o Orders) Show(etx echo.Context) error {
@@ -64,11 +64,11 @@ func (o Orders) Show(etx echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.OrdersShow(order))
+	return render(etx, views.OrderShow(order))
 }
 
 func (o Orders) New(etx echo.Context) error {
-	return render(etx, views.OrdersNew())
+	return render(etx, views.OrderNew())
 }
 
 type CreateOrdersFormPayload struct {
@@ -124,7 +124,7 @@ func (o Orders) Edit(etx echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.OrdersEdit(order))
+	return render(etx, views.OrderEdit(order))
 }
 
 type UpdateOrdersFormPayload struct {

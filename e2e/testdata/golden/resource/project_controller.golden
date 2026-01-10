@@ -50,7 +50,7 @@ func (p Projects) Index(etx echo.Context) error {
 		return render(etx, views.InternalError())
 	}
 
-	return render(etx, views.ProjectsIndex(projectsList.Projectss))
+	return render(etx, views.ProjectIndex(projectsList.Projectss))
 }
 
 func (p Projects) Show(etx echo.Context) error {
@@ -64,11 +64,11 @@ func (p Projects) Show(etx echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.ProjectsShow(project))
+	return render(etx, views.ProjectShow(project))
 }
 
 func (p Projects) New(etx echo.Context) error {
-	return render(etx, views.ProjectsNew())
+	return render(etx, views.ProjectNew())
 }
 
 type CreateProjectsFormPayload struct {
@@ -124,7 +124,7 @@ func (p Projects) Edit(etx echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.ProjectsEdit(project))
+	return render(etx, views.ProjectEdit(project))
 }
 
 type UpdateProjectsFormPayload struct {
