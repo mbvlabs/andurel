@@ -40,7 +40,7 @@ func (p Projects) Index(etx echo.Context) error {
 		}
 	}
 
-	projectsList, err := models.PaginateProjectss(
+	projectsList, err := models.PaginateProjects(
 		etx.Request().Context(),
 		p.db.Conn(),
 		page,
@@ -50,7 +50,7 @@ func (p Projects) Index(etx echo.Context) error {
 		return render(etx, views.InternalError())
 	}
 
-	return render(etx, views.ProjectIndex(projectsList.Projectss))
+	return render(etx, views.ProjectIndex(projectsList.Projects))
 }
 
 func (p Projects) Show(etx echo.Context) error {
@@ -59,7 +59,7 @@ func (p Projects) Show(etx echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	project, err := models.FindProjects(etx.Request().Context(), p.db.Conn(), projectID)
+	project, err := models.FindProject(etx.Request().Context(), p.db.Conn(), projectID)
 	if err != nil {
 		return render(etx, views.NotFound())
 	}
@@ -89,12 +89,12 @@ func (p Projects) Create(etx echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	data := models.CreateProjectsData{
+	data := models.CreateProjectData{
 		Name:        payload.Name,
 		Description: payload.Description,
 	}
 
-	project, err := models.CreateProjects(
+	project, err := models.CreateProject(
 		etx.Request().Context(),
 		p.db.Conn(),
 		data,
@@ -119,7 +119,7 @@ func (p Projects) Edit(etx echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	project, err := models.FindProjects(etx.Request().Context(), p.db.Conn(), projectID)
+	project, err := models.FindProject(etx.Request().Context(), p.db.Conn(), projectID)
 	if err != nil {
 		return render(etx, views.NotFound())
 	}
@@ -150,13 +150,13 @@ func (p Projects) Update(etx echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	data := models.UpdateProjectsData{
+	data := models.UpdateProjectData{
 		ID:          projectID,
 		Name:        payload.Name,
 		Description: payload.Description,
 	}
 
-	project, err := models.UpdateProjects(
+	project, err := models.UpdateProject(
 		etx.Request().Context(),
 		p.db.Conn(),
 		data,
@@ -184,7 +184,7 @@ func (p Projects) Destroy(etx echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	err = models.DestroyProjects(etx.Request().Context(), p.db.Conn(), projectID)
+	err = models.DestroyProject(etx.Request().Context(), p.db.Conn(), projectID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete project: %v", err)); flashErr != nil {
 			return render(etx, views.InternalError())
