@@ -1,0 +1,221 @@
+package models
+
+// STUDENTFEEDBACK_MODEL_TABLE_NAME: student_feedback
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"testapp/internal/storage"
+	"testapp/models/internal/db"
+)
+
+type StudentFeedback struct {
+	ID        uuid.UUID
+	StudentID string
+	Feedback  string
+	Rating    int32
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func FindStudentFeedback(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) (StudentFeedback, error) {
+	row, err := queries.QueryStudentFeedbackByID(ctx, exec, id)
+	if err != nil {
+		return StudentFeedback{}, err
+	}
+
+	return rowToStudentFeedback(row), nil
+}
+
+type CreateStudentFeedbackData struct {
+	StudentID string
+	Feedback  string
+	Rating    int32
+}
+
+func CreateStudentFeedback(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateStudentFeedbackData,
+) (StudentFeedback, error) {
+	if err := validate.Struct(data); err != nil {
+		return StudentFeedback{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.InsertStudentFeedbackParams{
+		ID:        uuid.New(),
+		StudentID: data.StudentID,
+		Feedback:  data.Feedback,
+		Rating:    pgtype.Int4{Int32: data.Rating, Valid: true},
+	}
+	row, err := queries.InsertStudentFeedback(ctx, exec, params)
+	if err != nil {
+		return StudentFeedback{}, err
+	}
+
+	return rowToStudentFeedback(row), nil
+}
+
+type UpdateStudentFeedbackData struct {
+	ID        uuid.UUID
+	StudentID string
+	Feedback  string
+	Rating    int32
+	UpdatedAt time.Time
+}
+
+func UpdateStudentFeedback(
+	ctx context.Context,
+	exec storage.Executor,
+	data UpdateStudentFeedbackData,
+) (StudentFeedback, error) {
+	if err := validate.Struct(data); err != nil {
+		return StudentFeedback{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	currentRow, err := queries.QueryStudentFeedbackByID(ctx, exec, data.ID)
+	if err != nil {
+		return StudentFeedback{}, err
+	}
+
+	params := db.UpdateStudentFeedbackParams{
+		ID:        data.ID,
+		StudentID: data.StudentID,
+		Feedback:  data.Feedback,
+		Rating:    pgtype.Int4{Int32: data.Rating, Valid: true},
+	}
+
+	row, err := queries.UpdateStudentFeedback(ctx, exec, params)
+	if err != nil {
+		return StudentFeedback{}, err
+	}
+
+	return rowToStudentFeedback(row), nil
+}
+
+func DestroyStudentFeedback(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) error {
+	return queries.DeleteStudentFeedback(ctx, exec, id)
+}
+
+func AllStudentFeedback(
+	ctx context.Context,
+	exec storage.Executor,
+) ([]StudentFeedback, error) {
+	rows, err := queries.QueryStudentFeedback(ctx, exec)
+	if err != nil {
+		return nil, err
+	}
+
+	studentfeedbacks := make([]StudentFeedback, len(rows))
+	for i, row := range rows {
+		studentfeedbacks[i] = rowToStudentFeedback(row)
+	}
+
+	return studentfeedbacks, nil
+}
+
+type PaginatedStudentFeedback struct {
+	StudentFeedback []StudentFeedback
+	TotalCount       int64
+	Page             int64
+	PageSize         int64
+	TotalPages       int64
+}
+
+func PaginateStudentFeedback(
+	ctx context.Context,
+	exec storage.Executor,
+	page int64,
+	pageSize int64,
+) (PaginatedStudentFeedback, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := queries.CountStudentFeedback(ctx, exec)
+	if err != nil {
+		return PaginatedStudentFeedback{}, err
+	}
+
+	rows, err := queries.QueryPaginatedStudentFeedback(
+		ctx,
+		exec,
+		db.QueryPaginatedStudentFeedbackParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
+	)
+	if err != nil {
+		return PaginatedStudentFeedback{}, err
+	}
+
+	studentfeedbacks := make([]StudentFeedback, len(rows))
+	for i, row := range rows {
+		studentfeedbacks[i] = rowToStudentFeedback(row)
+	}
+
+	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+
+	return PaginatedStudentFeedback{
+		StudentFeedback: studentfeedbacks,
+		TotalCount:       totalCount,
+		Page:             page,
+		PageSize:         pageSize,
+		TotalPages:       totalPages,
+	}, nil
+}
+
+func UpsertStudentFeedback(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateStudentFeedbackData,
+) (StudentFeedback, error) {
+	if err := validate.Struct(data); err != nil {
+		return StudentFeedback{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpsertStudentFeedbackParams{
+		ID:        uuid.New(),
+		StudentID: data.StudentID,
+		Feedback:  data.Feedback,
+		Rating:    pgtype.Int4{Int32: data.Rating, Valid: true},
+	}
+	row, err := queries.UpsertStudentFeedback(ctx, exec, params)
+	if err != nil {
+		return StudentFeedback{}, err
+	}
+
+	return rowToStudentFeedback(row), nil
+}
+
+func rowToStudentFeedback(row db.StudentFeedback) StudentFeedback {
+	return StudentFeedback{
+		ID:        row.ID,
+		StudentID: row.StudentID,
+		Feedback:  row.Feedback,
+		Rating:    row.Rating.Int32,
+		CreatedAt: row.CreatedAt.Time,
+		UpdatedAt: row.UpdatedAt.Time,
+	}
+}

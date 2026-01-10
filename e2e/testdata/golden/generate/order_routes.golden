@@ -1,0 +1,49 @@
+package routes
+
+import (
+	"testapp/internal/routing"
+)
+
+const OrderPrefix = "/orders"
+
+var OrderIndex = routing.NewSimpleRoute(
+	"/",
+	"index",
+	OrderPrefix,
+)
+
+var OrderShow = routing.NewRouteWithID(
+	"/:id",
+	"show",
+	OrderPrefix,
+)
+
+var OrderNew = routing.NewSimpleRoute(
+	"/new",
+	"new",
+	OrderPrefix,
+)
+
+var OrderCreate = routing.NewSimpleRoute(
+	"/",
+	"create",
+	OrderPrefix,
+)
+
+var OrderEdit = routing.NewRouteWithID(
+	"/:id/edit",
+	"edit",
+	OrderPrefix,
+)
+
+var OrderUpdate = routing.NewRouteWithID(
+	"/:id",
+	"update",
+	OrderPrefix,
+)
+
+var OrderDestroy = routing.NewRouteWithID(
+	"/:id",
+	"destroy",
+	OrderPrefix,
+)

@@ -1,0 +1,200 @@
+package controllers
+
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+	"strconv"
+
+	"testapp/internal/storage"
+	"testapp/models"
+	"testapp/router/cookies"
+	"testapp/router/routes"
+	"testapp/views"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
+)
+
+type Orders struct {
+	db storage.Pool
+}
+
+func NewOrders(db storage.Pool) Orders {
+	return Orders{db}
+}
+
+func (r Orders) Index(c echo.Context) error {
+	page := int64(1)
+	if p := c.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := c.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	ordersList, err := models.PaginateOrders(
+		c.Request().Context(),
+		r.db.Conn(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return render(c, views.InternalError())
+	}
+
+	return render(c, views.OrderIndex(ordersList.Orders))
+}
+
+func (r Orders) Show(c echo.Context) error {
+	orderID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return render(c, views.BadRequest())
+	}
+
+	order, err := models.FindOrder(c.Request().Context(), r.db.Conn(), orderID)
+	if err != nil {
+		return render(c, views.NotFound())
+	}
+
+	return render(c, views.OrderShow(order))
+}
+
+func (r Orders) New(c echo.Context) error {
+	return render(c, views.OrderNew())
+}
+
+type CreateOrderFormPayload struct {
+	CustomerName string  `form:"customer_name"`
+	Total        float64 `form:"total"`
+}
+
+func (r Orders) Create(c echo.Context) error {
+	var payload CreateOrderFormPayload
+	if err := c.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"could not parse CreateOrderFormPayload",
+			"error",
+			err,
+		)
+
+		return render(c, views.NotFound())
+	}
+
+	data := models.CreateOrderData{
+		CustomerName: payload.CustomerName,
+		Total:        payload.Total,
+	}
+
+	order, err := models.CreateOrder(
+		c.Request().Context(),
+		r.db.Conn(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to create order: %v", err)); flashErr != nil {
+			return flashErr
+		}
+		return c.Redirect(http.StatusSeeOther, routes.OrderNew.URL())
+	}
+
+	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Order created successfully"); flashErr != nil {
+		return render(c, views.InternalError())
+	}
+
+	return c.Redirect(http.StatusSeeOther, routes.OrderShow.URL(order.ID))
+}
+
+func (r Orders) Edit(c echo.Context) error {
+	orderID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return render(c, views.BadRequest())
+	}
+
+	order, err := models.FindOrder(c.Request().Context(), r.db.Conn(), orderID)
+	if err != nil {
+		return render(c, views.NotFound())
+	}
+
+	return render(c, views.OrderEdit(order))
+}
+
+type UpdateOrderFormPayload struct {
+	CustomerName string  `form:"customer_name"`
+	Total        float64 `form:"total"`
+}
+
+func (r Orders) Update(c echo.Context) error {
+	orderID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return render(c, views.BadRequest())
+	}
+
+	var payload UpdateOrderFormPayload
+	if err := c.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			c.Request().Context(),
+			"could not parse UpdateOrderFormPayload",
+			"error",
+			err,
+		)
+
+		return render(c, views.NotFound())
+	}
+
+	data := models.UpdateOrderData{
+		ID:           orderID,
+		CustomerName: payload.CustomerName,
+		Total:        payload.Total,
+	}
+
+	order, err := models.UpdateOrder(
+		c.Request().Context(),
+		r.db.Conn(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to update order: %v", err)); flashErr != nil {
+			return render(c, views.InternalError())
+		}
+		return c.Redirect(
+			http.StatusSeeOther,
+			routes.OrderEdit.URL(orderID),
+		)
+	}
+
+	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Order updated successfully"); flashErr != nil {
+		return render(c, views.InternalError())
+	}
+
+	return c.Redirect(http.StatusSeeOther, routes.OrderShow.URL(order.ID))
+}
+
+func (r Orders) Destroy(c echo.Context) error {
+	orderID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return render(c, views.BadRequest())
+	}
+
+	err = models.DestroyOrder(c.Request().Context(), r.db.Conn(), orderID)
+	if err != nil {
+		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete order: %v", err)); flashErr != nil {
+			return render(c, views.InternalError())
+		}
+		return c.Redirect(http.StatusSeeOther, routes.OrderIndex.URL())
+	}
+
+	if flashErr := cookies.AddFlash(c, cookies.FlashSuccess, "Order destroyed successfully"); flashErr != nil {
+		return render(c, views.InternalError())
+	}
+
+	return c.Redirect(http.StatusSeeOther, routes.OrderIndex.URL())
+}

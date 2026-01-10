@@ -1,12 +1,20 @@
 package e2e
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/e2e/internal"
+	"github.com/mbvlabs/andurel/pkg/constants"
+)
+
+var updateGenerateGolden = flag.Bool(
+	"update-generate-golden",
+	false,
+	"update generate command golden files",
 )
 
 func TestGenerateCommands(t *testing.T) {
@@ -91,68 +99,41 @@ func testGenerateModel(t *testing.T, project *internal.Project) {
 	err := project.Generate("generate", "model", "Product")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
-	// Verify model file exists and has correct content
+	// Verify model file exists and compare against golden file
 	internal.AssertFileExists(t, project, "models/product.go")
 	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/product.go"))
 	if err != nil {
 		t.Fatalf("Failed to read model file: %v", err)
 	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "product_model.golden"),
+		string(modelContent),
+	)
 
-	modelStr := string(modelContent)
-	modelRequiredElements := []string{
-		"package models",
-		// Struct definition
-		"type Product struct",
-		"Name",
-		"Price",
-		"CreatedAt",
-		"UpdatedAt",
-		// CRUD functions
-		"func FindProduct(",
-		"func CreateProduct(",
-		"func UpdateProduct(",
-		"func DestroyProduct(",
-		// Query functions
-		"func AllProducts(",
-		"func PaginateProducts(",
-		"func UpsertProduct(",
-		// Data structs
-		"type CreateProductData struct",
-		"type UpdateProductData struct",
-		"type PaginatedProducts struct",
-	}
-
-	for _, element := range modelRequiredElements {
-		if !strings.Contains(modelStr, element) {
-			t.Errorf("Model file should contain %q", element)
-		}
-	}
-
-	// Verify queries file exists and has correct content
+	// Verify queries file exists and compare against golden file
 	internal.AssertFileExists(t, project, "database/queries/products.sql")
 	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/products.sql"))
 	if err != nil {
 		t.Fatalf("Failed to read queries file: %v", err)
 	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "product_queries.golden"),
+		string(queriesContent),
+	)
 
-	queriesStr := string(queriesContent)
-	queriesRequiredElements := []string{
-		"-- name: QueryProductByID :one",
-		"-- name: QueryProducts :many",
-		"-- name: InsertProduct :one",
-		"-- name: UpdateProduct :one",
-		"-- name: DeleteProduct :exec",
-		"from products",
-	}
-
-	for _, element := range queriesRequiredElements {
-		if !strings.Contains(queriesStr, element) {
-			t.Errorf("Queries file should contain %q", element)
-		}
-	}
-
-	// Verify factory file exists by default
+	// Verify factory file exists and compare against golden file
 	internal.AssertFileExists(t, project, "models/factories/product.go")
+	factoryContent, err := os.ReadFile(filepath.Join(project.Dir, "models/factories/product.go"))
+	if err != nil {
+		t.Fatalf("Failed to read factory file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "product_factory.golden"),
+		string(factoryContent),
+	)
 }
 
 func testGenerateController(t *testing.T, project *internal.Project) {
@@ -169,95 +150,41 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 	err = project.Generate("generate", "controller", "Order", "--with-views")
 	internal.AssertCommandSucceeds(t, err, "generate controller")
 
-	// Verify controller file exists and has correct content
+	// Verify controller file exists and compare against golden file
 	internal.AssertFileExists(t, project, "controllers/orders.go")
 	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/orders.go"))
 	if err != nil {
 		t.Fatalf("Failed to read controller file: %v", err)
 	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "order_controller.golden"),
+		string(controllerContent),
+	)
 
-	controllerStr := string(controllerContent)
-	controllerRequiredElements := []string{
-		"package controllers",
-		"type Orders struct",
-		"func NewOrders",
-		"func (r Orders) Index",
-		"func (r Orders) Show",
-		"func (r Orders) New",
-		"func (r Orders) Create",
-		"func (r Orders) Edit",
-		"func (r Orders) Update",
-		"func (r Orders) Destroy",
-	}
-
-	for _, element := range controllerRequiredElements {
-		if !strings.Contains(controllerStr, element) {
-			t.Errorf("Controller file should contain %q", element)
-		}
-	}
-
-	// Verify view file exists and has correct content (--with-views was passed)
+	// Verify view file exists and compare against golden file (--with-views was passed)
 	internal.AssertFileExists(t, project, "views/orders_resource.templ")
 	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/orders_resource.templ"))
 	if err != nil {
 		t.Fatalf("Failed to read view file: %v", err)
 	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "order_view.golden"),
+		string(viewContent),
+	)
 
-	viewStr := string(viewContent)
-	viewRequiredElements := []string{
-		"package views",
-		// Template functions
-		"templ OrderIndex(",
-		"templ OrderShow(",
-		"templ OrderNew(",
-		"templ OrderEdit(",
-		// Model references
-		"models.Order",
-		"[]models.Order",
-		// Form elements
-		"OrderForm",
-		// Field references
-		"CustomerName",
-		"Total",
-	}
-
-	for _, element := range viewRequiredElements {
-		if !strings.Contains(viewStr, element) {
-			t.Errorf("View file should contain %q", element)
-		}
-	}
-
-	// Verify routes file exists and has correct content
+	// Verify routes file exists and compare against golden file
 	internal.AssertFileExists(t, project, "router/routes/orders.go")
 	routesContent, err := os.ReadFile(filepath.Join(project.Dir, "router/routes/orders.go"))
 	if err != nil {
 		t.Fatalf("Failed to read routes file: %v", err)
 	}
-
-	routesStr := string(routesContent)
-	routesRequiredElements := []string{
-		"package routes",
-		"func OrderRoutes(",
-		// Route definitions
-		"OrderIndex",
-		"OrderShow",
-		"OrderNew",
-		"OrderCreate",
-		"OrderEdit",
-		"OrderUpdate",
-		"OrderDestroy",
-		// Path patterns
-		"/orders",
-		"/orders/{id}",
-		"/orders/new",
-		"/orders/{id}/edit",
-	}
-
-	for _, element := range routesRequiredElements {
-		if !strings.Contains(routesStr, element) {
-			t.Errorf("Routes file should contain %q", element)
-		}
-	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "order_routes.golden"),
+		string(routesContent),
+	)
 }
 
 func testGenerateView(t *testing.T, project *internal.Project) {
@@ -274,36 +201,17 @@ func testGenerateView(t *testing.T, project *internal.Project) {
 	err = project.Generate("generate", "view", "Category")
 	internal.AssertCommandSucceeds(t, err, "generate view")
 
-	// Verify view file exists and has correct content
+	// Verify view file exists and compare against golden file
 	internal.AssertFileExists(t, project, "views/categories_resource.templ")
 	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/categories_resource.templ"))
 	if err != nil {
 		t.Fatalf("Failed to read view file: %v", err)
 	}
-
-	viewStr := string(viewContent)
-	viewRequiredElements := []string{
-		"package views",
-		// Template functions
-		"templ CategoryIndex(",
-		"templ CategoryShow(",
-		"templ CategoryNew(",
-		"templ CategoryEdit(",
-		// Model references
-		"models.Category",
-		"[]models.Category",
-		// Form elements
-		"CategoryForm",
-		// Field references
-		"Name",
-		"Description",
-	}
-
-	for _, element := range viewRequiredElements {
-		if !strings.Contains(viewStr, element) {
-			t.Errorf("View file should contain %q", element)
-		}
-	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "category_view.golden"),
+		string(viewContent),
+	)
 
 	// Controller file should NOT exist when only generating views
 	if project.FileExists("controllers/categories.go") {
@@ -322,76 +230,41 @@ func testGenerateResource(t *testing.T, project *internal.Project) {
 	err := project.Generate("generate", "resource", "Item")
 	internal.AssertCommandSucceeds(t, err, "generate resource")
 
-	// Verify model file exists and has correct content
+	// Verify model file exists and compare against golden file
 	internal.AssertFileExists(t, project, "models/item.go")
 	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/item.go"))
 	if err != nil {
 		t.Fatalf("Failed to read model file: %v", err)
 	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "item_model.golden"),
+		string(modelContent),
+	)
 
-	modelStr := string(modelContent)
-	modelRequiredElements := []string{
-		"package models",
-		// Struct definition
-		"type Item struct",
-		"Name",
-		"Quantity",
-		// CRUD functions
-		"func FindItem(",
-		"func CreateItem(",
-		"func UpdateItem(",
-		"func DestroyItem(",
-		// Query functions
-		"func AllItems(",
-		"func PaginateItems(",
-	}
-
-	for _, element := range modelRequiredElements {
-		if !strings.Contains(modelStr, element) {
-			t.Errorf("Model file should contain %q", element)
-		}
-	}
-
-	// Verify controller file exists and has correct content
+	// Verify controller file exists and compare against golden file
 	internal.AssertFileExists(t, project, "controllers/items.go")
 	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/items.go"))
 	if err != nil {
 		t.Fatalf("Failed to read controller file: %v", err)
 	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "item_controller.golden"),
+		string(controllerContent),
+	)
 
-	controllerStr := string(controllerContent)
-	controllerRequiredElements := []string{
-		"package controllers",
-		"type Items struct",
-		"func NewItems",
-	}
-
-	for _, element := range controllerRequiredElements {
-		if !strings.Contains(controllerStr, element) {
-			t.Errorf("Controller file should contain %q", element)
-		}
-	}
-
-	// Verify view file exists and has correct content
+	// Verify view file exists and compare against golden file
 	internal.AssertFileExists(t, project, "views/items_resource.templ")
 	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/items_resource.templ"))
 	if err != nil {
 		t.Fatalf("Failed to read view file: %v", err)
 	}
-
-	viewStr := string(viewContent)
-	viewRequiredElements := []string{
-		"package views",
-		"ItemIndex",
-		"ItemShow",
-		"models.Item",
-	}
-
-	for _, element := range viewRequiredElements {
-		if !strings.Contains(viewStr, element) {
-			t.Errorf("View file should contain %q", element)
-		}
-	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "item_view.golden"),
+		string(viewContent),
+	)
 }
 
 func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.Project) {
@@ -411,20 +284,41 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 	)
 	internal.AssertCommandSucceeds(t, err, "generate resource with table-name override")
 
+	// Verify model file exists and compare against golden file
 	internal.AssertFileExists(t, project, "models/student_feedback.go")
-	internal.AssertFileExists(t, project, "controllers/student_feedback.go")
-	internal.AssertFileExists(t, project, "views/student_feedback_resource.templ")
-
 	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/student_feedback.go"))
 	if err != nil {
 		t.Fatalf("Failed to read model file: %v", err)
 	}
-	if !strings.Contains(
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "student_feedback_model.golden"),
 		string(modelContent),
-		"STUDENTFEEDBACK_MODEL_TABLE_NAME: student_feedback",
-	) {
-		t.Errorf("Model file should contain table name override marker")
+	)
+
+	// Verify controller file exists and compare against golden file
+	internal.AssertFileExists(t, project, "controllers/student_feedback.go")
+	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/student_feedback.go"))
+	if err != nil {
+		t.Fatalf("Failed to read controller file: %v", err)
 	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "student_feedback_controller.golden"),
+		string(controllerContent),
+	)
+
+	// Verify view file exists and compare against golden file
+	internal.AssertFileExists(t, project, "views/student_feedback_resource.templ")
+	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/student_feedback_resource.templ"))
+	if err != nil {
+		t.Fatalf("Failed to read view file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "student_feedback_view.golden"),
+		string(viewContent),
+	)
 }
 
 func testGenerateModelWithFactory(t *testing.T, project *internal.Project) {
@@ -440,50 +334,41 @@ func testGenerateModelWithFactory(t *testing.T, project *internal.Project) {
 	err := project.Generate("generate", "model", "Book")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
-	// Verify model files exist
+	// Verify model file exists and compare against golden file
 	internal.AssertFileExists(t, project, "models/book.go")
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/book.go"))
+	if err != nil {
+		t.Fatalf("Failed to read model file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "book_model.golden"),
+		string(modelContent),
+	)
+
+	// Verify queries file exists and compare against golden file
 	internal.AssertFileExists(t, project, "database/queries/books.sql")
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/books.sql"))
+	if err != nil {
+		t.Fatalf("Failed to read queries file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "book_queries.golden"),
+		string(queriesContent),
+	)
 
-	// Verify factory file exists (default behavior)
+	// Verify factory file exists and compare against golden file (default behavior)
 	internal.AssertFileExists(t, project, "models/factories/book.go")
-
-	// Verify factory content
 	factoryContent, err := os.ReadFile(filepath.Join(project.Dir, "models/factories/book.go"))
 	if err != nil {
 		t.Fatalf("Failed to read factory file: %v", err)
 	}
-
-	factoryStr := string(factoryContent)
-
-	// Check for required factory elements
-	requiredElements := []string{
-		"package factories",
-		"type BookFactory struct",
-		"type BookOption func(*BookFactory)",
-		"func BuildBook(opts ...BookOption) models.Book",
-		"func CreateBook(ctx context.Context, exec storage.Executor, opts ...BookOption) (models.Book, error)",
-		"func CreateBooks(ctx context.Context, exec storage.Executor, count int, opts ...BookOption) ([]models.Book, error)",
-		// Field-specific option functions
-		"func WithBooksTitle(value string) BookOption",
-		"func WithBooksAuthor(value string) BookOption",
-	}
-
-	for _, element := range requiredElements {
-		if !strings.Contains(factoryStr, element) {
-			t.Errorf("Factory file should contain %q", element)
-		}
-	}
-
-	// Verify factory uses faker for defaults
-	fakerElements := []string{
-		"github.com/go-faker/faker/v4",
-	}
-
-	for _, element := range fakerElements {
-		if !strings.Contains(factoryStr, element) {
-			t.Errorf("Factory file should contain faker import: %q", element)
-		}
-	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "book_factory.golden"),
+		string(factoryContent),
+	)
 }
 
 func testGenerateModelSkipFactory(t *testing.T, project *internal.Project) {
@@ -498,9 +383,29 @@ func testGenerateModelSkipFactory(t *testing.T, project *internal.Project) {
 	err := project.Generate("generate", "model", "Article", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate model with --skip-factory")
 
-	// Verify model files exist
+	// Verify model file exists and compare against golden file
 	internal.AssertFileExists(t, project, "models/article.go")
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/article.go"))
+	if err != nil {
+		t.Fatalf("Failed to read model file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "article_model.golden"),
+		string(modelContent),
+	)
+
+	// Verify queries file exists and compare against golden file
 	internal.AssertFileExists(t, project, "database/queries/articles.sql")
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/articles.sql"))
+	if err != nil {
+		t.Fatalf("Failed to read queries file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "article_queries.golden"),
+		string(queriesContent),
+	)
 
 	// Verify factory file does NOT exist
 	if project.FileExists("models/factories/article.go") {
@@ -544,5 +449,40 @@ func createMigration(
 	err := os.WriteFile(migrationFile, []byte(gooseMigration), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create migration file: %v", err)
+	}
+}
+
+func compareOrUpdateGenerateGolden(t *testing.T, goldenPath, actual string) {
+	t.Helper()
+
+	fullGoldenPath := filepath.Join(".", goldenPath)
+
+	if *updateGenerateGolden {
+		err := os.MkdirAll(filepath.Dir(fullGoldenPath), constants.DirPermissionDefault)
+		if err != nil {
+			t.Fatalf("Failed to create golden directory: %v", err)
+		}
+		err = os.WriteFile(fullGoldenPath, []byte(actual), constants.FilePermissionPrivate)
+		if err != nil {
+			t.Fatalf("Failed to write golden file: %v", err)
+		}
+		t.Logf("Updated golden file: %s", goldenPath)
+		return
+	}
+
+	expected, err := os.ReadFile(fullGoldenPath)
+	if err != nil {
+		t.Fatalf(
+			"Failed to read golden file %s: %v\nRun 'go test -update-generate-golden' to create it",
+			goldenPath,
+			err,
+		)
+	}
+
+	if string(expected) != actual {
+		t.Errorf(
+			"Generated code differs from golden file %s.\n\nRun 'go test -update-generate-golden' to update golden files if changes are expected.",
+			goldenPath,
+		)
 	}
 }
