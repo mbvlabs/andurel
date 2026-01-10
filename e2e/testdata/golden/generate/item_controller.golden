@@ -16,15 +16,15 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type Items struct {
+type Item struct {
 	db storage.Pool
 }
 
-func NewItems(db storage.Pool) Items {
-	return Items{db}
+func NewItem(db storage.Pool) Item {
+	return Item{db}
 }
 
-func (r Items) Index(c echo.Context) error {
+func (i Item) Index(c echo.Context) error {
 	page := int64(1)
 	if p := c.QueryParam("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
@@ -42,7 +42,7 @@ func (r Items) Index(c echo.Context) error {
 
 	itemsList, err := models.PaginateItems(
 		c.Request().Context(),
-		r.db.Conn(),
+		i.db.Conn(),
 		page,
 		perPage,
 	)
@@ -53,13 +53,13 @@ func (r Items) Index(c echo.Context) error {
 	return render(c, views.ItemIndex(itemsList.Items))
 }
 
-func (r Items) Show(c echo.Context) error {
+func (i Item) Show(c echo.Context) error {
 	itemID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
 	}
 
-	item, err := models.FindItem(c.Request().Context(), r.db.Conn(), itemID)
+	item, err := models.FindItem(c.Request().Context(), i.db.Conn(), itemID)
 	if err != nil {
 		return render(c, views.NotFound())
 	}
@@ -67,7 +67,7 @@ func (r Items) Show(c echo.Context) error {
 	return render(c, views.ItemShow(item))
 }
 
-func (r Items) New(c echo.Context) error {
+func (i Item) New(c echo.Context) error {
 	return render(c, views.ItemNew())
 }
 
@@ -76,7 +76,7 @@ type CreateItemFormPayload struct {
 	Quantity int32  `form:"quantity"`
 }
 
-func (r Items) Create(c echo.Context) error {
+func (i Item) Create(c echo.Context) error {
 	var payload CreateItemFormPayload
 	if err := c.Bind(&payload); err != nil {
 		slog.ErrorContext(
@@ -96,7 +96,7 @@ func (r Items) Create(c echo.Context) error {
 
 	item, err := models.CreateItem(
 		c.Request().Context(),
-		r.db.Conn(),
+		i.db.Conn(),
 		data,
 	)
 	if err != nil {
@@ -113,13 +113,13 @@ func (r Items) Create(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, routes.ItemShow.URL(item.ID))
 }
 
-func (r Items) Edit(c echo.Context) error {
+func (i Item) Edit(c echo.Context) error {
 	itemID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
 	}
 
-	item, err := models.FindItem(c.Request().Context(), r.db.Conn(), itemID)
+	item, err := models.FindItem(c.Request().Context(), i.db.Conn(), itemID)
 	if err != nil {
 		return render(c, views.NotFound())
 	}
@@ -132,7 +132,7 @@ type UpdateItemFormPayload struct {
 	Quantity int32  `form:"quantity"`
 }
 
-func (r Items) Update(c echo.Context) error {
+func (i Item) Update(c echo.Context) error {
 	itemID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
@@ -158,7 +158,7 @@ func (r Items) Update(c echo.Context) error {
 
 	item, err := models.UpdateItem(
 		c.Request().Context(),
-		r.db.Conn(),
+		i.db.Conn(),
 		data,
 	)
 	if err != nil {
@@ -178,13 +178,13 @@ func (r Items) Update(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, routes.ItemShow.URL(item.ID))
 }
 
-func (r Items) Destroy(c echo.Context) error {
+func (i Item) Destroy(c echo.Context) error {
 	itemID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
 	}
 
-	err = models.DestroyItem(c.Request().Context(), r.db.Conn(), itemID)
+	err = models.DestroyItem(c.Request().Context(), i.db.Conn(), itemID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete item: %v", err)); flashErr != nil {
 			return render(c, views.InternalError())

@@ -24,7 +24,7 @@ func NewStudentFeedback(db storage.Pool) StudentFeedback {
 	return StudentFeedback{db}
 }
 
-func (r StudentFeedback) Index(c echo.Context) error {
+func (sf StudentFeedback) Index(c echo.Context) error {
 	page := int64(1)
 	if p := c.QueryParam("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
@@ -40,9 +40,9 @@ func (r StudentFeedback) Index(c echo.Context) error {
 		}
 	}
 
-	studentFeedbacksList, err := models.PaginateStudentFeedback(
+	studentFeedbackList, err := models.PaginateStudentFeedback(
 		c.Request().Context(),
-		r.db.Conn(),
+		sf.db.Conn(),
 		page,
 		perPage,
 	)
@@ -50,16 +50,16 @@ func (r StudentFeedback) Index(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return render(c, views.StudentFeedbackIndex(studentFeedbacksList.StudentFeedback))
+	return render(c, views.StudentFeedbackIndex(studentFeedbackList.StudentFeedback))
 }
 
-func (r StudentFeedback) Show(c echo.Context) error {
+func (sf StudentFeedback) Show(c echo.Context) error {
 	studentFeedbackID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
 	}
 
-	studentFeedback, err := models.FindStudentFeedback(c.Request().Context(), r.db.Conn(), studentFeedbackID)
+	studentFeedback, err := models.FindStudentFeedback(c.Request().Context(), sf.db.Conn(), studentFeedbackID)
 	if err != nil {
 		return render(c, views.NotFound())
 	}
@@ -67,7 +67,7 @@ func (r StudentFeedback) Show(c echo.Context) error {
 	return render(c, views.StudentFeedbackShow(studentFeedback))
 }
 
-func (r StudentFeedback) New(c echo.Context) error {
+func (sf StudentFeedback) New(c echo.Context) error {
 	return render(c, views.StudentFeedbackNew())
 }
 
@@ -77,7 +77,7 @@ type CreateStudentFeedbackFormPayload struct {
 	Rating    int32  `form:"rating"`
 }
 
-func (r StudentFeedback) Create(c echo.Context) error {
+func (sf StudentFeedback) Create(c echo.Context) error {
 	var payload CreateStudentFeedbackFormPayload
 	if err := c.Bind(&payload); err != nil {
 		slog.ErrorContext(
@@ -98,7 +98,7 @@ func (r StudentFeedback) Create(c echo.Context) error {
 
 	studentFeedback, err := models.CreateStudentFeedback(
 		c.Request().Context(),
-		r.db.Conn(),
+		sf.db.Conn(),
 		data,
 	)
 	if err != nil {
@@ -115,13 +115,13 @@ func (r StudentFeedback) Create(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, routes.StudentFeedbackShow.URL(studentFeedback.ID))
 }
 
-func (r StudentFeedback) Edit(c echo.Context) error {
+func (sf StudentFeedback) Edit(c echo.Context) error {
 	studentFeedbackID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
 	}
 
-	studentFeedback, err := models.FindStudentFeedback(c.Request().Context(), r.db.Conn(), studentFeedbackID)
+	studentFeedback, err := models.FindStudentFeedback(c.Request().Context(), sf.db.Conn(), studentFeedbackID)
 	if err != nil {
 		return render(c, views.NotFound())
 	}
@@ -135,7 +135,7 @@ type UpdateStudentFeedbackFormPayload struct {
 	Rating    int32  `form:"rating"`
 }
 
-func (r StudentFeedback) Update(c echo.Context) error {
+func (sf StudentFeedback) Update(c echo.Context) error {
 	studentFeedbackID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
@@ -162,7 +162,7 @@ func (r StudentFeedback) Update(c echo.Context) error {
 
 	studentFeedback, err := models.UpdateStudentFeedback(
 		c.Request().Context(),
-		r.db.Conn(),
+		sf.db.Conn(),
 		data,
 	)
 	if err != nil {
@@ -182,13 +182,13 @@ func (r StudentFeedback) Update(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, routes.StudentFeedbackShow.URL(studentFeedback.ID))
 }
 
-func (r StudentFeedback) Destroy(c echo.Context) error {
+func (sf StudentFeedback) Destroy(c echo.Context) error {
 	studentFeedbackID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
 	}
 
-	err = models.DestroyStudentFeedback(c.Request().Context(), r.db.Conn(), studentFeedbackID)
+	err = models.DestroyStudentFeedback(c.Request().Context(), sf.db.Conn(), studentFeedbackID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete studentFeedback: %v", err)); flashErr != nil {
 			return render(c, views.InternalError())

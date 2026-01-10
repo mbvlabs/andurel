@@ -151,7 +151,7 @@ func (v *ViewManager) GenerateViewFromModel(resourceName string, withController 
 	if withController {
 		controllerType := controllers.ResourceController // with views since we're generating both
 		fileGen := controllers.NewFileGenerator()
-		if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, v.config.Database.Type); err != nil {
+		if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, v.config.Database.Type, tableNameOverridden); err != nil {
 			return fmt.Errorf("failed to generate controller: %w", err)
 		}
 		fmt.Printf("Successfully generated resource view for %s with controller\n", resourceName)

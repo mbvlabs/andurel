@@ -232,7 +232,7 @@ func (m *ModelManager) RefreshModel(resourceName, tableName string) error {
 		return err
 	}
 
-	if err := m.modelGenerator.RefreshModel(cat, ctx.ResourceName, ctx.PluralName, ctx.ModelPath, ctx.SQLPath, ctx.ModulePath); err != nil {
+	if err := m.modelGenerator.RefreshModel(cat, ctx.ResourceName, ctx.PluralName, ctx.ModelPath, ctx.SQLPath, ctx.ModulePath, tableNameOverridden); err != nil {
 		return fmt.Errorf("failed to refresh model: %w", err)
 	}
 
@@ -279,7 +279,7 @@ func (m *ModelManager) RefreshQueries(resourceName, tableName string) error {
 		return err
 	}
 
-	if err := m.modelGenerator.RefreshQueries(cat, ctx.ResourceName, ctx.PluralName, ctx.SQLPath); err != nil {
+	if err := m.modelGenerator.RefreshQueries(cat, ctx.ResourceName, ctx.PluralName, ctx.SQLPath, tableNameOverridden); err != nil {
 		return fmt.Errorf("failed to refresh queries: %w", err)
 	}
 
@@ -293,7 +293,6 @@ func (m *ModelManager) RefreshQueries(resourceName, tableName string) error {
 	)
 	return nil
 }
-
 
 type queriesSetupContext struct {
 	ModulePath   string
@@ -400,7 +399,7 @@ To use a different table name, run:
 			ctx.TableName, err, resourceName)
 	}
 
-	if err := m.modelGenerator.GenerateSQLFile(ctx.ResourceName, ctx.TableName, table, ctx.SQLPath); err != nil {
+	if err := m.modelGenerator.GenerateSQLFile(ctx.ResourceName, ctx.TableName, table, ctx.SQLPath, tableNameOverride != ""); err != nil {
 		return fmt.Errorf("failed to generate SQL file: %w", err)
 	}
 
@@ -440,7 +439,7 @@ func (m *ModelManager) RefreshQueriesOnly(resourceName, tableName string, tableN
 		return err
 	}
 
-	if err := m.modelGenerator.RefreshQueries(cat, ctx.ResourceName, ctx.TableName, ctx.SQLPath); err != nil {
+	if err := m.modelGenerator.RefreshQueries(cat, ctx.ResourceName, ctx.TableName, ctx.SQLPath, tableNameOverridden); err != nil {
 		return fmt.Errorf("failed to refresh queries: %w", err)
 	}
 

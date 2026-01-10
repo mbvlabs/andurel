@@ -3,9 +3,11 @@ package controllers
 import (
 	"fmt"
 
+	"github.com/jinzhu/inflection"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/internal/types"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type ControllerType int
@@ -25,22 +27,26 @@ type GeneratedField struct {
 }
 
 type GeneratedController struct {
-	ResourceName string
-	PluralName   string
-	Package      string
-	Fields       []GeneratedField
-	ModulePath   string
-	Type         ControllerType
-	DatabaseType string
+	ResourceName        string
+	PluralName          string
+	PluralResourceName  string // The pluralized form of ResourceName (respects --table-name override)
+	ReceiverName        string // Short receiver name for methods (e.g., "sf" for StudentFeedback)
+	Package             string
+	Fields              []GeneratedField
+	ModulePath          string
+	Type                ControllerType
+	DatabaseType        string
+	TableNameOverridden bool
 }
 
 type Config struct {
-	ResourceName   string
-	PluralName     string
-	TableName      string
-	PackageName    string
-	ModulePath     string
-	ControllerType ControllerType
+	ResourceName        string
+	PluralName          string
+	TableName           string
+	PackageName         string
+	ModulePath          string
+	ControllerType      ControllerType
+	TableNameOverridden bool
 }
 
 type Generator struct {
@@ -56,14 +62,24 @@ func NewGenerator(databaseType string) *Generator {
 }
 
 func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedController, error) {
+	// Compute PluralResourceName: use resource name as-is when table name is overridden,
+	// otherwise use standard pluralization
+	pluralResourceName := inflection.Plural(config.ResourceName)
+	if config.TableNameOverridden {
+		pluralResourceName = config.ResourceName
+	}
+
 	controller := &GeneratedController{
-		ResourceName: config.ResourceName,
-		PluralName:   config.PluralName,
-		Package:      config.PackageName,
-		ModulePath:   config.ModulePath,
-		Type:         config.ControllerType,
-		DatabaseType: g.typeMapper.GetDatabaseType(),
-		Fields:       make([]GeneratedField, 0),
+		ResourceName:        config.ResourceName,
+		PluralName:          config.PluralName,
+		PluralResourceName:  pluralResourceName,
+		ReceiverName:        naming.ToReceiverName(config.ResourceName),
+		Package:             config.PackageName,
+		ModulePath:          config.ModulePath,
+		Type:                config.ControllerType,
+		DatabaseType:        g.typeMapper.GetDatabaseType(),
+		TableNameOverridden: config.TableNameOverridden,
+		Fields:              make([]GeneratedField, 0),
 	}
 
 	if config.ControllerType == ResourceController ||

@@ -24,7 +24,7 @@ func NewProjects(db storage.Pool) Projects {
 	return Projects{db}
 }
 
-func (r Projects) Index(c echo.Context) error {
+func (p Projects) Index(c echo.Context) error {
 	page := int64(1)
 	if p := c.QueryParam("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
@@ -53,7 +53,7 @@ func (r Projects) Index(c echo.Context) error {
 	return render(c, views.ProjectIndex(projectsList.Projects))
 }
 
-func (r Projects) Show(c echo.Context) error {
+func (p Projects) Show(c echo.Context) error {
 	projectID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
@@ -67,7 +67,7 @@ func (r Projects) Show(c echo.Context) error {
 	return render(c, views.ProjectShow(project))
 }
 
-func (r Projects) New(c echo.Context) error {
+func (p Projects) New(c echo.Context) error {
 	return render(c, views.ProjectNew())
 }
 
@@ -76,7 +76,7 @@ type CreateProjectFormPayload struct {
 	Description string `form:"description"`
 }
 
-func (r Projects) Create(c echo.Context) error {
+func (p Projects) Create(c echo.Context) error {
 	var payload CreateProjectFormPayload
 	if err := c.Bind(&payload); err != nil {
 		slog.ErrorContext(
@@ -113,7 +113,7 @@ func (r Projects) Create(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, routes.ProjectShow.URL(project.ID))
 }
 
-func (r Projects) Edit(c echo.Context) error {
+func (p Projects) Edit(c echo.Context) error {
 	projectID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
@@ -132,7 +132,7 @@ type UpdateProjectFormPayload struct {
 	Description string `form:"description"`
 }
 
-func (r Projects) Update(c echo.Context) error {
+func (p Projects) Update(c echo.Context) error {
 	projectID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
@@ -178,7 +178,7 @@ func (r Projects) Update(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, routes.ProjectShow.URL(project.ID))
 }
 
-func (r Projects) Destroy(c echo.Context) error {
+func (p Projects) Destroy(c echo.Context) error {
 	projectID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())

@@ -119,20 +119,20 @@ func AllStudentFeedback(
 		return nil, err
 	}
 
-	studentfeedbacks := make([]StudentFeedback, len(rows))
+	studentfeedback := make([]StudentFeedback, len(rows))
 	for i, row := range rows {
-		studentfeedbacks[i] = rowToStudentFeedback(row)
+		studentfeedback[i] = rowToStudentFeedback(row)
 	}
 
-	return studentfeedbacks, nil
+	return studentfeedback, nil
 }
 
 type PaginatedStudentFeedback struct {
 	StudentFeedback []StudentFeedback
-	TotalCount       int64
-	Page             int64
-	PageSize         int64
-	TotalPages       int64
+	TotalCount      int64
+	Page            int64
+	PageSize        int64
+	TotalPages      int64
 }
 
 func PaginateStudentFeedback(
@@ -170,19 +170,19 @@ func PaginateStudentFeedback(
 		return PaginatedStudentFeedback{}, err
 	}
 
-	studentfeedbacks := make([]StudentFeedback, len(rows))
+	studentfeedback := make([]StudentFeedback, len(rows))
 	for i, row := range rows {
-		studentfeedbacks[i] = rowToStudentFeedback(row)
+		studentfeedback[i] = rowToStudentFeedback(row)
 	}
 
 	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
 
 	return PaginatedStudentFeedback{
-		StudentFeedback: studentfeedbacks,
-		TotalCount:       totalCount,
-		Page:             page,
-		PageSize:         pageSize,
-		TotalPages:       totalPages,
+		StudentFeedback: studentfeedback,
+		TotalCount:      totalCount,
+		Page:            page,
+		PageSize:        pageSize,
+		TotalPages:      totalPages,
 	}, nil
 }
 

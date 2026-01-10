@@ -63,8 +63,12 @@ func (c *ControllerManager) GenerateController(
 		controllerType = controllers.ResourceController
 	}
 
+	// Check if table name is overridden (different from derived name)
+	derivedTableName := naming.DeriveTableName(resourceName)
+	tableNameOverridden := tableName != derivedTableName
+
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type); err != nil {
+	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
@@ -139,7 +143,7 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 	}
 
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type); err != nil {
+	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 

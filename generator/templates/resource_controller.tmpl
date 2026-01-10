@@ -21,15 +21,15 @@ import (
 	"{{.ModulePath}}/views"
 )
 
-type {{Plural .ResourceName}} struct {
+type {{.ResourceName}} struct {
 	db storage.Pool
 }
 
-func New{{Plural .ResourceName}}(db storage.Pool) {{Plural .ResourceName}} {
-	return {{Plural .ResourceName}}{db}
+func New{{.ResourceName}}(db storage.Pool) {{.ResourceName}} {
+	return {{.ResourceName}}{db}
 }
 
-func (r {{Plural .ResourceName}}) Index(c echo.Context) error {
+func ({{.ReceiverName}} {{.ResourceName}}) Index(c echo.Context) error {
 	page := int64(1)
 	if p := c.QueryParam("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
@@ -45,9 +45,9 @@ func (r {{Plural .ResourceName}}) Index(c echo.Context) error {
 		}
 	}
 
-	{{.PluralName | ToCamelCase}}List, err := models.Paginate{{Plural .ResourceName}}(
+	{{.PluralName | ToCamelCase}}List, err := models.Paginate{{.PluralResourceName}}(
 		c.Request().Context(),
-		r.db.Conn(),
+		{{.ReceiverName}}.db.Conn(),
 		page,
 		perPage,
 	)
@@ -55,16 +55,16 @@ func (r {{Plural .ResourceName}}) Index(c echo.Context) error {
 		return render(c, views.InternalError())
 	}
 
-	return render(c, views.{{.ResourceName}}Index({{.PluralName | ToCamelCase}}List.{{Plural .ResourceName}}))
+	return render(c, views.{{.ResourceName}}Index({{.PluralName | ToCamelCase}}List.{{.PluralResourceName}}))
 }
 
-func (r {{Plural .ResourceName}}) Show(c echo.Context) error {
+func ({{.ReceiverName}} {{.ResourceName}}) Show(c echo.Context) error {
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
 	}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(c.Request().Context(), r.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(c.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return render(c, views.NotFound())
 	}
@@ -72,7 +72,7 @@ func (r {{Plural .ResourceName}}) Show(c echo.Context) error {
 	return render(c, views.{{.ResourceName}}Show({{.ResourceName | ToLowerCamelCase}}))
 }
 
-func (r {{Plural .ResourceName}}) New(c echo.Context) error {
+func ({{.ReceiverName}} {{.ResourceName}}) New(c echo.Context) error {
 	return render(c, views.{{.ResourceName}}New())
 }
 
@@ -88,7 +88,7 @@ type Create{{.ResourceName}}FormPayload struct {
 {{- end}}
 }
 
-func (r {{Plural .ResourceName}}) Create(c echo.Context) error {
+func ({{.ReceiverName}} {{.ResourceName}}) Create(c echo.Context) error {
 	var payload Create{{.ResourceName}}FormPayload
 	if err := c.Bind(&payload); err != nil {
 		slog.ErrorContext(
@@ -123,7 +123,7 @@ func (r {{Plural .ResourceName}}) Create(c echo.Context) error {
 
 	{{.ResourceName | ToLowerCamelCase}}, err := models.Create{{.ResourceName}}(
 		c.Request().Context(),
-		r.db.Conn(),
+		{{.ReceiverName}}.db.Conn(),
 		data,
 	)
 	if err != nil {
@@ -140,13 +140,13 @@ func (r {{Plural .ResourceName}}) Create(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.ID))
 }
 
-func (r {{Plural .ResourceName}}) Edit(c echo.Context) error {
+func ({{.ReceiverName}} {{.ResourceName}}) Edit(c echo.Context) error {
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
 	}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(c.Request().Context(), r.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(c.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return render(c, views.NotFound())
 	}
@@ -166,7 +166,7 @@ type Update{{.ResourceName}}FormPayload struct {
 {{- end}}
 }
 
-func (r {{Plural .ResourceName}}) Update(c echo.Context) error {
+func ({{.ReceiverName}} {{.ResourceName}}) Update(c echo.Context) error {
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
@@ -207,7 +207,7 @@ func (r {{Plural .ResourceName}}) Update(c echo.Context) error {
 
 	{{.ResourceName | ToLowerCamelCase}}, err := models.Update{{.ResourceName}}(
 		c.Request().Context(),
-		r.db.Conn(),
+		{{.ReceiverName}}.db.Conn(),
 		data,
 	)
 	if err != nil {
@@ -227,13 +227,13 @@ func (r {{Plural .ResourceName}}) Update(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.ID))
 }
 
-func (r {{Plural .ResourceName}}) Destroy(c echo.Context) error {
+func ({{.ReceiverName}} {{.ResourceName}}) Destroy(c echo.Context) error {
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
 	}
 
-	err = models.Destroy{{.ResourceName}}(c.Request().Context(), r.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
+	err = models.Destroy{{.ResourceName}}(c.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(c, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return render(c, views.InternalError())

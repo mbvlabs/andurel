@@ -32,8 +32,13 @@ func (fg *FileGenerator) GenerateController(
 	controllerType ControllerType,
 	modulePath string,
 	databaseType string,
+	tableNameOverridden bool,
 ) error {
-	pluralName := naming.DeriveTableName(resourceName)
+	// When table name is overridden, use it directly; otherwise derive from resource name
+	pluralName := tableName
+	if !tableNameOverridden {
+		pluralName = naming.DeriveTableName(resourceName)
+	}
 	controllerPath := filepath.Join("controllers", tableName+".go")
 
 	if _, err := os.Stat(controllerPath); err == nil {
@@ -42,12 +47,13 @@ func (fg *FileGenerator) GenerateController(
 
 	generator := NewGenerator(databaseType)
 	controller, err := generator.Build(cat, Config{
-		ResourceName:   resourceName,
-		PluralName:     pluralName,
-		TableName:      tableName,
-		PackageName:    "controllers",
-		ModulePath:     modulePath,
-		ControllerType: controllerType,
+		ResourceName:        resourceName,
+		PluralName:          pluralName,
+		TableName:           tableName,
+		PackageName:         "controllers",
+		ModulePath:          modulePath,
+		ControllerType:      controllerType,
+		TableNameOverridden: tableNameOverridden,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller: %w", err)

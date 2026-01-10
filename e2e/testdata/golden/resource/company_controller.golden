@@ -24,7 +24,7 @@ func NewCompanies(db storage.Pool) Companies {
 	return Companies{db}
 }
 
-func (r Companies) Index(c echo.Context) error {
+func (c Companies) Index(c echo.Context) error {
 	page := int64(1)
 	if p := c.QueryParam("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
@@ -53,7 +53,7 @@ func (r Companies) Index(c echo.Context) error {
 	return render(c, views.CompanyIndex(companiesList.Companies))
 }
 
-func (r Companies) Show(c echo.Context) error {
+func (c Companies) Show(c echo.Context) error {
 	companyID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
@@ -67,7 +67,7 @@ func (r Companies) Show(c echo.Context) error {
 	return render(c, views.CompanyShow(company))
 }
 
-func (r Companies) New(c echo.Context) error {
+func (c Companies) New(c echo.Context) error {
 	return render(c, views.CompanyNew())
 }
 
@@ -76,7 +76,7 @@ type CreateCompanyFormPayload struct {
 	Industry string `form:"industry"`
 }
 
-func (r Companies) Create(c echo.Context) error {
+func (c Companies) Create(c echo.Context) error {
 	var payload CreateCompanyFormPayload
 	if err := c.Bind(&payload); err != nil {
 		slog.ErrorContext(
@@ -113,7 +113,7 @@ func (r Companies) Create(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, routes.CompanyShow.URL(company.ID))
 }
 
-func (r Companies) Edit(c echo.Context) error {
+func (c Companies) Edit(c echo.Context) error {
 	companyID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
@@ -132,7 +132,7 @@ type UpdateCompanyFormPayload struct {
 	Industry string `form:"industry"`
 }
 
-func (r Companies) Update(c echo.Context) error {
+func (c Companies) Update(c echo.Context) error {
 	companyID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())
@@ -178,7 +178,7 @@ func (r Companies) Update(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, routes.CompanyShow.URL(company.ID))
 }
 
-func (r Companies) Destroy(c echo.Context) error {
+func (c Companies) Destroy(c echo.Context) error {
 	companyID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return render(c, views.BadRequest())

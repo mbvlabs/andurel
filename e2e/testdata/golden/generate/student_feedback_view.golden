@@ -12,7 +12,7 @@ templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
 	@base() {
 		<main>
 			<div>
-				<h1>StudentFeedback</h1>
+				<h1>StudentFeedbacks</h1>
 				<a href={ templ.URL(routes.StudentFeedbackNew.URL()) }>New StudentFeedback</a>
 			</div>
 			<div>
