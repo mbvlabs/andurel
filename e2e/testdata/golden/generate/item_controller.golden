@@ -16,185 +16,185 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type Item struct {
+type Items struct {
 	db storage.Pool
 }
 
-func NewItem(db storage.Pool) Item {
-	return Item{db}
+func NewItems(db storage.Pool) Items {
+	return Items{db}
 }
 
-func (i Item) Index(eCtx echo.Context) error {
+func (i Items) Index(etx echo.Context) error {
 	page := int64(1)
-	if p := eCtx.QueryParam("page"); p != "" {
+	if p := etx.QueryParam("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
 			page = int64(parsed)
 		}
 	}
 
 	perPage := int64(25)
-	if pp := eCtx.QueryParam("per_page"); pp != "" {
+	if pp := etx.QueryParam("per_page"); pp != "" {
 		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
 			parsed <= 100 {
 			perPage = int64(parsed)
 		}
 	}
 
-	itemsList, err := models.PaginateItems(
-		eCtx.Request().Context(),
+	itemsList, err := models.PaginateItemss(
+		etx.Request().Context(),
 		i.db.Conn(),
 		page,
 		perPage,
 	)
 	if err != nil {
-		return render(eCtx, views.InternalError())
+		return render(etx, views.InternalError())
 	}
 
-	return render(eCtx, views.ItemIndex(itemsList.Items))
+	return render(etx, views.ItemsIndex(itemsList.Itemss))
 }
 
-func (i Item) Show(eCtx echo.Context) error {
-	itemID, err := uuid.Parse(eCtx.Param("id"))
+func (i Items) Show(etx echo.Context) error {
+	itemID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(eCtx, views.BadRequest())
+		return render(etx, views.BadRequest())
 	}
 
-	item, err := models.FindItem(eCtx.Request().Context(), i.db.Conn(), itemID)
+	item, err := models.FindItems(etx.Request().Context(), i.db.Conn(), itemID)
 	if err != nil {
-		return render(eCtx, views.NotFound())
+		return render(etx, views.NotFound())
 	}
 
-	return render(eCtx, views.ItemShow(item))
+	return render(etx, views.ItemsShow(item))
 }
 
-func (i Item) New(eCtx echo.Context) error {
-	return render(eCtx, views.ItemNew())
+func (i Items) New(etx echo.Context) error {
+	return render(etx, views.ItemsNew())
 }
 
-type CreateItemFormPayload struct {
+type CreateItemsFormPayload struct {
 	Name     string `form:"name"`
 	Quantity int32  `form:"quantity"`
 }
 
-func (i Item) Create(eCtx echo.Context) error {
-	var payload CreateItemFormPayload
-	if err := eCtx.Bind(&payload); err != nil {
+func (i Items) Create(etx echo.Context) error {
+	var payload CreateItemsFormPayload
+	if err := etx.Bind(&payload); err != nil {
 		slog.ErrorContext(
-			eCtx.Request().Context(),
-			"could not parse CreateItemFormPayload",
+			etx.Request().Context(),
+			"could not parse CreateItemsFormPayload",
 			"error",
 			err,
 		)
 
-		return render(eCtx, views.NotFound())
+		return render(etx, views.NotFound())
 	}
 
-	data := models.CreateItemData{
+	data := models.CreateItemsData{
 		Name:     payload.Name,
 		Quantity: payload.Quantity,
 	}
 
-	item, err := models.CreateItem(
-		eCtx.Request().Context(),
+	item, err := models.CreateItems(
+		etx.Request().Context(),
 		i.db.Conn(),
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to create item: %v", err)); flashErr != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create item: %v", err)); flashErr != nil {
 			return flashErr
 		}
-		return eCtx.Redirect(http.StatusSeeOther, routes.ItemNew.URL())
+		return etx.Redirect(http.StatusSeeOther, routes.ItemsNew.URL())
 	}
 
-	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "Item created successfully"); flashErr != nil {
-		return render(eCtx, views.InternalError())
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Items created successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
 	}
 
-	return eCtx.Redirect(http.StatusSeeOther, routes.ItemShow.URL(item.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.ItemsShow.URL(item.ID))
 }
 
-func (i Item) Edit(eCtx echo.Context) error {
-	itemID, err := uuid.Parse(eCtx.Param("id"))
+func (i Items) Edit(etx echo.Context) error {
+	itemID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(eCtx, views.BadRequest())
+		return render(etx, views.BadRequest())
 	}
 
-	item, err := models.FindItem(eCtx.Request().Context(), i.db.Conn(), itemID)
+	item, err := models.FindItems(etx.Request().Context(), i.db.Conn(), itemID)
 	if err != nil {
-		return render(eCtx, views.NotFound())
+		return render(etx, views.NotFound())
 	}
 
-	return render(eCtx, views.ItemEdit(item))
+	return render(etx, views.ItemsEdit(item))
 }
 
-type UpdateItemFormPayload struct {
+type UpdateItemsFormPayload struct {
 	Name     string `form:"name"`
 	Quantity int32  `form:"quantity"`
 }
 
-func (i Item) Update(eCtx echo.Context) error {
-	itemID, err := uuid.Parse(eCtx.Param("id"))
+func (i Items) Update(etx echo.Context) error {
+	itemID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(eCtx, views.BadRequest())
+		return render(etx, views.BadRequest())
 	}
 
-	var payload UpdateItemFormPayload
-	if err := eCtx.Bind(&payload); err != nil {
+	var payload UpdateItemsFormPayload
+	if err := etx.Bind(&payload); err != nil {
 		slog.ErrorContext(
-			eCtx.Request().Context(),
-			"could not parse UpdateItemFormPayload",
+			etx.Request().Context(),
+			"could not parse UpdateItemsFormPayload",
 			"error",
 			err,
 		)
 
-		return render(eCtx, views.NotFound())
+		return render(etx, views.NotFound())
 	}
 
-	data := models.UpdateItemData{
+	data := models.UpdateItemsData{
 		ID:       itemID,
 		Name:     payload.Name,
 		Quantity: payload.Quantity,
 	}
 
-	item, err := models.UpdateItem(
-		eCtx.Request().Context(),
+	item, err := models.UpdateItems(
+		etx.Request().Context(),
 		i.db.Conn(),
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to update item: %v", err)); flashErr != nil {
-			return render(eCtx, views.InternalError())
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update item: %v", err)); flashErr != nil {
+			return render(etx, views.InternalError())
 		}
-		return eCtx.Redirect(
+		return etx.Redirect(
 			http.StatusSeeOther,
-			routes.ItemEdit.URL(itemID),
+			routes.ItemsEdit.URL(itemID),
 		)
 	}
 
-	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "Item updated successfully"); flashErr != nil {
-		return render(eCtx, views.InternalError())
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Items updated successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
 	}
 
-	return eCtx.Redirect(http.StatusSeeOther, routes.ItemShow.URL(item.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.ItemsShow.URL(item.ID))
 }
 
-func (i Item) Destroy(eCtx echo.Context) error {
-	itemID, err := uuid.Parse(eCtx.Param("id"))
+func (i Items) Destroy(etx echo.Context) error {
+	itemID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(eCtx, views.BadRequest())
+		return render(etx, views.BadRequest())
 	}
 
-	err = models.DestroyItem(eCtx.Request().Context(), i.db.Conn(), itemID)
+	err = models.DestroyItems(etx.Request().Context(), i.db.Conn(), itemID)
 	if err != nil {
-		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to delete item: %v", err)); flashErr != nil {
-			return render(eCtx, views.InternalError())
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete item: %v", err)); flashErr != nil {
+			return render(etx, views.InternalError())
 		}
-		return eCtx.Redirect(http.StatusSeeOther, routes.ItemIndex.URL())
+		return etx.Redirect(http.StatusSeeOther, routes.ItemsIndex.URL())
 	}
 
-	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "Item destroyed successfully"); flashErr != nil {
-		return render(eCtx, views.InternalError())
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Items destroyed successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
 	}
 
-	return eCtx.Redirect(http.StatusSeeOther, routes.ItemIndex.URL())
+	return etx.Redirect(http.StatusSeeOther, routes.ItemsIndex.URL())
 }

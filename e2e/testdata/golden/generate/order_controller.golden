@@ -16,185 +16,185 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type Order struct {
+type Orders struct {
 	db storage.Pool
 }
 
-func NewOrder(db storage.Pool) Order {
-	return Order{db}
+func NewOrders(db storage.Pool) Orders {
+	return Orders{db}
 }
 
-func (o Order) Index(eCtx echo.Context) error {
+func (o Orders) Index(etx echo.Context) error {
 	page := int64(1)
-	if p := eCtx.QueryParam("page"); p != "" {
+	if p := etx.QueryParam("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
 			page = int64(parsed)
 		}
 	}
 
 	perPage := int64(25)
-	if pp := eCtx.QueryParam("per_page"); pp != "" {
+	if pp := etx.QueryParam("per_page"); pp != "" {
 		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
 			parsed <= 100 {
 			perPage = int64(parsed)
 		}
 	}
 
-	ordersList, err := models.PaginateOrders(
-		eCtx.Request().Context(),
+	ordersList, err := models.PaginateOrderss(
+		etx.Request().Context(),
 		o.db.Conn(),
 		page,
 		perPage,
 	)
 	if err != nil {
-		return render(eCtx, views.InternalError())
+		return render(etx, views.InternalError())
 	}
 
-	return render(eCtx, views.OrderIndex(ordersList.Orders))
+	return render(etx, views.OrdersIndex(ordersList.Orderss))
 }
 
-func (o Order) Show(eCtx echo.Context) error {
-	orderID, err := uuid.Parse(eCtx.Param("id"))
+func (o Orders) Show(etx echo.Context) error {
+	orderID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(eCtx, views.BadRequest())
+		return render(etx, views.BadRequest())
 	}
 
-	order, err := models.FindOrder(eCtx.Request().Context(), o.db.Conn(), orderID)
+	order, err := models.FindOrders(etx.Request().Context(), o.db.Conn(), orderID)
 	if err != nil {
-		return render(eCtx, views.NotFound())
+		return render(etx, views.NotFound())
 	}
 
-	return render(eCtx, views.OrderShow(order))
+	return render(etx, views.OrdersShow(order))
 }
 
-func (o Order) New(eCtx echo.Context) error {
-	return render(eCtx, views.OrderNew())
+func (o Orders) New(etx echo.Context) error {
+	return render(etx, views.OrdersNew())
 }
 
-type CreateOrderFormPayload struct {
+type CreateOrdersFormPayload struct {
 	CustomerName string  `form:"customer_name"`
 	Total        float64 `form:"total"`
 }
 
-func (o Order) Create(eCtx echo.Context) error {
-	var payload CreateOrderFormPayload
-	if err := eCtx.Bind(&payload); err != nil {
+func (o Orders) Create(etx echo.Context) error {
+	var payload CreateOrdersFormPayload
+	if err := etx.Bind(&payload); err != nil {
 		slog.ErrorContext(
-			eCtx.Request().Context(),
-			"could not parse CreateOrderFormPayload",
+			etx.Request().Context(),
+			"could not parse CreateOrdersFormPayload",
 			"error",
 			err,
 		)
 
-		return render(eCtx, views.NotFound())
+		return render(etx, views.NotFound())
 	}
 
-	data := models.CreateOrderData{
+	data := models.CreateOrdersData{
 		CustomerName: payload.CustomerName,
 		Total:        payload.Total,
 	}
 
-	order, err := models.CreateOrder(
-		eCtx.Request().Context(),
+	order, err := models.CreateOrders(
+		etx.Request().Context(),
 		o.db.Conn(),
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to create order: %v", err)); flashErr != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create order: %v", err)); flashErr != nil {
 			return flashErr
 		}
-		return eCtx.Redirect(http.StatusSeeOther, routes.OrderNew.URL())
+		return etx.Redirect(http.StatusSeeOther, routes.OrdersNew.URL())
 	}
 
-	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "Order created successfully"); flashErr != nil {
-		return render(eCtx, views.InternalError())
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Orders created successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
 	}
 
-	return eCtx.Redirect(http.StatusSeeOther, routes.OrderShow.URL(order.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.OrdersShow.URL(order.ID))
 }
 
-func (o Order) Edit(eCtx echo.Context) error {
-	orderID, err := uuid.Parse(eCtx.Param("id"))
+func (o Orders) Edit(etx echo.Context) error {
+	orderID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(eCtx, views.BadRequest())
+		return render(etx, views.BadRequest())
 	}
 
-	order, err := models.FindOrder(eCtx.Request().Context(), o.db.Conn(), orderID)
+	order, err := models.FindOrders(etx.Request().Context(), o.db.Conn(), orderID)
 	if err != nil {
-		return render(eCtx, views.NotFound())
+		return render(etx, views.NotFound())
 	}
 
-	return render(eCtx, views.OrderEdit(order))
+	return render(etx, views.OrdersEdit(order))
 }
 
-type UpdateOrderFormPayload struct {
+type UpdateOrdersFormPayload struct {
 	CustomerName string  `form:"customer_name"`
 	Total        float64 `form:"total"`
 }
 
-func (o Order) Update(eCtx echo.Context) error {
-	orderID, err := uuid.Parse(eCtx.Param("id"))
+func (o Orders) Update(etx echo.Context) error {
+	orderID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(eCtx, views.BadRequest())
+		return render(etx, views.BadRequest())
 	}
 
-	var payload UpdateOrderFormPayload
-	if err := eCtx.Bind(&payload); err != nil {
+	var payload UpdateOrdersFormPayload
+	if err := etx.Bind(&payload); err != nil {
 		slog.ErrorContext(
-			eCtx.Request().Context(),
-			"could not parse UpdateOrderFormPayload",
+			etx.Request().Context(),
+			"could not parse UpdateOrdersFormPayload",
 			"error",
 			err,
 		)
 
-		return render(eCtx, views.NotFound())
+		return render(etx, views.NotFound())
 	}
 
-	data := models.UpdateOrderData{
+	data := models.UpdateOrdersData{
 		ID:           orderID,
 		CustomerName: payload.CustomerName,
 		Total:        payload.Total,
 	}
 
-	order, err := models.UpdateOrder(
-		eCtx.Request().Context(),
+	order, err := models.UpdateOrders(
+		etx.Request().Context(),
 		o.db.Conn(),
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to update order: %v", err)); flashErr != nil {
-			return render(eCtx, views.InternalError())
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update order: %v", err)); flashErr != nil {
+			return render(etx, views.InternalError())
 		}
-		return eCtx.Redirect(
+		return etx.Redirect(
 			http.StatusSeeOther,
-			routes.OrderEdit.URL(orderID),
+			routes.OrdersEdit.URL(orderID),
 		)
 	}
 
-	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "Order updated successfully"); flashErr != nil {
-		return render(eCtx, views.InternalError())
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Orders updated successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
 	}
 
-	return eCtx.Redirect(http.StatusSeeOther, routes.OrderShow.URL(order.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.OrdersShow.URL(order.ID))
 }
 
-func (o Order) Destroy(eCtx echo.Context) error {
-	orderID, err := uuid.Parse(eCtx.Param("id"))
+func (o Orders) Destroy(etx echo.Context) error {
+	orderID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(eCtx, views.BadRequest())
+		return render(etx, views.BadRequest())
 	}
 
-	err = models.DestroyOrder(eCtx.Request().Context(), o.db.Conn(), orderID)
+	err = models.DestroyOrders(etx.Request().Context(), o.db.Conn(), orderID)
 	if err != nil {
-		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, fmt.Sprintf("Failed to delete order: %v", err)); flashErr != nil {
-			return render(eCtx, views.InternalError())
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete order: %v", err)); flashErr != nil {
+			return render(etx, views.InternalError())
 		}
-		return eCtx.Redirect(http.StatusSeeOther, routes.OrderIndex.URL())
+		return etx.Redirect(http.StatusSeeOther, routes.OrdersIndex.URL())
 	}
 
-	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "Order destroyed successfully"); flashErr != nil {
-		return render(eCtx, views.InternalError())
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Orders destroyed successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
 	}
 
-	return eCtx.Redirect(http.StatusSeeOther, routes.OrderIndex.URL())
+	return etx.Redirect(http.StatusSeeOther, routes.OrdersIndex.URL())
 }
