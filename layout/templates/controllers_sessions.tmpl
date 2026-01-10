@@ -93,7 +93,7 @@ func (s Sessions) Create(etx echo.Context) error {
 		return render(etx, views.InternalError())
 	}
 
-	return datastar.NewSSE(etx.Response(), eCtx.Request()).Redirect(routes.HomePage.URL())
+	return datastar.NewSSE(etx.Response(), etx.Request()).Redirect(routes.HomePage.URL())
 }
 
 func (s Sessions) Destroy(etx echo.Context) error {

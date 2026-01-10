@@ -27,35 +27,35 @@ func NewAssets(cache *Cache[string]) Assets {
 	return Assets{cache}
 }
 
-func (a Assets) enableCaching(eCtx echo.Context, content []byte) echo.Context {
+func (a Assets) enableCaching(etx echo.Context, content []byte) echo.Context {
 	if config.Env == server.ProdEnvironment {
 		//nolint:gosec //only needed for browser caching
 		hash := md5.Sum(content)
 		etag := fmt.Sprintf(`"%x-%x"`, hash, len(content))
 
-		if match := eCtx.Request().Header.Get("If-None-Match"); match == etag {
-			eCtx.Response().
+		if match := etx.Request().Header.Get("If-None-Match"); match == etag {
+			etx.Response().
 				Header().
 				Set("Cache-Control", fmt.Sprintf("public, max-age=%s, immutable", threeMonthsCache))
-			eCtx.Response().
+			etx.Response().
 				Header().
 				Set("ETag", etag)
-			eCtx.NoContent(http.StatusNotModified)
-			return eCtx
+			etx.NoContent(http.StatusNotModified)
+			return etx
 		}
 
-		eCtx.Response().
+		etx.Response().
 			Header().
 			Set("Cache-Control", fmt.Sprintf("public, max-age=%s, immutable", threeMonthsCache))
-		eCtx.Response().
+		etx.Response().
 			Header().
 			Set("Vary", "Accept-Encoding")
-		eCtx.Response().
+		etx.Response().
 			Header().
 			Set("ETag", etag)
 	}
 
-	return eCtx
+	return etx
 }
 
 func createRobotsTxt() (string, error) {
@@ -82,7 +82,7 @@ func createRobotsTxt() (string, error) {
 }
 
 
-func (a Assets) Robots(eCtx echo.Context) error {
+func (a Assets) Robots(etx echo.Context) error {
 	cacheKey := "assets:robots"
 
 	robotsTxt, err := a.cache.Get(cacheKey, func() (string, error) {
@@ -90,18 +90,18 @@ func (a Assets) Robots(eCtx echo.Context) error {
 	})
 	if err != nil {
 		slog.ErrorContext(
-			eCtx.Request().Context(),
+			etx.Request().Context(),
 			"failed to get robots.txt from cache",
 			"error", err,
 		)
 		result, _ := createRobotsTxt()
-		return eCtx.String(http.StatusOK, result)
+		return etx.String(http.StatusOK, result)
 	}
 
-	return eCtx.String(http.StatusOK, robotsTxt)
+	return etx.String(http.StatusOK, robotsTxt)
 }
 
-func (a Assets) Sitemap(eCtx echo.Context) error {
+func (a Assets) Sitemap(etx echo.Context) error {
 	cacheKey := "assets:sitemap"
 
 	sitemap, err := a.cache.Get(cacheKey, func() (string, error) {
@@ -109,7 +109,7 @@ func (a Assets) Sitemap(eCtx echo.Context) error {
 	})
 	if err != nil {
 		slog.ErrorContext(
-			eCtx.Request().Context(),
+			etx.Request().Context(),
 			"failed to get sitemap from cache",
 			"error", err,
 		)
@@ -119,10 +119,10 @@ func (a Assets) Sitemap(eCtx echo.Context) error {
 			return err
 		}
 
-		return eCtx.Blob(http.StatusOK, "application/xml", []byte(result))
+		return etx.Blob(http.StatusOK, "application/xml", []byte(result))
 	}
 
-	return eCtx.Blob(http.StatusOK, "application/xml", []byte(sitemap))
+	return etx.Blob(http.StatusOK, "application/xml", []byte(sitemap))
 }
 
 type URL struct {
@@ -164,7 +164,7 @@ func createSitemap(routes []routing.Route) (string, error) {
     return xml.Header + string(xmlBytes), nil
 }
 
-func (a Assets) Stylesheet(eCtx echo.Context) error {
+func (a Assets) Stylesheet(etx echo.Context) error {
 	stylesheet, err := assets.Files.ReadFile(
 		"css/style.css",
 	)
@@ -172,13 +172,13 @@ func (a Assets) Stylesheet(eCtx echo.Context) error {
 		return err
 	}
 
-	eCtx = a.enableCaching(eCtx, stylesheet)
-	return eCtx.Blob(http.StatusOK, "text/css", stylesheet)
+	etx = a.enableCaching(etx, stylesheet)
+	return etx.Blob(http.StatusOK, "text/css", stylesheet)
 }
 
 {{- if eq .CSSFramework "vanilla"}}
-func (a Assets) StyleImport(eCtx echo.Context) error {
-	param := eCtx.Param("file")
+func (a Assets) StyleImport(etx echo.Context) error {
+	param := etx.Param("file")
 	stylesheet, err := assets.Files.ReadFile(
 		fmt.Sprintf("css/%s", param),
 	)
@@ -186,12 +186,12 @@ func (a Assets) StyleImport(eCtx echo.Context) error {
 		return err
 	}
 
-	eCtx = a.enableCaching(eCtx, stylesheet)
-	return eCtx.Blob(http.StatusOK, "text/css", stylesheet)
+	etx = a.enableCaching(etx, stylesheet)
+	return etx.Blob(http.StatusOK, "text/css", stylesheet)
 }
 {{- end}}
 
-func (a Assets) Scripts(eCtx echo.Context) error {
+func (a Assets) Scripts(etx echo.Context) error {
 	stylesheet, err := assets.Files.ReadFile(
 		"js/scripts.js",
 	)
@@ -199,12 +199,12 @@ func (a Assets) Scripts(eCtx echo.Context) error {
 		return err
 	}
 
-	eCtx = a.enableCaching(eCtx, stylesheet)
-	return eCtx.Blob(http.StatusOK, "application/javascript", stylesheet)
+	etx = a.enableCaching(etx, stylesheet)
+	return etx.Blob(http.StatusOK, "application/javascript", stylesheet)
 }
 
-func (a Assets) Script(eCtx echo.Context) error {
-	param := eCtx.Param("file")
+func (a Assets) Script(etx echo.Context) error {
+	param := etx.Param("file")
 	stylesheet, err := assets.Files.ReadFile(
 		fmt.Sprintf("js/%s", param),
 	)
@@ -212,6 +212,6 @@ func (a Assets) Script(eCtx echo.Context) error {
 		return err
 	}
 
-	eCtx = a.enableCaching(eCtx, stylesheet)
-	return eCtx.Blob(http.StatusOK, "application/javascript", stylesheet)
+	etx = a.enableCaching(etx, stylesheet)
+	return etx.Blob(http.StatusOK, "application/javascript", stylesheet)
 }

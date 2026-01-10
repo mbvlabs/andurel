@@ -280,11 +280,11 @@ func validateControllerPluralization(
 	}{
 		{"type " + tc.expectedSingular + " struct", "Controller type uses singular"},
 		{"func New" + tc.expectedSingular + "(", "Constructor uses singular"},
-		{") Index(eCtx echo.Context)", "Index uses eCtx parameter"},
-		{") Show(eCtx echo.Context)", "Show uses eCtx parameter"},
-		{") Create(eCtx echo.Context)", "Create uses eCtx parameter"},
-		{") Update(eCtx echo.Context)", "Update uses eCtx parameter"},
-		{") Destroy(eCtx echo.Context)", "Destroy uses eCtx parameter"},
+		{") Index(etx echo.Context)", "Index uses etx parameter"},
+		{") Show(etx echo.Context)", "Show uses etx parameter"},
+		{") Create(etx echo.Context)", "Create uses etx parameter"},
+		{") Update(etx echo.Context)", "Update uses etx parameter"},
+		{") Destroy(etx echo.Context)", "Destroy uses etx parameter"},
 		{"models.Paginate" + tc.expectedPlural + "(", "Calls model with correct plural"},
 		{"models.Find" + tc.expectedSingular + "(", "Calls Find with singular"},
 		{"models.Create" + tc.expectedSingular + "(", "Calls Create with singular"},
@@ -306,7 +306,7 @@ func validateControllerPluralization(
 		{"type Companys struct", "Should NOT use naive plural 'Companys'"},
 		{"func NewCompanys(", "Should NOT use naive plural"},
 		{"models.PaginateCompanys(", "Should NOT use naive plural"},
-		{"(c echo.Context)", "Should NOT use 'c' for echo.Context (use eCtx)"},
+		{"(c echo.Context)", "Should NOT use 'c' for echo.Context (use etx)"},
 	}
 
 	for _, p := range incorrectPatterns {

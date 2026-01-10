@@ -76,5 +76,5 @@ func (r Registrations) Create(etx echo.Context) error {
 		return etx.Redirect(http.StatusSeeOther, routes.RegistrationNew.URL())
 	}
 
-	return datastar.NewSSE(etx.Response(), eCtx.Request()).Redirect(routes.ConfirmationNew.URL())
+	return datastar.NewSSE(etx.Response(), etx.Request()).Redirect(routes.ConfirmationNew.URL())
 }
