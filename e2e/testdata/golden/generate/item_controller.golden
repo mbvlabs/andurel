@@ -68,7 +68,7 @@ func (i Items) Show(etx echo.Context) error {
 }
 
 func (i Items) New(etx echo.Context) error {
-	return render(etx, view.ItemNew())
+	return render(etx, views.ItemNew())
 }
 
 type CreateItemFormPayload struct {
@@ -86,7 +86,7 @@ func (i Items) Create(etx echo.Context) error {
 			err,
 		)
 
-		return render(etx, view.NotFound())
+		return render(etx, views.NotFound())
 	}
 
 	data := models.CreateItemData{
@@ -106,8 +106,8 @@ func (i Items) Create(etx echo.Context) error {
 		return etx.Redirect(http.StatusSeeOther, routes.ItemNew.URL())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Items created successfully"); flashErr != nil {
-		return render(etx, view.InternalError())
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Item created successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.ItemShow.URL(item.ID))
@@ -116,12 +116,12 @@ func (i Items) Create(etx echo.Context) error {
 func (i Items) Edit(etx echo.Context) error {
 	itemID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(etx, view.BadRequest())
+		return render(etx, views.BadRequest())
 	}
 
 	item, err := models.FindItem(etx.Request().Context(), i.db.Conn(), itemID)
 	if err != nil {
-		return render(etx, view.NotFound())
+		return render(etx, views.NotFound())
 	}
 
 	return render(etx, views.ItemEdit(item))

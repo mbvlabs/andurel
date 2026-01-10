@@ -23,27 +23,27 @@ func NewConfirmations(db storage.Pool, cfg config.Config) Confirmations {
 	return Confirmations{db, cfg}
 }
 
-func (c Confirmations) New(eCtx echo.Context) error {
-	return render(eCtx, views.ConfirmationForm())
+func (c Confirmations) New(etx echo.Context) error {
+	return render(etx, views.ConfirmationForm())
 }
 
-func (c Confirmations) Create(eCtx echo.Context) error {
+func (c Confirmations) Create(etx echo.Context) error {
 	var payload struct {
 		Code string `json:"code"`
 	}
 
-	if err := eCtx.Bind(&payload); err != nil {
+	if err := etx.Bind(&payload); err != nil {
 		slog.ErrorContext(
-			eCtx.Request().Context(),
+			etx.Request().Context(),
 			"could not parse verification form payload",
 			"error",
 			err,
 		)
-		return render(eCtx, views.BadRequest())
+		return render(etx, views.BadRequest())
 	}
 
 	if err := services.VerifyEmail(
-		eCtx.Request().Context(),
+		etx.Request().Context(),
 		c.db,
 		c.cfg.Auth.Pepper,
 		services.VerifyEmailData{
@@ -51,7 +51,7 @@ func (c Confirmations) Create(eCtx echo.Context) error {
 		},
 	); err != nil {
 		slog.ErrorContext(
-			eCtx.Request().Context(),
+			etx.Request().Context(),
 			"failed to verify email",
 			"error",
 			err,
@@ -67,15 +67,15 @@ func (c Confirmations) Create(eCtx echo.Context) error {
 			errorMsg = "Failed to verify email"
 		}
 
-		if flashErr := cookies.AddFlash(eCtx, cookies.FlashError, errorMsg); flashErr != nil {
-			return render(eCtx, views.InternalError())
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
+			return render(etx, views.InternalError())
 		}
-		return datastar.NewSSE(eCtx.Response(), eCtx.Request()).Redirect(routes.ConfirmationNew.URL())
+		return datastar.NewSSE(etx.Response(), eCtx.Request()).Redirect(routes.ConfirmationNew.URL())
 	}
 
-	if flashErr := cookies.AddFlash(eCtx, cookies.FlashSuccess, "Email verified successfully!"); flashErr != nil {
-		return render(eCtx, views.InternalError())
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Email verified successfully!"); flashErr != nil {
+		return render(etx, views.InternalError())
 	}
 
-	return datastar.NewSSE(eCtx.Response(), eCtx.Request()).Redirect(routes.HomePage.URL())
+	return datastar.NewSSE(etx.Response(), eCtx.Request()).Redirect(routes.HomePage.URL())
 }
