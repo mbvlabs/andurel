@@ -3,12 +3,13 @@ package router
 import (
 	"net/http"
 
+	"testapp/controllers"
 	"testapp/router/routes"
 
 	"github.com/labstack/echo/v4"
 )
 
-func registerInvoiceRoutes(handler *echo.Echo, invoice controllers.invoices) {
+func registerInvoiceRoutes(handler *echo.Echo, invoice controllers.Invoices) {
 	handler.Add(
 		http.MethodGet, routes.InvoiceIndex.Path(), invoice.Index,
 	).Name = routes.InvoiceIndex.Name()
