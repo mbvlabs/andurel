@@ -8,42 +8,42 @@ const InvoicePrefix = "/invoices"
 
 var InvoiceIndex = routing.NewSimpleRoute(
 	"/",
-	"index",
+	"invoices.index",
 	InvoicePrefix,
 )
 
 var InvoiceShow = routing.NewRouteWithID(
 	"/:id",
-	"show",
+	"invoices.show",
 	InvoicePrefix,
 )
 
 var InvoiceNew = routing.NewSimpleRoute(
 	"/new",
-	"new",
+	"invoices.new",
 	InvoicePrefix,
 )
 
 var InvoiceCreate = routing.NewSimpleRoute(
 	"/",
-	"create",
+	"invoices.create",
 	InvoicePrefix,
 )
 
 var InvoiceEdit = routing.NewRouteWithID(
 	"/:id/edit",
-	"edit",
+	"invoices.edit",
 	InvoicePrefix,
 )
 
 var InvoiceUpdate = routing.NewRouteWithID(
 	"/:id",
-	"update",
+	"invoices.update",
 	InvoicePrefix,
 )
 
 var InvoiceDestroy = routing.NewRouteWithID(
 	"/:id",
-	"destroy",
+	"invoices.destroy",
 	InvoicePrefix,
 )

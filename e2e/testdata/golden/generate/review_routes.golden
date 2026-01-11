@@ -8,42 +8,42 @@ const ReviewPrefix = "/reviews"
 
 var ReviewIndex = routing.NewSimpleRoute(
 	"/",
-	"index",
+	"reviews.index",
 	ReviewPrefix,
 )
 
 var ReviewShow = routing.NewRouteWithID(
 	"/:id",
-	"show",
+	"reviews.show",
 	ReviewPrefix,
 )
 
 var ReviewNew = routing.NewSimpleRoute(
 	"/new",
-	"new",
+	"reviews.new",
 	ReviewPrefix,
 )
 
 var ReviewCreate = routing.NewSimpleRoute(
 	"/",
-	"create",
+	"reviews.create",
 	ReviewPrefix,
 )
 
 var ReviewEdit = routing.NewRouteWithID(
 	"/:id/edit",
-	"edit",
+	"reviews.edit",
 	ReviewPrefix,
 )
 
 var ReviewUpdate = routing.NewRouteWithID(
 	"/:id",
-	"update",
+	"reviews.update",
 	ReviewPrefix,
 )
 
 var ReviewDestroy = routing.NewRouteWithID(
 	"/:id",
-	"destroy",
+	"reviews.destroy",
 	ReviewPrefix,
 )

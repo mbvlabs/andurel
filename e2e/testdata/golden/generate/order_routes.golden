@@ -8,42 +8,42 @@ const OrderPrefix = "/orders"
 
 var OrderIndex = routing.NewSimpleRoute(
 	"/",
-	"index",
+	"orders.index",
 	OrderPrefix,
 )
 
 var OrderShow = routing.NewRouteWithID(
 	"/:id",
-	"show",
+	"orders.show",
 	OrderPrefix,
 )
 
 var OrderNew = routing.NewSimpleRoute(
 	"/new",
-	"new",
+	"orders.new",
 	OrderPrefix,
 )
 
 var OrderCreate = routing.NewSimpleRoute(
 	"/",
-	"create",
+	"orders.create",
 	OrderPrefix,
 )
 
 var OrderEdit = routing.NewRouteWithID(
 	"/:id/edit",
-	"edit",
+	"orders.edit",
 	OrderPrefix,
 )
 
 var OrderUpdate = routing.NewRouteWithID(
 	"/:id",
-	"update",
+	"orders.update",
 	OrderPrefix,
 )
 
 var OrderDestroy = routing.NewRouteWithID(
 	"/:id",
-	"destroy",
+	"orders.destroy",
 	OrderPrefix,
 )
