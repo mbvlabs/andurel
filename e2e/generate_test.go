@@ -104,6 +104,10 @@ func TestGenerateCommands(t *testing.T) {
 			t.Run("generate_queries_with_table_name", func(t *testing.T) {
 				testGenerateQueriesWithTableName(t, project)
 			})
+
+			t.Run("generate_model_with_array_types", func(t *testing.T) {
+				testGenerateModelWithArrayTypes(t, project)
+			})
 		})
 	}
 }
@@ -659,6 +663,88 @@ func testGenerateQueriesWithTableName(t *testing.T, project *internal.Project) {
 	if project.FileExists("models/tag_assignment.go") {
 		t.Error("Model file should NOT exist for queries-only generation")
 	}
+}
+
+// testGenerateModelWithArrayTypes tests that PostgreSQL array types (text[], integer[])
+// are correctly generated as native Go slices ([]string, []int32) instead of
+// non-existent pgtype.Array types. Also tests jsonb/json types.
+func testGenerateModelWithArrayTypes(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	// Create migration with array types directly using raw SQL
+	migrationDir := filepath.Join(project.Dir, "database", "migrations")
+	migrationContent := `-- +goose Up
+CREATE TABLE IF NOT EXISTS posts (
+	id UUID PRIMARY KEY,
+	title VARCHAR(255) NOT NULL,
+	tags TEXT[] NOT NULL,
+	scores INTEGER[] NOT NULL,
+	settings JSONB NOT NULL,
+	metadata JSON,
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- +goose Down
+DROP TABLE IF EXISTS posts;
+`
+	migrationFile := filepath.Join(migrationDir, "000112_create_posts_with_arrays.sql")
+	err := os.WriteFile(migrationFile, []byte(migrationContent), 0o644)
+	if err != nil {
+		t.Fatalf("Failed to create migration file: %v", err)
+	}
+
+	err = project.Generate("generate", "model", "Post", "--skip-factory")
+	internal.AssertCommandSucceeds(t, err, "generate model with array types")
+
+	// Verify model file exists and compare against golden file
+	internal.AssertFileExists(t, project, "models/post.go")
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/post.go"))
+	if err != nil {
+		t.Fatalf("Failed to read model file: %v", err)
+	}
+
+	// Verify array types are generated correctly as native Go slices
+	modelStr := string(modelContent)
+	if strings.Contains(modelStr, "pgtype.Array") {
+		t.Error("Model should NOT contain pgtype.Array - array types should use native Go slices")
+	}
+
+	// Verify []string is used for text[] column (struct field has tabs/spaces)
+	if !strings.Contains(modelStr, "Tags") || !strings.Contains(modelStr, "[]string") {
+		t.Error("Expected 'Tags []string' in model for text[] column")
+	}
+
+	// Verify []int32 is used for integer[] column
+	if !strings.Contains(modelStr, "Scores") || !strings.Contains(modelStr, "[]int32") {
+		t.Error("Expected 'Scores []int32' in model for integer[] column")
+	}
+
+	// Verify []byte is used for jsonb/json columns
+	if !strings.Contains(modelStr, "Settings") || !strings.Contains(modelStr, "[]byte") {
+		t.Error("Expected 'Settings []byte' in model for jsonb column")
+	}
+	if !strings.Contains(modelStr, "Metadata") {
+		t.Error("Expected 'Metadata []byte' in model for json column")
+	}
+
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "post_model.golden"),
+		modelStr,
+	)
+
+	// Verify queries file exists and compare against golden file
+	internal.AssertFileExists(t, project, "database/queries/posts.sql")
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/posts.sql"))
+	if err != nil {
+		t.Fatalf("Failed to read queries file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "post_queries.golden"),
+		string(queriesContent),
+	)
 }
 
 func createMigration(
