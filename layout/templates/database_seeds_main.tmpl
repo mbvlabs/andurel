@@ -1,0 +1,68 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/joho/godotenv"
+	"{{.ModuleName}}/internal/storage"
+	// Import your factories:
+	// "{{.ModuleName}}/models/factories"
+)
+
+func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
+	godotenv.Load()
+
+	dbURL := buildDatabaseURL()
+	db, err := storage.NewConnection(dbURL)
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+	defer db.Close()
+
+	ctx := context.Background()
+
+	fmt.Println("Seeding database...")
+
+	// Add your seeds here using factories:
+	//
+	// // Create an admin user
+	// _, err = factories.CreateUser(ctx, db,
+	// 	factories.WithUsersEmail("admin@example.com"),
+	// 	factories.WithUsersRole("admin"),
+	// )
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create admin user: %w", err)
+	// }
+	//
+	// // Create 10 sample products
+	// _, err = factories.CreateProducts(ctx, db, 10)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create products: %w", err)
+	// }
+
+	_ = ctx // remove when using ctx
+
+	fmt.Println("Seeding complete!")
+	return nil
+}
+
+func buildDatabaseURL() string {
+	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
+		os.Getenv("DB_KIND"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_SSL_MODE"),
+	)
+}

@@ -76,7 +76,7 @@ func getCommandNames(commands []*cobra.Command) []string {
 }
 
 func TestQueriesCommandFlags(t *testing.T) {
-	cmd := newQueriesCommand()
+	cmd := newGenQueriesCommand()
 
 	if cmd.Use != "queries [name]" {
 		t.Errorf("Expected Use 'queries [name]', got '%s'", cmd.Use)

@@ -261,17 +261,17 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"readme.tmpl":    "README.md",
 
 	// Core files
-	"framework_elements_renderer_render.tmpl":      "internal/renderer/render.go",
-	"framework_elements_routing_definitions.tmpl":  "internal/routing/definitions.go",
-	"framework_elements_routing_routes.tmpl":       "internal/routing/routes.go",
-	"framework_elements_server_server.tmpl":        "internal/server/server.go",
-	"framework_elements_storage_psql.tmpl":         "internal/storage/psql.go",
-	"framework_elements_storage_queue.tmpl":        "internal/storage/queue.go",
-	"framework_elements_hypermedia_signals.tmpl":   "internal/hypermedia/signals.go",
-	"framework_elements_hypermedia_core.tmpl":      "internal/hypermedia/core.go",
-	"framework_elements_hypermedia_sse.tmpl":       "internal/hypermedia/sse.go",
+	"framework_elements_renderer_render.tmpl":        "internal/renderer/render.go",
+	"framework_elements_routing_definitions.tmpl":    "internal/routing/definitions.go",
+	"framework_elements_routing_routes.tmpl":         "internal/routing/routes.go",
+	"framework_elements_server_server.tmpl":          "internal/server/server.go",
+	"framework_elements_storage_psql.tmpl":           "internal/storage/psql.go",
+	"framework_elements_storage_queue.tmpl":          "internal/storage/queue.go",
+	"framework_elements_hypermedia_signals.tmpl":     "internal/hypermedia/signals.go",
+	"framework_elements_hypermedia_core.tmpl":        "internal/hypermedia/core.go",
+	"framework_elements_hypermedia_sse.tmpl":         "internal/hypermedia/sse.go",
 	"framework_elements_hypermedia_broadcaster.tmpl": "internal/hypermedia/broadcaster.go",
-	"framework_elements_hypermedia_helpers.tmpl":   "internal/hypermedia/helpers.go",
+	"framework_elements_hypermedia_helpers.tmpl":     "internal/hypermedia/helpers.go",
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
@@ -303,6 +303,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Database
 	"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
 	"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
+	"database_seeds_main.tmpl":         "database/seeds/main.go",
 	"database_test_helper.tmpl":        "database/test_helper.go",
 
 	"psql_database.tmpl": "database/database.go",
