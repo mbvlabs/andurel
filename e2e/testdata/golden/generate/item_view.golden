@@ -3,6 +3,7 @@ package views
 import (
 	"fmt"
 	"net/http"
+	"testapp/internal/hypermedia"
 	"testapp/models"
 	"testapp/router/routes"
 	"testapp/views/components"
@@ -99,7 +100,7 @@ templ ItemNew() {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ DataAction(http.MethodPost, routes.ItemCreate.URL(), ActionTypeForm) }>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.ItemCreate.URL(), hypermedia.ActionTypeForm) }>
 						<div>
 							<div>
 								<h2>Item Information</h2>
@@ -134,7 +135,7 @@ templ ItemEdit(item models.Item) {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ DataAction(http.MethodPut, routes.ItemUpdate.URL(item.ID), ActionTypeForm) }>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.ItemUpdate.URL(item.ID), hypermedia.ActionTypeForm) }>
 						<div>
 							<div>
 								<h2>Item Information</h2>
@@ -160,7 +161,7 @@ templ ItemEdit(item models.Item) {
 					</form>
 					<div>
 						<button
-							data-on:click={ DataAction(http.MethodDelete, routes.ItemDestroy.URL(item.ID)) }
+							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ItemDestroy.URL(item.ID)) }
 						>Destroy Item</button>
 					</div>
 				</div>
