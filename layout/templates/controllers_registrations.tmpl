@@ -13,7 +13,8 @@ import (
 	"{{.ModuleName}}/views"
 
 	"github.com/labstack/echo/v4"
-	"github.com/starfederation/datastar-go/datastar"
+
+	"{{.ModuleName}}/internal/hypermedia"
 )
 
 type Registrations struct {
@@ -76,5 +77,5 @@ func (r Registrations) Create(etx echo.Context) error {
 		return etx.Redirect(http.StatusSeeOther, routes.RegistrationNew.URL())
 	}
 
-	return datastar.NewSSE(etx.Response(), etx.Request()).Redirect(routes.ConfirmationNew.URL())
+	return hypermedia.Redirect(etx, routes.ConfirmationNew.URL())
 }
