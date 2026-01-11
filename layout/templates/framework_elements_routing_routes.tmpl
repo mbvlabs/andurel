@@ -18,6 +18,10 @@ func configureName(name, prefix string) string {
 }
 
 func configurePath(path, prefix string) string {
+	return sanitizePath(buildPath(path, prefix))
+}
+
+func buildPath(path, prefix string) string {
 	if prefix == "" {
 		return path
 	}
@@ -31,16 +35,44 @@ func configurePath(path, prefix string) string {
 
 	if prefixEndsWithSlash && pathStartsWithSlash {
 		slog.Warn("unexpected prefix/path configuration. double slash between prefix and path", "prefix", prefix, "path", path)
-		path, ok := strings.CutPrefix(path, "/")
-		if !ok {
-			slog.Warn("unable to cut prefix from path", "path", path)
-		}
-
-		return prefix + path
+		return prefix + path[1:]
 	}
 
 	slog.Warn("unexpected prefix/path configuration. missing slash between prefix and path", "prefix", prefix, "path", path)
 	return prefix + "/" + path
+}
+
+func sanitizePath(path string) string {
+	// Ensure path starts with '/'
+	if !strings.HasPrefix(path, "/") {
+		slog.Warn("path does not start with '/'. prepending '/'", "path", path)
+		path = "/" + path
+	}
+
+	// Check for double slashes and fix
+	if !strings.Contains(path, "//") {
+		return path
+	}
+
+	slog.Warn("path contains double slashes. removing", "path", path)
+
+	// Single pass: build result without consecutive slashes
+	var b strings.Builder
+	b.Grow(len(path))
+	prevSlash := false
+	for i := 0; i < len(path); i++ {
+		if path[i] == '/' {
+			if prevSlash {
+				continue
+			}
+			prevSlash = true
+		} else {
+			prevSlash = false
+		}
+		b.WriteByte(path[i])
+	}
+
+	return b.String()
 }
 
 type Route struct {
