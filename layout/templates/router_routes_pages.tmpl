@@ -4,10 +4,8 @@ import (
 	"{{.ModuleName}}/internal/routing"
 )
 
-const PagePrefix = "pages"
-
 var HomePage = routing.NewSimpleRoute(
 	"/",
-	"home",
-	PagePrefix,
+	"pages.home",
+	"",
 )

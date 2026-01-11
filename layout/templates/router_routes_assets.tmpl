@@ -8,19 +8,19 @@ import (
 	"{{.ModuleName}}/internal/routing"
 )
 
-const AssetsPrefix = "assets"
+const AssetsPrefix = "/assets"
 
 var startTime = time.Now().Unix()
 
 var Robots = routing.NewSimpleRoute(
 	"/robots.txt",
-	"robots",
+	"assets.robots",
 	"",
 )
 
 var Sitemap = routing.NewSimpleRoute(
 	"/sitemap.xml",
-	"sitemap",
+	"assets.sitemap",
 	"",
 )
 
