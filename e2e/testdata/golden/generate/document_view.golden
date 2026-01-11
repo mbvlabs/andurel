@@ -1,0 +1,250 @@
+package views
+
+import (
+	"fmt"
+	"strings"
+	"testapp/models"
+)
+
+templ DocumentIndex(documents []models.Document) {
+	@base() {
+		<div>
+			<div>
+				<h1>Documents</h1>
+				<a href="/">New Document</a>
+			</div>
+			<div>
+				<div>
+					if len(documents) == 0 {
+						<p>No documents found.</p>
+					} else {
+						<div>
+							<table>
+								<thead>
+									<tr>
+										<th>Title</th>
+										<th>Tags</th>
+										<th>Page Numbers</th>
+										<th>View Count</th>
+										<th>Is Published</th>
+										<th>Created At</th>
+										<th>Updated At</th>
+										<th>Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									for _, document := range documents {
+										<tr>
+											<td>{ document.Title }</td>
+											<td>{ strings.Join(document.Tags, ", ") }</td>
+											<td>{ fmt.Sprintf("%v", document.PageNumbers) }</td>
+											<td>{ fmt.Sprintf("%d", document.ViewCount) }</td>
+											<td>{ fmt.Sprintf("%t", document.IsPublished) }</td>
+											<td>{ document.CreatedAt.String() }</td>
+											<td>{ document.UpdatedAt.String() }</td>
+											<td>
+												<a href="/">View</a>
+												<a href="/">Edit</a>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ DocumentShow(document models.Document) {
+	@base() {
+		<div>
+			<div>
+				<h1>Document Details</h1>
+				<div>
+					<a href="/">Edit</a>
+					<a href="/">Back to List</a>
+				</div>
+			</div>
+			<div>
+				<div>
+					<div>
+						<div>
+							<label>Title</label>
+							<p>{ document.Title }</p>
+						</div>
+						<div>
+							<label>Tags</label>
+							<p>{ strings.Join(document.Tags, ", ") }</p>
+						</div>
+						<div>
+							<label>Page Numbers</label>
+							<p>{ fmt.Sprintf("%v", document.PageNumbers) }</p>
+						</div>
+						<div>
+							<label>View Count</label>
+							<p>{ fmt.Sprintf("%d", document.ViewCount) }</p>
+						</div>
+						<div>
+							<label>Is Published</label>
+							<p>{ fmt.Sprintf("%t", document.IsPublished) }</p>
+						</div>
+						<div>
+							<label>Created At</label>
+							<p>{ document.CreatedAt.String() }</p>
+						</div>
+						<div>
+							<label>Updated At</label>
+							<p>{ document.UpdatedAt.String() }</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ DocumentNew() {
+	@base() {
+		<div>
+			<div>
+				<h1>New Document</h1>
+				<a href="/">Back to List</a>
+			</div>
+			<div>
+				<div>
+					<form data-on-submit={ fmt.Sprintf("@post('%s')", "/") }>
+						<div>
+							<div>
+								<h2>Document Information</h2>
+								<p>Enter the details for the new document.</p>
+								<div>
+									<div>
+										<label for="title">
+											Title
+										</label>
+										<div>
+											<input id="title" type="text" data-bind="title"/>
+										</div>
+									</div>
+									<div>
+										<label for="tags">
+											Tags
+										</label>
+										<div>
+											<input id="tags" type="text" data-bind="tags"/>
+										</div>
+									</div>
+									<div>
+										<label for="page_numbers">
+											Page Numbers
+										</label>
+										<div>
+											<input id="page_numbers" type="text" data-bind="page_numbers"/>
+										</div>
+									</div>
+									<div>
+										<label for="view_count">
+											View Count
+										</label>
+										<div>
+											<input id="view_count" type="number" data-bind="view_count"/>
+										</div>
+									</div>
+									<div>
+										<label for="is_published">
+											Is Published
+										</label>
+										<div>
+											<input id="is_published" type="checkbox" data-bind="is_published"/>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div>
+							<a href="/">Cancel</a>
+							<button type="submit">Create Document</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ DocumentEdit(document models.Document) {
+	@base() {
+		<div>
+			<div>
+				<h1>Edit Document</h1>
+				<a href="/">Back to List</a>
+			</div>
+			<div>
+				<div>
+					<form data-on-submit={ fmt.Sprintf("@put('%s')", "/") }>
+						<div>
+							<div>
+								<h2>Document Information</h2>
+								<p>Update the details for this document.</p>
+								<div>
+									<div>
+										<label for="title">
+											Title
+										</label>
+										<div>
+											<input id="title" type="text" data-bind="title" value={ document.Title }/>
+										</div>
+									</div>
+									<div>
+										<label for="tags">
+											Tags
+										</label>
+										<div>
+											<input id="tags" type="text" data-bind="tags" value={ strings.Join(document.Tags, ", ") }/>
+										</div>
+									</div>
+									<div>
+										<label for="page_numbers">
+											Page Numbers
+										</label>
+										<div>
+											<input id="page_numbers" type="text" data-bind="page_numbers" value={ fmt.Sprintf("%v", document.PageNumbers) }/>
+										</div>
+									</div>
+									<div>
+										<label for="view_count">
+											View Count
+										</label>
+										<div>
+											<input id="view_count" type="number" data-bind="view_count" value={ fmt.Sprintf("%d", document.ViewCount) }/>
+										</div>
+									</div>
+									<div>
+										<label for="is_published">
+											Is Published
+										</label>
+										<div>
+											<input id="is_published" type="checkbox" data-bind="is_published" value={ fmt.Sprintf("%t", document.IsPublished) }/>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div>
+							<a href="/">Cancel</a>
+							<button type="submit">Update Document</button>
+						</div>
+					</form>
+					<div>
+						<button
+							data-on-click={ fmt.Sprintf("@delete('%s')", "/") }
+						>Destroy Document</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}

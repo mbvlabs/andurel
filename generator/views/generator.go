@@ -136,9 +136,18 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 	case "[]byte":
 		field.InputType = "text"
 		field.StringConverter = "string(%s)"
+	case "[]int32":
+		field.InputType = "text"
+		field.StringConverter = "fmt.Sprintf(\"%v\", %s)"
+	case "[]string":
+		field.InputType = "text"
+		field.StringConverter = "strings.Join(%s, \", \")"
+	case "interface{}":
+		field.InputType = "text"
+		field.StringConverter = "fmt.Sprintf(\"%v\", %s)"
 	default:
 		field.InputType = "text"
-		field.StringConverter = ""
+		field.StringConverter = "fmt.Sprintf(\"%v\", %s)"
 	}
 
 	switch goType {
