@@ -2,6 +2,7 @@ package views
 
 import (
 	"net/http"
+	"testapp/internal/hypermedia"
 	"testapp/models"
 	"testapp/router/routes"
 	"testapp/views/components"
@@ -98,7 +99,7 @@ templ CompanyNew() {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ DataAction(http.MethodPost, routes.CompanyCreate.URL(), ActionTypeForm) }>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.CompanyCreate.URL(), hypermedia.ActionTypeForm) }>
 						<div>
 							<div>
 								<h2>Company Information</h2>
@@ -133,7 +134,7 @@ templ CompanyEdit(company models.Company) {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ DataAction(http.MethodPut, routes.CompanyUpdate.URL(company.ID), ActionTypeForm) }>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.CompanyUpdate.URL(company.ID), hypermedia.ActionTypeForm) }>
 						<div>
 							<div>
 								<h2>Company Information</h2>
@@ -159,7 +160,7 @@ templ CompanyEdit(company models.Company) {
 					</form>
 					<div>
 						<button
-							data-on:click={ DataAction(http.MethodDelete, routes.CompanyDestroy.URL(company.ID)) }
+							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.CompanyDestroy.URL(company.ID)) }
 						>Destroy Company</button>
 					</div>
 				</div>

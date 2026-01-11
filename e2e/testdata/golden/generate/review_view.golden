@@ -3,6 +3,7 @@ package views
 import (
 	"fmt"
 	"net/http"
+	"testapp/internal/hypermedia"
 	"testapp/models"
 	"testapp/router/routes"
 	"testapp/views/components"
@@ -105,7 +106,7 @@ templ ReviewNew() {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ DataAction(http.MethodPost, routes.ReviewCreate.URL(), ActionTypeForm) }>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.ReviewCreate.URL(), hypermedia.ActionTypeForm) }>
 						<div>
 							<div>
 								<h2>Review Information</h2>
@@ -143,7 +144,7 @@ templ ReviewEdit(review models.Review) {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ DataAction(http.MethodPut, routes.ReviewUpdate.URL(review.ID), ActionTypeForm) }>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.ReviewUpdate.URL(review.ID), hypermedia.ActionTypeForm) }>
 						<div>
 							<div>
 								<h2>Review Information</h2>
@@ -174,7 +175,7 @@ templ ReviewEdit(review models.Review) {
 					</form>
 					<div>
 						<button
-							data-on:click={ DataAction(http.MethodDelete, routes.ReviewDestroy.URL(review.ID)) }
+							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ReviewDestroy.URL(review.ID)) }
 						>Destroy Review</button>
 					</div>
 				</div>

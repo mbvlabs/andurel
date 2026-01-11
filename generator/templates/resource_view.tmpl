@@ -6,6 +6,7 @@ import (
 	"strings"
 	"{{.ModulePath}}/models"
 	"{{.ModulePath}}/router/routes"
+	"{{.ModulePath}}/internal/hypermedia"
 	"{{.ModulePath}}/views/components"
 )
 
@@ -83,7 +84,7 @@ templ {{.ResourceName}}New() {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={DataAction(http.MethodPost, routes.{{.ResourceName}}Create.URL(), ActionTypeForm)}>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.{{.ResourceName}}Create.URL(), hypermedia.ActionTypeForm )}>
 						<div>
 							<div>
 								<h2>{{.ResourceName}} Information</h2>
@@ -115,7 +116,7 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{.ResourceName | ToLower}}.ID), ActionTypeForm)}>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{.ResourceName | ToLower}}.ID), hypermedia.ActionTypeForm )}>
 						<div>
 							<div>
 								<h2>{{.ResourceName}} Information</h2>
@@ -136,7 +137,7 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 					</form>
 					<div>
 						<button
-							data-on:click={DataAction(http.MethodDelete, routes.{{.ResourceName}}Destroy.URL({{.ResourceName | ToLower}}.ID)) }>Destroy {{.ResourceName}}</button>
+							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.{{.ResourceName}}Destroy.URL({{.ResourceName | ToLower}}.ID)) }>Destroy {{.ResourceName}}</button>
 					</div>
 				</div>
 			</div>

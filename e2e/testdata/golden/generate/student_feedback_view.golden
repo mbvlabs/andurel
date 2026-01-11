@@ -3,6 +3,7 @@ package views
 import (
 	"fmt"
 	"net/http"
+	"testapp/internal/hypermedia"
 	"testapp/models"
 	"testapp/router/routes"
 	"testapp/views/components"
@@ -105,7 +106,7 @@ templ StudentFeedbackNew() {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ DataAction(http.MethodPost, routes.StudentFeedbackCreate.URL(), ActionTypeForm) }>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.StudentFeedbackCreate.URL(), hypermedia.ActionTypeForm) }>
 						<div>
 							<div>
 								<h2>StudentFeedback Information</h2>
@@ -143,7 +144,7 @@ templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ DataAction(http.MethodPut, routes.StudentFeedbackUpdate.URL(studentfeedback.ID), ActionTypeForm) }>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.StudentFeedbackUpdate.URL(studentfeedback.ID), hypermedia.ActionTypeForm) }>
 						<div>
 							<div>
 								<h2>StudentFeedback Information</h2>
@@ -174,7 +175,7 @@ templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
 					</form>
 					<div>
 						<button
-							data-on:click={ DataAction(http.MethodDelete, routes.StudentFeedbackDestroy.URL(studentfeedback.ID)) }
+							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.StudentFeedbackDestroy.URL(studentfeedback.ID)) }
 						>Destroy StudentFeedback</button>
 					</div>
 				</div>
