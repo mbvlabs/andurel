@@ -97,11 +97,6 @@ func Update{{.Name}}(
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := queries.Query{{.Name}}ByID(ctx, exec, {{uuidParam "data.ID"}})
-	if err != nil {
-		return {{.Name}}{}, err
-	}
-
 	params := db.Update{{.Name}}Params{
 		ID: data.ID,
 {{- range .Fields}}

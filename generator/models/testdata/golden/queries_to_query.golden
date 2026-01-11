@@ -78,11 +78,6 @@ func UpdateQuery(
 		return Query{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := queries.QueryQueryByID(ctx, exec, data.ID)
-	if err != nil {
-		return Query{}, err
-	}
-
 	params := db.UpdateQueryParams{
 		ID: data.ID,
 		SqlText: data.SqlText,

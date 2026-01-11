@@ -76,11 +76,6 @@ func UpdateItem(
 		return Item{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := queries.QueryItemByID(ctx, exec, data.ID)
-	if err != nil {
-		return Item{}, err
-	}
-
 	params := db.UpdateItemParams{
 		ID:       data.ID,
 		Name:     data.Name,

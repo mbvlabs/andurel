@@ -82,11 +82,6 @@ func UpdateStudentFeedback(
 		return StudentFeedback{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := queries.QueryStudentFeedbackByID(ctx, exec, data.ID)
-	if err != nil {
-		return StudentFeedback{}, err
-	}
-
 	params := db.UpdateStudentFeedbackParams{
 		ID:        data.ID,
 		StudentID: data.StudentID,

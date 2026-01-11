@@ -78,11 +78,6 @@ func UpdateFactory(
 		return Factory{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := queries.QueryFactoryByID(ctx, exec, data.ID)
-	if err != nil {
-		return Factory{}, err
-	}
-
 	params := db.UpdateFactoryParams{
 		ID: data.ID,
 		Name: data.Name,

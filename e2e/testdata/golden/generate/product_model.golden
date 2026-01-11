@@ -75,11 +75,6 @@ func UpdateProduct(
 		return Product{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := queries.QueryProductByID(ctx, exec, data.ID)
-	if err != nil {
-		return Product{}, err
-	}
-
 	params := db.UpdateProductParams{
 		ID:    data.ID,
 		Name:  data.Name,

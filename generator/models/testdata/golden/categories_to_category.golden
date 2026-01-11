@@ -78,11 +78,6 @@ func UpdateCategory(
 		return Category{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := queries.QueryCategoryByID(ctx, exec, data.ID)
-	if err != nil {
-		return Category{}, err
-	}
-
 	params := db.UpdateCategoryParams{
 		ID: data.ID,
 		Name: data.Name,

@@ -84,11 +84,6 @@ func UpdateBook(
 		return Book{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := queries.QueryBookByID(ctx, exec, data.ID)
-	if err != nil {
-		return Book{}, err
-	}
-
 	params := db.UpdateBookParams{
 		ID:     data.ID,
 		Title:  data.Title,

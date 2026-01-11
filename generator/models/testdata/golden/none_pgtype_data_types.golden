@@ -90,11 +90,6 @@ func UpdateArticle(
 		return Article{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := queries.QueryArticleByID(ctx, exec, data.ID)
-	if err != nil {
-		return Article{}, err
-	}
-
 	params := db.UpdateArticleParams{
 		ID: data.ID,
 		Title: data.Title,

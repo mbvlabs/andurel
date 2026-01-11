@@ -82,11 +82,6 @@ func UpdatePerson(
 		return Person{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := queries.QueryPersonByID(ctx, exec, data.ID)
-	if err != nil {
-		return Person{}, err
-	}
-
 	params := db.UpdatePersonParams{
 		ID:        data.ID,
 		FirstName: data.FirstName,

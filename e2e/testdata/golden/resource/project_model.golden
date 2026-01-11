@@ -76,11 +76,6 @@ func UpdateProject(
 		return Project{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := queries.QueryProjectByID(ctx, exec, data.ID)
-	if err != nil {
-		return Project{}, err
-	}
-
 	params := db.UpdateProjectParams{
 		ID:          data.ID,
 		Name:        data.Name,
