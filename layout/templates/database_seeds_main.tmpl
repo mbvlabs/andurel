@@ -8,8 +8,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"{{.ModuleName}}/internal/storage"
-	// Import your factories:
-	// "{{.ModuleName}}/models/factories"
+	"{{.ModuleName}}/models/factories"
 )
 
 func main() {
@@ -31,17 +30,35 @@ func run() error {
 
 	fmt.Println("Seeding database...")
 
-	// Add your seeds here using factories:
-	//
-	// _, err = factories.CreateUser(ctx, db.Conn(),
-	// 	factories.WithUsersEmail("admin@example.com"),
-	// )
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create admin user: %w", err)
-	// }
+	// Create an admin user
+	admin, err := factories.CreateUser(ctx, db.Conn(),
+		factories.WithEmail("admin@example.com"),
+		factories.WithIsAdmin(true),
+		factories.WithValidatedEmail(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create admin user: %w", err)
+	}
+	fmt.Printf("Created admin user: %s\n", admin.Email)
 
-	// Temporary: remove these lines when adding your seeds
-	_ = ctx
+	// Create a regular user
+	user, err := factories.CreateUser(ctx, db.Conn(),
+		factories.WithEmail("user@example.com"),
+		factories.WithValidatedEmail(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create regular user: %w", err)
+	}
+	fmt.Printf("Created regular user: %s\n", user.Email)
+
+	// Add more seeds here using factories:
+	//
+	// // Create 10 additional users with random emails
+	// users, err := factories.CreateUsers(ctx, db.Conn(), 10)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create users: %w", err)
+	// }
+	// fmt.Printf("Created %d additional users\n", len(users))
 
 	fmt.Println("Seeding complete!")
 	return nil
