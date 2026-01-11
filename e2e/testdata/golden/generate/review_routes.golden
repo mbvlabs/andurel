@@ -1,0 +1,49 @@
+package routes
+
+import (
+	"testapp/internal/routing"
+)
+
+const ReviewPrefix = "/reviews"
+
+var ReviewIndex = routing.NewSimpleRoute(
+	"/",
+	"index",
+	ReviewPrefix,
+)
+
+var ReviewShow = routing.NewRouteWithID(
+	"/:id",
+	"show",
+	ReviewPrefix,
+)
+
+var ReviewNew = routing.NewSimpleRoute(
+	"/new",
+	"new",
+	ReviewPrefix,
+)
+
+var ReviewCreate = routing.NewSimpleRoute(
+	"/",
+	"create",
+	ReviewPrefix,
+)
+
+var ReviewEdit = routing.NewRouteWithID(
+	"/:id/edit",
+	"edit",
+	ReviewPrefix,
+)
+
+var ReviewUpdate = routing.NewRouteWithID(
+	"/:id",
+	"update",
+	ReviewPrefix,
+)
+
+var ReviewDestroy = routing.NewRouteWithID(
+	"/:id",
+	"destroy",
+	ReviewPrefix,
+)

@@ -1,0 +1,49 @@
+package routes
+
+import (
+	"testapp/internal/routing"
+)
+
+const InvoicePrefix = "/invoices"
+
+var InvoiceIndex = routing.NewSimpleRoute(
+	"/",
+	"index",
+	InvoicePrefix,
+)
+
+var InvoiceShow = routing.NewRouteWithID(
+	"/:id",
+	"show",
+	InvoicePrefix,
+)
+
+var InvoiceNew = routing.NewSimpleRoute(
+	"/new",
+	"new",
+	InvoicePrefix,
+)
+
+var InvoiceCreate = routing.NewSimpleRoute(
+	"/",
+	"create",
+	InvoicePrefix,
+)
+
+var InvoiceEdit = routing.NewRouteWithID(
+	"/:id/edit",
+	"edit",
+	InvoicePrefix,
+)
+
+var InvoiceUpdate = routing.NewRouteWithID(
+	"/:id",
+	"update",
+	InvoicePrefix,
+)
+
+var InvoiceDestroy = routing.NewRouteWithID(
+	"/:id",
+	"destroy",
+	InvoicePrefix,
+)

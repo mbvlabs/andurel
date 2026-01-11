@@ -1,0 +1,40 @@
+package router
+
+import (
+	"net/http"
+
+	"testapp/controllers"
+	"testapp/router/routes"
+
+	"github.com/labstack/echo/v4"
+)
+
+func registerInvoiceRoutes(handler *echo.Echo, invoice controllers.Invoice) {
+	handler.Add(
+		http.MethodGet, routes.InvoiceIndex.Path(), invoice.Index,
+	).Name = routes.InvoiceIndex.Name()
+
+	handler.Add(
+		http.MethodGet, routes.InvoiceShow.Path(), invoice.Show,
+	).Name = routes.InvoiceShow.Name()
+
+	handler.Add(
+		http.MethodGet, routes.InvoiceNew.Path(), invoice.New,
+	).Name = routes.InvoiceNew.Name()
+
+	handler.Add(
+		http.MethodPost, routes.InvoiceCreate.Path(), invoice.Create,
+	).Name = routes.InvoiceCreate.Name()
+
+	handler.Add(
+		http.MethodGet, routes.InvoiceEdit.Path(), invoice.Edit,
+	).Name = routes.InvoiceEdit.Name()
+
+	handler.Add(
+		http.MethodPut, routes.InvoiceUpdate.Path(), invoice.Update,
+	).Name = routes.InvoiceUpdate.Name()
+
+	handler.Add(
+		http.MethodDelete, routes.InvoiceDestroy.Path(), invoice.Destroy,
+	).Name = routes.InvoiceDestroy.Name()
+}

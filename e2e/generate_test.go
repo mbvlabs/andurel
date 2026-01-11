@@ -84,6 +84,26 @@ func TestGenerateCommands(t *testing.T) {
 			t.Run("generate_model_skip_factory", func(t *testing.T) {
 				testGenerateModelSkipFactory(t, project)
 			})
+
+			t.Run("generate_model_with_table_name", func(t *testing.T) {
+				testGenerateModelWithTableName(t, project)
+			})
+
+			t.Run("generate_controller_without_views", func(t *testing.T) {
+				testGenerateControllerWithoutViews(t, project)
+			})
+
+			t.Run("generate_view_with_controller", func(t *testing.T) {
+				testGenerateViewWithController(t, project)
+			})
+
+			t.Run("generate_queries", func(t *testing.T) {
+				testGenerateQueries(t, project)
+			})
+
+			t.Run("generate_queries_with_table_name", func(t *testing.T) {
+				testGenerateQueriesWithTableName(t, project)
+			})
 		})
 	}
 }
@@ -410,6 +430,234 @@ func testGenerateModelSkipFactory(t *testing.T, project *internal.Project) {
 	// Verify factory file does NOT exist
 	if project.FileExists("models/factories/article.go") {
 		t.Error("Factory file should NOT exist when using --skip-factory flag")
+	}
+}
+
+func testGenerateModelWithTableName(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	// Create a table with a name that doesn't follow standard pluralization
+	// e.g., "person" model but "people_data" table
+	createMigration(t, project, "000107_create_people_data", "people_data", []string{
+		"first_name VARCHAR(255) NOT NULL",
+		"last_name VARCHAR(255) NOT NULL",
+		"email VARCHAR(255)",
+	})
+
+	err := project.Generate("generate", "model", "Person", "--table-name=people_data")
+	internal.AssertCommandSucceeds(t, err, "generate model with --table-name")
+
+	// Verify model file exists and compare against golden file
+	internal.AssertFileExists(t, project, "models/person.go")
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/person.go"))
+	if err != nil {
+		t.Fatalf("Failed to read model file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "person_model.golden"),
+		string(modelContent),
+	)
+
+	// Verify queries file exists with custom table name and compare against golden file
+	internal.AssertFileExists(t, project, "database/queries/people_data.sql")
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/people_data.sql"))
+	if err != nil {
+		t.Fatalf("Failed to read queries file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "person_queries.golden"),
+		string(queriesContent),
+	)
+
+	// Verify factory file exists and compare against golden file
+	internal.AssertFileExists(t, project, "models/factories/person.go")
+	factoryContent, err := os.ReadFile(filepath.Join(project.Dir, "models/factories/person.go"))
+	if err != nil {
+		t.Fatalf("Failed to read factory file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "person_factory.golden"),
+		string(factoryContent),
+	)
+}
+
+func testGenerateControllerWithoutViews(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	createMigration(t, project, "000108_create_invoices", "invoices", []string{
+		"invoice_number VARCHAR(50) NOT NULL",
+		"amount DECIMAL(10,2) NOT NULL",
+		"status VARCHAR(20) DEFAULT 'pending'",
+	})
+
+	err := project.Generate("generate", "model", "Invoice")
+	internal.AssertCommandSucceeds(t, err, "generate model")
+
+	// Generate controller WITHOUT views (default behavior)
+	err = project.Generate("generate", "controller", "Invoice")
+	internal.AssertCommandSucceeds(t, err, "generate controller without views")
+
+	// Verify controller file exists and compare against golden file
+	internal.AssertFileExists(t, project, "controllers/invoices.go")
+	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/invoices.go"))
+	if err != nil {
+		t.Fatalf("Failed to read controller file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "invoice_controller.golden"),
+		string(controllerContent),
+	)
+
+	// Verify routes file exists and compare against golden file
+	internal.AssertFileExists(t, project, "router/routes/invoices.go")
+	routesContent, err := os.ReadFile(filepath.Join(project.Dir, "router/routes/invoices.go"))
+	if err != nil {
+		t.Fatalf("Failed to read routes file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "invoice_routes.golden"),
+		string(routesContent),
+	)
+
+	// Verify router registration file exists and compare against golden file
+	internal.AssertFileExists(t, project, "router/connect_invoices_routes.go")
+	routerContent, err := os.ReadFile(filepath.Join(project.Dir, "router/connect_invoices_routes.go"))
+	if err != nil {
+		t.Fatalf("Failed to read router registration file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "invoice_router.golden"),
+		string(routerContent),
+	)
+
+	// View file should NOT exist when generating controller without views
+	if project.FileExists("views/invoices_resource.templ") {
+		t.Error("View file should NOT exist when generating controller without --with-views")
+	}
+}
+
+func testGenerateViewWithController(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	createMigration(t, project, "000109_create_reviews", "reviews", []string{
+		"title VARCHAR(255) NOT NULL",
+		"body TEXT",
+		"rating INTEGER NOT NULL",
+	})
+
+	err := project.Generate("generate", "model", "Review")
+	internal.AssertCommandSucceeds(t, err, "generate model")
+
+	// Generate view WITH controller
+	err = project.Generate("generate", "view", "Review", "--with-controller")
+	internal.AssertCommandSucceeds(t, err, "generate view with controller")
+
+	// Verify view file exists and compare against golden file
+	internal.AssertFileExists(t, project, "views/reviews_resource.templ")
+	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/reviews_resource.templ"))
+	if err != nil {
+		t.Fatalf("Failed to read view file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "review_view.golden"),
+		string(viewContent),
+	)
+
+	// Verify controller file exists (because --with-controller was passed)
+	internal.AssertFileExists(t, project, "controllers/reviews.go")
+	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/reviews.go"))
+	if err != nil {
+		t.Fatalf("Failed to read controller file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "review_controller.golden"),
+		string(controllerContent),
+	)
+
+	// Verify routes file exists
+	internal.AssertFileExists(t, project, "router/routes/reviews.go")
+	routesContent, err := os.ReadFile(filepath.Join(project.Dir, "router/routes/reviews.go"))
+	if err != nil {
+		t.Fatalf("Failed to read routes file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "review_routes.golden"),
+		string(routesContent),
+	)
+}
+
+func testGenerateQueries(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	// Create a junction table for testing queries-only generation
+	createMigration(t, project, "000110_create_user_roles", "user_roles", []string{
+		"user_id UUID NOT NULL",
+		"role_id UUID NOT NULL",
+	})
+
+	err := project.Generate("generate", "queries", "UserRole")
+	internal.AssertCommandSucceeds(t, err, "generate queries")
+
+	// Verify queries file exists and compare against golden file
+	internal.AssertFileExists(t, project, "database/queries/user_roles.sql")
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/user_roles.sql"))
+	if err != nil {
+		t.Fatalf("Failed to read queries file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "user_role_queries.golden"),
+		string(queriesContent),
+	)
+
+	// Model file should NOT exist for queries-only generation
+	if project.FileExists("models/user_role.go") {
+		t.Error("Model file should NOT exist for queries-only generation")
+	}
+
+	// Factory file should NOT exist for queries-only generation
+	if project.FileExists("models/factories/user_role.go") {
+		t.Error("Factory file should NOT exist for queries-only generation")
+	}
+}
+
+func testGenerateQueriesWithTableName(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	// Create a table with custom name
+	createMigration(t, project, "000111_create_tag_assignments", "tag_assignments", []string{
+		"taggable_type VARCHAR(100) NOT NULL",
+		"taggable_id UUID NOT NULL",
+		"tag_id UUID NOT NULL",
+	})
+
+	err := project.Generate("generate", "queries", "TagAssignment", "--table-name=tag_assignments")
+	internal.AssertCommandSucceeds(t, err, "generate queries with table-name")
+
+	// Verify queries file exists and compare against golden file
+	internal.AssertFileExists(t, project, "database/queries/tag_assignments.sql")
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/tag_assignments.sql"))
+	if err != nil {
+		t.Fatalf("Failed to read queries file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "tag_assignment_queries.golden"),
+		string(queriesContent),
+	)
+
+	// Model file should NOT exist for queries-only generation
+	if project.FileExists("models/tag_assignment.go") {
+		t.Error("Model file should NOT exist for queries-only generation")
 	}
 }
 

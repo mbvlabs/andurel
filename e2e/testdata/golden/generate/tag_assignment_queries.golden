@@ -1,0 +1,37 @@
+-- name: QueryTagAssignmentByID :one
+select * from tag_assignments where id=$1;
+
+-- name: QueryTagAssignment :many
+select * from tag_assignments;
+
+-- name: InsertTagAssignment :one
+insert into
+    tag_assignments (id, taggable_type, taggable_id, tag_id, created_at, updated_at)
+values
+    ($1, $2, $3, $4, now(), now())
+returning *;
+
+-- name: UpdateTagAssignment :one
+update tag_assignments
+    set taggable_type=$2, taggable_id=$3, tag_id=$4, updated_at=now()
+where id = $1
+returning *;
+
+-- name: DeleteTagAssignment :exec
+delete from tag_assignments where id=$1;
+
+-- name: QueryPaginatedTagAssignment :many
+select * from tag_assignments
+order by created_at desc
+limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
+
+-- name: CountTagAssignment :one
+select count(*) from tag_assignments;
+
+-- name: UpsertTagAssignment :one
+insert into
+    tag_assignments (id, taggable_type, taggable_id, tag_id, created_at, updated_at)
+values
+    ($1, $2, $3, $4, now(), now())
+on conflict (id) do update set taggable_type=excluded.taggable_type, taggable_id=excluded.taggable_id, tag_id=excluded.tag_id, updated_at=now()
+returning *;
