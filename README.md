@@ -215,9 +215,7 @@ andurel db migration up-to [version]    # Apply up to specific version
 andurel db migration down-to [version]  # Rollback to specific version
 andurel db migration reset              # Reset and reapply all migrations
 andurel db migration fix                # Fix migration version gaps
-
-# Check migration status
-andurel db status                 # Show current migration version and pending migrations
+andurel db migration status             # Show current migration version and pending migrations
 ```
 
 ### SQL Query Generation (SQLC)

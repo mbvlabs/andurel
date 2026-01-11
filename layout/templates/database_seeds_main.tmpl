@@ -21,35 +21,27 @@ func main() {
 func run() error {
 	godotenv.Load()
 
-	dbURL := buildDatabaseURL()
-	db, err := storage.NewConnection(dbURL)
+	ctx := context.Background()
+
+	db, err := storage.NewConnection(ctx, buildDatabaseURL())
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	defer db.Close()
 
-	ctx := context.Background()
-
 	fmt.Println("Seeding database...")
 
 	// Add your seeds here using factories:
 	//
-	// // Create an admin user
-	// _, err = factories.CreateUser(ctx, db,
+	// _, err = factories.CreateUser(ctx, db.Conn(),
 	// 	factories.WithUsersEmail("admin@example.com"),
-	// 	factories.WithUsersRole("admin"),
 	// )
 	// if err != nil {
 	// 	return fmt.Errorf("failed to create admin user: %w", err)
 	// }
-	//
-	// // Create 10 sample products
-	// _, err = factories.CreateProducts(ctx, db, 10)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create products: %w", err)
-	// }
 
-	_ = ctx // remove when using ctx
+	// Temporary: remove these lines when adding your seeds
+	_ = ctx
 
 	fmt.Println("Seeding complete!")
 	return nil

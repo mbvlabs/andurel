@@ -16,13 +16,12 @@ func newDatabaseCommand() *cobra.Command {
 		Use:     "database",
 		Aliases: []string{"db"},
 		Short:   "Database management commands",
-		Long:    "Commands for managing database migrations, queries, seeding, and status.",
+		Long:    "Commands for managing database migrations, queries, and seeding.",
 	}
 
 	cmd.AddCommand(
 		newDBMigrationCommand(),
 		newDBQueriesCommand(),
-		newDBStatusCommand(),
 		newDBSeedCommand(),
 	)
 
@@ -43,6 +42,7 @@ func newDBMigrationCommand() *cobra.Command {
 		newDBMigrationNewCommand(),
 		newDBMigrationUpCommand(),
 		newDBMigrationDownCommand(),
+		newDBMigrationStatusCommand(),
 		newDBMigrationFixCommand(),
 		newDBMigrationResetCommand(),
 		newDBMigrationUpToCommand(),
@@ -174,9 +174,7 @@ func newDBQueriesGenerateCommand() *cobra.Command {
 	}
 }
 
-// Status command
-
-func newDBStatusCommand() *cobra.Command {
+func newDBMigrationStatusCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Show current migration status",
