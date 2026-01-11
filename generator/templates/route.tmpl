@@ -8,42 +8,42 @@ const {{.ResourceName}}Prefix = "/{{.PluralName}}"
 
 var {{.ResourceName}}Index = routing.NewSimpleRoute(
 	"/",
-	"index",
+	"{{.PluralName}}.index",
 	{{.ResourceName}}Prefix,
 )
 
 var {{.ResourceName}}Show = routing.NewRouteWithID(
 	"/:id",
-	"show",
+	"{{.PluralName}}.show",
 	{{.ResourceName}}Prefix,
 )
 
 var {{.ResourceName}}New = routing.NewSimpleRoute(
 	"/new",
-	"new",
+	"{{.PluralName}}.new",
 	{{.ResourceName}}Prefix,
 )
 
 var {{.ResourceName}}Create = routing.NewSimpleRoute(
 	"/",
-	"create",
+	"{{.PluralName}}.create",
 	{{.ResourceName}}Prefix,
 )
 
 var {{.ResourceName}}Edit = routing.NewRouteWithID(
 	"/:id/edit",
-	"edit",
+	"{{.PluralName}}.edit",
 	{{.ResourceName}}Prefix,
 )
 
 var {{.ResourceName}}Update = routing.NewRouteWithID(
 	"/:id",
-	"update",
+	"{{.PluralName}}.update",
 	{{.ResourceName}}Prefix,
 )
 
 var {{.ResourceName}}Destroy = routing.NewRouteWithID(
 	"/:id",
-	"destroy",
+	"{{.PluralName}}.destroy",
 	{{.ResourceName}}Prefix,
 )

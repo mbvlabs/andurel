@@ -3,6 +3,7 @@
 package routing
 
 import (
+	"log/slog"
 	"strings"
 
 	"github.com/google/uuid"
@@ -16,16 +17,62 @@ func configureName(name, prefix string) string {
 	return prefix + "." + name
 }
 
-func configurePath(path, prefix string) string {
+func configurePath(path, prefix, name string) string {
+	return sanitizePath(buildPath(path, prefix, name), name)
+}
+
+func buildPath(path, prefix, name string) string {
 	if prefix == "" {
 		return path
 	}
 
-	if !strings.Contains(prefix, "/") {
-		return prefix + "/" + path
+	prefixEndsWithSlash := strings.HasSuffix(prefix, "/")
+	pathStartsWithSlash := strings.HasPrefix(path, "/")
+
+	if prefixEndsWithSlash != pathStartsWithSlash {
+		return prefix + path
 	}
 
-	return prefix + path
+	if prefixEndsWithSlash && pathStartsWithSlash {
+		slog.Warn("unexpected prefix/path configuration. double slash between prefix and path", "route", name, "prefix", prefix, "path", path)
+		return prefix + path[1:]
+	}
+
+	slog.Warn("unexpected prefix/path configuration. missing slash between prefix and path", "route", name, "prefix", prefix, "path", path)
+	return prefix + "/" + path
+}
+
+func sanitizePath(path, name string) string {
+	// Ensure path starts with '/'
+	if !strings.HasPrefix(path, "/") {
+		slog.Warn("path does not start with '/'. prepending '/'", "route", name, "path", path)
+		path = "/" + path
+	}
+
+	// Check for double slashes and fix
+	if !strings.Contains(path, "//") {
+		return path
+	}
+
+	slog.Warn("path contains double slashes. removing", "route", name, "path", path)
+
+	// Single pass: build result without consecutive slashes
+	var b strings.Builder
+	b.Grow(len(path))
+	prevSlash := false
+	for i := 0; i < len(path); i++ {
+		if path[i] == '/' {
+			if prevSlash {
+				continue
+			}
+			prevSlash = true
+		} else {
+			prevSlash = false
+		}
+		b.WriteByte(path[i])
+	}
+
+	return b.String()
 }
 
 type Route struct {
@@ -41,8 +88,8 @@ func NewSimpleRoute(path, name, prefix string) Route {
 	return Route{name, path, prefix}
 }
 
-func (r Route ) URL() string {
-	return r.path
+func (r Route) URL() string {
+	return configurePath(r.path, r.prefix, r.name)
 }
 
 func (r Route) Name() string {
@@ -50,7 +97,7 @@ func (r Route) Name() string {
 }
 
 func (r Route) Path() string {
-	return configurePath(r.path, r.prefix)
+	return configurePath(r.path, r.prefix, r.name)
 }
 
 type RouteWithID Route
@@ -67,7 +114,7 @@ func (r RouteWithID) Name() string {
 }
 
 func (r RouteWithID) Path() string {
-	return configurePath(r.path, r.prefix)
+	return configurePath(r.path, r.prefix, r.name)
 }
 
 func (r RouteWithID) URL(id uuid.UUID) string {
@@ -88,7 +135,7 @@ func (r RouteWithIDs) Name() string {
 }
 
 func (r RouteWithIDs) Path() string {
-	return configurePath(r.path, r.prefix)
+	return configurePath(r.path, r.prefix, r.name)
 }
 
 func (r RouteWithIDs) URL(ids map[string]uuid.UUID) string {
@@ -113,7 +160,7 @@ func (r RouteWithSlug) Name() string {
 }
 
 func (r RouteWithSlug) Path() string {
-	return configurePath(r.path, r.prefix)
+	return configurePath(r.path, r.prefix, r.name)
 }
 
 func (r RouteWithSlug) URL(slug string) string {
@@ -133,7 +180,7 @@ func (r RouteWithToken) Name() string {
 }
 
 func (r RouteWithToken) Path() string {
-	return configurePath(r.path, r.prefix)
+	return configurePath(r.path, r.prefix, r.name)
 }
 
 func (r RouteWithToken) URL(token string) string {
@@ -153,7 +200,7 @@ func (r RouteWithFile) Name() string {
 }
 
 func (r RouteWithFile) Path() string {
-	return configurePath(r.path, r.prefix)
+	return configurePath(r.path, r.prefix, r.name)
 }
 
 func (r RouteWithFile) URL(file string) string {
