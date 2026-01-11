@@ -218,7 +218,7 @@ hypermedia.DataAction(http.MethodPut, routes.ProductUpdate.URL(id), hypermedia.A
 **In controllers** - Server-sent events:
 ` + "```go" + `
 // Redirect client (common after form submission)
-datastar.NewSSE(c.Response(), c.Request()).Redirect(routes.HomePage.URL())
+hypermedia.Redirect(c, routes.HomePage.URL())
 
 // Read client state from request
 var payload struct{ Name string }

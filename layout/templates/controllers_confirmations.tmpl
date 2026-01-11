@@ -11,7 +11,8 @@ import (
 	"{{.ModuleName}}/views"
 
 	"github.com/labstack/echo/v4"
-	"github.com/starfederation/datastar-go/datastar"
+
+	"{{.ModuleName}}/internal/hypermedia"
 )
 
 type Confirmations struct {
@@ -70,12 +71,12 @@ func (c Confirmations) Create(etx echo.Context) error {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
 			return render(etx, views.InternalError())
 		}
-		return datastar.NewSSE(etx.Response(), etx.Request()).Redirect(routes.ConfirmationNew.URL())
+		return hypermedia.Redirect(etx, routes.ConfirmationNew.URL())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Email verified successfully!"); flashErr != nil {
 		return render(etx, views.InternalError())
 	}
 
-	return datastar.NewSSE(etx.Response(), etx.Request()).Redirect(routes.HomePage.URL())
+	return hypermedia.Redirect(etx, routes.HomePage.URL())
 }
