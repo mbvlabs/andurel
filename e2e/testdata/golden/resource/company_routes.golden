@@ -8,42 +8,42 @@ const CompanyPrefix = "/companies"
 
 var CompanyIndex = routing.NewSimpleRoute(
 	"/",
-	"index",
+	"companies.index",
 	CompanyPrefix,
 )
 
 var CompanyShow = routing.NewRouteWithID(
 	"/:id",
-	"show",
+	"companies.show",
 	CompanyPrefix,
 )
 
 var CompanyNew = routing.NewSimpleRoute(
 	"/new",
-	"new",
+	"companies.new",
 	CompanyPrefix,
 )
 
 var CompanyCreate = routing.NewSimpleRoute(
 	"/",
-	"create",
+	"companies.create",
 	CompanyPrefix,
 )
 
 var CompanyEdit = routing.NewRouteWithID(
 	"/:id/edit",
-	"edit",
+	"companies.edit",
 	CompanyPrefix,
 )
 
 var CompanyUpdate = routing.NewRouteWithID(
 	"/:id",
-	"update",
+	"companies.update",
 	CompanyPrefix,
 )
 
 var CompanyDestroy = routing.NewRouteWithID(
 	"/:id",
-	"destroy",
+	"companies.destroy",
 	CompanyPrefix,
 )

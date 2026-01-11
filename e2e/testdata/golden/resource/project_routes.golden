@@ -8,42 +8,42 @@ const ProjectPrefix = "/projects"
 
 var ProjectIndex = routing.NewSimpleRoute(
 	"/",
-	"index",
+	"projects.index",
 	ProjectPrefix,
 )
 
 var ProjectShow = routing.NewRouteWithID(
 	"/:id",
-	"show",
+	"projects.show",
 	ProjectPrefix,
 )
 
 var ProjectNew = routing.NewSimpleRoute(
 	"/new",
-	"new",
+	"projects.new",
 	ProjectPrefix,
 )
 
 var ProjectCreate = routing.NewSimpleRoute(
 	"/",
-	"create",
+	"projects.create",
 	ProjectPrefix,
 )
 
 var ProjectEdit = routing.NewRouteWithID(
 	"/:id/edit",
-	"edit",
+	"projects.edit",
 	ProjectPrefix,
 )
 
 var ProjectUpdate = routing.NewRouteWithID(
 	"/:id",
-	"update",
+	"projects.update",
 	ProjectPrefix,
 )
 
 var ProjectDestroy = routing.NewRouteWithID(
 	"/:id",
-	"destroy",
+	"projects.destroy",
 	ProjectPrefix,
 )

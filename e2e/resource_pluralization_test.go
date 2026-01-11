@@ -279,7 +279,7 @@ func validateControllerPluralization(
 		desc    string
 	}{
 		{"type " + tc.expectedPlural + " struct", "Controller type uses plural"},
-		{"func New" + tc.expectedPlural + "(", "Constructor uses plural"},
+		{"func New" + tc.expectedPlural + "(", "Constructor uses singular"},
 		{") Index(etx echo.Context)", "Index uses etx parameter"},
 		{") Show(etx echo.Context)", "Show uses etx parameter"},
 		{") Create(etx echo.Context)", "Create uses etx parameter"},
