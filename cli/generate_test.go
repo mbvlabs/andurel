@@ -78,8 +78,8 @@ func getCommandNames(commands []*cobra.Command) []string {
 func TestQueriesCommandFlags(t *testing.T) {
 	cmd := newGenQueriesCommand()
 
-	if cmd.Use != "queries [name]" {
-		t.Errorf("Expected Use 'queries [name]', got '%s'", cmd.Use)
+	if cmd.Use != "queries [table_name]" {
+		t.Errorf("Expected Use 'queries [table_name]', got '%s'", cmd.Use)
 	}
 
 	refreshFlag := cmd.Flags().Lookup("refresh")
@@ -88,13 +88,5 @@ func TestQueriesCommandFlags(t *testing.T) {
 	}
 	if refreshFlag.DefValue != "false" {
 		t.Errorf("Expected --refresh default to be 'false', got '%s'", refreshFlag.DefValue)
-	}
-
-	tableNameFlag := cmd.Flags().Lookup("table-name")
-	if tableNameFlag == nil {
-		t.Error("Expected --table-name flag to exist")
-	}
-	if tableNameFlag.DefValue != "" {
-		t.Errorf("Expected --table-name default to be empty, got '%s'", tableNameFlag.DefValue)
 	}
 }

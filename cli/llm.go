@@ -302,14 +302,6 @@ andurel migration up
 andurel generate resource Product
 ` + "```" + `
 
-**Schema change:**
-` + "```bash" + `
-andurel migration new add_description
-# Edit migration file
-andurel migration up
-andurel generate model Product --refresh
-` + "```" + `
-
 ## Important Notes
 - Never edit ` + "`models/internal/db/*`" + ` (SQLC generated) or ` + "`*_templ.go`" + ` (Templ generated)
 - Run ` + "`andurel sqlc generate`" + ` after changing ` + "`database/queries/*.sql`" + `

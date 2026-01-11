@@ -2,7 +2,6 @@ package cli
 
 import (
 	"github.com/mbvlabs/andurel/generator"
-	"github.com/mbvlabs/andurel/pkg/naming"
 
 	"github.com/spf13/cobra"
 )
@@ -35,14 +34,11 @@ The table name is automatically inferred as the plural form of the model name.
 Examples:
   andurel generate model User                        # Create new model for 'users' table
   andurel generate model User --table-name=accounts  # Create model using custom 'accounts' table
-  andurel generate model User --refresh              # Refresh SQL queries after schema changes
   andurel generate model User --skip-factory         # Skip factory generation`,
 		Args: cobra.ExactArgs(1),
 		RunE: generateModel,
 	}
 
-	cmd.Flags().
-		Bool("refresh", false, "Refresh SQL queries after schema changes - makes changes compiler-enforced")
 	cmd.Flags().
 		String("table-name", "", "Override the default table name (defaults to plural form of model name)")
 	cmd.Flags().
@@ -75,11 +71,6 @@ Examples:
 func generateModel(cmd *cobra.Command, args []string) error {
 	resourceName := args[0]
 
-	refresh, err := cmd.Flags().GetBool("refresh")
-	if err != nil {
-		return err
-	}
-
 	tableNameOverride, err := cmd.Flags().GetString("table-name")
 	if err != nil {
 		return err
@@ -93,11 +84,6 @@ func generateModel(cmd *cobra.Command, args []string) error {
 	gen, err := generator.New()
 	if err != nil {
 		return err
-	}
-
-	if refresh {
-		tableName := naming.DeriveTableName(resourceName)
-		return gen.RefreshModel(resourceName, tableName)
 	}
 
 	return gen.GenerateModel(resourceName, tableNameOverride, skipFactory)
@@ -203,7 +189,7 @@ func generateView(cmd *cobra.Command, args []string) error {
 
 func newGenQueriesCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "queries [name]",
+		Use:   "queries [table_name]",
 		Short: "Generate SQL queries for a table (without model)",
 		Long: `Generate SQL query file and SQLC types for a database table.
 This is useful for junction/connection tables that don't need a full model wrapper.
@@ -213,30 +199,23 @@ The command generates:
   - SQLC-generated query functions and types
 
 Examples:
-  andurel generate queries UserRole                       # Generate queries for 'user_roles' table
-  andurel generate queries UserRole --table-name=users_roles  # Use custom table name
-  andurel generate queries UserRole --refresh             # Refresh existing queries file`,
+  andurel generate queries user_roles           # Generate queries for 'user_roles' table
+  andurel generate queries users_organizations  # Generate queries for a junction table
+  andurel generate queries user_roles --refresh # Refresh existing queries file`,
 		Args: cobra.ExactArgs(1),
 		RunE: generateQueries,
 	}
 
 	cmd.Flags().
 		Bool("refresh", false, "Refresh existing SQL queries file")
-	cmd.Flags().
-		String("table-name", "", "Override the default table name (defaults to plural form of resource name)")
 
 	return cmd
 }
 
 func generateQueries(cmd *cobra.Command, args []string) error {
-	resourceName := args[0]
+	tableName := args[0]
 
 	refresh, err := cmd.Flags().GetBool("refresh")
-	if err != nil {
-		return err
-	}
-
-	tableNameOverride, err := cmd.Flags().GetString("table-name")
 	if err != nil {
 		return err
 	}
@@ -246,14 +225,9 @@ func generateQueries(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	tableName := tableNameOverride
-	if tableName == "" {
-		tableName = naming.DeriveTableName(resourceName)
-	}
-
 	if refresh {
-		return gen.RefreshQueriesOnly(resourceName, tableName, tableNameOverride != "")
+		return gen.RefreshQueriesOnly(tableName)
 	}
 
-	return gen.GenerateQueriesOnly(resourceName, tableNameOverride)
+	return gen.GenerateQueriesOnly(tableName)
 }
