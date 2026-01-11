@@ -50,3 +50,7 @@ func (g *Generator) GenerateQueriesOnly(resourceName string, tableNameOverride s
 func (g *Generator) RefreshQueriesOnly(resourceName, tableName string, tableNameOverridden bool) error {
 	return g.coordinator.ModelManager.RefreshQueriesOnly(resourceName, tableName, tableNameOverridden)
 }
+
+func (g *Generator) GetModulePath() string {
+	return g.coordinator.projectManager.GetModulePath()
+}

@@ -77,7 +77,7 @@ Your app is now running at `http://localhost:8080`
 
 ```bash
 # Create a migration
-andurel migration new create_products_table
+andurel db migration new create_products_table
 
 # Create a complete resource with model, controller, views, and routes
 andurel generate resource Product
@@ -193,38 +193,48 @@ andurel g model User
 andurel gen controller Product --with-views
 ```
 
-### Database Migrations
+### Database Commands
+
+All database-related commands are grouped under `andurel database` (alias `db`):
 
 ```bash
-# Create a new migration
-andurel migration new create_users_table
-andurel m new add_email_to_users  # short alias
+# Migrations
+andurel db migration new create_users_table
+andurel db m new add_email_to_users  # short alias
 
 # Run migrations
-andurel migration up           # Apply all pending migrations
-andurel m up                   # short alias
+andurel db migration up           # Apply all pending migrations
+andurel db m up                   # short alias
 
 # Rollback migrations
-andurel migration down         # Rollback last migration
-andurel m down                 # short alias
+andurel db migration down         # Rollback last migration
+andurel db m down                 # short alias
 
 # Advanced migration commands
-andurel migration up-to [version]    # Apply up to specific version
-andurel migration down-to [version]  # Rollback to specific version
-andurel migration reset              # Reset and reapply all migrations
-andurel migration fix                # Fix migration version gaps
+andurel db migration up-to [version]    # Apply up to specific version
+andurel db migration down-to [version]  # Rollback to specific version
+andurel db migration reset              # Reset and reapply all migrations
+andurel db migration fix                # Fix migration version gaps
+andurel db migration status             # Show current migration version and pending migrations
 ```
 
-### SQLC Code Generation
+### SQL Query Generation (SQLC)
 
 ```bash
 # Generate type-safe Go code from SQL queries
-andurel sqlc generate
-andurel s generate     # short alias
+andurel db queries generate
+andurel db q generate     # short alias
 
 # Validate SQL without generating code
-andurel sqlc compile
-andurel s compile      # short alias
+andurel db queries compile
+andurel db q compile      # short alias
+```
+
+### Database Seeding
+
+```bash
+# Run database seeds (edit database/seeds/main.go to customize)
+andurel db seed           # Executes go run ./database/seeds
 ```
 
 ### App Management

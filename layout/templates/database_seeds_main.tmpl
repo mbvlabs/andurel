@@ -1,0 +1,77 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/joho/godotenv"
+	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/models/factories"
+)
+
+func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
+	godotenv.Load()
+
+	ctx := context.Background()
+
+	db, err := storage.NewConnection(ctx, buildDatabaseURL())
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+	defer db.Close()
+
+	fmt.Println("Seeding database...")
+
+	// Create an admin user
+	admin, err := factories.CreateUser(ctx, db.Conn(),
+		factories.WithEmail("admin@example.com"),
+		factories.WithIsAdmin(true),
+		factories.WithValidatedEmail(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create admin user: %w", err)
+	}
+	fmt.Printf("Created admin user: %s\n", admin.Email)
+
+	// Create a regular user
+	user, err := factories.CreateUser(ctx, db.Conn(),
+		factories.WithEmail("user@example.com"),
+		factories.WithValidatedEmail(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create regular user: %w", err)
+	}
+	fmt.Printf("Created regular user: %s\n", user.Email)
+
+	// Add more seeds here using factories:
+	//
+	// // Create 10 additional users with random emails
+	// users, err := factories.CreateUsers(ctx, db.Conn(), 10)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create users: %w", err)
+	// }
+	// fmt.Printf("Created %d additional users\n", len(users))
+
+	fmt.Println("Seeding complete!")
+	return nil
+}
+
+func buildDatabaseURL() string {
+	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
+		os.Getenv("DB_KIND"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_SSL_MODE"),
+	)
+}

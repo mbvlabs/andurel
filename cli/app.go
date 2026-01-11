@@ -20,7 +20,7 @@ func newAppCommand() *cobra.Command {
 	}
 
 	appCmd.AddCommand(newConsoleCommand())
-	appCmd.AddCommand(newDatabaseCommand())
+	appCmd.AddCommand(newDblabCommand())
 	appCmd.AddCommand(newMailpitCommand())
 
 	return appCmd
@@ -102,10 +102,10 @@ func newConsoleCommand() *cobra.Command {
 	return cmd
 }
 
-func newDatabaseCommand() *cobra.Command {
+func newDblabCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "database",
-		Aliases: []string{"d", "db"},
+		Use:     "dblab",
+		Aliases: []string{"d"},
 		Short:   "Runs an interactive database UI with dblab",
 		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {

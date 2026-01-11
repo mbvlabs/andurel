@@ -19,7 +19,7 @@ func newGenerateCommand() *cobra.Command {
 	generateCmd.AddCommand(newControllerCommand())
 	generateCmd.AddCommand(newViewCommand())
 	generateCmd.AddCommand(newResourceCommand())
-	generateCmd.AddCommand(newQueriesCommand())
+	generateCmd.AddCommand(newGenQueriesCommand())
 
 	return generateCmd
 }
@@ -201,7 +201,7 @@ func generateView(cmd *cobra.Command, args []string) error {
 	return gen.GenerateViewFromModel(resourceName, withController)
 }
 
-func newQueriesCommand() *cobra.Command {
+func newGenQueriesCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "queries [name]",
 		Short: "Generate SQL queries for a table (without model)",
