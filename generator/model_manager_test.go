@@ -302,49 +302,49 @@ func TestExtractTableNameOverride_ResourceNameMatching(t *testing.T) {
 	}
 }
 
-func TestGenerateQueriesOnly_InvalidResourceName(t *testing.T) {
+func TestGenerateQueriesOnly_InvalidTableName(t *testing.T) {
 	manager, cleanup := setupModelManagerTest(t)
 	defer cleanup()
 
 	tests := []struct {
-		name         string
-		resourceName string
+		name      string
+		tableName string
 	}{
-		{"lowercase", "user"},
-		{"snake_case", "user_role"},
-		{"with spaces", "User Role"},
+		{"PascalCase", "User"},
+		{"camelCase", "userRole"},
+		{"with spaces", "user role"},
 		{"empty", ""},
+		{"singular", "user"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := manager.GenerateQueriesOnly(tt.resourceName, "")
+			err := manager.GenerateQueriesOnly(tt.tableName)
 			if err == nil {
-				t.Errorf("GenerateQueriesOnly(%q) expected error for invalid resource name, got nil", tt.resourceName)
+				t.Errorf("GenerateQueriesOnly(%q) expected error for invalid table name, got nil", tt.tableName)
 			}
 		})
 	}
 }
 
-func TestGenerateQueriesOnly_InvalidTableNameOverride(t *testing.T) {
+func TestGenerateQueriesOnly_ReservedKeywords(t *testing.T) {
 	manager, cleanup := setupModelManagerTest(t)
 	defer cleanup()
 
 	tests := []struct {
-		name              string
-		resourceName      string
-		tableNameOverride string
+		name      string
+		tableName string
 	}{
-		{"reserved keyword SELECT", "User", "select"},
-		{"reserved keyword FROM", "User", "from"},
-		{"reserved keyword WHERE", "User", "where"},
+		{"reserved keyword SELECT", "select"},
+		{"reserved keyword FROM", "from"},
+		{"reserved keyword WHERE", "where"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := manager.GenerateQueriesOnly(tt.resourceName, tt.tableNameOverride)
+			err := manager.GenerateQueriesOnly(tt.tableName)
 			if err == nil {
-				t.Errorf("GenerateQueriesOnly(%q, %q) expected error for reserved SQL keyword, got nil", tt.resourceName, tt.tableNameOverride)
+				t.Errorf("GenerateQueriesOnly(%q) expected error for reserved SQL keyword, got nil", tt.tableName)
 			}
 		})
 	}
@@ -354,7 +354,7 @@ func TestRefreshQueriesOnly_RequiresExistingSQLFile(t *testing.T) {
 	manager, cleanup := setupModelManagerTest(t)
 	defer cleanup()
 
-	err := manager.RefreshQueriesOnly("NonExistent", "non_existents", false)
+	err := manager.RefreshQueriesOnly("non_existents")
 	if err == nil {
 		t.Error("RefreshQueriesOnly() expected error when SQL file doesn't exist, got nil")
 	}
@@ -436,31 +436,35 @@ func TestSetupModelContext_PluralTableNameWithoutOverride(t *testing.T) {
 	}
 }
 
-func TestSetupQueriesContext_SingularTableNameWithOverride(t *testing.T) {
+func TestSetupQueriesContext_ValidTableName(t *testing.T) {
 	manager, cleanup := setupModelManagerTest(t)
 	defer cleanup()
 
-	ctx, err := manager.setupQueriesContext("UserFeedback", "user_feedback", true)
+	ctx, err := manager.setupQueriesContext("user_feedbacks")
 	if err != nil {
-		t.Errorf("setupQueriesContext() with singular table name override returned error: %v", err)
+		t.Errorf("setupQueriesContext() with valid table name returned error: %v", err)
 	}
 
 	if ctx == nil {
 		t.Fatal("setupQueriesContext() returned nil context")
 	}
 
-	if ctx.TableName != "user_feedback" {
-		t.Errorf("setupQueriesContext() TableName = %q, want %q", ctx.TableName, "user_feedback")
+	if ctx.TableName != "user_feedbacks" {
+		t.Errorf("setupQueriesContext() TableName = %q, want %q", ctx.TableName, "user_feedbacks")
+	}
+
+	if ctx.ResourceName != "UserFeedback" {
+		t.Errorf("setupQueriesContext() ResourceName = %q, want %q", ctx.ResourceName, "UserFeedback")
 	}
 }
 
-func TestSetupQueriesContext_SingularTableNameWithoutOverride(t *testing.T) {
+func TestSetupQueriesContext_SingularTableName(t *testing.T) {
 	manager, cleanup := setupModelManagerTest(t)
 	defer cleanup()
 
-	_, err := manager.setupQueriesContext("UserFeedback", "user_feedback", false)
+	_, err := manager.setupQueriesContext("user_feedback")
 	if err == nil {
-		t.Error("setupQueriesContext() without override flag should reject singular table name")
+		t.Error("setupQueriesContext() should reject singular table name")
 	}
 
 	if !strings.Contains(err.Error(), "must be plural") {
@@ -488,7 +492,7 @@ func TestGenerateModel_SingularTableNameOverride(t *testing.T) {
 	}
 }
 
-func TestGenerateQueriesOnly_SingularTableNameOverride(t *testing.T) {
+func TestGenerateQueriesOnly_RejectsSingularTableName(t *testing.T) {
 	manager, cleanup := setupModelManagerTest(t)
 	defer cleanup()
 
@@ -501,10 +505,14 @@ func TestGenerateQueriesOnly_SingularTableNameOverride(t *testing.T) {
 		t.Fatalf("Failed to create migration file: %v", err)
 	}
 
-	err := manager.GenerateQueriesOnly("UserFeedback", "user_feedback")
+	err := manager.GenerateQueriesOnly("user_feedback")
 
-	if err != nil && strings.Contains(err.Error(), "must be plural") {
-		t.Errorf("GenerateQueriesOnly() with --table-name override should not fail with plural validation: %v", err)
+	if err == nil {
+		t.Error("GenerateQueriesOnly() should reject singular table name")
+	}
+
+	if err != nil && !strings.Contains(err.Error(), "must be plural") {
+		t.Errorf("GenerateQueriesOnly() error = %v, want error containing 'must be plural'", err)
 	}
 }
 
@@ -539,13 +547,13 @@ DROP TABLE authors;`
 	// This will fail at sqlc step in unit tests, but we're just checking
 	// that the function can be called with the skipFactory parameter
 	err := manager.GenerateModel("Author", "", false)
-	
+
 	// We expect an error about sqlc since it's not available in unit tests
 	// The important part is that the function accepts the skipFactory parameter
 	if err == nil {
 		t.Error("Expected error due to missing sqlc in test environment")
 	}
-	
+
 	if err != nil && !strings.Contains(err.Error(), "sqlc") {
 		t.Logf("Got error (expected sqlc error): %v", err)
 	}
@@ -581,15 +589,13 @@ DROP TABLE publishers;`
 	// Generate model without factory (skipFactory = true)
 	// This will also fail at sqlc step, but we're checking the parameter is accepted
 	err := manager.GenerateModel("Publisher", "", true)
-	
+
 	// We expect an error about sqlc since it's not available in unit tests
 	if err == nil {
 		t.Error("Expected error due to missing sqlc in test environment")
 	}
-	
+
 	if err != nil && !strings.Contains(err.Error(), "sqlc") {
 		t.Logf("Got error (expected sqlc error): %v", err)
 	}
 }
-
-

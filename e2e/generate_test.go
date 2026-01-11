@@ -101,8 +101,8 @@ func TestGenerateCommands(t *testing.T) {
 				testGenerateQueries(t, project)
 			})
 
-			t.Run("generate_queries_with_table_name", func(t *testing.T) {
-				testGenerateQueriesWithTableName(t, project)
+			t.Run("generate_queries_with_refresh", func(t *testing.T) {
+				testGenerateQueriesWithRefresh(t, project)
 			})
 
 			t.Run("generate_model_with_array_types", func(t *testing.T) {
@@ -612,7 +612,7 @@ func testGenerateQueries(t *testing.T, project *internal.Project) {
 		"role_id UUID NOT NULL",
 	})
 
-	err := project.Generate("generate", "queries", "UserRole")
+	err := project.Generate("generate", "queries", "user_roles")
 	internal.AssertCommandSucceeds(t, err, "generate queries")
 
 	// Verify queries file exists and compare against golden file
@@ -638,18 +638,19 @@ func testGenerateQueries(t *testing.T, project *internal.Project) {
 	}
 }
 
-func testGenerateQueriesWithTableName(t *testing.T, project *internal.Project) {
+func testGenerateQueriesWithRefresh(t *testing.T, project *internal.Project) {
 	t.Helper()
 
-	// Create a table with custom name
+	// Create a table for testing refresh functionality
 	createMigration(t, project, "000111_create_tag_assignments", "tag_assignments", []string{
 		"taggable_type VARCHAR(100) NOT NULL",
 		"taggable_id UUID NOT NULL",
 		"tag_id UUID NOT NULL",
 	})
 
-	err := project.Generate("generate", "queries", "TagAssignment", "--table-name=tag_assignments")
-	internal.AssertCommandSucceeds(t, err, "generate queries with table-name")
+	// First generate the queries
+	err := project.Generate("generate", "queries", "tag_assignments")
+	internal.AssertCommandSucceeds(t, err, "generate queries")
 
 	// Verify queries file exists and compare against golden file
 	internal.AssertFileExists(t, project, "database/queries/tag_assignments.sql")
@@ -667,6 +668,10 @@ func testGenerateQueriesWithTableName(t *testing.T, project *internal.Project) {
 	if project.FileExists("models/tag_assignment.go") {
 		t.Error("Model file should NOT exist for queries-only generation")
 	}
+
+	// Now test refresh functionality
+	err = project.Generate("generate", "queries", "tag_assignments", "--refresh")
+	internal.AssertCommandSucceeds(t, err, "generate queries --refresh")
 }
 
 // testGenerateModelWithArrayTypes tests that PostgreSQL array types (text[], integer[])

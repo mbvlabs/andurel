@@ -200,53 +200,6 @@ func (m *ModelManager) generateFactory(cat *catalog.Catalog, ctx *modelSetupCont
 	return nil
 }
 
-func (m *ModelManager) RefreshModel(resourceName, tableName string) error {
-	modelPath := BuildModelPath(m.config.Paths.Models, resourceName)
-
-	tableNameOverridden := false
-	if overriddenTableName, found := ExtractTableNameOverride(modelPath, resourceName); found {
-		tableName = overriddenTableName
-		tableNameOverridden = true
-	}
-
-	ctx, err := m.setupModelContext(resourceName, tableName, tableNameOverridden)
-	if err != nil {
-		return err
-	}
-
-	if _, err := os.Stat(ctx.ModelPath); os.IsNotExist(err) {
-		return fmt.Errorf(
-			"model file %s does not exist. Generate model first",
-			ctx.ModelPath,
-		)
-	}
-	if _, err := os.Stat(ctx.SQLPath); os.IsNotExist(err) {
-		return fmt.Errorf(
-			"SQL file %s does not exist. Generate model first",
-			ctx.SQLPath,
-		)
-	}
-
-	cat, err := m.migrationManager.BuildCatalogFromMigrations(ctx.TableName, m.config)
-	if err != nil {
-		return err
-	}
-
-	if err := m.modelGenerator.RefreshModel(cat, ctx.ResourceName, ctx.PluralName, ctx.ModelPath, ctx.SQLPath, ctx.ModulePath, tableNameOverridden); err != nil {
-		return fmt.Errorf("failed to refresh model: %w", err)
-	}
-
-	if err := m.fileManager.RunSQLCGenerate(); err != nil {
-		return fmt.Errorf("failed to run sqlc generate: %w", err)
-	}
-
-	fmt.Printf(
-		"Successfully refreshed model %s with updated database schema while preserving custom code\n",
-		ctx.ResourceName,
-	)
-	return nil
-}
-
 func (m *ModelManager) RefreshQueries(resourceName, tableName string) error {
 	modelPath := BuildModelPath(m.config.Paths.Models, resourceName)
 
@@ -303,21 +256,15 @@ type queriesSetupContext struct {
 	PluralName   string
 }
 
-func (m *ModelManager) setupQueriesContext(resourceName, tableName string, tableNameOverridden bool) (*queriesSetupContext, error) {
+func (m *ModelManager) setupQueriesContext(tableName string) (*queriesSetupContext, error) {
 	modulePath := m.projectManager.GetModulePath()
 
-	if err := m.validator.ValidateResourceName(resourceName); err != nil {
+	if err := m.validator.ValidateTableName(tableName); err != nil {
 		return nil, err
 	}
 
-	if tableNameOverridden {
-		if err := m.validator.ValidateModulePath(modulePath); err != nil {
-			return nil, fmt.Errorf("module path validation failed: %w", err)
-		}
-	} else {
-		if err := m.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
-			return nil, err
-		}
+	if err := m.validator.ValidateModulePath(modulePath); err != nil {
+		return nil, fmt.Errorf("module path validation failed: %w", err)
 	}
 
 	rootDir, err := m.fileManager.FindGoModRoot()
@@ -329,7 +276,8 @@ func (m *ModelManager) setupQueriesContext(resourceName, tableName string, table
 		return nil, fmt.Errorf("SQLC configuration validation failed: %w", err)
 	}
 
-	pluralName := naming.DeriveTableName(resourceName)
+	// Derive resource name from table name
+	resourceName := naming.DeriveResourceName(tableName)
 
 	var sqlFileName strings.Builder
 	sqlFileName.Grow(len(tableName) + 4)
@@ -343,7 +291,7 @@ func (m *ModelManager) setupQueriesContext(resourceName, tableName string, table
 		SQLPath:      sqlPath,
 		ResourceName: resourceName,
 		TableName:    tableName,
-		PluralName:   pluralName,
+		PluralName:   tableName, // Table name is already the plural form
 	}, nil
 }
 
@@ -353,30 +301,19 @@ func (m *ModelManager) checkExistingModel(resourceName string) {
 
 	if _, err := os.Stat(modelPath); err == nil {
 		fmt.Printf(
-			"Warning: Model file %s already exists for this resource. Consider using 'generate model --refresh' instead if you need both model and queries.\n",
+			"Warning: Model file %s already exists for this resource.\n",
 			modelPath,
 		)
 	}
 }
 
-func (m *ModelManager) GenerateQueriesOnly(resourceName string, tableNameOverride string) error {
-	tableName := tableNameOverride
-	if tableName == "" {
-		tableName = naming.DeriveTableName(resourceName)
-	}
-
-	if tableNameOverride != "" {
-		if err := m.validator.ValidateTableNameOverride(resourceName, tableNameOverride); err != nil {
-			return err
-		}
-	}
-
-	ctx, err := m.setupQueriesContext(resourceName, tableName, tableNameOverride != "")
+func (m *ModelManager) GenerateQueriesOnly(tableName string) error {
+	ctx, err := m.setupQueriesContext(tableName)
 	if err != nil {
 		return err
 	}
 
-	m.checkExistingModel(resourceName)
+	m.checkExistingModel(ctx.ResourceName)
 
 	if err := m.fileManager.ValidateFileNotExists(ctx.SQLPath); err != nil {
 		return err
@@ -391,15 +328,12 @@ func (m *ModelManager) GenerateQueriesOnly(resourceName string, tableNameOverrid
 	if err != nil {
 		return fmt.Errorf(`table '%s' not found in catalog: %w
 
-Convention: Resource names must be singular PascalCase, table names must be plural snake_case.
-Example: Resource 'UserRole' expects table 'user_roles'
-
-To use a different table name, run:
-  andurel generate queries %s --table-name=your_table_name`,
-			ctx.TableName, err, resourceName)
+Make sure the table exists in your migrations (database/migrations/).
+Run 'andurel generate queries %s' after creating the migration.`,
+			ctx.TableName, err, ctx.TableName)
 	}
 
-	if err := m.modelGenerator.GenerateSQLFile(ctx.ResourceName, ctx.TableName, table, ctx.SQLPath, tableNameOverride != ""); err != nil {
+	if err := m.modelGenerator.GenerateSQLFile(ctx.ResourceName, ctx.TableName, table, ctx.SQLPath, true); err != nil {
 		return fmt.Errorf("failed to generate SQL file: %w", err)
 	}
 
@@ -420,8 +354,8 @@ To use a different table name, run:
 	return nil
 }
 
-func (m *ModelManager) RefreshQueriesOnly(resourceName, tableName string, tableNameOverridden bool) error {
-	ctx, err := m.setupQueriesContext(resourceName, tableName, tableNameOverridden)
+func (m *ModelManager) RefreshQueriesOnly(tableName string) error {
+	ctx, err := m.setupQueriesContext(tableName)
 	if err != nil {
 		return err
 	}
@@ -430,7 +364,7 @@ func (m *ModelManager) RefreshQueriesOnly(resourceName, tableName string, tableN
 		return fmt.Errorf(
 			"SQL file %s does not exist. Use 'generate queries %s' without --refresh to create it first",
 			ctx.SQLPath,
-			resourceName,
+			ctx.TableName,
 		)
 	}
 
@@ -439,7 +373,7 @@ func (m *ModelManager) RefreshQueriesOnly(resourceName, tableName string, tableN
 		return err
 	}
 
-	if err := m.modelGenerator.RefreshQueries(cat, ctx.ResourceName, ctx.TableName, ctx.SQLPath, tableNameOverridden); err != nil {
+	if err := m.modelGenerator.RefreshQueries(cat, ctx.ResourceName, ctx.TableName, ctx.SQLPath, true); err != nil {
 		return fmt.Errorf("failed to refresh queries: %w", err)
 	}
 
@@ -448,8 +382,9 @@ func (m *ModelManager) RefreshQueriesOnly(resourceName, tableName string, tableN
 	}
 
 	fmt.Printf(
-		"Successfully refreshed SQL queries for %s\n",
+		"Successfully refreshed SQL queries for %s (table: %s)\n",
 		ctx.ResourceName,
+		ctx.TableName,
 	)
 	return nil
 }

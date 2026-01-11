@@ -95,3 +95,51 @@ func TestToLowerCamelCase(t *testing.T) {
 		})
 	}
 }
+
+func TestToPascalCase(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{name: "single word", input: "users", expected: "Users"},
+		{name: "two words", input: "admin_users", expected: "AdminUsers"},
+		{name: "three words", input: "product_categories", expected: "ProductCategories"},
+		{name: "many words", input: "user_profile_settings", expected: "UserProfileSettings"},
+		{name: "empty string", input: "", expected: ""},
+		{name: "single char parts", input: "a_b_c", expected: "ABC"},
+		{name: "already lowercase", input: "user", expected: "User"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ToPascalCase(tt.input)
+			if got != tt.expected {
+				t.Fatalf("ToPascalCase(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestDeriveResourceName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{name: "simple plural", input: "users", expected: "User"},
+		{name: "two word plural", input: "user_roles", expected: "UserRole"},
+		{name: "junction table", input: "users_organizations", expected: "UsersOrganization"},
+		{name: "three word plural", input: "company_intelligence_reports", expected: "CompanyIntelligenceReport"},
+		{name: "already singular", input: "user", expected: "User"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := DeriveResourceName(tt.input)
+			if got != tt.expected {
+				t.Fatalf("DeriveResourceName(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}

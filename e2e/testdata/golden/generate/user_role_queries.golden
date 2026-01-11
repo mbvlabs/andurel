@@ -1,7 +1,7 @@
 -- name: QueryUserRoleByID :one
 select * from user_roles where id=$1;
 
--- name: QueryUserRoles :many
+-- name: QueryUserRole :many
 select * from user_roles;
 
 -- name: InsertUserRole :one
@@ -20,12 +20,12 @@ returning *;
 -- name: DeleteUserRole :exec
 delete from user_roles where id=$1;
 
--- name: QueryPaginatedUserRoles :many
+-- name: QueryPaginatedUserRole :many
 select * from user_roles
 order by created_at desc
 limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
 
--- name: CountUserRoles :one
+-- name: CountUserRole :one
 select count(*) from user_roles;
 
 -- name: UpsertUserRole :one

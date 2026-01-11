@@ -99,6 +99,41 @@ func Capitalize(s string) string {
 	return s
 }
 
+// ToPascalCase converts a snake_case identifier into PascalCase.
+// Examples: "admin_users" -> "AdminUsers", "product_categories" -> "ProductCategories"
+func ToPascalCase(s string) string {
+	if s == "" {
+		return ""
+	}
+
+	parts := strings.Split(s, "_")
+	if len(parts) == 0 {
+		return s
+	}
+
+	var builder strings.Builder
+	builder.Grow(len(s))
+
+	// Capitalize first letter of each part
+	for _, part := range parts {
+		if len(part) > 0 {
+			builder.WriteString(strings.ToUpper(part[:1]))
+			if len(part) > 1 {
+				builder.WriteString(strings.ToLower(part[1:]))
+			}
+		}
+	}
+
+	return builder.String()
+}
+
+// DeriveResourceName converts a snake_case plural table name into a PascalCase singular resource name.
+// Examples: "user_roles" -> "UserRole", "products" -> "Product", "admin_users" -> "AdminUser"
+func DeriveResourceName(tableName string) string {
+	singular := inflection.Singular(tableName)
+	return ToPascalCase(singular)
+}
+
 // ToReceiverName generates a short receiver name from a PascalCase identifier
 // by extracting and lowercasing all uppercase letters.
 // Examples: "StudentFeedback" -> "sf", "Product" -> "p", "UserRole" -> "ur"

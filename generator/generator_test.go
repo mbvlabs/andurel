@@ -120,12 +120,6 @@ func TestGenerator_MethodsExist(t *testing.T) {
 			},
 		},
 		{
-			name: "RefreshModel",
-			fn: func() error {
-				return gen.RefreshModel("", "")
-			},
-		},
-		{
 			name: "RefreshQueries",
 			fn: func() error {
 				return gen.RefreshQueries("", "")
