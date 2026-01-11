@@ -9,7 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func register{{.ResourceName}}Routes(handler *echo.Echo, {{.LowercaseResourceName}} controllers.{{.ResourceName}}) {
+func register{{.ResourceName}}Routes(handler *echo.Echo, {{.LowercaseResourceName}} controllers.{{.PluralName}}) {
 	handler.Add(
 		http.MethodGet, routes.{{.ResourceName}}Index.Path(), {{.LowercaseResourceName}}.Index,
 	).Name = routes.{{.ResourceName}}Index.Name()
