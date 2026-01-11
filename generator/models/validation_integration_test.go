@@ -144,7 +144,7 @@ func TestRefreshQueries__ValidatesIDColumns(t *testing.T) {
 				return
 			}
 
-			err = generator.RefreshQueries(cat, tt.resourceName, tt.tableName, sqlPath)
+			err = generator.RefreshQueries(cat, tt.resourceName, tt.tableName, sqlPath, false)
 
 			if tt.shouldFail {
 				if err == nil {
@@ -165,4 +165,3 @@ func TestRefreshQueries__ValidatesIDColumns(t *testing.T) {
 		})
 	}
 }
-

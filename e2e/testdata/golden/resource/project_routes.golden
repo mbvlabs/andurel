@@ -1,0 +1,49 @@
+package routes
+
+import (
+	"testapp/internal/routing"
+)
+
+const ProjectPrefix = "/projects"
+
+var ProjectIndex = routing.NewSimpleRoute(
+	"/",
+	"projects.index",
+	ProjectPrefix,
+)
+
+var ProjectShow = routing.NewRouteWithID(
+	"/:id",
+	"projects.show",
+	ProjectPrefix,
+)
+
+var ProjectNew = routing.NewSimpleRoute(
+	"/new",
+	"projects.new",
+	ProjectPrefix,
+)
+
+var ProjectCreate = routing.NewSimpleRoute(
+	"/",
+	"projects.create",
+	ProjectPrefix,
+)
+
+var ProjectEdit = routing.NewRouteWithID(
+	"/:id/edit",
+	"projects.edit",
+	ProjectPrefix,
+)
+
+var ProjectUpdate = routing.NewRouteWithID(
+	"/:id",
+	"projects.update",
+	ProjectPrefix,
+)
+
+var ProjectDestroy = routing.NewRouteWithID(
+	"/:id",
+	"projects.destroy",
+	ProjectPrefix,
+)

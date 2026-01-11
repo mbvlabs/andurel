@@ -1,0 +1,99 @@
+package factories
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"testapp/internal/storage"
+	"testapp/models"
+
+	"github.com/go-faker/faker/v4"
+	"github.com/google/uuid"
+)
+
+// PersonFactory wraps models.Person for testing
+type PersonFactory struct {
+	models.Person // Embedded
+}
+
+type PersonOption func(*PersonFactory)
+
+// BuildPerson creates an in-memory Person with default test values
+func BuildPerson(opts ...PersonOption) models.Person {
+	f := &PersonFactory{
+		Person: models.Person{
+			ID:        uuid.New(),
+			FirstName: faker.Word(),
+			LastName:  faker.Word(),
+			Email:     faker.Word(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+	}
+
+	for _, opt := range opts {
+		opt(f)
+	}
+
+	return f.Person
+}
+
+// CreatePerson creates and persists a Person to the database
+func CreatePerson(ctx context.Context, exec storage.Executor, opts ...PersonOption) (models.Person, error) {
+	// Build with defaults and required FKs
+	built := BuildPerson(opts...)
+
+	// Prepare creation data
+	data := models.CreatePersonData{
+		FirstName: built.FirstName,
+		LastName:  built.LastName,
+		Email:     built.Email,
+	}
+
+	// Use model's Create function
+	person, err := models.CreatePerson(ctx, exec, data)
+	if err != nil {
+		return models.Person{}, err
+	}
+
+	return person, nil
+}
+
+// CreatePersons creates multiple Person records at once
+func CreatePersons(ctx context.Context, exec storage.Executor, count int, opts ...PersonOption) ([]models.Person, error) {
+	persons := make([]models.Person, 0, count)
+
+	for i := 0; i < count; i++ {
+		person, err := CreatePerson(ctx, exec, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create person %d: %w", i+1, err)
+		}
+		persons = append(persons, person)
+	}
+
+	return persons, nil
+}
+
+// Option functions
+
+// WithPeople_dataFirstName sets the FirstName field
+func WithPeople_dataFirstName(value string) PersonOption {
+	return func(f *PersonFactory) {
+		f.Person.FirstName = value
+	}
+}
+
+// WithPeople_dataLastName sets the LastName field
+func WithPeople_dataLastName(value string) PersonOption {
+	return func(f *PersonFactory) {
+		f.Person.LastName = value
+	}
+}
+
+// WithPeople_dataEmail sets the Email field
+func WithPeople_dataEmail(value string) PersonOption {
+	return func(f *PersonFactory) {
+		f.Person.Email = value
+	}
+}

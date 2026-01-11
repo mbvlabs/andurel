@@ -98,3 +98,26 @@ func Capitalize(s string) string {
 	}
 	return s
 }
+
+// ToReceiverName generates a short receiver name from a PascalCase identifier
+// by extracting and lowercasing all uppercase letters.
+// Examples: "StudentFeedback" -> "sf", "Product" -> "p", "UserRole" -> "ur"
+func ToReceiverName(s string) string {
+	if s == "" {
+		return ""
+	}
+
+	var builder strings.Builder
+	for _, r := range s {
+		if unicode.IsUpper(r) {
+			builder.WriteRune(unicode.ToLower(r))
+		}
+	}
+
+	result := builder.String()
+	if result == "" {
+		// Fallback: use first character lowercased
+		return strings.ToLower(s[:1])
+	}
+	return result
+}

@@ -1,0 +1,37 @@
+-- name: QueryCompanyByID :one
+select * from companies where id=$1;
+
+-- name: QueryCompanies :many
+select * from companies;
+
+-- name: InsertCompany :one
+insert into
+    companies (id, name, industry, created_at, updated_at)
+values
+    ($1, $2, $3, now(), now())
+returning *;
+
+-- name: UpdateCompany :one
+update companies
+    set name=$2, industry=$3, updated_at=now()
+where id = $1
+returning *;
+
+-- name: DeleteCompany :exec
+delete from companies where id=$1;
+
+-- name: QueryPaginatedCompanies :many
+select * from companies
+order by created_at desc
+limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
+
+-- name: CountCompanies :one
+select count(*) from companies;
+
+-- name: UpsertCompany :one
+insert into
+    companies (id, name, industry, created_at, updated_at)
+values
+    ($1, $2, $3, now(), now())
+on conflict (id) do update set name=excluded.name, industry=excluded.industry, updated_at=now()
+returning *;

@@ -1,0 +1,216 @@
+package models
+
+import (
+	"context"
+	"errors"
+	"time"
+
+
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/example/test/models/internal/db"
+	"github.com/example/test/internal/storage"
+)
+
+type Company struct {
+	ID uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Name string
+	Industry string
+}
+
+func FindCompany(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) (Company, error) {
+	row, err := queries.QueryCompanyByID(ctx, exec, id)
+	if err != nil {
+		return Company{}, err
+	}
+
+	return rowToCompany(row), nil
+}
+
+type CreateCompanyData struct {
+	Name string
+	Industry string
+}
+
+func CreateCompany(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateCompanyData,
+) (Company, error) {
+	if err := validate.Struct(data); err != nil {
+		return Company{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.InsertCompanyParams{
+		ID: uuid.New(),
+		Name: data.Name,
+		Industry: pgtype.Text{String: data.Industry, Valid: true},
+	}
+	row, err := queries.InsertCompany(ctx, exec, params)
+	if err != nil {
+		return Company{}, err
+	}
+
+	return rowToCompany(row), nil
+}
+
+type UpdateCompanyData struct {
+	ID uuid.UUID
+	UpdatedAt time.Time
+	Name string
+	Industry string
+}
+
+func UpdateCompany(
+	ctx context.Context,
+	exec storage.Executor,
+	data UpdateCompanyData,
+) (Company, error) {
+	if err := validate.Struct(data); err != nil {
+		return Company{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	currentRow, err := queries.QueryCompanyByID(ctx, exec, data.ID)
+	if err != nil {
+		return Company{}, err
+	}
+
+	params := db.UpdateCompanyParams{
+		ID: data.ID,
+		Name: data.Name,
+		Industry: pgtype.Text{String: data.Industry, Valid: true},
+	}
+
+	row, err := queries.UpdateCompany(ctx, exec, params)
+	if err != nil {
+		return Company{}, err
+	}
+
+	return rowToCompany(row), nil
+}
+
+func DestroyCompany(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) error {
+	return queries.DeleteCompany(ctx, exec, id)
+}
+
+func AllCompanies(
+	ctx context.Context,
+	exec storage.Executor,
+) ([]Company, error) {
+	rows, err := queries.QueryCompanies(ctx, exec)
+	if err != nil {
+		return nil, err
+	}
+
+	companies := make([]Company, len(rows))
+	for i, row := range rows {
+		companies[i] = rowToCompany(row)
+	}
+
+	return companies, nil
+}
+
+type PaginatedCompanies struct {
+	Companies []Company
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func PaginateCompanies(
+	ctx context.Context,
+	exec storage.Executor,
+	page int64,
+	pageSize int64,
+) (PaginatedCompanies, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := queries.CountCompanies(ctx, exec)
+	if err != nil {
+		return PaginatedCompanies{}, err
+	}
+
+	rows, err := queries.QueryPaginatedCompanies(
+		ctx,
+		exec,
+		db.QueryPaginatedCompaniesParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
+	)
+	if err != nil {
+		return PaginatedCompanies{}, err
+	}
+
+	companies := make([]Company, len(rows))
+	for i, row := range rows {
+		companies[i] = rowToCompany(row)
+	}
+
+	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+
+	return PaginatedCompanies{
+		Companies:    companies,
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func UpsertCompany(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateCompanyData,
+) (Company, error) {
+	if err := validate.Struct(data); err != nil {
+		return Company{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpsertCompanyParams{
+		ID: uuid.New(),
+		Name: data.Name,
+		Industry: pgtype.Text{String: data.Industry, Valid: true},
+	}
+	row, err := queries.UpsertCompany(ctx, exec, params)
+	if err != nil {
+		return Company{}, err
+	}
+
+	return rowToCompany(row), nil
+}
+
+
+func rowToCompany(row db.Company) Company {
+	return Company{
+		ID: row.ID,
+		CreatedAt: row.CreatedAt.Time,
+		UpdatedAt: row.UpdatedAt.Time,
+		Name: row.Name,
+		Industry: row.Industry.String,
+	}
+}
+

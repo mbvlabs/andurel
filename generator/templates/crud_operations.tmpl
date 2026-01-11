@@ -1,10 +1,7 @@
 -- name: Query{{.ResourceName}}ByID :one
 select * from {{.PluralName}} where id={{.IDPlaceholder}};
 
--- name: Query{{.ResourceName}}s :many
-select * from {{.PluralName}};
-
--- name: QueryAll{{.ResourceName}}s :many
+-- name: Query{{.PluralResourceName}} :many
 select * from {{.PluralName}};
 
 -- name: Insert{{.ResourceName}} :one
@@ -23,12 +20,12 @@ returning *;
 -- name: Delete{{.ResourceName}} :exec
 delete from {{.PluralName}} where id={{.IDPlaceholder}};
 
--- name: QueryPaginated{{.ResourceName}}s :many
-select * from {{.PluralName}} 
-order by created_at desc 
+-- name: QueryPaginated{{.PluralResourceName}} :many
+select * from {{.PluralName}}
+order by created_at desc
 {{.LimitOffsetClause}};
 
--- name: Count{{.ResourceName}}s :one
+-- name: Count{{.PluralResourceName}} :one
 select count(*) from {{.PluralName}};
 
 -- name: Upsert{{.ResourceName}} :one

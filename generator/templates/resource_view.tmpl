@@ -11,7 +11,7 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 	@base() {
 		<main>
 			<div>
-				<h1>{{.ResourceName}}s</h1>
+				<h1>{{Plural .ResourceName}}</h1>
 				<a href={ templ.URL(routes.{{.ResourceName}}New.URL()) }>New {{.ResourceName}}</a>
 			</div>
 			<div>

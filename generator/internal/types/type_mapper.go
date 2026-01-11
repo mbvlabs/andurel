@@ -578,16 +578,17 @@ type SQLCConfig struct {
 		Engine  string `yaml:"engine"`
 		Gen     struct {
 			Go struct {
-				Package                   string `yaml:"package"`
-				Out                       string `yaml:"out"`
-				OutputDBFileName          string `yaml:"output_db_file_name"`
-				OutputModelsFileName      string `yaml:"output_models_file_name"`
-				EmitMethodsWithDBArgument bool   `yaml:"emit_methods_with_db_argument"`
-				SQLPackage                string `yaml:"sql_package"`
+				Package                   string            `yaml:"package"`
+				Out                       string            `yaml:"out"`
+				OutputDBFileName          string            `yaml:"output_db_file_name"`
+				OutputModelsFileName      string            `yaml:"output_models_file_name"`
+				EmitMethodsWithDBArgument bool              `yaml:"emit_methods_with_db_argument"`
+				SQLPackage                string            `yaml:"sql_package"`
 				Overrides                 []struct {
 					DBType string `yaml:"db_type"`
 					GoType string `yaml:"go_type"`
 				} `yaml:"overrides"`
+				Rename map[string]string `yaml:"rename,omitempty"`
 			} `yaml:"go"`
 		} `yaml:"gen"`
 	} `yaml:"sql"`
@@ -642,6 +643,50 @@ func ValidateSQLCConfig(projectPath string) error {
 		)
 
 		return errors.New("invalid type overrides in sqlc.yaml")
+	}
+
+	return nil
+}
+
+// AddTableRenameToSQLCConfig adds a table name to resource name mapping in sqlc.yaml
+func AddTableRenameToSQLCConfig(projectPath, tableName, resourceName string) error {
+	sqlcPath := filepath.Join(projectPath, "database", "sqlc.yaml")
+
+	if _, err := os.Stat(sqlcPath); os.IsNotExist(err) {
+		return fmt.Errorf("sqlc.yaml not found at %s", sqlcPath)
+	}
+
+	data, err := os.ReadFile(sqlcPath)
+	if err != nil {
+		return fmt.Errorf("failed to read sqlc.yaml: %w", err)
+	}
+
+	var config SQLCConfig
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return fmt.Errorf("failed to parse sqlc.yaml: %w", err)
+	}
+
+	if len(config.SQL) == 0 {
+		return fmt.Errorf("no SQL configurations found in sqlc.yaml")
+	}
+
+	// Initialize rename map if it doesn't exist
+	if config.SQL[0].Gen.Go.Rename == nil {
+		config.SQL[0].Gen.Go.Rename = make(map[string]string)
+	}
+
+	// Add the table -> resource name mapping
+	config.SQL[0].Gen.Go.Rename[tableName] = resourceName
+
+	// Marshal back to YAML
+	updatedData, err := yaml.Marshal(&config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal updated sqlc.yaml: %w", err)
+	}
+
+	// Write back to file
+	if err := os.WriteFile(sqlcPath, updatedData, 0o644); err != nil {
+		return fmt.Errorf("failed to write sqlc.yaml: %w", err)
 	}
 
 	return nil

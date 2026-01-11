@@ -134,6 +134,11 @@ func (m *ModelManager) GenerateModel(resourceName string, tableNameOverride stri
 		return fmt.Errorf("failed to generate model: %w", err)
 	}
 
+	// Add table rename mapping to sqlc.yaml so SQLC generates correct type names
+	if err := types.AddTableRenameToSQLCConfig(ctx.RootDir, ctx.TableName, ctx.ResourceName); err != nil {
+		return fmt.Errorf("failed to update sqlc.yaml with rename mapping: %w", err)
+	}
+
 	if err := m.fileManager.RunSQLCGenerate(); err != nil {
 		return fmt.Errorf("failed to run sqlc generate: %w", err)
 	}
@@ -227,7 +232,7 @@ func (m *ModelManager) RefreshModel(resourceName, tableName string) error {
 		return err
 	}
 
-	if err := m.modelGenerator.RefreshModel(cat, ctx.ResourceName, ctx.PluralName, ctx.ModelPath, ctx.SQLPath, ctx.ModulePath); err != nil {
+	if err := m.modelGenerator.RefreshModel(cat, ctx.ResourceName, ctx.PluralName, ctx.ModelPath, ctx.SQLPath, ctx.ModulePath, tableNameOverridden); err != nil {
 		return fmt.Errorf("failed to refresh model: %w", err)
 	}
 
@@ -274,7 +279,7 @@ func (m *ModelManager) RefreshQueries(resourceName, tableName string) error {
 		return err
 	}
 
-	if err := m.modelGenerator.RefreshQueries(cat, ctx.ResourceName, ctx.PluralName, ctx.SQLPath); err != nil {
+	if err := m.modelGenerator.RefreshQueries(cat, ctx.ResourceName, ctx.PluralName, ctx.SQLPath, tableNameOverridden); err != nil {
 		return fmt.Errorf("failed to refresh queries: %w", err)
 	}
 
@@ -288,7 +293,6 @@ func (m *ModelManager) RefreshQueries(resourceName, tableName string) error {
 	)
 	return nil
 }
-
 
 type queriesSetupContext struct {
 	ModulePath   string
@@ -395,8 +399,13 @@ To use a different table name, run:
 			ctx.TableName, err, resourceName)
 	}
 
-	if err := m.modelGenerator.GenerateSQLFile(ctx.ResourceName, ctx.TableName, table, ctx.SQLPath); err != nil {
+	if err := m.modelGenerator.GenerateSQLFile(ctx.ResourceName, ctx.TableName, table, ctx.SQLPath, tableNameOverride != ""); err != nil {
 		return fmt.Errorf("failed to generate SQL file: %w", err)
+	}
+
+	// Add table rename mapping to sqlc.yaml so SQLC generates correct type names
+	if err := types.AddTableRenameToSQLCConfig(ctx.RootDir, ctx.TableName, ctx.ResourceName); err != nil {
+		return fmt.Errorf("failed to update sqlc.yaml with rename mapping: %w", err)
 	}
 
 	if err := m.fileManager.RunSQLCGenerate(); err != nil {
@@ -430,7 +439,7 @@ func (m *ModelManager) RefreshQueriesOnly(resourceName, tableName string, tableN
 		return err
 	}
 
-	if err := m.modelGenerator.RefreshQueries(cat, ctx.ResourceName, ctx.TableName, ctx.SQLPath); err != nil {
+	if err := m.modelGenerator.RefreshQueries(cat, ctx.ResourceName, ctx.TableName, ctx.SQLPath, tableNameOverridden); err != nil {
 		return fmt.Errorf("failed to refresh queries: %w", err)
 	}
 

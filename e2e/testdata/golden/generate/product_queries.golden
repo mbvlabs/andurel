@@ -1,0 +1,37 @@
+-- name: QueryProductByID :one
+select * from products where id=$1;
+
+-- name: QueryProducts :many
+select * from products;
+
+-- name: InsertProduct :one
+insert into
+    products (id, name, price, created_at, updated_at)
+values
+    ($1, $2, $3, now(), now())
+returning *;
+
+-- name: UpdateProduct :one
+update products
+    set name=$2, price=$3, updated_at=now()
+where id = $1
+returning *;
+
+-- name: DeleteProduct :exec
+delete from products where id=$1;
+
+-- name: QueryPaginatedProducts :many
+select * from products
+order by created_at desc
+limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
+
+-- name: CountProducts :one
+select count(*) from products;
+
+-- name: UpsertProduct :one
+insert into
+    products (id, name, price, created_at, updated_at)
+values
+    ($1, $2, $3, now(), now())
+on conflict (id) do update set name=excluded.name, price=excluded.price, updated_at=now()
+returning *;

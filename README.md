@@ -361,7 +361,7 @@ Built-in OpenTelemetry integration for comprehensive application monitoring:
 Fluent route builder with type-safe URL generation:
 
 ```go
-const UserPrefix = "users"
+const UserPrefix = "/users"
 
 var PasswordEdit = routing.NewRouteWithToken(
 	"/password/:token/edit",

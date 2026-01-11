@@ -98,12 +98,14 @@ func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, pluralNa
 		PluralName            string
 		CapitalizedPluralName string
 		LowercasePluralName   string
+		LowercaseResourceName string
 		ModulePath            string
 	}{
 		ResourceName:          resourceName,
 		PluralName:            pluralName,
 		CapitalizedPluralName: capitalizedPluralName,
 		LowercasePluralName:   lowercasePluralName,
+		LowercaseResourceName: naming.ToLowerCamelCase(resourceName),
 		ModulePath:            modulePath,
 	}
 

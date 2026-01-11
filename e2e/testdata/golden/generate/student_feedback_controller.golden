@@ -1,0 +1,204 @@
+package controllers
+
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+	"strconv"
+
+	"testapp/internal/storage"
+	"testapp/models"
+	"testapp/router/cookies"
+	"testapp/router/routes"
+	"testapp/views"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
+)
+
+type StudentFeedback struct {
+	db storage.Pool
+}
+
+func NewStudentFeedback(db storage.Pool) StudentFeedback {
+	return StudentFeedback{db}
+}
+
+func (sf StudentFeedback) Index(etx echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	studentFeedbackList, err := models.PaginateStudentFeedback(
+		etx.Request().Context(),
+		sf.db.Conn(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return render(etx, views.StudentFeedbackIndex(studentFeedbackList.StudentFeedback))
+}
+
+func (sf StudentFeedback) Show(etx echo.Context) error {
+	studentFeedbackID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	studentFeedback, err := models.FindStudentFeedback(etx.Request().Context(), sf.db.Conn(), studentFeedbackID)
+	if err != nil {
+		return render(etx, views.NotFound())
+	}
+
+	return render(etx, views.StudentFeedbackShow(studentFeedback))
+}
+
+func (sf StudentFeedback) New(etx echo.Context) error {
+	return render(etx, views.StudentFeedbackNew())
+}
+
+type CreateStudentFeedbackFormPayload struct {
+	StudentID string `json:"student_id"`
+	Feedback  string `json:"feedback"`
+	Rating    int32  `json:"rating"`
+}
+
+func (sf StudentFeedback) Create(etx echo.Context) error {
+	var payload CreateStudentFeedbackFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse CreateStudentFeedbackFormPayload",
+			"error",
+			err,
+		)
+
+		return render(etx, views.NotFound())
+	}
+
+	data := models.CreateStudentFeedbackData{
+		StudentID: payload.StudentID,
+		Feedback:  payload.Feedback,
+		Rating:    payload.Rating,
+	}
+
+	studentFeedback, err := models.CreateStudentFeedback(
+		etx.Request().Context(),
+		sf.db.Conn(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create studentFeedback: %v", err)); flashErr != nil {
+			return flashErr
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.StudentFeedbackNew.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "StudentFeedback created successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.StudentFeedbackShow.URL(studentFeedback.ID))
+}
+
+func (sf StudentFeedback) Edit(etx echo.Context) error {
+	studentFeedbackID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	studentFeedback, err := models.FindStudentFeedback(etx.Request().Context(), sf.db.Conn(), studentFeedbackID)
+	if err != nil {
+		return render(etx, views.NotFound())
+	}
+
+	return render(etx, views.StudentFeedbackEdit(studentFeedback))
+}
+
+type UpdateStudentFeedbackFormPayload struct {
+	StudentID string `json:"student_id"`
+	Feedback  string `json:"feedback"`
+	Rating    int32  `json:"rating"`
+}
+
+func (sf StudentFeedback) Update(etx echo.Context) error {
+	studentFeedbackID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	var payload UpdateStudentFeedbackFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse UpdateStudentFeedbackFormPayload",
+			"error",
+			err,
+		)
+
+		return render(etx, views.NotFound())
+	}
+
+	data := models.UpdateStudentFeedbackData{
+		ID:        studentFeedbackID,
+		StudentID: payload.StudentID,
+		Feedback:  payload.Feedback,
+		Rating:    payload.Rating,
+	}
+
+	studentFeedback, err := models.UpdateStudentFeedback(
+		etx.Request().Context(),
+		sf.db.Conn(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update studentFeedback: %v", err)); flashErr != nil {
+			return render(etx, views.InternalError())
+		}
+		return etx.Redirect(
+			http.StatusSeeOther,
+			routes.StudentFeedbackEdit.URL(studentFeedbackID),
+		)
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "StudentFeedback updated successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.StudentFeedbackShow.URL(studentFeedback.ID))
+}
+
+func (sf StudentFeedback) Destroy(etx echo.Context) error {
+	studentFeedbackID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	err = models.DestroyStudentFeedback(etx.Request().Context(), sf.db.Conn(), studentFeedbackID)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete studentFeedback: %v", err)); flashErr != nil {
+			return render(etx, views.InternalError())
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.StudentFeedbackIndex.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "StudentFeedback destroyed successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.StudentFeedbackIndex.URL())
+}

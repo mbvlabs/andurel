@@ -9,32 +9,32 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func register{{.CapitalizedPluralName}}Routes(handler *echo.Echo, {{.LowercasePluralName}} controllers.{{.CapitalizedPluralName}}) {
+func register{{.ResourceName}}Routes(handler *echo.Echo, {{.LowercaseResourceName}} controllers.{{.ResourceName}}) {
 	handler.Add(
-		http.MethodGet, routes.{{.ResourceName}}Index.Path(), {{.LowercasePluralName}}.Index,
+		http.MethodGet, routes.{{.ResourceName}}Index.Path(), {{.LowercaseResourceName}}.Index,
 	).Name = routes.{{.ResourceName}}Index.Name()
 
 	handler.Add(
-		http.MethodGet, routes.{{.ResourceName}}Show.Path(), {{.LowercasePluralName}}.Show,
+		http.MethodGet, routes.{{.ResourceName}}Show.Path(), {{.LowercaseResourceName}}.Show,
 	).Name = routes.{{.ResourceName}}Show.Name()
 
 	handler.Add(
-		http.MethodGet, routes.{{.ResourceName}}New.Path(), {{.LowercasePluralName}}.New,
+		http.MethodGet, routes.{{.ResourceName}}New.Path(), {{.LowercaseResourceName}}.New,
 	).Name = routes.{{.ResourceName}}New.Name()
 
 	handler.Add(
-		http.MethodPost, routes.{{.ResourceName}}Create.Path(), {{.LowercasePluralName}}.Create,
+		http.MethodPost, routes.{{.ResourceName}}Create.Path(), {{.LowercaseResourceName}}.Create,
 	).Name = routes.{{.ResourceName}}Create.Name()
 
 	handler.Add(
-		http.MethodGet, routes.{{.ResourceName}}Edit.Path(), {{.LowercasePluralName}}.Edit,
+		http.MethodGet, routes.{{.ResourceName}}Edit.Path(), {{.LowercaseResourceName}}.Edit,
 	).Name = routes.{{.ResourceName}}Edit.Name()
 
 	handler.Add(
-		http.MethodPut, routes.{{.ResourceName}}Update.Path(), {{.LowercasePluralName}}.Update,
+		http.MethodPut, routes.{{.ResourceName}}Update.Path(), {{.LowercaseResourceName}}.Update,
 	).Name = routes.{{.ResourceName}}Update.Name()
 
 	handler.Add(
-		http.MethodDelete, routes.{{.ResourceName}}Destroy.Path(), {{.LowercasePluralName}}.Destroy,
+		http.MethodDelete, routes.{{.ResourceName}}Destroy.Path(), {{.LowercaseResourceName}}.Destroy,
 	).Name = routes.{{.ResourceName}}Destroy.Name()
 }

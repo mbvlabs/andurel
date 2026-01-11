@@ -7,6 +7,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/jinzhu/inflection"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/internal/ddl"
@@ -32,16 +33,18 @@ type GeneratedField struct {
 }
 
 type GeneratedModel struct {
-	Name              string
-	Package           string
-	Fields            []GeneratedField
-	StandardImports   []string
-	ExternalImports   []string
-	Imports           []string
-	TableName         string
-	TableNameOverride string
-	ModulePath        string
-	DatabaseType      string
+	Name                string
+	PluralName          string // The pluralized form of Name for function names (respects --table-name override)
+	Package             string
+	Fields              []GeneratedField
+	StandardImports     []string
+	ExternalImports     []string
+	Imports             []string
+	TableName           string
+	TableNameOverride   string
+	TableNameOverridden bool
+	ModulePath          string
+	DatabaseType        string
 }
 
 type Config struct {
@@ -54,16 +57,18 @@ type Config struct {
 }
 
 type SQLData struct {
-	ResourceName       string
-	PluralName         string
-	InsertColumns      string
-	InsertPlaceholders string
-	UpdateColumns      string
-	DatabaseType       string
-	IDPlaceholder      string
-	LimitOffsetClause  string
-	NowFunction        string
-	UpsertUpdateSet    string
+	ResourceName        string
+	PluralName          string
+	PluralResourceName  string // The pluralized form of ResourceName for query function names
+	InsertColumns       string
+	InsertPlaceholders  string
+	UpdateColumns       string
+	DatabaseType        string
+	IDPlaceholder       string
+	LimitOffsetClause   string
+	NowFunction         string
+	UpsertUpdateSet     string
+	TableNameOverridden bool
 }
 
 type Generator struct {
@@ -88,6 +93,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 
 	model := &GeneratedModel{
 		Name:            config.ResourceName,
+		PluralName:      inflection.Plural(config.ResourceName), // Default to standard pluralization
 		Package:         config.PackageName,
 		TableName:       config.TableName,
 		ModulePath:      config.ModulePath,
@@ -263,10 +269,6 @@ func (g *Generator) getSimpleGoTypePackage(goType string) string {
 
 func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string) (string, error) {
 	funcMap := template.FuncMap{
-		"SQLCTypeName": func(tableName string) string {
-			singular := strings.TrimSuffix(tableName, "s") // Simple singularization
-			return types.FormatFieldName(singular)
-		},
 		"lower": func(s string) string {
 			return strings.ToLower(s)
 		},
@@ -279,6 +281,7 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 		"hasErrorHandling": func() bool {
 			return false
 		},
+		"Plural": inflection.Plural,
 	}
 
 	tmpl, err := template.New("model").Funcs(funcMap).Parse(templateStr)
@@ -314,7 +317,7 @@ To use a different table name, run:
 			pluralName, err, resourceName)
 	}
 
-	if err := g.GenerateSQLFile(resourceName, pluralName, table, sqlPath); err != nil {
+	if err := g.GenerateSQLFile(resourceName, pluralName, table, sqlPath, tableNameOverride != ""); err != nil {
 		return fmt.Errorf("failed to generate SQL file: %w", err)
 	}
 
@@ -330,6 +333,13 @@ To use a different table name, run:
 	}
 
 	model.TableNameOverride = tableNameOverride
+	model.TableNameOverridden = tableNameOverride != ""
+	// When table name is overridden, don't pluralize the resource name for function names
+	if tableNameOverride != "" {
+		model.PluralName = resourceName
+	} else {
+		model.PluralName = inflection.Plural(resourceName)
+	}
 
 	templateContent, err := templates.Files.ReadFile("model.tmpl")
 	if err != nil {
@@ -357,8 +367,9 @@ func (g *Generator) GenerateSQLFile(
 	pluralName string,
 	table *catalog.Table,
 	sqlPath string,
+	tableNameOverridden bool,
 ) error {
-	data := g.prepareSQLData(resourceName, pluralName, table)
+	data := g.prepareSQLData(resourceName, pluralName, table, tableNameOverridden)
 
 	// Use the unified template service
 	service := templates.GetGlobalTemplateService()
@@ -377,8 +388,9 @@ func (g *Generator) GenerateSQLContent(
 	resourceName string,
 	pluralName string,
 	table *catalog.Table,
+	tableNameOverridden bool,
 ) (string, error) {
-	data := g.prepareSQLData(resourceName, pluralName, table)
+	data := g.prepareSQLData(resourceName, pluralName, table, tableNameOverridden)
 
 	// Use the unified template service
 	service := templates.GetGlobalTemplateService()
@@ -393,6 +405,7 @@ func (g *Generator) prepareSQLData(
 	resourceName string,
 	pluralName string,
 	table *catalog.Table,
+	tableNameOverridden bool,
 ) SQLData {
 	var insertColumns []string
 	var insertPlaceholders []string
@@ -447,17 +460,27 @@ func (g *Generator) prepareSQLData(
 		}
 	}
 
+	// When table name is overridden (--table-name flag used), don't pluralize the resource name
+	// in query function names. Use the resource name as-is.
+	// Otherwise, use the standard plural form (e.g., Product -> Products)
+	pluralResourceName := inflection.Plural(resourceName)
+	if tableNameOverridden {
+		pluralResourceName = resourceName
+	}
+
 	return SQLData{
-		ResourceName:       resourceName,
-		PluralName:         pluralName,
-		InsertColumns:      strings.Join(insertColumns, ", "),
-		InsertPlaceholders: strings.Join(insertPlaceholders, ", "),
-		UpdateColumns:      strings.Join(updateColumns, ", "),
-		DatabaseType:       g.typeMapper.GetDatabaseType(),
-		IDPlaceholder:      idPlaceholder,
-		LimitOffsetClause:  limitOffsetClause,
-		NowFunction:        nowFunc,
-		UpsertUpdateSet:    strings.Join(upsertUpdateColumns, ", "),
+		ResourceName:        resourceName,
+		PluralName:          pluralName,
+		PluralResourceName:  pluralResourceName,
+		InsertColumns:       strings.Join(insertColumns, ", "),
+		InsertPlaceholders:  strings.Join(insertPlaceholders, ", "),
+		UpdateColumns:       strings.Join(updateColumns, ", "),
+		DatabaseType:        g.typeMapper.GetDatabaseType(),
+		IDPlaceholder:       idPlaceholder,
+		LimitOffsetClause:   limitOffsetClause,
+		NowFunction:         nowFunc,
+		UpsertUpdateSet:     strings.Join(upsertUpdateColumns, ", "),
+		TableNameOverridden: tableNameOverridden,
 	}
 }
 
@@ -554,8 +577,9 @@ func (g *Generator) RefreshModel(
 	resourceName, pluralName string,
 	modelPath, sqlPath string,
 	modulePath string,
+	tableNameOverridden bool,
 ) error {
-	if err := g.refreshSQLFile(resourceName, pluralName, cat, sqlPath); err != nil {
+	if err := g.refreshSQLFile(resourceName, pluralName, cat, sqlPath, tableNameOverridden); err != nil {
 		return fmt.Errorf("failed to refresh SQL file: %w", err)
 	}
 
@@ -570,18 +594,18 @@ func (g *Generator) RefreshQueries(
 	cat *catalog.Catalog,
 	resourceName, pluralName string,
 	sqlPath string,
+	tableNameOverridden bool,
 ) error {
 	if err := g.validateIDColumnConstraints(cat, pluralName); err != nil {
 		return fmt.Errorf("ID validation failed: %w", err)
 	}
 
-	if err := g.refreshSQLFile(resourceName, pluralName, cat, sqlPath); err != nil {
+	if err := g.refreshSQLFile(resourceName, pluralName, cat, sqlPath, tableNameOverridden); err != nil {
 		return fmt.Errorf("failed to refresh SQL file: %w", err)
 	}
 
 	return nil
 }
-
 
 func (g *Generator) validateIDColumnConstraints(cat *catalog.Catalog, tableName string) error {
 	table, err := cat.GetTable("", tableName)
@@ -606,6 +630,7 @@ func (g *Generator) refreshSQLFile(
 	pluralName string,
 	cat *catalog.Catalog,
 	sqlPath string,
+	tableNameOverridden bool,
 ) error {
 	existingContent, err := os.ReadFile(sqlPath)
 	if err != nil {
@@ -623,7 +648,7 @@ To use a different table name, add the override comment to your model file`,
 			pluralName, err)
 	}
 
-	newSQLContent, err := g.GenerateSQLContent(resourceName, pluralName, table)
+	newSQLContent, err := g.GenerateSQLContent(resourceName, pluralName, table, tableNameOverridden)
 	if err != nil {
 		return fmt.Errorf("failed to generate SQL content: %w", err)
 	}
@@ -836,7 +861,6 @@ func (g *Generator) extractGeneratedSQLQueries(content, resourceName string) map
 	queryNames := []string{
 		fmt.Sprintf("Query%sByID", resourceName),
 		fmt.Sprintf("Query%ss", resourceName),
-		fmt.Sprintf("QueryAll%ss", resourceName),
 		fmt.Sprintf("Insert%s", resourceName),
 		fmt.Sprintf("Update%s", resourceName),
 		fmt.Sprintf("Delete%s", resourceName),

@@ -1,0 +1,221 @@
+package models
+
+// PERSON_MODEL_TABLE_NAME: people_data
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"testapp/internal/storage"
+	"testapp/models/internal/db"
+)
+
+type Person struct {
+	ID        uuid.UUID
+	FirstName string
+	LastName  string
+	Email     string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func FindPerson(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) (Person, error) {
+	row, err := queries.QueryPersonByID(ctx, exec, id)
+	if err != nil {
+		return Person{}, err
+	}
+
+	return rowToPerson(row), nil
+}
+
+type CreatePersonData struct {
+	FirstName string
+	LastName  string
+	Email     string
+}
+
+func CreatePerson(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreatePersonData,
+) (Person, error) {
+	if err := validate.Struct(data); err != nil {
+		return Person{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.InsertPersonParams{
+		ID:        uuid.New(),
+		FirstName: data.FirstName,
+		LastName:  data.LastName,
+		Email:     pgtype.Text{String: data.Email, Valid: true},
+	}
+	row, err := queries.InsertPerson(ctx, exec, params)
+	if err != nil {
+		return Person{}, err
+	}
+
+	return rowToPerson(row), nil
+}
+
+type UpdatePersonData struct {
+	ID        uuid.UUID
+	FirstName string
+	LastName  string
+	Email     string
+	UpdatedAt time.Time
+}
+
+func UpdatePerson(
+	ctx context.Context,
+	exec storage.Executor,
+	data UpdatePersonData,
+) (Person, error) {
+	if err := validate.Struct(data); err != nil {
+		return Person{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	currentRow, err := queries.QueryPersonByID(ctx, exec, data.ID)
+	if err != nil {
+		return Person{}, err
+	}
+
+	params := db.UpdatePersonParams{
+		ID:        data.ID,
+		FirstName: data.FirstName,
+		LastName:  data.LastName,
+		Email:     pgtype.Text{String: data.Email, Valid: true},
+	}
+
+	row, err := queries.UpdatePerson(ctx, exec, params)
+	if err != nil {
+		return Person{}, err
+	}
+
+	return rowToPerson(row), nil
+}
+
+func DestroyPerson(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) error {
+	return queries.DeletePerson(ctx, exec, id)
+}
+
+func AllPerson(
+	ctx context.Context,
+	exec storage.Executor,
+) ([]Person, error) {
+	rows, err := queries.QueryPerson(ctx, exec)
+	if err != nil {
+		return nil, err
+	}
+
+	person := make([]Person, len(rows))
+	for i, row := range rows {
+		person[i] = rowToPerson(row)
+	}
+
+	return person, nil
+}
+
+type PaginatedPerson struct {
+	Person     []Person
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func PaginatePerson(
+	ctx context.Context,
+	exec storage.Executor,
+	page int64,
+	pageSize int64,
+) (PaginatedPerson, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := queries.CountPerson(ctx, exec)
+	if err != nil {
+		return PaginatedPerson{}, err
+	}
+
+	rows, err := queries.QueryPaginatedPerson(
+		ctx,
+		exec,
+		db.QueryPaginatedPersonParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
+	)
+	if err != nil {
+		return PaginatedPerson{}, err
+	}
+
+	person := make([]Person, len(rows))
+	for i, row := range rows {
+		person[i] = rowToPerson(row)
+	}
+
+	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+
+	return PaginatedPerson{
+		Person:     person,
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func UpsertPerson(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreatePersonData,
+) (Person, error) {
+	if err := validate.Struct(data); err != nil {
+		return Person{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpsertPersonParams{
+		ID:        uuid.New(),
+		FirstName: data.FirstName,
+		LastName:  data.LastName,
+		Email:     pgtype.Text{String: data.Email, Valid: true},
+	}
+	row, err := queries.UpsertPerson(ctx, exec, params)
+	if err != nil {
+		return Person{}, err
+	}
+
+	return rowToPerson(row), nil
+}
+
+func rowToPerson(row db.Person) Person {
+	return Person{
+		ID:        row.ID,
+		FirstName: row.FirstName,
+		LastName:  row.LastName,
+		Email:     row.Email.String,
+		CreatedAt: row.CreatedAt.Time,
+		UpdatedAt: row.UpdatedAt.Time,
+	}
+}
