@@ -181,12 +181,15 @@ andurel g resource Product  # short alias
 
 # Generate individual components
 andurel generate model User              # Create model
-andurel generate model User --refresh    # Refresh after schema changes
 andurel generate model Product --table products_catalog  # Use custom table name
 andurel generate controller User         # Controller only
 andurel generate controller User --with-views  # Controller + views
 andurel generate view User               # Views only
 andurel generate view User --with-controller   # Views + controller
+
+# Generate SQL queries for junction/connection tables
+andurel generate queries user_roles           # Generate queries for 'user_roles' table
+andurel generate queries user_roles --refresh # Refresh existing queries file
 
 # Short aliases work too
 andurel g model User
