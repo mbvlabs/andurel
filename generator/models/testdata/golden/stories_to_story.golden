@@ -78,11 +78,6 @@ func UpdateStory(
 		return Story{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := queries.QueryStoryByID(ctx, exec, data.ID)
-	if err != nil {
-		return Story{}, err
-	}
-
 	params := db.UpdateStoryParams{
 		ID: data.ID,
 		Title: data.Title,

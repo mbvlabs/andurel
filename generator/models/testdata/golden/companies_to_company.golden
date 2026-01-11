@@ -78,11 +78,6 @@ func UpdateCompany(
 		return Company{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	currentRow, err := queries.QueryCompanyByID(ctx, exec, data.ID)
-	if err != nil {
-		return Company{}, err
-	}
-
 	params := db.UpdateCompanyParams{
 		ID: data.ID,
 		Name: data.Name,
