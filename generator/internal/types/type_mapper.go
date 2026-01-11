@@ -124,10 +124,6 @@ func (tm *TypeMapper) GenerateConversionFromDB(fieldName, sqlcType, goType strin
 			return fmt.Sprintf("row.%s.String", fieldName)
 		case "pgtype.Bit", "pgtype.Varbit":
 			return fmt.Sprintf("string(row.%s.Bytes)", fieldName)
-		case "pgtype.Array[int32]":
-			return fmt.Sprintf("row.%s.Elements", fieldName)
-		case "pgtype.Array[string]":
-			return fmt.Sprintf("row.%s.Elements", fieldName)
 		default:
 			return fmt.Sprintf("row.%s", fieldName)
 		}
@@ -354,15 +350,11 @@ func (tm *TypeMapper) getPostgreSQLType(
 		}
 		return "string", "string", ""
 	case "_integer":
-		if nullable {
-			return "[]int32", "pgtype.Array[int32]", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "[]int32", "pgtype.Array[int32]", "github.com/jackc/pgx/v5/pgtype"
+		// sqlc generates []int32 directly for integer[] columns, no pgtype wrapper
+		return "[]int32", "[]int32", ""
 	case "_text":
-		if nullable {
-			return "[]string", "pgtype.Array[string]", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "[]string", "pgtype.Array[string]", "github.com/jackc/pgx/v5/pgtype"
+		// sqlc generates []string directly for text[] columns, no pgtype wrapper
+		return "[]string", "[]string", ""
 	default:
 		return "", "", ""
 	}
@@ -410,10 +402,6 @@ func (tm *TypeMapper) GenerateConversionToDB(
 			return fmt.Sprintf("pgtype.Inet{IPNet: %s, Valid: true}", valueExpr)
 		case "pgtype.Money":
 			return fmt.Sprintf("pgtype.Money{String: %s, Valid: true}", valueExpr)
-		case "pgtype.Array[int32]":
-			return fmt.Sprintf("pgtype.Array[int32]{Elements: %s, Valid: true}", valueExpr)
-		case "pgtype.Array[string]":
-			return fmt.Sprintf("pgtype.Array[string]{Elements: %s, Valid: true}", valueExpr)
 		default:
 			return valueExpr
 		}
@@ -578,12 +566,12 @@ type SQLCConfig struct {
 		Engine  string `yaml:"engine"`
 		Gen     struct {
 			Go struct {
-				Package                   string            `yaml:"package"`
-				Out                       string            `yaml:"out"`
-				OutputDBFileName          string            `yaml:"output_db_file_name"`
-				OutputModelsFileName      string            `yaml:"output_models_file_name"`
-				EmitMethodsWithDBArgument bool              `yaml:"emit_methods_with_db_argument"`
-				SQLPackage                string            `yaml:"sql_package"`
+				Package                   string `yaml:"package"`
+				Out                       string `yaml:"out"`
+				OutputDBFileName          string `yaml:"output_db_file_name"`
+				OutputModelsFileName      string `yaml:"output_models_file_name"`
+				EmitMethodsWithDBArgument bool   `yaml:"emit_methods_with_db_argument"`
+				SQLPackage                string `yaml:"sql_package"`
 				Overrides                 []struct {
 					DBType string `yaml:"db_type"`
 					GoType string `yaml:"go_type"`

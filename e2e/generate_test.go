@@ -104,6 +104,14 @@ func TestGenerateCommands(t *testing.T) {
 			t.Run("generate_queries_with_table_name", func(t *testing.T) {
 				testGenerateQueriesWithTableName(t, project)
 			})
+
+			t.Run("generate_model_with_array_types", func(t *testing.T) {
+				testGenerateModelWithArrayTypes(t, project)
+			})
+
+			t.Run("generate_view_with_array_types", func(t *testing.T) {
+				testGenerateViewWithArrayTypes(t, project)
+			})
 		})
 	}
 }
@@ -661,6 +669,88 @@ func testGenerateQueriesWithTableName(t *testing.T, project *internal.Project) {
 	}
 }
 
+// testGenerateModelWithArrayTypes tests that PostgreSQL array types (text[], integer[])
+// are correctly generated as native Go slices ([]string, []int32) instead of
+// non-existent pgtype.Array types. Also tests jsonb/json types.
+func testGenerateModelWithArrayTypes(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	// Create migration with array types directly using raw SQL
+	migrationDir := filepath.Join(project.Dir, "database", "migrations")
+	migrationContent := `-- +goose Up
+CREATE TABLE IF NOT EXISTS posts (
+	id UUID PRIMARY KEY,
+	title VARCHAR(255) NOT NULL,
+	tags TEXT[] NOT NULL,
+	scores INTEGER[] NOT NULL,
+	settings JSONB NOT NULL,
+	metadata JSON,
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- +goose Down
+DROP TABLE IF EXISTS posts;
+`
+	migrationFile := filepath.Join(migrationDir, "000112_create_posts_with_arrays.sql")
+	err := os.WriteFile(migrationFile, []byte(migrationContent), 0o644)
+	if err != nil {
+		t.Fatalf("Failed to create migration file: %v", err)
+	}
+
+	err = project.Generate("generate", "model", "Post", "--skip-factory")
+	internal.AssertCommandSucceeds(t, err, "generate model with array types")
+
+	// Verify model file exists and compare against golden file
+	internal.AssertFileExists(t, project, "models/post.go")
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/post.go"))
+	if err != nil {
+		t.Fatalf("Failed to read model file: %v", err)
+	}
+
+	// Verify array types are generated correctly as native Go slices
+	modelStr := string(modelContent)
+	if strings.Contains(modelStr, "pgtype.Array") {
+		t.Error("Model should NOT contain pgtype.Array - array types should use native Go slices")
+	}
+
+	// Verify []string is used for text[] column (struct field has tabs/spaces)
+	if !strings.Contains(modelStr, "Tags") || !strings.Contains(modelStr, "[]string") {
+		t.Error("Expected 'Tags []string' in model for text[] column")
+	}
+
+	// Verify []int32 is used for integer[] column
+	if !strings.Contains(modelStr, "Scores") || !strings.Contains(modelStr, "[]int32") {
+		t.Error("Expected 'Scores []int32' in model for integer[] column")
+	}
+
+	// Verify []byte is used for jsonb/json columns
+	if !strings.Contains(modelStr, "Settings") || !strings.Contains(modelStr, "[]byte") {
+		t.Error("Expected 'Settings []byte' in model for jsonb column")
+	}
+	if !strings.Contains(modelStr, "Metadata") {
+		t.Error("Expected 'Metadata []byte' in model for json column")
+	}
+
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "post_model.golden"),
+		modelStr,
+	)
+
+	// Verify queries file exists and compare against golden file
+	internal.AssertFileExists(t, project, "database/queries/posts.sql")
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/posts.sql"))
+	if err != nil {
+		t.Fatalf("Failed to read queries file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "post_queries.golden"),
+		string(queriesContent),
+	)
+}
+
 func createMigration(
 	t *testing.T,
 	project *internal.Project,
@@ -698,6 +788,86 @@ func createMigration(
 	if err != nil {
 		t.Fatalf("Failed to create migration file: %v", err)
 	}
+}
+
+// testGenerateViewWithArrayTypes tests that views with array types (text[], integer[])
+// correctly use string converters (strings.Join, fmt.Sprintf) to display array values.
+func testGenerateViewWithArrayTypes(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	// Create migration with array types
+	migrationDir := filepath.Join(project.Dir, "database", "migrations")
+	migrationContent := `-- +goose Up
+CREATE TABLE IF NOT EXISTS documents (
+	id UUID PRIMARY KEY,
+	title VARCHAR(255) NOT NULL,
+	tags TEXT[] NOT NULL,
+	page_numbers INTEGER[] NOT NULL,
+	view_count INTEGER NOT NULL,
+	is_published BOOLEAN DEFAULT false,
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- +goose Down
+DROP TABLE IF EXISTS documents;
+`
+	migrationFile := filepath.Join(migrationDir, "000113_create_documents_with_arrays.sql")
+	err := os.WriteFile(migrationFile, []byte(migrationContent), 0o644)
+	if err != nil {
+		t.Fatalf("Failed to create migration file: %v", err)
+	}
+
+	// Generate model first (required for view generation)
+	err = project.Generate("generate", "model", "Document", "--skip-factory")
+	internal.AssertCommandSucceeds(t, err, "generate model with array types")
+
+	// Generate view
+	err = project.Generate("generate", "view", "Document")
+	internal.AssertCommandSucceeds(t, err, "generate view with array types")
+
+	// Verify view file exists
+	internal.AssertFileExists(t, project, "views/documents_resource.templ")
+	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/documents_resource.templ"))
+	if err != nil {
+		t.Fatalf("Failed to read view file: %v", err)
+	}
+
+	viewStr := string(viewContent)
+
+	// Verify strings.Join is used for []string (text[]) column
+	if !strings.Contains(viewStr, "strings.Join(document.Tags") {
+		t.Error("View should use strings.Join for text[] column (Tags)")
+	}
+
+	// Verify fmt.Sprintf is used for []int32 (integer[]) column
+	if !strings.Contains(viewStr, "fmt.Sprintf") || !strings.Contains(viewStr, "document.PageNumbers") {
+		t.Error("View should use fmt.Sprintf for integer[] column (PageNumbers)")
+	}
+
+	// Verify fmt.Sprintf is used for integer column
+	if !strings.Contains(viewStr, "fmt.Sprintf") || !strings.Contains(viewStr, "document.ViewCount") {
+		t.Error("View should use fmt.Sprintf for integer column (ViewCount)")
+	}
+
+	// Verify fmt.Sprintf with %t is used for boolean column
+	if !strings.Contains(viewStr, "fmt.Sprintf") || !strings.Contains(viewStr, "document.IsPublished") {
+		t.Error("View should use fmt.Sprintf for boolean column (IsPublished)")
+	}
+
+	// Verify imports include both fmt and strings
+	if !strings.Contains(viewStr, `"fmt"`) {
+		t.Error("View should import fmt package")
+	}
+	if !strings.Contains(viewStr, `"strings"`) {
+		t.Error("View should import strings package")
+	}
+
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "document_view.golden"),
+		viewStr,
+	)
 }
 
 func compareOrUpdateGenerateGolden(t *testing.T, goldenPath, actual string) {

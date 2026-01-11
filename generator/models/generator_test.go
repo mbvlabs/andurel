@@ -174,44 +174,29 @@ func TestGetSimpleGoType(t *testing.T) {
 	}
 }
 
-// TestJSONBFieldGeneration verifies that JSONB fields are correctly generated
-// as []byte in model structs, not as pgtype.JSONB
-func TestJSONBFieldGeneration(t *testing.T) {
-	tempDir := t.TempDir()
-	queriesDir := filepath.Join(tempDir, "database", "queries")
-	modelsDir := filepath.Join(tempDir, "models")
-
-	err := os.MkdirAll(queriesDir, constants.DirPermissionDefault)
-	if err != nil {
-		t.Fatalf("Failed to create queries directory: %v", err)
-	}
-
-	err = os.MkdirAll(modelsDir, constants.DirPermissionDefault)
-	if err != nil {
-		t.Fatalf("Failed to create models directory: %v", err)
-	}
-
+// TestNonePgtypeDataTypes verifies that certain PostgreSQL types are correctly
+// generated as native Go types instead of pgtype wrappers:
+// - text[] -> []string (not pgtype.Array[string] which doesn't exist)
+// - integer[] -> []int32 (not pgtype.Array[int32] which doesn't exist)
+// - jsonb -> []byte (model type, with pgtype.JSONB as SQLCType for conversions)
+// - json -> []byte (model type, with pgtype.JSON as SQLCType for conversions)
+func TestNonePgtypeDataTypes(t *testing.T) {
 	originalWd, _ := os.Getwd()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	os.Chdir(tempDir)
-
-	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "jsonb_test")
+	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "none_pgtype_data_types")
 
 	generator := NewGenerator("postgresql")
 
 	cat, err := generator.buildCatalogFromTableMigrations(
-		"configs",
+		"articles",
 		[]string{migrationsDir},
 	)
 	if err != nil {
 		t.Fatalf("Failed to build catalog from migrations: %v", err)
 	}
 
-	// Build model to ensure it works
 	model, err := generator.Build(cat, Config{
-		TableName:    "configs",
-		ResourceName: "Config",
+		TableName:    "articles",
+		ResourceName: "Article",
 		PackageName:  "models",
 		DatabaseType: "postgresql",
 		ModulePath:   "github.com/example/test",
@@ -220,66 +205,130 @@ func TestJSONBFieldGeneration(t *testing.T) {
 		t.Fatalf("Failed to build model from catalog: %v", err)
 	}
 
-	// Verify model has fields
 	if len(model.Fields) == 0 {
 		t.Fatal("Expected model to have fields")
 	}
 
-	// Find the JSONB fields and verify they use []byte type
-	var settingsField, metadataField *GeneratedField
+	// Find all the fields we want to test
+	var tagsField, scoresField, settingsField, metadataField *GeneratedField
 	for i := range model.Fields {
-		if model.Fields[i].Name == "Settings" {
+		switch model.Fields[i].Name {
+		case "Tags":
+			tagsField = &model.Fields[i]
+		case "Scores":
+			scoresField = &model.Fields[i]
+		case "Settings":
 			settingsField = &model.Fields[i]
-		}
-		if model.Fields[i].Name == "Metadata" {
+		case "Metadata":
 			metadataField = &model.Fields[i]
 		}
 	}
 
+	// Test text[] -> []string
+	if tagsField == nil {
+		t.Fatal("Expected to find 'Tags' field (from 'tags' text[] column)")
+	}
+	if tagsField.Type != "[]string" {
+		t.Errorf("Tags field Type = %s, want []string (not pgtype.Array[string])", tagsField.Type)
+	}
+	if tagsField.SQLCType != "[]string" {
+		t.Errorf("Tags field SQLCType = %s, want []string", tagsField.SQLCType)
+	}
+	if tagsField.ConversionFromDB != "row.Tags" {
+		t.Errorf("Tags ConversionFromDB = %s, expected 'row.Tags'", tagsField.ConversionFromDB)
+	}
+	if tagsField.ConversionToDB != "data.Tags" {
+		t.Errorf("Tags ConversionToDB = %s, expected 'data.Tags'", tagsField.ConversionToDB)
+	}
+
+	// Test integer[] -> []int32
+	if scoresField == nil {
+		t.Fatal("Expected to find 'Scores' field (from 'scores' integer[] column)")
+	}
+	if scoresField.Type != "[]int32" {
+		t.Errorf("Scores field Type = %s, want []int32 (not pgtype.Array[int32])", scoresField.Type)
+	}
+	if scoresField.SQLCType != "[]int32" {
+		t.Errorf("Scores field SQLCType = %s, want []int32", scoresField.SQLCType)
+	}
+	if scoresField.ConversionFromDB != "row.Scores" {
+		t.Errorf("Scores ConversionFromDB = %s, expected 'row.Scores'", scoresField.ConversionFromDB)
+	}
+	if scoresField.ConversionToDB != "data.Scores" {
+		t.Errorf("Scores ConversionToDB = %s, expected 'data.Scores'", scoresField.ConversionToDB)
+	}
+
+	// Test jsonb -> []byte (model type) with pgtype.JSONB (SQLCType)
 	if settingsField == nil {
 		t.Fatal("Expected to find 'Settings' field (from 'settings' jsonb column)")
 	}
-
-	if metadataField == nil {
-		t.Fatal("Expected to find 'Metadata' field (from 'metadata' json column)")
-	}
-
-	// Verify JSONB field uses []byte, not pgtype.JSONB
 	if settingsField.Type != "[]byte" {
 		t.Errorf("Settings field Type = %s, want []byte (not pgtype.JSONB)", settingsField.Type)
 	}
-
-	// Verify JSONB field has correct SQLCType for conversions
 	if settingsField.SQLCType != "pgtype.JSONB" {
 		t.Errorf("Settings field SQLCType = %s, want pgtype.JSONB", settingsField.SQLCType)
 	}
-
-	// Verify JSON field uses []byte, not pgtype.JSON
-	if metadataField.Type != "[]byte" {
-		t.Errorf("Metadata field Type = %s, want []byte (not pgtype.JSON)", metadataField.Type)
-	}
-
-	// Verify JSON field has correct SQLCType for conversions
-	if metadataField.SQLCType != "pgtype.JSON" {
-		t.Errorf("Metadata field SQLCType = %s, want pgtype.JSON", metadataField.SQLCType)
-	}
-
-	// Verify conversion from DB - in pgx v5, JSONB/JSON are []byte type aliases, so no .Bytes needed
 	if settingsField.ConversionFromDB != "row.Settings" {
 		t.Errorf("Settings ConversionFromDB = %s, expected 'row.Settings'", settingsField.ConversionFromDB)
 	}
-
-	if metadataField.ConversionFromDB != "row.Metadata" {
-		t.Errorf("Metadata ConversionFromDB = %s, expected 'row.Metadata'", metadataField.ConversionFromDB)
-	}
-
-	// Verify conversion to DB - in pgx v5, []byte is passed directly without wrapping
 	if settingsField.ConversionToDB != "data.Settings" {
 		t.Errorf("Settings ConversionToDB = %s, expected 'data.Settings'", settingsField.ConversionToDB)
 	}
 
+	// Test json -> []byte (model type) with pgtype.JSON (SQLCType)
+	if metadataField == nil {
+		t.Fatal("Expected to find 'Metadata' field (from 'metadata' json column)")
+	}
+	if metadataField.Type != "[]byte" {
+		t.Errorf("Metadata field Type = %s, want []byte (not pgtype.JSON)", metadataField.Type)
+	}
+	if metadataField.SQLCType != "pgtype.JSON" {
+		t.Errorf("Metadata field SQLCType = %s, want pgtype.JSON", metadataField.SQLCType)
+	}
+	if metadataField.ConversionFromDB != "row.Metadata" {
+		t.Errorf("Metadata ConversionFromDB = %s, expected 'row.Metadata'", metadataField.ConversionFromDB)
+	}
 	if metadataField.ConversionToDB != "data.Metadata" {
 		t.Errorf("Metadata ConversionToDB = %s, expected 'data.Metadata'", metadataField.ConversionToDB)
+	}
+
+	// Generate the model file and verify against golden file
+	templateContent, err := os.ReadFile(filepath.Join("..", "templates", "model.tmpl"))
+	if err != nil {
+		t.Fatalf("Failed to read model template: %v", err)
+	}
+
+	generatedCode, err := generator.GenerateModelFile(model, string(templateContent))
+	if err != nil {
+		t.Fatalf("Failed to generate model file: %v", err)
+	}
+
+	// Golden file testing
+	goldenFile := filepath.Join("testdata", "golden", "none_pgtype_data_types.golden")
+
+	if *updateGolden {
+		err := os.MkdirAll(filepath.Dir(goldenFile), constants.DirPermissionDefault)
+		if err != nil {
+			t.Fatalf("Failed to create golden directory: %v", err)
+		}
+		err = os.WriteFile(goldenFile, []byte(generatedCode), constants.FilePermissionPrivate)
+		if err != nil {
+			t.Fatalf("Failed to write golden file: %v", err)
+		}
+	}
+
+	expectedCode, err := os.ReadFile(goldenFile)
+	if err != nil {
+		t.Fatalf("Failed to read golden file %s: %v\nRun 'go test -update' to create it", goldenFile, err)
+	}
+
+	if string(expectedCode) != generatedCode {
+		t.Errorf("Generated code differs from golden file.\nExpected:\n%s\n\nGot:\n%s", string(expectedCode), generatedCode)
+	}
+
+	// Verify no pgtype.Array references in generated code
+	if strings.Contains(generatedCode, "pgtype.Array") {
+		t.Error("Generated code should NOT contain pgtype.Array - use native Go slices instead")
 	}
 }
 
