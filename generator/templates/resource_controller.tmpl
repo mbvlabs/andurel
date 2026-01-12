@@ -80,9 +80,9 @@ type Create{{.ResourceName}}FormPayload struct {
 {{- range .Fields}}
 {{- if not .IsSystemField}}
 	{{- if eq .GoFormType "time.Time"}}
-	{{.Name}}    string `json:"{{.DBName}}"`
+	{{.Name}}    string `json:"{{.CamelCase}}"`
 	{{- else}}
-	{{.Name}}    {{.GoFormType}} `json:"{{.DBName}}"`
+	{{.Name}}    {{.GoFormType}} `json:"{{.CamelCase}}"`
 	{{- end}}
 {{- end}}
 {{- end}}
@@ -158,9 +158,9 @@ type Update{{.ResourceName}}FormPayload struct {
 {{- range .Fields}}
 {{- if not .IsSystemField}}
 	{{- if eq .GoFormType "time.Time"}}
-	{{.Name}}    string `json:"{{.DBName}}"`
+	{{.Name}}    string `json:"{{.CamelCase}}"`
 	{{- else}}
-	{{.Name}}    {{.GoFormType}} `json:"{{.DBName}}"`
+	{{.Name}}    {{.GoFormType}} `json:"{{.CamelCase}}"`
 	{{- end}}
 {{- end}}
 {{- end}}

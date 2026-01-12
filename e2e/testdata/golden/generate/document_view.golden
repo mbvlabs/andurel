@@ -138,27 +138,27 @@ templ DocumentNew() {
 										</div>
 									</div>
 									<div>
-										<label for="page_numbers">
+										<label for="pageNumbers">
 											Page Numbers
 										</label>
 										<div>
-											<input id="page_numbers" type="text" data-bind="page_numbers"/>
+											<input id="pageNumbers" type="text" data-bind="pageNumbers"/>
 										</div>
 									</div>
 									<div>
-										<label for="view_count">
+										<label for="viewCount">
 											View Count
 										</label>
 										<div>
-											<input id="view_count" type="number" data-bind="view_count"/>
+											<input id="viewCount" type="number" data-bind="viewCount"/>
 										</div>
 									</div>
 									<div>
-										<label for="is_published">
+										<label for="isPublished">
 											Is Published
 										</label>
 										<div>
-											<input id="is_published" type="checkbox" data-bind="is_published"/>
+											<input id="isPublished" type="checkbox" data-bind="isPublished"/>
 										</div>
 									</div>
 								</div>
@@ -207,27 +207,27 @@ templ DocumentEdit(document models.Document) {
 										</div>
 									</div>
 									<div>
-										<label for="page_numbers">
+										<label for="pageNumbers">
 											Page Numbers
 										</label>
 										<div>
-											<input id="page_numbers" type="text" data-bind="page_numbers" value={ fmt.Sprintf("%v", document.PageNumbers) }/>
+											<input id="pageNumbers" type="text" data-bind="pageNumbers" value={ fmt.Sprintf("%v", document.PageNumbers) }/>
 										</div>
 									</div>
 									<div>
-										<label for="view_count">
+										<label for="viewCount">
 											View Count
 										</label>
 										<div>
-											<input id="view_count" type="number" data-bind="view_count" value={ fmt.Sprintf("%d", document.ViewCount) }/>
+											<input id="viewCount" type="number" data-bind="viewCount" value={ fmt.Sprintf("%d", document.ViewCount) }/>
 										</div>
 									</div>
 									<div>
-										<label for="is_published">
+										<label for="isPublished">
 											Is Published
 										</label>
 										<div>
-											<input id="is_published" type="checkbox" data-bind="is_published" value={ fmt.Sprintf("%t", document.IsPublished) }/>
+											<input id="isPublished" type="checkbox" data-bind="isPublished" value={ fmt.Sprintf("%t", document.IsPublished) }/>
 										</div>
 									</div>
 								</div>

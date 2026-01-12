@@ -113,7 +113,7 @@ templ StudentFeedbackNew() {
 								<p>Enter the details for the new studentfeedback.</p>
 								<div>
 									<div>
-										@components.InputField("Student Id", "student_id", "text", "", false, components.FieldProp{})
+										@components.InputField("Student Id", "studentId", "text", "", false, components.FieldProp{})
 									</div>
 									<div>
 										@components.InputField("Feedback", "feedback", "text", "", false, components.FieldProp{})
@@ -151,7 +151,7 @@ templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
 								<p>Update the details for this studentfeedback.</p>
 								<div>
 									<div>
-										@components.InputField("Student Id", "student_id", "text", "", false, components.FieldProp{
+										@components.InputField("Student Id", "studentId", "text", "", false, components.FieldProp{
 											Value: studentfeedback.StudentID,
 										})
 									</div>

@@ -107,7 +107,7 @@ templ OrderNew() {
 								<p>Enter the details for the new order.</p>
 								<div>
 									<div>
-										@components.InputField("Customer Name", "customer_name", "text", "", false, components.FieldProp{})
+										@components.InputField("Customer Name", "customerName", "text", "", false, components.FieldProp{})
 									</div>
 									<div>
 										@components.InputField("Total", "total", "number", "", false, components.FieldProp{})
@@ -142,7 +142,7 @@ templ OrderEdit(order models.Order) {
 								<p>Update the details for this order.</p>
 								<div>
 									<div>
-										@components.InputField("Customer Name", "customer_name", "text", "", false, components.FieldProp{
+										@components.InputField("Customer Name", "customerName", "text", "", false, components.FieldProp{
 											Value: order.CustomerName,
 										})
 									</div>

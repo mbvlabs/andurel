@@ -72,7 +72,7 @@ func (i Invoices) New(etx echo.Context) error {
 }
 
 type CreateInvoiceFormPayload struct {
-	InvoiceNumber string  `json:"invoice_number"`
+	InvoiceNumber string  `json:"invoiceNumber"`
 	Amount        float64 `json:"amount"`
 	Status        string  `json:"status"`
 }
@@ -130,7 +130,7 @@ func (i Invoices) Edit(etx echo.Context) error {
 }
 
 type UpdateInvoiceFormPayload struct {
-	InvoiceNumber string  `json:"invoice_number"`
+	InvoiceNumber string  `json:"invoiceNumber"`
 	Amount        float64 `json:"amount"`
 	Status        string  `json:"status"`
 }

@@ -72,7 +72,7 @@ func (o Orders) New(etx echo.Context) error {
 }
 
 type CreateOrderFormPayload struct {
-	CustomerName string  `json:"customer_name"`
+	CustomerName string  `json:"customerName"`
 	Total        float64 `json:"total"`
 }
 
@@ -128,7 +128,7 @@ func (o Orders) Edit(etx echo.Context) error {
 }
 
 type UpdateOrderFormPayload struct {
-	CustomerName string  `json:"customer_name"`
+	CustomerName string  `json:"customerName"`
 	Total        float64 `json:"total"`
 }
 
