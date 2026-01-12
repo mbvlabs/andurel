@@ -1,0 +1,101 @@
+// Package routing provides implementations of different kinds of routes.
+// Code generated and maintained by the andurel framework. DO NOT EDIT.
+package routing_test
+
+import (
+	"testing"
+
+	"{{ .ModuleName }}/internal/routing"
+)
+
+// TestRouteURL tests the URL() method of Route which internally exercises
+// path sanitization and building logic. We use NewSimpleRoute to create
+// routes and verify the resulting URL is correct.
+func TestRouteURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		prefix   string
+		expected string
+	}{
+		// Root paths
+		{name: "empty path no prefix", path: "", prefix: "", expected: "/"},
+		{name: "slash path no prefix", path: "/", prefix: "", expected: "/"},
+
+		// Basic valid paths
+		{name: "simple path", path: "/articles", prefix: "", expected: "/articles"},
+		{name: "nested path", path: "/articles/new", prefix: "", expected: "/articles/new"},
+		{name: "path with param", path: "/articles/:id", prefix: "", expected: "/articles/:id"},
+		{name: "path with multiple params", path: "/articles/:id/user/:id", prefix: "", expected: "/articles/:id/user/:id"},
+
+		// Simple paths with prefix
+		{name: "simple path with prefix", path: "/items", prefix: "/api", expected: "/api/items"},
+
+		// Index routes with prefix
+		{name: "empty path with prefix", path: "", prefix: "/api", expected: "/api"},
+		{name: "empty path with prefix trailing slash", path: "", prefix: "/api/", expected: "/api"},
+
+		// Paths with params and prefix
+		{name: "param path with prefix", path: "/:id", prefix: "/articles", expected: "/articles/:id"},
+		{name: "multiple params with prefix", path: "/:id/comments/:commentId", prefix: "/articles", expected: "/articles/:id/comments/:commentId"},
+
+		// Trailing slash removal
+		{name: "trailing slash simple", path: "/articles/", prefix: "", expected: "/articles"},
+		{name: "trailing slash nested", path: "/articles/new/", prefix: "", expected: "/articles/new"},
+		{name: "trailing slash with param", path: "/articles/:id/", prefix: "", expected: "/articles/:id"},
+		{name: "root slash preserved", path: "/", prefix: "", expected: "/"},
+		{name: "prefix trailing slash with path", path: "/items/", prefix: "/api/", expected: "/api/items"},
+
+		// Missing leading slash
+		{name: "missing leading slash", path: "articles", prefix: "", expected: "/articles"},
+		{name: "missing leading slash nested", path: "articles/new", prefix: "", expected: "/articles/new"},
+
+		// Prefix and path slash combinations
+		{name: "prefix and path both with slash", path: "/articles", prefix: "/api/", expected: "/api/articles"},
+		{name: "prefix with slash path without", path: "articles", prefix: "/api/", expected: "/api/articles"},
+		{name: "prefix without slash path with", path: "/articles", prefix: "/api", expected: "/api/articles"},
+		{name: "neither with slash", path: "articles", prefix: "/api", expected: "/api/articles"},
+
+		// Double slashes
+		{name: "double slash middle", path: "/articles//new", prefix: "", expected: "/articles/new"},
+		{name: "double slash start", path: "//articles", prefix: "", expected: "/articles"},
+		{name: "multiple double slashes", path: "/articles///new//edit", prefix: "", expected: "/articles/new/edit"},
+
+		// Whitespace
+		{name: "leading whitespace", path: " /articles", prefix: "", expected: "/articles"},
+		{name: "trailing whitespace", path: "/articles ", prefix: "", expected: "/articles"},
+		{name: "both whitespace", path: " /articles ", prefix: "", expected: "/articles"},
+		{name: "whitespace with trailing slash", path: " /articles/ ", prefix: "", expected: "/articles"},
+
+		// Query strings
+		{name: "query string", path: "/articles?page=1", prefix: "", expected: "/articles"},
+		{name: "query string complex", path: "/articles?page=1&sort=desc", prefix: "", expected: "/articles"},
+		{name: "query string with path", path: "/articles/new?draft=true", prefix: "", expected: "/articles/new"},
+
+		// Fragments
+		{name: "fragment", path: "/articles#section", prefix: "", expected: "/articles"},
+		{name: "fragment with path", path: "/articles/new#top", prefix: "", expected: "/articles/new"},
+		{name: "query and fragment", path: "/articles?page=1#section", prefix: "", expected: "/articles"},
+
+		// Backslashes (Windows-style)
+		{name: "backslash simple", path: "\\articles", prefix: "", expected: "/articles"},
+		{name: "backslash nested", path: "\\articles\\new", prefix: "", expected: "/articles/new"},
+		{name: "mixed slashes", path: "/articles\\new", prefix: "", expected: "/articles/new"},
+		{name: "backslash with leading slash", path: "/articles\\new\\edit", prefix: "", expected: "/articles/new/edit"},
+
+		// Combined issues
+		{name: "whitespace and trailing slash", path: " /articles/ ", prefix: "", expected: "/articles"},
+		{name: "backslash and query", path: "\\articles\\new?id=1", prefix: "", expected: "/articles/new"},
+		{name: "all issues", path: " \\articles\\\\new/?page=1#top ", prefix: "", expected: "/articles/new"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			route := routing.NewSimpleRoute(tt.path, "test-route", tt.prefix)
+			result := route.URL()
+			if result != tt.expected {
+				t.Errorf("NewSimpleRoute(%q, \"test-route\", %q).URL() = %q, want %q", tt.path, tt.prefix, result, tt.expected)
+			}
+		})
+	}
+}

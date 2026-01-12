@@ -264,6 +264,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"framework_elements_renderer_render.tmpl":        "internal/renderer/render.go",
 	"framework_elements_routing_definitions.tmpl":    "internal/routing/definitions.go",
 	"framework_elements_routing_routes.tmpl":         "internal/routing/routes.go",
+	"framework_elements_routing_routes_test.tmpl":    "internal/routing/routes_test.go",
 	"framework_elements_server_server.tmpl":          "internal/server/server.go",
 	"framework_elements_storage_psql.tmpl":           "internal/storage/psql.go",
 	"framework_elements_storage_queue.tmpl":          "internal/storage/queue.go",

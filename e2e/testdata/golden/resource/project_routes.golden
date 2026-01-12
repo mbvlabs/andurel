@@ -7,7 +7,7 @@ import (
 const ProjectPrefix = "/projects"
 
 var ProjectIndex = routing.NewSimpleRoute(
-	"/",
+	"",
 	"projects.index",
 	ProjectPrefix,
 )
@@ -25,7 +25,7 @@ var ProjectNew = routing.NewSimpleRoute(
 )
 
 var ProjectCreate = routing.NewSimpleRoute(
-	"/",
+	"",
 	"projects.create",
 	ProjectPrefix,
 )

@@ -25,6 +25,7 @@ func GetFrameworkTemplates() []FrameworkTemplate {
 
 		{"framework_elements_routing_definitions.tmpl", "internal/routing/definitions.go"},
 		{"framework_elements_routing_routes.tmpl", "internal/routing/routes.go"},
+		{"framework_elements_routing_routes_test.tmpl", "internal/routing/routes_test.go"},
 
 		{"framework_elements_server_server.tmpl", "internal/server/server.go"},
 

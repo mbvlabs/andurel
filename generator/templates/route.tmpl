@@ -7,7 +7,7 @@ import (
 const {{.ResourceName}}Prefix = "/{{.PluralName}}"
 
 var {{.ResourceName}}Index = routing.NewSimpleRoute(
-	"/",
+	"",
 	"{{.PluralName}}.index",
 	{{.ResourceName}}Prefix,
 )
@@ -25,7 +25,7 @@ var {{.ResourceName}}New = routing.NewSimpleRoute(
 )
 
 var {{.ResourceName}}Create = routing.NewSimpleRoute(
-	"/",
+	"",
 	"{{.PluralName}}.create",
 	{{.ResourceName}}Prefix,
 )

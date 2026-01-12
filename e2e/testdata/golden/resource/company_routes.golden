@@ -7,7 +7,7 @@ import (
 const CompanyPrefix = "/companies"
 
 var CompanyIndex = routing.NewSimpleRoute(
-	"/",
+	"",
 	"companies.index",
 	CompanyPrefix,
 )
@@ -25,7 +25,7 @@ var CompanyNew = routing.NewSimpleRoute(
 )
 
 var CompanyCreate = routing.NewSimpleRoute(
-	"/",
+	"",
 	"companies.create",
 	CompanyPrefix,
 )
