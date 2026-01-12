@@ -82,11 +82,11 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		)
 	}
 
-	// Check if internal/andurel directory exists
-	internalAndurelPath := filepath.Join(u.projectRoot, "internal", "andurel")
-	if _, err := os.Stat(internalAndurelPath); os.IsNotExist(err) {
-		return report, fmt.Errorf("internal/andurel directory not found - nothing to upgrade")
-	}
+	// // Check if internal/andurel directory exists
+	// internalAndurelPath := filepath.Join(u.projectRoot, "internal", "andurel")
+	// if _, err := os.Stat(internalAndurelPath); os.IsNotExist(err) {
+	// 	return report, fmt.Errorf("internal/andurel directory not found - nothing to upgrade")
+	// }
 
 	fmt.Printf(
 		"Upgrading framework from %s to %s...\n",
