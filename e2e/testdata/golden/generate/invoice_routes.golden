@@ -7,7 +7,7 @@ import (
 const InvoicePrefix = "/invoices"
 
 var InvoiceIndex = routing.NewSimpleRoute(
-	"/",
+	"",
 	"invoices.index",
 	InvoicePrefix,
 )
@@ -25,7 +25,7 @@ var InvoiceNew = routing.NewSimpleRoute(
 )
 
 var InvoiceCreate = routing.NewSimpleRoute(
-	"/",
+	"",
 	"invoices.create",
 	InvoicePrefix,
 )

@@ -7,7 +7,7 @@ import (
 const OrderPrefix = "/orders"
 
 var OrderIndex = routing.NewSimpleRoute(
-	"/",
+	"",
 	"orders.index",
 	OrderPrefix,
 )
@@ -25,7 +25,7 @@ var OrderNew = routing.NewSimpleRoute(
 )
 
 var OrderCreate = routing.NewSimpleRoute(
-	"/",
+	"",
 	"orders.create",
 	OrderPrefix,
 )

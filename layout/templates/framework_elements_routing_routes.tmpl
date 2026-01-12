@@ -26,6 +26,11 @@ func buildPath(path, prefix, name string) string {
 		return path
 	}
 
+	// Empty path means index route - just use prefix as-is
+	if path == "" {
+		return prefix
+	}
+
 	prefixEndsWithSlash := strings.HasSuffix(prefix, "/")
 	pathStartsWithSlash := strings.HasPrefix(path, "/")
 
