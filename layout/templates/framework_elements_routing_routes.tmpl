@@ -48,6 +48,30 @@ func buildPath(path, prefix, name string) string {
 }
 
 func sanitizePath(path, name string) string {
+	// Trim leading/trailing whitespace
+	if trimmed := strings.TrimSpace(path); trimmed != path {
+		slog.Warn("path contains leading/trailing whitespace. trimming", "route", name, "path", path)
+		path = trimmed
+	}
+
+	// Replace backslashes with forward slashes (Windows-style paths)
+	if strings.Contains(path, "\\") {
+		slog.Warn("path contains backslashes. converting to forward slashes", "route", name, "path", path)
+		path = strings.ReplaceAll(path, "\\", "/")
+	}
+
+	// Remove query string if present
+	if idx := strings.Index(path, "?"); idx != -1 {
+		slog.Warn("path contains query string. removing", "route", name, "path", path)
+		path = path[:idx]
+	}
+
+	// Remove fragment if present
+	if idx := strings.Index(path, "#"); idx != -1 {
+		slog.Warn("path contains fragment. removing", "route", name, "path", path)
+		path = path[:idx]
+	}
+
 	// Ensure path starts with '/'
 	if !strings.HasPrefix(path, "/") {
 		slog.Warn("path does not start with '/'. prepending '/'", "route", name, "path", path)
@@ -55,29 +79,35 @@ func sanitizePath(path, name string) string {
 	}
 
 	// Check for double slashes and fix
-	if !strings.Contains(path, "//") {
-		return path
-	}
+	if strings.Contains(path, "//") {
+		slog.Warn("path contains double slashes. removing", "route", name, "path", path)
 
-	slog.Warn("path contains double slashes. removing", "route", name, "path", path)
-
-	// Single pass: build result without consecutive slashes
-	var b strings.Builder
-	b.Grow(len(path))
-	prevSlash := false
-	for i := 0; i < len(path); i++ {
-		if path[i] == '/' {
-			if prevSlash {
-				continue
+		// Single pass: build result without consecutive slashes
+		var b strings.Builder
+		b.Grow(len(path))
+		prevSlash := false
+		for i := 0; i < len(path); i++ {
+			if path[i] == '/' {
+				if prevSlash {
+					continue
+				}
+				prevSlash = true
+			} else {
+				prevSlash = false
 			}
-			prevSlash = true
-		} else {
-			prevSlash = false
+			b.WriteByte(path[i])
 		}
-		b.WriteByte(path[i])
+		path = b.String()
 	}
 
-	return b.String()
+	// Remove trailing slash unless path is just "/"
+	// Paths like "/" or "" (root) are valid, but "/articles/" should become "/articles"
+	if len(path) > 1 && strings.HasSuffix(path, "/") {
+		slog.Warn("path has trailing slash. removing", "route", name, "path", path)
+		path = strings.TrimSuffix(path, "/")
+	}
+
+	return path
 }
 
 type Route struct {
