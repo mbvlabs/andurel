@@ -9,7 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func registerProjectRoutes(handler *echo.Echo, project controllers.Project) {
+func registerProjectRoutes(handler *echo.Echo, project controllers.Projects) {
 	handler.Add(
 		http.MethodGet, routes.ProjectIndex.Path(), project.Index,
 	).Name = routes.ProjectIndex.Name()

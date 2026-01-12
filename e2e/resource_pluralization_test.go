@@ -431,7 +431,7 @@ func validateRouterRegistrationPluralization(
 	lowercaseSingular := strings.ToLower(tc.expectedSingular)
 
 	// Check for correct patterns
-	// Note: Controllers now use singular type names (e.g., Company, not Companies)
+	// Note: Controllers use plural type names (e.g., Companies, Projects)
 	correctPatterns := []struct {
 		pattern string
 		desc    string
@@ -441,8 +441,8 @@ func validateRouterRegistrationPluralization(
 			"Registration function uses singular",
 		},
 		{
-			lowercaseSingular + " controllers." + tc.expectedSingular,
-			"Controller parameter uses singular",
+			lowercaseSingular + " controllers." + tc.expectedPlural,
+			"Controller parameter uses singular name with plural type",
 		},
 		{
 			"routes." + tc.expectedSingular + "Index",
