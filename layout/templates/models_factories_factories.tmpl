@@ -33,3 +33,12 @@ func randomInt16(min, max int, defaultValue int16) int16 {
 	}
 	return int16(vals[0])
 }
+
+// randomBool returns a random boolean value
+func randomBool() bool {
+	vals, err := faker.RandomInt(0, 1)
+	if err != nil || len(vals) == 0 {
+		return false
+	}
+	return vals[0] == 1
+}

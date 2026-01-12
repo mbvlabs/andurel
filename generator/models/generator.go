@@ -1077,7 +1077,7 @@ func (g *Generator) determineFactoryDefault(fieldName, goType, sqlcType string) 
 	case "int16":
 		return "randomInt16(1, 1000, 100)"
 	case "bool":
-		return "faker.Bool()"
+		return "randomBool()"
 	case "time.Time":
 		return "time.Time{}"
 	case "uuid.UUID":
