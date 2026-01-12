@@ -23,6 +23,7 @@ type GeneratedField struct {
 	GoType        string
 	GoFormType    string
 	DBName        string
+	CamelCase     string
 	IsSystemField bool
 }
 
@@ -118,6 +119,7 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		Name:          types.FormatFieldName(col.Name),
 		GoType:        goType,
 		DBName:        col.Name,
+		CamelCase:     types.FormatCamelCase(col.Name),
 		IsSystemField: col.Name == "created_at" || col.Name == "updated_at" || col.Name == "id",
 	}
 

@@ -72,7 +72,7 @@ func (sf StudentFeedback) New(etx echo.Context) error {
 }
 
 type CreateStudentFeedbackFormPayload struct {
-	StudentID string `json:"student_id"`
+	StudentID string `json:"studentId"`
 	Feedback  string `json:"feedback"`
 	Rating    int32  `json:"rating"`
 }
@@ -130,7 +130,7 @@ func (sf StudentFeedback) Edit(etx echo.Context) error {
 }
 
 type UpdateStudentFeedbackFormPayload struct {
-	StudentID string `json:"student_id"`
+	StudentID string `json:"studentId"`
 	Feedback  string `json:"feedback"`
 	Rating    int32  `json:"rating"`
 }

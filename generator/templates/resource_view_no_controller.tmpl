@@ -87,11 +87,11 @@ templ {{.ResourceName}}New() {
 								<p>Enter the details for the new {{.ResourceName | ToLower}}.</p>
 								<div>
 									{{range .Fields}}{{if not .IsSystemField}}<div>
-										<label for="{{.DBName}}">
+										<label for="{{.CamelCase}}">
 											{{.DisplayName}}
 										</label>
 										<div>
-											<input id="{{.DBName}}" type="{{.InputType}}" data-bind="{{.DBName}}" />
+											<input id="{{.CamelCase}}" type="{{.InputType}}" data-bind="{{.CamelCase}}" />
 										</div>
 									</div>
 									{{end}}{{end}}</div>
@@ -124,11 +124,11 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 								<p>Update the details for this {{.ResourceName | ToLower}}.</p>
 								<div>
 									{{range .Fields}}{{if not .IsSystemField}}<div>
-										<label for="{{.DBName}}">
+										<label for="{{.CamelCase}}">
 											{{.DisplayName}}
 										</label>
 										<div>
-											<input id="{{.DBName}}" type="{{.InputType}}" data-bind="{{.DBName}}" value={ {{StringValue . $.ResourceName}} } />
+											<input id="{{.CamelCase}}" type="{{.InputType}}" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
 										</div>
 									</div>
 									{{end}}{{end}}</div>

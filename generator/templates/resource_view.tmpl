@@ -91,7 +91,7 @@ templ {{.ResourceName}}New() {
 								<p>Enter the details for the new {{.ResourceName | ToLower}}.</p>
 								<div>
 									{{range .Fields}}{{if not .IsSystemField}}<div>
-										@components.InputField("{{.DisplayName}}", "{{.DBName}}", "{{.InputType}}", "", false, components.FieldProp{})
+										@components.InputField("{{.DisplayName}}", "{{.CamelCase}}", "{{.InputType}}", "", false, components.FieldProp{})
 									</div>
 									{{end}}{{end}}</div>
 							</div>
@@ -123,7 +123,7 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 								<p>Update the details for this {{.ResourceName | ToLower}}.</p>
 								<div>
 									{{range .Fields}}{{if not .IsSystemField}}<div>
-										@components.InputField("{{.DisplayName}}", "{{.DBName}}", "{{.InputType}}", "", false, components.FieldProp{
+										@components.InputField("{{.DisplayName}}", "{{.CamelCase}}", "{{.InputType}}", "", false, components.FieldProp{
 											Value: {{StringValue . $.ResourceName}},
 										})
 									</div>
