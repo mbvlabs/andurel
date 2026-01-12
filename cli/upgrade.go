@@ -13,12 +13,12 @@ func newUpgradeCommand(version string) *cobra.Command {
 	upgradeCmd := &cobra.Command{
 		Use:   "upgrade",
 		Short: "Upgrade framework files to latest version",
-		Long: `Upgrade framework files in internal/andurel and tool versions.
+		Long: `Upgrade framework files and tool versions.
 
 ⚠️  IMPORTANT: Commit or create a branch before upgrading! This command modifies files in place.
 
 This command will:
-  1. Replace all files in internal/andurel with the latest framework version
+  1. Replace framework-managed files with the latest version
   2. Update tool versions in andurel.lock
 
 Note: This only upgrades framework code. You are responsible for updating
@@ -82,7 +82,9 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		}
 
 		// Sync tools if any were added, updated, or removed
-		totalToolChanges := report.ToolsAdded + report.ToolsUpdated + report.ToolsRemoved + len(report.BuiltToolsUpdated)
+		totalToolChanges := report.ToolsAdded + report.ToolsUpdated + report.ToolsRemoved + len(
+			report.BuiltToolsUpdated,
+		)
 		if totalToolChanges > 0 {
 			fmt.Printf("\nSyncing tools...\n")
 			if err := syncBinaries(projectRoot); err != nil {

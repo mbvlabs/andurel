@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/layout"
-	"github.com/mbvlabs/andurel/layout/cmds"
 	"golang.org/x/mod/semver"
 )
 
@@ -82,12 +81,6 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		)
 	}
 
-	// // Check if internal/andurel directory exists
-	// internalAndurelPath := filepath.Join(u.projectRoot, "internal", "andurel")
-	// if _, err := os.Stat(internalAndurelPath); os.IsNotExist(err) {
-	// 	return report, fmt.Errorf("internal/andurel directory not found - nothing to upgrade")
-	// }
-
 	fmt.Printf(
 		"Upgrading framework from %s to %s...\n",
 		u.lock.Version,
@@ -159,14 +152,6 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		if toolName := u.getBuiltToolNameFromPath(targetPath); toolName != "" {
 			report.BuiltToolsUpdated = append(report.BuiltToolsUpdated, toolName)
 		}
-	}
-
-	// Format the upgraded framework files
-	fmt.Printf("Formatting framework files...\n")
-	if err := cmds.RunGoFmtPath(u.projectRoot, "./internal/andurel/..."); err != nil {
-		fmt.Printf("⚠ Warning: failed to format files: %v\n", err)
-	} else {
-		fmt.Printf("  ✓ Formatted internal/andurel\n")
 	}
 
 	// Synchronize tools with target version
@@ -284,7 +269,10 @@ func (u *Upgrader) syncToolsToFrameworkVersion() (*ToolSyncResult, error) {
 		if !exists {
 			// Tool doesn't exist in lock file - add it
 			u.lock.Tools[toolName] = expectedTool
-			result.Added = append(result.Added, fmt.Sprintf("%s (%s)", toolName, getToolVersion(expectedTool)))
+			result.Added = append(
+				result.Added,
+				fmt.Sprintf("%s (%s)", toolName, getToolVersion(expectedTool)),
+			)
 		} else if shouldUpdateTool(existingTool, expectedTool) {
 			// Tool exists but needs update
 			if existingTool.Source == "built" {
