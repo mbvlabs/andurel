@@ -333,7 +333,7 @@ Run 'andurel generate queries %s' after creating the migration.`,
 			ctx.TableName, err, ctx.TableName)
 	}
 
-	if err := m.modelGenerator.GenerateSQLFile(ctx.ResourceName, ctx.TableName, table, ctx.SQLPath, true); err != nil {
+	if err := m.modelGenerator.GenerateQueriesOnlyFile(ctx.ResourceName, ctx.TableName, table, ctx.SQLPath, true); err != nil {
 		return fmt.Errorf("failed to generate SQL file: %w", err)
 	}
 
@@ -373,7 +373,7 @@ func (m *ModelManager) RefreshQueriesOnly(tableName string) error {
 		return err
 	}
 
-	if err := m.modelGenerator.RefreshQueries(cat, ctx.ResourceName, ctx.TableName, ctx.SQLPath, true); err != nil {
+	if err := m.modelGenerator.RefreshQueriesOnly(cat, ctx.ResourceName, ctx.TableName, ctx.SQLPath, true); err != nil {
 		return fmt.Errorf("failed to refresh queries: %w", err)
 	}
 
