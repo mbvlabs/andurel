@@ -134,11 +134,6 @@ func (m *ModelManager) GenerateModel(resourceName string, tableNameOverride stri
 		return fmt.Errorf("failed to generate model: %w", err)
 	}
 
-	// Add table rename mapping to sqlc.yaml so SQLC generates correct type names
-	if err := types.AddTableRenameToSQLCConfig(ctx.RootDir, ctx.TableName, ctx.ResourceName); err != nil {
-		return fmt.Errorf("failed to update sqlc.yaml with rename mapping: %w", err)
-	}
-
 	if err := m.fileManager.RunSQLCGenerate(); err != nil {
 		return fmt.Errorf("failed to run sqlc generate: %w", err)
 	}
@@ -335,11 +330,6 @@ Run 'andurel generate queries %s' after creating the migration.`,
 
 	if err := m.modelGenerator.GenerateQueriesOnlyFile(ctx.ResourceName, ctx.TableName, table, ctx.SQLPath, true); err != nil {
 		return fmt.Errorf("failed to generate SQL file: %w", err)
-	}
-
-	// Add table rename mapping to sqlc.yaml so SQLC generates correct type names
-	if err := types.AddTableRenameToSQLCConfig(ctx.RootDir, ctx.TableName, ctx.ResourceName); err != nil {
-		return fmt.Errorf("failed to update sqlc.yaml with rename mapping: %w", err)
 	}
 
 	if err := m.fileManager.RunSQLCGenerate(); err != nil {
