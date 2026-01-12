@@ -71,6 +71,19 @@ type SQLData struct {
 	TableNameOverridden bool
 }
 
+// SimpleSQLData is used for queries-only generation (no model layer).
+// It treats all columns uniformly without special handling for timestamps.
+type SimpleSQLData struct {
+	ResourceName       string
+	PluralName         string
+	PluralResourceName string
+	InsertColumns      string
+	InsertPlaceholders string
+	UpdateColumns      string
+	IDPlaceholder      string
+	UpsertUpdateSet    string
+}
+
 type Generator struct {
 	typeMapper   *types.TypeMapper
 	databaseType string
@@ -482,6 +495,212 @@ func (g *Generator) prepareSQLData(
 		UpsertUpdateSet:     strings.Join(upsertUpdateColumns, ", "),
 		TableNameOverridden: tableNameOverridden,
 	}
+}
+
+// prepareSQLDataSimple prepares data for queries-only generation.
+// Unlike prepareSQLData, it treats all columns uniformly without special
+// handling for created_at/updated_at timestamps.
+func (g *Generator) prepareSQLDataSimple(
+	resourceName string,
+	pluralName string,
+	table *catalog.Table,
+	tableNameOverridden bool,
+) SimpleSQLData {
+	var insertColumns []string
+	var insertPlaceholders []string
+	var updateColumns []string
+	var upsertUpdateColumns []string
+
+	var placeholderFunc func(int) string
+	var idPlaceholder string
+
+	if g.typeMapper.GetDatabaseType() == "postgresql" {
+		placeholderFunc = func(i int) string { return fmt.Sprintf("$%d", i) }
+		idPlaceholder = "$1"
+	}
+
+	placeholderIndex := 1
+
+	// All columns get sequential placeholders - no special handling
+	for _, col := range table.Columns {
+		insertColumns = append(insertColumns, col.Name)
+		insertPlaceholders = append(insertPlaceholders, placeholderFunc(placeholderIndex))
+		placeholderIndex++
+	}
+
+	// Update columns: skip id, all others get sequential placeholders
+	placeholderIndex = 2
+	for _, col := range table.Columns {
+		if col.Name != "id" {
+			updateColumns = append(
+				updateColumns,
+				fmt.Sprintf("%s=%s", col.Name, placeholderFunc(placeholderIndex)),
+			)
+			upsertUpdateColumns = append(
+				upsertUpdateColumns,
+				fmt.Sprintf("%s=excluded.%s", col.Name, col.Name),
+			)
+			placeholderIndex++
+		}
+	}
+
+	// When table name is overridden, don't pluralize the resource name
+	pluralResourceName := inflection.Plural(resourceName)
+	if tableNameOverridden {
+		pluralResourceName = resourceName
+	}
+
+	return SimpleSQLData{
+		ResourceName:       resourceName,
+		PluralName:         pluralName,
+		PluralResourceName: pluralResourceName,
+		InsertColumns:      strings.Join(insertColumns, ", "),
+		InsertPlaceholders: strings.Join(insertPlaceholders, ", "),
+		UpdateColumns:      strings.Join(updateColumns, ", "),
+		IDPlaceholder:      idPlaceholder,
+		UpsertUpdateSet:    strings.Join(upsertUpdateColumns, ", "),
+	}
+}
+
+// GenerateQueriesOnlyFile generates a SQL file using the queries_only.tmpl template.
+// This is used for lightweight query generation without a model layer.
+func (g *Generator) GenerateQueriesOnlyFile(
+	resourceName string,
+	pluralName string,
+	table *catalog.Table,
+	sqlPath string,
+	tableNameOverridden bool,
+) error {
+	data := g.prepareSQLDataSimple(resourceName, pluralName, table, tableNameOverridden)
+
+	// Use the unified template service
+	service := templates.GetGlobalTemplateService()
+	content, err := service.RenderTemplate("queries_only.tmpl", data)
+	if err != nil {
+		return errors.WrapTemplateError(err, "generate queries-only SQL", "queries_only.tmpl")
+	}
+
+	if err := os.WriteFile(sqlPath, []byte(content), constants.FilePermissionPrivate); err != nil {
+		return errors.WrapFileError(err, "write SQL file", sqlPath)
+	}
+	return nil
+}
+
+// GenerateQueriesOnlyContent generates SQL content using the queries_only.tmpl template.
+// This is used for refreshing queries-only files.
+func (g *Generator) GenerateQueriesOnlyContent(
+	resourceName string,
+	pluralName string,
+	table *catalog.Table,
+	tableNameOverridden bool,
+) (string, error) {
+	data := g.prepareSQLDataSimple(resourceName, pluralName, table, tableNameOverridden)
+
+	service := templates.GetGlobalTemplateService()
+	result, err := service.RenderTemplate("queries_only.tmpl", data)
+	if err != nil {
+		return "", errors.WrapTemplateError(err, "generate queries-only content", "queries_only.tmpl")
+	}
+	return result, nil
+}
+
+// RefreshQueriesOnly refreshes a queries-only SQL file (without model layer).
+func (g *Generator) RefreshQueriesOnly(
+	cat *catalog.Catalog,
+	resourceName, pluralName string,
+	sqlPath string,
+	tableNameOverridden bool,
+) error {
+	if err := g.validateIDColumnConstraints(cat, pluralName); err != nil {
+		return fmt.Errorf("ID validation failed: %w", err)
+	}
+
+	if err := g.refreshQueriesOnlyFile(resourceName, pluralName, cat, sqlPath, tableNameOverridden); err != nil {
+		return fmt.Errorf("failed to refresh queries-only SQL file: %w", err)
+	}
+
+	return nil
+}
+
+func (g *Generator) refreshQueriesOnlyFile(
+	resourceName string,
+	pluralName string,
+	cat *catalog.Catalog,
+	sqlPath string,
+	tableNameOverridden bool,
+) error {
+	existingContent, err := os.ReadFile(sqlPath)
+	if err != nil {
+		return fmt.Errorf("failed to read existing SQL file: %w", err)
+	}
+
+	table, err := cat.GetTable("", pluralName)
+	if err != nil {
+		return fmt.Errorf(`table '%s' not found in catalog: %w
+
+Convention: Table names must be plural snake_case.
+Example: 'user_roles' for the UserRole resource`,
+			pluralName, err)
+	}
+
+	newSQLContent, err := g.GenerateQueriesOnlyContent(resourceName, pluralName, table, tableNameOverridden)
+	if err != nil {
+		return fmt.Errorf("failed to generate queries-only SQL content: %w", err)
+	}
+
+	updatedContent := g.replaceGeneratedQueriesOnlyQueries(
+		string(existingContent),
+		newSQLContent,
+		resourceName,
+	)
+
+	if err := os.WriteFile(sqlPath, []byte(updatedContent), constants.FilePermissionPrivate); err != nil {
+		return fmt.Errorf("failed to write SQL file: %w", err)
+	}
+
+	return nil
+}
+
+func (g *Generator) replaceGeneratedQueriesOnlyQueries(
+	existingContent, newContent, resourceName string,
+) string {
+	newQueries := g.extractGeneratedQueriesOnlyQueries(newContent, resourceName)
+
+	updatedContent := existingContent
+
+	for queryName, newQuery := range newQueries {
+		if g.queryExistsInContent(updatedContent, queryName) {
+			updatedContent = g.replaceSQLQueryByName(updatedContent, queryName, newQuery)
+		} else {
+			updatedContent = strings.TrimSpace(updatedContent) + "\n\n" + newQuery + "\n"
+		}
+	}
+
+	return updatedContent
+}
+
+func (g *Generator) extractGeneratedQueriesOnlyQueries(content, resourceName string) map[string]string {
+	queries := make(map[string]string)
+	lines := strings.Split(content, "\n")
+
+	// Queries-only template has fewer queries (no pagination, no count)
+	queryNames := []string{
+		fmt.Sprintf("Query%sByID", resourceName),
+		fmt.Sprintf("Query%ss", resourceName),
+		fmt.Sprintf("Insert%s", resourceName),
+		fmt.Sprintf("Update%s", resourceName),
+		fmt.Sprintf("Delete%s", resourceName),
+		fmt.Sprintf("Upsert%s", resourceName),
+	}
+
+	for _, queryName := range queryNames {
+		query := g.extractSQLQueryByName(lines, queryName)
+		if query != "" {
+			queries[queryName] = query
+		}
+	}
+
+	return queries
 }
 
 func (g *Generator) buildCatalogFromTableMigrations(

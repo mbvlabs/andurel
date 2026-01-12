@@ -1,0 +1,29 @@
+-- name: Query{{.ResourceName}}ByID :one
+select * from {{.PluralName}} where id={{.IDPlaceholder}};
+
+-- name: Query{{.PluralResourceName}} :many
+select * from {{.PluralName}};
+
+-- name: Insert{{.ResourceName}} :one
+insert into
+    {{.PluralName}} ({{.InsertColumns}})
+values
+    ({{.InsertPlaceholders}})
+returning *;
+
+-- name: Update{{.ResourceName}} :one
+update {{.PluralName}}
+    set {{.UpdateColumns}}
+where id = {{.IDPlaceholder}}
+returning *;
+
+-- name: Delete{{.ResourceName}} :exec
+delete from {{.PluralName}} where id={{.IDPlaceholder}};
+
+-- name: Upsert{{.ResourceName}} :one
+insert into
+    {{.PluralName}} ({{.InsertColumns}})
+values
+    ({{.InsertPlaceholders}})
+on conflict (id) do update set {{.UpsertUpdateSet}}
+returning *;

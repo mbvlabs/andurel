@@ -606,8 +606,8 @@ func testGenerateViewWithController(t *testing.T, project *internal.Project) {
 func testGenerateQueries(t *testing.T, project *internal.Project) {
 	t.Helper()
 
-	// Create a junction table for testing queries-only generation
-	createMigration(t, project, "000110_create_user_roles", "user_roles", []string{
+	// Create a junction table for testing queries-only generation (no timestamps)
+	createMigrationRaw(t, project, "000110_create_user_roles", "user_roles", []string{
 		"user_id UUID NOT NULL",
 		"role_id UUID NOT NULL",
 	})
@@ -641,8 +641,8 @@ func testGenerateQueries(t *testing.T, project *internal.Project) {
 func testGenerateQueriesWithRefresh(t *testing.T, project *internal.Project) {
 	t.Helper()
 
-	// Create a table for testing refresh functionality
-	createMigration(t, project, "000111_create_tag_assignments", "tag_assignments", []string{
+	// Create a table for testing refresh functionality (no timestamps)
+	createMigrationRaw(t, project, "000111_create_tag_assignments", "tag_assignments", []string{
 		"taggable_type VARCHAR(100) NOT NULL",
 		"taggable_id UUID NOT NULL",
 		"tag_id UUID NOT NULL",
@@ -778,6 +778,43 @@ func createMigration(
 	}
 	columnDefs = append(columnDefs, "\tcreated_at "+timestampType+" DEFAULT "+now)
 	columnDefs = append(columnDefs, "\tupdated_at "+timestampType+" DEFAULT "+now)
+
+	upSQL := "CREATE TABLE IF NOT EXISTS " + tableName + " (\n" +
+		strings.Join(columnDefs, ",\n") +
+		"\n);"
+
+	downSQL := "DROP TABLE IF EXISTS " + tableName + ";"
+
+	gooseMigration := "-- +goose Up\n" + upSQL + "\n\n-- +goose Down\n" + downSQL + "\n"
+
+	migrationFile := filepath.Join(migrationDir, migrationName+".sql")
+
+	err := os.WriteFile(migrationFile, []byte(gooseMigration), 0o644)
+	if err != nil {
+		t.Fatalf("Failed to create migration file: %v", err)
+	}
+}
+
+// createMigrationRaw creates a migration file without auto-adding created_at/updated_at columns.
+// Use this for tables that don't have timestamps (e.g., junction tables).
+func createMigrationRaw(
+	t *testing.T,
+	project *internal.Project,
+	migrationName, tableName string,
+	columns []string,
+) {
+	t.Helper()
+
+	migrationDir := filepath.Join(project.Dir, "database", "migrations")
+
+	var columnDefs []string
+
+	idColumn := "id UUID PRIMARY KEY"
+
+	columnDefs = append(columnDefs, "\t"+idColumn)
+	for _, col := range columns {
+		columnDefs = append(columnDefs, "\t"+col)
+	}
 
 	upSQL := "CREATE TABLE IF NOT EXISTS " + tableName + " (\n" +
 		strings.Join(columnDefs, ",\n") +

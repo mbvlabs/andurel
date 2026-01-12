@@ -6,32 +6,24 @@ select * from user_roles;
 
 -- name: InsertUserRole :one
 insert into
-    user_roles (id, user_id, role_id, created_at, updated_at)
+    user_roles (id, user_id, role_id)
 values
-    ($1, $2, $3, now(), now())
+    ($1, $2, $3)
 returning *;
 
 -- name: UpdateUserRole :one
 update user_roles
-    set user_id=$2, role_id=$3, updated_at=now()
+    set user_id=$2, role_id=$3
 where id = $1
 returning *;
 
 -- name: DeleteUserRole :exec
 delete from user_roles where id=$1;
 
--- name: QueryPaginatedUserRole :many
-select * from user_roles
-order by created_at desc
-limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
-
--- name: CountUserRole :one
-select count(*) from user_roles;
-
 -- name: UpsertUserRole :one
 insert into
-    user_roles (id, user_id, role_id, created_at, updated_at)
+    user_roles (id, user_id, role_id)
 values
-    ($1, $2, $3, now(), now())
-on conflict (id) do update set user_id=excluded.user_id, role_id=excluded.role_id, updated_at=now()
+    ($1, $2, $3)
+on conflict (id) do update set user_id=excluded.user_id, role_id=excluded.role_id
 returning *;
