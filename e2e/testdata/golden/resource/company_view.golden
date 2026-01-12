@@ -99,7 +99,7 @@ templ CompanyNew() {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.CompanyCreate.URL(), hypermedia.ActionTypeForm) }>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.CompanyCreate.URL()) }>
 						<div>
 							<div>
 								<h2>Company Information</h2>
@@ -134,7 +134,7 @@ templ CompanyEdit(company models.Company) {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.CompanyUpdate.URL(company.ID), hypermedia.ActionTypeForm) }>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.CompanyUpdate.URL(company.ID)) }>
 						<div>
 							<div>
 								<h2>Company Information</h2>

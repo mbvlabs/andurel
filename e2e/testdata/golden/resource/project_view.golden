@@ -99,7 +99,7 @@ templ ProjectNew() {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.ProjectCreate.URL(), hypermedia.ActionTypeForm) }>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.ProjectCreate.URL()) }>
 						<div>
 							<div>
 								<h2>Project Information</h2>
@@ -134,7 +134,7 @@ templ ProjectEdit(project models.Project) {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.ProjectUpdate.URL(project.ID), hypermedia.ActionTypeForm) }>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.ProjectUpdate.URL(project.ID)) }>
 						<div>
 							<div>
 								<h2>Project Information</h2>
