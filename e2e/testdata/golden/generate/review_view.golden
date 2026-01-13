@@ -106,7 +106,7 @@ templ ReviewNew() {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.ReviewCreate.URL(), hypermedia.ActionTypeForm) }>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.ReviewCreate.URL()) }>
 						<div>
 							<div>
 								<h2>Review Information</h2>
@@ -144,7 +144,7 @@ templ ReviewEdit(review models.Review) {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.ReviewUpdate.URL(review.ID), hypermedia.ActionTypeForm) }>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.ReviewUpdate.URL(review.ID)) }>
 						<div>
 							<div>
 								<h2>Review Information</h2>

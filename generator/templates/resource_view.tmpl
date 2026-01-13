@@ -84,7 +84,7 @@ templ {{.ResourceName}}New() {
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.{{.ResourceName}}Create.URL(), hypermedia.ActionTypeForm )}>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.{{.ResourceName}}Create.URL() )}>
 						<div>
 							<div>
 								<h2>{{.ResourceName}} Information</h2>
@@ -116,7 +116,7 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 			</div>
 			<div>
 				<div>
-					<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{.ResourceName | ToLower}}.ID), hypermedia.ActionTypeForm )}>
+					<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{.ResourceName | ToLower}}.ID) )}>
 						<div>
 							<div>
 								<h2>{{.ResourceName}} Information</h2>
