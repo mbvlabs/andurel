@@ -332,6 +332,104 @@ func TestNonePgtypeDataTypes(t *testing.T) {
 	}
 }
 
+// TestMigrationWithComments verifies that migrations containing SQL comments
+// (both single-line -- and block /* */) are parsed correctly and generate
+// valid model code.
+func TestMigrationWithComments(t *testing.T) {
+	originalWd, _ := os.Getwd()
+	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "comments_in_migration")
+
+	generator := NewGenerator("postgresql")
+
+	cat, err := generator.buildCatalogFromTableMigrations(
+		"products",
+		[]string{migrationsDir},
+	)
+	if err != nil {
+		t.Fatalf("Failed to build catalog from migrations with comments: %v", err)
+	}
+
+	model, err := generator.Build(cat, Config{
+		TableName:    "products",
+		ResourceName: "Product",
+		PackageName:  "models",
+		DatabaseType: "postgresql",
+		ModulePath:   "github.com/example/test",
+	})
+	if err != nil {
+		t.Fatalf("Failed to build model from catalog: %v", err)
+	}
+
+	// Verify all expected fields are present
+	expectedFields := map[string]string{
+		"ID":          "uuid.UUID",
+		"CreatedAt":   "time.Time",
+		"UpdatedAt":   "time.Time",
+		"Name":        "string",
+		"Description": "string",
+		"Price":       "float64",
+		"Sku":         "string",
+		"IsActive":    "bool",
+	}
+
+	if len(model.Fields) != len(expectedFields) {
+		t.Errorf("Expected %d fields, got %d", len(expectedFields), len(model.Fields))
+	}
+
+	for _, field := range model.Fields {
+		expectedType, ok := expectedFields[field.Name]
+		if !ok {
+			t.Errorf("Unexpected field: %s", field.Name)
+			continue
+		}
+		if field.Type != expectedType {
+			t.Errorf("Field %s: expected type %s, got %s", field.Name, expectedType, field.Type)
+		}
+	}
+
+	// Generate the model file
+	templateContent, err := os.ReadFile(filepath.Join("..", "templates", "model.tmpl"))
+	if err != nil {
+		t.Fatalf("Failed to read model template: %v", err)
+	}
+
+	generatedCode, err := generator.GenerateModelFile(model, string(templateContent))
+	if err != nil {
+		t.Fatalf("Failed to generate model file: %v", err)
+	}
+
+	// Golden file testing
+	goldenFile := filepath.Join("testdata", "golden", "comments_in_migration.golden")
+
+	if *updateGolden {
+		err := os.MkdirAll(filepath.Dir(goldenFile), constants.DirPermissionDefault)
+		if err != nil {
+			t.Fatalf("Failed to create golden directory: %v", err)
+		}
+		err = os.WriteFile(goldenFile, []byte(generatedCode), constants.FilePermissionPrivate)
+		if err != nil {
+			t.Fatalf("Failed to write golden file: %v", err)
+		}
+	}
+
+	expectedCode, err := os.ReadFile(goldenFile)
+	if err != nil {
+		t.Fatalf("Failed to read golden file %s: %v\nRun 'go test -update' to create it", goldenFile, err)
+	}
+
+	if string(expectedCode) != generatedCode {
+		t.Errorf("Generated code differs from golden file.\nExpected:\n%s\n\nGot:\n%s", string(expectedCode), generatedCode)
+	}
+
+	// Verify no comment artifacts in generated code
+	if strings.Contains(generatedCode, "-- ") {
+		t.Error("Generated code should NOT contain SQL single-line comments")
+	}
+	if strings.Contains(generatedCode, "/*") || strings.Contains(generatedCode, "*/") {
+		t.Error("Generated code should NOT contain SQL block comments")
+	}
+}
+
 // TestGeneratedModelUsesResourceName verifies that generated models use the
 // exact resource name provided by the user (e.g., "Category") rather than
 // attempting to derive it from the table name (e.g., "categories").
