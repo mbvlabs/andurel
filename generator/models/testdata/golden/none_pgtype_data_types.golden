@@ -51,7 +51,7 @@ func CreateArticle(
 	exec storage.Executor,
 	data CreateArticleData,
 ) (Article, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Article{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -86,7 +86,7 @@ func UpdateArticle(
 	exec storage.Executor,
 	data UpdateArticleData,
 ) (Article, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Article{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -196,7 +196,7 @@ func UpsertArticle(
 	exec storage.Executor,
 	data CreateArticleData,
 ) (Article, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Article{}, errors.Join(ErrDomainValidation, err)
 	}
 

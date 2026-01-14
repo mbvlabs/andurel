@@ -45,7 +45,7 @@ func CreateFactory(
 	exec storage.Executor,
 	data CreateFactoryData,
 ) (Factory, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Factory{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -74,7 +74,7 @@ func UpdateFactory(
 	exec storage.Executor,
 	data UpdateFactoryData,
 ) (Factory, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Factory{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -181,7 +181,7 @@ func UpsertFactory(
 	exec storage.Executor,
 	data CreateFactoryData,
 ) (Factory, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Factory{}, errors.Join(ErrDomainValidation, err)
 	}
 

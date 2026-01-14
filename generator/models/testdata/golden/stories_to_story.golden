@@ -45,7 +45,7 @@ func CreateStory(
 	exec storage.Executor,
 	data CreateStoryData,
 ) (Story, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Story{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -74,7 +74,7 @@ func UpdateStory(
 	exec storage.Executor,
 	data UpdateStoryData,
 ) (Story, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Story{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -181,7 +181,7 @@ func UpsertStory(
 	exec storage.Executor,
 	data CreateStoryData,
 ) (Story, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Story{}, errors.Join(ErrDomainValidation, err)
 	}
 

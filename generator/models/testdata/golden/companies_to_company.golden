@@ -45,7 +45,7 @@ func CreateCompany(
 	exec storage.Executor,
 	data CreateCompanyData,
 ) (Company, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Company{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -74,7 +74,7 @@ func UpdateCompany(
 	exec storage.Executor,
 	data UpdateCompanyData,
 ) (Company, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Company{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -181,7 +181,7 @@ func UpsertCompany(
 	exec storage.Executor,
 	data CreateCompanyData,
 ) (Company, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Company{}, errors.Join(ErrDomainValidation, err)
 	}
 
