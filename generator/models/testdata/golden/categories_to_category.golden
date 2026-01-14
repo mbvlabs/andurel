@@ -45,7 +45,7 @@ func CreateCategory(
 	exec storage.Executor,
 	data CreateCategoryData,
 ) (Category, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Category{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -74,7 +74,7 @@ func UpdateCategory(
 	exec storage.Executor,
 	data UpdateCategoryData,
 ) (Category, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Category{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -181,7 +181,7 @@ func UpsertCategory(
 	exec storage.Executor,
 	data CreateCategoryData,
 ) (Category, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Category{}, errors.Join(ErrDomainValidation, err)
 	}
 

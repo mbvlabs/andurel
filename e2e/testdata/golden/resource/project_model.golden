@@ -43,7 +43,7 @@ func CreateProject(
 	exec storage.Executor,
 	data CreateProjectData,
 ) (Project, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Project{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -72,7 +72,7 @@ func UpdateProject(
 	exec storage.Executor,
 	data UpdateProjectData,
 ) (Project, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Project{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -179,7 +179,7 @@ func UpsertProject(
 	exec storage.Executor,
 	data CreateProjectData,
 ) (Project, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Project{}, errors.Join(ErrDomainValidation, err)
 	}
 

@@ -47,7 +47,7 @@ func CreateStudentFeedback(
 	exec storage.Executor,
 	data CreateStudentFeedbackData,
 ) (StudentFeedback, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return StudentFeedback{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -78,7 +78,7 @@ func UpdateStudentFeedback(
 	exec storage.Executor,
 	data UpdateStudentFeedbackData,
 ) (StudentFeedback, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return StudentFeedback{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -186,7 +186,7 @@ func UpsertStudentFeedback(
 	exec storage.Executor,
 	data CreateStudentFeedbackData,
 ) (StudentFeedback, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return StudentFeedback{}, errors.Join(ErrDomainValidation, err)
 	}
 

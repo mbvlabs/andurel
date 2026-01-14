@@ -47,7 +47,7 @@ func CreatePerson(
 	exec storage.Executor,
 	data CreatePersonData,
 ) (Person, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Person{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -78,7 +78,7 @@ func UpdatePerson(
 	exec storage.Executor,
 	data UpdatePersonData,
 ) (Person, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Person{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -186,7 +186,7 @@ func UpsertPerson(
 	exec storage.Executor,
 	data CreatePersonData,
 ) (Person, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Person{}, errors.Join(ErrDomainValidation, err)
 	}
 

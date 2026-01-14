@@ -43,7 +43,7 @@ func CreateItem(
 	exec storage.Executor,
 	data CreateItemData,
 ) (Item, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Item{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -72,7 +72,7 @@ func UpdateItem(
 	exec storage.Executor,
 	data UpdateItemData,
 ) (Item, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Item{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -179,7 +179,7 @@ func UpsertItem(
 	exec storage.Executor,
 	data CreateItemData,
 ) (Item, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Item{}, errors.Join(ErrDomainValidation, err)
 	}
 

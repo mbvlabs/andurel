@@ -45,7 +45,7 @@ func CreateQuery(
 	exec storage.Executor,
 	data CreateQueryData,
 ) (Query, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Query{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -74,7 +74,7 @@ func UpdateQuery(
 	exec storage.Executor,
 	data UpdateQueryData,
 ) (Query, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Query{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -181,7 +181,7 @@ func UpsertQuery(
 	exec storage.Executor,
 	data CreateQueryData,
 ) (Query, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Query{}, errors.Join(ErrDomainValidation, err)
 	}
 

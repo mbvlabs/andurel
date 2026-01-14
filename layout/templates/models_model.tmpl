@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	validate = setupValidator()
+	Validate = setupValidator()
 	queries  = db.New()
 )
 

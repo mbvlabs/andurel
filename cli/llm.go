@@ -154,7 +154,7 @@ func FindProduct(ctx context.Context, exec storage.Executor, id uuid.UUID) (Prod
 }
 
 func CreateProduct(ctx context.Context, exec storage.Executor, data CreateProductData) (Product, error) {
-    if err := validate.Struct(data); err != nil {
+    if err := Validate.Struct(data); err != nil {
         return Product{}, errors.Join(ErrDomainValidation, err)
     }
     params := db.InsertProductParams{
