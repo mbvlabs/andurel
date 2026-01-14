@@ -47,7 +47,7 @@ func CreateBook(
 	exec storage.Executor,
 	data CreateBookData,
 ) (Book, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Book{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -80,7 +80,7 @@ func UpdateBook(
 	exec storage.Executor,
 	data UpdateBookData,
 ) (Book, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Book{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -189,7 +189,7 @@ func UpsertBook(
 	exec storage.Executor,
 	data CreateBookData,
 ) (Book, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Book{}, errors.Join(ErrDomainValidation, err)
 	}
 

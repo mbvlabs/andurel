@@ -135,7 +135,7 @@ func CreateUser(
 	pepper string,
 	data CreateUserData,
 ) (User, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -172,7 +172,7 @@ func UpdateUser(
 	exec storage.Executor,
 	data UpdateUserData,
 ) (User, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 

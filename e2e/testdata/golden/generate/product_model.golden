@@ -42,7 +42,7 @@ func CreateProduct(
 	exec storage.Executor,
 	data CreateProductData,
 ) (Product, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Product{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -71,7 +71,7 @@ func UpdateProduct(
 	exec storage.Executor,
 	data UpdateProductData,
 ) (Product, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Product{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -178,7 +178,7 @@ func UpsertProduct(
 	exec storage.Executor,
 	data CreateProductData,
 ) (Product, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Product{}, errors.Join(ErrDomainValidation, err)
 	}
 

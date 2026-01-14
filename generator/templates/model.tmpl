@@ -55,7 +55,7 @@ func Create{{.Name}}(
 	exec storage.Executor,
 	data Create{{.Name}}Data,
 ) ({{.Name}}, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -93,7 +93,7 @@ func Update{{.Name}}(
 	exec storage.Executor,
 	data Update{{.Name}}Data,
 ) ({{.Name}}, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -215,7 +215,7 @@ func Upsert{{.Name}}(
 	exec storage.Executor,
 	data Create{{.Name}}Data,
 ) ({{.Name}}, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 

@@ -140,7 +140,7 @@ func createToken(
 	exec storage.Executor,
 	data createTokenData,
 ) (Token, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Token{}, errors.Join(ErrDomainValidation, err)
 	}
 

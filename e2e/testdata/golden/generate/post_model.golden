@@ -48,7 +48,7 @@ func CreatePost(
 	exec storage.Executor,
 	data CreatePostData,
 ) (Post, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Post{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -83,7 +83,7 @@ func UpdatePost(
 	exec storage.Executor,
 	data UpdatePostData,
 ) (Post, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Post{}, errors.Join(ErrDomainValidation, err)
 	}
 
@@ -193,7 +193,7 @@ func UpsertPost(
 	exec storage.Executor,
 	data CreatePostData,
 ) (Post, error) {
-	if err := validate.Struct(data); err != nil {
+	if err := Validate.Struct(data); err != nil {
 		return Post{}, errors.Join(ErrDomainValidation, err)
 	}
 
