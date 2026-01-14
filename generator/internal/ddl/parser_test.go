@@ -1,10 +1,198 @@
 package ddl
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/generator/internal/validation"
 )
+
+func TestStripComments(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "no comments",
+			input:    "SELECT * FROM users",
+			expected: "SELECT * FROM users",
+		},
+		{
+			name:     "single line comment at end",
+			input:    "SELECT * FROM users -- get all users",
+			expected: "SELECT * FROM users ",
+		},
+		{
+			name:     "single line comment on own line",
+			input:    "-- comment\nSELECT * FROM users",
+			expected: "\nSELECT * FROM users",
+		},
+		{
+			name:     "block comment",
+			input:    "SELECT /* all columns */ * FROM users",
+			expected: "SELECT   * FROM users",
+		},
+		{
+			name:     "multiline block comment",
+			input:    "SELECT * FROM users /* this\nis\na\ncomment */",
+			expected: "SELECT * FROM users  ",
+		},
+		{
+			name:     "comment in single-quoted string preserved",
+			input:    "SELECT '-- not a comment' FROM users",
+			expected: "SELECT '-- not a comment' FROM users",
+		},
+		{
+			name:     "comment in double-quoted identifier preserved",
+			input:    `SELECT "-- not a comment" FROM users`,
+			expected: `SELECT "-- not a comment" FROM users`,
+		},
+		{
+			name:     "block comment in string preserved",
+			input:    "SELECT '/* not a comment */' FROM users",
+			expected: "SELECT '/* not a comment */' FROM users",
+		},
+		{
+			name:     "escaped single quote in string",
+			input:    "SELECT 'it''s -- not a comment' FROM users",
+			expected: "SELECT 'it''s -- not a comment' FROM users",
+		},
+		{
+			name:     "inline comment after column",
+			input:    "CREATE TABLE users (\n  id UUID PRIMARY KEY, -- primary key\n  name TEXT NOT NULL -- user name\n)",
+			expected: "CREATE TABLE users (\n  id UUID PRIMARY KEY, \n  name TEXT NOT NULL \n)",
+		},
+		{
+			name:     "multiple comment types",
+			input:    "/* header */ CREATE TABLE users ( -- inline\n  id UUID /* type */ PRIMARY KEY\n)",
+			expected: "  CREATE TABLE users ( \n  id UUID   PRIMARY KEY\n)",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "only comment",
+			input:    "-- just a comment",
+			expected: "",
+		},
+		{
+			name:     "only block comment",
+			input:    "/* just a comment */",
+			expected: " ",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := StripComments(tc.input)
+			if result != tc.expected {
+				t.Errorf("StripComments(%q) = %q, expected %q", tc.input, result, tc.expected)
+			}
+		})
+	}
+}
+
+func TestStripComments_CreateTableWithComments(t *testing.T) {
+	input := `CREATE TABLE users (
+		id UUID PRIMARY KEY, -- unique identifier
+		email TEXT NOT NULL, /* user email address */
+		name TEXT -- user's display name
+	)`
+
+	result := StripComments(input)
+
+	// Should not contain any comment markers
+	if strings.Contains(result, "--") {
+		t.Errorf("Result still contains single-line comment marker: %s", result)
+	}
+	if strings.Contains(result, "/*") || strings.Contains(result, "*/") {
+		t.Errorf("Result still contains block comment markers: %s", result)
+	}
+
+	// Should still contain the actual SQL structure
+	if !strings.Contains(result, "CREATE TABLE users") {
+		t.Errorf("Result missing CREATE TABLE: %s", result)
+	}
+	if !strings.Contains(result, "id UUID PRIMARY KEY") {
+		t.Errorf("Result missing id column: %s", result)
+	}
+	if !strings.Contains(result, "email TEXT NOT NULL") {
+		t.Errorf("Result missing email column: %s", result)
+	}
+	if !strings.Contains(result, "name TEXT") {
+		t.Errorf("Result missing name column: %s", result)
+	}
+}
+
+func TestDDLParser_ParseWithComments(t *testing.T) {
+	parser := NewDDLParser()
+
+	testCases := []struct {
+		name          string
+		sql           string
+		expectedTable string
+		expectedCols  int
+	}{
+		{
+			name: "create table with inline comments",
+			sql: `CREATE TABLE users (
+				id UUID PRIMARY KEY, -- primary key column
+				email TEXT NOT NULL, -- user email
+				name TEXT -- display name
+			)`,
+			expectedTable: "users",
+			expectedCols:  3,
+		},
+		{
+			name: "create table with block comments",
+			sql: `/* Users table for storing user information */
+			CREATE TABLE users (
+				id UUID PRIMARY KEY,
+				/* Email must be unique */
+				email TEXT NOT NULL,
+				name TEXT
+			)`,
+			expectedTable: "users",
+			expectedCols:  3,
+		},
+		{
+			name: "create table with mixed comments",
+			sql: `-- Users table
+			CREATE TABLE users (
+				id UUID PRIMARY KEY, -- pk
+				email TEXT NOT NULL /* unique email */,
+				name TEXT -- optional
+			)`,
+			expectedTable: "users",
+			expectedCols:  3,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			stmt, err := parser.Parse(tc.sql, "test.sql", "postgresql")
+			if err != nil {
+				t.Fatalf("Parse failed: %v", err)
+			}
+
+			createStmt, ok := stmt.(*CreateTableStatement)
+			if !ok {
+				t.Fatalf("Expected CreateTableStatement, got %T", stmt)
+			}
+
+			if createStmt.TableName != tc.expectedTable {
+				t.Errorf("Expected table name %q, got %q", tc.expectedTable, createStmt.TableName)
+			}
+
+			if len(createStmt.Columns) != tc.expectedCols {
+				t.Errorf("Expected %d columns, got %d", tc.expectedCols, len(createStmt.Columns))
+			}
+		})
+	}
+}
 
 func TestValidatePrimaryKeyDatatype(t *testing.T) {
 	testCases := []struct {
