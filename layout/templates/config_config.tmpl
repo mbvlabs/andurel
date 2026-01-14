@@ -53,7 +53,7 @@ var (
 		return fmt.Sprintf("%s://%s", protocol, Domain)
 	}()
 	AppCookieSessionName = func() string {
-		return "app_sess"+slug.Make(strings.ToLower(ProjectName)) + "-" + Env
+		return "app_sess_"+slug.Make(strings.ToLower(ProjectName)) + "-" + Env
 	}()
 )
 
