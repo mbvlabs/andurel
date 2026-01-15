@@ -120,6 +120,10 @@ func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, err
 
 func DownloadTailwindCLI(version, goos, goarch, destPath string) error {
 	osName := goos
+	if osName == "darwin" {
+		osName = "macos"
+	}
+
 	arch := goarch
 	if arch == "amd64" {
 		arch = "x64"
