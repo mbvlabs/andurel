@@ -92,6 +92,7 @@ func setupRouter(
 	r, err := router.New(
 		ctx,
 		cfg,
+		true,
 		router.SetupGlobalMiddleware(cfg, tel, authKey, encKey, mw, "_csrf"),
 	)
 	if err != nil {
@@ -240,7 +241,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	handler := rtr.Handler
+	handler := rtr.HTTPHandler
 
 {{- range .Blueprint.Main.SortedBackgroundWorkers}}
 	// Start background worker: {{.Name}}

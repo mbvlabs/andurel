@@ -19,20 +19,24 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v5"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	echomw "github.com/labstack/echo/v5/middleware"
 )
 
 type Router struct {
-	Handler *echo.Echo
+	Handler     *echo.Echo
+	HTTPHandler http.Handler
 }
 
 func New(
 	ctx context.Context,
 	cfg config.Config,
+	enableHTTPInstrumentation bool,
 	globalMiddleware []echo.MiddlewareFunc,
 ) (*Router, error) {
+	_ = ctx
+	_ = cfg
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
 
@@ -44,8 +48,14 @@ func New(
 
 	router.Use(globalMiddleware...)
 
+	httpHandler := http.Handler(router)
+	if enableHTTPInstrumentation {
+		httpHandler = otelhttp.NewHandler(router, "http")
+	}
+
 	return &Router{
-		router,
+		Handler:     router,
+		HTTPHandler: httpHandler,
 	}, nil
 }
 
@@ -58,7 +68,7 @@ func SetupGlobalMiddleware(
 	csrfName string,
 ) []echo.MiddlewareFunc {
 	return []echo.MiddlewareFunc{
-		otelecho.Middleware(config.ServiceName),
+		mw.TraceRouteAttributes(tel),
 		mw.Logger(tel),
 		session.Middleware(
 			sessions.NewCookieStore(
