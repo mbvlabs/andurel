@@ -1,6 +1,7 @@
 package router
 
 import (
+	"errors"
 	"net/http"
 
 	"{{.ModuleName}}/controllers"
@@ -9,8 +10,18 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func registerAPIRoutes(handler *echo.Echo, apiController controllers.API) {
-	handler.Add(
-		http.MethodGet, routes.Health.Path(), apiController.Health,
-	).Name = routes.Health.Name()
+func registerAPIRoutes(handler *echo.Echo, apiController controllers.API) error {
+	errs := []error{}
+
+	_, err := handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Health.Path(),
+		Name:    routes.Health.Name(),
+		Handler: apiController.Health,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }

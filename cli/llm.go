@@ -86,8 +86,20 @@ Route constructors: ` + "`NewSimpleRoute`" + `, ` + "`NewRouteWithID`" + `, ` + 
 
 Connect routes to controllers (in router/connect_*_routes.go):
 ` + "```go" + `
-func registerProductsRoutes(handler *echo.Echo, ctrl controllers.Products) {
-    handler.Add(http.MethodGet, routes.ProductShow.Path(), ctrl.Show).Name = routes.ProductShow.Name()
+func registerProductsRoutes(handler *echo.Echo, ctrl controllers.Products) error {
+    errs := []error{}
+
+    _, err := handler.AddRoute(echo.Route{
+        Method:  http.MethodGet,
+        Path:    routes.ProductShow.Path(),
+        Name:    routes.ProductShow.Name(),
+        Handler: ctrl.Show,
+    })
+    if err != nil {
+        errs = append(errs, err)
+    }
+
+    return errors.Join(errs...)
 }
 ` + "```" + `
 

@@ -59,12 +59,15 @@ func setupControllers(
 	{{.VarName}} := {{.Expression}}
 {{- end}}
 
-	rtr.RegisterCtrlRoutes(
+	err := rtr.RegisterCtrlRoutes(
 		mw,
 {{- range .Blueprint.Controllers.SortedConstructors}}
 		{{.VarName}},
 {{- end}}
 	)
+	if err != nil {
+		return err
+	}
 
 	rtr.RegisterCustomRoutes(
 		riverHandler,

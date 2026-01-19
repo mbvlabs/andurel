@@ -4,16 +4,17 @@ package router
 import (
 	"context"
 	"encoding/gob"
+	"errors"
 	"net/http"
 	"strings"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/internal/server"
-	"{{.ModuleName}}/telemetry"
-	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/controllers"
-	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/internal/server"
+	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/telemetry"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
@@ -109,17 +110,52 @@ func (r *Router) RegisterCtrlRoutes(
 {{- range .Blueprint.Controllers.SortedConstructors}}
 	{{.VarName}} {{.Type}},
 {{- end}}
-) {
-	registerAPIRoutes(r.Handler, api)
-	registerAssetsRoutes(r.Handler, assets)
-	registerPagesRoutes(r.Handler, pages)
-	registerSessionsRoutes(r.Handler, sessions)
-	registerRegistrationsRoutes(r.Handler, registrations)
-	registerConfirmationsRoutes(r.Handler, confirmations)
-	registerResetPasswordsRoutes(r.Handler, resetPasswords)
+) error {
+	errs := []error{}
+
+	err := registerAPIRoutes(r.Handler, api)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = registerAssetsRoutes(r.Handler, assets)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = registerPagesRoutes(r.Handler, pages)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = registerSessionsRoutes(r.Handler, sessions)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = registerRegistrationsRoutes(r.Handler, registrations)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = registerConfirmationsRoutes(r.Handler, confirmations)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = registerResetPasswordsRoutes(r.Handler, resetPasswords)
+	if err != nil {
+		errs = append(errs, err)
+	}
 {{- range .Blueprint.Routes.SortedRegistrationFunctions}}
-	{{.FunctionName}}(r.Handler, {{.ControllerVarName}})
+
+	err = {{.FunctionName}}(r.Handler, {{.ControllerVarName}})
+	if err != nil {
+		errs = append(errs, err)
+	}
 {{- end}}
+
+	return errors.Join(errs...)
 }
 
 func (r *Router) RegisterCustomRoutes(

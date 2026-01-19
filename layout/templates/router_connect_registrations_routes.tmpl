@@ -1,6 +1,7 @@
 package router
 
 import (
+	"errors"
 	"net/http"
 
 	"{{.ModuleName}}/controllers"
@@ -9,12 +10,28 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func registerRegistrationsRoutes(handler *echo.Echo, registrationsController controllers.Registrations) {
-	handler.Add(
-		http.MethodGet, routes.RegistrationNew.Path(), registrationsController.New,
-	).Name = routes.RegistrationNew.Name()
+func registerRegistrationsRoutes(handler *echo.Echo, registrationsController controllers.Registrations) error {
+	errs := []error{}
 
-	handler.Add(
-		http.MethodPost, routes.RegistrationCreate.Path(), registrationsController.Create,
-	).Name = routes.RegistrationCreate.Name()
+	_, err := handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.RegistrationNew.Path(),
+		Name:    routes.RegistrationNew.Name(),
+		Handler: registrationsController.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.RegistrationCreate.Path(),
+		Name:    routes.RegistrationCreate.Name(),
+		Handler: registrationsController.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }

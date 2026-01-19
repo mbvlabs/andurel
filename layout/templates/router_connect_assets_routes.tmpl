@@ -1,6 +1,7 @@
 package router
 
 import (
+	"errors"
 	"net/http"
 
 	"{{.ModuleName}}/controllers"
@@ -9,30 +10,70 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func registerAssetsRoutes(handler *echo.Echo, assetsController controllers.Assets) {
-	handler.Add(
-		http.MethodGet, routes.Robots.Path(), assetsController.Robots,
-	).Name = routes.Robots.Name()
+func registerAssetsRoutes(handler *echo.Echo, assetsController controllers.Assets) error {
+	errs := []error{}
 
-	handler.Add(
-		http.MethodGet, routes.Sitemap.Path(), assetsController.Sitemap,
-	).Name = routes.Sitemap.Name()
+	_, err := handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Robots.Path(),
+		Name:    routes.Robots.Name(),
+		Handler: assetsController.Robots,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodGet, routes.Stylesheet.Path(), assetsController.Stylesheet,
-	).Name = routes.Stylesheet.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Sitemap.Path(),
+		Name:    routes.Sitemap.Name(),
+		Handler: assetsController.Sitemap,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Stylesheet.Path(),
+		Name:    routes.Stylesheet.Name(),
+		Handler: assetsController.Stylesheet,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
 {{- if eq .CSSFramework "vanilla"}}
-	handler.Add(
-		http.MethodGet, routes.StyleImport.Path(), assetsController.StyleImport,
-	).Name = routes.StyleImport.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.StyleImport.Path(),
+		Name:    routes.StyleImport.Name(),
+		Handler: assetsController.StyleImport,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
 {{- end}}
-	handler.Add(
-		http.MethodGet, routes.Scripts.Path(), assetsController.Scripts,
-	).Name = routes.Scripts.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Scripts.Path(),
+		Name:    routes.Scripts.Name(),
+		Handler: assetsController.Scripts,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodGet, routes.Script.Path(), assetsController.Script,
-	).Name = routes.Script.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Script.Path(),
+		Name:    routes.Script.Name(),
+		Handler: assetsController.Script,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
