@@ -18,7 +18,11 @@ import (
 func PatchElements(c *echo.Context, elements string, opts ...PatchElementOption) error {
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Content-Type", "text/event-stream")
-	c.Response().Flush()
+
+	rc := http.NewResponseController(c.Response())
+	if err := rc.Flush(); err != nil {
+		return fmt.Errorf("failed to flush headers: %w", err)
+	}
 
 	options := &patchElementOptions{
 		EventID:       "",
@@ -96,7 +100,11 @@ func DispatchCustomEvent(
 ) error {
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Content-Type", "text/event-stream")
-	c.Response().Flush()
+
+	rc := http.NewResponseController(c.Response())
+	if err := rc.Flush(); err != nil {
+		return fmt.Errorf("failed to flush headers: %w", err)
+	}
 
 	if eventName == "" {
 		return fmt.Errorf("eventName is required")
@@ -165,7 +173,11 @@ elements.forEach((element) => {
 func PatchSignals(c *echo.Context, signalsContents []byte, opts ...PatchSignalsOption) error {
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Content-Type", "text/event-stream")
-	c.Response().Flush()
+
+	rc := http.NewResponseController(c.Response())
+	if err := rc.Flush(); err != nil {
+		return fmt.Errorf("failed to flush headers: %w", err)
+	}
 
 	options := &patchSignalsOptions{
 		EventID:       "",
@@ -236,7 +248,11 @@ func PatchSignalsIfMissingRaw(
 func MergeSignals(c *echo.Context, signals map[string]any) error {
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Content-Type", "text/event-stream")
-	c.Response().Flush()
+
+	rc := http.NewResponseController(c.Response())
+	if err := rc.Flush(); err != nil {
+		return fmt.Errorf("failed to flush headers: %w", err)
+	}
 
 	dataRows := make([]string, 0, len(signals))
 	for key, value := range signals {
@@ -296,11 +312,14 @@ func Send(c *echo.Context, eventType EventType, dataLines []string, opts ...SSEE
 	}
 	defer bytebufferpool.Put(buf)
 
-	if _, err := buf.WriteTo(c.Response().Writer); err != nil {
+	if _, err := buf.WriteTo(c.Response()); err != nil {
 		return fmt.Errorf("failed to write to response writer: %w", err)
 	}
 
-	c.Response().Flush()
+	rc := http.NewResponseController(c.Response())
+	if err := rc.Flush(); err != nil {
+		return fmt.Errorf("failed to flush data: %w", err)
+	}
 
 	return nil
 }
