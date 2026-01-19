@@ -36,7 +36,7 @@ func NewBroadcaster(c *echo.Context) (*Broadcaster, error) {
 		c.Response().Header().Set("Connection", "keep-alive")
 	}
 
-	rc := http.NewResponseController(c.Response().Writer)
+	rc := http.NewResponseController(c.Response())
 
 	if err := rc.Flush(); err != nil {
 		return nil, fmt.Errorf("failed to flush headers: %w", err)
@@ -45,7 +45,7 @@ func NewBroadcaster(c *echo.Context) (*Broadcaster, error) {
 	return &Broadcaster{
 		ctx:             c.Request().Context(),
 		mu:              &sync.Mutex{},
-		w:               c.Response().Writer,
+		w:               c.Response(),
 		rc:              rc,
 		shouldLogPanics: true,
 		acceptEncoding:  c.Request().Header.Get("Accept-Encoding"),

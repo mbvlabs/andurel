@@ -121,8 +121,12 @@ func (m Middleware) Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 
 			err := next(c)
 			duration := time.Since(start)
-			statusCode := c.Response().Status
 			route := c.Path()
+
+			statusCode := 0
+			if resp, unwrapErr := echo.UnwrapResponse(c.Response()); unwrapErr == nil {
+				statusCode = resp.Status
+			}
 
 			if tel.HasMetrics() && httpRequestsTotal != nil && httpDuration != nil {
 				attrs := []attribute.KeyValue{

@@ -189,7 +189,11 @@ func WithRetryDuration(retryDuration time.Duration) PatchElementOption {
 func ExecuteScript(c *echo.Context, scriptContents string, opts ...ExecuteScriptOption) error {
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Content-Type", "text/event-stream")
-	c.Response().Flush()
+
+	rc := http.NewResponseController(c.Response())
+	if err := rc.Flush(); err != nil {
+		return fmt.Errorf("failed to flush headers: %w", err)
+	}
 
 	options := &executeScriptOptions{
 		RetryDuration: DefaultSseRetryDuration,
