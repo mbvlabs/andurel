@@ -31,13 +31,9 @@ type Router struct {
 }
 
 func New(
-	ctx context.Context,
-	cfg config.Config,
 	enableHTTPInstrumentation bool,
 	globalMiddleware []echo.MiddlewareFunc,
 ) (*Router, error) {
-	_ = ctx
-	_ = cfg
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
 

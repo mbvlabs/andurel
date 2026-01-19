@@ -78,7 +78,6 @@ func setupControllers(
 }
 
 func setupRouter(
-	ctx context.Context,
 	cfg config.Config,
 	tel *telemetry.Telemetry,
 	mw middleware.Middleware,
@@ -93,8 +92,6 @@ func setupRouter(
 	}
 
 	r, err := router.New(
-		ctx,
-		cfg,
 		true,
 		router.SetupGlobalMiddleware(cfg, tel, authKey, encKey, mw, "_csrf"),
 	)
@@ -226,7 +223,7 @@ func run(ctx context.Context) error {
 
 	riverHandler.Start(ctx)
 
-	rtr, err := setupRouter(ctx, cfg, tel, mw)
+	rtr, err := setupRouter(cfg, tel, mw)
 	if err != nil {
 		return err
 	}
