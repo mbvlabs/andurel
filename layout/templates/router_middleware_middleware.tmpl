@@ -15,6 +15,8 @@ import (
 	"github.com/labstack/echo/v5"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/semconv/v1.26.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Middleware struct {
@@ -120,11 +122,12 @@ func (m Middleware) Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 			err := next(c)
 			duration := time.Since(start)
 			statusCode := c.Response().Status
+			route := c.Path()
 
 			if tel.HasMetrics() && httpRequestsTotal != nil && httpDuration != nil {
 				attrs := []attribute.KeyValue{
 					attribute.String("method", c.Request().Method),
-					attribute.String("route", c.Path()),
+					attribute.String("route", route),
 					attribute.Int("status_code", statusCode),
 				}
 				httpRequestsTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
@@ -138,6 +141,39 @@ func (m Middleware) Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 				"remote_addr", c.RealIP(),
 				"user_agent", c.Request().UserAgent(),
 				"duration", duration.String(),
+			)
+
+			return err
+		}
+	}
+}
+
+func (m Middleware) TraceRouteAttributes(tel *telemetry.Telemetry) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
+				strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
+				return next(c)
+			}
+
+			err := next(c)
+			if !tel.HasTracing() {
+				return err
+			}
+
+			routeInfo := c.RouteInfo()
+			if routeInfo.Path == "" {
+				return err
+			}
+
+			span := trace.SpanFromContext(c.Request().Context())
+			if !span.SpanContext().IsValid() {
+				return err
+			}
+
+			span.SetAttributes(
+				semconv.HTTPTarget(routeInfo.Path),
+				semconv.HTTPRoute(routeInfo.Path),
 			)
 
 			return err
