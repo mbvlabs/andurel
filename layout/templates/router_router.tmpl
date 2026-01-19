@@ -18,10 +18,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 
-	echomw "github.com/labstack/echo/v4/middleware"
+	echomw "github.com/labstack/echo/v5/middleware"
 )
 
 type Router struct {
@@ -78,7 +78,7 @@ func SetupGlobalMiddleware(
 		}),
 		echomw.CSRFWithConfig(
 			echomw.CSRFConfig{
-				Skipper: func(c echo.Context) bool {
+				Skipper: func(c *echo.Context) bool {
 					return strings.Contains(c.Request().URL.Path, routes.APIPrefix) ||
 						strings.Contains(c.Request().URL.Path, routes.AssetsPrefix)
 				}, TokenLookup: "cookie:" + csrfName, CookiePath: "/", CookieDomain: func() string {

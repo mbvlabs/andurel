@@ -6,7 +6,7 @@ import (
 	"{{.ModulePath}}/controllers"
 	"{{.ModulePath}}/router/routes"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 func register{{.ResourceName}}Routes(handler *echo.Echo, {{.LowercaseResourceName}} controllers.{{.CapitalizedPluralName}}) {

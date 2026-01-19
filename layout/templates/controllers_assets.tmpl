@@ -13,7 +13,7 @@ import (
 	"{{.ModuleName}}/internal/server"
 	"{{.ModuleName}}/router/routes"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"gopkg.in/yaml.v2"
 )
 
@@ -27,7 +27,7 @@ func NewAssets(cache *Cache[string]) Assets {
 	return Assets{cache}
 }
 
-func (a Assets) enableCaching(etx echo.Context, content []byte) echo.Context {
+func (a Assets) enableCaching(etx *echo.Context, content []byte) *echo.Context {
 	if config.Env == server.ProdEnvironment {
 		//nolint:gosec //only needed for browser caching
 		hash := md5.Sum(content)
@@ -82,7 +82,7 @@ func createRobotsTxt() (string, error) {
 }
 
 
-func (a Assets) Robots(etx echo.Context) error {
+func (a Assets) Robots(etx *echo.Context) error {
 	cacheKey := "assets:robots"
 
 	robotsTxt, err := a.cache.Get(cacheKey, func() (string, error) {
@@ -101,7 +101,7 @@ func (a Assets) Robots(etx echo.Context) error {
 	return etx.String(http.StatusOK, robotsTxt)
 }
 
-func (a Assets) Sitemap(etx echo.Context) error {
+func (a Assets) Sitemap(etx *echo.Context) error {
 	cacheKey := "assets:sitemap"
 
 	sitemap, err := a.cache.Get(cacheKey, func() (string, error) {
@@ -164,7 +164,7 @@ func createSitemap(routes []routing.Route) (string, error) {
     return xml.Header + string(xmlBytes), nil
 }
 
-func (a Assets) Stylesheet(etx echo.Context) error {
+func (a Assets) Stylesheet(etx *echo.Context) error {
 	stylesheet, err := assets.Files.ReadFile(
 		"css/style.css",
 	)
@@ -177,7 +177,7 @@ func (a Assets) Stylesheet(etx echo.Context) error {
 }
 
 {{- if eq .CSSFramework "vanilla"}}
-func (a Assets) StyleImport(etx echo.Context) error {
+func (a Assets) StyleImport(etx *echo.Context) error {
 	param := etx.Param("file")
 	stylesheet, err := assets.Files.ReadFile(
 		fmt.Sprintf("css/%s", param),
@@ -191,7 +191,7 @@ func (a Assets) StyleImport(etx echo.Context) error {
 }
 {{- end}}
 
-func (a Assets) Scripts(etx echo.Context) error {
+func (a Assets) Scripts(etx *echo.Context) error {
 	stylesheet, err := assets.Files.ReadFile(
 		"js/scripts.js",
 	)
@@ -203,7 +203,7 @@ func (a Assets) Scripts(etx echo.Context) error {
 	return etx.Blob(http.StatusOK, "application/javascript", stylesheet)
 }
 
-func (a Assets) Script(etx echo.Context) error {
+func (a Assets) Script(etx *echo.Context) error {
 	param := etx.Param("file")
 	stylesheet, err := assets.Files.ReadFile(
 		fmt.Sprintf("js/%s", param),

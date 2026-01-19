@@ -527,7 +527,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/jackc/pgx/v5"
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/database"
@@ -1192,7 +1192,7 @@ The webhook handler verifies signatures and stores the full webhook payload in `
 Edit `controllers/payment_webhooks.go` to add your business logic:
 
 ```go
-func (w PaymentWebhooks) handleTransactionCompleted(c echo.Context, event *payment.WebhookEvent) error {
+func (w PaymentWebhooks) handleTransactionCompleted(c *echo.Context, event *payment.WebhookEvent) error {
     // Parse transaction data
     var txData transactionData
     json.Unmarshal(event.Data, &txData)
@@ -1242,7 +1242,7 @@ The `/billing/account` route provides a placeholder. Implement it based on your 
 
 ```go
 // controllers/payment_account.go
-func (pa PaymentAccount) Index(c echo.Context) error {
+func (pa PaymentAccount) Index(c *echo.Context) error {
     // Get current user from session/context
     userID := getUserFromContext(c)
 

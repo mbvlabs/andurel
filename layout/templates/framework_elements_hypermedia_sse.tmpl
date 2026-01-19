@@ -11,11 +11,11 @@ import (
 	"strings"
 
 	"github.com/a-h/templ"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/valyala/bytebufferpool"
 )
 
-func PatchElements(c echo.Context, elements string, opts ...PatchElementOption) error {
+func PatchElements(c *echo.Context, elements string, opts ...PatchElementOption) error {
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Content-Type", "text/event-stream")
 	c.Response().Flush()
@@ -68,28 +68,28 @@ func PatchElements(c echo.Context, elements string, opts ...PatchElementOption) 
 	return nil
 }
 
-func PatchElementf(c echo.Context, format string, args ...any) error {
+func PatchElementf(c *echo.Context, format string, args ...any) error {
 	elements := fmt.Sprintf(format, args...)
 	return PatchElements(c, elements)
 }
 
 // RemoveElement TODO: make clear the selector is _raw_ or consider improving inputs
-func RemoveElement(c echo.Context, selector string, opts ...PatchElementOption) error {
+func RemoveElement(c *echo.Context, selector string, opts ...PatchElementOption) error {
 	opts = append(opts, WithSelector(selector), WithModeRemove())
 	return PatchElements(c, "", opts...)
 }
 
-func RemoveElementf(c echo.Context, selectorFormat string, args ...any) error {
+func RemoveElementf(c *echo.Context, selectorFormat string, args ...any) error {
 	selector := fmt.Sprintf(selectorFormat, args...)
 	return RemoveElement(c, selector)
 }
 
-func RemoveElementByID(c echo.Context, id string, opts ...PatchElementOption) error {
+func RemoveElementByID(c *echo.Context, id string, opts ...PatchElementOption) error {
 	return RemoveElement(c, "#"+id, opts...)
 }
 
 func DispatchCustomEvent(
-	c echo.Context,
+	c *echo.Context,
 	eventName string,
 	detail any,
 	opts ...DispatchCustomEventOption,
@@ -162,7 +162,7 @@ elements.forEach((element) => {
 	return ExecuteScript(c, js, executeOptions...)
 }
 
-func PatchSignals(c echo.Context, signalsContents []byte, opts ...PatchSignalsOption) error {
+func PatchSignals(c *echo.Context, signalsContents []byte, opts ...PatchSignalsOption) error {
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Content-Type", "text/event-stream")
 	c.Response().Flush()
@@ -207,7 +207,7 @@ func PatchSignals(c echo.Context, signalsContents []byte, opts ...PatchSignalsOp
 	return nil
 }
 
-func MarshalAndPatchSignals(c echo.Context, signals any, opts ...PatchSignalsOption) error {
+func MarshalAndPatchSignals(c *echo.Context, signals any, opts ...PatchSignalsOption) error {
 	signalsJSON, err := json.Marshal(signals)
 	if err != nil {
 		return fmt.Errorf("failed to marshal signals: %w", err)
@@ -216,7 +216,7 @@ func MarshalAndPatchSignals(c echo.Context, signals any, opts ...PatchSignalsOpt
 }
 
 func MarshalAndPatchSignalsIfMissing(
-	c echo.Context,
+	c *echo.Context,
 	signals any,
 	opts ...PatchSignalsOption,
 ) error {
@@ -225,7 +225,7 @@ func MarshalAndPatchSignalsIfMissing(
 }
 
 func PatchSignalsIfMissingRaw(
-	c echo.Context,
+	c *echo.Context,
 	signalsJSON []byte,
 	opts ...PatchSignalsOption,
 ) error {
@@ -233,7 +233,7 @@ func PatchSignalsIfMissingRaw(
 	return PatchSignals(c, signalsJSON, opts...)
 }
 
-func MergeSignals(c echo.Context, signals map[string]any) error {
+func MergeSignals(c *echo.Context, signals map[string]any) error {
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Content-Type", "text/event-stream")
 	c.Response().Flush()
@@ -285,7 +285,7 @@ func ReadSignals(r *http.Request, signals any) error {
 	return nil
 }
 
-func Send(c echo.Context, eventType EventType, dataLines []string, opts ...SSEEventOption) error {
+func Send(c *echo.Context, eventType EventType, dataLines []string, opts ...SSEEventOption) error {
 	if err := c.Request().Context().Err(); err != nil {
 		return fmt.Errorf("context cancelled: %w", err)
 	}
@@ -375,7 +375,7 @@ func buildSSEEvent(
 	return buf, nil
 }
 
-func PatchElementTempl(c echo.Context, comp templ.Component, opts ...PatchElementOption) error {
+func PatchElementTempl(c *echo.Context, comp templ.Component, opts ...PatchElementOption) error {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
 

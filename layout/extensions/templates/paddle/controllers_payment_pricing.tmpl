@@ -8,7 +8,7 @@ import (
 	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/models"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 type PaymentPricing struct {
@@ -20,7 +20,7 @@ func newPaymentPricing(db andurel.Database, client *payment.PaddleClient) Paymen
 	return PaymentPricing{db, client}
 }
 
-func (pp PaymentPricing) Index(c echo.Context) error {
+func (pp PaymentPricing) Index(c *echo.Context) error {
 	// Get active products from database
 	products, err := models.ListActiveProducts(c.Request().Context(), pp.db.Conn())
 	if err != nil {
