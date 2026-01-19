@@ -12,7 +12,7 @@ import (
 	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/telemetry"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -28,7 +28,7 @@ func New(db storage.Pool) Middleware {
 func (m Middleware) RegisterAppContext(
 	next echo.HandlerFunc,
 ) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
 			strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
 			return next(c)
@@ -43,7 +43,7 @@ func (m Middleware) RegisterAppContext(
 func (m Middleware) RegisterFlashMessagesContext(
 	next echo.HandlerFunc,
 ) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
 			strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
 			return next(c)
@@ -65,7 +65,7 @@ func (m Middleware) RegisterFlashMessagesContext(
 func (m Middleware) ValidateSession(
 	next echo.HandlerFunc,
 ) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		// Skip session validation for static assets and API routes
 		if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
 			strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
@@ -103,7 +103,7 @@ func (m Middleware) Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 	}
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
 				strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
 				return next(c)

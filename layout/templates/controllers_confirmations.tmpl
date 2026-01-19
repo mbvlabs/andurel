@@ -10,7 +10,7 @@ import (
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/views"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"{{.ModuleName}}/internal/hypermedia"
 )
@@ -24,11 +24,11 @@ func NewConfirmations(db storage.Pool, cfg config.Config) Confirmations {
 	return Confirmations{db, cfg}
 }
 
-func (c Confirmations) New(etx echo.Context) error {
+func (c Confirmations) New(etx *echo.Context) error {
 	return render(etx, views.ConfirmationForm())
 }
 
-func (c Confirmations) Create(etx echo.Context) error {
+func (c Confirmations) Create(etx *echo.Context) error {
 	var payload struct {
 		Code string `json:"code"`
 	}

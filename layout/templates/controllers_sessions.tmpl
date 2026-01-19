@@ -11,7 +11,7 @@ import (
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/views"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"{{.ModuleName}}/internal/hypermedia"
 )
@@ -25,11 +25,11 @@ func NewSessions(db storage.Pool, cfg config.Config) Sessions {
 	return Sessions{db, cfg}
 }
 
-func (s Sessions) New(etx echo.Context) error {
+func (s Sessions) New(etx *echo.Context) error {
 	return render(etx, views.LoginForm())
 }
 
-func (s Sessions) Create(etx echo.Context) error {
+func (s Sessions) Create(etx *echo.Context) error {
 	var payload struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -97,7 +97,7 @@ func (s Sessions) Create(etx echo.Context) error {
 	return hypermedia.Redirect(etx, routes.HomePage.URL())
 }
 
-func (s Sessions) Destroy(etx echo.Context) error {
+func (s Sessions) Destroy(etx *echo.Context) error {
 	if err := cookies.DestroyAppSession(etx); err != nil {
 		slog.ErrorContext(
 			etx.Request().Context(),

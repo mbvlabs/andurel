@@ -13,7 +13,7 @@ import (
 {{- end}}
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"{{.ModulePath}}/models"
 	"{{.ModulePath}}/internal/storage"
 	"{{.ModulePath}}/router/cookies"
@@ -29,7 +29,7 @@ func New{{.PluralResourceName}}(db storage.Pool) {{.PluralResourceName}} {
 	return {{.PluralResourceName}}{db}
 }
 
-func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx echo.Context) error {
+func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error {
 	page := int64(1)
 	if p := etx.QueryParam("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
@@ -58,7 +58,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx echo.Context) error {
 	return etx.HTML(http.StatusOK, "{{.ResourceName | ToLowerCamelCase}}s index - no views implemented")
 }
 
-func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx echo.Context) error {
+func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return render(etx, views.BadRequest())
@@ -72,7 +72,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx echo.Context) error {
 	return etx.HTML(http.StatusOK, "{{.ResourceName | ToLowerCamelCase}} show - no views implemented")
 }
 
-func ({{.ReceiverName}} {{.PluralResourceName}}) New(etx echo.Context) error {
+func ({{.ReceiverName}} {{.PluralResourceName}}) New(etx *echo.Context) error {
 	return etx.HTML(http.StatusOK, "{{.ResourceName | ToLowerCamelCase}} new - no views implemented")
 }
 
@@ -88,7 +88,7 @@ type Create{{.ResourceName}}FormPayload struct {
 {{- end}}
 }
 
-func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx echo.Context) error {
+func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error {
 	var payload Create{{.ResourceName}}FormPayload
 	if err := etx.Bind(&payload); err != nil {
 		slog.ErrorContext(
@@ -140,7 +140,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx echo.Context) error 
 	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.GetPath({{.ResourceName | ToLowerCamelCase}}.ID))
 }
 
-func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx echo.Context) error {
+func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return render(etx, views.BadRequest())
@@ -166,7 +166,7 @@ type Update{{.ResourceName}}FormPayload struct {
 {{- end}}
 }
 
-func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx echo.Context) error {
+func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error {
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return render(etx, views.BadRequest())
@@ -227,7 +227,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx echo.Context) error 
 	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.GetPath({{.ResourceName | ToLowerCamelCase}}.ID))
 }
 
-func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx echo.Context) error {
+func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) error {
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return render(etx, views.BadRequest())

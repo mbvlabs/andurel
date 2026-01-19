@@ -7,7 +7,7 @@ import (
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/andurel"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 type PaymentCheckout struct {
@@ -20,7 +20,7 @@ func newPaymentCheckout(db andurel.Database, client *payment.PaddleClient, cfg c
 	return PaymentCheckout{db, client, cfg}
 }
 
-func (pc PaymentCheckout) Show(c echo.Context) error {
+func (pc PaymentCheckout) Show(c *echo.Context) error {
 	// TODO: Implement checkout view
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": "Checkout page - implement your own view",

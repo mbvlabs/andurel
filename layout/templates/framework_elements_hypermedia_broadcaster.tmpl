@@ -14,7 +14,7 @@ import (
 	"sync"
 
 	"github.com/a-h/templ"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/valyala/bytebufferpool"
 )
 
@@ -28,7 +28,7 @@ type Broadcaster struct {
 	acceptEncoding  string
 }
 
-func NewBroadcaster(c echo.Context) (*Broadcaster, error) {
+func NewBroadcaster(c *echo.Context) (*Broadcaster, error) {
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Content-Type", "text/event-stream")
 

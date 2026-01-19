@@ -4,7 +4,7 @@ import (
 	"{{.ModuleName}}/internal/storage"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 type API struct {
@@ -15,6 +15,6 @@ func NewAPI(db storage.Pool) API {
 	return API{db}
 }
 
-func (a API) Health(etx echo.Context) error {
+func (a API) Health(etx *echo.Context) error {
 	return etx.JSON(http.StatusOK, "app is healthy and running")
 }

@@ -10,12 +10,12 @@ import (
 	"{{.ModuleName}}/internal/server"
 
 	"github.com/labstack/echo-contrib/session"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/rs/xid"
 )
 
 type FlashMessage struct {
-	echo.Context
+	*echo.Context
 	ID        xid.ID
 	Type      FlashType
 	CreatedAt time.Time
@@ -43,7 +43,7 @@ const (
 )
 
 func AddFlash(
-	c echo.Context, flashType FlashType, msg string,
+	c *echo.Context, flashType FlashType, msg string,
 ) error {
 	sess, err := session.Get(string(FlashKey), c)
 	if err != nil {
@@ -60,7 +60,7 @@ func AddFlash(
 	return sess.Save(c.Request(), c.Response())
 }
 
-func GetFlashes(c echo.Context) ([]FlashMessage, error) {
+func GetFlashes(c *echo.Context) ([]FlashMessage, error) {
 	sess, err := session.Get(string(FlashKey), c)
 	if err != nil {
 		return nil, err
