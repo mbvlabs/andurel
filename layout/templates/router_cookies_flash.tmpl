@@ -15,7 +15,6 @@ import (
 )
 
 type FlashMessage struct {
-	*echo.Context
 	ID        xid.ID
 	Type      FlashType
 	CreatedAt time.Time
