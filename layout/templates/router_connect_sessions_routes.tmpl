@@ -10,14 +10,14 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func registerSessionsRoutes(handler *echo.Echo, sessionsController controllers.Sessions) error {
+func registerSessionsRoutes(handler *echo.Echo, sessions controllers.Sessions) error {
 	errs := []error{}
 
 	_, err := handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.SessionNew.Path(),
 		Name:    routes.SessionNew.Name(),
-		Handler: sessionsController.New,
+		Handler: sessions.New,
 	})
 	if err != nil {
 		errs = append(errs, err)
@@ -27,7 +27,7 @@ func registerSessionsRoutes(handler *echo.Echo, sessionsController controllers.S
 		Method:  http.MethodPost,
 		Path:    routes.SessionCreate.Path(),
 		Name:    routes.SessionCreate.Name(),
-		Handler: sessionsController.Create,
+		Handler: sessions.Create,
 	})
 	if err != nil {
 		errs = append(errs, err)
@@ -37,7 +37,7 @@ func registerSessionsRoutes(handler *echo.Echo, sessionsController controllers.S
 		Method:  http.MethodDelete,
 		Path:    routes.SessionDestroy.Path(),
 		Name:    routes.SessionDestroy.Name(),
-		Handler: sessionsController.Destroy,
+		Handler: sessions.Destroy,
 	})
 	if err != nil {
 		errs = append(errs, err)

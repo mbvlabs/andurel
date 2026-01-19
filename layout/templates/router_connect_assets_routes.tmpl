@@ -10,14 +10,14 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func registerAssetsRoutes(handler *echo.Echo, assetsController controllers.Assets) error {
+func registerAssetsRoutes(handler *echo.Echo, assets controllers.Assets) error {
 	errs := []error{}
 
 	_, err := handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.Robots.Path(),
 		Name:    routes.Robots.Name(),
-		Handler: assetsController.Robots,
+		Handler: assets.Robots,
 	})
 	if err != nil {
 		errs = append(errs, err)
@@ -27,7 +27,7 @@ func registerAssetsRoutes(handler *echo.Echo, assetsController controllers.Asset
 		Method:  http.MethodGet,
 		Path:    routes.Sitemap.Path(),
 		Name:    routes.Sitemap.Name(),
-		Handler: assetsController.Sitemap,
+		Handler: assets.Sitemap,
 	})
 	if err != nil {
 		errs = append(errs, err)
@@ -37,7 +37,7 @@ func registerAssetsRoutes(handler *echo.Echo, assetsController controllers.Asset
 		Method:  http.MethodGet,
 		Path:    routes.Stylesheet.Path(),
 		Name:    routes.Stylesheet.Name(),
-		Handler: assetsController.Stylesheet,
+		Handler: assets.Stylesheet,
 	})
 	if err != nil {
 		errs = append(errs, err)
@@ -48,7 +48,7 @@ func registerAssetsRoutes(handler *echo.Echo, assetsController controllers.Asset
 		Method:  http.MethodGet,
 		Path:    routes.StyleImport.Path(),
 		Name:    routes.StyleImport.Name(),
-		Handler: assetsController.StyleImport,
+		Handler: assets.StyleImport,
 	})
 	if err != nil {
 		errs = append(errs, err)
@@ -59,7 +59,7 @@ func registerAssetsRoutes(handler *echo.Echo, assetsController controllers.Asset
 		Method:  http.MethodGet,
 		Path:    routes.Scripts.Path(),
 		Name:    routes.Scripts.Name(),
-		Handler: assetsController.Scripts,
+		Handler: assets.Scripts,
 	})
 	if err != nil {
 		errs = append(errs, err)
@@ -69,7 +69,7 @@ func registerAssetsRoutes(handler *echo.Echo, assetsController controllers.Asset
 		Method:  http.MethodGet,
 		Path:    routes.Script.Path(),
 		Name:    routes.Script.Name(),
-		Handler: assetsController.Script,
+		Handler: assets.Script,
 	})
 	if err != nil {
 		errs = append(errs, err)

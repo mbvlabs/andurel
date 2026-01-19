@@ -10,14 +10,14 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func registerPagesRoutes(handler *echo.Echo, pagesController controllers.Pages) error {
+func registerPagesRoutes(handler *echo.Echo, pages controllers.Pages) error {
 	errs := []error{}
 
 	_, err := handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.HomePage.Path(),
 		Name:    routes.HomePage.Name(),
-		Handler: pagesController.Home,
+		Handler: pages.Home,
 	})
 	if err != nil {
 		errs = append(errs, err)

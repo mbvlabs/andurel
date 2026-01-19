@@ -10,14 +10,14 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func registerRegistrationsRoutes(handler *echo.Echo, registrationsController controllers.Registrations) error {
+func registerRegistrationsRoutes(handler *echo.Echo, registrations controllers.Registrations) error {
 	errs := []error{}
 
 	_, err := handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.RegistrationNew.Path(),
 		Name:    routes.RegistrationNew.Name(),
-		Handler: registrationsController.New,
+		Handler: registrations.New,
 	})
 	if err != nil {
 		errs = append(errs, err)
@@ -27,7 +27,7 @@ func registerRegistrationsRoutes(handler *echo.Echo, registrationsController con
 		Method:  http.MethodPost,
 		Path:    routes.RegistrationCreate.Path(),
 		Name:    routes.RegistrationCreate.Name(),
-		Handler: registrationsController.Create,
+		Handler: registrations.Create,
 	})
 	if err != nil {
 		errs = append(errs, err)
