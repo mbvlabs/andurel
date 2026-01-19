@@ -1,6 +1,7 @@
 package router
 
 import (
+	"errors"
 	"net/http"
 
 	"{{.ModuleName}}/controllers"
@@ -9,16 +10,38 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func registerSessionsRoutes(handler *echo.Echo, sessionsController controllers.Sessions) {
-	handler.Add(
-		http.MethodGet, routes.SessionNew.Path(), sessionsController.New,
-	).Name = routes.SessionNew.Name()
+func registerSessionsRoutes(handler *echo.Echo, sessions controllers.Sessions) error {
+	errs := []error{}
 
-	handler.Add(
-		http.MethodPost, routes.SessionCreate.Path(), sessionsController.Create,
-	).Name = routes.SessionCreate.Name()
+	_, err := handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.SessionNew.Path(),
+		Name:    routes.SessionNew.Name(),
+		Handler: sessions.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodDelete, routes.SessionDestroy.Path(), sessionsController.Destroy,
-	).Name = routes.SessionDestroy.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.SessionCreate.Path(),
+		Name:    routes.SessionCreate.Name(),
+		Handler: sessions.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.SessionDestroy.Path(),
+		Name:    routes.SessionDestroy.Name(),
+		Handler: sessions.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }

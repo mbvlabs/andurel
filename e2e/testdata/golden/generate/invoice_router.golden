@@ -1,6 +1,7 @@
 package router
 
 import (
+	"errors"
 	"net/http"
 
 	"testapp/controllers"
@@ -9,32 +10,78 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func registerInvoiceRoutes(handler *echo.Echo, invoice controllers.Invoices) {
-	handler.Add(
-		http.MethodGet, routes.InvoiceIndex.Path(), invoice.Index,
-	).Name = routes.InvoiceIndex.Name()
+func registerInvoiceRoutes(handler *echo.Echo, invoice controllers.Invoices) error {
+	errs := []error{}
 
-	handler.Add(
-		http.MethodGet, routes.InvoiceShow.Path(), invoice.Show,
-	).Name = routes.InvoiceShow.Name()
+	_, err := handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.InvoiceIndex.Path(),
+		Name:    routes.InvoiceIndex.Name(),
+		Handler: invoice.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodGet, routes.InvoiceNew.Path(), invoice.New,
-	).Name = routes.InvoiceNew.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.InvoiceShow.Path(),
+		Name:    routes.InvoiceShow.Name(),
+		Handler: invoice.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodPost, routes.InvoiceCreate.Path(), invoice.Create,
-	).Name = routes.InvoiceCreate.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.InvoiceNew.Path(),
+		Name:    routes.InvoiceNew.Name(),
+		Handler: invoice.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodGet, routes.InvoiceEdit.Path(), invoice.Edit,
-	).Name = routes.InvoiceEdit.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.InvoiceCreate.Path(),
+		Name:    routes.InvoiceCreate.Name(),
+		Handler: invoice.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodPut, routes.InvoiceUpdate.Path(), invoice.Update,
-	).Name = routes.InvoiceUpdate.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.InvoiceEdit.Path(),
+		Name:    routes.InvoiceEdit.Name(),
+		Handler: invoice.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodDelete, routes.InvoiceDestroy.Path(), invoice.Destroy,
-	).Name = routes.InvoiceDestroy.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.InvoiceUpdate.Path(),
+		Name:    routes.InvoiceUpdate.Name(),
+		Handler: invoice.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.InvoiceDestroy.Path(),
+		Name:    routes.InvoiceDestroy.Name(),
+		Handler: invoice.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
