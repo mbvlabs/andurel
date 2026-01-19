@@ -9,7 +9,7 @@
 
 **Andurel is a comprehensive web development framework for Go that prioritizes development speed.** Inspired by Ruby on Rails, it uses just enough conventions to let you build full-stack web applications incredibly fast.
 
-Join the discord [here](https://discord.gg/SsZpxSJX)
+Join the discord [here](https://discord.gg/TnTBZHvat3)
 
 ## Why Andurel?
 
