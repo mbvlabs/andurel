@@ -91,9 +91,14 @@ func setupRouter(
 		return nil, err
 	}
 
+	globalMiddleware, err := router.SetupGlobalMiddleware(cfg, tel, authKey, encKey, mw, "_csrf")
+	if err != nil {
+		return nil, err
+	}
+
 	r, err := router.New(
 		true,
-		router.SetupGlobalMiddleware(cfg, tel, authKey, encKey, mw, "_csrf"),
+		globalMiddleware,
 	)
 	if err != nil {
 		return nil, err

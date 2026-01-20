@@ -6,14 +6,12 @@ import (
 	"encoding/gob"
 	"errors"
 	"net/http"
-	"strings"
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/internal/server"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
-	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/telemetry"
 
 	"github.com/google/uuid"
@@ -21,8 +19,6 @@ import (
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v5"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-
-	echomw "github.com/labstack/echo/v5/middleware"
 )
 
 type Router struct {
@@ -63,8 +59,15 @@ func SetupGlobalMiddleware(
 	encKey []byte,
 	mw middleware.Middleware,
 	csrfName string,
-) []echo.MiddlewareFunc {
-	return []echo.MiddlewareFunc{
+) ([]echo.MiddlewareFunc, error) {
+	csrfMiddleware, err := mw.CSRFMiddleware(cfg, csrfName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Order matters: middlewares execute in the order listed, with Recover last
+	// to catch panics from all preceding middlewares.
+	middlewares := []echo.MiddlewareFunc{
 		mw.TraceRouteAttributes(tel),
 		mw.Logger(tel),
 		session.Middleware(
@@ -83,22 +86,11 @@ func SetupGlobalMiddleware(
 			AllowCredentials: true,
 			MaxAge:           300,
 		}),
-		echomw.CSRFWithConfig(
-			echomw.CSRFConfig{
-				Skipper: func(c *echo.Context) bool {
-					return strings.Contains(c.Request().URL.Path, routes.APIPrefix) ||
-						strings.Contains(c.Request().URL.Path, routes.AssetsPrefix)
-				}, TokenLookup: "cookie:" + csrfName, CookiePath: "/", CookieDomain: func() string {
-					if config.Env == server.ProdEnvironment {
-						return config.Domain
-					}
-
-					return ""
-				}(), CookieSecure: config.Env == server.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode,
-			}),
-
+		csrfMiddleware,
 		echomw.Recover(),
 	}
+
+	return middlewares, nil
 }
 
 func (r *Router) RegisterCtrlRoutes(
