@@ -13,7 +13,7 @@ import (
 	"testapp/views"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 type Invoices struct {
@@ -24,7 +24,7 @@ func NewInvoices(db storage.Pool) Invoices {
 	return Invoices{db}
 }
 
-func (i Invoices) Index(etx echo.Context) error {
+func (i Invoices) Index(etx *echo.Context) error {
 	page := int64(1)
 	if p := etx.QueryParam("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
@@ -53,7 +53,7 @@ func (i Invoices) Index(etx echo.Context) error {
 	return etx.HTML(http.StatusOK, "invoices index - no views implemented")
 }
 
-func (i Invoices) Show(etx echo.Context) error {
+func (i Invoices) Show(etx *echo.Context) error {
 	invoiceID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return render(etx, views.BadRequest())
@@ -67,7 +67,7 @@ func (i Invoices) Show(etx echo.Context) error {
 	return etx.HTML(http.StatusOK, "invoice show - no views implemented")
 }
 
-func (i Invoices) New(etx echo.Context) error {
+func (i Invoices) New(etx *echo.Context) error {
 	return etx.HTML(http.StatusOK, "invoice new - no views implemented")
 }
 
@@ -77,7 +77,7 @@ type CreateInvoiceFormPayload struct {
 	Status        string  `json:"status"`
 }
 
-func (i Invoices) Create(etx echo.Context) error {
+func (i Invoices) Create(etx *echo.Context) error {
 	var payload CreateInvoiceFormPayload
 	if err := etx.Bind(&payload); err != nil {
 		slog.ErrorContext(
@@ -115,7 +115,7 @@ func (i Invoices) Create(etx echo.Context) error {
 	return etx.Redirect(http.StatusSeeOther, routes.InvoiceShow.GetPath(invoice.ID))
 }
 
-func (i Invoices) Edit(etx echo.Context) error {
+func (i Invoices) Edit(etx *echo.Context) error {
 	invoiceID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return render(etx, views.BadRequest())
@@ -135,7 +135,7 @@ type UpdateInvoiceFormPayload struct {
 	Status        string  `json:"status"`
 }
 
-func (i Invoices) Update(etx echo.Context) error {
+func (i Invoices) Update(etx *echo.Context) error {
 	invoiceID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return render(etx, views.BadRequest())
@@ -182,7 +182,7 @@ func (i Invoices) Update(etx echo.Context) error {
 	return etx.Redirect(http.StatusSeeOther, routes.InvoiceShow.GetPath(invoice.ID))
 }
 
-func (i Invoices) Destroy(etx echo.Context) error {
+func (i Invoices) Destroy(etx *echo.Context) error {
 	invoiceID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return render(etx, views.BadRequest())
