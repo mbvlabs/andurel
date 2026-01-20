@@ -205,9 +205,9 @@ func (m Middleware) CSRFMiddleware(cfg config.Config, csrfName string) (echo.Mid
 		return nil, errors.New("invalid CSRF strategy")
 	}
 
-	trustedOrigins := append([]string{}, cfg.App.CSRFTrustedOrigins...)
-	if config.Env == server.ProdEnvironment && config.BaseURL != "" {
-		trustedOrigins = append(trustedOrigins, config.BaseURL)
+	trustedOrigins := []string{config.BaseURL}
+	if len(cfg.App.CSRFTrustedOrigins) > 0 {
+		trustedOrigins = append(trustedOrigins, cfg.App.CSRFTrustedOrigins...)
 	}
 
 	csrfConfig := echomw.CSRFConfig{
