@@ -96,9 +96,7 @@ func Test{{Plural .ResourceName}}_Show(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		c.SetPath("/{{.PluralName | ToLower}}/:id")
-		c.SetParamNames("id")
-		c.SetParamValues({{.ResourceName | ToLowerCamelCase}}.ID.String())
+		c.SetPathValues(echo.PathValues{{`{{`}}Name: "id", Value: {{.ResourceName | ToLowerCamelCase}}.ID.String(){{`}}`}})
 
 		err := controller.Show(c)
 		if err != nil {

@@ -110,13 +110,13 @@ type Products struct {
     insertOnly queue.InsertOnly
 }
 
-func (p Products) Show(c echo.Context) error {
+func (p Products) Show(c *echo.Context) error {
     id := c.Param("id")
     product, _ := db.GetProduct(ctx, uuid.MustParse(id))
     return render(c, views.ProductShow(product))
 }
 
-func (p Products) Create(c echo.Context) error {
+func (p Products) Create(c *echo.Context) error {
     // ... create product
     // Generate URLs:
     return c.Redirect(http.StatusSeeOther, routes.ProductShow.URL(product.ID))

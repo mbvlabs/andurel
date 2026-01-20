@@ -7,7 +7,7 @@ import (
 	"testapp/controllers"
 	"testapp/router/routes"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 func registerInvoiceRoutes(handler *echo.Echo, invoice controllers.Invoices) error {
