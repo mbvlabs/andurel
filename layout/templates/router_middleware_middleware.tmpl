@@ -189,30 +189,34 @@ func (m Middleware) TraceRouteAttributes(tel *telemetry.Telemetry) echo.Middlewa
 	}
 }
 
-func (m Middleware) CSRFMiddleware(cfg config.Config, csrfName string) ([]echo.MiddlewareFunc, error) {
-	if !cfg.App.CSRFEnabled {
-		return nil, nil
-	}
-
+func (m Middleware) CSRFMiddleware(cfg config.Config, csrfName string) (echo.MiddlewareFunc, error) {
 	strategy := strings.TrimSpace(cfg.App.CSRFStrategy)
-	if strategy == "" {
-		strategy = "header_only"
-	}
 
+	var headerOnly bool
+	var tokenLookup string
 	switch strategy {
-	case "header_only", "header_or_legacy_token":
+	case "header_only":
+		headerOnly = true
+		tokenLookup = "cookie:" + csrfName
+	case "header_or_legacy_token":
+		headerOnly = false
+		tokenLookup = "header:X-CSRF-Token,form:_csrf"
 	default:
 		return nil, errors.New("invalid CSRF strategy")
 	}
 
-	trustedOrigins := m.csrfTrustedOrigins(cfg)
+	trustedOrigins := append([]string{}, cfg.App.CSRFTrustedOrigins...)
+	if config.Env == server.ProdEnvironment && config.BaseURL != "" {
+		trustedOrigins = append(trustedOrigins, config.BaseURL)
+	}
+
 	csrfConfig := echomw.CSRFConfig{
 		Skipper: func(c *echo.Context) bool {
 			return strings.Contains(c.Request().URL.Path, routes.APIPrefix) ||
 				strings.Contains(c.Request().URL.Path, routes.AssetsPrefix)
 		},
-		TokenLookup: "cookie:" + csrfName,
-		CookiePath:  "/",
+		TokenLookup:    tokenLookup,
+		CookiePath:     "/",
 		CookieDomain: func() string {
 			if config.Env == server.ProdEnvironment {
 				return config.Domain
@@ -226,97 +230,42 @@ func (m Middleware) CSRFMiddleware(cfg config.Config, csrfName string) ([]echo.M
 		TrustedOrigins: trustedOrigins,
 	}
 
-	csrfMiddleware := echomw.CSRFWithConfig(csrfConfig)
-	var legacyTokenMiddleware echo.MiddlewareFunc
-	if strategy == "header_or_legacy_token" {
-		csrfConfig.TokenLookup = "header:X-CSRF-Token,form:_csrf"
-		csrfMiddleware = echomw.CSRFWithConfig(csrfConfig)
-		legacyTokenMiddleware = func(next echo.HandlerFunc) echo.HandlerFunc {
-			return func(c *echo.Context) error {
-				if strings.Contains(c.Request().URL.Path, routes.APIPrefix) ||
-					strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) {
-					return next(c)
-				}
-
-				secFetchSite := strings.ToLower(strings.TrimSpace(c.Request().Header.Get("Sec-Fetch-Site")))
-				if secFetchSite == "same-origin" || secFetchSite == "same-site" || secFetchSite == "cross-site" {
-					return next(c)
-				}
-
-				if c.Request().Header.Get("X-CSRF-Token") == "" && c.FormValue("_csrf") != "" {
-					slog.Warn("CSRF check fell back to legacy token")
-				}
-
-				return next(c)
-			}
-		}
-	}
-
-	middlewares := []echo.MiddlewareFunc{
-		m.csrfVaryHeader,
-		m.csrfStrictHeaderOnly(strategy),
-	}
-
-	if legacyTokenMiddleware != nil {
-		middlewares = append(middlewares, legacyTokenMiddleware)
-	}
-
-	middlewares = append(middlewares, csrfMiddleware)
-	return middlewares, nil
-}
-
-func (m Middleware) csrfTrustedOrigins(cfg config.Config) []string {
-	origins := []string{}
-	if len(cfg.App.CSRFTrustedOrigins) > 0 {
-		origins = append(origins, cfg.App.CSRFTrustedOrigins...)
-	}
-
-		if config.Env == server.ProdEnvironment && config.BaseURL != "" {
-			origins = append(origins, config.BaseURL)
-		}
-
-		if config.Env == server.ProdEnvironment && len(origins) == 0 {
-			return nil
-		}
-
-		return origins
-
-}
-
-func (m Middleware) csrfStrictHeaderOnly(strategy string) echo.MiddlewareFunc {
-	if strategy != "header_only" {
-		return func(next echo.HandlerFunc) echo.HandlerFunc {
-			return func(c *echo.Context) error {
-				return next(c)
-			}
-		}
-	}
+	echoCSRF := echomw.CSRFWithConfig(csrfConfig)
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
-				strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
+			path := c.Request().URL.Path
+			if strings.Contains(path, routes.APIPrefix) ||
+				strings.Contains(path, routes.AssetsPrefix) {
 				return next(c)
 			}
+
+			// Add Vary header for proper caching behavior
+			c.Response().Header().Add("Vary", "Sec-Fetch-Site")
 
 			method := c.Request().Method
-			if method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions || method == http.MethodTrace {
-				return next(c)
+			isUnsafe := method != http.MethodGet && method != http.MethodHead &&
+				method != http.MethodOptions && method != http.MethodTrace
+
+			if isUnsafe {
+				secFetchSite := strings.ToLower(strings.TrimSpace(c.Request().Header.Get("Sec-Fetch-Site")))
+
+				// In header_only mode, reject requests missing Sec-Fetch-Site
+				if headerOnly && (secFetchSite == "" || secFetchSite == "none") {
+					return echo.NewHTTPError(http.StatusForbidden, "CSRF verification failed: missing Sec-Fetch-Site header")
+				}
+
+				// In legacy mode, log when falling back to form token
+				if !headerOnly && secFetchSite != "same-origin" && secFetchSite != "same-site" && secFetchSite != "cross-site" {
+					if c.Request().Header.Get("X-CSRF-Token") == "" && c.FormValue("_csrf") != "" {
+						slog.Warn("CSRF check fell back to legacy token")
+					}
+				}
 			}
 
-			secFetchSite := strings.ToLower(strings.TrimSpace(c.Request().Header.Get("Sec-Fetch-Site")))
-			if secFetchSite == "" || secFetchSite == "none" {
-				return echo.NewHTTPError(http.StatusForbidden, "CSRF verification failed: missing Sec-Fetch-Site header")
-			}
-
-			return next(c)
+			// Delegate to Echo's CSRF middleware
+			return echoCSRF(next)(c)
 		}
-	}
+	}, nil
 }
 
-func (m Middleware) csrfVaryHeader(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c *echo.Context) error {
-		c.Response().Header().Add("Vary", "Sec-Fetch-Site")
-		return next(c)
-	}
-}

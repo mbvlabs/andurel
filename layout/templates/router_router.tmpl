@@ -60,6 +60,13 @@ func SetupGlobalMiddleware(
 	mw middleware.Middleware,
 	csrfName string,
 ) ([]echo.MiddlewareFunc, error) {
+	csrfMiddleware, err := mw.CSRFMiddleware(cfg, csrfName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Order matters: middlewares execute in the order listed, with Recover last
+	// to catch panics from all preceding middlewares.
 	middlewares := []echo.MiddlewareFunc{
 		mw.TraceRouteAttributes(tel),
 		mw.Logger(tel),
@@ -79,15 +86,8 @@ func SetupGlobalMiddleware(
 			AllowCredentials: true,
 			MaxAge:           300,
 		}),
+		csrfMiddleware,
 		echomw.Recover(),
-	}
-
-	csrfMiddleware, err := mw.CSRFMiddleware(cfg, csrfName)
-	if err != nil {
-		return nil, err
-	}
-	if len(csrfMiddleware) > 0 {
-		middlewares = append(middlewares[:len(middlewares)-1], append(csrfMiddleware, middlewares[len(middlewares)-1])...)
 	}
 
 	return middlewares, nil
