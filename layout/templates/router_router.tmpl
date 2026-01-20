@@ -2,14 +2,12 @@
 package router
 
 import (
-	"context"
 	"encoding/gob"
 	"errors"
 	"net/http"
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
-	"{{.ModuleName}}/internal/server"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/telemetry"
@@ -18,6 +16,7 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v5"
+	echomw "github.com/labstack/echo/v5/middleware"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -34,10 +33,6 @@ func New(
 	gob.Register(cookies.FlashMessage{})
 
 	router := echo.New()
-
-	if config.Env != server.ProdEnvironment {
-		router.Debug = true
-	}
 
 	router.Use(globalMiddleware...)
 

@@ -59,7 +59,7 @@ func setupControllers(
 	{{.VarName}} := {{.Expression}}
 {{- end}}
 
-	err := rtr.RegisterCtrlRoutes(
+	err = rtr.RegisterCtrlRoutes(
 		mw,
 {{- range .Blueprint.Controllers.SortedConstructors}}
 		{{.VarName}},
