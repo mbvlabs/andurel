@@ -180,7 +180,6 @@ func (m Middleware) TraceRouteAttributes(tel *telemetry.Telemetry) echo.Middlewa
 			}
 
 			span.SetAttributes(
-				semconv.HTTPTarget(routeInfo.Path),
 				semconv.HTTPRoute(routeInfo.Path),
 			)
 
