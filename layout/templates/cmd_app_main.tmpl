@@ -36,9 +36,9 @@ import (
 var appVersion string
 
 // setupControllers initializes and registers all controllers with the router.
-// the comment: 'andurel:controller-registration-point' is used as a marker for automated code generation tools.
-// if you remove it or change it, the generator tool may not function correctly. 
-// If you move it, ensure it remains in a logical place within a function that passes the correct dependencies to the controllers.
+// The comment: 'andurel:controller-registration-point' is used as a marker for automated code generation tools.
+// If you remove it or change it, the generator tool may not function correctly. 
+// If you decide to move it, ensure it remains in a logical place within a function that passes the correct dependencies to the controllers.
 func setupControllers(
 {{- range $i, $dep := .Blueprint.Controllers.SortedDependencies}}
 	{{$dep.Name}} {{$dep.Type}},
