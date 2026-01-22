@@ -10,10 +10,10 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func registerInvoiceRoutes(handler *echo.Echo, invoice controllers.Invoices) error {
+func (r Router) RegisterInvoiceRoutes(invoice controllers.Invoices) error {
 	errs := []error{}
 
-	_, err := handler.AddRoute(echo.Route{
+	_, err := r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.InvoiceIndex.Path(),
 		Name:    routes.InvoiceIndex.Name(),
@@ -23,7 +23,7 @@ func registerInvoiceRoutes(handler *echo.Echo, invoice controllers.Invoices) err
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.InvoiceShow.Path(),
 		Name:    routes.InvoiceShow.Name(),
@@ -33,7 +33,7 @@ func registerInvoiceRoutes(handler *echo.Echo, invoice controllers.Invoices) err
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.InvoiceNew.Path(),
 		Name:    routes.InvoiceNew.Name(),
@@ -43,7 +43,7 @@ func registerInvoiceRoutes(handler *echo.Echo, invoice controllers.Invoices) err
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodPost,
 		Path:    routes.InvoiceCreate.Path(),
 		Name:    routes.InvoiceCreate.Name(),
@@ -53,7 +53,7 @@ func registerInvoiceRoutes(handler *echo.Echo, invoice controllers.Invoices) err
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.InvoiceEdit.Path(),
 		Name:    routes.InvoiceEdit.Name(),
@@ -63,7 +63,7 @@ func registerInvoiceRoutes(handler *echo.Echo, invoice controllers.Invoices) err
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodPut,
 		Path:    routes.InvoiceUpdate.Path(),
 		Name:    routes.InvoiceUpdate.Name(),
@@ -73,7 +73,7 @@ func registerInvoiceRoutes(handler *echo.Echo, invoice controllers.Invoices) err
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodDelete,
 		Path:    routes.InvoiceDestroy.Path(),
 		Name:    routes.InvoiceDestroy.Name(),
