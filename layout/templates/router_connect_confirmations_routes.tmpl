@@ -10,10 +10,10 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func registerConfirmationsRoutes(handler *echo.Echo, confirmations controllers.Confirmations) error {
+func (r Router) RegisterConfirmationsRoutes(confirmations controllers.Confirmations) error {
 	errs := []error{}
 
-	_, err := handler.AddRoute(echo.Route{
+	_, err := r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.ConfirmationNew.Path(),
 		Name:    routes.ConfirmationNew.Name(),
@@ -23,7 +23,7 @@ func registerConfirmationsRoutes(handler *echo.Echo, confirmations controllers.C
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodPost,
 		Path:    routes.ConfirmationCreate.Path(),
 		Name:    routes.ConfirmationCreate.Name(),

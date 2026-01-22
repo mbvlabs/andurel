@@ -10,10 +10,10 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func registerAssetsRoutes(handler *echo.Echo, assets controllers.Assets) error {
+func (r Router) RegisterAssetsRoutes(assets controllers.Assets) error {
 	errs := []error{}
 
-	_, err := handler.AddRoute(echo.Route{
+	_, err := r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.Robots.Path(),
 		Name:    routes.Robots.Name(),
@@ -23,7 +23,7 @@ func registerAssetsRoutes(handler *echo.Echo, assets controllers.Assets) error {
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.Sitemap.Path(),
 		Name:    routes.Sitemap.Name(),
@@ -33,7 +33,7 @@ func registerAssetsRoutes(handler *echo.Echo, assets controllers.Assets) error {
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.Stylesheet.Path(),
 		Name:    routes.Stylesheet.Name(),
@@ -44,7 +44,7 @@ func registerAssetsRoutes(handler *echo.Echo, assets controllers.Assets) error {
 	}
 
 {{- if eq .CSSFramework "vanilla"}}
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.StyleImport.Path(),
 		Name:    routes.StyleImport.Name(),
@@ -55,7 +55,7 @@ func registerAssetsRoutes(handler *echo.Echo, assets controllers.Assets) error {
 	}
 
 {{- end}}
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.Scripts.Path(),
 		Name:    routes.Scripts.Name(),
@@ -65,7 +65,7 @@ func registerAssetsRoutes(handler *echo.Echo, assets controllers.Assets) error {
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.Script.Path(),
 		Name:    routes.Script.Name(),

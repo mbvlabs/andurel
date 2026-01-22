@@ -10,10 +10,10 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func registerPagesRoutes(handler *echo.Echo, pages controllers.Pages) error {
+func (r Router) RegisterPagesRoutes(pages controllers.Pages) error {
 	errs := []error{}
 
-	_, err := handler.AddRoute(echo.Route{
+	_, err := r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.HomePage.Path(),
 		Name:    routes.HomePage.Name(),
@@ -24,7 +24,7 @@ func registerPagesRoutes(handler *echo.Echo, pages controllers.Pages) error {
 	}
 {{- range .Blueprint.Routes.SortedRegistrations}}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  {{.Method}},
 		Path:    {{.RouteVariable}}.Path(),
 		Name:    {{.RouteVariable}}.Name(),

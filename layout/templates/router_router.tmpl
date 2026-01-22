@@ -88,59 +88,6 @@ func SetupGlobalMiddleware(
 	return middlewares, nil
 }
 
-func (r *Router) RegisterCtrlRoutes(
-	mw middleware.Middleware,
-{{- range .Blueprint.Controllers.SortedConstructors}}
-	{{.VarName}} {{.Type}},
-{{- end}}
-) error {
-	errs := []error{}
-
-	err := registerAPIRoutes(r.Handler, api)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	err = registerAssetsRoutes(r.Handler, assets)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	err = registerPagesRoutes(r.Handler, pages)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	err = registerSessionsRoutes(r.Handler, sessions)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	err = registerRegistrationsRoutes(r.Handler, registrations)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	err = registerConfirmationsRoutes(r.Handler, confirmations)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	err = registerResetPasswordsRoutes(r.Handler, resetPasswords)
-	if err != nil {
-		errs = append(errs, err)
-	}
-{{- range .Blueprint.Routes.SortedRegistrationFunctions}}
-
-	err = {{.FunctionName}}(r.Handler, {{.ControllerVarName}})
-	if err != nil {
-		errs = append(errs, err)
-	}
-{{- end}}
-
-	return errors.Join(errs...)
-}
-
 func (r *Router) RegisterCustomRoutes(
 	riverHandler interface{ ServeHTTP(http.ResponseWriter, *http.Request) },
 	notFoundHandler echo.HandlerFunc,

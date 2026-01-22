@@ -31,17 +31,18 @@ import (
 {{- end}}
 
 	"github.com/a-h/templ"
-	//"github.com/labstack/echo/v5"
 )
 
 var appVersion string
 
+// setupControllers initializes and registers all controllers with the router.
+// the name is important as it matches the expected signature in the generated code.
 func setupControllers(
 {{- range $i, $dep := .Blueprint.Controllers.SortedDependencies}}
 	{{$dep.Name}} {{$dep.Type}},
 {{- end}}
 	insertOnly queue.InsertOnly,
-	rtr *router.Router,
+	r *router.Router,
 	riverHandler *riverui.Handler,
 	mw middleware.Middleware,
 ) error {
@@ -59,13 +60,31 @@ func setupControllers(
 	{{.VarName}} := {{.Expression}}
 {{- end}}
 
-	err = rtr.RegisterCtrlRoutes(
-		mw,
-{{- range .Blueprint.Controllers.SortedConstructors}}
-		{{.VarName}},
-{{- end}}
-	)
-	if err != nil {
+	if err := r.RegisterAPIRoutes(api); err != nil {
+		return err
+	}
+
+	if err := r.RegisterAssetsRoutes(assets); err != nil {
+		return err
+	}
+
+	if err := r.RegisterConfirmationsRoutes(confirmations); err != nil {
+		return err
+	}
+
+	if err := r.RegisterPagesRoutes(pages); err != nil {
+		return err
+	}
+
+	if err := r.RegisterResetPasswordRoutes(resetPasswords); err != nil {
+		return err
+	}
+
+	if err := r.RegisterSessionsRoutes(sessions); err != nil {
+		return err
+	}
+
+	if err := r.RegisterRegistrationsRoutes(registrations); err != nil {
 		return err
 	}
 
