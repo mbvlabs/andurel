@@ -3,11 +3,9 @@ package router
 
 import (
 	"encoding/gob"
-	"errors"
 	"net/http"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/telemetry"
@@ -21,8 +19,8 @@ import (
 )
 
 type Router struct {
-	Handler     *echo.Echo
-	HTTPHandler http.Handler
+	e       *echo.Echo
+	Handler http.Handler
 }
 
 func New(
@@ -36,14 +34,14 @@ func New(
 
 	router.Use(globalMiddleware...)
 
-	httpHandler := http.Handler(router)
+	handler := http.Handler(router)
 	if enableHTTPInstrumentation {
-		httpHandler = otelhttp.NewHandler(router, "http")
+		handler = otelhttp.NewHandler(router, "http")
 	}
 
 	return &Router{
-		Handler:     router,
-		HTTPHandler: httpHandler,
+		e:       router,
+		Handler: handler,
 	}, nil
 }
 
@@ -92,6 +90,6 @@ func (r *Router) RegisterCustomRoutes(
 	riverHandler interface{ ServeHTTP(http.ResponseWriter, *http.Request) },
 	notFoundHandler echo.HandlerFunc,
 ) {
-	r.Handler.Any("/riverui*", echo.WrapHandler(riverHandler))
-	r.Handler.RouteNotFound("/*", notFoundHandler)
+	r.e.Any("/riverui*", echo.WrapHandler(riverHandler))
+	r.e.RouteNotFound("/*", notFoundHandler)
 }

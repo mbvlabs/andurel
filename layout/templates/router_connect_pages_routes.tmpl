@@ -13,7 +13,7 @@ import (
 func (r Router) RegisterPagesRoutes(pages controllers.Pages) error {
 	errs := []error{}
 
-	_, err := r.Handler.AddRoute(echo.Route{
+	_, err := r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.HomePage.Path(),
 		Name:    routes.HomePage.Name(),
@@ -24,7 +24,7 @@ func (r Router) RegisterPagesRoutes(pages controllers.Pages) error {
 	}
 {{- range .Blueprint.Routes.SortedRegistrations}}
 
-	_, err = r.Handler.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  {{.Method}},
 		Path:    {{.RouteVariable}}.Path(),
 		Name:    {{.RouteVariable}}.Name(),

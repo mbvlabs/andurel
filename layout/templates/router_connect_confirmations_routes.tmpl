@@ -13,7 +13,7 @@ import (
 func (r Router) RegisterConfirmationsRoutes(confirmations controllers.Confirmations) error {
 	errs := []error{}
 
-	_, err := r.Handler.AddRoute(echo.Route{
+	_, err := r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.ConfirmationNew.Path(),
 		Name:    routes.ConfirmationNew.Name(),
@@ -23,7 +23,7 @@ func (r Router) RegisterConfirmationsRoutes(confirmations controllers.Confirmati
 		errs = append(errs, err)
 	}
 
-	_, err = r.Handler.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPost,
 		Path:    routes.ConfirmationCreate.Path(),
 		Name:    routes.ConfirmationCreate.Name(),

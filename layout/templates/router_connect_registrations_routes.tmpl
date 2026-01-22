@@ -13,7 +13,7 @@ import (
 func (r Router) RegisterRegistrationsRoutes(registrations controllers.Registrations) error {
 	errs := []error{}
 
-	_, err := r.Handler.AddRoute(echo.Route{
+	_, err := r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.RegistrationNew.Path(),
 		Name:    routes.RegistrationNew.Name(),
@@ -23,7 +23,7 @@ func (r Router) RegisterRegistrationsRoutes(registrations controllers.Registrati
 		errs = append(errs, err)
 	}
 
-	_, err = r.Handler.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPost,
 		Path:    routes.RegistrationCreate.Path(),
 		Name:    routes.RegistrationCreate.Name(),

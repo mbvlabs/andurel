@@ -13,7 +13,7 @@ import (
 func (r Router) RegisterAPIRoutes(api controllers.API) error {
 	errs := []error{}
 
-	_, err := r.Handler.AddRoute(echo.Route{
+	_, err := r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.Health.Path(),
 		Name:    routes.Health.Name(),

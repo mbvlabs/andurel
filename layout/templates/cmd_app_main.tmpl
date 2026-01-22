@@ -76,7 +76,7 @@ func setupControllers(
 		return err
 	}
 
-	if err := r.RegisterResetPasswordRoutes(resetPasswords); err != nil {
+	if err := r.RegisterResetPasswordsRoutes(resetPasswords); err != nil {
 		return err
 	}
 
@@ -90,7 +90,7 @@ func setupControllers(
 
 	// andurel:controller-registration-point
 
-	rtr.RegisterCustomRoutes(
+	r.RegisterCustomRoutes(
 		riverHandler,
 		pages.NotFound,
 	)
@@ -249,7 +249,7 @@ func run(ctx context.Context) error {
 
 	riverHandler.Start(ctx)
 
-	rtr, err := setupRouter(cfg, tel, mw)
+	r, err := setupRouter(cfg, tel, mw)
 	if err != nil {
 		return err
 	}
@@ -259,15 +259,13 @@ func run(ctx context.Context) error {
 		{{.Name}},
 {{- end}}
 		insertOnly,
-		rtr,
+		r,
 		riverHandler,
 		mw,
 	)
 	if err != nil {
 		return err
 	}
-
-	handler := rtr.HTTPHandler
 
 {{- range .Blueprint.Main.SortedBackgroundWorkers}}
 	// Start background worker: {{.Name}}
@@ -279,7 +277,7 @@ func run(ctx context.Context) error {
 		cfg.App.Host,
 		cfg.App.Port,
 		config.Env,
-		handler,
+		r.Handler,
 		[]server.Shutdowner{processor},
 	)
 

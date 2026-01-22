@@ -11,7 +11,7 @@ import (
 func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} controllers.{{.CapitalizedPluralName}}) error {
 	errs := []error{}
 
-	_, err := r.Handler.AddRoute(echo.Route{
+	_, err := r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}Index.Path(),
 		Name:    routes.{{.ResourceName}}Index.Name(),
@@ -21,7 +21,7 @@ func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} contr
 		errs = append(errs, err)
 	}
 
-	_, err = r.Handler.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}Show.Path(),
 		Name:    routes.{{.ResourceName}}Show.Name(),
@@ -31,7 +31,7 @@ func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} contr
 		errs = append(errs, err)
 	}
 
-	_, err = r.Handler.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}New.Path(),
 		Name:    routes.{{.ResourceName}}New.Name(),
@@ -41,7 +41,7 @@ func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} contr
 		errs = append(errs, err)
 	}
 
-	_, err = r.Handler.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPost,
 		Path:    routes.{{.ResourceName}}Create.Path(),
 		Name:    routes.{{.ResourceName}}Create.Name(),
@@ -51,7 +51,7 @@ func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} contr
 		errs = append(errs, err)
 	}
 
-	_, err = r.Handler.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}Edit.Path(),
 		Name:    routes.{{.ResourceName}}Edit.Name(),
@@ -61,7 +61,7 @@ func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} contr
 		errs = append(errs, err)
 	}
 
-	_, err = r.Handler.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPut,
 		Path:    routes.{{.ResourceName}}Update.Path(),
 		Name:    routes.{{.ResourceName}}Update.Name(),
@@ -71,7 +71,7 @@ func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} contr
 		errs = append(errs, err)
 	}
 
-	_, err = r.Handler.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodDelete,
 		Path:    routes.{{.ResourceName}}Destroy.Path(),
 		Name:    routes.{{.ResourceName}}Destroy.Name(),

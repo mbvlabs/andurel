@@ -13,7 +13,7 @@ import (
 func (r Router) RegisterSessionsRoutes(sessions controllers.Sessions) error {
 	errs := []error{}
 
-	_, err := r.Handler.AddRoute(echo.Route{
+	_, err := r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.SessionNew.Path(),
 		Name:    routes.SessionNew.Name(),
@@ -23,7 +23,7 @@ func (r Router) RegisterSessionsRoutes(sessions controllers.Sessions) error {
 		errs = append(errs, err)
 	}
 
-	_, err = r.Handler.AddRoute.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPost,
 		Path:    routes.SessionCreate.Path(),
 		Name:    routes.SessionCreate.Name(),
@@ -33,7 +33,7 @@ func (r Router) RegisterSessionsRoutes(sessions controllers.Sessions) error {
 		errs = append(errs, err)
 	}
 
-	_, err = r.Handler.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodDelete,
 		Path:    routes.SessionDestroy.Path(),
 		Name:    routes.SessionDestroy.Name(),
