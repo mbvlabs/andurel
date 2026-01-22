@@ -107,10 +107,10 @@ func VerifyEmail(
 	db storage.Pool,
 	salt string,
 	data VerifyEmailData,
-) error {
+) (models.User, error) {
 	tx, err := db.BeginTx(ctx)
 	if err != nil {
-		return err
+		return models.User{}, err
 	}
 	defer tx.Rollback(ctx)
 
@@ -122,29 +122,29 @@ func VerifyEmail(
 		data.Code,
 	)
 	if err != nil {
-		return ErrInvalidVerificationCode
+		return models.User{}, ErrInvalidVerificationCode
 	}
 
 	if !token.IsValid(data.Code, salt) {
-		return ErrExpiredVerificationCode
+		return models.User{}, ErrExpiredVerificationCode
 	}
 
 	var meta map[string]string
 	if err := json.Unmarshal(token.MetaData, &meta); err != nil {
-		return err
+		return models.User{}, err
 	}
 
 	email, ok := meta["email"]
 	if !ok {
-		return errors.New("token metadata missing email")
+		return models.User{}, errors.New("token metadata missing email")
 	}
 
 	user, err := models.FindUserByEmail(ctx, tx, email)
 	if err != nil {
-		return err
+		return models.User{}, err
 	}
 
-	_, err = models.UpdateUser(ctx, tx, models.UpdateUserData{
+	user, err = models.UpdateUser(ctx, tx, models.UpdateUserData{
 		ID:    user.ID,
 		Email: user.Email,
 		EmailValidatedAt: sql.NullTime{
@@ -155,12 +155,16 @@ func VerifyEmail(
 		IsAdmin:  user.IsAdmin,
 	})
 	if err != nil {
-		return err
+		return models.User{}, err
 	}
 
 	if err := models.DestroyToken(ctx, tx, token.ID); err != nil {
-		return err
+		return models.User{}, err
 	}
 
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return models.User{}, err
+	}
+
+	return user, nil
 }
