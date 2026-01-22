@@ -12,7 +12,7 @@ import (
 	"{{.ModuleName}}/internal/andurel"
 	"{{.ModuleName}}/models"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 type PaymentWebhooks struct {
@@ -25,7 +25,7 @@ func newPaymentWebhooks(db andurel.Database, client *payment.PaddleClient, cfg c
 	return PaymentWebhooks{db, client, cfg}
 }
 
-func (w PaymentWebhooks) Handle(c echo.Context) error {
+func (w PaymentWebhooks) Handle(c *echo.Context) error {
 	// Read request body
 	bodyBytes, err := io.ReadAll(c.Request().Body)
 	if err != nil {
@@ -116,7 +116,7 @@ type transactionData struct {
 	BilledAt      time.Time `json:"billed_at"`
 }
 
-func (w PaymentWebhooks) handleTransactionCompleted(c echo.Context, event *payment.WebhookEvent) error {
+func (w PaymentWebhooks) handleTransactionCompleted(c *echo.Context, event *payment.WebhookEvent) error {
 	var txData transactionData
 	if err := json.Unmarshal(event.Data, &txData); err != nil {
 		return err
@@ -161,7 +161,7 @@ func (w PaymentWebhooks) handleTransactionCompleted(c echo.Context, event *payme
 	return nil
 }
 
-func (w PaymentWebhooks) handleTransactionUpdated(c echo.Context, event *payment.WebhookEvent) error {
+func (w PaymentWebhooks) handleTransactionUpdated(c *echo.Context, event *payment.WebhookEvent) error {
 	var txData transactionData
 	if err := json.Unmarshal(event.Data, &txData); err != nil {
 		return err

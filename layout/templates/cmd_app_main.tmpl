@@ -31,7 +31,7 @@ import (
 {{- end}}
 
 	"github.com/a-h/templ"
-	//"github.com/labstack/echo/v4"
+	//"github.com/labstack/echo/v5"
 )
 
 var appVersion string
@@ -59,12 +59,15 @@ func setupControllers(
 	{{.VarName}} := {{.Expression}}
 {{- end}}
 
-	rtr.RegisterCtrlRoutes(
+	err = rtr.RegisterCtrlRoutes(
 		mw,
 {{- range .Blueprint.Controllers.SortedConstructors}}
 		{{.VarName}},
 {{- end}}
 	)
+	if err != nil {
+		return err
+	}
 
 	rtr.RegisterCustomRoutes(
 		riverHandler,
@@ -75,7 +78,6 @@ func setupControllers(
 }
 
 func setupRouter(
-	ctx context.Context,
 	cfg config.Config,
 	tel *telemetry.Telemetry,
 	mw middleware.Middleware,
@@ -89,10 +91,14 @@ func setupRouter(
 		return nil, err
 	}
 
+	globalMiddleware, err := router.SetupGlobalMiddleware(cfg, tel, authKey, encKey, mw, "_csrf")
+	if err != nil {
+		return nil, err
+	}
+
 	r, err := router.New(
-		ctx,
-		cfg,
-		router.SetupGlobalMiddleware(cfg, tel, authKey, encKey, mw, "_csrf"),
+		true,
+		globalMiddleware,
 	)
 	if err != nil {
 		return nil, err
@@ -222,7 +228,7 @@ func run(ctx context.Context) error {
 
 	riverHandler.Start(ctx)
 
-	rtr, err := setupRouter(ctx, cfg, tel, mw)
+	rtr, err := setupRouter(cfg, tel, mw)
 	if err != nil {
 		return err
 	}
@@ -240,7 +246,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	handler := rtr.Handler
+	handler := rtr.HTTPHandler
 
 {{- range .Blueprint.Main.SortedBackgroundWorkers}}
 	// Start background worker: {{.Name}}

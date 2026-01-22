@@ -2,35 +2,31 @@
 package router
 
 import (
-	"context"
 	"encoding/gob"
+	"errors"
 	"net/http"
-	"strings"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/internal/server"
-	"{{.ModuleName}}/telemetry"
-	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/controllers"
-	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
+	"{{.ModuleName}}/telemetry"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
-	"github.com/labstack/echo/v4"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
-
-	echomw "github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/echo/v5"
+	echomw "github.com/labstack/echo/v5/middleware"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type Router struct {
-	Handler *echo.Echo
+	Handler     *echo.Echo
+	HTTPHandler http.Handler
 }
 
 func New(
-	ctx context.Context,
-	cfg config.Config,
+	enableHTTPInstrumentation bool,
 	globalMiddleware []echo.MiddlewareFunc,
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
@@ -38,14 +34,16 @@ func New(
 
 	router := echo.New()
 
-	if config.Env != server.ProdEnvironment {
-		router.Debug = true
-	}
-
 	router.Use(globalMiddleware...)
 
+	httpHandler := http.Handler(router)
+	if enableHTTPInstrumentation {
+		httpHandler = otelhttp.NewHandler(router, "http")
+	}
+
 	return &Router{
-		router,
+		Handler:     router,
+		HTTPHandler: httpHandler,
 	}, nil
 }
 
@@ -56,9 +54,16 @@ func SetupGlobalMiddleware(
 	encKey []byte,
 	mw middleware.Middleware,
 	csrfName string,
-) []echo.MiddlewareFunc {
-	return []echo.MiddlewareFunc{
-		otelecho.Middleware(config.ServiceName),
+) ([]echo.MiddlewareFunc, error) {
+	csrfMiddleware, err := mw.CSRFMiddleware(cfg, csrfName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Order matters: middlewares execute in the order listed, with Recover last
+	// to catch panics from all preceding middlewares.
+	middlewares := []echo.MiddlewareFunc{
+		mw.TraceRouteAttributes(tel),
 		mw.Logger(tel),
 		session.Middleware(
 			sessions.NewCookieStore(
@@ -76,22 +81,11 @@ func SetupGlobalMiddleware(
 			AllowCredentials: true,
 			MaxAge:           300,
 		}),
-		echomw.CSRFWithConfig(
-			echomw.CSRFConfig{
-				Skipper: func(c echo.Context) bool {
-					return strings.Contains(c.Request().URL.Path, routes.APIPrefix) ||
-						strings.Contains(c.Request().URL.Path, routes.AssetsPrefix)
-				}, TokenLookup: "cookie:" + csrfName, CookiePath: "/", CookieDomain: func() string {
-					if config.Env == server.ProdEnvironment {
-						return config.Domain
-					}
-
-					return ""
-				}(), CookieSecure: config.Env == server.ProdEnvironment, CookieHTTPOnly: true, CookieSameSite: http.SameSiteStrictMode,
-			}),
-
+		csrfMiddleware,
 		echomw.Recover(),
 	}
+
+	return middlewares, nil
 }
 
 func (r *Router) RegisterCtrlRoutes(
@@ -99,17 +93,52 @@ func (r *Router) RegisterCtrlRoutes(
 {{- range .Blueprint.Controllers.SortedConstructors}}
 	{{.VarName}} {{.Type}},
 {{- end}}
-) {
-	registerAPIRoutes(r.Handler, api)
-	registerAssetsRoutes(r.Handler, assets)
-	registerPagesRoutes(r.Handler, pages)
-	registerSessionsRoutes(r.Handler, sessions)
-	registerRegistrationsRoutes(r.Handler, registrations)
-	registerConfirmationsRoutes(r.Handler, confirmations)
-	registerResetPasswordsRoutes(r.Handler, resetPasswords)
+) error {
+	errs := []error{}
+
+	err := registerAPIRoutes(r.Handler, api)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = registerAssetsRoutes(r.Handler, assets)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = registerPagesRoutes(r.Handler, pages)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = registerSessionsRoutes(r.Handler, sessions)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = registerRegistrationsRoutes(r.Handler, registrations)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = registerConfirmationsRoutes(r.Handler, confirmations)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = registerResetPasswordsRoutes(r.Handler, resetPasswords)
+	if err != nil {
+		errs = append(errs, err)
+	}
 {{- range .Blueprint.Routes.SortedRegistrationFunctions}}
-	{{.FunctionName}}(r.Handler, {{.ControllerVarName}})
+
+	err = {{.FunctionName}}(r.Handler, {{.ControllerVarName}})
+	if err != nil {
+		errs = append(errs, err)
+	}
 {{- end}}
+
+	return errors.Join(errs...)
 }
 
 func (r *Router) RegisterCustomRoutes(

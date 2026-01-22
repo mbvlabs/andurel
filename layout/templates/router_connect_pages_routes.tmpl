@@ -1,22 +1,39 @@
 package router
 
 import (
+	"errors"
 	"net/http"
 
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/router/routes"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func registerPagesRoutes(handler *echo.Echo, pagesController controllers.Pages) {
-	handler.Add(
-		http.MethodGet, routes.HomePage.Path(), pagesController.Home,
-	).Name = routes.HomePage.Name()
+func registerPagesRoutes(handler *echo.Echo, pages controllers.Pages) error {
+	errs := []error{}
+
+	_, err := handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.HomePage.Path(),
+		Name:    routes.HomePage.Name(),
+		Handler: pages.Home,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 {{- range .Blueprint.Routes.SortedRegistrations}}
 
-	handler.Add(
-		{{.Method}}, {{.RouteVariable}}.Path(), {{.HandlerRef}},
-	).Name = {{.RouteVariable}}.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  {{.Method}},
+		Path:    {{.RouteVariable}}.Path(),
+		Name:    {{.RouteVariable}}.Name(),
+		Handler: {{.HandlerRef}},
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 {{- end}}
+
+	return errors.Join(errs...)
 }

@@ -1,40 +1,87 @@
 package router
 
 import (
+	"errors"
 	"net/http"
 
 	"testapp/controllers"
 	"testapp/router/routes"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func registerProjectRoutes(handler *echo.Echo, project controllers.Projects) {
-	handler.Add(
-		http.MethodGet, routes.ProjectIndex.Path(), project.Index,
-	).Name = routes.ProjectIndex.Name()
+func registerProjectRoutes(handler *echo.Echo, project controllers.Projects) error {
+	errs := []error{}
 
-	handler.Add(
-		http.MethodGet, routes.ProjectShow.Path(), project.Show,
-	).Name = routes.ProjectShow.Name()
+	_, err := handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ProjectIndex.Path(),
+		Name:    routes.ProjectIndex.Name(),
+		Handler: project.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodGet, routes.ProjectNew.Path(), project.New,
-	).Name = routes.ProjectNew.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ProjectShow.Path(),
+		Name:    routes.ProjectShow.Name(),
+		Handler: project.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodPost, routes.ProjectCreate.Path(), project.Create,
-	).Name = routes.ProjectCreate.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ProjectNew.Path(),
+		Name:    routes.ProjectNew.Name(),
+		Handler: project.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodGet, routes.ProjectEdit.Path(), project.Edit,
-	).Name = routes.ProjectEdit.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.ProjectCreate.Path(),
+		Name:    routes.ProjectCreate.Name(),
+		Handler: project.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodPut, routes.ProjectUpdate.Path(), project.Update,
-	).Name = routes.ProjectUpdate.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ProjectEdit.Path(),
+		Name:    routes.ProjectEdit.Name(),
+		Handler: project.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodDelete, routes.ProjectDestroy.Path(), project.Destroy,
-	).Name = routes.ProjectDestroy.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.ProjectUpdate.Path(),
+		Name:    routes.ProjectUpdate.Name(),
+		Handler: project.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.ProjectDestroy.Path(),
+		Name:    routes.ProjectDestroy.Name(),
+		Handler: project.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }

@@ -1,40 +1,87 @@
 package router
 
 import (
+	"errors"
 	"net/http"
 
 	"{{.ModulePath}}/controllers"
 	"{{.ModulePath}}/router/routes"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func register{{.ResourceName}}Routes(handler *echo.Echo, {{.LowercaseResourceName}} controllers.{{.CapitalizedPluralName}}) {
-	handler.Add(
-		http.MethodGet, routes.{{.ResourceName}}Index.Path(), {{.LowercaseResourceName}}.Index,
-	).Name = routes.{{.ResourceName}}Index.Name()
+func register{{.ResourceName}}Routes(handler *echo.Echo, {{.LowercaseResourceName}} controllers.{{.CapitalizedPluralName}}) error {
+	errs := []error{}
 
-	handler.Add(
-		http.MethodGet, routes.{{.ResourceName}}Show.Path(), {{.LowercaseResourceName}}.Show,
-	).Name = routes.{{.ResourceName}}Show.Name()
+	_, err := handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.{{.ResourceName}}Index.Path(),
+		Name:    routes.{{.ResourceName}}Index.Name(),
+		Handler: {{.LowercaseResourceName}}.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodGet, routes.{{.ResourceName}}New.Path(), {{.LowercaseResourceName}}.New,
-	).Name = routes.{{.ResourceName}}New.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.{{.ResourceName}}Show.Path(),
+		Name:    routes.{{.ResourceName}}Show.Name(),
+		Handler: {{.LowercaseResourceName}}.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodPost, routes.{{.ResourceName}}Create.Path(), {{.LowercaseResourceName}}.Create,
-	).Name = routes.{{.ResourceName}}Create.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.{{.ResourceName}}New.Path(),
+		Name:    routes.{{.ResourceName}}New.Name(),
+		Handler: {{.LowercaseResourceName}}.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodGet, routes.{{.ResourceName}}Edit.Path(), {{.LowercaseResourceName}}.Edit,
-	).Name = routes.{{.ResourceName}}Edit.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.{{.ResourceName}}Create.Path(),
+		Name:    routes.{{.ResourceName}}Create.Name(),
+		Handler: {{.LowercaseResourceName}}.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodPut, routes.{{.ResourceName}}Update.Path(), {{.LowercaseResourceName}}.Update,
-	).Name = routes.{{.ResourceName}}Update.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.{{.ResourceName}}Edit.Path(),
+		Name:    routes.{{.ResourceName}}Edit.Name(),
+		Handler: {{.LowercaseResourceName}}.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
 
-	handler.Add(
-		http.MethodDelete, routes.{{.ResourceName}}Destroy.Path(), {{.LowercaseResourceName}}.Destroy,
-	).Name = routes.{{.ResourceName}}Destroy.Name()
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.{{.ResourceName}}Update.Path(),
+		Name:    routes.{{.ResourceName}}Update.Name(),
+		Handler: {{.LowercaseResourceName}}.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = handler.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.{{.ResourceName}}Destroy.Path(),
+		Name:    routes.{{.ResourceName}}Destroy.Name(),
+		Handler: {{.LowercaseResourceName}}.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }

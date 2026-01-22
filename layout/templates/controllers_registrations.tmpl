@@ -12,7 +12,7 @@ import (
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/views"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"{{.ModuleName}}/internal/hypermedia"
 )
@@ -31,11 +31,11 @@ func NewRegistrations(
 	return Registrations{db, insertOnly, cfg}
 }
 
-func (r Registrations) New(etx echo.Context) error {
+func (r Registrations) New(etx *echo.Context) error {
 	return render(etx, views.RegistrationForm())
 }
 
-func (r Registrations) Create(etx echo.Context) error {
+func (r Registrations) Create(etx *echo.Context) error {
 	var payload struct {
 		Email           string `json:"email"`
 		Password        string `json:"password"`

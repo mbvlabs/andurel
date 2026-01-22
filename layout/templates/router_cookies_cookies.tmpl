@@ -10,7 +10,7 @@ import (
 {{- end}}
 
 	"github.com/labstack/echo-contrib/session"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 var AppKey renderer.CookieKey = "app_cookie_context"
@@ -25,16 +25,15 @@ const (
 {{- end}}
 
 type App struct {
-	echo.Context
 {{- range .Blueprint.Cookies.SortedAppFields}}
 	{{.Name}} {{.Type}}
 {{- end}}
 }
 
 {{- if not (len .Blueprint.Cookies.SortedAppFields)}}
-func CreateAppSession(c echo.Context) error {
+func CreateAppSession(c *echo.Context) error {
 {{- else}}
-func CreateAppSession(c echo.Context, user models.User) error {
+func CreateAppSession(c *echo.Context, user models.User) error {
 {{- end}}
 	sess, err := session.Get(config.AppCookieSessionName, c)
 	if err != nil {
@@ -48,7 +47,7 @@ func CreateAppSession(c echo.Context, user models.User) error {
 	return sess.Save(c.Request(), c.Response())
 }
 
-func DestroyAppSession(c echo.Context) error {
+func DestroyAppSession(c *echo.Context) error {
 	sess, err := session.Get(config.AppCookieSessionName, c)
 	if err != nil {
 		return err
@@ -67,7 +66,7 @@ func GetAppCtx(ctx context.Context) App {
 	return appCtx
 }
 
-func GetApp(c echo.Context) App {
+func GetApp(c *echo.Context) App {
 {{- if not (len .Blueprint.Cookies.SortedAppFields)}}
 	_, err := session.Get(config.AppCookieSessionName, c)
 {{- else}}
@@ -77,7 +76,7 @@ func GetApp(c echo.Context) App {
 		return App{}
 	}
 
-	app := App{Context: c}
+	app := App{}
 {{- if .Blueprint.Cookies.GetSessionCode}}
 
 {{.Blueprint.Cookies.GetSessionCode}}

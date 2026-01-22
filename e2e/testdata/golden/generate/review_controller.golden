@@ -13,7 +13,7 @@ import (
 	"testapp/views"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 type Reviews struct {
@@ -24,7 +24,7 @@ func NewReviews(db storage.Pool) Reviews {
 	return Reviews{db}
 }
 
-func (r Reviews) Index(etx echo.Context) error {
+func (r Reviews) Index(etx *echo.Context) error {
 	page := int64(1)
 	if p := etx.QueryParam("page"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
@@ -53,7 +53,7 @@ func (r Reviews) Index(etx echo.Context) error {
 	return render(etx, views.ReviewIndex(reviewsList.Reviews))
 }
 
-func (r Reviews) Show(etx echo.Context) error {
+func (r Reviews) Show(etx *echo.Context) error {
 	reviewID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return render(etx, views.BadRequest())
@@ -67,7 +67,7 @@ func (r Reviews) Show(etx echo.Context) error {
 	return render(etx, views.ReviewShow(review))
 }
 
-func (r Reviews) New(etx echo.Context) error {
+func (r Reviews) New(etx *echo.Context) error {
 	return render(etx, views.ReviewNew())
 }
 
@@ -77,7 +77,7 @@ type CreateReviewFormPayload struct {
 	Rating int32  `json:"rating"`
 }
 
-func (r Reviews) Create(etx echo.Context) error {
+func (r Reviews) Create(etx *echo.Context) error {
 	var payload CreateReviewFormPayload
 	if err := etx.Bind(&payload); err != nil {
 		slog.ErrorContext(
@@ -115,7 +115,7 @@ func (r Reviews) Create(etx echo.Context) error {
 	return etx.Redirect(http.StatusSeeOther, routes.ReviewShow.URL(review.ID))
 }
 
-func (r Reviews) Edit(etx echo.Context) error {
+func (r Reviews) Edit(etx *echo.Context) error {
 	reviewID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return render(etx, views.BadRequest())
@@ -135,7 +135,7 @@ type UpdateReviewFormPayload struct {
 	Rating int32  `json:"rating"`
 }
 
-func (r Reviews) Update(etx echo.Context) error {
+func (r Reviews) Update(etx *echo.Context) error {
 	reviewID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return render(etx, views.BadRequest())
@@ -182,7 +182,7 @@ func (r Reviews) Update(etx echo.Context) error {
 	return etx.Redirect(http.StatusSeeOther, routes.ReviewShow.URL(review.ID))
 }
 
-func (r Reviews) Destroy(etx echo.Context) error {
+func (r Reviews) Destroy(etx *echo.Context) error {
 	reviewID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return render(etx, views.BadRequest())
