@@ -88,6 +88,8 @@ func setupControllers(
 		return err
 	}
 
+	// andurel:controller-registration-point
+
 	rtr.RegisterCustomRoutes(
 		riverHandler,
 		pages.NotFound,

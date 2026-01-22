@@ -6,14 +6,12 @@ import (
 
 	"{{.ModulePath}}/controllers"
 	"{{.ModulePath}}/router/routes"
-
-	"github.com/labstack/echo/v5"
 )
 
-func register{{.ResourceName}}Routes(handler *echo.Echo, {{.LowercaseResourceName}} controllers.{{.CapitalizedPluralName}}) error {
+func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} controllers.{{.CapitalizedPluralName}}) error {
 	errs := []error{}
 
-	_, err := handler.AddRoute(echo.Route{
+	_, err := r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}Index.Path(),
 		Name:    routes.{{.ResourceName}}Index.Name(),
@@ -23,7 +21,7 @@ func register{{.ResourceName}}Routes(handler *echo.Echo, {{.LowercaseResourceNam
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}Show.Path(),
 		Name:    routes.{{.ResourceName}}Show.Name(),
@@ -33,7 +31,7 @@ func register{{.ResourceName}}Routes(handler *echo.Echo, {{.LowercaseResourceNam
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}New.Path(),
 		Name:    routes.{{.ResourceName}}New.Name(),
@@ -43,7 +41,7 @@ func register{{.ResourceName}}Routes(handler *echo.Echo, {{.LowercaseResourceNam
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodPost,
 		Path:    routes.{{.ResourceName}}Create.Path(),
 		Name:    routes.{{.ResourceName}}Create.Name(),
@@ -53,7 +51,7 @@ func register{{.ResourceName}}Routes(handler *echo.Echo, {{.LowercaseResourceNam
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}Edit.Path(),
 		Name:    routes.{{.ResourceName}}Edit.Name(),
@@ -63,7 +61,7 @@ func register{{.ResourceName}}Routes(handler *echo.Echo, {{.LowercaseResourceNam
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodPut,
 		Path:    routes.{{.ResourceName}}Update.Path(),
 		Name:    routes.{{.ResourceName}}Update.Name(),
@@ -73,7 +71,7 @@ func register{{.ResourceName}}Routes(handler *echo.Echo, {{.LowercaseResourceNam
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.Handler.AddRoute(echo.Route{
 		Method:  http.MethodDelete,
 		Path:    routes.{{.ResourceName}}Destroy.Path(),
 		Name:    routes.{{.ResourceName}}Destroy.Name(),
