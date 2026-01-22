@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -12,12 +13,14 @@ import (
 type RouteGenerator struct {
 	fileManager      files.Manager
 	templateRenderer *TemplateRenderer
+	mainInjector     *MainInjector
 }
 
 func NewRouteGenerator() *RouteGenerator {
 	return &RouteGenerator{
 		fileManager:      files.NewUnifiedFileManager(),
 		templateRenderer: NewTemplateRenderer(),
+		mainInjector:     NewMainInjector(),
 	}
 }
 
@@ -47,6 +50,13 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName string) error 
 
 	if err := rg.createRouteRegistrationFile(resourceName, pluralName); err != nil {
 		return fmt.Errorf("failed to create route registration file: %w", err)
+	}
+
+	// Inject into cmd/app/main.go
+	if err := rg.mainInjector.InjectController(resourceName, pluralName); err != nil {
+		// This shouldn't happen since InjectController handles errors gracefully
+		// but log it just in case
+		slog.Warn("unexpected error injecting controller", "error", err)
 	}
 
 	return nil

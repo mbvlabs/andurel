@@ -31,17 +31,20 @@ import (
 {{- end}}
 
 	"github.com/a-h/templ"
-	//"github.com/labstack/echo/v5"
 )
 
 var appVersion string
 
+// setupControllers initializes and registers all controllers with the router.
+// The comment: 'andurel:controller-registration-point' is used as a marker for automated code generation tools.
+// If you remove it or change it, the generator tool may not function correctly. 
+// If you decide to move it, ensure it remains in a logical place within a function that passes the correct dependencies to the controllers.
 func setupControllers(
 {{- range $i, $dep := .Blueprint.Controllers.SortedDependencies}}
 	{{$dep.Name}} {{$dep.Type}},
 {{- end}}
 	insertOnly queue.InsertOnly,
-	rtr *router.Router,
+	r *router.Router,
 	riverHandler *riverui.Handler,
 	mw middleware.Middleware,
 ) error {
@@ -59,17 +62,37 @@ func setupControllers(
 	{{.VarName}} := {{.Expression}}
 {{- end}}
 
-	err = rtr.RegisterCtrlRoutes(
-		mw,
-{{- range .Blueprint.Controllers.SortedConstructors}}
-		{{.VarName}},
-{{- end}}
-	)
-	if err != nil {
+	if err := r.RegisterAPIRoutes(api); err != nil {
 		return err
 	}
 
-	rtr.RegisterCustomRoutes(
+	if err := r.RegisterAssetsRoutes(assets); err != nil {
+		return err
+	}
+
+	if err := r.RegisterConfirmationsRoutes(confirmations); err != nil {
+		return err
+	}
+
+	if err := r.RegisterPagesRoutes(pages); err != nil {
+		return err
+	}
+
+	if err := r.RegisterResetPasswordsRoutes(resetPasswords); err != nil {
+		return err
+	}
+
+	if err := r.RegisterSessionsRoutes(sessions); err != nil {
+		return err
+	}
+
+	if err := r.RegisterRegistrationsRoutes(registrations); err != nil {
+		return err
+	}
+
+	// andurel:controller-registration-point
+
+	r.RegisterCustomRoutes(
 		riverHandler,
 		pages.NotFound,
 	)
@@ -228,7 +251,7 @@ func run(ctx context.Context) error {
 
 	riverHandler.Start(ctx)
 
-	rtr, err := setupRouter(cfg, tel, mw)
+	r, err := setupRouter(cfg, tel, mw)
 	if err != nil {
 		return err
 	}
@@ -238,15 +261,13 @@ func run(ctx context.Context) error {
 		{{.Name}},
 {{- end}}
 		insertOnly,
-		rtr,
+		r,
 		riverHandler,
 		mw,
 	)
 	if err != nil {
 		return err
 	}
-
-	handler := rtr.HTTPHandler
 
 {{- range .Blueprint.Main.SortedBackgroundWorkers}}
 	// Start background worker: {{.Name}}
@@ -258,7 +279,7 @@ func run(ctx context.Context) error {
 		cfg.App.Host,
 		cfg.App.Port,
 		config.Env,
-		handler,
+		r.Handler,
 		[]server.Shutdowner{processor},
 	)
 

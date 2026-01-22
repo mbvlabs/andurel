@@ -10,10 +10,10 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func registerCompanyRoutes(handler *echo.Echo, company controllers.Companies) error {
+func (r Router) RegisterCompanyRoutes(company controllers.Companies) error {
 	errs := []error{}
 
-	_, err := handler.AddRoute(echo.Route{
+	_, err := r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.CompanyIndex.Path(),
 		Name:    routes.CompanyIndex.Name(),
@@ -23,7 +23,7 @@ func registerCompanyRoutes(handler *echo.Echo, company controllers.Companies) er
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.CompanyShow.Path(),
 		Name:    routes.CompanyShow.Name(),
@@ -33,7 +33,7 @@ func registerCompanyRoutes(handler *echo.Echo, company controllers.Companies) er
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.CompanyNew.Path(),
 		Name:    routes.CompanyNew.Name(),
@@ -43,7 +43,7 @@ func registerCompanyRoutes(handler *echo.Echo, company controllers.Companies) er
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPost,
 		Path:    routes.CompanyCreate.Path(),
 		Name:    routes.CompanyCreate.Name(),
@@ -53,7 +53,7 @@ func registerCompanyRoutes(handler *echo.Echo, company controllers.Companies) er
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.CompanyEdit.Path(),
 		Name:    routes.CompanyEdit.Name(),
@@ -63,7 +63,7 @@ func registerCompanyRoutes(handler *echo.Echo, company controllers.Companies) er
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPut,
 		Path:    routes.CompanyUpdate.Path(),
 		Name:    routes.CompanyUpdate.Name(),
@@ -73,7 +73,7 @@ func registerCompanyRoutes(handler *echo.Echo, company controllers.Companies) er
 		errs = append(errs, err)
 	}
 
-	_, err = handler.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodDelete,
 		Path:    routes.CompanyDestroy.Path(),
 		Name:    routes.CompanyDestroy.Name(),

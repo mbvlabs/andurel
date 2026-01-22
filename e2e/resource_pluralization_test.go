@@ -432,13 +432,14 @@ func validateRouterRegistrationPluralization(
 
 	// Check for correct patterns
 	// Note: Controllers use plural type names (e.g., Companies, Projects)
+	// The registration function is now a method on Router: func (r Router) RegisterXRoutes(...)
 	correctPatterns := []struct {
 		pattern string
 		desc    string
 	}{
 		{
-			"func register" + tc.expectedSingular + "Routes(",
-			"Registration function uses singular",
+			"func (r Router) Register" + tc.expectedSingular + "Routes(",
+			"Registration function is a Router method using singular",
 		},
 		{
 			lowercaseSingular + " controllers." + tc.expectedPlural,

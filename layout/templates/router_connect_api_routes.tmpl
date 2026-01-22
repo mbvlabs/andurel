@@ -10,10 +10,10 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func registerAPIRoutes(handler *echo.Echo, api controllers.API) error {
+func (r Router) RegisterAPIRoutes(api controllers.API) error {
 	errs := []error{}
 
-	_, err := handler.AddRoute(echo.Route{
+	_, err := r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.Health.Path(),
 		Name:    routes.Health.Name(),
