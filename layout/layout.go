@@ -281,8 +281,16 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc6.min.js",
 
 	// Commands
-	"cmd_app_main.tmpl": "cmd/app/main.go",
-	"cmd_run_main.tmpl": "cmd/run/main.go",
+	"cmd_app_main.tmpl":         "cmd/app/main.go",
+	"cmd_run_main.tmpl":         "cmd/run/main.go",
+	"cmd_run_gowatcher.tmpl":    "cmd/run/gowatcher.go",
+	"cmd_run_appserver.tmpl":    "cmd/run/appserver.go",
+	"cmd_run_broadcaster.tmpl":  "cmd/run/broadcaster.go",
+	"cmd_run_health.tmpl":       "cmd/run/health.go",
+	"cmd_run_injection.tmpl":    "cmd/run/injection.go",
+	"cmd_run_proxy.tmpl":        "cmd/run/proxy.go",
+	"cmd_run_templ.tmpl":        "cmd/run/templ.go",
+	"cmd_run_websocket.tmpl":    "cmd/run/websocket.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
@@ -842,7 +850,6 @@ var DefaultGoTools = []GoTool{
 	{Name: "templ", Module: "github.com/a-h/templ/cmd/templ", Version: versions.Templ},
 	{Name: "sqlc", Module: "github.com/sqlc-dev/sqlc/cmd/sqlc", Version: versions.Sqlc},
 	{Name: "goose", Module: "github.com/pressly/goose/v3/cmd/goose", Version: versions.Goose},
-	{Name: "air", Module: "github.com/air-verse/air", Version: versions.Air},
 	{Name: "mailpit", Module: "github.com/axllent/mailpit", Version: versions.Mailpit},
 	{Name: "usql", Module: "github.com/xo/usql", Version: versions.Usql},
 	{Name: "dblab", Module: "github.com/danvergara/dblab", Version: versions.Dblab},
@@ -852,7 +859,6 @@ var defaultTools = []string{
 	"github.com/a-h/templ/cmd/templ",
 	"github.com/sqlc-dev/sqlc/cmd/sqlc",
 	"github.com/pressly/goose/v3/cmd/goose",
-	"github.com/air-verse/air",
 	"github.com/axllent/mailpit",
 	"github.com/xo/usql",
 	"github.com/danvergara/dblab",

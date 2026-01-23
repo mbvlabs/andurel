@@ -36,7 +36,7 @@ func runLiveTemplWithParser(ctx context.Context, templChange chan<- TemplChange)
 		wd+"/bin/templ", "generate",
 		"--watch",
 		"--log-level", "debug",
-		// Only watch .templ files - air handles .go files
+		// Only watch .templ files - the Go watcher handles .go files
 		"--watch-pattern", `(.+\.templ$)`,
 	)
 
@@ -60,7 +60,7 @@ func runLiveTemplWithParser(ctx context.Context, templChange chan<- TemplChange)
 			line := scanner.Text()
 
 			// Print templ output for debugging
-			fmt.Printf("[templ] %s\n", line)
+			logDebug("[templ] %s", line)
 
 			switch {
 			case bytes.HasPrefix(b, bytesPrefixWarning):

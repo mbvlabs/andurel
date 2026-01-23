@@ -1,15 +1,18 @@
 package main
 
 import (
+{{- if eq .CSSFramework "tailwind" }}
 	"bufio"
+{{- end }}
 	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
+{{- if eq .CSSFramework "tailwind" }}
 	"strings"
+{{- end }}
 	"sync"
 	"syscall"
 	"time"
@@ -17,7 +20,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const Version = "v0.1.0"
+const Version = "{{.RunToolVersion}}"
 
 const (
 	DefaultProxyPort = "3000"
@@ -28,6 +31,18 @@ var (
 	runningProcesses []*exec.Cmd
 	processMutex     sync.Mutex
 )
+
+var verbose = os.Getenv("ANDUREL_VERBOSE") == "true"
+
+func logDebug(format string, args ...interface{}) {
+	if verbose {
+		fmt.Printf(format+"\n", args...)
+	}
+}
+
+func logInfo(format string, args ...interface{}) {
+	fmt.Printf(format+"\n", args...)
+}
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -52,18 +67,17 @@ func main() {
 	}
 
 	broadcaster := NewBroadcaster()
-
+	rebuildChan := make(chan struct{}, 1)
 	templChange := make(chan TemplChange, 64)
-
-	healthURL := fmt.Sprintf("http://localhost:%s/", appPort)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	var wg sync.WaitGroup
-	errChan := make(chan error, 4)
-	wg.Add(4)
+	errChan := make(chan error, 5)
 
+	// Start proxy server
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		if err := runProxyServer(ctx, proxyPort, appPort, broadcaster); err != nil {
@@ -71,13 +85,17 @@ func main() {
 		}
 	}()
 
+	// Start Go file watcher
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := runLiveServer(ctx, appPort, broadcaster); err != nil {
-			errChan <- fmt.Errorf("live-server: %w", err)
+		if err := runGoWatcher(ctx, rebuildChan); err != nil {
+			errChan <- fmt.Errorf("go-watcher: %w", err)
 		}
 	}()
 
+	// Start templ watcher
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		if err := runLiveTemplWithParser(ctx, templChange); err != nil {
@@ -85,13 +103,28 @@ func main() {
 		}
 	}()
 
+{{- if eq .CSSFramework "tailwind" }}
+	// Start tailwind watcher
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		if err := runLiveTailwind(ctx, broadcaster); err != nil {
 			errChan <- fmt.Errorf("live-tailwind: %w", err)
 		}
 	}()
+{{- end }}
 
+	// App server manager
+	appServer := NewAppServer(appPort, broadcaster)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := appServer.Run(ctx, rebuildChan); err != nil {
+			errChan <- fmt.Errorf("app-server: %w", err)
+		}
+	}()
+
+	// Handle templ changes
 	go func() {
 		for {
 			select {
@@ -100,32 +133,14 @@ func main() {
 			case change := <-templChange:
 				switch change {
 				case TemplChangeNeedsBrowserReload:
-					// Template content changed - just reload browser, no rebuild needed
-					// This is the fast path!
-					fmt.Println("[andurel] Broadcasting browser reload (template content change)")
+					logInfo("[andurel] Template changed, reloading browser")
 					broadcaster.Broadcast()
 				case TemplChangeNeedsRestart:
-					// Go code changed (_templ.go regenerated) - air will handle the rebuild
-					// We'll get a reload signal when air restarts the server
-					// fmt.Println("[andurel] Go code changed, air will rebuild")
-					// currentTime := time.Now().Local()
-					// if err := os.Chtimes("cmd/app/main.go", currentTime, currentTime); err != nil {
-					// 	fmt.Printf("Failed to touch file: %v\n", err)
-					// }
-
-					fmt.Println("[andurel] Go code changed, forcing air rebuild via touch...")
-					// Touch main.go (or any file air is watching) to trigger the watcher
-					// currentTime := time.Now().Local()
-
-					wd, err := os.Getwd()
-					if err != nil {
-						fmt.Printf("Failed to get working directory: %v\n", err)
+					logInfo("[andurel] Template Go code changed, rebuilding")
+					select {
+					case rebuildChan <- struct{}{}:
+					default:
 					}
-					_ = os.WriteFile(wd+"/trigger.txt", []byte("// trigger"), 0o644)
-					// if err := os.Chtimes(wd+"/cmd/app/main.go", currentTime, currentTime.Add(1*time.Second)); err != nil {
-					// 	fmt.Printf("Failed to touch file: %v\n", err)
-					// }
-
 				}
 			}
 		}
@@ -147,12 +162,6 @@ func main() {
 				cancel()
 			}
 		}
-	}()
-
-	// Wait a moment then broadcast initial reload once server is up
-	go func() {
-		time.Sleep(2 * time.Second)
-		BroadcastWhenHealthy(ctx, healthURL, broadcaster)
 	}()
 
 	wg.Wait()
@@ -239,93 +248,7 @@ func runProxyServer(
 	return server.Shutdown(shutdownCtx)
 }
 
-func runLiveServer(ctx context.Context, appPort string, broadcaster *Broadcaster) error {
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-
-	// args := []string{
-	// 	"--build.cmd", "go build -o tmp/bin/main cmd/app/main.go",
-	// 	"--build.bin", "tmp/bin/main",
-	// 	"--build.include_ext", "go",
-	// 	// 1. Remove brackets
-	// 	// 2. Ensure it's treated as a single string
-	// 	// 3. Match the specific suffix
-	// 	"--build.exclude_regex", "_templ\\.go$",
-	// }
-
-	// Define arguments as a slice of strings
-	// args := []string{
-	// 	"--build.cmd", "go build -o tmp/bin/main cmd/app/main.go",
-	// 	"--build.bin", "tmp/bin/main",
-	// 	"--build.include_ext", "go",
-	// 	"--build.exclude_regex", "[_templ\\.go]",
-	// }
-	//
-	// args := []string{
-	// 	"--build.cmd", "go build -o tmp/bin/main cmd/app/main.go",
-	// 	"--build.bin", "tmp/bin/main",
-	// 	"--build.include_ext", "go",
-	// 	// Raw string (backticks) avoids escape character confusion
-	// 	// Removed the internal double-quotes so air receives the raw regex
-	// 	"--build.exclude_regex", `_templ\.go$`,
-	// }
-
-	// Pass the slice using the '...' spread operator
-	cmd := exec.CommandContext(ctx, wd+"/bin/air")
-
-	// c := ` --build.cmd "go build -o tmp/bin/main cmd/app/main.go" --build.bin "tmp/bin/main" --build.include_ext "go" --build.exclude_regex "[_templ\\.go]"`
-	// cmd := exec.CommandContext(ctx, wd+"/bin/air", c)
-	// // "--d",
-	// "--build.cmd", "go build -o tmp/bin/main cmd/app/main.go",
-	// "--build.bin", "tmp/bin/main",
-	// // "--build.exclude_dir", "views",
-	// "--build.include_ext", "go",
-	// "--build.exclude_regex", "['_templ\\.go']",
-	// "--build.stop_on_error", "false",
-	// "--misc.clean_on_exit", "true",
-	// )
-
-	// CRITICAL: Set TEMPL_DEV_MODE=true so templ reads from .txt files at runtime
-	// This enables fast reloads without recompiling Go code
-	cmd.Env = append(os.Environ(), "TEMPL_DEV_MODE=true")
-
-	// Capture stdout to detect rebuilds
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-
-	addProcess(cmd)
-
-	// Parse air output to detect rebuilds
-	go func() {
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			line := scanner.Text()
-			fmt.Println(line)
-
-			// Air outputs "running..." when the new binary starts
-			if strings.Contains(line, "running...") {
-				// Wait for server to be ready, then broadcast reload
-				healthURL := fmt.Sprintf("http://localhost:%s/", appPort)
-				go BroadcastWhenHealthy(ctx, healthURL, broadcaster)
-			}
-		}
-	}()
-
-	<-ctx.Done()
-	if cmd.Process != nil {
-		return cmd.Process.Kill()
-	}
-	return nil
-}
+{{- if eq .CSSFramework "tailwind" }}
 
 func runLiveTailwind(ctx context.Context, broadcaster *Broadcaster) error {
 	wd, err := os.Getwd()
@@ -349,9 +272,7 @@ func runLiveTailwind(ctx context.Context, broadcaster *Broadcaster) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Start(); err != nil {
-		slog.Info(
-			"Tailwind CLI not found. Run 'andurel sync' to download it.",
-		)
+		logInfo("Tailwind CLI not found. Run 'andurel sync' to download it.")
 		return err
 	}
 
@@ -362,11 +283,11 @@ func runLiveTailwind(ctx context.Context, broadcaster *Broadcaster) error {
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			line := scanner.Text()
-			fmt.Println(line)
+			logDebug("[tailwind] %s", line)
 
 			// Tailwind outputs "Done in" when it finishes rebuilding
 			if strings.Contains(line, "Done in") {
-				fmt.Println("[andurel] CSS rebuilt, broadcasting reload")
+				logInfo("[andurel] CSS rebuilt, broadcasting reload")
 				broadcaster.Broadcast()
 			}
 		}
@@ -378,3 +299,4 @@ func runLiveTailwind(ctx context.Context, broadcaster *Broadcaster) error {
 	}
 	return nil
 }
+{{- end }}

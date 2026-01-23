@@ -2,18 +2,22 @@ package main
 
 import (
 	"sync"
+	"time"
 )
 
 // Broadcaster is a thread-safe pub/sub for reload events.
 // Listeners can subscribe to receive reload signals.
 type Broadcaster struct {
-	mu        sync.RWMutex
-	listeners map[chan struct{}]struct{}
+	mu            sync.RWMutex
+	listeners     map[chan struct{}]struct{}
+	lastBroadcast time.Time
+	debounceTime  time.Duration
 }
 
 func NewBroadcaster() *Broadcaster {
 	return &Broadcaster{
-		listeners: make(map[chan struct{}]struct{}),
+		listeners:    make(map[chan struct{}]struct{}),
+		debounceTime: 50 * time.Millisecond,
 	}
 }
 
@@ -35,6 +39,15 @@ func (b *Broadcaster) Unsubscribe(ch chan struct{}) {
 }
 
 func (b *Broadcaster) Broadcast() {
+	b.mu.Lock()
+	now := time.Now()
+	if now.Sub(b.lastBroadcast) < b.debounceTime {
+		b.mu.Unlock()
+		return
+	}
+	b.lastBroadcast = now
+	b.mu.Unlock()
+
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	for ch := range b.listeners {

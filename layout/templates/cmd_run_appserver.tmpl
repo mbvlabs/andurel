@@ -1,0 +1,95 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"syscall"
+	"time"
+)
+
+type AppServer struct {
+	cmd         *exec.Cmd
+	buildCmd    string
+	binPath     string
+	appPort     string
+	broadcaster *Broadcaster
+}
+
+func NewAppServer(appPort string, broadcaster *Broadcaster) *AppServer {
+	wd, _ := os.Getwd()
+	return &AppServer{
+		buildCmd:    "go build -o tmp/bin/main cmd/app/main.go",
+		binPath:     wd + "/tmp/bin/main",
+		appPort:     appPort,
+		broadcaster: broadcaster,
+	}
+}
+
+func (s *AppServer) Run(ctx context.Context, rebuildChan <-chan struct{}) error {
+	// Initial build and start
+	if err := s.rebuild(ctx); err != nil {
+		logInfo("[andurel] Initial build failed: %v", err)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			s.stop()
+			return nil
+		case <-rebuildChan:
+			s.stop()
+			if err := s.rebuild(ctx); err != nil {
+				logInfo("[andurel] Build failed: %v", err)
+				continue
+			}
+		}
+	}
+}
+
+func (s *AppServer) rebuild(ctx context.Context) error {
+	logInfo("[andurel] Building...")
+
+	buildCmd := exec.CommandContext(ctx, "go", "build", "-o", "tmp/bin/main", "cmd/app/main.go")
+	buildCmd.Stdout = os.Stdout
+	buildCmd.Stderr = os.Stderr
+
+	if err := buildCmd.Run(); err != nil {
+		return fmt.Errorf("build failed: %w", err)
+	}
+
+	logInfo("[andurel] Starting server...")
+	s.cmd = exec.CommandContext(ctx, s.binPath)
+	s.cmd.Env = append(os.Environ(), "TEMPL_DEV_MODE=true")
+	s.cmd.Stdout = os.Stdout
+	s.cmd.Stderr = os.Stderr
+
+	if err := s.cmd.Start(); err != nil {
+		return fmt.Errorf("start failed: %w", err)
+	}
+
+	addProcess(s.cmd)
+
+	// Wait for healthy, then broadcast
+	go func() {
+		healthURL := fmt.Sprintf("http://localhost:%s/", s.appPort)
+		BroadcastWhenHealthy(ctx, healthURL, s.broadcaster)
+	}()
+
+	return nil
+}
+
+func (s *AppServer) stop() {
+	if s.cmd != nil && s.cmd.Process != nil {
+		s.cmd.Process.Signal(syscall.SIGTERM)
+		done := make(chan error, 1)
+		go func() { done <- s.cmd.Wait() }()
+
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			s.cmd.Process.Kill()
+		}
+	}
+}

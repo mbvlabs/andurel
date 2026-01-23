@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"{{.ModuleName}}/assets"
 	"{{.ModuleName}}/config"
@@ -25,6 +27,13 @@ type Assets struct {
 
 func NewAssets(cache *Cache[string]) Assets {
 	return Assets{cache}
+}
+
+func (a Assets) readAssetFile(path string) ([]byte, error) {
+	if config.Env != server.ProdEnvironment {
+		return os.ReadFile(filepath.Join("assets", path))
+	}
+	return assets.Files.ReadFile(path)
 }
 
 func (a Assets) enableCaching(etx *echo.Context, content []byte) *echo.Context {
@@ -165,53 +174,53 @@ func createSitemap(routes []routing.Route) (string, error) {
 }
 
 func (a Assets) Stylesheet(etx *echo.Context) error {
-	stylesheet, err := assets.Files.ReadFile(
-		"css/style.css",
-	)
+	stylesheet, err := a.readAssetFile("css/style.css")
 	if err != nil {
 		return err
 	}
 
-	etx = a.enableCaching(etx, stylesheet)
+	if config.Env == server.ProdEnvironment {
+		etx = a.enableCaching(etx, stylesheet)
+	}
 	return etx.Blob(http.StatusOK, "text/css", stylesheet)
 }
 
 {{- if eq .CSSFramework "vanilla"}}
 func (a Assets) StyleImport(etx *echo.Context) error {
 	param := etx.Param("file")
-	stylesheet, err := assets.Files.ReadFile(
-		fmt.Sprintf("css/%s", param),
-	)
+	stylesheet, err := a.readAssetFile(fmt.Sprintf("css/%s", param))
 	if err != nil {
 		return err
 	}
 
-	etx = a.enableCaching(etx, stylesheet)
+	if config.Env == server.ProdEnvironment {
+		etx = a.enableCaching(etx, stylesheet)
+	}
 	return etx.Blob(http.StatusOK, "text/css", stylesheet)
 }
 {{- end}}
 
 func (a Assets) Scripts(etx *echo.Context) error {
-	stylesheet, err := assets.Files.ReadFile(
-		"js/scripts.js",
-	)
+	scripts, err := a.readAssetFile("js/scripts.js")
 	if err != nil {
 		return err
 	}
 
-	etx = a.enableCaching(etx, stylesheet)
-	return etx.Blob(http.StatusOK, "application/javascript", stylesheet)
+	if config.Env == server.ProdEnvironment {
+		etx = a.enableCaching(etx, scripts)
+	}
+	return etx.Blob(http.StatusOK, "application/javascript", scripts)
 }
 
 func (a Assets) Script(etx *echo.Context) error {
 	param := etx.Param("file")
-	stylesheet, err := assets.Files.ReadFile(
-		fmt.Sprintf("js/%s", param),
-	)
+	script, err := a.readAssetFile(fmt.Sprintf("js/%s", param))
 	if err != nil {
 		return err
 	}
 
-	etx = a.enableCaching(etx, stylesheet)
-	return etx.Blob(http.StatusOK, "application/javascript", stylesheet)
+	if config.Env == server.ProdEnvironment {
+		etx = a.enableCaching(etx, script)
+	}
+	return etx.Blob(http.StatusOK, "application/javascript", script)
 }
