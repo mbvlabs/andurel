@@ -1,0 +1,75 @@
+package main
+
+import (
+	"bytes"
+	"strings"
+)
+
+const HotReloadScript = `<script>
+(function() {
+  var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  var wsUrl = protocol + '//' + window.location.host + '/__andurel/events';
+  var reconnectDelay = 1000;
+  var maxReconnectDelay = 5000;
+  
+  function connect() {
+    var ws = new WebSocket(wsUrl);
+    
+    ws.onopen = function() {
+      console.log('[andurel] Connected to hot reload server');
+      reconnectDelay = 1000;
+    };
+    
+    ws.onmessage = function(event) {
+      if (event.data === 'r') {
+        console.log('[andurel] Reloading page...');
+        window.location.reload();
+      }
+    };
+    
+    ws.onclose = function() {
+      console.log('[andurel] Connection closed, reconnecting in ' + reconnectDelay + 'ms');
+      setTimeout(function() {
+        reconnectDelay = Math.min(reconnectDelay * 1.5, maxReconnectDelay);
+        connect();
+      }, reconnectDelay);
+    };
+    
+    ws.onerror = function(err) {
+      console.log('[andurel] WebSocket error:', err);
+      ws.close();
+    };
+  }
+  
+  connect();
+})();
+</script>`
+
+func InjectScript(content []byte) []byte {
+	script := []byte(HotReloadScript)
+
+	headClose := bytes.Index(bytes.ToLower(content), []byte("</head>"))
+	if headClose != -1 {
+		result := make([]byte, len(content)+len(script))
+		copy(result, content[:headClose])
+		copy(result[headClose:], script)
+		copy(result[headClose+len(script):], content[headClose:])
+		return result
+	}
+
+	bodyClose := bytes.Index(bytes.ToLower(content), []byte("</body>"))
+	if bodyClose != -1 {
+		result := make([]byte, len(content)+len(script))
+		copy(result, content[:bodyClose])
+		copy(result[bodyClose:], script)
+		copy(result[bodyClose+len(script):], content[bodyClose:])
+		return result
+	}
+
+	return append(content, script...)
+}
+
+func IsHTMLResponse(contentType string) bool {
+	ct := strings.ToLower(contentType)
+	return strings.Contains(ct, "text/html")
+}
