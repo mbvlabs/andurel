@@ -21,169 +21,88 @@ func newLlmCommand() *cobra.Command {
 
 const llmDocumentation = `# Andurel Framework - LLM Reference
 
-Rails-like web framework for Go with convention over configuration.
+Andurel is a comprehensive web development framework for Go that prioritizes development speed. Inspired by Ruby on Rails, it uses just enough conventions to let you build full-stack web applications incredibly fast.
 
 ## Stack
-- Echo (routing), SQLC (type-safe SQL), Templ (templates), River (background jobs), PostgreSQL
+- Echo (routing), SQLC (type-safe SQL), Templ (templates), River (background jobs), PostgreSQL, Tailwind CSS, Datastar (SSE hypermedia), Goose (migrations), pgx/v5 (database driver), OpenTelemetry (observability)
 
 ## Project Structure
 ` + "```" + `
+├── assets/              # Static assets
+│   ├── css/            # Compiled CSS files
+│   ├── js/            # JavaScript files
+│   └── assets.go              
+├── clients/             # External service clients
+│   └── email/          # Email client (Mailpit/AWS SES)
 ├── cmd/
-│   ├── app/          # Main application entry point
-│   └── run/          # Development orchestrator (Air, Templ, Tailwind)
-├── config/           # Configuration (sessions, database, app settings)
-├── controllers/      # HTTP request handlers (Echo handlers)
+│   ├── app/            # Main web application
+│   └── run/            # Development server orchestrator
+├── config/              # Application configuration
+│   ├── app.go          # Sessions, tokens, security
+│   ├── database.go     # Database connection
+│   ├── email.go        # Email configuration
+│   ├── telemetry.go    # Logging, tracing, metrics config
+│   └── config.go       # Main config aggregator
+├── controllers/         # HTTP request handlers
+│   ├── controller.go   # Base controller utilities
+│   ├── cache.go        # Cache control utilities
+│   ├── pages.go        # Page controllers
+│   └── assets.go       # Asset serving
+├── css/                 # Source CSS files (Tailwind input)
 ├── database/
-│   ├── migrations/   # Goose SQL migrations
-│   └── queries/      # SQLC query definitions (*.sql)
-├── email/            # Email templates and sending logic
-├── clients/          # External service clients (e.g., Mailpit)
-├── models/           # Business logic and validation
-│   ├── factories/    # Test data factories
-│   └── internal/db/  # Generated SQLC code (DO NOT EDIT)
-├── queue/
-│   ├── jobs/         # Job argument definitions
-│   └── workers/      # River worker implementations
-├── router/
-│   ├── routes/       # Route definitions (fluent builder pattern)
-│   ├── middleware/   # Custom middleware
-│   └── cookies/      # Session/flash helpers
-├── services/         # Business logic layer
-├── views/            # Templ templates (*.templ → *_templ.go)
-│   └── components/   # Reusable components
-├── css/              # Tailwind source (css/base.css → assets/css/style.css)
-├── assets/           # Compiled static files
-└── internal/         # Framework internals (rendering, routing, storage, server, hypermedia)
+│   ├── migrations/     # SQL migration files
+│   ├── queries/        # SQLC query definitions
+│   └── sqlc.yaml       # SQLC configuration
+├── email/               # Email functionality
+│   ├── email.go        # Email client and sending logic
+│   ├── base_layout.templ    # Base email template layout
+│   └── components.templ     # Reusable email components
+├── internal/            # Internal framework packages
+│   ├── hypermedia/     # Datastar/SSE helpers
+│   ├── renderer/       # Template rendering
+│   ├── routing/        # Routing utilities
+│   ├── server/         # Server configuration
+│   └── storage/        # Storage utilities
+├── models/              # Data models and business logic
+│   ├── model.go        # Base model setup
+│   ├── factories/      # Model factories for testing
+│   └── internal/db/    # Generated SQLC code (do not edit)
+├── queue/               # Background job processing
+│   ├── jobs/           # Job definitions
+│   ├── workers/        # Worker implementations
+├── router/              # Routes and middleware
+│   ├── router.go       # Main router setup
+│   ├── routes/         # Route definitions
+│   ├── cookies/        # Cookie and session helpers
+│   └── middleware/     # Custom middleware
+├── services/            # Business logic services
+│   ├── authentication.go    # Authentication service
+│   ├── registration.go      # User registration service
+│   └── reset_password.go    # Password reset service
+├── telemetry/           # Observability setup
+│   ├── logger.go       # Structured logging
+│   ├── tracer.go       # Distributed tracing
+│   ├── metrics.go      # Application metrics
+│   └── helpers.go      # Telemetry utilities
+├── views/               # Templ templates
+│   ├── components/     # Reusable template components
+│   ├── *.templ         # Template source files
+│   └── *_templ.go      # Generated Go code (do not edit)
+├── .env.example         # Example environment variables
+├── .gitignore           # Git ignore patterns
+├── andurel.lock         # Framework version lock file
+├── Dockerfile           # Container build (docker ext)
+├── go.mod               # Go module definition
+└── go.sum               # Go module checksums
 ` + "```" + `
 
 ## Key Commands
 ` + "```bash" + `
-andurel run                          # Start dev server (hot reload)
-andurel generate resource Product    # Full CRUD (model+controller+views+routes)
-andurel migration new create_table   # New migration
-andurel migration up                 # Apply migrations
-andurel sqlc generate                # Generate Go from SQL queries
-andurel app console                  # Database REPL
-` + "```" + `
-
-## Routes (router/routes/)
-` + "```go" + `
-// Define routes
-var ProductShow = routing.NewRouteWithID(
-    "/products/:id",  // path
-    "show",           // name
-    "products",       // prefix (becomes "products.show")
-)
-
-var ProductsList = routing.NewSimpleRoute(
-    "/products",
-    "index",
-    "products",
-)
-` + "```" + `
-
-Route constructors: ` + "`NewSimpleRoute`" + `, ` + "`NewRouteWithID`" + `, ` + "`NewRouteWithSlug`" + `, ` + "`NewRouteWithToken`" + `, ` + "`NewRouteWithFile`" + `, ` + "`NewRouteWithMultipleIDs`" + `
-
-Connect routes to controllers (in router/connect_*_routes.go):
-` + "```go" + `
-func registerProductsRoutes(handler *echo.Echo, ctrl controllers.Products) error {
-    errs := []error{}
-
-    _, err := handler.AddRoute(echo.Route{
-        Method:  http.MethodGet,
-        Path:    routes.ProductShow.Path(),
-        Name:    routes.ProductShow.Name(),
-        Handler: ctrl.Show,
-    })
-    if err != nil {
-        errs = append(errs, err)
-    }
-
-    return errors.Join(errs...)
-}
-` + "```" + `
-
-## Controllers
-` + "```go" + `
-type Products struct {
-    db         storage.Pool
-    insertOnly queue.InsertOnly
-}
-
-func (p Products) Show(c *echo.Context) error {
-    id := c.Param("id")
-    product, _ := db.GetProduct(ctx, uuid.MustParse(id))
-    return render(c, views.ProductShow(product))
-}
-
-func (p Products) Create(c *echo.Context) error {
-    // ... create product
-    // Generate URLs:
-    return c.Redirect(http.StatusSeeOther, routes.ProductShow.URL(product.ID))
-}
-` + "```" + `
-
-URL generation: ` + "`routes.HomePage.URL()`" + `, ` + "`routes.ProductShow.URL(productID)`" + `, ` + "`routes.PasswordEdit.URL(token)`" + `
-
-## Models
-Models wrap SQLC-generated queries with validation and business logic.
-
-**1. Define SQL queries** (database/queries/products.sql):
-` + "```sql" + `
--- name: QueryProductByID :one
-SELECT * FROM products WHERE id = $1;
-
--- name: InsertProduct :one
-INSERT INTO products (id, name, price) VALUES ($1, $2, $3) RETURNING *;
-
--- name: UpdateProduct :one
-UPDATE products SET name = $2, price = $3 WHERE id = $1 RETURNING *;
-` + "```" + `
-
-**2. Run** ` + "`andurel sqlc generate`" + ` to generate code in ` + "`models/internal/db/`" + `
-
-**3. Create model wrapper** (models/product.go):
-` + "```go" + `
-package models
-
-type Product struct {
-    ID    uuid.UUID
-    Name  string
-    Price int64
-}
-
-type CreateProductData struct {
-    Name  string ` + "`validate:\"required,max=255\"`" + `
-    Price int64  ` + "`validate:\"required,min=0\"`" + `
-}
-
-func FindProduct(ctx context.Context, exec storage.Executor, id uuid.UUID) (Product, error) {
-    row, err := queries.QueryProductByID(ctx, exec, id)
-    if err != nil {
-        return Product{}, err
-    }
-    return rowToProduct(row)
-}
-
-func CreateProduct(ctx context.Context, exec storage.Executor, data CreateProductData) (Product, error) {
-    if err := Validate.Struct(data); err != nil {
-        return Product{}, errors.Join(ErrDomainValidation, err)
-    }
-    params := db.InsertProductParams{
-        ID:    uuid.New(),
-        Name:  data.Name,
-        Price: data.Price,
-    }
-    row, err := queries.InsertProduct(ctx, exec, params)
-    if err != nil {
-        return Product{}, err
-    }
-    return rowToProduct(row)
-}
-
-func rowToProduct(row db.Product) (Product, error) {
-    return Product{ID: row.ID, Name: row.Name, Price: row.Price}, nil
-}
+andurel templ generate 				  			# Compile Templ templates	
+andurel generate resource Product    			# Full CRUD (model+controller+views+routes)
+andurel database migration new create_table		# New migration
+andurel database migration up                 	# Apply migrations
+andurel database queries generate          		# Generate Go from SQL queries
 ` + "```" + `
 
 **4. Use in controllers:**
@@ -273,29 +192,6 @@ func (w *SendEmailWorker) Work(ctx context.Context, job *river.Job[SendEmailArgs
 insertOnly.Client.Insert(ctx, SendEmailArgs{To: "user@example.com"}, nil)
 ` + "```" + `
 
-## Configuration (.env)
-` + "```env" + `
-ENVIRONMENT=development
-DB_KIND=postgres
-DB_HOST=127.0.0.1
-DB_PORT=5432
-DB_NAME=myapp
-DB_USER=postgres
-DB_PASSWORD=postgres
-SESSION_KEY=<hex-string>           # openssl rand -hex 32
-SESSION_ENCRYPTION_KEY=<hex-string>
-TOKEN_SIGNING_KEY=<hex-string>
-PEPPER=<hex-string>
-` + "```" + `
-
-## Authentication
-Pre-built system includes:
-- User registration with email confirmation
-- Login/logout with session management
-- Password reset flow with tokens
-- Argon2 password hashing
-- CSRF protection (automatic for non-` + "`/api/*`" + ` routes)
-
 ## Sessions & Flash Messages
 ` + "```go" + `
 sess, _ := session.Get("session-name", c)
@@ -307,16 +203,9 @@ cookies.SetFlash(c, cookies.FlashMessage{Type: "success", Message: "Saved!"})
 
 ## Common Workflows
 
-**New resource:**
-` + "```bash" + `
-andurel migration new create_product_table
-andurel migration up
-andurel generate resource Product
-` + "```" + `
-
 ## Important Notes
 - Never edit ` + "`models/internal/db/*`" + ` (SQLC generated) or ` + "`*_templ.go`" + ` (Templ generated)
-- Run ` + "`andurel sqlc generate`" + ` after changing ` + "`database/queries/*.sql`" + `
+- Run ` + "`andurel database queries generate`" + ` after changing ` + "`database/queries/*.sql`" + `
 - ` + "`andurel run`" + ` auto-compiles Templ files on change
 - CSRF enabled by default (skip with ` + "`/api/*`" + ` prefix)
 - Database uses pgx/v5 with connection pooling and OpenTelemetry tracing
