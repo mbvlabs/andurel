@@ -1,32 +1,171 @@
 package components
 
-type FieldProp struct {
+// FieldProp represents the state of a form field, including its value and any associated error message.
+type FieldState struct {
 	Value string
 	Error string
 }
 
-type FieldProps map[string]FieldProp
+type FormProps struct {
+	Method string
+	URL    string
+}
 
-templ InputField(label, name, inputType, placeholder string, required bool, prop FieldProp) {
-	<div>
+type formData struct {
+	css          string
+	overrideCSS  string
+	addCSSClass  []string
+	isFragment   bool
+	fragmentName string
+}
+
+type formDataOptions func(*formData)
+
+func OverrideFormCSS(css string) formDataOptions {
+	return func(fd *formData) {
+		fd.overrideCSS = css
+	}
+}
+
+func AddCssToForm(classes ...string) formDataOptions {
+	return func(fd *formData) {
+		fd.addCSSClass = append(fd.addCSSClass, classes...)
+	}
+}
+
+func WithFormFragment(name string) formDataOptions {
+	return func(fd *formData) {
+		fd.isFragment = true
+		fd.fragmentName = name
+	}
+}
+
+templ formBase(css, method, url string) {
+	<form
+		class={ css }
+		data-indicator:submitting
+		data-on:submit={ "!$submitting &&" + hypermedia.DataAction(method, url) }
+	>
+		{ children... }
+	</form>
+}
+
+templ Form(prop FormProps, options ...formDataOptions) {
+	{{
+		data := &formData{
+			css:          "grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6",
+			overrideCSS:  "",
+			isFragment:   false,
+			fragmentName: "",
+			addCSSClass:  []string{},
+		}
+		for _, option := range options {
+			option(data)
+		}
+
+		if data.overrideCSS != "" {
+			data.css = data.overrideCSS
+		} else if len(data.addCSSClass) > 0 {
+			for _, class := range data.addCSSClass {
+				data.css += " " + class
+			}
+		}
+	}}
+	if data.isFragment {
+		@templ.Fragment(data.fragmentName) {
+			@formBase(data.css, prop.Method, prop.URL) {
+				{ children... }
+			}
+		}
+	}
+	if !data.isFragment {
+		@formBase(data.css, prop.Method, prop.URL) {
+			{ children... }
+		}
+	}
+}
+
+type inputFieldData struct {
+	placeholder     string
+	required        bool
+	isFragment      bool
+	customName      string
+	disableOnSubmit bool
+	fieldType       string
+}
+
+type InputFieldOptions func(*inputFieldData)
+
+func SetRequired(required bool) InputFieldOptions {
+	return func(ifad *inputFieldData) {
+		ifad.required = required
+	}
+}
+
+func SetDisableOnSubmit(disable bool) InputFieldOptions {
+	return func(ifad *inputFieldData) {
+		ifad.disableOnSubmit = disable
+	}
+}
+
+func WithPlaceholder(placeholder string) InputFieldOptions {
+	return func(ifad *inputFieldData) {
+		ifad.placeholder = placeholder
+	}
+}
+
+func WithCustomName(name string) InputFieldOptions {
+	return func(ifad *inputFieldData) {
+		ifad.customName = name
+	}
+}
+
+func WithFieldType(fieldType string) InputFieldOptions {
+	return func(ifad *inputFieldData) {
+		ifad.fieldType = fieldType
+	}
+}
+
+func WithFragment(fragment bool) InputFieldOptions {
+	return func(ifad *inputFieldData) {
+		ifad.isFragment = fragment
+	}
+}
+
+type InputProps struct {
+	Title string
+	State FieldState
+}
+
+// TODO: needs css override options like Form
+templ inputBase(title, name, inputType, value, placeholder, errorMsg string, required, disableOnSubmit bool) {
+	<div class="grid gap-2">
 		<label
+			class="label"
 			for={ name }
 		>
-			{ label }
+			{ title }
 		</label>
 		<input
-			type={ inputType }
 			id={ name }
-			value={ prop.Value }
-			placeholder={ placeholder }
+			class="input"
+			type={ inputType }
+			if value != "" {
+				value={ value }
+			}
+			if placeholder != "" {
+				placeholder={ placeholder }
+			}
 			data-bind={ name }
-			data-attr:disabled="$submitting"
+			if disableOnSubmit {
+				data-attr:disabled="$submitting"
+			}
 			if required {
 				required
 			}
 		/>
-		if prop.Error != "" {
-			<span>{ prop.Error }</span>
+		if errorMsg != "" {
+			<span>{ errorMsg }</span>
 		}
 	</div>
 }
