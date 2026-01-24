@@ -85,12 +85,6 @@ func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, err
 		return fmt.Sprintf("https://github.com/%s/releases/download/%s/goose_%s_%s%s",
 			repo, d.Version, os, arch, ext), "binary", nil
 
-	case "air":
-		os := goos
-		arch := goarch
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/air_%s_%s_%s.tar.gz",
-			repo, d.Version, d.Version[1:], os, arch), "tar.gz", nil
-
 	case "mailpit":
 		os := goos
 		arch := goarch
@@ -112,6 +106,13 @@ func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, err
 		arch := goarch
 		return fmt.Sprintf("https://github.com/%s/releases/download/%s/dblab_%s_%s_%s.tar.gz",
 			repo, d.Version, d.Version[1:], os, arch), "tar.gz", nil
+
+	case "shadowfax":
+		// Shadowfax dev server - assets named shadowfax-<os>-<arch>
+		os := goos
+		arch := goarch
+		return fmt.Sprintf("https://github.com/%s/releases/download/%s/shadowfax-%s-%s",
+			repo, d.Version, os, arch), "binary", nil
 
 	default:
 		return "", "", fmt.Errorf("unknown tool: %s", d.Name)

@@ -30,7 +30,7 @@ Rails-like web framework for Go with convention over configuration.
 ` + "```" + `
 ├── cmd/
 │   ├── app/          # Main application entry point
-│   └── run/          # Development orchestrator (Air, Templ, Tailwind)
+│   └── shadowfax/    # Development orchestrator (Air, Templ, Tailwind)
 ├── config/           # Configuration (sessions, database, app settings)
 ├── controllers/      # HTTP request handlers (Echo handlers)
 ├── database/
