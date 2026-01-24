@@ -67,7 +67,16 @@ func RunGoRunBin(targetDir string) error {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	cmd := exec.Command("go", "build", "-o", "bin/run", "cmd/run/main.go")
+	files, err := filepath.Glob(filepath.Join(absTargetDir, "cmd", "run", "*.go"))
+	if err != nil {
+		return fmt.Errorf("failed to glob cmd/run/*.go: %w", err)
+	}
+	if len(files) == 0 {
+		return fmt.Errorf("no go files found in cmd/run")
+	}
+
+	args := append([]string{"build", "-o", "bin/run"}, files...)
+	cmd := exec.Command("go", args...)
 	cmd.Dir = absTargetDir
 	return cmd.Run()
 }
