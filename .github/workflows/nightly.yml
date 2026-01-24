@@ -73,33 +73,29 @@ jobs:
 
             ## Installation
 
-            ### Using Go install (recommended for nightly)
-            ```bash
-            go install github.com/${{ github.repository }}@${{ github.sha }}
-            ```
+            Download the appropriate binary for your platform below, make it executable, and place it in your GOBIN directory.
 
-            ### Download binary
-            Download the appropriate binary for your platform below, make it executable, and place it in your PATH.
+            > **Note**: Do not use `go install` for nightly builds - it builds from source and won't include the version info. Use the pre-built binaries below instead.
 
             **Linux (amd64)**
             ```bash
             curl -L https://github.com/${{ github.repository }}/releases/download/nightly/andurel-linux-amd64 -o andurel
             chmod +x andurel
-            sudo mv andurel /usr/local/bin/
+            mv andurel $(go env GOBIN)/
             ```
 
             **macOS (Apple Silicon)**
             ```bash
             curl -L https://github.com/${{ github.repository }}/releases/download/nightly/andurel-darwin-arm64 -o andurel
             chmod +x andurel
-            sudo mv andurel /usr/local/bin/
+            mv andurel $(go env GOBIN)/
             ```
 
             **macOS (Intel)**
             ```bash
             curl -L https://github.com/${{ github.repository }}/releases/download/nightly/andurel-darwin-amd64 -o andurel
             chmod +x andurel
-            sudo mv andurel /usr/local/bin/
+            mv andurel $(go env GOBIN)/
             ```
 
             ## Checksums
