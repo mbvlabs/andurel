@@ -72,8 +72,9 @@ func (i Items) New(etx *echo.Context) error {
 }
 
 type CreateItemFormPayload struct {
-	Name     string `json:"name"`
-	Quantity int32  `json:"quantity"`
+	WarehouseID string `json:"warehouseId"`
+	Name        string `json:"name"`
+	Quantity    int32  `json:"quantity"`
 }
 
 func (i Items) Create(etx *echo.Context) error {
@@ -90,6 +91,23 @@ func (i Items) Create(etx *echo.Context) error {
 	}
 
 	data := models.CreateItemData{
+		WarehouseID: func() uuid.UUID {
+			if payload.WarehouseID == "" {
+				return uuid.Nil
+			}
+			parsed, err := uuid.Parse(payload.WarehouseID)
+			if err != nil {
+				slog.WarnContext(
+					etx.Request().Context(),
+					"could not parse WarehouseID, setting to nil UUID",
+					"error",
+					err,
+				)
+				return uuid.Nil
+			}
+
+			return parsed
+		}(),
 		Name:     payload.Name,
 		Quantity: payload.Quantity,
 	}
@@ -128,8 +146,9 @@ func (i Items) Edit(etx *echo.Context) error {
 }
 
 type UpdateItemFormPayload struct {
-	Name     string `json:"name"`
-	Quantity int32  `json:"quantity"`
+	WarehouseID string `json:"warehouseId"`
+	Name        string `json:"name"`
+	Quantity    int32  `json:"quantity"`
 }
 
 func (i Items) Update(etx *echo.Context) error {
@@ -151,7 +170,24 @@ func (i Items) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateItemData{
-		ID:       itemID,
+		ID: itemID,
+		WarehouseID: func() uuid.UUID {
+			if payload.WarehouseID == "" {
+				return uuid.Nil
+			}
+			parsed, err := uuid.Parse(payload.WarehouseID)
+			if err != nil {
+				slog.WarnContext(
+					etx.Request().Context(),
+					"could not parse WarehouseID, setting to nil UUID",
+					"error",
+					err,
+				)
+				return uuid.Nil
+			}
+
+			return parsed
+		}(),
 		Name:     payload.Name,
 		Quantity: payload.Quantity,
 	}
