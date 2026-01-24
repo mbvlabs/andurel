@@ -347,6 +347,26 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 		filepath.Join("testdata", "golden", "generate", "student_feedback_view.golden"),
 		string(viewContent),
 	)
+
+	// Verify main.go uses camelCase variable name for snake_case table name
+	mainContent, err := os.ReadFile(filepath.Join(project.Dir, "cmd", "app", "main.go"))
+	if err != nil {
+		t.Fatalf("Failed to read cmd/app/main.go: %v", err)
+	}
+
+	mainContentStr := string(mainContent)
+	requiredPatterns := []string{
+		"studentFeedback := controllers.NewStudentFeedback(db)",
+		"RegisterStudentFeedbackRoutes(studentFeedback)",
+	}
+	for _, pattern := range requiredPatterns {
+		if !strings.Contains(mainContentStr, pattern) {
+			t.Errorf("cmd/app/main.go should contain %q", pattern)
+		}
+	}
+	if strings.Contains(mainContentStr, "student_feedback") {
+		t.Error("cmd/app/main.go should not contain snake_case variable names for controller registration")
+	}
 }
 
 func testGenerateModelWithFactory(t *testing.T, project *internal.Project) {
