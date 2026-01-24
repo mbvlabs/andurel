@@ -68,6 +68,7 @@ type SQLData struct {
 	LimitOffsetClause   string
 	NowFunction         string
 	UpsertUpdateSet     string
+	OrderByClause       string
 	TableNameOverridden bool
 }
 
@@ -429,6 +430,7 @@ func (g *Generator) prepareSQLData(
 	var nowFunc string
 	var idPlaceholder string
 	var limitOffsetClause string
+	hasCreatedAt := false
 
 	if g.typeMapper.GetDatabaseType() == "postgresql" {
 		placeholderFunc = func(i int) string { return fmt.Sprintf("$%d", i) }
@@ -440,6 +442,9 @@ func (g *Generator) prepareSQLData(
 	placeholderIndex := 1
 
 	for _, col := range table.Columns {
+		if col.Name == "created_at" {
+			hasCreatedAt = true
+		}
 		insertColumns = append(insertColumns, col.Name)
 
 		if col.Name == "created_at" || col.Name == "updated_at" {
@@ -481,6 +486,11 @@ func (g *Generator) prepareSQLData(
 		pluralResourceName = resourceName
 	}
 
+	orderByClause := "order by id desc"
+	if hasCreatedAt {
+		orderByClause = "order by created_at desc"
+	}
+
 	return SQLData{
 		ResourceName:        resourceName,
 		PluralName:          pluralName,
@@ -493,6 +503,7 @@ func (g *Generator) prepareSQLData(
 		LimitOffsetClause:   limitOffsetClause,
 		NowFunction:         nowFunc,
 		UpsertUpdateSet:     strings.Join(upsertUpdateColumns, ", "),
+		OrderByClause:       orderByClause,
 		TableNameOverridden: tableNameOverridden,
 	}
 }

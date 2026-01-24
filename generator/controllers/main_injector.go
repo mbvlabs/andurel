@@ -29,13 +29,13 @@ func NewMainInjector() *MainInjector {
 // InjectController adds controller constructor and registration to main.go
 // Returns nil if marker not found (logs info message instead of failing)
 func (mi *MainInjector) InjectController(resourceName, pluralName string) error {
-	varName := naming.ToLowerCamelCase(pluralName)
+	varName := naming.ToLowerCamelCaseFromAny(pluralName)
 	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
 
 	// Find go.mod root and construct full path
 	rootDir, err := mi.fileManager.FindGoModRoot()
 	if err != nil {
-		mi.printManualInstructions(resourceName, capitalizedPlural, varName)
+		mi.printManualInstructions(resourceName, pluralName)
 		return nil // Don't fail, just inform
 	}
 
@@ -44,7 +44,7 @@ func (mi *MainInjector) InjectController(resourceName, pluralName string) error 
 	// Read main.go
 	content, err := os.ReadFile(mainFilePath)
 	if err != nil {
-		mi.printManualInstructions(resourceName, capitalizedPlural, varName)
+		mi.printManualInstructions(resourceName, pluralName)
 		return nil // Don't fail, just inform
 	}
 
@@ -55,7 +55,7 @@ func (mi *MainInjector) InjectController(resourceName, pluralName string) error 
 		slog.Info("could not find controller registration marker in cmd/app/main.go",
 			"marker", registrationMarker,
 			"hint", "add the marker to enable automatic controller registration")
-		mi.printManualInstructions(resourceName, capitalizedPlural, varName)
+		mi.printManualInstructions(resourceName, pluralName)
 		return nil // Don't fail, just inform
 	}
 
@@ -83,7 +83,10 @@ func (mi *MainInjector) InjectController(resourceName, pluralName string) error 
 	return nil
 }
 
-func (mi *MainInjector) printManualInstructions(resourceName, capitalizedPlural, varName string) {
+func (mi *MainInjector) printManualInstructions(resourceName, pluralName string) {
+	varName := naming.ToLowerCamelCaseFromAny(pluralName)
+	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
+
 	fmt.Printf(`
 INFO: Add the following to your controller setup in cmd/app/main.go:
 
