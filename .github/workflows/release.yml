@@ -23,10 +23,10 @@ jobs:
       
     - name: Build binary
       run: |
-        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s -X main.version=${{ steps.version.outputs.VERSION }}" -o andurel-linux-amd64 .
-        CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-w -s -X main.version=${{ steps.version.outputs.VERSION }}" -o andurel-darwin-amd64 .
-        CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-w -s -X main.version=${{ steps.version.outputs.VERSION }}" -o andurel-darwin-arm64 .
-        CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-w -s -X main.version=${{ steps.version.outputs.VERSION }}" -o andurel-windows-amd64.exe .
+        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-w -s -X main.version=${{ steps.version.outputs.VERSION }}" -o andurel-linux-amd64 .
+        CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-w -s -X main.version=${{ steps.version.outputs.VERSION }}" -o andurel-darwin-amd64 .
+        CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-w -s -X main.version=${{ steps.version.outputs.VERSION }}" -o andurel-darwin-arm64 .
+        CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-w -s -X main.version=${{ steps.version.outputs.VERSION }}" -o andurel-windows-amd64.exe .
         
     - name: Upload release assets
       uses: actions/upload-release-asset@v1
