@@ -60,9 +60,9 @@ Rails-like web framework for Go with convention over configuration.
 ` + "```bash" + `
 andurel run                          # Start dev server (hot reload)
 andurel generate resource Product    # Full CRUD (model+controller+views+routes)
-andurel migration new create_table   # New migration
-andurel migration up                 # Apply migrations
-andurel sqlc generate                # Generate Go from SQL queries
+andurel migrate new create_table     # New migration
+andurel migrate up                   # Apply migrations
+andurel queries generate             # Generate Go from SQL queries
 andurel app console                  # Database REPL
 ` + "```" + `
 

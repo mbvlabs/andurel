@@ -94,6 +94,53 @@ andurel generate resource Product
 
 This single command creates everything you need for a full CRUD interface.
 
+## CLI Commands
+
+Top-level commands:
+
+- `andurel run`
+- `andurel new [project-name]` flags: `--repo/-r`, `--css/-c`, `--extensions/-e`
+- `andurel generate` aliases: `g`, `gen`
+  - `model [name]` alias: `m` flags: `--table-name`, `--skip-factory`
+  - `controller [model_name]` alias: `c` flags: `--with-views`
+  - `view [model_name]` alias: `v` flags: `--with-controller`
+  - `resource [name]` alias: `r` flags: `--table-name`
+  - `queries [table_name]` alias: `q` flags: `--refresh`
+- `andurel database` alias: `db`
+  - `migration` aliases: `m`, `mig`
+    - `new [name]`
+    - `up`
+    - `down`
+    - `status`
+    - `fix`
+    - `reset`
+    - `up-to [version]`
+    - `down-to [version]`
+  - `queries` alias: `q`
+    - `compile`
+    - `generate`
+  - `seed`
+- `andurel migrate` (alias of `database migration`) subcommands: `new`, `up`, `down`, `status`, `fix`, `reset`, `up-to`, `down-to`
+- `andurel queries` (alias of `database queries`) subcommands: `compile`, `generate`
+- `andurel templ` alias: `t`
+  - `generate`
+- `andurel app` alias: `a`
+  - `console` alias: `c`
+  - `dblab` alias: `d`
+  - `mailpit` alias: `m`
+- `andurel console` (alias of `app console`)
+- `andurel dblab` (alias of `app dblab`)
+- `andurel mailpit` (alias of `app mailpit`)
+- `andurel llm`
+- `andurel tool`
+  - `sync`
+  - `set-version <tool> <version>`
+- `andurel extension` aliases: `ext`, `e`
+  - `add [extension-name]`
+  - `list` alias: `ls`
+- `andurel upgrade` flag: `--dry-run`
+- `andurel doctor` flag: `--verbose`
+
 ## Project Structure
 
 ```
