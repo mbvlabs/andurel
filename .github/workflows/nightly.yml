@@ -40,10 +40,10 @@ jobs:
       - name: Build binaries
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s -X main.version=$VERSION" -o andurel-linux-amd64 .
-          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-w -s -X main.version=$VERSION" -o andurel-darwin-amd64 .
-          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-w -s -X main.version=$VERSION" -o andurel-darwin-arm64 .
-          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-w -s -X main.version=$VERSION" -o andurel-windows-amd64.exe .
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-w -s -X main.version=$VERSION" -o andurel-linux-amd64 .
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-w -s -X main.version=$VERSION" -o andurel-darwin-amd64 .
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-w -s -X main.version=$VERSION" -o andurel-darwin-arm64 .
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-w -s -X main.version=$VERSION" -o andurel-windows-amd64.exe .
 
       - name: Generate checksums
         run: |

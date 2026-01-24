@@ -17,14 +17,14 @@ func getVersion() string {
 	if version != "" {
 		return version
 	}
+
 	return "dev"
 }
 
 func main() {
 	ctx := context.Background()
 
-	version := getVersion()
-	rootCmd := cli.NewRootCommand(version, date)
+	rootCmd := cli.NewRootCommand(getVersion(), date)
 
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		os.Exit(1)
