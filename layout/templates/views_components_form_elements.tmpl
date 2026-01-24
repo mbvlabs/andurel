@@ -1,10 +1,14 @@
 package components
 
+
 // FieldProp represents the state of a form field, including its value and any associated error message.
 type FieldState struct {
 	Value string
 	Error string
 }
+
+// ResourceProps represents a collection of form fields, mapping field names to their respective states.
+type ResourceProps map[string]FieldState
 
 type FormProps struct {
 	Method string
