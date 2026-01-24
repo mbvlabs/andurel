@@ -16,12 +16,10 @@ func newDatabaseCommand() *cobra.Command {
 		Use:     "database",
 		Aliases: []string{"db"},
 		Short:   "Database management commands",
-		Long:    "Commands for managing database migrations, queries, and seeding.",
+		Long:    "Commands for managing database seeds.",
 	}
 
 	cmd.AddCommand(
-		newDBMigrationCommand(),
-		newDBQueriesCommand(),
 		newDBSeedCommand(),
 	)
 

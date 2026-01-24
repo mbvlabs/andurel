@@ -76,15 +76,10 @@ func (g *TemplateGenerator) RenderFrameworkTemplates(
 
 // buildTemplateData constructs the template data from scaffold config
 func (g *TemplateGenerator) buildTemplateData(config layout.ScaffoldConfig) *layout.TemplateData {
-	moduleName := config.ProjectName
-	if config.Repository != "" {
-		moduleName = config.Repository + "/" + config.ProjectName
-	}
-
 	return &layout.TemplateData{
 		AppName:        config.ProjectName,
 		ProjectName:    config.ProjectName,
-		ModuleName:     moduleName,
+		ModuleName:     config.ProjectName,
 		Database:       config.Database,
 		CSSFramework:   config.CSSFramework,
 		Extensions:     config.Extensions,
