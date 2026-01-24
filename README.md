@@ -102,9 +102,9 @@ Top-level commands:
 andurel run
 andurel new [project-name] --css/-c --extensions/-e
 andurel generate (aliases: g, gen)
-andurel database (alias: db)        # seed only
-andurel migrate                     # alias of: database migration
-andurel queries                     # alias of: database queries
+andurel database (alias: db)        
+andurel migrate                     
+andurel queries                     
 andurel templ (alias: t)
 andurel app (alias: a)
 andurel console                     # alias of: app console
