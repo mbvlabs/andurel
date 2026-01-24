@@ -96,6 +96,28 @@ func TestToLowerCamelCase(t *testing.T) {
 	}
 }
 
+func TestToLowerCamelCaseFromAny(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{name: "snake case", input: "server_provision_steps", expected: "serverProvisionSteps"},
+		{name: "pascal case", input: "ServerProvisionSteps", expected: "serverProvisionSteps"},
+		{name: "already camelCase", input: "serverProvisionSteps", expected: "serverProvisionSteps"},
+		{name: "empty string", input: "", expected: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ToLowerCamelCaseFromAny(tt.input)
+			if got != tt.expected {
+				t.Fatalf("ToLowerCamelCaseFromAny(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestToPascalCase(t *testing.T) {
 	tests := []struct {
 		name     string

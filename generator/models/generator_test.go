@@ -332,6 +332,127 @@ func TestNonePgtypeDataTypes(t *testing.T) {
 	}
 }
 
+func TestGenerateSQLFallsBackToIDOrderingWithoutCreatedAt(t *testing.T) {
+	tempDir := t.TempDir()
+	migrationsDir := filepath.Join(tempDir, "database", "migrations")
+
+	err := os.MkdirAll(migrationsDir, constants.DirPermissionDefault)
+	if err != nil {
+		t.Fatalf("Failed to create migrations directory: %v", err)
+	}
+
+	migration := `-- +goose Up
+CREATE TABLE server_provision_steps (
+    id UUID PRIMARY KEY,
+    started_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    server_id UUID NOT NULL
+);
+
+-- +goose Down
+DROP TABLE server_provision_steps;
+`
+
+	migrationFile := filepath.Join(migrationsDir, "001_create_server_provision_steps.sql")
+	err = os.WriteFile(migrationFile, []byte(migration), constants.FilePermissionPrivate)
+	if err != nil {
+		t.Fatalf("Failed to write migration file: %v", err)
+	}
+
+	generator := NewGenerator("postgresql")
+	cat, err := generator.buildCatalogFromTableMigrations(
+		"server_provision_steps",
+		[]string{migrationsDir},
+	)
+	if err != nil {
+		t.Fatalf("Failed to build catalog from migrations: %v", err)
+	}
+
+	table, err := cat.GetTable("", "server_provision_steps")
+	if err != nil {
+		t.Fatalf("Failed to get table from catalog: %v", err)
+	}
+
+	sqlContent, err := generator.GenerateSQLContent(
+		"ServerProvisionStep",
+		"server_provision_steps",
+		table,
+		false,
+	)
+	if err != nil {
+		t.Fatalf("Failed to generate SQL content: %v", err)
+	}
+
+	if strings.Contains(sqlContent, "order by created_at desc") {
+		t.Error("Expected fallback pagination ordering without created_at column")
+	}
+	if !strings.Contains(sqlContent, "order by id desc") {
+		t.Error("Expected pagination ordering to use id desc without created_at column")
+	}
+	if strings.Contains(sqlContent, "now()") {
+		t.Error("Expected no now() placeholders without created_at/updated_at columns")
+	}
+}
+
+func TestGenerateSQLUsesNowWhenTimestampsPresent(t *testing.T) {
+	tempDir := t.TempDir()
+	migrationsDir := filepath.Join(tempDir, "database", "migrations")
+
+	err := os.MkdirAll(migrationsDir, constants.DirPermissionDefault)
+	if err != nil {
+		t.Fatalf("Failed to create migrations directory: %v", err)
+	}
+
+	migration := `-- +goose Up
+CREATE TABLE audit_logs (
+    id UUID PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    message TEXT NOT NULL
+);
+
+-- +goose Down
+DROP TABLE audit_logs;
+`
+
+	migrationFile := filepath.Join(migrationsDir, "001_create_audit_logs.sql")
+	err = os.WriteFile(migrationFile, []byte(migration), constants.FilePermissionPrivate)
+	if err != nil {
+		t.Fatalf("Failed to write migration file: %v", err)
+	}
+
+	generator := NewGenerator("postgresql")
+	cat, err := generator.buildCatalogFromTableMigrations(
+		"audit_logs",
+		[]string{migrationsDir},
+	)
+	if err != nil {
+		t.Fatalf("Failed to build catalog from migrations: %v", err)
+	}
+
+	table, err := cat.GetTable("", "audit_logs")
+	if err != nil {
+		t.Fatalf("Failed to get table from catalog: %v", err)
+	}
+
+	sqlContent, err := generator.GenerateSQLContent(
+		"AuditLog",
+		"audit_logs",
+		table,
+		false,
+	)
+	if err != nil {
+		t.Fatalf("Failed to generate SQL content: %v", err)
+	}
+
+	if !strings.Contains(sqlContent, "order by created_at desc") {
+		t.Error("Expected pagination ordering to use created_at when present")
+	}
+	if !strings.Contains(sqlContent, "now()") {
+		t.Error("Expected now() placeholders when created_at/updated_at columns are present")
+	}
+}
+
 // TestMigrationWithComments verifies that migrations containing SQL comments
 // (both single-line -- and block /* */) are parsed correctly and generate
 // valid model code.

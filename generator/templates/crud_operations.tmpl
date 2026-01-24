@@ -22,7 +22,7 @@ delete from {{.PluralName}} where id={{.IDPlaceholder}};
 
 -- name: QueryPaginated{{.PluralResourceName}} :many
 select * from {{.PluralName}}
-order by created_at desc
+{{.OrderByClause}}
 {{.LimitOffsetClause}};
 
 -- name: Count{{.PluralResourceName}} :one
