@@ -105,7 +105,7 @@ andurel generate (aliases: g, gen)
 andurel database (alias: db)        
 andurel migrate                     
 andurel queries                     
-andurel templ (alias: t)
+andurel views
 andurel app (alias: a)
 andurel console                     # alias of: app console
 andurel dblab                       # alias of: app dblab
