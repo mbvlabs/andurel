@@ -60,8 +60,8 @@ Rails-like web framework for Go with convention over configuration.
 ` + "```bash" + `
 andurel run                          # Start dev server (hot reload)
 andurel generate resource Product    # Full CRUD (model+controller+views+routes)
-andurel migration new create_table   # New migration
-andurel migration up                 # Apply migrations
+andurel db migration new create_table   # New migration
+andurel db migration up                 # Apply migrations
 andurel sqlc generate                # Generate Go from SQL queries
 andurel app console                  # Database REPL
 ` + "```" + `
@@ -309,8 +309,8 @@ cookies.SetFlash(c, cookies.FlashMessage{Type: "success", Message: "Saved!"})
 
 **New resource:**
 ` + "```bash" + `
-andurel migration new create_product_table
-andurel migration up
+andurel db migration new create_product_table
+andurel db migration up
 andurel generate resource Product
 ` + "```" + `
 

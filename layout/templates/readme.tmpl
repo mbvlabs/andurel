@@ -64,7 +64,7 @@ A full-stack web application built with [Andurel](https://github.com/mbvlabs/and
 
 3. **Run migrations**
    ```bash
-   andurel migration up
+   andurel db migration up
    ```
 
 4. **Start the development server**
@@ -98,25 +98,25 @@ Provides a SQL console connected to your database for ad-hoc queries and explora
 
 ```bash
 # Create a new migration
-andurel migration new create_users_table
+andurel db migration new create_users_table
 
 # Run all pending migrations
-andurel migration up
+andurel db migration up
 
 # Rollback last migration
-andurel migration down
+andurel db migration down
 
 # Rollback to specific version
-andurel migration down-to [version]
+andurel db migration down-to [version]
 
 # Apply up to specific version
-andurel migration up-to [version]
+andurel db migration up-to [version]
 
 # Reset database (rollback all, then reapply)
-andurel migration reset
+andurel db migration reset
 
 # Fix migration version gaps
-andurel migration fix
+andurel db migration fix
 ```
 
 ## How-To Guides
@@ -129,7 +129,7 @@ The Andurel generator creates complete CRUD resources with models, controllers, 
 
 ```bash
 # 1. Create a migration for your table
-andurel migration new create_products_table
+andurel db migration new create_products_table
 ```
 
 Edit the generated migration file in `database/migrations/` to define your table schema:
@@ -152,7 +152,7 @@ DROP TABLE products;
 Apply the migration:
 
 ```bash
-andurel migration up
+andurel db migration up
 ```
 
 **Generate the resource**:
@@ -396,13 +396,13 @@ When modifying your database schema:
 
 ```bash
 # 1. Create a migration
-andurel migration new add_email_to_users
+andurel db migration new add_email_to_users
 
 # 2. Edit the migration file
 # Add your ALTER TABLE statements
 
 # 3. Apply the migration
-andurel migration up
+andurel db migration up
 
 # 4. Update queries if needed (in database/queries/)
 
@@ -509,10 +509,10 @@ andurel run
 andurel g resource Product
 
 # Add a migration
-andurel migration new add_field_to_products
+andurel db migration new add_field_to_products
 
 # Run migrations
-andurel migration up
+andurel db migration up
 
 # Regenerate SQLC code
 andurel sqlc generate
