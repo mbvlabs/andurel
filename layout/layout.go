@@ -40,7 +40,12 @@ func Scaffold(
 	targetDir, projectName, repo, database, cssFramework, version string,
 	extensionNames []string,
 ) error {
-	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
+	dirName := targetDir
+	if dirName == "." {
+		dirName = "current directory"
+	}
+
+	fmt.Printf("Scaffolding new project in %s...\n", dirName)
 
 	if strings.Contains(repo, "github.com/") {
 		slog.Warn(

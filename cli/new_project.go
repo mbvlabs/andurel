@@ -2,6 +2,8 @@ package cli
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/mbvlabs/andurel/layout"
 
@@ -12,11 +14,11 @@ func newProjectCommand(version string) *cobra.Command {
 	projectCmd := &cobra.Command{
 		Use:   "new [project-name]",
 		Short: "Create a new Andurel project",
-		Long: `Create a new Andurel project with the specified name.
+		Long: `Create a new Andurel project with the specified name, or use the current directory.
 
 This will scaffold a complete project structure with all necessary files,
 dependencies, and configuration.`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return newProject(cmd, args, version)
 		},
@@ -35,9 +37,24 @@ dependencies, and configuration.`,
 }
 
 func newProject(cmd *cobra.Command, args []string, version string) error {
-	projectName := args[0]
+	projectName := ""
+	if len(args) > 0 {
+		projectName = args[0]
+	}
+	isCurrentDir := projectName == "." || projectName == "./" || projectName == ""
 
-	basePath := "./" + projectName
+	basePath := "."
+
+	if isCurrentDir {
+		pwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+
+		projectName = filepath.Base(pwd)
+	} else {
+		basePath = filepath.Join(".", projectName)
+	}
 
 	repo, err := cmd.Flags().GetString("repo")
 	if err != nil {
@@ -72,7 +89,9 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 
 	fmt.Printf("\n🎉 Successfully created project: %s\n", projectName)
 	fmt.Printf("\nNext steps:\n")
-	fmt.Printf("  cd %s\n", args[0])
+	if !isCurrentDir {
+		fmt.Printf("  cd %s\n", args[0])
+	}
 	fmt.Printf("  andurel tool sync\n")
 	fmt.Printf("  cp .env.example .env\n")
 	fmt.Printf("  fill in your database connection details in .env\n")
