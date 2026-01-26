@@ -61,17 +61,6 @@ func RunGolines(targetDir string) error {
 	return cmd.Run()
 }
 
-func RunGoRunBin(targetDir string) error {
-	absTargetDir, err := filepath.Abs(targetDir)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path: %w", err)
-	}
-
-	cmd := exec.Command("go", "build", "-o", "bin/run", "cmd/run/main.go")
-	cmd.Dir = absTargetDir
-	return cmd.Run()
-}
-
 func RunTemplGenerate(targetDir string) error {
 	absTargetDir, err := filepath.Abs(targetDir)
 	if err != nil {

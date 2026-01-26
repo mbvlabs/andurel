@@ -2,8 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/mbvlabs/andurel/layout/upgrade"
 	"github.com/spf13/cobra"
@@ -69,22 +67,8 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 	if report.Success {
 		fmt.Printf("\n✓ Upgrade complete!\n")
 
-		// Remove binaries for built tools whose source was updated (force rebuild)
-		if len(report.BuiltToolsUpdated) > 0 {
-			binDir := filepath.Join(projectRoot, "bin")
-			for _, toolName := range report.BuiltToolsUpdated {
-				binPath := filepath.Join(binDir, toolName)
-				if _, err := os.Stat(binPath); err == nil {
-					os.Remove(binPath)
-					fmt.Printf("  🔨 Marked %s for rebuild\n", toolName)
-				}
-			}
-		}
-
 		// Sync tools if any were added, updated, or removed
-		totalToolChanges := report.ToolsAdded + report.ToolsUpdated + report.ToolsRemoved + len(
-			report.BuiltToolsUpdated,
-		)
+		totalToolChanges := report.ToolsAdded + report.ToolsUpdated + report.ToolsRemoved
 		if totalToolChanges > 0 {
 			fmt.Printf("\nSyncing tools...\n")
 			if err := syncBinaries(projectRoot); err != nil {

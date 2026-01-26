@@ -37,8 +37,6 @@ func GetFrameworkTemplates() []FrameworkTemplate {
 		{"framework_elements_hypermedia_helpers.tmpl", "internal/hypermedia/helpers.go"},
 		{"framework_elements_hypermedia_signals.tmpl", "internal/hypermedia/signals.go"},
 		{"framework_elements_hypermedia_sse.tmpl", "internal/hypermedia/sse.go"},
-
-		{"cmd_run_main.tmpl", "cmd/run/main.go"},
 	}
 }
 
