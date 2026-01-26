@@ -75,6 +75,7 @@ type CreateInvoiceFormPayload struct {
 	InvoiceNumber string  `json:"invoiceNumber"`
 	Amount        float64 `json:"amount"`
 	Status        string  `json:"status"`
+	PdfData       string  `json:"pdfData"`
 }
 
 func (i Invoices) Create(etx *echo.Context) error {
@@ -94,6 +95,7 @@ func (i Invoices) Create(etx *echo.Context) error {
 		InvoiceNumber: payload.InvoiceNumber,
 		Amount:        payload.Amount,
 		Status:        payload.Status,
+		PdfData:       []byte(payload.PdfData),
 	}
 
 	invoice, err := models.CreateInvoice(
@@ -133,6 +135,7 @@ type UpdateInvoiceFormPayload struct {
 	InvoiceNumber string  `json:"invoiceNumber"`
 	Amount        float64 `json:"amount"`
 	Status        string  `json:"status"`
+	PdfData       string  `json:"pdfData"`
 }
 
 func (i Invoices) Update(etx *echo.Context) error {
@@ -158,6 +161,7 @@ func (i Invoices) Update(etx *echo.Context) error {
 		InvoiceNumber: payload.InvoiceNumber,
 		Amount:        payload.Amount,
 		Status:        payload.Status,
+		PdfData:       []byte(payload.PdfData),
 	}
 
 	invoice, err := models.UpdateInvoice(

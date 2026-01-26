@@ -61,6 +61,10 @@ func TestGenerateCommands(t *testing.T) {
 				testGenerateModel(t, project)
 			})
 
+			t.Run("generate_model_without_timestamps", func(t *testing.T) {
+				testGenerateModelWithoutTimestamps(t, project)
+			})
+
 			t.Run("generate_controller", func(t *testing.T) {
 				testGenerateController(t, project)
 			})
@@ -164,12 +168,46 @@ func testGenerateModel(t *testing.T, project *internal.Project) {
 	)
 }
 
+func testGenerateModelWithoutTimestamps(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	createMigrationRaw(t, project, "000113_create_server_provision_steps", "server_provision_steps", []string{
+		"started_at TIMESTAMP WITH TIME ZONE NOT NULL",
+		"completed_at TIMESTAMP WITH TIME ZONE",
+		"server_id UUID NOT NULL",
+	})
+
+	err := project.Generate("generate", "model", "ServerProvisionStep", "--skip-factory")
+	internal.AssertCommandSucceeds(t, err, "generate model without timestamps")
+
+	internal.AssertFileExists(t, project, "models/server_provision_step.go")
+
+	internal.AssertFileExists(t, project, "database/queries/server_provision_steps.sql")
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/server_provision_steps.sql"))
+	if err != nil {
+		t.Fatalf("Failed to read queries file: %v", err)
+	}
+
+	queriesStr := string(queriesContent)
+	if strings.Contains(queriesStr, "order by created_at desc") {
+		t.Error("Expected pagination ordering to avoid created_at when column is missing")
+	}
+	if !strings.Contains(queriesStr, "order by id desc") {
+		t.Error("Expected pagination ordering to fall back to id desc")
+	}
+	if strings.Contains(queriesStr, "now()") {
+		t.Error("Expected no now() placeholders without created_at/updated_at columns")
+	}
+}
+
 func testGenerateController(t *testing.T, project *internal.Project) {
 	t.Helper()
 
 	createMigration(t, project, "000101_create_orders", "orders", []string{
+		"account_id UUID NOT NULL",
 		"customer_name VARCHAR(255) NOT NULL",
 		"total DECIMAL(10,2)",
+		"signature BYTEA",
 	})
 
 	err := project.Generate("generate", "model", "Order")
@@ -251,6 +289,7 @@ func testGenerateResource(t *testing.T, project *internal.Project) {
 	t.Helper()
 
 	createMigration(t, project, "000103_create_items", "items", []string{
+		"warehouse_id UUID",
 		"name VARCHAR(255) NOT NULL",
 		"quantity INTEGER",
 	})
@@ -347,6 +386,26 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 		filepath.Join("testdata", "golden", "generate", "student_feedback_view.golden"),
 		string(viewContent),
 	)
+
+	// Verify main.go uses camelCase variable name for snake_case table name
+	mainContent, err := os.ReadFile(filepath.Join(project.Dir, "cmd", "app", "main.go"))
+	if err != nil {
+		t.Fatalf("Failed to read cmd/app/main.go: %v", err)
+	}
+
+	mainContentStr := string(mainContent)
+	requiredPatterns := []string{
+		"studentFeedback := controllers.NewStudentFeedback(db)",
+		"RegisterStudentFeedbackRoutes(studentFeedback)",
+	}
+	for _, pattern := range requiredPatterns {
+		if !strings.Contains(mainContentStr, pattern) {
+			t.Errorf("cmd/app/main.go should contain %q", pattern)
+		}
+	}
+	if strings.Contains(mainContentStr, "student_feedback") {
+		t.Error("cmd/app/main.go should not contain snake_case variable names for controller registration")
+	}
 }
 
 func testGenerateModelWithFactory(t *testing.T, project *internal.Project) {
@@ -499,6 +558,7 @@ func testGenerateControllerWithoutViews(t *testing.T, project *internal.Project)
 		"invoice_number VARCHAR(50) NOT NULL",
 		"amount DECIMAL(10,2) NOT NULL",
 		"status VARCHAR(20) DEFAULT 'pending'",
+		"pdf_data BYTEA",
 	})
 
 	err := project.Generate("generate", "model", "Invoice")

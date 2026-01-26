@@ -104,7 +104,27 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 	data := models.Create{{.ResourceName}}Data{
 {{- range .Fields}}
 {{- if not .IsSystemField}}
-		{{- if eq .GoFormType "time.Time"}}
+		{{- if eq .GoType "uuid.UUID"}}
+		{{.Name}}:    func() uuid.UUID {
+			if payload.{{.Name}} == "" {
+				return uuid.Nil
+			}
+			parsed, err := uuid.Parse(payload.{{.Name}})
+			if err != nil {
+				slog.WarnContext(
+					etx.Request().Context(),
+					"could not parse {{.Name}}, setting to nil UUID",
+					"error",
+					err,
+				)
+				return uuid.Nil
+			}
+
+			return parsed
+		}(),
+		{{- else if eq .GoType "[]byte"}}
+		{{.Name}}:    []byte(payload.{{.Name}}),
+		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
 			if payload.{{.Name}} == "" {
 				return time.Time{}
@@ -188,7 +208,27 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		ID:      {{.ResourceName | ToLowerCamelCase}}ID,
 {{- range .Fields}}
 {{- if not .IsSystemField}}
-		{{- if eq .GoFormType "time.Time"}}
+		{{- if eq .GoType "uuid.UUID"}}
+		{{.Name}}:    func() uuid.UUID {
+			if payload.{{.Name}} == "" {
+				return uuid.Nil
+			}
+			parsed, err := uuid.Parse(payload.{{.Name}})
+			if err != nil {
+				slog.WarnContext(
+					etx.Request().Context(),
+					"could not parse {{.Name}}, setting to nil UUID",
+					"error",
+					err,
+				)
+				return uuid.Nil
+			}
+
+			return parsed
+		}(),
+		{{- else if eq .GoType "[]byte"}}
+		{{.Name}}:    []byte(payload.{{.Name}}),
+		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
 			if payload.{{.Name}} == "" {
 				return time.Time{}

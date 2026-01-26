@@ -84,7 +84,7 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName string
 
 func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, pluralName string) (string, error) {
 	capitalizedPluralName := naming.Capitalize(naming.ToCamelCase(pluralName))
-	lowercasePluralName := naming.ToLowerCamelCase(pluralName)
+	lowercasePluralName := naming.ToLowerCamelCaseFromAny(pluralName)
 
 	// Get module path
 	modulePath, err := tr.getModulePath()

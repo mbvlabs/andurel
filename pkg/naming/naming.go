@@ -89,6 +89,19 @@ func ToLowerCamelCase(s string) string {
 	return string(runes)
 }
 
+// ToLowerCamelCaseFromAny converts snake_case or PascalCase into lower camelCase.
+// It preserves existing camelCase inputs by only lowercasing the first character
+// when there are no underscores.
+func ToLowerCamelCaseFromAny(s string) string {
+	if s == "" {
+		return ""
+	}
+	if strings.Contains(s, "_") {
+		return ToCamelCase(s)
+	}
+	return ToLowerCamelCase(s)
+}
+
 func Capitalize(s string) string {
 	if len(s) == 0 {
 		return s

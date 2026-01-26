@@ -16,9 +16,9 @@ var goTools = map[string]string{
 	"templ":   "github.com/a-h/templ/cmd/templ",
 	"sqlc":    "github.com/sqlc-dev/sqlc/cmd/sqlc",
 	"goose":   "github.com/pressly/goose/v3/cmd/goose",
-	"air":     "github.com/air-verse/air",
 	"mailpit": "github.com/axllent/mailpit",
 	"usql":    "github.com/xo/usql",
+	"shadowfax": "github.com/mbvlabs/shadowfax",
 }
 
 var binaryTools = map[string]bool{
@@ -35,9 +35,9 @@ Go tools (downloaded from GitHub releases):
   templ        - Templ templating engine
   sqlc         - SQL compiler
   goose        - Database migrations
-  air          - Live reload
   mailpit      - Email testing
   usql         - Universal SQL CLI
+  shadowfax    - Shadowfax dev server
 
 Binary tools (downloaded from GitHub):
   tailwindcli  - Tailwind CSS CLI
@@ -48,6 +48,7 @@ Examples:
   andurel tool set-version templ 0.3.950
   andurel tool set-version sqlc 1.28.0
   andurel tool set-version tailwindcli 4.1.17
+  andurel tool set-version shadowfax 0.1.0
 
 This updates andurel.lock and downloads the tool binary to bin/.`,
 		Args: cobra.ExactArgs(2),
@@ -70,7 +71,7 @@ func setVersion(projectRoot, toolName, version string) error {
 	_, isBinaryTool := binaryTools[toolName]
 
 	if !isGoTool && !isBinaryTool {
-		return fmt.Errorf("unknown tool: %s\n\nSupported Go tools:\n  templ, sqlc, goose, air, mailpit, usql\n\nSupported binary tools:\n  tailwindcli\n\nRun 'andurel tool set-version --help' for more information", toolName)
+		return fmt.Errorf("unknown tool: %s\n\nSupported Go tools:\n  templ, sqlc, goose, mailpit, usql, shadowfax\n\nSupported binary tools:\n  tailwindcli\n\nRun 'andurel tool set-version --help' for more information", toolName)
 	}
 
 	if version == "" {

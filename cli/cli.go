@@ -24,6 +24,7 @@ func NewRootCommand(version, date string) *cobra.Command {
 
 	rootCmd.AddCommand(newProjectCommand(version))
 	rootCmd.AddCommand(newGenerateCommand())
+	rootCmd.AddCommand(newQueriesCommand())
 	rootCmd.AddCommand(newDatabaseCommand())
 	rootCmd.AddCommand(newTemplCommand())
 
@@ -52,7 +53,7 @@ func newRunAppCommand() *cobra.Command {
 				return err
 			}
 
-			binPath := filepath.Join(rootDir, "bin", "run")
+			binPath := filepath.Join(rootDir, "bin", "shadowfax")
 
 			runCmd := exec.Command(binPath)
 			runCmd.Stdout = os.Stdout
@@ -106,9 +107,9 @@ func checkBinaries(rootDir string) error {
 		return nil
 	}
 
-	binPath := filepath.Join(rootDir, "bin", "run")
+	binPath := filepath.Join(rootDir, "bin", "shadowfax")
 	if _, err := os.Stat(binPath); err != nil {
-		return fmt.Errorf("bin/run not found. Run 'andurel tool sync' to build it")
+		return fmt.Errorf("bin/shadowfax not found. Run 'andurel tool sync' to download it")
 	}
 
 	return nil
