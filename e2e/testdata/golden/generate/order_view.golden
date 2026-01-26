@@ -28,6 +28,7 @@ templ OrderIndex(orders []models.Order) {
 										<th>Account Id</th>
 										<th>Customer Name</th>
 										<th>Total</th>
+										<th>Signature</th>
 										<th>Created At</th>
 										<th>Updated At</th>
 										<th>Actions</th>
@@ -39,6 +40,7 @@ templ OrderIndex(orders []models.Order) {
 											<td>{ order.AccountID.String() }</td>
 											<td>{ order.CustomerName }</td>
 											<td>{ fmt.Sprintf("%f", order.Total) }</td>
+											<td>{ string(order.Signature) }</td>
 											<td>{ order.CreatedAt.String() }</td>
 											<td>{ order.UpdatedAt.String() }</td>
 											<td>
@@ -83,6 +85,10 @@ templ OrderShow(order models.Order) {
 							<p>{ fmt.Sprintf("%f", order.Total) }</p>
 						</div>
 						<div>
+							<label>Signature</label>
+							<p>{ string(order.Signature) }</p>
+						</div>
+						<div>
 							<label>Created At</label>
 							<p>{ order.CreatedAt.String() }</p>
 						</div>
@@ -120,6 +126,9 @@ templ OrderNew() {
 									</div>
 									<div>
 										@components.InputField("Total", "total", "number", "", false, components.FieldProp{})
+									</div>
+									<div>
+										@components.InputField("Signature", "signature", "text", "", false, components.FieldProp{})
 									</div>
 								</div>
 							</div>
@@ -163,6 +172,11 @@ templ OrderEdit(order models.Order) {
 									<div>
 										@components.InputField("Total", "total", "number", "", false, components.FieldProp{
 											Value: fmt.Sprintf("%f", order.Total),
+										})
+									</div>
+									<div>
+										@components.InputField("Signature", "signature", "text", "", false, components.FieldProp{
+											Value: string(order.Signature),
 										})
 									</div>
 								</div>

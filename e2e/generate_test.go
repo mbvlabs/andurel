@@ -207,6 +207,7 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 		"account_id UUID NOT NULL",
 		"customer_name VARCHAR(255) NOT NULL",
 		"total DECIMAL(10,2)",
+		"signature BYTEA",
 	})
 
 	err := project.Generate("generate", "model", "Order")
@@ -557,6 +558,7 @@ func testGenerateControllerWithoutViews(t *testing.T, project *internal.Project)
 		"invoice_number VARCHAR(50) NOT NULL",
 		"amount DECIMAL(10,2) NOT NULL",
 		"status VARCHAR(20) DEFAULT 'pending'",
+		"pdf_data BYTEA",
 	})
 
 	err := project.Generate("generate", "model", "Invoice")
