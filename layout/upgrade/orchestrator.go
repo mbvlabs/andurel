@@ -33,11 +33,10 @@ type UpgradeReport struct {
 	ToolsRemoved int
 	ToolsUpdated int
 
-	AddedTools        []string
-	RemovedTools      []string
-	UpdatedTools      []string
-	ReplacedFiles     []string
-	BuiltToolsUpdated []string // Names of built tools whose source was updated
+	AddedTools    []string
+	RemovedTools  []string
+	UpdatedTools  []string
+	ReplacedFiles []string
 
 	Success bool
 	Error   error
@@ -147,11 +146,6 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		report.FilesReplaced++
 		report.ReplacedFiles = append(report.ReplacedFiles, targetPath)
 		fmt.Printf("  ✓ %s\n", targetPath)
-
-		// Track which built tools had their source updated
-		if toolName := u.getBuiltToolNameFromPath(targetPath); toolName != "" {
-			report.BuiltToolsUpdated = append(report.BuiltToolsUpdated, toolName)
-		}
 	}
 
 	// Synchronize tools with target version
@@ -259,6 +253,11 @@ func (u *Upgrader) syncToolsToFrameworkVersion() (*ToolSyncResult, error) {
 		Updated: []string{},
 	}
 
+	if existingTool, ok := u.lock.Tools["run"]; ok && existingTool.Source == "built" {
+		delete(u.lock.Tools, "run")
+		result.Removed = append(result.Removed, "run")
+	}
+
 	// Get expected tools based on the scaffold config
 	expectedTools := layout.GetExpectedTools(u.lock.ScaffoldConfig)
 
@@ -321,11 +320,6 @@ func isFrameworkManagedTool(name string, tool *layout.Tool) bool {
 		return true
 	}
 
-	// Built tools (run)
-	if tool.Source == "built" && name == "run" {
-		return true
-	}
-
 	// Unknown tool - assume user-added, don't remove
 	return false
 }
@@ -361,15 +355,6 @@ func shouldUpdateTool(existing, expected *layout.Tool) bool {
 // getToolVersion safely extracts version from a tool
 func getToolVersion(tool *layout.Tool) string {
 	return tool.Version
-}
-
-// getBuiltToolNameFromPath returns the tool name if the path corresponds to a built tool, empty string otherwise
-func (u *Upgrader) getBuiltToolNameFromPath(path string) string {
-	// Map of built tool paths to their names
-	builtToolPaths := map[string]string{
-		"cmd/run/main.go": "run",
-	}
-	return builtToolPaths[path]
 }
 
 // cleanupObsoleteBinaries removes binary files for tools that no longer exist in the lock file
