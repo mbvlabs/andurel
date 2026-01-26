@@ -134,15 +134,6 @@ func (l *AndurelLock) Sync(targetDir string, silent bool) error {
 			} else {
 				return fmt.Errorf("unknown binary tool: %s", name)
 			}
-
-		case "built":
-			if name == "run" {
-				if err := cmds.RunGoRunBin(absTargetDir); err != nil {
-					return fmt.Errorf("failed to build %s: %w", name, err)
-				}
-			} else {
-				return fmt.Errorf("unknown built binary: %s", name)
-			}
 		}
 	}
 

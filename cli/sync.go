@@ -53,11 +53,7 @@ func syncBinaries(projectRoot string) error {
 		binPath := filepath.Join(projectRoot, "bin", name)
 
 		if _, err := os.Stat(binPath); err == nil {
-			if tool.Source == "built" {
-				fmt.Printf("✓ %s (%s) - already built\n", name, tool.Version)
-			} else {
-				fmt.Printf("✓ %s (%s) - already present\n", name, tool.Version)
-			}
+			fmt.Printf("✓ %s (%s) - already present\n", name, tool.Version)
 			continue
 		}
 
@@ -79,17 +75,6 @@ func syncBinaries(projectRoot string) error {
 				return fmt.Errorf("unknown binary tool: %s", name)
 			}
 			fmt.Printf("✓ %s (%s) - downloaded successfully\n", name, tool.Version)
-
-		case "built":
-			fmt.Printf("🔨 Building %s from %s...\n", name, tool.Path)
-			if name == "run" {
-				if err := cmds.RunGoRunBin(projectRoot); err != nil {
-					return fmt.Errorf("failed to build %s: %w", name, err)
-				}
-			} else {
-				return fmt.Errorf("unknown built binary: %s", name)
-			}
-			fmt.Printf("✓ %s - built successfully\n", name)
 
 		default:
 			return fmt.Errorf("unknown tool source: %s for %s", tool.Source, name)

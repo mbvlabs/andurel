@@ -269,7 +269,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Commands
 	"cmd_app_main.tmpl": "cmd/app/main.go",
-	"cmd_run_main.tmpl": "cmd/run/main.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
@@ -829,20 +828,20 @@ var DefaultGoTools = []GoTool{
 	{Name: "templ", Module: "github.com/a-h/templ/cmd/templ", Version: versions.Templ},
 	{Name: "sqlc", Module: "github.com/sqlc-dev/sqlc/cmd/sqlc", Version: versions.Sqlc},
 	{Name: "goose", Module: "github.com/pressly/goose/v3/cmd/goose", Version: versions.Goose},
-	{Name: "air", Module: "github.com/air-verse/air", Version: versions.Air},
 	{Name: "mailpit", Module: "github.com/axllent/mailpit", Version: versions.Mailpit},
 	{Name: "usql", Module: "github.com/xo/usql", Version: versions.Usql},
 	{Name: "dblab", Module: "github.com/danvergara/dblab", Version: versions.Dblab},
+	{Name: "shadowfax", Module: "github.com/mbvlabs/shadowfax", Version: versions.RunTool},
 }
 
 var defaultTools = []string{
 	"github.com/a-h/templ/cmd/templ",
 	"github.com/sqlc-dev/sqlc/cmd/sqlc",
 	"github.com/pressly/goose/v3/cmd/goose",
-	"github.com/air-verse/air",
 	"github.com/axllent/mailpit",
 	"github.com/xo/usql",
 	"github.com/danvergara/dblab",
+	"github.com/mbvlabs/shadowfax",
 }
 
 // GetExpectedTools returns the list of tools that should exist for a given scaffold config
@@ -860,13 +859,10 @@ func GetExpectedTools(config *ScaffoldConfig) map[string]*Tool {
 		expectedTools["tailwindcli"] = NewBinaryTool(versions.TailwindCLI)
 	}
 
-	// Add built tool "run"
-	expectedTools["run"] = NewBuiltTool("cmd/run/main.go", versions.RunTool)
-
 	return expectedTools
 }
 
-// GetRunToolVersion returns the version of the run built tool
+// GetRunToolVersion returns the version of the run tool
 func GetRunToolVersion() string {
 	return versions.RunTool
 }
@@ -986,8 +982,6 @@ func generateLockFile(targetDir, version string, hasTailwind bool, config *Scaff
 	if hasTailwind {
 		lock.AddTool("tailwindcli", NewBinaryTool(versions.TailwindCLI))
 	}
-
-	lock.AddTool("run", NewBuiltTool("cmd/run/main.go", versions.RunTool))
 
 	if config != nil {
 		for _, ext := range config.Extensions {

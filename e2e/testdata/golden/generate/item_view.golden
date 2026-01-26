@@ -25,6 +25,7 @@ templ ItemIndex(items []models.Item) {
 							<table>
 								<thead>
 									<tr>
+										<th>Warehouse Id</th>
 										<th>Name</th>
 										<th>Quantity</th>
 										<th>Created At</th>
@@ -35,6 +36,7 @@ templ ItemIndex(items []models.Item) {
 								<tbody>
 									for _, item := range items {
 										<tr>
+											<td>{ item.WarehouseID.String() }</td>
 											<td>{ item.Name }</td>
 											<td>{ fmt.Sprintf("%d", item.Quantity) }</td>
 											<td>{ item.CreatedAt.String() }</td>
@@ -68,6 +70,10 @@ templ ItemShow(item models.Item) {
 			<div>
 				<div>
 					<div>
+						<div>
+							<label>Warehouse Id</label>
+							<p>{ item.WarehouseID.String() }</p>
+						</div>
 						<div>
 							<label>Name</label>
 							<p>{ item.Name }</p>
@@ -107,6 +113,9 @@ templ ItemNew() {
 								<p>Enter the details for the new item.</p>
 								<div>
 									<div>
+										@components.InputField("Warehouse Id", "warehouseId", "text", "", false, components.FieldProp{})
+									</div>
+									<div>
 										@components.InputField("Name", "name", "text", "", false, components.FieldProp{})
 									</div>
 									<div>
@@ -141,6 +150,11 @@ templ ItemEdit(item models.Item) {
 								<h2>Item Information</h2>
 								<p>Update the details for this item.</p>
 								<div>
+									<div>
+										@components.InputField("Warehouse Id", "warehouseId", "text", "", false, components.FieldProp{
+											Value: item.WarehouseID.String(),
+										})
+									</div>
 									<div>
 										@components.InputField("Name", "name", "text", "", false, components.FieldProp{
 											Value: item.Name,

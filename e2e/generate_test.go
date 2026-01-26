@@ -204,8 +204,10 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 	t.Helper()
 
 	createMigration(t, project, "000101_create_orders", "orders", []string{
+		"account_id UUID NOT NULL",
 		"customer_name VARCHAR(255) NOT NULL",
 		"total DECIMAL(10,2)",
+		"signature BYTEA",
 	})
 
 	err := project.Generate("generate", "model", "Order")
@@ -287,6 +289,7 @@ func testGenerateResource(t *testing.T, project *internal.Project) {
 	t.Helper()
 
 	createMigration(t, project, "000103_create_items", "items", []string{
+		"warehouse_id UUID",
 		"name VARCHAR(255) NOT NULL",
 		"quantity INTEGER",
 	})
@@ -555,6 +558,7 @@ func testGenerateControllerWithoutViews(t *testing.T, project *internal.Project)
 		"invoice_number VARCHAR(50) NOT NULL",
 		"amount DECIMAL(10,2) NOT NULL",
 		"status VARCHAR(20) DEFAULT 'pending'",
+		"pdf_data BYTEA",
 	})
 
 	err := project.Generate("generate", "model", "Invoice")

@@ -16,7 +16,7 @@ Join the discord [here](https://discord.gg/TnTBZHvat3)
 Development speed is everything. Andurel eliminates boilerplate and lets you focus on building features:
 
 - **Instant Scaffolding** - Generate complete CRUD resources with one command
-- **Live Reload** - Hot reloading for Go, templates, and CSS with `andurel run`
+- **Live Reload** - Hot reloading for Go, templates, and CSS with `andurel run` powered by [Shadowfax](https://github.com/mbvlabs/shadowfax)
 - **Type Safety Everywhere** - SQLC for SQL, Templ for HTML, Go for logic
 - **Batteries Included** - Echo, Datastar, background jobs, sessions, CSRF protection, telemetry, email support, authentication, optional extensions (workflows, docker, aws-ses)
 - **Just enough Convention** - Convention over configuration is great to a certain point. Andurel provides just enough sensible defaults that just work and get out of your way.
@@ -174,7 +174,8 @@ myapp/
 │   └── email/          # Email client (Mailpit/AWS SES)
 ├── cmd/
 │   ├── app/            # Main web application
-│   └── run/            # Development server orchestrator
+├── bin/
+│   └── shadowfax       # Development server orchestrator
 ├── config/              # Application configuration
 │   ├── app.go          # Sessions, tokens, security
 │   ├── database.go     # Database connection
