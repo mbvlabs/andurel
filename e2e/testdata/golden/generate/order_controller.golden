@@ -72,6 +72,7 @@ func (o Orders) New(etx *echo.Context) error {
 }
 
 type CreateOrderFormPayload struct {
+	AccountID    string  `json:"accountId"`
 	CustomerName string  `json:"customerName"`
 	Total        float64 `json:"total"`
 }
@@ -90,6 +91,23 @@ func (o Orders) Create(etx *echo.Context) error {
 	}
 
 	data := models.CreateOrderData{
+		AccountID: func() uuid.UUID {
+			if payload.AccountID == "" {
+				return uuid.Nil
+			}
+			parsed, err := uuid.Parse(payload.AccountID)
+			if err != nil {
+				slog.WarnContext(
+					etx.Request().Context(),
+					"could not parse AccountID, setting to nil UUID",
+					"error",
+					err,
+				)
+				return uuid.Nil
+			}
+
+			return parsed
+		}(),
 		CustomerName: payload.CustomerName,
 		Total:        payload.Total,
 	}
@@ -128,6 +146,7 @@ func (o Orders) Edit(etx *echo.Context) error {
 }
 
 type UpdateOrderFormPayload struct {
+	AccountID    string  `json:"accountId"`
 	CustomerName string  `json:"customerName"`
 	Total        float64 `json:"total"`
 }
@@ -151,7 +170,24 @@ func (o Orders) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateOrderData{
-		ID:           orderID,
+		ID: orderID,
+		AccountID: func() uuid.UUID {
+			if payload.AccountID == "" {
+				return uuid.Nil
+			}
+			parsed, err := uuid.Parse(payload.AccountID)
+			if err != nil {
+				slog.WarnContext(
+					etx.Request().Context(),
+					"could not parse AccountID, setting to nil UUID",
+					"error",
+					err,
+				)
+				return uuid.Nil
+			}
+
+			return parsed
+		}(),
 		CustomerName: payload.CustomerName,
 		Total:        payload.Total,
 	}

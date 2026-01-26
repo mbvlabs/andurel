@@ -204,6 +204,7 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 	t.Helper()
 
 	createMigration(t, project, "000101_create_orders", "orders", []string{
+		"account_id UUID NOT NULL",
 		"customer_name VARCHAR(255) NOT NULL",
 		"total DECIMAL(10,2)",
 	})
@@ -287,6 +288,7 @@ func testGenerateResource(t *testing.T, project *internal.Project) {
 	t.Helper()
 
 	createMigration(t, project, "000103_create_items", "items", []string{
+		"warehouse_id UUID",
 		"name VARCHAR(255) NOT NULL",
 		"quantity INTEGER",
 	})

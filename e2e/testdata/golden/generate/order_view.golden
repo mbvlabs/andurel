@@ -25,6 +25,7 @@ templ OrderIndex(orders []models.Order) {
 							<table>
 								<thead>
 									<tr>
+										<th>Account Id</th>
 										<th>Customer Name</th>
 										<th>Total</th>
 										<th>Created At</th>
@@ -35,6 +36,7 @@ templ OrderIndex(orders []models.Order) {
 								<tbody>
 									for _, order := range orders {
 										<tr>
+											<td>{ order.AccountID.String() }</td>
 											<td>{ order.CustomerName }</td>
 											<td>{ fmt.Sprintf("%f", order.Total) }</td>
 											<td>{ order.CreatedAt.String() }</td>
@@ -68,6 +70,10 @@ templ OrderShow(order models.Order) {
 			<div>
 				<div>
 					<div>
+						<div>
+							<label>Account Id</label>
+							<p>{ order.AccountID.String() }</p>
+						</div>
 						<div>
 							<label>Customer Name</label>
 							<p>{ order.CustomerName }</p>
@@ -107,6 +113,9 @@ templ OrderNew() {
 								<p>Enter the details for the new order.</p>
 								<div>
 									<div>
+										@components.InputField("Account Id", "accountId", "text", "", false, components.FieldProp{})
+									</div>
+									<div>
 										@components.InputField("Customer Name", "customerName", "text", "", false, components.FieldProp{})
 									</div>
 									<div>
@@ -141,6 +150,11 @@ templ OrderEdit(order models.Order) {
 								<h2>Order Information</h2>
 								<p>Update the details for this order.</p>
 								<div>
+									<div>
+										@components.InputField("Account Id", "accountId", "text", "", false, components.FieldProp{
+											Value: order.AccountID.String(),
+										})
+									</div>
 									<div>
 										@components.InputField("Customer Name", "customerName", "text", "", false, components.FieldProp{
 											Value: order.CustomerName,

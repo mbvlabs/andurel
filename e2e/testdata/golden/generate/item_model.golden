@@ -13,11 +13,12 @@ import (
 )
 
 type Item struct {
-	ID        uuid.UUID
-	Name      string
-	Quantity  int32
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID          uuid.UUID
+	WarehouseID uuid.UUID
+	Name        string
+	Quantity    int32
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 func FindItem(
@@ -34,8 +35,9 @@ func FindItem(
 }
 
 type CreateItemData struct {
-	Name     string
-	Quantity int32
+	WarehouseID uuid.UUID
+	Name        string
+	Quantity    int32
 }
 
 func CreateItem(
@@ -48,9 +50,10 @@ func CreateItem(
 	}
 
 	params := db.InsertItemParams{
-		ID:       uuid.New(),
-		Name:     data.Name,
-		Quantity: pgtype.Int4{Int32: data.Quantity, Valid: true},
+		ID:          uuid.New(),
+		WarehouseID: pgtype.UUID{Bytes: data.WarehouseID, Valid: true},
+		Name:        data.Name,
+		Quantity:    pgtype.Int4{Int32: data.Quantity, Valid: true},
 	}
 	row, err := queries.InsertItem(ctx, exec, params)
 	if err != nil {
@@ -61,10 +64,11 @@ func CreateItem(
 }
 
 type UpdateItemData struct {
-	ID        uuid.UUID
-	Name      string
-	Quantity  int32
-	UpdatedAt time.Time
+	ID          uuid.UUID
+	WarehouseID uuid.UUID
+	Name        string
+	Quantity    int32
+	UpdatedAt   time.Time
 }
 
 func UpdateItem(
@@ -77,9 +81,10 @@ func UpdateItem(
 	}
 
 	params := db.UpdateItemParams{
-		ID:       data.ID,
-		Name:     data.Name,
-		Quantity: pgtype.Int4{Int32: data.Quantity, Valid: true},
+		ID:          data.ID,
+		WarehouseID: pgtype.UUID{Bytes: data.WarehouseID, Valid: true},
+		Name:        data.Name,
+		Quantity:    pgtype.Int4{Int32: data.Quantity, Valid: true},
 	}
 
 	row, err := queries.UpdateItem(ctx, exec, params)
@@ -184,9 +189,10 @@ func UpsertItem(
 	}
 
 	params := db.UpsertItemParams{
-		ID:       uuid.New(),
-		Name:     data.Name,
-		Quantity: pgtype.Int4{Int32: data.Quantity, Valid: true},
+		ID:          uuid.New(),
+		WarehouseID: pgtype.UUID{Bytes: data.WarehouseID, Valid: true},
+		Name:        data.Name,
+		Quantity:    pgtype.Int4{Int32: data.Quantity, Valid: true},
 	}
 	row, err := queries.UpsertItem(ctx, exec, params)
 	if err != nil {
@@ -198,10 +204,11 @@ func UpsertItem(
 
 func rowToItem(row db.Item) Item {
 	return Item{
-		ID:        row.ID,
-		Name:      row.Name,
-		Quantity:  row.Quantity.Int32,
-		CreatedAt: row.CreatedAt.Time,
-		UpdatedAt: row.UpdatedAt.Time,
+		ID:          row.ID,
+		WarehouseID: uuid.UUID(row.WarehouseID.Bytes),
+		Name:        row.Name,
+		Quantity:    row.Quantity.Int32,
+		CreatedAt:   row.CreatedAt.Time,
+		UpdatedAt:   row.UpdatedAt.Time,
 	}
 }
