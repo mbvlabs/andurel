@@ -75,6 +75,7 @@ type CreateOrderFormPayload struct {
 	AccountID    string  `json:"accountId"`
 	CustomerName string  `json:"customerName"`
 	Total        float64 `json:"total"`
+	Signature    string  `json:"signature"`
 }
 
 func (o Orders) Create(etx *echo.Context) error {
@@ -110,6 +111,7 @@ func (o Orders) Create(etx *echo.Context) error {
 		}(),
 		CustomerName: payload.CustomerName,
 		Total:        payload.Total,
+		Signature:    []byte(payload.Signature),
 	}
 
 	order, err := models.CreateOrder(
@@ -149,6 +151,7 @@ type UpdateOrderFormPayload struct {
 	AccountID    string  `json:"accountId"`
 	CustomerName string  `json:"customerName"`
 	Total        float64 `json:"total"`
+	Signature    string  `json:"signature"`
 }
 
 func (o Orders) Update(etx *echo.Context) error {
@@ -190,6 +193,7 @@ func (o Orders) Update(etx *echo.Context) error {
 		}(),
 		CustomerName: payload.CustomerName,
 		Total:        payload.Total,
+		Signature:    []byte(payload.Signature),
 	}
 
 	order, err := models.UpdateOrder(
