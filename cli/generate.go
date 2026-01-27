@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"strings"
+
 	"github.com/mbvlabs/andurel/generator"
 
 	"github.com/spf13/cobra"
@@ -19,6 +21,7 @@ func newGenerateCommand() *cobra.Command {
 	generateCmd.AddCommand(newViewCommand())
 	generateCmd.AddCommand(newResourceCommand())
 	generateCmd.AddCommand(newGenQueriesCommand())
+	generateCmd.AddCommand(newFragmentCommand())
 
 	return generateCmd
 }
@@ -230,4 +233,54 @@ func generateQueries(cmd *cobra.Command, args []string) error {
 	}
 
 	return gen.GenerateQueriesOnly(tableName)
+}
+
+func newFragmentCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "fragment [controller_name] [method_name] [path]",
+		Short: "Add a method, route, and registration to an existing controller",
+		Long: `Add a new method stub, route variable, and route registration to an existing controller.
+The controller, routes, and connect files must already exist.
+
+The route type is auto-detected from path parameters:
+  :id    -> NewRouteWithID
+  :slug  -> NewRouteWithSlug
+  :token -> NewRouteWithToken
+  :file  -> NewRouteWithFile
+  none   -> NewSimpleRoute
+
+Examples:
+  andurel generate fragment Webhook Validate /validate
+  andurel generate fragment Article ShowBySlug /:slug --method GET
+  andurel generate fragment Order Approve /:id/approve --method POST`,
+		Args: cobra.ExactArgs(3),
+		RunE: generateFragment,
+	}
+
+	cmd.Flags().String("method", "GET", "HTTP method (GET, POST, PUT, DELETE, PATCH)")
+
+	return cmd
+}
+
+func generateFragment(cmd *cobra.Command, args []string) error {
+	controllerName := args[0]
+	methodName := args[1]
+	path := args[2]
+
+	httpMethod, err := cmd.Flags().GetString("method")
+	if err != nil {
+		return err
+	}
+
+	gen, err := generator.New()
+	if err != nil {
+		return err
+	}
+
+	return gen.GenerateFragment(generator.FragmentConfig{
+		ControllerName: controllerName,
+		MethodName:     methodName,
+		Path:           path,
+		HTTPMethod:     strings.ToUpper(httpMethod),
+	})
 }
