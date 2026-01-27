@@ -35,3 +35,11 @@ func Render(ctx *echo.Context, t templ.Component, cookieKeys []CookieKey) error 
 
 	return ctx.HTML(http.StatusOK, buf.String())
 }
+
+func ExtractFragment(t templ.Component, fragmentKey string) templ.Component {
+	return templ.Handler(t, templ.WithFragments(fragmentKey)).Component
+}
+
+func ExtractFragments(t templ.Component, fragmentKeys []string) templ.Component {
+	return templ.Handler(t, templ.WithFragments(fragmentKeys)).Component
+}
