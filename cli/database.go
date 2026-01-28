@@ -1,11 +1,18 @@
 package cli
 
 import (
+	"bufio"
+	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/spf13/cobra"
@@ -23,6 +30,10 @@ func newDatabaseCommand() *cobra.Command {
 		newDBMigrationCommand(),
 		newDBQueriesCommand(),
 		newDBSeedCommand(),
+		newDBDropCommand(),
+		newDBCreateCommand(),
+		newDBNukeCommand(),
+		newDBRebuildCommand(),
 	)
 
 	return cmd
@@ -202,6 +213,76 @@ Edit this file to add your seed data using model factories.`,
 	}
 }
 
+// Lifecycle commands
+
+func newDBDropCommand() *cobra.Command {
+	var force bool
+
+	cmd := &cobra.Command{
+		Use:   "drop",
+		Short: "Drop the configured database",
+		Long:  "Drop the configured database using the connection details from .env.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return dropDatabase(force)
+		},
+	}
+
+	cmd.Flags().BoolVar(&force, "force", false, "Allow dropping system databases like postgres/template1")
+
+	return cmd
+}
+
+func newDBCreateCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "create",
+		Short: "Create the configured database",
+		Long:  "Create the configured database using the connection details from .env.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return createDatabase()
+		},
+	}
+}
+
+func newDBNukeCommand() *cobra.Command {
+	var force bool
+
+	cmd := &cobra.Command{
+		Use:   "nuke",
+		Short: "Drop and recreate the configured database",
+		Long:  "Drop and recreate the configured database using the connection details from .env.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return nukeDatabase(force)
+		},
+	}
+
+	cmd.Flags().BoolVar(&force, "force", false, "Allow dropping system databases like postgres/template1")
+
+	return cmd
+}
+
+func newDBRebuildCommand() *cobra.Command {
+	var force bool
+	var skipSeed bool
+
+	cmd := &cobra.Command{
+		Use:   "rebuild",
+		Short: "Drop, recreate, migrate, and seed the database",
+		Long:  "Drop, recreate, migrate, and seed the database using the connection details from .env.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return rebuildDatabase(force, skipSeed)
+		},
+	}
+
+	cmd.Flags().BoolVar(&force, "force", false, "Allow dropping system databases like postgres/template1")
+	cmd.Flags().BoolVar(&skipSeed, "skip-seed", false, "Skip running database seeds after migrations")
+
+	return cmd
+}
+
 func runSeed() error {
 	rootDir, err := findGoModRoot()
 	if err != nil {
@@ -269,6 +350,236 @@ func runGoose(args ...string) error {
 	return cmd.Run()
 }
 
+type dbConfig struct {
+	Kind     string
+	Port     string
+	Host     string
+	Name     string
+	User     string
+	Password string
+	SslMode  string
+}
+
+func loadDatabaseConfig() (dbConfig, error) {
+	dbKind := os.Getenv("DB_KIND")
+	dbPort := os.Getenv("DB_PORT")
+	dbHost := os.Getenv("DB_HOST")
+	dbName := os.Getenv("DB_NAME")
+	dbUser := os.Getenv("DB_USER")
+	dbPass := os.Getenv("DB_PASSWORD")
+	dbSslMode := os.Getenv("DB_SSL_MODE")
+
+	var missing []string
+	if dbKind == "" {
+		missing = append(missing, "DB_KIND")
+	}
+	if dbPort == "" {
+		missing = append(missing, "DB_PORT")
+	}
+	if dbHost == "" {
+		missing = append(missing, "DB_HOST")
+	}
+	if dbName == "" {
+		missing = append(missing, "DB_NAME")
+	}
+	if dbUser == "" {
+		missing = append(missing, "DB_USER")
+	}
+	if dbPass == "" {
+		missing = append(missing, "DB_PASSWORD")
+	}
+	if dbSslMode == "" {
+		missing = append(missing, "DB_SSL_MODE")
+	}
+
+	if len(missing) > 0 {
+		return dbConfig{}, fmt.Errorf("missing database configuration environment variables: %v", missing)
+	}
+
+	return dbConfig{
+		Kind:     dbKind,
+		Port:     dbPort,
+		Host:     dbHost,
+		Name:     dbName,
+		User:     dbUser,
+		Password: dbPass,
+		SslMode:  dbSslMode,
+	}, nil
+}
+
+func dropDatabase(force bool) error {
+	godotenv.Load()
+
+	_, dbURL, err := buildDatabaseURL()
+	if err != nil {
+		return err
+	}
+
+	confirmed, err := confirmDestructive("drop", dbURL)
+	if err != nil {
+		return err
+	}
+	if !confirmed {
+		fmt.Fprintln(os.Stdout, "Aborted.")
+		return nil
+	}
+
+	cfg, conn, ctx, cancel, err := openAdminConnection()
+	if err != nil {
+		return err
+	}
+	defer cancel()
+	defer conn.Close(ctx)
+
+	return dropDatabaseWithConn(ctx, cfg, conn, force)
+}
+
+func createDatabase() error {
+	godotenv.Load()
+
+	cfg, conn, ctx, cancel, err := openAdminConnection()
+	if err != nil {
+		return err
+	}
+	defer cancel()
+	defer conn.Close(ctx)
+
+	return createDatabaseWithConn(ctx, cfg, conn)
+}
+
+func nukeDatabase(force bool) error {
+	godotenv.Load()
+
+	_, dbURL, err := buildDatabaseURL()
+	if err != nil {
+		return err
+	}
+
+	confirmed, err := confirmDestructive("nuke", dbURL)
+	if err != nil {
+		return err
+	}
+	if !confirmed {
+		fmt.Fprintln(os.Stdout, "Aborted.")
+		return nil
+	}
+
+	cfg, conn, ctx, cancel, err := openAdminConnection()
+	if err != nil {
+		return err
+	}
+	defer cancel()
+	defer conn.Close(ctx)
+
+	if err := dropDatabaseWithConn(ctx, cfg, conn, force); err != nil {
+		return err
+	}
+
+	return createDatabaseWithConn(ctx, cfg, conn)
+}
+
+func rebuildDatabase(force bool, skipSeed bool) error {
+	if err := nukeDatabase(force); err != nil {
+		return err
+	}
+
+	if err := runGoose("up"); err != nil {
+		return err
+	}
+
+	if skipSeed {
+		return nil
+	}
+
+	return runSeed()
+}
+
+func openAdminConnection() (dbConfig, *pgx.Conn, context.Context, context.CancelFunc, error) {
+	cfg, err := loadDatabaseConfig()
+	if err != nil {
+		return dbConfig{}, nil, nil, nil, err
+	}
+
+	if strings.ToLower(cfg.Kind) != "postgres" {
+		return dbConfig{}, nil, nil, nil, fmt.Errorf("database lifecycle commands only support postgres")
+	}
+
+	adminDB := "postgres"
+	if cfg.Name == adminDB {
+		adminDB = "template1"
+	}
+
+	adminURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		cfg.User,
+		cfg.Password,
+		cfg.Host,
+		cfg.Port,
+		adminDB,
+		cfg.SslMode,
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	conn, err := pgx.Connect(ctx, adminURL)
+	if err != nil {
+		cancel()
+		return dbConfig{}, nil, nil, nil, err
+	}
+
+	return cfg, conn, ctx, cancel, nil
+}
+
+func dropDatabaseWithConn(ctx context.Context, cfg dbConfig, conn *pgx.Conn, force bool) error {
+	if isSystemDatabase(cfg.Name) && !force {
+		return fmt.Errorf("refusing to drop system database %q without --force", cfg.Name)
+	}
+
+	if _, err := conn.Exec(ctx, "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()", cfg.Name); err != nil {
+		return err
+	}
+
+	_, err := conn.Exec(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS %s", quoteIdentifier(cfg.Name)))
+	return err
+}
+
+func createDatabaseWithConn(ctx context.Context, cfg dbConfig, conn *pgx.Conn) error {
+	if isSystemDatabase(cfg.Name) {
+		return fmt.Errorf("refusing to create system database %q", cfg.Name)
+	}
+
+	_, err := conn.Exec(ctx, fmt.Sprintf("CREATE DATABASE %s", quoteIdentifier(cfg.Name)))
+	return err
+}
+
+func isSystemDatabase(name string) bool {
+	switch strings.ToLower(name) {
+	case "postgres", "template0", "template1":
+		return true
+	default:
+		return false
+	}
+}
+
+func quoteIdentifier(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
+
+func confirmDestructive(action string, dbURL string) (bool, error) {
+	if strings.TrimSpace(dbURL) == "" {
+		return false, errors.New("database URL is empty")
+	}
+
+	fmt.Fprintf(os.Stdout, "Are you sure you want to %s this database: %s y/N ", action, dbURL)
+
+	reader := bufio.NewReader(os.Stdin)
+	line, err := reader.ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return false, err
+	}
+
+	answer := strings.ToLower(strings.TrimSpace(line))
+	return answer == "y" || answer == "yes", nil
+}
+
 func runSqlcCommand(action string) error {
 	rootDir, err := findGoModRoot()
 	if err != nil {
@@ -313,49 +624,19 @@ func runSqlcCommand(action string) error {
 }
 
 func buildDatabaseURL() (driver, dbString string, err error) {
-	dbKind := os.Getenv("DB_KIND")
-	dbPort := os.Getenv("DB_PORT")
-	dbHost := os.Getenv("DB_HOST")
-	dbName := os.Getenv("DB_NAME")
-	dbUser := os.Getenv("DB_USER")
-	dbPass := os.Getenv("DB_PASSWORD")
-	dbSslMode := os.Getenv("DB_SSL_MODE")
-
-	var missing []string
-	if dbKind == "" {
-		missing = append(missing, "DB_KIND")
-	}
-	if dbPort == "" {
-		missing = append(missing, "DB_PORT")
-	}
-	if dbHost == "" {
-		missing = append(missing, "DB_HOST")
-	}
-	if dbName == "" {
-		missing = append(missing, "DB_NAME")
-	}
-	if dbUser == "" {
-		missing = append(missing, "DB_USER")
-	}
-	if dbPass == "" {
-		missing = append(missing, "DB_PASSWORD")
-	}
-	if dbSslMode == "" {
-		missing = append(missing, "DB_SSL_MODE")
-	}
-
-	if len(missing) > 0 {
-		return "", "", fmt.Errorf("missing database configuration environment variables: %v", missing)
+	cfg, err := loadDatabaseConfig()
+	if err != nil {
+		return "", "", err
 	}
 
 	databaseURL := fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
-		dbKind,
-		dbUser,
-		dbPass,
-		dbHost,
-		dbPort,
-		dbName,
-		dbSslMode,
+		cfg.Kind,
+		cfg.User,
+		cfg.Password,
+		cfg.Host,
+		cfg.Port,
+		cfg.Name,
+		cfg.SslMode,
 	)
 
 	return "postgres", databaseURL, nil

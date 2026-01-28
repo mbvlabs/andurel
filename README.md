@@ -7,6 +7,14 @@
 [![Go Version](https://img.shields.io/badge/go-1.24.4%2B-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
+## Platform Support
+
+Andurel currently supports **Linux** and **macOS** only. Windows is not supported at this time.
+
+If you'd like to help bring Windows support to Andurel, please see [issue #382](https://github.com/mbvlabs/andurel/issues/382) - contributions are welcome!
+
+---
+
 **Andurel is a comprehensive web development framework for Go that prioritizes development speed.** Inspired by Ruby on Rails, it uses just enough conventions to let you build full-stack web applications incredibly fast.
 
 Join the discord [here](https://discord.gg/TnTBZHvat3)
@@ -80,6 +88,28 @@ andurel run
 ```
 
 Your app is now running on `http://localhost:8080`
+
+### Database Lifecycle Commands
+
+Andurel provides commands to manage your database lifecycle:
+
+```bash
+# Create the configured database
+andurel db create
+
+# Drop the configured database (prompts for confirmation)
+andurel db drop
+andurel db drop --force              # Allow dropping system databases
+
+# Drop and recreate the database
+andurel db nuke
+andurel db nuke --force              # Allow nuking system databases
+
+# Full rebuild: drop, recreate, migrate, and seed
+andurel db rebuild
+andurel db rebuild --force           # Allow rebuilding system databases
+andurel db rebuild --skip-seed       # Skip seeding after migrations
+```
 
 ### Generate Your First Resource
 
