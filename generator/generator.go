@@ -47,6 +47,10 @@ func (g *Generator) RefreshQueriesOnly(tableName string) error {
 	return g.coordinator.ModelManager.RefreshQueriesOnly(tableName)
 }
 
+func (g *Generator) GenerateFragment(config FragmentConfig) error {
+	return g.coordinator.FragmentManager.GenerateFragment(config)
+}
+
 func (g *Generator) GetModulePath() string {
 	return g.coordinator.projectManager.GetModulePath()
 }
