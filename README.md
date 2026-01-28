@@ -204,7 +204,6 @@ Andurel is built on top of excellent open-source projects:
 - **[River](https://riverqueue.com/)** - Fast PostgreSQL-backed job queue and workflows
 - **[OpenTelemetry](https://opentelemetry.io/)** - Observability framework for logs, traces, and metrics
 - **[pgx](https://github.com/jackc/pgx)** - PostgreSQL driver and toolkit
-- **[Air](https://github.com/cosmtrek/air)** - Live reload for Go apps
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
 - **[Cobra](https://cobra.dev/)** - CLI framework
 
