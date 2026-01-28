@@ -23,12 +23,10 @@ func newDatabaseCommand() *cobra.Command {
 		Use:     "database",
 		Aliases: []string{"db"},
 		Short:   "Database management commands",
-		Long:    "Commands for managing database migrations, queries, and seeding.",
+		Long:    "Commands for managing database seeds.",
 	}
 
 	cmd.AddCommand(
-		newDBMigrationCommand(),
-		newDBQueriesCommand(),
 		newDBSeedCommand(),
 		newDBDropCommand(),
 		newDBCreateCommand(),
@@ -37,6 +35,58 @@ func newDatabaseCommand() *cobra.Command {
 	)
 
 	return cmd
+}
+
+func newMigrateCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "migrate",
+		Aliases: []string{"migration"},
+		Short:   "Database migration helpers",
+		Long:    "Manage database migrations for the current project using goose.",
+	}
+
+	cmd.AddCommand(
+		newDBMigrationNewCommand(),
+		newDBMigrationUpCommand(),
+		newDBMigrationDownCommand(),
+		newDBMigrationStatusCommand(),
+		newDBMigrationFixCommand(),
+		newDBMigrationResetCommand(),
+		newDBMigrationUpToCommand(),
+		newDBMigrationDownToCommand(),
+	)
+
+	return cmd
+}
+
+func newQueriesCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "queries",
+		Aliases: []string{"query", "q"},
+		Short:   "SQL query code generation (sqlc)",
+		Long:    "Manage SQLC code generation for the current project.",
+	}
+
+	cmd.AddCommand(
+		newDBQueriesCompileCommand(),
+		newDBQueriesGenerateCommand(),
+	)
+
+	return cmd
+}
+
+func newSeedCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "seed",
+		Short: "Run database seeds",
+		Long: `Run the database seed file at database/seeds/main.go.
+
+Edit this file to add your seed data using model factories.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runSeed()
+		},
+	}
 }
 
 // Migration commands

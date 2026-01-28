@@ -10,22 +10,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newTemplCommand() *cobra.Command {
-	templCmd := &cobra.Command{
-		Use:     "templ",
-		Aliases: []string{"t"},
-		Short:   "Templ code generation helpers",
-		Long:    "Manage Templ code generation for the current project.",
+func newViewsCommand() *cobra.Command {
+	viewsCmd := &cobra.Command{
+		Use:   "views",
+		Short: "View template helpers",
+		Long:  "Manage Templ code generation for the current project.",
 	}
 
-	templCmd.AddCommand(
-		newTemplGenerateCommand(),
+	viewsCmd.AddCommand(
+		newViewsGenerateCommand(),
 	)
 
-	return templCmd
+	return viewsCmd
 }
 
-func newTemplGenerateCommand() *cobra.Command {
+func newViewsGenerateCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "generate",
 		Short: "Generate Go code from Templ templates",

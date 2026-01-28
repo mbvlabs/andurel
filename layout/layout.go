@@ -34,25 +34,13 @@ var (
 	registerBuiltinErr  error
 )
 
-// Scaffold TODO: figure out a way to have full repo path on init, i.e. github.com/mbvlabs/andurel
-// breaks because go mod tidy will look up that path and not find it
 func Scaffold(
-	targetDir, projectName, repo, database, cssFramework, version string,
+	targetDir, projectName, database, cssFramework, version string,
 	extensionNames []string,
 ) error {
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
 
-	if strings.Contains(repo, "github.com/") {
-		slog.Warn(
-			"The 'github.com/' prefix is not supported currently as it breaks the setup process due to the repo not _yet_ existing on GH and will be removed.",
-		)
-		repo = strings.TrimPrefix(repo, "github.com/")
-	}
-
 	moduleName := projectName
-	if repo != "" {
-		moduleName = repo + "/" + projectName
-	}
 
 	templateData := TemplateData{
 		AppName:              projectName,
@@ -112,7 +100,6 @@ func Scaffold(
 	fmt.Print("Generating andurel.lock file...\n")
 	scaffoldConfig := &ScaffoldConfig{
 		ProjectName:  projectName,
-		Repository:   repo,
 		Database:     database,
 		CSSFramework: cssFramework,
 		Extensions:   extensionNames,

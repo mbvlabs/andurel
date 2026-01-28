@@ -125,6 +125,74 @@ andurel generate resource Product
 
 This single command creates everything you need for a full CRUD interface.
 
+## CLI Commands
+
+Top-level commands:
+
+```bash
+andurel run
+andurel new [project-name] --css/-c --extensions/-e
+andurel generate (aliases: g, gen)
+andurel database (alias: db)        
+andurel migrate                     
+andurel queries                     
+andurel views
+andurel app (alias: a)
+andurel console                     # alias of: app console
+andurel dblab                       # alias of: app dblab
+andurel mailpit                     # alias of: app mailpit
+andurel llm
+andurel tool
+andurel extension (aliases: ext, e)
+andurel upgrade --dry-run
+andurel doctor --verbose
+```
+
+Generate subcommands:
+
+```bash
+andurel generate model [name] --table-name --skip-factory     # alias: m
+andurel generate controller [model_name] --with-views          # alias: c
+andurel generate view [model_name] --with-controller           # alias: v
+andurel generate resource [name] --table-name                  # alias: r
+andurel generate queries [table_name] --refresh                # alias: q
+```
+
+Database subcommands:
+
+```bash
+andurel database seed
+```
+
+Migrate/queries top-level shims:
+
+```bash
+andurel migrate new|up|down|status|fix|reset|up-to|down-to
+andurel queries compile|generate
+```
+
+App subcommands:
+
+```bash
+andurel app console    # alias: c
+andurel app dblab      # alias: d
+andurel app mailpit    # alias: m
+```
+
+Tool subcommands:
+
+```bash
+andurel tool sync
+andurel tool set-version <tool> <version>
+```
+
+Extension subcommands:
+
+```bash
+andurel extension add [extension-name]
+andurel extension list    # alias: ls
+```
+
 ## Project Structure
 
 ```

@@ -19,7 +19,6 @@ type AndurelLock struct {
 
 type ScaffoldConfig struct {
 	ProjectName  string   `json:"projectName"`
-	Repository   string   `json:"repository,omitempty"`
 	Database     string   `json:"database"`
 	CSSFramework string   `json:"cssFramework"`
 	Extensions   []string `json:"extensions,omitempty"`
