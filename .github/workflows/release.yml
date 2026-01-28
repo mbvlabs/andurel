@@ -26,7 +26,6 @@ jobs:
         CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-w -s -X main.version=${{ steps.version.outputs.VERSION }}" -o andurel-linux-amd64 .
         CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-w -s -X main.version=${{ steps.version.outputs.VERSION }}" -o andurel-darwin-amd64 .
         CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-w -s -X main.version=${{ steps.version.outputs.VERSION }}" -o andurel-darwin-arm64 .
-        CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-w -s -X main.version=${{ steps.version.outputs.VERSION }}" -o andurel-windows-amd64.exe .
         
     - name: Upload release assets
       uses: actions/upload-release-asset@v1
@@ -56,14 +55,4 @@ jobs:
         upload_url: ${{ github.event.release.upload_url }}
         asset_path: ./andurel-darwin-arm64
         asset_name: andurel-darwin-arm64
-        asset_content_type: application/octet-stream
-        
-    - name: Upload Windows asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./andurel-windows-amd64.exe
-        asset_name: andurel-windows-amd64.exe
         asset_content_type: application/octet-stream
