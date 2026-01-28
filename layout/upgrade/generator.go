@@ -21,6 +21,7 @@ type FrameworkTemplate struct {
 // These are the only files that get upgraded when running andurel upgrade
 func GetFrameworkTemplates() []FrameworkTemplate {
 	return []FrameworkTemplate{
+		{"framework_elements_renderer_fragments.tmpl", "internal/renderer/fragments.go"},
 		{"framework_elements_renderer_render.tmpl", "internal/renderer/render.go"},
 
 		{"framework_elements_routing_definitions.tmpl", "internal/routing/definitions.go"},
