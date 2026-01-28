@@ -1,7 +1,7 @@
 package components
 
 
-// FieldProp represents the state of a form field, including its value and any associated error message.
+// FieldState represents the state of a form field, including its value and any associated error message.
 type FieldState struct {
 	Value string
 	Error string
@@ -89,142 +89,204 @@ templ Form(prop FormProps, options ...formDataOptions) {
 	}
 }
 
-type inputFieldData struct {
-	placeholder     string
-	required        bool
-	isFragment      bool
-	customName      string
-	disableOnSubmit bool
-	fieldType       string
+type Input struct {
+	Title                string
+	State                FieldState
+	removeLabel          bool
+	id                   string
+	placeholder          string
+	fieldType            string
+	required             bool
+	fragment             string
+	disableOnSubmit      bool
+	overrideLabelCss     string
+	overrideInputCss     string
+	overrideContainerCss string
 }
 
-type InputFieldOptions func(*inputFieldData)
+func (i Input) WithID(id string) Input {
+	i.id = id
+	return i
+}
 
-func SetRequired(required bool) InputFieldOptions {
-	return func(ifad *inputFieldData) {
-		ifad.required = required
+func (i Input) MakeDisabled() Input {
+	i.disableOnSubmit = true
+	return i
+}
+
+func (i Input) OverrideLabelCSS(css string) Input {
+	i.overrideLabelCss = css
+	return i
+}
+
+func (i Input) OverrideContainerCSS(css string) Input {
+	i.overrideContainerCss = css
+	return i
+}
+
+func (i Input) OverrideCSS(css string) Input {
+	i.overrideInputCss = css
+	return i
+}
+
+func (i Input) RemoveLabel() Input {
+	i.removeLabel = false
+	return i
+}
+
+func (i Input) Required() Input {
+	i.required = true
+	return i
+}
+
+func (i Input) WithPlaceholder(placeholder string) Input {
+	i.placeholder = placeholder
+	return i
+}
+
+func (i Input) WithType(fieldType string) Input {
+	i.fieldType = fieldType
+	return i
+}
+
+func (i Input) AsFragment(name string) Input {
+	i.fragment = name
+	return i
+}
+
+templ (i Input) Render() {
+	{{
+		fieldType := "text"
+		if i.fieldType != "" {
+			fieldType = i.fieldType
+		}
+
+		var withLabel bool
+		if i.removeLabel == true {
+			withLabel = false
+		} else {
+			withLabel = true
+		}
+
+		var disabled bool
+		if i.disableOnSubmit == true {
+			disabled = true
+		} else {
+			disabled = false
+		}
+
+		name := strcase.LowerCamelCase(i.Title)
+
+		id := name
+		if i.id != "" {
+			id = i.id
+		}
+
+		containerCSS := "grid gap-2"
+		if i.overrideContainerCss != "" {
+			containerCSS = i.overrideContainerCss
+		}
+
+		labelCSS := "label"
+		if i.overrideLabelCss != "" {
+			labelCSS = i.overrideLabelCss
+		}
+
+		inputCSS := "input"
+		if i.overrideInputCss != "" {
+			inputCSS = i.overrideInputCss
+		}
+	}}
+	if i.fragment != "" {
+		@templ.Fragment(i.fragment) {
+			@i.renderBase(id, name, i.placeholder, fieldType, containerCSS, labelCSS, inputCSS, withLabel, disabled)
+		}
+	}
+	if i.fragment == "" {
+		@i.renderBase(id, name, i.placeholder, fieldType, containerCSS, labelCSS, inputCSS, withLabel, disabled)
 	}
 }
 
-func SetDisableOnSubmit(disable bool) InputFieldOptions {
-	return func(ifad *inputFieldData) {
-		ifad.disableOnSubmit = disable
+templ (i Input) renderBase(id, name, placeholder, fieldType, containerCss, labelCss, inputCss string, withLabel, disabledOnSubmit bool) {
+	if withLabel == true {
+		<div class={ containerCss }>
+			<label
+				class={ labelCss }
+				for={ id }
+			>
+				{ i.Title }
+			</label>
+			<input
+				id={ id }
+				class={ inputCss }
+				type={ fieldType }
+				if i.State.Value != "" {
+					value={ i.State.Value }
+				}
+				if placeholder != "" {
+					placeholder={ placeholder }
+				}
+				data-bind={ name }
+				if disabledOnSubmit {
+					data-attr:disabled="$submitting"
+				}
+				if i.required {
+					required
+				}
+			/>
+			if i.State.Error != "" {
+				<span>{ i.State.Error }</span>
+			}
+		</div>
 	}
-}
-
-func WithPlaceholder(placeholder string) InputFieldOptions {
-	return func(ifad *inputFieldData) {
-		ifad.placeholder = placeholder
-	}
-}
-
-func WithCustomName(name string) InputFieldOptions {
-	return func(ifad *inputFieldData) {
-		ifad.customName = name
-	}
-}
-
-func WithFieldType(fieldType string) InputFieldOptions {
-	return func(ifad *inputFieldData) {
-		ifad.fieldType = fieldType
-	}
-}
-
-func WithFragment(fragment bool) InputFieldOptions {
-	return func(ifad *inputFieldData) {
-		ifad.isFragment = fragment
-	}
-}
-
-type InputProps struct {
-	Title string
-	State FieldState
-}
-
-// TODO: needs css override options like Form
-templ inputBase(title, name, inputType, value, placeholder, errorMsg string, required, disableOnSubmit bool) {
-	<div class="grid gap-2">
-		<label
-			class="label"
-			for={ name }
-		>
-			{ title }
-		</label>
+	if withLabel == false {
 		<input
-			id={ name }
-			class="input"
-			type={ inputType }
-			if value != "" {
-				value={ value }
+			id={ id }
+			class={ inputCss }
+			type={ fieldType }
+			if i.State.Value != "" {
+				value={ i.State.Value }
 			}
 			if placeholder != "" {
 				placeholder={ placeholder }
 			}
 			data-bind={ name }
-			if disableOnSubmit {
+			if disabledOnSubmit {
 				data-attr:disabled="$submitting"
 			}
-			if required {
+			if i.required {
 				required
 			}
 		/>
-		if errorMsg != "" {
-			<span>{ errorMsg }</span>
-		}
-	</div>
-}
-
-templ Input(prop InputProps, options ...InputFieldOptions) {
-	{{
-		data := &inputFieldData{
-			placeholder:     "",
-			required:        false,
-			isFragment:      false,
-			disableOnSubmit: true,
-			fieldType:       "text",
-		}
-		for _, option := range options {
-			option(data)
-		}
-
-		name := strcase.LowerCamelCase(prop.Title)
-		if data.customName != "" {
-			name = data.customName
-		}
-	}}
-	if data.isFragment {
-		@templ.Fragment(name) {
-			@inputBase(prop.Title, name, data.fieldType, prop.State.Value, data.placeholder, prop.State.Error, data.required, data.disableOnSubmit)
+		if i.State.Error != "" {
+			<span>{ i.State.Error }</span>
 		}
 	}
-	if !data.isFragment {
-		@inputBase(prop.Title, name, data.fieldType, prop.State.Value, data.placeholder, prop.State.Error, data.required, data.disableOnSubmit)
-	}
 }
 
-templ Textarea(label, name, placeholder string, required bool, prop FieldProp) {
-	<div>
-		<label
-			for={ name }
-		>
-			{ label }
-		</label>
-		<textarea
-			id={ name }
-			placeholder={ placeholder }
-			data-bind={ name }
-			data-attr:disabled="$submitting"
-			if required {
-				required
-			}
-		>
-			{ prop.Value }
-		</textarea>
-		if prop.Error != "" {
-			<span>{ prop.Error }</span>
-		}
-	</div>
-}
+//templ Textarea(label, name, placeholder string, required bool, prop FieldProp) {
+//	<div>
+//		<label
+//			for={ name }
+//		>
+//			{ label }
+//		</label>
+//		<textarea
+//			id={ name }
+//			placeholder={ placeholder }
+//			data-bind={ name }
+//			data-attr:disabled="$submitting"
+//			if required {
+//				required
+//			}
+//		>
+//			{ prop.Value }
+//		</textarea>
+//		if prop.Error != "" {
+//			<span>{ prop.Error }</span>
+//		}
+//	</div>
+//}
 
 templ SubmitButton(title string) {
 	<button
