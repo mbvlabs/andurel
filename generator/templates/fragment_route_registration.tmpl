@@ -1,0 +1,10 @@
+
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.Method{{.HTTPMethod}},
+		Path:    routes.{{.ResourceName}}{{.MethodName}}.Path(),
+		Name:    routes.{{.ResourceName}}{{.MethodName}}.Name(),
+		Handler: {{.HandlerVar}}.{{.MethodName}},
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
