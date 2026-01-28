@@ -42,13 +42,6 @@ func getScaffoldConfigs() []ScaffoldConfig {
 			Extensions: []string{"aws-ses"},
 			Critical:   true,
 		},
-		{
-			Name:       "postgresql-tailwind-paddle",
-			Database:   "postgresql",
-			CSS:        "tailwind",
-			Extensions: []string{"paddle"},
-			Critical:   false,
-		},
 	}
 }
 
@@ -65,10 +58,6 @@ func TestScaffoldMatrix(t *testing.T) {
 		t.Run(config.Name, func(t *testing.T) {
 			if isCriticalOnly() && !config.Critical {
 				t.Skip("Skipping non-critical test in critical-only mode")
-			}
-
-			if config.Name == "postgresql-tailwind-paddle" {
-				t.Skip("Skipping paddle e2e test")
 			}
 
 			t.Parallel()
@@ -169,21 +158,6 @@ func verifyExtension(t *testing.T, project *internal.Project, extension string) 
 			".dockerignore",
 		}
 		internal.AssertFilesExist(t, project, dockerFiles)
-
-	case "paddle":
-		paddleFiles := []string{
-			"controllers/payment_webhooks.go",
-			"controllers/payment_checkout.go",
-			"controllers/payment_pricing.go",
-			"controllers/payment_account.go",
-			"models/payment_customer.go",
-			"models/payment_product.go",
-			"models/payment_transaction.go",
-			"clients/payment/paddle.go",
-			"config/paddle.go",
-			"router/routes/payment.go",
-		}
-		internal.AssertFilesExist(t, project, paddleFiles)
 
 	case "aws-ses":
 		awsSesFiles := []string{
