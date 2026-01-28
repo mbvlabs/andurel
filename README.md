@@ -27,13 +27,14 @@ The core philosophy around resource generation in andurel, is that it should be 
 ## Core Technologies
 
 - **[Echo](https://echo.labstack.com/)** - High-performance HTTP framework
+- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
 - **[SQLC](https://sqlc.dev/)** - Type-safe SQL code generation
 - **[Templ](https://templ.guide/)** - Type-safe HTML templates
 - **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity
 - **[River](https://riverqueue.com/)** - PostgreSQL-backed background jobs and workflows
 - **[OpenTelemetry](https://opentelemetry.io/)** - Built-in observability
 - **[PostgreSQL](https://www.postgresql.org/)** - Powerful open-source database with pgx driver and native UUID support
-- **Tailwind CSS or vanilla CSS** - Choose your styling approach
+- **[Shadowfax](https://github.com/mbvlabs/shadowfax)** - Andurel specific app runner
 
 ## Quick Start
 
@@ -203,8 +204,7 @@ Andurel is built on top of excellent open-source projects:
 - **[River](https://riverqueue.com/)** - Fast PostgreSQL-backed job queue and workflows
 - **[OpenTelemetry](https://opentelemetry.io/)** - Observability framework for logs, traces, and metrics
 - **[pgx](https://github.com/jackc/pgx)** - PostgreSQL driver and toolkit
-- **[Air](https://github.com/cosmtrek/air)** - Live reload for Go apps
-- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework (optional)
+- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
 - **[Cobra](https://cobra.dev/)** - CLI framework
 
 ## Acknowledgments
