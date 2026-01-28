@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/router/routes"
 
 	"github.com/labstack/echo/v5"
@@ -28,6 +29,9 @@ func (r Router) RegisterSessionsRoutes(sessions controllers.Sessions) error {
 		Path:    routes.SessionCreate.Path(),
 		Name:    routes.SessionCreate.Name(),
 		Handler: sessions.Create,
+		Middlewares: []echo.MiddlewareFunc{
+			middleware.IPRateLimiter(5, routes.SessionNew),
+		},
 	})
 	if err != nil {
 		errs = append(errs, err)

@@ -62,10 +62,6 @@ func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, err
 	case "templ":
 		os := capitalize(goos)
 		arch := mapArch(goarch)
-		if goos == "windows" {
-			return fmt.Sprintf("https://github.com/%s/releases/download/%s/templ_%s_%s.zip",
-				repo, d.Version, os, arch), "zip", nil
-		}
 		return fmt.Sprintf("https://github.com/%s/releases/download/%s/templ_%s_%s.tar.gz",
 			repo, d.Version, os, arch), "tar.gz", nil
 
@@ -78,20 +74,12 @@ func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, err
 	case "goose":
 		os := goos
 		arch := mapArch(goarch)
-		ext := ""
-		if goos == "windows" {
-			ext = ".exe"
-		}
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/goose_%s_%s%s",
-			repo, d.Version, os, arch, ext), "binary", nil
+		return fmt.Sprintf("https://github.com/%s/releases/download/%s/goose_%s_%s",
+			repo, d.Version, os, arch), "binary", nil
 
 	case "mailpit":
 		os := goos
 		arch := goarch
-		if goos == "windows" {
-			return fmt.Sprintf("https://github.com/%s/releases/download/%s/mailpit-%s-%s.zip",
-				repo, d.Version, os, arch), "zip", nil
-		}
 		return fmt.Sprintf("https://github.com/%s/releases/download/%s/mailpit-%s-%s.tar.gz",
 			repo, d.Version, os, arch), "tar.gz", nil
 
@@ -130,13 +118,8 @@ func DownloadTailwindCLI(version, goos, goarch, destPath string) error {
 		arch = "x64"
 	}
 
-	ext := ""
-	if goos == "windows" {
-		ext = ".exe"
-	}
-
-	url := fmt.Sprintf("https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s-%s%s",
-		version, osName, arch, ext)
+	url := fmt.Sprintf("https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s-%s",
+		version, osName, arch)
 
 	if err := downloadFile(url, destPath); err != nil {
 		return fmt.Errorf("failed to download tailwindcli: %w", err)
@@ -234,7 +217,7 @@ func extractTarGz(archivePath, binaryName, destPath string) error {
 
 		if header.Typeflag == tar.TypeReg {
 			baseName := filepath.Base(header.Name)
-			if baseName == binaryName || baseName == binaryName+".exe" || strings.HasPrefix(baseName, binaryName) {
+			if baseName == binaryName || strings.HasPrefix(baseName, binaryName) {
 				out, err := os.Create(destPath)
 				if err != nil {
 					return fmt.Errorf("failed to create output file: %w", err)
@@ -274,7 +257,7 @@ func extractTarBz2(archivePath, binaryName, destPath string) error {
 
 		if header.Typeflag == tar.TypeReg {
 			baseName := filepath.Base(header.Name)
-			if baseName == binaryName || baseName == binaryName+".exe" || strings.HasPrefix(baseName, binaryName) {
+			if baseName == binaryName || strings.HasPrefix(baseName, binaryName) {
 				out, err := os.Create(destPath)
 				if err != nil {
 					return fmt.Errorf("failed to create output file: %w", err)
@@ -302,7 +285,7 @@ func extractZip(archivePath, binaryName, destPath string) error {
 
 	for _, f := range r.File {
 		baseName := filepath.Base(f.Name)
-		if baseName == binaryName || baseName == binaryName+".exe" || strings.HasPrefix(baseName, binaryName) {
+		if baseName == binaryName || strings.HasPrefix(baseName, binaryName) {
 			rc, err := f.Open()
 			if err != nil {
 				return fmt.Errorf("failed to open file in zip: %w", err)

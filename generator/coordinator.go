@@ -12,6 +12,7 @@ type Coordinator struct {
 	ModelManager      *ModelManager
 	ControllerManager *ControllerManager
 	ViewManager       *ViewManager
+	FragmentManager   *FragmentManager
 	projectManager    *ProjectManager
 	config            *UnifiedConfig
 }
@@ -61,10 +62,13 @@ func NewCoordinator() (Coordinator, error) {
 		unifiedConfig,
 	)
 
+	fragmentManager := NewFragmentManager()
+
 	return Coordinator{
 		ModelManager:      modelManager,
 		ControllerManager: controllerManager,
 		ViewManager:       viewManager,
+		FragmentManager:   fragmentManager,
 		projectManager:    projectManager,
 		config:            unifiedConfig,
 	}, nil
