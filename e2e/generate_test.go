@@ -116,6 +116,10 @@ func TestGenerateCommands(t *testing.T) {
 			t.Run("generate_view_with_array_types", func(t *testing.T) {
 				testGenerateViewWithArrayTypes(t, project)
 			})
+
+			t.Run("generate_fragment", func(t *testing.T) {
+				testGenerateFragment(t, project)
+			})
 		})
 	}
 }
@@ -970,6 +974,124 @@ DROP TABLE IF EXISTS documents;
 		filepath.Join("testdata", "golden", "generate", "document_view.golden"),
 		viewStr,
 	)
+}
+
+// testGenerateFragment tests the fragment generation command which adds
+// a method stub, route variable, and route registration to an existing controller.
+func testGenerateFragment(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	// Create a table for the Webhook controller
+	createMigration(t, project, "000114_create_webhooks", "webhooks", []string{
+		"endpoint VARCHAR(255) NOT NULL",
+		"secret VARCHAR(255) NOT NULL",
+		"active BOOLEAN DEFAULT true",
+	})
+
+	// Generate model first
+	err := project.Generate("generate", "model", "Webhook", "--skip-factory")
+	internal.AssertCommandSucceeds(t, err, "generate model for webhook")
+
+	// Generate controller (without views since we just need the controller files)
+	err = project.Generate("generate", "controller", "Webhook")
+	internal.AssertCommandSucceeds(t, err, "generate controller for webhook")
+
+	// Verify controller, routes, and connect files exist before fragment generation
+	internal.AssertFileExists(t, project, "controllers/webhooks.go")
+	internal.AssertFileExists(t, project, "router/routes/webhooks.go")
+	internal.AssertFileExists(t, project, "router/connect_webhooks_routes.go")
+
+	// Test 1: Generate a simple fragment with default GET method
+	err = project.Generate("generate", "fragment", "Webhook", "Validate", "/validate")
+	internal.AssertCommandSucceeds(t, err, "generate fragment Webhook Validate")
+
+	// Verify controller has the new method
+	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/webhooks.go"))
+	if err != nil {
+		t.Fatalf("Failed to read controller file: %v", err)
+	}
+	controllerStr := string(controllerContent)
+	if !strings.Contains(controllerStr, "func (w Webhooks) Validate(etx *echo.Context) error") {
+		t.Error("Controller should contain Validate method")
+	}
+
+	// Verify routes file has the new route variable
+	routesContent, err := os.ReadFile(filepath.Join(project.Dir, "router/routes/webhooks.go"))
+	if err != nil {
+		t.Fatalf("Failed to read routes file: %v", err)
+	}
+	routesStr := string(routesContent)
+	if !strings.Contains(routesStr, "var WebhookValidate = routing.NewSimpleRoute") {
+		t.Error("Routes file should contain WebhookValidate route variable")
+	}
+	if !strings.Contains(routesStr, `"/validate"`) {
+		t.Error("Routes file should contain /validate path")
+	}
+
+	// Verify connect file has the new route registration
+	connectContent, err := os.ReadFile(filepath.Join(project.Dir, "router/connect_webhooks_routes.go"))
+	if err != nil {
+		t.Fatalf("Failed to read connect file: %v", err)
+	}
+	connectStr := string(connectContent)
+	if !strings.Contains(connectStr, "routes.WebhookValidate.Path()") {
+		t.Error("Connect file should contain WebhookValidate route registration")
+	}
+	if !strings.Contains(connectStr, "webhook.Validate") {
+		t.Error("Connect file should contain webhook.Validate handler")
+	}
+	if !strings.Contains(connectStr, "http.MethodGet") {
+		t.Error("Connect file should use http.MethodGet for default method")
+	}
+
+	// Test 2: Generate a fragment with POST method and :id parameter
+	err = project.Generate("generate", "fragment", "Webhook", "Verify", "/:id/verify", "--method", "POST")
+	internal.AssertCommandSucceeds(t, err, "generate fragment Webhook Verify")
+
+	// Verify controller has the Verify method
+	controllerContent, err = os.ReadFile(filepath.Join(project.Dir, "controllers/webhooks.go"))
+	if err != nil {
+		t.Fatalf("Failed to read controller file: %v", err)
+	}
+	controllerStr = string(controllerContent)
+	if !strings.Contains(controllerStr, "func (w Webhooks) Verify(etx *echo.Context) error") {
+		t.Error("Controller should contain Verify method")
+	}
+
+	// Verify routes file has the new route variable with ID constructor
+	routesContent, err = os.ReadFile(filepath.Join(project.Dir, "router/routes/webhooks.go"))
+	if err != nil {
+		t.Fatalf("Failed to read routes file: %v", err)
+	}
+	routesStr = string(routesContent)
+	if !strings.Contains(routesStr, "var WebhookVerify = routing.NewRouteWithID") {
+		t.Error("Routes file should contain WebhookVerify route variable with NewRouteWithID")
+	}
+	if !strings.Contains(routesStr, `"/:id/verify"`) {
+		t.Error("Routes file should contain /:id/verify path")
+	}
+
+	// Verify connect file has the Verify route registration with POST method
+	connectContent, err = os.ReadFile(filepath.Join(project.Dir, "router/connect_webhooks_routes.go"))
+	if err != nil {
+		t.Fatalf("Failed to read connect file: %v", err)
+	}
+	connectStr = string(connectContent)
+	if !strings.Contains(connectStr, "routes.WebhookVerify.Path()") {
+		t.Error("Connect file should contain WebhookVerify route registration")
+	}
+	if !strings.Contains(connectStr, "webhook.Verify") {
+		t.Error("Connect file should contain webhook.Verify handler")
+	}
+	if !strings.Contains(connectStr, "http.MethodPost") {
+		t.Error("Connect file should use http.MethodPost for POST method")
+	}
+
+	// Test 3: Verify duplicate detection - running the same fragment again should fail
+	err = project.Generate("generate", "fragment", "Webhook", "Validate", "/validate")
+	if err == nil {
+		t.Error("Expected error when generating duplicate fragment, but got none")
+	}
 }
 
 func compareOrUpdateGenerateGolden(t *testing.T, goldenPath, actual string) {
