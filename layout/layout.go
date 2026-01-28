@@ -668,7 +668,6 @@ func registerBuiltinExtensions() error {
 		builtin := []extensions.Extension{
 			extensions.AwsSes{},
 			extensions.Docker{},
-			extensions.Paddle{},
 			extensions.Workflows{},
 		}
 
