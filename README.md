@@ -89,6 +89,28 @@ andurel run
 
 Your app is now running on `http://localhost:8080`
 
+### Database Lifecycle Commands
+
+Andurel provides commands to manage your database lifecycle:
+
+```bash
+# Create the configured database
+andurel db create
+
+# Drop the configured database (prompts for confirmation)
+andurel db drop
+andurel db drop --force              # Allow dropping system databases
+
+# Drop and recreate the database
+andurel db nuke
+andurel db nuke --force              # Allow nuking system databases
+
+# Full rebuild: drop, recreate, migrate, and seed
+andurel db rebuild
+andurel db rebuild --force           # Allow rebuilding system databases
+andurel db rebuild --skip-seed       # Skip seeding after migrations
+```
+
 ### Generate Your First Resource
 
 ```bash
