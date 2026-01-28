@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/router/routes"
 
 	"github.com/labstack/echo/v5"
@@ -28,6 +29,9 @@ func (r Router) RegisterRegistrationsRoutes(registrations controllers.Registrati
 		Path:    routes.RegistrationCreate.Path(),
 		Name:    routes.RegistrationCreate.Name(),
 		Handler: registrations.Create,
+		Middlewares: []echo.MiddlewareFunc{
+			middleware.IPRateLimiter(5, routes.RegistrationNew),
+		},
 	})
 	if err != nil {
 		errs = append(errs, err)
