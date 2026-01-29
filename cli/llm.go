@@ -958,7 +958,452 @@ andurel run              # dev server, watches templ changes
 
 const llmRouterDocumentation = `# Andurel Framework - Router
 
-TODO: Router documentation split-out.`
+The router package handles HTTP routing, middleware, sessions, and cookies. Andurel uses Echo v5 as its underlying web framework with a typed route system for compile-time safety.
+
+## Where router code lives
+
+- router/                      # Main router package
+- router/router.go             # Router setup and global middleware
+- router/routes/               # Named route definitions
+- router/middleware/           # Custom middleware
+- router/cookies/              # Session and flash message handling
+- internal/routing/            # Route type implementations (generated, DO NOT EDIT)
+
+## Architecture overview
+
+` + "```" + `
+┌─────────────────────────────────────────────────────────────┐
+│                     Global Middleware                        │
+│  (tracing → logging → session → context → CORS → CSRF)      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Route Registration                        │
+│  router.RegisterXxxRoutes(controller) → echo.Route          │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Route-level Middleware                      │
+│           (AuthOnly, IPRateLimiter, custom)                 │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Controller Handler                        │
+└─────────────────────────────────────────────────────────────┘
+` + "```" + `
+
+## Named routes
+
+Routes are defined as typed variables in router/routes/. This provides compile-time safety and centralized URL management.
+
+### Route types
+
+| Type | Constructor | Parameter | Usage |
+|------|-------------|-----------|-------|
+| Route | NewSimpleRoute | none | Static paths |
+| RouteWithID | NewRouteWithID | uuid.UUID | Single :id parameter |
+| RouteWithIDs | NewRouteWithMultipleIDs | map[string]uuid.UUID | Multiple ID params |
+| RouteWithSlug | NewRouteWithSlug | string | :slug parameter |
+| RouteWithToken | NewRouteWithToken | string | :token parameter |
+| RouteWithFile | NewRouteWithFile | string | :file parameter |
+
+### Defining routes
+
+Routes are defined with path, name, and optional prefix:
+
+` + "```go" + `
+package routes
+
+import "myapp/internal/routing"
+
+// Prefix groups related routes
+const ProductsPrefix = "/products"
+
+// Simple route (no parameters)
+var ProductIndex = routing.NewSimpleRoute(
+	"",                    // path (empty = prefix only)
+	"products.index",      // name
+	ProductsPrefix,        // prefix
+)
+
+// Route with UUID parameter
+var ProductShow = routing.NewRouteWithID(
+	"/:id",
+	"products.show",
+	ProductsPrefix,
+)
+
+// Route with multiple IDs
+var ProductCategoryShow = routing.NewRouteWithMultipleIDs(
+	"/:product_id/categories/:category_id",
+	"products.categories.show",
+	ProductsPrefix,
+)
+
+// Route with token (e.g., password reset)
+var PasswordEdit = routing.NewRouteWithToken(
+	"/password/:token/edit",
+	"users.edit_password",
+	"/users",
+)
+` + "```" + `
+
+### Using routes
+
+Routes provide Path() for registration and URL() for link generation:
+
+` + "```go" + `
+// In route registration
+r.e.AddRoute(echo.Route{
+	Method:  http.MethodGet,
+	Path:    routes.ProductShow.Path(),   // "/products/:id"
+	Name:    routes.ProductShow.Name(),   // "products.show"
+	Handler: products.Show,
+})
+
+// In controllers (redirects)
+return etx.Redirect(http.StatusSeeOther, routes.ProductShow.URL(product.ID))
+
+// In views (links)
+<a href={ templ.URL(routes.ProductShow.URL(product.ID)) }>View</a>
+
+// Multiple IDs
+url := routes.ProductCategoryShow.URL(map[string]uuid.UUID{
+	"product_id":  productID,
+	"category_id": categoryID,
+})
+` + "```" + `
+
+## Registering routes
+
+Routes are registered via methods on the Router struct:
+
+` + "```go" + `
+package router
+
+import (
+	"errors"
+	"net/http"
+
+	"myapp/controllers"
+	"myapp/router/middleware"
+	"myapp/router/routes"
+
+	"github.com/labstack/echo/v5"
+)
+
+func (r Router) RegisterProductsRoutes(products controllers.Products) error {
+	errs := []error{}
+
+	// GET /products
+	_, err := r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ProductIndex.Path(),
+		Name:    routes.ProductIndex.Name(),
+		Handler: products.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	// GET /products/:id
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ProductShow.Path(),
+		Name:    routes.ProductShow.Name(),
+		Handler: products.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	// POST /products (with route-level middleware)
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.ProductCreate.Path(),
+		Name:    routes.ProductCreate.Name(),
+		Handler: products.Create,
+		Middlewares: []echo.MiddlewareFunc{
+			middleware.AuthOnly,
+		},
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+` + "```" + `
+
+## Middleware
+
+### Global middleware
+
+Global middleware is configured in SetupGlobalMiddleware and applies to all routes:
+
+` + "```go" + `
+middlewares := []echo.MiddlewareFunc{
+	mw.TraceRouteAttributes(tel),    // Add route info to traces
+	mw.Logger(tel),                  // Request logging and metrics
+	session.Middleware(store),       // Session management
+	mw.ValidateSession,              // Session validation hook
+	mw.RegisterAppContext,           // Inject app session into context
+	mw.RegisterFlashMessagesContext, // Inject flash messages into context
+	echomw.CORSWithConfig(...),      // CORS handling
+	csrfMiddleware,                  // CSRF protection
+	echomw.Recover(),                // Panic recovery (must be last)
+}
+` + "```" + `
+
+Order matters: middlewares execute in order listed, with Recover() last to catch panics.
+
+### Route-level middleware
+
+Apply middleware to specific routes:
+
+` + "```go" + `
+_, err = r.e.AddRoute(echo.Route{
+	Method:  http.MethodPost,
+	Path:    routes.SessionCreate.Path(),
+	Name:    routes.SessionCreate.Name(),
+	Handler: sessions.Create,
+	Middlewares: []echo.MiddlewareFunc{
+		middleware.IPRateLimiter(5, routes.SessionNew),  // 5 attempts per 10 min
+	},
+})
+` + "```" + `
+
+### Authentication middleware
+
+Protect routes that require authentication:
+
+` + "```go" + `
+// router/middleware/auth.go
+func AuthOnly(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c *echo.Context) error {
+		if cookies.GetApp(c).IsAuthenticated {
+			return next(c)
+		}
+		return c.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
+	}
+}
+
+// Usage in route registration
+Middlewares: []echo.MiddlewareFunc{
+	middleware.AuthOnly,
+}
+` + "```" + `
+
+### Rate limiting middleware
+
+IP-based rate limiting with configurable limits:
+
+` + "```go" + `
+func IPRateLimiter(
+	limit int32,
+	redirectURL routing.Route,
+) func(next echo.HandlerFunc) echo.HandlerFunc
+
+// Example: 5 requests per 10 minutes, redirect to login on limit
+middleware.IPRateLimiter(5, routes.SessionNew)
+` + "```" + `
+
+### Custom middleware pattern
+
+` + "```go" + `
+func MyMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c *echo.Context) error {
+		// Skip for assets/API if needed
+		if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) {
+			return next(c)
+		}
+
+		// Pre-processing
+		ctx := c.Request().Context()
+
+		// Call next handler
+		err := next(c)
+
+		// Post-processing
+		return err
+	}
+}
+` + "```" + `
+
+## Sessions and cookies
+
+### App session
+
+Store user session data (authentication state, user info):
+
+` + "```go" + `
+// router/cookies/cookies.go
+
+// App struct holds session data (fields generated based on auth config)
+type App struct {
+	IsAuthenticated bool
+	UserID          uuid.UUID
+	UserEmail       string
+}
+
+// Create session after login
+func CreateAppSession(c *echo.Context, user models.User) error
+
+// Destroy session on logout
+func DestroyAppSession(c *echo.Context) error
+
+// Get session from echo context (in handlers)
+func GetApp(c *echo.Context) App
+
+// Get session from context.Context (in views via renderer)
+func GetAppCtx(ctx context.Context) App
+` + "```" + `
+
+Usage in controllers:
+
+` + "```go" + `
+func (s Sessions) Create(etx *echo.Context) error {
+	// ... authenticate user ...
+
+	// Create session
+	if err := cookies.CreateAppSession(etx, user); err != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.HomePage.URL())
+}
+
+func (s Sessions) Destroy(etx *echo.Context) error {
+	if err := cookies.DestroyAppSession(etx); err != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
+}
+` + "```" + `
+
+Usage in views:
+
+` + "```templ" + `
+templ navbar() {
+	if cookies.GetAppCtx(ctx).IsAuthenticated {
+		<a href={ templ.URL(routes.SessionDestroy.URL()) }>Logout</a>
+	} else {
+		<a href={ templ.URL(routes.SessionNew.URL()) }>Login</a>
+	}
+}
+` + "```" + `
+
+### Flash messages
+
+One-time messages displayed after redirects:
+
+` + "```go" + `
+// router/cookies/flash.go
+
+type FlashType string
+
+const (
+	FlashSuccess FlashType = "success"
+	FlashError   FlashType = "error"
+	FlashWarning FlashType = "warning"
+	FlashInfo    FlashType = "info"
+)
+
+// Add flash in controller
+func AddFlash(c *echo.Context, flashType FlashType, msg string) error
+
+// Get flashes (consumed on read)
+func GetFlashes(c *echo.Context) ([]FlashMessage, error)
+
+// Get from context (in views)
+func GetFlashesCtx(ctx context.Context) []FlashMessage
+` + "```" + `
+
+Usage:
+
+` + "```go" + `
+// In controller
+cookies.AddFlash(etx, cookies.FlashSuccess, "Product created successfully")
+cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed: %v", err))
+return etx.Redirect(http.StatusSeeOther, routes.ProductIndex.URL())
+` + "```" + `
+
+Flash messages are automatically displayed via the base layout component.
+
+## CSRF protection
+
+Andurel supports two CSRF strategies configured via APP_CSRF_STRATEGY:
+
+| Strategy | Description |
+|----------|-------------|
+| header_only | Modern browsers only; relies on Sec-Fetch-Site header |
+| header_or_legacy_token | Falls back to X-CSRF-Token header or _csrf form field |
+
+CSRF middleware automatically:
+- Skips API and asset routes
+- Sets secure cookie options in production
+- Validates trusted origins
+
+For forms using hypermedia/Datastar, CSRF is handled automatically via cookies.
+
+## Special routes
+
+### Assets prefix
+
+Routes under /assets skip session/CSRF middleware for performance:
+
+` + "```go" + `
+const AssetsPrefix = "/assets"
+
+// Middleware skipping pattern
+if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) {
+	return next(c)
+}
+` + "```" + `
+
+### API prefix
+
+Routes under /api skip CSRF and session context:
+
+` + "```go" + `
+const APIPrefix = "/api"
+` + "```" + `
+
+### Custom routes
+
+Register catch-all and special handlers:
+
+` + "```go" + `
+func (r *Router) RegisterCustomRoutes(
+	riverHandler interface{ ServeHTTP(http.ResponseWriter, *http.Request) },
+	notFoundHandler echo.HandlerFunc,
+) {
+	r.e.Any("/riverui*", echo.WrapHandler(riverHandler))  // River UI dashboard
+	r.e.RouteNotFound("/*", notFoundHandler)              // 404 handler
+}
+` + "```" + `
+
+## Tooling
+
+` + "```bash" + `
+andurel generate resource Product    # Generates routes + controller + views
+andurel generate controller Product  # Generates routes + controller only
+` + "```" + `
+
+Generators automatically:
+- Create route definitions in router/routes/
+- Create route registration methods in router/
+- Wire up controller handlers
+
+## Related documentation
+- Controllers and request handling: andurel llm controllers
+- Views and templates: andurel llm views
+- Hypermedia/Datastar: andurel llm hypermedia
+`
 
 const llmHypermediaDocumentation = `# Andurel Framework - Hypermedia
 
@@ -1038,8 +1483,556 @@ Server handlers respond with SSE events that the client interprets as patch/merg
 
 const llmJobsDocumentation = `# Andurel Framework - Background Jobs
 
-TODO: Jobs documentation split-out.`
+Andurel uses River (https://riverqueue.com) for background job processing. River is a PostgreSQL-backed job queue that provides reliable, transactional job processing with automatic retries.
+
+## Where job code lives
+
+- queue/                    # Main queue package
+- queue/queue.go            # River client setup (Processor, InsertOnly)
+- queue/jobs/               # Job argument definitions
+- queue/workers/            # Worker implementations
+- queue/workers/workers.go  # Worker registration
+- internal/storage/         # Queue interfaces (generated, DO NOT EDIT)
+
+## Architecture overview
+
+` + "```" + `
+┌─────────────────────────────────────────────────────────────┐
+│                      Controllers/Services                    │
+│              queue.Insert(ctx, jobs.MyJobArgs{...})         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     River Client                             │
+│              Inserts job into PostgreSQL                     │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   PostgreSQL (river_job)                     │
+│              Persistent, transactional storage               │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     River Workers                            │
+│             Process jobs from queue asynchronously           │
+└─────────────────────────────────────────────────────────────┘
+` + "```" + `
+
+## Defining jobs
+
+Jobs are defined as argument structs in queue/jobs/:
+
+` + "```go" + `
+// queue/jobs/send_welcome_email.go
+package jobs
+
+type SendWelcomeEmailArgs struct {
+	UserID    uuid.UUID
+	UserEmail string
+	UserName  string
+}
+
+// Kind returns a unique identifier for this job type
+func (SendWelcomeEmailArgs) Kind() string { return "send_welcome_email" }
+` + "```" + `
+
+The Kind() method must return a unique string identifier for the job type.
+
+## Implementing workers
+
+Workers process jobs and live in queue/workers/:
+
+` + "```go" + `
+// queue/workers/send_welcome_email.go
+package workers
+
+import (
+	"context"
+
+	"github.com/riverqueue/river"
+
+	"myapp/email"
+	"myapp/queue/jobs"
+)
+
+type SendWelcomeEmailWorker struct {
+	river.WorkerDefaults[jobs.SendWelcomeEmailArgs]
+	sender email.TransactionalSender
+}
+
+func NewSendWelcomeEmailWorker(sender email.TransactionalSender) *SendWelcomeEmailWorker {
+	return &SendWelcomeEmailWorker{sender: sender}
+}
+
+func (w *SendWelcomeEmailWorker) Work(
+	ctx context.Context,
+	job *river.Job[jobs.SendWelcomeEmailArgs],
+) error {
+	// Access job arguments
+	args := job.Args
+
+	// Do the work
+	err := w.sender.Send(ctx, args.UserEmail, "Welcome!", "...")
+	if err != nil {
+		// Return error to retry (River handles retry logic)
+		return err
+	}
+
+	return nil
+}
+` + "```" + `
+
+### Error handling in workers
+
+` + "```go" + `
+func (w *MyWorker) Work(ctx context.Context, job *river.Job[jobs.MyArgs]) error {
+	err := doWork(job.Args)
+	if err != nil {
+		// Permanent failure - don't retry
+		if isPermanentError(err) {
+			return river.JobCancel(err)
+		}
+
+		// Transient failure - retry with backoff
+		return err
+	}
+
+	return nil
+}
+` + "```" + `
+
+## Registering workers
+
+Workers are registered in queue/workers/workers.go:
+
+` + "```go" + `
+package workers
+
+import (
+	"github.com/riverqueue/river"
+
+	"myapp/email"
+)
+
+func Register(
+	transactionalSender email.TransactionalSender,
+	marketingSender email.MarketingSender,
+) (*river.Workers, error) {
+	wrks := river.NewWorkers()
+
+	if err := river.AddWorkerSafely(wrks, NewSendTransactionalEmailWorker(transactionalSender)); err != nil {
+		return nil, err
+	}
+
+	if err := river.AddWorkerSafely(wrks, NewSendMarketingEmailWorker(marketingSender)); err != nil {
+		return nil, err
+	}
+
+	// Add more workers here...
+
+	return wrks, nil
+}
+` + "```" + `
+
+## Queue clients
+
+Andurel provides two queue client types:
+
+### Processor (full client)
+
+Processes jobs from the queue. Used by the main application server:
+
+` + "```go" + `
+// Creates client that can insert AND process jobs
+processor, err := queue.NewProcessor(ctx, db, workers)
+
+// Start processing
+processor.Start(ctx)
+
+// Graceful shutdown
+processor.Stop(ctx)
+` + "```" + `
+
+### InsertOnly (insert-only client)
+
+Only inserts jobs, doesn't process them. Useful for CLI tools or services that only enqueue work:
+
+` + "```go" + `
+// Creates client that can only insert jobs
+insertOnly, err := queue.NewInsertOnly(db, workers)
+` + "```" + `
+
+## Enqueueing jobs
+
+### Basic insertion
+
+` + "```go" + `
+// In a controller or service
+result, err := queue.Insert(ctx, jobs.SendWelcomeEmailArgs{
+	UserID:    user.ID,
+	UserEmail: user.Email,
+	UserName:  user.Name,
+}, nil)
+` + "```" + `
+
+### With options
+
+` + "```go" + `
+result, err := queue.Insert(ctx, jobs.SendWelcomeEmailArgs{...}, &river.InsertOpts{
+	Queue:       "high_priority",           // Custom queue
+	MaxAttempts: 5,                          // Max retry attempts
+	ScheduledAt: time.Now().Add(time.Hour), // Delay execution
+	Priority:    1,                          // Lower = higher priority
+})
+` + "```" + `
+
+### Transactional insertion
+
+Insert jobs atomically with database changes:
+
+` + "```go" + `
+tx, _ := db.Begin(ctx)
+defer tx.Rollback()
+
+// Create user
+user, err := models.CreateUser(ctx, tx, userData)
+if err != nil {
+	return err
+}
+
+// Enqueue welcome email (only inserted if tx commits)
+_, err = queue.InsertTx(ctx, tx, jobs.SendWelcomeEmailArgs{
+	UserID:    user.ID,
+	UserEmail: user.Email,
+}, nil)
+if err != nil {
+	return err
+}
+
+tx.Commit()
+` + "```" + `
+
+### Bulk insertion
+
+` + "```go" + `
+// Insert many jobs efficiently
+params := []river.InsertManyParams{
+	{Args: jobs.SendEmailArgs{Email: "a@example.com"}},
+	{Args: jobs.SendEmailArgs{Email: "b@example.com"}},
+	{Args: jobs.SendEmailArgs{Email: "c@example.com"}},
+}
+
+// Returns results for each job
+results, err := queue.InsertMany(ctx, params)
+
+// Or insert fast without individual results
+count, err := queue.InsertManyFast(ctx, params)
+` + "```" + `
+
+## River UI
+
+River provides a web UI for monitoring jobs, accessible at /riverui when the app is running.
+
+## Queue configuration
+
+Configure queues in queue/queue.go:
+
+` + "```go" + `
+riverClient, err := river.NewClient(riverpgxv5.New(db.Conn()), &river.Config{
+	Queues: map[string]river.QueueConfig{
+		river.QueueDefault: {MaxWorkers: 100},
+		"high_priority":    {MaxWorkers: 50},
+		"low_priority":     {MaxWorkers: 10},
+	},
+	Logger:  slog.Default(),
+	Workers: workers,
+})
+` + "```" + `
+
+## Best practices
+
+1. **Keep jobs small** - Store IDs and fetch data in worker, not large payloads
+2. **Make jobs idempotent** - Jobs may run more than once on failure
+3. **Use transactional inserts** - Ensure jobs only enqueue if related DB changes commit
+4. **Handle errors appropriately** - Use river.JobCancel for permanent failures
+5. **Monitor via River UI** - Check /riverui for failed/stuck jobs
+
+## Related documentation
+- Controllers (enqueueing jobs): andurel llm controllers
+- Configuration: andurel llm config
+`
 
 const llmConfigDocumentation = `# Andurel Framework - Configuration
 
-TODO: Configuration documentation split-out.`
+Andurel uses environment variables for configuration, parsed at startup using the env library. Configuration is type-safe and validated.
+
+## Where config code lives
+
+- config/                   # Configuration package
+- config/config.go          # Main Config struct and global vars
+- config/app.go             # Application settings (host, port, sessions)
+- config/database.go        # Database connection settings
+- config/telemetry.go       # Observability settings
+- config/email.go           # Email provider settings
+- config/auth.go            # Authentication settings (if auth enabled)
+- .env.example              # Example environment file
+
+## Configuration structure
+
+` + "```go" + `
+// config/config.go
+
+type Config struct {
+	App       app
+	DB        database
+	Telemetry telemetry
+	Email     email       // if email extension enabled
+	Auth      auth        // if auth extension enabled
+}
+
+func NewConfig() Config {
+	return Config{
+		App:       newAppConfig(),
+		DB:        newDatabaseConfig(),
+		Telemetry: newTelemetryConfig(),
+		Email:     newEmailConfig(),
+		Auth:      newAuthConfig(),
+	}
+}
+` + "```" + `
+
+## Global variables
+
+Commonly accessed values are exposed as package-level variables:
+
+` + "```go" + `
+import "myapp/config"
+
+// Access anywhere in the app
+config.Env         // "development" or "production"
+config.ProjectName // Project name from PROJECT_NAME
+config.ServiceName // Slugified service name for telemetry
+config.Domain      // Domain (e.g., "localhost:8080" or "myapp.com")
+config.BaseURL     // Full URL (e.g., "http://localhost:8080")
+` + "```" + `
+
+## Environment variables
+
+### Application (config/app.go)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| ENVIRONMENT | development | Environment mode (development/production) |
+| PROJECT_NAME | andurel | Project name |
+| DOMAIN | localhost:8080 | Domain for cookies and URLs |
+| PROTOCOL | http | Protocol for BaseURL (http/https) |
+| HOST | localhost | Server bind address |
+| PORT | 8080 | Server port |
+| SESSION_KEY | (required) | 32-byte key for session authentication |
+| SESSION_ENCRYPTION_KEY | (required) | 32-byte key for session encryption |
+| TOKEN_SIGNING_KEY | (required) | Key for signing tokens (password reset, etc.) |
+| CSRF_STRATEGY | header_only | CSRF protection mode |
+| CSRF_TRUSTED_ORIGINS | | Comma-separated trusted origins |
+
+### Database (config/database.go)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| DB_HOST | (required) | Database host |
+| DB_PORT | (required) | Database port |
+| DB_NAME | (required) | Database name |
+| DB_USER | (required) | Database user |
+| DB_PASSWORD | (required) | Database password |
+| DB_KIND | (required) | Database type (postgres) |
+| DB_SSL_MODE | (required) | SSL mode (disable/require/verify-full) |
+
+### Telemetry (config/telemetry.go)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| TELEMETRY_SERVICE_NAME | {ProjectName} | Service name for traces/metrics |
+| TELEMETRY_SERVICE_VERSION | 1.0.0 | Service version |
+| OTLP_LOGS_ENDPOINT | | OTLP endpoint for logs |
+| OTLP_METRICS_ENDPOINT | | OTLP endpoint for metrics |
+| OTLP_TRACES_ENDPOINT | | OTLP endpoint for traces |
+| OTLP_HEADERS | | Headers for OTLP requests |
+| TRACE_SAMPLE_RATE | 1.0 | Trace sampling rate (0.0-1.0) |
+| TELEMETRY_BATCH_SIZE | 512 | Batch size for telemetry export |
+| TELEMETRY_BATCH_TIMEOUT_MS | 5000 | Batch timeout in milliseconds |
+
+### Email (config/email.go)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| MAILPIT_HOST | 0.0.0.0 | Mailpit SMTP host (dev) |
+| MAILPIT_PORT | 1025 | Mailpit SMTP port (dev) |
+
+### Authentication (config/auth.go, if enabled)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| PEPPER | (required) | Secret pepper for password hashing |
+
+## Adding custom configuration
+
+### 1. Create a config struct
+
+` + "```go" + `
+// config/stripe.go
+package config
+
+import "github.com/caarlos0/env/v11"
+
+type stripe struct {
+	SecretKey      string ` + "`env:\"STRIPE_SECRET_KEY\"`" + `
+	WebhookSecret  string ` + "`env:\"STRIPE_WEBHOOK_SECRET\"`" + `
+	PublishableKey string ` + "`env:\"STRIPE_PUBLISHABLE_KEY\"`" + `
+}
+
+func newStripeConfig() stripe {
+	cfg := stripe{}
+
+	if err := env.ParseWithOptions(&cfg, env.Options{
+		RequiredIfNoDef: true,
+	}); err != nil {
+		panic(err)
+	}
+
+	return cfg
+}
+` + "```" + `
+
+### 2. Add to Config struct
+
+` + "```go" + `
+// config/config.go
+
+type Config struct {
+	App       app
+	DB        database
+	Telemetry telemetry
+	Stripe    stripe  // Add new field
+}
+
+func NewConfig() Config {
+	return Config{
+		App:       newAppConfig(),
+		DB:        newDatabaseConfig(),
+		Telemetry: newTelemetryConfig(),
+		Stripe:    newStripeConfig(),  // Initialize
+	}
+}
+` + "```" + `
+
+### 3. Use in application
+
+` + "```go" + `
+func main() {
+	cfg := config.NewConfig()
+
+	stripeClient := stripe.New(cfg.Stripe.SecretKey)
+}
+` + "```" + `
+
+## Environment tags
+
+The env library supports these struct tags:
+
+` + "```go" + `
+type example struct {
+	// Required field (no default)
+	Required string ` + "`env:\"REQUIRED_VAR\"`" + `
+
+	// Optional with default
+	Optional string ` + "`env:\"OPTIONAL_VAR\" envDefault:\"default_value\"`" + `
+
+	// Slice (comma-separated by default)
+	List []string ` + "`env:\"LIST_VAR\" envSeparator:\",\"`" + `
+
+	// Nested prefix
+	Nested nested ` + "`envPrefix:\"NESTED_\"`" + `
+}
+` + "```" + `
+
+## Development setup
+
+### Generate secure keys
+
+` + "```bash" + `
+# Generate 32-byte keys for sessions
+openssl rand -base64 32  # SESSION_KEY
+openssl rand -base64 32  # SESSION_ENCRYPTION_KEY
+openssl rand -base64 32  # TOKEN_SIGNING_KEY
+openssl rand -base64 32  # PEPPER (if using auth)
+` + "```" + `
+
+### Example .env file
+
+` + "```bash" + `
+# Application
+ENVIRONMENT=development
+PROJECT_NAME=myapp
+DOMAIN=localhost:8080
+PROTOCOL=http
+HOST=localhost
+PORT=8080
+SESSION_KEY=your-32-byte-base64-key
+SESSION_ENCRYPTION_KEY=your-32-byte-base64-key
+TOKEN_SIGNING_KEY=your-32-byte-base64-key
+CSRF_STRATEGY=header_only
+
+# Database
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=myapp_dev
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_KIND=postgres
+DB_SSL_MODE=disable
+
+# Telemetry (optional)
+TELEMETRY_SERVICE_NAME=myapp
+OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces
+
+# Email (development)
+MAILPIT_HOST=localhost
+MAILPIT_PORT=1025
+
+# Auth (if enabled)
+PEPPER=your-32-byte-base64-key
+` + "```" + `
+
+## Production considerations
+
+1. **Use secrets management** - Don't commit .env files; use Vault, AWS Secrets Manager, etc.
+2. **Set ENVIRONMENT=production** - Enables secure cookie settings, stricter CSRF
+3. **Use HTTPS** - Set PROTOCOL=https in production
+4. **Configure telemetry endpoints** - Send traces/metrics to your observability platform
+5. **Rotate keys periodically** - Especially SESSION_KEY and TOKEN_SIGNING_KEY
+
+## Accessing config in code
+
+` + "```go" + `
+// In main.go or application setup
+cfg := config.NewConfig()
+
+// Pass to components that need it
+server := server.New(cfg)
+router := router.New(cfg)
+
+// Or access globals for simple values
+if config.Env == "production" {
+	// Production-specific logic
+}
+
+url := config.BaseURL + "/path"
+` + "```" + `
+
+## Related documentation
+- Router (CSRF configuration): andurel llm router
+- Background jobs: andurel llm jobs
+- Telemetry setup: See telemetry/ package
+`
