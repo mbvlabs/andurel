@@ -74,7 +74,7 @@ func TestResourcePluralization(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			project := internal.NewProjectWithDatabase(t, binary, "postgresql")
+			project := internal.NewProjectWithDatabase(t, binary, getSharedBinDir(), "postgresql")
 
 			err := project.Scaffold("-c", "tailwind")
 			internal.AssertCommandSucceeds(t, err, "scaffold")

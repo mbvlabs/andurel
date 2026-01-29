@@ -62,7 +62,7 @@ func TestScaffoldMatrix(t *testing.T) {
 
 			t.Parallel()
 
-			project := internal.NewProject(t, binary)
+			project := internal.NewProject(t, binary, getSharedBinDir())
 
 			args := []string{
 				"-c", config.CSS,
