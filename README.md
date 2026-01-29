@@ -169,14 +169,14 @@ Goose migration helpers.
 
 ```bash
 andurel migrate (aliases: m, mig)
-andurel migrate new
+andurel migrate new [name]
 andurel migrate up
 andurel migrate down
 andurel migrate status
 andurel migrate fix
 andurel migrate reset
-andurel migrate up-to
-andurel migrate down-to
+andurel migrate up-to [version]
+andurel migrate down-to [version]
 ```
 
 ### Queries

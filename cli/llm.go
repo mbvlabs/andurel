@@ -500,7 +500,7 @@ For full hypermedia patterns, see: andurel llm hypermedia
 ` + "```bash" + `
 andurel generate controller User        # Controller without views
 andurel generate resource Product       # Full CRUD with views
-andurel generate fragment User Search   # Add method to existing controller
+andurel generate fragment User Search /search   # Add method to existing controller
 ` + "```" + `
 
 ## Related documentation
