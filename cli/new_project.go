@@ -23,9 +23,6 @@ dependencies, and configuration.`,
 	}
 
 	projectCmd.Flags().
-		StringP("repo", "r", "", "GitHub username (i.e. mbvlabs or github.com/mbvlabs (optional)")
-
-	projectCmd.Flags().
 		StringP("css", "c", "", "CSS framework to use (tailwind, vanilla) (optional, default: tailwind)")
 
 	projectCmd.Flags().
@@ -38,11 +35,6 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	projectName := args[0]
 
 	basePath := "./" + projectName
-
-	repo, err := cmd.Flags().GetString("repo")
-	if err != nil {
-		return err
-	}
 
 	database := "postgresql"
 
@@ -66,7 +58,7 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	if err != nil {
 		return err
 	}
-	if err := layout.Scaffold(basePath, projectName, repo, database, cssFramework, version, extensions); err != nil {
+	if err := layout.Scaffold(basePath, projectName, database, cssFramework, version, extensions); err != nil {
 		return err
 	}
 

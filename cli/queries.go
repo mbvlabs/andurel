@@ -15,6 +15,7 @@ func newQueriesCommand() *cobra.Command {
 
 	cmd.AddCommand(
 		newQueriesGenerateCommand(),
+		newQueriesRefreshCommand(),
 		newQueriesCompileCommand(),
 	)
 
@@ -35,16 +36,12 @@ The command generates:
 The table name is used exactly as provided - no naming conventions are applied.
 An error is returned if the table is not found in the migrations.
 
-Examples:
+	Examples:
   andurel queries generate user_roles           # Generate queries for 'user_roles' table
-  andurel queries generate users_organizations  # Generate queries for a junction table
-  andurel queries generate user_roles --refresh # Refresh existing queries file`,
+  andurel queries generate users_organizations  # Generate queries for a junction table`,
 		Args: cobra.ExactArgs(1),
 		RunE: runQueriesGenerate,
 	}
-
-	cmd.Flags().
-		Bool("refresh", false, "Refresh existing SQL queries file")
 
 	return cmd
 }
@@ -52,21 +49,38 @@ Examples:
 func runQueriesGenerate(cmd *cobra.Command, args []string) error {
 	tableName := args[0]
 
-	refresh, err := cmd.Flags().GetBool("refresh")
+	gen, err := generator.New()
 	if err != nil {
 		return err
 	}
+
+	return gen.GenerateQueriesOnly(tableName)
+}
+
+func newQueriesRefreshCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "refresh [table_name]",
+		Short: "Refresh CRUD queries for a database table",
+		Long: `Refresh an existing SQL query file and SQLC types for a database table.
+This keeps the queries-only file in sync with the current table schema.
+
+Examples:
+  andurel queries refresh user_roles          # Refresh queries for 'user_roles' table
+  andurel queries refresh users_organizations # Refresh queries for a junction table`,
+		Args: cobra.ExactArgs(1),
+		RunE: runQueriesRefresh,
+	}
+}
+
+func runQueriesRefresh(cmd *cobra.Command, args []string) error {
+	tableName := args[0]
 
 	gen, err := generator.New()
 	if err != nil {
 		return err
 	}
 
-	if refresh {
-		return gen.RefreshQueriesOnly(tableName)
-	}
-
-	return gen.GenerateQueriesOnly(tableName)
+	return gen.RefreshQueriesOnly(tableName)
 }
 
 func newQueriesCompileCommand() *cobra.Command {

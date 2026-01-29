@@ -6,8 +6,9 @@ import (
 
 func newToolCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "tool",
-		Short: "Manage project tools and binaries",
+		Use:     "tool",
+		Aliases: []string{"t"},
+		Short:   "Manage project tools and binaries",
 	}
 
 	cmd.AddCommand(newSyncCommand())

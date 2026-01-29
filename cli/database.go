@@ -14,21 +14,18 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
-	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/spf13/cobra"
 )
 
 func newDatabaseCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "database",
-		Aliases: []string{"db"},
+		Aliases: []string{"d", "db"},
 		Short:   "Database management commands",
-		Long:    "Commands for managing database migrations, queries, and seeding.",
+		Long:    "Commands for managing database seeds.",
 	}
 
 	cmd.AddCommand(
-		newDBMigrationCommand(),
-		newDBQueriesCommand(),
 		newDBSeedCommand(),
 		newDBDropCommand(),
 		newDBCreateCommand(),
@@ -37,6 +34,42 @@ func newDatabaseCommand() *cobra.Command {
 	)
 
 	return cmd
+}
+
+func newMigrateCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "migrate",
+		Aliases: []string{"m", "mig"},
+		Short:   "Database migration helpers",
+		Long:    "Manage database migrations for the current project using goose.",
+	}
+
+	cmd.AddCommand(
+		newDBMigrationNewCommand(),
+		newDBMigrationUpCommand(),
+		newDBMigrationDownCommand(),
+		newDBMigrationStatusCommand(),
+		newDBMigrationFixCommand(),
+		newDBMigrationResetCommand(),
+		newDBMigrationUpToCommand(),
+		newDBMigrationDownToCommand(),
+	)
+
+	return cmd
+}
+
+func newSeedCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "seed",
+		Short: "Run database seeds",
+		Long: `Run the database seed file at database/seeds/main.go.
+
+Edit this file to add your seed data using model factories.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runSeed()
+		},
+	}
 }
 
 // Migration commands
@@ -228,7 +261,8 @@ func newDBDropCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&force, "force", false, "Allow dropping system databases like postgres/template1")
+	cmd.Flags().
+		BoolVar(&force, "force", false, "Allow dropping system databases like postgres/template1")
 
 	return cmd
 }
@@ -258,7 +292,8 @@ func newDBNukeCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&force, "force", false, "Allow dropping system databases like postgres/template1")
+	cmd.Flags().
+		BoolVar(&force, "force", false, "Allow dropping system databases like postgres/template1")
 
 	return cmd
 }
@@ -277,8 +312,10 @@ func newDBRebuildCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&force, "force", false, "Allow dropping system databases like postgres/template1")
-	cmd.Flags().BoolVar(&skipSeed, "skip-seed", false, "Skip running database seeds after migrations")
+	cmd.Flags().
+		BoolVar(&force, "force", false, "Allow dropping system databases like postgres/template1")
+	cmd.Flags().
+		BoolVar(&skipSeed, "skip-seed", false, "Skip running database seeds after migrations")
 
 	return cmd
 }
@@ -393,7 +430,10 @@ func loadDatabaseConfig() (dbConfig, error) {
 	}
 
 	if len(missing) > 0 {
-		return dbConfig{}, fmt.Errorf("missing database configuration environment variables: %v", missing)
+		return dbConfig{}, fmt.Errorf(
+			"missing database configuration environment variables: %v",
+			missing,
+		)
 	}
 
 	return dbConfig{
@@ -501,7 +541,9 @@ func openAdminConnection() (dbConfig, *pgx.Conn, context.Context, context.Cancel
 	}
 
 	if strings.ToLower(cfg.Kind) != "postgres" {
-		return dbConfig{}, nil, nil, nil, fmt.Errorf("database lifecycle commands only support postgres")
+		return dbConfig{}, nil, nil, nil, fmt.Errorf(
+			"database lifecycle commands only support postgres",
+		)
 	}
 
 	adminDB := "postgres"
@@ -597,23 +639,18 @@ func runSqlcCommand(action string) error {
 		return err
 	}
 
-	var cmd *exec.Cmd
-
-	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
-		cmd = exec.Command("go", "run", "github.com/sqlc-dev/sqlc/cmd/sqlc@"+versions.Sqlc, "-f", configPath, action)
-	} else {
-		sqlcBin := filepath.Join(rootDir, "bin", "sqlc")
-		if _, err := os.Stat(sqlcBin); err != nil {
-			if os.IsNotExist(err) {
-				return fmt.Errorf(
-					"sqlc binary not found at %s\nRun 'andurel tool sync' to download it",
-					sqlcBin,
-				)
-			}
-			return err
+	sqlcBin := filepath.Join(rootDir, "bin", "sqlc")
+	if _, err := os.Stat(sqlcBin); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf(
+				"sqlc binary not found at %s\nRun 'andurel tool sync' to download it",
+				sqlcBin,
+			)
 		}
-		cmd = exec.Command(sqlcBin, "-f", configPath, action)
+		return err
 	}
+
+	cmd := exec.Command(sqlcBin, "-f", configPath, action)
 
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

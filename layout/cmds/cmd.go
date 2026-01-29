@@ -84,7 +84,6 @@ func RunTemplFmt(targetDir string) error {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	// if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
 	cmd := exec.Command(
 		"go",
 		"run",
@@ -94,12 +93,6 @@ func RunTemplFmt(targetDir string) error {
 	)
 	cmd.Dir = absTargetDir
 	return cmd.Run()
-	// }
-	//
-	// templBin := filepath.Join(absTargetDir, "bin", "templ")
-	// cmd := exec.Command(templBin, "fmt", "views")
-	// cmd.Dir = absTargetDir
-	// return cmd.Run()
 }
 
 func RunSqlcGenerate(targetDir string) error {
@@ -108,7 +101,6 @@ func RunSqlcGenerate(targetDir string) error {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	// if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
 	cmd := exec.Command(
 		"go",
 		"run",
@@ -119,12 +111,6 @@ func RunSqlcGenerate(targetDir string) error {
 	)
 	cmd.Dir = absTargetDir
 	return cmd.Run()
-	// }
-
-	// sqlcBin := filepath.Join(absTargetDir, "bin", "sqlc")
-	// cmd := exec.Command(sqlcBin, "generate", "-f", "database/sqlc.yaml")
-	// cmd.Dir = absTargetDir
-	// return cmd.Run()
 }
 
 func RunGooseFix(targetDir string) error {
@@ -133,7 +119,6 @@ func RunGooseFix(targetDir string) error {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	// if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
 	cmd := exec.Command(
 		"go",
 		"run",
@@ -144,12 +129,6 @@ func RunGooseFix(targetDir string) error {
 	)
 	cmd.Dir = absTargetDir
 	return cmd.Run()
-	// }
-	//
-	// gooseBin := filepath.Join(absTargetDir, "bin", "goose")
-	// cmd := exec.Command(gooseBin, "-dir", "database/migrations", "fix")
-	// cmd.Dir = absTargetDir
-	// return cmd.Run()
 }
 
 // func SetupTailwind(targetDir string) error {

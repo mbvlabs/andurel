@@ -12,7 +12,6 @@ import (
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/internal/types"
 	"github.com/mbvlabs/andurel/generator/templates"
-	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/mbvlabs/andurel/pkg/errors"
 	"github.com/mbvlabs/andurel/pkg/naming"
@@ -312,18 +311,13 @@ func (g *Generator) GenerateViewWithController(
 }
 
 func (g *Generator) formatTemplFile(filePath string) error {
-	var cmd *exec.Cmd
-
-	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
-		cmd = exec.Command("go", "run", "github.com/a-h/templ/cmd/templ@"+versions.Templ, "fmt", filePath)
-	} else {
-		rootDir, err := g.fileManager.FindGoModRoot()
-		if err != nil {
-			return fmt.Errorf("failed to find project root: %w", err)
-		}
-		templBin := filepath.Join(rootDir, "bin", "templ")
-		cmd = exec.Command(templBin, "fmt", filePath)
+	rootDir, err := g.fileManager.FindGoModRoot()
+	if err != nil {
+		return fmt.Errorf("failed to find project root: %w", err)
 	}
+
+	templBin := filepath.Join(rootDir, "bin", "templ")
+	cmd := exec.Command(templBin, "fmt", filePath)
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to run templ fmt on %s: %w", filePath, err)
@@ -338,16 +332,10 @@ func (g *Generator) runCompileTemplates() error {
 		return nil
 	}
 
-	var cmd *exec.Cmd
-
-	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
-		cmd = exec.Command("go", "run", "github.com/a-h/templ/cmd/templ@"+versions.Templ, "generate")
-	} else {
-		templBin := filepath.Join(rootDir, "bin", "templ")
-		cmd = exec.Command(templBin, "generate")
-	}
-
+	templBin := filepath.Join(rootDir, "bin", "templ")
+	cmd := exec.Command(templBin, "generate")
 	cmd.Dir = rootDir
+
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to run templ generate: %w", err)
 	}

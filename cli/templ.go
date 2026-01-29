@@ -6,26 +6,26 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/spf13/cobra"
 )
 
-func newTemplCommand() *cobra.Command {
-	templCmd := &cobra.Command{
-		Use:     "templ",
-		Aliases: []string{"t"},
-		Short:   "Templ code generation helpers",
+func newViewsCommand() *cobra.Command {
+	viewsCmd := &cobra.Command{
+		Use:     "views",
+		Aliases: []string{"v"},
+		Short:   "View template helpers",
 		Long:    "Manage Templ code generation for the current project.",
 	}
 
-	templCmd.AddCommand(
-		newTemplGenerateCommand(),
+	viewsCmd.AddCommand(
+		newViewsGenerateCommand(),
+		newViewsFormatCommand(),
 	)
 
-	return templCmd
+	return viewsCmd
 }
 
-func newTemplGenerateCommand() *cobra.Command {
+func newViewsGenerateCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "generate",
 		Short: "Generate Go code from Templ templates",
@@ -36,30 +36,40 @@ func newTemplGenerateCommand() *cobra.Command {
 	}
 }
 
-func runTempl(action string) error {
+func newViewsFormatCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "format",
+		Short: "Format Templ templates in views and email directories",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			for _, dir := range []string{"views", "email"} {
+				if err := runTempl("fmt", dir); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	}
+}
+
+func runTempl(args ...string) error {
 	rootDir, err := findGoModRoot()
 	if err != nil {
 		return err
 	}
 
-	var cmd *exec.Cmd
-
-	if os.Getenv("ANDUREL_SKIP_BUILD") == "true" {
-		cmd = exec.Command("go", "run", "github.com/a-h/templ/cmd/templ@"+versions.Templ, action)
-	} else {
-		templBin := filepath.Join(rootDir, "bin", "templ")
-		if _, err := os.Stat(templBin); err != nil {
-			if os.IsNotExist(err) {
-				return fmt.Errorf(
-					"templ binary not found at %s\nRun 'andurel tool sync' to download it",
-					templBin,
-				)
-			}
-			return err
+	templBin := filepath.Join(rootDir, "bin", "templ")
+	if _, err := os.Stat(templBin); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf(
+				"templ binary not found at %s\nRun 'andurel tool sync' to download it",
+				templBin,
+			)
 		}
-		cmd = exec.Command(templBin, action)
+		return err
 	}
 
+	cmd := exec.Command(templBin, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -67,3 +77,4 @@ func runTempl(action string) error {
 
 	return cmd.Run()
 }
+
