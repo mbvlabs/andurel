@@ -20,7 +20,6 @@ func newGenerateCommand() *cobra.Command {
 	generateCmd.AddCommand(newControllerCommand())
 	generateCmd.AddCommand(newViewCommand())
 	generateCmd.AddCommand(newResourceCommand())
-	generateCmd.AddCommand(newGenQueriesCommand())
 	generateCmd.AddCommand(newFragmentCommand())
 
 	return generateCmd
@@ -28,8 +27,9 @@ func newGenerateCommand() *cobra.Command {
 
 func newModelCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "model [name]",
-		Short: "Generate a new model",
+		Use:     "model [name]",
+		Aliases: []string{"m"},
+		Short:   "Generate a new model",
 		Long: `Generate a new model with the specified name.
 The model will include CRUD operations and database functions.
 The table name is automatically inferred as the plural form of the model name.
@@ -52,8 +52,9 @@ Examples:
 
 func newViewCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "view [model_name]",
-		Short: "Generate view templates for the specified model",
+		Use:     "view [model_name]",
+		Aliases: []string{"v"},
+		Short:   "Generate view templates for the specified model",
 		Long: `Generate view templates for the specified resource.
 The model must already exist before generating views.
 
@@ -94,8 +95,9 @@ func generateModel(cmd *cobra.Command, args []string) error {
 
 func newControllerCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "controller [model_name]",
-		Short: "Generate a new resource controller with CRUD actions",
+		Use:     "controller [model_name]",
+		Aliases: []string{"c"},
+		Short:   "Generate a new resource controller with CRUD actions",
 		Long: `Generate a new resource controller with full CRUD actions.
 The controller will include index, show, new, create, edit, update, and destroy actions.
 It will also generate the corresponding routes.
@@ -118,8 +120,9 @@ Examples:
 
 func newResourceCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "resource [name]",
-		Short: "Generate a complete resource (model, controller, views, and routes)",
+		Use:     "resource [name]",
+		Aliases: []string{"r"},
+		Short:   "Generate a complete resource (model, controller, views, and routes)",
 		Long: `Generate a complete resource including model, controller with CRUD actions, views, and routes.
 This is equivalent to running model, controller, and view generators together.
 The table name is automatically inferred as the plural form of the model name.
@@ -188,51 +191,6 @@ func generateView(cmd *cobra.Command, args []string) error {
 	}
 
 	return gen.GenerateViewFromModel(resourceName, withController)
-}
-
-func newGenQueriesCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "queries [table_name]",
-		Short: "Generate SQL queries for a table (without model)",
-		Long: `Generate SQL query file and SQLC types for a database table.
-This is useful for junction/connection tables that don't need a full model wrapper.
-
-The command generates:
-  - SQL queries file (database/queries/{tablename}.sql)
-  - SQLC-generated query functions and types
-
-Examples:
-  andurel generate queries user_roles           # Generate queries for 'user_roles' table
-  andurel generate queries users_organizations  # Generate queries for a junction table
-  andurel generate queries user_roles --refresh # Refresh existing queries file`,
-		Args: cobra.ExactArgs(1),
-		RunE: generateQueries,
-	}
-
-	cmd.Flags().
-		Bool("refresh", false, "Refresh existing SQL queries file")
-
-	return cmd
-}
-
-func generateQueries(cmd *cobra.Command, args []string) error {
-	tableName := args[0]
-
-	refresh, err := cmd.Flags().GetBool("refresh")
-	if err != nil {
-		return err
-	}
-
-	gen, err := generator.New()
-	if err != nil {
-		return err
-	}
-
-	if refresh {
-		return gen.RefreshQueriesOnly(tableName)
-	}
-
-	return gen.GenerateQueriesOnly(tableName)
 }
 
 func newFragmentCommand() *cobra.Command {

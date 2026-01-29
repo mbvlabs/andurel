@@ -26,9 +26,13 @@ func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd.AddCommand(newGenerateCommand())
 	rootCmd.AddCommand(newQueriesCommand())
 	rootCmd.AddCommand(newDatabaseCommand())
-	rootCmd.AddCommand(newTemplCommand())
+	rootCmd.AddCommand(newMigrateCommand())
+	rootCmd.AddCommand(newViewsCommand())
 
 	rootCmd.AddCommand(newAppCommand())
+	rootCmd.AddCommand(newConsoleCommand())
+	rootCmd.AddCommand(newDblabCommand())
+	rootCmd.AddCommand(newMailpitCommand())
 	rootCmd.AddCommand(newLlmCommand())
 	rootCmd.AddCommand(newToolCommand())
 	rootCmd.AddCommand(newExtensionCommand())
@@ -40,9 +44,10 @@ func NewRootCommand(version, date string) *cobra.Command {
 
 func newRunAppCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "run",
-		Short: "Runs the app",
-		Args:  cobra.ExactArgs(0),
+		Use:     "run",
+		Aliases: []string{"r"},
+		Short:   "Runs the app",
+		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
 			if err != nil {
