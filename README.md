@@ -135,7 +135,7 @@ andurel new [project-name] --css/-c --extensions/-e
 andurel generate (aliases: g, gen)
 andurel database (alias: db)        
 andurel migrate                     
-andurel queries                     
+andurel queries                     # alias: q
 andurel views
 andurel app (alias: a)
 andurel console                     # alias of: app console
@@ -155,7 +155,6 @@ andurel generate model [name] --table-name --skip-factory     # alias: m
 andurel generate controller [model_name] --with-views          # alias: c
 andurel generate view [model_name] --with-controller           # alias: v
 andurel generate resource [name] --table-name                  # alias: r
-andurel generate queries [table_name] --refresh                # alias: q
 ```
 
 Database subcommands:
@@ -164,11 +163,13 @@ Database subcommands:
 andurel database seed
 ```
 
-Migrate/queries top-level shims:
+Top-level migrate/queries:
 
 ```bash
 andurel migrate new|up|down|status|fix|reset|up-to|down-to
-andurel queries compile|generate
+andurel queries generate [table_name]
+andurel queries refresh [table_name]
+andurel queries compile
 ```
 
 App subcommands:
