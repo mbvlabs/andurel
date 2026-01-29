@@ -770,12 +770,18 @@ andurel generate model Product
 
 ### 2. Queries-only (for simple/junction tables)
 - SQL queries without model wrapper
-- Access SQLC types directly via models/internal/db
+- Lighter-weight functions that use SQLC types directly
 - Use for junction tables, lookup tables, or simple CRUD
 
 ` + "```bash" + `
 andurel queries generate user_roles
 ` + "```" + `
+
+**Important:** Even with queries-only, all data access must still go through the ` + "`models/`" + ` package.
+The ` + "`models/internal/db`" + ` package is internal to Go and cannot be imported from outside ` + "`models/`" + `.
+Queries-only generates simpler wrapper functions in ` + "`models/`" + ` that don't include full model
+structs, validation, or business logic - but controllers still call these wrapper functions,
+never the internal queries directly.
 
 When to use queries-only:
 - Junction tables (user_roles, product_categories)
@@ -826,7 +832,7 @@ andurel generate resource Product
 
 ## Best practices
 
-1. **All data access through models** - Never import models/internal/db in controllers
+1. **All data access through models** - Never import models/internal/db outside the models package (Go's internal package rules prevent this anyway)
 2. **Validate in models** - Use validate tags on data structs
 3. **Keep models focused** - Business logic for one entity, not orchestration
 4. **Use transactions for multi-step operations** - Pass tx as executor
