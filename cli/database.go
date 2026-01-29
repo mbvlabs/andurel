@@ -59,22 +59,6 @@ func newMigrateCommand() *cobra.Command {
 	return cmd
 }
 
-func newQueriesCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "queries",
-		Aliases: []string{"query", "q"},
-		Short:   "SQL query code generation (sqlc)",
-		Long:    "Manage SQLC code generation for the current project.",
-	}
-
-	cmd.AddCommand(
-		newDBQueriesCompileCommand(),
-		newDBQueriesGenerateCommand(),
-	)
-
-	return cmd
-}
-
 func newSeedCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "seed",
