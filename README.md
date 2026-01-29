@@ -81,7 +81,7 @@ cp .env.example .env
 # Note: you need to edit .env with your database details
 
 # Apply database migrations
-andurel database migration up
+andurel migrate up
 
 # Run the development server (with live reload)
 andurel run
@@ -95,20 +95,20 @@ Andurel provides commands to manage your database lifecycle:
 
 ```bash
 # Create the configured database
-andurel db create
+andurel database create                    # Requires .env to be filled out with DB credentials
 
 # Drop the configured database (prompts for confirmation)
-andurel db drop
-andurel db drop --force              # Allow dropping system databases
+andurel database drop
+andurel database drop --force              # Allow dropping system databases
 
 # Drop and recreate the database
-andurel db nuke
-andurel db nuke --force              # Allow nuking system databases
+andurel database nuke
+andurel database nuke --force              # Allow nuking system databases
 
 # Full rebuild: drop, recreate, migrate, and seed
-andurel db rebuild
-andurel db rebuild --force           # Allow rebuilding system databases
-andurel db rebuild --skip-seed       # Skip seeding after migrations
+andurel database rebuild
+andurel database rebuild --force           # Allow rebuilding system databases
+andurel database rebuild --skip-seed       # Skip seeding after migrations
 ```
 
 ### Generate Your First Resource
@@ -117,7 +117,7 @@ andurel db rebuild --skip-seed       # Skip seeding after migrations
 # Create a migration and add the columns you need. Note that right now, andurel
 # requires you to use id uuid primary key and created_at/updated_at columns for 
 # all tables that you generate resources for.
-andurel db migration new create_products_table
+andurel migrate new create_products_table
 
 # Create a complete resource with model, controller, views, and routes
 andurel generate resource Product
@@ -127,39 +127,36 @@ This single command creates everything you need for a full CRUD interface.
 
 ## CLI Commands
 
-Top-level commands:
+### Run
+Starts the development server (hot reload).
 
 ```bash
 andurel run (alias: r)
-andurel new [project-name] --css/-c --extensions/-e
-andurel generate (aliases: g, gen)
-andurel database (aliases: d, db)
-andurel migrate (aliases: m, mig)
-andurel queries (alias: q)
-andurel views (alias: v)
-andurel app (alias: a)
-andurel console (alias of: app console)
-andurel dblab (alias of: app dblab)
-andurel mailpit (alias of: app mailpit)
-andurel llm
-andurel tool (alias: t)
-andurel extension (aliases: ext, e)
-andurel upgrade --dry-run
-andurel doctor --verbose
 ```
 
-Generate subcommands:
+### New
+Scaffolds a new Andurel project.
 
 ```bash
-andurel generate model [name] --table-name --skip-factory     (alias: m)
+andurel new [project-name] --css/-c --extensions/-e
+```
+
+### Generate
+Code and scaffolding generators.
+
+```bash
+andurel generate (aliases: g, gen)
+andurel generate model [name] --table-name --skip-factory      (alias: m)
 andurel generate controller [model_name] --with-views          (alias: c)
 andurel generate view [model_name] --with-controller           (alias: v)
 andurel generate resource [name] --table-name                  (alias: r)
 ```
 
-Database subcommands:
+### Database
+Database lifecycle and seed helpers.
 
 ```bash
+andurel database (aliases: d, db)
 andurel database seed
 andurel database create
 andurel database drop
@@ -167,35 +164,87 @@ andurel database nuke
 andurel database rebuild
 ```
 
-Top-level migrate/queries:
+### Migrate
+Goose migration helpers.
 
 ```bash
-andurel migrate new|up|down|status|fix|reset|up-to|down-to
+andurel migrate (aliases: m, mig)
+andurel migrate new
+andurel migrate up
+andurel migrate down
+andurel migrate status
+andurel migrate fix
+andurel migrate reset
+andurel migrate up-to
+andurel migrate down-to
+```
+
+### Queries
+SQLC query generation helpers.
+
+```bash
+andurel queries (alias: q)
 andurel queries generate [table_name]
 andurel queries refresh [table_name]
 andurel queries compile
 ```
 
-App subcommands:
+### Views
+Templ code generation.
 
 ```bash
+andurel views (alias: v)
+andurel views generate
+andurel views format
+```
+
+### App
+App utilities and helpers.
+
+```bash
+andurel app (alias: a)
 andurel app console    # alias: c
 andurel app dblab      # alias: d
 andurel app mailpit    # alias: m
 ```
 
-Tool subcommands:
+### Tool
+Manage project tools and binaries.
 
 ```bash
+andurel tool (alias: t)
 andurel tool sync
 andurel tool set-version <tool> <version>
 ```
 
-Extension subcommands:
+### Extension
+Manage project extensions.
 
 ```bash
+andurel extension (aliases: ext, e)
 andurel extension add [extension-name]
 andurel extension list    # alias: ls
+```
+
+### LLM
+Emit framework docs for AI assistants.
+
+```bash
+andurel llm
+```
+
+### Upgrade
+Upgrade framework-managed files.
+
+```bash
+andurel upgrade --dry-run
+```
+
+### Doctor
+Run project diagnostics.
+
+```bash
+andurel doctor --verbose
 ```
 
 ## Project Structure
