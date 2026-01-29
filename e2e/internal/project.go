@@ -77,7 +77,7 @@ func (p *Project) setupToolBinaries() error {
 	}
 
 	projectBinDir := filepath.Join(p.Dir, "bin")
-	if err := os.MkdirAll(projectBinDir, 0755); err != nil {
+	if err := os.MkdirAll(projectBinDir, 0o755); err != nil {
 		return err
 	}
 
@@ -120,7 +120,14 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer dstFile.Close()
+
+	defer func() error {
+		if err := dstFile.Close(); err != nil {
+			return err
+		}
+
+		return nil
+	}()
 
 	_, err = io.Copy(dstFile, srcFile)
 	return err
