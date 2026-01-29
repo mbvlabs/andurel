@@ -213,7 +213,302 @@ myapp/
 
 const llmControllersDocumentation = `# Andurel Framework - Controllers
 
-TODO: Controllers documentation split-out.`
+Controllers handle HTTP requests, interact with models, and render views. They follow REST conventions and support both traditional page rendering and hypermedia (SSE) responses.
+
+## Where controllers live
+- controllers/             # HTTP handlers
+- controllers/controller.go # Base render utility
+- controllers/cache.go     # Generic caching implementation
+- controllers/pages.go     # Static page handlers
+- controllers/assets.go    # Asset serving with caching
+
+## Controller structure
+
+Controllers are structs with dependencies injected via constructors:
+
+` + "```go" + `
+type Users struct {
+	db    storage.Pool
+	cache *Cache[templ.Component]
+}
+
+func NewUsers(db storage.Pool) Users {
+	cache, _ := NewCacheBuilder[templ.Component]().Build()
+	return Users{db: db, cache: cache}
+}
+` + "```" + `
+
+Methods follow Echo's handler signature and use short receiver names:
+
+` + "```go" + `
+func (u Users) Index(etx *echo.Context) error {
+	users, err := models.AllUsers(etx.Request().Context(), u.db.Conn())
+	if err != nil {
+		return render(etx, views.InternalError())
+	}
+	return render(etx, views.UsersIndex(users))
+}
+` + "```" + `
+
+## Rendering views
+
+The render() helper renders templ components with automatic cookie/flash injection:
+
+` + "```go" + `
+func render(etx *echo.Context, t templ.Component) error {
+	return renderer.Render(etx, t, []renderer.CookieKey{
+		cookies.AppKey,
+		cookies.FlashKey,
+	})
+}
+` + "```" + `
+
+Usage:
+` + "```go" + `
+return render(etx, views.UserShow(user))
+return render(etx, views.NotFound())
+return render(etx, views.InternalError())
+` + "```" + `
+
+### Partial rendering with fragments
+
+For hypermedia responses, use renderer.ExtractFragment to render only a named fragment from a templ component:
+
+` + "```go" + `
+// Extract a single fragment
+partial := renderer.ExtractFragment(views.UserShow(user), "user-card")
+return render(etx, partial)
+
+// Extract multiple fragments
+partial := renderer.ExtractFragments(views.UserShow(user), []string{"user-card", "user-stats"})
+return render(etx, partial)
+` + "```" + `
+
+Define fragments in templ views using the @fragment directive:
+
+` + "```templ" + `
+templ UserShow(user User) {
+	@base() {
+		@userCard(user)
+		@userStats(user)
+	}
+}
+
+templ userCard(user User) {
+	@templ.Fragment("user-card") {
+		<div id="user-card">...</div>
+	}
+}
+` + "```" + `
+
+This enables updating specific parts of the page via hypermedia without re-rendering the full layout.
+
+## RESTful actions
+
+Generated resource controllers include these actions:
+
+| Action   | Method | Path              | Purpose                    |
+|----------|--------|-------------------|----------------------------|
+| Index    | GET    | /resources        | List (with pagination)     |
+| Show     | GET    | /resources/:id    | Display single resource    |
+| New      | GET    | /resources/new    | Display create form        |
+| Create   | POST   | /resources        | Handle form submission     |
+| Edit     | GET    | /resources/:id/edit | Display edit form        |
+| Update   | PUT    | /resources/:id    | Handle update submission   |
+| Destroy  | DELETE | /resources/:id    | Delete resource            |
+
+## Request handling
+
+### Path parameters
+` + "```go" + `
+userID, err := uuid.Parse(etx.Param("id"))
+if err != nil {
+	return render(etx, views.BadRequest())
+}
+` + "```" + `
+
+### Query parameters (pagination)
+` + "```go" + `
+page := int64(1)
+if p := etx.QueryParam("page"); p != "" {
+	if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+		page = int64(parsed)
+	}
+}
+perPage := int64(20)
+if pp := etx.QueryParam("per_page"); pp != "" {
+	if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 {
+		perPage = int64(parsed)
+	}
+}
+` + "```" + `
+
+### Form payloads
+Define typed structs with json tags for form binding:
+
+` + "```go" + `
+type CreateUserPayload struct {
+	Name     string ` + "`json:\"name\"`" + `
+	Email    string ` + "`json:\"email\"`" + `
+	Age      int32  ` + "`json:\"age\"`" + `
+	Birthday string ` + "`json:\"birthday\"`" + `  // dates as strings
+}
+
+func (u Users) Create(etx *echo.Context) error {
+	var payload CreateUserPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(etx.Request().Context(), "binding error", "error", err)
+		return render(etx, views.BadRequest())
+	}
+	// ...
+}
+` + "```" + `
+
+### Type conversions for model data
+` + "```go" + `
+// UUID fields
+userID := func() uuid.UUID {
+	if payload.UserID == "" {
+		return uuid.Nil
+	}
+	parsed, _ := uuid.Parse(payload.UserID)
+	return parsed
+}()
+
+// Time fields
+birthday := func() time.Time {
+	if payload.Birthday == "" {
+		return time.Time{}
+	}
+	t, _ := time.Parse("2006-01-02", payload.Birthday)
+	return t
+}()
+` + "```" + `
+
+## Flash messages
+
+Add user feedback via flash messages:
+
+` + "```go" + `
+// Success
+cookies.AddFlash(etx, cookies.FlashSuccess, "User created successfully")
+
+// Error
+cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed: %v", err))
+
+// Warning / Info
+cookies.AddFlash(etx, cookies.FlashWarning, "Session will expire soon")
+cookies.AddFlash(etx, cookies.FlashInfo, "New features available")
+` + "```" + `
+
+Flash messages are automatically displayed via the base layout and cleared after display.
+
+## Sessions
+
+Create and manage user sessions:
+
+` + "```go" + `
+// Create session after login
+cookies.CreateAppSession(etx, user)
+
+// Destroy session on logout
+cookies.DestroyAppSession(etx)
+
+// Access session data in views via context (handled by render)
+` + "```" + `
+
+## Error handling patterns
+
+` + "```go" + `
+func (u Users) Update(etx *echo.Context) error {
+	// Parse ID
+	userID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	// Find resource
+	user, err := models.FindUser(etx.Request().Context(), u.db.Conn(), userID)
+	if err != nil {
+		return render(etx, views.NotFound())
+	}
+
+	// Bind payload
+	var payload UpdateUserPayload
+	if err := etx.Bind(&payload); err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	// Update with flash feedback
+	if err := user.Update(etx.Request().Context(), u.db.Conn(), data); err != nil {
+		cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Update failed: %v", err))
+		return etx.Redirect(http.StatusSeeOther, routes.UserEdit.URL(userID))
+	}
+
+	cookies.AddFlash(etx, cookies.FlashSuccess, "User updated")
+	return etx.Redirect(http.StatusSeeOther, routes.UserShow.URL(userID))
+}
+` + "```" + `
+
+## Caching
+
+Use the generic cache for expensive operations:
+
+` + "```go" + `
+type Pages struct {
+	cache *Cache[templ.Component]
+}
+
+func (p Pages) Home(etx *echo.Context) error {
+	component, err := p.cache.Get("home", func() (templ.Component, error) {
+		return views.Home(), nil
+	})
+	if err != nil {
+		return render(etx, views.InternalError())
+	}
+	return render(etx, component)
+}
+` + "```" + `
+
+Cache builder with options:
+` + "```go" + `
+cache, _ := NewCacheBuilder[templ.Component]().
+	WithSize(100).
+	WithDefaultTTL(15 * time.Minute).
+	Build()
+` + "```" + `
+
+## Hypermedia responses
+
+For Datastar/SSE responses instead of full page renders:
+
+` + "```go" + `
+// Redirect via SSE (client-side navigation)
+hypermedia.Redirect(etx, routes.UserShow.URL(userID))
+
+// Patch DOM elements
+hypermedia.PatchElementTempl(etx, "#user-list", views.UserListPartial(users))
+
+// Update signals
+hypermedia.MarshalAndPatchSignals(etx, map[string]any{"loading": false})
+` + "```" + `
+
+For full hypermedia patterns, see: andurel llm hypermedia
+
+## Tooling
+
+` + "```bash" + `
+andurel generate controller User        # Controller without views
+andurel generate resource Product       # Full CRUD with views
+andurel generate fragment User Search   # Add method to existing controller
+` + "```" + `
+
+## Related documentation
+- Views and templates: andurel llm views
+- Hypermedia/Datastar: andurel llm hypermedia
+- Routes and middleware: andurel llm router
+- Models and queries: andurel llm models
+`
 
 const llmModelsDocumentation = `# Andurel Framework - Models
 
