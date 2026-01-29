@@ -130,19 +130,19 @@ This single command creates everything you need for a full CRUD interface.
 Top-level commands:
 
 ```bash
-andurel run
+andurel run (alias: r)
 andurel new [project-name] --css/-c --extensions/-e
 andurel generate (aliases: g, gen)
-andurel database (alias: db)        
-andurel migrate                     
-andurel queries                     # alias: q
-andurel views
+andurel database (aliases: d, db)
+andurel migrate (aliases: m, mig)
+andurel queries (alias: q)
+andurel views (alias: v)
 andurel app (alias: a)
-andurel console                     # alias of: app console
-andurel dblab                       # alias of: app dblab
-andurel mailpit                     # alias of: app mailpit
+andurel console (alias of: app console)
+andurel dblab (alias of: app dblab)
+andurel mailpit (alias of: app mailpit)
 andurel llm
-andurel tool
+andurel tool (alias: t)
 andurel extension (aliases: ext, e)
 andurel upgrade --dry-run
 andurel doctor --verbose
@@ -151,16 +151,20 @@ andurel doctor --verbose
 Generate subcommands:
 
 ```bash
-andurel generate model [name] --table-name --skip-factory     # alias: m
-andurel generate controller [model_name] --with-views          # alias: c
-andurel generate view [model_name] --with-controller           # alias: v
-andurel generate resource [name] --table-name                  # alias: r
+andurel generate model [name] --table-name --skip-factory     (alias: m)
+andurel generate controller [model_name] --with-views          (alias: c)
+andurel generate view [model_name] --with-controller           (alias: v)
+andurel generate resource [name] --table-name                  (alias: r)
 ```
 
 Database subcommands:
 
 ```bash
 andurel database seed
+andurel database create
+andurel database drop
+andurel database nuke
+andurel database rebuild
 ```
 
 Top-level migrate/queries:

@@ -44,9 +44,10 @@ func NewRootCommand(version, date string) *cobra.Command {
 
 func newRunAppCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "run",
-		Short: "Runs the app",
-		Args:  cobra.ExactArgs(0),
+		Use:     "run",
+		Aliases: []string{"r"},
+		Short:   "Runs the app",
+		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
 			if err != nil {

@@ -21,7 +21,7 @@ import (
 func newDatabaseCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "database",
-		Aliases: []string{"db"},
+		Aliases: []string{"d", "db"},
 		Short:   "Database management commands",
 		Long:    "Commands for managing database seeds.",
 	}
@@ -40,7 +40,7 @@ func newDatabaseCommand() *cobra.Command {
 func newMigrateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "migrate",
-		Aliases: []string{"migration"},
+		Aliases: []string{"m", "mig"},
 		Short:   "Database migration helpers",
 		Long:    "Manage database migrations for the current project using goose.",
 	}
