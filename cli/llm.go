@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -12,8 +12,8 @@ func newLlmCommand() *cobra.Command {
 		Short: "Output framework documentation for LLM consumption",
 		Long:  "Generates comprehensive documentation about the Andurel framework that can be used by AI assistants to understand and work with the project.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Print(llmDocumentation)
-			return nil
+			_, err := os.Stdout.WriteString(llmDocumentation)
+			return err
 		},
 	}
 
@@ -34,8 +34,8 @@ func newLlmControllersCommand() *cobra.Command {
 		Short: "Controller-specific LLM documentation",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Print(llmControllersDocumentation)
-			return nil
+			_, err := os.Stdout.WriteString(llmControllersDocumentation)
+			return err
 		},
 	}
 }
@@ -46,8 +46,8 @@ func newLlmModelsCommand() *cobra.Command {
 		Short: "Model-specific LLM documentation",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Print(llmModelsDocumentation)
-			return nil
+			_, err := os.Stdout.WriteString(llmModelsDocumentation)
+			return err
 		},
 	}
 }
@@ -58,8 +58,8 @@ func newLlmViewsCommand() *cobra.Command {
 		Short: "View-specific LLM documentation",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Print(llmViewsDocumentation)
-			return nil
+			_, err := os.Stdout.WriteString(llmViewsDocumentation)
+			return err
 		},
 	}
 }
@@ -70,8 +70,8 @@ func newLlmRouterCommand() *cobra.Command {
 		Short: "Router-specific LLM documentation",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Print(llmRouterDocumentation)
-			return nil
+			_, err := os.Stdout.WriteString(llmRouterDocumentation)
+			return err
 		},
 	}
 }
@@ -82,8 +82,8 @@ func newLlmHypermediaCommand() *cobra.Command {
 		Short: "Hypermedia architecture and Datastar usage (client + server)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Print(llmHypermediaDocumentation)
-			return nil
+			_, err := os.Stdout.WriteString(llmHypermediaDocumentation)
+			return err
 		},
 	}
 }
@@ -94,8 +94,8 @@ func newLlmJobsCommand() *cobra.Command {
 		Short: "Background jobs LLM documentation",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Print(llmJobsDocumentation)
-			return nil
+			_, err := os.Stdout.WriteString(llmJobsDocumentation)
+			return err
 		},
 	}
 }
@@ -106,8 +106,8 @@ func newLlmConfigCommand() *cobra.Command {
 		Short: "Configuration and environment LLM documentation",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Print(llmConfigDocumentation)
-			return nil
+			_, err := os.Stdout.WriteString(llmConfigDocumentation)
+			return err
 		},
 	}
 }
