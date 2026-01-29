@@ -28,7 +28,6 @@ func TestMigrationWorkflow(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			if isCriticalOnly() && !tc.critical {
 				t.Skip("Skipping non-critical test in critical-only mode")
@@ -36,7 +35,7 @@ func TestMigrationWorkflow(t *testing.T) {
 
 			t.Parallel()
 
-			project := internal.NewProjectWithDatabase(t, binary, tc.database)
+			project := internal.NewProjectWithDatabase(t, binary, getSharedBinDir(), tc.database)
 
 			err := project.Scaffold("-c", "vanilla")
 			internal.AssertCommandSucceeds(t, err, "scaffold")

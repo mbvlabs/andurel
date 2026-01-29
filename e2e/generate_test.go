@@ -52,7 +52,7 @@ func TestGenerateCommands(t *testing.T) {
 
 			t.Parallel()
 
-			project := internal.NewProjectWithDatabase(t, binary, tc.database)
+			project := internal.NewProjectWithDatabase(t, binary, getSharedBinDir(), tc.database)
 
 			err := project.Scaffold("-c", tc.css)
 			internal.AssertCommandSucceeds(t, err, "scaffold")
