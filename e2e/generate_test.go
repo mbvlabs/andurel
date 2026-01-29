@@ -676,7 +676,7 @@ func testGenerateQueries(t *testing.T, project *internal.Project) {
 		"role_id UUID NOT NULL",
 	})
 
-	err := project.Generate("generate", "queries", "user_roles")
+	err := project.Generate("queries", "generate", "user_roles")
 	internal.AssertCommandSucceeds(t, err, "generate queries")
 
 	// Verify queries file exists and compare against golden file
@@ -713,7 +713,7 @@ func testGenerateQueriesWithRefresh(t *testing.T, project *internal.Project) {
 	})
 
 	// First generate the queries
-	err := project.Generate("generate", "queries", "tag_assignments")
+	err := project.Generate("queries", "generate", "tag_assignments")
 	internal.AssertCommandSucceeds(t, err, "generate queries")
 
 	// Verify queries file exists and compare against golden file
@@ -734,8 +734,8 @@ func testGenerateQueriesWithRefresh(t *testing.T, project *internal.Project) {
 	}
 
 	// Now test refresh functionality
-	err = project.Generate("generate", "queries", "tag_assignments", "--refresh")
-	internal.AssertCommandSucceeds(t, err, "generate queries --refresh")
+	err = project.Generate("queries", "refresh", "tag_assignments")
+	internal.AssertCommandSucceeds(t, err, "queries refresh")
 }
 
 // testGenerateModelWithArrayTypes tests that PostgreSQL array types (text[], integer[])
@@ -1002,8 +1002,8 @@ func testGenerateFragment(t *testing.T, project *internal.Project) {
 	internal.AssertFileExists(t, project, "router/connect_webhooks_routes.go")
 
 	// Test 1: Generate a simple fragment with default GET method
-	err = project.Generate("generate", "fragment", "Webhook", "Validate", "/validate")
-	internal.AssertCommandSucceeds(t, err, "generate fragment Webhook Validate")
+	err = project.Generate("generate", "fragment", "Webhook", "Ping", "/ping")
+	internal.AssertCommandSucceeds(t, err, "generate fragment Webhook Ping")
 
 	// Verify controller has the new method
 	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/webhooks.go"))
@@ -1011,8 +1011,8 @@ func testGenerateFragment(t *testing.T, project *internal.Project) {
 		t.Fatalf("Failed to read controller file: %v", err)
 	}
 	controllerStr := string(controllerContent)
-	if !strings.Contains(controllerStr, "func (w Webhooks) Validate(etx *echo.Context) error") {
-		t.Error("Controller should contain Validate method")
+	if !strings.Contains(controllerStr, "func (w Webhooks) Ping(etx *echo.Context) error") {
+		t.Error("Controller should contain Ping method")
 	}
 
 	// Verify routes file has the new route variable
@@ -1021,11 +1021,11 @@ func testGenerateFragment(t *testing.T, project *internal.Project) {
 		t.Fatalf("Failed to read routes file: %v", err)
 	}
 	routesStr := string(routesContent)
-	if !strings.Contains(routesStr, "var WebhookValidate = routing.NewSimpleRoute") {
-		t.Error("Routes file should contain WebhookValidate route variable")
+	if !strings.Contains(routesStr, "var WebhookPing = routing.NewSimpleRoute") {
+		t.Error("Routes file should contain WebhookPing route variable")
 	}
-	if !strings.Contains(routesStr, `"/validate"`) {
-		t.Error("Routes file should contain /validate path")
+	if !strings.Contains(routesStr, `"/ping"`) {
+		t.Error("Routes file should contain /ping path")
 	}
 
 	// Verify connect file has the new route registration
@@ -1034,11 +1034,11 @@ func testGenerateFragment(t *testing.T, project *internal.Project) {
 		t.Fatalf("Failed to read connect file: %v", err)
 	}
 	connectStr := string(connectContent)
-	if !strings.Contains(connectStr, "routes.WebhookValidate.Path()") {
-		t.Error("Connect file should contain WebhookValidate route registration")
+	if !strings.Contains(connectStr, "routes.WebhookPing.Path()") {
+		t.Error("Connect file should contain WebhookPing route registration")
 	}
-	if !strings.Contains(connectStr, "webhook.Validate") {
-		t.Error("Connect file should contain webhook.Validate handler")
+	if !strings.Contains(connectStr, "webhook.Ping") {
+		t.Error("Connect file should contain webhook.Ping handler")
 	}
 	if !strings.Contains(connectStr, "http.MethodGet") {
 		t.Error("Connect file should use http.MethodGet for default method")
@@ -1088,7 +1088,7 @@ func testGenerateFragment(t *testing.T, project *internal.Project) {
 	}
 
 	// Test 3: Verify duplicate detection - running the same fragment again should fail
-	err = project.Generate("generate", "fragment", "Webhook", "Validate", "/validate")
+	err = project.GenerateExpectError("generate", "fragment", "Webhook", "Ping", "/ping")
 	if err == nil {
 		t.Error("Expected error when generating duplicate fragment, but got none")
 	}

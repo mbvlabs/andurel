@@ -56,12 +56,11 @@ func TestMain(m *testing.M) {
 		panic(fmt.Sprintf("Failed to create shared bin directory: %v", err))
 	}
 
-	// Download required tools once
+	// Download required tools once using go install
 	for _, tool := range requiredTools {
-		binPath := filepath.Join(sharedBinDir, tool.name)
 		fmt.Printf("Downloading %s@%s...\n", tool.name, tool.version)
 
-		cmd := exec.Command("go", "build", "-o", binPath, tool.module+"@"+tool.version)
+		cmd := exec.Command("go", "install", tool.module+"@"+tool.version)
 		cmd.Env = append(os.Environ(), "GOBIN="+sharedBinDir)
 		output, err := cmd.CombinedOutput()
 		if err != nil {

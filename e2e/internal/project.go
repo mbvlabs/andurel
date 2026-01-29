@@ -136,6 +136,17 @@ func (p *Project) Generate(args ...string) error {
 	return RunCLI(p.T, p.BinaryPath, p.Dir, env, args...)
 }
 
+// GenerateExpectError runs a generate command that is expected to fail, suppressing failure logs.
+func (p *Project) GenerateExpectError(args ...string) error {
+	p.T.Helper()
+
+	env := []string{
+		"ANDUREL_TEST_MODE=true",
+	}
+
+	return RunCommandExpectError(p.T, p.BinaryPath, p.Dir, env, args...)
+}
+
 func (p *Project) GoVet() error {
 	p.T.Helper()
 
