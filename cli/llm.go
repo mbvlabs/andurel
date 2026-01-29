@@ -512,7 +512,364 @@ andurel generate fragment User Search   # Add method to existing controller
 
 const llmModelsDocumentation = `# Andurel Framework - Models
 
-TODO: Models documentation split-out.`
+Models are the single source of truth for data access in Andurel. They wrap database queries with Go structs, validation, and business logic. **All data access must go through the models package** - controllers and services never access the database directly.
+
+## Architecture overview
+
+` + "```" + `
+┌─────────────────┐
+│   Controllers   │  ← HTTP handlers, form binding
+└────────┬────────┘
+         │ calls
+         ▼
+┌─────────────────┐
+│     Models      │  ← Business logic, validation, type conversion
+└────────┬────────┘
+         │ uses
+         ▼
+┌─────────────────┐
+│ models/internal/db │  ← SQLC-generated code (DO NOT EDIT)
+└────────┬────────┘
+         │ executes
+         ▼
+┌─────────────────┐
+│ database/queries │  ← SQL files (SQLC source)
+└─────────────────┘
+` + "```" + `
+
+**Key principle: Controllers call models, models call queries.** Never bypass this chain.
+
+## Where models live
+
+- models/                  # Model files (one per table)
+- models/model.go          # Validator setup and queries instance
+- models/errors.go         # Domain error types
+- models/internal/db/      # SQLC-generated code (auto-generated, DO NOT EDIT)
+- models/factories/        # Test factories for creating test data
+- database/queries/        # SQL query definitions (SQLC source files)
+
+## Model structure
+
+Each model wraps a database table with:
+1. **Go struct** - Clean types for application use
+2. **CRUD functions** - Find, Create, Update, Destroy
+3. **Data structs** - Typed parameters for Create/Update
+4. **Conversion functions** - Transform between SQLC types and model types
+
+` + "```go" + `
+package models
+
+import (
+	"context"
+	"errors"
+
+	"github.com/google/uuid"
+	"myapp/models/internal/db"
+	"myapp/internal/storage"
+)
+
+// Product is the domain model - clean Go types
+type Product struct {
+	ID          uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Name        string
+	Description string
+	Price       int64
+}
+
+// CreateProductData defines what's needed to create a product
+type CreateProductData struct {
+	Name        string ` + "`validate:\"required,max=255\"`" + `
+	Description string
+	Price       int64  ` + "`validate:\"required,min=0\"`" + `
+}
+
+// CreateProduct validates and persists a new product
+func CreateProduct(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateProductData,
+) (Product, error) {
+	if err := Validate.Struct(data); err != nil {
+		return Product{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.InsertProductParams{
+		ID:          uuid.New(),
+		Name:        data.Name,
+		Description: data.Description,
+		Price:       data.Price,
+	}
+	row, err := queries.InsertProduct(ctx, exec, params)
+	if err != nil {
+		return Product{}, err
+	}
+
+	return rowToProduct(row), nil
+}
+` + "```" + `
+
+## CRUD operations
+
+Generated models include these standard functions:
+
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| Find{Model}(ctx, exec, id) | Find by primary key | Model, error |
+| Create{Model}(ctx, exec, data) | Create with validation | Model, error |
+| Update{Model}(ctx, exec, data) | Update with validation | Model, error |
+| Destroy{Model}(ctx, exec, id) | Delete by ID | error |
+| All{Models}(ctx, exec) | List all records | []Model, error |
+| Paginate{Models}(ctx, exec, page, pageSize) | Paginated list | Paginated{Models}, error |
+| Upsert{Model}(ctx, exec, data) | Insert or update | Model, error |
+
+## Database executor pattern
+
+All model functions accept a storage.Executor interface, not a direct connection. This enables:
+- Regular queries via pool connection
+- Transactional operations via tx
+
+` + "```go" + `
+// Regular query - use pool connection
+user, err := models.FindUser(ctx, db.Conn(), userID)
+
+// Transaction - use tx
+tx, _ := db.Begin(ctx)
+defer tx.Rollback()
+
+user, err := models.FindUser(ctx, tx, userID)
+if err != nil { return err }
+
+err = models.DestroyUser(ctx, tx, userID)
+if err != nil { return err }
+
+tx.Commit()
+` + "```" + `
+
+## Data validation
+
+Models use go-playground/validator for struct validation:
+
+` + "```go" + `
+type CreateUserData struct {
+	Email    string ` + "`validate:\"required,email,max=255\"`" + `
+	Password string ` + "`validate:\"required,min=8,max=72\"`" + `
+}
+
+// Validation happens automatically in Create/Update functions
+user, err := models.CreateUser(ctx, exec, data)
+if errors.Is(err, models.ErrDomainValidation) {
+	// Handle validation error
+}
+` + "```" + `
+
+## Type conversions (SQLC → Model)
+
+SQLC generates types with pgtype wrappers. Models convert these to clean Go types:
+
+` + "```go" + `
+// rowToProduct converts SQLC row to domain model
+func rowToProduct(row db.Product) Product {
+	return Product{
+		ID:          row.ID,
+		CreatedAt:   row.CreatedAt.Time,    // pgtype.Timestamptz → time.Time
+		UpdatedAt:   row.UpdatedAt.Time,
+		Name:        row.Name,
+		Description: row.Description,
+		Price:       row.Price,
+	}
+}
+` + "```" + `
+
+Common conversions:
+- pgtype.Timestamptz → time.Time (use .Time field)
+- pgtype.Text → string (use .String field)
+- Nullable fields → zero values or explicit checks
+
+## Database queries (SQLC)
+
+SQL queries live in database/queries/ and are compiled by SQLC into Go code.
+
+### Query file structure (database/queries/products.sql)
+` + "```sql" + `
+-- name: QueryProductByID :one
+select * from products where id=$1;
+
+-- name: QueryProducts :many
+select * from products;
+
+-- name: InsertProduct :one
+insert into
+    products (id, created_at, updated_at, name, description, price)
+values
+    ($1, now(), now(), $2, $3, $4)
+returning *;
+
+-- name: UpdateProduct :one
+update products
+    set updated_at=now(), name=$2, description=$3, price=$4
+where id = $1
+returning *;
+
+-- name: DeleteProduct :exec
+delete from products where id=$1;
+
+-- name: QueryPaginatedProducts :many
+select * from products
+order by created_at desc
+limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
+
+-- name: CountProducts :one
+select count(*) from products;
+` + "```" + `
+
+### Adding custom queries
+
+Add new queries to the SQL file, then run sqlc generate:
+
+` + "```sql" + `
+-- name: QueryProductsByCategory :many
+select * from products where category_id = $1 order by name;
+
+-- name: QueryProductsInPriceRange :many
+select * from products where price between $1 and $2;
+` + "```" + `
+
+Then wrap in a model function:
+
+` + "```go" + `
+func FindProductsByCategory(
+	ctx context.Context,
+	exec storage.Executor,
+	categoryID uuid.UUID,
+) ([]Product, error) {
+	rows, err := queries.QueryProductsByCategory(ctx, exec, categoryID)
+	if err != nil {
+		return nil, err
+	}
+
+	products := make([]Product, len(rows))
+	for i, row := range rows {
+		products[i] = rowToProduct(row)
+	}
+	return products, nil
+}
+` + "```" + `
+
+## Two approaches to data access
+
+### 1. Full models (recommended for most tables)
+- Model file with struct, validation, business logic
+- SQL queries generated automatically
+- Use for entities with business rules
+
+` + "```bash" + `
+andurel generate model Product
+` + "```" + `
+
+### 2. Queries-only (for simple/junction tables)
+- SQL queries without model wrapper
+- Access SQLC types directly via models/internal/db
+- Use for junction tables, lookup tables, or simple CRUD
+
+` + "```bash" + `
+andurel queries generate user_roles
+` + "```" + `
+
+When to use queries-only:
+- Junction tables (user_roles, product_categories)
+- Lookup/reference tables with no business logic
+- Tables accessed rarely or only in specific contexts
+
+## Factories (test data)
+
+Factories create test data with sensible defaults:
+
+` + "```go" + `
+// Build in-memory (no database)
+product := factories.BuildProduct()
+
+// Create and persist to database
+product, err := factories.CreateProduct(ctx, exec)
+
+// With custom values
+product := factories.BuildProduct(
+	factories.WithProductsName("Custom Name"),
+	factories.WithProductsPrice(9999),
+)
+
+// Create multiple
+products, err := factories.CreateProducts(ctx, exec, 10)
+` + "```" + `
+
+Factories are generated automatically with models unless --skip-factory is used.
+
+## Tooling
+
+` + "```bash" + `
+# Generate full model (struct + queries + factory)
+andurel generate model Product
+andurel generate model Product --table-name=inventory  # Custom table name
+andurel generate model Product --skip-factory          # No factory
+
+# Generate queries only (no model wrapper)
+andurel queries generate user_roles
+andurel queries refresh user_roles  # Sync with schema changes
+
+# Compile SQL and regenerate Go code
+andurel queries compile
+
+# Generate complete resource (model + controller + views)
+andurel generate resource Product
+` + "```" + `
+
+## Best practices
+
+1. **All data access through models** - Never import models/internal/db in controllers
+2. **Validate in models** - Use validate tags on data structs
+3. **Keep models focused** - Business logic for one entity, not orchestration
+4. **Use transactions for multi-step operations** - Pass tx as executor
+5. **Custom queries in SQL files** - Don't use raw SQL strings in Go code
+6. **Run sqlc after schema changes** - Keep generated code in sync
+
+## Controller usage pattern
+
+` + "```go" + `
+func (p Products) Create(etx echo.Context) error {
+	var payload CreateProductPayload
+	if err := etx.Bind(&payload); err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	// Models handle validation and persistence
+	product, err := models.CreateProduct(
+		etx.Request().Context(),
+		p.db.Conn(),
+		models.CreateProductData{
+			Name:        payload.Name,
+			Description: payload.Description,
+			Price:       payload.Price,
+		},
+	)
+	if err != nil {
+		if errors.Is(err, models.ErrDomainValidation) {
+			cookies.AddFlash(etx, cookies.FlashError, "Invalid product data")
+			return etx.Redirect(http.StatusSeeOther, routes.ProductNew.URL())
+		}
+		return render(etx, views.InternalError())
+	}
+
+	cookies.AddFlash(etx, cookies.FlashSuccess, "Product created")
+	return etx.Redirect(http.StatusSeeOther, routes.ProductShow.URL(product.ID))
+}
+` + "```" + `
+
+## Related documentation
+- Controllers and request handling: andurel llm controllers
+- Views and templates: andurel llm views
+- Database migrations: andurel migrate --help
+`
 
 const llmViewsDocumentation = `# Andurel Framework - Views
 
