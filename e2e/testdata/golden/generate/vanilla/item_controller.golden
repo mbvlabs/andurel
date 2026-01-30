@@ -1,0 +1,236 @@
+package controllers
+
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+	"strconv"
+
+	"testapp/internal/storage"
+	"testapp/models"
+	"testapp/router/cookies"
+	"testapp/router/routes"
+	"testapp/views"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v5"
+)
+
+type Items struct {
+	db storage.Pool
+}
+
+func NewItems(db storage.Pool) Items {
+	return Items{db}
+}
+
+func (i Items) Index(etx *echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	itemsList, err := models.PaginateItems(
+		etx.Request().Context(),
+		i.db.Conn(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return render(etx, views.ItemIndex(itemsList.Items))
+}
+
+func (i Items) Show(etx *echo.Context) error {
+	itemID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	item, err := models.FindItem(etx.Request().Context(), i.db.Conn(), itemID)
+	if err != nil {
+		return render(etx, views.NotFound())
+	}
+
+	return render(etx, views.ItemShow(item))
+}
+
+func (i Items) New(etx *echo.Context) error {
+	return render(etx, views.ItemNew())
+}
+
+type CreateItemFormPayload struct {
+	WarehouseID string `json:"warehouseId"`
+	Name        string `json:"name"`
+	Quantity    int32  `json:"quantity"`
+}
+
+func (i Items) Create(etx *echo.Context) error {
+	var payload CreateItemFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse CreateItemFormPayload",
+			"error",
+			err,
+		)
+
+		return render(etx, views.NotFound())
+	}
+
+	data := models.CreateItemData{
+		WarehouseID: func() uuid.UUID {
+			if payload.WarehouseID == "" {
+				return uuid.Nil
+			}
+			parsed, err := uuid.Parse(payload.WarehouseID)
+			if err != nil {
+				slog.WarnContext(
+					etx.Request().Context(),
+					"could not parse WarehouseID, setting to nil UUID",
+					"error",
+					err,
+				)
+				return uuid.Nil
+			}
+
+			return parsed
+		}(),
+		Name:     payload.Name,
+		Quantity: payload.Quantity,
+	}
+
+	item, err := models.CreateItem(
+		etx.Request().Context(),
+		i.db.Conn(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create item: %v", err)); flashErr != nil {
+			return flashErr
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.ItemNew.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Item created successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.ItemShow.URL(item.ID))
+}
+
+func (i Items) Edit(etx *echo.Context) error {
+	itemID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	item, err := models.FindItem(etx.Request().Context(), i.db.Conn(), itemID)
+	if err != nil {
+		return render(etx, views.NotFound())
+	}
+
+	return render(etx, views.ItemEdit(item))
+}
+
+type UpdateItemFormPayload struct {
+	WarehouseID string `json:"warehouseId"`
+	Name        string `json:"name"`
+	Quantity    int32  `json:"quantity"`
+}
+
+func (i Items) Update(etx *echo.Context) error {
+	itemID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	var payload UpdateItemFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse UpdateItemFormPayload",
+			"error",
+			err,
+		)
+
+		return render(etx, views.NotFound())
+	}
+
+	data := models.UpdateItemData{
+		ID: itemID,
+		WarehouseID: func() uuid.UUID {
+			if payload.WarehouseID == "" {
+				return uuid.Nil
+			}
+			parsed, err := uuid.Parse(payload.WarehouseID)
+			if err != nil {
+				slog.WarnContext(
+					etx.Request().Context(),
+					"could not parse WarehouseID, setting to nil UUID",
+					"error",
+					err,
+				)
+				return uuid.Nil
+			}
+
+			return parsed
+		}(),
+		Name:     payload.Name,
+		Quantity: payload.Quantity,
+	}
+
+	item, err := models.UpdateItem(
+		etx.Request().Context(),
+		i.db.Conn(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update item: %v", err)); flashErr != nil {
+			return render(etx, views.InternalError())
+		}
+		return etx.Redirect(
+			http.StatusSeeOther,
+			routes.ItemEdit.URL(itemID),
+		)
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Item updated successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.ItemShow.URL(item.ID))
+}
+
+func (i Items) Destroy(etx *echo.Context) error {
+	itemID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	err = models.DestroyItem(etx.Request().Context(), i.db.Conn(), itemID)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete item: %v", err)); flashErr != nil {
+			return render(etx, views.InternalError())
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.ItemIndex.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Item destroyed successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.ItemIndex.URL())
+}

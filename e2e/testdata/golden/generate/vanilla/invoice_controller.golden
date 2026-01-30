@@ -1,0 +1,208 @@
+package controllers
+
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+	"strconv"
+
+	"testapp/internal/storage"
+	"testapp/models"
+	"testapp/router/cookies"
+	"testapp/router/routes"
+	"testapp/views"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v5"
+)
+
+type Invoices struct {
+	db storage.Pool
+}
+
+func NewInvoices(db storage.Pool) Invoices {
+	return Invoices{db}
+}
+
+func (i Invoices) Index(etx *echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	invoicesList, err := models.PaginateInvoices(
+		etx.Request().Context(),
+		i.db.Conn(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.HTML(http.StatusOK, "invoices index - no views implemented")
+}
+
+func (i Invoices) Show(etx *echo.Context) error {
+	invoiceID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	invoice, err := models.FindInvoice(etx.Request().Context(), i.db.Conn(), invoiceID)
+	if err != nil {
+		return render(etx, views.NotFound())
+	}
+
+	return etx.HTML(http.StatusOK, "invoice show - no views implemented")
+}
+
+func (i Invoices) New(etx *echo.Context) error {
+	return etx.HTML(http.StatusOK, "invoice new - no views implemented")
+}
+
+type CreateInvoiceFormPayload struct {
+	InvoiceNumber string  `json:"invoiceNumber"`
+	Amount        float64 `json:"amount"`
+	Status        string  `json:"status"`
+	PdfData       string  `json:"pdfData"`
+}
+
+func (i Invoices) Create(etx *echo.Context) error {
+	var payload CreateInvoiceFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse CreateInvoiceFormPayload",
+			"error",
+			err,
+		)
+
+		return render(etx, views.NotFound())
+	}
+
+	data := models.CreateInvoiceData{
+		InvoiceNumber: payload.InvoiceNumber,
+		Amount:        payload.Amount,
+		Status:        payload.Status,
+		PdfData:       []byte(payload.PdfData),
+	}
+
+	invoice, err := models.CreateInvoice(
+		etx.Request().Context(),
+		i.db.Conn(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create invoice: %v", err)); flashErr != nil {
+			return flashErr
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.InvoiceNew.Path)
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Invoice created successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.InvoiceShow.GetPath(invoice.ID))
+}
+
+func (i Invoices) Edit(etx *echo.Context) error {
+	invoiceID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	invoice, err := models.FindInvoice(etx.Request().Context(), i.db.Conn(), invoiceID)
+	if err != nil {
+		return render(etx, views.NotFound())
+	}
+
+	return etx.HTML(http.StatusOK, "invoice edit - no views implemented")
+}
+
+type UpdateInvoiceFormPayload struct {
+	InvoiceNumber string  `json:"invoiceNumber"`
+	Amount        float64 `json:"amount"`
+	Status        string  `json:"status"`
+	PdfData       string  `json:"pdfData"`
+}
+
+func (i Invoices) Update(etx *echo.Context) error {
+	invoiceID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	var payload UpdateInvoiceFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse UpdateInvoiceFormPayload",
+			"error",
+			err,
+		)
+
+		return render(etx, views.NotFound())
+	}
+
+	data := models.UpdateInvoiceData{
+		ID:            invoiceID,
+		InvoiceNumber: payload.InvoiceNumber,
+		Amount:        payload.Amount,
+		Status:        payload.Status,
+		PdfData:       []byte(payload.PdfData),
+	}
+
+	invoice, err := models.UpdateInvoice(
+		etx.Request().Context(),
+		i.db.Conn(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update invoice: %v", err)); flashErr != nil {
+			return render(etx, views.InternalError())
+		}
+		return etx.Redirect(
+			http.StatusSeeOther,
+			routes.InvoiceEdit.GetPath(invoiceID),
+		)
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Invoice updated successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.InvoiceShow.GetPath(invoice.ID))
+}
+
+func (i Invoices) Destroy(etx *echo.Context) error {
+	invoiceID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	err = models.DestroyInvoice(etx.Request().Context(), i.db.Conn(), invoiceID)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete invoice: %v", err)); flashErr != nil {
+			return render(etx, views.InternalError())
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.InvoiceIndex.Path)
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Invoice destroyed successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.InvoiceIndex.Path)
+}

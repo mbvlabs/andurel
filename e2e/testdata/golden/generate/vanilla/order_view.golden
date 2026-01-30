@@ -1,0 +1,169 @@
+package views
+
+import (
+	"fmt"
+	"net/http"
+	"testapp/internal/hypermedia"
+	"testapp/models"
+	"testapp/router/routes"
+	"testapp/views/components"
+)
+
+templ OrderIndex(orders []models.Order) {
+	@base() {
+		<main>
+			<div>
+				<h1>Orders</h1>
+				<a href={ templ.URL(routes.OrderNew.URL()) }>New Order</a>
+			</div>
+			<div>
+				if len(orders) == 0 {
+					<p>No orders found.</p>
+				} else {
+					<div>
+						<table>
+							<thead>
+								<tr>
+									<th>Account Id</th>
+									<th>Customer Name</th>
+									<th>Total</th>
+									<th>Signature</th>
+									<th>Created At</th>
+									<th>Updated At</th>
+									<th>Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, order := range orders {
+									<tr>
+										<td>{ order.AccountID.String() }</td>
+										<td>{ order.CustomerName }</td>
+										<td>{ fmt.Sprintf("%f", order.Total) }</td>
+										<td>{ string(order.Signature) }</td>
+										<td>{ order.CreatedAt.String() }</td>
+										<td>{ order.UpdatedAt.String() }</td>
+										<td>
+											<a href={ templ.URL(routes.OrderShow.URL(order.ID)) }>View</a>
+											<a href={ templ.URL(routes.OrderEdit.URL(order.ID)) }>Edit</a>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+		</main>
+	}
+}
+
+templ OrderShow(order models.Order) {
+	@base() {
+		<main>
+			<div>
+				<h1>Order Details</h1>
+				<div>
+					<a href={ templ.URL(routes.OrderEdit.URL(order.ID)) }>Edit</a>
+					<a href={ templ.URL(routes.OrderIndex.URL()) }>Back to List</a>
+				</div>
+			</div>
+			<div>
+				<div>
+					<div>
+						<label>Account Id</label>
+						<p>{ order.AccountID.String() }</p>
+					</div>
+					<div>
+						<label>Customer Name</label>
+						<p>{ order.CustomerName }</p>
+					</div>
+					<div>
+						<label>Total</label>
+						<p>{ fmt.Sprintf("%f", order.Total) }</p>
+					</div>
+					<div>
+						<label>Signature</label>
+						<p>{ string(order.Signature) }</p>
+					</div>
+					<div>
+						<label>Created At</label>
+						<p>{ order.CreatedAt.String() }</p>
+					</div>
+					<div>
+						<label>Updated At</label>
+						<p>{ order.UpdatedAt.String() }</p>
+					</div>
+				</div>
+			</div>
+		</main>
+	}
+}
+
+templ OrderNew() {
+	@base() {
+		<main>
+			<div>
+				<form
+					data-indicator:submitting
+					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.OrderCreate.URL()) }
+				>
+					<div>
+						<h2>New Order</h2>
+						<p>Enter the details for the new order.</p>
+					</div>
+					<div>
+						@components.InputField("Account Id", "accountId", "text", "", false, components.FieldProp{})
+						@components.InputField("Customer Name", "customerName", "text", "", false, components.FieldProp{})
+						@components.InputField("Total", "total", "number", "", false, components.FieldProp{})
+						@components.InputField("Signature", "signature", "text", "", false, components.FieldProp{})
+					</div>
+					@components.SubmitButton("Create Order")
+					<p>
+						<a href={ templ.URL(routes.OrderIndex.URL()) }>Back to List</a>
+					</p>
+				</form>
+			</div>
+		</main>
+	}
+}
+
+templ OrderEdit(order models.Order) {
+	@base() {
+		<main>
+			<div>
+				<form
+					data-indicator:submitting
+					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.OrderUpdate.URL(order.ID)) }
+				>
+					<div>
+						<h2>Edit Order</h2>
+						<p>Update the details for this order.</p>
+					</div>
+					<div>
+						@components.InputField("Account Id", "accountId", "text", "", false, components.FieldProp{
+							Value: order.AccountID.String(),
+						})
+						@components.InputField("Customer Name", "customerName", "text", "", false, components.FieldProp{
+							Value: order.CustomerName,
+						})
+						@components.InputField("Total", "total", "number", "", false, components.FieldProp{
+							Value: fmt.Sprintf("%f", order.Total),
+						})
+						@components.InputField("Signature", "signature", "text", "", false, components.FieldProp{
+							Value: string(order.Signature),
+						})
+					</div>
+					@components.SubmitButton("Update Order")
+					<p>
+						<a href={ templ.URL(routes.OrderIndex.URL()) }>Back to List</a>
+					</p>
+				</form>
+				<div>
+					<button
+						data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.OrderDestroy.URL(order.ID)) }
+					>Destroy Order</button>
+				</div>
+			</div>
+		</main>
+	}
+}

@@ -1,0 +1,29 @@
+-- name: QueryUserRoleByID :one
+select * from user_roles where id=$1;
+
+-- name: QueryUserRole :many
+select * from user_roles;
+
+-- name: InsertUserRole :one
+insert into
+    user_roles (id, user_id, role_id)
+values
+    ($1, $2, $3)
+returning *;
+
+-- name: UpdateUserRole :one
+update user_roles
+    set user_id=$2, role_id=$3
+where id = $1
+returning *;
+
+-- name: DeleteUserRole :exec
+delete from user_roles where id=$1;
+
+-- name: UpsertUserRole :one
+insert into
+    user_roles (id, user_id, role_id)
+values
+    ($1, $2, $3)
+on conflict (id) do update set user_id=excluded.user_id, role_id=excluded.role_id
+returning *;

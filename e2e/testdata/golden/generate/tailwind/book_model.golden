@@ -1,0 +1,221 @@
+package models
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"testapp/internal/storage"
+	"testapp/models/internal/db"
+)
+
+type Book struct {
+	ID        uuid.UUID
+	Title     string
+	Author    string
+	Price     float64
+	Pages     int32
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func FindBook(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) (Book, error) {
+	row, err := queries.QueryBookByID(ctx, exec, id)
+	if err != nil {
+		return Book{}, err
+	}
+
+	return rowToBook(row), nil
+}
+
+type CreateBookData struct {
+	Title  string
+	Author string
+	Price  float64
+	Pages  int32
+}
+
+func CreateBook(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateBookData,
+) (Book, error) {
+	if err := Validate.Struct(data); err != nil {
+		return Book{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.InsertBookParams{
+		ID:     uuid.New(),
+		Title:  data.Title,
+		Author: data.Author,
+		Price:  data.Price,
+		Pages:  pgtype.Int4{Int32: data.Pages, Valid: true},
+	}
+	row, err := queries.InsertBook(ctx, exec, params)
+	if err != nil {
+		return Book{}, err
+	}
+
+	return rowToBook(row), nil
+}
+
+type UpdateBookData struct {
+	ID        uuid.UUID
+	Title     string
+	Author    string
+	Price     float64
+	Pages     int32
+	UpdatedAt time.Time
+}
+
+func UpdateBook(
+	ctx context.Context,
+	exec storage.Executor,
+	data UpdateBookData,
+) (Book, error) {
+	if err := Validate.Struct(data); err != nil {
+		return Book{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpdateBookParams{
+		ID:     data.ID,
+		Title:  data.Title,
+		Author: data.Author,
+		Price:  data.Price,
+		Pages:  pgtype.Int4{Int32: data.Pages, Valid: true},
+	}
+
+	row, err := queries.UpdateBook(ctx, exec, params)
+	if err != nil {
+		return Book{}, err
+	}
+
+	return rowToBook(row), nil
+}
+
+func DestroyBook(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) error {
+	return queries.DeleteBook(ctx, exec, id)
+}
+
+func AllBooks(
+	ctx context.Context,
+	exec storage.Executor,
+) ([]Book, error) {
+	rows, err := queries.QueryBooks(ctx, exec)
+	if err != nil {
+		return nil, err
+	}
+
+	books := make([]Book, len(rows))
+	for i, row := range rows {
+		books[i] = rowToBook(row)
+	}
+
+	return books, nil
+}
+
+type PaginatedBooks struct {
+	Books      []Book
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func PaginateBooks(
+	ctx context.Context,
+	exec storage.Executor,
+	page int64,
+	pageSize int64,
+) (PaginatedBooks, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := queries.CountBooks(ctx, exec)
+	if err != nil {
+		return PaginatedBooks{}, err
+	}
+
+	rows, err := queries.QueryPaginatedBooks(
+		ctx,
+		exec,
+		db.QueryPaginatedBooksParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
+	)
+	if err != nil {
+		return PaginatedBooks{}, err
+	}
+
+	books := make([]Book, len(rows))
+	for i, row := range rows {
+		books[i] = rowToBook(row)
+	}
+
+	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+
+	return PaginatedBooks{
+		Books:      books,
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func UpsertBook(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateBookData,
+) (Book, error) {
+	if err := Validate.Struct(data); err != nil {
+		return Book{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpsertBookParams{
+		ID:     uuid.New(),
+		Title:  data.Title,
+		Author: data.Author,
+		Price:  data.Price,
+		Pages:  pgtype.Int4{Int32: data.Pages, Valid: true},
+	}
+	row, err := queries.UpsertBook(ctx, exec, params)
+	if err != nil {
+		return Book{}, err
+	}
+
+	return rowToBook(row), nil
+}
+
+func rowToBook(row db.Book) Book {
+	return Book{
+		ID:        row.ID,
+		Title:     row.Title,
+		Author:    row.Author,
+		Price:     row.Price,
+		Pages:     row.Pages.Int32,
+		CreatedAt: row.CreatedAt.Time,
+		UpdatedAt: row.UpdatedAt.Time,
+	}
+}

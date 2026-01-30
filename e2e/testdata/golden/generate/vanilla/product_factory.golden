@@ -1,0 +1,90 @@
+package factories
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"testapp/internal/storage"
+	"testapp/models"
+
+	"github.com/go-faker/faker/v4"
+	"github.com/google/uuid"
+)
+
+// ProductFactory wraps models.Product for testing
+type ProductFactory struct {
+	models.Product // Embedded
+}
+
+type ProductOption func(*ProductFactory)
+
+// BuildProduct creates an in-memory Product with default test values
+func BuildProduct(opts ...ProductOption) models.Product {
+	f := &ProductFactory{
+		Product: models.Product{
+			ID:        uuid.New(),
+			Name:      faker.Word(),
+			Price:     float64{},
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+	}
+
+	for _, opt := range opts {
+		opt(f)
+	}
+
+	return f.Product
+}
+
+// CreateProduct creates and persists a Product to the database
+func CreateProduct(ctx context.Context, exec storage.Executor, opts ...ProductOption) (models.Product, error) {
+	// Build with defaults and required FKs
+	built := BuildProduct(opts...)
+
+	// Prepare creation data
+	data := models.CreateProductData{
+		Name:  built.Name,
+		Price: built.Price,
+	}
+
+	// Use model's Create function
+	product, err := models.CreateProduct(ctx, exec, data)
+	if err != nil {
+		return models.Product{}, err
+	}
+
+	return product, nil
+}
+
+// CreateProducts creates multiple Product records at once
+func CreateProducts(ctx context.Context, exec storage.Executor, count int, opts ...ProductOption) ([]models.Product, error) {
+	products := make([]models.Product, 0, count)
+
+	for i := 0; i < count; i++ {
+		product, err := CreateProduct(ctx, exec, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create product %d: %w", i+1, err)
+		}
+		products = append(products, product)
+	}
+
+	return products, nil
+}
+
+// Option functions
+
+// WithProductsName sets the Name field
+func WithProductsName(value string) ProductOption {
+	return func(f *ProductFactory) {
+		f.Product.Name = value
+	}
+}
+
+// WithProductsPrice sets the Price field
+func WithProductsPrice(value float64) ProductOption {
+	return func(f *ProductFactory) {
+		f.Product.Price = value
+	}
+}

@@ -1,0 +1,204 @@
+package controllers
+
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+	"strconv"
+
+	"testapp/internal/storage"
+	"testapp/models"
+	"testapp/router/cookies"
+	"testapp/router/routes"
+	"testapp/views"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v5"
+)
+
+type Reviews struct {
+	db storage.Pool
+}
+
+func NewReviews(db storage.Pool) Reviews {
+	return Reviews{db}
+}
+
+func (r Reviews) Index(etx *echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	reviewsList, err := models.PaginateReviews(
+		etx.Request().Context(),
+		r.db.Conn(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return render(etx, views.ReviewIndex(reviewsList.Reviews))
+}
+
+func (r Reviews) Show(etx *echo.Context) error {
+	reviewID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	review, err := models.FindReview(etx.Request().Context(), r.db.Conn(), reviewID)
+	if err != nil {
+		return render(etx, views.NotFound())
+	}
+
+	return render(etx, views.ReviewShow(review))
+}
+
+func (r Reviews) New(etx *echo.Context) error {
+	return render(etx, views.ReviewNew())
+}
+
+type CreateReviewFormPayload struct {
+	Title  string `json:"title"`
+	Body   string `json:"body"`
+	Rating int32  `json:"rating"`
+}
+
+func (r Reviews) Create(etx *echo.Context) error {
+	var payload CreateReviewFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse CreateReviewFormPayload",
+			"error",
+			err,
+		)
+
+		return render(etx, views.NotFound())
+	}
+
+	data := models.CreateReviewData{
+		Title:  payload.Title,
+		Body:   payload.Body,
+		Rating: payload.Rating,
+	}
+
+	review, err := models.CreateReview(
+		etx.Request().Context(),
+		r.db.Conn(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create review: %v", err)); flashErr != nil {
+			return flashErr
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.ReviewNew.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Review created successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.ReviewShow.URL(review.ID))
+}
+
+func (r Reviews) Edit(etx *echo.Context) error {
+	reviewID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	review, err := models.FindReview(etx.Request().Context(), r.db.Conn(), reviewID)
+	if err != nil {
+		return render(etx, views.NotFound())
+	}
+
+	return render(etx, views.ReviewEdit(review))
+}
+
+type UpdateReviewFormPayload struct {
+	Title  string `json:"title"`
+	Body   string `json:"body"`
+	Rating int32  `json:"rating"`
+}
+
+func (r Reviews) Update(etx *echo.Context) error {
+	reviewID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	var payload UpdateReviewFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse UpdateReviewFormPayload",
+			"error",
+			err,
+		)
+
+		return render(etx, views.NotFound())
+	}
+
+	data := models.UpdateReviewData{
+		ID:     reviewID,
+		Title:  payload.Title,
+		Body:   payload.Body,
+		Rating: payload.Rating,
+	}
+
+	review, err := models.UpdateReview(
+		etx.Request().Context(),
+		r.db.Conn(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update review: %v", err)); flashErr != nil {
+			return render(etx, views.InternalError())
+		}
+		return etx.Redirect(
+			http.StatusSeeOther,
+			routes.ReviewEdit.URL(reviewID),
+		)
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Review updated successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.ReviewShow.URL(review.ID))
+}
+
+func (r Reviews) Destroy(etx *echo.Context) error {
+	reviewID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	err = models.DestroyReview(etx.Request().Context(), r.db.Conn(), reviewID)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete review: %v", err)); flashErr != nil {
+			return render(etx, views.InternalError())
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.ReviewIndex.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Review destroyed successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.ReviewIndex.URL())
+}

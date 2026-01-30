@@ -1,0 +1,130 @@
+package views
+
+import (
+	"fmt"
+	"net/http"
+	"strings"
+	"{{.ModulePath}}/models"
+	"{{.ModulePath}}/router/routes"
+	"{{.ModulePath}}/internal/hypermedia"
+	"{{.ModulePath}}/views/components"
+)
+
+templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
+	@base() {
+		<main>
+			<div>
+				<h1>{{Plural .ResourceName}}</h1>
+				<a href={ templ.URL(routes.{{.ResourceName}}New.URL()) }>New {{.ResourceName}}</a>
+			</div>
+			<div>
+				if len({{.PluralName}}) == 0 {
+					<p>No {{.PluralName}} found.</p>
+				} else {
+					<div>
+						<table>
+							<thead>
+								<tr>
+									{{range .Fields}}<th>{{.DisplayName}}</th>
+									{{end}}<th>Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, {{.ResourceName | ToLower}} := range {{.PluralName}} {
+									<tr>
+										{{range .Fields}}<td>{{StringTableDisplay . $.ResourceName}}</td>
+										{{end}}<td>
+											<a href={ templ.URL(routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLower}}.ID)) }>View</a>
+											<a href={ templ.URL(routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLower}}.ID)) }>Edit</a>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+		</main>
+	}
+}
+
+templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
+	@base() {
+		<main>
+			<div>
+				<h1>{{.ResourceName}} Details</h1>
+				<div>
+					<a href={ templ.URL(routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLower}}.ID)) }>Edit</a>
+					<a href={ templ.URL(routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+				</div>
+			</div>
+			<div>
+				<div>
+					{{range .Fields}}<div>
+						<label>{{.DisplayName}}</label>
+						<p>{{StringDisplay . $.ResourceName}}</p>
+					</div>
+					{{end}}
+				</div>
+			</div>
+		</main>
+	}
+}
+
+templ {{.ResourceName}}New() {
+	@base() {
+		<main>
+			<div>
+				<form
+					data-indicator:submitting
+					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.{{.ResourceName}}Create.URL()) }
+				>
+					<div>
+						<h2>New {{.ResourceName}}</h2>
+						<p>Enter the details for the new {{.ResourceName | ToLower}}.</p>
+					</div>
+					<div>
+						{{range .Fields}}{{if not .IsSystemField}}@components.InputField("{{.DisplayName}}", "{{.CamelCase}}", "{{.InputType}}", "", false, components.FieldProp{})
+						{{end}}{{end}}
+					</div>
+					@components.SubmitButton("Create {{.ResourceName}}")
+					<p>
+						<a href={ templ.URL(routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+					</p>
+				</form>
+			</div>
+		</main>
+	}
+}
+
+templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
+	@base() {
+		<main>
+			<div>
+				<form 
+					data-indicator:submitting
+					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{.ResourceName | ToLower}}.ID)) }>
+					<div>
+						<h2>Edit {{.ResourceName}}</h2>
+						<p>Update the details for this {{.ResourceName | ToLower}}.</p>
+					</div>
+					<div>
+						{{range .Fields}}{{if not .IsSystemField}}@components.InputField("{{.DisplayName}}", "{{.CamelCase}}", "{{.InputType}}", "", false, components.FieldProp{
+							Value: {{StringValue . $.ResourceName}},
+						})
+						{{end}}{{end}}
+					</div>
+					@components.SubmitButton("Update {{.ResourceName}}")
+					<p>
+						<a href={ templ.URL(routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+					</p>
+				</form>
+				<div>
+					<button
+						data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.{{.ResourceName}}Destroy.URL({{.ResourceName | ToLower}}.ID)) }
+					>Destroy {{.ResourceName}}</button>
+				</div>
+			</div>
+		</main>
+	}
+}

@@ -112,6 +112,11 @@ ci:
 	@just test-e2e-critical
 	@echo "\n✅ All CI checks passed!"
 
+# Update golden files for generate tests
+update-golden:
+	go clean -testcache
+	go test ./e2e -run TestGenerateCommands -v -timeout 15m -update-generate-golden
+
 # Clean test artifacts and cache
 clean-test:
 	go clean -testcache

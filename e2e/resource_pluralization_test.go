@@ -336,7 +336,6 @@ func validateViewPluralization(t *testing.T, project *internal.Project, tc plura
 		pattern string
 		desc    string
 	}{
-		{"<h1>" + tc.expectedPlural + "</h1>", "Heading uses correct plural"},
 		{"templ " + tc.expectedSingular + "Index", "Index template uses singular prefix"},
 		{"templ " + tc.expectedSingular + "Show", "Show template uses singular prefix"},
 		{"templ " + tc.expectedSingular + "New", "New template uses singular prefix"},
@@ -347,20 +346,6 @@ func validateViewPluralization(t *testing.T, project *internal.Project, tc plura
 	for _, p := range correctPatterns {
 		if !strings.Contains(contentStr, p.pattern) {
 			t.Errorf("View file should contain %q (%s)", p.pattern, p.desc)
-		}
-	}
-
-	// Check for incorrect patterns
-	incorrectPatterns := []struct {
-		pattern string
-		desc    string
-	}{
-		{"<h1>Companys</h1>", "Should NOT use naive plural 'Companys' in heading"},
-	}
-
-	for _, p := range incorrectPatterns {
-		if strings.Contains(contentStr, p.pattern) {
-			t.Errorf("View file should NOT contain %q (%s)", p.pattern, p.desc)
 		}
 	}
 

@@ -53,6 +53,7 @@ func TestGenerateCommands(t *testing.T) {
 			t.Parallel()
 
 			project := internal.NewProjectWithDatabase(t, binary, getSharedBinDir(), tc.database)
+			project.CSS = tc.css
 
 			err := project.Scaffold("-c", tc.css)
 			internal.AssertCommandSucceeds(t, err, "scaffold")
@@ -145,6 +146,7 @@ func testGenerateModel(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "product_model.golden"),
 		string(modelContent),
+		project.CSS,
 	)
 
 	// Verify queries file exists and compare against golden file
@@ -157,6 +159,7 @@ func testGenerateModel(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "product_queries.golden"),
 		string(queriesContent),
+		project.CSS,
 	)
 
 	// Verify factory file exists and compare against golden file
@@ -169,6 +172,7 @@ func testGenerateModel(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "product_factory.golden"),
 		string(factoryContent),
+		project.CSS,
 	)
 }
 
@@ -230,6 +234,7 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "order_controller.golden"),
 		string(controllerContent),
+		project.CSS,
 	)
 
 	// Verify view file exists and compare against golden file (--with-views was passed)
@@ -242,6 +247,7 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "order_view.golden"),
 		string(viewContent),
+		project.CSS,
 	)
 
 	// Verify routes file exists and compare against golden file
@@ -254,6 +260,7 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "order_routes.golden"),
 		string(routesContent),
+		project.CSS,
 	)
 }
 
@@ -281,6 +288,7 @@ func testGenerateView(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "category_view.golden"),
 		string(viewContent),
+		project.CSS,
 	)
 
 	// Controller file should NOT exist when only generating views
@@ -311,6 +319,7 @@ func testGenerateResource(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "item_model.golden"),
 		string(modelContent),
+		project.CSS,
 	)
 
 	// Verify controller file exists and compare against golden file
@@ -323,6 +332,7 @@ func testGenerateResource(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "item_controller.golden"),
 		string(controllerContent),
+		project.CSS,
 	)
 
 	// Verify view file exists and compare against golden file
@@ -335,6 +345,7 @@ func testGenerateResource(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "item_view.golden"),
 		string(viewContent),
+		project.CSS,
 	)
 }
 
@@ -365,6 +376,7 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 		t,
 		filepath.Join("testdata", "golden", "generate", "student_feedback_model.golden"),
 		string(modelContent),
+		project.CSS,
 	)
 
 	// Verify controller file exists and compare against golden file
@@ -377,6 +389,7 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 		t,
 		filepath.Join("testdata", "golden", "generate", "student_feedback_controller.golden"),
 		string(controllerContent),
+		project.CSS,
 	)
 
 	// Verify view file exists and compare against golden file
@@ -389,6 +402,7 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 		t,
 		filepath.Join("testdata", "golden", "generate", "student_feedback_view.golden"),
 		string(viewContent),
+		project.CSS,
 	)
 
 	// Verify main.go uses camelCase variable name for snake_case table name
@@ -435,6 +449,7 @@ func testGenerateModelWithFactory(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "book_model.golden"),
 		string(modelContent),
+		project.CSS,
 	)
 
 	// Verify queries file exists and compare against golden file
@@ -447,6 +462,7 @@ func testGenerateModelWithFactory(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "book_queries.golden"),
 		string(queriesContent),
+		project.CSS,
 	)
 
 	// Verify factory file exists and compare against golden file (default behavior)
@@ -459,6 +475,7 @@ func testGenerateModelWithFactory(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "book_factory.golden"),
 		string(factoryContent),
+		project.CSS,
 	)
 }
 
@@ -484,6 +501,7 @@ func testGenerateModelSkipFactory(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "article_model.golden"),
 		string(modelContent),
+		project.CSS,
 	)
 
 	// Verify queries file exists and compare against golden file
@@ -496,6 +514,7 @@ func testGenerateModelSkipFactory(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "article_queries.golden"),
 		string(queriesContent),
+		project.CSS,
 	)
 
 	// Verify factory file does NOT exist
@@ -528,6 +547,7 @@ func testGenerateModelWithTableName(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "person_model.golden"),
 		string(modelContent),
+		project.CSS,
 	)
 
 	// Verify queries file exists with custom table name and compare against golden file
@@ -540,6 +560,7 @@ func testGenerateModelWithTableName(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "person_queries.golden"),
 		string(queriesContent),
+		project.CSS,
 	)
 
 	// Verify factory file exists and compare against golden file
@@ -552,6 +573,7 @@ func testGenerateModelWithTableName(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "person_factory.golden"),
 		string(factoryContent),
+		project.CSS,
 	)
 }
 
@@ -582,6 +604,7 @@ func testGenerateControllerWithoutViews(t *testing.T, project *internal.Project)
 		t,
 		filepath.Join("testdata", "golden", "generate", "invoice_controller.golden"),
 		string(controllerContent),
+		project.CSS,
 	)
 
 	// Verify routes file exists and compare against golden file
@@ -594,6 +617,7 @@ func testGenerateControllerWithoutViews(t *testing.T, project *internal.Project)
 		t,
 		filepath.Join("testdata", "golden", "generate", "invoice_routes.golden"),
 		string(routesContent),
+		project.CSS,
 	)
 
 	// Verify router registration file exists and compare against golden file
@@ -606,6 +630,7 @@ func testGenerateControllerWithoutViews(t *testing.T, project *internal.Project)
 		t,
 		filepath.Join("testdata", "golden", "generate", "invoice_router.golden"),
 		string(routerContent),
+		project.CSS,
 	)
 
 	// View file should NOT exist when generating controller without views
@@ -640,6 +665,7 @@ func testGenerateViewWithController(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "review_view.golden"),
 		string(viewContent),
+		project.CSS,
 	)
 
 	// Verify controller file exists (because --with-controller was passed)
@@ -652,6 +678,7 @@ func testGenerateViewWithController(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "review_controller.golden"),
 		string(controllerContent),
+		project.CSS,
 	)
 
 	// Verify routes file exists
@@ -664,6 +691,7 @@ func testGenerateViewWithController(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "review_routes.golden"),
 		string(routesContent),
+		project.CSS,
 	)
 }
 
@@ -689,6 +717,7 @@ func testGenerateQueries(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "user_role_queries.golden"),
 		string(queriesContent),
+		project.CSS,
 	)
 
 	// Model file should NOT exist for queries-only generation
@@ -726,6 +755,7 @@ func testGenerateQueriesWithRefresh(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "tag_assignment_queries.golden"),
 		string(queriesContent),
+		project.CSS,
 	)
 
 	// Model file should NOT exist for queries-only generation
@@ -805,6 +835,7 @@ DROP TABLE IF EXISTS posts;
 		t,
 		filepath.Join("testdata", "golden", "generate", "post_model.golden"),
 		modelStr,
+		project.CSS,
 	)
 
 	// Verify queries file exists and compare against golden file
@@ -817,6 +848,7 @@ DROP TABLE IF EXISTS posts;
 		t,
 		filepath.Join("testdata", "golden", "generate", "post_queries.golden"),
 		string(queriesContent),
+		project.CSS,
 	)
 }
 
@@ -973,6 +1005,7 @@ DROP TABLE IF EXISTS documents;
 		t,
 		filepath.Join("testdata", "golden", "generate", "document_view.golden"),
 		viewStr,
+		project.CSS,
 	)
 }
 
@@ -1094,10 +1127,13 @@ func testGenerateFragment(t *testing.T, project *internal.Project) {
 	}
 }
 
-func compareOrUpdateGenerateGolden(t *testing.T, goldenPath, actual string) {
+func compareOrUpdateGenerateGolden(t *testing.T, goldenPath, actual, css string) {
 	t.Helper()
 
-	fullGoldenPath := filepath.Join(".", goldenPath)
+	// Insert CSS framework into the path: testdata/golden/generate/X.golden -> testdata/golden/generate/css/X.golden
+	dir := filepath.Dir(goldenPath)
+	base := filepath.Base(goldenPath)
+	fullGoldenPath := filepath.Join(".", dir, css, base)
 
 	if *updateGenerateGolden {
 		err := os.MkdirAll(filepath.Dir(fullGoldenPath), constants.DirPermissionDefault)

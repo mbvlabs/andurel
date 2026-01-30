@@ -1,0 +1,108 @@
+package factories
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"testapp/internal/storage"
+	"testapp/models"
+
+	"github.com/go-faker/faker/v4"
+	"github.com/google/uuid"
+)
+
+// BookFactory wraps models.Book for testing
+type BookFactory struct {
+	models.Book // Embedded
+}
+
+type BookOption func(*BookFactory)
+
+// BuildBook creates an in-memory Book with default test values
+func BuildBook(opts ...BookOption) models.Book {
+	f := &BookFactory{
+		Book: models.Book{
+			ID:        uuid.New(),
+			Title:     faker.Word(),
+			Author:    faker.Word(),
+			Price:     float64{},
+			Pages:     randomInt(1, 1000, 100),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+	}
+
+	for _, opt := range opts {
+		opt(f)
+	}
+
+	return f.Book
+}
+
+// CreateBook creates and persists a Book to the database
+func CreateBook(ctx context.Context, exec storage.Executor, opts ...BookOption) (models.Book, error) {
+	// Build with defaults and required FKs
+	built := BuildBook(opts...)
+
+	// Prepare creation data
+	data := models.CreateBookData{
+		Title:  built.Title,
+		Author: built.Author,
+		Price:  built.Price,
+		Pages:  built.Pages,
+	}
+
+	// Use model's Create function
+	book, err := models.CreateBook(ctx, exec, data)
+	if err != nil {
+		return models.Book{}, err
+	}
+
+	return book, nil
+}
+
+// CreateBooks creates multiple Book records at once
+func CreateBooks(ctx context.Context, exec storage.Executor, count int, opts ...BookOption) ([]models.Book, error) {
+	books := make([]models.Book, 0, count)
+
+	for i := 0; i < count; i++ {
+		book, err := CreateBook(ctx, exec, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create book %d: %w", i+1, err)
+		}
+		books = append(books, book)
+	}
+
+	return books, nil
+}
+
+// Option functions
+
+// WithBooksTitle sets the Title field
+func WithBooksTitle(value string) BookOption {
+	return func(f *BookFactory) {
+		f.Book.Title = value
+	}
+}
+
+// WithBooksAuthor sets the Author field
+func WithBooksAuthor(value string) BookOption {
+	return func(f *BookFactory) {
+		f.Book.Author = value
+	}
+}
+
+// WithBooksPrice sets the Price field
+func WithBooksPrice(value float64) BookOption {
+	return func(f *BookFactory) {
+		f.Book.Price = value
+	}
+}
+
+// WithBooksPages sets the Pages field
+func WithBooksPages(value int32) BookOption {
+	return func(f *BookFactory) {
+		f.Book.Pages = value
+	}
+}
