@@ -228,8 +228,18 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"tw_css_base.tmpl":  "css/base.css",
 
 	// Views
-	"tw_views_layout.tmpl":            "views/layout.templ",
-	"tw_views_components_toasts.tmpl": "views/components/toasts.templ",
+	"tw_views_layout.tmpl":                   "views/layout.templ",
+	"tw_views_components_toasts.tmpl":        "views/components/toasts.templ",
+	"tw_views_components_head.tmpl":          "views/components/head.templ",
+	"tw_views_components_form_elements.tmpl": "views/components/form_elements.templ",
+	"tw_views_home.tmpl":                     "views/home.templ",
+	"tw_views_bad_request.tmpl":              "views/bad_request.templ",
+	"tw_views_internal_error.tmpl":           "views/internal_error.templ",
+	"tw_views_not_found.tmpl":                "views/not_found.templ",
+	"tw_views_confirm_email.tmpl":            "views/confirm_email.templ",
+	"tw_views_login.tmpl":                    "views/login.templ",
+	"tw_views_registration.tmpl":             "views/registration.templ",
+	"tw_views_reset_password.tmpl":           "views/reset_password.templ",
 }
 
 var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -238,8 +248,18 @@ var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_vanilla_css_buttons.tmpl":    "assets/css/buttons.css",
 
 	// Views
-	"vanilla_views_layout.tmpl":            "views/layout.templ",
-	"vanilla_views_components_toasts.tmpl": "views/components/toasts.templ",
+	"vanilla_views_layout.tmpl":                   "views/layout.templ",
+	"vanilla_views_components_toasts.tmpl":        "views/components/toasts.templ",
+	"vanilla_views_components_head.tmpl":          "views/components/head.templ",
+	"vanilla_views_components_form_elements.tmpl": "views/components/form_elements.templ",
+	"vanilla_views_home.tmpl":                     "views/home.templ",
+	"vanilla_views_bad_request.tmpl":              "views/bad_request.templ",
+	"vanilla_views_internal_error.tmpl":           "views/internal_error.templ",
+	"vanilla_views_not_found.tmpl":                "views/not_found.templ",
+	"vanilla_views_confirm_email.tmpl":            "views/confirm_email.templ",
+	"vanilla_views_login.tmpl":                    "views/login.templ",
+	"vanilla_views_registration.tmpl":             "views/registration.templ",
+	"vanilla_views_reset_password.tmpl":           "views/reset_password.templ",
 }
 
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -347,14 +367,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"telemetry_trace_exporters.tmpl":  "telemetry/trace_exporters.go",
 	"telemetry_helpers.tmpl":          "telemetry/helpers.go",
 
-	// Views
-	"views_home.tmpl":                     "views/home.templ",
-	"views_bad_request.tmpl":              "views/bad_request.templ",
-	"views_internal_error.tmpl":           "views/internal_error.templ",
-	"views_not_found.tmpl":                "views/not_found.templ",
-	"views_components_head.tmpl":          "views/components/head.templ",
-	"views_components_form_elements.tmpl": "views/components/form_elements.templ",
-
 	// Auth - Controllers
 	"controllers_confirmations.tmpl":   "controllers/confirmations.go",
 	"controllers_registrations.tmpl":   "controllers/registrations.go",
@@ -376,12 +388,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Auth - Router
 	"router_routes_users.tmpl":    "router/routes/users.go",
 	"router_middleware_auth.tmpl": "router/middleware/auth.go",
-
-	// Auth - Views
-	"views_confirm_email.tmpl":  "views/confirm_email.templ",
-	"views_login.tmpl":          "views/login.templ",
-	"views_registration.tmpl":   "views/registration.templ",
-	"views_reset_password.tmpl": "views/reset_password.templ",
 
 	// Auth - Email
 	"email_reset_password.tmpl": "email/reset_password.templ",
@@ -408,12 +414,6 @@ func processTemplatedFiles(
 			return fmt.Errorf("failed to process template %s: %w", templateFile, err)
 		}
 	}
-
-	// for templateFile, targetPath := range basePSQLTemplateMappings {
-	// 	if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
-	// 		return fmt.Errorf("failed to process psql template %s: %w", templateFile, err)
-	// 	}
-	// }
 
 	if cssFramework == "tailwind" {
 		for templateFile, targetPath := range baseTailwindTemplateMappings {

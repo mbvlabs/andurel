@@ -11,7 +11,7 @@ templ RegistrationForm() {
 	@base() {
 		<main>
 			<h1>Sign Up</h1>
-			<form class="text-black" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()) }>
+			<form data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()) }>
 				<div>
 					<label for="email">Email</label>
 					<input type="email" id="email" data-bind="email" data-attr:disabled="$submitting" required/>
@@ -29,4 +29,3 @@ templ RegistrationForm() {
 		</main>
 	}
 }
-
