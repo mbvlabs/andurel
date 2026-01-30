@@ -10,37 +10,39 @@ import (
 
 templ CompanyIndex(companies []models.Company) {
 	@base() {
-		<main>
-			<div>
-				<h1>Companies</h1>
-				<a href={ templ.URL(routes.CompanyNew.URL()) }>New Company</a>
-			</div>
-			<div>
-				<div>
+		<main class="flex-1 px-6 py-10">
+			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
+				<div class="flex flex-wrap items-center justify-between gap-4">
+					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Companies</h1>
+					<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href={ templ.URL(routes.CompanyNew.URL()) }>New Company</a>
+				</div>
+				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
 					if len(companies) == 0 {
-						<p>No companies found.</p>
+						<p class="text-sm text-base-content/60">No companies found.</p>
 					} else {
-						<div>
-							<table>
-								<thead>
+						<div class="overflow-x-auto">
+							<table class="w-full text-left text-sm">
+								<thead class="border-b border-base-300 text-xs uppercase tracking-wide text-base-content/60">
 									<tr>
-										<th>Name</th>
-										<th>Industry</th>
-										<th>Created At</th>
-										<th>Updated At</th>
-										<th>Actions</th>
+										<th class="pb-3 pr-4">Name</th>
+										<th class="pb-3 pr-4">Industry</th>
+										<th class="pb-3 pr-4">Created At</th>
+										<th class="pb-3 pr-4">Updated At</th>
+										<th class="pb-3 pr-4">Actions</th>
 									</tr>
 								</thead>
-								<tbody>
+								<tbody class="divide-y divide-base-300">
 									for _, company := range companies {
-										<tr>
-											<td>{ company.Name }</td>
-											<td>{ company.Industry }</td>
-											<td>{ company.CreatedAt.String() }</td>
-											<td>{ company.UpdatedAt.String() }</td>
-											<td>
-												<a href={ templ.URL(routes.CompanyShow.URL(company.ID)) }>View</a>
-												<a href={ templ.URL(routes.CompanyEdit.URL(company.ID)) }>Edit</a>
+										<tr class="align-top">
+											<td class="py-3 pr-4 text-base-content/70">{ company.Name }</td>
+											<td class="py-3 pr-4 text-base-content/70">{ company.Industry }</td>
+											<td class="py-3 pr-4 text-base-content/70">{ company.CreatedAt.String() }</td>
+											<td class="py-3 pr-4 text-base-content/70">{ company.UpdatedAt.String() }</td>
+											<td class="py-3 pr-4">
+												<div class="flex flex-wrap gap-3 text-sm">
+													<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.CompanyShow.URL(company.ID)) }>View</a>
+													<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.CompanyEdit.URL(company.ID)) }>Edit</a>
+												</div>
 											</td>
 										</tr>
 									}
@@ -56,32 +58,32 @@ templ CompanyIndex(companies []models.Company) {
 
 templ CompanyShow(company models.Company) {
 	@base() {
-		<main>
-			<div>
-				<h1>Company Details</h1>
-				<div>
-					<a href={ templ.URL(routes.CompanyEdit.URL(company.ID)) }>Edit</a>
-					<a href={ templ.URL(routes.CompanyIndex.URL()) }>Back to List</a>
+		<main class="flex-1 px-6 py-10">
+			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+				<div class="flex flex-wrap items-center justify-between gap-4">
+					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Company Details</h1>
+					<div class="flex flex-wrap gap-3">
+						<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href={ templ.URL(routes.CompanyEdit.URL(company.ID)) }>Edit</a>
+						<a class="text-sm text-base-content/70 hover:text-base-content" href={ templ.URL(routes.CompanyIndex.URL()) }>Back to List</a>
+					</div>
 				</div>
-			</div>
-			<div>
-				<div>
-					<div>
-						<div>
-							<label>Name</label>
-							<p>{ company.Name }</p>
+				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
+					<div class="grid gap-5 sm:grid-cols-2">
+						<div class="space-y-1">
+							<label class="text-xs uppercase tracking-wide text-base-content/60">Name</label>
+							<p class="text-sm text-base-content">{ company.Name }</p>
 						</div>
-						<div>
-							<label>Industry</label>
-							<p>{ company.Industry }</p>
+						<div class="space-y-1">
+							<label class="text-xs uppercase tracking-wide text-base-content/60">Industry</label>
+							<p class="text-sm text-base-content">{ company.Industry }</p>
 						</div>
-						<div>
-							<label>Created At</label>
-							<p>{ company.CreatedAt.String() }</p>
+						<div class="space-y-1">
+							<label class="text-xs uppercase tracking-wide text-base-content/60">Created At</label>
+							<p class="text-sm text-base-content">{ company.CreatedAt.String() }</p>
 						</div>
-						<div>
-							<label>Updated At</label>
-							<p>{ company.UpdatedAt.String() }</p>
+						<div class="space-y-1">
+							<label class="text-xs uppercase tracking-wide text-base-content/60">Updated At</label>
+							<p class="text-sm text-base-content">{ company.UpdatedAt.String() }</p>
 						</div>
 					</div>
 				</div>
@@ -92,32 +94,26 @@ templ CompanyShow(company models.Company) {
 
 templ CompanyNew() {
 	@base() {
-		<main>
-			<div>
-				<h1>New Company</h1>
-				<a href={ templ.URL(routes.CompanyIndex.URL()) }>Back to List</a>
-			</div>
-			<div>
-				<div>
-					<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.CompanyCreate.URL()) }>
-						<div>
-							<div>
-								<h2>Company Information</h2>
-								<p>Enter the details for the new company.</p>
-								<div>
-									<div>
-										@components.InputField("Name", "name", "text", "", false, components.FieldProp{})
-									</div>
-									<div>
-										@components.InputField("Industry", "industry", "text", "", false, components.FieldProp{})
-									</div>
-								</div>
-							</div>
+		<main class="flex-1 flex items-center justify-center px-6 py-10">
+			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
+					<form
+						class="space-y-5"
+						data-indicator:submitting
+						data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.CompanyCreate.URL()) }
+					>
+						<div class="space-y-1">
+							<h2 class="text-xl font-semibold text-base-content">New Company</h2>
+							<p class="text-sm text-base-content/60">Enter the details for the new company.</p>
 						</div>
-						<div>
-							<a href={ templ.URL(routes.CompanyIndex.URL()) }>Cancel</a>
-							<button type="submit">Create Company</button>
+						<div class="space-y-4">
+							@components.InputField("Name", "name", "text", "", false, components.FieldProp{})
+							@components.InputField("Industry", "industry", "text", "", false, components.FieldProp{})
 						</div>
+						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Create Company</button>
+						<p class="text-center text-sm text-base-content/60">
+							<a class="text-base-content/70 hover:text-base-content" href={ templ.URL(routes.CompanyIndex.URL()) }>Back to List</a>
+						</p>
 					</form>
 				</div>
 			</div>
@@ -127,39 +123,30 @@ templ CompanyNew() {
 
 templ CompanyEdit(company models.Company) {
 	@base() {
-		<main>
-			<div>
-				<h1>Edit Company</h1>
-				<a href={ templ.URL(routes.CompanyIndex.URL()) }>Back to List</a>
-			</div>
-			<div>
-				<div>
-					<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.CompanyUpdate.URL(company.ID)) }>
-						<div>
-							<div>
-								<h2>Company Information</h2>
-								<p>Update the details for this company.</p>
-								<div>
-									<div>
-										@components.InputField("Name", "name", "text", "", false, components.FieldProp{
-											Value: company.Name,
-										})
-									</div>
-									<div>
-										@components.InputField("Industry", "industry", "text", "", false, components.FieldProp{
-											Value: company.Industry,
-										})
-									</div>
-								</div>
-							</div>
+		<main class="flex-1 flex items-center justify-center px-6 py-10">
+			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
+					<form class="space-y-5" data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.CompanyUpdate.URL(company.ID)) }>
+						<div class="space-y-1">
+							<h2 class="text-xl font-semibold text-base-content">Edit Company</h2>
+							<p class="text-sm text-base-content/60">Update the details for this company.</p>
 						</div>
-						<div>
-							<a href={ templ.URL(routes.CompanyIndex.URL()) }>Cancel</a>
-							<button type="submit">Update Company</button>
+						<div class="space-y-4">
+							@components.InputField("Name", "name", "text", "", false, components.FieldProp{
+								Value: company.Name,
+							})
+							@components.InputField("Industry", "industry", "text", "", false, components.FieldProp{
+								Value: company.Industry,
+							})
 						</div>
+						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Update Company</button>
+						<p class="text-center text-sm text-base-content/60">
+							<a class="text-base-content/70 hover:text-base-content" href={ templ.URL(routes.CompanyIndex.URL()) }>Back to List</a>
+						</p>
 					</form>
-					<div>
+					<div class="mt-4 pt-4 border-t border-base-300">
 						<button
+							class="w-full inline-flex items-center justify-center rounded-field border border-error/60 px-4 py-2.5 text-sm font-semibold text-error transition hover:border-error hover:bg-error/10"
 							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.CompanyDestroy.URL(company.ID)) }
 						>Destroy Company</button>
 					</div>

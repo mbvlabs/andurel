@@ -11,39 +11,41 @@ import (
 
 templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
 	@base() {
-		<main>
-			<div>
-				<h1>StudentFeedbacks</h1>
-				<a href={ templ.URL(routes.StudentFeedbackNew.URL()) }>New StudentFeedback</a>
-			</div>
-			<div>
-				<div>
+		<main class="flex-1 px-6 py-10">
+			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
+				<div class="flex flex-wrap items-center justify-between gap-4">
+					<h1 class="text-2xl font-semibold tracking-tight text-base-content">StudentFeedbacks</h1>
+					<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href={ templ.URL(routes.StudentFeedbackNew.URL()) }>New StudentFeedback</a>
+				</div>
+				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
 					if len(student_feedbacks) == 0 {
-						<p>No student_feedbacks found.</p>
+						<p class="text-sm text-base-content/60">No student_feedbacks found.</p>
 					} else {
-						<div>
-							<table>
-								<thead>
+						<div class="overflow-x-auto">
+							<table class="w-full text-left text-sm">
+								<thead class="border-b border-base-300 text-xs uppercase tracking-wide text-base-content/60">
 									<tr>
-										<th>Student Id</th>
-										<th>Feedback</th>
-										<th>Rating</th>
-										<th>Created At</th>
-										<th>Updated At</th>
-										<th>Actions</th>
+										<th class="pb-3 pr-4">Student Id</th>
+										<th class="pb-3 pr-4">Feedback</th>
+										<th class="pb-3 pr-4">Rating</th>
+										<th class="pb-3 pr-4">Created At</th>
+										<th class="pb-3 pr-4">Updated At</th>
+										<th class="pb-3 pr-4">Actions</th>
 									</tr>
 								</thead>
-								<tbody>
+								<tbody class="divide-y divide-base-300">
 									for _, studentfeedback := range student_feedbacks {
-										<tr>
-											<td>{ studentfeedback.StudentID }</td>
-											<td>{ studentfeedback.Feedback }</td>
-											<td>{ fmt.Sprintf("%d", studentfeedback.Rating) }</td>
-											<td>{ studentfeedback.CreatedAt.String() }</td>
-											<td>{ studentfeedback.UpdatedAt.String() }</td>
-											<td>
-												<a href={ templ.URL(routes.StudentFeedbackShow.URL(studentfeedback.ID)) }>View</a>
-												<a href={ templ.URL(routes.StudentFeedbackEdit.URL(studentfeedback.ID)) }>Edit</a>
+										<tr class="align-top">
+											<td class="py-3 pr-4 text-base-content/70">{ studentfeedback.StudentID }</td>
+											<td class="py-3 pr-4 text-base-content/70">{ studentfeedback.Feedback }</td>
+											<td class="py-3 pr-4 text-base-content/70">{ fmt.Sprintf("%d", studentfeedback.Rating) }</td>
+											<td class="py-3 pr-4 text-base-content/70">{ studentfeedback.CreatedAt.String() }</td>
+											<td class="py-3 pr-4 text-base-content/70">{ studentfeedback.UpdatedAt.String() }</td>
+											<td class="py-3 pr-4">
+												<div class="flex flex-wrap gap-3 text-sm">
+													<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.StudentFeedbackShow.URL(studentfeedback.ID)) }>View</a>
+													<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.StudentFeedbackEdit.URL(studentfeedback.ID)) }>Edit</a>
+												</div>
 											</td>
 										</tr>
 									}
@@ -59,36 +61,36 @@ templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
 
 templ StudentFeedbackShow(studentfeedback models.StudentFeedback) {
 	@base() {
-		<main>
-			<div>
-				<h1>StudentFeedback Details</h1>
-				<div>
-					<a href={ templ.URL(routes.StudentFeedbackEdit.URL(studentfeedback.ID)) }>Edit</a>
-					<a href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+		<main class="flex-1 px-6 py-10">
+			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+				<div class="flex flex-wrap items-center justify-between gap-4">
+					<h1 class="text-2xl font-semibold tracking-tight text-base-content">StudentFeedback Details</h1>
+					<div class="flex flex-wrap gap-3">
+						<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href={ templ.URL(routes.StudentFeedbackEdit.URL(studentfeedback.ID)) }>Edit</a>
+						<a class="text-sm text-base-content/70 hover:text-base-content" href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+					</div>
 				</div>
-			</div>
-			<div>
-				<div>
-					<div>
-						<div>
-							<label>Student Id</label>
-							<p>{ studentfeedback.StudentID }</p>
+				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
+					<div class="grid gap-5 sm:grid-cols-2">
+						<div class="space-y-1">
+							<label class="text-xs uppercase tracking-wide text-base-content/60">Student Id</label>
+							<p class="text-sm text-base-content">{ studentfeedback.StudentID }</p>
 						</div>
-						<div>
-							<label>Feedback</label>
-							<p>{ studentfeedback.Feedback }</p>
+						<div class="space-y-1">
+							<label class="text-xs uppercase tracking-wide text-base-content/60">Feedback</label>
+							<p class="text-sm text-base-content">{ studentfeedback.Feedback }</p>
 						</div>
-						<div>
-							<label>Rating</label>
-							<p>{ fmt.Sprintf("%d", studentfeedback.Rating) }</p>
+						<div class="space-y-1">
+							<label class="text-xs uppercase tracking-wide text-base-content/60">Rating</label>
+							<p class="text-sm text-base-content">{ fmt.Sprintf("%d", studentfeedback.Rating) }</p>
 						</div>
-						<div>
-							<label>Created At</label>
-							<p>{ studentfeedback.CreatedAt.String() }</p>
+						<div class="space-y-1">
+							<label class="text-xs uppercase tracking-wide text-base-content/60">Created At</label>
+							<p class="text-sm text-base-content">{ studentfeedback.CreatedAt.String() }</p>
 						</div>
-						<div>
-							<label>Updated At</label>
-							<p>{ studentfeedback.UpdatedAt.String() }</p>
+						<div class="space-y-1">
+							<label class="text-xs uppercase tracking-wide text-base-content/60">Updated At</label>
+							<p class="text-sm text-base-content">{ studentfeedback.UpdatedAt.String() }</p>
 						</div>
 					</div>
 				</div>
@@ -99,35 +101,27 @@ templ StudentFeedbackShow(studentfeedback models.StudentFeedback) {
 
 templ StudentFeedbackNew() {
 	@base() {
-		<main>
-			<div>
-				<h1>New StudentFeedback</h1>
-				<a href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Back to List</a>
-			</div>
-			<div>
-				<div>
-					<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.StudentFeedbackCreate.URL()) }>
-						<div>
-							<div>
-								<h2>StudentFeedback Information</h2>
-								<p>Enter the details for the new studentfeedback.</p>
-								<div>
-									<div>
-										@components.InputField("Student Id", "studentId", "text", "", false, components.FieldProp{})
-									</div>
-									<div>
-										@components.InputField("Feedback", "feedback", "text", "", false, components.FieldProp{})
-									</div>
-									<div>
-										@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{})
-									</div>
-								</div>
-							</div>
+		<main class="flex-1 flex items-center justify-center px-6 py-10">
+			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
+					<form
+						class="space-y-5"
+						data-indicator:submitting
+						data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.StudentFeedbackCreate.URL()) }
+					>
+						<div class="space-y-1">
+							<h2 class="text-xl font-semibold text-base-content">New StudentFeedback</h2>
+							<p class="text-sm text-base-content/60">Enter the details for the new studentfeedback.</p>
 						</div>
-						<div>
-							<a href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Cancel</a>
-							<button type="submit">Create StudentFeedback</button>
+						<div class="space-y-4">
+							@components.InputField("Student Id", "studentId", "text", "", false, components.FieldProp{})
+							@components.InputField("Feedback", "feedback", "text", "", false, components.FieldProp{})
+							@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{})
 						</div>
+						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Create StudentFeedback</button>
+						<p class="text-center text-sm text-base-content/60">
+							<a class="text-base-content/70 hover:text-base-content" href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+						</p>
 					</form>
 				</div>
 			</div>
@@ -137,44 +131,33 @@ templ StudentFeedbackNew() {
 
 templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
 	@base() {
-		<main>
-			<div>
-				<h1>Edit StudentFeedback</h1>
-				<a href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Back to List</a>
-			</div>
-			<div>
-				<div>
-					<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.StudentFeedbackUpdate.URL(studentfeedback.ID)) }>
-						<div>
-							<div>
-								<h2>StudentFeedback Information</h2>
-								<p>Update the details for this studentfeedback.</p>
-								<div>
-									<div>
-										@components.InputField("Student Id", "studentId", "text", "", false, components.FieldProp{
-											Value: studentfeedback.StudentID,
-										})
-									</div>
-									<div>
-										@components.InputField("Feedback", "feedback", "text", "", false, components.FieldProp{
-											Value: studentfeedback.Feedback,
-										})
-									</div>
-									<div>
-										@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{
-											Value: fmt.Sprintf("%d", studentfeedback.Rating),
-										})
-									</div>
-								</div>
-							</div>
+		<main class="flex-1 flex items-center justify-center px-6 py-10">
+			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
+					<form class="space-y-5" data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.StudentFeedbackUpdate.URL(studentfeedback.ID)) }>
+						<div class="space-y-1">
+							<h2 class="text-xl font-semibold text-base-content">Edit StudentFeedback</h2>
+							<p class="text-sm text-base-content/60">Update the details for this studentfeedback.</p>
 						</div>
-						<div>
-							<a href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Cancel</a>
-							<button type="submit">Update StudentFeedback</button>
+						<div class="space-y-4">
+							@components.InputField("Student Id", "studentId", "text", "", false, components.FieldProp{
+								Value: studentfeedback.StudentID,
+							})
+							@components.InputField("Feedback", "feedback", "text", "", false, components.FieldProp{
+								Value: studentfeedback.Feedback,
+							})
+							@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{
+								Value: fmt.Sprintf("%d", studentfeedback.Rating),
+							})
 						</div>
+						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Update StudentFeedback</button>
+						<p class="text-center text-sm text-base-content/60">
+							<a class="text-base-content/70 hover:text-base-content" href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+						</p>
 					</form>
-					<div>
+					<div class="mt-4 pt-4 border-t border-base-300">
 						<button
+							class="w-full inline-flex items-center justify-center rounded-field border border-error/60 px-4 py-2.5 text-sm font-semibold text-error transition hover:border-error hover:bg-error/10"
 							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.StudentFeedbackDestroy.URL(studentfeedback.ID)) }
 						>Destroy StudentFeedback</button>
 					</div>

@@ -8,43 +8,45 @@ import (
 
 templ DocumentIndex(documents []models.Document) {
 	@base() {
-		<div>
-			<div>
-				<h1>Documents</h1>
-				<a href="/">New Document</a>
-			</div>
-			<div>
-				<div>
+		<main class="flex-1 px-6 py-10">
+			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
+				<div class="flex flex-wrap items-center justify-between gap-4">
+					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Documents</h1>
+					<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href="/">New Document</a>
+				</div>
+				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
 					if len(documents) == 0 {
-						<p>No documents found.</p>
+						<p class="text-sm text-base-content/60">No documents found.</p>
 					} else {
-						<div>
-							<table>
-								<thead>
+						<div class="overflow-x-auto">
+							<table class="w-full text-left text-sm">
+								<thead class="border-b border-base-300 text-xs uppercase tracking-wide text-base-content/60">
 									<tr>
-										<th>Title</th>
-										<th>Tags</th>
-										<th>Page Numbers</th>
-										<th>View Count</th>
-										<th>Is Published</th>
-										<th>Created At</th>
-										<th>Updated At</th>
-										<th>Actions</th>
+										<th class="pb-3 pr-4">Title</th>
+										<th class="pb-3 pr-4">Tags</th>
+										<th class="pb-3 pr-4">Page Numbers</th>
+										<th class="pb-3 pr-4">View Count</th>
+										<th class="pb-3 pr-4">Is Published</th>
+										<th class="pb-3 pr-4">Created At</th>
+										<th class="pb-3 pr-4">Updated At</th>
+										<th class="pb-3 pr-4">Actions</th>
 									</tr>
 								</thead>
-								<tbody>
+								<tbody class="divide-y divide-base-300">
 									for _, document := range documents {
-										<tr>
-											<td>{ document.Title }</td>
-											<td>{ strings.Join(document.Tags, ", ") }</td>
-											<td>{ fmt.Sprintf("%v", document.PageNumbers) }</td>
-											<td>{ fmt.Sprintf("%d", document.ViewCount) }</td>
-											<td>{ fmt.Sprintf("%t", document.IsPublished) }</td>
-											<td>{ document.CreatedAt.String() }</td>
-											<td>{ document.UpdatedAt.String() }</td>
-											<td>
-												<a href="/">View</a>
-												<a href="/">Edit</a>
+										<tr class="align-top">
+											<td class="py-3 pr-4 text-base-content/70">{ document.Title }</td>
+											<td class="py-3 pr-4 text-base-content/70">{ strings.Join(document.Tags, ", ") }</td>
+											<td class="py-3 pr-4 text-base-content/70">{ fmt.Sprintf("%v", document.PageNumbers) }</td>
+											<td class="py-3 pr-4 text-base-content/70">{ fmt.Sprintf("%d", document.ViewCount) }</td>
+											<td class="py-3 pr-4 text-base-content/70">{ fmt.Sprintf("%t", document.IsPublished) }</td>
+											<td class="py-3 pr-4 text-base-content/70">{ document.CreatedAt.String() }</td>
+											<td class="py-3 pr-4 text-base-content/70">{ document.UpdatedAt.String() }</td>
+											<td class="py-3 pr-4">
+												<div class="flex flex-wrap gap-3 text-sm">
+													<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
+													<a class="text-base-content/80 hover:text-base-content" href="/">Edit</a>
+												</div>
 											</td>
 										</tr>
 									}
@@ -54,197 +56,146 @@ templ DocumentIndex(documents []models.Document) {
 					}
 				</div>
 			</div>
-		</div>
+		</main>
 	}
 }
 
 templ DocumentShow(document models.Document) {
 	@base() {
-		<div>
-			<div>
-				<h1>Document Details</h1>
-				<div>
-					<a href="/">Edit</a>
-					<a href="/">Back to List</a>
+		<main class="flex-1 px-6 py-10">
+			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+				<div class="flex flex-wrap items-center justify-between gap-4">
+					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Document Details</h1>
+					<div class="flex flex-wrap gap-3">
+						<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href="/">Edit</a>
+						<a class="text-sm text-base-content/70 hover:text-base-content" href="/">Back to List</a>
+					</div>
 				</div>
-			</div>
-			<div>
-				<div>
-					<div>
-						<div>
-							<label>Title</label>
-							<p>{ document.Title }</p>
+				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
+					<div class="grid gap-5 sm:grid-cols-2">
+						<div class="space-y-1">
+							<label class="text-xs uppercase tracking-wide text-base-content/60">Title</label>
+							<p class="text-sm text-base-content">{ document.Title }</p>
 						</div>
-						<div>
-							<label>Tags</label>
-							<p>{ strings.Join(document.Tags, ", ") }</p>
+						<div class="space-y-1">
+							<label class="text-xs uppercase tracking-wide text-base-content/60">Tags</label>
+							<p class="text-sm text-base-content">{ strings.Join(document.Tags, ", ") }</p>
 						</div>
-						<div>
-							<label>Page Numbers</label>
-							<p>{ fmt.Sprintf("%v", document.PageNumbers) }</p>
+						<div class="space-y-1">
+							<label class="text-xs uppercase tracking-wide text-base-content/60">Page Numbers</label>
+							<p class="text-sm text-base-content">{ fmt.Sprintf("%v", document.PageNumbers) }</p>
 						</div>
-						<div>
-							<label>View Count</label>
-							<p>{ fmt.Sprintf("%d", document.ViewCount) }</p>
+						<div class="space-y-1">
+							<label class="text-xs uppercase tracking-wide text-base-content/60">View Count</label>
+							<p class="text-sm text-base-content">{ fmt.Sprintf("%d", document.ViewCount) }</p>
 						</div>
-						<div>
-							<label>Is Published</label>
-							<p>{ fmt.Sprintf("%t", document.IsPublished) }</p>
+						<div class="space-y-1">
+							<label class="text-xs uppercase tracking-wide text-base-content/60">Is Published</label>
+							<p class="text-sm text-base-content">{ fmt.Sprintf("%t", document.IsPublished) }</p>
 						</div>
-						<div>
-							<label>Created At</label>
-							<p>{ document.CreatedAt.String() }</p>
+						<div class="space-y-1">
+							<label class="text-xs uppercase tracking-wide text-base-content/60">Created At</label>
+							<p class="text-sm text-base-content">{ document.CreatedAt.String() }</p>
 						</div>
-						<div>
-							<label>Updated At</label>
-							<p>{ document.UpdatedAt.String() }</p>
+						<div class="space-y-1">
+							<label class="text-xs uppercase tracking-wide text-base-content/60">Updated At</label>
+							<p class="text-sm text-base-content">{ document.UpdatedAt.String() }</p>
 						</div>
 					</div>
 				</div>
 			</div>
-		</div>
+		</main>
 	}
 }
 
 templ DocumentNew() {
 	@base() {
-		<div>
-			<div>
-				<h1>New Document</h1>
-				<a href="/">Back to List</a>
-			</div>
-			<div>
-				<div>
-					<form data-on-submit={ fmt.Sprintf("@post('%s')", "/") }>
-						<div>
-							<div>
-								<h2>Document Information</h2>
-								<p>Enter the details for the new document.</p>
-								<div>
-									<div>
-										<label for="title">
-											Title
-										</label>
-										<div>
-											<input id="title" type="text" data-bind="title"/>
-										</div>
-									</div>
-									<div>
-										<label for="tags">
-											Tags
-										</label>
-										<div>
-											<input id="tags" type="text" data-bind="tags"/>
-										</div>
-									</div>
-									<div>
-										<label for="pageNumbers">
-											Page Numbers
-										</label>
-										<div>
-											<input id="pageNumbers" type="text" data-bind="pageNumbers"/>
-										</div>
-									</div>
-									<div>
-										<label for="viewCount">
-											View Count
-										</label>
-										<div>
-											<input id="viewCount" type="number" data-bind="viewCount"/>
-										</div>
-									</div>
-									<div>
-										<label for="isPublished">
-											Is Published
-										</label>
-										<div>
-											<input id="isPublished" type="checkbox" data-bind="isPublished"/>
-										</div>
-									</div>
-								</div>
+		<main class="flex-1 flex items-center justify-center px-6 py-10">
+			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
+					<form class="space-y-5" data-on:submit={ fmt.Sprintf("@post('%s')", "/") }>
+						<div class="space-y-1">
+							<h2 class="text-xl font-semibold text-base-content">New Document</h2>
+							<p class="text-sm text-base-content/60">Enter the details for the new document.</p>
+						</div>
+						<div class="space-y-4">
+							<div class="w-full space-y-1">
+								<label for="title" class="block text-sm font-medium text-base-content/80">Title</label>
+								<input id="title" type="text" data-bind="title" class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
+							</div>
+							<div class="w-full space-y-1">
+								<label for="tags" class="block text-sm font-medium text-base-content/80">Tags</label>
+								<input id="tags" type="text" data-bind="tags" class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
+							</div>
+							<div class="w-full space-y-1">
+								<label for="pageNumbers" class="block text-sm font-medium text-base-content/80">Page Numbers</label>
+								<input id="pageNumbers" type="text" data-bind="pageNumbers" class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
+							</div>
+							<div class="w-full space-y-1">
+								<label for="viewCount" class="block text-sm font-medium text-base-content/80">View Count</label>
+								<input id="viewCount" type="number" data-bind="viewCount" class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
+							</div>
+							<div class="w-full space-y-1">
+								<label for="isPublished" class="block text-sm font-medium text-base-content/80">Is Published</label>
+								<input id="isPublished" type="checkbox" data-bind="isPublished" class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
 							</div>
 						</div>
-						<div>
-							<a href="/">Cancel</a>
-							<button type="submit">Create Document</button>
-						</div>
+						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Create Document</button>
+						<p class="text-center text-sm text-base-content/60">
+							<a class="text-base-content/70 hover:text-base-content" href="/">Back to List</a>
+						</p>
 					</form>
 				</div>
 			</div>
-		</div>
+		</main>
 	}
 }
 
 templ DocumentEdit(document models.Document) {
 	@base() {
-		<div>
-			<div>
-				<h1>Edit Document</h1>
-				<a href="/">Back to List</a>
-			</div>
-			<div>
-				<div>
-					<form data-on-submit={ fmt.Sprintf("@put('%s')", "/") }>
-						<div>
-							<div>
-								<h2>Document Information</h2>
-								<p>Update the details for this document.</p>
-								<div>
-									<div>
-										<label for="title">
-											Title
-										</label>
-										<div>
-											<input id="title" type="text" data-bind="title" value={ document.Title }/>
-										</div>
-									</div>
-									<div>
-										<label for="tags">
-											Tags
-										</label>
-										<div>
-											<input id="tags" type="text" data-bind="tags" value={ strings.Join(document.Tags, ", ") }/>
-										</div>
-									</div>
-									<div>
-										<label for="pageNumbers">
-											Page Numbers
-										</label>
-										<div>
-											<input id="pageNumbers" type="text" data-bind="pageNumbers" value={ fmt.Sprintf("%v", document.PageNumbers) }/>
-										</div>
-									</div>
-									<div>
-										<label for="viewCount">
-											View Count
-										</label>
-										<div>
-											<input id="viewCount" type="number" data-bind="viewCount" value={ fmt.Sprintf("%d", document.ViewCount) }/>
-										</div>
-									</div>
-									<div>
-										<label for="isPublished">
-											Is Published
-										</label>
-										<div>
-											<input id="isPublished" type="checkbox" data-bind="isPublished" value={ fmt.Sprintf("%t", document.IsPublished) }/>
-										</div>
-									</div>
-								</div>
+		<main class="flex-1 flex items-center justify-center px-6 py-10">
+			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
+					<form class="space-y-5" data-on:submit={ fmt.Sprintf("@put('%s')", "/") }>
+						<div class="space-y-1">
+							<h2 class="text-xl font-semibold text-base-content">Edit Document</h2>
+							<p class="text-sm text-base-content/60">Update the details for this document.</p>
+						</div>
+						<div class="space-y-4">
+							<div class="w-full space-y-1">
+								<label for="title" class="block text-sm font-medium text-base-content/80">Title</label>
+								<input id="title" type="text" data-bind="title" value={ document.Title } class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
+							</div>
+							<div class="w-full space-y-1">
+								<label for="tags" class="block text-sm font-medium text-base-content/80">Tags</label>
+								<input id="tags" type="text" data-bind="tags" value={ strings.Join(document.Tags, ", ") } class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
+							</div>
+							<div class="w-full space-y-1">
+								<label for="pageNumbers" class="block text-sm font-medium text-base-content/80">Page Numbers</label>
+								<input id="pageNumbers" type="text" data-bind="pageNumbers" value={ fmt.Sprintf("%v", document.PageNumbers) } class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
+							</div>
+							<div class="w-full space-y-1">
+								<label for="viewCount" class="block text-sm font-medium text-base-content/80">View Count</label>
+								<input id="viewCount" type="number" data-bind="viewCount" value={ fmt.Sprintf("%d", document.ViewCount) } class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
+							</div>
+							<div class="w-full space-y-1">
+								<label for="isPublished" class="block text-sm font-medium text-base-content/80">Is Published</label>
+								<input id="isPublished" type="checkbox" data-bind="isPublished" value={ fmt.Sprintf("%t", document.IsPublished) } class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
 							</div>
 						</div>
-						<div>
-							<a href="/">Cancel</a>
-							<button type="submit">Update Document</button>
-						</div>
+						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Update Document</button>
+						<p class="text-center text-sm text-base-content/60">
+							<a class="text-base-content/70 hover:text-base-content" href="/">Back to List</a>
+						</p>
 					</form>
-					<div>
+					<div class="mt-4 pt-4 border-t border-base-300">
 						<button
-							data-on-click={ fmt.Sprintf("@delete('%s')", "/") }
+							class="w-full inline-flex items-center justify-center rounded-field border border-error/60 px-4 py-2.5 text-sm font-semibold text-error transition hover:border-error hover:bg-error/10"
+							data-on:click={ fmt.Sprintf("@delete('%s')", "/") }
 						>Destroy Document</button>
 					</div>
 				</div>
 			</div>
-		</div>
+		</main>
 	}
 }
