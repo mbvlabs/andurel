@@ -124,6 +124,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		}(),
 		{{- else if eq .GoType "[]byte"}}
 		{{.Name}}:    []byte(payload.{{.Name}}),
+		{{- else if eq .GoType "bool"}}
+		{{.Name}}:    payload.{{.Name}} == "on",
 		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
 			if payload.{{.Name}} == "" {
@@ -228,6 +230,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		}(),
 		{{- else if eq .GoType "[]byte"}}
 		{{.Name}}:    []byte(payload.{{.Name}}),
+		{{- else if eq .GoType "bool"}}
+		{{.Name}}:    payload.{{.Name}} == "on",
 		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
 			if payload.{{.Name}} == "" {
