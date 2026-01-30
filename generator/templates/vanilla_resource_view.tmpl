@@ -101,7 +101,9 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 	@base() {
 		<main>
 			<div>
-				<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{.ResourceName | ToLower}}.ID)) }>
+				<form 
+					data-indicator:submitting
+					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{.ResourceName | ToLower}}.ID)) }>
 					<div>
 						<h2>Edit {{.ResourceName}}</h2>
 						<p>Update the details for this {{.ResourceName | ToLower}}.</p>

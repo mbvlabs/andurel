@@ -131,7 +131,10 @@ templ OrderEdit(order models.Order) {
 	@base() {
 		<main>
 			<div>
-				<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.OrderUpdate.URL(order.ID)) }>
+				<form
+					data-indicator:submitting
+					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.OrderUpdate.URL(order.ID)) }
+				>
 					<div>
 						<h2>Edit Order</h2>
 						<p>Update the details for this order.</p>

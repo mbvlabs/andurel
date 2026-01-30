@@ -124,7 +124,10 @@ templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
 	@base() {
 		<main>
 			<div>
-				<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.StudentFeedbackUpdate.URL(studentfeedback.ID)) }>
+				<form
+					data-indicator:submitting
+					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.StudentFeedbackUpdate.URL(studentfeedback.ID)) }
+				>
 					<div>
 						<h2>Edit StudentFeedback</h2>
 						<p>Update the details for this studentfeedback.</p>

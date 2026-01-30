@@ -124,7 +124,10 @@ templ ItemEdit(item models.Item) {
 	@base() {
 		<main>
 			<div>
-				<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.ItemUpdate.URL(item.ID)) }>
+				<form
+					data-indicator:submitting
+					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.ItemUpdate.URL(item.ID)) }
+				>
 					<div>
 						<h2>Edit Item</h2>
 						<p>Update the details for this item.</p>

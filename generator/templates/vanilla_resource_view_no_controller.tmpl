@@ -71,7 +71,10 @@ templ {{.ResourceName}}New() {
 	@base() {
 		<main>
 			<div>
-				<form data-on:submit={ fmt.Sprintf("@post('%s')", "/") }>
+				<form
+				data-indicator:submitting
+				data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", "/") }
+			>
 					<div>
 						<h2>New {{.ResourceName}}</h2>
 						<p>Enter the details for the new {{.ResourceName | ToLower}}.</p>
@@ -99,7 +102,10 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 	@base() {
 		<main>
 			<div>
-				<form data-on:submit={ fmt.Sprintf("@put('%s')", "/") }>
+				<form
+				data-indicator:submitting
+				data-on:submit={ "!$submitting && " + fmt.Sprintf("@put('%s')", "/") }
+			>
 					<div>
 						<h2>Edit {{.ResourceName}}</h2>
 						<p>Update the details for this {{.ResourceName | ToLower}}.</p>

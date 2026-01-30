@@ -124,7 +124,10 @@ templ ReviewEdit(review models.Review) {
 	@base() {
 		<main>
 			<div>
-				<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.ReviewUpdate.URL(review.ID)) }>
+				<form
+					data-indicator:submitting
+					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.ReviewUpdate.URL(review.ID)) }
+				>
 					<div>
 						<h2>Edit Review</h2>
 						<p>Update the details for this review.</p>
