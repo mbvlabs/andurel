@@ -231,6 +231,13 @@ func run(ctx context.Context) error {
 		return err
 	}
 
+	go func() {
+		if err := processor.Start(ctx); err != nil {
+			slog.Error("queue processor error", "error", err)
+			cancel()
+		}
+	}()
+
 {{- range .Blueprint.Main.SortedPreRunHooks}}
 	// Pre-run hook: {{.Name}}
 	{{.Code}}
