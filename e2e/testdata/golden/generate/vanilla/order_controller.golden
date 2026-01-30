@@ -1,0 +1,240 @@
+package controllers
+
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+	"strconv"
+
+	"testapp/internal/storage"
+	"testapp/models"
+	"testapp/router/cookies"
+	"testapp/router/routes"
+	"testapp/views"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v5"
+)
+
+type Orders struct {
+	db storage.Pool
+}
+
+func NewOrders(db storage.Pool) Orders {
+	return Orders{db}
+}
+
+func (o Orders) Index(etx *echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	ordersList, err := models.PaginateOrders(
+		etx.Request().Context(),
+		o.db.Conn(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return render(etx, views.OrderIndex(ordersList.Orders))
+}
+
+func (o Orders) Show(etx *echo.Context) error {
+	orderID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	order, err := models.FindOrder(etx.Request().Context(), o.db.Conn(), orderID)
+	if err != nil {
+		return render(etx, views.NotFound())
+	}
+
+	return render(etx, views.OrderShow(order))
+}
+
+func (o Orders) New(etx *echo.Context) error {
+	return render(etx, views.OrderNew())
+}
+
+type CreateOrderFormPayload struct {
+	AccountID    string  `json:"accountId"`
+	CustomerName string  `json:"customerName"`
+	Total        float64 `json:"total"`
+	Signature    string  `json:"signature"`
+}
+
+func (o Orders) Create(etx *echo.Context) error {
+	var payload CreateOrderFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse CreateOrderFormPayload",
+			"error",
+			err,
+		)
+
+		return render(etx, views.NotFound())
+	}
+
+	data := models.CreateOrderData{
+		AccountID: func() uuid.UUID {
+			if payload.AccountID == "" {
+				return uuid.Nil
+			}
+			parsed, err := uuid.Parse(payload.AccountID)
+			if err != nil {
+				slog.WarnContext(
+					etx.Request().Context(),
+					"could not parse AccountID, setting to nil UUID",
+					"error",
+					err,
+				)
+				return uuid.Nil
+			}
+
+			return parsed
+		}(),
+		CustomerName: payload.CustomerName,
+		Total:        payload.Total,
+		Signature:    []byte(payload.Signature),
+	}
+
+	order, err := models.CreateOrder(
+		etx.Request().Context(),
+		o.db.Conn(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create order: %v", err)); flashErr != nil {
+			return flashErr
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.OrderNew.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Order created successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.OrderShow.URL(order.ID))
+}
+
+func (o Orders) Edit(etx *echo.Context) error {
+	orderID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	order, err := models.FindOrder(etx.Request().Context(), o.db.Conn(), orderID)
+	if err != nil {
+		return render(etx, views.NotFound())
+	}
+
+	return render(etx, views.OrderEdit(order))
+}
+
+type UpdateOrderFormPayload struct {
+	AccountID    string  `json:"accountId"`
+	CustomerName string  `json:"customerName"`
+	Total        float64 `json:"total"`
+	Signature    string  `json:"signature"`
+}
+
+func (o Orders) Update(etx *echo.Context) error {
+	orderID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	var payload UpdateOrderFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse UpdateOrderFormPayload",
+			"error",
+			err,
+		)
+
+		return render(etx, views.NotFound())
+	}
+
+	data := models.UpdateOrderData{
+		ID: orderID,
+		AccountID: func() uuid.UUID {
+			if payload.AccountID == "" {
+				return uuid.Nil
+			}
+			parsed, err := uuid.Parse(payload.AccountID)
+			if err != nil {
+				slog.WarnContext(
+					etx.Request().Context(),
+					"could not parse AccountID, setting to nil UUID",
+					"error",
+					err,
+				)
+				return uuid.Nil
+			}
+
+			return parsed
+		}(),
+		CustomerName: payload.CustomerName,
+		Total:        payload.Total,
+		Signature:    []byte(payload.Signature),
+	}
+
+	order, err := models.UpdateOrder(
+		etx.Request().Context(),
+		o.db.Conn(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update order: %v", err)); flashErr != nil {
+			return render(etx, views.InternalError())
+		}
+		return etx.Redirect(
+			http.StatusSeeOther,
+			routes.OrderEdit.URL(orderID),
+		)
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Order updated successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.OrderShow.URL(order.ID))
+}
+
+func (o Orders) Destroy(etx *echo.Context) error {
+	orderID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+
+	err = models.DestroyOrder(etx.Request().Context(), o.db.Conn(), orderID)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete order: %v", err)); flashErr != nil {
+			return render(etx, views.InternalError())
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.OrderIndex.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Order destroyed successfully"); flashErr != nil {
+		return render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.OrderIndex.URL())
+}

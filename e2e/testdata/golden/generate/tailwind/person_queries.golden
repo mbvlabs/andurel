@@ -1,0 +1,37 @@
+-- name: QueryPersonByID :one
+select * from people_data where id=$1;
+
+-- name: QueryPerson :many
+select * from people_data;
+
+-- name: InsertPerson :one
+insert into
+    people_data (id, first_name, last_name, email, created_at, updated_at)
+values
+    ($1, $2, $3, $4, now(), now())
+returning *;
+
+-- name: UpdatePerson :one
+update people_data
+    set first_name=$2, last_name=$3, email=$4, updated_at=now()
+where id = $1
+returning *;
+
+-- name: DeletePerson :exec
+delete from people_data where id=$1;
+
+-- name: QueryPaginatedPerson :many
+select * from people_data
+order by created_at desc
+limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
+
+-- name: CountPerson :one
+select count(*) from people_data;
+
+-- name: UpsertPerson :one
+insert into
+    people_data (id, first_name, last_name, email, created_at, updated_at)
+values
+    ($1, $2, $3, $4, now(), now())
+on conflict (id) do update set first_name=excluded.first_name, last_name=excluded.last_name, email=excluded.email, updated_at=now()
+returning *;

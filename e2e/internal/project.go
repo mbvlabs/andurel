@@ -13,6 +13,7 @@ type Project struct {
 	T            *testing.T
 	BinaryPath   string
 	Database     string
+	CSS          string
 	SharedBinDir string
 }
 

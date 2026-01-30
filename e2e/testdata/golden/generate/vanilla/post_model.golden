@@ -1,0 +1,227 @@
+package models
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+
+	"testapp/internal/storage"
+	"testapp/models/internal/db"
+)
+
+type Post struct {
+	ID        uuid.UUID
+	Title     string
+	Tags      []string
+	Scores    []int32
+	Settings  []byte
+	Metadata  []byte
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func FindPost(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) (Post, error) {
+	row, err := queries.QueryPostByID(ctx, exec, id)
+	if err != nil {
+		return Post{}, err
+	}
+
+	return rowToPost(row), nil
+}
+
+type CreatePostData struct {
+	Title    string
+	Tags     []string
+	Scores   []int32
+	Settings []byte
+	Metadata []byte
+}
+
+func CreatePost(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreatePostData,
+) (Post, error) {
+	if err := Validate.Struct(data); err != nil {
+		return Post{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.InsertPostParams{
+		ID:       uuid.New(),
+		Title:    data.Title,
+		Tags:     data.Tags,
+		Scores:   data.Scores,
+		Settings: data.Settings,
+		Metadata: data.Metadata,
+	}
+	row, err := queries.InsertPost(ctx, exec, params)
+	if err != nil {
+		return Post{}, err
+	}
+
+	return rowToPost(row), nil
+}
+
+type UpdatePostData struct {
+	ID        uuid.UUID
+	Title     string
+	Tags      []string
+	Scores    []int32
+	Settings  []byte
+	Metadata  []byte
+	UpdatedAt time.Time
+}
+
+func UpdatePost(
+	ctx context.Context,
+	exec storage.Executor,
+	data UpdatePostData,
+) (Post, error) {
+	if err := Validate.Struct(data); err != nil {
+		return Post{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpdatePostParams{
+		ID:       data.ID,
+		Title:    data.Title,
+		Tags:     data.Tags,
+		Scores:   data.Scores,
+		Settings: data.Settings,
+		Metadata: data.Metadata,
+	}
+
+	row, err := queries.UpdatePost(ctx, exec, params)
+	if err != nil {
+		return Post{}, err
+	}
+
+	return rowToPost(row), nil
+}
+
+func DestroyPost(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) error {
+	return queries.DeletePost(ctx, exec, id)
+}
+
+func AllPosts(
+	ctx context.Context,
+	exec storage.Executor,
+) ([]Post, error) {
+	rows, err := queries.QueryPosts(ctx, exec)
+	if err != nil {
+		return nil, err
+	}
+
+	posts := make([]Post, len(rows))
+	for i, row := range rows {
+		posts[i] = rowToPost(row)
+	}
+
+	return posts, nil
+}
+
+type PaginatedPosts struct {
+	Posts      []Post
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func PaginatePosts(
+	ctx context.Context,
+	exec storage.Executor,
+	page int64,
+	pageSize int64,
+) (PaginatedPosts, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := queries.CountPosts(ctx, exec)
+	if err != nil {
+		return PaginatedPosts{}, err
+	}
+
+	rows, err := queries.QueryPaginatedPosts(
+		ctx,
+		exec,
+		db.QueryPaginatedPostsParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
+	)
+	if err != nil {
+		return PaginatedPosts{}, err
+	}
+
+	posts := make([]Post, len(rows))
+	for i, row := range rows {
+		posts[i] = rowToPost(row)
+	}
+
+	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+
+	return PaginatedPosts{
+		Posts:      posts,
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func UpsertPost(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreatePostData,
+) (Post, error) {
+	if err := Validate.Struct(data); err != nil {
+		return Post{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpsertPostParams{
+		ID:       uuid.New(),
+		Title:    data.Title,
+		Tags:     data.Tags,
+		Scores:   data.Scores,
+		Settings: data.Settings,
+		Metadata: data.Metadata,
+	}
+	row, err := queries.UpsertPost(ctx, exec, params)
+	if err != nil {
+		return Post{}, err
+	}
+
+	return rowToPost(row), nil
+}
+
+func rowToPost(row db.Post) Post {
+	return Post{
+		ID:        row.ID,
+		Title:     row.Title,
+		Tags:      row.Tags,
+		Scores:    row.Scores,
+		Settings:  row.Settings,
+		Metadata:  row.Metadata,
+		CreatedAt: row.CreatedAt.Time,
+		UpdatedAt: row.UpdatedAt.Time,
+	}
+}

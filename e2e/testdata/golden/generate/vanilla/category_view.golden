@@ -1,0 +1,155 @@
+package views
+
+import (
+	"fmt"
+	"testapp/models"
+)
+
+templ CategoryIndex(categories []models.Category) {
+	@base() {
+		<main>
+			<div>
+				<h1>Categories</h1>
+				<a href="/">New Category</a>
+			</div>
+			<div>
+				if len(categories) == 0 {
+					<p>No categories found.</p>
+				} else {
+					<div>
+						<table>
+							<thead>
+								<tr>
+									<th>Name</th>
+									<th>Description</th>
+									<th>Created At</th>
+									<th>Updated At</th>
+									<th>Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, category := range categories {
+									<tr>
+										<td>{ category.Name }</td>
+										<td>{ category.Description }</td>
+										<td>{ category.CreatedAt.String() }</td>
+										<td>{ category.UpdatedAt.String() }</td>
+										<td>
+											<a href="/">View</a>
+											<a href="/">Edit</a>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+		</main>
+	}
+}
+
+templ CategoryShow(category models.Category) {
+	@base() {
+		<main>
+			<div>
+				<h1>Category Details</h1>
+				<div>
+					<a href="/">Edit</a>
+					<a href="/">Back to List</a>
+				</div>
+			</div>
+			<div>
+				<div>
+					<div>
+						<label>Name</label>
+						<p>{ category.Name }</p>
+					</div>
+					<div>
+						<label>Description</label>
+						<p>{ category.Description }</p>
+					</div>
+					<div>
+						<label>Created At</label>
+						<p>{ category.CreatedAt.String() }</p>
+					</div>
+					<div>
+						<label>Updated At</label>
+						<p>{ category.UpdatedAt.String() }</p>
+					</div>
+				</div>
+			</div>
+		</main>
+	}
+}
+
+templ CategoryNew() {
+	@base() {
+		<main>
+			<div>
+				<form data-on:submit={ fmt.Sprintf("@post('%s')", "/") }>
+					<div>
+						<h2>New Category</h2>
+						<p>Enter the details for the new category.</p>
+					</div>
+					<div>
+						<div>
+							<label for="name">Name</label>
+							<div>
+								<input id="name" type="text" data-bind="name"/>
+							</div>
+						</div>
+						<div>
+							<label for="description">Description</label>
+							<div>
+								<input id="description" type="text" data-bind="description"/>
+							</div>
+						</div>
+					</div>
+					<div>
+						<a href="/">Cancel</a>
+						<button type="submit">Create Category</button>
+					</div>
+				</form>
+			</div>
+		</main>
+	}
+}
+
+templ CategoryEdit(category models.Category) {
+	@base() {
+		<main>
+			<div>
+				<form data-on:submit={ fmt.Sprintf("@put('%s')", "/") }>
+					<div>
+						<h2>Edit Category</h2>
+						<p>Update the details for this category.</p>
+					</div>
+					<div>
+						<div>
+							<label for="name">Name</label>
+							<div>
+								<input id="name" type="text" data-bind="name" value={ category.Name }/>
+							</div>
+						</div>
+						<div>
+							<label for="description">Description</label>
+							<div>
+								<input id="description" type="text" data-bind="description" value={ category.Description }/>
+							</div>
+						</div>
+					</div>
+					<div>
+						<a href="/">Cancel</a>
+						<button type="submit">Update Category</button>
+					</div>
+				</form>
+				<div>
+					<button
+						data-on:click={ fmt.Sprintf("@delete('%s')", "/") }
+					>Destroy Category</button>
+				</div>
+			</div>
+		</main>
+	}
+}

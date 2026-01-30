@@ -1,0 +1,206 @@
+package models
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+
+	"testapp/internal/storage"
+	"testapp/models/internal/db"
+)
+
+type Product struct {
+	ID        uuid.UUID
+	Name      string
+	Price     float64
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func FindProduct(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) (Product, error) {
+	row, err := queries.QueryProductByID(ctx, exec, id)
+	if err != nil {
+		return Product{}, err
+	}
+
+	return rowToProduct(row), nil
+}
+
+type CreateProductData struct {
+	Name  string
+	Price float64
+}
+
+func CreateProduct(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateProductData,
+) (Product, error) {
+	if err := Validate.Struct(data); err != nil {
+		return Product{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.InsertProductParams{
+		ID:    uuid.New(),
+		Name:  data.Name,
+		Price: data.Price,
+	}
+	row, err := queries.InsertProduct(ctx, exec, params)
+	if err != nil {
+		return Product{}, err
+	}
+
+	return rowToProduct(row), nil
+}
+
+type UpdateProductData struct {
+	ID        uuid.UUID
+	Name      string
+	Price     float64
+	UpdatedAt time.Time
+}
+
+func UpdateProduct(
+	ctx context.Context,
+	exec storage.Executor,
+	data UpdateProductData,
+) (Product, error) {
+	if err := Validate.Struct(data); err != nil {
+		return Product{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpdateProductParams{
+		ID:    data.ID,
+		Name:  data.Name,
+		Price: data.Price,
+	}
+
+	row, err := queries.UpdateProduct(ctx, exec, params)
+	if err != nil {
+		return Product{}, err
+	}
+
+	return rowToProduct(row), nil
+}
+
+func DestroyProduct(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) error {
+	return queries.DeleteProduct(ctx, exec, id)
+}
+
+func AllProducts(
+	ctx context.Context,
+	exec storage.Executor,
+) ([]Product, error) {
+	rows, err := queries.QueryProducts(ctx, exec)
+	if err != nil {
+		return nil, err
+	}
+
+	products := make([]Product, len(rows))
+	for i, row := range rows {
+		products[i] = rowToProduct(row)
+	}
+
+	return products, nil
+}
+
+type PaginatedProducts struct {
+	Products   []Product
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func PaginateProducts(
+	ctx context.Context,
+	exec storage.Executor,
+	page int64,
+	pageSize int64,
+) (PaginatedProducts, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := queries.CountProducts(ctx, exec)
+	if err != nil {
+		return PaginatedProducts{}, err
+	}
+
+	rows, err := queries.QueryPaginatedProducts(
+		ctx,
+		exec,
+		db.QueryPaginatedProductsParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
+	)
+	if err != nil {
+		return PaginatedProducts{}, err
+	}
+
+	products := make([]Product, len(rows))
+	for i, row := range rows {
+		products[i] = rowToProduct(row)
+	}
+
+	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+
+	return PaginatedProducts{
+		Products:   products,
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func UpsertProduct(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateProductData,
+) (Product, error) {
+	if err := Validate.Struct(data); err != nil {
+		return Product{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpsertProductParams{
+		ID:    uuid.New(),
+		Name:  data.Name,
+		Price: data.Price,
+	}
+	row, err := queries.UpsertProduct(ctx, exec, params)
+	if err != nil {
+		return Product{}, err
+	}
+
+	return rowToProduct(row), nil
+}
+
+func rowToProduct(row db.Product) Product {
+	return Product{
+		ID:        row.ID,
+		Name:      row.Name,
+		Price:     row.Price,
+		CreatedAt: row.CreatedAt.Time,
+		UpdatedAt: row.UpdatedAt.Time,
+	}
+}

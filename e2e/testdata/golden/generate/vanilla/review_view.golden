@@ -1,0 +1,156 @@
+package views
+
+import (
+	"fmt"
+	"net/http"
+	"testapp/internal/hypermedia"
+	"testapp/models"
+	"testapp/router/routes"
+	"testapp/views/components"
+)
+
+templ ReviewIndex(reviews []models.Review) {
+	@base() {
+		<main>
+			<div>
+				<h1>Reviews</h1>
+				<a href={ templ.URL(routes.ReviewNew.URL()) }>New Review</a>
+			</div>
+			<div>
+				if len(reviews) == 0 {
+					<p>No reviews found.</p>
+				} else {
+					<div>
+						<table>
+							<thead>
+								<tr>
+									<th>Title</th>
+									<th>Body</th>
+									<th>Rating</th>
+									<th>Created At</th>
+									<th>Updated At</th>
+									<th>Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, review := range reviews {
+									<tr>
+										<td>{ review.Title }</td>
+										<td>{ review.Body }</td>
+										<td>{ fmt.Sprintf("%d", review.Rating) }</td>
+										<td>{ review.CreatedAt.String() }</td>
+										<td>{ review.UpdatedAt.String() }</td>
+										<td>
+											<a href={ templ.URL(routes.ReviewShow.URL(review.ID)) }>View</a>
+											<a href={ templ.URL(routes.ReviewEdit.URL(review.ID)) }>Edit</a>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+		</main>
+	}
+}
+
+templ ReviewShow(review models.Review) {
+	@base() {
+		<main>
+			<div>
+				<h1>Review Details</h1>
+				<div>
+					<a href={ templ.URL(routes.ReviewEdit.URL(review.ID)) }>Edit</a>
+					<a href={ templ.URL(routes.ReviewIndex.URL()) }>Back to List</a>
+				</div>
+			</div>
+			<div>
+				<div>
+					<div>
+						<label>Title</label>
+						<p>{ review.Title }</p>
+					</div>
+					<div>
+						<label>Body</label>
+						<p>{ review.Body }</p>
+					</div>
+					<div>
+						<label>Rating</label>
+						<p>{ fmt.Sprintf("%d", review.Rating) }</p>
+					</div>
+					<div>
+						<label>Created At</label>
+						<p>{ review.CreatedAt.String() }</p>
+					</div>
+					<div>
+						<label>Updated At</label>
+						<p>{ review.UpdatedAt.String() }</p>
+					</div>
+				</div>
+			</div>
+		</main>
+	}
+}
+
+templ ReviewNew() {
+	@base() {
+		<main>
+			<div>
+				<form
+					data-indicator:submitting
+					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.ReviewCreate.URL()) }
+				>
+					<div>
+						<h2>New Review</h2>
+						<p>Enter the details for the new review.</p>
+					</div>
+					<div>
+						@components.InputField("Title", "title", "text", "", false, components.FieldProp{})
+						@components.InputField("Body", "body", "text", "", false, components.FieldProp{})
+						@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{})
+					</div>
+					@components.SubmitButton("Create Review")
+					<p>
+						<a href={ templ.URL(routes.ReviewIndex.URL()) }>Back to List</a>
+					</p>
+				</form>
+			</div>
+		</main>
+	}
+}
+
+templ ReviewEdit(review models.Review) {
+	@base() {
+		<main>
+			<div>
+				<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.ReviewUpdate.URL(review.ID)) }>
+					<div>
+						<h2>Edit Review</h2>
+						<p>Update the details for this review.</p>
+					</div>
+					<div>
+						@components.InputField("Title", "title", "text", "", false, components.FieldProp{
+							Value: review.Title,
+						})
+						@components.InputField("Body", "body", "text", "", false, components.FieldProp{
+							Value: review.Body,
+						})
+						@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{
+							Value: fmt.Sprintf("%d", review.Rating),
+						})
+					</div>
+					@components.SubmitButton("Update Review")
+					<p>
+						<a href={ templ.URL(routes.ReviewIndex.URL()) }>Back to List</a>
+					</p>
+				</form>
+				<div>
+					<button
+						data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ReviewDestroy.URL(review.ID)) }
+					>Destroy Review</button>
+				</div>
+			</div>
+		</main>
+	}
+}

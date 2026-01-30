@@ -1,0 +1,156 @@
+package views
+
+import (
+	"fmt"
+	"net/http"
+	"testapp/internal/hypermedia"
+	"testapp/models"
+	"testapp/router/routes"
+	"testapp/views/components"
+)
+
+templ ItemIndex(items []models.Item) {
+	@base() {
+		<main>
+			<div>
+				<h1>Items</h1>
+				<a href={ templ.URL(routes.ItemNew.URL()) }>New Item</a>
+			</div>
+			<div>
+				if len(items) == 0 {
+					<p>No items found.</p>
+				} else {
+					<div>
+						<table>
+							<thead>
+								<tr>
+									<th>Warehouse Id</th>
+									<th>Name</th>
+									<th>Quantity</th>
+									<th>Created At</th>
+									<th>Updated At</th>
+									<th>Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, item := range items {
+									<tr>
+										<td>{ item.WarehouseID.String() }</td>
+										<td>{ item.Name }</td>
+										<td>{ fmt.Sprintf("%d", item.Quantity) }</td>
+										<td>{ item.CreatedAt.String() }</td>
+										<td>{ item.UpdatedAt.String() }</td>
+										<td>
+											<a href={ templ.URL(routes.ItemShow.URL(item.ID)) }>View</a>
+											<a href={ templ.URL(routes.ItemEdit.URL(item.ID)) }>Edit</a>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+		</main>
+	}
+}
+
+templ ItemShow(item models.Item) {
+	@base() {
+		<main>
+			<div>
+				<h1>Item Details</h1>
+				<div>
+					<a href={ templ.URL(routes.ItemEdit.URL(item.ID)) }>Edit</a>
+					<a href={ templ.URL(routes.ItemIndex.URL()) }>Back to List</a>
+				</div>
+			</div>
+			<div>
+				<div>
+					<div>
+						<label>Warehouse Id</label>
+						<p>{ item.WarehouseID.String() }</p>
+					</div>
+					<div>
+						<label>Name</label>
+						<p>{ item.Name }</p>
+					</div>
+					<div>
+						<label>Quantity</label>
+						<p>{ fmt.Sprintf("%d", item.Quantity) }</p>
+					</div>
+					<div>
+						<label>Created At</label>
+						<p>{ item.CreatedAt.String() }</p>
+					</div>
+					<div>
+						<label>Updated At</label>
+						<p>{ item.UpdatedAt.String() }</p>
+					</div>
+				</div>
+			</div>
+		</main>
+	}
+}
+
+templ ItemNew() {
+	@base() {
+		<main>
+			<div>
+				<form
+					data-indicator:submitting
+					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.ItemCreate.URL()) }
+				>
+					<div>
+						<h2>New Item</h2>
+						<p>Enter the details for the new item.</p>
+					</div>
+					<div>
+						@components.InputField("Warehouse Id", "warehouseId", "text", "", false, components.FieldProp{})
+						@components.InputField("Name", "name", "text", "", false, components.FieldProp{})
+						@components.InputField("Quantity", "quantity", "number", "", false, components.FieldProp{})
+					</div>
+					@components.SubmitButton("Create Item")
+					<p>
+						<a href={ templ.URL(routes.ItemIndex.URL()) }>Back to List</a>
+					</p>
+				</form>
+			</div>
+		</main>
+	}
+}
+
+templ ItemEdit(item models.Item) {
+	@base() {
+		<main>
+			<div>
+				<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.ItemUpdate.URL(item.ID)) }>
+					<div>
+						<h2>Edit Item</h2>
+						<p>Update the details for this item.</p>
+					</div>
+					<div>
+						@components.InputField("Warehouse Id", "warehouseId", "text", "", false, components.FieldProp{
+							Value: item.WarehouseID.String(),
+						})
+						@components.InputField("Name", "name", "text", "", false, components.FieldProp{
+							Value: item.Name,
+						})
+						@components.InputField("Quantity", "quantity", "number", "", false, components.FieldProp{
+							Value: fmt.Sprintf("%d", item.Quantity),
+						})
+					</div>
+					@components.SubmitButton("Update Item")
+					<p>
+						<a href={ templ.URL(routes.ItemIndex.URL()) }>Back to List</a>
+					</p>
+				</form>
+				<div>
+					<button
+						data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ItemDestroy.URL(item.ID)) }
+					>Destroy Item</button>
+				</div>
+			</div>
+		</main>
+	}
+}

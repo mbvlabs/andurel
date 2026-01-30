@@ -1,0 +1,37 @@
+-- name: QueryBookByID :one
+select * from books where id=$1;
+
+-- name: QueryBooks :many
+select * from books;
+
+-- name: InsertBook :one
+insert into
+    books (id, title, author, price, pages, created_at, updated_at)
+values
+    ($1, $2, $3, $4, $5, now(), now())
+returning *;
+
+-- name: UpdateBook :one
+update books
+    set title=$2, author=$3, price=$4, pages=$5, updated_at=now()
+where id = $1
+returning *;
+
+-- name: DeleteBook :exec
+delete from books where id=$1;
+
+-- name: QueryPaginatedBooks :many
+select * from books
+order by created_at desc
+limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
+
+-- name: CountBooks :one
+select count(*) from books;
+
+-- name: UpsertBook :one
+insert into
+    books (id, title, author, price, pages, created_at, updated_at)
+values
+    ($1, $2, $3, $4, $5, now(), now())
+on conflict (id) do update set title=excluded.title, author=excluded.author, price=excluded.price, pages=excluded.pages, updated_at=now()
+returning *;

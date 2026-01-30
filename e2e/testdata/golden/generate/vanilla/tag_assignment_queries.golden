@@ -1,0 +1,29 @@
+-- name: QueryTagAssignmentByID :one
+select * from tag_assignments where id=$1;
+
+-- name: QueryTagAssignment :many
+select * from tag_assignments;
+
+-- name: InsertTagAssignment :one
+insert into
+    tag_assignments (id, taggable_type, taggable_id, tag_id)
+values
+    ($1, $2, $3, $4)
+returning *;
+
+-- name: UpdateTagAssignment :one
+update tag_assignments
+    set taggable_type=$2, taggable_id=$3, tag_id=$4
+where id = $1
+returning *;
+
+-- name: DeleteTagAssignment :exec
+delete from tag_assignments where id=$1;
+
+-- name: UpsertTagAssignment :one
+insert into
+    tag_assignments (id, taggable_type, taggable_id, tag_id)
+values
+    ($1, $2, $3, $4)
+on conflict (id) do update set taggable_type=excluded.taggable_type, taggable_id=excluded.taggable_id, tag_id=excluded.tag_id
+returning *;

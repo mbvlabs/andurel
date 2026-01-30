@@ -1,0 +1,156 @@
+package views
+
+import (
+	"fmt"
+	"net/http"
+	"testapp/internal/hypermedia"
+	"testapp/models"
+	"testapp/router/routes"
+	"testapp/views/components"
+)
+
+templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
+	@base() {
+		<main>
+			<div>
+				<h1>StudentFeedbacks</h1>
+				<a href={ templ.URL(routes.StudentFeedbackNew.URL()) }>New StudentFeedback</a>
+			</div>
+			<div>
+				if len(student_feedbacks) == 0 {
+					<p>No student_feedbacks found.</p>
+				} else {
+					<div>
+						<table>
+							<thead>
+								<tr>
+									<th>Student Id</th>
+									<th>Feedback</th>
+									<th>Rating</th>
+									<th>Created At</th>
+									<th>Updated At</th>
+									<th>Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, studentfeedback := range student_feedbacks {
+									<tr>
+										<td>{ studentfeedback.StudentID }</td>
+										<td>{ studentfeedback.Feedback }</td>
+										<td>{ fmt.Sprintf("%d", studentfeedback.Rating) }</td>
+										<td>{ studentfeedback.CreatedAt.String() }</td>
+										<td>{ studentfeedback.UpdatedAt.String() }</td>
+										<td>
+											<a href={ templ.URL(routes.StudentFeedbackShow.URL(studentfeedback.ID)) }>View</a>
+											<a href={ templ.URL(routes.StudentFeedbackEdit.URL(studentfeedback.ID)) }>Edit</a>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+		</main>
+	}
+}
+
+templ StudentFeedbackShow(studentfeedback models.StudentFeedback) {
+	@base() {
+		<main>
+			<div>
+				<h1>StudentFeedback Details</h1>
+				<div>
+					<a href={ templ.URL(routes.StudentFeedbackEdit.URL(studentfeedback.ID)) }>Edit</a>
+					<a href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+				</div>
+			</div>
+			<div>
+				<div>
+					<div>
+						<label>Student Id</label>
+						<p>{ studentfeedback.StudentID }</p>
+					</div>
+					<div>
+						<label>Feedback</label>
+						<p>{ studentfeedback.Feedback }</p>
+					</div>
+					<div>
+						<label>Rating</label>
+						<p>{ fmt.Sprintf("%d", studentfeedback.Rating) }</p>
+					</div>
+					<div>
+						<label>Created At</label>
+						<p>{ studentfeedback.CreatedAt.String() }</p>
+					</div>
+					<div>
+						<label>Updated At</label>
+						<p>{ studentfeedback.UpdatedAt.String() }</p>
+					</div>
+				</div>
+			</div>
+		</main>
+	}
+}
+
+templ StudentFeedbackNew() {
+	@base() {
+		<main>
+			<div>
+				<form
+					data-indicator:submitting
+					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.StudentFeedbackCreate.URL()) }
+				>
+					<div>
+						<h2>New StudentFeedback</h2>
+						<p>Enter the details for the new studentfeedback.</p>
+					</div>
+					<div>
+						@components.InputField("Student Id", "studentId", "text", "", false, components.FieldProp{})
+						@components.InputField("Feedback", "feedback", "text", "", false, components.FieldProp{})
+						@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{})
+					</div>
+					@components.SubmitButton("Create StudentFeedback")
+					<p>
+						<a href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+					</p>
+				</form>
+			</div>
+		</main>
+	}
+}
+
+templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
+	@base() {
+		<main>
+			<div>
+				<form data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.StudentFeedbackUpdate.URL(studentfeedback.ID)) }>
+					<div>
+						<h2>Edit StudentFeedback</h2>
+						<p>Update the details for this studentfeedback.</p>
+					</div>
+					<div>
+						@components.InputField("Student Id", "studentId", "text", "", false, components.FieldProp{
+							Value: studentfeedback.StudentID,
+						})
+						@components.InputField("Feedback", "feedback", "text", "", false, components.FieldProp{
+							Value: studentfeedback.Feedback,
+						})
+						@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{
+							Value: fmt.Sprintf("%d", studentfeedback.Rating),
+						})
+					</div>
+					@components.SubmitButton("Update StudentFeedback")
+					<p>
+						<a href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+					</p>
+				</form>
+				<div>
+					<button
+						data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.StudentFeedbackDestroy.URL(studentfeedback.ID)) }
+					>Destroy StudentFeedback</button>
+				</div>
+			</div>
+		</main>
+	}
+}

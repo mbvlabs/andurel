@@ -1,0 +1,87 @@
+package router
+
+import (
+	"errors"
+	"net/http"
+
+	"testapp/controllers"
+	"testapp/router/routes"
+
+	"github.com/labstack/echo/v5"
+)
+
+func (r Router) RegisterInvoiceRoutes(invoice controllers.Invoices) error {
+	errs := []error{}
+
+	_, err := r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.InvoiceIndex.Path(),
+		Name:    routes.InvoiceIndex.Name(),
+		Handler: invoice.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.InvoiceShow.Path(),
+		Name:    routes.InvoiceShow.Name(),
+		Handler: invoice.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.InvoiceNew.Path(),
+		Name:    routes.InvoiceNew.Name(),
+		Handler: invoice.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.InvoiceCreate.Path(),
+		Name:    routes.InvoiceCreate.Name(),
+		Handler: invoice.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.InvoiceEdit.Path(),
+		Name:    routes.InvoiceEdit.Name(),
+		Handler: invoice.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.InvoiceUpdate.Path(),
+		Name:    routes.InvoiceUpdate.Name(),
+		Handler: invoice.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.InvoiceDestroy.Path(),
+		Name:    routes.InvoiceDestroy.Name(),
+		Handler: invoice.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}

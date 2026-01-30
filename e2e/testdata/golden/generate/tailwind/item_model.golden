@@ -1,0 +1,214 @@
+package models
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"testapp/internal/storage"
+	"testapp/models/internal/db"
+)
+
+type Item struct {
+	ID          uuid.UUID
+	WarehouseID uuid.UUID
+	Name        string
+	Quantity    int32
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+func FindItem(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) (Item, error) {
+	row, err := queries.QueryItemByID(ctx, exec, id)
+	if err != nil {
+		return Item{}, err
+	}
+
+	return rowToItem(row), nil
+}
+
+type CreateItemData struct {
+	WarehouseID uuid.UUID
+	Name        string
+	Quantity    int32
+}
+
+func CreateItem(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateItemData,
+) (Item, error) {
+	if err := Validate.Struct(data); err != nil {
+		return Item{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.InsertItemParams{
+		ID:          uuid.New(),
+		WarehouseID: pgtype.UUID{Bytes: data.WarehouseID, Valid: true},
+		Name:        data.Name,
+		Quantity:    pgtype.Int4{Int32: data.Quantity, Valid: true},
+	}
+	row, err := queries.InsertItem(ctx, exec, params)
+	if err != nil {
+		return Item{}, err
+	}
+
+	return rowToItem(row), nil
+}
+
+type UpdateItemData struct {
+	ID          uuid.UUID
+	WarehouseID uuid.UUID
+	Name        string
+	Quantity    int32
+	UpdatedAt   time.Time
+}
+
+func UpdateItem(
+	ctx context.Context,
+	exec storage.Executor,
+	data UpdateItemData,
+) (Item, error) {
+	if err := Validate.Struct(data); err != nil {
+		return Item{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpdateItemParams{
+		ID:          data.ID,
+		WarehouseID: pgtype.UUID{Bytes: data.WarehouseID, Valid: true},
+		Name:        data.Name,
+		Quantity:    pgtype.Int4{Int32: data.Quantity, Valid: true},
+	}
+
+	row, err := queries.UpdateItem(ctx, exec, params)
+	if err != nil {
+		return Item{}, err
+	}
+
+	return rowToItem(row), nil
+}
+
+func DestroyItem(
+	ctx context.Context,
+	exec storage.Executor,
+	id uuid.UUID,
+) error {
+	return queries.DeleteItem(ctx, exec, id)
+}
+
+func AllItems(
+	ctx context.Context,
+	exec storage.Executor,
+) ([]Item, error) {
+	rows, err := queries.QueryItems(ctx, exec)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]Item, len(rows))
+	for i, row := range rows {
+		items[i] = rowToItem(row)
+	}
+
+	return items, nil
+}
+
+type PaginatedItems struct {
+	Items      []Item
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func PaginateItems(
+	ctx context.Context,
+	exec storage.Executor,
+	page int64,
+	pageSize int64,
+) (PaginatedItems, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := queries.CountItems(ctx, exec)
+	if err != nil {
+		return PaginatedItems{}, err
+	}
+
+	rows, err := queries.QueryPaginatedItems(
+		ctx,
+		exec,
+		db.QueryPaginatedItemsParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
+	)
+	if err != nil {
+		return PaginatedItems{}, err
+	}
+
+	items := make([]Item, len(rows))
+	for i, row := range rows {
+		items[i] = rowToItem(row)
+	}
+
+	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+
+	return PaginatedItems{
+		Items:      items,
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func UpsertItem(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateItemData,
+) (Item, error) {
+	if err := Validate.Struct(data); err != nil {
+		return Item{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpsertItemParams{
+		ID:          uuid.New(),
+		WarehouseID: pgtype.UUID{Bytes: data.WarehouseID, Valid: true},
+		Name:        data.Name,
+		Quantity:    pgtype.Int4{Int32: data.Quantity, Valid: true},
+	}
+	row, err := queries.UpsertItem(ctx, exec, params)
+	if err != nil {
+		return Item{}, err
+	}
+
+	return rowToItem(row), nil
+}
+
+func rowToItem(row db.Item) Item {
+	return Item{
+		ID:          row.ID,
+		WarehouseID: uuid.UUID(row.WarehouseID.Bytes),
+		Name:        row.Name,
+		Quantity:    row.Quantity.Int32,
+		CreatedAt:   row.CreatedAt.Time,
+		UpdatedAt:   row.UpdatedAt.Time,
+	}
+}
