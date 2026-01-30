@@ -1,32 +1,40 @@
 package views
 
 import (
-	"fmt"
+	"net/http"
+	"{{.ModuleName}}/internal/hypermedia"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/views/components"
 )
 
 templ LoginForm() {
 	@base() {
-		<main>
-			<h1>Login</h1>
-			<form data-indicator:submitting data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", routes.SessionCreate.URL()) }>
-				<div>
-					<label for="email">Email</label>
-					<input type="email" id="email" data-bind="email" data-attr:disabled="$submitting" required/>
+		<main class="flex-1 flex items-center justify-center px-6 py-10">
+			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
+					<form
+						class="space-y-5"
+						data-indicator:submitting
+						data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.SessionCreate.URL()) }
+					>
+						<div class="space-y-1">
+							<h2 class="text-xl font-semibold text-base-content">Login to your account</h2>
+							<p class="text-sm text-base-content/60">Enter your details below to login to your account</p>
+						</div>
+						<div class="space-y-4">
+							@components.InputField("Email", "email", "email", "", true, components.FieldProp{})
+							@components.InputField("Password", "password", "password", "", true, components.FieldProp{})
+						</div>
+						<p class="text-right text-sm">
+							<a class="text-base-content/70 hover:text-base-content" href={ templ.SafeURL(routes.PasswordNew.URL()) }>Forgot your password?</a>
+						</p>
+						@components.SubmitButton("Login")
+					</form>
+					<p class="mt-6 text-center text-sm text-base-content/60">
+						Don't have an account? <a class="text-base-content hover:underline" href={ templ.SafeURL(routes.RegistrationNew.URL()) }>Sign up</a>
+					</p>
 				</div>
-				<div>
-					<label for="password">Password</label>
-					<input type="password" id="password" data-bind="password" data-attr:disabled="$submitting" required/>
-				</div>
-				@components.SubmitButton("Login")
-			</form>
-			<p>
-				<a href={ templ.SafeURL(routes.PasswordNew.URL()) }>Forgot your password?</a>
-			</p>
-			<p>
-				Don't have an account? <a href={ templ.SafeURL(routes.RegistrationNew.URL()) }>Sign up</a>
-			</p>
+			</div>
 		</main>
 	}
 }

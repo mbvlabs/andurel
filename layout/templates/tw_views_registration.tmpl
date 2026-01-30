@@ -9,24 +9,30 @@ import (
 
 templ RegistrationForm() {
 	@base() {
-		<main>
-			<h1>Sign Up</h1>
-			<form class="text-black" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()) }>
-				<div>
-					<label for="email">Email</label>
-					<input type="email" id="email" data-bind="email" data-attr:disabled="$submitting" required/>
+		<main class="flex-1 flex items-center justify-center px-6 py-10">
+			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
+					<form
+						class="space-y-5"
+						data-indicator:submitting
+						data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()) }
+					>
+						<div class="space-y-1">
+							<h2 class="text-xl font-semibold text-base-content">Create an account</h2>
+							<p class="text-sm text-base-content/60">Enter your details below to create your account</p>
+						</div>
+						<div class="space-y-4">
+							@components.InputField("Email", "email", "email", "", true, components.FieldProp{})
+							@components.InputField("Password", "password", "password", "", true, components.FieldProp{})
+							@components.InputField("Confirm Password", "confirmPassword", "password", "", true, components.FieldProp{})
+						</div>
+						@components.SubmitButton("Sign Up")
+					</form>
+					<p class="mt-6 text-center text-sm text-base-content/60">
+						Already have an account? <a class="text-base-content hover:underline" href={ templ.SafeURL(routes.SessionNew.URL()) }>Login</a>
+					</p>
 				</div>
-				<div>
-					<label for="password">Password</label>
-					<input type="password" id="password" data-bind="password" data-attr:disabled="$submitting" required minlength="8"/>
-				</div>
-				<div>
-					<label for="confirmPassword">Confirm Password</label>
-					<input type="password" id="confirmPassword" data-bind="confirmPassword" data-attr:disabled="$submitting" required minlength="8"/>
-				</div>
-				@components.SubmitButton("Sign Up")
-			</form>
+			</div>
 		</main>
 	}
 }
-
