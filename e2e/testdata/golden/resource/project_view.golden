@@ -126,7 +126,11 @@ templ ProjectEdit(project models.Project) {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
 				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form class="space-y-5" data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.ProjectUpdate.URL(project.ID)) }>
+					<form
+						class="space-y-5"
+						data-indicator:submitting
+						data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.ProjectUpdate.URL(project.ID)) }
+					>
 						<div class="space-y-1">
 							<h2 class="text-xl font-semibold text-base-content">Edit Project</h2>
 							<p class="text-sm text-base-content/60">Update the details for this project.</p>
