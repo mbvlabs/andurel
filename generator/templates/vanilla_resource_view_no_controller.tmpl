@@ -1,0 +1,129 @@
+package views
+
+import (
+	"fmt"
+	"strings"
+	"{{.ModulePath}}/models"
+)
+
+templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
+	@base() {
+		<main>
+			<div>
+				<h1>{{Plural .ResourceName}}</h1>
+				<a href="/">New {{.ResourceName}}</a>
+			</div>
+			<div>
+				if len({{.PluralName}}) == 0 {
+					<p>No {{.PluralName}} found.</p>
+				} else {
+					<div>
+						<table>
+							<thead>
+								<tr>
+									{{range .Fields}}<th>{{.DisplayName}}</th>
+									{{end}}<th>Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, {{.ResourceName | ToLower}} := range {{.PluralName}} {
+									<tr>
+										{{range .Fields}}<td>{{StringTableDisplay . $.ResourceName}}</td>
+										{{end}}<td>
+											<a href="/">View</a>
+											<a href="/">Edit</a>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+		</main>
+	}
+}
+
+templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
+	@base() {
+		<main>
+			<div>
+				<h1>{{.ResourceName}} Details</h1>
+				<div>
+					<a href="/">Edit</a>
+					<a href="/">Back to List</a>
+				</div>
+			</div>
+			<div>
+				<div>
+					{{range .Fields}}<div>
+						<label>{{.DisplayName}}</label>
+						<p>{{StringDisplay . $.ResourceName}}</p>
+					</div>
+					{{end}}
+				</div>
+			</div>
+		</main>
+	}
+}
+
+templ {{.ResourceName}}New() {
+	@base() {
+		<main>
+			<div>
+				<form data-on:submit={ fmt.Sprintf("@post('%s')", "/") }>
+					<div>
+						<h2>New {{.ResourceName}}</h2>
+						<p>Enter the details for the new {{.ResourceName | ToLower}}.</p>
+					</div>
+					<div>
+						{{range .Fields}}{{if not .IsSystemField}}<div>
+							<label for="{{.CamelCase}}">{{.DisplayName}}</label>
+							<div>
+								<input id="{{.CamelCase}}" type="{{.InputType}}" data-bind="{{.CamelCase}}" />
+							</div>
+						</div>
+						{{end}}{{end}}
+					</div>
+					<div>
+						<a href="/">Cancel</a>
+						<button type="submit">Create {{.ResourceName}}</button>
+					</div>
+				</form>
+			</div>
+		</main>
+	}
+}
+
+templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
+	@base() {
+		<main>
+			<div>
+				<form data-on:submit={ fmt.Sprintf("@put('%s')", "/") }>
+					<div>
+						<h2>Edit {{.ResourceName}}</h2>
+						<p>Update the details for this {{.ResourceName | ToLower}}.</p>
+					</div>
+					<div>
+						{{range .Fields}}{{if not .IsSystemField}}<div>
+							<label for="{{.CamelCase}}">{{.DisplayName}}</label>
+							<div>
+								<input id="{{.CamelCase}}" type="{{.InputType}}" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
+							</div>
+						</div>
+						{{end}}{{end}}
+					</div>
+					<div>
+						<a href="/">Cancel</a>
+						<button type="submit">Update {{.ResourceName}}</button>
+					</div>
+				</form>
+				<div>
+					<button
+						data-on:click={ fmt.Sprintf("@delete('%s')", "/") }
+					>Destroy {{.ResourceName}}</button>
+				</div>
+			</div>
+		</main>
+	}
+}

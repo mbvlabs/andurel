@@ -12,6 +12,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/internal/types"
 	"github.com/mbvlabs/andurel/generator/templates"
+	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/mbvlabs/andurel/pkg/errors"
 	"github.com/mbvlabs/andurel/pkg/naming"
@@ -171,7 +172,7 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 	return field, nil
 }
 
-func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool) (string, error) {
+func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, cssFramework string) (string, error) {
 	// Custom template functions for view-specific operations
 	customFuncs := template.FuncMap{
 		"StringDisplay": func(field ViewField, resourceName string) string {
@@ -238,9 +239,15 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool) (
 		},
 	}
 
-	templateName := "resource_view_no_controller.tmpl"
+	// Determine template prefix based on CSS framework (default to tailwind)
+	templatePrefix := "tw_"
+	if cssFramework == "vanilla" {
+		templatePrefix = "vanilla_"
+	}
+
+	templateName := templatePrefix + "resource_view_no_controller.tmpl"
 	if withController {
-		templateName = "resource_view.tmpl"
+		templateName = templatePrefix + "resource_view.tmpl"
 	}
 
 	// Use the unified template service with custom functions
@@ -275,6 +282,14 @@ func (g *Generator) GenerateViewWithController(
 		return fmt.Errorf("view file %s already exists", viewPath)
 	}
 
+	// Read CSS framework from andurel.lock (default to tailwind)
+	cssFramework := "tailwind"
+	if rootDir, err := g.fileManager.FindGoModRoot(); err == nil {
+		if lock, err := layout.ReadLockFile(rootDir); err == nil && lock.ScaffoldConfig != nil {
+			cssFramework = lock.ScaffoldConfig.CSSFramework
+		}
+	}
+
 	view, err := g.Build(cat, Config{
 		ResourceName: resourceName,
 		PluralName:   pluralName,
@@ -285,7 +300,7 @@ func (g *Generator) GenerateViewWithController(
 		return fmt.Errorf("failed to build view: %w", err)
 	}
 
-	viewContent, err := g.GenerateViewFile(view, withController)
+	viewContent, err := g.GenerateViewFile(view, withController, cssFramework)
 	if err != nil {
 		return fmt.Errorf("failed to render view file: %w", err)
 	}
