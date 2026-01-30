@@ -1,0 +1,32 @@
+package views
+
+import (
+	"net/http"
+	"{{.ModuleName}}/internal/hypermedia"
+	"{{.ModuleName}}/router/routes"
+)
+
+templ ConfirmationForm() {
+	@base() {
+		<main>
+			<h1>Verify Your Email</h1>
+			<p>Please enter the 6-digit verification code sent to your email.</p>
+			<form data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.ConfirmationCreate.URL()) }>
+				<div>
+					<label for="code">Verification Code</label>
+					<input
+						type="text"
+						id="code"
+						data-bind="code"
+						required
+						pattern="[A-Z0-9]{6}"
+						maxlength="6"
+						placeholder="Enter 6-digit code"
+						autocomplete="off"
+					/>
+				</div>
+				<button type="submit">Verify Email</button>
+			</form>
+		</main>
+	}
+}

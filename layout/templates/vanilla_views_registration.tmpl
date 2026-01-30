@@ -1,0 +1,31 @@
+package views
+
+import (
+	"net/http"
+	"{{.ModuleName}}/internal/hypermedia"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/views/components"
+)
+
+templ RegistrationForm() {
+	@base() {
+		<main>
+			<h1>Sign Up</h1>
+			<form data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()) }>
+				<div>
+					<label for="email">Email</label>
+					<input type="email" id="email" data-bind="email" data-attr:disabled="$submitting" required/>
+				</div>
+				<div>
+					<label for="password">Password</label>
+					<input type="password" id="password" data-bind="password" data-attr:disabled="$submitting" required minlength="8"/>
+				</div>
+				<div>
+					<label for="confirmPassword">Confirm Password</label>
+					<input type="password" id="confirmPassword" data-bind="confirmPassword" data-attr:disabled="$submitting" required minlength="8"/>
+				</div>
+				@components.SubmitButton("Sign Up")
+			</form>
+		</main>
+	}
+}

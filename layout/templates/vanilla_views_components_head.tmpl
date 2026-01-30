@@ -1,0 +1,143 @@
+package components
+
+import (
+	"context"
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/router/routes"
+)
+
+type HeadDataOption func(*HeadData)
+
+type MetaContent struct {
+	Content  string
+	Name     string
+	Property string
+}
+
+type HeadData struct {
+	siteName 	   		  string
+	Title          		  string
+	Description    		  string
+	Image                 string
+	ImageAlt 	          string
+	Slug                  string
+	canonical             string
+	MetaType              string
+	stylesheetHref        string
+	scriptSrc             string
+	ExtraMeta             []MetaContent
+}
+
+func SetTitle(title string) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.Title = title + " - " + hd.siteName
+	}
+}
+
+func SetDescription(description string) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.Description = description
+	}
+}
+
+func SetSlug(slug string) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.Slug = slug
+	}
+}
+
+func SetImage(imageSrc string) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.Image = imageSrc
+	}
+}
+
+func SetImageAlt(imageAlt string) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.ImageAlt = imageAlt
+	}
+}
+
+func SetExtraMeta(extra MetaContent) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.ExtraMeta = append(hd.ExtraMeta, extra)
+	}
+}
+
+templ head(data HeadData) {
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<meta name="twitter:card" content="summary_large_image"/>
+		<meta name="twitter:creator" content="@mbvlabs"/>
+		<title>
+			{ data.Title }
+		</title>
+		<link href={ data.stylesheetHref } rel="stylesheet"/>
+		<meta property="og:type" content={ data.MetaType }/>
+		<meta property="og:title" content={ data.Title }/>
+		<meta property="og:description" content={ data.Description }/>
+		<meta property="og:url" content={ data.canonical + data.Slug }/>
+		<meta property="og:site_name" content={ data.siteName }/>
+		<meta property="og:locale" content="en_US" />
+		<meta name="twitter:title" content={ data.MetaType }/>
+		<meta name="twitter:description" content={ data.Description }/>
+		if data.Image != "" {
+			<meta name="twitter:image" content={ data.Image }/>
+		}
+		if data.Image != "" {
+			<meta property="og:image" content={ data.Image }/>
+    		<meta property="og:image:alt" content={ data.ImageAlt }/>
+		}
+		for _, extraMeta := range data.ExtraMeta {
+			<meta
+				if extraMeta.Name != "" {
+					name={ extraMeta.Name }
+				}
+				if extraMeta.Property != "" {
+					property={ extraMeta.Property }
+				}
+				if extraMeta.Content != "" {
+					content={ extraMeta.Content }
+				}
+			/>
+		}
+		<meta name="description" content={ data.Description }/>
+		<link
+			rel="canonical"
+			href={ data.canonical + data.Slug }
+		/>
+		
+  		<link rel="icon" type="image/x-icon" href="https://media.andurel.com/favicon/favicon.ico">
+  		<link rel="icon" type="image/png" sizes="16x16" href="https://media.andurel.com/favicon/favicon-16x16.png">
+  		<link rel="icon" type="image/png" sizes="32x32" href="https://media.andurel.com/favicon/favicon-32x32.png">
+  		
+  		<link rel="apple-touch-icon" sizes="180x180" href="https://media.andurel.com/favicon/apple-touch-icon.png">
+  		
+  		<link rel="icon" type="image/png" sizes="192x192" href="https://media.andurel.com/favicon/android-chrome-192x192.png">
+  		<link rel="icon" type="image/png" sizes="512x512" href="https://media.andurel.com/favicon/android-chrome-512x512.png">
+  		
+  		<link rel="manifest" href="https://media.andurel.com/favicon/site.webmanifest">
+		<script src={ data.scriptSrc } type="module"></script>
+	</head>
+}
+
+func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
+
+	data := &HeadData{
+		siteName:       config.ProjectName,
+		Title: 		    config.ProjectName,
+		Description:    "Andurel is the web development framework for Go.",
+		Slug:           "/",
+		canonical:      config.BaseURL,
+		MetaType:       "website",
+		stylesheetHref: routes.Stylesheet.URL(),
+		scriptSrc:      routes.Scripts.URL(),
+	}
+
+	for _, opt := range opts {
+		opt(data)
+	}
+
+	return head(*data)
+}
