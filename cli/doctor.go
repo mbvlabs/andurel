@@ -51,6 +51,7 @@ This command will check:
 }
 
 func runDoctor(verbose bool) error {
+	printDoctorBanner()
 	fmt.Println("Running Andurel project diagnostics...")
 
 	var results []checkResult
