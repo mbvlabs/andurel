@@ -55,7 +55,7 @@ Once the framework reaches beta, I will provide more comprehensive documentation
 ### Installation
 
 ```bash
-go install github.com/mbvlabs/andurel@v1.0.0-beta (will be @latest in future)
+go install github.com/mbvlabs/andurel@v1.0.0-beta
 ```
 
 ### Create Your First Project
