@@ -18,6 +18,10 @@ func NewRootCommand(version, date string) *cobra.Command {
 		Long:         `Andurel is a comprehensive web development framework for Go,`,
 		Version:      fmt.Sprintf("%s (built: %s)", version, date),
 		SilenceUsage: true,
+		Run: func(cmd *cobra.Command, args []string) {
+			printBanner()
+			cmd.Help()
+		},
 	}
 
 	rootCmd.AddCommand(newRunAppCommand())
