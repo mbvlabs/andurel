@@ -68,7 +68,7 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	fmt.Printf("  andurel tool sync\n")
 	fmt.Printf("  cp .env.example .env\n")
 	fmt.Printf("  fill in your database connection details in .env\n")
-	fmt.Printf("  andurel database migration up\n")
+	fmt.Printf("  andurel migration up\n")
 	fmt.Printf("  andurel run\n")
 
 	return nil

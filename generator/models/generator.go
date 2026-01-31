@@ -49,6 +49,8 @@ type GeneratedModel struct {
 	IDType              string // "uuid.UUID", "int32", "int64", "string"
 	IDGoType            string // Same as IDType (for template clarity)
 	IsAutoIncrementID   bool   // True for serial/bigserial
+	HasSingleInsertParam bool  // True when SQLC won't create an InsertXxxParams struct
+	SingleInsertField   *GeneratedField // The single field when HasSingleInsertParam is true
 }
 
 type Config struct {
@@ -165,6 +167,24 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	// Only add uuid import if the ID type uses UUID or if other fields use UUID
 	if model.IDType == "uuid.UUID" || model.IDType == "" {
 		importSet["github.com/google/uuid"] = true
+	}
+
+	// Calculate if there's only a single insert param (SQLC won't create a Params struct)
+	// Insert params exclude: ID (when auto-increment), CreatedAt, UpdatedAt
+	var insertParams []*GeneratedField
+	for i := range model.Fields {
+		field := &model.Fields[i]
+		if field.Name == "CreatedAt" || field.Name == "UpdatedAt" {
+			continue
+		}
+		if field.Name == "ID" && model.IsAutoIncrementID {
+			continue
+		}
+		insertParams = append(insertParams, field)
+	}
+	if len(insertParams) == 1 {
+		model.HasSingleInsertParam = true
+		model.SingleInsertField = insertParams[0]
 	}
 
 	stdImports, extImports := groupAndSortImports(importSet)

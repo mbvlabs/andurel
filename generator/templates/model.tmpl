@@ -64,6 +64,9 @@ func Create{{.Name}}(
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
+{{- if .HasSingleInsertParam}}
+	row, err := queries.Insert{{.Name}}(ctx, exec, {{.SingleInsertField.ConversionToDB}})
+{{- else}}
 	params := db.Insert{{.Name}}Params{
 {{- if not .IsAutoIncrementID}}
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
@@ -79,6 +82,7 @@ func Create{{.Name}}(
 {{- end}}
 	}
 	row, err := queries.Insert{{.Name}}(ctx, exec, params)
+{{- end}}
 	if err != nil {
 		return {{.Name}}{}, err
 	}
@@ -230,6 +234,9 @@ func Upsert{{.Name}}(
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
+{{- if .HasSingleInsertParam}}
+	row, err := queries.Upsert{{.Name}}(ctx, exec, {{.SingleInsertField.ConversionToDB}})
+{{- else}}
 	params := db.Upsert{{.Name}}Params{
 {{- if not .IsAutoIncrementID}}
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
@@ -245,6 +252,7 @@ func Upsert{{.Name}}(
 {{- end}}
 	}
 	row, err := queries.Upsert{{.Name}}(ctx, exec, params)
+{{- end}}
 	if err != nil {
 		return {{.Name}}{}, err
 	}

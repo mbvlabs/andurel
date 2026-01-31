@@ -48,7 +48,6 @@ func CreateCategory(
 	if err := Validate.Struct(data); err != nil {
 		return Category{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.InsertCategoryParams{
 		ID: uuid.New(),
 		Name: data.Name,
@@ -184,7 +183,6 @@ func UpsertCategory(
 	if err := Validate.Struct(data); err != nil {
 		return Category{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.UpsertCategoryParams{
 		ID: uuid.New(),
 		Name: data.Name,

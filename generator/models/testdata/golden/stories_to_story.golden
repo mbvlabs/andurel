@@ -48,7 +48,6 @@ func CreateStory(
 	if err := Validate.Struct(data); err != nil {
 		return Story{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.InsertStoryParams{
 		ID: uuid.New(),
 		Title: data.Title,
@@ -184,7 +183,6 @@ func UpsertStory(
 	if err := Validate.Struct(data); err != nil {
 		return Story{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.UpsertStoryParams{
 		ID: uuid.New(),
 		Title: data.Title,

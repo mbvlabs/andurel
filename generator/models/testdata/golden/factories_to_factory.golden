@@ -48,7 +48,6 @@ func CreateFactory(
 	if err := Validate.Struct(data); err != nil {
 		return Factory{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.InsertFactoryParams{
 		ID: uuid.New(),
 		Name: data.Name,
@@ -184,7 +183,6 @@ func UpsertFactory(
 	if err := Validate.Struct(data); err != nil {
 		return Factory{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.UpsertFactoryParams{
 		ID: uuid.New(),
 		Name: data.Name,
