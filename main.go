@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"runtime/debug"
 	"time"
 
 	"github.com/mbvlabs/andurel/cli"
@@ -16,6 +17,12 @@ var (
 func getVersion() string {
 	if version != "" {
 		return version
+	}
+
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if info.Main.Version != "" && info.Main.Version != "(devel)" {
+			return info.Main.Version
+		}
 	}
 
 	return "dev"
