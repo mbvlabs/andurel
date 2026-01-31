@@ -50,7 +50,6 @@ func CreateBook(
 	if err := Validate.Struct(data); err != nil {
 		return Book{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.InsertBookParams{
 		ID:     uuid.New(),
 		Title:  data.Title,
@@ -192,7 +191,6 @@ func UpsertBook(
 	if err := Validate.Struct(data); err != nil {
 		return Book{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.UpsertBookParams{
 		ID:     uuid.New(),
 		Title:  data.Title,
