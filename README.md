@@ -46,7 +46,7 @@ The core philosophy around resource generation in andurel, is that it should be 
 
 ## Quick Start
 
-This is subject to change as Andurel is in alpha.
+This is subject to change as Andurel is in beta.
 
 I have not documented every feature or command yet, only enough to get you started and trying out the framework.
 
@@ -55,7 +55,7 @@ Once the framework reaches beta, I will provide more comprehensive documentation
 ### Installation
 
 ```bash
-go install github.com/mbvlabs/andurel@v1.0.0-alpha.8 (will be @latest in future)
+go install github.com/mbvlabs/andurel@v1.0.0-beta (will be @latest in future)
 ```
 
 ### Create Your First Project
