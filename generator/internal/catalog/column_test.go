@@ -36,7 +36,7 @@ func TestColumn_ValidatePrimaryKeyDatatype(t *testing.T) {
 			expectError:   false,
 		},
 		{
-			name: "postgresql_invalid_primary_key",
+			name: "postgresql_valid_text_primary_key",
 			column: &Column{
 				Name:         "id",
 				DataType:     "text",
@@ -44,8 +44,52 @@ func TestColumn_ValidatePrimaryKeyDatatype(t *testing.T) {
 			},
 			databaseType:  "postgresql",
 			migrationFile: "test.sql",
+			expectError:   false,
+		},
+		{
+			name: "postgresql_valid_serial_primary_key",
+			column: &Column{
+				Name:         "id",
+				DataType:     "serial",
+				IsPrimaryKey: true,
+			},
+			databaseType:  "postgresql",
+			migrationFile: "test.sql",
+			expectError:   false,
+		},
+		{
+			name: "postgresql_valid_bigserial_primary_key",
+			column: &Column{
+				Name:         "id",
+				DataType:     "bigserial",
+				IsPrimaryKey: true,
+			},
+			databaseType:  "postgresql",
+			migrationFile: "test.sql",
+			expectError:   false,
+		},
+		{
+			name: "postgresql_valid_integer_primary_key",
+			column: &Column{
+				Name:         "id",
+				DataType:     "integer",
+				IsPrimaryKey: true,
+			},
+			databaseType:  "postgresql",
+			migrationFile: "test.sql",
+			expectError:   false,
+		},
+		{
+			name: "postgresql_invalid_bytea_primary_key",
+			column: &Column{
+				Name:         "id",
+				DataType:     "bytea",
+				IsPrimaryKey: true,
+			},
+			databaseType:  "postgresql",
+			migrationFile: "test.sql",
 			expectError:   true,
-			errorSubstr:   "primary keys must use 'uuid'",
+			errorSubstr:   "unsupported primary key type",
 		},
 	}
 
