@@ -7,6 +7,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/internal/types"
+	"github.com/mbvlabs/andurel/generator/internal/validation"
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
@@ -38,6 +39,8 @@ type GeneratedController struct {
 	Type                ControllerType
 	DatabaseType        string
 	TableNameOverridden bool
+	IDType              string // "uuid.UUID", "int32", "int64", "string"
+	IsAutoIncrementID   bool   // True for serial/bigserial
 }
 
 type Config struct {
@@ -81,6 +84,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 		DatabaseType:        g.typeMapper.GetDatabaseType(),
 		TableNameOverridden: config.TableNameOverridden,
 		Fields:              make([]GeneratedField, 0),
+		IDType:              "uuid.UUID", // Default to UUID
 	}
 
 	if config.ControllerType == ResourceController ||
@@ -100,10 +104,32 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 				return nil, fmt.Errorf("failed to build field for column %s: %w", col.Name, err)
 			}
 			controller.Fields = append(controller.Fields, field)
+
+			// Detect ID type from primary key column
+			if col.Name == "id" && col.IsPrimaryKey {
+				pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
+				controller.IDType = mapPKTypeToGoType(pkType)
+				controller.IsAutoIncrementID = validation.IsAutoIncrement(col.DataType)
+			}
 		}
 	}
 
 	return controller, nil
+}
+
+func mapPKTypeToGoType(pkType validation.PKType) string {
+	switch pkType {
+	case validation.PKTypeUUID:
+		return "uuid.UUID"
+	case validation.PKTypeInt32:
+		return "int32"
+	case validation.PKTypeInt64:
+		return "int64"
+	case validation.PKTypeString:
+		return "string"
+	default:
+		return "uuid.UUID"
+	}
 }
 
 func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
