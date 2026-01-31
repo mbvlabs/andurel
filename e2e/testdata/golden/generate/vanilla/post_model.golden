@@ -51,7 +51,6 @@ func CreatePost(
 	if err := Validate.Struct(data); err != nil {
 		return Post{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.InsertPostParams{
 		ID:       uuid.New(),
 		Title:    data.Title,
@@ -196,7 +195,6 @@ func UpsertPost(
 	if err := Validate.Struct(data); err != nil {
 		return Post{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.UpsertPostParams{
 		ID:       uuid.New(),
 		Title:    data.Title,

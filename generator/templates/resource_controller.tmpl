@@ -12,7 +12,9 @@ import (
 {{- end}}
 {{- end}}
 
+{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 	"github.com/google/uuid"
+{{- end}}
 	"github.com/labstack/echo/v5"
 	"{{.ModulePath}}/models"
 	"{{.ModulePath}}/internal/storage"
@@ -59,10 +61,28 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
+{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return render(etx, views.BadRequest())
 	}
+{{- else if eq .IDType "int64"}}
+	{{.ResourceName | ToLowerCamelCase}}ID, err := strconv.ParseInt(etx.Param("id"), 10, 64)
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+{{- else if eq .IDType "int32"}}
+	parsed, err := strconv.ParseInt(etx.Param("id"), 10, 32)
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+	{{.ResourceName | ToLowerCamelCase}}ID := int32(parsed)
+{{- else if eq .IDType "string"}}
+	{{.ResourceName | ToLowerCamelCase}}ID := etx.Param("id")
+	if {{.ResourceName | ToLowerCamelCase}}ID == "" {
+		return render(etx, views.BadRequest())
+	}
+{{- end}}
 
 	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
@@ -163,10 +183,28 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
+{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return render(etx, views.BadRequest())
 	}
+{{- else if eq .IDType "int64"}}
+	{{.ResourceName | ToLowerCamelCase}}ID, err := strconv.ParseInt(etx.Param("id"), 10, 64)
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+{{- else if eq .IDType "int32"}}
+	parsed, err := strconv.ParseInt(etx.Param("id"), 10, 32)
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+	{{.ResourceName | ToLowerCamelCase}}ID := int32(parsed)
+{{- else if eq .IDType "string"}}
+	{{.ResourceName | ToLowerCamelCase}}ID := etx.Param("id")
+	if {{.ResourceName | ToLowerCamelCase}}ID == "" {
+		return render(etx, views.BadRequest())
+	}
+{{- end}}
 
 	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
@@ -189,10 +227,28 @@ type Update{{.ResourceName}}FormPayload struct {
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error {
+{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return render(etx, views.BadRequest())
 	}
+{{- else if eq .IDType "int64"}}
+	{{.ResourceName | ToLowerCamelCase}}ID, err := strconv.ParseInt(etx.Param("id"), 10, 64)
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+{{- else if eq .IDType "int32"}}
+	parsed, err := strconv.ParseInt(etx.Param("id"), 10, 32)
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+	{{.ResourceName | ToLowerCamelCase}}ID := int32(parsed)
+{{- else if eq .IDType "string"}}
+	{{.ResourceName | ToLowerCamelCase}}ID := etx.Param("id")
+	if {{.ResourceName | ToLowerCamelCase}}ID == "" {
+		return render(etx, views.BadRequest())
+	}
+{{- end}}
 
 	var payload Update{{.ResourceName}}FormPayload
 	if err := etx.Bind(&payload ); err != nil {
@@ -272,10 +328,28 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) error {
+{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return render(etx, views.BadRequest())
 	}
+{{- else if eq .IDType "int64"}}
+	{{.ResourceName | ToLowerCamelCase}}ID, err := strconv.ParseInt(etx.Param("id"), 10, 64)
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+{{- else if eq .IDType "int32"}}
+	parsed, err := strconv.ParseInt(etx.Param("id"), 10, 32)
+	if err != nil {
+		return render(etx, views.BadRequest())
+	}
+	{{.ResourceName | ToLowerCamelCase}}ID := int32(parsed)
+{{- else if eq .IDType "string"}}
+	{{.ResourceName | ToLowerCamelCase}}ID := etx.Param("id")
+	if {{.ResourceName | ToLowerCamelCase}}ID == "" {
+		return render(etx, views.BadRequest())
+	}
+{{- end}}
 
 	err = models.Destroy{{.ResourceName}}(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {

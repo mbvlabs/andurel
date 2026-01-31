@@ -203,9 +203,15 @@ func TestValidatePrimaryKeyDatatype(t *testing.T) {
 	}{
 		{"postgresql_uuid_valid", "UUID", "postgresql", false},
 		{"postgresql_uuid_lowercase", "uuid", "postgresql", false},
-		{"postgresql_text_invalid", "TEXT", "postgresql", true},
-		{"postgresql_integer_invalid", "INTEGER", "postgresql", true},
-		{"postgresql_varchar_invalid", "VARCHAR", "postgresql", true},
+		{"postgresql_text_valid", "TEXT", "postgresql", false},
+		{"postgresql_varchar_valid", "VARCHAR", "postgresql", false},
+		{"postgresql_integer_valid", "INTEGER", "postgresql", false},
+		{"postgresql_serial_valid", "serial", "postgresql", false},
+		{"postgresql_bigserial_valid", "bigserial", "postgresql", false},
+		{"postgresql_bigint_valid", "bigint", "postgresql", false},
+		{"postgresql_bytea_invalid", "BYTEA", "postgresql", true},
+		{"postgresql_jsonb_invalid", "JSONB", "postgresql", true},
+		{"postgresql_boolean_invalid", "BOOLEAN", "postgresql", true},
 	}
 
 	for _, tc := range testCases {
@@ -231,12 +237,12 @@ func TestValidatePrimaryKeyDatatype_ErrorMessages(t *testing.T) {
 		expectedSubstr string
 	}{
 		{
-			name:           "postgresql_text_error_message",
-			dataType:       "TEXT",
+			name:           "postgresql_bytea_error_message",
+			dataType:       "BYTEA",
 			databaseType:   "postgresql",
 			columnName:     "id",
 			migrationFile:  "/path/to/001_create_users.sql",
-			expectedSubstr: "primary keys must use 'uuid'",
+			expectedSubstr: "unsupported primary key type",
 		},
 	}
 
@@ -260,30 +266,15 @@ func TestValidatePrimaryKeyDatatype_ErrorMessages(t *testing.T) {
 					errorMsg,
 				)
 			}
-
-			if !containsString(errorMsg, tc.columnName) {
-				t.Errorf(
-					"Expected error message to contain column name '%s', but got: %s",
-					tc.columnName,
-					errorMsg,
-				)
-			}
-
-			if !containsString(errorMsg, "001_create_users.sql") {
-				t.Errorf(
-					"Expected error message to contain migration file name, but got: %s",
-					errorMsg,
-				)
-			}
 		})
 	}
 }
 
-func TestValidatePrimaryKeyDatatype_UnsupportedDatabase(t *testing.T) {
-	// For unsupported database types, validation should return an error
-	err := validation.ValidatePrimaryKeyDatatype("INTEGER", "mysql", "test.sql", "id")
+func TestValidatePrimaryKeyDatatype_UnsupportedType(t *testing.T) {
+	// For unsupported primary key types, validation should return an error
+	err := validation.ValidatePrimaryKeyDatatype("BYTEA", "postgresql", "test.sql", "id")
 	if err == nil {
-		t.Error("Expected an error for unsupported database type, but got none")
+		t.Error("Expected an error for unsupported primary key type, but got none")
 	}
 }
 
@@ -320,11 +311,16 @@ func TestParseColumnDefinitions_PrimaryKeyValidation(t *testing.T) {
 			expectError:  false,
 		},
 		{
-			name:         "postgresql_invalid_text_primary_key",
+			name:         "postgresql_valid_text_primary_key",
 			columnDefs:   "id TEXT PRIMARY KEY, name TEXT NOT NULL",
 			databaseType: "postgresql",
-			expectError:  true,
-			errorSubstr:  "primary keys must use 'uuid'",
+			expectError:  false,
+		},
+		{
+			name:         "postgresql_valid_serial_primary_key",
+			columnDefs:   "id SERIAL PRIMARY KEY, name TEXT NOT NULL",
+			databaseType: "postgresql",
+			expectError:  false,
 		},
 		{
 			name:         "postgresql_separate_primary_key_constraint_valid",
@@ -333,11 +329,17 @@ func TestParseColumnDefinitions_PrimaryKeyValidation(t *testing.T) {
 			expectError:  false,
 		},
 		{
-			name:         "postgresql_separate_primary_key_constraint_invalid",
+			name:         "postgresql_separate_primary_key_constraint_integer_valid",
 			columnDefs:   "id INTEGER NOT NULL, name TEXT, PRIMARY KEY (id)",
 			databaseType: "postgresql",
+			expectError:  false,
+		},
+		{
+			name:         "postgresql_invalid_bytea_primary_key",
+			columnDefs:   "id BYTEA PRIMARY KEY, name TEXT NOT NULL",
+			databaseType: "postgresql",
 			expectError:  true,
-			errorSubstr:  "primary keys must use 'uuid'",
+			errorSubstr:  "unsupported primary key type",
 		},
 	}
 
@@ -395,17 +397,35 @@ func TestParseCreateTable_PrimaryKeyValidation(t *testing.T) {
 		errorSubstr  string
 	}{
 		{
-			name:         "postgresql_valid_create_table",
+			name:         "postgresql_valid_create_table_uuid",
 			sql:          "CREATE TABLE users (id UUID PRIMARY KEY, email TEXT NOT NULL)",
 			databaseType: "postgresql",
 			expectError:  false,
 		},
 		{
-			name:         "postgresql_invalid_create_table",
+			name:         "postgresql_valid_create_table_text",
 			sql:          "CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT NOT NULL)",
 			databaseType: "postgresql",
+			expectError:  false,
+		},
+		{
+			name:         "postgresql_valid_create_table_serial",
+			sql:          "CREATE TABLE users (id SERIAL PRIMARY KEY, email TEXT NOT NULL)",
+			databaseType: "postgresql",
+			expectError:  false,
+		},
+		{
+			name:         "postgresql_valid_create_table_bigserial",
+			sql:          "CREATE TABLE users (id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL)",
+			databaseType: "postgresql",
+			expectError:  false,
+		},
+		{
+			name:         "postgresql_invalid_create_table_bytea",
+			sql:          "CREATE TABLE users (id BYTEA PRIMARY KEY, email TEXT NOT NULL)",
+			databaseType: "postgresql",
 			expectError:  true,
-			errorSubstr:  "primary keys must use 'uuid'",
+			errorSubstr:  "unsupported primary key type",
 		},
 	}
 

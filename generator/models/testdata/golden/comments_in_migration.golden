@@ -54,7 +54,6 @@ func CreateProduct(
 	if err := Validate.Struct(data); err != nil {
 		return Product{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.InsertProductParams{
 		ID: uuid.New(),
 		Name: data.Name,
@@ -199,7 +198,6 @@ func UpsertProduct(
 	if err := Validate.Struct(data); err != nil {
 		return Product{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.UpsertProductParams{
 		ID: uuid.New(),
 		Name: data.Name,

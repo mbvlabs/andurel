@@ -434,6 +434,10 @@ func (tm *TypeMapper) GenerateZeroCheck(
 	switch goType {
 	case "uuid.UUID":
 		return fmt.Sprintf("%s != uuid.Nil", valueExpr)
+	case "int16", "int32", "int64", "int":
+		return fmt.Sprintf("%s != 0", valueExpr)
+	case "string":
+		return fmt.Sprintf("%s != \"\"", valueExpr)
 	default:
 		if strings.HasPrefix(goType, "pgtype.") {
 			return fmt.Sprintf("%s.Valid", valueExpr)

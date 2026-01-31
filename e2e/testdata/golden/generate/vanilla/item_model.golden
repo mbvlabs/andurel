@@ -48,7 +48,6 @@ func CreateItem(
 	if err := Validate.Struct(data); err != nil {
 		return Item{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.InsertItemParams{
 		ID:          uuid.New(),
 		WarehouseID: pgtype.UUID{Bytes: data.WarehouseID, Valid: true},
@@ -187,7 +186,6 @@ func UpsertItem(
 	if err := Validate.Struct(data); err != nil {
 		return Item{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.UpsertItemParams{
 		ID:          uuid.New(),
 		WarehouseID: pgtype.UUID{Bytes: data.WarehouseID, Valid: true},

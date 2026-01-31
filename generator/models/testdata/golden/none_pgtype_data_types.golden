@@ -54,7 +54,6 @@ func CreateArticle(
 	if err := Validate.Struct(data); err != nil {
 		return Article{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.InsertArticleParams{
 		ID: uuid.New(),
 		Title: data.Title,
@@ -199,7 +198,6 @@ func UpsertArticle(
 	if err := Validate.Struct(data); err != nil {
 		return Article{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.UpsertArticleParams{
 		ID: uuid.New(),
 		Title: data.Title,

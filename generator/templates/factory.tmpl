@@ -27,7 +27,13 @@ func Build{{.ModelName}}({{- range .Fields}}{{- if .IsFK}}{{.ArgumentName}} {{.T
 		{{.ModelName}}: models.{{.ModelName}}{
 {{- range .Fields}}
 {{- if .IsID}}
+{{- if or (not $.IDType) (eq $.IDType "uuid.UUID")}}
 			{{.Name}}: uuid.New(),
+{{- else if or (eq $.IDType "int32") (eq $.IDType "int64")}}
+			{{.Name}}: 0, // Will be assigned by database or test setup
+{{- else if eq $.IDType "string"}}
+			{{.Name}}: faker.UUIDHyphenated(),
+{{- end}}
 {{- else if .IsTimestamp}}
 {{- if eq .Name "CreatedAt"}}
 			{{.Name}}: time.Now(),
@@ -63,6 +69,11 @@ func Create{{.ModelName}}(ctx context.Context, exec storage.Executor, {{- range 
 {{- range .Fields}}
 {{- if not .IsAutoManaged}}
 		{{.Name}}: built.{{.Name}},
+{{- end}}
+{{- end}}
+{{- if not $.IsAutoIncrementID}}
+{{- if and $.IDType (ne $.IDType "uuid.UUID")}}
+		ID: built.ID,
 {{- end}}
 {{- end}}
 	}

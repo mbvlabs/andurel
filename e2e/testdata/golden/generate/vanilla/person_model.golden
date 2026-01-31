@@ -50,7 +50,6 @@ func CreatePerson(
 	if err := Validate.Struct(data); err != nil {
 		return Person{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.InsertPersonParams{
 		ID:        uuid.New(),
 		FirstName: data.FirstName,
@@ -189,7 +188,6 @@ func UpsertPerson(
 	if err := Validate.Struct(data); err != nil {
 		return Person{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.UpsertPersonParams{
 		ID:        uuid.New(),
 		FirstName: data.FirstName,

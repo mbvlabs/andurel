@@ -1,0 +1,184 @@
+package models
+
+import (
+	"context"
+	"errors"
+
+
+	"github.com/example/test/models/internal/db"
+	"github.com/example/test/internal/storage"
+)
+
+type Tester struct {
+	ID int32
+	Name string
+}
+
+func FindTester(
+	ctx context.Context,
+	exec storage.Executor,
+	id int32,
+) (Tester, error) {
+	row, err := queries.QueryTesterByID(ctx, exec, id)
+	if err != nil {
+		return Tester{}, err
+	}
+
+	return rowToTester(row), nil
+}
+
+type CreateTesterData struct {
+	Name string
+}
+
+func CreateTester(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateTesterData,
+) (Tester, error) {
+	if err := Validate.Struct(data); err != nil {
+		return Tester{}, errors.Join(ErrDomainValidation, err)
+	}
+	row, err := queries.InsertTester(ctx, exec, data.Name)
+	if err != nil {
+		return Tester{}, err
+	}
+
+	return rowToTester(row), nil
+}
+
+type UpdateTesterData struct {
+	ID int32
+	Name string
+}
+
+func UpdateTester(
+	ctx context.Context,
+	exec storage.Executor,
+	data UpdateTesterData,
+) (Tester, error) {
+	if err := Validate.Struct(data); err != nil {
+		return Tester{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	params := db.UpdateTesterParams{
+		ID: data.ID,
+		Name: data.Name,
+	}
+
+	row, err := queries.UpdateTester(ctx, exec, params)
+	if err != nil {
+		return Tester{}, err
+	}
+
+	return rowToTester(row), nil
+}
+
+func DestroyTester(
+	ctx context.Context,
+	exec storage.Executor,
+	id int32,
+) error {
+	return queries.DeleteTester(ctx, exec, id)
+}
+
+func AllTesters(
+	ctx context.Context,
+	exec storage.Executor,
+) ([]Tester, error) {
+	rows, err := queries.QueryTesters(ctx, exec)
+	if err != nil {
+		return nil, err
+	}
+
+	testers := make([]Tester, len(rows))
+	for i, row := range rows {
+		testers[i] = rowToTester(row)
+	}
+
+	return testers, nil
+}
+
+type PaginatedTesters struct {
+	Testers []Tester
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func PaginateTesters(
+	ctx context.Context,
+	exec storage.Executor,
+	page int64,
+	pageSize int64,
+) (PaginatedTesters, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := queries.CountTesters(ctx, exec)
+	if err != nil {
+		return PaginatedTesters{}, err
+	}
+
+	rows, err := queries.QueryPaginatedTesters(
+		ctx,
+		exec,
+		db.QueryPaginatedTestersParams{
+			Limit:  pageSize,
+			Offset: offset,
+		},
+	)
+	if err != nil {
+		return PaginatedTesters{}, err
+	}
+
+	testers := make([]Tester, len(rows))
+	for i, row := range rows {
+		testers[i] = rowToTester(row)
+	}
+
+	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+
+	return PaginatedTesters{
+		Testers:    testers,
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func UpsertTester(
+	ctx context.Context,
+	exec storage.Executor,
+	data CreateTesterData,
+) (Tester, error) {
+	if err := Validate.Struct(data); err != nil {
+		return Tester{}, errors.Join(ErrDomainValidation, err)
+	}
+	row, err := queries.UpsertTester(ctx, exec, data.Name)
+	if err != nil {
+		return Tester{}, err
+	}
+
+	return rowToTester(row), nil
+}
+
+
+func rowToTester(row db.Tester) Tester {
+	return Tester{
+		ID: row.ID,
+		Name: row.Name,
+	}
+}
+

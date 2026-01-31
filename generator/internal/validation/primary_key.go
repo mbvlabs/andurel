@@ -2,25 +2,43 @@ package validation
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 )
 
+// PKType represents the type category of a primary key
+type PKType string
+
+const (
+	PKTypeUUID   PKType = "uuid"
+	PKTypeInt32  PKType = "int32"
+	PKTypeInt64  PKType = "int64"
+	PKTypeString PKType = "string"
+)
+
+// ClassifyPrimaryKeyType determines the PKType for a given SQL data type
+func ClassifyPrimaryKeyType(dataType string) (PKType, error) {
+	switch strings.ToLower(dataType) {
+	case "uuid":
+		return PKTypeUUID, nil
+	case "serial", "int", "int4", "integer":
+		return PKTypeInt32, nil
+	case "bigserial", "bigint", "int8":
+		return PKTypeInt64, nil
+	case "text", "varchar", "character varying":
+		return PKTypeString, nil
+	default:
+		return "", fmt.Errorf("unsupported primary key type: %s", dataType)
+	}
+}
+
+// IsAutoIncrement returns true if the data type is auto-incrementing (serial/bigserial)
+func IsAutoIncrement(dataType string) bool {
+	normalized := strings.ToLower(dataType)
+	return normalized == "serial" || normalized == "bigserial"
+}
+
 // ValidatePrimaryKeyDatatype validates primary key data types
 func ValidatePrimaryKeyDatatype(dataType, databaseType, migrationFile, columnName string) error {
-	normalizedDataType := strings.ToLower(dataType)
-
-	if normalizedDataType != "uuid" {
-		return fmt.Errorf(`Primary key validation failed in migration '%s':
-Column '%s' has datatype '%s' but primary keys must use 'uuid'.
-
-To fix this, change:
-  %s %s PRIMARY KEY
-to:
-  %s UUID PRIMARY KEY`,
-			filepath.Base(migrationFile), columnName, dataType,
-			columnName, dataType, columnName)
-	}
-
-	return nil
+	_, err := ClassifyPrimaryKeyType(dataType)
+	return err
 }

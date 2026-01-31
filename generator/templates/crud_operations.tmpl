@@ -4,12 +4,23 @@ select * from {{.PluralName}} where id={{.IDPlaceholder}};
 -- name: Query{{.PluralResourceName}} :many
 select * from {{.PluralName}};
 
+{{- if .IsAutoIncrementID}}
+
+-- name: Insert{{.ResourceName}} :one
+insert into
+    {{.PluralName}} ({{.InsertColumnsNoID}})
+values
+    ({{.InsertPlaceholdersNoID}})
+returning *;
+{{- else}}
+
 -- name: Insert{{.ResourceName}} :one
 insert into
     {{.PluralName}} ({{.InsertColumns}})
 values
     ({{.InsertPlaceholders}})
 returning *;
+{{- end}}
 
 -- name: Update{{.ResourceName}} :one
 update {{.PluralName}}
@@ -28,6 +39,17 @@ select * from {{.PluralName}}
 -- name: Count{{.PluralResourceName}} :one
 select count(*) from {{.PluralName}};
 
+{{- if .IsAutoIncrementID}}
+
+-- name: Upsert{{.ResourceName}} :one
+insert into
+    {{.PluralName}} ({{.InsertColumnsNoID}})
+values
+    ({{.InsertPlaceholdersNoID}})
+on conflict (id) do update set {{.UpsertUpdateSet}}
+returning *;
+{{- else}}
+
 -- name: Upsert{{.ResourceName}} :one
 insert into
     {{.PluralName}} ({{.InsertColumns}})
@@ -35,3 +57,4 @@ values
     ({{.InsertPlaceholders}})
 on conflict (id) do update set {{.UpsertUpdateSet}}
 returning *;
+{{- end}}

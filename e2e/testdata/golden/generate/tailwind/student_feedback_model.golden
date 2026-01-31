@@ -50,7 +50,6 @@ func CreateStudentFeedback(
 	if err := Validate.Struct(data); err != nil {
 		return StudentFeedback{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.InsertStudentFeedbackParams{
 		ID:        uuid.New(),
 		StudentID: data.StudentID,
@@ -189,7 +188,6 @@ func UpsertStudentFeedback(
 	if err := Validate.Struct(data); err != nil {
 		return StudentFeedback{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.UpsertStudentFeedbackParams{
 		ID:        uuid.New(),
 		StudentID: data.StudentID,
