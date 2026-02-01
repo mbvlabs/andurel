@@ -54,13 +54,19 @@ func TestResolveTableName(t *testing.T) {
 	if err := os.MkdirAll(modelsDir, 0o755); err != nil {
 		t.Fatalf("Failed to create models dir: %v", err)
 	}
+	queriesDir := filepath.Join(tempDir, "queries")
+	if err := os.MkdirAll(queriesDir, 0o755); err != nil {
+		t.Fatalf("Failed to create queries dir: %v", err)
+	}
 
 	tests := []struct {
-		name         string
-		resourceName string
-		modelContent string
-		createModel  bool
-		wantTable    string
+		name          string
+		resourceName  string
+		modelContent  string
+		createModel   bool
+		queryFileName string
+		queryContent  string
+		wantTable     string
 	}{
 		{
 			name:         "no model file - uses derived name",
@@ -83,6 +89,14 @@ func TestResolveTableName(t *testing.T) {
 			wantTable:    "student_feedback",
 		},
 		{
+			name:          "queries file - uses table name from SQL",
+			resourceName:  "Account",
+			createModel:   false,
+			queryFileName: "legacy_accounts.sql",
+			queryContent:  "-- name: QueryAccountByID :one\nselect * from legacy_accounts where id=$1;\n",
+			wantTable:     "legacy_accounts",
+		},
+		{
 			name:         "compound name with override",
 			resourceName: "UserRole",
 			modelContent: "package models\n// USERROLE_MODEL_TABLE_NAME: user_role\n\ntype UserRole struct {\n\tUserID string\n\tRoleID string\n}\n",
@@ -100,8 +114,15 @@ func TestResolveTableName(t *testing.T) {
 				}
 				defer os.Remove(modelPath)
 			}
+			if tt.queryFileName != "" {
+				queryPath := filepath.Join(queriesDir, tt.queryFileName)
+				if err := os.WriteFile(queryPath, []byte(tt.queryContent), 0o644); err != nil {
+					t.Fatalf("Failed to write query file: %v", err)
+				}
+				defer os.Remove(queryPath)
+			}
 
-			got := ResolveTableName(modelsDir, tt.resourceName)
+			got := ResolveTableName(modelsDir, queriesDir, tt.resourceName)
 			if got != tt.wantTable {
 				t.Errorf("ResolveTableName() = %v, want %v", got, tt.wantTable)
 			}
@@ -120,6 +141,10 @@ func TestResolveTableName_OverrideTakesPrecedence(t *testing.T) {
 	if err := os.MkdirAll(modelsDir, 0o755); err != nil {
 		t.Fatalf("Failed to create models dir: %v", err)
 	}
+	queriesDir := filepath.Join(tempDir, "queries")
+	if err := os.MkdirAll(queriesDir, 0o755); err != nil {
+		t.Fatalf("Failed to create queries dir: %v", err)
+	}
 
 	modelContent := `package models
 // STUDENTFEEDBACK_MODEL_TABLE_NAME: student_feedback
@@ -133,7 +158,13 @@ type StudentFeedback struct {
 		t.Fatalf("Failed to write model file: %v", err)
 	}
 
-	got := ResolveTableName(modelsDir, "StudentFeedback")
+	queryPath := filepath.Join(queriesDir, "student_feedbacks.sql")
+	queryContent := "-- name: QueryStudentFeedbackByID :one\nselect * from student_feedbacks where id=$1;\n"
+	if err := os.WriteFile(queryPath, []byte(queryContent), 0o644); err != nil {
+		t.Fatalf("Failed to write query file: %v", err)
+	}
+
+	got := ResolveTableName(modelsDir, queriesDir, "StudentFeedback")
 	want := "student_feedback"
 
 	if got != want {
