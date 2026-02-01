@@ -6,7 +6,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 
 	"github.com/mbvlabs/andurel/layout"
@@ -28,7 +30,7 @@ const (
 	statusFail
 )
 
-func newDoctorCommand() *cobra.Command {
+func newDoctorCommand(currentVersion string) *cobra.Command {
 	doctorCmd := &cobra.Command{
 		Use:   "doctor",
 		Short: "Run diagnostic checks on your Andurel project",
@@ -41,7 +43,7 @@ This command will check:
   • Code generation (templ, sqlc)`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
-			return runDoctor(verbose)
+			return runDoctor(currentVersion, verbose)
 		},
 	}
 
@@ -50,7 +52,7 @@ This command will check:
 	return doctorCmd
 }
 
-func runDoctor(verbose bool) error {
+func runDoctor(currentVersion string, verbose bool) error {
 	printDoctorBanner()
 	fmt.Println("Running Andurel project diagnostics...")
 
@@ -76,6 +78,8 @@ func runDoctor(verbose bool) error {
 	fmt.Println("\n=== Configuration ===")
 	configResults := []checkResult{
 		checkLockFile(rootDir),
+		checkAndurelVersion(rootDir, currentVersion),
+		checkToolVersions(rootDir, verbose),
 	}
 	results = append(results, configResults...)
 	printResults(configResults, verbose)
@@ -215,6 +219,222 @@ func checkLockFile(rootDir string) checkResult {
 		status:  statusPass,
 		message: fmt.Sprintf("valid (version: %s, %d tools)", lock.Version, len(lock.Tools)),
 	}
+}
+
+func checkAndurelVersion(rootDir, currentVersion string) checkResult {
+	lock, err := layout.ReadLockFile(rootDir)
+	if err != nil {
+		return checkResult{
+			name:    "Andurel version",
+			status:  statusWarn,
+			message: "andurel.lock missing or invalid (skipping check)",
+		}
+	}
+
+	if lock.Version == "" {
+		return checkResult{
+			name:    "Andurel version",
+			status:  statusWarn,
+			message: "andurel.lock has no framework version",
+		}
+	}
+
+	if currentVersion == "" {
+		return checkResult{
+			name:    "Andurel version",
+			status:  statusWarn,
+			message: fmt.Sprintf("lock expects %s, current version unknown", lock.Version),
+		}
+	}
+
+	if versionsMatch(lock.Version, currentVersion) {
+		return checkResult{
+			name:    "Andurel version",
+			status:  statusPass,
+			message: fmt.Sprintf("matches andurel.lock (%s)", lock.Version),
+		}
+	}
+
+	return checkResult{
+		name:    "Andurel version",
+		status:  statusWarn,
+		message: fmt.Sprintf("lock expects %s, current is %s", lock.Version, currentVersion),
+	}
+}
+
+func checkToolVersions(rootDir string, verbose bool) checkResult {
+	lock, err := layout.ReadLockFile(rootDir)
+	if err != nil {
+		return checkResult{
+			name:    "tool versions",
+			status:  statusWarn,
+			message: "andurel.lock missing or invalid (skipping check)",
+		}
+	}
+
+	if len(lock.Tools) == 0 {
+		return checkResult{
+			name:    "tool versions",
+			status:  statusPass,
+			message: "no tools listed in andurel.lock",
+		}
+	}
+
+	toolNames := make([]string, 0, len(lock.Tools))
+	for name := range lock.Tools {
+		toolNames = append(toolNames, name)
+	}
+	sort.Strings(toolNames)
+
+	var details []string
+	mismatchCount := 0
+	missingCount := 0
+	unknownCount := 0
+
+	for _, name := range toolNames {
+		tool := lock.Tools[name]
+		binPath := filepath.Join(rootDir, "bin", name)
+		if _, err := os.Stat(binPath); err != nil {
+			missingCount++
+			details = append(details, fmt.Sprintf("%s: missing (expected %s)", name, tool.Version))
+			continue
+		}
+
+		actualVersion, err := getToolVersion(binPath, tool, name)
+		if err != nil {
+			unknownCount++
+			details = append(details, fmt.Sprintf("%s: could not determine version (expected %s)", name, tool.Version))
+			continue
+		}
+
+		if !versionsMatch(tool.Version, actualVersion) {
+			mismatchCount++
+			details = append(details, fmt.Sprintf("%s: expected %s, found %s", name, tool.Version, actualVersion))
+		}
+	}
+
+	if mismatchCount == 0 && missingCount == 0 && unknownCount == 0 {
+		return checkResult{
+			name:    "tool versions",
+			status:  statusPass,
+			message: "all tools match andurel.lock",
+		}
+	}
+
+	message := fmt.Sprintf("%d mismatched, %d missing, %d unknown",
+		mismatchCount, missingCount, unknownCount)
+	if !verbose && len(details) > 0 {
+		details = truncateDetails(details, 3)
+	}
+
+	return checkResult{
+		name:    "tool versions",
+		status:  statusWarn,
+		message: message,
+		details: details,
+	}
+}
+
+func truncateDetails(details []string, max int) []string {
+	if len(details) <= max {
+		return details
+	}
+	remaining := len(details) - max
+	truncated := append([]string{}, details[:max]...)
+	truncated = append(truncated, fmt.Sprintf("... and %d more (use --verbose to see all)", remaining))
+	return truncated
+}
+
+func getToolVersion(binPath string, tool *layout.Tool, toolName string) (string, error) {
+	if tool.Source == "go" || tool.Source == "built" {
+		if version, err := goToolVersionFromBinary(binPath, tool.Module); err == nil {
+			return version, nil
+		}
+	}
+
+	return versionFromCommand(binPath, toolName)
+}
+
+func goToolVersionFromBinary(binPath, expectedModule string) (string, error) {
+	cmd := exec.Command("go", "version", "-m", binPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("go version -m failed")
+	}
+
+	var foundModule string
+	var foundVersion string
+	for _, line := range strings.Split(strings.TrimSpace(string(output)), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 3 && fields[0] == "mod" {
+			foundModule = fields[1]
+			foundVersion = fields[2]
+			break
+		}
+	}
+
+	if foundVersion == "" {
+		return "", fmt.Errorf("module version not found")
+	}
+
+	if expectedModule != "" && !moduleMatches(expectedModule, foundModule) {
+		return foundVersion, nil
+	}
+
+	return foundVersion, nil
+}
+
+func moduleMatches(expected, actual string) bool {
+	if expected == "" || actual == "" {
+		return true
+	}
+	if expected == actual {
+		return true
+	}
+	return strings.HasPrefix(actual, expected+"/")
+}
+
+var versionPattern = regexp.MustCompile(`v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?`)
+
+func versionFromCommand(binPath, toolName string) (string, error) {
+	candidates := [][]string{
+		{"--version"},
+		{"-version"},
+		{"version"},
+		{"-v"},
+		{"-V"},
+	}
+
+	for _, args := range candidates {
+		cmd := exec.Command(binPath, args...)
+		output, _ := cmd.CombinedOutput()
+		version := extractVersion(string(output))
+		if version != "" {
+			return version, nil
+		}
+	}
+
+	return "", fmt.Errorf("no version output for %s", toolName)
+}
+
+func extractVersion(output string) string {
+	return versionPattern.FindString(output)
+}
+
+func versionsMatch(expected, actual string) bool {
+	if expected == "" || actual == "" {
+		return false
+	}
+
+	expectedNorm := normalizeVersion(expected)
+	actualNorm := normalizeVersion(actual)
+	return expectedNorm == actualNorm
+}
+
+func normalizeVersion(version string) string {
+	version = strings.TrimSpace(version)
+	version = strings.TrimPrefix(version, "v")
+	return version
 }
 
 func checkGoVet(rootDir string, verbose bool) checkResult {
