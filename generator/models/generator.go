@@ -867,7 +867,7 @@ func (g *Generator) refreshSQLFile(
 Convention: Model names must be singular, table names must be plural snake_case.
 Example: Model 'UserAccount' expects table 'user_accounts'
 
-To use a different table name, add the override comment to your model file`,
+To use a different table name, re-run generation with --table-name or ensure the queries file matches the correct table name`,
 			pluralName, err)
 	}
 
