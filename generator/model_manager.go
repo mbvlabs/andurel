@@ -196,12 +196,13 @@ func (m *ModelManager) generateFactory(cat *catalog.Catalog, ctx *modelSetupCont
 }
 
 func (m *ModelManager) RefreshQueries(resourceName, tableName string) error {
-	modelPath := BuildModelPath(m.config.Paths.Models, resourceName)
-
-	tableNameOverridden := false
-	if overriddenTableName, found := ExtractTableNameOverride(modelPath, resourceName); found {
-		tableName = overriddenTableName
-		tableNameOverridden = true
+	derivedTableName := naming.DeriveTableName(resourceName)
+	tableNameOverridden := tableName != derivedTableName
+	if tableName == "" || tableName == derivedTableName {
+		if resolvedTableName, resolvedOverridden := ResolveTableNameWithFlag(m.config.Paths.Models, m.config.Paths.Queries, resourceName); resolvedTableName != "" {
+			tableName = resolvedTableName
+			tableNameOverridden = resolvedOverridden
+		}
 	}
 
 	ctx, err := m.setupModelContext(resourceName, tableName, tableNameOverridden)
