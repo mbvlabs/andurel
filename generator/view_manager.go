@@ -47,7 +47,7 @@ func (v *ViewManager) generateView(resourceName, tableName string, withControlle
 	modulePath := v.projectManager.GetModulePath()
 
 	modelPath := BuildModelPath(v.config.Paths.Models, resourceName)
-	_, tableNameOverridden := ExtractTableNameOverride(modelPath, resourceName)
+	tableNameOverridden := tableName != naming.DeriveTableName(resourceName)
 
 	if err := v.validator.ValidateResourceName(resourceName); err != nil {
 		return err
@@ -108,7 +108,7 @@ func (v *ViewManager) GenerateViewFromModel(resourceName string, withController 
 		return err
 	}
 
-	tableName, tableNameOverridden := ResolveTableNameWithFlag(v.config.Paths.Models, resourceName)
+	tableName, tableNameOverridden := ResolveTableNameWithFlag(v.config.Paths.Models, v.config.Paths.Queries, resourceName)
 
 	if tableNameOverridden {
 		if err := v.validator.ValidateTableNameOverride(resourceName, tableName); err != nil {

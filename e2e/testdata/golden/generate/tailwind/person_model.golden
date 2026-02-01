@@ -1,7 +1,5 @@
 package models
 
-// PERSON_MODEL_TABLE_NAME: people_data
-
 import (
 	"context"
 	"errors"
