@@ -11,10 +11,14 @@ import (
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
-type InputValidator struct{}
+type InputValidator struct {
+	warnedTableOverrides map[string]bool
+}
 
 func NewInputValidator() *InputValidator {
-	return &InputValidator{}
+	return &InputValidator{
+		warnedTableOverrides: make(map[string]bool),
+	}
 }
 
 func (v *InputValidator) ValidateResourceName(resourceName string) error {
@@ -130,16 +134,34 @@ func (v *InputValidator) ValidateTableNameOverride(resourceName, tableNameOverri
 		return fmt.Errorf("table name '%s' is too long (max 63 characters)", tableNameOverride)
 	}
 
-	if tableNameOverride != conventionalTableName {
-		fmt.Printf("⚠️  Using custom table name '%s' instead of conventional '%s'\n", tableNameOverride, conventionalTableName)
-		fmt.Printf("⚠️  Ensure migration creates the '%s' table\n", tableNameOverride)
-	}
+	if v.shouldWarnTableOverride(resourceName, tableNameOverride) {
+		if tableNameOverride != conventionalTableName {
+			fmt.Printf("⚠️  Using custom table name '%s' instead of conventional '%s'\n", tableNameOverride, conventionalTableName)
+			fmt.Printf("⚠️  Ensure migration creates the '%s' table\n", tableNameOverride)
+		}
 
-	if inflection.Plural(tableNameOverride) != tableNameOverride {
-		fmt.Printf("⚠️  Table name '%s' does not appear to be plural. Convention suggests using plural names.\n", tableNameOverride)
+		if inflection.Plural(tableNameOverride) != tableNameOverride {
+			fmt.Printf("⚠️  Table name '%s' does not appear to be plural. Convention suggests using plural names.\n", tableNameOverride)
+		}
 	}
 
 	return nil
+}
+
+func (v *InputValidator) shouldWarnTableOverride(resourceName, tableNameOverride string) bool {
+	if v == nil {
+		return true
+	}
+	if v.warnedTableOverrides == nil {
+		v.warnedTableOverrides = make(map[string]bool)
+	}
+
+	key := strings.ToLower(resourceName) + "|" + tableNameOverride
+	if v.warnedTableOverrides[key] {
+		return false
+	}
+	v.warnedTableOverrides[key] = true
+	return true
 }
 
 func (v *InputValidator) ValidateFilePath(filePath string) error {

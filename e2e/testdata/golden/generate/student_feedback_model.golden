@@ -1,7 +1,5 @@
 package models
 
-// STUDENTFEEDBACK_MODEL_TABLE_NAME: student_feedback
-
 import (
 	"context"
 	"errors"
