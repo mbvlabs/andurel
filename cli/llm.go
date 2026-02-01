@@ -114,20 +114,28 @@ func newLlmConfigCommand() *cobra.Command {
 
 const llmDocumentation = `# Andurel Framework - LLM Reference (Overview)
 
+## CLI Commands
+` + "```bash" + `
+andurel llm
+andurel llm controllers
+andurel llm models
+andurel llm views
+andurel llm router
+andurel llm hypermedia
+andurel llm jobs
+andurel llm config
+andurel run                        # Dev server with live reload
+andurel generate resource Product  # CRUD resource
+andurel migrate up                 # Apply migrations
+andurel migrate new create_products_table
+` + "```" + `
+
 Andurel is a Rails-like web framework for Go that prioritizes development speed with just enough convention.
 
 ## Purpose
 - Build full-stack web apps quickly with generators and conventions
 - Type safety across SQL (SQLC), HTML (Templ), and Go
 - Batteries included: Echo, Datastar, River, sessions, CSRF, telemetry, email, auth
-
-## Key Commands
-` + "```bash" + `
-andurel run                        # Dev server with live reload
-andurel generate resource Product  # CRUD resource
-andurel migrate up      # Apply migrations
-andurel migrate new create_products_table
-` + "```" + `
 
 ## Project Structure
 ` + "```" + `
@@ -212,6 +220,14 @@ myapp/
 `
 
 const llmControllersDocumentation = `# Andurel Framework - Controllers
+
+## CLI Commands
+` + "```bash" + `
+andurel llm controllers
+andurel generate controller User
+andurel generate resource Product
+andurel generate fragment User Search /search
+` + "```" + `
 
 Controllers handle HTTP requests, interact with models, and render views. They follow REST conventions and support both traditional page rendering and hypermedia (SSE) responses.
 
@@ -495,14 +511,6 @@ hypermedia.MarshalAndPatchSignals(etx, map[string]any{"loading": false})
 
 For full hypermedia patterns, see: andurel llm hypermedia
 
-## Tooling
-
-` + "```bash" + `
-andurel generate controller User        # Controller without views
-andurel generate resource Product       # Full CRUD with views
-andurel generate fragment User Search /search   # Add method to existing controller
-` + "```" + `
-
 ## Related documentation
 - Views and templates: andurel llm views
 - Hypermedia/Datastar: andurel llm hypermedia
@@ -511,6 +519,18 @@ andurel generate fragment User Search /search   # Add method to existing control
 `
 
 const llmModelsDocumentation = `# Andurel Framework - Models
+
+## CLI Commands
+` + "```bash" + `
+andurel llm models
+andurel generate model Product
+andurel generate model Product --table-name=inventory
+andurel generate model Product --skip-factory
+andurel queries generate user_roles
+andurel queries refresh user_roles
+andurel queries compile
+andurel generate resource Product
+` + "```" + `
 
 Models are the single source of truth for data access in Andurel. They wrap database queries with Go structs, validation, and business logic. **All data access must go through the models package** - controllers and services never access the database directly.
 
@@ -811,25 +831,6 @@ products, err := factories.CreateProducts(ctx, exec, 10)
 
 Factories are generated automatically with models unless --skip-factory is used.
 
-## Tooling
-
-` + "```bash" + `
-# Generate full model (struct + queries + factory)
-andurel generate model Product
-andurel generate model Product --table-name=inventory  # Custom table name
-andurel generate model Product --skip-factory          # No factory
-
-# Generate queries only (no model wrapper)
-andurel queries generate user_roles
-andurel queries refresh user_roles  # Sync with schema changes
-
-# Compile SQL and regenerate Go code
-andurel queries compile
-
-# Generate complete resource (model + controller + views)
-andurel generate resource Product
-` + "```" + `
-
 ## Best practices
 
 1. **All data access through models** - Never import models/internal/db outside the models package (Go's internal package rules prevent this anyway)
@@ -878,6 +879,16 @@ func (p Products) Create(etx echo.Context) error {
 `
 
 const llmViewsDocumentation = `# Andurel Framework - Views
+
+## CLI Commands
+` + "```bash" + `
+andurel llm views
+andurel views generate
+andurel views format
+andurel generate view User
+andurel generate resource Product
+andurel run
+` + "```" + `
 
 Andurel views are written in templ (https://templ.guide). Views compile to Go code and are rendered by controllers.
 
@@ -946,17 +957,16 @@ templ Home() {
   - Any data-* attributes used for hypermedia interactivity are explained in: andurel llm hypermedia.
   - Server-side form handling + bindings are covered in: andurel llm controllers.
 
-## Tooling
-` + "```bash" + `
-andurel views generate   # templ generate
-andurel views format     # templ fmt (views + email)
-andurel generate view User
-andurel generate resource Product
-andurel run              # dev server, watches templ changes
-` + "```" + `
 `
 
 const llmRouterDocumentation = `# Andurel Framework - Router
+
+## CLI Commands
+` + "```bash" + `
+andurel llm router
+andurel generate resource Product
+andurel generate controller Product
+` + "```" + `
 
 The router package handles HTTP routing, middleware, sessions, and cookies. Andurel uses Echo v5 as its underlying web framework with a typed route system for compile-time safety.
 
@@ -1387,13 +1397,6 @@ func (r *Router) RegisterCustomRoutes(
 }
 ` + "```" + `
 
-## Tooling
-
-` + "```bash" + `
-andurel generate resource Product    # Generates routes + controller + views
-andurel generate controller Product  # Generates routes + controller only
-` + "```" + `
-
 Generators automatically:
 - Create route definitions in router/routes/
 - Create route registration methods in router/
@@ -1406,6 +1409,12 @@ Generators automatically:
 `
 
 const llmHypermediaDocumentation = `# Andurel Framework - Hypermedia
+
+## CLI Commands
+` + "```bash" + `
+andurel llm hypermedia
+andurel generate resource Product
+` + "```" + `
 
 Andurel follows a hypermedia-driven architecture where the server sends HTML and state updates over the wire, rather than JSON APIs consumed by client-side JavaScript frameworks. This approach keeps application logic on the server while enabling rich, interactive UIs.
 
@@ -1482,6 +1491,11 @@ Server handlers respond with SSE events that the client interprets as patch/merg
 `
 
 const llmJobsDocumentation = `# Andurel Framework - Background Jobs
+
+## CLI Commands
+` + "```bash" + `
+andurel llm jobs
+` + "```" + `
 
 Andurel uses River (https://riverqueue.com) for background job processing. River is a PostgreSQL-backed job queue that provides reliable, transactional job processing with automatic retries.
 
@@ -1766,6 +1780,11 @@ riverClient, err := river.NewClient(riverpgxv5.New(db.Conn()), &river.Config{
 `
 
 const llmConfigDocumentation = `# Andurel Framework - Configuration
+
+## CLI Commands
+` + "```bash" + `
+andurel llm config
+` + "```" + `
 
 Andurel uses environment variables for configuration, parsed at startup using the env library. Configuration is type-safe and validated.
 
