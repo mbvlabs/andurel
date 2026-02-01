@@ -96,7 +96,7 @@ func (c *Coordinator) GenerateControllerFromModel(resourceName string, withViews
 	}
 
 	if withViews {
-		tableName := ResolveTableName(c.config.Paths.Models, resourceName)
+		tableName := ResolveTableName(c.config.Paths.Models, c.config.Paths.Queries, resourceName)
 		if err := c.ViewManager.GenerateViewWithController(resourceName, tableName); err != nil {
 			return err
 		}
