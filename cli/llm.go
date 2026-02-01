@@ -124,10 +124,7 @@ andurel llm router
 andurel llm hypermedia
 andurel llm jobs
 andurel llm config
-andurel run                        # Dev server with live reload
-andurel generate resource Product  # CRUD resource
-andurel migrate up                 # Apply migrations
-andurel migrate new create_products_table
+andurel doctor --verbose # for checking project health, use in-place of go vet and go build
 ` + "```" + `
 
 Andurel is a Rails-like web framework for Go that prioritizes development speed with just enough convention.
