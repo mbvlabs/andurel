@@ -116,6 +116,7 @@ ci:
 update-golden:
 	go clean -testcache
 	go test ./e2e -run TestGenerateCommands -v -timeout 15m -update-generate-golden
+	go test ./e2e -run TestGenerateCommands -v -timeout 15m -update-resource-golden
 
 # Clean test artifacts and cache
 clean-test:
