@@ -11,6 +11,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// getToolVersionForSync gets the version of a tool binary.
+// Uses the same logic as doctor.go's getToolVersion.
+func getToolVersionForSync(name string) (string, error) {
+	binPath := filepath.Join("bin", name)
+	return versionFromCommand(binPath, name)
+}
+
 func newSyncCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "sync",
@@ -49,12 +56,31 @@ func syncBinaries(projectRoot string) error {
 
 	fmt.Println("Syncing tools from andurel.lock...")
 
+	// Track expected tools for cleanup
+	expectedTools := make(map[string]bool)
+	for name := range lock.Tools {
+		expectedTools[name] = true
+	}
+
 	for name, tool := range lock.Tools {
 		binPath := filepath.Join(projectRoot, "bin", name)
 
 		if _, err := os.Stat(binPath); err == nil {
-			fmt.Printf("✓ %s (%s) - already present\n", name, tool.Version)
-			continue
+			// Binary exists - check version
+			actualVersion, verr := getToolVersionForSync(name)
+			if verr == nil && versionsMatch(tool.Version, actualVersion) {
+				fmt.Printf("✓ %s (%s) - up to date\n", name, tool.Version)
+				continue
+			}
+			// Version mismatch or couldn't determine version - re-download
+			if verr != nil {
+				fmt.Printf("⟳ %s: version unknown, re-downloading %s\n", name, tool.Version)
+			} else {
+				fmt.Printf("⟳ %s: updating %s → %s\n", name, actualVersion, tool.Version)
+			}
+			if err := os.Remove(binPath); err != nil {
+				return fmt.Errorf("failed to remove outdated %s: %w", name, err)
+			}
 		}
 
 		switch tool.Source {
@@ -78,6 +104,22 @@ func syncBinaries(projectRoot string) error {
 
 		default:
 			return fmt.Errorf("unknown tool source: %s for %s", tool.Source, name)
+		}
+	}
+
+	// Cleanup: remove binaries not in lock file
+	entries, err := os.ReadDir(binDir)
+	if err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			if !expectedTools[entry.Name()] {
+				fmt.Printf("✗ Removing %s (not in andurel.lock)\n", entry.Name())
+				if err := os.Remove(filepath.Join(binDir, entry.Name())); err != nil {
+					return fmt.Errorf("failed to remove %s: %w", entry.Name(), err)
+				}
+			}
 		}
 	}
 
