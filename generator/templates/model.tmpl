@@ -238,7 +238,7 @@ func Upsert{{.Name}}(
 }
 
 {{if hasErrorHandling}}
-func rowTo{{.Name}}(row db.{{.Name}}) ({{.Name}}, error) {
+func rowTo{{.Name}}(row db.{{.SQLCModelName}}) ({{.Name}}, error) {
 {{- range .Fields}}
 {{- if .RequiresErrorHandling}}
 	{{lower .Name}}, err := {{.ConversionFromDB}}
@@ -259,7 +259,7 @@ func rowTo{{.Name}}(row db.{{.Name}}) ({{.Name}}, error) {
 	}, nil
 }
 {{else}}
-func rowTo{{.Name}}(row db.{{.Name}}) {{.Name}} {
+func rowTo{{.Name}}(row db.{{.SQLCModelName}}) {{.Name}} {
 	return {{.Name}}{
 {{- range .Fields}}
 		{{.Name}}: {{.ConversionFromDB}},

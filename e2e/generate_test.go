@@ -110,6 +110,10 @@ func TestGenerateCommands(t *testing.T) {
 				testGenerateQueriesWithRefresh(t, project)
 			})
 
+			t.Run("generate_queries_with_refresh_timestamps", func(t *testing.T) {
+				testGenerateQueriesWithRefreshTimestamps(t, project)
+			})
+
 			t.Run("generate_model_with_array_types", func(t *testing.T) {
 				testGenerateModelWithArrayTypes(t, project)
 			})
@@ -766,6 +770,38 @@ func testGenerateQueriesWithRefresh(t *testing.T, project *internal.Project) {
 	// Now test refresh functionality
 	err = project.Generate("queries", "refresh", "tag_assignments")
 	internal.AssertCommandSucceeds(t, err, "queries refresh")
+}
+
+func testGenerateQueriesWithRefreshTimestamps(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	createMigration(t, project, "000114_create_audit_logs", "audit_logs", []string{
+		"event_type VARCHAR(100) NOT NULL",
+		"event_metadata JSONB",
+	})
+
+	err := project.Generate("queries", "generate", "audit_logs")
+	internal.AssertCommandSucceeds(t, err, "generate queries")
+
+	err = project.Generate("queries", "refresh", "audit_logs")
+	internal.AssertCommandSucceeds(t, err, "queries refresh")
+
+	internal.AssertFileExists(t, project, "database/queries/audit_logs.sql")
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/audit_logs.sql"))
+	if err != nil {
+		t.Fatalf("Failed to read queries file: %v", err)
+	}
+
+	queriesStr := string(queriesContent)
+	if !strings.Contains(queriesStr, "now(), now()") {
+		t.Error("Expected insert placeholders to use now() for created_at/updated_at")
+	}
+	if !strings.Contains(queriesStr, "updated_at=now()") {
+		t.Error("Expected updates to set updated_at to now()")
+	}
+	if strings.Contains(queriesStr, "created_at=$") || strings.Contains(queriesStr, "updated_at=$") {
+		t.Error("Expected no placeholders for created_at/updated_at in queries-only refresh")
+	}
 }
 
 // testGenerateModelWithArrayTypes tests that PostgreSQL array types (text[], integer[])
