@@ -2,7 +2,9 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +12,8 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/spf13/cobra"
@@ -286,30 +290,66 @@ func checkToolVersions(rootDir string, verbose bool) checkResult {
 	}
 	sort.Strings(toolNames)
 
+	type versionResult struct {
+		name           string
+		expectedVer    string
+		actualVer      string
+		missing        bool
+		unknown        bool
+		versionErr     error
+	}
+
+	results := make(chan versionResult, len(toolNames))
+
+	// Check all tools in parallel
+	for _, name := range toolNames {
+		go func(name string) {
+			tool := lock.Tools[name]
+			fullBinPath := filepath.Join(rootDir, "bin", name)
+			if _, err := os.Stat(fullBinPath); err != nil {
+				results <- versionResult{name: name, expectedVer: tool.Version, missing: true}
+				return
+			}
+
+			binPath := filepath.Join("bin", name)
+			actualVersion, err := getToolVersion(binPath, name)
+			if err != nil {
+				results <- versionResult{name: name, expectedVer: tool.Version, unknown: true, versionErr: err}
+				return
+			}
+
+			results <- versionResult{name: name, expectedVer: tool.Version, actualVer: actualVersion}
+		}(name)
+	}
+
+	// Collect results
+	resultMap := make(map[string]versionResult)
+	for range toolNames {
+		r := <-results
+		resultMap[r.name] = r
+	}
+
 	var details []string
 	mismatchCount := 0
 	missingCount := 0
 	unknownCount := 0
 
+	// Process in sorted order for consistent output
 	for _, name := range toolNames {
-		tool := lock.Tools[name]
-		binPath := filepath.Join(rootDir, "bin", name)
-		if _, err := os.Stat(binPath); err != nil {
+		r := resultMap[name]
+		if r.missing {
 			missingCount++
-			details = append(details, fmt.Sprintf("%s: missing (expected %s)", name, tool.Version))
+			details = append(details, fmt.Sprintf("%s: missing (expected %s)", name, r.expectedVer))
 			continue
 		}
-
-		actualVersion, err := getToolVersion(binPath, tool, name)
-		if err != nil {
+		if r.unknown {
 			unknownCount++
-			details = append(details, fmt.Sprintf("%s: could not determine version (expected %s)", name, tool.Version))
+			details = append(details, fmt.Sprintf("%s: could not determine version (expected %s)", name, r.expectedVer))
 			continue
 		}
-
-		if !versionsMatch(tool.Version, actualVersion) {
+		if !versionsMatch(r.expectedVer, r.actualVer) {
 			mismatchCount++
-			details = append(details, fmt.Sprintf("%s: expected %s, found %s", name, tool.Version, actualVersion))
+			details = append(details, fmt.Sprintf("%s: expected %s, found %s", name, r.expectedVer, r.actualVer))
 		}
 	}
 
@@ -345,69 +385,73 @@ func truncateDetails(details []string, max int) []string {
 	return truncated
 }
 
-func getToolVersion(binPath string, tool *layout.Tool, toolName string) (string, error) {
-	if tool.Source == "go" || tool.Source == "built" {
-		if version, err := goToolVersionFromBinary(binPath, tool.Module); err == nil {
-			return version, nil
-		}
-	}
-
+func getToolVersion(binPath string, toolName string) (string, error) {
 	return versionFromCommand(binPath, toolName)
-}
-
-func goToolVersionFromBinary(binPath, expectedModule string) (string, error) {
-	cmd := exec.Command("go", "version", "-m", binPath)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("go version -m failed")
-	}
-
-	var foundModule string
-	var foundVersion string
-	for _, line := range strings.Split(strings.TrimSpace(string(output)), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) >= 3 && fields[0] == "mod" {
-			foundModule = fields[1]
-			foundVersion = fields[2]
-			break
-		}
-	}
-
-	if foundVersion == "" {
-		return "", fmt.Errorf("module version not found")
-	}
-
-	if expectedModule != "" && !moduleMatches(expectedModule, foundModule) {
-		return foundVersion, nil
-	}
-
-	return foundVersion, nil
-}
-
-func moduleMatches(expected, actual string) bool {
-	if expected == "" || actual == "" {
-		return true
-	}
-	if expected == actual {
-		return true
-	}
-	return strings.HasPrefix(actual, expected+"/")
 }
 
 var versionPattern = regexp.MustCompile(`v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?`)
 
-func versionFromCommand(binPath, toolName string) (string, error) {
-	candidates := [][]string{
-		{"--version"},
-		{"-version"},
-		{"version"},
-		{"-v"},
-		{"-V"},
+// runWithTimeout runs a command with a timeout, killing the entire process group
+// if the timeout is exceeded. This ensures child processes that inherit stdout/stderr
+// pipes are also killed, preventing CombinedOutput-style hangs.
+func runWithTimeout(ctx context.Context, path string, args ...string) ([]byte, error) {
+	cmd := exec.Command(path, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Stdin = nil
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, err
 	}
 
-	for _, args := range candidates {
-		cmd := exec.Command(binPath, args...)
-		output, _ := cmd.CombinedOutput()
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+
+	type result struct {
+		output []byte
+		err    error
+	}
+	done := make(chan result, 1)
+
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, io.LimitReader(io.MultiReader(stdout, stderr), 1<<20))
+		err := cmd.Wait()
+		done <- result{buf.Bytes(), err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		if cmd.Process != nil {
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
+		return nil, ctx.Err()
+	case r := <-done:
+		return r.output, r.err
+	}
+}
+
+func versionFromCommand(binPath, toolName string) (string, error) {
+	rootDir, err := findGoModRoot()
+	if err != nil {
+		return "", fmt.Errorf("could not find project root: %w", err)
+	}
+
+	fullPath := filepath.Join(rootDir, binPath)
+	candidates := []string{"--version", "-version", "version", "--help"}
+
+	for _, arg := range candidates {
+		ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+		output, err := runWithTimeout(ctx, fullPath, arg)
+		cancel()
+		if err != nil {
+			continue
+		}
 		version := extractVersion(string(output))
 		if version != "" {
 			return version, nil
