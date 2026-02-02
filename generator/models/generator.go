@@ -35,6 +35,7 @@ type GeneratedField struct {
 type GeneratedModel struct {
 	Name                string
 	PluralName          string // The pluralized form of Name for function names (respects --table-name override)
+	SQLCModelName       string // The SQLC row struct name derived from the table name
 	Package             string
 	Fields              []GeneratedField
 	StandardImports     []string
@@ -108,6 +109,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	model := &GeneratedModel{
 		Name:            config.ResourceName,
 		PluralName:      inflection.Plural(config.ResourceName), // Default to standard pluralization
+		SQLCModelName:   naming.DeriveResourceName(config.TableName),
 		Package:         config.PackageName,
 		TableName:       config.TableName,
 		ModulePath:      config.ModulePath,
