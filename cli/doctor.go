@@ -178,7 +178,7 @@ func checkGoVersion() checkResult {
 	return checkResult{
 		name:    "Go version",
 		status:  statusPass,
-		message: fmt.Sprintf("%s", versionOutput),
+		message: versionOutput,
 	}
 }
 
@@ -193,8 +193,8 @@ func checkInAndurelProject() checkResult {
 	}
 
 	return checkResult{
-		name:   "Andurel project",
-		status: statusPass,
+		name:    "Andurel project",
+		status:  statusPass,
 		message: "found go.mod",
 	}
 }
@@ -291,12 +291,12 @@ func checkToolVersions(rootDir string, verbose bool) checkResult {
 	sort.Strings(toolNames)
 
 	type versionResult struct {
-		name           string
-		expectedVer    string
-		actualVer      string
-		missing        bool
-		unknown        bool
-		versionErr     error
+		name        string
+		expectedVer string
+		actualVer   string
+		missing     bool
+		unknown     bool
+		versionErr  error
 	}
 
 	results := make(chan versionResult, len(toolNames))
@@ -344,12 +344,18 @@ func checkToolVersions(rootDir string, verbose bool) checkResult {
 		}
 		if r.unknown {
 			unknownCount++
-			details = append(details, fmt.Sprintf("%s: could not determine version (expected %s)", name, r.expectedVer))
+			details = append(
+				details,
+				fmt.Sprintf("%s: could not determine version (expected %s)", name, r.expectedVer),
+			)
 			continue
 		}
 		if !versionsMatch(r.expectedVer, r.actualVer) {
 			mismatchCount++
-			details = append(details, fmt.Sprintf("%s: expected %s, found %s", name, r.expectedVer, r.actualVer))
+			details = append(
+				details,
+				fmt.Sprintf("%s: expected %s, found %s", name, r.expectedVer, r.actualVer),
+			)
 		}
 	}
 
@@ -381,7 +387,10 @@ func truncateDetails(details []string, max int) []string {
 	}
 	remaining := len(details) - max
 	truncated := append([]string{}, details[:max]...)
-	truncated = append(truncated, fmt.Sprintf("... and %d more (use --verbose to see all)", remaining))
+	truncated = append(
+		truncated,
+		fmt.Sprintf("... and %d more (use --verbose to see all)", remaining),
+	)
 	return truncated
 }
 
@@ -462,6 +471,17 @@ func versionFromCommand(binPath, toolName string) (string, error) {
 }
 
 func extractVersion(output string) string {
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		lower := strings.ToLower(line)
+		if strings.Contains(lower, "update available") || strings.Contains(lower, "new version available") {
+			continue
+		}
+		if version := versionPattern.FindString(line); version != "" {
+			return version
+		}
+	}
+
 	return versionPattern.FindString(output)
 }
 
@@ -490,7 +510,6 @@ func checkGoVet(rootDir string, verbose bool) checkResult {
 	cmd.Stderr = &stderr
 
 	err := cmd.Run()
-
 	if err != nil {
 		output := stderr.String()
 		if output == "" {
@@ -523,7 +542,13 @@ func checkGoVet(rootDir string, verbose bool) checkResult {
 				}
 			}
 			if issueCount > previewCount {
-				details = append(details, fmt.Sprintf("... and %d more (use --verbose to see all)", issueCount-previewCount))
+				details = append(
+					details,
+					fmt.Sprintf(
+						"... and %d more (use --verbose to see all)",
+						issueCount-previewCount,
+					),
+				)
 			}
 		}
 
@@ -560,9 +585,9 @@ func checkGoModTidy(rootDir string, verbose bool) checkResult {
 
 	// Ensure we restore original files when function exits
 	defer func() {
-		os.WriteFile(goModPath, goModOrig, 0644)
+		os.WriteFile(goModPath, goModOrig, 0o644)
 		if goSumOrig != nil {
-			os.WriteFile(goSumPath, goSumOrig, 0644)
+			os.WriteFile(goSumPath, goSumOrig, 0o644)
 		}
 	}()
 
