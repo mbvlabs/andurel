@@ -48,7 +48,6 @@ func CreateQuery(
 	if err := Validate.Struct(data); err != nil {
 		return Query{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.InsertQueryParams{
 		ID: uuid.New(),
 		SqlText: data.SqlText,
@@ -184,7 +183,6 @@ func UpsertQuery(
 	if err := Validate.Struct(data); err != nil {
 		return Query{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.UpsertQueryParams{
 		ID: uuid.New(),
 		SqlText: data.SqlText,

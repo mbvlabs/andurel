@@ -48,7 +48,6 @@ func CreateCompany(
 	if err := Validate.Struct(data); err != nil {
 		return Company{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.InsertCompanyParams{
 		ID: uuid.New(),
 		Name: data.Name,
@@ -184,7 +183,6 @@ func UpsertCompany(
 	if err := Validate.Struct(data); err != nil {
 		return Company{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.UpsertCompanyParams{
 		ID: uuid.New(),
 		Name: data.Name,

@@ -26,7 +26,7 @@ type {{.Name}} struct {
 func Find{{.Name}}(
 	ctx context.Context,
 	exec storage.Executor,
-	id uuid.UUID,
+	id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}},
 ) ({{.Name}}, error) {
 	row, err := queries.Query{{.Name}}ByID(ctx, exec, {{uuidParam "id"}})
 	if err != nil {
@@ -46,6 +46,11 @@ type Create{{.Name}}Data struct {
 	{{.Name}} {{.Type}}
 {{- end}}
 {{- end}}
+{{- if not .IsAutoIncrementID}}
+{{- if and .IDType (ne .IDType "uuid.UUID")}}
+	ID {{.IDType}}
+{{- end}}
+{{- end}}
 }
 
 func Create{{.Name}}(
@@ -57,8 +62,17 @@ func Create{{.Name}}(
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
+{{- if .HasSingleInsertParam}}
+	row, err := queries.Insert{{.Name}}(ctx, exec, {{.SingleInsertField.ConversionToDB}})
+{{- else}}
 	params := db.Insert{{.Name}}Params{
+{{- if not .IsAutoIncrementID}}
+{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 		ID: uuid.New(),
+{{- else}}
+		ID: data.ID,
+{{- end}}
+{{- end}}
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
 		{{.Name}}: {{.ConversionToDB}},
@@ -66,6 +80,7 @@ func Create{{.Name}}(
 {{- end}}
 	}
 	row, err := queries.Insert{{.Name}}(ctx, exec, params)
+{{- end}}
 	if err != nil {
 		return {{.Name}}{}, err
 	}
@@ -78,7 +93,7 @@ func Create{{.Name}}(
 }
 
 type Update{{.Name}}Data struct {
-	ID uuid.UUID
+	ID {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt")}}
 	{{.Name}} {{.Type}}
@@ -119,7 +134,7 @@ func Update{{.Name}}(
 func Destroy{{.Name}}(
 	ctx context.Context,
 	exec storage.Executor,
-	id uuid.UUID,
+	id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}},
 ) error {
 	return queries.Delete{{.Name}}(ctx, exec, {{uuidParam "id"}})
 }
@@ -217,8 +232,17 @@ func Upsert{{.Name}}(
 		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
+{{- if .HasSingleInsertParam}}
+	row, err := queries.Upsert{{.Name}}(ctx, exec, {{.SingleInsertField.ConversionToDB}})
+{{- else}}
 	params := db.Upsert{{.Name}}Params{
+{{- if not .IsAutoIncrementID}}
+{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 		ID: uuid.New(),
+{{- else}}
+		ID: data.ID,
+{{- end}}
+{{- end}}
 {{- range .Fields}}
 {{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
 		{{.Name}}: {{.ConversionToDB}},
@@ -226,6 +250,7 @@ func Upsert{{.Name}}(
 {{- end}}
 	}
 	row, err := queries.Upsert{{.Name}}(ctx, exec, params)
+{{- end}}
 	if err != nil {
 		return {{.Name}}{}, err
 	}

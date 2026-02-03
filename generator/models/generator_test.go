@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
 )
 
@@ -453,6 +454,108 @@ DROP TABLE audit_logs;
 	}
 }
 
+func TestGenerateSQLPaginationWithTextPKWithoutCreatedAtUsesIDOrder(t *testing.T) {
+	tempDir := t.TempDir()
+	migrationsDir := filepath.Join(tempDir, "database", "migrations")
+
+	err := os.MkdirAll(migrationsDir, constants.DirPermissionDefault)
+	if err != nil {
+		t.Fatalf("Failed to create migrations directory: %v", err)
+	}
+
+	migration := `-- +goose Up
+CREATE TABLE api_tokens (
+    id TEXT PRIMARY KEY,
+    label TEXT NOT NULL
+);
+
+-- +goose Down
+DROP TABLE api_tokens;
+`
+
+	migrationFile := filepath.Join(migrationsDir, "001_create_api_tokens.sql")
+	err = os.WriteFile(migrationFile, []byte(migration), constants.FilePermissionPrivate)
+	if err != nil {
+		t.Fatalf("Failed to write migration file: %v", err)
+	}
+
+	generator := NewGenerator("postgresql")
+	cat, err := generator.buildCatalogFromTableMigrations(
+		"api_tokens",
+		[]string{migrationsDir},
+	)
+	if err != nil {
+		t.Fatalf("Failed to build catalog from migrations: %v", err)
+	}
+
+	table, err := cat.GetTable("", "api_tokens")
+	if err != nil {
+		t.Fatalf("Failed to get table from catalog: %v", err)
+	}
+
+	sqlContent, err := generator.GenerateSQLContent(
+		"ApiToken",
+		"api_tokens",
+		table,
+		false,
+	)
+	if err != nil {
+		t.Fatalf("Failed to generate SQL content: %v", err)
+	}
+
+	if strings.Contains(sqlContent, "order by created_at desc") {
+		t.Error("Expected pagination ordering without created_at column to avoid created_at")
+	}
+	if !strings.Contains(sqlContent, "order by id desc") {
+		t.Error("Expected pagination ordering to use id desc for text primary key")
+	}
+}
+
+func TestGenerateModelPaginationForTextPK(t *testing.T) {
+	originalWd, _ := os.Getwd()
+	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "text_pk")
+
+	generator := NewGenerator("postgresql")
+	cat, err := generator.buildCatalogFromTableMigrations(
+		"users",
+		[]string{migrationsDir},
+	)
+	if err != nil {
+		t.Fatalf("Failed to build catalog from migrations: %v", err)
+	}
+
+	model, err := generator.Build(cat, Config{
+		TableName:    "users",
+		ResourceName: "User",
+		PackageName:  "models",
+		DatabaseType: "postgresql",
+		ModulePath:   "github.com/example/test",
+	})
+	if err != nil {
+		t.Fatalf("Failed to build model: %v", err)
+	}
+
+	templateContent, err := templates.Files.ReadFile("model.tmpl")
+	if err != nil {
+		t.Fatalf("Failed to read model template: %v", err)
+	}
+
+	modelContent, err := generator.GenerateModelFile(model, string(templateContent))
+	if err != nil {
+		t.Fatalf("Failed to render model file: %v", err)
+	}
+
+	if !strings.Contains(modelContent, "func PaginateUsers(") {
+		t.Error("Expected paginated function to be generated for text primary key")
+	}
+	if !strings.Contains(modelContent, "QueryPaginatedUsers") {
+		t.Error("Expected paginated query to be referenced in model for text primary key")
+	}
+	if !strings.Contains(modelContent, "func FindUser(\n\tctx context.Context,\n\texec storage.Executor,\n\tid string,\n") {
+		t.Error("Expected model functions to use string ID type for text primary key")
+	}
+}
+
 // TestMigrationWithComments verifies that migrations containing SQL comments
 // (both single-line -- and block /* */) are parsed correctly and generate
 // valid model code.
@@ -732,5 +835,99 @@ DROP TABLE companies;`,
 				t.Errorf("Generated code should NOT contain naive singularization '%s'", naiveSingular)
 			}
 		})
+	}
+}
+
+// TestSingleInsertParamAutoIncrement verifies that when a table has only one
+// insert parameter (e.g., serial ID + one other field), the generated code
+// correctly passes the value directly instead of creating a Params struct.
+// SQLC optimizes single-parameter inserts to not create a Params struct.
+func TestSingleInsertParamAutoIncrement(t *testing.T) {
+	originalWd, _ := os.Getwd()
+	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "single_insert_param")
+
+	generator := NewGenerator("postgresql")
+
+	cat, err := generator.buildCatalogFromTableMigrations(
+		"testers",
+		[]string{migrationsDir},
+	)
+	if err != nil {
+		t.Fatalf("Failed to build catalog from migrations: %v", err)
+	}
+
+	model, err := generator.Build(cat, Config{
+		TableName:    "testers",
+		ResourceName: "Tester",
+		PackageName:  "models",
+		DatabaseType: "postgresql",
+		ModulePath:   "github.com/example/test",
+	})
+	if err != nil {
+		t.Fatalf("Failed to build model: %v", err)
+	}
+
+	// Verify model metadata
+	if !model.IsAutoIncrementID {
+		t.Error("Expected IsAutoIncrementID to be true for serial primary key")
+	}
+	if !model.HasSingleInsertParam {
+		t.Error("Expected HasSingleInsertParam to be true for table with serial id + one field")
+	}
+	if model.SingleInsertField == nil {
+		t.Fatal("Expected SingleInsertField to be set")
+	}
+	if model.SingleInsertField.Name != "Name" {
+		t.Errorf("Expected SingleInsertField.Name = 'Name', got '%s'", model.SingleInsertField.Name)
+	}
+
+	// Generate model file
+	templateContent, err := templates.Files.ReadFile("model.tmpl")
+	if err != nil {
+		t.Fatalf("Failed to read model template: %v", err)
+	}
+
+	modelContent, err := generator.GenerateModelFile(model, string(templateContent))
+	if err != nil {
+		t.Fatalf("Failed to render model file: %v", err)
+	}
+
+	// Verify the generated code does NOT create InsertTesterParams
+	if strings.Contains(modelContent, "db.InsertTesterParams") {
+		t.Error("Generated code should NOT contain 'db.InsertTesterParams' for single insert param")
+	}
+	if strings.Contains(modelContent, "db.UpsertTesterParams") {
+		t.Error("Generated code should NOT contain 'db.UpsertTesterParams' for single insert param")
+	}
+
+	// Verify the generated code passes the value directly
+	if !strings.Contains(modelContent, "queries.InsertTester(ctx, exec, data.Name)") {
+		t.Error("Expected Insert to pass 'data.Name' directly instead of params struct")
+	}
+	if !strings.Contains(modelContent, "queries.UpsertTester(ctx, exec, data.Name)") {
+		t.Error("Expected Upsert to pass 'data.Name' directly instead of params struct")
+	}
+
+	// Golden file testing
+	goldenFile := filepath.Join("testdata", "golden", "single_insert_param.golden")
+
+	if *updateGolden {
+		err := os.MkdirAll(filepath.Dir(goldenFile), constants.DirPermissionDefault)
+		if err != nil {
+			t.Fatalf("Failed to create golden directory: %v", err)
+		}
+		err = os.WriteFile(goldenFile, []byte(modelContent), constants.FilePermissionPrivate)
+		if err != nil {
+			t.Fatalf("Failed to write golden file: %v", err)
+		}
+	}
+
+	expectedCode, err := os.ReadFile(goldenFile)
+	if err != nil {
+		t.Fatalf("Failed to read golden file %s: %v\nRun 'go test -update' to create it", goldenFile, err)
+	}
+
+	if string(expectedCode) != modelContent {
+		t.Errorf("Generated code differs from golden file.\nExpected:\n%s\n\nGot:\n%s", string(expectedCode), modelContent)
 	}
 }

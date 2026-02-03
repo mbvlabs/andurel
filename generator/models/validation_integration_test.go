@@ -9,24 +9,22 @@ import (
 	"github.com/mbvlabs/andurel/pkg/constants"
 )
 
-func TestModelFileGeneration_InvalidPrimaryKeyTypes(t *testing.T) {
+func TestModelFileGeneration_ValidPrimaryKeyTypes(t *testing.T) {
 	tests := []struct {
-		name             string
-		migrationsDir    string
-		tableName        string
-		resourceName     string
-		modulePath       string
-		databaseType     string
-		expectedErrorMsg string
+		name          string
+		migrationsDir string
+		tableName     string
+		resourceName  string
+		modulePath    string
+		databaseType  string
 	}{
 		{
-			name:             "Should reject PostgreSQL migration with TEXT primary key",
-			migrationsDir:    "invalid_pg_primary_key",
-			tableName:        "users",
-			resourceName:     "User",
-			modulePath:       "github.com/example/myapp",
-			databaseType:     "postgresql",
-			expectedErrorMsg: "primary keys must use 'uuid'",
+			name:          "Should accept PostgreSQL migration with TEXT primary key",
+			migrationsDir: "text_pk",
+			tableName:     "users",
+			resourceName:  "User",
+			modulePath:    "github.com/example/myapp",
+			databaseType:  "postgresql",
 		},
 	}
 
@@ -48,23 +46,8 @@ func TestModelFileGeneration_InvalidPrimaryKeyTypes(t *testing.T) {
 				[]string{migrationsDir},
 			)
 
-			if err == nil {
-				t.Fatal("Expected error due to invalid primary key type, but got none")
-			}
-
-			if !strings.Contains(err.Error(), tt.expectedErrorMsg) {
-				t.Errorf(
-					"Expected error message to contain '%s', but got: %s",
-					tt.expectedErrorMsg,
-					err.Error(),
-				)
-			}
-
-			if !strings.Contains(err.Error(), "001_users_text_pk.sql") {
-				t.Errorf(
-					"Expected error message to contain migration file name, but got: %s",
-					err.Error(),
-				)
+			if err != nil {
+				t.Fatalf("Expected no error but got: %v", err)
 			}
 		})
 	}
@@ -89,13 +72,12 @@ func TestRefreshQueries__ValidatesIDColumns(t *testing.T) {
 			shouldFail:    false,
 		},
 		{
-			name:             "Should fail with invalid PostgreSQL TEXT primary key",
-			migrationsDir:    "invalid_pg_primary_key",
-			tableName:        "users",
-			resourceName:     "User",
-			databaseType:     "postgresql",
-			expectedErrorMsg: "primary keys must use 'uuid'",
-			shouldFail:       true,
+			name:          "Should succeed with valid PostgreSQL TEXT primary key",
+			migrationsDir: "text_pk",
+			tableName:     "users",
+			resourceName:  "User",
+			databaseType:  "postgresql",
+			shouldFail:    false,
 		},
 	}
 

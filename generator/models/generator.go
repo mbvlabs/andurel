@@ -13,6 +13,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/internal/ddl"
 	"github.com/mbvlabs/andurel/generator/internal/migrations"
 	"github.com/mbvlabs/andurel/generator/internal/types"
+	"github.com/mbvlabs/andurel/generator/internal/validation"
 	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/mbvlabs/andurel/pkg/errors"
@@ -46,6 +47,11 @@ type GeneratedModel struct {
 	TableNameOverridden bool
 	ModulePath          string
 	DatabaseType        string
+	IDType              string // "uuid.UUID", "int32", "int64", "string"
+	IDGoType            string // Same as IDType (for template clarity)
+	IsAutoIncrementID   bool   // True for serial/bigserial
+	HasSingleInsertParam bool  // True when SQLC won't create an InsertXxxParams struct
+	SingleInsertField   *GeneratedField // The single field when HasSingleInsertParam is true
 }
 
 type Config struct {
@@ -58,32 +64,40 @@ type Config struct {
 }
 
 type SQLData struct {
-	ResourceName        string
-	PluralName          string
-	PluralResourceName  string // The pluralized form of ResourceName for query function names
-	InsertColumns       string
-	InsertPlaceholders  string
-	UpdateColumns       string
-	DatabaseType        string
-	IDPlaceholder       string
-	LimitOffsetClause   string
-	NowFunction         string
-	UpsertUpdateSet     string
-	OrderByClause       string
-	TableNameOverridden bool
+	ResourceName           string
+	PluralName             string
+	PluralResourceName     string // The pluralized form of ResourceName for query function names
+	InsertColumns          string
+	InsertPlaceholders     string
+	UpdateColumns          string
+	DatabaseType           string
+	IDPlaceholder          string
+	LimitOffsetClause      string
+	NowFunction            string
+	UpsertUpdateSet        string
+	OrderByClause          string
+	TableNameOverridden    bool
+	IDType                 string // "uuid.UUID", "int32", "int64", "string"
+	IsAutoIncrementID      bool   // True for serial/bigserial
+	InsertColumnsNoID      string // Columns excluding id (for auto-increment)
+	InsertPlaceholdersNoID string // Placeholders excluding id (for auto-increment)
 }
 
 // SimpleSQLData is used for queries-only generation (no model layer).
 // It treats all columns uniformly without special handling for timestamps.
 type SimpleSQLData struct {
-	ResourceName       string
-	PluralName         string
-	PluralResourceName string
-	InsertColumns      string
-	InsertPlaceholders string
-	UpdateColumns      string
-	IDPlaceholder      string
-	UpsertUpdateSet    string
+	ResourceName           string
+	PluralName             string
+	PluralResourceName     string
+	InsertColumns          string
+	InsertPlaceholders     string
+	UpdateColumns          string
+	IDPlaceholder          string
+	UpsertUpdateSet        string
+	IDType                 string // "uuid.UUID", "int32", "int64", "string"
+	IsAutoIncrementID      bool   // True for serial/bigserial
+	InsertColumnsNoID      string // Columns excluding id (for auto-increment)
+	InsertPlaceholdersNoID string // Placeholders excluding id (for auto-increment)
 }
 
 type Generator struct {
@@ -142,10 +156,38 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		}
 
 		model.Fields = append(model.Fields, field)
+
+		// Detect ID type from primary key column
+		if col.Name == "id" && col.IsPrimaryKey {
+			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
+			model.IDType = mapPKTypeToGoType(pkType)
+			model.IDGoType = model.IDType
+			model.IsAutoIncrementID = validation.IsAutoIncrement(col.DataType)
+		}
 	}
 
-	// Don't force all imports - only add them if they're actually needed
-	importSet["github.com/google/uuid"] = true
+	// Only add uuid import if the ID type uses UUID or if other fields use UUID
+	if model.IDType == "uuid.UUID" || model.IDType == "" {
+		importSet["github.com/google/uuid"] = true
+	}
+
+	// Calculate if there's only a single insert param (SQLC won't create a Params struct)
+	// Insert params exclude: ID (when auto-increment), CreatedAt, UpdatedAt
+	var insertParams []*GeneratedField
+	for i := range model.Fields {
+		field := &model.Fields[i]
+		if field.Name == "CreatedAt" || field.Name == "UpdatedAt" {
+			continue
+		}
+		if field.Name == "ID" && model.IsAutoIncrementID {
+			continue
+		}
+		insertParams = append(insertParams, field)
+	}
+	if len(insertParams) == 1 {
+		model.HasSingleInsertParam = true
+		model.SingleInsertField = insertParams[0]
+	}
 
 	stdImports, extImports := groupAndSortImports(importSet)
 	model.StandardImports = stdImports
@@ -168,6 +210,21 @@ func groupAndSortImports(importSet map[string]bool) (stdImports []string, extImp
 	sort.Strings(stdImports)
 	sort.Strings(extImports)
 	return stdImports, extImports
+}
+
+func mapPKTypeToGoType(pkType validation.PKType) string {
+	switch pkType {
+	case validation.PKTypeUUID:
+		return "uuid.UUID"
+	case validation.PKTypeInt32:
+		return "int32"
+	case validation.PKTypeInt64:
+		return "int64"
+	case validation.PKTypeString:
+		return "string"
+	default:
+		return "uuid.UUID"
+	}
 }
 
 func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
@@ -425,6 +482,8 @@ func (g *Generator) prepareSQLData(
 ) SQLData {
 	var insertColumns []string
 	var insertPlaceholders []string
+	var insertColumnsNoID []string
+	var insertPlaceholdersNoID []string
 	var updateColumns []string
 	var upsertUpdateColumns []string
 
@@ -434,6 +493,10 @@ func (g *Generator) prepareSQLData(
 	var limitOffsetClause string
 	hasCreatedAt := false
 
+	// Track ID type
+	var idType string
+	var isAutoIncrementID bool
+
 	if g.typeMapper.GetDatabaseType() == "postgresql" {
 		placeholderFunc = func(i int) string { return fmt.Sprintf("$%d", i) }
 		nowFunc = "now()"
@@ -442,21 +505,48 @@ func (g *Generator) prepareSQLData(
 	}
 
 	placeholderIndex := 1
+	placeholderIndexNoID := 1
 
 	for _, col := range table.Columns {
 		if col.Name == "created_at" {
 			hasCreatedAt = true
 		}
+
+		// Detect ID type from primary key column
+		if col.Name == "id" && col.IsPrimaryKey {
+			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
+			idType = mapPKTypeToGoType(pkType)
+			isAutoIncrementID = validation.IsAutoIncrement(col.DataType)
+		}
+
 		insertColumns = append(insertColumns, col.Name)
 
 		if col.Name == "created_at" || col.Name == "updated_at" {
 			insertPlaceholders = append(insertPlaceholders, nowFunc)
+			// For NoID version, also add timestamps
+			insertColumnsNoID = append(insertColumnsNoID, col.Name)
+			insertPlaceholdersNoID = append(insertPlaceholdersNoID, nowFunc)
+		} else if col.Name == "id" {
+			// Include id in full insert, skip in NoID version
+			insertPlaceholders = append(
+				insertPlaceholders,
+				placeholderFunc(placeholderIndex),
+			)
+			placeholderIndex++
 		} else {
 			insertPlaceholders = append(
 				insertPlaceholders,
 				placeholderFunc(placeholderIndex),
 			)
 			placeholderIndex++
+
+			// For NoID version
+			insertColumnsNoID = append(insertColumnsNoID, col.Name)
+			insertPlaceholdersNoID = append(
+				insertPlaceholdersNoID,
+				placeholderFunc(placeholderIndexNoID),
+			)
+			placeholderIndexNoID++
 		}
 	}
 
@@ -494,19 +584,23 @@ func (g *Generator) prepareSQLData(
 	}
 
 	return SQLData{
-		ResourceName:        resourceName,
-		PluralName:          pluralName,
-		PluralResourceName:  pluralResourceName,
-		InsertColumns:       strings.Join(insertColumns, ", "),
-		InsertPlaceholders:  strings.Join(insertPlaceholders, ", "),
-		UpdateColumns:       strings.Join(updateColumns, ", "),
-		DatabaseType:        g.typeMapper.GetDatabaseType(),
-		IDPlaceholder:       idPlaceholder,
-		LimitOffsetClause:   limitOffsetClause,
-		NowFunction:         nowFunc,
-		UpsertUpdateSet:     strings.Join(upsertUpdateColumns, ", "),
-		OrderByClause:       orderByClause,
-		TableNameOverridden: tableNameOverridden,
+		ResourceName:           resourceName,
+		PluralName:             pluralName,
+		PluralResourceName:     pluralResourceName,
+		InsertColumns:          strings.Join(insertColumns, ", "),
+		InsertPlaceholders:     strings.Join(insertPlaceholders, ", "),
+		InsertColumnsNoID:      strings.Join(insertColumnsNoID, ", "),
+		InsertPlaceholdersNoID: strings.Join(insertPlaceholdersNoID, ", "),
+		UpdateColumns:          strings.Join(updateColumns, ", "),
+		DatabaseType:           g.typeMapper.GetDatabaseType(),
+		IDPlaceholder:          idPlaceholder,
+		LimitOffsetClause:      limitOffsetClause,
+		NowFunction:            nowFunc,
+		UpsertUpdateSet:        strings.Join(upsertUpdateColumns, ", "),
+		OrderByClause:          orderByClause,
+		TableNameOverridden:    tableNameOverridden,
+		IDType:                 idType,
+		IsAutoIncrementID:      isAutoIncrementID,
 	}
 }
 
@@ -521,12 +615,18 @@ func (g *Generator) prepareSQLDataSimple(
 ) SimpleSQLData {
 	var insertColumns []string
 	var insertPlaceholders []string
+	var insertColumnsNoID []string
+	var insertPlaceholdersNoID []string
 	var updateColumns []string
 	var upsertUpdateColumns []string
 
 	var placeholderFunc func(int) string
 	var idPlaceholder string
 	var nowFunc string
+
+	// Track ID type
+	var idType string
+	var isAutoIncrementID bool
 
 	if g.typeMapper.GetDatabaseType() == "postgresql" {
 		placeholderFunc = func(i int) string { return fmt.Sprintf("$%d", i) }
@@ -535,15 +635,34 @@ func (g *Generator) prepareSQLDataSimple(
 	}
 
 	placeholderIndex := 1
+	placeholderIndexNoID := 1
 
 	// Special handling for created_at/updated_at to always use now()
 	for _, col := range table.Columns {
+		// Detect ID type from primary key column
+		if col.Name == "id" && col.IsPrimaryKey {
+			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
+			idType = mapPKTypeToGoType(pkType)
+			isAutoIncrementID = validation.IsAutoIncrement(col.DataType)
+		}
+
 		insertColumns = append(insertColumns, col.Name)
 		if col.Name == "created_at" || col.Name == "updated_at" {
 			insertPlaceholders = append(insertPlaceholders, nowFunc)
 		} else {
 			insertPlaceholders = append(insertPlaceholders, placeholderFunc(placeholderIndex))
 			placeholderIndex++
+		}
+
+		// For NoID version, skip the id column
+		if col.Name != "id" {
+			insertColumnsNoID = append(insertColumnsNoID, col.Name)
+			if col.Name == "created_at" || col.Name == "updated_at" {
+				insertPlaceholdersNoID = append(insertPlaceholdersNoID, nowFunc)
+			} else {
+				insertPlaceholdersNoID = append(insertPlaceholdersNoID, placeholderFunc(placeholderIndexNoID))
+				placeholderIndexNoID++
+			}
 		}
 	}
 
@@ -575,14 +694,18 @@ func (g *Generator) prepareSQLDataSimple(
 	}
 
 	return SimpleSQLData{
-		ResourceName:       resourceName,
-		PluralName:         pluralName,
-		PluralResourceName: pluralResourceName,
-		InsertColumns:      strings.Join(insertColumns, ", "),
-		InsertPlaceholders: strings.Join(insertPlaceholders, ", "),
-		UpdateColumns:      strings.Join(updateColumns, ", "),
-		IDPlaceholder:      idPlaceholder,
-		UpsertUpdateSet:    strings.Join(upsertUpdateColumns, ", "),
+		ResourceName:           resourceName,
+		PluralName:             pluralName,
+		PluralResourceName:     pluralResourceName,
+		InsertColumns:          strings.Join(insertColumns, ", "),
+		InsertPlaceholders:     strings.Join(insertPlaceholders, ", "),
+		InsertColumnsNoID:      strings.Join(insertColumnsNoID, ", "),
+		InsertPlaceholdersNoID: strings.Join(insertPlaceholdersNoID, ", "),
+		UpdateColumns:          strings.Join(updateColumns, ", "),
+		IDPlaceholder:          idPlaceholder,
+		UpsertUpdateSet:        strings.Join(upsertUpdateColumns, ", "),
+		IDType:                 idType,
+		IsAutoIncrementID:      isAutoIncrementID,
 	}
 }
 
@@ -1007,6 +1130,8 @@ type GeneratedFactory struct {
 	HasCreateFunction bool
 	HasForeignKeys    bool           // True if there are 1+ FKs
 	ForeignKeyFields  []FactoryField // All FK fields
+	IDType            string         // "uuid.UUID", "int32", "int64", "string"
+	IsAutoIncrementID bool           // True for serial/bigserial
 }
 
 // FactoryField represents a field in a factory
@@ -1045,7 +1170,11 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 	standardImports := []string{"context", "fmt"}
 	externalImports := []string{
 		"github.com/go-faker/faker/v4",
-		"github.com/google/uuid",
+	}
+
+	// Only add uuid import if ID type uses UUID
+	if genModel.IDType == "uuid.UUID" || genModel.IDType == "" {
+		externalImports = append(externalImports, "github.com/google/uuid")
 	}
 
 	// Add time import if needed
@@ -1066,6 +1195,8 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 		HasCreateFunction: true, // Assume Create function exists
 		HasForeignKeys:    len(fkFields) > 0,
 		ForeignKeyFields:  fkFields,
+		IDType:            genModel.IDType,
+		IsAutoIncrementID: genModel.IsAutoIncrementID,
 	}, nil
 }
 

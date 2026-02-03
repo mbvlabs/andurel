@@ -46,7 +46,6 @@ func CreateProject(
 	if err := Validate.Struct(data); err != nil {
 		return Project{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.InsertProjectParams{
 		ID:          uuid.New(),
 		Name:        data.Name,
@@ -182,7 +181,6 @@ func UpsertProject(
 	if err := Validate.Struct(data); err != nil {
 		return Project{}, errors.Join(ErrDomainValidation, err)
 	}
-
 	params := db.UpsertProjectParams{
 		ID:          uuid.New(),
 		Name:        data.Name,
