@@ -647,19 +647,22 @@ func (g *Generator) prepareSQLDataSimple(
 		}
 
 		insertColumns = append(insertColumns, col.Name)
-		insertPlaceholders = append(insertPlaceholders, placeholderFunc(placeholderIndex))
-		placeholderIndex++
-
-		// For NoID version, skip the id column
-		if col.Name != "id" {
-			insertColumnsNoID = append(insertColumnsNoID, col.Name)
-			insertPlaceholdersNoID = append(insertPlaceholdersNoID, placeholderFunc(placeholderIndexNoID))
-			placeholderIndexNoID++
 		if col.Name == "created_at" || col.Name == "updated_at" {
 			insertPlaceholders = append(insertPlaceholders, nowFunc)
 		} else {
 			insertPlaceholders = append(insertPlaceholders, placeholderFunc(placeholderIndex))
 			placeholderIndex++
+		}
+
+		// For NoID version, skip the id column
+		if col.Name != "id" {
+			insertColumnsNoID = append(insertColumnsNoID, col.Name)
+			if col.Name == "created_at" || col.Name == "updated_at" {
+				insertPlaceholdersNoID = append(insertPlaceholdersNoID, nowFunc)
+			} else {
+				insertPlaceholdersNoID = append(insertPlaceholdersNoID, placeholderFunc(placeholderIndexNoID))
+				placeholderIndexNoID++
+			}
 		}
 	}
 

@@ -50,7 +50,10 @@ func NewModelManager(
 	}
 }
 
-func (m *ModelManager) setupModelContext(resourceName, tableName string, tableNameOverridden bool) (*modelSetupContext, error) {
+func (m *ModelManager) setupModelContext(
+	resourceName, tableName string,
+	tableNameOverridden bool,
+) (*modelSetupContext, error) {
 	modulePath := m.projectManager.GetModulePath()
 
 	if err := m.validator.ValidateResourceName(resourceName); err != nil {
@@ -101,7 +104,11 @@ func (m *ModelManager) setupModelContext(resourceName, tableName string, tableNa
 	}, nil
 }
 
-func (m *ModelManager) GenerateModel(resourceName string, tableNameOverride string, skipFactory bool) error {
+func (m *ModelManager) GenerateModel(
+	resourceName string,
+	tableNameOverride string,
+	skipFactory bool,
+) error {
 	tableName := tableNameOverride
 	if tableName == "" {
 		tableName = naming.DeriveTableName(resourceName)
