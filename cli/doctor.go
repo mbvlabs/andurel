@@ -2,12 +2,18 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"sort"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/spf13/cobra"
@@ -28,7 +34,7 @@ const (
 	statusFail
 )
 
-func newDoctorCommand() *cobra.Command {
+func newDoctorCommand(currentVersion string) *cobra.Command {
 	doctorCmd := &cobra.Command{
 		Use:   "doctor",
 		Short: "Run diagnostic checks on your Andurel project",
@@ -41,7 +47,7 @@ This command will check:
   • Code generation (templ, sqlc)`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
-			return runDoctor(verbose)
+			return runDoctor(currentVersion, verbose)
 		},
 	}
 
@@ -50,7 +56,7 @@ This command will check:
 	return doctorCmd
 }
 
-func runDoctor(verbose bool) error {
+func runDoctor(currentVersion string, verbose bool) error {
 	printDoctorBanner()
 	fmt.Println("Running Andurel project diagnostics...")
 
@@ -76,6 +82,8 @@ func runDoctor(verbose bool) error {
 	fmt.Println("\n=== Configuration ===")
 	configResults := []checkResult{
 		checkLockFile(rootDir),
+		checkAndurelVersion(rootDir, currentVersion),
+		checkToolVersions(rootDir, verbose),
 	}
 	results = append(results, configResults...)
 	printResults(configResults, verbose)
@@ -215,6 +223,262 @@ func checkLockFile(rootDir string) checkResult {
 		status:  statusPass,
 		message: fmt.Sprintf("valid (version: %s, %d tools)", lock.Version, len(lock.Tools)),
 	}
+}
+
+func checkAndurelVersion(rootDir, currentVersion string) checkResult {
+	lock, err := layout.ReadLockFile(rootDir)
+	if err != nil {
+		return checkResult{
+			name:    "Andurel version",
+			status:  statusWarn,
+			message: "andurel.lock missing or invalid (skipping check)",
+		}
+	}
+
+	if lock.Version == "" {
+		return checkResult{
+			name:    "Andurel version",
+			status:  statusWarn,
+			message: "andurel.lock has no framework version",
+		}
+	}
+
+	if currentVersion == "" {
+		return checkResult{
+			name:    "Andurel version",
+			status:  statusWarn,
+			message: fmt.Sprintf("lock expects %s, current version unknown", lock.Version),
+		}
+	}
+
+	if versionsMatch(lock.Version, currentVersion) {
+		return checkResult{
+			name:    "Andurel version",
+			status:  statusPass,
+			message: fmt.Sprintf("matches andurel.lock (%s)", lock.Version),
+		}
+	}
+
+	return checkResult{
+		name:    "Andurel version",
+		status:  statusWarn,
+		message: fmt.Sprintf("lock expects %s, current is %s", lock.Version, currentVersion),
+	}
+}
+
+func checkToolVersions(rootDir string, verbose bool) checkResult {
+	lock, err := layout.ReadLockFile(rootDir)
+	if err != nil {
+		return checkResult{
+			name:    "tool versions",
+			status:  statusWarn,
+			message: "andurel.lock missing or invalid (skipping check)",
+		}
+	}
+
+	if len(lock.Tools) == 0 {
+		return checkResult{
+			name:    "tool versions",
+			status:  statusPass,
+			message: "no tools listed in andurel.lock",
+		}
+	}
+
+	toolNames := make([]string, 0, len(lock.Tools))
+	for name := range lock.Tools {
+		toolNames = append(toolNames, name)
+	}
+	sort.Strings(toolNames)
+
+	type versionResult struct {
+		name           string
+		expectedVer    string
+		actualVer      string
+		missing        bool
+		unknown        bool
+		versionErr     error
+	}
+
+	results := make(chan versionResult, len(toolNames))
+
+	// Check all tools in parallel
+	for _, name := range toolNames {
+		go func(name string) {
+			tool := lock.Tools[name]
+			fullBinPath := filepath.Join(rootDir, "bin", name)
+			if _, err := os.Stat(fullBinPath); err != nil {
+				results <- versionResult{name: name, expectedVer: tool.Version, missing: true}
+				return
+			}
+
+			binPath := filepath.Join("bin", name)
+			actualVersion, err := getToolVersion(binPath, name)
+			if err != nil {
+				results <- versionResult{name: name, expectedVer: tool.Version, unknown: true, versionErr: err}
+				return
+			}
+
+			results <- versionResult{name: name, expectedVer: tool.Version, actualVer: actualVersion}
+		}(name)
+	}
+
+	// Collect results
+	resultMap := make(map[string]versionResult)
+	for range toolNames {
+		r := <-results
+		resultMap[r.name] = r
+	}
+
+	var details []string
+	mismatchCount := 0
+	missingCount := 0
+	unknownCount := 0
+
+	// Process in sorted order for consistent output
+	for _, name := range toolNames {
+		r := resultMap[name]
+		if r.missing {
+			missingCount++
+			details = append(details, fmt.Sprintf("%s: missing (expected %s)", name, r.expectedVer))
+			continue
+		}
+		if r.unknown {
+			unknownCount++
+			details = append(details, fmt.Sprintf("%s: could not determine version (expected %s)", name, r.expectedVer))
+			continue
+		}
+		if !versionsMatch(r.expectedVer, r.actualVer) {
+			mismatchCount++
+			details = append(details, fmt.Sprintf("%s: expected %s, found %s", name, r.expectedVer, r.actualVer))
+		}
+	}
+
+	if mismatchCount == 0 && missingCount == 0 && unknownCount == 0 {
+		return checkResult{
+			name:    "tool versions",
+			status:  statusPass,
+			message: "all tools match andurel.lock",
+		}
+	}
+
+	message := fmt.Sprintf("%d mismatched, %d missing, %d unknown",
+		mismatchCount, missingCount, unknownCount)
+	if !verbose && len(details) > 0 {
+		details = truncateDetails(details, 3)
+	}
+
+	return checkResult{
+		name:    "tool versions",
+		status:  statusWarn,
+		message: message,
+		details: details,
+	}
+}
+
+func truncateDetails(details []string, max int) []string {
+	if len(details) <= max {
+		return details
+	}
+	remaining := len(details) - max
+	truncated := append([]string{}, details[:max]...)
+	truncated = append(truncated, fmt.Sprintf("... and %d more (use --verbose to see all)", remaining))
+	return truncated
+}
+
+func getToolVersion(binPath string, toolName string) (string, error) {
+	return versionFromCommand(binPath, toolName)
+}
+
+var versionPattern = regexp.MustCompile(`v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?`)
+
+// runWithTimeout runs a command with a timeout, killing the entire process group
+// if the timeout is exceeded. This ensures child processes that inherit stdout/stderr
+// pipes are also killed, preventing CombinedOutput-style hangs.
+func runWithTimeout(ctx context.Context, path string, args ...string) ([]byte, error) {
+	cmd := exec.Command(path, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Stdin = nil
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+
+	type result struct {
+		output []byte
+		err    error
+	}
+	done := make(chan result, 1)
+
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, io.LimitReader(io.MultiReader(stdout, stderr), 1<<20))
+		err := cmd.Wait()
+		done <- result{buf.Bytes(), err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		if cmd.Process != nil {
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
+		return nil, ctx.Err()
+	case r := <-done:
+		return r.output, r.err
+	}
+}
+
+func versionFromCommand(binPath, toolName string) (string, error) {
+	rootDir, err := findGoModRoot()
+	if err != nil {
+		return "", fmt.Errorf("could not find project root: %w", err)
+	}
+
+	fullPath := filepath.Join(rootDir, binPath)
+	candidates := []string{"--version", "-version", "version", "--help"}
+
+	for _, arg := range candidates {
+		ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+		output, err := runWithTimeout(ctx, fullPath, arg)
+		cancel()
+		if err != nil {
+			continue
+		}
+		version := extractVersion(string(output))
+		if version != "" {
+			return version, nil
+		}
+	}
+
+	return "", fmt.Errorf("no version output for %s", toolName)
+}
+
+func extractVersion(output string) string {
+	return versionPattern.FindString(output)
+}
+
+func versionsMatch(expected, actual string) bool {
+	if expected == "" || actual == "" {
+		return false
+	}
+
+	expectedNorm := normalizeVersion(expected)
+	actualNorm := normalizeVersion(actual)
+	return expectedNorm == actualNorm
+}
+
+func normalizeVersion(version string) string {
+	version = strings.TrimSpace(version)
+	version = strings.TrimPrefix(version, "v")
+	return version
 }
 
 func checkGoVet(rootDir string, verbose bool) checkResult {
