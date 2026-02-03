@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -47,7 +48,7 @@ func syncBinaries(projectRoot string) error {
 
 	// Ensure bin directory exists
 	binDir := filepath.Join(projectRoot, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
 
@@ -87,6 +88,17 @@ func syncBinaries(projectRoot string) error {
 		case "go":
 			fmt.Printf("⬇ Downloading %s %s for %s/%s...\n", name, tool.Version, goos, goarch)
 			if err := cmds.DownloadGoTool(name, tool.Module, tool.Version, goos, goarch, binPath); err != nil {
+				if errors.Is(err, cmds.ErrFailedToGetRleaseURL) {
+					fmt.Printf(
+						"failed to find release for %s %s on %s/%s \n",
+						name,
+						tool.Version,
+						goos,
+						goarch,
+					)
+					continue
+				}
+
 				return fmt.Errorf("failed to download %s: %w", name, err)
 			}
 			fmt.Printf("✓ %s (%s) - downloaded successfully\n", name, tool.Version)
@@ -103,7 +115,8 @@ func syncBinaries(projectRoot string) error {
 			fmt.Printf("✓ %s (%s) - downloaded successfully\n", name, tool.Version)
 
 		default:
-			return fmt.Errorf("unknown tool source: %s for %s", tool.Source, name)
+			fmt.Printf("unknown tool source - tool: %s source: %s \n", name, tool.Source)
+			continue
 		}
 	}
 

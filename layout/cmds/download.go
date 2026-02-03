@@ -20,6 +20,8 @@ type ToolDownloader struct {
 	Version string
 }
 
+var ErrFailedToGetRleaseURL = fmt.Errorf("failed to get release URL")
+
 func DownloadGoTool(name, module, version, goos, goarch, destPath string) error {
 	downloader := &ToolDownloader{
 		Name:    name,
@@ -29,7 +31,7 @@ func DownloadGoTool(name, module, version, goos, goarch, destPath string) error 
 
 	url, archiveType, err := downloader.getReleaseURL(goos, goarch)
 	if err != nil {
-		return fmt.Errorf("failed to get release URL for %s: %w", name, err)
+		return fmt.Errorf("%w: %s", ErrFailedToGetRleaseURL, err)
 	}
 
 	tmpDir, err := os.MkdirTemp("", "andurel-download-*")
@@ -48,7 +50,7 @@ func DownloadGoTool(name, module, version, goos, goarch, destPath string) error 
 		return fmt.Errorf("failed to extract %s: %w", name, err)
 	}
 
-	if err := os.Chmod(destPath, 0755); err != nil {
+	if err := os.Chmod(destPath, 0o755); err != nil {
 		return fmt.Errorf("failed to set executable permissions: %w", err)
 	}
 
@@ -118,14 +120,18 @@ func DownloadTailwindCLI(version, goos, goarch, destPath string) error {
 		arch = "x64"
 	}
 
-	url := fmt.Sprintf("https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s-%s",
-		version, osName, arch)
+	url := fmt.Sprintf(
+		"https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s-%s",
+		version,
+		osName,
+		arch,
+	)
 
 	if err := downloadFile(url, destPath); err != nil {
 		return fmt.Errorf("failed to download tailwindcli: %w", err)
 	}
 
-	if err := os.Chmod(destPath, 0755); err != nil {
+	if err := os.Chmod(destPath, 0o755); err != nil {
 		return fmt.Errorf("failed to set executable permissions: %w", err)
 	}
 
