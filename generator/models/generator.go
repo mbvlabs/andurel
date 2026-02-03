@@ -36,6 +36,7 @@ type GeneratedField struct {
 type GeneratedModel struct {
 	Name                string
 	PluralName          string // The pluralized form of Name for function names (respects --table-name override)
+	SQLCModelName       string // The SQLC row struct name derived from the table name
 	Package             string
 	Fields              []GeneratedField
 	StandardImports     []string
@@ -122,6 +123,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	model := &GeneratedModel{
 		Name:            config.ResourceName,
 		PluralName:      inflection.Plural(config.ResourceName), // Default to standard pluralization
+		SQLCModelName:   naming.DeriveResourceName(config.TableName),
 		Package:         config.PackageName,
 		TableName:       config.TableName,
 		ModulePath:      config.ModulePath,
@@ -620,6 +622,7 @@ func (g *Generator) prepareSQLDataSimple(
 
 	var placeholderFunc func(int) string
 	var idPlaceholder string
+	var nowFunc string
 
 	// Track ID type
 	var idType string
@@ -628,12 +631,13 @@ func (g *Generator) prepareSQLDataSimple(
 	if g.typeMapper.GetDatabaseType() == "postgresql" {
 		placeholderFunc = func(i int) string { return fmt.Sprintf("$%d", i) }
 		idPlaceholder = "$1"
+		nowFunc = "now()"
 	}
 
 	placeholderIndex := 1
 	placeholderIndexNoID := 1
 
-	// All columns get sequential placeholders - no special handling
+	// Special handling for created_at/updated_at to always use now()
 	for _, col := range table.Columns {
 		// Detect ID type from primary key column
 		if col.Name == "id" && col.IsPrimaryKey {
@@ -651,13 +655,23 @@ func (g *Generator) prepareSQLDataSimple(
 			insertColumnsNoID = append(insertColumnsNoID, col.Name)
 			insertPlaceholdersNoID = append(insertPlaceholdersNoID, placeholderFunc(placeholderIndexNoID))
 			placeholderIndexNoID++
+		if col.Name == "created_at" || col.Name == "updated_at" {
+			insertPlaceholders = append(insertPlaceholders, nowFunc)
+		} else {
+			insertPlaceholders = append(insertPlaceholders, placeholderFunc(placeholderIndex))
+			placeholderIndex++
 		}
 	}
 
-	// Update columns: skip id, all others get sequential placeholders
+	// Update columns: skip id and created_at; set updated_at to now()
 	placeholderIndex = 2
 	for _, col := range table.Columns {
-		if col.Name != "id" {
+		if col.Name != "id" && col.Name != "created_at" {
+			if col.Name == "updated_at" {
+				updateColumns = append(updateColumns, "updated_at="+nowFunc)
+				upsertUpdateColumns = append(upsertUpdateColumns, "updated_at="+nowFunc)
+				continue
+			}
 			updateColumns = append(
 				updateColumns,
 				fmt.Sprintf("%s=%s", col.Name, placeholderFunc(placeholderIndex)),

@@ -200,7 +200,7 @@ func UpsertPerson(
 	return rowToPerson(row), nil
 }
 
-func rowToPerson(row db.Person) Person {
+func rowToPerson(row db.PeopleDatum) Person {
 	return Person{
 		ID:        row.ID,
 		FirstName: row.FirstName,
