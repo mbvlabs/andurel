@@ -1,0 +1,35 @@
+package components
+
+// Button component - primary action button.
+templ Button(label string) {
+	<button
+		type="button"
+		class="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-content shadow-sm transition hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+	>
+		{ label }
+	</button>
+}
+
+// ButtonLink component - styled link for secondary actions.
+templ ButtonLink(label, href string) {
+	<a
+		href={ href }
+		class="inline-flex items-center justify-center rounded-md border border-base-300 px-4 py-2 text-sm font-semibold text-base-content transition hover:bg-base-200"
+	>
+		{ label }
+	</a>
+}
+
+// ButtonGroup component - horizontal group of action buttons.
+templ ButtonGroup(labels []string) {
+	<div class="inline-flex overflow-hidden rounded-md border border-base-300">
+		for _, label := range labels {
+			<button
+				type="button"
+				class="px-4 py-2 text-sm font-medium text-base-content transition hover:bg-base-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+			>
+				{ label }
+			</button>
+		}
+	</div>
+}

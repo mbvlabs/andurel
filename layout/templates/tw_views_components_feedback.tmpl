@@ -1,0 +1,39 @@
+package components
+
+import "fmt"
+
+// Alert component - inline message block for status updates.
+templ Alert(title, message string) {
+	<div class="rounded-lg border border-base-300 bg-base-100 p-4">
+		<p class="text-sm font-semibold text-base-content">{ title }</p>
+		<p class="mt-1 text-sm text-base-content/70">{ message }</p>
+	</div>
+}
+
+// ProgressBar component - visual progress indicator.
+templ ProgressBar(value int) {
+	<div class="w-full rounded-full bg-base-200">
+		<div
+			class="h-2 rounded-full bg-primary transition"
+			style={ "width: " + fmt.Sprint(value) + "%" }
+		></div>
+	</div>
+}
+
+// Spinner component - loading indicator.
+templ Spinner() {
+	<div class="inline-flex h-6 w-6 animate-spin rounded-full border-2 border-base-300 border-t-primary"></div>
+}
+
+// Skeleton component - placeholder block for loading content.
+templ Skeleton(widthClass, heightClass string) {
+	<div class={ "animate-pulse rounded-md bg-base-200 " + widthClass + " " + heightClass }></div>
+}
+
+// EmptyState component - blank slate messaging.
+templ EmptyState(title, message string) {
+	<div class="rounded-lg border border-dashed border-base-300 bg-base-100 p-6 text-center">
+		<h3 class="text-sm font-semibold text-base-content">{ title }</h3>
+		<p class="mt-2 text-sm text-base-content/70">{ message }</p>
+	</div>
+}

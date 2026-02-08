@@ -1,0 +1,86 @@
+package components
+
+type Option struct {
+	Label string
+	Value string
+}
+
+// Checkbox component - labeled checkbox input.
+templ Checkbox(label, name string, checked bool) {
+	<label class="inline-flex items-center gap-2 text-sm text-base-content">
+		<input
+			type="checkbox"
+			name={ name }
+			class="h-4 w-4 rounded border-base-300 text-primary focus:ring-primary"
+			if checked {
+				checked
+			}
+		/>
+		<span>{ label }</span>
+	</label>
+}
+
+// RadioGroup component - list of radio button options.
+templ RadioGroup(name string, options []Option, selected string) {
+	<div class="space-y-2">
+		for _, option := range options {
+			<label class="flex items-center gap-2 text-sm text-base-content">
+				<input
+					type="radio"
+					name={ name }
+					value={ option.Value }
+					class="h-4 w-4 border-base-300 text-primary focus:ring-primary"
+					if option.Value == selected {
+						checked
+					}
+				/>
+				<span>{ option.Label }</span>
+			</label>
+		}
+	</div>
+}
+
+// SelectField component - dropdown selection input.
+templ SelectField(label, name string, options []Option, required bool, prop FieldProp) {
+	<div class="w-full space-y-1">
+		<label for={ name } class="block text-sm font-medium text-base-content/80">{ label }</label>
+		<select
+			id={ name }
+			name={ name }
+			data-bind={ name }
+			class="w-full rounded-md border border-base-300 bg-base-100 px-3 py-2 text-sm text-base-content"
+			if required {
+				required
+			}
+		>
+			for _, option := range options {
+				<option
+					value={ option.Value }
+					if option.Value == prop.Value {
+						selected
+					}
+				>
+					{ option.Label }
+				</option>
+			}
+		</select>
+		if prop.Error != "" {
+			<span class="block text-sm text-error">{ prop.Error }</span>
+		}
+	</div>
+}
+
+// Switch component - toggle input for boolean states.
+templ Switch(label, name string, enabled bool) {
+	<label class="flex items-center gap-3 text-sm text-base-content">
+		<span>{ label }</span>
+		<input
+			type="checkbox"
+			name={ name }
+			class="h-5 w-9 rounded-full border border-base-300 bg-base-200 text-primary transition"
+			if enabled {
+				checked
+			}
+		/>
+	</label>
+}
