@@ -10,7 +10,7 @@ templ Checkbox(label, name string, checked bool) {
 	<label class="inline-flex items-center gap-2 text-sm text-base-content">
 		<input
 			type="checkbox"
-			name={ name }
+			data-bind={ name }
 			class="h-4 w-4 rounded border-base-300 text-primary focus:ring-primary"
 			if checked {
 				checked
@@ -24,14 +24,14 @@ templ Checkbox(label, name string, checked bool) {
 templ RadioGroup(name string, options []Option, selected string) {
 	<div class="space-y-2">
 		for _, option := range options {
-			<label class="flex items-center gap-2 text-sm text-base-content">
-				<input
-					type="radio"
-					name={ name }
-					value={ option.Value }
-					class="h-4 w-4 border-base-300 text-primary focus:ring-primary"
-					if option.Value == selected {
-						checked
+				<label class="flex items-center gap-2 text-sm text-base-content">
+					<input
+						type="radio"
+						data-bind={ name }
+						value={ option.Value }
+						class="h-4 w-4 border-base-300 text-primary focus:ring-primary"
+						if option.Value == selected {
+							checked
 					}
 				/>
 				<span>{ option.Label }</span>
@@ -46,7 +46,6 @@ templ SelectField(label, name string, options []Option, required bool, prop Fiel
 		<label for={ name } class="block text-sm font-medium text-base-content/80">{ label }</label>
 		<select
 			id={ name }
-			name={ name }
 			data-bind={ name }
 			class="w-full rounded-md border border-base-300 bg-base-100 px-3 py-2 text-sm text-base-content"
 			if required {
@@ -76,7 +75,7 @@ templ Switch(label, name string, enabled bool) {
 		<span>{ label }</span>
 		<input
 			type="checkbox"
-			name={ name }
+			data-bind={ name }
 			class="h-5 w-9 rounded-full border border-base-300 bg-base-200 text-primary transition"
 			if enabled {
 				checked
