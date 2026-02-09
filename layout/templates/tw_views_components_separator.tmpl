@@ -9,36 +9,65 @@ const (
 	SeparatorVertical   SeparatorOrientation = "vertical"
 )
 
-type SeparatorProps struct {
-	Class       string
-	Orientation SeparatorOrientation
-	Attributes  templ.Attributes
+// --- Builder ---
+
+type SeparatorBuilder struct {
+	orientation SeparatorOrientation
+	id          string
+	class       string
+	attrs       templ.Attributes
+	fragmentID  string
 }
+
+func Separator() *SeparatorBuilder {
+	return &SeparatorBuilder{}
+}
+
+func (b *SeparatorBuilder) WithOrientation(o SeparatorOrientation) *SeparatorBuilder { b.orientation = o; return b }
+func (b *SeparatorBuilder) WithID(id string) *SeparatorBuilder                       { b.id = id; return b }
+func (b *SeparatorBuilder) WithClass(c string) *SeparatorBuilder                     { b.class = cn(b.class, c); return b }
+func (b *SeparatorBuilder) SetClass(c string) *SeparatorBuilder                      { b.class = c; return b }
+func (b *SeparatorBuilder) WithAttr(key string, val any) *SeparatorBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *SeparatorBuilder) WithFragment(id string) *SeparatorBuilder                 { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func separatorClasses(p SeparatorProps) string {
+func separatorClasses(b *SeparatorBuilder) string {
 	base := "shrink-0 bg-base-300"
 	orientation := "h-px w-full"
-	if p.Orientation == SeparatorVertical {
+	if b.orientation == SeparatorVertical {
 		orientation = "h-full w-px"
 	}
-	return cn(base, orientation, p.Class)
+	return cn(base, orientation, b.class)
 }
 
 // --- Templ ---
 
-templ Separator(props ...SeparatorProps) {
-	{{ "{{" }} var p SeparatorProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *SeparatorBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
+}
+
+templ (b *SeparatorBuilder) render() {
 	<div
 		role="separator"
-		class={ separatorClasses(p) }
-		if p.Orientation == SeparatorVertical {
+		class={ separatorClasses(b) }
+		if b.orientation == SeparatorVertical {
 			aria-orientation="vertical"
 		}
-		{ p.Attributes... }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
 	></div>
 }

@@ -10,11 +10,29 @@ const (
 	SpinnerSizeLg SpinnerSize = "lg"
 )
 
-type SpinnerProps struct {
-	Class      string
-	Size       SpinnerSize
-	Attributes templ.Attributes
+// --- Builder ---
+
+type SpinnerBuilder struct {
+	size       SpinnerSize
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
+
+func Spinner() *SpinnerBuilder {
+	return &SpinnerBuilder{}
+}
+
+func (b *SpinnerBuilder) WithSize(s SpinnerSize) *SpinnerBuilder { b.size = s; return b }
+func (b *SpinnerBuilder) WithID(id string) *SpinnerBuilder       { b.id = id; return b }
+func (b *SpinnerBuilder) WithClass(c string) *SpinnerBuilder     { b.class = cn(b.class, c); return b }
+func (b *SpinnerBuilder) SetClass(c string) *SpinnerBuilder      { b.class = c; return b }
+func (b *SpinnerBuilder) WithAttr(key string, val any) *SpinnerBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *SpinnerBuilder) WithFragment(id string) *SpinnerBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
@@ -29,24 +47,35 @@ func spinnerSizeClasses(s SpinnerSize) string {
 	}
 }
 
-func spinnerClasses(p SpinnerProps) string {
+func spinnerClasses(b *SpinnerBuilder) string {
 	base := "animate-spin text-base-content/60"
-	return cn(base, spinnerSizeClasses(p.Size), p.Class)
+	return cn(base, spinnerSizeClasses(b.size), b.class)
 }
 
 // --- Templ ---
 
-templ Spinner(props ...SpinnerProps) {
-	{{ "{{" }} var p SpinnerProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *SpinnerBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
+}
+
+templ (b *SpinnerBuilder) render() {
 	<svg
-		class={ spinnerClasses(p) }
+		class={ spinnerClasses(b) }
 		xmlns="http://www.w3.org/2000/svg"
 		fill="none"
 		viewBox="0 0 24 24"
-		{ p.Attributes... }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
 	>
 		<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
 		<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>

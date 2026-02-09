@@ -1,37 +1,65 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type LabelProps struct {
-	Class      string
-	For        string
-	Required   bool
-	Attributes templ.Attributes
+type LabelBuilder struct {
+	htmlFor    string
+	required   bool
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
+
+func Label() *LabelBuilder {
+	return &LabelBuilder{}
+}
+
+func (b *LabelBuilder) WithFor(f string) *LabelBuilder       { b.htmlFor = f; return b }
+func (b *LabelBuilder) WithRequired(r bool) *LabelBuilder    { b.required = r; return b }
+func (b *LabelBuilder) WithID(id string) *LabelBuilder       { b.id = id; return b }
+func (b *LabelBuilder) WithClass(c string) *LabelBuilder     { b.class = cn(b.class, c); return b }
+func (b *LabelBuilder) SetClass(c string) *LabelBuilder      { b.class = c; return b }
+func (b *LabelBuilder) WithAttr(key string, val any) *LabelBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *LabelBuilder) WithFragment(id string) *LabelBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func labelClasses(p LabelProps) string {
+func labelClasses(b *LabelBuilder) string {
 	base := "text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60"
-	return cn(base, p.Class)
+	return cn(base, b.class)
 }
 
 // --- Templ ---
 
-templ Label(props ...LabelProps) {
-	{{ "{{" }} var p LabelProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<label
-		class={ labelClasses(p) }
-		if p.For != "" {
-			for={ p.For }
+templ (b *LabelBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
 		}
-		{ p.Attributes... }
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *LabelBuilder) render() {
+	<label
+		class={ labelClasses(b) }
+		if b.htmlFor != "" {
+			for={ b.htmlFor }
+		}
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
 	>
 		{ children... }
-		if p.Required {
+		if b.required {
 			<span class="text-error ml-0.5">*</span>
 		}
 	</label>

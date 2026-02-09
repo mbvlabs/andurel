@@ -12,12 +12,31 @@ const (
 	AlertVariantError   AlertVariant = "error"
 )
 
-type AlertProps struct {
-	Class      string
-	Variant    AlertVariant
-	Title      string
-	Attributes templ.Attributes
+// --- Builder ---
+
+type AlertBuilder struct {
+	variant    AlertVariant
+	title      string
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
+
+func Alert() *AlertBuilder {
+	return &AlertBuilder{}
+}
+
+func (b *AlertBuilder) WithVariant(v AlertVariant) *AlertBuilder { b.variant = v; return b }
+func (b *AlertBuilder) WithTitle(t string) *AlertBuilder         { b.title = t; return b }
+func (b *AlertBuilder) WithID(id string) *AlertBuilder           { b.id = id; return b }
+func (b *AlertBuilder) WithClass(c string) *AlertBuilder         { b.class = cn(b.class, c); return b }
+func (b *AlertBuilder) SetClass(c string) *AlertBuilder          { b.class = c; return b }
+func (b *AlertBuilder) WithAttr(key string, val any) *AlertBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *AlertBuilder) WithFragment(id string) *AlertBuilder     { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
@@ -36,21 +55,36 @@ func alertVariantClasses(v AlertVariant) string {
 	}
 }
 
-func alertClasses(p AlertProps) string {
+func alertClasses(b *AlertBuilder) string {
 	base := "relative w-full rounded-box border p-4 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg~*]:pl-7"
-	return cn(base, alertVariantClasses(p.Variant), p.Class)
+	return cn(base, alertVariantClasses(b.variant), b.class)
 }
 
 // --- Templ ---
 
-templ Alert(props ...AlertProps) {
-	{{ "{{" }} var p AlertProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *AlertBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<div role="alert" class={ alertClasses(p) } { p.Attributes... }>
-		if p.Title != "" {
-			<h5 class="mb-1 font-medium leading-none tracking-tight">{ p.Title }</h5>
+}
+
+templ (b *AlertBuilder) render() {
+	<div
+		role="alert"
+		class={ alertClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		if b.title != "" {
+			<h5 class="mb-1 font-medium leading-none tracking-tight">{ b.title }</h5>
 		}
 		<div class="text-sm [&_p]:leading-relaxed">
 			{ children... }

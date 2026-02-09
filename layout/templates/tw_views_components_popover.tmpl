@@ -1,61 +1,72 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type PopoverProps struct {
-	Class      string
-	Attributes templ.Attributes
+type PopoverBuilder struct {
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
 
-type PopoverTriggerProps struct {
-	Class      string
-	Attributes templ.Attributes
+func Popover() *PopoverBuilder {
+	return &PopoverBuilder{}
 }
 
-type PopoverContentProps struct {
-	Class      string
-	Attributes templ.Attributes
+func (b *PopoverBuilder) WithID(id string) *PopoverBuilder     { b.id = id; return b }
+func (b *PopoverBuilder) WithClass(c string) *PopoverBuilder   { b.class = cn(b.class, c); return b }
+func (b *PopoverBuilder) SetClass(c string) *PopoverBuilder    { b.class = c; return b }
+func (b *PopoverBuilder) WithAttr(key string, val any) *PopoverBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
 }
+func (b *PopoverBuilder) WithFragment(id string) *PopoverBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func popoverClasses(p PopoverProps) string {
-	return cn("relative inline-block", p.Class)
+func popoverClasses(b *PopoverBuilder) string {
+	return cn("relative inline-block", b.class)
 }
 
-func popoverContentClasses(p PopoverContentProps) string {
+func popoverContentClasses(class string) string {
 	base := "z-50 w-72 rounded-box border border-base-300 bg-base-100 p-4 text-base-content shadow-md outline-none"
-	return cn(base, p.Class)
+	return cn(base, class)
 }
 
 // --- Templ ---
 
-templ Popover(props ...PopoverProps) {
-	{{ "{{" }} var p PopoverProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *PopoverBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<div class={ popoverClasses(p) } { p.Attributes... }>
+}
+
+templ (b *PopoverBuilder) render() {
+	<div
+		class={ popoverClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
 		{ children... }
 	</div>
 }
 
-templ PopoverTrigger(props ...PopoverTriggerProps) {
-	{{ "{{" }} var p PopoverTriggerProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ cn("cursor-pointer", p.Class) } { p.Attributes... }>
+templ PopoverTrigger(class string, attrs templ.Attributes) {
+	<div class={ cn("cursor-pointer", class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
 
-templ PopoverContent(props ...PopoverContentProps) {
-	{{ "{{" }} var p PopoverContentProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ popoverContentClasses(p) } { p.Attributes... }>
+templ PopoverContent(class string, attrs templ.Attributes) {
+	<div class={ popoverContentClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }

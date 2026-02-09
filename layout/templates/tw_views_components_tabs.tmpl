@@ -1,88 +1,89 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type TabsProps struct {
-	Class      string
-	Attributes templ.Attributes
+type TabsBuilder struct {
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
 
-type TabsListProps struct {
-	Class      string
-	Attributes templ.Attributes
+func Tabs() *TabsBuilder {
+	return &TabsBuilder{}
 }
 
-type TabsTriggerProps struct {
-	Class      string
-	Active     bool
-	Attributes templ.Attributes
+func (b *TabsBuilder) WithID(id string) *TabsBuilder     { b.id = id; return b }
+func (b *TabsBuilder) WithClass(c string) *TabsBuilder   { b.class = cn(b.class, c); return b }
+func (b *TabsBuilder) SetClass(c string) *TabsBuilder    { b.class = c; return b }
+func (b *TabsBuilder) WithAttr(key string, val any) *TabsBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
 }
-
-type TabsContentProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
+func (b *TabsBuilder) WithFragment(id string) *TabsBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func tabsClasses(p TabsProps) string {
-	return cn("w-full", p.Class)
+func tabsClasses(b *TabsBuilder) string {
+	return cn("w-full", b.class)
 }
 
-func tabsListClasses(p TabsListProps) string {
-	return cn("inline-flex h-9 items-center justify-center rounded-box bg-base-200 p-1 text-base-content/60", p.Class)
+func tabsListClasses(class string) string {
+	return cn("inline-flex h-9 items-center justify-center rounded-box bg-base-200 p-1 text-base-content/60", class)
 }
 
-func tabsTriggerClasses(p TabsTriggerProps) string {
+func tabsTriggerClasses(active bool, class string) string {
 	base := "inline-flex items-center justify-center whitespace-nowrap rounded-field px-3 py-1 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:pointer-events-none disabled:opacity-60"
-	if p.Active {
-		return cn(base, "bg-base-100 text-base-content shadow-sm", p.Class)
+	if active {
+		return cn(base, "bg-base-100 text-base-content shadow-sm", class)
 	}
-	return cn(base, "hover:text-base-content", p.Class)
+	return cn(base, "hover:text-base-content", class)
 }
 
-func tabsContentClasses(p TabsContentProps) string {
-	return cn("mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50", p.Class)
+func tabsContentClasses(class string) string {
+	return cn("mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50", class)
 }
 
 // --- Templ ---
 
-templ Tabs(props ...TabsProps) {
-	{{ "{{" }} var p TabsProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *TabsBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<div class={ tabsClasses(p) } { p.Attributes... }>
+}
+
+templ (b *TabsBuilder) render() {
+	<div
+		class={ tabsClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
 		{ children... }
 	</div>
 }
 
-templ TabsList(props ...TabsListProps) {
-	{{ "{{" }} var p TabsListProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div role="tablist" class={ tabsListClasses(p) } { p.Attributes... }>
+templ TabsList(class string, attrs templ.Attributes) {
+	<div role="tablist" class={ tabsListClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
 
-templ TabsTrigger(props ...TabsTriggerProps) {
-	{{ "{{" }} var p TabsTriggerProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<button type="button" role="tab" class={ tabsTriggerClasses(p) } { p.Attributes... }>
+templ TabsTrigger(active bool, class string, attrs templ.Attributes) {
+	<button type="button" role="tab" class={ tabsTriggerClasses(active, class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</button>
 }
 
-templ TabsContent(props ...TabsContentProps) {
-	{{ "{{" }} var p TabsContentProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div role="tabpanel" class={ tabsContentClasses(p) } { p.Attributes... }>
+templ TabsContent(class string, attrs templ.Attributes) {
+	<div role="tabpanel" class={ tabsContentClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }

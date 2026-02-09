@@ -1,34 +1,72 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type CodeProps struct {
-	Class      string
-	Inline     bool
-	Attributes templ.Attributes
+type CodeBuilder struct {
+	inline     bool
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
+
+func Code() *CodeBuilder {
+	return &CodeBuilder{}
+}
+
+func (b *CodeBuilder) WithInline(i bool) *CodeBuilder   { b.inline = i; return b }
+func (b *CodeBuilder) WithID(id string) *CodeBuilder    { b.id = id; return b }
+func (b *CodeBuilder) WithClass(c string) *CodeBuilder  { b.class = cn(b.class, c); return b }
+func (b *CodeBuilder) SetClass(c string) *CodeBuilder   { b.class = c; return b }
+func (b *CodeBuilder) WithAttr(key string, val any) *CodeBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *CodeBuilder) WithFragment(id string) *CodeBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func codeClasses(p CodeProps) string {
-	if p.Inline {
-		return cn("relative rounded bg-base-200 px-[0.3rem] py-[0.2rem] font-mono text-sm text-base-content", p.Class)
+func codeClasses(b *CodeBuilder) string {
+	if b.inline {
+		return cn("relative rounded bg-base-200 px-[0.3rem] py-[0.2rem] font-mono text-sm text-base-content", b.class)
 	}
-	return cn("block overflow-x-auto rounded-box bg-base-200 p-4 font-mono text-sm text-base-content", p.Class)
+	return cn("block overflow-x-auto rounded-box bg-base-200 p-4 font-mono text-sm text-base-content", b.class)
 }
 
 // --- Templ ---
 
-templ Code(props ...CodeProps) {
-	{{ "{{" }} var p CodeProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *CodeBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	if p.Inline {
-		<code class={ codeClasses(p) } { p.Attributes... }>
+}
+
+templ (b *CodeBuilder) render() {
+	if b.inline {
+		<code
+			class={ codeClasses(b) }
+			if b.id != "" {
+				id={ b.id }
+			}
+			if b.attrs != nil {
+				{ b.attrs... }
+			}
+		>
 			{ children... }
 		</code>
 	} else {
-		<pre class={ codeClasses(p) } { p.Attributes... }><code>{ children... }</code></pre>
+		<pre
+			class={ codeClasses(b) }
+			if b.id != "" {
+				id={ b.id }
+			}
+			if b.attrs != nil {
+				{ b.attrs... }
+			}
+		><code>{ children... }</code></pre>
 	}
 }

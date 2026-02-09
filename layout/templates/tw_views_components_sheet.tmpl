@@ -11,41 +11,27 @@ const (
 	SheetSideBottom SheetSide = "bottom"
 )
 
-type SheetProps struct {
-	Class      string
-	Attributes templ.Attributes
+// --- Builder ---
+
+type SheetBuilder struct {
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
 
-type SheetContentProps struct {
-	Class      string
-	Side       SheetSide
-	Attributes templ.Attributes
+func Sheet() *SheetBuilder {
+	return &SheetBuilder{}
 }
 
-type SheetHeaderProps struct {
-	Class      string
-	Attributes templ.Attributes
+func (b *SheetBuilder) WithID(id string) *SheetBuilder     { b.id = id; return b }
+func (b *SheetBuilder) WithClass(c string) *SheetBuilder   { b.class = cn(b.class, c); return b }
+func (b *SheetBuilder) SetClass(c string) *SheetBuilder    { b.class = c; return b }
+func (b *SheetBuilder) WithAttr(key string, val any) *SheetBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
 }
-
-type SheetTitleProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
-
-type SheetDescriptionProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
-
-type SheetFooterProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
-
-type SheetCloseProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
+func (b *SheetBuilder) WithFragment(id string) *SheetBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
@@ -62,103 +48,90 @@ func sheetContentSideClasses(s SheetSide) string {
 	}
 }
 
-func sheetContentClasses(p SheetContentProps) string {
+func sheetContentClasses(side SheetSide, class string) string {
 	base := "fixed z-50 gap-4 bg-base-100 p-6 shadow-lg"
-	return cn(base, sheetContentSideClasses(p.Side), p.Class)
+	return cn(base, sheetContentSideClasses(side), class)
 }
 
-func sheetHeaderClasses(p SheetHeaderProps) string {
-	return cn("flex flex-col space-y-2 text-center sm:text-left", p.Class)
+func sheetHeaderClasses(class string) string {
+	return cn("flex flex-col space-y-2 text-center sm:text-left", class)
 }
 
-func sheetTitleClasses(p SheetTitleProps) string {
-	return cn("text-lg font-semibold text-base-content", p.Class)
+func sheetTitleClasses(class string) string {
+	return cn("text-lg font-semibold text-base-content", class)
 }
 
-func sheetDescriptionClasses(p SheetDescriptionProps) string {
-	return cn("text-sm text-base-content/60", p.Class)
+func sheetDescriptionClasses(class string) string {
+	return cn("text-sm text-base-content/60", class)
 }
 
-func sheetFooterClasses(p SheetFooterProps) string {
-	return cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", p.Class)
+func sheetFooterClasses(class string) string {
+	return cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", class)
 }
 
-func sheetCloseClasses(p SheetCloseProps) string {
-	return cn("absolute right-4 top-4 rounded-field opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer", p.Class)
+func sheetCloseClasses(class string) string {
+	return cn("absolute right-4 top-4 rounded-field opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer", class)
 }
 
 // --- Templ ---
 
-templ Sheet(props ...SheetProps) {
-	{{ "{{" }} var p SheetProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *SheetBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<div class={ cn("relative", p.Class) } { p.Attributes... }>
+}
+
+templ (b *SheetBuilder) render() {
+	<div
+		class={ cn("relative", b.class) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
 		{ children... }
 	</div>
 }
 
-templ SheetContent(props ...SheetContentProps) {
-	{{ "{{" }} var p SheetContentProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	if p.Side == "" {
-		{{ "{{" }} p.Side = SheetSideRight {{ "}}" }}
-	}
+templ SheetContent(side SheetSide, class string, attrs templ.Attributes) {
 	<div class="fixed inset-0 z-50 bg-black/80"></div>
-	<div class={ sheetContentClasses(p) } role="dialog" aria-modal="true" { p.Attributes... }>
+	<div class={ sheetContentClasses(side, class) } role="dialog" aria-modal="true" if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
 
-templ SheetHeader(props ...SheetHeaderProps) {
-	{{ "{{" }} var p SheetHeaderProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ sheetHeaderClasses(p) } { p.Attributes... }>
+templ SheetHeader(class string, attrs templ.Attributes) {
+	<div class={ sheetHeaderClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
 
-templ SheetTitle(props ...SheetTitleProps) {
-	{{ "{{" }} var p SheetTitleProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<h2 class={ sheetTitleClasses(p) } { p.Attributes... }>
+templ SheetTitle(class string, attrs templ.Attributes) {
+	<h2 class={ sheetTitleClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</h2>
 }
 
-templ SheetDescription(props ...SheetDescriptionProps) {
-	{{ "{{" }} var p SheetDescriptionProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<p class={ sheetDescriptionClasses(p) } { p.Attributes... }>
+templ SheetDescription(class string, attrs templ.Attributes) {
+	<p class={ sheetDescriptionClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</p>
 }
 
-templ SheetFooter(props ...SheetFooterProps) {
-	{{ "{{" }} var p SheetFooterProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ sheetFooterClasses(p) } { p.Attributes... }>
+templ SheetFooter(class string, attrs templ.Attributes) {
+	<div class={ sheetFooterClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
 
-templ SheetClose(props ...SheetCloseProps) {
-	{{ "{{" }} var p SheetCloseProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<button type="button" class={ sheetCloseClasses(p) } { p.Attributes... }>
+templ SheetClose(class string, attrs templ.Attributes) {
+	<button type="button" class={ sheetCloseClasses(class) } if attrs != nil { { attrs... } }>
 		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
 		<span class="sr-only">Close</span>
 	</button>

@@ -1,84 +1,86 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type AccordionProps struct {
-	Class      string
-	Attributes templ.Attributes
+type AccordionBuilder struct {
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
 
-type AccordionItemProps struct {
-	Class      string
-	Attributes templ.Attributes
+func Accordion() *AccordionBuilder {
+	return &AccordionBuilder{}
 }
 
-type AccordionTriggerProps struct {
-	Class      string
-	Attributes templ.Attributes
+func (b *AccordionBuilder) WithID(id string) *AccordionBuilder     { b.id = id; return b }
+func (b *AccordionBuilder) WithClass(c string) *AccordionBuilder   { b.class = cn(b.class, c); return b }
+func (b *AccordionBuilder) SetClass(c string) *AccordionBuilder    { b.class = c; return b }
+func (b *AccordionBuilder) WithAttr(key string, val any) *AccordionBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
 }
-
-type AccordionContentProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
+func (b *AccordionBuilder) WithFragment(id string) *AccordionBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func accordionClasses(p AccordionProps) string {
-	return cn("w-full", p.Class)
+func accordionClasses(b *AccordionBuilder) string {
+	return cn("w-full", b.class)
 }
 
-func accordionItemClasses(p AccordionItemProps) string {
-	return cn("border-b border-base-300", p.Class)
+func accordionItemClasses(class string) string {
+	return cn("border-b border-base-300", class)
 }
 
-func accordionTriggerClasses(p AccordionTriggerProps) string {
-	return cn("flex flex-1 items-center justify-between py-4 text-sm font-medium transition-all hover:underline cursor-pointer [&[aria-expanded=true]>svg]:rotate-180", p.Class)
+func accordionTriggerClasses(class string) string {
+	return cn("flex flex-1 items-center justify-between py-4 text-sm font-medium transition-all hover:underline cursor-pointer [&[aria-expanded=true]>svg]:rotate-180", class)
 }
 
-func accordionContentClasses(p AccordionContentProps) string {
-	return cn("overflow-hidden text-sm", p.Class)
+func accordionContentClasses(class string) string {
+	return cn("overflow-hidden text-sm", class)
 }
 
 // --- Templ ---
 
-templ Accordion(props ...AccordionProps) {
-	{{ "{{" }} var p AccordionProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *AccordionBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<div class={ accordionClasses(p) } { p.Attributes... }>
+}
+
+templ (b *AccordionBuilder) render() {
+	<div
+		class={ accordionClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
 		{ children... }
 	</div>
 }
 
-templ AccordionItem(props ...AccordionItemProps) {
-	{{ "{{" }} var p AccordionItemProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ accordionItemClasses(p) } { p.Attributes... }>
+templ AccordionItem(class string, attrs templ.Attributes) {
+	<div class={ accordionItemClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
 
-templ AccordionTrigger(props ...AccordionTriggerProps) {
-	{{ "{{" }} var p AccordionTriggerProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<button type="button" class={ accordionTriggerClasses(p) } { p.Attributes... }>
+templ AccordionTrigger(class string, attrs templ.Attributes) {
+	<button type="button" class={ accordionTriggerClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 transition-transform duration-200"><path d="m6 9 6 6 6-6"></path></svg>
 	</button>
 }
 
-templ AccordionContent(props ...AccordionContentProps) {
-	{{ "{{" }} var p AccordionContentProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ accordionContentClasses(p) } { p.Attributes... }>
+templ AccordionContent(class string, attrs templ.Attributes) {
+	<div class={ accordionContentClasses(class) } if attrs != nil { { attrs... } }>
 		<div class="pb-4 pt-0">
 			{ children... }
 		</div>

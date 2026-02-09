@@ -2,25 +2,44 @@ package components
 
 import "strconv"
 
-// --- Types ---
+// --- Builder ---
 
-type SliderProps struct {
-	ID         string
-	Class      string
-	Attributes templ.Attributes
-	Name       string
-	Min        float64
-	Max        float64
-	Step       float64
-	Value      float64
-	Disabled   bool
+type SliderBuilder struct {
+	bind       string
+	min        float64
+	max        float64
+	step       float64
+	value      float64
+	disabled   bool
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
+
+func Slider(bind string) *SliderBuilder {
+	return &SliderBuilder{bind: bind, max: 100}
+}
+
+func (b *SliderBuilder) WithMin(m float64) *SliderBuilder       { b.min = m; return b }
+func (b *SliderBuilder) WithMax(m float64) *SliderBuilder       { b.max = m; return b }
+func (b *SliderBuilder) WithStep(s float64) *SliderBuilder      { b.step = s; return b }
+func (b *SliderBuilder) WithValue(v float64) *SliderBuilder     { b.value = v; return b }
+func (b *SliderBuilder) WithDisabled(d bool) *SliderBuilder     { b.disabled = d; return b }
+func (b *SliderBuilder) WithID(id string) *SliderBuilder        { b.id = id; return b }
+func (b *SliderBuilder) WithClass(c string) *SliderBuilder      { b.class = cn(b.class, c); return b }
+func (b *SliderBuilder) SetClass(c string) *SliderBuilder       { b.class = c; return b }
+func (b *SliderBuilder) WithAttr(key string, val any) *SliderBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *SliderBuilder) WithFragment(id string) *SliderBuilder  { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func sliderClasses(p SliderProps) string {
+func sliderClasses(b *SliderBuilder) string {
 	base := "w-full h-2 cursor-pointer appearance-none rounded-full bg-base-300 accent-primary transition [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
-	return cn(base, p.Class)
+	return cn(base, b.class)
 }
 
 func floatToStr(f float64) string {
@@ -29,36 +48,36 @@ func floatToStr(f float64) string {
 
 // --- Templ ---
 
-templ Slider(props ...SliderProps) {
-	{{ "{{" }} var p SliderProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *SliderBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	if p.Max == 0 {
-		{{ "{{" }} p.Max = 100 {{ "}}" }}
-	}
+}
+
+templ (b *SliderBuilder) render() {
 	<input
 		type="range"
-		class={ sliderClasses(p) }
-		if p.ID != "" {
-			id={ p.ID }
+		class={ sliderClasses(b) }
+		if b.id != "" {
+			id={ b.id }
 		}
-		if p.Name != "" {
-			name={ p.Name }
-			data-bind={ p.Name }
+		data-bind={ b.bind }
+		min={ floatToStr(b.min) }
+		max={ floatToStr(b.max) }
+		if b.step > 0 {
+			step={ floatToStr(b.step) }
 		}
-		min={ floatToStr(p.Min) }
-		max={ floatToStr(p.Max) }
-		if p.Step > 0 {
-			step={ floatToStr(p.Step) }
-		}
-		value={ floatToStr(p.Value) }
-		if p.Disabled {
+		value={ floatToStr(b.value) }
+		if b.disabled {
 			disabled
 		}
-		if p.Name != "" {
-			data-attr:disabled="$submitting"
+		data-attr:disabled="$submitting"
+		if b.attrs != nil {
+			{ b.attrs... }
 		}
-		{ p.Attributes... }
 	/>
 }

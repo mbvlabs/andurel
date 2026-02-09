@@ -11,61 +11,73 @@ const (
 	TooltipSideLeft   TooltipSide = "left"
 )
 
-type TooltipProps struct {
-	Class      string
-	Attributes templ.Attributes
+// --- Builder ---
+
+type TooltipBuilder struct {
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
 
-type TooltipTriggerProps struct {
-	Class      string
-	Attributes templ.Attributes
+func Tooltip() *TooltipBuilder {
+	return &TooltipBuilder{}
 }
 
-type TooltipContentProps struct {
-	Class      string
-	Side       TooltipSide
-	Attributes templ.Attributes
+func (b *TooltipBuilder) WithID(id string) *TooltipBuilder     { b.id = id; return b }
+func (b *TooltipBuilder) WithClass(c string) *TooltipBuilder   { b.class = cn(b.class, c); return b }
+func (b *TooltipBuilder) SetClass(c string) *TooltipBuilder    { b.class = c; return b }
+func (b *TooltipBuilder) WithAttr(key string, val any) *TooltipBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
 }
+func (b *TooltipBuilder) WithFragment(id string) *TooltipBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func tooltipClasses(p TooltipProps) string {
-	return cn("relative inline-block group", p.Class)
+func tooltipClasses(b *TooltipBuilder) string {
+	return cn("relative inline-block group", b.class)
 }
 
-func tooltipContentClasses(p TooltipContentProps) string {
+func tooltipContentClasses(class string) string {
 	base := "z-50 overflow-hidden rounded-field border border-base-300 bg-base-100 px-3 py-1.5 text-xs text-base-content shadow-md"
-	return cn(base, p.Class)
+	return cn(base, class)
 }
 
 // --- Templ ---
 
-templ Tooltip(props ...TooltipProps) {
-	{{ "{{" }} var p TooltipProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *TooltipBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<div class={ tooltipClasses(p) } { p.Attributes... }>
+}
+
+templ (b *TooltipBuilder) render() {
+	<div
+		class={ tooltipClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
 		{ children... }
 	</div>
 }
 
-templ TooltipTrigger(props ...TooltipTriggerProps) {
-	{{ "{{" }} var p TooltipTriggerProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ cn("cursor-pointer", p.Class) } { p.Attributes... }>
+templ TooltipTrigger(class string, attrs templ.Attributes) {
+	<div class={ cn("cursor-pointer", class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
 
-templ TooltipContent(props ...TooltipContentProps) {
-	{{ "{{" }} var p TooltipContentProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div role="tooltip" class={ tooltipContentClasses(p) } { p.Attributes... }>
+templ TooltipContent(class string, attrs templ.Attributes) {
+	<div role="tooltip" class={ tooltipContentClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }

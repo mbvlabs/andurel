@@ -1,121 +1,105 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type CardProps struct {
-	Class      string
-	Attributes templ.Attributes
+type CardBuilder struct {
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
 
-type CardHeaderProps struct {
-	Class      string
-	Attributes templ.Attributes
+func Card() *CardBuilder {
+	return &CardBuilder{}
 }
 
-type CardTitleProps struct {
-	Class      string
-	Attributes templ.Attributes
+func (b *CardBuilder) WithID(id string) *CardBuilder     { b.id = id; return b }
+func (b *CardBuilder) WithClass(c string) *CardBuilder   { b.class = cn(b.class, c); return b }
+func (b *CardBuilder) SetClass(c string) *CardBuilder    { b.class = c; return b }
+func (b *CardBuilder) WithAttr(key string, val any) *CardBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
 }
-
-type CardDescriptionProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
-
-type CardContentProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
-
-type CardFooterProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
+func (b *CardBuilder) WithFragment(id string) *CardBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func cardClasses(p CardProps) string {
-	return cn("rounded-box border border-base-300 bg-base-100 shadow-sm", p.Class)
+func cardClasses(b *CardBuilder) string {
+	return cn("rounded-box border border-base-300 bg-base-100 shadow-sm", b.class)
 }
 
-func cardHeaderClasses(p CardHeaderProps) string {
-	return cn("flex flex-col space-y-1.5 p-6", p.Class)
+func cardHeaderClasses(class string) string {
+	return cn("flex flex-col space-y-1.5 p-6", class)
 }
 
-func cardTitleClasses(p CardTitleProps) string {
-	return cn("text-lg font-semibold leading-none tracking-tight text-base-content", p.Class)
+func cardTitleClasses(class string) string {
+	return cn("text-lg font-semibold leading-none tracking-tight text-base-content", class)
 }
 
-func cardDescriptionClasses(p CardDescriptionProps) string {
-	return cn("text-sm text-base-content/60", p.Class)
+func cardDescriptionClasses(class string) string {
+	return cn("text-sm text-base-content/60", class)
 }
 
-func cardContentClasses(p CardContentProps) string {
-	return cn("p-6 pt-0", p.Class)
+func cardContentClasses(class string) string {
+	return cn("p-6 pt-0", class)
 }
 
-func cardFooterClasses(p CardFooterProps) string {
-	return cn("flex items-center p-6 pt-0", p.Class)
+func cardFooterClasses(class string) string {
+	return cn("flex items-center p-6 pt-0", class)
 }
 
 // --- Templ ---
 
-templ Card(props ...CardProps) {
-	{{ "{{" }} var p CardProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *CardBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<div class={ cardClasses(p) } { p.Attributes... }>
+}
+
+templ (b *CardBuilder) render() {
+	<div
+		class={ cardClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
 		{ children... }
 	</div>
 }
 
-templ CardHeader(props ...CardHeaderProps) {
-	{{ "{{" }} var p CardHeaderProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ cardHeaderClasses(p) } { p.Attributes... }>
+templ CardHeader(class string, attrs templ.Attributes) {
+	<div class={ cardHeaderClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
 
-templ CardTitle(props ...CardTitleProps) {
-	{{ "{{" }} var p CardTitleProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<h3 class={ cardTitleClasses(p) } { p.Attributes... }>
+templ CardTitle(class string, attrs templ.Attributes) {
+	<h3 class={ cardTitleClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</h3>
 }
 
-templ CardDescription(props ...CardDescriptionProps) {
-	{{ "{{" }} var p CardDescriptionProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<p class={ cardDescriptionClasses(p) } { p.Attributes... }>
+templ CardDescription(class string, attrs templ.Attributes) {
+	<p class={ cardDescriptionClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</p>
 }
 
-templ CardContent(props ...CardContentProps) {
-	{{ "{{" }} var p CardContentProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ cardContentClasses(p) } { p.Attributes... }>
+templ CardContent(class string, attrs templ.Attributes) {
+	<div class={ cardContentClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
 
-templ CardFooter(props ...CardFooterProps) {
-	{{ "{{" }} var p CardFooterProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ cardFooterClasses(p) } { p.Attributes... }>
+templ CardFooter(class string, attrs templ.Attributes) {
+	<div class={ cardFooterClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }

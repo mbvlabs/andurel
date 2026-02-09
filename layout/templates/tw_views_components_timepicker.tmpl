@@ -1,19 +1,34 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type TimepickerProps struct {
-	ID          string
-	Class       string
-	Attributes  templ.Attributes
-	Name        string
-	Value       string
+type TimepickerBuilder struct {
+	bind       string
+	value      string
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
+
+func Timepicker(bind string) *TimepickerBuilder {
+	return &TimepickerBuilder{bind: bind}
+}
+
+func (b *TimepickerBuilder) WithValue(v string) *TimepickerBuilder     { b.value = v; return b }
+func (b *TimepickerBuilder) WithID(id string) *TimepickerBuilder       { b.id = id; return b }
+func (b *TimepickerBuilder) WithClass(c string) *TimepickerBuilder     { b.class = cn(b.class, c); return b }
+func (b *TimepickerBuilder) SetClass(c string) *TimepickerBuilder      { b.class = c; return b }
+func (b *TimepickerBuilder) WithAttr(key string, val any) *TimepickerBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *TimepickerBuilder) WithFragment(id string) *TimepickerBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func timepickerClasses(p TimepickerProps) string {
-	return cn("relative w-full", p.Class)
+func timepickerClasses(b *TimepickerBuilder) string {
+	return cn("relative w-full", b.class)
 }
 
 func timepickerInputClasses() string {
@@ -22,26 +37,34 @@ func timepickerInputClasses() string {
 
 // --- Templ ---
 
-templ Timepicker(props ...TimepickerProps) {
-	{{ "{{" }} var p TimepickerProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *TimepickerBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<div class={ timepickerClasses(p) } { p.Attributes... }>
+}
+
+templ (b *TimepickerBuilder) render() {
+	<div
+		class={ timepickerClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
 		<div class="relative">
 			<input
 				type="time"
 				class={ timepickerInputClasses() }
-				if p.ID != "" {
-					id={ p.ID }
-				}
-				if p.Name != "" {
-					name={ p.Name }
-					data-bind={ p.Name }
-					data-attr:disabled="$submitting"
-				}
-				if p.Value != "" {
-					value={ p.Value }
+				data-bind={ b.bind }
+				data-attr:disabled="$submitting"
+				if b.value != "" {
+					value={ b.value }
 				}
 			/>
 			<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">

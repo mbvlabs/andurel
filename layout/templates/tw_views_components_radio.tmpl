@@ -1,78 +1,84 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type RadioGroupProps struct {
-	Class      string
-	Attributes templ.Attributes
+type RadioBuilder struct {
+	bind       string
+	value      string
+	label      string
+	checked    bool
+	disabled   bool
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
 
-type RadioProps struct {
-	ID         string
-	Class      string
-	Attributes templ.Attributes
-	Name       string
-	Value      string
-	Label      string
-	Checked    bool
-	Disabled   bool
+func Radio(bind string, value string) *RadioBuilder {
+	return &RadioBuilder{bind: bind, value: value}
 }
+
+func (b *RadioBuilder) WithLabel(l string) *RadioBuilder       { b.label = l; return b }
+func (b *RadioBuilder) WithChecked(c bool) *RadioBuilder       { b.checked = c; return b }
+func (b *RadioBuilder) WithDisabled(d bool) *RadioBuilder      { b.disabled = d; return b }
+func (b *RadioBuilder) WithID(id string) *RadioBuilder         { b.id = id; return b }
+func (b *RadioBuilder) WithClass(c string) *RadioBuilder       { b.class = cn(b.class, c); return b }
+func (b *RadioBuilder) SetClass(c string) *RadioBuilder        { b.class = c; return b }
+func (b *RadioBuilder) WithAttr(key string, val any) *RadioBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *RadioBuilder) WithFragment(id string) *RadioBuilder   { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func radioGroupClasses(p RadioGroupProps) string {
-	return cn("flex flex-col gap-2", p.Class)
-}
-
-func radioClasses(p RadioProps) string {
+func radioClasses(b *RadioBuilder) string {
 	base := "h-4 w-4 shrink-0 border border-base-300 bg-base-200 accent-primary transition focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
-	return cn(base, p.Class)
+	return cn(base, b.class)
 }
 
 // --- Templ ---
 
-templ RadioGroup(props ...RadioGroupProps) {
-	{{ "{{" }} var p RadioGroupProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *RadioBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<div role="radiogroup" class={ radioGroupClasses(p) } { p.Attributes... }>
-		{ children... }
-	</div>
 }
 
-templ Radio(props ...RadioProps) {
-	{{ "{{" }} var p RadioProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
+templ (b *RadioBuilder) render() {
 	<label class="flex items-center gap-2 text-sm text-base-content">
 		<input
 			type="radio"
-			class={ radioClasses(p) }
-			if p.ID != "" {
-				id={ p.ID }
+			class={ radioClasses(b) }
+			if b.id != "" {
+				id={ b.id }
 			}
-			if p.Name != "" {
-				name={ p.Name }
-				data-bind={ p.Name }
-			}
-			if p.Value != "" {
-				value={ p.Value }
-			}
-			if p.Checked {
+			data-bind={ b.bind }
+			value={ b.value }
+			if b.checked {
 				checked
 			}
-			if p.Disabled {
+			if b.disabled {
 				disabled
 			}
-			if p.Name != "" {
-				data-attr:disabled="$submitting"
+			data-attr:disabled="$submitting"
+			if b.attrs != nil {
+				{ b.attrs... }
 			}
-			{ p.Attributes... }
 		/>
-		if p.Label != "" {
-			{ p.Label }
+		if b.label != "" {
+			{ b.label }
 		}
 	</label>
+}
+
+// RadioGroup remains a simple templ func
+templ RadioGroup(class string, attrs templ.Attributes) {
+	<div role="radiogroup" class={ cn("flex flex-col gap-2", class) } if attrs != nil { { attrs... } }>
+		{ children... }
+	</div>
 }

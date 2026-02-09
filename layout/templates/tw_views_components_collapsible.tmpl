@@ -1,64 +1,75 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type CollapsibleProps struct {
-	Class      string
-	Attributes templ.Attributes
+type CollapsibleBuilder struct {
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
 
-type CollapsibleTriggerProps struct {
-	Class      string
-	Attributes templ.Attributes
+func Collapsible() *CollapsibleBuilder {
+	return &CollapsibleBuilder{}
 }
 
-type CollapsibleContentProps struct {
-	Class      string
-	Attributes templ.Attributes
+func (b *CollapsibleBuilder) WithID(id string) *CollapsibleBuilder     { b.id = id; return b }
+func (b *CollapsibleBuilder) WithClass(c string) *CollapsibleBuilder   { b.class = cn(b.class, c); return b }
+func (b *CollapsibleBuilder) SetClass(c string) *CollapsibleBuilder    { b.class = c; return b }
+func (b *CollapsibleBuilder) WithAttr(key string, val any) *CollapsibleBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
 }
+func (b *CollapsibleBuilder) WithFragment(id string) *CollapsibleBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func collapsibleClasses(p CollapsibleProps) string {
-	return cn("w-full", p.Class)
+func collapsibleClasses(b *CollapsibleBuilder) string {
+	return cn("w-full", b.class)
 }
 
-func collapsibleTriggerClasses(p CollapsibleTriggerProps) string {
-	return cn("flex items-center justify-between cursor-pointer", p.Class)
+func collapsibleTriggerClasses(class string) string {
+	return cn("flex items-center justify-between cursor-pointer", class)
 }
 
-func collapsibleContentClasses(p CollapsibleContentProps) string {
-	return cn("overflow-hidden", p.Class)
+func collapsibleContentClasses(class string) string {
+	return cn("overflow-hidden", class)
 }
 
 // --- Templ ---
 
-templ Collapsible(props ...CollapsibleProps) {
-	{{ "{{" }} var p CollapsibleProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *CollapsibleBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<div class={ collapsibleClasses(p) } { p.Attributes... }>
+}
+
+templ (b *CollapsibleBuilder) render() {
+	<div
+		class={ collapsibleClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
 		{ children... }
 	</div>
 }
 
-templ CollapsibleTrigger(props ...CollapsibleTriggerProps) {
-	{{ "{{" }} var p CollapsibleTriggerProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<button type="button" class={ collapsibleTriggerClasses(p) } { p.Attributes... }>
+templ CollapsibleTrigger(class string, attrs templ.Attributes) {
+	<button type="button" class={ collapsibleTriggerClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</button>
 }
 
-templ CollapsibleContent(props ...CollapsibleContentProps) {
-	{{ "{{" }} var p CollapsibleContentProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ collapsibleContentClasses(p) } { p.Attributes... }>
+templ CollapsibleContent(class string, attrs templ.Attributes) {
+	<div class={ collapsibleContentClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }

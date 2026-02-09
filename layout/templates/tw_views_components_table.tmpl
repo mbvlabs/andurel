@@ -1,161 +1,127 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type TableProps struct {
-	Class      string
-	Attributes templ.Attributes
+type TableBuilder struct {
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
 
-type TableHeaderProps struct {
-	Class      string
-	Attributes templ.Attributes
+func Table() *TableBuilder {
+	return &TableBuilder{}
 }
 
-type TableBodyProps struct {
-	Class      string
-	Attributes templ.Attributes
+func (b *TableBuilder) WithID(id string) *TableBuilder     { b.id = id; return b }
+func (b *TableBuilder) WithClass(c string) *TableBuilder   { b.class = cn(b.class, c); return b }
+func (b *TableBuilder) SetClass(c string) *TableBuilder    { b.class = c; return b }
+func (b *TableBuilder) WithAttr(key string, val any) *TableBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
 }
-
-type TableFooterProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
-
-type TableRowProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
-
-type TableHeadProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
-
-type TableCellProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
-
-type TableCaptionProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
+func (b *TableBuilder) WithFragment(id string) *TableBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func tableClasses(p TableProps) string {
-	return cn("w-full caption-bottom text-sm", p.Class)
+func tableClasses(b *TableBuilder) string {
+	return cn("w-full caption-bottom text-sm", b.class)
 }
 
-func tableHeaderClasses(p TableHeaderProps) string {
-	return cn("[&_tr]:border-b [&_tr]:border-base-300", p.Class)
+func tableHeaderClasses(class string) string {
+	return cn("[&_tr]:border-b [&_tr]:border-base-300", class)
 }
 
-func tableBodyClasses(p TableBodyProps) string {
-	return cn("[&_tr:last-child]:border-0", p.Class)
+func tableBodyClasses(class string) string {
+	return cn("[&_tr:last-child]:border-0", class)
 }
 
-func tableFooterClasses(p TableFooterProps) string {
-	return cn("border-t border-base-300 bg-base-200/50 font-medium [&>tr]:last:border-b-0", p.Class)
+func tableFooterClasses(class string) string {
+	return cn("border-t border-base-300 bg-base-200/50 font-medium [&>tr]:last:border-b-0", class)
 }
 
-func tableRowClasses(p TableRowProps) string {
-	return cn("border-b border-base-300 transition-colors hover:bg-base-200/50", p.Class)
+func tableRowClasses(class string) string {
+	return cn("border-b border-base-300 transition-colors hover:bg-base-200/50", class)
 }
 
-func tableHeadClasses(p TableHeadProps) string {
-	return cn("h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0", p.Class)
+func tableHeadClasses(class string) string {
+	return cn("h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0", class)
 }
 
-func tableCellClasses(p TableCellProps) string {
-	return cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", p.Class)
+func tableCellClasses(class string) string {
+	return cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", class)
 }
 
-func tableCaptionClasses(p TableCaptionProps) string {
-	return cn("mt-4 text-sm text-base-content/60", p.Class)
+func tableCaptionClasses(class string) string {
+	return cn("mt-4 text-sm text-base-content/60", class)
 }
 
 // --- Templ ---
 
-templ Table(props ...TableProps) {
-	{{ "{{" }} var p TableProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *TableBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
+}
+
+templ (b *TableBuilder) render() {
 	<div class="relative w-full overflow-auto">
-		<table class={ tableClasses(p) } { p.Attributes... }>
+		<table
+			class={ tableClasses(b) }
+			if b.id != "" {
+				id={ b.id }
+			}
+			if b.attrs != nil {
+				{ b.attrs... }
+			}
+		>
 			{ children... }
 		</table>
 	</div>
 }
 
-templ TableHeader(props ...TableHeaderProps) {
-	{{ "{{" }} var p TableHeaderProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<thead class={ tableHeaderClasses(p) } { p.Attributes... }>
+templ TableHeader(class string, attrs templ.Attributes) {
+	<thead class={ tableHeaderClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</thead>
 }
 
-templ TableBody(props ...TableBodyProps) {
-	{{ "{{" }} var p TableBodyProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<tbody class={ tableBodyClasses(p) } { p.Attributes... }>
+templ TableBody(class string, attrs templ.Attributes) {
+	<tbody class={ tableBodyClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</tbody>
 }
 
-templ TableFooter(props ...TableFooterProps) {
-	{{ "{{" }} var p TableFooterProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<tfoot class={ tableFooterClasses(p) } { p.Attributes... }>
+templ TableFooter(class string, attrs templ.Attributes) {
+	<tfoot class={ tableFooterClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</tfoot>
 }
 
-templ TableRow(props ...TableRowProps) {
-	{{ "{{" }} var p TableRowProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<tr class={ tableRowClasses(p) } { p.Attributes... }>
+templ TableRow(class string, attrs templ.Attributes) {
+	<tr class={ tableRowClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</tr>
 }
 
-templ TableHead(props ...TableHeadProps) {
-	{{ "{{" }} var p TableHeadProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<th class={ tableHeadClasses(p) } { p.Attributes... }>
+templ TableHead(class string, attrs templ.Attributes) {
+	<th class={ tableHeadClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</th>
 }
 
-templ TableCell(props ...TableCellProps) {
-	{{ "{{" }} var p TableCellProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<td class={ tableCellClasses(p) } { p.Attributes... }>
+templ TableCell(class string, attrs templ.Attributes) {
+	<td class={ tableCellClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</td>
 }
 
-templ TableCaption(props ...TableCaptionProps) {
-	{{ "{{" }} var p TableCaptionProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<caption class={ tableCaptionClasses(p) } { p.Attributes... }>
+templ TableCaption(class string, attrs templ.Attributes) {
+	<caption class={ tableCaptionClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</caption>
 }

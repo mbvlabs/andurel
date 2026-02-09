@@ -1,25 +1,54 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type SkeletonProps struct {
-	Class      string
-	Attributes templ.Attributes
+type SkeletonBuilder struct {
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
+
+func Skeleton() *SkeletonBuilder {
+	return &SkeletonBuilder{}
+}
+
+func (b *SkeletonBuilder) WithID(id string) *SkeletonBuilder     { b.id = id; return b }
+func (b *SkeletonBuilder) WithClass(c string) *SkeletonBuilder   { b.class = cn(b.class, c); return b }
+func (b *SkeletonBuilder) SetClass(c string) *SkeletonBuilder    { b.class = c; return b }
+func (b *SkeletonBuilder) WithAttr(key string, val any) *SkeletonBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *SkeletonBuilder) WithFragment(id string) *SkeletonBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func skeletonClasses(p SkeletonProps) string {
+func skeletonClasses(b *SkeletonBuilder) string {
 	base := "animate-pulse rounded-field bg-base-300"
-	return cn(base, p.Class)
+	return cn(base, b.class)
 }
 
 // --- Templ ---
 
-templ Skeleton(props ...SkeletonProps) {
-	{{ "{{" }} var p SkeletonProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *SkeletonBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<div class={ skeletonClasses(p) } { p.Attributes... }></div>
+}
+
+templ (b *SkeletonBuilder) render() {
+	<div
+		class={ skeletonClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	></div>
 }

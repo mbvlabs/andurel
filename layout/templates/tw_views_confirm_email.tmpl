@@ -23,11 +23,11 @@ templ ConfirmationForm() {
 						</div>
 						<div class="space-y-4">
 							<div class="w-full space-y-1">
-								@components.Label(components.LabelProps{For: "code"}) { Verification Code }
-								@components.Input(components.InputProps{ID: "code", Name: "code", Type: components.InputTypeText, Placeholder: "Enter 6-digit code", Required: true})
+								@components.Label().WithFor("code").Render() { Verification Code }
+								@components.Input("code").WithID("code").WithType(components.InputTypeText).WithPlaceholder("Enter 6-digit code").WithRequired(true).Render()
 							</div>
 						</div>
-						@components.Button(components.ButtonProps{Type: components.ButtonTypeSubmit, FullWidth: true, Attributes: templ.Attributes{"data-attr:disabled": "$submitting"}}) {
+						@components.Button().WithType(components.ButtonTypeSubmit).WithFullWidth(true).WithAttr("data-attr:disabled", "$submitting").Render() {
 							<span data-show="!$submitting">Verify Email</span>
 							<span data-show="$submitting">Loading</span>
 						}

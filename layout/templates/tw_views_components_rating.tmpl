@@ -2,52 +2,79 @@ package components
 
 import "strconv"
 
-// --- Types ---
+// --- Builder ---
 
-type RatingProps struct {
-	ID         string
-	Class      string
-	Attributes templ.Attributes
-	Name       string
-	Value      int
-	Max        int
-	Disabled   bool
+type RatingBuilder struct {
+	bind       string
+	value      int
+	max        int
+	disabled   bool
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
+
+func Rating(bind string) *RatingBuilder {
+	return &RatingBuilder{bind: bind, max: 5}
+}
+
+func (b *RatingBuilder) WithValue(v int) *RatingBuilder        { b.value = v; return b }
+func (b *RatingBuilder) WithMax(m int) *RatingBuilder          { b.max = m; return b }
+func (b *RatingBuilder) WithDisabled(d bool) *RatingBuilder    { b.disabled = d; return b }
+func (b *RatingBuilder) WithID(id string) *RatingBuilder       { b.id = id; return b }
+func (b *RatingBuilder) WithClass(c string) *RatingBuilder     { b.class = cn(b.class, c); return b }
+func (b *RatingBuilder) SetClass(c string) *RatingBuilder      { b.class = c; return b }
+func (b *RatingBuilder) WithAttr(key string, val any) *RatingBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *RatingBuilder) WithFragment(id string) *RatingBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func ratingClasses(p RatingProps) string {
-	return cn("flex items-center gap-1", p.Class)
+func ratingClasses(b *RatingBuilder) string {
+	return cn("flex items-center gap-1", b.class)
 }
 
 // --- Templ ---
 
-templ Rating(props ...RatingProps) {
-	{{ "{{" }} var p RatingProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *RatingBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	if p.Max == 0 {
-		{{ "{{" }} p.Max = 5 {{ "}}" }}
-	}
-	<div class={ ratingClasses(p) } role="radiogroup" { p.Attributes... }>
-		for i := 1; i <= p.Max; i++ {
-			<label class={ cn("cursor-pointer", func() string { if p.Disabled { return "cursor-not-allowed opacity-60" }; return "" }()) }>
+}
+
+templ (b *RatingBuilder) render() {
+	<div
+		class={ ratingClasses(b) }
+		role="radiogroup"
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		for i := 1; i <= b.max; i++ {
+			<label class={ cn("cursor-pointer", func() string { if b.disabled { return "cursor-not-allowed opacity-60" }; return "" }()) }>
 				<input
 					type="radio"
 					class="sr-only peer"
-					if p.Name != "" {
-						name={ p.Name }
-					}
+					data-bind={ b.bind }
 					value={ strconv.Itoa(i) }
-					if i == p.Value {
+					if i == b.value {
 						checked
 					}
-					if p.Disabled {
+					if b.disabled {
 						disabled
 					}
 				/>
-				<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class={ cn("transition-colors", func() string { if i <= p.Value { return "fill-warning text-warning" }; return "fill-none text-base-content/30" }()) }><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+				<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class={ cn("transition-colors", func() string { if i <= b.value { return "fill-warning text-warning" }; return "fill-none text-base-content/30" }()) }><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
 			</label>
 		}
 	</div>

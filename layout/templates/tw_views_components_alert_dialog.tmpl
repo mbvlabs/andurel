@@ -1,156 +1,122 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type AlertDialogProps struct {
-	Class      string
-	Attributes templ.Attributes
+type AlertDialogBuilder struct {
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
 
-type AlertDialogContentProps struct {
-	Class      string
-	Attributes templ.Attributes
+func AlertDialog() *AlertDialogBuilder {
+	return &AlertDialogBuilder{}
 }
 
-type AlertDialogHeaderProps struct {
-	Class      string
-	Attributes templ.Attributes
+func (b *AlertDialogBuilder) WithID(id string) *AlertDialogBuilder     { b.id = id; return b }
+func (b *AlertDialogBuilder) WithClass(c string) *AlertDialogBuilder   { b.class = cn(b.class, c); return b }
+func (b *AlertDialogBuilder) SetClass(c string) *AlertDialogBuilder    { b.class = c; return b }
+func (b *AlertDialogBuilder) WithAttr(key string, val any) *AlertDialogBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
 }
-
-type AlertDialogTitleProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
-
-type AlertDialogDescriptionProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
-
-type AlertDialogFooterProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
-
-type AlertDialogActionProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
-
-type AlertDialogCancelProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
+func (b *AlertDialogBuilder) WithFragment(id string) *AlertDialogBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func alertDialogContentClasses(p AlertDialogContentProps) string {
-	return cn("fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border border-base-300 bg-base-100 p-6 shadow-lg rounded-box", p.Class)
+func alertDialogContentClasses(class string) string {
+	return cn("fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border border-base-300 bg-base-100 p-6 shadow-lg rounded-box", class)
 }
 
-func alertDialogHeaderClasses(p AlertDialogHeaderProps) string {
-	return cn("flex flex-col space-y-2 text-center sm:text-left", p.Class)
+func alertDialogHeaderClasses(class string) string {
+	return cn("flex flex-col space-y-2 text-center sm:text-left", class)
 }
 
-func alertDialogTitleClasses(p AlertDialogTitleProps) string {
-	return cn("text-lg font-semibold text-base-content", p.Class)
+func alertDialogTitleClasses(class string) string {
+	return cn("text-lg font-semibold text-base-content", class)
 }
 
-func alertDialogDescriptionClasses(p AlertDialogDescriptionProps) string {
-	return cn("text-sm text-base-content/60", p.Class)
+func alertDialogDescriptionClasses(class string) string {
+	return cn("text-sm text-base-content/60", class)
 }
 
-func alertDialogFooterClasses(p AlertDialogFooterProps) string {
-	return cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", p.Class)
+func alertDialogFooterClasses(class string) string {
+	return cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", class)
 }
 
-func alertDialogActionClasses(p AlertDialogActionProps) string {
-	return cn("inline-flex items-center justify-center rounded-field bg-primary px-4 py-2 text-sm font-medium text-primary-content shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50", p.Class)
+func alertDialogActionClasses(class string) string {
+	return cn("inline-flex items-center justify-center rounded-field bg-primary px-4 py-2 text-sm font-medium text-primary-content shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50", class)
 }
 
-func alertDialogCancelClasses(p AlertDialogCancelProps) string {
-	return cn("inline-flex items-center justify-center rounded-field border border-base-300 bg-transparent px-4 py-2 text-sm font-medium text-base-content shadow-sm transition hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 mt-2 sm:mt-0", p.Class)
+func alertDialogCancelClasses(class string) string {
+	return cn("inline-flex items-center justify-center rounded-field border border-base-300 bg-transparent px-4 py-2 text-sm font-medium text-base-content shadow-sm transition hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 mt-2 sm:mt-0", class)
 }
 
 // --- Templ ---
 
-templ AlertDialog(props ...AlertDialogProps) {
-	{{ "{{" }} var p AlertDialogProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *AlertDialogBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<div class={ cn("relative", p.Class) } { p.Attributes... }>
+}
+
+templ (b *AlertDialogBuilder) render() {
+	<div
+		class={ cn("relative", b.class) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
 		{ children... }
 	</div>
 }
 
-templ AlertDialogContent(props ...AlertDialogContentProps) {
-	{{ "{{" }} var p AlertDialogContentProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
+templ AlertDialogContent(class string, attrs templ.Attributes) {
 	<div class="fixed inset-0 z-50 bg-black/80"></div>
-	<div class={ alertDialogContentClasses(p) } role="alertdialog" aria-modal="true" { p.Attributes... }>
+	<div class={ alertDialogContentClasses(class) } role="alertdialog" aria-modal="true" if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
 
-templ AlertDialogHeader(props ...AlertDialogHeaderProps) {
-	{{ "{{" }} var p AlertDialogHeaderProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ alertDialogHeaderClasses(p) } { p.Attributes... }>
+templ AlertDialogHeader(class string, attrs templ.Attributes) {
+	<div class={ alertDialogHeaderClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
 
-templ AlertDialogTitle(props ...AlertDialogTitleProps) {
-	{{ "{{" }} var p AlertDialogTitleProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<h2 class={ alertDialogTitleClasses(p) } { p.Attributes... }>
+templ AlertDialogTitle(class string, attrs templ.Attributes) {
+	<h2 class={ alertDialogTitleClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</h2>
 }
 
-templ AlertDialogDescription(props ...AlertDialogDescriptionProps) {
-	{{ "{{" }} var p AlertDialogDescriptionProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<p class={ alertDialogDescriptionClasses(p) } { p.Attributes... }>
+templ AlertDialogDescription(class string, attrs templ.Attributes) {
+	<p class={ alertDialogDescriptionClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</p>
 }
 
-templ AlertDialogFooter(props ...AlertDialogFooterProps) {
-	{{ "{{" }} var p AlertDialogFooterProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ alertDialogFooterClasses(p) } { p.Attributes... }>
+templ AlertDialogFooter(class string, attrs templ.Attributes) {
+	<div class={ alertDialogFooterClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
 
-templ AlertDialogAction(props ...AlertDialogActionProps) {
-	{{ "{{" }} var p AlertDialogActionProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<button type="button" class={ alertDialogActionClasses(p) } { p.Attributes... }>
+templ AlertDialogAction(class string, attrs templ.Attributes) {
+	<button type="button" class={ alertDialogActionClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</button>
 }
 
-templ AlertDialogCancel(props ...AlertDialogCancelProps) {
-	{{ "{{" }} var p AlertDialogCancelProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<button type="button" class={ alertDialogCancelClasses(p) } { p.Attributes... }>
+templ AlertDialogCancel(class string, attrs templ.Attributes) {
+	<button type="button" class={ alertDialogCancelClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</button>
 }

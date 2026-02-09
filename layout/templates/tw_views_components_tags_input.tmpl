@@ -1,54 +1,74 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type TagsInputProps struct {
-	ID          string
-	Class       string
-	Attributes  templ.Attributes
-	Name        string
-	Placeholder string
+type TagsInputBuilder struct {
+	bind        string
+	placeholder string
+	id          string
+	class       string
+	attrs       templ.Attributes
+	fragmentID  string
 }
+
+func TagsInput(bind string) *TagsInputBuilder {
+	return &TagsInputBuilder{bind: bind}
+}
+
+func (b *TagsInputBuilder) WithPlaceholder(p string) *TagsInputBuilder { b.placeholder = p; return b }
+func (b *TagsInputBuilder) WithID(id string) *TagsInputBuilder         { b.id = id; return b }
+func (b *TagsInputBuilder) WithClass(c string) *TagsInputBuilder       { b.class = cn(b.class, c); return b }
+func (b *TagsInputBuilder) SetClass(c string) *TagsInputBuilder        { b.class = c; return b }
+func (b *TagsInputBuilder) WithAttr(key string, val any) *TagsInputBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *TagsInputBuilder) WithFragment(id string) *TagsInputBuilder   { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func tagsInputContainerClasses(p TagsInputProps) string {
+func tagsInputContainerClasses(b *TagsInputBuilder) string {
 	base := "flex min-h-9 w-full flex-wrap items-center gap-1.5 rounded-field border border-base-300 bg-base-200 px-3 py-1.5 text-sm shadow-inner transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/50"
-	return cn(base, p.Class)
+	return cn(base, b.class)
 }
 
 // --- Templ ---
 
-templ TagsInput(props ...TagsInputProps) {
-	{{ "{{" }} var p TagsInputProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *TagsInputBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<div class={ tagsInputContainerClasses(p) } { p.Attributes... }>
+}
+
+templ (b *TagsInputBuilder) render() {
+	<div
+		class={ tagsInputContainerClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
 		{ children... }
 		<input
 			type="text"
 			class="flex-1 bg-transparent outline-none placeholder:text-base-content/40 min-w-[80px]"
-			if p.ID != "" {
-				id={ p.ID }
+			if b.placeholder != "" {
+				placeholder={ b.placeholder }
 			}
-			if p.Placeholder != "" {
-				placeholder={ p.Placeholder }
-			}
-			if p.Name != "" {
-				data-bind={ p.Name }
-				data-attr:disabled="$submitting"
-			}
+			data-bind={ b.bind }
+			data-attr:disabled="$submitting"
 		/>
 	</div>
 }
 
-templ Tag(props ...BadgeProps) {
-	{{ "{{" }} var p BadgeProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<span class={ cn("inline-flex items-center gap-1 rounded-full bg-base-300 px-2 py-0.5 text-xs font-medium text-base-content", p.Class) } { p.Attributes... }>
+templ Tag(class string, attrs templ.Attributes) {
+	<span class={ cn("inline-flex items-center gap-1 rounded-full bg-base-300 px-2 py-0.5 text-xs font-medium text-base-content", class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</span>
 }

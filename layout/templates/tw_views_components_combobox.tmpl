@@ -1,26 +1,34 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type ComboboxProps struct {
-	ID          string
-	Class       string
-	Attributes  templ.Attributes
-	Name        string
-	Placeholder string
+type ComboboxBuilder struct {
+	bind        string
+	placeholder string
+	id          string
+	class       string
+	attrs       templ.Attributes
+	fragmentID  string
 }
 
-type ComboboxItemProps struct {
-	Class      string
-	Attributes templ.Attributes
-	Value      string
-	Selected   bool
+func Combobox(bind string) *ComboboxBuilder {
+	return &ComboboxBuilder{bind: bind}
 }
+
+func (b *ComboboxBuilder) WithPlaceholder(p string) *ComboboxBuilder { b.placeholder = p; return b }
+func (b *ComboboxBuilder) WithID(id string) *ComboboxBuilder         { b.id = id; return b }
+func (b *ComboboxBuilder) WithClass(c string) *ComboboxBuilder       { b.class = cn(b.class, c); return b }
+func (b *ComboboxBuilder) SetClass(c string) *ComboboxBuilder        { b.class = c; return b }
+func (b *ComboboxBuilder) WithAttr(key string, val any) *ComboboxBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *ComboboxBuilder) WithFragment(id string) *ComboboxBuilder   { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func comboboxClasses(p ComboboxProps) string {
-	return cn("relative w-full", p.Class)
+func comboboxClasses(b *ComboboxBuilder) string {
+	return cn("relative w-full", b.class)
 }
 
 func comboboxInputClasses() string {
@@ -31,36 +39,45 @@ func comboboxListClasses() string {
 	return "absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-md"
 }
 
-func comboboxItemClasses(p ComboboxItemProps) string {
+func comboboxItemClasses(selected bool, class string) string {
 	base := "relative flex cursor-pointer select-none items-center rounded-field px-2 py-1.5 text-sm outline-none hover:bg-base-200"
-	if p.Selected {
-		return cn(base, "bg-base-200", p.Class)
+	if selected {
+		return cn(base, "bg-base-200", class)
 	}
-	return cn(base, p.Class)
+	return cn(base, class)
 }
 
 // --- Templ ---
 
-templ Combobox(props ...ComboboxProps) {
-	{{ "{{" }} var p ComboboxProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *ComboboxBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<div class={ comboboxClasses(p) } { p.Attributes... }>
+}
+
+templ (b *ComboboxBuilder) render() {
+	<div
+		class={ comboboxClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
 		<div class="relative">
 			<input
 				type="text"
 				class={ comboboxInputClasses() }
-				if p.ID != "" {
-					id={ p.ID }
+				if b.placeholder != "" {
+					placeholder={ b.placeholder }
 				}
-				if p.Placeholder != "" {
-					placeholder={ p.Placeholder }
-				}
-				if p.Name != "" {
-					data-bind={ p.Name }
-					data-attr:disabled="$submitting"
-				}
+				data-bind={ b.bind }
+				data-attr:disabled="$submitting"
 				autocomplete="off"
 			/>
 			<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
@@ -77,23 +94,21 @@ templ ComboboxList() {
 	</ul>
 }
 
-templ ComboboxItem(props ...ComboboxItemProps) {
-	{{ "{{" }} var p ComboboxItemProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
+templ ComboboxItem(value string, selected bool, class string, attrs templ.Attributes) {
 	<li
-		class={ comboboxItemClasses(p) }
+		class={ comboboxItemClasses(selected, class) }
 		role="option"
-		if p.Value != "" {
-			data-value={ p.Value }
+		if value != "" {
+			data-value={ value }
 		}
-		if p.Selected {
+		if selected {
 			aria-selected="true"
 		}
-		{ p.Attributes... }
+		if attrs != nil {
+			{ attrs... }
+		}
 	>
-		if p.Selected {
+		if selected {
 			<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 shrink-0"><path d="M20 6 9 17l-5-5"></path></svg>
 		}
 		{ children... }

@@ -1,95 +1,90 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type DropdownProps struct {
-	Class      string
-	Attributes templ.Attributes
+type DropdownBuilder struct {
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
 
-type DropdownTriggerProps struct {
-	Class      string
-	Attributes templ.Attributes
+func Dropdown() *DropdownBuilder {
+	return &DropdownBuilder{}
 }
 
-type DropdownContentProps struct {
-	Class      string
-	Align      string // "start", "center", "end"
-	Attributes templ.Attributes
+func (b *DropdownBuilder) WithID(id string) *DropdownBuilder     { b.id = id; return b }
+func (b *DropdownBuilder) WithClass(c string) *DropdownBuilder   { b.class = cn(b.class, c); return b }
+func (b *DropdownBuilder) SetClass(c string) *DropdownBuilder    { b.class = c; return b }
+func (b *DropdownBuilder) WithAttr(key string, val any) *DropdownBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
 }
-
-type DropdownItemProps struct {
-	Class      string
-	Disabled   bool
-	Attributes templ.Attributes
-}
-
-type DropdownLabelProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
+func (b *DropdownBuilder) WithFragment(id string) *DropdownBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func dropdownClasses(p DropdownProps) string {
-	return cn("relative inline-block text-left", p.Class)
+func dropdownClasses(b *DropdownBuilder) string {
+	return cn("relative inline-block text-left", b.class)
 }
 
-func dropdownContentClasses(p DropdownContentProps) string {
+func dropdownContentClasses(class string) string {
 	base := "z-50 min-w-[8rem] overflow-hidden rounded-box border border-base-300 bg-base-100 p-1 text-base-content shadow-md"
-	return cn(base, p.Class)
+	return cn(base, class)
 }
 
-func dropdownItemClasses(p DropdownItemProps) string {
+func dropdownItemClasses(disabled bool, class string) string {
 	base := "relative flex cursor-pointer select-none items-center rounded-field px-2 py-1.5 text-sm outline-none transition-colors hover:bg-base-200 focus:bg-base-200"
-	if p.Disabled {
-		return cn(base, "opacity-60 cursor-not-allowed", p.Class)
+	if disabled {
+		return cn(base, "opacity-60 cursor-not-allowed", class)
 	}
-	return cn(base, p.Class)
+	return cn(base, class)
 }
 
-func dropdownLabelClasses(p DropdownLabelProps) string {
-	return cn("px-2 py-1.5 text-sm font-semibold text-base-content", p.Class)
+func dropdownLabelClasses(class string) string {
+	return cn("px-2 py-1.5 text-sm font-semibold text-base-content", class)
 }
 
 // --- Templ ---
 
-templ Dropdown(props ...DropdownProps) {
-	{{ "{{" }} var p DropdownProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *DropdownBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<div class={ dropdownClasses(p) } { p.Attributes... }>
+}
+
+templ (b *DropdownBuilder) render() {
+	<div
+		class={ dropdownClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
 		{ children... }
 	</div>
 }
 
-templ DropdownTrigger(props ...DropdownTriggerProps) {
-	{{ "{{" }} var p DropdownTriggerProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ cn("cursor-pointer", p.Class) } { p.Attributes... }>
+templ DropdownTrigger(class string, attrs templ.Attributes) {
+	<div class={ cn("cursor-pointer", class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
 
-templ DropdownContent(props ...DropdownContentProps) {
-	{{ "{{" }} var p DropdownContentProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ dropdownContentClasses(p) } role="menu" { p.Attributes... }>
+templ DropdownContent(class string, attrs templ.Attributes) {
+	<div class={ dropdownContentClasses(class) } role="menu" if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
 
-templ DropdownItem(props ...DropdownItemProps) {
-	{{ "{{" }} var p DropdownItemProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ dropdownItemClasses(p) } role="menuitem" { p.Attributes... }>
+templ DropdownItem(disabled bool, class string, attrs templ.Attributes) {
+	<div class={ dropdownItemClasses(disabled, class) } role="menuitem" if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
@@ -98,12 +93,8 @@ templ DropdownSeparator() {
 	<div class="-mx-1 my-1 h-px bg-base-300"></div>
 }
 
-templ DropdownLabel(props ...DropdownLabelProps) {
-	{{ "{{" }} var p DropdownLabelProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ dropdownLabelClasses(p) } { p.Attributes... }>
+templ DropdownLabel(class string, attrs templ.Attributes) {
+	<div class={ dropdownLabelClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }

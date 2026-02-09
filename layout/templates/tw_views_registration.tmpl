@@ -23,19 +23,19 @@ templ RegistrationForm() {
 						</div>
 						<div class="space-y-4">
 							<div class="w-full space-y-1">
-								@components.Label(components.LabelProps{For: "email"}) { Email }
-								@components.Input(components.InputProps{ID: "email", Name: "email", Type: components.InputTypeEmail, Required: true})
+								@components.Label().WithFor("email").Render() { Email }
+								@components.Input("email").WithID("email").WithType(components.InputTypeEmail).WithRequired(true).Render()
 							</div>
 							<div class="w-full space-y-1">
-								@components.Label(components.LabelProps{For: "password"}) { Password }
-								@components.Input(components.InputProps{ID: "password", Name: "password", Type: components.InputTypePassword, Required: true})
+								@components.Label().WithFor("password").Render() { Password }
+								@components.Input("password").WithID("password").WithType(components.InputTypePassword).WithRequired(true).Render()
 							</div>
 							<div class="w-full space-y-1">
-								@components.Label(components.LabelProps{For: "confirmPassword"}) { Confirm Password }
-								@components.Input(components.InputProps{ID: "confirmPassword", Name: "confirmPassword", Type: components.InputTypePassword, Required: true})
+								@components.Label().WithFor("confirmPassword").Render() { Confirm Password }
+								@components.Input("confirmPassword").WithID("confirmPassword").WithType(components.InputTypePassword).WithRequired(true).Render()
 							</div>
 						</div>
-						@components.Button(components.ButtonProps{Type: components.ButtonTypeSubmit, FullWidth: true, Attributes: templ.Attributes{"data-attr:disabled": "$submitting"}}) {
+						@components.Button().WithType(components.ButtonTypeSubmit).WithFullWidth(true).WithAttr("data-attr:disabled", "$submitting").Render() {
 							<span data-show="!$submitting">Sign Up</span>
 							<span data-show="$submitting">Loading</span>
 						}

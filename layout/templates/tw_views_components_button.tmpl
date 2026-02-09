@@ -28,17 +28,39 @@ const (
 	ButtonTypeReset  ButtonType = "reset"
 )
 
-type ButtonProps struct {
-	ID         string
-	Class      string
-	Attributes templ.Attributes
-	Variant    ButtonVariant
-	Size       ButtonSize
-	Type       ButtonType
-	Disabled   bool
-	FullWidth  bool
-	Href       string
+// --- Builder ---
+
+type ButtonBuilder struct {
+	variant    ButtonVariant
+	size       ButtonSize
+	btnType    ButtonType
+	disabled   bool
+	fullWidth  bool
+	href       string
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
+
+func Button() *ButtonBuilder {
+	return &ButtonBuilder{btnType: ButtonTypeButton}
+}
+
+func (b *ButtonBuilder) WithVariant(v ButtonVariant) *ButtonBuilder   { b.variant = v; return b }
+func (b *ButtonBuilder) WithSize(s ButtonSize) *ButtonBuilder         { b.size = s; return b }
+func (b *ButtonBuilder) WithType(t ButtonType) *ButtonBuilder         { b.btnType = t; return b }
+func (b *ButtonBuilder) WithDisabled(d bool) *ButtonBuilder           { b.disabled = d; return b }
+func (b *ButtonBuilder) WithFullWidth(fw bool) *ButtonBuilder         { b.fullWidth = fw; return b }
+func (b *ButtonBuilder) WithHref(h string) *ButtonBuilder             { b.href = h; return b }
+func (b *ButtonBuilder) WithID(id string) *ButtonBuilder              { b.id = id; return b }
+func (b *ButtonBuilder) WithClass(c string) *ButtonBuilder            { b.class = cn(b.class, c); return b }
+func (b *ButtonBuilder) SetClass(c string) *ButtonBuilder             { b.class = c; return b }
+func (b *ButtonBuilder) WithAttr(key string, val any) *ButtonBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *ButtonBuilder) WithFragment(id string) *ButtonBuilder        { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
@@ -72,47 +94,54 @@ func buttonSizeClasses(s ButtonSize) string {
 	}
 }
 
-func buttonClasses(p ButtonProps) string {
+func buttonClasses(b *ButtonBuilder) string {
 	base := "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed"
 	width := ""
-	if p.FullWidth {
+	if b.fullWidth {
 		width = "w-full"
 	}
-	return cn(base, buttonVariantClasses(p.Variant), buttonSizeClasses(p.Size), width, p.Class)
+	return cn(base, buttonVariantClasses(b.variant), buttonSizeClasses(b.size), width, b.class)
 }
 
 // --- Templ ---
 
-templ Button(props ...ButtonProps) {
-	{{ "{{" }} var p ButtonProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *ButtonBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	if p.Type == "" {
-		{{ "{{" }} p.Type = ButtonTypeButton {{ "}}" }}
-	}
-	if p.Href != "" && !p.Disabled {
+}
+
+templ (b *ButtonBuilder) render() {
+	if b.href != "" && !b.disabled {
 		<a
-			href={ templ.SafeURL(p.Href) }
-			class={ buttonClasses(p) }
-			if p.ID != "" {
-				id={ p.ID }
+			href={ templ.SafeURL(b.href) }
+			class={ buttonClasses(b) }
+			if b.id != "" {
+				id={ b.id }
 			}
-			{ p.Attributes... }
+			if b.attrs != nil {
+				{ b.attrs... }
+			}
 		>
 			{ children... }
 		</a>
 	} else {
 		<button
-			type={ string(p.Type) }
-			class={ buttonClasses(p) }
-			if p.ID != "" {
-				id={ p.ID }
+			type={ string(b.btnType) }
+			class={ buttonClasses(b) }
+			if b.id != "" {
+				id={ b.id }
 			}
-			if p.Disabled {
+			if b.disabled {
 				disabled
 			}
-			{ p.Attributes... }
+			if b.attrs != nil {
+				{ b.attrs... }
+			}
 		>
 			{ children... }
 		</button>

@@ -1,44 +1,39 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type CarouselProps struct {
-	Class      string
-	Attributes templ.Attributes
+type CarouselBuilder struct {
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
 
-type CarouselContentProps struct {
-	Class      string
-	Attributes templ.Attributes
+func Carousel() *CarouselBuilder {
+	return &CarouselBuilder{}
 }
 
-type CarouselItemProps struct {
-	Class      string
-	Attributes templ.Attributes
+func (b *CarouselBuilder) WithID(id string) *CarouselBuilder     { b.id = id; return b }
+func (b *CarouselBuilder) WithClass(c string) *CarouselBuilder   { b.class = cn(b.class, c); return b }
+func (b *CarouselBuilder) SetClass(c string) *CarouselBuilder    { b.class = c; return b }
+func (b *CarouselBuilder) WithAttr(key string, val any) *CarouselBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
 }
-
-type CarouselPreviousProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
-
-type CarouselNextProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
+func (b *CarouselBuilder) WithFragment(id string) *CarouselBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func carouselClasses(p CarouselProps) string {
-	return cn("relative w-full", p.Class)
+func carouselClasses(b *CarouselBuilder) string {
+	return cn("relative w-full", b.class)
 }
 
-func carouselContentClasses(p CarouselContentProps) string {
-	return cn("flex overflow-hidden -ml-4", p.Class)
+func carouselContentClasses(class string) string {
+	return cn("flex overflow-hidden -ml-4", class)
 }
 
-func carouselItemClasses(p CarouselItemProps) string {
-	return cn("min-w-0 shrink-0 grow-0 basis-full pl-4", p.Class)
+func carouselItemClasses(class string) string {
+	return cn("min-w-0 shrink-0 grow-0 basis-full pl-4", class)
 }
 
 func carouselBtnClasses(extra string) string {
@@ -47,52 +42,52 @@ func carouselBtnClasses(extra string) string {
 
 // --- Templ ---
 
-templ Carousel(props ...CarouselProps) {
-	{{ "{{" }} var p CarouselProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *CarouselBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<div class={ carouselClasses(p) } role="region" aria-roledescription="carousel" { p.Attributes... }>
+}
+
+templ (b *CarouselBuilder) render() {
+	<div
+		class={ carouselClasses(b) }
+		role="region"
+		aria-roledescription="carousel"
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
 		{ children... }
 	</div>
 }
 
-templ CarouselContent(props ...CarouselContentProps) {
-	{{ "{{" }} var p CarouselContentProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ carouselContentClasses(p) } { p.Attributes... }>
+templ CarouselContent(class string, attrs templ.Attributes) {
+	<div class={ carouselContentClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
 
-templ CarouselItem(props ...CarouselItemProps) {
-	{{ "{{" }} var p CarouselItemProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<div class={ carouselItemClasses(p) } role="group" aria-roledescription="slide" { p.Attributes... }>
+templ CarouselItem(class string, attrs templ.Attributes) {
+	<div class={ carouselItemClasses(class) } role="group" aria-roledescription="slide" if attrs != nil { { attrs... } }>
 		{ children... }
 	</div>
 }
 
-templ CarouselPrevious(props ...CarouselPreviousProps) {
-	{{ "{{" }} var p CarouselPreviousProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<button type="button" class={ carouselBtnClasses(cn("-left-12", p.Class)) } aria-label="Previous slide" { p.Attributes... }>
+templ CarouselPrevious(class string, attrs templ.Attributes) {
+	<button type="button" class={ carouselBtnClasses(cn("-left-12", class)) } aria-label="Previous slide" if attrs != nil { { attrs... } }>
 		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
 	</button>
 }
 
-templ CarouselNext(props ...CarouselNextProps) {
-	{{ "{{" }} var p CarouselNextProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<button type="button" class={ carouselBtnClasses(cn("-right-12", p.Class)) } aria-label="Next slide" { p.Attributes... }>
+templ CarouselNext(class string, attrs templ.Attributes) {
+	<button type="button" class={ carouselBtnClasses(cn("-right-12", class)) } aria-label="Next slide" if attrs != nil { { attrs... } }>
 		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
 	</button>
 }

@@ -11,11 +11,29 @@ const (
 	BadgeVariantDestructive BadgeVariant = "destructive"
 )
 
-type BadgeProps struct {
-	Class   string
-	Variant BadgeVariant
-	Attributes templ.Attributes
+// --- Builder ---
+
+type BadgeBuilder struct {
+	variant    BadgeVariant
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
+
+func Badge() *BadgeBuilder {
+	return &BadgeBuilder{}
+}
+
+func (b *BadgeBuilder) WithVariant(v BadgeVariant) *BadgeBuilder { b.variant = v; return b }
+func (b *BadgeBuilder) WithID(id string) *BadgeBuilder           { b.id = id; return b }
+func (b *BadgeBuilder) WithClass(c string) *BadgeBuilder         { b.class = cn(b.class, c); return b }
+func (b *BadgeBuilder) SetClass(c string) *BadgeBuilder          { b.class = c; return b }
+func (b *BadgeBuilder) WithAttr(key string, val any) *BadgeBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *BadgeBuilder) WithFragment(id string) *BadgeBuilder     { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
@@ -32,19 +50,33 @@ func badgeVariantClasses(v BadgeVariant) string {
 	}
 }
 
-func badgeClasses(p BadgeProps) string {
+func badgeClasses(b *BadgeBuilder) string {
 	base := "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors"
-	return cn(base, badgeVariantClasses(p.Variant), p.Class)
+	return cn(base, badgeVariantClasses(b.variant), b.class)
 }
 
 // --- Templ ---
 
-templ Badge(props ...BadgeProps) {
-	{{ "{{" }} var p BadgeProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *BadgeBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<span class={ badgeClasses(p) } { p.Attributes... }>
+}
+
+templ (b *BadgeBuilder) render() {
+	<span
+		class={ badgeClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
 		{ children... }
 	</span>
 }

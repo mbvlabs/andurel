@@ -1,27 +1,56 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type KbdProps struct {
-	Class      string
-	Attributes templ.Attributes
+type KbdBuilder struct {
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
+
+func Kbd() *KbdBuilder {
+	return &KbdBuilder{}
+}
+
+func (b *KbdBuilder) WithID(id string) *KbdBuilder     { b.id = id; return b }
+func (b *KbdBuilder) WithClass(c string) *KbdBuilder   { b.class = cn(b.class, c); return b }
+func (b *KbdBuilder) SetClass(c string) *KbdBuilder    { b.class = c; return b }
+func (b *KbdBuilder) WithAttr(key string, val any) *KbdBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *KbdBuilder) WithFragment(id string) *KbdBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func kbdClasses(p KbdProps) string {
+func kbdClasses(b *KbdBuilder) string {
 	base := "pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-base-300 bg-base-200 px-1.5 font-mono text-xs font-medium text-base-content/80"
-	return cn(base, p.Class)
+	return cn(base, b.class)
 }
 
 // --- Templ ---
 
-templ Kbd(props ...KbdProps) {
-	{{ "{{" }} var p KbdProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *KbdBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
-	<kbd class={ kbdClasses(p) } { p.Attributes... }>
+}
+
+templ (b *KbdBuilder) render() {
+	<kbd
+		class={ kbdClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
 		{ children... }
 	</kbd>
 }

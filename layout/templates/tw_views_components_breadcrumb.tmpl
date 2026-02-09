@@ -1,96 +1,96 @@
 package components
 
-// --- Types ---
+// --- Builder ---
 
-type BreadcrumbProps struct {
-	Class      string
-	Attributes templ.Attributes
+type BreadcrumbBuilder struct {
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
 }
 
-type BreadcrumbItemProps struct {
-	Class      string
-	Attributes templ.Attributes
+func Breadcrumb() *BreadcrumbBuilder {
+	return &BreadcrumbBuilder{}
 }
 
-type BreadcrumbLinkProps struct {
-	Class      string
-	Href       string
-	Active     bool
-	Attributes templ.Attributes
+func (b *BreadcrumbBuilder) WithID(id string) *BreadcrumbBuilder     { b.id = id; return b }
+func (b *BreadcrumbBuilder) WithClass(c string) *BreadcrumbBuilder   { b.class = cn(b.class, c); return b }
+func (b *BreadcrumbBuilder) SetClass(c string) *BreadcrumbBuilder    { b.class = c; return b }
+func (b *BreadcrumbBuilder) WithAttr(key string, val any) *BreadcrumbBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
 }
-
-type BreadcrumbSeparatorProps struct {
-	Class      string
-	Attributes templ.Attributes
-}
+func (b *BreadcrumbBuilder) WithFragment(id string) *BreadcrumbBuilder { b.fragmentID = id; return b }
 
 // --- Class helpers ---
 
-func breadcrumbClasses(p BreadcrumbProps) string {
-	return cn("flex flex-wrap items-center gap-1.5 text-sm text-base-content/60", p.Class)
+func breadcrumbClasses(b *BreadcrumbBuilder) string {
+	return cn("flex flex-wrap items-center gap-1.5 text-sm text-base-content/60", b.class)
 }
 
-func breadcrumbItemClasses(p BreadcrumbItemProps) string {
-	return cn("inline-flex items-center gap-1.5", p.Class)
+func breadcrumbItemClasses(class string) string {
+	return cn("inline-flex items-center gap-1.5", class)
 }
 
-func breadcrumbLinkClasses(p BreadcrumbLinkProps) string {
-	if p.Active {
-		return cn("font-medium text-base-content", p.Class)
+func breadcrumbLinkClasses(active bool, class string) string {
+	if active {
+		return cn("font-medium text-base-content", class)
 	}
-	return cn("transition-colors hover:text-base-content", p.Class)
+	return cn("transition-colors hover:text-base-content", class)
 }
 
-func breadcrumbSeparatorClasses(p BreadcrumbSeparatorProps) string {
-	return cn("text-base-content/40", p.Class)
+func breadcrumbSeparatorClasses(class string) string {
+	return cn("text-base-content/40", class)
 }
 
 // --- Templ ---
 
-templ Breadcrumb(props ...BreadcrumbProps) {
-	{{ "{{" }} var p BreadcrumbProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
+templ (b *BreadcrumbBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
 	}
+}
+
+templ (b *BreadcrumbBuilder) render() {
 	<nav aria-label="breadcrumb">
-		<ol class={ breadcrumbClasses(p) } { p.Attributes... }>
+		<ol
+			class={ breadcrumbClasses(b) }
+			if b.id != "" {
+				id={ b.id }
+			}
+			if b.attrs != nil {
+				{ b.attrs... }
+			}
+		>
 			{ children... }
 		</ol>
 	</nav>
 }
 
-templ BreadcrumbItem(props ...BreadcrumbItemProps) {
-	{{ "{{" }} var p BreadcrumbItemProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<li class={ breadcrumbItemClasses(p) } { p.Attributes... }>
+templ BreadcrumbItem(class string, attrs templ.Attributes) {
+	<li class={ breadcrumbItemClasses(class) } if attrs != nil { { attrs... } }>
 		{ children... }
 	</li>
 }
 
-templ BreadcrumbLink(props ...BreadcrumbLinkProps) {
-	{{ "{{" }} var p BreadcrumbLinkProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	if p.Active {
-		<span class={ breadcrumbLinkClasses(p) } aria-current="page" { p.Attributes... }>
+templ BreadcrumbLink(href string, active bool, class string, attrs templ.Attributes) {
+	if active {
+		<span class={ breadcrumbLinkClasses(active, class) } aria-current="page" if attrs != nil { { attrs... } }>
 			{ children... }
 		</span>
 	} else {
-		<a href={ templ.SafeURL(p.Href) } class={ breadcrumbLinkClasses(p) } { p.Attributes... }>
+		<a href={ templ.SafeURL(href) } class={ breadcrumbLinkClasses(active, class) } if attrs != nil { { attrs... } }>
 			{ children... }
 		</a>
 	}
 }
 
-templ BreadcrumbSeparator(props ...BreadcrumbSeparatorProps) {
-	{{ "{{" }} var p BreadcrumbSeparatorProps {{ "}}" }}
-	if len(props) > 0 {
-		{{ "{{" }} p = props[0] {{ "}}" }}
-	}
-	<li role="presentation" class={ breadcrumbSeparatorClasses(p) } { p.Attributes... }>
+templ BreadcrumbSeparator(class string, attrs templ.Attributes) {
+	<li role="presentation" class={ breadcrumbSeparatorClasses(class) } if attrs != nil { { attrs... } }>
 		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
 	</li>
 }
