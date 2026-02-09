@@ -1,5 +1,7 @@
 package components
 
+import "github.com/a-h/templ"
+
 // --- Class helpers ---
 
 func dropdownClasses(class string) string {
@@ -26,35 +28,29 @@ func dropdownLabelClasses(class string) string {
 // --- Templ ---
 
 // Dropdown creates a menu that appears when a trigger element is activated. Use it for
-// action menus, context menus, or navigation sub-menus. Compose with DropdownTrigger,
-// DropdownContent, DropdownItem, DropdownLabel, and DropdownSeparator sub-components.
+// action menus, context menus, or navigation sub-menus. Pass the trigger as a component
+// and menu items as children.
 //
-//	@components.Dropdown() {
-//		@components.DropdownTrigger() {
-//			@components.Button(components.ButtonProps{Label: "Open Menu"}).Render()
-//		}
-//		@components.DropdownContent() {
-//			@components.DropdownLabel("Actions")
-//			@components.DropdownSeparator()
-//			@components.DropdownItem("Edit", false)
-//			@components.DropdownItem("Delete", false)
-//		}
+//	@components.Dropdown(triggerBtn) {
+//		@components.DropdownLabel("Actions")
+//		@components.DropdownSeparator()
+//		@components.DropdownItem("Edit", false)
+//		@components.DropdownItem("Delete", false)
 //	}
-templ Dropdown(opts ...Opt) {
-	<div class={ dropdownClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+templ Dropdown(trigger templ.Component, opts ...Opt) {
+	@dropdownInner(resolveID(opts), trigger, classFrom(opts), attrsFrom(opts)) {
 		{ children... }
-	</div>
+	}
 }
 
-templ DropdownTrigger(opts ...Opt) {
-	<div class={ cn("cursor-pointer", classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
-		{ children... }
-	</div>
-}
-
-templ DropdownContent(opts ...Opt) {
-	<div class={ dropdownContentClasses(classFrom(opts)) } role="menu" if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
-		{ children... }
+templ dropdownInner(id string, trigger templ.Component, class string, attrs templ.Attributes) {
+	<div class={ dropdownClasses(class) } { templ.Attributes{"data-signals:_" + id: "false"}... } if attrsWithout(attrs, "data-on:click") != nil { { attrsWithout(attrs, "data-on:click")... } }>
+		<div class="cursor-pointer" { templ.Attributes{"data-on:click": triggerClickExpr(id, attrs)}... }>
+			@trigger
+		</div>
+		<div class={ dropdownContentClasses("") } role="menu" { templ.Attributes{"data-show": "$_" + id}... }>
+			{ children... }
+		</div>
 	</div>
 }
 

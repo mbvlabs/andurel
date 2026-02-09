@@ -10,12 +10,9 @@ func tabsListClasses(class string) string {
 	return cn("inline-flex h-9 items-center justify-center rounded-box bg-base-200 p-1 text-base-content/60", class)
 }
 
-func tabsTriggerClasses(active bool, class string) string {
-	base := "inline-flex items-center justify-center whitespace-nowrap rounded-field px-3 py-1 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:pointer-events-none disabled:opacity-60"
-	if active {
-		return cn(base, "bg-base-100 text-base-content shadow-sm", class)
-	}
-	return cn(base, "hover:text-base-content", class)
+func tabsTriggerClasses(class string) string {
+	base := "inline-flex items-center justify-center whitespace-nowrap rounded-field px-3 py-1 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:pointer-events-none disabled:opacity-60 hover:text-base-content [&[aria-selected=true]]:bg-base-100 [&[aria-selected=true]]:text-base-content [&[aria-selected=true]]:shadow-sm"
+	return cn(base, class)
 }
 
 func tabsContentClasses(class string) string {
@@ -24,19 +21,19 @@ func tabsContentClasses(class string) string {
 
 // --- Templ ---
 
-// Tabs organizes content into switchable panels. Use it when content can be logically
-// grouped into parallel views (e.g., Account/Settings, Code/Preview). Compose with
-// TabsList, TabsTrigger, and TabsContent sub-components.
+// Tabs organizes content into switchable panels. Pass an explicit signal name and
+// default tab value. Use TabsTrigger and TabsContent with matching signal/value pairs.
 //
-//	@components.Tabs() {
+//	@components.Tabs("demoTabs", "account") {
 //		@components.TabsList() {
-//			@components.TabsTrigger("Tab 1", true)
-//			@components.TabsTrigger("Tab 2", false)
+//			@components.TabsTrigger("demoTabs", "account", "Account")
+//			@components.TabsTrigger("demoTabs", "settings", "Settings")
 //		}
-//		@components.TabsContent() { Content for tab 1 }
+//		@components.TabsContent("demoTabs", "account") { Account content }
+//		@components.TabsContent("demoTabs", "settings") { Settings content }
 //	}
-templ Tabs(opts ...Opt) {
-	<div class={ tabsClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+templ Tabs(signal string, defaultTab string, opts ...Opt) {
+	<div class={ tabsClasses(classFrom(opts)) } { templ.Attributes{"data-signals:_" + signal: "'" + defaultTab + "'"}... } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
@@ -47,14 +44,14 @@ templ TabsList(opts ...Opt) {
 	</div>
 }
 
-templ TabsTrigger(label string, active bool, opts ...Opt) {
-	<button type="button" role="tab" class={ tabsTriggerClasses(active, classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+templ TabsTrigger(signal string, value string, label string, opts ...Opt) {
+	<button type="button" role="tab" aria-selected="false" class={ tabsTriggerClasses(classFrom(opts)) } { templ.Attributes{"data-on:click": "$_" + signal + " = '" + value + "'", "data-attr:aria-selected": "$_" + signal + " == '" + value + "'"}... } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ label }
 	</button>
 }
 
-templ TabsContent(opts ...Opt) {
-	<div role="tabpanel" class={ tabsContentClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+templ TabsContent(signal string, value string, opts ...Opt) {
+	<div role="tabpanel" class={ tabsContentClasses(classFrom(opts)) } { templ.Attributes{"data-show": "$_" + signal + " == '" + value + "'"}... } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

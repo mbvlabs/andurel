@@ -1,5 +1,7 @@
 package components
 
+import "github.com/a-h/templ"
+
 // --- Class helpers ---
 
 func alertDialogClasses(class string) string {
@@ -10,94 +12,55 @@ func alertDialogContentClasses(class string) string {
 	return cn("fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border border-base-300 bg-base-100 p-6 shadow-lg rounded-box", class)
 }
 
-func alertDialogHeaderClasses(class string) string {
-	return cn("flex flex-col space-y-2 text-center sm:text-left", class)
+func alertDialogHeaderClasses() string {
+	return "flex flex-col space-y-2 text-center sm:text-left"
 }
 
-func alertDialogTitleClasses(class string) string {
-	return cn("text-lg font-semibold text-base-content", class)
+func alertDialogTitleClasses() string {
+	return "text-lg font-semibold text-base-content"
 }
 
-func alertDialogDescriptionClasses(class string) string {
-	return cn("text-sm text-base-content/60", class)
+func alertDialogDescriptionClasses() string {
+	return "text-sm text-base-content/60"
 }
 
-func alertDialogFooterClasses(class string) string {
-	return cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", class)
+func alertDialogFooterClasses() string {
+	return "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2"
 }
 
-func alertDialogActionClasses(class string) string {
-	return cn("inline-flex items-center justify-center rounded-field bg-primary px-4 py-2 text-sm font-medium text-primary-content shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50", class)
-}
-
-func alertDialogCancelClasses(class string) string {
-	return cn("inline-flex items-center justify-center rounded-field border border-base-300 bg-transparent px-4 py-2 text-sm font-medium text-base-content shadow-sm transition hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 mt-2 sm:mt-0", class)
+func alertDialogCancelClasses() string {
+	return "inline-flex items-center justify-center rounded-field border border-base-300 bg-transparent px-4 py-2 text-sm font-medium text-base-content shadow-sm transition hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 mt-2 sm:mt-0"
 }
 
 // --- Templ ---
 
 // AlertDialog creates a modal confirmation dialog that interrupts the user with important
-// content and expects a response. Use it for destructive actions like deleting a resource.
-// Compose with AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription,
-// AlertDialogFooter, AlertDialogAction, and AlertDialogCancel sub-components.
+// content and expects a response. All sub-components are consolidated into parameters.
 //
-//	@components.AlertDialog() {
-//		@components.AlertDialogContent() {
-//			@components.AlertDialogHeader() {
-//				@components.AlertDialogTitle("Are you sure?")
-//				@components.AlertDialogDescription("This action cannot be undone.")
-//			}
-//			@components.AlertDialogFooter() {
-//				@components.AlertDialogCancel("Cancel")
-//				@components.AlertDialogAction("Continue")
-//			}
-//		}
-//	}
-templ AlertDialog(opts ...Opt) {
-	<div class={ alertDialogClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
-		{ children... }
+//	@components.AlertDialog(triggerBtn, actionBtn, "Are you sure?", "This cannot be undone.", "Cancel")
+templ AlertDialog(trigger templ.Component, action templ.Component, title string, description string, cancelLabel string, opts ...Opt) {
+	@alertDialogInner(resolveID(opts), trigger, action, title, description, cancelLabel, classFrom(opts), attrsFrom(opts))
+}
+
+templ alertDialogInner(id string, trigger templ.Component, action templ.Component, title string, description string, cancelLabel string, class string, attrs templ.Attributes) {
+	<div class={ alertDialogClasses(class) } { templ.Attributes{"data-signals:_" + id: "false"}... } if attrsWithout(attrs, "data-on:click") != nil { { attrsWithout(attrs, "data-on:click")... } }>
+		<div class="cursor-pointer inline-block" { templ.Attributes{"data-on:click": triggerClickExpr(id, attrs)}... }>
+			@trigger
+		</div>
+		<div { templ.Attributes{"data-show": "$_" + id}... }>
+			<div class="fixed inset-0 z-50 bg-black/80" { templ.Attributes{"data-on:click": "$_" + id + " = false"}... }></div>
+			<div class={ alertDialogContentClasses("") } role="alertdialog" aria-modal="true">
+				<div class={ alertDialogHeaderClasses() }>
+					<h2 class={ alertDialogTitleClasses() }>{ title }</h2>
+					<p class={ alertDialogDescriptionClasses() }>{ description }</p>
+				</div>
+				<div class={ alertDialogFooterClasses() }>
+					<button type="button" class={ alertDialogCancelClasses() } { templ.Attributes{"data-on:click": "$_" + id + " = false"}... }>
+						{ cancelLabel }
+					</button>
+					@action
+				</div>
+			</div>
+		</div>
 	</div>
-}
-
-templ AlertDialogContent(opts ...Opt) {
-	<div class="fixed inset-0 z-50 bg-black/80"></div>
-	<div class={ alertDialogContentClasses(classFrom(opts)) } role="alertdialog" aria-modal="true" if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
-		{ children... }
-	</div>
-}
-
-templ AlertDialogHeader(opts ...Opt) {
-	<div class={ alertDialogHeaderClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
-		{ children... }
-	</div>
-}
-
-templ AlertDialogTitle(title string, opts ...Opt) {
-	<h2 class={ alertDialogTitleClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
-		{ title }
-	</h2>
-}
-
-templ AlertDialogDescription(description string, opts ...Opt) {
-	<p class={ alertDialogDescriptionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
-		{ description }
-	</p>
-}
-
-templ AlertDialogFooter(opts ...Opt) {
-	<div class={ alertDialogFooterClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
-		{ children... }
-	</div>
-}
-
-templ AlertDialogAction(label string, opts ...Opt) {
-	<button type="button" class={ alertDialogActionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
-		{ label }
-	</button>
-}
-
-templ AlertDialogCancel(label string, opts ...Opt) {
-	<button type="button" class={ alertDialogCancelClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
-		{ label }
-	</button>
 }

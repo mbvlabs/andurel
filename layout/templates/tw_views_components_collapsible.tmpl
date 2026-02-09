@@ -7,7 +7,7 @@ func collapsibleClasses(class string) string {
 }
 
 func collapsibleTriggerClasses(class string) string {
-	return cn("flex items-center justify-between cursor-pointer", class)
+	return cn("flex items-center justify-between cursor-pointer [&[aria-expanded=true]>svg]:rotate-180", class)
 }
 
 func collapsibleContentClasses(class string) string {
@@ -17,27 +17,25 @@ func collapsibleContentClasses(class string) string {
 // --- Templ ---
 
 // Collapsible creates a section that can be expanded or collapsed by clicking a trigger.
-// Simpler than Accordion for single show/hide sections. Compose with
-// CollapsibleTrigger and CollapsibleContent sub-components.
+// Simpler than Accordion for single show/hide sections.
 //
-//	@components.Collapsible() {
-//		@components.CollapsibleTrigger("Toggle")
-//		@components.CollapsibleContent() { Hidden content }
+//	@components.Collapsible("Toggle content") {
+//		<p>Hidden content here</p>
 //	}
-templ Collapsible(opts ...Opt) {
-	<div class={ collapsibleClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+templ Collapsible(label string, opts ...Opt) {
+	@collapsibleInner(resolveID(opts), label, classFrom(opts), attrsFrom(opts)) {
 		{ children... }
-	</div>
+	}
 }
 
-templ CollapsibleTrigger(label string, opts ...Opt) {
-	<button type="button" class={ collapsibleTriggerClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
-		{ label }
-	</button>
-}
-
-templ CollapsibleContent(opts ...Opt) {
-	<div class={ collapsibleContentClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
-		{ children... }
+templ collapsibleInner(id string, label string, class string, attrs templ.Attributes) {
+	<div class={ collapsibleClasses(class) } { templ.Attributes{"data-signals:_" + id: "false"}... } if attrs != nil { { attrs... } }>
+		<button type="button" class={ collapsibleTriggerClasses("") } aria-expanded="false" { templ.Attributes{"data-on:click": "$_" + id + " = !$_" + id, "data-attr:aria-expanded": "$_" + id}... }>
+			{ label }
+			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 transition-transform duration-200"><path d="m6 9 6 6 6-6"></path></svg>
+		</button>
+		<div class={ collapsibleContentClasses("") } { templ.Attributes{"data-show": "$_" + id}... }>
+			{ children... }
+		</div>
 	</div>
 }

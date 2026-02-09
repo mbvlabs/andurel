@@ -1,7 +1,5 @@
 package components
 
-import "github.com/rs/xid"
-
 // --- Class helpers ---
 
 func accordionClasses(class string) string {
@@ -38,7 +36,7 @@ templ Accordion(opts ...Opt) {
 }
 
 templ AccordionItem(label string, opts ...Opt) {
-	@accordionItemInner(xid.New().String(), label, classFrom(opts), attrsFrom(opts)) {
+	@accordionItemInner(resolveID(opts), label, classFrom(opts), attrsFrom(opts)) {
 		{ children... }
 	}
 }

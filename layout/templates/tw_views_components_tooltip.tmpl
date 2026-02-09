@@ -18,7 +18,7 @@ func tooltipClasses(class string) string {
 }
 
 func tooltipContentClasses(class string) string {
-	base := "z-50 overflow-hidden rounded-field border border-base-300 bg-base-100 px-3 py-1.5 text-xs text-base-content shadow-md"
+	base := "absolute hidden group-hover:block bottom-full left-1/2 -translate-x-1/2 mb-2 whitespace-nowrap z-50 overflow-hidden rounded-field border border-base-300 bg-base-100 px-3 py-1.5 text-xs text-base-content shadow-md"
 	return cn(base, class)
 }
 

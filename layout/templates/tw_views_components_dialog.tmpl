@@ -1,5 +1,7 @@
 package components
 
+import "github.com/a-h/templ"
+
 // --- Class helpers ---
 
 func dialogClasses(class string) string {
@@ -30,38 +32,45 @@ func dialogFooterClasses(class string) string {
 	return cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", class)
 }
 
-func dialogCloseClasses(class string) string {
-	return cn("absolute right-4 top-4 rounded-field opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer", class)
+func dialogCloseClasses() string {
+	return "absolute right-4 top-4 rounded-field opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
 }
 
 // --- Templ ---
 
 // Dialog creates a modal overlay for displaying content that requires user attention or
-// interaction (forms, confirmations, details). Compose with DialogContent, DialogHeader,
-// DialogTitle, DialogDescription, DialogFooter, and DialogClose sub-components.
-// For destructive confirmation prompts, prefer AlertDialog instead.
+// interaction (forms, confirmations, details). Pass the trigger as a component and compose
+// the body with DialogHeader, DialogTitle, DialogDescription, and DialogFooter.
 //
-//	@components.Dialog() {
-//		@components.DialogContent() {
-//			@components.DialogHeader() {
-//				@components.DialogTitle("Edit Profile")
-//				@components.DialogDescription("Make changes to your profile.")
-//			}
-//			<p>Dialog body content</p>
-//			@components.DialogFooter() { ... }
-//			@components.DialogClose()
+//	@components.Dialog(triggerBtn) {
+//		@components.DialogHeader() {
+//			@components.DialogTitle("Edit Profile")
+//			@components.DialogDescription("Make changes to your profile.")
 //		}
+//		<p>Dialog body content</p>
+//		@components.DialogFooter() { ... }
 //	}
-templ Dialog(opts ...Opt) {
-	<div class={ dialogClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+templ Dialog(trigger templ.Component, opts ...Opt) {
+	@dialogInner(resolveID(opts), trigger, classFrom(opts), attrsFrom(opts)) {
 		{ children... }
-	</div>
+	}
 }
 
-templ DialogContent(opts ...Opt) {
-	<div class={ dialogOverlayClasses() }></div>
-	<div class={ dialogContentClasses(classFrom(opts)) } role="dialog" aria-modal="true" if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
-		{ children... }
+templ dialogInner(id string, trigger templ.Component, class string, attrs templ.Attributes) {
+	<div class={ dialogClasses(class) } { templ.Attributes{"data-signals:_" + id: "false"}... } if attrsWithout(attrs, "data-on:click") != nil { { attrsWithout(attrs, "data-on:click")... } }>
+		<div class="cursor-pointer inline-block" { templ.Attributes{"data-on:click": triggerClickExpr(id, attrs)}... }>
+			@trigger
+		</div>
+		<div { templ.Attributes{"data-show": "$_" + id}... }>
+			<div class={ dialogOverlayClasses() } { templ.Attributes{"data-on:click": "$_" + id + " = false"}... }></div>
+			<div class={ dialogContentClasses("") } role="dialog" aria-modal="true">
+				{ children... }
+				<button type="button" class={ dialogCloseClasses() } { templ.Attributes{"data-on:click": "$_" + id + " = false"}... }>
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+					<span class="sr-only">Close</span>
+				</button>
+			</div>
+		</div>
 	</div>
 }
 
@@ -87,11 +96,4 @@ templ DialogFooter(opts ...Opt) {
 	<div class={ dialogFooterClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
-}
-
-templ DialogClose(opts ...Opt) {
-	<button type="button" class={ dialogCloseClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
-		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
-		<span class="sr-only">Close</span>
-	</button>
 }

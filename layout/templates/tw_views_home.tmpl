@@ -328,14 +328,20 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Tabs</h3>
 				<div class="max-w-lg">
-					@components.Tabs() {
+					@components.Tabs("demoTabs", "account") {
 						@components.TabsList() {
-							@components.TabsTrigger("Account", true)
-							@components.TabsTrigger("Settings", false)
-							@components.TabsTrigger("Billing", false)
+							@components.TabsTrigger("demoTabs", "account", "Account")
+							@components.TabsTrigger("demoTabs", "settings", "Settings")
+							@components.TabsTrigger("demoTabs", "billing", "Billing")
 						}
-						@components.TabsContent() {
+						@components.TabsContent("demoTabs", "account") {
 							<p class="text-sm text-base-content/80 p-4">Manage your account details and preferences.</p>
+						}
+						@components.TabsContent("demoTabs", "settings") {
+							<p class="text-sm text-base-content/80 p-4">Configure your application settings.</p>
+						}
+						@components.TabsContent("demoTabs", "billing") {
+							<p class="text-sm text-base-content/80 p-4">View and manage your billing information.</p>
 						}
 					}
 				</div>
@@ -414,44 +420,31 @@ templ Home() {
 			<!-- ─── Dropdown ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Dropdown</h3>
-				@components.Dropdown() {
-					@components.DropdownTrigger() {
-						@components.Button(components.ButtonProps{Label: "Open Menu"}).WithVariant(components.ButtonVariantOutline).Render()
-					}
-					@components.DropdownContent() {
-						@components.DropdownLabel("Actions")
-						@components.DropdownSeparator()
-						@components.DropdownItem("Edit", false)
-						@components.DropdownItem("Duplicate", false)
-						@components.DropdownSeparator()
-						@components.DropdownItem("Delete", false)
-					}
+				@components.Dropdown(components.Button(components.ButtonProps{Label: "Open Menu"}).WithVariant(components.ButtonVariantOutline).Render()) {
+					@components.DropdownLabel("Actions")
+					@components.DropdownSeparator()
+					@components.DropdownItem("Edit", false)
+					@components.DropdownItem("Duplicate", false)
+					@components.DropdownSeparator()
+					@components.DropdownItem("Delete", false)
 				}
 			</div>
 			<!-- ─── Popover ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Popover</h3>
-				@components.Popover() {
-					@components.PopoverTrigger() {
-						@components.Button(components.ButtonProps{Label: "Open Popover"}).WithVariant(components.ButtonVariantOutline).Render()
-					}
-					@components.PopoverContent() {
-						<div class="space-y-2">
-							<h4 class="font-medium text-sm">Dimensions</h4>
-							<p class="text-xs text-base-content/60">Set the dimensions for the layer.</p>
-						</div>
-					}
+				@components.Popover(components.Button(components.ButtonProps{Label: "Open Popover"}).WithVariant(components.ButtonVariantOutline).Render()) {
+					<div class="space-y-2">
+						<h4 class="font-medium text-sm">Dimensions</h4>
+						<p class="text-xs text-base-content/60">Set the dimensions for the layer.</p>
+					</div>
 				}
 			</div>
 			<!-- ─── Collapsible ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Collapsible</h3>
 				<div class="max-w-sm">
-					@components.Collapsible() {
-						@components.CollapsibleTrigger("Toggle content")
-						@components.CollapsibleContent() {
-							<p class="text-sm text-base-content/80 pt-2">This content can be toggled open and closed.</p>
-						}
+					@components.Collapsible("Toggle content") {
+						<p class="text-sm text-base-content/80 pt-2">This content can be toggled open and closed.</p>
 					}
 				</div>
 			</div>
@@ -468,20 +461,16 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Carousel</h3>
 				<div class="max-w-sm mx-auto">
-					@components.Carousel() {
-						@components.CarouselContent() {
-							@components.CarouselItem() {
-								<div class="h-32 bg-base-300 rounded-box flex items-center justify-center text-base-content/60">Slide 1</div>
-							}
-							@components.CarouselItem() {
-								<div class="h-32 bg-base-300 rounded-box flex items-center justify-center text-base-content/60">Slide 2</div>
-							}
-							@components.CarouselItem() {
-								<div class="h-32 bg-base-300 rounded-box flex items-center justify-center text-base-content/60">Slide 3</div>
-							}
+					@components.Carousel(3) {
+						@components.CarouselItem() {
+							<div class="h-32 bg-base-300 rounded-box flex items-center justify-center text-base-content/60">Slide 1</div>
 						}
-						@components.CarouselPrevious()
-						@components.CarouselNext()
+						@components.CarouselItem() {
+							<div class="h-32 bg-base-300 rounded-box flex items-center justify-center text-base-content/60">Slide 2</div>
+						}
+						@components.CarouselItem() {
+							<div class="h-32 bg-base-300 rounded-box flex items-center justify-center text-base-content/60">Slide 3</div>
+						}
 					}
 				</div>
 			</div>
