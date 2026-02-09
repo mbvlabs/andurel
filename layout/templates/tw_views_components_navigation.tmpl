@@ -1,0 +1,74 @@
+package components
+
+// Breadcrumbs component - hierarchical navigation trail.
+templ Breadcrumbs(items []string, props ComponentProps) {
+	<nav class={ MergeClasses("flex items-center gap-2 text-sm text-base-content/70", props.Class) }>
+		for i, item := range items {
+			<span class="font-medium text-base-content">{ item }</span>
+			if i < len(items)-1 {
+				<span class="text-base-content/40">/</span>
+			}
+		}
+	</nav>
+}
+
+// Tabs component - selectable tab list.
+templ Tabs(items []string, activeIndex int, props ComponentProps) {
+	<div class={ MergeClasses("flex gap-4 border-b border-base-300", props.Class) }>
+		for i, item := range items {
+			if i == activeIndex {
+				<button
+					type="button"
+					class="-mb-px border-b-2 border-primary px-1 pb-3 text-sm font-medium text-primary transition"
+				>
+					{ item }
+				</button>
+			} else {
+				<button
+					type="button"
+					class="-mb-px border-b-2 border-transparent px-1 pb-3 text-sm font-medium text-base-content/60 transition hover:text-base-content"
+				>
+					{ item }
+				</button>
+			}
+		}
+	</div>
+}
+
+// Pagination component - page navigation controls.
+templ Pagination(currentPage, totalPages int, props ComponentProps) {
+	<div class={ MergeClasses("inline-flex items-center gap-2 text-sm", props.Class) }>
+		<button type="button" class="rounded-md border border-base-300 px-3 py-1.5 text-base-content/70 hover:bg-base-200">
+			Prev
+		</button>
+		<span class="text-base-content/60">Page { currentPage } of { totalPages }</span>
+		<button type="button" class="rounded-md border border-base-300 px-3 py-1.5 text-base-content/70 hover:bg-base-200">
+			Next
+		</button>
+	</div>
+}
+
+// Navbar component - top navigation with logo and links.
+templ Navbar(brand string, links []string, props ComponentProps) {
+	<nav class={ MergeClasses("flex items-center justify-between rounded-lg border border-base-300 bg-base-100 px-6 py-4", props.Class) }>
+		<div class="text-sm font-semibold text-base-content">{ brand }</div>
+		<div class="flex items-center gap-4 text-sm text-base-content/70">
+			for _, link := range links {
+				<a href="#" class="hover:text-base-content">{ link }</a>
+			}
+		</div>
+	</nav>
+}
+
+// Sidebar component - vertical navigation list.
+templ Sidebar(links []string, props ComponentProps) {
+	<aside class={ MergeClasses("w-64 rounded-lg border border-base-300 bg-base-100 p-4", props.Class) }>
+		<ul class="space-y-2 text-sm">
+			for _, link := range links {
+				<li>
+					<a href="#" class="block rounded-md px-3 py-2 text-base-content/70 hover:bg-base-200 hover:text-base-content">{ link }</a>
+				</li>
+			}
+		</ul>
+	</aside>
+}

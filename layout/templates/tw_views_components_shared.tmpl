@@ -1,0 +1,13 @@
+package components
+
+// ComponentProps provides common styling hooks for components.
+type ComponentProps struct {
+	Class string
+}
+
+func MergeClasses(base, extra string) string {
+	if extra == "" {
+		return base
+	}
+	return base + " " + extra
+}

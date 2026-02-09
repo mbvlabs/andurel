@@ -1,0 +1,56 @@
+package components
+
+// Dropdown component - button with a menu list.
+templ Dropdown(label string, props ComponentProps) {
+	<div class={ MergeClasses("relative inline-block text-left", props.Class) }>
+		<button
+			type="button"
+			class="inline-flex items-center gap-2 rounded-md border border-base-300 bg-base-100 px-4 py-2 text-sm font-medium text-base-content shadow-sm"
+		>
+			{ label }
+			<span class="text-base-content/50">▾</span>
+		</button>
+		<div class="absolute right-0 mt-2 w-48 rounded-md border border-base-300 bg-base-100 shadow-lg">
+			<ul class="py-1 text-sm text-base-content">
+				{ children... }
+			</ul>
+		</div>
+	</div>
+}
+
+// Modal component - centered overlay dialog.
+templ Modal(title, confirmLabel string, props ComponentProps) {
+	<div class={ MergeClasses("fixed inset-0 flex items-center justify-center bg-black/40 p-6", props.Class) }>
+		<div class="w-full max-w-md rounded-lg border border-base-300 bg-base-100 p-6 shadow-xl">
+			<h3 class="text-base font-semibold text-base-content">{ title }</h3>
+			<div class="mt-2 text-sm text-base-content/70">
+				{ children... }
+			</div>
+			<div class="mt-6 flex justify-end gap-3">
+				<button type="button" class="rounded-md border border-base-300 px-4 py-2 text-sm text-base-content/70 hover:bg-base-200">Cancel</button>
+				<button type="button" class="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-content">{ confirmLabel }</button>
+			</div>
+		</div>
+	</div>
+}
+
+// Popover component - floating panel anchored to a trigger.
+templ Popover(title string, props ComponentProps) {
+	<div class={ MergeClasses("relative inline-block", props.Class) }>
+		<button type="button" class="rounded-md border border-base-300 px-3 py-2 text-sm text-base-content">Open</button>
+		<div class="absolute left-0 mt-2 w-64 rounded-md border border-base-300 bg-base-100 p-4 shadow-lg">
+			<p class="text-sm font-semibold text-base-content">{ title }</p>
+			<div class="mt-1 text-sm text-base-content/70">
+				{ children... }
+			</div>
+		</div>
+	</div>
+}
+
+// Tooltip component - hint text displayed near an element.
+templ Tooltip(label, hint string, props ComponentProps) {
+	<div class={ MergeClasses("relative inline-flex items-center", props.Class) }>
+		<span class="text-sm text-base-content">{ label }</span>
+		<span class="ml-2 rounded-full bg-base-200 px-2 py-0.5 text-xs text-base-content/70">{ hint }</span>
+	</div>
+}
