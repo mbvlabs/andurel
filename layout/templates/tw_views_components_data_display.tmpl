@@ -1,0 +1,80 @@
+package components
+
+// Avatar component - circular user image with fallback initials.
+templ Avatar(name, imageURL, fallback string, props ComponentProps) {
+	<div class={ MergeClasses("inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-base-200 text-sm font-semibold text-base-content", props.Class) }>
+		if imageURL != "" {
+			<img
+				src={ imageURL }
+				alt={ name }
+				class="h-full w-full object-cover"
+			/>
+		} else {
+			<span>{ fallback }</span>
+		}
+	</div>
+}
+
+// Badge component - compact status label.
+templ Badge(label string, props ComponentProps) {
+	<span class={ MergeClasses("inline-flex items-center rounded-full bg-base-200 px-2.5 py-0.5 text-xs font-semibold text-base-content", props.Class) }>
+		{ label }
+	</span>
+}
+
+// Card component - bordered container with title and body content.
+templ Card(title, footer string, props ComponentProps) {
+	<div class={ MergeClasses("rounded-lg border border-base-300 bg-base-100 p-6 shadow-sm", props.Class) }>
+		<h3 class="text-base font-semibold text-base-content">{ title }</h3>
+		<div class="mt-2 text-sm text-base-content/70">
+			{ children... }
+		</div>
+		if footer != "" {
+			<div class="mt-4 text-sm text-base-content/60">{ footer }</div>
+		}
+	</div>
+}
+
+// Divider component - horizontal separator with optional label.
+templ Divider(label string, props ComponentProps) {
+	<div class={ MergeClasses("flex items-center gap-3", props.Class) }>
+		<div class="h-px flex-1 bg-base-300"></div>
+		if label != "" {
+			<span class="text-xs font-medium uppercase tracking-wide text-base-content/60">{ label }</span>
+			<div class="h-px flex-1 bg-base-300"></div>
+		}
+	</div>
+}
+
+// Stat component - labeled value for dashboards.
+templ Stat(label, value string, props ComponentProps) {
+	<div class={ MergeClasses("rounded-lg border border-base-300 bg-base-100 p-4", props.Class) }>
+		<p class="text-xs uppercase tracking-wide text-base-content/60">{ label }</p>
+		<p class="mt-2 text-2xl font-semibold text-base-content">{ value }</p>
+	</div>
+}
+
+// Table component - simple data table with headers and rows.
+templ Table(headers []string, props ComponentProps) {
+	<div class={ MergeClasses("overflow-x-auto rounded-lg border border-base-300", props.Class) }>
+		<table class="min-w-full divide-y divide-base-300 text-sm">
+			<thead class="bg-base-200/60">
+				<tr>
+					for _, header := range headers {
+						<th class="px-4 py-3 text-left font-semibold text-base-content">{ header }</th>
+					}
+				</tr>
+			</thead>
+			<tbody class="divide-y divide-base-300">
+				{ children... }
+			</tbody>
+		</table>
+	</div>
+}
+
+// ItemList component - stacked list items with subtle dividers.
+templ ItemList(props ComponentProps) {
+	<ul class={ MergeClasses("divide-y divide-base-300 rounded-lg border border-base-300 bg-base-100", props.Class) }>
+		{ children... }
+	</ul>
+}

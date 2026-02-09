@@ -1,0 +1,28 @@
+package components
+
+// Button component - primary action button.
+templ Button(label string, props ComponentProps) {
+	<button
+		type="button"
+		class={ MergeClasses("inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-content shadow-sm transition hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary", props.Class) }
+	>
+		{ label }
+	</button>
+}
+
+// ButtonLink component - styled link for secondary actions.
+templ ButtonLink(label, href string, props ComponentProps) {
+	<a
+		href={ href }
+		class={ MergeClasses("inline-flex items-center justify-center rounded-md border border-base-300 px-4 py-2 text-sm font-semibold text-base-content transition hover:bg-base-200", props.Class) }
+	>
+		{ label }
+	</a>
+}
+
+// ButtonGroup component - horizontal group of action buttons.
+templ ButtonGroup(props ComponentProps) {
+	<div class={ MergeClasses("inline-flex overflow-hidden rounded-md border border-base-300", props.Class) }>
+		{ children... }
+	</div>
+}
