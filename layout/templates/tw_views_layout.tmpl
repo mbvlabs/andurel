@@ -8,7 +8,7 @@ import (
 
 templ base(headOpts ...components.HeadDataOption) {
 	<!DOCTYPE html>
-	<html lang="en">
+	<html lang="en" class="dark">
 		@components.SetupHead(ctx, headOpts...)
 		<body class="min-h-screen flex flex-col bg-base-200 text-base-content">
 			{ children... }
