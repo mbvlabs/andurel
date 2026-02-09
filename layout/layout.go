@@ -224,8 +224,8 @@ type (
 )
 
 var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"tw_css_theme.tmpl": "css/theme.css",
-	"tw_css_base.tmpl":  "css/base.css",
+	"tw_css_themes.tmpl": "css/themes.css",
+	"tw_css_base.tmpl":   "css/base.css",
 
 	// Views
 	"tw_views_layout.tmpl":                   "views/layout.templ",

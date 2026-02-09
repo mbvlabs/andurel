@@ -1,6 +1,11 @@
 @import "tailwindcss";
+@import "./themes.css";
 @plugin "@tailwindcss/typography";
 @plugin "@tailwindcss/forms";
+
+html {
+	scroll-behavior: smooth;
+}
 
 body {
 	font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
@@ -14,6 +19,52 @@ body {
 	text-rendering: optimizeLegibility;
 }
 
-@import "./theme.css";
+@theme {
+	--color-base-100: var(--background-base-100);
+	--color-base-200: var(--background-base-200);
+	--color-base-300: var(--background-base-300);
+
+	--color-base-content: var(--text-base-content);
+
+	--color-primary: var(--primary);
+	--color-primary-content: var(--primary-content);
+
+	--color-secondary: var(--secondary);
+	--color-secondary-content: var(--secondary-content);
+
+	--color-accent: var(--accent);
+	--color-accent-content: var(--accent-content);
+
+	--color-neutral: var(--neutral);
+	--color-neutral-content: var(--neutral-content);
+
+	--color-info: var(--info);
+	--color-info-content: var(--info-content);
+
+	--color-success: var(--success);
+	--color-success-content: var(--success-content);
+
+	--color-warning: var(--warning);
+	--color-warning-content: var(--warning-content);
+
+	--color-error: var(--error);
+	--color-error-content: var(--error-content);
+
+	/* border radius */
+	--radius-selector: 1rem;
+	--radius-field: 0.25rem;
+	--radius-box: 0.5rem;
+
+	/* base sizes */
+	--size-selector: 0.25rem;
+	--size-field: 0.25rem;
+
+	/* border size */
+	--border: 1px;
+
+	/* effects */
+	--depth: 1;
+	--noise: 0;
+}
 
 @source "./views";
