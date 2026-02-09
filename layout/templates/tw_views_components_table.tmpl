@@ -14,16 +14,16 @@ type TableBuilder struct {
 // TableBody, TableFooter, TableRow, TableHead, TableCell, and TableCaption sub-components.
 //
 //	@components.Table().Render() {
-//		@components.TableHeader("", nil) {
-//			@components.TableRow("", nil) {
-//				@components.TableHead("", nil) { Name }
-//				@components.TableHead("", nil) { Email }
+//		@components.TableHeader() {
+//			@components.TableRow() {
+//				@components.TableHead() { Name }
+//				@components.TableHead() { Email }
 //			}
 //		}
-//		@components.TableBody("", nil) {
-//			@components.TableRow("", nil) {
-//				@components.TableCell("", nil) { Jane }
-//				@components.TableCell("", nil) { jane@example.com }
+//		@components.TableBody() {
+//			@components.TableRow() {
+//				@components.TableCell() { Jane }
+//				@components.TableCell() { jane@example.com }
 //			}
 //		}
 //	}
@@ -102,44 +102,44 @@ templ (b *TableBuilder) render() {
 	</div>
 }
 
-templ TableHeader(class string, attrs templ.Attributes) {
-	<thead class={ tableHeaderClasses(class) } if attrs != nil { { attrs... } }>
+templ TableHeader(opts ...Opt) {
+	<thead class={ tableHeaderClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</thead>
 }
 
-templ TableBody(class string, attrs templ.Attributes) {
-	<tbody class={ tableBodyClasses(class) } if attrs != nil { { attrs... } }>
+templ TableBody(opts ...Opt) {
+	<tbody class={ tableBodyClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</tbody>
 }
 
-templ TableFooter(class string, attrs templ.Attributes) {
-	<tfoot class={ tableFooterClasses(class) } if attrs != nil { { attrs... } }>
+templ TableFooter(opts ...Opt) {
+	<tfoot class={ tableFooterClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</tfoot>
 }
 
-templ TableRow(class string, attrs templ.Attributes) {
-	<tr class={ tableRowClasses(class) } if attrs != nil { { attrs... } }>
+templ TableRow(opts ...Opt) {
+	<tr class={ tableRowClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</tr>
 }
 
-templ TableHead(class string, attrs templ.Attributes) {
-	<th class={ tableHeadClasses(class) } if attrs != nil { { attrs... } }>
+templ TableHead(opts ...Opt) {
+	<th class={ tableHeadClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</th>
 }
 
-templ TableCell(class string, attrs templ.Attributes) {
-	<td class={ tableCellClasses(class) } if attrs != nil { { attrs... } }>
+templ TableCell(opts ...Opt) {
+	<td class={ tableCellClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</td>
 }
 
-templ TableCaption(class string, attrs templ.Attributes) {
-	<caption class={ tableCaptionClasses(class) } if attrs != nil { { attrs... } }>
-		{ children... }
+templ TableCaption(caption string, opts ...Opt) {
+	<caption class={ tableCaptionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ caption }
 	</caption>
 }

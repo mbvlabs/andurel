@@ -28,19 +28,28 @@ const (
 	ButtonTypeReset  ButtonType = "reset"
 )
 
+// --- Props ---
+
+type ButtonProps struct {
+	Label string
+}
+
 // --- Builder ---
 
 type ButtonBuilder struct {
-	variant    ButtonVariant
-	size       ButtonSize
-	btnType    ButtonType
-	disabled   bool
-	fullWidth  bool
-	href       string
-	id         string
-	class      string
-	attrs      templ.Attributes
-	fragmentID string
+	label        string
+	variant      ButtonVariant
+	size         ButtonSize
+	btnType      ButtonType
+	disabled     bool
+	fullWidth    bool
+	href         string
+	loadingLabel string
+	loadingSignal string
+	id           string
+	class        string
+	attrs        templ.Attributes
+	fragmentID   string
 }
 
 // Button renders a clickable button or link styled as a button. Use it for primary actions,
@@ -50,10 +59,10 @@ type ButtonBuilder struct {
 // Sizes: ButtonSizeDefault, ButtonSizeSm, ButtonSizeLg, ButtonSizeIcon.
 // Types: ButtonTypeButton (default), ButtonTypeSubmit, ButtonTypeReset.
 //
-//	@components.Button().WithVariant(components.ButtonVariantOutline).WithSize(components.ButtonSizeSm).Render() { Click Me }
-//	@components.Button().WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render() { Submit }
-func Button() *ButtonBuilder {
-	return &ButtonBuilder{btnType: ButtonTypeButton}
+//	@components.Button(components.ButtonProps{Label: "Click Me"}).WithVariant(components.ButtonVariantOutline).WithSize(components.ButtonSizeSm).Render()
+//	@components.Button(components.ButtonProps{Label: "Submit"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+func Button(props ButtonProps) *ButtonBuilder {
+	return &ButtonBuilder{label: props.Label, btnType: ButtonTypeButton}
 }
 
 func (b *ButtonBuilder) WithVariant(v ButtonVariant) *ButtonBuilder   { b.variant = v; return b }
@@ -70,6 +79,9 @@ func (b *ButtonBuilder) WithAttr(key string, val any) *ButtonBuilder {
 	b.attrs[key] = val; return b
 }
 func (b *ButtonBuilder) WithFragment(id string) *ButtonBuilder        { b.fragmentID = id; return b }
+func (b *ButtonBuilder) WithLoadingLabel(label string, signal string) *ButtonBuilder {
+	b.loadingLabel = label; b.loadingSignal = signal; return b
+}
 
 // --- Class helpers ---
 
@@ -136,7 +148,12 @@ templ (b *ButtonBuilder) render() {
 				{ b.attrs... }
 			}
 		>
-			{ children... }
+			if b.loadingLabel != "" {
+				<span data-show={ "!$" + b.loadingSignal }>{ b.label }</span>
+				<span data-show={ "$" + b.loadingSignal }>{ b.loadingLabel }</span>
+			} else {
+				{ b.label }
+			}
 		</a>
 	} else {
 		<button
@@ -152,7 +169,12 @@ templ (b *ButtonBuilder) render() {
 				{ b.attrs... }
 			}
 		>
-			{ children... }
+			if b.loadingLabel != "" {
+				<span data-show={ "!$" + b.loadingSignal }>{ b.label }</span>
+				<span data-show={ "$" + b.loadingSignal }>{ b.loadingLabel }</span>
+			} else {
+				{ b.label }
+			}
 		</button>
 	}
 }

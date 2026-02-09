@@ -27,13 +27,13 @@ type SheetBuilder struct {
 // Sides: SheetSideLeft, SheetSideRight (default), SheetSideTop, SheetSideBottom.
 //
 //	@components.Sheet().Render() {
-//		@components.SheetContent(components.SheetSideRight, "", nil) {
-//			@components.SheetHeader("", nil) {
-//				@components.SheetTitle("", nil) { Settings }
-//				@components.SheetDescription("", nil) { Adjust your preferences. }
+//		@components.SheetContent(components.SheetSideRight) {
+//			@components.SheetHeader() {
+//				@components.SheetTitle("Settings")
+//				@components.SheetDescription("Adjust your preferences.")
 //			}
 //			<p>Sheet body</p>
-//			@components.SheetClose("", nil)
+//			@components.SheetClose()
 //		}
 //	}
 func Sheet() *SheetBuilder {
@@ -115,39 +115,39 @@ templ (b *SheetBuilder) render() {
 	</div>
 }
 
-templ SheetContent(side SheetSide, class string, attrs templ.Attributes) {
+templ SheetContent(side SheetSide, opts ...Opt) {
 	<div class="fixed inset-0 z-50 bg-black/80"></div>
-	<div class={ sheetContentClasses(side, class) } role="dialog" aria-modal="true" if attrs != nil { { attrs... } }>
+	<div class={ sheetContentClasses(side, classFrom(opts)) } role="dialog" aria-modal="true" if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ SheetHeader(class string, attrs templ.Attributes) {
-	<div class={ sheetHeaderClasses(class) } if attrs != nil { { attrs... } }>
+templ SheetHeader(opts ...Opt) {
+	<div class={ sheetHeaderClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ SheetTitle(class string, attrs templ.Attributes) {
-	<h2 class={ sheetTitleClasses(class) } if attrs != nil { { attrs... } }>
-		{ children... }
+templ SheetTitle(title string, opts ...Opt) {
+	<h2 class={ sheetTitleClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ title }
 	</h2>
 }
 
-templ SheetDescription(class string, attrs templ.Attributes) {
-	<p class={ sheetDescriptionClasses(class) } if attrs != nil { { attrs... } }>
-		{ children... }
+templ SheetDescription(description string, opts ...Opt) {
+	<p class={ sheetDescriptionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ description }
 	</p>
 }
 
-templ SheetFooter(class string, attrs templ.Attributes) {
-	<div class={ sheetFooterClasses(class) } if attrs != nil { { attrs... } }>
+templ SheetFooter(opts ...Opt) {
+	<div class={ sheetFooterClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ SheetClose(class string, attrs templ.Attributes) {
-	<button type="button" class={ sheetCloseClasses(class) } if attrs != nil { { attrs... } }>
+templ SheetClose(opts ...Opt) {
+	<button type="button" class={ sheetCloseClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
 		<span class="sr-only">Close</span>
 	</button>

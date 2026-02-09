@@ -15,14 +15,14 @@ type DialogBuilder struct {
 // For destructive confirmation prompts, prefer AlertDialog instead.
 //
 //	@components.Dialog().Render() {
-//		@components.DialogContent("", nil) {
-//			@components.DialogHeader("", nil) {
-//				@components.DialogTitle("", nil) { Edit Profile }
-//				@components.DialogDescription("", nil) { Make changes to your profile. }
+//		@components.DialogContent() {
+//			@components.DialogHeader() {
+//				@components.DialogTitle("Edit Profile")
+//				@components.DialogDescription("Make changes to your profile.")
 //			}
 //			<p>Dialog body content</p>
-//			@components.DialogFooter("", nil) { ... }
-//			@components.DialogClose("", nil)
+//			@components.DialogFooter() { ... }
+//			@components.DialogClose()
 //		}
 //	}
 func Dialog() *DialogBuilder {
@@ -94,39 +94,39 @@ templ (b *DialogBuilder) render() {
 	</div>
 }
 
-templ DialogContent(class string, attrs templ.Attributes) {
+templ DialogContent(opts ...Opt) {
 	<div class={ dialogOverlayClasses() }></div>
-	<div class={ dialogContentClasses(class) } role="dialog" aria-modal="true" if attrs != nil { { attrs... } }>
+	<div class={ dialogContentClasses(classFrom(opts)) } role="dialog" aria-modal="true" if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ DialogHeader(class string, attrs templ.Attributes) {
-	<div class={ dialogHeaderClasses(class) } if attrs != nil { { attrs... } }>
+templ DialogHeader(opts ...Opt) {
+	<div class={ dialogHeaderClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ DialogTitle(class string, attrs templ.Attributes) {
-	<h2 class={ dialogTitleClasses(class) } if attrs != nil { { attrs... } }>
-		{ children... }
+templ DialogTitle(title string, opts ...Opt) {
+	<h2 class={ dialogTitleClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ title }
 	</h2>
 }
 
-templ DialogDescription(class string, attrs templ.Attributes) {
-	<p class={ dialogDescriptionClasses(class) } if attrs != nil { { attrs... } }>
-		{ children... }
+templ DialogDescription(description string, opts ...Opt) {
+	<p class={ dialogDescriptionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ description }
 	</p>
 }
 
-templ DialogFooter(class string, attrs templ.Attributes) {
-	<div class={ dialogFooterClasses(class) } if attrs != nil { { attrs... } }>
+templ DialogFooter(opts ...Opt) {
+	<div class={ dialogFooterClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ DialogClose(class string, attrs templ.Attributes) {
-	<button type="button" class={ dialogCloseClasses(class) } if attrs != nil { { attrs... } }>
+templ DialogClose(opts ...Opt) {
+	<button type="button" class={ dialogCloseClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
 		<span class="sr-only">Close</span>
 	</button>

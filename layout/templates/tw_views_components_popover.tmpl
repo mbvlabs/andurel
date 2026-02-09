@@ -14,10 +14,10 @@ type PopoverBuilder struct {
 // PopoverTrigger and PopoverContent sub-components.
 //
 //	@components.Popover().Render() {
-//		@components.PopoverTrigger("", nil) {
-//			@components.Button().Render() { Open }
+//		@components.PopoverTrigger() {
+//			@components.Button(components.ButtonProps{Label: "Open"}).Render()
 //		}
-//		@components.PopoverContent("", nil) { Popover body }
+//		@components.PopoverContent() { Popover body }
 //	}
 func Popover() *PopoverBuilder {
 	return &PopoverBuilder{}
@@ -69,14 +69,14 @@ templ (b *PopoverBuilder) render() {
 	</div>
 }
 
-templ PopoverTrigger(class string, attrs templ.Attributes) {
-	<div class={ cn("cursor-pointer", class) } if attrs != nil { { attrs... } }>
+templ PopoverTrigger(opts ...Opt) {
+	<div class={ cn("cursor-pointer", classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ PopoverContent(class string, attrs templ.Attributes) {
-	<div class={ popoverContentClasses(class) } if attrs != nil { { attrs... } }>
+templ PopoverContent(opts ...Opt) {
+	<div class={ popoverContentClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

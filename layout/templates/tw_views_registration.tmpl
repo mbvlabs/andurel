@@ -23,22 +23,19 @@ templ RegistrationForm() {
 						</div>
 						<div class="space-y-4">
 							<div class="w-full space-y-1">
-								@components.Label().WithFor("email").Render() { Email }
+								@components.Label(components.LabelProps{Text: "Email"}).WithFor("email").Render()
 								@components.Input("email").WithID("email").WithType(components.InputTypeEmail).WithRequired(true).Render()
 							</div>
 							<div class="w-full space-y-1">
-								@components.Label().WithFor("password").Render() { Password }
+								@components.Label(components.LabelProps{Text: "Password"}).WithFor("password").Render()
 								@components.Input("password").WithID("password").WithType(components.InputTypePassword).WithRequired(true).Render()
 							</div>
 							<div class="w-full space-y-1">
-								@components.Label().WithFor("confirmPassword").Render() { Confirm Password }
+								@components.Label(components.LabelProps{Text: "Confirm Password"}).WithFor("confirmPassword").Render()
 								@components.Input("confirmPassword").WithID("confirmPassword").WithType(components.InputTypePassword).WithRequired(true).Render()
 							</div>
 						</div>
-						@components.Button().WithType(components.ButtonTypeSubmit).WithFullWidth(true).WithAttr("data-attr:disabled", "$submitting").Render() {
-							<span data-show="!$submitting">Sign Up</span>
-							<span data-show="$submitting">Loading</span>
-						}
+						@components.Button(components.ButtonProps{Label: "Sign Up"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).WithAttr("data-attr:disabled", "$submitting").WithLoadingLabel("Loading", "submitting").Render()
 					</form>
 					<p class="mt-6 text-center text-sm text-base-content/60">
 						Already have an account? <a class="text-base-content hover:underline" href={ templ.SafeURL(routes.SessionNew.URL()) }>Login</a>

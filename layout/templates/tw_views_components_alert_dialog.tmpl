@@ -15,14 +15,14 @@ type AlertDialogBuilder struct {
 // AlertDialogFooter, AlertDialogAction, and AlertDialogCancel sub-components.
 //
 //	@components.AlertDialog().Render() {
-//		@components.AlertDialogContent("", nil) {
-//			@components.AlertDialogHeader("", nil) {
-//				@components.AlertDialogTitle("", nil) { Are you sure? }
-//				@components.AlertDialogDescription("", nil) { This action cannot be undone. }
+//		@components.AlertDialogContent() {
+//			@components.AlertDialogHeader() {
+//				@components.AlertDialogTitle("Are you sure?")
+//				@components.AlertDialogDescription("This action cannot be undone.")
 //			}
-//			@components.AlertDialogFooter("", nil) {
-//				@components.AlertDialogCancel("", nil) { Cancel }
-//				@components.AlertDialogAction("", nil) { Continue }
+//			@components.AlertDialogFooter() {
+//				@components.AlertDialogCancel("Cancel")
+//				@components.AlertDialogAction("Continue")
 //			}
 //		}
 //	}
@@ -95,45 +95,45 @@ templ (b *AlertDialogBuilder) render() {
 	</div>
 }
 
-templ AlertDialogContent(class string, attrs templ.Attributes) {
+templ AlertDialogContent(opts ...Opt) {
 	<div class="fixed inset-0 z-50 bg-black/80"></div>
-	<div class={ alertDialogContentClasses(class) } role="alertdialog" aria-modal="true" if attrs != nil { { attrs... } }>
+	<div class={ alertDialogContentClasses(classFrom(opts)) } role="alertdialog" aria-modal="true" if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ AlertDialogHeader(class string, attrs templ.Attributes) {
-	<div class={ alertDialogHeaderClasses(class) } if attrs != nil { { attrs... } }>
+templ AlertDialogHeader(opts ...Opt) {
+	<div class={ alertDialogHeaderClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ AlertDialogTitle(class string, attrs templ.Attributes) {
-	<h2 class={ alertDialogTitleClasses(class) } if attrs != nil { { attrs... } }>
-		{ children... }
+templ AlertDialogTitle(title string, opts ...Opt) {
+	<h2 class={ alertDialogTitleClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ title }
 	</h2>
 }
 
-templ AlertDialogDescription(class string, attrs templ.Attributes) {
-	<p class={ alertDialogDescriptionClasses(class) } if attrs != nil { { attrs... } }>
-		{ children... }
+templ AlertDialogDescription(description string, opts ...Opt) {
+	<p class={ alertDialogDescriptionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ description }
 	</p>
 }
 
-templ AlertDialogFooter(class string, attrs templ.Attributes) {
-	<div class={ alertDialogFooterClasses(class) } if attrs != nil { { attrs... } }>
+templ AlertDialogFooter(opts ...Opt) {
+	<div class={ alertDialogFooterClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ AlertDialogAction(class string, attrs templ.Attributes) {
-	<button type="button" class={ alertDialogActionClasses(class) } if attrs != nil { { attrs... } }>
-		{ children... }
+templ AlertDialogAction(label string, opts ...Opt) {
+	<button type="button" class={ alertDialogActionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ label }
 	</button>
 }
 
-templ AlertDialogCancel(class string, attrs templ.Attributes) {
-	<button type="button" class={ alertDialogCancelClasses(class) } if attrs != nil { { attrs... } }>
-		{ children... }
+templ AlertDialogCancel(label string, opts ...Opt) {
+	<button type="button" class={ alertDialogCancelClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ label }
 	</button>
 }

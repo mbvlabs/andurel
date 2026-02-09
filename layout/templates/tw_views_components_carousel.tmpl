@@ -14,12 +14,12 @@ type CarouselBuilder struct {
 // CarouselContent, CarouselItem, CarouselPrevious, and CarouselNext sub-components.
 //
 //	@components.Carousel().Render() {
-//		@components.CarouselContent("", nil) {
-//			@components.CarouselItem("", nil) { Slide 1 }
-//			@components.CarouselItem("", nil) { Slide 2 }
+//		@components.CarouselContent() {
+//			@components.CarouselItem() { Slide 1 }
+//			@components.CarouselItem() { Slide 2 }
 //		}
-//		@components.CarouselPrevious("", nil)
-//		@components.CarouselNext("", nil)
+//		@components.CarouselPrevious()
+//		@components.CarouselNext()
 //	}
 func Carousel() *CarouselBuilder {
 	return &CarouselBuilder{}
@@ -80,26 +80,26 @@ templ (b *CarouselBuilder) render() {
 	</div>
 }
 
-templ CarouselContent(class string, attrs templ.Attributes) {
-	<div class={ carouselContentClasses(class) } if attrs != nil { { attrs... } }>
+templ CarouselContent(opts ...Opt) {
+	<div class={ carouselContentClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ CarouselItem(class string, attrs templ.Attributes) {
-	<div class={ carouselItemClasses(class) } role="group" aria-roledescription="slide" if attrs != nil { { attrs... } }>
+templ CarouselItem(opts ...Opt) {
+	<div class={ carouselItemClasses(classFrom(opts)) } role="group" aria-roledescription="slide" if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ CarouselPrevious(class string, attrs templ.Attributes) {
-	<button type="button" class={ carouselBtnClasses(cn("-left-12", class)) } aria-label="Previous slide" if attrs != nil { { attrs... } }>
+templ CarouselPrevious(opts ...Opt) {
+	<button type="button" class={ carouselBtnClasses(cn("-left-12", classFrom(opts))) } aria-label="Previous slide" if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
 	</button>
 }
 
-templ CarouselNext(class string, attrs templ.Attributes) {
-	<button type="button" class={ carouselBtnClasses(cn("-right-12", class)) } aria-label="Next slide" if attrs != nil { { attrs... } }>
+templ CarouselNext(opts ...Opt) {
+	<button type="button" class={ carouselBtnClasses(cn("-right-12", classFrom(opts))) } aria-label="Next slide" if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
 	</button>
 }

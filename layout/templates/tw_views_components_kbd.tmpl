@@ -1,8 +1,15 @@
 package components
 
+// --- Props ---
+
+type KbdProps struct {
+	Key string
+}
+
 // --- Builder ---
 
 type KbdBuilder struct {
+	key        string
 	id         string
 	class      string
 	attrs      templ.Attributes
@@ -12,9 +19,9 @@ type KbdBuilder struct {
 // Kbd renders a keyboard key indicator styled as a small bordered box. Use it to display
 // keyboard shortcuts or key combinations in documentation or tooltips.
 //
-//	@components.Kbd().Render() { Ctrl+K }
-func Kbd() *KbdBuilder {
-	return &KbdBuilder{}
+//	@components.Kbd(components.KbdProps{Key: "Ctrl+K"}).Render()
+func Kbd(props KbdProps) *KbdBuilder {
+	return &KbdBuilder{key: props.Key}
 }
 
 func (b *KbdBuilder) WithID(id string) *KbdBuilder     { b.id = id; return b }
@@ -55,6 +62,6 @@ templ (b *KbdBuilder) render() {
 			{ b.attrs... }
 		}
 	>
-		{ children... }
+		{ b.key }
 	</kbd>
 }

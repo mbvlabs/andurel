@@ -18,7 +18,7 @@ type RadioBuilder struct {
 // (same bind = same group), and value is the option value submitted when selected. Use
 // inside a RadioGroup for proper spacing. Pair with WithLabel for inline labeling.
 //
-//	@components.RadioGroup("", nil) {
+//	@components.RadioGroup() {
 //		@components.Radio("color", "red").WithLabel("Red").Render()
 //		@components.Radio("color", "blue").WithLabel("Blue").WithChecked(true).Render()
 //	}
@@ -85,8 +85,8 @@ templ (b *RadioBuilder) render() {
 }
 
 // RadioGroup remains a simple templ func
-templ RadioGroup(class string, attrs templ.Attributes) {
-	<div role="radiogroup" class={ cn("flex flex-col gap-2", class) } if attrs != nil { { attrs... } }>
+templ RadioGroup(opts ...Opt) {
+	<div role="radiogroup" class={ cn("flex flex-col gap-2", classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

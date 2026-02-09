@@ -13,3 +13,35 @@ func cn(classes ...string) string {
 	}
 	return strings.Join(filtered, " ")
 }
+
+// --- Functional options for sub-components ---
+
+type Opt func(*optConfig)
+
+type optConfig struct {
+	class string
+	attrs templ.Attributes
+}
+
+func WithClass(c string) Opt {
+	return func(cfg *optConfig) { cfg.class = cn(cfg.class, c) }
+}
+
+func WithAttr(key string, val any) Opt {
+	return func(cfg *optConfig) {
+		if cfg.attrs == nil { cfg.attrs = templ.Attributes{} }
+		cfg.attrs[key] = val
+	}
+}
+
+func classFrom(opts []Opt) string {
+	cfg := optConfig{}
+	for _, o := range opts { o(&cfg) }
+	return cfg.class
+}
+
+func attrsFrom(opts []Opt) templ.Attributes {
+	cfg := optConfig{}
+	for _, o := range opts { o(&cfg) }
+	return cfg.attrs
+}

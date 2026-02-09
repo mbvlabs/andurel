@@ -18,9 +18,9 @@ type SelectBuilder struct {
 // SelectItem, SelectGroup, and SelectSeparator sub-components for options.
 //
 //	@components.Select("country").WithRequired(true).Render() {
-//		@components.SelectItem("", false, false, "", nil) { Choose a country }
-//		@components.SelectItem("us", false, false, "", nil) { United States }
-//		@components.SelectItem("uk", false, false, "", nil) { United Kingdom }
+//		@components.SelectItem("Choose a country", "", false, false)
+//		@components.SelectItem("United States", "us", false, false)
+//		@components.SelectItem("United Kingdom", "uk", false, false)
 //	}
 func Select(bind string) *SelectBuilder {
 	return &SelectBuilder{bind: bind}
@@ -83,7 +83,7 @@ templ (b *SelectBuilder) render() {
 	</select>
 }
 
-templ SelectItem(value string, selected bool, disabled bool, class string, attrs templ.Attributes) {
+templ SelectItem(label string, value string, selected bool, disabled bool, opts ...Opt) {
 	<option
 		if value != "" {
 			value={ value }
@@ -94,21 +94,21 @@ templ SelectItem(value string, selected bool, disabled bool, class string, attrs
 		if selected {
 			selected
 		}
-		if attrs != nil {
-			{ attrs... }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
 		}
 	>
-		{ children... }
+		{ label }
 	</option>
 }
 
-templ SelectGroup(label string, class string, attrs templ.Attributes) {
+templ SelectGroup(label string, opts ...Opt) {
 	<optgroup
 		if label != "" {
 			label={ label }
 		}
-		if attrs != nil {
-			{ attrs... }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
 		}
 	>
 		{ children... }

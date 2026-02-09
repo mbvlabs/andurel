@@ -16,8 +16,8 @@ type TagsInputBuilder struct {
 // categories, or email addresses. Compose with Tag sub-components for pre-existing tags.
 //
 //	@components.TagsInput("tags").WithPlaceholder("Add a tag...").Render() {
-//		@components.Tag("", nil) { Go }
-//		@components.Tag("", nil) { Templ }
+//		@components.Tag("Go")
+//		@components.Tag("Templ")
 //	}
 func TagsInput(bind string) *TagsInputBuilder {
 	return &TagsInputBuilder{bind: bind}
@@ -75,8 +75,8 @@ templ (b *TagsInputBuilder) render() {
 	</div>
 }
 
-templ Tag(class string, attrs templ.Attributes) {
-	<span class={ cn("inline-flex items-center gap-1 rounded-full bg-base-300 px-2 py-0.5 text-xs font-medium text-base-content", class) } if attrs != nil { { attrs... } }>
-		{ children... }
+templ Tag(label string, opts ...Opt) {
+	<span class={ cn("inline-flex items-center gap-1 rounded-full bg-base-300 px-2 py-0.5 text-xs font-medium text-base-content", classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ label }
 	</span>
 }

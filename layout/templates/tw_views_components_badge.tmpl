@@ -11,9 +11,16 @@ const (
 	BadgeVariantDestructive BadgeVariant = "destructive"
 )
 
+// --- Props ---
+
+type BadgeProps struct {
+	Label string
+}
+
 // --- Builder ---
 
 type BadgeBuilder struct {
+	label      string
 	variant    BadgeVariant
 	id         string
 	class      string
@@ -25,9 +32,9 @@ type BadgeBuilder struct {
 // Use it next to text, in tables, or on cards to convey metadata at a glance.
 // Variants: BadgeVariantDefault, BadgeVariantSecondary, BadgeVariantOutline, BadgeVariantDestructive.
 //
-//	@components.Badge().WithVariant(components.BadgeVariantSecondary).Render() { New }
-func Badge() *BadgeBuilder {
-	return &BadgeBuilder{}
+//	@components.Badge(components.BadgeProps{Label: "New"}).WithVariant(components.BadgeVariantSecondary).Render()
+func Badge(props BadgeProps) *BadgeBuilder {
+	return &BadgeBuilder{label: props.Label}
 }
 
 func (b *BadgeBuilder) WithVariant(v BadgeVariant) *BadgeBuilder { b.variant = v; return b }
@@ -82,6 +89,6 @@ templ (b *BadgeBuilder) render() {
 			{ b.attrs... }
 		}
 	>
-		{ children... }
+		{ b.label }
 	</span>
 }

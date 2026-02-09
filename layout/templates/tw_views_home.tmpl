@@ -14,49 +14,39 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Button</h3>
 				<div class="flex flex-wrap items-center gap-3">
-					@components.Button().Render() { Default }
-					@components.Button().WithVariant(components.ButtonVariantSecondary).Render() { Secondary }
-					@components.Button().WithVariant(components.ButtonVariantOutline).Render() { Outline }
-					@components.Button().WithVariant(components.ButtonVariantGhost).Render() { Ghost }
-					@components.Button().WithVariant(components.ButtonVariantLink).Render() { Link }
-					@components.Button().WithVariant(components.ButtonVariantDestructive).Render() { Destructive }
+					@components.Button(components.ButtonProps{Label: "Default"}).Render()
+					@components.Button(components.ButtonProps{Label: "Secondary"}).WithVariant(components.ButtonVariantSecondary).Render()
+					@components.Button(components.ButtonProps{Label: "Outline"}).WithVariant(components.ButtonVariantOutline).Render()
+					@components.Button(components.ButtonProps{Label: "Ghost"}).WithVariant(components.ButtonVariantGhost).Render()
+					@components.Button(components.ButtonProps{Label: "Link"}).WithVariant(components.ButtonVariantLink).Render()
+					@components.Button(components.ButtonProps{Label: "Destructive"}).WithVariant(components.ButtonVariantDestructive).Render()
 				</div>
 				<div class="flex flex-wrap items-center gap-3">
-					@components.Button().WithSize(components.ButtonSizeSm).Render() { Small }
-					@components.Button().Render() { Default }
-					@components.Button().WithSize(components.ButtonSizeLg).Render() { Large }
-					@components.Button().WithDisabled(true).Render() { Disabled }
+					@components.Button(components.ButtonProps{Label: "Small"}).WithSize(components.ButtonSizeSm).Render()
+					@components.Button(components.ButtonProps{Label: "Default"}).Render()
+					@components.Button(components.ButtonProps{Label: "Large"}).WithSize(components.ButtonSizeLg).Render()
+					@components.Button(components.ButtonProps{Label: "Disabled"}).WithDisabled(true).Render()
 				</div>
 			</div>
 			<!-- ─── Badge ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Badge</h3>
 				<div class="flex flex-wrap items-center gap-3">
-					@components.Badge().Render() { Default }
-					@components.Badge().WithVariant(components.BadgeVariantSecondary).Render() { Secondary }
-					@components.Badge().WithVariant(components.BadgeVariantOutline).Render() { Outline }
-					@components.Badge().WithVariant(components.BadgeVariantDestructive).Render() { Destructive }
+					@components.Badge(components.BadgeProps{Label: "Default"}).Render()
+					@components.Badge(components.BadgeProps{Label: "Secondary"}).WithVariant(components.BadgeVariantSecondary).Render()
+					@components.Badge(components.BadgeProps{Label: "Outline"}).WithVariant(components.BadgeVariantOutline).Render()
+					@components.Badge(components.BadgeProps{Label: "Destructive"}).WithVariant(components.BadgeVariantDestructive).Render()
 				</div>
 			</div>
 			<!-- ─── Alert ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Alert</h3>
 				<div class="space-y-3 max-w-xl">
-					@components.Alert().WithTitle("Default").Render() {
-						This is a default alert message.
-					}
-					@components.Alert().WithVariant(components.AlertVariantInfo).WithTitle("Info").Render() {
-						This is an informational message.
-					}
-					@components.Alert().WithVariant(components.AlertVariantSuccess).WithTitle("Success").Render() {
-						Operation completed successfully.
-					}
-					@components.Alert().WithVariant(components.AlertVariantWarning).WithTitle("Warning").Render() {
-						Please review before proceeding.
-					}
-					@components.Alert().WithVariant(components.AlertVariantError).WithTitle("Error").Render() {
-						Something went wrong.
-					}
+					@components.Alert(components.AlertProps{Description: "This is a default alert message."}).WithTitle("Default").Render()
+					@components.Alert(components.AlertProps{Description: "This is an informational message."}).WithVariant(components.AlertVariantInfo).WithTitle("Info").Render()
+					@components.Alert(components.AlertProps{Description: "Operation completed successfully."}).WithVariant(components.AlertVariantSuccess).WithTitle("Success").Render()
+					@components.Alert(components.AlertProps{Description: "Please review before proceeding."}).WithVariant(components.AlertVariantWarning).WithTitle("Warning").Render()
+					@components.Alert(components.AlertProps{Description: "Something went wrong."}).WithVariant(components.AlertVariantError).WithTitle("Error").Render()
 				</div>
 			</div>
 			<!-- ─── Card ─── -->
@@ -64,16 +54,16 @@ templ Home() {
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Card</h3>
 				<div class="max-w-sm">
 					@components.Card().Render() {
-						@components.CardHeader("", nil) {
-							@components.CardTitle("", nil) { Card Title }
-							@components.CardDescription("", nil) { A short description of the card content. }
+						@components.CardHeader() {
+							@components.CardTitle("Card Title")
+							@components.CardDescription("A short description of the card content.")
 						}
-						@components.CardContent("", nil) {
+						@components.CardContent() {
 							<p class="text-sm text-base-content/80">This is the body of the card. You can place any content here.</p>
 						}
-						@components.CardFooter("", nil) {
-							@components.Button().WithVariant(components.ButtonVariantOutline).WithSize(components.ButtonSizeSm).Render() { Cancel }
-							@components.Button().WithSize(components.ButtonSizeSm).WithClass("ml-2").Render() { Save }
+						@components.CardFooter() {
+							@components.Button(components.ButtonProps{Label: "Cancel"}).WithVariant(components.ButtonVariantOutline).WithSize(components.ButtonSizeSm).Render()
+							@components.Button(components.ButtonProps{Label: "Save"}).WithSize(components.ButtonSizeSm).WithClass("ml-2").Render()
 						}
 					}
 				</div>
@@ -83,19 +73,19 @@ templ Home() {
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Input</h3>
 				<div class="max-w-sm space-y-3">
 					<div class="space-y-1">
-						@components.Label().WithFor("demo-email").Render() { Email }
+						@components.Label(components.LabelProps{Text: "Email"}).WithFor("demo-email").Render()
 						@components.Input("demo-email").WithID("demo-email").WithType(components.InputTypeEmail).WithPlaceholder("you@example.com").Render()
 					</div>
 					<div class="space-y-1">
-						@components.Label().WithFor("demo-password").Render() { Password }
+						@components.Label(components.LabelProps{Text: "Password"}).WithFor("demo-password").Render()
 						@components.Input("demo-password").WithID("demo-password").WithType(components.InputTypePassword).WithPlaceholder("Enter password").Render()
 					</div>
 					<div class="space-y-1">
-						@components.Label().WithFor("demo-error").Render() { Error State }
+						@components.Label(components.LabelProps{Text: "Error State"}).WithFor("demo-error").Render()
 						@components.Input("demo-error").WithID("demo-error").WithHasError(true).WithValue("Invalid value").Render()
 					</div>
 					<div class="space-y-1">
-						@components.Label().WithFor("demo-disabled").Render() { Disabled }
+						@components.Label(components.LabelProps{Text: "Disabled"}).WithFor("demo-disabled").Render()
 						@components.Input("demo-disabled").WithID("demo-disabled").WithDisabled(true).WithValue("Cannot edit").Render()
 					</div>
 				</div>
@@ -104,7 +94,7 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Textarea</h3>
 				<div class="max-w-sm space-y-1">
-					@components.Label().WithFor("demo-bio").Render() { Bio }
+					@components.Label(components.LabelProps{Text: "Bio"}).WithFor("demo-bio").Render()
 					@components.Textarea("demo-bio").WithID("demo-bio").WithPlaceholder("Tell us about yourself...").WithRows(4).Render()
 				</div>
 			</div>
@@ -112,13 +102,13 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Select</h3>
 				<div class="max-w-sm space-y-1">
-					@components.Label().WithFor("demo-select").Render() { Country }
+					@components.Label(components.LabelProps{Text: "Country"}).WithFor("demo-select").Render()
 					@components.Select("demo-select").WithID("demo-select").Render() {
-						@components.SelectItem("", false, true, "", nil) { Choose a country }
-						@components.SelectItem("us", false, false, "", nil) { United States }
-						@components.SelectItem("uk", false, false, "", nil) { United Kingdom }
-						@components.SelectItem("de", false, false, "", nil) { Germany }
-						@components.SelectItem("jp", false, false, "", nil) { Japan }
+						@components.SelectItem("Choose a country", "", false, true)
+						@components.SelectItem("United States", "us", false, false)
+						@components.SelectItem("United Kingdom", "uk", false, false)
+						@components.SelectItem("Germany", "de", false, false)
+						@components.SelectItem("Japan", "jp", false, false)
 					}
 				</div>
 			</div>
@@ -143,7 +133,7 @@ templ Home() {
 			<!-- ─── Radio ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Radio</h3>
-				@components.RadioGroup("", nil) {
+				@components.RadioGroup() {
 					@components.Radio("demo-plan", "free").WithLabel("Free").WithChecked(true).Render()
 					@components.Radio("demo-plan", "pro").WithLabel("Pro").Render()
 					@components.Radio("demo-plan", "enterprise").WithLabel("Enterprise").Render()
@@ -171,9 +161,9 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Slider</h3>
 				<div class="max-w-sm space-y-3">
-					@components.Label().Render() { Volume }
+					@components.Label(components.LabelProps{Text: "Volume"}).Render()
 					@components.Slider("demo-volume").WithValue(50).Render()
-					@components.Label().Render() { Price Range }
+					@components.Label(components.LabelProps{Text: "Price Range"}).Render()
 					@components.Slider("demo-price").WithMin(0).WithMax(1000).WithStep(50).WithValue(250).Render()
 				</div>
 			</div>
@@ -189,7 +179,7 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Datepicker</h3>
 				<div class="max-w-sm space-y-1">
-					@components.Label().WithFor("demo-date").Render() { Date }
+					@components.Label(components.LabelProps{Text: "Date"}).WithFor("demo-date").Render()
 					@components.Datepicker("demo-date").WithPlaceholder("Select a date").Render()
 				</div>
 			</div>
@@ -197,7 +187,7 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Timepicker</h3>
 				<div class="max-w-sm space-y-1">
-					@components.Label().WithFor("demo-time").Render() { Time }
+					@components.Label(components.LabelProps{Text: "Time"}).WithFor("demo-time").Render()
 					@components.Timepicker("demo-time").WithValue("09:00").Render()
 				</div>
 			</div>
@@ -205,7 +195,7 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Input OTP</h3>
 				<div class="space-y-1">
-					@components.Label().Render() { Verification Code }
+					@components.Label(components.LabelProps{Text: "Verification Code"}).Render()
 					@components.InputOTP("demo-otp").WithLength(6).Render()
 				</div>
 			</div>
@@ -214,9 +204,9 @@ templ Home() {
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Tags Input</h3>
 				<div class="max-w-sm">
 					@components.TagsInput("demo-tags").WithPlaceholder("Add a tag...").Render() {
-						@components.Tag("", nil) { Go }
-						@components.Tag("", nil) { Templ }
-						@components.Tag("", nil) { HTMX }
+						@components.Tag("Go")
+						@components.Tag("Templ")
+						@components.Tag("HTMX")
 					}
 				</div>
 			</div>
@@ -226,10 +216,10 @@ templ Home() {
 				<div class="max-w-sm">
 					@components.Combobox("demo-framework").WithPlaceholder("Search frameworks...").Render() {
 						@components.ComboboxList() {
-							@components.ComboboxItem("go", false, "", nil) { Go }
-							@components.ComboboxItem("rust", true, "", nil) { Rust }
-							@components.ComboboxItem("python", false, "", nil) { Python }
-							@components.ComboboxItem("typescript", false, "", nil) { TypeScript }
+							@components.ComboboxItem("Go", "go", false)
+							@components.ComboboxItem("Rust", "rust", true)
+							@components.ComboboxItem("Python", "python", false)
+							@components.ComboboxItem("TypeScript", "typescript", false)
 						}
 					}
 				</div>
@@ -285,9 +275,9 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Kbd</h3>
 				<div class="flex items-center gap-2">
-					@components.Kbd().Render() { Ctrl }
+					@components.Kbd(components.KbdProps{Key: "Ctrl"}).Render()
 					<span class="text-base-content/40">+</span>
-					@components.Kbd().Render() { K }
+					@components.Kbd(components.KbdProps{Key: "K"}).Render()
 					<span class="text-sm text-base-content/60 ml-2">Open command palette</span>
 				</div>
 			</div>
@@ -295,15 +285,9 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Code</h3>
 				<p class="text-sm">
-					Run @components.Code().WithInline(true).Render() { go build } to compile your project.
+					Run @components.Code(components.CodeProps{Content: "go build"}).WithInline(true).Render() to compile your project.
 				</p>
-				@components.Code().Render() {
-					package main
-
-					func main() &#123;
-						fmt.Println("Hello, Andurel!")
-					&#125;
-				}
+				@components.Code(components.CodeProps{Content: "package main\n\nfunc main() {\n\tfmt.Println(\"Hello, Andurel!\")\n}"}).Render()
 			</div>
 			<!-- ─── Copy Button ─── -->
 			<div class="space-y-4">
@@ -322,8 +306,8 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Label</h3>
 				<div class="space-y-2 max-w-sm">
-					@components.Label().WithFor("demo-label").Render() { Regular Label }
-					@components.Label().WithFor("demo-label-req").WithRequired(true).Render() { Required Label }
+					@components.Label(components.LabelProps{Text: "Regular Label"}).WithFor("demo-label").Render()
+					@components.Label(components.LabelProps{Text: "Required Label"}).WithFor("demo-label-req").WithRequired(true).Render()
 				</div>
 			</div>
 			<!-- ─── Accordion ─── -->
@@ -331,17 +315,17 @@ templ Home() {
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Accordion</h3>
 				<div class="max-w-lg">
 					@components.Accordion().Render() {
-						@components.AccordionItem("", nil) {
-							@components.AccordionTrigger("", nil) { What is Andurel? }
-							@components.AccordionContent("", nil) { Andurel is a web development framework for Go. }
+						@components.AccordionItem() {
+							@components.AccordionTrigger("What is Andurel?")
+							@components.AccordionContent() { Andurel is a web development framework for Go. }
 						}
-						@components.AccordionItem("", nil) {
-							@components.AccordionTrigger("", nil) { How do I get started? }
-							@components.AccordionContent("", nil) { Install the CLI and run the init command. }
+						@components.AccordionItem() {
+							@components.AccordionTrigger("How do I get started?")
+							@components.AccordionContent() { Install the CLI and run the init command. }
 						}
-						@components.AccordionItem("", nil) {
-							@components.AccordionTrigger("", nil) { Is it production ready? }
-							@components.AccordionContent("", nil) { Yes, it is used in production applications. }
+						@components.AccordionItem() {
+							@components.AccordionTrigger("Is it production ready?")
+							@components.AccordionContent() { Yes, it is used in production applications. }
 						}
 					}
 				</div>
@@ -351,12 +335,12 @@ templ Home() {
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Tabs</h3>
 				<div class="max-w-lg">
 					@components.Tabs().Render() {
-						@components.TabsList("", nil) {
-							@components.TabsTrigger(true, "", nil) { Account }
-							@components.TabsTrigger(false, "", nil) { Settings }
-							@components.TabsTrigger(false, "", nil) { Billing }
+						@components.TabsList() {
+							@components.TabsTrigger("Account", true)
+							@components.TabsTrigger("Settings", false)
+							@components.TabsTrigger("Billing", false)
 						}
-						@components.TabsContent("", nil) {
+						@components.TabsContent() {
 							<p class="text-sm text-base-content/80 p-4">Manage your account details and preferences.</p>
 						}
 					}
@@ -367,28 +351,28 @@ templ Home() {
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Table</h3>
 				<div class="max-w-lg">
 					@components.Table().Render() {
-						@components.TableHeader("", nil) {
-							@components.TableRow("", nil) {
-								@components.TableHead("", nil) { Name }
-								@components.TableHead("", nil) { Email }
-								@components.TableHead("", nil) { Role }
+						@components.TableHeader() {
+							@components.TableRow() {
+								@components.TableHead() { Name }
+								@components.TableHead() { Email }
+								@components.TableHead() { Role }
 							}
 						}
-						@components.TableBody("", nil) {
-							@components.TableRow("", nil) {
-								@components.TableCell("", nil) { Jane Doe }
-								@components.TableCell("", nil) { jane@example.com }
-								@components.TableCell("", nil) { Admin }
+						@components.TableBody() {
+							@components.TableRow() {
+								@components.TableCell() { Jane Doe }
+								@components.TableCell() { jane@example.com }
+								@components.TableCell() { Admin }
 							}
-							@components.TableRow("", nil) {
-								@components.TableCell("", nil) { John Smith }
-								@components.TableCell("", nil) { john@example.com }
-								@components.TableCell("", nil) { Editor }
+							@components.TableRow() {
+								@components.TableCell() { John Smith }
+								@components.TableCell() { john@example.com }
+								@components.TableCell() { Editor }
 							}
-							@components.TableRow("", nil) {
-								@components.TableCell("", nil) { Alice Chen }
-								@components.TableCell("", nil) { alice@example.com }
-								@components.TableCell("", nil) { Viewer }
+							@components.TableRow() {
+								@components.TableCell() { Alice Chen }
+								@components.TableCell() { alice@example.com }
+								@components.TableCell() { Viewer }
 							}
 						}
 					}
@@ -398,16 +382,16 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Breadcrumb</h3>
 				@components.Breadcrumb().Render() {
-					@components.BreadcrumbItem("", nil) {
-						@components.BreadcrumbLink("/", false, "", nil) { Home }
+					@components.BreadcrumbItem() {
+						@components.BreadcrumbLink("Home", "/", false)
 					}
-					@components.BreadcrumbSeparator("", nil)
-					@components.BreadcrumbItem("", nil) {
-						@components.BreadcrumbLink("/docs", false, "", nil) { Docs }
+					@components.BreadcrumbSeparator()
+					@components.BreadcrumbItem() {
+						@components.BreadcrumbLink("Docs", "/docs", false)
 					}
-					@components.BreadcrumbSeparator("", nil)
-					@components.BreadcrumbItem("", nil) {
-						@components.BreadcrumbLink("", true, "", nil) { Components }
+					@components.BreadcrumbSeparator()
+					@components.BreadcrumbItem() {
+						@components.BreadcrumbLink("Components", "", true)
 					}
 				}
 			</div>
@@ -415,38 +399,38 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Pagination</h3>
 				@components.Pagination().Render() {
-					@components.PaginationPrevious("#", false, "", nil)
-					@components.PaginationItem("#", false, false, "", nil) { 1 }
-					@components.PaginationItem("#", true, false, "", nil) { 2 }
-					@components.PaginationItem("#", false, false, "", nil) { 3 }
+					@components.PaginationPrevious("#", false)
+					@components.PaginationItem("1", "#", false, false)
+					@components.PaginationItem("2", "#", true, false)
+					@components.PaginationItem("3", "#", false, false)
 					@components.PaginationEllipsis()
-					@components.PaginationNext("#", false, "", nil)
+					@components.PaginationNext("#", false)
 				}
 			</div>
 			<!-- ─── Tooltip ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Tooltip</h3>
 				@components.Tooltip().Render() {
-					@components.TooltipTrigger("", nil) {
-						@components.Button().WithVariant(components.ButtonVariantOutline).Render() { Hover me }
+					@components.TooltipTrigger() {
+						@components.Button(components.ButtonProps{Label: "Hover me"}).WithVariant(components.ButtonVariantOutline).Render()
 					}
-					@components.TooltipContent("", nil) { This is a helpful tooltip }
+					@components.TooltipContent() { This is a helpful tooltip }
 				}
 			</div>
 			<!-- ─── Dropdown ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Dropdown</h3>
 				@components.Dropdown().Render() {
-					@components.DropdownTrigger("", nil) {
-						@components.Button().WithVariant(components.ButtonVariantOutline).Render() { Open Menu }
+					@components.DropdownTrigger() {
+						@components.Button(components.ButtonProps{Label: "Open Menu"}).WithVariant(components.ButtonVariantOutline).Render()
 					}
-					@components.DropdownContent("", nil) {
-						@components.DropdownLabel("", nil) { Actions }
+					@components.DropdownContent() {
+						@components.DropdownLabel("Actions")
 						@components.DropdownSeparator()
-						@components.DropdownItem(false, "", nil) { Edit }
-						@components.DropdownItem(false, "", nil) { Duplicate }
+						@components.DropdownItem("Edit", false)
+						@components.DropdownItem("Duplicate", false)
 						@components.DropdownSeparator()
-						@components.DropdownItem(false, "", nil) { Delete }
+						@components.DropdownItem("Delete", false)
 					}
 				}
 			</div>
@@ -454,10 +438,10 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Popover</h3>
 				@components.Popover().Render() {
-					@components.PopoverTrigger("", nil) {
-						@components.Button().WithVariant(components.ButtonVariantOutline).Render() { Open Popover }
+					@components.PopoverTrigger() {
+						@components.Button(components.ButtonProps{Label: "Open Popover"}).WithVariant(components.ButtonVariantOutline).Render()
 					}
-					@components.PopoverContent("", nil) {
+					@components.PopoverContent() {
 						<div class="space-y-2">
 							<h4 class="font-medium text-sm">Dimensions</h4>
 							<p class="text-xs text-base-content/60">Set the dimensions for the layer.</p>
@@ -470,10 +454,8 @@ templ Home() {
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Collapsible</h3>
 				<div class="max-w-sm">
 					@components.Collapsible().Render() {
-						@components.CollapsibleTrigger("", nil) {
-							<span class="text-sm font-medium">Toggle content</span>
-						}
-						@components.CollapsibleContent("", nil) {
+						@components.CollapsibleTrigger("Toggle content")
+						@components.CollapsibleContent() {
 							<p class="text-sm text-base-content/80 pt-2">This content can be toggled open and closed.</p>
 						}
 					}
@@ -493,19 +475,19 @@ templ Home() {
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Carousel</h3>
 				<div class="max-w-sm mx-auto">
 					@components.Carousel().Render() {
-						@components.CarouselContent("", nil) {
-							@components.CarouselItem("", nil) {
+						@components.CarouselContent() {
+							@components.CarouselItem() {
 								<div class="h-32 bg-base-300 rounded-box flex items-center justify-center text-base-content/60">Slide 1</div>
 							}
-							@components.CarouselItem("", nil) {
+							@components.CarouselItem() {
 								<div class="h-32 bg-base-300 rounded-box flex items-center justify-center text-base-content/60">Slide 2</div>
 							}
-							@components.CarouselItem("", nil) {
+							@components.CarouselItem() {
 								<div class="h-32 bg-base-300 rounded-box flex items-center justify-center text-base-content/60">Slide 3</div>
 							}
 						}
-						@components.CarouselPrevious("", nil)
-						@components.CarouselNext("", nil)
+						@components.CarouselPrevious()
+						@components.CarouselNext()
 					}
 				</div>
 			</div>

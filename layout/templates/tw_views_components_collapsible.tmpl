@@ -14,8 +14,8 @@ type CollapsibleBuilder struct {
 // CollapsibleTrigger and CollapsibleContent sub-components.
 //
 //	@components.Collapsible().Render() {
-//		@components.CollapsibleTrigger("", nil) { Toggle }
-//		@components.CollapsibleContent("", nil) { Hidden content }
+//		@components.CollapsibleTrigger("Toggle")
+//		@components.CollapsibleContent() { Hidden content }
 //	}
 func Collapsible() *CollapsibleBuilder {
 	return &CollapsibleBuilder{}
@@ -70,14 +70,14 @@ templ (b *CollapsibleBuilder) render() {
 	</div>
 }
 
-templ CollapsibleTrigger(class string, attrs templ.Attributes) {
-	<button type="button" class={ collapsibleTriggerClasses(class) } if attrs != nil { { attrs... } }>
-		{ children... }
+templ CollapsibleTrigger(label string, opts ...Opt) {
+	<button type="button" class={ collapsibleTriggerClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ label }
 	</button>
 }
 
-templ CollapsibleContent(class string, attrs templ.Attributes) {
-	<div class={ collapsibleContentClasses(class) } if attrs != nil { { attrs... } }>
+templ CollapsibleContent(opts ...Opt) {
+	<div class={ collapsibleContentClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

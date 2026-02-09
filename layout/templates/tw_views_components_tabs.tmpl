@@ -14,11 +14,11 @@ type TabsBuilder struct {
 // TabsList, TabsTrigger, and TabsContent sub-components.
 //
 //	@components.Tabs().Render() {
-//		@components.TabsList("", nil) {
-//			@components.TabsTrigger(true, "", nil) { Tab 1 }
-//			@components.TabsTrigger(false, "", nil) { Tab 2 }
+//		@components.TabsList() {
+//			@components.TabsTrigger("Tab 1", true)
+//			@components.TabsTrigger("Tab 2", false)
 //		}
-//		@components.TabsContent("", nil) { Content for tab 1 }
+//		@components.TabsContent() { Content for tab 1 }
 //	}
 func Tabs() *TabsBuilder {
 	return &TabsBuilder{}
@@ -81,20 +81,20 @@ templ (b *TabsBuilder) render() {
 	</div>
 }
 
-templ TabsList(class string, attrs templ.Attributes) {
-	<div role="tablist" class={ tabsListClasses(class) } if attrs != nil { { attrs... } }>
+templ TabsList(opts ...Opt) {
+	<div role="tablist" class={ tabsListClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ TabsTrigger(active bool, class string, attrs templ.Attributes) {
-	<button type="button" role="tab" class={ tabsTriggerClasses(active, class) } if attrs != nil { { attrs... } }>
-		{ children... }
+templ TabsTrigger(label string, active bool, opts ...Opt) {
+	<button type="button" role="tab" class={ tabsTriggerClasses(active, classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ label }
 	</button>
 }
 
-templ TabsContent(class string, attrs templ.Attributes) {
-	<div role="tabpanel" class={ tabsContentClasses(class) } if attrs != nil { { attrs... } }>
+templ TabsContent(opts ...Opt) {
+	<div role="tabpanel" class={ tabsContentClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

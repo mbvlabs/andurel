@@ -18,8 +18,8 @@ type ComboboxBuilder struct {
 //
 //	@components.Combobox("framework").WithPlaceholder("Search frameworks...").Render() {
 //		@components.ComboboxList() {
-//			@components.ComboboxItem("go", false, "", nil) { Go }
-//			@components.ComboboxItem("rust", true, "", nil) { Rust }
+//			@components.ComboboxItem("Go", "go", false)
+//			@components.ComboboxItem("Rust", "rust", true)
 //		}
 //	}
 func Combobox(bind string) *ComboboxBuilder {
@@ -105,9 +105,9 @@ templ ComboboxList() {
 	</ul>
 }
 
-templ ComboboxItem(value string, selected bool, class string, attrs templ.Attributes) {
+templ ComboboxItem(label string, value string, selected bool, opts ...Opt) {
 	<li
-		class={ comboboxItemClasses(selected, class) }
+		class={ comboboxItemClasses(selected, classFrom(opts)) }
 		role="option"
 		if value != "" {
 			data-value={ value }
@@ -115,13 +115,13 @@ templ ComboboxItem(value string, selected bool, class string, attrs templ.Attrib
 		if selected {
 			aria-selected="true"
 		}
-		if attrs != nil {
-			{ attrs... }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
 		}
 	>
 		if selected {
 			<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 shrink-0"><path d="M20 6 9 17l-5-5"></path></svg>
 		}
-		{ children... }
+		{ label }
 	</li>
 }

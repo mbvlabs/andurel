@@ -14,12 +14,12 @@ type CardBuilder struct {
 // CardHeader, CardTitle, CardDescription, CardContent, and CardFooter sub-components.
 //
 //	@components.Card().Render() {
-//		@components.CardHeader("", nil) {
-//			@components.CardTitle("", nil) { Title }
-//			@components.CardDescription("", nil) { Description }
+//		@components.CardHeader() {
+//			@components.CardTitle("Title")
+//			@components.CardDescription("Description")
 //		}
-//		@components.CardContent("", nil) { Body content }
-//		@components.CardFooter("", nil) { Footer actions }
+//		@components.CardContent() { Body content }
+//		@components.CardFooter() { Footer actions }
 //	}
 func Card() *CardBuilder {
 	return &CardBuilder{}
@@ -86,32 +86,32 @@ templ (b *CardBuilder) render() {
 	</div>
 }
 
-templ CardHeader(class string, attrs templ.Attributes) {
-	<div class={ cardHeaderClasses(class) } if attrs != nil { { attrs... } }>
+templ CardHeader(opts ...Opt) {
+	<div class={ cardHeaderClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ CardTitle(class string, attrs templ.Attributes) {
-	<h3 class={ cardTitleClasses(class) } if attrs != nil { { attrs... } }>
-		{ children... }
+templ CardTitle(title string, opts ...Opt) {
+	<h3 class={ cardTitleClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ title }
 	</h3>
 }
 
-templ CardDescription(class string, attrs templ.Attributes) {
-	<p class={ cardDescriptionClasses(class) } if attrs != nil { { attrs... } }>
-		{ children... }
+templ CardDescription(description string, opts ...Opt) {
+	<p class={ cardDescriptionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ description }
 	</p>
 }
 
-templ CardContent(class string, attrs templ.Attributes) {
-	<div class={ cardContentClasses(class) } if attrs != nil { { attrs... } }>
+templ CardContent(opts ...Opt) {
+	<div class={ cardContentClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ CardFooter(class string, attrs templ.Attributes) {
-	<div class={ cardFooterClasses(class) } if attrs != nil { { attrs... } }>
+templ CardFooter(opts ...Opt) {
+	<div class={ cardFooterClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

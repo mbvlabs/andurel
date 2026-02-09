@@ -1,8 +1,15 @@
 package components
 
+// --- Props ---
+
+type LabelProps struct {
+	Text string
+}
+
 // --- Builder ---
 
 type LabelBuilder struct {
+	text       string
 	htmlFor    string
 	required   bool
 	id         string
@@ -15,9 +22,9 @@ type LabelBuilder struct {
 // to provide accessible labeling. WithFor links the label to an input's id. WithRequired
 // appends a red asterisk.
 //
-//	@components.Label().WithFor("email").WithRequired(true).Render() { Email Address }
-func Label() *LabelBuilder {
-	return &LabelBuilder{}
+//	@components.Label(components.LabelProps{Text: "Email Address"}).WithFor("email").WithRequired(true).Render()
+func Label(props LabelProps) *LabelBuilder {
+	return &LabelBuilder{text: props.Text}
 }
 
 func (b *LabelBuilder) WithFor(f string) *LabelBuilder       { b.htmlFor = f; return b }
@@ -63,7 +70,7 @@ templ (b *LabelBuilder) render() {
 			{ b.attrs... }
 		}
 	>
-		{ children... }
+		{ b.text }
 		if b.required {
 			<span class="text-error ml-0.5">*</span>
 		}

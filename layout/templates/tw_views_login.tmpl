@@ -23,21 +23,18 @@ templ LoginForm() {
 						</div>
 						<div class="space-y-4">
 							<div class="w-full space-y-1">
-								@components.Label().WithFor("email").Render() { Email }
+								@components.Label(components.LabelProps{Text: "Email"}).WithFor("email").Render()
 								@components.Input("email").WithID("email").WithType(components.InputTypeEmail).WithRequired(true).Render()
 							</div>
 							<div class="w-full space-y-1">
-								@components.Label().WithFor("password").Render() { Password }
+								@components.Label(components.LabelProps{Text: "Password"}).WithFor("password").Render()
 								@components.Input("password").WithID("password").WithType(components.InputTypePassword).WithRequired(true).Render()
 							</div>
 						</div>
 						<p class="text-right text-sm">
 							<a class="text-base-content/70 hover:text-base-content" href={ templ.SafeURL(routes.PasswordNew.URL()) }>Forgot your password?</a>
 						</p>
-						@components.Button().WithType(components.ButtonTypeSubmit).WithFullWidth(true).WithAttr("data-attr:disabled", "$submitting").Render() {
-							<span data-show="!$submitting">Login</span>
-							<span data-show="$submitting">Loading</span>
-						}
+						@components.Button(components.ButtonProps{Label: "Login"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).WithAttr("data-attr:disabled", "$submitting").WithLoadingLabel("Loading", "submitting").Render()
 					</form>
 					<p class="mt-6 text-center text-sm text-base-content/60">
 						Don't have an account? <a class="text-base-content hover:underline" href={ templ.SafeURL(routes.RegistrationNew.URL()) }>Sign up</a>

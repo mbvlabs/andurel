@@ -1,8 +1,15 @@
 package components
 
+// --- Props ---
+
+type CodeProps struct {
+	Content string
+}
+
 // --- Builder ---
 
 type CodeBuilder struct {
+	content    string
 	inline     bool
 	id         string
 	class      string
@@ -14,10 +21,10 @@ type CodeBuilder struct {
 // WithInline(true) is set, or as a <pre><code> block by default. Use it to display
 // code snippets, terminal output, or technical identifiers.
 //
-//	@components.Code().WithInline(true).Render() { go build }
-//	@components.Code().Render() { func main() { fmt.Println("hello") } }
-func Code() *CodeBuilder {
-	return &CodeBuilder{}
+//	@components.Code(components.CodeProps{Content: "go build"}).WithInline(true).Render()
+//	@components.Code(components.CodeProps{Content: "func main() { fmt.Println(\"hello\") }"}).Render()
+func Code(props CodeProps) *CodeBuilder {
+	return &CodeBuilder{content: props.Content}
 }
 
 func (b *CodeBuilder) WithInline(i bool) *CodeBuilder   { b.inline = i; return b }
@@ -62,7 +69,7 @@ templ (b *CodeBuilder) render() {
 				{ b.attrs... }
 			}
 		>
-			{ children... }
+			{ b.content }
 		</code>
 	} else {
 		<pre
@@ -73,6 +80,6 @@ templ (b *CodeBuilder) render() {
 			if b.attrs != nil {
 				{ b.attrs... }
 			}
-		><code>{ children... }</code></pre>
+		><code>{ b.content }</code></pre>
 	}
 }

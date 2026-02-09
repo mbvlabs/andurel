@@ -25,10 +25,10 @@ type TooltipBuilder struct {
 // with TooltipTrigger and TooltipContent sub-components.
 //
 //	@components.Tooltip().Render() {
-//		@components.TooltipTrigger("", nil) {
-//			@components.Button().WithVariant(components.ButtonVariantOutline).Render() { Hover me }
+//		@components.TooltipTrigger() {
+//			@components.Button(components.ButtonProps{Label: "Hover me"}).WithVariant(components.ButtonVariantOutline).Render()
 //		}
-//		@components.TooltipContent("", nil) { Helpful tip }
+//		@components.TooltipContent() { Helpful tip }
 //	}
 func Tooltip() *TooltipBuilder {
 	return &TooltipBuilder{}
@@ -80,14 +80,14 @@ templ (b *TooltipBuilder) render() {
 	</div>
 }
 
-templ TooltipTrigger(class string, attrs templ.Attributes) {
-	<div class={ cn("cursor-pointer", class) } if attrs != nil { { attrs... } }>
+templ TooltipTrigger(opts ...Opt) {
+	<div class={ cn("cursor-pointer", classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ TooltipContent(class string, attrs templ.Attributes) {
-	<div role="tooltip" class={ tooltipContentClasses(class) } if attrs != nil { { attrs... } }>
+templ TooltipContent(opts ...Opt) {
+	<div role="tooltip" class={ tooltipContentClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

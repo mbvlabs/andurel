@@ -14,14 +14,14 @@ type DropdownBuilder struct {
 // DropdownContent, DropdownItem, DropdownLabel, and DropdownSeparator sub-components.
 //
 //	@components.Dropdown().Render() {
-//		@components.DropdownTrigger("", nil) {
-//			@components.Button().Render() { Open Menu }
+//		@components.DropdownTrigger() {
+//			@components.Button(components.ButtonProps{Label: "Open Menu"}).Render()
 //		}
-//		@components.DropdownContent("", nil) {
-//			@components.DropdownLabel("", nil) { Actions }
+//		@components.DropdownContent() {
+//			@components.DropdownLabel("Actions")
 //			@components.DropdownSeparator()
-//			@components.DropdownItem(false, "", nil) { Edit }
-//			@components.DropdownItem(false, "", nil) { Delete }
+//			@components.DropdownItem("Edit", false)
+//			@components.DropdownItem("Delete", false)
 //		}
 //	}
 func Dropdown() *DropdownBuilder {
@@ -86,21 +86,21 @@ templ (b *DropdownBuilder) render() {
 	</div>
 }
 
-templ DropdownTrigger(class string, attrs templ.Attributes) {
-	<div class={ cn("cursor-pointer", class) } if attrs != nil { { attrs... } }>
+templ DropdownTrigger(opts ...Opt) {
+	<div class={ cn("cursor-pointer", classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ DropdownContent(class string, attrs templ.Attributes) {
-	<div class={ dropdownContentClasses(class) } role="menu" if attrs != nil { { attrs... } }>
+templ DropdownContent(opts ...Opt) {
+	<div class={ dropdownContentClasses(classFrom(opts)) } role="menu" if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ DropdownItem(disabled bool, class string, attrs templ.Attributes) {
-	<div class={ dropdownItemClasses(disabled, class) } role="menuitem" if attrs != nil { { attrs... } }>
-		{ children... }
+templ DropdownItem(label string, disabled bool, opts ...Opt) {
+	<div class={ dropdownItemClasses(disabled, classFrom(opts)) } role="menuitem" if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ label }
 	</div>
 }
 
@@ -108,8 +108,8 @@ templ DropdownSeparator() {
 	<div class="-mx-1 my-1 h-px bg-base-300"></div>
 }
 
-templ DropdownLabel(class string, attrs templ.Attributes) {
-	<div class={ dropdownLabelClasses(class) } if attrs != nil { { attrs... } }>
-		{ children... }
+templ DropdownLabel(label string, opts ...Opt) {
+	<div class={ dropdownLabelClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ label }
 	</div>
 }

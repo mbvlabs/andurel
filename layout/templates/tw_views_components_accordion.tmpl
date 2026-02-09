@@ -14,9 +14,9 @@ type AccordionBuilder struct {
 // Compose with AccordionItem, AccordionTrigger, and AccordionContent sub-components.
 //
 //	@components.Accordion().Render() {
-//		@components.AccordionItem("", nil) {
-//			@components.AccordionTrigger("", nil) { Section Title }
-//			@components.AccordionContent("", nil) { Hidden content here }
+//		@components.AccordionItem() {
+//			@components.AccordionTrigger("Section Title")
+//			@components.AccordionContent() { Hidden content here }
 //		}
 //	}
 func Accordion() *AccordionBuilder {
@@ -76,21 +76,21 @@ templ (b *AccordionBuilder) render() {
 	</div>
 }
 
-templ AccordionItem(class string, attrs templ.Attributes) {
-	<div class={ accordionItemClasses(class) } if attrs != nil { { attrs... } }>
+templ AccordionItem(opts ...Opt) {
+	<div class={ accordionItemClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
 
-templ AccordionTrigger(class string, attrs templ.Attributes) {
-	<button type="button" class={ accordionTriggerClasses(class) } if attrs != nil { { attrs... } }>
-		{ children... }
+templ AccordionTrigger(label string, opts ...Opt) {
+	<button type="button" class={ accordionTriggerClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ label }
 		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 transition-transform duration-200"><path d="m6 9 6 6 6-6"></path></svg>
 	</button>
 }
 
-templ AccordionContent(class string, attrs templ.Attributes) {
-	<div class={ accordionContentClasses(class) } if attrs != nil { { attrs... } }>
+templ AccordionContent(opts ...Opt) {
+	<div class={ accordionContentClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		<div class="pb-4 pt-0">
 			{ children... }
 		</div>
