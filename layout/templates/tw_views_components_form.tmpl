@@ -1,7 +1,9 @@
 package components
 
-import "fmt"
-import "strings"
+import (
+	"fmt"
+ 	"strings"
+)
 
 type FormProps struct {
 	Action string
@@ -9,6 +11,16 @@ type FormProps struct {
 }
 
 templ Form(props FormProps, opts ...Opt) {
+	if fragmentFrom(opts) != "" {
+		@templ.Fragment(fragmentFrom(opts)) {
+			@formInner(props, opts...)
+		}
+	} else {
+		@formInner(props, opts...)
+	}
+}
+
+templ formInner(props FormProps, opts ...Opt) {
 	<form
 		class={ classFrom(opts) }
 		if idFrom(opts) != "" {

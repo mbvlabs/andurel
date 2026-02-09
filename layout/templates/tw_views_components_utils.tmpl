@@ -24,9 +24,10 @@ func cn(classes ...string) string {
 type Opt func(*optConfig)
 
 type optConfig struct {
-	class string
-	attrs templ.Attributes
-	id    string
+	class      string
+	attrs      templ.Attributes
+	id         string
+	fragmentID string
 }
 
 func WithClass(c string) Opt {
@@ -42,6 +43,16 @@ func WithAttr(key string, val any) Opt {
 
 func WithID(id string) Opt {
 	return func(cfg *optConfig) { cfg.id = id }
+}
+
+func WithFragment(id string) Opt {
+	return func(cfg *optConfig) { cfg.fragmentID = id }
+}
+
+func fragmentFrom(opts []Opt) string {
+	cfg := optConfig{}
+	for _, o := range opts { o(&cfg) }
+	return cfg.fragmentID
 }
 
 func classFrom(opts []Opt) string {
