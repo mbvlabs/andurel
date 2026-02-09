@@ -20,6 +20,13 @@ type SpinnerBuilder struct {
 	fragmentID string
 }
 
+// Spinner renders an animated circular loading indicator. Use it inside buttons during
+// submission, next to text for inline loading states, or centered on a page for full
+// page loads.
+// Sizes: SpinnerSizeSm (16px), SpinnerSizeMd (24px, default), SpinnerSizeLg (32px).
+//
+//	@components.Spinner().Render()
+//	@components.Spinner().WithSize(components.SpinnerSizeLg).Render()
 func Spinner() *SpinnerBuilder {
 	return &SpinnerBuilder{}
 }

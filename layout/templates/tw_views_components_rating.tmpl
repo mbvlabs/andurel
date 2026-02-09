@@ -15,6 +15,12 @@ type RatingBuilder struct {
 	fragmentID string
 }
 
+// Rating renders an interactive star rating control. The bind parameter is the data-bind
+// attribute for two-way data binding. Defaults to 5 stars. Use it for reviews, feedback,
+// or preference scoring.
+//
+//	@components.Rating("score").WithValue(3).WithMax(5).Render()
+//	@components.Rating("quality").WithValue(4).WithDisabled(true).Render()
 func Rating(bind string) *RatingBuilder {
 	return &RatingBuilder{bind: bind, max: 5}
 }

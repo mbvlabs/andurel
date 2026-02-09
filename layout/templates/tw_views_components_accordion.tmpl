@@ -9,6 +9,16 @@ type AccordionBuilder struct {
 	fragmentID string
 }
 
+// Accordion creates an expandable/collapsible content container. Use it to organize
+// long content into vertically stacked sections that users can expand one at a time.
+// Compose with AccordionItem, AccordionTrigger, and AccordionContent sub-components.
+//
+//	@components.Accordion().Render() {
+//		@components.AccordionItem("", nil) {
+//			@components.AccordionTrigger("", nil) { Section Title }
+//			@components.AccordionContent("", nil) { Hidden content here }
+//		}
+//	}
 func Accordion() *AccordionBuilder {
 	return &AccordionBuilder{}
 }

@@ -9,6 +9,16 @@ type PopoverBuilder struct {
 	fragmentID string
 }
 
+// Popover displays floating content anchored to a trigger element. Use it for rich
+// tooltips, mini-forms, or detail panels that appear on click. Compose with
+// PopoverTrigger and PopoverContent sub-components.
+//
+//	@components.Popover().Render() {
+//		@components.PopoverTrigger("", nil) {
+//			@components.Button().Render() { Open }
+//		}
+//		@components.PopoverContent("", nil) { Popover body }
+//	}
 func Popover() *PopoverBuilder {
 	return &PopoverBuilder{}
 }

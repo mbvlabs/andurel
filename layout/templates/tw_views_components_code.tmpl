@@ -10,6 +10,12 @@ type CodeBuilder struct {
 	fragmentID string
 }
 
+// Code displays formatted code or technical text. Renders as inline <code> when
+// WithInline(true) is set, or as a <pre><code> block by default. Use it to display
+// code snippets, terminal output, or technical identifiers.
+//
+//	@components.Code().WithInline(true).Render() { go build }
+//	@components.Code().Render() { func main() { fmt.Println("hello") } }
 func Code() *CodeBuilder {
 	return &CodeBuilder{}
 }

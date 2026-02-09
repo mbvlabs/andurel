@@ -12,6 +12,13 @@ type AspectRatioBuilder struct {
 	fragmentID string
 }
 
+// AspectRatio constrains its children to a given width-to-height ratio. Use it to
+// maintain consistent proportions for images, videos, or embeds. The ratio parameter
+// is width/height (e.g., 16.0/9.0 for widescreen, 1.0 for square).
+//
+//	@components.AspectRatio(16.0/9.0).Render() {
+//		<img src="/hero.jpg" class="object-cover w-full h-full" />
+//	}
 func AspectRatio(ratio float64) *AspectRatioBuilder {
 	if ratio <= 0 {
 		ratio = 1

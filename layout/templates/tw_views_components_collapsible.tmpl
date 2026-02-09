@@ -9,6 +9,14 @@ type CollapsibleBuilder struct {
 	fragmentID string
 }
 
+// Collapsible creates a section that can be expanded or collapsed by clicking a trigger.
+// Simpler than Accordion for single show/hide sections. Compose with
+// CollapsibleTrigger and CollapsibleContent sub-components.
+//
+//	@components.Collapsible().Render() {
+//		@components.CollapsibleTrigger("", nil) { Toggle }
+//		@components.CollapsibleContent("", nil) { Hidden content }
+//	}
 func Collapsible() *CollapsibleBuilder {
 	return &CollapsibleBuilder{}
 }

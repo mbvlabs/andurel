@@ -43,6 +43,15 @@ type ButtonBuilder struct {
 	fragmentID string
 }
 
+// Button renders a clickable button or link styled as a button. Use it for primary actions,
+// form submissions, navigation, or any interactive trigger. When WithHref is set, renders
+// as an <a> tag instead of <button>.
+// Variants: ButtonVariantDefault, ButtonVariantSecondary, ButtonVariantOutline, ButtonVariantGhost, ButtonVariantLink, ButtonVariantDestructive.
+// Sizes: ButtonSizeDefault, ButtonSizeSm, ButtonSizeLg, ButtonSizeIcon.
+// Types: ButtonTypeButton (default), ButtonTypeSubmit, ButtonTypeReset.
+//
+//	@components.Button().WithVariant(components.ButtonVariantOutline).WithSize(components.ButtonSizeSm).Render() { Click Me }
+//	@components.Button().WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render() { Submit }
 func Button() *ButtonBuilder {
 	return &ButtonBuilder{btnType: ButtonTypeButton}
 }

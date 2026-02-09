@@ -9,6 +9,19 @@ type BreadcrumbBuilder struct {
 	fragmentID string
 }
 
+// Breadcrumb renders a navigation trail showing the user's current location in a hierarchy.
+// Use it at the top of a page to help users navigate back to parent sections.
+// Compose with BreadcrumbItem, BreadcrumbLink, and BreadcrumbSeparator sub-components.
+//
+//	@components.Breadcrumb().Render() {
+//		@components.BreadcrumbItem("", nil) {
+//			@components.BreadcrumbLink("/", false, "", nil) { Home }
+//		}
+//		@components.BreadcrumbSeparator("", nil)
+//		@components.BreadcrumbItem("", nil) {
+//			@components.BreadcrumbLink("", true, "", nil) { Current Page }
+//		}
+//	}
 func Breadcrumb() *BreadcrumbBuilder {
 	return &BreadcrumbBuilder{}
 }

@@ -9,6 +9,23 @@ type AlertDialogBuilder struct {
 	fragmentID string
 }
 
+// AlertDialog creates a modal confirmation dialog that interrupts the user with important
+// content and expects a response. Use it for destructive actions like deleting a resource.
+// Compose with AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription,
+// AlertDialogFooter, AlertDialogAction, and AlertDialogCancel sub-components.
+//
+//	@components.AlertDialog().Render() {
+//		@components.AlertDialogContent("", nil) {
+//			@components.AlertDialogHeader("", nil) {
+//				@components.AlertDialogTitle("", nil) { Are you sure? }
+//				@components.AlertDialogDescription("", nil) { This action cannot be undone. }
+//			}
+//			@components.AlertDialogFooter("", nil) {
+//				@components.AlertDialogCancel("", nil) { Cancel }
+//				@components.AlertDialogAction("", nil) { Continue }
+//			}
+//		}
+//	}
 func AlertDialog() *AlertDialogBuilder {
 	return &AlertDialogBuilder{}
 }

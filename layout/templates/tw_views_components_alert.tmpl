@@ -23,6 +23,13 @@ type AlertBuilder struct {
 	fragmentID string
 }
 
+// Alert displays a callout message to attract user attention. Use it for important
+// information, warnings, errors, or success messages that appear inline in the page.
+// Variants: AlertVariantDefault, AlertVariantInfo, AlertVariantSuccess, AlertVariantWarning, AlertVariantError.
+//
+//	@components.Alert().WithVariant(components.AlertVariantError).WithTitle("Error").Render() {
+//		Something went wrong.
+//	}
 func Alert() *AlertBuilder {
 	return &AlertBuilder{}
 }

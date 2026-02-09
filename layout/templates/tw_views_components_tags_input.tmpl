@@ -11,6 +11,14 @@ type TagsInputBuilder struct {
 	fragmentID  string
 }
 
+// TagsInput renders an input field that collects multiple tag/chip values. The bind parameter
+// is the data-bind attribute for the text input. Use it for entering multiple keywords,
+// categories, or email addresses. Compose with Tag sub-components for pre-existing tags.
+//
+//	@components.TagsInput("tags").WithPlaceholder("Add a tag...").Render() {
+//		@components.Tag("", nil) { Go }
+//		@components.Tag("", nil) { Templ }
+//	}
 func TagsInput(bind string) *TagsInputBuilder {
 	return &TagsInputBuilder{bind: bind}
 }

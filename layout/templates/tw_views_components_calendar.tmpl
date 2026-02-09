@@ -17,6 +17,11 @@ type CalendarBuilder struct {
 	fragmentID   string
 }
 
+// Calendar renders a month-view date grid for selecting or displaying dates.
+// Defaults to the current month/year if not specified. Use it inside popovers or
+// inline to let users pick a date.
+//
+//	@components.Calendar().WithMonth(1).WithYear(2025).WithSelectedDate("2025-01-15").Render()
 func Calendar() *CalendarBuilder {
 	return &CalendarBuilder{}
 }

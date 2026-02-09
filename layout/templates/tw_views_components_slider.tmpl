@@ -17,6 +17,12 @@ type SliderBuilder struct {
 	fragmentID string
 }
 
+// Slider renders a range input for selecting a numeric value within a min/max range.
+// The bind parameter is the data-bind attribute for two-way data binding. Defaults to
+// 0-100 range. Use it for volume controls, price filters, or any numeric preference.
+//
+//	@components.Slider("volume").WithValue(50).Render()
+//	@components.Slider("price").WithMin(0).WithMax(1000).WithStep(10).WithValue(250).Render()
 func Slider(bind string) *SliderBuilder {
 	return &SliderBuilder{bind: bind, max: 100}
 }

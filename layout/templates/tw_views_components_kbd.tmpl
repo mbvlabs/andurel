@@ -9,6 +9,10 @@ type KbdBuilder struct {
 	fragmentID string
 }
 
+// Kbd renders a keyboard key indicator styled as a small bordered box. Use it to display
+// keyboard shortcuts or key combinations in documentation or tooltips.
+//
+//	@components.Kbd().Render() { Ctrl+K }
 func Kbd() *KbdBuilder {
 	return &KbdBuilder{}
 }

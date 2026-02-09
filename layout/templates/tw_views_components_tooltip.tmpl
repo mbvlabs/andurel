@@ -20,6 +20,16 @@ type TooltipBuilder struct {
 	fragmentID string
 }
 
+// Tooltip shows a small informational popup on hover. Use it to provide brief explanations
+// for icon buttons, truncated text, or any element that needs additional context. Compose
+// with TooltipTrigger and TooltipContent sub-components.
+//
+//	@components.Tooltip().Render() {
+//		@components.TooltipTrigger("", nil) {
+//			@components.Button().WithVariant(components.ButtonVariantOutline).Render() { Hover me }
+//		}
+//		@components.TooltipContent("", nil) { Helpful tip }
+//	}
 func Tooltip() *TooltipBuilder {
 	return &TooltipBuilder{}
 }

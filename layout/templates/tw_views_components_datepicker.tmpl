@@ -12,6 +12,10 @@ type DatepickerBuilder struct {
 	fragmentID  string
 }
 
+// Datepicker renders a native date input with a calendar icon. The bind parameter is the
+// data-bind attribute for two-way data binding. Use it for date fields in forms.
+//
+//	@components.Datepicker("birthday").WithPlaceholder("Select a date").WithValue("2025-01-01").Render()
 func Datepicker(bind string) *DatepickerBuilder {
 	return &DatepickerBuilder{bind: bind}
 }

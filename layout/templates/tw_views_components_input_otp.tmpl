@@ -13,6 +13,12 @@ type InputOTPBuilder struct {
 	fragmentID string
 }
 
+// InputOTP renders a row of individual single-character inputs for one-time password entry.
+// Defaults to 6 digits with a separator after the 3rd digit. The bind parameter is the
+// data-bind prefix; each slot binds to "{bind}_{index}".
+//
+//	@components.InputOTP("otp").WithLength(6).Render()
+//	@components.InputOTP("pin").WithLength(4).Render()
 func InputOTP(bind string) *InputOTPBuilder {
 	return &InputOTPBuilder{bind: bind, length: 6}
 }

@@ -9,6 +9,18 @@ type CardBuilder struct {
 	fragmentID string
 }
 
+// Card renders a bordered container for grouping related content. Use it for dashboard
+// widgets, form sections, or any content that needs visual separation. Compose with
+// CardHeader, CardTitle, CardDescription, CardContent, and CardFooter sub-components.
+//
+//	@components.Card().Render() {
+//		@components.CardHeader("", nil) {
+//			@components.CardTitle("", nil) { Title }
+//			@components.CardDescription("", nil) { Description }
+//		}
+//		@components.CardContent("", nil) { Body content }
+//		@components.CardFooter("", nil) { Footer actions }
+//	}
 func Card() *CardBuilder {
 	return &CardBuilder{}
 }

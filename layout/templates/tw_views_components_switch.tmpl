@@ -13,6 +13,12 @@ type SwitchBuilder struct {
 	fragmentID string
 }
 
+// Switch renders a toggle control styled as a sliding pill. The bind parameter is the
+// data-bind attribute for two-way data binding. Use it for on/off settings like enabling
+// notifications, dark mode, or feature flags. Renders as a styled checkbox internally.
+//
+//	@components.Switch("notifications").WithChecked(true).Render()
+//	@components.Switch("darkMode").WithDisabled(true).Render()
 func Switch(bind string) *SwitchBuilder {
 	return &SwitchBuilder{bind: bind}
 }

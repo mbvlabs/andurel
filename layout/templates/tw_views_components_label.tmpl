@@ -11,6 +11,11 @@ type LabelBuilder struct {
 	fragmentID string
 }
 
+// Label renders a form label element. Use it alongside form controls (Input, Select, etc.)
+// to provide accessible labeling. WithFor links the label to an input's id. WithRequired
+// appends a red asterisk.
+//
+//	@components.Label().WithFor("email").WithRequired(true).Render() { Email Address }
 func Label() *LabelBuilder {
 	return &LabelBuilder{}
 }

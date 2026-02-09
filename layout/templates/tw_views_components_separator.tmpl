@@ -19,6 +19,12 @@ type SeparatorBuilder struct {
 	fragmentID  string
 }
 
+// Separator renders a thin horizontal or vertical dividing line. Use it to visually
+// separate sections of content, menu items, or form groups.
+// Orientations: SeparatorHorizontal (default), SeparatorVertical.
+//
+//	@components.Separator().Render()
+//	@components.Separator().WithOrientation(components.SeparatorVertical).WithClass("h-6").Render()
 func Separator() *SeparatorBuilder {
 	return &SeparatorBuilder{}
 }

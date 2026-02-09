@@ -14,6 +14,12 @@ type CheckboxBuilder struct {
 	fragmentID string
 }
 
+// Checkbox renders a boolean toggle input. The bind parameter is the data-bind attribute
+// used for two-way data binding with the form state. Use it for boolean fields or multi-select
+// options in forms. Pair with Label for accessible labeling.
+//
+//	@components.Checkbox("terms").WithRequired(true).Render()
+//	@components.Checkbox("newsletter").WithChecked(true).Render()
 func Checkbox(bind string) *CheckboxBuilder {
 	return &CheckboxBuilder{bind: bind}
 }

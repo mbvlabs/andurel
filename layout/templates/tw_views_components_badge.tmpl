@@ -21,6 +21,11 @@ type BadgeBuilder struct {
 	fragmentID string
 }
 
+// Badge renders a small label for status indicators, counts, or categories.
+// Use it next to text, in tables, or on cards to convey metadata at a glance.
+// Variants: BadgeVariantDefault, BadgeVariantSecondary, BadgeVariantOutline, BadgeVariantDestructive.
+//
+//	@components.Badge().WithVariant(components.BadgeVariantSecondary).Render() { New }
 func Badge() *BadgeBuilder {
 	return &BadgeBuilder{}
 }

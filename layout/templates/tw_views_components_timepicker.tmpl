@@ -11,6 +11,10 @@ type TimepickerBuilder struct {
 	fragmentID string
 }
 
+// Timepicker renders a native time input with a clock icon. The bind parameter is the
+// data-bind attribute for two-way data binding. Use it for scheduling or time-of-day fields.
+//
+//	@components.Timepicker("startTime").WithValue("09:00").Render()
 func Timepicker(bind string) *TimepickerBuilder {
 	return &TimepickerBuilder{bind: bind}
 }

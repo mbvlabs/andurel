@@ -9,6 +9,17 @@ type TabsBuilder struct {
 	fragmentID string
 }
 
+// Tabs organizes content into switchable panels. Use it when content can be logically
+// grouped into parallel views (e.g., Account/Settings, Code/Preview). Compose with
+// TabsList, TabsTrigger, and TabsContent sub-components.
+//
+//	@components.Tabs().Render() {
+//		@components.TabsList("", nil) {
+//			@components.TabsTrigger(true, "", nil) { Tab 1 }
+//			@components.TabsTrigger(false, "", nil) { Tab 2 }
+//		}
+//		@components.TabsContent("", nil) { Content for tab 1 }
+//	}
 func Tabs() *TabsBuilder {
 	return &TabsBuilder{}
 }

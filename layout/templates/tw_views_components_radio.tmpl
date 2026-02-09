@@ -14,6 +14,14 @@ type RadioBuilder struct {
 	fragmentID string
 }
 
+// Radio renders a single radio button input. The bind parameter groups radios together
+// (same bind = same group), and value is the option value submitted when selected. Use
+// inside a RadioGroup for proper spacing. Pair with WithLabel for inline labeling.
+//
+//	@components.RadioGroup("", nil) {
+//		@components.Radio("color", "red").WithLabel("Red").Render()
+//		@components.Radio("color", "blue").WithLabel("Blue").WithChecked(true).Render()
+//	}
 func Radio(bind string, value string) *RadioBuilder {
 	return &RadioBuilder{bind: bind, value: value}
 }

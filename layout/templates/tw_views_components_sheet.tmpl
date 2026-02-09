@@ -20,6 +20,22 @@ type SheetBuilder struct {
 	fragmentID string
 }
 
+// Sheet creates a panel that slides in from the edge of the screen. Use it for navigation
+// drawers, settings panels, or detail views that don't warrant a full page. Compose with
+// SheetContent (with side), SheetHeader, SheetTitle, SheetDescription, SheetFooter, and
+// SheetClose sub-components.
+// Sides: SheetSideLeft, SheetSideRight (default), SheetSideTop, SheetSideBottom.
+//
+//	@components.Sheet().Render() {
+//		@components.SheetContent(components.SheetSideRight, "", nil) {
+//			@components.SheetHeader("", nil) {
+//				@components.SheetTitle("", nil) { Settings }
+//				@components.SheetDescription("", nil) { Adjust your preferences. }
+//			}
+//			<p>Sheet body</p>
+//			@components.SheetClose("", nil)
+//		}
+//	}
 func Sheet() *SheetBuilder {
 	return &SheetBuilder{}
 }

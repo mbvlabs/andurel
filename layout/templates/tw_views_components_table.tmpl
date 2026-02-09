@@ -9,6 +9,24 @@ type TableBuilder struct {
 	fragmentID string
 }
 
+// Table renders a data table with consistent styling. Use it for displaying structured
+// data like user lists, transactions, or search results. Compose with TableHeader,
+// TableBody, TableFooter, TableRow, TableHead, TableCell, and TableCaption sub-components.
+//
+//	@components.Table().Render() {
+//		@components.TableHeader("", nil) {
+//			@components.TableRow("", nil) {
+//				@components.TableHead("", nil) { Name }
+//				@components.TableHead("", nil) { Email }
+//			}
+//		}
+//		@components.TableBody("", nil) {
+//			@components.TableRow("", nil) {
+//				@components.TableCell("", nil) { Jane }
+//				@components.TableCell("", nil) { jane@example.com }
+//			}
+//		}
+//	}
 func Table() *TableBuilder {
 	return &TableBuilder{}
 }

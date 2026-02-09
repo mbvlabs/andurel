@@ -9,6 +9,17 @@ type PaginationBuilder struct {
 	fragmentID string
 }
 
+// Pagination renders page navigation controls with numbered links, previous/next buttons,
+// and ellipsis indicators. Use it for paginated lists, tables, or search results. Compose
+// with PaginationPrevious, PaginationItem, PaginationEllipsis, and PaginationNext sub-components.
+//
+//	@components.Pagination().Render() {
+//		@components.PaginationPrevious("/page/1", false, "", nil)
+//		@components.PaginationItem("/page/1", false, false, "", nil) { 1 }
+//		@components.PaginationItem("/page/2", true, false, "", nil) { 2 }
+//		@components.PaginationEllipsis()
+//		@components.PaginationNext("/page/3", false, "", nil)
+//	}
 func Pagination() *PaginationBuilder {
 	return &PaginationBuilder{}
 }

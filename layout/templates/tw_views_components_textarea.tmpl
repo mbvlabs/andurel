@@ -18,6 +18,12 @@ type TextareaBuilder struct {
 	fragmentID  string
 }
 
+// Textarea renders a multi-line text input. The bind parameter is the data-bind attribute
+// for two-way data binding. Supports error styling via WithHasError. Use it for comments,
+// descriptions, bio fields, or any long-form text input.
+//
+//	@components.Textarea("bio").WithPlaceholder("Tell us about yourself...").WithRows(4).Render()
+//	@components.Textarea("notes").WithHasError(true).WithRequired(true).Render()
 func Textarea(bind string) *TextareaBuilder {
 	return &TextareaBuilder{bind: bind}
 }

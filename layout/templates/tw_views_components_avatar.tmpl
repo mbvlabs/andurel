@@ -23,6 +23,12 @@ type AvatarBuilder struct {
 	fragmentID string
 }
 
+// Avatar displays a user profile image with a circular clip. Falls back to initials
+// when no image src is provided. Use it in user profiles, comment lists, or navigation bars.
+// Sizes: AvatarSizeSm (32px), AvatarSizeMd (40px, default), AvatarSizeLg (48px).
+//
+//	@components.Avatar().WithSrc("/avatar.jpg").WithAlt("Jane Doe").WithSize(components.AvatarSizeLg).Render()
+//	@components.Avatar().WithFallback("JD").Render()
 func Avatar() *AvatarBuilder {
 	return &AvatarBuilder{}
 }

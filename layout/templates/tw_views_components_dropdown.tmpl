@@ -9,6 +9,21 @@ type DropdownBuilder struct {
 	fragmentID string
 }
 
+// Dropdown creates a menu that appears when a trigger element is activated. Use it for
+// action menus, context menus, or navigation sub-menus. Compose with DropdownTrigger,
+// DropdownContent, DropdownItem, DropdownLabel, and DropdownSeparator sub-components.
+//
+//	@components.Dropdown().Render() {
+//		@components.DropdownTrigger("", nil) {
+//			@components.Button().Render() { Open Menu }
+//		}
+//		@components.DropdownContent("", nil) {
+//			@components.DropdownLabel("", nil) { Actions }
+//			@components.DropdownSeparator()
+//			@components.DropdownItem(false, "", nil) { Edit }
+//			@components.DropdownItem(false, "", nil) { Delete }
+//		}
+//	}
 func Dropdown() *DropdownBuilder {
 	return &DropdownBuilder{}
 }

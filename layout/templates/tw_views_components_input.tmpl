@@ -34,6 +34,13 @@ type InputBuilder struct {
 	fragmentID  string
 }
 
+// Input renders a single-line text input. The bind parameter is the data-bind attribute
+// for two-way data binding with the form state. Supports error styling via WithHasError.
+// Types: InputTypeText (default), InputTypePassword, InputTypeEmail, InputTypeNumber,
+// InputTypeSearch, InputTypeTel, InputTypeURL, InputTypeDate, InputTypeTime, InputTypeHidden, InputTypeFile.
+//
+//	@components.Input("email").WithType(components.InputTypeEmail).WithPlaceholder("you@example.com").WithRequired(true).Render()
+//	@components.Input("search").WithType(components.InputTypeSearch).WithPlaceholder("Search...").Render()
 func Input(bind string) *InputBuilder {
 	return &InputBuilder{bind: bind, inputType: InputTypeText}
 }

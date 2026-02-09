@@ -11,6 +11,17 @@ type ComboboxBuilder struct {
 	fragmentID  string
 }
 
+// Combobox renders a searchable dropdown input for selecting from a list of options.
+// The bind parameter is the data-bind attribute for two-way data binding. Use it when
+// you have many options and users need to filter by typing. Compose with ComboboxList
+// and ComboboxItem sub-components.
+//
+//	@components.Combobox("framework").WithPlaceholder("Search frameworks...").Render() {
+//		@components.ComboboxList() {
+//			@components.ComboboxItem("go", false, "", nil) { Go }
+//			@components.ComboboxItem("rust", true, "", nil) { Rust }
+//		}
+//	}
 func Combobox(bind string) *ComboboxBuilder {
 	return &ComboboxBuilder{bind: bind}
 }

@@ -9,6 +9,18 @@ type CarouselBuilder struct {
 	fragmentID string
 }
 
+// Carousel creates a horizontally scrollable content slider with previous/next controls.
+// Use it for image galleries, testimonials, or feature showcases. Compose with
+// CarouselContent, CarouselItem, CarouselPrevious, and CarouselNext sub-components.
+//
+//	@components.Carousel().Render() {
+//		@components.CarouselContent("", nil) {
+//			@components.CarouselItem("", nil) { Slide 1 }
+//			@components.CarouselItem("", nil) { Slide 2 }
+//		}
+//		@components.CarouselPrevious("", nil)
+//		@components.CarouselNext("", nil)
+//	}
 func Carousel() *CarouselBuilder {
 	return &CarouselBuilder{}
 }

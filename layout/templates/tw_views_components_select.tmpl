@@ -13,6 +13,15 @@ type SelectBuilder struct {
 	fragmentID string
 }
 
+// Select renders a native <select> dropdown. The bind parameter is the data-bind attribute
+// for two-way data binding. Supports error styling via WithHasError. Compose with
+// SelectItem, SelectGroup, and SelectSeparator sub-components for options.
+//
+//	@components.Select("country").WithRequired(true).Render() {
+//		@components.SelectItem("", false, false, "", nil) { Choose a country }
+//		@components.SelectItem("us", false, false, "", nil) { United States }
+//		@components.SelectItem("uk", false, false, "", nil) { United Kingdom }
+//	}
 func Select(bind string) *SelectBuilder {
 	return &SelectBuilder{bind: bind}
 }

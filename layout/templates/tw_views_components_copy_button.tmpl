@@ -10,6 +10,10 @@ type CopyButtonBuilder struct {
 	fragmentID string
 }
 
+// CopyButton renders a small icon button that copies the given value to the clipboard.
+// Use it next to code blocks, URLs, API keys, or any text the user might need to copy.
+//
+//	@components.CopyButton("npm install andurel").Render()
 func CopyButton(value string) *CopyButtonBuilder {
 	return &CopyButtonBuilder{value: value}
 }

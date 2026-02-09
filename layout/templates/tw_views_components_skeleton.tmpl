@@ -9,6 +9,12 @@ type SkeletonBuilder struct {
 	fragmentID string
 }
 
+// Skeleton renders an animated placeholder block to indicate loading content. Use it as
+// a stand-in for text, images, or cards while data is being fetched. Set dimensions
+// via WithClass (e.g., "h-4 w-48" for a text line, "h-12 w-12 rounded-full" for an avatar).
+//
+//	@components.Skeleton().WithClass("h-4 w-[200px]").Render()
+//	@components.Skeleton().WithClass("h-12 w-12 rounded-full").Render()
 func Skeleton() *SkeletonBuilder {
 	return &SkeletonBuilder{}
 }

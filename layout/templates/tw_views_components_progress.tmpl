@@ -13,6 +13,11 @@ type ProgressBuilder struct {
 	fragmentID string
 }
 
+// Progress renders a horizontal progress bar. The value parameter is the current progress
+// (0-100 by default). Use it for upload indicators, step completion, or loading states.
+//
+//	@components.Progress(60).Render()
+//	@components.Progress(3).WithMax(5).Render()
 func Progress(value int) *ProgressBuilder {
 	return &ProgressBuilder{value: value, max: 100}
 }
