@@ -1,0 +1,71 @@
+package components
+
+// --- Types ---
+
+type TooltipSide string
+
+const (
+	TooltipSideTop    TooltipSide = "top"
+	TooltipSideRight  TooltipSide = "right"
+	TooltipSideBottom TooltipSide = "bottom"
+	TooltipSideLeft   TooltipSide = "left"
+)
+
+type TooltipProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type TooltipTriggerProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type TooltipContentProps struct {
+	Class      string
+	Side       TooltipSide
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func tooltipClasses(p TooltipProps) string {
+	return cn("relative inline-block group", p.Class)
+}
+
+func tooltipContentClasses(p TooltipContentProps) string {
+	base := "z-50 overflow-hidden rounded-field border border-base-300 bg-base-100 px-3 py-1.5 text-xs text-base-content shadow-md"
+	return cn(base, p.Class)
+}
+
+// --- Templ ---
+
+templ Tooltip(props ...TooltipProps) {
+	{{ "{{" }} var p TooltipProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ tooltipClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ TooltipTrigger(props ...TooltipTriggerProps) {
+	{{ "{{" }} var p TooltipTriggerProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ cn("cursor-pointer", p.Class) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ TooltipContent(props ...TooltipContentProps) {
+	{{ "{{" }} var p TooltipContentProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div role="tooltip" class={ tooltipContentClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}

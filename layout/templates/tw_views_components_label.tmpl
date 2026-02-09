@@ -1,0 +1,38 @@
+package components
+
+// --- Types ---
+
+type LabelProps struct {
+	Class      string
+	For        string
+	Required   bool
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func labelClasses(p LabelProps) string {
+	base := "text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60"
+	return cn(base, p.Class)
+}
+
+// --- Templ ---
+
+templ Label(props ...LabelProps) {
+	{{ "{{" }} var p LabelProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<label
+		class={ labelClasses(p) }
+		if p.For != "" {
+			for={ p.For }
+		}
+		{ p.Attributes... }
+	>
+		{ children... }
+		if p.Required {
+			<span class="text-error ml-0.5">*</span>
+		}
+	</label>
+}

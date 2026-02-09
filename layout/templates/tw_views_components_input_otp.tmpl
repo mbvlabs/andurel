@@ -1,0 +1,58 @@
+package components
+
+import "strconv"
+
+// --- Types ---
+
+type InputOTPProps struct {
+	ID         string
+	Class      string
+	Attributes templ.Attributes
+	Name       string
+	Length     int
+}
+
+// --- Class helpers ---
+
+func inputOTPContainerClasses(p InputOTPProps) string {
+	return cn("flex items-center gap-2", p.Class)
+}
+
+func inputOTPSlotClasses() string {
+	return "flex h-10 w-10 items-center justify-center rounded-field border border-base-300 bg-base-200 text-sm font-medium text-base-content shadow-inner transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/50"
+}
+
+// --- Templ ---
+
+templ InputOTP(props ...InputOTPProps) {
+	{{ "{{" }} var p InputOTPProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	if p.Length == 0 {
+		{{ "{{" }} p.Length = 6 {{ "}}" }}
+	}
+	<div class={ inputOTPContainerClasses(p) } { p.Attributes... }>
+		for i := 0; i < p.Length; i++ {
+			<div class={ inputOTPSlotClasses() }>
+				<input
+					type="text"
+					maxlength="1"
+					class="h-full w-full bg-transparent text-center outline-none"
+					if p.Name != "" {
+						name={ p.Name + "_" + strconv.Itoa(i) }
+						data-attr:disabled="$submitting"
+					}
+					inputmode="numeric"
+					pattern="[0-9]*"
+					autocomplete="one-time-code"
+				/>
+			</div>
+			if i == 2 && p.Length == 6 {
+				<div class="flex items-center text-base-content/40">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+				</div>
+			}
+		}
+	</div>
+}

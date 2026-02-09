@@ -1,0 +1,56 @@
+package components
+
+// --- Types ---
+
+type SwitchProps struct {
+	ID         string
+	Class      string
+	Attributes templ.Attributes
+	Name       string
+	Value      string
+	Checked    bool
+	Disabled   bool
+}
+
+// --- Class helpers ---
+
+func switchContainerClasses(p SwitchProps) string {
+	return cn("relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60", p.Class)
+}
+
+// --- Templ ---
+
+templ Switch(props ...SwitchProps) {
+	{{ "{{" }} var p SwitchProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<label class={ switchContainerClasses(p) }>
+		<input
+			type="checkbox"
+			class="peer sr-only"
+			if p.ID != "" {
+				id={ p.ID }
+			}
+			if p.Name != "" {
+				name={ p.Name }
+				data-bind={ p.Name }
+			}
+			if p.Value != "" {
+				value={ p.Value }
+			}
+			if p.Checked {
+				checked
+			}
+			if p.Disabled {
+				disabled
+			}
+			if p.Name != "" {
+				data-attr:disabled="$submitting"
+			}
+			{ p.Attributes... }
+		/>
+		<span class="pointer-events-none block h-4 w-4 rounded-full bg-base-content shadow-lg ring-0 transition-transform peer-checked:translate-x-4 translate-x-0"></span>
+		<span class="absolute inset-0 rounded-full bg-base-300 peer-checked:bg-primary transition-colors -z-10"></span>
+	</label>
+}

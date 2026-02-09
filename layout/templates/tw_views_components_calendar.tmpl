@@ -1,0 +1,117 @@
+package components
+
+import (
+	"fmt"
+	"time"
+)
+
+// --- Types ---
+
+type CalendarProps struct {
+	Class        string
+	Attributes   templ.Attributes
+	Month        int
+	Year         int
+	SelectedDate string // YYYY-MM-DD format
+}
+
+// --- Helpers ---
+
+func calendarClasses(p CalendarProps) string {
+	return cn("p-3 rounded-box border border-base-300 bg-base-100 shadow-sm w-fit", p.Class)
+}
+
+func calendarMonthName(month int) string {
+	if month < 1 || month > 12 {
+		month = int(time.Now().Month())
+	}
+	return time.Month(month).String()
+}
+
+func calendarDaysInMonth(year, month int) int {
+	return time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, time.UTC).Day()
+}
+
+func calendarFirstWeekday(year, month int) int {
+	return int(time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC).Weekday())
+}
+
+func calendarDateStr(year, month, day int) string {
+	return fmt.Sprintf("%04d-%02d-%02d", year, month, day)
+}
+
+// --- Templ ---
+
+templ Calendar(props ...CalendarProps) {
+	{{ "{{" }} var p CalendarProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	if p.Year == 0 {
+		{{ "{{" }} p.Year = time.Now().Year() {{ "}}" }}
+	}
+	if p.Month == 0 {
+		{{ "{{" }} p.Month = int(time.Now().Month()) {{ "}}" }}
+	}
+	<div class={ calendarClasses(p) } { p.Attributes... }>
+		<div class="flex items-center justify-between mb-2">
+			<button type="button" class="inline-flex items-center justify-center h-7 w-7 rounded-field text-base-content/60 hover:bg-base-200 transition cursor-pointer">
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+			</button>
+			<span class="text-sm font-medium text-base-content">
+				{ calendarMonthName(p.Month) } { fmt.Sprintf("%d", p.Year) }
+			</span>
+			<button type="button" class="inline-flex items-center justify-center h-7 w-7 rounded-field text-base-content/60 hover:bg-base-200 transition cursor-pointer">
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+			</button>
+		</div>
+		<table class="w-full border-collapse">
+			<thead>
+				<tr>
+					<th class="h-8 w-8 text-center text-xs font-normal text-base-content/60">Su</th>
+					<th class="h-8 w-8 text-center text-xs font-normal text-base-content/60">Mo</th>
+					<th class="h-8 w-8 text-center text-xs font-normal text-base-content/60">Tu</th>
+					<th class="h-8 w-8 text-center text-xs font-normal text-base-content/60">We</th>
+					<th class="h-8 w-8 text-center text-xs font-normal text-base-content/60">Th</th>
+					<th class="h-8 w-8 text-center text-xs font-normal text-base-content/60">Fr</th>
+					<th class="h-8 w-8 text-center text-xs font-normal text-base-content/60">Sa</th>
+				</tr>
+			</thead>
+			<tbody>
+				@calendarBody(p)
+			</tbody>
+		</table>
+	</div>
+}
+
+templ calendarBody(p CalendarProps) {
+	{{ "{{" }} days := calendarDaysInMonth(p.Year, p.Month) {{ "}}" }}
+	{{ "{{" }} firstDay := calendarFirstWeekday(p.Year, p.Month) {{ "}}" }}
+	{{ "{{" }} day := 1 {{ "}}" }}
+	for row := 0; row < 6; row++ {
+		if day <= days {
+			<tr>
+				for col := 0; col < 7; col++ {
+					if (row == 0 && col < firstDay) || day > days {
+						<td class="h-8 w-8"></td>
+					} else {
+						if calendarDateStr(p.Year, p.Month, day) == p.SelectedDate {
+							<td class="h-8 w-8 text-center">
+								<button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-field bg-primary text-primary-content text-sm font-medium cursor-pointer">
+									{ fmt.Sprintf("%d", day) }
+								</button>
+							</td>
+						} else {
+							<td class="h-8 w-8 text-center">
+								<button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-field text-sm text-base-content hover:bg-base-200 transition cursor-pointer">
+									{ fmt.Sprintf("%d", day) }
+								</button>
+							</td>
+						}
+						{{ "{{" }} day++ {{ "}}" }}
+					}
+				}
+			</tr>
+		}
+	}
+}

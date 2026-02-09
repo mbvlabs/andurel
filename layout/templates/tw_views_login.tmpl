@@ -22,13 +22,22 @@ templ LoginForm() {
 							<p class="text-sm text-base-content/60">Enter your details below to login to your account</p>
 						</div>
 						<div class="space-y-4">
-							@components.InputField("Email", "email", "email", "", true, components.FieldProp{})
-							@components.InputField("Password", "password", "password", "", true, components.FieldProp{})
+							<div class="w-full space-y-1">
+								@components.Label(components.LabelProps{For: "email"}) { Email }
+								@components.Input(components.InputProps{ID: "email", Name: "email", Type: components.InputTypeEmail, Required: true})
+							</div>
+							<div class="w-full space-y-1">
+								@components.Label(components.LabelProps{For: "password"}) { Password }
+								@components.Input(components.InputProps{ID: "password", Name: "password", Type: components.InputTypePassword, Required: true})
+							</div>
 						</div>
 						<p class="text-right text-sm">
 							<a class="text-base-content/70 hover:text-base-content" href={ templ.SafeURL(routes.PasswordNew.URL()) }>Forgot your password?</a>
 						</p>
-						@components.SubmitButton("Login")
+						@components.Button(components.ButtonProps{Type: components.ButtonTypeSubmit, FullWidth: true, Attributes: templ.Attributes{"data-attr:disabled": "$submitting"}}) {
+							<span data-show="!$submitting">Login</span>
+							<span data-show="$submitting">Loading</span>
+						}
 					</form>
 					<p class="mt-6 text-center text-sm text-base-content/60">
 						Don't have an account? <a class="text-base-content hover:underline" href={ templ.SafeURL(routes.RegistrationNew.URL()) }>Sign up</a>

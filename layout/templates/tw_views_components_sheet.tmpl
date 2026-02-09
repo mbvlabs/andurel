@@ -1,0 +1,165 @@
+package components
+
+// --- Types ---
+
+type SheetSide string
+
+const (
+	SheetSideLeft   SheetSide = "left"
+	SheetSideRight  SheetSide = "right"
+	SheetSideTop    SheetSide = "top"
+	SheetSideBottom SheetSide = "bottom"
+)
+
+type SheetProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type SheetContentProps struct {
+	Class      string
+	Side       SheetSide
+	Attributes templ.Attributes
+}
+
+type SheetHeaderProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type SheetTitleProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type SheetDescriptionProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type SheetFooterProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type SheetCloseProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func sheetContentSideClasses(s SheetSide) string {
+	switch s {
+	case SheetSideLeft:
+		return "inset-y-0 left-0 h-full w-3/4 max-w-sm border-r border-base-300"
+	case SheetSideTop:
+		return "inset-x-0 top-0 w-full border-b border-base-300"
+	case SheetSideBottom:
+		return "inset-x-0 bottom-0 w-full border-t border-base-300"
+	default:
+		return "inset-y-0 right-0 h-full w-3/4 max-w-sm border-l border-base-300"
+	}
+}
+
+func sheetContentClasses(p SheetContentProps) string {
+	base := "fixed z-50 gap-4 bg-base-100 p-6 shadow-lg"
+	return cn(base, sheetContentSideClasses(p.Side), p.Class)
+}
+
+func sheetHeaderClasses(p SheetHeaderProps) string {
+	return cn("flex flex-col space-y-2 text-center sm:text-left", p.Class)
+}
+
+func sheetTitleClasses(p SheetTitleProps) string {
+	return cn("text-lg font-semibold text-base-content", p.Class)
+}
+
+func sheetDescriptionClasses(p SheetDescriptionProps) string {
+	return cn("text-sm text-base-content/60", p.Class)
+}
+
+func sheetFooterClasses(p SheetFooterProps) string {
+	return cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", p.Class)
+}
+
+func sheetCloseClasses(p SheetCloseProps) string {
+	return cn("absolute right-4 top-4 rounded-field opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer", p.Class)
+}
+
+// --- Templ ---
+
+templ Sheet(props ...SheetProps) {
+	{{ "{{" }} var p SheetProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ cn("relative", p.Class) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ SheetContent(props ...SheetContentProps) {
+	{{ "{{" }} var p SheetContentProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	if p.Side == "" {
+		{{ "{{" }} p.Side = SheetSideRight {{ "}}" }}
+	}
+	<div class="fixed inset-0 z-50 bg-black/80"></div>
+	<div class={ sheetContentClasses(p) } role="dialog" aria-modal="true" { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ SheetHeader(props ...SheetHeaderProps) {
+	{{ "{{" }} var p SheetHeaderProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ sheetHeaderClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ SheetTitle(props ...SheetTitleProps) {
+	{{ "{{" }} var p SheetTitleProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<h2 class={ sheetTitleClasses(p) } { p.Attributes... }>
+		{ children... }
+	</h2>
+}
+
+templ SheetDescription(props ...SheetDescriptionProps) {
+	{{ "{{" }} var p SheetDescriptionProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<p class={ sheetDescriptionClasses(p) } { p.Attributes... }>
+		{ children... }
+	</p>
+}
+
+templ SheetFooter(props ...SheetFooterProps) {
+	{{ "{{" }} var p SheetFooterProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ sheetFooterClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ SheetClose(props ...SheetCloseProps) {
+	{{ "{{" }} var p SheetCloseProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<button type="button" class={ sheetCloseClasses(p) } { p.Attributes... }>
+		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+		<span class="sr-only">Close</span>
+	</button>
+}

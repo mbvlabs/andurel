@@ -1,0 +1,109 @@
+package components
+
+// --- Types ---
+
+type DropdownProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type DropdownTriggerProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type DropdownContentProps struct {
+	Class      string
+	Align      string // "start", "center", "end"
+	Attributes templ.Attributes
+}
+
+type DropdownItemProps struct {
+	Class      string
+	Disabled   bool
+	Attributes templ.Attributes
+}
+
+type DropdownLabelProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func dropdownClasses(p DropdownProps) string {
+	return cn("relative inline-block text-left", p.Class)
+}
+
+func dropdownContentClasses(p DropdownContentProps) string {
+	base := "z-50 min-w-[8rem] overflow-hidden rounded-box border border-base-300 bg-base-100 p-1 text-base-content shadow-md"
+	return cn(base, p.Class)
+}
+
+func dropdownItemClasses(p DropdownItemProps) string {
+	base := "relative flex cursor-pointer select-none items-center rounded-field px-2 py-1.5 text-sm outline-none transition-colors hover:bg-base-200 focus:bg-base-200"
+	if p.Disabled {
+		return cn(base, "opacity-60 cursor-not-allowed", p.Class)
+	}
+	return cn(base, p.Class)
+}
+
+func dropdownLabelClasses(p DropdownLabelProps) string {
+	return cn("px-2 py-1.5 text-sm font-semibold text-base-content", p.Class)
+}
+
+// --- Templ ---
+
+templ Dropdown(props ...DropdownProps) {
+	{{ "{{" }} var p DropdownProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ dropdownClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ DropdownTrigger(props ...DropdownTriggerProps) {
+	{{ "{{" }} var p DropdownTriggerProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ cn("cursor-pointer", p.Class) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ DropdownContent(props ...DropdownContentProps) {
+	{{ "{{" }} var p DropdownContentProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ dropdownContentClasses(p) } role="menu" { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ DropdownItem(props ...DropdownItemProps) {
+	{{ "{{" }} var p DropdownItemProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ dropdownItemClasses(p) } role="menuitem" { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ DropdownSeparator() {
+	<div class="-mx-1 my-1 h-px bg-base-300"></div>
+}
+
+templ DropdownLabel(props ...DropdownLabelProps) {
+	{{ "{{" }} var p DropdownLabelProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ dropdownLabelClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}

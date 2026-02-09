@@ -1,0 +1,56 @@
+package components
+
+// --- Types ---
+
+type DatepickerProps struct {
+	ID          string
+	Class       string
+	Attributes  templ.Attributes
+	Name        string
+	Value       string
+	Placeholder string
+}
+
+// --- Class helpers ---
+
+func datepickerClasses(p DatepickerProps) string {
+	return cn("relative w-full", p.Class)
+}
+
+func datepickerInputClasses() string {
+	return "flex h-9 w-full rounded-field border border-base-300 bg-base-200 px-3 py-1 pr-8 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
+}
+
+// --- Templ ---
+
+templ Datepicker(props ...DatepickerProps) {
+	{{ "{{" }} var p DatepickerProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ datepickerClasses(p) } { p.Attributes... }>
+		<div class="relative">
+			<input
+				type="date"
+				class={ datepickerInputClasses() }
+				if p.ID != "" {
+					id={ p.ID }
+				}
+				if p.Name != "" {
+					name={ p.Name }
+					data-bind={ p.Name }
+					data-attr:disabled="$submitting"
+				}
+				if p.Value != "" {
+					value={ p.Value }
+				}
+				if p.Placeholder != "" {
+					placeholder={ p.Placeholder }
+				}
+			/>
+			<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/40"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
+			</div>
+		</div>
+	</div>
+}

@@ -1,0 +1,96 @@
+package components
+
+// --- Types ---
+
+type BreadcrumbProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type BreadcrumbItemProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type BreadcrumbLinkProps struct {
+	Class      string
+	Href       string
+	Active     bool
+	Attributes templ.Attributes
+}
+
+type BreadcrumbSeparatorProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func breadcrumbClasses(p BreadcrumbProps) string {
+	return cn("flex flex-wrap items-center gap-1.5 text-sm text-base-content/60", p.Class)
+}
+
+func breadcrumbItemClasses(p BreadcrumbItemProps) string {
+	return cn("inline-flex items-center gap-1.5", p.Class)
+}
+
+func breadcrumbLinkClasses(p BreadcrumbLinkProps) string {
+	if p.Active {
+		return cn("font-medium text-base-content", p.Class)
+	}
+	return cn("transition-colors hover:text-base-content", p.Class)
+}
+
+func breadcrumbSeparatorClasses(p BreadcrumbSeparatorProps) string {
+	return cn("text-base-content/40", p.Class)
+}
+
+// --- Templ ---
+
+templ Breadcrumb(props ...BreadcrumbProps) {
+	{{ "{{" }} var p BreadcrumbProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<nav aria-label="breadcrumb">
+		<ol class={ breadcrumbClasses(p) } { p.Attributes... }>
+			{ children... }
+		</ol>
+	</nav>
+}
+
+templ BreadcrumbItem(props ...BreadcrumbItemProps) {
+	{{ "{{" }} var p BreadcrumbItemProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<li class={ breadcrumbItemClasses(p) } { p.Attributes... }>
+		{ children... }
+	</li>
+}
+
+templ BreadcrumbLink(props ...BreadcrumbLinkProps) {
+	{{ "{{" }} var p BreadcrumbLinkProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	if p.Active {
+		<span class={ breadcrumbLinkClasses(p) } aria-current="page" { p.Attributes... }>
+			{ children... }
+		</span>
+	} else {
+		<a href={ templ.SafeURL(p.Href) } class={ breadcrumbLinkClasses(p) } { p.Attributes... }>
+			{ children... }
+		</a>
+	}
+}
+
+templ BreadcrumbSeparator(props ...BreadcrumbSeparatorProps) {
+	{{ "{{" }} var p BreadcrumbSeparatorProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<li role="presentation" class={ breadcrumbSeparatorClasses(p) } { p.Attributes... }>
+		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+	</li>
+}

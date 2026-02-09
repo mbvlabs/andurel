@@ -1,0 +1,161 @@
+package components
+
+// --- Types ---
+
+type TableProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type TableHeaderProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type TableBodyProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type TableFooterProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type TableRowProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type TableHeadProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type TableCellProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type TableCaptionProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func tableClasses(p TableProps) string {
+	return cn("w-full caption-bottom text-sm", p.Class)
+}
+
+func tableHeaderClasses(p TableHeaderProps) string {
+	return cn("[&_tr]:border-b [&_tr]:border-base-300", p.Class)
+}
+
+func tableBodyClasses(p TableBodyProps) string {
+	return cn("[&_tr:last-child]:border-0", p.Class)
+}
+
+func tableFooterClasses(p TableFooterProps) string {
+	return cn("border-t border-base-300 bg-base-200/50 font-medium [&>tr]:last:border-b-0", p.Class)
+}
+
+func tableRowClasses(p TableRowProps) string {
+	return cn("border-b border-base-300 transition-colors hover:bg-base-200/50", p.Class)
+}
+
+func tableHeadClasses(p TableHeadProps) string {
+	return cn("h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0", p.Class)
+}
+
+func tableCellClasses(p TableCellProps) string {
+	return cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", p.Class)
+}
+
+func tableCaptionClasses(p TableCaptionProps) string {
+	return cn("mt-4 text-sm text-base-content/60", p.Class)
+}
+
+// --- Templ ---
+
+templ Table(props ...TableProps) {
+	{{ "{{" }} var p TableProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class="relative w-full overflow-auto">
+		<table class={ tableClasses(p) } { p.Attributes... }>
+			{ children... }
+		</table>
+	</div>
+}
+
+templ TableHeader(props ...TableHeaderProps) {
+	{{ "{{" }} var p TableHeaderProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<thead class={ tableHeaderClasses(p) } { p.Attributes... }>
+		{ children... }
+	</thead>
+}
+
+templ TableBody(props ...TableBodyProps) {
+	{{ "{{" }} var p TableBodyProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<tbody class={ tableBodyClasses(p) } { p.Attributes... }>
+		{ children... }
+	</tbody>
+}
+
+templ TableFooter(props ...TableFooterProps) {
+	{{ "{{" }} var p TableFooterProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<tfoot class={ tableFooterClasses(p) } { p.Attributes... }>
+		{ children... }
+	</tfoot>
+}
+
+templ TableRow(props ...TableRowProps) {
+	{{ "{{" }} var p TableRowProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<tr class={ tableRowClasses(p) } { p.Attributes... }>
+		{ children... }
+	</tr>
+}
+
+templ TableHead(props ...TableHeadProps) {
+	{{ "{{" }} var p TableHeadProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<th class={ tableHeadClasses(p) } { p.Attributes... }>
+		{ children... }
+	</th>
+}
+
+templ TableCell(props ...TableCellProps) {
+	{{ "{{" }} var p TableCellProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<td class={ tableCellClasses(p) } { p.Attributes... }>
+		{ children... }
+	</td>
+}
+
+templ TableCaption(props ...TableCaptionProps) {
+	{{ "{{" }} var p TableCaptionProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<caption class={ tableCaptionClasses(p) } { p.Attributes... }>
+		{ children... }
+	</caption>
+}

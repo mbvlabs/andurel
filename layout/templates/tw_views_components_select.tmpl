@@ -1,0 +1,109 @@
+package components
+
+// --- Types ---
+
+type SelectProps struct {
+	ID         string
+	Class      string
+	Attributes templ.Attributes
+	Name       string
+	Disabled   bool
+	Required   bool
+	HasError   bool
+}
+
+type SelectItemProps struct {
+	Class      string
+	Attributes templ.Attributes
+	Value      string
+	Disabled   bool
+	Selected   bool
+}
+
+type SelectGroupProps struct {
+	Class      string
+	Attributes templ.Attributes
+	Label      string
+}
+
+// --- Class helpers ---
+
+func selectClasses(p SelectProps) string {
+	base := "flex h-9 w-full items-center justify-between rounded-field border bg-base-200 px-3 py-2 text-sm text-base-content shadow-inner transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 [&>span]:line-clamp-1"
+	borderClass := "border-base-300"
+	if p.HasError {
+		borderClass = "border-error focus:border-error focus:ring-error/50"
+	}
+	return cn(base, borderClass, p.Class)
+}
+
+// --- Templ ---
+
+templ Select(props ...SelectProps) {
+	{{ "{{" }} var p SelectProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<select
+		class={ selectClasses(p) }
+		if p.ID != "" {
+			id={ p.ID }
+		}
+		if p.Name != "" {
+			name={ p.Name }
+			data-bind={ p.Name }
+		}
+		if p.Disabled {
+			disabled
+		}
+		if p.Required {
+			required
+		}
+		if p.Name != "" {
+			data-attr:disabled="$submitting"
+		}
+		{ p.Attributes... }
+	>
+		{ children... }
+	</select>
+}
+
+templ SelectItem(props ...SelectItemProps) {
+	{{ "{{" }} var p SelectItemProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<option
+		if p.Value != "" {
+			value={ p.Value }
+		}
+		if p.Disabled {
+			disabled
+		}
+		if p.Selected {
+			selected
+		}
+		{ p.Attributes... }
+	>
+		{ children... }
+	</option>
+}
+
+templ SelectGroup(props ...SelectGroupProps) {
+	{{ "{{" }} var p SelectGroupProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<optgroup
+		if p.Label != "" {
+			label={ p.Label }
+		}
+		{ p.Attributes... }
+	>
+		{ children... }
+	</optgroup>
+}
+
+templ SelectSeparator() {
+	<option disabled>---</option>
+}

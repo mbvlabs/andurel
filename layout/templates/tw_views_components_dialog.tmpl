@@ -1,0 +1,142 @@
+package components
+
+// --- Types ---
+
+type DialogProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type DialogContentProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type DialogHeaderProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type DialogTitleProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type DialogDescriptionProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type DialogFooterProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type DialogCloseProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func dialogOverlayClasses() string {
+	return "fixed inset-0 z-50 bg-black/80"
+}
+
+func dialogContentClasses(p DialogContentProps) string {
+	return cn("fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border border-base-300 bg-base-100 p-6 shadow-lg rounded-box", p.Class)
+}
+
+func dialogHeaderClasses(p DialogHeaderProps) string {
+	return cn("flex flex-col space-y-1.5 text-center sm:text-left", p.Class)
+}
+
+func dialogTitleClasses(p DialogTitleProps) string {
+	return cn("text-lg font-semibold leading-none tracking-tight text-base-content", p.Class)
+}
+
+func dialogDescriptionClasses(p DialogDescriptionProps) string {
+	return cn("text-sm text-base-content/60", p.Class)
+}
+
+func dialogFooterClasses(p DialogFooterProps) string {
+	return cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", p.Class)
+}
+
+func dialogCloseClasses(p DialogCloseProps) string {
+	return cn("absolute right-4 top-4 rounded-field opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer", p.Class)
+}
+
+// --- Templ ---
+
+templ Dialog(props ...DialogProps) {
+	{{ "{{" }} var p DialogProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ cn("relative", p.Class) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ DialogContent(props ...DialogContentProps) {
+	{{ "{{" }} var p DialogContentProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ dialogOverlayClasses() }></div>
+	<div class={ dialogContentClasses(p) } role="dialog" aria-modal="true" { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ DialogHeader(props ...DialogHeaderProps) {
+	{{ "{{" }} var p DialogHeaderProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ dialogHeaderClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ DialogTitle(props ...DialogTitleProps) {
+	{{ "{{" }} var p DialogTitleProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<h2 class={ dialogTitleClasses(p) } { p.Attributes... }>
+		{ children... }
+	</h2>
+}
+
+templ DialogDescription(props ...DialogDescriptionProps) {
+	{{ "{{" }} var p DialogDescriptionProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<p class={ dialogDescriptionClasses(p) } { p.Attributes... }>
+		{ children... }
+	</p>
+}
+
+templ DialogFooter(props ...DialogFooterProps) {
+	{{ "{{" }} var p DialogFooterProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ dialogFooterClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ DialogClose(props ...DialogCloseProps) {
+	{{ "{{" }} var p DialogCloseProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<button type="button" class={ dialogCloseClasses(p) } { p.Attributes... }>
+		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+		<span class="sr-only">Close</span>
+	</button>
+}

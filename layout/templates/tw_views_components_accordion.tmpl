@@ -1,0 +1,86 @@
+package components
+
+// --- Types ---
+
+type AccordionProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type AccordionItemProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type AccordionTriggerProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type AccordionContentProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func accordionClasses(p AccordionProps) string {
+	return cn("w-full", p.Class)
+}
+
+func accordionItemClasses(p AccordionItemProps) string {
+	return cn("border-b border-base-300", p.Class)
+}
+
+func accordionTriggerClasses(p AccordionTriggerProps) string {
+	return cn("flex flex-1 items-center justify-between py-4 text-sm font-medium transition-all hover:underline cursor-pointer [&[aria-expanded=true]>svg]:rotate-180", p.Class)
+}
+
+func accordionContentClasses(p AccordionContentProps) string {
+	return cn("overflow-hidden text-sm", p.Class)
+}
+
+// --- Templ ---
+
+templ Accordion(props ...AccordionProps) {
+	{{ "{{" }} var p AccordionProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ accordionClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ AccordionItem(props ...AccordionItemProps) {
+	{{ "{{" }} var p AccordionItemProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ accordionItemClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ AccordionTrigger(props ...AccordionTriggerProps) {
+	{{ "{{" }} var p AccordionTriggerProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<button type="button" class={ accordionTriggerClasses(p) } { p.Attributes... }>
+		{ children... }
+		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 transition-transform duration-200"><path d="m6 9 6 6 6-6"></path></svg>
+	</button>
+}
+
+templ AccordionContent(props ...AccordionContentProps) {
+	{{ "{{" }} var p AccordionContentProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ accordionContentClasses(p) } { p.Attributes... }>
+		<div class="pb-4 pt-0">
+			{ children... }
+		</div>
+	</div>
+}

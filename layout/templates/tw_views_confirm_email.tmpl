@@ -22,9 +22,15 @@ templ ConfirmationForm() {
 							<p class="text-sm text-base-content/60">Please enter the 6-digit verification code sent to your email.</p>
 						</div>
 						<div class="space-y-4">
-							@components.InputField("Verification Code", "code", "text", "Enter 6-digit code", true, components.FieldProp{})
+							<div class="w-full space-y-1">
+								@components.Label(components.LabelProps{For: "code"}) { Verification Code }
+								@components.Input(components.InputProps{ID: "code", Name: "code", Type: components.InputTypeText, Placeholder: "Enter 6-digit code", Required: true})
+							</div>
 						</div>
-						@components.SubmitButton("Verify Email")
+						@components.Button(components.ButtonProps{Type: components.ButtonTypeSubmit, FullWidth: true, Attributes: templ.Attributes{"data-attr:disabled": "$submitting"}}) {
+							<span data-show="!$submitting">Verify Email</span>
+							<span data-show="$submitting">Loading</span>
+						}
 					</form>
 				</div>
 			</div>

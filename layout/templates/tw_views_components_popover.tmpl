@@ -1,0 +1,61 @@
+package components
+
+// --- Types ---
+
+type PopoverProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type PopoverTriggerProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type PopoverContentProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func popoverClasses(p PopoverProps) string {
+	return cn("relative inline-block", p.Class)
+}
+
+func popoverContentClasses(p PopoverContentProps) string {
+	base := "z-50 w-72 rounded-box border border-base-300 bg-base-100 p-4 text-base-content shadow-md outline-none"
+	return cn(base, p.Class)
+}
+
+// --- Templ ---
+
+templ Popover(props ...PopoverProps) {
+	{{ "{{" }} var p PopoverProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ popoverClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ PopoverTrigger(props ...PopoverTriggerProps) {
+	{{ "{{" }} var p PopoverTriggerProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ cn("cursor-pointer", p.Class) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ PopoverContent(props ...PopoverContentProps) {
+	{{ "{{" }} var p PopoverContentProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ popoverContentClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}

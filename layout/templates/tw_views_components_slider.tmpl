@@ -1,0 +1,64 @@
+package components
+
+import "strconv"
+
+// --- Types ---
+
+type SliderProps struct {
+	ID         string
+	Class      string
+	Attributes templ.Attributes
+	Name       string
+	Min        float64
+	Max        float64
+	Step       float64
+	Value      float64
+	Disabled   bool
+}
+
+// --- Class helpers ---
+
+func sliderClasses(p SliderProps) string {
+	base := "w-full h-2 cursor-pointer appearance-none rounded-full bg-base-300 accent-primary transition [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+	return cn(base, p.Class)
+}
+
+func floatToStr(f float64) string {
+	return strconv.FormatFloat(f, 'f', -1, 64)
+}
+
+// --- Templ ---
+
+templ Slider(props ...SliderProps) {
+	{{ "{{" }} var p SliderProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	if p.Max == 0 {
+		{{ "{{" }} p.Max = 100 {{ "}}" }}
+	}
+	<input
+		type="range"
+		class={ sliderClasses(p) }
+		if p.ID != "" {
+			id={ p.ID }
+		}
+		if p.Name != "" {
+			name={ p.Name }
+			data-bind={ p.Name }
+		}
+		min={ floatToStr(p.Min) }
+		max={ floatToStr(p.Max) }
+		if p.Step > 0 {
+			step={ floatToStr(p.Step) }
+		}
+		value={ floatToStr(p.Value) }
+		if p.Disabled {
+			disabled
+		}
+		if p.Name != "" {
+			data-attr:disabled="$submitting"
+		}
+		{ p.Attributes... }
+	/>
+}

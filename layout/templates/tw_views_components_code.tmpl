@@ -1,0 +1,34 @@
+package components
+
+// --- Types ---
+
+type CodeProps struct {
+	Class      string
+	Inline     bool
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func codeClasses(p CodeProps) string {
+	if p.Inline {
+		return cn("relative rounded bg-base-200 px-[0.3rem] py-[0.2rem] font-mono text-sm text-base-content", p.Class)
+	}
+	return cn("block overflow-x-auto rounded-box bg-base-200 p-4 font-mono text-sm text-base-content", p.Class)
+}
+
+// --- Templ ---
+
+templ Code(props ...CodeProps) {
+	{{ "{{" }} var p CodeProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	if p.Inline {
+		<code class={ codeClasses(p) } { p.Attributes... }>
+			{ children... }
+		</code>
+	} else {
+		<pre class={ codeClasses(p) } { p.Attributes... }><code>{ children... }</code></pre>
+	}
+}

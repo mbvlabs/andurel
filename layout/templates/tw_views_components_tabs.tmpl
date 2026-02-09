@@ -1,0 +1,88 @@
+package components
+
+// --- Types ---
+
+type TabsProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type TabsListProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type TabsTriggerProps struct {
+	Class      string
+	Active     bool
+	Attributes templ.Attributes
+}
+
+type TabsContentProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func tabsClasses(p TabsProps) string {
+	return cn("w-full", p.Class)
+}
+
+func tabsListClasses(p TabsListProps) string {
+	return cn("inline-flex h-9 items-center justify-center rounded-box bg-base-200 p-1 text-base-content/60", p.Class)
+}
+
+func tabsTriggerClasses(p TabsTriggerProps) string {
+	base := "inline-flex items-center justify-center whitespace-nowrap rounded-field px-3 py-1 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:pointer-events-none disabled:opacity-60"
+	if p.Active {
+		return cn(base, "bg-base-100 text-base-content shadow-sm", p.Class)
+	}
+	return cn(base, "hover:text-base-content", p.Class)
+}
+
+func tabsContentClasses(p TabsContentProps) string {
+	return cn("mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50", p.Class)
+}
+
+// --- Templ ---
+
+templ Tabs(props ...TabsProps) {
+	{{ "{{" }} var p TabsProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ tabsClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ TabsList(props ...TabsListProps) {
+	{{ "{{" }} var p TabsListProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div role="tablist" class={ tabsListClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ TabsTrigger(props ...TabsTriggerProps) {
+	{{ "{{" }} var p TabsTriggerProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<button type="button" role="tab" class={ tabsTriggerClasses(p) } { p.Attributes... }>
+		{ children... }
+	</button>
+}
+
+templ TabsContent(props ...TabsContentProps) {
+	{{ "{{" }} var p TabsContentProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div role="tabpanel" class={ tabsContentClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}

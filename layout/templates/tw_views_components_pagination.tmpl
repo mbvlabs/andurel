@@ -1,0 +1,115 @@
+package components
+
+// --- Types ---
+
+type PaginationProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type PaginationItemProps struct {
+	Class      string
+	Href       string
+	Active     bool
+	Disabled   bool
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func paginationClasses(p PaginationProps) string {
+	return cn("mx-auto flex w-full justify-center", p.Class)
+}
+
+func paginationItemClasses(p PaginationItemProps) string {
+	base := "inline-flex items-center justify-center whitespace-nowrap rounded-field text-sm font-medium transition-colors h-9 w-9"
+	if p.Active {
+		return cn(base, "bg-primary text-primary-content", p.Class)
+	}
+	if p.Disabled {
+		return cn(base, "opacity-60 cursor-not-allowed", p.Class)
+	}
+	return cn(base, "hover:bg-base-200 text-base-content", p.Class)
+}
+
+// --- Templ ---
+
+templ Pagination(props ...PaginationProps) {
+	{{ "{{" }} var p PaginationProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<nav aria-label="pagination" class={ paginationClasses(p) } { p.Attributes... }>
+		<ul class="flex flex-row items-center gap-1">
+			{ children... }
+		</ul>
+	</nav>
+}
+
+templ PaginationItem(props ...PaginationItemProps) {
+	{{ "{{" }} var p PaginationItemProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<li>
+		if p.Disabled {
+			<span class={ paginationItemClasses(p) } { p.Attributes... }>
+				{ children... }
+			</span>
+		} else {
+			<a href={ templ.SafeURL(p.Href) } class={ paginationItemClasses(p) } { p.Attributes... }>
+				{ children... }
+			</a>
+		}
+	</li>
+}
+
+templ PaginationPrevious(props ...PaginationItemProps) {
+	{{ "{{" }} var p PaginationItemProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	{{ "{{" }} p.Class = cn("gap-1 pl-2.5 w-auto px-3", p.Class) {{ "}}" }}
+	<li>
+		if p.Disabled {
+			<span class={ paginationItemClasses(p) } { p.Attributes... }>
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+				Previous
+			</span>
+		} else {
+			<a href={ templ.SafeURL(p.Href) } class={ paginationItemClasses(p) } { p.Attributes... }>
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+				Previous
+			</a>
+		}
+	</li>
+}
+
+templ PaginationNext(props ...PaginationItemProps) {
+	{{ "{{" }} var p PaginationItemProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	{{ "{{" }} p.Class = cn("gap-1 pr-2.5 w-auto px-3", p.Class) {{ "}}" }}
+	<li>
+		if p.Disabled {
+			<span class={ paginationItemClasses(p) } { p.Attributes... }>
+				Next
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+			</span>
+		} else {
+			<a href={ templ.SafeURL(p.Href) } class={ paginationItemClasses(p) } { p.Attributes... }>
+				Next
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+			</a>
+		}
+	</li>
+}
+
+templ PaginationEllipsis() {
+	<li>
+		<span class="flex h-9 w-9 items-center justify-center text-base-content/60">
+			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+		</span>
+	</li>
+}

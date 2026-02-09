@@ -1,0 +1,66 @@
+package components
+
+import "strconv"
+
+// --- Types ---
+
+type TextareaProps struct {
+	ID          string
+	Class       string
+	Attributes  templ.Attributes
+	Name        string
+	Placeholder string
+	Value       string
+	Rows        int
+	Disabled    bool
+	Required    bool
+	HasError    bool
+}
+
+// --- Class helpers ---
+
+func textareaClasses(p TextareaProps) string {
+	base := "flex min-h-[80px] w-full rounded-field border bg-base-200 px-3 py-2 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
+	borderClass := "border-base-300"
+	if p.HasError {
+		borderClass = "border-error focus:border-error focus:ring-error/50"
+	}
+	return cn(base, borderClass, p.Class)
+}
+
+// --- Templ ---
+
+templ Textarea(props ...TextareaProps) {
+	{{ "{{" }} var p TextareaProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<textarea
+		class={ textareaClasses(p) }
+		if p.ID != "" {
+			id={ p.ID }
+		}
+		if p.Name != "" {
+			name={ p.Name }
+			data-bind={ p.Name }
+		}
+		if p.Placeholder != "" {
+			placeholder={ p.Placeholder }
+		}
+		if p.Rows > 0 {
+			rows={ strconv.Itoa(p.Rows) }
+		}
+		if p.Disabled {
+			disabled
+		}
+		if p.Required {
+			required
+		}
+		if p.Name != "" {
+			data-attr:disabled="$submitting"
+		}
+		{ p.Attributes... }
+	>
+		{ p.Value }
+	</textarea>
+}

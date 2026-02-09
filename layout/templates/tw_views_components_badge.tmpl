@@ -1,0 +1,50 @@
+package components
+
+// --- Types ---
+
+type BadgeVariant string
+
+const (
+	BadgeVariantDefault     BadgeVariant = "default"
+	BadgeVariantSecondary   BadgeVariant = "secondary"
+	BadgeVariantOutline     BadgeVariant = "outline"
+	BadgeVariantDestructive BadgeVariant = "destructive"
+)
+
+type BadgeProps struct {
+	Class   string
+	Variant BadgeVariant
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func badgeVariantClasses(v BadgeVariant) string {
+	switch v {
+	case BadgeVariantSecondary:
+		return "bg-base-200 text-base-content"
+	case BadgeVariantOutline:
+		return "border border-base-300 bg-transparent text-base-content"
+	case BadgeVariantDestructive:
+		return "bg-error text-error-content"
+	default:
+		return "bg-primary text-primary-content"
+	}
+}
+
+func badgeClasses(p BadgeProps) string {
+	base := "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors"
+	return cn(base, badgeVariantClasses(p.Variant), p.Class)
+}
+
+// --- Templ ---
+
+templ Badge(props ...BadgeProps) {
+	{{ "{{" }} var p BadgeProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<span class={ badgeClasses(p) } { p.Attributes... }>
+		{ children... }
+	</span>
+}

@@ -1,0 +1,58 @@
+package components
+
+import "fmt"
+
+// --- Types ---
+
+type ProgressProps struct {
+	Class      string
+	Value      int
+	Max        int
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func progressContainerClasses(p ProgressProps) string {
+	base := "relative h-2 w-full overflow-hidden rounded-full bg-base-200"
+	return cn(base, p.Class)
+}
+
+func progressWidth(value, max int) string {
+	if max <= 0 {
+		max = 100
+	}
+	pct := (value * 100) / max
+	if pct > 100 {
+		pct = 100
+	}
+	if pct < 0 {
+		pct = 0
+	}
+	return fmt.Sprintf("width: %d%%", pct)
+}
+
+// --- Templ ---
+
+templ Progress(props ...ProgressProps) {
+	{{ "{{" }} var p ProgressProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	if p.Max == 0 {
+		{{ "{{" }} p.Max = 100 {{ "}}" }}
+	}
+	<div
+		role="progressbar"
+		class={ progressContainerClasses(p) }
+		aria-valuemin="0"
+		aria-valuemax={ fmt.Sprintf("%d", p.Max) }
+		aria-valuenow={ fmt.Sprintf("%d", p.Value) }
+		{ p.Attributes... }
+	>
+		<div
+			class="h-full bg-primary transition-all"
+			style={ progressWidth(p.Value, p.Max) }
+		></div>
+	</div>
+}

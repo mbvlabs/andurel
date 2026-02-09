@@ -1,0 +1,121 @@
+package components
+
+// --- Types ---
+
+type CardProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type CardHeaderProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type CardTitleProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type CardDescriptionProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type CardContentProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type CardFooterProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func cardClasses(p CardProps) string {
+	return cn("rounded-box border border-base-300 bg-base-100 shadow-sm", p.Class)
+}
+
+func cardHeaderClasses(p CardHeaderProps) string {
+	return cn("flex flex-col space-y-1.5 p-6", p.Class)
+}
+
+func cardTitleClasses(p CardTitleProps) string {
+	return cn("text-lg font-semibold leading-none tracking-tight text-base-content", p.Class)
+}
+
+func cardDescriptionClasses(p CardDescriptionProps) string {
+	return cn("text-sm text-base-content/60", p.Class)
+}
+
+func cardContentClasses(p CardContentProps) string {
+	return cn("p-6 pt-0", p.Class)
+}
+
+func cardFooterClasses(p CardFooterProps) string {
+	return cn("flex items-center p-6 pt-0", p.Class)
+}
+
+// --- Templ ---
+
+templ Card(props ...CardProps) {
+	{{ "{{" }} var p CardProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ cardClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ CardHeader(props ...CardHeaderProps) {
+	{{ "{{" }} var p CardHeaderProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ cardHeaderClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ CardTitle(props ...CardTitleProps) {
+	{{ "{{" }} var p CardTitleProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<h3 class={ cardTitleClasses(p) } { p.Attributes... }>
+		{ children... }
+	</h3>
+}
+
+templ CardDescription(props ...CardDescriptionProps) {
+	{{ "{{" }} var p CardDescriptionProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<p class={ cardDescriptionClasses(p) } { p.Attributes... }>
+		{ children... }
+	</p>
+}
+
+templ CardContent(props ...CardContentProps) {
+	{{ "{{" }} var p CardContentProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ cardContentClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ CardFooter(props ...CardFooterProps) {
+	{{ "{{" }} var p CardFooterProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ cardFooterClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}

@@ -1,0 +1,56 @@
+package components
+
+// --- Types ---
+
+type AvatarSize string
+
+const (
+	AvatarSizeSm AvatarSize = "sm"
+	AvatarSizeMd AvatarSize = "md"
+	AvatarSizeLg AvatarSize = "lg"
+)
+
+type AvatarProps struct {
+	Class      string
+	Src        string
+	Alt        string
+	Fallback   string
+	Size       AvatarSize
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func avatarSizeClasses(s AvatarSize) string {
+	switch s {
+	case AvatarSizeSm:
+		return "h-8 w-8 text-xs"
+	case AvatarSizeLg:
+		return "h-12 w-12 text-lg"
+	default:
+		return "h-10 w-10 text-sm"
+	}
+}
+
+func avatarClasses(p AvatarProps) string {
+	base := "relative flex shrink-0 overflow-hidden rounded-full"
+	return cn(base, avatarSizeClasses(p.Size), p.Class)
+}
+
+// --- Templ ---
+
+templ Avatar(props ...AvatarProps) {
+	{{ "{{" }} var p AvatarProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<span class={ avatarClasses(p) } { p.Attributes... }>
+		if p.Src != "" {
+			<img class="aspect-square h-full w-full object-cover" src={ p.Src } alt={ p.Alt }/>
+		} else {
+			<span class="flex h-full w-full items-center justify-center bg-base-200 font-medium text-base-content">
+				{ p.Fallback }
+			</span>
+		}
+	</span>
+}

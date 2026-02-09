@@ -1,0 +1,43 @@
+package components
+
+import "fmt"
+
+// --- Types ---
+
+type AspectRatioProps struct {
+	Class      string
+	Ratio      float64 // width / height, e.g. 16.0/9.0
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func aspectRatioStyle(ratio float64) string {
+	if ratio <= 0 {
+		ratio = 1
+	}
+	return fmt.Sprintf("padding-bottom: %.4f%%", (1/ratio)*100)
+}
+
+func aspectRatioClasses(p AspectRatioProps) string {
+	base := "relative w-full"
+	return cn(base, p.Class)
+}
+
+// --- Templ ---
+
+templ AspectRatio(props ...AspectRatioProps) {
+	{{ "{{" }} var p AspectRatioProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	if p.Ratio == 0 {
+		{{ "{{" }} p.Ratio = 1 {{ "}}" }}
+	}
+	<div class={ aspectRatioClasses(p) } { p.Attributes... }>
+		<div style={ aspectRatioStyle(p.Ratio) }></div>
+		<div class="absolute inset-0">
+			{ children... }
+		</div>
+	</div>
+}

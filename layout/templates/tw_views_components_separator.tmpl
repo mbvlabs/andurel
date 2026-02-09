@@ -1,0 +1,44 @@
+package components
+
+// --- Types ---
+
+type SeparatorOrientation string
+
+const (
+	SeparatorHorizontal SeparatorOrientation = "horizontal"
+	SeparatorVertical   SeparatorOrientation = "vertical"
+)
+
+type SeparatorProps struct {
+	Class       string
+	Orientation SeparatorOrientation
+	Attributes  templ.Attributes
+}
+
+// --- Class helpers ---
+
+func separatorClasses(p SeparatorProps) string {
+	base := "shrink-0 bg-base-300"
+	orientation := "h-px w-full"
+	if p.Orientation == SeparatorVertical {
+		orientation = "h-full w-px"
+	}
+	return cn(base, orientation, p.Class)
+}
+
+// --- Templ ---
+
+templ Separator(props ...SeparatorProps) {
+	{{ "{{" }} var p SeparatorProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div
+		role="separator"
+		class={ separatorClasses(p) }
+		if p.Orientation == SeparatorVertical {
+			aria-orientation="vertical"
+		}
+		{ p.Attributes... }
+	></div>
+}

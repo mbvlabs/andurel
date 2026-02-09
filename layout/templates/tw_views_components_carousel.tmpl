@@ -1,0 +1,98 @@
+package components
+
+// --- Types ---
+
+type CarouselProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type CarouselContentProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type CarouselItemProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type CarouselPreviousProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type CarouselNextProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func carouselClasses(p CarouselProps) string {
+	return cn("relative w-full", p.Class)
+}
+
+func carouselContentClasses(p CarouselContentProps) string {
+	return cn("flex overflow-hidden -ml-4", p.Class)
+}
+
+func carouselItemClasses(p CarouselItemProps) string {
+	return cn("min-w-0 shrink-0 grow-0 basis-full pl-4", p.Class)
+}
+
+func carouselBtnClasses(extra string) string {
+	return cn("absolute top-1/2 -translate-y-1/2 inline-flex items-center justify-center h-8 w-8 rounded-full border border-base-300 bg-base-100 text-base-content shadow-sm transition hover:bg-base-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed", extra)
+}
+
+// --- Templ ---
+
+templ Carousel(props ...CarouselProps) {
+	{{ "{{" }} var p CarouselProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ carouselClasses(p) } role="region" aria-roledescription="carousel" { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ CarouselContent(props ...CarouselContentProps) {
+	{{ "{{" }} var p CarouselContentProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ carouselContentClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ CarouselItem(props ...CarouselItemProps) {
+	{{ "{{" }} var p CarouselItemProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ carouselItemClasses(p) } role="group" aria-roledescription="slide" { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ CarouselPrevious(props ...CarouselPreviousProps) {
+	{{ "{{" }} var p CarouselPreviousProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<button type="button" class={ carouselBtnClasses(cn("-left-12", p.Class)) } aria-label="Previous slide" { p.Attributes... }>
+		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+	</button>
+}
+
+templ CarouselNext(props ...CarouselNextProps) {
+	{{ "{{" }} var p CarouselNextProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<button type="button" class={ carouselBtnClasses(cn("-right-12", p.Class)) } aria-label="Next slide" { p.Attributes... }>
+		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+	</button>
+}

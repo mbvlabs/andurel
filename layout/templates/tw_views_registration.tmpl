@@ -22,11 +22,23 @@ templ RegistrationForm() {
 							<p class="text-sm text-base-content/60">Enter your details below to create your account</p>
 						</div>
 						<div class="space-y-4">
-							@components.InputField("Email", "email", "email", "", true, components.FieldProp{})
-							@components.InputField("Password", "password", "password", "", true, components.FieldProp{})
-							@components.InputField("Confirm Password", "confirmPassword", "password", "", true, components.FieldProp{})
+							<div class="w-full space-y-1">
+								@components.Label(components.LabelProps{For: "email"}) { Email }
+								@components.Input(components.InputProps{ID: "email", Name: "email", Type: components.InputTypeEmail, Required: true})
+							</div>
+							<div class="w-full space-y-1">
+								@components.Label(components.LabelProps{For: "password"}) { Password }
+								@components.Input(components.InputProps{ID: "password", Name: "password", Type: components.InputTypePassword, Required: true})
+							</div>
+							<div class="w-full space-y-1">
+								@components.Label(components.LabelProps{For: "confirmPassword"}) { Confirm Password }
+								@components.Input(components.InputProps{ID: "confirmPassword", Name: "confirmPassword", Type: components.InputTypePassword, Required: true})
+							</div>
 						</div>
-						@components.SubmitButton("Sign Up")
+						@components.Button(components.ButtonProps{Type: components.ButtonTypeSubmit, FullWidth: true, Attributes: templ.Attributes{"data-attr:disabled": "$submitting"}}) {
+							<span data-show="!$submitting">Sign Up</span>
+							<span data-show="$submitting">Loading</span>
+						}
 					</form>
 					<p class="mt-6 text-center text-sm text-base-content/60">
 						Already have an account? <a class="text-base-content hover:underline" href={ templ.SafeURL(routes.SessionNew.URL()) }>Login</a>

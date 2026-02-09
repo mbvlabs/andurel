@@ -1,0 +1,25 @@
+package components
+
+// --- Types ---
+
+type SkeletonProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func skeletonClasses(p SkeletonProps) string {
+	base := "animate-pulse rounded-field bg-base-300"
+	return cn(base, p.Class)
+}
+
+// --- Templ ---
+
+templ Skeleton(props ...SkeletonProps) {
+	{{ "{{" }} var p SkeletonProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ skeletonClasses(p) } { p.Attributes... }></div>
+}

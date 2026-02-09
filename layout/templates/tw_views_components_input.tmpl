@@ -1,0 +1,82 @@
+package components
+
+// --- Types ---
+
+type InputType string
+
+const (
+	InputTypeText     InputType = "text"
+	InputTypePassword InputType = "password"
+	InputTypeEmail    InputType = "email"
+	InputTypeNumber   InputType = "number"
+	InputTypeSearch   InputType = "search"
+	InputTypeTel      InputType = "tel"
+	InputTypeURL      InputType = "url"
+	InputTypeDate     InputType = "date"
+	InputTypeTime     InputType = "time"
+	InputTypeHidden   InputType = "hidden"
+	InputTypeFile     InputType = "file"
+)
+
+type InputProps struct {
+	ID          string
+	Class       string
+	Attributes  templ.Attributes
+	Type        InputType
+	Name        string
+	Placeholder string
+	Value       string
+	Disabled    bool
+	Required    bool
+	HasError    bool
+}
+
+// --- Class helpers ---
+
+func inputClasses(p InputProps) string {
+	base := "flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
+	borderClass := "border-base-300"
+	if p.HasError {
+		borderClass = "border-error focus:border-error focus:ring-error/50"
+	}
+	return cn(base, borderClass, p.Class)
+}
+
+// --- Templ ---
+
+templ Input(props ...InputProps) {
+	{{ "{{" }} var p InputProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	if p.Type == "" {
+		{{ "{{" }} p.Type = InputTypeText {{ "}}" }}
+	}
+	<input
+		type={ string(p.Type) }
+		class={ inputClasses(p) }
+		if p.ID != "" {
+			id={ p.ID }
+		}
+		if p.Name != "" {
+			name={ p.Name }
+			data-bind={ p.Name }
+		}
+		if p.Placeholder != "" {
+			placeholder={ p.Placeholder }
+		}
+		if p.Value != "" {
+			value={ p.Value }
+		}
+		if p.Disabled {
+			disabled
+		}
+		if p.Required {
+			required
+		}
+		if p.Name != "" {
+			data-attr:disabled="$submitting"
+		}
+		{ p.Attributes... }
+	/>
+}

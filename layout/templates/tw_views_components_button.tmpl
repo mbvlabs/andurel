@@ -1,0 +1,120 @@
+package components
+
+// --- Types ---
+
+type ButtonVariant string
+type ButtonSize string
+type ButtonType string
+
+const (
+	ButtonVariantDefault     ButtonVariant = "default"
+	ButtonVariantSecondary   ButtonVariant = "secondary"
+	ButtonVariantOutline     ButtonVariant = "outline"
+	ButtonVariantGhost       ButtonVariant = "ghost"
+	ButtonVariantLink        ButtonVariant = "link"
+	ButtonVariantDestructive ButtonVariant = "destructive"
+)
+
+const (
+	ButtonSizeDefault ButtonSize = "default"
+	ButtonSizeSm      ButtonSize = "sm"
+	ButtonSizeLg      ButtonSize = "lg"
+	ButtonSizeIcon    ButtonSize = "icon"
+)
+
+const (
+	ButtonTypeButton ButtonType = "button"
+	ButtonTypeSubmit ButtonType = "submit"
+	ButtonTypeReset  ButtonType = "reset"
+)
+
+type ButtonProps struct {
+	ID         string
+	Class      string
+	Attributes templ.Attributes
+	Variant    ButtonVariant
+	Size       ButtonSize
+	Type       ButtonType
+	Disabled   bool
+	FullWidth  bool
+	Href       string
+}
+
+// --- Class helpers ---
+
+func buttonVariantClasses(v ButtonVariant) string {
+	switch v {
+	case ButtonVariantSecondary:
+		return "bg-base-200 text-base-content shadow-sm hover:bg-base-300"
+	case ButtonVariantOutline:
+		return "border border-base-300 bg-transparent text-base-content shadow-sm hover:bg-base-200"
+	case ButtonVariantGhost:
+		return "text-base-content hover:bg-base-200"
+	case ButtonVariantLink:
+		return "text-primary underline-offset-4 hover:underline"
+	case ButtonVariantDestructive:
+		return "bg-error text-error-content shadow-sm hover:bg-error/90"
+	default:
+		return "bg-primary text-primary-content shadow-sm hover:bg-primary/90"
+	}
+}
+
+func buttonSizeClasses(s ButtonSize) string {
+	switch s {
+	case ButtonSizeSm:
+		return "h-8 px-3 text-xs rounded-field"
+	case ButtonSizeLg:
+		return "h-11 px-8 text-base rounded-field"
+	case ButtonSizeIcon:
+		return "h-9 w-9 rounded-field"
+	default:
+		return "h-9 px-4 py-2 text-sm rounded-field"
+	}
+}
+
+func buttonClasses(p ButtonProps) string {
+	base := "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed"
+	width := ""
+	if p.FullWidth {
+		width = "w-full"
+	}
+	return cn(base, buttonVariantClasses(p.Variant), buttonSizeClasses(p.Size), width, p.Class)
+}
+
+// --- Templ ---
+
+templ Button(props ...ButtonProps) {
+	{{ "{{" }} var p ButtonProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	if p.Type == "" {
+		{{ "{{" }} p.Type = ButtonTypeButton {{ "}}" }}
+	}
+	if p.Href != "" && !p.Disabled {
+		<a
+			href={ templ.SafeURL(p.Href) }
+			class={ buttonClasses(p) }
+			if p.ID != "" {
+				id={ p.ID }
+			}
+			{ p.Attributes... }
+		>
+			{ children... }
+		</a>
+	} else {
+		<button
+			type={ string(p.Type) }
+			class={ buttonClasses(p) }
+			if p.ID != "" {
+				id={ p.ID }
+			}
+			if p.Disabled {
+				disabled
+			}
+			{ p.Attributes... }
+		>
+			{ children... }
+		</button>
+	}
+}

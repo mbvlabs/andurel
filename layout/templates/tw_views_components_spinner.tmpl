@@ -1,0 +1,54 @@
+package components
+
+// --- Types ---
+
+type SpinnerSize string
+
+const (
+	SpinnerSizeSm SpinnerSize = "sm"
+	SpinnerSizeMd SpinnerSize = "md"
+	SpinnerSizeLg SpinnerSize = "lg"
+)
+
+type SpinnerProps struct {
+	Class      string
+	Size       SpinnerSize
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func spinnerSizeClasses(s SpinnerSize) string {
+	switch s {
+	case SpinnerSizeSm:
+		return "h-4 w-4"
+	case SpinnerSizeLg:
+		return "h-8 w-8"
+	default:
+		return "h-6 w-6"
+	}
+}
+
+func spinnerClasses(p SpinnerProps) string {
+	base := "animate-spin text-base-content/60"
+	return cn(base, spinnerSizeClasses(p.Size), p.Class)
+}
+
+// --- Templ ---
+
+templ Spinner(props ...SpinnerProps) {
+	{{ "{{" }} var p SpinnerProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<svg
+		class={ spinnerClasses(p) }
+		xmlns="http://www.w3.org/2000/svg"
+		fill="none"
+		viewBox="0 0 24 24"
+		{ p.Attributes... }
+	>
+		<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+		<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+	</svg>
+}

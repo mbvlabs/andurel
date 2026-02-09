@@ -1,0 +1,64 @@
+package components
+
+// --- Types ---
+
+type CollapsibleProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type CollapsibleTriggerProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type CollapsibleContentProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func collapsibleClasses(p CollapsibleProps) string {
+	return cn("w-full", p.Class)
+}
+
+func collapsibleTriggerClasses(p CollapsibleTriggerProps) string {
+	return cn("flex items-center justify-between cursor-pointer", p.Class)
+}
+
+func collapsibleContentClasses(p CollapsibleContentProps) string {
+	return cn("overflow-hidden", p.Class)
+}
+
+// --- Templ ---
+
+templ Collapsible(props ...CollapsibleProps) {
+	{{ "{{" }} var p CollapsibleProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ collapsibleClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ CollapsibleTrigger(props ...CollapsibleTriggerProps) {
+	{{ "{{" }} var p CollapsibleTriggerProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<button type="button" class={ collapsibleTriggerClasses(p) } { p.Attributes... }>
+		{ children... }
+	</button>
+}
+
+templ CollapsibleContent(props ...CollapsibleContentProps) {
+	{{ "{{" }} var p CollapsibleContentProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ collapsibleContentClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}

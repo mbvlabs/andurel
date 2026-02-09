@@ -1,0 +1,156 @@
+package components
+
+// --- Types ---
+
+type AlertDialogProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type AlertDialogContentProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type AlertDialogHeaderProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type AlertDialogTitleProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type AlertDialogDescriptionProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type AlertDialogFooterProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type AlertDialogActionProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+type AlertDialogCancelProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func alertDialogContentClasses(p AlertDialogContentProps) string {
+	return cn("fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border border-base-300 bg-base-100 p-6 shadow-lg rounded-box", p.Class)
+}
+
+func alertDialogHeaderClasses(p AlertDialogHeaderProps) string {
+	return cn("flex flex-col space-y-2 text-center sm:text-left", p.Class)
+}
+
+func alertDialogTitleClasses(p AlertDialogTitleProps) string {
+	return cn("text-lg font-semibold text-base-content", p.Class)
+}
+
+func alertDialogDescriptionClasses(p AlertDialogDescriptionProps) string {
+	return cn("text-sm text-base-content/60", p.Class)
+}
+
+func alertDialogFooterClasses(p AlertDialogFooterProps) string {
+	return cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", p.Class)
+}
+
+func alertDialogActionClasses(p AlertDialogActionProps) string {
+	return cn("inline-flex items-center justify-center rounded-field bg-primary px-4 py-2 text-sm font-medium text-primary-content shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50", p.Class)
+}
+
+func alertDialogCancelClasses(p AlertDialogCancelProps) string {
+	return cn("inline-flex items-center justify-center rounded-field border border-base-300 bg-transparent px-4 py-2 text-sm font-medium text-base-content shadow-sm transition hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 mt-2 sm:mt-0", p.Class)
+}
+
+// --- Templ ---
+
+templ AlertDialog(props ...AlertDialogProps) {
+	{{ "{{" }} var p AlertDialogProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ cn("relative", p.Class) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ AlertDialogContent(props ...AlertDialogContentProps) {
+	{{ "{{" }} var p AlertDialogContentProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class="fixed inset-0 z-50 bg-black/80"></div>
+	<div class={ alertDialogContentClasses(p) } role="alertdialog" aria-modal="true" { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ AlertDialogHeader(props ...AlertDialogHeaderProps) {
+	{{ "{{" }} var p AlertDialogHeaderProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ alertDialogHeaderClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ AlertDialogTitle(props ...AlertDialogTitleProps) {
+	{{ "{{" }} var p AlertDialogTitleProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<h2 class={ alertDialogTitleClasses(p) } { p.Attributes... }>
+		{ children... }
+	</h2>
+}
+
+templ AlertDialogDescription(props ...AlertDialogDescriptionProps) {
+	{{ "{{" }} var p AlertDialogDescriptionProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<p class={ alertDialogDescriptionClasses(p) } { p.Attributes... }>
+		{ children... }
+	</p>
+}
+
+templ AlertDialogFooter(props ...AlertDialogFooterProps) {
+	{{ "{{" }} var p AlertDialogFooterProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<div class={ alertDialogFooterClasses(p) } { p.Attributes... }>
+		{ children... }
+	</div>
+}
+
+templ AlertDialogAction(props ...AlertDialogActionProps) {
+	{{ "{{" }} var p AlertDialogActionProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<button type="button" class={ alertDialogActionClasses(p) } { p.Attributes... }>
+		{ children... }
+	</button>
+}
+
+templ AlertDialogCancel(props ...AlertDialogCancelProps) {
+	{{ "{{" }} var p AlertDialogCancelProps {{ "}}" }}
+	if len(props) > 0 {
+		{{ "{{" }} p = props[0] {{ "}}" }}
+	}
+	<button type="button" class={ alertDialogCancelClasses(p) } { p.Attributes... }>
+		{ children... }
+	</button>
+}
