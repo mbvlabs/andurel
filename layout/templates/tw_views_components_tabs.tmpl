@@ -1,42 +1,9 @@
 package components
 
-// --- Builder ---
-
-type TabsBuilder struct {
-	id         string
-	class      string
-	attrs      templ.Attributes
-	fragmentID string
-}
-
-// Tabs organizes content into switchable panels. Use it when content can be logically
-// grouped into parallel views (e.g., Account/Settings, Code/Preview). Compose with
-// TabsList, TabsTrigger, and TabsContent sub-components.
-//
-//	@components.Tabs().Render() {
-//		@components.TabsList() {
-//			@components.TabsTrigger("Tab 1", true)
-//			@components.TabsTrigger("Tab 2", false)
-//		}
-//		@components.TabsContent() { Content for tab 1 }
-//	}
-func Tabs() *TabsBuilder {
-	return &TabsBuilder{}
-}
-
-func (b *TabsBuilder) WithID(id string) *TabsBuilder     { b.id = id; return b }
-func (b *TabsBuilder) WithClass(c string) *TabsBuilder   { b.class = cn(b.class, c); return b }
-func (b *TabsBuilder) SetClass(c string) *TabsBuilder    { b.class = c; return b }
-func (b *TabsBuilder) WithAttr(key string, val any) *TabsBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
-}
-func (b *TabsBuilder) WithFragment(id string) *TabsBuilder { b.fragmentID = id; return b }
-
 // --- Class helpers ---
 
-func tabsClasses(b *TabsBuilder) string {
-	return cn("w-full", b.class)
+func tabsClasses(class string) string {
+	return cn("w-full", class)
 }
 
 func tabsListClasses(class string) string {
@@ -57,26 +24,19 @@ func tabsContentClasses(class string) string {
 
 // --- Templ ---
 
-templ (b *TabsBuilder) Render() {
-	if b.fragmentID != "" {
-		@templ.Fragment(b.fragmentID) {
-			@b.render()
-		}
-	} else {
-		@b.render()
-	}
-}
-
-templ (b *TabsBuilder) render() {
-	<div
-		class={ tabsClasses(b) }
-		if b.id != "" {
-			id={ b.id }
-		}
-		if b.attrs != nil {
-			{ b.attrs... }
-		}
-	>
+// Tabs organizes content into switchable panels. Use it when content can be logically
+// grouped into parallel views (e.g., Account/Settings, Code/Preview). Compose with
+// TabsList, TabsTrigger, and TabsContent sub-components.
+//
+//	@components.Tabs() {
+//		@components.TabsList() {
+//			@components.TabsTrigger("Tab 1", true)
+//			@components.TabsTrigger("Tab 2", false)
+//		}
+//		@components.TabsContent() { Content for tab 1 }
+//	}
+templ Tabs(opts ...Opt) {
+	<div class={ tabsClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

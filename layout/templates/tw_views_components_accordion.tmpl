@@ -1,41 +1,9 @@
 package components
 
-// --- Builder ---
-
-type AccordionBuilder struct {
-	id         string
-	class      string
-	attrs      templ.Attributes
-	fragmentID string
-}
-
-// Accordion creates an expandable/collapsible content container. Use it to organize
-// long content into vertically stacked sections that users can expand one at a time.
-// Compose with AccordionItem, AccordionTrigger, and AccordionContent sub-components.
-//
-//	@components.Accordion().Render() {
-//		@components.AccordionItem() {
-//			@components.AccordionTrigger("Section Title")
-//			@components.AccordionContent() { Hidden content here }
-//		}
-//	}
-func Accordion() *AccordionBuilder {
-	return &AccordionBuilder{}
-}
-
-func (b *AccordionBuilder) WithID(id string) *AccordionBuilder     { b.id = id; return b }
-func (b *AccordionBuilder) WithClass(c string) *AccordionBuilder   { b.class = cn(b.class, c); return b }
-func (b *AccordionBuilder) SetClass(c string) *AccordionBuilder    { b.class = c; return b }
-func (b *AccordionBuilder) WithAttr(key string, val any) *AccordionBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
-}
-func (b *AccordionBuilder) WithFragment(id string) *AccordionBuilder { b.fragmentID = id; return b }
-
 // --- Class helpers ---
 
-func accordionClasses(b *AccordionBuilder) string {
-	return cn("w-full", b.class)
+func accordionClasses(class string) string {
+	return cn("w-full", class)
 }
 
 func accordionItemClasses(class string) string {
@@ -52,26 +20,18 @@ func accordionContentClasses(class string) string {
 
 // --- Templ ---
 
-templ (b *AccordionBuilder) Render() {
-	if b.fragmentID != "" {
-		@templ.Fragment(b.fragmentID) {
-			@b.render()
-		}
-	} else {
-		@b.render()
-	}
-}
-
-templ (b *AccordionBuilder) render() {
-	<div
-		class={ accordionClasses(b) }
-		if b.id != "" {
-			id={ b.id }
-		}
-		if b.attrs != nil {
-			{ b.attrs... }
-		}
-	>
+// Accordion creates an expandable/collapsible content container. Use it to organize
+// long content into vertically stacked sections that users can expand one at a time.
+// Compose with AccordionItem, AccordionTrigger, and AccordionContent sub-components.
+//
+//	@components.Accordion() {
+//		@components.AccordionItem() {
+//			@components.AccordionTrigger("Section Title")
+//			@components.AccordionContent() { Hidden content here }
+//		}
+//	}
+templ Accordion(opts ...Opt) {
+	<div class={ accordionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

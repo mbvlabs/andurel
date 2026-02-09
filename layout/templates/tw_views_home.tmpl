@@ -53,7 +53,7 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Card</h3>
 				<div class="max-w-sm">
-					@components.Card().Render() {
+					@components.Card() {
 						@components.CardHeader() {
 							@components.CardTitle("Card Title")
 							@components.CardDescription("A short description of the card content.")
@@ -284,9 +284,6 @@ templ Home() {
 			<!-- ─── Code ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Code</h3>
-				<p class="text-sm">
-					Run @components.Code(components.CodeProps{Content: "go build"}).WithInline(true).Render() to compile your project.
-				</p>
 				@components.Code(components.CodeProps{Content: "package main\n\nfunc main() {\n\tfmt.Println(\"Hello, Andurel!\")\n}"}).Render()
 			</div>
 			<!-- ─── Copy Button ─── -->
@@ -314,7 +311,7 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Accordion</h3>
 				<div class="max-w-lg">
-					@components.Accordion().Render() {
+					@components.Accordion() {
 						@components.AccordionItem() {
 							@components.AccordionTrigger("What is Andurel?")
 							@components.AccordionContent() { Andurel is a web development framework for Go. }
@@ -334,7 +331,7 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Tabs</h3>
 				<div class="max-w-lg">
-					@components.Tabs().Render() {
+					@components.Tabs() {
 						@components.TabsList() {
 							@components.TabsTrigger("Account", true)
 							@components.TabsTrigger("Settings", false)
@@ -350,7 +347,7 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Table</h3>
 				<div class="max-w-lg">
-					@components.Table().Render() {
+					@components.Table() {
 						@components.TableHeader() {
 							@components.TableRow() {
 								@components.TableHead() { Name }
@@ -381,7 +378,7 @@ templ Home() {
 			<!-- ─── Breadcrumb ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Breadcrumb</h3>
-				@components.Breadcrumb().Render() {
+				@components.Breadcrumb() {
 					@components.BreadcrumbItem() {
 						@components.BreadcrumbLink("Home", "/", false)
 					}
@@ -398,7 +395,7 @@ templ Home() {
 			<!-- ─── Pagination ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Pagination</h3>
-				@components.Pagination().Render() {
+				@components.Pagination() {
 					@components.PaginationPrevious("#", false)
 					@components.PaginationItem("1", "#", false, false)
 					@components.PaginationItem("2", "#", true, false)
@@ -410,7 +407,7 @@ templ Home() {
 			<!-- ─── Tooltip ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Tooltip</h3>
-				@components.Tooltip().Render() {
+				@components.Tooltip() {
 					@components.TooltipTrigger() {
 						@components.Button(components.ButtonProps{Label: "Hover me"}).WithVariant(components.ButtonVariantOutline).Render()
 					}
@@ -420,7 +417,7 @@ templ Home() {
 			<!-- ─── Dropdown ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Dropdown</h3>
-				@components.Dropdown().Render() {
+				@components.Dropdown() {
 					@components.DropdownTrigger() {
 						@components.Button(components.ButtonProps{Label: "Open Menu"}).WithVariant(components.ButtonVariantOutline).Render()
 					}
@@ -437,7 +434,7 @@ templ Home() {
 			<!-- ─── Popover ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Popover</h3>
-				@components.Popover().Render() {
+				@components.Popover() {
 					@components.PopoverTrigger() {
 						@components.Button(components.ButtonProps{Label: "Open Popover"}).WithVariant(components.ButtonVariantOutline).Render()
 					}
@@ -453,7 +450,7 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Collapsible</h3>
 				<div class="max-w-sm">
-					@components.Collapsible().Render() {
+					@components.Collapsible() {
 						@components.CollapsibleTrigger("Toggle content")
 						@components.CollapsibleContent() {
 							<p class="text-sm text-base-content/80 pt-2">This content can be toggled open and closed.</p>
@@ -474,7 +471,7 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Carousel</h3>
 				<div class="max-w-sm mx-auto">
-					@components.Carousel().Render() {
+					@components.Carousel() {
 						@components.CarouselContent() {
 							@components.CarouselItem() {
 								<div class="h-32 bg-base-300 rounded-box flex items-center justify-center text-base-content/60">Slide 1</div>

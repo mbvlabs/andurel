@@ -1,49 +1,9 @@
 package components
 
-// --- Builder ---
-
-type TableBuilder struct {
-	id         string
-	class      string
-	attrs      templ.Attributes
-	fragmentID string
-}
-
-// Table renders a data table with consistent styling. Use it for displaying structured
-// data like user lists, transactions, or search results. Compose with TableHeader,
-// TableBody, TableFooter, TableRow, TableHead, TableCell, and TableCaption sub-components.
-//
-//	@components.Table().Render() {
-//		@components.TableHeader() {
-//			@components.TableRow() {
-//				@components.TableHead() { Name }
-//				@components.TableHead() { Email }
-//			}
-//		}
-//		@components.TableBody() {
-//			@components.TableRow() {
-//				@components.TableCell() { Jane }
-//				@components.TableCell() { jane@example.com }
-//			}
-//		}
-//	}
-func Table() *TableBuilder {
-	return &TableBuilder{}
-}
-
-func (b *TableBuilder) WithID(id string) *TableBuilder     { b.id = id; return b }
-func (b *TableBuilder) WithClass(c string) *TableBuilder   { b.class = cn(b.class, c); return b }
-func (b *TableBuilder) SetClass(c string) *TableBuilder    { b.class = c; return b }
-func (b *TableBuilder) WithAttr(key string, val any) *TableBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
-}
-func (b *TableBuilder) WithFragment(id string) *TableBuilder { b.fragmentID = id; return b }
-
 // --- Class helpers ---
 
-func tableClasses(b *TableBuilder) string {
-	return cn("w-full caption-bottom text-sm", b.class)
+func tableClasses(class string) string {
+	return cn("w-full caption-bottom text-sm", class)
 }
 
 func tableHeaderClasses(class string) string {
@@ -76,27 +36,27 @@ func tableCaptionClasses(class string) string {
 
 // --- Templ ---
 
-templ (b *TableBuilder) Render() {
-	if b.fragmentID != "" {
-		@templ.Fragment(b.fragmentID) {
-			@b.render()
-		}
-	} else {
-		@b.render()
-	}
-}
-
-templ (b *TableBuilder) render() {
+// Table renders a data table with consistent styling. Use it for displaying structured
+// data like user lists, transactions, or search results. Compose with TableHeader,
+// TableBody, TableFooter, TableRow, TableHead, TableCell, and TableCaption sub-components.
+//
+//	@components.Table() {
+//		@components.TableHeader() {
+//			@components.TableRow() {
+//				@components.TableHead() { Name }
+//				@components.TableHead() { Email }
+//			}
+//		}
+//		@components.TableBody() {
+//			@components.TableRow() {
+//				@components.TableCell() { Jane }
+//				@components.TableCell() { jane@example.com }
+//			}
+//		}
+//	}
+templ Table(opts ...Opt) {
 	<div class="relative w-full overflow-auto">
-		<table
-			class={ tableClasses(b) }
-			if b.id != "" {
-				id={ b.id }
-			}
-			if b.attrs != nil {
-				{ b.attrs... }
-			}
-		>
+		<table class={ tableClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 			{ children... }
 		</table>
 	</div>

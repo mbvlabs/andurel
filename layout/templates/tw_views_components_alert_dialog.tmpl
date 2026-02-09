@@ -1,45 +1,10 @@
 package components
 
-// --- Builder ---
-
-type AlertDialogBuilder struct {
-	id         string
-	class      string
-	attrs      templ.Attributes
-	fragmentID string
-}
-
-// AlertDialog creates a modal confirmation dialog that interrupts the user with important
-// content and expects a response. Use it for destructive actions like deleting a resource.
-// Compose with AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription,
-// AlertDialogFooter, AlertDialogAction, and AlertDialogCancel sub-components.
-//
-//	@components.AlertDialog().Render() {
-//		@components.AlertDialogContent() {
-//			@components.AlertDialogHeader() {
-//				@components.AlertDialogTitle("Are you sure?")
-//				@components.AlertDialogDescription("This action cannot be undone.")
-//			}
-//			@components.AlertDialogFooter() {
-//				@components.AlertDialogCancel("Cancel")
-//				@components.AlertDialogAction("Continue")
-//			}
-//		}
-//	}
-func AlertDialog() *AlertDialogBuilder {
-	return &AlertDialogBuilder{}
-}
-
-func (b *AlertDialogBuilder) WithID(id string) *AlertDialogBuilder     { b.id = id; return b }
-func (b *AlertDialogBuilder) WithClass(c string) *AlertDialogBuilder   { b.class = cn(b.class, c); return b }
-func (b *AlertDialogBuilder) SetClass(c string) *AlertDialogBuilder    { b.class = c; return b }
-func (b *AlertDialogBuilder) WithAttr(key string, val any) *AlertDialogBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
-}
-func (b *AlertDialogBuilder) WithFragment(id string) *AlertDialogBuilder { b.fragmentID = id; return b }
-
 // --- Class helpers ---
+
+func alertDialogClasses(class string) string {
+	return cn("relative", class)
+}
 
 func alertDialogContentClasses(class string) string {
 	return cn("fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border border-base-300 bg-base-100 p-6 shadow-lg rounded-box", class)
@@ -71,26 +36,25 @@ func alertDialogCancelClasses(class string) string {
 
 // --- Templ ---
 
-templ (b *AlertDialogBuilder) Render() {
-	if b.fragmentID != "" {
-		@templ.Fragment(b.fragmentID) {
-			@b.render()
-		}
-	} else {
-		@b.render()
-	}
-}
-
-templ (b *AlertDialogBuilder) render() {
-	<div
-		class={ cn("relative", b.class) }
-		if b.id != "" {
-			id={ b.id }
-		}
-		if b.attrs != nil {
-			{ b.attrs... }
-		}
-	>
+// AlertDialog creates a modal confirmation dialog that interrupts the user with important
+// content and expects a response. Use it for destructive actions like deleting a resource.
+// Compose with AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription,
+// AlertDialogFooter, AlertDialogAction, and AlertDialogCancel sub-components.
+//
+//	@components.AlertDialog() {
+//		@components.AlertDialogContent() {
+//			@components.AlertDialogHeader() {
+//				@components.AlertDialogTitle("Are you sure?")
+//				@components.AlertDialogDescription("This action cannot be undone.")
+//			}
+//			@components.AlertDialogFooter() {
+//				@components.AlertDialogCancel("Cancel")
+//				@components.AlertDialogAction("Continue")
+//			}
+//		}
+//	}
+templ AlertDialog(opts ...Opt) {
+	<div class={ alertDialogClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

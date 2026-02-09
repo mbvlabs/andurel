@@ -1,44 +1,10 @@
 package components
 
-// --- Builder ---
-
-type DialogBuilder struct {
-	id         string
-	class      string
-	attrs      templ.Attributes
-	fragmentID string
-}
-
-// Dialog creates a modal overlay for displaying content that requires user attention or
-// interaction (forms, confirmations, details). Compose with DialogContent, DialogHeader,
-// DialogTitle, DialogDescription, DialogFooter, and DialogClose sub-components.
-// For destructive confirmation prompts, prefer AlertDialog instead.
-//
-//	@components.Dialog().Render() {
-//		@components.DialogContent() {
-//			@components.DialogHeader() {
-//				@components.DialogTitle("Edit Profile")
-//				@components.DialogDescription("Make changes to your profile.")
-//			}
-//			<p>Dialog body content</p>
-//			@components.DialogFooter() { ... }
-//			@components.DialogClose()
-//		}
-//	}
-func Dialog() *DialogBuilder {
-	return &DialogBuilder{}
-}
-
-func (b *DialogBuilder) WithID(id string) *DialogBuilder     { b.id = id; return b }
-func (b *DialogBuilder) WithClass(c string) *DialogBuilder   { b.class = cn(b.class, c); return b }
-func (b *DialogBuilder) SetClass(c string) *DialogBuilder    { b.class = c; return b }
-func (b *DialogBuilder) WithAttr(key string, val any) *DialogBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
-}
-func (b *DialogBuilder) WithFragment(id string) *DialogBuilder { b.fragmentID = id; return b }
-
 // --- Class helpers ---
+
+func dialogClasses(class string) string {
+	return cn("relative", class)
+}
 
 func dialogOverlayClasses() string {
 	return "fixed inset-0 z-50 bg-black/80"
@@ -70,26 +36,24 @@ func dialogCloseClasses(class string) string {
 
 // --- Templ ---
 
-templ (b *DialogBuilder) Render() {
-	if b.fragmentID != "" {
-		@templ.Fragment(b.fragmentID) {
-			@b.render()
-		}
-	} else {
-		@b.render()
-	}
-}
-
-templ (b *DialogBuilder) render() {
-	<div
-		class={ cn("relative", b.class) }
-		if b.id != "" {
-			id={ b.id }
-		}
-		if b.attrs != nil {
-			{ b.attrs... }
-		}
-	>
+// Dialog creates a modal overlay for displaying content that requires user attention or
+// interaction (forms, confirmations, details). Compose with DialogContent, DialogHeader,
+// DialogTitle, DialogDescription, DialogFooter, and DialogClose sub-components.
+// For destructive confirmation prompts, prefer AlertDialog instead.
+//
+//	@components.Dialog() {
+//		@components.DialogContent() {
+//			@components.DialogHeader() {
+//				@components.DialogTitle("Edit Profile")
+//				@components.DialogDescription("Make changes to your profile.")
+//			}
+//			<p>Dialog body content</p>
+//			@components.DialogFooter() { ... }
+//			@components.DialogClose()
+//		}
+//	}
+templ Dialog(opts ...Opt) {
+	<div class={ dialogClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

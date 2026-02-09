@@ -54,10 +54,14 @@ func selectClasses(b *SelectBuilder) string {
 templ (b *SelectBuilder) Render() {
 	if b.fragmentID != "" {
 		@templ.Fragment(b.fragmentID) {
-			@b.render()
+			@b.render() {
+				{ children... }
+			}
 		}
 	} else {
-		@b.render()
+		@b.render() {
+			{ children... }
+		}
 	}
 }
 

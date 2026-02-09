@@ -1,44 +1,9 @@
 package components
 
-// --- Builder ---
-
-type BreadcrumbBuilder struct {
-	id         string
-	class      string
-	attrs      templ.Attributes
-	fragmentID string
-}
-
-// Breadcrumb renders a navigation trail showing the user's current location in a hierarchy.
-// Use it at the top of a page to help users navigate back to parent sections.
-// Compose with BreadcrumbItem, BreadcrumbLink, and BreadcrumbSeparator sub-components.
-//
-//	@components.Breadcrumb().Render() {
-//		@components.BreadcrumbItem() {
-//			@components.BreadcrumbLink("Home", "/", false)
-//		}
-//		@components.BreadcrumbSeparator()
-//		@components.BreadcrumbItem() {
-//			@components.BreadcrumbLink("Current Page", "", true)
-//		}
-//	}
-func Breadcrumb() *BreadcrumbBuilder {
-	return &BreadcrumbBuilder{}
-}
-
-func (b *BreadcrumbBuilder) WithID(id string) *BreadcrumbBuilder     { b.id = id; return b }
-func (b *BreadcrumbBuilder) WithClass(c string) *BreadcrumbBuilder   { b.class = cn(b.class, c); return b }
-func (b *BreadcrumbBuilder) SetClass(c string) *BreadcrumbBuilder    { b.class = c; return b }
-func (b *BreadcrumbBuilder) WithAttr(key string, val any) *BreadcrumbBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
-}
-func (b *BreadcrumbBuilder) WithFragment(id string) *BreadcrumbBuilder { b.fragmentID = id; return b }
-
 // --- Class helpers ---
 
-func breadcrumbClasses(b *BreadcrumbBuilder) string {
-	return cn("flex flex-wrap items-center gap-1.5 text-sm text-base-content/60", b.class)
+func breadcrumbClasses(class string) string {
+	return cn("flex flex-wrap items-center gap-1.5 text-sm text-base-content/60", class)
 }
 
 func breadcrumbItemClasses(class string) string {
@@ -58,27 +23,22 @@ func breadcrumbSeparatorClasses(class string) string {
 
 // --- Templ ---
 
-templ (b *BreadcrumbBuilder) Render() {
-	if b.fragmentID != "" {
-		@templ.Fragment(b.fragmentID) {
-			@b.render()
-		}
-	} else {
-		@b.render()
-	}
-}
-
-templ (b *BreadcrumbBuilder) render() {
+// Breadcrumb renders a navigation trail showing the user's current location in a hierarchy.
+// Use it at the top of a page to help users navigate back to parent sections.
+// Compose with BreadcrumbItem, BreadcrumbLink, and BreadcrumbSeparator sub-components.
+//
+//	@components.Breadcrumb() {
+//		@components.BreadcrumbItem() {
+//			@components.BreadcrumbLink("Home", "/", false)
+//		}
+//		@components.BreadcrumbSeparator()
+//		@components.BreadcrumbItem() {
+//			@components.BreadcrumbLink("Current Page", "", true)
+//		}
+//	}
+templ Breadcrumb(opts ...Opt) {
 	<nav aria-label="breadcrumb">
-		<ol
-			class={ breadcrumbClasses(b) }
-			if b.id != "" {
-				id={ b.id }
-			}
-			if b.attrs != nil {
-				{ b.attrs... }
-			}
-		>
+		<ol class={ breadcrumbClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 			{ children... }
 		</ol>
 	</nav>

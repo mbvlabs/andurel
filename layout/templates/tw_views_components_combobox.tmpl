@@ -63,10 +63,14 @@ func comboboxItemClasses(selected bool, class string) string {
 templ (b *ComboboxBuilder) Render() {
 	if b.fragmentID != "" {
 		@templ.Fragment(b.fragmentID) {
-			@b.render()
+			@b.render() {
+				{ children... }
+			}
 		}
 	} else {
-		@b.render()
+		@b.render() {
+			{ children... }
+		}
 	}
 }
 

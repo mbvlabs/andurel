@@ -1,46 +1,9 @@
 package components
 
-// --- Builder ---
-
-type DropdownBuilder struct {
-	id         string
-	class      string
-	attrs      templ.Attributes
-	fragmentID string
-}
-
-// Dropdown creates a menu that appears when a trigger element is activated. Use it for
-// action menus, context menus, or navigation sub-menus. Compose with DropdownTrigger,
-// DropdownContent, DropdownItem, DropdownLabel, and DropdownSeparator sub-components.
-//
-//	@components.Dropdown().Render() {
-//		@components.DropdownTrigger() {
-//			@components.Button(components.ButtonProps{Label: "Open Menu"}).Render()
-//		}
-//		@components.DropdownContent() {
-//			@components.DropdownLabel("Actions")
-//			@components.DropdownSeparator()
-//			@components.DropdownItem("Edit", false)
-//			@components.DropdownItem("Delete", false)
-//		}
-//	}
-func Dropdown() *DropdownBuilder {
-	return &DropdownBuilder{}
-}
-
-func (b *DropdownBuilder) WithID(id string) *DropdownBuilder     { b.id = id; return b }
-func (b *DropdownBuilder) WithClass(c string) *DropdownBuilder   { b.class = cn(b.class, c); return b }
-func (b *DropdownBuilder) SetClass(c string) *DropdownBuilder    { b.class = c; return b }
-func (b *DropdownBuilder) WithAttr(key string, val any) *DropdownBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
-}
-func (b *DropdownBuilder) WithFragment(id string) *DropdownBuilder { b.fragmentID = id; return b }
-
 // --- Class helpers ---
 
-func dropdownClasses(b *DropdownBuilder) string {
-	return cn("relative inline-block text-left", b.class)
+func dropdownClasses(class string) string {
+	return cn("relative inline-block text-left", class)
 }
 
 func dropdownContentClasses(class string) string {
@@ -62,26 +25,23 @@ func dropdownLabelClasses(class string) string {
 
 // --- Templ ---
 
-templ (b *DropdownBuilder) Render() {
-	if b.fragmentID != "" {
-		@templ.Fragment(b.fragmentID) {
-			@b.render()
-		}
-	} else {
-		@b.render()
-	}
-}
-
-templ (b *DropdownBuilder) render() {
-	<div
-		class={ dropdownClasses(b) }
-		if b.id != "" {
-			id={ b.id }
-		}
-		if b.attrs != nil {
-			{ b.attrs... }
-		}
-	>
+// Dropdown creates a menu that appears when a trigger element is activated. Use it for
+// action menus, context menus, or navigation sub-menus. Compose with DropdownTrigger,
+// DropdownContent, DropdownItem, DropdownLabel, and DropdownSeparator sub-components.
+//
+//	@components.Dropdown() {
+//		@components.DropdownTrigger() {
+//			@components.Button(components.ButtonProps{Label: "Open Menu"}).Render()
+//		}
+//		@components.DropdownContent() {
+//			@components.DropdownLabel("Actions")
+//			@components.DropdownSeparator()
+//			@components.DropdownItem("Edit", false)
+//			@components.DropdownItem("Delete", false)
+//		}
+//	}
+templ Dropdown(opts ...Opt) {
+	<div class={ dropdownClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

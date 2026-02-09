@@ -1,43 +1,9 @@
 package components
 
-// --- Builder ---
-
-type CarouselBuilder struct {
-	id         string
-	class      string
-	attrs      templ.Attributes
-	fragmentID string
-}
-
-// Carousel creates a horizontally scrollable content slider with previous/next controls.
-// Use it for image galleries, testimonials, or feature showcases. Compose with
-// CarouselContent, CarouselItem, CarouselPrevious, and CarouselNext sub-components.
-//
-//	@components.Carousel().Render() {
-//		@components.CarouselContent() {
-//			@components.CarouselItem() { Slide 1 }
-//			@components.CarouselItem() { Slide 2 }
-//		}
-//		@components.CarouselPrevious()
-//		@components.CarouselNext()
-//	}
-func Carousel() *CarouselBuilder {
-	return &CarouselBuilder{}
-}
-
-func (b *CarouselBuilder) WithID(id string) *CarouselBuilder     { b.id = id; return b }
-func (b *CarouselBuilder) WithClass(c string) *CarouselBuilder   { b.class = cn(b.class, c); return b }
-func (b *CarouselBuilder) SetClass(c string) *CarouselBuilder    { b.class = c; return b }
-func (b *CarouselBuilder) WithAttr(key string, val any) *CarouselBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
-}
-func (b *CarouselBuilder) WithFragment(id string) *CarouselBuilder { b.fragmentID = id; return b }
-
 // --- Class helpers ---
 
-func carouselClasses(b *CarouselBuilder) string {
-	return cn("relative w-full", b.class)
+func carouselClasses(class string) string {
+	return cn("relative w-full", class)
 }
 
 func carouselContentClasses(class string) string {
@@ -54,28 +20,20 @@ func carouselBtnClasses(extra string) string {
 
 // --- Templ ---
 
-templ (b *CarouselBuilder) Render() {
-	if b.fragmentID != "" {
-		@templ.Fragment(b.fragmentID) {
-			@b.render()
-		}
-	} else {
-		@b.render()
-	}
-}
-
-templ (b *CarouselBuilder) render() {
-	<div
-		class={ carouselClasses(b) }
-		role="region"
-		aria-roledescription="carousel"
-		if b.id != "" {
-			id={ b.id }
-		}
-		if b.attrs != nil {
-			{ b.attrs... }
-		}
-	>
+// Carousel creates a horizontally scrollable content slider with previous/next controls.
+// Use it for image galleries, testimonials, or feature showcases. Compose with
+// CarouselContent, CarouselItem, CarouselPrevious, and CarouselNext sub-components.
+//
+//	@components.Carousel() {
+//		@components.CarouselContent() {
+//			@components.CarouselItem() { Slide 1 }
+//			@components.CarouselItem() { Slide 2 }
+//		}
+//		@components.CarouselPrevious()
+//		@components.CarouselNext()
+//	}
+templ Carousel(opts ...Opt) {
+	<div class={ carouselClasses(classFrom(opts)) } role="region" aria-roledescription="carousel" if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

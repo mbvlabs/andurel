@@ -11,42 +11,10 @@ const (
 	TooltipSideLeft   TooltipSide = "left"
 )
 
-// --- Builder ---
-
-type TooltipBuilder struct {
-	id         string
-	class      string
-	attrs      templ.Attributes
-	fragmentID string
-}
-
-// Tooltip shows a small informational popup on hover. Use it to provide brief explanations
-// for icon buttons, truncated text, or any element that needs additional context. Compose
-// with TooltipTrigger and TooltipContent sub-components.
-//
-//	@components.Tooltip().Render() {
-//		@components.TooltipTrigger() {
-//			@components.Button(components.ButtonProps{Label: "Hover me"}).WithVariant(components.ButtonVariantOutline).Render()
-//		}
-//		@components.TooltipContent() { Helpful tip }
-//	}
-func Tooltip() *TooltipBuilder {
-	return &TooltipBuilder{}
-}
-
-func (b *TooltipBuilder) WithID(id string) *TooltipBuilder     { b.id = id; return b }
-func (b *TooltipBuilder) WithClass(c string) *TooltipBuilder   { b.class = cn(b.class, c); return b }
-func (b *TooltipBuilder) SetClass(c string) *TooltipBuilder    { b.class = c; return b }
-func (b *TooltipBuilder) WithAttr(key string, val any) *TooltipBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
-}
-func (b *TooltipBuilder) WithFragment(id string) *TooltipBuilder { b.fragmentID = id; return b }
-
 // --- Class helpers ---
 
-func tooltipClasses(b *TooltipBuilder) string {
-	return cn("relative inline-block group", b.class)
+func tooltipClasses(class string) string {
+	return cn("relative inline-block group", class)
 }
 
 func tooltipContentClasses(class string) string {
@@ -56,26 +24,18 @@ func tooltipContentClasses(class string) string {
 
 // --- Templ ---
 
-templ (b *TooltipBuilder) Render() {
-	if b.fragmentID != "" {
-		@templ.Fragment(b.fragmentID) {
-			@b.render()
-		}
-	} else {
-		@b.render()
-	}
-}
-
-templ (b *TooltipBuilder) render() {
-	<div
-		class={ tooltipClasses(b) }
-		if b.id != "" {
-			id={ b.id }
-		}
-		if b.attrs != nil {
-			{ b.attrs... }
-		}
-	>
+// Tooltip shows a small informational popup on hover. Use it to provide brief explanations
+// for icon buttons, truncated text, or any element that needs additional context. Compose
+// with TooltipTrigger and TooltipContent sub-components.
+//
+//	@components.Tooltip() {
+//		@components.TooltipTrigger() {
+//			@components.Button(components.ButtonProps{Label: "Hover me"}).WithVariant(components.ButtonVariantOutline).Render()
+//		}
+//		@components.TooltipContent() { Helpful tip }
+//	}
+templ Tooltip(opts ...Opt) {
+	<div class={ tooltipClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

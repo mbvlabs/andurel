@@ -54,10 +54,14 @@ func aspectRatioClasses(b *AspectRatioBuilder) string {
 templ (b *AspectRatioBuilder) Render() {
 	if b.fragmentID != "" {
 		@templ.Fragment(b.fragmentID) {
-			@b.render()
+			@b.render() {
+				{ children... }
+			}
 		}
 	} else {
-		@b.render()
+		@b.render() {
+			{ children... }
+		}
 	}
 }
 

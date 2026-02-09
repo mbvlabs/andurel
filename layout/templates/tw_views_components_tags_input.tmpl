@@ -45,10 +45,14 @@ func tagsInputContainerClasses(b *TagsInputBuilder) string {
 templ (b *TagsInputBuilder) Render() {
 	if b.fragmentID != "" {
 		@templ.Fragment(b.fragmentID) {
-			@b.render()
+			@b.render() {
+				{ children... }
+			}
 		}
 	} else {
-		@b.render()
+		@b.render() {
+			{ children... }
+		}
 	}
 }
 

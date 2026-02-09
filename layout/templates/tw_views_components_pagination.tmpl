@@ -1,42 +1,9 @@
 package components
 
-// --- Builder ---
-
-type PaginationBuilder struct {
-	id         string
-	class      string
-	attrs      templ.Attributes
-	fragmentID string
-}
-
-// Pagination renders page navigation controls with numbered links, previous/next buttons,
-// and ellipsis indicators. Use it for paginated lists, tables, or search results. Compose
-// with PaginationPrevious, PaginationItem, PaginationEllipsis, and PaginationNext sub-components.
-//
-//	@components.Pagination().Render() {
-//		@components.PaginationPrevious("/page/1", false)
-//		@components.PaginationItem("1", "/page/1", false, false)
-//		@components.PaginationItem("2", "/page/2", true, false)
-//		@components.PaginationEllipsis()
-//		@components.PaginationNext("/page/3", false)
-//	}
-func Pagination() *PaginationBuilder {
-	return &PaginationBuilder{}
-}
-
-func (b *PaginationBuilder) WithID(id string) *PaginationBuilder     { b.id = id; return b }
-func (b *PaginationBuilder) WithClass(c string) *PaginationBuilder   { b.class = cn(b.class, c); return b }
-func (b *PaginationBuilder) SetClass(c string) *PaginationBuilder    { b.class = c; return b }
-func (b *PaginationBuilder) WithAttr(key string, val any) *PaginationBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
-}
-func (b *PaginationBuilder) WithFragment(id string) *PaginationBuilder { b.fragmentID = id; return b }
-
 // --- Class helpers ---
 
-func paginationClasses(b *PaginationBuilder) string {
-	return cn("mx-auto flex w-full justify-center", b.class)
+func paginationClasses(class string) string {
+	return cn("mx-auto flex w-full justify-center", class)
 }
 
 func paginationItemClasses(active bool, disabled bool, class string) string {
@@ -52,27 +19,19 @@ func paginationItemClasses(active bool, disabled bool, class string) string {
 
 // --- Templ ---
 
-templ (b *PaginationBuilder) Render() {
-	if b.fragmentID != "" {
-		@templ.Fragment(b.fragmentID) {
-			@b.render()
-		}
-	} else {
-		@b.render()
-	}
-}
-
-templ (b *PaginationBuilder) render() {
-	<nav
-		aria-label="pagination"
-		class={ paginationClasses(b) }
-		if b.id != "" {
-			id={ b.id }
-		}
-		if b.attrs != nil {
-			{ b.attrs... }
-		}
-	>
+// Pagination renders page navigation controls with numbered links, previous/next buttons,
+// and ellipsis indicators. Use it for paginated lists, tables, or search results. Compose
+// with PaginationPrevious, PaginationItem, PaginationEllipsis, and PaginationNext sub-components.
+//
+//	@components.Pagination() {
+//		@components.PaginationPrevious("/page/1", false)
+//		@components.PaginationItem("1", "/page/1", false, false)
+//		@components.PaginationItem("2", "/page/2", true, false)
+//		@components.PaginationEllipsis()
+//		@components.PaginationNext("/page/3", false)
+//	}
+templ Pagination(opts ...Opt) {
+	<nav aria-label="pagination" class={ paginationClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		<ul class="flex flex-row items-center gap-1">
 			{ children... }
 		</ul>

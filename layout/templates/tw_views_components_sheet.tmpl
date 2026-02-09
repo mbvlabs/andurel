@@ -11,45 +11,11 @@ const (
 	SheetSideBottom SheetSide = "bottom"
 )
 
-// --- Builder ---
-
-type SheetBuilder struct {
-	id         string
-	class      string
-	attrs      templ.Attributes
-	fragmentID string
-}
-
-// Sheet creates a panel that slides in from the edge of the screen. Use it for navigation
-// drawers, settings panels, or detail views that don't warrant a full page. Compose with
-// SheetContent (with side), SheetHeader, SheetTitle, SheetDescription, SheetFooter, and
-// SheetClose sub-components.
-// Sides: SheetSideLeft, SheetSideRight (default), SheetSideTop, SheetSideBottom.
-//
-//	@components.Sheet().Render() {
-//		@components.SheetContent(components.SheetSideRight) {
-//			@components.SheetHeader() {
-//				@components.SheetTitle("Settings")
-//				@components.SheetDescription("Adjust your preferences.")
-//			}
-//			<p>Sheet body</p>
-//			@components.SheetClose()
-//		}
-//	}
-func Sheet() *SheetBuilder {
-	return &SheetBuilder{}
-}
-
-func (b *SheetBuilder) WithID(id string) *SheetBuilder     { b.id = id; return b }
-func (b *SheetBuilder) WithClass(c string) *SheetBuilder   { b.class = cn(b.class, c); return b }
-func (b *SheetBuilder) SetClass(c string) *SheetBuilder    { b.class = c; return b }
-func (b *SheetBuilder) WithAttr(key string, val any) *SheetBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
-}
-func (b *SheetBuilder) WithFragment(id string) *SheetBuilder { b.fragmentID = id; return b }
-
 // --- Class helpers ---
+
+func sheetClasses(class string) string {
+	return cn("relative", class)
+}
 
 func sheetContentSideClasses(s SheetSide) string {
 	switch s {
@@ -91,26 +57,24 @@ func sheetCloseClasses(class string) string {
 
 // --- Templ ---
 
-templ (b *SheetBuilder) Render() {
-	if b.fragmentID != "" {
-		@templ.Fragment(b.fragmentID) {
-			@b.render()
-		}
-	} else {
-		@b.render()
-	}
-}
-
-templ (b *SheetBuilder) render() {
-	<div
-		class={ cn("relative", b.class) }
-		if b.id != "" {
-			id={ b.id }
-		}
-		if b.attrs != nil {
-			{ b.attrs... }
-		}
-	>
+// Sheet creates a panel that slides in from the edge of the screen. Use it for navigation
+// drawers, settings panels, or detail views that don't warrant a full page. Compose with
+// SheetContent (with side), SheetHeader, SheetTitle, SheetDescription, SheetFooter, and
+// SheetClose sub-components.
+// Sides: SheetSideLeft, SheetSideRight (default), SheetSideTop, SheetSideBottom.
+//
+//	@components.Sheet() {
+//		@components.SheetContent(components.SheetSideRight) {
+//			@components.SheetHeader() {
+//				@components.SheetTitle("Settings")
+//				@components.SheetDescription("Adjust your preferences.")
+//			}
+//			<p>Sheet body</p>
+//			@components.SheetClose()
+//		}
+//	}
+templ Sheet(opts ...Opt) {
+	<div class={ sheetClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

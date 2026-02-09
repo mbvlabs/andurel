@@ -1,41 +1,9 @@
 package components
 
-// --- Builder ---
-
-type PopoverBuilder struct {
-	id         string
-	class      string
-	attrs      templ.Attributes
-	fragmentID string
-}
-
-// Popover displays floating content anchored to a trigger element. Use it for rich
-// tooltips, mini-forms, or detail panels that appear on click. Compose with
-// PopoverTrigger and PopoverContent sub-components.
-//
-//	@components.Popover().Render() {
-//		@components.PopoverTrigger() {
-//			@components.Button(components.ButtonProps{Label: "Open"}).Render()
-//		}
-//		@components.PopoverContent() { Popover body }
-//	}
-func Popover() *PopoverBuilder {
-	return &PopoverBuilder{}
-}
-
-func (b *PopoverBuilder) WithID(id string) *PopoverBuilder     { b.id = id; return b }
-func (b *PopoverBuilder) WithClass(c string) *PopoverBuilder   { b.class = cn(b.class, c); return b }
-func (b *PopoverBuilder) SetClass(c string) *PopoverBuilder    { b.class = c; return b }
-func (b *PopoverBuilder) WithAttr(key string, val any) *PopoverBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
-}
-func (b *PopoverBuilder) WithFragment(id string) *PopoverBuilder { b.fragmentID = id; return b }
-
 // --- Class helpers ---
 
-func popoverClasses(b *PopoverBuilder) string {
-	return cn("relative inline-block", b.class)
+func popoverClasses(class string) string {
+	return cn("relative inline-block", class)
 }
 
 func popoverContentClasses(class string) string {
@@ -45,26 +13,18 @@ func popoverContentClasses(class string) string {
 
 // --- Templ ---
 
-templ (b *PopoverBuilder) Render() {
-	if b.fragmentID != "" {
-		@templ.Fragment(b.fragmentID) {
-			@b.render()
-		}
-	} else {
-		@b.render()
-	}
-}
-
-templ (b *PopoverBuilder) render() {
-	<div
-		class={ popoverClasses(b) }
-		if b.id != "" {
-			id={ b.id }
-		}
-		if b.attrs != nil {
-			{ b.attrs... }
-		}
-	>
+// Popover displays floating content anchored to a trigger element. Use it for rich
+// tooltips, mini-forms, or detail panels that appear on click. Compose with
+// PopoverTrigger and PopoverContent sub-components.
+//
+//	@components.Popover() {
+//		@components.PopoverTrigger() {
+//			@components.Button(components.ButtonProps{Label: "Open"}).Render()
+//		}
+//		@components.PopoverContent() { Popover body }
+//	}
+templ Popover(opts ...Opt) {
+	<div class={ popoverClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

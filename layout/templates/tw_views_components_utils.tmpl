@@ -1,6 +1,10 @@
 package components
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/a-h/templ"
+)
 
 // cn concatenates class names, filtering empty strings.
 func cn(classes ...string) string {

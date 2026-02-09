@@ -1,39 +1,9 @@
 package components
 
-// --- Builder ---
-
-type CollapsibleBuilder struct {
-	id         string
-	class      string
-	attrs      templ.Attributes
-	fragmentID string
-}
-
-// Collapsible creates a section that can be expanded or collapsed by clicking a trigger.
-// Simpler than Accordion for single show/hide sections. Compose with
-// CollapsibleTrigger and CollapsibleContent sub-components.
-//
-//	@components.Collapsible().Render() {
-//		@components.CollapsibleTrigger("Toggle")
-//		@components.CollapsibleContent() { Hidden content }
-//	}
-func Collapsible() *CollapsibleBuilder {
-	return &CollapsibleBuilder{}
-}
-
-func (b *CollapsibleBuilder) WithID(id string) *CollapsibleBuilder     { b.id = id; return b }
-func (b *CollapsibleBuilder) WithClass(c string) *CollapsibleBuilder   { b.class = cn(b.class, c); return b }
-func (b *CollapsibleBuilder) SetClass(c string) *CollapsibleBuilder    { b.class = c; return b }
-func (b *CollapsibleBuilder) WithAttr(key string, val any) *CollapsibleBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
-}
-func (b *CollapsibleBuilder) WithFragment(id string) *CollapsibleBuilder { b.fragmentID = id; return b }
-
 // --- Class helpers ---
 
-func collapsibleClasses(b *CollapsibleBuilder) string {
-	return cn("w-full", b.class)
+func collapsibleClasses(class string) string {
+	return cn("w-full", class)
 }
 
 func collapsibleTriggerClasses(class string) string {
@@ -46,26 +16,16 @@ func collapsibleContentClasses(class string) string {
 
 // --- Templ ---
 
-templ (b *CollapsibleBuilder) Render() {
-	if b.fragmentID != "" {
-		@templ.Fragment(b.fragmentID) {
-			@b.render()
-		}
-	} else {
-		@b.render()
-	}
-}
-
-templ (b *CollapsibleBuilder) render() {
-	<div
-		class={ collapsibleClasses(b) }
-		if b.id != "" {
-			id={ b.id }
-		}
-		if b.attrs != nil {
-			{ b.attrs... }
-		}
-	>
+// Collapsible creates a section that can be expanded or collapsed by clicking a trigger.
+// Simpler than Accordion for single show/hide sections. Compose with
+// CollapsibleTrigger and CollapsibleContent sub-components.
+//
+//	@components.Collapsible() {
+//		@components.CollapsibleTrigger("Toggle")
+//		@components.CollapsibleContent() { Hidden content }
+//	}
+templ Collapsible(opts ...Opt) {
+	<div class={ collapsibleClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }

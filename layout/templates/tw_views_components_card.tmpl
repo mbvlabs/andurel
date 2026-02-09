@@ -1,43 +1,9 @@
 package components
 
-// --- Builder ---
-
-type CardBuilder struct {
-	id         string
-	class      string
-	attrs      templ.Attributes
-	fragmentID string
-}
-
-// Card renders a bordered container for grouping related content. Use it for dashboard
-// widgets, form sections, or any content that needs visual separation. Compose with
-// CardHeader, CardTitle, CardDescription, CardContent, and CardFooter sub-components.
-//
-//	@components.Card().Render() {
-//		@components.CardHeader() {
-//			@components.CardTitle("Title")
-//			@components.CardDescription("Description")
-//		}
-//		@components.CardContent() { Body content }
-//		@components.CardFooter() { Footer actions }
-//	}
-func Card() *CardBuilder {
-	return &CardBuilder{}
-}
-
-func (b *CardBuilder) WithID(id string) *CardBuilder     { b.id = id; return b }
-func (b *CardBuilder) WithClass(c string) *CardBuilder   { b.class = cn(b.class, c); return b }
-func (b *CardBuilder) SetClass(c string) *CardBuilder    { b.class = c; return b }
-func (b *CardBuilder) WithAttr(key string, val any) *CardBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
-}
-func (b *CardBuilder) WithFragment(id string) *CardBuilder { b.fragmentID = id; return b }
-
 // --- Class helpers ---
 
-func cardClasses(b *CardBuilder) string {
-	return cn("rounded-box border border-base-300 bg-base-100 shadow-sm", b.class)
+func cardClasses(class string) string {
+	return cn("rounded-box border border-base-300 bg-base-100 shadow-sm", class)
 }
 
 func cardHeaderClasses(class string) string {
@@ -62,26 +28,20 @@ func cardFooterClasses(class string) string {
 
 // --- Templ ---
 
-templ (b *CardBuilder) Render() {
-	if b.fragmentID != "" {
-		@templ.Fragment(b.fragmentID) {
-			@b.render()
-		}
-	} else {
-		@b.render()
-	}
-}
-
-templ (b *CardBuilder) render() {
-	<div
-		class={ cardClasses(b) }
-		if b.id != "" {
-			id={ b.id }
-		}
-		if b.attrs != nil {
-			{ b.attrs... }
-		}
-	>
+// Card renders a bordered container for grouping related content. Use it for dashboard
+// widgets, form sections, or any content that needs visual separation. Compose with
+// CardHeader, CardTitle, CardDescription, CardContent, and CardFooter sub-components.
+//
+//	@components.Card() {
+//		@components.CardHeader() {
+//			@components.CardTitle("Title")
+//			@components.CardDescription("Description")
+//		}
+//		@components.CardContent() { Body content }
+//		@components.CardFooter() { Footer actions }
+//	}
+templ Card(opts ...Opt) {
+	<div class={ cardClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
 		{ children... }
 	</div>
 }
