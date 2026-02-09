@@ -59,13 +59,18 @@ type ButtonBuilder struct {
 // Sizes: ButtonSizeDefault, ButtonSizeSm, ButtonSizeLg, ButtonSizeIcon.
 // Types: ButtonTypeButton (default), ButtonTypeSubmit, ButtonTypeReset.
 //
-//	@components.Button(components.ButtonProps{Label: "Click Me"}).WithVariant(components.ButtonVariantOutline).WithSize(components.ButtonSizeSm).Render()
+//	@components.Button(components.ButtonProps{Label: "Click Me"}).MakeOutline().WithSize(components.ButtonSizeSm).Render()
 //	@components.Button(components.ButtonProps{Label: "Submit"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
 func Button(props ButtonProps) *ButtonBuilder {
 	return &ButtonBuilder{label: props.Label, btnType: ButtonTypeButton}
 }
 
 func (b *ButtonBuilder) WithVariant(v ButtonVariant) *ButtonBuilder   { b.variant = v; return b }
+func (b *ButtonBuilder) MakeSecondary() *ButtonBuilder                { b.variant = ButtonVariantSecondary; return b }
+func (b *ButtonBuilder) MakeOutline() *ButtonBuilder                  { b.variant = ButtonVariantOutline; return b }
+func (b *ButtonBuilder) MakeGhost() *ButtonBuilder                    { b.variant = ButtonVariantGhost; return b }
+func (b *ButtonBuilder) MakeLink() *ButtonBuilder                     { b.variant = ButtonVariantLink; return b }
+func (b *ButtonBuilder) MakeDestructive() *ButtonBuilder              { b.variant = ButtonVariantDestructive; return b }
 func (b *ButtonBuilder) WithSize(s ButtonSize) *ButtonBuilder         { b.size = s; return b }
 func (b *ButtonBuilder) WithType(t ButtonType) *ButtonBuilder         { b.btnType = t; return b }
 func (b *ButtonBuilder) WithDisabled(d bool) *ButtonBuilder           { b.disabled = d; return b }

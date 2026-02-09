@@ -78,7 +78,6 @@ templ (b *SelectBuilder) render() {
 		if b.required {
 			required
 		}
-		data-attr:disabled="$submitting"
 		if b.attrs != nil {
 			{ b.attrs... }
 		}

@@ -1,6 +1,6 @@
 package components
 
-import "strconv"
+import "fmt"
 
 // --- Builder ---
 
@@ -14,8 +14,8 @@ type InputOTPBuilder struct {
 }
 
 // InputOTP renders a row of individual single-character inputs for one-time password entry.
-// Defaults to 6 digits with a separator after the 3rd digit. The bind parameter is the
-// data-bind prefix; each slot binds to "{bind}_{index}".
+// The bind parameter is the signal name that holds the full concatenated OTP value.
+// Supports copy-paste, auto-advance, and backspace navigation.
 //
 //	@components.InputOTP("otp").WithLength(6).Render()
 //	@components.InputOTP("pin").WithLength(4).Render()
@@ -32,6 +32,29 @@ func (b *InputOTPBuilder) WithAttr(key string, val any) *InputOTPBuilder {
 	b.attrs[key] = val; return b
 }
 func (b *InputOTPBuilder) WithFragment(id string) *InputOTPBuilder { b.fragmentID = id; return b }
+
+// --- JS expression helpers ---
+
+func otpInputExpr(bind string, idx int) string {
+	return fmt.Sprintf(
+		"el.value=el.value.replace(/\\D/g,'').slice(0,1);const _a=[...el.closest('[data-otp]').querySelectorAll('input')];$%s=_a.map(i=>i.value).join('');if(el.value&&_a[%d])_a[%d].focus()",
+		bind, idx+1, idx+1,
+	)
+}
+
+func otpKeydownExpr(bind string) string {
+	return fmt.Sprintf(
+		"if(evt.key==='Backspace'&&!el.value){const _a=[...el.closest('[data-otp]').querySelectorAll('input')];const _i=_a.indexOf(el);if(_i>0){_a[_i-1].value='';_a[_i-1].focus();$%s=_a.map(i=>i.value).join('')}}",
+		bind,
+	)
+}
+
+func otpPasteExpr(bind string, length int) string {
+	return fmt.Sprintf(
+		"evt.preventDefault();const _t=(evt.clipboardData||window.clipboardData).getData('text').replace(/\\D/g,'').slice(0,%d);const _a=[...el.closest('[data-otp]').querySelectorAll('input')];_a.forEach(i=>{i.value=''});_t.split('').forEach((c,i)=>{if(_a[i])_a[i].value=c});$%s=_t;const _f=Math.min(_t.length,%d);if(_a[_f])_a[_f].focus()",
+		length, bind, length-1,
+	)
+}
 
 // --- Class helpers ---
 
@@ -61,6 +84,8 @@ templ (b *InputOTPBuilder) render() {
 		if b.id != "" {
 			id={ b.id }
 		}
+		data-otp
+		{ templ.Attributes{"data-signals:" + b.bind: ""}... }
 		if b.attrs != nil {
 			{ b.attrs... }
 		}
@@ -71,11 +96,14 @@ templ (b *InputOTPBuilder) render() {
 					type="text"
 					maxlength="1"
 					class="h-full w-full bg-transparent text-center outline-none"
-					data-bind={ b.bind + "_" + strconv.Itoa(i) }
-					data-attr:disabled="$submitting"
 					inputmode="numeric"
-					pattern="[0-9]*"
-					autocomplete="one-time-code"
+					if i == 0 {
+						autocomplete="one-time-code"
+					}
+					data-on:input={ otpInputExpr(b.bind, i) }
+					data-on:keydown={ otpKeydownExpr(b.bind) }
+					data-on:paste={ otpPasteExpr(b.bind, b.length) }
+					data-on:focus="el.select()"
 				/>
 			</div>
 			if i == 2 && b.length == 6 {

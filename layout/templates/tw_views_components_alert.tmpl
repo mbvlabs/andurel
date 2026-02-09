@@ -34,12 +34,16 @@ type AlertBuilder struct {
 // information, warnings, errors, or success messages that appear inline in the page.
 // Variants: AlertVariantDefault, AlertVariantInfo, AlertVariantSuccess, AlertVariantWarning, AlertVariantError.
 //
-//	@components.Alert(components.AlertProps{Description: "Something went wrong."}).WithVariant(components.AlertVariantError).WithTitle("Error").Render()
+//	@components.Alert(components.AlertProps{Description: "Something went wrong."}).MakeError().WithTitle("Error").Render()
 func Alert(props AlertProps) *AlertBuilder {
 	return &AlertBuilder{description: props.Description}
 }
 
 func (b *AlertBuilder) WithVariant(v AlertVariant) *AlertBuilder { b.variant = v; return b }
+func (b *AlertBuilder) MakeInfo() *AlertBuilder                  { b.variant = AlertVariantInfo; return b }
+func (b *AlertBuilder) MakeSuccess() *AlertBuilder               { b.variant = AlertVariantSuccess; return b }
+func (b *AlertBuilder) MakeWarning() *AlertBuilder               { b.variant = AlertVariantWarning; return b }
+func (b *AlertBuilder) MakeError() *AlertBuilder                 { b.variant = AlertVariantError; return b }
 func (b *AlertBuilder) WithTitle(t string) *AlertBuilder         { b.title = t; return b }
 func (b *AlertBuilder) WithID(id string) *AlertBuilder           { b.id = id; return b }
 func (b *AlertBuilder) WithClass(c string) *AlertBuilder         { b.class = cn(b.class, c); return b }

@@ -4,22 +4,23 @@ import "{{.ModuleName}}/views/components"
 
 templ Home() {
 	@base() {
-		<main class="container mx-auto flex-1 flex flex-col items-center justify-center p-4">
-			<h1 class="text-2xl font-bold">Welcome to the Andurel Framework!</h1>
-			<p>This is a simple home page template to get you started.</p>
-		</main>
-		<section class="container mx-auto px-4 py-12 space-y-16">
+		<main class="flex-1 flex flex-col">
+			<div class="w-full flex flex-col items-center justify-center p-4 min-h-screen">
+				<h1 class="text-2xl font-bold">Welcome to the Andurel Framework!</h1>
+				<p>This is a simple home page template to get you started.</p>
+			</div>
+			<section class="container mx-auto px-4 py-12 space-y-16">
 			<h2 class="text-3xl font-bold text-center">Component Showcase</h2>
 			<!-- ─── Buttons ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Button</h3>
 				<div class="flex flex-wrap items-center gap-3">
 					@components.Button(components.ButtonProps{Label: "Default"}).Render()
-					@components.Button(components.ButtonProps{Label: "Secondary"}).WithVariant(components.ButtonVariantSecondary).Render()
-					@components.Button(components.ButtonProps{Label: "Outline"}).WithVariant(components.ButtonVariantOutline).Render()
-					@components.Button(components.ButtonProps{Label: "Ghost"}).WithVariant(components.ButtonVariantGhost).Render()
-					@components.Button(components.ButtonProps{Label: "Link"}).WithVariant(components.ButtonVariantLink).Render()
-					@components.Button(components.ButtonProps{Label: "Destructive"}).WithVariant(components.ButtonVariantDestructive).Render()
+					@components.Button(components.ButtonProps{Label: "Secondary"}).MakeSecondary().Render()
+					@components.Button(components.ButtonProps{Label: "Outline"}).MakeOutline().Render()
+					@components.Button(components.ButtonProps{Label: "Ghost"}).MakeGhost().Render()
+					@components.Button(components.ButtonProps{Label: "Link"}).MakeLink().Render()
+					@components.Button(components.ButtonProps{Label: "Destructive"}).MakeDestructive().Render()
 				</div>
 				<div class="flex flex-wrap items-center gap-3">
 					@components.Button(components.ButtonProps{Label: "Small"}).WithSize(components.ButtonSizeSm).Render()
@@ -43,10 +44,10 @@ templ Home() {
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Alert</h3>
 				<div class="space-y-3 max-w-xl">
 					@components.Alert(components.AlertProps{Description: "This is a default alert message."}).WithTitle("Default").Render()
-					@components.Alert(components.AlertProps{Description: "This is an informational message."}).WithVariant(components.AlertVariantInfo).WithTitle("Info").Render()
-					@components.Alert(components.AlertProps{Description: "Operation completed successfully."}).WithVariant(components.AlertVariantSuccess).WithTitle("Success").Render()
-					@components.Alert(components.AlertProps{Description: "Please review before proceeding."}).WithVariant(components.AlertVariantWarning).WithTitle("Warning").Render()
-					@components.Alert(components.AlertProps{Description: "Something went wrong."}).WithVariant(components.AlertVariantError).WithTitle("Error").Render()
+					@components.Alert(components.AlertProps{Description: "This is an informational message."}).MakeInfo().WithTitle("Info").Render()
+					@components.Alert(components.AlertProps{Description: "Operation completed successfully."}).MakeSuccess().WithTitle("Success").Render()
+					@components.Alert(components.AlertProps{Description: "Please review before proceeding."}).MakeWarning().WithTitle("Warning").Render()
+					@components.Alert(components.AlertProps{Description: "Something went wrong."}).MakeError().WithTitle("Error").Render()
 				</div>
 			</div>
 			<!-- ─── Card ─── -->
@@ -62,7 +63,7 @@ templ Home() {
 							<p class="text-sm text-base-content/80">This is the body of the card. You can place any content here.</p>
 						}
 						@components.CardFooter() {
-							@components.Button(components.ButtonProps{Label: "Cancel"}).WithVariant(components.ButtonVariantOutline).WithSize(components.ButtonSizeSm).Render()
+							@components.Button(components.ButtonProps{Label: "Cancel"}).MakeOutline().WithSize(components.ButtonSizeSm).Render()
 							@components.Button(components.ButtonProps{Label: "Save"}).WithSize(components.ButtonSizeSm).WithClass("ml-2").Render()
 						}
 					}
@@ -412,7 +413,7 @@ templ Home() {
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Tooltip</h3>
 				@components.Tooltip() {
 					@components.TooltipTrigger() {
-						@components.Button(components.ButtonProps{Label: "Hover me"}).WithVariant(components.ButtonVariantOutline).Render()
+						@components.Button(components.ButtonProps{Label: "Hover me"}).MakeOutline().Render()
 					}
 					@components.TooltipContent() { This is a helpful tooltip }
 				}
@@ -420,7 +421,7 @@ templ Home() {
 			<!-- ─── Dropdown ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Dropdown</h3>
-				@components.Dropdown(components.Button(components.ButtonProps{Label: "Open Menu"}).WithVariant(components.ButtonVariantOutline).Render()) {
+				@components.Dropdown(components.Button(components.ButtonProps{Label: "Open Menu"}).MakeOutline().Render()) {
 					@components.DropdownLabel("Actions")
 					@components.DropdownSeparator()
 					@components.DropdownItem("Edit", false)
@@ -432,7 +433,7 @@ templ Home() {
 			<!-- ─── Popover ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Popover</h3>
-				@components.Popover(components.Button(components.ButtonProps{Label: "Open Popover"}).WithVariant(components.ButtonVariantOutline).Render()) {
+				@components.Popover(components.Button(components.ButtonProps{Label: "Open Popover"}).MakeOutline().Render()) {
 					<div class="space-y-2">
 						<h4 class="font-medium text-sm">Dimensions</h4>
 						<p class="text-xs text-base-content/60">Set the dimensions for the layer.</p>
@@ -474,6 +475,7 @@ templ Home() {
 					}
 				</div>
 			</div>
-		</section>
+			</section>
+		</main>
 	}
 }

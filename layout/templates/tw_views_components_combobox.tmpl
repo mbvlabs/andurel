@@ -1,5 +1,7 @@
 package components
 
+import "github.com/rs/xid"
+
 // --- Builder ---
 
 type ComboboxBuilder struct {
@@ -9,6 +11,13 @@ type ComboboxBuilder struct {
 	class       string
 	attrs       templ.Attributes
 	fragmentID  string
+}
+
+func comboboxResolveID(b *ComboboxBuilder) string {
+	if b.id != "" {
+		return b.id
+	}
+	return "cb_" + xid.New().String()
 }
 
 // Combobox renders a searchable dropdown input for selecting from a list of options.
@@ -75,11 +84,19 @@ templ (b *ComboboxBuilder) Render() {
 }
 
 templ (b *ComboboxBuilder) render() {
+	@b.renderInner(comboboxResolveID(b)) {
+		{ children... }
+	}
+}
+
+templ (b *ComboboxBuilder) renderInner(sid string) {
 	<div
 		class={ comboboxClasses(b) }
 		if b.id != "" {
 			id={ b.id }
 		}
+		{ templ.Attributes{"data-signals:_" + sid: "false"}... }
+		{ templ.Attributes{"data-on:click.outside": "$_" + sid + " = false"}... }
 		if b.attrs != nil {
 			{ b.attrs... }
 		}
@@ -92,14 +109,19 @@ templ (b *ComboboxBuilder) render() {
 					placeholder={ b.placeholder }
 				}
 				data-bind={ b.bind }
-				data-attr:disabled="$submitting"
 				autocomplete="off"
+				{ templ.Attributes{"data-on:focus": "$_" + sid + " = true"}... }
 			/>
-			<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+			<div
+				class="absolute inset-y-0 right-0 flex items-center pr-2 cursor-pointer"
+				{ templ.Attributes{"data-on:click": "$_" + sid + " = !$_" + sid}... }
+			>
 				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/40"><path d="m7 15 5 5 5-5"></path><path d="m7 9 5-5 5 5"></path></svg>
 			</div>
 		</div>
-		{ children... }
+		<div { templ.Attributes{"data-show": "$_" + sid}... }>
+			{ children... }
+		</div>
 	</div>
 }
 

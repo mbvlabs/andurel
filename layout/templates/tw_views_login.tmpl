@@ -1,8 +1,6 @@
 package views
 
 import (
-	"net/http"
-	"{{.ModuleName}}/internal/hypermedia"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/views/components"
 )
@@ -12,16 +10,12 @@ templ LoginForm() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
 				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form
-						class="space-y-5"
-						data-indicator:submitting
-						data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.SessionCreate.URL()) }
-					>
+					@components.Form(components.FormProps{Action: "post", URL: routes.SessionCreate.URL()}, components.WithClass("space-y-5")) {
 						<div class="space-y-1">
 							<h2 class="text-xl font-semibold text-base-content">Login to your account</h2>
 							<p class="text-sm text-base-content/60">Enter your details below to login to your account</p>
 						</div>
-						<div class="space-y-4">
+						<div class="space-y-4 my-6">
 							<div class="w-full space-y-1">
 								@components.Label(components.LabelProps{Text: "Email"}).WithFor("email").Render()
 								@components.Input("email").WithID("email").WithType(components.InputTypeEmail).WithRequired(true).Render()
@@ -31,11 +25,11 @@ templ LoginForm() {
 								@components.Input("password").WithID("password").WithType(components.InputTypePassword).WithRequired(true).Render()
 							</div>
 						</div>
-						<p class="text-right text-sm">
+						<p class="text-right text-sm mb-1">
 							<a class="text-base-content/70 hover:text-base-content" href={ templ.SafeURL(routes.PasswordNew.URL()) }>Forgot your password?</a>
 						</p>
-						@components.Button(components.ButtonProps{Label: "Login"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).WithAttr("data-attr:disabled", "$submitting").WithLoadingLabel("Loading", "submitting").Render()
-					</form>
+						@components.Button(components.ButtonProps{Label: "Login"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).WithLoadingLabel("Loading", "submitting").Render()
+					}
 					<p class="mt-6 text-center text-sm text-base-content/60">
 						Don't have an account? <a class="text-base-content hover:underline" href={ templ.SafeURL(routes.RegistrationNew.URL()) }>Sign up</a>
 					</p>

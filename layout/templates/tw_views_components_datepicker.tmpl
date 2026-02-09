@@ -68,7 +68,6 @@ templ (b *DatepickerBuilder) render() {
 				type="date"
 				class={ datepickerInputClasses() }
 				data-bind={ b.bind }
-				data-attr:disabled="$submitting"
 				if b.value != "" {
 					value={ b.value }
 				}

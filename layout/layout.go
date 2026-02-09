@@ -263,6 +263,7 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"tw_views_components_table.tmpl":        "views/components/table.templ",
 
 	// Views — Components (form)
+	"tw_views_components_form.tmpl":       "views/components/form.templ",
 	"tw_views_components_checkbox.tmpl":   "views/components/checkbox.templ",
 	"tw_views_components_input.tmpl":      "views/components/input.templ",
 	"tw_views_components_radio.tmpl":      "views/components/radio.templ",

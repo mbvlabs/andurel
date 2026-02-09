@@ -1,8 +1,6 @@
 package views
 
 import (
-	"net/http"
-	"{{.ModuleName}}/internal/hypermedia"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/views/components"
 )
@@ -12,16 +10,12 @@ templ RegistrationForm() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
 				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form
-						class="space-y-5"
-						data-indicator:submitting
-						data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()) }
-					>
+					@components.Form(components.FormProps{Action: "post", URL: routes.RegistrationCreate.URL()}, components.WithClass("space-y-5")) {
 						<div class="space-y-1">
 							<h2 class="text-xl font-semibold text-base-content">Create an account</h2>
 							<p class="text-sm text-base-content/60">Enter your details below to create your account</p>
 						</div>
-						<div class="space-y-4">
+						<div class="space-y-4 my-6">
 							<div class="w-full space-y-1">
 								@components.Label(components.LabelProps{Text: "Email"}).WithFor("email").Render()
 								@components.Input("email").WithID("email").WithType(components.InputTypeEmail).WithRequired(true).Render()
@@ -35,8 +29,8 @@ templ RegistrationForm() {
 								@components.Input("confirmPassword").WithID("confirmPassword").WithType(components.InputTypePassword).WithRequired(true).Render()
 							</div>
 						</div>
-						@components.Button(components.ButtonProps{Label: "Sign Up"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).WithAttr("data-attr:disabled", "$submitting").WithLoadingLabel("Loading", "submitting").Render()
-					</form>
+						@components.Button(components.ButtonProps{Label: "Sign Up"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).WithLoadingLabel("Loading", "submitting").Render()
+					}
 					<p class="mt-6 text-center text-sm text-base-content/60">
 						Already have an account? <a class="text-base-content hover:underline" href={ templ.SafeURL(routes.SessionNew.URL()) }>Login</a>
 					</p>
