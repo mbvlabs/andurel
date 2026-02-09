@@ -1,5 +1,7 @@
 package components
 
+import "github.com/rs/xid"
+
 // --- Class helpers ---
 
 func accordionClasses(class string) string {
@@ -20,14 +22,13 @@ func accordionContentClasses(class string) string {
 
 // --- Templ ---
 
-// Accordion creates an expandable/collapsible content container. Use it to organize
-// long content into vertically stacked sections that users can expand one at a time.
-// Compose with AccordionItem, AccordionTrigger, and AccordionContent sub-components.
+// Accordion creates an expandable/collapsible content container.
+// Each AccordionItem is collapsed by default and toggles open on click.
+// A unique Datastar signal is auto-generated per item using xid.
 //
 //	@components.Accordion() {
-//		@components.AccordionItem() {
-//			@components.AccordionTrigger("Section Title")
-//			@components.AccordionContent() { Hidden content here }
+//		@components.AccordionItem("Section Title") {
+//			Hidden content here
 //		}
 //	}
 templ Accordion(opts ...Opt) {
@@ -36,23 +37,22 @@ templ Accordion(opts ...Opt) {
 	</div>
 }
 
-templ AccordionItem(opts ...Opt) {
-	<div class={ accordionItemClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+templ AccordionItem(label string, opts ...Opt) {
+	@accordionItemInner(xid.New().String(), label, classFrom(opts), attrsFrom(opts)) {
 		{ children... }
-	</div>
+	}
 }
 
-templ AccordionTrigger(label string, opts ...Opt) {
-	<button type="button" class={ accordionTriggerClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
-		{ label }
-		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 transition-transform duration-200"><path d="m6 9 6 6 6-6"></path></svg>
-	</button>
-}
-
-templ AccordionContent(opts ...Opt) {
-	<div class={ accordionContentClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
-		<div class="pb-4 pt-0">
-			{ children... }
+templ accordionItemInner(id string, label string, class string, attrs templ.Attributes) {
+	<div class={ accordionItemClasses(class) } { templ.Attributes{"data-signals:_" + id: "false"}... } if attrs != nil { { attrs... } }>
+		<button type="button" class={ accordionTriggerClasses("") } aria-expanded="false" { templ.Attributes{"data-on:click": "$_" + id + " = !$_" + id, "data-attr:aria-expanded": "$_" + id}... }>
+			{ label }
+			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 transition-transform duration-200"><path d="m6 9 6 6 6-6"></path></svg>
+		</button>
+		<div class={ accordionContentClasses("") } { templ.Attributes{"data-show": "$_" + id}... }>
+			<div class="pb-4 pt-0">
+				{ children... }
+			</div>
 		</div>
 	</div>
 }

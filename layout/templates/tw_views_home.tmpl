@@ -312,17 +312,14 @@ templ Home() {
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Accordion</h3>
 				<div class="max-w-lg">
 					@components.Accordion() {
-						@components.AccordionItem() {
-							@components.AccordionTrigger("What is Andurel?")
-							@components.AccordionContent() { Andurel is a web development framework for Go. }
+						@components.AccordionItem("What is Andurel?") {
+							Andurel is a web development framework for Go.
 						}
-						@components.AccordionItem() {
-							@components.AccordionTrigger("How do I get started?")
-							@components.AccordionContent() { Install the CLI and run the init command. }
+						@components.AccordionItem("How do I get started?") {
+							Install the CLI and run the init command.
 						}
-						@components.AccordionItem() {
-							@components.AccordionTrigger("Is it production ready?")
-							@components.AccordionContent() { Yes, it is used in production applications. }
+						@components.AccordionItem("Is it production ready?") {
+							Yes, it is used in production applications.
 						}
 					}
 				</div>
