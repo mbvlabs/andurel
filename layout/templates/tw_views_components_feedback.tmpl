@@ -1,0 +1,44 @@
+package components
+
+// Alert component - inline message block for status updates.
+templ Alert(title, message string, props ComponentProps) {
+	<div class={ MergeClasses("rounded-lg border border-base-300 bg-base-100 p-4", props.Class) }>
+		<p class="text-sm font-semibold text-base-content">{ title }</p>
+		<p class="mt-1 text-sm text-base-content/70">{ message }</p>
+	</div>
+}
+
+// ProgressBar component - visual progress indicator.
+templ ProgressBar(value int, props ComponentProps) {
+	widthClass := "w-1/12"
+	if value >= 75 {
+		widthClass = "w-3/4"
+	} else if value >= 50 {
+		widthClass = "w-1/2"
+	} else if value >= 25 {
+		widthClass = "w-1/4"
+	}
+	<div class={ MergeClasses("w-full rounded-full bg-base-200", props.Class) }>
+		<div
+			class={ "h-2 rounded-full bg-primary transition " + widthClass }
+		></div>
+	</div>
+}
+
+// Spinner component - loading indicator.
+templ Spinner(props ComponentProps) {
+	<div class={ MergeClasses("inline-flex h-6 w-6 animate-spin rounded-full border-2 border-base-300 border-t-primary", props.Class) }></div>
+}
+
+// Skeleton component - placeholder block for loading content.
+templ Skeleton(widthClass, heightClass string, props ComponentProps) {
+	<div class={ MergeClasses("animate-pulse rounded-md bg-base-200 " + widthClass + " " + heightClass, props.Class) }></div>
+}
+
+// EmptyState component - blank slate messaging.
+templ EmptyState(title, message string, props ComponentProps) {
+	<div class={ MergeClasses("rounded-lg border border-dashed border-base-300 bg-base-100 p-6 text-center", props.Class) }>
+		<h3 class="text-sm font-semibold text-base-content">{ title }</h3>
+		<p class="mt-2 text-sm text-base-content/70">{ message }</p>
+	</div>
+}
