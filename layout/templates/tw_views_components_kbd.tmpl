@@ -1,0 +1,67 @@
+package components
+
+// --- Props ---
+
+type KbdProps struct {
+	Key string
+}
+
+// --- Builder ---
+
+type KbdBuilder struct {
+	key        string
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
+}
+
+// Kbd renders a keyboard key indicator styled as a small bordered box. Use it to display
+// keyboard shortcuts or key combinations in documentation or tooltips.
+//
+//	@components.Kbd(components.KbdProps{Key: "Ctrl+K"}).Render()
+func Kbd(props KbdProps) *KbdBuilder {
+	return &KbdBuilder{key: props.Key}
+}
+
+func (b *KbdBuilder) WithID(id string) *KbdBuilder     { b.id = id; return b }
+func (b *KbdBuilder) WithClass(c string) *KbdBuilder   { b.class = cn(b.class, c); return b }
+func (b *KbdBuilder) SetClass(c string) *KbdBuilder    { b.class = c; return b }
+func (b *KbdBuilder) WithAttr(key string, val any) *KbdBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *KbdBuilder) WithFragment(id string) *KbdBuilder { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func kbdClasses(b *KbdBuilder) string {
+	base := "pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-base-300 bg-base-200 px-1.5 font-mono text-xs font-medium text-base-content/80"
+	return cn(base, b.class)
+}
+
+// --- Templ ---
+
+templ (b *KbdBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *KbdBuilder) render() {
+	<kbd
+		class={ kbdClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		{ b.key }
+	</kbd>
+}

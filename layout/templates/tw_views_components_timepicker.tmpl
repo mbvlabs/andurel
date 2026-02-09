@@ -1,0 +1,78 @@
+package components
+
+// --- Builder ---
+
+type TimepickerBuilder struct {
+	bind       string
+	value      string
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
+}
+
+// Timepicker renders a native time input with a clock icon. The bind parameter is the
+// data-bind attribute for two-way data binding. Use it for scheduling or time-of-day fields.
+//
+//	@components.Timepicker("startTime").WithValue("09:00").Render()
+func Timepicker(bind string) *TimepickerBuilder {
+	return &TimepickerBuilder{bind: bind}
+}
+
+func (b *TimepickerBuilder) WithValue(v string) *TimepickerBuilder     { b.value = v; return b }
+func (b *TimepickerBuilder) WithID(id string) *TimepickerBuilder       { b.id = id; return b }
+func (b *TimepickerBuilder) WithClass(c string) *TimepickerBuilder     { b.class = cn(b.class, c); return b }
+func (b *TimepickerBuilder) SetClass(c string) *TimepickerBuilder      { b.class = c; return b }
+func (b *TimepickerBuilder) WithAttr(key string, val any) *TimepickerBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *TimepickerBuilder) WithFragment(id string) *TimepickerBuilder { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func timepickerClasses(b *TimepickerBuilder) string {
+	return cn("relative w-full", b.class)
+}
+
+func timepickerInputClasses() string {
+	return "flex h-9 w-full rounded-field border border-base-300 bg-base-200 px-3 py-1 pr-8 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
+}
+
+// --- Templ ---
+
+templ (b *TimepickerBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *TimepickerBuilder) render() {
+	<div
+		class={ timepickerClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		<div class="relative">
+			<input
+				type="time"
+				class={ timepickerInputClasses() }
+				data-bind={ b.bind }
+				if b.value != "" {
+					value={ b.value }
+				}
+			/>
+			<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/40"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+			</div>
+		</div>
+	</div>
+}

@@ -1,0 +1,116 @@
+package components
+
+import "fmt"
+
+// --- Builder ---
+
+type InputOTPBuilder struct {
+	bind       string
+	length     int
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
+}
+
+// InputOTP renders a row of individual single-character inputs for one-time password entry.
+// The bind parameter is the signal name that holds the full concatenated OTP value.
+// Supports copy-paste, auto-advance, and backspace navigation.
+//
+//	@components.InputOTP("otp").WithLength(6).Render()
+//	@components.InputOTP("pin").WithLength(4).Render()
+func InputOTP(bind string) *InputOTPBuilder {
+	return &InputOTPBuilder{bind: bind, length: 6}
+}
+
+func (b *InputOTPBuilder) WithLength(l int) *InputOTPBuilder       { b.length = l; return b }
+func (b *InputOTPBuilder) WithID(id string) *InputOTPBuilder       { b.id = id; return b }
+func (b *InputOTPBuilder) WithClass(c string) *InputOTPBuilder     { b.class = cn(b.class, c); return b }
+func (b *InputOTPBuilder) SetClass(c string) *InputOTPBuilder      { b.class = c; return b }
+func (b *InputOTPBuilder) WithAttr(key string, val any) *InputOTPBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *InputOTPBuilder) WithFragment(id string) *InputOTPBuilder { b.fragmentID = id; return b }
+
+// --- JS expression helpers ---
+
+func otpInputExpr(bind string, idx int) string {
+	return fmt.Sprintf(
+		"el.value=el.value.replace(/\\D/g,'').slice(0,1);const _a=[...el.closest('[data-otp]').querySelectorAll('input')];$%s=_a.map(i=>i.value).join('');if(el.value&&_a[%d])_a[%d].focus()",
+		bind, idx+1, idx+1,
+	)
+}
+
+func otpKeydownExpr(bind string) string {
+	return fmt.Sprintf(
+		"if(evt.key==='Backspace'&&!el.value){const _a=[...el.closest('[data-otp]').querySelectorAll('input')];const _i=_a.indexOf(el);if(_i>0){_a[_i-1].value='';_a[_i-1].focus();$%s=_a.map(i=>i.value).join('')}}",
+		bind,
+	)
+}
+
+func otpPasteExpr(bind string, length int) string {
+	return fmt.Sprintf(
+		"evt.preventDefault();const _t=(evt.clipboardData||window.clipboardData).getData('text').replace(/\\D/g,'').slice(0,%d);const _a=[...el.closest('[data-otp]').querySelectorAll('input')];_a.forEach(i=>{i.value=''});_t.split('').forEach((c,i)=>{if(_a[i])_a[i].value=c});$%s=_t;const _f=Math.min(_t.length,%d);if(_a[_f])_a[_f].focus()",
+		length, bind, length-1,
+	)
+}
+
+// --- Class helpers ---
+
+func inputOTPContainerClasses(b *InputOTPBuilder) string {
+	return cn("flex items-center gap-2", b.class)
+}
+
+func inputOTPSlotClasses() string {
+	return "flex h-10 w-10 items-center justify-center rounded-field border border-base-300 bg-base-200 text-sm font-medium text-base-content shadow-inner transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/50"
+}
+
+// --- Templ ---
+
+templ (b *InputOTPBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *InputOTPBuilder) render() {
+	<div
+		class={ inputOTPContainerClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		data-otp
+		{ templ.Attributes{"data-signals:" + b.bind: ""}... }
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		for i := 0; i < b.length; i++ {
+			<div class={ inputOTPSlotClasses() }>
+				<input
+					type="text"
+					maxlength="1"
+					class="h-full w-full bg-transparent text-center outline-none"
+					inputmode="numeric"
+					if i == 0 {
+						autocomplete="one-time-code"
+					}
+					data-on:input={ otpInputExpr(b.bind, i) }
+					data-on:keydown={ otpKeydownExpr(b.bind) }
+					data-on:paste={ otpPasteExpr(b.bind, b.length) }
+					data-on:focus="el.select()"
+				/>
+			</div>
+			if i == 2 && b.length == 6 {
+				<div class="flex items-center text-base-content/40">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+				</div>
+			}
+		}
+	</div>
+}

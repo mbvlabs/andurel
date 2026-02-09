@@ -1,0 +1,123 @@
+package components
+
+// --- Builder ---
+
+type SelectBuilder struct {
+	bind       string
+	disabled   bool
+	required   bool
+	hasError   bool
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
+}
+
+// Select renders a native <select> dropdown. The bind parameter is the data-bind attribute
+// for two-way data binding. Supports error styling via WithHasError. Compose with
+// SelectItem, SelectGroup, and SelectSeparator sub-components for options.
+//
+//	@components.Select("country").WithRequired(true).Render() {
+//		@components.SelectItem("Choose a country", "", false, false)
+//		@components.SelectItem("United States", "us", false, false)
+//		@components.SelectItem("United Kingdom", "uk", false, false)
+//	}
+func Select(bind string) *SelectBuilder {
+	return &SelectBuilder{bind: bind}
+}
+
+func (b *SelectBuilder) WithDisabled(d bool) *SelectBuilder      { b.disabled = d; return b }
+func (b *SelectBuilder) WithRequired(r bool) *SelectBuilder      { b.required = r; return b }
+func (b *SelectBuilder) WithHasError(e bool) *SelectBuilder      { b.hasError = e; return b }
+func (b *SelectBuilder) WithID(id string) *SelectBuilder         { b.id = id; return b }
+func (b *SelectBuilder) WithClass(c string) *SelectBuilder       { b.class = cn(b.class, c); return b }
+func (b *SelectBuilder) SetClass(c string) *SelectBuilder        { b.class = c; return b }
+func (b *SelectBuilder) WithAttr(key string, val any) *SelectBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *SelectBuilder) WithFragment(id string) *SelectBuilder   { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func selectClasses(b *SelectBuilder) string {
+	base := "flex h-9 w-full items-center justify-between rounded-field border bg-base-200 px-3 py-2 text-sm text-base-content shadow-inner transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 [&>span]:line-clamp-1"
+	borderClass := "border-base-300"
+	if b.hasError {
+		borderClass = "border-error focus:border-error focus:ring-error/50"
+	}
+	return cn(base, borderClass, b.class)
+}
+
+// --- Templ ---
+
+templ (b *SelectBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render() {
+				{ children... }
+			}
+		}
+	} else {
+		@b.render() {
+			{ children... }
+		}
+	}
+}
+
+templ (b *SelectBuilder) render() {
+	<select
+		class={ selectClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		data-bind={ b.bind }
+		if b.disabled {
+			disabled
+		}
+		if b.required {
+			required
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		{ children... }
+	</select>
+}
+
+templ SelectItem(label string, value string, selected bool, disabled bool, opts ...Opt) {
+	<option
+		if value != "" {
+			value={ value }
+		}
+		if disabled {
+			disabled
+		}
+		if selected {
+			selected
+		}
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
+		{ label }
+	</option>
+}
+
+templ SelectGroup(label string, opts ...Opt) {
+	<optgroup
+		if label != "" {
+			label={ label }
+		}
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
+		{ children... }
+	</optgroup>
+}
+
+templ SelectSeparator() {
+	<option disabled>---</option>
+}

@@ -1,0 +1,105 @@
+package components
+
+// --- Class helpers ---
+
+func tableClasses(class string) string {
+	return cn("w-full caption-bottom text-sm", class)
+}
+
+func tableHeaderClasses(class string) string {
+	return cn("[&_tr]:border-b [&_tr]:border-base-300", class)
+}
+
+func tableBodyClasses(class string) string {
+	return cn("[&_tr:last-child]:border-0", class)
+}
+
+func tableFooterClasses(class string) string {
+	return cn("border-t border-base-300 bg-base-200/50 font-medium [&>tr]:last:border-b-0", class)
+}
+
+func tableRowClasses(class string) string {
+	return cn("border-b border-base-300 transition-colors hover:bg-base-200/50", class)
+}
+
+func tableHeadClasses(class string) string {
+	return cn("h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0", class)
+}
+
+func tableCellClasses(class string) string {
+	return cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", class)
+}
+
+func tableCaptionClasses(class string) string {
+	return cn("mt-4 text-sm text-base-content/60", class)
+}
+
+// --- Templ ---
+
+// Table renders a data table with consistent styling. Use it for displaying structured
+// data like user lists, transactions, or search results. Compose with TableHeader,
+// TableBody, TableFooter, TableRow, TableHead, TableCell, and TableCaption sub-components.
+//
+//	@components.Table() {
+//		@components.TableHeader() {
+//			@components.TableRow() {
+//				@components.TableHead() { Name }
+//				@components.TableHead() { Email }
+//			}
+//		}
+//		@components.TableBody() {
+//			@components.TableRow() {
+//				@components.TableCell() { Jane }
+//				@components.TableCell() { jane@example.com }
+//			}
+//		}
+//	}
+templ Table(opts ...Opt) {
+	<div class="relative w-full overflow-auto">
+		<table class={ tableClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+			{ children... }
+		</table>
+	</div>
+}
+
+templ TableHeader(opts ...Opt) {
+	<thead class={ tableHeaderClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ children... }
+	</thead>
+}
+
+templ TableBody(opts ...Opt) {
+	<tbody class={ tableBodyClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ children... }
+	</tbody>
+}
+
+templ TableFooter(opts ...Opt) {
+	<tfoot class={ tableFooterClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ children... }
+	</tfoot>
+}
+
+templ TableRow(opts ...Opt) {
+	<tr class={ tableRowClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ children... }
+	</tr>
+}
+
+templ TableHead(opts ...Opt) {
+	<th class={ tableHeadClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ children... }
+	</th>
+}
+
+templ TableCell(opts ...Opt) {
+	<td class={ tableCellClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ children... }
+	</td>
+}
+
+templ TableCaption(caption string, opts ...Opt) {
+	<caption class={ tableCaptionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ caption }
+	</caption>
+}

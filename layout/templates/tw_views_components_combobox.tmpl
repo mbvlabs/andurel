@@ -1,0 +1,153 @@
+package components
+
+import "github.com/rs/xid"
+
+// --- Builder ---
+
+type ComboboxBuilder struct {
+	bind        string
+	placeholder string
+	id          string
+	class       string
+	attrs       templ.Attributes
+	fragmentID  string
+}
+
+func comboboxResolveID(b *ComboboxBuilder) string {
+	if b.id != "" {
+		return b.id
+	}
+	return "cb_" + xid.New().String()
+}
+
+// Combobox renders a searchable dropdown input for selecting from a list of options.
+// The bind parameter is the data-bind attribute for two-way data binding. Use it when
+// you have many options and users need to filter by typing. Compose with ComboboxList
+// and ComboboxItem sub-components.
+//
+//	@components.Combobox("framework").WithPlaceholder("Search frameworks...").Render() {
+//		@components.ComboboxList() {
+//			@components.ComboboxItem("Go", "go", false)
+//			@components.ComboboxItem("Rust", "rust", true)
+//		}
+//	}
+func Combobox(bind string) *ComboboxBuilder {
+	return &ComboboxBuilder{bind: bind}
+}
+
+func (b *ComboboxBuilder) WithPlaceholder(p string) *ComboboxBuilder { b.placeholder = p; return b }
+func (b *ComboboxBuilder) WithID(id string) *ComboboxBuilder         { b.id = id; return b }
+func (b *ComboboxBuilder) WithClass(c string) *ComboboxBuilder       { b.class = cn(b.class, c); return b }
+func (b *ComboboxBuilder) SetClass(c string) *ComboboxBuilder        { b.class = c; return b }
+func (b *ComboboxBuilder) WithAttr(key string, val any) *ComboboxBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *ComboboxBuilder) WithFragment(id string) *ComboboxBuilder   { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func comboboxClasses(b *ComboboxBuilder) string {
+	return cn("relative w-full", b.class)
+}
+
+func comboboxInputClasses() string {
+	return "flex h-9 w-full rounded-field border border-base-300 bg-base-200 px-3 py-1 pr-8 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+}
+
+func comboboxListClasses() string {
+	return "absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-md"
+}
+
+func comboboxItemClasses(selected bool, class string) string {
+	base := "relative flex cursor-pointer select-none items-center rounded-field px-2 py-1.5 text-sm outline-none hover:bg-base-200"
+	if selected {
+		return cn(base, "bg-base-200", class)
+	}
+	return cn(base, class)
+}
+
+// --- Templ ---
+
+templ (b *ComboboxBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render() {
+				{ children... }
+			}
+		}
+	} else {
+		@b.render() {
+			{ children... }
+		}
+	}
+}
+
+templ (b *ComboboxBuilder) render() {
+	@b.renderInner(comboboxResolveID(b)) {
+		{ children... }
+	}
+}
+
+templ (b *ComboboxBuilder) renderInner(sid string) {
+	<div
+		class={ comboboxClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		{ templ.Attributes{"data-signals:_" + sid: "false"}... }
+		{ templ.Attributes{"data-on:click.outside": "$_" + sid + " = false"}... }
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		<div class="relative">
+			<input
+				type="text"
+				class={ comboboxInputClasses() }
+				if b.placeholder != "" {
+					placeholder={ b.placeholder }
+				}
+				data-bind={ b.bind }
+				autocomplete="off"
+				{ templ.Attributes{"data-on:focus": "$_" + sid + " = true"}... }
+			/>
+			<div
+				class="absolute inset-y-0 right-0 flex items-center pr-2 cursor-pointer"
+				{ templ.Attributes{"data-on:click": "$_" + sid + " = !$_" + sid}... }
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/40"><path d="m7 15 5 5 5-5"></path><path d="m7 9 5-5 5 5"></path></svg>
+			</div>
+		</div>
+		<div { templ.Attributes{"data-show": "$_" + sid}... }>
+			{ children... }
+		</div>
+	</div>
+}
+
+templ ComboboxList() {
+	<ul class={ comboboxListClasses() } role="listbox">
+		{ children... }
+	</ul>
+}
+
+templ ComboboxItem(label string, value string, selected bool, opts ...Opt) {
+	<li
+		class={ comboboxItemClasses(selected, classFrom(opts)) }
+		role="option"
+		if value != "" {
+			data-value={ value }
+		}
+		if selected {
+			aria-selected="true"
+		}
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
+		if selected {
+			<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 shrink-0"><path d="M20 6 9 17l-5-5"></path></svg>
+		}
+		{ label }
+	</li>
+}

@@ -1,0 +1,85 @@
+package components
+
+// --- Builder ---
+
+type TagsInputBuilder struct {
+	bind        string
+	placeholder string
+	id          string
+	class       string
+	attrs       templ.Attributes
+	fragmentID  string
+}
+
+// TagsInput renders an input field that collects multiple tag/chip values. The bind parameter
+// is the data-bind attribute for the text input. Use it for entering multiple keywords,
+// categories, or email addresses. Compose with Tag sub-components for pre-existing tags.
+//
+//	@components.TagsInput("tags").WithPlaceholder("Add a tag...").Render() {
+//		@components.Tag("Go")
+//		@components.Tag("Templ")
+//	}
+func TagsInput(bind string) *TagsInputBuilder {
+	return &TagsInputBuilder{bind: bind}
+}
+
+func (b *TagsInputBuilder) WithPlaceholder(p string) *TagsInputBuilder { b.placeholder = p; return b }
+func (b *TagsInputBuilder) WithID(id string) *TagsInputBuilder         { b.id = id; return b }
+func (b *TagsInputBuilder) WithClass(c string) *TagsInputBuilder       { b.class = cn(b.class, c); return b }
+func (b *TagsInputBuilder) SetClass(c string) *TagsInputBuilder        { b.class = c; return b }
+func (b *TagsInputBuilder) WithAttr(key string, val any) *TagsInputBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *TagsInputBuilder) WithFragment(id string) *TagsInputBuilder   { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func tagsInputContainerClasses(b *TagsInputBuilder) string {
+	base := "flex min-h-9 w-full flex-wrap items-center gap-1.5 rounded-field border border-base-300 bg-base-200 px-3 py-1.5 text-sm shadow-inner transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/50"
+	return cn(base, b.class)
+}
+
+// --- Templ ---
+
+templ (b *TagsInputBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render() {
+				{ children... }
+			}
+		}
+	} else {
+		@b.render() {
+			{ children... }
+		}
+	}
+}
+
+templ (b *TagsInputBuilder) render() {
+	<div
+		class={ tagsInputContainerClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		{ children... }
+		<input
+			type="text"
+			class="flex-1 bg-transparent outline-none placeholder:text-base-content/40 min-w-[80px]"
+			if b.placeholder != "" {
+				placeholder={ b.placeholder }
+			}
+			data-bind={ b.bind }
+		/>
+	</div>
+}
+
+templ Tag(label string, opts ...Opt) {
+	<span class={ cn("inline-flex items-center gap-1 rounded-full bg-base-300 px-2 py-0.5 text-xs font-medium text-base-content", classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ label }
+	</span>
+}

@@ -1,0 +1,97 @@
+package components
+
+// --- Class helpers ---
+
+func dialogClasses(class string) string {
+	return cn("relative", class)
+}
+
+func dialogOverlayClasses() string {
+	return "fixed inset-0 z-50 bg-black/80"
+}
+
+func dialogContentClasses(class string) string {
+	return cn("fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border border-base-300 bg-base-100 p-6 shadow-lg rounded-box", class)
+}
+
+func dialogHeaderClasses(class string) string {
+	return cn("flex flex-col space-y-1.5 text-center sm:text-left", class)
+}
+
+func dialogTitleClasses(class string) string {
+	return cn("text-lg font-semibold leading-none tracking-tight text-base-content", class)
+}
+
+func dialogDescriptionClasses(class string) string {
+	return cn("text-sm text-base-content/60", class)
+}
+
+func dialogFooterClasses(class string) string {
+	return cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", class)
+}
+
+func dialogCloseClasses() string {
+	return "absolute right-4 top-4 rounded-field opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
+}
+
+// --- Templ ---
+
+// Dialog creates a modal overlay for displaying content that requires user attention or
+// interaction (forms, confirmations, details). Pass the trigger as a component and compose
+// the body with DialogHeader, DialogTitle, DialogDescription, and DialogFooter.
+//
+//	@components.Dialog(triggerBtn) {
+//		@components.DialogHeader() {
+//			@components.DialogTitle("Edit Profile")
+//			@components.DialogDescription("Make changes to your profile.")
+//		}
+//		<p>Dialog body content</p>
+//		@components.DialogFooter() { ... }
+//	}
+templ Dialog(trigger templ.Component, opts ...Opt) {
+	@dialogInner(resolveID(opts), trigger, classFrom(opts), attrsFrom(opts)) {
+		{ children... }
+	}
+}
+
+templ dialogInner(id string, trigger templ.Component, class string, attrs templ.Attributes) {
+	<div class={ dialogClasses(class) } { templ.Attributes{"data-signals:_" + id: "false"}... } if attrsWithout(attrs, "data-on:click") != nil { { attrsWithout(attrs, "data-on:click")... } }>
+		<div class="cursor-pointer inline-block" { templ.Attributes{"data-on:click": triggerClickExpr(id, attrs)}... }>
+			@trigger
+		</div>
+		<div { templ.Attributes{"data-show": "$_" + id}... }>
+			<div class={ dialogOverlayClasses() } { templ.Attributes{"data-on:click": "$_" + id + " = false"}... }></div>
+			<div class={ dialogContentClasses("") } role="dialog" aria-modal="true">
+				{ children... }
+				<button type="button" class={ dialogCloseClasses() } { templ.Attributes{"data-on:click": "$_" + id + " = false"}... }>
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+					<span class="sr-only">Close</span>
+				</button>
+			</div>
+		</div>
+	</div>
+}
+
+templ DialogHeader(opts ...Opt) {
+	<div class={ dialogHeaderClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ children... }
+	</div>
+}
+
+templ DialogTitle(title string, opts ...Opt) {
+	<h2 class={ dialogTitleClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ title }
+	</h2>
+}
+
+templ DialogDescription(description string, opts ...Opt) {
+	<p class={ dialogDescriptionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ description }
+	</p>
+}
+
+templ DialogFooter(opts ...Opt) {
+	<div class={ dialogFooterClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ children... }
+	</div>
+}

@@ -1,0 +1,94 @@
+package components
+
+// --- Types ---
+
+type BadgeVariant string
+
+const (
+	BadgeVariantDefault     BadgeVariant = "default"
+	BadgeVariantSecondary   BadgeVariant = "secondary"
+	BadgeVariantOutline     BadgeVariant = "outline"
+	BadgeVariantDestructive BadgeVariant = "destructive"
+)
+
+// --- Props ---
+
+type BadgeProps struct {
+	Label string
+}
+
+// --- Builder ---
+
+type BadgeBuilder struct {
+	label      string
+	variant    BadgeVariant
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
+}
+
+// Badge renders a small label for status indicators, counts, or categories.
+// Use it next to text, in tables, or on cards to convey metadata at a glance.
+// Variants: BadgeVariantDefault, BadgeVariantSecondary, BadgeVariantOutline, BadgeVariantDestructive.
+//
+//	@components.Badge(components.BadgeProps{Label: "New"}).WithVariant(components.BadgeVariantSecondary).Render()
+func Badge(props BadgeProps) *BadgeBuilder {
+	return &BadgeBuilder{label: props.Label}
+}
+
+func (b *BadgeBuilder) WithVariant(v BadgeVariant) *BadgeBuilder { b.variant = v; return b }
+func (b *BadgeBuilder) WithID(id string) *BadgeBuilder           { b.id = id; return b }
+func (b *BadgeBuilder) WithClass(c string) *BadgeBuilder         { b.class = cn(b.class, c); return b }
+func (b *BadgeBuilder) SetClass(c string) *BadgeBuilder          { b.class = c; return b }
+func (b *BadgeBuilder) WithAttr(key string, val any) *BadgeBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *BadgeBuilder) WithFragment(id string) *BadgeBuilder     { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func badgeVariantClasses(v BadgeVariant) string {
+	switch v {
+	case BadgeVariantSecondary:
+		return "bg-base-200 text-base-content"
+	case BadgeVariantOutline:
+		return "border border-base-300 bg-transparent text-base-content"
+	case BadgeVariantDestructive:
+		return "bg-error text-error-content"
+	default:
+		return "bg-primary text-primary-content"
+	}
+}
+
+func badgeClasses(b *BadgeBuilder) string {
+	base := "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors"
+	return cn(base, badgeVariantClasses(b.variant), b.class)
+}
+
+// --- Templ ---
+
+templ (b *BadgeBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *BadgeBuilder) render() {
+	<span
+		class={ badgeClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		{ b.label }
+	</span>
+}

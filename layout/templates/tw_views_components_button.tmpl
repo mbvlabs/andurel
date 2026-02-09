@@ -1,0 +1,185 @@
+package components
+
+// --- Types ---
+
+type ButtonVariant string
+type ButtonSize string
+type ButtonType string
+
+const (
+	ButtonVariantDefault     ButtonVariant = "default"
+	ButtonVariantSecondary   ButtonVariant = "secondary"
+	ButtonVariantOutline     ButtonVariant = "outline"
+	ButtonVariantGhost       ButtonVariant = "ghost"
+	ButtonVariantLink        ButtonVariant = "link"
+	ButtonVariantDestructive ButtonVariant = "destructive"
+)
+
+const (
+	ButtonSizeDefault ButtonSize = "default"
+	ButtonSizeSm      ButtonSize = "sm"
+	ButtonSizeLg      ButtonSize = "lg"
+	ButtonSizeIcon    ButtonSize = "icon"
+)
+
+const (
+	ButtonTypeButton ButtonType = "button"
+	ButtonTypeSubmit ButtonType = "submit"
+	ButtonTypeReset  ButtonType = "reset"
+)
+
+// --- Props ---
+
+type ButtonProps struct {
+	Label string
+}
+
+// --- Builder ---
+
+type ButtonBuilder struct {
+	label        string
+	variant      ButtonVariant
+	size         ButtonSize
+	btnType      ButtonType
+	disabled     bool
+	fullWidth    bool
+	href         string
+	loadingLabel string
+	loadingSignal string
+	id           string
+	class        string
+	attrs        templ.Attributes
+	fragmentID   string
+}
+
+// Button renders a clickable button or link styled as a button. Use it for primary actions,
+// form submissions, navigation, or any interactive trigger. When WithHref is set, renders
+// as an <a> tag instead of <button>.
+// Variants: ButtonVariantDefault, ButtonVariantSecondary, ButtonVariantOutline, ButtonVariantGhost, ButtonVariantLink, ButtonVariantDestructive.
+// Sizes: ButtonSizeDefault, ButtonSizeSm, ButtonSizeLg, ButtonSizeIcon.
+// Types: ButtonTypeButton (default), ButtonTypeSubmit, ButtonTypeReset.
+//
+//	@components.Button(components.ButtonProps{Label: "Click Me"}).MakeOutline().WithSize(components.ButtonSizeSm).Render()
+//	@components.Button(components.ButtonProps{Label: "Submit"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+func Button(props ButtonProps) *ButtonBuilder {
+	return &ButtonBuilder{label: props.Label, btnType: ButtonTypeButton}
+}
+
+func (b *ButtonBuilder) WithVariant(v ButtonVariant) *ButtonBuilder   { b.variant = v; return b }
+func (b *ButtonBuilder) MakeSecondary() *ButtonBuilder                { b.variant = ButtonVariantSecondary; return b }
+func (b *ButtonBuilder) MakeOutline() *ButtonBuilder                  { b.variant = ButtonVariantOutline; return b }
+func (b *ButtonBuilder) MakeGhost() *ButtonBuilder                    { b.variant = ButtonVariantGhost; return b }
+func (b *ButtonBuilder) MakeLink() *ButtonBuilder                     { b.variant = ButtonVariantLink; return b }
+func (b *ButtonBuilder) MakeDestructive() *ButtonBuilder              { b.variant = ButtonVariantDestructive; return b }
+func (b *ButtonBuilder) WithSize(s ButtonSize) *ButtonBuilder         { b.size = s; return b }
+func (b *ButtonBuilder) WithType(t ButtonType) *ButtonBuilder         { b.btnType = t; return b }
+func (b *ButtonBuilder) WithDisabled(d bool) *ButtonBuilder           { b.disabled = d; return b }
+func (b *ButtonBuilder) WithFullWidth(fw bool) *ButtonBuilder         { b.fullWidth = fw; return b }
+func (b *ButtonBuilder) WithHref(h string) *ButtonBuilder             { b.href = h; return b }
+func (b *ButtonBuilder) WithID(id string) *ButtonBuilder              { b.id = id; return b }
+func (b *ButtonBuilder) WithClass(c string) *ButtonBuilder            { b.class = cn(b.class, c); return b }
+func (b *ButtonBuilder) SetClass(c string) *ButtonBuilder             { b.class = c; return b }
+func (b *ButtonBuilder) WithAttr(key string, val any) *ButtonBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *ButtonBuilder) WithFragment(id string) *ButtonBuilder        { b.fragmentID = id; return b }
+func (b *ButtonBuilder) WithLoadingLabel(label string, signal string) *ButtonBuilder {
+	b.loadingLabel = label; b.loadingSignal = signal; return b
+}
+
+// --- Class helpers ---
+
+func buttonVariantClasses(v ButtonVariant) string {
+	switch v {
+	case ButtonVariantSecondary:
+		return "bg-base-200 text-base-content shadow-sm hover:bg-base-300"
+	case ButtonVariantOutline:
+		return "border border-base-300 bg-transparent text-base-content shadow-sm hover:bg-base-200"
+	case ButtonVariantGhost:
+		return "text-base-content hover:bg-base-200"
+	case ButtonVariantLink:
+		return "text-primary underline-offset-4 hover:underline"
+	case ButtonVariantDestructive:
+		return "bg-error text-error-content shadow-sm hover:bg-error/90"
+	default:
+		return "bg-primary text-primary-content shadow-sm hover:bg-primary/90"
+	}
+}
+
+func buttonSizeClasses(s ButtonSize) string {
+	switch s {
+	case ButtonSizeSm:
+		return "h-8 px-3 text-xs rounded-field"
+	case ButtonSizeLg:
+		return "h-11 px-8 text-base rounded-field"
+	case ButtonSizeIcon:
+		return "h-9 w-9 rounded-field"
+	default:
+		return "h-9 px-4 py-2 text-sm rounded-field"
+	}
+}
+
+func buttonClasses(b *ButtonBuilder) string {
+	base := "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed"
+	width := ""
+	if b.fullWidth {
+		width = "w-full"
+	}
+	return cn(base, buttonVariantClasses(b.variant), buttonSizeClasses(b.size), width, b.class)
+}
+
+// --- Templ ---
+
+templ (b *ButtonBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *ButtonBuilder) render() {
+	if b.href != "" && !b.disabled {
+		<a
+			href={ templ.SafeURL(b.href) }
+			class={ buttonClasses(b) }
+			if b.id != "" {
+				id={ b.id }
+			}
+			if b.attrs != nil {
+				{ b.attrs... }
+			}
+		>
+			if b.loadingLabel != "" {
+				<span data-show={ "!$" + b.loadingSignal }>{ b.label }</span>
+				<span data-show={ "$" + b.loadingSignal }>{ b.loadingLabel }</span>
+			} else {
+				{ b.label }
+			}
+		</a>
+	} else {
+		<button
+			type={ string(b.btnType) }
+			class={ buttonClasses(b) }
+			if b.id != "" {
+				id={ b.id }
+			}
+			if b.disabled {
+				disabled
+			}
+			if b.attrs != nil {
+				{ b.attrs... }
+			}
+		>
+			if b.loadingLabel != "" {
+				<span data-show={ "!$" + b.loadingSignal }>{ b.label }</span>
+				<span data-show={ "$" + b.loadingSignal }>{ b.loadingLabel }</span>
+			} else {
+				{ b.label }
+			}
+		</button>
+	}
+}

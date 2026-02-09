@@ -1,0 +1,154 @@
+package components
+
+import (
+	"fmt"
+	"time"
+)
+
+// --- Builder ---
+
+type CalendarBuilder struct {
+	month        int
+	year         int
+	selectedDate string
+	id           string
+	class        string
+	attrs        templ.Attributes
+	fragmentID   string
+}
+
+// Calendar renders a month-view date grid for selecting or displaying dates.
+// Defaults to the current month/year if not specified. Use it inside popovers or
+// inline to let users pick a date.
+//
+//	@components.Calendar().WithMonth(1).WithYear(2025).WithSelectedDate("2025-01-15").Render()
+func Calendar() *CalendarBuilder {
+	return &CalendarBuilder{}
+}
+
+func (b *CalendarBuilder) WithMonth(m int) *CalendarBuilder          { b.month = m; return b }
+func (b *CalendarBuilder) WithYear(y int) *CalendarBuilder           { b.year = y; return b }
+func (b *CalendarBuilder) WithSelectedDate(d string) *CalendarBuilder { b.selectedDate = d; return b }
+func (b *CalendarBuilder) WithID(id string) *CalendarBuilder         { b.id = id; return b }
+func (b *CalendarBuilder) WithClass(c string) *CalendarBuilder       { b.class = cn(b.class, c); return b }
+func (b *CalendarBuilder) SetClass(c string) *CalendarBuilder        { b.class = c; return b }
+func (b *CalendarBuilder) WithAttr(key string, val any) *CalendarBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *CalendarBuilder) WithFragment(id string) *CalendarBuilder   { b.fragmentID = id; return b }
+
+// --- Helpers ---
+
+func calendarClasses(b *CalendarBuilder) string {
+	return cn("p-3 rounded-box border border-base-300 bg-base-100 shadow-sm w-fit", b.class)
+}
+
+func calendarMonthName(month int) string {
+	if month < 1 || month > 12 {
+		month = int(time.Now().Month())
+	}
+	return time.Month(month).String()
+}
+
+func calendarDaysInMonth(year, month int) int {
+	return time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, time.UTC).Day()
+}
+
+func calendarFirstWeekday(year, month int) int {
+	return int(time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC).Weekday())
+}
+
+func calendarDateStr(year, month, day int) string {
+	return fmt.Sprintf("%04d-%02d-%02d", year, month, day)
+}
+
+// --- Templ ---
+
+templ (b *CalendarBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *CalendarBuilder) render() {
+	if b.year == 0 {
+		{{ "{{" }} b.year = time.Now().Year() {{ "}}" }}
+	}
+	if b.month == 0 {
+		{{ "{{" }} b.month = int(time.Now().Month()) {{ "}}" }}
+	}
+	<div
+		class={ calendarClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		<div class="flex items-center justify-between mb-2">
+			<button type="button" class="inline-flex items-center justify-center h-7 w-7 rounded-field text-base-content/60 hover:bg-base-200 transition cursor-pointer">
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+			</button>
+			<span class="text-sm font-medium text-base-content">
+				{ calendarMonthName(b.month) } { fmt.Sprintf("%d", b.year) }
+			</span>
+			<button type="button" class="inline-flex items-center justify-center h-7 w-7 rounded-field text-base-content/60 hover:bg-base-200 transition cursor-pointer">
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+			</button>
+		</div>
+		<table class="w-full border-collapse">
+			<thead>
+				<tr>
+					<th class="h-8 w-8 text-center text-xs font-normal text-base-content/60">Su</th>
+					<th class="h-8 w-8 text-center text-xs font-normal text-base-content/60">Mo</th>
+					<th class="h-8 w-8 text-center text-xs font-normal text-base-content/60">Tu</th>
+					<th class="h-8 w-8 text-center text-xs font-normal text-base-content/60">We</th>
+					<th class="h-8 w-8 text-center text-xs font-normal text-base-content/60">Th</th>
+					<th class="h-8 w-8 text-center text-xs font-normal text-base-content/60">Fr</th>
+					<th class="h-8 w-8 text-center text-xs font-normal text-base-content/60">Sa</th>
+				</tr>
+			</thead>
+			<tbody>
+				@calendarBody(b.year, b.month, b.selectedDate)
+			</tbody>
+		</table>
+	</div>
+}
+
+templ calendarBody(year int, month int, selectedDate string) {
+	{{ "{{" }} days := calendarDaysInMonth(year, month) {{ "}}" }}
+	{{ "{{" }} firstDay := calendarFirstWeekday(year, month) {{ "}}" }}
+	{{ "{{" }} day := 1 {{ "}}" }}
+	for row := 0; row < 6; row++ {
+		if day <= days {
+			<tr>
+				for col := 0; col < 7; col++ {
+					if (row == 0 && col < firstDay) || day > days {
+						<td class="h-8 w-8"></td>
+					} else {
+						if calendarDateStr(year, month, day) == selectedDate {
+							<td class="h-8 w-8 text-center">
+								<button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-field bg-primary text-primary-content text-sm font-medium cursor-pointer">
+									{ fmt.Sprintf("%d", day) }
+								</button>
+							</td>
+						} else {
+							<td class="h-8 w-8 text-center">
+								<button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-field text-sm text-base-content hover:bg-base-200 transition cursor-pointer">
+									{ fmt.Sprintf("%d", day) }
+								</button>
+							</td>
+						}
+						{{ "{{" }} day++ {{ "}}" }}
+					}
+				}
+			</tr>
+		}
+	}
+}

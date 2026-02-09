@@ -1,0 +1,77 @@
+package components
+
+// --- Class helpers ---
+
+func cardClasses(class string) string {
+	return cn("rounded-box border border-base-300 bg-base-100 shadow-sm", class)
+}
+
+func cardHeaderClasses(class string) string {
+	return cn("flex flex-col space-y-1.5 p-6", class)
+}
+
+func cardTitleClasses(class string) string {
+	return cn("text-lg font-semibold leading-none tracking-tight text-base-content", class)
+}
+
+func cardDescriptionClasses(class string) string {
+	return cn("text-sm text-base-content/60", class)
+}
+
+func cardContentClasses(class string) string {
+	return cn("p-6 pt-0", class)
+}
+
+func cardFooterClasses(class string) string {
+	return cn("flex items-center p-6 pt-0", class)
+}
+
+// --- Templ ---
+
+// Card renders a bordered container for grouping related content. Use it for dashboard
+// widgets, form sections, or any content that needs visual separation. Compose with
+// CardHeader, CardTitle, CardDescription, CardContent, and CardFooter sub-components.
+//
+//	@components.Card() {
+//		@components.CardHeader() {
+//			@components.CardTitle("Title")
+//			@components.CardDescription("Description")
+//		}
+//		@components.CardContent() { Body content }
+//		@components.CardFooter() { Footer actions }
+//	}
+templ Card(opts ...Opt) {
+	<div class={ cardClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ children... }
+	</div>
+}
+
+templ CardHeader(opts ...Opt) {
+	<div class={ cardHeaderClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ children... }
+	</div>
+}
+
+templ CardTitle(title string, opts ...Opt) {
+	<h3 class={ cardTitleClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ title }
+	</h3>
+}
+
+templ CardDescription(description string, opts ...Opt) {
+	<p class={ cardDescriptionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ description }
+	</p>
+}
+
+templ CardContent(opts ...Opt) {
+	<div class={ cardContentClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ children... }
+	</div>
+}
+
+templ CardFooter(opts ...Opt) {
+	<div class={ cardFooterClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ children... }
+	</div>
+}

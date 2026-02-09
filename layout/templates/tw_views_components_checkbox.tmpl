@@ -1,0 +1,83 @@
+package components
+
+// --- Builder ---
+
+type CheckboxBuilder struct {
+	bind       string
+	value      string
+	checked    bool
+	disabled   bool
+	required   bool
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
+}
+
+// Checkbox renders a boolean toggle input. The bind parameter is the data-bind attribute
+// used for two-way data binding with the form state. Use it for boolean fields or multi-select
+// options in forms. Pair with Label for accessible labeling.
+//
+//	@components.Checkbox("terms").WithRequired(true).Render()
+//	@components.Checkbox("newsletter").WithChecked(true).Render()
+func Checkbox(bind string) *CheckboxBuilder {
+	return &CheckboxBuilder{bind: bind}
+}
+
+func (b *CheckboxBuilder) WithValue(v string) *CheckboxBuilder       { b.value = v; return b }
+func (b *CheckboxBuilder) WithChecked(c bool) *CheckboxBuilder       { b.checked = c; return b }
+func (b *CheckboxBuilder) WithDisabled(d bool) *CheckboxBuilder      { b.disabled = d; return b }
+func (b *CheckboxBuilder) WithRequired(r bool) *CheckboxBuilder      { b.required = r; return b }
+func (b *CheckboxBuilder) WithID(id string) *CheckboxBuilder         { b.id = id; return b }
+func (b *CheckboxBuilder) WithClass(c string) *CheckboxBuilder       { b.class = cn(b.class, c); return b }
+func (b *CheckboxBuilder) SetClass(c string) *CheckboxBuilder        { b.class = c; return b }
+func (b *CheckboxBuilder) WithAttr(key string, val any) *CheckboxBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *CheckboxBuilder) WithFragment(id string) *CheckboxBuilder   { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func checkboxClasses(b *CheckboxBuilder) string {
+	base := "h-4 w-4 shrink-0 rounded border border-base-300 bg-base-200 accent-primary transition focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
+	return cn(base, b.class)
+}
+
+// --- Templ ---
+
+templ (b *CheckboxBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *CheckboxBuilder) render() {
+	<input
+		type="checkbox"
+		class={ checkboxClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		data-bind={ b.bind }
+		if b.value != "" {
+			value={ b.value }
+		}
+		if b.checked {
+			checked
+		}
+		if b.disabled {
+			disabled
+		}
+		if b.required {
+			required
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	/>
+}

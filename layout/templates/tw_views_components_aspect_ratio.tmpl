@@ -1,0 +1,83 @@
+package components
+
+import "fmt"
+
+// --- Builder ---
+
+type AspectRatioBuilder struct {
+	ratio      float64
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
+}
+
+// AspectRatio constrains its children to a given width-to-height ratio. Use it to
+// maintain consistent proportions for images, videos, or embeds. The ratio parameter
+// is width/height (e.g., 16.0/9.0 for widescreen, 1.0 for square).
+//
+//	@components.AspectRatio(16.0/9.0).Render() {
+//		<img src="/hero.jpg" class="object-cover w-full h-full" />
+//	}
+func AspectRatio(ratio float64) *AspectRatioBuilder {
+	if ratio <= 0 {
+		ratio = 1
+	}
+	return &AspectRatioBuilder{ratio: ratio}
+}
+
+func (b *AspectRatioBuilder) WithID(id string) *AspectRatioBuilder    { b.id = id; return b }
+func (b *AspectRatioBuilder) WithClass(c string) *AspectRatioBuilder  { b.class = cn(b.class, c); return b }
+func (b *AspectRatioBuilder) SetClass(c string) *AspectRatioBuilder   { b.class = c; return b }
+func (b *AspectRatioBuilder) WithAttr(key string, val any) *AspectRatioBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *AspectRatioBuilder) WithFragment(id string) *AspectRatioBuilder { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func aspectRatioStyle(ratio float64) string {
+	if ratio <= 0 {
+		ratio = 1
+	}
+	return fmt.Sprintf("padding-bottom: %.4f%%", (1/ratio)*100)
+}
+
+func aspectRatioClasses(b *AspectRatioBuilder) string {
+	base := "relative w-full"
+	return cn(base, b.class)
+}
+
+// --- Templ ---
+
+templ (b *AspectRatioBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render() {
+				{ children... }
+			}
+		}
+	} else {
+		@b.render() {
+			{ children... }
+		}
+	}
+}
+
+templ (b *AspectRatioBuilder) render() {
+	<div
+		class={ aspectRatioClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		<div style={ aspectRatioStyle(b.ratio) }></div>
+		<div class="absolute inset-0">
+			{ children... }
+		</div>
+	</div>
+}

@@ -1,0 +1,84 @@
+package components
+
+import (
+	"github.com/dromara/carbon/v2"
+	"{{.ModuleName}}/router/cookies"
+)
+
+// --- Types ---
+
+type ToastVariant string
+
+const (
+	ToastVariantSuccess ToastVariant = "success"
+	ToastVariantInfo    ToastVariant = "info"
+	ToastVariantWarning ToastVariant = "warning"
+	ToastVariantError   ToastVariant = "error"
+)
+
+type ToastProps struct {
+	Class      string
+	Attributes templ.Attributes
+}
+
+// --- Class helpers ---
+
+func toastVariantIndicatorClass(v ToastVariant) string {
+	switch v {
+	case ToastVariantSuccess:
+		return "bg-success"
+	case ToastVariantInfo:
+		return "bg-info"
+	case ToastVariantWarning:
+		return "bg-warning"
+	case ToastVariantError:
+		return "bg-error"
+	default:
+		return "bg-info"
+	}
+}
+
+func toastClasses(p ToastProps) string {
+	return cn("max-w-96 border border-base-300 rounded-box bg-base-100 flex flex-col shadow-lg", p.Class)
+}
+
+// --- Templ ---
+
+templ toastBase(variant ToastVariant, flash cookies.FlashMessage) {
+	<div
+		class={ toastClasses(ToastProps{}) }
+		id={ "toast-" + flash.ID.String() }
+		data-signals:visible="true"
+		data-show="$visible"
+		data-init__delay.5000ms="$visible = false"
+	>
+		<div class="px-4 py-2 flex justify-between items-center border-b border-base-300">
+			<div class={ cn("w-3 h-3 rounded-full", toastVariantIndicatorClass(variant)) }></div>
+			<span class="flex items-center gap-2">
+				<p class="text-xs text-base-content/60">{ carbon.CreateFromStdTime(flash.CreatedAt).DiffForHumans() }</p>
+				<button
+					class="rounded-field p-0.5 opacity-70 transition-opacity hover:opacity-100 focus:outline-none cursor-pointer"
+					data-on:click="$visible = false"
+				>
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+				</button>
+			</span>
+		</div>
+		<span class="text-sm text-base-content px-4 py-3">
+			{ flash.Message }
+		</span>
+	</div>
+}
+
+templ ToastMessage(flash cookies.FlashMessage) {
+	switch flash.Type {
+		case cookies.FlashSuccess:
+			@toastBase(ToastVariantSuccess, flash)
+		case cookies.FlashInfo:
+			@toastBase(ToastVariantInfo, flash)
+		case cookies.FlashError:
+			@toastBase(ToastVariantError, flash)
+		case cookies.FlashWarning:
+			@toastBase(ToastVariantWarning, flash)
+	}
+}

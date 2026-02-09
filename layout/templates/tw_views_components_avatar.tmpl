@@ -1,0 +1,97 @@
+package components
+
+// --- Types ---
+
+type AvatarSize string
+
+const (
+	AvatarSizeSm AvatarSize = "sm"
+	AvatarSizeMd AvatarSize = "md"
+	AvatarSizeLg AvatarSize = "lg"
+)
+
+// --- Builder ---
+
+type AvatarBuilder struct {
+	src        string
+	alt        string
+	fallback   string
+	size       AvatarSize
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
+}
+
+// Avatar displays a user profile image with a circular clip. Falls back to initials
+// when no image src is provided. Use it in user profiles, comment lists, or navigation bars.
+// Sizes: AvatarSizeSm (32px), AvatarSizeMd (40px, default), AvatarSizeLg (48px).
+//
+//	@components.Avatar().WithSrc("/avatar.jpg").WithAlt("Jane Doe").WithSize(components.AvatarSizeLg).Render()
+//	@components.Avatar().WithFallback("JD").Render()
+func Avatar() *AvatarBuilder {
+	return &AvatarBuilder{}
+}
+
+func (b *AvatarBuilder) WithSrc(s string) *AvatarBuilder         { b.src = s; return b }
+func (b *AvatarBuilder) WithAlt(a string) *AvatarBuilder         { b.alt = a; return b }
+func (b *AvatarBuilder) WithFallback(f string) *AvatarBuilder    { b.fallback = f; return b }
+func (b *AvatarBuilder) WithSize(s AvatarSize) *AvatarBuilder    { b.size = s; return b }
+func (b *AvatarBuilder) WithID(id string) *AvatarBuilder         { b.id = id; return b }
+func (b *AvatarBuilder) WithClass(c string) *AvatarBuilder       { b.class = cn(b.class, c); return b }
+func (b *AvatarBuilder) SetClass(c string) *AvatarBuilder        { b.class = c; return b }
+func (b *AvatarBuilder) WithAttr(key string, val any) *AvatarBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *AvatarBuilder) WithFragment(id string) *AvatarBuilder   { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func avatarSizeClasses(s AvatarSize) string {
+	switch s {
+	case AvatarSizeSm:
+		return "h-8 w-8 text-xs"
+	case AvatarSizeLg:
+		return "h-12 w-12 text-lg"
+	default:
+		return "h-10 w-10 text-sm"
+	}
+}
+
+func avatarClasses(b *AvatarBuilder) string {
+	base := "relative flex shrink-0 overflow-hidden rounded-full"
+	return cn(base, avatarSizeClasses(b.size), b.class)
+}
+
+// --- Templ ---
+
+templ (b *AvatarBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *AvatarBuilder) render() {
+	<span
+		class={ avatarClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		if b.src != "" {
+			<img class="aspect-square h-full w-full object-cover" src={ b.src } alt={ b.alt }/>
+		} else {
+			<span class="flex h-full w-full items-center justify-center bg-base-200 font-medium text-base-content">
+				{ b.fallback }
+			</span>
+		}
+	</span>
+}

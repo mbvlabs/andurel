@@ -1,0 +1,93 @@
+package components
+
+// --- Class helpers ---
+
+func paginationClasses(class string) string {
+	return cn("mx-auto flex w-full justify-center", class)
+}
+
+func paginationItemClasses(active bool, disabled bool, class string) string {
+	base := "inline-flex items-center justify-center whitespace-nowrap rounded-field text-sm font-medium transition-colors h-9 w-9"
+	if active {
+		return cn(base, "bg-primary text-primary-content", class)
+	}
+	if disabled {
+		return cn(base, "opacity-60 cursor-not-allowed", class)
+	}
+	return cn(base, "hover:bg-base-200 text-base-content", class)
+}
+
+// --- Templ ---
+
+// Pagination renders page navigation controls with numbered links, previous/next buttons,
+// and ellipsis indicators. Use it for paginated lists, tables, or search results. Compose
+// with PaginationPrevious, PaginationItem, PaginationEllipsis, and PaginationNext sub-components.
+//
+//	@components.Pagination() {
+//		@components.PaginationPrevious("/page/1", false)
+//		@components.PaginationItem("1", "/page/1", false, false)
+//		@components.PaginationItem("2", "/page/2", true, false)
+//		@components.PaginationEllipsis()
+//		@components.PaginationNext("/page/3", false)
+//	}
+templ Pagination(opts ...Opt) {
+	<nav aria-label="pagination" class={ paginationClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		<ul class="flex flex-row items-center gap-1">
+			{ children... }
+		</ul>
+	</nav>
+}
+
+templ PaginationItem(label string, href string, active bool, disabled bool, opts ...Opt) {
+	<li>
+		if disabled {
+			<span class={ paginationItemClasses(active, disabled, classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+				{ label }
+			</span>
+		} else {
+			<a href={ templ.SafeURL(href) } class={ paginationItemClasses(active, disabled, classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+				{ label }
+			</a>
+		}
+	</li>
+}
+
+templ PaginationPrevious(href string, disabled bool, opts ...Opt) {
+	<li>
+		if disabled {
+			<span class={ paginationItemClasses(false, disabled, cn("gap-1 pl-2.5 w-auto px-3", classFrom(opts))) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+				Previous
+			</span>
+		} else {
+			<a href={ templ.SafeURL(href) } class={ paginationItemClasses(false, disabled, cn("gap-1 pl-2.5 w-auto px-3", classFrom(opts))) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+				Previous
+			</a>
+		}
+	</li>
+}
+
+templ PaginationNext(href string, disabled bool, opts ...Opt) {
+	<li>
+		if disabled {
+			<span class={ paginationItemClasses(false, disabled, cn("gap-1 pr-2.5 w-auto px-3", classFrom(opts))) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+				Next
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+			</span>
+		} else {
+			<a href={ templ.SafeURL(href) } class={ paginationItemClasses(false, disabled, cn("gap-1 pr-2.5 w-auto px-3", classFrom(opts))) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+				Next
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+			</a>
+		}
+	</li>
+}
+
+templ PaginationEllipsis() {
+	<li>
+		<span class="flex h-9 w-9 items-center justify-center text-base-content/60">
+			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+		</span>
+	</li>
+}

@@ -1,0 +1,94 @@
+package components
+
+import "strconv"
+
+// --- Builder ---
+
+type TextareaBuilder struct {
+	bind        string
+	placeholder string
+	value       string
+	rows        int
+	disabled    bool
+	required    bool
+	hasError    bool
+	id          string
+	class       string
+	attrs       templ.Attributes
+	fragmentID  string
+}
+
+// Textarea renders a multi-line text input. The bind parameter is the data-bind attribute
+// for two-way data binding. Supports error styling via WithHasError. Use it for comments,
+// descriptions, bio fields, or any long-form text input.
+//
+//	@components.Textarea("bio").WithPlaceholder("Tell us about yourself...").WithRows(4).Render()
+//	@components.Textarea("notes").WithHasError(true).WithRequired(true).Render()
+func Textarea(bind string) *TextareaBuilder {
+	return &TextareaBuilder{bind: bind}
+}
+
+func (b *TextareaBuilder) WithPlaceholder(p string) *TextareaBuilder { b.placeholder = p; return b }
+func (b *TextareaBuilder) WithValue(v string) *TextareaBuilder       { b.value = v; return b }
+func (b *TextareaBuilder) WithRows(r int) *TextareaBuilder           { b.rows = r; return b }
+func (b *TextareaBuilder) WithDisabled(d bool) *TextareaBuilder      { b.disabled = d; return b }
+func (b *TextareaBuilder) WithRequired(r bool) *TextareaBuilder      { b.required = r; return b }
+func (b *TextareaBuilder) WithHasError(e bool) *TextareaBuilder      { b.hasError = e; return b }
+func (b *TextareaBuilder) WithID(id string) *TextareaBuilder         { b.id = id; return b }
+func (b *TextareaBuilder) WithClass(c string) *TextareaBuilder       { b.class = cn(b.class, c); return b }
+func (b *TextareaBuilder) SetClass(c string) *TextareaBuilder        { b.class = c; return b }
+func (b *TextareaBuilder) WithAttr(key string, val any) *TextareaBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *TextareaBuilder) WithFragment(id string) *TextareaBuilder   { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func textareaClasses(b *TextareaBuilder) string {
+	base := "flex min-h-[80px] w-full rounded-field border bg-base-200 px-3 py-2 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
+	borderClass := "border-base-300"
+	if b.hasError {
+		borderClass = "border-error focus:border-error focus:ring-error/50"
+	}
+	return cn(base, borderClass, b.class)
+}
+
+// --- Templ ---
+
+templ (b *TextareaBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *TextareaBuilder) render() {
+	<textarea
+		class={ textareaClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		data-bind={ b.bind }
+		if b.placeholder != "" {
+			placeholder={ b.placeholder }
+		}
+		if b.rows > 0 {
+			rows={ strconv.Itoa(b.rows) }
+		}
+		if b.disabled {
+			disabled
+		}
+		if b.required {
+			required
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		{ b.value }
+	</textarea>
+}

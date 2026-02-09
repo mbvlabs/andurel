@@ -1,0 +1,109 @@
+package components
+
+// --- Types ---
+
+type AlertVariant string
+
+const (
+	AlertVariantDefault AlertVariant = "default"
+	AlertVariantInfo    AlertVariant = "info"
+	AlertVariantSuccess AlertVariant = "success"
+	AlertVariantWarning AlertVariant = "warning"
+	AlertVariantError   AlertVariant = "error"
+)
+
+// --- Props ---
+
+type AlertProps struct {
+	Description string
+}
+
+// --- Builder ---
+
+type AlertBuilder struct {
+	description string
+	variant     AlertVariant
+	title       string
+	id          string
+	class       string
+	attrs       templ.Attributes
+	fragmentID  string
+}
+
+// Alert displays a callout message to attract user attention. Use it for important
+// information, warnings, errors, or success messages that appear inline in the page.
+// Variants: AlertVariantDefault, AlertVariantInfo, AlertVariantSuccess, AlertVariantWarning, AlertVariantError.
+//
+//	@components.Alert(components.AlertProps{Description: "Something went wrong."}).MakeError().WithTitle("Error").Render()
+func Alert(props AlertProps) *AlertBuilder {
+	return &AlertBuilder{description: props.Description}
+}
+
+func (b *AlertBuilder) WithVariant(v AlertVariant) *AlertBuilder { b.variant = v; return b }
+func (b *AlertBuilder) MakeInfo() *AlertBuilder                  { b.variant = AlertVariantInfo; return b }
+func (b *AlertBuilder) MakeSuccess() *AlertBuilder               { b.variant = AlertVariantSuccess; return b }
+func (b *AlertBuilder) MakeWarning() *AlertBuilder               { b.variant = AlertVariantWarning; return b }
+func (b *AlertBuilder) MakeError() *AlertBuilder                 { b.variant = AlertVariantError; return b }
+func (b *AlertBuilder) WithTitle(t string) *AlertBuilder         { b.title = t; return b }
+func (b *AlertBuilder) WithID(id string) *AlertBuilder           { b.id = id; return b }
+func (b *AlertBuilder) WithClass(c string) *AlertBuilder         { b.class = cn(b.class, c); return b }
+func (b *AlertBuilder) SetClass(c string) *AlertBuilder          { b.class = c; return b }
+func (b *AlertBuilder) WithAttr(key string, val any) *AlertBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *AlertBuilder) WithFragment(id string) *AlertBuilder     { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func alertVariantClasses(v AlertVariant) string {
+	switch v {
+	case AlertVariantInfo:
+		return "border-info/50 text-info [&>svg]:text-info"
+	case AlertVariantSuccess:
+		return "border-success/50 text-success [&>svg]:text-success"
+	case AlertVariantWarning:
+		return "border-warning/50 text-warning [&>svg]:text-warning"
+	case AlertVariantError:
+		return "border-error/50 text-error [&>svg]:text-error"
+	default:
+		return "border-base-300 text-base-content"
+	}
+}
+
+func alertClasses(b *AlertBuilder) string {
+	base := "relative w-full rounded-box border p-4 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg~*]:pl-7"
+	return cn(base, alertVariantClasses(b.variant), b.class)
+}
+
+// --- Templ ---
+
+templ (b *AlertBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *AlertBuilder) render() {
+	<div
+		role="alert"
+		class={ alertClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		if b.title != "" {
+			<h5 class="mb-1 font-medium leading-none tracking-tight">{ b.title }</h5>
+		}
+		<div class="text-sm [&_p]:leading-relaxed">
+			{ b.description }
+		</div>
+	</div>
+}

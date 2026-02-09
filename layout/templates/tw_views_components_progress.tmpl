@@ -1,0 +1,87 @@
+package components
+
+import "fmt"
+
+// --- Builder ---
+
+type ProgressBuilder struct {
+	value      int
+	max        int
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
+}
+
+// Progress renders a horizontal progress bar. The value parameter is the current progress
+// (0-100 by default). Use it for upload indicators, step completion, or loading states.
+//
+//	@components.Progress(60).Render()
+//	@components.Progress(3).WithMax(5).Render()
+func Progress(value int) *ProgressBuilder {
+	return &ProgressBuilder{value: value, max: 100}
+}
+
+func (b *ProgressBuilder) WithMax(m int) *ProgressBuilder       { b.max = m; return b }
+func (b *ProgressBuilder) WithID(id string) *ProgressBuilder    { b.id = id; return b }
+func (b *ProgressBuilder) WithClass(c string) *ProgressBuilder  { b.class = cn(b.class, c); return b }
+func (b *ProgressBuilder) SetClass(c string) *ProgressBuilder   { b.class = c; return b }
+func (b *ProgressBuilder) WithAttr(key string, val any) *ProgressBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *ProgressBuilder) WithFragment(id string) *ProgressBuilder { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func progressContainerClasses(b *ProgressBuilder) string {
+	base := "relative h-2 w-full overflow-hidden rounded-full bg-base-200"
+	return cn(base, b.class)
+}
+
+func progressWidth(value, max int) string {
+	if max <= 0 {
+		max = 100
+	}
+	pct := (value * 100) / max
+	if pct > 100 {
+		pct = 100
+	}
+	if pct < 0 {
+		pct = 0
+	}
+	return fmt.Sprintf("width: %d%%", pct)
+}
+
+// --- Templ ---
+
+templ (b *ProgressBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *ProgressBuilder) render() {
+	<div
+		role="progressbar"
+		class={ progressContainerClasses(b) }
+		aria-valuemin="0"
+		aria-valuemax={ fmt.Sprintf("%d", b.max) }
+		aria-valuenow={ fmt.Sprintf("%d", b.value) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		<div
+			class="h-full bg-primary transition-all"
+			style={ progressWidth(b.value, b.max) }
+		></div>
+	</div>
+}

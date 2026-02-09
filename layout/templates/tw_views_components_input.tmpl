@@ -1,0 +1,110 @@
+package components
+
+// --- Types ---
+
+type InputType string
+
+const (
+	InputTypeText     InputType = "text"
+	InputTypePassword InputType = "password"
+	InputTypeEmail    InputType = "email"
+	InputTypeNumber   InputType = "number"
+	InputTypeSearch   InputType = "search"
+	InputTypeTel      InputType = "tel"
+	InputTypeURL      InputType = "url"
+	InputTypeDate     InputType = "date"
+	InputTypeTime     InputType = "time"
+	InputTypeHidden   InputType = "hidden"
+	InputTypeFile     InputType = "file"
+)
+
+// --- Builder ---
+
+type InputBuilder struct {
+	bind        string
+	inputType   InputType
+	placeholder string
+	value       string
+	disabled    bool
+	required    bool
+	hasError    bool
+	id          string
+	class       string
+	attrs       templ.Attributes
+	fragmentID  string
+}
+
+// Input renders a single-line text input. The bind parameter is the data-bind attribute
+// for two-way data binding with the form state. Supports error styling via WithHasError.
+// Types: InputTypeText (default), InputTypePassword, InputTypeEmail, InputTypeNumber,
+// InputTypeSearch, InputTypeTel, InputTypeURL, InputTypeDate, InputTypeTime, InputTypeHidden, InputTypeFile.
+//
+//	@components.Input("email").WithType(components.InputTypeEmail).WithPlaceholder("you@example.com").WithRequired(true).Render()
+//	@components.Input("search").WithType(components.InputTypeSearch).WithPlaceholder("Search...").Render()
+func Input(bind string) *InputBuilder {
+	return &InputBuilder{bind: bind, inputType: InputTypeText}
+}
+
+func (b *InputBuilder) WithType(t InputType) *InputBuilder          { b.inputType = t; return b }
+func (b *InputBuilder) WithPlaceholder(p string) *InputBuilder      { b.placeholder = p; return b }
+func (b *InputBuilder) WithValue(v string) *InputBuilder            { b.value = v; return b }
+func (b *InputBuilder) WithDisabled(d bool) *InputBuilder           { b.disabled = d; return b }
+func (b *InputBuilder) WithRequired(r bool) *InputBuilder           { b.required = r; return b }
+func (b *InputBuilder) WithHasError(e bool) *InputBuilder           { b.hasError = e; return b }
+func (b *InputBuilder) WithID(id string) *InputBuilder              { b.id = id; return b }
+func (b *InputBuilder) WithClass(c string) *InputBuilder            { b.class = cn(b.class, c); return b }
+func (b *InputBuilder) SetClass(c string) *InputBuilder             { b.class = c; return b }
+func (b *InputBuilder) WithAttr(key string, val any) *InputBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *InputBuilder) WithFragment(id string) *InputBuilder        { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func inputClasses(b *InputBuilder) string {
+	base := "flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
+	borderClass := "border-base-300"
+	if b.hasError {
+		borderClass = "border-error focus:border-error focus:ring-error/50"
+	}
+	return cn(base, borderClass, b.class)
+}
+
+// --- Templ ---
+
+templ (b *InputBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *InputBuilder) render() {
+	<input
+		type={ string(b.inputType) }
+		class={ inputClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		data-bind={ b.bind }
+		if b.placeholder != "" {
+			placeholder={ b.placeholder }
+		}
+		if b.value != "" {
+			value={ b.value }
+		}
+		if b.disabled {
+			disabled
+		}
+		if b.required {
+			required
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	/>
+}

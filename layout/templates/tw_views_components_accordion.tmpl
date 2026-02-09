@@ -1,0 +1,56 @@
+package components
+
+// --- Class helpers ---
+
+func accordionClasses(class string) string {
+	return cn("w-full", class)
+}
+
+func accordionItemClasses(class string) string {
+	return cn("border-b border-base-300", class)
+}
+
+func accordionTriggerClasses(class string) string {
+	return cn("flex flex-1 items-center justify-between py-4 text-sm font-medium transition-all hover:underline cursor-pointer [&[aria-expanded=true]>svg]:rotate-180", class)
+}
+
+func accordionContentClasses(class string) string {
+	return cn("overflow-hidden text-sm", class)
+}
+
+// --- Templ ---
+
+// Accordion creates an expandable/collapsible content container.
+// Each AccordionItem is collapsed by default and toggles open on click.
+// A unique Datastar signal is auto-generated per item using xid.
+//
+//	@components.Accordion() {
+//		@components.AccordionItem("Section Title") {
+//			Hidden content here
+//		}
+//	}
+templ Accordion(opts ...Opt) {
+	<div class={ accordionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ children... }
+	</div>
+}
+
+templ AccordionItem(label string, opts ...Opt) {
+	@accordionItemInner(resolveID(opts), label, classFrom(opts), attrsFrom(opts)) {
+		{ children... }
+	}
+}
+
+templ accordionItemInner(id string, label string, class string, attrs templ.Attributes) {
+	<div class={ accordionItemClasses(class) } { templ.Attributes{"data-signals:_" + id: "false"}... } if attrs != nil { { attrs... } }>
+		<button type="button" class={ accordionTriggerClasses("") } aria-expanded="false" { templ.Attributes{"data-on:click": "$_" + id + " = !$_" + id, "data-attr:aria-expanded": "$_" + id}... }>
+			{ label }
+			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 transition-transform duration-200"><path d="m6 9 6 6 6-6"></path></svg>
+		</button>
+		<div class={ accordionContentClasses("") } { templ.Attributes{"data-show": "$_" + id}... }>
+			<div class="pb-4 pt-0">
+				{ children... }
+			</div>
+		</div>
+	</div>
+}

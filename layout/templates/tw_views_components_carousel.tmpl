@@ -1,0 +1,73 @@
+package components
+
+import "fmt"
+
+// --- Class helpers ---
+
+func carouselClasses(class string) string {
+	return cn("relative w-full", class)
+}
+
+func carouselContentClasses() string {
+	return "flex transition-transform duration-300 ease-in-out"
+}
+
+func carouselItemClasses(class string) string {
+	return cn("min-w-0 shrink-0 grow-0 basis-full", class)
+}
+
+func carouselBtnClasses(extra string) string {
+	return cn("absolute top-1/2 -translate-y-1/2 inline-flex items-center justify-center h-8 w-8 rounded-full border border-base-300 bg-base-100 text-base-content shadow-sm transition hover:bg-base-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed", extra)
+}
+
+// --- Carousel expression helpers ---
+
+func carouselPrevExpr(id string) string {
+	return "$_" + id + " = Math.max(0, $_" + id + " - 1)"
+}
+
+func carouselNextExpr(id string, total int) string {
+	return fmt.Sprintf("$_%s = Math.min(%d, $_%s + 1)", id, total-1, id)
+}
+
+func carouselStyleExpr(id string) string {
+	return "'transform:translateX(-' + ($_" + id + " * 100) + '%)'"
+}
+
+// --- Templ ---
+
+// Carousel creates a horizontally scrollable content slider with previous/next controls.
+// Pass the total number of slides and compose with CarouselItem children.
+//
+//	@components.Carousel(3) {
+//		@components.CarouselItem() { Slide 1 }
+//		@components.CarouselItem() { Slide 2 }
+//		@components.CarouselItem() { Slide 3 }
+//	}
+templ Carousel(totalSlides int, opts ...Opt) {
+	@carouselInner(resolveID(opts), totalSlides, classFrom(opts), attrsFrom(opts)) {
+		{ children... }
+	}
+}
+
+templ carouselInner(id string, total int, class string, attrs templ.Attributes) {
+	<div class={ carouselClasses(class) } role="region" aria-roledescription="carousel" { templ.Attributes{"data-signals:_" + id: "0"}... } if attrs != nil { { attrs... } }>
+		<div class="overflow-hidden">
+			<div class={ carouselContentClasses() } { templ.Attributes{"data-attr:style": carouselStyleExpr(id)}... }>
+				{ children... }
+			</div>
+		</div>
+		<button type="button" class={ carouselBtnClasses("-left-12") } aria-label="Previous slide" { templ.Attributes{"data-on:click": carouselPrevExpr(id)}... }>
+			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+		</button>
+		<button type="button" class={ carouselBtnClasses("-right-12") } aria-label="Next slide" { templ.Attributes{"data-on:click": carouselNextExpr(id, total)}... }>
+			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+		</button>
+	</div>
+}
+
+templ CarouselItem(opts ...Opt) {
+	<div class={ carouselItemClasses(classFrom(opts)) } role="group" aria-roledescription="slide" if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ children... }
+	</div>
+}

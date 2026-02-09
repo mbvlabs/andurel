@@ -1,0 +1,118 @@
+package components
+
+// --- Types ---
+
+type SheetSide string
+
+const (
+	SheetSideLeft   SheetSide = "left"
+	SheetSideRight  SheetSide = "right"
+	SheetSideTop    SheetSide = "top"
+	SheetSideBottom SheetSide = "bottom"
+)
+
+// --- Class helpers ---
+
+func sheetClasses(class string) string {
+	return cn("relative", class)
+}
+
+func sheetContentSideClasses(s SheetSide) string {
+	switch s {
+	case SheetSideLeft:
+		return "inset-y-0 left-0 h-full w-3/4 max-w-sm border-r border-base-300"
+	case SheetSideTop:
+		return "inset-x-0 top-0 w-full border-b border-base-300"
+	case SheetSideBottom:
+		return "inset-x-0 bottom-0 w-full border-t border-base-300"
+	default:
+		return "inset-y-0 right-0 h-full w-3/4 max-w-sm border-l border-base-300"
+	}
+}
+
+func sheetContentClasses(side SheetSide, class string) string {
+	base := "fixed z-50 gap-4 bg-base-100 p-6 shadow-lg"
+	return cn(base, sheetContentSideClasses(side), class)
+}
+
+func sheetHeaderClasses(class string) string {
+	return cn("flex flex-col space-y-2 text-center sm:text-left", class)
+}
+
+func sheetTitleClasses(class string) string {
+	return cn("text-lg font-semibold text-base-content", class)
+}
+
+func sheetDescriptionClasses(class string) string {
+	return cn("text-sm text-base-content/60", class)
+}
+
+func sheetFooterClasses(class string) string {
+	return cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", class)
+}
+
+func sheetCloseClasses() string {
+	return "absolute right-4 top-4 rounded-field opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
+}
+
+// --- Templ ---
+
+// Sheet creates a panel that slides in from the edge of the screen. Pass the trigger as a
+// component and the side, then compose the body with SheetHeader, SheetTitle,
+// SheetDescription, and SheetFooter.
+//
+//	@components.Sheet(triggerBtn, components.SheetSideRight) {
+//		@components.SheetHeader() {
+//			@components.SheetTitle("Settings")
+//			@components.SheetDescription("Adjust your preferences.")
+//		}
+//		<p>Sheet body</p>
+//		@components.SheetFooter() { ... }
+//	}
+templ Sheet(trigger templ.Component, side SheetSide, opts ...Opt) {
+	@sheetInner(resolveID(opts), trigger, side, classFrom(opts), attrsFrom(opts)) {
+		{ children... }
+	}
+}
+
+templ sheetInner(id string, trigger templ.Component, side SheetSide, class string, attrs templ.Attributes) {
+	<div class={ sheetClasses(class) } { templ.Attributes{"data-signals:_" + id: "false"}... } if attrsWithout(attrs, "data-on:click") != nil { { attrsWithout(attrs, "data-on:click")... } }>
+		<div class="cursor-pointer inline-block" { templ.Attributes{"data-on:click": triggerClickExpr(id, attrs)}... }>
+			@trigger
+		</div>
+		<div { templ.Attributes{"data-show": "$_" + id}... }>
+			<div class="fixed inset-0 z-50 bg-black/80" { templ.Attributes{"data-on:click": "$_" + id + " = false"}... }></div>
+			<div class={ sheetContentClasses(side, "") } role="dialog" aria-modal="true">
+				{ children... }
+				<button type="button" class={ sheetCloseClasses() } { templ.Attributes{"data-on:click": "$_" + id + " = false"}... }>
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+					<span class="sr-only">Close</span>
+				</button>
+			</div>
+		</div>
+	</div>
+}
+
+templ SheetHeader(opts ...Opt) {
+	<div class={ sheetHeaderClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ children... }
+	</div>
+}
+
+templ SheetTitle(title string, opts ...Opt) {
+	<h2 class={ sheetTitleClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ title }
+	</h2>
+}
+
+templ SheetDescription(description string, opts ...Opt) {
+	<p class={ sheetDescriptionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ description }
+	</p>
+}
+
+templ SheetFooter(opts ...Opt) {
+	<div class={ sheetFooterClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		{ children... }
+	</div>
+}

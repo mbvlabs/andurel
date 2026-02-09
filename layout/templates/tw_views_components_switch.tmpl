@@ -1,0 +1,81 @@
+package components
+
+// --- Builder ---
+
+type SwitchBuilder struct {
+	bind       string
+	value      string
+	checked    bool
+	disabled   bool
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
+}
+
+// Switch renders a toggle control styled as a sliding pill. The bind parameter is the
+// data-bind attribute for two-way data binding. Use it for on/off settings like enabling
+// notifications, dark mode, or feature flags. Renders as a styled checkbox internally.
+//
+//	@components.Switch("notifications").WithChecked(true).Render()
+//	@components.Switch("darkMode").WithDisabled(true).Render()
+func Switch(bind string) *SwitchBuilder {
+	return &SwitchBuilder{bind: bind}
+}
+
+func (b *SwitchBuilder) WithValue(v string) *SwitchBuilder       { b.value = v; return b }
+func (b *SwitchBuilder) WithChecked(c bool) *SwitchBuilder       { b.checked = c; return b }
+func (b *SwitchBuilder) WithDisabled(d bool) *SwitchBuilder      { b.disabled = d; return b }
+func (b *SwitchBuilder) WithID(id string) *SwitchBuilder         { b.id = id; return b }
+func (b *SwitchBuilder) WithClass(c string) *SwitchBuilder       { b.class = cn(b.class, c); return b }
+func (b *SwitchBuilder) SetClass(c string) *SwitchBuilder        { b.class = c; return b }
+func (b *SwitchBuilder) WithAttr(key string, val any) *SwitchBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *SwitchBuilder) WithFragment(id string) *SwitchBuilder   { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func switchContainerClasses(b *SwitchBuilder) string {
+	return cn("relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60", b.class)
+}
+
+// --- Templ ---
+
+templ (b *SwitchBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *SwitchBuilder) render() {
+	<label class={ switchContainerClasses(b) }>
+		<input
+			type="checkbox"
+			class="peer sr-only"
+			if b.id != "" {
+				id={ b.id }
+			}
+			data-bind={ b.bind }
+			if b.value != "" {
+				value={ b.value }
+			}
+			if b.checked {
+				checked
+			}
+			if b.disabled {
+				disabled
+			}
+			if b.attrs != nil {
+				{ b.attrs... }
+			}
+		/>
+		<span class="pointer-events-none block h-4 w-4 rounded-full bg-base-content shadow-lg ring-0 transition-transform peer-checked:translate-x-4 translate-x-0"></span>
+		<span class="absolute inset-0 rounded-full bg-base-300 peer-checked:bg-primary transition-colors -z-10"></span>
+	</label>
+}

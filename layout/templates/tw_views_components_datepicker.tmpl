@@ -1,0 +1,83 @@
+package components
+
+// --- Builder ---
+
+type DatepickerBuilder struct {
+	bind        string
+	value       string
+	placeholder string
+	id          string
+	class       string
+	attrs       templ.Attributes
+	fragmentID  string
+}
+
+// Datepicker renders a native date input with a calendar icon. The bind parameter is the
+// data-bind attribute for two-way data binding. Use it for date fields in forms.
+//
+//	@components.Datepicker("birthday").WithPlaceholder("Select a date").WithValue("2025-01-01").Render()
+func Datepicker(bind string) *DatepickerBuilder {
+	return &DatepickerBuilder{bind: bind}
+}
+
+func (b *DatepickerBuilder) WithValue(v string) *DatepickerBuilder          { b.value = v; return b }
+func (b *DatepickerBuilder) WithPlaceholder(p string) *DatepickerBuilder    { b.placeholder = p; return b }
+func (b *DatepickerBuilder) WithID(id string) *DatepickerBuilder            { b.id = id; return b }
+func (b *DatepickerBuilder) WithClass(c string) *DatepickerBuilder          { b.class = cn(b.class, c); return b }
+func (b *DatepickerBuilder) SetClass(c string) *DatepickerBuilder           { b.class = c; return b }
+func (b *DatepickerBuilder) WithAttr(key string, val any) *DatepickerBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *DatepickerBuilder) WithFragment(id string) *DatepickerBuilder      { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func datepickerClasses(b *DatepickerBuilder) string {
+	return cn("relative w-full", b.class)
+}
+
+func datepickerInputClasses() string {
+	return "flex h-9 w-full rounded-field border border-base-300 bg-base-200 px-3 py-1 pr-8 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
+}
+
+// --- Templ ---
+
+templ (b *DatepickerBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *DatepickerBuilder) render() {
+	<div
+		class={ datepickerClasses(b) }
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		<div class="relative">
+			<input
+				type="date"
+				class={ datepickerInputClasses() }
+				data-bind={ b.bind }
+				if b.value != "" {
+					value={ b.value }
+				}
+				if b.placeholder != "" {
+					placeholder={ b.placeholder }
+				}
+			/>
+			<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/40"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
+			</div>
+		</div>
+	</div>
+}

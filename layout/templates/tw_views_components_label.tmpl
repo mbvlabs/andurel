@@ -1,0 +1,78 @@
+package components
+
+// --- Props ---
+
+type LabelProps struct {
+	Text string
+}
+
+// --- Builder ---
+
+type LabelBuilder struct {
+	text       string
+	htmlFor    string
+	required   bool
+	id         string
+	class      string
+	attrs      templ.Attributes
+	fragmentID string
+}
+
+// Label renders a form label element. Use it alongside form controls (Input, Select, etc.)
+// to provide accessible labeling. WithFor links the label to an input's id. WithRequired
+// appends a red asterisk.
+//
+//	@components.Label(components.LabelProps{Text: "Email Address"}).WithFor("email").WithRequired(true).Render()
+func Label(props LabelProps) *LabelBuilder {
+	return &LabelBuilder{text: props.Text}
+}
+
+func (b *LabelBuilder) WithFor(f string) *LabelBuilder       { b.htmlFor = f; return b }
+func (b *LabelBuilder) WithRequired(r bool) *LabelBuilder    { b.required = r; return b }
+func (b *LabelBuilder) WithID(id string) *LabelBuilder       { b.id = id; return b }
+func (b *LabelBuilder) WithClass(c string) *LabelBuilder     { b.class = cn(b.class, c); return b }
+func (b *LabelBuilder) SetClass(c string) *LabelBuilder      { b.class = c; return b }
+func (b *LabelBuilder) WithAttr(key string, val any) *LabelBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *LabelBuilder) WithFragment(id string) *LabelBuilder { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func labelClasses(b *LabelBuilder) string {
+	base := "text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60"
+	return cn(base, b.class)
+}
+
+// --- Templ ---
+
+templ (b *LabelBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *LabelBuilder) render() {
+	<label
+		class={ labelClasses(b) }
+		if b.htmlFor != "" {
+			for={ b.htmlFor }
+		}
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	>
+		{ b.text }
+		if b.required {
+			<span class="text-error ml-0.5">*</span>
+		}
+	</label>
+}

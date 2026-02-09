@@ -1,0 +1,79 @@
+package components
+
+// --- Types ---
+
+type SeparatorOrientation string
+
+const (
+	SeparatorHorizontal SeparatorOrientation = "horizontal"
+	SeparatorVertical   SeparatorOrientation = "vertical"
+)
+
+// --- Builder ---
+
+type SeparatorBuilder struct {
+	orientation SeparatorOrientation
+	id          string
+	class       string
+	attrs       templ.Attributes
+	fragmentID  string
+}
+
+// Separator renders a thin horizontal or vertical dividing line. Use it to visually
+// separate sections of content, menu items, or form groups.
+// Orientations: SeparatorHorizontal (default), SeparatorVertical.
+//
+//	@components.Separator().Render()
+//	@components.Separator().WithOrientation(components.SeparatorVertical).WithClass("h-6").Render()
+func Separator() *SeparatorBuilder {
+	return &SeparatorBuilder{}
+}
+
+func (b *SeparatorBuilder) WithOrientation(o SeparatorOrientation) *SeparatorBuilder { b.orientation = o; return b }
+func (b *SeparatorBuilder) WithID(id string) *SeparatorBuilder                       { b.id = id; return b }
+func (b *SeparatorBuilder) WithClass(c string) *SeparatorBuilder                     { b.class = cn(b.class, c); return b }
+func (b *SeparatorBuilder) SetClass(c string) *SeparatorBuilder                      { b.class = c; return b }
+func (b *SeparatorBuilder) WithAttr(key string, val any) *SeparatorBuilder {
+	if b.attrs == nil { b.attrs = templ.Attributes{} }
+	b.attrs[key] = val; return b
+}
+func (b *SeparatorBuilder) WithFragment(id string) *SeparatorBuilder                 { b.fragmentID = id; return b }
+
+// --- Class helpers ---
+
+func separatorClasses(b *SeparatorBuilder) string {
+	base := "shrink-0 bg-base-300"
+	orientation := "h-px w-full"
+	if b.orientation == SeparatorVertical {
+		orientation = "h-full w-px"
+	}
+	return cn(base, orientation, b.class)
+}
+
+// --- Templ ---
+
+templ (b *SeparatorBuilder) Render() {
+	if b.fragmentID != "" {
+		@templ.Fragment(b.fragmentID) {
+			@b.render()
+		}
+	} else {
+		@b.render()
+	}
+}
+
+templ (b *SeparatorBuilder) render() {
+	<div
+		role="separator"
+		class={ separatorClasses(b) }
+		if b.orientation == SeparatorVertical {
+			aria-orientation="vertical"
+		}
+		if b.id != "" {
+			id={ b.id }
+		}
+		if b.attrs != nil {
+			{ b.attrs... }
+		}
+	></div>
+}
