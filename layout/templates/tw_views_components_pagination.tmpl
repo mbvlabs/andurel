@@ -53,7 +53,7 @@ templ PaginationItem(label string, href string, active bool, disabled bool, opts
 			</span>
 		} else {
 			<a
-				href={ templ.SafeURL(href) }
+				href={ href }
 				class={ paginationItemClasses(active, disabled, classFrom(opts)) }
 				if attrsFrom(opts) != nil {
 					{ attrsFrom(opts)... }
@@ -79,7 +79,7 @@ templ PaginationPrevious(href string, disabled bool, opts ...Opt) {
 			</span>
 		} else {
 			<a
-				href={ templ.SafeURL(href) }
+				href={ href }
 				class={ paginationItemClasses(false, disabled, cn("gap-1 pl-2.5 w-auto px-3", classFrom(opts))) }
 				if attrsFrom(opts) != nil {
 					{ attrsFrom(opts)... }
@@ -106,7 +106,7 @@ templ PaginationNext(href string, disabled bool, opts ...Opt) {
 			</span>
 		} else {
 			<a
-				href={ templ.SafeURL(href) }
+				href={ href }
 				class={ paginationItemClasses(false, disabled, cn("gap-1 pr-2.5 w-auto px-3", classFrom(opts))) }
 				if attrsFrom(opts) != nil {
 					{ attrsFrom(opts)... }

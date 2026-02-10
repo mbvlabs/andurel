@@ -184,6 +184,9 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, cssFramework string) (string, error) {
 	// Custom template functions for view-specific operations
 	customFuncs := template.FuncMap{
+		"FieldRef": func(field ViewField, resourceName string) string {
+			return fmt.Sprintf("%s.%s", strings.ToLower(resourceName), field.Name)
+		},
 		"StringDisplay": func(field ViewField, resourceName string) string {
 			if field.StringConverter == "" {
 				return fmt.Sprintf(

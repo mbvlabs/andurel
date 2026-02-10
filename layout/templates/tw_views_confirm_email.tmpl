@@ -1,6 +1,7 @@
 package views
 
 import (
+	ui "{{.ModuleName}}/internal/ui"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/views/components"
 )
@@ -10,18 +11,18 @@ templ ConfirmationForm() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6 my-6">
 				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					@components.Form(components.FormProps{Action: "post", URL: routes.ConfirmationCreate.URL()}, components.WithClass("space-y-5")) {
+					@ui.Form(ui.FormProps{Action: "post", URL: routes.ConfirmationCreate.URL()}, ui.WithClass("space-y-5")) {
 						<div class="space-y-1">
 							<h2 class="text-xl font-semibold text-base-content">Verify Your Email</h2>
 							<p class="text-sm text-base-content/60">Please enter the 6-digit verification code sent to your email.</p>
 						</div>
 						<div class="space-y-4 my-6">
 							<div class="w-full space-y-1">
-								@components.Label(components.LabelProps{Text: "Verification Code"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Verification Code"}).Render()
 								@components.InputOTP("code").WithLength(6).Render()
 							</div>
 						</div>
-						@components.Button(components.ButtonProps{Label: "Verify Email"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).WithLoadingLabel("Loading", "submitting").Render()
+						@ui.Button(ui.ButtonProps{Label: "Verify Email"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).WithLoadingLabel("Loading", "submitting").Render()
 					}
 				</div>
 			</div>

@@ -22,10 +22,10 @@ templ LoginForm() {
 				@components.SubmitButton("Login")
 			</form>
 			<p>
-				<a href={ templ.SafeURL(routes.PasswordNew.URL()) }>Forgot your password?</a>
+				<a href={ routes.PasswordNew.URL() }>Forgot your password?</a>
 			</p>
 			<p>
-				Don't have an account? <a href={ templ.SafeURL(routes.RegistrationNew.URL()) }>Sign up</a>
+				Don't have an account? <a href={ routes.RegistrationNew.URL() }>Sign up</a>
 			</p>
 		</main>
 	}
