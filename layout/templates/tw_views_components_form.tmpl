@@ -10,27 +10,41 @@ type FormProps struct {
 templ Form(props FormProps, opts ...Opt) {
 	if fragmentFrom(opts) != "" {
 		@templ.Fragment(fragmentFrom(opts)) {
-			@formInner(props, opts...)
+			<form
+				class={ classFrom(opts) }
+				if idFrom(opts) != "" {
+					id={ idFrom(opts) }
+				}
+				data-indicator:submitting
+				data-on:submit={ "!$submitting && " + hypermedia.DataAction(props.Action, props.URL) }
+				if attrsFrom(opts) != nil {
+					{ attrsFrom(opts)... }
+				}
+			>
+				<fieldset
+					data-attr:disabled="$submitting"
+				>
+					{ children... }
+				</fieldset>
+			</form>
 		}
 	} else {
-		@formInner(props, opts...)
+		<form
+			class={ classFrom(opts) }
+			if idFrom(opts) != "" {
+				id={ idFrom(opts) }
+			}
+			data-indicator:submitting
+			data-on:submit={ "!$submitting && " + hypermedia.DataAction(props.Action, props.URL) }
+			if attrsFrom(opts) != nil {
+				{ attrsFrom(opts)... }
+			}
+		>
+			<fieldset
+				data-attr:disabled="$submitting"
+			>
+				{ children... }
+			</fieldset>
+		</form>
 	}
-}
-
-templ formInner(props FormProps, opts ...Opt) {
-	<form
-		class={ classFrom(opts) }
-		if idFrom(opts) != "" {
-			id={ idFrom(opts) }
-		}
-		data-indicator:submitting
-		data-on:submit={ "!$submitting &&" + hypermedia.DataAction(props.Action, props.URL) }
-		if attrsFrom(opts) != nil {
-			{ attrsFrom(opts)... }
-		}
-	>
-		<fieldset class="m-0 min-w-0 border-none p-0" data-attr:disabled="$submitting">
-			{ children... }
-		</fieldset>
-	</form>
 }
