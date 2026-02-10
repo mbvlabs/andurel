@@ -2,8 +2,10 @@ package views
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 	"testapp/models"
+	"testapp/views/components"
 )
 
 templ DocumentIndex(documents []models.Document) {
@@ -12,49 +14,75 @@ templ DocumentIndex(documents []models.Document) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Documents</h1>
-					<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href="/">New Document</a>
+					@components.Button(components.ButtonProps{Label: "New Document"}).WithHref("/").Render()
 				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
-					if len(documents) == 0 {
-						<p class="text-sm text-base-content/60">No documents found.</p>
-					} else {
-						<div class="overflow-x-auto">
-							<table class="w-full text-left text-sm">
-								<thead class="border-b border-base-300 text-xs uppercase tracking-wide text-base-content/60">
-									<tr>
-										<th class="pb-3 pr-4">Title</th>
-										<th class="pb-3 pr-4">Tags</th>
-										<th class="pb-3 pr-4">Page Numbers</th>
-										<th class="pb-3 pr-4">View Count</th>
-										<th class="pb-3 pr-4">Is Published</th>
-										<th class="pb-3 pr-4">Created At</th>
-										<th class="pb-3 pr-4">Updated At</th>
-										<th class="pb-3 pr-4">Actions</th>
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-base-300">
-									for _, document := range documents {
-										<tr class="align-top">
-											<td class="py-3 pr-4 text-base-content/70">{ document.Title }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ strings.Join(document.Tags, ", ") }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ fmt.Sprintf("%v", document.PageNumbers) }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ fmt.Sprintf("%d", document.ViewCount) }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ fmt.Sprintf("%t", document.IsPublished) }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ document.CreatedAt.String() }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ document.UpdatedAt.String() }</td>
-											<td class="py-3 pr-4">
-												<div class="flex flex-wrap gap-3 text-sm">
-													<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
-													<a class="text-base-content/80 hover:text-base-content" href="/">Edit</a>
-												</div>
-											</td>
-										</tr>
+				if len(documents) == 0 {
+					<p class="text-sm text-base-content/60">No documents found.</p>
+				} else {
+					@components.Table() {
+						@components.TableHeader() {
+							@components.TableRow() {
+								@components.TableHead() {
+									Title 
+								}
+								@components.TableHead() {
+									Tags 
+								}
+								@components.TableHead() {
+									Page Numbers 
+								}
+								@components.TableHead() {
+									View Count 
+								}
+								@components.TableHead() {
+									Is Published 
+								}
+								@components.TableHead() {
+									Created At 
+								}
+								@components.TableHead() {
+									Updated At 
+								}
+								@components.TableHead() {
+									Actions 
+								}
+							}
+						}
+						@components.TableBody() {
+							for _, document := range documents {
+								@components.TableRow() {
+									@components.TableCell() {
+										{ document.Title }
 									}
-								</tbody>
-							</table>
-						</div>
+									@components.TableCell() {
+										{ strings.Join(document.Tags, ", ") }
+									}
+									@components.TableCell() {
+										{ fmt.Sprintf("%v", document.PageNumbers) }
+									}
+									@components.TableCell() {
+										{ fmt.Sprintf("%d", document.ViewCount) }
+									}
+									@components.TableCell() {
+										{ fmt.Sprintf("%t", document.IsPublished) }
+									}
+									@components.TableCell() {
+										{ document.CreatedAt.String() }
+									}
+									@components.TableCell() {
+										{ document.UpdatedAt.String() }
+									}
+									@components.TableCell() {
+										<div class="flex flex-wrap gap-3 text-sm">
+											<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
+											<a class="text-base-content/80 hover:text-base-content" href="/">Edit</a>
+										</div>
+									}
+								}
+							}
+						}
 					}
-				</div>
+				}
 			</div>
 		</main>
 	}
@@ -67,42 +95,44 @@ templ DocumentShow(document models.Document) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Document Details</h1>
 					<div class="flex flex-wrap gap-3">
-						<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href="/">Edit</a>
+						@components.Button(components.ButtonProps{Label: "Edit"}).WithHref("/").Render()
 						<a class="text-sm text-base-content/70 hover:text-base-content" href="/">Back to List</a>
 					</div>
 				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
-					<div class="grid gap-5 sm:grid-cols-2">
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Title</label>
-							<p class="text-sm text-base-content">{ document.Title }</p>
+				@components.Card() {
+					@components.CardContent() {
+						<div class="grid gap-5 sm:grid-cols-2">
+							<div class="space-y-1">
+								@components.Label(components.LabelProps{Text: "Title"}).Render()
+								<p class="text-sm text-base-content">{ document.Title }</p>
+							</div>
+							<div class="space-y-1">
+								@components.Label(components.LabelProps{Text: "Tags"}).Render()
+								<p class="text-sm text-base-content">{ strings.Join(document.Tags, ", ") }</p>
+							</div>
+							<div class="space-y-1">
+								@components.Label(components.LabelProps{Text: "Page Numbers"}).Render()
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", document.PageNumbers) }</p>
+							</div>
+							<div class="space-y-1">
+								@components.Label(components.LabelProps{Text: "View Count"}).Render()
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%d", document.ViewCount) }</p>
+							</div>
+							<div class="space-y-1">
+								@components.Label(components.LabelProps{Text: "Is Published"}).Render()
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%t", document.IsPublished) }</p>
+							</div>
+							<div class="space-y-1">
+								@components.Label(components.LabelProps{Text: "Created At"}).Render()
+								<p class="text-sm text-base-content">{ document.CreatedAt.String() }</p>
+							</div>
+							<div class="space-y-1">
+								@components.Label(components.LabelProps{Text: "Updated At"}).Render()
+								<p class="text-sm text-base-content">{ document.UpdatedAt.String() }</p>
+							</div>
 						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Tags</label>
-							<p class="text-sm text-base-content">{ strings.Join(document.Tags, ", ") }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Page Numbers</label>
-							<p class="text-sm text-base-content">{ fmt.Sprintf("%v", document.PageNumbers) }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">View Count</label>
-							<p class="text-sm text-base-content">{ fmt.Sprintf("%d", document.ViewCount) }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Is Published</label>
-							<p class="text-sm text-base-content">{ fmt.Sprintf("%t", document.IsPublished) }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Created At</label>
-							<p class="text-sm text-base-content">{ document.CreatedAt.String() }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Updated At</label>
-							<p class="text-sm text-base-content">{ document.UpdatedAt.String() }</p>
-						</div>
-					</div>
-				</div>
+					}
+				}
 			</div>
 		</main>
 	}
@@ -112,44 +142,39 @@ templ DocumentNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form
-						class="space-y-5"
-						data-indicator:submitting
-						data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", "/") }
-					>
-						<div class="space-y-1">
-							<h2 class="text-xl font-semibold text-base-content">New Document</h2>
-							<p class="text-sm text-base-content/60">Enter the details for the new document.</p>
-						</div>
-						<div class="space-y-4">
-							<div class="w-full space-y-1">
-								<label for="title" class="block text-sm font-medium text-base-content/80">Title</label>
-								<input id="title" type="text" data-bind="title" class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
+				@components.Card() {
+					@components.CardHeader() {
+						@components.CardTitle("New Document")
+						@components.CardDescription("Enter the details for the new document.")
+					}
+					@components.CardContent() {
+						@components.Form(components.FormProps{Action: http.MethodPost, URL: "/"}, components.WithClass("space-y-5"), components.WithFragment("new-document-form")) {
+							<div class="space-y-4">
+								<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "Title"}).WithFor("title").Render()
+									@components.Input("title").Render()
+								</div>
+								<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "Tags"}).WithFor("tags").Render()
+									@components.Input("tags").Render()
+								</div>
+								<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "Page Numbers"}).WithFor("pageNumbers").Render()
+									@components.Input("pageNumbers").Render()
+								</div>
+								<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "View Count"}).WithFor("viewCount").Render()
+									@components.Input("viewCount").WithType(components.InputTypeNumber).Render()
+								</div>
+								<div class="flex items-center gap-2">
+									@components.Checkbox("isPublished").Render()
+									@components.Label(components.LabelProps{Text: "Is Published"}).WithFor("isPublished").Render()
+								</div>
 							</div>
-							<div class="w-full space-y-1">
-								<label for="tags" class="block text-sm font-medium text-base-content/80">Tags</label>
-								<input id="tags" type="text" data-bind="tags" class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
-							</div>
-							<div class="w-full space-y-1">
-								<label for="pageNumbers" class="block text-sm font-medium text-base-content/80">Page Numbers</label>
-								<input id="pageNumbers" type="text" data-bind="pageNumbers" class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
-							</div>
-							<div class="w-full space-y-1">
-								<label for="viewCount" class="block text-sm font-medium text-base-content/80">View Count</label>
-								<input id="viewCount" type="number" data-bind="viewCount" class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
-							</div>
-							<div class="w-full space-y-1">
-								<label for="isPublished" class="block text-sm font-medium text-base-content/80">Is Published</label>
-								<input id="isPublished" type="checkbox" data-bind="isPublished" class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
-							</div>
-						</div>
-						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Create Document</button>
-						<p class="text-center text-sm text-base-content/60">
-							<a class="text-base-content/70 hover:text-base-content" href="/">Back to List</a>
-						</p>
-					</form>
-				</div>
+							@components.Button(components.ButtonProps{Label: "Create Document"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+						}
+					}
+				}
 			</div>
 		</main>
 	}
@@ -159,50 +184,41 @@ templ DocumentEdit(document models.Document) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form
-						class="space-y-5"
-						data-indicator:submitting
-						data-on:submit={ "!$submitting && " + fmt.Sprintf("@put('%s')", "/") }
-					>
-						<div class="space-y-1">
-							<h2 class="text-xl font-semibold text-base-content">Edit Document</h2>
-							<p class="text-sm text-base-content/60">Update the details for this document.</p>
-						</div>
-						<div class="space-y-4">
-							<div class="w-full space-y-1">
-								<label for="title" class="block text-sm font-medium text-base-content/80">Title</label>
-								<input id="title" type="text" data-bind="title" value={ document.Title } class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
+				@components.Card() {
+					@components.CardHeader() {
+						@components.CardTitle("Edit Document")
+						@components.CardDescription("Update the details for this document.")
+					}
+					@components.CardContent() {
+						@components.Form(components.FormProps{Action: http.MethodPut, URL: "/"}, components.WithClass("space-y-5"), components.WithFragment("edit-document-form")) {
+							<div class="space-y-4">
+								<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "Title"}).WithFor("title").Render()
+									@components.Input("title").WithValue(document.Title).Render()
+								</div>
+								<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "Tags"}).WithFor("tags").Render()
+									@components.Input("tags").WithValue(strings.Join(document.Tags, ", ")).Render()
+								</div>
+								<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "Page Numbers"}).WithFor("pageNumbers").Render()
+									@components.Input("pageNumbers").WithValue(fmt.Sprintf("%v", document.PageNumbers)).Render()
+								</div>
+								<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "View Count"}).WithFor("viewCount").Render()
+									@components.Input("viewCount").WithType(components.InputTypeNumber).WithValue(fmt.Sprintf("%d", document.ViewCount)).Render()
+								</div>
+								<div class="flex items-center gap-2">
+									@components.Checkbox("isPublished").WithChecked(document.IsPublished).Render()
+									@components.Label(components.LabelProps{Text: "Is Published"}).WithFor("isPublished").Render()
+								</div>
 							</div>
-							<div class="w-full space-y-1">
-								<label for="tags" class="block text-sm font-medium text-base-content/80">Tags</label>
-								<input id="tags" type="text" data-bind="tags" value={ strings.Join(document.Tags, ", ") } class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
-							</div>
-							<div class="w-full space-y-1">
-								<label for="pageNumbers" class="block text-sm font-medium text-base-content/80">Page Numbers</label>
-								<input id="pageNumbers" type="text" data-bind="pageNumbers" value={ fmt.Sprintf("%v", document.PageNumbers) } class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
-							</div>
-							<div class="w-full space-y-1">
-								<label for="viewCount" class="block text-sm font-medium text-base-content/80">View Count</label>
-								<input id="viewCount" type="number" data-bind="viewCount" value={ fmt.Sprintf("%d", document.ViewCount) } class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
-							</div>
-							<div class="w-full space-y-1">
-								<label for="isPublished" class="block text-sm font-medium text-base-content/80">Is Published</label>
-								<input id="isPublished" type="checkbox" data-bind="isPublished" value={ fmt.Sprintf("%t", document.IsPublished) } class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
-							</div>
-						</div>
-						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Update Document</button>
-						<p class="text-center text-sm text-base-content/60">
-							<a class="text-base-content/70 hover:text-base-content" href="/">Back to List</a>
-						</p>
-					</form>
-					<div class="mt-4 pt-4 border-t border-base-300">
-						<button
-							class="w-full inline-flex items-center justify-center rounded-field border border-error/60 px-4 py-2.5 text-sm font-semibold text-error transition hover:border-error hover:bg-error/10"
-							data-on:click={ fmt.Sprintf("@delete('%s')", "/") }
-						>Destroy Document</button>
-					</div>
-				</div>
+							@components.Button(components.ButtonProps{Label: "Update Document"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+						}
+						@components.Separator().Render()
+						@components.Button(components.ButtonProps{Label: "Destroy Document"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", fmt.Sprintf("@delete('%s')", "/")).Render()
+					}
+				}
 			</div>
 		</main>
 	}

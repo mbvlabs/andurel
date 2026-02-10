@@ -2,8 +2,10 @@ package views
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 	"{{.ModulePath}}/models"
+	"{{.ModulePath}}/views/components"
 )
 
 templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
@@ -12,37 +14,33 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{Plural .ResourceName}}</h1>
-					<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href="/">New {{.ResourceName}}</a>
+					@components.Button(components.ButtonProps{Label: "New {{.ResourceName}}"}).WithHref("/").Render()
 				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
-					if len({{.PluralName}}) == 0 {
-						<p class="text-sm text-base-content/60">No {{.PluralName}} found.</p>
-					} else {
-						<div class="overflow-x-auto">
-							<table class="w-full text-left text-sm">
-								<thead class="border-b border-base-300 text-xs uppercase tracking-wide text-base-content/60">
-									<tr>
-										{{range .Fields}}<th class="pb-3 pr-4">{{.DisplayName}}</th>
-										{{end}}<th class="pb-3 pr-4">Actions</th>
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-base-300">
-									for _, {{.ResourceName | ToLower}} := range {{.PluralName}} {
-										<tr class="align-top">
-											{{range .Fields}}<td class="py-3 pr-4 text-base-content/70">{{StringTableDisplay . $.ResourceName}}</td>
-											{{end}}<td class="py-3 pr-4">
-												<div class="flex flex-wrap gap-3 text-sm">
-													<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
-													<a class="text-base-content/80 hover:text-base-content" href="/">Edit</a>
-												</div>
-											</td>
-										</tr>
+				if len({{.PluralName}}) == 0 {
+					<p class="text-sm text-base-content/60">No {{.PluralName}} found.</p>
+				} else {
+					@components.Table() {
+						@components.TableHeader() {
+							@components.TableRow() {
+								{{range .Fields}}@components.TableHead() { {{.DisplayName}} }
+								{{end}}@components.TableHead() { Actions }
+							}
+						}
+						@components.TableBody() {
+							for _, {{.ResourceName | ToLower}} := range {{.PluralName}} {
+								@components.TableRow() {
+									{{range .Fields}}@components.TableCell() { {{StringTableDisplay . $.ResourceName}} }
+									{{end}}@components.TableCell() {
+										<div class="flex flex-wrap gap-3 text-sm">
+											<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
+											<a class="text-base-content/80 hover:text-base-content" href="/">Edit</a>
+										</div>
 									}
-								</tbody>
-							</table>
-						</div>
+								}
+							}
+						}
 					}
-				</div>
+				}
 			</div>
 		</main>
 	}
@@ -55,19 +53,21 @@ templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{.ResourceName}} Details</h1>
 					<div class="flex flex-wrap gap-3">
-						<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href="/">Edit</a>
+						@components.Button(components.ButtonProps{Label: "Edit"}).WithHref("/").Render()
 						<a class="text-sm text-base-content/70 hover:text-base-content" href="/">Back to List</a>
 					</div>
 				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
-					<div class="grid gap-5 sm:grid-cols-2">
-						{{range .Fields}}<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">{{.DisplayName}}</label>
-							<p class="text-sm text-base-content">{{StringDisplay . $.ResourceName}}</p>
+				@components.Card() {
+					@components.CardContent() {
+						<div class="grid gap-5 sm:grid-cols-2">
+							{{range .Fields}}<div class="space-y-1">
+								@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).Render()
+								<p class="text-sm text-base-content">{{StringDisplay . $.ResourceName}}</p>
+							</div>
+							{{end}}
 						</div>
-						{{end}}
-					</div>
-				</div>
+					}
+				}
 			</div>
 		</main>
 	}
@@ -77,29 +77,36 @@ templ {{.ResourceName}}New() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form
-					class="space-y-5"
-					data-indicator:submitting
-					data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", "/") }
-				>
-						<div class="space-y-1">
-							<h2 class="text-xl font-semibold text-base-content">New {{.ResourceName}}</h2>
-							<p class="text-sm text-base-content/60">Enter the details for the new {{.ResourceName | ToLower}}.</p>
-						</div>
-						<div class="space-y-4">
-							{{range .Fields}}{{if not .IsSystemField}}<div class="w-full space-y-1">
-								<label for="{{.CamelCase}}" class="block text-sm font-medium text-base-content/80">{{.DisplayName}}</label>
-								<input id="{{.CamelCase}}" type="{{.InputType}}" data-bind="{{.CamelCase}}" class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50" />
+				@components.Card() {
+					@components.CardHeader() {
+						@components.CardTitle("New {{.ResourceName}}")
+						@components.CardDescription("Enter the details for the new {{.ResourceName | ToLower}}.")
+					}
+					@components.CardContent() {
+						@components.Form(components.FormProps{Action: http.MethodPost, URL: "/"}, components.WithClass("space-y-5"), components.WithFragment("new-{{.ResourceName | ToLower}}-form")) {
+							<div class="space-y-4">
+								{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
+									@components.Checkbox("{{.CamelCase}}").Render()
+									@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+								</div>
+								{{else if eq .InputType "date"}}<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+									@components.Datepicker("{{.CamelCase}}").Render()
+								</div>
+								{{else if eq .InputType "number"}}<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+									@components.Input("{{.CamelCase}}").WithType(components.InputTypeNumber).Render()
+								</div>
+								{{else}}<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+									@components.Input("{{.CamelCase}}").Render()
+								</div>
+								{{end}}{{end}}{{end}}
 							</div>
-							{{end}}{{end}}
-						</div>
-						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Create {{.ResourceName}}</button>
-						<p class="text-center text-sm text-base-content/60">
-							<a class="text-base-content/70 hover:text-base-content" href="/">Back to List</a>
-						</p>
-					</form>
-				</div>
+							@components.Button(components.ButtonProps{Label: "Create {{.ResourceName}}"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+						}
+					}
+				}
 			</div>
 		</main>
 	}
@@ -109,35 +116,38 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form
-					class="space-y-5"
-					data-indicator:submitting
-					data-on:submit={ "!$submitting && " + fmt.Sprintf("@put('%s')", "/") }
-				>
-						<div class="space-y-1">
-							<h2 class="text-xl font-semibold text-base-content">Edit {{.ResourceName}}</h2>
-							<p class="text-sm text-base-content/60">Update the details for this {{.ResourceName | ToLower}}.</p>
-						</div>
-						<div class="space-y-4">
-							{{range .Fields}}{{if not .IsSystemField}}<div class="w-full space-y-1">
-								<label for="{{.CamelCase}}" class="block text-sm font-medium text-base-content/80">{{.DisplayName}}</label>
-								<input id="{{.CamelCase}}" type="{{.InputType}}" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50" />
+				@components.Card() {
+					@components.CardHeader() {
+						@components.CardTitle("Edit {{.ResourceName}}")
+						@components.CardDescription("Update the details for this {{.ResourceName | ToLower}}.")
+					}
+					@components.CardContent() {
+						@components.Form(components.FormProps{Action: http.MethodPut, URL: "/"}, components.WithClass("space-y-5"), components.WithFragment("edit-{{.ResourceName | ToLower}}-form")) {
+							<div class="space-y-4">
+								{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
+									@components.Checkbox("{{.CamelCase}}").WithChecked({{FieldRef . $.ResourceName}}).Render()
+									@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+								</div>
+								{{else if eq .InputType "date"}}<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+									@components.Datepicker("{{.CamelCase}}").WithValue({{StringValue . $.ResourceName}}).Render()
+								</div>
+								{{else if eq .InputType "number"}}<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+									@components.Input("{{.CamelCase}}").WithType(components.InputTypeNumber).WithValue({{StringValue . $.ResourceName}}).Render()
+								</div>
+								{{else}}<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+									@components.Input("{{.CamelCase}}").WithValue({{StringValue . $.ResourceName}}).Render()
+								</div>
+								{{end}}{{end}}{{end}}
 							</div>
-							{{end}}{{end}}
-						</div>
-						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Update {{.ResourceName}}</button>
-						<p class="text-center text-sm text-base-content/60">
-							<a class="text-base-content/70 hover:text-base-content" href="/">Back to List</a>
-						</p>
-					</form>
-					<div class="mt-4 pt-4 border-t border-base-300">
-						<button
-							class="w-full inline-flex items-center justify-center rounded-field border border-error/60 px-4 py-2.5 text-sm font-semibold text-error transition hover:border-error hover:bg-error/10"
-							data-on:click={ fmt.Sprintf("@delete('%s')", "/") }
-						>Destroy {{.ResourceName}}</button>
-					</div>
-				</div>
+							@components.Button(components.ButtonProps{Label: "Update {{.ResourceName}}"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+						}
+						@components.Separator().Render()
+						@components.Button(components.ButtonProps{Label: "Destroy {{.ResourceName}}"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", fmt.Sprintf("@delete('%s')", "/")).Render()
+					}
+				}
 			</div>
 		</main>
 	}

@@ -2,7 +2,9 @@ package views
 
 import (
 	"fmt"
+	"net/http"
 	"testapp/models"
+	"testapp/views/components"
 )
 
 templ CategoryIndex(categories []models.Category) {
@@ -11,43 +13,57 @@ templ CategoryIndex(categories []models.Category) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Categories</h1>
-					<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href="/">New Category</a>
+					@components.Button(components.ButtonProps{Label: "New Category"}).WithHref("/").Render()
 				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
-					if len(categories) == 0 {
-						<p class="text-sm text-base-content/60">No categories found.</p>
-					} else {
-						<div class="overflow-x-auto">
-							<table class="w-full text-left text-sm">
-								<thead class="border-b border-base-300 text-xs uppercase tracking-wide text-base-content/60">
-									<tr>
-										<th class="pb-3 pr-4">Name</th>
-										<th class="pb-3 pr-4">Description</th>
-										<th class="pb-3 pr-4">Created At</th>
-										<th class="pb-3 pr-4">Updated At</th>
-										<th class="pb-3 pr-4">Actions</th>
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-base-300">
-									for _, category := range categories {
-										<tr class="align-top">
-											<td class="py-3 pr-4 text-base-content/70">{ category.Name }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ category.Description }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ category.CreatedAt.String() }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ category.UpdatedAt.String() }</td>
-											<td class="py-3 pr-4">
-												<div class="flex flex-wrap gap-3 text-sm">
-													<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
-													<a class="text-base-content/80 hover:text-base-content" href="/">Edit</a>
-												</div>
-											</td>
-										</tr>
+				if len(categories) == 0 {
+					<p class="text-sm text-base-content/60">No categories found.</p>
+				} else {
+					@components.Table() {
+						@components.TableHeader() {
+							@components.TableRow() {
+								@components.TableHead() {
+									Name 
+								}
+								@components.TableHead() {
+									Description 
+								}
+								@components.TableHead() {
+									Created At 
+								}
+								@components.TableHead() {
+									Updated At 
+								}
+								@components.TableHead() {
+									Actions 
+								}
+							}
+						}
+						@components.TableBody() {
+							for _, category := range categories {
+								@components.TableRow() {
+									@components.TableCell() {
+										{ category.Name }
 									}
-								</tbody>
-							</table>
-						</div>
+									@components.TableCell() {
+										{ category.Description }
+									}
+									@components.TableCell() {
+										{ category.CreatedAt.String() }
+									}
+									@components.TableCell() {
+										{ category.UpdatedAt.String() }
+									}
+									@components.TableCell() {
+										<div class="flex flex-wrap gap-3 text-sm">
+											<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
+											<a class="text-base-content/80 hover:text-base-content" href="/">Edit</a>
+										</div>
+									}
+								}
+							}
+						}
 					}
-				</div>
+				}
 			</div>
 		</main>
 	}
@@ -60,30 +76,32 @@ templ CategoryShow(category models.Category) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Category Details</h1>
 					<div class="flex flex-wrap gap-3">
-						<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href="/">Edit</a>
+						@components.Button(components.ButtonProps{Label: "Edit"}).WithHref("/").Render()
 						<a class="text-sm text-base-content/70 hover:text-base-content" href="/">Back to List</a>
 					</div>
 				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
-					<div class="grid gap-5 sm:grid-cols-2">
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Name</label>
-							<p class="text-sm text-base-content">{ category.Name }</p>
+				@components.Card() {
+					@components.CardContent() {
+						<div class="grid gap-5 sm:grid-cols-2">
+							<div class="space-y-1">
+								@components.Label(components.LabelProps{Text: "Name"}).Render()
+								<p class="text-sm text-base-content">{ category.Name }</p>
+							</div>
+							<div class="space-y-1">
+								@components.Label(components.LabelProps{Text: "Description"}).Render()
+								<p class="text-sm text-base-content">{ category.Description }</p>
+							</div>
+							<div class="space-y-1">
+								@components.Label(components.LabelProps{Text: "Created At"}).Render()
+								<p class="text-sm text-base-content">{ category.CreatedAt.String() }</p>
+							</div>
+							<div class="space-y-1">
+								@components.Label(components.LabelProps{Text: "Updated At"}).Render()
+								<p class="text-sm text-base-content">{ category.UpdatedAt.String() }</p>
+							</div>
 						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Description</label>
-							<p class="text-sm text-base-content">{ category.Description }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Created At</label>
-							<p class="text-sm text-base-content">{ category.CreatedAt.String() }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Updated At</label>
-							<p class="text-sm text-base-content">{ category.UpdatedAt.String() }</p>
-						</div>
-					</div>
-				</div>
+					}
+				}
 			</div>
 		</main>
 	}
@@ -93,32 +111,27 @@ templ CategoryNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form
-						class="space-y-5"
-						data-indicator:submitting
-						data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", "/") }
-					>
-						<div class="space-y-1">
-							<h2 class="text-xl font-semibold text-base-content">New Category</h2>
-							<p class="text-sm text-base-content/60">Enter the details for the new category.</p>
-						</div>
-						<div class="space-y-4">
-							<div class="w-full space-y-1">
-								<label for="name" class="block text-sm font-medium text-base-content/80">Name</label>
-								<input id="name" type="text" data-bind="name" class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
+				@components.Card() {
+					@components.CardHeader() {
+						@components.CardTitle("New Category")
+						@components.CardDescription("Enter the details for the new category.")
+					}
+					@components.CardContent() {
+						@components.Form(components.FormProps{Action: http.MethodPost, URL: "/"}, components.WithClass("space-y-5"), components.WithFragment("new-category-form")) {
+							<div class="space-y-4">
+								<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "Name"}).WithFor("name").Render()
+									@components.Input("name").Render()
+								</div>
+								<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "Description"}).WithFor("description").Render()
+									@components.Input("description").Render()
+								</div>
 							</div>
-							<div class="w-full space-y-1">
-								<label for="description" class="block text-sm font-medium text-base-content/80">Description</label>
-								<input id="description" type="text" data-bind="description" class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
-							</div>
-						</div>
-						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Create Category</button>
-						<p class="text-center text-sm text-base-content/60">
-							<a class="text-base-content/70 hover:text-base-content" href="/">Back to List</a>
-						</p>
-					</form>
-				</div>
+							@components.Button(components.ButtonProps{Label: "Create Category"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+						}
+					}
+				}
 			</div>
 		</main>
 	}
@@ -128,38 +141,29 @@ templ CategoryEdit(category models.Category) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form
-						class="space-y-5"
-						data-indicator:submitting
-						data-on:submit={ "!$submitting && " + fmt.Sprintf("@put('%s')", "/") }
-					>
-						<div class="space-y-1">
-							<h2 class="text-xl font-semibold text-base-content">Edit Category</h2>
-							<p class="text-sm text-base-content/60">Update the details for this category.</p>
-						</div>
-						<div class="space-y-4">
-							<div class="w-full space-y-1">
-								<label for="name" class="block text-sm font-medium text-base-content/80">Name</label>
-								<input id="name" type="text" data-bind="name" value={ category.Name } class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
+				@components.Card() {
+					@components.CardHeader() {
+						@components.CardTitle("Edit Category")
+						@components.CardDescription("Update the details for this category.")
+					}
+					@components.CardContent() {
+						@components.Form(components.FormProps{Action: http.MethodPut, URL: "/"}, components.WithClass("space-y-5"), components.WithFragment("edit-category-form")) {
+							<div class="space-y-4">
+								<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "Name"}).WithFor("name").Render()
+									@components.Input("name").WithValue(category.Name).Render()
+								</div>
+								<div class="space-y-1">
+									@components.Label(components.LabelProps{Text: "Description"}).WithFor("description").Render()
+									@components.Input("description").WithValue(category.Description).Render()
+								</div>
 							</div>
-							<div class="w-full space-y-1">
-								<label for="description" class="block text-sm font-medium text-base-content/80">Description</label>
-								<input id="description" type="text" data-bind="description" value={ category.Description } class="w-full rounded-field border border-base-300 bg-base-200 px-4 py-2 text-base-content placeholder:text-base-content/40 shadow-inner transition focus:border-primary focus:ring-2 focus:ring-primary/50"/>
-							</div>
-						</div>
-						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Update Category</button>
-						<p class="text-center text-sm text-base-content/60">
-							<a class="text-base-content/70 hover:text-base-content" href="/">Back to List</a>
-						</p>
-					</form>
-					<div class="mt-4 pt-4 border-t border-base-300">
-						<button
-							class="w-full inline-flex items-center justify-center rounded-field border border-error/60 px-4 py-2.5 text-sm font-semibold text-error transition hover:border-error hover:bg-error/10"
-							data-on:click={ fmt.Sprintf("@delete('%s')", "/") }
-						>Destroy Category</button>
-					</div>
-				</div>
+							@components.Button(components.ButtonProps{Label: "Update Category"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+						}
+						@components.Separator().Render()
+						@components.Button(components.ButtonProps{Label: "Destroy Category"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", fmt.Sprintf("@delete('%s')", "/")).Render()
+					}
+				}
 			</div>
 		</main>
 	}
