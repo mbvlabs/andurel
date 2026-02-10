@@ -232,13 +232,13 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"tw_views_home.tmpl":   "views/home.templ",
 
 	// Views — Pages
-	"tw_views_bad_request.tmpl":     "views/bad_request.templ",
-	"tw_views_internal_error.tmpl":  "views/internal_error.templ",
-	"tw_views_not_found.tmpl":       "views/not_found.templ",
-	"tw_views_confirm_email.tmpl":   "views/confirm_email.templ",
-	"tw_views_login.tmpl":           "views/login.templ",
-	"tw_views_registration.tmpl":    "views/registration.templ",
-	"tw_views_reset_password.tmpl":  "views/reset_password.templ",
+	"tw_views_bad_request.tmpl":    "views/bad_request.templ",
+	"tw_views_internal_error.tmpl": "views/internal_error.templ",
+	"tw_views_not_found.tmpl":      "views/not_found.templ",
+	"tw_views_confirm_email.tmpl":  "views/confirm_email.templ",
+	"tw_views_login.tmpl":          "views/login.templ",
+	"tw_views_registration.tmpl":   "views/registration.templ",
+	"tw_views_reset_password.tmpl": "views/reset_password.templ",
 
 	// Views — Components (utility)
 	"tw_views_components_utils.tmpl": "views/components/utils.go",
@@ -885,7 +885,7 @@ var DefaultGoTools = []GoTool{
 	{Name: "mailpit", Module: "github.com/axllent/mailpit", Version: versions.Mailpit},
 	{Name: "usql", Module: "github.com/xo/usql", Version: versions.Usql},
 	{Name: "dblab", Module: "github.com/danvergara/dblab", Version: versions.Dblab},
-	{Name: "shadowfax", Module: "github.com/mbvlabs/shadowfax", Version: versions.RunTool},
+	{Name: "shadowfax", Module: "github.com/mbvlabs/shadowfax", Version: versions.Shadowfax},
 }
 
 var defaultTools = []string{
@@ -918,7 +918,7 @@ func GetExpectedTools(config *ScaffoldConfig) map[string]*Tool {
 
 // GetRunToolVersion returns the version of the run tool
 func GetRunToolVersion() string {
-	return versions.RunTool
+	return versions.Shadowfax
 }
 
 func createGoMod(targetDir string, data *TemplateData) error {
