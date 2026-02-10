@@ -69,8 +69,8 @@ templ OrderIndex(orders []models.Order) {
 									}
 									@components.TableCell() {
 										<div class="flex flex-wrap gap-3 text-sm">
-											<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.OrderShow.URL(order.ID)) }>View</a>
-											<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.OrderEdit.URL(order.ID)) }>Edit</a>
+											<a class="text-base-content/80 hover:text-base-content" href={ routes.OrderShow.URL(order.ID) }>View</a>
+											<a class="text-base-content/80 hover:text-base-content" href={ routes.OrderEdit.URL(order.ID) }>Edit</a>
 										</div>
 									}
 								}
@@ -91,7 +91,7 @@ templ OrderShow(order models.Order) {
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Order Details</h1>
 					<div class="flex flex-wrap gap-3">
 						@components.Button(components.ButtonProps{Label: "Edit"}).WithHref(routes.OrderEdit.URL(order.ID)).Render()
-						<a class="text-sm text-base-content/70 hover:text-base-content" href={ templ.URL(routes.OrderIndex.URL()) }>Back to List</a>
+						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.OrderIndex.URL() }>Back to List</a>
 					</div>
 				</div>
 				@components.Card() {

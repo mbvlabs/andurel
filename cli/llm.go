@@ -919,7 +919,7 @@ templ Home() {
 - All tags must be closed (templ enforces this).
 
 ### Attributes, classes, styles
-- String attributes: <a href={ templ.URL(path) }>.
+- String attributes: <a href={ path }>.
 - Boolean attributes: add a ? after the name to bind (e.g., disabled?={ isDisabled }).
 - Conditional attributes: use if blocks inside the element.
 - Class composition:
@@ -1075,7 +1075,7 @@ r.e.AddRoute(echo.Route{
 return etx.Redirect(http.StatusSeeOther, routes.ProductShow.URL(product.ID))
 
 // In views (links)
-<a href={ templ.URL(routes.ProductShow.URL(product.ID)) }>View</a>
+<a href={ routes.ProductShow.URL(product.ID) }>View</a>
 
 // Multiple IDs
 url := routes.ProductCategoryShow.URL(map[string]uuid.UUID{
@@ -1297,9 +1297,9 @@ Usage in views:
 ` + "```templ" + `
 templ navbar() {
 	if cookies.GetAppCtx(ctx).IsAuthenticated {
-		<a href={ templ.URL(routes.SessionDestroy.URL()) }>Logout</a>
+		<a href={ routes.SessionDestroy.URL() }>Logout</a>
 	} else {
-		<a href={ templ.URL(routes.SessionNew.URL()) }>Login</a>
+		<a href={ routes.SessionNew.URL() }>Login</a>
 	}
 }
 ` + "```" + `

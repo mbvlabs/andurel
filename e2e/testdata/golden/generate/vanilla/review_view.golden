@@ -14,7 +14,7 @@ templ ReviewIndex(reviews []models.Review) {
 		<main>
 			<div>
 				<h1>Reviews</h1>
-				<a href={ templ.URL(routes.ReviewNew.URL()) }>New Review</a>
+				<a href={ routes.ReviewNew.URL() }>New Review</a>
 			</div>
 			<div>
 				if len(reviews) == 0 {
@@ -41,8 +41,8 @@ templ ReviewIndex(reviews []models.Review) {
 										<td>{ review.CreatedAt.String() }</td>
 										<td>{ review.UpdatedAt.String() }</td>
 										<td>
-											<a href={ templ.URL(routes.ReviewShow.URL(review.ID)) }>View</a>
-											<a href={ templ.URL(routes.ReviewEdit.URL(review.ID)) }>Edit</a>
+											<a href={ routes.ReviewShow.URL(review.ID) }>View</a>
+											<a href={ routes.ReviewEdit.URL(review.ID) }>Edit</a>
 										</td>
 									</tr>
 								}
@@ -61,8 +61,8 @@ templ ReviewShow(review models.Review) {
 			<div>
 				<h1>Review Details</h1>
 				<div>
-					<a href={ templ.URL(routes.ReviewEdit.URL(review.ID)) }>Edit</a>
-					<a href={ templ.URL(routes.ReviewIndex.URL()) }>Back to List</a>
+					<a href={ routes.ReviewEdit.URL(review.ID) }>Edit</a>
+					<a href={ routes.ReviewIndex.URL() }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -112,7 +112,7 @@ templ ReviewNew() {
 					</div>
 					@components.SubmitButton("Create Review")
 					<p>
-						<a href={ templ.URL(routes.ReviewIndex.URL()) }>Back to List</a>
+						<a href={ routes.ReviewIndex.URL() }>Back to List</a>
 					</p>
 				</form>
 			</div>
@@ -145,7 +145,7 @@ templ ReviewEdit(review models.Review) {
 					</div>
 					@components.SubmitButton("Update Review")
 					<p>
-						<a href={ templ.URL(routes.ReviewIndex.URL()) }>Back to List</a>
+						<a href={ routes.ReviewIndex.URL() }>Back to List</a>
 					</p>
 				</form>
 				<div>

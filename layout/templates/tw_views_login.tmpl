@@ -26,12 +26,12 @@ templ LoginForm() {
 							</div>
 						</div>
 						<p class="text-right text-sm mb-1">
-							<a class="text-base-content/70 hover:text-base-content" href={ templ.SafeURL(routes.PasswordNew.URL()) }>Forgot your password?</a>
+							<a class="text-base-content/70 hover:text-base-content" href={ routes.PasswordNew.URL() }>Forgot your password?</a>
 						</p>
 						@components.Button(components.ButtonProps{Label: "Login"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).WithLoadingLabel("Loading", "submitting").Render()
 					}
 					<p class="mt-6 text-center text-sm text-base-content/60">
-						Don't have an account? <a class="text-base-content hover:underline" href={ templ.SafeURL(routes.RegistrationNew.URL()) }>Sign up</a>
+						Don't have an account? <a class="text-base-content hover:underline" href={ routes.RegistrationNew.URL() }>Sign up</a>
 					</p>
 				</div>
 			</div>

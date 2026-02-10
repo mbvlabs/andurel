@@ -34,8 +34,8 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 									{{range .Fields}}@components.TableCell() { {{StringTableDisplay . $.ResourceName}} }
 									{{end}}@components.TableCell() {
 										<div class="flex flex-wrap gap-3 text-sm">
-											<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.{{$.ResourceName}}Show.URL({{$.ResourceName | ToLower}}.ID)) }>View</a>
-											<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.{{$.ResourceName}}Edit.URL({{$.ResourceName | ToLower}}.ID)) }>Edit</a>
+											<a class="text-base-content/80 hover:text-base-content" href={ routes.{{$.ResourceName}}Show.URL({{$.ResourceName | ToLower}}.ID) }>View</a>
+											<a class="text-base-content/80 hover:text-base-content" href={ routes.{{$.ResourceName}}Edit.URL({{$.ResourceName | ToLower}}.ID) }>Edit</a>
 										</div>
 									}
 								}
@@ -56,7 +56,7 @@ templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{.ResourceName}} Details</h1>
 					<div class="flex flex-wrap gap-3">
 						@components.Button(components.ButtonProps{Label: "Edit"}).WithHref(routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLower}}.ID)).Render()
-						<a class="text-sm text-base-content/70 hover:text-base-content" href={ templ.URL(routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.{{.ResourceName}}Index.URL() }>Back to List</a>
 					</div>
 				</div>
 				@components.Card() {

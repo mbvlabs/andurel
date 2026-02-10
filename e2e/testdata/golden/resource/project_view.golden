@@ -56,8 +56,8 @@ templ ProjectIndex(projects []models.Project) {
 									}
 									@components.TableCell() {
 										<div class="flex flex-wrap gap-3 text-sm">
-											<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.ProjectShow.URL(project.ID)) }>View</a>
-											<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.ProjectEdit.URL(project.ID)) }>Edit</a>
+											<a class="text-base-content/80 hover:text-base-content" href={ routes.ProjectShow.URL(project.ID) }>View</a>
+											<a class="text-base-content/80 hover:text-base-content" href={ routes.ProjectEdit.URL(project.ID) }>Edit</a>
 										</div>
 									}
 								}
@@ -78,7 +78,7 @@ templ ProjectShow(project models.Project) {
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Project Details</h1>
 					<div class="flex flex-wrap gap-3">
 						@components.Button(components.ButtonProps{Label: "Edit"}).WithHref(routes.ProjectEdit.URL(project.ID)).Render()
-						<a class="text-sm text-base-content/70 hover:text-base-content" href={ templ.URL(routes.ProjectIndex.URL()) }>Back to List</a>
+						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.ProjectIndex.URL() }>Back to List</a>
 					</div>
 				</div>
 				@components.Card() {

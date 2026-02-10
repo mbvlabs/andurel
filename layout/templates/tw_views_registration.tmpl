@@ -32,7 +32,7 @@ templ RegistrationForm() {
 						@components.Button(components.ButtonProps{Label: "Sign Up"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).WithLoadingLabel("Loading", "submitting").Render()
 					}
 					<p class="mt-6 text-center text-sm text-base-content/60">
-						Already have an account? <a class="text-base-content hover:underline" href={ templ.SafeURL(routes.SessionNew.URL()) }>Login</a>
+						Already have an account? <a class="text-base-content hover:underline" href={ routes.SessionNew.URL() }>Login</a>
 					</p>
 				</div>
 			</div>

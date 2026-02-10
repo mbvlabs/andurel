@@ -63,8 +63,8 @@ templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
 									}
 									@components.TableCell() {
 										<div class="flex flex-wrap gap-3 text-sm">
-											<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.StudentFeedbackShow.URL(studentfeedback.ID)) }>View</a>
-											<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.StudentFeedbackEdit.URL(studentfeedback.ID)) }>Edit</a>
+											<a class="text-base-content/80 hover:text-base-content" href={ routes.StudentFeedbackShow.URL(studentfeedback.ID) }>View</a>
+											<a class="text-base-content/80 hover:text-base-content" href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) }>Edit</a>
 										</div>
 									}
 								}
@@ -85,7 +85,7 @@ templ StudentFeedbackShow(studentfeedback models.StudentFeedback) {
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">StudentFeedback Details</h1>
 					<div class="flex flex-wrap gap-3">
 						@components.Button(components.ButtonProps{Label: "Edit"}).WithHref(routes.StudentFeedbackEdit.URL(studentfeedback.ID)).Render()
-						<a class="text-sm text-base-content/70 hover:text-base-content" href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.StudentFeedbackIndex.URL() }>Back to List</a>
 					</div>
 				</div>
 				@components.Card() {

@@ -15,7 +15,7 @@ templ ReviewIndex(reviews []models.Review) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Reviews</h1>
-					<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href={ templ.URL(routes.ReviewNew.URL()) }>New Review</a>
+					<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href={ routes.ReviewNew.URL() }>New Review</a>
 				</div>
 				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
 					if len(reviews) == 0 {
@@ -43,8 +43,8 @@ templ ReviewIndex(reviews []models.Review) {
 											<td class="py-3 pr-4 text-base-content/70">{ review.UpdatedAt.String() }</td>
 											<td class="py-3 pr-4">
 												<div class="flex flex-wrap gap-3 text-sm">
-													<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.ReviewShow.URL(review.ID)) }>View</a>
-													<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.ReviewEdit.URL(review.ID)) }>Edit</a>
+													<a class="text-base-content/80 hover:text-base-content" href={ routes.ReviewShow.URL(review.ID) }>View</a>
+													<a class="text-base-content/80 hover:text-base-content" href={ routes.ReviewEdit.URL(review.ID) }>Edit</a>
 												</div>
 											</td>
 										</tr>
@@ -66,8 +66,8 @@ templ ReviewShow(review models.Review) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Review Details</h1>
 					<div class="flex flex-wrap gap-3">
-						<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href={ templ.URL(routes.ReviewEdit.URL(review.ID)) }>Edit</a>
-						<a class="text-sm text-base-content/70 hover:text-base-content" href={ templ.URL(routes.ReviewIndex.URL()) }>Back to List</a>
+						<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href={ routes.ReviewEdit.URL(review.ID) }>Edit</a>
+						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.ReviewIndex.URL() }>Back to List</a>
 					</div>
 				</div>
 				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
@@ -120,7 +120,7 @@ templ ReviewNew() {
 						</div>
 						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Create Review</button>
 						<p class="text-center text-sm text-base-content/60">
-							<a class="text-base-content/70 hover:text-base-content" href={ templ.URL(routes.ReviewIndex.URL()) }>Back to List</a>
+							<a class="text-base-content/70 hover:text-base-content" href={ routes.ReviewIndex.URL() }>Back to List</a>
 						</p>
 					</form>
 				</div>
@@ -152,7 +152,7 @@ templ ReviewEdit(review models.Review) {
 						</div>
 						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Update Review</button>
 						<p class="text-center text-sm text-base-content/60">
-							<a class="text-base-content/70 hover:text-base-content" href={ templ.URL(routes.ReviewIndex.URL()) }>Back to List</a>
+							<a class="text-base-content/70 hover:text-base-content" href={ routes.ReviewIndex.URL() }>Back to List</a>
 						</p>
 					</form>
 					<div class="mt-4 pt-4 border-t border-base-300">

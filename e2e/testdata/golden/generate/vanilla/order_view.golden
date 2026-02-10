@@ -14,7 +14,7 @@ templ OrderIndex(orders []models.Order) {
 		<main>
 			<div>
 				<h1>Orders</h1>
-				<a href={ templ.URL(routes.OrderNew.URL()) }>New Order</a>
+				<a href={ routes.OrderNew.URL() }>New Order</a>
 			</div>
 			<div>
 				if len(orders) == 0 {
@@ -43,8 +43,8 @@ templ OrderIndex(orders []models.Order) {
 										<td>{ order.CreatedAt.String() }</td>
 										<td>{ order.UpdatedAt.String() }</td>
 										<td>
-											<a href={ templ.URL(routes.OrderShow.URL(order.ID)) }>View</a>
-											<a href={ templ.URL(routes.OrderEdit.URL(order.ID)) }>Edit</a>
+											<a href={ routes.OrderShow.URL(order.ID) }>View</a>
+											<a href={ routes.OrderEdit.URL(order.ID) }>Edit</a>
 										</td>
 									</tr>
 								}
@@ -63,8 +63,8 @@ templ OrderShow(order models.Order) {
 			<div>
 				<h1>Order Details</h1>
 				<div>
-					<a href={ templ.URL(routes.OrderEdit.URL(order.ID)) }>Edit</a>
-					<a href={ templ.URL(routes.OrderIndex.URL()) }>Back to List</a>
+					<a href={ routes.OrderEdit.URL(order.ID) }>Edit</a>
+					<a href={ routes.OrderIndex.URL() }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -119,7 +119,7 @@ templ OrderNew() {
 					</div>
 					@components.SubmitButton("Create Order")
 					<p>
-						<a href={ templ.URL(routes.OrderIndex.URL()) }>Back to List</a>
+						<a href={ routes.OrderIndex.URL() }>Back to List</a>
 					</p>
 				</form>
 			</div>
@@ -155,7 +155,7 @@ templ OrderEdit(order models.Order) {
 					</div>
 					@components.SubmitButton("Update Order")
 					<p>
-						<a href={ templ.URL(routes.OrderIndex.URL()) }>Back to List</a>
+						<a href={ routes.OrderIndex.URL() }>Back to List</a>
 					</p>
 				</form>
 				<div>
