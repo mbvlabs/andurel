@@ -1,7 +1,5 @@
 package components
 
-// --- Types ---
-
 type SheetSide string
 
 const (
@@ -10,8 +8,6 @@ const (
 	SheetSideTop    SheetSide = "top"
 	SheetSideBottom SheetSide = "bottom"
 )
-
-// --- Class helpers ---
 
 func sheetClasses(class string) string {
 	return cn("relative", class)
@@ -55,8 +51,6 @@ func sheetCloseClasses() string {
 	return "absolute right-4 top-4 rounded-field opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
 }
 
-// --- Templ ---
-
 // Sheet creates a panel that slides in from the edge of the screen. Pass the trigger as a
 // component and the side, then compose the body with SheetHeader, SheetTitle,
 // SheetDescription, and SheetFooter.
@@ -76,7 +70,13 @@ templ Sheet(trigger templ.Component, side SheetSide, opts ...Opt) {
 }
 
 templ sheetInner(id string, trigger templ.Component, side SheetSide, class string, attrs templ.Attributes) {
-	<div class={ sheetClasses(class) } { templ.Attributes{"data-signals:_" + id: "false"}... } if attrsWithout(attrs, "data-on:click") != nil { { attrsWithout(attrs, "data-on:click")... } }>
+	<div
+		class={ sheetClasses(class) }
+		{ templ.Attributes{"data-signals:_" + id: "false"}... }
+		if attrsWithout(attrs, "data-on:click") != nil {
+			{ attrsWithout(attrs, "data-on:click")... }
+		}
+	>
 		<div class="cursor-pointer inline-block" { templ.Attributes{"data-on:click": triggerClickExpr(id, attrs)}... }>
 			@trigger
 		</div>
@@ -94,25 +94,45 @@ templ sheetInner(id string, trigger templ.Component, side SheetSide, class strin
 }
 
 templ SheetHeader(opts ...Opt) {
-	<div class={ sheetHeaderClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<div
+		class={ sheetHeaderClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</div>
 }
 
 templ SheetTitle(title string, opts ...Opt) {
-	<h2 class={ sheetTitleClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<h2
+		class={ sheetTitleClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ title }
 	</h2>
 }
 
 templ SheetDescription(description string, opts ...Opt) {
-	<p class={ sheetDescriptionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<p
+		class={ sheetDescriptionClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ description }
 	</p>
 }
 
 templ SheetFooter(opts ...Opt) {
-	<div class={ sheetFooterClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<div
+		class={ sheetFooterClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</div>
 }

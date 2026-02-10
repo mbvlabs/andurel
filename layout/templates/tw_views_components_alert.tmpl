@@ -1,7 +1,5 @@
 package components
 
-// --- Types ---
-
 type AlertVariant string
 
 const (
@@ -12,13 +10,9 @@ const (
 	AlertVariantError   AlertVariant = "error"
 )
 
-// --- Props ---
-
 type AlertProps struct {
 	Description string
 }
-
-// --- Builder ---
 
 type AlertBuilder struct {
 	description string
@@ -49,12 +43,13 @@ func (b *AlertBuilder) WithID(id string) *AlertBuilder           { b.id = id; re
 func (b *AlertBuilder) WithClass(c string) *AlertBuilder         { b.class = cn(b.class, c); return b }
 func (b *AlertBuilder) SetClass(c string) *AlertBuilder          { b.class = c; return b }
 func (b *AlertBuilder) WithAttr(key string, val any) *AlertBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
-func (b *AlertBuilder) WithFragment(id string) *AlertBuilder     { b.fragmentID = id; return b }
-
-// --- Class helpers ---
+func (b *AlertBuilder) WithFragment(id string) *AlertBuilder { b.fragmentID = id; return b }
 
 func alertVariantClasses(v AlertVariant) string {
 	switch v {
@@ -75,8 +70,6 @@ func alertClasses(b *AlertBuilder) string {
 	base := "relative w-full rounded-box border p-4 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg~*]:pl-7"
 	return cn(base, alertVariantClasses(b.variant), b.class)
 }
-
-// --- Templ ---
 
 templ (b *AlertBuilder) Render() {
 	if b.fragmentID != "" {

@@ -5,8 +5,6 @@ import (
 	"time"
 )
 
-// --- Builder ---
-
 type CalendarBuilder struct {
 	month        int
 	year         int
@@ -26,19 +24,20 @@ func Calendar() *CalendarBuilder {
 	return &CalendarBuilder{}
 }
 
-func (b *CalendarBuilder) WithMonth(m int) *CalendarBuilder          { b.month = m; return b }
-func (b *CalendarBuilder) WithYear(y int) *CalendarBuilder           { b.year = y; return b }
+func (b *CalendarBuilder) WithMonth(m int) *CalendarBuilder           { b.month = m; return b }
+func (b *CalendarBuilder) WithYear(y int) *CalendarBuilder            { b.year = y; return b }
 func (b *CalendarBuilder) WithSelectedDate(d string) *CalendarBuilder { b.selectedDate = d; return b }
-func (b *CalendarBuilder) WithID(id string) *CalendarBuilder         { b.id = id; return b }
-func (b *CalendarBuilder) WithClass(c string) *CalendarBuilder       { b.class = cn(b.class, c); return b }
-func (b *CalendarBuilder) SetClass(c string) *CalendarBuilder        { b.class = c; return b }
+func (b *CalendarBuilder) WithID(id string) *CalendarBuilder          { b.id = id; return b }
+func (b *CalendarBuilder) WithClass(c string) *CalendarBuilder        { b.class = cn(b.class, c); return b }
+func (b *CalendarBuilder) SetClass(c string) *CalendarBuilder         { b.class = c; return b }
 func (b *CalendarBuilder) WithAttr(key string, val any) *CalendarBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
-func (b *CalendarBuilder) WithFragment(id string) *CalendarBuilder   { b.fragmentID = id; return b }
-
-// --- Helpers ---
+func (b *CalendarBuilder) WithFragment(id string) *CalendarBuilder { b.fragmentID = id; return b }
 
 func calendarClasses(b *CalendarBuilder) string {
 	return cn("p-3 rounded-box border border-base-300 bg-base-100 shadow-sm w-fit", b.class)
@@ -63,8 +62,6 @@ func calendarDateStr(year, month, day int) string {
 	return fmt.Sprintf("%04d-%02d-%02d", year, month, day)
 }
 
-// --- Templ ---
-
 templ (b *CalendarBuilder) Render() {
 	if b.fragmentID != "" {
 		@templ.Fragment(b.fragmentID) {
@@ -77,10 +74,10 @@ templ (b *CalendarBuilder) Render() {
 
 templ (b *CalendarBuilder) render() {
 	if b.year == 0 {
-		{{ "{{" }} b.year = time.Now().Year() {{ "}}" }}
+		b.year = time.Now().Year()
 	}
 	if b.month == 0 {
-		{{ "{{" }} b.month = int(time.Now().Month()) {{ "}}" }}
+		b.month = int(time.Now().Month())
 	}
 	<div
 		class={ calendarClasses(b) }
@@ -122,9 +119,9 @@ templ (b *CalendarBuilder) render() {
 }
 
 templ calendarBody(year int, month int, selectedDate string) {
-	{{ "{{" }} days := calendarDaysInMonth(year, month) {{ "}}" }}
-	{{ "{{" }} firstDay := calendarFirstWeekday(year, month) {{ "}}" }}
-	{{ "{{" }} day := 1 {{ "}}" }}
+	{{`{{`}} days := calendarDaysInMonth(year, month) {{`}}`}}
+	{{`{{`}} firstDay := calendarFirstWeekday(year, month) {{`}}`}}
+	{{`{{`}} day := 1 {{`}}`}}
 	for row := 0; row < 6; row++ {
 		if day <= days {
 			<tr>
@@ -145,7 +142,7 @@ templ calendarBody(year int, month int, selectedDate string) {
 								</button>
 							</td>
 						}
-						{{ "{{" }} day++ {{ "}}" }}
+						{{`{{`}} day++ {{`}}`}}
 					}
 				}
 			</tr>

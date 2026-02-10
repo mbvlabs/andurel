@@ -1,7 +1,5 @@
 package components
 
-// --- Types ---
-
 type InputType string
 
 const (
@@ -17,8 +15,6 @@ const (
 	InputTypeHidden   InputType = "hidden"
 	InputTypeFile     InputType = "file"
 )
-
-// --- Builder ---
 
 type InputBuilder struct {
 	bind        string
@@ -45,22 +41,23 @@ func Input(bind string) *InputBuilder {
 	return &InputBuilder{bind: bind, inputType: InputTypeText}
 }
 
-func (b *InputBuilder) WithType(t InputType) *InputBuilder          { b.inputType = t; return b }
-func (b *InputBuilder) WithPlaceholder(p string) *InputBuilder      { b.placeholder = p; return b }
-func (b *InputBuilder) WithValue(v string) *InputBuilder            { b.value = v; return b }
-func (b *InputBuilder) WithDisabled(d bool) *InputBuilder           { b.disabled = d; return b }
-func (b *InputBuilder) WithRequired(r bool) *InputBuilder           { b.required = r; return b }
-func (b *InputBuilder) WithHasError(e bool) *InputBuilder           { b.hasError = e; return b }
-func (b *InputBuilder) WithID(id string) *InputBuilder              { b.id = id; return b }
-func (b *InputBuilder) WithClass(c string) *InputBuilder            { b.class = cn(b.class, c); return b }
-func (b *InputBuilder) SetClass(c string) *InputBuilder             { b.class = c; return b }
+func (b *InputBuilder) WithType(t InputType) *InputBuilder     { b.inputType = t; return b }
+func (b *InputBuilder) WithPlaceholder(p string) *InputBuilder { b.placeholder = p; return b }
+func (b *InputBuilder) WithValue(v string) *InputBuilder       { b.value = v; return b }
+func (b *InputBuilder) WithDisabled(d bool) *InputBuilder      { b.disabled = d; return b }
+func (b *InputBuilder) WithRequired(r bool) *InputBuilder      { b.required = r; return b }
+func (b *InputBuilder) WithHasError(e bool) *InputBuilder      { b.hasError = e; return b }
+func (b *InputBuilder) WithID(id string) *InputBuilder         { b.id = id; return b }
+func (b *InputBuilder) WithClass(c string) *InputBuilder       { b.class = cn(b.class, c); return b }
+func (b *InputBuilder) SetClass(c string) *InputBuilder        { b.class = c; return b }
 func (b *InputBuilder) WithAttr(key string, val any) *InputBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
-func (b *InputBuilder) WithFragment(id string) *InputBuilder        { b.fragmentID = id; return b }
-
-// --- Class helpers ---
+func (b *InputBuilder) WithFragment(id string) *InputBuilder { b.fragmentID = id; return b }
 
 func inputClasses(b *InputBuilder) string {
 	base := "flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -70,8 +67,6 @@ func inputClasses(b *InputBuilder) string {
 	}
 	return cn(base, borderClass, b.class)
 }
-
-// --- Templ ---
 
 templ (b *InputBuilder) Render() {
 	if b.fragmentID != "" {

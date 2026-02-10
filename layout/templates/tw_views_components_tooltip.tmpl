@@ -1,7 +1,5 @@
 package components
 
-// --- Types ---
-
 type TooltipSide string
 
 const (
@@ -11,8 +9,6 @@ const (
 	TooltipSideLeft   TooltipSide = "left"
 )
 
-// --- Class helpers ---
-
 func tooltipClasses(class string) string {
 	return cn("relative inline-block group", class)
 }
@@ -21,8 +17,6 @@ func tooltipContentClasses(class string) string {
 	base := "absolute hidden group-hover:block bottom-full left-1/2 -translate-x-1/2 mb-2 whitespace-nowrap z-50 overflow-hidden rounded-field border border-base-300 bg-base-100 px-3 py-1.5 text-xs text-base-content shadow-md"
 	return cn(base, class)
 }
-
-// --- Templ ---
 
 // Tooltip shows a small informational popup on hover. Use it to provide brief explanations
 // for icon buttons, truncated text, or any element that needs additional context. Compose
@@ -35,19 +29,35 @@ func tooltipContentClasses(class string) string {
 //		@components.TooltipContent() { Helpful tip }
 //	}
 templ Tooltip(opts ...Opt) {
-	<div class={ tooltipClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<div
+		class={ tooltipClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</div>
 }
 
 templ TooltipTrigger(opts ...Opt) {
-	<div class={ cn("cursor-pointer", classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<div
+		class={ cn("cursor-pointer", classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</div>
 }
 
 templ TooltipContent(opts ...Opt) {
-	<div role="tooltip" class={ tooltipContentClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<div
+		role="tooltip"
+		class={ tooltipContentClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</div>
 }

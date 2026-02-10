@@ -1,7 +1,5 @@
 package components
 
-// --- Class helpers ---
-
 func tableClasses(class string) string {
 	return cn("w-full caption-bottom text-sm", class)
 }
@@ -34,8 +32,6 @@ func tableCaptionClasses(class string) string {
 	return cn("mt-4 text-sm text-base-content/60", class)
 }
 
-// --- Templ ---
-
 // Table renders a data table with consistent styling. Use it for displaying structured
 // data like user lists, transactions, or search results. Compose with TableHeader,
 // TableBody, TableFooter, TableRow, TableHead, TableCell, and TableCaption sub-components.
@@ -56,50 +52,90 @@ func tableCaptionClasses(class string) string {
 //	}
 templ Table(opts ...Opt) {
 	<div class="relative w-full overflow-auto">
-		<table class={ tableClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		<table
+			class={ tableClasses(classFrom(opts)) }
+			if attrsFrom(opts) != nil {
+				{ attrsFrom(opts)... }
+			}
+		>
 			{ children... }
 		</table>
 	</div>
 }
 
 templ TableHeader(opts ...Opt) {
-	<thead class={ tableHeaderClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<thead
+		class={ tableHeaderClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</thead>
 }
 
 templ TableBody(opts ...Opt) {
-	<tbody class={ tableBodyClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<tbody
+		class={ tableBodyClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</tbody>
 }
 
 templ TableFooter(opts ...Opt) {
-	<tfoot class={ tableFooterClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<tfoot
+		class={ tableFooterClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</tfoot>
 }
 
 templ TableRow(opts ...Opt) {
-	<tr class={ tableRowClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<tr
+		class={ tableRowClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</tr>
 }
 
 templ TableHead(opts ...Opt) {
-	<th class={ tableHeadClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<th
+		class={ tableHeadClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</th>
 }
 
 templ TableCell(opts ...Opt) {
-	<td class={ tableCellClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<td
+		class={ tableCellClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</td>
 }
 
 templ TableCaption(caption string, opts ...Opt) {
-	<caption class={ tableCaptionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<caption
+		class={ tableCaptionClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ caption }
 	</caption>
 }

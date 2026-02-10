@@ -1,7 +1,5 @@
 package components
 
-// --- Types ---
-
 type SpinnerSize string
 
 const (
@@ -9,8 +7,6 @@ const (
 	SpinnerSizeMd SpinnerSize = "md"
 	SpinnerSizeLg SpinnerSize = "lg"
 )
-
-// --- Builder ---
 
 type SpinnerBuilder struct {
 	size       SpinnerSize
@@ -36,12 +32,13 @@ func (b *SpinnerBuilder) WithID(id string) *SpinnerBuilder       { b.id = id; re
 func (b *SpinnerBuilder) WithClass(c string) *SpinnerBuilder     { b.class = cn(b.class, c); return b }
 func (b *SpinnerBuilder) SetClass(c string) *SpinnerBuilder      { b.class = c; return b }
 func (b *SpinnerBuilder) WithAttr(key string, val any) *SpinnerBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
 func (b *SpinnerBuilder) WithFragment(id string) *SpinnerBuilder { b.fragmentID = id; return b }
-
-// --- Class helpers ---
 
 func spinnerSizeClasses(s SpinnerSize) string {
 	switch s {
@@ -58,8 +55,6 @@ func spinnerClasses(b *SpinnerBuilder) string {
 	base := "animate-spin text-base-content/60"
 	return cn(base, spinnerSizeClasses(b.size), b.class)
 }
-
-// --- Templ ---
 
 templ (b *SpinnerBuilder) Render() {
 	if b.fragmentID != "" {

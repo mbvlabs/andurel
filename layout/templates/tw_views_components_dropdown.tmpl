@@ -1,7 +1,5 @@
 package components
 
-// --- Class helpers ---
-
 func dropdownClasses(class string) string {
 	return cn("relative inline-block text-left", class)
 }
@@ -23,8 +21,6 @@ func dropdownLabelClasses(class string) string {
 	return cn("px-2 py-1.5 text-sm font-semibold text-base-content", class)
 }
 
-// --- Templ ---
-
 // Dropdown creates a menu that appears when a trigger element is activated. Use it for
 // action menus, context menus, or navigation sub-menus. Pass the trigger as a component
 // and menu items as children.
@@ -42,7 +38,13 @@ templ Dropdown(trigger templ.Component, opts ...Opt) {
 }
 
 templ dropdownInner(id string, trigger templ.Component, class string, attrs templ.Attributes) {
-	<div class={ dropdownClasses(class) } { templ.Attributes{"data-signals:_" + id: "false"}... } if attrsWithout(attrs, "data-on:click") != nil { { attrsWithout(attrs, "data-on:click")... } }>
+	<div
+		class={ dropdownClasses(class) }
+		{ templ.Attributes{"data-signals:_" + id: "false"}... }
+		if attrsWithout(attrs, "data-on:click") != nil {
+			{ attrsWithout(attrs, "data-on:click")... }
+		}
+	>
 		<div class="cursor-pointer" { templ.Attributes{"data-on:click": triggerClickExpr(id, attrs)}... }>
 			@trigger
 		</div>
@@ -53,7 +55,13 @@ templ dropdownInner(id string, trigger templ.Component, class string, attrs temp
 }
 
 templ DropdownItem(label string, disabled bool, opts ...Opt) {
-	<div class={ dropdownItemClasses(disabled, classFrom(opts)) } role="menuitem" if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<div
+		class={ dropdownItemClasses(disabled, classFrom(opts)) }
+		role="menuitem"
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ label }
 	</div>
 }
@@ -63,7 +71,12 @@ templ DropdownSeparator() {
 }
 
 templ DropdownLabel(label string, opts ...Opt) {
-	<div class={ dropdownLabelClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<div
+		class={ dropdownLabelClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ label }
 	</div>
 }

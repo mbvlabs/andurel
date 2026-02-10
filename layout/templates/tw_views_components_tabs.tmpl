@@ -1,7 +1,5 @@
 package components
 
-// --- Class helpers ---
-
 func tabsClasses(class string) string {
 	return cn("w-full", class)
 }
@@ -19,8 +17,6 @@ func tabsContentClasses(class string) string {
 	return cn("mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50", class)
 }
 
-// --- Templ ---
-
 // Tabs organizes content into switchable panels. Pass an explicit signal name and
 // default tab value. Use TabsTrigger and TabsContent with matching signal/value pairs.
 //
@@ -33,25 +29,53 @@ func tabsContentClasses(class string) string {
 //		@components.TabsContent("demoTabs", "settings") { Settings content }
 //	}
 templ Tabs(signal string, defaultTab string, opts ...Opt) {
-	<div class={ tabsClasses(classFrom(opts)) } { templ.Attributes{"data-signals:_" + signal: "'" + defaultTab + "'"}... } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<div
+		class={ tabsClasses(classFrom(opts)) }
+		{ templ.Attributes{"data-signals:_" + signal: "'" + defaultTab + "'"}... }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</div>
 }
 
 templ TabsList(opts ...Opt) {
-	<div role="tablist" class={ tabsListClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<div
+		role="tablist"
+		class={ tabsListClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</div>
 }
 
 templ TabsTrigger(signal string, value string, label string, opts ...Opt) {
-	<button type="button" role="tab" aria-selected="false" class={ tabsTriggerClasses(classFrom(opts)) } { templ.Attributes{"data-on:click": "$_" + signal + " = '" + value + "'", "data-attr:aria-selected": "$_" + signal + " == '" + value + "'"}... } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<button
+		type="button"
+		role="tab"
+		aria-selected="false"
+		class={ tabsTriggerClasses(classFrom(opts)) }
+		{ templ.Attributes{"data-on:click": "$_" + signal + " = '" + value + "'", "data-attr:aria-selected": "$_" + signal + " == '" + value + "'"}... }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ label }
 	</button>
 }
 
 templ TabsContent(signal string, value string, opts ...Opt) {
-	<div role="tabpanel" class={ tabsContentClasses(classFrom(opts)) } { templ.Attributes{"data-show": "$_" + signal + " == '" + value + "'"}... } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<div
+		role="tabpanel"
+		class={ tabsContentClasses(classFrom(opts)) }
+		{ templ.Attributes{"data-show": "$_" + signal + " == '" + value + "'"}... }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</div>
 }

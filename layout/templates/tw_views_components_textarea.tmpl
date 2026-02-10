@@ -2,8 +2,6 @@ package components
 
 import "strconv"
 
-// --- Builder ---
-
 type TextareaBuilder struct {
 	bind        string
 	placeholder string
@@ -38,12 +36,13 @@ func (b *TextareaBuilder) WithID(id string) *TextareaBuilder         { b.id = id
 func (b *TextareaBuilder) WithClass(c string) *TextareaBuilder       { b.class = cn(b.class, c); return b }
 func (b *TextareaBuilder) SetClass(c string) *TextareaBuilder        { b.class = c; return b }
 func (b *TextareaBuilder) WithAttr(key string, val any) *TextareaBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
-func (b *TextareaBuilder) WithFragment(id string) *TextareaBuilder   { b.fragmentID = id; return b }
-
-// --- Class helpers ---
+func (b *TextareaBuilder) WithFragment(id string) *TextareaBuilder { b.fragmentID = id; return b }
 
 func textareaClasses(b *TextareaBuilder) string {
 	base := "flex min-h-[80px] w-full rounded-field border bg-base-200 px-3 py-2 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -53,8 +52,6 @@ func textareaClasses(b *TextareaBuilder) string {
 	}
 	return cn(base, borderClass, b.class)
 }
-
-// --- Templ ---
 
 templ (b *TextareaBuilder) Render() {
 	if b.fragmentID != "" {

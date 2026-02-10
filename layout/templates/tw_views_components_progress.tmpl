@@ -2,8 +2,6 @@ package components
 
 import "fmt"
 
-// --- Builder ---
-
 type ProgressBuilder struct {
 	value      int
 	max        int
@@ -22,17 +20,18 @@ func Progress(value int) *ProgressBuilder {
 	return &ProgressBuilder{value: value, max: 100}
 }
 
-func (b *ProgressBuilder) WithMax(m int) *ProgressBuilder       { b.max = m; return b }
-func (b *ProgressBuilder) WithID(id string) *ProgressBuilder    { b.id = id; return b }
-func (b *ProgressBuilder) WithClass(c string) *ProgressBuilder  { b.class = cn(b.class, c); return b }
-func (b *ProgressBuilder) SetClass(c string) *ProgressBuilder   { b.class = c; return b }
+func (b *ProgressBuilder) WithMax(m int) *ProgressBuilder      { b.max = m; return b }
+func (b *ProgressBuilder) WithID(id string) *ProgressBuilder   { b.id = id; return b }
+func (b *ProgressBuilder) WithClass(c string) *ProgressBuilder { b.class = cn(b.class, c); return b }
+func (b *ProgressBuilder) SetClass(c string) *ProgressBuilder  { b.class = c; return b }
 func (b *ProgressBuilder) WithAttr(key string, val any) *ProgressBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
 func (b *ProgressBuilder) WithFragment(id string) *ProgressBuilder { b.fragmentID = id; return b }
-
-// --- Class helpers ---
 
 func progressContainerClasses(b *ProgressBuilder) string {
 	base := "relative h-2 w-full overflow-hidden rounded-full bg-base-200"
@@ -52,8 +51,6 @@ func progressWidth(value, max int) string {
 	}
 	return fmt.Sprintf("width: %d%%", pct)
 }
-
-// --- Templ ---
 
 templ (b *ProgressBuilder) Render() {
 	if b.fragmentID != "" {

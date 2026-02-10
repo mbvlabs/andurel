@@ -1,7 +1,5 @@
 package components
 
-// --- Builder ---
-
 type DatepickerBuilder struct {
 	bind        string
 	value       string
@@ -20,18 +18,22 @@ func Datepicker(bind string) *DatepickerBuilder {
 	return &DatepickerBuilder{bind: bind}
 }
 
-func (b *DatepickerBuilder) WithValue(v string) *DatepickerBuilder          { b.value = v; return b }
-func (b *DatepickerBuilder) WithPlaceholder(p string) *DatepickerBuilder    { b.placeholder = p; return b }
-func (b *DatepickerBuilder) WithID(id string) *DatepickerBuilder            { b.id = id; return b }
-func (b *DatepickerBuilder) WithClass(c string) *DatepickerBuilder          { b.class = cn(b.class, c); return b }
-func (b *DatepickerBuilder) SetClass(c string) *DatepickerBuilder           { b.class = c; return b }
-func (b *DatepickerBuilder) WithAttr(key string, val any) *DatepickerBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+func (b *DatepickerBuilder) WithValue(v string) *DatepickerBuilder       { b.value = v; return b }
+func (b *DatepickerBuilder) WithPlaceholder(p string) *DatepickerBuilder { b.placeholder = p; return b }
+func (b *DatepickerBuilder) WithID(id string) *DatepickerBuilder         { b.id = id; return b }
+func (b *DatepickerBuilder) WithClass(c string) *DatepickerBuilder {
+	b.class = cn(b.class, c)
+	return b
 }
-func (b *DatepickerBuilder) WithFragment(id string) *DatepickerBuilder      { b.fragmentID = id; return b }
-
-// --- Class helpers ---
+func (b *DatepickerBuilder) SetClass(c string) *DatepickerBuilder { b.class = c; return b }
+func (b *DatepickerBuilder) WithAttr(key string, val any) *DatepickerBuilder {
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
+}
+func (b *DatepickerBuilder) WithFragment(id string) *DatepickerBuilder { b.fragmentID = id; return b }
 
 func datepickerClasses(b *DatepickerBuilder) string {
 	return cn("relative w-full", b.class)
@@ -40,8 +42,6 @@ func datepickerClasses(b *DatepickerBuilder) string {
 func datepickerInputClasses() string {
 	return "flex h-9 w-full rounded-field border border-base-300 bg-base-200 px-3 py-1 pr-8 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
 }
-
-// --- Templ ---
 
 templ (b *DatepickerBuilder) Render() {
 	if b.fragmentID != "" {

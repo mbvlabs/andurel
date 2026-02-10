@@ -1,7 +1,5 @@
 package components
 
-// --- Builder ---
-
 type SelectBuilder struct {
 	bind       string
 	disabled   bool
@@ -26,19 +24,20 @@ func Select(bind string) *SelectBuilder {
 	return &SelectBuilder{bind: bind}
 }
 
-func (b *SelectBuilder) WithDisabled(d bool) *SelectBuilder      { b.disabled = d; return b }
-func (b *SelectBuilder) WithRequired(r bool) *SelectBuilder      { b.required = r; return b }
-func (b *SelectBuilder) WithHasError(e bool) *SelectBuilder      { b.hasError = e; return b }
-func (b *SelectBuilder) WithID(id string) *SelectBuilder         { b.id = id; return b }
-func (b *SelectBuilder) WithClass(c string) *SelectBuilder       { b.class = cn(b.class, c); return b }
-func (b *SelectBuilder) SetClass(c string) *SelectBuilder        { b.class = c; return b }
+func (b *SelectBuilder) WithDisabled(d bool) *SelectBuilder { b.disabled = d; return b }
+func (b *SelectBuilder) WithRequired(r bool) *SelectBuilder { b.required = r; return b }
+func (b *SelectBuilder) WithHasError(e bool) *SelectBuilder { b.hasError = e; return b }
+func (b *SelectBuilder) WithID(id string) *SelectBuilder    { b.id = id; return b }
+func (b *SelectBuilder) WithClass(c string) *SelectBuilder  { b.class = cn(b.class, c); return b }
+func (b *SelectBuilder) SetClass(c string) *SelectBuilder   { b.class = c; return b }
 func (b *SelectBuilder) WithAttr(key string, val any) *SelectBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
-func (b *SelectBuilder) WithFragment(id string) *SelectBuilder   { b.fragmentID = id; return b }
-
-// --- Class helpers ---
+func (b *SelectBuilder) WithFragment(id string) *SelectBuilder { b.fragmentID = id; return b }
 
 func selectClasses(b *SelectBuilder) string {
 	base := "flex h-9 w-full items-center justify-between rounded-field border bg-base-200 px-3 py-2 text-sm text-base-content shadow-inner transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 [&>span]:line-clamp-1"
@@ -48,8 +47,6 @@ func selectClasses(b *SelectBuilder) string {
 	}
 	return cn(base, borderClass, b.class)
 }
-
-// --- Templ ---
 
 templ (b *SelectBuilder) Render() {
 	if b.fragmentID != "" {

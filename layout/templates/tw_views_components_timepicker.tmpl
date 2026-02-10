@@ -1,7 +1,5 @@
 package components
 
-// --- Builder ---
-
 type TimepickerBuilder struct {
 	bind       string
 	value      string
@@ -19,17 +17,21 @@ func Timepicker(bind string) *TimepickerBuilder {
 	return &TimepickerBuilder{bind: bind}
 }
 
-func (b *TimepickerBuilder) WithValue(v string) *TimepickerBuilder     { b.value = v; return b }
-func (b *TimepickerBuilder) WithID(id string) *TimepickerBuilder       { b.id = id; return b }
-func (b *TimepickerBuilder) WithClass(c string) *TimepickerBuilder     { b.class = cn(b.class, c); return b }
-func (b *TimepickerBuilder) SetClass(c string) *TimepickerBuilder      { b.class = c; return b }
+func (b *TimepickerBuilder) WithValue(v string) *TimepickerBuilder { b.value = v; return b }
+func (b *TimepickerBuilder) WithID(id string) *TimepickerBuilder   { b.id = id; return b }
+func (b *TimepickerBuilder) WithClass(c string) *TimepickerBuilder {
+	b.class = cn(b.class, c)
+	return b
+}
+func (b *TimepickerBuilder) SetClass(c string) *TimepickerBuilder { b.class = c; return b }
 func (b *TimepickerBuilder) WithAttr(key string, val any) *TimepickerBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
 func (b *TimepickerBuilder) WithFragment(id string) *TimepickerBuilder { b.fragmentID = id; return b }
-
-// --- Class helpers ---
 
 func timepickerClasses(b *TimepickerBuilder) string {
 	return cn("relative w-full", b.class)
@@ -38,8 +40,6 @@ func timepickerClasses(b *TimepickerBuilder) string {
 func timepickerInputClasses() string {
 	return "flex h-9 w-full rounded-field border border-base-300 bg-base-200 px-3 py-1 pr-8 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
 }
-
-// --- Templ ---
 
 templ (b *TimepickerBuilder) Render() {
 	if b.fragmentID != "" {

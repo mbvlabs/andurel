@@ -1,7 +1,5 @@
 package components
 
-// --- Types ---
-
 type AvatarSize string
 
 const (
@@ -9,8 +7,6 @@ const (
 	AvatarSizeMd AvatarSize = "md"
 	AvatarSizeLg AvatarSize = "lg"
 )
-
-// --- Builder ---
 
 type AvatarBuilder struct {
 	src        string
@@ -33,20 +29,21 @@ func Avatar() *AvatarBuilder {
 	return &AvatarBuilder{}
 }
 
-func (b *AvatarBuilder) WithSrc(s string) *AvatarBuilder         { b.src = s; return b }
-func (b *AvatarBuilder) WithAlt(a string) *AvatarBuilder         { b.alt = a; return b }
-func (b *AvatarBuilder) WithFallback(f string) *AvatarBuilder    { b.fallback = f; return b }
-func (b *AvatarBuilder) WithSize(s AvatarSize) *AvatarBuilder    { b.size = s; return b }
-func (b *AvatarBuilder) WithID(id string) *AvatarBuilder         { b.id = id; return b }
-func (b *AvatarBuilder) WithClass(c string) *AvatarBuilder       { b.class = cn(b.class, c); return b }
-func (b *AvatarBuilder) SetClass(c string) *AvatarBuilder        { b.class = c; return b }
+func (b *AvatarBuilder) WithSrc(s string) *AvatarBuilder      { b.src = s; return b }
+func (b *AvatarBuilder) WithAlt(a string) *AvatarBuilder      { b.alt = a; return b }
+func (b *AvatarBuilder) WithFallback(f string) *AvatarBuilder { b.fallback = f; return b }
+func (b *AvatarBuilder) WithSize(s AvatarSize) *AvatarBuilder { b.size = s; return b }
+func (b *AvatarBuilder) WithID(id string) *AvatarBuilder      { b.id = id; return b }
+func (b *AvatarBuilder) WithClass(c string) *AvatarBuilder    { b.class = cn(b.class, c); return b }
+func (b *AvatarBuilder) SetClass(c string) *AvatarBuilder     { b.class = c; return b }
 func (b *AvatarBuilder) WithAttr(key string, val any) *AvatarBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
-func (b *AvatarBuilder) WithFragment(id string) *AvatarBuilder   { b.fragmentID = id; return b }
-
-// --- Class helpers ---
+func (b *AvatarBuilder) WithFragment(id string) *AvatarBuilder { b.fragmentID = id; return b }
 
 func avatarSizeClasses(s AvatarSize) string {
 	switch s {
@@ -63,8 +60,6 @@ func avatarClasses(b *AvatarBuilder) string {
 	base := "relative flex shrink-0 overflow-hidden rounded-full"
 	return cn(base, avatarSizeClasses(b.size), b.class)
 }
-
-// --- Templ ---
 
 templ (b *AvatarBuilder) Render() {
 	if b.fragmentID != "" {

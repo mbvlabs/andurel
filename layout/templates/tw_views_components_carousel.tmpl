@@ -2,8 +2,6 @@ package components
 
 import "fmt"
 
-// --- Class helpers ---
-
 func carouselClasses(class string) string {
 	return cn("relative w-full", class)
 }
@@ -20,8 +18,6 @@ func carouselBtnClasses(extra string) string {
 	return cn("absolute top-1/2 -translate-y-1/2 inline-flex items-center justify-center h-8 w-8 rounded-full border border-base-300 bg-base-100 text-base-content shadow-sm transition hover:bg-base-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed", extra)
 }
 
-// --- Carousel expression helpers ---
-
 func carouselPrevExpr(id string) string {
 	return "$_" + id + " = Math.max(0, $_" + id + " - 1)"
 }
@@ -33,8 +29,6 @@ func carouselNextExpr(id string, total int) string {
 func carouselStyleExpr(id string) string {
 	return "'transform:translateX(-' + ($_" + id + " * 100) + '%)'"
 }
-
-// --- Templ ---
 
 // Carousel creates a horizontally scrollable content slider with previous/next controls.
 // Pass the total number of slides and compose with CarouselItem children.
@@ -51,7 +45,15 @@ templ Carousel(totalSlides int, opts ...Opt) {
 }
 
 templ carouselInner(id string, total int, class string, attrs templ.Attributes) {
-	<div class={ carouselClasses(class) } role="region" aria-roledescription="carousel" { templ.Attributes{"data-signals:_" + id: "0"}... } if attrs != nil { { attrs... } }>
+	<div
+		class={ carouselClasses(class) }
+		role="region"
+		aria-roledescription="carousel"
+		{ templ.Attributes{"data-signals:_" + id: "0"}... }
+		if attrs != nil {
+			{ attrs... }
+		}
+	>
 		<div class="overflow-hidden">
 			<div class={ carouselContentClasses() } { templ.Attributes{"data-attr:style": carouselStyleExpr(id)}... }>
 				{ children... }
@@ -67,7 +69,14 @@ templ carouselInner(id string, total int, class string, attrs templ.Attributes) 
 }
 
 templ CarouselItem(opts ...Opt) {
-	<div class={ carouselItemClasses(classFrom(opts)) } role="group" aria-roledescription="slide" if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<div
+		class={ carouselItemClasses(classFrom(opts)) }
+		role="group"
+		aria-roledescription="slide"
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</div>
 }

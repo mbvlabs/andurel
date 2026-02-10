@@ -1,7 +1,5 @@
 package components
 
-// --- Class helpers ---
-
 func popoverClasses(class string) string {
 	return cn("relative inline-block", class)
 }
@@ -10,8 +8,6 @@ func popoverContentClasses(class string) string {
 	base := "absolute z-50 w-72 rounded-box border border-base-300 bg-base-100 p-4 text-base-content shadow-md outline-none"
 	return cn(base, class)
 }
-
-// --- Templ ---
 
 // Popover displays floating content anchored to a trigger element. Use it for rich
 // tooltips, mini-forms, or detail panels that appear on click. Pass the trigger as a
@@ -27,7 +23,13 @@ templ Popover(trigger templ.Component, opts ...Opt) {
 }
 
 templ popoverInner(id string, trigger templ.Component, class string, attrs templ.Attributes) {
-	<div class={ popoverClasses(class) } { templ.Attributes{"data-signals:_" + id: "false"}... } if attrsWithout(attrs, "data-on:click") != nil { { attrsWithout(attrs, "data-on:click")... } }>
+	<div
+		class={ popoverClasses(class) }
+		{ templ.Attributes{"data-signals:_" + id: "false"}... }
+		if attrsWithout(attrs, "data-on:click") != nil {
+			{ attrsWithout(attrs, "data-on:click")... }
+		}
+	>
 		<div class="cursor-pointer" { templ.Attributes{"data-on:click": triggerClickExpr(id, attrs)}... }>
 			@trigger
 		</div>

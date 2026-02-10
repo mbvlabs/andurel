@@ -1,7 +1,5 @@
 package components
 
-// --- Class helpers ---
-
 func breadcrumbClasses(class string) string {
 	return cn("flex flex-wrap items-center gap-1.5 text-sm text-base-content/60", class)
 }
@@ -21,8 +19,6 @@ func breadcrumbSeparatorClasses(class string) string {
 	return cn("text-base-content/40", class)
 }
 
-// --- Templ ---
-
 // Breadcrumb renders a navigation trail showing the user's current location in a hierarchy.
 // Use it at the top of a page to help users navigate back to parent sections.
 // Compose with BreadcrumbItem, BreadcrumbLink, and BreadcrumbSeparator sub-components.
@@ -38,32 +34,60 @@ func breadcrumbSeparatorClasses(class string) string {
 //	}
 templ Breadcrumb(opts ...Opt) {
 	<nav aria-label="breadcrumb">
-		<ol class={ breadcrumbClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		<ol
+			class={ breadcrumbClasses(classFrom(opts)) }
+			if attrsFrom(opts) != nil {
+				{ attrsFrom(opts)... }
+			}
+		>
 			{ children... }
 		</ol>
 	</nav>
 }
 
 templ BreadcrumbItem(opts ...Opt) {
-	<li class={ breadcrumbItemClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<li
+		class={ breadcrumbItemClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</li>
 }
 
 templ BreadcrumbLink(label string, href string, active bool, opts ...Opt) {
 	if active {
-		<span class={ breadcrumbLinkClasses(active, classFrom(opts)) } aria-current="page" if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		<span
+			class={ breadcrumbLinkClasses(active, classFrom(opts)) }
+			aria-current="page"
+			if attrsFrom(opts) != nil {
+				{ attrsFrom(opts)... }
+			}
+		>
 			{ label }
 		</span>
 	} else {
-		<a href={ templ.SafeURL(href) } class={ breadcrumbLinkClasses(active, classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+		<a
+			href={ templ.SafeURL(href) }
+			class={ breadcrumbLinkClasses(active, classFrom(opts)) }
+			if attrsFrom(opts) != nil {
+				{ attrsFrom(opts)... }
+			}
+		>
 			{ label }
 		</a>
 	}
 }
 
 templ BreadcrumbSeparator(opts ...Opt) {
-	<li role="presentation" class={ breadcrumbSeparatorClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<li
+		role="presentation"
+		class={ breadcrumbSeparatorClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
 	</li>
 }
