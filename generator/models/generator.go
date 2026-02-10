@@ -160,7 +160,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		// Detect ID type from primary key column
 		if col.Name == "id" && col.IsPrimaryKey {
 			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
-			model.IDType = mapPKTypeToGoType(pkType)
+			model.IDType = validation.GoType(pkType)
 			model.IDGoType = model.IDType
 			model.IsAutoIncrementID = validation.IsAutoIncrement(col.DataType)
 		}
@@ -210,21 +210,6 @@ func groupAndSortImports(importSet map[string]bool) (stdImports []string, extImp
 	sort.Strings(stdImports)
 	sort.Strings(extImports)
 	return stdImports, extImports
-}
-
-func mapPKTypeToGoType(pkType validation.PKType) string {
-	switch pkType {
-	case validation.PKTypeUUID:
-		return "uuid.UUID"
-	case validation.PKTypeInt32:
-		return "int32"
-	case validation.PKTypeInt64:
-		return "int64"
-	case validation.PKTypeString:
-		return "string"
-	default:
-		return "uuid.UUID"
-	}
 }
 
 func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
@@ -515,7 +500,7 @@ func (g *Generator) prepareSQLData(
 		// Detect ID type from primary key column
 		if col.Name == "id" && col.IsPrimaryKey {
 			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
-			idType = mapPKTypeToGoType(pkType)
+			idType = validation.GoType(pkType)
 			isAutoIncrementID = validation.IsAutoIncrement(col.DataType)
 		}
 
@@ -642,7 +627,7 @@ func (g *Generator) prepareSQLDataSimple(
 		// Detect ID type from primary key column
 		if col.Name == "id" && col.IsPrimaryKey {
 			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
-			idType = mapPKTypeToGoType(pkType)
+			idType = validation.GoType(pkType)
 			isAutoIncrementID = validation.IsAutoIncrement(col.DataType)
 		}
 

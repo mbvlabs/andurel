@@ -69,7 +69,7 @@ templ BreadcrumbLink(label string, href string, active bool, opts ...Opt) {
 		</span>
 	} else {
 		<a
-			href={ templ.SafeURL(href) }
+			href={ href }
 			class={ breadcrumbLinkClasses(active, classFrom(opts)) }
 			if attrsFrom(opts) != nil {
 				{ attrsFrom(opts)... }

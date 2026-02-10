@@ -142,7 +142,7 @@ templ (b *ButtonBuilder) Render() {
 templ (b *ButtonBuilder) render() {
 	if b.href != "" && !b.disabled {
 		<a
-			href={ templ.SafeURL(b.href) }
+			href={ b.href }
 			class={ buttonClasses(b) }
 			if b.id != "" {
 				id={ b.id }

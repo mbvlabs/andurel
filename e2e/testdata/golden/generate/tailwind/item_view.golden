@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"testapp/internal/hypermedia"
+	ui "testapp/internal/ui"
 	"testapp/models"
 	"testapp/router/routes"
-	"testapp/views/components"
 )
 
 templ ItemIndex(items []models.Item) {
@@ -15,45 +15,63 @@ templ ItemIndex(items []models.Item) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Items</h1>
-					<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href={ templ.URL(routes.ItemNew.URL()) }>New Item</a>
+					@ui.Button(ui.ButtonProps{Label: "New Item"}).WithHref(routes.ItemNew.URL()).Render()
 				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
-					if len(items) == 0 {
-						<p class="text-sm text-base-content/60">No items found.</p>
-					} else {
-						<div class="overflow-x-auto">
-							<table class="w-full text-left text-sm">
-								<thead class="border-b border-base-300 text-xs uppercase tracking-wide text-base-content/60">
-									<tr>
-										<th class="pb-3 pr-4">Warehouse Id</th>
-										<th class="pb-3 pr-4">Name</th>
-										<th class="pb-3 pr-4">Quantity</th>
-										<th class="pb-3 pr-4">Created At</th>
-										<th class="pb-3 pr-4">Updated At</th>
-										<th class="pb-3 pr-4">Actions</th>
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-base-300">
-									for _, item := range items {
-										<tr class="align-top">
-											<td class="py-3 pr-4 text-base-content/70">{ item.WarehouseID.String() }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ item.Name }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ fmt.Sprintf("%d", item.Quantity) }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ item.CreatedAt.String() }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ item.UpdatedAt.String() }</td>
-											<td class="py-3 pr-4">
-												<div class="flex flex-wrap gap-3 text-sm">
-													<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.ItemShow.URL(item.ID)) }>View</a>
-													<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.ItemEdit.URL(item.ID)) }>Edit</a>
-												</div>
-											</td>
-										</tr>
+				if len(items) == 0 {
+					<p class="text-sm text-base-content/60">No items found.</p>
+				} else {
+					@ui.Table() {
+						@ui.TableHeader() {
+							@ui.TableRow() {
+								@ui.TableHead() {
+									Warehouse Id 
+								}
+								@ui.TableHead() {
+									Name 
+								}
+								@ui.TableHead() {
+									Quantity 
+								}
+								@ui.TableHead() {
+									Created At 
+								}
+								@ui.TableHead() {
+									Updated At 
+								}
+								@ui.TableHead() {
+									Actions 
+								}
+							}
+						}
+						@ui.TableBody() {
+							for _, item := range items {
+								@ui.TableRow() {
+									@ui.TableCell() {
+										{ item.WarehouseID.String() }
 									}
-								</tbody>
-							</table>
-						</div>
+									@ui.TableCell() {
+										{ item.Name }
+									}
+									@ui.TableCell() {
+										{ fmt.Sprintf("%d", item.Quantity) }
+									}
+									@ui.TableCell() {
+										{ item.CreatedAt.String() }
+									}
+									@ui.TableCell() {
+										{ item.UpdatedAt.String() }
+									}
+									@ui.TableCell() {
+										<div class="flex flex-wrap gap-3 text-sm">
+											<a class="text-base-content/80 hover:text-base-content" href={ routes.ItemShow.URL(item.ID) }>View</a>
+											<a class="text-base-content/80 hover:text-base-content" href={ routes.ItemEdit.URL(item.ID) }>Edit</a>
+										</div>
+									}
+								}
+							}
+						}
 					}
-				</div>
+				}
 			</div>
 		</main>
 	}
@@ -66,34 +84,36 @@ templ ItemShow(item models.Item) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Item Details</h1>
 					<div class="flex flex-wrap gap-3">
-						<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href={ templ.URL(routes.ItemEdit.URL(item.ID)) }>Edit</a>
-						<a class="text-sm text-base-content/70 hover:text-base-content" href={ templ.URL(routes.ItemIndex.URL()) }>Back to List</a>
+						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref(routes.ItemEdit.URL(item.ID)).Render()
+						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.ItemIndex.URL() }>Back to List</a>
 					</div>
 				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
-					<div class="grid gap-5 sm:grid-cols-2">
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Warehouse Id</label>
-							<p class="text-sm text-base-content">{ item.WarehouseID.String() }</p>
+				@ui.Card() {
+					@ui.CardContent() {
+						<div class="grid gap-5 sm:grid-cols-2">
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Warehouse Id"}).Render()
+								<p class="text-sm text-base-content">{ item.WarehouseID.String() }</p>
+							</div>
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Name"}).Render()
+								<p class="text-sm text-base-content">{ item.Name }</p>
+							</div>
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Quantity"}).Render()
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%d", item.Quantity) }</p>
+							</div>
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Created At"}).Render()
+								<p class="text-sm text-base-content">{ item.CreatedAt.String() }</p>
+							</div>
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Updated At"}).Render()
+								<p class="text-sm text-base-content">{ item.UpdatedAt.String() }</p>
+							</div>
 						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Name</label>
-							<p class="text-sm text-base-content">{ item.Name }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Quantity</label>
-							<p class="text-sm text-base-content">{ fmt.Sprintf("%d", item.Quantity) }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Created At</label>
-							<p class="text-sm text-base-content">{ item.CreatedAt.String() }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Updated At</label>
-							<p class="text-sm text-base-content">{ item.UpdatedAt.String() }</p>
-						</div>
-					</div>
-				</div>
+					}
+				}
 			</div>
 		</main>
 	}
@@ -103,27 +123,31 @@ templ ItemNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form
-						class="space-y-5"
-						data-indicator:submitting
-						data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.ItemCreate.URL()) }
-					>
-						<div class="space-y-1">
-							<h2 class="text-xl font-semibold text-base-content">New Item</h2>
-							<p class="text-sm text-base-content/60">Enter the details for the new item.</p>
-						</div>
-						<div class="space-y-4">
-							@components.InputField("Warehouse Id", "warehouseId", "text", "", false, components.FieldProp{})
-							@components.InputField("Name", "name", "text", "", false, components.FieldProp{})
-							@components.InputField("Quantity", "quantity", "number", "", false, components.FieldProp{})
-						</div>
-						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Create Item</button>
-						<p class="text-center text-sm text-base-content/60">
-							<a class="text-base-content/70 hover:text-base-content" href={ templ.URL(routes.ItemIndex.URL()) }>Back to List</a>
-						</p>
-					</form>
-				</div>
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("New Item")
+						@ui.CardDescription("Enter the details for the new item.")
+					}
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: routes.ItemCreate.URL()}, ui.WithClass("space-y-5"), ui.WithFragment("new-item-form")) {
+							<div class="space-y-4">
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Warehouse Id"}).WithFor("warehouseId").Render()
+									@ui.Input("warehouseId").Render()
+								</div>
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Name"}).WithFor("name").Render()
+									@ui.Input("name").Render()
+								</div>
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Quantity"}).WithFor("quantity").Render()
+									@ui.Input("quantity").WithType(ui.InputTypeNumber).Render()
+								</div>
+							</div>
+							@ui.Button(ui.ButtonProps{Label: "Create Item"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
+						}
+					}
+				}
 			</div>
 		</main>
 	}
@@ -133,39 +157,33 @@ templ ItemEdit(item models.Item) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form
-						class="space-y-5"
-						data-indicator:submitting
-						data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.ItemUpdate.URL(item.ID)) }
-					>
-						<div class="space-y-1">
-							<h2 class="text-xl font-semibold text-base-content">Edit Item</h2>
-							<p class="text-sm text-base-content/60">Update the details for this item.</p>
-						</div>
-						<div class="space-y-4">
-							@components.InputField("Warehouse Id", "warehouseId", "text", "", false, components.FieldProp{
-								Value: item.WarehouseID.String(),
-							})
-							@components.InputField("Name", "name", "text", "", false, components.FieldProp{
-								Value: item.Name,
-							})
-							@components.InputField("Quantity", "quantity", "number", "", false, components.FieldProp{
-								Value: fmt.Sprintf("%d", item.Quantity),
-							})
-						</div>
-						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Update Item</button>
-						<p class="text-center text-sm text-base-content/60">
-							<a class="text-base-content/70 hover:text-base-content" href={ templ.URL(routes.ItemIndex.URL()) }>Back to List</a>
-						</p>
-					</form>
-					<div class="mt-4 pt-4 border-t border-base-300">
-						<button
-							class="w-full inline-flex items-center justify-center rounded-field border border-error/60 px-4 py-2.5 text-sm font-semibold text-error transition hover:border-error hover:bg-error/10"
-							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ItemDestroy.URL(item.ID)) }
-						>Destroy Item</button>
-					</div>
-				</div>
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("Edit Item")
+						@ui.CardDescription("Update the details for this item.")
+					}
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: routes.ItemUpdate.URL(item.ID)}, ui.WithClass("space-y-5"), ui.WithFragment("edit-item-form")) {
+							<div class="space-y-4">
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Warehouse Id"}).WithFor("warehouseId").Render()
+									@ui.Input("warehouseId").WithValue(item.WarehouseID.String()).Render()
+								</div>
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Name"}).WithFor("name").Render()
+									@ui.Input("name").WithValue(item.Name).Render()
+								</div>
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Quantity"}).WithFor("quantity").Render()
+									@ui.Input("quantity").WithType(ui.InputTypeNumber).WithValue(fmt.Sprintf("%d", item.Quantity)).Render()
+								</div>
+							</div>
+							@ui.Button(ui.ButtonProps{Label: "Update Item"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
+						}
+						@ui.Separator().Render()
+						@ui.Button(ui.ButtonProps{Label: "Destroy Item"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.ItemDestroy.URL(item.ID))).Render()
+					}
+				}
 			</div>
 		</main>
 	}

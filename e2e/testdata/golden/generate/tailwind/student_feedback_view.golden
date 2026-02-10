@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"testapp/internal/hypermedia"
+	ui "testapp/internal/ui"
 	"testapp/models"
 	"testapp/router/routes"
-	"testapp/views/components"
 )
 
 templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
@@ -15,45 +15,63 @@ templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">StudentFeedbacks</h1>
-					<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href={ templ.URL(routes.StudentFeedbackNew.URL()) }>New StudentFeedback</a>
+					@ui.Button(ui.ButtonProps{Label: "New StudentFeedback"}).WithHref(routes.StudentFeedbackNew.URL()).Render()
 				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
-					if len(student_feedbacks) == 0 {
-						<p class="text-sm text-base-content/60">No student_feedbacks found.</p>
-					} else {
-						<div class="overflow-x-auto">
-							<table class="w-full text-left text-sm">
-								<thead class="border-b border-base-300 text-xs uppercase tracking-wide text-base-content/60">
-									<tr>
-										<th class="pb-3 pr-4">Student Id</th>
-										<th class="pb-3 pr-4">Feedback</th>
-										<th class="pb-3 pr-4">Rating</th>
-										<th class="pb-3 pr-4">Created At</th>
-										<th class="pb-3 pr-4">Updated At</th>
-										<th class="pb-3 pr-4">Actions</th>
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-base-300">
-									for _, studentfeedback := range student_feedbacks {
-										<tr class="align-top">
-											<td class="py-3 pr-4 text-base-content/70">{ studentfeedback.StudentID }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ studentfeedback.Feedback }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ fmt.Sprintf("%d", studentfeedback.Rating) }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ studentfeedback.CreatedAt.String() }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ studentfeedback.UpdatedAt.String() }</td>
-											<td class="py-3 pr-4">
-												<div class="flex flex-wrap gap-3 text-sm">
-													<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.StudentFeedbackShow.URL(studentfeedback.ID)) }>View</a>
-													<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.StudentFeedbackEdit.URL(studentfeedback.ID)) }>Edit</a>
-												</div>
-											</td>
-										</tr>
+				if len(student_feedbacks) == 0 {
+					<p class="text-sm text-base-content/60">No student_feedbacks found.</p>
+				} else {
+					@ui.Table() {
+						@ui.TableHeader() {
+							@ui.TableRow() {
+								@ui.TableHead() {
+									Student Id 
+								}
+								@ui.TableHead() {
+									Feedback 
+								}
+								@ui.TableHead() {
+									Rating 
+								}
+								@ui.TableHead() {
+									Created At 
+								}
+								@ui.TableHead() {
+									Updated At 
+								}
+								@ui.TableHead() {
+									Actions 
+								}
+							}
+						}
+						@ui.TableBody() {
+							for _, studentfeedback := range student_feedbacks {
+								@ui.TableRow() {
+									@ui.TableCell() {
+										{ studentfeedback.StudentID }
 									}
-								</tbody>
-							</table>
-						</div>
+									@ui.TableCell() {
+										{ studentfeedback.Feedback }
+									}
+									@ui.TableCell() {
+										{ fmt.Sprintf("%d", studentfeedback.Rating) }
+									}
+									@ui.TableCell() {
+										{ studentfeedback.CreatedAt.String() }
+									}
+									@ui.TableCell() {
+										{ studentfeedback.UpdatedAt.String() }
+									}
+									@ui.TableCell() {
+										<div class="flex flex-wrap gap-3 text-sm">
+											<a class="text-base-content/80 hover:text-base-content" href={ routes.StudentFeedbackShow.URL(studentfeedback.ID) }>View</a>
+											<a class="text-base-content/80 hover:text-base-content" href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) }>Edit</a>
+										</div>
+									}
+								}
+							}
+						}
 					}
-				</div>
+				}
 			</div>
 		</main>
 	}
@@ -66,34 +84,36 @@ templ StudentFeedbackShow(studentfeedback models.StudentFeedback) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">StudentFeedback Details</h1>
 					<div class="flex flex-wrap gap-3">
-						<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href={ templ.URL(routes.StudentFeedbackEdit.URL(studentfeedback.ID)) }>Edit</a>
-						<a class="text-sm text-base-content/70 hover:text-base-content" href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref(routes.StudentFeedbackEdit.URL(studentfeedback.ID)).Render()
+						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.StudentFeedbackIndex.URL() }>Back to List</a>
 					</div>
 				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
-					<div class="grid gap-5 sm:grid-cols-2">
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Student Id</label>
-							<p class="text-sm text-base-content">{ studentfeedback.StudentID }</p>
+				@ui.Card() {
+					@ui.CardContent() {
+						<div class="grid gap-5 sm:grid-cols-2">
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Student Id"}).Render()
+								<p class="text-sm text-base-content">{ studentfeedback.StudentID }</p>
+							</div>
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Feedback"}).Render()
+								<p class="text-sm text-base-content">{ studentfeedback.Feedback }</p>
+							</div>
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Rating"}).Render()
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%d", studentfeedback.Rating) }</p>
+							</div>
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Created At"}).Render()
+								<p class="text-sm text-base-content">{ studentfeedback.CreatedAt.String() }</p>
+							</div>
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Updated At"}).Render()
+								<p class="text-sm text-base-content">{ studentfeedback.UpdatedAt.String() }</p>
+							</div>
 						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Feedback</label>
-							<p class="text-sm text-base-content">{ studentfeedback.Feedback }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Rating</label>
-							<p class="text-sm text-base-content">{ fmt.Sprintf("%d", studentfeedback.Rating) }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Created At</label>
-							<p class="text-sm text-base-content">{ studentfeedback.CreatedAt.String() }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Updated At</label>
-							<p class="text-sm text-base-content">{ studentfeedback.UpdatedAt.String() }</p>
-						</div>
-					</div>
-				</div>
+					}
+				}
 			</div>
 		</main>
 	}
@@ -103,27 +123,31 @@ templ StudentFeedbackNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form
-						class="space-y-5"
-						data-indicator:submitting
-						data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.StudentFeedbackCreate.URL()) }
-					>
-						<div class="space-y-1">
-							<h2 class="text-xl font-semibold text-base-content">New StudentFeedback</h2>
-							<p class="text-sm text-base-content/60">Enter the details for the new studentfeedback.</p>
-						</div>
-						<div class="space-y-4">
-							@components.InputField("Student Id", "studentId", "text", "", false, components.FieldProp{})
-							@components.InputField("Feedback", "feedback", "text", "", false, components.FieldProp{})
-							@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{})
-						</div>
-						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Create StudentFeedback</button>
-						<p class="text-center text-sm text-base-content/60">
-							<a class="text-base-content/70 hover:text-base-content" href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Back to List</a>
-						</p>
-					</form>
-				</div>
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("New StudentFeedback")
+						@ui.CardDescription("Enter the details for the new studentfeedback.")
+					}
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: routes.StudentFeedbackCreate.URL()}, ui.WithClass("space-y-5"), ui.WithFragment("new-studentfeedback-form")) {
+							<div class="space-y-4">
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Student Id"}).WithFor("studentId").Render()
+									@ui.Input("studentId").Render()
+								</div>
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Feedback"}).WithFor("feedback").Render()
+									@ui.Input("feedback").Render()
+								</div>
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Rating"}).WithFor("rating").Render()
+									@ui.Input("rating").WithType(ui.InputTypeNumber).Render()
+								</div>
+							</div>
+							@ui.Button(ui.ButtonProps{Label: "Create StudentFeedback"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
+						}
+					}
+				}
 			</div>
 		</main>
 	}
@@ -133,39 +157,33 @@ templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form
-						class="space-y-5"
-						data-indicator:submitting
-						data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.StudentFeedbackUpdate.URL(studentfeedback.ID)) }
-					>
-						<div class="space-y-1">
-							<h2 class="text-xl font-semibold text-base-content">Edit StudentFeedback</h2>
-							<p class="text-sm text-base-content/60">Update the details for this studentfeedback.</p>
-						</div>
-						<div class="space-y-4">
-							@components.InputField("Student Id", "studentId", "text", "", false, components.FieldProp{
-								Value: studentfeedback.StudentID,
-							})
-							@components.InputField("Feedback", "feedback", "text", "", false, components.FieldProp{
-								Value: studentfeedback.Feedback,
-							})
-							@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{
-								Value: fmt.Sprintf("%d", studentfeedback.Rating),
-							})
-						</div>
-						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Update StudentFeedback</button>
-						<p class="text-center text-sm text-base-content/60">
-							<a class="text-base-content/70 hover:text-base-content" href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Back to List</a>
-						</p>
-					</form>
-					<div class="mt-4 pt-4 border-t border-base-300">
-						<button
-							class="w-full inline-flex items-center justify-center rounded-field border border-error/60 px-4 py-2.5 text-sm font-semibold text-error transition hover:border-error hover:bg-error/10"
-							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.StudentFeedbackDestroy.URL(studentfeedback.ID)) }
-						>Destroy StudentFeedback</button>
-					</div>
-				</div>
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("Edit StudentFeedback")
+						@ui.CardDescription("Update the details for this studentfeedback.")
+					}
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: routes.StudentFeedbackUpdate.URL(studentfeedback.ID)}, ui.WithClass("space-y-5"), ui.WithFragment("edit-studentfeedback-form")) {
+							<div class="space-y-4">
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Student Id"}).WithFor("studentId").Render()
+									@ui.Input("studentId").WithValue(studentfeedback.StudentID).Render()
+								</div>
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Feedback"}).WithFor("feedback").Render()
+									@ui.Input("feedback").WithValue(studentfeedback.Feedback).Render()
+								</div>
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Rating"}).WithFor("rating").Render()
+									@ui.Input("rating").WithType(ui.InputTypeNumber).WithValue(fmt.Sprintf("%d", studentfeedback.Rating)).Render()
+								</div>
+							</div>
+							@ui.Button(ui.ButtonProps{Label: "Update StudentFeedback"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
+						}
+						@ui.Separator().Render()
+						@ui.Button(ui.ButtonProps{Label: "Destroy StudentFeedback"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.StudentFeedbackDestroy.URL(studentfeedback.ID))).Render()
+					}
+				}
 			</div>
 		</main>
 	}

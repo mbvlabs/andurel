@@ -14,7 +14,7 @@ templ ItemIndex(items []models.Item) {
 		<main>
 			<div>
 				<h1>Items</h1>
-				<a href={ templ.URL(routes.ItemNew.URL()) }>New Item</a>
+				<a href={ routes.ItemNew.URL() }>New Item</a>
 			</div>
 			<div>
 				if len(items) == 0 {
@@ -41,8 +41,8 @@ templ ItemIndex(items []models.Item) {
 										<td>{ item.CreatedAt.String() }</td>
 										<td>{ item.UpdatedAt.String() }</td>
 										<td>
-											<a href={ templ.URL(routes.ItemShow.URL(item.ID)) }>View</a>
-											<a href={ templ.URL(routes.ItemEdit.URL(item.ID)) }>Edit</a>
+											<a href={ routes.ItemShow.URL(item.ID) }>View</a>
+											<a href={ routes.ItemEdit.URL(item.ID) }>Edit</a>
 										</td>
 									</tr>
 								}
@@ -61,8 +61,8 @@ templ ItemShow(item models.Item) {
 			<div>
 				<h1>Item Details</h1>
 				<div>
-					<a href={ templ.URL(routes.ItemEdit.URL(item.ID)) }>Edit</a>
-					<a href={ templ.URL(routes.ItemIndex.URL()) }>Back to List</a>
+					<a href={ routes.ItemEdit.URL(item.ID) }>Edit</a>
+					<a href={ routes.ItemIndex.URL() }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -112,7 +112,7 @@ templ ItemNew() {
 					</div>
 					@components.SubmitButton("Create Item")
 					<p>
-						<a href={ templ.URL(routes.ItemIndex.URL()) }>Back to List</a>
+						<a href={ routes.ItemIndex.URL() }>Back to List</a>
 					</p>
 				</form>
 			</div>
@@ -145,7 +145,7 @@ templ ItemEdit(item models.Item) {
 					</div>
 					@components.SubmitButton("Update Item")
 					<p>
-						<a href={ templ.URL(routes.ItemIndex.URL()) }>Back to List</a>
+						<a href={ routes.ItemIndex.URL() }>Back to List</a>
 					</p>
 				</form>
 				<div>

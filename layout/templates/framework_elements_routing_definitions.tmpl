@@ -11,11 +11,32 @@ type SimpleRoute interface {
 	URL() string
 }
 
-// IDRoute represents routes with an ID in the URL parameter
-type IDRoute interface {
+// UUIDIDRoute represents routes with a UUID ID in the URL parameter
+type UUIDIDRoute interface {
 	Name() string
 	Path() string
 	URL(id uuid.UUID) string
+}
+
+// SerialIDRoute represents routes with a serial (int32) ID in the URL parameter
+type SerialIDRoute interface {
+	Name() string
+	Path() string
+	URL(id int32) string
+}
+
+// BigSerialIDRoute represents routes with a bigserial (int64) ID in the URL parameter
+type BigSerialIDRoute interface {
+	Name() string
+	Path() string
+	URL(id int64) string
+}
+
+// StringIDRoute represents routes with a string ID in the URL parameter
+type StringIDRoute interface {
+	Name() string
+	Path() string
+	URL(id string) string
 }
 
 // IDsRoute represents routes with multiple IDs in the URL parameters

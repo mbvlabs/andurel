@@ -3,9 +3,9 @@ package views
 import (
 	"net/http"
 	"testapp/internal/hypermedia"
+	ui "testapp/internal/ui"
 	"testapp/models"
 	"testapp/router/routes"
-	"testapp/views/components"
 )
 
 templ ProjectIndex(projects []models.Project) {
@@ -14,43 +14,57 @@ templ ProjectIndex(projects []models.Project) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Projects</h1>
-					<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href={ templ.URL(routes.ProjectNew.URL()) }>New Project</a>
+					@ui.Button(ui.ButtonProps{Label: "New Project"}).WithHref(routes.ProjectNew.URL()).Render()
 				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
-					if len(projects) == 0 {
-						<p class="text-sm text-base-content/60">No projects found.</p>
-					} else {
-						<div class="overflow-x-auto">
-							<table class="w-full text-left text-sm">
-								<thead class="border-b border-base-300 text-xs uppercase tracking-wide text-base-content/60">
-									<tr>
-										<th class="pb-3 pr-4">Name</th>
-										<th class="pb-3 pr-4">Description</th>
-										<th class="pb-3 pr-4">Created At</th>
-										<th class="pb-3 pr-4">Updated At</th>
-										<th class="pb-3 pr-4">Actions</th>
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-base-300">
-									for _, project := range projects {
-										<tr class="align-top">
-											<td class="py-3 pr-4 text-base-content/70">{ project.Name }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ project.Description }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ project.CreatedAt.String() }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ project.UpdatedAt.String() }</td>
-											<td class="py-3 pr-4">
-												<div class="flex flex-wrap gap-3 text-sm">
-													<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.ProjectShow.URL(project.ID)) }>View</a>
-													<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.ProjectEdit.URL(project.ID)) }>Edit</a>
-												</div>
-											</td>
-										</tr>
+				if len(projects) == 0 {
+					<p class="text-sm text-base-content/60">No projects found.</p>
+				} else {
+					@ui.Table() {
+						@ui.TableHeader() {
+							@ui.TableRow() {
+								@ui.TableHead() {
+									Name 
+								}
+								@ui.TableHead() {
+									Description 
+								}
+								@ui.TableHead() {
+									Created At 
+								}
+								@ui.TableHead() {
+									Updated At 
+								}
+								@ui.TableHead() {
+									Actions 
+								}
+							}
+						}
+						@ui.TableBody() {
+							for _, project := range projects {
+								@ui.TableRow() {
+									@ui.TableCell() {
+										{ project.Name }
 									}
-								</tbody>
-							</table>
-						</div>
+									@ui.TableCell() {
+										{ project.Description }
+									}
+									@ui.TableCell() {
+										{ project.CreatedAt.String() }
+									}
+									@ui.TableCell() {
+										{ project.UpdatedAt.String() }
+									}
+									@ui.TableCell() {
+										<div class="flex flex-wrap gap-3 text-sm">
+											<a class="text-base-content/80 hover:text-base-content" href={ routes.ProjectShow.URL(project.ID) }>View</a>
+											<a class="text-base-content/80 hover:text-base-content" href={ routes.ProjectEdit.URL(project.ID) }>Edit</a>
+										</div>
+									}
+								}
+							}
+						}
 					}
-				</div>
+				}
 			</div>
 		</main>
 	}
@@ -63,30 +77,32 @@ templ ProjectShow(project models.Project) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Project Details</h1>
 					<div class="flex flex-wrap gap-3">
-						<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href={ templ.URL(routes.ProjectEdit.URL(project.ID)) }>Edit</a>
-						<a class="text-sm text-base-content/70 hover:text-base-content" href={ templ.URL(routes.ProjectIndex.URL()) }>Back to List</a>
+						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref(routes.ProjectEdit.URL(project.ID)).Render()
+						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.ProjectIndex.URL() }>Back to List</a>
 					</div>
 				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
-					<div class="grid gap-5 sm:grid-cols-2">
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Name</label>
-							<p class="text-sm text-base-content">{ project.Name }</p>
+				@ui.Card() {
+					@ui.CardContent() {
+						<div class="grid gap-5 sm:grid-cols-2">
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Name"}).Render()
+								<p class="text-sm text-base-content">{ project.Name }</p>
+							</div>
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Description"}).Render()
+								<p class="text-sm text-base-content">{ project.Description }</p>
+							</div>
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Created At"}).Render()
+								<p class="text-sm text-base-content">{ project.CreatedAt.String() }</p>
+							</div>
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Updated At"}).Render()
+								<p class="text-sm text-base-content">{ project.UpdatedAt.String() }</p>
+							</div>
 						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Description</label>
-							<p class="text-sm text-base-content">{ project.Description }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Created At</label>
-							<p class="text-sm text-base-content">{ project.CreatedAt.String() }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Updated At</label>
-							<p class="text-sm text-base-content">{ project.UpdatedAt.String() }</p>
-						</div>
-					</div>
-				</div>
+					}
+				}
 			</div>
 		</main>
 	}
@@ -96,26 +112,27 @@ templ ProjectNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form
-						class="space-y-5"
-						data-indicator:submitting
-						data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.ProjectCreate.URL()) }
-					>
-						<div class="space-y-1">
-							<h2 class="text-xl font-semibold text-base-content">New Project</h2>
-							<p class="text-sm text-base-content/60">Enter the details for the new project.</p>
-						</div>
-						<div class="space-y-4">
-							@components.InputField("Name", "name", "text", "", false, components.FieldProp{})
-							@components.InputField("Description", "description", "text", "", false, components.FieldProp{})
-						</div>
-						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Create Project</button>
-						<p class="text-center text-sm text-base-content/60">
-							<a class="text-base-content/70 hover:text-base-content" href={ templ.URL(routes.ProjectIndex.URL()) }>Back to List</a>
-						</p>
-					</form>
-				</div>
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("New Project")
+						@ui.CardDescription("Enter the details for the new project.")
+					}
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: routes.ProjectCreate.URL()}, ui.WithClass("space-y-5"), ui.WithFragment("new-project-form")) {
+							<div class="space-y-4">
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Name"}).WithFor("name").Render()
+									@ui.Input("name").Render()
+								</div>
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Description"}).WithFor("description").Render()
+									@ui.Input("description").Render()
+								</div>
+							</div>
+							@ui.Button(ui.ButtonProps{Label: "Create Project"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
+						}
+					}
+				}
 			</div>
 		</main>
 	}
@@ -125,36 +142,29 @@ templ ProjectEdit(project models.Project) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form
-						class="space-y-5"
-						data-indicator:submitting
-						data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.ProjectUpdate.URL(project.ID)) }
-					>
-						<div class="space-y-1">
-							<h2 class="text-xl font-semibold text-base-content">Edit Project</h2>
-							<p class="text-sm text-base-content/60">Update the details for this project.</p>
-						</div>
-						<div class="space-y-4">
-							@components.InputField("Name", "name", "text", "", false, components.FieldProp{
-								Value: project.Name,
-							})
-							@components.InputField("Description", "description", "text", "", false, components.FieldProp{
-								Value: project.Description,
-							})
-						</div>
-						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Update Project</button>
-						<p class="text-center text-sm text-base-content/60">
-							<a class="text-base-content/70 hover:text-base-content" href={ templ.URL(routes.ProjectIndex.URL()) }>Back to List</a>
-						</p>
-					</form>
-					<div class="mt-4 pt-4 border-t border-base-300">
-						<button
-							class="w-full inline-flex items-center justify-center rounded-field border border-error/60 px-4 py-2.5 text-sm font-semibold text-error transition hover:border-error hover:bg-error/10"
-							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ProjectDestroy.URL(project.ID)) }
-						>Destroy Project</button>
-					</div>
-				</div>
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("Edit Project")
+						@ui.CardDescription("Update the details for this project.")
+					}
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: routes.ProjectUpdate.URL(project.ID)}, ui.WithClass("space-y-5"), ui.WithFragment("edit-project-form")) {
+							<div class="space-y-4">
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Name"}).WithFor("name").Render()
+									@ui.Input("name").WithValue(project.Name).Render()
+								</div>
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Description"}).WithFor("description").Render()
+									@ui.Input("description").WithValue(project.Description).Render()
+								</div>
+							</div>
+							@ui.Button(ui.ButtonProps{Label: "Update Project"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
+						}
+						@ui.Separator().Render()
+						@ui.Button(ui.ButtonProps{Label: "Destroy Project"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.ProjectDestroy.URL(project.ID))).Render()
+					}
+				}
 			</div>
 		</main>
 	}
