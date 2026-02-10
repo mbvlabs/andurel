@@ -93,7 +93,7 @@ func (b *ButtonBuilder) WithLoadingLabel(label string, signal string) *ButtonBui
 func buttonVariantClasses(v ButtonVariant) string {
 	switch v {
 	case ButtonVariantSecondary:
-		return "bg-base-200 text-base-content shadow-sm hover:bg-base-300"
+		return "bg-secondary text-secondary-content shadow-sm hover:bg-secondary/90"
 	case ButtonVariantOutline:
 		return "border border-base-300 bg-transparent text-base-content shadow-sm hover:bg-base-200"
 	case ButtonVariantGhost:
