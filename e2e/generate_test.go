@@ -1133,8 +1133,8 @@ func testGenerateFragment(t *testing.T, project *internal.Project) {
 		t.Fatalf("Failed to read routes file: %v", err)
 	}
 	routesStr = string(routesContent)
-	if !strings.Contains(routesStr, "var WebhookVerify = routing.NewRouteWithID") {
-		t.Error("Routes file should contain WebhookVerify route variable with NewRouteWithID")
+	if !strings.Contains(routesStr, "var WebhookVerify = routing.NewRouteWithUUIDID") {
+		t.Error("Routes file should contain WebhookVerify route variable with NewRouteWithUUIDID")
 	}
 	if !strings.Contains(routesStr, `"/:id/verify"`) {
 		t.Error("Routes file should contain /:id/verify path")

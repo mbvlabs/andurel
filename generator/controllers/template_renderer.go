@@ -57,7 +57,7 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 	return result, nil
 }
 
-func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName string) (string, error) {
+func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName, idType string) (string, error) {
 	// Get module path
 	modulePath, err := tr.getModulePath()
 	if err != nil {
@@ -69,10 +69,12 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName string
 		ResourceName string
 		PluralName   string
 		ModulePath   string
+		IDType       string
 	}{
 		ResourceName: resourceName,
 		PluralName:   pluralName,
 		ModulePath:   modulePath,
+		IDType:       idType,
 	}
 
 	result, err := tr.service.RenderTemplate("route.tmpl", data)

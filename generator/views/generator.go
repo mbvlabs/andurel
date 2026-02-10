@@ -11,6 +11,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/internal/types"
+	"github.com/mbvlabs/andurel/generator/internal/validation"
 	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/constants"
@@ -36,6 +37,7 @@ type GeneratedView struct {
 	PluralName   string
 	Fields       []ViewField
 	ModulePath   string
+	IDType       string // "uuid.UUID", "int32", "int64", "string"
 }
 
 type Config struct {
@@ -63,6 +65,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 		PluralName:   config.PluralName,
 		ModulePath:   config.ModulePath,
 		Fields:       make([]ViewField, 0),
+		IDType:       "uuid.UUID", // Default to UUID
 	}
 
 	tableName := config.TableName
@@ -75,6 +78,12 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 	}
 
 	for _, col := range table.Columns {
+		// Detect ID type from primary key column
+		if col.Name == "id" && col.IsPrimaryKey {
+			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
+			view.IDType = validation.GoType(pkType)
+			continue
+		}
 		if col.Name == "id" {
 			continue
 		}

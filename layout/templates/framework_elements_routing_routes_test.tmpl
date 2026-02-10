@@ -5,6 +5,8 @@ package routing_test
 import (
 	"testing"
 
+	"github.com/google/uuid"
+
 	"{{ .ModuleName }}/internal/routing"
 )
 
@@ -97,5 +99,42 @@ func TestRouteURL(t *testing.T) {
 				t.Errorf("NewSimpleRoute(%q, \"test-route\", %q).URL() = %q, want %q", tt.path, tt.prefix, result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestRouteWithUUIDIDURL(t *testing.T) {
+	id := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	route := routing.NewRouteWithUUIDID("/:id", "articles.show", "/articles")
+	result := route.URL(id)
+	expected := "/articles/550e8400-e29b-41d4-a716-446655440000"
+	if result != expected {
+		t.Errorf("RouteWithUUIDID.URL() = %q, want %q", result, expected)
+	}
+}
+
+func TestRouteWithSerialIDURL(t *testing.T) {
+	route := routing.NewRouteWithSerialID("/:id", "articles.show", "/articles")
+	result := route.URL(int32(42))
+	expected := "/articles/42"
+	if result != expected {
+		t.Errorf("RouteWithSerialID.URL() = %q, want %q", result, expected)
+	}
+}
+
+func TestRouteWithBigSerialIDURL(t *testing.T) {
+	route := routing.NewRouteWithBigSerialID("/:id", "articles.show", "/articles")
+	result := route.URL(int64(9999999999))
+	expected := "/articles/9999999999"
+	if result != expected {
+		t.Errorf("RouteWithBigSerialID.URL() = %q, want %q", result, expected)
+	}
+}
+
+func TestRouteWithStringIDURL(t *testing.T) {
+	route := routing.NewRouteWithStringID("/:id", "articles.show", "/articles")
+	result := route.URL("my-slug-id")
+	expected := "/articles/my-slug-id"
+	if result != expected {
+		t.Errorf("RouteWithStringID.URL() = %q, want %q", result, expected)
 	}
 }
