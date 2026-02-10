@@ -14,7 +14,7 @@ templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
 		<main>
 			<div>
 				<h1>StudentFeedbacks</h1>
-				<a href={ templ.URL(routes.StudentFeedbackNew.URL()) }>New StudentFeedback</a>
+				<a href={ routes.StudentFeedbackNew.URL() }>New StudentFeedback</a>
 			</div>
 			<div>
 				if len(student_feedbacks) == 0 {
@@ -41,8 +41,8 @@ templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
 										<td>{ studentfeedback.CreatedAt.String() }</td>
 										<td>{ studentfeedback.UpdatedAt.String() }</td>
 										<td>
-											<a href={ templ.URL(routes.StudentFeedbackShow.URL(studentfeedback.ID)) }>View</a>
-											<a href={ templ.URL(routes.StudentFeedbackEdit.URL(studentfeedback.ID)) }>Edit</a>
+											<a href={ routes.StudentFeedbackShow.URL(studentfeedback.ID) }>View</a>
+											<a href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) }>Edit</a>
 										</td>
 									</tr>
 								}
@@ -61,8 +61,8 @@ templ StudentFeedbackShow(studentfeedback models.StudentFeedback) {
 			<div>
 				<h1>StudentFeedback Details</h1>
 				<div>
-					<a href={ templ.URL(routes.StudentFeedbackEdit.URL(studentfeedback.ID)) }>Edit</a>
-					<a href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+					<a href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) }>Edit</a>
+					<a href={ routes.StudentFeedbackIndex.URL() }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -112,7 +112,7 @@ templ StudentFeedbackNew() {
 					</div>
 					@components.SubmitButton("Create StudentFeedback")
 					<p>
-						<a href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+						<a href={ routes.StudentFeedbackIndex.URL() }>Back to List</a>
 					</p>
 				</form>
 			</div>
@@ -145,7 +145,7 @@ templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
 					</div>
 					@components.SubmitButton("Update StudentFeedback")
 					<p>
-						<a href={ templ.URL(routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+						<a href={ routes.StudentFeedbackIndex.URL() }>Back to List</a>
 					</p>
 				</form>
 				<div>

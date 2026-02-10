@@ -4,6 +4,7 @@ package routing
 
 import (
 	"log/slog"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -135,25 +136,88 @@ func (r Route) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
-type RouteWithID Route
+type RouteWithUUIDID Route
 
-var _ IDRoute = (*RouteWithID)(nil)
+var _ UUIDIDRoute = (*RouteWithUUIDID)(nil)
 
-// NewRouteWithID creates an id route that takes a uuid as a parameter
-func NewRouteWithID(path, name, prefix string) RouteWithID {
-	return RouteWithID{name, path, prefix}
+// NewRouteWithUUIDID creates an id route that takes a uuid as a parameter
+func NewRouteWithUUIDID(path, name, prefix string) RouteWithUUIDID {
+	return RouteWithUUIDID{name, path, prefix}
 }
 
-func (r RouteWithID) Name() string {
+func (r RouteWithUUIDID) Name() string {
 	return configureName(r.name, r.prefix)
 }
 
-func (r RouteWithID) Path() string {
+func (r RouteWithUUIDID) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
-func (r RouteWithID) URL(id uuid.UUID) string {
+func (r RouteWithUUIDID) URL(id uuid.UUID) string {
 	return strings.Replace(r.Path(), ":id", id.String(), 1)
+}
+
+type RouteWithSerialID Route
+
+var _ SerialIDRoute = (*RouteWithSerialID)(nil)
+
+// NewRouteWithSerialID creates an id route that takes an int32 as a parameter
+func NewRouteWithSerialID(path, name, prefix string) RouteWithSerialID {
+	return RouteWithSerialID{name, path, prefix}
+}
+
+func (r RouteWithSerialID) Name() string {
+	return configureName(r.name, r.prefix)
+}
+
+func (r RouteWithSerialID) Path() string {
+	return configurePath(r.path, r.prefix, r.name)
+}
+
+func (r RouteWithSerialID) URL(id int32) string {
+	return strings.Replace(r.Path(), ":id", strconv.Itoa(int(id)), 1)
+}
+
+type RouteWithBigSerialID Route
+
+var _ BigSerialIDRoute = (*RouteWithBigSerialID)(nil)
+
+// NewRouteWithBigSerialID creates an id route that takes an int64 as a parameter
+func NewRouteWithBigSerialID(path, name, prefix string) RouteWithBigSerialID {
+	return RouteWithBigSerialID{name, path, prefix}
+}
+
+func (r RouteWithBigSerialID) Name() string {
+	return configureName(r.name, r.prefix)
+}
+
+func (r RouteWithBigSerialID) Path() string {
+	return configurePath(r.path, r.prefix, r.name)
+}
+
+func (r RouteWithBigSerialID) URL(id int64) string {
+	return strings.Replace(r.Path(), ":id", strconv.FormatInt(id, 10), 1)
+}
+
+type RouteWithStringID Route
+
+var _ StringIDRoute = (*RouteWithStringID)(nil)
+
+// NewRouteWithStringID creates an id route that takes a string as a parameter
+func NewRouteWithStringID(path, name, prefix string) RouteWithStringID {
+	return RouteWithStringID{name, path, prefix}
+}
+
+func (r RouteWithStringID) Name() string {
+	return configureName(r.name, r.prefix)
+}
+
+func (r RouteWithStringID) Path() string {
+	return configurePath(r.path, r.prefix, r.name)
+}
+
+func (r RouteWithStringID) URL(id string) string {
+	return strings.Replace(r.Path(), ":id", id, 1)
 }
 
 type RouteWithIDs Route

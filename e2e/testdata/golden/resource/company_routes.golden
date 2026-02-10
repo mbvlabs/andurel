@@ -12,7 +12,7 @@ var CompanyIndex = routing.NewSimpleRoute(
 	CompanyPrefix,
 )
 
-var CompanyShow = routing.NewRouteWithID(
+var CompanyShow = routing.NewRouteWithUUIDID(
 	"/:id",
 	"companies.show",
 	CompanyPrefix,
@@ -30,19 +30,19 @@ var CompanyCreate = routing.NewSimpleRoute(
 	CompanyPrefix,
 )
 
-var CompanyEdit = routing.NewRouteWithID(
+var CompanyEdit = routing.NewRouteWithUUIDID(
 	"/:id/edit",
 	"companies.edit",
 	CompanyPrefix,
 )
 
-var CompanyUpdate = routing.NewRouteWithID(
+var CompanyUpdate = routing.NewRouteWithUUIDID(
 	"/:id",
 	"companies.update",
 	CompanyPrefix,
 )
 
-var CompanyDestroy = routing.NewRouteWithID(
+var CompanyDestroy = routing.NewRouteWithUUIDID(
 	"/:id",
 	"companies.destroy",
 	CompanyPrefix,

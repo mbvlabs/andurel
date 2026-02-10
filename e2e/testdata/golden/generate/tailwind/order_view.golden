@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"testapp/internal/hypermedia"
+	ui "testapp/internal/ui"
 	"testapp/models"
 	"testapp/router/routes"
-	"testapp/views/components"
 )
 
 templ OrderIndex(orders []models.Order) {
@@ -15,47 +15,69 @@ templ OrderIndex(orders []models.Order) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Orders</h1>
-					<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href={ templ.URL(routes.OrderNew.URL()) }>New Order</a>
+					@ui.Button(ui.ButtonProps{Label: "New Order"}).WithHref(routes.OrderNew.URL()).Render()
 				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
-					if len(orders) == 0 {
-						<p class="text-sm text-base-content/60">No orders found.</p>
-					} else {
-						<div class="overflow-x-auto">
-							<table class="w-full text-left text-sm">
-								<thead class="border-b border-base-300 text-xs uppercase tracking-wide text-base-content/60">
-									<tr>
-										<th class="pb-3 pr-4">Account Id</th>
-										<th class="pb-3 pr-4">Customer Name</th>
-										<th class="pb-3 pr-4">Total</th>
-										<th class="pb-3 pr-4">Signature</th>
-										<th class="pb-3 pr-4">Created At</th>
-										<th class="pb-3 pr-4">Updated At</th>
-										<th class="pb-3 pr-4">Actions</th>
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-base-300">
-									for _, order := range orders {
-										<tr class="align-top">
-											<td class="py-3 pr-4 text-base-content/70">{ order.AccountID.String() }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ order.CustomerName }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ fmt.Sprintf("%f", order.Total) }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ string(order.Signature) }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ order.CreatedAt.String() }</td>
-											<td class="py-3 pr-4 text-base-content/70">{ order.UpdatedAt.String() }</td>
-											<td class="py-3 pr-4">
-												<div class="flex flex-wrap gap-3 text-sm">
-													<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.OrderShow.URL(order.ID)) }>View</a>
-													<a class="text-base-content/80 hover:text-base-content" href={ templ.URL(routes.OrderEdit.URL(order.ID)) }>Edit</a>
-												</div>
-											</td>
-										</tr>
+				if len(orders) == 0 {
+					<p class="text-sm text-base-content/60">No orders found.</p>
+				} else {
+					@ui.Table() {
+						@ui.TableHeader() {
+							@ui.TableRow() {
+								@ui.TableHead() {
+									Account Id 
+								}
+								@ui.TableHead() {
+									Customer Name 
+								}
+								@ui.TableHead() {
+									Total 
+								}
+								@ui.TableHead() {
+									Signature 
+								}
+								@ui.TableHead() {
+									Created At 
+								}
+								@ui.TableHead() {
+									Updated At 
+								}
+								@ui.TableHead() {
+									Actions 
+								}
+							}
+						}
+						@ui.TableBody() {
+							for _, order := range orders {
+								@ui.TableRow() {
+									@ui.TableCell() {
+										{ order.AccountID.String() }
 									}
-								</tbody>
-							</table>
-						</div>
+									@ui.TableCell() {
+										{ order.CustomerName }
+									}
+									@ui.TableCell() {
+										{ fmt.Sprintf("%f", order.Total) }
+									}
+									@ui.TableCell() {
+										{ string(order.Signature) }
+									}
+									@ui.TableCell() {
+										{ order.CreatedAt.String() }
+									}
+									@ui.TableCell() {
+										{ order.UpdatedAt.String() }
+									}
+									@ui.TableCell() {
+										<div class="flex flex-wrap gap-3 text-sm">
+											<a class="text-base-content/80 hover:text-base-content" href={ routes.OrderShow.URL(order.ID) }>View</a>
+											<a class="text-base-content/80 hover:text-base-content" href={ routes.OrderEdit.URL(order.ID) }>Edit</a>
+										</div>
+									}
+								}
+							}
+						}
 					}
-				</div>
+				}
 			</div>
 		</main>
 	}
@@ -68,38 +90,40 @@ templ OrderShow(order models.Order) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Order Details</h1>
 					<div class="flex flex-wrap gap-3">
-						<a class="inline-flex items-center rounded-field bg-primary px-4 py-2 text-sm font-semibold text-primary-content transition hover:bg-primary/90" href={ templ.URL(routes.OrderEdit.URL(order.ID)) }>Edit</a>
-						<a class="text-sm text-base-content/70 hover:text-base-content" href={ templ.URL(routes.OrderIndex.URL()) }>Back to List</a>
+						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref(routes.OrderEdit.URL(order.ID)).Render()
+						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.OrderIndex.URL() }>Back to List</a>
 					</div>
 				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 p-6 shadow-lg">
-					<div class="grid gap-5 sm:grid-cols-2">
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Account Id</label>
-							<p class="text-sm text-base-content">{ order.AccountID.String() }</p>
+				@ui.Card() {
+					@ui.CardContent() {
+						<div class="grid gap-5 sm:grid-cols-2">
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Account Id"}).Render()
+								<p class="text-sm text-base-content">{ order.AccountID.String() }</p>
+							</div>
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Customer Name"}).Render()
+								<p class="text-sm text-base-content">{ order.CustomerName }</p>
+							</div>
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Total"}).Render()
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%f", order.Total) }</p>
+							</div>
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Signature"}).Render()
+								<p class="text-sm text-base-content">{ string(order.Signature) }</p>
+							</div>
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Created At"}).Render()
+								<p class="text-sm text-base-content">{ order.CreatedAt.String() }</p>
+							</div>
+							<div class="space-y-1">
+								@ui.Label(ui.LabelProps{Text: "Updated At"}).Render()
+								<p class="text-sm text-base-content">{ order.UpdatedAt.String() }</p>
+							</div>
 						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Customer Name</label>
-							<p class="text-sm text-base-content">{ order.CustomerName }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Total</label>
-							<p class="text-sm text-base-content">{ fmt.Sprintf("%f", order.Total) }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Signature</label>
-							<p class="text-sm text-base-content">{ string(order.Signature) }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Created At</label>
-							<p class="text-sm text-base-content">{ order.CreatedAt.String() }</p>
-						</div>
-						<div class="space-y-1">
-							<label class="text-xs uppercase tracking-wide text-base-content/60">Updated At</label>
-							<p class="text-sm text-base-content">{ order.UpdatedAt.String() }</p>
-						</div>
-					</div>
-				</div>
+					}
+				}
 			</div>
 		</main>
 	}
@@ -109,28 +133,35 @@ templ OrderNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form
-						class="space-y-5"
-						data-indicator:submitting
-						data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.OrderCreate.URL()) }
-					>
-						<div class="space-y-1">
-							<h2 class="text-xl font-semibold text-base-content">New Order</h2>
-							<p class="text-sm text-base-content/60">Enter the details for the new order.</p>
-						</div>
-						<div class="space-y-4">
-							@components.InputField("Account Id", "accountId", "text", "", false, components.FieldProp{})
-							@components.InputField("Customer Name", "customerName", "text", "", false, components.FieldProp{})
-							@components.InputField("Total", "total", "number", "", false, components.FieldProp{})
-							@components.InputField("Signature", "signature", "text", "", false, components.FieldProp{})
-						</div>
-						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Create Order</button>
-						<p class="text-center text-sm text-base-content/60">
-							<a class="text-base-content/70 hover:text-base-content" href={ templ.URL(routes.OrderIndex.URL()) }>Back to List</a>
-						</p>
-					</form>
-				</div>
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("New Order")
+						@ui.CardDescription("Enter the details for the new order.")
+					}
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: routes.OrderCreate.URL()}, ui.WithClass("space-y-5"), ui.WithFragment("new-order-form")) {
+							<div class="space-y-4">
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Account Id"}).WithFor("accountId").Render()
+									@ui.Input("accountId").Render()
+								</div>
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Customer Name"}).WithFor("customerName").Render()
+									@ui.Input("customerName").Render()
+								</div>
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Total"}).WithFor("total").Render()
+									@ui.Input("total").WithType(ui.InputTypeNumber).Render()
+								</div>
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Signature"}).WithFor("signature").Render()
+									@ui.Input("signature").Render()
+								</div>
+							</div>
+							@ui.Button(ui.ButtonProps{Label: "Create Order"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
+						}
+					}
+				}
 			</div>
 		</main>
 	}
@@ -140,42 +171,37 @@ templ OrderEdit(order models.Order) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					<form
-						class="space-y-5"
-						data-indicator:submitting
-						data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.OrderUpdate.URL(order.ID)) }
-					>
-						<div class="space-y-1">
-							<h2 class="text-xl font-semibold text-base-content">Edit Order</h2>
-							<p class="text-sm text-base-content/60">Update the details for this order.</p>
-						</div>
-						<div class="space-y-4">
-							@components.InputField("Account Id", "accountId", "text", "", false, components.FieldProp{
-								Value: order.AccountID.String(),
-							})
-							@components.InputField("Customer Name", "customerName", "text", "", false, components.FieldProp{
-								Value: order.CustomerName,
-							})
-							@components.InputField("Total", "total", "number", "", false, components.FieldProp{
-								Value: fmt.Sprintf("%f", order.Total),
-							})
-							@components.InputField("Signature", "signature", "text", "", false, components.FieldProp{
-								Value: string(order.Signature),
-							})
-						</div>
-						<button class="w-full inline-flex items-center justify-center rounded-field bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content transition hover:bg-primary/90" type="submit">Update Order</button>
-						<p class="text-center text-sm text-base-content/60">
-							<a class="text-base-content/70 hover:text-base-content" href={ templ.URL(routes.OrderIndex.URL()) }>Back to List</a>
-						</p>
-					</form>
-					<div class="mt-4 pt-4 border-t border-base-300">
-						<button
-							class="w-full inline-flex items-center justify-center rounded-field border border-error/60 px-4 py-2.5 text-sm font-semibold text-error transition hover:border-error hover:bg-error/10"
-							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.OrderDestroy.URL(order.ID)) }
-						>Destroy Order</button>
-					</div>
-				</div>
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("Edit Order")
+						@ui.CardDescription("Update the details for this order.")
+					}
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: routes.OrderUpdate.URL(order.ID)}, ui.WithClass("space-y-5"), ui.WithFragment("edit-order-form")) {
+							<div class="space-y-4">
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Account Id"}).WithFor("accountId").Render()
+									@ui.Input("accountId").WithValue(order.AccountID.String()).Render()
+								</div>
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Customer Name"}).WithFor("customerName").Render()
+									@ui.Input("customerName").WithValue(order.CustomerName).Render()
+								</div>
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Total"}).WithFor("total").Render()
+									@ui.Input("total").WithType(ui.InputTypeNumber).WithValue(fmt.Sprintf("%f", order.Total)).Render()
+								</div>
+								<div class="space-y-1">
+									@ui.Label(ui.LabelProps{Text: "Signature"}).WithFor("signature").Render()
+									@ui.Input("signature").WithValue(string(order.Signature)).Render()
+								</div>
+							</div>
+							@ui.Button(ui.ButtonProps{Label: "Update Order"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
+						}
+						@ui.Separator().Render()
+						@ui.Button(ui.ButtonProps{Label: "Destroy Order"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.OrderDestroy.URL(order.ID))).Render()
+					}
+				}
 			</div>
 		</main>
 	}

@@ -37,6 +37,22 @@ func IsAutoIncrement(dataType string) bool {
 	return normalized == "serial" || normalized == "bigserial"
 }
 
+// GoType converts a PKType to its corresponding Go type string
+func GoType(pkType PKType) string {
+	switch pkType {
+	case PKTypeUUID:
+		return "uuid.UUID"
+	case PKTypeInt32:
+		return "int32"
+	case PKTypeInt64:
+		return "int64"
+	case PKTypeString:
+		return "string"
+	default:
+		return "uuid.UUID"
+	}
+}
+
 // ValidatePrimaryKeyDatatype validates primary key data types
 func ValidatePrimaryKeyDatatype(dataType, databaseType, migrationFile, columnName string) error {
 	_, err := ClassifyPrimaryKeyType(dataType)

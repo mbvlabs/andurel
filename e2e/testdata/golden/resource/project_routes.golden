@@ -12,7 +12,7 @@ var ProjectIndex = routing.NewSimpleRoute(
 	ProjectPrefix,
 )
 
-var ProjectShow = routing.NewRouteWithID(
+var ProjectShow = routing.NewRouteWithUUIDID(
 	"/:id",
 	"projects.show",
 	ProjectPrefix,
@@ -30,19 +30,19 @@ var ProjectCreate = routing.NewSimpleRoute(
 	ProjectPrefix,
 )
 
-var ProjectEdit = routing.NewRouteWithID(
+var ProjectEdit = routing.NewRouteWithUUIDID(
 	"/:id/edit",
 	"projects.edit",
 	ProjectPrefix,
 )
 
-var ProjectUpdate = routing.NewRouteWithID(
+var ProjectUpdate = routing.NewRouteWithUUIDID(
 	"/:id",
 	"projects.update",
 	ProjectPrefix,
 )
 
-var ProjectDestroy = routing.NewRouteWithID(
+var ProjectDestroy = routing.NewRouteWithUUIDID(
 	"/:id",
 	"projects.destroy",
 	ProjectPrefix,

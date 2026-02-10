@@ -1,6 +1,9 @@
 package views
 
-import "{{.ModuleName}}/views/components"
+import (
+	ui "{{.ModuleName}}/internal/ui"
+	"{{.ModuleName}}/views/components"
+)
 
 templ Home() {
 	@base() {
@@ -15,18 +18,18 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Button</h3>
 				<div class="flex flex-wrap items-center gap-3">
-					@components.Button(components.ButtonProps{Label: "Default"}).Render()
-					@components.Button(components.ButtonProps{Label: "Secondary"}).MakeSecondary().Render()
-					@components.Button(components.ButtonProps{Label: "Outline"}).MakeOutline().Render()
-					@components.Button(components.ButtonProps{Label: "Ghost"}).MakeGhost().Render()
-					@components.Button(components.ButtonProps{Label: "Link"}).MakeLink().Render()
-					@components.Button(components.ButtonProps{Label: "Destructive"}).MakeDestructive().Render()
+					@ui.Button(ui.ButtonProps{Label: "Default"}).Render()
+					@ui.Button(ui.ButtonProps{Label: "Secondary"}).MakeSecondary().Render()
+					@ui.Button(ui.ButtonProps{Label: "Outline"}).MakeOutline().Render()
+					@ui.Button(ui.ButtonProps{Label: "Ghost"}).MakeGhost().Render()
+					@ui.Button(ui.ButtonProps{Label: "Link"}).MakeLink().Render()
+					@ui.Button(ui.ButtonProps{Label: "Destructive"}).MakeDestructive().Render()
 				</div>
 				<div class="flex flex-wrap items-center gap-3">
-					@components.Button(components.ButtonProps{Label: "Small"}).WithSize(components.ButtonSizeSm).Render()
-					@components.Button(components.ButtonProps{Label: "Default"}).Render()
-					@components.Button(components.ButtonProps{Label: "Large"}).WithSize(components.ButtonSizeLg).Render()
-					@components.Button(components.ButtonProps{Label: "Disabled"}).WithDisabled(true).Render()
+					@ui.Button(ui.ButtonProps{Label: "Small"}).WithSize(ui.ButtonSizeSm).Render()
+					@ui.Button(ui.ButtonProps{Label: "Default"}).Render()
+					@ui.Button(ui.ButtonProps{Label: "Large"}).WithSize(ui.ButtonSizeLg).Render()
+					@ui.Button(ui.ButtonProps{Label: "Disabled"}).WithDisabled(true).Render()
 				</div>
 			</div>
 			<!-- ─── Badge ─── -->
@@ -54,17 +57,17 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Card</h3>
 				<div class="max-w-sm">
-					@components.Card() {
-						@components.CardHeader() {
-							@components.CardTitle("Card Title")
-							@components.CardDescription("A short description of the card content.")
+					@ui.Card() {
+						@ui.CardHeader() {
+							@ui.CardTitle("Card Title")
+							@ui.CardDescription("A short description of the card content.")
 						}
-						@components.CardContent() {
+						@ui.CardContent() {
 							<p class="text-sm text-base-content/80">This is the body of the card. You can place any content here.</p>
 						}
-						@components.CardFooter() {
-							@components.Button(components.ButtonProps{Label: "Cancel"}).MakeOutline().WithSize(components.ButtonSizeSm).Render()
-							@components.Button(components.ButtonProps{Label: "Save"}).WithSize(components.ButtonSizeSm).WithClass("ml-2").Render()
+						@ui.CardFooter() {
+							@ui.Button(ui.ButtonProps{Label: "Cancel"}).MakeOutline().WithSize(ui.ButtonSizeSm).Render()
+							@ui.Button(ui.ButtonProps{Label: "Save"}).WithSize(ui.ButtonSizeSm).WithClass("ml-2").Render()
 						}
 					}
 				</div>
@@ -74,20 +77,20 @@ templ Home() {
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Input</h3>
 				<div class="max-w-sm space-y-3">
 					<div class="space-y-1">
-						@components.Label(components.LabelProps{Text: "Email"}).WithFor("demo-email").Render()
-						@components.Input("demo-email").WithID("demo-email").WithType(components.InputTypeEmail).WithPlaceholder("you@example.com").Render()
+						@ui.Label(ui.LabelProps{Text: "Email"}).WithFor("demo-email").Render()
+						@ui.Input("demo-email").WithID("demo-email").WithType(ui.InputTypeEmail).WithPlaceholder("you@example.com").Render()
 					</div>
 					<div class="space-y-1">
-						@components.Label(components.LabelProps{Text: "Password"}).WithFor("demo-password").Render()
-						@components.Input("demo-password").WithID("demo-password").WithType(components.InputTypePassword).WithPlaceholder("Enter password").Render()
+						@ui.Label(ui.LabelProps{Text: "Password"}).WithFor("demo-password").Render()
+						@ui.Input("demo-password").WithID("demo-password").WithType(ui.InputTypePassword).WithPlaceholder("Enter password").Render()
 					</div>
 					<div class="space-y-1">
-						@components.Label(components.LabelProps{Text: "Error State"}).WithFor("demo-error").Render()
-						@components.Input("demo-error").WithID("demo-error").WithHasError(true).WithValue("Invalid value").Render()
+						@ui.Label(ui.LabelProps{Text: "Error State"}).WithFor("demo-error").Render()
+						@ui.Input("demo-error").WithID("demo-error").WithHasError(true).WithValue("Invalid value").Render()
 					</div>
 					<div class="space-y-1">
-						@components.Label(components.LabelProps{Text: "Disabled"}).WithFor("demo-disabled").Render()
-						@components.Input("demo-disabled").WithID("demo-disabled").WithDisabled(true).WithValue("Cannot edit").Render()
+						@ui.Label(ui.LabelProps{Text: "Disabled"}).WithFor("demo-disabled").Render()
+						@ui.Input("demo-disabled").WithID("demo-disabled").WithDisabled(true).WithValue("Cannot edit").Render()
 					</div>
 				</div>
 			</div>
@@ -95,7 +98,7 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Textarea</h3>
 				<div class="max-w-sm space-y-1">
-					@components.Label(components.LabelProps{Text: "Bio"}).WithFor("demo-bio").Render()
+					@ui.Label(ui.LabelProps{Text: "Bio"}).WithFor("demo-bio").Render()
 					@components.Textarea("demo-bio").WithID("demo-bio").WithPlaceholder("Tell us about yourself...").WithRows(4).Render()
 				</div>
 			</div>
@@ -103,7 +106,7 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Select</h3>
 				<div class="max-w-sm space-y-1">
-					@components.Label(components.LabelProps{Text: "Country"}).WithFor("demo-select").Render()
+					@ui.Label(ui.LabelProps{Text: "Country"}).WithFor("demo-select").Render()
 					@components.Select("demo-select").WithID("demo-select").Render() {
 						@components.SelectItem("Choose a country", "", false, true)
 						@components.SelectItem("United States", "us", false, false)
@@ -118,15 +121,15 @@ templ Home() {
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Checkbox</h3>
 				<div class="space-y-2">
 					<label class="flex items-center gap-2 text-sm">
-						@components.Checkbox("demo-terms").Render()
+						@ui.Checkbox("demo-terms").Render()
 						Accept terms and conditions
 					</label>
 					<label class="flex items-center gap-2 text-sm">
-						@components.Checkbox("demo-newsletter").WithChecked(true).Render()
+						@ui.Checkbox("demo-newsletter").WithChecked(true).Render()
 						Subscribe to newsletter
 					</label>
 					<label class="flex items-center gap-2 text-sm">
-						@components.Checkbox("demo-disabled-cb").WithDisabled(true).WithChecked(true).Render()
+						@ui.Checkbox("demo-disabled-cb").WithDisabled(true).WithChecked(true).Render()
 						Disabled checkbox
 					</label>
 				</div>
@@ -162,9 +165,9 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Slider</h3>
 				<div class="max-w-sm space-y-3">
-					@components.Label(components.LabelProps{Text: "Volume"}).Render()
+					@ui.Label(ui.LabelProps{Text: "Volume"}).Render()
 					@components.Slider("demo-volume").WithValue(50).Render()
-					@components.Label(components.LabelProps{Text: "Price Range"}).Render()
+					@ui.Label(ui.LabelProps{Text: "Price Range"}).Render()
 					@components.Slider("demo-price").WithMin(0).WithMax(1000).WithStep(50).WithValue(250).Render()
 				</div>
 			</div>
@@ -180,15 +183,15 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Datepicker</h3>
 				<div class="max-w-sm space-y-1">
-					@components.Label(components.LabelProps{Text: "Date"}).WithFor("demo-date").Render()
-					@components.Datepicker("demo-date").WithPlaceholder("Select a date").Render()
+					@ui.Label(ui.LabelProps{Text: "Date"}).WithFor("demo-date").Render()
+					@ui.Datepicker("demo-date").WithPlaceholder("Select a date").Render()
 				</div>
 			</div>
 			<!-- ─── Timepicker ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Timepicker</h3>
 				<div class="max-w-sm space-y-1">
-					@components.Label(components.LabelProps{Text: "Time"}).WithFor("demo-time").Render()
+					@ui.Label(ui.LabelProps{Text: "Time"}).WithFor("demo-time").Render()
 					@components.Timepicker("demo-time").WithValue("09:00").Render()
 				</div>
 			</div>
@@ -196,7 +199,7 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Input OTP</h3>
 				<div class="space-y-1">
-					@components.Label(components.LabelProps{Text: "Verification Code"}).Render()
+					@ui.Label(ui.LabelProps{Text: "Verification Code"}).Render()
 					@components.InputOTP("demo-otp").WithLength(6).Render()
 				</div>
 			</div>
@@ -239,7 +242,7 @@ templ Home() {
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Separator</h3>
 				<div class="max-w-sm space-y-2">
 					<p class="text-sm">Above the separator</p>
-					@components.Separator().Render()
+					@ui.Separator().Render()
 					<p class="text-sm">Below the separator</p>
 				</div>
 			</div>
@@ -303,8 +306,8 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Label</h3>
 				<div class="space-y-2 max-w-sm">
-					@components.Label(components.LabelProps{Text: "Regular Label"}).WithFor("demo-label").Render()
-					@components.Label(components.LabelProps{Text: "Required Label"}).WithFor("demo-label-req").WithRequired(true).Render()
+					@ui.Label(ui.LabelProps{Text: "Regular Label"}).WithFor("demo-label").Render()
+					@ui.Label(ui.LabelProps{Text: "Required Label"}).WithFor("demo-label-req").WithRequired(true).Render()
 				</div>
 			</div>
 			<!-- ─── Accordion ─── -->
@@ -350,29 +353,29 @@ templ Home() {
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Table</h3>
 				<div class="max-w-lg">
-					@components.Table() {
-						@components.TableHeader() {
-							@components.TableRow() {
-								@components.TableHead() { Name }
-								@components.TableHead() { Email }
-								@components.TableHead() { Role }
+					@ui.Table() {
+						@ui.TableHeader() {
+							@ui.TableRow() {
+								@ui.TableHead() { Name }
+								@ui.TableHead() { Email }
+								@ui.TableHead() { Role }
 							}
 						}
-						@components.TableBody() {
-							@components.TableRow() {
-								@components.TableCell() { Jane Doe }
-								@components.TableCell() { jane@example.com }
-								@components.TableCell() { Admin }
+						@ui.TableBody() {
+							@ui.TableRow() {
+								@ui.TableCell() { Jane Doe }
+								@ui.TableCell() { jane@example.com }
+								@ui.TableCell() { Admin }
 							}
-							@components.TableRow() {
-								@components.TableCell() { John Smith }
-								@components.TableCell() { john@example.com }
-								@components.TableCell() { Editor }
+							@ui.TableRow() {
+								@ui.TableCell() { John Smith }
+								@ui.TableCell() { john@example.com }
+								@ui.TableCell() { Editor }
 							}
-							@components.TableRow() {
-								@components.TableCell() { Alice Chen }
-								@components.TableCell() { alice@example.com }
-								@components.TableCell() { Viewer }
+							@ui.TableRow() {
+								@ui.TableCell() { Alice Chen }
+								@ui.TableCell() { alice@example.com }
+								@ui.TableCell() { Viewer }
 							}
 						}
 					}
@@ -412,7 +415,7 @@ templ Home() {
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Tooltip</h3>
 				@components.Tooltip() {
 					@components.TooltipTrigger() {
-						@components.Button(components.ButtonProps{Label: "Hover me"}).MakeOutline().Render()
+						@ui.Button(ui.ButtonProps{Label: "Hover me"}).MakeOutline().Render()
 					}
 					@components.TooltipContent() { This is a helpful tooltip }
 				}
@@ -420,7 +423,7 @@ templ Home() {
 			<!-- ─── Dropdown ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Dropdown</h3>
-				@components.Dropdown(components.Button(components.ButtonProps{Label: "Open Menu"}).MakeOutline().Render()) {
+				@components.Dropdown(ui.Button(ui.ButtonProps{Label: "Open Menu"}).MakeOutline().Render()) {
 					@components.DropdownLabel("Actions")
 					@components.DropdownSeparator()
 					@components.DropdownItem("Edit", false)
@@ -432,7 +435,7 @@ templ Home() {
 			<!-- ─── Popover ─── -->
 			<div class="space-y-4">
 				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Popover</h3>
-				@components.Popover(components.Button(components.ButtonProps{Label: "Open Popover"}).MakeOutline().Render()) {
+				@components.Popover(ui.Button(ui.ButtonProps{Label: "Open Popover"}).MakeOutline().Render()) {
 					<div class="space-y-2">
 						<h4 class="font-medium text-sm">Dimensions</h4>
 						<p class="text-xs text-base-content/60">Set the dimensions for the layer.</p>

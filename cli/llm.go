@@ -919,7 +919,7 @@ templ Home() {
 - All tags must be closed (templ enforces this).
 
 ### Attributes, classes, styles
-- String attributes: <a href={ templ.URL(path) }>.
+- String attributes: <a href={ path }>.
 - Boolean attributes: add a ? after the name to bind (e.g., disabled?={ isDisabled }).
 - Conditional attributes: use if blocks inside the element.
 - Class composition:
@@ -1011,7 +1011,10 @@ Routes are defined as typed variables in router/routes/. This provides compile-t
 | Type | Constructor | Parameter | Usage |
 |------|-------------|-----------|-------|
 | Route | NewSimpleRoute | none | Static paths |
-| RouteWithID | NewRouteWithID | uuid.UUID | Single :id parameter |
+| RouteWithUUIDID | NewRouteWithUUIDID | uuid.UUID | Single :id parameter (UUID PK) |
+| RouteWithSerialID | NewRouteWithSerialID | int32 | Single :id parameter (serial PK) |
+| RouteWithBigSerialID | NewRouteWithBigSerialID | int64 | Single :id parameter (bigserial PK) |
+| RouteWithStringID | NewRouteWithStringID | string | Single :id parameter (string PK) |
 | RouteWithIDs | NewRouteWithMultipleIDs | map[string]uuid.UUID | Multiple ID params |
 | RouteWithSlug | NewRouteWithSlug | string | :slug parameter |
 | RouteWithToken | NewRouteWithToken | string | :token parameter |
@@ -1037,7 +1040,7 @@ var ProductIndex = routing.NewSimpleRoute(
 )
 
 // Route with UUID parameter
-var ProductShow = routing.NewRouteWithID(
+var ProductShow = routing.NewRouteWithUUIDID(
 	"/:id",
 	"products.show",
 	ProductsPrefix,
@@ -1075,7 +1078,7 @@ r.e.AddRoute(echo.Route{
 return etx.Redirect(http.StatusSeeOther, routes.ProductShow.URL(product.ID))
 
 // In views (links)
-<a href={ templ.URL(routes.ProductShow.URL(product.ID)) }>View</a>
+<a href={ routes.ProductShow.URL(product.ID) }>View</a>
 
 // Multiple IDs
 url := routes.ProductCategoryShow.URL(map[string]uuid.UUID{
@@ -1297,9 +1300,9 @@ Usage in views:
 ` + "```templ" + `
 templ navbar() {
 	if cookies.GetAppCtx(ctx).IsAuthenticated {
-		<a href={ templ.URL(routes.SessionDestroy.URL()) }>Logout</a>
+		<a href={ routes.SessionDestroy.URL() }>Logout</a>
 	} else {
-		<a href={ templ.URL(routes.SessionNew.URL()) }>Login</a>
+		<a href={ routes.SessionNew.URL() }>Login</a>
 	}
 }
 ` + "```" + `
