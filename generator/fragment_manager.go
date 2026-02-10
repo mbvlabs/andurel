@@ -66,6 +66,9 @@ func (fm *FragmentManager) GenerateFragment(config FragmentConfig) error {
 	// Detect route type from path
 	routeType := controllers.DetectRouteType(config.Path)
 
+	// Detect ID type from existing routes file
+	idType := fm.detectIDTypeFromRoutes(routesPath)
+
 	// Normalize HTTP method for template
 	httpMethod := fm.normalizeHTTPMethodName(config.HTTPMethod)
 
@@ -83,7 +86,7 @@ func (fm *FragmentManager) GenerateFragment(config FragmentConfig) error {
 	routeData := controllers.FragmentRouteData{
 		ResourceName:    config.ControllerName,
 		MethodName:      config.MethodName,
-		ConstructorName: routeType.ConstructorName(),
+		ConstructorName: routeType.ConstructorName(idType),
 		Path:            config.Path,
 		PluralName:      pluralName,
 		LowerMethodName: strings.ToLower(config.MethodName),
@@ -105,6 +108,26 @@ func (fm *FragmentManager) GenerateFragment(config FragmentConfig) error {
 
 	fmt.Printf("Successfully generated fragment %s.%s\n", config.ControllerName, config.MethodName)
 	return nil
+}
+
+// detectIDTypeFromRoutes scans an existing routes file for ID route constructors
+// and returns the corresponding Go type string. Defaults to "uuid.UUID".
+func (fm *FragmentManager) detectIDTypeFromRoutes(routesPath string) string {
+	content, err := os.ReadFile(routesPath)
+	if err != nil {
+		return "uuid.UUID"
+	}
+	s := string(content)
+	switch {
+	case strings.Contains(s, "NewRouteWithSerialID"):
+		return "int32"
+	case strings.Contains(s, "NewRouteWithBigSerialID"):
+		return "int64"
+	case strings.Contains(s, "NewRouteWithStringID"):
+		return "string"
+	default:
+		return "uuid.UUID"
+	}
 }
 
 func (fm *FragmentManager) validateConfig(config FragmentConfig) error {

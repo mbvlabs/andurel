@@ -12,7 +12,7 @@ var {{.ResourceName}}Index = routing.NewSimpleRoute(
 	{{.ResourceName}}Prefix,
 )
 
-var {{.ResourceName}}Show = routing.NewRouteWithID(
+var {{.ResourceName}}Show = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
 	"/:id",
 	"{{.PluralName}}.show",
 	{{.ResourceName}}Prefix,
@@ -30,19 +30,19 @@ var {{.ResourceName}}Create = routing.NewSimpleRoute(
 	{{.ResourceName}}Prefix,
 )
 
-var {{.ResourceName}}Edit = routing.NewRouteWithID(
+var {{.ResourceName}}Edit = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
 	"/:id/edit",
 	"{{.PluralName}}.edit",
 	{{.ResourceName}}Prefix,
 )
 
-var {{.ResourceName}}Update = routing.NewRouteWithID(
+var {{.ResourceName}}Update = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
 	"/:id",
 	"{{.PluralName}}.update",
 	{{.ResourceName}}Prefix,
 )
 
-var {{.ResourceName}}Destroy = routing.NewRouteWithID(
+var {{.ResourceName}}Destroy = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
 	"/:id",
 	"{{.PluralName}}.destroy",
 	{{.ResourceName}}Prefix,

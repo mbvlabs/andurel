@@ -12,7 +12,7 @@ var InvoiceIndex = routing.NewSimpleRoute(
 	InvoicePrefix,
 )
 
-var InvoiceShow = routing.NewRouteWithID(
+var InvoiceShow = routing.NewRouteWithUUIDID(
 	"/:id",
 	"invoices.show",
 	InvoicePrefix,
@@ -30,19 +30,19 @@ var InvoiceCreate = routing.NewSimpleRoute(
 	InvoicePrefix,
 )
 
-var InvoiceEdit = routing.NewRouteWithID(
+var InvoiceEdit = routing.NewRouteWithUUIDID(
 	"/:id/edit",
 	"invoices.edit",
 	InvoicePrefix,
 )
 
-var InvoiceUpdate = routing.NewRouteWithID(
+var InvoiceUpdate = routing.NewRouteWithUUIDID(
 	"/:id",
 	"invoices.update",
 	InvoicePrefix,
 )
 
-var InvoiceDestroy = routing.NewRouteWithID(
+var InvoiceDestroy = routing.NewRouteWithUUIDID(
 	"/:id",
 	"invoices.destroy",
 	InvoicePrefix,

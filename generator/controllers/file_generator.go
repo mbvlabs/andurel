@@ -76,7 +76,7 @@ func (fg *FileGenerator) GenerateController(
 		return fmt.Errorf("failed to format controller file: %w", err)
 	}
 
-	if err := fg.routeGenerator.GenerateRoutes(resourceName, pluralName); err != nil {
+	if err := fg.routeGenerator.GenerateRoutes(resourceName, pluralName, controller.IDType); err != nil {
 		return fmt.Errorf("failed to generate routes: %w", err)
 	}
 

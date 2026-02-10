@@ -24,14 +24,14 @@ func NewRouteGenerator() *RouteGenerator {
 	}
 }
 
-func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName string) error {
+func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName, idType string) error {
 	routesPath := filepath.Join("router/routes", pluralName+".go")
 
 	if _, err := os.Stat(routesPath); err == nil {
 		return fmt.Errorf("routes file %s already exists", routesPath)
 	}
 
-	routeContent, err := rg.templateRenderer.generateRouteContent(resourceName, pluralName)
+	routeContent, err := rg.templateRenderer.generateRouteContent(resourceName, pluralName, idType)
 	if err != nil {
 		return fmt.Errorf("failed to generate route content: %w", err)
 	}

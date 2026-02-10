@@ -108,28 +108,13 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 			// Detect ID type from primary key column
 			if col.Name == "id" && col.IsPrimaryKey {
 				pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
-				controller.IDType = mapPKTypeToGoType(pkType)
+				controller.IDType = validation.GoType(pkType)
 				controller.IsAutoIncrementID = validation.IsAutoIncrement(col.DataType)
 			}
 		}
 	}
 
 	return controller, nil
-}
-
-func mapPKTypeToGoType(pkType validation.PKType) string {
-	switch pkType {
-	case validation.PKTypeUUID:
-		return "uuid.UUID"
-	case validation.PKTypeInt32:
-		return "int32"
-	case validation.PKTypeInt64:
-		return "int64"
-	case validation.PKTypeString:
-		return "string"
-	default:
-		return "uuid.UUID"
-	}
 }
 
 func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {

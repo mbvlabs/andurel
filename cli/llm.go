@@ -1011,7 +1011,10 @@ Routes are defined as typed variables in router/routes/. This provides compile-t
 | Type | Constructor | Parameter | Usage |
 |------|-------------|-----------|-------|
 | Route | NewSimpleRoute | none | Static paths |
-| RouteWithID | NewRouteWithID | uuid.UUID | Single :id parameter |
+| RouteWithUUIDID | NewRouteWithUUIDID | uuid.UUID | Single :id parameter (UUID PK) |
+| RouteWithSerialID | NewRouteWithSerialID | int32 | Single :id parameter (serial PK) |
+| RouteWithBigSerialID | NewRouteWithBigSerialID | int64 | Single :id parameter (bigserial PK) |
+| RouteWithStringID | NewRouteWithStringID | string | Single :id parameter (string PK) |
 | RouteWithIDs | NewRouteWithMultipleIDs | map[string]uuid.UUID | Multiple ID params |
 | RouteWithSlug | NewRouteWithSlug | string | :slug parameter |
 | RouteWithToken | NewRouteWithToken | string | :token parameter |
@@ -1037,7 +1040,7 @@ var ProductIndex = routing.NewSimpleRoute(
 )
 
 // Route with UUID parameter
-var ProductShow = routing.NewRouteWithID(
+var ProductShow = routing.NewRouteWithUUIDID(
 	"/:id",
 	"products.show",
 	ProductsPrefix,
