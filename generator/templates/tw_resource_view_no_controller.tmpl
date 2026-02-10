@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"{{.ModulePath}}/models"
-	"{{.ModulePath}}/views/components"
+	ui "{{.ModulePath}}/internal/ui"
 )
 
 templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
@@ -14,23 +14,23 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{Plural .ResourceName}}</h1>
-					@components.Button(components.ButtonProps{Label: "New {{.ResourceName}}"}).WithHref("/").Render()
+					@ui.Button(ui.ButtonProps{Label: "New {{.ResourceName}}"}).WithHref("/").Render()
 				</div>
 				if len({{.PluralName}}) == 0 {
 					<p class="text-sm text-base-content/60">No {{.PluralName}} found.</p>
 				} else {
-					@components.Table() {
-						@components.TableHeader() {
-							@components.TableRow() {
-								{{range .Fields}}@components.TableHead() { {{.DisplayName}} }
-								{{end}}@components.TableHead() { Actions }
+					@ui.Table() {
+						@ui.TableHeader() {
+							@ui.TableRow() {
+								{{range .Fields}}@ui.TableHead() { {{.DisplayName}} }
+								{{end}}@ui.TableHead() { Actions }
 							}
 						}
-						@components.TableBody() {
+						@ui.TableBody() {
 							for _, {{.ResourceName | ToLower}} := range {{.PluralName}} {
-								@components.TableRow() {
-									{{range .Fields}}@components.TableCell() { {{StringTableDisplay . $.ResourceName}} }
-									{{end}}@components.TableCell() {
+								@ui.TableRow() {
+									{{range .Fields}}@ui.TableCell() { {{StringTableDisplay . $.ResourceName}} }
+									{{end}}@ui.TableCell() {
 										<div class="flex flex-wrap gap-3 text-sm">
 											<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
 											<a class="text-base-content/80 hover:text-base-content" href="/">Edit</a>
@@ -53,15 +53,15 @@ templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{.ResourceName}} Details</h1>
 					<div class="flex flex-wrap gap-3">
-						@components.Button(components.ButtonProps{Label: "Edit"}).WithHref("/").Render()
+						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref("/").Render()
 						<a class="text-sm text-base-content/70 hover:text-base-content" href="/">Back to List</a>
 					</div>
 				</div>
-				@components.Card() {
-					@components.CardContent() {
+				@ui.Card() {
+					@ui.CardContent() {
 						<div class="grid gap-5 sm:grid-cols-2">
 							{{range .Fields}}<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).Render()
+								@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).Render()
 								<p class="text-sm text-base-content">{{StringDisplay . $.ResourceName}}</p>
 							</div>
 							{{end}}
@@ -77,33 +77,33 @@ templ {{.ResourceName}}New() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@components.Card() {
-					@components.CardHeader() {
-						@components.CardTitle("New {{.ResourceName}}")
-						@components.CardDescription("Enter the details for the new {{.ResourceName | ToLower}}.")
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("New {{.ResourceName}}")
+						@ui.CardDescription("Enter the details for the new {{.ResourceName | ToLower}}.")
 					}
-					@components.CardContent() {
-						@components.Form(components.FormProps{Action: http.MethodPost, URL: "/"}, components.WithClass("space-y-5"), components.WithFragment("new-{{.ResourceName | ToLower}}-form")) {
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: "/"}, ui.WithClass("space-y-5"), ui.WithFragment("new-{{.ResourceName | ToLower}}-form")) {
 							<div class="space-y-4">
 								{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
-									@components.Checkbox("{{.CamelCase}}").Render()
-									@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+									@ui.Checkbox("{{.CamelCase}}").Render()
+									@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
 								</div>
 								{{else if eq .InputType "date"}}<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
-									@components.Datepicker("{{.CamelCase}}").Render()
+									@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+									@ui.Datepicker("{{.CamelCase}}").Render()
 								</div>
 								{{else if eq .InputType "number"}}<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
-									@components.Input("{{.CamelCase}}").WithType(components.InputTypeNumber).Render()
+									@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+									@ui.Input("{{.CamelCase}}").WithType(ui.InputTypeNumber).Render()
 								</div>
 								{{else}}<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
-									@components.Input("{{.CamelCase}}").Render()
+									@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+									@ui.Input("{{.CamelCase}}").Render()
 								</div>
 								{{end}}{{end}}{{end}}
 							</div>
-							@components.Button(components.ButtonProps{Label: "Create {{.ResourceName}}"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+							@ui.Button(ui.ButtonProps{Label: "Create {{.ResourceName}}"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
 						}
 					}
 				}
@@ -116,36 +116,36 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@components.Card() {
-					@components.CardHeader() {
-						@components.CardTitle("Edit {{.ResourceName}}")
-						@components.CardDescription("Update the details for this {{.ResourceName | ToLower}}.")
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("Edit {{.ResourceName}}")
+						@ui.CardDescription("Update the details for this {{.ResourceName | ToLower}}.")
 					}
-					@components.CardContent() {
-						@components.Form(components.FormProps{Action: http.MethodPut, URL: "/"}, components.WithClass("space-y-5"), components.WithFragment("edit-{{.ResourceName | ToLower}}-form")) {
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: "/"}, ui.WithClass("space-y-5"), ui.WithFragment("edit-{{.ResourceName | ToLower}}-form")) {
 							<div class="space-y-4">
 								{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
-									@components.Checkbox("{{.CamelCase}}").WithChecked({{FieldRef . $.ResourceName}}).Render()
-									@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+									@ui.Checkbox("{{.CamelCase}}").WithChecked({{FieldRef . $.ResourceName}}).Render()
+									@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
 								</div>
 								{{else if eq .InputType "date"}}<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
-									@components.Datepicker("{{.CamelCase}}").WithValue({{StringValue . $.ResourceName}}).Render()
+									@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+									@ui.Datepicker("{{.CamelCase}}").WithValue({{StringValue . $.ResourceName}}).Render()
 								</div>
 								{{else if eq .InputType "number"}}<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
-									@components.Input("{{.CamelCase}}").WithType(components.InputTypeNumber).WithValue({{StringValue . $.ResourceName}}).Render()
+									@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+									@ui.Input("{{.CamelCase}}").WithType(ui.InputTypeNumber).WithValue({{StringValue . $.ResourceName}}).Render()
 								</div>
 								{{else}}<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
-									@components.Input("{{.CamelCase}}").WithValue({{StringValue . $.ResourceName}}).Render()
+									@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+									@ui.Input("{{.CamelCase}}").WithValue({{StringValue . $.ResourceName}}).Render()
 								</div>
 								{{end}}{{end}}{{end}}
 							</div>
-							@components.Button(components.ButtonProps{Label: "Update {{.ResourceName}}"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+							@ui.Button(ui.ButtonProps{Label: "Update {{.ResourceName}}"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
 						}
-						@components.Separator().Render()
-						@components.Button(components.ButtonProps{Label: "Destroy {{.ResourceName}}"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", fmt.Sprintf("@delete('%s')", "/")).Render()
+						@ui.Separator().Render()
+						@ui.Button(ui.ButtonProps{Label: "Destroy {{.ResourceName}}"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", fmt.Sprintf("@delete('%s')", "/")).Render()
 					}
 				}
 			</div>

@@ -3,8 +3,8 @@ package views
 import (
 	"fmt"
 	"net/http"
+	ui "testapp/internal/ui"
 	"testapp/models"
-	"testapp/views/components"
 )
 
 templ CategoryIndex(categories []models.Category) {
@@ -13,47 +13,47 @@ templ CategoryIndex(categories []models.Category) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Categories</h1>
-					@components.Button(components.ButtonProps{Label: "New Category"}).WithHref("/").Render()
+					@ui.Button(ui.ButtonProps{Label: "New Category"}).WithHref("/").Render()
 				</div>
 				if len(categories) == 0 {
 					<p class="text-sm text-base-content/60">No categories found.</p>
 				} else {
-					@components.Table() {
-						@components.TableHeader() {
-							@components.TableRow() {
-								@components.TableHead() {
+					@ui.Table() {
+						@ui.TableHeader() {
+							@ui.TableRow() {
+								@ui.TableHead() {
 									Name 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Description 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Created At 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Updated At 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Actions 
 								}
 							}
 						}
-						@components.TableBody() {
+						@ui.TableBody() {
 							for _, category := range categories {
-								@components.TableRow() {
-									@components.TableCell() {
+								@ui.TableRow() {
+									@ui.TableCell() {
 										{ category.Name }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ category.Description }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ category.CreatedAt.String() }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ category.UpdatedAt.String() }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										<div class="flex flex-wrap gap-3 text-sm">
 											<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
 											<a class="text-base-content/80 hover:text-base-content" href="/">Edit</a>
@@ -76,27 +76,27 @@ templ CategoryShow(category models.Category) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Category Details</h1>
 					<div class="flex flex-wrap gap-3">
-						@components.Button(components.ButtonProps{Label: "Edit"}).WithHref("/").Render()
+						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref("/").Render()
 						<a class="text-sm text-base-content/70 hover:text-base-content" href="/">Back to List</a>
 					</div>
 				</div>
-				@components.Card() {
-					@components.CardContent() {
+				@ui.Card() {
+					@ui.CardContent() {
 						<div class="grid gap-5 sm:grid-cols-2">
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Name"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Name"}).Render()
 								<p class="text-sm text-base-content">{ category.Name }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Description"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Description"}).Render()
 								<p class="text-sm text-base-content">{ category.Description }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Created At"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Created At"}).Render()
 								<p class="text-sm text-base-content">{ category.CreatedAt.String() }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Updated At"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Updated At"}).Render()
 								<p class="text-sm text-base-content">{ category.UpdatedAt.String() }</p>
 							</div>
 						</div>
@@ -111,24 +111,24 @@ templ CategoryNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@components.Card() {
-					@components.CardHeader() {
-						@components.CardTitle("New Category")
-						@components.CardDescription("Enter the details for the new category.")
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("New Category")
+						@ui.CardDescription("Enter the details for the new category.")
 					}
-					@components.CardContent() {
-						@components.Form(components.FormProps{Action: http.MethodPost, URL: "/"}, components.WithClass("space-y-5"), components.WithFragment("new-category-form")) {
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: "/"}, ui.WithClass("space-y-5"), ui.WithFragment("new-category-form")) {
 							<div class="space-y-4">
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Name"}).WithFor("name").Render()
-									@components.Input("name").Render()
+									@ui.Label(ui.LabelProps{Text: "Name"}).WithFor("name").Render()
+									@ui.Input("name").Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Description"}).WithFor("description").Render()
-									@components.Input("description").Render()
+									@ui.Label(ui.LabelProps{Text: "Description"}).WithFor("description").Render()
+									@ui.Input("description").Render()
 								</div>
 							</div>
-							@components.Button(components.ButtonProps{Label: "Create Category"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+							@ui.Button(ui.ButtonProps{Label: "Create Category"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
 						}
 					}
 				}
@@ -141,27 +141,27 @@ templ CategoryEdit(category models.Category) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@components.Card() {
-					@components.CardHeader() {
-						@components.CardTitle("Edit Category")
-						@components.CardDescription("Update the details for this category.")
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("Edit Category")
+						@ui.CardDescription("Update the details for this category.")
 					}
-					@components.CardContent() {
-						@components.Form(components.FormProps{Action: http.MethodPut, URL: "/"}, components.WithClass("space-y-5"), components.WithFragment("edit-category-form")) {
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: "/"}, ui.WithClass("space-y-5"), ui.WithFragment("edit-category-form")) {
 							<div class="space-y-4">
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Name"}).WithFor("name").Render()
-									@components.Input("name").WithValue(category.Name).Render()
+									@ui.Label(ui.LabelProps{Text: "Name"}).WithFor("name").Render()
+									@ui.Input("name").WithValue(category.Name).Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Description"}).WithFor("description").Render()
-									@components.Input("description").WithValue(category.Description).Render()
+									@ui.Label(ui.LabelProps{Text: "Description"}).WithFor("description").Render()
+									@ui.Input("description").WithValue(category.Description).Render()
 								</div>
 							</div>
-							@components.Button(components.ButtonProps{Label: "Update Category"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+							@ui.Button(ui.ButtonProps{Label: "Update Category"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
 						}
-						@components.Separator().Render()
-						@components.Button(components.ButtonProps{Label: "Destroy Category"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", fmt.Sprintf("@delete('%s')", "/")).Render()
+						@ui.Separator().Render()
+						@ui.Button(ui.ButtonProps{Label: "Destroy Category"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", fmt.Sprintf("@delete('%s')", "/")).Render()
 					}
 				}
 			</div>

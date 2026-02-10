@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	ui "testapp/internal/ui"
 	"testapp/models"
-	"testapp/views/components"
 )
 
 templ DocumentIndex(documents []models.Document) {
@@ -14,65 +14,65 @@ templ DocumentIndex(documents []models.Document) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Documents</h1>
-					@components.Button(components.ButtonProps{Label: "New Document"}).WithHref("/").Render()
+					@ui.Button(ui.ButtonProps{Label: "New Document"}).WithHref("/").Render()
 				</div>
 				if len(documents) == 0 {
 					<p class="text-sm text-base-content/60">No documents found.</p>
 				} else {
-					@components.Table() {
-						@components.TableHeader() {
-							@components.TableRow() {
-								@components.TableHead() {
+					@ui.Table() {
+						@ui.TableHeader() {
+							@ui.TableRow() {
+								@ui.TableHead() {
 									Title 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Tags 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Page Numbers 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									View Count 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Is Published 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Created At 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Updated At 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Actions 
 								}
 							}
 						}
-						@components.TableBody() {
+						@ui.TableBody() {
 							for _, document := range documents {
-								@components.TableRow() {
-									@components.TableCell() {
+								@ui.TableRow() {
+									@ui.TableCell() {
 										{ document.Title }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ strings.Join(document.Tags, ", ") }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ fmt.Sprintf("%v", document.PageNumbers) }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ fmt.Sprintf("%d", document.ViewCount) }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ fmt.Sprintf("%t", document.IsPublished) }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ document.CreatedAt.String() }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ document.UpdatedAt.String() }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										<div class="flex flex-wrap gap-3 text-sm">
 											<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
 											<a class="text-base-content/80 hover:text-base-content" href="/">Edit</a>
@@ -95,39 +95,39 @@ templ DocumentShow(document models.Document) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Document Details</h1>
 					<div class="flex flex-wrap gap-3">
-						@components.Button(components.ButtonProps{Label: "Edit"}).WithHref("/").Render()
+						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref("/").Render()
 						<a class="text-sm text-base-content/70 hover:text-base-content" href="/">Back to List</a>
 					</div>
 				</div>
-				@components.Card() {
-					@components.CardContent() {
+				@ui.Card() {
+					@ui.CardContent() {
 						<div class="grid gap-5 sm:grid-cols-2">
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Title"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Title"}).Render()
 								<p class="text-sm text-base-content">{ document.Title }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Tags"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Tags"}).Render()
 								<p class="text-sm text-base-content">{ strings.Join(document.Tags, ", ") }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Page Numbers"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Page Numbers"}).Render()
 								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", document.PageNumbers) }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "View Count"}).Render()
+								@ui.Label(ui.LabelProps{Text: "View Count"}).Render()
 								<p class="text-sm text-base-content">{ fmt.Sprintf("%d", document.ViewCount) }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Is Published"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Is Published"}).Render()
 								<p class="text-sm text-base-content">{ fmt.Sprintf("%t", document.IsPublished) }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Created At"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Created At"}).Render()
 								<p class="text-sm text-base-content">{ document.CreatedAt.String() }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Updated At"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Updated At"}).Render()
 								<p class="text-sm text-base-content">{ document.UpdatedAt.String() }</p>
 							</div>
 						</div>
@@ -142,36 +142,36 @@ templ DocumentNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@components.Card() {
-					@components.CardHeader() {
-						@components.CardTitle("New Document")
-						@components.CardDescription("Enter the details for the new document.")
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("New Document")
+						@ui.CardDescription("Enter the details for the new document.")
 					}
-					@components.CardContent() {
-						@components.Form(components.FormProps{Action: http.MethodPost, URL: "/"}, components.WithClass("space-y-5"), components.WithFragment("new-document-form")) {
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: "/"}, ui.WithClass("space-y-5"), ui.WithFragment("new-document-form")) {
 							<div class="space-y-4">
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Title"}).WithFor("title").Render()
-									@components.Input("title").Render()
+									@ui.Label(ui.LabelProps{Text: "Title"}).WithFor("title").Render()
+									@ui.Input("title").Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Tags"}).WithFor("tags").Render()
-									@components.Input("tags").Render()
+									@ui.Label(ui.LabelProps{Text: "Tags"}).WithFor("tags").Render()
+									@ui.Input("tags").Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Page Numbers"}).WithFor("pageNumbers").Render()
-									@components.Input("pageNumbers").Render()
+									@ui.Label(ui.LabelProps{Text: "Page Numbers"}).WithFor("pageNumbers").Render()
+									@ui.Input("pageNumbers").Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "View Count"}).WithFor("viewCount").Render()
-									@components.Input("viewCount").WithType(components.InputTypeNumber).Render()
+									@ui.Label(ui.LabelProps{Text: "View Count"}).WithFor("viewCount").Render()
+									@ui.Input("viewCount").WithType(ui.InputTypeNumber).Render()
 								</div>
 								<div class="flex items-center gap-2">
-									@components.Checkbox("isPublished").Render()
-									@components.Label(components.LabelProps{Text: "Is Published"}).WithFor("isPublished").Render()
+									@ui.Checkbox("isPublished").Render()
+									@ui.Label(ui.LabelProps{Text: "Is Published"}).WithFor("isPublished").Render()
 								</div>
 							</div>
-							@components.Button(components.ButtonProps{Label: "Create Document"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+							@ui.Button(ui.ButtonProps{Label: "Create Document"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
 						}
 					}
 				}
@@ -184,39 +184,39 @@ templ DocumentEdit(document models.Document) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@components.Card() {
-					@components.CardHeader() {
-						@components.CardTitle("Edit Document")
-						@components.CardDescription("Update the details for this document.")
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("Edit Document")
+						@ui.CardDescription("Update the details for this document.")
 					}
-					@components.CardContent() {
-						@components.Form(components.FormProps{Action: http.MethodPut, URL: "/"}, components.WithClass("space-y-5"), components.WithFragment("edit-document-form")) {
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: "/"}, ui.WithClass("space-y-5"), ui.WithFragment("edit-document-form")) {
 							<div class="space-y-4">
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Title"}).WithFor("title").Render()
-									@components.Input("title").WithValue(document.Title).Render()
+									@ui.Label(ui.LabelProps{Text: "Title"}).WithFor("title").Render()
+									@ui.Input("title").WithValue(document.Title).Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Tags"}).WithFor("tags").Render()
-									@components.Input("tags").WithValue(strings.Join(document.Tags, ", ")).Render()
+									@ui.Label(ui.LabelProps{Text: "Tags"}).WithFor("tags").Render()
+									@ui.Input("tags").WithValue(strings.Join(document.Tags, ", ")).Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Page Numbers"}).WithFor("pageNumbers").Render()
-									@components.Input("pageNumbers").WithValue(fmt.Sprintf("%v", document.PageNumbers)).Render()
+									@ui.Label(ui.LabelProps{Text: "Page Numbers"}).WithFor("pageNumbers").Render()
+									@ui.Input("pageNumbers").WithValue(fmt.Sprintf("%v", document.PageNumbers)).Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "View Count"}).WithFor("viewCount").Render()
-									@components.Input("viewCount").WithType(components.InputTypeNumber).WithValue(fmt.Sprintf("%d", document.ViewCount)).Render()
+									@ui.Label(ui.LabelProps{Text: "View Count"}).WithFor("viewCount").Render()
+									@ui.Input("viewCount").WithType(ui.InputTypeNumber).WithValue(fmt.Sprintf("%d", document.ViewCount)).Render()
 								</div>
 								<div class="flex items-center gap-2">
-									@components.Checkbox("isPublished").WithChecked(document.IsPublished).Render()
-									@components.Label(components.LabelProps{Text: "Is Published"}).WithFor("isPublished").Render()
+									@ui.Checkbox("isPublished").WithChecked(document.IsPublished).Render()
+									@ui.Label(ui.LabelProps{Text: "Is Published"}).WithFor("isPublished").Render()
 								</div>
 							</div>
-							@components.Button(components.ButtonProps{Label: "Update Document"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+							@ui.Button(ui.ButtonProps{Label: "Update Document"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
 						}
-						@components.Separator().Render()
-						@components.Button(components.ButtonProps{Label: "Destroy Document"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", fmt.Sprintf("@delete('%s')", "/")).Render()
+						@ui.Separator().Render()
+						@ui.Button(ui.ButtonProps{Label: "Destroy Document"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", fmt.Sprintf("@delete('%s')", "/")).Render()
 					}
 				}
 			</div>

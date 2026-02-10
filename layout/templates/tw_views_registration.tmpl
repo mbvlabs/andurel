@@ -2,7 +2,7 @@ package views
 
 import (
 	"{{.ModuleName}}/router/routes"
-	"{{.ModuleName}}/views/components"
+	ui "{{.ModuleName}}/internal/ui"
 )
 
 templ RegistrationForm() {
@@ -10,26 +10,26 @@ templ RegistrationForm() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
 				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
-					@components.Form(components.FormProps{Action: "post", URL: routes.RegistrationCreate.URL()}, components.WithClass("space-y-5")) {
+					@ui.Form(ui.FormProps{Action: "post", URL: routes.RegistrationCreate.URL()}, ui.WithClass("space-y-5")) {
 						<div class="space-y-1">
 							<h2 class="text-xl font-semibold text-base-content">Create an account</h2>
 							<p class="text-sm text-base-content/60">Enter your details below to create your account</p>
 						</div>
 						<div class="space-y-4 my-6">
 							<div class="w-full space-y-1">
-								@components.Label(components.LabelProps{Text: "Email"}).WithFor("email").Render()
-								@components.Input("email").WithID("email").WithType(components.InputTypeEmail).WithRequired(true).Render()
+								@ui.Label(ui.LabelProps{Text: "Email"}).WithFor("email").Render()
+								@ui.Input("email").WithID("email").WithType(ui.InputTypeEmail).WithRequired(true).Render()
 							</div>
 							<div class="w-full space-y-1">
-								@components.Label(components.LabelProps{Text: "Password"}).WithFor("password").Render()
-								@components.Input("password").WithID("password").WithType(components.InputTypePassword).WithRequired(true).Render()
+								@ui.Label(ui.LabelProps{Text: "Password"}).WithFor("password").Render()
+								@ui.Input("password").WithID("password").WithType(ui.InputTypePassword).WithRequired(true).Render()
 							</div>
 							<div class="w-full space-y-1">
-								@components.Label(components.LabelProps{Text: "Confirm Password"}).WithFor("confirmPassword").Render()
-								@components.Input("confirmPassword").WithID("confirmPassword").WithType(components.InputTypePassword).WithRequired(true).Render()
+								@ui.Label(ui.LabelProps{Text: "Confirm Password"}).WithFor("confirmPassword").Render()
+								@ui.Input("confirmPassword").WithID("confirmPassword").WithType(ui.InputTypePassword).WithRequired(true).Render()
 							</div>
 						</div>
-						@components.Button(components.ButtonProps{Label: "Sign Up"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).WithLoadingLabel("Loading", "submitting").Render()
+						@ui.Button(ui.ButtonProps{Label: "Sign Up"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).WithLoadingLabel("Loading", "submitting").Render()
 					}
 					<p class="mt-6 text-center text-sm text-base-content/60">
 						Already have an account? <a class="text-base-content hover:underline" href={ routes.SessionNew.URL() }>Login</a>

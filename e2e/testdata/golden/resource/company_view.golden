@@ -3,9 +3,9 @@ package views
 import (
 	"net/http"
 	"testapp/internal/hypermedia"
+	ui "testapp/internal/ui"
 	"testapp/models"
 	"testapp/router/routes"
-	"testapp/views/components"
 )
 
 templ CompanyIndex(companies []models.Company) {
@@ -14,47 +14,47 @@ templ CompanyIndex(companies []models.Company) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Companies</h1>
-					@components.Button(components.ButtonProps{Label: "New Company"}).WithHref(routes.CompanyNew.URL()).Render()
+					@ui.Button(ui.ButtonProps{Label: "New Company"}).WithHref(routes.CompanyNew.URL()).Render()
 				</div>
 				if len(companies) == 0 {
 					<p class="text-sm text-base-content/60">No companies found.</p>
 				} else {
-					@components.Table() {
-						@components.TableHeader() {
-							@components.TableRow() {
-								@components.TableHead() {
+					@ui.Table() {
+						@ui.TableHeader() {
+							@ui.TableRow() {
+								@ui.TableHead() {
 									Name 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Industry 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Created At 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Updated At 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Actions 
 								}
 							}
 						}
-						@components.TableBody() {
+						@ui.TableBody() {
 							for _, company := range companies {
-								@components.TableRow() {
-									@components.TableCell() {
+								@ui.TableRow() {
+									@ui.TableCell() {
 										{ company.Name }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ company.Industry }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ company.CreatedAt.String() }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ company.UpdatedAt.String() }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										<div class="flex flex-wrap gap-3 text-sm">
 											<a class="text-base-content/80 hover:text-base-content" href={ routes.CompanyShow.URL(company.ID) }>View</a>
 											<a class="text-base-content/80 hover:text-base-content" href={ routes.CompanyEdit.URL(company.ID) }>Edit</a>
@@ -77,27 +77,27 @@ templ CompanyShow(company models.Company) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Company Details</h1>
 					<div class="flex flex-wrap gap-3">
-						@components.Button(components.ButtonProps{Label: "Edit"}).WithHref(routes.CompanyEdit.URL(company.ID)).Render()
+						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref(routes.CompanyEdit.URL(company.ID)).Render()
 						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.CompanyIndex.URL() }>Back to List</a>
 					</div>
 				</div>
-				@components.Card() {
-					@components.CardContent() {
+				@ui.Card() {
+					@ui.CardContent() {
 						<div class="grid gap-5 sm:grid-cols-2">
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Name"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Name"}).Render()
 								<p class="text-sm text-base-content">{ company.Name }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Industry"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Industry"}).Render()
 								<p class="text-sm text-base-content">{ company.Industry }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Created At"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Created At"}).Render()
 								<p class="text-sm text-base-content">{ company.CreatedAt.String() }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Updated At"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Updated At"}).Render()
 								<p class="text-sm text-base-content">{ company.UpdatedAt.String() }</p>
 							</div>
 						</div>
@@ -112,24 +112,24 @@ templ CompanyNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@components.Card() {
-					@components.CardHeader() {
-						@components.CardTitle("New Company")
-						@components.CardDescription("Enter the details for the new company.")
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("New Company")
+						@ui.CardDescription("Enter the details for the new company.")
 					}
-					@components.CardContent() {
-						@components.Form(components.FormProps{Action: http.MethodPost, URL: routes.CompanyCreate.URL()}, components.WithClass("space-y-5"), components.WithFragment("new-company-form")) {
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: routes.CompanyCreate.URL()}, ui.WithClass("space-y-5"), ui.WithFragment("new-company-form")) {
 							<div class="space-y-4">
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Name"}).WithFor("name").Render()
-									@components.Input("name").Render()
+									@ui.Label(ui.LabelProps{Text: "Name"}).WithFor("name").Render()
+									@ui.Input("name").Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Industry"}).WithFor("industry").Render()
-									@components.Input("industry").Render()
+									@ui.Label(ui.LabelProps{Text: "Industry"}).WithFor("industry").Render()
+									@ui.Input("industry").Render()
 								</div>
 							</div>
-							@components.Button(components.ButtonProps{Label: "Create Company"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+							@ui.Button(ui.ButtonProps{Label: "Create Company"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
 						}
 					}
 				}
@@ -142,27 +142,27 @@ templ CompanyEdit(company models.Company) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@components.Card() {
-					@components.CardHeader() {
-						@components.CardTitle("Edit Company")
-						@components.CardDescription("Update the details for this company.")
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("Edit Company")
+						@ui.CardDescription("Update the details for this company.")
 					}
-					@components.CardContent() {
-						@components.Form(components.FormProps{Action: http.MethodPut, URL: routes.CompanyUpdate.URL(company.ID)}, components.WithClass("space-y-5"), components.WithFragment("edit-company-form")) {
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: routes.CompanyUpdate.URL(company.ID)}, ui.WithClass("space-y-5"), ui.WithFragment("edit-company-form")) {
 							<div class="space-y-4">
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Name"}).WithFor("name").Render()
-									@components.Input("name").WithValue(company.Name).Render()
+									@ui.Label(ui.LabelProps{Text: "Name"}).WithFor("name").Render()
+									@ui.Input("name").WithValue(company.Name).Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Industry"}).WithFor("industry").Render()
-									@components.Input("industry").WithValue(company.Industry).Render()
+									@ui.Label(ui.LabelProps{Text: "Industry"}).WithFor("industry").Render()
+									@ui.Input("industry").WithValue(company.Industry).Render()
 								</div>
 							</div>
-							@components.Button(components.ButtonProps{Label: "Update Company"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+							@ui.Button(ui.ButtonProps{Label: "Update Company"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
 						}
-						@components.Separator().Render()
-						@components.Button(components.ButtonProps{Label: "Destroy Company"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.CompanyDestroy.URL(company.ID))).Render()
+						@ui.Separator().Render()
+						@ui.Button(ui.ButtonProps{Label: "Destroy Company"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.CompanyDestroy.URL(company.ID))).Render()
 					}
 				}
 			</div>

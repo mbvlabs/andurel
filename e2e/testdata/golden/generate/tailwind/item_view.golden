@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"testapp/internal/hypermedia"
+	ui "testapp/internal/ui"
 	"testapp/models"
 	"testapp/router/routes"
-	"testapp/views/components"
 )
 
 templ ItemIndex(items []models.Item) {
@@ -15,53 +15,53 @@ templ ItemIndex(items []models.Item) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Items</h1>
-					@components.Button(components.ButtonProps{Label: "New Item"}).WithHref(routes.ItemNew.URL()).Render()
+					@ui.Button(ui.ButtonProps{Label: "New Item"}).WithHref(routes.ItemNew.URL()).Render()
 				</div>
 				if len(items) == 0 {
 					<p class="text-sm text-base-content/60">No items found.</p>
 				} else {
-					@components.Table() {
-						@components.TableHeader() {
-							@components.TableRow() {
-								@components.TableHead() {
+					@ui.Table() {
+						@ui.TableHeader() {
+							@ui.TableRow() {
+								@ui.TableHead() {
 									Warehouse Id 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Name 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Quantity 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Created At 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Updated At 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Actions 
 								}
 							}
 						}
-						@components.TableBody() {
+						@ui.TableBody() {
 							for _, item := range items {
-								@components.TableRow() {
-									@components.TableCell() {
+								@ui.TableRow() {
+									@ui.TableCell() {
 										{ item.WarehouseID.String() }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ item.Name }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ fmt.Sprintf("%d", item.Quantity) }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ item.CreatedAt.String() }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ item.UpdatedAt.String() }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										<div class="flex flex-wrap gap-3 text-sm">
 											<a class="text-base-content/80 hover:text-base-content" href={ routes.ItemShow.URL(item.ID) }>View</a>
 											<a class="text-base-content/80 hover:text-base-content" href={ routes.ItemEdit.URL(item.ID) }>Edit</a>
@@ -84,31 +84,31 @@ templ ItemShow(item models.Item) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Item Details</h1>
 					<div class="flex flex-wrap gap-3">
-						@components.Button(components.ButtonProps{Label: "Edit"}).WithHref(routes.ItemEdit.URL(item.ID)).Render()
+						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref(routes.ItemEdit.URL(item.ID)).Render()
 						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.ItemIndex.URL() }>Back to List</a>
 					</div>
 				</div>
-				@components.Card() {
-					@components.CardContent() {
+				@ui.Card() {
+					@ui.CardContent() {
 						<div class="grid gap-5 sm:grid-cols-2">
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Warehouse Id"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Warehouse Id"}).Render()
 								<p class="text-sm text-base-content">{ item.WarehouseID.String() }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Name"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Name"}).Render()
 								<p class="text-sm text-base-content">{ item.Name }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Quantity"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Quantity"}).Render()
 								<p class="text-sm text-base-content">{ fmt.Sprintf("%d", item.Quantity) }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Created At"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Created At"}).Render()
 								<p class="text-sm text-base-content">{ item.CreatedAt.String() }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Updated At"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Updated At"}).Render()
 								<p class="text-sm text-base-content">{ item.UpdatedAt.String() }</p>
 							</div>
 						</div>
@@ -123,28 +123,28 @@ templ ItemNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@components.Card() {
-					@components.CardHeader() {
-						@components.CardTitle("New Item")
-						@components.CardDescription("Enter the details for the new item.")
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("New Item")
+						@ui.CardDescription("Enter the details for the new item.")
 					}
-					@components.CardContent() {
-						@components.Form(components.FormProps{Action: http.MethodPost, URL: routes.ItemCreate.URL()}, components.WithClass("space-y-5"), components.WithFragment("new-item-form")) {
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: routes.ItemCreate.URL()}, ui.WithClass("space-y-5"), ui.WithFragment("new-item-form")) {
 							<div class="space-y-4">
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Warehouse Id"}).WithFor("warehouseId").Render()
-									@components.Input("warehouseId").Render()
+									@ui.Label(ui.LabelProps{Text: "Warehouse Id"}).WithFor("warehouseId").Render()
+									@ui.Input("warehouseId").Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Name"}).WithFor("name").Render()
-									@components.Input("name").Render()
+									@ui.Label(ui.LabelProps{Text: "Name"}).WithFor("name").Render()
+									@ui.Input("name").Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Quantity"}).WithFor("quantity").Render()
-									@components.Input("quantity").WithType(components.InputTypeNumber).Render()
+									@ui.Label(ui.LabelProps{Text: "Quantity"}).WithFor("quantity").Render()
+									@ui.Input("quantity").WithType(ui.InputTypeNumber).Render()
 								</div>
 							</div>
-							@components.Button(components.ButtonProps{Label: "Create Item"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+							@ui.Button(ui.ButtonProps{Label: "Create Item"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
 						}
 					}
 				}
@@ -157,31 +157,31 @@ templ ItemEdit(item models.Item) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@components.Card() {
-					@components.CardHeader() {
-						@components.CardTitle("Edit Item")
-						@components.CardDescription("Update the details for this item.")
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("Edit Item")
+						@ui.CardDescription("Update the details for this item.")
 					}
-					@components.CardContent() {
-						@components.Form(components.FormProps{Action: http.MethodPut, URL: routes.ItemUpdate.URL(item.ID)}, components.WithClass("space-y-5"), components.WithFragment("edit-item-form")) {
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: routes.ItemUpdate.URL(item.ID)}, ui.WithClass("space-y-5"), ui.WithFragment("edit-item-form")) {
 							<div class="space-y-4">
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Warehouse Id"}).WithFor("warehouseId").Render()
-									@components.Input("warehouseId").WithValue(item.WarehouseID.String()).Render()
+									@ui.Label(ui.LabelProps{Text: "Warehouse Id"}).WithFor("warehouseId").Render()
+									@ui.Input("warehouseId").WithValue(item.WarehouseID.String()).Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Name"}).WithFor("name").Render()
-									@components.Input("name").WithValue(item.Name).Render()
+									@ui.Label(ui.LabelProps{Text: "Name"}).WithFor("name").Render()
+									@ui.Input("name").WithValue(item.Name).Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Quantity"}).WithFor("quantity").Render()
-									@components.Input("quantity").WithType(components.InputTypeNumber).WithValue(fmt.Sprintf("%d", item.Quantity)).Render()
+									@ui.Label(ui.LabelProps{Text: "Quantity"}).WithFor("quantity").Render()
+									@ui.Input("quantity").WithType(ui.InputTypeNumber).WithValue(fmt.Sprintf("%d", item.Quantity)).Render()
 								</div>
 							</div>
-							@components.Button(components.ButtonProps{Label: "Update Item"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+							@ui.Button(ui.ButtonProps{Label: "Update Item"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
 						}
-						@components.Separator().Render()
-						@components.Button(components.ButtonProps{Label: "Destroy Item"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.ItemDestroy.URL(item.ID))).Render()
+						@ui.Separator().Render()
+						@ui.Button(ui.ButtonProps{Label: "Destroy Item"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.ItemDestroy.URL(item.ID))).Render()
 					}
 				}
 			</div>

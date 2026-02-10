@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"testapp/internal/hypermedia"
+	ui "testapp/internal/ui"
 	"testapp/models"
 	"testapp/router/routes"
-	"testapp/views/components"
 )
 
 templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
@@ -15,53 +15,53 @@ templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">StudentFeedbacks</h1>
-					@components.Button(components.ButtonProps{Label: "New StudentFeedback"}).WithHref(routes.StudentFeedbackNew.URL()).Render()
+					@ui.Button(ui.ButtonProps{Label: "New StudentFeedback"}).WithHref(routes.StudentFeedbackNew.URL()).Render()
 				</div>
 				if len(student_feedbacks) == 0 {
 					<p class="text-sm text-base-content/60">No student_feedbacks found.</p>
 				} else {
-					@components.Table() {
-						@components.TableHeader() {
-							@components.TableRow() {
-								@components.TableHead() {
+					@ui.Table() {
+						@ui.TableHeader() {
+							@ui.TableRow() {
+								@ui.TableHead() {
 									Student Id 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Feedback 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Rating 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Created At 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Updated At 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Actions 
 								}
 							}
 						}
-						@components.TableBody() {
+						@ui.TableBody() {
 							for _, studentfeedback := range student_feedbacks {
-								@components.TableRow() {
-									@components.TableCell() {
+								@ui.TableRow() {
+									@ui.TableCell() {
 										{ studentfeedback.StudentID }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ studentfeedback.Feedback }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ fmt.Sprintf("%d", studentfeedback.Rating) }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ studentfeedback.CreatedAt.String() }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ studentfeedback.UpdatedAt.String() }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										<div class="flex flex-wrap gap-3 text-sm">
 											<a class="text-base-content/80 hover:text-base-content" href={ routes.StudentFeedbackShow.URL(studentfeedback.ID) }>View</a>
 											<a class="text-base-content/80 hover:text-base-content" href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) }>Edit</a>
@@ -84,31 +84,31 @@ templ StudentFeedbackShow(studentfeedback models.StudentFeedback) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">StudentFeedback Details</h1>
 					<div class="flex flex-wrap gap-3">
-						@components.Button(components.ButtonProps{Label: "Edit"}).WithHref(routes.StudentFeedbackEdit.URL(studentfeedback.ID)).Render()
+						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref(routes.StudentFeedbackEdit.URL(studentfeedback.ID)).Render()
 						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.StudentFeedbackIndex.URL() }>Back to List</a>
 					</div>
 				</div>
-				@components.Card() {
-					@components.CardContent() {
+				@ui.Card() {
+					@ui.CardContent() {
 						<div class="grid gap-5 sm:grid-cols-2">
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Student Id"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Student Id"}).Render()
 								<p class="text-sm text-base-content">{ studentfeedback.StudentID }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Feedback"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Feedback"}).Render()
 								<p class="text-sm text-base-content">{ studentfeedback.Feedback }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Rating"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Rating"}).Render()
 								<p class="text-sm text-base-content">{ fmt.Sprintf("%d", studentfeedback.Rating) }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Created At"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Created At"}).Render()
 								<p class="text-sm text-base-content">{ studentfeedback.CreatedAt.String() }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Updated At"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Updated At"}).Render()
 								<p class="text-sm text-base-content">{ studentfeedback.UpdatedAt.String() }</p>
 							</div>
 						</div>
@@ -123,28 +123,28 @@ templ StudentFeedbackNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@components.Card() {
-					@components.CardHeader() {
-						@components.CardTitle("New StudentFeedback")
-						@components.CardDescription("Enter the details for the new studentfeedback.")
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("New StudentFeedback")
+						@ui.CardDescription("Enter the details for the new studentfeedback.")
 					}
-					@components.CardContent() {
-						@components.Form(components.FormProps{Action: http.MethodPost, URL: routes.StudentFeedbackCreate.URL()}, components.WithClass("space-y-5"), components.WithFragment("new-studentfeedback-form")) {
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: routes.StudentFeedbackCreate.URL()}, ui.WithClass("space-y-5"), ui.WithFragment("new-studentfeedback-form")) {
 							<div class="space-y-4">
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Student Id"}).WithFor("studentId").Render()
-									@components.Input("studentId").Render()
+									@ui.Label(ui.LabelProps{Text: "Student Id"}).WithFor("studentId").Render()
+									@ui.Input("studentId").Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Feedback"}).WithFor("feedback").Render()
-									@components.Input("feedback").Render()
+									@ui.Label(ui.LabelProps{Text: "Feedback"}).WithFor("feedback").Render()
+									@ui.Input("feedback").Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Rating"}).WithFor("rating").Render()
-									@components.Input("rating").WithType(components.InputTypeNumber).Render()
+									@ui.Label(ui.LabelProps{Text: "Rating"}).WithFor("rating").Render()
+									@ui.Input("rating").WithType(ui.InputTypeNumber).Render()
 								</div>
 							</div>
-							@components.Button(components.ButtonProps{Label: "Create StudentFeedback"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+							@ui.Button(ui.ButtonProps{Label: "Create StudentFeedback"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
 						}
 					}
 				}
@@ -157,31 +157,31 @@ templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@components.Card() {
-					@components.CardHeader() {
-						@components.CardTitle("Edit StudentFeedback")
-						@components.CardDescription("Update the details for this studentfeedback.")
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("Edit StudentFeedback")
+						@ui.CardDescription("Update the details for this studentfeedback.")
 					}
-					@components.CardContent() {
-						@components.Form(components.FormProps{Action: http.MethodPut, URL: routes.StudentFeedbackUpdate.URL(studentfeedback.ID)}, components.WithClass("space-y-5"), components.WithFragment("edit-studentfeedback-form")) {
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: routes.StudentFeedbackUpdate.URL(studentfeedback.ID)}, ui.WithClass("space-y-5"), ui.WithFragment("edit-studentfeedback-form")) {
 							<div class="space-y-4">
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Student Id"}).WithFor("studentId").Render()
-									@components.Input("studentId").WithValue(studentfeedback.StudentID).Render()
+									@ui.Label(ui.LabelProps{Text: "Student Id"}).WithFor("studentId").Render()
+									@ui.Input("studentId").WithValue(studentfeedback.StudentID).Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Feedback"}).WithFor("feedback").Render()
-									@components.Input("feedback").WithValue(studentfeedback.Feedback).Render()
+									@ui.Label(ui.LabelProps{Text: "Feedback"}).WithFor("feedback").Render()
+									@ui.Input("feedback").WithValue(studentfeedback.Feedback).Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Rating"}).WithFor("rating").Render()
-									@components.Input("rating").WithType(components.InputTypeNumber).WithValue(fmt.Sprintf("%d", studentfeedback.Rating)).Render()
+									@ui.Label(ui.LabelProps{Text: "Rating"}).WithFor("rating").Render()
+									@ui.Input("rating").WithType(ui.InputTypeNumber).WithValue(fmt.Sprintf("%d", studentfeedback.Rating)).Render()
 								</div>
 							</div>
-							@components.Button(components.ButtonProps{Label: "Update StudentFeedback"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+							@ui.Button(ui.ButtonProps{Label: "Update StudentFeedback"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
 						}
-						@components.Separator().Render()
-						@components.Button(components.ButtonProps{Label: "Destroy StudentFeedback"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.StudentFeedbackDestroy.URL(studentfeedback.ID))).Render()
+						@ui.Separator().Render()
+						@ui.Button(ui.ButtonProps{Label: "Destroy StudentFeedback"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.StudentFeedbackDestroy.URL(studentfeedback.ID))).Render()
 					}
 				}
 			</div>

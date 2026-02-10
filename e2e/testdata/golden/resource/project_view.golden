@@ -3,9 +3,9 @@ package views
 import (
 	"net/http"
 	"testapp/internal/hypermedia"
+	ui "testapp/internal/ui"
 	"testapp/models"
 	"testapp/router/routes"
-	"testapp/views/components"
 )
 
 templ ProjectIndex(projects []models.Project) {
@@ -14,47 +14,47 @@ templ ProjectIndex(projects []models.Project) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Projects</h1>
-					@components.Button(components.ButtonProps{Label: "New Project"}).WithHref(routes.ProjectNew.URL()).Render()
+					@ui.Button(ui.ButtonProps{Label: "New Project"}).WithHref(routes.ProjectNew.URL()).Render()
 				</div>
 				if len(projects) == 0 {
 					<p class="text-sm text-base-content/60">No projects found.</p>
 				} else {
-					@components.Table() {
-						@components.TableHeader() {
-							@components.TableRow() {
-								@components.TableHead() {
+					@ui.Table() {
+						@ui.TableHeader() {
+							@ui.TableRow() {
+								@ui.TableHead() {
 									Name 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Description 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Created At 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Updated At 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Actions 
 								}
 							}
 						}
-						@components.TableBody() {
+						@ui.TableBody() {
 							for _, project := range projects {
-								@components.TableRow() {
-									@components.TableCell() {
+								@ui.TableRow() {
+									@ui.TableCell() {
 										{ project.Name }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ project.Description }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ project.CreatedAt.String() }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ project.UpdatedAt.String() }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										<div class="flex flex-wrap gap-3 text-sm">
 											<a class="text-base-content/80 hover:text-base-content" href={ routes.ProjectShow.URL(project.ID) }>View</a>
 											<a class="text-base-content/80 hover:text-base-content" href={ routes.ProjectEdit.URL(project.ID) }>Edit</a>
@@ -77,27 +77,27 @@ templ ProjectShow(project models.Project) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Project Details</h1>
 					<div class="flex flex-wrap gap-3">
-						@components.Button(components.ButtonProps{Label: "Edit"}).WithHref(routes.ProjectEdit.URL(project.ID)).Render()
+						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref(routes.ProjectEdit.URL(project.ID)).Render()
 						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.ProjectIndex.URL() }>Back to List</a>
 					</div>
 				</div>
-				@components.Card() {
-					@components.CardContent() {
+				@ui.Card() {
+					@ui.CardContent() {
 						<div class="grid gap-5 sm:grid-cols-2">
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Name"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Name"}).Render()
 								<p class="text-sm text-base-content">{ project.Name }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Description"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Description"}).Render()
 								<p class="text-sm text-base-content">{ project.Description }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Created At"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Created At"}).Render()
 								<p class="text-sm text-base-content">{ project.CreatedAt.String() }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Updated At"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Updated At"}).Render()
 								<p class="text-sm text-base-content">{ project.UpdatedAt.String() }</p>
 							</div>
 						</div>
@@ -112,24 +112,24 @@ templ ProjectNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@components.Card() {
-					@components.CardHeader() {
-						@components.CardTitle("New Project")
-						@components.CardDescription("Enter the details for the new project.")
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("New Project")
+						@ui.CardDescription("Enter the details for the new project.")
 					}
-					@components.CardContent() {
-						@components.Form(components.FormProps{Action: http.MethodPost, URL: routes.ProjectCreate.URL()}, components.WithClass("space-y-5"), components.WithFragment("new-project-form")) {
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: routes.ProjectCreate.URL()}, ui.WithClass("space-y-5"), ui.WithFragment("new-project-form")) {
 							<div class="space-y-4">
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Name"}).WithFor("name").Render()
-									@components.Input("name").Render()
+									@ui.Label(ui.LabelProps{Text: "Name"}).WithFor("name").Render()
+									@ui.Input("name").Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Description"}).WithFor("description").Render()
-									@components.Input("description").Render()
+									@ui.Label(ui.LabelProps{Text: "Description"}).WithFor("description").Render()
+									@ui.Input("description").Render()
 								</div>
 							</div>
-							@components.Button(components.ButtonProps{Label: "Create Project"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+							@ui.Button(ui.ButtonProps{Label: "Create Project"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
 						}
 					}
 				}
@@ -142,27 +142,27 @@ templ ProjectEdit(project models.Project) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@components.Card() {
-					@components.CardHeader() {
-						@components.CardTitle("Edit Project")
-						@components.CardDescription("Update the details for this project.")
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("Edit Project")
+						@ui.CardDescription("Update the details for this project.")
 					}
-					@components.CardContent() {
-						@components.Form(components.FormProps{Action: http.MethodPut, URL: routes.ProjectUpdate.URL(project.ID)}, components.WithClass("space-y-5"), components.WithFragment("edit-project-form")) {
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: routes.ProjectUpdate.URL(project.ID)}, ui.WithClass("space-y-5"), ui.WithFragment("edit-project-form")) {
 							<div class="space-y-4">
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Name"}).WithFor("name").Render()
-									@components.Input("name").WithValue(project.Name).Render()
+									@ui.Label(ui.LabelProps{Text: "Name"}).WithFor("name").Render()
+									@ui.Input("name").WithValue(project.Name).Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Description"}).WithFor("description").Render()
-									@components.Input("description").WithValue(project.Description).Render()
+									@ui.Label(ui.LabelProps{Text: "Description"}).WithFor("description").Render()
+									@ui.Input("description").WithValue(project.Description).Render()
 								</div>
 							</div>
-							@components.Button(components.ButtonProps{Label: "Update Project"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+							@ui.Button(ui.ButtonProps{Label: "Update Project"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
 						}
-						@components.Separator().Render()
-						@components.Button(components.ButtonProps{Label: "Destroy Project"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.ProjectDestroy.URL(project.ID))).Render()
+						@ui.Separator().Render()
+						@ui.Button(ui.ButtonProps{Label: "Destroy Project"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.ProjectDestroy.URL(project.ID))).Render()
 					}
 				}
 			</div>

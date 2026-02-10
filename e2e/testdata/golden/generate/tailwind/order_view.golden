@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"testapp/internal/hypermedia"
+	ui "testapp/internal/ui"
 	"testapp/models"
 	"testapp/router/routes"
-	"testapp/views/components"
 )
 
 templ OrderIndex(orders []models.Order) {
@@ -15,59 +15,59 @@ templ OrderIndex(orders []models.Order) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Orders</h1>
-					@components.Button(components.ButtonProps{Label: "New Order"}).WithHref(routes.OrderNew.URL()).Render()
+					@ui.Button(ui.ButtonProps{Label: "New Order"}).WithHref(routes.OrderNew.URL()).Render()
 				</div>
 				if len(orders) == 0 {
 					<p class="text-sm text-base-content/60">No orders found.</p>
 				} else {
-					@components.Table() {
-						@components.TableHeader() {
-							@components.TableRow() {
-								@components.TableHead() {
+					@ui.Table() {
+						@ui.TableHeader() {
+							@ui.TableRow() {
+								@ui.TableHead() {
 									Account Id 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Customer Name 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Total 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Signature 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Created At 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Updated At 
 								}
-								@components.TableHead() {
+								@ui.TableHead() {
 									Actions 
 								}
 							}
 						}
-						@components.TableBody() {
+						@ui.TableBody() {
 							for _, order := range orders {
-								@components.TableRow() {
-									@components.TableCell() {
+								@ui.TableRow() {
+									@ui.TableCell() {
 										{ order.AccountID.String() }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ order.CustomerName }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ fmt.Sprintf("%f", order.Total) }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ string(order.Signature) }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ order.CreatedAt.String() }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										{ order.UpdatedAt.String() }
 									}
-									@components.TableCell() {
+									@ui.TableCell() {
 										<div class="flex flex-wrap gap-3 text-sm">
 											<a class="text-base-content/80 hover:text-base-content" href={ routes.OrderShow.URL(order.ID) }>View</a>
 											<a class="text-base-content/80 hover:text-base-content" href={ routes.OrderEdit.URL(order.ID) }>Edit</a>
@@ -90,35 +90,35 @@ templ OrderShow(order models.Order) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Order Details</h1>
 					<div class="flex flex-wrap gap-3">
-						@components.Button(components.ButtonProps{Label: "Edit"}).WithHref(routes.OrderEdit.URL(order.ID)).Render()
+						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref(routes.OrderEdit.URL(order.ID)).Render()
 						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.OrderIndex.URL() }>Back to List</a>
 					</div>
 				</div>
-				@components.Card() {
-					@components.CardContent() {
+				@ui.Card() {
+					@ui.CardContent() {
 						<div class="grid gap-5 sm:grid-cols-2">
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Account Id"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Account Id"}).Render()
 								<p class="text-sm text-base-content">{ order.AccountID.String() }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Customer Name"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Customer Name"}).Render()
 								<p class="text-sm text-base-content">{ order.CustomerName }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Total"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Total"}).Render()
 								<p class="text-sm text-base-content">{ fmt.Sprintf("%f", order.Total) }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Signature"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Signature"}).Render()
 								<p class="text-sm text-base-content">{ string(order.Signature) }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Created At"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Created At"}).Render()
 								<p class="text-sm text-base-content">{ order.CreatedAt.String() }</p>
 							</div>
 							<div class="space-y-1">
-								@components.Label(components.LabelProps{Text: "Updated At"}).Render()
+								@ui.Label(ui.LabelProps{Text: "Updated At"}).Render()
 								<p class="text-sm text-base-content">{ order.UpdatedAt.String() }</p>
 							</div>
 						</div>
@@ -133,32 +133,32 @@ templ OrderNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@components.Card() {
-					@components.CardHeader() {
-						@components.CardTitle("New Order")
-						@components.CardDescription("Enter the details for the new order.")
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("New Order")
+						@ui.CardDescription("Enter the details for the new order.")
 					}
-					@components.CardContent() {
-						@components.Form(components.FormProps{Action: http.MethodPost, URL: routes.OrderCreate.URL()}, components.WithClass("space-y-5"), components.WithFragment("new-order-form")) {
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: routes.OrderCreate.URL()}, ui.WithClass("space-y-5"), ui.WithFragment("new-order-form")) {
 							<div class="space-y-4">
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Account Id"}).WithFor("accountId").Render()
-									@components.Input("accountId").Render()
+									@ui.Label(ui.LabelProps{Text: "Account Id"}).WithFor("accountId").Render()
+									@ui.Input("accountId").Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Customer Name"}).WithFor("customerName").Render()
-									@components.Input("customerName").Render()
+									@ui.Label(ui.LabelProps{Text: "Customer Name"}).WithFor("customerName").Render()
+									@ui.Input("customerName").Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Total"}).WithFor("total").Render()
-									@components.Input("total").WithType(components.InputTypeNumber).Render()
+									@ui.Label(ui.LabelProps{Text: "Total"}).WithFor("total").Render()
+									@ui.Input("total").WithType(ui.InputTypeNumber).Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Signature"}).WithFor("signature").Render()
-									@components.Input("signature").Render()
+									@ui.Label(ui.LabelProps{Text: "Signature"}).WithFor("signature").Render()
+									@ui.Input("signature").Render()
 								</div>
 							</div>
-							@components.Button(components.ButtonProps{Label: "Create Order"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+							@ui.Button(ui.ButtonProps{Label: "Create Order"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
 						}
 					}
 				}
@@ -171,35 +171,35 @@ templ OrderEdit(order models.Order) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@components.Card() {
-					@components.CardHeader() {
-						@components.CardTitle("Edit Order")
-						@components.CardDescription("Update the details for this order.")
+				@ui.Card() {
+					@ui.CardHeader() {
+						@ui.CardTitle("Edit Order")
+						@ui.CardDescription("Update the details for this order.")
 					}
-					@components.CardContent() {
-						@components.Form(components.FormProps{Action: http.MethodPut, URL: routes.OrderUpdate.URL(order.ID)}, components.WithClass("space-y-5"), components.WithFragment("edit-order-form")) {
+					@ui.CardContent() {
+						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: routes.OrderUpdate.URL(order.ID)}, ui.WithClass("space-y-5"), ui.WithFragment("edit-order-form")) {
 							<div class="space-y-4">
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Account Id"}).WithFor("accountId").Render()
-									@components.Input("accountId").WithValue(order.AccountID.String()).Render()
+									@ui.Label(ui.LabelProps{Text: "Account Id"}).WithFor("accountId").Render()
+									@ui.Input("accountId").WithValue(order.AccountID.String()).Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Customer Name"}).WithFor("customerName").Render()
-									@components.Input("customerName").WithValue(order.CustomerName).Render()
+									@ui.Label(ui.LabelProps{Text: "Customer Name"}).WithFor("customerName").Render()
+									@ui.Input("customerName").WithValue(order.CustomerName).Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Total"}).WithFor("total").Render()
-									@components.Input("total").WithType(components.InputTypeNumber).WithValue(fmt.Sprintf("%f", order.Total)).Render()
+									@ui.Label(ui.LabelProps{Text: "Total"}).WithFor("total").Render()
+									@ui.Input("total").WithType(ui.InputTypeNumber).WithValue(fmt.Sprintf("%f", order.Total)).Render()
 								</div>
 								<div class="space-y-1">
-									@components.Label(components.LabelProps{Text: "Signature"}).WithFor("signature").Render()
-									@components.Input("signature").WithValue(string(order.Signature)).Render()
+									@ui.Label(ui.LabelProps{Text: "Signature"}).WithFor("signature").Render()
+									@ui.Input("signature").WithValue(string(order.Signature)).Render()
 								</div>
 							</div>
-							@components.Button(components.ButtonProps{Label: "Update Order"}).WithType(components.ButtonTypeSubmit).WithFullWidth(true).Render()
+							@ui.Button(ui.ButtonProps{Label: "Update Order"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
 						}
-						@components.Separator().Render()
-						@components.Button(components.ButtonProps{Label: "Destroy Order"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.OrderDestroy.URL(order.ID))).Render()
+						@ui.Separator().Render()
+						@ui.Button(ui.ButtonProps{Label: "Destroy Order"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.OrderDestroy.URL(order.ID))).Render()
 					}
 				}
 			</div>
