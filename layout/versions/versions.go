@@ -8,5 +8,5 @@ const (
 	Usql        = "v0.20.8"
 	Dblab       = "v0.34.2"
 	TailwindCLI = "v4.1.18"
-	Shadowfax   = "v0.1.2"
+	Shadowfax   = "v0.1.3"
 )
