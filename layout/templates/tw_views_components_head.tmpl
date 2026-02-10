@@ -2,8 +2,8 @@ package components
 
 import (
 	"context"
-	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/router/routes"
+	"mbvblog/config"
+	"mbvblog/router/routes"
 )
 
 type HeadDataOption func(*HeadData)
@@ -15,17 +15,17 @@ type MetaContent struct {
 }
 
 type HeadData struct {
-	siteName 	   		  string
-	Title          		  string
-	Description    		  string
-	Image                 string
-	ImageAlt 	          string
-	Slug                  string
-	canonical             string
-	MetaType              string
-	stylesheetHref        string
-	scriptSrc             string
-	ExtraMeta             []MetaContent
+	siteName       string
+	Title          string
+	Description    string
+	Image          string
+	ImageAlt       string
+	Slug           string
+	canonical      string
+	MetaType       string
+	stylesheetHref string
+	scriptSrc      string
+	ExtraMeta      []MetaContent
 }
 
 func SetTitle(title string) HeadDataOption {
@@ -79,7 +79,7 @@ templ head(data HeadData) {
 		<meta property="og:description" content={ data.Description }/>
 		<meta property="og:url" content={ data.canonical + data.Slug }/>
 		<meta property="og:site_name" content={ data.siteName }/>
-		<meta property="og:locale" content="en_US" />
+		<meta property="og:locale" content="en_US"/>
 		<meta name="twitter:title" content={ data.MetaType }/>
 		<meta name="twitter:description" content={ data.Description }/>
 		if data.Image != "" {
@@ -87,7 +87,7 @@ templ head(data HeadData) {
 		}
 		if data.Image != "" {
 			<meta property="og:image" content={ data.Image }/>
-    		<meta property="og:image:alt" content={ data.ImageAlt }/>
+			<meta property="og:image:alt" content={ data.ImageAlt }/>
 		}
 		for _, extraMeta := range data.ExtraMeta {
 			<meta
@@ -107,17 +107,13 @@ templ head(data HeadData) {
 			rel="canonical"
 			href={ data.canonical + data.Slug }
 		/>
-		
-  		<link rel="icon" type="image/x-icon" href="https://media.andurel.com/favicon/favicon.ico">
-  		<link rel="icon" type="image/png" sizes="16x16" href="https://media.andurel.com/favicon/favicon-16x16.png">
-  		<link rel="icon" type="image/png" sizes="32x32" href="https://media.andurel.com/favicon/favicon-32x32.png">
-  		
-  		<link rel="apple-touch-icon" sizes="180x180" href="https://media.andurel.com/favicon/apple-touch-icon.png">
-  		
-  		<link rel="icon" type="image/png" sizes="192x192" href="https://media.andurel.com/favicon/android-chrome-192x192.png">
-  		<link rel="icon" type="image/png" sizes="512x512" href="https://media.andurel.com/favicon/android-chrome-512x512.png">
-  		
-  		<link rel="manifest" href="https://media.andurel.com/favicon/site.webmanifest">
+		<link rel="icon" type="image/x-icon" href="https://media.andurel.com/favicon/favicon.ico"/>
+		<link rel="icon" type="image/png" sizes="16x16" href="https://media.andurel.com/favicon/favicon-16x16.png"/>
+		<link rel="icon" type="image/png" sizes="32x32" href="https://media.andurel.com/favicon/favicon-32x32.png"/>
+		<link rel="apple-touch-icon" sizes="180x180" href="https://media.andurel.com/favicon/apple-touch-icon.png"/>
+		<link rel="icon" type="image/png" sizes="192x192" href="https://media.andurel.com/favicon/android-chrome-192x192.png"/>
+		<link rel="icon" type="image/png" sizes="512x512" href="https://media.andurel.com/favicon/android-chrome-512x512.png"/>
+		<link rel="manifest" href="https://media.andurel.com/favicon/site.webmanifest"/>
 		<script src={ data.scriptSrc } type="module"></script>
 	</head>
 }
@@ -126,7 +122,7 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 
 	data := &HeadData{
 		siteName:       config.ProjectName,
-		Title: 		    config.ProjectName,
+		Title:          config.ProjectName,
 		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
 		canonical:      config.BaseURL,

@@ -1,9 +1,6 @@
 package components
 
-import (
-	"fmt"
- 	"strings"
-)
+import "mbvblog/internal/hypermedia"
 
 type FormProps struct {
 	Action string
@@ -27,7 +24,7 @@ templ formInner(props FormProps, opts ...Opt) {
 			id={ idFrom(opts) }
 		}
 		data-indicator:submitting
-		data-on:submit={ fmt.Sprintf("!$submitting && @%s('%s')", strings.ToLower(props.Action), props.URL) }
+		data-on:submit={ "!$submitting &&" + hypermedia.DataAction(props.Action, props.URL) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}

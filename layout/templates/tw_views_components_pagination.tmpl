@@ -1,7 +1,5 @@
 package components
 
-// --- Class helpers ---
-
 func paginationClasses(class string) string {
 	return cn("mx-auto flex w-full justify-center", class)
 }
@@ -17,8 +15,6 @@ func paginationItemClasses(active bool, disabled bool, class string) string {
 	return cn(base, "hover:bg-base-200 text-base-content", class)
 }
 
-// --- Templ ---
-
 // Pagination renders page navigation controls with numbered links, previous/next buttons,
 // and ellipsis indicators. Use it for paginated lists, tables, or search results. Compose
 // with PaginationPrevious, PaginationItem, PaginationEllipsis, and PaginationNext sub-components.
@@ -31,7 +27,13 @@ func paginationItemClasses(active bool, disabled bool, class string) string {
 //		@components.PaginationNext("/page/3", false)
 //	}
 templ Pagination(opts ...Opt) {
-	<nav aria-label="pagination" class={ paginationClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<nav
+		aria-label="pagination"
+		class={ paginationClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		<ul class="flex flex-row items-center gap-1">
 			{ children... }
 		</ul>
@@ -41,11 +43,22 @@ templ Pagination(opts ...Opt) {
 templ PaginationItem(label string, href string, active bool, disabled bool, opts ...Opt) {
 	<li>
 		if disabled {
-			<span class={ paginationItemClasses(active, disabled, classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+			<span
+				class={ paginationItemClasses(active, disabled, classFrom(opts)) }
+				if attrsFrom(opts) != nil {
+					{ attrsFrom(opts)... }
+				}
+			>
 				{ label }
 			</span>
 		} else {
-			<a href={ templ.SafeURL(href) } class={ paginationItemClasses(active, disabled, classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+			<a
+				href={ templ.SafeURL(href) }
+				class={ paginationItemClasses(active, disabled, classFrom(opts)) }
+				if attrsFrom(opts) != nil {
+					{ attrsFrom(opts)... }
+				}
+			>
 				{ label }
 			</a>
 		}
@@ -55,12 +68,23 @@ templ PaginationItem(label string, href string, active bool, disabled bool, opts
 templ PaginationPrevious(href string, disabled bool, opts ...Opt) {
 	<li>
 		if disabled {
-			<span class={ paginationItemClasses(false, disabled, cn("gap-1 pl-2.5 w-auto px-3", classFrom(opts))) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+			<span
+				class={ paginationItemClasses(false, disabled, cn("gap-1 pl-2.5 w-auto px-3", classFrom(opts))) }
+				if attrsFrom(opts) != nil {
+					{ attrsFrom(opts)... }
+				}
+			>
 				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
 				Previous
 			</span>
 		} else {
-			<a href={ templ.SafeURL(href) } class={ paginationItemClasses(false, disabled, cn("gap-1 pl-2.5 w-auto px-3", classFrom(opts))) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+			<a
+				href={ templ.SafeURL(href) }
+				class={ paginationItemClasses(false, disabled, cn("gap-1 pl-2.5 w-auto px-3", classFrom(opts))) }
+				if attrsFrom(opts) != nil {
+					{ attrsFrom(opts)... }
+				}
+			>
 				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
 				Previous
 			</a>
@@ -71,12 +95,23 @@ templ PaginationPrevious(href string, disabled bool, opts ...Opt) {
 templ PaginationNext(href string, disabled bool, opts ...Opt) {
 	<li>
 		if disabled {
-			<span class={ paginationItemClasses(false, disabled, cn("gap-1 pr-2.5 w-auto px-3", classFrom(opts))) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+			<span
+				class={ paginationItemClasses(false, disabled, cn("gap-1 pr-2.5 w-auto px-3", classFrom(opts))) }
+				if attrsFrom(opts) != nil {
+					{ attrsFrom(opts)... }
+				}
+			>
 				Next
 				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
 			</span>
 		} else {
-			<a href={ templ.SafeURL(href) } class={ paginationItemClasses(false, disabled, cn("gap-1 pr-2.5 w-auto px-3", classFrom(opts))) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+			<a
+				href={ templ.SafeURL(href) }
+				class={ paginationItemClasses(false, disabled, cn("gap-1 pr-2.5 w-auto px-3", classFrom(opts))) }
+				if attrsFrom(opts) != nil {
+					{ attrsFrom(opts)... }
+				}
+			>
 				Next
 				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
 			</a>

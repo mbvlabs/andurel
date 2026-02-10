@@ -1,7 +1,5 @@
 package components
 
-// --- Builder ---
-
 type RadioBuilder struct {
 	bind       string
 	value      string
@@ -26,26 +24,25 @@ func Radio(bind string, value string) *RadioBuilder {
 	return &RadioBuilder{bind: bind, value: value}
 }
 
-func (b *RadioBuilder) WithLabel(l string) *RadioBuilder       { b.label = l; return b }
-func (b *RadioBuilder) WithChecked(c bool) *RadioBuilder       { b.checked = c; return b }
-func (b *RadioBuilder) WithDisabled(d bool) *RadioBuilder      { b.disabled = d; return b }
-func (b *RadioBuilder) WithID(id string) *RadioBuilder         { b.id = id; return b }
-func (b *RadioBuilder) WithClass(c string) *RadioBuilder       { b.class = cn(b.class, c); return b }
-func (b *RadioBuilder) SetClass(c string) *RadioBuilder        { b.class = c; return b }
+func (b *RadioBuilder) WithLabel(l string) *RadioBuilder  { b.label = l; return b }
+func (b *RadioBuilder) WithChecked(c bool) *RadioBuilder  { b.checked = c; return b }
+func (b *RadioBuilder) WithDisabled(d bool) *RadioBuilder { b.disabled = d; return b }
+func (b *RadioBuilder) WithID(id string) *RadioBuilder    { b.id = id; return b }
+func (b *RadioBuilder) WithClass(c string) *RadioBuilder  { b.class = cn(b.class, c); return b }
+func (b *RadioBuilder) SetClass(c string) *RadioBuilder   { b.class = c; return b }
 func (b *RadioBuilder) WithAttr(key string, val any) *RadioBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
-func (b *RadioBuilder) WithFragment(id string) *RadioBuilder   { b.fragmentID = id; return b }
-
-// --- Class helpers ---
+func (b *RadioBuilder) WithFragment(id string) *RadioBuilder { b.fragmentID = id; return b }
 
 func radioClasses(b *RadioBuilder) string {
 	base := "h-4 w-4 shrink-0 border border-base-300 bg-base-200 accent-primary transition focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
 	return cn(base, b.class)
 }
-
-// --- Templ ---
 
 templ (b *RadioBuilder) Render() {
 	if b.fragmentID != "" {
@@ -83,9 +80,14 @@ templ (b *RadioBuilder) render() {
 	</label>
 }
 
-// RadioGroup remains a simple templ func
 templ RadioGroup(opts ...Opt) {
-	<div role="radiogroup" class={ cn("flex flex-col gap-2", classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<div
+		role="radiogroup"
+		class={ cn("flex flex-col gap-2", classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</div>
 }

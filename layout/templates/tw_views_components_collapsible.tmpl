@@ -1,7 +1,5 @@
 package components
 
-// --- Class helpers ---
-
 func collapsibleClasses(class string) string {
 	return cn("w-full", class)
 }
@@ -13,8 +11,6 @@ func collapsibleTriggerClasses(class string) string {
 func collapsibleContentClasses(class string) string {
 	return cn("overflow-hidden", class)
 }
-
-// --- Templ ---
 
 // Collapsible creates a section that can be expanded or collapsed by clicking a trigger.
 // Simpler than Accordion for single show/hide sections.
@@ -29,7 +25,13 @@ templ Collapsible(label string, opts ...Opt) {
 }
 
 templ collapsibleInner(id string, label string, class string, attrs templ.Attributes) {
-	<div class={ collapsibleClasses(class) } { templ.Attributes{"data-signals:_" + id: "false"}... } if attrs != nil { { attrs... } }>
+	<div
+		class={ collapsibleClasses(class) }
+		{ templ.Attributes{"data-signals:_" + id: "false"}... }
+		if attrs != nil {
+			{ attrs... }
+		}
+	>
 		<button type="button" class={ collapsibleTriggerClasses("") } aria-expanded="false" { templ.Attributes{"data-on:click": "$_" + id + " = !$_" + id, "data-attr:aria-expanded": "$_" + id}... }>
 			{ label }
 			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 transition-transform duration-200"><path d="m6 9 6 6 6-6"></path></svg>

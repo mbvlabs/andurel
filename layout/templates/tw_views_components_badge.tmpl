@@ -1,7 +1,5 @@
 package components
 
-// --- Types ---
-
 type BadgeVariant string
 
 const (
@@ -11,13 +9,9 @@ const (
 	BadgeVariantDestructive BadgeVariant = "destructive"
 )
 
-// --- Props ---
-
 type BadgeProps struct {
 	Label string
 }
-
-// --- Builder ---
 
 type BadgeBuilder struct {
 	label      string
@@ -42,12 +36,13 @@ func (b *BadgeBuilder) WithID(id string) *BadgeBuilder           { b.id = id; re
 func (b *BadgeBuilder) WithClass(c string) *BadgeBuilder         { b.class = cn(b.class, c); return b }
 func (b *BadgeBuilder) SetClass(c string) *BadgeBuilder          { b.class = c; return b }
 func (b *BadgeBuilder) WithAttr(key string, val any) *BadgeBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
-func (b *BadgeBuilder) WithFragment(id string) *BadgeBuilder     { b.fragmentID = id; return b }
-
-// --- Class helpers ---
+func (b *BadgeBuilder) WithFragment(id string) *BadgeBuilder { b.fragmentID = id; return b }
 
 func badgeVariantClasses(v BadgeVariant) string {
 	switch v {
@@ -66,8 +61,6 @@ func badgeClasses(b *BadgeBuilder) string {
 	base := "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors"
 	return cn(base, badgeVariantClasses(b.variant), b.class)
 }
-
-// --- Templ ---
 
 templ (b *BadgeBuilder) Render() {
 	if b.fragmentID != "" {

@@ -1,15 +1,11 @@
 package components
 
-// --- Types ---
-
 type SeparatorOrientation string
 
 const (
 	SeparatorHorizontal SeparatorOrientation = "horizontal"
 	SeparatorVertical   SeparatorOrientation = "vertical"
 )
-
-// --- Builder ---
 
 type SeparatorBuilder struct {
 	orientation SeparatorOrientation
@@ -29,17 +25,21 @@ func Separator() *SeparatorBuilder {
 	return &SeparatorBuilder{}
 }
 
-func (b *SeparatorBuilder) WithOrientation(o SeparatorOrientation) *SeparatorBuilder { b.orientation = o; return b }
-func (b *SeparatorBuilder) WithID(id string) *SeparatorBuilder                       { b.id = id; return b }
-func (b *SeparatorBuilder) WithClass(c string) *SeparatorBuilder                     { b.class = cn(b.class, c); return b }
-func (b *SeparatorBuilder) SetClass(c string) *SeparatorBuilder                      { b.class = c; return b }
-func (b *SeparatorBuilder) WithAttr(key string, val any) *SeparatorBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+func (b *SeparatorBuilder) WithOrientation(o SeparatorOrientation) *SeparatorBuilder {
+	b.orientation = o
+	return b
 }
-func (b *SeparatorBuilder) WithFragment(id string) *SeparatorBuilder                 { b.fragmentID = id; return b }
-
-// --- Class helpers ---
+func (b *SeparatorBuilder) WithID(id string) *SeparatorBuilder   { b.id = id; return b }
+func (b *SeparatorBuilder) WithClass(c string) *SeparatorBuilder { b.class = cn(b.class, c); return b }
+func (b *SeparatorBuilder) SetClass(c string) *SeparatorBuilder  { b.class = c; return b }
+func (b *SeparatorBuilder) WithAttr(key string, val any) *SeparatorBuilder {
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
+}
+func (b *SeparatorBuilder) WithFragment(id string) *SeparatorBuilder { b.fragmentID = id; return b }
 
 func separatorClasses(b *SeparatorBuilder) string {
 	base := "shrink-0 bg-base-300"
@@ -49,8 +49,6 @@ func separatorClasses(b *SeparatorBuilder) string {
 	}
 	return cn(base, orientation, b.class)
 }
-
-// --- Templ ---
 
 templ (b *SeparatorBuilder) Render() {
 	if b.fragmentID != "" {

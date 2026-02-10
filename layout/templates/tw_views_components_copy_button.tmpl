@@ -1,7 +1,5 @@
 package components
 
-// --- Builder ---
-
 type CopyButtonBuilder struct {
 	value      string
 	id         string
@@ -18,23 +16,25 @@ func CopyButton(value string) *CopyButtonBuilder {
 	return &CopyButtonBuilder{value: value}
 }
 
-func (b *CopyButtonBuilder) WithID(id string) *CopyButtonBuilder    { b.id = id; return b }
-func (b *CopyButtonBuilder) WithClass(c string) *CopyButtonBuilder  { b.class = cn(b.class, c); return b }
-func (b *CopyButtonBuilder) SetClass(c string) *CopyButtonBuilder   { b.class = c; return b }
+func (b *CopyButtonBuilder) WithID(id string) *CopyButtonBuilder { b.id = id; return b }
+func (b *CopyButtonBuilder) WithClass(c string) *CopyButtonBuilder {
+	b.class = cn(b.class, c)
+	return b
+}
+func (b *CopyButtonBuilder) SetClass(c string) *CopyButtonBuilder { b.class = c; return b }
 func (b *CopyButtonBuilder) WithAttr(key string, val any) *CopyButtonBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
 func (b *CopyButtonBuilder) WithFragment(id string) *CopyButtonBuilder { b.fragmentID = id; return b }
-
-// --- Class helpers ---
 
 func copyButtonClasses(b *CopyButtonBuilder) string {
 	base := "inline-flex items-center justify-center h-8 w-8 rounded-field border border-base-300 bg-transparent text-base-content/60 shadow-sm transition hover:bg-base-200 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 cursor-pointer"
 	return cn(base, b.class)
 }
-
-// --- Templ ---
 
 templ (b *CopyButtonBuilder) Render() {
 	if b.fragmentID != "" {

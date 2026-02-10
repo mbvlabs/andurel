@@ -7,7 +7,6 @@ import (
 	"github.com/rs/xid"
 )
 
-// cn concatenates class names, filtering empty strings.
 func cn(classes ...string) string {
 	var filtered []string
 	for _, c := range classes {
@@ -18,8 +17,6 @@ func cn(classes ...string) string {
 	}
 	return strings.Join(filtered, " ")
 }
-
-// --- Functional options for sub-components ---
 
 type Opt func(*optConfig)
 
@@ -36,7 +33,9 @@ func WithClass(c string) Opt {
 
 func WithAttr(key string, val any) Opt {
 	return func(cfg *optConfig) {
-		if cfg.attrs == nil { cfg.attrs = templ.Attributes{} }
+		if cfg.attrs == nil {
+			cfg.attrs = templ.Attributes{}
+		}
 		cfg.attrs[key] = val
 	}
 }
@@ -51,29 +50,36 @@ func WithFragment(id string) Opt {
 
 func fragmentFrom(opts []Opt) string {
 	cfg := optConfig{}
-	for _, o := range opts { o(&cfg) }
+	for _, o := range opts {
+		o(&cfg)
+	}
 	return cfg.fragmentID
 }
 
 func classFrom(opts []Opt) string {
 	cfg := optConfig{}
-	for _, o := range opts { o(&cfg) }
+	for _, o := range opts {
+		o(&cfg)
+	}
 	return cfg.class
 }
 
 func attrsFrom(opts []Opt) templ.Attributes {
 	cfg := optConfig{}
-	for _, o := range opts { o(&cfg) }
+	for _, o := range opts {
+		o(&cfg)
+	}
 	return cfg.attrs
 }
 
 func idFrom(opts []Opt) string {
 	cfg := optConfig{}
-	for _, o := range opts { o(&cfg) }
+	for _, o := range opts {
+		o(&cfg)
+	}
 	return cfg.id
 }
 
-// resolveID returns the user-provided ID or generates a unique one.
 func resolveID(opts []Opt) string {
 	if id := idFrom(opts); id != "" {
 		return id
@@ -81,8 +87,6 @@ func resolveID(opts []Opt) string {
 	return xid.New().String()
 }
 
-// triggerClickExpr returns a custom data-on:click from attrs if present,
-// otherwise returns the default toggle expression.
 func triggerClickExpr(id string, attrs templ.Attributes) string {
 	if attrs != nil {
 		if v, ok := attrs["data-on:click"]; ok {
@@ -94,7 +98,6 @@ func triggerClickExpr(id string, attrs templ.Attributes) string {
 	return "$_" + id + " = !$_" + id
 }
 
-// attrsWithout returns a copy of attrs without the specified keys.
 func attrsWithout(attrs templ.Attributes, keys ...string) templ.Attributes {
 	if attrs == nil {
 		return nil

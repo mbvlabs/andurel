@@ -1,12 +1,8 @@
 package components
 
-// --- Props ---
-
 type LabelProps struct {
 	Text string
 }
-
-// --- Builder ---
 
 type LabelBuilder struct {
 	text       string
@@ -27,25 +23,24 @@ func Label(props LabelProps) *LabelBuilder {
 	return &LabelBuilder{text: props.Text}
 }
 
-func (b *LabelBuilder) WithFor(f string) *LabelBuilder       { b.htmlFor = f; return b }
-func (b *LabelBuilder) WithRequired(r bool) *LabelBuilder    { b.required = r; return b }
-func (b *LabelBuilder) WithID(id string) *LabelBuilder       { b.id = id; return b }
-func (b *LabelBuilder) WithClass(c string) *LabelBuilder     { b.class = cn(b.class, c); return b }
-func (b *LabelBuilder) SetClass(c string) *LabelBuilder      { b.class = c; return b }
+func (b *LabelBuilder) WithFor(f string) *LabelBuilder    { b.htmlFor = f; return b }
+func (b *LabelBuilder) WithRequired(r bool) *LabelBuilder { b.required = r; return b }
+func (b *LabelBuilder) WithID(id string) *LabelBuilder    { b.id = id; return b }
+func (b *LabelBuilder) WithClass(c string) *LabelBuilder  { b.class = cn(b.class, c); return b }
+func (b *LabelBuilder) SetClass(c string) *LabelBuilder   { b.class = c; return b }
 func (b *LabelBuilder) WithAttr(key string, val any) *LabelBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
 func (b *LabelBuilder) WithFragment(id string) *LabelBuilder { b.fragmentID = id; return b }
-
-// --- Class helpers ---
 
 func labelClasses(b *LabelBuilder) string {
 	base := "text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60"
 	return cn(base, b.class)
 }
-
-// --- Templ ---
 
 templ (b *LabelBuilder) Render() {
 	if b.fragmentID != "" {

@@ -1,7 +1,5 @@
 package components
 
-// --- Class helpers ---
-
 func accordionClasses(class string) string {
 	return cn("w-full", class)
 }
@@ -30,7 +28,12 @@ func accordionContentClasses(class string) string {
 //		}
 //	}
 templ Accordion(opts ...Opt) {
-	<div class={ accordionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<div
+		class={ accordionClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</div>
 }
@@ -42,7 +45,13 @@ templ AccordionItem(label string, opts ...Opt) {
 }
 
 templ accordionItemInner(id string, label string, class string, attrs templ.Attributes) {
-	<div class={ accordionItemClasses(class) } { templ.Attributes{"data-signals:_" + id: "false"}... } if attrs != nil { { attrs... } }>
+	<div
+		class={ accordionItemClasses(class) }
+		{ templ.Attributes{"data-signals:_" + id: "false"}... }
+		if attrs != nil {
+			{ attrs... }
+		}
+	>
 		<button type="button" class={ accordionTriggerClasses("") } aria-expanded="false" { templ.Attributes{"data-on:click": "$_" + id + " = !$_" + id, "data-attr:aria-expanded": "$_" + id}... }>
 			{ label }
 			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 transition-transform duration-200"><path d="m6 9 6 6 6-6"></path></svg>

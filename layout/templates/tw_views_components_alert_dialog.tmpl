@@ -1,7 +1,5 @@
 package components
 
-// --- Class helpers ---
-
 func alertDialogClasses(class string) string {
 	return cn("relative", class)
 }
@@ -30,8 +28,6 @@ func alertDialogCancelClasses() string {
 	return "inline-flex items-center justify-center rounded-field border border-base-300 bg-transparent px-4 py-2 text-sm font-medium text-base-content shadow-sm transition hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 mt-2 sm:mt-0"
 }
 
-// --- Templ ---
-
 // AlertDialog creates a modal confirmation dialog that interrupts the user with important
 // content and expects a response. All sub-components are consolidated into parameters.
 //
@@ -41,7 +37,13 @@ templ AlertDialog(trigger templ.Component, action templ.Component, title string,
 }
 
 templ alertDialogInner(id string, trigger templ.Component, action templ.Component, title string, description string, cancelLabel string, class string, attrs templ.Attributes) {
-	<div class={ alertDialogClasses(class) } { templ.Attributes{"data-signals:_" + id: "false"}... } if attrsWithout(attrs, "data-on:click") != nil { { attrsWithout(attrs, "data-on:click")... } }>
+	<div
+		class={ alertDialogClasses(class) }
+		{ templ.Attributes{"data-signals:_" + id: "false"}... }
+		if attrsWithout(attrs, "data-on:click") != nil {
+			{ attrsWithout(attrs, "data-on:click")... }
+		}
+	>
 		<div class="cursor-pointer inline-block" { templ.Attributes{"data-on:click": triggerClickExpr(id, attrs)}... }>
 			@trigger
 		</div>

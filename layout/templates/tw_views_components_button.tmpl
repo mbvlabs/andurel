@@ -1,7 +1,5 @@
 package components
 
-// --- Types ---
-
 type ButtonVariant string
 type ButtonSize string
 type ButtonType string
@@ -28,28 +26,24 @@ const (
 	ButtonTypeReset  ButtonType = "reset"
 )
 
-// --- Props ---
-
 type ButtonProps struct {
 	Label string
 }
 
-// --- Builder ---
-
 type ButtonBuilder struct {
-	label        string
-	variant      ButtonVariant
-	size         ButtonSize
-	btnType      ButtonType
-	disabled     bool
-	fullWidth    bool
-	href         string
-	loadingLabel string
+	label         string
+	variant       ButtonVariant
+	size          ButtonSize
+	btnType       ButtonType
+	disabled      bool
+	fullWidth     bool
+	href          string
+	loadingLabel  string
 	loadingSignal string
-	id           string
-	class        string
-	attrs        templ.Attributes
-	fragmentID   string
+	id            string
+	class         string
+	attrs         templ.Attributes
+	fragmentID    string
 }
 
 // Button renders a clickable button or link styled as a button. Use it for primary actions,
@@ -65,30 +59,36 @@ func Button(props ButtonProps) *ButtonBuilder {
 	return &ButtonBuilder{label: props.Label, btnType: ButtonTypeButton}
 }
 
-func (b *ButtonBuilder) WithVariant(v ButtonVariant) *ButtonBuilder   { b.variant = v; return b }
-func (b *ButtonBuilder) MakeSecondary() *ButtonBuilder                { b.variant = ButtonVariantSecondary; return b }
-func (b *ButtonBuilder) MakeOutline() *ButtonBuilder                  { b.variant = ButtonVariantOutline; return b }
-func (b *ButtonBuilder) MakeGhost() *ButtonBuilder                    { b.variant = ButtonVariantGhost; return b }
-func (b *ButtonBuilder) MakeLink() *ButtonBuilder                     { b.variant = ButtonVariantLink; return b }
-func (b *ButtonBuilder) MakeDestructive() *ButtonBuilder              { b.variant = ButtonVariantDestructive; return b }
-func (b *ButtonBuilder) WithSize(s ButtonSize) *ButtonBuilder         { b.size = s; return b }
-func (b *ButtonBuilder) WithType(t ButtonType) *ButtonBuilder         { b.btnType = t; return b }
-func (b *ButtonBuilder) WithDisabled(d bool) *ButtonBuilder           { b.disabled = d; return b }
-func (b *ButtonBuilder) WithFullWidth(fw bool) *ButtonBuilder         { b.fullWidth = fw; return b }
-func (b *ButtonBuilder) WithHref(h string) *ButtonBuilder             { b.href = h; return b }
-func (b *ButtonBuilder) WithID(id string) *ButtonBuilder              { b.id = id; return b }
-func (b *ButtonBuilder) WithClass(c string) *ButtonBuilder            { b.class = cn(b.class, c); return b }
-func (b *ButtonBuilder) SetClass(c string) *ButtonBuilder             { b.class = c; return b }
+func (b *ButtonBuilder) WithVariant(v ButtonVariant) *ButtonBuilder { b.variant = v; return b }
+func (b *ButtonBuilder) MakeSecondary() *ButtonBuilder              { b.variant = ButtonVariantSecondary; return b }
+func (b *ButtonBuilder) MakeOutline() *ButtonBuilder                { b.variant = ButtonVariantOutline; return b }
+func (b *ButtonBuilder) MakeGhost() *ButtonBuilder                  { b.variant = ButtonVariantGhost; return b }
+func (b *ButtonBuilder) MakeLink() *ButtonBuilder                   { b.variant = ButtonVariantLink; return b }
+func (b *ButtonBuilder) MakeDestructive() *ButtonBuilder {
+	b.variant = ButtonVariantDestructive
+	return b
+}
+func (b *ButtonBuilder) WithSize(s ButtonSize) *ButtonBuilder { b.size = s; return b }
+func (b *ButtonBuilder) WithType(t ButtonType) *ButtonBuilder { b.btnType = t; return b }
+func (b *ButtonBuilder) WithDisabled(d bool) *ButtonBuilder   { b.disabled = d; return b }
+func (b *ButtonBuilder) WithFullWidth(fw bool) *ButtonBuilder { b.fullWidth = fw; return b }
+func (b *ButtonBuilder) WithHref(h string) *ButtonBuilder     { b.href = h; return b }
+func (b *ButtonBuilder) WithID(id string) *ButtonBuilder      { b.id = id; return b }
+func (b *ButtonBuilder) WithClass(c string) *ButtonBuilder    { b.class = cn(b.class, c); return b }
+func (b *ButtonBuilder) SetClass(c string) *ButtonBuilder     { b.class = c; return b }
 func (b *ButtonBuilder) WithAttr(key string, val any) *ButtonBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
-func (b *ButtonBuilder) WithFragment(id string) *ButtonBuilder        { b.fragmentID = id; return b }
+func (b *ButtonBuilder) WithFragment(id string) *ButtonBuilder { b.fragmentID = id; return b }
 func (b *ButtonBuilder) WithLoadingLabel(label string, signal string) *ButtonBuilder {
-	b.loadingLabel = label; b.loadingSignal = signal; return b
+	b.loadingLabel = label
+	b.loadingSignal = signal
+	return b
 }
-
-// --- Class helpers ---
 
 func buttonVariantClasses(v ButtonVariant) string {
 	switch v {
@@ -128,8 +128,6 @@ func buttonClasses(b *ButtonBuilder) string {
 	}
 	return cn(base, buttonVariantClasses(b.variant), buttonSizeClasses(b.size), width, b.class)
 }
-
-// --- Templ ---
 
 templ (b *ButtonBuilder) Render() {
 	if b.fragmentID != "" {

@@ -2,8 +2,6 @@ package components
 
 import "fmt"
 
-// --- Builder ---
-
 type InputOTPBuilder struct {
 	bind       string
 	length     int
@@ -23,17 +21,18 @@ func InputOTP(bind string) *InputOTPBuilder {
 	return &InputOTPBuilder{bind: bind, length: 6}
 }
 
-func (b *InputOTPBuilder) WithLength(l int) *InputOTPBuilder       { b.length = l; return b }
-func (b *InputOTPBuilder) WithID(id string) *InputOTPBuilder       { b.id = id; return b }
-func (b *InputOTPBuilder) WithClass(c string) *InputOTPBuilder     { b.class = cn(b.class, c); return b }
-func (b *InputOTPBuilder) SetClass(c string) *InputOTPBuilder      { b.class = c; return b }
+func (b *InputOTPBuilder) WithLength(l int) *InputOTPBuilder   { b.length = l; return b }
+func (b *InputOTPBuilder) WithID(id string) *InputOTPBuilder   { b.id = id; return b }
+func (b *InputOTPBuilder) WithClass(c string) *InputOTPBuilder { b.class = cn(b.class, c); return b }
+func (b *InputOTPBuilder) SetClass(c string) *InputOTPBuilder  { b.class = c; return b }
 func (b *InputOTPBuilder) WithAttr(key string, val any) *InputOTPBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
 func (b *InputOTPBuilder) WithFragment(id string) *InputOTPBuilder { b.fragmentID = id; return b }
-
-// --- JS expression helpers ---
 
 func otpInputExpr(bind string, idx int) string {
 	return fmt.Sprintf(
@@ -56,8 +55,6 @@ func otpPasteExpr(bind string, length int) string {
 	)
 }
 
-// --- Class helpers ---
-
 func inputOTPContainerClasses(b *InputOTPBuilder) string {
 	return cn("flex items-center gap-2", b.class)
 }
@@ -65,8 +62,6 @@ func inputOTPContainerClasses(b *InputOTPBuilder) string {
 func inputOTPSlotClasses() string {
 	return "flex h-10 w-10 items-center justify-center rounded-field border border-base-300 bg-base-200 text-sm font-medium text-base-content shadow-inner transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/50"
 }
-
-// --- Templ ---
 
 templ (b *InputOTPBuilder) Render() {
 	if b.fragmentID != "" {

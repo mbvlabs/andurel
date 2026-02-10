@@ -2,8 +2,6 @@ package components
 
 import "fmt"
 
-// --- Builder ---
-
 type AspectRatioBuilder struct {
 	ratio      float64
 	id         string
@@ -26,16 +24,20 @@ func AspectRatio(ratio float64) *AspectRatioBuilder {
 	return &AspectRatioBuilder{ratio: ratio}
 }
 
-func (b *AspectRatioBuilder) WithID(id string) *AspectRatioBuilder    { b.id = id; return b }
-func (b *AspectRatioBuilder) WithClass(c string) *AspectRatioBuilder  { b.class = cn(b.class, c); return b }
-func (b *AspectRatioBuilder) SetClass(c string) *AspectRatioBuilder   { b.class = c; return b }
+func (b *AspectRatioBuilder) WithID(id string) *AspectRatioBuilder { b.id = id; return b }
+func (b *AspectRatioBuilder) WithClass(c string) *AspectRatioBuilder {
+	b.class = cn(b.class, c)
+	return b
+}
+func (b *AspectRatioBuilder) SetClass(c string) *AspectRatioBuilder { b.class = c; return b }
 func (b *AspectRatioBuilder) WithAttr(key string, val any) *AspectRatioBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
 func (b *AspectRatioBuilder) WithFragment(id string) *AspectRatioBuilder { b.fragmentID = id; return b }
-
-// --- Class helpers ---
 
 func aspectRatioStyle(ratio float64) string {
 	if ratio <= 0 {
@@ -48,8 +50,6 @@ func aspectRatioClasses(b *AspectRatioBuilder) string {
 	base := "relative w-full"
 	return cn(base, b.class)
 }
-
-// --- Templ ---
 
 templ (b *AspectRatioBuilder) Render() {
 	if b.fragmentID != "" {

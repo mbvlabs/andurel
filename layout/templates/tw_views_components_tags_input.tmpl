@@ -1,7 +1,5 @@
 package components
 
-// --- Builder ---
-
 type TagsInputBuilder struct {
 	bind        string
 	placeholder string
@@ -28,19 +26,18 @@ func (b *TagsInputBuilder) WithID(id string) *TagsInputBuilder         { b.id = 
 func (b *TagsInputBuilder) WithClass(c string) *TagsInputBuilder       { b.class = cn(b.class, c); return b }
 func (b *TagsInputBuilder) SetClass(c string) *TagsInputBuilder        { b.class = c; return b }
 func (b *TagsInputBuilder) WithAttr(key string, val any) *TagsInputBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
-func (b *TagsInputBuilder) WithFragment(id string) *TagsInputBuilder   { b.fragmentID = id; return b }
-
-// --- Class helpers ---
+func (b *TagsInputBuilder) WithFragment(id string) *TagsInputBuilder { b.fragmentID = id; return b }
 
 func tagsInputContainerClasses(b *TagsInputBuilder) string {
 	base := "flex min-h-9 w-full flex-wrap items-center gap-1.5 rounded-field border border-base-300 bg-base-200 px-3 py-1.5 text-sm shadow-inner transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/50"
 	return cn(base, b.class)
 }
-
-// --- Templ ---
 
 templ (b *TagsInputBuilder) Render() {
 	if b.fragmentID != "" {
@@ -79,7 +76,12 @@ templ (b *TagsInputBuilder) render() {
 }
 
 templ Tag(label string, opts ...Opt) {
-	<span class={ cn("inline-flex items-center gap-1 rounded-full bg-base-300 px-2 py-0.5 text-xs font-medium text-base-content", classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<span
+		class={ cn("inline-flex items-center gap-1 rounded-full bg-base-300 px-2 py-0.5 text-xs font-medium text-base-content", classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ label }
 	</span>
 }

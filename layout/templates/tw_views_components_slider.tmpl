@@ -2,8 +2,6 @@ package components
 
 import "strconv"
 
-// --- Builder ---
-
 type SliderBuilder struct {
 	bind       string
 	min        float64
@@ -27,21 +25,22 @@ func Slider(bind string) *SliderBuilder {
 	return &SliderBuilder{bind: bind, max: 100}
 }
 
-func (b *SliderBuilder) WithMin(m float64) *SliderBuilder       { b.min = m; return b }
-func (b *SliderBuilder) WithMax(m float64) *SliderBuilder       { b.max = m; return b }
-func (b *SliderBuilder) WithStep(s float64) *SliderBuilder      { b.step = s; return b }
-func (b *SliderBuilder) WithValue(v float64) *SliderBuilder     { b.value = v; return b }
-func (b *SliderBuilder) WithDisabled(d bool) *SliderBuilder     { b.disabled = d; return b }
-func (b *SliderBuilder) WithID(id string) *SliderBuilder        { b.id = id; return b }
-func (b *SliderBuilder) WithClass(c string) *SliderBuilder      { b.class = cn(b.class, c); return b }
-func (b *SliderBuilder) SetClass(c string) *SliderBuilder       { b.class = c; return b }
+func (b *SliderBuilder) WithMin(m float64) *SliderBuilder   { b.min = m; return b }
+func (b *SliderBuilder) WithMax(m float64) *SliderBuilder   { b.max = m; return b }
+func (b *SliderBuilder) WithStep(s float64) *SliderBuilder  { b.step = s; return b }
+func (b *SliderBuilder) WithValue(v float64) *SliderBuilder { b.value = v; return b }
+func (b *SliderBuilder) WithDisabled(d bool) *SliderBuilder { b.disabled = d; return b }
+func (b *SliderBuilder) WithID(id string) *SliderBuilder    { b.id = id; return b }
+func (b *SliderBuilder) WithClass(c string) *SliderBuilder  { b.class = cn(b.class, c); return b }
+func (b *SliderBuilder) SetClass(c string) *SliderBuilder   { b.class = c; return b }
 func (b *SliderBuilder) WithAttr(key string, val any) *SliderBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
-func (b *SliderBuilder) WithFragment(id string) *SliderBuilder  { b.fragmentID = id; return b }
-
-// --- Class helpers ---
+func (b *SliderBuilder) WithFragment(id string) *SliderBuilder { b.fragmentID = id; return b }
 
 func sliderClasses(b *SliderBuilder) string {
 	base := "w-full h-2 cursor-pointer appearance-none rounded-full bg-base-300 accent-primary transition [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
@@ -51,8 +50,6 @@ func sliderClasses(b *SliderBuilder) string {
 func floatToStr(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
 }
-
-// --- Templ ---
 
 templ (b *SliderBuilder) Render() {
 	if b.fragmentID != "" {

@@ -2,10 +2,8 @@ package components
 
 import (
 	"github.com/dromara/carbon/v2"
-	"{{.ModuleName}}/router/cookies"
+	"mbvblog/router/cookies"
 )
-
-// --- Types ---
 
 type ToastVariant string
 
@@ -20,8 +18,6 @@ type ToastProps struct {
 	Class      string
 	Attributes templ.Attributes
 }
-
-// --- Class helpers ---
 
 func toastVariantIndicatorClass(v ToastVariant) string {
 	switch v {
@@ -41,8 +37,6 @@ func toastVariantIndicatorClass(v ToastVariant) string {
 func toastClasses(p ToastProps) string {
 	return cn("max-w-96 border border-base-300 rounded-box bg-base-100 flex flex-col shadow-lg", p.Class)
 }
-
-// --- Templ ---
 
 templ toastBase(variant ToastVariant, flash cookies.FlashMessage) {
 	<div

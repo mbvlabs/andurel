@@ -1,7 +1,5 @@
 package components
 
-// --- Class helpers ---
-
 func dialogClasses(class string) string {
 	return cn("relative", class)
 }
@@ -34,8 +32,6 @@ func dialogCloseClasses() string {
 	return "absolute right-4 top-4 rounded-field opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
 }
 
-// --- Templ ---
-
 // Dialog creates a modal overlay for displaying content that requires user attention or
 // interaction (forms, confirmations, details). Pass the trigger as a component and compose
 // the body with DialogHeader, DialogTitle, DialogDescription, and DialogFooter.
@@ -55,7 +51,13 @@ templ Dialog(trigger templ.Component, opts ...Opt) {
 }
 
 templ dialogInner(id string, trigger templ.Component, class string, attrs templ.Attributes) {
-	<div class={ dialogClasses(class) } { templ.Attributes{"data-signals:_" + id: "false"}... } if attrsWithout(attrs, "data-on:click") != nil { { attrsWithout(attrs, "data-on:click")... } }>
+	<div
+		class={ dialogClasses(class) }
+		{ templ.Attributes{"data-signals:_" + id: "false"}... }
+		if attrsWithout(attrs, "data-on:click") != nil {
+			{ attrsWithout(attrs, "data-on:click")... }
+		}
+	>
 		<div class="cursor-pointer inline-block" { templ.Attributes{"data-on:click": triggerClickExpr(id, attrs)}... }>
 			@trigger
 		</div>
@@ -73,25 +75,45 @@ templ dialogInner(id string, trigger templ.Component, class string, attrs templ.
 }
 
 templ DialogHeader(opts ...Opt) {
-	<div class={ dialogHeaderClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<div
+		class={ dialogHeaderClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</div>
 }
 
 templ DialogTitle(title string, opts ...Opt) {
-	<h2 class={ dialogTitleClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<h2
+		class={ dialogTitleClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ title }
 	</h2>
 }
 
 templ DialogDescription(description string, opts ...Opt) {
-	<p class={ dialogDescriptionClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<p
+		class={ dialogDescriptionClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ description }
 	</p>
 }
 
 templ DialogFooter(opts ...Opt) {
-	<div class={ dialogFooterClasses(classFrom(opts)) } if attrsFrom(opts) != nil { { attrsFrom(opts)... } }>
+	<div
+		class={ dialogFooterClasses(classFrom(opts)) }
+		if attrsFrom(opts) != nil {
+			{ attrsFrom(opts)... }
+		}
+	>
 		{ children... }
 	</div>
 }

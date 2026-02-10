@@ -2,8 +2,6 @@ package components
 
 import "github.com/rs/xid"
 
-// --- Builder ---
-
 type ComboboxBuilder struct {
 	bind        string
 	placeholder string
@@ -40,12 +38,13 @@ func (b *ComboboxBuilder) WithID(id string) *ComboboxBuilder         { b.id = id
 func (b *ComboboxBuilder) WithClass(c string) *ComboboxBuilder       { b.class = cn(b.class, c); return b }
 func (b *ComboboxBuilder) SetClass(c string) *ComboboxBuilder        { b.class = c; return b }
 func (b *ComboboxBuilder) WithAttr(key string, val any) *ComboboxBuilder {
-	if b.attrs == nil { b.attrs = templ.Attributes{} }
-	b.attrs[key] = val; return b
+	if b.attrs == nil {
+		b.attrs = templ.Attributes{}
+	}
+	b.attrs[key] = val
+	return b
 }
-func (b *ComboboxBuilder) WithFragment(id string) *ComboboxBuilder   { b.fragmentID = id; return b }
-
-// --- Class helpers ---
+func (b *ComboboxBuilder) WithFragment(id string) *ComboboxBuilder { b.fragmentID = id; return b }
 
 func comboboxClasses(b *ComboboxBuilder) string {
 	return cn("relative w-full", b.class)
@@ -66,8 +65,6 @@ func comboboxItemClasses(selected bool, class string) string {
 	}
 	return cn(base, class)
 }
-
-// --- Templ ---
 
 templ (b *ComboboxBuilder) Render() {
 	if b.fragmentID != "" {
