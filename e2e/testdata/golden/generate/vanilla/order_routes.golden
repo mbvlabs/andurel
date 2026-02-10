@@ -12,7 +12,7 @@ var OrderIndex = routing.NewSimpleRoute(
 	OrderPrefix,
 )
 
-var OrderShow = routing.NewRouteWithID(
+var OrderShow = routing.NewRouteWithUUIDID(
 	"/:id",
 	"orders.show",
 	OrderPrefix,
@@ -30,19 +30,19 @@ var OrderCreate = routing.NewSimpleRoute(
 	OrderPrefix,
 )
 
-var OrderEdit = routing.NewRouteWithID(
+var OrderEdit = routing.NewRouteWithUUIDID(
 	"/:id/edit",
 	"orders.edit",
 	OrderPrefix,
 )
 
-var OrderUpdate = routing.NewRouteWithID(
+var OrderUpdate = routing.NewRouteWithUUIDID(
 	"/:id",
 	"orders.update",
 	OrderPrefix,
 )
 
-var OrderDestroy = routing.NewRouteWithID(
+var OrderDestroy = routing.NewRouteWithUUIDID(
 	"/:id",
 	"orders.destroy",
 	OrderPrefix,

@@ -62,10 +62,20 @@ func DetectRouteType(path string) RouteType {
 }
 
 // ConstructorName returns the routing package constructor function name for this RouteType.
-func (rt RouteType) ConstructorName() string {
+// For RouteWithID, the idType parameter selects the appropriate type-specific constructor.
+func (rt RouteType) ConstructorName(idType string) string {
 	switch rt {
 	case RouteWithID:
-		return "NewRouteWithID"
+		switch idType {
+		case "int32":
+			return "NewRouteWithSerialID"
+		case "int64":
+			return "NewRouteWithBigSerialID"
+		case "string":
+			return "NewRouteWithStringID"
+		default:
+			return "NewRouteWithUUIDID"
+		}
 	case RouteWithSlug:
 		return "NewRouteWithSlug"
 	case RouteWithToken:

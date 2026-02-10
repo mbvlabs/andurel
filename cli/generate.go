@@ -201,7 +201,7 @@ func newFragmentCommand() *cobra.Command {
 The controller, routes, and connect files must already exist.
 
 The route type is auto-detected from path parameters:
-  :id    -> NewRouteWithID
+  :id    -> NewRouteWithUUIDID (or NewRouteWithSerialID/NewRouteWithBigSerialID/NewRouteWithStringID based on existing routes)
   :slug  -> NewRouteWithSlug
   :token -> NewRouteWithToken
   :file  -> NewRouteWithFile

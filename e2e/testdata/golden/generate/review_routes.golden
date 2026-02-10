@@ -12,7 +12,7 @@ var ReviewIndex = routing.NewSimpleRoute(
 	ReviewPrefix,
 )
 
-var ReviewShow = routing.NewRouteWithID(
+var ReviewShow = routing.NewRouteWithUUIDID(
 	"/:id",
 	"reviews.show",
 	ReviewPrefix,
@@ -30,19 +30,19 @@ var ReviewCreate = routing.NewSimpleRoute(
 	ReviewPrefix,
 )
 
-var ReviewEdit = routing.NewRouteWithID(
+var ReviewEdit = routing.NewRouteWithUUIDID(
 	"/:id/edit",
 	"reviews.edit",
 	ReviewPrefix,
 )
 
-var ReviewUpdate = routing.NewRouteWithID(
+var ReviewUpdate = routing.NewRouteWithUUIDID(
 	"/:id",
 	"reviews.update",
 	ReviewPrefix,
 )
 
-var ReviewDestroy = routing.NewRouteWithID(
+var ReviewDestroy = routing.NewRouteWithUUIDID(
 	"/:id",
 	"reviews.destroy",
 	ReviewPrefix,
