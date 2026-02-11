@@ -356,7 +356,7 @@ func runGoose(args ...string) error {
 		return err
 	}
 
-	godotenv.Load()
+	loadProjectEnv(rootDir)
 
 	driver, dbString, err := buildDatabaseURL()
 	if err != nil {
@@ -448,7 +448,11 @@ func loadDatabaseConfig() (dbConfig, error) {
 }
 
 func dropDatabase(force bool) error {
-	godotenv.Load()
+	rootDir, err := findGoModRoot()
+	if err != nil {
+		return err
+	}
+	loadProjectEnv(rootDir)
 
 	_, dbURL, err := buildDatabaseURL()
 	if err != nil {
@@ -475,7 +479,11 @@ func dropDatabase(force bool) error {
 }
 
 func createDatabase() error {
-	godotenv.Load()
+	rootDir, err := findGoModRoot()
+	if err != nil {
+		return err
+	}
+	loadProjectEnv(rootDir)
 
 	cfg, conn, ctx, cancel, err := openAdminConnection()
 	if err != nil {
@@ -488,7 +496,11 @@ func createDatabase() error {
 }
 
 func nukeDatabase(force bool) error {
-	godotenv.Load()
+	rootDir, err := findGoModRoot()
+	if err != nil {
+		return err
+	}
+	loadProjectEnv(rootDir)
 
 	_, dbURL, err := buildDatabaseURL()
 	if err != nil {
@@ -658,6 +670,11 @@ func runSqlcCommand(action string) error {
 	cmd.Dir = rootDir
 
 	return cmd.Run()
+}
+
+func loadProjectEnv(rootDir string) {
+	envPath := filepath.Join(rootDir, ".env")
+	_ = godotenv.Load(envPath)
 }
 
 func buildDatabaseURL() (driver, dbString string, err error) {

@@ -13,6 +13,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// chdirToProjectRoot finds the go.mod root and changes the working directory
+// to it so that the generator's relative paths resolve correctly regardless
+// of where the command was invoked.
+func chdirToProjectRoot() error {
+	rootDir, err := findGoModRoot()
+	if err != nil {
+		return fmt.Errorf("not in an andurel project directory: %w", err)
+	}
+	return os.Chdir(rootDir)
+}
+
 func newGenerateCommand() *cobra.Command {
 	generateCmd := &cobra.Command{
 		Use:     "generate",
@@ -78,6 +89,10 @@ Examples:
 }
 
 func generateModel(cmd *cobra.Command, args []string) error {
+	if err := chdirToProjectRoot(); err != nil {
+		return err
+	}
+
 	resourceName := args[0]
 
 	tableNameOverride, err := cmd.Flags().GetString("table-name")
@@ -146,6 +161,10 @@ Examples:
 }
 
 func generateController(cmd *cobra.Command, args []string) error {
+	if err := chdirToProjectRoot(); err != nil {
+		return err
+	}
+
 	resourceName := args[0]
 
 	withViews, err := cmd.Flags().GetBool("with-views")
@@ -162,6 +181,10 @@ func generateController(cmd *cobra.Command, args []string) error {
 }
 
 func generateResource(cmd *cobra.Command, args []string) error {
+	if err := chdirToProjectRoot(); err != nil {
+		return err
+	}
+
 	resourceName := args[0]
 
 	tableNameOverride, err := cmd.Flags().GetString("table-name")
@@ -183,6 +206,10 @@ func generateResource(cmd *cobra.Command, args []string) error {
 }
 
 func generateView(cmd *cobra.Command, args []string) error {
+	if err := chdirToProjectRoot(); err != nil {
+		return err
+	}
+
 	resourceName := args[0]
 
 	withController, err := cmd.Flags().GetBool("with-controller")
@@ -226,6 +253,10 @@ Examples:
 }
 
 func generateFragment(cmd *cobra.Command, args []string) error {
+	if err := chdirToProjectRoot(); err != nil {
+		return err
+	}
+
 	controllerName := args[0]
 	methodName := args[1]
 	path := args[2]
