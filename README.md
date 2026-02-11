@@ -50,12 +50,12 @@ This is subject to change as Andurel is in beta.
 
 I have not documented every feature or command yet, only enough to get you started and trying out the framework.
 
-Once the framework reaches beta, I will provide more comprehensive documentation and guides.
+Once the framework reaches a release candidate, I will provide more comprehensive documentation and guides.
 
 ### Installation
 
 ```bash
-go install github.com/mbvlabs/andurel@v1.0.0-beta.1
+go install github.com/mbvlabs/andurel@v1.0.0-beta.2
 ```
 
 ### Create Your First Project
