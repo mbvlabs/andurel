@@ -33,12 +33,12 @@ func alertDialogCancelClasses() string {
 //
 //	@components.AlertDialog(triggerBtn, actionBtn, "Are you sure?", "This cannot be undone.", "Cancel")
 templ AlertDialog(trigger templ.Component, action templ.Component, title string, description string, cancelLabel string, opts ...Opt) {
-	@alertDialogInner(resolveID(opts), trigger, action, title, description, cancelLabel, classFrom(opts), attrsFrom(opts))
+	@alertDialogInner(resolveID(opts), trigger, action, title, description, cancelLabel, mergeClass(alertDialogClasses(""), classFrom(opts), classOverrideFrom(opts)), attrsFrom(opts))
 }
 
 templ alertDialogInner(id string, trigger templ.Component, action templ.Component, title string, description string, cancelLabel string, class string, attrs templ.Attributes) {
 	<div
-		class={ alertDialogClasses(class) }
+		class={ class }
 		{ templ.Attributes{"data-signals:_" + id: "false"}... }
 		if attrsWithout(attrs, "data-on:click") != nil {
 			{ attrsWithout(attrs, "data-on:click")... }

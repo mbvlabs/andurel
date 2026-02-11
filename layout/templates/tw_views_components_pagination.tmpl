@@ -29,7 +29,7 @@ func paginationItemClasses(active bool, disabled bool, class string) string {
 templ Pagination(opts ...Opt) {
 	<nav
 		aria-label="pagination"
-		class={ paginationClasses(classFrom(opts)) }
+		class={ mergeClass(paginationClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -44,7 +44,7 @@ templ PaginationItem(label string, href string, active bool, disabled bool, opts
 	<li>
 		if disabled {
 			<span
-				class={ paginationItemClasses(active, disabled, classFrom(opts)) }
+				class={ mergeClass(paginationItemClasses(active, disabled, ""), classFrom(opts), classOverrideFrom(opts)) }
 				if attrsFrom(opts) != nil {
 					{ attrsFrom(opts)... }
 				}
@@ -54,7 +54,7 @@ templ PaginationItem(label string, href string, active bool, disabled bool, opts
 		} else {
 			<a
 				href={ href }
-				class={ paginationItemClasses(active, disabled, classFrom(opts)) }
+				class={ mergeClass(paginationItemClasses(active, disabled, ""), classFrom(opts), classOverrideFrom(opts)) }
 				if attrsFrom(opts) != nil {
 					{ attrsFrom(opts)... }
 				}
@@ -69,7 +69,7 @@ templ PaginationPrevious(href string, disabled bool, opts ...Opt) {
 	<li>
 		if disabled {
 			<span
-				class={ paginationItemClasses(false, disabled, cn("gap-1 pl-2.5 w-auto px-3", classFrom(opts))) }
+				class={ mergeClass(paginationItemClasses(false, disabled, "gap-1 pl-2.5 w-auto px-3"), classFrom(opts), classOverrideFrom(opts)) }
 				if attrsFrom(opts) != nil {
 					{ attrsFrom(opts)... }
 				}
@@ -80,7 +80,7 @@ templ PaginationPrevious(href string, disabled bool, opts ...Opt) {
 		} else {
 			<a
 				href={ href }
-				class={ paginationItemClasses(false, disabled, cn("gap-1 pl-2.5 w-auto px-3", classFrom(opts))) }
+				class={ mergeClass(paginationItemClasses(false, disabled, "gap-1 pl-2.5 w-auto px-3"), classFrom(opts), classOverrideFrom(opts)) }
 				if attrsFrom(opts) != nil {
 					{ attrsFrom(opts)... }
 				}
@@ -96,7 +96,7 @@ templ PaginationNext(href string, disabled bool, opts ...Opt) {
 	<li>
 		if disabled {
 			<span
-				class={ paginationItemClasses(false, disabled, cn("gap-1 pr-2.5 w-auto px-3", classFrom(opts))) }
+				class={ mergeClass(paginationItemClasses(false, disabled, "gap-1 pr-2.5 w-auto px-3"), classFrom(opts), classOverrideFrom(opts)) }
 				if attrsFrom(opts) != nil {
 					{ attrsFrom(opts)... }
 				}
@@ -107,7 +107,7 @@ templ PaginationNext(href string, disabled bool, opts ...Opt) {
 		} else {
 			<a
 				href={ href }
-				class={ paginationItemClasses(false, disabled, cn("gap-1 pr-2.5 w-auto px-3", classFrom(opts))) }
+				class={ mergeClass(paginationItemClasses(false, disabled, "gap-1 pr-2.5 w-auto px-3"), classFrom(opts), classOverrideFrom(opts)) }
 				if attrsFrom(opts) != nil {
 					{ attrsFrom(opts)... }
 				}

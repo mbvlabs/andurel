@@ -9,6 +9,7 @@ type CodeBuilder struct {
 	inline     bool
 	id         string
 	class      string
+	classOverride bool
 	attrs      templ.Attributes
 	fragmentID string
 }
@@ -26,7 +27,7 @@ func Code(props CodeProps) *CodeBuilder {
 func (b *CodeBuilder) WithInline(i bool) *CodeBuilder  { b.inline = i; return b }
 func (b *CodeBuilder) WithID(id string) *CodeBuilder   { b.id = id; return b }
 func (b *CodeBuilder) WithClass(c string) *CodeBuilder { b.class = cn(b.class, c); return b }
-func (b *CodeBuilder) SetClass(c string) *CodeBuilder  { b.class = c; return b }
+func (b *CodeBuilder) SetClass(c string) *CodeBuilder  { b.class = c; b.classOverride = true; return b }
 func (b *CodeBuilder) WithAttr(key string, val any) *CodeBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -38,9 +39,9 @@ func (b *CodeBuilder) WithFragment(id string) *CodeBuilder { b.fragmentID = id; 
 
 func codeClasses(b *CodeBuilder) string {
 	if b.inline {
-		return cn("relative rounded bg-base-200 px-[0.3rem] py-[0.2rem] font-mono text-sm text-base-content", b.class)
+		return mergeClass(cn("relative rounded bg-base-200 px-[0.3rem] py-[0.2rem] font-mono text-sm text-base-content"), b.class, b.classOverride)
 	}
-	return cn("block overflow-x-auto rounded-box bg-base-200 p-4 font-mono text-sm text-base-content", b.class)
+	return mergeClass(cn("block overflow-x-auto rounded-box bg-base-200 p-4 font-mono text-sm text-base-content"), b.class, b.classOverride)
 }
 
 templ (b *CodeBuilder) Render() {

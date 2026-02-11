@@ -12,6 +12,7 @@ type TextareaBuilder struct {
 	hasError    bool
 	id          string
 	class       string
+	classOverride bool
 	attrs       templ.Attributes
 	fragmentID  string
 }
@@ -34,7 +35,7 @@ func (b *TextareaBuilder) WithRequired(r bool) *TextareaBuilder      { b.require
 func (b *TextareaBuilder) WithHasError(e bool) *TextareaBuilder      { b.hasError = e; return b }
 func (b *TextareaBuilder) WithID(id string) *TextareaBuilder         { b.id = id; return b }
 func (b *TextareaBuilder) WithClass(c string) *TextareaBuilder       { b.class = cn(b.class, c); return b }
-func (b *TextareaBuilder) SetClass(c string) *TextareaBuilder        { b.class = c; return b }
+func (b *TextareaBuilder) SetClass(c string) *TextareaBuilder        { b.class = c; b.classOverride = true; return b }
 func (b *TextareaBuilder) WithAttr(key string, val any) *TextareaBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -50,7 +51,7 @@ func textareaClasses(b *TextareaBuilder) string {
 	if b.hasError {
 		borderClass = "border-error focus:border-error focus:ring-error/50"
 	}
-	return cn(base, borderClass, b.class)
+	return mergeClass(cn(base, borderClass), b.class, b.classOverride)
 }
 
 templ (b *TextareaBuilder) Render() {

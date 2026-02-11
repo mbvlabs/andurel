@@ -9,6 +9,7 @@ type RatingBuilder struct {
 	disabled   bool
 	id         string
 	class      string
+	classOverride bool
 	attrs      templ.Attributes
 	fragmentID string
 }
@@ -28,7 +29,7 @@ func (b *RatingBuilder) WithMax(m int) *RatingBuilder       { b.max = m; return 
 func (b *RatingBuilder) WithDisabled(d bool) *RatingBuilder { b.disabled = d; return b }
 func (b *RatingBuilder) WithID(id string) *RatingBuilder    { b.id = id; return b }
 func (b *RatingBuilder) WithClass(c string) *RatingBuilder  { b.class = cn(b.class, c); return b }
-func (b *RatingBuilder) SetClass(c string) *RatingBuilder   { b.class = c; return b }
+func (b *RatingBuilder) SetClass(c string) *RatingBuilder   { b.class = c; b.classOverride = true; return b }
 func (b *RatingBuilder) WithAttr(key string, val any) *RatingBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -39,7 +40,7 @@ func (b *RatingBuilder) WithAttr(key string, val any) *RatingBuilder {
 func (b *RatingBuilder) WithFragment(id string) *RatingBuilder { b.fragmentID = id; return b }
 
 func ratingClasses(b *RatingBuilder) string {
-	return cn("flex items-center gap-1", b.class)
+	return mergeClass(cn("flex items-center gap-1"), b.class, b.classOverride)
 }
 
 templ (b *RatingBuilder) Render() {

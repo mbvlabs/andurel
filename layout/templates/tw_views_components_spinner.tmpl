@@ -12,6 +12,7 @@ type SpinnerBuilder struct {
 	size       SpinnerSize
 	id         string
 	class      string
+	classOverride bool
 	attrs      templ.Attributes
 	fragmentID string
 }
@@ -30,7 +31,7 @@ func Spinner() *SpinnerBuilder {
 func (b *SpinnerBuilder) WithSize(s SpinnerSize) *SpinnerBuilder { b.size = s; return b }
 func (b *SpinnerBuilder) WithID(id string) *SpinnerBuilder       { b.id = id; return b }
 func (b *SpinnerBuilder) WithClass(c string) *SpinnerBuilder     { b.class = cn(b.class, c); return b }
-func (b *SpinnerBuilder) SetClass(c string) *SpinnerBuilder      { b.class = c; return b }
+func (b *SpinnerBuilder) SetClass(c string) *SpinnerBuilder      { b.class = c; b.classOverride = true; return b }
 func (b *SpinnerBuilder) WithAttr(key string, val any) *SpinnerBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -53,7 +54,7 @@ func spinnerSizeClasses(s SpinnerSize) string {
 
 func spinnerClasses(b *SpinnerBuilder) string {
 	base := "animate-spin text-base-content/60"
-	return cn(base, spinnerSizeClasses(b.size), b.class)
+	return mergeClass(cn(base, spinnerSizeClasses(b.size)), b.class, b.classOverride)
 }
 
 templ (b *SpinnerBuilder) Render() {

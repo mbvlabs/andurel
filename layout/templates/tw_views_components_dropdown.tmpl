@@ -32,14 +32,14 @@ func dropdownLabelClasses(class string) string {
 //		@components.DropdownItem("Delete", false)
 //	}
 templ Dropdown(trigger templ.Component, opts ...Opt) {
-	@dropdownInner(resolveID(opts), trigger, classFrom(opts), attrsFrom(opts)) {
+	@dropdownInner(resolveID(opts), trigger, mergeClass(dropdownClasses(""), classFrom(opts), classOverrideFrom(opts)), attrsFrom(opts)) {
 		{ children... }
 	}
 }
 
 templ dropdownInner(id string, trigger templ.Component, class string, attrs templ.Attributes) {
 	<div
-		class={ dropdownClasses(class) }
+		class={ class }
 		{ templ.Attributes{"data-signals:_" + id: "false"}... }
 		if attrsWithout(attrs, "data-on:click") != nil {
 			{ attrsWithout(attrs, "data-on:click")... }
@@ -56,7 +56,7 @@ templ dropdownInner(id string, trigger templ.Component, class string, attrs temp
 
 templ DropdownItem(label string, disabled bool, opts ...Opt) {
 	<div
-		class={ dropdownItemClasses(disabled, classFrom(opts)) }
+		class={ mergeClass(dropdownItemClasses(disabled, ""), classFrom(opts), classOverrideFrom(opts)) }
 		role="menuitem"
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
@@ -72,7 +72,7 @@ templ DropdownSeparator() {
 
 templ DropdownLabel(label string, opts ...Opt) {
 	<div
-		class={ dropdownLabelClasses(classFrom(opts)) }
+		class={ mergeClass(dropdownLabelClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}

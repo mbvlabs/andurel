@@ -18,6 +18,7 @@ type BadgeBuilder struct {
 	variant    BadgeVariant
 	id         string
 	class      string
+	classOverride bool
 	attrs      templ.Attributes
 	fragmentID string
 }
@@ -34,7 +35,7 @@ func Badge(props BadgeProps) *BadgeBuilder {
 func (b *BadgeBuilder) WithVariant(v BadgeVariant) *BadgeBuilder { b.variant = v; return b }
 func (b *BadgeBuilder) WithID(id string) *BadgeBuilder           { b.id = id; return b }
 func (b *BadgeBuilder) WithClass(c string) *BadgeBuilder         { b.class = cn(b.class, c); return b }
-func (b *BadgeBuilder) SetClass(c string) *BadgeBuilder          { b.class = c; return b }
+func (b *BadgeBuilder) SetClass(c string) *BadgeBuilder          { b.class = c; b.classOverride = true; return b }
 func (b *BadgeBuilder) WithAttr(key string, val any) *BadgeBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -59,7 +60,7 @@ func badgeVariantClasses(v BadgeVariant) string {
 
 func badgeClasses(b *BadgeBuilder) string {
 	base := "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors"
-	return cn(base, badgeVariantClasses(b.variant), b.class)
+	return mergeClass(cn(base, badgeVariantClasses(b.variant)), b.class, b.classOverride)
 }
 
 templ (b *BadgeBuilder) Render() {

@@ -45,14 +45,14 @@ func dialogCloseClasses() string {
 //		@components.DialogFooter() { ... }
 //	}
 templ Dialog(trigger templ.Component, opts ...Opt) {
-	@dialogInner(resolveID(opts), trigger, classFrom(opts), attrsFrom(opts)) {
+	@dialogInner(resolveID(opts), trigger, mergeClass(dialogClasses(""), classFrom(opts), classOverrideFrom(opts)), attrsFrom(opts)) {
 		{ children... }
 	}
 }
 
 templ dialogInner(id string, trigger templ.Component, class string, attrs templ.Attributes) {
 	<div
-		class={ dialogClasses(class) }
+		class={ class }
 		{ templ.Attributes{"data-signals:_" + id: "false"}... }
 		if attrsWithout(attrs, "data-on:click") != nil {
 			{ attrsWithout(attrs, "data-on:click")... }
@@ -76,7 +76,7 @@ templ dialogInner(id string, trigger templ.Component, class string, attrs templ.
 
 templ DialogHeader(opts ...Opt) {
 	<div
-		class={ dialogHeaderClasses(classFrom(opts)) }
+		class={ mergeClass(dialogHeaderClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -87,7 +87,7 @@ templ DialogHeader(opts ...Opt) {
 
 templ DialogTitle(title string, opts ...Opt) {
 	<h2
-		class={ dialogTitleClasses(classFrom(opts)) }
+		class={ mergeClass(dialogTitleClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -98,7 +98,7 @@ templ DialogTitle(title string, opts ...Opt) {
 
 templ DialogDescription(description string, opts ...Opt) {
 	<p
-		class={ dialogDescriptionClasses(classFrom(opts)) }
+		class={ mergeClass(dialogDescriptionClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -109,7 +109,7 @@ templ DialogDescription(description string, opts ...Opt) {
 
 templ DialogFooter(opts ...Opt) {
 	<div
-		class={ dialogFooterClasses(classFrom(opts)) }
+		class={ mergeClass(dialogFooterClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}

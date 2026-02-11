@@ -17,14 +17,14 @@ func popoverContentClasses(class string) string {
 //		<p>Popover body</p>
 //	}
 templ Popover(trigger templ.Component, opts ...Opt) {
-	@popoverInner(resolveID(opts), trigger, classFrom(opts), attrsFrom(opts)) {
+	@popoverInner(resolveID(opts), trigger, mergeClass(popoverClasses(""), classFrom(opts), classOverrideFrom(opts)), attrsFrom(opts)) {
 		{ children... }
 	}
 }
 
 templ popoverInner(id string, trigger templ.Component, class string, attrs templ.Attributes) {
 	<div
-		class={ popoverClasses(class) }
+		class={ class }
 		{ templ.Attributes{"data-signals:_" + id: "false"}... }
 		if attrsWithout(attrs, "data-on:click") != nil {
 			{ attrsWithout(attrs, "data-on:click")... }
