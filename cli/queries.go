@@ -47,6 +47,10 @@ An error is returned if the table is not found in the migrations.
 }
 
 func runQueriesGenerate(cmd *cobra.Command, args []string) error {
+	if err := chdirToProjectRoot(); err != nil {
+		return err
+	}
+
 	tableName := args[0]
 
 	gen, err := generator.New()
@@ -73,6 +77,10 @@ Examples:
 }
 
 func runQueriesRefresh(cmd *cobra.Command, args []string) error {
+	if err := chdirToProjectRoot(); err != nil {
+		return err
+	}
+
 	tableName := args[0]
 
 	gen, err := generator.New()
