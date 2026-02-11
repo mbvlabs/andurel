@@ -55,7 +55,7 @@ templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}
 			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{.ResourceName}} Details</h1>
-					<div class="flex flex-wrap gap-3">
+					<div class="flex flex-wrap items-center gap-3">
 						<a href={ routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLower}}.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">Edit</a>
 						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.{{.ResourceName}}Index.URL() }>Back to List</a>
 					</div>
@@ -114,7 +114,10 @@ templ {{.ResourceName}}New() {
 									</div>
 									{{end}}{{end}}{{end}}
 								</div>
-								<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Create {{.ResourceName}}</button>
+								<div class="mt-6 space-y-3">
+									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Create {{.ResourceName}}</button>
+									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ routes.{{.ResourceName}}Index.URL() }>Back to List</a>
+								</div>
 							</fieldset>
 						</form>
 					</div>
@@ -162,10 +165,13 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 									</div>
 									{{end}}{{end}}{{end}}
 								</div>
-								<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Update {{.ResourceName}}</button>
+								<div class="mt-6 space-y-3">
+									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Update {{.ResourceName}}</button>
+									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ routes.{{.ResourceName}}Index.URL() }>Back to List</a>
+								</div>
 							</fieldset>
 						</form>
-						<div role="separator" class="shrink-0 bg-base-300 h-px w-full"></div>
+						<div role="separator" class="my-6 shrink-0 bg-base-300 h-px w-full"></div>
 						<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-error text-error-content shadow-sm hover:bg-error/90 h-9 px-4 py-2 text-sm rounded-field w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.{{.ResourceName}}Destroy.URL({{.ResourceName | ToLower}}.ID)) }>Destroy {{.ResourceName}}</button>
 					</div>
 				</div>
