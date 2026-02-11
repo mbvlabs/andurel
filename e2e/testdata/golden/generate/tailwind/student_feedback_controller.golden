@@ -63,11 +63,13 @@ func (sf StudentFeedback) Show(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.StudentFeedbackShow(studentFeedback))
+	backURL := cookies.ResolveReturnTo(etx, routes.StudentFeedbackIndex.URL())
+	return render(etx, views.StudentFeedbackShow(studentFeedback, backURL))
 }
 
 func (sf StudentFeedback) New(etx *echo.Context) error {
-	return render(etx, views.StudentFeedbackNew())
+	backURL := cookies.ResolveReturnTo(etx, routes.StudentFeedbackIndex.URL())
+	return render(etx, views.StudentFeedbackNew(backURL))
 }
 
 type CreateStudentFeedbackFormPayload struct {
@@ -125,7 +127,8 @@ func (sf StudentFeedback) Edit(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.StudentFeedbackEdit(studentFeedback))
+	backURL := cookies.ResolveReturnTo(etx, routes.StudentFeedbackIndex.URL())
+	return render(etx, views.StudentFeedbackEdit(studentFeedback, backURL))
 }
 
 type UpdateStudentFeedbackFormPayload struct {

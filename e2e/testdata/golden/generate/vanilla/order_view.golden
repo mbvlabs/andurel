@@ -57,14 +57,14 @@ templ OrderIndex(orders []models.Order) {
 	}
 }
 
-templ OrderShow(order models.Order) {
+templ OrderShow(order models.Order, backURL string) {
 	@base() {
 		<main>
 			<div>
 				<h1>Order Details</h1>
 				<div>
 					<a href={ routes.OrderEdit.URL(order.ID) }>Edit</a>
-					<a href={ routes.OrderIndex.URL() }>Back to List</a>
+					<a href={ backURL }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -99,7 +99,7 @@ templ OrderShow(order models.Order) {
 	}
 }
 
-templ OrderNew() {
+templ OrderNew(backURL string) {
 	@base() {
 		<main>
 			<div>
@@ -119,7 +119,7 @@ templ OrderNew() {
 					</div>
 					@components.SubmitButton("Create Order")
 					<p>
-						<a href={ routes.OrderIndex.URL() }>Back to List</a>
+						<a href={ backURL }>Back to List</a>
 					</p>
 				</form>
 			</div>
@@ -127,7 +127,7 @@ templ OrderNew() {
 	}
 }
 
-templ OrderEdit(order models.Order) {
+templ OrderEdit(order models.Order, backURL string) {
 	@base() {
 		<main>
 			<div>
@@ -155,7 +155,7 @@ templ OrderEdit(order models.Order) {
 					</div>
 					@components.SubmitButton("Update Order")
 					<p>
-						<a href={ routes.OrderIndex.URL() }>Back to List</a>
+						<a href={ backURL }>Back to List</a>
 					</p>
 				</form>
 				<div>

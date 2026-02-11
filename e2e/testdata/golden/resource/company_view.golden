@@ -53,7 +53,7 @@ templ CompanyIndex(companies []models.Company) {
 	}
 }
 
-templ CompanyShow(company models.Company) {
+templ CompanyShow(company models.Company, backURL string) {
 	@base() {
 		<main class="flex-1 px-6 py-10">
 			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -61,7 +61,7 @@ templ CompanyShow(company models.Company) {
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Company Details</h1>
 					<div class="flex flex-wrap items-center gap-3">
 						<a href={ routes.CompanyEdit.URL(company.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">Edit</a>
-						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.CompanyIndex.URL() }>Back to List</a>
+						<a class="text-sm text-base-content/70 hover:text-base-content" href={ backURL }>Back to List</a>
 					</div>
 				</div>
 				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
@@ -91,7 +91,7 @@ templ CompanyShow(company models.Company) {
 	}
 }
 
-templ CompanyNew() {
+templ CompanyNew(backURL string) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
@@ -115,7 +115,7 @@ templ CompanyNew() {
 								</div>
 								<div class="mt-6 space-y-3">
 									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Create Company</button>
-									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ routes.CompanyIndex.URL() }>Back to List</a>
+									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ backURL }>Back to List</a>
 								</div>
 							</fieldset>
 						</form>
@@ -126,7 +126,7 @@ templ CompanyNew() {
 	}
 }
 
-templ CompanyEdit(company models.Company) {
+templ CompanyEdit(company models.Company, backURL string) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
@@ -150,7 +150,7 @@ templ CompanyEdit(company models.Company) {
 								</div>
 								<div class="mt-6 space-y-3">
 									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Update Company</button>
-									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ routes.CompanyIndex.URL() }>Back to List</a>
+									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ backURL }>Back to List</a>
 								</div>
 							</fieldset>
 						</form>

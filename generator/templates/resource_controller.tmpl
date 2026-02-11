@@ -89,11 +89,13 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.{{.ResourceName}}Show({{.ResourceName | ToLowerCamelCase}}))
+	backURL := cookies.ResolveReturnTo(etx, routes.{{.ResourceName}}Index.URL())
+	return render(etx, views.{{.ResourceName}}Show({{.ResourceName | ToLowerCamelCase}}, backURL))
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) New(etx *echo.Context) error {
-	return render(etx, views.{{.ResourceName}}New())
+	backURL := cookies.ResolveReturnTo(etx, routes.{{.ResourceName}}Index.URL())
+	return render(etx, views.{{.ResourceName}}New(backURL))
 }
 
 type Create{{.ResourceName}}FormPayload struct {
@@ -211,7 +213,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.{{.ResourceName}}Edit({{.ResourceName | ToLowerCamelCase}}))
+	backURL := cookies.ResolveReturnTo(etx, routes.{{.ResourceName}}Index.URL())
+	return render(etx, views.{{.ResourceName}}Edit({{.ResourceName | ToLowerCamelCase}}, backURL))
 }
 
 type Update{{.ResourceName}}FormPayload struct {

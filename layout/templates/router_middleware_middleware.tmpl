@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -62,6 +63,73 @@ func (m Middleware) RegisterFlashMessagesContext(
 		}
 
 		c.Set(string(cookies.FlashKey), flashes)
+
+		return next(c)
+	}
+}
+
+func (m Middleware) TrackReturnTo(
+	next echo.HandlerFunc,
+) echo.HandlerFunc {
+	return func(c *echo.Context) error {
+		if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
+			strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
+			return next(c)
+		}
+
+		method := c.Request().Method
+		if method != http.MethodGet && method != http.MethodHead {
+			return next(c)
+		}
+
+		referer := strings.TrimSpace(c.Request().Referer())
+		if referer == "" {
+			if err := cookies.SetReturnTo(c, ""); err != nil {
+				slog.Warn("Error clearing return_to", "error", err)
+			}
+			return next(c)
+		}
+
+		refererURL, err := url.Parse(referer)
+		if err != nil {
+			if clearErr := cookies.SetReturnTo(c, ""); clearErr != nil {
+				slog.Warn("Error clearing return_to", "error", clearErr)
+			}
+			return next(c)
+		}
+
+		if refererURL.Host != "" && !strings.EqualFold(refererURL.Host, c.Request().Host) {
+			if clearErr := cookies.SetReturnTo(c, ""); clearErr != nil {
+				slog.Warn("Error clearing return_to", "error", clearErr)
+			}
+			return next(c)
+		}
+
+		returnTo := refererURL.EscapedPath()
+		if returnTo == "" {
+			returnTo = "/"
+		}
+		if refererURL.RawQuery != "" {
+			returnTo += "?" + refererURL.RawQuery
+		}
+
+		current := c.Request().URL.Path
+		if c.Request().URL.RawQuery != "" {
+			current += "?" + c.Request().URL.RawQuery
+		}
+
+		if returnTo == current ||
+			!strings.HasPrefix(returnTo, "/") ||
+			strings.HasPrefix(returnTo, "//") {
+			if clearErr := cookies.SetReturnTo(c, ""); clearErr != nil {
+				slog.Warn("Error clearing return_to", "error", clearErr)
+			}
+			return next(c)
+		}
+
+		if err := cookies.SetReturnTo(c, returnTo); err != nil {
+			slog.Warn("Error setting return_to", "error", err)
+		}
 
 		return next(c)
 	}
@@ -267,4 +335,3 @@ func (m Middleware) CSRFMiddleware(cfg config.Config, csrfName string) (echo.Mid
 		}
 	}, nil
 }
-

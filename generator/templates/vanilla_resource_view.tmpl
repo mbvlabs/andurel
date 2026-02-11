@@ -48,14 +48,14 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 	}
 }
 
-templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
+templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}, backURL string) {
 	@base() {
 		<main>
 			<div>
 				<h1>{{.ResourceName}} Details</h1>
 				<div>
 					<a href={ routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLower}}.ID) }>Edit</a>
-					<a href={ routes.{{.ResourceName}}Index.URL() }>Back to List</a>
+					<a href={ backURL }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -71,7 +71,7 @@ templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}
 	}
 }
 
-templ {{.ResourceName}}New() {
+templ {{.ResourceName}}New(backURL string) {
 	@base() {
 		<main>
 			<div>
@@ -89,7 +89,7 @@ templ {{.ResourceName}}New() {
 					</div>
 					@components.SubmitButton("Create {{.ResourceName}}")
 					<p>
-						<a href={ routes.{{.ResourceName}}Index.URL() }>Back to List</a>
+						<a href={ backURL }>Back to List</a>
 					</p>
 				</form>
 			</div>
@@ -97,7 +97,7 @@ templ {{.ResourceName}}New() {
 	}
 }
 
-templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
+templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}, backURL string) {
 	@base() {
 		<main>
 			<div>
@@ -116,7 +116,7 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 					</div>
 					@components.SubmitButton("Update {{.ResourceName}}")
 					<p>
-						<a href={ routes.{{.ResourceName}}Index.URL() }>Back to List</a>
+						<a href={ backURL }>Back to List</a>
 					</p>
 				</form>
 				<div>

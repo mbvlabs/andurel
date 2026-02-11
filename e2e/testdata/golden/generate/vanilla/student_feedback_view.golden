@@ -55,14 +55,14 @@ templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
 	}
 }
 
-templ StudentFeedbackShow(studentfeedback models.StudentFeedback) {
+templ StudentFeedbackShow(studentfeedback models.StudentFeedback, backURL string) {
 	@base() {
 		<main>
 			<div>
 				<h1>StudentFeedback Details</h1>
 				<div>
 					<a href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) }>Edit</a>
-					<a href={ routes.StudentFeedbackIndex.URL() }>Back to List</a>
+					<a href={ backURL }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -93,7 +93,7 @@ templ StudentFeedbackShow(studentfeedback models.StudentFeedback) {
 	}
 }
 
-templ StudentFeedbackNew() {
+templ StudentFeedbackNew(backURL string) {
 	@base() {
 		<main>
 			<div>
@@ -112,7 +112,7 @@ templ StudentFeedbackNew() {
 					</div>
 					@components.SubmitButton("Create StudentFeedback")
 					<p>
-						<a href={ routes.StudentFeedbackIndex.URL() }>Back to List</a>
+						<a href={ backURL }>Back to List</a>
 					</p>
 				</form>
 			</div>
@@ -120,7 +120,7 @@ templ StudentFeedbackNew() {
 	}
 }
 
-templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
+templ StudentFeedbackEdit(studentfeedback models.StudentFeedback, backURL string) {
 	@base() {
 		<main>
 			<div>
@@ -145,7 +145,7 @@ templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
 					</div>
 					@components.SubmitButton("Update StudentFeedback")
 					<p>
-						<a href={ routes.StudentFeedbackIndex.URL() }>Back to List</a>
+						<a href={ backURL }>Back to List</a>
 					</p>
 				</form>
 				<div>

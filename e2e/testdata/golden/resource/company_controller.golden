@@ -63,11 +63,13 @@ func (c Companies) Show(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.CompanyShow(company))
+	backURL := cookies.ResolveReturnTo(etx, routes.CompanyIndex.URL())
+	return render(etx, views.CompanyShow(company, backURL))
 }
 
 func (c Companies) New(etx *echo.Context) error {
-	return render(etx, views.CompanyNew())
+	backURL := cookies.ResolveReturnTo(etx, routes.CompanyIndex.URL())
+	return render(etx, views.CompanyNew(backURL))
 }
 
 type CreateCompanyFormPayload struct {
@@ -123,7 +125,8 @@ func (c Companies) Edit(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.CompanyEdit(company))
+	backURL := cookies.ResolveReturnTo(etx, routes.CompanyIndex.URL())
+	return render(etx, views.CompanyEdit(company, backURL))
 }
 
 type UpdateCompanyFormPayload struct {

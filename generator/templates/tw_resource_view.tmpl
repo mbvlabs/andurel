@@ -49,7 +49,7 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 	}
 }
 
-templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
+templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}, backURL string) {
 	@base() {
 		<main class="flex-1 px-6 py-10">
 			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -57,7 +57,7 @@ templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{.ResourceName}} Details</h1>
 					<div class="flex flex-wrap items-center gap-3">
 						<a href={ routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLower}}.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">Edit</a>
-						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.{{.ResourceName}}Index.URL() }>Back to List</a>
+						<a class="text-sm text-base-content/70 hover:text-base-content" href={ backURL }>Back to List</a>
 					</div>
 				</div>
 				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
@@ -76,7 +76,7 @@ templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}
 	}
 }
 
-templ {{.ResourceName}}New() {
+templ {{.ResourceName}}New(backURL string) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
@@ -116,7 +116,7 @@ templ {{.ResourceName}}New() {
 								</div>
 								<div class="mt-6 space-y-3">
 									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Create {{.ResourceName}}</button>
-									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ routes.{{.ResourceName}}Index.URL() }>Back to List</a>
+									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ backURL }>Back to List</a>
 								</div>
 							</fieldset>
 						</form>
@@ -127,7 +127,7 @@ templ {{.ResourceName}}New() {
 	}
 }
 
-templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
+templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}, backURL string) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
@@ -167,7 +167,7 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 								</div>
 								<div class="mt-6 space-y-3">
 									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Update {{.ResourceName}}</button>
-									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ routes.{{.ResourceName}}Index.URL() }>Back to List</a>
+									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ backURL }>Back to List</a>
 								</div>
 							</fieldset>
 						</form>

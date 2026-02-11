@@ -55,14 +55,14 @@ templ ReviewIndex(reviews []models.Review) {
 	}
 }
 
-templ ReviewShow(review models.Review) {
+templ ReviewShow(review models.Review, backURL string) {
 	@base() {
 		<main>
 			<div>
 				<h1>Review Details</h1>
 				<div>
 					<a href={ routes.ReviewEdit.URL(review.ID) }>Edit</a>
-					<a href={ routes.ReviewIndex.URL() }>Back to List</a>
+					<a href={ backURL }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -93,7 +93,7 @@ templ ReviewShow(review models.Review) {
 	}
 }
 
-templ ReviewNew() {
+templ ReviewNew(backURL string) {
 	@base() {
 		<main>
 			<div>
@@ -112,7 +112,7 @@ templ ReviewNew() {
 					</div>
 					@components.SubmitButton("Create Review")
 					<p>
-						<a href={ routes.ReviewIndex.URL() }>Back to List</a>
+						<a href={ backURL }>Back to List</a>
 					</p>
 				</form>
 			</div>
@@ -120,7 +120,7 @@ templ ReviewNew() {
 	}
 }
 
-templ ReviewEdit(review models.Review) {
+templ ReviewEdit(review models.Review, backURL string) {
 	@base() {
 		<main>
 			<div>
@@ -145,7 +145,7 @@ templ ReviewEdit(review models.Review) {
 					</div>
 					@components.SubmitButton("Update Review")
 					<p>
-						<a href={ routes.ReviewIndex.URL() }>Back to List</a>
+						<a href={ backURL }>Back to List</a>
 					</p>
 				</form>
 				<div>
