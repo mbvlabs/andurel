@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strings"
 	"{{.ModulePath}}/models"
-	ui "{{.ModulePath}}/internal/ui"
 )
 
 templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
@@ -14,32 +13,34 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{Plural .ResourceName}}</h1>
-					@ui.Button(ui.ButtonProps{Label: "New {{.ResourceName}}"}).WithHref("/").Render()
+					<a href="/" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">New {{.ResourceName}}</a>
 				</div>
 				if len({{.PluralName}}) == 0 {
 					<p class="text-sm text-base-content/60">No {{.PluralName}} found.</p>
 				} else {
-					@ui.Table() {
-						@ui.TableHeader() {
-							@ui.TableRow() {
-								{{range .Fields}}@ui.TableHead() { {{.DisplayName}} }
-								{{end}}@ui.TableHead() { Actions }
-							}
-						}
-						@ui.TableBody() {
-							for _, {{.ResourceName | ToLower}} := range {{.PluralName}} {
-								@ui.TableRow() {
-									{{range .Fields}}@ui.TableCell() { {{StringTableDisplay . $.ResourceName}} }
-									{{end}}@ui.TableCell() {
-										<div class="flex flex-wrap gap-3 text-sm">
-											<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
-											<a class="text-base-content/80 hover:text-base-content" href="/">Edit</a>
-										</div>
-									}
+					<div class="relative w-full overflow-auto">
+						<table class="w-full caption-bottom text-sm">
+							<thead class="[&_tr]:border-b [&_tr]:border-base-300">
+								<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
+									{{range .Fields}}<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">{{.DisplayName}}</th>
+									{{end}}<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Actions</th>
+								</tr>
+							</thead>
+							<tbody class="[&_tr:last-child]:border-0">
+								for _, {{.ResourceName | ToLower}} := range {{.PluralName}} {
+									<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
+										{{range .Fields}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{{StringTableDisplay . $.ResourceName}}</td>
+										{{end}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+											<div class="flex flex-wrap gap-3 text-sm">
+												<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
+												<a class="text-base-content/80 hover:text-base-content" href="/">Edit</a>
+											</div>
+										</td>
+									</tr>
 								}
-							}
-						}
-					}
+							</tbody>
+						</table>
+					</div>
 				}
 			</div>
 		</main>
@@ -53,21 +54,21 @@ templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{.ResourceName}} Details</h1>
 					<div class="flex flex-wrap gap-3">
-						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref("/").Render()
+						<a href="/" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">Edit</a>
 						<a class="text-sm text-base-content/70 hover:text-base-content" href="/">Back to List</a>
 					</div>
 				</div>
-				@ui.Card() {
-					@ui.CardContent() {
+				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
+					<div class="p-6 pt-0">
 						<div class="grid gap-5 sm:grid-cols-2">
 							{{range .Fields}}<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">{{.DisplayName}}</label>
 								<p class="text-sm text-base-content">{{StringDisplay . $.ResourceName}}</p>
 							</div>
 							{{end}}
 						</div>
-					}
-				}
+					</div>
+				</div>
 			</div>
 		</main>
 	}
@@ -77,36 +78,45 @@ templ {{.ResourceName}}New() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@ui.Card() {
-					@ui.CardHeader() {
-						@ui.CardTitle("New {{.ResourceName}}")
-						@ui.CardDescription("Enter the details for the new {{.ResourceName | ToLower}}.")
-					}
-					@ui.CardContent() {
-						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: "/"}, ui.WithClass("space-y-5"), ui.WithFragment("new-{{.ResourceName | ToLower}}-form")) {
-							<div class="space-y-4">
-								{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
-									@ui.Checkbox("{{.CamelCase}}").Render()
-									@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
+					<div class="flex flex-col space-y-1.5 p-6">
+						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">New {{.ResourceName}}</h3>
+						<p class="text-sm text-base-content/60">Enter the details for the new {{.ResourceName | ToLower}}.</p>
+					</div>
+					<div class="p-6 pt-0">
+						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", "/") }>
+							<fieldset data-attr:disabled="$submitting">
+								<div class="space-y-4">
+									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
+										<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-base-300 bg-base-200 accent-primary transition focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" />
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
+									</div>
+									{{else if eq .InputType "date"}}<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<div class="relative w-full">
+											<div class="relative">
+												<input type="date" class="flex h-9 w-full rounded-field border border-base-300 bg-base-200 px-3 py-1 pr-8 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" />
+												<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/40"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
+												</div>
+											</div>
+										</div>
+									</div>
+									{{else if eq .InputType "number"}}<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<input type="number" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="{{.CamelCase}}" />
+									</div>
+									{{else}}<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="{{.CamelCase}}" />
+									</div>
+									{{end}}{{end}}{{end}}
 								</div>
-								{{else if eq .InputType "date"}}<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
-									@ui.Datepicker("{{.CamelCase}}").Render()
-								</div>
-								{{else if eq .InputType "number"}}<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
-									@ui.Input("{{.CamelCase}}").WithType(ui.InputTypeNumber).Render()
-								</div>
-								{{else}}<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
-									@ui.Input("{{.CamelCase}}").Render()
-								</div>
-								{{end}}{{end}}{{end}}
-							</div>
-							@ui.Button(ui.ButtonProps{Label: "Create {{.ResourceName}}"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
-						}
-					}
-				}
+								<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Create {{.ResourceName}}</button>
+							</fieldset>
+						</form>
+					</div>
+				</div>
 			</div>
 		</main>
 	}
@@ -116,38 +126,47 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@ui.Card() {
-					@ui.CardHeader() {
-						@ui.CardTitle("Edit {{.ResourceName}}")
-						@ui.CardDescription("Update the details for this {{.ResourceName | ToLower}}.")
-					}
-					@ui.CardContent() {
-						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: "/"}, ui.WithClass("space-y-5"), ui.WithFragment("edit-{{.ResourceName | ToLower}}-form")) {
-							<div class="space-y-4">
-								{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
-									@ui.Checkbox("{{.CamelCase}}").WithChecked({{FieldRef . $.ResourceName}}).Render()
-									@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
+				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
+					<div class="flex flex-col space-y-1.5 p-6">
+						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">Edit {{.ResourceName}}</h3>
+						<p class="text-sm text-base-content/60">Update the details for this {{.ResourceName | ToLower}}.</p>
+					</div>
+					<div class="p-6 pt-0">
+						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + fmt.Sprintf("@put('%s')", "/") }>
+							<fieldset data-attr:disabled="$submitting">
+								<div class="space-y-4">
+									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
+										<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-base-300 bg-base-200 accent-primary transition focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" if {{FieldRef . $.ResourceName}} { checked } />
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
+									</div>
+									{{else if eq .InputType "date"}}<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<div class="relative w-full">
+											<div class="relative">
+												<input type="date" class="flex h-9 w-full rounded-field border border-base-300 bg-base-200 px-3 py-1 pr-8 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
+												<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/40"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
+												</div>
+											</div>
+										</div>
+									</div>
+									{{else if eq .InputType "number"}}<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<input type="number" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
+									</div>
+									{{else}}<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
+									</div>
+									{{end}}{{end}}{{end}}
 								</div>
-								{{else if eq .InputType "date"}}<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
-									@ui.Datepicker("{{.CamelCase}}").WithValue({{StringValue . $.ResourceName}}).Render()
-								</div>
-								{{else if eq .InputType "number"}}<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
-									@ui.Input("{{.CamelCase}}").WithType(ui.InputTypeNumber).WithValue({{StringValue . $.ResourceName}}).Render()
-								</div>
-								{{else}}<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "{{.DisplayName}}"}).WithFor("{{.CamelCase}}").Render()
-									@ui.Input("{{.CamelCase}}").WithValue({{StringValue . $.ResourceName}}).Render()
-								</div>
-								{{end}}{{end}}{{end}}
-							</div>
-							@ui.Button(ui.ButtonProps{Label: "Update {{.ResourceName}}"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
-						}
-						@ui.Separator().Render()
-						@ui.Button(ui.ButtonProps{Label: "Destroy {{.ResourceName}}"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", fmt.Sprintf("@delete('%s')", "/")).Render()
-					}
-				}
+								<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Update {{.ResourceName}}</button>
+							</fieldset>
+						</form>
+						<div role="separator" class="shrink-0 bg-base-300 h-px w-full"></div>
+						<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-error text-error-content shadow-sm hover:bg-error/90 h-9 px-4 py-2 text-sm rounded-field w-full" data-on:click={ fmt.Sprintf("@delete('%s')", "/") }>Destroy {{.ResourceName}}</button>
+					</div>
+				</div>
 			</div>
 		</main>
 	}

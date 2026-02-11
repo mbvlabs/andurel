@@ -2,8 +2,7 @@ package views
 
 import (
 	"fmt"
-	"net/http"
-	ui "testapp/internal/ui"
+	"strings"
 	"testapp/models"
 )
 
@@ -13,56 +12,40 @@ templ CategoryIndex(categories []models.Category) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Categories</h1>
-					@ui.Button(ui.ButtonProps{Label: "New Category"}).WithHref("/").Render()
+					<a href="/" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">New Category</a>
 				</div>
 				if len(categories) == 0 {
 					<p class="text-sm text-base-content/60">No categories found.</p>
 				} else {
-					@ui.Table() {
-						@ui.TableHeader() {
-							@ui.TableRow() {
-								@ui.TableHead() {
-									Name 
+					<div class="relative w-full overflow-auto">
+						<table class="w-full caption-bottom text-sm">
+							<thead class="[&_tr]:border-b [&_tr]:border-base-300">
+								<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Name</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Description</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Created At</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Updated At</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Actions</th>
+								</tr>
+							</thead>
+							<tbody class="[&_tr:last-child]:border-0">
+								for _, category := range categories {
+									<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ category.Name }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ category.Description }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ category.CreatedAt.String() }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ category.UpdatedAt.String() }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+											<div class="flex flex-wrap gap-3 text-sm">
+												<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
+												<a class="text-base-content/80 hover:text-base-content" href="/">Edit</a>
+											</div>
+										</td>
+									</tr>
 								}
-								@ui.TableHead() {
-									Description 
-								}
-								@ui.TableHead() {
-									Created At 
-								}
-								@ui.TableHead() {
-									Updated At 
-								}
-								@ui.TableHead() {
-									Actions 
-								}
-							}
-						}
-						@ui.TableBody() {
-							for _, category := range categories {
-								@ui.TableRow() {
-									@ui.TableCell() {
-										{ category.Name }
-									}
-									@ui.TableCell() {
-										{ category.Description }
-									}
-									@ui.TableCell() {
-										{ category.CreatedAt.String() }
-									}
-									@ui.TableCell() {
-										{ category.UpdatedAt.String() }
-									}
-									@ui.TableCell() {
-										<div class="flex flex-wrap gap-3 text-sm">
-											<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
-											<a class="text-base-content/80 hover:text-base-content" href="/">Edit</a>
-										</div>
-									}
-								}
-							}
-						}
-					}
+							</tbody>
+						</table>
+					</div>
 				}
 			</div>
 		</main>
@@ -76,32 +59,32 @@ templ CategoryShow(category models.Category) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Category Details</h1>
 					<div class="flex flex-wrap gap-3">
-						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref("/").Render()
+						<a href="/" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">Edit</a>
 						<a class="text-sm text-base-content/70 hover:text-base-content" href="/">Back to List</a>
 					</div>
 				</div>
-				@ui.Card() {
-					@ui.CardContent() {
+				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
+					<div class="p-6 pt-0">
 						<div class="grid gap-5 sm:grid-cols-2">
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Name"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Name</label>
 								<p class="text-sm text-base-content">{ category.Name }</p>
 							</div>
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Description"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Description</label>
 								<p class="text-sm text-base-content">{ category.Description }</p>
 							</div>
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Created At"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
 								<p class="text-sm text-base-content">{ category.CreatedAt.String() }</p>
 							</div>
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Updated At"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
 								<p class="text-sm text-base-content">{ category.UpdatedAt.String() }</p>
 							</div>
 						</div>
-					}
-				}
+					</div>
+				</div>
 			</div>
 		</main>
 	}
@@ -111,27 +94,29 @@ templ CategoryNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@ui.Card() {
-					@ui.CardHeader() {
-						@ui.CardTitle("New Category")
-						@ui.CardDescription("Enter the details for the new category.")
-					}
-					@ui.CardContent() {
-						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: "/"}, ui.WithClass("space-y-5"), ui.WithFragment("new-category-form")) {
-							<div class="space-y-4">
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Name"}).WithFor("name").Render()
-									@ui.Input("name").Render()
+				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
+					<div class="flex flex-col space-y-1.5 p-6">
+						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">New Category</h3>
+						<p class="text-sm text-base-content/60">Enter the details for the new category.</p>
+					</div>
+					<div class="p-6 pt-0">
+						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", "/") }>
+							<fieldset data-attr:disabled="$submitting">
+								<div class="space-y-4">
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="name">Name</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="name"/>
+									</div>
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="description">Description</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="description"/>
+									</div>
 								</div>
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Description"}).WithFor("description").Render()
-									@ui.Input("description").Render()
-								</div>
-							</div>
-							@ui.Button(ui.ButtonProps{Label: "Create Category"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
-						}
-					}
-				}
+								<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Create Category</button>
+							</fieldset>
+						</form>
+					</div>
+				</div>
 			</div>
 		</main>
 	}
@@ -141,29 +126,31 @@ templ CategoryEdit(category models.Category) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@ui.Card() {
-					@ui.CardHeader() {
-						@ui.CardTitle("Edit Category")
-						@ui.CardDescription("Update the details for this category.")
-					}
-					@ui.CardContent() {
-						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: "/"}, ui.WithClass("space-y-5"), ui.WithFragment("edit-category-form")) {
-							<div class="space-y-4">
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Name"}).WithFor("name").Render()
-									@ui.Input("name").WithValue(category.Name).Render()
+				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
+					<div class="flex flex-col space-y-1.5 p-6">
+						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">Edit Category</h3>
+						<p class="text-sm text-base-content/60">Update the details for this category.</p>
+					</div>
+					<div class="p-6 pt-0">
+						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + fmt.Sprintf("@put('%s')", "/") }>
+							<fieldset data-attr:disabled="$submitting">
+								<div class="space-y-4">
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="name">Name</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="name" value={ category.Name }/>
+									</div>
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="description">Description</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="description" value={ category.Description }/>
+									</div>
 								</div>
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Description"}).WithFor("description").Render()
-									@ui.Input("description").WithValue(category.Description).Render()
-								</div>
-							</div>
-							@ui.Button(ui.ButtonProps{Label: "Update Category"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
-						}
-						@ui.Separator().Render()
-						@ui.Button(ui.ButtonProps{Label: "Destroy Category"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", fmt.Sprintf("@delete('%s')", "/")).Render()
-					}
-				}
+								<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Update Category</button>
+							</fieldset>
+						</form>
+						<div role="separator" class="shrink-0 bg-base-300 h-px w-full"></div>
+						<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-error text-error-content shadow-sm hover:bg-error/90 h-9 px-4 py-2 text-sm rounded-field w-full" data-on:click={ fmt.Sprintf("@delete('%s')", "/") }>Destroy Category</button>
+					</div>
+				</div>
 			</div>
 		</main>
 	}

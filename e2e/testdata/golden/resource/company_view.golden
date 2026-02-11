@@ -3,7 +3,6 @@ package views
 import (
 	"net/http"
 	"testapp/internal/hypermedia"
-	ui "testapp/internal/ui"
 	"testapp/models"
 	"testapp/router/routes"
 )
@@ -14,56 +13,40 @@ templ CompanyIndex(companies []models.Company) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Companies</h1>
-					@ui.Button(ui.ButtonProps{Label: "New Company"}).WithHref(routes.CompanyNew.URL()).Render()
+					<a href={ routes.CompanyNew.URL() } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">New Company</a>
 				</div>
 				if len(companies) == 0 {
 					<p class="text-sm text-base-content/60">No companies found.</p>
 				} else {
-					@ui.Table() {
-						@ui.TableHeader() {
-							@ui.TableRow() {
-								@ui.TableHead() {
-									Name 
+					<div class="relative w-full overflow-auto">
+						<table class="w-full caption-bottom text-sm">
+							<thead class="[&_tr]:border-b [&_tr]:border-base-300">
+								<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Name</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Industry</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Created At</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Updated At</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Actions</th>
+								</tr>
+							</thead>
+							<tbody class="[&_tr:last-child]:border-0">
+								for _, company := range companies {
+									<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ company.Name }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ company.Industry }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ company.CreatedAt.String() }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ company.UpdatedAt.String() }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+											<div class="flex flex-wrap gap-3 text-sm">
+												<a class="text-base-content/80 hover:text-base-content" href={ routes.CompanyShow.URL(company.ID) }>View</a>
+												<a class="text-base-content/80 hover:text-base-content" href={ routes.CompanyEdit.URL(company.ID) }>Edit</a>
+											</div>
+										</td>
+									</tr>
 								}
-								@ui.TableHead() {
-									Industry 
-								}
-								@ui.TableHead() {
-									Created At 
-								}
-								@ui.TableHead() {
-									Updated At 
-								}
-								@ui.TableHead() {
-									Actions 
-								}
-							}
-						}
-						@ui.TableBody() {
-							for _, company := range companies {
-								@ui.TableRow() {
-									@ui.TableCell() {
-										{ company.Name }
-									}
-									@ui.TableCell() {
-										{ company.Industry }
-									}
-									@ui.TableCell() {
-										{ company.CreatedAt.String() }
-									}
-									@ui.TableCell() {
-										{ company.UpdatedAt.String() }
-									}
-									@ui.TableCell() {
-										<div class="flex flex-wrap gap-3 text-sm">
-											<a class="text-base-content/80 hover:text-base-content" href={ routes.CompanyShow.URL(company.ID) }>View</a>
-											<a class="text-base-content/80 hover:text-base-content" href={ routes.CompanyEdit.URL(company.ID) }>Edit</a>
-										</div>
-									}
-								}
-							}
-						}
-					}
+							</tbody>
+						</table>
+					</div>
 				}
 			</div>
 		</main>
@@ -77,32 +60,32 @@ templ CompanyShow(company models.Company) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Company Details</h1>
 					<div class="flex flex-wrap gap-3">
-						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref(routes.CompanyEdit.URL(company.ID)).Render()
+						<a href={ routes.CompanyEdit.URL(company.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">Edit</a>
 						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.CompanyIndex.URL() }>Back to List</a>
 					</div>
 				</div>
-				@ui.Card() {
-					@ui.CardContent() {
+				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
+					<div class="p-6 pt-0">
 						<div class="grid gap-5 sm:grid-cols-2">
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Name"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Name</label>
 								<p class="text-sm text-base-content">{ company.Name }</p>
 							</div>
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Industry"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Industry</label>
 								<p class="text-sm text-base-content">{ company.Industry }</p>
 							</div>
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Created At"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
 								<p class="text-sm text-base-content">{ company.CreatedAt.String() }</p>
 							</div>
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Updated At"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
 								<p class="text-sm text-base-content">{ company.UpdatedAt.String() }</p>
 							</div>
 						</div>
-					}
-				}
+					</div>
+				</div>
 			</div>
 		</main>
 	}
@@ -112,27 +95,29 @@ templ CompanyNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@ui.Card() {
-					@ui.CardHeader() {
-						@ui.CardTitle("New Company")
-						@ui.CardDescription("Enter the details for the new company.")
-					}
-					@ui.CardContent() {
-						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: routes.CompanyCreate.URL()}, ui.WithClass("space-y-5"), ui.WithFragment("new-company-form")) {
-							<div class="space-y-4">
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Name"}).WithFor("name").Render()
-									@ui.Input("name").Render()
+				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
+					<div class="flex flex-col space-y-1.5 p-6">
+						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">New Company</h3>
+						<p class="text-sm text-base-content/60">Enter the details for the new company.</p>
+					</div>
+					<div class="p-6 pt-0">
+						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.CompanyCreate.URL()) }>
+							<fieldset data-attr:disabled="$submitting">
+								<div class="space-y-4">
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="name">Name</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="name"/>
+									</div>
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="industry">Industry</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="industry"/>
+									</div>
 								</div>
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Industry"}).WithFor("industry").Render()
-									@ui.Input("industry").Render()
-								</div>
-							</div>
-							@ui.Button(ui.ButtonProps{Label: "Create Company"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
-						}
-					}
-				}
+								<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Create Company</button>
+							</fieldset>
+						</form>
+					</div>
+				</div>
 			</div>
 		</main>
 	}
@@ -142,29 +127,31 @@ templ CompanyEdit(company models.Company) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@ui.Card() {
-					@ui.CardHeader() {
-						@ui.CardTitle("Edit Company")
-						@ui.CardDescription("Update the details for this company.")
-					}
-					@ui.CardContent() {
-						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: routes.CompanyUpdate.URL(company.ID)}, ui.WithClass("space-y-5"), ui.WithFragment("edit-company-form")) {
-							<div class="space-y-4">
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Name"}).WithFor("name").Render()
-									@ui.Input("name").WithValue(company.Name).Render()
+				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
+					<div class="flex flex-col space-y-1.5 p-6">
+						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">Edit Company</h3>
+						<p class="text-sm text-base-content/60">Update the details for this company.</p>
+					</div>
+					<div class="p-6 pt-0">
+						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPut, routes.CompanyUpdate.URL(company.ID)) }>
+							<fieldset data-attr:disabled="$submitting">
+								<div class="space-y-4">
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="name">Name</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="name" value={ company.Name }/>
+									</div>
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="industry">Industry</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="industry" value={ company.Industry }/>
+									</div>
 								</div>
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Industry"}).WithFor("industry").Render()
-									@ui.Input("industry").WithValue(company.Industry).Render()
-								</div>
-							</div>
-							@ui.Button(ui.ButtonProps{Label: "Update Company"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
-						}
-						@ui.Separator().Render()
-						@ui.Button(ui.ButtonProps{Label: "Destroy Company"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.CompanyDestroy.URL(company.ID))).Render()
-					}
-				}
+								<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Update Company</button>
+							</fieldset>
+						</form>
+						<div role="separator" class="shrink-0 bg-base-300 h-px w-full"></div>
+						<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-error text-error-content shadow-sm hover:bg-error/90 h-9 px-4 py-2 text-sm rounded-field w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.CompanyDestroy.URL(company.ID)) }>Destroy Company</button>
+					</div>
+				</div>
 			</div>
 		</main>
 	}
