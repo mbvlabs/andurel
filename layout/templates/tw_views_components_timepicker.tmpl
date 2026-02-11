@@ -5,6 +5,7 @@ type TimepickerBuilder struct {
 	value      string
 	id         string
 	class      string
+	classOverride bool
 	attrs      templ.Attributes
 	fragmentID string
 }
@@ -23,7 +24,7 @@ func (b *TimepickerBuilder) WithClass(c string) *TimepickerBuilder {
 	b.class = cn(b.class, c)
 	return b
 }
-func (b *TimepickerBuilder) SetClass(c string) *TimepickerBuilder { b.class = c; return b }
+func (b *TimepickerBuilder) SetClass(c string) *TimepickerBuilder { b.class = c; b.classOverride = true; return b }
 func (b *TimepickerBuilder) WithAttr(key string, val any) *TimepickerBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -34,7 +35,7 @@ func (b *TimepickerBuilder) WithAttr(key string, val any) *TimepickerBuilder {
 func (b *TimepickerBuilder) WithFragment(id string) *TimepickerBuilder { b.fragmentID = id; return b }
 
 func timepickerClasses(b *TimepickerBuilder) string {
-	return cn("relative w-full", b.class)
+	return mergeClass(cn("relative w-full"), b.class, b.classOverride)
 }
 
 func timepickerInputClasses() string {

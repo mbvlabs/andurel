@@ -11,6 +11,7 @@ type SliderBuilder struct {
 	disabled   bool
 	id         string
 	class      string
+	classOverride bool
 	attrs      templ.Attributes
 	fragmentID string
 }
@@ -32,7 +33,7 @@ func (b *SliderBuilder) WithValue(v float64) *SliderBuilder { b.value = v; retur
 func (b *SliderBuilder) WithDisabled(d bool) *SliderBuilder { b.disabled = d; return b }
 func (b *SliderBuilder) WithID(id string) *SliderBuilder    { b.id = id; return b }
 func (b *SliderBuilder) WithClass(c string) *SliderBuilder  { b.class = cn(b.class, c); return b }
-func (b *SliderBuilder) SetClass(c string) *SliderBuilder   { b.class = c; return b }
+func (b *SliderBuilder) SetClass(c string) *SliderBuilder   { b.class = c; b.classOverride = true; return b }
 func (b *SliderBuilder) WithAttr(key string, val any) *SliderBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -44,7 +45,7 @@ func (b *SliderBuilder) WithFragment(id string) *SliderBuilder { b.fragmentID = 
 
 func sliderClasses(b *SliderBuilder) string {
 	base := "w-full h-2 cursor-pointer appearance-none rounded-full bg-base-300 accent-primary transition [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
-	return cn(base, b.class)
+	return mergeClass(cn(base), b.class, b.classOverride)
 }
 
 func floatToStr(f float64) string {

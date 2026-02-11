@@ -8,6 +8,7 @@ type CheckboxBuilder struct {
 	required   bool
 	id         string
 	class      string
+	classOverride bool
 	attrs      templ.Attributes
 	fragmentID string
 }
@@ -28,7 +29,7 @@ func (b *CheckboxBuilder) WithDisabled(d bool) *CheckboxBuilder { b.disabled = d
 func (b *CheckboxBuilder) WithRequired(r bool) *CheckboxBuilder { b.required = r; return b }
 func (b *CheckboxBuilder) WithID(id string) *CheckboxBuilder    { b.id = id; return b }
 func (b *CheckboxBuilder) WithClass(c string) *CheckboxBuilder  { b.class = cn(b.class, c); return b }
-func (b *CheckboxBuilder) SetClass(c string) *CheckboxBuilder   { b.class = c; return b }
+func (b *CheckboxBuilder) SetClass(c string) *CheckboxBuilder   { b.class = c; b.classOverride = true; return b }
 func (b *CheckboxBuilder) WithAttr(key string, val any) *CheckboxBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -39,8 +40,8 @@ func (b *CheckboxBuilder) WithAttr(key string, val any) *CheckboxBuilder {
 func (b *CheckboxBuilder) WithFragment(id string) *CheckboxBuilder { b.fragmentID = id; return b }
 
 func checkboxClasses(b *CheckboxBuilder) string {
-	base := "h-4 w-4 shrink-0 rounded border border-base-300 bg-base-200 accent-primary transition focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
-	return cn(base, b.class)
+	base := "h-4 w-4 shrink-0 rounded border-2 border-base-content/40 bg-base-100 accent-primary transition focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
+	return mergeClass(cn(base), b.class, b.classOverride)
 }
 
 templ (b *CheckboxBuilder) Render() {

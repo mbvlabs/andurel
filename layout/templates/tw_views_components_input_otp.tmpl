@@ -7,6 +7,7 @@ type InputOTPBuilder struct {
 	length     int
 	id         string
 	class      string
+	classOverride bool
 	attrs      templ.Attributes
 	fragmentID string
 }
@@ -24,7 +25,7 @@ func InputOTP(bind string) *InputOTPBuilder {
 func (b *InputOTPBuilder) WithLength(l int) *InputOTPBuilder   { b.length = l; return b }
 func (b *InputOTPBuilder) WithID(id string) *InputOTPBuilder   { b.id = id; return b }
 func (b *InputOTPBuilder) WithClass(c string) *InputOTPBuilder { b.class = cn(b.class, c); return b }
-func (b *InputOTPBuilder) SetClass(c string) *InputOTPBuilder  { b.class = c; return b }
+func (b *InputOTPBuilder) SetClass(c string) *InputOTPBuilder  { b.class = c; b.classOverride = true; return b }
 func (b *InputOTPBuilder) WithAttr(key string, val any) *InputOTPBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -56,7 +57,7 @@ func otpPasteExpr(bind string, length int) string {
 }
 
 func inputOTPContainerClasses(b *InputOTPBuilder) string {
-	return cn("flex items-center gap-2", b.class)
+	return mergeClass(cn("flex items-center gap-2"), b.class, b.classOverride)
 }
 
 func inputOTPSlotClasses() string {

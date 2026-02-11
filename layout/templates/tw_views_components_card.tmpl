@@ -38,7 +38,7 @@ func cardFooterClasses(class string) string {
 //	}
 templ Card(opts ...Opt) {
 	<div
-		class={ cardClasses(classFrom(opts)) }
+		class={ mergeClass(cardClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -49,7 +49,7 @@ templ Card(opts ...Opt) {
 
 templ CardHeader(opts ...Opt) {
 	<div
-		class={ cardHeaderClasses(classFrom(opts)) }
+		class={ mergeClass(cardHeaderClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -60,7 +60,7 @@ templ CardHeader(opts ...Opt) {
 
 templ CardTitle(title string, opts ...Opt) {
 	<h3
-		class={ cardTitleClasses(classFrom(opts)) }
+		class={ mergeClass(cardTitleClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -71,7 +71,7 @@ templ CardTitle(title string, opts ...Opt) {
 
 templ CardDescription(description string, opts ...Opt) {
 	<p
-		class={ cardDescriptionClasses(classFrom(opts)) }
+		class={ mergeClass(cardDescriptionClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -82,7 +82,7 @@ templ CardDescription(description string, opts ...Opt) {
 
 templ CardContent(opts ...Opt) {
 	<div
-		class={ cardContentClasses(classFrom(opts)) }
+		class={ mergeClass(cardContentClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -93,7 +93,7 @@ templ CardContent(opts ...Opt) {
 
 templ CardFooter(opts ...Opt) {
 	<div
-		class={ cardFooterClasses(classFrom(opts)) }
+		class={ mergeClass(cardFooterClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}

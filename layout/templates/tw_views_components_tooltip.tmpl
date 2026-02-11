@@ -30,7 +30,7 @@ func tooltipContentClasses(class string) string {
 //	}
 templ Tooltip(opts ...Opt) {
 	<div
-		class={ tooltipClasses(classFrom(opts)) }
+		class={ mergeClass(tooltipClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -41,7 +41,7 @@ templ Tooltip(opts ...Opt) {
 
 templ TooltipTrigger(opts ...Opt) {
 	<div
-		class={ cn("cursor-pointer", classFrom(opts)) }
+		class={ mergeClass("cursor-pointer", classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -53,7 +53,7 @@ templ TooltipTrigger(opts ...Opt) {
 templ TooltipContent(opts ...Opt) {
 	<div
 		role="tooltip"
-		class={ tooltipContentClasses(classFrom(opts)) }
+		class={ mergeClass(tooltipContentClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}

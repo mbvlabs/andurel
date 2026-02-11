@@ -15,6 +15,7 @@ type AvatarBuilder struct {
 	size       AvatarSize
 	id         string
 	class      string
+	classOverride bool
 	attrs      templ.Attributes
 	fragmentID string
 }
@@ -35,7 +36,7 @@ func (b *AvatarBuilder) WithFallback(f string) *AvatarBuilder { b.fallback = f; 
 func (b *AvatarBuilder) WithSize(s AvatarSize) *AvatarBuilder { b.size = s; return b }
 func (b *AvatarBuilder) WithID(id string) *AvatarBuilder      { b.id = id; return b }
 func (b *AvatarBuilder) WithClass(c string) *AvatarBuilder    { b.class = cn(b.class, c); return b }
-func (b *AvatarBuilder) SetClass(c string) *AvatarBuilder     { b.class = c; return b }
+func (b *AvatarBuilder) SetClass(c string) *AvatarBuilder     { b.class = c; b.classOverride = true; return b }
 func (b *AvatarBuilder) WithAttr(key string, val any) *AvatarBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -58,7 +59,7 @@ func avatarSizeClasses(s AvatarSize) string {
 
 func avatarClasses(b *AvatarBuilder) string {
 	base := "relative flex shrink-0 overflow-hidden rounded-full"
-	return cn(base, avatarSizeClasses(b.size), b.class)
+	return mergeClass(cn(base, avatarSizeClasses(b.size)), b.class, b.classOverride)
 }
 
 templ (b *AvatarBuilder) Render() {

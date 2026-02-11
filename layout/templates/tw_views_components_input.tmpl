@@ -26,6 +26,7 @@ type InputBuilder struct {
 	hasError    bool
 	id          string
 	class       string
+	classOverride bool
 	attrs       templ.Attributes
 	fragmentID  string
 }
@@ -49,7 +50,7 @@ func (b *InputBuilder) WithRequired(r bool) *InputBuilder      { b.required = r;
 func (b *InputBuilder) WithHasError(e bool) *InputBuilder      { b.hasError = e; return b }
 func (b *InputBuilder) WithID(id string) *InputBuilder         { b.id = id; return b }
 func (b *InputBuilder) WithClass(c string) *InputBuilder       { b.class = cn(b.class, c); return b }
-func (b *InputBuilder) SetClass(c string) *InputBuilder        { b.class = c; return b }
+func (b *InputBuilder) SetClass(c string) *InputBuilder        { b.class = c; b.classOverride = true; return b }
 func (b *InputBuilder) WithAttr(key string, val any) *InputBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -65,7 +66,7 @@ func inputClasses(b *InputBuilder) string {
 	if b.hasError {
 		borderClass = "border-error focus:border-error focus:ring-error/50"
 	}
-	return cn(base, borderClass, b.class)
+	return mergeClass(cn(base, borderClass), b.class, b.classOverride)
 }
 
 templ (b *InputBuilder) Render() {

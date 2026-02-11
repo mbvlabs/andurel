@@ -4,6 +4,7 @@ type CopyButtonBuilder struct {
 	value      string
 	id         string
 	class      string
+	classOverride bool
 	attrs      templ.Attributes
 	fragmentID string
 }
@@ -21,7 +22,7 @@ func (b *CopyButtonBuilder) WithClass(c string) *CopyButtonBuilder {
 	b.class = cn(b.class, c)
 	return b
 }
-func (b *CopyButtonBuilder) SetClass(c string) *CopyButtonBuilder { b.class = c; return b }
+func (b *CopyButtonBuilder) SetClass(c string) *CopyButtonBuilder { b.class = c; b.classOverride = true; return b }
 func (b *CopyButtonBuilder) WithAttr(key string, val any) *CopyButtonBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -33,7 +34,7 @@ func (b *CopyButtonBuilder) WithFragment(id string) *CopyButtonBuilder { b.fragm
 
 func copyButtonClasses(b *CopyButtonBuilder) string {
 	base := "inline-flex items-center justify-center h-8 w-8 rounded-field border border-base-300 bg-transparent text-base-content/60 shadow-sm transition hover:bg-base-200 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 cursor-pointer"
-	return cn(base, b.class)
+	return mergeClass(cn(base), b.class, b.classOverride)
 }
 
 templ (b *CopyButtonBuilder) Render() {

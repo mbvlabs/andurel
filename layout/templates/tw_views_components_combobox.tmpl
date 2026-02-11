@@ -7,6 +7,7 @@ type ComboboxBuilder struct {
 	placeholder string
 	id          string
 	class       string
+	classOverride bool
 	attrs       templ.Attributes
 	fragmentID  string
 }
@@ -36,7 +37,7 @@ func Combobox(bind string) *ComboboxBuilder {
 func (b *ComboboxBuilder) WithPlaceholder(p string) *ComboboxBuilder { b.placeholder = p; return b }
 func (b *ComboboxBuilder) WithID(id string) *ComboboxBuilder         { b.id = id; return b }
 func (b *ComboboxBuilder) WithClass(c string) *ComboboxBuilder       { b.class = cn(b.class, c); return b }
-func (b *ComboboxBuilder) SetClass(c string) *ComboboxBuilder        { b.class = c; return b }
+func (b *ComboboxBuilder) SetClass(c string) *ComboboxBuilder        { b.class = c; b.classOverride = true; return b }
 func (b *ComboboxBuilder) WithAttr(key string, val any) *ComboboxBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -47,7 +48,7 @@ func (b *ComboboxBuilder) WithAttr(key string, val any) *ComboboxBuilder {
 func (b *ComboboxBuilder) WithFragment(id string) *ComboboxBuilder { b.fragmentID = id; return b }
 
 func comboboxClasses(b *ComboboxBuilder) string {
-	return cn("relative w-full", b.class)
+	return mergeClass(cn("relative w-full"), b.class, b.classOverride)
 }
 
 func comboboxInputClasses() string {
@@ -130,7 +131,7 @@ templ ComboboxList() {
 
 templ ComboboxItem(label string, value string, selected bool, opts ...Opt) {
 	<li
-		class={ comboboxItemClasses(selected, classFrom(opts)) }
+		class={ mergeClass(comboboxItemClasses(selected, ""), classFrom(opts), classOverrideFrom(opts)) }
 		role="option"
 		if value != "" {
 			data-value={ value }

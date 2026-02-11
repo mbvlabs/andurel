@@ -35,7 +35,7 @@ func breadcrumbSeparatorClasses(class string) string {
 templ Breadcrumb(opts ...Opt) {
 	<nav aria-label="breadcrumb">
 		<ol
-			class={ breadcrumbClasses(classFrom(opts)) }
+			class={ mergeClass(breadcrumbClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 			if attrsFrom(opts) != nil {
 				{ attrsFrom(opts)... }
 			}
@@ -47,7 +47,7 @@ templ Breadcrumb(opts ...Opt) {
 
 templ BreadcrumbItem(opts ...Opt) {
 	<li
-		class={ breadcrumbItemClasses(classFrom(opts)) }
+		class={ mergeClass(breadcrumbItemClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -59,7 +59,7 @@ templ BreadcrumbItem(opts ...Opt) {
 templ BreadcrumbLink(label string, href string, active bool, opts ...Opt) {
 	if active {
 		<span
-			class={ breadcrumbLinkClasses(active, classFrom(opts)) }
+			class={ mergeClass(breadcrumbLinkClasses(active, ""), classFrom(opts), classOverrideFrom(opts)) }
 			aria-current="page"
 			if attrsFrom(opts) != nil {
 				{ attrsFrom(opts)... }
@@ -70,7 +70,7 @@ templ BreadcrumbLink(label string, href string, active bool, opts ...Opt) {
 	} else {
 		<a
 			href={ href }
-			class={ breadcrumbLinkClasses(active, classFrom(opts)) }
+			class={ mergeClass(breadcrumbLinkClasses(active, ""), classFrom(opts), classOverrideFrom(opts)) }
 			if attrsFrom(opts) != nil {
 				{ attrsFrom(opts)... }
 			}
@@ -83,7 +83,7 @@ templ BreadcrumbLink(label string, href string, active bool, opts ...Opt) {
 templ BreadcrumbSeparator(opts ...Opt) {
 	<li
 		role="presentation"
-		class={ breadcrumbSeparatorClasses(classFrom(opts)) }
+		class={ mergeClass(breadcrumbSeparatorClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}

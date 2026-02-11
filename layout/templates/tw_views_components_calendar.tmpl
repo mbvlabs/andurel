@@ -11,6 +11,7 @@ type CalendarBuilder struct {
 	selectedDate string
 	id           string
 	class        string
+	classOverride bool
 	attrs        templ.Attributes
 	fragmentID   string
 }
@@ -29,7 +30,7 @@ func (b *CalendarBuilder) WithYear(y int) *CalendarBuilder            { b.year =
 func (b *CalendarBuilder) WithSelectedDate(d string) *CalendarBuilder { b.selectedDate = d; return b }
 func (b *CalendarBuilder) WithID(id string) *CalendarBuilder          { b.id = id; return b }
 func (b *CalendarBuilder) WithClass(c string) *CalendarBuilder        { b.class = cn(b.class, c); return b }
-func (b *CalendarBuilder) SetClass(c string) *CalendarBuilder         { b.class = c; return b }
+func (b *CalendarBuilder) SetClass(c string) *CalendarBuilder         { b.class = c; b.classOverride = true; return b }
 func (b *CalendarBuilder) WithAttr(key string, val any) *CalendarBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -40,7 +41,7 @@ func (b *CalendarBuilder) WithAttr(key string, val any) *CalendarBuilder {
 func (b *CalendarBuilder) WithFragment(id string) *CalendarBuilder { b.fragmentID = id; return b }
 
 func calendarClasses(b *CalendarBuilder) string {
-	return cn("p-3 rounded-box border border-base-300 bg-base-100 shadow-sm w-fit", b.class)
+	return mergeClass(cn("p-3 rounded-box border border-base-300 bg-base-100 shadow-sm w-fit"), b.class, b.classOverride)
 }
 
 func calendarMonthName(month int) string {

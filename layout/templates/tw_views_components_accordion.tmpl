@@ -29,7 +29,7 @@ func accordionContentClasses(class string) string {
 //	}
 templ Accordion(opts ...Opt) {
 	<div
-		class={ accordionClasses(classFrom(opts)) }
+		class={ mergeClass(accordionClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -39,14 +39,14 @@ templ Accordion(opts ...Opt) {
 }
 
 templ AccordionItem(label string, opts ...Opt) {
-	@accordionItemInner(resolveID(opts), label, classFrom(opts), attrsFrom(opts)) {
+	@accordionItemInner(resolveID(opts), label, mergeClass(accordionItemClasses(""), classFrom(opts), classOverrideFrom(opts)), attrsFrom(opts)) {
 		{ children... }
 	}
 }
 
 templ accordionItemInner(id string, label string, class string, attrs templ.Attributes) {
 	<div
-		class={ accordionItemClasses(class) }
+		class={ class }
 		{ templ.Attributes{"data-signals:_" + id: "false"}... }
 		if attrs != nil {
 			{ attrs... }

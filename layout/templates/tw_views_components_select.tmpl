@@ -7,6 +7,7 @@ type SelectBuilder struct {
 	hasError   bool
 	id         string
 	class      string
+	classOverride bool
 	attrs      templ.Attributes
 	fragmentID string
 }
@@ -29,7 +30,7 @@ func (b *SelectBuilder) WithRequired(r bool) *SelectBuilder { b.required = r; re
 func (b *SelectBuilder) WithHasError(e bool) *SelectBuilder { b.hasError = e; return b }
 func (b *SelectBuilder) WithID(id string) *SelectBuilder    { b.id = id; return b }
 func (b *SelectBuilder) WithClass(c string) *SelectBuilder  { b.class = cn(b.class, c); return b }
-func (b *SelectBuilder) SetClass(c string) *SelectBuilder   { b.class = c; return b }
+func (b *SelectBuilder) SetClass(c string) *SelectBuilder   { b.class = c; b.classOverride = true; return b }
 func (b *SelectBuilder) WithAttr(key string, val any) *SelectBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -45,7 +46,7 @@ func selectClasses(b *SelectBuilder) string {
 	if b.hasError {
 		borderClass = "border-error focus:border-error focus:ring-error/50"
 	}
-	return cn(base, borderClass, b.class)
+	return mergeClass(cn(base, borderClass), b.class, b.classOverride)
 }
 
 templ (b *SelectBuilder) Render() {

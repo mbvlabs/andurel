@@ -21,14 +21,19 @@ func cn(classes ...string) string {
 type Opt func(*optConfig)
 
 type optConfig struct {
-	class      string
-	attrs      templ.Attributes
-	id         string
-	fragmentID string
+	class         string
+	classOverride bool
+	attrs         templ.Attributes
+	id            string
+	fragmentID    string
 }
 
 func WithClass(c string) Opt {
 	return func(cfg *optConfig) { cfg.class = cn(cfg.class, c) }
+}
+
+func SetClass(c string) Opt {
+	return func(cfg *optConfig) { cfg.class = c; cfg.classOverride = true }
 }
 
 func WithAttr(key string, val any) Opt {
@@ -62,6 +67,21 @@ func classFrom(opts []Opt) string {
 		o(&cfg)
 	}
 	return cfg.class
+}
+
+func classOverrideFrom(opts []Opt) bool {
+	cfg := optConfig{}
+	for _, o := range opts {
+		o(&cfg)
+	}
+	return cfg.classOverride
+}
+
+func mergeClass(base string, class string, override bool) string {
+	if override {
+		return strings.TrimSpace(class)
+	}
+	return cn(base, class)
 }
 
 func attrsFrom(opts []Opt) templ.Attributes {

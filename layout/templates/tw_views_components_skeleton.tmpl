@@ -3,6 +3,7 @@ package components
 type SkeletonBuilder struct {
 	id         string
 	class      string
+	classOverride bool
 	attrs      templ.Attributes
 	fragmentID string
 }
@@ -19,7 +20,7 @@ func Skeleton() *SkeletonBuilder {
 
 func (b *SkeletonBuilder) WithID(id string) *SkeletonBuilder   { b.id = id; return b }
 func (b *SkeletonBuilder) WithClass(c string) *SkeletonBuilder { b.class = cn(b.class, c); return b }
-func (b *SkeletonBuilder) SetClass(c string) *SkeletonBuilder  { b.class = c; return b }
+func (b *SkeletonBuilder) SetClass(c string) *SkeletonBuilder  { b.class = c; b.classOverride = true; return b }
 func (b *SkeletonBuilder) WithAttr(key string, val any) *SkeletonBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -31,7 +32,7 @@ func (b *SkeletonBuilder) WithFragment(id string) *SkeletonBuilder { b.fragmentI
 
 func skeletonClasses(b *SkeletonBuilder) string {
 	base := "animate-pulse rounded-field bg-base-300"
-	return cn(base, b.class)
+	return mergeClass(cn(base), b.class, b.classOverride)
 }
 
 templ (b *SkeletonBuilder) Render() {
