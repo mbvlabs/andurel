@@ -5,25 +5,37 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 
 	"github.com/mbvlabs/andurel/layout"
-	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/spf13/cobra"
 )
 
-var goTools = map[string]string{
-	"templ":   "github.com/a-h/templ/cmd/templ",
-	"sqlc":    "github.com/sqlc-dev/sqlc/cmd/sqlc",
-	"goose":   "github.com/pressly/goose/v3/cmd/goose",
-	"mailpit": "github.com/axllent/mailpit",
-	"usql":    "github.com/xo/usql",
-	"shadowfax": "github.com/mbvlabs/shadowfax",
+type managedTool struct {
+	Name        string
+	Module      string
+	Description string
 }
 
-var binaryTools = map[string]bool{
-	"tailwindcli": true,
+var managedTools = []managedTool{
+	{Name: "templ", Module: "github.com/a-h/templ/cmd/templ", Description: "Templ templating engine"},
+	{Name: "sqlc", Module: "github.com/sqlc-dev/sqlc/cmd/sqlc", Description: "SQL compiler"},
+	{Name: "goose", Module: "github.com/pressly/goose/v3/cmd/goose", Description: "Database migrations"},
+	{Name: "mailpit", Module: "github.com/axllent/mailpit", Description: "Email testing"},
+	{Name: "usql", Module: "github.com/xo/usql", Description: "Universal SQL CLI"},
+	{Name: "dblab", Module: "github.com/danvergara/dblab", Description: "Database UI"},
+	{Name: "shadowfax", Module: "github.com/mbvlabs/shadowfax", Description: "Shadowfax dev server"},
+	{Name: "tailwindcli", Description: "Tailwind CSS CLI"},
 }
+
+var managedToolByName = func() map[string]managedTool {
+	m := make(map[string]managedTool, len(managedTools))
+	for _, tool := range managedTools {
+		m[tool.Name] = tool
+	}
+	return m
+}()
 
 func newSetVersionCommand() *cobra.Command {
 	return &cobra.Command{
@@ -31,26 +43,16 @@ func newSetVersionCommand() *cobra.Command {
 		Short: "Set a specific version for a tool",
 		Long: `Set the version of a tool and update it.
 
-Go tools (downloaded from GitHub releases):
-  templ        - Templ templating engine
-  sqlc         - SQL compiler
-  goose        - Database migrations
-  mailpit      - Email testing
-  usql         - Universal SQL CLI
-  shadowfax    - Shadowfax dev server
-
-Binary tools (downloaded from GitHub):
-  tailwindcli  - Tailwind CSS CLI
-
+The tool entry in andurel.lock controls where binaries are downloaded from.
 The version should be specified WITHOUT the "v" prefix.
 
 Examples:
-  andurel tool set-version templ 0.3.950
-  andurel tool set-version sqlc 1.28.0
-  andurel tool set-version tailwindcli 4.1.17
-  andurel tool set-version shadowfax 0.1.0
+  andurel tool set-version templ 0.3.977
+  andurel tool set-version sqlc 1.30.0
+  andurel tool set-version tailwindcli 4.1.18
+  andurel tool set-version shadowfax 0.1.3
 
-This updates andurel.lock and downloads the tool binary to bin/.`,
+This updates andurel.lock and syncs the tool binary to bin/.`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			toolName := args[0]
@@ -67,35 +69,15 @@ This updates andurel.lock and downloads the tool binary to bin/.`,
 }
 
 func setVersion(projectRoot, toolName, version string) error {
-	_, isGoTool := goTools[toolName]
-	_, isBinaryTool := binaryTools[toolName]
-
-	if !isGoTool && !isBinaryTool {
-		return fmt.Errorf("unknown tool: %s\n\nSupported Go tools:\n  templ, sqlc, goose, mailpit, usql, shadowfax\n\nSupported binary tools:\n  tailwindcli\n\nRun 'andurel tool set-version --help' for more information", toolName)
-	}
-
 	if version == "" {
 		return fmt.Errorf("version cannot be empty\n\nExample: andurel tool set-version %s 1.0.0", toolName)
 	}
 
-	if len(version) > 0 && version[0] == 'v' {
+	if strings.HasPrefix(version, "v") {
 		version = version[1:]
 	}
-
 	versionWithV := "v" + version
 
-	if isGoTool {
-		return setGoToolVersion(projectRoot, toolName, versionWithV)
-	}
-
-	return setBinaryToolVersion(projectRoot, toolName, versionWithV)
-}
-
-func setGoToolVersion(projectRoot, toolName, version string) error {
-	modulePath := goTools[toolName]
-	moduleRepo := extractModulePath(modulePath)
-
-	// Read and update lock file
 	lockPath := filepath.Join(projectRoot, "andurel.lock")
 	if _, err := os.Stat(lockPath); err != nil {
 		return fmt.Errorf("andurel.lock not found. Are you in an andurel project?")
@@ -106,35 +88,60 @@ func setGoToolVersion(projectRoot, toolName, version string) error {
 		return fmt.Errorf("failed to read lock file: %w", err)
 	}
 
-	lock.AddTool(toolName, layout.NewGoTool(moduleRepo, version))
+	tool, exists := lock.Tools[toolName]
+	if !exists {
+		managed, ok := managedToolByName[toolName]
+		if !ok {
+			return unknownToolError(toolName)
+		}
+
+		if managed.Module != "" {
+			tool = layout.NewGoTool(toolName, extractModulePath(managed.Module), versionWithV)
+		} else {
+			tool = layout.NewBinaryTool(toolName, versionWithV)
+		}
+		lock.AddTool(toolName, tool)
+	} else {
+		tool.Version = versionWithV
+		if tool.Download == nil {
+			if spec, ok := layout.GetDefaultToolDownload(toolName); ok {
+				tool.Download = spec
+			}
+		}
+		lock.AddTool(toolName, tool)
+	}
 
 	if err := lock.WriteLockFile(projectRoot); err != nil {
 		return fmt.Errorf("failed to update lock file: %w", err)
 	}
 
-	fmt.Printf("Setting %s to version %s...\n", toolName, version)
+	fmt.Printf("Setting %s to version %s...\n", toolName, versionWithV)
 
-	// Remove old binary if it exists
-	binPath := filepath.Join(projectRoot, "bin", toolName)
-	if _, err := os.Stat(binPath); err == nil {
-		fmt.Printf("  - Removing old binary...\n")
-		if err := os.Remove(binPath); err != nil {
-			return fmt.Errorf("failed to remove old binary: %w", err)
-		}
+	binDir := filepath.Join(projectRoot, "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
 
-	// Download new binary
-	fmt.Printf("  - Downloading %s %s...\n", toolName, version)
-
-	goos := runtime.GOOS
-	goarch := runtime.GOARCH
-
-	if err := cmds.DownloadGoTool(toolName, moduleRepo, version, goos, goarch, binPath); err != nil {
-		return fmt.Errorf("failed to download %s: %w", toolName, err)
+	if err := syncSingleTool(projectRoot, toolName, lock.Tools[toolName], runtime.GOOS, runtime.GOARCH); err != nil {
+		return err
 	}
 
-	fmt.Printf("\n✓ Successfully updated %s to %s\n", toolName, version)
+	fmt.Printf("\n✓ Successfully updated %s to %s\n", toolName, versionWithV)
 	return nil
+}
+
+func unknownToolError(toolName string) error {
+	allNames := make([]string, 0, len(managedTools))
+	for _, tool := range managedTools {
+		allNames = append(allNames, tool.Name)
+	}
+	sort.Strings(allNames)
+
+	return fmt.Errorf(
+		"unknown tool: %s\n\nSupported tools:\n  %s\n\nRun 'andurel tool set-version --help' for more information",
+		toolName,
+		strings.Join(allNames, ", "),
+	)
 }
 
 func extractModulePath(module string) string {
@@ -143,45 +150,4 @@ func extractModulePath(module string) string {
 		return strings.Join(parts[:3], "/")
 	}
 	return module
-}
-
-func setBinaryToolVersion(projectRoot, toolName, version string) error {
-	lockPath := filepath.Join(projectRoot, "andurel.lock")
-	if _, err := os.Stat(lockPath); err != nil {
-		return fmt.Errorf("andurel.lock not found. Are you in an andurel project?")
-	}
-
-	lock, err := layout.ReadLockFile(projectRoot)
-	if err != nil {
-		return fmt.Errorf("failed to read lock file: %w", err)
-	}
-
-	fmt.Printf("Setting %s to version %s...\n", toolName, version)
-
-	binPath := filepath.Join(projectRoot, "bin", toolName)
-	if _, err := os.Stat(binPath); err == nil {
-		fmt.Printf("  - Removing old binary...\n")
-		if err := os.Remove(binPath); err != nil {
-			return fmt.Errorf("failed to remove old binary: %w", err)
-		}
-	}
-
-	fmt.Printf("  - Downloading %s %s...\n", toolName, version)
-
-	if toolName == "tailwindcli" {
-		if err := cmds.DownloadTailwindCLI(version, runtime.GOOS, runtime.GOARCH, binPath); err != nil {
-			return fmt.Errorf("failed to download %s: %w", toolName, err)
-		}
-	} else {
-		return fmt.Errorf("unknown binary tool: %s", toolName)
-	}
-
-	lock.AddTool(toolName, layout.NewBinaryTool(version))
-
-	if err := lock.WriteLockFile(projectRoot); err != nil {
-		return fmt.Errorf("failed to update lock file: %w", err)
-	}
-
-	fmt.Printf("\n✓ Successfully updated %s to %s\n", toolName, version)
-	return nil
 }

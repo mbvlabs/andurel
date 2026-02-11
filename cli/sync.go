@@ -64,59 +64,19 @@ func syncBinaries(projectRoot string) error {
 	}
 
 	for name, tool := range lock.Tools {
-		binPath := filepath.Join(projectRoot, "bin", name)
-
-		if _, err := os.Stat(binPath); err == nil {
-			// Binary exists - check version
-			actualVersion, verr := getToolVersionForSync(name)
-			if verr == nil && versionsMatch(tool.Version, actualVersion) {
-				fmt.Printf("✓ %s (%s) - up to date\n", name, tool.Version)
+		if err := syncSingleTool(projectRoot, name, tool, goos, goarch); err != nil {
+			if errors.Is(err, cmds.ErrFailedToGetRleaseURL) {
+				fmt.Printf(
+					"failed to find release for %s %s on %s/%s \n",
+					name,
+					tool.Version,
+					goos,
+					goarch,
+				)
 				continue
 			}
-			// Version mismatch or couldn't determine version - re-download
-			if verr != nil {
-				fmt.Printf("⟳ %s: version unknown, re-downloading %s\n", name, tool.Version)
-			} else {
-				fmt.Printf("⟳ %s: updating %s → %s\n", name, actualVersion, tool.Version)
-			}
-			if err := os.Remove(binPath); err != nil {
-				return fmt.Errorf("failed to remove outdated %s: %w", name, err)
-			}
-		}
 
-		switch tool.Source {
-		case "go":
-			fmt.Printf("⬇ Downloading %s %s for %s/%s...\n", name, tool.Version, goos, goarch)
-			if err := cmds.DownloadGoTool(name, tool.Module, tool.Version, goos, goarch, binPath); err != nil {
-				if errors.Is(err, cmds.ErrFailedToGetRleaseURL) {
-					fmt.Printf(
-						"failed to find release for %s %s on %s/%s \n",
-						name,
-						tool.Version,
-						goos,
-						goarch,
-					)
-					continue
-				}
-
-				return fmt.Errorf("failed to download %s: %w", name, err)
-			}
-			fmt.Printf("✓ %s (%s) - downloaded successfully\n", name, tool.Version)
-
-		case "binary":
-			fmt.Printf("⬇ Downloading %s %s for %s/%s...\n", name, tool.Version, goos, goarch)
-			if name == "tailwindcli" {
-				if err := cmds.DownloadTailwindCLI(tool.Version, goos, goarch, binPath); err != nil {
-					return fmt.Errorf("failed to download %s: %w", name, err)
-				}
-			} else {
-				return fmt.Errorf("unknown binary tool: %s", name)
-			}
-			fmt.Printf("✓ %s (%s) - downloaded successfully\n", name, tool.Version)
-
-		default:
-			fmt.Printf("unknown tool source - tool: %s source: %s \n", name, tool.Source)
-			continue
+			return err
 		}
 	}
 
@@ -138,4 +98,69 @@ func syncBinaries(projectRoot string) error {
 
 	fmt.Println("\nAll tools synced successfully!")
 	return nil
+}
+
+func syncSingleTool(projectRoot, name string, tool *layout.Tool, goos, goarch string) error {
+	binPath := filepath.Join(projectRoot, "bin", name)
+
+	if _, err := os.Stat(binPath); err == nil {
+		actualVersion, verr := getToolVersionForSync(name)
+		if verr == nil && versionsMatch(tool.Version, actualVersion) {
+			fmt.Printf("✓ %s (%s) - up to date\n", name, tool.Version)
+			return nil
+		}
+
+		if verr != nil {
+			fmt.Printf("⟳ %s: version unknown, re-downloading %s\n", name, tool.Version)
+		} else {
+			fmt.Printf("⟳ %s: updating %s → %s\n", name, actualVersion, tool.Version)
+		}
+
+		if err := os.Remove(binPath); err != nil {
+			return fmt.Errorf("failed to remove outdated %s: %w", name, err)
+		}
+	}
+
+	fmt.Printf("⬇ Downloading %s %s for %s/%s...\n", name, tool.Version, goos, goarch)
+	if err := downloadFromLockTool(name, tool, goos, goarch, binPath); err != nil {
+		return fmt.Errorf("failed to download %s: %w", name, err)
+	}
+	fmt.Printf("✓ %s (%s) - downloaded successfully\n", name, tool.Version)
+
+	return nil
+}
+
+func downloadFromLockTool(name string, tool *layout.Tool, goos, goarch, binPath string) error {
+	if tool == nil {
+		return fmt.Errorf("missing tool configuration")
+	}
+
+	if tool.Download != nil && tool.Download.URLTemplate != "" {
+		archive := tool.Download.Archive
+		if archive == "" {
+			archive = "binary"
+		}
+
+		return cmds.DownloadFromURLTemplate(
+			name,
+			tool.Version,
+			tool.Download.URLTemplate,
+			archive,
+			tool.Download.BinaryName,
+			goos,
+			goarch,
+			binPath,
+		)
+	}
+
+	// Backward-compat fallback for older lock files.
+	if tool.Module != "" {
+		return cmds.DownloadGoTool(name, tool.Module, tool.Version, goos, goarch, binPath)
+	}
+
+	if name == "tailwindcli" {
+		return cmds.DownloadTailwindCLI(tool.Version, goos, goarch, binPath)
+	}
+
+	return fmt.Errorf("tool has no download metadata")
 }

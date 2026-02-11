@@ -54,13 +54,11 @@ func TestShouldUpdateTool_NoDowngrade(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			existing := &layout.Tool{
-				Source:  "go",
 				Module:  "github.com/example/tool",
 				Version: tt.existingVersion,
 			}
 
 			expected := &layout.Tool{
-				Source:  "go",
 				Module:  "github.com/example/tool",
 				Version: tt.expectedVersion,
 			}
@@ -126,13 +124,11 @@ func TestShouldUpdateTool_BuiltTools(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			existing := &layout.Tool{
-				Source:  "built",
 				Path:    tt.existingPath,
 				Version: tt.existingVersion,
 			}
 
 			expected := &layout.Tool{
-				Source:  "built",
 				Path:    tt.expectedPath,
 				Version: tt.expectedVersion,
 			}
@@ -148,19 +144,18 @@ func TestShouldUpdateTool_BuiltTools(t *testing.T) {
 	}
 }
 
-func TestShouldUpdateTool_DifferentSources(t *testing.T) {
+func TestShouldUpdateTool_UsesSemverForVersionedTools(t *testing.T) {
 	existing := &layout.Tool{
-		Source:  "go",
 		Module:  "github.com/example/tool",
 		Version: "v1.0.0",
 	}
 
 	expected := &layout.Tool{
-		Source:  "binary",
+		Module:  "github.com/example/tool",
 		Version: "v2.0.0",
 	}
 
-	if shouldUpdateTool(existing, expected) {
-		t.Error("shouldUpdateTool should return false when sources don't match")
+	if !shouldUpdateTool(existing, expected) {
+		t.Error("shouldUpdateTool should return true when expected semver is higher")
 	}
 }

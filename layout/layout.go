@@ -905,12 +905,12 @@ func GetExpectedTools(config *ScaffoldConfig) map[string]*Tool {
 	// Add all default Go tools
 	for _, tool := range DefaultGoTools {
 		moduleRepo := extractRepo(tool.Module)
-		expectedTools[tool.Name] = NewGoTool(moduleRepo, tool.Version)
+		expectedTools[tool.Name] = NewGoTool(tool.Name, moduleRepo, tool.Version)
 	}
 
 	// Add tailwindcli if using Tailwind CSS
 	if config != nil && config.CSSFramework == "tailwind" {
-		expectedTools["tailwindcli"] = NewBinaryTool(versions.TailwindCLI)
+		expectedTools["tailwindcli"] = NewBinaryTool("tailwindcli", versions.TailwindCLI)
 	}
 
 	return expectedTools
@@ -1030,11 +1030,11 @@ func generateLockFile(targetDir, version string, hasTailwind bool, config *Scaff
 
 	for _, tool := range DefaultGoTools {
 		moduleRepo := extractRepo(tool.Module)
-		lock.AddTool(tool.Name, NewGoTool(moduleRepo, tool.Version))
+		lock.AddTool(tool.Name, NewGoTool(tool.Name, moduleRepo, tool.Version))
 	}
 
 	if hasTailwind {
-		lock.AddTool("tailwindcli", NewBinaryTool(versions.TailwindCLI))
+		lock.AddTool("tailwindcli", NewBinaryTool("tailwindcli", versions.TailwindCLI))
 	}
 
 	if config != nil {

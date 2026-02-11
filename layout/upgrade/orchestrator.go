@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/mbvlabs/andurel/layout"
 	"golang.org/x/mod/semver"
@@ -253,7 +252,7 @@ func (u *Upgrader) syncToolsToFrameworkVersion() (*ToolSyncResult, error) {
 		Updated: []string{},
 	}
 
-	if existingTool, ok := u.lock.Tools["run"]; ok && existingTool.Source == "built" {
+	if existingTool, ok := u.lock.Tools["run"]; ok && existingTool.Path != "" {
 		delete(u.lock.Tools, "run")
 		result.Removed = append(result.Removed, "run")
 	}
@@ -274,7 +273,7 @@ func (u *Upgrader) syncToolsToFrameworkVersion() (*ToolSyncResult, error) {
 			)
 		} else if shouldUpdateTool(existingTool, expectedTool) {
 			// Tool exists but needs update
-			if existingTool.Source == "built" {
+			if existingTool.Path != "" {
 				// Update version and path for built tools
 				existingTool.Version = expectedTool.Version
 				existingTool.Path = expectedTool.Path
@@ -282,6 +281,7 @@ func (u *Upgrader) syncToolsToFrameworkVersion() (*ToolSyncResult, error) {
 			} else {
 				// Update version for versioned tools
 				existingTool.Version = expectedTool.Version
+				existingTool.Download = expectedTool.Download
 				result.Updated = append(result.Updated, fmt.Sprintf("%s: %s", toolName, getToolVersion(expectedTool)))
 			}
 			u.lock.Tools[toolName] = existingTool
@@ -305,18 +305,14 @@ func (u *Upgrader) syncToolsToFrameworkVersion() (*ToolSyncResult, error) {
 // isFrameworkManagedTool determines if a tool is managed by the framework
 // vs a user-added custom tool. Framework tools have known sources and patterns.
 func isFrameworkManagedTool(name string, tool *layout.Tool) bool {
-	// All "go" source tools with github.com modules are framework-managed
-	if tool.Source == "go" && strings.Contains(tool.Module, "github.com") {
-		// Check if it's in the known default tools list
-		for _, defaultTool := range layout.DefaultGoTools {
-			if defaultTool.Name == name {
-				return true
-			}
+	// Check if it's in the known default tools list.
+	for _, defaultTool := range layout.DefaultGoTools {
+		if defaultTool.Name == name {
+			return true
 		}
 	}
 
-	// Binary tools (tailwindcli)
-	if tool.Source == "binary" && name == "tailwindcli" {
+	if name == "tailwindcli" {
 		return true
 	}
 
@@ -327,13 +323,8 @@ func isFrameworkManagedTool(name string, tool *layout.Tool) bool {
 // shouldUpdateTool determines if a tool needs its version updated
 // Only upgrades tools, never downgrades (preserves user's manual version bumps)
 func shouldUpdateTool(existing, expected *layout.Tool) bool {
-	// Only update if sources match
-	if existing.Source != expected.Source {
-		return false
-	}
-
-	// For "built" tools, update if the version or path has changed
-	if existing.Source == "built" {
+	// For legacy "built" tools, update if the version or path has changed.
+	if existing.Path != "" || expected.Path != "" {
 		return existing.Version != expected.Version || existing.Path != expected.Path
 	}
 
