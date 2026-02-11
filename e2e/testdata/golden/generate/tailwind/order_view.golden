@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"testapp/internal/hypermedia"
-	ui "testapp/internal/ui"
 	"testapp/models"
 	"testapp/router/routes"
 )
@@ -15,68 +14,44 @@ templ OrderIndex(orders []models.Order) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Orders</h1>
-					@ui.Button(ui.ButtonProps{Label: "New Order"}).WithHref(routes.OrderNew.URL()).Render()
+					<a href={ routes.OrderNew.URL() } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">New Order</a>
 				</div>
 				if len(orders) == 0 {
 					<p class="text-sm text-base-content/60">No orders found.</p>
 				} else {
-					@ui.Table() {
-						@ui.TableHeader() {
-							@ui.TableRow() {
-								@ui.TableHead() {
-									Account Id 
+					<div class="relative w-full overflow-auto">
+						<table class="w-full caption-bottom text-sm">
+							<thead class="[&_tr]:border-b [&_tr]:border-base-300">
+								<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Account Id</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Customer Name</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Total</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Signature</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Created At</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Updated At</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Actions</th>
+								</tr>
+							</thead>
+							<tbody class="[&_tr:last-child]:border-0">
+								for _, order := range orders {
+									<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ order.AccountID.String() }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ order.CustomerName }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%f", order.Total) }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ string(order.Signature) }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ order.CreatedAt.String() }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ order.UpdatedAt.String() }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+											<div class="flex flex-wrap gap-3 text-sm">
+												<a class="text-base-content/80 hover:text-base-content" href={ routes.OrderShow.URL(order.ID) }>View</a>
+												<a class="text-base-content/80 hover:text-base-content" href={ routes.OrderEdit.URL(order.ID) }>Edit</a>
+											</div>
+										</td>
+									</tr>
 								}
-								@ui.TableHead() {
-									Customer Name 
-								}
-								@ui.TableHead() {
-									Total 
-								}
-								@ui.TableHead() {
-									Signature 
-								}
-								@ui.TableHead() {
-									Created At 
-								}
-								@ui.TableHead() {
-									Updated At 
-								}
-								@ui.TableHead() {
-									Actions 
-								}
-							}
-						}
-						@ui.TableBody() {
-							for _, order := range orders {
-								@ui.TableRow() {
-									@ui.TableCell() {
-										{ order.AccountID.String() }
-									}
-									@ui.TableCell() {
-										{ order.CustomerName }
-									}
-									@ui.TableCell() {
-										{ fmt.Sprintf("%f", order.Total) }
-									}
-									@ui.TableCell() {
-										{ string(order.Signature) }
-									}
-									@ui.TableCell() {
-										{ order.CreatedAt.String() }
-									}
-									@ui.TableCell() {
-										{ order.UpdatedAt.String() }
-									}
-									@ui.TableCell() {
-										<div class="flex flex-wrap gap-3 text-sm">
-											<a class="text-base-content/80 hover:text-base-content" href={ routes.OrderShow.URL(order.ID) }>View</a>
-											<a class="text-base-content/80 hover:text-base-content" href={ routes.OrderEdit.URL(order.ID) }>Edit</a>
-										</div>
-									}
-								}
-							}
-						}
-					}
+							</tbody>
+						</table>
+					</div>
 				}
 			</div>
 		</main>
@@ -89,41 +64,41 @@ templ OrderShow(order models.Order) {
 			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Order Details</h1>
-					<div class="flex flex-wrap gap-3">
-						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref(routes.OrderEdit.URL(order.ID)).Render()
+					<div class="flex flex-wrap items-center gap-3">
+						<a href={ routes.OrderEdit.URL(order.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">Edit</a>
 						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.OrderIndex.URL() }>Back to List</a>
 					</div>
 				</div>
-				@ui.Card() {
-					@ui.CardContent() {
+				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
+					<div class="p-6 pt-0">
 						<div class="grid gap-5 sm:grid-cols-2">
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Account Id"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Account Id</label>
 								<p class="text-sm text-base-content">{ order.AccountID.String() }</p>
 							</div>
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Customer Name"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Customer Name</label>
 								<p class="text-sm text-base-content">{ order.CustomerName }</p>
 							</div>
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Total"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Total</label>
 								<p class="text-sm text-base-content">{ fmt.Sprintf("%f", order.Total) }</p>
 							</div>
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Signature"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Signature</label>
 								<p class="text-sm text-base-content">{ string(order.Signature) }</p>
 							</div>
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Created At"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
 								<p class="text-sm text-base-content">{ order.CreatedAt.String() }</p>
 							</div>
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Updated At"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
 								<p class="text-sm text-base-content">{ order.UpdatedAt.String() }</p>
 							</div>
 						</div>
-					}
-				}
+					</div>
+				</div>
 			</div>
 		</main>
 	}
@@ -133,35 +108,40 @@ templ OrderNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@ui.Card() {
-					@ui.CardHeader() {
-						@ui.CardTitle("New Order")
-						@ui.CardDescription("Enter the details for the new order.")
-					}
-					@ui.CardContent() {
-						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: routes.OrderCreate.URL()}, ui.WithClass("space-y-5"), ui.WithFragment("new-order-form")) {
-							<div class="space-y-4">
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Account Id"}).WithFor("accountId").Render()
-									@ui.Input("accountId").Render()
+				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
+					<div class="flex flex-col space-y-1.5 p-6">
+						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">New Order</h3>
+						<p class="text-sm text-base-content/60">Enter the details for the new order.</p>
+					</div>
+					<div class="p-6 pt-0">
+						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.OrderCreate.URL()) }>
+							<fieldset data-attr:disabled="$submitting">
+								<div class="space-y-4">
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="accountId">Account Id</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="accountId"/>
+									</div>
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="customerName">Customer Name</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="customerName"/>
+									</div>
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="total">Total</label>
+										<input type="number" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="total"/>
+									</div>
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="signature">Signature</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="signature"/>
+									</div>
 								</div>
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Customer Name"}).WithFor("customerName").Render()
-									@ui.Input("customerName").Render()
+								<div class="mt-6 space-y-3">
+									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Create Order</button>
+									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ routes.OrderIndex.URL() }>Back to List</a>
 								</div>
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Total"}).WithFor("total").Render()
-									@ui.Input("total").WithType(ui.InputTypeNumber).Render()
-								</div>
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Signature"}).WithFor("signature").Render()
-									@ui.Input("signature").Render()
-								</div>
-							</div>
-							@ui.Button(ui.ButtonProps{Label: "Create Order"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
-						}
-					}
-				}
+							</fieldset>
+						</form>
+					</div>
+				</div>
 			</div>
 		</main>
 	}
@@ -171,37 +151,42 @@ templ OrderEdit(order models.Order) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@ui.Card() {
-					@ui.CardHeader() {
-						@ui.CardTitle("Edit Order")
-						@ui.CardDescription("Update the details for this order.")
-					}
-					@ui.CardContent() {
-						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: routes.OrderUpdate.URL(order.ID)}, ui.WithClass("space-y-5"), ui.WithFragment("edit-order-form")) {
-							<div class="space-y-4">
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Account Id"}).WithFor("accountId").Render()
-									@ui.Input("accountId").WithValue(order.AccountID.String()).Render()
+				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
+					<div class="flex flex-col space-y-1.5 p-6">
+						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">Edit Order</h3>
+						<p class="text-sm text-base-content/60">Update the details for this order.</p>
+					</div>
+					<div class="p-6 pt-0">
+						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPut, routes.OrderUpdate.URL(order.ID)) }>
+							<fieldset data-attr:disabled="$submitting">
+								<div class="space-y-4">
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="accountId">Account Id</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="accountId" value={ order.AccountID.String() }/>
+									</div>
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="customerName">Customer Name</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="customerName" value={ order.CustomerName }/>
+									</div>
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="total">Total</label>
+										<input type="number" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="total" value={ fmt.Sprintf("%f", order.Total) }/>
+									</div>
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="signature">Signature</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="signature" value={ string(order.Signature) }/>
+									</div>
 								</div>
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Customer Name"}).WithFor("customerName").Render()
-									@ui.Input("customerName").WithValue(order.CustomerName).Render()
+								<div class="mt-6 space-y-3">
+									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Update Order</button>
+									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ routes.OrderIndex.URL() }>Back to List</a>
 								</div>
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Total"}).WithFor("total").Render()
-									@ui.Input("total").WithType(ui.InputTypeNumber).WithValue(fmt.Sprintf("%f", order.Total)).Render()
-								</div>
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Signature"}).WithFor("signature").Render()
-									@ui.Input("signature").WithValue(string(order.Signature)).Render()
-								</div>
-							</div>
-							@ui.Button(ui.ButtonProps{Label: "Update Order"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
-						}
-						@ui.Separator().Render()
-						@ui.Button(ui.ButtonProps{Label: "Destroy Order"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.OrderDestroy.URL(order.ID))).Render()
-					}
-				}
+							</fieldset>
+						</form>
+						<div role="separator" class="my-6 shrink-0 bg-base-300 h-px w-full"></div>
+						<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-error text-error-content shadow-sm hover:bg-error/90 h-9 px-4 py-2 text-sm rounded-field w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.OrderDestroy.URL(order.ID)) }>Destroy Order</button>
+					</div>
+				</div>
 			</div>
 		</main>
 	}
