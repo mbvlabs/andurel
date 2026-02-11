@@ -63,13 +63,11 @@ func (i Items) Show(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	backURL := cookies.ResolveReturnTo(etx, routes.ItemIndex.URL())
-	return render(etx, views.ItemShow(item, backURL))
+	return render(etx, views.ItemShow(item))
 }
 
 func (i Items) New(etx *echo.Context) error {
-	backURL := cookies.ResolveReturnTo(etx, routes.ItemIndex.URL())
-	return render(etx, views.ItemNew(backURL))
+	return render(etx, views.ItemNew())
 }
 
 type CreateItemFormPayload struct {
@@ -143,8 +141,7 @@ func (i Items) Edit(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	backURL := cookies.ResolveReturnTo(etx, routes.ItemIndex.URL())
-	return render(etx, views.ItemEdit(item, backURL))
+	return render(etx, views.ItemEdit(item))
 }
 
 type UpdateItemFormPayload struct {

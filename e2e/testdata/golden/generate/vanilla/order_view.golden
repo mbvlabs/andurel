@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"testapp/internal/hypermedia"
+	"testapp/internal/renderer"
 	"testapp/models"
 	"testapp/router/routes"
 	"testapp/views/components"
@@ -57,14 +58,14 @@ templ OrderIndex(orders []models.Order) {
 	}
 }
 
-templ OrderShow(order models.Order, backURL string) {
+templ OrderShow(order models.Order) {
 	@base() {
 		<main>
 			<div>
 				<h1>Order Details</h1>
 				<div>
 					<a href={ routes.OrderEdit.URL(order.ID) }>Edit</a>
-					<a href={ backURL }>Back to List</a>
+					<a href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -99,7 +100,7 @@ templ OrderShow(order models.Order, backURL string) {
 	}
 }
 
-templ OrderNew(backURL string) {
+templ OrderNew() {
 	@base() {
 		<main>
 			<div>
@@ -119,7 +120,7 @@ templ OrderNew(backURL string) {
 					</div>
 					@components.SubmitButton("Create Order")
 					<p>
-						<a href={ backURL }>Back to List</a>
+						<a href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
 					</p>
 				</form>
 			</div>
@@ -127,7 +128,7 @@ templ OrderNew(backURL string) {
 	}
 }
 
-templ OrderEdit(order models.Order, backURL string) {
+templ OrderEdit(order models.Order) {
 	@base() {
 		<main>
 			<div>
@@ -155,7 +156,7 @@ templ OrderEdit(order models.Order, backURL string) {
 					</div>
 					@components.SubmitButton("Update Order")
 					<p>
-						<a href={ backURL }>Back to List</a>
+						<a href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
 					</p>
 				</form>
 				<div>

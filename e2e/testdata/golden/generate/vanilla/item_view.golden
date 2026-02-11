@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"testapp/internal/hypermedia"
+	"testapp/internal/renderer"
 	"testapp/models"
 	"testapp/router/routes"
 	"testapp/views/components"
@@ -55,14 +56,14 @@ templ ItemIndex(items []models.Item) {
 	}
 }
 
-templ ItemShow(item models.Item, backURL string) {
+templ ItemShow(item models.Item) {
 	@base() {
 		<main>
 			<div>
 				<h1>Item Details</h1>
 				<div>
 					<a href={ routes.ItemEdit.URL(item.ID) }>Edit</a>
-					<a href={ backURL }>Back to List</a>
+					<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -93,7 +94,7 @@ templ ItemShow(item models.Item, backURL string) {
 	}
 }
 
-templ ItemNew(backURL string) {
+templ ItemNew() {
 	@base() {
 		<main>
 			<div>
@@ -112,7 +113,7 @@ templ ItemNew(backURL string) {
 					</div>
 					@components.SubmitButton("Create Item")
 					<p>
-						<a href={ backURL }>Back to List</a>
+						<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
 					</p>
 				</form>
 			</div>
@@ -120,7 +121,7 @@ templ ItemNew(backURL string) {
 	}
 }
 
-templ ItemEdit(item models.Item, backURL string) {
+templ ItemEdit(item models.Item) {
 	@base() {
 		<main>
 			<div>
@@ -145,7 +146,7 @@ templ ItemEdit(item models.Item, backURL string) {
 					</div>
 					@components.SubmitButton("Update Item")
 					<p>
-						<a href={ backURL }>Back to List</a>
+						<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
 					</p>
 				</form>
 				<div>

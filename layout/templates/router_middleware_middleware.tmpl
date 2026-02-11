@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/internal/renderer"
 	"{{.ModuleName}}/internal/server"
 	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/router/cookies"
@@ -77,6 +78,8 @@ func (m Middleware) TrackReturnTo(
 			return next(c)
 		}
 
+		c.Set(string(renderer.BackURLKey), cookies.GetReturnTo(c))
+
 		method := c.Request().Method
 		if method != http.MethodGet && method != http.MethodHead {
 			return next(c)
@@ -87,6 +90,7 @@ func (m Middleware) TrackReturnTo(
 			if err := cookies.SetReturnTo(c, ""); err != nil {
 				slog.Warn("Error clearing return_to", "error", err)
 			}
+			c.Set(string(renderer.BackURLKey), "")
 			return next(c)
 		}
 
@@ -95,6 +99,7 @@ func (m Middleware) TrackReturnTo(
 			if clearErr := cookies.SetReturnTo(c, ""); clearErr != nil {
 				slog.Warn("Error clearing return_to", "error", clearErr)
 			}
+			c.Set(string(renderer.BackURLKey), "")
 			return next(c)
 		}
 
@@ -102,6 +107,7 @@ func (m Middleware) TrackReturnTo(
 			if clearErr := cookies.SetReturnTo(c, ""); clearErr != nil {
 				slog.Warn("Error clearing return_to", "error", clearErr)
 			}
+			c.Set(string(renderer.BackURLKey), "")
 			return next(c)
 		}
 
@@ -124,12 +130,14 @@ func (m Middleware) TrackReturnTo(
 			if clearErr := cookies.SetReturnTo(c, ""); clearErr != nil {
 				slog.Warn("Error clearing return_to", "error", clearErr)
 			}
+			c.Set(string(renderer.BackURLKey), "")
 			return next(c)
 		}
 
 		if err := cookies.SetReturnTo(c, returnTo); err != nil {
 			slog.Warn("Error setting return_to", "error", err)
 		}
+		c.Set(string(renderer.BackURLKey), returnTo)
 
 		return next(c)
 	}

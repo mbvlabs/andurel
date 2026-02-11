@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"{{.ModulePath}}/internal/renderer"
 	"{{.ModulePath}}/models"
 	"{{.ModulePath}}/router/routes"
 	"{{.ModulePath}}/internal/hypermedia"
@@ -48,14 +49,14 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 	}
 }
 
-templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}, backURL string) {
+templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
 	@base() {
 		<main>
 			<div>
 				<h1>{{.ResourceName}} Details</h1>
 				<div>
 					<a href={ routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLower}}.ID) }>Edit</a>
-					<a href={ backURL }>Back to List</a>
+					<a href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -71,7 +72,7 @@ templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}
 	}
 }
 
-templ {{.ResourceName}}New(backURL string) {
+templ {{.ResourceName}}New() {
 	@base() {
 		<main>
 			<div>
@@ -89,7 +90,7 @@ templ {{.ResourceName}}New(backURL string) {
 					</div>
 					@components.SubmitButton("Create {{.ResourceName}}")
 					<p>
-						<a href={ backURL }>Back to List</a>
+						<a href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
 					</p>
 				</form>
 			</div>
@@ -97,7 +98,7 @@ templ {{.ResourceName}}New(backURL string) {
 	}
 }
 
-templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}, backURL string) {
+templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
 	@base() {
 		<main>
 			<div>
@@ -116,7 +117,7 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 					</div>
 					@components.SubmitButton("Update {{.ResourceName}}")
 					<p>
-						<a href={ backURL }>Back to List</a>
+						<a href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
 					</p>
 				</form>
 				<div>

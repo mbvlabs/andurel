@@ -63,13 +63,11 @@ func (r Reviews) Show(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	backURL := cookies.ResolveReturnTo(etx, routes.ReviewIndex.URL())
-	return render(etx, views.ReviewShow(review, backURL))
+	return render(etx, views.ReviewShow(review))
 }
 
 func (r Reviews) New(etx *echo.Context) error {
-	backURL := cookies.ResolveReturnTo(etx, routes.ReviewIndex.URL())
-	return render(etx, views.ReviewNew(backURL))
+	return render(etx, views.ReviewNew())
 }
 
 type CreateReviewFormPayload struct {
@@ -127,8 +125,7 @@ func (r Reviews) Edit(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	backURL := cookies.ResolveReturnTo(etx, routes.ReviewIndex.URL())
-	return render(etx, views.ReviewEdit(review, backURL))
+	return render(etx, views.ReviewEdit(review))
 }
 
 type UpdateReviewFormPayload struct {

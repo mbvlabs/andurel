@@ -63,13 +63,11 @@ func (o Orders) Show(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	backURL := cookies.ResolveReturnTo(etx, routes.OrderIndex.URL())
-	return render(etx, views.OrderShow(order, backURL))
+	return render(etx, views.OrderShow(order))
 }
 
 func (o Orders) New(etx *echo.Context) error {
-	backURL := cookies.ResolveReturnTo(etx, routes.OrderIndex.URL())
-	return render(etx, views.OrderNew(backURL))
+	return render(etx, views.OrderNew())
 }
 
 type CreateOrderFormPayload struct {
@@ -145,8 +143,7 @@ func (o Orders) Edit(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	backURL := cookies.ResolveReturnTo(etx, routes.OrderIndex.URL())
-	return render(etx, views.OrderEdit(order, backURL))
+	return render(etx, views.OrderEdit(order))
 }
 
 type UpdateOrderFormPayload struct {

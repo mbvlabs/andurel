@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"testapp/internal/hypermedia"
+	"testapp/internal/renderer"
 	"testapp/models"
 	"testapp/router/routes"
 	"testapp/views/components"
@@ -55,14 +56,14 @@ templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
 	}
 }
 
-templ StudentFeedbackShow(studentfeedback models.StudentFeedback, backURL string) {
+templ StudentFeedbackShow(studentfeedback models.StudentFeedback) {
 	@base() {
 		<main>
 			<div>
 				<h1>StudentFeedback Details</h1>
 				<div>
 					<a href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) }>Edit</a>
-					<a href={ backURL }>Back to List</a>
+					<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -93,7 +94,7 @@ templ StudentFeedbackShow(studentfeedback models.StudentFeedback, backURL string
 	}
 }
 
-templ StudentFeedbackNew(backURL string) {
+templ StudentFeedbackNew() {
 	@base() {
 		<main>
 			<div>
@@ -112,7 +113,7 @@ templ StudentFeedbackNew(backURL string) {
 					</div>
 					@components.SubmitButton("Create StudentFeedback")
 					<p>
-						<a href={ backURL }>Back to List</a>
+						<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
 					</p>
 				</form>
 			</div>
@@ -120,7 +121,7 @@ templ StudentFeedbackNew(backURL string) {
 	}
 }
 
-templ StudentFeedbackEdit(studentfeedback models.StudentFeedback, backURL string) {
+templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
 	@base() {
 		<main>
 			<div>
@@ -145,7 +146,7 @@ templ StudentFeedbackEdit(studentfeedback models.StudentFeedback, backURL string
 					</div>
 					@components.SubmitButton("Update StudentFeedback")
 					<p>
-						<a href={ backURL }>Back to List</a>
+						<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
 					</p>
 				</form>
 				<div>

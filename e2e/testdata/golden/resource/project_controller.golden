@@ -63,13 +63,11 @@ func (p Projects) Show(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	backURL := cookies.ResolveReturnTo(etx, routes.ProjectIndex.URL())
-	return render(etx, views.ProjectShow(project, backURL))
+	return render(etx, views.ProjectShow(project))
 }
 
 func (p Projects) New(etx *echo.Context) error {
-	backURL := cookies.ResolveReturnTo(etx, routes.ProjectIndex.URL())
-	return render(etx, views.ProjectNew(backURL))
+	return render(etx, views.ProjectNew())
 }
 
 type CreateProjectFormPayload struct {
@@ -125,8 +123,7 @@ func (p Projects) Edit(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	backURL := cookies.ResolveReturnTo(etx, routes.ProjectIndex.URL())
-	return render(etx, views.ProjectEdit(project, backURL))
+	return render(etx, views.ProjectEdit(project))
 }
 
 type UpdateProjectFormPayload struct {

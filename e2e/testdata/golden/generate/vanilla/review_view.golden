@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"testapp/internal/hypermedia"
+	"testapp/internal/renderer"
 	"testapp/models"
 	"testapp/router/routes"
 	"testapp/views/components"
@@ -55,14 +56,14 @@ templ ReviewIndex(reviews []models.Review) {
 	}
 }
 
-templ ReviewShow(review models.Review, backURL string) {
+templ ReviewShow(review models.Review) {
 	@base() {
 		<main>
 			<div>
 				<h1>Review Details</h1>
 				<div>
 					<a href={ routes.ReviewEdit.URL(review.ID) }>Edit</a>
-					<a href={ backURL }>Back to List</a>
+					<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -93,7 +94,7 @@ templ ReviewShow(review models.Review, backURL string) {
 	}
 }
 
-templ ReviewNew(backURL string) {
+templ ReviewNew() {
 	@base() {
 		<main>
 			<div>
@@ -112,7 +113,7 @@ templ ReviewNew(backURL string) {
 					</div>
 					@components.SubmitButton("Create Review")
 					<p>
-						<a href={ backURL }>Back to List</a>
+						<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
 					</p>
 				</form>
 			</div>
@@ -120,7 +121,7 @@ templ ReviewNew(backURL string) {
 	}
 }
 
-templ ReviewEdit(review models.Review, backURL string) {
+templ ReviewEdit(review models.Review) {
 	@base() {
 		<main>
 			<div>
@@ -145,7 +146,7 @@ templ ReviewEdit(review models.Review, backURL string) {
 					</div>
 					@components.SubmitButton("Update Review")
 					<p>
-						<a href={ backURL }>Back to List</a>
+						<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
 					</p>
 				</form>
 				<div>
