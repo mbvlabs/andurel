@@ -50,17 +50,19 @@ This is subject to change as Andurel is in beta.
 
 I have not documented every feature or command yet, only enough to get you started and trying out the framework.
 
-Once the framework reaches beta, I will provide more comprehensive documentation and guides.
+Once the framework reaches a release candidate, I will provide more comprehensive documentation and guides.
 
 ### Installation
 
 ```bash
-go install github.com/mbvlabs/andurel@v1.0.0-beta.1
+go install github.com/mbvlabs/andurel@v1.0.0-beta.2
 ```
 
 ### Create Your First Project
 
 Andurel gives you choices when creating a new project:
+
+> Note: `--css vanilla` is currently WIP and not properly supported before `v1.0.0`. Use Tailwind for now.
 
 ```bash
 # Create a new project with defaults (PostgreSQL + Tailwind CSS)
@@ -114,9 +116,9 @@ andurel database rebuild --skip-seed       # Skip seeding after migrations
 ### Generate Your First Resource
 
 ```bash
-# Create a migration and add the columns you need. Note that right now, andurel
-# requires you to use id uuid primary key and created_at/updated_at columns for 
-# all tables that you generate resources for.
+# Create a migration and add the columns you need. Resource generation requires
+# an `id` primary key (uuid/serial/bigserial/string-supported types). `created_at`
+# and `updated_at` are optional but recommended.
 andurel migrate new create_products_table
 
 # Create a complete resource with model, controller, views, and routes
