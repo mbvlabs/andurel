@@ -148,7 +148,7 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 	case "float64":
 		field.GoFormType = "float64"
 	case "bool":
-		field.GoFormType = "string"
+		field.GoFormType = "bool"
 	default:
 		field.GoFormType = "string"
 	}

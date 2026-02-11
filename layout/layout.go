@@ -242,7 +242,6 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Views — Components (utility)
 	"tw_views_components_utils.tmpl": "views/components/utils.go",
-	"tw_internal_ui_utils.tmpl":      "internal/ui/utils.go",
 	"tw_views_components_head.tmpl":  "views/components/head.templ",
 
 	// Views — Components (display)
@@ -251,22 +250,22 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"tw_views_components_avatar.tmpl":       "views/components/avatar.templ",
 	"tw_views_components_badge.tmpl":        "views/components/badge.templ",
 	"tw_views_components_breadcrumb.tmpl":   "views/components/breadcrumb.templ",
-	"tw_views_components_button.tmpl":       "internal/ui/button.templ",
-	"tw_views_components_card.tmpl":         "internal/ui/card.templ",
+	"tw_views_components_button.tmpl":       "views/components/button.templ",
+	"tw_views_components_card.tmpl":         "views/components/card.templ",
 	"tw_views_components_code.tmpl":         "views/components/code.templ",
 	"tw_views_components_kbd.tmpl":          "views/components/kbd.templ",
-	"tw_views_components_label.tmpl":        "internal/ui/label.templ",
+	"tw_views_components_label.tmpl":        "views/components/label.templ",
 	"tw_views_components_pagination.tmpl":   "views/components/pagination.templ",
 	"tw_views_components_progress.tmpl":     "views/components/progress.templ",
-	"tw_views_components_separator.tmpl":    "internal/ui/separator.templ",
+	"tw_views_components_separator.tmpl":    "views/components/separator.templ",
 	"tw_views_components_skeleton.tmpl":     "views/components/skeleton.templ",
 	"tw_views_components_spinner.tmpl":      "views/components/spinner.templ",
-	"tw_views_components_table.tmpl":        "internal/ui/table.templ",
+	"tw_views_components_table.tmpl":        "views/components/table.templ",
 
 	// Views — Components (form)
-	"tw_views_components_form.tmpl":       "internal/ui/form.templ",
-	"tw_views_components_checkbox.tmpl":   "internal/ui/checkbox.templ",
-	"tw_views_components_input.tmpl":      "internal/ui/input.templ",
+	"tw_views_components_form.tmpl":       "views/components/form.templ",
+	"tw_views_components_checkbox.tmpl":   "views/components/checkbox.templ",
+	"tw_views_components_input.tmpl":      "views/components/input.templ",
 	"tw_views_components_radio.tmpl":      "views/components/radio.templ",
 	"tw_views_components_select.tmpl":     "views/components/select.templ",
 	"tw_views_components_slider.tmpl":     "views/components/slider.templ",
@@ -291,7 +290,7 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"tw_views_components_carousel.tmpl":    "views/components/carousel.templ",
 	"tw_views_components_combobox.tmpl":    "views/components/combobox.templ",
 	"tw_views_components_copy_button.tmpl": "views/components/copy_button.templ",
-	"tw_views_components_datepicker.tmpl":  "internal/ui/datepicker.templ",
+	"tw_views_components_datepicker.tmpl":  "views/components/datepicker.templ",
 	"tw_views_components_input_otp.tmpl":   "views/components/input_otp.templ",
 	"tw_views_components_rating.tmpl":      "views/components/rating.templ",
 	"tw_views_components_timepicker.tmpl":  "views/components/timepicker.templ",
