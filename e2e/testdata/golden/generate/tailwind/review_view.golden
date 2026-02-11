@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"testapp/internal/hypermedia"
-	ui "testapp/internal/ui"
 	"testapp/models"
 	"testapp/router/routes"
 )
@@ -15,62 +14,42 @@ templ ReviewIndex(reviews []models.Review) {
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Reviews</h1>
-					@ui.Button(ui.ButtonProps{Label: "New Review"}).WithHref(routes.ReviewNew.URL()).Render()
+					<a href={ routes.ReviewNew.URL() } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">New Review</a>
 				</div>
 				if len(reviews) == 0 {
 					<p class="text-sm text-base-content/60">No reviews found.</p>
 				} else {
-					@ui.Table() {
-						@ui.TableHeader() {
-							@ui.TableRow() {
-								@ui.TableHead() {
-									Title 
+					<div class="relative w-full overflow-auto">
+						<table class="w-full caption-bottom text-sm">
+							<thead class="[&_tr]:border-b [&_tr]:border-base-300">
+								<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Title</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Body</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Rating</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Created At</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Updated At</th>
+									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Actions</th>
+								</tr>
+							</thead>
+							<tbody class="[&_tr:last-child]:border-0">
+								for _, review := range reviews {
+									<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ review.Title }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ review.Body }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%d", review.Rating) }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ review.CreatedAt.String() }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ review.UpdatedAt.String() }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+											<div class="flex flex-wrap gap-3 text-sm">
+												<a class="text-base-content/80 hover:text-base-content" href={ routes.ReviewShow.URL(review.ID) }>View</a>
+												<a class="text-base-content/80 hover:text-base-content" href={ routes.ReviewEdit.URL(review.ID) }>Edit</a>
+											</div>
+										</td>
+									</tr>
 								}
-								@ui.TableHead() {
-									Body 
-								}
-								@ui.TableHead() {
-									Rating 
-								}
-								@ui.TableHead() {
-									Created At 
-								}
-								@ui.TableHead() {
-									Updated At 
-								}
-								@ui.TableHead() {
-									Actions 
-								}
-							}
-						}
-						@ui.TableBody() {
-							for _, review := range reviews {
-								@ui.TableRow() {
-									@ui.TableCell() {
-										{ review.Title }
-									}
-									@ui.TableCell() {
-										{ review.Body }
-									}
-									@ui.TableCell() {
-										{ fmt.Sprintf("%d", review.Rating) }
-									}
-									@ui.TableCell() {
-										{ review.CreatedAt.String() }
-									}
-									@ui.TableCell() {
-										{ review.UpdatedAt.String() }
-									}
-									@ui.TableCell() {
-										<div class="flex flex-wrap gap-3 text-sm">
-											<a class="text-base-content/80 hover:text-base-content" href={ routes.ReviewShow.URL(review.ID) }>View</a>
-											<a class="text-base-content/80 hover:text-base-content" href={ routes.ReviewEdit.URL(review.ID) }>Edit</a>
-										</div>
-									}
-								}
-							}
-						}
-					}
+							</tbody>
+						</table>
+					</div>
 				}
 			</div>
 		</main>
@@ -83,37 +62,37 @@ templ ReviewShow(review models.Review) {
 			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Review Details</h1>
-					<div class="flex flex-wrap gap-3">
-						@ui.Button(ui.ButtonProps{Label: "Edit"}).WithHref(routes.ReviewEdit.URL(review.ID)).Render()
+					<div class="flex flex-wrap items-center gap-3">
+						<a href={ routes.ReviewEdit.URL(review.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">Edit</a>
 						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.ReviewIndex.URL() }>Back to List</a>
 					</div>
 				</div>
-				@ui.Card() {
-					@ui.CardContent() {
+				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
+					<div class="p-6 pt-0">
 						<div class="grid gap-5 sm:grid-cols-2">
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Title"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Title</label>
 								<p class="text-sm text-base-content">{ review.Title }</p>
 							</div>
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Body"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Body</label>
 								<p class="text-sm text-base-content">{ review.Body }</p>
 							</div>
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Rating"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Rating</label>
 								<p class="text-sm text-base-content">{ fmt.Sprintf("%d", review.Rating) }</p>
 							</div>
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Created At"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
 								<p class="text-sm text-base-content">{ review.CreatedAt.String() }</p>
 							</div>
 							<div class="space-y-1">
-								@ui.Label(ui.LabelProps{Text: "Updated At"}).Render()
+								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
 								<p class="text-sm text-base-content">{ review.UpdatedAt.String() }</p>
 							</div>
 						</div>
-					}
-				}
+					</div>
+				</div>
 			</div>
 		</main>
 	}
@@ -123,31 +102,36 @@ templ ReviewNew() {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@ui.Card() {
-					@ui.CardHeader() {
-						@ui.CardTitle("New Review")
-						@ui.CardDescription("Enter the details for the new review.")
-					}
-					@ui.CardContent() {
-						@ui.Form(ui.FormProps{Action: http.MethodPost, URL: routes.ReviewCreate.URL()}, ui.WithClass("space-y-5"), ui.WithFragment("new-review-form")) {
-							<div class="space-y-4">
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Title"}).WithFor("title").Render()
-									@ui.Input("title").Render()
+				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
+					<div class="flex flex-col space-y-1.5 p-6">
+						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">New Review</h3>
+						<p class="text-sm text-base-content/60">Enter the details for the new review.</p>
+					</div>
+					<div class="p-6 pt-0">
+						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.ReviewCreate.URL()) }>
+							<fieldset data-attr:disabled="$submitting">
+								<div class="space-y-4">
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="title">Title</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="title"/>
+									</div>
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="body">Body</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="body"/>
+									</div>
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="rating">Rating</label>
+										<input type="number" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="rating"/>
+									</div>
 								</div>
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Body"}).WithFor("body").Render()
-									@ui.Input("body").Render()
+								<div class="mt-6 space-y-3">
+									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Create Review</button>
+									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ routes.ReviewIndex.URL() }>Back to List</a>
 								</div>
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Rating"}).WithFor("rating").Render()
-									@ui.Input("rating").WithType(ui.InputTypeNumber).Render()
-								</div>
-							</div>
-							@ui.Button(ui.ButtonProps{Label: "Create Review"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
-						}
-					}
-				}
+							</fieldset>
+						</form>
+					</div>
+				</div>
 			</div>
 		</main>
 	}
@@ -157,33 +141,38 @@ templ ReviewEdit(review models.Review) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				@ui.Card() {
-					@ui.CardHeader() {
-						@ui.CardTitle("Edit Review")
-						@ui.CardDescription("Update the details for this review.")
-					}
-					@ui.CardContent() {
-						@ui.Form(ui.FormProps{Action: http.MethodPut, URL: routes.ReviewUpdate.URL(review.ID)}, ui.WithClass("space-y-5"), ui.WithFragment("edit-review-form")) {
-							<div class="space-y-4">
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Title"}).WithFor("title").Render()
-									@ui.Input("title").WithValue(review.Title).Render()
+				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
+					<div class="flex flex-col space-y-1.5 p-6">
+						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">Edit Review</h3>
+						<p class="text-sm text-base-content/60">Update the details for this review.</p>
+					</div>
+					<div class="p-6 pt-0">
+						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPut, routes.ReviewUpdate.URL(review.ID)) }>
+							<fieldset data-attr:disabled="$submitting">
+								<div class="space-y-4">
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="title">Title</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="title" value={ review.Title }/>
+									</div>
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="body">Body</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="body" value={ review.Body }/>
+									</div>
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="rating">Rating</label>
+										<input type="number" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="rating" value={ fmt.Sprintf("%d", review.Rating) }/>
+									</div>
 								</div>
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Body"}).WithFor("body").Render()
-									@ui.Input("body").WithValue(review.Body).Render()
+								<div class="mt-6 space-y-3">
+									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Update Review</button>
+									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ routes.ReviewIndex.URL() }>Back to List</a>
 								</div>
-								<div class="space-y-1">
-									@ui.Label(ui.LabelProps{Text: "Rating"}).WithFor("rating").Render()
-									@ui.Input("rating").WithType(ui.InputTypeNumber).WithValue(fmt.Sprintf("%d", review.Rating)).Render()
-								</div>
-							</div>
-							@ui.Button(ui.ButtonProps{Label: "Update Review"}).WithType(ui.ButtonTypeSubmit).WithFullWidth(true).Render()
-						}
-						@ui.Separator().Render()
-						@ui.Button(ui.ButtonProps{Label: "Destroy Review"}).MakeDestructive().WithFullWidth(true).WithAttr("data-on:click", hypermedia.DataAction(http.MethodDelete, routes.ReviewDestroy.URL(review.ID))).Render()
-					}
-				}
+							</fieldset>
+						</form>
+						<div role="separator" class="my-6 shrink-0 bg-base-300 h-px w-full"></div>
+						<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-error text-error-content shadow-sm hover:bg-error/90 h-9 px-4 py-2 text-sm rounded-field w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ReviewDestroy.URL(review.ID)) }>Destroy Review</button>
+					</div>
+				</div>
 			</div>
 		</main>
 	}

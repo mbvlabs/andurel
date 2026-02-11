@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator"
@@ -52,7 +55,7 @@ Examples:
   andurel generate model User --table-name=accounts  # Create model using custom 'accounts' table
   andurel generate model User --skip-factory         # Skip factory generation`,
 		Args: cobra.ExactArgs(1),
-		RunE: generateModel,
+		RunE: withGenerateCleanup(generateModel),
 	}
 
 	cmd.Flags().
@@ -77,7 +80,7 @@ Examples:
   andurel generate view User                    # Views without controller
   andurel generate view User --with-controller  # Views with controller`,
 		Args: cobra.ExactArgs(1),
-		RunE: generateView,
+		RunE: withGenerateCleanup(generateView),
 	}
 
 	cmd.Flags().Bool("with-controller", false, "Generate controller along with the views")
@@ -127,7 +130,7 @@ Examples:
   andurel generate controller User              # Controller without views
   andurel generate controller User --with-views # Controller with views`,
 		Args: cobra.ExactArgs(1),
-		RunE: generateController,
+		RunE: withGenerateCleanup(generateController),
 	}
 
 	cmd.Flags().Bool("with-views", false, "Generate views along with the controller")
@@ -148,7 +151,7 @@ Examples:
   andurel generate resource Product                        # Model + controller + views + routes for 'products' table
   andurel generate resource Feedback --table-name=user_feedback  # Use custom table name`,
 		Args: cobra.ExactArgs(1),
-		RunE: generateResource,
+		RunE: withGenerateCleanup(generateResource),
 	}
 
 	cmd.Flags().
@@ -241,7 +244,7 @@ Examples:
   andurel generate fragment Article ShowBySlug /:slug --method GET
   andurel generate fragment Order Approve /:id/approve --method POST`,
 		Args: cobra.ExactArgs(3),
-		RunE: generateFragment,
+		RunE: withGenerateCleanup(generateFragment),
 	}
 
 	cmd.Flags().String("method", "GET", "HTTP method (GET, POST, PUT, DELETE, PATCH)")
@@ -274,4 +277,175 @@ func generateFragment(cmd *cobra.Command, args []string) error {
 		Path:           path,
 		HTTPMethod:     strings.ToUpper(httpMethod),
 	})
+}
+
+type createdFileTracker struct {
+	rootDir       string
+	existingFiles map[string]struct{}
+}
+
+func withGenerateCleanup(run func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		tracker, trackerErr := newCreatedFileTracker()
+
+		runErr := run(cmd, args)
+		if runErr == nil {
+			return nil
+		}
+
+		if trackerErr != nil {
+			return formatGenerateFailure(runErr, nil, nil, trackerErr)
+		}
+
+		removedFiles, cleanupFailures, cleanupErr := tracker.cleanupCreatedFiles()
+		if cleanupErr != nil {
+			return formatGenerateFailure(runErr, nil, nil, cleanupErr)
+		}
+
+		return formatGenerateFailure(runErr, removedFiles, cleanupFailures, nil)
+	}
+}
+
+func newCreatedFileTracker() (*createdFileTracker, error) {
+	rootDir, err := findProjectRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	existingFiles, err := snapshotFiles(rootDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return &createdFileTracker{
+		rootDir:       rootDir,
+		existingFiles: existingFiles,
+	}, nil
+}
+
+func (t *createdFileTracker) cleanupCreatedFiles() ([]string, []string, error) {
+	currentFiles, err := snapshotFiles(t.rootDir)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	createdFiles := make([]string, 0)
+	for relPath := range currentFiles {
+		if _, exists := t.existingFiles[relPath]; !exists {
+			createdFiles = append(createdFiles, relPath)
+		}
+	}
+	sort.Strings(createdFiles)
+
+	removedFiles := make([]string, 0, len(createdFiles))
+	cleanupFailures := make([]string, 0)
+
+	for _, relPath := range createdFiles {
+		fullPath := filepath.Join(t.rootDir, relPath)
+		if err := os.Remove(fullPath); err != nil {
+			cleanupFailures = append(cleanupFailures, fmt.Sprintf("%s (%v)", relPath, err))
+			continue
+		}
+		removedFiles = append(removedFiles, relPath)
+	}
+
+	return removedFiles, cleanupFailures, nil
+}
+
+func findProjectRoot() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	for {
+		goModPath := filepath.Join(dir, "go.mod")
+		if _, statErr := os.Stat(goModPath); statErr == nil {
+			return dir, nil
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", errors.New("unable to locate project root containing go.mod")
+		}
+		dir = parent
+	}
+}
+
+func snapshotFiles(rootDir string) (map[string]struct{}, error) {
+	files := make(map[string]struct{})
+
+	err := filepath.WalkDir(rootDir, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
+		if d.IsDir() && d.Name() == ".git" {
+			return filepath.SkipDir
+		}
+
+		if d.IsDir() {
+			return nil
+		}
+
+		relPath, err := filepath.Rel(rootDir, path)
+		if err != nil {
+			return err
+		}
+
+		files[filepath.ToSlash(relPath)] = struct{}{}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return files, nil
+}
+
+func formatGenerateFailure(runErr error, removedFiles []string, cleanupFailures []string, trackerErr error) error {
+	if trackerErr != nil {
+		return fmt.Errorf("%w\n\nUnable to clean up created files automatically: %v", runErr, trackerErr)
+	}
+
+	var msg strings.Builder
+	msg.WriteString(runErr.Error())
+
+	if len(removedFiles) == 0 && len(cleanupFailures) == 0 {
+		msg.WriteString("\n\nNo new files were created before the failure.")
+		return errors.New(msg.String())
+	}
+
+	msg.WriteString("\n\nGeneration failed and automatic cleanup ran.")
+	if len(removedFiles) > 0 {
+		msg.WriteString(fmt.Sprintf("\nRemoved %d created file(s):", len(removedFiles)))
+		msg.WriteString(formatPathList(removedFiles, 12))
+	}
+
+	if len(cleanupFailures) > 0 {
+		msg.WriteString(fmt.Sprintf("\nCould not remove %d file(s):", len(cleanupFailures)))
+		msg.WriteString(formatPathList(cleanupFailures, 12))
+		msg.WriteString("\nPlease remove these files manually.")
+	}
+
+	return errors.New(msg.String())
+}
+
+func formatPathList(paths []string, maxItems int) string {
+	var out strings.Builder
+	limit := len(paths)
+	if limit > maxItems {
+		limit = maxItems
+	}
+
+	for i := 0; i < limit; i++ {
+		out.WriteString("\n  - ")
+		out.WriteString(paths[i])
+	}
+
+	if len(paths) > limit {
+		out.WriteString(fmt.Sprintf("\n  - ... and %d more", len(paths)-limit))
+	}
+
+	return out.String()
 }
