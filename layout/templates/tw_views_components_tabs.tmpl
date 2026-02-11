@@ -9,7 +9,7 @@ func tabsListClasses(class string) string {
 }
 
 func tabsTriggerClasses(class string) string {
-	base := "inline-flex items-center justify-center whitespace-nowrap rounded-field px-3 py-1 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:pointer-events-none disabled:opacity-60 hover:text-base-content [&[aria-selected=true]]:bg-base-100 [&[aria-selected=true]]:text-base-content [&[aria-selected=true]]:shadow-sm"
+	base := "inline-flex items-center justify-center whitespace-nowrap rounded-field px-3 py-1 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:pointer-events-none disabled:opacity-60 text-base-content/70 hover:bg-base-100 hover:text-base-content [&[data-selected]]:bg-primary [&[data-selected]]:text-primary-foreground [&[data-selected]]:shadow-sm [&[data-selected]]:font-semibold [&[data-selected]]:ring-1 [&[data-selected]]:ring-primary/40"
 	return cn(base, class)
 }
 
@@ -58,7 +58,7 @@ templ TabsTrigger(signal string, value string, label string, opts ...Opt) {
 		role="tab"
 		aria-selected="false"
 		class={ mergeClass(tabsTriggerClasses(""), classFrom(opts), classOverrideFrom(opts)) }
-		{ templ.Attributes{"data-on:click": "$_" + signal + " = '" + value + "'", "data-attr:aria-selected": "$_" + signal + " == '" + value + "'"}... }
+		{ templ.Attributes{"data-on:click": "$_" + signal + " = '" + value + "'", "data-attr:aria-selected": "$_" + signal + " == '" + value + "'", "data-attr:data-selected": "$_" + signal + " == '" + value + "'"}... }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
