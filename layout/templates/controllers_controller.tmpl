@@ -14,6 +14,7 @@ func render(etx *echo.Context, t templ.Component) error {
 		etx,
 		t,
 		[]renderer.CookieKey{
+			renderer.BackURLKey,
 			cookies.AppKey,
 			cookies.FlashKey,
 		},

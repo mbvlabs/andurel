@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"testapp/internal/hypermedia"
+	"testapp/internal/renderer"
 	"testapp/models"
 	"testapp/router/routes"
 )
@@ -64,7 +65,7 @@ templ ItemShow(item models.Item) {
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Item Details</h1>
 					<div class="flex flex-wrap items-center gap-3">
 						<a href={ routes.ItemEdit.URL(item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">Edit</a>
-						<a class="text-sm text-base-content/70 hover:text-base-content" href={ routes.ItemIndex.URL() }>Back to List</a>
+						<a class="text-sm text-base-content/70 hover:text-base-content" href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
 					</div>
 				</div>
 				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
@@ -126,7 +127,7 @@ templ ItemNew() {
 								</div>
 								<div class="mt-6 space-y-3">
 									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Create Item</button>
-									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ routes.ItemIndex.URL() }>Back to List</a>
+									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
 								</div>
 							</fieldset>
 						</form>
@@ -165,7 +166,7 @@ templ ItemEdit(item models.Item) {
 								</div>
 								<div class="mt-6 space-y-3">
 									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Update Item</button>
-									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ routes.ItemIndex.URL() }>Back to List</a>
+									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
 								</div>
 							</fieldset>
 						</form>

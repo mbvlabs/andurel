@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"testapp/internal/hypermedia"
+	"testapp/internal/renderer"
 	"testapp/models"
 	"testapp/router/routes"
 	"testapp/views/components"
@@ -62,7 +63,7 @@ templ ReviewShow(review models.Review) {
 				<h1>Review Details</h1>
 				<div>
 					<a href={ routes.ReviewEdit.URL(review.ID) }>Edit</a>
-					<a href={ routes.ReviewIndex.URL() }>Back to List</a>
+					<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -112,7 +113,7 @@ templ ReviewNew() {
 					</div>
 					@components.SubmitButton("Create Review")
 					<p>
-						<a href={ routes.ReviewIndex.URL() }>Back to List</a>
+						<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
 					</p>
 				</form>
 			</div>
@@ -145,7 +146,7 @@ templ ReviewEdit(review models.Review) {
 					</div>
 					@components.SubmitButton("Update Review")
 					<p>
-						<a href={ routes.ReviewIndex.URL() }>Back to List</a>
+						<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
 					</p>
 				</form>
 				<div>

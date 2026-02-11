@@ -2,6 +2,7 @@ package cookies
 
 import (
 	"context"
+	"strings"
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/renderer"
@@ -14,6 +15,7 @@ import (
 )
 
 var AppKey renderer.CookieKey = "app_cookie_context"
+const ReturnToKey = "return_to"
 
 {{- if gt (len .Blueprint.Cookies.SortedConstants) 0}}
 
@@ -83,6 +85,49 @@ func GetApp(c *echo.Context) App {
 {{- end}}
 
 	return app
+}
+
+func SetReturnTo(c *echo.Context, returnTo string) error {
+	sess, err := session.Get(config.AppCookieSessionName, c)
+	if err != nil {
+		return err
+	}
+
+	if returnTo == "" {
+		delete(sess.Values, ReturnToKey)
+	} else {
+		sess.Values[ReturnToKey] = returnTo
+	}
+
+	return sess.Save(c.Request(), c.Response())
+}
+
+func GetReturnTo(c *echo.Context) string {
+	sess, err := session.Get(config.AppCookieSessionName, c)
+	if err != nil {
+		return ""
+	}
+
+	returnTo, _ := sess.Values[ReturnToKey].(string)
+	return strings.TrimSpace(returnTo)
+}
+
+func ResolveReturnTo(c *echo.Context, fallback string) string {
+	returnTo := GetReturnTo(c)
+	if !isSafeReturnTo(returnTo) {
+		return fallback
+	}
+
+	return returnTo
+}
+
+func isSafeReturnTo(returnTo string) bool {
+	if returnTo == "" {
+		return false
+	}
+
+	return strings.HasPrefix(returnTo, "/") &&
+		!strings.HasPrefix(returnTo, "//")
 }
 {{- range .Blueprint.Cookies.SortedFunctions}}
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"testapp/internal/hypermedia"
+	"testapp/internal/renderer"
 	"testapp/models"
 	"testapp/router/routes"
 	"testapp/views/components"
@@ -62,7 +63,7 @@ templ ItemShow(item models.Item) {
 				<h1>Item Details</h1>
 				<div>
 					<a href={ routes.ItemEdit.URL(item.ID) }>Edit</a>
-					<a href={ routes.ItemIndex.URL() }>Back to List</a>
+					<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
 				</div>
 			</div>
 			<div>
@@ -112,7 +113,7 @@ templ ItemNew() {
 					</div>
 					@components.SubmitButton("Create Item")
 					<p>
-						<a href={ routes.ItemIndex.URL() }>Back to List</a>
+						<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
 					</p>
 				</form>
 			</div>
@@ -145,7 +146,7 @@ templ ItemEdit(item models.Item) {
 					</div>
 					@components.SubmitButton("Update Item")
 					<p>
-						<a href={ routes.ItemIndex.URL() }>Back to List</a>
+						<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
 					</p>
 				</form>
 				<div>
