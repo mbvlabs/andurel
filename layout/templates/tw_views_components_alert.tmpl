@@ -20,6 +20,7 @@ type AlertBuilder struct {
 	title       string
 	id          string
 	class       string
+	classOverride bool
 	attrs       templ.Attributes
 	fragmentID  string
 }
@@ -41,7 +42,7 @@ func (b *AlertBuilder) MakeError() *AlertBuilder                 { b.variant = A
 func (b *AlertBuilder) WithTitle(t string) *AlertBuilder         { b.title = t; return b }
 func (b *AlertBuilder) WithID(id string) *AlertBuilder           { b.id = id; return b }
 func (b *AlertBuilder) WithClass(c string) *AlertBuilder         { b.class = cn(b.class, c); return b }
-func (b *AlertBuilder) SetClass(c string) *AlertBuilder          { b.class = c; return b }
+func (b *AlertBuilder) SetClass(c string) *AlertBuilder          { b.class = c; b.classOverride = true; return b }
 func (b *AlertBuilder) WithAttr(key string, val any) *AlertBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -68,7 +69,7 @@ func alertVariantClasses(v AlertVariant) string {
 
 func alertClasses(b *AlertBuilder) string {
 	base := "relative w-full rounded-box border p-4 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg~*]:pl-7"
-	return cn(base, alertVariantClasses(b.variant), b.class)
+	return mergeClass(cn(base, alertVariantClasses(b.variant)), b.class, b.classOverride)
 }
 
 templ (b *AlertBuilder) Render() {

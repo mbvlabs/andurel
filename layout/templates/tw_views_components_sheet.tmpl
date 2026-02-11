@@ -64,14 +64,14 @@ func sheetCloseClasses() string {
 //		@components.SheetFooter() { ... }
 //	}
 templ Sheet(trigger templ.Component, side SheetSide, opts ...Opt) {
-	@sheetInner(resolveID(opts), trigger, side, classFrom(opts), attrsFrom(opts)) {
+	@sheetInner(resolveID(opts), trigger, side, mergeClass(sheetClasses(""), classFrom(opts), classOverrideFrom(opts)), attrsFrom(opts)) {
 		{ children... }
 	}
 }
 
 templ sheetInner(id string, trigger templ.Component, side SheetSide, class string, attrs templ.Attributes) {
 	<div
-		class={ sheetClasses(class) }
+		class={ class }
 		{ templ.Attributes{"data-signals:_" + id: "false"}... }
 		if attrsWithout(attrs, "data-on:click") != nil {
 			{ attrsWithout(attrs, "data-on:click")... }
@@ -95,7 +95,7 @@ templ sheetInner(id string, trigger templ.Component, side SheetSide, class strin
 
 templ SheetHeader(opts ...Opt) {
 	<div
-		class={ sheetHeaderClasses(classFrom(opts)) }
+		class={ mergeClass(sheetHeaderClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -106,7 +106,7 @@ templ SheetHeader(opts ...Opt) {
 
 templ SheetTitle(title string, opts ...Opt) {
 	<h2
-		class={ sheetTitleClasses(classFrom(opts)) }
+		class={ mergeClass(sheetTitleClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -117,7 +117,7 @@ templ SheetTitle(title string, opts ...Opt) {
 
 templ SheetDescription(description string, opts ...Opt) {
 	<p
-		class={ sheetDescriptionClasses(classFrom(opts)) }
+		class={ mergeClass(sheetDescriptionClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -128,7 +128,7 @@ templ SheetDescription(description string, opts ...Opt) {
 
 templ SheetFooter(opts ...Opt) {
 	<div
-		class={ sheetFooterClasses(classFrom(opts)) }
+		class={ mergeClass(sheetFooterClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}

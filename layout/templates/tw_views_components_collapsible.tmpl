@@ -19,14 +19,14 @@ func collapsibleContentClasses(class string) string {
 //		<p>Hidden content here</p>
 //	}
 templ Collapsible(label string, opts ...Opt) {
-	@collapsibleInner(resolveID(opts), label, classFrom(opts), attrsFrom(opts)) {
+	@collapsibleInner(resolveID(opts), label, mergeClass(collapsibleClasses(""), classFrom(opts), classOverrideFrom(opts)), attrsFrom(opts)) {
 		{ children... }
 	}
 }
 
 templ collapsibleInner(id string, label string, class string, attrs templ.Attributes) {
 	<div
-		class={ collapsibleClasses(class) }
+		class={ class }
 		{ templ.Attributes{"data-signals:_" + id: "false"}... }
 		if attrs != nil {
 			{ attrs... }

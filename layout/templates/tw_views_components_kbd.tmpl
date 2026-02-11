@@ -8,6 +8,7 @@ type KbdBuilder struct {
 	key        string
 	id         string
 	class      string
+	classOverride bool
 	attrs      templ.Attributes
 	fragmentID string
 }
@@ -22,7 +23,7 @@ func Kbd(props KbdProps) *KbdBuilder {
 
 func (b *KbdBuilder) WithID(id string) *KbdBuilder   { b.id = id; return b }
 func (b *KbdBuilder) WithClass(c string) *KbdBuilder { b.class = cn(b.class, c); return b }
-func (b *KbdBuilder) SetClass(c string) *KbdBuilder  { b.class = c; return b }
+func (b *KbdBuilder) SetClass(c string) *KbdBuilder  { b.class = c; b.classOverride = true; return b }
 func (b *KbdBuilder) WithAttr(key string, val any) *KbdBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -34,7 +35,7 @@ func (b *KbdBuilder) WithFragment(id string) *KbdBuilder { b.fragmentID = id; re
 
 func kbdClasses(b *KbdBuilder) string {
 	base := "pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-base-300 bg-base-200 px-1.5 font-mono text-xs font-medium text-base-content/80"
-	return cn(base, b.class)
+	return mergeClass(cn(base), b.class, b.classOverride)
 }
 
 templ (b *KbdBuilder) Render() {

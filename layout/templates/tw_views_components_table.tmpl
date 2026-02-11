@@ -53,7 +53,7 @@ func tableCaptionClasses(class string) string {
 templ Table(opts ...Opt) {
 	<div class="relative w-full overflow-auto">
 		<table
-			class={ tableClasses(classFrom(opts)) }
+			class={ mergeClass(tableClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 			if attrsFrom(opts) != nil {
 				{ attrsFrom(opts)... }
 			}
@@ -65,7 +65,7 @@ templ Table(opts ...Opt) {
 
 templ TableHeader(opts ...Opt) {
 	<thead
-		class={ tableHeaderClasses(classFrom(opts)) }
+		class={ mergeClass(tableHeaderClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -76,7 +76,7 @@ templ TableHeader(opts ...Opt) {
 
 templ TableBody(opts ...Opt) {
 	<tbody
-		class={ tableBodyClasses(classFrom(opts)) }
+		class={ mergeClass(tableBodyClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -87,7 +87,7 @@ templ TableBody(opts ...Opt) {
 
 templ TableFooter(opts ...Opt) {
 	<tfoot
-		class={ tableFooterClasses(classFrom(opts)) }
+		class={ mergeClass(tableFooterClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -98,7 +98,7 @@ templ TableFooter(opts ...Opt) {
 
 templ TableRow(opts ...Opt) {
 	<tr
-		class={ tableRowClasses(classFrom(opts)) }
+		class={ mergeClass(tableRowClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -109,7 +109,7 @@ templ TableRow(opts ...Opt) {
 
 templ TableHead(opts ...Opt) {
 	<th
-		class={ tableHeadClasses(classFrom(opts)) }
+		class={ mergeClass(tableHeadClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -120,7 +120,7 @@ templ TableHead(opts ...Opt) {
 
 templ TableCell(opts ...Opt) {
 	<td
-		class={ tableCellClasses(classFrom(opts)) }
+		class={ mergeClass(tableCellClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -131,7 +131,7 @@ templ TableCell(opts ...Opt) {
 
 templ TableCaption(caption string, opts ...Opt) {
 	<caption
-		class={ tableCaptionClasses(classFrom(opts)) }
+		class={ mergeClass(tableCaptionClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}

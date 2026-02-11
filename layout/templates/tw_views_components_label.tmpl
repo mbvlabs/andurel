@@ -10,6 +10,7 @@ type LabelBuilder struct {
 	required   bool
 	id         string
 	class      string
+	classOverride bool
 	attrs      templ.Attributes
 	fragmentID string
 }
@@ -27,7 +28,7 @@ func (b *LabelBuilder) WithFor(f string) *LabelBuilder    { b.htmlFor = f; retur
 func (b *LabelBuilder) WithRequired(r bool) *LabelBuilder { b.required = r; return b }
 func (b *LabelBuilder) WithID(id string) *LabelBuilder    { b.id = id; return b }
 func (b *LabelBuilder) WithClass(c string) *LabelBuilder  { b.class = cn(b.class, c); return b }
-func (b *LabelBuilder) SetClass(c string) *LabelBuilder   { b.class = c; return b }
+func (b *LabelBuilder) SetClass(c string) *LabelBuilder   { b.class = c; b.classOverride = true; return b }
 func (b *LabelBuilder) WithAttr(key string, val any) *LabelBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -39,7 +40,7 @@ func (b *LabelBuilder) WithFragment(id string) *LabelBuilder { b.fragmentID = id
 
 func labelClasses(b *LabelBuilder) string {
 	base := "text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60"
-	return cn(base, b.class)
+	return mergeClass(cn(base), b.class, b.classOverride)
 }
 
 templ (b *LabelBuilder) Render() {

@@ -39,14 +39,14 @@ func carouselStyleExpr(id string) string {
 //		@components.CarouselItem() { Slide 3 }
 //	}
 templ Carousel(totalSlides int, opts ...Opt) {
-	@carouselInner(resolveID(opts), totalSlides, classFrom(opts), attrsFrom(opts)) {
+	@carouselInner(resolveID(opts), totalSlides, mergeClass(carouselClasses(""), classFrom(opts), classOverrideFrom(opts)), attrsFrom(opts)) {
 		{ children... }
 	}
 }
 
 templ carouselInner(id string, total int, class string, attrs templ.Attributes) {
 	<div
-		class={ carouselClasses(class) }
+		class={ class }
 		role="region"
 		aria-roledescription="carousel"
 		{ templ.Attributes{"data-signals:_" + id: "0"}... }
@@ -70,7 +70,7 @@ templ carouselInner(id string, total int, class string, attrs templ.Attributes) 
 
 templ CarouselItem(opts ...Opt) {
 	<div
-		class={ carouselItemClasses(classFrom(opts)) }
+		class={ mergeClass(carouselItemClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		role="group"
 		aria-roledescription="slide"
 		if attrsFrom(opts) != nil {

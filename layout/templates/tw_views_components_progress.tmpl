@@ -7,6 +7,7 @@ type ProgressBuilder struct {
 	max        int
 	id         string
 	class      string
+	classOverride bool
 	attrs      templ.Attributes
 	fragmentID string
 }
@@ -23,7 +24,7 @@ func Progress(value int) *ProgressBuilder {
 func (b *ProgressBuilder) WithMax(m int) *ProgressBuilder      { b.max = m; return b }
 func (b *ProgressBuilder) WithID(id string) *ProgressBuilder   { b.id = id; return b }
 func (b *ProgressBuilder) WithClass(c string) *ProgressBuilder { b.class = cn(b.class, c); return b }
-func (b *ProgressBuilder) SetClass(c string) *ProgressBuilder  { b.class = c; return b }
+func (b *ProgressBuilder) SetClass(c string) *ProgressBuilder  { b.class = c; b.classOverride = true; return b }
 func (b *ProgressBuilder) WithAttr(key string, val any) *ProgressBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -35,7 +36,7 @@ func (b *ProgressBuilder) WithFragment(id string) *ProgressBuilder { b.fragmentI
 
 func progressContainerClasses(b *ProgressBuilder) string {
 	base := "relative h-2 w-full overflow-hidden rounded-full bg-base-200"
-	return cn(base, b.class)
+	return mergeClass(cn(base), b.class, b.classOverride)
 }
 
 func progressWidth(value, max int) string {

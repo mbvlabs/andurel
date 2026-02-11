@@ -42,6 +42,7 @@ type ButtonBuilder struct {
 	loadingSignal string
 	id            string
 	class         string
+	classOverride bool
 	attrs         templ.Attributes
 	fragmentID    string
 }
@@ -75,7 +76,7 @@ func (b *ButtonBuilder) WithFullWidth(fw bool) *ButtonBuilder { b.fullWidth = fw
 func (b *ButtonBuilder) WithHref(h string) *ButtonBuilder     { b.href = h; return b }
 func (b *ButtonBuilder) WithID(id string) *ButtonBuilder      { b.id = id; return b }
 func (b *ButtonBuilder) WithClass(c string) *ButtonBuilder    { b.class = cn(b.class, c); return b }
-func (b *ButtonBuilder) SetClass(c string) *ButtonBuilder     { b.class = c; return b }
+func (b *ButtonBuilder) SetClass(c string) *ButtonBuilder     { b.class = c; b.classOverride = true; return b }
 func (b *ButtonBuilder) WithAttr(key string, val any) *ButtonBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -126,7 +127,7 @@ func buttonClasses(b *ButtonBuilder) string {
 	if b.fullWidth {
 		width = "w-full"
 	}
-	return cn(base, buttonVariantClasses(b.variant), buttonSizeClasses(b.size), width, b.class)
+	return mergeClass(cn(base, buttonVariantClasses(b.variant), buttonSizeClasses(b.size), width), b.class, b.classOverride)
 }
 
 templ (b *ButtonBuilder) Render() {

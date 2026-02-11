@@ -5,6 +5,7 @@ type TagsInputBuilder struct {
 	placeholder string
 	id          string
 	class       string
+	classOverride bool
 	attrs       templ.Attributes
 	fragmentID  string
 }
@@ -24,7 +25,7 @@ func TagsInput(bind string) *TagsInputBuilder {
 func (b *TagsInputBuilder) WithPlaceholder(p string) *TagsInputBuilder { b.placeholder = p; return b }
 func (b *TagsInputBuilder) WithID(id string) *TagsInputBuilder         { b.id = id; return b }
 func (b *TagsInputBuilder) WithClass(c string) *TagsInputBuilder       { b.class = cn(b.class, c); return b }
-func (b *TagsInputBuilder) SetClass(c string) *TagsInputBuilder        { b.class = c; return b }
+func (b *TagsInputBuilder) SetClass(c string) *TagsInputBuilder        { b.class = c; b.classOverride = true; return b }
 func (b *TagsInputBuilder) WithAttr(key string, val any) *TagsInputBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -36,7 +37,7 @@ func (b *TagsInputBuilder) WithFragment(id string) *TagsInputBuilder { b.fragmen
 
 func tagsInputContainerClasses(b *TagsInputBuilder) string {
 	base := "flex min-h-9 w-full flex-wrap items-center gap-1.5 rounded-field border border-base-300 bg-base-200 px-3 py-1.5 text-sm shadow-inner transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/50"
-	return cn(base, b.class)
+	return mergeClass(cn(base), b.class, b.classOverride)
 }
 
 templ (b *TagsInputBuilder) Render() {
@@ -77,7 +78,7 @@ templ (b *TagsInputBuilder) render() {
 
 templ Tag(label string, opts ...Opt) {
 	<span
-		class={ cn("inline-flex items-center gap-1 rounded-full bg-base-300 px-2 py-0.5 text-xs font-medium text-base-content", classFrom(opts)) }
+		class={ mergeClass("inline-flex items-center gap-1 rounded-full bg-base-300 px-2 py-0.5 text-xs font-medium text-base-content", classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}

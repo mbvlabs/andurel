@@ -11,6 +11,7 @@ type SeparatorBuilder struct {
 	orientation SeparatorOrientation
 	id          string
 	class       string
+	classOverride bool
 	attrs       templ.Attributes
 	fragmentID  string
 }
@@ -31,7 +32,7 @@ func (b *SeparatorBuilder) WithOrientation(o SeparatorOrientation) *SeparatorBui
 }
 func (b *SeparatorBuilder) WithID(id string) *SeparatorBuilder   { b.id = id; return b }
 func (b *SeparatorBuilder) WithClass(c string) *SeparatorBuilder { b.class = cn(b.class, c); return b }
-func (b *SeparatorBuilder) SetClass(c string) *SeparatorBuilder  { b.class = c; return b }
+func (b *SeparatorBuilder) SetClass(c string) *SeparatorBuilder  { b.class = c; b.classOverride = true; return b }
 func (b *SeparatorBuilder) WithAttr(key string, val any) *SeparatorBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -47,7 +48,7 @@ func separatorClasses(b *SeparatorBuilder) string {
 	if b.orientation == SeparatorVertical {
 		orientation = "h-full w-px"
 	}
-	return cn(base, orientation, b.class)
+	return mergeClass(cn(base, orientation), b.class, b.classOverride)
 }
 
 templ (b *SeparatorBuilder) Render() {

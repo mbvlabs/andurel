@@ -6,6 +6,7 @@ type AspectRatioBuilder struct {
 	ratio      float64
 	id         string
 	class      string
+	classOverride bool
 	attrs      templ.Attributes
 	fragmentID string
 }
@@ -29,7 +30,7 @@ func (b *AspectRatioBuilder) WithClass(c string) *AspectRatioBuilder {
 	b.class = cn(b.class, c)
 	return b
 }
-func (b *AspectRatioBuilder) SetClass(c string) *AspectRatioBuilder { b.class = c; return b }
+func (b *AspectRatioBuilder) SetClass(c string) *AspectRatioBuilder { b.class = c; b.classOverride = true; return b }
 func (b *AspectRatioBuilder) WithAttr(key string, val any) *AspectRatioBuilder {
 	if b.attrs == nil {
 		b.attrs = templ.Attributes{}
@@ -48,7 +49,7 @@ func aspectRatioStyle(ratio float64) string {
 
 func aspectRatioClasses(b *AspectRatioBuilder) string {
 	base := "relative w-full"
-	return cn(base, b.class)
+	return mergeClass(cn(base), b.class, b.classOverride)
 }
 
 templ (b *AspectRatioBuilder) Render() {

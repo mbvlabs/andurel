@@ -30,7 +30,7 @@ func tabsContentClasses(class string) string {
 //	}
 templ Tabs(signal string, defaultTab string, opts ...Opt) {
 	<div
-		class={ tabsClasses(classFrom(opts)) }
+		class={ mergeClass(tabsClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		{ templ.Attributes{"data-signals:_" + signal: "'" + defaultTab + "'"}... }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
@@ -43,7 +43,7 @@ templ Tabs(signal string, defaultTab string, opts ...Opt) {
 templ TabsList(opts ...Opt) {
 	<div
 		role="tablist"
-		class={ tabsListClasses(classFrom(opts)) }
+		class={ mergeClass(tabsListClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
 		}
@@ -57,7 +57,7 @@ templ TabsTrigger(signal string, value string, label string, opts ...Opt) {
 		type="button"
 		role="tab"
 		aria-selected="false"
-		class={ tabsTriggerClasses(classFrom(opts)) }
+		class={ mergeClass(tabsTriggerClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		{ templ.Attributes{"data-on:click": "$_" + signal + " = '" + value + "'", "data-attr:aria-selected": "$_" + signal + " == '" + value + "'"}... }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
@@ -70,7 +70,7 @@ templ TabsTrigger(signal string, value string, label string, opts ...Opt) {
 templ TabsContent(signal string, value string, opts ...Opt) {
 	<div
 		role="tabpanel"
-		class={ tabsContentClasses(classFrom(opts)) }
+		class={ mergeClass(tabsContentClasses(""), classFrom(opts), classOverrideFrom(opts)) }
 		{ templ.Attributes{"data-show": "$_" + signal + " == '" + value + "'"}... }
 		if attrsFrom(opts) != nil {
 			{ attrsFrom(opts)... }
