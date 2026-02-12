@@ -196,7 +196,7 @@ Templ code generation.
 
 ```bash
 andurel views (alias: v)
-andurel views generate
+andurel views compile
 andurel views format
 ```
 
