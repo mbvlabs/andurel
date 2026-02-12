@@ -1,0 +1,168 @@
+package views
+
+import (
+	"context"
+	"net/url"
+	"strings"
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/router/routes"
+)
+
+type HeadDataOption func(*HeadData)
+
+type MetaContent struct {
+	Content  string
+	Name     string
+	Property string
+}
+
+type HeadData struct {
+	siteName       string
+	Title          string
+	Description    string
+	Image          string
+	ImageAlt       string
+	Slug           string
+	canonical      string
+	canonicalURL   string
+	twitterCreator string
+	faviconBaseURL string
+	MetaType       string
+	stylesheetHref string
+	scriptSrc      string
+	ExtraMeta      []MetaContent
+}
+
+func buildCanonicalURL(base, slug string) string {
+	u, err := url.Parse(base)
+	if err != nil {
+		if base == "" {
+			return slug
+		}
+		return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(slug, "/")
+	}
+
+	ref, err := url.Parse(slug)
+	if err != nil {
+		return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(slug, "/")
+	}
+
+	return u.ResolveReference(ref).String()
+}
+
+func joinAssetURL(base, path string) string {
+	return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(path, "/")
+}
+
+func SetTitle(title string) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.Title = title + " - " + hd.siteName
+	}
+}
+
+func SetDescription(description string) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.Description = description
+	}
+}
+
+func SetSlug(slug string) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.Slug = slug
+	}
+}
+
+func SetImage(imageSrc string) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.Image = imageSrc
+	}
+}
+
+func SetImageAlt(imageAlt string) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.ImageAlt = imageAlt
+	}
+}
+
+func SetExtraMeta(extra MetaContent) HeadDataOption {
+	return func(hd *HeadData) {
+		hd.ExtraMeta = append(hd.ExtraMeta, extra)
+	}
+}
+
+templ head(data HeadData) {
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<meta name="twitter:card" content="summary_large_image"/>
+		if data.twitterCreator != "" {
+			<meta name="twitter:creator" content={ data.twitterCreator }/>
+		}
+		<title>
+			{ data.Title }
+		</title>
+		<link href={ data.stylesheetHref } rel="stylesheet"/>
+		<meta property="og:type" content={ data.MetaType }/>
+		<meta property="og:title" content={ data.Title }/>
+		<meta property="og:description" content={ data.Description }/>
+		<meta property="og:url" content={ data.canonicalURL }/>
+		<meta property="og:site_name" content={ data.siteName }/>
+		<meta property="og:locale" content="en_US"/>
+		<meta name="twitter:title" content={ data.Title }/>
+		<meta name="twitter:description" content={ data.Description }/>
+		if data.Image != "" {
+			<meta name="twitter:image" content={ data.Image }/>
+			<meta property="og:image" content={ data.Image }/>
+			if data.ImageAlt != "" {
+				<meta property="og:image:alt" content={ data.ImageAlt }/>
+			}
+		}
+		for _, extraMeta := range data.ExtraMeta {
+			if extraMeta.Content != "" && (extraMeta.Name != "" || extraMeta.Property != "") {
+				<meta
+					if extraMeta.Name != "" {
+						name={ extraMeta.Name }
+					}
+					if extraMeta.Property != "" {
+						property={ extraMeta.Property }
+					}
+					content={ extraMeta.Content }
+				/>
+			}
+		}
+		<meta name="description" content={ data.Description }/>
+		<link rel="canonical" href={ data.canonicalURL }/>
+		if data.faviconBaseURL != "" {
+			<link rel="icon" type="image/x-icon" href={ joinAssetURL(data.faviconBaseURL, "favicon.ico") }/>
+			<link rel="icon" type="image/png" sizes="16x16" href={ joinAssetURL(data.faviconBaseURL, "favicon-16x16.png") }/>
+			<link rel="icon" type="image/png" sizes="32x32" href={ joinAssetURL(data.faviconBaseURL, "favicon-32x32.png") }/>
+			<link rel="apple-touch-icon" sizes="180x180" href={ joinAssetURL(data.faviconBaseURL, "apple-touch-icon.png") }/>
+			<link rel="icon" type="image/png" sizes="192x192" href={ joinAssetURL(data.faviconBaseURL, "android-chrome-192x192.png") }/>
+			<link rel="icon" type="image/png" sizes="512x512" href={ joinAssetURL(data.faviconBaseURL, "android-chrome-512x512.png") }/>
+			<link rel="manifest" href={ joinAssetURL(data.faviconBaseURL, "site.webmanifest") }/>
+		}
+		<script src={ data.scriptSrc } type="module"></script>
+	</head>
+}
+
+func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
+	data := &HeadData{
+		siteName:       config.ProjectName,
+		Title:          config.ProjectName,
+		Description:    "Andurel is the web development framework for Go.",
+		Slug:           "/",
+		canonical:      config.BaseURL,
+		twitterCreator: "@mbvisti",
+		faviconBaseURL: "https://media.andurel.com/favicon",
+		MetaType:       "website",
+		stylesheetHref: routes.Stylesheet.URL(),
+		scriptSrc:      routes.Scripts.URL(),
+	}
+
+	for _, opt := range opts {
+		opt(data)
+	}
+
+	data.canonicalURL = buildCanonicalURL(data.canonical, data.Slug)
+	return head(*data)
+}

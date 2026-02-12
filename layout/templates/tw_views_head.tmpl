@@ -1,7 +1,9 @@
-package components
+package views
 
 import (
 	"context"
+	"net/url"
+	"strings"
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/router/routes"
 )
@@ -22,10 +24,34 @@ type HeadData struct {
 	ImageAlt       string
 	Slug           string
 	canonical      string
+	canonicalURL   string
+	twitterCreator string
+	faviconBaseURL string
 	MetaType       string
 	stylesheetHref string
 	scriptSrc      string
 	ExtraMeta      []MetaContent
+}
+
+func buildCanonicalURL(base, slug string) string {
+	u, err := url.Parse(base)
+	if err != nil {
+		if base == "" {
+			return slug
+		}
+		return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(slug, "/")
+	}
+
+	ref, err := url.Parse(slug)
+	if err != nil {
+		return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(slug, "/")
+	}
+
+	return u.ResolveReference(ref).String()
+}
+
+func joinAssetURL(base, path string) string {
+	return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(path, "/")
 }
 
 func SetTitle(title string) HeadDataOption {
@@ -69,7 +95,9 @@ templ head(data HeadData) {
 		<meta charset="UTF-8"/>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 		<meta name="twitter:card" content="summary_large_image"/>
-		<meta name="twitter:creator" content="@mbvlabs"/>
+		if data.twitterCreator != "" {
+			<meta name="twitter:creator" content={ data.twitterCreator }/>
+		}
 		<title>
 			{ data.Title }
 		</title>
@@ -77,55 +105,55 @@ templ head(data HeadData) {
 		<meta property="og:type" content={ data.MetaType }/>
 		<meta property="og:title" content={ data.Title }/>
 		<meta property="og:description" content={ data.Description }/>
-		<meta property="og:url" content={ data.canonical + data.Slug }/>
+		<meta property="og:url" content={ data.canonicalURL }/>
 		<meta property="og:site_name" content={ data.siteName }/>
 		<meta property="og:locale" content="en_US"/>
-		<meta name="twitter:title" content={ data.MetaType }/>
+		<meta name="twitter:title" content={ data.Title }/>
 		<meta name="twitter:description" content={ data.Description }/>
 		if data.Image != "" {
 			<meta name="twitter:image" content={ data.Image }/>
-		}
-		if data.Image != "" {
 			<meta property="og:image" content={ data.Image }/>
-			<meta property="og:image:alt" content={ data.ImageAlt }/>
+			if data.ImageAlt != "" {
+				<meta property="og:image:alt" content={ data.ImageAlt }/>
+			}
 		}
 		for _, extraMeta := range data.ExtraMeta {
-			<meta
-				if extraMeta.Name != "" {
-					name={ extraMeta.Name }
-				}
-				if extraMeta.Property != "" {
-					property={ extraMeta.Property }
-				}
-				if extraMeta.Content != "" {
+			if extraMeta.Content != "" && (extraMeta.Name != "" || extraMeta.Property != "") {
+				<meta
+					if extraMeta.Name != "" {
+						name={ extraMeta.Name }
+					}
+					if extraMeta.Property != "" {
+						property={ extraMeta.Property }
+					}
 					content={ extraMeta.Content }
-				}
-			/>
+				/>
+			}
 		}
 		<meta name="description" content={ data.Description }/>
-		<link
-			rel="canonical"
-			href={ data.canonical + data.Slug }
-		/>
-		<link rel="icon" type="image/x-icon" href="https://media.andurel.com/favicon/favicon.ico"/>
-		<link rel="icon" type="image/png" sizes="16x16" href="https://media.andurel.com/favicon/favicon-16x16.png"/>
-		<link rel="icon" type="image/png" sizes="32x32" href="https://media.andurel.com/favicon/favicon-32x32.png"/>
-		<link rel="apple-touch-icon" sizes="180x180" href="https://media.andurel.com/favicon/apple-touch-icon.png"/>
-		<link rel="icon" type="image/png" sizes="192x192" href="https://media.andurel.com/favicon/android-chrome-192x192.png"/>
-		<link rel="icon" type="image/png" sizes="512x512" href="https://media.andurel.com/favicon/android-chrome-512x512.png"/>
-		<link rel="manifest" href="https://media.andurel.com/favicon/site.webmanifest"/>
+		<link rel="canonical" href={ data.canonicalURL }/>
+		if data.faviconBaseURL != "" {
+			<link rel="icon" type="image/x-icon" href={ joinAssetURL(data.faviconBaseURL, "favicon.ico") }/>
+			<link rel="icon" type="image/png" sizes="16x16" href={ joinAssetURL(data.faviconBaseURL, "favicon-16x16.png") }/>
+			<link rel="icon" type="image/png" sizes="32x32" href={ joinAssetURL(data.faviconBaseURL, "favicon-32x32.png") }/>
+			<link rel="apple-touch-icon" sizes="180x180" href={ joinAssetURL(data.faviconBaseURL, "apple-touch-icon.png") }/>
+			<link rel="icon" type="image/png" sizes="192x192" href={ joinAssetURL(data.faviconBaseURL, "android-chrome-192x192.png") }/>
+			<link rel="icon" type="image/png" sizes="512x512" href={ joinAssetURL(data.faviconBaseURL, "android-chrome-512x512.png") }/>
+			<link rel="manifest" href={ joinAssetURL(data.faviconBaseURL, "site.webmanifest") }/>
+		}
 		<script src={ data.scriptSrc } type="module"></script>
 	</head>
 }
 
 func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
-
 	data := &HeadData{
 		siteName:       config.ProjectName,
 		Title:          config.ProjectName,
 		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
 		canonical:      config.BaseURL,
+		twitterCreator: "@mbvisti",
+		faviconBaseURL: "https://media.andurel.com/favicon",
 		MetaType:       "website",
 		stylesheetHref: routes.Stylesheet.URL(),
 		scriptSrc:      routes.Scripts.URL(),
@@ -135,5 +163,6 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 		opt(data)
 	}
 
+	data.canonicalURL = buildCanonicalURL(data.canonical, data.Slug)
 	return head(*data)
 }
