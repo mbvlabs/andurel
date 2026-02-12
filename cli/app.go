@@ -184,7 +184,7 @@ Override defaults by passing flags, e.g.:
 			if _, err := os.Stat(binPath); err != nil {
 				if os.IsNotExist(err) {
 					return fmt.Errorf(
-						"mailpit binary not found at %s\nRun 'andurel sync' to download it",
+						"mailpit binary not found at %s\nRun 'andurel tool sync' to download it",
 						binPath,
 					)
 				}
