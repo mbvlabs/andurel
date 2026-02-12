@@ -52,20 +52,6 @@ var (
 
 		return fmt.Sprintf("%s://%s", protocol, Domain)
 	}()
-	TwitterCreator = func() string {
-		if os.Getenv("TWITTER_CREATOR") != "" {
-			return os.Getenv("TWITTER_CREATOR")
-		}
-
-		return "@mbvlabs"
-	}()
-	FaviconBaseURL = func() string {
-		if os.Getenv("FAVICON_BASE_URL") != "" {
-			return os.Getenv("FAVICON_BASE_URL")
-		}
-
-		return "https://media.andurel.com/favicon"
-	}()
 	AppCookieSessionName = func() string {
 		return "app_sess_"+slug.Make(strings.ToLower(ProjectName)) + "-" + Env
 	}()

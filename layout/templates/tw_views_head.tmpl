@@ -152,8 +152,8 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
 		canonical:      config.BaseURL,
-		twitterCreator: config.TwitterCreator,
-		faviconBaseURL: config.FaviconBaseURL,
+		twitterCreator: "@mbvisti",
+		faviconBaseURL: "https://media.andurel.com/favicon",
 		MetaType:       "website",
 		stylesheetHref: routes.Stylesheet.URL(),
 		scriptSrc:      routes.Scripts.URL(),
@@ -164,5 +164,7 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 	}
 
 	data.canonicalURL = buildCanonicalURL(data.canonical, data.Slug)
+	data.stylesheetHref = buildCanonicalURL(data.canonical, data.stylesheetHref)
+	data.scriptSrc = buildCanonicalURL(data.canonical, data.scriptSrc)
 	return head(*data)
 }
