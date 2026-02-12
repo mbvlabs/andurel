@@ -2,14 +2,22 @@ package components
 
 import "fmt"
 
+type InputOTPMode string
+
+const (
+	InputOTPModeNumeric      InputOTPMode = "numeric"
+	InputOTPModeAlphanumeric InputOTPMode = "alphanumeric"
+)
+
 type InputOTPBuilder struct {
-	bind       string
-	length     int
-	id         string
-	class      string
+	bind          string
+	length        int
+	mode          InputOTPMode
+	id            string
+	class         string
 	classOverride bool
-	attrs      templ.Attributes
-	fragmentID string
+	attrs         templ.Attributes
+	fragmentID    string
 }
 
 // InputOTP renders a row of individual single-character inputs for one-time password entry.
@@ -19,10 +27,14 @@ type InputOTPBuilder struct {
 //	@components.InputOTP("otp").WithLength(6).Render()
 //	@components.InputOTP("pin").WithLength(4).Render()
 func InputOTP(bind string) *InputOTPBuilder {
-	return &InputOTPBuilder{bind: bind, length: 6}
+	return &InputOTPBuilder{bind: bind, length: 6, mode: InputOTPModeNumeric}
 }
 
 func (b *InputOTPBuilder) WithLength(l int) *InputOTPBuilder   { b.length = l; return b }
+func (b *InputOTPBuilder) WithMode(m InputOTPMode) *InputOTPBuilder {
+	b.mode = m
+	return b
+}
 func (b *InputOTPBuilder) WithID(id string) *InputOTPBuilder   { b.id = id; return b }
 func (b *InputOTPBuilder) WithClass(c string) *InputOTPBuilder { b.class = cn(b.class, c); return b }
 func (b *InputOTPBuilder) SetClass(c string) *InputOTPBuilder  { b.class = c; b.classOverride = true; return b }
@@ -35,10 +47,14 @@ func (b *InputOTPBuilder) WithAttr(key string, val any) *InputOTPBuilder {
 }
 func (b *InputOTPBuilder) WithFragment(id string) *InputOTPBuilder { b.fragmentID = id; return b }
 
-func otpInputExpr(bind string, idx int) string {
+func otpInputExpr(bind string, idx int, mode InputOTPMode) string {
+	sanitize := "el.value=el.value.replace(/\\D/g,'').slice(0,1)"
+	if mode == InputOTPModeAlphanumeric {
+		sanitize = "el.value=el.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,1)"
+	}
 	return fmt.Sprintf(
-		"el.value=el.value.replace(/\\D/g,'').slice(0,1);const _a=[...el.closest('[data-otp]').querySelectorAll('input')];$%s=_a.map(i=>i.value).join('');if(el.value&&_a[%d])_a[%d].focus()",
-		bind, idx+1, idx+1,
+		"%s;const _a=[...el.closest('[data-otp]').querySelectorAll('input')];$%s=_a.map(i=>i.value).join('');if(el.value&&_a[%d])_a[%d].focus()",
+		sanitize, bind, idx+1, idx+1,
 	)
 }
 
@@ -49,10 +65,14 @@ func otpKeydownExpr(bind string) string {
 	)
 }
 
-func otpPasteExpr(bind string, length int) string {
+func otpPasteExpr(bind string, length int, mode InputOTPMode) string {
+	sanitize := ".replace(/\\D/g,'')"
+	if mode == InputOTPModeAlphanumeric {
+		sanitize = ".toUpperCase().replace(/[^A-Z0-9]/g,'')"
+	}
 	return fmt.Sprintf(
-		"evt.preventDefault();const _t=(evt.clipboardData||window.clipboardData).getData('text').replace(/\\D/g,'').slice(0,%d);const _a=[...el.closest('[data-otp]').querySelectorAll('input')];_a.forEach(i=>{i.value=''});_t.split('').forEach((c,i)=>{if(_a[i])_a[i].value=c});$%s=_t;const _f=Math.min(_t.length,%d);if(_a[_f])_a[_f].focus()",
-		length, bind, length-1,
+		"evt.preventDefault();const _t=(evt.clipboardData||window.clipboardData).getData('text')%s.slice(0,%d);const _a=[...el.closest('[data-otp]').querySelectorAll('input')];_a.forEach(i=>{i.value=''});_t.split('').forEach((c,i)=>{if(_a[i])_a[i].value=c});$%s=_t;const _f=Math.min(_t.length,%d);if(_a[_f])_a[_f].focus()",
+		sanitize, length, bind, length-1,
 	)
 }
 
@@ -92,13 +112,18 @@ templ (b *InputOTPBuilder) render() {
 					type="text"
 					maxlength="1"
 					class="h-full w-full bg-transparent text-center outline-none"
-					inputmode="numeric"
+					inputmode={ func() string {
+						if b.mode == InputOTPModeAlphanumeric {
+							return "text"
+						}
+						return "numeric"
+					}() }
 					if i == 0 {
 						autocomplete="one-time-code"
 					}
-					data-on:input={ otpInputExpr(b.bind, i) }
+					data-on:input={ otpInputExpr(b.bind, i, b.mode) }
 					data-on:keydown={ otpKeydownExpr(b.bind) }
-					data-on:paste={ otpPasteExpr(b.bind, b.length) }
+					data-on:paste={ otpPasteExpr(b.bind, b.length, b.mode) }
 					data-on:focus="el.select()"
 				/>
 			</div>
