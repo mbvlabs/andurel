@@ -153,9 +153,8 @@ func downloadFromLockTool(name string, tool *layout.Tool, goos, goarch, binPath 
 		)
 	}
 
-	// Backward-compat fallback for older lock files.
-	if tool.Module != "" {
-		return cmds.DownloadGoTool(name, tool.Module, tool.Version, goos, goarch, binPath)
+	if tool.Source != "" {
+		return cmds.DownloadGoTool(name, tool.Source, tool.Version, goos, goarch, binPath)
 	}
 
 	if name == "tailwindcli" {

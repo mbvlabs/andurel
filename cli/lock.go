@@ -14,18 +14,18 @@ import (
 
 type managedTool struct {
 	Name        string
-	Module      string
+	Source      string
 	Description string
 }
 
 var managedTools = []managedTool{
-	{Name: "templ", Module: "github.com/a-h/templ/cmd/templ", Description: "Templ templating engine"},
-	{Name: "sqlc", Module: "github.com/sqlc-dev/sqlc/cmd/sqlc", Description: "SQL compiler"},
-	{Name: "goose", Module: "github.com/pressly/goose/v3/cmd/goose", Description: "Database migrations"},
-	{Name: "mailpit", Module: "github.com/axllent/mailpit", Description: "Email testing"},
-	{Name: "usql", Module: "github.com/xo/usql", Description: "Universal SQL CLI"},
-	{Name: "dblab", Module: "github.com/danvergara/dblab", Description: "Database UI"},
-	{Name: "shadowfax", Module: "github.com/mbvlabs/shadowfax", Description: "Shadowfax dev server"},
+	{Name: "templ", Source: "github.com/a-h/templ/cmd/templ", Description: "Templ templating engine"},
+	{Name: "sqlc", Source: "github.com/sqlc-dev/sqlc/cmd/sqlc", Description: "SQL compiler"},
+	{Name: "goose", Source: "github.com/pressly/goose/v3/cmd/goose", Description: "Database migrations"},
+	{Name: "mailpit", Source: "github.com/axllent/mailpit", Description: "Email testing"},
+	{Name: "usql", Source: "github.com/xo/usql", Description: "Universal SQL CLI"},
+	{Name: "dblab", Source: "github.com/danvergara/dblab", Description: "Database UI"},
+	{Name: "shadowfax", Source: "github.com/mbvlabs/shadowfax", Description: "Shadowfax dev server"},
 	{Name: "tailwindcli", Description: "Tailwind CSS CLI"},
 }
 
@@ -95,8 +95,8 @@ func setVersion(projectRoot, toolName, version string) error {
 			return unknownToolError(toolName)
 		}
 
-		if managed.Module != "" {
-			tool = layout.NewGoTool(toolName, extractModulePath(managed.Module), versionWithV)
+		if managed.Source != "" {
+			tool = layout.NewGoTool(toolName, extractSourcePath(managed.Source), versionWithV)
 		} else {
 			tool = layout.NewBinaryTool(toolName, versionWithV)
 		}
@@ -144,10 +144,10 @@ func unknownToolError(toolName string) error {
 	)
 }
 
-func extractModulePath(module string) string {
-	parts := strings.Split(module, "/")
+func extractSourcePath(source string) string {
+	parts := strings.Split(source, "/")
 	if len(parts) >= 3 {
 		return strings.Join(parts[:3], "/")
 	}
-	return module
+	return source
 }

@@ -54,12 +54,12 @@ func TestShouldUpdateTool_NoDowngrade(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			existing := &layout.Tool{
-				Module:  "github.com/example/tool",
+				Source:  "github.com/example/tool",
 				Version: tt.existingVersion,
 			}
 
 			expected := &layout.Tool{
-				Module:  "github.com/example/tool",
+				Source:  "github.com/example/tool",
 				Version: tt.expectedVersion,
 			}
 
@@ -146,12 +146,12 @@ func TestShouldUpdateTool_BuiltTools(t *testing.T) {
 
 func TestShouldUpdateTool_UsesSemverForVersionedTools(t *testing.T) {
 	existing := &layout.Tool{
-		Module:  "github.com/example/tool",
+		Source:  "github.com/example/tool",
 		Version: "v1.0.0",
 	}
 
 	expected := &layout.Tool{
-		Module:  "github.com/example/tool",
+		Source:  "github.com/example/tool",
 		Version: "v2.0.0",
 	}
 

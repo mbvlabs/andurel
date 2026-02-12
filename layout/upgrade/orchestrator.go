@@ -279,12 +279,27 @@ func (u *Upgrader) syncToolsToFrameworkVersion() (*ToolSyncResult, error) {
 				existingTool.Path = expectedTool.Path
 				result.Updated = append(result.Updated, fmt.Sprintf("%s: %s", toolName, expectedTool.Version))
 			} else {
-				// Update version for versioned tools
+				// Update version and source metadata for versioned tools.
 				existingTool.Version = expectedTool.Version
+				existingTool.Source = expectedTool.Source
 				existingTool.Download = expectedTool.Download
 				result.Updated = append(result.Updated, fmt.Sprintf("%s: %s", toolName, getToolVersion(expectedTool)))
 			}
 			u.lock.Tools[toolName] = existingTool
+		} else if existingTool.Path == "" {
+			// Keep source metadata aligned even when version does not change.
+			metadataChanged := false
+			if existingTool.Source != expectedTool.Source {
+				existingTool.Source = expectedTool.Source
+				metadataChanged = true
+			}
+			if existingTool.Download == nil && expectedTool.Download != nil {
+				existingTool.Download = expectedTool.Download
+				metadataChanged = true
+			}
+			if metadataChanged {
+				u.lock.Tools[toolName] = existingTool
+			}
 		}
 	}
 

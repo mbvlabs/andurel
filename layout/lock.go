@@ -36,7 +36,7 @@ type ToolDownload struct {
 
 type Tool struct {
 	Version  string        `json:"version,omitempty"`
-	Module   string        `json:"module,omitempty"`
+	Source   string        `json:"source,omitempty"`
 	Path     string        `json:"path,omitempty"`
 	Download *ToolDownload `json:"download,omitempty"`
 }
@@ -105,9 +105,9 @@ func GetDefaultToolDownload(name string) (*ToolDownload, bool) {
 	}, true
 }
 
-func NewGoTool(name, module, version string) *Tool {
+func NewGoTool(name, source, version string) *Tool {
 	tool := &Tool{
-		Module:  module,
+		Source:  source,
 		Version: version,
 	}
 
@@ -221,8 +221,8 @@ func downloadToolBinary(name string, tool *Tool, goos, goarch, destPath string) 
 		)
 	}
 
-	if tool.Module != "" {
-		return cmds.DownloadGoTool(name, tool.Module, tool.Version, goos, goarch, destPath)
+	if tool.Source != "" {
+		return cmds.DownloadGoTool(name, tool.Source, tool.Version, goos, goarch, destPath)
 	}
 
 	if name == "tailwindcli" {
