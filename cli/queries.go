@@ -26,7 +26,6 @@ func newQueriesCommand() *cobra.Command {
 		newQueriesGenerateCommand(),
 		newQueriesRefreshCommand(),
 		newQueriesCompileCommand(),
-		newQueriesInitCommand(),
 		newQueriesValidateCommand(),
 	)
 
@@ -119,17 +118,6 @@ This runs both 'sqlc compile' and 'sqlc generate' in sequence.`,
 	}
 }
 
-func newQueriesInitCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "init",
-		Short: "Initialize SQLC config files",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runSqlcInit()
-		},
-	}
-}
-
 func newQueriesValidateCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "validate",
@@ -144,34 +132,6 @@ func newQueriesValidateCommand() *cobra.Command {
 const (
 	sqlcUserRelativePath = "database/sqlc.yaml"
 	sqlcBaseRelativePath = "internal/storage/andurel_sqlc_config.yaml"
-	defaultSQLCOverlay   = `# User SQLC configuration.
-#
-# This file is used directly by sqlc commands.
-# It must preserve all required framework settings from:
-# internal/storage/andurel_sqlc_config.yaml
-# andurel queries validate checks this contract.
-#
-# You may add compatible sqlc options, but do not remove/alter required framework entries.
-#
-# Validate anytime with: andurel queries validate
-version: "2"
-sql:
-  - schema: migrations
-    queries: queries
-    engine: postgresql
-    gen:
-      go:
-        package: db
-        out: ../models/internal/db
-        output_db_file_name: db.go
-        output_models_file_name: entities.go
-        emit_sql_as_comment: true
-        emit_methods_with_db_argument: true
-        sql_package: pgx/v5
-        overrides:
-          - db_type: uuid
-            go_type: github.com/google/uuid.UUID
-`
 )
 
 type sqlcConfig struct {
@@ -202,31 +162,6 @@ func sqlcBasePath(rootDir string) string {
 	return filepath.Join(rootDir, sqlcBaseRelativePath)
 }
 
-func initQueriesSQLCFiles(rootDir string) ([]string, error) {
-	basePath := sqlcBasePath(rootDir)
-	if _, err := os.Stat(basePath); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("missing %s", basePath)
-		}
-		return nil, fmt.Errorf("failed to read %s: %w", basePath, err)
-	}
-
-	created := make([]string, 0, 1)
-	createdUser, err := ensureSQLCFile(sqlcUserPath(rootDir), defaultSQLCOverlay)
-	if err != nil {
-		return nil, err
-	}
-	if createdUser {
-		created = append(created, sqlcUserRelativePath)
-	}
-
-	if _, err := validateSQLCConfigAgainstBase(rootDir); err != nil {
-		return nil, err
-	}
-
-	return created, nil
-}
-
 func validateQueriesSQLCFiles(rootDir string) error {
 	_, err := validateSQLCConfigAgainstBase(rootDir)
 	return err
@@ -244,7 +179,11 @@ func validateSQLCConfigAgainstBase(rootDir string) (string, error) {
 	userPath := sqlcUserPath(rootDir)
 	if _, err := os.Stat(userPath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return "", fmt.Errorf("missing %s; run 'andurel queries init' first", userPath)
+			return "", fmt.Errorf(
+				"missing %s; create it from %s",
+				userPath,
+				sqlcBaseRelativePath,
+			)
 		}
 		return "", fmt.Errorf("failed to read user sqlc config: %w", err)
 	}
@@ -393,21 +332,6 @@ func renderSQLCFieldPath(fieldPath string) string {
 		return "root"
 	}
 	return fieldPath
-}
-
-func ensureSQLCFile(path, content string) (bool, error) {
-	if _, err := os.Stat(path); err == nil {
-		return false, nil
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return false, fmt.Errorf("failed to stat %s: %w", path, err)
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return false, fmt.Errorf("failed to create directory for %s: %w", path, err)
-	}
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return false, fmt.Errorf("failed to create %s: %w", path, err)
-	}
-	return true, nil
 }
 
 func readYAMLAsMap(path string) (map[string]any, error) {
@@ -755,30 +679,6 @@ func sortedKeysExcept(data map[string]any, excluded ...string) []string {
 	}
 	sort.Strings(keys)
 	return keys
-}
-
-func runSqlcInit() error {
-	rootDir, err := findGoModRoot()
-	if err != nil {
-		return err
-	}
-
-	created, err := initQueriesSQLCFiles(rootDir)
-	if err != nil {
-		return err
-	}
-
-	if len(created) == 0 {
-		fmt.Fprintln(os.Stdout, "SQLC config files already exist.")
-	} else {
-		fmt.Fprintln(os.Stdout, "Created SQLC config files:")
-		for _, path := range created {
-			fmt.Fprintf(os.Stdout, "  - %s\n", path)
-		}
-	}
-
-	fmt.Fprintln(os.Stdout, "SQLC base config: internal/storage/andurel_sqlc_config.yaml")
-	return nil
 }
 
 func runSqlcValidate() error {

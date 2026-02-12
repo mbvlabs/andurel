@@ -212,7 +212,7 @@ func (fm *UnifiedManager) runSQLCCommand(rootDir, command string) error {
 	configPath := filepath.Join(rootDir, "database", "sqlc.yaml")
 	if _, err := os.Stat(configPath); err != nil {
 		if os.IsNotExist(err) {
-			err = fmt.Errorf("missing %s; run 'andurel queries init' first", configPath)
+			err = fmt.Errorf("missing %s; create it from internal/storage/andurel_sqlc_config.yaml", configPath)
 		}
 		return &FileOperationError{
 			Operation: "sqlc_config",

@@ -105,7 +105,7 @@ func RunSqlcGenerate(targetDir string) error {
 	configPath := filepath.Join(absTargetDir, "database", "sqlc.yaml")
 	if _, err := os.Stat(configPath); err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("missing %s; run 'andurel queries init' first", configPath)
+			return fmt.Errorf("missing %s; create it from internal/storage/andurel_sqlc_config.yaml", configPath)
 		}
 		return fmt.Errorf("failed to read sqlc config: %w", err)
 	}
