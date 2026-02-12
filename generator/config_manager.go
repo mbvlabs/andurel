@@ -278,29 +278,43 @@ func readDatabaseTypeFromSQLCYAML() (string, error) {
 		return "", fmt.Errorf("failed to find go.mod root: %w", err)
 	}
 
-	sqlcPath := filepath.Join(rootDir, "internal", "storage", "andurel_sqlc_config.yaml")
-	if _, err := os.Stat(sqlcPath); err != nil {
-		if os.IsNotExist(err) {
-			return "postgresql", nil
+	readEngine := func(path string) (string, error) {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return "", err
 		}
-		return "", fmt.Errorf("failed to read sqlc configuration: %w", err)
+
+		var config SQLCConfig
+		if err := yaml.Unmarshal(data, &config); err != nil {
+			return "", err
+		}
+		if len(config.SQL) == 0 {
+			return "", nil
+		}
+		return config.SQL[0].Engine, nil
 	}
 
-	data, err := os.ReadFile(sqlcPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read sqlc.yaml: %w", err)
-	}
-
-	var config SQLCConfig
-	if err := yaml.Unmarshal(data, &config); err != nil {
+	userPath := filepath.Join(rootDir, "database", "sqlc.yaml")
+	engine, err := readEngine(userPath)
+	if err != nil && !os.IsNotExist(err) {
 		return "", fmt.Errorf("failed to parse sqlc.yaml: %w", err)
 	}
 
-	if len(config.SQL) == 0 {
-		return "", fmt.Errorf("no SQL configuration found in sqlc.yaml")
+	if engine == "" {
+		basePath := filepath.Join(rootDir, "internal", "storage", "andurel_sqlc_config.yaml")
+		baseEngine, baseErr := readEngine(basePath)
+		if baseErr != nil && !os.IsNotExist(baseErr) {
+			return "", fmt.Errorf("failed to parse sqlc.yaml: %w", baseErr)
+		}
+		if baseEngine != "" {
+			engine = baseEngine
+		}
 	}
 
-	engine := config.SQL[0].Engine
+	if engine == "" {
+		return "postgresql", nil
+	}
+
 	if engine != "postgresql" {
 		return "", fmt.Errorf(
 			"unsupported database engine: %s (only postgresql is supported)",

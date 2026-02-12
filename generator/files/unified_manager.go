@@ -209,10 +209,10 @@ func (fm *UnifiedManager) RunSQLCGenerate() error {
 // runSQLCCommand runs a specific sqlc command
 func (fm *UnifiedManager) runSQLCCommand(rootDir, command string) error {
 	sqlcBin := filepath.Join(rootDir, "bin", "sqlc")
-	configPath := filepath.Join(rootDir, "internal", "storage", "andurel_sqlc_config.yaml")
+	configPath := filepath.Join(rootDir, "database", "sqlc.yaml")
 	if _, err := os.Stat(configPath); err != nil {
 		if os.IsNotExist(err) {
-			err = fmt.Errorf("missing %s; run 'andurel queries validate' first", configPath)
+			err = fmt.Errorf("missing %s; run 'andurel queries init' first", configPath)
 		}
 		return &FileOperationError{
 			Operation: "sqlc_config",

@@ -676,7 +676,7 @@ func checkSqlcGenerate(rootDir string, verbose bool) checkResult {
 		}
 	}
 
-	sqlcConfigPath, err := ensureEffectiveSQLCConfig(rootDir)
+	sqlcConfigPath, err := validateSQLCConfigAgainstBase(rootDir)
 	if err != nil {
 		return checkResult{
 			name:    "sqlc compile",

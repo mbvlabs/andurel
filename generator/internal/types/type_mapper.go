@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type TypeOverride struct {
@@ -559,13 +561,138 @@ func (tm *TypeMapper) GetDatabaseType() string {
 }
 
 func ValidateSQLCConfig(projectPath string) error {
-	sqlcPath := filepath.Join(projectPath, "internal", "storage", "andurel_sqlc_config.yaml")
-	if _, err := os.Stat(sqlcPath); err != nil {
+	basePath := filepath.Join(projectPath, "internal", "storage", "andurel_sqlc_config.yaml")
+	if _, err := os.Stat(basePath); err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
 		return fmt.Errorf("failed to stat sqlc config: %w", err)
 	}
 
+	userPath := filepath.Join(projectPath, "database", "sqlc.yaml")
+	if _, err := os.Stat(userPath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("missing %s", userPath)
+		}
+		return fmt.Errorf("failed to stat sqlc config: %w", err)
+	}
+
+	baseMap, err := readYAMLAsMap(basePath)
+	if err != nil {
+		return fmt.Errorf("failed to read base sqlc config: %w", err)
+	}
+	userMap, err := readYAMLAsMap(userPath)
+	if err != nil {
+		return fmt.Errorf("failed to read user sqlc config: %w", err)
+	}
+	if len(userMap) == 0 {
+		return fmt.Errorf("database/sqlc.yaml cannot be empty")
+	}
+	if err := validateSQLCSubset(baseMap, userMap, basePath, userPath, ""); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func readYAMLAsMap(path string) (map[string]any, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(string(data)) == "" {
+		return map[string]any{}, nil
+	}
+
+	result := map[string]any{}
+	if err := yaml.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return map[string]any{}, nil
+	}
+	return result, nil
+}
+
+func validateSQLCSubset(base, user any, basePath, userPath, fieldPath string) error {
+	switch baseTyped := base.(type) {
+	case map[string]any:
+		userTyped, ok := user.(map[string]any)
+		if !ok {
+			return fmt.Errorf("%s must be a map", renderFieldPath(fieldPath))
+		}
+		for key, baseValue := range baseTyped {
+			userValue, ok := userTyped[key]
+			childPath := joinFieldPath(fieldPath, key)
+			if !ok {
+				return fmt.Errorf("missing required key %q in database/sqlc.yaml", childPath)
+			}
+			if err := validateSQLCSubset(baseValue, userValue, basePath, userPath, childPath); err != nil {
+				return err
+			}
+		}
+		return nil
+	case []any:
+		userTyped, ok := user.([]any)
+		if !ok {
+			return fmt.Errorf("%s must be a list", renderFieldPath(fieldPath))
+		}
+		for _, baseValue := range baseTyped {
+			matched := false
+			for _, userValue := range userTyped {
+				if err := validateSQLCSubset(baseValue, userValue, basePath, userPath, fieldPath); err == nil {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				return fmt.Errorf(
+					"database/sqlc.yaml is missing a required entry under %s defined in internal/storage/andurel_sqlc_config.yaml",
+					renderFieldPath(fieldPath),
+				)
+			}
+		}
+		return nil
+	default:
+		if valuesEqualForField(base, user, basePath, userPath, fieldPath) {
+			return nil
+		}
+		return fmt.Errorf("required value mismatch at %s: expected %v, got %v", renderFieldPath(fieldPath), base, user)
+	}
+}
+
+func valuesEqualForField(base, user any, basePath, userPath, fieldPath string) bool {
+	baseStr, baseIsString := base.(string)
+	userStr, userIsString := user.(string)
+	if baseIsString && userIsString && isPathField(fieldPath) {
+		return resolveConfigPath(baseStr, basePath) == resolveConfigPath(userStr, userPath)
+	}
+	return fmt.Sprint(base) == fmt.Sprint(user)
+}
+
+func isPathField(fieldPath string) bool {
+	return strings.HasSuffix(fieldPath, ".schema") ||
+		strings.HasSuffix(fieldPath, ".queries") ||
+		strings.HasSuffix(fieldPath, ".out")
+}
+
+func resolveConfigPath(value, configPath string) string {
+	if filepath.IsAbs(value) {
+		return filepath.Clean(value)
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(configPath), value))
+}
+
+func joinFieldPath(parent, child string) string {
+	if parent == "" {
+		return child
+	}
+	return parent + "." + child
+}
+
+func renderFieldPath(fieldPath string) string {
+	if fieldPath == "" {
+		return "root"
+	}
+	return fieldPath
 }
