@@ -1,14 +1,10 @@
 package types
 
 import (
-	"errors"
 	"fmt"
-	"log"
-	"os"
-	"path/filepath"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/mbvlabs/andurel/internal/sqlcconfig"
 )
 
 type TypeOverride struct {
@@ -562,79 +558,9 @@ func (tm *TypeMapper) GetDatabaseType() string {
 	return tm.DatabaseType
 }
 
-type SQLCConfig struct {
-	Version string `yaml:"version"`
-	SQL     []struct {
-		Schema  string `yaml:"schema"`
-		Queries string `yaml:"queries"`
-		Engine  string `yaml:"engine"`
-		Gen     struct {
-			Go struct {
-				Package                   string `yaml:"package"`
-				Out                       string `yaml:"out"`
-				OutputDBFileName          string `yaml:"output_db_file_name"`
-				OutputModelsFileName      string `yaml:"output_models_file_name"`
-				EmitMethodsWithDBArgument bool   `yaml:"emit_methods_with_db_argument"`
-				SQLPackage                string `yaml:"sql_package"`
-				Overrides                 []struct {
-					DBType string `yaml:"db_type"`
-					GoType string `yaml:"go_type"`
-				} `yaml:"overrides"`
-			} `yaml:"go"`
-		} `yaml:"gen"`
-	} `yaml:"sql"`
-}
-
 func ValidateSQLCConfig(projectPath string) error {
-	sqlcPath := filepath.Join(projectPath, "database", "sqlc.yaml")
-
-	if _, err := os.Stat(sqlcPath); os.IsNotExist(err) {
-		log.Printf("Warning: sqlc.yaml not found at %s", sqlcPath)
-		return nil
+	if err := sqlcconfig.Validate(projectPath); err != nil {
+		return fmt.Errorf("invalid sqlc configuration: %w", err)
 	}
-
-	data, err := os.ReadFile(sqlcPath)
-	if err != nil {
-		return fmt.Errorf("failed to read sqlc.yaml: %w", err)
-	}
-
-	var config SQLCConfig
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return fmt.Errorf("failed to parse sqlc.yaml: %w", err)
-	}
-
-	if len(config.SQL) == 0 {
-		return fmt.Errorf("no SQL configurations found in sqlc.yaml")
-	}
-
-	sqlConfig := config.SQL[0]
-	overrides := sqlConfig.Gen.Go.Overrides
-
-	var invalidOverrides []string
-	for _, override := range overrides {
-		if override.DBType != "uuid" {
-			invalidOverrides = append(
-				invalidOverrides,
-				fmt.Sprintf("%s -> %s", override.DBType, override.GoType),
-			)
-		} else if override.GoType != "github.com/google/uuid.UUID" {
-			invalidOverrides = append(invalidOverrides, fmt.Sprintf("uuid should map to 'github.com/google/uuid.UUID', not '%s'", override.GoType))
-		}
-	}
-
-	if len(invalidOverrides) > 0 {
-		log.Printf("WARNING: Invalid type overrides found in %s:", sqlcPath)
-		log.Printf("The generator only supports pgtype types (except for uuid).")
-		log.Printf("Please remove the following overrides:")
-		for _, override := range invalidOverrides {
-			log.Printf("  - %s", override)
-		}
-		log.Printf(
-			"Only UUID override is supported: db_type: 'uuid' -> go_type: 'github.com/google/uuid.UUID'",
-		)
-
-		return errors.New("invalid type overrides in sqlc.yaml")
-	}
-
 	return nil
 }

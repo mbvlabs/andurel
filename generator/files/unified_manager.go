@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/mbvlabs/andurel/internal/sqlcconfig"
 	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/mbvlabs/andurel/pkg/constants"
 )
@@ -208,7 +209,16 @@ func (fm *UnifiedManager) RunSQLCGenerate() error {
 // runSQLCCommand runs a specific sqlc command
 func (fm *UnifiedManager) runSQLCCommand(rootDir, command string) error {
 	sqlcBin := filepath.Join(rootDir, "bin", "sqlc")
-	cmd := exec.Command(sqlcBin, "-f", "./database/sqlc.yaml", command)
+	configPath, err := sqlcconfig.EnsureEffectiveConfig(rootDir)
+	if err != nil {
+		return &FileOperationError{
+			Operation: "sqlc_config",
+			Path:      rootDir,
+			Err:       err,
+		}
+	}
+
+	cmd := exec.Command(sqlcBin, "-f", configPath, command)
 	cmd.Dir = rootDir
 
 	output, err := cmd.CombinedOutput()

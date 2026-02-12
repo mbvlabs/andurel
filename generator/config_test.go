@@ -33,11 +33,11 @@ sql:
 			hasError: true,
 		},
 		{
-			name: "No SQL configuration",
+			name: "Empty user SQL list falls back to base config",
 			content: `version: "2"
 sql: []`,
-			expected: "",
-			hasError: true,
+			expected: "postgresql",
+			hasError: false,
 		},
 	}
 

@@ -1,0 +1,17 @@
+version: "2"
+sql:
+  - schema: ../../database/migrations
+    queries: ../../database/queries
+    engine: postgresql
+    gen:
+      go:
+        package: db
+        out: ../../models/internal/db
+        output_db_file_name: db.go
+        output_models_file_name: entities.go
+        emit_sql_as_comment: true
+        emit_methods_with_db_argument: true
+        sql_package: pgx/v5
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID

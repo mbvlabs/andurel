@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/mbvlabs/andurel/internal/sqlcconfig"
 	"github.com/mbvlabs/andurel/layout/versions"
 )
 
@@ -101,13 +102,18 @@ func RunSqlcGenerate(targetDir string) error {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
+	configPath, err := sqlcconfig.EnsureEffectiveConfig(absTargetDir)
+	if err != nil {
+		return fmt.Errorf("failed to build sqlc config: %w", err)
+	}
+
 	cmd := exec.Command(
 		"go",
 		"run",
 		"github.com/sqlc-dev/sqlc/cmd/sqlc@"+versions.Sqlc,
 		"generate",
 		"-f",
-		"database/sqlc.yaml",
+		configPath,
 	)
 	cmd.Dir = absTargetDir
 	return cmd.Run()

@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mbvlabs/andurel/internal/sqlcconfig"
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/spf13/cobra"
 )
@@ -676,24 +677,24 @@ func checkSqlcGenerate(rootDir string, verbose bool) checkResult {
 		}
 	}
 
-	// Check if database/sqlc.yaml exists
-	sqlcConfigPath := filepath.Join(rootDir, "database", "sqlc.yaml")
-	if _, err := os.Stat(sqlcConfigPath); err != nil {
+	sqlcConfigPath, err := sqlcconfig.EnsureEffectiveConfig(rootDir)
+	if err != nil {
 		return checkResult{
 			name:    "sqlc compile",
 			status:  statusWarn,
-			message: "database/sqlc.yaml not found (skipping check)",
+			message: "sqlc config validation failed (skipping check)",
+			details: []string{err.Error()},
 		}
 	}
 
-	cmd := exec.Command(sqlcPath, "compile", "-f", "sqlc.yaml")
-	cmd.Dir = filepath.Join(rootDir, "database")
+	cmd := exec.Command(sqlcPath, "compile", "-f", sqlcConfigPath)
+	cmd.Dir = rootDir
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		output := stderr.String()
 		if output == "" {
