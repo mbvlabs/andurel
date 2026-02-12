@@ -1,0 +1,27 @@
+# User SQLC configuration.
+#
+# This file is used directly by sqlc commands.
+# It must preserve all required framework settings from:
+# internal/storage/andurel_sqlc_config.yaml
+# andurel queries validate checks this contract.
+#
+# You may add compatible sqlc options, but do not remove/alter required framework entries.
+#
+# Validate anytime with: andurel queries validate
+version: "2"
+sql:
+  - schema: migrations
+    queries: queries
+    engine: postgresql
+    gen:
+      go:
+        package: db
+        out: ../models/internal/db
+        output_db_file_name: db.go
+        output_models_file_name: entities.go
+        emit_sql_as_comment: true
+        emit_methods_with_db_argument: true
+        sql_package: pgx/v5
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID

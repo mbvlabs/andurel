@@ -1,9 +1,7 @@
 package types
 
 import (
-	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -562,79 +560,173 @@ func (tm *TypeMapper) GetDatabaseType() string {
 	return tm.DatabaseType
 }
 
-type SQLCConfig struct {
-	Version string `yaml:"version"`
-	SQL     []struct {
-		Schema  string `yaml:"schema"`
-		Queries string `yaml:"queries"`
-		Engine  string `yaml:"engine"`
-		Gen     struct {
-			Go struct {
-				Package                   string `yaml:"package"`
-				Out                       string `yaml:"out"`
-				OutputDBFileName          string `yaml:"output_db_file_name"`
-				OutputModelsFileName      string `yaml:"output_models_file_name"`
-				EmitMethodsWithDBArgument bool   `yaml:"emit_methods_with_db_argument"`
-				SQLPackage                string `yaml:"sql_package"`
-				Overrides                 []struct {
-					DBType string `yaml:"db_type"`
-					GoType string `yaml:"go_type"`
-				} `yaml:"overrides"`
-			} `yaml:"go"`
-		} `yaml:"gen"`
-	} `yaml:"sql"`
-}
-
 func ValidateSQLCConfig(projectPath string) error {
-	sqlcPath := filepath.Join(projectPath, "database", "sqlc.yaml")
-
-	if _, err := os.Stat(sqlcPath); os.IsNotExist(err) {
-		log.Printf("Warning: sqlc.yaml not found at %s", sqlcPath)
-		return nil
+	basePath := filepath.Join(projectPath, "internal", "storage", "andurel_sqlc_config.yaml")
+	if _, err := os.Stat(basePath); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to stat sqlc config: %w", err)
 	}
 
-	data, err := os.ReadFile(sqlcPath)
+	userPath := filepath.Join(projectPath, "database", "sqlc.yaml")
+	if _, err := os.Stat(userPath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("missing %s", userPath)
+		}
+		return fmt.Errorf("failed to stat sqlc config: %w", err)
+	}
+
+	baseMap, err := readYAMLAsMap(basePath)
 	if err != nil {
-		return fmt.Errorf("failed to read sqlc.yaml: %w", err)
+		return fmt.Errorf("failed to read base sqlc config: %w", err)
 	}
-
-	var config SQLCConfig
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return fmt.Errorf("failed to parse sqlc.yaml: %w", err)
+	userMap, err := readYAMLAsMap(userPath)
+	if err != nil {
+		return fmt.Errorf("failed to read user sqlc config: %w", err)
 	}
-
-	if len(config.SQL) == 0 {
-		return fmt.Errorf("no SQL configurations found in sqlc.yaml")
+	if len(userMap) == 0 {
+		return fmt.Errorf("database/sqlc.yaml cannot be empty")
 	}
-
-	sqlConfig := config.SQL[0]
-	overrides := sqlConfig.Gen.Go.Overrides
-
-	var invalidOverrides []string
-	for _, override := range overrides {
-		if override.DBType != "uuid" {
-			invalidOverrides = append(
-				invalidOverrides,
-				fmt.Sprintf("%s -> %s", override.DBType, override.GoType),
-			)
-		} else if override.GoType != "github.com/google/uuid.UUID" {
-			invalidOverrides = append(invalidOverrides, fmt.Sprintf("uuid should map to 'github.com/google/uuid.UUID', not '%s'", override.GoType))
-		}
-	}
-
-	if len(invalidOverrides) > 0 {
-		log.Printf("WARNING: Invalid type overrides found in %s:", sqlcPath)
-		log.Printf("The generator only supports pgtype types (except for uuid).")
-		log.Printf("Please remove the following overrides:")
-		for _, override := range invalidOverrides {
-			log.Printf("  - %s", override)
-		}
-		log.Printf(
-			"Only UUID override is supported: db_type: 'uuid' -> go_type: 'github.com/google/uuid.UUID'",
-		)
-
-		return errors.New("invalid type overrides in sqlc.yaml")
+	issues := collectSQLCSubsetIssues(baseMap, userMap, basePath, userPath, "")
+	if len(issues) > 0 {
+		return formatSQLCValidationIssues(issues)
 	}
 
 	return nil
+}
+
+func readYAMLAsMap(path string) (map[string]any, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(string(data)) == "" {
+		return map[string]any{}, nil
+	}
+
+	result := map[string]any{}
+	if err := yaml.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return map[string]any{}, nil
+	}
+	return result, nil
+}
+
+func collectSQLCSubsetIssues(base, user any, basePath, userPath, fieldPath string) []string {
+	switch baseTyped := base.(type) {
+	case map[string]any:
+		userTyped, ok := user.(map[string]any)
+		if !ok {
+			return []string{fmt.Sprintf("%s must be a map", renderFieldPath(fieldPath))}
+		}
+		issues := make([]string, 0)
+		for key, baseValue := range baseTyped {
+			userValue, ok := userTyped[key]
+			childPath := joinFieldPath(fieldPath, key)
+			if !ok {
+				issues = append(issues, fmt.Sprintf("missing required key %q in database/sqlc.yaml", childPath))
+				continue
+			}
+			issues = append(issues, collectSQLCSubsetIssues(baseValue, userValue, basePath, userPath, childPath)...)
+		}
+		return issues
+	case []any:
+		userTyped, ok := user.([]any)
+		if !ok {
+			return []string{fmt.Sprintf("%s must be a list", renderFieldPath(fieldPath))}
+		}
+		issues := make([]string, 0)
+		for _, baseValue := range baseTyped {
+			bestIssues := []string{"no candidate entries found"}
+			for _, userValue := range userTyped {
+				candidateIssues := collectSQLCSubsetIssues(baseValue, userValue, basePath, userPath, fieldPath)
+				if len(candidateIssues) == 0 {
+					bestIssues = nil
+					break
+				}
+				if len(candidateIssues) < len(bestIssues) {
+					bestIssues = candidateIssues
+				}
+			}
+			if bestIssues == nil {
+				continue
+			}
+			issue := fmt.Sprintf(
+				"missing required entry under %s from internal/storage/andurel_sqlc_config.yaml: %s",
+				renderFieldPath(fieldPath),
+				summarizeYAMLValue(baseValue),
+			)
+			if len(bestIssues) > 0 {
+				issue = issue + fmt.Sprintf(" (closest mismatch: %s)", bestIssues[0])
+			}
+			issues = append(issues, issue)
+		}
+		return issues
+	default:
+		if valuesEqualForField(base, user, basePath, userPath, fieldPath) {
+			return nil
+		}
+		return []string{fmt.Sprintf("required value mismatch at %s: expected %v, got %v", renderFieldPath(fieldPath), base, user)}
+	}
+}
+
+func formatSQLCValidationIssues(issues []string) error {
+	const maxIssues = 12
+	if len(issues) > maxIssues {
+		remaining := len(issues) - maxIssues
+		issues = append(issues[:maxIssues], fmt.Sprintf("... and %d more issue(s)", remaining))
+	}
+	return fmt.Errorf(
+		"database/sqlc.yaml does not satisfy required settings from internal/storage/andurel_sqlc_config.yaml:\n- %s",
+		strings.Join(issues, "\n- "),
+	)
+}
+
+func summarizeYAMLValue(value any) string {
+	raw, err := yaml.Marshal(value)
+	if err != nil {
+		return fmt.Sprint(value)
+	}
+	summary := strings.TrimSpace(string(raw))
+	summary = strings.ReplaceAll(summary, "\n", "; ")
+	return summary
+}
+
+func valuesEqualForField(base, user any, basePath, userPath, fieldPath string) bool {
+	baseStr, baseIsString := base.(string)
+	userStr, userIsString := user.(string)
+	if baseIsString && userIsString && isPathField(fieldPath) {
+		return resolveConfigPath(baseStr, basePath) == resolveConfigPath(userStr, userPath)
+	}
+	return fmt.Sprint(base) == fmt.Sprint(user)
+}
+
+func isPathField(fieldPath string) bool {
+	return strings.HasSuffix(fieldPath, ".schema") ||
+		strings.HasSuffix(fieldPath, ".queries") ||
+		strings.HasSuffix(fieldPath, ".out")
+}
+
+func resolveConfigPath(value, configPath string) string {
+	if filepath.IsAbs(value) {
+		return filepath.Clean(value)
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(configPath), value))
+}
+
+func joinFieldPath(parent, child string) string {
+	if parent == "" {
+		return child
+	}
+	return parent + "." + child
+}
+
+func renderFieldPath(fieldPath string) string {
+	if fieldPath == "" {
+		return "root"
+	}
+	return fieldPath
 }

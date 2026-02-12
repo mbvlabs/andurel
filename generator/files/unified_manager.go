@@ -1,6 +1,7 @@
 package files
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -208,7 +209,19 @@ func (fm *UnifiedManager) RunSQLCGenerate() error {
 // runSQLCCommand runs a specific sqlc command
 func (fm *UnifiedManager) runSQLCCommand(rootDir, command string) error {
 	sqlcBin := filepath.Join(rootDir, "bin", "sqlc")
-	cmd := exec.Command(sqlcBin, "-f", "./database/sqlc.yaml", command)
+	configPath := filepath.Join(rootDir, "database", "sqlc.yaml")
+	if _, err := os.Stat(configPath); err != nil {
+		if os.IsNotExist(err) {
+			err = fmt.Errorf("missing %s; create it from internal/storage/andurel_sqlc_config.yaml", configPath)
+		}
+		return &FileOperationError{
+			Operation: "sqlc_config",
+			Path:      rootDir,
+			Err:       err,
+		}
+	}
+
+	cmd := exec.Command(sqlcBin, "-f", configPath, command)
 	cmd.Dir = rootDir
 
 	output, err := cmd.CombinedOutput()

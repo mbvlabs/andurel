@@ -3,6 +3,7 @@ package cmds
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 
@@ -101,13 +102,21 @@ func RunSqlcGenerate(targetDir string) error {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
+	configPath := filepath.Join(absTargetDir, "database", "sqlc.yaml")
+	if _, err := os.Stat(configPath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("missing %s; create it from internal/storage/andurel_sqlc_config.yaml", configPath)
+		}
+		return fmt.Errorf("failed to read sqlc config: %w", err)
+	}
+
 	cmd := exec.Command(
 		"go",
 		"run",
 		"github.com/sqlc-dev/sqlc/cmd/sqlc@"+versions.Sqlc,
 		"generate",
 		"-f",
-		"database/sqlc.yaml",
+		configPath,
 	)
 	cmd.Dir = absTargetDir
 	return cmd.Run()

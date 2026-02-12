@@ -634,44 +634,6 @@ func confirmDestructive(action string, dbURL string) (bool, error) {
 	return answer == "y" || answer == "yes", nil
 }
 
-func runSqlcCommand(action string) error {
-	rootDir, err := findGoModRoot()
-	if err != nil {
-		return err
-	}
-
-	configPath := filepath.Join(rootDir, "database", "sqlc.yaml")
-	if _, err := os.Stat(configPath); err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf(
-				"sqlc config not found at %s",
-				configPath,
-			)
-		}
-		return err
-	}
-
-	sqlcBin := filepath.Join(rootDir, "bin", "sqlc")
-	if _, err := os.Stat(sqlcBin); err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf(
-				"sqlc binary not found at %s\nRun 'andurel tool sync' to download it",
-				sqlcBin,
-			)
-		}
-		return err
-	}
-
-	cmd := exec.Command(sqlcBin, "-f", configPath, action)
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	cmd.Dir = rootDir
-
-	return cmd.Run()
-}
-
 func loadProjectEnv(rootDir string) {
 	envPath := filepath.Join(rootDir, ".env")
 	_ = godotenv.Load(envPath)
