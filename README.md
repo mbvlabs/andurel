@@ -278,7 +278,7 @@ myapp/
 ├── database/
 │   ├── migrations/     # SQL migration files
 │   ├── queries/        # SQLC query definitions
-│   └── sqlc.yaml       # SQLC configuration
+│   └── sqlc.yaml       # SQLC user overlay config
 ├── email/               # Email functionality
 │   ├── email.go        # Email client and sending logic
 │   ├── base_layout.templ    # Base email template layout
@@ -288,7 +288,7 @@ myapp/
 │   ├── renderer/       # Template rendering
 │   ├── routing/        # Routing utilities
 │   ├── server/         # Server configuration
-│   └── storage/        # Storage utilities
+│   └── storage/        # Storage utilities (+ SQLC base/effective config)
 ├── models/              # Data models and business logic
 │   ├── model.go        # Base model setup
 │   ├── factories/      # Model factories for testing

@@ -20,7 +20,7 @@ func BenchmarkNewCoordinator(b *testing.B) {
 	os.MkdirAll("database/migrations", 0755)
 	os.MkdirAll("router/routes", 0755)
 	os.WriteFile("go.mod", []byte("module test\n\ngo 1.21\n"), 0644)
-	os.WriteFile("database/sqlc.yaml", []byte("version: \"2\"\nsql:\n  - engine: \"postgresql\"\n    queries: \"database/queries\"\n    schema: \"database/migrations\"\n"), 0644)
+	os.WriteFile("database/sqlc.yaml", []byte("sql: []\n"), 0644)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -42,7 +42,7 @@ func BenchmarkConfigManagerLoad(b *testing.B) {
 	os.MkdirAll("database/migrations", 0755)
 	os.MkdirAll("router/routes", 0755)
 	os.WriteFile("go.mod", []byte("module test\n\ngo 1.21\n"), 0644)
-	os.WriteFile("database/sqlc.yaml", []byte("version: \"2\"\nsql:\n  - engine: \"postgresql\"\n    queries: \"database/queries\"\n    schema: \"database/migrations\"\n"), 0644)
+	os.WriteFile("database/sqlc.yaml", []byte("sql: []\n"), 0644)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

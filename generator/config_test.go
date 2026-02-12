@@ -15,29 +15,25 @@ func TestReadDatabaseTypeFromSQLCYAML(t *testing.T) {
 		hasError bool
 	}{
 		{
-			name: "PostgreSQL engine",
-			content: `version: "2"
-sql:
-  - engine: postgresql
-    schema: migrations`,
+			name: "Empty user SQL list falls back to base config",
+			content: `sql: []`,
 			expected: "postgresql",
 			hasError: false,
 		},
 		{
-			name: "Unsupported engine",
-			content: `version: "2"
-sql:
-  - engine: mysql
-    schema: migrations`,
-			expected: "",
-			hasError: true,
+			name: "Missing effective config falls back to default",
+			content: `version: "2"`,
+			expected: "postgresql",
+			hasError: false,
 		},
 		{
-			name: "No SQL configuration",
-			content: `version: "2"
-sql: []`,
-			expected: "",
-			hasError: true,
+			name: "Allows sql gen overlay",
+			content: `sql:
+  - gen:
+      go:
+        emit_json_tags: true`,
+			expected: "postgresql",
+			hasError: false,
 		},
 	}
 
@@ -98,10 +94,10 @@ func TestNewDefaultAppConfig_WithSQLCYAML(t *testing.T) {
 	}{
 		{
 			name: "Uses PostgreSQL from sqlc.yaml",
-			sqlcContent: `version: "2"
-sql:
-  - engine: postgresql
-    schema: migrations`,
+			sqlcContent: `sql:
+  - gen:
+      go:
+        emit_interface: true`,
 			expected: "postgresql",
 		},
 	}

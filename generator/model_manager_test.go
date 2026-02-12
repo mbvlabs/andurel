@@ -25,10 +25,7 @@ func setupModelManagerTest(t *testing.T) (*ModelManager, func()) {
 		t.Fatalf("Failed to create database directory: %v", err)
 	}
 
-	sqlcContent := `version: "2"
-sql:
-  - engine: postgresql
-    schema: migrations`
+	sqlcContent := `sql: []`
 	if err := os.WriteFile(filepath.Join(dbDir, "sqlc.yaml"), []byte(sqlcContent), 0o644); err != nil {
 		t.Fatalf("Failed to write sqlc.yaml: %v", err)
 	}
