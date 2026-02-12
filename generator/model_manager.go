@@ -332,7 +332,7 @@ func (m *ModelManager) GenerateQueriesOnly(tableName string) error {
 		return fmt.Errorf(`table '%s' not found in catalog: %w
 
 Make sure the table exists in your migrations (database/migrations/).
-Run 'andurel queries generate %s' after creating the migration.`,
+Run 'andurel query generate %s' after creating the migration.`,
 			ctx.TableName, err, ctx.TableName)
 	}
 
@@ -360,7 +360,7 @@ func (m *ModelManager) RefreshQueriesOnly(tableName string) error {
 
 	if _, err := os.Stat(ctx.SQLPath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"SQL file %s does not exist. Use 'andurel queries generate %s' to create it first",
+			"SQL file %s does not exist. Use 'andurel query generate %s' to create it first",
 			ctx.SQLPath,
 			ctx.TableName,
 		)

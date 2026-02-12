@@ -11,7 +11,7 @@ import (
 
 func newViewsCommand() *cobra.Command {
 	viewsCmd := &cobra.Command{
-		Use:     "views",
+		Use:     "view",
 		Aliases: []string{"v"},
 		Short:   "View template helpers",
 		Long:    "Manage Templ code generation for the current project.",
