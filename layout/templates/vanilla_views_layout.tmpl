@@ -6,10 +6,10 @@ import (
 	"time"
 )
 
-templ base(headOpts ...components.HeadDataOption) {
+templ base(headOpts ...HeadDataOption) {
 	<!DOCTYPE html>
 	<html lang="en">
-		@components.SetupHead(ctx, headOpts...)
+		@SetupHead(ctx, headOpts...)
 		<body>
 			{ children... }
 			<footer>
