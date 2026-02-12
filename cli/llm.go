@@ -880,7 +880,7 @@ const llmViewsDocumentation = `# Andurel Framework - Views
 ## CLI Commands
 ` + "```bash" + `
 andurel llm views
-andurel views generate
+andurel views compile
 andurel views format
 andurel generate view User
 andurel generate resource Product

@@ -101,7 +101,7 @@ func newDBMigrationNewCommand() *cobra.Command {
 		Use:     "new [name]",
 		Short:   "Create a new SQL migration",
 		Args:    cobra.MinimumNArgs(1),
-		Example: "andurel db migration new create_users_table",
+		Example: "andurel migrate new create_users_table",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c := []string{"create"}
 			c = append(c, args...)
@@ -332,7 +332,7 @@ func runSeed() error {
 	if _, err := os.Stat(mainFile); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf(
-				"seed file not found at %s\nRun 'andurel generate seed' to create it",
+				"seed file not found at %s\nCreate it at database/seeds/main.go or scaffold a new project with 'andurel new'",
 				mainFile,
 			)
 		}

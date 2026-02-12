@@ -18,17 +18,17 @@ func newViewsCommand() *cobra.Command {
 	}
 
 	viewsCmd.AddCommand(
-		newViewsGenerateCommand(),
+		newViewsCompileCommand(),
 		newViewsFormatCommand(),
 	)
 
 	return viewsCmd
 }
 
-func newViewsGenerateCommand() *cobra.Command {
+func newViewsCompileCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "generate",
-		Short: "Generate Go code from Templ templates",
+		Use:   "compile",
+		Short: "Compile Go code from Templ templates",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTempl("generate")
@@ -77,4 +77,3 @@ func runTempl(args ...string) error {
 
 	return cmd.Run()
 }
-
