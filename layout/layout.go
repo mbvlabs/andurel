@@ -242,7 +242,7 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Views — Components (utility)
 	"tw_views_components_utils.tmpl": "views/components/utils.go",
-	"tw_views_components_head.tmpl":  "views/components/head.templ",
+	"tw_views_head.tmpl":             "views/head.templ",
 
 	// Views — Components (display)
 	"tw_views_components_alert.tmpl":        "views/components/alert.templ",
@@ -304,7 +304,7 @@ var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Views
 	"vanilla_views_layout.tmpl":                   "views/layout.templ",
 	"vanilla_views_components_toasts.tmpl":        "views/components/toasts.templ",
-	"vanilla_views_components_head.tmpl":          "views/components/head.templ",
+	"vanilla_views_head.tmpl":                     "views/head.templ",
 	"vanilla_views_components_form_elements.tmpl": "views/components/form_elements.templ",
 	"vanilla_views_home.tmpl":                     "views/home.templ",
 	"vanilla_views_bad_request.tmpl":              "views/bad_request.templ",
