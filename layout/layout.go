@@ -368,9 +368,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"database_seeds_main.tmpl":         "database/seeds/main.go",
 	"database_test_helper.tmpl":        "database/test_helper.go",
 
-	"psql_database.tmpl":  "database/database.go",
-	"psql_sqlc.tmpl":      "database/sqlc.yaml",
-	"psql_sqlc_base.tmpl": "internal/storage/sqlc_base.yaml",
+	"psql_database.tmpl":                                  "database/database.go",
+	"database_sqlc_overlay.tmpl":                          "database/sqlc.yaml",
+	"framework_elements_storage_andurel_sqlc_config.tmpl": "internal/storage/andurel_sqlc_config.yaml",
 
 	// Queue package
 	"psql_queue_queue.tmpl":                            "queue/queue.go",

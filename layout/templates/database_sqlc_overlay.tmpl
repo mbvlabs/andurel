@@ -1,0 +1,19 @@
+# User SQLC overlay.
+#
+# This file is merged on top of internal/storage/sqlc_base.yaml to produce
+# internal/storage/sqlc.yaml, which is used by andurel SQLC commands.
+#
+# Allowed scope:
+# - You may only add fields under sql[].gen.
+# - Do not set/modify sql[].schema, sql[].queries, sql[].engine, sql[].version,
+#   or framework-managed gen.go.* defaults (package/out/output file names/sql_package).
+#
+# Paths in this file are resolved relative to internal/storage/sqlc.yaml.
+# Validate anytime with: andurel queries validate
+#
+# Example (enable extra Go emit options):
+# sql:
+#   - gen:
+#       go:
+#         emit_json_tags: true
+#         emit_interface: true

@@ -3,9 +3,9 @@ package generator
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/mbvlabs/andurel/generator/files"
-	"github.com/mbvlabs/andurel/internal/sqlcconfig"
 	"gopkg.in/yaml.v3"
 )
 
@@ -278,9 +278,12 @@ func readDatabaseTypeFromSQLCYAML() (string, error) {
 		return "", fmt.Errorf("failed to find go.mod root: %w", err)
 	}
 
-	sqlcPath, err := sqlcconfig.EnsureEffectiveConfig(rootDir)
-	if err != nil {
-		return "", fmt.Errorf("failed to prepare sqlc configuration: %w", err)
+	sqlcPath := filepath.Join(rootDir, "internal", "storage", "andurel_sqlc_config.yaml")
+	if _, err := os.Stat(sqlcPath); err != nil {
+		if os.IsNotExist(err) {
+			return "postgresql", nil
+		}
+		return "", fmt.Errorf("failed to read sqlc configuration: %w", err)
 	}
 
 	data, err := os.ReadFile(sqlcPath)

@@ -15,7 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mbvlabs/andurel/internal/sqlcconfig"
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/spf13/cobra"
 )
@@ -677,7 +676,7 @@ func checkSqlcGenerate(rootDir string, verbose bool) checkResult {
 		}
 	}
 
-	sqlcConfigPath, err := sqlcconfig.EnsureEffectiveConfig(rootDir)
+	sqlcConfigPath, err := ensureEffectiveSQLCConfig(rootDir)
 	if err != nil {
 		return checkResult{
 			name:    "sqlc compile",

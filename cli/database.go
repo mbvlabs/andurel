@@ -14,7 +14,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
-	"github.com/mbvlabs/andurel/internal/sqlcconfig"
 	"github.com/spf13/cobra"
 )
 
@@ -32,7 +31,6 @@ func newDatabaseCommand() *cobra.Command {
 		newDBCreateCommand(),
 		newDBNukeCommand(),
 		newDBRebuildCommand(),
-		newDBSQLCCommand(),
 	)
 
 	return cmd
@@ -216,82 +214,6 @@ func newDBQueriesGenerateCommand() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSqlcCommand("generate")
-		},
-	}
-}
-
-func newDBSQLCCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "sqlc",
-		Aliases: []string{"q"},
-		Short:   "SQLC configuration and code generation",
-		Long:    "Manage SQLC config files and run compile/generate commands.",
-	}
-
-	cmd.AddCommand(
-		newDBSQLCInitCommand(),
-		newDBSQLCValidateCommand(),
-		newDBQueriesCompileCommand(),
-		newDBQueriesGenerateCommand(),
-	)
-
-	return cmd
-}
-
-func newDBSQLCInitCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "init",
-		Short: "Initialize SQLC config files",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			rootDir, err := findGoModRoot()
-			if err != nil {
-				return err
-			}
-
-			created, err := sqlcconfig.Init(rootDir)
-			if err != nil {
-				return err
-			}
-
-			if len(created) == 0 {
-				fmt.Fprintln(os.Stdout, "SQLC config files already exist.")
-			} else {
-				fmt.Fprintln(os.Stdout, "Created SQLC config files:")
-				for _, path := range created {
-					fmt.Fprintf(os.Stdout, "  - %s\n", path)
-				}
-			}
-
-			fmt.Fprintln(os.Stdout, "Generated internal/storage/sqlc.yaml")
-			return nil
-		},
-	}
-}
-
-func newDBSQLCValidateCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "validate",
-		Short: "Validate and materialize effective SQLC config",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			rootDir, err := findGoModRoot()
-			if err != nil {
-				return err
-			}
-
-			effectivePath, err := sqlcconfig.EnsureEffectiveConfig(rootDir)
-			if err != nil {
-				return err
-			}
-
-			relativePath, err := filepath.Rel(rootDir, effectivePath)
-			if err != nil {
-				relativePath = effectivePath
-			}
-
-			fmt.Fprintf(os.Stdout, "SQLC configuration is valid.\nEffective config: %s\n", relativePath)
-			return nil
 		},
 	}
 }
@@ -710,38 +632,6 @@ func confirmDestructive(action string, dbURL string) (bool, error) {
 
 	answer := strings.ToLower(strings.TrimSpace(line))
 	return answer == "y" || answer == "yes", nil
-}
-
-func runSqlcCommand(action string) error {
-	rootDir, err := findGoModRoot()
-	if err != nil {
-		return err
-	}
-
-	configPath, err := sqlcconfig.EnsureEffectiveConfig(rootDir)
-	if err != nil {
-		return err
-	}
-
-	sqlcBin := filepath.Join(rootDir, "bin", "sqlc")
-	if _, err := os.Stat(sqlcBin); err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf(
-				"sqlc binary not found at %s\nRun 'andurel tool sync' to download it",
-				sqlcBin,
-			)
-		}
-		return err
-	}
-
-	cmd := exec.Command(sqlcBin, "-f", configPath, action)
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	cmd.Dir = rootDir
-
-	return cmd.Run()
 }
 
 func loadProjectEnv(rootDir string) {

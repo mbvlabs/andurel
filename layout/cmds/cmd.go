@@ -3,10 +3,10 @@ package cmds
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 
-	"github.com/mbvlabs/andurel/internal/sqlcconfig"
 	"github.com/mbvlabs/andurel/layout/versions"
 )
 
@@ -102,9 +102,12 @@ func RunSqlcGenerate(targetDir string) error {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	configPath, err := sqlcconfig.EnsureEffectiveConfig(absTargetDir)
-	if err != nil {
-		return fmt.Errorf("failed to build sqlc config: %w", err)
+	configPath := filepath.Join(absTargetDir, "internal", "storage", "andurel_sqlc_config.yaml")
+	if _, err := os.Stat(configPath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("missing %s; run 'andurel queries validate' first", configPath)
+		}
+		return fmt.Errorf("failed to read sqlc config: %w", err)
 	}
 
 	cmd := exec.Command(

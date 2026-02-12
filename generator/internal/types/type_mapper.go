@@ -2,9 +2,9 @@ package types
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
-
-	"github.com/mbvlabs/andurel/internal/sqlcconfig"
 )
 
 type TypeOverride struct {
@@ -559,8 +559,13 @@ func (tm *TypeMapper) GetDatabaseType() string {
 }
 
 func ValidateSQLCConfig(projectPath string) error {
-	if err := sqlcconfig.Validate(projectPath); err != nil {
-		return fmt.Errorf("invalid sqlc configuration: %w", err)
+	sqlcPath := filepath.Join(projectPath, "internal", "storage", "andurel_sqlc_config.yaml")
+	if _, err := os.Stat(sqlcPath); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to stat sqlc config: %w", err)
 	}
+
 	return nil
 }
