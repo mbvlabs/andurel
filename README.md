@@ -189,6 +189,7 @@ andurel query (alias: q)
 andurel query generate [table_name]
 andurel query refresh [table_name]
 andurel query compile
+andurel query validate
 ```
 
 ### View

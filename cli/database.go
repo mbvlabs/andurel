@@ -178,46 +178,6 @@ func newDBMigrationDownToCommand() *cobra.Command {
 	}
 }
 
-// Queries commands (sqlc)
-
-func newDBQueriesCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "queries",
-		Aliases: []string{"q"},
-		Short:   "SQL query code generation (sqlc)",
-		Long:    "Manage SQLC code generation for the current project.",
-	}
-
-	cmd.AddCommand(
-		newDBQueriesCompileCommand(),
-		newDBQueriesGenerateCommand(),
-	)
-
-	return cmd
-}
-
-func newDBQueriesCompileCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "compile",
-		Short: "Compile SQL queries to check for errors",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runSqlcCommand("compile")
-		},
-	}
-}
-
-func newDBQueriesGenerateCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "generate",
-		Short: "Generate Go code from SQL queries",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runSqlcCommand("generate")
-		},
-	}
-}
-
 func newDBMigrationStatusCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",

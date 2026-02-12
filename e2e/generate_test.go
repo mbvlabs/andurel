@@ -708,7 +708,7 @@ func testGenerateQueries(t *testing.T, project *internal.Project) {
 		"role_id UUID NOT NULL",
 	})
 
-	err := project.Generate("queries", "generate", "user_roles")
+	err := project.Generate("query", "generate", "user_roles")
 	internal.AssertCommandSucceeds(t, err, "generate queries")
 
 	// Verify queries file exists and compare against golden file
@@ -746,7 +746,7 @@ func testGenerateQueriesWithRefresh(t *testing.T, project *internal.Project) {
 	})
 
 	// First generate the queries
-	err := project.Generate("queries", "generate", "tag_assignments")
+	err := project.Generate("query", "generate", "tag_assignments")
 	internal.AssertCommandSucceeds(t, err, "generate queries")
 
 	// Verify queries file exists and compare against golden file
@@ -768,7 +768,7 @@ func testGenerateQueriesWithRefresh(t *testing.T, project *internal.Project) {
 	}
 
 	// Now test refresh functionality
-	err = project.Generate("queries", "refresh", "tag_assignments")
+	err = project.Generate("query", "refresh", "tag_assignments")
 	internal.AssertCommandSucceeds(t, err, "queries refresh")
 }
 
@@ -780,10 +780,10 @@ func testGenerateQueriesWithRefreshTimestamps(t *testing.T, project *internal.Pr
 		"event_metadata JSONB",
 	})
 
-	err := project.Generate("queries", "generate", "audit_logs")
+	err := project.Generate("query", "generate", "audit_logs")
 	internal.AssertCommandSucceeds(t, err, "generate queries")
 
-	err = project.Generate("queries", "refresh", "audit_logs")
+	err = project.Generate("query", "refresh", "audit_logs")
 	internal.AssertCommandSucceeds(t, err, "queries refresh")
 
 	internal.AssertFileExists(t, project, "database/queries/audit_logs.sql")
