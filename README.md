@@ -181,23 +181,24 @@ andurel migrate up-to [version]
 andurel migrate down-to [version]
 ```
 
-### Queries
+### Query
 SQLC query generation helpers.
 
 ```bash
-andurel queries (alias: q)
-andurel queries generate [table_name]
-andurel queries refresh [table_name]
-andurel queries compile
+andurel query (alias: q)
+andurel query generate [table_name]
+andurel query refresh [table_name]
+andurel query compile
+andurel query validate
 ```
 
-### Views
+### View
 Templ code generation.
 
 ```bash
-andurel views (alias: v)
-andurel views compile
-andurel views format
+andurel view (alias: v)
+andurel view compile
+andurel view format
 ```
 
 ### App

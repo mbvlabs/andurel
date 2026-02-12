@@ -16,7 +16,7 @@ import (
 
 func newQueriesCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "queries",
+		Use:     "query",
 		Aliases: []string{"q"},
 		Short:   "SQL query management",
 		Long:    "Generate and compile SQL queries for database tables.",
@@ -47,8 +47,8 @@ The table name is used exactly as provided - no naming conventions are applied.
 An error is returned if the table is not found in the migrations.
 
 	Examples:
-  andurel queries generate user_roles           # Generate queries for 'user_roles' table
-  andurel queries generate users_organizations  # Generate queries for a junction table`,
+  andurel query generate user_roles           # Generate queries for 'user_roles' table
+  andurel query generate users_organizations  # Generate queries for a junction table`,
 		Args: cobra.ExactArgs(1),
 		RunE: runQueriesGenerate,
 	}
@@ -79,8 +79,8 @@ func newQueriesRefreshCommand() *cobra.Command {
 This keeps the queries-only file in sync with the current table schema.
 
 Examples:
-  andurel queries refresh user_roles          # Refresh queries for 'user_roles' table
-  andurel queries refresh users_organizations # Refresh queries for a junction table`,
+  andurel query refresh user_roles          # Refresh queries for 'user_roles' table
+  andurel query refresh users_organizations # Refresh queries for a junction table`,
 		Args: cobra.ExactArgs(1),
 		RunE: runQueriesRefresh,
 	}

@@ -523,9 +523,9 @@ andurel llm models
 andurel generate model Product
 andurel generate model Product --table-name=inventory
 andurel generate model Product --skip-factory
-andurel queries generate user_roles
-andurel queries refresh user_roles
-andurel queries compile
+andurel query generate user_roles
+andurel query refresh user_roles
+andurel query compile
 andurel generate resource Product
 ` + "```" + `
 
@@ -791,7 +791,7 @@ andurel generate model Product
 - Use for junction tables, lookup tables, or simple CRUD
 
 ` + "```bash" + `
-andurel queries generate user_roles
+andurel query generate user_roles
 ` + "```" + `
 
 **Important:** Even with queries-only, all data access must still go through the ` + "`models/`" + ` package.
@@ -880,8 +880,8 @@ const llmViewsDocumentation = `# Andurel Framework - Views
 ## CLI Commands
 ` + "```bash" + `
 andurel llm views
-andurel views compile
-andurel views format
+andurel view compile
+andurel view format
 andurel generate view User
 andurel generate resource Product
 andurel run
