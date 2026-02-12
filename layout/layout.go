@@ -874,18 +874,18 @@ const goVersion = "1.25.0"
 
 type GoTool struct {
 	Name    string
-	Module  string
+	Source  string
 	Version string
 }
 
 var DefaultGoTools = []GoTool{
-	{Name: "templ", Module: "github.com/a-h/templ/cmd/templ", Version: versions.Templ},
-	{Name: "sqlc", Module: "github.com/sqlc-dev/sqlc/cmd/sqlc", Version: versions.Sqlc},
-	{Name: "goose", Module: "github.com/pressly/goose/v3/cmd/goose", Version: versions.Goose},
-	{Name: "mailpit", Module: "github.com/axllent/mailpit", Version: versions.Mailpit},
-	{Name: "usql", Module: "github.com/xo/usql", Version: versions.Usql},
-	{Name: "dblab", Module: "github.com/danvergara/dblab", Version: versions.Dblab},
-	{Name: "shadowfax", Module: "github.com/mbvlabs/shadowfax", Version: versions.Shadowfax},
+	{Name: "templ", Source: "github.com/a-h/templ/cmd/templ", Version: versions.Templ},
+	{Name: "sqlc", Source: "github.com/sqlc-dev/sqlc/cmd/sqlc", Version: versions.Sqlc},
+	{Name: "goose", Source: "github.com/pressly/goose/v3/cmd/goose", Version: versions.Goose},
+	{Name: "mailpit", Source: "github.com/axllent/mailpit", Version: versions.Mailpit},
+	{Name: "usql", Source: "github.com/xo/usql", Version: versions.Usql},
+	{Name: "dblab", Source: "github.com/danvergara/dblab", Version: versions.Dblab},
+	{Name: "shadowfax", Source: "github.com/mbvlabs/shadowfax", Version: versions.Shadowfax},
 }
 
 var defaultTools = []string{
@@ -904,13 +904,13 @@ func GetExpectedTools(config *ScaffoldConfig) map[string]*Tool {
 
 	// Add all default Go tools
 	for _, tool := range DefaultGoTools {
-		moduleRepo := extractRepo(tool.Module)
-		expectedTools[tool.Name] = NewGoTool(moduleRepo, tool.Version)
+		sourceRepo := extractRepo(tool.Source)
+		expectedTools[tool.Name] = NewGoTool(tool.Name, sourceRepo, tool.Version)
 	}
 
 	// Add tailwindcli if using Tailwind CSS
 	if config != nil && config.CSSFramework == "tailwind" {
-		expectedTools["tailwindcli"] = NewBinaryTool(versions.TailwindCLI)
+		expectedTools["tailwindcli"] = NewBinaryTool("tailwindcli", versions.TailwindCLI)
 	}
 
 	return expectedTools
@@ -1029,12 +1029,12 @@ func generateLockFile(targetDir, version string, hasTailwind bool, config *Scaff
 	lock.ScaffoldConfig = config
 
 	for _, tool := range DefaultGoTools {
-		moduleRepo := extractRepo(tool.Module)
-		lock.AddTool(tool.Name, NewGoTool(moduleRepo, tool.Version))
+		sourceRepo := extractRepo(tool.Source)
+		lock.AddTool(tool.Name, NewGoTool(tool.Name, sourceRepo, tool.Version))
 	}
 
 	if hasTailwind {
-		lock.AddTool("tailwindcli", NewBinaryTool(versions.TailwindCLI))
+		lock.AddTool("tailwindcli", NewBinaryTool("tailwindcli", versions.TailwindCLI))
 	}
 
 	if config != nil {

@@ -22,6 +22,97 @@ type ToolDownloader struct {
 
 var ErrFailedToGetRleaseURL = fmt.Errorf("failed to get release URL")
 
+func DownloadFromURLTemplate(
+	name,
+	version,
+	urlTemplate,
+	archiveType,
+	binaryName,
+	goos,
+	goarch,
+	destPath string,
+) error {
+	if urlTemplate == "" {
+		return fmt.Errorf("download urlTemplate is required for %s", name)
+	}
+
+	url := renderDownloadURL(urlTemplate, version, goos, goarch)
+	if archiveType == "" {
+		archiveType = "binary"
+	}
+	if binaryName == "" {
+		binaryName = name
+	}
+
+	return DownloadFromURL(name, url, archiveType, binaryName, destPath)
+}
+
+func DownloadFromURL(name, url, archiveType, binaryName, destPath string) error {
+	if archiveType == "binary" {
+		if err := downloadFile(url, destPath); err != nil {
+			return fmt.Errorf("failed to download %s: %w", name, err)
+		}
+
+		if err := os.Chmod(destPath, 0o755); err != nil {
+			return fmt.Errorf("failed to set executable permissions: %w", err)
+		}
+
+		return nil
+	}
+
+	tmpDir, err := os.MkdirTemp("", "andurel-download-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	archivePath := filepath.Join(tmpDir, fmt.Sprintf("%s.%s", name, archiveType))
+	if err := downloadFile(url, archivePath); err != nil {
+		return fmt.Errorf("failed to download %s: %w", name, err)
+	}
+
+	if err := extractBinary(archivePath, binaryName, destPath, archiveType); err != nil {
+		return fmt.Errorf("failed to extract %s: %w", name, err)
+	}
+
+	if err := os.Chmod(destPath, 0o755); err != nil {
+		return fmt.Errorf("failed to set executable permissions: %w", err)
+	}
+
+	return nil
+}
+
+func renderDownloadURL(urlTemplate, version, goos, goarch string) string {
+	replacer := strings.NewReplacer(
+		"{{version}}", version,
+		"{{version_no_v}}", strings.TrimPrefix(version, "v"),
+		"{{os}}", goos,
+		"{{arch}}", goarch,
+		"{{os_capitalized}}", capitalize(goos),
+		"{{arch_x86_64}}", mapArch(goarch),
+		"{{os_tailwind}}", normalizeTailwindOS(goos),
+		"{{arch_tailwind}}", normalizeTailwindArch(goarch),
+	)
+
+	return replacer.Replace(urlTemplate)
+}
+
+func normalizeTailwindOS(goos string) string {
+	if goos == "darwin" {
+		return "macos"
+	}
+
+	return goos
+}
+
+func normalizeTailwindArch(goarch string) string {
+	if goarch == "amd64" {
+		return "x64"
+	}
+
+	return goarch
+}
+
 func DownloadGoTool(name, module, version, goos, goarch, destPath string) error {
 	downloader := &ToolDownloader{
 		Name:    name,

@@ -1,6 +1,7 @@
 package upgrade
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/layout"
@@ -54,14 +55,12 @@ func TestShouldUpdateTool_NoDowngrade(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			existing := &layout.Tool{
-				Source:  "go",
-				Module:  "github.com/example/tool",
+				Source:  "github.com/example/tool",
 				Version: tt.existingVersion,
 			}
 
 			expected := &layout.Tool{
-				Source:  "go",
-				Module:  "github.com/example/tool",
+				Source:  "github.com/example/tool",
 				Version: tt.expectedVersion,
 			}
 
@@ -126,13 +125,11 @@ func TestShouldUpdateTool_BuiltTools(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			existing := &layout.Tool{
-				Source:  "built",
 				Path:    tt.existingPath,
 				Version: tt.existingVersion,
 			}
 
 			expected := &layout.Tool{
-				Source:  "built",
 				Path:    tt.expectedPath,
 				Version: tt.expectedVersion,
 			}
@@ -148,19 +145,97 @@ func TestShouldUpdateTool_BuiltTools(t *testing.T) {
 	}
 }
 
-func TestShouldUpdateTool_DifferentSources(t *testing.T) {
+func TestShouldUpdateTool_UsesSemverForVersionedTools(t *testing.T) {
 	existing := &layout.Tool{
-		Source:  "go",
-		Module:  "github.com/example/tool",
+		Source:  "github.com/example/tool",
 		Version: "v1.0.0",
 	}
 
 	expected := &layout.Tool{
-		Source:  "binary",
+		Source:  "github.com/example/tool",
 		Version: "v2.0.0",
 	}
 
-	if shouldUpdateTool(existing, expected) {
-		t.Error("shouldUpdateTool should return false when sources don't match")
+	if !shouldUpdateTool(existing, expected) {
+		t.Error("shouldUpdateTool should return true when expected semver is higher")
+	}
+}
+
+func TestSyncToolsToFrameworkVersion_PreservesNonFrameworkTools(t *testing.T) {
+	upgrader := &Upgrader{
+		lock: &layout.AndurelLock{
+			Version: "v0.1.0",
+			Tools: map[string]*layout.Tool{
+				"templ": {
+					Source:  "github.com/a-h/templ",
+					Version: "v0.3.900",
+				},
+				"my-custom-tool": {
+					Source:  "github.com/acme/my-custom-tool",
+					Version: "v1.2.3",
+				},
+			},
+			ScaffoldConfig: &layout.ScaffoldConfig{
+				ProjectName:  "myapp",
+				Database:     "postgres",
+				CSSFramework: "tailwind",
+			},
+		},
+	}
+
+	result, err := upgrader.syncToolsToFrameworkVersion()
+	if err != nil {
+		t.Fatalf("syncToolsToFrameworkVersion returned error: %v", err)
+	}
+
+	custom, ok := upgrader.lock.Tools["my-custom-tool"]
+	if !ok {
+		t.Fatal("expected custom tool to be preserved in lock file")
+	}
+	if custom.Version != "v1.2.3" {
+		t.Fatalf("expected custom tool version to remain v1.2.3, got %s", custom.Version)
+	}
+	if custom.Source != "github.com/acme/my-custom-tool" {
+		t.Fatalf("expected custom tool source to remain unchanged, got %s", custom.Source)
+	}
+
+	for _, removed := range result.Removed {
+		if removed == "my-custom-tool" {
+			t.Fatal("custom tool should never be removed during upgrade")
+		}
+	}
+}
+
+func TestSyncToolsToFrameworkVersion_PrefersHigherExistingVersion(t *testing.T) {
+	upgrader := &Upgrader{
+		lock: &layout.AndurelLock{
+			Version: "v0.1.0",
+			Tools: map[string]*layout.Tool{
+				"templ": {
+					Source:  "github.com/a-h/templ",
+					Version: "v99.0.0",
+				},
+			},
+			ScaffoldConfig: &layout.ScaffoldConfig{
+				ProjectName:  "myapp",
+				Database:     "postgres",
+				CSSFramework: "tailwind",
+			},
+		},
+	}
+
+	result, err := upgrader.syncToolsToFrameworkVersion()
+	if err != nil {
+		t.Fatalf("syncToolsToFrameworkVersion returned error: %v", err)
+	}
+
+	if got := upgrader.lock.Tools["templ"].Version; got != "v99.0.0" {
+		t.Fatalf("expected existing higher templ version to be preserved, got %s", got)
+	}
+
+	for _, updated := range result.Updated {
+		if strings.HasPrefix(updated, "templ:") {
+			t.Fatalf("templ should not be updated when existing version is higher, got update: %s", updated)
+		}
 	}
 }
