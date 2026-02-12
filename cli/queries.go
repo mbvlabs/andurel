@@ -261,65 +261,100 @@ func validateSQLCConfigAgainstBase(rootDir string) (string, error) {
 		return "", errors.New("database/sqlc.yaml cannot be empty")
 	}
 
-	if err := validateSQLCSubset(baseMap, userMap, basePath, userPath, ""); err != nil {
-		return "", err
+	issues := collectSQLCSubsetIssues(baseMap, userMap, basePath, userPath, "")
+	if len(issues) > 0 {
+		return "", formatSQLCValidationIssues(issues)
 	}
 
 	return userPath, nil
 }
 
-func validateSQLCSubset(base, user any, basePath, userPath, fieldPath string) error {
+func collectSQLCSubsetIssues(base, user any, basePath, userPath, fieldPath string) []string {
 	switch baseTyped := base.(type) {
 	case map[string]any:
 		userTyped, ok := user.(map[string]any)
 		if !ok {
-			return fmt.Errorf("%s must be a map", renderSQLCFieldPath(fieldPath))
+			return []string{fmt.Sprintf("%s must be a map", renderSQLCFieldPath(fieldPath))}
 		}
+		issues := make([]string, 0)
 		for key, baseValue := range baseTyped {
 			userValue, ok := userTyped[key]
 			childPath := joinSQLCFieldPath(fieldPath, key)
 			if !ok {
-				return fmt.Errorf("missing required key %q in database/sqlc.yaml", childPath)
+				issues = append(issues, fmt.Sprintf("missing required key %q in database/sqlc.yaml", childPath))
+				continue
 			}
-			if err := validateSQLCSubset(baseValue, userValue, basePath, userPath, childPath); err != nil {
-				return err
-			}
+			issues = append(issues, collectSQLCSubsetIssues(baseValue, userValue, basePath, userPath, childPath)...)
 		}
-		return nil
+		return issues
 	case []any:
 		userTyped, ok := user.([]any)
 		if !ok {
-			return fmt.Errorf("%s must be a list", renderSQLCFieldPath(fieldPath))
+			return []string{fmt.Sprintf("%s must be a list", renderSQLCFieldPath(fieldPath))}
 		}
+		issues := make([]string, 0)
 		for _, baseValue := range baseTyped {
-			matched := false
+			bestIssues := []string{"no candidate entries found"}
 			for _, userValue := range userTyped {
-				if err := validateSQLCSubset(baseValue, userValue, basePath, userPath, fieldPath); err == nil {
-					matched = true
+				candidateIssues := collectSQLCSubsetIssues(baseValue, userValue, basePath, userPath, fieldPath)
+				if len(candidateIssues) == 0 {
+					bestIssues = nil
 					break
 				}
+				if len(candidateIssues) < len(bestIssues) {
+					bestIssues = candidateIssues
+				}
 			}
-			if !matched {
-				return fmt.Errorf(
-					"database/sqlc.yaml is missing a required entry under %s defined in %s",
-					renderSQLCFieldPath(fieldPath),
-					sqlcBaseRelativePath,
-				)
+			if bestIssues == nil {
+				continue
 			}
+			issue := fmt.Sprintf(
+				"missing required entry under %s from %s: %s",
+				renderSQLCFieldPath(fieldPath),
+				sqlcBaseRelativePath,
+				summarizeSQLCYAMLValue(baseValue),
+			)
+			if len(bestIssues) > 0 {
+				issue = issue + fmt.Sprintf(" (closest mismatch: %s)", bestIssues[0])
+			}
+			issues = append(issues, issue)
 		}
-		return nil
+		return issues
 	default:
 		if valuesEqualForSQLCField(base, user, basePath, userPath, fieldPath) {
 			return nil
 		}
-		return fmt.Errorf(
+		return []string{fmt.Sprintf(
 			"required value mismatch at %s: expected %v from %s, got %v",
 			renderSQLCFieldPath(fieldPath),
 			base,
 			sqlcBaseRelativePath,
 			user,
-		)
+		)}
 	}
+}
+
+func formatSQLCValidationIssues(issues []string) error {
+	const maxIssues = 12
+	if len(issues) > maxIssues {
+		remaining := len(issues) - maxIssues
+		issues = append(issues[:maxIssues], fmt.Sprintf("... and %d more issue(s)", remaining))
+	}
+	return fmt.Errorf(
+		"database/sqlc.yaml does not satisfy required settings from %s:\n- %s",
+		sqlcBaseRelativePath,
+		strings.Join(issues, "\n- "),
+	)
+}
+
+func summarizeSQLCYAMLValue(value any) string {
+	raw, err := yaml.Marshal(value)
+	if err != nil {
+		return fmt.Sprint(value)
+	}
+	summary := strings.TrimSpace(string(raw))
+	summary = strings.ReplaceAll(summary, "\n", "; ")
+	return summary
 }
 
 func valuesEqualForSQLCField(base, user any, basePath, userPath, fieldPath string) bool {

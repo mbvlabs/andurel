@@ -588,8 +588,9 @@ func ValidateSQLCConfig(projectPath string) error {
 	if len(userMap) == 0 {
 		return fmt.Errorf("database/sqlc.yaml cannot be empty")
 	}
-	if err := validateSQLCSubset(baseMap, userMap, basePath, userPath, ""); err != nil {
-		return err
+	issues := collectSQLCSubsetIssues(baseMap, userMap, basePath, userPath, "")
+	if len(issues) > 0 {
+		return formatSQLCValidationIssues(issues)
 	}
 
 	return nil
@@ -614,51 +615,84 @@ func readYAMLAsMap(path string) (map[string]any, error) {
 	return result, nil
 }
 
-func validateSQLCSubset(base, user any, basePath, userPath, fieldPath string) error {
+func collectSQLCSubsetIssues(base, user any, basePath, userPath, fieldPath string) []string {
 	switch baseTyped := base.(type) {
 	case map[string]any:
 		userTyped, ok := user.(map[string]any)
 		if !ok {
-			return fmt.Errorf("%s must be a map", renderFieldPath(fieldPath))
+			return []string{fmt.Sprintf("%s must be a map", renderFieldPath(fieldPath))}
 		}
+		issues := make([]string, 0)
 		for key, baseValue := range baseTyped {
 			userValue, ok := userTyped[key]
 			childPath := joinFieldPath(fieldPath, key)
 			if !ok {
-				return fmt.Errorf("missing required key %q in database/sqlc.yaml", childPath)
+				issues = append(issues, fmt.Sprintf("missing required key %q in database/sqlc.yaml", childPath))
+				continue
 			}
-			if err := validateSQLCSubset(baseValue, userValue, basePath, userPath, childPath); err != nil {
-				return err
-			}
+			issues = append(issues, collectSQLCSubsetIssues(baseValue, userValue, basePath, userPath, childPath)...)
 		}
-		return nil
+		return issues
 	case []any:
 		userTyped, ok := user.([]any)
 		if !ok {
-			return fmt.Errorf("%s must be a list", renderFieldPath(fieldPath))
+			return []string{fmt.Sprintf("%s must be a list", renderFieldPath(fieldPath))}
 		}
+		issues := make([]string, 0)
 		for _, baseValue := range baseTyped {
-			matched := false
+			bestIssues := []string{"no candidate entries found"}
 			for _, userValue := range userTyped {
-				if err := validateSQLCSubset(baseValue, userValue, basePath, userPath, fieldPath); err == nil {
-					matched = true
+				candidateIssues := collectSQLCSubsetIssues(baseValue, userValue, basePath, userPath, fieldPath)
+				if len(candidateIssues) == 0 {
+					bestIssues = nil
 					break
 				}
+				if len(candidateIssues) < len(bestIssues) {
+					bestIssues = candidateIssues
+				}
 			}
-			if !matched {
-				return fmt.Errorf(
-					"database/sqlc.yaml is missing a required entry under %s defined in internal/storage/andurel_sqlc_config.yaml",
-					renderFieldPath(fieldPath),
-				)
+			if bestIssues == nil {
+				continue
 			}
+			issue := fmt.Sprintf(
+				"missing required entry under %s from internal/storage/andurel_sqlc_config.yaml: %s",
+				renderFieldPath(fieldPath),
+				summarizeYAMLValue(baseValue),
+			)
+			if len(bestIssues) > 0 {
+				issue = issue + fmt.Sprintf(" (closest mismatch: %s)", bestIssues[0])
+			}
+			issues = append(issues, issue)
 		}
-		return nil
+		return issues
 	default:
 		if valuesEqualForField(base, user, basePath, userPath, fieldPath) {
 			return nil
 		}
-		return fmt.Errorf("required value mismatch at %s: expected %v, got %v", renderFieldPath(fieldPath), base, user)
+		return []string{fmt.Sprintf("required value mismatch at %s: expected %v, got %v", renderFieldPath(fieldPath), base, user)}
 	}
+}
+
+func formatSQLCValidationIssues(issues []string) error {
+	const maxIssues = 12
+	if len(issues) > maxIssues {
+		remaining := len(issues) - maxIssues
+		issues = append(issues[:maxIssues], fmt.Sprintf("... and %d more issue(s)", remaining))
+	}
+	return fmt.Errorf(
+		"database/sqlc.yaml does not satisfy required settings from internal/storage/andurel_sqlc_config.yaml:\n- %s",
+		strings.Join(issues, "\n- "),
+	)
+}
+
+func summarizeYAMLValue(value any) string {
+	raw, err := yaml.Marshal(value)
+	if err != nil {
+		return fmt.Sprint(value)
+	}
+	summary := strings.TrimSpace(string(raw))
+	summary = strings.ReplaceAll(summary, "\n", "; ")
+	return summary
 }
 
 func valuesEqualForField(base, user any, basePath, userPath, fieldPath string) bool {
