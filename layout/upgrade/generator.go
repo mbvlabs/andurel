@@ -32,6 +32,7 @@ func GetFrameworkTemplates() []FrameworkTemplate {
 
 		{"framework_elements_storage_psql.tmpl", "internal/storage/psql.go"},
 		{"framework_elements_storage_queue.tmpl", "internal/storage/queue.go"},
+		{"framework_elements_storage_event.tmpl", "internal/storage/event/event.go"},
 
 		{"framework_elements_hypermedia_broadcaster.tmpl", "internal/hypermedia/broadcaster.go"},
 		{"framework_elements_hypermedia_core.tmpl", "internal/hypermedia/core.go"},

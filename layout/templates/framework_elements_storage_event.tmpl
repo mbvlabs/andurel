@@ -1,0 +1,76 @@
+// Package event provides a simple in-process event bus.
+// Code generated and maintained by the andurel framework. DO NOT EDIT.
+package event
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"slices"
+	"sync"
+)
+
+var (
+	ErrNilEvent        = errors.New("event is nil")
+	ErrEmptyEventType  = errors.New("event type is empty")
+	ErrNilEventHandler = errors.New("event handler is nil")
+)
+
+type Event interface {
+	Type() string
+}
+
+type Handler func(context.Context, Event) error
+
+type Bus struct {
+	mu       sync.RWMutex
+	handlers map[string][]Handler
+}
+
+func NewBus() *Bus {
+	return &Bus{
+		handlers: make(map[string][]Handler),
+	}
+}
+
+func (b *Bus) Subscribe(eventType string, handler Handler) error {
+	if eventType == "" {
+		return ErrEmptyEventType
+	}
+	if handler == nil {
+		return ErrNilEventHandler
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.handlers[eventType] = append(b.handlers[eventType], handler)
+	return nil
+}
+
+func (b *Bus) Publish(ctx context.Context, event Event) error {
+	if event == nil {
+		return ErrNilEvent
+	}
+
+	eventType := event.Type()
+	if eventType == "" {
+		return ErrEmptyEventType
+	}
+
+	b.mu.RLock()
+	handlers := slices.Clone(b.handlers[eventType])
+	b.mu.RUnlock()
+
+	var handlerErr error
+	for _, handler := range handlers {
+		if err := handler(ctx, event); err != nil {
+			handlerErr = errors.Join(
+				handlerErr,
+				fmt.Errorf("event %q handler failed: %w", eventType, err),
+			)
+		}
+	}
+
+	return handlerErr
+}

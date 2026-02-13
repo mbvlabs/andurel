@@ -330,6 +330,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"framework_elements_server_server.tmpl":          "internal/server/server.go",
 	"framework_elements_storage_psql.tmpl":           "internal/storage/psql.go",
 	"framework_elements_storage_queue.tmpl":          "internal/storage/queue.go",
+	"framework_elements_storage_event.tmpl":          "internal/storage/event/event.go",
 	"framework_elements_hypermedia_signals.tmpl":     "internal/hypermedia/signals.go",
 	"framework_elements_hypermedia_core.tmpl":        "internal/hypermedia/core.go",
 	"framework_elements_hypermedia_sse.tmpl":         "internal/hypermedia/sse.go",
