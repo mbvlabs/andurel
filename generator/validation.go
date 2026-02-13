@@ -26,7 +26,10 @@ func (v *InputValidator) ValidateResourceName(resourceName string) error {
 		return fmt.Errorf("resource name cannot be empty")
 	}
 
-	validIdentifier := regexp.MustCompile(`^[A-Z][a-zA-Z0-9]*$`)
+	validIdentifier, err := regexp.Compile(`^[A-Z][a-zA-Z0-9]*$`)
+	if err != nil {
+		return fmt.Errorf("failed to compile resource name pattern: %w", err)
+	}
 	if !validIdentifier.MatchString(resourceName) {
 		return fmt.Errorf(
 			"resource name '%s' must be a valid Go identifier starting with uppercase letter",
@@ -74,7 +77,10 @@ func (v *InputValidator) ValidateTableName(tableName string) error {
 		return fmt.Errorf("table name cannot be empty")
 	}
 
-	validSQLIdentifier := regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
+	validSQLIdentifier, err := regexp.Compile(`^[a-z_][a-z0-9_]*$`)
+	if err != nil {
+		return fmt.Errorf("failed to compile table name pattern: %w", err)
+	}
 	if !validSQLIdentifier.MatchString(tableName) {
 		return fmt.Errorf(
 			"table name '%s' must be snake_case using lowercase letters, numbers, and underscores",
@@ -111,7 +117,10 @@ func (v *InputValidator) ValidateTableNameOverride(resourceName, tableNameOverri
 
 	conventionalTableName := naming.DeriveTableName(resourceName)
 
-	validSQLIdentifier := regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
+	validSQLIdentifier, err := regexp.Compile(`^[a-z_][a-z0-9_]*$`)
+	if err != nil {
+		return fmt.Errorf("failed to compile table name override pattern: %w", err)
+	}
 	if !validSQLIdentifier.MatchString(tableNameOverride) {
 		return fmt.Errorf(
 			"table name '%s' must be snake_case using lowercase letters, numbers, and underscores",
@@ -186,7 +195,10 @@ func (v *InputValidator) ValidateModulePath(modulePath string) error {
 		return fmt.Errorf("module path cannot be empty")
 	}
 
-	validModulePath := regexp.MustCompile(`^[a-zA-Z0-9._/-]+$`)
+	validModulePath, err := regexp.Compile(`^[a-zA-Z0-9._/-]+$`)
+	if err != nil {
+		return fmt.Errorf("failed to compile module path pattern: %w", err)
+	}
 	if !validModulePath.MatchString(modulePath) {
 		return fmt.Errorf("module path '%s' contains invalid characters", modulePath)
 	}

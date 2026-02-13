@@ -18,7 +18,10 @@ func ParseDataType(typeStr string) (dataType string, length *int32, precision *i
 	}
 
 	// Handle varchar(n)
-	varcharRegex := regexp.MustCompile(`varchar\((\d+)\)`)
+	varcharRegex, err := regexp.Compile(`varchar\((\d+)\)`)
+	if err != nil {
+		return strings.TrimSpace(typeStr), nil, nil, nil
+	}
 	if matches := varcharRegex.FindStringSubmatch(typeStrLower); len(matches) > 1 {
 		if n, err := strconv.Atoi(matches[1]); err == nil {
 			length := int32(n)
@@ -27,7 +30,10 @@ func ParseDataType(typeStr string) (dataType string, length *int32, precision *i
 	}
 
 	// Handle char(n)
-	charRegex := regexp.MustCompile(`char\((\d+)\)`)
+	charRegex, err := regexp.Compile(`char\((\d+)\)`)
+	if err != nil {
+		return strings.TrimSpace(typeStr), nil, nil, nil
+	}
 	if matches := charRegex.FindStringSubmatch(typeStrLower); len(matches) > 1 {
 		if n, err := strconv.Atoi(matches[1]); err == nil {
 			length := int32(n)
@@ -36,7 +42,10 @@ func ParseDataType(typeStr string) (dataType string, length *int32, precision *i
 	}
 
 	// Handle decimal(p,s) and numeric(p,s)
-	decimalRegex := regexp.MustCompile(`(?:decimal|numeric)\((\d+),(\d+)\)`)
+	decimalRegex, err := regexp.Compile(`(?:decimal|numeric)\((\d+),(\d+)\)`)
+	if err != nil {
+		return strings.TrimSpace(typeStr), nil, nil, nil
+	}
 	if matches := decimalRegex.FindStringSubmatch(typeStrLower); len(matches) > 2 {
 		if p, err1 := strconv.Atoi(matches[1]); err1 == nil {
 			if s, err2 := strconv.Atoi(matches[2]); err2 == nil {
