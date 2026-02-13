@@ -459,13 +459,17 @@ func TestSetupQueriesContext_SingularTableName(t *testing.T) {
 	manager, cleanup := setupModelManagerTest(t)
 	defer cleanup()
 
-	_, err := manager.setupQueriesContext("user_feedback")
-	if err == nil {
-		t.Error("setupQueriesContext() should reject singular table name")
+	ctx, err := manager.setupQueriesContext("user_feedback")
+	if err != nil {
+		t.Errorf("setupQueriesContext() should accept singular table names, got error: %v", err)
 	}
 
-	if !strings.Contains(err.Error(), "must be plural") {
-		t.Errorf("setupQueriesContext() error = %v, want error containing 'must be plural'", err)
+	if ctx == nil {
+		t.Fatal("setupQueriesContext() returned nil context")
+	}
+
+	if ctx.TableName != "user_feedback" {
+		t.Errorf("setupQueriesContext() TableName = %q, want %q", ctx.TableName, "user_feedback")
 	}
 }
 
@@ -489,7 +493,7 @@ func TestGenerateModel_SingularTableNameOverride(t *testing.T) {
 	}
 }
 
-func TestGenerateQueriesOnly_RejectsSingularTableName(t *testing.T) {
+func TestGenerateQueriesOnly_AllowsSingularTableName(t *testing.T) {
 	manager, cleanup := setupModelManagerTest(t)
 	defer cleanup()
 
@@ -504,12 +508,8 @@ func TestGenerateQueriesOnly_RejectsSingularTableName(t *testing.T) {
 
 	err := manager.GenerateQueriesOnly("user_feedback")
 
-	if err == nil {
-		t.Error("GenerateQueriesOnly() should reject singular table name")
-	}
-
-	if err != nil && !strings.Contains(err.Error(), "must be plural") {
-		t.Errorf("GenerateQueriesOnly() error = %v, want error containing 'must be plural'", err)
+	if err != nil && strings.Contains(err.Error(), "must be plural") {
+		t.Errorf("GenerateQueriesOnly() should not enforce plural naming, got: %v", err)
 	}
 }
 

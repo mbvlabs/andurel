@@ -262,10 +262,6 @@ type queriesSetupContext struct {
 func (m *ModelManager) setupQueriesContext(tableName string) (*queriesSetupContext, error) {
 	modulePath := m.projectManager.GetModulePath()
 
-	if err := m.validator.ValidateTableName(tableName); err != nil {
-		return nil, err
-	}
-
 	if err := m.validator.ValidateModulePath(modulePath); err != nil {
 		return nil, fmt.Errorf("module path validation failed: %w", err)
 	}
@@ -294,7 +290,7 @@ func (m *ModelManager) setupQueriesContext(tableName string) (*queriesSetupConte
 		SQLPath:      sqlPath,
 		ResourceName: resourceName,
 		TableName:    tableName,
-		PluralName:   tableName, // Table name is already the plural form
+		PluralName:   tableName,
 	}, nil
 }
 

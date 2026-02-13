@@ -106,6 +106,10 @@ func TestGenerateCommands(t *testing.T) {
 				testGenerateQueries(t, project)
 			})
 
+			t.Run("generate_queries_with_singular_table_name", func(t *testing.T) {
+				testGenerateQueriesWithSingularTableName(t, project)
+			})
+
 			t.Run("generate_queries_with_refresh", func(t *testing.T) {
 				testGenerateQueriesWithRefresh(t, project)
 			})
@@ -732,6 +736,29 @@ func testGenerateQueries(t *testing.T, project *internal.Project) {
 	// Factory file should NOT exist for queries-only generation
 	if project.FileExists("models/factories/user_role.go") {
 		t.Error("Factory file should NOT exist for queries-only generation")
+	}
+}
+
+func testGenerateQueriesWithSingularTableName(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	createMigrationRaw(t, project, "000115_create_team_membership", "team_membership", []string{
+		"user_id UUID NOT NULL",
+		"team_id UUID NOT NULL",
+	})
+
+	err := project.Generate("query", "generate", "team_membership")
+	internal.AssertCommandSucceeds(t, err, "generate queries with singular table name")
+
+	internal.AssertFileExists(t, project, "database/queries/team_membership.sql")
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/team_membership.sql"))
+	if err != nil {
+		t.Fatalf("Failed to read queries file: %v", err)
+	}
+
+	queriesStr := strings.ToLower(string(queriesContent))
+	if !strings.Contains(queriesStr, "from team_membership") {
+		t.Error("Expected generated queries to target table team_membership")
 	}
 }
 
