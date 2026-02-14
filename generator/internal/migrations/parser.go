@@ -112,7 +112,10 @@ func IsDownMigration(filename string) bool {
 }
 
 func parseFilename(filename string) (sequence int, name string, err error) {
-	re := regexp.MustCompile(`^(\d+)_(.+)\.sql$`)
+	re, err := regexp.Compile(`^(\d+)_(.+)\.sql$`)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to compile filename pattern: %w", err)
+	}
 	matches := re.FindStringSubmatch(filename)
 
 	if len(matches) != 3 {

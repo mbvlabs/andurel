@@ -132,7 +132,10 @@ func (fm *FragmentManager) detectIDTypeFromRoutes(routesPath string) string {
 
 func (fm *FragmentManager) validateConfig(config FragmentConfig) error {
 	// Validate controller name is PascalCase
-	pascalRegex := regexp.MustCompile(`^[A-Z][a-zA-Z0-9]*$`)
+	pascalRegex, err := regexp.Compile(`^[A-Z][a-zA-Z0-9]*$`)
+	if err != nil {
+		return fmt.Errorf("failed to compile PascalCase pattern: %w", err)
+	}
 	if !pascalRegex.MatchString(config.ControllerName) {
 		return fmt.Errorf("controller name '%s' must be PascalCase (e.g. Webhook, Article)", config.ControllerName)
 	}
