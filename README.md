@@ -7,6 +7,13 @@
 [![Go Version](https://img.shields.io/badge/go-1.24.4%2B-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
+---
+
+**Andurel is a comprehensive web development framework for Go.
+It prioritizes development speed.** Inspired by Ruby on Rails, it uses just enough conventions to let you build full-stack web applications incredibly fast.
+
+Join the discord [here](https://discord.gg/TnTBZHvat3)
+
 ## Platform Support
 
 Andurel currently supports **Linux** and **macOS** only. Windows is not supported at this time.
@@ -14,10 +21,6 @@ Andurel currently supports **Linux** and **macOS** only. Windows is not supporte
 If you'd like to help bring Windows support to Andurel, please see [issue #382](https://github.com/mbvlabs/andurel/issues/382) - contributions are welcome!
 
 ---
-
-**Andurel is a comprehensive web development framework for Go that prioritizes development speed.** Inspired by Ruby on Rails, it uses just enough conventions to let you build full-stack web applications incredibly fast.
-
-Join the discord [here](https://discord.gg/TnTBZHvat3)
 
 ## Why Andurel?
 
@@ -367,3 +370,20 @@ Andurel is built on top of excellent open-source projects:
 Inspired by Ruby on Rails and its philosophy that developer happiness and productivity matter. Built for developers who want to move fast without sacrificing type safety or code quality.
 
 ---
+
+## Author
+
+Created by [Morten Vistisen](https://mortenvistisen.com)
+
+Feel free to reach out to me on:
+- [Twitter/X](https://x.com/mbvlabs)
+- [Mail](mailto:andurel@mbvlabs.com)
+
+If you have any questions!
+
+### Sites build with Andurel
+
+Here is a collection of sites and projects build with this framework
+- [MBV Blog](https://mortenvistisen.com)
+- [Master Golang](https://mastergolang.com)
+- [Palantir](https://github.com/mbvlabs/palantir) | open sourced analytics platform (WIP)
