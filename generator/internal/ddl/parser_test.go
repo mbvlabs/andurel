@@ -194,6 +194,39 @@ func TestDDLParser_ParseWithComments(t *testing.T) {
 	}
 }
 
+func TestDDLParser_ParseColumnNameStartingWithCheck(t *testing.T) {
+	parser := NewDDLParser()
+
+	sql := `CREATE TABLE server_operational_status (
+		id SERIAL PRIMARY KEY,
+		checked_at TIMESTAMP WITH TIME ZONE NOT NULL,
+		status TEXT NOT NULL
+	)`
+
+	stmt, err := parser.Parse(sql, "test.sql", "postgresql")
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	createStmt, ok := stmt.(*CreateTableStatement)
+	if !ok {
+		t.Fatalf("Expected CreateTableStatement, got %T", stmt)
+	}
+
+	if len(createStmt.Columns) != 3 {
+		t.Fatalf("Expected 3 columns, got %d", len(createStmt.Columns))
+	}
+
+	columnNames := map[string]bool{}
+	for _, col := range createStmt.Columns {
+		columnNames[col.Name] = true
+	}
+
+	if !columnNames["checked_at"] {
+		t.Fatalf("Expected checked_at column to be parsed, got columns: %v", columnNames)
+	}
+}
+
 func TestValidatePrimaryKeyDatatype(t *testing.T) {
 	testCases := []struct {
 		name         string

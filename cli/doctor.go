@@ -398,8 +398,6 @@ func getToolVersion(binPath string, toolName string) (string, error) {
 	return versionFromCommand(binPath, toolName)
 }
 
-var versionPattern = regexp.MustCompile(`v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?`)
-
 // runWithTimeout runs a command with a timeout, killing the entire process group
 // if the timeout is exceeded. This ensures child processes that inherit stdout/stderr
 // pipes are also killed, preventing CombinedOutput-style hangs.
@@ -471,6 +469,11 @@ func versionFromCommand(binPath, toolName string) (string, error) {
 }
 
 func extractVersion(output string) string {
+	versionPattern, err := regexp.Compile(`v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?`)
+	if err != nil {
+		return ""
+	}
+
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		lower := strings.ToLower(line)

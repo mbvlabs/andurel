@@ -14,9 +14,12 @@ func NewDropTableParser() *DropTableParser {
 }
 
 func (p *DropTableParser) Parse(sql string) (*DropTableStatement, error) {
-	dropRegex := regexp.MustCompile(
+	dropRegex, err := regexp.Compile(
 		`(?i)drop\s+table(?:\s+if\s+exists)?\s+(?:(\w+)\.)?(\w+)`,
 	)
+	if err != nil {
+		return nil, err
+	}
 	matches := dropRegex.FindStringSubmatch(sql)
 
 	if len(matches) < 3 {
@@ -69,7 +72,10 @@ func NewCreateSchemaParser() *CreateSchemaParser {
 }
 
 func (p *CreateSchemaParser) Parse(sql string) (*CreateSchemaStatement, error) {
-	schemaRegex := regexp.MustCompile(`(?i)create\s+schema\s+(?:if\s+not\s+exists\s+)?(\w+)`)
+	schemaRegex, err := regexp.Compile(`(?i)create\s+schema\s+(?:if\s+not\s+exists\s+)?(\w+)`)
+	if err != nil {
+		return nil, err
+	}
 	matches := schemaRegex.FindStringSubmatch(sql)
 
 	schemaName := ""
@@ -91,7 +97,10 @@ func NewDropSchemaParser() *DropSchemaParser {
 }
 
 func (p *DropSchemaParser) Parse(sql string) (*DropSchemaStatement, error) {
-	schemaRegex := regexp.MustCompile(`(?i)drop\s+schema\s+(?:if\s+exists\s+)?(\w+)`)
+	schemaRegex, err := regexp.Compile(`(?i)drop\s+schema\s+(?:if\s+exists\s+)?(\w+)`)
+	if err != nil {
+		return nil, err
+	}
 	matches := schemaRegex.FindStringSubmatch(sql)
 
 	schemaName := ""
@@ -113,7 +122,10 @@ func NewCreateEnumParser() *CreateEnumParser {
 }
 
 func (p *CreateEnumParser) Parse(sql string) (*CreateEnumStatement, error) {
-	enumRegex := regexp.MustCompile(`(?i)create\s+type\s+(?:(\w+)\.)?(\w+)\s+as\s+enum`)
+	enumRegex, err := regexp.Compile(`(?i)create\s+type\s+(?:(\w+)\.)?(\w+)\s+as\s+enum`)
+	if err != nil {
+		return nil, err
+	}
 	matches := enumRegex.FindStringSubmatch(sql)
 
 	schemaName := ""
@@ -138,7 +150,10 @@ func NewDropEnumParser() *DropEnumParser {
 }
 
 func (p *DropEnumParser) Parse(sql string) (*DropEnumStatement, error) {
-	enumRegex := regexp.MustCompile(`(?i)drop\s+type\s+(?:if\s+exists\s+)?(?:(\w+)\.)?(\w+)`)
+	enumRegex, err := regexp.Compile(`(?i)drop\s+type\s+(?:if\s+exists\s+)?(?:(\w+)\.)?(\w+)`)
+	if err != nil {
+		return nil, err
+	}
 	matches := enumRegex.FindStringSubmatch(sql)
 
 	schemaName := ""

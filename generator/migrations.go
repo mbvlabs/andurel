@@ -60,9 +60,12 @@ func isRelevantForTable(stmt, targetTable string) bool {
 
 	if strings.Contains(stmtLower, "create table") &&
 		strings.Contains(stmtLower, targetLower) {
-		createTableRegex := regexp.MustCompile(
+		createTableRegex, err := regexp.Compile(
 			`(?i)create\s+table(?:\s+if\s+not\s+exists)?\s+(?:\w+\.)?(\w+)`,
 		)
+		if err != nil {
+			return false
+		}
 		matches := createTableRegex.FindStringSubmatch(stmt)
 		if len(matches) > 1 && strings.ToLower(matches[1]) == targetLower {
 			return true
@@ -71,9 +74,12 @@ func isRelevantForTable(stmt, targetTable string) bool {
 
 	if strings.Contains(stmtLower, "alter table") &&
 		strings.Contains(stmtLower, targetLower) {
-		alterTableRegex := regexp.MustCompile(
+		alterTableRegex, err := regexp.Compile(
 			`(?i)alter\s+table\s+(?:if\s+exists\s+)?(?:\w+\.)?(\w+)`,
 		)
+		if err != nil {
+			return false
+		}
 		matches := alterTableRegex.FindStringSubmatch(stmt)
 		if len(matches) > 1 && strings.ToLower(matches[1]) == targetLower {
 			return true
@@ -82,9 +88,12 @@ func isRelevantForTable(stmt, targetTable string) bool {
 
 	if strings.Contains(stmtLower, "drop table") &&
 		strings.Contains(stmtLower, targetLower) {
-		dropTableRegex := regexp.MustCompile(
+		dropTableRegex, err := regexp.Compile(
 			`(?i)drop\s+table(?:\s+if\s+exists)?\s+(?:\w+\.)?(\w+)`,
 		)
+		if err != nil {
+			return false
+		}
 		matches := dropTableRegex.FindStringSubmatch(stmt)
 		if len(matches) > 1 && strings.ToLower(matches[1]) == targetLower {
 			return true

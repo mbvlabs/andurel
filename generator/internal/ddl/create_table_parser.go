@@ -2,7 +2,6 @@ package ddl
 
 import (
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -21,14 +20,7 @@ func (p *CreateTableParser) Parse(
 	sql, migrationFile string,
 	databaseType string,
 ) (*CreateTableStatement, error) {
-	createTableRegex, err := regexp.Compile(
-		`(?is)create\s+table(\s+if\s+not\s+exists)?\s+(?:(\w+)\.)?(\w+)\s*\(\s*(.*)\s*\)`,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	matches := createTableRegex.FindStringSubmatch(sql)
+	matches := parseCreateTableMatches(sql)
 	if len(matches) < 5 {
 		return nil, fmt.Errorf("invalid CREATE TABLE syntax: %s", sql)
 	}
@@ -75,16 +67,9 @@ func (p *CreateTableParser) parseColumnDefinitions(
 		defLower := strings.ToLower(def)
 
 		if strings.HasPrefix(defLower, "primary key") {
-			pkRegex := regexp.MustCompile(
-				`(?i)primary\s+key\s*\(\s*([^)]+)\s*\)`,
-			)
-			if matches := pkRegex.FindStringSubmatch(def); len(matches) > 1 {
-				pkCols := strings.SplitSeq(matches[1], ",")
-				for col := range pkCols {
-					primaryKeyColumns = append(
-						primaryKeyColumns,
-						strings.TrimSpace(col),
-					)
+			if pkCols, ok := parsePrimaryKeyColumns(def); ok {
+				for _, col := range pkCols {
+					primaryKeyColumns = append(primaryKeyColumns, strings.TrimSpace(col))
 				}
 			}
 			continue
@@ -94,10 +79,7 @@ func (p *CreateTableParser) parseColumnDefinitions(
 			// Parse table-level FOREIGN KEY constraint
 			// Format: FOREIGN KEY (column) REFERENCES table(column)
 			// Also handles: CONSTRAINT name FOREIGN KEY (column) REFERENCES table(column)
-			fkRegex := regexp.MustCompile(
-				`(?i)foreign\s+key\s*\(\s*(\w+)\s*\)\s+references\s+(\w+)\s*\(\s*(\w+)\s*\)`,
-			)
-			if matches := fkRegex.FindStringSubmatch(def); len(matches) > 3 {
+			if matches, ok := parseTableLevelForeignKey(def); ok {
 				foreignKeys = append(foreignKeys, struct {
 					column           string
 					referencedTable  string
@@ -111,9 +93,7 @@ func (p *CreateTableParser) parseColumnDefinitions(
 			continue
 		}
 
-		if strings.HasPrefix(defLower, "constraint") ||
-			strings.HasPrefix(defLower, "unique") ||
-			strings.HasPrefix(defLower, "check") {
+		if strings.HasPrefix(defLower, "constraint") || isTableConstraintDefinition(defLower) {
 			continue
 		}
 
@@ -219,20 +199,13 @@ func (p *CreateTableParser) parseColumnDefinition(
 		col.SetUnique()
 	}
 
-	defaultRegex := regexp.MustCompile(`(?i)default\s+([^,\s]+(?:\s+[^,\s]+)*)`)
-	if matches := defaultRegex.FindStringSubmatch(def); len(matches) > 1 {
-		col.SetDefault(strings.TrimSpace(matches[1]))
+	if defaultVal, ok := parseDefaultValue(def); ok {
+		col.SetDefault(defaultVal)
 	}
 
-	// Parse inline REFERENCES clause
-	// Format: REFERENCES table(column) or REFERENCES table
-	referencesRegex := regexp.MustCompile(`(?i)references\s+(\w+)(?:\s*\(\s*(\w+)\s*\))?`)
-	if matches := referencesRegex.FindStringSubmatch(def); len(matches) > 1 {
-		referencedTable := matches[1]
-		referencedColumn := "id" // default to id if not specified
-		if len(matches) > 2 && matches[2] != "" {
-			referencedColumn = matches[2]
-		}
+	// Parse inline REFERENCES clause:
+	// REFERENCES table(column) or REFERENCES table
+	if referencedTable, referencedColumn, ok := parseInlineReference(def); ok {
 		col.SetForeignKey(referencedTable, referencedColumn)
 	}
 
@@ -308,4 +281,163 @@ func (p *CreateTableParser) validatePrimaryKeyDatatype(
 	dataType, databaseType, migrationFile, columnName string,
 ) error {
 	return validation.ValidatePrimaryKeyDatatype(dataType, databaseType, migrationFile, columnName)
+}
+
+func parseCreateTableMatches(sql string) []string {
+	sqlLower := strings.ToLower(sql)
+	createIdx := strings.Index(sqlLower, "create table")
+	if createIdx == -1 {
+		return nil
+	}
+
+	afterCreate := strings.TrimSpace(sql[createIdx+len("create table"):])
+	if afterCreate == "" {
+		return nil
+	}
+
+	ifNotExists := ""
+	afterLower := strings.ToLower(afterCreate)
+	if strings.HasPrefix(afterLower, "if not exists") {
+		ifNotExists = " if not exists"
+		afterCreate = strings.TrimSpace(afterCreate[len("if not exists"):])
+	}
+
+	openIdx := strings.Index(afterCreate, "(")
+	closeIdx := strings.LastIndex(afterCreate, ")")
+	if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
+		return nil
+	}
+
+	namePart := strings.TrimSpace(afterCreate[:openIdx])
+	columnDefs := strings.TrimSpace(afterCreate[openIdx+1 : closeIdx])
+	if namePart == "" {
+		return nil
+	}
+
+	schemaName := ""
+	tableName := namePart
+	if dotIdx := strings.Index(namePart, "."); dotIdx != -1 {
+		schemaName = strings.TrimSpace(namePart[:dotIdx])
+		tableName = strings.TrimSpace(namePart[dotIdx+1:])
+	}
+
+	if tableName == "" {
+		return nil
+	}
+
+	return []string{"", ifNotExists, schemaName, tableName, columnDefs}
+}
+
+func parsePrimaryKeyColumns(def string) ([]string, bool) {
+	start := strings.Index(def, "(")
+	end := strings.LastIndex(def, ")")
+	if start == -1 || end == -1 || end <= start {
+		return nil, false
+	}
+	return strings.Split(def[start+1:end], ","), true
+}
+
+func parseTableLevelForeignKey(def string) ([]string, bool) {
+	defLower := strings.ToLower(def)
+	fkIdx := strings.Index(defLower, "foreign key")
+	if fkIdx == -1 {
+		return nil, false
+	}
+
+	openCol := strings.Index(def[fkIdx:], "(")
+	if openCol == -1 {
+		return nil, false
+	}
+	openCol += fkIdx
+	closeCol := strings.Index(def[openCol:], ")")
+	if closeCol == -1 {
+		return nil, false
+	}
+	closeCol += openCol
+	column := strings.TrimSpace(def[openCol+1 : closeCol])
+
+	afterColsLower := strings.ToLower(def[closeCol+1:])
+	refIdxRel := strings.Index(afterColsLower, "references")
+	if refIdxRel == -1 {
+		return nil, false
+	}
+	refIdx := closeCol + 1 + refIdxRel
+	afterRef := strings.TrimSpace(def[refIdx+len("references"):])
+	if afterRef == "" {
+		return nil, false
+	}
+
+	refOpen := strings.Index(afterRef, "(")
+	refClose := strings.Index(afterRef, ")")
+	if refOpen == -1 || refClose == -1 || refClose <= refOpen {
+		return nil, false
+	}
+	referencedTable := strings.TrimSpace(afterRef[:refOpen])
+	referencedColumn := strings.TrimSpace(afterRef[refOpen+1 : refClose])
+	if column == "" || referencedTable == "" || referencedColumn == "" {
+		return nil, false
+	}
+
+	return []string{"", column, referencedTable, referencedColumn}, true
+}
+
+func isTableConstraintDefinition(defLower string) bool {
+	return strings.HasPrefix(defLower, "unique(") ||
+		strings.HasPrefix(defLower, "unique ") ||
+		defLower == "unique" ||
+		strings.HasPrefix(defLower, "check(") ||
+		strings.HasPrefix(defLower, "check ") ||
+		defLower == "check"
+}
+
+func parseDefaultValue(def string) (string, bool) {
+	defLower := strings.ToLower(def)
+	defaultIdx := strings.Index(defLower, "default")
+	if defaultIdx == -1 {
+		return "", false
+	}
+
+	value := strings.TrimSpace(def[defaultIdx+len("default"):])
+	if value == "" {
+		return "", false
+	}
+
+	for _, keyword := range []string{" not null", " primary key", " unique", " references ", " check "} {
+		if idx := strings.Index(strings.ToLower(value), keyword); idx != -1 {
+			value = strings.TrimSpace(value[:idx])
+			break
+		}
+	}
+
+	return value, value != ""
+}
+
+func parseInlineReference(def string) (string, string, bool) {
+	defLower := strings.ToLower(def)
+	refIdx := strings.Index(defLower, "references")
+	if refIdx == -1 {
+		return "", "", false
+	}
+
+	afterRef := strings.TrimSpace(def[refIdx+len("references"):])
+	if afterRef == "" {
+		return "", "", false
+	}
+
+	refOpen := strings.Index(afterRef, "(")
+	if refOpen == -1 {
+		return strings.TrimSpace(afterRef), "id", true
+	}
+	refClose := strings.Index(afterRef, ")")
+	if refClose == -1 || refClose <= refOpen {
+		return "", "", false
+	}
+
+	referencedTable := strings.TrimSpace(afterRef[:refOpen])
+	referencedColumn := strings.TrimSpace(afterRef[refOpen+1 : refClose])
+	if referencedTable == "" || referencedColumn == "" {
+		return "", "", false
+	}
+
+	return referencedTable, referencedColumn, true
 }
