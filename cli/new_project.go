@@ -34,12 +34,11 @@ dependencies, and configuration.`,
 }
 
 func newProject(cmd *cobra.Command, args []string, version string) error {
-	targetDir := args[0]
-	projectName := targetDir
-	basePath := "./" + targetDir
+	projectName := args[0]
+	basePath := "./" + projectName
 
 	// If the target directory is ".", use the current directory
-	if targetDir == "." {
+	if args[0] == "." {
 		// Get the current directory
 		dir, err := os.Getwd()
 		if err != nil {
