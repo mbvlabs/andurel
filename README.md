@@ -371,6 +371,17 @@ Inspired by Ruby on Rails and its philosophy that developer happiness and produc
 
 ---
 
+### Sites build with Andurel
+
+Here is a collection of sites and projects, I've built with this framework:
+- [MBV Blog](https://mortenvistisen.com) | personal blog
+- [Master Golang](https://mastergolang.com) | course platform
+- [Palantir](https://github.com/mbvlabs/palantir) | open sourced analytics platform (WIP)
+
+If you build something cool with Andurel, let me know and I will add it to the list (or open a PR)!
+
+---
+
 ## Author
 
 Created by [Morten Vistisen](https://mortenvistisen.com)
@@ -380,10 +391,3 @@ Feel free to reach out to me on:
 - [Mail](mailto:andurel@mbvlabs.com)
 
 If you have any questions!
-
-### Sites build with Andurel
-
-Here is a collection of sites and projects build with this framework
-- [MBV Blog](https://mortenvistisen.com)
-- [Master Golang](https://mastergolang.com)
-- [Palantir](https://github.com/mbvlabs/palantir) | open sourced analytics platform (WIP)
