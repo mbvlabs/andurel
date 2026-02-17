@@ -435,7 +435,12 @@ func dropDatabase(force bool) error {
 	defer cancel()
 	defer conn.Close(ctx)
 
-	return dropDatabaseWithConn(ctx, cfg, conn, force)
+	if err := dropDatabaseWithConn(ctx, cfg, conn, force); err != nil {
+		return err
+	}
+
+	fmt.Printf("Database %q dropped successfully.\n", cfg.Name)
+	return nil
 }
 
 func createDatabase() error {
@@ -452,7 +457,12 @@ func createDatabase() error {
 	defer cancel()
 	defer conn.Close(ctx)
 
-	return createDatabaseWithConn(ctx, cfg, conn)
+	if err := createDatabaseWithConn(ctx, cfg, conn); err != nil {
+		return err
+	}
+
+	fmt.Printf("Database %q created successfully.\n", cfg.Name)
+	return nil
 }
 
 func nukeDatabase(force bool) error {
@@ -487,10 +497,26 @@ func nukeDatabase(force bool) error {
 		return err
 	}
 
-	return createDatabaseWithConn(ctx, cfg, conn)
+	if err := createDatabaseWithConn(ctx, cfg, conn); err != nil {
+		return err
+	}
+
+	fmt.Printf("Database %q nuked successfully.\n", cfg.Name)
+	return nil
 }
 
 func rebuildDatabase(force bool, skipSeed bool) error {
+	rootDir, err := findGoModRoot()
+	if err != nil {
+		return err
+	}
+	loadProjectEnv(rootDir)
+
+	cfg, err := loadDatabaseConfig()
+	if err != nil {
+		return err
+	}
+
 	if err := nukeDatabase(force); err != nil {
 		return err
 	}
@@ -503,7 +529,12 @@ func rebuildDatabase(force bool, skipSeed bool) error {
 		return nil
 	}
 
-	return runSeed()
+	if err := runSeed(); err != nil {
+		return err
+	}
+
+	fmt.Printf("Database %q rebuilt successfully.\n", cfg.Name)
+	return nil
 }
 
 func openAdminConnection() (dbConfig, *pgx.Conn, context.Context, context.CancelFunc, error) {
