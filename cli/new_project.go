@@ -35,29 +35,29 @@ dependencies, and configuration.`,
 
 func newProject(cmd *cobra.Command, args []string, version string) error {
 	projectName := args[0]
+	basePath := "./" + projectName
 
-	// Get the current directory
-	dir, err := os.Getwd()
-	if err != nil {
-		return err
-	}
+	// If the target directory is ".", use the current directory
+	if args[0] == "." {
+		// Get the current directory
+		dir, err := os.Getwd()
+		if err != nil {
+			return err
+		}
 
-	// If the project name is ".", use the current directory name
-	if projectName == "." {
 		// Get the current directory contents
 		files, err := os.ReadDir(dir)
 		if err != nil {
 			return err
 		}
 
-		// If the current directory is empty, use the directory name as the project name
+		// If the current directory is empty, use the current directory as the project name
 		if len(files) != 0 {
 			return fmt.Errorf("current directory is not empty")
 		}
 		projectName = path.Base(dir)
+		basePath = "./"
 	}
-
-	basePath := "./" + projectName
 
 	database := "postgresql"
 
