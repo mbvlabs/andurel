@@ -12,7 +12,6 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/mbvlabs/andurel/layout"
@@ -394,6 +393,10 @@ func truncateDetails(details []string, max int) []string {
 	return truncated
 }
 
+var toolVersionArgs = map[string][]string{
+	"mailpit": {"version", "--no-release-check"},
+}
+
 func getToolVersion(binPath string, toolName string) (string, error) {
 	return versionFromCommand(binPath, toolName)
 }
@@ -403,7 +406,6 @@ func getToolVersion(binPath string, toolName string) (string, error) {
 // pipes are also killed, preventing CombinedOutput-style hangs.
 func runWithTimeout(ctx context.Context, path string, args ...string) ([]byte, error) {
 	cmd := exec.Command(path, args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Stdin = nil
 
 	stdout, err := cmd.StdoutPipe()
@@ -435,7 +437,7 @@ func runWithTimeout(ctx context.Context, path string, args ...string) ([]byte, e
 	select {
 	case <-ctx.Done():
 		if cmd.Process != nil {
-			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			_ = cmd.Process.Kill()
 		}
 		return nil, ctx.Err()
 	case r := <-done:
@@ -450,6 +452,21 @@ func versionFromCommand(binPath, toolName string) (string, error) {
 	}
 
 	fullPath := filepath.Join(rootDir, binPath)
+
+	if specificArgs, ok := toolVersionArgs[toolName]; ok {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		output, err := runWithTimeout(ctx, fullPath, specificArgs...)
+		cancel()
+		if err != nil {
+			return "", fmt.Errorf("version command failed for %s: %w", toolName, err)
+		}
+		version := extractVersion(string(output))
+		if version == "" {
+			return "", fmt.Errorf("no version output for %s", toolName)
+		}
+		return version, nil
+	}
+
 	candidates := []string{"--version", "-version", "version", "--help"}
 
 	for _, arg := range candidates {
