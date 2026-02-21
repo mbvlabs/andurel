@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
 )
 
@@ -58,7 +59,7 @@ func runTempl(args ...string) error {
 		return err
 	}
 
-	templBin := filepath.Join(rootDir, "bin", "templ")
+	templBin := filepath.Join(rootDir, "bin", naming.BinaryName("templ"))
 	if _, err := os.Stat(templBin); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf(

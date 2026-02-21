@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type Project struct {
@@ -27,7 +29,7 @@ func NewProject(t *testing.T, andurelBinary, sharedBinDir string) *Project {
 		Dir:          filepath.Join(tmpDir, projectName),
 		Name:         projectName,
 		T:            t,
-		BinaryPath:   andurelBinary,
+		BinaryPath:   naming.BinaryName(andurelBinary),
 		Database:     "",
 		SharedBinDir: sharedBinDir,
 	}
@@ -43,7 +45,7 @@ func NewProjectWithDatabase(t *testing.T, andurelBinary, sharedBinDir, database 
 		Dir:          filepath.Join(tmpDir, projectName),
 		Name:         projectName,
 		T:            t,
-		BinaryPath:   andurelBinary,
+		BinaryPath:   naming.BinaryName(andurelBinary),
 		Database:     database,
 		SharedBinDir: sharedBinDir,
 	}

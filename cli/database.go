@@ -14,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
+	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
 )
 
@@ -323,7 +324,7 @@ func runGoose(args ...string) error {
 		return err
 	}
 
-	goosePath := filepath.Join(rootDir, "bin", "goose")
+	goosePath := filepath.Join(rootDir, "bin", naming.BinaryName("goose"))
 	if _, err := os.Stat(goosePath); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf(

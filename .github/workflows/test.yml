@@ -79,3 +79,49 @@ jobs:
         path: |
           /tmp/andurel-e2e-*
         retention-days: 7
+
+  test-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    env:
+      E2E_CRITICAL_ONLY: "true"
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24.4'
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Install tools
+      run: |
+        go install github.com/a-h/templ/cmd/templ
+        go install github.com/segmentio/golines
+        go install github.com/sqlc-dev/sqlc/cmd/sqlc
+        go install golang.org/x/tools/cmd/goimports
+
+    - name: Run go vet
+      run: go vet ./...
+
+    - name: Run tests
+      run: |
+        $packages = go list ./... | Select-String -Pattern "/e2e" -NotMatch
+        go test $packages -v -race
+
+    - name: Run E2E critical tests
+      run: go test ./e2e/... -v -timeout 25m
+
+    - name: Upload E2E failure artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: e2e-windows-failures
+        path: |
+          ${{ env.TEMP }}\andurel-e2e-*
+        retention-days: 7

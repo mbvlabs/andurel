@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type ToolDownloader struct {
@@ -167,8 +169,8 @@ func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, err
 	case "goose":
 		os := goos
 		arch := mapArch(goarch)
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/goose_%s_%s",
-			repo, d.Version, os, arch), "binary", nil
+		return naming.BinaryName(fmt.Sprintf("https://github.com/%s/releases/download/%s/goose_%s_%s",
+			repo, d.Version, os, arch)), "binary", nil
 
 	case "mailpit":
 		os := goos
@@ -192,8 +194,8 @@ func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, err
 		// Shadowfax dev server - assets named shadowfax-<os>-<arch>
 		os := goos
 		arch := goarch
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/shadowfax-%s-%s",
-			repo, d.Version, os, arch), "binary", nil
+		return naming.BinaryName(fmt.Sprintf("https://github.com/%s/releases/download/%s/shadowfax-%s-%s",
+			repo, d.Version, os, arch)), "binary", nil
 
 	default:
 		return "", "", fmt.Errorf("unknown tool: %s", d.Name)
@@ -211,12 +213,12 @@ func DownloadTailwindCLI(version, goos, goarch, destPath string) error {
 		arch = "x64"
 	}
 
-	url := fmt.Sprintf(
+	url := naming.BinaryName(fmt.Sprintf(
 		"https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s-%s",
 		version,
 		osName,
 		arch,
-	)
+	))
 
 	if err := downloadFile(url, destPath); err != nil {
 		return fmt.Errorf("failed to download tailwindcli: %w", err)
@@ -274,6 +276,7 @@ func copyFile(src, dst string) error {
 }
 
 func extractBinary(archivePath, binaryName, destPath, archiveType string) error {
+	binaryName = naming.BinaryName(binaryName)
 	switch archiveType {
 	case "tar.gz":
 		return extractTarGz(archivePath, binaryName, destPath)

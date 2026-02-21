@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator"
+	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -712,7 +713,7 @@ func runSqlcCommand(action string) error {
 		return err
 	}
 
-	sqlcBin := filepath.Join(rootDir, "bin", "sqlc")
+	sqlcBin := filepath.Join(rootDir, "bin", naming.BinaryName("sqlc"))
 	if _, err := os.Stat(sqlcBin); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf(
