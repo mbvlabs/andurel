@@ -12,14 +12,14 @@ default:
 
 # Build the andurel binary
 build:
-	go build -o andurel-dev main.go
+	go build -o {{if os() == "windows" { "andurel.exe" } else { "andurel-dev" }}} main.go
 
 move:
-	mv andurel-dev ../
+	{{if os() == "windows" { "move andurel.exe ..\\" } else { "mv andurel-dev ../" }}}
 
 # Scaffolding recipes
 scaf-psql:
-	cd ../ && ./andurel-dev new myp-psql && mv ./andurel-dev ./myp-psql && cd ./myp-psql && cp .env.example .env && just new-migration users
+	cd ../ && {{if os() == "windows" { ".\\andurel.exe" } else { "./andurel-dev" }}} new myp-psql && {{if os() == "windows" { "move andurel.exe .\\myp-psql\\" } else { "mv ./andurel-dev ./myp-psql" }}} && cd ./myp-psql && {{if os() == "windows" { "copy .env.example .env" } else { "cp .env.example .env" }}} && just new-migration users
 
 full-psql:
 	just build
@@ -40,11 +40,11 @@ vet:
 
 # Run unit tests (excludes e2e, fast)
 test:
-	go list ./... | grep -v /e2e | xargs go test -v
+	{{if os() == "windows" { "go test -v $(go list ./... | Select-String -Pattern \"/e2e\" -NotMatch)" } else { "go list ./... | grep -v /e2e | xargs go test -v" }}}
 
 # Run unit tests with coverage
 test-cover:
-	go list ./... | grep -v /e2e | xargs go test -v -race -coverprofile=coverage.txt -covermode=atomic
+	{{if os() == "windows" { "go test -v -race -coverprofile=coverage.txt -covermode=atomic $(go list ./... | Select-String -Pattern \"/e2e\" -NotMatch)" } else { "go list ./... | grep -v /e2e | xargs go test -v -race -coverprofile=coverage.txt -covermode=atomic" }}}
 
 # Run critical e2e tests only (~25 min, 15 test scenarios)
 test-e2e-critical:
@@ -121,5 +121,5 @@ update-golden:
 # Clean test artifacts and cache
 clean-test:
 	go clean -testcache
-	rm -f coverage.txt
-	rm -rf /tmp/andurel-e2e-*
+	{{if os() == "windows" { "if (Test-Path coverage.txt) { Remove-Item coverage.txt }" } else { "rm -f coverage.txt" }}}
+	{{if os() == "windows" { "if (Test-Path $env:TEMP\\andurel-e2e-*) { Remove-Item -Recurse -Force $env:TEMP\\andurel-e2e-* }" } else { "rm -rf /tmp/andurel-e2e-*" }}}

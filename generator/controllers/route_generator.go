@@ -25,7 +25,7 @@ func NewRouteGenerator() *RouteGenerator {
 }
 
 func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName, idType string) error {
-	routesPath := filepath.Join("router/routes", pluralName+".go")
+	routesPath := filepath.Join("router", "routes", pluralName+".go")
 
 	if _, err := os.Stat(routesPath); err == nil {
 		return fmt.Errorf("routes file %s already exists", routesPath)
@@ -36,7 +36,7 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName, idType string
 		return fmt.Errorf("failed to generate route content: %w", err)
 	}
 
-	if err := rg.fileManager.EnsureDir("router/routes"); err != nil {
+	if err := rg.fileManager.EnsureDir(filepath.Join("router", "routes")); err != nil {
 		return err
 	}
 
