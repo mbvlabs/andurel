@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -31,23 +33,6 @@ jobs:
           echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           echo "COMMIT_DATE=$(date -u +%Y%m%d)" >> $GITHUB_OUTPUT
 
-      - name: Set version
-        id: version
-        run: |
-          VERSION="nightly-${{ steps.commit.outputs.COMMIT_DATE }}-${{ steps.commit.outputs.SHORT_SHA }}"
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Build binaries
-        run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-w -s -X main.version=${{ steps.version.outputs.VERSION }}" -o andurel-linux-amd64 .
-          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-w -s -X main.version=${{ steps.version.outputs.VERSION }}" -o andurel-darwin-amd64 .
-          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-w -s -X main.version=${{ steps.version.outputs.VERSION }}" -o andurel-darwin-arm64 .
-
-      - name: Generate checksums
-        run: |
-          sha256sum andurel-* > checksums.txt
-          cat checksums.txt
-
       - name: Delete existing nightly release
         run: gh release delete nightly --yes || true
         env:
@@ -55,6 +40,15 @@ jobs:
 
       - name: Delete existing nightly tag
         run: git push origin :refs/tags/nightly || true
+
+      - name: Build snapshot with GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --snapshot --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create nightly release
         uses: softprops/action-gh-release@v2
@@ -66,7 +60,7 @@ jobs:
 
             **Commit:** ${{ github.sha }}
             **Date:** ${{ steps.commit.outputs.COMMIT_DATE }}
-            **Version:** ${{ steps.version.outputs.VERSION }}
+            **Version:** nightly-${{ steps.commit.outputs.COMMIT_DATE }}-${{ steps.commit.outputs.SHORT_SHA }}
 
             > **Warning**: Nightly builds are automatically generated from the latest code and may contain bugs or breaking changes. For stable releases, please use the [latest release](https://github.com/${{ github.repository }}/releases/latest).
 
@@ -96,17 +90,12 @@ jobs:
             chmod +x andurel
             mv andurel $(go env GOBIN)/
             ```
-
-            ## Checksums
-            ```
-            $(cat checksums.txt)
-            ```
           prerelease: true
           files: |
-            andurel-linux-amd64
-            andurel-darwin-amd64
-            andurel-darwin-arm64
-            checksums.txt
+            dist/andurel-linux-amd64
+            dist/andurel-darwin-amd64
+            dist/andurel-darwin-arm64
+            dist/checksums.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

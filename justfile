@@ -14,6 +14,10 @@ default:
 build:
 	go build -o andurel-dev main.go
 
+# Build a local snapshot using GoReleaser (requires goreleaser installed)
+release-snapshot:
+	goreleaser release --snapshot --clean
+
 move:
 	mv andurel-dev ../
 
