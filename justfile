@@ -14,6 +14,10 @@ default:
 build:
 	go build -o {{if os() == "windows" { "andurel.exe" } else { "andurel-dev" }}} main.go
 
+# Build a local snapshot using GoReleaser (requires goreleaser installed)
+release-snapshot:
+	goreleaser release --snapshot --clean
+
 move:
 	{{if os() == "windows" { "move andurel.exe ..\\" } else { "mv andurel-dev ../" }}}
 
