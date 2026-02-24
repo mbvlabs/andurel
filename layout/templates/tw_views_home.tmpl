@@ -3,57 +3,9 @@ package views
 templ Home() {
 	@base() {
 		<main class="flex-1">
-			<section class="home-shell">
 				<div class="space-y-3">
 					<h1 class="text-3xl font-bold">Welcome to Andurel</h1>
-					<p class="home-lead">
-						This scaffold ships Tailwind wrapper classes in <code>css/components.css</code> and pure HTML examples in <code>examples/html</code>.
-					</p>
 				</div>
-
-				<div class="home-grid">
-					<div class="home-card space-y-3">
-						<h2 class="text-lg font-semibold">Auth Forms</h2>
-						<p class="text-sm text-base-content/70">Login, registration, and reset flows use reusable wrappers like <code>.auth-card</code>, <code>.field-input</code>, and <code>.auth-submit</code>.</p>
-						<a class="inline-link" href="/login">Open login form</a>
-					</div>
-					<div class="home-card space-y-3">
-						<h2 class="text-lg font-semibold">Copy/Paste Examples</h2>
-						<p class="text-sm text-base-content/70">Check <code>examples/html/&#42;.html</code> to see the full wrapper-based component snippet set.</p>
-						<p class="text-sm text-base-content/70">Every snippet is pure markup with comments and Datastar attributes.</p>
-					</div>
-				</div>
-
-				<div class="home-card space-y-4" data-signals:tab="'account'">
-					<h2 class="text-lg font-semibold">Tab Wrapper Example</h2>
-					<div class="tab-list" role="tablist" aria-label="Home tabs">
-						<button
-							type="button"
-							role="tab"
-							class="tab-trigger"
-							data-attr:data-selected="$tab == 'account' ? 'true' : null"
-							data-on:click="$tab = 'account'"
-						>
-							Account
-						</button>
-						<button
-							type="button"
-							role="tab"
-							class="tab-trigger"
-							data-attr:data-selected="$tab == 'settings' ? 'true' : null"
-							data-on:click="$tab = 'settings'"
-						>
-							Settings
-						</button>
-					</div>
-					<div class="tab-content" data-show="$tab == 'account'">
-						<p class="text-sm text-base-content/80">Account details and profile preferences.</p>
-					</div>
-					<div class="tab-content" data-show="$tab == 'settings'">
-						<p class="text-sm text-base-content/80">Application settings and behavior toggles.</p>
-					</div>
-				</div>
-			</section>
 		</main>
 	}
 }

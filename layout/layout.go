@@ -245,13 +245,13 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"tw_views_head.tmpl": "views/head.templ",
 
 	// Examples
-	"tw_examples_html_display.tmpl":     "examples/html/display.html",
-	"tw_examples_html_data.tmpl":        "examples/html/data.html",
-	"tw_examples_html_forms.tmpl":       "examples/html/forms.html",
-	"tw_examples_html_feedback.tmpl":    "examples/html/feedback.html",
-	"tw_examples_html_interactive.tmpl": "examples/html/interactive.html",
-	"tw_examples_html_navigation.tmpl":  "examples/html/navigation.html",
-	"tw_examples_html_overlays.tmpl":    "examples/html/overlays.html",
+	"tw_views_examples_html_display.tmpl":     "views/examples/html/display.html",
+	"tw_views_examples_html_data.tmpl":        "views/examples/html/data.html",
+	"tw_views_examples_html_forms.tmpl":       "views/examples/html/forms.html",
+	"tw_views_examples_html_feedback.tmpl":    "views/examples/html/feedback.html",
+	"tw_views_examples_html_interactive.tmpl": "views/examples/html/interactive.html",
+	"tw_views_examples_html_navigation.tmpl":  "views/examples/html/navigation.html",
+	"tw_views_examples_html_overlays.tmpl":    "views/examples/html/overlays.html",
 }
 
 var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
