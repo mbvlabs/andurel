@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/models"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 // FieldAnalyzer determines appropriate default values for factory fields
@@ -34,7 +35,7 @@ func (fa *FieldAnalyzer) AnalyzeField(field models.GeneratedField, tableName str
 	info := FactoryFieldInfo{
 		Name:          field.Name,
 		Type:          field.Type,
-		OptionName:    fmt.Sprintf("With%s%s", toCamelCase(tableName), field.Name),
+		OptionName:    fmt.Sprintf("With%s%s", naming.Capitalize(naming.ToCamelCase(tableName)), field.Name),
 		IsID:          field.Name == "ID",
 		IsTimestamp:   field.Type == "time.Time" || strings.Contains(field.Type, "Time"),
 		IsAutoManaged: field.Name == "ID" || field.Name == "CreatedAt" || field.Name == "UpdatedAt",
@@ -142,9 +143,3 @@ func (fa *FieldAnalyzer) getGoZero(goType string) string {
 	}
 }
 
-func toCamelCase(s string) string {
-	if s == "" {
-		return ""
-	}
-	return strings.ToUpper(s[:1]) + s[1:]
-}
