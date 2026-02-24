@@ -1,0 +1,39 @@
+<!--
+Navigation: breadcrumb, tabs, pagination.
+-->
+<section class="space-y-6 rounded-box border border-base-300 bg-base-100 p-6" data-signals:tab="'account'">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Navigation Components</h2>
+  </header>
+
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="#" class="breadcrumb-link">Home</a></li>
+      <li class="breadcrumb-separator">/</li>
+      <li class="breadcrumb-item"><a href="#" class="breadcrumb-link">Docs</a></li>
+      <li class="breadcrumb-separator">/</li>
+      <li class="breadcrumb-item"><span class="breadcrumb-current">Components</span></li>
+    </ol>
+  </nav>
+
+  <div>
+    <div class="tab-list" role="tablist" aria-label="example tabs">
+      <button type="button" role="tab" class="tab-trigger" data-attr:data-selected="$tab == 'account' ? 'true' : null" data-on:click="$tab = 'account'">Account</button>
+      <button type="button" role="tab" class="tab-trigger" data-attr:data-selected="$tab == 'settings' ? 'true' : null" data-on:click="$tab = 'settings'">Settings</button>
+      <button type="button" role="tab" class="tab-trigger" data-attr:data-selected="$tab == 'billing' ? 'true' : null" data-on:click="$tab = 'billing'">Billing</button>
+    </div>
+
+    <div class="tab-content" data-show="$tab == 'account'">Account content.</div>
+    <div class="tab-content" data-show="$tab == 'settings'">Settings content.</div>
+    <div class="tab-content" data-show="$tab == 'billing'">Billing content.</div>
+  </div>
+
+  <nav class="pagination" aria-label="pagination">
+    <a class="pagination-link" href="#">Prev</a>
+    <a class="pagination-link" href="#">1</a>
+    <a class="pagination-link" href="#" data-current="true">2</a>
+    <a class="pagination-link" href="#">3</a>
+    <span class="pagination-ellipsis">...</span>
+    <a class="pagination-link" href="#">Next</a>
+  </nav>
+</section>

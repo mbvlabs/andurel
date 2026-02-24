@@ -8,22 +8,22 @@ import (
 
 templ ConfirmationForm() {
 	@base() {
-		<main class="flex-1 flex items-center justify-center px-6 py-10">
-			<div class="mx-auto flex w-full max-w-md flex-col gap-6 my-6">
-				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
+		<main class="auth-main flex items-center justify-center">
+			<div class="auth-shell my-6">
+				<div class="auth-card">
 					<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.ConfirmationCreate.URL()) }>
 						<fieldset data-attr:disabled="$submitting">
 							<div class="space-y-1">
-								<h2 class="text-xl font-semibold text-base-content">Verify Your Email</h2>
-								<p class="text-sm text-base-content/60">Please enter the 6-digit verification code sent to your email.</p>
+								<h2 class="auth-title">Verify Your Email</h2>
+								<p class="auth-subtitle">Please enter the 6-digit verification code sent to your email.</p>
 							</div>
-							<div class="space-y-4 my-6">
-								<div class="w-full space-y-1">
-									<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="code">Verification Code</label>
-									<input id="code" type="text" maxlength="6" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300 tracking-[0.3em]" data-bind="code" required/>
+							<div class="auth-fields">
+								<div class="auth-field">
+									<label class="field-label" for="code">Verification Code</label>
+									<input id="code" type="text" maxlength="6" class="field-input field-input-otp" data-bind="code" required/>
 								</div>
 							</div>
-							<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">
+							<button type="submit" class="auth-submit">
 								<span data-show="!$submitting">Verify Email</span>
 								<span data-show="$submitting">Loading</span>
 							</button>

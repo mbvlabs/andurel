@@ -8,36 +8,36 @@ import (
 
 templ LoginForm() {
 	@base() {
-		<main class="flex-1 flex items-center justify-center px-6 py-10">
-			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 p-8 shadow-lg">
+		<main class="auth-main flex items-center justify-center">
+			<div class="auth-shell">
+				<div class="auth-card">
 					<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.SessionCreate.URL()) }>
 						<fieldset data-attr:disabled="$submitting">
 							<div class="space-y-1">
-								<h2 class="text-xl font-semibold text-base-content">Login to your account</h2>
-								<p class="text-sm text-base-content/60">Enter your details below to login to your account</p>
+								<h2 class="auth-title">Login to your account</h2>
+								<p class="auth-subtitle">Enter your details below to login to your account</p>
 							</div>
-							<div class="space-y-4 my-6">
-								<div class="w-full space-y-1">
-									<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="email">Email</label>
-									<input id="email" type="email" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="email" required/>
+							<div class="auth-fields">
+								<div class="auth-field">
+									<label class="field-label" for="email">Email</label>
+									<input id="email" type="email" class="field-input" data-bind="email" required/>
 								</div>
-								<div class="w-full space-y-1">
-									<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="password">Password</label>
-									<input id="password" type="password" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="password" required/>
+								<div class="auth-field">
+									<label class="field-label" for="password">Password</label>
+									<input id="password" type="password" class="field-input" data-bind="password" required/>
 								</div>
 							</div>
-							<p class="text-right text-sm mb-1">
-								<a class="text-base-content/70 hover:text-base-content" href={ routes.PasswordNew.URL() }>Forgot your password?</a>
+							<p class="mb-1 text-right text-sm">
+								<a class="inline-link" href={ routes.PasswordNew.URL() }>Forgot your password?</a>
 							</p>
-							<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">
+							<button type="submit" class="auth-submit">
 								<span data-show="!$submitting">Login</span>
 								<span data-show="$submitting">Loading</span>
 							</button>
 						</fieldset>
 					</form>
-					<p class="mt-6 text-center text-sm text-base-content/60">
-						Don't have an account? <a class="text-base-content hover:underline" href={ routes.RegistrationNew.URL() }>Sign up</a>
+					<p class="auth-links">
+						Don't have an account? <a class="inline-link" href={ routes.RegistrationNew.URL() }>Sign up</a>
 					</p>
 				</div>
 			</div>

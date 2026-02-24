@@ -1,481 +1,58 @@
 package views
 
-import (
-	"{{.ModuleName}}/views/components"
-)
-
 templ Home() {
 	@base() {
-		<main class="flex-1 flex flex-col">
-			<div class="flex-1 w-full flex flex-col items-center justify-center p-4">
-				<h1 class="text-2xl font-bold">Welcome to the Andurel Framework!</h1>
-				<p>This is a simple home page template to get you started.</p>
-			</div>
-			<section class="container mx-auto px-4 py-12 space-y-16">
-			<h2 class="text-3xl font-bold text-center">Component Showcase</h2>
-			<!-- ─── Buttons ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Button</h3>
-				<div class="flex flex-wrap items-center gap-3">
-					@components.Button(components.ButtonProps{Label: "Default"}).Render()
-					@components.Button(components.ButtonProps{Label: "Secondary"}).MakeSecondary().Render()
-					@components.Button(components.ButtonProps{Label: "Outline"}).MakeOutline().Render()
-					@components.Button(components.ButtonProps{Label: "Ghost"}).MakeGhost().Render()
-					@components.Button(components.ButtonProps{Label: "Link"}).MakeLink().Render()
-					@components.Button(components.ButtonProps{Label: "Destructive"}).MakeDestructive().Render()
-				</div>
-				<div class="flex flex-wrap items-center gap-3">
-					@components.Button(components.ButtonProps{Label: "Small"}).WithSize(components.ButtonSizeSm).Render()
-					@components.Button(components.ButtonProps{Label: "Default"}).Render()
-					@components.Button(components.ButtonProps{Label: "Large"}).WithSize(components.ButtonSizeLg).Render()
-					@components.Button(components.ButtonProps{Label: "Disabled"}).WithDisabled(true).Render()
-				</div>
-			</div>
-			<!-- ─── Badge ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Badge</h3>
-				<div class="flex flex-wrap items-center gap-3">
-					@components.Badge(components.BadgeProps{Label: "Default"}).Render()
-					@components.Badge(components.BadgeProps{Label: "Secondary"}).WithVariant(components.BadgeVariantSecondary).Render()
-					@components.Badge(components.BadgeProps{Label: "Outline"}).WithVariant(components.BadgeVariantOutline).Render()
-					@components.Badge(components.BadgeProps{Label: "Destructive"}).WithVariant(components.BadgeVariantDestructive).Render()
-				</div>
-			</div>
-			<!-- ─── Alert ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Alert</h3>
-				<div class="space-y-3 max-w-xl">
-					@components.Alert(components.AlertProps{Description: "This is a default alert message."}).WithTitle("Default").Render()
-					@components.Alert(components.AlertProps{Description: "This is an informational message."}).MakeInfo().WithTitle("Info").Render()
-					@components.Alert(components.AlertProps{Description: "Operation completed successfully."}).MakeSuccess().WithTitle("Success").Render()
-					@components.Alert(components.AlertProps{Description: "Please review before proceeding."}).MakeWarning().WithTitle("Warning").Render()
-					@components.Alert(components.AlertProps{Description: "Something went wrong."}).MakeError().WithTitle("Error").Render()
-				</div>
-			</div>
-			<!-- ─── Card ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Card</h3>
-				<div class="max-w-sm">
-					@components.Card() {
-						@components.CardHeader() {
-							@components.CardTitle("Card Title")
-							@components.CardDescription("A short description of the card content.")
-						}
-						@components.CardContent() {
-							<p class="text-sm text-base-content/80">This is the body of the card. You can place any content here.</p>
-						}
-						@components.CardFooter() {
-							@components.Button(components.ButtonProps{Label: "Cancel"}).MakeOutline().WithSize(components.ButtonSizeSm).Render()
-							@components.Button(components.ButtonProps{Label: "Save"}).WithSize(components.ButtonSizeSm).WithClass("ml-2").Render()
-						}
-					}
-				</div>
-			</div>
-			<!-- ─── Input ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Input</h3>
-				<div class="max-w-sm space-y-3">
-					<div class="space-y-1">
-						@components.Label(components.LabelProps{Text: "Email"}).WithFor("demo-email").Render()
-						@components.Input("demo-email").WithID("demo-email").WithType(components.InputTypeEmail).WithPlaceholder("you@example.com").Render()
-					</div>
-					<div class="space-y-1">
-						@components.Label(components.LabelProps{Text: "Password"}).WithFor("demo-password").Render()
-						@components.Input("demo-password").WithID("demo-password").WithType(components.InputTypePassword).WithPlaceholder("Enter password").Render()
-					</div>
-					<div class="space-y-1">
-						@components.Label(components.LabelProps{Text: "Error State"}).WithFor("demo-error").Render()
-						@components.Input("demo-error").WithID("demo-error").WithHasError(true).WithValue("Invalid value").Render()
-					</div>
-					<div class="space-y-1">
-						@components.Label(components.LabelProps{Text: "Disabled"}).WithFor("demo-disabled").Render()
-						@components.Input("demo-disabled").WithID("demo-disabled").WithDisabled(true).WithValue("Cannot edit").Render()
-					</div>
-				</div>
-			</div>
-			<!-- ─── Textarea ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Textarea</h3>
-				<div class="max-w-sm space-y-1">
-					@components.Label(components.LabelProps{Text: "Bio"}).WithFor("demo-bio").Render()
-					@components.Textarea("demo-bio").WithID("demo-bio").WithPlaceholder("Tell us about yourself...").WithRows(4).Render()
-				</div>
-			</div>
-			<!-- ─── Select ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Select</h3>
-				<div class="max-w-sm space-y-1">
-					@components.Label(components.LabelProps{Text: "Country"}).WithFor("demo-select").Render()
-					@components.Select("demo-select").WithID("demo-select").Render() {
-						@components.SelectItem("Choose a country", "", false, true)
-						@components.SelectItem("United States", "us", false, false)
-						@components.SelectItem("United Kingdom", "uk", false, false)
-						@components.SelectItem("Germany", "de", false, false)
-						@components.SelectItem("Japan", "jp", false, false)
-					}
-				</div>
-			</div>
-			<!-- ─── Checkbox ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Checkbox</h3>
-				<div class="space-y-2">
-					<label class="flex items-center gap-2 text-sm">
-						@components.Checkbox("demo-terms").Render()
-						Accept terms and conditions
-					</label>
-					<label class="flex items-center gap-2 text-sm">
-						@components.Checkbox("demo-newsletter").WithChecked(true).Render()
-						Subscribe to newsletter
-					</label>
-					<label class="flex items-center gap-2 text-sm">
-						@components.Checkbox("demo-disabled-cb").WithDisabled(true).WithChecked(true).Render()
-						Disabled checkbox
-					</label>
-				</div>
-			</div>
-			<!-- ─── Radio ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Radio</h3>
-				@components.RadioGroup() {
-					@components.Radio("demo-plan", "free").WithLabel("Free").WithChecked(true).Render()
-					@components.Radio("demo-plan", "pro").WithLabel("Pro").Render()
-					@components.Radio("demo-plan", "enterprise").WithLabel("Enterprise").Render()
-				}
-			</div>
-			<!-- ─── Switch ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Switch</h3>
+		<main class="flex-1">
+			<section class="home-shell">
 				<div class="space-y-3">
-					<div class="flex items-center gap-3">
-						@components.Switch("demo-notifications").WithChecked(true).Render()
-						<span class="text-sm">Notifications</span>
+					<h1 class="text-3xl font-bold">Welcome to Andurel</h1>
+					<p class="home-lead">
+						This scaffold ships Tailwind wrapper classes in <code>css/components.css</code> and pure HTML examples in <code>examples/html</code>.
+					</p>
+				</div>
+
+				<div class="home-grid">
+					<div class="home-card space-y-3">
+						<h2 class="text-lg font-semibold">Auth Forms</h2>
+						<p class="text-sm text-base-content/70">Login, registration, and reset flows use reusable wrappers like <code>.auth-card</code>, <code>.field-input</code>, and <code>.auth-submit</code>.</p>
+						<a class="inline-link" href="/login">Open login form</a>
 					</div>
-					<div class="flex items-center gap-3">
-						@components.Switch("demo-dark-mode").Render()
-						<span class="text-sm">Dark Mode</span>
-					</div>
-					<div class="flex items-center gap-3">
-						@components.Switch("demo-switch-disabled").WithDisabled(true).Render()
-						<span class="text-sm">Disabled</span>
-					</div>
-				</div>
-			</div>
-			<!-- ─── Slider ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Slider</h3>
-				<div class="max-w-sm space-y-3">
-					@components.Label(components.LabelProps{Text: "Volume"}).Render()
-					@components.Slider("demo-volume").WithValue(50).Render()
-					@components.Label(components.LabelProps{Text: "Price Range"}).Render()
-					@components.Slider("demo-price").WithMin(0).WithMax(1000).WithStep(50).WithValue(250).Render()
-				</div>
-			</div>
-			<!-- ─── Rating ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Rating</h3>
-				<div class="space-y-2">
-					@components.Rating("demo-rating").WithValue(3).Render()
-					@components.Rating("demo-rating-disabled").WithValue(5).WithDisabled(true).Render()
-				</div>
-			</div>
-			<!-- ─── Datepicker ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Datepicker</h3>
-				<div class="max-w-sm space-y-1">
-					@components.Label(components.LabelProps{Text: "Date"}).WithFor("demo-date").Render()
-					@components.Datepicker("demo-date").WithPlaceholder("Select a date").Render()
-				</div>
-			</div>
-			<!-- ─── Timepicker ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Timepicker</h3>
-				<div class="max-w-sm space-y-1">
-					@components.Label(components.LabelProps{Text: "Time"}).WithFor("demo-time").Render()
-					@components.Timepicker("demo-time").WithValue("09:00").Render()
-				</div>
-			</div>
-			<!-- ─── Input OTP ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Input OTP</h3>
-				<div class="space-y-1">
-					@components.Label(components.LabelProps{Text: "Verification Code"}).Render()
-					@components.InputOTP("demo-otp").WithLength(6).Render()
-				</div>
-			</div>
-			<!-- ─── Tags Input ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Tags Input</h3>
-				<div class="max-w-sm">
-					@components.TagsInput("demo-tags").WithPlaceholder("Add a tag...").Render() {
-						@components.Tag("Go")
-						@components.Tag("Templ")
-						@components.Tag("HTMX")
-					}
-				</div>
-			</div>
-			<!-- ─── Combobox ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Combobox</h3>
-				<div class="max-w-sm">
-					@components.Combobox("demo-framework").WithPlaceholder("Search frameworks...").Render() {
-						@components.ComboboxList() {
-							@components.ComboboxItem("Go", "go", false)
-							@components.ComboboxItem("Rust", "rust", true)
-							@components.ComboboxItem("Python", "python", false)
-							@components.ComboboxItem("TypeScript", "typescript", false)
-						}
-					}
-				</div>
-			</div>
-			<!-- ─── Avatar ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Avatar</h3>
-				<div class="flex items-center gap-4">
-					@components.Avatar().WithFallback("SM").WithSize(components.AvatarSizeSm).Render()
-					@components.Avatar().WithFallback("MD").Render()
-					@components.Avatar().WithFallback("LG").WithSize(components.AvatarSizeLg).Render()
-				</div>
-			</div>
-			<!-- ─── Separator ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Separator</h3>
-				<div class="max-w-sm space-y-2">
-					<p class="text-sm">Above the separator</p>
-					@components.Separator().Render()
-					<p class="text-sm">Below the separator</p>
-				</div>
-			</div>
-			<!-- ─── Spinner ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Spinner</h3>
-				<div class="flex items-center gap-4">
-					@components.Spinner().WithSize(components.SpinnerSizeSm).Render()
-					@components.Spinner().Render()
-					@components.Spinner().WithSize(components.SpinnerSizeLg).Render()
-				</div>
-			</div>
-			<!-- ─── Progress ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Progress</h3>
-				<div class="max-w-sm space-y-3">
-					@components.Progress(25).Render()
-					@components.Progress(60).Render()
-					@components.Progress(100).Render()
-				</div>
-			</div>
-			<!-- ─── Skeleton ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Skeleton</h3>
-				<div class="flex items-center gap-4">
-					@components.Skeleton().WithClass("h-12 w-12 rounded-full").Render()
-					<div class="space-y-2">
-						@components.Skeleton().WithClass("h-4 w-[200px]").Render()
-						@components.Skeleton().WithClass("h-4 w-[160px]").Render()
+					<div class="home-card space-y-3">
+						<h2 class="text-lg font-semibold">Copy/Paste Examples</h2>
+						<p class="text-sm text-base-content/70">Check <code>examples/html/*.html</code> for the full wrapper-based component snippet set.</p>
+						<p class="text-sm text-base-content/70">Every snippet is pure markup with comments and Datastar attributes.</p>
 					</div>
 				</div>
-			</div>
-			<!-- ─── Kbd ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Kbd</h3>
-				<div class="flex items-center gap-2">
-					@components.Kbd(components.KbdProps{Key: "Ctrl"}).Render()
-					<span class="text-base-content/40">+</span>
-					@components.Kbd(components.KbdProps{Key: "K"}).Render()
-					<span class="text-sm text-base-content/60 ml-2">Open command palette</span>
-				</div>
-			</div>
-			<!-- ─── Code ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Code</h3>
-				@components.Code(components.CodeProps{Content: "package main\n\nfunc main() {\n\tfmt.Println(\"Hello, Andurel!\")\n}"}).Render()
-			</div>
-			<!-- ─── Copy Button ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Copy Button</h3>
-				<div class="flex items-center gap-2">
-					<span class="text-sm font-mono bg-base-200 px-3 py-1.5 rounded-field border border-base-300">npm install andurel</span>
-					@components.CopyButton("npm install andurel").Render()
-				</div>
-			</div>
-			<!-- ─── Calendar ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Calendar</h3>
-			</div>
-			<!-- ─── Label ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Label</h3>
-				<div class="space-y-2 max-w-sm">
-					@components.Label(components.LabelProps{Text: "Regular Label"}).WithFor("demo-label").Render()
-					@components.Label(components.LabelProps{Text: "Required Label"}).WithFor("demo-label-req").WithRequired(true).Render()
-				</div>
-			</div>
-			<!-- ─── Accordion ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Accordion</h3>
-				<div class="max-w-lg">
-					@components.Accordion() {
-						@components.AccordionItem("What is Andurel?") {
-							Andurel is a web development framework for Go.
-						}
-						@components.AccordionItem("How do I get started?") {
-							Install the CLI and run the init command.
-						}
-						@components.AccordionItem("Is it production ready?") {
-							Yes, it is used in production applications.
-						}
-					}
-				</div>
-			</div>
-			<!-- ─── Tabs ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Tabs</h3>
-				<div class="max-w-lg">
-					@components.Tabs("demoTabs", "account") {
-						@components.TabsList() {
-							@components.TabsTrigger("demoTabs", "account", "Account")
-							@components.TabsTrigger("demoTabs", "settings", "Settings")
-							@components.TabsTrigger("demoTabs", "billing", "Billing")
-						}
-						@components.TabsContent("demoTabs", "account") {
-							<p class="text-sm text-base-content/80 p-4">Manage your account details and preferences.</p>
-						}
-						@components.TabsContent("demoTabs", "settings") {
-							<p class="text-sm text-base-content/80 p-4">Configure your application settings.</p>
-						}
-						@components.TabsContent("demoTabs", "billing") {
-							<p class="text-sm text-base-content/80 p-4">View and manage your billing information.</p>
-						}
-					}
-				</div>
-			</div>
-			<!-- ─── Table ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Table</h3>
-				<div class="max-w-lg">
-					@components.Table() {
-						@components.TableHeader() {
-							@components.TableRow() {
-								@components.TableHead() { Name }
-								@components.TableHead() { Email }
-								@components.TableHead() { Role }
-							}
-						}
-						@components.TableBody() {
-							@components.TableRow() {
-								@components.TableCell() { Jane Doe }
-								@components.TableCell() { jane@example.com }
-								@components.TableCell() { Admin }
-							}
-							@components.TableRow() {
-								@components.TableCell() { John Smith }
-								@components.TableCell() { john@example.com }
-								@components.TableCell() { Editor }
-							}
-							@components.TableRow() {
-								@components.TableCell() { Alice Chen }
-								@components.TableCell() { alice@example.com }
-								@components.TableCell() { Viewer }
-							}
-						}
-					}
-				</div>
-			</div>
-			<!-- ─── Breadcrumb ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Breadcrumb</h3>
-				@components.Breadcrumb() {
-					@components.BreadcrumbItem() {
-						@components.BreadcrumbLink("Home", "/", false)
-					}
-					@components.BreadcrumbSeparator()
-					@components.BreadcrumbItem() {
-						@components.BreadcrumbLink("Docs", "/docs", false)
-					}
-					@components.BreadcrumbSeparator()
-					@components.BreadcrumbItem() {
-						@components.BreadcrumbLink("Components", "", true)
-					}
-				}
-			</div>
-			<!-- ─── Pagination ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Pagination</h3>
-				@components.Pagination() {
-					@components.PaginationPrevious("#", false)
-					@components.PaginationItem("1", "#", false, false)
-					@components.PaginationItem("2", "#", true, false)
-					@components.PaginationItem("3", "#", false, false)
-					@components.PaginationEllipsis()
-					@components.PaginationNext("#", false)
-				}
-			</div>
-			<!-- ─── Tooltip ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Tooltip</h3>
-				@components.Tooltip() {
-					@components.TooltipTrigger() {
-						@components.Button(components.ButtonProps{Label: "Hover me"}).MakeOutline().Render()
-					}
-					@components.TooltipContent() { This is a helpful tooltip }
-				}
-			</div>
-			<!-- ─── Dropdown ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Dropdown</h3>
-				@components.Dropdown(components.Button(components.ButtonProps{Label: "Open Menu"}).MakeOutline().Render()) {
-					@components.DropdownLabel("Actions")
-					@components.DropdownSeparator()
-					@components.DropdownItem("Edit", false)
-					@components.DropdownItem("Duplicate", false)
-					@components.DropdownSeparator()
-					@components.DropdownItem("Delete", false)
-				}
-			</div>
-			<!-- ─── Popover ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Popover</h3>
-				@components.Popover(components.Button(components.ButtonProps{Label: "Open Popover"}).MakeOutline().Render()) {
-					<div class="space-y-2">
-						<h4 class="font-medium text-sm">Dimensions</h4>
-						<p class="text-xs text-base-content/60">Set the dimensions for the layer.</p>
+
+				<div class="home-card space-y-4" data-signals:tab="'account'">
+					<h2 class="text-lg font-semibold">Tab Wrapper Example</h2>
+					<div class="tab-list" role="tablist" aria-label="Home tabs">
+						<button
+							type="button"
+							role="tab"
+							class="tab-trigger"
+							data-attr:data-selected="$tab == 'account' ? 'true' : null"
+							data-on:click="$tab = 'account'"
+						>
+							Account
+						</button>
+						<button
+							type="button"
+							role="tab"
+							class="tab-trigger"
+							data-attr:data-selected="$tab == 'settings' ? 'true' : null"
+							data-on:click="$tab = 'settings'"
+						>
+							Settings
+						</button>
 					</div>
-				}
-			</div>
-			<!-- ─── Collapsible ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Collapsible</h3>
-				<div class="max-w-sm">
-					@components.Collapsible("Toggle content") {
-						<p class="text-sm text-base-content/80 pt-2">This content can be toggled open and closed.</p>
-					}
+					<div class="tab-content" data-show="$tab == 'account'">
+						<p class="text-sm text-base-content/80">Account details and profile preferences.</p>
+					</div>
+					<div class="tab-content" data-show="$tab == 'settings'">
+						<p class="text-sm text-base-content/80">Application settings and behavior toggles.</p>
+					</div>
 				</div>
-			</div>
-			<!-- ─── Aspect Ratio ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Aspect Ratio</h3>
-				<div class="max-w-xs">
-					@components.AspectRatio(16.0/9.0).Render() {
-						<div class="w-full h-full bg-base-300 rounded-box flex items-center justify-center text-sm text-base-content/60">16:9</div>
-					}
-				</div>
-			</div>
-			<!-- ─── Carousel ─── -->
-			<div class="space-y-4">
-				<h3 class="text-xl font-semibold border-b border-base-300 pb-2">Carousel</h3>
-				<div class="max-w-sm mx-auto">
-					@components.Carousel(3) {
-						@components.CarouselItem() {
-							<div class="h-32 bg-base-300 rounded-box flex items-center justify-center text-base-content/60">Slide 1</div>
-						}
-						@components.CarouselItem() {
-							<div class="h-32 bg-base-300 rounded-box flex items-center justify-center text-base-content/60">Slide 2</div>
-						}
-						@components.CarouselItem() {
-							<div class="h-32 bg-base-300 rounded-box flex items-center justify-center text-base-content/60">Slide 3</div>
-						}
-					}
-				</div>
-			</div>
 			</section>
 		</main>
 	}
