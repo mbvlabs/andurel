@@ -110,6 +110,56 @@ func TestGenerator_BuildFactory(t *testing.T) {
 	}
 }
 
+func TestGenerator_BuildFactory_OptionNameCamelCasesSnakeTable(t *testing.T) {
+	cat := catalog.NewCatalog("public")
+	table := &catalog.Table{
+		Name: "team_memberships",
+		Columns: []*catalog.Column{
+			{Name: "id", DataType: "uuid", IsPrimaryKey: true, IsNullable: false},
+			{Name: "team_id", DataType: "uuid", IsNullable: false},
+		},
+	}
+	if err := cat.AddTable("", table); err != nil {
+		t.Fatalf("Failed to add table: %v", err)
+	}
+
+	gen := NewGenerator("postgresql")
+	config := Config{
+		TableName:    "team_memberships",
+		ResourceName: "TeamMembership",
+		PackageName:  "models",
+		DatabaseType: "postgresql",
+		ModulePath:   "github.com/test/myapp",
+	}
+
+	genModel, err := gen.Build(cat, config)
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+
+	genFactory, err := gen.BuildFactory(cat, config, genModel)
+	if err != nil {
+		t.Fatalf("BuildFactory failed: %v", err)
+	}
+
+	var teamIDField *FactoryField
+	for i := range genFactory.Fields {
+		field := &genFactory.Fields[i]
+		if field.Name == "TeamID" {
+			teamIDField = field
+			break
+		}
+	}
+
+	if teamIDField == nil {
+		t.Fatal("TeamID field not found")
+	}
+
+	if teamIDField.OptionName != "WithTeamMembershipsTeamID" {
+		t.Errorf("OptionName = %s, want %s", teamIDField.OptionName, "WithTeamMembershipsTeamID")
+	}
+}
+
 func TestGenerator_GenerateFactoryFile(t *testing.T) {
 	gen := NewGenerator("postgresql")
 

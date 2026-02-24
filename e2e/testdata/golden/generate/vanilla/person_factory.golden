@@ -77,22 +77,22 @@ func CreatePersons(ctx context.Context, exec storage.Executor, count int, opts .
 
 // Option functions
 
-// WithPeople_dataFirstName sets the FirstName field
-func WithPeople_dataFirstName(value string) PersonOption {
+// WithPeopleDataFirstName sets the FirstName field
+func WithPeopleDataFirstName(value string) PersonOption {
 	return func(f *PersonFactory) {
 		f.Person.FirstName = value
 	}
 }
 
-// WithPeople_dataLastName sets the LastName field
-func WithPeople_dataLastName(value string) PersonOption {
+// WithPeopleDataLastName sets the LastName field
+func WithPeopleDataLastName(value string) PersonOption {
 	return func(f *PersonFactory) {
 		f.Person.LastName = value
 	}
 }
 
-// WithPeople_dataEmail sets the Email field
-func WithPeople_dataEmail(value string) PersonOption {
+// WithPeopleDataEmail sets the Email field
+func WithPeopleDataEmail(value string) PersonOption {
 	return func(f *PersonFactory) {
 		f.Person.Email = value
 	}

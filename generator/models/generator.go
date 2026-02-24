@@ -1191,7 +1191,7 @@ func (g *Generator) analyzeFactoryField(field GeneratedField, tableName string) 
 		Name:          field.Name,
 		ArgumentName:  naming.ToLowerCamelCase(field.Name),
 		Type:          field.Type,
-		OptionName:    fmt.Sprintf("With%s%s", toCamelCase(tableName), field.Name),
+		OptionName:    fmt.Sprintf("With%s%s", naming.Capitalize(naming.ToCamelCase(tableName)), field.Name),
 		IsID:          field.Name == "ID",
 		IsTimestamp:   field.Type == "time.Time" || strings.Contains(field.Type, "Time"),
 		IsAutoManaged: field.Name == "ID" || field.Name == "CreatedAt" || field.Name == "UpdatedAt",
@@ -1302,13 +1302,6 @@ func (g *Generator) getFactoryGoZero(goType string) string {
 		}
 		return fmt.Sprintf("%s{}", goType)
 	}
-}
-
-func toCamelCase(s string) string {
-	if s == "" {
-		return ""
-	}
-	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 // GenerateFactoryFile renders a factory file from a template

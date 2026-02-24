@@ -94,6 +94,18 @@ func TestFieldAnalyzer_AnalyzeField(t *testing.T) {
 			expectedIsFK: false,
 			expectedIsID: false,
 		},
+		{
+			name: "Snake case table creates CamelCase option name",
+			field: models.GeneratedField{
+				Name: "TeamID",
+				Type: "uuid.UUID",
+			},
+			tableName:    "team_memberships",
+			expectedName: "TeamID",
+			expectedType: "uuid.UUID",
+			expectedIsFK: false,
+			expectedIsID: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -111,6 +123,9 @@ func TestFieldAnalyzer_AnalyzeField(t *testing.T) {
 			}
 			if result.IsID != tt.expectedIsID {
 				t.Errorf("IsID = %v, want %v", result.IsID, tt.expectedIsID)
+			}
+			if tt.tableName == "team_memberships" && result.OptionName != "WithTeamMembershipsTeamID" {
+				t.Errorf("OptionName = %s, want %s", result.OptionName, "WithTeamMembershipsTeamID")
 			}
 		})
 	}
