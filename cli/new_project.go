@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 
 	"github.com/mbvlabs/andurel/layout"
 
@@ -55,7 +55,7 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 		if len(files) != 0 {
 			return fmt.Errorf("current directory is not empty")
 		}
-		projectName = path.Base(dir)
+		projectName = filepath.Base(dir)
 		basePath = "./"
 	}
 

@@ -9,13 +9,14 @@ import (
 
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/layout/cmds"
+	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
 )
 
 // getToolVersionForSync gets the version of a tool binary.
 // Uses the same logic as doctor.go's getToolVersion.
 func getToolVersionForSync(name string) (string, error) {
-	binPath := filepath.Join("bin", name)
+	binPath := filepath.Join("bin", naming.BinaryName(name))
 	return versionFromCommand(binPath, name)
 }
 
@@ -60,7 +61,7 @@ func syncBinaries(projectRoot string) error {
 	// Track expected tools for cleanup
 	expectedTools := make(map[string]bool)
 	for name := range lock.Tools {
-		expectedTools[name] = true
+		expectedTools[naming.BinaryName(name)] = true
 	}
 
 	for name, tool := range lock.Tools {
@@ -101,7 +102,7 @@ func syncBinaries(projectRoot string) error {
 }
 
 func syncSingleTool(projectRoot, name string, tool *layout.Tool, goos, goarch string) error {
-	binPath := filepath.Join(projectRoot, "bin", name)
+	binPath := filepath.Join(projectRoot, "bin", naming.BinaryName(name))
 
 	if _, err := os.Stat(binPath); err == nil {
 		actualVersion, verr := getToolVersionForSync(name)
