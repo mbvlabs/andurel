@@ -45,7 +45,7 @@
 	}
 
 	/* Form primitives */
-	.form-shell {
+	.form {
 		@apply space-y-5;
 	}
 
@@ -53,28 +53,28 @@
 		@apply w-full space-y-1;
 	}
 
-	.field-label {
+	.label {
 		@apply text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60;
 	}
 
-	.field-input {
+	.input {
 		@apply flex h-9 w-full rounded-field border border-base-300 bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60;
 	}
 
-	.field-input-error {
+	.input-error {
 		@apply border-error focus:border-error focus:ring-error/50;
 	}
 
-	.field-textarea {
-		@apply field-input min-h-24 py-2;
+	.textarea {
+		@apply input min-h-24 py-2;
 	}
 
-	.field-select {
-		@apply field-input appearance-none;
+	.select {
+		@apply input appearance-none;
 	}
 
-	.field-input-otp {
-		@apply field-input text-center tracking-[0.3em];
+	.input-otp {
+		@apply input text-center tracking-[0.3em];
 	}
 
 	.checkbox {
@@ -138,7 +138,7 @@
 	}
 
 	.combobox-input {
-		@apply field-input;
+		@apply input;
 	}
 
 	.combobox-list {
@@ -154,48 +154,11 @@
 	}
 
 	.datepicker {
-		@apply field-input;
+		@apply input;
 	}
 
 	.timepicker {
-		@apply field-input;
-	}
-
-	/* Auth wrappers */
-	.auth-main {
-		@apply flex-1 px-6 py-10;
-	}
-
-	.auth-shell {
-		@apply mx-auto flex w-full max-w-md flex-col gap-6;
-	}
-
-	.auth-card {
-		@apply rounded-box border border-base-300 bg-base-100 p-8 shadow-lg;
-	}
-
-	.auth-title {
-		@apply text-xl font-semibold text-base-content;
-	}
-
-	.auth-subtitle {
-		@apply text-sm text-base-content/60;
-	}
-
-	.auth-fields {
-		@apply my-6 space-y-4;
-	}
-
-	.auth-field {
-		@apply form-row;
-	}
-
-	.auth-submit {
-		@apply btn btn-primary w-full;
-	}
-
-	.auth-links {
-		@apply mt-6 text-center text-sm text-base-content/60;
+		@apply input;
 	}
 
 	.inline-link {

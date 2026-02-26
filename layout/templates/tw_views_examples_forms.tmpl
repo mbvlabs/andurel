@@ -8,26 +8,26 @@ slider, rating, datepicker, timepicker, input_otp, tags_input, combobox.
     <p class="text-sm text-base-content/70">Use wrapper classes and Datastar bindings directly in templ or static HTML.</p>
   </header>
 
-  <form class="form-shell" data-on:submit="$submitting = true">
+  <form class="form" data-on:submit="$submitting = true">
     <fieldset data-attr:disabled="$submitting" class="space-y-4">
       <div class="form-row">
-        <label for="email" class="field-label">Email</label>
-        <input id="email" type="email" class="field-input" data-bind="email" placeholder="you@example.com" required />
+        <label for="email" class="label">Email</label>
+        <input id="email" type="email" class="input" data-bind="email" placeholder="you@example.com" required />
       </div>
 
       <div class="form-row">
-        <label for="password" class="field-label">Password</label>
-        <input id="password" type="password" class="field-input" data-bind="password" required />
+        <label for="password" class="label">Password</label>
+        <input id="password" type="password" class="input" data-bind="password" required />
       </div>
 
       <div class="form-row">
-        <label for="bio" class="field-label">Bio</label>
-        <textarea id="bio" class="field-textarea" data-bind="bio" placeholder="Tell us about yourself"></textarea>
+        <label for="bio" class="label">Bio</label>
+        <textarea id="bio" class="textarea" data-bind="bio" placeholder="Tell us about yourself"></textarea>
       </div>
 
       <div class="form-row">
-        <label for="country" class="field-label">Country</label>
-        <select id="country" class="field-select" data-bind="country">
+        <label for="country" class="label">Country</label>
+        <select id="country" class="select" data-bind="country">
           <option value="">Select a country</option>
           <option value="us">United States</option>
           <option value="se">Sweden</option>
@@ -51,14 +51,14 @@ slider, rating, datepicker, timepicker, input_otp, tags_input, combobox.
       </div>
 
       <div class="form-row">
-        <label class="field-label" for="volume">Volume</label>
+        <label class="label" for="volume">Volume</label>
         <div class="slider">
           <input id="volume" type="range" min="0" max="100" value="50" class="slider-input" />
         </div>
       </div>
 
       <div class="space-y-2">
-        <p class="field-label">Rating</p>
+        <p class="label">Rating</p>
         <div class="rating" data-signals:rating="3">
           <button type="button" class="rating-star" data-attr:data-active="$rating >= 1 ? 'true' : null" data-on:click="$rating = 1">★</button>
           <button type="button" class="rating-star" data-attr:data-active="$rating >= 2 ? 'true' : null" data-on:click="$rating = 2">★</button>
@@ -70,31 +70,31 @@ slider, rating, datepicker, timepicker, input_otp, tags_input, combobox.
 
       <div class="grid gap-4 sm:grid-cols-2">
         <div class="form-row">
-          <label for="date" class="field-label">Date</label>
+          <label for="date" class="label">Date</label>
           <input id="date" type="date" class="datepicker" data-bind="date" />
         </div>
         <div class="form-row">
-          <label for="time" class="field-label">Time</label>
+          <label for="time" class="label">Time</label>
           <input id="time" type="time" class="timepicker" data-bind="time" />
         </div>
       </div>
 
       <div class="form-row">
-        <label for="otp" class="field-label">Verification Code</label>
-        <input id="otp" type="text" maxlength="6" class="field-input-otp" data-bind="otp" />
+        <label for="otp" class="label">Verification Code</label>
+        <input id="otp" type="text" maxlength="6" class="input-otp" data-bind="otp" />
       </div>
 
       <div class="form-row">
-        <label class="field-label">Tags</label>
+        <label class="label">Tags</label>
         <div class="tags-input">
           <span class="tag-pill">Go <button type="button" class="tag-remove">×</button></span>
           <span class="tag-pill">Templ <button type="button" class="tag-remove">×</button></span>
-          <input class="field-input h-7 border-0 bg-transparent p-0 shadow-none focus:ring-0" placeholder="Add tag" />
+          <input class="input h-7 border-0 bg-transparent p-0 shadow-none focus:ring-0" placeholder="Add tag" />
         </div>
       </div>
 
       <div class="form-row combobox" data-signals:open="false">
-        <label class="field-label" for="framework">Framework</label>
+        <label class="label" for="framework">Framework</label>
         <input id="framework" class="combobox-input" placeholder="Search frameworks" data-on:focus="$open = true" />
         <div class="combobox-list" data-show="$open">
           <button type="button" class="combobox-item">Go</button>
