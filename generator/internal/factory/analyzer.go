@@ -142,4 +142,3 @@ func (fa *FieldAnalyzer) getGoZero(goType string) string {
 		return fmt.Sprintf("%s{}", goType)
 	}
 }
-

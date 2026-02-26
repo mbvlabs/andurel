@@ -1,0 +1,85 @@
+<!--
+Display: alert, badge, card, avatar, separator, spinner, progress,
+skeleton, kbd, code, copy_button.
+-->
+<section class="space-y-6 rounded-box border border-base-300 bg-base-100 p-6">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Display Components</h2>
+  </header>
+
+  <div class="flex flex-wrap gap-2">
+    <span class="badge badge-default">Default</span>
+    <span class="badge badge-secondary">Secondary</span>
+    <span class="badge badge-outline">Outline</span>
+    <span class="badge badge-destructive">Destructive</span>
+  </div>
+
+  <div class="grid gap-2">
+    <div class="alert alert-default"><p class="alert-title">Default Alert</p><p class="alert-description">General information.</p></div>
+    <div class="alert alert-info"><p class="alert-title">Info Alert</p><p class="alert-description">Heads up.</p></div>
+    <div class="alert alert-success"><p class="alert-title">Success Alert</p><p class="alert-description">Operation completed.</p></div>
+    <div class="alert alert-warning"><p class="alert-title">Warning Alert</p><p class="alert-description">Please review values.</p></div>
+    <div class="alert alert-error"><p class="alert-title">Error Alert</p><p class="alert-description">Something went wrong.</p></div>
+  </div>
+
+  <article class="card max-w-md">
+    <div class="card-header">
+      <h3 class="card-title">Card Title</h3>
+      <p class="card-description">Card description text.</p>
+    </div>
+    <div class="card-content">
+      <p class="text-sm text-base-content/70">Body content in a card wrapper.</p>
+    </div>
+    <div class="card-footer">
+      <button class="btn btn-outline btn-sm">Cancel</button>
+      <button class="btn btn-primary btn-sm">Save</button>
+    </div>
+  </article>
+
+  <div class="flex items-center gap-3">
+    <span class="avatar avatar-sm"><span class="avatar-fallback">SM</span></span>
+    <span class="avatar"><span class="avatar-fallback">MD</span></span>
+    <span class="avatar avatar-lg"><span class="avatar-fallback">LG</span></span>
+  </div>
+
+  <div class="space-y-2">
+    <p class="text-sm">Section A</p>
+    <div class="separator"></div>
+    <p class="text-sm">Section B</p>
+  </div>
+
+  <div class="flex items-center gap-4">
+    <span class="spinner spinner-sm"></span>
+    <span class="spinner"></span>
+    <span class="spinner spinner-lg"></span>
+  </div>
+
+  <div class="space-y-2">
+    <div class="progress"><div class="progress-indicator" style="width: 30%"></div></div>
+    <div class="progress"><div class="progress-indicator" style="width: 65%"></div></div>
+    <div class="progress"><div class="progress-indicator" style="width: 100%"></div></div>
+  </div>
+
+  <div class="flex items-center gap-3">
+    <div class="skeleton h-12 w-12 rounded-full"></div>
+    <div class="space-y-2">
+      <div class="skeleton h-4 w-48"></div>
+      <div class="skeleton h-4 w-36"></div>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-2 text-sm">
+    <span class="kbd">Ctrl</span>
+    <span>+</span>
+    <span class="kbd">K</span>
+  </div>
+
+  <p class="text-sm">Inline code: <code class="code-inline">andurel run</code></p>
+  <pre class="code-block">package main
+
+func main() {
+    println("hello")
+}</pre>
+
+  <button type="button" class="copy-button">Copy</button>
+</section>

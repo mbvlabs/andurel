@@ -26,9 +26,9 @@ func NewFragmentInjector() *FragmentInjector {
 
 // FragmentMethodData holds data for rendering the fragment_method.tmpl template.
 type FragmentMethodData struct {
-	ReceiverName     string
+	ReceiverName       string
 	PluralResourceName string
-	MethodName       string
+	MethodName         string
 }
 
 // FragmentRouteData holds data for rendering the fragment_route.tmpl template.

@@ -224,8 +224,9 @@ type (
 )
 
 var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"tw_css_themes.tmpl": "css/themes.css",
-	"tw_css_base.tmpl":   "css/base.css",
+	"tw_css_themes.tmpl":     "css/themes.css",
+	"tw_css_base.tmpl":       "css/base.css",
+	"tw_css_components.tmpl": "css/components.css",
 
 	// Views
 	"tw_views_layout.tmpl": "views/layout.templ",
@@ -240,60 +241,17 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"tw_views_registration.tmpl":   "views/registration.templ",
 	"tw_views_reset_password.tmpl": "views/reset_password.templ",
 
-	// Views — Components (utility)
-	"tw_views_components_utils.tmpl": "views/components/utils.go",
-	"tw_views_head.tmpl":             "views/head.templ",
+	// Views
+	"tw_views_head.tmpl": "views/head.templ",
 
-	// Views — Components (display)
-	"tw_views_components_alert.tmpl":        "views/components/alert.templ",
-	"tw_views_components_aspect_ratio.tmpl": "views/components/aspect_ratio.templ",
-	"tw_views_components_avatar.tmpl":       "views/components/avatar.templ",
-	"tw_views_components_badge.tmpl":        "views/components/badge.templ",
-	"tw_views_components_breadcrumb.tmpl":   "views/components/breadcrumb.templ",
-	"tw_views_components_button.tmpl":       "views/components/button.templ",
-	"tw_views_components_card.tmpl":         "views/components/card.templ",
-	"tw_views_components_code.tmpl":         "views/components/code.templ",
-	"tw_views_components_kbd.tmpl":          "views/components/kbd.templ",
-	"tw_views_components_label.tmpl":        "views/components/label.templ",
-	"tw_views_components_pagination.tmpl":   "views/components/pagination.templ",
-	"tw_views_components_progress.tmpl":     "views/components/progress.templ",
-	"tw_views_components_separator.tmpl":    "views/components/separator.templ",
-	"tw_views_components_skeleton.tmpl":     "views/components/skeleton.templ",
-	"tw_views_components_spinner.tmpl":      "views/components/spinner.templ",
-	"tw_views_components_table.tmpl":        "views/components/table.templ",
-
-	// Views — Components (form)
-	"tw_views_components_form.tmpl":       "views/components/form.templ",
-	"tw_views_components_checkbox.tmpl":   "views/components/checkbox.templ",
-	"tw_views_components_input.tmpl":      "views/components/input.templ",
-	"tw_views_components_radio.tmpl":      "views/components/radio.templ",
-	"tw_views_components_select.tmpl":     "views/components/select.templ",
-	"tw_views_components_slider.tmpl":     "views/components/slider.templ",
-	"tw_views_components_switch.tmpl":     "views/components/switch.templ",
-	"tw_views_components_tags_input.tmpl": "views/components/tags_input.templ",
-	"tw_views_components_textarea.tmpl":   "views/components/textarea.templ",
-
-	// Views — Components (interactive)
-	"tw_views_components_accordion.tmpl":    "views/components/accordion.templ",
-	"tw_views_components_alert_dialog.tmpl": "views/components/alert_dialog.templ",
-	"tw_views_components_collapsible.tmpl":  "views/components/collapsible.templ",
-	"tw_views_components_dialog.tmpl":       "views/components/dialog.templ",
-	"tw_views_components_dropdown.tmpl":     "views/components/dropdown.templ",
-	"tw_views_components_popover.tmpl":      "views/components/popover.templ",
-	"tw_views_components_sheet.tmpl":        "views/components/sheet.templ",
-	"tw_views_components_tabs.tmpl":         "views/components/tabs.templ",
-	"tw_views_components_toast.tmpl":        "views/components/toast.templ",
-	"tw_views_components_tooltip.tmpl":      "views/components/tooltip.templ",
-
-	// Views — Components (complex interactive)
-	"tw_views_components_calendar.tmpl":    "views/components/calendar.templ",
-	"tw_views_components_carousel.tmpl":    "views/components/carousel.templ",
-	"tw_views_components_combobox.tmpl":    "views/components/combobox.templ",
-	"tw_views_components_copy_button.tmpl": "views/components/copy_button.templ",
-	"tw_views_components_datepicker.tmpl":  "views/components/datepicker.templ",
-	"tw_views_components_input_otp.tmpl":   "views/components/input_otp.templ",
-	"tw_views_components_rating.tmpl":      "views/components/rating.templ",
-	"tw_views_components_timepicker.tmpl":  "views/components/timepicker.templ",
+	// Examples
+	"tw_views_examples_display.tmpl":     "views/examples/display.html",
+	"tw_views_examples_data.tmpl":        "views/examples/data.html",
+	"tw_views_examples_forms.tmpl":       "views/examples/forms.html",
+	"tw_views_examples_feedback.tmpl":    "views/examples/feedback.html",
+	"tw_views_examples_interactive.tmpl": "views/examples/interactive.html",
+	"tw_views_examples_navigation.tmpl":  "views/examples/navigation.html",
+	"tw_views_examples_overlays.tmpl":    "views/examples/overlays.html",
 }
 
 var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{

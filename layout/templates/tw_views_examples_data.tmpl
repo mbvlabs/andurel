@@ -1,0 +1,61 @@
+<!--
+Data: table, calendar.
+-->
+<section class="space-y-6 rounded-box border border-base-300 bg-base-100 p-6">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Data Components</h2>
+  </header>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead class="table-header">
+        <tr class="table-row">
+          <th class="table-head">Name</th>
+          <th class="table-head">Email</th>
+          <th class="table-head">Role</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="table-row">
+          <td class="table-cell">Jane Doe</td>
+          <td class="table-cell">jane@example.com</td>
+          <td class="table-cell">Admin</td>
+        </tr>
+        <tr class="table-row">
+          <td class="table-cell">John Smith</td>
+          <td class="table-cell">john@example.com</td>
+          <td class="table-cell">Editor</td>
+        </tr>
+      </tbody>
+      <caption class="table-caption">Example user table</caption>
+    </table>
+  </div>
+
+  <div class="calendar">
+    <div class="calendar-head">
+      <button type="button" class="btn btn-ghost btn-sm">Prev</button>
+      <p class="text-sm font-medium">February 2026</p>
+      <button type="button" class="btn btn-ghost btn-sm">Next</button>
+    </div>
+
+    <div class="calendar-grid mb-1">
+      <div class="calendar-weekday">Mo</div>
+      <div class="calendar-weekday">Tu</div>
+      <div class="calendar-weekday">We</div>
+      <div class="calendar-weekday">Th</div>
+      <div class="calendar-weekday">Fr</div>
+      <div class="calendar-weekday">Sa</div>
+      <div class="calendar-weekday">Su</div>
+    </div>
+
+    <div class="calendar-grid">
+      <button class="calendar-day">23</button>
+      <button class="calendar-day" data-today="true">24</button>
+      <button class="calendar-day" data-selected="true">25</button>
+      <button class="calendar-day">26</button>
+      <button class="calendar-day">27</button>
+      <button class="calendar-day">28</button>
+      <button class="calendar-day">1</button>
+    </div>
+  </div>
+</section>

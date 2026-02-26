@@ -17,7 +17,9 @@ A full-stack web application built with [Andurel](https://github.com/mbvlabs/and
 ├── clients/             # External service clients
 ├── config/              # Application configuration
 ├── controllers/         # HTTP request handlers
-{{if eq .CSSFramework "tailwind"}}├── css/                 # Source CSS files (Tailwind)
+{{if eq .CSSFramework "tailwind"}}├── css/                 # Source CSS files (Tailwind wrappers + theme)
+├── examples/
+│   └── html/            # Copy/paste HTML snippets with Datastar attributes
 {{end}}├── database/
 │   ├── migrations/      # SQL migration files
 │   └── queries/         # SQLC query definitions
@@ -412,7 +414,7 @@ andurel g model User --refresh
 {{if eq .CSSFramework "tailwind"}}
 ### Customize Styling
 
-This project uses Tailwind CSS. Customize your theme in `css/theme.css`:
+This project uses Tailwind CSS. Customize your theme in `css/themes.css`:
 
 ```css
 @layer theme {
@@ -423,7 +425,9 @@ This project uses Tailwind CSS. Customize your theme in `css/theme.css`:
 }
 ```
 
-Add custom utilities in `css/base.css`. The development server automatically rebuilds CSS on changes.
+Add reusable wrapper classes in `css/components.css` under `@layer components`, then import or compose in your views.
+Use `examples/html/*.html` for snippet-based patterns (pure HTML + Datastar attributes).
+The development server automatically rebuilds CSS on changes.
 {{end}}
 
 ## Environment Configuration

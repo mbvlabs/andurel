@@ -49,13 +49,13 @@ func TestFieldAnalyzer_AnalyzeField(t *testing.T) {
 	analyzer := NewFieldAnalyzer("postgres")
 
 	tests := []struct {
-		name          string
-		field         models.GeneratedField
-		tableName     string
-		expectedName  string
-		expectedType  string
-		expectedIsFK  bool
-		expectedIsID  bool
+		name         string
+		field        models.GeneratedField
+		tableName    string
+		expectedName string
+		expectedType string
+		expectedIsFK bool
+		expectedIsID bool
 	}{
 		{
 			name: "ID field",

@@ -1,7 +1,6 @@
 package views
 
 import (
-	"{{.ModuleName}}/views/components"
 	"{{.ModuleName}}/router/cookies"
 	"time"
 )
@@ -17,11 +16,31 @@ templ base(headOpts ...HeadDataOption) {
 					&copy; { time.Now().Format("2006") } andurel.
 				</div>
 			</footer>
+			<div id="flashContainer" class="flash-stack">
+				for _, flash := range cookies.GetFlashesCtx(ctx) {
+					<div
+						class="flash-toast"
+						id={ "toast-" + flash.ID.String() }
+						data-flash-type={ string(flash.Type) }
+						data-signals:visible="true"
+						data-show="$visible"
+						data-init__delay.5000ms="$visible = false"
+					>
+						<div class="flash-toast-header">
+							<div class="flash-toast-indicator"></div>
+							<span class="flex items-center gap-2">
+								<p class="flash-toast-time">{ flash.CreatedAt.Format(time.Kitchen) }</p>
+								<button class="flash-toast-close" data-on:click="$visible = false">
+									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+								</button>
+							</span>
+						</div>
+						<span class="flash-toast-message">
+							{ flash.Message }
+						</span>
+					</div>
+				}
+			</div>
 		</body>
-		<div id="flashContainer" class="fixed top-4 right-4 z-50 space-y-2">
-			for _, flash := range cookies.GetFlashesCtx(ctx) {
-				@components.ToastMessage(flash)
-			}
-		</div>
 	</html>
 }

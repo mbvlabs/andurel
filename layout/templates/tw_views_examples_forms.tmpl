@@ -1,0 +1,119 @@
+<!--
+Forms: button, form, label, input, textarea, select, checkbox, radio, switch,
+slider, rating, datepicker, timepicker, input_otp, tags_input, combobox.
+-->
+<section class="space-y-6 rounded-box border border-base-300 bg-base-100 p-6" data-signals:submitting="false">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Form Components</h2>
+    <p class="text-sm text-base-content/70">Use wrapper classes and Datastar bindings directly in templ or static HTML.</p>
+  </header>
+
+  <form class="form" data-on:submit="$submitting = true">
+    <fieldset data-attr:disabled="$submitting" class="space-y-4">
+      <div class="form-row">
+        <label for="email" class="label">Email</label>
+        <input id="email" type="email" class="input" data-bind="email" placeholder="you@example.com" required />
+      </div>
+
+      <div class="form-row">
+        <label for="password" class="label">Password</label>
+        <input id="password" type="password" class="input" data-bind="password" required />
+      </div>
+
+      <div class="form-row">
+        <label for="bio" class="label">Bio</label>
+        <textarea id="bio" class="textarea" data-bind="bio" placeholder="Tell us about yourself"></textarea>
+      </div>
+
+      <div class="form-row">
+        <label for="country" class="label">Country</label>
+        <select id="country" class="select" data-bind="country">
+          <option value="">Select a country</option>
+          <option value="us">United States</option>
+          <option value="se">Sweden</option>
+          <option value="de">Germany</option>
+        </select>
+      </div>
+
+      <div class="space-y-2">
+        <label class="radio-row"><input type="checkbox" class="checkbox" data-bind="terms" /> <span class="text-sm">Accept terms</span></label>
+      </div>
+
+      <div class="radio-group" data-signals:plan="'free'">
+        <label class="radio-row"><input type="radio" name="plan" class="radio" data-on:click="$plan = 'free'" /> <span class="text-sm">Free</span></label>
+        <label class="radio-row"><input type="radio" name="plan" class="radio" data-on:click="$plan = 'pro'" /> <span class="text-sm">Pro</span></label>
+      </div>
+
+      <div class="space-y-2" data-signals:enabled="false">
+        <button type="button" class="switch" data-attr:data-checked="$enabled ? 'true' : null" data-on:click="$enabled = !$enabled">
+          <span class="switch-thumb" data-attr:data-checked="$enabled ? 'true' : null"></span>
+        </button>
+      </div>
+
+      <div class="form-row">
+        <label class="label" for="volume">Volume</label>
+        <div class="slider">
+          <input id="volume" type="range" min="0" max="100" value="50" class="slider-input" />
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <p class="label">Rating</p>
+        <div class="rating" data-signals:rating="3">
+          <button type="button" class="rating-star" data-attr:data-active="$rating >= 1 ? 'true' : null" data-on:click="$rating = 1">★</button>
+          <button type="button" class="rating-star" data-attr:data-active="$rating >= 2 ? 'true' : null" data-on:click="$rating = 2">★</button>
+          <button type="button" class="rating-star" data-attr:data-active="$rating >= 3 ? 'true' : null" data-on:click="$rating = 3">★</button>
+          <button type="button" class="rating-star" data-attr:data-active="$rating >= 4 ? 'true' : null" data-on:click="$rating = 4">★</button>
+          <button type="button" class="rating-star" data-attr:data-active="$rating >= 5 ? 'true' : null" data-on:click="$rating = 5">★</button>
+        </div>
+      </div>
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div class="form-row">
+          <label for="date" class="label">Date</label>
+          <input id="date" type="date" class="datepicker" data-bind="date" />
+        </div>
+        <div class="form-row">
+          <label for="time" class="label">Time</label>
+          <input id="time" type="time" class="timepicker" data-bind="time" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label for="otp" class="label">Verification Code</label>
+        <input id="otp" type="text" maxlength="6" class="input-otp" data-bind="otp" />
+      </div>
+
+      <div class="form-row">
+        <label class="label">Tags</label>
+        <div class="tags-input">
+          <span class="tag-pill">Go <button type="button" class="tag-remove">×</button></span>
+          <span class="tag-pill">Templ <button type="button" class="tag-remove">×</button></span>
+          <input class="input h-7 border-0 bg-transparent p-0 shadow-none focus:ring-0" placeholder="Add tag" />
+        </div>
+      </div>
+
+      <div class="form-row combobox" data-signals:open="false">
+        <label class="label" for="framework">Framework</label>
+        <input id="framework" class="combobox-input" placeholder="Search frameworks" data-on:focus="$open = true" />
+        <div class="combobox-list" data-show="$open">
+          <button type="button" class="combobox-item">Go</button>
+          <button type="button" class="combobox-item" data-selected="true">Rust</button>
+          <button type="button" class="combobox-item">TypeScript</button>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="submit" class="btn btn-primary">
+          <span data-show="!$submitting">Submit</span>
+          <span data-show="$submitting">Submitting...</span>
+        </button>
+        <button type="button" class="btn btn-secondary">Secondary</button>
+        <button type="button" class="btn btn-outline">Outline</button>
+        <button type="button" class="btn btn-ghost">Ghost</button>
+        <button type="button" class="btn btn-link">Link</button>
+        <button type="button" class="btn btn-destructive">Delete</button>
+      </div>
+    </fieldset>
+  </form>
+</section>

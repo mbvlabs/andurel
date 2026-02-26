@@ -1,0 +1,92 @@
+<!--
+Overlays: dialog, alert_dialog, sheet, popover, dropdown, tooltip, toast.
+-->
+<section class="space-y-6 rounded-box border border-base-300 bg-base-100 p-6" data-signals:dialog=false,alertDialog=false,sheet=false,popover=false,dropdown=false,tooltip=false,showToast=false,visible=true>
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Overlay Components</h2>
+  </header>
+
+  <div class="flex flex-wrap gap-2">
+    <button class="btn btn-outline" data-on:click="$dialog = true">Open Dialog</button>
+    <button class="btn btn-outline" data-on:click="$alertDialog = true">Open Alert Dialog</button>
+    <button class="btn btn-outline" data-on:click="$sheet = true">Open Sheet</button>
+    <button class="btn btn-outline" data-on:click="$showToast = true; $visible = true">Show Toast</button>
+  </div>
+
+  <div class="relative flex flex-wrap gap-4">
+    <div class="popover">
+      <button class="btn btn-ghost" data-on:click="$popover = !$popover">Toggle Popover</button>
+      <div class="popover-panel" data-show="$popover">Popover content</div>
+    </div>
+
+    <div class="dropdown">
+      <button class="btn btn-ghost" data-on:click="$dropdown = !$dropdown">Toggle Dropdown</button>
+      <div class="dropdown-menu" data-show="$dropdown">
+        <p class="dropdown-label">Actions</p>
+        <button class="dropdown-item">Edit</button>
+        <button class="dropdown-item">Duplicate</button>
+        <div class="dropdown-separator"></div>
+        <button class="dropdown-item">Delete</button>
+      </div>
+    </div>
+
+    <div class="tooltip">
+      <button class="btn btn-ghost" data-on:mouseenter="$tooltip = true" data-on:mouseleave="$tooltip = false">Hover me</button>
+      <div class="tooltip-content" data-show="$tooltip">Tooltip content</div>
+    </div>
+  </div>
+
+  <div data-show="$dialog">
+    <div class="dialog-backdrop" data-on:click="$dialog = false"></div>
+    <div class="dialog-panel">
+      <div class="dialog-header">
+        <h3 class="dialog-title">Dialog Title</h3>
+        <p class="dialog-description">Dialog body content and action buttons.</p>
+      </div>
+      <div class="dialog-footer">
+        <button class="btn btn-outline" data-on:click="$dialog = false">Cancel</button>
+        <button class="btn btn-primary" data-on:click="$dialog = false">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div data-show="$alertDialog">
+    <div class="alert-dialog-backdrop" data-on:click="$alertDialog = false"></div>
+    <div class="alert-dialog-panel">
+      <div class="dialog-header">
+        <h3 class="dialog-title">Are you sure?</h3>
+        <p class="dialog-description">This action cannot be undone.</p>
+      </div>
+      <div class="dialog-footer">
+        <button class="btn btn-outline" data-on:click="$alertDialog = false">Cancel</button>
+        <button class="btn btn-destructive" data-on:click="$alertDialog = false">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div data-show="$sheet">
+    <div class="sheet-backdrop" data-on:click="$sheet = false"></div>
+    <aside class="sheet-panel">
+      <div class="space-y-1">
+        <h3 class="dialog-title">Sheet Title</h3>
+        <p class="dialog-description">Side panel content.</p>
+      </div>
+      <div class="mt-4">
+        <button class="btn btn-primary" data-on:click="$sheet = false">Done</button>
+      </div>
+    </aside>
+  </div>
+
+  <div class="flash-stack !static" data-show="$showToast">
+    <div class="flash-toast" data-flash-type="success" data-show="$visible" data-init__delay.5000ms="$visible = false; $showToast = false">
+      <div class="flash-toast-header">
+        <div class="flash-toast-indicator"></div>
+        <span class="flex items-center gap-2">
+          <p class="flash-toast-time">just now</p>
+          <button class="flash-toast-close" data-on:click="$visible = false; $showToast = false">×</button>
+        </span>
+      </div>
+      <span class="flash-toast-message">Settings saved successfully.</span>
+    </div>
+  </div>
+</section>
