@@ -36,9 +36,10 @@ Overlays: dialog, alert_dialog, sheet, popover, dropdown, tooltip, toast.
     </div>
   </div>
 
-  <div data-show="$dialog">
+  <div class="dialog" data-show="$dialog">
     <div class="dialog-backdrop" data-on:click="$dialog = false"></div>
     <div class="dialog-panel">
+      <button class="dialog-close" type="button" aria-label="Close dialog" data-on:click="$dialog = false">×</button>
       <div class="dialog-header">
         <h3 class="dialog-title">Dialog Title</h3>
         <p class="dialog-description">Dialog body content and action buttons.</p>
@@ -50,9 +51,10 @@ Overlays: dialog, alert_dialog, sheet, popover, dropdown, tooltip, toast.
     </div>
   </div>
 
-  <div data-show="$alertDialog">
+  <div class="alert-dialog" data-show="$alertDialog">
     <div class="alert-dialog-backdrop" data-on:click="$alertDialog = false"></div>
     <div class="alert-dialog-panel">
+      <button class="dialog-close" type="button" aria-label="Close alert dialog" data-on:click="$alertDialog = false">×</button>
       <div class="dialog-header">
         <h3 class="dialog-title">Are you sure?</h3>
         <p class="dialog-description">This action cannot be undone.</p>
@@ -64,29 +66,30 @@ Overlays: dialog, alert_dialog, sheet, popover, dropdown, tooltip, toast.
     </div>
   </div>
 
-  <div data-show="$sheet">
+  <div class="sheet" data-show="$sheet">
     <div class="sheet-backdrop" data-on:click="$sheet = false"></div>
-    <aside class="sheet-panel">
-      <div class="space-y-1">
-        <h3 class="dialog-title">Sheet Title</h3>
-        <p class="dialog-description">Side panel content.</p>
+    <aside class="sheet-panel" data-side="right">
+      <button class="sheet-close" type="button" aria-label="Close sheet" data-on:click="$sheet = false">×</button>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Sheet Title</h3>
+        <p class="sheet-description">Side panel content.</p>
       </div>
-      <div class="mt-4">
+      <div class="sheet-footer">
         <button class="btn btn-primary" data-on:click="$sheet = false">Done</button>
       </div>
     </aside>
   </div>
 
-  <div class="flash-stack !static" data-show="$showToast">
-    <div class="flash-toast" data-flash-type="success" data-show="$visible" data-init__delay.5000ms="$visible = false; $showToast = false">
-      <div class="flash-toast-header">
-        <div class="flash-toast-indicator"></div>
+  <div class="toast-stack !static" data-show="$showToast">
+    <div class="toast toast-success" data-flash-type="success" data-show="$visible" data-init__delay.5000ms="$visible = false; $showToast = false">
+      <div class="toast-header">
+        <div class="toast-indicator"></div>
         <span class="flex items-center gap-2">
-          <p class="flash-toast-time">just now</p>
-          <button class="flash-toast-close" data-on:click="$visible = false; $showToast = false">×</button>
+          <p class="toast-time">just now</p>
+          <button class="toast-close" data-on:click="$visible = false; $showToast = false">×</button>
         </span>
       </div>
-      <span class="flash-toast-message">Settings saved successfully.</span>
+      <span class="toast-message">Settings saved successfully.</span>
     </div>
   </div>
 </section>

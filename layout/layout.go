@@ -260,18 +260,18 @@ var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_vanilla_css_buttons.tmpl":    "assets/css/buttons.css",
 
 	// Views
-	"vanilla_views_layout.tmpl":                   "views/layout.templ",
-	"vanilla_views_components_toasts.tmpl":        "views/components/toasts.templ",
-	"vanilla_views_head.tmpl":                     "views/head.templ",
-	"vanilla_views_components_form_elements.tmpl": "views/components/form_elements.templ",
-	"vanilla_views_home.tmpl":                     "views/home.templ",
-	"vanilla_views_bad_request.tmpl":              "views/bad_request.templ",
-	"vanilla_views_internal_error.tmpl":           "views/internal_error.templ",
-	"vanilla_views_not_found.tmpl":                "views/not_found.templ",
-	"vanilla_views_confirm_email.tmpl":            "views/confirm_email.templ",
-	"vanilla_views_login.tmpl":                    "views/login.templ",
-	"vanilla_views_registration.tmpl":             "views/registration.templ",
-	"vanilla_views_reset_password.tmpl":           "views/reset_password.templ",
+	"vanilla_views_layout.tmpl": "views/layout.templ",
+	// "vanilla_views_components_toasts.tmpl":        "views/components/toasts.templ",
+	"vanilla_views_head.tmpl": "views/head.templ",
+	// "vanilla_views_components_form_elements.tmpl": "views/components/form_elements.templ",
+	"vanilla_views_home.tmpl":           "views/home.templ",
+	"vanilla_views_bad_request.tmpl":    "views/bad_request.templ",
+	"vanilla_views_internal_error.tmpl": "views/internal_error.templ",
+	"vanilla_views_not_found.tmpl":      "views/not_found.templ",
+	"vanilla_views_confirm_email.tmpl":  "views/confirm_email.templ",
+	"vanilla_views_login.tmpl":          "views/login.templ",
+	"vanilla_views_registration.tmpl":   "views/registration.templ",
+	"vanilla_views_reset_password.tmpl": "views/reset_password.templ",
 }
 
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{

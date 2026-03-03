@@ -16,26 +16,26 @@ templ base(headOpts ...HeadDataOption) {
 					&copy; { time.Now().Format("2006") } andurel.
 				</div>
 			</footer>
-			<div id="flashContainer" class="flash-stack">
+			<div id="flashContainer" class="fixed right-4 top-4 z-50 space-y-2">
 				for _, flash := range cookies.GetFlashesCtx(ctx) {
 					<div
-						class="flash-toast"
+						class="flex max-w-96 flex-col rounded-box border border-base-300 bg-base-100 shadow-lg"
 						id={ "toast-" + flash.ID.String() }
 						data-flash-type={ string(flash.Type) }
 						data-signals:visible="true"
 						data-show="$visible"
 						data-init__delay.5000ms="$visible = false"
 					>
-						<div class="flash-toast-header">
-							<div class="flash-toast-indicator"></div>
+						<div class="flex items-center justify-between border-b border-base-300 px-4 py-2">
+							<div class="h-3 w-3 rounded-full bg-info"></div>
 							<span class="flex items-center gap-2">
-								<p class="flash-toast-time">{ flash.CreatedAt.Format(time.Kitchen) }</p>
-								<button class="flash-toast-close" data-on:click="$visible = false">
+								<p class="text-xs text-base-content/60">{ flash.CreatedAt.Format(time.Kitchen) }</p>
+								<button class="cursor-pointer rounded-field p-0.5 opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" data-on:click="$visible = false">
 									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
 								</button>
 							</span>
 						</div>
-						<span class="flash-toast-message">
+						<span class="px-4 py-3 text-sm text-base-content">
 							{ flash.Message }
 						</span>
 					</div>

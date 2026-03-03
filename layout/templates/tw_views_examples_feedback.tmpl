@@ -1,6 +1,6 @@
 <!--
-Use this snippet for flash/toast feedback.
-Set `data-flash-type` to success | info | warning | error.
+Use this snippet for toast feedback.
+Set the root variant class to `toast-success`, `toast-info`, `toast-warning`, or `toast-error`.
 -->
 <section class="mx-auto max-w-2xl space-y-4 rounded-box border border-base-300 bg-base-100 p-6" data-signals:showToast="false">
   <h2 class="text-xl font-semibold">Toast Pattern</h2>
@@ -8,16 +8,16 @@ Set `data-flash-type` to success | info | warning | error.
 
   <button type="button" class="btn btn-primary" data-on:click="$showToast = true">Show Toast</button>
 
-  <div class="flash-stack !static" data-show="$showToast">
-    <div class="flash-toast" data-flash-type="success" data-signals:visible="true" data-show="$visible" data-init__delay.5000ms="$visible = false">
-      <div class="flash-toast-header">
-        <div class="flash-toast-indicator"></div>
+  <div class="toast-stack !static" data-show="$showToast">
+    <div class="toast toast-success" data-flash-type="success" data-signals:visible="true" data-show="$visible" data-init__delay.5000ms="$visible = false">
+      <div class="toast-header">
+        <div class="toast-indicator"></div>
         <span class="flex items-center gap-2">
-          <p class="flash-toast-time">just now</p>
-          <button class="flash-toast-close" data-on:click="$visible = false; $showToast = false">x</button>
+          <p class="toast-time">just now</p>
+          <button class="toast-close" data-on:click="$visible = false; $showToast = false">x</button>
         </span>
       </div>
-      <span class="flash-toast-message">Profile settings saved successfully.</span>
+      <span class="toast-message">Profile settings saved successfully.</span>
     </div>
   </div>
 </section>
