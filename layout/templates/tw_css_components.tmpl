@@ -1,5 +1,4 @@
 @layer components {
-	/* Buttons */
 	.btn {
 		@apply inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-field px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60;
 	}
@@ -65,7 +64,7 @@
 	}
 
 	.copy-button {
-		@apply btn btn-outline btn-sm btn-icon;
+		@apply inline-flex h-9 w-9 items-center justify-center rounded-field border border-base-300 bg-transparent text-xs text-base-content shadow-sm hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60;
 	}
 
 	/* Form primitives */
@@ -81,8 +80,12 @@
 		@apply w-full space-y-1.5;
 	}
 
+	.label {
+		@apply label-base;
+	}
+
 	.field-label {
-		@apply label block;
+		@apply label-base block;
 	}
 
 	.field-control {
@@ -101,36 +104,32 @@
 		@apply inline-flex h-9 shrink-0 items-center px-3 text-sm text-base-content/60;
 	}
 
-	.label {
-		@apply text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60;
-	}
-
 	.input {
-		@apply flex h-9 w-full rounded-field border border-base-300 bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60;
+		@apply input-base h-9 border border-base-300 focus:border-primary focus:ring-primary/50;
 	}
 
 	.input-error {
-		@apply border-error focus:border-error focus:ring-error/50;
+		@apply input-base h-9 border border-error focus:border-error focus:ring-error/50;
 	}
 
 	.textarea {
-		@apply input min-h-24 py-2;
+		@apply input-base border border-base-300 py-2 min-h-24 focus:border-primary focus:ring-primary/50;
 	}
 
 	.textarea-error {
-		@apply textarea input-error;
+		@apply input-base border border-error py-2 min-h-24 focus:border-error focus:ring-error/50;
 	}
 
 	.select {
-		@apply input appearance-none;
+		@apply input-base h-9 border border-base-300 appearance-none focus:border-primary focus:ring-primary/50;
 	}
 
 	.select-error {
-		@apply select input-error;
+		@apply input-base h-9 border border-error appearance-none focus:border-error focus:ring-error/50;
 	}
 
 	.input-otp {
-		@apply input text-center tracking-[0.3em];
+		@apply input-base h-9 border border-base-300 text-center tracking-[0.3em] focus:border-primary focus:ring-primary/50;
 	}
 
 	.input-otp-slot {
@@ -173,14 +172,14 @@
 		@apply flex w-full items-stretch;
 	}
 
-	.input-group > .field-addon {
+	.input-group>.field-addon {
 		@apply rounded-l-field border border-r-0 border-base-300 bg-base-300;
 	}
 
-	.input-group > .input,
-	.input-group > .select,
-	.input-group > .datepicker,
-	.input-group > .timepicker {
+	.input-group>.input,
+	.input-group>.select,
+	.input-group>.datepicker,
+	.input-group>.timepicker {
 		@apply rounded-l-none flex-1;
 	}
 
@@ -216,10 +215,6 @@
 		@apply relative w-full;
 	}
 
-	.combobox-input {
-		@apply input;
-	}
-
 	.combobox-list {
 		@apply absolute z-40 mt-1 max-h-60 w-full overflow-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-lg;
 	}
@@ -230,14 +225,6 @@
 
 	.combobox-item[data-selected="true"] {
 		@apply bg-primary/10 text-primary;
-	}
-
-	.datepicker {
-		@apply input;
-	}
-
-	.timepicker {
-		@apply input;
 	}
 
 	.inline-link {
@@ -421,31 +408,35 @@
 		@apply w-full text-sm;
 	}
 
-	.table-header {
+	.table thead {
 		@apply border-b border-base-300 bg-base-200/60;
 	}
 
-	.table-body {
+	.table thead tr {
+		@apply border-b border-base-300 text-base text-base-content font-semibold;
+	}
+
+	.table tbody {
 		@apply bg-base-100;
 	}
 
-	.table-row {
+	.table tbody tr {
 		@apply border-b border-base-300 last:border-0;
 	}
 
-	.table-head {
+	.table th {
 		@apply h-10 px-3 text-left font-medium text-base-content/70;
 	}
 
-	.table-cell {
+	.table td {
 		@apply p-3 align-middle;
 	}
 
-	.table-caption {
+	.table caption {
 		@apply p-3 text-sm text-base-content/60;
 	}
 
-	.table-footer {
+	.table tfoot {
 		@apply border-t border-base-300 bg-base-200/50 font-medium;
 	}
 
@@ -514,19 +505,15 @@
 		@apply inline-flex h-8 min-w-8 items-center justify-center text-base-content/60;
 	}
 
-	.tabs {
-		@apply w-full;
-	}
-
-	.tabs-list {
+	.tab-list {
 		@apply inline-flex h-9 items-center justify-center rounded-box bg-base-200 p-1 text-base-content/60;
 	}
 
-	.tabs-trigger {
+	.tab-trigger {
 		@apply inline-flex items-center justify-center whitespace-nowrap rounded-field px-3 py-1 text-sm font-medium text-base-content/70 transition-all hover:bg-base-100 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:pointer-events-none disabled:opacity-60 data-[selected]:bg-primary data-[selected]:font-semibold data-[selected]:text-primary-content data-[selected]:shadow-sm data-[selected]:ring-1 data-[selected]:ring-primary/40;
 	}
 
-	.tabs-content {
+	.tab-content {
 		@apply mt-2 rounded-box border border-base-300 bg-base-100 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50;
 	}
 
@@ -593,12 +580,12 @@
 	}
 
 	/* Overlay patterns */
-	.dialog-backdrop {
-		@apply fixed inset-0 z-40 bg-black/70;
-	}
-
 	.dialog {
 		@apply relative;
+	}
+
+	.dialog-backdrop {
+		@apply fixed inset-0 z-40 bg-black/70;
 	}
 
 	.dialog-panel {
@@ -623,18 +610,6 @@
 
 	.dialog-close {
 		@apply absolute right-4 top-4 cursor-pointer rounded-field p-0.5 opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50;
-	}
-
-	.alert-dialog {
-		@apply dialog;
-	}
-
-	.alert-dialog-backdrop {
-		@apply dialog-backdrop;
-	}
-
-	.alert-dialog-panel {
-		@apply dialog-panel;
 	}
 
 	.sheet-backdrop {
@@ -781,5 +756,4 @@
 	.toast-error .toast-indicator {
 		@apply bg-error;
 	}
-
 }

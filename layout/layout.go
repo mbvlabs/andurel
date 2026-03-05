@@ -225,8 +225,9 @@ type (
 
 var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"tw_css_themes.tmpl":     "css/themes.css",
-	"tw_css_base.tmpl":       "css/base.css",
+	"tw_css_utilities.tmpl":  "css/utilities.css",
 	"tw_css_components.tmpl": "css/components.css",
+	"tw_css_base.tmpl":       "css/base.css",
 
 	// Views
 	"tw_views_layout.tmpl": "views/layout.templ",
@@ -252,6 +253,7 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"tw_views_examples_interactive.tmpl": "views/examples/interactive.html",
 	"tw_views_examples_navigation.tmpl":  "views/examples/navigation.html",
 	"tw_views_examples_overlays.tmpl":    "views/examples/overlays.html",
+	"tw_views_examples_tabs.tmpl":        "views/examples/tabs.html",
 }
 
 var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{

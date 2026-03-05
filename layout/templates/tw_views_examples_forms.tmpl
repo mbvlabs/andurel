@@ -1,177 +1,23 @@
 <!--
-Forms: button, form, label, input, textarea, select, checkbox, radio, switch,
-slider, rating, datepicker, timepicker, input_otp, tags_input, combobox.
+Use this snippet for toast feedback.
+Set the root variant class to `toast-success`, `toast-info`, `toast-warning`, or `toast-error`.
 -->
-<section class="space-y-6 rounded-box border border-base-300 bg-base-100 p-6" data-signals:submitting="false">
-  <header class="space-y-1">
-    <h2 class="text-xl font-semibold">Form Components</h2>
-    <p class="text-sm text-base-content/70">Use wrapper classes and Datastar bindings directly in templ or static HTML.</p>
-  </header>
+<section class="mx-auto max-w-2xl space-y-4 rounded-box border border-base-300 bg-base-100 p-6" data-signals:showToast="false">
+  <h2 class="text-xl font-semibold">Toast Pattern</h2>
+  <p class="text-sm text-base-content/70">In a templ layout, render this in a loop over flash messages.</p>
 
-  <form class="form" data-on:submit="$submitting = true">
-    <fieldset data-attr:disabled="$submitting" class="fieldset">
-      <div class="field">
-        <label for="email" class="field-label">Email</label>
-        <div class="field-control">
-          <input id="email" type="email" class="input" data-bind="email" placeholder="you@example.com" required />
-          <p class="field-hint">We only use this for account updates.</p>
-        </div>
-      </div>
+  <button type="button" class="btn btn-primary" data-on:click="$showToast = true">Show Toast</button>
 
-      <div class="field">
-        <label for="password" class="field-label">Password</label>
-        <div class="field-control">
-          <input id="password" type="password" class="input input-error" data-bind="password" required />
-          <p class="field-error">Use at least 12 characters.</p>
-        </div>
+  <div class="toast-stack !static" data-show="$showToast">
+    <div class="toast toast-success" data-flash-type="success" data-signals:visible="true" data-show="$visible" data-init__delay.5000ms="$visible = false">
+      <div class="toast-header">
+        <div class="toast-indicator"></div>
+        <span class="flex items-center gap-2">
+          <p class="toast-time">just now</p>
+          <button class="toast-close" data-on:click="$visible = false; $showToast = false">x</button>
+        </span>
       </div>
-
-      <div class="field">
-        <label for="bio" class="field-label">Bio</label>
-        <div class="field-control">
-          <textarea id="bio" class="textarea" data-bind="bio" placeholder="Tell us about yourself"></textarea>
-        </div>
-      </div>
-
-      <div class="field">
-        <label for="country" class="field-label">Country</label>
-        <div class="field-control">
-          <select id="country" class="select" data-bind="country">
-            <option value="">Select a country</option>
-            <option value="us">United States</option>
-            <option value="se">Sweden</option>
-            <option value="de">Germany</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="field">
-        <p class="field-label">Website</p>
-        <div class="field-control">
-          <div class="input-group">
-            <span class="field-addon">https://</span>
-            <input class="input" placeholder="example.com" />
-          </div>
-        </div>
-      </div>
-
-      <div class="field">
-        <p class="field-label">Preferences</p>
-        <div class="field-control checkbox-group">
-          <label class="radio-row"><input type="checkbox" class="checkbox" data-bind="terms" /> <span class="text-sm">Accept terms</span></label>
-          <label class="radio-row"><input type="checkbox" class="checkbox" data-bind="marketing" /> <span class="text-sm">Email me product updates</span></label>
-        </div>
-      </div>
-
-      <div class="field" data-signals:plan="'free'">
-        <p class="field-label">Plan</p>
-        <div class="field-control radio-group">
-          <label class="radio-row"><input type="radio" name="plan" class="radio" data-on:click="$plan = 'free'" /> <span class="text-sm">Free</span></label>
-          <label class="radio-row"><input type="radio" name="plan" class="radio" data-on:click="$plan = 'pro'" /> <span class="text-sm">Pro</span></label>
-        </div>
-      </div>
-
-      <div class="field" data-signals:enabled="false">
-        <p class="field-label">Availability</p>
-        <div class="field-control">
-          <button type="button" class="switch" data-attr:data-checked="$enabled ? 'true' : null" data-on:click="$enabled = !$enabled">
-            <span class="switch-thumb" data-attr:data-checked="$enabled ? 'true' : null"></span>
-          </button>
-          <p class="field-hint">Allow teammates to book time on your calendar.</p>
-        </div>
-      </div>
-
-      <div class="field">
-        <label class="field-label" for="volume">Volume</label>
-        <div class="field-control">
-          <div class="slider">
-            <input id="volume" type="range" min="0" max="100" value="50" class="slider-input" />
-          </div>
-        </div>
-      </div>
-
-      <div class="field">
-        <p class="field-label">Rating</p>
-        <div class="field-control">
-          <div class="rating" data-signals:rating="3">
-            <button type="button" class="rating-star" data-attr:data-active="$rating >= 1 ? 'true' : null" data-on:click="$rating = 1">★</button>
-            <button type="button" class="rating-star" data-attr:data-active="$rating >= 2 ? 'true' : null" data-on:click="$rating = 2">★</button>
-            <button type="button" class="rating-star" data-attr:data-active="$rating >= 3 ? 'true' : null" data-on:click="$rating = 3">★</button>
-            <button type="button" class="rating-star" data-attr:data-active="$rating >= 4 ? 'true' : null" data-on:click="$rating = 4">★</button>
-            <button type="button" class="rating-star" data-attr:data-active="$rating >= 5 ? 'true' : null" data-on:click="$rating = 5">★</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid gap-4 sm:grid-cols-2">
-        <div class="field">
-          <label for="date" class="field-label">Date</label>
-          <div class="field-control">
-            <input id="date" type="date" class="datepicker" data-bind="date" />
-          </div>
-        </div>
-        <div class="field">
-          <label for="time" class="field-label">Time</label>
-          <div class="field-control">
-            <input id="time" type="time" class="timepicker" data-bind="time" />
-          </div>
-        </div>
-      </div>
-
-      <div class="field">
-        <label for="otp" class="field-label">Verification Code</label>
-        <div class="field-control">
-          <div class="flex gap-2" aria-hidden="true">
-            <span class="input-otp-slot">1</span>
-            <span class="input-otp-slot">2</span>
-            <span class="input-otp-slot">3</span>
-            <span class="input-otp-slot">4</span>
-            <span class="input-otp-slot">5</span>
-            <span class="input-otp-slot">6</span>
-          </div>
-          <input id="otp" type="text" maxlength="6" class="input-otp" data-bind="otp" />
-        </div>
-      </div>
-
-      <div class="field">
-        <p class="field-label">Tags</p>
-        <div class="field-control">
-          <div class="tags-input">
-            <span class="tag-pill">Go <button type="button" class="tag-remove">×</button></span>
-            <span class="tag-pill">Templ <button type="button" class="tag-remove">×</button></span>
-            <input class="input h-7 border-0 bg-transparent p-0 shadow-none focus:ring-0" placeholder="Add tag" />
-          </div>
-        </div>
-      </div>
-
-      <div class="field combobox" data-signals:open="false">
-        <label class="field-label" for="framework">Framework</label>
-        <div class="field-control">
-          <input id="framework" class="combobox-input" placeholder="Search frameworks" data-on:focus="$open = true" />
-          <div class="combobox-list" data-show="$open">
-            <button type="button" class="combobox-item">Go</button>
-            <button type="button" class="combobox-item" data-selected="true">Rust</button>
-            <button type="button" class="combobox-item">TypeScript</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="flex flex-wrap items-center gap-2">
-        <button type="submit" class="btn btn-primary">
-          <span data-show="!$submitting">Submit</span>
-          <span data-show="$submitting">Submitting...</span>
-        </button>
-        <button type="button" class="btn btn-secondary">Secondary</button>
-        <button type="button" class="btn btn-outline">Outline</button>
-        <button type="button" class="btn btn-ghost">Ghost</button>
-        <button type="button" class="btn btn-link">Link</button>
-        <button type="button" class="btn btn-destructive">Delete</button>
-      </div>
-      <div class="btn-group">
-        <button type="button" class="btn btn-outline btn-sm">Day</button>
-        <button type="button" class="btn btn-primary btn-sm">Week</button>
-        <button type="button" class="btn btn-outline btn-sm">Month</button>
-      </div>
-    </fieldset>
-  </form>
+      <span class="toast-message">Profile settings saved successfully.</span>
+    </div>
+  </div>
 </section>

@@ -1,95 +1,39 @@
 <!--
-Overlays: dialog, alert_dialog, sheet, popover, dropdown, tooltip, toast.
+Navigation: breadcrumb, tabs, pagination.
 -->
-<section class="space-y-6 rounded-box border border-base-300 bg-base-100 p-6" data-signals:dialog=false,alertDialog=false,sheet=false,popover=false,dropdown=false,tooltip=false,showToast=false,visible=true>
+<section class="space-y-6 rounded-box border border-base-300 bg-base-100 p-6" data-signals:tab="'account'">
   <header class="space-y-1">
-    <h2 class="text-xl font-semibold">Overlay Components</h2>
+    <h2 class="text-xl font-semibold">Navigation Components</h2>
   </header>
 
-  <div class="flex flex-wrap gap-2">
-    <button class="btn btn-outline" data-on:click="$dialog = true">Open Dialog</button>
-    <button class="btn btn-outline" data-on:click="$alertDialog = true">Open Alert Dialog</button>
-    <button class="btn btn-outline" data-on:click="$sheet = true">Open Sheet</button>
-    <button class="btn btn-outline" data-on:click="$showToast = true; $visible = true">Show Toast</button>
-  </div>
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="#" class="breadcrumb-link">Home</a></li>
+      <li class="breadcrumb-separator">/</li>
+      <li class="breadcrumb-item"><a href="#" class="breadcrumb-link">Docs</a></li>
+      <li class="breadcrumb-separator">/</li>
+      <li class="breadcrumb-item"><span class="breadcrumb-current">Components</span></li>
+    </ol>
+  </nav>
 
-  <div class="relative flex flex-wrap gap-4">
-    <div class="popover">
-      <button class="btn btn-ghost" data-on:click="$popover = !$popover">Toggle Popover</button>
-      <div class="popover-panel" data-show="$popover">Popover content</div>
+  <div class="tabs">
+    <div class="tabs-list" role="tablist" aria-label="example tabs">
+      <button type="button" role="tab" class="tabs-trigger" data-attr:data-selected="$tab == 'account' ? 'true' : null" data-on:click="$tab = 'account'">Account</button>
+      <button type="button" role="tab" class="tabs-trigger" data-attr:data-selected="$tab == 'settings' ? 'true' : null" data-on:click="$tab = 'settings'">Settings</button>
+      <button type="button" role="tab" class="tabs-trigger" data-attr:data-selected="$tab == 'billing' ? 'true' : null" data-on:click="$tab = 'billing'">Billing</button>
     </div>
 
-    <div class="dropdown">
-      <button class="btn btn-ghost" data-on:click="$dropdown = !$dropdown">Toggle Dropdown</button>
-      <div class="dropdown-menu" data-show="$dropdown">
-        <p class="dropdown-label">Actions</p>
-        <button class="dropdown-item">Edit</button>
-        <button class="dropdown-item">Duplicate</button>
-        <div class="dropdown-separator"></div>
-        <button class="dropdown-item">Delete</button>
-      </div>
-    </div>
-
-    <div class="tooltip">
-      <button class="btn btn-ghost" data-on:mouseenter="$tooltip = true" data-on:mouseleave="$tooltip = false">Hover me</button>
-      <div class="tooltip-content" data-show="$tooltip">Tooltip content</div>
-    </div>
+    <div class="tabs-content" data-show="$tab == 'account'">Account content.</div>
+    <div class="tabs-content" data-show="$tab == 'settings'">Settings content.</div>
+    <div class="tabs-content" data-show="$tab == 'billing'">Billing content.</div>
   </div>
 
-  <div class="dialog" data-show="$dialog">
-    <div class="dialog-backdrop" data-on:click="$dialog = false"></div>
-    <div class="dialog-panel">
-      <button class="dialog-close" type="button" aria-label="Close dialog" data-on:click="$dialog = false">×</button>
-      <div class="dialog-header">
-        <h3 class="dialog-title">Dialog Title</h3>
-        <p class="dialog-description">Dialog body content and action buttons.</p>
-      </div>
-      <div class="dialog-footer">
-        <button class="btn btn-outline" data-on:click="$dialog = false">Cancel</button>
-        <button class="btn btn-primary" data-on:click="$dialog = false">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="alert-dialog" data-show="$alertDialog">
-    <div class="alert-dialog-backdrop" data-on:click="$alertDialog = false"></div>
-    <div class="alert-dialog-panel">
-      <button class="dialog-close" type="button" aria-label="Close alert dialog" data-on:click="$alertDialog = false">×</button>
-      <div class="dialog-header">
-        <h3 class="dialog-title">Are you sure?</h3>
-        <p class="dialog-description">This action cannot be undone.</p>
-      </div>
-      <div class="dialog-footer">
-        <button class="btn btn-outline" data-on:click="$alertDialog = false">Cancel</button>
-        <button class="btn btn-destructive" data-on:click="$alertDialog = false">Delete</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="sheet" data-show="$sheet">
-    <div class="sheet-backdrop" data-on:click="$sheet = false"></div>
-    <aside class="sheet-panel" data-side="right">
-      <button class="sheet-close" type="button" aria-label="Close sheet" data-on:click="$sheet = false">×</button>
-      <div class="sheet-header">
-        <h3 class="sheet-title">Sheet Title</h3>
-        <p class="sheet-description">Side panel content.</p>
-      </div>
-      <div class="sheet-footer">
-        <button class="btn btn-primary" data-on:click="$sheet = false">Done</button>
-      </div>
-    </aside>
-  </div>
-
-  <div class="toast-stack !static" data-show="$showToast">
-    <div class="toast toast-success" data-flash-type="success" data-show="$visible" data-init__delay.5000ms="$visible = false; $showToast = false">
-      <div class="toast-header">
-        <div class="toast-indicator"></div>
-        <span class="flex items-center gap-2">
-          <p class="toast-time">just now</p>
-          <button class="toast-close" data-on:click="$visible = false; $showToast = false">×</button>
-        </span>
-      </div>
-      <span class="toast-message">Settings saved successfully.</span>
-    </div>
-  </div>
+  <nav class="pagination" aria-label="pagination">
+    <a class="pagination-link" href="#">Prev</a>
+    <a class="pagination-link" href="#">1</a>
+    <a class="pagination-link" href="#" data-current="true">2</a>
+    <a class="pagination-link" href="#">3</a>
+    <span class="pagination-ellipsis">...</span>
+    <a class="pagination-link" href="#">Next</a>
+  </nav>
 </section>
