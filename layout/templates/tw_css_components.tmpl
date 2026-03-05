@@ -1,758 +1,1232 @@
 @layer components {
+	/* Base button shape and interaction styling. */
 	.btn {
 		@apply inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-field px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60;
 	}
 
+	/* Primary solid button for main actions. */
 	.btn-primary {
 		@apply bg-primary text-primary-content shadow-sm hover:bg-primary/90;
 	}
 
+	/* Secondary solid button for supporting actions. */
 	.btn-secondary {
 		@apply bg-secondary text-secondary-content shadow-sm hover:bg-secondary/90;
 	}
 
+	/* Accent-colored button for highlighted secondary actions. */
 	.btn-accent {
 		@apply bg-accent text-accent-content shadow-sm hover:bg-accent/90;
 	}
 
+	/* Neutral solid button for subdued actions. */
 	.btn-neutral {
 		@apply bg-neutral text-neutral-content shadow-sm hover:bg-neutral/90;
 	}
 
+	/* Outlined button for lower emphasis actions. */
 	.btn-outline {
 		@apply border border-base-300 bg-transparent text-base-content shadow-sm hover:bg-base-200;
 	}
 
+	/* Ghost button with only hover feedback. */
 	.btn-ghost {
 		@apply bg-transparent text-base-content hover:bg-base-200;
 	}
 
+	/* Link-style button for inline actions. */
 	.btn-link {
 		@apply h-auto rounded-none p-0 text-primary underline-offset-4 hover:underline;
 	}
 
+	/* High-emphasis button for destructive actions. */
 	.btn-destructive {
 		@apply bg-error text-error-content shadow-sm hover:bg-error/90;
 	}
 
+	/* Small button size. */
 	.btn-sm {
 		@apply h-8 px-3 text-xs;
 	}
 
+	/* Extra-small button size. */
 	.btn-xs {
 		@apply h-7 px-2.5 text-xs;
 	}
 
+	/* Large button size. */
 	.btn-lg {
 		@apply h-10 px-5 text-base;
 	}
 
+	/* Extra-large button size. */
 	.btn-xl {
 		@apply h-11 px-6 text-base;
 	}
 
+	/* Square button for icon-only actions. */
 	.btn-icon {
 		@apply h-9 w-9 px-0;
 	}
 
+	/* Full-width button layout. */
 	.btn-block {
 		@apply flex w-full;
 	}
 
+	/* Container that visually joins adjacent buttons. */
 	.btn-group {
 		@apply inline-flex items-center gap-0;
 	}
 
+	/* Remove rounded corners from grouped buttons by default. */
+	.btn-group > .btn,
+	.btn-group > .copy-button {
+		@apply rounded-none;
+	}
+
+	/* Restore left rounding for the first grouped button. */
+	.btn-group > .btn:first-child,
+	.btn-group > .copy-button:first-child {
+		@apply rounded-l-field;
+	}
+
+	/* Restore right rounding for the last grouped button. */
+	.btn-group > .btn:last-child,
+	.btn-group > .copy-button:last-child {
+		@apply rounded-r-field;
+	}
+
+	/* Collapse borders between grouped buttons. */
+	.btn-group > .btn + .btn,
+	.btn-group > .btn + .copy-button,
+	.btn-group > .copy-button + .btn,
+	.btn-group > .copy-button + .copy-button {
+		@apply -ml-px;
+	}
+
+	/* Compact utility button used for copy or dismiss actions. */
 	.copy-button {
 		@apply inline-flex h-9 w-9 items-center justify-center rounded-field border border-base-300 bg-transparent text-xs text-base-content shadow-sm hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60;
 	}
 
 	/* Form primitives */
+	/* Default vertical spacing for stacked forms. */
 	.form {
 		@apply space-y-5;
 	}
 
+	/* Unstyled fieldset wrapper with spacing only. */
 	.fieldset {
 		@apply min-w-0 space-y-5 border-0 p-0;
 	}
 
+	/* Standard field wrapper for a label, control, and help text. */
 	.field {
 		@apply w-full space-y-1.5;
 	}
 
+	/* Generic label using the shared label utility. */
 	.label {
 		@apply label-base;
 	}
 
+	/* Block-level field label. */
 	.field-label {
 		@apply label-base block;
 	}
 
+	/* Wrapper for grouped control content. */
 	.field-control {
 		@apply min-w-0 space-y-2;
 	}
 
+	/* Helper text shown beneath a field. */
 	.field-hint {
 		@apply text-sm text-base-content/60;
 	}
 
+	/* Error message shown beneath an invalid field. */
 	.field-error {
 		@apply text-sm font-medium text-error;
 	}
 
+	/* Prefix or suffix element inside an input group. */
 	.field-addon {
 		@apply inline-flex h-9 shrink-0 items-center px-3 text-sm text-base-content/60;
 	}
 
+	/* Default text-like input. */
 	.input {
-		@apply input-base h-9 border border-base-300 focus:border-primary focus:ring-primary/50;
+		@apply input-base control-default h-9;
 	}
 
+	/* Invalid text-like input. */
 	.input-error {
-		@apply input-base h-9 border border-error focus:border-error focus:ring-error/50;
+		@apply input-base control-error h-9;
 	}
 
+	/* Default multiline text input. */
 	.textarea {
-		@apply input-base border border-base-300 py-2 min-h-24 focus:border-primary focus:ring-primary/50;
+		@apply input-base control-default min-h-24 py-2;
 	}
 
+	/* Invalid multiline text input. */
 	.textarea-error {
-		@apply input-base border border-error py-2 min-h-24 focus:border-error focus:ring-error/50;
+		@apply input-base control-error min-h-24 py-2;
 	}
 
+	/* Default select control. */
 	.select {
-		@apply input-base h-9 border border-base-300 appearance-none focus:border-primary focus:ring-primary/50;
+		@apply input-base control-default h-9 appearance-none;
 	}
 
+	/* Invalid select control. */
 	.select-error {
-		@apply input-base h-9 border border-error appearance-none focus:border-error focus:ring-error/50;
+		@apply input-base control-error h-9 appearance-none;
 	}
 
+	/* Single-field one-time-password input. */
 	.input-otp {
-		@apply input-base h-9 border border-base-300 text-center tracking-[0.3em] focus:border-primary focus:ring-primary/50;
+		@apply input-base control-default h-9 text-center tracking-[0.3em];
 	}
 
+	/* Individual visual slot for multi-cell OTP layouts. */
 	.input-otp-slot {
 		@apply flex h-10 w-10 items-center justify-center rounded-field border border-base-300 bg-base-200 text-sm font-medium text-base-content shadow-inner transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/50;
 	}
 
+	/* Checkbox control. */
 	.checkbox {
-		@apply h-4 w-4 rounded-[4px] border border-base-300 bg-base-100 text-primary focus-visible:ring-2 focus-visible:ring-primary/50;
+		@apply checkable-base rounded-[4px] bg-base-100;
 	}
 
+	/* Vertical stack of checkboxes. */
 	.checkbox-group {
 		@apply space-y-3;
 	}
 
+	/* Vertical stack of radio options. */
 	.radio-group {
 		@apply space-y-2;
 	}
 
+	/* Horizontal row for a checkable control and label. */
 	.radio-row {
 		@apply flex items-center gap-2;
 	}
 
+	/* Radio control. */
 	.radio {
-		@apply h-4 w-4 border border-base-300 text-primary focus-visible:ring-2 focus-visible:ring-primary/50;
+		@apply checkable-base;
 	}
 
+	/* Toggle switch track. */
 	.switch {
-		@apply relative inline-flex h-6 w-11 items-center rounded-full bg-base-300 transition-colors data-[checked=true]:bg-primary;
+		@apply toggle-base relative inline-flex h-6 w-11 items-center rounded-full bg-base-300 data-[checked=true]:bg-primary;
 	}
 
+	/* Toggle switch thumb. */
 	.switch-thumb {
 		@apply inline-block h-5 w-5 translate-x-0.5 rounded-full bg-base-100 shadow transition-transform data-[checked=true]:translate-x-5;
 	}
 
+	/* Wrapper around a range input. */
 	.slider {
 		@apply w-full;
 	}
 
+	/* Wrapper that visually joins multiple controls. */
 	.input-group {
 		@apply flex w-full items-stretch;
 	}
 
-	.input-group>.field-addon {
-		@apply rounded-l-field border border-r-0 border-base-300 bg-base-300;
+	/* Reset group child rounding before edge-specific rules. */
+	.input-group > * {
+		@apply rounded-none;
 	}
 
-	.input-group>.input,
-	.input-group>.select,
-	.input-group>.datepicker,
-	.input-group>.timepicker {
-		@apply rounded-l-none flex-1;
+	/* Restore left rounding for the first grouped child. */
+	.input-group > :first-child {
+		@apply rounded-l-field;
 	}
 
+	/* Restore right rounding for the last grouped child. */
+	.input-group > :last-child {
+		@apply rounded-r-field;
+	}
+
+	/* Shared surface styling for addons inside an input group. */
+	.input-group > .field-addon {
+		@apply border border-base-300 bg-base-300;
+	}
+
+	/* Remove the right border from non-terminal left addons. */
+	.input-group > .field-addon:not(:last-child) {
+		@apply border-r-0;
+	}
+
+	/* Remove the left border from non-initial right addons. */
+	.input-group > .field-addon:not(:first-child) {
+		@apply border-l-0;
+	}
+
+	/* Allow supported controls to grow inside an input group. */
+	.input-group > .input,
+	.input-group > .select,
+	.input-group > .datepicker,
+	.input-group > .timepicker {
+		@apply flex-1;
+	}
+
+	/* Collapse borders between adjacent grouped controls and addons. */
+	.input-group > .input + .input,
+	.input-group > .input + .select,
+	.input-group > .input + .datepicker,
+	.input-group > .input + .timepicker,
+	.input-group > .select + .input,
+	.input-group > .select + .select,
+	.input-group > .select + .datepicker,
+	.input-group > .select + .timepicker,
+	.input-group > .datepicker + .input,
+	.input-group > .datepicker + .select,
+	.input-group > .datepicker + .datepicker,
+	.input-group > .datepicker + .timepicker,
+	.input-group > .timepicker + .input,
+	.input-group > .timepicker + .select,
+	.input-group > .timepicker + .datepicker,
+	.input-group > .timepicker + .timepicker,
+	.input-group > .field-addon + .input,
+	.input-group > .field-addon + .select,
+	.input-group > .field-addon + .datepicker,
+	.input-group > .field-addon + .timepicker,
+	.input-group > .input + .field-addon,
+	.input-group > .select + .field-addon,
+	.input-group > .datepicker + .field-addon,
+	.input-group > .timepicker + .field-addon {
+		@apply -ml-px;
+	}
+
+	/* Styled range input track. */
 	.slider-input {
 		@apply h-2 w-full cursor-pointer appearance-none rounded-full bg-base-300 accent-primary;
 	}
 
+	/* Container for rating icons. */
 	.rating {
 		@apply inline-flex items-center gap-1;
 	}
 
+	/* Inactive rating icon. */
 	.rating-star {
 		@apply h-5 w-5 text-base-content/30;
 	}
 
+	/* Active rating icon. */
 	.rating-star[data-active="true"] {
 		@apply text-warning;
 	}
 
+	/* Tokenized input surface for editable tags. */
 	.tags-input {
 		@apply flex min-h-9 w-full flex-wrap items-center gap-2 rounded-field border border-base-300 bg-base-200 px-2 py-1;
 	}
 
+	/* Individual tag token. */
 	.tag-pill {
 		@apply inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary;
 	}
 
+	/* Small remove action inside a tag. */
 	.tag-remove {
 		@apply rounded-full p-0.5 hover:bg-primary/20;
 	}
 
+	/* Relative wrapper for a combobox input and list. */
 	.combobox {
 		@apply relative w-full;
 	}
 
+	/* Floating option list beneath a combobox input. */
 	.combobox-list {
-		@apply absolute z-40 mt-1 max-h-60 w-full overflow-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-lg;
+		@apply popup-base mt-1 max-h-60 w-full overflow-auto p-1;
 	}
 
+	/* Selectable row inside a combobox list. */
 	.combobox-item {
-		@apply flex cursor-pointer items-center justify-between rounded-field px-2 py-1.5 text-sm hover:bg-base-200;
+		@apply interactive-item flex cursor-pointer items-center justify-between px-2 py-1.5 text-sm;
 	}
 
+	/* Selected combobox row state. */
 	.combobox-item[data-selected="true"] {
 		@apply bg-primary/10 text-primary;
 	}
 
+	/* Standard inline text link. */
 	.inline-link {
 		@apply text-base-content/70 hover:text-base-content hover:underline;
 	}
 
+	/* Vertical menu list container. */
+	.menu {
+		@apply flex min-w-56 flex-col gap-1 p-2;
+	}
+
+	/* Optional bordered panel around a menu. */
+	.menu-panel {
+		@apply panel-base;
+	}
+
+	/* Small heading used to label a menu section. */
+	.menu-title {
+		@apply px-2 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-base-content/50;
+	}
+
+	/* Divider between menu sections. */
+	.menu-section {
+		@apply my-1 h-px bg-base-300;
+	}
+
+	/* Structural wrapper for an individual menu entry. */
+	.menu-item {
+		@apply list-none;
+	}
+
+	/* Clickable menu entry row. */
+	.menu-link {
+		@apply interactive-item flex w-full items-center justify-between gap-2 px-2.5 py-2 text-sm text-base-content;
+	}
+
+	/* Active menu entry state. */
+	.menu-link[data-active="true"] {
+		@apply bg-primary text-primary-content;
+	}
+
+	/* Destructive menu entry styling. */
+	.menu-link[data-variant="destructive"] {
+		@apply text-error hover:bg-error/10 hover:text-error;
+	}
+
+	/* Disabled menu entry state. */
+	.menu-link[data-disabled="true"] {
+		@apply pointer-events-none opacity-50;
+	}
+
+	/* Leading icon inside a menu row. */
+	.menu-icon {
+		@apply h-4 w-4 shrink-0 text-current;
+	}
+
+	/* Truncating label inside a menu row. */
+	.menu-label {
+		@apply min-w-0 flex-1 truncate text-left;
+	}
+
+	/* Small keyboard shortcut or meta text for a menu row. */
+	.menu-shortcut {
+		@apply text-xs text-base-content/50;
+	}
+
 	/* Data/display primitives */
+	/* Base badge shape. */
 	.badge {
 		@apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
 	}
 
+	/* Primary badge. */
 	.badge-primary {
 		@apply bg-primary text-primary-content;
 	}
 
+	/* Secondary badge. */
 	.badge-secondary {
 		@apply bg-secondary text-secondary-content;
 	}
 
+	/* Accent badge. */
 	.badge-accent {
 		@apply bg-accent text-accent-content;
 	}
 
+	/* Neutral badge. */
 	.badge-neutral {
 		@apply bg-neutral text-neutral-content;
 	}
 
+	/* Outlined badge. */
 	.badge-outline {
 		@apply border border-base-300 bg-transparent text-base-content;
 	}
 
+	/* Success badge. */
 	.badge-success {
 		@apply bg-success text-success-content;
 	}
 
+	/* Info badge. */
 	.badge-info {
 		@apply bg-info text-info-content;
 	}
 
+	/* Warning badge. */
 	.badge-warning {
 		@apply bg-warning text-warning-content;
 	}
 
+	/* Error badge. */
 	.badge-error {
 		@apply bg-error text-error-content;
 	}
 
+	/* Destructive badge with outlined danger emphasis. */
 	.badge-destructive {
-		@apply bg-error text-error-content;
+		@apply border border-error bg-transparent text-error;
 	}
 
+	/* Base alert surface. */
 	.alert {
 		@apply w-full rounded-box border p-4;
 	}
 
+	/* Neutral alert state. */
 	.alert-neutral {
 		@apply border-base-300 text-base-content;
 	}
 
+	/* Informational alert state. */
 	.alert-info {
-		@apply border-info/50 text-info;
+		@apply status-info;
 	}
 
+	/* Success alert state. */
 	.alert-success {
-		@apply border-success/50 text-success;
+		@apply status-success;
 	}
 
+	/* Warning alert state. */
 	.alert-warning {
-		@apply border-warning/50 text-warning;
+		@apply status-warning;
 	}
 
+	/* Error alert state. */
 	.alert-error {
-		@apply border-error/50 text-error;
+		@apply status-error;
 	}
 
+	/* Strong destructive alert state. */
 	.alert-destructive {
-		@apply border-error text-error;
+		@apply status-destructive;
 	}
 
+	/* Alert headline text. */
 	.alert-title {
 		@apply text-sm font-semibold;
 	}
 
+	/* Alert body text. */
 	.alert-description {
 		@apply mt-1 text-sm opacity-90;
 	}
 
+	/* Base card surface. */
 	.card {
-		@apply rounded-box border border-base-300 bg-base-100 text-base-content shadow-sm;
+		@apply panel-base text-base-content shadow-sm;
 	}
 
+	/* Card header container. */
 	.card-header {
 		@apply flex flex-col space-y-1.5 p-6 pb-3;
 	}
 
+	/* Card title text. */
 	.card-title {
 		@apply text-lg font-semibold;
 	}
 
+	/* Card supporting text. */
 	.card-description {
 		@apply text-sm text-base-content/60;
 	}
 
+	/* Card body container. */
 	.card-content {
 		@apply p-6 pt-0;
 	}
 
+	/* Card footer actions. */
 	.card-footer {
 		@apply flex items-center p-6 pt-0;
 	}
 
+	/* Container for grouped statistic cards. */
+	.stats {
+		@apply panel-base grid overflow-hidden;
+	}
+
+	/* Horizontal stats layout, switching to columns on larger screens. */
+	.stats[data-orientation="horizontal"] {
+		@apply grid-cols-1 divide-y divide-base-300 md:grid-flow-col md:auto-cols-fr md:divide-x md:divide-y-0;
+	}
+
+	/* Vertical stats layout. */
+	.stats[data-orientation="vertical"] {
+		@apply divide-y divide-base-300;
+	}
+
+	/* Individual stat block. */
+	.stat {
+		@apply flex min-w-0 flex-col gap-1 p-5;
+	}
+
+	/* Optional leading icon or figure in a stat block. */
+	.stat-figure {
+		@apply mb-2 flex h-10 w-10 items-center justify-center rounded-field bg-base-200 text-base-content/70;
+	}
+
+	/* Small stat label. */
+	.stat-title {
+		@apply text-xs font-semibold uppercase tracking-[0.08em] text-base-content/50;
+	}
+
+	/* Main stat value. */
+	.stat-value {
+		@apply text-3xl font-semibold leading-none text-base-content;
+	}
+
+	/* Supporting text beneath a stat value. */
+	.stat-desc {
+		@apply text-sm text-base-content/60;
+	}
+
+	/* Action row inside a stat block. */
+	.stat-actions {
+		@apply mt-3 flex items-center gap-2;
+	}
+
+	/* Base circular avatar container. */
 	.avatar {
 		@apply relative inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-base-300;
 	}
 
+	/* Small avatar size. */
 	.avatar-sm {
 		@apply h-8 w-8 text-xs;
 	}
 
+	/* Large avatar size. */
 	.avatar-lg {
 		@apply h-12 w-12 text-lg;
 	}
 
+	/* Avatar image fill behavior. */
 	.avatar-image {
 		@apply h-full w-full object-cover;
 	}
 
+	/* Text fallback shown when no avatar image is present. */
 	.avatar-fallback {
 		@apply font-medium text-base-content/70;
 	}
 
+	/* Horizontal divider. */
 	.separator {
 		@apply h-px w-full bg-base-300;
 	}
 
+	/* Vertical divider. */
 	.separator-vertical {
 		@apply h-6 w-px bg-base-300;
 	}
 
+	/* Base circular loading spinner. */
 	.spinner {
 		@apply inline-block h-5 w-5 animate-spin rounded-full border-2 border-base-300 border-t-primary;
 	}
 
+	/* Small spinner size. */
 	.spinner-sm {
 		@apply h-4 w-4;
 	}
 
+	/* Large spinner size. */
 	.spinner-lg {
 		@apply h-7 w-7;
 	}
 
+	/* Base progress track. */
 	.progress {
 		@apply h-2 w-full overflow-hidden rounded-full bg-base-300;
 	}
 
+	/* Filled progress indicator. */
 	.progress-indicator {
 		@apply h-full bg-primary transition-all;
 	}
 
+	/* Animated loading placeholder block. */
 	.skeleton {
 		@apply animate-pulse rounded-field bg-base-300;
 	}
 
+	/* Centered empty-state surface. */
+	.empty-state {
+		@apply panel-base flex w-full flex-col items-center justify-center gap-3 px-6 py-10 text-center;
+	}
+
+	/* Icon or symbol container in an empty state. */
+	.empty-state-icon {
+		@apply flex h-14 w-14 items-center justify-center rounded-full bg-base-200 text-base-content/60;
+	}
+
+	/* Empty-state headline text. */
+	.empty-state-title {
+		@apply text-lg font-semibold text-base-content;
+	}
+
+	/* Empty-state supporting text. */
+	.empty-state-description {
+		@apply max-w-prose text-sm text-base-content/60;
+	}
+
+	/* Action row in an empty state. */
+	.empty-state-actions {
+		@apply mt-2 flex flex-wrap items-center justify-center gap-2;
+	}
+
+	/* Keyboard key visual token. */
 	.kbd {
 		@apply inline-flex h-6 min-w-6 items-center justify-center rounded-field border border-base-300 bg-base-100 px-1.5 text-xs font-medium text-base-content/80;
 	}
 
+	/* Inline code token. */
 	.code-inline {
 		@apply rounded-field bg-base-200 px-1.5 py-0.5 font-mono text-xs;
 	}
 
+	/* Scrollable block code surface. */
 	.code-block {
-		@apply overflow-x-auto rounded-box border border-base-300 bg-base-100 p-4 font-mono text-sm;
+		@apply panel-base overflow-x-auto p-4 font-mono text-sm;
 	}
 
+	/* Scrollable wrapper around tables. */
 	.table-wrap {
-		@apply overflow-x-auto rounded-box border border-base-300 bg-base-100;
+		@apply panel-base overflow-x-auto;
 	}
 
+	/* Base table typography and layout. */
 	.table {
 		@apply w-full text-sm;
 	}
 
+	/* Table header section. */
 	.table thead {
 		@apply border-b border-base-300 bg-base-200/60;
 	}
 
+	/* Table header row. */
 	.table thead tr {
 		@apply border-b border-base-300 text-base text-base-content font-semibold;
 	}
 
+	/* Table body section. */
 	.table tbody {
 		@apply bg-base-100;
 	}
 
+	/* Table body rows with separators. */
 	.table tbody tr {
 		@apply border-b border-base-300 last:border-0;
 	}
 
+	/* Table header cells. */
 	.table th {
 		@apply h-10 px-3 text-left font-medium text-base-content/70;
 	}
 
+	/* Table body cells. */
 	.table td {
 		@apply p-3 align-middle;
 	}
 
+	/* Table caption text. */
 	.table caption {
 		@apply p-3 text-sm text-base-content/60;
 	}
 
+	/* Table footer row styling. */
 	.table tfoot {
 		@apply border-t border-base-300 bg-base-200/50 font-medium;
 	}
 
+	/* Calendar surface. */
 	.calendar {
-		@apply w-full rounded-box border border-base-300 bg-base-100 p-3;
+		@apply panel-base w-full p-3;
 	}
 
+	/* Calendar month header row. */
 	.calendar-head {
 		@apply mb-3 flex items-center justify-between;
 	}
 
+	/* Seven-column calendar grid. */
 	.calendar-grid {
 		@apply grid grid-cols-7 gap-1;
 	}
 
+	/* Weekday label cell. */
 	.calendar-weekday {
 		@apply text-center text-xs text-base-content/60;
 	}
 
+	/* Individual day cell. */
 	.calendar-day {
-		@apply flex h-9 items-center justify-center rounded-field text-sm hover:bg-base-200;
+		@apply interactive-item flex h-9 items-center justify-center text-sm;
 	}
 
+	/* Today indicator in the calendar. */
 	.calendar-day[data-today="true"] {
 		@apply border border-primary/40;
 	}
 
+	/* Selected day in the calendar. */
 	.calendar-day[data-selected="true"] {
 		@apply bg-primary text-primary-content;
 	}
 
 	/* Navigation */
+	/* Breadcrumb list container. */
 	.breadcrumb {
 		@apply flex flex-wrap items-center gap-1.5 text-sm text-base-content/60;
 	}
 
+	/* Breadcrumb item wrapper. */
 	.breadcrumb-item {
 		@apply inline-flex items-center gap-1.5;
 	}
 
+	/* Clickable breadcrumb link. */
 	.breadcrumb-link {
 		@apply transition-colors hover:text-base-content;
 	}
 
+	/* Current breadcrumb item text. */
 	.breadcrumb-current {
 		@apply font-medium text-base-content;
 	}
 
+	/* Separator between breadcrumb items. */
 	.breadcrumb-separator {
 		@apply text-base-content/40;
 	}
 
+	/* Pagination container. */
 	.pagination {
 		@apply inline-flex items-center gap-1;
 	}
 
+	/* Clickable page link. */
 	.pagination-link {
-		@apply inline-flex h-8 min-w-8 items-center justify-center rounded-field px-2 text-sm hover:bg-base-200;
+		@apply interactive-item inline-flex h-8 min-w-8 items-center justify-center px-2 text-sm;
 	}
 
+	/* Active pagination link. */
 	.pagination-link[data-current="true"] {
 		@apply bg-primary text-primary-content;
 	}
 
+	/* Non-clickable pagination gap marker. */
 	.pagination-ellipsis {
 		@apply inline-flex h-8 min-w-8 items-center justify-center text-base-content/60;
 	}
 
+	/* Steps container. */
+	.steps {
+		@apply flex flex-col gap-4;
+	}
+
+	/* Horizontal steps layout on larger screens. */
+	.steps[data-orientation="horizontal"] {
+		@apply gap-0 md:flex-row md:items-start md:justify-between;
+	}
+
+	/* Individual step wrapper. */
+	.step {
+		@apply relative flex min-w-0 items-start gap-3;
+	}
+
+	/* Vertical connector line between stacked steps. */
+	.steps[data-orientation="vertical"] .step:not(:last-child)::after {
+		content: "";
+		@apply absolute left-4 top-9 h-[calc(100%-1.5rem)] w-px bg-base-300;
+	}
+
+	/* Horizontal layout for each step on wider screens. */
+	.steps[data-orientation="horizontal"] .step {
+		@apply md:flex-1 md:flex-col md:items-center md:gap-2 md:text-center;
+	}
+
+	/* Horizontal connector line between steps. */
+	.steps[data-orientation="horizontal"] .step:not(:last-child)::after {
+		content: "";
+		@apply hidden md:block absolute left-[calc(50%+1.25rem)] top-4 h-px w-[calc(100%-2.5rem)] bg-base-300;
+	}
+
+	/* Circular step marker. */
+	.step-indicator {
+		@apply relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-base-300 bg-base-100 text-sm font-semibold text-base-content/70;
+	}
+
+	/* Text container for a step. */
+	.step-body {
+		@apply min-w-0 space-y-0.5 pb-4;
+	}
+
+	/* Remove extra bottom spacing in horizontal step layouts. */
+	.steps[data-orientation="horizontal"] .step-body {
+		@apply md:pb-0;
+	}
+
+	/* Step title text. */
+	.step-title {
+		@apply text-sm font-medium text-base-content;
+	}
+
+	/* Step helper text. */
+	.step-description {
+		@apply text-sm text-base-content/60;
+	}
+
+	/* Current step indicator styling. */
+	.step[data-state="current"] .step-indicator {
+		@apply border-primary bg-primary text-primary-content;
+	}
+
+	/* Completed step indicator styling. */
+	.step[data-state="completed"] .step-indicator {
+		@apply border-success bg-success text-success-content;
+	}
+
+	/* Error step indicator styling. */
+	.step[data-state="error"] .step-indicator {
+		@apply border-error bg-error text-error-content;
+	}
+
+	/* Highlight connectors leading into completed or current steps. */
+	.step[data-state="completed"]::after,
+	.step[data-state="current"]::after {
+		@apply bg-primary;
+	}
+
+	/* Tabs list container. */
 	.tab-list {
 		@apply inline-flex h-9 items-center justify-center rounded-box bg-base-200 p-1 text-base-content/60;
 	}
 
+	/* Individual tab trigger. */
 	.tab-trigger {
 		@apply inline-flex items-center justify-center whitespace-nowrap rounded-field px-3 py-1 text-sm font-medium text-base-content/70 transition-all hover:bg-base-100 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:pointer-events-none disabled:opacity-60 data-[selected]:bg-primary data-[selected]:font-semibold data-[selected]:text-primary-content data-[selected]:shadow-sm data-[selected]:ring-1 data-[selected]:ring-primary/40;
 	}
 
+	/* Tab panel surface. */
 	.tab-content {
-		@apply mt-2 rounded-box border border-base-300 bg-base-100 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50;
+		@apply panel-base mt-2 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50;
 	}
 
 	/* Interactive containers */
+	/* Accordion surface. */
 	.accordion {
-		@apply w-full rounded-box border border-base-300 bg-base-100;
+		@apply panel-base w-full;
 	}
 
+	/* Accordion item divider. */
 	.accordion-item {
 		@apply border-b border-base-300 last:border-b-0;
 	}
 
+	/* Accordion trigger row. */
 	.accordion-trigger {
-		@apply flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium hover:bg-base-200;
+		@apply interactive-item flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium;
 	}
 
+	/* Accordion panel content. */
 	.accordion-content {
 		@apply px-4 pb-4 text-sm text-base-content/80;
 	}
 
+	/* Collapsible surface. */
 	.collapsible {
-		@apply rounded-box border border-base-300 bg-base-100;
+		@apply panel-base;
 	}
 
+	/* Collapsible trigger row. */
 	.collapsible-trigger {
-		@apply flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium hover:bg-base-200;
+		@apply interactive-item flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium;
 	}
 
+	/* Collapsible content area. */
 	.collapsible-content {
 		@apply px-4 pb-4 text-sm text-base-content/80;
 	}
 
+	/* Fixed-ratio media wrapper. */
 	.aspect-ratio {
-		@apply relative w-full overflow-hidden rounded-box border border-base-300 bg-base-100;
+		@apply panel-base relative w-full overflow-hidden;
 		aspect-ratio: 16 / 9;
 	}
 
+	/* Centered content overlay inside an aspect-ratio box. */
 	.aspect-ratio-content {
 		@apply absolute inset-0 flex items-center justify-center text-sm text-base-content/70;
 	}
 
+	/* Carousel viewport surface. */
 	.carousel {
-		@apply relative overflow-hidden rounded-box border border-base-300 bg-base-100;
+		@apply panel-base relative overflow-hidden;
 	}
 
+	/* Sliding track for carousel items. */
 	.carousel-track {
 		@apply flex transition-transform duration-300;
 	}
 
+	/* Individual carousel slide. */
 	.carousel-item {
 		@apply min-w-full p-6;
 	}
 
+	/* Dot navigation container for a carousel. */
 	.carousel-nav {
 		@apply absolute inset-x-0 bottom-3 flex justify-center gap-2;
 	}
 
+	/* Carousel navigation dot. */
 	.carousel-dot {
 		@apply h-2 w-2 rounded-full bg-base-content/30;
 	}
 
+	/* Active carousel navigation dot. */
 	.carousel-dot[data-active="true"] {
 		@apply bg-primary;
 	}
 
 	/* Overlay patterns */
+	/* Relative wrapper for dialog primitives. */
 	.dialog {
 		@apply relative;
 	}
 
+	/* Full-screen backdrop behind a dialog. */
 	.dialog-backdrop {
 		@apply fixed inset-0 z-40 bg-black/70;
 	}
 
+	/* Dialog panel surface. */
 	.dialog-panel {
-		@apply fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-box border border-base-300 bg-base-100 p-6 shadow-lg;
+		@apply panel-base fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 p-6 shadow-lg;
 	}
 
+	/* Dialog title and description wrapper. */
 	.dialog-header {
 		@apply space-y-1;
 	}
 
+	/* Dialog title text. */
 	.dialog-title {
 		@apply text-lg font-semibold;
 	}
 
+	/* Dialog supporting text. */
 	.dialog-description {
 		@apply text-sm text-base-content/60;
 	}
 
+	/* Dialog action row. */
 	.dialog-footer {
 		@apply mt-4 flex justify-end gap-2;
 	}
 
+	/* Dialog close button. */
 	.dialog-close {
-		@apply absolute right-4 top-4 cursor-pointer rounded-field p-0.5 opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50;
+		@apply overlay-close absolute right-4 top-4;
 	}
 
+	/* Full-screen backdrop behind a sheet. */
 	.sheet-backdrop {
 		@apply fixed inset-0 z-40 bg-black/70;
 	}
 
+	/* Relative wrapper for sheet primitives. */
 	.sheet {
 		@apply relative;
 	}
 
+	/* Base sheet panel surface. */
 	.sheet-panel {
 		@apply fixed z-50 bg-base-100 p-6 shadow-lg;
 	}
 
+	/* Right-aligned sheet variant. */
 	.sheet-panel[data-side="right"] {
 		@apply inset-y-0 right-0 h-full w-full max-w-md border-l border-base-300;
 	}
 
+	/* Left-aligned sheet variant. */
 	.sheet-panel[data-side="left"] {
 		@apply inset-y-0 left-0 h-full w-full max-w-md border-r border-base-300;
 	}
 
+	/* Top-aligned sheet variant. */
 	.sheet-panel[data-side="top"] {
 		@apply inset-x-0 top-0 w-full border-b border-base-300;
 	}
 
+	/* Bottom-aligned sheet variant. */
 	.sheet-panel[data-side="bottom"] {
 		@apply inset-x-0 bottom-0 w-full border-t border-base-300;
 	}
 
+	/* Sheet title and description wrapper. */
 	.sheet-header {
 		@apply space-y-1;
 	}
 
+	/* Sheet title text. */
 	.sheet-title {
 		@apply text-lg font-semibold;
 	}
 
+	/* Sheet supporting text. */
 	.sheet-description {
 		@apply text-sm text-base-content/60;
 	}
 
+	/* Sheet action row. */
 	.sheet-footer {
 		@apply mt-4 flex justify-end gap-2;
 	}
 
+	/* Sheet close button. */
 	.sheet-close {
-		@apply absolute right-4 top-4 cursor-pointer rounded-field p-0.5 opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50;
+		@apply overlay-close absolute right-4 top-4;
 	}
 
+	/* Relative wrapper for a popover trigger and panel. */
 	.popover {
 		@apply relative inline-block;
 	}
 
+	/* Floating popover panel. */
 	.popover-panel {
-		@apply absolute left-0 top-full z-40 mt-2 min-w-56 rounded-box border border-base-300 bg-base-100 p-3 text-sm shadow-lg;
+		@apply popup-base min-w-56 p-3 text-sm;
 	}
 
+	/* Relative wrapper for a dropdown trigger and menu. */
 	.dropdown {
 		@apply relative inline-block;
 	}
 
+	/* Floating dropdown menu surface. */
 	.dropdown-menu {
-		@apply absolute left-0 top-full z-40 mt-2 min-w-48 rounded-box border border-base-300 bg-base-100 p-1 shadow-lg;
+		@apply popup-base min-w-48 p-1;
 	}
 
+	/* Small label at the top of a dropdown menu. */
 	.dropdown-label {
 		@apply px-2 py-1.5 text-xs font-medium text-base-content/60;
 	}
 
+	/* Clickable dropdown row. */
 	.dropdown-item {
-		@apply flex w-full items-center rounded-field px-2 py-1.5 text-sm hover:bg-base-200;
+		@apply interactive-item flex w-full items-center px-2 py-1.5 text-sm;
 	}
 
+	/* Divider between dropdown groups. */
 	.dropdown-separator {
 		@apply my-1 h-px bg-base-300;
 	}
 
+	/* Relative wrapper for tooltip trigger and content. */
 	.tooltip {
 		@apply relative inline-flex;
 	}
 
+	/* Tooltip bubble content. */
 	.tooltip-content {
 		@apply absolute bottom-[calc(100%+0.5rem)] left-1/2 z-40 -translate-x-1/2 whitespace-nowrap rounded-field bg-base-content px-2 py-1 text-xs text-base-100 shadow;
 	}
 
 	/* Toast / flash */
+	/* Fixed stack container for toast messages. */
 	.toast-stack {
 		@apply fixed right-4 top-4 z-50 space-y-2;
 	}
 
+	/* Base toast surface. */
 	.toast {
-		@apply flex max-w-96 flex-col rounded-box border border-base-300 bg-base-100 shadow-lg;
+		@apply panel-base flex max-w-96 flex-col shadow-lg;
 	}
 
+	/* Success toast border state. */
 	.toast-success {
 		@apply border-success/40;
 	}
 
+	/* Info toast border state. */
 	.toast-info {
 		@apply border-info/40;
 	}
 
+	/* Warning toast border state. */
 	.toast-warning {
 		@apply border-warning/40;
 	}
 
+	/* Error toast border state. */
 	.toast-error {
 		@apply border-error/40;
 	}
 
+	/* Toast header row. */
 	.toast-header {
 		@apply flex items-center justify-between border-b border-base-300 px-4 py-2;
 	}
 
+	/* Colored status dot inside a toast. */
 	.toast-indicator {
 		@apply h-3 w-3 rounded-full bg-info;
 	}
 
+	/* Small time label inside a toast. */
 	.toast-time {
 		@apply text-xs text-base-content/60;
 	}
 
+	/* Toast dismiss button. */
 	.toast-close {
-		@apply cursor-pointer rounded-field p-0.5 opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50;
+		@apply overlay-close;
 	}
 
+	/* Main toast body text. */
 	.toast-message {
 		@apply px-4 py-3 text-sm text-base-content;
 	}
 
+	/* Success indicator color override. */
 	.toast-success .toast-indicator {
 		@apply bg-success;
 	}
 
+	/* Info indicator color override. */
 	.toast-info .toast-indicator {
 		@apply bg-info;
 	}
 
+	/* Warning indicator color override. */
 	.toast-warning .toast-indicator {
 		@apply bg-warning;
 	}
 
+	/* Error indicator color override. */
 	.toast-error .toast-indicator {
 		@apply bg-error;
 	}

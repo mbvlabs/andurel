@@ -1,7 +1,74 @@
+/* Shared base for text-like form controls. */
 @utility input-base {
 	@apply flex w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60;
 }
 
+/* Default border and focus treatment for valid controls. */
+@utility control-default {
+	@apply border border-base-300 focus:border-primary focus:ring-primary/50;
+}
+
+/* Error border and focus treatment for invalid controls. */
+@utility control-error {
+	@apply border border-error focus:border-error focus:ring-error/50;
+}
+
+/* Shared label typography and disabled-peer handling. */
 @utility label-base {
 	@apply text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60;
+}
+
+/* Reusable hoverable row or action item surface. */
+@utility interactive-item {
+	@apply rounded-field transition-colors hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50;
+}
+
+/* Standard bordered panel surface used by cards and containers. */
+@utility panel-base {
+	@apply rounded-box border border-base-300 bg-base-100;
+}
+
+/* Shared close-button treatment for dismissible overlays. */
+@utility overlay-close {
+	@apply cursor-pointer rounded-field p-0.5 opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50;
+}
+
+/* Shared floating popup panel anchored below a trigger. */
+@utility popup-base {
+	@apply absolute left-0 top-full z-40 mt-2 rounded-box border border-base-300 bg-base-100 shadow-lg;
+}
+
+/* Success feedback text and border styling. */
+@utility status-success {
+	@apply border-success/40 text-success;
+}
+
+/* Informational feedback text and border styling. */
+@utility status-info {
+	@apply border-info/40 text-info;
+}
+
+/* Warning feedback text and border styling. */
+@utility status-warning {
+	@apply border-warning/40 text-warning;
+}
+
+/* Error feedback text and border styling. */
+@utility status-error {
+	@apply border-error/40 text-error;
+}
+
+/* Stronger destructive feedback surface for dangerous actions. */
+@utility status-destructive {
+	@apply border-error bg-error text-error-content;
+}
+
+/* Shared checkbox and radio sizing, focus, and disabled state. */
+@utility checkable-base {
+	@apply h-4 w-4 border border-base-300 text-primary focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+/* Shared switch-like control focus and disabled behavior. */
+@utility toggle-base {
+	@apply transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60;
 }
