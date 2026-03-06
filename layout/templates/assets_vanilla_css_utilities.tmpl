@@ -1,16 +1,28 @@
-.u-flow > * + * {
+:where(.flow, .u-flow) > * + * {
 	margin-block-start: var(--space-4);
 }
 
-.u-muted {
+:where(.flow, .u-flow)[data-gap="sm"] > * + * {
+	margin-block-start: var(--space-3);
+}
+
+:where(.flow, .u-flow)[data-gap="lg"] > * + * {
+	margin-block-start: var(--space-5);
+}
+
+:where(.muted, .u-muted) {
 	color: var(--text-muted);
 }
 
-.u-center {
+:where(.text-center, .u-center) {
 	text-align: center;
 }
 
-.u-visually-hidden {
+:where(.full-width) {
+	inline-size: 100%;
+}
+
+:where(.visually-hidden, .u-visually-hidden) {
 	position: absolute;
 	inline-size: 1px;
 	block-size: 1px;
