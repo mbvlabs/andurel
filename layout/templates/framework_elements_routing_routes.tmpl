@@ -191,6 +191,7 @@ func (r RouteWithUUIDID) Path() string {
 func (r RouteWithUUIDID) URL(id uuid.UUID, opts ...RouteOption) string {
 	path := strings.Replace(r.Path(), ":id", id.String(), 1)
 	return applyOptions(path, opts...)
+}
 
 func (r RouteWithUUIDID) GetParam() string {
 	return "id"
