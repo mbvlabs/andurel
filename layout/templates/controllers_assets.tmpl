@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"path"
+	"strings"
 
 	"{{.ModuleName}}/assets"
 	"{{.ModuleName}}/config"
@@ -178,7 +180,12 @@ func (a Assets) Stylesheet(etx *echo.Context) error {
 
 {{- if eq .CSSFramework "vanilla"}}
 func (a Assets) StyleImport(etx *echo.Context) error {
-	param := etx.Param("file")
+	param := strings.TrimPrefix(etx.Param("*"), "/")
+	param = path.Clean(param)
+	if param == "." || param == "" || strings.HasPrefix(param, "../") {
+		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+	}
+
 	stylesheet, err := assets.Files.ReadFile(
 		fmt.Sprintf("css/%s", param),
 	)
