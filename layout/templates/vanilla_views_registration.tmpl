@@ -8,23 +8,47 @@ import (
 
 templ RegistrationForm() {
 	@base() {
-		<main>
-			<h1>Sign Up</h1>
-			<form data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()) }>
-				<div>
-					<label for="email">Email</label>
-					<input type="email" id="email" data-bind="email" data-attr:disabled="$submitting" required/>
+		<main class="auth-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">Create an account</h1>
+						<p class="card-description">Enter your details below to create your account.</p>
+					</div>
+					<div class="card-content">
+						<form class="form" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()) }>
+							<fieldset class="fieldset" data-attr:disabled="$submitting">
+								<div class="field">
+									<label class="field-label" for="email">Email</label>
+									<div class="field-control">
+										<input class="input" type="email" id="email" data-bind="email" required/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="password">Password</label>
+									<div class="field-control">
+										<input class="input" type="password" id="password" data-bind="password" required minlength="8"/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="confirmPassword">Confirm Password</label>
+									<div class="field-control">
+										<input class="input" type="password" id="confirmPassword" data-bind="confirmPassword" required minlength="8"/>
+									</div>
+								</div>
+								<button class="btn btn-primary btn-block" type="submit">
+									<span data-show="!$submitting">Sign Up</span>
+									<span data-show="$submitting">Loading</span>
+								</button>
+							</fieldset>
+						</form>
+					</div>
+					<div class="card-footer">
+						<p class="field-hint">Already have an account?</p>
+						<a class="btn-link" href={ routes.SessionNew.URL() }>Login</a>
+					</div>
 				</div>
-				<div>
-					<label for="password">Password</label>
-					<input type="password" id="password" data-bind="password" data-attr:disabled="$submitting" required minlength="8"/>
-				</div>
-				<div>
-					<label for="confirmPassword">Confirm Password</label>
-					<input type="password" id="confirmPassword" data-bind="confirmPassword" data-attr:disabled="$submitting" required minlength="8"/>
-				</div>
-				<button type="submit">Sign Up</button>
-			</form>
+			</section>
 		</main>
 	}
 }

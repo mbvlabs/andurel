@@ -1,11 +1,12 @@
+.toast-stack,
 #flashContainer {
 	position: fixed;
 	inset-inline-end: var(--space-4);
-	inset-block-end: var(--space-4);
+	inset-block-start: var(--space-4);
 	display: grid;
 	gap: var(--space-3);
 	inline-size: min(24rem, calc(100vw - 2 * var(--space-4)));
-	z-index: 10;
+	z-index: var(--z-toast);
 }
 
 #flashContainer > div,
@@ -21,19 +22,94 @@
 	backdrop-filter: blur(10px);
 }
 
-#flashContainer strong,
+.toast {
+	padding: 0;
+	overflow: clip;
+}
+
+.toast-success {
+	border-color: color-mix(in oklab, var(--success) 35%, var(--border-subtle));
+}
+
+.toast-info {
+	border-color: color-mix(in oklab, var(--info) 35%, var(--border-subtle));
+}
+
+.toast-warning {
+	border-color: color-mix(in oklab, var(--warning) 35%, var(--border-subtle));
+}
+
+.toast-error {
+	border-color: color-mix(in oklab, var(--error) 35%, var(--border-subtle));
+}
+
+.toast-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+	padding: var(--space-3) var(--space-4);
+	border-block-end: 1px solid color-mix(in oklab, var(--border-subtle) 80%, transparent);
+}
+
+.toast-header .cluster {
+	flex-wrap: nowrap;
+}
+
+.toast-indicator {
+	inline-size: 0.75rem;
+	block-size: 0.75rem;
+	border-radius: var(--radius-round);
+	background: var(--info);
+}
+
+.toast-success .toast-indicator {
+	background: var(--success);
+}
+
+.toast-info .toast-indicator {
+	background: var(--info);
+}
+
+.toast-warning .toast-indicator {
+	background: var(--warning);
+}
+
+.toast-error .toast-indicator {
+	background: var(--error);
+}
+
+.toast-time {
+	color: var(--text-muted);
+	font-size: 0.75rem;
+}
+
+.toast-close {
+	--btn-bg: transparent;
+	--btn-border: transparent;
+	--btn-text: var(--text-muted);
+	--btn-shadow: none;
+	--btn-hover-bg: color-mix(in oklab, var(--surface-panel-muted) 82%, transparent);
+	--btn-hover-border: transparent;
+	--btn-hover-shadow: none;
+	--btn-hover-text: var(--text-strong);
+
+	min-block-size: 2rem;
+	padding-inline: var(--space-2);
+}
+
+.toast-message {
+	padding: var(--space-4);
+	color: var(--text-strong);
+}
+
 .toast-title {
 	font-size: var(--step--1);
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
 }
 
-#flashContainer span,
-.toast-body {
-	color: var(--text-strong);
-}
-
-#flashContainer small,
+.toast-body,
 .status-subtle {
 	color: var(--text-muted);
 }

@@ -23,3 +23,45 @@
 .card {
 	padding: var(--space-5);
 }
+
+.card {
+	overflow: clip;
+}
+
+.card-header,
+.card-content,
+.card-footer {
+	padding-inline: var(--space-5);
+}
+
+.card-header {
+	display: grid;
+	gap: var(--space-2);
+	padding-block: var(--space-5) var(--space-3);
+}
+
+.card-title {
+	color: var(--text-strong);
+	font-size: var(--step-1);
+	line-height: 1.1;
+}
+
+.card-description {
+	color: var(--text-muted);
+	font-size: var(--step--1);
+	max-inline-size: 60ch;
+}
+
+.card-content {
+	display: grid;
+	gap: var(--space-4);
+	padding-block: 0 var(--space-5);
+}
+
+.card-footer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-3);
+	padding-block: 0 var(--space-5);
+}

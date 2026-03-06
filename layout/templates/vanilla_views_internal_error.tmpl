@@ -2,6 +2,15 @@ package views
 
 templ InternalError() {
 	@base() {
-		<h1>something went wrong on our end.</h1>
+		<main class="error-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">Internal error</h1>
+						<p class="card-description">Something went wrong on our end. Please try again in a moment.</p>
+					</div>
+				</div>
+			</section>
+		</main>
 	}
 }
