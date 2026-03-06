@@ -4,11 +4,46 @@ package routing
 
 import (
 	"log/slog"
+	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
 )
+
+type routeOptions struct {
+	query url.Values
+}
+
+// QueryParam appends a query parameter to a generated route URL.
+func QueryParam(key, value string) RouteOption {
+	return func(opts *routeOptions) {
+		if opts.query == nil {
+			opts.query = make(url.Values)
+		}
+
+		opts.query.Add(key, value)
+	}
+}
+
+func applyOptions(path string, opts ...RouteOption) string {
+	if len(opts) == 0 {
+		return path
+	}
+
+	var routeOpts routeOptions
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&routeOpts)
+		}
+	}
+
+	if len(routeOpts.query) == 0 {
+		return path
+	}
+
+	return path + "?" + routeOpts.query.Encode()
+}
 
 func configureName(name, prefix string) string {
 	if prefix == "" {
@@ -124,8 +159,8 @@ func NewSimpleRoute(path, name, prefix string) Route {
 	return Route{name, path, prefix}
 }
 
-func (r Route) URL() string {
-	return configurePath(r.path, r.prefix, r.name)
+func (r Route) URL(opts ...RouteOption) string {
+	return applyOptions(configurePath(r.path, r.prefix, r.name), opts...)
 }
 
 func (r Route) Name() string {
@@ -153,12 +188,13 @@ func (r RouteWithUUIDID) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
-func (r RouteWithUUIDID) GetParam() string {
-	return "id"
+func (r RouteWithUUIDID) URL(id uuid.UUID, opts ...RouteOption) string {
+	path := strings.Replace(r.Path(), ":id", id.String(), 1)
+	return applyOptions(path, opts...)
 }
 
-func (r RouteWithUUIDID) URL(id uuid.UUID) string {
-	return strings.Replace(r.Path(), ":id", id.String(), 1)
+func (r RouteWithUUIDID) GetParam() string {
+	return "id"
 }
 
 type RouteWithSerialID Route
@@ -178,12 +214,13 @@ func (r RouteWithSerialID) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
-func (r RouteWithSerialID) GetParam() string {
-	return "id"
+func (r RouteWithSerialID) URL(id int32, opts ...RouteOption) string {
+	path := strings.Replace(r.Path(), ":id", strconv.Itoa(int(id)), 1)
+	return applyOptions(path, opts...)
 }
 
-func (r RouteWithSerialID) URL(id int32) string {
-	return strings.Replace(r.Path(), ":id", strconv.Itoa(int(id)), 1)
+func (r RouteWithSerialID) GetParam() string {
+	return "id"
 }
 
 type RouteWithBigSerialID Route
@@ -203,12 +240,13 @@ func (r RouteWithBigSerialID) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
-func (r RouteWithBigSerialID) GetParam() string {
-	return "id"
+func (r RouteWithBigSerialID) URL(id int64, opts ...RouteOption) string {
+	path := strings.Replace(r.Path(), ":id", strconv.FormatInt(id, 10), 1)
+	return applyOptions(path, opts...)
 }
 
-func (r RouteWithBigSerialID) URL(id int64) string {
-	return strings.Replace(r.Path(), ":id", strconv.FormatInt(id, 10), 1)
+func (r RouteWithBigSerialID) GetParam() string {
+	return "id"
 }
 
 type RouteWithStringID Route
@@ -228,12 +266,13 @@ func (r RouteWithStringID) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
-func (r RouteWithStringID) GetParam() string {
-	return "id"
+func (r RouteWithStringID) URL(id string, opts ...RouteOption) string {
+	path := strings.Replace(r.Path(), ":id", id, 1)
+	return applyOptions(path, opts...)
 }
 
-func (r RouteWithStringID) URL(id string) string {
-	return strings.Replace(r.Path(), ":id", id, 1)
+func (r RouteWithStringID) GetParam() string {
+	return "id"
 }
 
 type RouteWithIDs Route
@@ -253,13 +292,13 @@ func (r RouteWithIDs) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
-func (r RouteWithIDs) URL(ids map[string]uuid.UUID) string {
+func (r RouteWithIDs) URL(ids map[string]uuid.UUID, opts ...RouteOption) string {
 	route := r.Path()
 	for param, id := range ids {
 		route = strings.Replace(route, ":"+param, id.String(), 1)
 	}
 
-	return route
+	return applyOptions(route, opts...)
 }
 
 type RouteWithSlug Route
@@ -278,12 +317,13 @@ func (r RouteWithSlug) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
-func (r RouteWithSlug) GetParam() string {
-	return "slug"
+func (r RouteWithSlug) URL(slug string, opts ...RouteOption) string {
+	path := strings.Replace(r.Path(), ":slug", slug, 1)
+	return applyOptions(path, opts...)
 }
 
-func (r RouteWithSlug) URL(slug string) string {
-	return strings.Replace(r.Path(), ":slug", slug, 1)
+func (r RouteWithSlug) GetParam() string {
+	return "slug"
 }
 
 type RouteWithToken Route
@@ -302,12 +342,13 @@ func (r RouteWithToken) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
-func (r RouteWithToken) GetParam() string {
-	return "token"
+func (r RouteWithToken) URL(token string, opts ...RouteOption) string {
+	path := strings.Replace(r.Path(), ":token", token, 1)
+	return applyOptions(path, opts...)
 }
 
-func (r RouteWithToken) URL(token string) string {
-	return strings.Replace(r.Path(), ":token", token, 1)
+func (r RouteWithToken) GetParam() string {
+	return "token"
 }
 
 type RouteWithFile Route
@@ -326,10 +367,11 @@ func (r RouteWithFile) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
-func (r RouteWithFile) GetParam() string {
-	return "file"
+func (r RouteWithFile) URL(file string, opts ...RouteOption) string {
+	path := strings.Replace(r.Path(), ":file", file, 1)
+	return applyOptions(path, opts...)
 }
 
-func (r RouteWithFile) URL(file string) string {
-	return strings.Replace(r.Path(), ":file", file, 1)
+func (r RouteWithFile) GetParam() string {
+	return "file"
 }
