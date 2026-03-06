@@ -65,3 +65,120 @@
 	gap: var(--space-3);
 	padding-block: 0 var(--space-5);
 }
+
+.empty-state {
+	display: grid;
+	place-items: center;
+	gap: var(--space-3);
+	padding: var(--space-7) var(--space-5);
+	text-align: center;
+}
+
+.empty-state > * {
+	margin: 0;
+}
+
+.empty-state-icon {
+	display: inline-grid;
+	place-items: center;
+	inline-size: 3.5rem;
+	block-size: 3.5rem;
+	border-radius: var(--radius-round);
+	background: color-mix(in oklab, var(--surface-panel-muted) 90%, var(--surface-page));
+	color: var(--text-muted);
+}
+
+.empty-state-title {
+	color: var(--text-strong);
+	font-size: var(--step-1);
+	font-weight: var(--font-weight-semibold);
+}
+
+.empty-state-description {
+	max-inline-size: 46ch;
+	color: var(--text-muted);
+}
+
+.empty-state-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: var(--space-3);
+}
+
+.code-inline {
+	display: inline-flex;
+	align-items: center;
+	padding: 0.2em 0.5em;
+	border-radius: var(--radius-sm);
+	background: color-mix(in oklab, var(--surface-panel-muted) 90%, var(--surface-page));
+	color: var(--text-strong);
+	font-family: var(--font-mono);
+	font-size: 0.85em;
+}
+
+.code-block,
+.table-wrap {
+	overflow-x: auto;
+}
+
+.code-block {
+	padding: var(--space-4);
+	font-family: var(--font-mono);
+	font-size: var(--step--1);
+	line-height: 1.6;
+}
+
+.table-wrap {
+	padding: var(--space-2);
+}
+
+.table {
+	inline-size: 100%;
+	border-collapse: collapse;
+	font-size: var(--step--1);
+}
+
+.table caption {
+	padding: var(--space-3);
+	color: var(--text-muted);
+	text-align: left;
+}
+
+.table :where(th, td) {
+	padding: var(--space-3);
+	text-align: left;
+	vertical-align: middle;
+}
+
+.table thead {
+	border-block-end: 1px solid var(--border-subtle);
+	background: color-mix(in oklab, var(--surface-panel-muted) 80%, transparent);
+}
+
+.table thead tr {
+	color: var(--text-strong);
+}
+
+.table th {
+	font-weight: var(--font-weight-medium);
+	color: var(--text-muted);
+}
+
+.table tbody tr {
+	border-block-end: 1px solid color-mix(in oklab, var(--border-subtle) 85%, transparent);
+}
+
+.table tbody tr:last-child {
+	border-block-end: none;
+}
+
+.table tbody tr:hover {
+	background: color-mix(in oklab, var(--surface-panel-muted) 65%, transparent);
+}
+
+.table tfoot {
+	border-block-start: 1px solid var(--border-subtle);
+	background: color-mix(in oklab, var(--surface-panel-muted) 72%, transparent);
+	font-weight: var(--font-weight-medium);
+}

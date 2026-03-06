@@ -11,17 +11,28 @@ import (
 
 templ ItemIndex(items []models.Item) {
 	@base() {
-		<main>
-			<div>
-				<h1>Items</h1>
-				<a href={ routes.ItemNew.URL() }>New Item</a>
-			</div>
-			<div>
+		<main class="page-shell">
+			<section class="container stack" data-gap="lg">
+				<div class="cluster" data-justify="between">
+					<div class="stack" data-gap="sm">
+						<h1>Items</h1>
+						<p class="muted">Manage your items with the shared vanilla component system.</p>
+					</div>
+					<a class="btn btn-primary" href={ routes.ItemNew.URL() }>New Item</a>
+				</div>
 				if len(items) == 0 {
-					<p>No items found.</p>
+					<section class="panel empty-state">
+						<div class="stack text-center" data-gap="sm">
+							<h2 class="empty-state-title">No items found</h2>
+							<p class="empty-state-description">Create your first item to start filling this view.</p>
+						</div>
+						<div class="empty-state-actions">
+							<a class="btn btn-primary" href={ routes.ItemNew.URL() }>New Item</a>
+						</div>
+					</section>
 				} else {
-					<div>
-						<table>
+					<div class="panel table-wrap">
+						<table class="table">
 							<thead>
 								<tr>
 									<th>Warehouse Id</th>
@@ -41,8 +52,10 @@ templ ItemIndex(items []models.Item) {
 										<td>{ item.CreatedAt.String() }</td>
 										<td>{ item.UpdatedAt.String() }</td>
 										<td>
-											<a href={ routes.ItemShow.URL(item.ID) }>View</a>
-											<a href={ routes.ItemEdit.URL(item.ID) }>Edit</a>
+											<div class="cluster" data-gap="sm">
+												<a class="btn btn-ghost btn-sm" href={ routes.ItemShow.URL(item.ID) }>View</a>
+												<a class="btn btn-outline btn-sm" href={ routes.ItemEdit.URL(item.ID) }>Edit</a>
+											</div>
 										</td>
 									</tr>
 								}
@@ -50,122 +63,151 @@ templ ItemIndex(items []models.Item) {
 						</table>
 					</div>
 				}
-			</div>
+			</section>
 		</main>
 	}
 }
 
 templ ItemShow(item models.Item) {
 	@base() {
-		<main>
-			<div>
-				<h1>Item Details</h1>
-				<div>
-					<a href={ routes.ItemEdit.URL(item.ID) }>Edit</a>
-					<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
-				</div>
-			</div>
-			<div>
-				<div>
-					<div>
-						<label>Warehouse Id</label>
-						<p>{ item.WarehouseID.String() }</p>
+		<main class="page-shell">
+			<section class="container stack" data-gap="lg">
+				<div class="cluster" data-justify="between">
+					<div class="stack" data-gap="sm">
+						<h1>Item Details</h1>
+						<p class="muted">Review the current values stored for this item.</p>
 					</div>
-					<div>
-						<label>Name</label>
-						<p>{ item.Name }</p>
-					</div>
-					<div>
-						<label>Quantity</label>
-						<p>{ fmt.Sprintf("%d", item.Quantity) }</p>
-					</div>
-					<div>
-						<label>Created At</label>
-						<p>{ item.CreatedAt.String() }</p>
-					</div>
-					<div>
-						<label>Updated At</label>
-						<p>{ item.UpdatedAt.String() }</p>
+					<div class="cluster" data-gap="sm">
+						<a class="btn btn-primary" href={ routes.ItemEdit.URL(item.ID) }>Edit</a>
+						<a class="btn btn-outline" href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
 					</div>
 				</div>
-			</div>
+				<div class="panel">
+					<div class="grid-auto-fit" data-grid="compact">
+						<div class="field">
+							<p class="field-label">Warehouse Id</p>
+							<p>{ item.WarehouseID.String() }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Name</p>
+							<p>{ item.Name }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Quantity</p>
+							<p>{ fmt.Sprintf("%d", item.Quantity) }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Created At</p>
+							<p>{ item.CreatedAt.String() }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Updated At</p>
+							<p>{ item.UpdatedAt.String() }</p>
+						</div>
+					</div>
+				</div>
+			</section>
 		</main>
 	}
 }
 
 templ ItemNew() {
 	@base() {
-		<main>
-			<div>
-				<form
-					data-indicator:submitting
-					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.ItemCreate.URL()) }
-				>
-					<div>
-						<h2>New Item</h2>
-						<p>Enter the details for the new item.</p>
+		<main class="auth-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">New Item</h1>
+						<p class="card-description">Enter the details for the new item.</p>
 					</div>
-					<div>
-						<div>
-							<label for="warehouseId">Warehouse Id</label>
-							<input type="text" id="warehouseId" name="warehouseId" data-bind="warehouseId"/>
-						</div>
-						<div>
-							<label for="name">Name</label>
-							<input type="text" id="name" name="name" data-bind="name"/>
-						</div>
-						<div>
-							<label for="quantity">Quantity</label>
-							<input type="number" id="quantity" name="quantity" data-bind="quantity"/>
-						</div>
+					<div class="card-content">
+						<form
+							class="form"
+							data-indicator:submitting
+							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.ItemCreate.URL()) }
+						>
+							<fieldset class="fieldset" data-attr:disabled="$submitting">
+								<div class="field">
+									<label class="field-label" for="warehouseId">Warehouse Id</label>
+									<div class="field-control">
+										<input class="input" type="text" id="warehouseId" name="warehouseId" data-bind="warehouseId"/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="name">Name</label>
+									<div class="field-control">
+										<input class="input" type="text" id="name" name="name" data-bind="name"/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="quantity">Quantity</label>
+									<div class="field-control">
+										<input class="input" type="number" id="quantity" name="quantity" data-bind="quantity"/>
+									</div>
+								</div>
+								<div class="stack" data-gap="sm">
+									<button class="btn btn-primary btn-block" type="submit">Create Item</button>
+									<a class="btn btn-outline btn-block" href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
+								</div>
+							</fieldset>
+						</form>
 					</div>
-					<button type="submit">Create Item</button>
-					<p>
-						<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
-					</p>
-				</form>
-			</div>
+				</div>
+			</section>
 		</main>
 	}
 }
 
 templ ItemEdit(item models.Item) {
 	@base() {
-		<main>
-			<div>
-				<form
-					data-indicator:submitting
-					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.ItemUpdate.URL(item.ID)) }
-				>
-					<div>
-						<h2>Edit Item</h2>
-						<p>Update the details for this item.</p>
+		<main class="auth-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">Edit Item</h1>
+						<p class="card-description">Update the details for this item.</p>
 					</div>
-					<div>
-						<div>
-							<label for="warehouseId">Warehouse Id</label>
-							<input type="text" id="warehouseId" name="warehouseId" data-bind="warehouseId" value={ item.WarehouseID.String() }/>
-						</div>
-						<div>
-							<label for="name">Name</label>
-							<input type="text" id="name" name="name" data-bind="name" value={ item.Name }/>
-						</div>
-						<div>
-							<label for="quantity">Quantity</label>
-							<input type="number" id="quantity" name="quantity" data-bind="quantity" value={ fmt.Sprintf("%d", item.Quantity) }/>
-						</div>
+					<div class="card-content">
+						<form
+							class="form"
+							data-indicator:submitting
+							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.ItemUpdate.URL(item.ID)) }
+						>
+							<fieldset class="fieldset" data-attr:disabled="$submitting">
+								<div class="field">
+									<label class="field-label" for="warehouseId">Warehouse Id</label>
+									<div class="field-control">
+										<input class="input" type="text" id="warehouseId" name="warehouseId" data-bind="warehouseId" value={ item.WarehouseID.String() }/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="name">Name</label>
+									<div class="field-control">
+										<input class="input" type="text" id="name" name="name" data-bind="name" value={ item.Name }/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="quantity">Quantity</label>
+									<div class="field-control">
+										<input class="input" type="number" id="quantity" name="quantity" data-bind="quantity" value={ fmt.Sprintf("%d", item.Quantity) }/>
+									</div>
+								</div>
+								<div class="stack" data-gap="sm">
+									<button class="btn btn-primary btn-block" type="submit">Update Item</button>
+									<a class="btn btn-outline btn-block" href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
+								</div>
+							</fieldset>
+						</form>
 					</div>
-					<button type="submit">Update Item</button>
-					<p>
-						<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
-					</p>
-				</form>
-				<div>
-					<button
-						data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ItemDestroy.URL(item.ID)) }
-					>Destroy Item</button>
+					<div class="card-footer">
+						<button
+							class="btn btn-destructive btn-block"
+							type="button"
+							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ItemDestroy.URL(item.ID)) }
+						>Destroy Item</button>
+					</div>
 				</div>
-			</div>
+			</section>
 		</main>
 	}
 }

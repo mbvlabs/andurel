@@ -10,8 +10,7 @@
 }
 
 #flashContainer > div,
-.toast,
-.status {
+.toast {
 	display: grid;
 	gap: var(--space-1);
 	padding: var(--space-4);
@@ -27,20 +26,66 @@
 	overflow: clip;
 }
 
-.toast-success {
-	border-color: color-mix(in oklab, var(--success) 35%, var(--border-subtle));
+.status,
+.alert {
+	--feedback-accent: var(--neutral);
+	--feedback-surface: color-mix(in oklab, var(--surface-panel) 95%, transparent);
+	--feedback-border: color-mix(in oklab, var(--feedback-accent) 32%, var(--border-subtle));
+	--feedback-text: var(--text-strong);
+
+	display: grid;
+	gap: var(--space-1);
+	padding: var(--space-4);
+	border: 1px solid var(--feedback-border);
+	border-inline-start-width: 0.375rem;
+	border-radius: var(--radius-md);
+	background: var(--feedback-surface);
+	box-shadow: var(--shadow-sm);
+	color: var(--feedback-text);
 }
 
-.toast-info {
-	border-color: color-mix(in oklab, var(--info) 35%, var(--border-subtle));
+.alert {
+	inline-size: 100%;
 }
 
-.toast-warning {
-	border-color: color-mix(in oklab, var(--warning) 35%, var(--border-subtle));
+.status-neutral,
+.alert-neutral {
+	--feedback-accent: var(--neutral);
 }
 
-.toast-error {
-	border-color: color-mix(in oklab, var(--error) 35%, var(--border-subtle));
+.toast-success,
+.status-success,
+.alert-success {
+	--feedback-accent: var(--success);
+	--feedback-surface: color-mix(in oklab, var(--success) 10%, var(--surface-panel));
+}
+
+.toast-info,
+.status-info,
+.alert-info {
+	--feedback-accent: var(--info);
+	--feedback-surface: color-mix(in oklab, var(--info) 10%, var(--surface-panel));
+}
+
+.toast-warning,
+.status-warning,
+.alert-warning {
+	--feedback-accent: var(--warning);
+	--feedback-surface: color-mix(in oklab, var(--warning) 12%, var(--surface-panel));
+}
+
+.toast-error,
+.status-error,
+.alert-error {
+	--feedback-accent: var(--error);
+	--feedback-surface: color-mix(in oklab, var(--error) 10%, var(--surface-panel));
+}
+
+.status-destructive,
+.alert-destructive {
+	--feedback-accent: var(--error);
+	--feedback-border: color-mix(in oklab, var(--error) 70%, var(--border-subtle));
+	--feedback-surface: color-mix(in oklab, var(--error) 18%, var(--surface-panel));
 }
 
 .toast-header {
@@ -84,6 +129,16 @@
 	font-size: 0.75rem;
 }
 
+.status-title,
+.alert-title,
+.toast-title {
+	color: inherit;
+	font-size: var(--step--1);
+	font-weight: var(--font-weight-semibold);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
 .toast-close {
 	--btn-bg: transparent;
 	--btn-border: transparent;
@@ -103,13 +158,8 @@
 	color: var(--text-strong);
 }
 
-.toast-title {
-	font-size: var(--step--1);
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-}
-
 .toast-body,
-.status-subtle {
+.status-subtle,
+.alert-description {
 	color: var(--text-muted);
 }

@@ -11,17 +11,28 @@ import (
 
 templ OrderIndex(orders []models.Order) {
 	@base() {
-		<main>
-			<div>
-				<h1>Orders</h1>
-				<a href={ routes.OrderNew.URL() }>New Order</a>
-			</div>
-			<div>
+		<main class="page-shell">
+			<section class="container stack" data-gap="lg">
+				<div class="cluster" data-justify="between">
+					<div class="stack" data-gap="sm">
+						<h1>Orders</h1>
+						<p class="muted">Manage your orders with the shared vanilla component system.</p>
+					</div>
+					<a class="btn btn-primary" href={ routes.OrderNew.URL() }>New Order</a>
+				</div>
 				if len(orders) == 0 {
-					<p>No orders found.</p>
+					<section class="panel empty-state">
+						<div class="stack text-center" data-gap="sm">
+							<h2 class="empty-state-title">No orders found</h2>
+							<p class="empty-state-description">Create your first order to start filling this view.</p>
+						</div>
+						<div class="empty-state-actions">
+							<a class="btn btn-primary" href={ routes.OrderNew.URL() }>New Order</a>
+						</div>
+					</section>
 				} else {
-					<div>
-						<table>
+					<div class="panel table-wrap">
+						<table class="table">
 							<thead>
 								<tr>
 									<th>Account Id</th>
@@ -43,8 +54,10 @@ templ OrderIndex(orders []models.Order) {
 										<td>{ order.CreatedAt.String() }</td>
 										<td>{ order.UpdatedAt.String() }</td>
 										<td>
-											<a href={ routes.OrderShow.URL(order.ID) }>View</a>
-											<a href={ routes.OrderEdit.URL(order.ID) }>Edit</a>
+											<div class="cluster" data-gap="sm">
+												<a class="btn btn-ghost btn-sm" href={ routes.OrderShow.URL(order.ID) }>View</a>
+												<a class="btn btn-outline btn-sm" href={ routes.OrderEdit.URL(order.ID) }>Edit</a>
+											</div>
 										</td>
 									</tr>
 								}
@@ -52,134 +65,167 @@ templ OrderIndex(orders []models.Order) {
 						</table>
 					</div>
 				}
-			</div>
+			</section>
 		</main>
 	}
 }
 
 templ OrderShow(order models.Order) {
 	@base() {
-		<main>
-			<div>
-				<h1>Order Details</h1>
-				<div>
-					<a href={ routes.OrderEdit.URL(order.ID) }>Edit</a>
-					<a href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
-				</div>
-			</div>
-			<div>
-				<div>
-					<div>
-						<label>Account Id</label>
-						<p>{ order.AccountID.String() }</p>
+		<main class="page-shell">
+			<section class="container stack" data-gap="lg">
+				<div class="cluster" data-justify="between">
+					<div class="stack" data-gap="sm">
+						<h1>Order Details</h1>
+						<p class="muted">Review the current values stored for this order.</p>
 					</div>
-					<div>
-						<label>Customer Name</label>
-						<p>{ order.CustomerName }</p>
-					</div>
-					<div>
-						<label>Total</label>
-						<p>{ fmt.Sprintf("%f", order.Total) }</p>
-					</div>
-					<div>
-						<label>Signature</label>
-						<p>{ string(order.Signature) }</p>
-					</div>
-					<div>
-						<label>Created At</label>
-						<p>{ order.CreatedAt.String() }</p>
-					</div>
-					<div>
-						<label>Updated At</label>
-						<p>{ order.UpdatedAt.String() }</p>
+					<div class="cluster" data-gap="sm">
+						<a class="btn btn-primary" href={ routes.OrderEdit.URL(order.ID) }>Edit</a>
+						<a class="btn btn-outline" href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
 					</div>
 				</div>
-			</div>
+				<div class="panel">
+					<div class="grid-auto-fit" data-grid="compact">
+						<div class="field">
+							<p class="field-label">Account Id</p>
+							<p>{ order.AccountID.String() }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Customer Name</p>
+							<p>{ order.CustomerName }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Total</p>
+							<p>{ fmt.Sprintf("%f", order.Total) }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Signature</p>
+							<p>{ string(order.Signature) }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Created At</p>
+							<p>{ order.CreatedAt.String() }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Updated At</p>
+							<p>{ order.UpdatedAt.String() }</p>
+						</div>
+					</div>
+				</div>
+			</section>
 		</main>
 	}
 }
 
 templ OrderNew() {
 	@base() {
-		<main>
-			<div>
-				<form
-					data-indicator:submitting
-					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.OrderCreate.URL()) }
-				>
-					<div>
-						<h2>New Order</h2>
-						<p>Enter the details for the new order.</p>
+		<main class="auth-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">New Order</h1>
+						<p class="card-description">Enter the details for the new order.</p>
 					</div>
-					<div>
-						<div>
-							<label for="accountId">Account Id</label>
-							<input type="text" id="accountId" name="accountId" data-bind="accountId"/>
-						</div>
-						<div>
-							<label for="customerName">Customer Name</label>
-							<input type="text" id="customerName" name="customerName" data-bind="customerName"/>
-						</div>
-						<div>
-							<label for="total">Total</label>
-							<input type="number" id="total" name="total" data-bind="total"/>
-						</div>
-						<div>
-							<label for="signature">Signature</label>
-							<input type="text" id="signature" name="signature" data-bind="signature"/>
-						</div>
+					<div class="card-content">
+						<form
+							class="form"
+							data-indicator:submitting
+							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.OrderCreate.URL()) }
+						>
+							<fieldset class="fieldset" data-attr:disabled="$submitting">
+								<div class="field">
+									<label class="field-label" for="accountId">Account Id</label>
+									<div class="field-control">
+										<input class="input" type="text" id="accountId" name="accountId" data-bind="accountId"/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="customerName">Customer Name</label>
+									<div class="field-control">
+										<input class="input" type="text" id="customerName" name="customerName" data-bind="customerName"/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="total">Total</label>
+									<div class="field-control">
+										<input class="input" type="number" id="total" name="total" data-bind="total"/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="signature">Signature</label>
+									<div class="field-control">
+										<input class="input" type="text" id="signature" name="signature" data-bind="signature"/>
+									</div>
+								</div>
+								<div class="stack" data-gap="sm">
+									<button class="btn btn-primary btn-block" type="submit">Create Order</button>
+									<a class="btn btn-outline btn-block" href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
+								</div>
+							</fieldset>
+						</form>
 					</div>
-					<button type="submit">Create Order</button>
-					<p>
-						<a href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
-					</p>
-				</form>
-			</div>
+				</div>
+			</section>
 		</main>
 	}
 }
 
 templ OrderEdit(order models.Order) {
 	@base() {
-		<main>
-			<div>
-				<form
-					data-indicator:submitting
-					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.OrderUpdate.URL(order.ID)) }
-				>
-					<div>
-						<h2>Edit Order</h2>
-						<p>Update the details for this order.</p>
+		<main class="auth-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">Edit Order</h1>
+						<p class="card-description">Update the details for this order.</p>
 					</div>
-					<div>
-						<div>
-							<label for="accountId">Account Id</label>
-							<input type="text" id="accountId" name="accountId" data-bind="accountId" value={ order.AccountID.String() }/>
-						</div>
-						<div>
-							<label for="customerName">Customer Name</label>
-							<input type="text" id="customerName" name="customerName" data-bind="customerName" value={ order.CustomerName }/>
-						</div>
-						<div>
-							<label for="total">Total</label>
-							<input type="number" id="total" name="total" data-bind="total" value={ fmt.Sprintf("%f", order.Total) }/>
-						</div>
-						<div>
-							<label for="signature">Signature</label>
-							<input type="text" id="signature" name="signature" data-bind="signature" value={ string(order.Signature) }/>
-						</div>
+					<div class="card-content">
+						<form
+							class="form"
+							data-indicator:submitting
+							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.OrderUpdate.URL(order.ID)) }
+						>
+							<fieldset class="fieldset" data-attr:disabled="$submitting">
+								<div class="field">
+									<label class="field-label" for="accountId">Account Id</label>
+									<div class="field-control">
+										<input class="input" type="text" id="accountId" name="accountId" data-bind="accountId" value={ order.AccountID.String() }/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="customerName">Customer Name</label>
+									<div class="field-control">
+										<input class="input" type="text" id="customerName" name="customerName" data-bind="customerName" value={ order.CustomerName }/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="total">Total</label>
+									<div class="field-control">
+										<input class="input" type="number" id="total" name="total" data-bind="total" value={ fmt.Sprintf("%f", order.Total) }/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="signature">Signature</label>
+									<div class="field-control">
+										<input class="input" type="text" id="signature" name="signature" data-bind="signature" value={ string(order.Signature) }/>
+									</div>
+								</div>
+								<div class="stack" data-gap="sm">
+									<button class="btn btn-primary btn-block" type="submit">Update Order</button>
+									<a class="btn btn-outline btn-block" href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
+								</div>
+							</fieldset>
+						</form>
 					</div>
-					<button type="submit">Update Order</button>
-					<p>
-						<a href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
-					</p>
-				</form>
-				<div>
-					<button
-						data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.OrderDestroy.URL(order.ID)) }
-					>Destroy Order</button>
+					<div class="card-footer">
+						<button
+							class="btn btn-destructive btn-block"
+							type="button"
+							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.OrderDestroy.URL(order.ID)) }
+						>Destroy Order</button>
+					</div>
 				</div>
-			</div>
+			</section>
 		</main>
 	}
 }
