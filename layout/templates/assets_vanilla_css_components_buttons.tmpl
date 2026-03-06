@@ -1,7 +1,12 @@
-:where(.btn, button, input[type="submit"], input[type="button"], input[type="reset"]) {
+:where(.btn, .copy-button, button, input[type="submit"], input[type="button"], input[type="reset"]) {
 	--btn-bg: var(--surface-inverse);
 	--btn-border: var(--surface-inverse);
 	--btn-text: var(--text-inverse);
+	--btn-shadow: var(--shadow-sm);
+	--btn-hover-bg: color-mix(in oklab, var(--btn-bg) 88%, white);
+	--btn-hover-border: var(--btn-hover-bg);
+	--btn-hover-text: var(--btn-text);
+	--btn-hover-shadow: var(--shadow-md);
 
 	display: inline-flex;
 	align-items: center;
@@ -12,7 +17,7 @@
 	border: 1px solid var(--btn-border);
 	border-radius: var(--radius-round);
 	background: var(--btn-bg);
-	box-shadow: var(--shadow-sm);
+	box-shadow: var(--btn-shadow);
 	color: var(--btn-text);
 	cursor: pointer;
 	font-weight: 600;
@@ -26,16 +31,26 @@
 		box-shadow var(--duration-base) var(--ease-standard);
 }
 
-:where(.btn, button, input[type="submit"], input[type="button"], input[type="reset"]):hover {
+:where(.btn, .copy-button, button, input[type="submit"], input[type="button"], input[type="reset"]):hover {
+	background: var(--btn-hover-bg);
+	border-color: var(--btn-hover-border);
+	color: var(--btn-hover-text);
 	transform: translateY(-1px);
-	box-shadow: var(--shadow-md);
+	box-shadow: var(--btn-hover-shadow);
 }
 
-:where(.btn, button, input[type="submit"], input[type="button"], input[type="reset"]):active {
+:where(.btn, .copy-button, button, input[type="submit"], input[type="button"], input[type="reset"]):focus-visible {
+	outline: none;
+	box-shadow:
+		0 0 0 4px color-mix(in oklab, var(--ring) 42%, transparent),
+		var(--btn-shadow);
+}
+
+:where(.btn, .copy-button, button, input[type="submit"], input[type="button"], input[type="reset"]):active {
 	transform: translateY(0);
 }
 
-:where(.btn, button, input[type="submit"], input[type="button"], input[type="reset"])[disabled] {
+:where(.btn, .copy-button, button, input[type="submit"], input[type="button"], input[type="reset"])[disabled] {
 	opacity: 0.55;
 	cursor: not-allowed;
 	transform: none;
@@ -46,54 +61,85 @@
 	--btn-bg: var(--primary);
 	--btn-border: var(--primary);
 	--btn-text: white;
+	--btn-hover-bg: color-mix(in oklab, var(--primary) 90%, black);
+	--btn-hover-border: color-mix(in oklab, var(--primary) 90%, black);
 }
 
 .btn-secondary {
 	--btn-bg: var(--secondary);
 	--btn-border: var(--secondary);
 	--btn-text: var(--text-inverse);
+	--btn-hover-bg: color-mix(in oklab, var(--secondary) 90%, black);
+	--btn-hover-border: color-mix(in oklab, var(--secondary) 90%, black);
 }
 
 .btn-accent {
 	--btn-bg: var(--accent);
 	--btn-border: var(--accent);
 	--btn-text: oklch(18% 0.02 145);
+	--btn-hover-bg: color-mix(in oklab, var(--accent) 90%, black);
+	--btn-hover-border: color-mix(in oklab, var(--accent) 90%, black);
 }
 
 .btn-neutral {
 	--btn-bg: var(--surface-panel-muted);
 	--btn-border: var(--border-subtle);
 	--btn-text: var(--text-strong);
+	--btn-hover-bg: color-mix(in oklab, var(--surface-panel-muted) 82%, var(--surface-page));
+	--btn-hover-border: var(--border-strong);
 }
 
 .btn-destructive {
 	--btn-bg: var(--destructive);
 	--btn-border: var(--destructive);
 	--btn-text: white;
+	--btn-hover-bg: color-mix(in oklab, var(--destructive) 90%, black);
+	--btn-hover-border: color-mix(in oklab, var(--destructive) 90%, black);
 }
 
 .btn-outline {
 	--btn-bg: transparent;
 	--btn-border: var(--border-strong);
 	--btn-text: var(--text-strong);
+	--btn-hover-bg: color-mix(in oklab, var(--surface-panel-muted) 74%, transparent);
+	--btn-hover-border: var(--border-strong);
 }
 
 .btn-ghost {
 	--btn-bg: transparent;
 	--btn-border: transparent;
 	--btn-text: var(--text-strong);
-	box-shadow: none;
+	--btn-shadow: none;
+	--btn-hover-shadow: none;
+	--btn-hover-bg: color-mix(in oklab, var(--surface-panel-muted) 82%, transparent);
+	--btn-hover-border: transparent;
 }
 
 .btn-link {
 	--btn-bg: transparent;
 	--btn-border: transparent;
 	--btn-text: var(--primary);
+	--btn-shadow: none;
+	--btn-hover-shadow: none;
+	--btn-hover-bg: transparent;
+	--btn-hover-border: transparent;
+	--btn-hover-text: var(--primary-strong);
 	min-block-size: auto;
 	padding-inline: 0;
-	box-shadow: none;
 	text-decoration: underline;
 	text-underline-offset: 0.18em;
+	transform: none;
+}
+
+.btn-ghost:hover,
+.btn-link:hover {
+	transform: none;
+}
+
+.btn-xs {
+	min-block-size: 2rem;
+	padding-inline: var(--space-3);
+	font-size: 0.75rem;
 }
 
 .btn-sm {
@@ -125,10 +171,41 @@
 
 .btn-group {
 	display: inline-flex;
-	flex-wrap: wrap;
-	gap: var(--space-2);
+	align-items: stretch;
+	gap: 0;
+	isolation: isolate;
+}
+
+.btn-group > :where(.btn, .copy-button, button, input[type="submit"], input[type="button"], input[type="reset"]) {
+	border-radius: 0;
+}
+
+.btn-group > :where(.btn, .copy-button, button, input[type="submit"], input[type="button"], input[type="reset"]):first-child {
+	border-start-start-radius: var(--radius-round);
+	border-end-start-radius: var(--radius-round);
+}
+
+.btn-group > :where(.btn, .copy-button, button, input[type="submit"], input[type="button"], input[type="reset"]):last-child {
+	border-start-end-radius: var(--radius-round);
+	border-end-end-radius: var(--radius-round);
+}
+
+.btn-group > :where(.btn, .copy-button, button, input[type="submit"], input[type="button"], input[type="reset"]) + :where(.btn, .copy-button, button, input[type="submit"], input[type="button"], input[type="reset"]) {
+	margin-inline-start: -1px;
+}
+
+.btn-group > :where(.btn, .copy-button, button, input[type="submit"], input[type="button"], input[type="reset"]):focus-visible {
+	position: relative;
+	z-index: 1;
 }
 
 .copy-button {
+	--btn-bg: transparent;
+	--btn-border: var(--border-subtle);
+	--btn-text: var(--text-strong);
+	--btn-hover-bg: color-mix(in oklab, var(--surface-panel-muted) 82%, transparent);
+	--btn-hover-border: var(--border-strong);
+	--btn-shadow: var(--shadow-sm);
+
 	font-family: var(--font-mono);
 }
