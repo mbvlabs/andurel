@@ -105,6 +105,9 @@ func TestRouteURL(t *testing.T) {
 func TestRouteWithUUIDIDURL(t *testing.T) {
 	id := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	route := routing.NewRouteWithUUIDID("/:id", "articles.show", "/articles")
+	if param := route.GetParam(); param != "id" {
+		t.Fatalf("RouteWithUUIDID.GetParam() = %q, want %q", param, "id")
+	}
 	result := route.URL(id)
 	expected := "/articles/550e8400-e29b-41d4-a716-446655440000"
 	if result != expected {
@@ -114,6 +117,9 @@ func TestRouteWithUUIDIDURL(t *testing.T) {
 
 func TestRouteWithSerialIDURL(t *testing.T) {
 	route := routing.NewRouteWithSerialID("/:id", "articles.show", "/articles")
+	if param := route.GetParam(); param != "id" {
+		t.Fatalf("RouteWithSerialID.GetParam() = %q, want %q", param, "id")
+	}
 	result := route.URL(int32(42))
 	expected := "/articles/42"
 	if result != expected {
@@ -123,6 +129,9 @@ func TestRouteWithSerialIDURL(t *testing.T) {
 
 func TestRouteWithBigSerialIDURL(t *testing.T) {
 	route := routing.NewRouteWithBigSerialID("/:id", "articles.show", "/articles")
+	if param := route.GetParam(); param != "id" {
+		t.Fatalf("RouteWithBigSerialID.GetParam() = %q, want %q", param, "id")
+	}
 	result := route.URL(int64(9999999999))
 	expected := "/articles/9999999999"
 	if result != expected {
@@ -132,9 +141,40 @@ func TestRouteWithBigSerialIDURL(t *testing.T) {
 
 func TestRouteWithStringIDURL(t *testing.T) {
 	route := routing.NewRouteWithStringID("/:id", "articles.show", "/articles")
+	if param := route.GetParam(); param != "id" {
+		t.Fatalf("RouteWithStringID.GetParam() = %q, want %q", param, "id")
+	}
 	result := route.URL("my-slug-id")
 	expected := "/articles/my-slug-id"
 	if result != expected {
 		t.Errorf("RouteWithStringID.URL() = %q, want %q", result, expected)
+	}
+}
+
+func TestParamRoutesGetParam(t *testing.T) {
+	tests := []struct {
+		name     string
+		gotParam string
+	}{
+		{
+			name:     "slug",
+			gotParam: routing.NewRouteWithSlug("/:slug", "articles.show", "/articles").GetParam(),
+		},
+		{
+			name:     "token",
+			gotParam: routing.NewRouteWithToken("/:token", "password.edit", "/password").GetParam(),
+		},
+		{
+			name:     "file",
+			gotParam: routing.NewRouteWithFile("/:file", "files.show", "/files").GetParam(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.gotParam != tt.name {
+				t.Fatalf("GetParam() = %q, want %q", tt.gotParam, tt.name)
+			}
+		})
 	}
 }
