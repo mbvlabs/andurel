@@ -1,0 +1,87 @@
+:root {
+	color-scheme: light;
+
+	--font-sans: "Inter", "Segoe UI", sans-serif;
+	--font-mono: "IBM Plex Mono", "SFMono-Regular", monospace;
+
+	--step--1: 0.875rem;
+	--step-0: 1rem;
+	--step-1: clamp(1.25rem, 1.1rem + 0.75vw, 1.75rem);
+	--step-2: clamp(1.75rem, 1.35rem + 2vw, 3rem);
+	--step-3: clamp(2.25rem, 1.6rem + 3vw, 4rem);
+
+	--space-1: 0.25rem;
+	--space-2: 0.5rem;
+	--space-3: 0.75rem;
+	--space-4: 1rem;
+	--space-5: 1.5rem;
+	--space-6: 2rem;
+	--space-7: 3rem;
+	--space-8: 4rem;
+
+	--radius-sm: 0.5rem;
+	--radius-md: 0.9rem;
+	--radius-lg: 1.5rem;
+	--radius-round: 999px;
+
+	--shadow-sm: 0 1px 2px hsl(220 30% 12% / 0.08);
+	--shadow-md: 0 12px 30px hsl(220 35% 20% / 0.12);
+	--shadow-lg: 0 24px 60px hsl(220 35% 18% / 0.18);
+
+	--duration-fast: 120ms;
+	--duration-base: 180ms;
+	--ease-standard: cubic-bezier(0.2, 0, 0.13, 1);
+
+	--surface-page: oklch(98% 0.01 240);
+	--surface-panel: oklch(100% 0 0);
+	--surface-panel-muted: oklch(97% 0.01 240);
+	--surface-inverse: oklch(23% 0.03 250);
+	--text-strong: oklch(24% 0.02 255);
+	--text-muted: oklch(49% 0.03 250);
+	--text-inverse: oklch(98% 0 0);
+	--border-subtle: oklch(88% 0.01 250);
+	--border-strong: oklch(75% 0.02 250);
+
+	--primary: oklch(58% 0.19 256);
+	--primary-strong: oklch(49% 0.19 257);
+	--secondary: oklch(65% 0.1 205);
+	--accent: oklch(72% 0.16 145);
+	--neutral: oklch(59% 0.02 250);
+	--destructive: oklch(60% 0.22 26);
+	--warning: oklch(76% 0.16 78);
+	--success: oklch(71% 0.15 148);
+
+	--ring: color-mix(in oklab, var(--primary) 35%, white);
+	--container-inline: min(72rem, calc(100vw - 2 * var(--space-5)));
+	--measure: 65ch;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		color-scheme: dark;
+
+		--surface-page: oklch(20% 0.02 255);
+		--surface-panel: oklch(27% 0.02 255);
+		--surface-panel-muted: oklch(31% 0.02 255);
+		--surface-inverse: oklch(96% 0 0);
+		--text-strong: oklch(96% 0 0);
+		--text-muted: oklch(78% 0.02 250);
+		--text-inverse: oklch(20% 0.02 255);
+		--border-subtle: oklch(38% 0.02 255);
+		--border-strong: oklch(52% 0.02 255);
+
+		--primary: oklch(69% 0.16 255);
+		--primary-strong: oklch(77% 0.14 255);
+		--secondary: oklch(74% 0.09 205);
+		--accent: oklch(79% 0.14 145);
+		--neutral: oklch(72% 0.02 255);
+		--destructive: oklch(68% 0.18 28);
+		--warning: oklch(82% 0.12 84);
+		--success: oklch(79% 0.12 150);
+
+		--shadow-sm: 0 1px 2px hsl(220 50% 3% / 0.22);
+		--shadow-md: 0 14px 36px hsl(220 50% 3% / 0.34);
+		--shadow-lg: 0 28px 72px hsl(220 50% 3% / 0.4);
+		--ring: color-mix(in oklab, var(--primary) 45%, white);
+	}
+}

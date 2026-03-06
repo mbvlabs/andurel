@@ -1,0 +1,108 @@
+:where(form) {
+	display: grid;
+	gap: var(--space-4);
+}
+
+:where(form > div),
+.field,
+.fieldset {
+	display: grid;
+	gap: var(--space-2);
+}
+
+.form {
+	display: grid;
+	gap: var(--space-4);
+}
+
+.label,
+.field-label,
+:where(label) {
+	color: var(--text-strong);
+	font-weight: 600;
+}
+
+.field-hint {
+	color: var(--text-muted);
+	font-size: var(--step--1);
+}
+
+.field-error {
+	color: var(--destructive);
+	font-size: var(--step--1);
+}
+
+.field-addon,
+.input-group {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+:where(.input, .textarea, .select, input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="submit"], [type="button"], [type="reset"]), textarea, select) {
+	inline-size: 100%;
+	min-block-size: 2.75rem;
+	padding-inline: var(--space-3);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-sm);
+	background: var(--surface-panel-muted);
+	color: var(--text-strong);
+	box-shadow: inset 0 1px 2px hsl(220 30% 15% / 0.05);
+	transition:
+		border-color var(--duration-base) var(--ease-standard),
+		box-shadow var(--duration-base) var(--ease-standard),
+		background-color var(--duration-base) var(--ease-standard);
+}
+
+:where(textarea, .textarea) {
+	min-block-size: 8rem;
+	padding-block: var(--space-3);
+}
+
+:where(.input, .textarea, .select, input, textarea, select):focus-visible {
+	border-color: var(--primary);
+	box-shadow:
+		0 0 0 4px color-mix(in oklab, var(--primary) 18%, transparent),
+		inset 0 1px 2px hsl(220 30% 15% / 0.05);
+	outline: none;
+}
+
+.input-error,
+.textarea-error,
+.select-error {
+	border-color: color-mix(in oklab, var(--destructive) 75%, black);
+}
+
+.checkbox-group,
+.radio-group,
+.radio-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-3);
+}
+
+.checkbox,
+.radio,
+.switch {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.switch {
+	padding: var(--space-1);
+	border-radius: var(--radius-round);
+	background: var(--surface-panel-muted);
+	border: 1px solid var(--border-subtle);
+}
+
+.switch-thumb {
+	inline-size: 1rem;
+	block-size: 1rem;
+	border-radius: var(--radius-round);
+	background: var(--primary);
+}
+
+.slider {
+	inline-size: 100%;
+}

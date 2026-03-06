@@ -7,7 +7,6 @@ import (
 	"testapp/internal/renderer"
 	"testapp/models"
 	"testapp/router/routes"
-	"testapp/views/components"
 )
 
 templ ItemIndex(items []models.Item) {
@@ -107,11 +106,20 @@ templ ItemNew() {
 						<p>Enter the details for the new item.</p>
 					</div>
 					<div>
-						@components.InputField("Warehouse Id", "warehouseId", "text", "", false, components.FieldProp{})
-						@components.InputField("Name", "name", "text", "", false, components.FieldProp{})
-						@components.InputField("Quantity", "quantity", "number", "", false, components.FieldProp{})
+						<div>
+							<label for="warehouseId">Warehouse Id</label>
+							<input type="text" id="warehouseId" name="warehouseId" data-bind="warehouseId"/>
+						</div>
+						<div>
+							<label for="name">Name</label>
+							<input type="text" id="name" name="name" data-bind="name"/>
+						</div>
+						<div>
+							<label for="quantity">Quantity</label>
+							<input type="number" id="quantity" name="quantity" data-bind="quantity"/>
+						</div>
 					</div>
-					@components.SubmitButton("Create Item")
+					<button type="submit">Create Item</button>
 					<p>
 						<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
 					</p>
@@ -134,17 +142,20 @@ templ ItemEdit(item models.Item) {
 						<p>Update the details for this item.</p>
 					</div>
 					<div>
-						@components.InputField("Warehouse Id", "warehouseId", "text", "", false, components.FieldProp{
-							Value: item.WarehouseID.String(),
-						})
-						@components.InputField("Name", "name", "text", "", false, components.FieldProp{
-							Value: item.Name,
-						})
-						@components.InputField("Quantity", "quantity", "number", "", false, components.FieldProp{
-							Value: fmt.Sprintf("%d", item.Quantity),
-						})
+						<div>
+							<label for="warehouseId">Warehouse Id</label>
+							<input type="text" id="warehouseId" name="warehouseId" data-bind="warehouseId" value={ item.WarehouseID.String() }/>
+						</div>
+						<div>
+							<label for="name">Name</label>
+							<input type="text" id="name" name="name" data-bind="name" value={ item.Name }/>
+						</div>
+						<div>
+							<label for="quantity">Quantity</label>
+							<input type="number" id="quantity" name="quantity" data-bind="quantity" value={ fmt.Sprintf("%d", item.Quantity) }/>
+						</div>
 					</div>
-					@components.SubmitButton("Update Item")
+					<button type="submit">Update Item</button>
 					<p>
 						<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
 					</p>

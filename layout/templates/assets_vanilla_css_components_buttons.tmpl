@@ -1,0 +1,134 @@
+:where(.btn, button, input[type="submit"], input[type="button"], input[type="reset"]) {
+	--btn-bg: var(--surface-inverse);
+	--btn-border: var(--surface-inverse);
+	--btn-text: var(--text-inverse);
+
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	min-block-size: 2.75rem;
+	padding-inline: var(--space-4);
+	border: 1px solid var(--btn-border);
+	border-radius: var(--radius-round);
+	background: var(--btn-bg);
+	box-shadow: var(--shadow-sm);
+	color: var(--btn-text);
+	cursor: pointer;
+	font-weight: 600;
+	line-height: 1;
+	text-decoration: none;
+	transition:
+		background-color var(--duration-base) var(--ease-standard),
+		border-color var(--duration-base) var(--ease-standard),
+		color var(--duration-base) var(--ease-standard),
+		transform var(--duration-fast) var(--ease-standard),
+		box-shadow var(--duration-base) var(--ease-standard);
+}
+
+:where(.btn, button, input[type="submit"], input[type="button"], input[type="reset"]):hover {
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-md);
+}
+
+:where(.btn, button, input[type="submit"], input[type="button"], input[type="reset"]):active {
+	transform: translateY(0);
+}
+
+:where(.btn, button, input[type="submit"], input[type="button"], input[type="reset"])[disabled] {
+	opacity: 0.55;
+	cursor: not-allowed;
+	transform: none;
+	box-shadow: none;
+}
+
+.btn-primary {
+	--btn-bg: var(--primary);
+	--btn-border: var(--primary);
+	--btn-text: white;
+}
+
+.btn-secondary {
+	--btn-bg: var(--secondary);
+	--btn-border: var(--secondary);
+	--btn-text: var(--text-inverse);
+}
+
+.btn-accent {
+	--btn-bg: var(--accent);
+	--btn-border: var(--accent);
+	--btn-text: oklch(18% 0.02 145);
+}
+
+.btn-neutral {
+	--btn-bg: var(--surface-panel-muted);
+	--btn-border: var(--border-subtle);
+	--btn-text: var(--text-strong);
+}
+
+.btn-destructive {
+	--btn-bg: var(--destructive);
+	--btn-border: var(--destructive);
+	--btn-text: white;
+}
+
+.btn-outline {
+	--btn-bg: transparent;
+	--btn-border: var(--border-strong);
+	--btn-text: var(--text-strong);
+}
+
+.btn-ghost {
+	--btn-bg: transparent;
+	--btn-border: transparent;
+	--btn-text: var(--text-strong);
+	box-shadow: none;
+}
+
+.btn-link {
+	--btn-bg: transparent;
+	--btn-border: transparent;
+	--btn-text: var(--primary);
+	min-block-size: auto;
+	padding-inline: 0;
+	box-shadow: none;
+	text-decoration: underline;
+	text-underline-offset: 0.18em;
+}
+
+.btn-sm {
+	min-block-size: 2.25rem;
+	padding-inline: var(--space-3);
+	font-size: var(--step--1);
+}
+
+.btn-lg {
+	min-block-size: 3rem;
+	padding-inline: var(--space-5);
+}
+
+.btn-xl {
+	min-block-size: 3.5rem;
+	padding-inline: var(--space-6);
+	font-size: var(--step-1);
+}
+
+.btn-icon {
+	inline-size: 2.75rem;
+	padding-inline: 0;
+}
+
+.btn-block {
+	display: inline-flex;
+	inline-size: 100%;
+}
+
+.btn-group {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+.copy-button {
+	font-family: var(--font-mono);
+}

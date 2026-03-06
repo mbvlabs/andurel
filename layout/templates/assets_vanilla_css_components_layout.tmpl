@@ -1,0 +1,18 @@
+:where(body > footer) {
+	border-top: 1px solid color-mix(in oklab, var(--border-subtle) 85%, transparent);
+	color: var(--text-muted);
+	padding: var(--space-4);
+}
+
+:where(body > footer > div) {
+	inline-size: var(--container-inline);
+	margin-inline: auto;
+}
+
+:where(main > :first-child) {
+	margin-block-start: 0;
+}
+
+:where(main > * + *) {
+	margin-block-start: var(--space-5);
+}

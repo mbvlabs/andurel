@@ -7,7 +7,6 @@ import (
 	"testapp/internal/renderer"
 	"testapp/models"
 	"testapp/router/routes"
-	"testapp/views/components"
 )
 
 templ ReviewIndex(reviews []models.Review) {
@@ -107,11 +106,20 @@ templ ReviewNew() {
 						<p>Enter the details for the new review.</p>
 					</div>
 					<div>
-						@components.InputField("Title", "title", "text", "", false, components.FieldProp{})
-						@components.InputField("Body", "body", "text", "", false, components.FieldProp{})
-						@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{})
+						<div>
+							<label for="title">Title</label>
+							<input type="text" id="title" name="title" data-bind="title"/>
+						</div>
+						<div>
+							<label for="body">Body</label>
+							<input type="text" id="body" name="body" data-bind="body"/>
+						</div>
+						<div>
+							<label for="rating">Rating</label>
+							<input type="number" id="rating" name="rating" data-bind="rating"/>
+						</div>
 					</div>
-					@components.SubmitButton("Create Review")
+					<button type="submit">Create Review</button>
 					<p>
 						<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
 					</p>
@@ -134,17 +142,20 @@ templ ReviewEdit(review models.Review) {
 						<p>Update the details for this review.</p>
 					</div>
 					<div>
-						@components.InputField("Title", "title", "text", "", false, components.FieldProp{
-							Value: review.Title,
-						})
-						@components.InputField("Body", "body", "text", "", false, components.FieldProp{
-							Value: review.Body,
-						})
-						@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{
-							Value: fmt.Sprintf("%d", review.Rating),
-						})
+						<div>
+							<label for="title">Title</label>
+							<input type="text" id="title" name="title" data-bind="title" value={ review.Title }/>
+						</div>
+						<div>
+							<label for="body">Body</label>
+							<input type="text" id="body" name="body" data-bind="body" value={ review.Body }/>
+						</div>
+						<div>
+							<label for="rating">Rating</label>
+							<input type="number" id="rating" name="rating" data-bind="rating" value={ fmt.Sprintf("%d", review.Rating) }/>
+						</div>
 					</div>
-					@components.SubmitButton("Update Review")
+					<button type="submit">Update Review</button>
 					<p>
 						<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
 					</p>

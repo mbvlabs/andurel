@@ -1,0 +1,25 @@
+:where(main) {
+	background: color-mix(in oklab, var(--surface-panel) 88%, transparent);
+	border: 1px solid color-mix(in oklab, var(--border-subtle) 75%, transparent);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-lg);
+}
+
+:where(form),
+.panel,
+.card {
+	background: var(--surface-panel);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-sm);
+}
+
+:where(form) {
+	max-inline-size: min(100%, 34rem);
+	padding: var(--space-5);
+}
+
+.panel,
+.card {
+	padding: var(--space-5);
+}

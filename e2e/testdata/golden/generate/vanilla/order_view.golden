@@ -7,7 +7,6 @@ import (
 	"testapp/internal/renderer"
 	"testapp/models"
 	"testapp/router/routes"
-	"testapp/views/components"
 )
 
 templ OrderIndex(orders []models.Order) {
@@ -113,12 +112,24 @@ templ OrderNew() {
 						<p>Enter the details for the new order.</p>
 					</div>
 					<div>
-						@components.InputField("Account Id", "accountId", "text", "", false, components.FieldProp{})
-						@components.InputField("Customer Name", "customerName", "text", "", false, components.FieldProp{})
-						@components.InputField("Total", "total", "number", "", false, components.FieldProp{})
-						@components.InputField("Signature", "signature", "text", "", false, components.FieldProp{})
+						<div>
+							<label for="accountId">Account Id</label>
+							<input type="text" id="accountId" name="accountId" data-bind="accountId"/>
+						</div>
+						<div>
+							<label for="customerName">Customer Name</label>
+							<input type="text" id="customerName" name="customerName" data-bind="customerName"/>
+						</div>
+						<div>
+							<label for="total">Total</label>
+							<input type="number" id="total" name="total" data-bind="total"/>
+						</div>
+						<div>
+							<label for="signature">Signature</label>
+							<input type="text" id="signature" name="signature" data-bind="signature"/>
+						</div>
 					</div>
-					@components.SubmitButton("Create Order")
+					<button type="submit">Create Order</button>
 					<p>
 						<a href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
 					</p>
@@ -141,20 +152,24 @@ templ OrderEdit(order models.Order) {
 						<p>Update the details for this order.</p>
 					</div>
 					<div>
-						@components.InputField("Account Id", "accountId", "text", "", false, components.FieldProp{
-							Value: order.AccountID.String(),
-						})
-						@components.InputField("Customer Name", "customerName", "text", "", false, components.FieldProp{
-							Value: order.CustomerName,
-						})
-						@components.InputField("Total", "total", "number", "", false, components.FieldProp{
-							Value: fmt.Sprintf("%f", order.Total),
-						})
-						@components.InputField("Signature", "signature", "text", "", false, components.FieldProp{
-							Value: string(order.Signature),
-						})
+						<div>
+							<label for="accountId">Account Id</label>
+							<input type="text" id="accountId" name="accountId" data-bind="accountId" value={ order.AccountID.String() }/>
+						</div>
+						<div>
+							<label for="customerName">Customer Name</label>
+							<input type="text" id="customerName" name="customerName" data-bind="customerName" value={ order.CustomerName }/>
+						</div>
+						<div>
+							<label for="total">Total</label>
+							<input type="number" id="total" name="total" data-bind="total" value={ fmt.Sprintf("%f", order.Total) }/>
+						</div>
+						<div>
+							<label for="signature">Signature</label>
+							<input type="text" id="signature" name="signature" data-bind="signature" value={ string(order.Signature) }/>
+						</div>
 					</div>
-					@components.SubmitButton("Update Order")
+					<button type="submit">Update Order</button>
 					<p>
 						<a href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
 					</p>

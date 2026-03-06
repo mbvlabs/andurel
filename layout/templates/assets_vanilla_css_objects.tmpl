@@ -1,0 +1,35 @@
+.o-container {
+	inline-size: var(--container-inline);
+	margin-inline: auto;
+}
+
+.o-stack {
+	display: grid;
+	gap: var(--space-4);
+}
+
+.o-stack[data-gap="sm"] {
+	gap: var(--space-3);
+}
+
+.o-stack[data-gap="lg"] {
+	gap: var(--space-6);
+}
+
+.o-cluster {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-3);
+}
+
+.o-grid {
+	display: grid;
+	gap: var(--space-5);
+}
+
+@media (min-width: 48rem) {
+	.o-grid[data-columns="2"] {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}

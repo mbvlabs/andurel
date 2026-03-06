@@ -7,7 +7,6 @@ import (
 	"testapp/internal/renderer"
 	"testapp/models"
 	"testapp/router/routes"
-	"testapp/views/components"
 )
 
 templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
@@ -107,11 +106,20 @@ templ StudentFeedbackNew() {
 						<p>Enter the details for the new studentfeedback.</p>
 					</div>
 					<div>
-						@components.InputField("Student Id", "studentId", "text", "", false, components.FieldProp{})
-						@components.InputField("Feedback", "feedback", "text", "", false, components.FieldProp{})
-						@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{})
+						<div>
+							<label for="studentId">Student Id</label>
+							<input type="text" id="studentId" name="studentId" data-bind="studentId"/>
+						</div>
+						<div>
+							<label for="feedback">Feedback</label>
+							<input type="text" id="feedback" name="feedback" data-bind="feedback"/>
+						</div>
+						<div>
+							<label for="rating">Rating</label>
+							<input type="number" id="rating" name="rating" data-bind="rating"/>
+						</div>
 					</div>
-					@components.SubmitButton("Create StudentFeedback")
+					<button type="submit">Create StudentFeedback</button>
 					<p>
 						<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
 					</p>
@@ -134,17 +142,20 @@ templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
 						<p>Update the details for this studentfeedback.</p>
 					</div>
 					<div>
-						@components.InputField("Student Id", "studentId", "text", "", false, components.FieldProp{
-							Value: studentfeedback.StudentID,
-						})
-						@components.InputField("Feedback", "feedback", "text", "", false, components.FieldProp{
-							Value: studentfeedback.Feedback,
-						})
-						@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{
-							Value: fmt.Sprintf("%d", studentfeedback.Rating),
-						})
+						<div>
+							<label for="studentId">Student Id</label>
+							<input type="text" id="studentId" name="studentId" data-bind="studentId" value={ studentfeedback.StudentID }/>
+						</div>
+						<div>
+							<label for="feedback">Feedback</label>
+							<input type="text" id="feedback" name="feedback" data-bind="feedback" value={ studentfeedback.Feedback }/>
+						</div>
+						<div>
+							<label for="rating">Rating</label>
+							<input type="number" id="rating" name="rating" data-bind="rating" value={ fmt.Sprintf("%d", studentfeedback.Rating) }/>
+						</div>
 					</div>
-					@components.SubmitButton("Update StudentFeedback")
+					<button type="submit">Update StudentFeedback</button>
 					<p>
 						<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
 					</p>

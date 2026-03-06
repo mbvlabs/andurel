@@ -1,0 +1,39 @@
+#flashContainer {
+	position: fixed;
+	inset-inline-end: var(--space-4);
+	inset-block-end: var(--space-4);
+	display: grid;
+	gap: var(--space-3);
+	inline-size: min(24rem, calc(100vw - 2 * var(--space-4)));
+	z-index: 10;
+}
+
+#flashContainer > div,
+.toast,
+.status {
+	display: grid;
+	gap: var(--space-1);
+	padding: var(--space-4);
+	border: 1px solid color-mix(in oklab, var(--border-subtle) 70%, transparent);
+	border-radius: var(--radius-md);
+	background: color-mix(in oklab, var(--surface-panel) 92%, transparent);
+	box-shadow: var(--shadow-md);
+	backdrop-filter: blur(10px);
+}
+
+#flashContainer strong,
+.toast-title {
+	font-size: var(--step--1);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+#flashContainer span,
+.toast-body {
+	color: var(--text-strong);
+}
+
+#flashContainer small,
+.status-subtle {
+	color: var(--text-muted);
+}
