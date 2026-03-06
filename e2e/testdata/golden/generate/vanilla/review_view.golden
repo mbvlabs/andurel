@@ -7,22 +7,32 @@ import (
 	"testapp/internal/renderer"
 	"testapp/models"
 	"testapp/router/routes"
-	"testapp/views/components"
 )
 
 templ ReviewIndex(reviews []models.Review) {
 	@base() {
-		<main>
-			<div>
-				<h1>Reviews</h1>
-				<a href={ routes.ReviewNew.URL() }>New Review</a>
-			</div>
-			<div>
+		<main class="page-shell">
+			<section class="container stack" data-gap="lg">
+				<div class="cluster" data-justify="between">
+					<div class="stack" data-gap="sm">
+						<h1>Reviews</h1>
+						<p class="muted">Manage your reviews with the shared vanilla component system.</p>
+					</div>
+					<a class="btn btn-primary" href={ routes.ReviewNew.URL() }>New Review</a>
+				</div>
 				if len(reviews) == 0 {
-					<p>No reviews found.</p>
+					<section class="panel empty-state">
+						<div class="stack text-center" data-gap="sm">
+							<h2 class="empty-state-title">No reviews found</h2>
+							<p class="empty-state-description">Create your first review to start filling this view.</p>
+						</div>
+						<div class="empty-state-actions">
+							<a class="btn btn-primary" href={ routes.ReviewNew.URL() }>New Review</a>
+						</div>
+					</section>
 				} else {
-					<div>
-						<table>
+					<div class="panel table-wrap">
+						<table class="table">
 							<thead>
 								<tr>
 									<th>Title</th>
@@ -42,8 +52,10 @@ templ ReviewIndex(reviews []models.Review) {
 										<td>{ review.CreatedAt.String() }</td>
 										<td>{ review.UpdatedAt.String() }</td>
 										<td>
-											<a href={ routes.ReviewShow.URL(review.ID) }>View</a>
-											<a href={ routes.ReviewEdit.URL(review.ID) }>Edit</a>
+											<div class="cluster" data-gap="sm">
+												<a class="btn btn-ghost btn-sm" href={ routes.ReviewShow.URL(review.ID) }>View</a>
+												<a class="btn btn-outline btn-sm" href={ routes.ReviewEdit.URL(review.ID) }>Edit</a>
+											</div>
 										</td>
 									</tr>
 								}
@@ -51,110 +63,151 @@ templ ReviewIndex(reviews []models.Review) {
 						</table>
 					</div>
 				}
-			</div>
+			</section>
 		</main>
 	}
 }
 
 templ ReviewShow(review models.Review) {
 	@base() {
-		<main>
-			<div>
-				<h1>Review Details</h1>
-				<div>
-					<a href={ routes.ReviewEdit.URL(review.ID) }>Edit</a>
-					<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
-				</div>
-			</div>
-			<div>
-				<div>
-					<div>
-						<label>Title</label>
-						<p>{ review.Title }</p>
+		<main class="page-shell">
+			<section class="container stack" data-gap="lg">
+				<div class="cluster" data-justify="between">
+					<div class="stack" data-gap="sm">
+						<h1>Review Details</h1>
+						<p class="muted">Review the current values stored for this review.</p>
 					</div>
-					<div>
-						<label>Body</label>
-						<p>{ review.Body }</p>
-					</div>
-					<div>
-						<label>Rating</label>
-						<p>{ fmt.Sprintf("%d", review.Rating) }</p>
-					</div>
-					<div>
-						<label>Created At</label>
-						<p>{ review.CreatedAt.String() }</p>
-					</div>
-					<div>
-						<label>Updated At</label>
-						<p>{ review.UpdatedAt.String() }</p>
+					<div class="cluster" data-gap="sm">
+						<a class="btn btn-primary" href={ routes.ReviewEdit.URL(review.ID) }>Edit</a>
+						<a class="btn btn-outline" href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
 					</div>
 				</div>
-			</div>
+				<div class="panel">
+					<div class="grid-auto-fit" data-grid="compact">
+						<div class="field">
+							<p class="field-label">Title</p>
+							<p>{ review.Title }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Body</p>
+							<p>{ review.Body }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Rating</p>
+							<p>{ fmt.Sprintf("%d", review.Rating) }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Created At</p>
+							<p>{ review.CreatedAt.String() }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Updated At</p>
+							<p>{ review.UpdatedAt.String() }</p>
+						</div>
+					</div>
+				</div>
+			</section>
 		</main>
 	}
 }
 
 templ ReviewNew() {
 	@base() {
-		<main>
-			<div>
-				<form
-					data-indicator:submitting
-					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.ReviewCreate.URL()) }
-				>
-					<div>
-						<h2>New Review</h2>
-						<p>Enter the details for the new review.</p>
+		<main class="auth-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">New Review</h1>
+						<p class="card-description">Enter the details for the new review.</p>
 					</div>
-					<div>
-						@components.InputField("Title", "title", "text", "", false, components.FieldProp{})
-						@components.InputField("Body", "body", "text", "", false, components.FieldProp{})
-						@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{})
+					<div class="card-content">
+						<form
+							class="form"
+							data-indicator:submitting
+							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.ReviewCreate.URL()) }
+						>
+							<fieldset class="fieldset" data-attr:disabled="$submitting">
+								<div class="field">
+									<label class="field-label" for="title">Title</label>
+									<div class="field-control">
+										<input class="input" type="text" id="title" name="title" data-bind="title"/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="body">Body</label>
+									<div class="field-control">
+										<input class="input" type="text" id="body" name="body" data-bind="body"/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="rating">Rating</label>
+									<div class="field-control">
+										<input class="input" type="number" id="rating" name="rating" data-bind="rating"/>
+									</div>
+								</div>
+								<div class="stack" data-gap="sm">
+									<button class="btn btn-primary btn-block" type="submit">Create Review</button>
+									<a class="btn btn-outline btn-block" href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
+								</div>
+							</fieldset>
+						</form>
 					</div>
-					@components.SubmitButton("Create Review")
-					<p>
-						<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
-					</p>
-				</form>
-			</div>
+				</div>
+			</section>
 		</main>
 	}
 }
 
 templ ReviewEdit(review models.Review) {
 	@base() {
-		<main>
-			<div>
-				<form
-					data-indicator:submitting
-					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.ReviewUpdate.URL(review.ID)) }
-				>
-					<div>
-						<h2>Edit Review</h2>
-						<p>Update the details for this review.</p>
+		<main class="auth-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">Edit Review</h1>
+						<p class="card-description">Update the details for this review.</p>
 					</div>
-					<div>
-						@components.InputField("Title", "title", "text", "", false, components.FieldProp{
-							Value: review.Title,
-						})
-						@components.InputField("Body", "body", "text", "", false, components.FieldProp{
-							Value: review.Body,
-						})
-						@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{
-							Value: fmt.Sprintf("%d", review.Rating),
-						})
+					<div class="card-content">
+						<form
+							class="form"
+							data-indicator:submitting
+							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.ReviewUpdate.URL(review.ID)) }
+						>
+							<fieldset class="fieldset" data-attr:disabled="$submitting">
+								<div class="field">
+									<label class="field-label" for="title">Title</label>
+									<div class="field-control">
+										<input class="input" type="text" id="title" name="title" data-bind="title" value={ review.Title }/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="body">Body</label>
+									<div class="field-control">
+										<input class="input" type="text" id="body" name="body" data-bind="body" value={ review.Body }/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="rating">Rating</label>
+									<div class="field-control">
+										<input class="input" type="number" id="rating" name="rating" data-bind="rating" value={ fmt.Sprintf("%d", review.Rating) }/>
+									</div>
+								</div>
+								<div class="stack" data-gap="sm">
+									<button class="btn btn-primary btn-block" type="submit">Update Review</button>
+									<a class="btn btn-outline btn-block" href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
+								</div>
+							</fieldset>
+						</form>
 					</div>
-					@components.SubmitButton("Update Review")
-					<p>
-						<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
-					</p>
-				</form>
-				<div>
-					<button
-						data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ReviewDestroy.URL(review.ID)) }
-					>Destroy Review</button>
+					<div class="card-footer">
+						<button
+							class="btn btn-destructive btn-block"
+							type="button"
+							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ReviewDestroy.URL(review.ID)) }
+						>Destroy Review</button>
+					</div>
 				</div>
-			</div>
+			</section>
 		</main>
 	}
 }

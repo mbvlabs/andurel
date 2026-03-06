@@ -1,0 +1,355 @@
+:where(form) {
+	display: grid;
+	gap: var(--space-4);
+}
+
+:where(form > div),
+.field,
+.fieldset {
+	display: grid;
+	gap: var(--space-2);
+}
+
+.form {
+	display: grid;
+	gap: var(--space-4);
+}
+
+.fieldset {
+	min-inline-size: 0;
+	padding: 0;
+	border: 0;
+}
+
+.label,
+.field-label,
+:where(label) {
+	color: var(--text-strong);
+	font-weight: 600;
+}
+
+.field-control {
+	display: grid;
+	gap: var(--space-2);
+	min-inline-size: 0;
+}
+
+.field-hint {
+	color: var(--text-muted);
+	font-size: var(--step--1);
+}
+
+.field-error {
+	color: var(--destructive);
+	font-size: var(--step--1);
+	font-weight: 600;
+}
+
+.field-addon,
+.input-group {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+:where(.field-addon) {
+	min-block-size: 2.75rem;
+	padding-inline: var(--space-3);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-sm);
+	background: color-mix(in oklab, var(--surface-panel-muted) 78%, var(--surface-page));
+	color: var(--text-muted);
+	font-size: var(--step--1);
+	white-space: nowrap;
+}
+
+:where(.input, .input-error, .textarea, .textarea-error, .select, .select-error, input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"], [type="submit"], [type="button"], [type="reset"]), textarea, select) {
+	--control-border: var(--border-subtle);
+	--control-ring: color-mix(in oklab, var(--primary) 18%, transparent);
+	--control-bg: var(--surface-panel-muted);
+	--control-shadow: inset 0 1px 2px hsl(220 30% 15% / 0.05);
+
+	inline-size: 100%;
+	min-block-size: 2.75rem;
+	padding-block: var(--space-2);
+	padding-inline: var(--space-3);
+	border: 1px solid var(--control-border);
+	border-radius: var(--radius-sm);
+	background: var(--control-bg);
+	color: var(--text-strong);
+	box-shadow: var(--control-shadow);
+	transition:
+		border-color var(--duration-base) var(--ease-standard),
+		box-shadow var(--duration-base) var(--ease-standard),
+		background-color var(--duration-base) var(--ease-standard);
+}
+
+:where(textarea, .textarea, .textarea-error) {
+	min-block-size: 8rem;
+	padding-block: var(--space-3);
+	resize: vertical;
+}
+
+:where(select, .select, .select-error) {
+	padding-inline-end: calc(var(--space-4) * 2.5);
+	background-image:
+		linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+		linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+	background-position:
+		calc(100% - 1.15rem) calc(50% - 0.1rem),
+		calc(100% - 0.85rem) calc(50% - 0.1rem);
+	background-size: 0.35rem 0.35rem, 0.35rem 0.35rem;
+	background-repeat: no-repeat;
+	appearance: none;
+}
+
+:where(.input, .input-error, .textarea, .textarea-error, .select, .select-error, input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"], [type="submit"], [type="button"], [type="reset"]), textarea, select):hover:not(:disabled):not([aria-disabled="true"]) {
+	border-color: var(--border-strong);
+}
+
+:where(.input, .input-error, .textarea, .textarea-error, .select, .select-error, input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"], [type="submit"], [type="button"], [type="reset"]), textarea, select):focus-visible {
+	border-color: var(--primary);
+	box-shadow:
+		0 0 0 4px var(--control-ring),
+		var(--control-shadow);
+	outline: none;
+}
+
+:where(.input, .input-error, .textarea, .textarea-error, .select, .select-error, input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"], [type="submit"], [type="button"], [type="reset"]), textarea, select):disabled,
+:where(.input, .input-error, .textarea, .textarea-error, .select, .select-error, input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"], [type="submit"], [type="button"], [type="reset"]), textarea, select)[aria-disabled="true"] {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+:where(.input-error, .textarea-error, .select-error, .input[aria-invalid="true"], .textarea[aria-invalid="true"], .select[aria-invalid="true"], input[aria-invalid="true"], textarea[aria-invalid="true"], select[aria-invalid="true"], input:user-invalid, textarea:user-invalid, select:user-invalid) {
+	--control-border: color-mix(in oklab, var(--destructive) 75%, black);
+	--control-ring: color-mix(in oklab, var(--destructive) 20%, transparent);
+}
+
+.checkbox-group,
+.radio-group {
+	display: grid;
+	gap: var(--space-3);
+}
+
+.radio-row {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+:where(.checkbox, .radio) {
+	inline-size: 1rem;
+	block-size: 1rem;
+	margin: 0;
+	flex: none;
+	border: 1px solid var(--border-subtle);
+	background: var(--surface-panel);
+	color: var(--primary);
+	box-shadow: inset 0 1px 2px hsl(220 30% 15% / 0.08);
+	appearance: none;
+	transition:
+		border-color var(--duration-base) var(--ease-standard),
+		background-color var(--duration-base) var(--ease-standard),
+		box-shadow var(--duration-base) var(--ease-standard),
+		transform var(--duration-fast) var(--ease-standard);
+}
+
+:where(.checkbox) {
+	border-radius: 0.3rem;
+}
+
+:where(.radio) {
+	border-radius: var(--radius-round);
+}
+
+:where(.checkbox, .radio)::before {
+	content: "";
+	inline-size: 0.625rem;
+	block-size: 0.625rem;
+	display: block;
+	margin: auto;
+	background: white;
+	transform: scale(0);
+	transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+:where(.checkbox)::before {
+	clip-path: polygon(14% 44%, 0 59%, 43% 100%, 100% 18%, 84% 4%, 40% 68%);
+}
+
+:where(.radio)::before {
+	border-radius: var(--radius-round);
+}
+
+:where(.checkbox, .radio):checked {
+	border-color: var(--primary);
+	background: var(--primary);
+}
+
+:where(.checkbox, .radio):checked::before {
+	transform: scale(1);
+}
+
+:where(.checkbox, .radio):focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 18%, transparent);
+}
+
+:where(.checkbox, .radio):disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+:where(.switch) {
+	--switch-bg: var(--border-subtle);
+	--switch-thumb-x: 0;
+
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	inline-size: 2.75rem;
+	block-size: 1.5rem;
+	padding: 0.125rem;
+	border: 0;
+	border-radius: var(--radius-round);
+	background: var(--switch-bg);
+	cursor: pointer;
+	transition:
+		background-color var(--duration-base) var(--ease-standard),
+		box-shadow var(--duration-base) var(--ease-standard);
+	appearance: none;
+}
+
+:where(.switch):is(:checked, [data-checked="true"], [aria-checked="true"]) {
+	--switch-bg: var(--primary);
+	--switch-thumb-x: 1.25rem;
+}
+
+:where(.switch):focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 18%, transparent);
+}
+
+:where(.switch):disabled,
+:where(.switch)[aria-disabled="true"] {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.switch-thumb,
+:where(.switch):not(:has(.switch-thumb))::before {
+	inline-size: 1.25rem;
+	block-size: 1.25rem;
+	border-radius: var(--radius-round);
+	background: var(--surface-panel);
+	box-shadow: var(--shadow-sm);
+	transition: transform var(--duration-base) var(--ease-standard);
+}
+
+:where(.switch):not(:has(.switch-thumb))::before {
+	content: "";
+	transform: translateX(var(--switch-thumb-x));
+}
+
+.switch-thumb {
+	pointer-events: none;
+	transform: translateX(var(--switch-thumb-x));
+}
+
+.slider {
+	display: grid;
+	gap: var(--space-2);
+	inline-size: 100%;
+}
+
+:where(.slider-input, .slider > input[type="range"], input[type="range"].slider) {
+	inline-size: 100%;
+	block-size: 1.25rem;
+	margin: 0;
+	cursor: pointer;
+	background: transparent;
+	appearance: none;
+}
+
+:where(.slider-input, .slider > input[type="range"], input[type="range"].slider)::-webkit-slider-runnable-track {
+	block-size: 0.5rem;
+	border-radius: var(--radius-round);
+	background: color-mix(in oklab, var(--surface-panel-muted) 90%, var(--border-subtle));
+}
+
+:where(.slider-input, .slider > input[type="range"], input[type="range"].slider)::-moz-range-track {
+	block-size: 0.5rem;
+	border-radius: var(--radius-round);
+	background: color-mix(in oklab, var(--surface-panel-muted) 90%, var(--border-subtle));
+}
+
+:where(.slider-input, .slider > input[type="range"], input[type="range"].slider)::-webkit-slider-thumb {
+	inline-size: 1rem;
+	block-size: 1rem;
+	margin-block-start: -0.25rem;
+	border: 0;
+	border-radius: var(--radius-round);
+	background: var(--primary);
+	box-shadow: var(--shadow-sm);
+	appearance: none;
+}
+
+:where(.slider-input, .slider > input[type="range"], input[type="range"].slider)::-moz-range-thumb {
+	inline-size: 1rem;
+	block-size: 1rem;
+	border: 0;
+	border-radius: var(--radius-round);
+	background: var(--primary);
+	box-shadow: var(--shadow-sm);
+}
+
+:where(.slider-input, .slider > input[type="range"], input[type="range"].slider):focus-visible {
+	outline: none;
+}
+
+.input-group {
+	gap: 0;
+	inline-size: 100%;
+}
+
+.input-group > * {
+	border-radius: 0;
+}
+
+.input-group > :first-child {
+	border-start-start-radius: var(--radius-sm);
+	border-end-start-radius: var(--radius-sm);
+}
+
+.input-group > :last-child {
+	border-start-end-radius: var(--radius-sm);
+	border-end-end-radius: var(--radius-sm);
+}
+
+.input-group > :where(.field-addon) {
+	flex: none;
+	border-inline-end-color: var(--border-subtle);
+}
+
+.input-group > :where(.field-addon):not(:first-child) {
+	border-inline-start-color: transparent;
+}
+
+.input-group > :where(.field-addon):not(:last-child) {
+	border-inline-end-color: transparent;
+}
+
+.input-group > :where(.input, .input-error, .select, .select-error, .textarea, .textarea-error, input, select, textarea) {
+	flex: 1 1 auto;
+	min-inline-size: 0;
+}
+
+.input-group > * + * {
+	margin-inline-start: -1px;
+}
+
+.input-group > *:focus-visible {
+	position: relative;
+	z-index: 1;
+}

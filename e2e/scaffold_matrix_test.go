@@ -117,6 +117,22 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 
 	if config.CSS == "vanilla" {
 		internal.AssertDirExists(t, project, "assets/css")
+		vanillaCSSFiles := []string{
+			"assets/css/styles.css",
+			"assets/css/reset.css",
+			"assets/css/tokens.css",
+			"assets/css/base.css",
+			"assets/css/objects.css",
+			"assets/css/utilities.css",
+			"assets/css/components/layout.css",
+			"assets/css/components/panels.css",
+			"assets/css/components/buttons.css",
+			"assets/css/components/forms.css",
+			"assets/css/components/feedback.css",
+		}
+		internal.AssertFilesExist(t, project, vanillaCSSFiles)
+		internal.AssertFileContains(t, project, "router/routes/assets.go", `"/css/*"`)
+		internal.AssertFileContains(t, project, "controllers/assets.go", `etx.Param("*")`)
 	}
 
 	// Auth is now part of base scaffold, verify auth files always exist
