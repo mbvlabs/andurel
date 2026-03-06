@@ -33,7 +33,6 @@ func (g *GitAnalyzer) IsClean() (bool, error) {
 	return len(output) == 0, nil
 }
 
-
 func (g *GitAnalyzer) getFirstCommit() (string, error) {
 	cmd := exec.Command("git", "rev-list", "--max-parents=0", "HEAD")
 	cmd.Dir = g.projectRoot
