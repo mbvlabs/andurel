@@ -1,8 +1,13 @@
-:root {
+:root,
+html.light {
 	color-scheme: light;
 
 	--font-sans: "Inter", "Segoe UI", sans-serif;
 	--font-mono: "IBM Plex Mono", "SFMono-Regular", monospace;
+	--font-weight-regular: 400;
+	--font-weight-medium: 500;
+	--font-weight-semibold: 600;
+	--font-weight-bold: 700;
 
 	--step--1: 0.875rem;
 	--step-0: 1rem;
@@ -19,9 +24,11 @@
 	--space-7: 3rem;
 	--space-8: 4rem;
 
+	--radius-xs: 0.25rem;
 	--radius-sm: 0.5rem;
 	--radius-md: 0.9rem;
 	--radius-lg: 1.5rem;
+	--radius-xl: 2rem;
 	--radius-round: 999px;
 
 	--shadow-sm: 0 1px 2px hsl(220 30% 12% / 0.08);
@@ -30,58 +37,122 @@
 
 	--duration-fast: 120ms;
 	--duration-base: 180ms;
+	--duration-slow: 280ms;
 	--ease-standard: cubic-bezier(0.2, 0, 0.13, 1);
 
-	--surface-page: oklch(98% 0.01 240);
-	--surface-panel: oklch(100% 0 0);
-	--surface-panel-muted: oklch(97% 0.01 240);
-	--surface-inverse: oklch(23% 0.03 250);
-	--text-strong: oklch(24% 0.02 255);
-	--text-muted: oklch(49% 0.03 250);
-	--text-inverse: oklch(98% 0 0);
-	--border-subtle: oklch(88% 0.01 250);
-	--border-strong: oklch(75% 0.02 250);
+	--z-base: 0;
+	--z-dropdown: 10;
+	--z-sticky: 20;
+	--z-overlay: 30;
+	--z-toast: 40;
+	--z-modal: 50;
 
-	--primary: oklch(58% 0.19 256);
-	--primary-strong: oklch(49% 0.19 257);
-	--secondary: oklch(65% 0.1 205);
-	--accent: oklch(72% 0.16 145);
-	--neutral: oklch(59% 0.02 250);
-	--destructive: oklch(60% 0.22 26);
-	--warning: oklch(76% 0.16 78);
-	--success: oklch(71% 0.15 148);
+	--color-surface-page: oklch(98% 0.01 240);
+	--color-surface-panel: oklch(100% 0 0);
+	--color-surface-panel-muted: oklch(97% 0.01 240);
+	--color-surface-inverse: oklch(23% 0.03 250);
+	--color-text-strong: oklch(24% 0.02 255);
+	--color-text-muted: oklch(49% 0.03 250);
+	--color-text-inverse: oklch(98% 0 0);
+	--color-border-subtle: oklch(88% 0.01 250);
+	--color-border-strong: oklch(75% 0.02 250);
 
-	--ring: color-mix(in oklab, var(--primary) 35%, white);
+	--color-primary: oklch(58% 0.19 256);
+	--color-primary-strong: oklch(49% 0.19 257);
+	--color-secondary: oklch(65% 0.1 205);
+	--color-accent: oklch(72% 0.16 145);
+	--color-neutral: oklch(59% 0.02 250);
+	--color-success: oklch(71% 0.15 148);
+	--color-warning: oklch(76% 0.16 78);
+	--color-error: oklch(60% 0.22 26);
+
+	--color-info: color-mix(in oklab, var(--color-primary) 72%, white);
+	--color-ring: color-mix(in oklab, var(--color-primary) 35%, white);
+
+	--surface-page: var(--color-surface-page);
+	--surface-panel: var(--color-surface-panel);
+	--surface-panel-muted: var(--color-surface-panel-muted);
+	--surface-inverse: var(--color-surface-inverse);
+	--text-strong: var(--color-text-strong);
+	--text-muted: var(--color-text-muted);
+	--text-inverse: var(--color-text-inverse);
+	--border-subtle: var(--color-border-subtle);
+	--border-strong: var(--color-border-strong);
+
+	--primary: var(--color-primary);
+	--primary-strong: var(--color-primary-strong);
+	--secondary: var(--color-secondary);
+	--accent: var(--color-accent);
+	--neutral: var(--color-neutral);
+	--success: var(--color-success);
+	--warning: var(--color-warning);
+	--destructive: var(--color-error);
+	--error: var(--color-error);
+	--info: var(--color-info);
+	--ring: var(--color-ring);
+
 	--container-inline: min(72rem, calc(100vw - 2 * var(--space-5)));
 	--measure: 65ch;
 }
 
+html.dark {
+	color-scheme: dark;
+
+	--color-surface-page: oklch(20% 0.02 255);
+	--color-surface-panel: oklch(27% 0.02 255);
+	--color-surface-panel-muted: oklch(31% 0.02 255);
+	--color-surface-inverse: oklch(96% 0 0);
+	--color-text-strong: oklch(96% 0 0);
+	--color-text-muted: oklch(78% 0.02 250);
+	--color-text-inverse: oklch(20% 0.02 255);
+	--color-border-subtle: oklch(38% 0.02 255);
+	--color-border-strong: oklch(52% 0.02 255);
+
+	--color-primary: oklch(69% 0.16 255);
+	--color-primary-strong: oklch(77% 0.14 255);
+	--color-secondary: oklch(74% 0.09 205);
+	--color-accent: oklch(79% 0.14 145);
+	--color-neutral: oklch(72% 0.02 255);
+	--color-success: oklch(79% 0.12 150);
+	--color-warning: oklch(82% 0.12 84);
+	--color-error: oklch(68% 0.18 28);
+
+	--shadow-sm: 0 1px 2px hsl(220 50% 3% / 0.22);
+	--shadow-md: 0 14px 36px hsl(220 50% 3% / 0.34);
+	--shadow-lg: 0 28px 72px hsl(220 50% 3% / 0.4);
+
+	--color-info: color-mix(in oklab, var(--color-primary) 65%, white);
+	--color-ring: color-mix(in oklab, var(--color-primary) 45%, white);
+}
+
 @media (prefers-color-scheme: dark) {
-	:root {
+	:root:not(.light):not(.dark) {
 		color-scheme: dark;
 
-		--surface-page: oklch(20% 0.02 255);
-		--surface-panel: oklch(27% 0.02 255);
-		--surface-panel-muted: oklch(31% 0.02 255);
-		--surface-inverse: oklch(96% 0 0);
-		--text-strong: oklch(96% 0 0);
-		--text-muted: oklch(78% 0.02 250);
-		--text-inverse: oklch(20% 0.02 255);
-		--border-subtle: oklch(38% 0.02 255);
-		--border-strong: oklch(52% 0.02 255);
+		--color-surface-page: oklch(20% 0.02 255);
+		--color-surface-panel: oklch(27% 0.02 255);
+		--color-surface-panel-muted: oklch(31% 0.02 255);
+		--color-surface-inverse: oklch(96% 0 0);
+		--color-text-strong: oklch(96% 0 0);
+		--color-text-muted: oklch(78% 0.02 250);
+		--color-text-inverse: oklch(20% 0.02 255);
+		--color-border-subtle: oklch(38% 0.02 255);
+		--color-border-strong: oklch(52% 0.02 255);
 
-		--primary: oklch(69% 0.16 255);
-		--primary-strong: oklch(77% 0.14 255);
-		--secondary: oklch(74% 0.09 205);
-		--accent: oklch(79% 0.14 145);
-		--neutral: oklch(72% 0.02 255);
-		--destructive: oklch(68% 0.18 28);
-		--warning: oklch(82% 0.12 84);
-		--success: oklch(79% 0.12 150);
+		--color-primary: oklch(69% 0.16 255);
+		--color-primary-strong: oklch(77% 0.14 255);
+		--color-secondary: oklch(74% 0.09 205);
+		--color-accent: oklch(79% 0.14 145);
+		--color-neutral: oklch(72% 0.02 255);
+		--color-success: oklch(79% 0.12 150);
+		--color-warning: oklch(82% 0.12 84);
+		--color-error: oklch(68% 0.18 28);
 
 		--shadow-sm: 0 1px 2px hsl(220 50% 3% / 0.22);
 		--shadow-md: 0 14px 36px hsl(220 50% 3% / 0.34);
 		--shadow-lg: 0 28px 72px hsl(220 50% 3% / 0.4);
-		--ring: color-mix(in oklab, var(--primary) 45%, white);
+
+		--color-info: color-mix(in oklab, var(--color-primary) 65%, white);
+		--color-ring: color-mix(in oklab, var(--color-primary) 45%, white);
 	}
 }
