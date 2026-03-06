@@ -6,8 +6,9 @@ A full-stack web application built with [Andurel](https://github.com/mbvlabs/and
 
 ```
 {{.AppName}}/
-├── assets/              # Static assets (compiled CSS, images)
-├── bin/                 # Command-line tools
+├── assets/              # Static assets{{if eq .CSSFramework "vanilla"}} and source CSS{{else}} (compiled CSS, images){{end}}
+{{if eq .CSSFramework "vanilla"}}│   └── css/             # Layered vanilla CSS manifest, tokens, objects, and components
+{{end}}├── bin/                 # Command-line tools
 │   ├── app              # Main application binary
 │   ├── console          # Database console
 │   ├── migration        # Migration runner
@@ -82,7 +83,7 @@ Your application is now running at `http://localhost:8080` with live reload for 
 andurel run
 ```
 
-This orchestrates {{if eq .CSSFramework "tailwind"}}Air (Go), Templ watch, and Tailwind CSS compilation{{else}}Air (Go) and Templ watch{{end}}.
+This orchestrates {{if eq .CSSFramework "tailwind"}}Air (Go), Templ watch, and Tailwind CSS compilation{{else}}Air (Go) and Templ watch while serving the vanilla CSS manifest and imported partials directly{{end}}.
 
 ### Database Console
 
@@ -429,6 +430,34 @@ Add reusable wrapper classes in `css/components.css` under `@layer components`, 
 Use `examples/html/*.html` for snippet-based patterns (pure HTML + Datastar attributes).
 The development server automatically rebuilds CSS on changes.
 {{end}}
+{{if eq .CSSFramework "vanilla"}}
+### Customize Styling
+
+This project uses layered native CSS under `assets/css/`. The manifest is `assets/css/styles.css`, and it imports the rest of the system in this order:
+
+```css
+@layer reset, tokens, base, objects, components, utilities, overrides;
+```
+
+File responsibilities:
+- `assets/css/reset.css`: browser normalization and low-level defaults
+- `assets/css/tokens.css`: theme tokens for color, spacing, type, radius, shadow, and motion
+- `assets/css/base.css`: element defaults for typography, links, media, and forms
+- `assets/css/objects.css`: reusable layout primitives such as `.container`, `.stack`, `.cluster`, and grid helpers
+- `assets/css/components/*.css`: the shared UI contract for buttons, forms, feedback, layout, and panels
+- `assets/css/utilities.css`: small escape-hatch helpers
+
+Start customization in `assets/css/tokens.css`. That file defines the semantic design contract used across components, including:
+- surfaces and text tokens such as `--surface-page`, `--surface-panel`, `--text-strong`, and `--text-muted`
+- brand and status tokens such as `--primary`, `--secondary`, `--accent`, `--success`, `--warning`, and `--error`
+- spacing, radius, shadow, typography, motion, and z-index scales
+
+Theme values are defined for both light and dark modes. Adjust those token values first before editing component rules.
+
+When you need to change component styling, edit the matching file in `assets/css/components/`. The public class names are intentionally aligned with the Tailwind scaffold where practical, so classes like `.btn`, `.btn-primary`, `.input`, `.field`, `.panel`, and `.alert` map to the same component vocabulary with a different implementation.
+
+The development server serves these files directly, so editing any imported CSS partial updates the app without a separate CSS build step.
+{{end}}
 
 ## Environment Configuration
 
@@ -498,7 +527,8 @@ CSRF protection is always enabled for HTML routes and uses Fetch Metadata to ali
 2. **Type Safety**: Let SQLC and Templ catch errors at compile time
 3. **Database Console**: Use `andurel app console` for quick database queries
 4. **Hot Reload**: Changes to Go, Templ, or CSS automatically trigger rebuilds{{if eq .CSSFramework "tailwind"}}
-5. **Tailwind**: Use Tailwind's utility classes in your Templ templates{{end}}
+5. **Tailwind**: Use Tailwind's utility classes in your Templ templates{{end}}{{if eq .CSSFramework "vanilla"}}
+5. **Vanilla CSS**: Prefer editing tokens, objects, and component partials in `assets/css/` instead of adding page-specific styles{{end}}
 
 ## Common Tasks
 
