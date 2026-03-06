@@ -33,7 +33,7 @@ var StyleImport = routing.NewSimpleRoute(
 {{- end}}
 
 var Stylesheet = routing.NewSimpleRoute(
-	fmt.Sprintf("/css/%v/style.css", startTime),
+	fmt.Sprintf("/css/%v/styles.css", startTime),
 	"css.stylesheet",
 	AssetsPrefix,
 )

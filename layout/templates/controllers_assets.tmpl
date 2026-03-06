@@ -166,7 +166,7 @@ func createSitemap(routes []routing.Route) (string, error) {
 
 func (a Assets) Stylesheet(etx *echo.Context) error {
 	stylesheet, err := assets.Files.ReadFile(
-		"css/style.css",
+		"css/styles.css",
 	)
 	if err != nil {
 		return err
