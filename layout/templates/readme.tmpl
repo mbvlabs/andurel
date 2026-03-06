@@ -7,7 +7,7 @@ A full-stack web application built with [Andurel](https://github.com/mbvlabs/and
 ```
 {{.AppName}}/
 ├── assets/              # Static assets{{if eq .CSSFramework "vanilla"}} and source CSS{{else}} (compiled CSS, images){{end}}
-{{if eq .CSSFramework "vanilla"}}│   └── css/             # Layered vanilla CSS manifest, tokens, objects, and components
+{{if eq .CSSFramework "vanilla"}}│   └── css/             # Layered vanilla CSS manifest, tokens, objects, utilities, and components
 {{end}}├── bin/                 # Command-line tools
 │   ├── app              # Main application binary
 │   ├── console          # Database console
@@ -437,6 +437,17 @@ This project uses layered native CSS under `assets/css/`. The manifest is `asset
 
 ```css
 @layer reset, tokens, base, objects, components, utilities, overrides;
+
+@import url('/assets/css/reset.css') layer(reset);
+@import url('/assets/css/tokens.css') layer(tokens);
+@import url('/assets/css/base.css') layer(base);
+@import url('/assets/css/objects.css') layer(objects);
+@import url('/assets/css/components/layout.css') layer(components);
+@import url('/assets/css/components/panels.css') layer(components);
+@import url('/assets/css/components/buttons.css') layer(components);
+@import url('/assets/css/components/forms.css') layer(components);
+@import url('/assets/css/components/feedback.css') layer(components);
+@import url('/assets/css/utilities.css') layer(utilities);
 ```
 
 File responsibilities:
@@ -454,7 +465,20 @@ Start customization in `assets/css/tokens.css`. That file defines the semantic d
 
 Theme values are defined for both light and dark modes. Adjust those token values first before editing component rules.
 
+Theme activation uses the class-based contract directly on `<html>`:
+- `html.light`: force the light token set
+- `html.dark`: force the dark token set
+- no theme class: fall back to `prefers-color-scheme`
+
+Typical editing flow:
+- change `assets/css/tokens.css` when the visual language should shift globally
+- change `assets/css/objects.css` when layout primitives such as stacks, clusters, or containers need to evolve
+- change one file under `assets/css/components/` when a reusable UI pattern needs different behavior or presentation
+- use `assets/css/utilities.css` for small opt-in escape hatches, not as the primary styling strategy
+
 When you need to change component styling, edit the matching file in `assets/css/components/`. The public class names are intentionally aligned with the Tailwind scaffold where practical, so classes like `.btn`, `.btn-primary`, `.input`, `.field`, `.panel`, and `.alert` map to the same component vocabulary with a different implementation.
+
+That shared class contract keeps the generated markup portable between the Tailwind and vanilla scaffolds even though the CSS implementation is different.
 
 The development server serves these files directly, so editing any imported CSS partial updates the app without a separate CSS build step.
 {{end}}
