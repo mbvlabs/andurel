@@ -1,7 +1,6 @@
 package views
 
 import (
-	"{{.ModuleName}}/views/components"
 	"{{.ModuleName}}/router/cookies"
 	"time"
 )
@@ -20,7 +19,11 @@ templ base(headOpts ...HeadDataOption) {
 		</body>
 		<div id="flashContainer">
 			for _, flash := range cookies.GetFlashesCtx(ctx) {
-				@components.ToastMessage(flash)
+				<div id={ "toast-" + flash.ID.String() }>
+					<strong>{ string(flash.Type) }</strong>
+					<span>{ flash.Message }</span>
+					<small>{ flash.CreatedAt.Format(time.Kitchen) }</small>
+				</div>
 			}
 		</div>
 	</html>

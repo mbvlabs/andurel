@@ -3,7 +3,6 @@ package views
 import (
 	"fmt"
 	"{{.ModuleName}}/router/routes"
-	"{{.ModuleName}}/views/components"
 )
 
 templ LoginForm() {
@@ -19,7 +18,7 @@ templ LoginForm() {
 					<label for="password">Password</label>
 					<input type="password" id="password" data-bind="password" data-attr:disabled="$submitting" required/>
 				</div>
-				@components.SubmitButton("Login")
+				<button type="submit">Login</button>
 			</form>
 			<p>
 				<a href={ routes.PasswordNew.URL() }>Forgot your password?</a>
