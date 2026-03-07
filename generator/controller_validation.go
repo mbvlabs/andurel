@@ -33,7 +33,7 @@ func newControllerValidationContext(resourceName, tableName string, config *Unif
 		ResourceName:          resourceName,
 		TableName:             tableName,
 		ControllerPath:        filepath.Join(config.Paths.Controllers, tableName+".go"),
-		IndividualRoutePath:   filepath.Join("router/routes", tableName+".go"),
+		IndividualRoutePath:   filepath.Join("router", "routes", tableName+".go"),
 		ControllerFilePath:    filepath.Join(config.Paths.Controllers, "controller.go"),
 		ControllerFieldName:   controllerFieldName,
 		ControllerVarName:     controllerVarName,

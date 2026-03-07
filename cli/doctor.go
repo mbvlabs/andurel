@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,10 +11,10 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
 )
 
@@ -305,7 +304,7 @@ func checkToolVersions(rootDir string, verbose bool) checkResult {
 	for _, name := range toolNames {
 		go func(name string) {
 			tool := lock.Tools[name]
-			fullBinPath := filepath.Join(rootDir, "bin", name)
+			fullBinPath := filepath.Join(rootDir, "bin", naming.BinaryName(name))
 			if _, err := os.Stat(fullBinPath); err != nil {
 				results <- versionResult{name: name, expectedVer: tool.Version, missing: true}
 				return
@@ -398,49 +397,14 @@ func getToolVersion(binPath string, toolName string) (string, error) {
 	return versionFromCommand(binPath, toolName)
 }
 
-// runWithTimeout runs a command with a timeout, killing the entire process group
-// if the timeout is exceeded. This ensures child processes that inherit stdout/stderr
-// pipes are also killed, preventing CombinedOutput-style hangs.
+// runWithTimeout runs a command with a timeout. This ensures child processes
+// that inherit stdout/stderr pipes are also killed, preventing CombinedOutput-style hangs.
 func runWithTimeout(ctx context.Context, path string, args ...string) ([]byte, error) {
-	cmd := exec.Command(path, args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.Stdin = nil
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
-
-	if err := cmd.Start(); err != nil {
-		return nil, err
-	}
-
-	type result struct {
-		output []byte
-		err    error
-	}
-	done := make(chan result, 1)
-
-	go func() {
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, io.LimitReader(io.MultiReader(stdout, stderr), 1<<20))
-		err := cmd.Wait()
-		done <- result{buf.Bytes(), err}
-	}()
-
-	select {
-	case <-ctx.Done():
-		if cmd.Process != nil {
-			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		}
-		return nil, ctx.Err()
-	case r := <-done:
-		return r.output, r.err
-	}
+	// CombinedOutput will handle pipes and waiting correctly with the context
+	return cmd.CombinedOutput()
 }
 
 func versionFromCommand(binPath, toolName string) (string, error) {
@@ -449,7 +413,7 @@ func versionFromCommand(binPath, toolName string) (string, error) {
 		return "", fmt.Errorf("could not find project root: %w", err)
 	}
 
-	fullPath := filepath.Join(rootDir, binPath)
+	fullPath := filepath.Join(rootDir, naming.BinaryName(binPath))
 	candidates := []string{"--version", "-version", "version", "--help"}
 
 	for _, arg := range candidates {
@@ -636,7 +600,7 @@ func checkGoModTidy(rootDir string, verbose bool) checkResult {
 }
 
 func checkTemplGenerate(rootDir string, verbose bool) checkResult {
-	templPath := filepath.Join(rootDir, "bin", "templ")
+	templPath := filepath.Join(rootDir, "bin", naming.BinaryName("templ"))
 	if _, err := os.Stat(templPath); err != nil {
 		return checkResult{
 			name:    "views compile",
@@ -670,7 +634,7 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 }
 
 func checkSqlcGenerate(rootDir string, verbose bool) checkResult {
-	sqlcPath := filepath.Join(rootDir, "bin", "sqlc")
+	sqlcPath := filepath.Join(rootDir, "bin", naming.BinaryName("sqlc"))
 	if _, err := os.Stat(sqlcPath); err != nil {
 		return checkResult{
 			name:    "sqlc compile",

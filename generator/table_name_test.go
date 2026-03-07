@@ -21,15 +21,15 @@ func TestBuildModelPath(t *testing.T) {
 		},
 		{
 			name:         "compound resource name",
-			modelsDir:    "internal/models",
+			modelsDir:    filepath.Join("internal", "models"),
 			resourceName: "StudentFeedback",
-			want:         filepath.Join("internal/models", "student_feedback.go"),
+			want:         filepath.Join("internal", "models", "student_feedback.go"),
 		},
 		{
 			name:         "absolute path",
-			modelsDir:    "/app/models",
+			modelsDir:    filepath.Join("/", "app", "models"),
 			resourceName: "Order",
-			want:         filepath.Join("/app/models", "order.go"),
+			want:         filepath.Join("/", "app", "models", "order.go"),
 		},
 	}
 

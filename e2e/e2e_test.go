@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/mbvlabs/andurel/layout/versions"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 var (
@@ -41,7 +42,7 @@ func TestMain(m *testing.M) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	andurelBinary = filepath.Join(tmpDir, "andurel")
+	andurelBinary = filepath.Join(tmpDir, naming.BinaryName("andurel"))
 
 	cmd := exec.Command("go", "build", "-o", andurelBinary, ".")
 	cmd.Dir = projectRoot
@@ -141,7 +142,7 @@ func TestToolVersions(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			binPath := filepath.Join(sharedBinDir, tc.binary)
+			binPath := filepath.Join(sharedBinDir, naming.BinaryName(tc.binary))
 			cmd := exec.Command(binPath, tc.versionFlag)
 			output, err := cmd.CombinedOutput()
 			if err != nil {

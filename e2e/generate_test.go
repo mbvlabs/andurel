@@ -146,7 +146,7 @@ func testGenerateModel(t *testing.T, project *internal.Project) {
 
 	// Verify model file exists and compare against golden file
 	internal.AssertFileExists(t, project, "models/product.go")
-	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/product.go"))
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models", "product.go"))
 	if err != nil {
 		t.Fatalf("Failed to read model file: %v", err)
 	}
@@ -159,7 +159,7 @@ func testGenerateModel(t *testing.T, project *internal.Project) {
 
 	// Verify queries file exists and compare against golden file
 	internal.AssertFileExists(t, project, "database/queries/products.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/products.sql"))
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database", "queries", "products.sql"))
 	if err != nil {
 		t.Fatalf("Failed to read queries file: %v", err)
 	}
@@ -172,7 +172,7 @@ func testGenerateModel(t *testing.T, project *internal.Project) {
 
 	// Verify factory file exists and compare against golden file
 	internal.AssertFileExists(t, project, "models/factories/product.go")
-	factoryContent, err := os.ReadFile(filepath.Join(project.Dir, "models/factories/product.go"))
+	factoryContent, err := os.ReadFile(filepath.Join(project.Dir, "models", "factories", "product.go"))
 	if err != nil {
 		t.Fatalf("Failed to read factory file: %v", err)
 	}
@@ -199,7 +199,7 @@ func testGenerateModelWithoutTimestamps(t *testing.T, project *internal.Project)
 	internal.AssertFileExists(t, project, "models/server_provision_step.go")
 
 	internal.AssertFileExists(t, project, "database/queries/server_provision_steps.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/server_provision_steps.sql"))
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database", "queries", "server_provision_steps.sql"))
 	if err != nil {
 		t.Fatalf("Failed to read queries file: %v", err)
 	}
@@ -234,7 +234,7 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 
 	// Verify controller file exists and compare against golden file
 	internal.AssertFileExists(t, project, "controllers/orders.go")
-	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/orders.go"))
+	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers", "orders.go"))
 	if err != nil {
 		t.Fatalf("Failed to read controller file: %v", err)
 	}
@@ -247,7 +247,7 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 
 	// Verify view file exists and compare against golden file (--with-views was passed)
 	internal.AssertFileExists(t, project, "views/orders_resource.templ")
-	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/orders_resource.templ"))
+	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views", "orders_resource.templ"))
 	if err != nil {
 		t.Fatalf("Failed to read view file: %v", err)
 	}
@@ -260,7 +260,7 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 
 	// Verify routes file exists and compare against golden file
 	internal.AssertFileExists(t, project, "router/routes/orders.go")
-	routesContent, err := os.ReadFile(filepath.Join(project.Dir, "router/routes/orders.go"))
+	routesContent, err := os.ReadFile(filepath.Join(project.Dir, "router", "routes", "orders.go"))
 	if err != nil {
 		t.Fatalf("Failed to read routes file: %v", err)
 	}
@@ -288,7 +288,7 @@ func testGenerateView(t *testing.T, project *internal.Project) {
 
 	// Verify view file exists and compare against golden file
 	internal.AssertFileExists(t, project, "views/categories_resource.templ")
-	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/categories_resource.templ"))
+	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views", "categories_resource.templ"))
 	if err != nil {
 		t.Fatalf("Failed to read view file: %v", err)
 	}
@@ -319,7 +319,7 @@ func testGenerateResource(t *testing.T, project *internal.Project) {
 
 	// Verify model file exists and compare against golden file
 	internal.AssertFileExists(t, project, "models/item.go")
-	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/item.go"))
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models", "item.go"))
 	if err != nil {
 		t.Fatalf("Failed to read model file: %v", err)
 	}
@@ -332,7 +332,7 @@ func testGenerateResource(t *testing.T, project *internal.Project) {
 
 	// Verify controller file exists and compare against golden file
 	internal.AssertFileExists(t, project, "controllers/items.go")
-	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/items.go"))
+	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers", "items.go"))
 	if err != nil {
 		t.Fatalf("Failed to read controller file: %v", err)
 	}
@@ -345,7 +345,7 @@ func testGenerateResource(t *testing.T, project *internal.Project) {
 
 	// Verify view file exists and compare against golden file
 	internal.AssertFileExists(t, project, "views/items_resource.templ")
-	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/items_resource.templ"))
+	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views", "items_resource.templ"))
 	if err != nil {
 		t.Fatalf("Failed to read view file: %v", err)
 	}
@@ -376,7 +376,7 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 
 	// Verify model file exists and compare against golden file
 	internal.AssertFileExists(t, project, "models/student_feedback.go")
-	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/student_feedback.go"))
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models", "student_feedback.go"))
 	if err != nil {
 		t.Fatalf("Failed to read model file: %v", err)
 	}
@@ -389,7 +389,7 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 
 	// Verify controller file exists and compare against golden file
 	internal.AssertFileExists(t, project, "controllers/student_feedback.go")
-	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/student_feedback.go"))
+	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers", "student_feedback.go"))
 	if err != nil {
 		t.Fatalf("Failed to read controller file: %v", err)
 	}
@@ -402,7 +402,7 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 
 	// Verify view file exists and compare against golden file
 	internal.AssertFileExists(t, project, "views/student_feedback_resource.templ")
-	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/student_feedback_resource.templ"))
+	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views", "student_feedback_resource.templ"))
 	if err != nil {
 		t.Fatalf("Failed to read view file: %v", err)
 	}
@@ -449,7 +449,7 @@ func testGenerateModelWithFactory(t *testing.T, project *internal.Project) {
 
 	// Verify model file exists and compare against golden file
 	internal.AssertFileExists(t, project, "models/book.go")
-	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/book.go"))
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models", "book.go"))
 	if err != nil {
 		t.Fatalf("Failed to read model file: %v", err)
 	}
@@ -462,7 +462,7 @@ func testGenerateModelWithFactory(t *testing.T, project *internal.Project) {
 
 	// Verify queries file exists and compare against golden file
 	internal.AssertFileExists(t, project, "database/queries/books.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/books.sql"))
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database", "queries", "books.sql"))
 	if err != nil {
 		t.Fatalf("Failed to read queries file: %v", err)
 	}
@@ -475,7 +475,7 @@ func testGenerateModelWithFactory(t *testing.T, project *internal.Project) {
 
 	// Verify factory file exists and compare against golden file (default behavior)
 	internal.AssertFileExists(t, project, "models/factories/book.go")
-	factoryContent, err := os.ReadFile(filepath.Join(project.Dir, "models/factories/book.go"))
+	factoryContent, err := os.ReadFile(filepath.Join(project.Dir, "models", "factories", "book.go"))
 	if err != nil {
 		t.Fatalf("Failed to read factory file: %v", err)
 	}
@@ -501,7 +501,7 @@ func testGenerateModelSkipFactory(t *testing.T, project *internal.Project) {
 
 	// Verify model file exists and compare against golden file
 	internal.AssertFileExists(t, project, "models/article.go")
-	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/article.go"))
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models", "article.go"))
 	if err != nil {
 		t.Fatalf("Failed to read model file: %v", err)
 	}
@@ -514,7 +514,7 @@ func testGenerateModelSkipFactory(t *testing.T, project *internal.Project) {
 
 	// Verify queries file exists and compare against golden file
 	internal.AssertFileExists(t, project, "database/queries/articles.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/articles.sql"))
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database", "queries", "articles.sql"))
 	if err != nil {
 		t.Fatalf("Failed to read queries file: %v", err)
 	}
@@ -547,7 +547,7 @@ func testGenerateModelWithTableName(t *testing.T, project *internal.Project) {
 
 	// Verify model file exists and compare against golden file
 	internal.AssertFileExists(t, project, "models/person.go")
-	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/person.go"))
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models", "person.go"))
 	if err != nil {
 		t.Fatalf("Failed to read model file: %v", err)
 	}
@@ -560,7 +560,7 @@ func testGenerateModelWithTableName(t *testing.T, project *internal.Project) {
 
 	// Verify queries file exists with custom table name and compare against golden file
 	internal.AssertFileExists(t, project, "database/queries/people_data.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/people_data.sql"))
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database", "queries", "people_data.sql"))
 	if err != nil {
 		t.Fatalf("Failed to read queries file: %v", err)
 	}
@@ -573,7 +573,7 @@ func testGenerateModelWithTableName(t *testing.T, project *internal.Project) {
 
 	// Verify factory file exists and compare against golden file
 	internal.AssertFileExists(t, project, "models/factories/person.go")
-	factoryContent, err := os.ReadFile(filepath.Join(project.Dir, "models/factories/person.go"))
+	factoryContent, err := os.ReadFile(filepath.Join(project.Dir, "models", "factories", "person.go"))
 	if err != nil {
 		t.Fatalf("Failed to read factory file: %v", err)
 	}
@@ -604,7 +604,7 @@ func testGenerateControllerWithoutViews(t *testing.T, project *internal.Project)
 
 	// Verify controller file exists and compare against golden file
 	internal.AssertFileExists(t, project, "controllers/invoices.go")
-	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/invoices.go"))
+	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers", "invoices.go"))
 	if err != nil {
 		t.Fatalf("Failed to read controller file: %v", err)
 	}
@@ -617,7 +617,7 @@ func testGenerateControllerWithoutViews(t *testing.T, project *internal.Project)
 
 	// Verify routes file exists and compare against golden file
 	internal.AssertFileExists(t, project, "router/routes/invoices.go")
-	routesContent, err := os.ReadFile(filepath.Join(project.Dir, "router/routes/invoices.go"))
+	routesContent, err := os.ReadFile(filepath.Join(project.Dir, "router", "routes", "invoices.go"))
 	if err != nil {
 		t.Fatalf("Failed to read routes file: %v", err)
 	}
@@ -630,7 +630,7 @@ func testGenerateControllerWithoutViews(t *testing.T, project *internal.Project)
 
 	// Verify router registration file exists and compare against golden file
 	internal.AssertFileExists(t, project, "router/connect_invoices_routes.go")
-	routerContent, err := os.ReadFile(filepath.Join(project.Dir, "router/connect_invoices_routes.go"))
+	routerContent, err := os.ReadFile(filepath.Join(project.Dir, "router", "connect_invoices_routes.go"))
 	if err != nil {
 		t.Fatalf("Failed to read router registration file: %v", err)
 	}
@@ -665,7 +665,7 @@ func testGenerateViewWithController(t *testing.T, project *internal.Project) {
 
 	// Verify view file exists and compare against golden file
 	internal.AssertFileExists(t, project, "views/reviews_resource.templ")
-	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/reviews_resource.templ"))
+	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views", "reviews_resource.templ"))
 	if err != nil {
 		t.Fatalf("Failed to read view file: %v", err)
 	}
@@ -678,7 +678,7 @@ func testGenerateViewWithController(t *testing.T, project *internal.Project) {
 
 	// Verify controller file exists (because --with-controller was passed)
 	internal.AssertFileExists(t, project, "controllers/reviews.go")
-	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/reviews.go"))
+	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers", "reviews.go"))
 	if err != nil {
 		t.Fatalf("Failed to read controller file: %v", err)
 	}
@@ -691,7 +691,7 @@ func testGenerateViewWithController(t *testing.T, project *internal.Project) {
 
 	// Verify routes file exists
 	internal.AssertFileExists(t, project, "router/routes/reviews.go")
-	routesContent, err := os.ReadFile(filepath.Join(project.Dir, "router/routes/reviews.go"))
+	routesContent, err := os.ReadFile(filepath.Join(project.Dir, "router", "routes", "reviews.go"))
 	if err != nil {
 		t.Fatalf("Failed to read routes file: %v", err)
 	}
@@ -717,7 +717,7 @@ func testGenerateQueries(t *testing.T, project *internal.Project) {
 
 	// Verify queries file exists and compare against golden file
 	internal.AssertFileExists(t, project, "database/queries/user_roles.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/user_roles.sql"))
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database", "queries", "user_roles.sql"))
 	if err != nil {
 		t.Fatalf("Failed to read queries file: %v", err)
 	}
@@ -751,7 +751,7 @@ func testGenerateQueriesWithSingularTableName(t *testing.T, project *internal.Pr
 	internal.AssertCommandSucceeds(t, err, "generate queries with singular table name")
 
 	internal.AssertFileExists(t, project, "database/queries/team_membership.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/team_membership.sql"))
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database", "queries", "team_membership.sql"))
 	if err != nil {
 		t.Fatalf("Failed to read queries file: %v", err)
 	}
@@ -778,7 +778,7 @@ func testGenerateQueriesWithRefresh(t *testing.T, project *internal.Project) {
 
 	// Verify queries file exists and compare against golden file
 	internal.AssertFileExists(t, project, "database/queries/tag_assignments.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/tag_assignments.sql"))
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database", "queries", "tag_assignments.sql"))
 	if err != nil {
 		t.Fatalf("Failed to read queries file: %v", err)
 	}
@@ -814,7 +814,7 @@ func testGenerateQueriesWithRefreshTimestamps(t *testing.T, project *internal.Pr
 	internal.AssertCommandSucceeds(t, err, "queries refresh")
 
 	internal.AssertFileExists(t, project, "database/queries/audit_logs.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/audit_logs.sql"))
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database", "queries", "audit_logs.sql"))
 	if err != nil {
 		t.Fatalf("Failed to read queries file: %v", err)
 	}
@@ -865,7 +865,7 @@ DROP TABLE IF EXISTS posts;
 
 	// Verify model file exists and compare against golden file
 	internal.AssertFileExists(t, project, "models/post.go")
-	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/post.go"))
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models", "post.go"))
 	if err != nil {
 		t.Fatalf("Failed to read model file: %v", err)
 	}
@@ -903,7 +903,7 @@ DROP TABLE IF EXISTS posts;
 
 	// Verify queries file exists and compare against golden file
 	internal.AssertFileExists(t, project, "database/queries/posts.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/posts.sql"))
+	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database", "queries", "posts.sql"))
 	if err != nil {
 		t.Fatalf("Failed to read queries file: %v", err)
 	}
@@ -1029,7 +1029,7 @@ DROP TABLE IF EXISTS documents;
 
 	// Verify view file exists
 	internal.AssertFileExists(t, project, "views/documents_resource.templ")
-	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/documents_resource.templ"))
+	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views", "documents_resource.templ"))
 	if err != nil {
 		t.Fatalf("Failed to read view file: %v", err)
 	}
@@ -1102,7 +1102,7 @@ func testGenerateFragment(t *testing.T, project *internal.Project) {
 	internal.AssertCommandSucceeds(t, err, "generate fragment Webhook Ping")
 
 	// Verify controller has the new method
-	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/webhooks.go"))
+	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers", "webhooks.go"))
 	if err != nil {
 		t.Fatalf("Failed to read controller file: %v", err)
 	}
@@ -1112,7 +1112,7 @@ func testGenerateFragment(t *testing.T, project *internal.Project) {
 	}
 
 	// Verify routes file has the new route variable
-	routesContent, err := os.ReadFile(filepath.Join(project.Dir, "router/routes/webhooks.go"))
+	routesContent, err := os.ReadFile(filepath.Join(project.Dir, "router", "routes", "webhooks.go"))
 	if err != nil {
 		t.Fatalf("Failed to read routes file: %v", err)
 	}
@@ -1125,7 +1125,7 @@ func testGenerateFragment(t *testing.T, project *internal.Project) {
 	}
 
 	// Verify connect file has the new route registration
-	connectContent, err := os.ReadFile(filepath.Join(project.Dir, "router/connect_webhooks_routes.go"))
+	connectContent, err := os.ReadFile(filepath.Join(project.Dir, "router", "connect_webhooks_routes.go"))
 	if err != nil {
 		t.Fatalf("Failed to read connect file: %v", err)
 	}
@@ -1145,7 +1145,7 @@ func testGenerateFragment(t *testing.T, project *internal.Project) {
 	internal.AssertCommandSucceeds(t, err, "generate fragment Webhook Verify")
 
 	// Verify controller has the Verify method
-	controllerContent, err = os.ReadFile(filepath.Join(project.Dir, "controllers/webhooks.go"))
+	controllerContent, err = os.ReadFile(filepath.Join(project.Dir, "controllers", "webhooks.go"))
 	if err != nil {
 		t.Fatalf("Failed to read controller file: %v", err)
 	}
@@ -1155,7 +1155,7 @@ func testGenerateFragment(t *testing.T, project *internal.Project) {
 	}
 
 	// Verify routes file has the new route variable with ID constructor
-	routesContent, err = os.ReadFile(filepath.Join(project.Dir, "router/routes/webhooks.go"))
+	routesContent, err = os.ReadFile(filepath.Join(project.Dir, "router", "routes", "webhooks.go"))
 	if err != nil {
 		t.Fatalf("Failed to read routes file: %v", err)
 	}
@@ -1168,7 +1168,7 @@ func testGenerateFragment(t *testing.T, project *internal.Project) {
 	}
 
 	// Verify connect file has the Verify route registration with POST method
-	connectContent, err = os.ReadFile(filepath.Join(project.Dir, "router/connect_webhooks_routes.go"))
+	connectContent, err = os.ReadFile(filepath.Join(project.Dir, "router", "connect_webhooks_routes.go"))
 	if err != nil {
 		t.Fatalf("Failed to read connect file: %v", err)
 	}
