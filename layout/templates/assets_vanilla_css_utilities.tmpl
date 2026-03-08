@@ -1,0 +1,35 @@
+:where(.flow, .u-flow) > * + * {
+	margin-block-start: var(--space-4);
+}
+
+:where(.flow, .u-flow)[data-gap="sm"] > * + * {
+	margin-block-start: var(--space-3);
+}
+
+:where(.flow, .u-flow)[data-gap="lg"] > * + * {
+	margin-block-start: var(--space-5);
+}
+
+:where(.muted, .u-muted) {
+	color: var(--text-muted);
+}
+
+:where(.text-center, .u-center) {
+	text-align: center;
+}
+
+:where(.full-width) {
+	inline-size: 100%;
+}
+
+:where(.visually-hidden, .u-visually-hidden) {
+	position: absolute;
+	inline-size: 1px;
+	block-size: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}

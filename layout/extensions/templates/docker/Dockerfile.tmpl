@@ -8,7 +8,7 @@ COPY bin/tailwindcli ./bin/tailwindcli
 COPY css ./css
 COPY views ./views
 
-RUN ./bin/tailwindcli -i ./css/base.css -o ./assets/css/style.css --minify
+RUN ./bin/tailwindcli -i ./css/base.css -o ./assets/css/styles.css --minify
 {{- end}}
 
 FROM golang:${GO_VERSION}-bookworm AS builder
@@ -20,7 +20,7 @@ RUN go mod download && go mod verify
 
 COPY . .
 {{- if eq .CSSFramework "tailwind"}}
-COPY --from=css-builder /usr/src/app/assets/css/style.css ./assets/css/style.css
+COPY --from=css-builder /usr/src/app/assets/css/styles.css ./assets/css/styles.css
 {{- end}}
 
 RUN CGO_ENABLED=0 GOOS=linux go build -v -o /run-app ./cmd/app

@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -50,5 +52,19 @@ func AssertOutputContains(t *testing.T, output, expected string) {
 
 	if !strings.Contains(output, expected) {
 		t.Errorf("Expected output to contain %q, got:\n%s", expected, output)
+	}
+}
+
+func AssertFileContains(t *testing.T, p *Project, path, expected string) {
+	t.Helper()
+
+	fullPath := filepath.Join(p.Dir, path)
+	content, err := os.ReadFile(fullPath)
+	if err != nil {
+		t.Fatalf("Failed to read file %s: %v", path, err)
+	}
+
+	if !strings.Contains(string(content), expected) {
+		t.Errorf("Expected file %s to contain %q", path, expected)
 	}
 }

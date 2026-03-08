@@ -247,7 +247,6 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Components
 	"tw_views_components_toast.tmpl": "views/components/toast.templ",
-
 	// Examples
 	"tw_views_examples_accordian.tmpl":    "views/examples/accordion.html",
 	"tw_views_examples_alerts.tmpl":       "views/examples/alerts.html",
@@ -297,15 +296,21 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 }
 
 var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"assets_vanilla_css_normalize.tmpl":  "assets/css/normalize.css",
-	"assets_vanilla_css_open-props.tmpl": "assets/css/open_props.css",
-	"assets_vanilla_css_buttons.tmpl":    "assets/css/buttons.css",
+	"assets_vanilla_css_reset.tmpl":                      "assets/css/reset.css",
+	"assets_vanilla_css_tokens.tmpl":                     "assets/css/tokens.css",
+	"assets_vanilla_css_base.tmpl":                       "assets/css/base.css",
+	"assets_vanilla_css_objects.tmpl":                    "assets/css/objects.css",
+	"assets_vanilla_css_utilities.tmpl":                  "assets/css/utilities.css",
+	"assets_vanilla_css_components_buttons.tmpl":         "assets/css/components/buttons.css",
+	"assets_vanilla_css_components_feedback.tmpl":        "assets/css/components/feedback.css",
+	"assets_vanilla_css_components_forms.tmpl":           "assets/css/components/forms.css",
+	"assets_vanilla_css_components_layout.tmpl":          "assets/css/components/layout.css",
+	"assets_vanilla_css_components_panels.tmpl":          "assets/css/components/panels.css",
 
 	// Views
-	"vanilla_views_layout.tmpl": "views/layout.templ",
-	// "vanilla_views_components_toasts.tmpl":        "views/components/toasts.templ",
-	"vanilla_views_head.tmpl": "views/head.templ",
-	// "vanilla_views_components_form_elements.tmpl": "views/components/form_elements.templ",
+	"vanilla_views_layout.tmpl":           "views/layout.templ",
+	"vanilla_views_components_toast.tmpl": "views/components/toast.templ",
+	"vanilla_views_head.tmpl":             "views/head.templ",
 	"vanilla_views_home.tmpl":           "views/home.templ",
 	"vanilla_views_bad_request.tmpl":    "views/bad_request.templ",
 	"vanilla_views_internal_error.tmpl": "views/internal_error.templ",
@@ -337,7 +342,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
-	"assets_css_style.tmpl":   "assets/css/style.css",
+	"assets_css_style.tmpl":   "assets/css/styles.css",
 	"assets_js_scripts.tmpl":  "assets/js/scripts.js",
 	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc6.min.js",
 
