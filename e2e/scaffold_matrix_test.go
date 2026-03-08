@@ -100,6 +100,13 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 	}
 	internal.AssertFilesExist(t, project, coreFiles)
 
+	exampleViewFiles := []string{
+		"views/examples/buttons.html",
+		"views/examples/table.html",
+		"views/examples/toast.html",
+	}
+	internal.AssertFilesExist(t, project, exampleViewFiles)
+
 	internal.AssertFileExists(
 		t,
 		project,
@@ -118,7 +125,7 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 	if config.CSS == "vanilla" {
 		internal.AssertDirExists(t, project, "assets/css")
 		vanillaCSSFiles := []string{
-			"assets/css/styles.css",
+			"assets/css/style.css",
 			"assets/css/reset.css",
 			"assets/css/theme.css",
 			"assets/css/base.css",

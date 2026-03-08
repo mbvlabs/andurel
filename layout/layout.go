@@ -306,14 +306,14 @@ var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"vanilla_views_layout.tmpl":           "views/layout.templ",
 	"vanilla_views_components_toast.tmpl": "views/components/toast.templ",
 	"vanilla_views_head.tmpl":             "views/head.templ",
-	"vanilla_views_home.tmpl":           "views/home.templ",
-	"vanilla_views_bad_request.tmpl":    "views/bad_request.templ",
-	"vanilla_views_internal_error.tmpl": "views/internal_error.templ",
-	"vanilla_views_not_found.tmpl":      "views/not_found.templ",
-	"vanilla_views_confirm_email.tmpl":  "views/confirm_email.templ",
-	"vanilla_views_login.tmpl":          "views/login.templ",
-	"vanilla_views_registration.tmpl":   "views/registration.templ",
-	"vanilla_views_reset_password.tmpl": "views/reset_password.templ",
+	"vanilla_views_home.tmpl":             "views/home.templ",
+	"vanilla_views_bad_request.tmpl":      "views/bad_request.templ",
+	"vanilla_views_internal_error.tmpl":   "views/internal_error.templ",
+	"vanilla_views_not_found.tmpl":        "views/not_found.templ",
+	"vanilla_views_confirm_email.tmpl":    "views/confirm_email.templ",
+	"vanilla_views_login.tmpl":            "views/login.templ",
+	"vanilla_views_registration.tmpl":     "views/registration.templ",
+	"vanilla_views_reset_password.tmpl":   "views/reset_password.templ",
 }
 
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -337,7 +337,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
-	"assets_css_style.tmpl":   "assets/css/styles.css",
+	"assets_css_style.tmpl":   "assets/css/style.css",
 	"assets_js_scripts.tmpl":  "assets/js/scripts.js",
 	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc6.min.js",
 
@@ -482,6 +482,20 @@ func processTemplatedFiles(
 			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
 				return fmt.Errorf(
 					"failed to process vanilla css template %s: %w",
+					templateFile,
+					err,
+				)
+			}
+		}
+
+		for templateFile, targetPath := range baseTailwindTemplateMappings {
+			if !strings.HasPrefix(string(templateFile), "tw_views_examples_") {
+				continue
+			}
+
+			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
+				return fmt.Errorf(
+					"failed to process vanilla view example template %s: %w",
 					templateFile,
 					err,
 				)
