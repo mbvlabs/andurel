@@ -245,6 +245,9 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Views
 	"tw_views_head.tmpl": "views/head.templ",
 
+	// Components
+	"tw_views_components_toast.tmpl": "views/components/toast.templ",
+
 	// Examples
 	"tw_views_examples_accordian.tmpl":    "views/examples/accordion.html",
 	"tw_views_examples_alerts.tmpl":       "views/examples/alerts.html",
