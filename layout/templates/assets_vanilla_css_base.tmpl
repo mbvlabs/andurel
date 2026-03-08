@@ -1,14 +1,16 @@
 :where(html) {
-	background:
-		radial-gradient(circle at top, color-mix(in oklab, var(--primary) 10%, transparent), transparent 35%),
-		linear-gradient(180deg, var(--surface-page), color-mix(in oklab, var(--surface-page) 92%, black));
+	scroll-behavior: smooth;
 	color: var(--color-base-content);
 	font-family: var(--font-sans);
 }
 
 :where(body) {
 	min-block-size: 100vh;
-	background: transparent;
+	letter-spacing: -0.0125em;
+	-webkit-tap-highlight-color: transparent;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 :where(main) {
@@ -39,8 +41,8 @@
 }
 
 :where(p, ul, ol) {
-	color: var(--text-muted);
-	max-inline-size: var(--measure);
+	color: color-mix(in oklab, var(--color-base-content) 64%, white);
+	max-inline-size: 65ch;
 }
 
 :where(a) {
@@ -50,7 +52,7 @@
 }
 
 :where(a:hover) {
-	color: var(--primary-strong);
+	color: color-mix(in oklab, var(--color-primary) 88%, black);
 }
 
 :where(button, input, textarea, select) {
@@ -58,12 +60,12 @@
 }
 
 :where(:focus-visible) {
-	outline: 3px solid var(--ring);
+	outline: 3px solid color-mix(in oklab, var(--color-primary) 36%, white);
 	outline-offset: 3px;
 }
 
 :where(::placeholder) {
-	color: color-mix(in oklab, var(--text-muted) 70%, transparent);
+	color: color-mix(in oklab, var(--color-base-content) 45%, transparent);
 }
 
 :where([hidden]) {

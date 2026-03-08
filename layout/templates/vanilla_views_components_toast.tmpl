@@ -15,17 +15,17 @@ templ ToastMessage(flash cookies.FlashMessage) {
 		data-init__delay.5000ms="$visible = false"
 	>
 		<div class="toast-header">
-			<div class="cluster" data-gap="sm">
-				<div class="toast-indicator"></div>
+			<div class="toast-indicator"></div>
+			<span class="cluster" data-gap="sm">
 				<p class="toast-time">{ flash.CreatedAt.Format(time.Kitchen) }</p>
-			</div>
-			<button class="toast-close btn btn-ghost btn-sm" data-on:click="$visible = false" type="button">
-				<span class="visually-hidden">Dismiss</span>
-				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<path d="M18 6 6 18"></path>
-					<path d="m6 6 12 12"></path>
-				</svg>
-			</button>
+				<button class="toast-close btn btn-ghost btn-sm" data-on:click="$visible = false" type="button">
+					<span class="visually-hidden">Dismiss</span>
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M18 6 6 18"></path>
+						<path d="m6 6 12 12"></path>
+					</svg>
+				</button>
+			</span>
 		</div>
 		<div class="toast-message">{ flash.Message }</div>
 	</div>

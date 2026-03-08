@@ -141,16 +141,22 @@
 	--space-7: 3rem;
 	--space-8: 4rem;
 
-	/* Reduced roundness compared to previous vanilla defaults. */
-	--radius-selector: 0.5rem;
-	--radius-field: 0.4rem;
-	--radius-box: 0.6rem;
+	/* Border radius — aligned with Tailwind @theme. */
+	--radius-selector: 1rem;
+	--radius-field: 0.25rem;
+	--radius-box: 0.5rem;
 	--radius-round: 999px;
-	--radius-xs: 0.25rem;
-	--radius-sm: 0.4rem;
-	--radius-md: 0.6rem;
-	--radius-lg: 0.8rem;
-	--radius-xl: 1rem;
+
+	/* Base sizes. */
+	--size-selector: 0.25rem;
+	--size-field: 0.25rem;
+
+	/* Border size. */
+	--border: 1px;
+
+	/* Effects. */
+	--depth: 1;
+	--noise: 0;
 
 	--shadow-sm: 0 1px 2px hsl(220 30% 12% / 0.08);
 	--shadow-md: 0 10px 26px hsl(220 35% 20% / 0.12);
@@ -167,21 +173,4 @@
 	--z-overlay: 30;
 	--z-toast: 40;
 	--z-modal: 50;
-
-	/* Backward-compatible aliases used by vanilla components. */
-	--surface-page: var(--color-base-200);
-	--surface-panel: var(--color-base-100);
-	--surface-panel-muted: var(--color-base-200);
-	--surface-inverse: var(--neutral);
-	--text-strong: var(--text-base-content);
-	--text-muted: color-mix(in oklab, var(--text-base-content) 64%, white);
-	--text-inverse: var(--neutral-content);
-	--border-subtle: color-mix(in oklab, var(--text-base-content) 18%, white);
-	--border-strong: color-mix(in oklab, var(--text-base-content) 34%, white);
-	--primary-strong: color-mix(in oklab, var(--primary) 88%, black);
-	--destructive: var(--error);
-	--ring: color-mix(in oklab, var(--primary) 36%, white);
-
-	--container-inline: min(72rem, calc(100vw - 2 * var(--space-5)));
-	--measure: 65ch;
 }
