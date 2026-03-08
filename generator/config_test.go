@@ -15,14 +15,14 @@ func TestReadDatabaseTypeFromSQLCYAML(t *testing.T) {
 		hasError bool
 	}{
 		{
-			name: "Empty user SQL list falls back to base config",
-			content: `sql: []`,
+			name:     "Empty user SQL list falls back to base config",
+			content:  `sql: []`,
 			expected: "postgresql",
 			hasError: false,
 		},
 		{
-			name: "Missing effective config falls back to default",
-			content: `version: "2"`,
+			name:     "Missing effective config falls back to default",
+			content:  `version: "2"`,
 			expected: "postgresql",
 			hasError: false,
 		},

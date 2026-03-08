@@ -1,8 +1,8 @@
 package views
 
 import (
-	"{{.ModuleName}}/views/components"
 	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/views/components"
 	"time"
 )
 
@@ -17,11 +17,11 @@ templ base(headOpts ...HeadDataOption) {
 					&copy; { time.Now().Format("2006") } andurel.
 				</div>
 			</footer>
+			<div id="flashContainer" class="toast-stack">
+				for _, flash := range cookies.GetFlashesCtx(ctx) {
+					@components.ToastMessage(flash)
+				}
+			</div>
 		</body>
-		<div id="flashContainer" class="fixed top-4 right-4 z-50 space-y-2">
-			for _, flash := range cookies.GetFlashesCtx(ctx) {
-				@components.ToastMessage(flash)
-			}
-		</div>
 	</html>
 }

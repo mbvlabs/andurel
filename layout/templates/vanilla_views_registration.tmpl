@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"{{.ModuleName}}/internal/hypermedia"
 	"{{.ModuleName}}/router/routes"
-	"{{.ModuleName}}/views/components"
 )
 
 templ RegistrationForm() {
@@ -24,7 +23,7 @@ templ RegistrationForm() {
 					<label for="confirmPassword">Confirm Password</label>
 					<input type="password" id="confirmPassword" data-bind="confirmPassword" data-attr:disabled="$submitting" required minlength="8"/>
 				</div>
-				@components.SubmitButton("Sign Up")
+				<button type="submit">Sign Up</button>
 			</form>
 		</main>
 	}

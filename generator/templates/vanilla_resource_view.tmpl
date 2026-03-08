@@ -8,7 +8,6 @@ import (
 	"{{.ModulePath}}/models"
 	"{{.ModulePath}}/router/routes"
 	"{{.ModulePath}}/internal/hypermedia"
-	"{{.ModulePath}}/views/components"
 )
 
 templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
@@ -85,10 +84,13 @@ templ {{.ResourceName}}New() {
 						<p>Enter the details for the new {{.ResourceName | ToLower}}.</p>
 					</div>
 					<div>
-						{{range .Fields}}{{if not .IsSystemField}}@components.InputField("{{.DisplayName}}", "{{.CamelCase}}", "{{.InputType}}", "", false, components.FieldProp{})
+						{{range .Fields}}{{if not .IsSystemField}}<div>
+							<label for="{{.CamelCase}}">{{.DisplayName}}</label>
+							<input type="{{.InputType}}" id="{{.CamelCase}}" name="{{.CamelCase}}" data-bind="{{.CamelCase}}"/>
+						</div>
 						{{end}}{{end}}
 					</div>
-					@components.SubmitButton("Create {{.ResourceName}}")
+					<button type="submit">Create {{.ResourceName}}</button>
 					<p>
 						<a href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
 					</p>
@@ -110,12 +112,13 @@ templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}
 						<p>Update the details for this {{.ResourceName | ToLower}}.</p>
 					</div>
 					<div>
-						{{range .Fields}}{{if not .IsSystemField}}@components.InputField("{{.DisplayName}}", "{{.CamelCase}}", "{{.InputType}}", "", false, components.FieldProp{
-							Value: {{StringValue . $.ResourceName}},
-						})
+						{{range .Fields}}{{if not .IsSystemField}}<div>
+							<label for="{{.CamelCase}}">{{.DisplayName}}</label>
+							<input type="{{.InputType}}" id="{{.CamelCase}}" name="{{.CamelCase}}" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} }/>
+						</div>
 						{{end}}{{end}}
 					</div>
-					@components.SubmitButton("Update {{.ResourceName}}")
+					<button type="submit">Update {{.ResourceName}}</button>
 					<p>
 						<a href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
 					</p>
