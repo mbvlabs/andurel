@@ -296,16 +296,11 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 }
 
 var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"assets_vanilla_css_reset.tmpl":                      "assets/css/reset.css",
-	"assets_vanilla_css_tokens.tmpl":                     "assets/css/tokens.css",
-	"assets_vanilla_css_base.tmpl":                       "assets/css/base.css",
-	"assets_vanilla_css_objects.tmpl":                    "assets/css/objects.css",
-	"assets_vanilla_css_utilities.tmpl":                  "assets/css/utilities.css",
-	"assets_vanilla_css_components_buttons.tmpl":         "assets/css/components/buttons.css",
-	"assets_vanilla_css_components_feedback.tmpl":        "assets/css/components/feedback.css",
-	"assets_vanilla_css_components_forms.tmpl":           "assets/css/components/forms.css",
-	"assets_vanilla_css_components_layout.tmpl":          "assets/css/components/layout.css",
-	"assets_vanilla_css_components_panels.tmpl":          "assets/css/components/panels.css",
+	"assets_vanilla_css_reset.tmpl":      "assets/css/reset.css",
+	"assets_vanilla_css_theme.tmpl":      "assets/css/theme.css",
+	"assets_vanilla_css_base.tmpl":       "assets/css/base.css",
+	"assets_vanilla_css_utilities.tmpl":  "assets/css/utilities.css",
+	"assets_vanilla_css_components.tmpl": "assets/css/components.css",
 
 	// Views
 	"vanilla_views_layout.tmpl":           "views/layout.templ",

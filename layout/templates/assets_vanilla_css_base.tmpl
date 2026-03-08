@@ -2,21 +2,17 @@
 	background:
 		radial-gradient(circle at top, color-mix(in oklab, var(--primary) 10%, transparent), transparent 35%),
 		linear-gradient(180deg, var(--surface-page), color-mix(in oklab, var(--surface-page) 92%, black));
-	color: var(--text-strong);
+	color: var(--color-base-content);
 	font-family: var(--font-sans);
 }
 
 :where(body) {
-	display: grid;
-	grid-template-rows: 1fr auto;
 	min-block-size: 100vh;
+	background: transparent;
 }
 
 :where(main) {
-	inline-size: var(--container-inline);
-	margin-inline: auto;
-	padding-block: var(--space-8);
-	padding-inline: var(--space-4);
+	inline-size: 100%;
 }
 
 :where(h1, h2, h3) {

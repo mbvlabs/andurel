@@ -10,10 +10,10 @@ templ base(headOpts ...HeadDataOption) {
 	<!DOCTYPE html>
 	<html lang="en" class="dark">
 		@SetupHead(ctx, headOpts...)
-		<body class="app-shell">
+		<body class="min-h-screen flex flex-col bg-base-200 text-base-content">
 			{ children... }
-			<footer class="site-footer">
-				<div class="container">
+			<footer class="site-footer py-4">
+				<div class="container text-center text-sm">
 					&copy; { time.Now().Format("2006") } andurel.
 				</div>
 			</footer>

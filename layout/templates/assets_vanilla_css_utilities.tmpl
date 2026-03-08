@@ -1,3 +1,92 @@
+/* Layout/object primitives */
+:where(.container, .o-container) {
+	inline-size: min(100% - 2 * var(--space-4), var(--container-inline));
+	margin-inline: auto;
+}
+
+:where(.stack, .o-stack) {
+	display: grid;
+	gap: var(--stack-gap, var(--space-4));
+	justify-items: start;
+}
+
+:where(.stack, .o-stack) > * {
+	margin: 0;
+}
+
+:where(.stack, .o-stack)[data-gap="sm"] {
+	--stack-gap: var(--space-3);
+}
+
+:where(.stack, .o-stack)[data-gap="lg"] {
+	--stack-gap: var(--space-6);
+}
+
+:where(.cluster, .o-cluster) {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--cluster-gap, var(--space-3));
+}
+
+:where(.cluster, .o-cluster)[data-gap="sm"] {
+	--cluster-gap: var(--space-2);
+}
+
+:where(.cluster, .o-cluster)[data-gap="lg"] {
+	--cluster-gap: var(--space-5);
+}
+
+:where(.cluster, .o-cluster)[data-justify="between"] {
+	justify-content: space-between;
+}
+
+:where(.cluster, .o-cluster)[data-justify="center"] {
+	justify-content: center;
+}
+
+:where(.center, .o-center) {
+	box-sizing: content-box;
+	max-inline-size: var(--measure);
+	margin-inline: auto;
+	padding-inline: var(--space-4);
+	text-align: center;
+}
+
+:where(.center, .o-center)[data-center="wide"] {
+	max-inline-size: var(--container-inline);
+}
+
+:where(.grid-auto-fit, .o-grid) {
+	--grid-min: 16rem;
+	display: grid;
+	gap: var(--grid-gap, var(--space-5));
+	grid-template-columns: repeat(auto-fit, minmax(min(var(--grid-min), 100%), 1fr));
+}
+
+:where(.grid-auto-fit, .o-grid)[data-gap="sm"] {
+	--grid-gap: var(--space-3);
+}
+
+:where(.grid-auto-fit, .o-grid)[data-gap="lg"] {
+	--grid-gap: var(--space-6);
+}
+
+:where(.grid-auto-fit, .o-grid)[data-grid="compact"] {
+	--grid-min: 12rem;
+}
+
+:where(.grid-auto-fit, .o-grid)[data-grid="wide"] {
+	--grid-min: 20rem;
+}
+
+@media (min-width: 48rem) {
+	:where(.o-grid)[data-columns="2"] {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+/* Semantic utility helpers */
 :where(.flow, .u-flow) > * + * {
 	margin-block-start: var(--space-4);
 }
@@ -32,4 +121,254 @@
 	clip: rect(0, 0, 0, 0);
 	white-space: nowrap;
 	border: 0;
+}
+
+/* Markup-ready utility classes (tailwind-like contract for vanilla scaffold). */
+.flex {
+	display: flex;
+}
+
+.grid {
+	display: grid;
+}
+
+.inline-flex {
+	display: inline-flex;
+}
+
+.flex-1 {
+	flex: 1 1 0%;
+}
+
+.flex-col {
+	flex-direction: column;
+}
+
+.flex-wrap {
+	flex-wrap: wrap;
+}
+
+.items-center {
+	align-items: center;
+}
+
+.items-start {
+	align-items: flex-start;
+}
+
+.justify-center {
+	justify-content: center;
+}
+
+.justify-between {
+	justify-content: space-between;
+}
+
+.gap-1 {
+	gap: var(--space-1);
+}
+
+.gap-2 {
+	gap: var(--space-2);
+}
+
+.gap-3 {
+	gap: var(--space-3);
+}
+
+.gap-4 {
+	gap: var(--space-4);
+}
+
+.gap-5 {
+	gap: var(--space-5);
+}
+
+.gap-6 {
+	gap: var(--space-6);
+}
+
+.space-y-1 > * + * {
+	margin-block-start: var(--space-1);
+}
+
+.space-y-2 > * + * {
+	margin-block-start: var(--space-2);
+}
+
+.space-y-3 > * + * {
+	margin-block-start: var(--space-3);
+}
+
+.space-y-4 > * + * {
+	margin-block-start: var(--space-4);
+}
+
+.w-full {
+	inline-size: 100%;
+}
+
+.max-w-md {
+	max-inline-size: 28rem;
+}
+
+.max-w-4xl {
+	max-inline-size: 56rem;
+}
+
+.max-w-5xl {
+	max-inline-size: 64rem;
+}
+
+.min-h-screen {
+	min-block-size: 100vh;
+}
+
+.mx-auto {
+	margin-inline: auto;
+}
+
+.mt-6 {
+	margin-block-start: var(--space-6);
+}
+
+.my-6 {
+	margin-block: var(--space-6);
+}
+
+.p-0 {
+	padding: 0;
+}
+
+.p-6 {
+	padding: var(--space-6);
+}
+
+.px-4 {
+	padding-inline: var(--space-4);
+}
+
+.px-6 {
+	padding-inline: var(--space-6);
+}
+
+.py-2 {
+	padding-block: var(--space-2);
+}
+
+.py-4 {
+	padding-block: var(--space-4);
+}
+
+.py-10 {
+	padding-block: 2.5rem;
+}
+
+.pt-0 {
+	padding-block-start: 0;
+}
+
+.rounded-field {
+	border-radius: var(--radius-field);
+}
+
+.rounded-box {
+	border-radius: var(--radius-box);
+}
+
+.border {
+	border: 1px solid var(--border-subtle);
+}
+
+.border-base-300 {
+	border-color: var(--color-base-300);
+}
+
+.bg-base-100 {
+	background: var(--color-base-100);
+}
+
+.bg-base-200 {
+	background: var(--color-base-200);
+}
+
+.bg-base-300 {
+	background: var(--color-base-300);
+}
+
+.bg-primary {
+	background: var(--primary);
+}
+
+.bg-error {
+	background: var(--error);
+}
+
+.text-base-content {
+	color: var(--color-base-content);
+}
+
+.text-primary-content {
+	color: var(--primary-content);
+}
+
+.text-error-content {
+	color: var(--error-content);
+}
+
+.text-sm {
+	font-size: var(--step--1);
+}
+
+.text-lg {
+	font-size: var(--step-1);
+}
+
+.text-2xl {
+	font-size: var(--step-2);
+}
+
+.font-medium {
+	font-weight: var(--font-weight-medium);
+}
+
+.font-semibold {
+	font-weight: var(--font-weight-semibold);
+}
+
+.font-bold {
+	font-weight: var(--font-weight-bold);
+}
+
+.leading-none {
+	line-height: 1;
+}
+
+.shadow-sm {
+	box-shadow: var(--shadow-sm);
+}
+
+.transition {
+	transition: all var(--duration-base) var(--ease-standard);
+}
+
+.hover\:bg-base-200\/70:hover {
+	background: color-mix(in oklab, var(--color-base-200) 70%, transparent);
+}
+
+.hover\:text-base-content:hover {
+	color: var(--color-base-content);
+}
+
+/* Utility aliases that mirror scaffold snippets. */
+.text-base-content\/60 {
+	color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+}
+
+.text-base-content\/70 {
+	color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+}
+
+.text-base-content\/80 {
+	color: color-mix(in oklab, var(--color-base-content) 80%, transparent);
 }
