@@ -308,10 +308,9 @@ var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_vanilla_css_components_panels.tmpl":          "assets/css/components/panels.css",
 
 	// Views
-	"vanilla_views_layout.tmpl": "views/layout.templ",
-	// "vanilla_views_components_toasts.tmpl":        "views/components/toasts.templ",
-	"vanilla_views_head.tmpl": "views/head.templ",
-	// "vanilla_views_components_form_elements.tmpl": "views/components/form_elements.templ",
+	"vanilla_views_layout.tmpl":           "views/layout.templ",
+	"vanilla_views_components_toast.tmpl": "views/components/toast.templ",
+	"vanilla_views_head.tmpl":             "views/head.templ",
 	"vanilla_views_home.tmpl":           "views/home.templ",
 	"vanilla_views_bad_request.tmpl":    "views/bad_request.templ",
 	"vanilla_views_internal_error.tmpl": "views/internal_error.templ",
