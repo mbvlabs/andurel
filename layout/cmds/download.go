@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
@@ -38,10 +39,10 @@ func DownloadFromURLTemplate(
 		return fmt.Errorf("download urlTemplate is required for %s", name)
 	}
 
-	url := renderDownloadURL(urlTemplate, version, goos, goarch)
 	if archiveType == "" {
-		archiveType = "binary"
+		archiveType = string(versions.ArchiveBinary)
 	}
+	url := renderDownloadURL(urlTemplate, version, goos, goarch, archiveType)
 	if binaryName == "" {
 		binaryName = name
 	}
@@ -50,7 +51,7 @@ func DownloadFromURLTemplate(
 }
 
 func DownloadFromURL(name, url, archiveType, binaryName, destPath string) error {
-	if archiveType == "binary" {
+	if archiveType == string(versions.ArchiveBinary) {
 		if err := downloadFile(url, destPath); err != nil {
 			return fmt.Errorf("failed to download %s: %w", name, err)
 		}
@@ -84,12 +85,13 @@ func DownloadFromURL(name, url, archiveType, binaryName, destPath string) error 
 	return nil
 }
 
-func renderDownloadURL(urlTemplate, version, goos, goarch string) string {
+func renderDownloadURL(urlTemplate, version, goos, goarch, archive string) string {
 	replacer := strings.NewReplacer(
 		"{{version}}", version,
 		"{{version_no_v}}", strings.TrimPrefix(version, "v"),
 		"{{os}}", goos,
 		"{{arch}}", goarch,
+		"{{archive}}", archive,
 		"{{os_capitalized}}", capitalize(goos),
 		"{{arch_x86_64}}", mapArch(goarch),
 		"{{os_tailwind}}", normalizeTailwindOS(goos),
@@ -116,16 +118,12 @@ func normalizeTailwindArch(goarch string) string {
 }
 
 func DownloadGoTool(name, module, version, goos, goarch, destPath string) error {
-	downloader := &ToolDownloader{
-		Name:    name,
-		Module:  module,
-		Version: version,
+	spec, ok := versions.Tools[name]
+	if !ok {
+		return fmt.Errorf("unknown tool: %s", name)
 	}
 
-	url, archiveType, err := downloader.getReleaseURL(goos, goarch)
-	if err != nil {
-		return fmt.Errorf("%w: %s", ErrFailedToGetRleaseURL, err)
-	}
+	url, archiveType := GetToolURL(spec, version, goos, goarch)
 
 	tmpDir, err := os.MkdirTemp("", "andurel-download-*")
 	if err != nil {
@@ -139,7 +137,7 @@ func DownloadGoTool(name, module, version, goos, goarch, destPath string) error 
 		return fmt.Errorf("failed to download %s: %w", name, err)
 	}
 
-	if err := extractBinary(archivePath, name, destPath, archiveType); err != nil {
+	if err := extractBinary(archivePath, name, destPath, string(archiveType)); err != nil {
 		return fmt.Errorf("failed to extract %s: %w", name, err)
 	}
 
@@ -150,75 +148,26 @@ func DownloadGoTool(name, module, version, goos, goarch, destPath string) error 
 	return nil
 }
 
-func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, error) {
-	repo := extractGitHubRepo(d.Module)
+func GetToolURL(spec versions.ToolSpec, version, goos, goarch string) (string, versions.ArchiveType) {
+	urlTemplate := spec.URLTemplate
+	archive := spec.Archive
 
-	switch d.Name {
-	case "templ":
-		os := capitalize(goos)
-		arch := mapArch(goarch)
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/templ_%s_%s.tar.gz",
-			repo, d.Version, os, arch), "tar.gz", nil
-
-	case "sqlc":
-		os := goos
-		arch := goarch
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/sqlc_%s_%s_%s.tar.gz",
-			repo, d.Version, d.Version[1:], os, arch), "tar.gz", nil
-
-	case "goose":
-		os := goos
-		arch := mapArch(goarch)
-		return naming.BinaryName(fmt.Sprintf("https://github.com/%s/releases/download/%s/goose_%s_%s",
-			repo, d.Version, os, arch)), "binary", nil
-
-	case "mailpit":
-		os := goos
-		arch := goarch
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/mailpit-%s-%s.tar.gz",
-			repo, d.Version, os, arch), "tar.gz", nil
-
-	case "usql":
-		os := goos
-		arch := goarch
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/usql-%s-%s-%s.tar.bz2",
-			repo, d.Version, d.Version[1:], os, arch), "tar.bz2", nil
-
-	case "dblab":
-		os := goos
-		arch := goarch
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/dblab_%s_%s_%s.tar.gz",
-			repo, d.Version, d.Version[1:], os, arch), "tar.gz", nil
-
-	case "shadowfax":
-		// Shadowfax dev server - assets named shadowfax-<os>-<arch>
-		os := goos
-		arch := goarch
-		return naming.BinaryName(fmt.Sprintf("https://github.com/%s/releases/download/%s/shadowfax-%s-%s",
-			repo, d.Version, os, arch)), "binary", nil
-
-	default:
-		return "", "", fmt.Errorf("unknown tool: %s", d.Name)
+	if goos == "windows" && spec.Windows != nil {
+		urlTemplate = spec.Windows.URLTemplate
+		archive = spec.Windows.Archive
 	}
+
+	url := renderDownloadURL(urlTemplate, version, goos, goarch, string(archive))
+	return url, archive
 }
 
 func DownloadTailwindCLI(version, goos, goarch, destPath string) error {
-	osName := goos
-	if osName == "darwin" {
-		osName = "macos"
+	spec, ok := versions.Tools["tailwindcli"]
+	if !ok {
+		return fmt.Errorf("tailwindcli spec not found")
 	}
 
-	arch := goarch
-	if arch == "amd64" {
-		arch = "x64"
-	}
-
-	url := naming.BinaryName(fmt.Sprintf(
-		"https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s-%s",
-		version,
-		osName,
-		arch,
-	))
+	url, _ := GetToolURL(spec, version, goos, goarch)
 
 	if err := downloadFile(url, destPath); err != nil {
 		return fmt.Errorf("failed to download tailwindcli: %w", err)
@@ -277,14 +226,14 @@ func copyFile(src, dst string) error {
 
 func extractBinary(archivePath, binaryName, destPath, archiveType string) error {
 	binaryName = naming.BinaryName(binaryName)
-	switch archiveType {
-	case "tar.gz":
+	switch versions.ArchiveType(archiveType) {
+	case versions.ArchiveTarGz:
 		return extractTarGz(archivePath, binaryName, destPath)
-	case "tar.bz2":
+	case versions.ArchiveTarBz2:
 		return extractTarBz2(archivePath, binaryName, destPath)
-	case "zip":
+	case versions.ArchiveZip:
 		return extractZip(archivePath, binaryName, destPath)
-	case "binary":
+	case versions.ArchiveBinary:
 		return copyFile(archivePath, destPath)
 	default:
 		return fmt.Errorf("unsupported archive type: %s", archiveType)

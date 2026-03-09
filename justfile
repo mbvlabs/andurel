@@ -10,9 +10,17 @@ alias ta := test-all
 default:
 	@just --list
 
-# Build the andurel binary
-build:
-	go build -o andurel-dev main.go
+# Build the andurel binary for linux
+build-linux:
+	GOOS=linux GOARCH=amd64 go build -o andurel-dev main.go
+    
+# Build the andurel binary for mac
+build-mac:
+	GOOS=darwin GOARCH=amd64 go build -o andurel-dev main.go
+
+# Build the andurel binary for windows
+build-windows:
+	GOOS=windows GOARCH=amd64 go build -o andurel-dev.exe main.go
 
 # Build a local snapshot using GoReleaser (requires goreleaser installed)
 release-snapshot:

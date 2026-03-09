@@ -8,6 +8,7 @@ import (
 	"runtime"
 
 	"github.com/mbvlabs/andurel/layout/cmds"
+	"github.com/mbvlabs/andurel/layout/versions"
 )
 
 type AndurelLock struct {
@@ -43,12 +44,12 @@ type Tool struct {
 
 var defaultToolDownloads = map[string]ToolDownload{
 	"templ": {
-		URLTemplate: "https://github.com/a-h/templ/releases/download/{{version}}/templ_{{os_capitalized}}_{{arch_x86_64}}.tar.gz",
+		URLTemplate: "https://github.com/a-h/templ/releases/download/{{version}}/templ_{{os_capitalized}}_{{arch_x86_64}}.{{archive}}",
 		Archive:     "tar.gz",
 		BinaryName:  "templ",
 	},
 	"sqlc": {
-		URLTemplate: "https://github.com/sqlc-dev/sqlc/releases/download/{{version}}/sqlc_{{version_no_v}}_{{os}}_{{arch}}.tar.gz",
+		URLTemplate: "https://github.com/sqlc-dev/sqlc/releases/download/{{version}}/sqlc_{{version_no_v}}_{{os}}_{{arch}}.{{archive}}",
 		Archive:     "tar.gz",
 		BinaryName:  "sqlc",
 	},
@@ -58,12 +59,12 @@ var defaultToolDownloads = map[string]ToolDownload{
 		BinaryName:  "goose",
 	},
 	"mailpit": {
-		URLTemplate: "https://github.com/axllent/mailpit/releases/download/{{version}}/mailpit-{{os}}-{{arch}}.tar.gz",
+		URLTemplate: "https://github.com/axllent/mailpit/releases/download/{{version}}/mailpit-{{os}}-{{arch}}.{{archive}}",
 		Archive:     "tar.gz",
 		BinaryName:  "mailpit",
 	},
 	"usql": {
-		URLTemplate: "https://github.com/xo/usql/releases/download/{{version}}/usql-{{version_no_v}}-{{os}}-{{arch}}.tar.bz2",
+		URLTemplate: "https://github.com/xo/usql/releases/download/{{version}}/usql-{{version_no_v}}-{{os}}-{{arch}}.{{archive}}",
 		Archive:     "tar.bz2",
 		BinaryName:  "usql",
 	},
@@ -206,7 +207,7 @@ func downloadToolBinary(name string, tool *Tool, goos, goarch, destPath string) 
 	if tool.Download != nil && tool.Download.URLTemplate != "" {
 		archive := tool.Download.Archive
 		if archive == "" {
-			archive = "binary"
+			archive = string(versions.ArchiveBinary)
 		}
 
 		return cmds.DownloadFromURLTemplate(

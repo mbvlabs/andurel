@@ -11,7 +11,7 @@ permissions:
   
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  GO_VERSION: '1.24.4'
+  GO_VERSION: '1.26.0'
 
 jobs:
   release:
