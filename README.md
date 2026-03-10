@@ -203,7 +203,7 @@ Templ code generation.
 
 ```bash
 andurel view (alias: v)
-andurel view compile
+andurel view generate
 andurel view format
 ```
 
