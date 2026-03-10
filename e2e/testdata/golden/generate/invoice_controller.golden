@@ -107,14 +107,14 @@ func (i Invoices) Create(etx *echo.Context) error {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create invoice: %v", err)); flashErr != nil {
 			return flashErr
 		}
-		return etx.Redirect(http.StatusSeeOther, routes.InvoiceNew.Path)
+		return etx.Redirect(http.StatusSeeOther, routes.InvoiceNew.URL())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Invoice created successfully"); flashErr != nil {
 		return render(etx, views.InternalError())
 	}
 
-	return etx.Redirect(http.StatusSeeOther, routes.InvoiceShow.GetPath(invoice.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.InvoiceShow.URL(invoice.ID))
 }
 
 func (i Invoices) Edit(etx *echo.Context) error {
@@ -175,7 +175,7 @@ func (i Invoices) Update(etx *echo.Context) error {
 		}
 		return etx.Redirect(
 			http.StatusSeeOther,
-			routes.InvoiceEdit.GetPath(invoiceID),
+			routes.InvoiceEdit.URL(invoiceID),
 		)
 	}
 
@@ -183,7 +183,7 @@ func (i Invoices) Update(etx *echo.Context) error {
 		return render(etx, views.InternalError())
 	}
 
-	return etx.Redirect(http.StatusSeeOther, routes.InvoiceShow.GetPath(invoice.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.InvoiceShow.URL(invoice.ID))
 }
 
 func (i Invoices) Destroy(etx *echo.Context) error {
@@ -197,12 +197,12 @@ func (i Invoices) Destroy(etx *echo.Context) error {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete invoice: %v", err)); flashErr != nil {
 			return render(etx, views.InternalError())
 		}
-		return etx.Redirect(http.StatusSeeOther, routes.InvoiceIndex.Path)
+		return etx.Redirect(http.StatusSeeOther, routes.InvoiceIndex.URL())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Invoice destroyed successfully"); flashErr != nil {
 		return render(etx, views.InternalError())
 	}
 
-	return etx.Redirect(http.StatusSeeOther, routes.InvoiceIndex.Path)
+	return etx.Redirect(http.StatusSeeOther, routes.InvoiceIndex.URL())
 }
