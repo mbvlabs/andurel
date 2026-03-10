@@ -40,7 +40,7 @@ func KeepConnOpen() DataActionOption {
 	}
 }
 
-// SubmitSig returns a DataActionOption that prepends a signal to the action. If a signName is provided, it uses that; otherwise, it defaults to "!submitting".
+// SubmitSig returns a DataActionOption that prepends a signal to the action. If a signName is provided, it uses that; otherwise, it defaults to "!$_submitting".
 func SubmitSig(signName ...string) DataActionOption {
 	if len(signName) > 0 {
 		return func() (string, string) {
@@ -49,7 +49,7 @@ func SubmitSig(signName ...string) DataActionOption {
 	}
 
 	return func() (string, string) {
-		return "prepend", "!submitting"
+		return "prepend", "!$_submitting"
 	}
 }
 
