@@ -1,28 +1,22 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use when the user must choose exactly one option from a set. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Radio</h2>
+    <p class="text-sm text-base-content/70">Radio group for mutually exclusive choices.</p>
+  </header>
+
+  <div class="radio-group">
+    <label class="radio-row">
+      <input type="radio" name="plan-example" class="radio" checked />
+      <span class="text-sm">Free</span>
+    </label>
+    <label class="radio-row">
+      <input type="radio" name="plan-example" class="radio" />
+      <span class="text-sm">Pro</span>
+    </label>
+    <label class="radio-row">
+      <input type="radio" name="plan-example" class="radio" />
+      <span class="text-sm">Enterprise</span>
+    </label>
+  </div>
+</section>

@@ -1,28 +1,38 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use to summarize key metrics in dashboards or overview screens. -->
+<section class="space-y-4">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Stats</h2>
+    <p class="text-sm text-base-content/70">Metric cards in horizontal and vertical layouts.</p>
+  </header>
+
+  <div class="stats" data-orientation="horizontal">
+    <div class="stat">
+      <div class="stat-title">Deployments</div>
+      <div class="stat-value">128</div>
+      <div class="stat-desc">Last 30 days</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Success Rate</div>
+      <div class="stat-value">99.4%</div>
+      <div class="stat-desc">Across all environments</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Mean Time</div>
+      <div class="stat-value">4m</div>
+      <div class="stat-desc">Average rollout duration</div>
+    </div>
+  </div>
+
+  <div class="stats" data-orientation="vertical">
+    <div class="stat">
+      <div class="stat-title">Incidents</div>
+      <div class="stat-value">2</div>
+      <div class="stat-desc">One resolved, one under review</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Approvals</div>
+      <div class="stat-value">14</div>
+      <div class="stat-desc">Pending production releases</div>
+    </div>
+  </div>
+</section>

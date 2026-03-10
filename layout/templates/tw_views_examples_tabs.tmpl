@@ -1,28 +1,25 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use to switch between sibling views without leaving the current page. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6" data-signals:tab="'artifacts'">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Tabs</h2>
+    <p class="text-sm text-base-content/70">Tabbed navigation with a matching content panel.</p>
+  </header>
+
+  <div class="w-full">
+    <div class="tab-list" role="tablist" aria-label="deployment artifacts">
+      <button type="button" role="tab" class="tab-trigger" data-attr:data-selected="$tab == 'artifacts' ? 'true' : null" data-on:click="$tab = 'artifacts'">
+        Binary Artifacts
+      </button>
+      <button type="button" role="tab" class="tab-trigger" data-attr:data-selected="$tab == 'images' ? 'true' : null" data-on:click="$tab = 'images'">
+        Docker Images
+      </button>
+    </div>
+
+    <div class="tab-content" role="tabpanel" data-show="$tab == 'artifacts'">
+      Content for Binary Artifacts
+    </div>
+    <div class="tab-content" role="tabpanel" data-show="$tab == 'images'">
+      Content for Docker Images
+    </div>
+  </div>
+</section>

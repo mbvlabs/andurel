@@ -1,28 +1,24 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use for blocking confirmation or edit flows that need focused attention. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6" data-signals:open="false">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Dialog</h2>
+    <p class="text-sm text-base-content/70">Modal dialog with title, description, and actions.</p>
+  </header>
+
+  <button type="button" class="btn btn-outline" data-on:click="$open = true">Open Dialog</button>
+
+  <div data-show="$open">
+    <div class="dialog-backdrop" data-on:click="$open = false"></div>
+    <div class="dialog-panel">
+      <button type="button" class="dialog-close" data-on:click="$open = false" aria-label="Close">x</button>
+      <div class="dialog-header">
+        <h3 class="dialog-title">Dialog Title</h3>
+        <p class="dialog-description">Dialog body content and action buttons.</p>
+      </div>
+      <div class="dialog-footer">
+        <button type="button" class="btn btn-outline" data-on:click="$open = false">Cancel</button>
+        <button type="button" class="btn btn-primary" data-on:click="$open = false">Save</button>
+      </div>
+    </div>
+  </div>
+</section>

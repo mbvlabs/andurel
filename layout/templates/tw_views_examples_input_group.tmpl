@@ -1,28 +1,24 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use when a field needs visible prefix or suffix context such as currency or URL parts. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Input Group</h2>
+    <p class="text-sm text-base-content/70">Grouped fields with addons and joined borders.</p>
+  </header>
+
+  <div class="field">
+    <label for="example-url" class="field-label">Project URL</label>
+    <div class="input-group">
+      <span class="field-addon">https://</span>
+      <input id="example-url" class="input" placeholder="deploy-crate.dev" />
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="example-budget" class="field-label">Budget</label>
+    <div class="input-group">
+      <span class="field-addon">$</span>
+      <input id="example-budget" class="input" value="1200" />
+      <span class="field-addon">USD</span>
+    </div>
+  </div>
+</section>

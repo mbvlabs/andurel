@@ -1,28 +1,15 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use for quick qualitative scoring such as reviews or satisfaction. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6" data-signals:rating="3">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Rating</h2>
+    <p class="text-sm text-base-content/70">Interactive star rating.</p>
+  </header>
+
+  <div class="rating">
+    <button type="button" class="rating-star" data-attr:data-active="$rating >= 1 ? 'true' : null" data-on:click="$rating = 1">★</button>
+    <button type="button" class="rating-star" data-attr:data-active="$rating >= 2 ? 'true' : null" data-on:click="$rating = 2">★</button>
+    <button type="button" class="rating-star" data-attr:data-active="$rating >= 3 ? 'true' : null" data-on:click="$rating = 3">★</button>
+    <button type="button" class="rating-star" data-attr:data-active="$rating >= 4 ? 'true' : null" data-on:click="$rating = 4">★</button>
+    <button type="button" class="rating-star" data-attr:data-active="$rating >= 5 ? 'true' : null" data-on:click="$rating = 5">★</button>
+  </div>
+</section>

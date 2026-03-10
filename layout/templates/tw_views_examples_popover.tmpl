@@ -1,28 +1,12 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use for lightweight contextual content anchored to a trigger. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6" data-signals:open="false">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Popover</h2>
+    <p class="text-sm text-base-content/70">Contextual popup anchored to a trigger.</p>
+  </header>
+
+  <div class="popover">
+    <button type="button" class="btn btn-ghost" data-on:click="$open = !$open">Toggle Popover</button>
+    <div class="popover-panel" data-show="$open">Popover content</div>
+  </div>
+</section>
