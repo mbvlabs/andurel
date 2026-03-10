@@ -1,28 +1,23 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use for side-panel workflows that should not fully replace the page context. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6" data-signals:open="false">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Sheet</h2>
+    <p class="text-sm text-base-content/70">Side panel overlay from the right edge.</p>
+  </header>
+
+  <button type="button" class="btn btn-outline" data-on:click="$open = true">Open Sheet</button>
+
+  <div data-show="$open">
+    <div class="sheet-backdrop" data-on:click="$open = false"></div>
+    <aside class="sheet-panel" data-side="right">
+      <button type="button" class="sheet-close" data-on:click="$open = false" aria-label="Close">x</button>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Sheet Title</h3>
+        <p class="sheet-description">Side panel content.</p>
+      </div>
+      <div class="sheet-footer">
+        <button type="button" class="btn btn-primary" data-on:click="$open = false">Done</button>
+      </div>
+    </aside>
+  </div>
+</section>

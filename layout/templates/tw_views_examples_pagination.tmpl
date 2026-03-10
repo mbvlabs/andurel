@@ -1,28 +1,16 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use for paged result sets where the user moves between screens of items. -->
+<nav class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6" aria-label="pagination">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Pagination</h2>
+    <p class="text-sm text-base-content/70">Paged navigation with current-state styling.</p>
+  </header>
+
+  <div class="pagination">
+    <a class="pagination-link" href="#">Prev</a>
+    <a class="pagination-link" href="#">1</a>
+    <a class="pagination-link" href="#" data-current="true">2</a>
+    <a class="pagination-link" href="#">3</a>
+    <span class="pagination-ellipsis">...</span>
+    <a class="pagination-link" href="#">Next</a>
+  </div>
+</nav>

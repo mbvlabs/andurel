@@ -1,70 +1,22 @@
-<div class="toast-stack relative right-auto top-auto z-auto">
-	<div class="toast toast-success">
-		<div class="toast-header">
-			<div class="toast-indicator"></div>
-			<div class="flex items-center gap-2">
-				<p class="toast-time">2:14 PM</p>
-				<button type="button" class="toast-close" aria-label="Dismiss success toast">
-					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<path d="M18 6 6 18"></path>
-						<path d="m6 6 12 12"></path>
-					</svg>
-				</button>
-			</div>
-		</div>
-		<div class="toast-message">
-			Profile changes saved successfully.
-		</div>
-	</div>
-	<div class="toast toast-info">
-		<div class="toast-header">
-			<div class="toast-indicator"></div>
-			<div class="flex items-center gap-2">
-				<p class="toast-time">2:16 PM</p>
-				<button type="button" class="toast-close" aria-label="Dismiss info toast">
-					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<path d="M18 6 6 18"></path>
-						<path d="m6 6 12 12"></path>
-					</svg>
-				</button>
-			</div>
-		</div>
-		<div class="toast-message">
-			New release notes are available for review.
-		</div>
-	</div>
-	<div class="toast toast-warning">
-		<div class="toast-header">
-			<div class="toast-indicator"></div>
-			<div class="flex items-center gap-2">
-				<p class="toast-time">2:18 PM</p>
-				<button type="button" class="toast-close" aria-label="Dismiss warning toast">
-					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<path d="M18 6 6 18"></path>
-						<path d="m6 6 12 12"></path>
-					</svg>
-				</button>
-			</div>
-		</div>
-		<div class="toast-message">
-			Your session will expire in 5 minutes.
-		</div>
-	</div>
-	<div class="toast toast-error">
-		<div class="toast-header">
-			<div class="toast-indicator"></div>
-			<div class="flex items-center gap-2">
-				<p class="toast-time">2:20 PM</p>
-				<button type="button" class="toast-close" aria-label="Dismiss error toast">
-					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<path d="M18 6 6 18"></path>
-						<path d="m6 6 12 12"></path>
-					</svg>
-				</button>
-			</div>
-		</div>
-		<div class="toast-message">
-			Payment failed. Please verify your billing details.
-		</div>
-	</div>
-</div>
+<!-- Use for temporary non-blocking feedback that disappears after a delay. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6" data-signals:showToast="false,visible=true">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Toast</h2>
+    <p class="text-sm text-base-content/70">Temporary flash message stack item.</p>
+  </header>
+
+  <button type="button" class="btn btn-primary" data-on:click="$showToast = true; $visible = true">Show Toast</button>
+
+  <div class="toast-stack !static" data-show="$showToast">
+    <div class="toast toast-success" data-show="$visible" data-init__delay.5000ms="$visible = false; $showToast = false">
+      <div class="toast-header">
+        <div class="toast-indicator"></div>
+        <span class="flex items-center gap-2">
+          <p class="toast-time">just now</p>
+          <button type="button" class="toast-close" data-on:click="$visible = false; $showToast = false">x</button>
+        </span>
+      </div>
+      <span class="toast-message">Profile settings saved successfully.</span>
+    </div>
+  </div>
+</section>

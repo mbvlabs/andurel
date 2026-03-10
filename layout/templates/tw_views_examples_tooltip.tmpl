@@ -1,28 +1,12 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use for short hover help when the label alone is not enough. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6" data-signals:open="false">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Tooltip</h2>
+    <p class="text-sm text-base-content/70">Small hover-triggered helper surface.</p>
+  </header>
+
+  <div class="tooltip">
+    <button type="button" class="btn btn-ghost" data-on:mouseenter="$open = true" data-on:mouseleave="$open = false">Hover Me</button>
+    <div class="tooltip-content" data-show="$open">Tooltip content</div>
+  </div>
+</section>

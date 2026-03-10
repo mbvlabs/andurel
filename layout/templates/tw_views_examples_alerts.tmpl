@@ -1,28 +1,16 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use for inline feedback messages tied to page or form state. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Alerts</h2>
+    <p class="text-sm text-base-content/70">Feedback messages across semantic states.</p>
+  </header>
+
+  <div class="grid gap-2">
+    <div class="alert alert-neutral"><p class="alert-title">Neutral</p><p class="alert-description">General information.</p></div>
+    <div class="alert alert-info"><p class="alert-title">Info</p><p class="alert-description">Heads up for the next step.</p></div>
+    <div class="alert alert-success"><p class="alert-title">Success</p><p class="alert-description">Changes were saved.</p></div>
+    <div class="alert alert-warning"><p class="alert-title">Warning</p><p class="alert-description">Review the current values.</p></div>
+    <div class="alert alert-error"><p class="alert-title">Error</p><p class="alert-description">Something failed.</p></div>
+    <div class="alert alert-destructive"><p class="alert-title">Destructive</p><p class="alert-description">This action permanently deletes data.</p></div>
+  </div>
+</section>

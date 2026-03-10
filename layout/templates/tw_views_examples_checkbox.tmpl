@@ -1,28 +1,23 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use for independent yes-no options or multi-select settings. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Checkbox</h2>
+    <p class="text-sm text-base-content/70">Single checkbox and grouped options.</p>
+  </header>
+
+  <label class="radio-row">
+    <input type="checkbox" class="checkbox" checked />
+    <span class="text-sm">Enable release notifications</span>
+  </label>
+
+  <div class="checkbox-group">
+    <label class="radio-row">
+      <input type="checkbox" class="checkbox" checked />
+      <span class="text-sm">Email updates</span>
+    </label>
+    <label class="radio-row">
+      <input type="checkbox" class="checkbox" />
+      <span class="text-sm">SMS updates</span>
+    </label>
+  </div>
+</section>

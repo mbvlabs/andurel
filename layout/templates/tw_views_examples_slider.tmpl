@@ -1,28 +1,14 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use for bounded numeric input where dragging is faster than typing. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Slider</h2>
+    <p class="text-sm text-base-content/70">Range input wrapped in the slider primitive.</p>
+  </header>
+
+  <div class="field">
+    <label class="field-label" for="example-volume">Volume</label>
+    <div class="slider">
+      <input id="example-volume" type="range" min="0" max="100" value="50" class="slider-input" />
+    </div>
+  </div>
+</section>

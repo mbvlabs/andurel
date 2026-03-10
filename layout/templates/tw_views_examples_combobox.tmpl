@@ -1,28 +1,17 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use for searchable selection when the option list is too large for a plain select. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6" data-signals:open="true">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Combobox</h2>
+    <p class="text-sm text-base-content/70">Search input with an attached option list.</p>
+  </header>
+
+  <div class="field combobox">
+    <label class="field-label" for="example-framework">Framework</label>
+    <input id="example-framework" class="input" placeholder="Search frameworks" data-on:focus="$open = true" />
+    <div class="combobox-list" data-show="$open">
+      <button type="button" class="combobox-item">Andurel</button>
+      <button type="button" class="combobox-item" data-selected="true">Go</button>
+      <button type="button" class="combobox-item">TypeScript</button>
+    </div>
+  </div>
+</section>

@@ -1,16 +1,11 @@
 {{- if eq .CSSFramework "tailwind"}}
 {{- end}}
 {{- if eq .CSSFramework "vanilla"}}
-@layer reset, tokens, base, objects, components, utilities, overrides;
+@layer reset, theme, base, utilities, components, overrides;
 
 @import url('/assets/css/reset.css') layer(reset);
-@import url('/assets/css/tokens.css') layer(tokens);
+@import url('/assets/css/theme.css') layer(theme);
 @import url('/assets/css/base.css') layer(base);
-@import url('/assets/css/objects.css') layer(objects);
-@import url('/assets/css/components/layout.css') layer(components);
-@import url('/assets/css/components/panels.css') layer(components);
-@import url('/assets/css/components/buttons.css') layer(components);
-@import url('/assets/css/components/forms.css') layer(components);
-@import url('/assets/css/components/feedback.css') layer(components);
 @import url('/assets/css/utilities.css') layer(utilities);
+@import url('/assets/css/components.css') layer(components);
 {{- end}}

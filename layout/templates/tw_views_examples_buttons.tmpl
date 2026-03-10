@@ -1,28 +1,35 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use for primary, secondary, and grouped action triggers. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Buttons</h2>
+    <p class="text-sm text-base-content/70">Button variants, sizes, and grouping.</p>
+  </header>
+
+  <div class="flex flex-wrap gap-2">
+    <button type="button" class="btn btn-primary">Primary</button>
+    <button type="button" class="btn btn-secondary">Secondary</button>
+    <button type="button" class="btn btn-accent">Accent</button>
+    <button type="button" class="btn btn-neutral">Neutral</button>
+    <button type="button" class="btn btn-outline">Outline</button>
+    <button type="button" class="btn btn-ghost">Ghost</button>
+    <button type="button" class="btn btn-link">Link</button>
+    <button type="button" class="btn btn-destructive">Delete</button>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-2">
+    <button type="button" class="btn btn-primary btn-xs">XS</button>
+    <button type="button" class="btn btn-primary btn-sm">SM</button>
+    <button type="button" class="btn btn-primary">MD</button>
+    <button type="button" class="btn btn-primary btn-lg">LG</button>
+    <button type="button" class="btn btn-primary btn-xl">XL</button>
+    <button type="button" class="btn btn-outline btn-icon" aria-label="Favorite">★</button>
+  </div>
+
+  <div class="btn-group">
+    <button type="button" class="btn btn-outline btn-sm">Day</button>
+    <button type="button" class="btn btn-primary btn-sm">Week</button>
+    <button type="button" class="btn btn-outline btn-sm">Month</button>
+  </div>
+
+  <button type="button" class="btn btn-primary btn-block">Full Width Action</button>
+</section>

@@ -68,7 +68,7 @@ go install github.com/mbvlabs/andurel@v1.0.0-beta.2
 
 Andurel gives you choices when creating a new project:
 
-> Note: `--css vanilla` is currently WIP and not properly supported before `v1.0.0`. Use Tailwind for now.
+> `--css vanilla` and `--css tailwind` are both supported scaffold options.
 
 ```bash
 # Create a new project with defaults (PostgreSQL + Tailwind CSS)

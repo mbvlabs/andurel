@@ -248,12 +248,12 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Components
 	"tw_views_components_toast.tmpl": "views/components/toast.templ",
 	// Examples
-	"tw_views_examples_accordian.tmpl":    "views/examples/accordion.html",
+	"tw_views_examples_accordion.tmpl":    "views/examples/accordion.html",
 	"tw_views_examples_alerts.tmpl":       "views/examples/alerts.html",
 	"tw_views_examples_aspect_ratio.tmpl": "views/examples/aspect_ratio.html",
 	"tw_views_examples_avatar.tmpl":       "views/examples/avatar.html",
 	"tw_views_examples_badges.tmpl":       "views/examples/badges.html",
-	"tw_views_examples_breadcrump.tmpl":   "views/examples/breadcrumb.html",
+	"tw_views_examples_breadcrumb.tmpl":   "views/examples/breadcrumb.html",
 	"tw_views_examples_buttons.tmpl":      "views/examples/buttons.html",
 	"tw_views_examples_calendar.tmpl":     "views/examples/calendar.html",
 	"tw_views_examples_card.tmpl":         "views/examples/card.html",
@@ -263,14 +263,14 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"tw_views_examples_collapsible.tmpl":  "views/examples/collapsible.html",
 	"tw_views_examples_combobox.tmpl":     "views/examples/combobox.html",
 	"tw_views_examples_copy_button.tmpl":  "views/examples/copy_button.html",
-	"tw_views_examples_data_input.tmpl":   "views/examples/date_input.html",
+	"tw_views_examples_date_input.tmpl":   "views/examples/date_input.html",
 	"tw_views_examples_dialog.tmpl":       "views/examples/dialog.html",
 	"tw_views_examples_dropdown.tmpl":     "views/examples/dropdown.html",
 	"tw_views_examples_empty_state.tmpl":  "views/examples/empty_state.html",
 	"tw_views_examples_input.tmpl":        "views/examples/input.html",
 	"tw_views_examples_input_group.tmpl":  "views/examples/input_group.html",
 	"tw_views_examples_input_otp.tmpl":    "views/examples/input_otp.html",
-	"tw_views_examples_kdb.tmpl":          "views/examples/kbd.html",
+	"tw_views_examples_kbd.tmpl":          "views/examples/kbd.html",
 	"tw_views_examples_menu.tmpl":         "views/examples/menu.html",
 	"tw_views_examples_pagination.tmpl":   "views/examples/pagination.html",
 	"tw_views_examples_popover.tmpl":      "views/examples/popover.html",
@@ -288,7 +288,7 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"tw_views_examples_switch.tmpl":       "views/examples/switch.html",
 	"tw_views_examples_table.tmpl":        "views/examples/table.html",
 	"tw_views_examples_tabs.tmpl":         "views/examples/tabs.html",
-	"tw_views_examples_tabs_input.tmpl":   "views/examples/tabs_input.html",
+	"tw_views_examples_tags_input.tmpl":   "views/examples/tags_input.html",
 	"tw_views_examples_textarea.tmpl":     "views/examples/textarea.html",
 	"tw_views_examples_time_input.tmpl":   "views/examples/time_input.html",
 	"tw_views_examples_toast.tmpl":        "views/examples/toast.html",
@@ -296,29 +296,24 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 }
 
 var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"assets_vanilla_css_reset.tmpl":                      "assets/css/reset.css",
-	"assets_vanilla_css_tokens.tmpl":                     "assets/css/tokens.css",
-	"assets_vanilla_css_base.tmpl":                       "assets/css/base.css",
-	"assets_vanilla_css_objects.tmpl":                    "assets/css/objects.css",
-	"assets_vanilla_css_utilities.tmpl":                  "assets/css/utilities.css",
-	"assets_vanilla_css_components_buttons.tmpl":         "assets/css/components/buttons.css",
-	"assets_vanilla_css_components_feedback.tmpl":        "assets/css/components/feedback.css",
-	"assets_vanilla_css_components_forms.tmpl":           "assets/css/components/forms.css",
-	"assets_vanilla_css_components_layout.tmpl":          "assets/css/components/layout.css",
-	"assets_vanilla_css_components_panels.tmpl":          "assets/css/components/panels.css",
+	"assets_vanilla_css_reset.tmpl":      "assets/css/reset.css",
+	"assets_vanilla_css_theme.tmpl":      "assets/css/theme.css",
+	"assets_vanilla_css_base.tmpl":       "assets/css/base.css",
+	"assets_vanilla_css_utilities.tmpl":  "assets/css/utilities.css",
+	"assets_vanilla_css_components.tmpl": "assets/css/components.css",
 
 	// Views
 	"vanilla_views_layout.tmpl":           "views/layout.templ",
 	"vanilla_views_components_toast.tmpl": "views/components/toast.templ",
 	"vanilla_views_head.tmpl":             "views/head.templ",
-	"vanilla_views_home.tmpl":           "views/home.templ",
-	"vanilla_views_bad_request.tmpl":    "views/bad_request.templ",
-	"vanilla_views_internal_error.tmpl": "views/internal_error.templ",
-	"vanilla_views_not_found.tmpl":      "views/not_found.templ",
-	"vanilla_views_confirm_email.tmpl":  "views/confirm_email.templ",
-	"vanilla_views_login.tmpl":          "views/login.templ",
-	"vanilla_views_registration.tmpl":   "views/registration.templ",
-	"vanilla_views_reset_password.tmpl": "views/reset_password.templ",
+	"vanilla_views_home.tmpl":             "views/home.templ",
+	"vanilla_views_bad_request.tmpl":      "views/bad_request.templ",
+	"vanilla_views_internal_error.tmpl":   "views/internal_error.templ",
+	"vanilla_views_not_found.tmpl":        "views/not_found.templ",
+	"vanilla_views_confirm_email.tmpl":    "views/confirm_email.templ",
+	"vanilla_views_login.tmpl":            "views/login.templ",
+	"vanilla_views_registration.tmpl":     "views/registration.templ",
+	"vanilla_views_reset_password.tmpl":   "views/reset_password.templ",
 }
 
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -342,7 +337,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
-	"assets_css_style.tmpl":   "assets/css/styles.css",
+	"assets_css_style.tmpl":   "assets/css/style.css",
 	"assets_js_scripts.tmpl":  "assets/js/scripts.js",
 	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc6.min.js",
 
@@ -487,6 +482,20 @@ func processTemplatedFiles(
 			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
 				return fmt.Errorf(
 					"failed to process vanilla css template %s: %w",
+					templateFile,
+					err,
+				)
+			}
+		}
+
+		for templateFile, targetPath := range baseTailwindTemplateMappings {
+			if !strings.HasPrefix(string(templateFile), "tw_views_examples_") {
+				continue
+			}
+
+			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
+				return fmt.Errorf(
+					"failed to process vanilla view example template %s: %w",
 					templateFile,
 					err,
 				)

@@ -1,28 +1,32 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use for dense structured data with rows and columns. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Table</h2>
+    <p class="text-sm text-base-content/70">Basic data table inside the table wrapper.</p>
+  </header>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Role</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Jane Doe</td>
+          <td>jane@example.com</td>
+          <td>Admin</td>
+        </tr>
+        <tr>
+          <td>John Smith</td>
+          <td>john@example.com</td>
+          <td>Editor</td>
+        </tr>
+      </tbody>
+      <caption>Example user table</caption>
+    </table>
+  </div>
+</section>

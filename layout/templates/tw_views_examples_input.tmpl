@@ -1,28 +1,19 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use for standard single-line text entry with optional validation feedback. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Input</h2>
+    <p class="text-sm text-base-content/70">Text input with normal and error states.</p>
+  </header>
+
+  <div class="field">
+    <label for="example-email" class="field-label">Email</label>
+    <input id="example-email" type="email" class="input" placeholder="you@example.com" />
+    <p class="field-hint">We will only use this for account updates.</p>
+  </div>
+
+  <div class="field">
+    <label for="example-email-error" class="field-label">Email</label>
+    <input id="example-email-error" type="email" class="input-error" value="invalid-email" />
+    <p class="field-error">Enter a valid email address.</p>
+  </div>
+</section>

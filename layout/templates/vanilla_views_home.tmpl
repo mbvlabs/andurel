@@ -2,19 +2,10 @@ package views
 
 templ Home() {
 	@base() {
-		<main class="page-shell home-shell">
-			<section class="card">
-				<div class="card-header">
-					<h1 class="card-title">Welcome to Andurel</h1>
-					<p class="card-description">A clean starting point for building a server-rendered Go application.</p>
+		<main class="flex-1">
+				<div class="stack" data-gap="sm">
+					<h1>Welcome to Andurel</h1>
 				</div>
-				<div class="card-content">
-					<div class="stack" data-gap="sm">
-						<p>Use this scaffold to wire routes, persistence, and UI flows without rebuilding the project shape from scratch.</p>
-						<p>Vanilla CSS now uses the same shared component vocabulary as the Tailwind branch, so the generated pages stay structured and easy to extend.</p>
-					</div>
-				</div>
-			</section>
 		</main>
 	}
 }

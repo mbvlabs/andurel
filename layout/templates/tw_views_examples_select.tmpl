@@ -1,28 +1,25 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use for small, fixed option sets that do not need search. -->
+<section class="space-y-4 rounded-box border border-base-300 bg-base-100 p-6">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Select</h2>
+    <p class="text-sm text-base-content/70">Select control with default and invalid states.</p>
+  </header>
+
+  <div class="field">
+    <label for="example-country" class="field-label">Country</label>
+    <select id="example-country" class="select">
+      <option value="">Choose a country</option>
+      <option>United States</option>
+      <option>Spain</option>
+      <option>Sweden</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="example-country-error" class="field-label">Country</label>
+    <select id="example-country-error" class="select-error">
+      <option value="">Choose a country</option>
+    </select>
+    <p class="field-error">Please select a country.</p>
+  </div>
+</section>

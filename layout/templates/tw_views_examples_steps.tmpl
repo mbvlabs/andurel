@@ -1,28 +1,52 @@
-<div class="w-full">
-	<div class="tab-list" role="tablist">
-		<button
-			type="button"
-			role="tab"
-			aria-selected="true"
-			class="tab-trigger"
-		>
-			Binary Artifacts
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected="false"
-			class="tab-trigger"
-		>
-			Docker Images
-		</button>
-	</div>
-	<div class="tab-content" role="tabpanel">
-		<div>
-			Content for Binary Artifacts
-		</div>
-		<div>
-			Content for Docker Images
-		</div>
-	</div>
-</div>
+<!-- Use to show progress through a multi-step process or setup flow. -->
+<section class="space-y-6 rounded-box border border-base-300 bg-base-100 p-6">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold">Steps</h2>
+    <p class="text-sm text-base-content/70">Vertical and horizontal step progressions.</p>
+  </header>
+
+  <div class="steps" data-orientation="vertical">
+    <div class="step" data-state="completed">
+      <div class="step-indicator">1</div>
+      <div class="step-body">
+        <div class="step-title">Repository Connected</div>
+        <div class="step-description">GitHub access has been configured.</div>
+      </div>
+    </div>
+    <div class="step" data-state="current">
+      <div class="step-indicator">2</div>
+      <div class="step-body">
+        <div class="step-title">Review Environment</div>
+        <div class="step-description">Validate secrets and rollout policy.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-indicator">3</div>
+      <div class="step-body">
+        <div class="step-title">Ship to Production</div>
+        <div class="step-description">Launch the final deployment.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="steps" data-orientation="horizontal">
+    <div class="step" data-state="completed">
+      <div class="step-indicator">1</div>
+      <div class="step-body">
+        <div class="step-title">Configure</div>
+      </div>
+    </div>
+    <div class="step" data-state="error">
+      <div class="step-indicator">2</div>
+      <div class="step-body">
+        <div class="step-title">Verify</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-indicator">3</div>
+      <div class="step-body">
+        <div class="step-title">Deploy</div>
+      </div>
+    </div>
+  </div>
+</section>

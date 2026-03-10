@@ -7,7 +7,7 @@ import (
 
 templ CategoryIndex(categories []models.Category) {
 	@base() {
-		<main class="page-shell">
+		<main class="flex-1 px-6 py-10">
 			<section class="container stack" data-gap="lg">
 				<div class="cluster" data-justify="between">
 					<div class="stack" data-gap="sm">
@@ -64,7 +64,7 @@ templ CategoryIndex(categories []models.Category) {
 
 templ CategoryShow(category models.Category) {
 	@base() {
-		<main class="page-shell">
+		<main class="flex-1 px-6 py-10">
 			<section class="container stack" data-gap="lg">
 				<div class="cluster" data-justify="between">
 					<div class="stack" data-gap="sm">
@@ -103,8 +103,8 @@ templ CategoryShow(category models.Category) {
 
 templ CategoryNew() {
 	@base() {
-		<main class="auth-shell">
-			<section class="center">
+		<main class="flex flex-1 items-center justify-center px-6 py-10">
+			<section class="w-full max-w-md">
 				<div class="card">
 					<div class="card-header">
 						<h1 class="card-title">New Category</h1>
@@ -144,8 +144,8 @@ templ CategoryNew() {
 
 templ CategoryEdit(category models.Category) {
 	@base() {
-		<main class="auth-shell">
-			<section class="center">
+		<main class="flex flex-1 items-center justify-center px-6 py-10">
+			<section class="w-full max-w-md">
 				<div class="card">
 					<div class="card-header">
 						<h1 class="card-title">Edit Category</h1>
