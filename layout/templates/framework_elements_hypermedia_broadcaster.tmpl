@@ -323,7 +323,19 @@ func (sse *Broadcaster) Prefetch(urls ...string) error {
 	)
 }
 
-func (sse *Broadcaster) PatchSignals(signalsContents []byte, opts ...PatchSignalsOption) error {
+func (sse *Broadcaster) PatchSignal(key string, value any, opts ...PatchSignalsOption) error {
+	return sse.PatchSignals(map[string]any{key: value}, opts...)
+}
+
+func (sse *Broadcaster) PatchSignals(signals map[string]any, opts ...PatchSignalsOption) error {
+	signalsJSON, err := json.Marshal(signals)
+	if err != nil {
+		return fmt.Errorf("failed to marshal signals: %w", err)
+	}
+	return sse.patchSignalsRaw(signalsJSON, opts...)
+}
+
+func (sse *Broadcaster) patchSignalsRaw(signalsContents []byte, opts ...PatchSignalsOption) error {
 	options := &patchSignalsOptions{
 		EventID:       "",
 		RetryDuration: DefaultSseRetryDuration,
@@ -361,30 +373,6 @@ func (sse *Broadcaster) PatchSignals(signalsContents []byte, opts ...PatchSignal
 		return fmt.Errorf("failed to send patch signals: %w", err)
 	}
 	return nil
-}
-
-func (sse *Broadcaster) MarshalAndPatchSignals(signals any, opts ...PatchSignalsOption) error {
-	signalsJSON, err := json.Marshal(signals)
-	if err != nil {
-		return fmt.Errorf("failed to marshal signals: %w", err)
-	}
-	return sse.PatchSignals(signalsJSON, opts...)
-}
-
-func (sse *Broadcaster) MarshalAndPatchSignalsIfMissing(
-	signals any,
-	opts ...PatchSignalsOption,
-) error {
-	opts = append(opts, WithOnlyIfMissing(true))
-	return sse.MarshalAndPatchSignals(signals, opts...)
-}
-
-func (sse *Broadcaster) PatchSignalsIfMissingRaw(
-	signalsJSON []byte,
-	opts ...PatchSignalsOption,
-) error {
-	opts = append(opts, WithOnlyIfMissing(true))
-	return sse.PatchSignals(signalsJSON, opts...)
 }
 
 func (sse *Broadcaster) MergeSignals(signals map[string]any) error {
