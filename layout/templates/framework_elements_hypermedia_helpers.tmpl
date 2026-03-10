@@ -45,3 +45,7 @@ func DataAction(method, route string, options ...DataActionOption) string {
 
 	return fmt.Sprintf("@%s('%s')", strings.ToLower(method), route)
 }
+
+func KeepConnOpen() DataActionOption {
+	return DataActionOption("openWhenHidden: true")
+}
