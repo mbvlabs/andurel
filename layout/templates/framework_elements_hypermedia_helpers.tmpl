@@ -7,16 +7,21 @@ import (
 	"strings"
 )
 
-type DataActionOption string
+type DataActionOption func() (string, string)
 
-var ActionTypeForm DataActionOption = "contentType: 'form'"
+var ActionTypeForm DataActionOption = func() (string, string) {
+	return "append", "form"
+}
 
 func ActionHeaders(headers map[string]string) DataActionOption {
 	var headerPairs []string
 	for key, value := range headers {
 		headerPairs = append(headerPairs, fmt.Sprintf("'%s': '%s'", key, value))
 	}
-	return DataActionOption(fmt.Sprintf("headers: { %s }", strings.Join(headerPairs, ", ")))
+
+	return func() (string, string) {
+		return "append", fmt.Sprintf("headers: { %s }", strings.Join(headerPairs, ", "))
+	}
 }
 
 func ActionSignalsFilter(signals map[string]string) DataActionOption {
@@ -24,24 +29,58 @@ func ActionSignalsFilter(signals map[string]string) DataActionOption {
 	for key, value := range signals {
 		headerPairs = append(headerPairs, fmt.Sprintf("%s: %s", key, value))
 	}
-	return DataActionOption(fmt.Sprintf("filterSignals: { %s }", strings.Join(headerPairs, ", ")))
+	return func() (string, string) {
+		return "append", (fmt.Sprintf("filterSignals: { %s }", strings.Join(headerPairs, ", ")))
+	}
+}
+
+func KeepConnOpen() DataActionOption {
+	return func() (string, string) {
+		return "append", "openWhenHidden: true"
+	}
+}
+
+// SubmitSig returns a DataActionOption that prepends a signal to the action. If a signName is provided, it uses that; otherwise, it defaults to "!$_submitting".
+func SubmitSig(signName ...string) DataActionOption {
+	if len(signName) > 0 {
+		return func() (string, string) {
+			return "prepend", "!" + signName[0]
+		}
+	}
+
+	return func() (string, string) {
+		return "prepend", "!$_submitting"
+	}
 }
 
 func DataAction(method, route string, options ...DataActionOption) string {
-	if len(options) > 0 {
-		var opts []string
-		for _, opt := range options {
-			opts = append(opts, string(opt))
-		}
-		options := strings.Join(opts, ", ")
+	var prepends []string
+	var appends []string
 
-		return fmt.Sprintf(
-			"@%s('%s', %s)",
+	for _, opt := range options {
+		position, value := opt()
+		switch position {
+		case "prepend":
+			prepends = append(prepends, value)
+		case "append":
+			appends = append(appends, value)
+		}
+	}
+
+	action := fmt.Sprintf("@%s('%s')", strings.ToLower(method), route)
+
+	if len(appends) > 0 {
+		action = fmt.Sprintf(
+			"@%s('%s', { %s })",
 			strings.ToLower(method),
 			route,
-			fmt.Sprintf("{ %s }", options),
+			strings.Join(appends, ", "),
 		)
 	}
 
-	return fmt.Sprintf("@%s('%s')", strings.ToLower(method), route)
+	if len(prepends) > 0 {
+		action = strings.Join(prepends, " && ") + " && " + action
+	}
+
+	return action
 }

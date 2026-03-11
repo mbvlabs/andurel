@@ -503,7 +503,7 @@ hypermedia.Redirect(etx, routes.UserShow.URL(userID))
 hypermedia.PatchElementTempl(etx, "#user-list", views.UserListPartial(users))
 
 // Update signals
-hypermedia.MarshalAndPatchSignals(etx, map[string]any{"loading": false})
+hypermedia.PatchSignal(etx, "loading", false)
 ` + "```" + `
 
 For full hypermedia patterns, see: andurel llm hypermedia
@@ -880,7 +880,7 @@ const llmViewsDocumentation = `# Andurel Framework - Views
 ## CLI Commands
 ` + "```bash" + `
 andurel llm views
-andurel view compile
+andurel view generate
 andurel view format
 andurel generate view User
 andurel generate resource Product
@@ -1472,7 +1472,7 @@ Server handlers respond with SSE events that the client interprets as patch/merg
 
 ### Single-response helpers
 - PatchElements / PatchElementTempl: send HTML patches.
-- PatchSignals / MarshalAndPatchSignals: send signal updates.
+- PatchSignal / PatchSignals: send signal updates.
 - MergeSignals: merge signals.
 - ExecuteScript / Redirect / ReplaceURL / Prefetch: run client JS via SSE.
 - ReadSignals: parse Datastar signal payloads from requests.

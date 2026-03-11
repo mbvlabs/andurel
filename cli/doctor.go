@@ -603,7 +603,7 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	templPath := filepath.Join(rootDir, "bin", templName)
 	if _, err := os.Stat(templPath); err != nil {
 		return checkResult{
-			name:    "views compile",
+			name:    "views generate",
 			status:  statusWarn,
 			message: "templ binary not found (skipping check)",
 		}
@@ -619,17 +619,17 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	err := cmd.Run()
 	if err != nil {
 		return checkResult{
-			name:    "views compile",
+			name:    "views generate",
 			status:  statusFail,
-			message: "compilation failed",
+			message: "generation failed",
 			details: []string{stderr.String()},
 		}
 	}
 
 	return checkResult{
-		name:    "views compile",
+		name:    "views generate",
 		status:  statusPass,
-		message: "templates compile successfully",
+		message: "templates generated successfully",
 	}
 }
 
