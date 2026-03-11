@@ -49,12 +49,17 @@ func DownloadFromURLTemplate(
 
 func DownloadFromURL(name, url, archiveType, binaryName, destPath string) error {
 	if archiveType == "binary" {
+		if runtime.GOOS == "windows" {
+			url += ".exe"
+		}
 		if err := downloadFile(url, destPath); err != nil {
 			return fmt.Errorf("failed to download %s: %w", name, err)
 		}
 
-		if err := os.Chmod(destPath, 0o755); err != nil {
-			return fmt.Errorf("failed to set executable permissions: %w", err)
+		if runtime.GOOS != "windows" {
+			if err := os.Chmod(destPath, 0o755); err != nil {
+				return fmt.Errorf("failed to set executable permissions: %w", err)
+			}
 		}
 
 		return nil
@@ -75,8 +80,10 @@ func DownloadFromURL(name, url, archiveType, binaryName, destPath string) error 
 		return fmt.Errorf("failed to extract %s: %w", name, err)
 	}
 
-	if err := os.Chmod(destPath, 0o755); err != nil {
-		return fmt.Errorf("failed to set executable permissions: %w", err)
+	if runtime.GOOS != "windows" {
+		if err := os.Chmod(destPath, 0o755); err != nil {
+			return fmt.Errorf("failed to set executable permissions: %w", err)
+		}
 	}
 
 	return nil
@@ -141,8 +148,10 @@ func DownloadGoTool(name, module, version, goos, goarch, destPath string) error 
 		return fmt.Errorf("failed to extract %s: %w", name, err)
 	}
 
-	if err := os.Chmod(destPath, 0o755); err != nil {
-		return fmt.Errorf("failed to set executable permissions: %w", err)
+	if runtime.GOOS != "windows" {
+		if err := os.Chmod(destPath, 0o755); err != nil {
+			return fmt.Errorf("failed to set executable permissions: %w", err)
+		}
 	}
 
 	return nil

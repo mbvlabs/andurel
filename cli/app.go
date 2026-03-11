@@ -8,6 +8,7 @@ import (
 
 	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
+	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
 )
 
@@ -78,7 +79,8 @@ func newConsoleCommand() *cobra.Command {
 				return fmt.Errorf("error parsing environment variables: %w", err)
 			}
 
-			usqlPath := filepath.Join(rootDir, "bin", "usql")
+			usqlName := naming.BinaryName("usql")
+			usqlPath := filepath.Join(rootDir, "bin", usqlName)
 			if _, err := os.Stat(usqlPath); err != nil {
 				if os.IsNotExist(err) {
 					return fmt.Errorf(
@@ -137,7 +139,8 @@ func newDblabCommand() *cobra.Command {
 				return fmt.Errorf("error parsing environment variables: %w", err)
 			}
 
-			dblabPath := filepath.Join(rootDir, "bin", "dblab")
+			dblabName := naming.BinaryName("dblab")
+			dblabPath := filepath.Join(rootDir, "bin", dblabName)
 			if _, err := os.Stat(dblabPath); err != nil {
 				if os.IsNotExist(err) {
 					return fmt.Errorf(
@@ -180,7 +183,8 @@ Override defaults by passing flags, e.g.:
 				return err
 			}
 
-			binPath := filepath.Join(rootDir, "bin", "mailpit")
+			binName := naming.BinaryName("mailpit")
+			binPath := filepath.Join(rootDir, "bin", binName)
 			if _, err := os.Stat(binPath); err != nil {
 				if os.IsNotExist(err) {
 					return fmt.Errorf(

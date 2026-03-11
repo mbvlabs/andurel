@@ -9,6 +9,7 @@ import (
 
 	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/mbvlabs/andurel/pkg/constants"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 // UnifiedManager provides centralized file operations with consistent error handling
@@ -208,7 +209,8 @@ func (fm *UnifiedManager) RunSQLCGenerate() error {
 
 // runSQLCCommand runs a specific sqlc command
 func (fm *UnifiedManager) runSQLCCommand(rootDir, command string) error {
-	sqlcBin := filepath.Join(rootDir, "bin", "sqlc")
+	sqlcName := naming.BinaryName("sqlc")
+	sqlcBin := filepath.Join(rootDir, "bin", sqlcName)
 	configPath := filepath.Join(rootDir, "database", "sqlc.yaml")
 	if _, err := os.Stat(configPath); err != nil {
 		if os.IsNotExist(err) {

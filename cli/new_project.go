@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 
 	"github.com/mbvlabs/andurel/layout"
 
@@ -55,7 +55,7 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 		if len(files) != 0 {
 			return fmt.Errorf("current directory is not empty")
 		}
-		projectName = path.Base(dir)
+		projectName = filepath.Base(dir)
 		basePath = "./"
 	}
 
@@ -89,7 +89,11 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	fmt.Printf("\nNext steps:\n")
 	fmt.Printf("  cd %s\n", args[0])
 	fmt.Printf("  andurel tool sync\n")
-	fmt.Printf("  cp .env.example .env\n")
+	if runtime.GOOS == "windows" {
+		fmt.Printf("  copy .env.example .env\n")
+	} else {
+		fmt.Printf("  cp .env.example .env\n")
+	}
 	fmt.Printf("  fill in your database connection details in .env\n")
 	fmt.Printf("  (andurel database create - if database does not exist\n")
 	fmt.Printf("  andurel migrate up\n")

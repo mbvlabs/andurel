@@ -53,7 +53,10 @@ A full-stack web application built with [Andurel](https://github.com/mbvlabs/and
 
 1. **Configure environment**
    ```bash
+   # Unix/macOS
    cp .env.example .env
+   # Windows
+   copy .env.example .env
    # Edit .env with your configuration
    ```
 
@@ -577,6 +580,10 @@ andurel app console
 
 # Run tests
 go test ./...
+
+# Copy environment variables
+# Unix/macOS: cp .env.example .env
+# Windows: copy .env.example .env
 ```
 
 ## Integration Testing
