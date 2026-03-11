@@ -87,7 +87,10 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 
 	// Render framework templates
 	fmt.Printf("Rendering framework templates...\n")
-	renderedTemplates, err := u.generator.RenderFrameworkTemplates(*u.lock.ScaffoldConfig)
+	renderedTemplates, err := u.generator.RenderFrameworkTemplates(
+		u.projectRoot,
+		*u.lock.ScaffoldConfig,
+	)
 	if err != nil {
 		report.Error = err
 		return report, fmt.Errorf("failed to render framework templates: %w", err)
