@@ -31,6 +31,29 @@ func New(
 	gob.Register(cookies.FlashMessage{})
 
 	router := echo.New()
+	defaultHTTPErrorHandler := echo.DefaultHTTPErrorHandler(false)
+	router.HTTPErrorHandler = func(c *echo.Context, err error) {
+		if panicErr, ok := errors.AsType[*echomw.PanicStackError](err); ok {
+			slog.ErrorContext(
+				c.Request().Context(),
+				"http panic recovered",
+				"method", c.Request().Method,
+				"path", c.Request().URL.Path,
+				"error", panicErr.Unwrap(),
+				"stack", string(panicErr.Stack),
+			)
+		} else {
+			slog.ErrorContext(
+				c.Request().Context(),
+				"http handler error",
+				"method", c.Request().Method,
+				"path", c.Request().URL.Path,
+				"error", err,
+			)
+		}
+
+		defaultHTTPErrorHandler(c, err)
+	}
 
 	router.Use(globalMiddleware...)
 
