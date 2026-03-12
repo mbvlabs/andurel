@@ -231,8 +231,10 @@ func DownloadTailwindCLI(version, goos, goarch, destPath string) error {
 		return fmt.Errorf("failed to download tailwindcli: %w", err)
 	}
 
-	if err := os.Chmod(destPath, 0o755); err != nil {
-		return fmt.Errorf("failed to set executable permissions: %w", err)
+	if runtime.GOOS != "windows" {
+		if err := os.Chmod(destPath, 0o755); err != nil {
+			return fmt.Errorf("failed to set executable permissions: %w", err)
+		}
 	}
 
 	return nil

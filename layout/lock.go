@@ -8,6 +8,7 @@ import (
 	"runtime"
 
 	"github.com/mbvlabs/andurel/layout/cmds"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type AndurelLock struct {
@@ -180,7 +181,8 @@ func (l *AndurelLock) Sync(targetDir string, silent bool) error {
 	}
 
 	for name, tool := range l.Tools {
-		binPath := filepath.Join(binDir, name)
+		binName := naming.BinaryName(name)
+		binPath := filepath.Join(binDir, binName)
 
 		if _, err := os.Stat(binPath); err == nil {
 			continue

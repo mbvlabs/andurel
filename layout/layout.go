@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"text/template"
@@ -296,29 +297,29 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 }
 
 var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"assets_vanilla_css_reset.tmpl":                      "assets/css/reset.css",
-	"assets_vanilla_css_tokens.tmpl":                     "assets/css/tokens.css",
-	"assets_vanilla_css_base.tmpl":                       "assets/css/base.css",
-	"assets_vanilla_css_objects.tmpl":                    "assets/css/objects.css",
-	"assets_vanilla_css_utilities.tmpl":                  "assets/css/utilities.css",
-	"assets_vanilla_css_components_buttons.tmpl":         "assets/css/components/buttons.css",
-	"assets_vanilla_css_components_feedback.tmpl":        "assets/css/components/feedback.css",
-	"assets_vanilla_css_components_forms.tmpl":           "assets/css/components/forms.css",
-	"assets_vanilla_css_components_layout.tmpl":          "assets/css/components/layout.css",
-	"assets_vanilla_css_components_panels.tmpl":          "assets/css/components/panels.css",
+	"assets_vanilla_css_reset.tmpl":               "assets/css/reset.css",
+	"assets_vanilla_css_tokens.tmpl":              "assets/css/tokens.css",
+	"assets_vanilla_css_base.tmpl":                "assets/css/base.css",
+	"assets_vanilla_css_objects.tmpl":             "assets/css/objects.css",
+	"assets_vanilla_css_utilities.tmpl":           "assets/css/utilities.css",
+	"assets_vanilla_css_components_buttons.tmpl":  "assets/css/components/buttons.css",
+	"assets_vanilla_css_components_feedback.tmpl": "assets/css/components/feedback.css",
+	"assets_vanilla_css_components_forms.tmpl":    "assets/css/components/forms.css",
+	"assets_vanilla_css_components_layout.tmpl":   "assets/css/components/layout.css",
+	"assets_vanilla_css_components_panels.tmpl":   "assets/css/components/panels.css",
 
 	// Views
 	"vanilla_views_layout.tmpl":           "views/layout.templ",
 	"vanilla_views_components_toast.tmpl": "views/components/toast.templ",
 	"vanilla_views_head.tmpl":             "views/head.templ",
-	"vanilla_views_home.tmpl":           "views/home.templ",
-	"vanilla_views_bad_request.tmpl":    "views/bad_request.templ",
-	"vanilla_views_internal_error.tmpl": "views/internal_error.templ",
-	"vanilla_views_not_found.tmpl":      "views/not_found.templ",
-	"vanilla_views_confirm_email.tmpl":  "views/confirm_email.templ",
-	"vanilla_views_login.tmpl":          "views/login.templ",
-	"vanilla_views_registration.tmpl":   "views/registration.templ",
-	"vanilla_views_reset_password.tmpl": "views/reset_password.templ",
+	"vanilla_views_home.tmpl":             "views/home.templ",
+	"vanilla_views_bad_request.tmpl":      "views/bad_request.templ",
+	"vanilla_views_internal_error.tmpl":   "views/internal_error.templ",
+	"vanilla_views_not_found.tmpl":        "views/not_found.templ",
+	"vanilla_views_confirm_email.tmpl":    "views/confirm_email.templ",
+	"vanilla_views_login.tmpl":            "views/login.templ",
+	"vanilla_views_registration.tmpl":     "views/registration.templ",
+	"vanilla_views_reset_password.tmpl":   "views/reset_password.templ",
 }
 
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -683,8 +684,10 @@ func renderTemplate(
 		return fmt.Errorf("failed to close temporary file for %s: %w", targetPath, err)
 	}
 
-	if err := os.Chmod(tmpPath, constants.FilePermissionPublic); err != nil {
-		return fmt.Errorf("failed to set permissions for %s: %w", targetPath, err)
+	if runtime.GOOS != "windows" {
+		if err := os.Chmod(tmpPath, constants.FilePermissionPublic); err != nil {
+			return fmt.Errorf("failed to set permissions for %s: %w", targetPath, err)
+		}
 	}
 
 	if err := os.Rename(tmpPath, fullTargetPath); err != nil {
