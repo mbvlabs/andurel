@@ -10,8 +10,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
+
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type ToolDownloader struct {
@@ -49,14 +50,14 @@ func DownloadFromURLTemplate(
 
 func DownloadFromURL(name, url, archiveType, binaryName, destPath string) error {
 	if archiveType == "binary" {
-		if runtime.GOOS == "windows" {
+		if naming.IsWindows() {
 			url += ".exe"
 		}
 		if err := downloadFile(url, destPath); err != nil {
 			return fmt.Errorf("failed to download %s: %w", name, err)
 		}
 
-		if runtime.GOOS != "windows" {
+		if !naming.IsWindows() {
 			if err := os.Chmod(destPath, 0o755); err != nil {
 				return fmt.Errorf("failed to set executable permissions: %w", err)
 			}
@@ -80,7 +81,7 @@ func DownloadFromURL(name, url, archiveType, binaryName, destPath string) error 
 		return fmt.Errorf("failed to extract %s: %w", name, err)
 	}
 
-	if runtime.GOOS != "windows" {
+	if !naming.IsWindows() {
 		if err := os.Chmod(destPath, 0o755); err != nil {
 			return fmt.Errorf("failed to set executable permissions: %w", err)
 		}
@@ -148,7 +149,7 @@ func DownloadGoTool(name, module, version, goos, goarch, destPath string) error 
 		return fmt.Errorf("failed to extract %s: %w", name, err)
 	}
 
-	if runtime.GOOS != "windows" {
+	if !naming.IsWindows() {
 		if err := os.Chmod(destPath, 0o755); err != nil {
 			return fmt.Errorf("failed to set executable permissions: %w", err)
 		}
@@ -231,7 +232,7 @@ func DownloadTailwindCLI(version, goos, goarch, destPath string) error {
 		return fmt.Errorf("failed to download tailwindcli: %w", err)
 	}
 
-	if runtime.GOOS != "windows" {
+	if !naming.IsWindows() {
 		if err := os.Chmod(destPath, 0o755); err != nil {
 			return fmt.Errorf("failed to set executable permissions: %w", err)
 		}
@@ -435,10 +436,6 @@ func mapArch(goarch string) string {
 	default:
 		return goarch
 	}
-}
-
-func GetPlatform() (string, string) {
-	return runtime.GOOS, runtime.GOARCH
 }
 
 func extractGitHubRepo(module string) string {

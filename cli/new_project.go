@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/pkg/naming"
 
 	"github.com/spf13/cobra"
 )
@@ -90,7 +90,7 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	fmt.Printf("\nNext steps:\n")
 	fmt.Printf("  cd %s\n", args[0])
 	fmt.Printf("  andurel tool sync\n")
-	if runtime.GOOS == "windows" {
+	if naming.IsWindows() {
 		fmt.Printf("  copy .env.example .env\n")
 	} else {
 		fmt.Printf("  cp .env.example .env\n")

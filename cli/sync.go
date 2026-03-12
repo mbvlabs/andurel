@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/layout/cmds"
@@ -54,8 +53,7 @@ func syncBinaries(projectRoot string) error {
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
 
-	goos := runtime.GOOS
-	goarch := runtime.GOARCH
+	goos, goarch := naming.GetPlatform()
 
 	fmt.Println("Syncing tools from andurel.lock...")
 
