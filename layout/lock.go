@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/mbvlabs/andurel/layout/cmds"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type AndurelLock struct {
@@ -171,8 +171,7 @@ func (l *AndurelLock) Sync(targetDir string, silent bool) error {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	goos := runtime.GOOS
-	goarch := runtime.GOARCH
+	goos, goarch := naming.GetPlatform()
 
 	binDir := filepath.Join(absTargetDir, "bin")
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
@@ -180,7 +179,8 @@ func (l *AndurelLock) Sync(targetDir string, silent bool) error {
 	}
 
 	for name, tool := range l.Tools {
-		binPath := filepath.Join(binDir, name)
+		binName := naming.BinaryName(name)
+		binPath := filepath.Join(binDir, binName)
 
 		if _, err := os.Stat(binPath); err == nil {
 			continue

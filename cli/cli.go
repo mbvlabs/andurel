@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/mbvlabs/andurel/pkg/cache"
+	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
 )
 
@@ -62,7 +63,8 @@ func newRunAppCommand() *cobra.Command {
 				return err
 			}
 
-			binPath := filepath.Join(rootDir, "bin", "shadowfax")
+			binName := naming.BinaryName("shadowfax")
+			binPath := filepath.Join(rootDir, "bin", binName)
 
 			runCmd := exec.Command(binPath)
 			runCmd.Stdout = os.Stdout
@@ -116,9 +118,10 @@ func checkBinaries(rootDir string) error {
 		return nil
 	}
 
-	binPath := filepath.Join(rootDir, "bin", "shadowfax")
+	binName := naming.BinaryName("shadowfax")
+	binPath := filepath.Join(rootDir, "bin", binName)
 	if _, err := os.Stat(binPath); err != nil {
-		return fmt.Errorf("bin/shadowfax not found. Run 'andurel tool sync' to download it")
+		return fmt.Errorf("bin/%s not found. Run 'andurel tool sync' to download it", binName)
 	}
 
 	return nil
