@@ -325,11 +325,14 @@ templ WelcomeEmail(userName string) {
 **2. Send the email**
 
 ```go
-import "{{.ModuleName}}/email"
+import (
+    "{{.ModuleName}}/config"
+    "{{.ModuleName}}/email"
+)
 
 // Send an email
 data := email.TransactionalData{
-    From:    "noreply@example.com",
+    From:    config.DefaultSenderSignature,
     To:      []string{"user@example.com"},
     Subject: "Welcome!",
     Body:    WelcomeEmail("John Doe"),
@@ -344,12 +347,13 @@ For better performance, send emails asynchronously:
 
 ```go
 {{if eq .Database "postgres"}}import (
+    "{{.ModuleName}}/config"
     "{{.ModuleName}}/queue/jobs"
 )
 
 _, err := insertOnly.Client.Insert(ctx, jobs.SendTransactionalEmailArgs{
     Data: email.TransactionalData{
-        From:    "noreply@example.com",
+        From:    config.DefaultSenderSignature,
         To:      []string{"user@example.com"},
         Subject: "Welcome!",
         Body:    WelcomeEmail("John Doe"),

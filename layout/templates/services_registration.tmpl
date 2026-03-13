@@ -7,6 +7,7 @@ import (
 	"errors"
 	"time"
 
+	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/email"
 	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/models"
@@ -79,7 +80,7 @@ func RegisterUser(
 	_, err = insertOnly.InsertTx(ctx, tx, jobs.SendTransactionalEmailArgs{
 		Data: email.TransactionalData{
 			To:       user.Email,
-			From:     "noreply@andurel.com",
+			From:     config.DefaultSenderSignature,
 			Subject:  "Verify Your Email Address",
 			HTMLBody: html,
 			TextBody: text,
