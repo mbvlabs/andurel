@@ -1,31 +1,52 @@
 package views
 
 import (
-	"fmt"
+	"net/http"
+	"{{.ModuleName}}/internal/hypermedia"
 	"{{.ModuleName}}/router/routes"
 )
 
 templ LoginForm() {
 	@base() {
-		<main>
-			<h1>Login</h1>
-			<form data-indicator:submitting data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", routes.SessionCreate.URL()) }>
-				<div>
-					<label for="email">Email</label>
-					<input type="email" id="email" data-bind="email" data-attr:disabled="$submitting" required/>
+		<main class="auth-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">Login to your account</h1>
+						<p class="card-description">Enter your details below to sign in.</p>
+					</div>
+					<div class="card-content">
+						<form class="form" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.SessionCreate.URL()) }>
+							<fieldset class="fieldset" data-attr:disabled="$submitting">
+								<div class="field">
+									<label class="field-label" for="email">Email</label>
+									<div class="field-control">
+										<input class="input" type="email" id="email" data-bind="email" required/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="password">Password</label>
+									<div class="field-control">
+										<input class="input" type="password" id="password" data-bind="password" required/>
+									</div>
+								</div>
+								<div class="cluster" data-justify="between">
+									<span class="field-hint">Protected session access.</span>
+									<a class="btn-link" href={ routes.PasswordNew.URL() }>Forgot your password?</a>
+								</div>
+								<button class="btn btn-primary btn-block" type="submit">
+									<span data-show="!$submitting">Login</span>
+									<span data-show="$submitting">Loading</span>
+								</button>
+							</fieldset>
+						</form>
+					</div>
+					<div class="card-footer">
+						<p class="field-hint">Don't have an account?</p>
+						<a class="btn-link" href={ routes.RegistrationNew.URL() }>Sign up</a>
+					</div>
 				</div>
-				<div>
-					<label for="password">Password</label>
-					<input type="password" id="password" data-bind="password" data-attr:disabled="$submitting" required/>
-				</div>
-				<button type="submit">Login</button>
-			</form>
-			<p>
-				<a href={ routes.PasswordNew.URL() }>Forgot your password?</a>
-			</p>
-			<p>
-				Don't have an account? <a href={ routes.RegistrationNew.URL() }>Sign up</a>
-			</p>
+			</section>
 		</main>
 	}
 }

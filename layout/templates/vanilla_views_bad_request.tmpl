@@ -2,6 +2,15 @@ package views
 
 templ BadRequest() {
 	@base() {
-		<h1>The request made was invalid</h1>
+		<main class="error-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">Bad request</h1>
+						<p class="card-description">The request could not be processed because the submitted data or URL was invalid.</p>
+					</div>
+				</div>
+			</section>
+		</main>
 	}
 }

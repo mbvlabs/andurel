@@ -8,17 +8,28 @@ import (
 
 templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 	@base() {
-		<main>
-			<div>
-				<h1>{{Plural .ResourceName}}</h1>
-				<a href="/">New {{.ResourceName}}</a>
-			</div>
-			<div>
+		<main class="page-shell">
+			<section class="container stack" data-gap="lg">
+				<div class="cluster" data-justify="between">
+					<div class="stack" data-gap="sm">
+						<h1>{{Plural .ResourceName}}</h1>
+						<p class="muted">Manage your {{.PluralName}} with the shared vanilla component system.</p>
+					</div>
+					<a class="btn btn-primary" href="/">New {{.ResourceName}}</a>
+				</div>
 				if len({{.PluralName}}) == 0 {
-					<p>No {{.PluralName}} found.</p>
+					<section class="panel empty-state">
+						<div class="stack text-center" data-gap="sm">
+							<h2 class="empty-state-title">No {{.PluralName}} found</h2>
+							<p class="empty-state-description">Create your first {{.ResourceName | ToLower}} to start filling this view.</p>
+						</div>
+						<div class="empty-state-actions">
+							<a class="btn btn-primary" href="/">New {{.ResourceName}}</a>
+						</div>
+					</section>
 				} else {
-					<div>
-						<table>
+					<div class="panel table-wrap">
+						<table class="table">
 							<thead>
 								<tr>
 									{{range .Fields}}<th>{{.DisplayName}}</th>
@@ -30,8 +41,10 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 									<tr>
 										{{range .Fields}}<td>{{StringTableDisplay . $.ResourceName}}</td>
 										{{end}}<td>
-											<a href="/">View</a>
-											<a href="/">Edit</a>
+											<div class="cluster" data-gap="sm">
+												<a class="btn btn-ghost btn-sm" href="/">View</a>
+												<a class="btn btn-outline btn-sm" href="/">Edit</a>
+											</div>
 										</td>
 									</tr>
 								}
@@ -39,97 +52,122 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 						</table>
 					</div>
 				}
-			</div>
+			</section>
 		</main>
 	}
 }
 
 templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
 	@base() {
-		<main>
-			<div>
-				<h1>{{.ResourceName}} Details</h1>
-				<div>
-					<a href="/">Edit</a>
-					<a href="/">Back to List</a>
-				</div>
-			</div>
-			<div>
-				<div>
-					{{range .Fields}}<div>
-						<label>{{.DisplayName}}</label>
-						<p>{{StringDisplay . $.ResourceName}}</p>
+		<main class="page-shell">
+			<section class="container stack" data-gap="lg">
+				<div class="cluster" data-justify="between">
+					<div class="stack" data-gap="sm">
+						<h1>{{.ResourceName}} Details</h1>
+						<p class="muted">Review the current values stored for this {{.ResourceName | ToLower}}.</p>
 					</div>
-					{{end}}
+					<div class="cluster" data-gap="sm">
+						<a class="btn btn-primary" href="/">Edit</a>
+						<a class="btn btn-outline" href="/">Back to List</a>
+					</div>
 				</div>
-			</div>
+				<div class="panel">
+					<div class="grid-auto-fit" data-grid="compact">
+						{{range .Fields}}<div class="field">
+							<p class="field-label">{{.DisplayName}}</p>
+							<p>{{StringDisplay . $.ResourceName}}</p>
+						</div>
+						{{end}}
+					</div>
+				</div>
+			</section>
 		</main>
 	}
 }
 
 templ {{.ResourceName}}New() {
 	@base() {
-		<main>
-			<div>
-				<form
-				data-indicator:submitting
-				data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", "/") }
-			>
-					<div>
-						<h2>New {{.ResourceName}}</h2>
-						<p>Enter the details for the new {{.ResourceName | ToLower}}.</p>
+		<main class="auth-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">New {{.ResourceName}}</h1>
+						<p class="card-description">Enter the details for the new {{.ResourceName | ToLower}}.</p>
 					</div>
-					<div>
-						{{range .Fields}}{{if not .IsSystemField}}<div>
-							<label for="{{.CamelCase}}">{{.DisplayName}}</label>
-							<div>
-								<input id="{{.CamelCase}}" type="{{.InputType}}" data-bind="{{.CamelCase}}" />
-							</div>
-						</div>
-						{{end}}{{end}}
+					<div class="card-content">
+						<form
+							class="form"
+							data-indicator:submitting
+							data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", "/") }
+						>
+							<fieldset class="fieldset" data-attr:disabled="$submitting">
+								{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="radio-row">
+									<input class="checkbox" id="{{.CamelCase}}" type="checkbox" data-bind="{{.CamelCase}}" />
+									<label class="label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+								</div>
+								{{else}}<div class="field">
+									<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+									<div class="field-control">
+										<input class="input" id="{{.CamelCase}}" type="{{.InputType}}" data-bind="{{.CamelCase}}" />
+									</div>
+								</div>
+								{{end}}{{end}}{{end}}
+								<div class="stack" data-gap="sm">
+									<button class="btn btn-primary btn-block" type="submit">Create {{.ResourceName}}</button>
+									<a class="btn btn-outline btn-block" href="/">Back to List</a>
+								</div>
+							</fieldset>
+						</form>
 					</div>
-					<div>
-						<a href="/">Cancel</a>
-						<button type="submit">Create {{.ResourceName}}</button>
-					</div>
-				</form>
-			</div>
+				</div>
+			</section>
 		</main>
 	}
 }
 
 templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
 	@base() {
-		<main>
-			<div>
-				<form
-				data-indicator:submitting
-				data-on:submit={ "!$submitting && " + fmt.Sprintf("@put('%s')", "/") }
-			>
-					<div>
-						<h2>Edit {{.ResourceName}}</h2>
-						<p>Update the details for this {{.ResourceName | ToLower}}.</p>
+		<main class="auth-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">Edit {{.ResourceName}}</h1>
+						<p class="card-description">Update the details for this {{.ResourceName | ToLower}}.</p>
 					</div>
-					<div>
-						{{range .Fields}}{{if not .IsSystemField}}<div>
-							<label for="{{.CamelCase}}">{{.DisplayName}}</label>
-							<div>
-								<input id="{{.CamelCase}}" type="{{.InputType}}" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
-							</div>
-						</div>
-						{{end}}{{end}}
+					<div class="card-content">
+						<form
+							class="form"
+							data-indicator:submitting
+							data-on:submit={ "!$submitting && " + fmt.Sprintf("@put('%s')", "/") }
+						>
+							<fieldset class="fieldset" data-attr:disabled="$submitting">
+								{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="radio-row">
+									<input class="checkbox" id="{{.CamelCase}}" type="checkbox" data-bind="{{.CamelCase}}" if {{FieldRef . $.ResourceName}} { checked } />
+									<label class="label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+								</div>
+								{{else}}<div class="field">
+									<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+									<div class="field-control">
+										<input class="input" id="{{.CamelCase}}" type="{{.InputType}}" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
+									</div>
+								</div>
+								{{end}}{{end}}{{end}}
+								<div class="stack" data-gap="sm">
+									<button class="btn btn-primary btn-block" type="submit">Update {{.ResourceName}}</button>
+									<a class="btn btn-outline btn-block" href="/">Back to List</a>
+								</div>
+							</fieldset>
+						</form>
 					</div>
-					<div>
-						<a href="/">Cancel</a>
-						<button type="submit">Update {{.ResourceName}}</button>
+					<div class="card-footer">
+						<button
+							class="btn btn-destructive btn-block"
+							type="button"
+							data-on:click={ fmt.Sprintf("@delete('%s')", "/") }
+						>Destroy {{.ResourceName}}</button>
 					</div>
-				</form>
-				<div>
-					<button
-						data-on:click={ fmt.Sprintf("@delete('%s')", "/") }
-					>Destroy {{.ResourceName}}</button>
 				</div>
-			</div>
+			</section>
 		</main>
 	}
 }

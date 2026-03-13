@@ -2,6 +2,15 @@ package views
 
 templ NotFound() {
 	@base() {
-		<h1>Not found</h1>
+		<main class="error-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">Page not found</h1>
+						<p class="card-description">The page you requested does not exist or is no longer available.</p>
+					</div>
+				</div>
+			</section>
+		</main>
 	}
 }

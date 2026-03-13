@@ -7,22 +7,32 @@ import (
 	"testapp/internal/renderer"
 	"testapp/models"
 	"testapp/router/routes"
-	"testapp/views/components"
 )
 
 templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
 	@base() {
-		<main>
-			<div>
-				<h1>StudentFeedbacks</h1>
-				<a href={ routes.StudentFeedbackNew.URL() }>New StudentFeedback</a>
-			</div>
-			<div>
+		<main class="page-shell">
+			<section class="container stack" data-gap="lg">
+				<div class="cluster" data-justify="between">
+					<div class="stack" data-gap="sm">
+						<h1>StudentFeedbacks</h1>
+						<p class="muted">Manage your student_feedbacks with the shared vanilla component system.</p>
+					</div>
+					<a class="btn btn-primary" href={ routes.StudentFeedbackNew.URL() }>New StudentFeedback</a>
+				</div>
 				if len(student_feedbacks) == 0 {
-					<p>No student_feedbacks found.</p>
+					<section class="panel empty-state">
+						<div class="stack text-center" data-gap="sm">
+							<h2 class="empty-state-title">No student_feedbacks found</h2>
+							<p class="empty-state-description">Create your first studentfeedback to start filling this view.</p>
+						</div>
+						<div class="empty-state-actions">
+							<a class="btn btn-primary" href={ routes.StudentFeedbackNew.URL() }>New StudentFeedback</a>
+						</div>
+					</section>
 				} else {
-					<div>
-						<table>
+					<div class="panel table-wrap">
+						<table class="table">
 							<thead>
 								<tr>
 									<th>Student Id</th>
@@ -42,8 +52,10 @@ templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
 										<td>{ studentfeedback.CreatedAt.String() }</td>
 										<td>{ studentfeedback.UpdatedAt.String() }</td>
 										<td>
-											<a href={ routes.StudentFeedbackShow.URL(studentfeedback.ID) }>View</a>
-											<a href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) }>Edit</a>
+											<div class="cluster" data-gap="sm">
+												<a class="btn btn-ghost btn-sm" href={ routes.StudentFeedbackShow.URL(studentfeedback.ID) }>View</a>
+												<a class="btn btn-outline btn-sm" href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) }>Edit</a>
+											</div>
 										</td>
 									</tr>
 								}
@@ -51,110 +63,151 @@ templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
 						</table>
 					</div>
 				}
-			</div>
+			</section>
 		</main>
 	}
 }
 
 templ StudentFeedbackShow(studentfeedback models.StudentFeedback) {
 	@base() {
-		<main>
-			<div>
-				<h1>StudentFeedback Details</h1>
-				<div>
-					<a href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) }>Edit</a>
-					<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
-				</div>
-			</div>
-			<div>
-				<div>
-					<div>
-						<label>Student Id</label>
-						<p>{ studentfeedback.StudentID }</p>
+		<main class="page-shell">
+			<section class="container stack" data-gap="lg">
+				<div class="cluster" data-justify="between">
+					<div class="stack" data-gap="sm">
+						<h1>StudentFeedback Details</h1>
+						<p class="muted">Review the current values stored for this studentfeedback.</p>
 					</div>
-					<div>
-						<label>Feedback</label>
-						<p>{ studentfeedback.Feedback }</p>
-					</div>
-					<div>
-						<label>Rating</label>
-						<p>{ fmt.Sprintf("%d", studentfeedback.Rating) }</p>
-					</div>
-					<div>
-						<label>Created At</label>
-						<p>{ studentfeedback.CreatedAt.String() }</p>
-					</div>
-					<div>
-						<label>Updated At</label>
-						<p>{ studentfeedback.UpdatedAt.String() }</p>
+					<div class="cluster" data-gap="sm">
+						<a class="btn btn-primary" href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) }>Edit</a>
+						<a class="btn btn-outline" href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
 					</div>
 				</div>
-			</div>
+				<div class="panel">
+					<div class="grid-auto-fit" data-grid="compact">
+						<div class="field">
+							<p class="field-label">Student Id</p>
+							<p>{ studentfeedback.StudentID }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Feedback</p>
+							<p>{ studentfeedback.Feedback }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Rating</p>
+							<p>{ fmt.Sprintf("%d", studentfeedback.Rating) }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Created At</p>
+							<p>{ studentfeedback.CreatedAt.String() }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Updated At</p>
+							<p>{ studentfeedback.UpdatedAt.String() }</p>
+						</div>
+					</div>
+				</div>
+			</section>
 		</main>
 	}
 }
 
 templ StudentFeedbackNew() {
 	@base() {
-		<main>
-			<div>
-				<form
-					data-indicator:submitting
-					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.StudentFeedbackCreate.URL()) }
-				>
-					<div>
-						<h2>New StudentFeedback</h2>
-						<p>Enter the details for the new studentfeedback.</p>
+		<main class="auth-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">New StudentFeedback</h1>
+						<p class="card-description">Enter the details for the new studentfeedback.</p>
 					</div>
-					<div>
-						@components.InputField("Student Id", "studentId", "text", "", false, components.FieldProp{})
-						@components.InputField("Feedback", "feedback", "text", "", false, components.FieldProp{})
-						@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{})
+					<div class="card-content">
+						<form
+							class="form"
+							data-indicator:submitting
+							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.StudentFeedbackCreate.URL()) }
+						>
+							<fieldset class="fieldset" data-attr:disabled="$submitting">
+								<div class="field">
+									<label class="field-label" for="studentId">Student Id</label>
+									<div class="field-control">
+										<input class="input" type="text" id="studentId" name="studentId" data-bind="studentId"/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="feedback">Feedback</label>
+									<div class="field-control">
+										<input class="input" type="text" id="feedback" name="feedback" data-bind="feedback"/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="rating">Rating</label>
+									<div class="field-control">
+										<input class="input" type="number" id="rating" name="rating" data-bind="rating"/>
+									</div>
+								</div>
+								<div class="stack" data-gap="sm">
+									<button class="btn btn-primary btn-block" type="submit">Create StudentFeedback</button>
+									<a class="btn btn-outline btn-block" href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+								</div>
+							</fieldset>
+						</form>
 					</div>
-					@components.SubmitButton("Create StudentFeedback")
-					<p>
-						<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
-					</p>
-				</form>
-			</div>
+				</div>
+			</section>
 		</main>
 	}
 }
 
 templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
 	@base() {
-		<main>
-			<div>
-				<form
-					data-indicator:submitting
-					data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.StudentFeedbackUpdate.URL(studentfeedback.ID)) }
-				>
-					<div>
-						<h2>Edit StudentFeedback</h2>
-						<p>Update the details for this studentfeedback.</p>
+		<main class="auth-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">Edit StudentFeedback</h1>
+						<p class="card-description">Update the details for this studentfeedback.</p>
 					</div>
-					<div>
-						@components.InputField("Student Id", "studentId", "text", "", false, components.FieldProp{
-							Value: studentfeedback.StudentID,
-						})
-						@components.InputField("Feedback", "feedback", "text", "", false, components.FieldProp{
-							Value: studentfeedback.Feedback,
-						})
-						@components.InputField("Rating", "rating", "number", "", false, components.FieldProp{
-							Value: fmt.Sprintf("%d", studentfeedback.Rating),
-						})
+					<div class="card-content">
+						<form
+							class="form"
+							data-indicator:submitting
+							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.StudentFeedbackUpdate.URL(studentfeedback.ID)) }
+						>
+							<fieldset class="fieldset" data-attr:disabled="$submitting">
+								<div class="field">
+									<label class="field-label" for="studentId">Student Id</label>
+									<div class="field-control">
+										<input class="input" type="text" id="studentId" name="studentId" data-bind="studentId" value={ studentfeedback.StudentID }/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="feedback">Feedback</label>
+									<div class="field-control">
+										<input class="input" type="text" id="feedback" name="feedback" data-bind="feedback" value={ studentfeedback.Feedback }/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="rating">Rating</label>
+									<div class="field-control">
+										<input class="input" type="number" id="rating" name="rating" data-bind="rating" value={ fmt.Sprintf("%d", studentfeedback.Rating) }/>
+									</div>
+								</div>
+								<div class="stack" data-gap="sm">
+									<button class="btn btn-primary btn-block" type="submit">Update StudentFeedback</button>
+									<a class="btn btn-outline btn-block" href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+								</div>
+							</fieldset>
+						</form>
 					</div>
-					@components.SubmitButton("Update StudentFeedback")
-					<p>
-						<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
-					</p>
-				</form>
-				<div>
-					<button
-						data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.StudentFeedbackDestroy.URL(studentfeedback.ID)) }
-					>Destroy StudentFeedback</button>
+					<div class="card-footer">
+						<button
+							class="btn btn-destructive btn-block"
+							type="button"
+							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.StudentFeedbackDestroy.URL(studentfeedback.ID)) }
+						>Destroy StudentFeedback</button>
+					</div>
 				</div>
-			</div>
+			</section>
 		</main>
 	}
 }

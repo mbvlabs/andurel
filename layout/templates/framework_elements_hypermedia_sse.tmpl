@@ -170,7 +170,19 @@ elements.forEach((element) => {
 	return ExecuteScript(c, js, executeOptions...)
 }
 
-func PatchSignals(c *echo.Context, signalsContents []byte, opts ...PatchSignalsOption) error {
+func PatchSignal(c *echo.Context, key string, value any, opts ...PatchSignalsOption) error {
+	return PatchSignals(c, map[string]any{key: value}, opts...)
+}
+
+func PatchSignals(c *echo.Context, signals map[string]any, opts ...PatchSignalsOption) error {
+	signalsJSON, err := json.Marshal(signals)
+	if err != nil {
+		return fmt.Errorf("failed to marshal signals: %w", err)
+	}
+	return patchSignalsRaw(c, signalsJSON, opts...)
+}
+
+func patchSignalsRaw(c *echo.Context, signalsContents []byte, opts ...PatchSignalsOption) error {
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Content-Type", "text/event-stream")
 
@@ -217,32 +229,6 @@ func PatchSignals(c *echo.Context, signalsContents []byte, opts ...PatchSignalsO
 		return fmt.Errorf("failed to send patch signals: %w", err)
 	}
 	return nil
-}
-
-func MarshalAndPatchSignals(c *echo.Context, signals any, opts ...PatchSignalsOption) error {
-	signalsJSON, err := json.Marshal(signals)
-	if err != nil {
-		return fmt.Errorf("failed to marshal signals: %w", err)
-	}
-	return PatchSignals(c, signalsJSON, opts...)
-}
-
-func MarshalAndPatchSignalsIfMissing(
-	c *echo.Context,
-	signals any,
-	opts ...PatchSignalsOption,
-) error {
-	opts = append(opts, WithOnlyIfMissing(true))
-	return MarshalAndPatchSignals(c, signals, opts...)
-}
-
-func PatchSignalsIfMissingRaw(
-	c *echo.Context,
-	signalsJSON []byte,
-	opts ...PatchSignalsOption,
-) error {
-	opts = append(opts, WithOnlyIfMissing(true))
-	return PatchSignals(c, signalsJSON, opts...)
 }
 
 func MergeSignals(c *echo.Context, signals map[string]any) error {

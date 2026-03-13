@@ -1,0 +1,75 @@
+:where(html) {
+	background:
+		radial-gradient(circle at top, color-mix(in oklab, var(--primary) 10%, transparent), transparent 35%),
+		linear-gradient(180deg, var(--surface-page), color-mix(in oklab, var(--surface-page) 92%, black));
+	color: var(--text-strong);
+	font-family: var(--font-sans);
+}
+
+:where(body) {
+	display: grid;
+	grid-template-rows: 1fr auto;
+	min-block-size: 100vh;
+}
+
+:where(main) {
+	inline-size: var(--container-inline);
+	margin-inline: auto;
+	padding-block: var(--space-8);
+	padding-inline: var(--space-4);
+}
+
+:where(h1, h2, h3) {
+	line-height: 1.05;
+	letter-spacing: -0.03em;
+	text-wrap: balance;
+}
+
+:where(h1) {
+	font-size: var(--step-3);
+	max-inline-size: 12ch;
+}
+
+:where(h2) {
+	font-size: var(--step-2);
+}
+
+:where(h3) {
+	font-size: var(--step-1);
+}
+
+:where(p, li, label, input, textarea, select, button) {
+	font-size: var(--step-0);
+}
+
+:where(p, ul, ol) {
+	color: var(--text-muted);
+	max-inline-size: var(--measure);
+}
+
+:where(a) {
+	color: var(--primary);
+	text-decoration-color: color-mix(in oklab, var(--primary) 45%, transparent);
+	text-underline-offset: 0.18em;
+}
+
+:where(a:hover) {
+	color: var(--primary-strong);
+}
+
+:where(button, input, textarea, select) {
+	accent-color: var(--primary);
+}
+
+:where(:focus-visible) {
+	outline: 3px solid var(--ring);
+	outline-offset: 3px;
+}
+
+:where(::placeholder) {
+	color: color-mix(in oklab, var(--text-muted) 70%, transparent);
+}
+
+:where([hidden]) {
+	display: none !important;
+}

@@ -8,17 +8,28 @@ import (
 
 templ DocumentIndex(documents []models.Document) {
 	@base() {
-		<main>
-			<div>
-				<h1>Documents</h1>
-				<a href="/">New Document</a>
-			</div>
-			<div>
+		<main class="page-shell">
+			<section class="container stack" data-gap="lg">
+				<div class="cluster" data-justify="between">
+					<div class="stack" data-gap="sm">
+						<h1>Documents</h1>
+						<p class="muted">Manage your documents with the shared vanilla component system.</p>
+					</div>
+					<a class="btn btn-primary" href="/">New Document</a>
+				</div>
 				if len(documents) == 0 {
-					<p>No documents found.</p>
+					<section class="panel empty-state">
+						<div class="stack text-center" data-gap="sm">
+							<h2 class="empty-state-title">No documents found</h2>
+							<p class="empty-state-description">Create your first document to start filling this view.</p>
+						</div>
+						<div class="empty-state-actions">
+							<a class="btn btn-primary" href="/">New Document</a>
+						</div>
+					</section>
 				} else {
-					<div>
-						<table>
+					<div class="panel table-wrap">
+						<table class="table">
 							<thead>
 								<tr>
 									<th>Title</th>
@@ -42,8 +53,10 @@ templ DocumentIndex(documents []models.Document) {
 										<td>{ document.CreatedAt.String() }</td>
 										<td>{ document.UpdatedAt.String() }</td>
 										<td>
-											<a href="/">View</a>
-											<a href="/">Edit</a>
+											<div class="cluster" data-gap="sm">
+												<a class="btn btn-ghost btn-sm" href="/">View</a>
+												<a class="btn btn-outline btn-sm" href="/">Edit</a>
+											</div>
 										</td>
 									</tr>
 								}
@@ -51,166 +64,181 @@ templ DocumentIndex(documents []models.Document) {
 						</table>
 					</div>
 				}
-			</div>
+			</section>
 		</main>
 	}
 }
 
 templ DocumentShow(document models.Document) {
 	@base() {
-		<main>
-			<div>
-				<h1>Document Details</h1>
-				<div>
-					<a href="/">Edit</a>
-					<a href="/">Back to List</a>
-				</div>
-			</div>
-			<div>
-				<div>
-					<div>
-						<label>Title</label>
-						<p>{ document.Title }</p>
+		<main class="page-shell">
+			<section class="container stack" data-gap="lg">
+				<div class="cluster" data-justify="between">
+					<div class="stack" data-gap="sm">
+						<h1>Document Details</h1>
+						<p class="muted">Review the current values stored for this document.</p>
 					</div>
-					<div>
-						<label>Tags</label>
-						<p>{ strings.Join(document.Tags, ", ") }</p>
-					</div>
-					<div>
-						<label>Page Numbers</label>
-						<p>{ fmt.Sprintf("%v", document.PageNumbers) }</p>
-					</div>
-					<div>
-						<label>View Count</label>
-						<p>{ fmt.Sprintf("%d", document.ViewCount) }</p>
-					</div>
-					<div>
-						<label>Is Published</label>
-						<p>{ fmt.Sprintf("%t", document.IsPublished) }</p>
-					</div>
-					<div>
-						<label>Created At</label>
-						<p>{ document.CreatedAt.String() }</p>
-					</div>
-					<div>
-						<label>Updated At</label>
-						<p>{ document.UpdatedAt.String() }</p>
+					<div class="cluster" data-gap="sm">
+						<a class="btn btn-primary" href="/">Edit</a>
+						<a class="btn btn-outline" href="/">Back to List</a>
 					</div>
 				</div>
-			</div>
+				<div class="panel">
+					<div class="grid-auto-fit" data-grid="compact">
+						<div class="field">
+							<p class="field-label">Title</p>
+							<p>{ document.Title }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Tags</p>
+							<p>{ strings.Join(document.Tags, ", ") }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Page Numbers</p>
+							<p>{ fmt.Sprintf("%v", document.PageNumbers) }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">View Count</p>
+							<p>{ fmt.Sprintf("%d", document.ViewCount) }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Is Published</p>
+							<p>{ fmt.Sprintf("%t", document.IsPublished) }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Created At</p>
+							<p>{ document.CreatedAt.String() }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Updated At</p>
+							<p>{ document.UpdatedAt.String() }</p>
+						</div>
+					</div>
+				</div>
+			</section>
 		</main>
 	}
 }
 
 templ DocumentNew() {
 	@base() {
-		<main>
-			<div>
-				<form
-					data-indicator:submitting
-					data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", "/") }
-				>
-					<div>
-						<h2>New Document</h2>
-						<p>Enter the details for the new document.</p>
+		<main class="auth-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">New Document</h1>
+						<p class="card-description">Enter the details for the new document.</p>
 					</div>
-					<div>
-						<div>
-							<label for="title">Title</label>
-							<div>
-								<input id="title" type="text" data-bind="title"/>
-							</div>
-						</div>
-						<div>
-							<label for="tags">Tags</label>
-							<div>
-								<input id="tags" type="text" data-bind="tags"/>
-							</div>
-						</div>
-						<div>
-							<label for="pageNumbers">Page Numbers</label>
-							<div>
-								<input id="pageNumbers" type="text" data-bind="pageNumbers"/>
-							</div>
-						</div>
-						<div>
-							<label for="viewCount">View Count</label>
-							<div>
-								<input id="viewCount" type="number" data-bind="viewCount"/>
-							</div>
-						</div>
-						<div>
-							<label for="isPublished">Is Published</label>
-							<div>
-								<input id="isPublished" type="checkbox" data-bind="isPublished"/>
-							</div>
-						</div>
+					<div class="card-content">
+						<form
+							class="form"
+							data-indicator:submitting
+							data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", "/") }
+						>
+							<fieldset class="fieldset" data-attr:disabled="$submitting">
+								<div class="field">
+									<label class="field-label" for="title">Title</label>
+									<div class="field-control">
+										<input class="input" id="title" type="text" data-bind="title"/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="tags">Tags</label>
+									<div class="field-control">
+										<input class="input" id="tags" type="text" data-bind="tags"/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="pageNumbers">Page Numbers</label>
+									<div class="field-control">
+										<input class="input" id="pageNumbers" type="text" data-bind="pageNumbers"/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="viewCount">View Count</label>
+									<div class="field-control">
+										<input class="input" id="viewCount" type="number" data-bind="viewCount"/>
+									</div>
+								</div>
+								<div class="radio-row">
+									<input class="checkbox" id="isPublished" type="checkbox" data-bind="isPublished"/>
+									<label class="label" for="isPublished">Is Published</label>
+								</div>
+								<div class="stack" data-gap="sm">
+									<button class="btn btn-primary btn-block" type="submit">Create Document</button>
+									<a class="btn btn-outline btn-block" href="/">Back to List</a>
+								</div>
+							</fieldset>
+						</form>
 					</div>
-					<div>
-						<a href="/">Cancel</a>
-						<button type="submit">Create Document</button>
-					</div>
-				</form>
-			</div>
+				</div>
+			</section>
 		</main>
 	}
 }
 
 templ DocumentEdit(document models.Document) {
 	@base() {
-		<main>
-			<div>
-				<form
-					data-indicator:submitting
-					data-on:submit={ "!$submitting && " + fmt.Sprintf("@put('%s')", "/") }
-				>
-					<div>
-						<h2>Edit Document</h2>
-						<p>Update the details for this document.</p>
+		<main class="auth-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">Edit Document</h1>
+						<p class="card-description">Update the details for this document.</p>
 					</div>
-					<div>
-						<div>
-							<label for="title">Title</label>
-							<div>
-								<input id="title" type="text" data-bind="title" value={ document.Title }/>
-							</div>
-						</div>
-						<div>
-							<label for="tags">Tags</label>
-							<div>
-								<input id="tags" type="text" data-bind="tags" value={ strings.Join(document.Tags, ", ") }/>
-							</div>
-						</div>
-						<div>
-							<label for="pageNumbers">Page Numbers</label>
-							<div>
-								<input id="pageNumbers" type="text" data-bind="pageNumbers" value={ fmt.Sprintf("%v", document.PageNumbers) }/>
-							</div>
-						</div>
-						<div>
-							<label for="viewCount">View Count</label>
-							<div>
-								<input id="viewCount" type="number" data-bind="viewCount" value={ fmt.Sprintf("%d", document.ViewCount) }/>
-							</div>
-						</div>
-						<div>
-							<label for="isPublished">Is Published</label>
-							<div>
-								<input id="isPublished" type="checkbox" data-bind="isPublished" value={ fmt.Sprintf("%t", document.IsPublished) }/>
-							</div>
-						</div>
+					<div class="card-content">
+						<form
+							class="form"
+							data-indicator:submitting
+							data-on:submit={ "!$submitting && " + fmt.Sprintf("@put('%s')", "/") }
+						>
+							<fieldset class="fieldset" data-attr:disabled="$submitting">
+								<div class="field">
+									<label class="field-label" for="title">Title</label>
+									<div class="field-control">
+										<input class="input" id="title" type="text" data-bind="title" value={ document.Title }/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="tags">Tags</label>
+									<div class="field-control">
+										<input class="input" id="tags" type="text" data-bind="tags" value={ strings.Join(document.Tags, ", ") }/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="pageNumbers">Page Numbers</label>
+									<div class="field-control">
+										<input class="input" id="pageNumbers" type="text" data-bind="pageNumbers" value={ fmt.Sprintf("%v", document.PageNumbers) }/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="viewCount">View Count</label>
+									<div class="field-control">
+										<input class="input" id="viewCount" type="number" data-bind="viewCount" value={ fmt.Sprintf("%d", document.ViewCount) }/>
+									</div>
+								</div>
+								<div class="radio-row">
+									<input class="checkbox" id="isPublished" type="checkbox" data-bind="isPublished" if document.IsPublished {
+	checked
+}/>
+									<label class="label" for="isPublished">Is Published</label>
+								</div>
+								<div class="stack" data-gap="sm">
+									<button class="btn btn-primary btn-block" type="submit">Update Document</button>
+									<a class="btn btn-outline btn-block" href="/">Back to List</a>
+								</div>
+							</fieldset>
+						</form>
 					</div>
-					<div>
-						<a href="/">Cancel</a>
-						<button type="submit">Update Document</button>
+					<div class="card-footer">
+						<button
+							class="btn btn-destructive btn-block"
+							type="button"
+							data-on:click={ fmt.Sprintf("@delete('%s')", "/") }
+						>Destroy Document</button>
 					</div>
-				</form>
-				<div>
-					<button
-						data-on:click={ fmt.Sprintf("@delete('%s')", "/") }
-					>Destroy Document</button>
 				</div>
-			</div>
+			</section>
 		</main>
 	}
 }
