@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -65,17 +64,6 @@ func syncBinaries(projectRoot string) error {
 
 	for name, tool := range lock.Tools {
 		if err := syncSingleTool(projectRoot, name, tool, goos, goarch); err != nil {
-			if errors.Is(err, cmds.ErrFailedToGetRleaseURL) {
-				fmt.Printf(
-					"failed to find release for %s %s on %s/%s \n",
-					name,
-					tool.Version,
-					goos,
-					goarch,
-				)
-				continue
-			}
-
 			return err
 		}
 	}
@@ -154,13 +142,5 @@ func downloadFromLockTool(name string, tool *layout.Tool, goos, goarch, binPath 
 		)
 	}
 
-	if tool.Source != "" {
-		return cmds.DownloadGoTool(name, tool.Source, tool.Version, goos, goarch, binPath)
-	}
-
-	if name == "tailwindcli" {
-		return cmds.DownloadTailwindCLI(tool.Version, goos, goarch, binPath)
-	}
-
-	return fmt.Errorf("tool has no download metadata")
+	return fmt.Errorf("tool %s has no download metadata. Make sure it is in andurel.lock with correct download information", name)
 }
