@@ -1,9 +1,12 @@
 package upgrade
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io/fs"
+	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -21,27 +24,26 @@ type FrameworkTemplate struct {
 // These are the only files that get upgraded when running andurel upgrade
 func GetFrameworkTemplates() []FrameworkTemplate {
 	return []FrameworkTemplate{
-		{"framework_elements_renderer_fragments.tmpl", "internal/renderer/fragments.go"},
-		{"framework_elements_renderer_render.tmpl", "internal/renderer/render.go"},
-
-		{"framework_elements_routing_definitions.tmpl", "internal/routing/definitions.go"},
-		{"framework_elements_routing_routes.tmpl", "internal/routing/routes.go"},
-		{"framework_elements_routing_routes_test.tmpl", "internal/routing/routes_test.go"},
-
-		{"framework_elements_server_server.tmpl", "internal/server/server.go"},
-
-		{"framework_elements_storage_psql.tmpl", "internal/storage/psql.go"},
-		{"framework_elements_storage_queue.tmpl", "internal/storage/queue.go"},
-		{
-			"framework_elements_storage_andurel_sqlc_config.tmpl",
-			"internal/storage/andurel_sqlc_config.yaml",
-		},
-
 		{"framework_elements_hypermedia_broadcaster.tmpl", "internal/hypermedia/broadcaster.go"},
 		{"framework_elements_hypermedia_core.tmpl", "internal/hypermedia/core.go"},
 		{"framework_elements_hypermedia_helpers.tmpl", "internal/hypermedia/helpers.go"},
 		{"framework_elements_hypermedia_signals.tmpl", "internal/hypermedia/signals.go"},
 		{"framework_elements_hypermedia_sse.tmpl", "internal/hypermedia/sse.go"},
+
+		{"framework_elements_renderer_fragments.tmpl", "internal/renderer/fragments.go"},
+		{"framework_elements_renderer_render.tmpl", "internal/renderer/render.go"},
+
+		{"framework_elements_routing_definitions.tmpl", "internal/routing/definitions.go"},
+		{"framework_elements_routing_routes.tmpl", "internal/routing/routes.go"},
+
+		{"framework_elements_server_server.tmpl", "internal/server/server.go"},
+
+		{
+			"framework_elements_storage_andurel_sqlc_config.tmpl",
+			"internal/storage/andurel_sqlc_config.yaml",
+		},
+		{"framework_elements_storage_psql.tmpl", "internal/storage/psql.go"},
+		{"framework_elements_storage_queue.tmpl", "internal/storage/queue.go"},
 	}
 }
 
@@ -58,9 +60,15 @@ func NewTemplateGenerator(targetVersion string) *TemplateGenerator {
 // RenderFrameworkTemplates renders all framework element templates and returns
 // a map of file paths to their rendered content
 func (g *TemplateGenerator) RenderFrameworkTemplates(
+	projectRoot string,
 	config layout.ScaffoldConfig,
 ) (map[string][]byte, error) {
-	templateData := g.buildTemplateData(config)
+	modulePath, err := resolveModulePath(projectRoot)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve module path: %w", err)
+	}
+
+	templateData := g.buildTemplateData(config, modulePath)
 	result := make(map[string][]byte)
 
 	frameworkTemplates := GetFrameworkTemplates()
@@ -77,17 +85,49 @@ func (g *TemplateGenerator) RenderFrameworkTemplates(
 	return result, nil
 }
 
-// buildTemplateData constructs the template data from scaffold config
-func (g *TemplateGenerator) buildTemplateData(config layout.ScaffoldConfig) *layout.TemplateData {
+// buildTemplateData constructs the template data from scaffold config and go.mod.
+func (g *TemplateGenerator) buildTemplateData(
+	config layout.ScaffoldConfig,
+	modulePath string,
+) *layout.TemplateData {
 	return &layout.TemplateData{
 		AppName:        config.ProjectName,
 		ProjectName:    config.ProjectName,
-		ModuleName:     config.ProjectName,
+		ModuleName:     modulePath,
 		Database:       config.Database,
 		CSSFramework:   config.CSSFramework,
 		Extensions:     config.Extensions,
 		RunToolVersion: layout.GetRunToolVersion(),
 	}
+}
+
+func resolveModulePath(projectRoot string) (string, error) {
+	goModPath := filepath.Join(projectRoot, "go.mod")
+
+	file, err := os.Open(goModPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open go.mod: %w", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "module ") {
+			fields := strings.Fields(line)
+			if len(fields) < 2 {
+				return "", fmt.Errorf("invalid module declaration in go.mod")
+			}
+
+			return fields[1], nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("failed to read go.mod: %w", err)
+	}
+
+	return "", fmt.Errorf("module declaration not found in go.mod")
 }
 
 // renderTemplateToBytes renders a template from the given filesystem and returns the result as bytes

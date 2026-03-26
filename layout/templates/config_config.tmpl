@@ -55,6 +55,13 @@ var (
 	AppCookieSessionName = func() string {
 		return "app_sess_"+slug.Make(strings.ToLower(ProjectName)) + "-" + Env
 	}()
+	DefaultSenderSignature = func() string {
+		if os.Getenv("DEFAULT_SENDER_SIGNATURE") != "" {
+			return os.Getenv("DEFAULT_SENDER_SIGNATURE")
+		}
+
+		return "noreply@" + Domain
+	}()
 )
 
 type Config struct {

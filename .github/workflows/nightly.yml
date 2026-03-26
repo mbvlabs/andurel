@@ -92,9 +92,9 @@ jobs:
             ```
           prerelease: true
           files: |
-            dist/andurel-linux-amd64
-            dist/andurel-darwin-amd64
-            dist/andurel-darwin-arm64
+            dist/*-linux-amd64
+            dist/*-darwin-amd64
+            dist/*-darwin-arm64
             dist/checksums.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

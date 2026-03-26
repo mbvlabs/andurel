@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/mbvlabs/andurel.svg)](https://pkg.go.dev/github.com/mbvlabs/andurel)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mbvlabs/andurel)](https://goreportcard.com/report/github.com/mbvlabs/andurel)
-![Coverage](https://img.shields.io/badge/Coverage-33.1%25-yellow)
+![Coverage](https://img.shields.io/badge/Coverage-33.2%25-yellow)
 
 ---
 
@@ -61,7 +61,7 @@ Once the framework reaches a release candidate, I will provide more comprehensiv
 ### Installation
 
 ```bash
-go install github.com/mbvlabs/andurel@v1.0.0-beta.2
+go install github.com/mbvlabs/andurel@v1.0.0-beta.3
 ```
 
 ### Create Your First Project
