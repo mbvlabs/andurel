@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/mbvlabs/andurel/layout/cmds"
 )
@@ -165,39 +164,6 @@ func (l *AndurelLock) WriteLockFile(targetDir string) error {
 	return nil
 }
 
-func (l *AndurelLock) Sync(targetDir string, silent bool) error {
-	absTargetDir, err := filepath.Abs(targetDir)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path: %w", err)
-	}
-
-	goos := runtime.GOOS
-	goarch := runtime.GOARCH
-
-	binDir := filepath.Join(absTargetDir, "bin")
-	if err := os.MkdirAll(binDir, 0o755); err != nil {
-		return fmt.Errorf("failed to create bin directory: %w", err)
-	}
-
-	for name, tool := range l.Tools {
-		binPath := filepath.Join(binDir, name)
-
-		if _, err := os.Stat(binPath); err == nil {
-			continue
-		}
-
-		if err := downloadToolBinary(name, tool, goos, goarch, binPath); err != nil {
-			return fmt.Errorf("failed to download %s: %w", name, err)
-		}
-	}
-
-	if err := l.WriteLockFile(absTargetDir); err != nil {
-		return fmt.Errorf("failed to update lock file: %w", err)
-	}
-
-	return nil
-}
-
 func downloadToolBinary(name string, tool *Tool, goos, goarch, destPath string) error {
 	if tool == nil {
 		return fmt.Errorf("tool configuration is nil")
@@ -221,15 +187,7 @@ func downloadToolBinary(name string, tool *Tool, goos, goarch, destPath string) 
 		)
 	}
 
-	if tool.Source != "" {
-		return cmds.DownloadGoTool(name, tool.Source, tool.Version, goos, goarch, destPath)
-	}
-
-	if name == "tailwindcli" {
-		return cmds.DownloadTailwindCLI(tool.Version, goos, goarch, destPath)
-	}
-
-	return fmt.Errorf("tool has no download metadata")
+	return fmt.Errorf("tool %s has no download metadata. Make sure it is in andurel.lock with correct download information", name)
 }
 
 func ReadLockFile(targetDir string) (*AndurelLock, error) {

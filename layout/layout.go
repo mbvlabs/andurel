@@ -22,6 +22,7 @@ import (
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/mbvlabs/andurel/pkg/constants"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type Element struct {
@@ -683,8 +684,10 @@ func renderTemplate(
 		return fmt.Errorf("failed to close temporary file for %s: %w", targetPath, err)
 	}
 
-	if err := os.Chmod(tmpPath, constants.FilePermissionPublic); err != nil {
-		return fmt.Errorf("failed to set permissions for %s: %w", targetPath, err)
+	if !naming.IsWindows() {
+		if err := os.Chmod(tmpPath, constants.FilePermissionPublic); err != nil {
+			return fmt.Errorf("failed to set permissions for %s: %w", targetPath, err)
+		}
 	}
 
 	if err := os.Rename(tmpPath, fullTargetPath); err != nil {

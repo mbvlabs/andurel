@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 
 	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
 )
 
@@ -122,7 +122,8 @@ func setVersion(projectRoot, toolName, version string) error {
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
 
-	if err := syncSingleTool(projectRoot, toolName, lock.Tools[toolName], runtime.GOOS, runtime.GOARCH); err != nil {
+	goos, goarch := naming.GetPlatform()
+	if err := syncSingleTool(projectRoot, toolName, lock.Tools[toolName], goos, goarch); err != nil {
 		return err
 	}
 

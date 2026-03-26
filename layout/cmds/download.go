@@ -10,17 +10,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
+
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
-
-type ToolDownloader struct {
-	Name    string
-	Module  string
-	Version string
-}
-
-var ErrFailedToGetRleaseURL = fmt.Errorf("failed to get release URL")
 
 func DownloadFromURLTemplate(
 	name,
@@ -49,12 +42,17 @@ func DownloadFromURLTemplate(
 
 func DownloadFromURL(name, url, archiveType, binaryName, destPath string) error {
 	if archiveType == "binary" {
+		if naming.IsWindows() {
+			url += ".exe"
+		}
 		if err := downloadFile(url, destPath); err != nil {
 			return fmt.Errorf("failed to download %s: %w", name, err)
 		}
 
-		if err := os.Chmod(destPath, 0o755); err != nil {
-			return fmt.Errorf("failed to set executable permissions: %w", err)
+		if !naming.IsWindows() {
+			if err := os.Chmod(destPath, 0o755); err != nil {
+				return fmt.Errorf("failed to set executable permissions: %w", err)
+			}
 		}
 
 		return nil
@@ -75,8 +73,10 @@ func DownloadFromURL(name, url, archiveType, binaryName, destPath string) error 
 		return fmt.Errorf("failed to extract %s: %w", name, err)
 	}
 
-	if err := os.Chmod(destPath, 0o755); err != nil {
-		return fmt.Errorf("failed to set executable permissions: %w", err)
+	if !naming.IsWindows() {
+		if err := os.Chmod(destPath, 0o755); err != nil {
+			return fmt.Errorf("failed to set executable permissions: %w", err)
+		}
 	}
 
 	return nil
@@ -111,122 +111,6 @@ func normalizeTailwindArch(goarch string) string {
 	}
 
 	return goarch
-}
-
-func DownloadGoTool(name, module, version, goos, goarch, destPath string) error {
-	downloader := &ToolDownloader{
-		Name:    name,
-		Module:  module,
-		Version: version,
-	}
-
-	url, archiveType, err := downloader.getReleaseURL(goos, goarch)
-	if err != nil {
-		return fmt.Errorf("%w: %s", ErrFailedToGetRleaseURL, err)
-	}
-
-	tmpDir, err := os.MkdirTemp("", "andurel-download-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temp dir: %w", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	archivePath := filepath.Join(tmpDir, fmt.Sprintf("%s.%s", name, archiveType))
-
-	if err := downloadFile(url, archivePath); err != nil {
-		return fmt.Errorf("failed to download %s: %w", name, err)
-	}
-
-	if err := extractBinary(archivePath, name, destPath, archiveType); err != nil {
-		return fmt.Errorf("failed to extract %s: %w", name, err)
-	}
-
-	if err := os.Chmod(destPath, 0o755); err != nil {
-		return fmt.Errorf("failed to set executable permissions: %w", err)
-	}
-
-	return nil
-}
-
-func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, error) {
-	repo := extractGitHubRepo(d.Module)
-
-	switch d.Name {
-	case "templ":
-		os := capitalize(goos)
-		arch := mapArch(goarch)
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/templ_%s_%s.tar.gz",
-			repo, d.Version, os, arch), "tar.gz", nil
-
-	case "sqlc":
-		os := goos
-		arch := goarch
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/sqlc_%s_%s_%s.tar.gz",
-			repo, d.Version, d.Version[1:], os, arch), "tar.gz", nil
-
-	case "goose":
-		os := goos
-		arch := mapArch(goarch)
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/goose_%s_%s",
-			repo, d.Version, os, arch), "binary", nil
-
-	case "mailpit":
-		os := goos
-		arch := goarch
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/mailpit-%s-%s.tar.gz",
-			repo, d.Version, os, arch), "tar.gz", nil
-
-	case "usql":
-		os := goos
-		arch := goarch
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/usql-%s-%s-%s.tar.bz2",
-			repo, d.Version, d.Version[1:], os, arch), "tar.bz2", nil
-
-	case "dblab":
-		os := goos
-		arch := goarch
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/dblab_%s_%s_%s.tar.gz",
-			repo, d.Version, d.Version[1:], os, arch), "tar.gz", nil
-
-	case "shadowfax":
-		// Shadowfax dev server - assets named shadowfax-<os>-<arch>
-		os := goos
-		arch := goarch
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/shadowfax-%s-%s",
-			repo, d.Version, os, arch), "binary", nil
-
-	default:
-		return "", "", fmt.Errorf("unknown tool: %s", d.Name)
-	}
-}
-
-func DownloadTailwindCLI(version, goos, goarch, destPath string) error {
-	osName := goos
-	if osName == "darwin" {
-		osName = "macos"
-	}
-
-	arch := goarch
-	if arch == "amd64" {
-		arch = "x64"
-	}
-
-	url := fmt.Sprintf(
-		"https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s-%s",
-		version,
-		osName,
-		arch,
-	)
-
-	if err := downloadFile(url, destPath); err != nil {
-		return fmt.Errorf("failed to download tailwindcli: %w", err)
-	}
-
-	if err := os.Chmod(destPath, 0o755); err != nil {
-		return fmt.Errorf("failed to set executable permissions: %w", err)
-	}
-
-	return nil
 }
 
 func downloadFile(url, destPath string) error {
@@ -424,10 +308,6 @@ func mapArch(goarch string) string {
 	default:
 		return goarch
 	}
-}
-
-func GetPlatform() (string, string) {
-	return runtime.GOOS, runtime.GOARCH
 }
 
 func extractGitHubRepo(module string) string {

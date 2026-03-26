@@ -343,7 +343,8 @@ func (g *Generator) formatTemplFile(filePath string) error {
 		return fmt.Errorf("failed to find project root: %w", err)
 	}
 
-	templBin := filepath.Join(rootDir, "bin", "templ")
+	templName := naming.BinaryName("templ")
+	templBin := filepath.Join(rootDir, "bin", templName)
 	cmd := exec.Command(templBin, "fmt", filePath)
 
 	if err := cmd.Run(); err != nil {
@@ -359,7 +360,8 @@ func (g *Generator) runCompileTemplates() error {
 		return nil
 	}
 
-	templBin := filepath.Join(rootDir, "bin", "templ")
+	templName := naming.BinaryName("templ")
+	templBin := filepath.Join(rootDir, "bin", templName)
 	cmd := exec.Command(templBin, "generate")
 	cmd.Dir = rootDir
 
