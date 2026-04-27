@@ -1,21 +1,19 @@
 name: Nightly Build
 
 on:
-  workflow_run:
-    workflows: ["E2E Nightly Suite"]
-    types:
-      - completed
+  schedule:
+    - cron: '0 0 * * *'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 env:
   GO_VERSION: '1.26.0'
 
 jobs:
   build:
-    # Only run if triggered manually OR if the E2E nightly suite succeeded
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,30 +25,38 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
+      - name: Configure git
+        run: |
+          git config user.email "github-actions@github.com"
+          git config user.name "GitHub Actions"
+
       - name: Get commit info
         id: commit
         run: |
           echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           echo "COMMIT_DATE=$(date -u +%Y%m%d)" >> $GITHUB_OUTPUT
 
-      - name: Delete existing nightly release
-        run: gh release delete nightly --yes || true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Delete existing nightly tag
-        run: git push origin :refs/tags/nightly || true
-
-      - name: Build snapshot with GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --snapshot --clean
+      - name: Update nightly tag
+        run: |
+          gh release delete nightly --yes --cleanup-tag 2>/dev/null || true
+          git tag -f nightly
+          git push -f origin nightly
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create nightly release
+      - name: Install GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          install-only: true
+          version: v2.7.0
+
+      - name: Run GoReleaser
+        run: goreleaser release --clean --skip=validate
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: "nightly"
+
+      - name: Update release description
         uses: softprops/action-gh-release@v2
         with:
           tag_name: nightly
@@ -91,11 +97,6 @@ jobs:
             mv andurel $(go env GOBIN)/
             ```
           prerelease: true
-          files: |
-            dist/*-linux-amd64
-            dist/*-darwin-amd64
-            dist/*-darwin-arm64
-            dist/checksums.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
