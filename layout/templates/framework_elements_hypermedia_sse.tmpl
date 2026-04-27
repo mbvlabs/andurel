@@ -388,7 +388,7 @@ func PatchFragments(c *echo.Context, comp templ.Component, fragments []string, o
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
 
-	if err := templ.RenderFragments(c.Request().Context(), buf, comp, fragments...); err != nil {
+	if err := templ.RenderFragments(c.Request().Context(), buf, comp, fragments); err != nil {
 		return fmt.Errorf("failed to render fragments: %w", err)
 	}
 
