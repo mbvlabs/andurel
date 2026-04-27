@@ -3,8 +3,8 @@
 package routing
 
 import (
+	"fmt"
 	"log/slog"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -12,18 +12,20 @@ import (
 )
 
 type routeOptions struct {
-	query url.Values
+	query []string
 }
 
 // QueryParam appends a query parameter to a generated route URL.
-func QueryParam(key, value string) RouteOption {
+func QueryParam(key string, value string) RouteOption {
 	return func(opts *routeOptions) {
-		if opts.query == nil {
-			opts.query = make(url.Values)
-		}
-
-		opts.query.Add(key, value)
+		opts.query = append(opts.query, key+"="+value)
 	}
+}
+
+// JsExpr wraps a JavaScript expression so it can be interpolated into a
+// generated route URL without being treated as a literal string.
+func JsExpr(jsExpr string) string {
+	return fmt.Sprintf("'+%s+'", jsExpr)
 }
 
 func applyOptions(path string, opts ...RouteOption) string {
@@ -42,7 +44,7 @@ func applyOptions(path string, opts ...RouteOption) string {
 		return path
 	}
 
-	return path + "?" + routeOpts.query.Encode()
+	return path + "?" + strings.Join(routeOpts.query, "&")
 }
 
 func configureName(name, prefix string) string {
