@@ -27,8 +27,8 @@ jobs:
 
       - name: Configure git
         run: |
-          git config user.email "github-actions@github.com"
-          git config user.name "GitHub Actions"
+          git config user.email "github@mbvlabs.com"
+          git config user.name "MBV"
 
       - name: Get commit info
         id: commit
