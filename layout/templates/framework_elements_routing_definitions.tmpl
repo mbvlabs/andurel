@@ -67,3 +67,18 @@ type ParamsRoute interface {
 	Path() string
 	URL(params map[string]string, opts ...RouteOption) string
 }
+
+// SlugsRoute represents routes with slug parameters, where Params is a struct
+// with slug tags to map fields to URL parameters.
+//
+// Example:
+//
+//	type ServerSlugParams struct {
+//	    Server string `slug:"server"`
+//	    Team   string `slug:"team"`
+//	}
+type SlugsRoute[Params any] interface {
+	Name() string
+	Path() string
+	URL(params Params, opts ...RouteOption) string
+}
