@@ -43,13 +43,13 @@ func (fa *FieldAnalyzer) AnalyzeField(field models.GeneratedField, tableName str
 	}
 
 	// Determine default value
-	info.DefaultValue = fa.determineDefault(field.Name, field.Type, field.SQLCType)
+	info.DefaultValue = fa.determineDefault(field.Name, field.Type)
 	info.GoZero = fa.getGoZero(field.Type)
 
 	return info
 }
 
-func (fa *FieldAnalyzer) determineDefault(fieldName, goType, sqlcType string) string {
+func (fa *FieldAnalyzer) determineDefault(fieldName, goType string) string {
 	// Handle by type first
 	switch goType {
 	case "string":
@@ -63,16 +63,17 @@ func (fa *FieldAnalyzer) determineDefault(fieldName, goType, sqlcType string) st
 	case "bool":
 		return "randomBool()"
 	case "time.Time":
-		return "time.Time{}"
+		return "time.Now()"
 	case "uuid.UUID":
-		return "uuid.UUID{}"
+		return "uuid.New()"
 	case "[]byte":
 		return "[]byte{}"
-	}
-
-	// Handle pgtype wrappers
-	if strings.Contains(goType, "pgtype") {
-		return fa.pgtypeDefault(goType)
+	case "*string":
+		return "faker.Word()"
+	case "*time.Time":
+		return "time.Now()"
+	case "*bool":
+		return "randomBool()"
 	}
 
 	// Default fallback

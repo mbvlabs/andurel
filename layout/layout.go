@@ -182,17 +182,6 @@ func Scaffold(
 		)
 	}
 
-	fmt.Print("Running sqlc generate...\n")
-	if err := cmds.RunSqlcGenerate(targetDir); err != nil {
-		slog.Error(
-			"failed to run sqlc generate",
-			"error",
-			err,
-			"fix",
-			"run 'andurel db generate' after sync",
-		)
-	}
-
 	fmt.Print("Running templ generate...\n")
 	if err := cmds.RunTemplGenerate(targetDir); err != nil {
 		slog.Error(
@@ -367,13 +356,10 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Database
 	"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
-	"database_queries_gitkeep.tmpl":    "database/queries/.gitkeep",
 	"database_seeds_main.tmpl":         "database/seeds/main.go",
 	"database_test_helper.tmpl":        "database/test_helper.go",
 
-	"psql_database.tmpl":                                  "database/database.go",
-	"database_sqlc_overlay.tmpl":                          "database/sqlc.yaml",
-	"framework_elements_storage_andurel_sqlc_config.tmpl": "internal/storage/andurel_sqlc_config.yaml",
+	"psql_database.tmpl": "database/database.go",
 
 	// Queue package
 	"psql_queue_queue.tmpl":                            "queue/queue.go",
@@ -389,9 +375,11 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"email_components.tmpl":  "email/components.templ",
 
 	// Models
-	"models_errors.tmpl":              "models/errors.go",
-	"models_model.tmpl":               "models/model.go",
-	"models_internal_db_db.tmpl":      "models/internal/db/db.go",
+	"models_errors.tmpl": "models/errors.go",
+	"models_model.tmpl":  "models/model.go",
+	"models_token.tmpl":  "models/token.go",
+	"models_user.tmpl":   "models/user.go",
+
 	"models_factories_factories.tmpl": "models/factories/factories.go",
 	"models_factories_user.tmpl":      "models/factories/user.go",
 	"models_factories_token.tmpl":     "models/factories/token.go",
@@ -434,10 +422,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Auth - Config
 	"config_auth.tmpl": "config/auth.go",
 
-	// Auth - Models
-	"models_token.tmpl": "models/token.go",
-	"models_user.tmpl":  "models/user.go",
-
 	// Auth - Services
 	"services_authentication.tmpl": "services/authentication.go",
 	"services_registration.tmpl":   "services/registration.go",
@@ -451,9 +435,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"email_reset_password.tmpl": "email/reset_password.templ",
 	"email_verify_email.tmpl":   "email/verify_email.templ",
 
-	// Auth - Database Queries
-	"database_queries_tokens.tmpl": "database/queries/tokens.sql",
-	"database_queries_users.tmpl":  "database/queries/users.sql",
+	// Auth - Database Migrations
+	"database_migrations_tokens.tmpl": "database/migrations/001_create_tokens.sql",
+	"database_migrations_users.tmpl":  "database/migrations/001_create_users.sql",
 }
 
 func processTemplatedFiles(
@@ -884,7 +868,6 @@ type GoTool struct {
 
 var DefaultGoTools = []GoTool{
 	{Name: "templ", Source: "github.com/a-h/templ/cmd/templ", Version: versions.Templ},
-	{Name: "sqlc", Source: "github.com/sqlc-dev/sqlc/cmd/sqlc", Version: versions.Sqlc},
 	{Name: "goose", Source: "github.com/pressly/goose/v3/cmd/goose", Version: versions.Goose},
 	{Name: "mailpit", Source: "github.com/axllent/mailpit", Version: versions.Mailpit},
 	{Name: "usql", Source: "github.com/xo/usql", Version: versions.Usql},
@@ -894,7 +877,6 @@ var DefaultGoTools = []GoTool{
 
 var defaultTools = []string{
 	"github.com/a-h/templ/cmd/templ",
-	"github.com/sqlc-dev/sqlc/cmd/sqlc",
 	"github.com/pressly/goose/v3/cmd/goose",
 	"github.com/axllent/mailpit",
 	"github.com/xo/usql",

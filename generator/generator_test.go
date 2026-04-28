@@ -1,51 +1,13 @@
 package generator
 
 import (
-	"os"
 	"testing"
 
 	"github.com/mbvlabs/andurel/pkg/cache"
 )
 
-func setupGeneratorTest(t *testing.T) func() {
-	t.Helper()
-	cache.ClearFileSystemCache()
-
-	tmpDir := t.TempDir()
-
-	goModContent := "module test\n\ngo 1.21\n"
-	if err := os.WriteFile(tmpDir+"/go.mod", []byte(goModContent), 0o644); err != nil {
-		t.Fatalf("Failed to write go.mod: %v", err)
-	}
-
-	dbDir := tmpDir + "/database"
-	if err := os.MkdirAll(dbDir, 0o755); err != nil {
-		t.Fatalf("Failed to create database directory: %v", err)
-	}
-
-	sqlcContent := `sql: []`
-	if err := os.WriteFile(dbDir+"/sqlc.yaml", []byte(sqlcContent), 0o644); err != nil {
-		t.Fatalf("Failed to write sqlc.yaml: %v", err)
-	}
-
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get working directory: %v", err)
-	}
-
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
-
-	return func() {
-		os.Chdir(originalDir)
-		cache.ClearFileSystemCache()
-	}
-}
-
 func TestNew(t *testing.T) {
-	cleanup := setupGeneratorTest(t)
-	defer cleanup()
+	cache.ClearFileSystemCache()
 
 	gen, err := New()
 	if err != nil {
@@ -70,8 +32,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestGenerator_MethodsExist(t *testing.T) {
-	cleanup := setupGeneratorTest(t)
-	defer cleanup()
+	cache.ClearFileSystemCache()
 
 	gen, err := New()
 	if err != nil {
@@ -79,8 +40,6 @@ func TestGenerator_MethodsExist(t *testing.T) {
 	}
 
 	// Test that all public methods exist and don't panic
-	// We can't actually run them without a full project setup,
-	// but we can verify they're callable
 	tests := []struct {
 		name string
 		fn   func() error
@@ -116,12 +75,6 @@ func TestGenerator_MethodsExist(t *testing.T) {
 				return gen.GenerateViewFromModel("", false)
 			},
 		},
-		{
-			name: "RefreshQueries",
-			fn: func() error {
-				return gen.RefreshQueries("", "")
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -133,8 +86,7 @@ func TestGenerator_MethodsExist(t *testing.T) {
 }
 
 func TestGenerator_DelegationToCoordinator(t *testing.T) {
-	cleanup := setupGeneratorTest(t)
-	defer cleanup()
+	cache.ClearFileSystemCache()
 
 	// This test verifies that Generator properly delegates to Coordinator
 	// by checking that the same error is returned (indicating proper delegation)
@@ -175,8 +127,7 @@ func TestGenerator_DelegationToCoordinator(t *testing.T) {
 }
 
 func TestGenerator_GenerateModelWithTableOverride(t *testing.T) {
-	cleanup := setupGeneratorTest(t)
-	defer cleanup()
+	cache.ClearFileSystemCache()
 
 	gen, err := New()
 	if err != nil {

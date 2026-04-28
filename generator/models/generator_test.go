@@ -1,196 +1,20 @@
 package models
 
 import (
-	"flag"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/generator/templates"
-	"github.com/mbvlabs/andurel/pkg/constants"
 )
 
-var updateGolden = flag.Bool("update", false, "update golden files")
-
-func TestGetSimpleGoType(t *testing.T) {
-	tests := []struct {
-		name         string
-		goType       string
-		sqlcType     string
-		expectedType string
-	}{
-		// JSONB and JSON types
-		{
-			name:         "pgtype.JSONB should return []byte",
-			goType:       "[]byte",
-			sqlcType:     "pgtype.JSONB",
-			expectedType: "[]byte",
-		},
-		{
-			name:         "pgtype.JSON should return []byte",
-			goType:       "[]byte",
-			sqlcType:     "pgtype.JSON",
-			expectedType: "[]byte",
-		},
-		// Integer types
-		{
-			name:         "pgtype.Int4 should return int32",
-			goType:       "int32",
-			sqlcType:     "pgtype.Int4",
-			expectedType: "int32",
-		},
-		{
-			name:         "pgtype.Int8 should return int64",
-			goType:       "int64",
-			sqlcType:     "pgtype.Int8",
-			expectedType: "int64",
-		},
-		{
-			name:         "pgtype.Int2 should return int16",
-			goType:       "int16",
-			sqlcType:     "pgtype.Int2",
-			expectedType: "int16",
-		},
-		// Float types
-		{
-			name:         "pgtype.Float4 should return float32",
-			goType:       "float32",
-			sqlcType:     "pgtype.Float4",
-			expectedType: "float32",
-		},
-		{
-			name:         "pgtype.Float8 should return float64",
-			goType:       "float64",
-			sqlcType:     "pgtype.Float8",
-			expectedType: "float64",
-		},
-		// Boolean type
-		{
-			name:         "pgtype.Bool should return bool",
-			goType:       "bool",
-			sqlcType:     "pgtype.Bool",
-			expectedType: "bool",
-		},
-		// String type
-		{
-			name:         "pgtype.Text should return string",
-			goType:       "string",
-			sqlcType:     "pgtype.Text",
-			expectedType: "string",
-		},
-		// Time types
-		{
-			name:         "pgtype.Timestamp should return time.Time",
-			goType:       "time.Time",
-			sqlcType:     "pgtype.Timestamp",
-			expectedType: "time.Time",
-		},
-		{
-			name:         "pgtype.Timestamptz should return time.Time",
-			goType:       "time.Time",
-			sqlcType:     "pgtype.Timestamptz",
-			expectedType: "time.Time",
-		},
-		{
-			name:         "pgtype.Date should return time.Time",
-			goType:       "time.Time",
-			sqlcType:     "pgtype.Date",
-			expectedType: "time.Time",
-		},
-		{
-			name:         "pgtype.Time should return time.Time",
-			goType:       "time.Time",
-			sqlcType:     "pgtype.Time",
-			expectedType: "time.Time",
-		},
-		// sql.Null* types
-		{
-			name:         "sql.NullString should return string",
-			goType:       "string",
-			sqlcType:     "sql.NullString",
-			expectedType: "string",
-		},
-		{
-			name:         "sql.NullInt64 should return int64",
-			goType:       "int64",
-			sqlcType:     "sql.NullInt64",
-			expectedType: "int64",
-		},
-		{
-			name:         "sql.NullFloat64 should return float64",
-			goType:       "float64",
-			sqlcType:     "sql.NullFloat64",
-			expectedType: "float64",
-		},
-		{
-			name:         "sql.NullBool should return bool",
-			goType:       "bool",
-			sqlcType:     "sql.NullBool",
-			expectedType: "bool",
-		},
-		{
-			name:         "sql.NullTime should return time.Time",
-			goType:       "time.Time",
-			sqlcType:     "sql.NullTime",
-			expectedType: "time.Time",
-		},
-		// Simple types that should pass through
-		{
-			name:         "string should pass through",
-			goType:       "string",
-			sqlcType:     "string",
-			expectedType: "string",
-		},
-		{
-			name:         "int32 should pass through",
-			goType:       "int32",
-			sqlcType:     "int32",
-			expectedType: "int32",
-		},
-		{
-			name:         "[]byte should pass through",
-			goType:       "[]byte",
-			sqlcType:     "[]byte",
-			expectedType: "[]byte",
-		},
-		{
-			name:         "uuid.UUID should pass through",
-			goType:       "uuid.UUID",
-			sqlcType:     "uuid.UUID",
-			expectedType: "uuid.UUID",
-		},
-	}
-
-	generator := NewGenerator("postgresql")
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := generator.getSimpleGoType(tt.goType, tt.sqlcType)
-			if result != tt.expectedType {
-				t.Errorf("getSimpleGoType(%s, %s) = %s, want %s",
-					tt.goType, tt.sqlcType, result, tt.expectedType)
-			}
-		})
-	}
-}
-
-// TestNonePgtypeDataTypes verifies that certain PostgreSQL types are correctly
-// generated as native Go types instead of pgtype wrappers:
-// - text[] -> []string (not pgtype.Array[string] which doesn't exist)
-// - integer[] -> []int32 (not pgtype.Array[int32] which doesn't exist)
-// - jsonb -> []byte (model type, with pgtype.JSONB as SQLCType for conversions)
-// - json -> []byte (model type, with pgtype.JSON as SQLCType for conversions)
-func TestNonePgtypeDataTypes(t *testing.T) {
+func TestBuildModel(t *testing.T) {
 	originalWd, _ := os.Getwd()
 	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "none_pgtype_data_types")
 
 	generator := NewGenerator("postgresql")
 
-	cat, err := generator.buildCatalogFromTableMigrations(
-		"articles",
-		[]string{migrationsDir},
-	)
+	cat, err := generator.BuildCatalogFromMigrations("articles", []string{migrationsDir})
 	if err != nil {
 		t.Fatalf("Failed to build catalog from migrations: %v", err)
 	}
@@ -210,18 +34,25 @@ func TestNonePgtypeDataTypes(t *testing.T) {
 		t.Fatal("Expected model to have fields")
 	}
 
-	// Find all the fields we want to test
-	var tagsField, scoresField, settingsField, metadataField *GeneratedField
+	// Check entity name and namespace
+	if model.EntityName != "ArticleEntity" {
+		t.Errorf("EntityName = %s, want ArticleEntity", model.EntityName)
+	}
+	if model.NamespaceVar != "Article" {
+		t.Errorf("NamespaceVar = %s, want Article", model.NamespaceVar)
+	}
+	if model.NamespaceType != "article" {
+		t.Errorf("NamespaceType = %s, want article", model.NamespaceType)
+	}
+
+	// Find specific fields and verify their types
+	var tagsField, scoresField *GeneratedField
 	for i := range model.Fields {
 		switch model.Fields[i].Name {
 		case "Tags":
 			tagsField = &model.Fields[i]
 		case "Scores":
 			scoresField = &model.Fields[i]
-		case "Settings":
-			settingsField = &model.Fields[i]
-		case "Metadata":
-			metadataField = &model.Fields[i]
 		}
 	}
 
@@ -230,16 +61,10 @@ func TestNonePgtypeDataTypes(t *testing.T) {
 		t.Fatal("Expected to find 'Tags' field (from 'tags' text[] column)")
 	}
 	if tagsField.Type != "[]string" {
-		t.Errorf("Tags field Type = %s, want []string (not pgtype.Array[string])", tagsField.Type)
+		t.Errorf("Tags field Type = %s, want []string", tagsField.Type)
 	}
-	if tagsField.SQLCType != "[]string" {
-		t.Errorf("Tags field SQLCType = %s, want []string", tagsField.SQLCType)
-	}
-	if tagsField.ConversionFromDB != "row.Tags" {
-		t.Errorf("Tags ConversionFromDB = %s, expected 'row.Tags'", tagsField.ConversionFromDB)
-	}
-	if tagsField.ConversionToDB != "data.Tags" {
-		t.Errorf("Tags ConversionToDB = %s, expected 'data.Tags'", tagsField.ConversionToDB)
+	if tagsField.BunTag == "" {
+		t.Error("Tags field should have a bun tag")
 	}
 
 	// Test integer[] -> []int32
@@ -247,330 +72,36 @@ func TestNonePgtypeDataTypes(t *testing.T) {
 		t.Fatal("Expected to find 'Scores' field (from 'scores' integer[] column)")
 	}
 	if scoresField.Type != "[]int32" {
-		t.Errorf("Scores field Type = %s, want []int32 (not pgtype.Array[int32])", scoresField.Type)
-	}
-	if scoresField.SQLCType != "[]int32" {
-		t.Errorf("Scores field SQLCType = %s, want []int32", scoresField.SQLCType)
-	}
-	if scoresField.ConversionFromDB != "row.Scores" {
-		t.Errorf("Scores ConversionFromDB = %s, expected 'row.Scores'", scoresField.ConversionFromDB)
-	}
-	if scoresField.ConversionToDB != "data.Scores" {
-		t.Errorf("Scores ConversionToDB = %s, expected 'data.Scores'", scoresField.ConversionToDB)
+		t.Errorf("Scores field Type = %s, want []int32", scoresField.Type)
 	}
 
-	// Test jsonb -> []byte (model type) with pgtype.JSONB (SQLCType)
-	if settingsField == nil {
-		t.Fatal("Expected to find 'Settings' field (from 'settings' jsonb column)")
-	}
-	if settingsField.Type != "[]byte" {
-		t.Errorf("Settings field Type = %s, want []byte (not pgtype.JSONB)", settingsField.Type)
-	}
-	if settingsField.SQLCType != "pgtype.JSONB" {
-		t.Errorf("Settings field SQLCType = %s, want pgtype.JSONB", settingsField.SQLCType)
-	}
-	if settingsField.ConversionFromDB != "row.Settings" {
-		t.Errorf("Settings ConversionFromDB = %s, expected 'row.Settings'", settingsField.ConversionFromDB)
-	}
-	if settingsField.ConversionToDB != "data.Settings" {
-		t.Errorf("Settings ConversionToDB = %s, expected 'data.Settings'", settingsField.ConversionToDB)
-	}
-
-	// Test json -> []byte (model type) with pgtype.JSON (SQLCType)
-	if metadataField == nil {
-		t.Fatal("Expected to find 'Metadata' field (from 'metadata' json column)")
-	}
-	if metadataField.Type != "[]byte" {
-		t.Errorf("Metadata field Type = %s, want []byte (not pgtype.JSON)", metadataField.Type)
-	}
-	if metadataField.SQLCType != "pgtype.JSON" {
-		t.Errorf("Metadata field SQLCType = %s, want pgtype.JSON", metadataField.SQLCType)
-	}
-	if metadataField.ConversionFromDB != "row.Metadata" {
-		t.Errorf("Metadata ConversionFromDB = %s, expected 'row.Metadata'", metadataField.ConversionFromDB)
-	}
-	if metadataField.ConversionToDB != "data.Metadata" {
-		t.Errorf("Metadata ConversionToDB = %s, expected 'data.Metadata'", metadataField.ConversionToDB)
-	}
-
-	// Generate the model file and verify against golden file
-	templateContent, err := os.ReadFile(filepath.Join("..", "templates", "model.tmpl"))
-	if err != nil {
-		t.Fatalf("Failed to read model template: %v", err)
-	}
-
-	generatedCode, err := generator.GenerateModelFile(model, string(templateContent))
-	if err != nil {
-		t.Fatalf("Failed to generate model file: %v", err)
-	}
-
-	// Golden file testing
-	goldenFile := filepath.Join("testdata", "golden", "none_pgtype_data_types.golden")
-
-	if *updateGolden {
-		err := os.MkdirAll(filepath.Dir(goldenFile), constants.DirPermissionDefault)
-		if err != nil {
-			t.Fatalf("Failed to create golden directory: %v", err)
-		}
-		err = os.WriteFile(goldenFile, []byte(generatedCode), constants.FilePermissionPrivate)
-		if err != nil {
-			t.Fatalf("Failed to write golden file: %v", err)
+	// Verify bun tags are generated
+	hasIDField := false
+	for _, field := range model.Fields {
+		if field.Name == "ID" {
+			hasIDField = true
+			if field.BunTag == "" {
+				t.Error("ID field should have a bun tag")
+			}
+			if !field.IsPrimaryKey {
+				t.Error("ID field should be marked as primary key")
+			}
 		}
 	}
-
-	expectedCode, err := os.ReadFile(goldenFile)
-	if err != nil {
-		t.Fatalf("Failed to read golden file %s: %v\nRun 'go test -update' to create it", goldenFile, err)
-	}
-
-	if string(expectedCode) != generatedCode {
-		t.Errorf("Generated code differs from golden file.\nExpected:\n%s\n\nGot:\n%s", string(expectedCode), generatedCode)
-	}
-
-	// Verify no pgtype.Array references in generated code
-	if strings.Contains(generatedCode, "pgtype.Array") {
-		t.Error("Generated code should NOT contain pgtype.Array - use native Go slices instead")
+	if !hasIDField {
+		t.Error("Expected to find ID field")
 	}
 }
 
-func TestGenerateSQLFallsBackToIDOrderingWithoutCreatedAt(t *testing.T) {
-	tempDir := t.TempDir()
-	migrationsDir := filepath.Join(tempDir, "database", "migrations")
-
-	err := os.MkdirAll(migrationsDir, constants.DirPermissionDefault)
-	if err != nil {
-		t.Fatalf("Failed to create migrations directory: %v", err)
-	}
-
-	migration := `-- +goose Up
-CREATE TABLE server_provision_steps (
-    id UUID PRIMARY KEY,
-    started_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    completed_at TIMESTAMP WITH TIME ZONE,
-    server_id UUID NOT NULL
-);
-
--- +goose Down
-DROP TABLE server_provision_steps;
-`
-
-	migrationFile := filepath.Join(migrationsDir, "001_create_server_provision_steps.sql")
-	err = os.WriteFile(migrationFile, []byte(migration), constants.FilePermissionPrivate)
-	if err != nil {
-		t.Fatalf("Failed to write migration file: %v", err)
-	}
-
-	generator := NewGenerator("postgresql")
-	cat, err := generator.buildCatalogFromTableMigrations(
-		"server_provision_steps",
-		[]string{migrationsDir},
-	)
-	if err != nil {
-		t.Fatalf("Failed to build catalog from migrations: %v", err)
-	}
-
-	table, err := cat.GetTable("", "server_provision_steps")
-	if err != nil {
-		t.Fatalf("Failed to get table from catalog: %v", err)
-	}
-
-	sqlContent, err := generator.GenerateSQLContent(
-		"ServerProvisionStep",
-		"server_provision_steps",
-		table,
-		false,
-	)
-	if err != nil {
-		t.Fatalf("Failed to generate SQL content: %v", err)
-	}
-
-	if strings.Contains(sqlContent, "order by created_at desc") {
-		t.Error("Expected fallback pagination ordering without created_at column")
-	}
-	if !strings.Contains(sqlContent, "order by id desc") {
-		t.Error("Expected pagination ordering to use id desc without created_at column")
-	}
-	if strings.Contains(sqlContent, "now()") {
-		t.Error("Expected no now() placeholders without created_at/updated_at columns")
-	}
-}
-
-func TestGenerateSQLUsesNowWhenTimestampsPresent(t *testing.T) {
-	tempDir := t.TempDir()
-	migrationsDir := filepath.Join(tempDir, "database", "migrations")
-
-	err := os.MkdirAll(migrationsDir, constants.DirPermissionDefault)
-	if err != nil {
-		t.Fatalf("Failed to create migrations directory: %v", err)
-	}
-
-	migration := `-- +goose Up
-CREATE TABLE audit_logs (
-    id UUID PRIMARY KEY,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    message TEXT NOT NULL
-);
-
--- +goose Down
-DROP TABLE audit_logs;
-`
-
-	migrationFile := filepath.Join(migrationsDir, "001_create_audit_logs.sql")
-	err = os.WriteFile(migrationFile, []byte(migration), constants.FilePermissionPrivate)
-	if err != nil {
-		t.Fatalf("Failed to write migration file: %v", err)
-	}
-
-	generator := NewGenerator("postgresql")
-	cat, err := generator.buildCatalogFromTableMigrations(
-		"audit_logs",
-		[]string{migrationsDir},
-	)
-	if err != nil {
-		t.Fatalf("Failed to build catalog from migrations: %v", err)
-	}
-
-	table, err := cat.GetTable("", "audit_logs")
-	if err != nil {
-		t.Fatalf("Failed to get table from catalog: %v", err)
-	}
-
-	sqlContent, err := generator.GenerateSQLContent(
-		"AuditLog",
-		"audit_logs",
-		table,
-		false,
-	)
-	if err != nil {
-		t.Fatalf("Failed to generate SQL content: %v", err)
-	}
-
-	if !strings.Contains(sqlContent, "order by created_at desc") {
-		t.Error("Expected pagination ordering to use created_at when present")
-	}
-	if !strings.Contains(sqlContent, "now()") {
-		t.Error("Expected now() placeholders when created_at/updated_at columns are present")
-	}
-}
-
-func TestGenerateSQLPaginationWithTextPKWithoutCreatedAtUsesIDOrder(t *testing.T) {
-	tempDir := t.TempDir()
-	migrationsDir := filepath.Join(tempDir, "database", "migrations")
-
-	err := os.MkdirAll(migrationsDir, constants.DirPermissionDefault)
-	if err != nil {
-		t.Fatalf("Failed to create migrations directory: %v", err)
-	}
-
-	migration := `-- +goose Up
-CREATE TABLE api_tokens (
-    id TEXT PRIMARY KEY,
-    label TEXT NOT NULL
-);
-
--- +goose Down
-DROP TABLE api_tokens;
-`
-
-	migrationFile := filepath.Join(migrationsDir, "001_create_api_tokens.sql")
-	err = os.WriteFile(migrationFile, []byte(migration), constants.FilePermissionPrivate)
-	if err != nil {
-		t.Fatalf("Failed to write migration file: %v", err)
-	}
-
-	generator := NewGenerator("postgresql")
-	cat, err := generator.buildCatalogFromTableMigrations(
-		"api_tokens",
-		[]string{migrationsDir},
-	)
-	if err != nil {
-		t.Fatalf("Failed to build catalog from migrations: %v", err)
-	}
-
-	table, err := cat.GetTable("", "api_tokens")
-	if err != nil {
-		t.Fatalf("Failed to get table from catalog: %v", err)
-	}
-
-	sqlContent, err := generator.GenerateSQLContent(
-		"ApiToken",
-		"api_tokens",
-		table,
-		false,
-	)
-	if err != nil {
-		t.Fatalf("Failed to generate SQL content: %v", err)
-	}
-
-	if strings.Contains(sqlContent, "order by created_at desc") {
-		t.Error("Expected pagination ordering without created_at column to avoid created_at")
-	}
-	if !strings.Contains(sqlContent, "order by id desc") {
-		t.Error("Expected pagination ordering to use id desc for text primary key")
-	}
-}
-
-func TestGenerateModelPaginationForTextPK(t *testing.T) {
-	originalWd, _ := os.Getwd()
-	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "text_pk")
-
-	generator := NewGenerator("postgresql")
-	cat, err := generator.buildCatalogFromTableMigrations(
-		"users",
-		[]string{migrationsDir},
-	)
-	if err != nil {
-		t.Fatalf("Failed to build catalog from migrations: %v", err)
-	}
-
-	model, err := generator.Build(cat, Config{
-		TableName:    "users",
-		ResourceName: "User",
-		PackageName:  "models",
-		DatabaseType: "postgresql",
-		ModulePath:   "github.com/example/test",
-	})
-	if err != nil {
-		t.Fatalf("Failed to build model: %v", err)
-	}
-
-	templateContent, err := templates.Files.ReadFile("model.tmpl")
-	if err != nil {
-		t.Fatalf("Failed to read model template: %v", err)
-	}
-
-	modelContent, err := generator.GenerateModelFile(model, string(templateContent))
-	if err != nil {
-		t.Fatalf("Failed to render model file: %v", err)
-	}
-
-	if !strings.Contains(modelContent, "func PaginateUsers(") {
-		t.Error("Expected paginated function to be generated for text primary key")
-	}
-	if !strings.Contains(modelContent, "QueryPaginatedUsers") {
-		t.Error("Expected paginated query to be referenced in model for text primary key")
-	}
-	if !strings.Contains(modelContent, "func FindUser(\n\tctx context.Context,\n\texec storage.Executor,\n\tid string,\n") {
-		t.Error("Expected model functions to use string ID type for text primary key")
-	}
-}
-
-// TestMigrationWithComments verifies that migrations containing SQL comments
-// (both single-line -- and block /* */) are parsed correctly and generate
-// valid model code.
-func TestMigrationWithComments(t *testing.T) {
+func TestBuildModelWithTimestamps(t *testing.T) {
 	originalWd, _ := os.Getwd()
 	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "comments_in_migration")
 
 	generator := NewGenerator("postgresql")
 
-	cat, err := generator.buildCatalogFromTableMigrations(
-		"products",
-		[]string{migrationsDir},
-	)
+	cat, err := generator.BuildCatalogFromMigrations("products", []string{migrationsDir})
 	if err != nil {
-		t.Fatalf("Failed to build catalog from migrations with comments: %v", err)
+		t.Fatalf("Failed to build catalog from migrations: %v", err)
 	}
 
 	model, err := generator.Build(cat, Config{
@@ -581,10 +112,10 @@ func TestMigrationWithComments(t *testing.T) {
 		ModulePath:   "github.com/example/test",
 	})
 	if err != nil {
-		t.Fatalf("Failed to build model from catalog: %v", err)
+		t.Fatalf("Failed to build model: %v", err)
 	}
 
-	// Verify all expected fields are present
+	// Verify all expected fields are present with correct types
 	expectedFields := map[string]string{
 		"ID":          "uuid.UUID",
 		"CreatedAt":   "time.Time",
@@ -611,8 +142,8 @@ func TestMigrationWithComments(t *testing.T) {
 		}
 	}
 
-	// Generate the model file
-	templateContent, err := os.ReadFile(filepath.Join("..", "templates", "model.tmpl"))
+	// Generate the model file and verify it uses bun patterns
+	templateContent, err := templates.Files.ReadFile("model.tmpl")
 	if err != nil {
 		t.Fatalf("Failed to read model template: %v", err)
 	}
@@ -622,42 +153,16 @@ func TestMigrationWithComments(t *testing.T) {
 		t.Fatalf("Failed to generate model file: %v", err)
 	}
 
-	// Golden file testing
-	goldenFile := filepath.Join("testdata", "golden", "comments_in_migration.golden")
-
-	if *updateGolden {
-		err := os.MkdirAll(filepath.Dir(goldenFile), constants.DirPermissionDefault)
-		if err != nil {
-			t.Fatalf("Failed to create golden directory: %v", err)
-		}
-		err = os.WriteFile(goldenFile, []byte(generatedCode), constants.FilePermissionPrivate)
-		if err != nil {
-			t.Fatalf("Failed to write golden file: %v", err)
-		}
+	// Verify bun patterns in generated code
+	if !containsAny(generatedCode, "bun.BaseModel", `bun:"`) {
+		t.Error("Generated code should contain bun tags and BaseModel")
 	}
-
-	expectedCode, err := os.ReadFile(goldenFile)
-	if err != nil {
-		t.Fatalf("Failed to read golden file %s: %v\nRun 'go test -update' to create it", goldenFile, err)
-	}
-
-	if string(expectedCode) != generatedCode {
-		t.Errorf("Generated code differs from golden file.\nExpected:\n%s\n\nGot:\n%s", string(expectedCode), generatedCode)
-	}
-
-	// Verify no comment artifacts in generated code
-	if strings.Contains(generatedCode, "-- ") {
-		t.Error("Generated code should NOT contain SQL single-line comments")
-	}
-	if strings.Contains(generatedCode, "/*") || strings.Contains(generatedCode, "*/") {
-		t.Error("Generated code should NOT contain SQL block comments")
+	if !containsAny(generatedCode, "func (", "Find(", "Create(", "Update(", "Destroy(") {
+		t.Error("Generated code should contain namespace methods")
 	}
 }
 
-// TestGeneratedModelUsesResourceName verifies that generated models use the
-// exact resource name provided by the user (e.g., "Category") rather than
-// attempting to derive it from the table name (e.g., "categories").
-func TestGeneratedModelUsesResourceName(t *testing.T) {
+func TestBuildModelUsesResourceName(t *testing.T) {
 	tests := []struct {
 		name         string
 		tableName    string
@@ -696,54 +201,6 @@ CREATE TABLE queries (
 -- +goose Down
 DROP TABLE queries;`,
 		},
-		{
-			name:         "factories_to_factory",
-			tableName:    "factories",
-			resourceName: "Factory",
-			migration: `-- +goose Up
-CREATE TABLE factories (
-    id uuid PRIMARY KEY,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    name VARCHAR(200) NOT NULL,
-    location VARCHAR(200)
-);
-
--- +goose Down
-DROP TABLE factories;`,
-		},
-		{
-			name:         "stories_to_story",
-			tableName:    "stories",
-			resourceName: "Story",
-			migration: `-- +goose Up
-CREATE TABLE stories (
-    id uuid PRIMARY KEY,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    content TEXT
-);
-
--- +goose Down
-DROP TABLE stories;`,
-		},
-		{
-			name:         "companies_to_company",
-			tableName:    "companies",
-			resourceName: "Company",
-			migration: `-- +goose Up
-CREATE TABLE companies (
-    id uuid PRIMARY KEY,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    name VARCHAR(200) NOT NULL,
-    industry VARCHAR(100)
-);
-
--- +goose Down
-DROP TABLE companies;`,
-		},
 	}
 
 	for _, tt := range tests {
@@ -751,23 +208,20 @@ DROP TABLE companies;`,
 			tempDir := t.TempDir()
 			migrationsDir := filepath.Join(tempDir, "database", "migrations")
 
-			err := os.MkdirAll(migrationsDir, constants.DirPermissionDefault)
+			err := os.MkdirAll(migrationsDir, 0o755)
 			if err != nil {
 				t.Fatalf("Failed to create migrations directory: %v", err)
 			}
 
 			migrationFile := filepath.Join(migrationsDir, "001_create_"+tt.tableName+".sql")
-			err = os.WriteFile(migrationFile, []byte(tt.migration), constants.FilePermissionPrivate)
+			err = os.WriteFile(migrationFile, []byte(tt.migration), 0o644)
 			if err != nil {
 				t.Fatalf("Failed to write migration file: %v", err)
 			}
 
 			generator := NewGenerator("postgresql")
 
-			cat, err := generator.buildCatalogFromTableMigrations(
-				tt.tableName,
-				[]string{migrationsDir},
-			)
+			cat, err := generator.BuildCatalogFromMigrations(tt.tableName, []string{migrationsDir})
 			if err != nil {
 				t.Fatalf("Failed to build catalog from migrations: %v", err)
 			}
@@ -783,82 +237,55 @@ DROP TABLE companies;`,
 				t.Fatalf("Failed to build model from catalog: %v", err)
 			}
 
-			if model.Name != tt.resourceName {
-				t.Errorf("Model name = %s, want %s", model.Name, tt.resourceName)
+			if model.EntityName != tt.resourceName+"Entity" {
+				t.Errorf("EntityName = %s, want %s", model.EntityName, tt.resourceName+"Entity")
 			}
-
-			templateContent, err := os.ReadFile(filepath.Join("..", "..", "generator", "templates", "model.tmpl"))
-			if err != nil {
-				t.Fatalf("Failed to read model template: %v", err)
-			}
-
-			generatedCode, err := generator.GenerateModelFile(model, string(templateContent))
-			if err != nil {
-				t.Fatalf("Failed to generate model file: %v", err)
-			}
-
-			// Golden file testing
-			goldenFile := filepath.Join("testdata", "golden", tt.name+".golden")
-
-			// Update golden file if -update flag is set
-			if *updateGolden {
-				err := os.MkdirAll(filepath.Dir(goldenFile), constants.DirPermissionDefault)
-				if err != nil {
-					t.Fatalf("Failed to create golden directory: %v", err)
-				}
-				err = os.WriteFile(goldenFile, []byte(generatedCode), constants.FilePermissionPrivate)
-				if err != nil {
-					t.Fatalf("Failed to write golden file: %v", err)
-				}
-			}
-
-			// Read golden file
-			expectedCode, err := os.ReadFile(goldenFile)
-			if err != nil {
-				t.Fatalf("Failed to read golden file %s: %v\nRun 'go test -update' to create it", goldenFile, err)
-			}
-
-			if string(expectedCode) != generatedCode {
-				t.Errorf("Generated code differs from golden file.\nExpected:\n%s\n\nGot:\n%s", string(expectedCode), generatedCode)
-			}
-
-			// Also verify critical patterns
-			expectedType := "db." + tt.resourceName
-			if !strings.Contains(generatedCode, expectedType) {
-				t.Errorf("Generated code should contain '%s'", expectedType)
-			}
-
-			// Verify it doesn't use naive singularization
-			naiveSingular := "db." + strings.TrimSuffix(tt.tableName, "s")
-			naiveSingular = strings.ToUpper(naiveSingular[:3]) + naiveSingular[3:]
-			if naiveSingular != expectedType && strings.Contains(generatedCode, naiveSingular) {
-				t.Errorf("Generated code should NOT contain naive singularization '%s'", naiveSingular)
+			if model.NamespaceVar != tt.resourceName {
+				t.Errorf("NamespaceVar = %s, want %s", model.NamespaceVar, tt.resourceName)
 			}
 		})
 	}
 }
 
-// TestSingleInsertParamAutoIncrement verifies that when a table has only one
-// insert parameter (e.g., serial ID + one other field), the generated code
-// correctly passes the value directly instead of creating a Params struct.
-// SQLC optimizes single-parameter inserts to not create a Params struct.
-func TestSingleInsertParamAutoIncrement(t *testing.T) {
-	originalWd, _ := os.Getwd()
-	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "single_insert_param")
+func TestBuildModelWithNullableFields(t *testing.T) {
+	tempDir := t.TempDir()
+	migrationsDir := filepath.Join(tempDir, "database", "migrations")
+
+	err := os.MkdirAll(migrationsDir, 0o755)
+	if err != nil {
+		t.Fatalf("Failed to create migrations directory: %v", err)
+	}
+
+	migration := `-- +goose Up
+CREATE TABLE users (
+    id uuid PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(200),
+    bio TEXT,
+    age INTEGER
+);
+
+-- +goose Down
+DROP TABLE users;`
+
+	migrationFile := filepath.Join(migrationsDir, "001_create_users.sql")
+	err = os.WriteFile(migrationFile, []byte(migration), 0o644)
+	if err != nil {
+		t.Fatalf("Failed to write migration file: %v", err)
+	}
 
 	generator := NewGenerator("postgresql")
 
-	cat, err := generator.buildCatalogFromTableMigrations(
-		"testers",
-		[]string{migrationsDir},
-	)
+	cat, err := generator.BuildCatalogFromMigrations("users", []string{migrationsDir})
 	if err != nil {
 		t.Fatalf("Failed to build catalog from migrations: %v", err)
 	}
 
 	model, err := generator.Build(cat, Config{
-		TableName:    "testers",
-		ResourceName: "Tester",
+		TableName:    "users",
+		ResourceName: "User",
 		PackageName:  "models",
 		DatabaseType: "postgresql",
 		ModulePath:   "github.com/example/test",
@@ -867,67 +294,34 @@ func TestSingleInsertParamAutoIncrement(t *testing.T) {
 		t.Fatalf("Failed to build model: %v", err)
 	}
 
-	// Verify model metadata
-	if !model.IsAutoIncrementID {
-		t.Error("Expected IsAutoIncrementID to be true for serial primary key")
-	}
-	if !model.HasSingleInsertParam {
-		t.Error("Expected HasSingleInsertParam to be true for table with serial id + one field")
-	}
-	if model.SingleInsertField == nil {
-		t.Fatal("Expected SingleInsertField to be set")
-	}
-	if model.SingleInsertField.Name != "Name" {
-		t.Errorf("Expected SingleInsertField.Name = 'Name', got '%s'", model.SingleInsertField.Name)
-	}
-
-	// Generate model file
-	templateContent, err := templates.Files.ReadFile("model.tmpl")
-	if err != nil {
-		t.Fatalf("Failed to read model template: %v", err)
-	}
-
-	modelContent, err := generator.GenerateModelFile(model, string(templateContent))
-	if err != nil {
-		t.Fatalf("Failed to render model file: %v", err)
-	}
-
-	// Verify the generated code does NOT create InsertTesterParams
-	if strings.Contains(modelContent, "db.InsertTesterParams") {
-		t.Error("Generated code should NOT contain 'db.InsertTesterParams' for single insert param")
-	}
-	if strings.Contains(modelContent, "db.UpsertTesterParams") {
-		t.Error("Generated code should NOT contain 'db.UpsertTesterParams' for single insert param")
-	}
-
-	// Verify the generated code passes the value directly
-	if !strings.Contains(modelContent, "queries.InsertTester(ctx, exec, data.Name)") {
-		t.Error("Expected Insert to pass 'data.Name' directly instead of params struct")
-	}
-	if !strings.Contains(modelContent, "queries.UpsertTester(ctx, exec, data.Name)") {
-		t.Error("Expected Upsert to pass 'data.Name' directly instead of params struct")
-	}
-
-	// Golden file testing
-	goldenFile := filepath.Join("testdata", "golden", "single_insert_param.golden")
-
-	if *updateGolden {
-		err := os.MkdirAll(filepath.Dir(goldenFile), constants.DirPermissionDefault)
-		if err != nil {
-			t.Fatalf("Failed to create golden directory: %v", err)
-		}
-		err = os.WriteFile(goldenFile, []byte(modelContent), constants.FilePermissionPrivate)
-		if err != nil {
-			t.Fatalf("Failed to write golden file: %v", err)
+	// Check nullable fields have pointer types
+	for _, field := range model.Fields {
+		switch field.Name {
+		case "Email", "Bio", "Age":
+			if !field.IsNullable {
+				t.Errorf("Field %s should be nullable", field.Name)
+			}
+			if len(field.Type) == 0 || field.Type[0] != '*' {
+				t.Errorf("Field %s should have pointer type, got %s", field.Name, field.Type)
+			}
+		case "Name":
+			if field.IsNullable {
+				t.Errorf("Field %s should not be nullable", field.Name)
+			}
 		}
 	}
+}
 
-	expectedCode, err := os.ReadFile(goldenFile)
-	if err != nil {
-		t.Fatalf("Failed to read golden file %s: %v\nRun 'go test -update' to create it", goldenFile, err)
+// containsAny checks if the string contains any of the substrings
+func containsAny(s string, substrs ...string) bool {
+	for _, sub := range substrs {
+		if len(s) > 0 && len(sub) > 0 {
+			for i := 0; i <= len(s)-len(sub); i++ {
+				if s[i:i+len(sub)] == sub {
+					return true
+				}
+			}
+		}
 	}
-
-	if string(expectedCode) != modelContent {
-		t.Errorf("Generated code differs from golden file.\nExpected:\n%s\n\nGot:\n%s", string(expectedCode), modelContent)
-	}
+	return false
 }

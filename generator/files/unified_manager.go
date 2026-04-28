@@ -1,7 +1,6 @@
 package files
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -120,7 +119,6 @@ var (
 	_ Writer         = (*UnifiedManager)(nil)
 	_ Validator      = (*UnifiedManager)(nil)
 	_ ProjectLocator = (*UnifiedManager)(nil)
-	_ SQLCRunner     = (*UnifiedManager)(nil)
 	_ Manager        = (*UnifiedManager)(nil)
 )
 
@@ -180,61 +178,6 @@ func (fm *UnifiedManager) FindGoModRoot() (string, error) {
 			Err:       os.ErrNotExist,
 		}
 	})
-}
-
-// RunSQLCGenerate runs sqlc compile and generate commands
-func (fm *UnifiedManager) RunSQLCGenerate() error {
-	rootDir, err := fm.FindGoModRoot()
-	if err != nil {
-		return &FileOperationError{
-			Operation: "sqlc_generate",
-			Path:      ".",
-			Err:       err,
-		}
-	}
-
-	// Compile
-	if err := fm.runSQLCCommand(rootDir, "compile"); err != nil {
-		return err
-	}
-
-	// Generate
-	if err := fm.runSQLCCommand(rootDir, "generate"); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// runSQLCCommand runs a specific sqlc command
-func (fm *UnifiedManager) runSQLCCommand(rootDir, command string) error {
-	sqlcBin := filepath.Join(rootDir, "bin", "sqlc")
-	configPath := filepath.Join(rootDir, "database", "sqlc.yaml")
-	if _, err := os.Stat(configPath); err != nil {
-		if os.IsNotExist(err) {
-			err = fmt.Errorf("missing %s; create it from internal/storage/andurel_sqlc_config.yaml", configPath)
-		}
-		return &FileOperationError{
-			Operation: "sqlc_config",
-			Path:      rootDir,
-			Err:       err,
-		}
-	}
-
-	cmd := exec.Command(sqlcBin, "-f", configPath, command)
-	cmd.Dir = rootDir
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return &FileOperationError{
-			Operation: "sqlc_" + command,
-			Path:      rootDir,
-			Err:       err,
-			Output:    string(output),
-		}
-	}
-
-	return nil
 }
 
 // GetPermissions returns the current file permissions

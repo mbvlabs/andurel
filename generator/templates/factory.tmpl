@@ -8,23 +8,24 @@ import (
 {{- end}}
 
 	"{{.ModulePath}}/models"
-	"{{.ModulePath}}/internal/storage"
 {{- range .ExternalImports}}
 	"{{.}}"
 {{- end}}
+
+	"github.com/uptrace/bun"
 )
 
-// {{.ModelName}}Factory wraps models.{{.ModelName}} for testing
+// {{.ModelName}}Factory wraps models.{{.EntityName}} for testing
 type {{.ModelName}}Factory struct {
-	models.{{.ModelName}}  // Embedded
+	models.{{.EntityName}}  // Embedded
 }
 
 type {{.ModelName}}Option func(*{{.ModelName}}Factory)
 
 // Build{{.ModelName}} creates an in-memory {{.ModelName}} with default test values
-func Build{{.ModelName}}({{- range .Fields}}{{- if .IsFK}}{{.ArgumentName}} {{.Type}}, {{end}}{{end}}opts ...{{.ModelName}}Option) models.{{.ModelName}} {
+func Build{{.ModelName}}({{- range .Fields}}{{- if .IsFK}}{{.ArgumentName}} {{.Type}}, {{end}}{{end}}opts ...{{.ModelName}}Option) models.{{.EntityName}} {
 	f := &{{.ModelName}}Factory{
-		{{.ModelName}}: models.{{.ModelName}}{
+		{{.EntityName}}: models.{{.EntityName}}{
 {{- range .Fields}}
 {{- if .IsID}}
 {{- if or (not $.IDType) (eq $.IDType "uuid.UUID")}}
@@ -55,12 +56,12 @@ func Build{{.ModelName}}({{- range .Fields}}{{- if .IsFK}}{{.ArgumentName}} {{.T
 		opt(f)
 	}
 
-	return f.{{.ModelName}}
+	return f.{{.EntityName}}
 }
 
 {{if .HasCreateFunction}}
 // Create{{.ModelName}} creates and persists a {{.ModelName}} to the database
-func Create{{.ModelName}}(ctx context.Context, exec storage.Executor, {{- range .Fields}}{{- if .IsFK}}{{.ArgumentName}} {{.Type}}, {{end}}{{end}}opts ...{{.ModelName}}Option) (models.{{.ModelName}}, error) {
+func Create{{.ModelName}}(ctx context.Context, db bun.IDB, {{- range .Fields}}{{- if .IsFK}}{{.ArgumentName}} {{.Type}}, {{end}}{{end}}opts ...{{.ModelName}}Option) (models.{{.EntityName}}, error) {
 	// Build with defaults and required FKs
 	built := Build{{.ModelName}}({{- range .Fields}}{{- if .IsFK}}{{.ArgumentName}}, {{end}}{{end}}opts...)
 
@@ -78,25 +79,25 @@ func Create{{.ModelName}}(ctx context.Context, exec storage.Executor, {{- range 
 {{- end}}
 	}
 
-	// Use model's Create function
-	{{.ModelName | toLower}}, err := models.Create{{.ModelName}}(ctx, exec, data)
+	// Use model's Create function via namespace
+	entity, err := models.{{.NamespaceVar}}.Create(ctx, db, data)
 	if err != nil {
-		return models.{{.ModelName}}{}, err
+		return models.{{.EntityName}}{}, err
 	}
 
-	return {{.ModelName | toLower}}, nil
+	return entity, nil
 }
 
 // Create{{.ModelName}}s creates multiple {{.ModelName}} records at once
-func Create{{.ModelName}}s(ctx context.Context, exec storage.Executor, {{range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}count int, opts ...{{.ModelName}}Option) ([]models.{{.ModelName}}, error) {
-	{{.ModelName | toLower}}s := make([]models.{{.ModelName}}, 0, count)
+func Create{{.ModelName}}s(ctx context.Context, db bun.IDB, {{range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}count int, opts ...{{.ModelName}}Option) ([]models.{{.EntityName}}, error) {
+	{{.ModelName | toLower}}s := make([]models.{{.EntityName}}, 0, count)
 
 	for i := 0; i < count; i++ {
-		{{.ModelName | toLower}}, err := Create{{.ModelName}}(ctx, exec, {{range .ForeignKeyFields}}{{.ArgumentName}}, {{end}}opts...)
+		entity, err := Create{{.ModelName}}(ctx, db, {{range .ForeignKeyFields}}{{.ArgumentName}}, {{end}}opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create {{.ModelName | toLower}} %d: %w", i+1, err)
 		}
-		{{.ModelName | toLower}}s = append({{.ModelName | toLower}}s, {{.ModelName | toLower}})
+		{{.ModelName | toLower}}s = append({{.ModelName | toLower}}s, entity)
 	}
 
 	return {{.ModelName | toLower}}s, nil
@@ -110,7 +111,7 @@ func Create{{.ModelName}}s(ctx context.Context, exec storage.Executor, {{range .
 // {{.OptionName}} sets the {{.Name}} field
 func {{.OptionName}}(value {{.Type}}) {{$.ModelName}}Option {
 	return func(f *{{$.ModelName}}Factory) {
-		f.{{$.ModelName}}.{{.Name}} = value
+		f.{{$.EntityName}}.{{.Name}} = value
 	}
 }
 {{- end}}

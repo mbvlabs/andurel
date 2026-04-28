@@ -7,9 +7,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
+	"github.com/uptrace/bun/driver/pgdriver"
 )
 
 var (
@@ -18,45 +18,40 @@ var (
 	ErrCommitTx   = errors.New("could not commit transaction")
 )
 
-type Executor interface {
-	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
-	Query(context.Context, string, ...any) (pgx.Rows, error)
-	QueryRow(context.Context, string, ...any) pgx.Row
-}
+// DB returns the bun.DB instance for database operations.
+// Uses bun.IDB interface which is satisfied by *bun.DB, *bun.Tx, and *bun.Conn.
+type DB = bun.IDB
 
-type Pool interface {
-	Conn() *pgxpool.Pool
-	BeginTx(ctx context.Context) (pgx.Tx, error)
-	RollBackTx(ctx context.Context, tx pgx.Tx) error
-	CommitTx(ctx context.Context, tx pgx.Tx) error
-}
-
-// Connection wraps a pgxpool.Pool for simple database access.
+// Connection wraps a bun.DB for simple database access.
 type Connection struct {
-	pool *pgxpool.Pool
+	db *bun.DB
 }
 
-// NewConnection creates a new database connection pool.
+// NewConnection creates a new database connection using bun + pgxv5 driver.
 func NewConnection(ctx context.Context, databaseURL string) (*Connection, error) {
-	pool, err := pgxpool.New(ctx, databaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create connection pool: %w", err)
-	}
+	sqldb := pgdriver.NewConnector(pgdriver.WithDSN(databaseURL))
+	db := bun.NewDB(sqldb, pgdialect.New())
 
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	return &Connection{pool: pool}, nil
+	return &Connection{db: db}, nil
 }
 
-// Conn returns the underlying pool which implements Executor.
-func (c *Connection) Conn() *pgxpool.Pool {
-	return c.pool
+// DB returns the underlying bun.DB.
+func (c *Connection) DB() *bun.DB {
+	return c.db
 }
 
-// Close closes the connection pool.
-func (c *Connection) Close() {
-	c.pool.Close()
+// Close closes the database connection.
+func (c *Connection) Close() error {
+	return c.db.Close()
+}
+
+// RunInTx runs a function within a database transaction.
+// Automatically rolls back on error, commits on success.
+func (c *Connection) RunInTx(ctx context.Context, opts *bun.TxOptions, fn func(ctx context.Context, tx bun.IDB) error) error {
+	return c.db.RunInTx(ctx, opts, fn)
 }

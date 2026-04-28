@@ -1,327 +1,161 @@
 package models
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/pkg/constants"
+	"github.com/mbvlabs/andurel/generator/templates"
 )
 
-func TestConstructorConversions__ProperlyHandlesNullableColumns(t *testing.T) {
-	tests := []struct {
-		name                       string
-		migrationsDir              string
-		tableName                  string
-		resourceName               string
-		modulePath                 string
-		databaseType               string
-		expectedCreateParams       []string
-		expectedUpdateParams       []string
-		expectedUpsertParams       []string
-		expectedFindOrCreateParams []string
-		unexpectedCreateCode       []string
-		unexpectedUpdateCode       []string
-	}{
-		{
-			name:          "PostgreSQL should properly convert nullable and non-nullable columns",
-			migrationsDir: "simple_user_table",
-			tableName:     "users",
-			resourceName:  "User",
-			modulePath:    "github.com/example/myapp",
-			databaseType:  "postgresql",
-			expectedCreateParams: []string{
-				"params := db.InsertUserParams{",
-				"uuid.New(),",
-				"data.Email,",
-				"data.Name,",
-				"pgtype.Int4{Int32: data.Age, Valid: true}",
-				"pgtype.Bool{Bool: data.IsActive, Valid: true}",
-			},
-			expectedUpdateParams: []string{
-				"params := db.UpdateUserParams{",
-				"data.ID,",
-				"data.Email,",
-				"data.Name,",
-				"pgtype.Int4{Int32: data.Age, Valid: true}",
-				"pgtype.Bool{Bool: data.IsActive, Valid: true}",
-			},
-			expectedUpsertParams: []string{
-				"params := db.UpsertUserParams{",
-				"uuid.New(),",
-			},
-			expectedFindOrCreateParams: []string{
-				"data.ID,",
-			},
-			unexpectedCreateCode: []string{
-				"BuildInsertUserParams",
-				"BuildUpdateUserParams",
-				"BuildQueryPaginated",
-			},
-			unexpectedUpdateCode: []string{
-				"BuildInsertUserParams",
-				"BuildUpdateUserParams",
-				"BuildQueryPaginated",
-			},
-		},
+func TestBunModelGeneration(t *testing.T) {
+	originalWd, _ := os.Getwd()
+	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "simple_user_table")
+
+	generator := NewGenerator("postgresql")
+
+	cat, err := generator.BuildCatalogFromMigrations("users", []string{migrationsDir})
+	if err != nil {
+		t.Fatalf("Failed to build catalog from migrations: %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tempDir := t.TempDir()
-			modelsDir := filepath.Join(tempDir, "models")
+	model, err := generator.Build(cat, Config{
+		TableName:    "users",
+		ResourceName: "User",
+		PackageName:  "models",
+		DatabaseType: "postgresql",
+		ModulePath:   "github.com/example/myapp",
+	})
+	if err != nil {
+		t.Fatalf("Failed to build model: %v", err)
+	}
 
-			err := os.MkdirAll(modelsDir, constants.DirPermissionDefault)
-			if err != nil {
-				t.Fatalf("Failed to create models directory: %v", err)
+	// Verify model structure
+	if model.EntityName != "UserEntity" {
+		t.Errorf("EntityName = %s, want UserEntity", model.EntityName)
+	}
+	if model.NamespaceVar != "User" {
+		t.Errorf("NamespaceVar = %s, want User", model.NamespaceVar)
+	}
+
+	// Generate model file
+	templateContent, err := templates.Files.ReadFile("model.tmpl")
+	if err != nil {
+		t.Fatalf("Failed to read model template: %v", err)
+	}
+
+	modelContent, err := generator.GenerateModelFile(model, string(templateContent))
+	if err != nil {
+		t.Fatalf("Failed to generate model file: %v", err)
+	}
+
+	// Verify bun patterns in generated code
+	if !strings.Contains(modelContent, "bun.BaseModel") {
+		t.Error("Generated code should contain bun.BaseModel")
+	}
+	if !strings.Contains(modelContent, "bun:\"") {
+		t.Error("Generated code should contain bun tags")
+	}
+	if !strings.Contains(modelContent, "func (") {
+		t.Error("Generated code should contain methods")
+	}
+
+	// Verify field types
+	for _, field := range model.Fields {
+		if field.Name == "Email" || field.Name == "Name" {
+			if field.Type != "string" {
+				t.Errorf("Field %s should be string, got %s", field.Name, field.Type)
 			}
-
-			originalWd, _ := os.Getwd()
-			oldWd, _ := os.Getwd()
-			defer os.Chdir(oldWd)
-			os.Chdir(tempDir)
-
-			migrationsDir := filepath.Join(
-				originalWd,
-				"testdata",
-				"migrations",
-				tt.migrationsDir,
-			)
-
-			generator := NewGenerator(tt.databaseType)
-
-			cat, err := generator.buildCatalogFromTableMigrations(
-				tt.tableName,
-				[]string{migrationsDir},
-			)
-			if err != nil {
-				t.Fatalf("Failed to build catalog: %v", err)
+		}
+		if field.Name == "Age" {
+			if field.Type != "int32" {
+				t.Errorf("Field %s should be int32, got %s", field.Name, field.Type)
 			}
-
-			modelFileName := fmt.Sprintf("%s.go", strings.ToLower(tt.resourceName))
-			modelPath := filepath.Join(modelsDir, modelFileName)
-
-			queriesDir := filepath.Join(tempDir, "database", "queries")
-			err = os.MkdirAll(queriesDir, constants.DirPermissionDefault)
-			if err != nil {
-				t.Fatalf("Failed to create queries directory: %v", err)
+		}
+		if field.Name == "IsActive" {
+			if field.Type != "bool" {
+				t.Errorf("Field %s should be bool, got %s", field.Name, field.Type)
 			}
-
-			sqlFileName := fmt.Sprintf("%s.sql", strings.ToLower(tt.tableName))
-			sqlPath := filepath.Join(queriesDir, sqlFileName)
-
-			err = generator.GenerateModel(
-				cat,
-				tt.resourceName,
-				tt.tableName,
-				modelPath,
-				sqlPath,
-				tt.modulePath,
-				"",
-			)
-			if err != nil {
-				t.Fatalf("Failed to generate model: %v", err)
-			}
-
-			modelContent, err := os.ReadFile(modelPath)
-			if err != nil {
-				t.Fatalf("Failed to read model file: %v", err)
-			}
-
-			modelStr := string(modelContent)
-
-			for _, expectedParam := range tt.expectedCreateParams {
-				if !strings.Contains(modelStr, expectedParam) {
-					t.Errorf(
-						"Model file should contain Create constructor parameter: %s\nGenerated content:\n%s",
-						expectedParam,
-						modelStr,
-					)
-				}
-			}
-
-			for _, expectedParam := range tt.expectedUpdateParams {
-				if !strings.Contains(modelStr, expectedParam) {
-					t.Errorf(
-						"Model file should contain Update constructor parameter: %s\nGenerated content:\n%s",
-						expectedParam,
-						modelStr,
-					)
-				}
-			}
-
-			for _, expectedParam := range tt.expectedUpsertParams {
-				if !strings.Contains(modelStr, expectedParam) {
-					t.Errorf(
-						"Model file should contain Upsert constructor parameter: %s\nGenerated content:\n%s",
-						expectedParam,
-						modelStr,
-					)
-				}
-			}
-
-			for _, expectedParam := range tt.expectedFindOrCreateParams {
-				if !strings.Contains(modelStr, expectedParam) {
-					t.Errorf(
-						"Model file should contain FindOrCreate constructor parameter: %s\nGenerated content:\n%s",
-						expectedParam,
-						modelStr,
-					)
-				}
-			}
-
-			for _, unexpectedCode := range tt.unexpectedCreateCode {
-				if strings.Contains(modelStr, unexpectedCode) {
-					t.Errorf(
-						"Model file should NOT contain empty Create constructor call: %s",
-						unexpectedCode,
-					)
-				}
-			}
-
-			for _, unexpectedCode := range tt.unexpectedUpdateCode {
-				if strings.Contains(modelStr, unexpectedCode) {
-					t.Errorf(
-						"Model file should NOT contain empty Update constructor call: %s",
-						unexpectedCode,
-					)
-				}
-			}
-		})
+		}
 	}
 }
 
-func TestConstructorConversions__FieldsExcludedCorrectly(t *testing.T) {
-	tests := []struct {
-		name               string
-		migrationsDir      string
-		tableName          string
-		resourceName       string
-		modulePath         string
-		databaseType       string
-		unexpectedInCreate []string
-		unexpectedInUpdate []string
-	}{
-		{
-			name:          "Create should exclude ID, CreatedAt, UpdatedAt",
-			migrationsDir: "simple_user_table",
-			tableName:     "users",
-			resourceName:  "User",
-			modulePath:    "github.com/example/myapp",
-			databaseType:  "postgresql",
-			unexpectedInCreate: []string{
-				"data.ID",
-				"data.CreatedAt",
-				"data.UpdatedAt",
-			},
-			unexpectedInUpdate: []string{
-				"data.CreatedAt",
-				"data.UpdatedAt",
-			},
-		},
+func TestBunNamespaceMethods(t *testing.T) {
+	originalWd, _ := os.Getwd()
+	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "simple_user_table")
+
+	generator := NewGenerator("postgresql")
+
+	cat, err := generator.BuildCatalogFromMigrations("users", []string{migrationsDir})
+	if err != nil {
+		t.Fatalf("Failed to build catalog: %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tempDir := t.TempDir()
-			modelsDir := filepath.Join(tempDir, "models")
+	model, err := generator.Build(cat, Config{
+		TableName:    "users",
+		ResourceName: "User",
+		PackageName:  "models",
+		DatabaseType: "postgresql",
+		ModulePath:   "github.com/example/test",
+	})
+	if err != nil {
+		t.Fatalf("Failed to build model: %v", err)
+	}
 
-			err := os.MkdirAll(modelsDir, constants.DirPermissionDefault)
-			if err != nil {
-				t.Fatalf("Failed to create models directory: %v", err)
+	// Verify namespace method names
+	expectedMethods := []string{"Find", "Create", "Update", "Destroy", "All", "Paginate", "Upsert"}
+
+	// Generate and check code
+	templateContent, err := templates.Files.ReadFile("model.tmpl")
+	if err != nil {
+		t.Fatalf("Failed to read template: %v", err)
+	}
+
+	modelContent, err := generator.GenerateModelFile(model, string(templateContent))
+	if err != nil {
+		t.Fatalf("Failed to generate model: %v", err)
+	}
+
+	for _, method := range expectedMethods {
+		expectedMethod := "func (" + model.ReceiverName + " *" + model.NamespaceType + ") " + method
+		if !strings.Contains(modelContent, expectedMethod) {
+			t.Errorf("Generated code should contain method: %s", expectedMethod)
+		}
+	}
+}
+
+func TestBunFieldTags(t *testing.T) {
+	originalWd, _ := os.Getwd()
+	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "simple_user_table")
+
+	generator := NewGenerator("postgresql")
+
+	cat, err := generator.BuildCatalogFromMigrations("users", []string{migrationsDir})
+	if err != nil {
+		t.Fatalf("Failed to build catalog: %v", err)
+	}
+
+	model, err := generator.Build(cat, Config{
+		TableName:    "users",
+		ResourceName: "User",
+		PackageName:  "models",
+		DatabaseType: "postgresql",
+		ModulePath:   "github.com/example/test",
+	})
+	if err != nil {
+		t.Fatalf("Failed to build model: %v", err)
+	}
+
+	// Check bun tags
+	for _, field := range model.Fields {
+		if field.BunTag == "" {
+			t.Errorf("Field %s should have a bun tag", field.Name)
+		}
+		if field.Name == "ID" && field.IsPrimaryKey {
+			if !strings.Contains(field.BunTag, "pk") {
+				t.Errorf("ID field should have 'pk' in bun tag")
 			}
-
-			originalWd, _ := os.Getwd()
-			oldWd, _ := os.Getwd()
-			defer os.Chdir(oldWd)
-			os.Chdir(tempDir)
-
-			migrationsDir := filepath.Join(
-				originalWd,
-				"testdata",
-				"migrations",
-				tt.migrationsDir,
-			)
-
-			generator := NewGenerator(tt.databaseType)
-
-			cat, err := generator.buildCatalogFromTableMigrations(
-				tt.tableName,
-				[]string{migrationsDir},
-			)
-			if err != nil {
-				t.Fatalf("Failed to build catalog: %v", err)
-			}
-
-			modelFileName := fmt.Sprintf("%s.go", strings.ToLower(tt.resourceName))
-			modelPath := filepath.Join(modelsDir, modelFileName)
-
-			queriesDir := filepath.Join(tempDir, "database", "queries")
-			err = os.MkdirAll(queriesDir, constants.DirPermissionDefault)
-			if err != nil {
-				t.Fatalf("Failed to create queries directory: %v", err)
-			}
-
-			sqlFileName := fmt.Sprintf("%s.sql", strings.ToLower(tt.tableName))
-			sqlPath := filepath.Join(queriesDir, sqlFileName)
-
-			err = generator.GenerateModel(
-				cat,
-				tt.resourceName,
-				tt.tableName,
-				modelPath,
-				sqlPath,
-				tt.modulePath,
-				"",
-			)
-			if err != nil {
-				t.Fatalf("Failed to generate model: %v", err)
-			}
-
-			modelContent, err := os.ReadFile(modelPath)
-			if err != nil {
-				t.Fatalf("Failed to read model file: %v", err)
-			}
-
-			modelStr := string(modelContent)
-
-			createStart := strings.Index(modelStr, "func CreateUser(")
-			createEnd := strings.Index(modelStr[createStart:], "func UpdateUser(")
-			createFunc := modelStr[createStart : createStart+createEnd]
-
-			for _, unexpected := range tt.unexpectedInCreate {
-				paramsStart := strings.Index(createFunc, "params := db.InsertUserParams{")
-				paramsEnd := strings.Index(createFunc[paramsStart:], "}")
-				paramsSection := createFunc[paramsStart : paramsStart+paramsEnd]
-
-				if strings.Contains(paramsSection, unexpected) {
-					t.Errorf(
-						"Create constructor params should NOT contain: %s\nParams section:\n%s",
-						unexpected,
-						paramsSection,
-					)
-				}
-			}
-
-			updateStart := strings.Index(modelStr, "func UpdateUser(")
-			updateEnd := strings.Index(modelStr[updateStart:], "func DestroyUser(")
-			updateFunc := modelStr[updateStart : updateStart+updateEnd]
-
-			for _, unexpected := range tt.unexpectedInUpdate {
-				paramsStart := strings.Index(updateFunc, "params := db.UpdateUserParams{")
-				paramsEnd := strings.Index(updateFunc[paramsStart:], "}")
-				paramsSection := updateFunc[paramsStart : paramsStart+paramsEnd]
-
-				if strings.Contains(paramsSection, unexpected) {
-					t.Errorf(
-						"Update constructor params should NOT contain: %s\nParams section:\n%s",
-						unexpected,
-						paramsSection,
-					)
-				}
-			}
-		})
+		}
 	}
 }

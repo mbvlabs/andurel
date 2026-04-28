@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
-	"database/sql"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -12,28 +11,27 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
-	"golang.org/x/crypto/argon2"
+	"github.com/uptrace/bun"
 
-	"{{.ModuleName}}/models/internal/db"
-	"{{.ModuleName}}/internal/storage"
+	"golang.org/x/crypto/argon2"
 )
 
-type User struct {
-	ID               uuid.UUID
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-	Email            string
-	EmailValidatedAt time.Time
-	Password         []byte
-	IsAdmin          bool
+type UserEntity struct {
+	bun.BaseModel    `bun:"table:users"`
+	ID               uuid.UUID  `bun:"id,pk,type:uuid"`
+	CreatedAt        time.Time  `bun:"created_at,nullzero,default:current_timestamp"`
+	UpdatedAt        time.Time  `bun:"updated_at,nullzero,default:current_timestamp"`
+	Email            string     `bun:"email,notnull,unique"`
+	EmailValidatedAt *time.Time `bun:"email_validated_at"`
+	Password         []byte     `bun:"password,notnull"`
+	IsAdmin          bool       `bun:"is_admin,notnull"`
 }
 
-func (u User) HasValidatedEmail() bool {
-	return !u.EmailValidatedAt.IsZero()
+func (u *UserEntity) HasValidatedEmail() bool {
+	return u.EmailValidatedAt != nil
 }
 
-func (u User) ValidPassword(providedPassword, pepper string) (bool, error) {
+func (u *UserEntity) ValidPassword(providedPassword, pepper string) (bool, error) {
 	parts := strings.Split(string(u.Password), ":")
 	if len(parts) != 2 {
 		return false, fmt.Errorf("invalid stored password format")
@@ -59,6 +57,240 @@ func (u User) ValidPassword(providedPassword, pepper string) (bool, error) {
 	)
 
 	return subtle.ConstantTimeCompare(newHash, expectedHash) == 1, nil
+}
+
+// func generateSalt(size int) ([]byte, error) {
+// 	salt := make([]byte, size)
+// 	_, err := rand.Read(salt)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+//
+// 	return salt, nil
+// }
+//
+// func HashPassword(password, pepper string) (string, error) {
+// 	salt, err := generateSalt(16)
+// 	if err != nil {
+// 		return "", err
+// 	}
+//
+// 	hash := argon2.IDKey(
+// 		[]byte(password+pepper),
+// 		[]byte(salt),
+// 		2,
+// 		19*1024,
+// 		1,
+// 		32,
+// 	)
+//
+// 	encodedHash := fmt.Sprintf("%s:%s",
+// 		base64.RawStdEncoding.EncodeToString(hash),
+// 		base64.RawStdEncoding.EncodeToString(salt))
+//
+// 	return encodedHash, nil
+// }
+
+func (u user) Find(ctx context.Context, db bun.IDB, id uuid.UUID) (UserEntity, error) {
+	var entity UserEntity
+	err := db.NewSelect().
+		Model(&entity).
+		Where("id = ?", id).
+		Where("deleted_at IS NULL").
+		Scan(ctx)
+	if err != nil {
+		return UserEntity{}, err
+	}
+	return entity, nil
+}
+
+func (u user) FindByEmail(ctx context.Context, db bun.IDB, email string) (UserEntity, error) {
+	var entity UserEntity
+	err := db.NewSelect().
+		Model(&entity).
+		Where("email = ?", strings.ToLower(email)).
+		Where("deleted_at IS NULL").
+		Scan(ctx)
+	if err != nil {
+		return UserEntity{}, err
+	}
+	return entity, nil
+}
+
+type PasswordPair struct {
+	Password        string `validate:"required,min=8,max=72"`
+	ConfirmPassword string `validate:"required,min=8,max=72"`
+}
+
+type CreateUserData struct {
+	Email        string `validate:"required,email,max=255"`
+	PasswordPair PasswordPair
+}
+
+func (u user) Create(
+	ctx context.Context,
+	db bun.IDB,
+	pepper string,
+	data CreateUserData,
+) (UserEntity, error) {
+	if err := Validate.Struct(data); err != nil {
+		return UserEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	hashedPassword, err := HashPassword(data.PasswordPair.Password, pepper)
+	if err != nil {
+		return UserEntity{}, err
+	}
+
+	entity := UserEntity{
+		ID:               uuid.New(),
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+		Email:            strings.ToLower(data.Email),
+		EmailValidatedAt: nil,
+		Password:         []byte(hashedPassword),
+		IsAdmin:          false,
+	}
+
+	_, err = db.NewInsert().Model(&entity).Exec(ctx)
+	if err != nil {
+		return UserEntity{}, err
+	}
+
+	return entity, nil
+}
+
+type UpdateUserData struct {
+	ID               uuid.UUID
+	Email            string `validate:"required,email,max=255"`
+	EmailValidatedAt *time.Time
+	Password         []byte
+	IsAdmin          bool
+}
+
+func (u user) Update(ctx context.Context, db bun.IDB, data UpdateUserData) (UserEntity, error) {
+	if err := Validate.Struct(data); err != nil {
+		return UserEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	var current UserEntity
+	err := db.NewSelect().
+		Model(&current).
+		Where("id = ?", data.ID).
+		Where("deleted_at IS NULL").
+		Scan(ctx)
+	if err != nil {
+		return UserEntity{}, err
+	}
+
+	email := strings.ToLower(data.Email)
+	if email == "" {
+		email = current.Email
+	}
+
+	emailValidatedAt := data.EmailValidatedAt
+	if emailValidatedAt == nil && current.EmailValidatedAt != nil {
+		emailValidatedAt = current.EmailValidatedAt
+	}
+
+	password := data.Password
+	if len(password) == 0 {
+		password = current.Password
+	}
+
+	entity := UserEntity{
+		ID:               data.ID,
+		UpdatedAt:        time.Now(),
+		Email:            email,
+		EmailValidatedAt: emailValidatedAt,
+		Password:         password,
+		IsAdmin:          data.IsAdmin,
+	}
+
+	_, err = db.NewUpdate().
+		Model(&entity).
+		Where("id = ?", data.ID).
+		Exec(ctx)
+	if err != nil {
+		return UserEntity{}, err
+	}
+
+	return entity, nil
+}
+
+func (u user) Destroy(ctx context.Context, db bun.IDB, id uuid.UUID) error {
+	_, err := db.NewUpdate().
+		Model((*UserEntity)(nil)).
+		Set("deleted_at = ?", time.Now()).
+		Where("id = ?", id).
+		Where("deleted_at IS NULL").
+		Exec(ctx)
+
+	return err
+}
+
+func (u user) All(ctx context.Context, db bun.IDB) ([]UserEntity, error) {
+	var entities []UserEntity
+	err := db.NewSelect().
+		Model(&entities).
+		Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return entities, nil
+}
+
+type PaginatedUsers struct {
+	Users      []UserEntity
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func (u user) Paginate(
+	ctx context.Context,
+	db bun.IDB,
+	page, pageSize int64,
+) (PaginatedUsers, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	var totalCount int64
+	if err := db.NewSelect().
+		Model(&UserEntity{}).Scan(ctx, &totalCount); err != nil {
+		return PaginatedUsers{}, err
+	}
+
+	var entities []UserEntity
+	err := db.NewSelect().
+		Model(&entities).
+		Limit(int(pageSize)).
+		Offset(int(offset)).
+		Scan(ctx)
+	if err != nil {
+		return PaginatedUsers{}, err
+	}
+
+	totalPages := (totalCount + pageSize - 1) / pageSize
+
+	return PaginatedUsers{
+		Users:      entities,
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
 }
 
 func generateSalt(size int) ([]byte, error) {
@@ -91,217 +323,4 @@ func HashPassword(password, pepper string) (string, error) {
 		base64.RawStdEncoding.EncodeToString(salt))
 
 	return encodedHash, nil
-}
-
-func FindUser(
-	ctx context.Context,
-	exec storage.Executor,
-	id uuid.UUID,
-) (User, error) {
-	row, err := queries.QueryUserByID(ctx, exec, id)
-	if err != nil {
-		return User{}, err
-	}
-
-	return rowToUser(row)
-}
-
-func FindUserByEmail(
-	ctx context.Context,
-	exec storage.Executor,
-	email string,
-) (User, error) {
-	row, err := queries.QueryUserByEmail(ctx, exec, strings.ToLower(email))
-	if err != nil {
-		return User{}, err
-	}
-
-	return rowToUser(row)
-}
-
-type PasswordPair struct {
-	Password        string `validate:"required,min=8,max=72"`
-	ConfirmPassword string `validate:"required,min=8,max=72"`
-}
-
-type CreateUserData struct {
-	Email        string `validate:"required,email,max=255"`
-	PasswordPair PasswordPair
-}
-
-func CreateUser(
-	ctx context.Context,
-	exec storage.Executor,
-	pepper string,
-	data CreateUserData,
-) (User, error) {
-	if err := Validate.Struct(data); err != nil {
-		return User{}, errors.Join(ErrDomainValidation, err)
-	}
-
-	hashedPassword, err := HashPassword(data.PasswordPair.Password, pepper)
-	if err != nil {
-		return User{}, err
-	}
-
-	params := db.InsertUserParams{
-		ID:               uuid.New(),
-		Email:            strings.ToLower(data.Email),
-		EmailValidatedAt: pgtype.Timestamptz{},
-		Password:         []byte(hashedPassword),
-		IsAdmin:          false,
-	}
-	row, err := queries.InsertUser(ctx, exec, params)
-	if err != nil {
-		return User{}, err
-	}
-
-	return rowToUser(row)
-}
-
-type UpdateUserData struct {
-	ID               uuid.UUID
-	Email            string `validate:"required,email,max=255"`
-	EmailValidatedAt sql.NullTime
-	Password         []byte
-	IsAdmin          bool
-}
-
-func UpdateUser(
-	ctx context.Context,
-	exec storage.Executor,
-	data UpdateUserData,
-) (User, error) {
-	if err := Validate.Struct(data); err != nil {
-		return User{}, errors.Join(ErrDomainValidation, err)
-	}
-
-	currentRow, err := queries.QueryUserByID(ctx, exec, data.ID)
-	if err != nil {
-		return User{}, err
-	}
-
-	email := strings.ToLower(data.Email)
-	if email == "" {
-		email = currentRow.Email
-	}
-
-	currentEmailValidatedAt := sql.NullTime{}
-	if currentRow.EmailValidatedAt.Valid {
-		currentEmailValidatedAt = sql.NullTime{
-			Time:  currentRow.EmailValidatedAt.Time,
-			Valid: true,
-		}
-	}
-
-	emailValidatedAt := data.EmailValidatedAt
-	if !emailValidatedAt.Valid && currentRow.EmailValidatedAt.Valid {
-		emailValidatedAt = currentEmailValidatedAt
-	}
-
-	password := data.Password
-	if len(password) == 0 {
-		password = currentRow.Password
-	}
-
-	params := db.UpdateUserParams{
-		ID:    data.ID,
-		Email: email,
-		EmailValidatedAt: pgtype.Timestamptz{
-			Time:  emailValidatedAt.Time,
-			Valid: emailValidatedAt.Valid,
-		},
-		Password: password,
-		IsAdmin:  data.IsAdmin,
-	}
-
-	row, err := queries.UpdateUser(ctx, exec, params)
-	if err != nil {
-		return User{}, err
-	}
-
-	return rowToUser(row)
-}
-
-func DestroyUser(
-	ctx context.Context,
-	exec storage.Executor,
-	id uuid.UUID,
-) error {
-	return queries.DeleteUser(ctx, exec, id)
-}
-
-type PaginatedUsers struct {
-	Users      []User
-	TotalCount int64
-	Page       int64
-	PageSize   int64
-	TotalPages int64
-}
-
-func PaginateUsers(
-	ctx context.Context,
-	exec storage.Executor,
-	page int64,
-	pageSize int64,
-) (PaginatedUsers, error) {
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 {
-		pageSize = 10
-	}
-	if pageSize > 100 {
-		pageSize = 100
-	}
-
-	offset := (page - 1) * pageSize
-
-	totalCount, err := queries.CountUsers(ctx, exec)
-	if err != nil {
-		return PaginatedUsers{}, err
-	}
-
-	rows, err := queries.QueryPaginatedUsers(
-		ctx,
-		exec,
-		db.QueryPaginatedUsersParams{
-			Limit:  pageSize,
-			Offset: offset,
-		},
-	)
-	if err != nil {
-		return PaginatedUsers{}, err
-	}
-
-	users := make([]User, len(rows))
-	for i, row := range rows {
-		user, convErr := rowToUser(row)
-		if convErr != nil {
-			return PaginatedUsers{}, convErr
-		}
-		users[i] = user
-	}
-
-	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
-
-	return PaginatedUsers{
-		Users:      users,
-		TotalCount: totalCount,
-		Page:       page,
-		PageSize:   pageSize,
-		TotalPages: totalPages,
-	}, nil
-}
-
-func rowToUser(row db.User) (User, error) {
-	return User{
-		ID:               row.ID,
-		CreatedAt:        row.CreatedAt.Time,
-		UpdatedAt:        row.UpdatedAt.Time,
-		Email:            row.Email,
-		EmailValidatedAt: row.EmailValidatedAt.Time,
-		Password:         row.Password,
-		IsAdmin:          row.IsAdmin,
-	}, nil
 }

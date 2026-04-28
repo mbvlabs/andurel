@@ -99,7 +99,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 }
 
 func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
-	goType, _, _, err := g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
+	goType, _, err := g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
 	if err != nil {
 		goType = "string"
 	}

@@ -1,450 +1,141 @@
 package types
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/generator/internal/validation"
 )
 
+// TypeOverride lets users map a SQL database type to a custom Go type.
+// When the column is nullable, the resulting Go type will be wrapped in a
+// pointer automatically (matching the bun convention adopted by andurel).
 type TypeOverride struct {
 	DatabaseType string
 	GoType       string
 	Package      string
-	Nullable     bool
 }
 
 type TypeMapper struct {
 	DatabaseType string
-	TypeMap      map[string]string
 	Overrides    []TypeOverride
 }
 
 func NewTypeMapper(databaseType string) *TypeMapper {
-	tm := &TypeMapper{
+	return &TypeMapper{
 		DatabaseType: databaseType,
-		TypeMap:      make(map[string]string),
 		Overrides:    make([]TypeOverride, 0),
 	}
-
-	switch databaseType {
-	case "postgresql":
-		tm.initPostgreSQLMappings()
-	}
-
-	return tm
 }
 
-func (tm *TypeMapper) initPostgreSQLMappings() {
-	tm.TypeMap["uuid"] = "uuid.UUID"
-}
-
+// MapSQLTypeToGo returns the Go type for a SQL column. Nullable columns are
+// returned as pointer types (e.g. `*string`, `*time.Time`). The second return
+// value is the import path required for the type, or "" if it is a builtin.
 func (tm *TypeMapper) MapSQLTypeToGo(
 	sqlType string,
 	nullable bool,
-) (goType, sqlcType, packageName string, err error) {
-	normalizedType := normalizeSQLType(sqlType)
+) (goType, packageName string, err error) {
+	normalized := normalizeSQLType(sqlType)
 
 	for _, override := range tm.Overrides {
-		if override.DatabaseType == normalizedType &&
-			override.Nullable == nullable {
-			return override.GoType, "", override.Package, nil
+		if override.DatabaseType == normalized {
+			return wrapPointer(override.GoType, nullable), override.Package, nil
 		}
 	}
 
-	if normalizedType == "uuid" {
-		if nullable && tm.DatabaseType == "postgresql" {
-			return "uuid.UUID", "pgtype.UUID", "github.com/jackc/pgx/v5/pgtype", nil
-		}
-		return "uuid.UUID", "uuid.UUID", "github.com/google/uuid", nil
+	base, pkg := tm.basePostgresType(normalized)
+	if base == "" {
+		return "any", "", nil
 	}
 
-	goType, sqlcType, packageName = tm.getPostgreSQLType(normalizedType, nullable)
-
-	if goType == "" {
-		return "interface{}", "interface{}", "", nil
-	}
-
-	return goType, sqlcType, packageName, nil
+	return wrapPointer(base, nullable), pkg, nil
 }
 
-func (tm *TypeMapper) GenerateConversionFromDB(fieldName, sqlcType, goType string) string {
-	if strings.HasPrefix(sqlcType, "pgtype.") {
-		switch sqlcType {
-		case "pgtype.Text":
-			return fmt.Sprintf("row.%s.String", fieldName)
-		case "pgtype.Int4":
-			return fmt.Sprintf("row.%s.Int32", fieldName)
-		case "pgtype.Int8":
-			return fmt.Sprintf("row.%s.Int64", fieldName)
-		case "pgtype.Int2":
-			return fmt.Sprintf("row.%s.Int16", fieldName)
-		case "pgtype.Float4":
-			return fmt.Sprintf("row.%s.Float32", fieldName)
-		case "pgtype.Float8":
-			return fmt.Sprintf("row.%s.Float64", fieldName)
-		case "pgtype.Bool":
-			return fmt.Sprintf("row.%s.Bool", fieldName)
-		case "pgtype.Timestamptz", "pgtype.Timestamp":
-			return fmt.Sprintf("row.%s.Time", fieldName)
-		case "pgtype.Date":
-			return fmt.Sprintf("row.%s.Time", fieldName)
-		case "pgtype.Time":
-			return fmt.Sprintf("row.%s.Time", fieldName)
-		case "pgtype.Timetz":
-			return fmt.Sprintf("row.%s.Time", fieldName)
-		case "pgtype.Interval":
-			return fmt.Sprintf("row.%s.Microseconds", fieldName)
-		case "pgtype.UUID":
-			return fmt.Sprintf("uuid.UUID(row.%s.Bytes)", fieldName)
-		case "pgtype.JSONB", "pgtype.JSON":
-			// pgtype.JSONB and pgtype.JSON are type aliases for []byte in pgx v5
-			return fmt.Sprintf("row.%s", fieldName)
-		case "pgtype.Inet", "pgtype.CIDR", "pgtype.Macaddr", "pgtype.Macaddr8":
-			return fmt.Sprintf("row.%s.IPNet.String()", fieldName)
-		case "pgtype.Point",
-			"pgtype.Lseg",
-			"pgtype.Box",
-			"pgtype.Path",
-			"pgtype.Polygon",
-			"pgtype.Circle":
-			return fmt.Sprintf("string(row.%s.Bytes)", fieldName)
-		case "pgtype.Int4range",
-			"pgtype.Int8range",
-			"pgtype.Numrange",
-			"pgtype.Tsrange",
-			"pgtype.Tstzrange",
-			"pgtype.Daterange":
-			return fmt.Sprintf("string(row.%s.Bytes)", fieldName)
-		case "pgtype.Money":
-			return fmt.Sprintf("row.%s.String", fieldName)
-		case "pgtype.Bit", "pgtype.Varbit":
-			return fmt.Sprintf("string(row.%s.Bytes)", fieldName)
-		default:
-			return fmt.Sprintf("row.%s", fieldName)
+// BuildBunTag returns the value of the `bun:"..."` struct tag for a column.
+// Includes the column name, primary-key/auto-increment markers, nullability,
+// and a `type:` hint where bun's default mapping would otherwise be wrong
+// (notably uuid columns).
+func (tm *TypeMapper) BuildBunTag(col *catalog.Column) string {
+	parts := []string{col.Name}
+
+	if col.IsPrimaryKey {
+		parts = append(parts, "pk")
+		if validation.IsAutoIncrement(col.DataType) {
+			parts = append(parts, "autoincrement")
 		}
 	}
 
-	if strings.HasPrefix(sqlcType, "sql.Null") {
-		switch sqlcType {
-		case "sql.NullString":
-			return fmt.Sprintf("row.%s.String", fieldName)
-		case "sql.NullInt64":
-			return fmt.Sprintf("row.%s.Int64", fieldName)
-		case "sql.NullFloat64":
-			return fmt.Sprintf("row.%s.Float64", fieldName)
-		case "sql.NullBool":
-			return fmt.Sprintf("row.%s.Bool", fieldName)
-		case "sql.NullTime":
-			return fmt.Sprintf("row.%s.Time", fieldName)
-		default:
-			return fmt.Sprintf("row.%s", fieldName)
-		}
+	normalized := normalizeSQLType(col.DataType)
+	if normalized == "uuid" {
+		parts = append(parts, "type:uuid")
 	}
 
-	return fmt.Sprintf("row.%s", fieldName)
+	if !col.IsNullable {
+		parts = append(parts, "notnull")
+	}
+
+	switch col.Name {
+	case "created_at", "updated_at":
+		parts = append(parts, "nullzero", "default:current_timestamp")
+	}
+
+	return strings.Join(parts, ",")
 }
 
-func (tm *TypeMapper) getPostgreSQLType(
-	normalizedType string,
-	nullable bool,
-) (goType, sqlcType, packageName string) {
-	switch normalizedType {
-	case "varchar", "text", "char":
-		if nullable {
-			return "string", "pgtype.Text", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "string", ""
+func wrapPointer(goType string, nullable bool) string {
+	if !nullable {
+		return goType
+	}
+	if strings.HasPrefix(goType, "*") || strings.HasPrefix(goType, "[]") {
+		return goType
+	}
+	return "*" + goType
+}
+
+func (tm *TypeMapper) basePostgresType(
+	normalized string,
+) (goType, packageName string) {
+	switch normalized {
+	case "uuid":
+		return "uuid.UUID", "github.com/google/uuid"
+	case "varchar", "text", "char",
+		"xml", "tsvector", "tsquery",
+		"inet", "cidr", "macaddr", "macaddr8",
+		"point", "lseg", "box", "path", "polygon", "circle",
+		"int4range", "int8range", "numrange",
+		"tsrange", "tstzrange", "daterange",
+		"money", "bit", "varbit",
+		"interval":
+		return "string", ""
 	case "bytea":
-		if nullable {
-			return "[]byte", "pgtype.Bytea", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "[]byte", "[]byte", ""
-	case "boolean", "bool":
-		if nullable {
-			return "bool", "pgtype.Bool", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "bool", "bool", ""
-	case "integer", "int", "int4", "serial":
-		if nullable {
-			return "int32", "pgtype.Int4", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "int32", "int32", ""
-	case "bigint", "int8", "bigserial":
-		if nullable {
-			return "int64", "pgtype.Int8", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "int64", "int64", ""
-	case "smallint", "int2", "smallserial":
-		if nullable {
-			return "int16", "pgtype.Int2", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "int16", "int16", ""
-	case "real", "float4":
-		if nullable {
-			return "float32", "pgtype.Float4", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "float32", "float32", ""
-	case "double precision", "float8":
-		if nullable {
-			return "float64", "pgtype.Float8", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "float64", "float64", ""
+		return "[]byte", ""
+	case "boolean":
+		return "bool", ""
+	case "smallint":
+		return "int16", ""
+	case "integer":
+		return "int32", ""
+	case "bigint":
+		return "int64", ""
+	case "real":
+		return "float32", ""
+	case "double precision":
+		return "float64", ""
 	case "decimal", "numeric":
-		if nullable {
-			return "float64", "pgtype.Numeric", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "float64", "pgtype.Numeric", "github.com/jackc/pgx/v5/pgtype"
-	case "timestamp", "timestamp without time zone":
-		if nullable {
-			return "time.Time", "pgtype.Timestamp", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "time.Time", "pgtype.Timestamp", "github.com/jackc/pgx/v5/pgtype"
-	case "timestamptz", "timestamp with time zone":
-		if nullable {
-			return "time.Time", "pgtype.Timestamptz", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "time.Time", "pgtype.Timestamptz", "github.com/jackc/pgx/v5/pgtype"
-	case "date":
-		if nullable {
-			return "time.Time", "pgtype.Date", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "time.Time", "pgtype.Date", "github.com/jackc/pgx/v5/pgtype"
-	case "time":
-		if nullable {
-			return "time.Time", "pgtype.Time", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "time.Time", "pgtype.Time", "github.com/jackc/pgx/v5/pgtype"
-	case "timetz":
-		if nullable {
-			return "time.Time", "pgtype.Timetz", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "time.Time", "pgtype.Timetz", "github.com/jackc/pgx/v5/pgtype"
-	case "interval":
-		if nullable {
-			return "string", "pgtype.Interval", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Interval", "github.com/jackc/pgx/v5/pgtype"
-	case "jsonb":
-		if nullable {
-			return "[]byte", "pgtype.JSONB", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "[]byte", "pgtype.JSONB", "github.com/jackc/pgx/v5/pgtype"
-	case "json":
-		if nullable {
-			return "[]byte", "pgtype.JSON", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "[]byte", "pgtype.JSON", "github.com/jackc/pgx/v5/pgtype"
-	case "inet":
-		if nullable {
-			return "string", "pgtype.Inet", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Inet", "github.com/jackc/pgx/v5/pgtype"
-	case "cidr":
-		if nullable {
-			return "string", "pgtype.CIDR", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.CIDR", "github.com/jackc/pgx/v5/pgtype"
-	case "macaddr":
-		if nullable {
-			return "string", "pgtype.Macaddr", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Macaddr", "github.com/jackc/pgx/v5/pgtype"
-	case "macaddr8":
-		if nullable {
-			return "string", "pgtype.Macaddr8", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Macaddr8", "github.com/jackc/pgx/v5/pgtype"
-	case "point":
-		if nullable {
-			return "string", "pgtype.Point", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Point", "github.com/jackc/pgx/v5/pgtype"
-	case "lseg":
-		if nullable {
-			return "string", "pgtype.Lseg", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Lseg", "github.com/jackc/pgx/v5/pgtype"
-	case "box":
-		if nullable {
-			return "string", "pgtype.Box", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Box", "github.com/jackc/pgx/v5/pgtype"
-	case "path":
-		if nullable {
-			return "string", "pgtype.Path", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Path", "github.com/jackc/pgx/v5/pgtype"
-	case "polygon":
-		if nullable {
-			return "string", "pgtype.Polygon", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Polygon", "github.com/jackc/pgx/v5/pgtype"
-	case "circle":
-		if nullable {
-			return "string", "pgtype.Circle", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Circle", "github.com/jackc/pgx/v5/pgtype"
-	case "int4range":
-		if nullable {
-			return "string", "pgtype.Int4range", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Int4range", "github.com/jackc/pgx/v5/pgtype"
-	case "int8range":
-		if nullable {
-			return "string", "pgtype.Int8range", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Int8range", "github.com/jackc/pgx/v5/pgtype"
-	case "numrange":
-		if nullable {
-			return "string", "pgtype.Numrange", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Numrange", "github.com/jackc/pgx/v5/pgtype"
-	case "tsrange":
-		if nullable {
-			return "string", "pgtype.Tsrange", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Tsrange", "github.com/jackc/pgx/v5/pgtype"
-	case "tstzrange":
-		if nullable {
-			return "string", "pgtype.Tstzrange", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Tstzrange", "github.com/jackc/pgx/v5/pgtype"
-	case "daterange":
-		if nullable {
-			return "string", "pgtype.Daterange", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Daterange", "github.com/jackc/pgx/v5/pgtype"
-	case "money":
-		if nullable {
-			return "string", "pgtype.Money", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Money", "github.com/jackc/pgx/v5/pgtype"
-	case "bit":
-		if nullable {
-			return "string", "pgtype.Bit", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Bit", "github.com/jackc/pgx/v5/pgtype"
-	case "varbit":
-		if nullable {
-			return "string", "pgtype.Varbit", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "pgtype.Varbit", "github.com/jackc/pgx/v5/pgtype"
-	case "xml":
-		if nullable {
-			return "string", "pgtype.Text", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "string", ""
-	case "tsvector":
-		if nullable {
-			return "string", "pgtype.Text", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "string", ""
-	case "tsquery":
-		if nullable {
-			return "string", "pgtype.Text", "github.com/jackc/pgx/v5/pgtype"
-		}
-		return "string", "string", ""
+		return "float64", ""
+	case "timestamp", "timestamp without time zone",
+		"timestamptz", "timestamp with time zone",
+		"date", "time", "timetz":
+		return "time.Time", "time"
+	case "json", "jsonb":
+		return "[]byte", ""
 	case "_integer":
-		// sqlc generates []int32 directly for integer[] columns, no pgtype wrapper
-		return "[]int32", "[]int32", ""
+		return "[]int32", ""
 	case "_text":
-		// sqlc generates []string directly for text[] columns, no pgtype wrapper
-		return "[]string", "[]string", ""
-	default:
-		return "", "", ""
-	}
-}
-
-func (tm *TypeMapper) GenerateConversionToDB(
-	sqlcType string,
-	goType string,
-	valueExpr string,
-) string {
-	if strings.HasPrefix(sqlcType, "pgtype.") {
-		switch sqlcType {
-		case "pgtype.Text":
-			return fmt.Sprintf("pgtype.Text{String: %s, Valid: true}", valueExpr)
-		case "pgtype.Int4":
-			return fmt.Sprintf("pgtype.Int4{Int32: %s, Valid: true}", valueExpr)
-		case "pgtype.Int8":
-			return fmt.Sprintf("pgtype.Int8{Int64: %s, Valid: true}", valueExpr)
-		case "pgtype.Int2":
-			return fmt.Sprintf("pgtype.Int2{Int16: %s, Valid: true}", valueExpr)
-		case "pgtype.Float4":
-			return fmt.Sprintf("pgtype.Float4{Float32: %s, Valid: true}", valueExpr)
-		case "pgtype.Float8":
-			return fmt.Sprintf("pgtype.Float8{Float64: %s, Valid: true}", valueExpr)
-		case "pgtype.Bool":
-			return fmt.Sprintf("pgtype.Bool{Bool: %s, Valid: true}", valueExpr)
-		case "pgtype.Timestamptz":
-			return fmt.Sprintf("pgtype.Timestamptz{Time: %s, Valid: true}", valueExpr)
-		case "pgtype.Timestamp":
-			return fmt.Sprintf("pgtype.Timestamp{Time: %s, Valid: true}", valueExpr)
-		case "pgtype.Date":
-			return fmt.Sprintf("pgtype.Date{Time: %s, Valid: true}", valueExpr)
-		case "pgtype.Time":
-			return fmt.Sprintf("pgtype.Time{Time: %s, Valid: true}", valueExpr)
-		case "pgtype.Timetz":
-			return fmt.Sprintf("pgtype.Timetz{Time: %s, Valid: true}", valueExpr)
-		case "pgtype.Interval":
-			return fmt.Sprintf("pgtype.Interval{Microseconds: %s, Valid: true}", valueExpr)
-		case "pgtype.JSONB", "pgtype.JSON":
-			// JSONB and JSON types accept []byte directly without wrapping
-			return valueExpr
-		case "pgtype.UUID":
-			return fmt.Sprintf("pgtype.UUID{Bytes: %s, Valid: true}", valueExpr)
-		case "pgtype.Inet", "pgtype.CIDR", "pgtype.Macaddr", "pgtype.Macaddr8":
-			return fmt.Sprintf("pgtype.Inet{IPNet: %s, Valid: true}", valueExpr)
-		case "pgtype.Money":
-			return fmt.Sprintf("pgtype.Money{String: %s, Valid: true}", valueExpr)
-		default:
-			return valueExpr
-		}
+		return "[]string", ""
 	}
 
-	if strings.HasPrefix(sqlcType, "sql.Null") {
-		switch sqlcType {
-		case "sql.NullString":
-			return fmt.Sprintf("sql.NullString{String: %s, Valid: true}", valueExpr)
-		case "sql.NullInt64":
-			return fmt.Sprintf("sql.NullInt64{Int64: %s, Valid: true}", valueExpr)
-		case "sql.NullFloat64":
-			return fmt.Sprintf("sql.NullFloat64{Float64: %s, Valid: true}", valueExpr)
-		case "sql.NullBool":
-			return fmt.Sprintf("sql.NullBool{Bool: %s, Valid: true}", valueExpr)
-		case "sql.NullTime":
-			return fmt.Sprintf("sql.NullTime{Time: %s, Valid: true}", valueExpr)
-		default:
-			return valueExpr
-		}
-	}
-
-	return valueExpr
-}
-
-func (tm *TypeMapper) GenerateZeroCheck(
-	goType string,
-	valueExpr string,
-) string {
-	switch goType {
-	case "uuid.UUID":
-		return fmt.Sprintf("%s != uuid.Nil", valueExpr)
-	case "int16", "int32", "int64", "int":
-		return fmt.Sprintf("%s != 0", valueExpr)
-	case "string":
-		return fmt.Sprintf("%s != \"\"", valueExpr)
-	default:
-		if strings.HasPrefix(goType, "pgtype.") {
-			return fmt.Sprintf("%s.Valid", valueExpr)
-		}
-		if strings.HasPrefix(goType, "sql.Null") {
-			return fmt.Sprintf("%s.Valid", valueExpr)
-		}
-		return "true"
-	}
+	return "", ""
 }
 
 func normalizeSQLType(sqlType string) string {
@@ -459,11 +150,11 @@ func normalizeSQLType(sqlType string) string {
 	}
 
 	switch normalizedType {
-	case "int4":
+	case "int4", "serial":
 		return "integer"
-	case "int8":
+	case "int8", "bigserial":
 		return "bigint"
-	case "int2":
+	case "int2", "smallserial":
 		return "smallint"
 	case "float4":
 		return "real"
@@ -477,13 +168,10 @@ func normalizeSQLType(sqlType string) string {
 		return "varchar"
 	case "character":
 		return "char"
-	case "integer[]":
-		return "_integer"
-	case "integer[][]":
+	case "integer[]", "integer[][]":
 		return "_integer"
 	case "text[]":
 		return "_text"
-
 	case "native character", "nchar":
 		return "char"
 	case "nvarchar":
@@ -558,175 +246,4 @@ func FormatCamelCase(dbColumnName string) string {
 
 func (tm *TypeMapper) GetDatabaseType() string {
 	return tm.DatabaseType
-}
-
-func ValidateSQLCConfig(projectPath string) error {
-	basePath := filepath.Join(projectPath, "internal", "storage", "andurel_sqlc_config.yaml")
-	if _, err := os.Stat(basePath); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("failed to stat sqlc config: %w", err)
-	}
-
-	userPath := filepath.Join(projectPath, "database", "sqlc.yaml")
-	if _, err := os.Stat(userPath); err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("missing %s", userPath)
-		}
-		return fmt.Errorf("failed to stat sqlc config: %w", err)
-	}
-
-	baseMap, err := readYAMLAsMap(basePath)
-	if err != nil {
-		return fmt.Errorf("failed to read base sqlc config: %w", err)
-	}
-	userMap, err := readYAMLAsMap(userPath)
-	if err != nil {
-		return fmt.Errorf("failed to read user sqlc config: %w", err)
-	}
-	if len(userMap) == 0 {
-		return fmt.Errorf("database/sqlc.yaml cannot be empty")
-	}
-	issues := collectSQLCSubsetIssues(baseMap, userMap, basePath, userPath, "")
-	if len(issues) > 0 {
-		return formatSQLCValidationIssues(issues)
-	}
-
-	return nil
-}
-
-func readYAMLAsMap(path string) (map[string]any, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	if strings.TrimSpace(string(data)) == "" {
-		return map[string]any{}, nil
-	}
-
-	result := map[string]any{}
-	if err := yaml.Unmarshal(data, &result); err != nil {
-		return nil, err
-	}
-	if result == nil {
-		return map[string]any{}, nil
-	}
-	return result, nil
-}
-
-func collectSQLCSubsetIssues(base, user any, basePath, userPath, fieldPath string) []string {
-	switch baseTyped := base.(type) {
-	case map[string]any:
-		userTyped, ok := user.(map[string]any)
-		if !ok {
-			return []string{fmt.Sprintf("%s must be a map", renderFieldPath(fieldPath))}
-		}
-		issues := make([]string, 0)
-		for key, baseValue := range baseTyped {
-			userValue, ok := userTyped[key]
-			childPath := joinFieldPath(fieldPath, key)
-			if !ok {
-				issues = append(issues, fmt.Sprintf("missing required key %q in database/sqlc.yaml", childPath))
-				continue
-			}
-			issues = append(issues, collectSQLCSubsetIssues(baseValue, userValue, basePath, userPath, childPath)...)
-		}
-		return issues
-	case []any:
-		userTyped, ok := user.([]any)
-		if !ok {
-			return []string{fmt.Sprintf("%s must be a list", renderFieldPath(fieldPath))}
-		}
-		issues := make([]string, 0)
-		for _, baseValue := range baseTyped {
-			bestIssues := []string{"no candidate entries found"}
-			for _, userValue := range userTyped {
-				candidateIssues := collectSQLCSubsetIssues(baseValue, userValue, basePath, userPath, fieldPath)
-				if len(candidateIssues) == 0 {
-					bestIssues = nil
-					break
-				}
-				if len(candidateIssues) < len(bestIssues) {
-					bestIssues = candidateIssues
-				}
-			}
-			if bestIssues == nil {
-				continue
-			}
-			issue := fmt.Sprintf(
-				"missing required entry under %s from internal/storage/andurel_sqlc_config.yaml: %s",
-				renderFieldPath(fieldPath),
-				summarizeYAMLValue(baseValue),
-			)
-			if len(bestIssues) > 0 {
-				issue = issue + fmt.Sprintf(" (closest mismatch: %s)", bestIssues[0])
-			}
-			issues = append(issues, issue)
-		}
-		return issues
-	default:
-		if valuesEqualForField(base, user, basePath, userPath, fieldPath) {
-			return nil
-		}
-		return []string{fmt.Sprintf("required value mismatch at %s: expected %v, got %v", renderFieldPath(fieldPath), base, user)}
-	}
-}
-
-func formatSQLCValidationIssues(issues []string) error {
-	const maxIssues = 12
-	if len(issues) > maxIssues {
-		remaining := len(issues) - maxIssues
-		issues = append(issues[:maxIssues], fmt.Sprintf("... and %d more issue(s)", remaining))
-	}
-	return fmt.Errorf(
-		"database/sqlc.yaml does not satisfy required settings from internal/storage/andurel_sqlc_config.yaml:\n- %s",
-		strings.Join(issues, "\n- "),
-	)
-}
-
-func summarizeYAMLValue(value any) string {
-	raw, err := yaml.Marshal(value)
-	if err != nil {
-		return fmt.Sprint(value)
-	}
-	summary := strings.TrimSpace(string(raw))
-	summary = strings.ReplaceAll(summary, "\n", "; ")
-	return summary
-}
-
-func valuesEqualForField(base, user any, basePath, userPath, fieldPath string) bool {
-	baseStr, baseIsString := base.(string)
-	userStr, userIsString := user.(string)
-	if baseIsString && userIsString && isPathField(fieldPath) {
-		return resolveConfigPath(baseStr, basePath) == resolveConfigPath(userStr, userPath)
-	}
-	return fmt.Sprint(base) == fmt.Sprint(user)
-}
-
-func isPathField(fieldPath string) bool {
-	return strings.HasSuffix(fieldPath, ".schema") ||
-		strings.HasSuffix(fieldPath, ".queries") ||
-		strings.HasSuffix(fieldPath, ".out")
-}
-
-func resolveConfigPath(value, configPath string) string {
-	if filepath.IsAbs(value) {
-		return filepath.Clean(value)
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(configPath), value))
-}
-
-func joinFieldPath(parent, child string) string {
-	if parent == "" {
-		return child
-	}
-	return parent + "." + child
-}
-
-func renderFieldPath(fieldPath string) string {
-	if fieldPath == "" {
-		return "root"
-	}
-	return fieldPath
 }

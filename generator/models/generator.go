@@ -21,37 +21,36 @@ import (
 )
 
 type GeneratedField struct {
-	Name                    string
-	Type                    string
-	Comment                 string
-	Package                 string
-	SQLCType                string
-	ConversionFromDB        string
-	ConversionToDB          string
-	ConversionToDBForUpdate string
-	ZeroCheck               string
-	IsForeignKey            bool
+	Name         string
+	Type         string
+	Comment      string
+	Package      string
+	BunTag       string // Full bun struct tag (e.g., `bun:"id,pk,type:uuid"`)
+	IsForeignKey bool
+	IsNullable   bool
+	IsPrimaryKey bool
 }
 
 type GeneratedModel struct {
-	Name                 string
-	PluralName           string // The pluralized form of Name for function names (respects --table-name override)
-	SQLCModelName        string // The SQLC row struct name derived from the table name
-	Package              string
-	Fields               []GeneratedField
-	StandardImports      []string
-	ExternalImports      []string
-	Imports              []string
-	TableName            string
-	TableNameOverride    string
-	TableNameOverridden  bool
-	ModulePath           string
-	DatabaseType         string
-	IDType               string          // "uuid.UUID", "int32", "int64", "string"
-	IDGoType             string          // Same as IDType (for template clarity)
-	IsAutoIncrementID    bool            // True for serial/bigserial
-	HasSingleInsertParam bool            // True when SQLC won't create an InsertXxxParams struct
-	SingleInsertField    *GeneratedField // The single field when HasSingleInsertParam is true
+	Name                string
+	PluralName          string // The pluralized form of Name for function names (respects --table-name override)
+	Package             string
+	Fields              []GeneratedField
+	StandardImports     []string
+	ExternalImports     []string
+	Imports             []string
+	TableName           string
+	TableNameOverride   string
+	TableNameOverridden bool
+	ModulePath          string
+	DatabaseType        string
+	IDType              string // "uuid.UUID", "int32", "int64", "string"
+	IDGoType            string // Same as IDType (for template clarity)
+	IsAutoIncrementID   bool   // True for serial/bigserial
+	EntityName          string // ServerEntity (resource name + "Entity")
+	NamespaceVar        string // Server (exported, package-scope)
+	NamespaceType       string // server (unexported receiver type)
+	ReceiverName        string // s (for the namespace methods)
 }
 
 type Config struct {
@@ -63,41 +62,13 @@ type Config struct {
 	CustomTypes  []types.TypeOverride
 }
 
-type SQLData struct {
-	ResourceName           string
-	PluralName             string
-	PluralResourceName     string // The pluralized form of ResourceName for query function names
-	InsertColumns          string
-	InsertPlaceholders     string
-	UpdateColumns          string
-	DatabaseType           string
-	IDPlaceholder          string
-	LimitOffsetClause      string
-	NowFunction            string
-	UpsertUpdateSet        string
-	OrderByClause          string
-	TableNameOverridden    bool
-	IDType                 string // "uuid.UUID", "int32", "int64", "string"
-	IsAutoIncrementID      bool   // True for serial/bigserial
-	InsertColumnsNoID      string // Columns excluding id (for auto-increment)
-	InsertPlaceholdersNoID string // Placeholders excluding id (for auto-increment)
-}
-
-// SimpleSQLData is used for queries-only generation (no model layer).
-// It treats all columns uniformly without special handling for timestamps.
-type SimpleSQLData struct {
-	ResourceName           string
-	PluralName             string
-	PluralResourceName     string
-	InsertColumns          string
-	InsertPlaceholders     string
-	UpdateColumns          string
-	IDPlaceholder          string
-	UpsertUpdateSet        string
-	IDType                 string // "uuid.UUID", "int32", "int64", "string"
-	IsAutoIncrementID      bool   // True for serial/bigserial
-	InsertColumnsNoID      string // Columns excluding id (for auto-increment)
-	InsertPlaceholdersNoID string // Placeholders excluding id (for auto-increment)
+// BunModelConfig holds configuration for bun model generation
+type BunModelConfig struct {
+	ResourceName       string
+	TableName         string
+	ModulePath        string
+	PackageName       string
+	UseSoftDelete     bool // If true, use deleted_at for soft deletes
 }
 
 type Generator struct {
@@ -112,6 +83,26 @@ func NewGenerator(databaseType string) *Generator {
 	}
 }
 
+// BuildCatalogFromMigrations builds a catalog from migration files
+func (g *Generator) BuildCatalogFromMigrations(tableName string, migrationDirs []string) (*catalog.Catalog, error) {
+	allMigrations, err := migrations.DiscoverMigrations(migrationDirs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to discover migrations: %w", err)
+	}
+
+	cat := catalog.NewCatalog("public")
+
+	for _, migration := range allMigrations {
+		for _, statement := range migration.Statements {
+			if err := ddl.ApplyDDL(cat, statement, migration.FilePath, g.databaseType); err != nil {
+				return nil, fmt.Errorf("failed to apply DDL from %s: %w", migration.FilePath, err)
+			}
+		}
+	}
+
+	return cat, nil
+}
+
 func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel, error) {
 	table, err := cat.GetTable("", config.TableName)
 	if err != nil {
@@ -120,21 +111,30 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 
 	g.typeMapper.Overrides = append(g.typeMapper.Overrides, config.CustomTypes...)
 
+	entityName := config.ResourceName + "Entity"
+	namespaceVar := config.ResourceName
+	namespaceType := naming.ToLowerCamelCaseFromAny(config.ResourceName)
+	receiverName := naming.ToReceiverName(config.ResourceName)
+
 	model := &GeneratedModel{
-		Name:            config.ResourceName,
-		PluralName:      inflection.Plural(config.ResourceName), // Default to standard pluralization
-		SQLCModelName:   naming.DeriveResourceName(config.TableName),
-		Package:         config.PackageName,
-		TableName:       config.TableName,
-		ModulePath:      config.ModulePath,
-		DatabaseType:    g.typeMapper.GetDatabaseType(),
-		Fields:          make([]GeneratedField, 0, len(table.Columns)),
-		StandardImports: make([]string, 0),
-		ExternalImports: make([]string, 0),
-		Imports:         make([]string, 0),
+		Name:             config.ResourceName,
+		PluralName:       inflection.Plural(config.ResourceName),
+		EntityName:       entityName,
+		NamespaceVar:     namespaceVar,
+		NamespaceType:    namespaceType,
+		ReceiverName:     receiverName,
+		Package:          config.PackageName,
+		TableName:        config.TableName,
+		ModulePath:       config.ModulePath,
+		DatabaseType:     g.typeMapper.GetDatabaseType(),
+		Fields:           make([]GeneratedField, 0, len(table.Columns)),
+		StandardImports:  make([]string, 0),
+		ExternalImports:  make([]string, 0),
+		Imports:          make([]string, 0),
 	}
 
 	importSet := make(map[string]bool)
+	importSet["github.com/uptrace/bun"] = true
 
 	for _, col := range table.Columns {
 		field, err := g.buildField(col)
@@ -151,13 +151,8 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 			importSet[imp] = true
 		}
 
-		if strings.Contains(field.SQLCType, "pgtype.") {
-			importSet["github.com/jackc/pgx/v5/pgtype"] = true
-		}
-
 		model.Fields = append(model.Fields, field)
 
-		// Detect ID type from primary key column
 		if col.Name == "id" && col.IsPrimaryKey {
 			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
 			model.IDType = validation.GoType(pkType)
@@ -166,27 +161,8 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		}
 	}
 
-	// Only add uuid import if the ID type uses UUID or if other fields use UUID
 	if model.IDType == "uuid.UUID" || model.IDType == "" {
 		importSet["github.com/google/uuid"] = true
-	}
-
-	// Calculate if there's only a single insert param (SQLC won't create a Params struct)
-	// Insert params exclude: ID (when auto-increment), CreatedAt, UpdatedAt
-	var insertParams []*GeneratedField
-	for i := range model.Fields {
-		field := &model.Fields[i]
-		if field.Name == "CreatedAt" || field.Name == "UpdatedAt" {
-			continue
-		}
-		if field.Name == "ID" && model.IsAutoIncrementID {
-			continue
-		}
-		insertParams = append(insertParams, field)
-	}
-	if len(insertParams) == 1 {
-		model.HasSingleInsertParam = true
-		model.SingleInsertField = insertParams[0]
 	}
 
 	stdImports, extImports := groupAndSortImports(importSet)
@@ -213,48 +189,22 @@ func groupAndSortImports(importSet map[string]bool) (stdImports []string, extImp
 }
 
 func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
-	var goType, sqlcType, pkg string
-	var err error
-
-	goType, sqlcType, _, err = g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
+	goType, pkg, err := g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
 	if err != nil {
 		return GeneratedField{}, err
 	}
 
-	goType = g.getSimpleGoType(goType, sqlcType)
-	pkg = g.getSimpleGoTypePackage(goType)
+	bunTag := g.typeMapper.BuildBunTag(col)
 
 	field := GeneratedField{
 		Name:         types.FormatFieldName(col.Name),
 		Type:         goType,
-		SQLCType:     sqlcType,
 		Package:      pkg,
+		BunTag:       bunTag,
 		IsForeignKey: col.ForeignKey != nil,
+		IsNullable:   col.IsNullable,
+		IsPrimaryKey: col.IsPrimaryKey,
 	}
-
-	field.ConversionFromDB = g.typeMapper.GenerateConversionFromDB(
-		field.Name,
-		field.SQLCType,
-		field.Type,
-	)
-
-	if col.Name == "created_at" || col.Name == "updated_at" {
-		field.ConversionToDB = ""
-	} else {
-		field.ConversionToDB = g.typeMapper.GenerateConversionToDB(field.SQLCType, field.Type, "data."+field.Name)
-	}
-
-	if col.Name == "updated_at" {
-		field.ConversionToDBForUpdate = ""
-	} else {
-		field.ConversionToDBForUpdate = g.typeMapper.GenerateConversionToDB(
-			field.SQLCType,
-			field.Type,
-			"data."+field.Name,
-		)
-	}
-
-	field.ZeroCheck = g.typeMapper.GenerateZeroCheck(field.Type, "data."+field.Name)
 
 	return field, nil
 }
@@ -270,74 +220,10 @@ func (g *Generator) addModelTypeImports(goType string) map[string]bool {
 	return importSet
 }
 
-func (g *Generator) getSimpleGoType(goType, sqlcType string) string {
-	// If it's already a simple Go type, keep it
-	if !strings.Contains(goType, "pgtype.") && !strings.Contains(goType, "sql.") {
-		return goType
-	}
-
-	// Convert pgtype and sql types to simple Go types
-	switch {
-	case strings.Contains(sqlcType, "pgtype.Int4"):
-		return "int32"
-	case strings.Contains(sqlcType, "pgtype.Int8"):
-		return "int64"
-	case strings.Contains(sqlcType, "pgtype.Int2"):
-		return "int16"
-	case strings.Contains(sqlcType, "pgtype.Float4"):
-		return "float32"
-	case strings.Contains(sqlcType, "pgtype.Float8"):
-		return "float64"
-	case strings.Contains(sqlcType, "pgtype.Bool"):
-		return "bool"
-	case strings.Contains(sqlcType, "pgtype.Text"):
-		return "string"
-	case strings.Contains(sqlcType, "pgtype.Timestamp"),
-		strings.Contains(sqlcType, "pgtype.Date"),
-		strings.Contains(sqlcType, "pgtype.Time"):
-		return "time.Time"
-	case strings.Contains(sqlcType, "pgtype.JSONB"),
-		strings.Contains(sqlcType, "pgtype.JSON"):
-		return "[]byte"
-	case strings.Contains(sqlcType, "sql.NullString"):
-		return "string"
-	case strings.Contains(sqlcType, "sql.NullInt64"):
-		return "int64"
-	case strings.Contains(sqlcType, "sql.NullFloat64"):
-		return "float64"
-	case strings.Contains(sqlcType, "sql.NullBool"):
-		return "bool"
-	case strings.Contains(sqlcType, "sql.NullTime"):
-		return "time.Time"
-	default:
-		return goType
-	}
-}
-
-func (g *Generator) getSimpleGoTypePackage(goType string) string {
-	switch {
-	case strings.Contains(goType, "time.Time"):
-		return "" // time is handled by addModelTypeImports
-	case strings.Contains(goType, "uuid.UUID"):
-		return "" // uuid is handled by addModelTypeImports
-	default:
-		return ""
-	}
-}
-
 func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string) (string, error) {
 	funcMap := template.FuncMap{
 		"lower": func(s string) string {
 			return strings.ToLower(s)
-		},
-		"toUpper": func(s string) string {
-			return strings.ToUpper(s)
-		},
-		"uuidParam": func(param string) string {
-			return param
-		},
-		"hasErrorHandling": func() bool {
-			return false
 		},
 		"Plural": inflection.Plural,
 	}
@@ -359,28 +245,17 @@ func (g *Generator) GenerateModel(
 	cat *catalog.Catalog,
 	resourceName string,
 	pluralName string,
-	modelPath, sqlPath string,
+	modelPath string,
 	modulePath string,
 	tableNameOverride string,
 ) error {
-	table, err := cat.GetTable("", pluralName)
-	if err != nil {
-		return fmt.Errorf(`table '%s' not found in catalog: %w
-
-Convention: Model names must be singular, table names must be plural snake_case.
-Example: Model 'UserAccount' expects table 'user_accounts'
-
-To use a different table name, run:
-  andurel generate model %s --table-name=your_table_name`,
-			pluralName, err, resourceName)
-	}
-
-	if err := g.GenerateSQLFile(resourceName, pluralName, table, sqlPath, tableNameOverride != ""); err != nil {
-		return fmt.Errorf("failed to generate SQL file: %w", err)
+	tableName := pluralName
+	if tableNameOverride != "" {
+		tableName = tableNameOverride
 	}
 
 	model, err := g.Build(cat, Config{
-		TableName:    pluralName,
+		TableName:    tableName,
 		ResourceName: resourceName,
 		PackageName:  "models",
 		DatabaseType: g.typeMapper.GetDatabaseType(),
@@ -418,690 +293,6 @@ To use a different table name, run:
 	}
 
 	return nil
-}
-
-func (g *Generator) GenerateSQLFile(
-	resourceName string,
-	pluralName string,
-	table *catalog.Table,
-	sqlPath string,
-	tableNameOverridden bool,
-) error {
-	data := g.prepareSQLData(resourceName, pluralName, table, tableNameOverridden)
-
-	// Use the unified template service
-	service := templates.GetGlobalTemplateService()
-	content, err := service.RenderTemplate("crud_operations.tmpl", data)
-	if err != nil {
-		return errors.WrapTemplateError(err, "generate SQL", "crud_operations.tmpl")
-	}
-
-	if err := os.WriteFile(sqlPath, []byte(content), constants.FilePermissionPrivate); err != nil {
-		return errors.WrapFileError(err, "write SQL file", sqlPath)
-	}
-	return nil
-}
-
-func (g *Generator) GenerateSQLContent(
-	resourceName string,
-	pluralName string,
-	table *catalog.Table,
-	tableNameOverridden bool,
-) (string, error) {
-	data := g.prepareSQLData(resourceName, pluralName, table, tableNameOverridden)
-
-	// Use the unified template service
-	service := templates.GetGlobalTemplateService()
-	result, err := service.RenderTemplate("crud_operations.tmpl", data)
-	if err != nil {
-		return "", errors.WrapTemplateError(err, "generate SQL content", "crud_operations.tmpl")
-	}
-	return result, nil
-}
-
-func (g *Generator) prepareSQLData(
-	resourceName string,
-	pluralName string,
-	table *catalog.Table,
-	tableNameOverridden bool,
-) SQLData {
-	var insertColumns []string
-	var insertPlaceholders []string
-	var insertColumnsNoID []string
-	var insertPlaceholdersNoID []string
-	var updateColumns []string
-	var upsertUpdateColumns []string
-
-	var placeholderFunc func(int) string
-	var nowFunc string
-	var idPlaceholder string
-	var limitOffsetClause string
-	hasCreatedAt := false
-
-	// Track ID type
-	var idType string
-	var isAutoIncrementID bool
-
-	if g.typeMapper.GetDatabaseType() == "postgresql" {
-		placeholderFunc = func(i int) string { return fmt.Sprintf("$%d", i) }
-		nowFunc = "now()"
-		idPlaceholder = "$1"
-		limitOffsetClause = "limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint"
-	}
-
-	placeholderIndex := 1
-	placeholderIndexNoID := 1
-
-	for _, col := range table.Columns {
-		if col.Name == "created_at" {
-			hasCreatedAt = true
-		}
-
-		// Detect ID type from primary key column
-		if col.Name == "id" && col.IsPrimaryKey {
-			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
-			idType = validation.GoType(pkType)
-			isAutoIncrementID = validation.IsAutoIncrement(col.DataType)
-		}
-
-		insertColumns = append(insertColumns, col.Name)
-
-		if col.Name == "created_at" || col.Name == "updated_at" {
-			insertPlaceholders = append(insertPlaceholders, nowFunc)
-			// For NoID version, also add timestamps
-			insertColumnsNoID = append(insertColumnsNoID, col.Name)
-			insertPlaceholdersNoID = append(insertPlaceholdersNoID, nowFunc)
-		} else if col.Name == "id" {
-			// Include id in full insert, skip in NoID version
-			insertPlaceholders = append(
-				insertPlaceholders,
-				placeholderFunc(placeholderIndex),
-			)
-			placeholderIndex++
-		} else {
-			insertPlaceholders = append(
-				insertPlaceholders,
-				placeholderFunc(placeholderIndex),
-			)
-			placeholderIndex++
-
-			// For NoID version
-			insertColumnsNoID = append(insertColumnsNoID, col.Name)
-			insertPlaceholdersNoID = append(
-				insertPlaceholdersNoID,
-				placeholderFunc(placeholderIndexNoID),
-			)
-			placeholderIndexNoID++
-		}
-	}
-
-	placeholderIndex = 2
-	for _, col := range table.Columns {
-		if col.Name != "id" && col.Name != "created_at" {
-			if col.Name == "updated_at" {
-				updateColumns = append(updateColumns, "updated_at="+nowFunc)
-				upsertUpdateColumns = append(upsertUpdateColumns, "updated_at="+nowFunc)
-			} else {
-				updateColumns = append(
-					updateColumns,
-					fmt.Sprintf("%s=%s", col.Name, placeholderFunc(placeholderIndex)),
-				)
-				upsertUpdateColumns = append(
-					upsertUpdateColumns,
-					fmt.Sprintf("%s=excluded.%s", col.Name, col.Name),
-				)
-				placeholderIndex++
-			}
-		}
-	}
-
-	// When table name is overridden (--table-name flag used), don't pluralize the resource name
-	// in query function names. Use the resource name as-is.
-	// Otherwise, use the standard plural form (e.g., Product -> Products)
-	pluralResourceName := inflection.Plural(resourceName)
-	if tableNameOverridden {
-		pluralResourceName = resourceName
-	}
-
-	orderByClause := "order by id desc"
-	if hasCreatedAt {
-		orderByClause = "order by created_at desc"
-	}
-
-	return SQLData{
-		ResourceName:           resourceName,
-		PluralName:             pluralName,
-		PluralResourceName:     pluralResourceName,
-		InsertColumns:          strings.Join(insertColumns, ", "),
-		InsertPlaceholders:     strings.Join(insertPlaceholders, ", "),
-		InsertColumnsNoID:      strings.Join(insertColumnsNoID, ", "),
-		InsertPlaceholdersNoID: strings.Join(insertPlaceholdersNoID, ", "),
-		UpdateColumns:          strings.Join(updateColumns, ", "),
-		DatabaseType:           g.typeMapper.GetDatabaseType(),
-		IDPlaceholder:          idPlaceholder,
-		LimitOffsetClause:      limitOffsetClause,
-		NowFunction:            nowFunc,
-		UpsertUpdateSet:        strings.Join(upsertUpdateColumns, ", "),
-		OrderByClause:          orderByClause,
-		TableNameOverridden:    tableNameOverridden,
-		IDType:                 idType,
-		IsAutoIncrementID:      isAutoIncrementID,
-	}
-}
-
-// prepareSQLDataSimple prepares data for queries-only generation.
-// Unlike prepareSQLData, it treats all columns uniformly without special
-// handling for created_at/updated_at timestamps.
-func (g *Generator) prepareSQLDataSimple(
-	resourceName string,
-	pluralName string,
-	table *catalog.Table,
-	tableNameOverridden bool,
-) SimpleSQLData {
-	var insertColumns []string
-	var insertPlaceholders []string
-	var insertColumnsNoID []string
-	var insertPlaceholdersNoID []string
-	var updateColumns []string
-	var upsertUpdateColumns []string
-
-	var placeholderFunc func(int) string
-	var idPlaceholder string
-	var nowFunc string
-
-	// Track ID type
-	var idType string
-	var isAutoIncrementID bool
-
-	if g.typeMapper.GetDatabaseType() == "postgresql" {
-		placeholderFunc = func(i int) string { return fmt.Sprintf("$%d", i) }
-		idPlaceholder = "$1"
-		nowFunc = "now()"
-	}
-
-	placeholderIndex := 1
-	placeholderIndexNoID := 1
-
-	// Special handling for created_at/updated_at to always use now()
-	for _, col := range table.Columns {
-		// Detect ID type from primary key column
-		if col.Name == "id" && col.IsPrimaryKey {
-			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
-			idType = validation.GoType(pkType)
-			isAutoIncrementID = validation.IsAutoIncrement(col.DataType)
-		}
-
-		insertColumns = append(insertColumns, col.Name)
-		if col.Name == "created_at" || col.Name == "updated_at" {
-			insertPlaceholders = append(insertPlaceholders, nowFunc)
-		} else {
-			insertPlaceholders = append(insertPlaceholders, placeholderFunc(placeholderIndex))
-			placeholderIndex++
-		}
-
-		// For NoID version, skip the id column
-		if col.Name != "id" {
-			insertColumnsNoID = append(insertColumnsNoID, col.Name)
-			if col.Name == "created_at" || col.Name == "updated_at" {
-				insertPlaceholdersNoID = append(insertPlaceholdersNoID, nowFunc)
-			} else {
-				insertPlaceholdersNoID = append(insertPlaceholdersNoID, placeholderFunc(placeholderIndexNoID))
-				placeholderIndexNoID++
-			}
-		}
-	}
-
-	// Update columns: skip id and created_at; set updated_at to now()
-	placeholderIndex = 2
-	for _, col := range table.Columns {
-		if col.Name != "id" && col.Name != "created_at" {
-			if col.Name == "updated_at" {
-				updateColumns = append(updateColumns, "updated_at="+nowFunc)
-				upsertUpdateColumns = append(upsertUpdateColumns, "updated_at="+nowFunc)
-				continue
-			}
-			updateColumns = append(
-				updateColumns,
-				fmt.Sprintf("%s=%s", col.Name, placeholderFunc(placeholderIndex)),
-			)
-			upsertUpdateColumns = append(
-				upsertUpdateColumns,
-				fmt.Sprintf("%s=excluded.%s", col.Name, col.Name),
-			)
-			placeholderIndex++
-		}
-	}
-
-	// When table name is overridden, don't pluralize the resource name
-	pluralResourceName := inflection.Plural(resourceName)
-	if tableNameOverridden {
-		pluralResourceName = resourceName
-	}
-
-	return SimpleSQLData{
-		ResourceName:           resourceName,
-		PluralName:             pluralName,
-		PluralResourceName:     pluralResourceName,
-		InsertColumns:          strings.Join(insertColumns, ", "),
-		InsertPlaceholders:     strings.Join(insertPlaceholders, ", "),
-		InsertColumnsNoID:      strings.Join(insertColumnsNoID, ", "),
-		InsertPlaceholdersNoID: strings.Join(insertPlaceholdersNoID, ", "),
-		UpdateColumns:          strings.Join(updateColumns, ", "),
-		IDPlaceholder:          idPlaceholder,
-		UpsertUpdateSet:        strings.Join(upsertUpdateColumns, ", "),
-		IDType:                 idType,
-		IsAutoIncrementID:      isAutoIncrementID,
-	}
-}
-
-// GenerateQueriesOnlyFile generates a SQL file using the queries_only.tmpl template.
-// This is used for lightweight query generation without a model layer.
-func (g *Generator) GenerateQueriesOnlyFile(
-	resourceName string,
-	pluralName string,
-	table *catalog.Table,
-	sqlPath string,
-	tableNameOverridden bool,
-) error {
-	data := g.prepareSQLDataSimple(resourceName, pluralName, table, tableNameOverridden)
-
-	// Use the unified template service
-	service := templates.GetGlobalTemplateService()
-	content, err := service.RenderTemplate("queries_only.tmpl", data)
-	if err != nil {
-		return errors.WrapTemplateError(err, "generate queries-only SQL", "queries_only.tmpl")
-	}
-
-	if err := os.WriteFile(sqlPath, []byte(content), constants.FilePermissionPrivate); err != nil {
-		return errors.WrapFileError(err, "write SQL file", sqlPath)
-	}
-	return nil
-}
-
-// GenerateQueriesOnlyContent generates SQL content using the queries_only.tmpl template.
-// This is used for refreshing queries-only files.
-func (g *Generator) GenerateQueriesOnlyContent(
-	resourceName string,
-	pluralName string,
-	table *catalog.Table,
-	tableNameOverridden bool,
-) (string, error) {
-	data := g.prepareSQLDataSimple(resourceName, pluralName, table, tableNameOverridden)
-
-	service := templates.GetGlobalTemplateService()
-	result, err := service.RenderTemplate("queries_only.tmpl", data)
-	if err != nil {
-		return "", errors.WrapTemplateError(err, "generate queries-only content", "queries_only.tmpl")
-	}
-	return result, nil
-}
-
-// RefreshQueriesOnly refreshes a queries-only SQL file (without model layer).
-func (g *Generator) RefreshQueriesOnly(
-	cat *catalog.Catalog,
-	resourceName, pluralName string,
-	sqlPath string,
-	tableNameOverridden bool,
-) error {
-	if err := g.validateIDColumnConstraints(cat, pluralName); err != nil {
-		return fmt.Errorf("ID validation failed: %w", err)
-	}
-
-	if err := g.refreshQueriesOnlyFile(resourceName, pluralName, cat, sqlPath, tableNameOverridden); err != nil {
-		return fmt.Errorf("failed to refresh queries-only SQL file: %w", err)
-	}
-
-	return nil
-}
-
-func (g *Generator) refreshQueriesOnlyFile(
-	resourceName string,
-	pluralName string,
-	cat *catalog.Catalog,
-	sqlPath string,
-	tableNameOverridden bool,
-) error {
-	existingContent, err := os.ReadFile(sqlPath)
-	if err != nil {
-		return fmt.Errorf("failed to read existing SQL file: %w", err)
-	}
-
-	table, err := cat.GetTable("", pluralName)
-	if err != nil {
-		return fmt.Errorf(`table '%s' not found in catalog: %w
-
-Convention: Table names must be plural snake_case.
-Example: 'user_roles' for the UserRole resource`,
-			pluralName, err)
-	}
-
-	newSQLContent, err := g.GenerateQueriesOnlyContent(resourceName, pluralName, table, tableNameOverridden)
-	if err != nil {
-		return fmt.Errorf("failed to generate queries-only SQL content: %w", err)
-	}
-
-	updatedContent := g.replaceGeneratedQueriesOnlyQueries(
-		string(existingContent),
-		newSQLContent,
-		resourceName,
-	)
-
-	if err := os.WriteFile(sqlPath, []byte(updatedContent), constants.FilePermissionPrivate); err != nil {
-		return fmt.Errorf("failed to write SQL file: %w", err)
-	}
-
-	return nil
-}
-
-func (g *Generator) replaceGeneratedQueriesOnlyQueries(
-	existingContent, newContent, resourceName string,
-) string {
-	newQueries := g.extractGeneratedQueriesOnlyQueries(newContent, resourceName)
-
-	updatedContent := existingContent
-
-	for queryName, newQuery := range newQueries {
-		if g.queryExistsInContent(updatedContent, queryName) {
-			updatedContent = g.replaceSQLQueryByName(updatedContent, queryName, newQuery)
-		} else {
-			updatedContent = strings.TrimSpace(updatedContent) + "\n\n" + newQuery + "\n"
-		}
-	}
-
-	return updatedContent
-}
-
-func (g *Generator) extractGeneratedQueriesOnlyQueries(content, resourceName string) map[string]string {
-	queries := make(map[string]string)
-	lines := strings.Split(content, "\n")
-
-	// Queries-only template has fewer queries (no pagination, no count)
-	queryNames := []string{
-		fmt.Sprintf("Query%sByID", resourceName),
-		fmt.Sprintf("Query%ss", resourceName),
-		fmt.Sprintf("Insert%s", resourceName),
-		fmt.Sprintf("Update%s", resourceName),
-		fmt.Sprintf("Delete%s", resourceName),
-		fmt.Sprintf("Upsert%s", resourceName),
-	}
-
-	for _, queryName := range queryNames {
-		query := g.extractSQLQueryByName(lines, queryName)
-		if query != "" {
-			queries[queryName] = query
-		}
-	}
-
-	return queries
-}
-
-func (g *Generator) buildCatalogFromTableMigrations(
-	tableName string,
-	migrationDirs []string,
-) (*catalog.Catalog, error) {
-	allMigrations, err := migrations.DiscoverMigrations(migrationDirs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to discover migrations: %w", err)
-	}
-
-	relevantMigrations := g.filterMigrationsForTable(tableName, allMigrations)
-
-	cat := catalog.NewCatalog("public")
-
-	for _, migration := range relevantMigrations {
-		for _, statement := range migration.Statements {
-			if err := ddl.ApplyDDL(cat, statement, migration.FilePath, g.databaseType); err != nil {
-				return nil, fmt.Errorf("failed to apply DDL from %s: %w", migration.FilePath, err)
-			}
-		}
-	}
-
-	return cat, nil
-}
-
-func (g *Generator) filterMigrationsForTable(
-	tableName string,
-	allMigrations []migrations.Migration,
-) []migrations.Migration {
-	var relevantMigrations []migrations.Migration
-
-	for _, migration := range allMigrations {
-		isRelevant := false
-
-		for _, statement := range migration.Statements {
-			if g.statementAffectsTable(statement, tableName) {
-				isRelevant = true
-				break
-			}
-		}
-
-		if isRelevant {
-			relevantMigrations = append(relevantMigrations, migration)
-		}
-	}
-
-	return relevantMigrations
-}
-
-func (g *Generator) statementAffectsTable(statement, tableName string) bool {
-	parser := ddl.NewDDLParser()
-	stmt, err := parser.Parse(statement, "", g.databaseType)
-	if err != nil {
-		// Don't filter out statements that fail to parse - let them be processed
-		// by ApplyDDL so validation errors can be properly reported
-		return strings.Contains(strings.ToLower(statement), strings.ToLower(tableName))
-	}
-
-	if stmt == nil {
-		return false
-	}
-
-	// Check based on statement type
-	switch s := stmt.(type) {
-	case *ddl.CreateTableStatement:
-		return s.TableName == tableName
-	case *ddl.AlterTableStatement:
-		return s.TableName == tableName
-	case *ddl.DropTableStatement:
-		return s.TableName == tableName
-	default:
-		return false
-	}
-}
-
-func (g *Generator) GenerateModelFromMigrations(
-	tableName, resourceName string,
-	migrationDirs []string,
-	modelPath, sqlPath string,
-	modulePath string,
-) error {
-	cat, err := g.buildCatalogFromTableMigrations(tableName, migrationDirs)
-	if err != nil {
-		return fmt.Errorf("failed to build catalog from migrations: %w", err)
-	}
-
-	return g.GenerateModel(cat, resourceName, tableName, modelPath, sqlPath, modulePath, "")
-}
-
-func (g *Generator) RefreshQueries(
-	cat *catalog.Catalog,
-	resourceName, pluralName string,
-	sqlPath string,
-	tableNameOverridden bool,
-) error {
-	if err := g.validateIDColumnConstraints(cat, pluralName); err != nil {
-		return fmt.Errorf("ID validation failed: %w", err)
-	}
-
-	if err := g.refreshSQLFile(resourceName, pluralName, cat, sqlPath, tableNameOverridden); err != nil {
-		return fmt.Errorf("failed to refresh SQL file: %w", err)
-	}
-
-	return nil
-}
-
-func (g *Generator) validateIDColumnConstraints(cat *catalog.Catalog, tableName string) error {
-	table, err := cat.GetTable("", tableName)
-	if err != nil {
-		return fmt.Errorf("table '%s' not found in catalog: %w", tableName, err)
-	}
-
-	for _, col := range table.Columns {
-		if col.Name == "id" && col.IsPrimaryKey {
-			if err := col.ValidatePrimaryKeyDatatype(g.databaseType, "refresh operation"); err != nil {
-				return err
-			}
-			return nil
-		}
-	}
-
-	return fmt.Errorf("no primary key 'id' column found in table '%s'", tableName)
-}
-
-func (g *Generator) refreshSQLFile(
-	resourceName string,
-	pluralName string,
-	cat *catalog.Catalog,
-	sqlPath string,
-	tableNameOverridden bool,
-) error {
-	existingContent, err := os.ReadFile(sqlPath)
-	if err != nil {
-		return fmt.Errorf("failed to read existing SQL file: %w", err)
-	}
-
-	table, err := cat.GetTable("", pluralName)
-	if err != nil {
-		return fmt.Errorf(`table '%s' not found in catalog: %w
-
-Convention: Model names must be singular, table names must be plural snake_case.
-Example: Model 'UserAccount' expects table 'user_accounts'
-
-To use a different table name, re-run generation with --table-name or ensure the queries file matches the correct table name`,
-			pluralName, err)
-	}
-
-	newSQLContent, err := g.GenerateSQLContent(resourceName, pluralName, table, tableNameOverridden)
-	if err != nil {
-		return fmt.Errorf("failed to generate SQL content: %w", err)
-	}
-
-	updatedContent := g.replaceGeneratedSQLQueries(
-		string(existingContent),
-		newSQLContent,
-		resourceName,
-	)
-
-	if err := os.WriteFile(sqlPath, []byte(updatedContent), constants.FilePermissionPrivate); err != nil {
-		return fmt.Errorf("failed to write SQL file: %w", err)
-	}
-
-	return nil
-}
-
-func (g *Generator) replaceGeneratedSQLQueries(
-	existingContent, newContent, resourceName string,
-) string {
-	newQueries := g.extractGeneratedSQLQueries(newContent, resourceName)
-
-	updatedContent := existingContent
-
-	for queryName, newQuery := range newQueries {
-		if g.queryExistsInContent(updatedContent, queryName) {
-			updatedContent = g.replaceSQLQueryByName(updatedContent, queryName, newQuery)
-		} else {
-			updatedContent = strings.TrimSpace(updatedContent) + "\n\n" + newQuery + "\n"
-		}
-	}
-
-	return updatedContent
-}
-
-func (g *Generator) extractGeneratedSQLQueries(content, resourceName string) map[string]string {
-	queries := make(map[string]string)
-	lines := strings.Split(content, "\n")
-
-	queryNames := []string{
-		fmt.Sprintf("Query%sByID", resourceName),
-		fmt.Sprintf("Query%ss", resourceName),
-		fmt.Sprintf("Insert%s", resourceName),
-		fmt.Sprintf("Update%s", resourceName),
-		fmt.Sprintf("Delete%s", resourceName),
-		fmt.Sprintf("QueryPaginated%ss", resourceName),
-		fmt.Sprintf("Count%ss", resourceName),
-		fmt.Sprintf("Upsert%s", resourceName),
-		fmt.Sprintf("%sExists", resourceName),
-	}
-
-	for _, queryName := range queryNames {
-		query := g.extractSQLQueryByName(lines, queryName)
-		if query != "" {
-			queries[queryName] = query
-		}
-	}
-
-	return queries
-}
-
-func (g *Generator) extractSQLQueryByName(lines []string, queryName string) string {
-	var result []string
-	inQuery := false
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		if strings.Contains(trimmed, fmt.Sprintf("-- name: %s ", queryName)) {
-			inQuery = true
-			result = []string{line}
-			continue
-		}
-
-		if inQuery {
-			if trimmed == "" || strings.HasPrefix(trimmed, "-- name:") {
-				return strings.Join(result, "\n")
-			}
-			result = append(result, line)
-		}
-	}
-
-	if inQuery {
-		return strings.Join(result, "\n")
-	}
-
-	return ""
-}
-
-func (g *Generator) replaceSQLQueryByName(content, queryName, newQuery string) string {
-	lines := strings.Split(content, "\n")
-	var result []string
-	inQuery := false
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		if strings.Contains(trimmed, fmt.Sprintf("-- name: %s ", queryName)) {
-			inQuery = true
-			result = append(result, newQuery)
-			continue
-		}
-
-		if inQuery {
-			if trimmed == "" || strings.HasPrefix(trimmed, "-- name:") {
-				inQuery = false
-				result = append(result, line) // Keep the empty line or next query
-				continue
-			}
-			continue
-		}
-
-		result = append(result, line)
-	}
-
-	return strings.Join(result, "\n")
-}
-
-func (g *Generator) queryExistsInContent(content, queryName string) bool {
-	return strings.Contains(content, fmt.Sprintf("-- name: %s ", queryName))
 }
 
 // GeneratedFactory represents a factory for a model
@@ -1199,13 +390,13 @@ func (g *Generator) analyzeFactoryField(field GeneratedField, tableName string) 
 	}
 
 	// Determine default value
-	info.DefaultValue = g.determineFactoryDefault(field.Name, field.Type, field.SQLCType)
+	info.DefaultValue = g.determineFactoryDefault(field.Name, field.Type)
 	info.GoZero = g.getFactoryGoZero(field.Type)
 
 	return info
 }
 
-func (g *Generator) determineFactoryDefault(fieldName, goType, sqlcType string) string {
+func (g *Generator) determineFactoryDefault(fieldName, goType string) string {
 	// Handle by type first
 	switch goType {
 	case "string":
@@ -1224,11 +415,6 @@ func (g *Generator) determineFactoryDefault(fieldName, goType, sqlcType string) 
 		return "uuid.UUID{}"
 	case "[]byte":
 		return "[]byte{}"
-	}
-
-	// Handle pgtype wrappers
-	if strings.Contains(goType, "pgtype") {
-		return fmt.Sprintf("%s{}", goType)
 	}
 
 	// Default fallback

@@ -20,7 +20,6 @@ type managedTool struct {
 
 var managedTools = []managedTool{
 	{Name: "templ", Source: "github.com/a-h/templ/cmd/templ", Description: "Templ templating engine"},
-	{Name: "sqlc", Source: "github.com/sqlc-dev/sqlc/cmd/sqlc", Description: "SQL compiler"},
 	{Name: "goose", Source: "github.com/pressly/goose/v3/cmd/goose", Description: "Database migrations"},
 	{Name: "mailpit", Source: "github.com/axllent/mailpit", Description: "Email testing"},
 	{Name: "usql", Source: "github.com/xo/usql", Description: "Universal SQL CLI"},
