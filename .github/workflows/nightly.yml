@@ -54,7 +54,7 @@ jobs:
         run: goreleaser release --clean --skip=validate
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_CURRENT_TAG: "nightly"
+          GORELEASER_CURRENT_TAG: "v0.0.0-nightly"
 
       - name: Update release description
         uses: softprops/action-gh-release@v2
