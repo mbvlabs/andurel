@@ -4,12 +4,14 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
-	"github.com/uptrace/bun/driver/pgdriver"
 )
 
 var (
@@ -18,26 +20,49 @@ var (
 	ErrCommitTx   = errors.New("could not commit transaction")
 )
 
-// DB returns the bun.DB instance for database operations.
-// Uses bun.IDB interface which is satisfied by *bun.DB, *bun.Tx, and *bun.Conn.
-type DB = bun.IDB
+// Executor is the query interface satisfied by *bun.DB, *bun.Tx, *bun.Conn.
+type Executor = bun.IDB
 
-// Connection wraps a bun.DB for simple database access.
-type Connection struct {
-	db *bun.DB
+// Pool is the application-wide database handle. Exposes both a bun.DB
+// (for model queries) and a pgxpool.Pool (for River and other pgx-native
+// consumers).
+type Pool interface {
+	DB() *bun.DB
+	Pool() *pgxpool.Pool
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error)
+	Close() error
 }
 
-// NewConnection creates a new database connection using bun + pgxv5 driver.
+// Connection wraps a bun.DB and the underlying pgx pool.
+type Connection struct {
+	db   *bun.DB
+	pool *pgxpool.Pool
+}
+
+var _ Pool = (*Connection)(nil)
+
+// NewConnection creates a new database connection using bun + pgx/v5.
 func NewConnection(ctx context.Context, databaseURL string) (*Connection, error) {
-	sqldb := pgdriver.NewConnector(pgdriver.WithDSN(databaseURL))
+	config, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse database URL: %w", err)
+	}
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create pgx pool: %w", err)
+	}
+
+	sqldb := stdlib.OpenDBFromPool(pool)
 	db := bun.NewDB(sqldb, pgdialect.New())
 
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
+		pool.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	return &Connection{db: db}, nil
+	return &Connection{db: db, pool: pool}, nil
 }
 
 // DB returns the underlying bun.DB.
@@ -45,13 +70,23 @@ func (c *Connection) DB() *bun.DB {
 	return c.db
 }
 
-// Close closes the database connection.
-func (c *Connection) Close() error {
-	return c.db.Close()
+// Pool returns the underlying pgx pool (for River and other pgx-native users).
+func (c *Connection) Pool() *pgxpool.Pool {
+	return c.pool
 }
 
-// RunInTx runs a function within a database transaction.
-// Automatically rolls back on error, commits on success.
-func (c *Connection) RunInTx(ctx context.Context, opts *bun.TxOptions, fn func(ctx context.Context, tx bun.IDB) error) error {
-	return c.db.RunInTx(ctx, opts, fn)
+// Close closes the database connection.
+func (c *Connection) Close() error {
+	err := c.db.Close()
+	c.pool.Close()
+	return err
+}
+
+// BeginTx starts a new transaction. Caller is responsible for Commit or Rollback.
+func (c *Connection) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error) {
+	tx, err := c.db.BeginTx(ctx, opts)
+	if err != nil {
+		return bun.Tx{}, errors.Join(ErrBeginTx, err)
+	}
+	return tx, nil
 }

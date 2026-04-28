@@ -35,7 +35,7 @@ type App struct {
 {{- if not (len .Blueprint.Cookies.SortedAppFields)}}
 func CreateAppSession(c *echo.Context) error {
 {{- else}}
-func CreateAppSession(c *echo.Context, user models.User) error {
+func CreateAppSession(c *echo.Context, user models.UserEntity) error {
 {{- end}}
 	sess, err := session.Get(config.AppCookieSessionName, c)
 	if err != nil {

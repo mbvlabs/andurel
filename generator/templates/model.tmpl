@@ -30,7 +30,7 @@ var {{.NamespaceVar}} {{.NamespaceType}}
 
 type {{.NamespaceType}} struct{}
 
-func ({{.ReceiverName}} {{.NamespaceType}}) Find(ctx context.Context, db bun.IDB, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) ({{.EntityName}}, error) {
+func ({{.ReceiverName}} {{.NamespaceType}}) Find(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) ({{.EntityName}}, error) {
 	var entity {{.EntityName}}
 	err := db.NewSelect().
 		Model(&entity).
@@ -56,7 +56,7 @@ type Create{{.Name}}Data struct {
 {{- end}}
 }
 
-func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db bun.IDB, data Create{{.Name}}Data) ({{.EntityName}}, error) {
+func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db storage.Executor, data Create{{.Name}}Data) ({{.EntityName}}, error) {
 	if err := Validate.Struct(data); err != nil {
 		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
 	}
@@ -94,7 +94,7 @@ type Update{{.Name}}Data struct {
 {{- end}}
 }
 
-func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db bun.IDB, data Update{{.Name}}Data) ({{.EntityName}}, error) {
+func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db storage.Executor, data Update{{.Name}}Data) ({{.EntityName}}, error) {
 	if err := Validate.Struct(data); err != nil {
 		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
 	}
@@ -120,7 +120,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db bun.I
 	return entity, nil
 }
 
-func ({{.ReceiverName}} {{.NamespaceType}}) Destroy(ctx context.Context, db bun.IDB, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) error {
+func ({{.ReceiverName}} {{.NamespaceType}}) Destroy(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) error {
 	now := time.Now()
 	_, err := db.NewUpdate().
 		Model((*{{.EntityName}})(nil)).
@@ -131,7 +131,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Destroy(ctx context.Context, db bun.
 	return err
 }
 
-func ({{.ReceiverName}} {{.NamespaceType}}) All(ctx context.Context, db bun.IDB) ([]{{.EntityName}}, error) {
+func ({{.ReceiverName}} {{.NamespaceType}}) All(ctx context.Context, db storage.Executor) ([]{{.EntityName}}, error) {
 	var entities []{{.EntityName}}
 	err := db.NewSelect().
 		Model(&entities).
@@ -151,7 +151,7 @@ type Paginated{{.PluralName}} struct {
 	TotalPages int64
 }
 
-func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db bun.IDB, page, pageSize int64) (Paginated{{.PluralName}}, error) {
+func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (Paginated{{.PluralName}}, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -195,7 +195,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db bun
 	}, nil
 }
 
-func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db bun.IDB, data Create{{.Name}}Data) ({{.EntityName}}, error) {
+func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db storage.Executor, data Create{{.Name}}Data) ({{.EntityName}}, error) {
 	if err := Validate.Struct(data); err != nil {
 		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
 	}

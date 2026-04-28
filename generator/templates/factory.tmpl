@@ -7,12 +7,11 @@ import (
 	"{{.}}"
 {{- end}}
 
+	"{{.ModulePath}}/internal/storage"
 	"{{.ModulePath}}/models"
 {{- range .ExternalImports}}
 	"{{.}}"
 {{- end}}
-
-	"github.com/uptrace/bun"
 )
 
 // {{.ModelName}}Factory wraps models.{{.EntityName}} for testing
@@ -61,7 +60,7 @@ func Build{{.ModelName}}({{- range .Fields}}{{- if .IsFK}}{{.ArgumentName}} {{.T
 
 {{if .HasCreateFunction}}
 // Create{{.ModelName}} creates and persists a {{.ModelName}} to the database
-func Create{{.ModelName}}(ctx context.Context, db bun.IDB, {{- range .Fields}}{{- if .IsFK}}{{.ArgumentName}} {{.Type}}, {{end}}{{end}}opts ...{{.ModelName}}Option) (models.{{.EntityName}}, error) {
+func Create{{.ModelName}}(ctx context.Context, db storage.Executor, {{- range .Fields}}{{- if .IsFK}}{{.ArgumentName}} {{.Type}}, {{end}}{{end}}opts ...{{.ModelName}}Option) (models.{{.EntityName}}, error) {
 	// Build with defaults and required FKs
 	built := Build{{.ModelName}}({{- range .Fields}}{{- if .IsFK}}{{.ArgumentName}}, {{end}}{{end}}opts...)
 
@@ -89,7 +88,7 @@ func Create{{.ModelName}}(ctx context.Context, db bun.IDB, {{- range .Fields}}{{
 }
 
 // Create{{.ModelName}}s creates multiple {{.ModelName}} records at once
-func Create{{.ModelName}}s(ctx context.Context, db bun.IDB, {{range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}count int, opts ...{{.ModelName}}Option) ([]models.{{.EntityName}}, error) {
+func Create{{.ModelName}}s(ctx context.Context, db storage.Executor, {{range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}count int, opts ...{{.ModelName}}Option) ([]models.{{.EntityName}}, error) {
 	{{.ModelName | toLower}}s := make([]models.{{.EntityName}}, 0, count)
 
 	for i := 0; i < count; i++ {

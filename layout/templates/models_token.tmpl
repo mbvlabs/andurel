@@ -9,6 +9,8 @@ import (
 	"encoding/hex"
 	"time"
 
+	"{{.ModuleName}}/internal/storage"
+
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 )
@@ -62,7 +64,7 @@ func hashForStorage(plain, secret string) string {
 	return hex.EncodeToString(m.Sum(nil))
 }
 
-func (t token) Find(ctx context.Context, db bun.IDB, id uuid.UUID) (TokenEntity, error) {
+func (t token) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (TokenEntity, error) {
 	var entity TokenEntity
 	err := db.NewSelect().
 		Model(&entity).
@@ -77,7 +79,7 @@ func (t token) Find(ctx context.Context, db bun.IDB, id uuid.UUID) (TokenEntity,
 
 func (t token) FindByScopeAndHash(
 	ctx context.Context,
-	db bun.IDB,
+	db storage.Executor,
 	scope, hash string,
 ) (TokenEntity, error) {
 	var entity TokenEntity
@@ -95,7 +97,7 @@ func (t token) FindByScopeAndHash(
 
 func (t token) CreateCode(
 	ctx context.Context,
-	db bun.IDB,
+	db storage.Executor,
 	pepper string,
 	scope string,
 	expiresAt time.Time,
@@ -125,7 +127,7 @@ func (t token) CreateCode(
 
 func (t token) Create(
 	ctx context.Context,
-	db bun.IDB,
+	db storage.Executor,
 	pepper string,
 	scope string,
 	expiresAt time.Time,
@@ -160,7 +162,7 @@ type createTokenData struct {
 	MetaData  []byte    `validate:"required"`
 }
 
-func (t token) Destroy(ctx context.Context, db bun.IDB, id uuid.UUID) error {
+func (t token) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
 	now := time.Now()
 	_, err := db.NewUpdate().
 		Model((*TokenEntity)(nil)).
@@ -171,7 +173,7 @@ func (t token) Destroy(ctx context.Context, db bun.IDB, id uuid.UUID) error {
 	return err
 }
 
-func (t token) All(ctx context.Context, db bun.IDB) ([]TokenEntity, error) {
+func (t token) All(ctx context.Context, db storage.Executor) ([]TokenEntity, error) {
 	var entities []TokenEntity
 	err := db.NewSelect().
 		Model(&entities).
@@ -193,7 +195,7 @@ type PaginatedTokens struct {
 
 func (t token) Paginate(
 	ctx context.Context,
-	db bun.IDB,
+	db storage.Executor,
 	page, pageSize int64,
 ) (PaginatedTokens, error) {
 	if page < 1 {

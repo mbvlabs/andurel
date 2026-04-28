@@ -24,27 +24,27 @@ func AuthenticateUser(
 	db storage.Pool,
 	salt string,
 	data LoginData,
-) (models.User, error) {
-	user, err := models.FindUserByEmail(ctx, db.Conn(), data.Email)
+) (models.UserEntity, error) {
+	user, err := models.User.FindByEmail(ctx, db.DB(), data.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return models.User{}, ErrInvalidCredentials
+			return models.UserEntity{}, ErrInvalidCredentials
 		}
 
-		return models.User{}, err
+		return models.UserEntity{}, err
 	}
 
 	validPassword, err := user.ValidPassword(data.Password, salt)
 	if err != nil {
-		return models.User{}, err
+		return models.UserEntity{}, err
 	}
 
 	if !validPassword {
-		return models.User{}, errors.New("invalid password")
+		return models.UserEntity{}, errors.New("invalid password")
 	}
 
-	if user.EmailValidatedAt.IsZero() {
-		return models.User{}, ErrEmailNotVerified
+	if !user.HasValidatedEmail() {
+		return models.UserEntity{}, ErrEmailNotVerified
 	}
 
 	return user, nil

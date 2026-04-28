@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"time"
@@ -30,12 +29,12 @@ func RegisterUser(
 	salt string,
 	data RegisterUserData,
 ) error {
-	tx, err := db.BeginTx(ctx)
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 
-	user, err := models.CreateUser(ctx, tx, salt, models.CreateUserData{
+	user, err := models.User.Create(ctx, tx, salt, models.CreateUserData{
 		Email: data.Email,
 		PasswordPair: models.PasswordPair{
 			Password:        data.Password,
@@ -43,6 +42,7 @@ func RegisterUser(
 		},
 	})
 	if err != nil {
+		_ = tx.Rollback()
 		return err
 	}
 
@@ -50,10 +50,11 @@ func RegisterUser(
 		"email": user.Email,
 	})
 	if err != nil {
+		_ = tx.Rollback()
 		return err
 	}
 
-	code, err := models.CreateCodeToken(
+	code, err := models.Token.CreateCode(
 		ctx,
 		tx,
 		salt,
@@ -62,6 +63,11 @@ func RegisterUser(
 		meta,
 	)
 	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 
@@ -77,7 +83,7 @@ func RegisterUser(
 		return err
 	}
 
-	_, err = insertOnly.InsertTx(ctx, tx, jobs.SendTransactionalEmailArgs{
+	_, err = insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
 		Data: email.TransactionalData{
 			To:       user.Email,
 			From:     config.DefaultSenderSignature,
@@ -86,11 +92,7 @@ func RegisterUser(
 			TextBody: text,
 		},
 	}, nil)
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit(ctx)
+	return err
 }
 
 var (
@@ -108,63 +110,66 @@ func VerifyEmail(
 	db storage.Pool,
 	salt string,
 	data VerifyEmailData,
-) (models.User, error) {
-	tx, err := db.BeginTx(ctx)
+) (models.UserEntity, error) {
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return models.User{}, err
+		return models.UserEntity{}, err
 	}
-	defer tx.Rollback(ctx)
 
-	token, err := models.FindTokenByScopeAndHash(
+	token, err := models.Token.FindByScopeAndHash(
 		ctx,
 		tx,
-		salt,
 		userEmailVerification,
 		data.Code,
 	)
 	if err != nil {
-		return models.User{}, ErrInvalidVerificationCode
+		_ = tx.Rollback()
+		return models.UserEntity{}, ErrInvalidVerificationCode
 	}
 
 	if !token.IsValid(data.Code, salt) {
-		return models.User{}, ErrExpiredVerificationCode
+		_ = tx.Rollback()
+		return models.UserEntity{}, ErrExpiredVerificationCode
 	}
 
 	var meta map[string]string
 	if err := json.Unmarshal(token.MetaData, &meta); err != nil {
-		return models.User{}, err
+		_ = tx.Rollback()
+		return models.UserEntity{}, err
 	}
 
-	email, ok := meta["email"]
+	emailAddr, ok := meta["email"]
 	if !ok {
-		return models.User{}, errors.New("token metadata missing email")
+		_ = tx.Rollback()
+		return models.UserEntity{}, errors.New("token metadata missing email")
 	}
 
-	user, err := models.FindUserByEmail(ctx, tx, email)
+	user, err := models.User.FindByEmail(ctx, tx, emailAddr)
 	if err != nil {
-		return models.User{}, err
+		_ = tx.Rollback()
+		return models.UserEntity{}, err
 	}
 
-	user, err = models.UpdateUser(ctx, tx, models.UpdateUserData{
-		ID:    user.ID,
-		Email: user.Email,
-		EmailValidatedAt: sql.NullTime{
-			Time:  time.Now(),
-			Valid: true,
-		},
-		Password: user.Password,
-		IsAdmin:  user.IsAdmin,
+	now := time.Now()
+	user, err = models.User.Update(ctx, tx, models.UpdateUserData{
+		ID:               user.ID,
+		Email:            user.Email,
+		EmailValidatedAt: &now,
+		Password:         user.Password,
+		IsAdmin:          user.IsAdmin,
 	})
 	if err != nil {
-		return models.User{}, err
+		_ = tx.Rollback()
+		return models.UserEntity{}, err
 	}
 
-	if err := models.DestroyToken(ctx, tx, token.ID); err != nil {
-		return models.User{}, err
+	if err := models.Token.Destroy(ctx, tx, token.ID); err != nil {
+		_ = tx.Rollback()
+		return models.UserEntity{}, err
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		return models.User{}, err
+	if err := tx.Commit(); err != nil {
+		return models.UserEntity{}, err
 	}
 
 	return user, nil

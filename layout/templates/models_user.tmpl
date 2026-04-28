@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"{{.ModuleName}}/internal/storage"
+
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
@@ -91,7 +93,7 @@ func (u *UserEntity) ValidPassword(providedPassword, pepper string) (bool, error
 // 	return encodedHash, nil
 // }
 
-func (u user) Find(ctx context.Context, db bun.IDB, id uuid.UUID) (UserEntity, error) {
+func (u user) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (UserEntity, error) {
 	var entity UserEntity
 	err := db.NewSelect().
 		Model(&entity).
@@ -104,7 +106,7 @@ func (u user) Find(ctx context.Context, db bun.IDB, id uuid.UUID) (UserEntity, e
 	return entity, nil
 }
 
-func (u user) FindByEmail(ctx context.Context, db bun.IDB, email string) (UserEntity, error) {
+func (u user) FindByEmail(ctx context.Context, db storage.Executor, email string) (UserEntity, error) {
 	var entity UserEntity
 	err := db.NewSelect().
 		Model(&entity).
@@ -129,7 +131,7 @@ type CreateUserData struct {
 
 func (u user) Create(
 	ctx context.Context,
-	db bun.IDB,
+	db storage.Executor,
 	pepper string,
 	data CreateUserData,
 ) (UserEntity, error) {
@@ -168,7 +170,7 @@ type UpdateUserData struct {
 	IsAdmin          bool
 }
 
-func (u user) Update(ctx context.Context, db bun.IDB, data UpdateUserData) (UserEntity, error) {
+func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserData) (UserEntity, error) {
 	if err := Validate.Struct(data); err != nil {
 		return UserEntity{}, errors.Join(ErrDomainValidation, err)
 	}
@@ -218,7 +220,7 @@ func (u user) Update(ctx context.Context, db bun.IDB, data UpdateUserData) (User
 	return entity, nil
 }
 
-func (u user) Destroy(ctx context.Context, db bun.IDB, id uuid.UUID) error {
+func (u user) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
 	_, err := db.NewUpdate().
 		Model((*UserEntity)(nil)).
 		Set("deleted_at = ?", time.Now()).
@@ -229,7 +231,7 @@ func (u user) Destroy(ctx context.Context, db bun.IDB, id uuid.UUID) error {
 	return err
 }
 
-func (u user) All(ctx context.Context, db bun.IDB) ([]UserEntity, error) {
+func (u user) All(ctx context.Context, db storage.Executor) ([]UserEntity, error) {
 	var entities []UserEntity
 	err := db.NewSelect().
 		Model(&entities).
@@ -251,7 +253,7 @@ type PaginatedUsers struct {
 
 func (u user) Paginate(
 	ctx context.Context,
-	db bun.IDB,
+	db storage.Executor,
 	page, pageSize int64,
 ) (PaginatedUsers, error) {
 	if page < 1 {

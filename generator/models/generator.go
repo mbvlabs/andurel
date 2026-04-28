@@ -135,6 +135,9 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 
 	importSet := make(map[string]bool)
 	importSet["github.com/uptrace/bun"] = true
+	if config.ModulePath != "" {
+		importSet[config.ModulePath+"/internal/storage"] = true
+	}
 
 	for _, col := range table.Columns {
 		field, err := g.buildField(col)

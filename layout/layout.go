@@ -435,9 +435,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"email_reset_password.tmpl": "email/reset_password.templ",
 	"email_verify_email.tmpl":   "email/verify_email.templ",
 
-	// Auth - Database Migrations
-	"database_migrations_tokens.tmpl": "database/migrations/001_create_tokens.sql",
-	"database_migrations_users.tmpl":  "database/migrations/001_create_users.sql",
 }
 
 func processTemplatedFiles(
