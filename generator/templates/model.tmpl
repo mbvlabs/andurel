@@ -1,15 +1,10 @@
 package models
 
 import (
-	"context"
-	"errors"
-	"time"
-
 {{- range .StandardImports}}
 	"{{.}}"
 {{- end}}
 {{if and (gt (len .StandardImports) 0) (gt (len .ExternalImports) 0)}}
-
 {{end}}
 {{- range .ExternalImports}}
 	"{{.}}"
@@ -25,17 +20,11 @@ type {{.EntityName}} struct {
 {{- end}}
 }
 
-// {{.NamespaceVar}} is the namespace for {{.Name}} database operations.
-var {{.NamespaceVar}} {{.NamespaceType}}
-
-type {{.NamespaceType}} struct{}
-
 func ({{.ReceiverName}} {{.NamespaceType}}) Find(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) ({{.EntityName}}, error) {
 	var entity {{.EntityName}}
 	err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Where("deleted_at IS NULL").
 		Scan(ctx)
 	if err != nil {
 		return {{.EntityName}}{}, err
@@ -112,7 +101,6 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db stora
 	_, err := db.NewUpdate().
 		Model(&entity).
 		Where("id = ?", data.ID).
-		Where("deleted_at IS NULL").
 		Exec(ctx)
 	if err != nil {
 		return {{.EntityName}}{}, err
@@ -121,12 +109,9 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db stora
 }
 
 func ({{.ReceiverName}} {{.NamespaceType}}) Destroy(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) error {
-	now := time.Now()
-	_, err := db.NewUpdate().
+	_, err := db.NewDelete().
 		Model((*{{.EntityName}})(nil)).
-		Set("deleted_at = ?", now).
 		Where("id = ?", id).
-		Where("deleted_at IS NULL").
 		Exec(ctx)
 	return err
 }
@@ -135,7 +120,6 @@ func ({{.ReceiverName}} {{.NamespaceType}}) All(ctx context.Context, db storage.
 	var entities []{{.EntityName}}
 	err := db.NewSelect().
 		Model(&entities).
-		Where("deleted_at IS NULL").
 		Scan(ctx)
 	if err != nil {
 		return nil, err
@@ -165,22 +149,17 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db sto
 	offset := (page - 1) * pageSize
 
 	var totalCount int64
-	countQuery := db.NewSelect().
-		Model((*{{.EntityName}})(nil)).
-		Where("deleted_at IS NULL")
-	totalCount, err := countQuery.Count(ctx)
-	if err != nil {
+	if err := db.NewSelect().
+		Model(&{{.EntityName}}{}).Scan(ctx, &totalCount); err != nil {
 		return Paginated{{.PluralName}}{}, err
 	}
 
 	var entities []{{.EntityName}}
-	err = db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Where("deleted_at IS NULL").
 		Limit(int(pageSize)).
 		Offset(int(offset)).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return Paginated{{.PluralName}}{}, err
 	}
 

@@ -21,12 +21,12 @@ import (
 type UserEntity struct {
 	bun.BaseModel    `bun:"table:users"`
 	ID               uuid.UUID  `bun:"id,pk,type:uuid"`
-	CreatedAt        time.Time  `bun:"created_at,nullzero,default:current_timestamp"`
-	UpdatedAt        time.Time  `bun:"updated_at,nullzero,default:current_timestamp"`
-	Email            string     `bun:"email,notnull,unique"`
+	CreatedAt        time.Time  `bun:"created_at"`
+	UpdatedAt        time.Time  `bun:"updated_at"`
+	Email            string     `bun:"email"`
 	EmailValidatedAt *time.Time `bun:"email_validated_at"`
-	Password         []byte     `bun:"password,notnull"`
-	IsAdmin          bool       `bun:"is_admin,notnull"`
+	Password         []byte     `bun:"password"`
+	IsAdmin          bool       `bun:"is_admin"`
 }
 
 func (u *UserEntity) HasValidatedEmail() bool {

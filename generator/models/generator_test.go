@@ -121,10 +121,10 @@ func TestBuildModelWithTimestamps(t *testing.T) {
 		"CreatedAt":   "time.Time",
 		"UpdatedAt":   "time.Time",
 		"Name":        "string",
-		"Description": "string",
+		"Description": "*string",
 		"Price":       "float64",
 		"Sku":         "string",
-		"IsActive":    "bool",
+		"IsActive":    "*bool",
 	}
 
 	if len(model.Fields) != len(expectedFields) {

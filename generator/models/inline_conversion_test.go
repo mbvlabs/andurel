@@ -69,13 +69,13 @@ func TestBunModelGeneration(t *testing.T) {
 			}
 		}
 		if field.Name == "Age" {
-			if field.Type != "int32" {
-				t.Errorf("Field %s should be int32, got %s", field.Name, field.Type)
+			if field.Type != "int32" && field.Type != "*int32" {
+				t.Errorf("Field %s should be int32 or *int32, got %s", field.Name, field.Type)
 			}
 		}
 		if field.Name == "IsActive" {
-			if field.Type != "bool" {
-				t.Errorf("Field %s should be bool, got %s", field.Name, field.Type)
+			if field.Type != "bool" && field.Type != "*bool" {
+				t.Errorf("Field %s should be bool or *bool, got %s", field.Name, field.Type)
 			}
 		}
 	}
@@ -118,7 +118,7 @@ func TestBunNamespaceMethods(t *testing.T) {
 	}
 
 	for _, method := range expectedMethods {
-		expectedMethod := "func (" + model.ReceiverName + " *" + model.NamespaceType + ") " + method
+		expectedMethod := "func (" + model.ReceiverName + " " + model.NamespaceType + ") " + method
 		if !strings.Contains(modelContent, expectedMethod) {
 			t.Errorf("Generated code should contain method: %s", expectedMethod)
 		}

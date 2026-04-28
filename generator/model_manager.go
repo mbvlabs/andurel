@@ -125,6 +125,10 @@ func (m *ModelManager) GenerateModel(
 		return fmt.Errorf("failed to generate model: %w", err)
 	}
 
+	if err := m.registerNamespace(ctx.ResourceName); err != nil {
+		return fmt.Errorf("failed to register namespace in models/model.go: %w", err)
+	}
+
 	// Generate factory (unless skipped)
 	if !skipFactory {
 		if err := m.generateFactory(cat, ctx); err != nil {
@@ -180,6 +184,59 @@ func (m *ModelManager) generateFactory(cat *catalog.Catalog, ctx *modelSetupCont
 	}
 
 	return nil
+}
+
+// registerNamespace ensures the project's models/model.go declares the
+// `<type> struct{}` and `<Var> <type>` entries for the new resource so
+// per-resource files (which only define methods on the namespace type)
+// compile.
+func (m *ModelManager) registerNamespace(resourceName string) error {
+	modelGoPath := filepath.Join(m.config.Paths.Models, "model.go")
+
+	src, err := os.ReadFile(modelGoPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	namespaceVar := resourceName
+	namespaceType := naming.ToLowerCamelCaseFromAny(resourceName)
+	typeEntry := "\t" + namespaceType + " struct{}"
+	varEntry := "\t" + namespaceVar + " " + namespaceType
+
+	updated := ensureLineInBlock(string(src), "type (", typeEntry)
+	updated = ensureLineInBlock(updated, "var (", varEntry)
+
+	if updated == string(src) {
+		return nil
+	}
+
+	return os.WriteFile(modelGoPath, []byte(updated), 0o644)
+}
+
+// ensureLineInBlock inserts entry as a new line just before the `)` that
+// closes the block opened by openMarker. If the entry is already present in
+// the file the source is returned unchanged. If the block does not exist a
+// new one is appended.
+func ensureLineInBlock(src, openMarker, entry string) string {
+	if strings.Contains(src, entry+"\n") {
+		return src
+	}
+
+	openIdx := strings.Index(src, openMarker)
+	if openIdx < 0 {
+		return src + "\n" + openMarker + "\n" + entry + "\n)\n"
+	}
+
+	closeRel := strings.Index(src[openIdx:], "\n)")
+	if closeRel < 0 {
+		return src
+	}
+	insertAt := openIdx + closeRel + 1
+
+	return src[:insertAt] + entry + "\n" + src[insertAt:]
 }
 
 func (m *ModelManager) checkExistingModel(resourceName string) {

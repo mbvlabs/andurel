@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/base32"
 	"encoding/hex"
+	"errors"
 	"time"
 
 	"{{.ModuleName}}/internal/storage"
@@ -18,16 +19,16 @@ import (
 type TokenEntity struct {
 	bun.BaseModel `bun:"table:tokens"`
 	ID            uuid.UUID `bun:"id,pk,type:uuid"`
-	CreatedAt     time.Time `bun:"created_at,nullzero,default:current_timestamp"`
-	UpdatedAt     time.Time `bun:"updated_at,nullzero,default:current_timestamp"`
-	Scope         string    `bun:"scope,notnull"`
-	ExpiresAt     time.Time `bun:"expires_at,notnull"`
-	Hash          string    `bun:"hash,notnull"`
-	MetaData      []byte    `bun:"meta_data"`
+	CreatedAt     time.Time `bun:"created_at"`
+	UpdatedAt     time.Time `bun:"updated_at"`
+	Scope         string    `bun:"scope"`
+	ExpiresAt     time.Time `bun:"expires_at"`
+	Hash          string    `bun:"hash"`
+	MetaData      []byte    `bun:"meta_data,type:jsonb"`
 }
 
 func (t TokenEntity) IsValid(token, secret string) bool {
-	expected := hashForStorage(token, secret)
+	expected := HashForStorage(token, secret)
 
 	isEqual := hmac.Equal([]byte(expected), []byte(t.Hash))
 	isNotExpired := time.Now().Before(t.ExpiresAt)
@@ -57,7 +58,7 @@ func GenerateSecureToken() (string, error) {
 	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b), nil
 }
 
-func hashForStorage(plain, secret string) string {
+func HashForStorage(plain, secret string) string {
 	m := hmac.New(sha256.New, []byte(secret))
 	m.Write([]byte(plain))
 
@@ -69,7 +70,6 @@ func (t token) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (Tok
 	err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Where("deleted_at IS NULL").
 		Scan(ctx)
 	if err != nil {
 		return TokenEntity{}, err
@@ -80,18 +80,54 @@ func (t token) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (Tok
 func (t token) FindByScopeAndHash(
 	ctx context.Context,
 	db storage.Executor,
-	scope, hash string,
+	pepper string,
+	scope string,
+	plainToken string,
 ) (TokenEntity, error) {
+	hash := HashForStorage(plainToken, pepper)
+
 	var entity TokenEntity
 	err := db.NewSelect().
 		Model(&entity).
 		Where("scope = ?", scope).
 		Where("hash = ?", hash).
-		Where("deleted_at IS NULL").
 		Scan(ctx)
 	if err != nil {
 		return TokenEntity{}, err
 	}
+	return entity, nil
+}
+
+type createTokenData struct {
+	Scope     string    `validate:"required"`
+	ExpiresAt time.Time `validate:"required"`
+	Hash      string    `validate:"required"`
+	MetaData  []byte    `validate:"required"`
+}
+
+func (t token) createToken(
+	ctx context.Context,
+	db storage.Executor,
+	data createTokenData,
+) (TokenEntity, error) {
+	if err := Validate.Struct(data); err != nil {
+		return TokenEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	entity := TokenEntity{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Scope:     data.Scope,
+		ExpiresAt: data.ExpiresAt,
+		Hash:      data.Hash,
+		MetaData:  data.MetaData,
+	}
+
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return TokenEntity{}, err
+	}
+
 	return entity, nil
 }
 
@@ -108,17 +144,12 @@ func (t token) CreateCode(
 		return "", err
 	}
 
-	entity := TokenEntity{
-		ID:        uuid.New(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	if _, err := t.createToken(ctx, db, createTokenData{
 		Scope:     scope,
 		ExpiresAt: expiresAt,
-		Hash:      tkn,
+		Hash:      HashForStorage(tkn, pepper),
 		MetaData:  metaData,
-	}
-
-	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
+	}); err != nil {
 		return "", err
 	}
 
@@ -138,37 +169,22 @@ func (t token) Create(
 		return "", err
 	}
 
-	entity := TokenEntity{
-		ID:        uuid.New(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	if _, err := t.createToken(ctx, db, createTokenData{
 		Scope:     scope,
 		ExpiresAt: expiresAt,
-		Hash:      tkn,
+		Hash:      HashForStorage(tkn, pepper),
 		MetaData:  metaData,
-	}
-
-	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
+	}); err != nil {
 		return "", err
 	}
 
 	return tkn, nil
 }
 
-type createTokenData struct {
-	Scope     string    `validate:"required"`
-	ExpiresAt time.Time `validate:"required"`
-	Hash      string    `validate:"required"`
-	MetaData  []byte    `validate:"required"`
-}
-
 func (t token) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	now := time.Now()
-	_, err := db.NewUpdate().
+	_, err := db.NewDelete().
 		Model((*TokenEntity)(nil)).
-		Set("deleted_at = ?", now).
 		Where("id = ?", id).
-		Where("deleted_at IS NULL").
 		Exec(ctx)
 	return err
 }
@@ -177,7 +193,6 @@ func (t token) All(ctx context.Context, db storage.Executor) ([]TokenEntity, err
 	var entities []TokenEntity
 	err := db.NewSelect().
 		Model(&entities).
-		Where("deleted_at IS NULL").
 		Scan(ctx)
 	if err != nil {
 		return nil, err
@@ -219,7 +234,6 @@ func (t token) Paginate(
 	var entities []TokenEntity
 	if err := db.NewSelect().
 		Model(&entities).
-		Where("deleted_at IS NULL").
 		Limit(int(pageSize)).
 		Offset(int(offset)).
 		Scan(ctx); err != nil {

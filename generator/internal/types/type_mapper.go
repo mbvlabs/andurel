@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
-	"github.com/mbvlabs/andurel/generator/internal/validation"
 )
 
 // TypeOverride lets users map a SQL database type to a custom Go type.
@@ -52,31 +51,24 @@ func (tm *TypeMapper) MapSQLTypeToGo(
 }
 
 // BuildBunTag returns the value of the `bun:"..."` struct tag for a column.
-// Includes the column name, primary-key/auto-increment markers, nullability,
-// and a `type:` hint where bun's default mapping would otherwise be wrong
-// (notably uuid columns).
+// Only emits attributes that affect query/marshaling behavior — column name,
+// primary-key marker, and a `type:` hint where bun's default mapping would
+// otherwise be wrong (notably uuid columns). DDL-only attributes
+// (notnull/nullzero/default/unique/autoincrement) are intentionally omitted
+// because andurel does not use bun for schema management.
 func (tm *TypeMapper) BuildBunTag(col *catalog.Column) string {
 	parts := []string{col.Name}
 
 	if col.IsPrimaryKey {
 		parts = append(parts, "pk")
-		if validation.IsAutoIncrement(col.DataType) {
-			parts = append(parts, "autoincrement")
-		}
 	}
 
 	normalized := normalizeSQLType(col.DataType)
-	if normalized == "uuid" {
+	switch normalized {
+	case "uuid":
 		parts = append(parts, "type:uuid")
-	}
-
-	if !col.IsNullable {
-		parts = append(parts, "notnull")
-	}
-
-	switch col.Name {
-	case "created_at", "updated_at":
-		parts = append(parts, "nullzero", "default:current_timestamp")
+	case "jsonb":
+		parts = append(parts, "type:jsonb")
 	}
 
 	return strings.Join(parts, ",")

@@ -3,10 +3,31 @@ package generator
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/pkg/cache"
 )
+
+func TestEnsureLineInBlock(t *testing.T) {
+	src := "package models\n\ntype (\n\tuser struct{}\n\ttoken struct{}\n)\n\nvar (\n\tUser user\n\tToken token\n)\n"
+
+	got := ensureLineInBlock(src, "type (", "\tserver struct{}")
+	if !strings.Contains(got, "\tserver struct{}\n)") {
+		t.Errorf("expected server struct{} inserted before ); got:\n%s", got)
+	}
+
+	// idempotent
+	again := ensureLineInBlock(got, "type (", "\tserver struct{}")
+	if again != got {
+		t.Errorf("expected idempotent insert, but content changed")
+	}
+
+	got2 := ensureLineInBlock(got, "var (", "\tServer server")
+	if !strings.Contains(got2, "\tServer server\n)") {
+		t.Errorf("expected Server server inserted into var block; got:\n%s", got2)
+	}
+}
 
 func setupModelManagerTest(t *testing.T) (*ModelManager, func()) {
 	t.Helper()
@@ -46,87 +67,6 @@ func setupModelManagerTest(t *testing.T) (*ModelManager, func()) {
 	return coord.ModelManager, func() {
 		os.Chdir(originalDir)
 		cache.ClearFileSystemCache()
-	}
-}
-
-func TestExtractTableNameOverride(t *testing.T) {
-	_, cleanup := setupModelManagerTest(t)
-	defer cleanup()
-
-	tests := []struct {
-		name         string
-		resourceName string
-		fileContent  string
-		wantTable    string
-		wantFound    bool
-	}{
-		{
-			name:         "extract User model override",
-			resourceName: "User",
-			fileContent: `package models
-// USER_MODEL_TABLE_NAME: accounts
-
-import (
-	"context"
-)
-
-type User struct {
-	ID string
-}
-`,
-			wantTable: "accounts",
-			wantFound: true,
-		},
-		{
-			name:         "extract CompanyAccount model override",
-			resourceName: "CompanyAccount",
-			fileContent: `package models
-// COMPANYACCOUNT_MODEL_TABLE_NAME: legacy_accounts
-
-import (
-	"context"
-)
-
-type CompanyAccount struct {
-	ID string
-}
-`,
-			wantTable: "legacy_accounts",
-			wantFound: true,
-		},
-		{
-			name:         "no override comment",
-			resourceName: "Server",
-			fileContent: `package models
-
-import (
-	"context"
-)
-
-type Server struct {
-	ID string
-}
-`,
-			wantTable: "",
-			wantFound: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tmpFile := filepath.Join(t.TempDir(), "model.go")
-			if err := os.WriteFile(tmpFile, []byte(tt.fileContent), 0o644); err != nil {
-				t.Fatalf("Failed to write temp file: %v", err)
-			}
-
-			gotTable, gotFound := extractTableNameOverride(tmpFile, tt.resourceName)
-			if gotFound != tt.wantFound {
-				t.Errorf("extractTableNameOverride() found = %v, want %v", gotFound, tt.wantFound)
-			}
-			if gotTable != tt.wantTable {
-				t.Errorf("extractTableNameOverride() table = %v, want %v", gotTable, tt.wantTable)
-			}
-		})
 	}
 }
 

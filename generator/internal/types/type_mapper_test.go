@@ -145,7 +145,7 @@ func TestBuildBunTag(t *testing.T) {
 				DataType:     "uuid",
 				IsPrimaryKey: true,
 			},
-			expected: "id,pk,type:uuid,notnull",
+			expected: "id,pk,type:uuid",
 		},
 		{
 			name: "nullable column",
@@ -157,12 +157,21 @@ func TestBuildBunTag(t *testing.T) {
 			expected: "email",
 		},
 		{
+			name: "notnull unique column",
+			col: &catalog.Column{
+				Name:     "email",
+				DataType: "varchar",
+				IsUnique: true,
+			},
+			expected: "email",
+		},
+		{
 			name: "created_at timestamp",
 			col: &catalog.Column{
 				Name:     "created_at",
 				DataType: "timestamp",
 			},
-			expected: "created_at,notnull,nullzero,default:current_timestamp",
+			expected: "created_at",
 		},
 	}
 

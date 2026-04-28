@@ -134,6 +134,9 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	}
 
 	importSet := make(map[string]bool)
+	importSet["context"] = true
+	importSet["errors"] = true
+	importSet["time"] = true
 	importSet["github.com/uptrace/bun"] = true
 	if config.ModulePath != "" {
 		importSet[config.ModulePath+"/internal/storage"] = true
