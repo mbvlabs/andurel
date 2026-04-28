@@ -2,7 +2,6 @@ package factories
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -12,9 +11,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// UserFactory wraps models.User and adds factory methods
+// UserFactory wraps models.UserEntity and adds factory methods
 type UserFactory struct {
-	models.User // Embedded - factory wraps the model
+	models.UserEntity // Embedded - factory wraps the model
 }
 
 // UserOption is a functional option for configuring a UserFactory
@@ -40,14 +39,14 @@ func defaultPassword() []byte {
 // but you typically won't use BuildUser for authentication testing - use CreateUser instead.
 //
 // Use CreateUser to build and save to the database in one step.
-func BuildUser(opts ...UserOption) models.User {
+func BuildUser(opts ...UserOption) models.UserEntity {
 	f := &UserFactory{
-		User: models.User{
+		UserEntity: models.UserEntity{
 			ID:               uuid.New(),
 			CreatedAt:        time.Now(),
 			UpdatedAt:        time.Now(),
 			Email:            faker.Email(),
-			EmailValidatedAt: time.Time{}, // zero value = not validated
+			EmailValidatedAt: nil, // zero value = not validated
 			Password:         defaultPassword(),
 			IsAdmin:          false,
 		},
@@ -58,7 +57,7 @@ func BuildUser(opts ...UserOption) models.User {
 		opt(f)
 	}
 
-	return f.User
+	return f.UserEntity
 }
 
 // CreateUser creates a User in the database with the provided options.
@@ -76,12 +75,12 @@ func CreateUser(
 	ctx context.Context,
 	exec storage.Executor,
 	opts ...UserOption,
-) (models.User, error) {
+) (models.UserEntity, error) {
 	// Build the factory with defaults
 	f := &UserFactory{
-		User: models.User{
+		UserEntity: models.UserEntity{
 			Email:            faker.Email(),
-			EmailValidatedAt: time.Time{},
+			EmailValidatedAt: nil,
 			IsAdmin:          false,
 		},
 	}
@@ -100,25 +99,22 @@ func CreateUser(
 		},
 	}
 
-	user, err := models.CreateUser(ctx, exec, TestPepper, data)
+	user, err := models.User.Create(ctx, exec, TestPepper, data)
 	if err != nil {
-		return models.User{}, err
+		return models.UserEntity{}, err
 	}
 
 	// Apply post-creation updates if needed (e.g., IsAdmin, EmailValidatedAt)
-	needsUpdate := f.IsAdmin || !f.EmailValidatedAt.IsZero()
+	needsUpdate := f.IsAdmin || f.EmailValidatedAt != nil
 	if needsUpdate {
 		updateData := models.UpdateUserData{
-			ID:    user.ID,
-			Email: user.Email,
-			EmailValidatedAt: sql.NullTime{
-				Time:  f.EmailValidatedAt,
-				Valid: !f.EmailValidatedAt.IsZero(),
-			},
-			Password: user.Password,
-			IsAdmin:  f.IsAdmin,
+			ID:              user.ID,
+			Email:            user.Email,
+			EmailValidatedAt: f.EmailValidatedAt,
+			Password:         user.Password,
+			IsAdmin:          f.IsAdmin,
 		}
-		return models.UpdateUser(ctx, exec, updateData)
+		return models.User.Update(ctx, exec, updateData)
 	}
 
 	return user, nil
@@ -136,8 +132,8 @@ func CreateUsers(
 	exec storage.Executor,
 	count int,
 	opts ...UserOption,
-) ([]models.User, error) {
-	users := make([]models.User, 0, count)
+) ([]models.UserEntity, error) {
+	users := make([]models.UserEntity, 0, count)
 
 	for i := range count {
 		user, err := CreateUser(ctx, exec, opts...)
@@ -167,7 +163,7 @@ func WithIsAdmin(isAdmin bool) UserOption {
 // WithEmailValidatedAt sets the email validation timestamp
 func WithEmailValidatedAt(t time.Time) UserOption {
 	return func(f *UserFactory) {
-		f.EmailValidatedAt = t
+		f.EmailValidatedAt = &t
 	}
 }
 
@@ -178,7 +174,7 @@ func WithValidatedEmail() UserOption {
 
 // WithPassword sets a custom password hash.
 // Note: This only works with BuildUser for in-memory structs.
-// CreateUser always uses models.CreateUser which hashes "password123".
+// CreateUser always uses models.User.Create which hashes "password123".
 func WithPassword(password []byte) UserOption {
 	return func(f *UserFactory) {
 		f.Password = password

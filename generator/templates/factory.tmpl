@@ -22,7 +22,7 @@ type {{.ModelName}}Factory struct {
 type {{.ModelName}}Option func(*{{.ModelName}}Factory)
 
 // Build{{.ModelName}} creates an in-memory {{.ModelName}} with default test values
-func Build{{.ModelName}}({{- range .Fields}}{{- if .IsFK}}{{.ArgumentName}} {{.Type}}, {{end}}{{end}}opts ...{{.ModelName}}Option) models.{{.EntityName}} {
+func Build{{.ModelName}}({{- range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}opts ...{{.ModelName}}Option) models.{{.EntityName}} {
 	f := &{{.ModelName}}Factory{
 		{{.EntityName}}: models.{{.EntityName}}{
 {{- range .Fields}}
@@ -60,9 +60,9 @@ func Build{{.ModelName}}({{- range .Fields}}{{- if .IsFK}}{{.ArgumentName}} {{.T
 
 {{if .HasCreateFunction}}
 // Create{{.ModelName}} creates and persists a {{.ModelName}} to the database
-func Create{{.ModelName}}(ctx context.Context, db storage.Executor, {{- range .Fields}}{{- if .IsFK}}{{.ArgumentName}} {{.Type}}, {{end}}{{end}}opts ...{{.ModelName}}Option) (models.{{.EntityName}}, error) {
+func Create{{.ModelName}}(ctx context.Context, exec storage.Executor, {{range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}opts ...{{.ModelName}}Option) (models.{{.EntityName}}, error) {
 	// Build with defaults and required FKs
-	built := Build{{.ModelName}}({{- range .Fields}}{{- if .IsFK}}{{.ArgumentName}}, {{end}}{{end}}opts...)
+	built := Build{{.ModelName}}({{range .ForeignKeyFields}}{{.ArgumentName}}, {{end}}opts...)
 
 	// Prepare creation data
 	data := models.Create{{.ModelName}}Data{
@@ -79,7 +79,7 @@ func Create{{.ModelName}}(ctx context.Context, db storage.Executor, {{- range .F
 	}
 
 	// Use model's Create function via namespace
-	entity, err := models.{{.NamespaceVar}}.Create(ctx, db, data)
+	entity, err := models.{{.NamespaceVar}}.Create(ctx, exec, data)
 	if err != nil {
 		return models.{{.EntityName}}{}, err
 	}
@@ -88,11 +88,11 @@ func Create{{.ModelName}}(ctx context.Context, db storage.Executor, {{- range .F
 }
 
 // Create{{.ModelName}}s creates multiple {{.ModelName}} records at once
-func Create{{.ModelName}}s(ctx context.Context, db storage.Executor, {{range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}count int, opts ...{{.ModelName}}Option) ([]models.{{.EntityName}}, error) {
+func Create{{.ModelName}}s(ctx context.Context, exec storage.Executor, {{range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}count int, opts ...{{.ModelName}}Option) ([]models.{{.EntityName}}, error) {
 	{{.ModelName | toLower}}s := make([]models.{{.EntityName}}, 0, count)
 
 	for i := 0; i < count; i++ {
-		entity, err := Create{{.ModelName}}(ctx, db, {{range .ForeignKeyFields}}{{.ArgumentName}}, {{end}}opts...)
+		entity, err := Create{{.ModelName}}(ctx, exec, {{range .ForeignKeyFields}}{{.ArgumentName}}, {{end}}opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create {{.ModelName | toLower}} %d: %w", i+1, err)
 		}

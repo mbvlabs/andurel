@@ -304,6 +304,8 @@ func (g *Generator) GenerateModel(
 // GeneratedFactory represents a factory for a model
 type GeneratedFactory struct {
 	ModelName         string
+	EntityName        string // ServerEntity (resource name + "Entity")
+	NamespaceVar      string // Server (exported, package-scope)
 	Package           string
 	Fields            []FactoryField
 	ModulePath        string
@@ -348,8 +350,8 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 		}
 	}
 
-	// Collect imports
-	standardImports := []string{"context", "fmt"}
+	// Collect imports - context and fmt are already in the template
+	standardImports := []string{}
 	externalImports := []string{
 		"github.com/go-faker/faker/v4",
 	}
@@ -369,6 +371,8 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 
 	return &GeneratedFactory{
 		ModelName:         genModel.Name,
+		EntityName:        genModel.EntityName,
+		NamespaceVar:      genModel.NamespaceVar,
 		Package:           "factories",
 		Fields:            factoryFields,
 		ModulePath:        config.ModulePath,

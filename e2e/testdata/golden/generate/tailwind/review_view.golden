@@ -36,10 +36,10 @@ templ ReviewIndex(reviews []models.Review) {
 								for _, review := range reviews {
 									<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ review.Title }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ review.Body }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", review.Body) }</td>
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%d", review.Rating) }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ review.CreatedAt.String() }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ review.UpdatedAt.String() }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", review.CreatedAt) }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", review.UpdatedAt) }</td>
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 											<div class="flex flex-wrap gap-3 text-sm">
 												<a class="text-base-content/80 hover:text-base-content" href={ routes.ReviewShow.URL(review.ID) }>View</a>
@@ -77,7 +77,7 @@ templ ReviewShow(review models.Review) {
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Body</label>
-								<p class="text-sm text-base-content">{ review.Body }</p>
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", review.Body) }</p>
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Rating</label>
@@ -85,11 +85,11 @@ templ ReviewShow(review models.Review) {
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
-								<p class="text-sm text-base-content">{ review.CreatedAt.String() }</p>
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", review.CreatedAt) }</p>
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
-								<p class="text-sm text-base-content">{ review.UpdatedAt.String() }</p>
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", review.UpdatedAt) }</p>
 							</div>
 						</div>
 					</div>
@@ -157,7 +157,7 @@ templ ReviewEdit(review models.Review) {
 									</div>
 									<div class="space-y-1">
 										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="body">Body</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="body" value={ review.Body }/>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="body" value={ fmt.Sprintf("%v", review.Body) }/>
 									</div>
 									<div class="space-y-1">
 										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="rating">Rating</label>

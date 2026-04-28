@@ -1,6 +1,7 @@
 package views
 
 import (
+	"fmt"
 	"net/http"
 	"testapp/internal/hypermedia"
 	"testapp/internal/renderer"
@@ -34,9 +35,9 @@ templ CompanyIndex(companies []models.Company) {
 								for _, company := range companies {
 									<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ company.Name }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ company.Industry }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ company.CreatedAt.String() }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ company.UpdatedAt.String() }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", company.Industry) }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", company.CreatedAt) }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", company.UpdatedAt) }</td>
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 											<div class="flex flex-wrap gap-3 text-sm">
 												<a class="text-base-content/80 hover:text-base-content" href={ routes.CompanyShow.URL(company.ID) }>View</a>
@@ -74,15 +75,15 @@ templ CompanyShow(company models.Company) {
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Industry</label>
-								<p class="text-sm text-base-content">{ company.Industry }</p>
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", company.Industry) }</p>
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
-								<p class="text-sm text-base-content">{ company.CreatedAt.String() }</p>
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", company.CreatedAt) }</p>
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
-								<p class="text-sm text-base-content">{ company.UpdatedAt.String() }</p>
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", company.UpdatedAt) }</p>
 							</div>
 						</div>
 					</div>
@@ -146,7 +147,7 @@ templ CompanyEdit(company models.Company) {
 									</div>
 									<div class="space-y-1">
 										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="industry">Industry</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="industry" value={ company.Industry }/>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="industry" value={ fmt.Sprintf("%v", company.Industry) }/>
 									</div>
 								</div>
 								<div class="mt-6 space-y-3">

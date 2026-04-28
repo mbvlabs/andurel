@@ -49,9 +49,9 @@ templ DocumentIndex(documents []models.Document) {
 										<td>{ strings.Join(document.Tags, ", ") }</td>
 										<td>{ fmt.Sprintf("%v", document.PageNumbers) }</td>
 										<td>{ fmt.Sprintf("%d", document.ViewCount) }</td>
-										<td>{ fmt.Sprintf("%t", document.IsPublished) }</td>
-										<td>{ document.CreatedAt.String() }</td>
-										<td>{ document.UpdatedAt.String() }</td>
+										<td>{ fmt.Sprintf("%v", document.IsPublished) }</td>
+										<td>{ fmt.Sprintf("%v", document.CreatedAt) }</td>
+										<td>{ fmt.Sprintf("%v", document.UpdatedAt) }</td>
 										<td>
 											<div class="cluster" data-gap="sm">
 												<a class="btn btn-ghost btn-sm" href="/">View</a>
@@ -103,15 +103,15 @@ templ DocumentShow(document models.Document) {
 						</div>
 						<div class="field">
 							<p class="field-label">Is Published</p>
-							<p>{ fmt.Sprintf("%t", document.IsPublished) }</p>
+							<p>{ fmt.Sprintf("%v", document.IsPublished) }</p>
 						</div>
 						<div class="field">
 							<p class="field-label">Created At</p>
-							<p>{ document.CreatedAt.String() }</p>
+							<p>{ fmt.Sprintf("%v", document.CreatedAt) }</p>
 						</div>
 						<div class="field">
 							<p class="field-label">Updated At</p>
-							<p>{ document.UpdatedAt.String() }</p>
+							<p>{ fmt.Sprintf("%v", document.UpdatedAt) }</p>
 						</div>
 					</div>
 				</div>
@@ -160,9 +160,11 @@ templ DocumentNew() {
 										<input class="input" id="viewCount" type="number" data-bind="viewCount"/>
 									</div>
 								</div>
-								<div class="radio-row">
-									<input class="checkbox" id="isPublished" type="checkbox" data-bind="isPublished"/>
-									<label class="label" for="isPublished">Is Published</label>
+								<div class="field">
+									<label class="field-label" for="isPublished">Is Published</label>
+									<div class="field-control">
+										<input class="input" id="isPublished" type="text" data-bind="isPublished"/>
+									</div>
 								</div>
 								<div class="stack" data-gap="sm">
 									<button class="btn btn-primary btn-block" type="submit">Create Document</button>
@@ -217,11 +219,11 @@ templ DocumentEdit(document models.Document) {
 										<input class="input" id="viewCount" type="number" data-bind="viewCount" value={ fmt.Sprintf("%d", document.ViewCount) }/>
 									</div>
 								</div>
-								<div class="radio-row">
-									<input class="checkbox" id="isPublished" type="checkbox" data-bind="isPublished" if document.IsPublished {
-	checked
-}/>
-									<label class="label" for="isPublished">Is Published</label>
+								<div class="field">
+									<label class="field-label" for="isPublished">Is Published</label>
+									<div class="field-control">
+										<input class="input" id="isPublished" type="text" data-bind="isPublished" value={ fmt.Sprintf("%v", document.IsPublished) }/>
+									</div>
 								</div>
 								<div class="stack" data-gap="sm">
 									<button class="btn btn-primary btn-block" type="submit">Update Document</button>

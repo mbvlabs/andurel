@@ -94,7 +94,6 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 		".gitignore",
 		"cmd/app/main.go",
 		"controllers/pages.go",
-		"database/sqlc.yaml",
 		"views/layout.templ",
 		"views/home.templ",
 	}
