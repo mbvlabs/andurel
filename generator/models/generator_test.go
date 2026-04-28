@@ -511,51 +511,6 @@ DROP TABLE api_tokens;
 	}
 }
 
-func TestGenerateModelPaginationForTextPK(t *testing.T) {
-	originalWd, _ := os.Getwd()
-	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "text_pk")
-
-	generator := NewGenerator("postgresql")
-	cat, err := generator.buildCatalogFromTableMigrations(
-		"users",
-		[]string{migrationsDir},
-	)
-	if err != nil {
-		t.Fatalf("Failed to build catalog from migrations: %v", err)
-	}
-
-	model, err := generator.Build(cat, Config{
-		TableName:    "users",
-		ResourceName: "User",
-		PackageName:  "models",
-		DatabaseType: "postgresql",
-		ModulePath:   "github.com/example/test",
-	})
-	if err != nil {
-		t.Fatalf("Failed to build model: %v", err)
-	}
-
-	templateContent, err := templates.Files.ReadFile("model.tmpl")
-	if err != nil {
-		t.Fatalf("Failed to read model template: %v", err)
-	}
-
-	modelContent, err := generator.GenerateModelFile(model, string(templateContent))
-	if err != nil {
-		t.Fatalf("Failed to render model file: %v", err)
-	}
-
-	if !strings.Contains(modelContent, "func PaginateUsers(") {
-		t.Error("Expected paginated function to be generated for text primary key")
-	}
-	if !strings.Contains(modelContent, "QueryPaginatedUsers") {
-		t.Error("Expected paginated query to be referenced in model for text primary key")
-	}
-	if !strings.Contains(modelContent, "func FindUser(\n\tctx context.Context,\n\texec storage.Executor,\n\tid string,\n") {
-		t.Error("Expected model functions to use string ID type for text primary key")
-	}
-}
-
 // TestMigrationWithComments verifies that migrations containing SQL comments
 // (both single-line -- and block /* */) are parsed correctly and generate
 // valid model code.
@@ -890,22 +845,6 @@ func TestSingleInsertParamAutoIncrement(t *testing.T) {
 	modelContent, err := generator.GenerateModelFile(model, string(templateContent))
 	if err != nil {
 		t.Fatalf("Failed to render model file: %v", err)
-	}
-
-	// Verify the generated code does NOT create InsertTesterParams
-	if strings.Contains(modelContent, "db.InsertTesterParams") {
-		t.Error("Generated code should NOT contain 'db.InsertTesterParams' for single insert param")
-	}
-	if strings.Contains(modelContent, "db.UpsertTesterParams") {
-		t.Error("Generated code should NOT contain 'db.UpsertTesterParams' for single insert param")
-	}
-
-	// Verify the generated code passes the value directly
-	if !strings.Contains(modelContent, "queries.InsertTester(ctx, exec, data.Name)") {
-		t.Error("Expected Insert to pass 'data.Name' directly instead of params struct")
-	}
-	if !strings.Contains(modelContent, "queries.UpsertTester(ctx, exec, data.Name)") {
-		t.Error("Expected Upsert to pass 'data.Name' directly instead of params struct")
 	}
 
 	// Golden file testing

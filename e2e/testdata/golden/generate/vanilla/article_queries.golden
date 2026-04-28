@@ -1,10 +1,13 @@
 -- name: QueryArticleByID :one
+-- model: Article
 select * from articles where id=$1;
 
 -- name: QueryArticles :many
+-- model: Article
 select * from articles;
 
 -- name: InsertArticle :one
+-- model: Article
 insert into
     articles (id, title, content, published, created_at, updated_at)
 values
@@ -12,23 +15,28 @@ values
 returning *;
 
 -- name: UpdateArticle :one
+-- model: Article
 update articles
     set title=$2, content=$3, published=$4, updated_at=now()
 where id = $1
 returning *;
 
 -- name: DeleteArticle :exec
+-- model: Article
 delete from articles where id=$1;
 
 -- name: QueryPaginatedArticles :many
+-- model: Article
 select * from articles
 order by created_at desc
 limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
 
 -- name: CountArticles :one
+-- model: Article
 select count(*) from articles;
 
 -- name: UpsertArticle :one
+-- model: Article
 insert into
     articles (id, title, content, published, created_at, updated_at)
 values

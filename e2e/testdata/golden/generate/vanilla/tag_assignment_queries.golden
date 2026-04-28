@@ -1,10 +1,13 @@
 -- name: QueryTagAssignmentByID :one
+-- model: TagAssignment
 select * from tag_assignments where id=$1;
 
 -- name: QueryTagAssignment :many
+-- model: TagAssignment
 select * from tag_assignments;
 
 -- name: InsertTagAssignment :one
+-- model: TagAssignment
 insert into
     tag_assignments (id, taggable_type, taggable_id, tag_id)
 values
@@ -12,15 +15,18 @@ values
 returning *;
 
 -- name: UpdateTagAssignment :one
+-- model: TagAssignment
 update tag_assignments
     set taggable_type=$2, taggable_id=$3, tag_id=$4
 where id = $1
 returning *;
 
 -- name: DeleteTagAssignment :exec
+-- model: TagAssignment
 delete from tag_assignments where id=$1;
 
 -- name: UpsertTagAssignment :one
+-- model: TagAssignment
 insert into
     tag_assignments (id, taggable_type, taggable_id, tag_id)
 values

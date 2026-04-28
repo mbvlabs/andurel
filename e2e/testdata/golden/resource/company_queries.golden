@@ -1,10 +1,13 @@
 -- name: QueryCompanyByID :one
+-- model: Company
 select * from companies where id=$1;
 
 -- name: QueryCompanies :many
+-- model: Company
 select * from companies;
 
 -- name: InsertCompany :one
+-- model: Company
 insert into
     companies (id, name, industry, created_at, updated_at)
 values
@@ -12,23 +15,28 @@ values
 returning *;
 
 -- name: UpdateCompany :one
+-- model: Company
 update companies
     set name=$2, industry=$3, updated_at=now()
 where id = $1
 returning *;
 
 -- name: DeleteCompany :exec
+-- model: Company
 delete from companies where id=$1;
 
 -- name: QueryPaginatedCompanies :many
+-- model: Company
 select * from companies
 order by created_at desc
 limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
 
 -- name: CountCompanies :one
+-- model: Company
 select count(*) from companies;
 
 -- name: UpsertCompany :one
+-- model: Company
 insert into
     companies (id, name, industry, created_at, updated_at)
 values

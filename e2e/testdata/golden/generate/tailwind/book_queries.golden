@@ -1,10 +1,13 @@
 -- name: QueryBookByID :one
+-- model: Book
 select * from books where id=$1;
 
 -- name: QueryBooks :many
+-- model: Book
 select * from books;
 
 -- name: InsertBook :one
+-- model: Book
 insert into
     books (id, title, author, price, pages, created_at, updated_at)
 values
@@ -12,23 +15,28 @@ values
 returning *;
 
 -- name: UpdateBook :one
+-- model: Book
 update books
     set title=$2, author=$3, price=$4, pages=$5, updated_at=now()
 where id = $1
 returning *;
 
 -- name: DeleteBook :exec
+-- model: Book
 delete from books where id=$1;
 
 -- name: QueryPaginatedBooks :many
+-- model: Book
 select * from books
 order by created_at desc
 limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
 
 -- name: CountBooks :one
+-- model: Book
 select count(*) from books;
 
 -- name: UpsertBook :one
+-- model: Book
 insert into
     books (id, title, author, price, pages, created_at, updated_at)
 values

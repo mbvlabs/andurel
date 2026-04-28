@@ -42,6 +42,7 @@ func GetFrameworkTemplates() []FrameworkTemplate {
 			"internal/storage/andurel_sqlc_config.yaml",
 		},
 		{"framework_elements_storage_psql.tmpl", "internal/storage/psql.go"},
+		{"framework_elements_storage_runtime.tmpl", "internal/storage/runtime.go"},
 		{"framework_elements_storage_queue.tmpl", "internal/storage/queue.go"},
 	}
 }

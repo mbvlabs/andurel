@@ -1,10 +1,13 @@
 -- name: QueryProductByID :one
+-- model: Product
 select * from products where id=$1;
 
 -- name: QueryProducts :many
+-- model: Product
 select * from products;
 
 -- name: InsertProduct :one
+-- model: Product
 insert into
     products (id, name, price, created_at, updated_at)
 values
@@ -12,23 +15,28 @@ values
 returning *;
 
 -- name: UpdateProduct :one
+-- model: Product
 update products
     set name=$2, price=$3, updated_at=now()
 where id = $1
 returning *;
 
 -- name: DeleteProduct :exec
+-- model: Product
 delete from products where id=$1;
 
 -- name: QueryPaginatedProducts :many
+-- model: Product
 select * from products
 order by created_at desc
 limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
 
 -- name: CountProducts :one
+-- model: Product
 select count(*) from products;
 
 -- name: UpsertProduct :one
+-- model: Product
 insert into
     products (id, name, price, created_at, updated_at)
 values

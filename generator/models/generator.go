@@ -42,6 +42,7 @@ type GeneratedModel struct {
 	StandardImports      []string
 	ExternalImports      []string
 	Imports              []string
+	EntityImports        []string // Sorted imports needed for the Entity struct (SQLCType-driven)
 	TableName            string
 	TableNameOverride    string
 	TableNameOverridden  bool
@@ -196,7 +197,32 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		append(make([]string, 0, len(stdImports)+len(extImports)), stdImports...),
 		extImports...)
 
+	model.EntityImports = g.buildEntityImports(model.Fields)
+
 	return model, nil
+}
+
+// buildEntityImports collects imports needed for the scaffolded Entity struct.
+// The Entity mirrors db.<Model> 1:1, so its field types come from SQLCType
+// (e.g. pgtype.Text, time.Time, uuid.UUID), not the simplified Type.
+func (g *Generator) buildEntityImports(fields []GeneratedField) []string {
+	importSet := make(map[string]bool)
+	for _, field := range fields {
+		if strings.Contains(field.SQLCType, "time.Time") {
+			importSet["time"] = true
+		}
+		if strings.Contains(field.SQLCType, "uuid.UUID") {
+			importSet["github.com/google/uuid"] = true
+		}
+		if strings.Contains(field.SQLCType, "pgtype.") {
+			importSet["github.com/jackc/pgx/v5/pgtype"] = true
+		}
+	}
+	stdImports, extImports := groupAndSortImports(importSet)
+	out := make([]string, 0, len(stdImports)+len(extImports))
+	out = append(out, stdImports...)
+	out = append(out, extImports...)
+	return out
 }
 
 func groupAndSortImports(importSet map[string]bool) (stdImports []string, extImports []string) {

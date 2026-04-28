@@ -1,10 +1,13 @@
 -- name: QueryPersonByID :one
+-- model: Person
 select * from people_data where id=$1;
 
 -- name: QueryPerson :many
+-- model: Person
 select * from people_data;
 
 -- name: InsertPerson :one
+-- model: Person
 insert into
     people_data (id, first_name, last_name, email, created_at, updated_at)
 values
@@ -12,23 +15,28 @@ values
 returning *;
 
 -- name: UpdatePerson :one
+-- model: Person
 update people_data
     set first_name=$2, last_name=$3, email=$4, updated_at=now()
 where id = $1
 returning *;
 
 -- name: DeletePerson :exec
+-- model: Person
 delete from people_data where id=$1;
 
 -- name: QueryPaginatedPerson :many
+-- model: Person
 select * from people_data
 order by created_at desc
 limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
 
 -- name: CountPerson :one
+-- model: Person
 select count(*) from people_data;
 
 -- name: UpsertPerson :one
+-- model: Person
 insert into
     people_data (id, first_name, last_name, email, created_at, updated_at)
 values

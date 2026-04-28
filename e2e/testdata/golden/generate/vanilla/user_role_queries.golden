@@ -1,10 +1,13 @@
 -- name: QueryUserRoleByID :one
+-- model: UserRole
 select * from user_roles where id=$1;
 
 -- name: QueryUserRole :many
+-- model: UserRole
 select * from user_roles;
 
 -- name: InsertUserRole :one
+-- model: UserRole
 insert into
     user_roles (id, user_id, role_id)
 values
@@ -12,15 +15,18 @@ values
 returning *;
 
 -- name: UpdateUserRole :one
+-- model: UserRole
 update user_roles
     set user_id=$2, role_id=$3
 where id = $1
 returning *;
 
 -- name: DeleteUserRole :exec
+-- model: UserRole
 delete from user_roles where id=$1;
 
 -- name: UpsertUserRole :one
+-- model: UserRole
 insert into
     user_roles (id, user_id, role_id)
 values

@@ -1,10 +1,13 @@
 -- name: QueryProjectByID :one
+-- model: Project
 select * from projects where id=$1;
 
 -- name: QueryProjects :many
+-- model: Project
 select * from projects;
 
 -- name: InsertProject :one
+-- model: Project
 insert into
     projects (id, name, description, created_at, updated_at)
 values
@@ -12,23 +15,28 @@ values
 returning *;
 
 -- name: UpdateProject :one
+-- model: Project
 update projects
     set name=$2, description=$3, updated_at=now()
 where id = $1
 returning *;
 
 -- name: DeleteProject :exec
+-- model: Project
 delete from projects where id=$1;
 
 -- name: QueryPaginatedProjects :many
+-- model: Project
 select * from projects
 order by created_at desc
 limit sqlc.arg('limit')::bigint offset sqlc.arg('offset')::bigint;
 
 -- name: CountProjects :one
+-- model: Project
 select count(*) from projects;
 
 -- name: UpsertProject :one
+-- model: Project
 insert into
     projects (id, name, description, created_at, updated_at)
 values

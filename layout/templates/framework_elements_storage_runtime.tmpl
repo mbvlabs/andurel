@@ -1,0 +1,182 @@
+// Package storage's hook-aware CRUD execution layer for andurel-generated models.
+// Code generated and maintained by the andurel framework. DO NOT EDIT.
+package storage
+
+import "context"
+
+// Op identifies the kind of operation being executed. The constant
+// identifiers (OpFind, OpCreate, OpUpdate, OpDelete) are emitted verbatim
+// by the andurel sqlc plugin into generated model code; keep them in sync
+// with internal/sqlcgen/op.go.
+type Op string
+
+const (
+	OpFind   Op = "find"
+	OpCreate Op = "create"
+	OpUpdate Op = "update"
+	OpDelete Op = "delete"
+)
+
+// QueryOpt is reserved for future per-call configuration (timeouts, hook
+// bypass, request-scoped meta). The variadic shape on Execute lets us add
+// real options later without breaking call sites the plugin emits today.
+type QueryOpt func(*queryConfig)
+
+type queryConfig struct{}
+
+// CanAccess gates read operations. Implemented on a model's base type
+// (e.g. serverBase) to authorize OpFind calls. Return a non-nil error to
+// abort the operation.
+type CanAccess interface {
+	CanAccess(ctx context.Context, exec Executor, meta []byte) error
+}
+
+// CanModify gates write operations. Called before OpCreate, OpUpdate, and
+// OpDelete.
+type CanModify interface {
+	CanModify(ctx context.Context, exec Executor, meta []byte) error
+}
+
+// BeforeFinder runs before an OpFind. No entity exists yet, so the hook
+// receives only context plus the reserved meta slice.
+type BeforeFinder interface {
+	BeforeFind(ctx context.Context, exec Executor, meta []byte) error
+}
+
+// BeforeCreator runs before an OpCreate, with a pointer so the hook can
+// normalize fields prior to persistence. Currently the pointer addresses a
+// zero entity — a Save-style API that constructs the entity client-side
+// will give this hook real data.
+type BeforeCreator[E any] interface {
+	BeforeCreate(ctx context.Context, exec Executor, entity *E) error
+}
+
+type BeforeUpdater[E any] interface {
+	BeforeUpdate(ctx context.Context, exec Executor, entity *E) error
+}
+
+type BeforeDeleter[E any] interface {
+	BeforeDelete(ctx context.Context, exec Executor, entity *E) error
+}
+
+// AfterFinder runs after a successful OpFind, with the loaded entity.
+type AfterFinder[E any] interface {
+	AfterFind(ctx context.Context, exec Executor, entity E) error
+}
+
+type AfterCreator[E any] interface {
+	AfterCreate(ctx context.Context, exec Executor, entity E) error
+}
+
+type AfterUpdater[E any] interface {
+	AfterUpdate(ctx context.Context, exec Executor, entity E) error
+}
+
+type AfterDeleter[E any] interface {
+	AfterDelete(ctx context.Context, exec Executor, entity E) error
+}
+
+// Execute runs fn inside the andurel hook lifecycle:
+//
+//  1. policy check (CanAccess on reads, CanModify on writes)
+//  2. before-hook (BeforeFinder / BeforeCreator[E] / BeforeUpdater[E] / BeforeDeleter[E])
+//  3. fn — the actual SQL call, emitted by the andurel sqlc plugin
+//  4. after-hook (AfterFinder[E] / AfterCreator[E] / AfterUpdater[E] / AfterDeleter[E])
+//
+// Hooks dispatch via type assertion against m, so a model only pays for
+// the interfaces it actually implements. Generic over M (the model handle
+// — typically a zero-sized base struct) and R (the return type — entity,
+// []entity, struct{} for :exec, or int64 for :execrows). Entity-shaped
+// hooks for write ops fire when R matches the user's entity type; for
+// :exec/:execrows queries the assertion naturally fails and the hook is
+// skipped.
+func Execute[M any, R any](
+	ctx context.Context,
+	exec Executor,
+	op Op,
+	m M,
+	fn func() (R, error),
+	opts ...QueryOpt,
+) (R, error) {
+	var zero R
+
+	switch op {
+	case OpFind:
+		if h, ok := any(m).(CanAccess); ok {
+			if err := h.CanAccess(ctx, exec, nil); err != nil {
+				return zero, err
+			}
+		}
+	case OpCreate, OpUpdate, OpDelete:
+		if h, ok := any(m).(CanModify); ok {
+			if err := h.CanModify(ctx, exec, nil); err != nil {
+				return zero, err
+			}
+		}
+	}
+
+	switch op {
+	case OpFind:
+		if h, ok := any(m).(BeforeFinder); ok {
+			if err := h.BeforeFind(ctx, exec, nil); err != nil {
+				return zero, err
+			}
+		}
+	case OpCreate:
+		if h, ok := any(m).(BeforeCreator[R]); ok {
+			var entity R
+			if err := h.BeforeCreate(ctx, exec, &entity); err != nil {
+				return zero, err
+			}
+		}
+	case OpUpdate:
+		if h, ok := any(m).(BeforeUpdater[R]); ok {
+			var entity R
+			if err := h.BeforeUpdate(ctx, exec, &entity); err != nil {
+				return zero, err
+			}
+		}
+	case OpDelete:
+		if h, ok := any(m).(BeforeDeleter[R]); ok {
+			var entity R
+			if err := h.BeforeDelete(ctx, exec, &entity); err != nil {
+				return zero, err
+			}
+		}
+	}
+
+	result, err := fn()
+	if err != nil {
+		return zero, err
+	}
+
+	switch op {
+	case OpFind:
+		if h, ok := any(m).(AfterFinder[R]); ok {
+			if err := h.AfterFind(ctx, exec, result); err != nil {
+				return zero, err
+			}
+		}
+	case OpCreate:
+		if h, ok := any(m).(AfterCreator[R]); ok {
+			if err := h.AfterCreate(ctx, exec, result); err != nil {
+				return zero, err
+			}
+		}
+	case OpUpdate:
+		if h, ok := any(m).(AfterUpdater[R]); ok {
+			if err := h.AfterUpdate(ctx, exec, result); err != nil {
+				return zero, err
+			}
+		}
+	case OpDelete:
+		if h, ok := any(m).(AfterDeleter[R]); ok {
+			if err := h.AfterDelete(ctx, exec, result); err != nil {
+				return zero, err
+			}
+		}
+	}
+
+	_ = opts
+	return result, nil
+}
