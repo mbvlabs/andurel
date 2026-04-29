@@ -39,7 +39,7 @@ func (i Items) Index(etx *echo.Context) error {
 		}
 	}
 
-	itemsList, err := models.PaginateItems(
+	itemsList, err := models.Item.Paginate(
 		etx.Request().Context(),
 		i.db.Conn(),
 		page,
@@ -58,7 +58,7 @@ func (i Items) Show(etx *echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	item, err := models.FindItem(etx.Request().Context(), i.db.Conn(), itemID)
+	item, err := models.Item.Find(etx.Request().Context(), i.db.Conn(), itemID)
 	if err != nil {
 		return render(etx, views.NotFound())
 	}
@@ -95,7 +95,7 @@ func (i Items) Create(etx *echo.Context) error {
 		Quantity:    payload.Quantity,
 	}
 
-	item, err := models.CreateItem(
+	item, err := models.Item.Create(
 		etx.Request().Context(),
 		i.db.Conn(),
 		data,
@@ -120,7 +120,7 @@ func (i Items) Edit(etx *echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	item, err := models.FindItem(etx.Request().Context(), i.db.Conn(), itemID)
+	item, err := models.Item.Find(etx.Request().Context(), i.db.Conn(), itemID)
 	if err != nil {
 		return render(etx, views.NotFound())
 	}
@@ -159,7 +159,7 @@ func (i Items) Update(etx *echo.Context) error {
 		Quantity:    payload.Quantity,
 	}
 
-	item, err := models.UpdateItem(
+	item, err := models.Item.Update(
 		etx.Request().Context(),
 		i.db.Conn(),
 		data,
@@ -187,7 +187,7 @@ func (i Items) Destroy(etx *echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	err = models.DestroyItem(etx.Request().Context(), i.db.Conn(), itemID)
+	err = models.Item.Destroy(etx.Request().Context(), i.db.Conn(), itemID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete item: %v", err)); flashErr != nil {
 			return render(etx, views.InternalError())

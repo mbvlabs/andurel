@@ -39,7 +39,7 @@ func (o Orders) Index(etx *echo.Context) error {
 		}
 	}
 
-	ordersList, err := models.PaginateOrders(
+	ordersList, err := models.Order.Paginate(
 		etx.Request().Context(),
 		o.db.Conn(),
 		page,
@@ -58,7 +58,7 @@ func (o Orders) Show(etx *echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	order, err := models.FindOrder(etx.Request().Context(), o.db.Conn(), orderID)
+	order, err := models.Order.Find(etx.Request().Context(), o.db.Conn(), orderID)
 	if err != nil {
 		return render(etx, views.NotFound())
 	}
@@ -113,7 +113,7 @@ func (o Orders) Create(etx *echo.Context) error {
 		Signature:    []byte(payload.Signature),
 	}
 
-	order, err := models.CreateOrder(
+	order, err := models.Order.Create(
 		etx.Request().Context(),
 		o.db.Conn(),
 		data,
@@ -138,7 +138,7 @@ func (o Orders) Edit(etx *echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	order, err := models.FindOrder(etx.Request().Context(), o.db.Conn(), orderID)
+	order, err := models.Order.Find(etx.Request().Context(), o.db.Conn(), orderID)
 	if err != nil {
 		return render(etx, views.NotFound())
 	}
@@ -195,7 +195,7 @@ func (o Orders) Update(etx *echo.Context) error {
 		Signature:    []byte(payload.Signature),
 	}
 
-	order, err := models.UpdateOrder(
+	order, err := models.Order.Update(
 		etx.Request().Context(),
 		o.db.Conn(),
 		data,
@@ -223,7 +223,7 @@ func (o Orders) Destroy(etx *echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	err = models.DestroyOrder(etx.Request().Context(), o.db.Conn(), orderID)
+	err = models.Order.Destroy(etx.Request().Context(), o.db.Conn(), orderID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete order: %v", err)); flashErr != nil {
 			return render(etx, views.InternalError())
