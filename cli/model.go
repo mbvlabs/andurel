@@ -61,7 +61,8 @@ func newModelRootCommand() *cobra.Command {
 			if err := chdirToProjectRoot(); err != nil {
 				return err
 			}
-			return runModelUpdate(name)
+			yes, _ := cmd.Flags().GetBool("yes")
+			return runModelUpdate(name, yes)
 		default:
 			return fmt.Errorf("unknown model command %q\nRun 'andurel model --help' for usage", args[1])
 		}
@@ -69,11 +70,12 @@ func newModelRootCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&tableName, "table-name", "", "Override the default table name (defaults to plural form of model name)")
 	cmd.Flags().BoolVar(&skipFactory, "skip-factory", false, "Skip factory generation")
+	cmd.Flags().Bool("yes", false, "Apply changes without prompting for confirmation")
 
 	return cmd
 }
 
-func runModelUpdate(resourceName string) error {
+func runModelUpdate(resourceName string, autoApply bool) error {
 	gen, err := generator.New()
 	if err != nil {
 		return err
@@ -98,13 +100,15 @@ func runModelUpdate(resourceName string) error {
 	printColoredDiff(diff)
 	fmt.Println()
 
-	confirmed, err := confirmModelApply()
-	if err != nil {
-		return err
-	}
-	if !confirmed {
-		fmt.Println("Aborted.")
-		return nil
+	if !autoApply {
+		confirmed, err := confirmModelApply()
+		if err != nil {
+			return err
+		}
+		if !confirmed {
+			fmt.Println("Aborted.")
+			return nil
+		}
 	}
 
 	if err := gen.ApplyModelUpdate(result); err != nil {
