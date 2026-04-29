@@ -5,14 +5,21 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+{{- $needsTime := false}}
+{{- $needsUUID := or (not .IDType) (eq .IDType "uuid.UUID")}}
 {{- range .Fields}}
 {{- if and (not .IsSystemField) (eq .GoFormType "time.Time")}}
-	"time"
-{{- break}}
+	{{- $needsTime = true}}
 {{- end}}
+{{- if and (not .IsSystemField) (or (eq .GoType "uuid.UUID") (eq .GoType "*uuid.UUID"))}}
+	{{- $needsUUID = true}}
+{{- end}}
+{{- end}}
+{{- if $needsTime}}
+	"time"
 {{- end}}
 
-{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- if $needsUUID}}
 	"github.com/google/uuid"
 {{- end}}
 	"github.com/labstack/echo/v5"
@@ -47,7 +54,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		}
 	}
 
-	{{.PluralName | ToCamelCase}}List, err := models.Paginate{{.PluralResourceName}}(
+	{{.PluralName | ToCamelCase}}List, err := models.{{.ResourceName}}.Paginate(
 		etx.Request().Context(),
 		{{.ReceiverName}}.db.Conn(),
 		page,
@@ -84,7 +91,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return render(etx, views.NotFound())
 	}
@@ -124,7 +131,25 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 	data := models.Create{{.ResourceName}}Data{
 {{- range .Fields}}
 {{- if not .IsSystemField}}
-		{{- if eq .GoType "uuid.UUID"}}
+		{{- if eq .GoType "*uuid.UUID"}}
+		{{.Name}}:    func() *uuid.UUID {
+			if payload.{{.Name}} == "" {
+				return nil
+			}
+			parsed, err := uuid.Parse(payload.{{.Name}})
+			if err != nil {
+				slog.WarnContext(
+					etx.Request().Context(),
+					"could not parse {{.Name}}, setting to nil UUID pointer",
+					"error",
+					err,
+				)
+				return nil
+			}
+
+			return &parsed
+		}(),
+		{{- else if eq .GoType "uuid.UUID"}}
 		{{.Name}}:    func() uuid.UUID {
 			if payload.{{.Name}} == "" {
 				return uuid.Nil
@@ -146,6 +171,16 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		{{.Name}}:    []byte(payload.{{.Name}}),
 		{{- else if eq .GoType "bool"}}
 		{{.Name}}:    payload.{{.Name}},
+		{{- else if eq .GoType "*time.Time"}}
+		{{.Name}}:    func() *time.Time {
+			if payload.{{.Name}} == "" {
+				return nil
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return &t
+			}
+			return nil
+		}(),
 		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
 			if payload.{{.Name}} == "" {
@@ -156,6 +191,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 			}
 			return time.Time{}
 		}(),
+		{{- else if .IsPointer}}
+		{{.Name}}:    payload.{{.Name}},
 		{{- else}}
 		{{.Name}}:    payload.{{.Name}},
 		{{- end}}
@@ -163,7 +200,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 {{- end}}
 	}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.Create{{.ResourceName}}(
+	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Create(
 		etx.Request().Context(),
 		{{.ReceiverName}}.db.Conn(),
 		data,
@@ -206,7 +243,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.Find{{.ResourceName}}(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return render(etx, views.NotFound())
 	}
@@ -266,7 +303,25 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		ID:      {{.ResourceName | ToLowerCamelCase}}ID,
 {{- range .Fields}}
 {{- if not .IsSystemField}}
-		{{- if eq .GoType "uuid.UUID"}}
+		{{- if eq .GoType "*uuid.UUID"}}
+		{{.Name}}:    func() *uuid.UUID {
+			if payload.{{.Name}} == "" {
+				return nil
+			}
+			parsed, err := uuid.Parse(payload.{{.Name}})
+			if err != nil {
+				slog.WarnContext(
+					etx.Request().Context(),
+					"could not parse {{.Name}}, setting to nil UUID pointer",
+					"error",
+					err,
+				)
+				return nil
+			}
+
+			return &parsed
+		}(),
+		{{- else if eq .GoType "uuid.UUID"}}
 		{{.Name}}:    func() uuid.UUID {
 			if payload.{{.Name}} == "" {
 				return uuid.Nil
@@ -288,6 +343,16 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		{{.Name}}:    []byte(payload.{{.Name}}),
 		{{- else if eq .GoType "bool"}}
 		{{.Name}}:    payload.{{.Name}},
+		{{- else if eq .GoType "*time.Time"}}
+		{{.Name}}:    func() *time.Time {
+			if payload.{{.Name}} == "" {
+				return nil
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return &t
+			}
+			return nil
+		}(),
 		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
 			if payload.{{.Name}} == "" {
@@ -298,6 +363,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 			}
 			return time.Time{}
 		}(),
+		{{- else if .IsPointer}}
+		{{.Name}}:    payload.{{.Name}},
 		{{- else}}
 		{{.Name}}:    payload.{{.Name}},
 		{{- end}}
@@ -305,7 +372,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 {{- end}}
 	}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.Update{{.ResourceName}}(
+	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Update(
 		etx.Request().Context(),
 		{{.ReceiverName}}.db.Conn(),
 		data,
@@ -351,7 +418,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 	}
 {{- end}}
 
-	err = models.Destroy{{.ResourceName}}(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
+	err = models.{{.ResourceName}}.Destroy(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return render(etx, views.InternalError())

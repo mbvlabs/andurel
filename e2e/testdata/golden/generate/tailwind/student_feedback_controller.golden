@@ -39,7 +39,7 @@ func (sf StudentFeedback) Index(etx *echo.Context) error {
 		}
 	}
 
-	studentFeedbackList, err := models.PaginateStudentFeedback(
+	studentFeedbackList, err := models.StudentFeedback.Paginate(
 		etx.Request().Context(),
 		sf.db.Conn(),
 		page,
@@ -58,7 +58,7 @@ func (sf StudentFeedback) Show(etx *echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	studentFeedback, err := models.FindStudentFeedback(etx.Request().Context(), sf.db.Conn(), studentFeedbackID)
+	studentFeedback, err := models.StudentFeedback.Find(etx.Request().Context(), sf.db.Conn(), studentFeedbackID)
 	if err != nil {
 		return render(etx, views.NotFound())
 	}
@@ -73,7 +73,7 @@ func (sf StudentFeedback) New(etx *echo.Context) error {
 type CreateStudentFeedbackFormPayload struct {
 	StudentID string `json:"studentId"`
 	Feedback  string `json:"feedback"`
-	Rating    string `json:"rating"`
+	Rating    int32  `json:"rating"`
 }
 
 func (sf StudentFeedback) Create(etx *echo.Context) error {
@@ -95,7 +95,7 @@ func (sf StudentFeedback) Create(etx *echo.Context) error {
 		Rating:    payload.Rating,
 	}
 
-	studentFeedback, err := models.CreateStudentFeedback(
+	studentFeedback, err := models.StudentFeedback.Create(
 		etx.Request().Context(),
 		sf.db.Conn(),
 		data,
@@ -120,7 +120,7 @@ func (sf StudentFeedback) Edit(etx *echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	studentFeedback, err := models.FindStudentFeedback(etx.Request().Context(), sf.db.Conn(), studentFeedbackID)
+	studentFeedback, err := models.StudentFeedback.Find(etx.Request().Context(), sf.db.Conn(), studentFeedbackID)
 	if err != nil {
 		return render(etx, views.NotFound())
 	}
@@ -131,7 +131,7 @@ func (sf StudentFeedback) Edit(etx *echo.Context) error {
 type UpdateStudentFeedbackFormPayload struct {
 	StudentID string `json:"studentId"`
 	Feedback  string `json:"feedback"`
-	Rating    string `json:"rating"`
+	Rating    int32  `json:"rating"`
 }
 
 func (sf StudentFeedback) Update(etx *echo.Context) error {
@@ -159,7 +159,7 @@ func (sf StudentFeedback) Update(etx *echo.Context) error {
 		Rating:    payload.Rating,
 	}
 
-	studentFeedback, err := models.UpdateStudentFeedback(
+	studentFeedback, err := models.StudentFeedback.Update(
 		etx.Request().Context(),
 		sf.db.Conn(),
 		data,
@@ -187,7 +187,7 @@ func (sf StudentFeedback) Destroy(etx *echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	err = models.DestroyStudentFeedback(etx.Request().Context(), sf.db.Conn(), studentFeedbackID)
+	err = models.StudentFeedback.Destroy(etx.Request().Context(), sf.db.Conn(), studentFeedbackID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete studentFeedback: %v", err)); flashErr != nil {
 			return render(etx, views.InternalError())

@@ -39,7 +39,7 @@ func (r Reviews) Index(etx *echo.Context) error {
 		}
 	}
 
-	reviewsList, err := models.PaginateReviews(
+	reviewsList, err := models.Review.Paginate(
 		etx.Request().Context(),
 		r.db.Conn(),
 		page,
@@ -58,7 +58,7 @@ func (r Reviews) Show(etx *echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	review, err := models.FindReview(etx.Request().Context(), r.db.Conn(), reviewID)
+	review, err := models.Review.Find(etx.Request().Context(), r.db.Conn(), reviewID)
 	if err != nil {
 		return render(etx, views.NotFound())
 	}
@@ -71,9 +71,9 @@ func (r Reviews) New(etx *echo.Context) error {
 }
 
 type CreateReviewFormPayload struct {
-	Title  string `json:"title"`
-	Body   string `json:"body"`
-	Rating int32  `json:"rating"`
+	Title  string  `json:"title"`
+	Body   *string `json:"body"`
+	Rating int32   `json:"rating"`
 }
 
 func (r Reviews) Create(etx *echo.Context) error {
@@ -95,7 +95,7 @@ func (r Reviews) Create(etx *echo.Context) error {
 		Rating: payload.Rating,
 	}
 
-	review, err := models.CreateReview(
+	review, err := models.Review.Create(
 		etx.Request().Context(),
 		r.db.Conn(),
 		data,
@@ -120,7 +120,7 @@ func (r Reviews) Edit(etx *echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	review, err := models.FindReview(etx.Request().Context(), r.db.Conn(), reviewID)
+	review, err := models.Review.Find(etx.Request().Context(), r.db.Conn(), reviewID)
 	if err != nil {
 		return render(etx, views.NotFound())
 	}
@@ -129,9 +129,9 @@ func (r Reviews) Edit(etx *echo.Context) error {
 }
 
 type UpdateReviewFormPayload struct {
-	Title  string `json:"title"`
-	Body   string `json:"body"`
-	Rating int32  `json:"rating"`
+	Title  string  `json:"title"`
+	Body   *string `json:"body"`
+	Rating int32   `json:"rating"`
 }
 
 func (r Reviews) Update(etx *echo.Context) error {
@@ -159,7 +159,7 @@ func (r Reviews) Update(etx *echo.Context) error {
 		Rating: payload.Rating,
 	}
 
-	review, err := models.UpdateReview(
+	review, err := models.Review.Update(
 		etx.Request().Context(),
 		r.db.Conn(),
 		data,
@@ -187,7 +187,7 @@ func (r Reviews) Destroy(etx *echo.Context) error {
 		return render(etx, views.BadRequest())
 	}
 
-	err = models.DestroyReview(etx.Request().Context(), r.db.Conn(), reviewID)
+	err = models.Review.Destroy(etx.Request().Context(), r.db.Conn(), reviewID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete review: %v", err)); flashErr != nil {
 			return render(etx, views.InternalError())

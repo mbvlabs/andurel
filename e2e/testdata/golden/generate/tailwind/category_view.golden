@@ -2,7 +2,6 @@ package views
 
 import (
 	"fmt"
-	"testapp/internal/renderer"
 	"testapp/models"
 )
 
@@ -34,11 +33,6 @@ templ CategoryIndex(categories []models.CategoryEntity) {
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", category.Description) }</td>
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", category.CreatedAt) }</td>
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", category.UpdatedAt) }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
-											<div class="flex flex-wrap gap-3 text-sm">
-												<a class="text-base-content/80 hover:text-base-content" href={ renderer.ResolveShowURL(ctx, "Category", category.ID) }>View</a>
-											</div>
-										</td>
 									</tr>
 								}
 							</tbody>
@@ -57,7 +51,7 @@ templ CategoryShow(category models.CategoryEntity) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Category Details</h1>
 					<div class="flex flex-wrap items-center gap-3">
-						<a href={ renderer.ResolveBackURL(ctx, "Category") } class="text-sm text-base-content/70 hover:text-base-content">Back to List</a>
+						<a class="text-sm text-base-content/70 hover:text-base-content">Back to List</a>
 					</div>
 				</div>
 				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">

@@ -29,11 +29,7 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.EntityName}}) {
 								for _, {{.ResourceName | ToLower}} := range {{.PluralName}} {
 									<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
 										{{range .Fields}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{{StringTableDisplay . $.ResourceName}}</td>
-										{{end}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
-											<div class="flex flex-wrap gap-3 text-sm">
-												<a class="text-base-content/80 hover:text-base-content" href={ renderer.ResolveShowURL(ctx, "{{.ResourceName}}", {{.ResourceName | ToLower}}.ID) }>View</a>
-											</div>
-										</td>
+										{{end}}
 									</tr>
 								}
 							</tbody>
@@ -52,7 +48,7 @@ templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.EntityName}}) 
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{.ResourceName}} Details</h1>
 					<div class="flex flex-wrap items-center gap-3">
-						<a href={ renderer.ResolveBackURL(ctx, "{{.ResourceName}}") } class="text-sm text-base-content/70 hover:text-base-content">Back to List</a>
+						<a class="text-sm text-base-content/70 hover:text-base-content">Back to List</a>
 					</div>
 				</div>
 				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">

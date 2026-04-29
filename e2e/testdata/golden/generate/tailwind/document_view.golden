@@ -3,7 +3,6 @@ package views
 import (
 	"fmt"
 	"strings"
-	"testapp/internal/renderer"
 	"testapp/models"
 )
 
@@ -41,11 +40,6 @@ templ DocumentIndex(documents []models.DocumentEntity) {
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", document.IsPublished) }</td>
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", document.CreatedAt) }</td>
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", document.UpdatedAt) }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
-											<div class="flex flex-wrap gap-3 text-sm">
-												<a class="text-base-content/80 hover:text-base-content" href={ renderer.ResolveShowURL(ctx, "Document", document.ID) }>View</a>
-											</div>
-										</td>
 									</tr>
 								}
 							</tbody>
@@ -64,7 +58,7 @@ templ DocumentShow(document models.DocumentEntity) {
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Document Details</h1>
 					<div class="flex flex-wrap items-center gap-3">
-						<a href={ renderer.ResolveBackURL(ctx, "Document") } class="text-sm text-base-content/70 hover:text-base-content">Back to List</a>
+						<a class="text-sm text-base-content/70 hover:text-base-content">Back to List</a>
 					</div>
 				</div>
 				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">

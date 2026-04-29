@@ -27,22 +27,22 @@ type Executor = bun.IDB
 // (for model queries) and a pgxpool.Pool (for River and other pgx-native
 // consumers).
 type Pool interface {
-	DB() *bun.DB
+	Conn() *bun.DB
 	Pool() *pgxpool.Pool
 	BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error)
 	Close() error
 }
 
-// Connection wraps a bun.DB and the underlying pgx pool.
-type Connection struct {
-	db   *bun.DB
+// Postgres wraps a bun.DB and the underlying pgx pool.
+type Postgres struct {
+	conn   *bun.DB
 	pool *pgxpool.Pool
 }
 
-var _ Pool = (*Connection)(nil)
+var _ Pool = (*Postgres)(nil)
 
-// NewConnection creates a new database connection using bun + pgx/v5.
-func NewConnection(ctx context.Context, databaseURL string) (*Connection, error) {
+// NewPostgres creates a new database connection using bun + pgx/v5.
+func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
 	config, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse database URL: %w", err)
@@ -62,31 +62,33 @@ func NewConnection(ctx context.Context, databaseURL string) (*Connection, error)
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	return &Connection{db: db, pool: pool}, nil
+	return &Postgres{conn: db, pool: pool}, nil
 }
 
-// DB returns the underlying bun.DB.
-func (c *Connection) DB() *bun.DB {
-	return c.db
+// Conn returns the underlying bun.DB.
+func (p *Postgres) Conn() *bun.DB {
+	return p.conn
 }
 
 // Pool returns the underlying pgx pool (for River and other pgx-native users).
-func (c *Connection) Pool() *pgxpool.Pool {
-	return c.pool
+func (p *Postgres) Pool() *pgxpool.Pool {
+	return p.pool
 }
 
 // Close closes the database connection.
-func (c *Connection) Close() error {
-	err := c.db.Close()
-	c.pool.Close()
+func (p *Postgres) Close() error {
+	err := p.conn.Close()
+	p.pool.Close()
+
 	return err
 }
 
 // BeginTx starts a new transaction. Caller is responsible for Commit or Rollback.
-func (c *Connection) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error) {
-	tx, err := c.db.BeginTx(ctx, opts)
+func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error) {
+	tx, err := p.conn.BeginTx(ctx, opts)
 	if err != nil {
 		return bun.Tx{}, errors.Join(ErrBeginTx, err)
 	}
+
 	return tx, nil
 }

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jinzhu/inflection"
 	"github.com/mbvlabs/andurel/generator/files"
@@ -26,6 +27,7 @@ type GeneratedField struct {
 	DBName        string
 	CamelCase     string
 	IsSystemField bool
+	IsPointer     bool
 }
 
 type GeneratedController struct {
@@ -126,17 +128,22 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		return GeneratedField{}, err
 	}
 
+	baseGoType := strings.TrimPrefix(goType, "*")
+
 	field := GeneratedField{
 		Name:          types.FormatFieldName(col.Name),
 		GoType:        goType,
 		DBName:        col.Name,
 		CamelCase:     types.FormatCamelCase(col.Name),
 		IsSystemField: col.Name == "created_at" || col.Name == "updated_at" || col.Name == "id",
+		IsPointer:     strings.HasPrefix(goType, "*"),
 	}
 
-	switch goType {
+	switch baseGoType {
 	case "time.Time":
 		field.GoFormType = "time.Time"
+	case "uuid.UUID":
+		field.GoFormType = "string"
 	case "int16":
 		field.GoFormType = "int16"
 	case "int32":
@@ -150,7 +157,11 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 	case "bool":
 		field.GoFormType = "bool"
 	default:
-		field.GoFormType = "string"
+		if field.IsPointer {
+			field.GoFormType = goType
+		} else {
+			field.GoFormType = "string"
+		}
 	}
 
 	return field, nil
