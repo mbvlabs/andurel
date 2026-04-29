@@ -9,7 +9,7 @@ import (
 	"testapp/router/routes"
 )
 
-templ ReviewIndex(reviews []models.Review) {
+templ ReviewIndex(reviews []models.ReviewEntity) {
 	@base() {
 		<main class="page-shell">
 			<section class="container stack" data-gap="lg">
@@ -68,7 +68,7 @@ templ ReviewIndex(reviews []models.Review) {
 	}
 }
 
-templ ReviewShow(review models.Review) {
+templ ReviewShow(review models.ReviewEntity) {
 	@base() {
 		<main class="page-shell">
 			<section class="container stack" data-gap="lg">
@@ -158,7 +158,7 @@ templ ReviewNew() {
 	}
 }
 
-templ ReviewEdit(review models.Review) {
+templ ReviewEdit(review models.ReviewEntity) {
 	@base() {
 		<main class="auth-shell">
 			<section class="center">

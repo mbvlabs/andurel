@@ -9,7 +9,7 @@ import (
 	"testapp/router/routes"
 )
 
-templ CompanyIndex(companies []models.Company) {
+templ CompanyIndex(companies []models.CompanyEntity) {
 	@base() {
 		<main class="flex-1 px-6 py-10">
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -55,7 +55,7 @@ templ CompanyIndex(companies []models.Company) {
 	}
 }
 
-templ CompanyShow(company models.Company) {
+templ CompanyShow(company models.CompanyEntity) {
 	@base() {
 		<main class="flex-1 px-6 py-10">
 			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -128,7 +128,7 @@ templ CompanyNew() {
 	}
 }
 
-templ CompanyEdit(company models.Company) {
+templ CompanyEdit(company models.CompanyEntity) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">

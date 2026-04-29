@@ -14,10 +14,10 @@ func TestGenerateCommands(t *testing.T) {
 		name string
 		args []string
 	}{
-		{"generate help", []string{"generate", "--help"}},
 		{"model help", []string{"model", "--help"}},
-		{"controller help", []string{"generate", "controller", "--help"}},
-		{"resource help", []string{"generate", "resource", "--help"}},
+		{"controller help", []string{"controller", "--help"}},
+		{"view help", []string{"view", "--help"}},
+		{"resource help", []string{"resource", "--help"}},
 	}
 
 	for _, tt := range tests {
@@ -31,25 +31,13 @@ func TestGenerateCommands(t *testing.T) {
 	}
 }
 
-func TestGenerateCommandStructure(t *testing.T) {
+func TestRootCommandStructure(t *testing.T) {
 	rootCmd := NewRootCommand("test", "test-date")
 
-	var generateCmd *cobra.Command
-	for _, cmd := range rootCmd.Commands() {
-		if cmd.Use == "generate" {
-			generateCmd = cmd
-			break
-		}
-	}
-
-	if generateCmd == nil {
-		t.Fatal("generate command not found")
-	}
-
-	expectedCommands := []string{"controller", "view", "resource"}
+	expectedCommands := []string{"controller", "view", "resource", "model"}
 	foundCommands := make(map[string]bool)
 
-	for _, cmd := range generateCmd.Commands() {
+	for _, cmd := range rootCmd.Commands() {
 		cmdName := strings.Fields(cmd.Use)[0]
 		foundCommands[cmdName] = true
 	}
@@ -57,9 +45,9 @@ func TestGenerateCommandStructure(t *testing.T) {
 	for _, expectedCmd := range expectedCommands {
 		if !foundCommands[expectedCmd] {
 			t.Errorf(
-				"Expected command '%s' not found. Available commands: %v",
+				"Expected root command '%s' not found. Available commands: %v",
 				expectedCmd,
-				getCommandNames(generateCmd.Commands()),
+				getCommandNames(rootCmd.Commands()),
 			)
 		}
 	}

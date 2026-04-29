@@ -6,7 +6,7 @@ import (
 	"testapp/models"
 )
 
-templ DocumentIndex(documents []models.Document) {
+templ DocumentIndex(documents []models.DocumentEntity) {
 	@base() {
 		<main class="page-shell">
 			<section class="container stack" data-gap="lg">
@@ -69,7 +69,7 @@ templ DocumentIndex(documents []models.Document) {
 	}
 }
 
-templ DocumentShow(document models.Document) {
+templ DocumentShow(document models.DocumentEntity) {
 	@base() {
 		<main class="page-shell">
 			<section class="container stack" data-gap="lg">
@@ -179,7 +179,7 @@ templ DocumentNew() {
 	}
 }
 
-templ DocumentEdit(document models.Document) {
+templ DocumentEdit(document models.DocumentEntity) {
 	@base() {
 		<main class="auth-shell">
 			<section class="center">

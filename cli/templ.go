@@ -9,23 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newViewsCommand() *cobra.Command {
-	viewsCmd := &cobra.Command{
-		Use:     "view",
-		Aliases: []string{"v"},
-		Short:   "View template helpers",
-		Long:    "Manage Templ code generation for the current project.",
-	}
-
-	viewsCmd.AddCommand(
-		newViewsGenerateCommand(),
-		newViewsFormatCommand(),
-	)
-
-	return viewsCmd
-}
-
-func newViewsGenerateCommand() *cobra.Command {
+func newTemplGenerateCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:     "generate",
 		Aliases: []string{"compile"},
@@ -37,7 +21,7 @@ func newViewsGenerateCommand() *cobra.Command {
 	}
 }
 
-func newViewsFormatCommand() *cobra.Command {
+func newTemplFormatCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "format",
 		Short: "Format Templ templates in views and email directories",

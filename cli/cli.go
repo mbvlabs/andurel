@@ -11,6 +11,68 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type helpCommand struct {
+	Use         string
+	Description string
+}
+
+func setStandardHelp(cmd *cobra.Command, commands ...helpCommand) {
+	helpOwner := cmd
+	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		// Output description
+		if cmd.Long != "" {
+			fmt.Println(cmd.Long)
+			fmt.Println()
+		} else if cmd.Short != "" {
+			fmt.Println(cmd.Short)
+			fmt.Println()
+		}
+
+		// Output commands
+		if cmd == helpOwner && len(commands) > 0 {
+			fmt.Println("Commands:")
+			maxUseLength := 0
+			for _, command := range commands {
+				if len(command.Use) > maxUseLength {
+					maxUseLength = len(command.Use)
+				}
+			}
+			for _, command := range commands {
+				fmt.Printf("  %-*s", maxUseLength, command.Use)
+				if command.Description != "" {
+					fmt.Printf("  %s", command.Description)
+				}
+				fmt.Println()
+			}
+			fmt.Println()
+		} else if cmd.HasAvailableSubCommands() {
+			fmt.Println("Commands:")
+			for _, sub := range cmd.Commands() {
+				if sub.IsAvailableCommand() || sub.Hidden {
+					fmt.Printf("  %-12s %s\n", sub.Name(), sub.Short)
+				}
+			}
+			fmt.Println()
+		}
+
+		// Output examples
+		if cmd.HasExample() {
+			fmt.Println("Examples:")
+			fmt.Print(cmd.Example)
+			fmt.Println()
+			fmt.Println()
+		}
+
+		// Output flags
+		if cmd.HasAvailableLocalFlags() {
+			fmt.Println("Flags:")
+			usage := cmd.LocalFlags().FlagUsages()
+			// FlagUsages already has leading spaces, just print as-is
+			fmt.Print(usage)
+		}
+	})
+}
+
 func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:          "andurel",
@@ -27,10 +89,11 @@ func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd.AddCommand(newRunAppCommand())
 
 	rootCmd.AddCommand(newProjectCommand(version))
-	rootCmd.AddCommand(newGenerateCommand())
+	rootCmd.AddCommand(newControllerRootCommand())
+	rootCmd.AddCommand(newViewRootCommand())
+	rootCmd.AddCommand(newResourceRootCommand())
 	rootCmd.AddCommand(newDatabaseCommand())
 	rootCmd.AddCommand(newMigrateCommand())
-	rootCmd.AddCommand(newViewsCommand())
 
 	rootCmd.AddCommand(newAppCommand())
 	rootCmd.AddCommand(newConsoleCommand())

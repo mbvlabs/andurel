@@ -2,11 +2,12 @@ package views
 
 import (
 	"fmt"
-	"strings"
+	{{if UsesPackage .Fields "strings"}}"strings"
+	{{end}}	"{{.ModulePath}}/internal/renderer"
 	"{{.ModulePath}}/models"
 )
 
-templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
+templ {{.ResourceName}}Index({{.PluralName}} []models.{{.EntityName}}) {
 	@base() {
 		<main class="page-shell">
 			<section class="container stack" data-gap="lg">
@@ -57,7 +58,7 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 	}
 }
 
-templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
+templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.EntityName}}) {
 	@base() {
 		<main class="page-shell">
 			<section class="container stack" data-gap="lg">
@@ -125,7 +126,7 @@ templ {{.ResourceName}}New() {
 	}
 }
 
-templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
+templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.EntityName}}) {
 	@base() {
 		<main class="auth-shell">
 			<section class="center">

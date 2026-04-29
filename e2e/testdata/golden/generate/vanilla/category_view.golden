@@ -5,7 +5,7 @@ import (
 	"testapp/models"
 )
 
-templ CategoryIndex(categories []models.Category) {
+templ CategoryIndex(categories []models.CategoryEntity) {
 	@base() {
 		<main class="page-shell">
 			<section class="container stack" data-gap="lg">
@@ -62,7 +62,7 @@ templ CategoryIndex(categories []models.Category) {
 	}
 }
 
-templ CategoryShow(category models.Category) {
+templ CategoryShow(category models.CategoryEntity) {
 	@base() {
 		<main class="page-shell">
 			<section class="container stack" data-gap="lg">
@@ -142,7 +142,7 @@ templ CategoryNew() {
 	}
 }
 
-templ CategoryEdit(category models.Category) {
+templ CategoryEdit(category models.CategoryEntity) {
 	@base() {
 		<main class="auth-shell">
 			<section class="center">

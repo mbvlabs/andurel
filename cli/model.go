@@ -19,46 +19,52 @@ func newModelRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "model <name> <command>",
 		Short: "Model management commands",
-		Long: `Manage models.
+		Long:  "Manage resource models.\n\n<ResourceName> is the associated model name used for generation.",
+		Example: `  model User create
+  model User create --table-name=accounts
+  model User create --skip-factory
+  model User update`,
+	}
 
-Commands:
-  create  Create a new model from migrations
-  update  Rebuild the Entity struct after schema changes
-
-Examples:
-  andurel model User create
-  andurel model User create --table-name=accounts
-  andurel model User create --skip-factory
-  andurel model User update`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 2 {
-				return cmd.Help()
-			}
-			if len(args) > 2 {
-				return fmt.Errorf("too many arguments\nRun 'andurel model --help' for usage")
-			}
-			name := args[0]
-			switch args[1] {
-			case "create":
-				if err := chdirToProjectRoot(); err != nil {
-					return err
-				}
-				return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-					gen, err := generator.New()
-					if err != nil {
-						return err
-					}
-					return gen.GenerateModel(name, tableName, skipFactory)
-				})(cmd, args)
-			case "update":
-				if err := chdirToProjectRoot(); err != nil {
-					return err
-				}
-				return runModelUpdate(name)
-			default:
-				return fmt.Errorf("unknown model command %q\nRun 'andurel model --help' for usage", args[1])
-			}
+	setStandardHelp(cmd,
+		helpCommand{
+			Use:         "model <ResourceName> create",
+			Description: "creates a resource model",
 		},
+		helpCommand{
+			Use:         "model <ResourceName> update",
+			Description: "updates a resource model from migrations",
+		},
+	)
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		if len(args) < 2 {
+			return cmd.Help()
+		}
+		if len(args) > 2 {
+			return fmt.Errorf("too many arguments\nRun 'andurel model --help' for usage")
+		}
+		name := args[0]
+		switch args[1] {
+		case "create":
+			if err := chdirToProjectRoot(); err != nil {
+				return err
+			}
+			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
+				gen, err := generator.New()
+				if err != nil {
+					return err
+				}
+				return gen.GenerateModel(name, tableName, skipFactory)
+			})(cmd, args)
+		case "update":
+			if err := chdirToProjectRoot(); err != nil {
+				return err
+			}
+			return runModelUpdate(name)
+		default:
+			return fmt.Errorf("unknown model command %q\nRun 'andurel model --help' for usage", args[1])
+		}
 	}
 
 	cmd.Flags().StringVar(&tableName, "table-name", "", "Override the default table name (defaults to plural form of model name)")

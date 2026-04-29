@@ -9,7 +9,7 @@ import (
 	"testapp/router/routes"
 )
 
-templ OrderIndex(orders []models.Order) {
+templ OrderIndex(orders []models.OrderEntity) {
 	@base() {
 		<main class="flex-1 px-6 py-10">
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -59,7 +59,7 @@ templ OrderIndex(orders []models.Order) {
 	}
 }
 
-templ OrderShow(order models.Order) {
+templ OrderShow(order models.OrderEntity) {
 	@base() {
 		<main class="flex-1 px-6 py-10">
 			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -148,7 +148,7 @@ templ OrderNew() {
 	}
 }
 
-templ OrderEdit(order models.Order) {
+templ OrderEdit(order models.OrderEntity) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
