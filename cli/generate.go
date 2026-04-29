@@ -30,14 +30,9 @@ func newControllerRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "controller <name> <command>",
 		Short: "Controller management commands",
-		Long: `Manage controllers.
-
-Commands:
-  create  Generate a new resource controller with CRUD actions
-
-Examples:
-  andurel controller User create
-  andurel controller User create --with-views`,
+		Long:  "Manage resource controllers.\n\n<ResourceName> is the associated model name used for generation.",
+		Example: `  controller User create
+  controller User create --with-views`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 2 {
 				return cmd.Help()
@@ -64,6 +59,42 @@ Examples:
 		},
 	}
 
+	setStandardHelp(cmd, helpCommand{
+		Use:         "controller <ResourceName> create",
+		Description: "creates a resource controller",
+	})
+
+	cmd.Flags().BoolVar(&withViews, "with-views", false, "Generate views along with the controller")
+
+	cmd.AddCommand(newControllerCreateCommand())
+
+	return cmd
+}
+
+func newControllerCreateCommand() *cobra.Command {
+	var withViews bool
+
+	cmd := &cobra.Command{
+		Use:   "create <name>",
+		Short: "Create a new controller",
+		Example: `  controller User create
+  controller User create --with-views`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			name := args[0]
+			if err := chdirToProjectRoot(); err != nil {
+				return err
+			}
+			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
+				gen, err := generator.New()
+				if err != nil {
+					return err
+				}
+				return gen.GenerateControllerFromModel(name, withViews)
+			})(cmd, args)
+		},
+	}
+
 	cmd.Flags().BoolVar(&withViews, "with-views", false, "Generate views along with the controller")
 
 	return cmd
@@ -73,16 +104,12 @@ func newViewRootCommand() *cobra.Command {
 	var withController bool
 
 	cmd := &cobra.Command{
-		Use:   "view <name> <command>",
+		Use:   "view",
 		Short: "View management commands",
-		Long: `Manage views.
-
-Commands:
-  create  Generate view templates for the specified model
-
-Examples:
-  andurel view User create
-  andurel view User create --with-controller`,
+		Long:  "Manage view templates and Templ code generation.\n\n<ResourceName> is the associated model name used for generation.",
+		Example: `  view User create
+  view User create --with-controller
+  view generate`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 2 {
 				return cmd.Help()
@@ -109,6 +136,56 @@ Examples:
 		},
 	}
 
+	setStandardHelp(cmd,
+		helpCommand{
+			Use:         "view <ResourceName> create",
+			Description: "creates a resource view",
+		},
+		helpCommand{
+			Use:         "view generate",
+			Description: "generates Go code from Templ templates",
+		},
+		helpCommand{
+			Use:         "view format",
+			Description: "formats Templ templates in views and email directories",
+		},
+	)
+
+	cmd.Flags().BoolVar(&withController, "with-controller", false, "Generate controller along with the views")
+
+	cmd.AddCommand(
+		newViewCreateCommand(),
+		newTemplGenerateCommand(),
+		newTemplFormatCommand(),
+	)
+
+	return cmd
+}
+
+func newViewCreateCommand() *cobra.Command {
+	var withController bool
+
+	cmd := &cobra.Command{
+		Use:   "create <name>",
+		Short: "Create new views for a model",
+		Example: `  view User create
+  view User create --with-controller`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			name := args[0]
+			if err := chdirToProjectRoot(); err != nil {
+				return err
+			}
+			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
+				gen, err := generator.New()
+				if err != nil {
+					return err
+				}
+				return gen.GenerateViewFromModel(name, withController)
+			})(cmd, args)
+		},
+	}
+
 	cmd.Flags().BoolVar(&withController, "with-controller", false, "Generate controller along with the views")
 
 	return cmd
@@ -120,41 +197,42 @@ func newResourceRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "resource <name> <command>",
 		Short: "Resource management commands",
-		Long: `Manage resources.
+		Long:  "Generate complete resources (model, controller, views, and routes).\n\n<ResourceName> is the associated model name used for generation.",
+		Example: `  resource Product create
+  resource Product create --table-name=inventory`,
+	}
 
-Commands:
-  create  Generate a complete resource (model, controller, views, and routes)
+	setStandardHelp(cmd, helpCommand{
+		Use:         "resource <ResourceName> create",
+		Description: "creates a complete resource",
+	})
 
-Examples:
-  andurel resource Product create
-  andurel resource Product create --table-name=inventory`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 2 {
-				return cmd.Help()
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		if len(args) < 2 {
+			return cmd.Help()
+		}
+		if len(args) > 2 {
+			return fmt.Errorf("too many arguments\nRun 'andurel resource --help' for usage")
+		}
+		name := args[0]
+		switch args[1] {
+		case "create":
+			if err := chdirToProjectRoot(); err != nil {
+				return err
 			}
-			if len(args) > 2 {
-				return fmt.Errorf("too many arguments\nRun 'andurel resource --help' for usage")
-			}
-			name := args[0]
-			switch args[1] {
-			case "create":
-				if err := chdirToProjectRoot(); err != nil {
+			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
+				gen, err := generator.New()
+				if err != nil {
 					return err
 				}
-				return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-					gen, err := generator.New()
-					if err != nil {
-						return err
-					}
-					if err := gen.GenerateModel(name, tableName, false); err != nil {
-						return err
-					}
-					return gen.GenerateControllerFromModel(name, true)
-				})(cmd, args)
-			default:
-				return fmt.Errorf("unknown resource command %q\nRun 'andurel resource --help' for usage", args[1])
-			}
-		},
+				if err := gen.GenerateModel(name, tableName, false); err != nil {
+					return err
+				}
+				return gen.GenerateControllerFromModel(name, true)
+			})(cmd, args)
+		default:
+			return fmt.Errorf("unknown resource command %q\nRun 'andurel resource --help' for usage", args[1])
+		}
 	}
 
 	cmd.Flags().StringVar(&tableName, "table-name", "", "Override the default table name (defaults to plural form of model name)")

@@ -34,6 +34,7 @@ type ViewField struct {
 
 type GeneratedView struct {
 	ResourceName string
+	EntityName   string
 	PluralName   string
 	Fields       []ViewField
 	ModulePath   string
@@ -42,6 +43,7 @@ type GeneratedView struct {
 
 type Config struct {
 	ResourceName string
+	EntityName   string
 	PluralName   string
 	TableName    string
 	ModulePath   string
@@ -62,6 +64,7 @@ func NewGenerator(databaseType string) *Generator {
 func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, error) {
 	view := &GeneratedView{
 		ResourceName: config.ResourceName,
+		EntityName:   config.EntityName,
 		PluralName:   config.PluralName,
 		ModulePath:   config.ModulePath,
 		Fields:       make([]ViewField, 0),
@@ -184,6 +187,14 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, cssFramework string) (string, error) {
 	// Custom template functions for view-specific operations
 	customFuncs := template.FuncMap{
+		"UsesPackage": func(fields []ViewField, packageName string) bool {
+			for _, field := range fields {
+				if strings.Contains(field.StringConverter, packageName+".") {
+					return true
+				}
+			}
+			return false
+		},
 		"FieldRef": func(field ViewField, resourceName string) string {
 			return fmt.Sprintf("%s.%s", strings.ToLower(resourceName), field.Name)
 		},
@@ -304,6 +315,7 @@ func (g *Generator) GenerateViewWithController(
 
 	view, err := g.Build(cat, Config{
 		ResourceName: resourceName,
+		EntityName:   naming.ToPascalCase(resourceName) + "Entity",
 		PluralName:   pluralName,
 		TableName:    tableName,
 		ModulePath:   modulePath,

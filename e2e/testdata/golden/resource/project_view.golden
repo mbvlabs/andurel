@@ -9,7 +9,7 @@ import (
 	"testapp/router/routes"
 )
 
-templ ProjectIndex(projects []models.Project) {
+templ ProjectIndex(projects []models.ProjectEntity) {
 	@base() {
 		<main class="flex-1 px-6 py-10">
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -55,7 +55,7 @@ templ ProjectIndex(projects []models.Project) {
 	}
 }
 
-templ ProjectShow(project models.Project) {
+templ ProjectShow(project models.ProjectEntity) {
 	@base() {
 		<main class="flex-1 px-6 py-10">
 			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -128,7 +128,7 @@ templ ProjectNew() {
 	}
 }
 
-templ ProjectEdit(project models.Project) {
+templ ProjectEdit(project models.ProjectEntity) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">

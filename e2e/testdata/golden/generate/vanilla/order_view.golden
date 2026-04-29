@@ -9,7 +9,7 @@ import (
 	"testapp/router/routes"
 )
 
-templ OrderIndex(orders []models.Order) {
+templ OrderIndex(orders []models.OrderEntity) {
 	@base() {
 		<main class="page-shell">
 			<section class="container stack" data-gap="lg">
@@ -70,7 +70,7 @@ templ OrderIndex(orders []models.Order) {
 	}
 }
 
-templ OrderShow(order models.Order) {
+templ OrderShow(order models.OrderEntity) {
 	@base() {
 		<main class="page-shell">
 			<section class="container stack" data-gap="lg">
@@ -170,7 +170,7 @@ templ OrderNew() {
 	}
 }
 
-templ OrderEdit(order models.Order) {
+templ OrderEdit(order models.OrderEntity) {
 	@base() {
 		<main class="auth-shell">
 			<section class="center">

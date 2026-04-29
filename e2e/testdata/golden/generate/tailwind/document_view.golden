@@ -3,16 +3,16 @@ package views
 import (
 	"fmt"
 	"strings"
+	"testapp/internal/renderer"
 	"testapp/models"
 )
 
-templ DocumentIndex(documents []models.Document) {
+templ DocumentIndex(documents []models.DocumentEntity) {
 	@base() {
 		<main class="flex-1 px-6 py-10">
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Documents</h1>
-					<a href="/" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">New Document</a>
 				</div>
 				if len(documents) == 0 {
 					<p class="text-sm text-base-content/60">No documents found.</p>
@@ -43,8 +43,7 @@ templ DocumentIndex(documents []models.Document) {
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", document.UpdatedAt) }</td>
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 											<div class="flex flex-wrap gap-3 text-sm">
-												<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
-												<a class="text-base-content/80 hover:text-base-content" href="/">Edit</a>
+												<a class="text-base-content/80 hover:text-base-content" href={ renderer.ResolveShowURL(ctx, "Document", document.ID) }>View</a>
 											</div>
 										</td>
 									</tr>
@@ -58,15 +57,14 @@ templ DocumentIndex(documents []models.Document) {
 	}
 }
 
-templ DocumentShow(document models.Document) {
+templ DocumentShow(document models.DocumentEntity) {
 	@base() {
 		<main class="flex-1 px-6 py-10">
 			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Document Details</h1>
 					<div class="flex flex-wrap items-center gap-3">
-						<a href="/" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">Edit</a>
-						<a class="text-sm text-base-content/70 hover:text-base-content" href="/">Back to List</a>
+						<a href={ renderer.ResolveBackURL(ctx, "Document") } class="text-sm text-base-content/70 hover:text-base-content">Back to List</a>
 					</div>
 				</div>
 				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
@@ -108,54 +106,7 @@ templ DocumentShow(document models.Document) {
 	}
 }
 
-templ DocumentNew() {
-	@base() {
-		<main class="flex-1 flex items-center justify-center px-6 py-10">
-			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
-					<div class="flex flex-col space-y-1.5 p-6">
-						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">New Document</h3>
-						<p class="text-sm text-base-content/60">Enter the details for the new document.</p>
-					</div>
-					<div class="p-6 pt-0">
-						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", "/") }>
-							<fieldset data-attr:disabled="$submitting">
-								<div class="space-y-4">
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="title">Title</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="title"/>
-									</div>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="tags">Tags</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="tags"/>
-									</div>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="pageNumbers">Page Numbers</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="pageNumbers"/>
-									</div>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="viewCount">View Count</label>
-										<input type="number" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="viewCount"/>
-									</div>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="isPublished">Is Published</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="isPublished"/>
-									</div>
-								</div>
-								<div class="mt-6 space-y-3">
-									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Create Document</button>
-									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href="/">Back to List</a>
-								</div>
-							</fieldset>
-						</form>
-					</div>
-				</div>
-			</div>
-		</main>
-	}
-}
-
-templ DocumentEdit(document models.Document) {
+templ DocumentEdit(document models.DocumentEntity) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">

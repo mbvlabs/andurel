@@ -9,7 +9,7 @@ import (
 	"testapp/router/routes"
 )
 
-templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
+templ StudentFeedbackIndex(student_feedbacks []models.StudentfeedbackEntity) {
 	@base() {
 		<main class="page-shell">
 			<section class="container stack" data-gap="lg">
@@ -68,7 +68,7 @@ templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
 	}
 }
 
-templ StudentFeedbackShow(studentfeedback models.StudentFeedback) {
+templ StudentFeedbackShow(studentfeedback models.StudentfeedbackEntity) {
 	@base() {
 		<main class="page-shell">
 			<section class="container stack" data-gap="lg">
@@ -158,7 +158,7 @@ templ StudentFeedbackNew() {
 	}
 }
 
-templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
+templ StudentFeedbackEdit(studentfeedback models.StudentfeedbackEntity) {
 	@base() {
 		<main class="auth-shell">
 			<section class="center">

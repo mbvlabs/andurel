@@ -9,7 +9,7 @@ import (
 	"testapp/router/routes"
 )
 
-templ ItemIndex(items []models.Item) {
+templ ItemIndex(items []models.ItemEntity) {
 	@base() {
 		<main class="page-shell">
 			<section class="container stack" data-gap="lg">
@@ -68,7 +68,7 @@ templ ItemIndex(items []models.Item) {
 	}
 }
 
-templ ItemShow(item models.Item) {
+templ ItemShow(item models.ItemEntity) {
 	@base() {
 		<main class="page-shell">
 			<section class="container stack" data-gap="lg">
@@ -158,7 +158,7 @@ templ ItemNew() {
 	}
 }
 
-templ ItemEdit(item models.Item) {
+templ ItemEdit(item models.ItemEntity) {
 	@base() {
 		<main class="auth-shell">
 			<section class="center">

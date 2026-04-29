@@ -2,18 +2,17 @@ package views
 
 import (
 	"fmt"
-	"net/http"
-	"strings"
+	{{if UsesPackage .Fields "strings"}}"strings"
+	{{end}}	"{{.ModulePath}}/internal/renderer"
 	"{{.ModulePath}}/models"
 )
 
-templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
+templ {{.ResourceName}}Index({{.PluralName}} []models.{{.EntityName}}) {
 	@base() {
 		<main class="flex-1 px-6 py-10">
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{Plural .ResourceName}}</h1>
-					<a href="/" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">New {{.ResourceName}}</a>
 				</div>
 				if len({{.PluralName}}) == 0 {
 					<p class="text-sm text-base-content/60">No {{.PluralName}} found.</p>
@@ -32,8 +31,7 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 										{{range .Fields}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{{StringTableDisplay . $.ResourceName}}</td>
 										{{end}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 											<div class="flex flex-wrap gap-3 text-sm">
-												<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
-												<a class="text-base-content/80 hover:text-base-content" href="/">Edit</a>
+												<a class="text-base-content/80 hover:text-base-content" href={ renderer.ResolveShowURL(ctx, "{{.ResourceName}}", {{.ResourceName | ToLower}}.ID) }>View</a>
 											</div>
 										</td>
 									</tr>
@@ -47,15 +45,14 @@ templ {{.ResourceName}}Index({{.PluralName}} []models.{{.ResourceName}}) {
 	}
 }
 
-templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
+templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.EntityName}}) {
 	@base() {
 		<main class="flex-1 px-6 py-10">
 			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{.ResourceName}} Details</h1>
 					<div class="flex flex-wrap items-center gap-3">
-						<a href="/" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">Edit</a>
-						<a class="text-sm text-base-content/70 hover:text-base-content" href="/">Back to List</a>
+						<a href={ renderer.ResolveBackURL(ctx, "{{.ResourceName}}") } class="text-sm text-base-content/70 hover:text-base-content">Back to List</a>
 					</div>
 				</div>
 				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
@@ -74,58 +71,7 @@ templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.ResourceName}}
 	}
 }
 
-templ {{.ResourceName}}New() {
-	@base() {
-		<main class="flex-1 flex items-center justify-center px-6 py-10">
-			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
-					<div class="flex flex-col space-y-1.5 p-6">
-						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">New {{.ResourceName}}</h3>
-						<p class="text-sm text-base-content/60">Enter the details for the new {{.ResourceName | ToLower}}.</p>
-					</div>
-					<div class="p-6 pt-0">
-						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", "/") }>
-							<fieldset data-attr:disabled="$submitting">
-								<div class="space-y-4">
-									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
-										<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-base-300 bg-base-200 accent-primary transition focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" />
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
-									</div>
-									{{else if eq .InputType "date"}}<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
-										<div class="relative w-full">
-											<div class="relative">
-												<input type="date" class="flex h-9 w-full rounded-field border border-base-300 bg-base-200 px-3 py-1 pr-8 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" />
-												<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/40"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
-												</div>
-											</div>
-										</div>
-									</div>
-									{{else if eq .InputType "number"}}<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
-										<input type="number" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="{{.CamelCase}}" />
-									</div>
-									{{else}}<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="{{.CamelCase}}" />
-									</div>
-									{{end}}{{end}}{{end}}
-								</div>
-								<div class="mt-6 space-y-3">
-									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Create {{.ResourceName}}</button>
-									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href="/">Back to List</a>
-								</div>
-							</fieldset>
-						</form>
-					</div>
-				</div>
-			</div>
-		</main>
-	}
-}
-
-templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.ResourceName}}) {
+templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.EntityName}}) {
 	@base() {
 		<main class="flex-1 flex items-center justify-center px-6 py-10">
 			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
