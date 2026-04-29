@@ -108,7 +108,7 @@ func (v *ViewManager) GenerateViewFromModel(resourceName string, withController 
 		return err
 	}
 
-	tableName, tableNameOverridden := ResolveTableNameWithFlag(v.config.Paths.Models, v.config.Paths.Queries, resourceName)
+	tableName, tableNameOverridden := ResolveTableNameWithFlag(v.config.Paths.Models, resourceName)
 
 	if tableNameOverridden {
 		if err := v.validator.ValidateTableNameOverride(resourceName, tableName); err != nil {

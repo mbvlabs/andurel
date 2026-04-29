@@ -9,6 +9,7 @@ import (
 
 	"github.com/mbvlabs/andurel/e2e/internal"
 	"github.com/mbvlabs/andurel/pkg/constants"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 var updateResourceGolden = flag.Bool(
@@ -145,18 +146,18 @@ func validateModelPluralization(t *testing.T, project *internal.Project, tc plur
 	contentStr := string(content)
 
 	// Check for correct pluralization patterns - MUST be present
-	// With the new namespace pattern, the struct has "Entity" suffix
-	// Methods are defined with a receiver: func (p project) Find(...)
-	// But called via namespace: models.Project.Find(...)
+	// With the new namespace pattern:
+	// - Struct has "Entity" suffix: type ProjectEntity struct
+	// - Methods use short receiver on unexported namespace type: func (p project) Find(...)
+	// - The namespace variable lives in models/model.go, not in this file
+	receiver := naming.ToReceiverName(tc.expectedSingular)
+	namespaceType := strings.ToLower(tc.expectedSingular)
 	correctPatterns := []struct {
 		pattern string
 		desc    string
 	}{
 		{"type " + tc.expectedSingular + "Entity struct", "Model struct uses singular form with Entity suffix"},
-		// Check that methods are defined with the unexported receiver
-		{"func (" + strings.ToLower(tc.expectedSingular[:1]) + tc.expectedSingular[1:] + " *" + tc.expectedSingular + "Entity)", "Method receiver uses singular lowercase"},
-		// Check that the namespace variable exists
-		{tc.expectedSingular + " " + strings.ToLower(tc.expectedSingular), "Namespace variable exists"},
+		{"func (" + receiver + " " + namespaceType + ") Find(", "Find method uses unexported namespace receiver"},
 	}
 
 	for _, p := range correctPatterns {

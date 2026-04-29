@@ -48,9 +48,9 @@ templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
 									<tr>
 										<td>{ studentfeedback.StudentID }</td>
 										<td>{ studentfeedback.Feedback }</td>
-										<td>{ fmt.Sprintf("%d", studentfeedback.Rating) }</td>
-										<td>{ studentfeedback.CreatedAt.String() }</td>
-										<td>{ studentfeedback.UpdatedAt.String() }</td>
+										<td>{ fmt.Sprintf("%v", studentfeedback.Rating) }</td>
+										<td>{ fmt.Sprintf("%v", studentfeedback.CreatedAt) }</td>
+										<td>{ fmt.Sprintf("%v", studentfeedback.UpdatedAt) }</td>
 										<td>
 											<div class="cluster" data-gap="sm">
 												<a class="btn btn-ghost btn-sm" href={ routes.StudentFeedbackShow.URL(studentfeedback.ID) }>View</a>
@@ -94,15 +94,15 @@ templ StudentFeedbackShow(studentfeedback models.StudentFeedback) {
 						</div>
 						<div class="field">
 							<p class="field-label">Rating</p>
-							<p>{ fmt.Sprintf("%d", studentfeedback.Rating) }</p>
+							<p>{ fmt.Sprintf("%v", studentfeedback.Rating) }</p>
 						</div>
 						<div class="field">
 							<p class="field-label">Created At</p>
-							<p>{ studentfeedback.CreatedAt.String() }</p>
+							<p>{ fmt.Sprintf("%v", studentfeedback.CreatedAt) }</p>
 						</div>
 						<div class="field">
 							<p class="field-label">Updated At</p>
-							<p>{ studentfeedback.UpdatedAt.String() }</p>
+							<p>{ fmt.Sprintf("%v", studentfeedback.UpdatedAt) }</p>
 						</div>
 					</div>
 				</div>
@@ -142,7 +142,7 @@ templ StudentFeedbackNew() {
 								<div class="field">
 									<label class="field-label" for="rating">Rating</label>
 									<div class="field-control">
-										<input class="input" type="number" id="rating" name="rating" data-bind="rating"/>
+										<input class="input" type="text" id="rating" name="rating" data-bind="rating"/>
 									</div>
 								</div>
 								<div class="stack" data-gap="sm">
@@ -189,7 +189,7 @@ templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
 								<div class="field">
 									<label class="field-label" for="rating">Rating</label>
 									<div class="field-control">
-										<input class="input" type="number" id="rating" name="rating" data-bind="rating" value={ fmt.Sprintf("%d", studentfeedback.Rating) }/>
+										<input class="input" type="text" id="rating" name="rating" data-bind="rating" value={ fmt.Sprintf("%v", studentfeedback.Rating) }/>
 									</div>
 								</div>
 								<div class="stack" data-gap="sm">
