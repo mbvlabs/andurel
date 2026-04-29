@@ -42,3 +42,11 @@ func (g *Generator) GenerateFragment(config FragmentConfig) error {
 func (g *Generator) GetModulePath() string {
 	return g.coordinator.projectManager.GetModulePath()
 }
+
+func (g *Generator) UpdateModel(resourceName string) (*UpdateModelResult, error) {
+	return g.coordinator.ModelManager.UpdateModel(resourceName)
+}
+
+func (g *Generator) ApplyModelUpdate(result *UpdateModelResult) error {
+	return g.coordinator.ModelManager.ApplyModelUpdate(result)
+}
