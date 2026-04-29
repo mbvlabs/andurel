@@ -1,5 +1,6 @@
+{{if .ParamsStruct}}{{.ParamsStruct}}
 
-var {{.ResourceName}}{{.MethodName}} = routing.{{.ConstructorName}}(
+{{end}}var {{.ResourceName}}{{.MethodName}} = routing.{{.ConstructorName}}(
 	"{{.Path}}",
 	"{{.PluralName}}.{{.LowerMethodName}}",
 	{{.ResourceName}}Prefix,

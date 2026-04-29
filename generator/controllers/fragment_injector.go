@@ -36,6 +36,7 @@ type FragmentRouteData struct {
 	ResourceName    string
 	MethodName      string
 	ConstructorName string
+	ParamsStruct    string // non-empty for RouteWithSlugs: the generated params struct definition
 	Path            string
 	PluralName      string
 	LowerMethodName string

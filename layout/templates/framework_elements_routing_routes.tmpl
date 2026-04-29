@@ -5,6 +5,7 @@ package routing
 import (
 	"fmt"
 	"log/slog"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -45,6 +46,30 @@ func applyOptions(path string, opts ...RouteOption) string {
 	}
 
 	return path + "?" + strings.Join(routeOpts.query, "&")
+}
+
+func slugParamsFromStruct(params any) map[string]string {
+	result := make(map[string]string)
+	v := reflect.ValueOf(params)
+	if v.Kind() != reflect.Struct {
+		return result
+	}
+
+	t := v.Type()
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		slugTag := field.Tag.Get("slug")
+		if slugTag == "" {
+			continue
+		}
+
+		fieldValue := v.Field(i)
+		if fieldValue.Kind() == reflect.String {
+			result[":"+slugTag] = fieldValue.String()
+		}
+	}
+
+	return result
 }
 
 func configureName(name, prefix string) string {
@@ -277,32 +302,6 @@ func (r RouteWithStringID) GetParam() string {
 	return "id"
 }
 
-type RouteWithIDs Route
-
-var _ IDsRoute = (*RouteWithIDs)(nil)
-
-// NewRouteWithMultipleIDs creates a route that takes a map[string]uuid as parameters
-func NewRouteWithMultipleIDs(path, name, prefix string) RouteWithIDs {
-	return RouteWithIDs{name, path, prefix}
-}
-
-func (r RouteWithIDs) Name() string {
-	return configureName(r.name, r.prefix)
-}
-
-func (r RouteWithIDs) Path() string {
-	return configurePath(r.path, r.prefix, r.name)
-}
-
-func (r RouteWithIDs) URL(ids map[string]uuid.UUID, opts ...RouteOption) string {
-	route := r.Path()
-	for param, id := range ids {
-		route = strings.Replace(route, ":"+param, id.String(), 1)
-	}
-
-	return applyOptions(route, opts...)
-}
-
 type RouteWithSlug Route
 
 var _ ParamRoute = (*RouteWithSlug)(nil)
@@ -376,4 +375,29 @@ func (r RouteWithFile) URL(file string, opts ...RouteOption) string {
 
 func (r RouteWithFile) GetParam() string {
 	return "file"
+}
+
+type RouteWithSlugs[Params any] Route
+
+func NewRouteWithSlugs[Params any](path, name, prefix string) RouteWithSlugs[Params] {
+	return RouteWithSlugs[Params]{name, path, prefix}
+}
+
+var _ SlugsRoute[any] = (*RouteWithSlugs[any])(nil)
+
+func (r RouteWithSlugs[Params]) Name() string {
+	return configureName(r.name, r.prefix)
+}
+
+func (r RouteWithSlugs[Params]) Path() string {
+	return configurePath(r.path, r.prefix, r.name)
+}
+
+func (r RouteWithSlugs[Params]) URL(params Params, opts ...RouteOption) string {
+	slugs := slugParamsFromStruct(params)
+	route := r.Path()
+	for param, value := range slugs {
+		route = strings.Replace(route, param, value, 1)
+	}
+	return applyOptions(route, opts...)
 }
