@@ -7,6 +7,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/files"
@@ -35,6 +36,7 @@ var standardGoTypes = map[string]bool{
 type parsedField struct {
 	Name     string
 	TypeStr  string
+	BunTag   string
 	IsCustom bool
 }
 
@@ -126,18 +128,37 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 		return nil, fmt.Errorf("failed to build model: %w", err)
 	}
 
-	// Collect custom types from the existing struct.
-	customTypes := make(map[string]string)
+	// Collect custom-typed fields from the existing struct.
+	customFields := make(map[string]parsedField)
 	for _, f := range existingFields {
 		if f.IsCustom {
-			customTypes[f.Name] = f.TypeStr
+			customFields[f.Name] = f
 		}
 	}
 
-	// Override generated types with user-customized ones.
+	// Track which field names the migration-derived model contains.
+	newFieldNames := make(map[string]bool, len(newModel.Fields))
+	for _, field := range newModel.Fields {
+		newFieldNames[field.Name] = true
+	}
+
+	// Override generated types with user-customized ones for fields that exist
+	// in both the old and new model.
 	for i, field := range newModel.Fields {
-		if custom, ok := customTypes[field.Name]; ok {
-			newModel.Fields[i].Type = custom
+		if custom, ok := customFields[field.Name]; ok {
+			newModel.Fields[i].Type = custom.TypeStr
+		}
+	}
+
+	// Preserve custom-typed fields (e.g. enums) that exist in the current file
+	// but are not produced by the migration-derived model.
+	for _, f := range existingFields {
+		if f.IsCustom && !newFieldNames[f.Name] {
+			newModel.Fields = append(newModel.Fields, models.GeneratedField{
+				Name:   f.Name,
+				Type:   f.TypeStr,
+				BunTag: f.BunTag,
+			})
 		}
 	}
 
@@ -218,9 +239,17 @@ func parseEntityStruct(src []byte, entityName string) ([]parsedField, int, int, 
 				typeEnd := fset.Position(field.Type.End()).Offset
 				typeStr := strings.TrimSpace(string(src[typeStart:typeEnd]))
 
+				var bunTag string
+				if field.Tag != nil {
+					// field.Tag.Value is the raw string literal including backticks.
+					raw := strings.Trim(field.Tag.Value, "`")
+					bunTag = reflect.StructTag(raw).Get("bun")
+				}
+
 				fields = append(fields, parsedField{
 					Name:     fieldName,
 					TypeStr:  typeStr,
+					BunTag:   bunTag,
 					IsCustom: !standardGoTypes[typeStr],
 				})
 			}
