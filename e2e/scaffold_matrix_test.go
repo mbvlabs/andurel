@@ -117,7 +117,7 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 	if config.CSS == "vanilla" {
 		internal.AssertDirExists(t, project, "assets/css")
 		vanillaCSSFiles := []string{
-			"assets/css/styles.css",
+			"assets/css/style.css",
 			"assets/css/reset.css",
 			"assets/css/tokens.css",
 			"assets/css/base.css",

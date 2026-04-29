@@ -330,7 +330,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
-	"assets_css_style.tmpl":   "assets/css/styles.css",
+	"assets_css_style.tmpl":   "assets/css/style.css",
 	"assets_js_scripts.tmpl":  "assets/js/scripts.js",
 	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-0-rc6.min.js",
 
@@ -434,7 +434,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Auth - Email
 	"email_reset_password.tmpl": "email/reset_password.templ",
 	"email_verify_email.tmpl":   "email/verify_email.templ",
-
 }
 
 func processTemplatedFiles(
