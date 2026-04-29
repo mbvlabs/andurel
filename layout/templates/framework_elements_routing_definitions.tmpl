@@ -46,26 +46,12 @@ type StringIDRoute interface {
 	GetParam() string
 }
 
-// IDsRoute represents routes with multiple IDs in the URL parameters
-type IDsRoute interface {
-	Name() string
-	Path() string
-	URL(ids map[string]uuid.UUID, opts ...RouteOption) string
-}
-
 // ParamRoute represents routes with a single URL parameter
 type ParamRoute interface {
 	Name() string
 	Path() string
 	URL(param string, opts ...RouteOption) string
 	GetParam() string
-}
-
-// ParamsRoute represents routes with multiple URL parameters
-type ParamsRoute interface {
-	Name() string
-	Path() string
-	URL(params map[string]string, opts ...RouteOption) string
 }
 
 // SlugsRoute represents routes with slug parameters, where Params is a struct

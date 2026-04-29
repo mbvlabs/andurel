@@ -11,7 +11,7 @@ const (
 	RouteWithSlug
 	RouteWithToken
 	RouteWithFile
-	RouteWithMultipleIDs
+	RouteWithSlugs
 )
 
 // DetectRouteType analyzes a path string and returns the appropriate RouteType.
@@ -44,7 +44,7 @@ func DetectRouteType(path string) RouteType {
 	}
 
 	if idCount > 1 {
-		return RouteWithMultipleIDs
+		return RouteWithSlugs
 	}
 	if hasSlug {
 		return RouteWithSlug
@@ -63,7 +63,8 @@ func DetectRouteType(path string) RouteType {
 
 // ConstructorName returns the routing package constructor function name for this RouteType.
 // For RouteWithID, the idType parameter selects the appropriate type-specific constructor.
-func (rt RouteType) ConstructorName(idType string) string {
+// For RouteWithSlugs, paramsTypeName is the generated params struct name used as the type parameter.
+func (rt RouteType) ConstructorName(idType, paramsTypeName string) string {
 	switch rt {
 	case RouteWithID:
 		switch idType {
@@ -82,8 +83,8 @@ func (rt RouteType) ConstructorName(idType string) string {
 		return "NewRouteWithToken"
 	case RouteWithFile:
 		return "NewRouteWithFile"
-	case RouteWithMultipleIDs:
-		return "NewRouteWithMultipleIDs"
+	case RouteWithSlugs:
+		return "NewRouteWithSlugs[" + paramsTypeName + "]"
 	default:
 		return "NewSimpleRoute"
 	}

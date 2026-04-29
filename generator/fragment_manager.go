@@ -72,6 +72,14 @@ func (fm *FragmentManager) GenerateFragment(config FragmentConfig) error {
 	// Normalize HTTP method for template
 	httpMethod := fm.normalizeHTTPMethodName(config.HTTPMethod)
 
+	// Build slug params type name and struct definition for multi-param routes
+	paramsTypeName := ""
+	paramsStruct := ""
+	if routeType == controllers.RouteWithSlugs {
+		paramsTypeName = config.ControllerName + config.MethodName + "Params"
+		paramsStruct = fm.buildSlugParamsStruct(paramsTypeName, config.Path)
+	}
+
 	// 1. Inject controller method
 	methodData := controllers.FragmentMethodData{
 		ReceiverName:       receiverName,
@@ -86,7 +94,8 @@ func (fm *FragmentManager) GenerateFragment(config FragmentConfig) error {
 	routeData := controllers.FragmentRouteData{
 		ResourceName:    config.ControllerName,
 		MethodName:      config.MethodName,
-		ConstructorName: routeType.ConstructorName(idType),
+		ConstructorName: routeType.ConstructorName(idType, paramsTypeName),
+		ParamsStruct:    paramsStruct,
 		Path:            config.Path,
 		PluralName:      pluralName,
 		LowerMethodName: strings.ToLower(config.MethodName),
@@ -203,6 +212,21 @@ func (fm *FragmentManager) checkDuplicates(controllerPath, routesPath, connectPa
 	}
 
 	return nil
+}
+
+// buildSlugParamsStruct generates a Go struct definition for slug route params
+// extracted from the given path (e.g. "/:product_id/categories/:category_id").
+func (fm *FragmentManager) buildSlugParamsStruct(typeName, path string) string {
+	var fields strings.Builder
+	for _, seg := range strings.Split(path, "/") {
+		if !strings.HasPrefix(seg, ":") {
+			continue
+		}
+		param := seg[1:]
+		fieldName := naming.Capitalize(naming.ToCamelCase(param))
+		fields.WriteString(fmt.Sprintf("\t%s string `slug:\"%s\"`\n", fieldName, param))
+	}
+	return fmt.Sprintf("type %s struct {\n%s}", typeName, fields.String())
 }
 
 // normalizeHTTPMethodName converts an HTTP method string to the Go net/http constant suffix.

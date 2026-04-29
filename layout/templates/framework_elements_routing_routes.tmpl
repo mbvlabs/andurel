@@ -302,32 +302,6 @@ func (r RouteWithStringID) GetParam() string {
 	return "id"
 }
 
-type RouteWithIDs Route
-
-var _ IDsRoute = (*RouteWithIDs)(nil)
-
-// NewRouteWithMultipleIDs creates a route that takes a map[string]uuid as parameters
-func NewRouteWithMultipleIDs(path, name, prefix string) RouteWithIDs {
-	return RouteWithIDs{name, path, prefix}
-}
-
-func (r RouteWithIDs) Name() string {
-	return configureName(r.name, r.prefix)
-}
-
-func (r RouteWithIDs) Path() string {
-	return configurePath(r.path, r.prefix, r.name)
-}
-
-func (r RouteWithIDs) URL(ids map[string]uuid.UUID, opts ...RouteOption) string {
-	route := r.Path()
-	for param, id := range ids {
-		route = strings.Replace(route, ":"+param, id.String(), 1)
-	}
-
-	return applyOptions(route, opts...)
-}
-
 type RouteWithSlug Route
 
 var _ ParamRoute = (*RouteWithSlug)(nil)
