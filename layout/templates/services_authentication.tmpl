@@ -25,7 +25,7 @@ func AuthenticateUser(
 	salt string,
 	data LoginData,
 ) (models.UserEntity, error) {
-	user, err := models.User.FindByEmail(ctx, db.DB(), data.Email)
+	user, err := models.User.FindByEmail(ctx, db.Conn(), data.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.UserEntity{}, ErrInvalidCredentials

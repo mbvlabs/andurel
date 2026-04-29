@@ -21,7 +21,7 @@ import (
 var Migrations embed.FS
 
 type Postgres struct {
-	db   *bun.DB
+	conn   *bun.DB
 	pool *pgxpool.Pool
 }
 
@@ -51,11 +51,11 @@ func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
 	sqldb := stdlib.OpenDBFromPool(pool)
 	db := bun.NewDB(sqldb, pgdialect.New())
 
-	return &Postgres{db: db, pool: pool}, nil
+	return &Postgres{conn: db, pool: pool}, nil
 }
 
-func (p *Postgres) DB() *bun.DB {
-	return p.db
+func (p *Postgres) Conn() *bun.DB {
+	return p.conn
 }
 
 func (p *Postgres) Pool() *pgxpool.Pool {
@@ -63,7 +63,7 @@ func (p *Postgres) Pool() *pgxpool.Pool {
 }
 
 func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error) {
-	tx, err := p.db.BeginTx(ctx, opts)
+	tx, err := p.conn.BeginTx(ctx, opts)
 	if err != nil {
 		return bun.Tx{}, errors.Join(storage.ErrBeginTx, err)
 	}
@@ -71,7 +71,7 @@ func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, er
 }
 
 func (p *Postgres) Close() error {
-	err := p.db.Close()
+	err := p.conn.Close()
 	p.pool.Close()
 	return err
 }
