@@ -158,12 +158,6 @@ func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, err
 		return fmt.Sprintf("https://github.com/%s/releases/download/%s/templ_%s_%s.tar.gz",
 			repo, d.Version, os, arch), "tar.gz", nil
 
-	case "sqlc":
-		os := goos
-		arch := goarch
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/sqlc_%s_%s_%s.tar.gz",
-			repo, d.Version, d.Version[1:], os, arch), "tar.gz", nil
-
 	case "goose":
 		os := goos
 		arch := mapArch(goarch)

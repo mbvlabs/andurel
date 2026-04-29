@@ -46,11 +46,11 @@ templ ItemIndex(items []models.Item) {
 							<tbody>
 								for _, item := range items {
 									<tr>
-										<td>{ item.WarehouseID.String() }</td>
+										<td>{ fmt.Sprintf("%v", item.WarehouseID) }</td>
 										<td>{ item.Name }</td>
-										<td>{ fmt.Sprintf("%d", item.Quantity) }</td>
-										<td>{ item.CreatedAt.String() }</td>
-										<td>{ item.UpdatedAt.String() }</td>
+										<td>{ fmt.Sprintf("%v", item.Quantity) }</td>
+										<td>{ fmt.Sprintf("%v", item.CreatedAt) }</td>
+										<td>{ fmt.Sprintf("%v", item.UpdatedAt) }</td>
 										<td>
 											<div class="cluster" data-gap="sm">
 												<a class="btn btn-ghost btn-sm" href={ routes.ItemShow.URL(item.ID) }>View</a>
@@ -86,7 +86,7 @@ templ ItemShow(item models.Item) {
 					<div class="grid-auto-fit" data-grid="compact">
 						<div class="field">
 							<p class="field-label">Warehouse Id</p>
-							<p>{ item.WarehouseID.String() }</p>
+							<p>{ fmt.Sprintf("%v", item.WarehouseID) }</p>
 						</div>
 						<div class="field">
 							<p class="field-label">Name</p>
@@ -94,15 +94,15 @@ templ ItemShow(item models.Item) {
 						</div>
 						<div class="field">
 							<p class="field-label">Quantity</p>
-							<p>{ fmt.Sprintf("%d", item.Quantity) }</p>
+							<p>{ fmt.Sprintf("%v", item.Quantity) }</p>
 						</div>
 						<div class="field">
 							<p class="field-label">Created At</p>
-							<p>{ item.CreatedAt.String() }</p>
+							<p>{ fmt.Sprintf("%v", item.CreatedAt) }</p>
 						</div>
 						<div class="field">
 							<p class="field-label">Updated At</p>
-							<p>{ item.UpdatedAt.String() }</p>
+							<p>{ fmt.Sprintf("%v", item.UpdatedAt) }</p>
 						</div>
 					</div>
 				</div>
@@ -142,7 +142,7 @@ templ ItemNew() {
 								<div class="field">
 									<label class="field-label" for="quantity">Quantity</label>
 									<div class="field-control">
-										<input class="input" type="number" id="quantity" name="quantity" data-bind="quantity"/>
+										<input class="input" type="text" id="quantity" name="quantity" data-bind="quantity"/>
 									</div>
 								</div>
 								<div class="stack" data-gap="sm">
@@ -177,7 +177,7 @@ templ ItemEdit(item models.Item) {
 								<div class="field">
 									<label class="field-label" for="warehouseId">Warehouse Id</label>
 									<div class="field-control">
-										<input class="input" type="text" id="warehouseId" name="warehouseId" data-bind="warehouseId" value={ item.WarehouseID.String() }/>
+										<input class="input" type="text" id="warehouseId" name="warehouseId" data-bind="warehouseId" value={ fmt.Sprintf("%v", item.WarehouseID) }/>
 									</div>
 								</div>
 								<div class="field">
@@ -189,7 +189,7 @@ templ ItemEdit(item models.Item) {
 								<div class="field">
 									<label class="field-label" for="quantity">Quantity</label>
 									<div class="field-control">
-										<input class="input" type="number" id="quantity" name="quantity" data-bind="quantity" value={ fmt.Sprintf("%d", item.Quantity) }/>
+										<input class="input" type="text" id="quantity" name="quantity" data-bind="quantity" value={ fmt.Sprintf("%v", item.Quantity) }/>
 									</div>
 								</div>
 								<div class="stack" data-gap="sm">

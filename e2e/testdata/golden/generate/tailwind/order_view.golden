@@ -38,10 +38,10 @@ templ OrderIndex(orders []models.Order) {
 									<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ order.AccountID.String() }</td>
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ order.CustomerName }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%f", order.Total) }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", order.Total) }</td>
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ string(order.Signature) }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ order.CreatedAt.String() }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ order.UpdatedAt.String() }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", order.CreatedAt) }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", order.UpdatedAt) }</td>
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 											<div class="flex flex-wrap gap-3 text-sm">
 												<a class="text-base-content/80 hover:text-base-content" href={ routes.OrderShow.URL(order.ID) }>View</a>
@@ -83,7 +83,7 @@ templ OrderShow(order models.Order) {
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Total</label>
-								<p class="text-sm text-base-content">{ fmt.Sprintf("%f", order.Total) }</p>
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", order.Total) }</p>
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Signature</label>
@@ -91,11 +91,11 @@ templ OrderShow(order models.Order) {
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
-								<p class="text-sm text-base-content">{ order.CreatedAt.String() }</p>
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", order.CreatedAt) }</p>
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
-								<p class="text-sm text-base-content">{ order.UpdatedAt.String() }</p>
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", order.UpdatedAt) }</p>
 							</div>
 						</div>
 					</div>
@@ -128,7 +128,7 @@ templ OrderNew() {
 									</div>
 									<div class="space-y-1">
 										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="total">Total</label>
-										<input type="number" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="total"/>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="total"/>
 									</div>
 									<div class="space-y-1">
 										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="signature">Signature</label>
@@ -171,7 +171,7 @@ templ OrderEdit(order models.Order) {
 									</div>
 									<div class="space-y-1">
 										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="total">Total</label>
-										<input type="number" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="total" value={ fmt.Sprintf("%f", order.Total) }/>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="total" value={ fmt.Sprintf("%v", order.Total) }/>
 									</div>
 									<div class="space-y-1">
 										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="signature">Signature</label>

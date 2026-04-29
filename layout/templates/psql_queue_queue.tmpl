@@ -36,7 +36,7 @@ func NewProcessor(
 	db storage.Pool,
 	workers *river.Workers,
 ) (Processor, error) {
-	riverClient, err := river.NewClient(riverpgxv5.New(db.Conn()), &river.Config{
+	riverClient, err := river.NewClient(riverpgxv5.New(db.Pool()), &river.Config{
 		Queues: map[string]river.QueueConfig{
 			river.QueueDefault: {MaxWorkers: 100},
 		},
@@ -110,7 +110,7 @@ func (i *InsertOnly) InsertTx(
 var _ storage.InsertQueue = (*InsertOnly)(nil)
 
 func NewInsertOnly(db storage.Pool, workers *river.Workers) (InsertOnly, error) {
-	riverClient, err := river.NewClient(riverpgxv5.New(db.Conn()), &river.Config{
+	riverClient, err := river.NewClient(riverpgxv5.New(db.Pool()), &river.Config{
 		Workers: workers,
 	})
 	if err != nil {

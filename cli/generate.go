@@ -29,41 +29,15 @@ func newGenerateCommand() *cobra.Command {
 		Use:     "generate",
 		Aliases: []string{"g", "gen"},
 		Short:   "Generate code and scaffolds",
-		Long:    `Generate models, controllers, views, resources, and more.`,
+		Long:    `Generate controllers, views, resources, and more.`,
 	}
 
-	generateCmd.AddCommand(newModelCommand())
 	generateCmd.AddCommand(newControllerCommand())
 	generateCmd.AddCommand(newViewCommand())
 	generateCmd.AddCommand(newResourceCommand())
 	generateCmd.AddCommand(newFragmentCommand())
 
 	return generateCmd
-}
-
-func newModelCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "model [name]",
-		Aliases: []string{"m"},
-		Short:   "Generate a new model",
-		Long: `Generate a new model with the specified name.
-The model will include CRUD operations and database functions.
-The table name is automatically inferred as the plural form of the model name.
-
-Examples:
-  andurel generate model User                        # Create new model for 'users' table
-  andurel generate model User --table-name=accounts  # Create model using custom 'accounts' table
-  andurel generate model User --skip-factory         # Skip factory generation`,
-		Args: cobra.ExactArgs(1),
-		RunE: withGenerateCleanup(generateModel),
-	}
-
-	cmd.Flags().
-		String("table-name", "", "Override the default table name (defaults to plural form of model name)")
-	cmd.Flags().
-		Bool("skip-factory", false, "Skip factory generation")
-
-	return cmd
 }
 
 func newViewCommand() *cobra.Command {
@@ -86,31 +60,6 @@ Examples:
 	cmd.Flags().Bool("with-controller", false, "Generate controller along with the views")
 
 	return cmd
-}
-
-func generateModel(cmd *cobra.Command, args []string) error {
-	if err := chdirToProjectRoot(); err != nil {
-		return err
-	}
-
-	resourceName := args[0]
-
-	tableNameOverride, err := cmd.Flags().GetString("table-name")
-	if err != nil {
-		return err
-	}
-
-	skipFactory, err := cmd.Flags().GetBool("skip-factory")
-	if err != nil {
-		return err
-	}
-
-	gen, err := generator.New()
-	if err != nil {
-		return err
-	}
-
-	return gen.GenerateModel(resourceName, tableNameOverride, skipFactory)
 }
 
 func newControllerCommand() *cobra.Command {

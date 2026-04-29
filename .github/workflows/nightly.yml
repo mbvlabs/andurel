@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 env:
   GO_VERSION: '1.26.0'
@@ -25,78 +26,65 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Configure git
-        run: |
-          git config user.email "github@mbvlabs.com"
-          git config user.name "MBV"
-
       - name: Get commit info
         id: commit
         run: |
           echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           echo "COMMIT_DATE=$(date -u +%Y%m%d)" >> $GITHUB_OUTPUT
 
-      - name: Update nightly tag
+      - name: Build binaries
+        run: |
+          VERSION="nightly-${{ steps.commit.outputs.COMMIT_DATE }}-${{ steps.commit.outputs.SHORT_SHA }}"
+          DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          LDFLAGS="-w -s -X main.version=${VERSION} -X main.date=${DATE}"
+
+          GOOS=linux  GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o andurel-linux-amd64  .
+          GOOS=darwin GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o andurel-darwin-amd64 .
+          GOOS=darwin GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o andurel-darwin-arm64 .
+
+          sha256sum andurel-linux-amd64 andurel-darwin-amd64 andurel-darwin-arm64 > checksums.txt
+
+      - name: Publish nightly release
         run: |
           gh release delete nightly --yes --cleanup-tag 2>/dev/null || true
-          git tag -f nightly
-          git push -f origin nightly
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          gh release create nightly \
+            --title "Nightly Build (${{ steps.commit.outputs.COMMIT_DATE }})" \
+            --prerelease \
+            --notes "This is an automated nightly build from the \`master\` branch.
 
-      - name: Install GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          install-only: true
-          version: v2.7.0
+          **Commit:** ${{ github.sha }}
+          **Date:** ${{ steps.commit.outputs.COMMIT_DATE }}
+          **Version:** nightly-${{ steps.commit.outputs.COMMIT_DATE }}-${{ steps.commit.outputs.SHORT_SHA }}
 
-      - name: Run GoReleaser
-        run: goreleaser release --clean --skip=validate
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_CURRENT_TAG: "nightly"
+          > **Warning**: Nightly builds are automatically generated from the latest code and may contain bugs or breaking changes. For stable releases, please use the [latest release](https://github.com/${{ github.repository }}/releases/latest).
 
-      - name: Update release description
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: nightly
-          name: Nightly Build (${{ steps.commit.outputs.COMMIT_DATE }})
-          body: |
-            This is an automated nightly build from the `master` branch.
+          ## Installation
 
-            **Commit:** ${{ github.sha }}
-            **Date:** ${{ steps.commit.outputs.COMMIT_DATE }}
-            **Version:** nightly-${{ steps.commit.outputs.COMMIT_DATE }}-${{ steps.commit.outputs.SHORT_SHA }}
+          Download the appropriate binary for your platform below, make it executable, and place it in your GOBIN directory.
 
-            > **Warning**: Nightly builds are automatically generated from the latest code and may contain bugs or breaking changes. For stable releases, please use the [latest release](https://github.com/${{ github.repository }}/releases/latest).
+          > **Note**: Do not use \`go install\` for nightly builds - it builds from source and won't include the version info. Use the pre-built binaries below instead.
 
-            ## Installation
+          **Linux (amd64)**
+          \`\`\`bash
+          curl -L https://github.com/${{ github.repository }}/releases/download/nightly/andurel-linux-amd64 -o andurel
+          chmod +x andurel
+          mv andurel \$(go env GOBIN)/
+          \`\`\`
 
-            Download the appropriate binary for your platform below, make it executable, and place it in your GOBIN directory.
+          **macOS (Apple Silicon)**
+          \`\`\`bash
+          curl -L https://github.com/${{ github.repository }}/releases/download/nightly/andurel-darwin-arm64 -o andurel
+          chmod +x andurel
+          mv andurel \$(go env GOBIN)/
+          \`\`\`
 
-            > **Note**: Do not use `go install` for nightly builds - it builds from source and won't include the version info. Use the pre-built binaries below instead.
-
-            **Linux (amd64)**
-            ```bash
-            curl -L https://github.com/${{ github.repository }}/releases/download/nightly/andurel-linux-amd64 -o andurel
-            chmod +x andurel
-            mv andurel $(go env GOBIN)/
-            ```
-
-            **macOS (Apple Silicon)**
-            ```bash
-            curl -L https://github.com/${{ github.repository }}/releases/download/nightly/andurel-darwin-arm64 -o andurel
-            chmod +x andurel
-            mv andurel $(go env GOBIN)/
-            ```
-
-            **macOS (Intel)**
-            ```bash
-            curl -L https://github.com/${{ github.repository }}/releases/download/nightly/andurel-darwin-amd64 -o andurel
-            chmod +x andurel
-            mv andurel $(go env GOBIN)/
-            ```
-          prerelease: true
+          **macOS (Intel)**
+          \`\`\`bash
+          curl -L https://github.com/${{ github.repository }}/releases/download/nightly/andurel-darwin-amd64 -o andurel
+          chmod +x andurel
+          mv andurel \$(go env GOBIN)/
+          \`\`\`" \
+            andurel-linux-amd64 andurel-darwin-amd64 andurel-darwin-arm64 checksums.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

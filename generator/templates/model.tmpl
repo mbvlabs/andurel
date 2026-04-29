@@ -1,43 +1,35 @@
 package models
 
 import (
-	"context"
-	"errors"
 {{- range .StandardImports}}
 	"{{.}}"
 {{- end}}
 {{if and (gt (len .StandardImports) 0) (gt (len .ExternalImports) 0)}}
-
 {{end}}
 {{- range .ExternalImports}}
 	"{{.}}"
 {{- end}}
-
-	"{{.ModulePath}}/models/internal/db"
-	"{{.ModulePath}}/internal/storage"
 )
 
-type {{.Name}} struct {
+// {{.EntityName}} represents a {{.Name}} record in the database.
+type {{.EntityName}} struct {
+	bun.BaseModel `bun:"table:{{.TableName}}"`
+
 {{- range .Fields}}
-	{{.Name}} {{.Type}}
+	{{.Name}} {{.Type}} `bun:"{{.BunTag}}"`
 {{- end}}
 }
 
-func Find{{.Name}}(
-	ctx context.Context,
-	exec storage.Executor,
-	id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}},
-) ({{.Name}}, error) {
-	row, err := queries.Query{{.Name}}ByID(ctx, exec, {{uuidParam "id"}})
+func ({{.ReceiverName}} {{.NamespaceType}}) Find(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) ({{.EntityName}}, error) {
+	var entity {{.EntityName}}
+	err := db.NewSelect().
+		Model(&entity).
+		Where("id = ?", id).
+		Scan(ctx)
 	if err != nil {
-		return {{.Name}}{}, err
+		return {{.EntityName}}{}, err
 	}
-
-{{if hasErrorHandling}}	result, err := rowTo{{.Name}}(row)
-	if err != nil {
-		return {{.Name}}{}, err
-	}
-	return result, nil{{else}}	return rowTo{{.Name}}(row), nil{{end}}
+	return entity, nil
 }
 
 type Create{{.Name}}Data struct {
@@ -53,19 +45,12 @@ type Create{{.Name}}Data struct {
 {{- end}}
 }
 
-func Create{{.Name}}(
-	ctx context.Context,
-	exec storage.Executor,
-	data Create{{.Name}}Data,
-) ({{.Name}}, error) {
+func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db storage.Executor, data Create{{.Name}}Data) ({{.EntityName}}, error) {
 	if err := Validate.Struct(data); err != nil {
-		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
+		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-{{- if .HasSingleInsertParam}}
-	row, err := queries.Insert{{.Name}}(ctx, exec, {{.SingleInsertField.ConversionToDB}})
-{{- else}}
-	params := db.Insert{{.Name}}Params{
+	entity := {{.EntityName}}{
 {{- if not .IsAutoIncrementID}}
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 		ID: uuid.New(),
@@ -73,23 +58,20 @@ func Create{{.Name}}(
 		ID: data.ID,
 {{- end}}
 {{- end}}
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 {{- range .Fields}}
-{{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
-		{{.Name}}: {{.ConversionToDB}},
+{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+		{{.Name}}: data.{{.Name}},
 {{- end}}
 {{- end}}
-	}
-	row, err := queries.Insert{{.Name}}(ctx, exec, params)
-{{- end}}
-	if err != nil {
-		return {{.Name}}{}, err
 	}
 
-{{if hasErrorHandling}}	result, err := rowTo{{.Name}}(row)
+	_, err := db.NewInsert().Model(&entity).Exec(ctx)
 	if err != nil {
-		return {{.Name}}{}, err
+		return {{.EntityName}}{}, err
 	}
-	return result, nil{{else}}	return rowTo{{.Name}}(row), nil{{end}}
+	return entity, nil
 }
 
 type Update{{.Name}}Data struct {
@@ -101,79 +83,59 @@ type Update{{.Name}}Data struct {
 {{- end}}
 }
 
-func Update{{.Name}}(
-	ctx context.Context,
-	exec storage.Executor,
-	data Update{{.Name}}Data,
-) ({{.Name}}, error) {
+func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db storage.Executor, data Update{{.Name}}Data) ({{.EntityName}}, error) {
 	if err := Validate.Struct(data); err != nil {
-		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
+		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.Update{{.Name}}Params{
-		ID: data.ID,
+	entity := {{.EntityName}}{
+		ID:        data.ID,
+		UpdatedAt: time.Now(),
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
-		{{.Name}}: {{.ConversionToDBForUpdate}},
+		{{.Name}}: data.{{.Name}},
 {{- end}}
 {{- end}}
 	}
 
-	row, err := queries.Update{{.Name}}(ctx, exec, params)
+	_, err := db.NewUpdate().
+		Model(&entity).
+		Where("id = ?", data.ID).
+		Exec(ctx)
 	if err != nil {
-		return {{.Name}}{}, err
+		return {{.EntityName}}{}, err
 	}
-
-{{if hasErrorHandling}}	result, err := rowTo{{.Name}}(row)
-	if err != nil {
-		return {{.Name}}{}, err
-	}
-	return result, nil{{else}}	return rowTo{{.Name}}(row), nil{{end}}
+	return entity, nil
 }
 
-func Destroy{{.Name}}(
-	ctx context.Context,
-	exec storage.Executor,
-	id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}},
-) error {
-	return queries.Delete{{.Name}}(ctx, exec, {{uuidParam "id"}})
+func ({{.ReceiverName}} {{.NamespaceType}}) Destroy(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) error {
+	_, err := db.NewDelete().
+		Model((*{{.EntityName}})(nil)).
+		Where("id = ?", id).
+		Exec(ctx)
+	return err
 }
 
-func All{{.PluralName}}(
-	ctx context.Context,
-	exec storage.Executor,
-) ([]{{.Name}}, error) {
-	rows, err := queries.Query{{.PluralName}}(ctx, exec)
+func ({{.ReceiverName}} {{.NamespaceType}}) All(ctx context.Context, db storage.Executor) ([]{{.EntityName}}, error) {
+	var entities []{{.EntityName}}
+	err := db.NewSelect().
+		Model(&entities).
+		Scan(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	{{lower .PluralName}} := make([]{{.Name}}, len(rows))
-	for i, row := range rows {
-{{if hasErrorHandling}}		result, err := rowTo{{.Name}}(row)
-		if err != nil {
-			return nil, err
-		}
-		{{lower .PluralName}}[i] = result{{else}}		{{lower .PluralName}}[i] = rowTo{{.Name}}(row){{end}}
-	}
-
-	return {{lower .PluralName}}, nil
+	return entities, nil
 }
 
 type Paginated{{.PluralName}} struct {
-	{{.PluralName}} []{{.Name}}
+	{{.PluralName}} []{{.EntityName}}
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func Paginate{{.PluralName}}(
-	ctx context.Context,
-	exec storage.Executor,
-	page int64,
-	pageSize int64,
-) (Paginated{{.PluralName}}, error) {
+func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (Paginated{{.PluralName}}, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -186,36 +148,25 @@ func Paginate{{.PluralName}}(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := queries.Count{{.PluralName}}(ctx, exec)
-	if err != nil {
+	var totalCount int64
+	if err := db.NewSelect().
+		Model(&{{.EntityName}}{}).Scan(ctx, &totalCount); err != nil {
 		return Paginated{{.PluralName}}{}, err
 	}
 
-	rows, err := queries.QueryPaginated{{.PluralName}}(
-		ctx,
-		exec,
-		db.QueryPaginated{{.PluralName}}Params{
-			Limit:  pageSize,
-			Offset: offset,
-		},
-	)
-	if err != nil {
+	var entities []{{.EntityName}}
+	if err := db.NewSelect().
+		Model(&entities).
+		Limit(int(pageSize)).
+		Offset(int(offset)).
+		Scan(ctx); err != nil {
 		return Paginated{{.PluralName}}{}, err
 	}
 
-	{{lower .PluralName}} := make([]{{.Name}}, len(rows))
-	for i, row := range rows {
-{{if hasErrorHandling}}		result, err := rowTo{{.Name}}(row)
-		if err != nil {
-			return Paginated{{.PluralName}}{}, err
-		}
-		{{lower .PluralName}}[i] = result{{else}}		{{lower .PluralName}}[i] = rowTo{{.Name}}(row){{end}}
-	}
-
-	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+	totalPages := (totalCount + pageSize - 1) / pageSize
 
 	return Paginated{{.PluralName}}{
-		{{.PluralName}}:    {{lower .PluralName}},
+		{{.PluralName}}:    entities,
 		TotalCount: totalCount,
 		Page:       page,
 		PageSize:   pageSize,
@@ -223,19 +174,12 @@ func Paginate{{.PluralName}}(
 	}, nil
 }
 
-func Upsert{{.Name}}(
-	ctx context.Context,
-	exec storage.Executor,
-	data Create{{.Name}}Data,
-) ({{.Name}}, error) {
+func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db storage.Executor, data Create{{.Name}}Data) ({{.EntityName}}, error) {
 	if err := Validate.Struct(data); err != nil {
-		return {{.Name}}{}, errors.Join(ErrDomainValidation, err)
+		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-{{- if .HasSingleInsertParam}}
-	row, err := queries.Upsert{{.Name}}(ctx, exec, {{.SingleInsertField.ConversionToDB}})
-{{- else}}
-	params := db.Upsert{{.Name}}Params{
+	entity := {{.EntityName}}{
 {{- if not .IsAutoIncrementID}}
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 		ID: uuid.New(),
@@ -243,52 +187,21 @@ func Upsert{{.Name}}(
 		ID: data.ID,
 {{- end}}
 {{- end}}
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 {{- range .Fields}}
-{{- if not (or (eq .Name "ID") (eq .Name "CreatedAt") (eq .Name "UpdatedAt"))}}
-		{{.Name}}: {{.ConversionToDB}},
+{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+		{{.Name}}: data.{{.Name}},
 {{- end}}
 {{- end}}
-	}
-	row, err := queries.Upsert{{.Name}}(ctx, exec, params)
-{{- end}}
-	if err != nil {
-		return {{.Name}}{}, err
 	}
 
-{{if hasErrorHandling}}	result, err := rowTo{{.Name}}(row)
+	_, err := db.NewInsert().
+		Model(&entity).
+		On("CONFLICT (id) DO UPDATE").
+		Exec(ctx)
 	if err != nil {
-		return {{.Name}}{}, err
+		return {{.EntityName}}{}, err
 	}
-	return result, nil{{else}}	return rowTo{{.Name}}(row), nil{{end}}
+	return entity, nil
 }
-
-{{if hasErrorHandling}}
-func rowTo{{.Name}}(row db.{{.SQLCModelName}}) ({{.Name}}, error) {
-{{- range .Fields}}
-{{- if .RequiresErrorHandling}}
-	{{lower .Name}}, err := {{.ConversionFromDB}}
-	if err != nil {
-		return {{$.Name}}{}, err
-	}
-{{- end}}
-{{- end}}
-
-	return {{.Name}}{
-{{- range .Fields}}
-{{- if .RequiresErrorHandling}}
-		{{.Name}}: {{lower .Name}},
-{{- else}}
-		{{.Name}}: {{.ConversionFromDB}},
-{{- end}}
-{{- end}}
-	}, nil
-}
-{{else}}
-func rowTo{{.Name}}(row db.{{.SQLCModelName}}) {{.Name}} {
-	return {{.Name}}{
-{{- range .Fields}}
-		{{.Name}}: {{.ConversionFromDB}},
-{{- end}}
-	}
-}
-{{end}}

@@ -98,7 +98,7 @@ func (v *ViewManager) GenerateViewFromModel(resourceName string, withController 
 	modelPath := filepath.Join(v.config.Paths.Models, modelFileName.String())
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"model file %s does not exist. Generate the model first: andurel generate model %s",
+			"model file %s does not exist. Create the model first: andurel model %s create",
 			modelPath,
 			resourceName,
 		)
@@ -108,7 +108,7 @@ func (v *ViewManager) GenerateViewFromModel(resourceName string, withController 
 		return err
 	}
 
-	tableName, tableNameOverridden := ResolveTableNameWithFlag(v.config.Paths.Models, v.config.Paths.Queries, resourceName)
+	tableName, tableNameOverridden := ResolveTableNameWithFlag(v.config.Paths.Models, resourceName)
 
 	if tableNameOverridden {
 		if err := v.validator.ValidateTableNameOverride(resourceName, tableName); err != nil {

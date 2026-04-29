@@ -37,9 +37,9 @@ templ StudentFeedbackIndex(student_feedbacks []models.StudentFeedback) {
 									<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ studentfeedback.StudentID }</td>
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ studentfeedback.Feedback }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%d", studentfeedback.Rating) }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ studentfeedback.CreatedAt.String() }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ studentfeedback.UpdatedAt.String() }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", studentfeedback.Rating) }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", studentfeedback.CreatedAt) }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", studentfeedback.UpdatedAt) }</td>
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 											<div class="flex flex-wrap gap-3 text-sm">
 												<a class="text-base-content/80 hover:text-base-content" href={ routes.StudentFeedbackShow.URL(studentfeedback.ID) }>View</a>
@@ -81,15 +81,15 @@ templ StudentFeedbackShow(studentfeedback models.StudentFeedback) {
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Rating</label>
-								<p class="text-sm text-base-content">{ fmt.Sprintf("%d", studentfeedback.Rating) }</p>
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", studentfeedback.Rating) }</p>
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
-								<p class="text-sm text-base-content">{ studentfeedback.CreatedAt.String() }</p>
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", studentfeedback.CreatedAt) }</p>
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
-								<p class="text-sm text-base-content">{ studentfeedback.UpdatedAt.String() }</p>
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", studentfeedback.UpdatedAt) }</p>
 							</div>
 						</div>
 					</div>
@@ -122,7 +122,7 @@ templ StudentFeedbackNew() {
 									</div>
 									<div class="space-y-1">
 										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="rating">Rating</label>
-										<input type="number" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="rating"/>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="rating"/>
 									</div>
 								</div>
 								<div class="mt-6 space-y-3">
@@ -161,7 +161,7 @@ templ StudentFeedbackEdit(studentfeedback models.StudentFeedback) {
 									</div>
 									<div class="space-y-1">
 										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="rating">Rating</label>
-										<input type="number" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="rating" value={ fmt.Sprintf("%d", studentfeedback.Rating) }/>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="rating" value={ fmt.Sprintf("%v", studentfeedback.Rating) }/>
 									</div>
 								</div>
 								<div class="mt-6 space-y-3">

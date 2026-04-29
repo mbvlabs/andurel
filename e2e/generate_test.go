@@ -102,22 +102,6 @@ func TestGenerateCommands(t *testing.T) {
 				testGenerateViewWithController(t, project)
 			})
 
-			t.Run("generate_queries", func(t *testing.T) {
-				testGenerateQueries(t, project)
-			})
-
-			t.Run("generate_queries_with_singular_table_name", func(t *testing.T) {
-				testGenerateQueriesWithSingularTableName(t, project)
-			})
-
-			t.Run("generate_queries_with_refresh", func(t *testing.T) {
-				testGenerateQueriesWithRefresh(t, project)
-			})
-
-			t.Run("generate_queries_with_refresh_timestamps", func(t *testing.T) {
-				testGenerateQueriesWithRefreshTimestamps(t, project)
-			})
-
 			t.Run("generate_model_with_array_types", func(t *testing.T) {
 				testGenerateModelWithArrayTypes(t, project)
 			})
@@ -141,7 +125,7 @@ func testGenerateModel(t *testing.T, project *internal.Project) {
 		"price DECIMAL(10,2)",
 	})
 
-	err := project.Generate("generate", "model", "Product")
+	err := project.Generate("model", "Product", "create")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	// Verify model file exists and compare against golden file
@@ -154,19 +138,6 @@ func testGenerateModel(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "product_model.golden"),
 		string(modelContent),
-		project.CSS,
-	)
-
-	// Verify queries file exists and compare against golden file
-	internal.AssertFileExists(t, project, "database/queries/products.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/products.sql"))
-	if err != nil {
-		t.Fatalf("Failed to read queries file: %v", err)
-	}
-	compareOrUpdateGenerateGolden(
-		t,
-		filepath.Join("testdata", "golden", "generate", "product_queries.golden"),
-		string(queriesContent),
 		project.CSS,
 	)
 
@@ -193,27 +164,10 @@ func testGenerateModelWithoutTimestamps(t *testing.T, project *internal.Project)
 		"server_id UUID NOT NULL",
 	})
 
-	err := project.Generate("generate", "model", "ServerProvisionStep", "--skip-factory")
+	err := project.Generate("model", "ServerProvisionStep", "create", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate model without timestamps")
 
 	internal.AssertFileExists(t, project, "models/server_provision_step.go")
-
-	internal.AssertFileExists(t, project, "database/queries/server_provision_steps.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/server_provision_steps.sql"))
-	if err != nil {
-		t.Fatalf("Failed to read queries file: %v", err)
-	}
-
-	queriesStr := string(queriesContent)
-	if strings.Contains(queriesStr, "order by created_at desc") {
-		t.Error("Expected pagination ordering to avoid created_at when column is missing")
-	}
-	if !strings.Contains(queriesStr, "order by id desc") {
-		t.Error("Expected pagination ordering to fall back to id desc")
-	}
-	if strings.Contains(queriesStr, "now()") {
-		t.Error("Expected no now() placeholders without created_at/updated_at columns")
-	}
 }
 
 func testGenerateController(t *testing.T, project *internal.Project) {
@@ -226,7 +180,7 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 		"signature BYTEA",
 	})
 
-	err := project.Generate("generate", "model", "Order")
+	err := project.Generate("model", "Order", "create")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	err = project.Generate("generate", "controller", "Order", "--with-views")
@@ -280,7 +234,7 @@ func testGenerateView(t *testing.T, project *internal.Project) {
 		"description TEXT",
 	})
 
-	err := project.Generate("generate", "model", "Category")
+	err := project.Generate("model", "Category", "create")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	err = project.Generate("generate", "view", "Category")
@@ -444,7 +398,7 @@ func testGenerateModelWithFactory(t *testing.T, project *internal.Project) {
 		"pages INTEGER",
 	})
 
-	err := project.Generate("generate", "model", "Book")
+	err := project.Generate("model", "Book", "create")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	// Verify model file exists and compare against golden file
@@ -457,19 +411,6 @@ func testGenerateModelWithFactory(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "book_model.golden"),
 		string(modelContent),
-		project.CSS,
-	)
-
-	// Verify queries file exists and compare against golden file
-	internal.AssertFileExists(t, project, "database/queries/books.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/books.sql"))
-	if err != nil {
-		t.Fatalf("Failed to read queries file: %v", err)
-	}
-	compareOrUpdateGenerateGolden(
-		t,
-		filepath.Join("testdata", "golden", "generate", "book_queries.golden"),
-		string(queriesContent),
 		project.CSS,
 	)
 
@@ -496,7 +437,7 @@ func testGenerateModelSkipFactory(t *testing.T, project *internal.Project) {
 		"published BOOLEAN DEFAULT false",
 	})
 
-	err := project.Generate("generate", "model", "Article", "--skip-factory")
+	err := project.Generate("model", "Article", "create", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate model with --skip-factory")
 
 	// Verify model file exists and compare against golden file
@@ -509,19 +450,6 @@ func testGenerateModelSkipFactory(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "article_model.golden"),
 		string(modelContent),
-		project.CSS,
-	)
-
-	// Verify queries file exists and compare against golden file
-	internal.AssertFileExists(t, project, "database/queries/articles.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/articles.sql"))
-	if err != nil {
-		t.Fatalf("Failed to read queries file: %v", err)
-	}
-	compareOrUpdateGenerateGolden(
-		t,
-		filepath.Join("testdata", "golden", "generate", "article_queries.golden"),
-		string(queriesContent),
 		project.CSS,
 	)
 
@@ -542,7 +470,7 @@ func testGenerateModelWithTableName(t *testing.T, project *internal.Project) {
 		"email VARCHAR(255)",
 	})
 
-	err := project.Generate("generate", "model", "Person", "--table-name=people_data")
+	err := project.Generate("model", "Person", "create", "--table-name=people_data")
 	internal.AssertCommandSucceeds(t, err, "generate model with --table-name")
 
 	// Verify model file exists and compare against golden file
@@ -555,19 +483,6 @@ func testGenerateModelWithTableName(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "person_model.golden"),
 		string(modelContent),
-		project.CSS,
-	)
-
-	// Verify queries file exists with custom table name and compare against golden file
-	internal.AssertFileExists(t, project, "database/queries/people_data.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/people_data.sql"))
-	if err != nil {
-		t.Fatalf("Failed to read queries file: %v", err)
-	}
-	compareOrUpdateGenerateGolden(
-		t,
-		filepath.Join("testdata", "golden", "generate", "person_queries.golden"),
-		string(queriesContent),
 		project.CSS,
 	)
 
@@ -595,7 +510,7 @@ func testGenerateControllerWithoutViews(t *testing.T, project *internal.Project)
 		"pdf_data BYTEA",
 	})
 
-	err := project.Generate("generate", "model", "Invoice")
+	err := project.Generate("model", "Invoice", "create")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	// Generate controller WITHOUT views (default behavior)
@@ -656,7 +571,7 @@ func testGenerateViewWithController(t *testing.T, project *internal.Project) {
 		"rating INTEGER NOT NULL",
 	})
 
-	err := project.Generate("generate", "model", "Review")
+	err := project.Generate("model", "Review", "create")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	// Generate view WITH controller
@@ -703,134 +618,6 @@ func testGenerateViewWithController(t *testing.T, project *internal.Project) {
 	)
 }
 
-func testGenerateQueries(t *testing.T, project *internal.Project) {
-	t.Helper()
-
-	// Create a junction table for testing queries-only generation (no timestamps)
-	createMigrationRaw(t, project, "000110_create_user_roles", "user_roles", []string{
-		"user_id UUID NOT NULL",
-		"role_id UUID NOT NULL",
-	})
-
-	err := project.Generate("query", "generate", "user_roles")
-	internal.AssertCommandSucceeds(t, err, "generate queries")
-
-	// Verify queries file exists and compare against golden file
-	internal.AssertFileExists(t, project, "database/queries/user_roles.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/user_roles.sql"))
-	if err != nil {
-		t.Fatalf("Failed to read queries file: %v", err)
-	}
-	compareOrUpdateGenerateGolden(
-		t,
-		filepath.Join("testdata", "golden", "generate", "user_role_queries.golden"),
-		string(queriesContent),
-		project.CSS,
-	)
-
-	// Model file should NOT exist for queries-only generation
-	if project.FileExists("models/user_role.go") {
-		t.Error("Model file should NOT exist for queries-only generation")
-	}
-
-	// Factory file should NOT exist for queries-only generation
-	if project.FileExists("models/factories/user_role.go") {
-		t.Error("Factory file should NOT exist for queries-only generation")
-	}
-}
-
-func testGenerateQueriesWithSingularTableName(t *testing.T, project *internal.Project) {
-	t.Helper()
-
-	createMigrationRaw(t, project, "000115_create_team_membership", "team_membership", []string{
-		"user_id UUID NOT NULL",
-		"team_id UUID NOT NULL",
-	})
-
-	err := project.Generate("query", "generate", "team_membership")
-	internal.AssertCommandSucceeds(t, err, "generate queries with singular table name")
-
-	internal.AssertFileExists(t, project, "database/queries/team_membership.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/team_membership.sql"))
-	if err != nil {
-		t.Fatalf("Failed to read queries file: %v", err)
-	}
-
-	queriesStr := strings.ToLower(string(queriesContent))
-	if !strings.Contains(queriesStr, "from team_membership") {
-		t.Error("Expected generated queries to target table team_membership")
-	}
-}
-
-func testGenerateQueriesWithRefresh(t *testing.T, project *internal.Project) {
-	t.Helper()
-
-	// Create a table for testing refresh functionality (no timestamps)
-	createMigrationRaw(t, project, "000111_create_tag_assignments", "tag_assignments", []string{
-		"taggable_type VARCHAR(100) NOT NULL",
-		"taggable_id UUID NOT NULL",
-		"tag_id UUID NOT NULL",
-	})
-
-	// First generate the queries
-	err := project.Generate("query", "generate", "tag_assignments")
-	internal.AssertCommandSucceeds(t, err, "generate queries")
-
-	// Verify queries file exists and compare against golden file
-	internal.AssertFileExists(t, project, "database/queries/tag_assignments.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/tag_assignments.sql"))
-	if err != nil {
-		t.Fatalf("Failed to read queries file: %v", err)
-	}
-	compareOrUpdateGenerateGolden(
-		t,
-		filepath.Join("testdata", "golden", "generate", "tag_assignment_queries.golden"),
-		string(queriesContent),
-		project.CSS,
-	)
-
-	// Model file should NOT exist for queries-only generation
-	if project.FileExists("models/tag_assignment.go") {
-		t.Error("Model file should NOT exist for queries-only generation")
-	}
-
-	// Now test refresh functionality
-	err = project.Generate("query", "refresh", "tag_assignments")
-	internal.AssertCommandSucceeds(t, err, "queries refresh")
-}
-
-func testGenerateQueriesWithRefreshTimestamps(t *testing.T, project *internal.Project) {
-	t.Helper()
-
-	createMigration(t, project, "000114_create_audit_logs", "audit_logs", []string{
-		"event_type VARCHAR(100) NOT NULL",
-		"event_metadata JSONB",
-	})
-
-	err := project.Generate("query", "generate", "audit_logs")
-	internal.AssertCommandSucceeds(t, err, "generate queries")
-
-	err = project.Generate("query", "refresh", "audit_logs")
-	internal.AssertCommandSucceeds(t, err, "queries refresh")
-
-	internal.AssertFileExists(t, project, "database/queries/audit_logs.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/audit_logs.sql"))
-	if err != nil {
-		t.Fatalf("Failed to read queries file: %v", err)
-	}
-
-	queriesStr := string(queriesContent)
-	if !strings.Contains(queriesStr, "now(), now()") {
-		t.Error("Expected insert placeholders to use now() for created_at/updated_at")
-	}
-	if !strings.Contains(queriesStr, "updated_at=now()") {
-		t.Error("Expected updates to set updated_at to now()")
-	}
-	if strings.Contains(queriesStr, "created_at=$") || strings.Contains(queriesStr, "updated_at=$") {
-		t.Error("Expected no placeholders for created_at/updated_at in queries-only refresh")
-	}
-}
-
 // testGenerateModelWithArrayTypes tests that PostgreSQL array types (text[], integer[])
 // are correctly generated as native Go slices ([]string, []int32) instead of
 // non-existent pgtype.Array types. Also tests jsonb/json types.
@@ -860,7 +647,7 @@ DROP TABLE IF EXISTS posts;
 		t.Fatalf("Failed to create migration file: %v", err)
 	}
 
-	err = project.Generate("generate", "model", "Post", "--skip-factory")
+	err = project.Generate("model", "Post", "create", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate model with array types")
 
 	// Verify model file exists and compare against golden file
@@ -898,19 +685,6 @@ DROP TABLE IF EXISTS posts;
 		t,
 		filepath.Join("testdata", "golden", "generate", "post_model.golden"),
 		modelStr,
-		project.CSS,
-	)
-
-	// Verify queries file exists and compare against golden file
-	internal.AssertFileExists(t, project, "database/queries/posts.sql")
-	queriesContent, err := os.ReadFile(filepath.Join(project.Dir, "database/queries/posts.sql"))
-	if err != nil {
-		t.Fatalf("Failed to read queries file: %v", err)
-	}
-	compareOrUpdateGenerateGolden(
-		t,
-		filepath.Join("testdata", "golden", "generate", "post_queries.golden"),
-		string(queriesContent),
 		project.CSS,
 	)
 }
@@ -1020,7 +794,7 @@ DROP TABLE IF EXISTS documents;
 	}
 
 	// Generate model first (required for view generation)
-	err = project.Generate("generate", "model", "Document", "--skip-factory")
+	err = project.Generate("model", "Document", "create", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate model with array types")
 
 	// Generate view
@@ -1085,7 +859,7 @@ func testGenerateFragment(t *testing.T, project *internal.Project) {
 	})
 
 	// Generate model first
-	err := project.Generate("generate", "model", "Webhook", "--skip-factory")
+	err := project.Generate("model", "Webhook", "create", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate model for webhook")
 
 	// Generate controller (without views since we just need the controller files)

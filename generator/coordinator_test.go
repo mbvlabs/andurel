@@ -201,27 +201,6 @@ func TestCoordinator_GenerateViewValidation(t *testing.T) {
 	}
 }
 
-func TestCoordinator_RefreshQueriesValidation(t *testing.T) {
-	_, cleanup := setupTestProject(t)
-	defer cleanup()
-
-	coord, err := NewCoordinator()
-	if err != nil {
-		t.Fatalf("NewCoordinator() failed: %v", err)
-	}
-
-	// Test that validation errors are properly returned
-	err = coord.ModelManager.RefreshQueries("", "")
-	if err == nil {
-		t.Error("Expected validation error for empty resource name")
-	}
-
-	err = coord.ModelManager.RefreshQueries("invalid-name", "table")
-	if err == nil {
-		t.Error("Expected validation error for invalid resource name")
-	}
-}
-
 func TestCoordinator_GenerateControllerFromModelValidation(t *testing.T) {
 	_, cleanup := setupTestProject(t)
 	defer cleanup()

@@ -9,6 +9,7 @@ import (
 
 	"github.com/mbvlabs/andurel/e2e/internal"
 	"github.com/mbvlabs/andurel/pkg/constants"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 var updateResourceGolden = flag.Bool(
@@ -86,45 +87,40 @@ func TestResourcePluralization(t *testing.T) {
 			err = project.Generate("generate", "resource", tc.resourceName)
 			internal.AssertCommandSucceeds(t, err, "generate resource")
 
-			// Verify all expected files exist
-			expectedFiles := []string{
-				"models/" + strings.ToLower(tc.resourceName) + ".go",
-				"models/factories/" + strings.ToLower(tc.resourceName) + ".go",
-				"database/queries/" + tc.tableName + ".sql",
-				"controllers/" + tc.tableName + ".go",
-				"views/" + tc.tableName + "_resource.templ",
-				"router/routes/" + tc.tableName + ".go",
-				"router/connect_" + tc.tableName + "_routes.go",
-			}
+		// Verify all expected files exist
+		expectedFiles := []string{
+			"models/" + strings.ToLower(tc.resourceName) + ".go",
+			"models/factories/" + strings.ToLower(tc.resourceName) + ".go",
+			"controllers/" + tc.tableName + ".go",
+			"views/" + tc.tableName + "_resource.templ",
+			"router/routes/" + tc.tableName + ".go",
+			"router/connect_" + tc.tableName + "_routes.go",
+		}
 
 			for _, f := range expectedFiles {
 				internal.AssertFileExists(t, project, f)
 			}
 
 			// Run golden file comparisons for each generated file
-			t.Run("model_pluralization", func(t *testing.T) {
-				validateModelPluralization(t, project, tc)
-			})
+		t.Run("model_pluralization", func(t *testing.T) {
+			validateModelPluralization(t, project, tc)
+		})
 
-			t.Run("queries_pluralization", func(t *testing.T) {
-				validateQueriesPluralization(t, project, tc)
-			})
+		t.Run("controller_pluralization", func(t *testing.T) {
+			validateControllerPluralization(t, project, tc)
+		})
 
-			t.Run("controller_pluralization", func(t *testing.T) {
-				validateControllerPluralization(t, project, tc)
-			})
+		t.Run("view_pluralization", func(t *testing.T) {
+			validateViewPluralization(t, project, tc)
+		})
 
-			t.Run("view_pluralization", func(t *testing.T) {
-				validateViewPluralization(t, project, tc)
-			})
+		t.Run("routes_pluralization", func(t *testing.T) {
+			validateRoutesPluralization(t, project, tc)
+		})
 
-			t.Run("routes_pluralization", func(t *testing.T) {
-				validateRoutesPluralization(t, project, tc)
-			})
-
-			t.Run("router_registration_pluralization", func(t *testing.T) {
-				validateRouterRegistrationPluralization(t, project, tc)
-			})
+		t.Run("router_registration_pluralization", func(t *testing.T) {
+			validateRouterRegistrationPluralization(t, project, tc)
+		})
 		})
 	}
 }
@@ -150,22 +146,18 @@ func validateModelPluralization(t *testing.T, project *internal.Project, tc plur
 	contentStr := string(content)
 
 	// Check for correct pluralization patterns - MUST be present
+	// With the new namespace pattern:
+	// - Struct has "Entity" suffix: type ProjectEntity struct
+	// - Methods use short receiver on unexported namespace type: func (p project) Find(...)
+	// - The namespace variable lives in models/model.go, not in this file
+	receiver := naming.ToReceiverName(tc.expectedSingular)
+	namespaceType := strings.ToLower(tc.expectedSingular)
 	correctPatterns := []struct {
 		pattern string
 		desc    string
 	}{
-		{"type " + tc.expectedSingular + " struct", "Model struct uses singular form"},
-		{"func Find" + tc.expectedSingular + "(", "Find function uses singular form"},
-		{"func Create" + tc.expectedSingular + "(", "Create function uses singular form"},
-		{"func Update" + tc.expectedSingular + "(", "Update function uses singular form"},
-		{"func Destroy" + tc.expectedSingular + "(", "Destroy function uses singular form"},
-		{"func All" + tc.expectedPlural + "(", "All function uses correct plural form"},
-		{"func Paginate" + tc.expectedPlural + "(", "Paginate function uses correct plural form"},
-		{
-			"type Paginated" + tc.expectedPlural + " struct",
-			"Paginated struct uses correct plural form",
-		},
-		{"func Upsert" + tc.expectedSingular + "(", "Upsert function uses singular form"},
+		{"type " + tc.expectedSingular + "Entity struct", "Model struct uses singular form with Entity suffix"},
+		{"func (" + receiver + " " + namespaceType + ") Find(", "Find method uses unexported namespace receiver"},
 	}
 
 	for _, p := range correctPatterns {
@@ -196,65 +188,8 @@ func validateModelPluralization(t *testing.T, project *internal.Project, tc plur
 	compareOrUpdateGolden(t, goldenPath, contentStr)
 }
 
-func validateQueriesPluralization(
-	t *testing.T,
-	project *internal.Project,
-	tc pluralizationTestCase,
-) {
-	t.Helper()
-
-	queriesPath := filepath.Join(project.Dir, "database", "queries", tc.tableName+".sql")
-	content, err := os.ReadFile(queriesPath)
-	if err != nil {
-		t.Fatalf("Failed to read queries file: %v", err)
-	}
-
-	contentStr := string(content)
-
-	// Check for correct patterns
-	correctPatterns := []struct {
-		pattern string
-		desc    string
-	}{
-		{"from " + tc.tableName, "Uses plural table name"},
-		{"into\n    " + tc.tableName, "INSERT uses plural table name"},
-		{"update " + tc.tableName, "UPDATE uses plural table name"},
-		{"-- name: Query" + tc.expectedSingular + "ByID", "QueryByID uses singular"},
-		{"-- name: Query" + tc.expectedPlural, "Query uses correct plural"},
-		{"-- name: Insert" + tc.expectedSingular, "Insert uses singular"},
-		{"-- name: Update" + tc.expectedSingular, "Update uses singular"},
-		{"-- name: Delete" + tc.expectedSingular, "Delete uses singular"},
-		{"-- name: QueryPaginated" + tc.expectedPlural, "QueryPaginated uses correct plural"},
-		{"-- name: Count" + tc.expectedPlural, "Count uses correct plural"},
-		{"-- name: Upsert" + tc.expectedSingular, "Upsert uses singular"},
-	}
-
-	for _, p := range correctPatterns {
-		if !strings.Contains(contentStr, p.pattern) {
-			t.Errorf("Queries file should contain %q (%s)", p.pattern, p.desc)
-		}
-	}
-
-	// Check for incorrect patterns
-	incorrectPatterns := []struct {
-		pattern string
-		desc    string
-	}{
-		{"-- name: QueryCompanys", "Should NOT use naive plural"},
-		{"-- name: CountCompanys", "Should NOT use naive plural"},
-		{"-- name: QueryPaginatedCompanys", "Should NOT use naive plural"},
-	}
-
-	for _, p := range incorrectPatterns {
-		if strings.Contains(contentStr, p.pattern) {
-			t.Errorf("Queries file should NOT contain %q (%s)", p.pattern, p.desc)
-		}
-	}
-
-	// Golden file comparison
-	goldenPath := filepath.Join("testdata", "golden", "resource", tc.name+"_queries.golden")
-	compareOrUpdateGolden(t, goldenPath, contentStr)
-}
+// validateQueriesPluralization is no longer used - we've moved from sqlc to bun
+// func validateQueriesPluralization(
 
 func validateControllerPluralization(
 	t *testing.T,

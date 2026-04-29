@@ -49,10 +49,10 @@ templ OrderIndex(orders []models.Order) {
 									<tr>
 										<td>{ order.AccountID.String() }</td>
 										<td>{ order.CustomerName }</td>
-										<td>{ fmt.Sprintf("%f", order.Total) }</td>
+										<td>{ fmt.Sprintf("%v", order.Total) }</td>
 										<td>{ string(order.Signature) }</td>
-										<td>{ order.CreatedAt.String() }</td>
-										<td>{ order.UpdatedAt.String() }</td>
+										<td>{ fmt.Sprintf("%v", order.CreatedAt) }</td>
+										<td>{ fmt.Sprintf("%v", order.UpdatedAt) }</td>
 										<td>
 											<div class="cluster" data-gap="sm">
 												<a class="btn btn-ghost btn-sm" href={ routes.OrderShow.URL(order.ID) }>View</a>
@@ -96,7 +96,7 @@ templ OrderShow(order models.Order) {
 						</div>
 						<div class="field">
 							<p class="field-label">Total</p>
-							<p>{ fmt.Sprintf("%f", order.Total) }</p>
+							<p>{ fmt.Sprintf("%v", order.Total) }</p>
 						</div>
 						<div class="field">
 							<p class="field-label">Signature</p>
@@ -104,11 +104,11 @@ templ OrderShow(order models.Order) {
 						</div>
 						<div class="field">
 							<p class="field-label">Created At</p>
-							<p>{ order.CreatedAt.String() }</p>
+							<p>{ fmt.Sprintf("%v", order.CreatedAt) }</p>
 						</div>
 						<div class="field">
 							<p class="field-label">Updated At</p>
-							<p>{ order.UpdatedAt.String() }</p>
+							<p>{ fmt.Sprintf("%v", order.UpdatedAt) }</p>
 						</div>
 					</div>
 				</div>
@@ -148,7 +148,7 @@ templ OrderNew() {
 								<div class="field">
 									<label class="field-label" for="total">Total</label>
 									<div class="field-control">
-										<input class="input" type="number" id="total" name="total" data-bind="total"/>
+										<input class="input" type="text" id="total" name="total" data-bind="total"/>
 									</div>
 								</div>
 								<div class="field">
@@ -201,7 +201,7 @@ templ OrderEdit(order models.Order) {
 								<div class="field">
 									<label class="field-label" for="total">Total</label>
 									<div class="field-control">
-										<input class="input" type="number" id="total" name="total" data-bind="total" value={ fmt.Sprintf("%f", order.Total) }/>
+										<input class="input" type="text" id="total" name="total" data-bind="total" value={ fmt.Sprintf("%v", order.Total) }/>
 									</div>
 								</div>
 								<div class="field">

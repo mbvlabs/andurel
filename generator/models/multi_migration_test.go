@@ -54,7 +54,7 @@ func TestMultiMigrationHandling(t *testing.T) {
 
 			generator := NewGenerator(tt.databaseType)
 
-			cat, err := generator.buildCatalogFromTableMigrations(
+			cat, err := generator.BuildCatalogFromMigrations(
 				tt.tableName,
 				[]string{migrationsDir},
 			)

@@ -12,21 +12,21 @@ import (
 	"github.com/google/uuid"
 )
 
-// PersonFactory wraps models.Person for testing
+// PersonFactory wraps models.PersonEntity for testing
 type PersonFactory struct {
-	models.Person // Embedded
+	models.PersonEntity // Embedded
 }
 
 type PersonOption func(*PersonFactory)
 
 // BuildPerson creates an in-memory Person with default test values
-func BuildPerson(opts ...PersonOption) models.Person {
+func BuildPerson(opts ...PersonOption) models.PersonEntity {
 	f := &PersonFactory{
-		Person: models.Person{
+		PersonEntity: models.PersonEntity{
 			ID:        uuid.New(),
 			FirstName: faker.Word(),
 			LastName:  faker.Word(),
-			Email:     faker.Word(),
+			Email:     *string{},
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
@@ -36,11 +36,11 @@ func BuildPerson(opts ...PersonOption) models.Person {
 		opt(f)
 	}
 
-	return f.Person
+	return f.PersonEntity
 }
 
 // CreatePerson creates and persists a Person to the database
-func CreatePerson(ctx context.Context, exec storage.Executor, opts ...PersonOption) (models.Person, error) {
+func CreatePerson(ctx context.Context, exec storage.Executor, opts ...PersonOption) (models.PersonEntity, error) {
 	// Build with defaults and required FKs
 	built := BuildPerson(opts...)
 
@@ -51,25 +51,25 @@ func CreatePerson(ctx context.Context, exec storage.Executor, opts ...PersonOpti
 		Email:     built.Email,
 	}
 
-	// Use model's Create function
-	person, err := models.CreatePerson(ctx, exec, data)
+	// Use model's Create function via namespace
+	entity, err := models.Person.Create(ctx, exec, data)
 	if err != nil {
-		return models.Person{}, err
+		return models.PersonEntity{}, err
 	}
 
-	return person, nil
+	return entity, nil
 }
 
 // CreatePersons creates multiple Person records at once
-func CreatePersons(ctx context.Context, exec storage.Executor, count int, opts ...PersonOption) ([]models.Person, error) {
-	persons := make([]models.Person, 0, count)
+func CreatePersons(ctx context.Context, exec storage.Executor, count int, opts ...PersonOption) ([]models.PersonEntity, error) {
+	persons := make([]models.PersonEntity, 0, count)
 
 	for i := 0; i < count; i++ {
-		person, err := CreatePerson(ctx, exec, opts...)
+		entity, err := CreatePerson(ctx, exec, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create person %d: %w", i+1, err)
 		}
-		persons = append(persons, person)
+		persons = append(persons, entity)
 	}
 
 	return persons, nil
@@ -80,20 +80,20 @@ func CreatePersons(ctx context.Context, exec storage.Executor, count int, opts .
 // WithPeopleDataFirstName sets the FirstName field
 func WithPeopleDataFirstName(value string) PersonOption {
 	return func(f *PersonFactory) {
-		f.Person.FirstName = value
+		f.PersonEntity.FirstName = value
 	}
 }
 
 // WithPeopleDataLastName sets the LastName field
 func WithPeopleDataLastName(value string) PersonOption {
 	return func(f *PersonFactory) {
-		f.Person.LastName = value
+		f.PersonEntity.LastName = value
 	}
 }
 
 // WithPeopleDataEmail sets the Email field
-func WithPeopleDataEmail(value string) PersonOption {
+func WithPeopleDataEmail(value *string) PersonOption {
 	return func(f *PersonFactory) {
-		f.Person.Email = value
+		f.PersonEntity.Email = value
 	}
 }

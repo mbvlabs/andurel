@@ -1,1 +1,1 @@
-import "./datastar_1-0-0-rc6.min.js"
+import "./datastar_1-0-1.min.js"

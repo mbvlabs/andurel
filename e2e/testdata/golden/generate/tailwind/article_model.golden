@@ -3,136 +3,122 @@ package models
 import (
 	"context"
 	"errors"
+	"testapp/internal/storage"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
-
-	"testapp/internal/storage"
-	"testapp/models/internal/db"
+	"github.com/uptrace/bun"
 )
 
-type Article struct {
-	ID        uuid.UUID
-	Title     string
-	Content   string
-	Published bool
-	CreatedAt time.Time
-	UpdatedAt time.Time
+// ArticleEntity represents a Article record in the database.
+type ArticleEntity struct {
+	bun.BaseModel `bun:"table:articles"`
+	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
+	Title         string     `bun:"title"`
+	Content       *string    `bun:"content"`
+	Published     *bool      `bun:"published"`
+	CreatedAt     *time.Time `bun:"created_at"`
+	UpdatedAt     *time.Time `bun:"updated_at"`
 }
 
-func FindArticle(
-	ctx context.Context,
-	exec storage.Executor,
-	id uuid.UUID,
-) (Article, error) {
-	row, err := queries.QueryArticleByID(ctx, exec, id)
+func (a article) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ArticleEntity, error) {
+	var entity ArticleEntity
+	err := db.NewSelect().
+		Model(&entity).
+		Where("id = ?", id).
+		Scan(ctx)
 	if err != nil {
-		return Article{}, err
+		return ArticleEntity{}, err
 	}
-
-	return rowToArticle(row), nil
+	return entity, nil
 }
 
 type CreateArticleData struct {
 	Title     string
-	Content   string
-	Published bool
+	Content   *string
+	Published *bool
 }
 
-func CreateArticle(
-	ctx context.Context,
-	exec storage.Executor,
-	data CreateArticleData,
-) (Article, error) {
+func (a article) Create(ctx context.Context, db storage.Executor, data CreateArticleData) (ArticleEntity, error) {
 	if err := Validate.Struct(data); err != nil {
-		return Article{}, errors.Join(ErrDomainValidation, err)
-	}
-	params := db.InsertArticleParams{
-		ID:        uuid.New(),
-		Title:     data.Title,
-		Content:   pgtype.Text{String: data.Content, Valid: true},
-		Published: pgtype.Bool{Bool: data.Published, Valid: true},
-	}
-	row, err := queries.InsertArticle(ctx, exec, params)
-	if err != nil {
-		return Article{}, err
+		return ArticleEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	return rowToArticle(row), nil
+	entity := ArticleEntity{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Title:     data.Title,
+		Content:   data.Content,
+		Published: data.Published,
+	}
+
+	_, err := db.NewInsert().Model(&entity).Exec(ctx)
+	if err != nil {
+		return ArticleEntity{}, err
+	}
+	return entity, nil
 }
 
 type UpdateArticleData struct {
 	ID        uuid.UUID
 	Title     string
-	Content   string
-	Published bool
-	UpdatedAt time.Time
+	Content   *string
+	Published *bool
+	UpdatedAt *time.Time
 }
 
-func UpdateArticle(
-	ctx context.Context,
-	exec storage.Executor,
-	data UpdateArticleData,
-) (Article, error) {
+func (a article) Update(ctx context.Context, db storage.Executor, data UpdateArticleData) (ArticleEntity, error) {
 	if err := Validate.Struct(data); err != nil {
-		return Article{}, errors.Join(ErrDomainValidation, err)
+		return ArticleEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.UpdateArticleParams{
+	entity := ArticleEntity{
 		ID:        data.ID,
+		UpdatedAt: time.Now(),
 		Title:     data.Title,
-		Content:   pgtype.Text{String: data.Content, Valid: true},
-		Published: pgtype.Bool{Bool: data.Published, Valid: true},
+		Content:   data.Content,
+		Published: data.Published,
 	}
 
-	row, err := queries.UpdateArticle(ctx, exec, params)
+	_, err := db.NewUpdate().
+		Model(&entity).
+		Where("id = ?", data.ID).
+		Exec(ctx)
 	if err != nil {
-		return Article{}, err
+		return ArticleEntity{}, err
 	}
-
-	return rowToArticle(row), nil
+	return entity, nil
 }
 
-func DestroyArticle(
-	ctx context.Context,
-	exec storage.Executor,
-	id uuid.UUID,
-) error {
-	return queries.DeleteArticle(ctx, exec, id)
+func (a article) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
+	_, err := db.NewDelete().
+		Model((*ArticleEntity)(nil)).
+		Where("id = ?", id).
+		Exec(ctx)
+	return err
 }
 
-func AllArticles(
-	ctx context.Context,
-	exec storage.Executor,
-) ([]Article, error) {
-	rows, err := queries.QueryArticles(ctx, exec)
+func (a article) All(ctx context.Context, db storage.Executor) ([]ArticleEntity, error) {
+	var entities []ArticleEntity
+	err := db.NewSelect().
+		Model(&entities).
+		Scan(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	articles := make([]Article, len(rows))
-	for i, row := range rows {
-		articles[i] = rowToArticle(row)
-	}
-
-	return articles, nil
+	return entities, nil
 }
 
 type PaginatedArticles struct {
-	Articles   []Article
+	Articles   []ArticleEntity
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func PaginateArticles(
-	ctx context.Context,
-	exec storage.Executor,
-	page int64,
-	pageSize int64,
-) (PaginatedArticles, error) {
+func (a article) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedArticles, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -145,32 +131,25 @@ func PaginateArticles(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := queries.CountArticles(ctx, exec)
-	if err != nil {
+	var totalCount int64
+	if err := db.NewSelect().
+		Model(&ArticleEntity{}).Scan(ctx, &totalCount); err != nil {
 		return PaginatedArticles{}, err
 	}
 
-	rows, err := queries.QueryPaginatedArticles(
-		ctx,
-		exec,
-		db.QueryPaginatedArticlesParams{
-			Limit:  pageSize,
-			Offset: offset,
-		},
-	)
-	if err != nil {
+	var entities []ArticleEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Limit(int(pageSize)).
+		Offset(int(offset)).
+		Scan(ctx); err != nil {
 		return PaginatedArticles{}, err
 	}
 
-	articles := make([]Article, len(rows))
-	for i, row := range rows {
-		articles[i] = rowToArticle(row)
-	}
-
-	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+	totalPages := (totalCount + pageSize - 1) / pageSize
 
 	return PaginatedArticles{
-		Articles:   articles,
+		Articles:   entities,
 		TotalCount: totalCount,
 		Page:       page,
 		PageSize:   pageSize,
@@ -178,35 +157,26 @@ func PaginateArticles(
 	}, nil
 }
 
-func UpsertArticle(
-	ctx context.Context,
-	exec storage.Executor,
-	data CreateArticleData,
-) (Article, error) {
+func (a article) Upsert(ctx context.Context, db storage.Executor, data CreateArticleData) (ArticleEntity, error) {
 	if err := Validate.Struct(data); err != nil {
-		return Article{}, errors.Join(ErrDomainValidation, err)
+		return ArticleEntity{}, errors.Join(ErrDomainValidation, err)
 	}
-	params := db.UpsertArticleParams{
+
+	entity := ArticleEntity{
 		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 		Title:     data.Title,
-		Content:   pgtype.Text{String: data.Content, Valid: true},
-		Published: pgtype.Bool{Bool: data.Published, Valid: true},
+		Content:   data.Content,
+		Published: data.Published,
 	}
-	row, err := queries.UpsertArticle(ctx, exec, params)
+
+	_, err := db.NewInsert().
+		Model(&entity).
+		On("CONFLICT (id) DO UPDATE").
+		Exec(ctx)
 	if err != nil {
-		return Article{}, err
+		return ArticleEntity{}, err
 	}
-
-	return rowToArticle(row), nil
-}
-
-func rowToArticle(row db.Article) Article {
-	return Article{
-		ID:        row.ID,
-		Title:     row.Title,
-		Content:   row.Content.String,
-		Published: row.Published.Bool,
-		CreatedAt: row.CreatedAt.Time,
-		UpdatedAt: row.UpdatedAt.Time,
-	}
+	return entity, nil
 }

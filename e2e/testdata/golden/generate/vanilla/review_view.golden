@@ -47,10 +47,10 @@ templ ReviewIndex(reviews []models.Review) {
 								for _, review := range reviews {
 									<tr>
 										<td>{ review.Title }</td>
-										<td>{ review.Body }</td>
+										<td>{ fmt.Sprintf("%v", review.Body) }</td>
 										<td>{ fmt.Sprintf("%d", review.Rating) }</td>
-										<td>{ review.CreatedAt.String() }</td>
-										<td>{ review.UpdatedAt.String() }</td>
+										<td>{ fmt.Sprintf("%v", review.CreatedAt) }</td>
+										<td>{ fmt.Sprintf("%v", review.UpdatedAt) }</td>
 										<td>
 											<div class="cluster" data-gap="sm">
 												<a class="btn btn-ghost btn-sm" href={ routes.ReviewShow.URL(review.ID) }>View</a>
@@ -90,7 +90,7 @@ templ ReviewShow(review models.Review) {
 						</div>
 						<div class="field">
 							<p class="field-label">Body</p>
-							<p>{ review.Body }</p>
+							<p>{ fmt.Sprintf("%v", review.Body) }</p>
 						</div>
 						<div class="field">
 							<p class="field-label">Rating</p>
@@ -98,11 +98,11 @@ templ ReviewShow(review models.Review) {
 						</div>
 						<div class="field">
 							<p class="field-label">Created At</p>
-							<p>{ review.CreatedAt.String() }</p>
+							<p>{ fmt.Sprintf("%v", review.CreatedAt) }</p>
 						</div>
 						<div class="field">
 							<p class="field-label">Updated At</p>
-							<p>{ review.UpdatedAt.String() }</p>
+							<p>{ fmt.Sprintf("%v", review.UpdatedAt) }</p>
 						</div>
 					</div>
 				</div>
@@ -183,7 +183,7 @@ templ ReviewEdit(review models.Review) {
 								<div class="field">
 									<label class="field-label" for="body">Body</label>
 									<div class="field-control">
-										<input class="input" type="text" id="body" name="body" data-bind="body" value={ review.Body }/>
+										<input class="input" type="text" id="body" name="body" data-bind="body" value={ fmt.Sprintf("%v", review.Body) }/>
 									</div>
 								</div>
 								<div class="field">

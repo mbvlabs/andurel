@@ -15,7 +15,7 @@ func TestGenerateCommands(t *testing.T) {
 		args []string
 	}{
 		{"generate help", []string{"generate", "--help"}},
-		{"model help", []string{"generate", "model", "--help"}},
+		{"model help", []string{"model", "--help"}},
 		{"controller help", []string{"generate", "controller", "--help"}},
 		{"resource help", []string{"generate", "resource", "--help"}},
 	}
@@ -46,7 +46,7 @@ func TestGenerateCommandStructure(t *testing.T) {
 		t.Fatal("generate command not found")
 	}
 
-	expectedCommands := []string{"model", "controller", "view", "resource"}
+	expectedCommands := []string{"controller", "view", "resource"}
 	foundCommands := make(map[string]bool)
 
 	for _, cmd := range generateCmd.Commands() {

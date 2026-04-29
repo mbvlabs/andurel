@@ -3,136 +3,122 @@ package models
 import (
 	"context"
 	"errors"
+	"testapp/internal/storage"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
-
-	"testapp/internal/storage"
-	"testapp/models/internal/db"
+	"github.com/uptrace/bun"
 )
 
-type Item struct {
-	ID          uuid.UUID
-	WarehouseID uuid.UUID
-	Name        string
-	Quantity    int32
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+// ItemEntity represents a Item record in the database.
+type ItemEntity struct {
+	bun.BaseModel `bun:"table:items"`
+	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
+	WarehouseID   *uuid.UUID `bun:"warehouse_id,type:uuid"`
+	Name          string     `bun:"name"`
+	Quantity      *int32     `bun:"quantity"`
+	CreatedAt     *time.Time `bun:"created_at"`
+	UpdatedAt     *time.Time `bun:"updated_at"`
 }
 
-func FindItem(
-	ctx context.Context,
-	exec storage.Executor,
-	id uuid.UUID,
-) (Item, error) {
-	row, err := queries.QueryItemByID(ctx, exec, id)
+func (i item) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ItemEntity, error) {
+	var entity ItemEntity
+	err := db.NewSelect().
+		Model(&entity).
+		Where("id = ?", id).
+		Scan(ctx)
 	if err != nil {
-		return Item{}, err
+		return ItemEntity{}, err
 	}
-
-	return rowToItem(row), nil
+	return entity, nil
 }
 
 type CreateItemData struct {
-	WarehouseID uuid.UUID
+	WarehouseID *uuid.UUID
 	Name        string
-	Quantity    int32
+	Quantity    *int32
 }
 
-func CreateItem(
-	ctx context.Context,
-	exec storage.Executor,
-	data CreateItemData,
-) (Item, error) {
+func (i item) Create(ctx context.Context, db storage.Executor, data CreateItemData) (ItemEntity, error) {
 	if err := Validate.Struct(data); err != nil {
-		return Item{}, errors.Join(ErrDomainValidation, err)
-	}
-	params := db.InsertItemParams{
-		ID:          uuid.New(),
-		WarehouseID: pgtype.UUID{Bytes: data.WarehouseID, Valid: true},
-		Name:        data.Name,
-		Quantity:    pgtype.Int4{Int32: data.Quantity, Valid: true},
-	}
-	row, err := queries.InsertItem(ctx, exec, params)
-	if err != nil {
-		return Item{}, err
+		return ItemEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	return rowToItem(row), nil
+	entity := ItemEntity{
+		ID:          uuid.New(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+		WarehouseID: data.WarehouseID,
+		Name:        data.Name,
+		Quantity:    data.Quantity,
+	}
+
+	_, err := db.NewInsert().Model(&entity).Exec(ctx)
+	if err != nil {
+		return ItemEntity{}, err
+	}
+	return entity, nil
 }
 
 type UpdateItemData struct {
 	ID          uuid.UUID
-	WarehouseID uuid.UUID
+	WarehouseID *uuid.UUID
 	Name        string
-	Quantity    int32
-	UpdatedAt   time.Time
+	Quantity    *int32
+	UpdatedAt   *time.Time
 }
 
-func UpdateItem(
-	ctx context.Context,
-	exec storage.Executor,
-	data UpdateItemData,
-) (Item, error) {
+func (i item) Update(ctx context.Context, db storage.Executor, data UpdateItemData) (ItemEntity, error) {
 	if err := Validate.Struct(data); err != nil {
-		return Item{}, errors.Join(ErrDomainValidation, err)
+		return ItemEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.UpdateItemParams{
+	entity := ItemEntity{
 		ID:          data.ID,
-		WarehouseID: pgtype.UUID{Bytes: data.WarehouseID, Valid: true},
+		UpdatedAt:   time.Now(),
+		WarehouseID: data.WarehouseID,
 		Name:        data.Name,
-		Quantity:    pgtype.Int4{Int32: data.Quantity, Valid: true},
+		Quantity:    data.Quantity,
 	}
 
-	row, err := queries.UpdateItem(ctx, exec, params)
+	_, err := db.NewUpdate().
+		Model(&entity).
+		Where("id = ?", data.ID).
+		Exec(ctx)
 	if err != nil {
-		return Item{}, err
+		return ItemEntity{}, err
 	}
-
-	return rowToItem(row), nil
+	return entity, nil
 }
 
-func DestroyItem(
-	ctx context.Context,
-	exec storage.Executor,
-	id uuid.UUID,
-) error {
-	return queries.DeleteItem(ctx, exec, id)
+func (i item) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
+	_, err := db.NewDelete().
+		Model((*ItemEntity)(nil)).
+		Where("id = ?", id).
+		Exec(ctx)
+	return err
 }
 
-func AllItems(
-	ctx context.Context,
-	exec storage.Executor,
-) ([]Item, error) {
-	rows, err := queries.QueryItems(ctx, exec)
+func (i item) All(ctx context.Context, db storage.Executor) ([]ItemEntity, error) {
+	var entities []ItemEntity
+	err := db.NewSelect().
+		Model(&entities).
+		Scan(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	items := make([]Item, len(rows))
-	for i, row := range rows {
-		items[i] = rowToItem(row)
-	}
-
-	return items, nil
+	return entities, nil
 }
 
 type PaginatedItems struct {
-	Items      []Item
+	Items      []ItemEntity
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func PaginateItems(
-	ctx context.Context,
-	exec storage.Executor,
-	page int64,
-	pageSize int64,
-) (PaginatedItems, error) {
+func (i item) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedItems, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -145,32 +131,25 @@ func PaginateItems(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := queries.CountItems(ctx, exec)
-	if err != nil {
+	var totalCount int64
+	if err := db.NewSelect().
+		Model(&ItemEntity{}).Scan(ctx, &totalCount); err != nil {
 		return PaginatedItems{}, err
 	}
 
-	rows, err := queries.QueryPaginatedItems(
-		ctx,
-		exec,
-		db.QueryPaginatedItemsParams{
-			Limit:  pageSize,
-			Offset: offset,
-		},
-	)
-	if err != nil {
+	var entities []ItemEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Limit(int(pageSize)).
+		Offset(int(offset)).
+		Scan(ctx); err != nil {
 		return PaginatedItems{}, err
 	}
 
-	items := make([]Item, len(rows))
-	for i, row := range rows {
-		items[i] = rowToItem(row)
-	}
-
-	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+	totalPages := (totalCount + pageSize - 1) / pageSize
 
 	return PaginatedItems{
-		Items:      items,
+		Items:      entities,
 		TotalCount: totalCount,
 		Page:       page,
 		PageSize:   pageSize,
@@ -178,35 +157,26 @@ func PaginateItems(
 	}, nil
 }
 
-func UpsertItem(
-	ctx context.Context,
-	exec storage.Executor,
-	data CreateItemData,
-) (Item, error) {
+func (i item) Upsert(ctx context.Context, db storage.Executor, data CreateItemData) (ItemEntity, error) {
 	if err := Validate.Struct(data); err != nil {
-		return Item{}, errors.Join(ErrDomainValidation, err)
+		return ItemEntity{}, errors.Join(ErrDomainValidation, err)
 	}
-	params := db.UpsertItemParams{
+
+	entity := ItemEntity{
 		ID:          uuid.New(),
-		WarehouseID: pgtype.UUID{Bytes: data.WarehouseID, Valid: true},
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+		WarehouseID: data.WarehouseID,
 		Name:        data.Name,
-		Quantity:    pgtype.Int4{Int32: data.Quantity, Valid: true},
+		Quantity:    data.Quantity,
 	}
-	row, err := queries.UpsertItem(ctx, exec, params)
+
+	_, err := db.NewInsert().
+		Model(&entity).
+		On("CONFLICT (id) DO UPDATE").
+		Exec(ctx)
 	if err != nil {
-		return Item{}, err
+		return ItemEntity{}, err
 	}
-
-	return rowToItem(row), nil
-}
-
-func rowToItem(row db.Item) Item {
-	return Item{
-		ID:          row.ID,
-		WarehouseID: uuid.UUID(row.WarehouseID.Bytes),
-		Name:        row.Name,
-		Quantity:    row.Quantity.Int32,
-		CreatedAt:   row.CreatedAt.Time,
-		UpdatedAt:   row.UpdatedAt.Time,
-	}
+	return entity, nil
 }

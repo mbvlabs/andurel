@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -12,7 +13,7 @@ import (
 
 	"{{.ModuleName}}/internal/storage"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/uptrace/bun"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -72,20 +73,19 @@ func (tdb *TestDB) Close() error {
 	return nil
 }
 
-func (tdb *TestDB) WithTx(t *testing.T, fn func(tx pgx.Tx)) {
+// WithTx runs fn inside a transaction that is always rolled back, so test
+// changes never persist across tests.
+func (tdb *TestDB) WithTx(t *testing.T, fn func(tx bun.Tx)) {
 	t.Helper()
 	ctx := context.Background()
 
-	tx, err := tdb.DB.BeginTx(ctx)
+	tx, err := tdb.DB.BeginTx(ctx, nil)
 	if err != nil {
 		t.Fatalf("failed to begin transaction: %v", err)
 	}
-
 	defer func() {
-		if err := tx.Rollback(ctx); err != nil {
-			if err != pgx.ErrTxClosed {
-				t.Errorf("failed to rollback transaction: %v", err)
-			}
+		if rbErr := tx.Rollback(); rbErr != nil && !errors.Is(rbErr, sql.ErrTxDone) {
+			t.Errorf("failed to rollback transaction: %v", rbErr)
 		}
 	}()
 

@@ -3,7 +3,6 @@ package cmds
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 
@@ -91,32 +90,6 @@ func RunTemplFmt(targetDir string) error {
 		"github.com/a-h/templ/cmd/templ@"+versions.Templ,
 		"fmt",
 		"views",
-	)
-	cmd.Dir = absTargetDir
-	return cmd.Run()
-}
-
-func RunSqlcGenerate(targetDir string) error {
-	absTargetDir, err := filepath.Abs(targetDir)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path: %w", err)
-	}
-
-	configPath := filepath.Join(absTargetDir, "database", "sqlc.yaml")
-	if _, err := os.Stat(configPath); err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("missing %s; create it from internal/storage/andurel_sqlc_config.yaml", configPath)
-		}
-		return fmt.Errorf("failed to read sqlc config: %w", err)
-	}
-
-	cmd := exec.Command(
-		"go",
-		"run",
-		"github.com/sqlc-dev/sqlc/cmd/sqlc@"+versions.Sqlc,
-		"generate",
-		"-f",
-		configPath,
 	)
 	cmd.Dir = absTargetDir
 	return cmd.Run()

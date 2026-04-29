@@ -3,131 +3,117 @@ package models
 import (
 	"context"
 	"errors"
+	"testapp/internal/storage"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
-
-	"testapp/internal/storage"
-	"testapp/models/internal/db"
+	"github.com/uptrace/bun"
 )
 
-type Company struct {
-	ID        uuid.UUID
-	Name      string
-	Industry  string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+// CompanyEntity represents a Company record in the database.
+type CompanyEntity struct {
+	bun.BaseModel `bun:"table:companies"`
+	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
+	Name          string     `bun:"name"`
+	Industry      *string    `bun:"industry"`
+	CreatedAt     *time.Time `bun:"created_at"`
+	UpdatedAt     *time.Time `bun:"updated_at"`
 }
 
-func FindCompany(
-	ctx context.Context,
-	exec storage.Executor,
-	id uuid.UUID,
-) (Company, error) {
-	row, err := queries.QueryCompanyByID(ctx, exec, id)
+func (c company) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (CompanyEntity, error) {
+	var entity CompanyEntity
+	err := db.NewSelect().
+		Model(&entity).
+		Where("id = ?", id).
+		Scan(ctx)
 	if err != nil {
-		return Company{}, err
+		return CompanyEntity{}, err
 	}
-
-	return rowToCompany(row), nil
+	return entity, nil
 }
 
 type CreateCompanyData struct {
 	Name     string
-	Industry string
+	Industry *string
 }
 
-func CreateCompany(
-	ctx context.Context,
-	exec storage.Executor,
-	data CreateCompanyData,
-) (Company, error) {
+func (c company) Create(ctx context.Context, db storage.Executor, data CreateCompanyData) (CompanyEntity, error) {
 	if err := Validate.Struct(data); err != nil {
-		return Company{}, errors.Join(ErrDomainValidation, err)
-	}
-	params := db.InsertCompanyParams{
-		ID:       uuid.New(),
-		Name:     data.Name,
-		Industry: pgtype.Text{String: data.Industry, Valid: true},
-	}
-	row, err := queries.InsertCompany(ctx, exec, params)
-	if err != nil {
-		return Company{}, err
+		return CompanyEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	return rowToCompany(row), nil
+	entity := CompanyEntity{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      data.Name,
+		Industry:  data.Industry,
+	}
+
+	_, err := db.NewInsert().Model(&entity).Exec(ctx)
+	if err != nil {
+		return CompanyEntity{}, err
+	}
+	return entity, nil
 }
 
 type UpdateCompanyData struct {
 	ID        uuid.UUID
 	Name      string
-	Industry  string
-	UpdatedAt time.Time
+	Industry  *string
+	UpdatedAt *time.Time
 }
 
-func UpdateCompany(
-	ctx context.Context,
-	exec storage.Executor,
-	data UpdateCompanyData,
-) (Company, error) {
+func (c company) Update(ctx context.Context, db storage.Executor, data UpdateCompanyData) (CompanyEntity, error) {
 	if err := Validate.Struct(data); err != nil {
-		return Company{}, errors.Join(ErrDomainValidation, err)
+		return CompanyEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.UpdateCompanyParams{
-		ID:       data.ID,
-		Name:     data.Name,
-		Industry: pgtype.Text{String: data.Industry, Valid: true},
+	entity := CompanyEntity{
+		ID:        data.ID,
+		UpdatedAt: time.Now(),
+		Name:      data.Name,
+		Industry:  data.Industry,
 	}
 
-	row, err := queries.UpdateCompany(ctx, exec, params)
+	_, err := db.NewUpdate().
+		Model(&entity).
+		Where("id = ?", data.ID).
+		Exec(ctx)
 	if err != nil {
-		return Company{}, err
+		return CompanyEntity{}, err
 	}
-
-	return rowToCompany(row), nil
+	return entity, nil
 }
 
-func DestroyCompany(
-	ctx context.Context,
-	exec storage.Executor,
-	id uuid.UUID,
-) error {
-	return queries.DeleteCompany(ctx, exec, id)
+func (c company) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
+	_, err := db.NewDelete().
+		Model((*CompanyEntity)(nil)).
+		Where("id = ?", id).
+		Exec(ctx)
+	return err
 }
 
-func AllCompanies(
-	ctx context.Context,
-	exec storage.Executor,
-) ([]Company, error) {
-	rows, err := queries.QueryCompanies(ctx, exec)
+func (c company) All(ctx context.Context, db storage.Executor) ([]CompanyEntity, error) {
+	var entities []CompanyEntity
+	err := db.NewSelect().
+		Model(&entities).
+		Scan(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	companies := make([]Company, len(rows))
-	for i, row := range rows {
-		companies[i] = rowToCompany(row)
-	}
-
-	return companies, nil
+	return entities, nil
 }
 
 type PaginatedCompanies struct {
-	Companies  []Company
+	Companies  []CompanyEntity
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func PaginateCompanies(
-	ctx context.Context,
-	exec storage.Executor,
-	page int64,
-	pageSize int64,
-) (PaginatedCompanies, error) {
+func (c company) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedCompanies, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -140,32 +126,25 @@ func PaginateCompanies(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := queries.CountCompanies(ctx, exec)
-	if err != nil {
+	var totalCount int64
+	if err := db.NewSelect().
+		Model(&CompanyEntity{}).Scan(ctx, &totalCount); err != nil {
 		return PaginatedCompanies{}, err
 	}
 
-	rows, err := queries.QueryPaginatedCompanies(
-		ctx,
-		exec,
-		db.QueryPaginatedCompaniesParams{
-			Limit:  pageSize,
-			Offset: offset,
-		},
-	)
-	if err != nil {
+	var entities []CompanyEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Limit(int(pageSize)).
+		Offset(int(offset)).
+		Scan(ctx); err != nil {
 		return PaginatedCompanies{}, err
 	}
 
-	companies := make([]Company, len(rows))
-	for i, row := range rows {
-		companies[i] = rowToCompany(row)
-	}
-
-	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+	totalPages := (totalCount + pageSize - 1) / pageSize
 
 	return PaginatedCompanies{
-		Companies:  companies,
+		Companies:  entities,
 		TotalCount: totalCount,
 		Page:       page,
 		PageSize:   pageSize,
@@ -173,33 +152,25 @@ func PaginateCompanies(
 	}, nil
 }
 
-func UpsertCompany(
-	ctx context.Context,
-	exec storage.Executor,
-	data CreateCompanyData,
-) (Company, error) {
+func (c company) Upsert(ctx context.Context, db storage.Executor, data CreateCompanyData) (CompanyEntity, error) {
 	if err := Validate.Struct(data); err != nil {
-		return Company{}, errors.Join(ErrDomainValidation, err)
+		return CompanyEntity{}, errors.Join(ErrDomainValidation, err)
 	}
-	params := db.UpsertCompanyParams{
-		ID:       uuid.New(),
-		Name:     data.Name,
-		Industry: pgtype.Text{String: data.Industry, Valid: true},
+
+	entity := CompanyEntity{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      data.Name,
+		Industry:  data.Industry,
 	}
-	row, err := queries.UpsertCompany(ctx, exec, params)
+
+	_, err := db.NewInsert().
+		Model(&entity).
+		On("CONFLICT (id) DO UPDATE").
+		Exec(ctx)
 	if err != nil {
-		return Company{}, err
+		return CompanyEntity{}, err
 	}
-
-	return rowToCompany(row), nil
-}
-
-func rowToCompany(row db.Company) Company {
-	return Company{
-		ID:        row.ID,
-		Name:      row.Name,
-		Industry:  row.Industry.String,
-		CreatedAt: row.CreatedAt.Time,
-		UpdatedAt: row.UpdatedAt.Time,
-	}
+	return entity, nil
 }

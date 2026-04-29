@@ -94,7 +94,6 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 		".gitignore",
 		"cmd/app/main.go",
 		"controllers/pages.go",
-		"database/sqlc.yaml",
 		"views/layout.templ",
 		"views/home.templ",
 	}
@@ -118,7 +117,7 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 	if config.CSS == "vanilla" {
 		internal.AssertDirExists(t, project, "assets/css")
 		vanillaCSSFiles := []string{
-			"assets/css/styles.css",
+			"assets/css/style.css",
 			"assets/css/reset.css",
 			"assets/css/tokens.css",
 			"assets/css/base.css",

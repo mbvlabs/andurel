@@ -160,9 +160,8 @@ myapp/
 │   └── assets.go       # Asset serving
 ├── css/                 # Source CSS files (Tailwind input)
 ├── database/
-│   ├── migrations/     # SQL migration files
-│   ├── queries/        # SQLC query definitions
-│   └── sqlc.yaml       # SQLC user overlay config
+ │   ├── migrations/     # SQL migration files
+ │   └── sqlc.yaml       # (removed - was SQLC config)
 ├── email/               # Email functionality
 │   ├── email.go        # Email client and sending logic
 │   ├── base_layout.templ    # Base email template layout
@@ -520,9 +519,9 @@ const llmModelsDocumentation = `# Andurel Framework - Models
 ## CLI Commands
 ` + "```bash" + `
 andurel llm models
-andurel generate model Product
-andurel generate model Product --table-name=inventory
-andurel generate model Product --skip-factory
+andurel model Product create
+andurel model Product create --table-name=inventory
+andurel model Product create --skip-factory
 andurel query generate user_roles
 andurel query refresh user_roles
 andurel query compile
@@ -782,7 +781,7 @@ func FindProductsByCategory(
 - Use for entities with business rules
 
 ` + "```bash" + `
-andurel generate model Product
+andurel model Product create
 ` + "```" + `
 
 ### 2. Queries-only (for simple/junction tables)
