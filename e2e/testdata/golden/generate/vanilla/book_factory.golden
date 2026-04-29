@@ -12,22 +12,22 @@ import (
 	"github.com/google/uuid"
 )
 
-// BookFactory wraps models.Book for testing
+// BookFactory wraps models.BookEntity for testing
 type BookFactory struct {
-	models.Book // Embedded
+	models.BookEntity // Embedded
 }
 
 type BookOption func(*BookFactory)
 
 // BuildBook creates an in-memory Book with default test values
-func BuildBook(opts ...BookOption) models.Book {
+func BuildBook(opts ...BookOption) models.BookEntity {
 	f := &BookFactory{
-		Book: models.Book{
+		BookEntity: models.BookEntity{
 			ID:        uuid.New(),
 			Title:     faker.Word(),
 			Author:    faker.Word(),
-			Price:     float64{},
-			Pages:     randomInt(1, 1000, 100),
+			Price:     *float64{},
+			Pages:     *int32{},
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
@@ -37,11 +37,11 @@ func BuildBook(opts ...BookOption) models.Book {
 		opt(f)
 	}
 
-	return f.Book
+	return f.BookEntity
 }
 
 // CreateBook creates and persists a Book to the database
-func CreateBook(ctx context.Context, exec storage.Executor, opts ...BookOption) (models.Book, error) {
+func CreateBook(ctx context.Context, exec storage.Executor, opts ...BookOption) (models.BookEntity, error) {
 	// Build with defaults and required FKs
 	built := BuildBook(opts...)
 
@@ -53,25 +53,25 @@ func CreateBook(ctx context.Context, exec storage.Executor, opts ...BookOption) 
 		Pages:  built.Pages,
 	}
 
-	// Use model's Create function
-	book, err := models.CreateBook(ctx, exec, data)
+	// Use model's Create function via namespace
+	entity, err := models.Book.Create(ctx, exec, data)
 	if err != nil {
-		return models.Book{}, err
+		return models.BookEntity{}, err
 	}
 
-	return book, nil
+	return entity, nil
 }
 
 // CreateBooks creates multiple Book records at once
-func CreateBooks(ctx context.Context, exec storage.Executor, count int, opts ...BookOption) ([]models.Book, error) {
-	books := make([]models.Book, 0, count)
+func CreateBooks(ctx context.Context, exec storage.Executor, count int, opts ...BookOption) ([]models.BookEntity, error) {
+	books := make([]models.BookEntity, 0, count)
 
 	for i := 0; i < count; i++ {
-		book, err := CreateBook(ctx, exec, opts...)
+		entity, err := CreateBook(ctx, exec, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create book %d: %w", i+1, err)
 		}
-		books = append(books, book)
+		books = append(books, entity)
 	}
 
 	return books, nil
@@ -82,27 +82,27 @@ func CreateBooks(ctx context.Context, exec storage.Executor, count int, opts ...
 // WithBooksTitle sets the Title field
 func WithBooksTitle(value string) BookOption {
 	return func(f *BookFactory) {
-		f.Book.Title = value
+		f.BookEntity.Title = value
 	}
 }
 
 // WithBooksAuthor sets the Author field
 func WithBooksAuthor(value string) BookOption {
 	return func(f *BookFactory) {
-		f.Book.Author = value
+		f.BookEntity.Author = value
 	}
 }
 
 // WithBooksPrice sets the Price field
-func WithBooksPrice(value float64) BookOption {
+func WithBooksPrice(value *float64) BookOption {
 	return func(f *BookFactory) {
-		f.Book.Price = value
+		f.BookEntity.Price = value
 	}
 }
 
 // WithBooksPages sets the Pages field
-func WithBooksPages(value int32) BookOption {
+func WithBooksPages(value *int32) BookOption {
 	return func(f *BookFactory) {
-		f.Book.Pages = value
+		f.BookEntity.Pages = value
 	}
 }

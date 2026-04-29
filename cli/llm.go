@@ -160,9 +160,8 @@ myapp/
 │   └── assets.go       # Asset serving
 ├── css/                 # Source CSS files (Tailwind input)
 ├── database/
-│   ├── migrations/     # SQL migration files
-│   ├── queries/        # SQLC query definitions
-│   └── sqlc.yaml       # SQLC user overlay config
+ │   ├── migrations/     # SQL migration files
+ │   └── sqlc.yaml       # (removed - was SQLC config)
 ├── email/               # Email functionality
 │   ├── email.go        # Email client and sending logic
 │   ├── base_layout.templ    # Base email template layout

@@ -2,17 +2,22 @@
 package models
 
 import (
-	"{{.ModuleName}}/models/internal/db"
-
 	"github.com/go-playground/validator/v10"
 )
 
-var (
-	Validate = setupValidator()
-	queries  = db.New()
-)
+var Validate = setupValidator()
 
 func setupValidator() *validator.Validate {
 	v := validator.New(validator.WithRequiredStructEnabled())
 	return v
 }
+
+type (
+	user struct{}
+	token struct{}
+)
+
+var (
+	User user
+	Token token
+)

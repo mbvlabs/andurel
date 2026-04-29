@@ -35,18 +35,6 @@ func (g *Generator) GenerateViewFromModel(resourceName string, withController bo
 	return g.coordinator.ViewManager.GenerateViewFromModel(resourceName, withController)
 }
 
-func (g *Generator) RefreshQueries(resourceName, tableName string) error {
-	return g.coordinator.ModelManager.RefreshQueries(resourceName, tableName)
-}
-
-func (g *Generator) GenerateQueriesOnly(tableName string) error {
-	return g.coordinator.ModelManager.GenerateQueriesOnly(tableName)
-}
-
-func (g *Generator) RefreshQueriesOnly(tableName string) error {
-	return g.coordinator.ModelManager.RefreshQueriesOnly(tableName)
-}
-
 func (g *Generator) GenerateFragment(config FragmentConfig) error {
 	return g.coordinator.FragmentManager.GenerateFragment(config)
 }

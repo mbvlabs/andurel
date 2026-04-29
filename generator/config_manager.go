@@ -3,10 +3,6 @@ package generator
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-
-	"github.com/mbvlabs/andurel/generator/files"
-	"gopkg.in/yaml.v3"
 )
 
 // UnifiedConfig represents the single source of truth for all configuration
@@ -268,68 +264,4 @@ func GetGlobalConfigManager() *ConfigManager {
 // GetGlobalConfig returns the global configuration
 func GetGlobalConfig() *UnifiedConfig {
 	return GetGlobalConfigManager().GetConfig()
-}
-
-// readDatabaseTypeFromSQLCYAML reads database type from sqlc.yaml
-func readDatabaseTypeFromSQLCYAML() (string, error) {
-	manager := files.NewUnifiedFileManager()
-	rootDir, err := manager.FindGoModRoot()
-	if err != nil {
-		return "", fmt.Errorf("failed to find go.mod root: %w", err)
-	}
-
-	readEngine := func(path string) (string, error) {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return "", err
-		}
-
-		var config SQLCConfig
-		if err := yaml.Unmarshal(data, &config); err != nil {
-			return "", err
-		}
-		if len(config.SQL) == 0 {
-			return "", nil
-		}
-		return config.SQL[0].Engine, nil
-	}
-
-	userPath := filepath.Join(rootDir, "database", "sqlc.yaml")
-	engine, err := readEngine(userPath)
-	if err != nil && !os.IsNotExist(err) {
-		return "", fmt.Errorf("failed to parse sqlc.yaml: %w", err)
-	}
-
-	if engine == "" {
-		basePath := filepath.Join(rootDir, "internal", "storage", "andurel_sqlc_config.yaml")
-		baseEngine, baseErr := readEngine(basePath)
-		if baseErr != nil && !os.IsNotExist(baseErr) {
-			return "", fmt.Errorf("failed to parse sqlc.yaml: %w", baseErr)
-		}
-		if baseEngine != "" {
-			engine = baseEngine
-		}
-	}
-
-	if engine == "" {
-		return "postgresql", nil
-	}
-
-	if engine != "postgresql" {
-		return "", fmt.Errorf(
-			"unsupported database engine: %s (only postgresql is supported)",
-			engine,
-		)
-	}
-
-	return engine, nil
-}
-
-// SQLCConfig for reading sqlc.yaml files
-type SQLCConfig struct {
-	SQL []SQLConfig `yaml:"sql"`
-}
-
-type SQLConfig struct {
-	Engine string `yaml:"engine"`
 }

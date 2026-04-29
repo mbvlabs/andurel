@@ -25,18 +25,12 @@ type ProjectLocator interface {
 	FindGoModRoot() (string, error)
 }
 
-// SQLCRunner handles SQLC operations
-type SQLCRunner interface {
-	RunSQLCGenerate() error
-}
-
 // Manager combines all file-related interfaces
 type Manager interface {
 	Reader
 	Writer
 	Validator
 	ProjectLocator
-	SQLCRunner
 }
 
 // EnhancedFileManager extends FileManager with additional methods
@@ -54,7 +48,6 @@ var (
 	_ Writer              = (*UnifiedManager)(nil)
 	_ Validator           = (*UnifiedManager)(nil)
 	_ ProjectLocator      = (*UnifiedManager)(nil)
-	_ SQLCRunner          = (*UnifiedManager)(nil)
 	_ Manager             = (*UnifiedManager)(nil)
 	_ EnhancedFileManager = (*UnifiedManager)(nil)
 )

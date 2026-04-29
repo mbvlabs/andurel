@@ -54,19 +54,17 @@ func TestResolveTableName(t *testing.T) {
 	if err := os.MkdirAll(modelsDir, 0o755); err != nil {
 		t.Fatalf("Failed to create models dir: %v", err)
 	}
-	queriesDir := filepath.Join(tempDir, "queries")
-	if err := os.MkdirAll(queriesDir, 0o755); err != nil {
-		t.Fatalf("Failed to create queries dir: %v", err)
+
+	bunModel := func(entityName, table string) string {
+		return "package models\n\ntype " + entityName + "Entity struct {\n\tbun.BaseModel `bun:\"table:" + table + "\"`\n\tID string\n}\n"
 	}
 
 	tests := []struct {
-		name          string
-		resourceName  string
-		modelContent  string
-		createModel   bool
-		queryFileName string
-		queryContent  string
-		wantTable     string
+		name         string
+		resourceName string
+		modelContent string
+		createModel  bool
+		wantTable    string
 	}{
 		{
 			name:         "no model file - uses derived name",
@@ -75,31 +73,23 @@ func TestResolveTableName(t *testing.T) {
 			wantTable:    "users",
 		},
 		{
-			name:         "model without override - uses derived name",
+			name:         "model with conventional table - uses derived name",
 			resourceName: "Product",
-			modelContent: "package models\n\ntype Product struct {\n\tID string\n}\n",
+			modelContent: bunModel("Product", "products"),
 			createModel:  true,
 			wantTable:    "products",
 		},
 		{
-			name:         "model with override - uses override",
+			name:         "model with non-conventional table - uses bun tag",
 			resourceName: "StudentFeedback",
-			modelContent: "package models\n// STUDENTFEEDBACK_MODEL_TABLE_NAME: student_feedback\n\ntype StudentFeedback struct {\n\tID string\n}\n",
+			modelContent: bunModel("StudentFeedback", "student_feedback"),
 			createModel:  true,
 			wantTable:    "student_feedback",
 		},
 		{
-			name:          "queries file - uses table name from SQL",
-			resourceName:  "Account",
-			createModel:   false,
-			queryFileName: "legacy_accounts.sql",
-			queryContent:  "-- name: QueryAccountByID :one\nselect * from legacy_accounts where id=$1;\n",
-			wantTable:     "legacy_accounts",
-		},
-		{
-			name:         "compound name with override",
+			name:         "compound name with non-conventional table",
 			resourceName: "UserRole",
-			modelContent: "package models\n// USERROLE_MODEL_TABLE_NAME: user_role\n\ntype UserRole struct {\n\tUserID string\n\tRoleID string\n}\n",
+			modelContent: bunModel("UserRole", "user_role"),
 			createModel:  true,
 			wantTable:    "user_role",
 		},
@@ -114,15 +104,8 @@ func TestResolveTableName(t *testing.T) {
 				}
 				defer os.Remove(modelPath)
 			}
-			if tt.queryFileName != "" {
-				queryPath := filepath.Join(queriesDir, tt.queryFileName)
-				if err := os.WriteFile(queryPath, []byte(tt.queryContent), 0o644); err != nil {
-					t.Fatalf("Failed to write query file: %v", err)
-				}
-				defer os.Remove(queryPath)
-			}
 
-			got := ResolveTableName(modelsDir, queriesDir, tt.resourceName)
+			got := ResolveTableName(modelsDir, tt.resourceName)
 			if got != tt.wantTable {
 				t.Errorf("ResolveTableName() = %v, want %v", got, tt.wantTable)
 			}
@@ -141,15 +124,11 @@ func TestResolveTableName_OverrideTakesPrecedence(t *testing.T) {
 	if err := os.MkdirAll(modelsDir, 0o755); err != nil {
 		t.Fatalf("Failed to create models dir: %v", err)
 	}
-	queriesDir := filepath.Join(tempDir, "queries")
-	if err := os.MkdirAll(queriesDir, 0o755); err != nil {
-		t.Fatalf("Failed to create queries dir: %v", err)
-	}
 
 	modelContent := `package models
-// STUDENTFEEDBACK_MODEL_TABLE_NAME: student_feedback
 
-type StudentFeedback struct {
+type StudentFeedbackEntity struct {
+	bun.BaseModel ` + "`" + `bun:"table:student_feedback"` + "`" + `
 	ID string
 }
 `
@@ -158,21 +137,15 @@ type StudentFeedback struct {
 		t.Fatalf("Failed to write model file: %v", err)
 	}
 
-	queryPath := filepath.Join(queriesDir, "student_feedbacks.sql")
-	queryContent := "-- name: QueryStudentFeedbackByID :one\nselect * from student_feedbacks where id=$1;\n"
-	if err := os.WriteFile(queryPath, []byte(queryContent), 0o644); err != nil {
-		t.Fatalf("Failed to write query file: %v", err)
-	}
-
-	got := ResolveTableName(modelsDir, queriesDir, "StudentFeedback")
+	got := ResolveTableName(modelsDir, "StudentFeedback")
 	want := "student_feedback"
 
 	if got != want {
-		t.Errorf("ResolveTableName() = %v, want %v (override should take precedence over derived 'student_feedbacks')", got, want)
+		t.Errorf("ResolveTableName() = %v, want %v (bun tag should override derived 'student_feedbacks')", got, want)
 	}
 
 	derivedName := "student_feedbacks"
 	if got == derivedName {
-		t.Errorf("ResolveTableName() returned derived name %v instead of override %v", derivedName, want)
+		t.Errorf("ResolveTableName() returned derived name %v instead of bun tag value %v", derivedName, want)
 	}
 }

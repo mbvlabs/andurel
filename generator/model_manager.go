@@ -8,7 +8,6 @@ import (
 
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
-	"github.com/mbvlabs/andurel/generator/internal/types"
 	"github.com/mbvlabs/andurel/generator/models"
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
@@ -26,7 +25,6 @@ type modelSetupContext struct {
 	ModulePath   string
 	RootDir      string
 	ModelPath    string
-	SQLPath      string
 	ResourceName string
 	TableName    string
 	PluralName   string
@@ -75,10 +73,6 @@ func (m *ModelManager) setupModelContext(
 		return nil, fmt.Errorf("failed to find go.mod root: %w", err)
 	}
 
-	if err := types.ValidateSQLCConfig(rootDir); err != nil {
-		return nil, fmt.Errorf("SQLC configuration validation failed: %w", err)
-	}
-
 	pluralName := naming.DeriveTableName(resourceName)
 
 	var modelFileName strings.Builder
@@ -87,17 +81,10 @@ func (m *ModelManager) setupModelContext(
 	modelFileName.WriteString(".go")
 	modelPath := filepath.Join(m.config.Paths.Models, modelFileName.String())
 
-	var sqlFileName strings.Builder
-	sqlFileName.Grow(len(tableName) + 4)
-	sqlFileName.WriteString(tableName)
-	sqlFileName.WriteString(".sql")
-	sqlPath := filepath.Join(m.config.Paths.Queries, sqlFileName.String())
-
 	return &modelSetupContext{
 		ModulePath:   modulePath,
 		RootDir:      rootDir,
 		ModelPath:    modelPath,
-		SQLPath:      sqlPath,
 		ResourceName: resourceName,
 		TableName:    tableName,
 		PluralName:   pluralName,
@@ -128,21 +115,18 @@ func (m *ModelManager) GenerateModel(
 	if err := m.fileManager.ValidateFileNotExists(ctx.ModelPath); err != nil {
 		return err
 	}
-	if err := m.fileManager.ValidateFileNotExists(ctx.SQLPath); err != nil {
-		return err
-	}
 
 	cat, err := m.migrationManager.BuildCatalogFromMigrations(ctx.TableName, m.config)
 	if err != nil {
 		return err
 	}
 
-	if err := m.modelGenerator.GenerateModel(cat, ctx.ResourceName, ctx.TableName, ctx.ModelPath, ctx.SQLPath, ctx.ModulePath, tableNameOverride); err != nil {
+	if err := m.modelGenerator.GenerateModel(cat, ctx.ResourceName, ctx.TableName, ctx.ModelPath, ctx.ModulePath, tableNameOverride); err != nil {
 		return fmt.Errorf("failed to generate model: %w", err)
 	}
 
-	if err := m.fileManager.RunSQLCGenerate(); err != nil {
-		return fmt.Errorf("failed to run sqlc generate: %w", err)
+	if err := m.registerNamespace(ctx.ResourceName); err != nil {
+		return fmt.Errorf("failed to register namespace in models/model.go: %w", err)
 	}
 
 	// Generate factory (unless skipped)
@@ -202,96 +186,57 @@ func (m *ModelManager) generateFactory(cat *catalog.Catalog, ctx *modelSetupCont
 	return nil
 }
 
-func (m *ModelManager) RefreshQueries(resourceName, tableName string) error {
-	derivedTableName := naming.DeriveTableName(resourceName)
-	tableNameOverridden := tableName != derivedTableName
-	if tableName == "" || tableName == derivedTableName {
-		if resolvedTableName, resolvedOverridden := ResolveTableNameWithFlag(m.config.Paths.Models, m.config.Paths.Queries, resourceName); resolvedTableName != "" {
-			tableName = resolvedTableName
-			tableNameOverridden = resolvedOverridden
+// registerNamespace ensures the project's models/model.go declares the
+// `<type> struct{}` and `<Var> <type>` entries for the new resource so
+// per-resource files (which only define methods on the namespace type)
+// compile.
+func (m *ModelManager) registerNamespace(resourceName string) error {
+	modelGoPath := filepath.Join(m.config.Paths.Models, "model.go")
+
+	src, err := os.ReadFile(modelGoPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
 		}
-	}
-
-	ctx, err := m.setupModelContext(resourceName, tableName, tableNameOverridden)
-	if err != nil {
 		return err
 	}
 
-	if _, err := os.Stat(ctx.ModelPath); os.IsNotExist(err) {
-		return fmt.Errorf(
-			"model file %s does not exist. Generate model first",
-			ctx.ModelPath,
-		)
-	}
-	if _, err := os.Stat(ctx.SQLPath); os.IsNotExist(err) {
-		return fmt.Errorf(
-			"SQL file %s does not exist. Generate model first",
-			ctx.SQLPath,
-		)
+	namespaceVar := resourceName
+	namespaceType := naming.ToLowerCamelCaseFromAny(resourceName)
+	typeEntry := "\t" + namespaceType + " struct{}"
+	varEntry := "\t" + namespaceVar + " " + namespaceType
+
+	updated := ensureLineInBlock(string(src), "type (", typeEntry)
+	updated = ensureLineInBlock(updated, "var (", varEntry)
+
+	if updated == string(src) {
+		return nil
 	}
 
-	cat, err := m.migrationManager.BuildCatalogFromMigrations(ctx.TableName, m.config)
-	if err != nil {
-		return err
-	}
-
-	if err := m.modelGenerator.RefreshQueries(cat, ctx.ResourceName, ctx.PluralName, ctx.SQLPath, tableNameOverridden); err != nil {
-		return fmt.Errorf("failed to refresh queries: %w", err)
-	}
-
-	if err := m.fileManager.RunSQLCGenerate(); err != nil {
-		return fmt.Errorf("failed to run sqlc generate: %w", err)
-	}
-
-	fmt.Printf(
-		"Successfully refreshed SQL queries for %s while preserving custom model functions\n",
-		ctx.ResourceName,
-	)
-	return nil
+	return os.WriteFile(modelGoPath, []byte(updated), 0o644)
 }
 
-type queriesSetupContext struct {
-	ModulePath   string
-	RootDir      string
-	SQLPath      string
-	ResourceName string
-	TableName    string
-	PluralName   string
-}
-
-func (m *ModelManager) setupQueriesContext(tableName string) (*queriesSetupContext, error) {
-	modulePath := m.projectManager.GetModulePath()
-
-	if err := m.validator.ValidateModulePath(modulePath); err != nil {
-		return nil, fmt.Errorf("module path validation failed: %w", err)
+// ensureLineInBlock inserts entry as a new line just before the `)` that
+// closes the block opened by openMarker. If the entry is already present in
+// the file the source is returned unchanged. If the block does not exist a
+// new one is appended.
+func ensureLineInBlock(src, openMarker, entry string) string {
+	if strings.Contains(src, entry+"\n") {
+		return src
 	}
 
-	rootDir, err := m.fileManager.FindGoModRoot()
-	if err != nil {
-		return nil, fmt.Errorf("failed to find go.mod root: %w", err)
+	openIdx := strings.Index(src, openMarker)
+	if openIdx < 0 {
+		return src + "\n" + openMarker + "\n" + entry + "\n)\n"
 	}
 
-	if err := types.ValidateSQLCConfig(rootDir); err != nil {
-		return nil, fmt.Errorf("SQLC configuration validation failed: %w", err)
+	closeRel := strings.Index(src[openIdx:], "\n)")
+	if closeRel < 0 {
+		return src
 	}
+	insertAt := openIdx + closeRel + 1
 
-	// Derive resource name from table name
-	resourceName := naming.DeriveResourceName(tableName)
-
-	var sqlFileName strings.Builder
-	sqlFileName.Grow(len(tableName) + 4)
-	sqlFileName.WriteString(tableName)
-	sqlFileName.WriteString(".sql")
-	sqlPath := filepath.Join(m.config.Paths.Queries, sqlFileName.String())
-
-	return &queriesSetupContext{
-		ModulePath:   modulePath,
-		RootDir:      rootDir,
-		SQLPath:      sqlPath,
-		ResourceName: resourceName,
-		TableName:    tableName,
-		PluralName:   tableName,
-	}, nil
+	return src[:insertAt] + entry + "\n" + src[insertAt:]
 }
 
 func (m *ModelManager) checkExistingModel(resourceName string) {
@@ -304,81 +249,4 @@ func (m *ModelManager) checkExistingModel(resourceName string) {
 			modelPath,
 		)
 	}
-}
-
-func (m *ModelManager) GenerateQueriesOnly(tableName string) error {
-	ctx, err := m.setupQueriesContext(tableName)
-	if err != nil {
-		return err
-	}
-
-	m.checkExistingModel(ctx.ResourceName)
-
-	if err := m.fileManager.ValidateFileNotExists(ctx.SQLPath); err != nil {
-		return err
-	}
-
-	cat, err := m.migrationManager.BuildCatalogFromMigrations(ctx.TableName, m.config)
-	if err != nil {
-		return err
-	}
-
-	table, err := cat.GetTable("", ctx.TableName)
-	if err != nil {
-		return fmt.Errorf(`table '%s' not found in catalog: %w
-
-Make sure the table exists in your migrations (database/migrations/).
-Run 'andurel query generate %s' after creating the migration.`,
-			ctx.TableName, err, ctx.TableName)
-	}
-
-	if err := m.modelGenerator.GenerateQueriesOnlyFile(ctx.ResourceName, ctx.TableName, table, ctx.SQLPath, true); err != nil {
-		return fmt.Errorf("failed to generate SQL file: %w", err)
-	}
-
-	if err := m.fileManager.RunSQLCGenerate(); err != nil {
-		return fmt.Errorf("failed to run sqlc generate: %w", err)
-	}
-
-	fmt.Printf(
-		"Successfully generated SQL queries for %s (table: %s)\n",
-		ctx.ResourceName,
-		ctx.TableName,
-	)
-	return nil
-}
-
-func (m *ModelManager) RefreshQueriesOnly(tableName string) error {
-	ctx, err := m.setupQueriesContext(tableName)
-	if err != nil {
-		return err
-	}
-
-	if _, err := os.Stat(ctx.SQLPath); os.IsNotExist(err) {
-		return fmt.Errorf(
-			"SQL file %s does not exist. Use 'andurel query generate %s' to create it first",
-			ctx.SQLPath,
-			ctx.TableName,
-		)
-	}
-
-	cat, err := m.migrationManager.BuildCatalogFromMigrations(ctx.TableName, m.config)
-	if err != nil {
-		return err
-	}
-
-	if err := m.modelGenerator.RefreshQueriesOnly(cat, ctx.ResourceName, ctx.TableName, ctx.SQLPath, true); err != nil {
-		return fmt.Errorf("failed to refresh queries: %w", err)
-	}
-
-	if err := m.fileManager.RunSQLCGenerate(); err != nil {
-		return fmt.Errorf("failed to run sqlc generate: %w", err)
-	}
-
-	fmt.Printf(
-		"Successfully refreshed SQL queries for %s (table: %s)\n",
-		ctx.ResourceName,
-		ctx.TableName,
-	)
-	return nil
 }

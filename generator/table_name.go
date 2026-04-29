@@ -2,7 +2,6 @@ package generator
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +9,8 @@ import (
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
+// ExtractTableNameOverride reads the actual table name from the bun.BaseModel tag
+// in the generated entity struct. e.g.: bun.BaseModel `bun:"table:student_feedback"`
 func ExtractTableNameOverride(modelPath string, resourceName string) (string, bool) {
 	file, err := os.Open(modelPath)
 	if err != nil {
@@ -18,25 +19,21 @@ func ExtractTableNameOverride(modelPath string, resourceName string) (string, bo
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	marker := fmt.Sprintf("// %s_MODEL_TABLE_NAME:", strings.ToUpper(resourceName))
-
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-
-		if strings.HasPrefix(line, marker) {
-			tableName := strings.TrimSpace(strings.TrimPrefix(line, marker))
-			if tableName != "" {
-				return tableName, true
-			}
-		}
-
-		if strings.HasPrefix(line, "package ") {
+		if !strings.HasPrefix(line, "bun.BaseModel") {
 			continue
 		}
-
-		if line != "" && !strings.HasPrefix(line, "//") && !strings.HasPrefix(line, "import") {
+		start := strings.Index(line, `bun:"table:`)
+		if start == -1 {
 			break
 		}
+		rest := line[start+len(`bun:"table:`):]
+		end := strings.IndexAny(rest, `",`)
+		if end == -1 {
+			break
+		}
+		return rest[:end], true
 	}
 
 	return "", false
@@ -50,61 +47,16 @@ func BuildModelPath(modelsDir, resourceName string) string {
 	return filepath.Join(modelsDir, modelFileName.String())
 }
 
-func ResolveTableName(modelsDir, queriesDir, resourceName string) string {
-	tableName, _ := ResolveTableNameWithFlag(modelsDir, queriesDir, resourceName)
+func ResolveTableName(modelsDir, resourceName string) string {
+	tableName, _ := ResolveTableNameWithFlag(modelsDir, resourceName)
 	return tableName
 }
 
-func ResolveTableNameWithFlag(modelsDir, queriesDir, resourceName string) (string, bool) {
+func ResolveTableNameWithFlag(modelsDir, resourceName string) (string, bool) {
 	modelPath := BuildModelPath(modelsDir, resourceName)
-	if overriddenTableName, found := ExtractTableNameOverride(modelPath, resourceName); found {
-		derived := naming.DeriveTableName(resourceName)
-		return overriddenTableName, overriddenTableName != derived
-	}
-
-	if tableName, found := resolveTableNameFromQueries(queriesDir, resourceName); found {
+	if tableName, found := ExtractTableNameOverride(modelPath, resourceName); found {
 		derived := naming.DeriveTableName(resourceName)
 		return tableName, tableName != derived
 	}
 	return naming.DeriveTableName(resourceName), false
-}
-
-func resolveTableNameFromQueries(queriesDir, resourceName string) (string, bool) {
-	if queriesDir == "" {
-		return "", false
-	}
-
-	entries, err := os.ReadDir(queriesDir)
-	if err != nil {
-		return "", false
-	}
-
-	needle := fmt.Sprintf("-- name: Query%sByID", resourceName)
-	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".sql" {
-			continue
-		}
-
-		path := filepath.Join(queriesDir, entry.Name())
-		file, err := os.Open(path)
-		if err != nil {
-			continue
-		}
-
-		scanner := bufio.NewScanner(file)
-		found := false
-		for scanner.Scan() {
-			if strings.Contains(scanner.Text(), needle) {
-				found = true
-				break
-			}
-		}
-		file.Close()
-
-		if found {
-			return strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name())), true
-		}
-	}
-
-	return "", false
 }

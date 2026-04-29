@@ -3,131 +3,117 @@ package models
 import (
 	"context"
 	"errors"
+	"testapp/internal/storage"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
-
-	"testapp/internal/storage"
-	"testapp/models/internal/db"
+	"github.com/uptrace/bun"
 )
 
-type Project struct {
-	ID          uuid.UUID
-	Name        string
-	Description string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+// ProjectEntity represents a Project record in the database.
+type ProjectEntity struct {
+	bun.BaseModel `bun:"table:projects"`
+	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
+	Name          string     `bun:"name"`
+	Description   *string    `bun:"description"`
+	CreatedAt     *time.Time `bun:"created_at"`
+	UpdatedAt     *time.Time `bun:"updated_at"`
 }
 
-func FindProject(
-	ctx context.Context,
-	exec storage.Executor,
-	id uuid.UUID,
-) (Project, error) {
-	row, err := queries.QueryProjectByID(ctx, exec, id)
+func (p project) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ProjectEntity, error) {
+	var entity ProjectEntity
+	err := db.NewSelect().
+		Model(&entity).
+		Where("id = ?", id).
+		Scan(ctx)
 	if err != nil {
-		return Project{}, err
+		return ProjectEntity{}, err
 	}
-
-	return rowToProject(row), nil
+	return entity, nil
 }
 
 type CreateProjectData struct {
 	Name        string
-	Description string
+	Description *string
 }
 
-func CreateProject(
-	ctx context.Context,
-	exec storage.Executor,
-	data CreateProjectData,
-) (Project, error) {
+func (p project) Create(ctx context.Context, db storage.Executor, data CreateProjectData) (ProjectEntity, error) {
 	if err := Validate.Struct(data); err != nil {
-		return Project{}, errors.Join(ErrDomainValidation, err)
-	}
-	params := db.InsertProjectParams{
-		ID:          uuid.New(),
-		Name:        data.Name,
-		Description: pgtype.Text{String: data.Description, Valid: true},
-	}
-	row, err := queries.InsertProject(ctx, exec, params)
-	if err != nil {
-		return Project{}, err
+		return ProjectEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	return rowToProject(row), nil
+	entity := ProjectEntity{
+		ID:          uuid.New(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+		Name:        data.Name,
+		Description: data.Description,
+	}
+
+	_, err := db.NewInsert().Model(&entity).Exec(ctx)
+	if err != nil {
+		return ProjectEntity{}, err
+	}
+	return entity, nil
 }
 
 type UpdateProjectData struct {
 	ID          uuid.UUID
 	Name        string
-	Description string
-	UpdatedAt   time.Time
+	Description *string
+	UpdatedAt   *time.Time
 }
 
-func UpdateProject(
-	ctx context.Context,
-	exec storage.Executor,
-	data UpdateProjectData,
-) (Project, error) {
+func (p project) Update(ctx context.Context, db storage.Executor, data UpdateProjectData) (ProjectEntity, error) {
 	if err := Validate.Struct(data); err != nil {
-		return Project{}, errors.Join(ErrDomainValidation, err)
+		return ProjectEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.UpdateProjectParams{
+	entity := ProjectEntity{
 		ID:          data.ID,
+		UpdatedAt:   time.Now(),
 		Name:        data.Name,
-		Description: pgtype.Text{String: data.Description, Valid: true},
+		Description: data.Description,
 	}
 
-	row, err := queries.UpdateProject(ctx, exec, params)
+	_, err := db.NewUpdate().
+		Model(&entity).
+		Where("id = ?", data.ID).
+		Exec(ctx)
 	if err != nil {
-		return Project{}, err
+		return ProjectEntity{}, err
 	}
-
-	return rowToProject(row), nil
+	return entity, nil
 }
 
-func DestroyProject(
-	ctx context.Context,
-	exec storage.Executor,
-	id uuid.UUID,
-) error {
-	return queries.DeleteProject(ctx, exec, id)
+func (p project) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
+	_, err := db.NewDelete().
+		Model((*ProjectEntity)(nil)).
+		Where("id = ?", id).
+		Exec(ctx)
+	return err
 }
 
-func AllProjects(
-	ctx context.Context,
-	exec storage.Executor,
-) ([]Project, error) {
-	rows, err := queries.QueryProjects(ctx, exec)
+func (p project) All(ctx context.Context, db storage.Executor) ([]ProjectEntity, error) {
+	var entities []ProjectEntity
+	err := db.NewSelect().
+		Model(&entities).
+		Scan(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	projects := make([]Project, len(rows))
-	for i, row := range rows {
-		projects[i] = rowToProject(row)
-	}
-
-	return projects, nil
+	return entities, nil
 }
 
 type PaginatedProjects struct {
-	Projects   []Project
+	Projects   []ProjectEntity
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func PaginateProjects(
-	ctx context.Context,
-	exec storage.Executor,
-	page int64,
-	pageSize int64,
-) (PaginatedProjects, error) {
+func (p project) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedProjects, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -140,32 +126,25 @@ func PaginateProjects(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := queries.CountProjects(ctx, exec)
-	if err != nil {
+	var totalCount int64
+	if err := db.NewSelect().
+		Model(&ProjectEntity{}).Scan(ctx, &totalCount); err != nil {
 		return PaginatedProjects{}, err
 	}
 
-	rows, err := queries.QueryPaginatedProjects(
-		ctx,
-		exec,
-		db.QueryPaginatedProjectsParams{
-			Limit:  pageSize,
-			Offset: offset,
-		},
-	)
-	if err != nil {
+	var entities []ProjectEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Limit(int(pageSize)).
+		Offset(int(offset)).
+		Scan(ctx); err != nil {
 		return PaginatedProjects{}, err
 	}
 
-	projects := make([]Project, len(rows))
-	for i, row := range rows {
-		projects[i] = rowToProject(row)
-	}
-
-	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+	totalPages := (totalCount + pageSize - 1) / pageSize
 
 	return PaginatedProjects{
-		Projects:   projects,
+		Projects:   entities,
 		TotalCount: totalCount,
 		Page:       page,
 		PageSize:   pageSize,
@@ -173,33 +152,25 @@ func PaginateProjects(
 	}, nil
 }
 
-func UpsertProject(
-	ctx context.Context,
-	exec storage.Executor,
-	data CreateProjectData,
-) (Project, error) {
+func (p project) Upsert(ctx context.Context, db storage.Executor, data CreateProjectData) (ProjectEntity, error) {
 	if err := Validate.Struct(data); err != nil {
-		return Project{}, errors.Join(ErrDomainValidation, err)
+		return ProjectEntity{}, errors.Join(ErrDomainValidation, err)
 	}
-	params := db.UpsertProjectParams{
+
+	entity := ProjectEntity{
 		ID:          uuid.New(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 		Name:        data.Name,
-		Description: pgtype.Text{String: data.Description, Valid: true},
+		Description: data.Description,
 	}
-	row, err := queries.UpsertProject(ctx, exec, params)
+
+	_, err := db.NewInsert().
+		Model(&entity).
+		On("CONFLICT (id) DO UPDATE").
+		Exec(ctx)
 	if err != nil {
-		return Project{}, err
+		return ProjectEntity{}, err
 	}
-
-	return rowToProject(row), nil
-}
-
-func rowToProject(row db.Project) Project {
-	return Project{
-		ID:          row.ID,
-		Name:        row.Name,
-		Description: row.Description.String,
-		CreatedAt:   row.CreatedAt.Time,
-		UpdatedAt:   row.UpdatedAt.Time,
-	}
+	return entity, nil
 }

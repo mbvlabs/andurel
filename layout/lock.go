@@ -47,11 +47,6 @@ var defaultToolDownloads = map[string]ToolDownload{
 		Archive:     "tar.gz",
 		BinaryName:  "templ",
 	},
-	"sqlc": {
-		URLTemplate: "https://github.com/sqlc-dev/sqlc/releases/download/{{version}}/sqlc_{{version_no_v}}_{{os}}_{{arch}}.tar.gz",
-		Archive:     "tar.gz",
-		BinaryName:  "sqlc",
-	},
 	"goose": {
 		URLTemplate: "https://github.com/pressly/goose/releases/download/{{version}}/goose_{{os}}_{{arch_x86_64}}",
 		Archive:     "binary",

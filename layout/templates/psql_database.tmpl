@@ -3,6 +3,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"embed"
 	"errors"
 	"log/slog"
@@ -10,14 +11,17 @@ import (
 	"{{.ModuleName}}/internal/storage"
 
 	"github.com/exaring/otelpgx"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
 )
 
 //go:embed migrations/*
 var Migrations embed.FS
 
 type Postgres struct {
+	db   *bun.DB
 	pool *pgxpool.Pool
 }
 
@@ -40,40 +44,34 @@ func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
 
 	if err := pool.Ping(ctx); err != nil {
 		slog.ErrorContext(ctx, "could not ping database", "error", err)
+		pool.Close()
 		return &Postgres{}, err
 	}
 
-	return &Postgres{pool}, nil
+	sqldb := stdlib.OpenDBFromPool(pool)
+	db := bun.NewDB(sqldb, pgdialect.New())
+
+	return &Postgres{db: db, pool: pool}, nil
 }
 
-func (p *Postgres) Conn() *pgxpool.Pool {
+func (p *Postgres) DB() *bun.DB {
+	return p.db
+}
+
+func (p *Postgres) Pool() *pgxpool.Pool {
 	return p.pool
 }
 
-func (p *Postgres) BeginTx(ctx context.Context) (pgx.Tx, error) {
-	tx, err := p.pool.Begin(ctx)
+func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error) {
+	tx, err := p.db.BeginTx(ctx, opts)
 	if err != nil {
-		slog.ErrorContext(ctx, "could not begin transaction", "reason", err)
-		return nil, errors.Join(storage.ErrBeginTx, err)
+		return bun.Tx{}, errors.Join(storage.ErrBeginTx, err)
 	}
-
 	return tx, nil
 }
 
-func (p *Postgres) RollBackTx(ctx context.Context, tx pgx.Tx) error {
-	if err := tx.Rollback(ctx); err != nil {
-		slog.ErrorContext(ctx, "could not rollback transaction", "reason", err)
-		return errors.Join(storage.ErrRollbackTx, err)
-	}
-
-	return nil
-}
-
-func (p *Postgres) CommitTx(ctx context.Context, tx pgx.Tx) error {
-	if err := tx.Commit(ctx); err != nil {
-		slog.ErrorContext(ctx, "could not commit transaction", "reason", err)
-		return errors.Join(storage.ErrCommitTx, err)
-	}
-
-	return nil
+func (p *Postgres) Close() error {
+	err := p.db.Close()
+	p.pool.Close()
+	return err
 }

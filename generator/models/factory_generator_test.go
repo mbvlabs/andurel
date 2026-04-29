@@ -261,10 +261,12 @@ func TestGenerator_WriteFactoryFile(t *testing.T) {
 	gen := NewGenerator("postgresql")
 	factory := &GeneratedFactory{
 		ModelName:         "Product",
+		EntityName:        "ProductEntity",
+		NamespaceVar:      "Product",
 		Package:           "factories",
 		ModulePath:        "github.com/test/myapp",
 		Fields:            []FactoryField{},
-		StandardImports:   []string{"context", "fmt"},
+		StandardImports:   []string{},
 		ExternalImports:   []string{"github.com/go-faker/faker/v4"},
 		HasCreateFunction: true,
 	}

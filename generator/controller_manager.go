@@ -101,7 +101,7 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 		return err
 	}
 
-	tableName, tableNameOverridden := ResolveTableNameWithFlag(c.config.Paths.Models, c.config.Paths.Queries, resourceName)
+	tableName, tableNameOverridden := ResolveTableNameWithFlag(c.config.Paths.Models, resourceName)
 
 	if tableNameOverridden {
 		if err := c.validator.ValidateTableNameOverride(resourceName, tableName); err != nil {

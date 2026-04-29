@@ -38,9 +38,9 @@ templ DocumentIndex(documents []models.Document) {
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ strings.Join(document.Tags, ", ") }</td>
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", document.PageNumbers) }</td>
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%d", document.ViewCount) }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%t", document.IsPublished) }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ document.CreatedAt.String() }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ document.UpdatedAt.String() }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", document.IsPublished) }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", document.CreatedAt) }</td>
+										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", document.UpdatedAt) }</td>
 										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 											<div class="flex flex-wrap gap-3 text-sm">
 												<a class="text-base-content/80 hover:text-base-content" href="/">View</a>
@@ -90,15 +90,15 @@ templ DocumentShow(document models.Document) {
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Is Published</label>
-								<p class="text-sm text-base-content">{ fmt.Sprintf("%t", document.IsPublished) }</p>
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", document.IsPublished) }</p>
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
-								<p class="text-sm text-base-content">{ document.CreatedAt.String() }</p>
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", document.CreatedAt) }</p>
 							</div>
 							<div class="space-y-1">
 								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
-								<p class="text-sm text-base-content">{ document.UpdatedAt.String() }</p>
+								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", document.UpdatedAt) }</p>
 							</div>
 						</div>
 					</div>
@@ -137,9 +137,9 @@ templ DocumentNew() {
 										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="viewCount">View Count</label>
 										<input type="number" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="viewCount"/>
 									</div>
-									<div class="flex items-center gap-2">
-										<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-base-300 bg-base-200 accent-primary transition focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="isPublished"/>
+									<div class="space-y-1">
 										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="isPublished">Is Published</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="isPublished"/>
 									</div>
 								</div>
 								<div class="mt-6 space-y-3">
@@ -184,11 +184,9 @@ templ DocumentEdit(document models.Document) {
 										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="viewCount">View Count</label>
 										<input type="number" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="viewCount" value={ fmt.Sprintf("%d", document.ViewCount) }/>
 									</div>
-									<div class="flex items-center gap-2">
-										<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-base-300 bg-base-200 accent-primary transition focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="isPublished" if document.IsPublished {
-	checked
-}/>
+									<div class="space-y-1">
 										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="isPublished">Is Published</label>
+										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="isPublished" value={ fmt.Sprintf("%v", document.IsPublished) }/>
 									</div>
 								</div>
 								<div class="mt-6 space-y-3">

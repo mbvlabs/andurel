@@ -3,136 +3,122 @@ package models
 import (
 	"context"
 	"errors"
+	"testapp/internal/storage"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
-
-	"testapp/internal/storage"
-	"testapp/models/internal/db"
+	"github.com/uptrace/bun"
 )
 
-type Person struct {
-	ID        uuid.UUID
-	FirstName string
-	LastName  string
-	Email     string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+// PersonEntity represents a Person record in the database.
+type PersonEntity struct {
+	bun.BaseModel `bun:"table:people_data"`
+	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
+	FirstName     string     `bun:"first_name"`
+	LastName      string     `bun:"last_name"`
+	Email         *string    `bun:"email"`
+	CreatedAt     *time.Time `bun:"created_at"`
+	UpdatedAt     *time.Time `bun:"updated_at"`
 }
 
-func FindPerson(
-	ctx context.Context,
-	exec storage.Executor,
-	id uuid.UUID,
-) (Person, error) {
-	row, err := queries.QueryPersonByID(ctx, exec, id)
+func (p person) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (PersonEntity, error) {
+	var entity PersonEntity
+	err := db.NewSelect().
+		Model(&entity).
+		Where("id = ?", id).
+		Scan(ctx)
 	if err != nil {
-		return Person{}, err
+		return PersonEntity{}, err
 	}
-
-	return rowToPerson(row), nil
+	return entity, nil
 }
 
 type CreatePersonData struct {
 	FirstName string
 	LastName  string
-	Email     string
+	Email     *string
 }
 
-func CreatePerson(
-	ctx context.Context,
-	exec storage.Executor,
-	data CreatePersonData,
-) (Person, error) {
+func (p person) Create(ctx context.Context, db storage.Executor, data CreatePersonData) (PersonEntity, error) {
 	if err := Validate.Struct(data); err != nil {
-		return Person{}, errors.Join(ErrDomainValidation, err)
-	}
-	params := db.InsertPersonParams{
-		ID:        uuid.New(),
-		FirstName: data.FirstName,
-		LastName:  data.LastName,
-		Email:     pgtype.Text{String: data.Email, Valid: true},
-	}
-	row, err := queries.InsertPerson(ctx, exec, params)
-	if err != nil {
-		return Person{}, err
+		return PersonEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	return rowToPerson(row), nil
+	entity := PersonEntity{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		FirstName: data.FirstName,
+		LastName:  data.LastName,
+		Email:     data.Email,
+	}
+
+	_, err := db.NewInsert().Model(&entity).Exec(ctx)
+	if err != nil {
+		return PersonEntity{}, err
+	}
+	return entity, nil
 }
 
 type UpdatePersonData struct {
 	ID        uuid.UUID
 	FirstName string
 	LastName  string
-	Email     string
-	UpdatedAt time.Time
+	Email     *string
+	UpdatedAt *time.Time
 }
 
-func UpdatePerson(
-	ctx context.Context,
-	exec storage.Executor,
-	data UpdatePersonData,
-) (Person, error) {
+func (p person) Update(ctx context.Context, db storage.Executor, data UpdatePersonData) (PersonEntity, error) {
 	if err := Validate.Struct(data); err != nil {
-		return Person{}, errors.Join(ErrDomainValidation, err)
+		return PersonEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	params := db.UpdatePersonParams{
+	entity := PersonEntity{
 		ID:        data.ID,
+		UpdatedAt: time.Now(),
 		FirstName: data.FirstName,
 		LastName:  data.LastName,
-		Email:     pgtype.Text{String: data.Email, Valid: true},
+		Email:     data.Email,
 	}
 
-	row, err := queries.UpdatePerson(ctx, exec, params)
+	_, err := db.NewUpdate().
+		Model(&entity).
+		Where("id = ?", data.ID).
+		Exec(ctx)
 	if err != nil {
-		return Person{}, err
+		return PersonEntity{}, err
 	}
-
-	return rowToPerson(row), nil
+	return entity, nil
 }
 
-func DestroyPerson(
-	ctx context.Context,
-	exec storage.Executor,
-	id uuid.UUID,
-) error {
-	return queries.DeletePerson(ctx, exec, id)
+func (p person) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
+	_, err := db.NewDelete().
+		Model((*PersonEntity)(nil)).
+		Where("id = ?", id).
+		Exec(ctx)
+	return err
 }
 
-func AllPerson(
-	ctx context.Context,
-	exec storage.Executor,
-) ([]Person, error) {
-	rows, err := queries.QueryPerson(ctx, exec)
+func (p person) All(ctx context.Context, db storage.Executor) ([]PersonEntity, error) {
+	var entities []PersonEntity
+	err := db.NewSelect().
+		Model(&entities).
+		Scan(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	person := make([]Person, len(rows))
-	for i, row := range rows {
-		person[i] = rowToPerson(row)
-	}
-
-	return person, nil
+	return entities, nil
 }
 
 type PaginatedPerson struct {
-	Person     []Person
+	Person     []PersonEntity
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func PaginatePerson(
-	ctx context.Context,
-	exec storage.Executor,
-	page int64,
-	pageSize int64,
-) (PaginatedPerson, error) {
+func (p person) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedPerson, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -145,32 +131,25 @@ func PaginatePerson(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := queries.CountPerson(ctx, exec)
-	if err != nil {
+	var totalCount int64
+	if err := db.NewSelect().
+		Model(&PersonEntity{}).Scan(ctx, &totalCount); err != nil {
 		return PaginatedPerson{}, err
 	}
 
-	rows, err := queries.QueryPaginatedPerson(
-		ctx,
-		exec,
-		db.QueryPaginatedPersonParams{
-			Limit:  pageSize,
-			Offset: offset,
-		},
-	)
-	if err != nil {
+	var entities []PersonEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Limit(int(pageSize)).
+		Offset(int(offset)).
+		Scan(ctx); err != nil {
 		return PaginatedPerson{}, err
 	}
 
-	person := make([]Person, len(rows))
-	for i, row := range rows {
-		person[i] = rowToPerson(row)
-	}
-
-	totalPages := (totalCount + int64(pageSize) - 1) / int64(pageSize)
+	totalPages := (totalCount + pageSize - 1) / pageSize
 
 	return PaginatedPerson{
-		Person:     person,
+		Person:     entities,
 		TotalCount: totalCount,
 		Page:       page,
 		PageSize:   pageSize,
@@ -178,35 +157,26 @@ func PaginatePerson(
 	}, nil
 }
 
-func UpsertPerson(
-	ctx context.Context,
-	exec storage.Executor,
-	data CreatePersonData,
-) (Person, error) {
+func (p person) Upsert(ctx context.Context, db storage.Executor, data CreatePersonData) (PersonEntity, error) {
 	if err := Validate.Struct(data); err != nil {
-		return Person{}, errors.Join(ErrDomainValidation, err)
+		return PersonEntity{}, errors.Join(ErrDomainValidation, err)
 	}
-	params := db.UpsertPersonParams{
+
+	entity := PersonEntity{
 		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 		FirstName: data.FirstName,
 		LastName:  data.LastName,
-		Email:     pgtype.Text{String: data.Email, Valid: true},
+		Email:     data.Email,
 	}
-	row, err := queries.UpsertPerson(ctx, exec, params)
+
+	_, err := db.NewInsert().
+		Model(&entity).
+		On("CONFLICT (id) DO UPDATE").
+		Exec(ctx)
 	if err != nil {
-		return Person{}, err
+		return PersonEntity{}, err
 	}
-
-	return rowToPerson(row), nil
-}
-
-func rowToPerson(row db.PeopleDatum) Person {
-	return Person{
-		ID:        row.ID,
-		FirstName: row.FirstName,
-		LastName:  row.LastName,
-		Email:     row.Email.String,
-		CreatedAt: row.CreatedAt.Time,
-		UpdatedAt: row.UpdatedAt.Time,
-	}
+	return entity, nil
 }

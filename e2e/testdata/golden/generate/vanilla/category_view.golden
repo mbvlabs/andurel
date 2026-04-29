@@ -42,9 +42,9 @@ templ CategoryIndex(categories []models.Category) {
 								for _, category := range categories {
 									<tr>
 										<td>{ category.Name }</td>
-										<td>{ category.Description }</td>
-										<td>{ category.CreatedAt.String() }</td>
-										<td>{ category.UpdatedAt.String() }</td>
+										<td>{ fmt.Sprintf("%v", category.Description) }</td>
+										<td>{ fmt.Sprintf("%v", category.CreatedAt) }</td>
+										<td>{ fmt.Sprintf("%v", category.UpdatedAt) }</td>
 										<td>
 											<div class="cluster" data-gap="sm">
 												<a class="btn btn-ghost btn-sm" href="/">View</a>
@@ -84,15 +84,15 @@ templ CategoryShow(category models.Category) {
 						</div>
 						<div class="field">
 							<p class="field-label">Description</p>
-							<p>{ category.Description }</p>
+							<p>{ fmt.Sprintf("%v", category.Description) }</p>
 						</div>
 						<div class="field">
 							<p class="field-label">Created At</p>
-							<p>{ category.CreatedAt.String() }</p>
+							<p>{ fmt.Sprintf("%v", category.CreatedAt) }</p>
 						</div>
 						<div class="field">
 							<p class="field-label">Updated At</p>
-							<p>{ category.UpdatedAt.String() }</p>
+							<p>{ fmt.Sprintf("%v", category.UpdatedAt) }</p>
 						</div>
 					</div>
 				</div>
@@ -167,7 +167,7 @@ templ CategoryEdit(category models.Category) {
 								<div class="field">
 									<label class="field-label" for="description">Description</label>
 									<div class="field-control">
-										<input class="input" id="description" type="text" data-bind="description" value={ category.Description }/>
+										<input class="input" id="description" type="text" data-bind="description" value={ fmt.Sprintf("%v", category.Description) }/>
 									</div>
 								</div>
 								<div class="stack" data-gap="sm">

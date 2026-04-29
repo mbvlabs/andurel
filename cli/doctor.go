@@ -44,7 +44,7 @@ This command will check:
   • Environment (Go version)
   • Configuration (andurel.lock)
   • Code quality (go vet, go mod tidy)
-  • Code generation (templ, sqlc)`,
+  • Code generation (templ)`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			return runDoctor(currentVersion, verbose)
@@ -101,7 +101,6 @@ func runDoctor(currentVersion string, verbose bool) error {
 	fmt.Println("\n=== Code Generation ===")
 	genResults := []checkResult{
 		checkTemplGenerate(rootDir, verbose),
-		checkSqlcGenerate(rootDir, verbose),
 	}
 	results = append(results, genResults...)
 	printResults(genResults, verbose)
@@ -669,73 +668,4 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	}
 }
 
-func checkSqlcGenerate(rootDir string, verbose bool) checkResult {
-	sqlcPath := filepath.Join(rootDir, "bin", "sqlc")
-	if _, err := os.Stat(sqlcPath); err != nil {
-		return checkResult{
-			name:    "sqlc compile",
-			status:  statusWarn,
-			message: "sqlc binary not found (skipping check)",
-		}
-	}
 
-	sqlcConfigPath, err := validateSQLCConfigAgainstBase(rootDir)
-	if err != nil {
-		return checkResult{
-			name:    "sqlc compile",
-			status:  statusWarn,
-			message: "sqlc config validation failed (skipping check)",
-			details: []string{err.Error()},
-		}
-	}
-
-	cmd := exec.Command(sqlcPath, "compile", "-f", sqlcConfigPath)
-	cmd.Dir = rootDir
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err = cmd.Run()
-	if err != nil {
-		output := stderr.String()
-		if output == "" {
-			output = stdout.String()
-		}
-
-		lines := strings.Split(strings.TrimSpace(output), "\n")
-		var details []string
-		issueCount := len(lines)
-
-		if verbose {
-			details = lines
-		} else {
-			// Show first 3 issues in non-verbose mode
-			previewCount := 3
-			if issueCount < previewCount {
-				previewCount = issueCount
-			}
-			for i := 0; i < previewCount; i++ {
-				if i < len(lines) && strings.TrimSpace(lines[i]) != "" {
-					details = append(details, lines[i])
-				}
-			}
-			if issueCount > previewCount {
-				details = append(details, fmt.Sprintf("... and %d more (use --verbose to see all)", issueCount-previewCount))
-			}
-		}
-
-		return checkResult{
-			name:    "sqlc compile",
-			status:  statusFail,
-			message: fmt.Sprintf("%d issues found", issueCount),
-			details: details,
-		}
-	}
-
-	return checkResult{
-		name:    "sqlc compile",
-		status:  statusPass,
-		message: "SQL queries compile successfully",
-	}
-}
