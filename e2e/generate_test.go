@@ -125,7 +125,7 @@ func testGenerateModel(t *testing.T, project *internal.Project) {
 		"price DECIMAL(10,2)",
 	})
 
-	err := project.Generate("generate", "model", "Product")
+	err := project.Generate("model", "Product", "create")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	// Verify model file exists and compare against golden file
@@ -164,7 +164,7 @@ func testGenerateModelWithoutTimestamps(t *testing.T, project *internal.Project)
 		"server_id UUID NOT NULL",
 	})
 
-	err := project.Generate("generate", "model", "ServerProvisionStep", "--skip-factory")
+	err := project.Generate("model", "ServerProvisionStep", "create", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate model without timestamps")
 
 	internal.AssertFileExists(t, project, "models/server_provision_step.go")
@@ -180,7 +180,7 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 		"signature BYTEA",
 	})
 
-	err := project.Generate("generate", "model", "Order")
+	err := project.Generate("model", "Order", "create")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	err = project.Generate("generate", "controller", "Order", "--with-views")
@@ -234,7 +234,7 @@ func testGenerateView(t *testing.T, project *internal.Project) {
 		"description TEXT",
 	})
 
-	err := project.Generate("generate", "model", "Category")
+	err := project.Generate("model", "Category", "create")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	err = project.Generate("generate", "view", "Category")
@@ -398,7 +398,7 @@ func testGenerateModelWithFactory(t *testing.T, project *internal.Project) {
 		"pages INTEGER",
 	})
 
-	err := project.Generate("generate", "model", "Book")
+	err := project.Generate("model", "Book", "create")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	// Verify model file exists and compare against golden file
@@ -437,7 +437,7 @@ func testGenerateModelSkipFactory(t *testing.T, project *internal.Project) {
 		"published BOOLEAN DEFAULT false",
 	})
 
-	err := project.Generate("generate", "model", "Article", "--skip-factory")
+	err := project.Generate("model", "Article", "create", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate model with --skip-factory")
 
 	// Verify model file exists and compare against golden file
@@ -470,7 +470,7 @@ func testGenerateModelWithTableName(t *testing.T, project *internal.Project) {
 		"email VARCHAR(255)",
 	})
 
-	err := project.Generate("generate", "model", "Person", "--table-name=people_data")
+	err := project.Generate("model", "Person", "create", "--table-name=people_data")
 	internal.AssertCommandSucceeds(t, err, "generate model with --table-name")
 
 	// Verify model file exists and compare against golden file
@@ -510,7 +510,7 @@ func testGenerateControllerWithoutViews(t *testing.T, project *internal.Project)
 		"pdf_data BYTEA",
 	})
 
-	err := project.Generate("generate", "model", "Invoice")
+	err := project.Generate("model", "Invoice", "create")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	// Generate controller WITHOUT views (default behavior)
@@ -571,7 +571,7 @@ func testGenerateViewWithController(t *testing.T, project *internal.Project) {
 		"rating INTEGER NOT NULL",
 	})
 
-	err := project.Generate("generate", "model", "Review")
+	err := project.Generate("model", "Review", "create")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	// Generate view WITH controller
@@ -647,7 +647,7 @@ DROP TABLE IF EXISTS posts;
 		t.Fatalf("Failed to create migration file: %v", err)
 	}
 
-	err = project.Generate("generate", "model", "Post", "--skip-factory")
+	err = project.Generate("model", "Post", "create", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate model with array types")
 
 	// Verify model file exists and compare against golden file
@@ -794,7 +794,7 @@ DROP TABLE IF EXISTS documents;
 	}
 
 	// Generate model first (required for view generation)
-	err = project.Generate("generate", "model", "Document", "--skip-factory")
+	err = project.Generate("model", "Document", "create", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate model with array types")
 
 	// Generate view
@@ -859,7 +859,7 @@ func testGenerateFragment(t *testing.T, project *internal.Project) {
 	})
 
 	// Generate model first
-	err := project.Generate("generate", "model", "Webhook", "--skip-factory")
+	err := project.Generate("model", "Webhook", "create", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate model for webhook")
 
 	// Generate controller (without views since we just need the controller files)

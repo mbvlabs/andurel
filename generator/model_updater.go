@@ -91,7 +91,7 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf(
-			"model file not found: %s\nRun 'andurel generate model %s' to create it",
+			"model file not found: %s\nRun 'andurel model %s create' to create it",
 			modelPath, resourceName,
 		)
 	}
