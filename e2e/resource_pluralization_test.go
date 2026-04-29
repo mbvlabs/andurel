@@ -84,7 +84,7 @@ func TestResourcePluralization(t *testing.T) {
 			createMigration(t, project, "000100_create_"+tc.tableName, tc.tableName, tc.columns)
 
 			// Generate the resource
-			err = project.Generate("generate", "resource", tc.resourceName)
+			err = project.Generate("resource", tc.resourceName, "create")
 			internal.AssertCommandSucceeds(t, err, "generate resource")
 
 		// Verify all expected files exist

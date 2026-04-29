@@ -109,10 +109,6 @@ func TestGenerateCommands(t *testing.T) {
 			t.Run("generate_view_with_array_types", func(t *testing.T) {
 				testGenerateViewWithArrayTypes(t, project)
 			})
-
-			t.Run("generate_fragment", func(t *testing.T) {
-				testGenerateFragment(t, project)
-			})
 		})
 	}
 }
@@ -183,7 +179,7 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 	err := project.Generate("model", "Order", "create")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
-	err = project.Generate("generate", "controller", "Order", "--with-views")
+	err = project.Generate("controller", "Order", "create", "--with-views")
 	internal.AssertCommandSucceeds(t, err, "generate controller")
 
 	// Verify controller file exists and compare against golden file
@@ -237,7 +233,7 @@ func testGenerateView(t *testing.T, project *internal.Project) {
 	err := project.Generate("model", "Category", "create")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
-	err = project.Generate("generate", "view", "Category")
+	err = project.Generate("view", "Category", "create")
 	internal.AssertCommandSucceeds(t, err, "generate view")
 
 	// Verify view file exists and compare against golden file
@@ -268,7 +264,7 @@ func testGenerateResource(t *testing.T, project *internal.Project) {
 		"quantity INTEGER",
 	})
 
-	err := project.Generate("generate", "resource", "Item")
+	err := project.Generate("resource", "Item", "create")
 	internal.AssertCommandSucceeds(t, err, "generate resource")
 
 	// Verify model file exists and compare against golden file
@@ -321,9 +317,9 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 	})
 
 	err := project.Generate(
-		"generate",
 		"resource",
 		"StudentFeedback",
+		"create",
 		"--table-name=student_feedback",
 	)
 	internal.AssertCommandSucceeds(t, err, "generate resource with table-name override")
@@ -514,7 +510,7 @@ func testGenerateControllerWithoutViews(t *testing.T, project *internal.Project)
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	// Generate controller WITHOUT views (default behavior)
-	err = project.Generate("generate", "controller", "Invoice")
+	err = project.Generate("controller", "Invoice", "create")
 	internal.AssertCommandSucceeds(t, err, "generate controller without views")
 
 	// Verify controller file exists and compare against golden file
@@ -575,7 +571,7 @@ func testGenerateViewWithController(t *testing.T, project *internal.Project) {
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	// Generate view WITH controller
-	err = project.Generate("generate", "view", "Review", "--with-controller")
+	err = project.Generate("view", "Review", "create", "--with-controller")
 	internal.AssertCommandSucceeds(t, err, "generate view with controller")
 
 	// Verify view file exists and compare against golden file
@@ -798,7 +794,7 @@ DROP TABLE IF EXISTS documents;
 	internal.AssertCommandSucceeds(t, err, "generate model with array types")
 
 	// Generate view
-	err = project.Generate("generate", "view", "Document")
+	err = project.Generate("view", "Document", "create")
 	internal.AssertCommandSucceeds(t, err, "generate view with array types")
 
 	// Verify view file exists
@@ -846,123 +842,6 @@ DROP TABLE IF EXISTS documents;
 	)
 }
 
-// testGenerateFragment tests the fragment generation command which adds
-// a method stub, route variable, and route registration to an existing controller.
-func testGenerateFragment(t *testing.T, project *internal.Project) {
-	t.Helper()
-
-	// Create a table for the Webhook controller
-	createMigration(t, project, "000114_create_webhooks", "webhooks", []string{
-		"endpoint VARCHAR(255) NOT NULL",
-		"secret VARCHAR(255) NOT NULL",
-		"active BOOLEAN DEFAULT true",
-	})
-
-	// Generate model first
-	err := project.Generate("model", "Webhook", "create", "--skip-factory")
-	internal.AssertCommandSucceeds(t, err, "generate model for webhook")
-
-	// Generate controller (without views since we just need the controller files)
-	err = project.Generate("generate", "controller", "Webhook")
-	internal.AssertCommandSucceeds(t, err, "generate controller for webhook")
-
-	// Verify controller, routes, and connect files exist before fragment generation
-	internal.AssertFileExists(t, project, "controllers/webhooks.go")
-	internal.AssertFileExists(t, project, "router/routes/webhooks.go")
-	internal.AssertFileExists(t, project, "router/connect_webhooks_routes.go")
-
-	// Test 1: Generate a simple fragment with default GET method
-	err = project.Generate("generate", "fragment", "Webhook", "Ping", "/ping")
-	internal.AssertCommandSucceeds(t, err, "generate fragment Webhook Ping")
-
-	// Verify controller has the new method
-	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/webhooks.go"))
-	if err != nil {
-		t.Fatalf("Failed to read controller file: %v", err)
-	}
-	controllerStr := string(controllerContent)
-	if !strings.Contains(controllerStr, "func (w Webhooks) Ping(etx *echo.Context) error") {
-		t.Error("Controller should contain Ping method")
-	}
-
-	// Verify routes file has the new route variable
-	routesContent, err := os.ReadFile(filepath.Join(project.Dir, "router/routes/webhooks.go"))
-	if err != nil {
-		t.Fatalf("Failed to read routes file: %v", err)
-	}
-	routesStr := string(routesContent)
-	if !strings.Contains(routesStr, "var WebhookPing = routing.NewSimpleRoute") {
-		t.Error("Routes file should contain WebhookPing route variable")
-	}
-	if !strings.Contains(routesStr, `"/ping"`) {
-		t.Error("Routes file should contain /ping path")
-	}
-
-	// Verify connect file has the new route registration
-	connectContent, err := os.ReadFile(filepath.Join(project.Dir, "router/connect_webhooks_routes.go"))
-	if err != nil {
-		t.Fatalf("Failed to read connect file: %v", err)
-	}
-	connectStr := string(connectContent)
-	if !strings.Contains(connectStr, "routes.WebhookPing.Path()") {
-		t.Error("Connect file should contain WebhookPing route registration")
-	}
-	if !strings.Contains(connectStr, "webhook.Ping") {
-		t.Error("Connect file should contain webhook.Ping handler")
-	}
-	if !strings.Contains(connectStr, "http.MethodGet") {
-		t.Error("Connect file should use http.MethodGet for default method")
-	}
-
-	// Test 2: Generate a fragment with POST method and :id parameter
-	err = project.Generate("generate", "fragment", "Webhook", "Verify", "/:id/verify", "--method", "POST")
-	internal.AssertCommandSucceeds(t, err, "generate fragment Webhook Verify")
-
-	// Verify controller has the Verify method
-	controllerContent, err = os.ReadFile(filepath.Join(project.Dir, "controllers/webhooks.go"))
-	if err != nil {
-		t.Fatalf("Failed to read controller file: %v", err)
-	}
-	controllerStr = string(controllerContent)
-	if !strings.Contains(controllerStr, "func (w Webhooks) Verify(etx *echo.Context) error") {
-		t.Error("Controller should contain Verify method")
-	}
-
-	// Verify routes file has the new route variable with ID constructor
-	routesContent, err = os.ReadFile(filepath.Join(project.Dir, "router/routes/webhooks.go"))
-	if err != nil {
-		t.Fatalf("Failed to read routes file: %v", err)
-	}
-	routesStr = string(routesContent)
-	if !strings.Contains(routesStr, "var WebhookVerify = routing.NewRouteWithUUIDID") {
-		t.Error("Routes file should contain WebhookVerify route variable with NewRouteWithUUIDID")
-	}
-	if !strings.Contains(routesStr, `"/:id/verify"`) {
-		t.Error("Routes file should contain /:id/verify path")
-	}
-
-	// Verify connect file has the Verify route registration with POST method
-	connectContent, err = os.ReadFile(filepath.Join(project.Dir, "router/connect_webhooks_routes.go"))
-	if err != nil {
-		t.Fatalf("Failed to read connect file: %v", err)
-	}
-	connectStr = string(connectContent)
-	if !strings.Contains(connectStr, "routes.WebhookVerify.Path()") {
-		t.Error("Connect file should contain WebhookVerify route registration")
-	}
-	if !strings.Contains(connectStr, "webhook.Verify") {
-		t.Error("Connect file should contain webhook.Verify handler")
-	}
-	if !strings.Contains(connectStr, "http.MethodPost") {
-		t.Error("Connect file should use http.MethodPost for POST method")
-	}
-
-	// Test 3: Verify duplicate detection - running the same fragment again should fail
-	err = project.GenerateExpectError("generate", "fragment", "Webhook", "Ping", "/ping")
-	if err == nil {
-		t.Error("Expected error when generating duplicate fragment, but got none")
-	}
-}
 
 func compareOrUpdateGenerateGolden(t *testing.T, goldenPath, actual, css string) {
 	t.Helper()

@@ -24,208 +24,142 @@ func chdirToProjectRoot() error {
 	return os.Chdir(rootDir)
 }
 
-func newGenerateCommand() *cobra.Command {
-	generateCmd := &cobra.Command{
-		Use:     "generate",
-		Aliases: []string{"g", "gen"},
-		Short:   "Generate code and scaffolds",
-		Long:    `Generate controllers, views, resources, and more.`,
-	}
+func newControllerRootCommand() *cobra.Command {
+	var withViews bool
 
-	generateCmd.AddCommand(newControllerCommand())
-	generateCmd.AddCommand(newViewCommand())
-	generateCmd.AddCommand(newResourceCommand())
-	generateCmd.AddCommand(newFragmentCommand())
-
-	return generateCmd
-}
-
-func newViewCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "view [model_name]",
-		Aliases: []string{"v"},
-		Short:   "Generate view templates for the specified model",
-		Long: `Generate view templates for the specified resource.
-The model must already exist before generating views.
+		Use:   "controller <name> <command>",
+		Short: "Controller management commands",
+		Long: `Manage controllers.
 
-By default, views are generated without controllers. Use --with-controller to also generate a resource controller.
+Commands:
+  create  Generate a new resource controller with CRUD actions
 
 Examples:
-  andurel generate view User                    # Views without controller
-  andurel generate view User --with-controller  # Views with controller`,
-		Args: cobra.ExactArgs(1),
-		RunE: withGenerateCleanup(generateView),
+  andurel controller User create
+  andurel controller User create --with-views`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 2 {
+				return cmd.Help()
+			}
+			if len(args) > 2 {
+				return fmt.Errorf("too many arguments\nRun 'andurel controller --help' for usage")
+			}
+			name := args[0]
+			switch args[1] {
+			case "create":
+				if err := chdirToProjectRoot(); err != nil {
+					return err
+				}
+				return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
+					gen, err := generator.New()
+					if err != nil {
+						return err
+					}
+					return gen.GenerateControllerFromModel(name, withViews)
+				})(cmd, args)
+			default:
+				return fmt.Errorf("unknown controller command %q\nRun 'andurel controller --help' for usage", args[1])
+			}
+		},
 	}
 
-	cmd.Flags().Bool("with-controller", false, "Generate controller along with the views")
+	cmd.Flags().BoolVar(&withViews, "with-views", false, "Generate views along with the controller")
 
 	return cmd
 }
 
-func newControllerCommand() *cobra.Command {
+func newViewRootCommand() *cobra.Command {
+	var withController bool
+
 	cmd := &cobra.Command{
-		Use:     "controller [model_name]",
-		Aliases: []string{"c"},
-		Short:   "Generate a new resource controller with CRUD actions",
-		Long: `Generate a new resource controller with full CRUD actions.
-The controller will include index, show, new, create, edit, update, and destroy actions.
-It will also generate the corresponding routes.
+		Use:   "view <name> <command>",
+		Short: "View management commands",
+		Long: `Manage views.
 
-The model must already exist before generating a controller.
-
-By default, controllers are generated without views. Use --with-views to also generate view templates.
+Commands:
+  create  Generate view templates for the specified model
 
 Examples:
-  andurel generate controller User              # Controller without views
-  andurel generate controller User --with-views # Controller with views`,
-		Args: cobra.ExactArgs(1),
-		RunE: withGenerateCleanup(generateController),
+  andurel view User create
+  andurel view User create --with-controller`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 2 {
+				return cmd.Help()
+			}
+			if len(args) > 2 {
+				return fmt.Errorf("too many arguments\nRun 'andurel view --help' for usage")
+			}
+			name := args[0]
+			switch args[1] {
+			case "create":
+				if err := chdirToProjectRoot(); err != nil {
+					return err
+				}
+				return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
+					gen, err := generator.New()
+					if err != nil {
+						return err
+					}
+					return gen.GenerateViewFromModel(name, withController)
+				})(cmd, args)
+			default:
+				return fmt.Errorf("unknown view command %q\nRun 'andurel view --help' for usage", args[1])
+			}
+		},
 	}
 
-	cmd.Flags().Bool("with-views", false, "Generate views along with the controller")
+	cmd.Flags().BoolVar(&withController, "with-controller", false, "Generate controller along with the views")
 
 	return cmd
 }
 
-func newResourceCommand() *cobra.Command {
+func newResourceRootCommand() *cobra.Command {
+	var tableName string
+
 	cmd := &cobra.Command{
-		Use:     "resource [name]",
-		Aliases: []string{"r"},
-		Short:   "Generate a complete resource (model, controller, views, and routes)",
-		Long: `Generate a complete resource including model, controller with CRUD actions, views, and routes.
-This is equivalent to running model, controller, and view generators together.
-The table name is automatically inferred as the plural form of the model name.
+		Use:   "resource <name> <command>",
+		Short: "Resource management commands",
+		Long: `Manage resources.
+
+Commands:
+  create  Generate a complete resource (model, controller, views, and routes)
 
 Examples:
-  andurel generate resource Product                        # Model + controller + views + routes for 'products' table
-  andurel generate resource Feedback --table-name=user_feedback  # Use custom table name`,
-		Args: cobra.ExactArgs(1),
-		RunE: withGenerateCleanup(generateResource),
+  andurel resource Product create
+  andurel resource Product create --table-name=inventory`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 2 {
+				return cmd.Help()
+			}
+			if len(args) > 2 {
+				return fmt.Errorf("too many arguments\nRun 'andurel resource --help' for usage")
+			}
+			name := args[0]
+			switch args[1] {
+			case "create":
+				if err := chdirToProjectRoot(); err != nil {
+					return err
+				}
+				return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
+					gen, err := generator.New()
+					if err != nil {
+						return err
+					}
+					if err := gen.GenerateModel(name, tableName, false); err != nil {
+						return err
+					}
+					return gen.GenerateControllerFromModel(name, true)
+				})(cmd, args)
+			default:
+				return fmt.Errorf("unknown resource command %q\nRun 'andurel resource --help' for usage", args[1])
+			}
+		},
 	}
 
-	cmd.Flags().
-		String("table-name", "", "Override the default table name (defaults to plural form of model name)")
+	cmd.Flags().StringVar(&tableName, "table-name", "", "Override the default table name (defaults to plural form of model name)")
 
 	return cmd
-}
-
-func generateController(cmd *cobra.Command, args []string) error {
-	if err := chdirToProjectRoot(); err != nil {
-		return err
-	}
-
-	resourceName := args[0]
-
-	withViews, err := cmd.Flags().GetBool("with-views")
-	if err != nil {
-		return err
-	}
-
-	gen, err := generator.New()
-	if err != nil {
-		return err
-	}
-
-	return gen.GenerateControllerFromModel(resourceName, withViews)
-}
-
-func generateResource(cmd *cobra.Command, args []string) error {
-	if err := chdirToProjectRoot(); err != nil {
-		return err
-	}
-
-	resourceName := args[0]
-
-	tableNameOverride, err := cmd.Flags().GetString("table-name")
-	if err != nil {
-		return err
-	}
-
-	gen, err := generator.New()
-	if err != nil {
-		return err
-	}
-
-	// Generate resource always generates factory by default
-	if err := gen.GenerateModel(resourceName, tableNameOverride, false); err != nil {
-		return err
-	}
-
-	return gen.GenerateControllerFromModel(resourceName, true)
-}
-
-func generateView(cmd *cobra.Command, args []string) error {
-	if err := chdirToProjectRoot(); err != nil {
-		return err
-	}
-
-	resourceName := args[0]
-
-	withController, err := cmd.Flags().GetBool("with-controller")
-	if err != nil {
-		return err
-	}
-
-	gen, err := generator.New()
-	if err != nil {
-		return err
-	}
-
-	return gen.GenerateViewFromModel(resourceName, withController)
-}
-
-func newFragmentCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "fragment [controller_name] [method_name] [path]",
-		Short: "Add a method, route, and registration to an existing controller",
-		Long: `Add a new method stub, route variable, and route registration to an existing controller.
-The controller, routes, and connect files must already exist.
-
-The route type is auto-detected from path parameters:
-  :id    -> NewRouteWithUUIDID (or NewRouteWithSerialID/NewRouteWithBigSerialID/NewRouteWithStringID based on existing routes)
-  :slug  -> NewRouteWithSlug
-  :token -> NewRouteWithToken
-  :file  -> NewRouteWithFile
-  none   -> NewSimpleRoute
-
-Examples:
-  andurel generate fragment Webhook Validate /validate
-  andurel generate fragment Article ShowBySlug /:slug --method GET
-  andurel generate fragment Order Approve /:id/approve --method POST`,
-		Args: cobra.ExactArgs(3),
-		RunE: withGenerateCleanup(generateFragment),
-	}
-
-	cmd.Flags().String("method", "GET", "HTTP method (GET, POST, PUT, DELETE, PATCH)")
-
-	return cmd
-}
-
-func generateFragment(cmd *cobra.Command, args []string) error {
-	if err := chdirToProjectRoot(); err != nil {
-		return err
-	}
-
-	controllerName := args[0]
-	methodName := args[1]
-	path := args[2]
-
-	httpMethod, err := cmd.Flags().GetString("method")
-	if err != nil {
-		return err
-	}
-
-	gen, err := generator.New()
-	if err != nil {
-		return err
-	}
-
-	return gen.GenerateFragment(generator.FragmentConfig{
-		ControllerName: controllerName,
-		MethodName:     methodName,
-		Path:           path,
-		HTTPMethod:     strings.ToUpper(httpMethod),
-	})
 }
 
 type createdFileTracker struct {

@@ -27,7 +27,9 @@ func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd.AddCommand(newRunAppCommand())
 
 	rootCmd.AddCommand(newProjectCommand(version))
-	rootCmd.AddCommand(newGenerateCommand())
+	rootCmd.AddCommand(newControllerRootCommand())
+	rootCmd.AddCommand(newViewRootCommand())
+	rootCmd.AddCommand(newResourceRootCommand())
 	rootCmd.AddCommand(newDatabaseCommand())
 	rootCmd.AddCommand(newMigrateCommand())
 	rootCmd.AddCommand(newViewsCommand())
