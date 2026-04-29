@@ -25,12 +25,11 @@ var updateResourceGolden = flag.Bool(
 // logic with the inflection library to handle irregular English plurals correctly.
 //
 // For a resource like "Company":
-//   - Model struct should be singular: `type Company struct`
-//   - Model functions should use proper plurals: `AllCompanies`, `PaginateCompanies`
+//   - Model struct should be singular: `type CompanyEntity struct`
+//   - Model namespace methods should use singular namespaces: `Company.All`, `Company.Paginate`
 //   - Table name should be plural: `companies`
-//   - Query names should use proper plurals: `QueryCompanies`, `CountCompanies`
-//   - Controller type should be singular: `type Company struct`
-//   - Controller receiver should use proper naming (e.g., `c Company`)
+//   - Controller type should be plural: `type Companies struct`
+//   - Controller receiver should use proper naming (e.g., `c Companies`)
 //   - View headings should use proper plurals: `<h1>Companies</h1>`
 func TestResourcePluralization(t *testing.T) {
 	if testing.Short() {
@@ -207,24 +206,24 @@ func validateControllerPluralization(
 	contentStr := string(content)
 
 	// Check for correct patterns
-	// Note: Controllers now use singular type names (e.g., Company, not Companies)
-	// and the receiver name is derived from the type name (e.g., c Company, p Project)
+	// Note: Controllers use plural type names (e.g., Companies, Projects)
+	// and call model methods through singular namespaces (e.g., models.Company.Find).
 	correctPatterns := []struct {
 		pattern string
 		desc    string
 	}{
 		{"type " + tc.expectedPlural + " struct", "Controller type uses plural"},
-		{"func New" + tc.expectedPlural + "(", "Constructor uses singular"},
+		{"func New" + tc.expectedPlural + "(", "Constructor uses plural"},
 		{") Index(etx *echo.Context)", "Index uses etx parameter"},
 		{") Show(etx *echo.Context)", "Show uses etx parameter"},
 		{") Create(etx *echo.Context)", "Create uses etx parameter"},
 		{") Update(etx *echo.Context)", "Update uses etx parameter"},
 		{") Destroy(etx *echo.Context)", "Destroy uses etx parameter"},
-		{"models.Paginate" + tc.expectedPlural + "(", "Calls model with correct plural"},
-		{"models.Find" + tc.expectedSingular + "(", "Calls Find with singular"},
-		{"models.Create" + tc.expectedSingular + "(", "Calls Create with singular"},
-		{"models.Update" + tc.expectedSingular + "(", "Calls Update with singular"},
-		{"models.Destroy" + tc.expectedSingular + "(", "Calls Destroy with singular"},
+		{"models." + tc.expectedSingular + ".Paginate(", "Calls Paginate on singular model namespace"},
+		{"models." + tc.expectedSingular + ".Find(", "Calls Find on singular model namespace"},
+		{"models." + tc.expectedSingular + ".Create(", "Calls Create on singular model namespace"},
+		{"models." + tc.expectedSingular + ".Update(", "Calls Update on singular model namespace"},
+		{"models." + tc.expectedSingular + ".Destroy(", "Calls Destroy on singular model namespace"},
 	}
 
 	for _, p := range correctPatterns {
