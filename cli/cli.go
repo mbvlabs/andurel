@@ -39,6 +39,7 @@ func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd.AddCommand(newLlmCommand())
 	rootCmd.AddCommand(newToolCommand())
 	rootCmd.AddCommand(newExtensionCommand())
+	rootCmd.AddCommand(newModelRootCommand())
 	rootCmd.AddCommand(newUpgradeCommand(version))
 	rootCmd.AddCommand(newDoctorCommand(version))
 

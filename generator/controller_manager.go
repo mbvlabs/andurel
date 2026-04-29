@@ -91,7 +91,7 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
 		return fmt.Errorf(
-			"model file %s does not exist. Generate the model first: andurel generate model %s",
+			"model file %s does not exist. Create the model first: andurel model %s create",
 			modelPath,
 			resourceName,
 		)

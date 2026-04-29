@@ -98,7 +98,6 @@ func (u user) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (User
 	err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Where("deleted_at IS NULL").
 		Scan(ctx)
 	if err != nil {
 		return UserEntity{}, err
@@ -111,7 +110,6 @@ func (u user) FindByEmail(ctx context.Context, db storage.Executor, email string
 	err := db.NewSelect().
 		Model(&entity).
 		Where("email = ?", strings.ToLower(email)).
-		Where("deleted_at IS NULL").
 		Scan(ctx)
 	if err != nil {
 		return UserEntity{}, err
@@ -179,7 +177,6 @@ func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserDa
 	err := db.NewSelect().
 		Model(&current).
 		Where("id = ?", data.ID).
-		Where("deleted_at IS NULL").
 		Scan(ctx)
 	if err != nil {
 		return UserEntity{}, err
@@ -223,9 +220,7 @@ func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserDa
 func (u user) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
 	_, err := db.NewUpdate().
 		Model((*UserEntity)(nil)).
-		Set("deleted_at = ?", time.Now()).
 		Where("id = ?", id).
-		Where("deleted_at IS NULL").
 		Exec(ctx)
 
 	return err
