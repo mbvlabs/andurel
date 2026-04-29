@@ -71,10 +71,10 @@ func (o Orders) New(etx *echo.Context) error {
 }
 
 type CreateOrderFormPayload struct {
-	AccountID    string `json:"accountId"`
-	CustomerName string `json:"customerName"`
-	Total        string `json:"total"`
-	Signature    string `json:"signature"`
+	AccountID    string  `json:"accountId"`
+	CustomerName string  `json:"customerName"`
+	Total        float64 `json:"total"`
+	Signature    string  `json:"signature"`
 }
 
 func (o Orders) Create(etx *echo.Context) error {
@@ -147,10 +147,10 @@ func (o Orders) Edit(etx *echo.Context) error {
 }
 
 type UpdateOrderFormPayload struct {
-	AccountID    string `json:"accountId"`
-	CustomerName string `json:"customerName"`
-	Total        string `json:"total"`
-	Signature    string `json:"signature"`
+	AccountID    string  `json:"accountId"`
+	CustomerName string  `json:"customerName"`
+	Total        float64 `json:"total"`
+	Signature    string  `json:"signature"`
 }
 
 func (o Orders) Update(etx *echo.Context) error {
