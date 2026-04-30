@@ -179,13 +179,17 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 		formattedStructStr = string(formatted[fStart:fEnd])
 	}
 
+	oldDropped := dropBaseModelLine(oldStructStr)
+	newDropped := dropBaseModelLine(formattedStructStr)
+	hasChanges := oldDropped != newDropped
+
 	return &UpdateModelResult{
 		OldStruct:      oldStructStr,
 		NewStruct:      formattedStructStr,
 		OldFileContent: string(src),
 		NewFileContent: string(formatted),
 		ModelPath:      modelPath,
-		HasChanges:     string(formatted) != string(src),
+		HasChanges:     hasChanges,
 	}, nil
 }
 
