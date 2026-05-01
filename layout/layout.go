@@ -423,9 +423,12 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_auth.tmpl": "config/auth.go",
 
 	// Auth - Services
-	"services_authentication.tmpl": "services/authentication.go",
-	"services_registration.tmpl":   "services/registration.go",
-	"services_reset_password.tmpl": "services/reset_password.go",
+	"services_authentication.tmpl":      "services/authentication.go",
+	"services_registration.tmpl":        "services/registration.go",
+	"services_reset_password.tmpl":      "services/reset_password.go",
+
+	// Auth - Integration Tests (controller-level HTTP)
+	"controllers_auth_integration.tmpl": "controllers/auth_integration_test.go",
 
 	// Auth - Router
 	"router_routes_users.tmpl":    "router/routes/users.go",

@@ -1,0 +1,326 @@
+package controllers_test
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+{{- if eq .DatabaseType "postgresql" }}
+	"github.com/jackc/pgx/v5"
+{{- else }}
+	"database/sql"
+{{- end }}
+
+	"github.com/labstack/echo/v5"
+	"github.com/riverqueue/river/rivertype"
+
+	"{{.ModulePath}}/config"
+	"{{.ModulePath}}/controllers"
+	"{{.ModulePath}}/database"
+	"{{.ModulePath}}/models"
+	"{{.ModulePath}}/models/factories"
+)
+
+var testDB *database.TestDB
+
+// TestMain initializes a shared TestDB for all auth integration tests.
+// Each individual test uses WithTx for transactional rollback isolation.
+func TestMain(m *testing.M) {
+	var err error
+	testDB, err = database.NewTestDB()
+	if err != nil {
+		panic(err)
+	}
+	defer testDB.Close()
+
+	m.Run()
+}
+
+// noOpInsertOnly satisfies queue.InsertOnly by doing nothing on InsertTx.
+// RegisterUser calls InsertTx after committing the user transaction,
+// so this allows registration tests without a running River worker.
+type noOpInsertOnly struct{}
+
+func (n *noOpInsertOnly) Insert(ctx context.Context, args rivertype.JobArgs, opts *rivertype.InsertOpts) (*rivertype.JobInsertResult, error) {
+	return &rivertype.JobInsertResult{}, nil
+}
+
+func (n *noOpInsertOnly) InsertTx(ctx context.Context, tx pgx.Tx, args rivertype.JobArgs, opts *rivertype.InsertOpts) (*rivertype.JobInsertResult, error) {
+	return &rivertype.JobInsertResult{}, nil
+}
+
+func (n *noOpInsertOnly) InsertMany(ctx context.Context, params []rivertype.InsertManyParams) ([]*rivertype.JobInsertResult, error) {
+	return nil, nil
+}
+
+func (n *noOpInsertOnly) InsertManyTx(ctx context.Context, tx pgx.Tx, params []rivertype.InsertManyParams) ([]*rivertype.JobInsertResult, error) {
+	return nil, nil
+}
+
+func (n *noOpInsertOnly) InsertManyFast(ctx context.Context, params []rivertype.InsertManyParams) (int, error) {
+	return 0, nil
+}
+
+func (n *noOpInsertOnly) InsertManyFastTx(ctx context.Context, tx pgx.Tx, params []rivertype.InsertManyParams) (int, error) {
+	return 0, nil
+}
+
+// newSessionsController creates a Sessions controller with the shared test DB.
+func newSessionsController() controllers.Sessions {
+	return controllers.NewSessions(testDB.DB, config.Config{
+		Auth: config.Auth{Pepper: factories.TestPepper},
+	})
+}
+
+// newRegistrationsController creates a Registrations controller with the shared test DB
+// and a no-op insert-only queue.
+func newRegistrationsController() controllers.Registrations {
+	return controllers.NewRegistrations(
+		testDB.DB,
+		&noOpInsertOnly{},
+		config.Config{
+			Auth: config.Auth{Pepper: factories.TestPepper},
+		},
+	)
+}
+
+// TestSessions_New renders the login form successfully.
+func TestSessions_New(t *testing.T) {
+	e := echo.New()
+	sessions := newSessionsController()
+
+	req := httptest.NewRequest(http.MethodGet, "/sign_in", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err := sessions.New(c)
+	if err != nil {
+		t.Fatalf("New returned unexpected error: %v", err)
+	}
+
+	if c.Response().Status != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, c.Response().Status)
+	}
+}
+
+// TestSessions_Create_LoginSuccess authenticates a user and creates a session.
+func TestSessions_Create_LoginSuccess(t *testing.T) {
+	testDB.WithTx(t, func(tx {{if eq .DatabaseType "postgresql"}}pgx.Tx{{else}}*sql.Tx{{end}}) {
+		factories.CreateUser(tx,
+			factories.WithEmail("alice@example.com"),
+			factories.WithValidatedEmail(),
+		)
+
+		e := echo.New()
+		sessions := newSessionsController()
+
+		body := strings.NewReader(`{"email":"alice@example.com","password":"password123"}`)
+		req := httptest.NewRequest(http.MethodPost, "/sign_in", body)
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		err := sessions.Create(c)
+		if err != nil {
+			t.Fatalf("Create returned unexpected error: %v", err)
+		}
+
+		if c.Response().Status != http.StatusOK {
+			t.Errorf("expected status %d (hypermedia redirect), got %d", http.StatusOK, c.Response().Status)
+		}
+	})
+}
+
+// TestSessions_Create_InvalidCredentials rejects wrong password.
+func TestSessions_Create_InvalidCredentials(t *testing.T) {
+	testDB.WithTx(t, func(tx {{if eq .DatabaseType "postgresql"}}pgx.Tx{{else}}*sql.Tx{{end}}) {
+		factories.CreateUser(tx,
+			factories.WithEmail("bob@example.com"),
+			factories.WithValidatedEmail(),
+		)
+
+		e := echo.New()
+		sessions := newSessionsController()
+
+		body := strings.NewReader(`{"email":"bob@example.com","password":"wrong-password"}`)
+		req := httptest.NewRequest(http.MethodPost, "/sign_in", body)
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		err := sessions.Create(c)
+		if err != nil {
+			t.Fatalf("Create returned unexpected error: %v", err)
+		}
+
+		if c.Response().Status != http.StatusSeeOther {
+			t.Errorf("expected status %d (redirect to login with flash), got %d", http.StatusSeeOther, c.Response().Status)
+		}
+	})
+}
+
+// TestSessions_Create_UnknownEmail rejects login for non-existent users.
+func TestSessions_Create_UnknownEmail(t *testing.T) {
+	testDB.WithTx(t, func(tx {{if eq .DatabaseType "postgresql"}}pgx.Tx{{else}}*sql.Tx{{end}}) {
+		e := echo.New()
+		sessions := newSessionsController()
+
+		body := strings.NewReader(`{"email":"nobody@example.com","password":"password123"}`)
+		req := httptest.NewRequest(http.MethodPost, "/sign_in", body)
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		err := sessions.Create(c)
+		if err != nil {
+			t.Fatalf("Create returned unexpected error: %v", err)
+		}
+
+		if c.Response().Status != http.StatusSeeOther {
+			t.Errorf("expected status %d (redirect to login), got %d", http.StatusSeeOther, c.Response().Status)
+		}
+	})
+}
+
+// TestSessions_Create_UnverifiedEmail rejects login before email verification.
+func TestSessions_Create_UnverifiedEmail(t *testing.T) {
+	testDB.WithTx(t, func(tx {{if eq .DatabaseType "postgresql"}}pgx.Tx{{else}}*sql.Tx{{end}}) {
+		factories.CreateUser(tx,
+			factories.WithEmail("carol@example.com"),
+			// Note: no WithValidatedEmail() — email is NOT verified
+		)
+
+		e := echo.New()
+		sessions := newSessionsController()
+
+		body := strings.NewReader(`{"email":"carol@example.com","password":"password123"}`)
+		req := httptest.NewRequest(http.MethodPost, "/sign_in", body)
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		err := sessions.Create(c)
+		if err != nil {
+			t.Fatalf("Create returned unexpected error: %v", err)
+		}
+
+		if c.Response().Status != http.StatusSeeOther {
+			t.Errorf("expected status %d (redirect with flash), got %d", http.StatusSeeOther, c.Response().Status)
+		}
+	})
+}
+
+// TestSessions_Destroy_Logout destroys the session and redirects to sign-in.
+func TestSessions_Destroy(t *testing.T) {
+	testDB.WithTx(t, func(tx {{if eq .DatabaseType "postgresql"}}pgx.Tx{{else}}*sql.Tx{{end}}) {
+		e := echo.New()
+		sessions := newSessionsController()
+
+		req := httptest.NewRequest(http.MethodDelete, "/sign_out", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		err := sessions.Destroy(c)
+		if err != nil {
+			t.Fatalf("Destroy returned unexpected error: %v", err)
+		}
+
+		if c.Response().Status != http.StatusSeeOther {
+			t.Errorf("expected status %d (redirect to login), got %d", http.StatusSeeOther, c.Response().Status)
+		}
+	})
+}
+
+// TestRegistrations_New renders the registration form successfully.
+func TestRegistrations_New(t *testing.T) {
+	e := echo.New()
+	registrations := newRegistrationsController()
+
+	req := httptest.NewRequest(http.MethodGet, "/sign_up", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err := registrations.New(c)
+	if err != nil {
+		t.Fatalf("New returned unexpected error: %v", err)
+	}
+
+	if c.Response().Status != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, c.Response().Status)
+	}
+}
+
+// TestRegistrations_Create_Success registers a new user and verifies DB state.
+func TestRegistrations_Create_Success(t *testing.T) {
+	testDB.WithTx(t, func(tx {{if eq .DatabaseType "postgresql"}}pgx.Tx{{else}}*sql.Tx{{end}}) {
+		e := echo.New()
+		registrations := newRegistrationsController()
+
+		body := strings.NewReader(`{"email":"dave@example.com","password":"mySecurePass99!","confirmPassword":"mySecurePass99!"}`)
+		req := httptest.NewRequest(http.MethodPost, "", body)
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		err := registrations.Create(c)
+		if err != nil {
+			t.Fatalf("Create returned unexpected error: %v", err)
+		}
+
+		if c.Response().Status != http.StatusOK {
+			t.Errorf("expected status %d (hypermedia redirect), got %d", http.StatusOK, c.Response().Status)
+		}
+
+		// Verify user was created in the database
+		var users []models.UserEntity
+		tx.NewSelect().Model(&users).Scan(context.Background())
+
+		if len(users) != 1 {
+			t.Fatalf("expected 1 user in DB, got %d", len(users))
+		}
+
+		if users[0].Email != "dave@example.com" {
+			t.Errorf("expected email dave@example.com, got %s", users[0].Email)
+		}
+
+		if users[0].HasValidatedEmail() {
+			t.Error("newly registered users should not have validated email")
+		}
+
+		// Verify password is hashed (not plaintext)
+		pwStr := string(users[0].Password)
+		if pwStr == "mySecurePass99!" {
+			t.Fatal("password should be hashed, not stored as plaintext")
+		}
+	})
+}
+
+// TestRegistrations_Create_DuplicateEmail rejects registration with existing email.
+func TestRegistrations_Create_DuplicateEmail(t *testing.T) {
+	testDB.WithTx(t, func(tx {{if eq .DatabaseType "postgresql"}}pgx.Tx{{else}}*sql.Tx{{end}}) {
+		factories.CreateUser(tx,
+			factories.WithEmail("existing@example.com"),
+			factories.WithValidatedEmail(),
+		)
+
+		e := echo.New()
+		registrations := newRegistrationsController()
+
+		body := strings.NewReader(`{"email":"existing@example.com","password":"anotherPass123","confirmPassword":"anotherPass123"}`)
+		req := httptest.NewRequest(http.MethodPost, "", body)
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		err := registrations.Create(c)
+		if err != nil {
+			t.Fatalf("Create returned unexpected error: %v", err)
+		}
+
+		if c.Response().Status != http.StatusSeeOther {
+			t.Errorf("expected status %d (redirect to signup with flash), got %d", http.StatusSeeOther, c.Response().Status)
+		}
+	})
+}
