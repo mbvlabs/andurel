@@ -21,6 +21,7 @@ import (
 	"{{.ModulePath}}/database"
 	"{{.ModulePath}}/models"
 	"{{.ModulePath}}/models/factories"
+	"{{.ModulePath}}/router/routes"
 )
 
 var testDB *database.TestDB
@@ -91,7 +92,7 @@ func TestSessions_New(t *testing.T) {
 	e := echo.New()
 	sessions := newSessionsController()
 
-	req := httptest.NewRequest(http.MethodGet, "/sign_in", nil)
+	req := httptest.NewRequest(http.MethodGet, routes.SessionNew.URL(), nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -117,7 +118,7 @@ func TestSessions_Create_LoginSuccess(t *testing.T) {
 		sessions := newSessionsController()
 
 		body := strings.NewReader(`{"email":"alice@example.com","password":"password123"}`)
-		req := httptest.NewRequest(http.MethodPost, "/sign_in", body)
+		req := httptest.NewRequest(http.MethodPost, routes.SessionCreate.URL(), body)
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
@@ -145,7 +146,7 @@ func TestSessions_Create_InvalidCredentials(t *testing.T) {
 		sessions := newSessionsController()
 
 		body := strings.NewReader(`{"email":"bob@example.com","password":"wrong-password"}`)
-		req := httptest.NewRequest(http.MethodPost, "/sign_in", body)
+		req := httptest.NewRequest(http.MethodPost, routes.SessionCreate.URL(), body)
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
@@ -168,7 +169,7 @@ func TestSessions_Create_UnknownEmail(t *testing.T) {
 		sessions := newSessionsController()
 
 		body := strings.NewReader(`{"email":"nobody@example.com","password":"password123"}`)
-		req := httptest.NewRequest(http.MethodPost, "/sign_in", body)
+		req := httptest.NewRequest(http.MethodPost, routes.SessionCreate.URL(), body)
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
@@ -196,7 +197,7 @@ func TestSessions_Create_UnverifiedEmail(t *testing.T) {
 		sessions := newSessionsController()
 
 		body := strings.NewReader(`{"email":"carol@example.com","password":"password123"}`)
-		req := httptest.NewRequest(http.MethodPost, "/sign_in", body)
+		req := httptest.NewRequest(http.MethodPost, routes.SessionCreate.URL(), body)
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
@@ -218,7 +219,7 @@ func TestSessions_Destroy(t *testing.T) {
 		e := echo.New()
 		sessions := newSessionsController()
 
-		req := httptest.NewRequest(http.MethodDelete, "/sign_out", nil)
+		req := httptest.NewRequest(http.MethodDelete, routes.SessionDestroy.URL(), nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
@@ -238,7 +239,7 @@ func TestRegistrations_New(t *testing.T) {
 	e := echo.New()
 	registrations := newRegistrationsController()
 
-	req := httptest.NewRequest(http.MethodGet, "/sign_up", nil)
+	req := httptest.NewRequest(http.MethodGet, routes.RegistrationNew.URL(), nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -259,7 +260,7 @@ func TestRegistrations_Create_Success(t *testing.T) {
 		registrations := newRegistrationsController()
 
 		body := strings.NewReader(`{"email":"dave@example.com","password":"mySecurePass99!","confirmPassword":"mySecurePass99!"}`)
-		req := httptest.NewRequest(http.MethodPost, "", body)
+		req := httptest.NewRequest(http.MethodPost, routes.RegistrationCreate.URL(), body)
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
@@ -309,7 +310,7 @@ func TestRegistrations_Create_DuplicateEmail(t *testing.T) {
 		registrations := newRegistrationsController()
 
 		body := strings.NewReader(`{"email":"existing@example.com","password":"anotherPass123","confirmPassword":"anotherPass123"}`)
-		req := httptest.NewRequest(http.MethodPost, "", body)
+		req := httptest.NewRequest(http.MethodPost, routes.RegistrationCreate.URL(), body)
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
