@@ -50,12 +50,25 @@ func NewProcessor(
 	return Processor{riverClient}, nil
 }
 
-type InsertOnly struct {
+// InsertOnly defines the interface for inserting jobs into the queue.
+type InsertOnly interface {
+	Insert(ctx context.Context, args river.JobArgs, opts *river.InsertOpts) (*rivertype.JobInsertResult, error)
+	InsertTx(ctx context.Context, tx pgx.Tx, args river.JobArgs, opts *river.InsertOpts) (*rivertype.JobInsertResult, error)
+	InsertMany(ctx context.Context, params []river.InsertManyParams) ([]*rivertype.JobInsertResult, error)
+	InsertManyTx(ctx context.Context, tx pgx.Tx, params []river.InsertManyParams) ([]*rivertype.JobInsertResult, error)
+	InsertManyFast(ctx context.Context, params []river.InsertManyParams) (int, error)
+	InsertManyFastTx(ctx context.Context, tx pgx.Tx, params []river.InsertManyParams) (int, error)
+}
+
+// insertOnlyImpl is the production implementation of InsertOnly.
+type insertOnlyImpl struct {
 	client *river.Client[pgx.Tx]
 }
 
-// Insert implements storage.InsertQueue.
-func (i *InsertOnly) Insert(
+var _ InsertOnly = (*insertOnlyImpl)(nil)
+
+// Insert implements InsertOnly.
+func (i *insertOnlyImpl) Insert(
 	ctx context.Context,
 	args river.JobArgs,
 	opts *river.InsertOpts,
@@ -63,24 +76,24 @@ func (i *InsertOnly) Insert(
 	return i.client.Insert(ctx, args, opts)
 }
 
-// InsertMany implements storage.InsertQueue.
-func (i *InsertOnly) InsertMany(
+// InsertMany implements InsertOnly.
+func (i *insertOnlyImpl) InsertMany(
 	ctx context.Context,
 	params []river.InsertManyParams,
 ) ([]*rivertype.JobInsertResult, error) {
 	return i.client.InsertMany(ctx, params)
 }
 
-// InsertManyFast implements storage.InsertQueue.
-func (i *InsertOnly) InsertManyFast(
+// InsertManyFast implements InsertOnly.
+func (i *insertOnlyImpl) InsertManyFast(
 	ctx context.Context,
 	params []river.InsertManyParams,
 ) (int, error) {
 	return i.client.InsertManyFast(ctx, params)
 }
 
-// InsertManyFastTx implements storage.InsertQueue.
-func (i *InsertOnly) InsertManyFastTx(
+// InsertManyFastTx implements InsertOnly.
+func (i *insertOnlyImpl) InsertManyFastTx(
 	ctx context.Context,
 	tx pgx.Tx,
 	params []river.InsertManyParams,
@@ -88,8 +101,8 @@ func (i *InsertOnly) InsertManyFastTx(
 	return i.client.InsertManyFastTx(ctx, tx, params)
 }
 
-// InsertManyTx implements storage.InsertQueue.
-func (i *InsertOnly) InsertManyTx(
+// InsertManyTx implements InsertOnly.
+func (i *insertOnlyImpl) InsertManyTx(
 	ctx context.Context,
 	tx pgx.Tx,
 	params []river.InsertManyParams,
@@ -97,8 +110,8 @@ func (i *InsertOnly) InsertManyTx(
 	return i.client.InsertManyTx(ctx, tx, params)
 }
 
-// InsertTx implements storage.InsertQueue.
-func (i *InsertOnly) InsertTx(
+// InsertTx implements InsertOnly.
+func (i *insertOnlyImpl) InsertTx(
 	ctx context.Context,
 	tx pgx.Tx,
 	args river.JobArgs,
@@ -107,15 +120,14 @@ func (i *InsertOnly) InsertTx(
 	return i.client.InsertTx(ctx, tx, args, opts)
 }
 
-var _ storage.InsertQueue = (*InsertOnly)(nil)
-
+// NewInsertOnly creates a new InsertOnly implementation.
 func NewInsertOnly(db storage.Pool, workers *river.Workers) (InsertOnly, error) {
 	riverClient, err := river.NewClient(riverpgxv5.New(db.Pool()), &river.Config{
 		Workers: workers,
 	})
 	if err != nil {
-		return InsertOnly{}, err
+		return nil, err
 	}
 
-	return InsertOnly{riverClient}, nil
+	return &insertOnlyImpl{client: riverClient}, nil
 }

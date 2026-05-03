@@ -7,21 +7,19 @@ import (
 	"strings"
 	"testing"
 
-{{- if eq .DatabaseType "postgresql" }}
 	"github.com/jackc/pgx/v5"
-{{- else }}
-	"database/sql"
-{{- end }}
 
 	"github.com/labstack/echo/v5"
+	"github.com/riverqueue/river"
+	"github.com/uptrace/bun"
 	"github.com/riverqueue/river/rivertype"
 
-	"{{.ModulePath}}/config"
-	"{{.ModulePath}}/controllers"
-	"{{.ModulePath}}/database"
-	"{{.ModulePath}}/models"
-	"{{.ModulePath}}/models/factories"
-	"{{.ModulePath}}/router/routes"
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/models/factories"
+	"{{.ModuleName}}/router/routes"
 )
 
 var testDB *database.TestDB
@@ -44,27 +42,27 @@ func TestMain(m *testing.M) {
 // so this allows registration tests without a running River worker.
 type noOpInsertOnly struct{}
 
-func (n *noOpInsertOnly) Insert(ctx context.Context, args rivertype.JobArgs, opts *rivertype.InsertOpts) (*rivertype.JobInsertResult, error) {
+func (n *noOpInsertOnly) Insert(ctx context.Context, args river.JobArgs, opts *river.InsertOpts) (*rivertype.JobInsertResult, error) {
 	return &rivertype.JobInsertResult{}, nil
 }
 
-func (n *noOpInsertOnly) InsertTx(ctx context.Context, tx pgx.Tx, args rivertype.JobArgs, opts *rivertype.InsertOpts) (*rivertype.JobInsertResult, error) {
+func (n *noOpInsertOnly) InsertTx(ctx context.Context, tx pgx.Tx, args river.JobArgs, opts *river.InsertOpts) (*rivertype.JobInsertResult, error) {
 	return &rivertype.JobInsertResult{}, nil
 }
 
-func (n *noOpInsertOnly) InsertMany(ctx context.Context, params []rivertype.InsertManyParams) ([]*rivertype.JobInsertResult, error) {
+func (n *noOpInsertOnly) InsertMany(ctx context.Context, params []river.InsertManyParams) ([]*rivertype.JobInsertResult, error) {
 	return nil, nil
 }
 
-func (n *noOpInsertOnly) InsertManyTx(ctx context.Context, tx pgx.Tx, params []rivertype.InsertManyParams) ([]*rivertype.JobInsertResult, error) {
+func (n *noOpInsertOnly) InsertManyTx(ctx context.Context, tx pgx.Tx, params []river.InsertManyParams) ([]*rivertype.JobInsertResult, error) {
 	return nil, nil
 }
 
-func (n *noOpInsertOnly) InsertManyFast(ctx context.Context, params []rivertype.InsertManyParams) (int, error) {
+func (n *noOpInsertOnly) InsertManyFast(ctx context.Context, params []river.InsertManyParams) (int, error) {
 	return 0, nil
 }
 
-func (n *noOpInsertOnly) InsertManyFastTx(ctx context.Context, tx pgx.Tx, params []rivertype.InsertManyParams) (int, error) {
+func (n *noOpInsertOnly) InsertManyFastTx(ctx context.Context, tx pgx.Tx, params []river.InsertManyParams) (int, error) {
 	return 0, nil
 }
 
@@ -101,16 +99,15 @@ func TestSessions_New(t *testing.T) {
 		t.Fatalf("New returned unexpected error: %v", err)
 	}
 
-	if c.Response().Status != http.StatusOK {
-		t.Errorf("expected status %d, got %d", http.StatusOK, c.Response().Status)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rec.Code)
 	}
 }
 
 // TestSessions_Create_LoginSuccess authenticates a user and creates a session.
 func TestSessions_Create_LoginSuccess(t *testing.T) {
-	testDB.WithTx(t, func(tx {{if eq .DatabaseType "postgresql"}}pgx.Tx{{else}}*sql.Tx{{end}}) {
-		factories.CreateUser(tx,
-			factories.WithEmail("alice@example.com"),
+	testDB.WithTx(t, func(tx bun.Tx) {
+		factories.CreateUser(context.Background(), tx,
 			factories.WithValidatedEmail(),
 		)
 
@@ -128,17 +125,16 @@ func TestSessions_Create_LoginSuccess(t *testing.T) {
 			t.Fatalf("Create returned unexpected error: %v", err)
 		}
 
-		if c.Response().Status != http.StatusOK {
-			t.Errorf("expected status %d (hypermedia redirect), got %d", http.StatusOK, c.Response().Status)
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected status %d (hypermedia redirect), got %d", http.StatusOK, rec.Code)
 		}
 	})
 }
 
 // TestSessions_Create_InvalidCredentials rejects wrong password.
 func TestSessions_Create_InvalidCredentials(t *testing.T) {
-	testDB.WithTx(t, func(tx {{if eq .DatabaseType "postgresql"}}pgx.Tx{{else}}*sql.Tx{{end}}) {
-		factories.CreateUser(tx,
-			factories.WithEmail("bob@example.com"),
+	testDB.WithTx(t, func(tx bun.Tx) {
+		factories.CreateUser(context.Background(), tx,
 			factories.WithValidatedEmail(),
 		)
 
@@ -156,15 +152,15 @@ func TestSessions_Create_InvalidCredentials(t *testing.T) {
 			t.Fatalf("Create returned unexpected error: %v", err)
 		}
 
-		if c.Response().Status != http.StatusSeeOther {
-			t.Errorf("expected status %d (redirect to login with flash), got %d", http.StatusSeeOther, c.Response().Status)
+		if rec.Code != http.StatusSeeOther {
+			t.Errorf("expected status %d (redirect to login with flash), got %d", http.StatusSeeOther, rec.Code)
 		}
 	})
 }
 
 // TestSessions_Create_UnknownEmail rejects login for non-existent users.
 func TestSessions_Create_UnknownEmail(t *testing.T) {
-	testDB.WithTx(t, func(tx {{if eq .DatabaseType "postgresql"}}pgx.Tx{{else}}*sql.Tx{{end}}) {
+	testDB.WithTx(t, func(tx bun.Tx) {
 		e := echo.New()
 		sessions := newSessionsController()
 
@@ -179,17 +175,16 @@ func TestSessions_Create_UnknownEmail(t *testing.T) {
 			t.Fatalf("Create returned unexpected error: %v", err)
 		}
 
-		if c.Response().Status != http.StatusSeeOther {
-			t.Errorf("expected status %d (redirect to login), got %d", http.StatusSeeOther, c.Response().Status)
+		if rec.Code != http.StatusSeeOther {
+			t.Errorf("expected status %d (redirect to login), got %d", http.StatusSeeOther, rec.Code)
 		}
 	})
 }
 
 // TestSessions_Create_UnverifiedEmail rejects login before email verification.
 func TestSessions_Create_UnverifiedEmail(t *testing.T) {
-	testDB.WithTx(t, func(tx {{if eq .DatabaseType "postgresql"}}pgx.Tx{{else}}*sql.Tx{{end}}) {
-		factories.CreateUser(tx,
-			factories.WithEmail("carol@example.com"),
+	testDB.WithTx(t, func(tx bun.Tx) {
+		factories.CreateUser(context.Background(), tx,
 			// Note: no WithValidatedEmail() — email is NOT verified
 		)
 
@@ -207,15 +202,15 @@ func TestSessions_Create_UnverifiedEmail(t *testing.T) {
 			t.Fatalf("Create returned unexpected error: %v", err)
 		}
 
-		if c.Response().Status != http.StatusSeeOther {
-			t.Errorf("expected status %d (redirect with flash), got %d", http.StatusSeeOther, c.Response().Status)
+		if rec.Code != http.StatusSeeOther {
+			t.Errorf("expected status %d (redirect with flash), got %d", http.StatusSeeOther, rec.Code)
 		}
 	})
 }
 
 // TestSessions_Destroy_Logout destroys the session and redirects to sign-in.
 func TestSessions_Destroy(t *testing.T) {
-	testDB.WithTx(t, func(tx {{if eq .DatabaseType "postgresql"}}pgx.Tx{{else}}*sql.Tx{{end}}) {
+	testDB.WithTx(t, func(tx bun.Tx) {
 		e := echo.New()
 		sessions := newSessionsController()
 
@@ -228,8 +223,8 @@ func TestSessions_Destroy(t *testing.T) {
 			t.Fatalf("Destroy returned unexpected error: %v", err)
 		}
 
-		if c.Response().Status != http.StatusSeeOther {
-			t.Errorf("expected status %d (redirect to login), got %d", http.StatusSeeOther, c.Response().Status)
+		if rec.Code != http.StatusSeeOther {
+			t.Errorf("expected status %d (redirect to login), got %d", http.StatusSeeOther, rec.Code)
 		}
 	})
 }
@@ -248,14 +243,14 @@ func TestRegistrations_New(t *testing.T) {
 		t.Fatalf("New returned unexpected error: %v", err)
 	}
 
-	if c.Response().Status != http.StatusOK {
-		t.Errorf("expected status %d, got %d", http.StatusOK, c.Response().Status)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rec.Code)
 	}
 }
 
 // TestRegistrations_Create_Success registers a new user and verifies DB state.
 func TestRegistrations_Create_Success(t *testing.T) {
-	testDB.WithTx(t, func(tx {{if eq .DatabaseType "postgresql"}}pgx.Tx{{else}}*sql.Tx{{end}}) {
+	testDB.WithTx(t, func(tx bun.Tx) {
 		e := echo.New()
 		registrations := newRegistrationsController()
 
@@ -270,8 +265,8 @@ func TestRegistrations_Create_Success(t *testing.T) {
 			t.Fatalf("Create returned unexpected error: %v", err)
 		}
 
-		if c.Response().Status != http.StatusOK {
-			t.Errorf("expected status %d (hypermedia redirect), got %d", http.StatusOK, c.Response().Status)
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected status %d (hypermedia redirect), got %d", http.StatusOK, rec.Code)
 		}
 
 		// Verify user was created in the database
@@ -300,9 +295,8 @@ func TestRegistrations_Create_Success(t *testing.T) {
 
 // TestRegistrations_Create_DuplicateEmail rejects registration with existing email.
 func TestRegistrations_Create_DuplicateEmail(t *testing.T) {
-	testDB.WithTx(t, func(tx {{if eq .DatabaseType "postgresql"}}pgx.Tx{{else}}*sql.Tx{{end}}) {
-		factories.CreateUser(tx,
-			factories.WithEmail("existing@example.com"),
+	testDB.WithTx(t, func(tx bun.Tx) {
+		factories.CreateUser(context.Background(), tx,
 			factories.WithValidatedEmail(),
 		)
 
@@ -320,8 +314,8 @@ func TestRegistrations_Create_DuplicateEmail(t *testing.T) {
 			t.Fatalf("Create returned unexpected error: %v", err)
 		}
 
-		if c.Response().Status != http.StatusSeeOther {
-			t.Errorf("expected status %d (redirect to signup with flash), got %d", http.StatusSeeOther, c.Response().Status)
+		if rec.Code != http.StatusSeeOther {
+			t.Errorf("expected status %d (redirect to signup with flash), got %d", http.StatusSeeOther, rec.Code)
 		}
 	})
 }

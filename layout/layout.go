@@ -948,7 +948,7 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 	builder.AddConfigField("Email", "email")
 
 	// Auth configuration
-	builder.AddConfigField("Auth", "auth")
+	builder.AddConfigField("Auth", "Auth")
 
 	// Auth controller dependencies and imports
 	builder.AddControllerImport(fmt.Sprintf("%s/config", moduleName))

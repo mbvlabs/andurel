@@ -2,12 +2,12 @@ package config
 
 import "github.com/caarlos0/env/v10"
 
-type auth struct {
+type Auth struct {
 	Pepper         string `env:"PEPPER"`
 }
 
-func newAuthConfig() auth {
-	authenticationCfg := auth{}
+func newAuthConfig() Auth {
+	authenticationCfg := Auth{}
 
 	if err := env.ParseWithOptions(&authenticationCfg, env.Options{
 		RequiredIfNoDef: true,
