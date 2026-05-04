@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,10 +12,11 @@ import (
 
 	"{{.ModuleName}}/internal/storage"
 
-	"github.com/uptrace/bun"
+	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/uptrace/bun"
 )
 
 type TestDB struct {
@@ -47,15 +47,15 @@ func NewTestDB() (*TestDB, error) {
 		return nil, fmt.Errorf("failed to get connection string: %w", err)
 	}
 
-	if err := runMigrations("postgres", dsn); err != nil {
-		pgContainer.Terminate(ctx)
-		return nil, fmt.Errorf("failed to run migrations: %w", err)
-	}
-
 	db, err := NewPostgres(ctx, dsn)
 	if err != nil {
 		pgContainer.Terminate(ctx)
 		return nil, fmt.Errorf("failed to connect to test database: %w", err)
+	}
+
+	if err := runMigrations(db); err != nil {
+		pgContainer.Terminate(ctx)
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	return &TestDB{
@@ -92,40 +92,53 @@ func (tdb *TestDB) WithTx(t *testing.T, fn func(tx bun.Tx)) {
 	fn(tx)
 }
 
-func runMigrations(driver, dsn string) error {
-	wd, err := os.Getwd()
+func findGoModRoot() (string, error) {
+	dir, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
+		return "", fmt.Errorf("could not get working directory: %w", err)
 	}
 
-	migrationsDir := filepath.Join(wd, "database", "migrations")
-
-	if _, err := os.Stat(migrationsDir); os.IsNotExist(err) {
-		cwd, _ := os.Getwd()
-		log.Printf("Warning: migrations directory not found at %s (cwd: %s)", migrationsDir, cwd)
-		return nil
-	}
-
-	db, err := sql.Open(driver, dsn)
-	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
-	}
-	defer db.Close()
-
-	files, err := filepath.Glob(filepath.Join(migrationsDir, "*.sql"))
-	if err != nil {
-		return fmt.Errorf("failed to list migrations: %w", err)
-	}
-
-	for _, file := range files {
-		content, err := os.ReadFile(file)
-		if err != nil {
-			return fmt.Errorf("failed to read migration %s: %w", file, err)
+	for {
+		goModPath := filepath.Join(dir, "go.mod")
+		if _, err := os.Stat(goModPath); err == nil {
+			return dir, nil
 		}
 
-		if _, err := db.Exec(string(content)); err != nil {
-			return fmt.Errorf("failed to execute migration %s: %w", file, err)
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
 		}
+		dir = parent
+	}
+
+	return "", fmt.Errorf("not in an andurel project: go.mod could not be found")
+}
+
+func runMigrations(db *Postgres) error {
+	rootDir, err := findGoModRoot()
+	if err != nil {
+		return err
+	}
+
+	goosePath := filepath.Join(rootDir, "bin", "goose")
+	if _, err := os.Stat(goosePath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf(
+				"goose binary not found at %s\nRun 'andurel tool sync' to download it",
+				goosePath,
+			)
+		}
+		return err
+	}
+
+	goose.SetBaseFS(Migrations)
+
+	if err := goose.SetDialect("postgres"); err != nil {
+		panic(err)
+	}
+
+	if err := goose.Up(db.Conn().DB, "migrations"); err != nil {
+		panic(err)
 	}
 
 	return nil

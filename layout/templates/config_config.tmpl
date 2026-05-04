@@ -83,10 +83,3 @@ func NewConfig() Config {
 {{- end}}
 	}
 }
-
-// NewTestConfig returns a Config suitable for testing with the given pepper.
-func NewTestConfig(pepper string) Config {
-	cfg := NewConfig()
-	cfg.Auth = auth{Pepper: pepper}
-	return cfg
-}

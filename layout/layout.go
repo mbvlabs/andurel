@@ -312,6 +312,7 @@ var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"env.tmpl":       ".env.example",
+	"env_test.tmpl":  ".env.test",
 	"gitignore.tmpl": ".gitignore",
 	"readme.tmpl":    "README.md",
 
