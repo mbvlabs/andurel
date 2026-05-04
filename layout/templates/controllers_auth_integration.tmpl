@@ -1,0 +1,529 @@
+package controllers_test
+
+import (
+	"context"
+	"encoding/hex"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/gorilla/sessions"
+	"github.com/joho/godotenv"
+	"github.com/labstack/echo/v5"
+
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/email"
+	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/models/factories"
+	"{{.ModuleName}}/queue"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/queue/workers"
+)
+
+const sessionStoreKey = "_session_store"
+
+// Load loads the environment variables from the .env file.
+func Load(envFile string) {
+	err := godotenv.Load(dir(envFile))
+	if err != nil {
+		panic(fmt.Errorf("error loading %s: %w", envFile, err))
+	}
+}
+
+// dir returns the absolute path of the given environment file (envFile) in the Go module's
+// root directory. It searches for the 'go.mod' file from the current working directory upwards
+// and appends the envFile to the directory containing 'go.mod'.
+// It panics if it fails to find the 'go.mod' file.
+func dir(envFile string) string {
+	currentDir, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+
+	for {
+		goModPath := filepath.Join(currentDir, "go.mod")
+		if _, err := os.Stat(goModPath); err == nil {
+			break
+		}
+
+		parent := filepath.Dir(currentDir)
+		if parent == currentDir {
+			panic(fmt.Errorf("go.mod not found"))
+		}
+		currentDir = parent
+	}
+
+	return filepath.Join(currentDir, envFile)
+}
+
+// setupSessionStore creates a gorilla CookieStore from config keys and attaches it
+// to the Echo context so that session.Get() works without the middleware running.
+func setupSessionStore(c *echo.Context) {
+	cfg := config.NewConfig()
+	authKey, _ := hex.DecodeString(cfg.App.SessionKey)
+	encKey, _ := hex.DecodeString(cfg.App.SessionEncryptionKey)
+	store := sessions.NewCookieStore(authKey, encKey)
+	c.Set(sessionStoreKey, store)
+}
+
+// newSessionsController creates a Sessions controller with the given pool.
+func newSessionsController(db storage.Pool) controllers.Sessions {
+	return controllers.NewSessions(db, config.NewConfig())
+}
+
+// noopTransactionalSender is a no-op implementation of email.TransactionalSender for tests.
+type noopTransactionalSender struct{}
+
+func (noopTransactionalSender) SendTransactional(_ context.Context, _ email.TransactionalPayload) error {
+	return nil
+}
+
+// noopMarketingSender is a no-op implementation of email.MarketingSender for tests.
+type noopMarketingSender struct{}
+
+func (noopMarketingSender) SendMarketing(_ context.Context, _ email.MarketingPayload) error {
+	return nil
+}
+
+// newRegistrationsController creates a Registrations controller with the given pool
+// and an insert-only queue with registered workers (using no-op email senders in tests).
+func newRegistrationsController(db storage.Pool) controllers.Registrations {
+	wrks, err := workers.Register(noopTransactionalSender{}, noopMarketingSender{})
+	if err != nil {
+		panic(fmt.Errorf("failed to register workers: %w", err))
+	}
+	insertOnly, err := queue.NewInsertOnly(db, wrks)
+	if err != nil {
+		panic(err)
+	}
+	return controllers.NewRegistrations(
+		db,
+		insertOnly,
+		config.NewConfig(),
+	)
+}
+
+// seedUser creates a validated user within its own transaction on the given pool.
+func seedUser(ctx context.Context, db storage.Pool, email string) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	_, err = factories.CreateUser(ctx, tx,
+		factories.WithEmail(email),
+		factories.WithValidatedEmail(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// TestSessions_New renders the login form successfully.
+func TestSessions_New(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := database.NewTestDB()
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+		panic(err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	ctx := context.Background()
+
+	if err := testDB.DB.Pool().Ping(ctx); err != nil {
+		panic(err)
+	}
+
+	e := echo.New()
+	sessions := newSessionsController(testDB.DB)
+
+	req := httptest.NewRequest(http.MethodGet, routes.SessionNew.URL(), nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	setupSessionStore(c)
+
+	err = sessions.New(c)
+	if err != nil {
+		t.Fatalf("New returned unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+}
+
+// TestSessions_Create_LoginSuccess authenticates a user and creates a session.
+func TestSessions_Create_LoginSuccess(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := database.NewTestDB()
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+		panic(err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	ctx := context.Background()
+
+	if err := testDB.DB.Pool().Ping(ctx); err != nil {
+		panic(err)
+	}
+
+	if err := seedUser(ctx, testDB.DB, "alice@example.com"); err != nil {
+		t.Fatalf("failed to seed user: %v", err)
+	}
+
+	e := echo.New()
+	sessions := newSessionsController(testDB.DB)
+
+	body := strings.NewReader(`{"email":"alice@example.com","password":"password123"}`)
+	req := httptest.NewRequest(http.MethodPost, routes.SessionCreate.URL(), body)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	setupSessionStore(c)
+
+	if err := sessions.Create(c); err != nil {
+		t.Fatalf("Create returned unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status %d (hypermedia redirect), got %d", http.StatusOK, rec.Code)
+	}
+
+	user, err := models.User.FindByEmail(ctx, testDB.DB.Conn(), "alice@example.com")
+	if err != nil {
+		t.Fatalf("Expected to find user but got error: %v", err)
+	}
+
+	if user.Email != "alice@example.com" {
+		t.Fatalf("Expected to find user email to be: alice@example.com but got: %s", user.Email)
+	}
+}
+
+// TestSessions_Create_InvalidCredentials rejects wrong password.
+func TestSessions_Create_InvalidCredentials(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := database.NewTestDB()
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+		panic(err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	ctx := context.Background()
+
+	if err := testDB.DB.Pool().Ping(ctx); err != nil {
+		panic(err)
+	}
+
+	if err := seedUser(ctx, testDB.DB, "bob@example.com"); err != nil {
+		t.Fatalf("failed to seed user: %v", err)
+	}
+
+	e := echo.New()
+	sessions := newSessionsController(testDB.DB)
+
+	body := strings.NewReader(`{"email":"bob@example.com","password":"wrong-password"}`)
+	req := httptest.NewRequest(http.MethodPost, routes.SessionCreate.URL(), body)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	setupSessionStore(c)
+
+	if err := sessions.Create(c); err != nil {
+		t.Fatalf("Create returned unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusSeeOther {
+		t.Errorf("expected status %d (redirect to login with flash), got %d", http.StatusSeeOther, rec.Code)
+	}
+}
+
+// TestSessions_Create_UnknownEmail rejects login for non-existent users.
+func TestSessions_Create_UnknownEmail(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := database.NewTestDB()
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+		panic(err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	ctx := context.Background()
+
+	if err := testDB.DB.Pool().Ping(ctx); err != nil {
+		panic(err)
+	}
+
+	e := echo.New()
+	sessions := newSessionsController(testDB.DB)
+
+	body := strings.NewReader(`{"email":"nobody@example.com","password":"password123"}`)
+	req := httptest.NewRequest(http.MethodPost, routes.SessionCreate.URL(), body)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	setupSessionStore(c)
+
+	if err := sessions.Create(c); err != nil {
+		t.Fatalf("Create returned unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusSeeOther {
+		t.Errorf("expected status %d (redirect to login), got %d", http.StatusSeeOther, rec.Code)
+	}
+}
+
+// TestSessions_Create_UnverifiedEmail rejects login before email verification.
+func TestSessions_Create_UnverifiedEmail(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := database.NewTestDB()
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+		panic(err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	ctx := context.Background()
+
+	if err := testDB.DB.Pool().Ping(ctx); err != nil {
+		panic(err)
+	}
+
+	_, err = factories.CreateUser(ctx, testDB.DB.Conn(),
+		factories.WithEmail("carol@example.com"),
+		// Note: no WithValidatedEmail() — email is NOT verified
+	)
+	if err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	e := echo.New()
+	sessions := newSessionsController(testDB.DB)
+
+	body := strings.NewReader(`{"email":"carol@example.com","password":"password123"}`)
+	req := httptest.NewRequest(http.MethodPost, routes.SessionCreate.URL(), body)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	setupSessionStore(c)
+
+	if err := sessions.Create(c); err != nil {
+		t.Fatalf("Create returned unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusSeeOther {
+		t.Errorf("expected status %d (redirect with flash), got %d", http.StatusSeeOther, rec.Code)
+	}
+}
+
+// TestSessions_Destroy_Logout destroys the session and redirects to sign-in.
+func TestSessions_Destroy(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := database.NewTestDB()
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+		panic(err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	ctx := context.Background()
+
+	if err := testDB.DB.Pool().Ping(ctx); err != nil {
+		panic(err)
+	}
+
+	e := echo.New()
+	sessions := newSessionsController(testDB.DB)
+
+	req := httptest.NewRequest(http.MethodDelete, routes.SessionDestroy.URL(), nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	setupSessionStore(c)
+
+	if err := sessions.Destroy(c); err != nil {
+		t.Fatalf("Destroy returned unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusSeeOther {
+		t.Errorf("expected status %d (redirect to login), got %d", http.StatusSeeOther, rec.Code)
+	}
+}
+
+// TestRegistrations_New renders the registration form successfully.
+func TestRegistrations_New(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := database.NewTestDB()
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+		panic(err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	ctx := context.Background()
+
+	if err := testDB.DB.Pool().Ping(ctx); err != nil {
+		panic(err)
+	}
+
+	e := echo.New()
+	registrations := newRegistrationsController(testDB.DB)
+
+	req := httptest.NewRequest(http.MethodGet, routes.RegistrationNew.URL(), nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err = registrations.New(c)
+	if err != nil {
+		t.Fatalf("New returned unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+}
+
+// TestRegistrations_Create_Success registers a new user and verifies DB state.
+func TestRegistrations_Create_Success(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := database.NewTestDB()
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+		panic(err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	ctx := context.Background()
+
+	if err := testDB.DB.Pool().Ping(ctx); err != nil {
+		panic(err)
+	}
+
+	e := echo.New()
+	registrations := newRegistrationsController(testDB.DB)
+
+	body := strings.NewReader(`{"email":"dave@example.com","password":"mySecurePass99!","confirmPassword":"mySecurePass99!"}`)
+	req := httptest.NewRequest(http.MethodPost, routes.RegistrationCreate.URL(), body)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	setupSessionStore(c)
+
+	if err := registrations.Create(c); err != nil {
+		t.Fatalf("Create returned unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status %d (hypermedia redirect), got %d", http.StatusOK, rec.Code)
+	}
+
+	users, err := models.User.All(ctx, testDB.DB.Conn())
+	if err != nil {
+		t.Fatalf("Failed to find users: %v", err)
+	}
+
+	if len(users) != 1 {
+		t.Fatalf("expected 1 user in DB, got %d", len(users))
+	}
+
+	if users[0].Email != "dave@example.com" {
+		t.Errorf("expected email dave@example.com, got %s", users[0].Email)
+	}
+
+	if users[0].HasValidatedEmail() {
+		t.Error("newly registered users should not have validated email")
+	}
+
+	// Verify password is hashed (not plaintext)
+	pwStr := string(users[0].Password)
+	if pwStr == "mySecurePass99!" {
+		t.Fatal("password should be hashed, not stored as plaintext")
+	}
+}
+
+// TestRegistrations_Create_DuplicateEmail rejects registration with existing email.
+func TestRegistrations_Create_DuplicateEmail(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := database.NewTestDB()
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+		panic(err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	ctx := context.Background()
+
+	if err := testDB.DB.Pool().Ping(ctx); err != nil {
+		panic(err)
+	}
+
+	if err := seedUser(ctx, testDB.DB, "existing@example.com"); err != nil {
+		t.Fatalf("failed to seed user: %v", err)
+	}
+
+	e := echo.New()
+	registrations := newRegistrationsController(testDB.DB)
+
+	body := strings.NewReader(`{"email":"existing@example.com","password":"anotherPass123","confirmPassword":"anotherPass123"}`)
+	req := httptest.NewRequest(http.MethodPost, routes.RegistrationCreate.URL(), body)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	setupSessionStore(c)
+
+	if err := registrations.Create(c); err != nil {
+		t.Fatalf("Create returned unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusSeeOther {
+		t.Errorf("expected status %d (redirect to signup with flash), got %d", http.StatusSeeOther, rec.Code)
+	}
+}

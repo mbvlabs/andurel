@@ -107,8 +107,6 @@ func (i *InsertOnly) InsertTx(
 	return i.client.InsertTx(ctx, tx, args, opts)
 }
 
-var _ storage.InsertQueue = (*InsertOnly)(nil)
-
 func NewInsertOnly(db storage.Pool, workers *river.Workers) (InsertOnly, error) {
 	riverClient, err := river.NewClient(riverpgxv5.New(db.Pool()), &river.Config{
 		Workers: workers,
