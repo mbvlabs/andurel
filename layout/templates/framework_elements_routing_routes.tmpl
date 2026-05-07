@@ -353,27 +353,23 @@ func (r RouteWithFile) GetParam() string {
 	return "file"
 }
 
-type RouteWithSlugs[Params any] Route
+type RouteWithParams[Params any] Route
 
-func NewRouteWithSlugs[Params any](path, name, prefix string) RouteWithSlugs[Params] {
-	return RouteWithSlugs[Params]{name, path, prefix}
+func NewRouteWithParams[Params any](path, name, prefix string) RouteWithParams[Params] {
+	return RouteWithParams[Params]{name, path, prefix}
 }
 
-var _ SlugsRoute[any] = (*RouteWithSlugs[any])(nil)
+var _ ParamsRoute[any] = (*RouteWithParams[any])(nil)
 
-func (r RouteWithSlugs[Params]) Name() string {
+func (r RouteWithParams[Params]) Name() string {
 	return configureName(r.name, r.prefix)
 }
 
-func (r RouteWithSlugs[Params]) Path() string {
+func (r RouteWithParams[Params]) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
-func (r RouteWithSlugs[Params]) tag() string {
-	return "slug"
-}
-
-func (r RouteWithSlugs[Params]) URL(params Params, opts ...RouteOption) string {
+func (r RouteWithParams[Params]) URL(params Params, opts ...RouteOption) string {
 	result := make(map[string]string)
 	v := reflect.ValueOf(params)
 	if v.Kind() != reflect.Struct {
@@ -383,7 +379,7 @@ func (r RouteWithSlugs[Params]) URL(params Params, opts ...RouteOption) string {
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
-		slugTag := field.Tag.Get(r.tag())
+		slugTag := field.Tag.Get("param")
 		if slugTag == "" {
 			continue
 		}
