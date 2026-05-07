@@ -1,0 +1,142 @@
+package controllers_test
+
+import (
+	"context"
+	"encoding/hex"
+	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/gorilla/sessions"
+	"github.com/joho/godotenv"
+	"github.com/labstack/echo/v5"
+	"github.com/stretchr/testify/mock"
+
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/email"
+	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/models/factories"
+)
+
+const sessionStoreKey = "_session_store"
+
+// Load loads the environment variables from the .env file.
+func Load(envFile string) {
+	err := godotenv.Load(dir(envFile))
+	if err != nil {
+		panic(fmt.Errorf("error loading %s: %w", envFile, err))
+	}
+}
+
+// dir returns the absolute path of the given environment file (envFile) in the Go module's
+// root directory. It searches for the 'go.mod' file from the current working directory upwards
+// and appends the envFile to the directory containing 'go.mod'.
+// It panics if it fails to find the 'go.mod' file.
+func dir(envFile string) string {
+	currentDir, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+
+	for {
+		goModPath := filepath.Join(currentDir, "go.mod")
+		if _, err := os.Stat(goModPath); err == nil {
+			break
+		}
+
+		parent := filepath.Dir(currentDir)
+		if parent == currentDir {
+			panic(fmt.Errorf("go.mod not found"))
+		}
+		currentDir = parent
+	}
+
+	return filepath.Join(currentDir, envFile)
+}
+
+// setupSessionStore creates a gorilla CookieStore from config keys and attaches it
+// to the Echo context so that session.Get() works without the middleware running.
+func setupSessionStore(c *echo.Context) {
+	cfg := config.NewConfig()
+	authKey, _ := hex.DecodeString(cfg.App.SessionKey)
+	encKey, _ := hex.DecodeString(cfg.App.SessionEncryptionKey)
+	store := sessions.NewCookieStore(authKey, encKey)
+	c.Set(sessionStoreKey, store)
+}
+
+// MockTransactionalSender implements email.TransactionalSender using testify/mock.
+type MockTransactionalSender struct {
+	mock.Mock
+}
+
+func (m *MockTransactionalSender) SendTransactional(
+	ctx context.Context, payload email.TransactionalPayload,
+) error {
+	args := m.Called(ctx, payload)
+	return args.Error(0)
+}
+
+// MockMarketingSender implements email.MarketingSender using testify/mock.
+type MockMarketingSender struct {
+	mock.Mock
+}
+
+func (m *MockMarketingSender) SendMarketing(
+	ctx context.Context, payload email.MarketingPayload,
+) error {
+	args := m.Called(ctx, payload)
+	return args.Error(0)
+}
+
+// getCookieValue extracts the value of a named cookie from Set-Cookie headers.
+func getCookieValue(headers http.Header, name string) string {
+	for _, h := range headers.Values("Set-Cookie") {
+		if idx := strings.Index(h, "="); idx > 0 && h[:idx] == name {
+			rest := h[idx+1:]
+			if semi := strings.Index(rest, ";"); semi > 0 {
+				return rest[:semi]
+			}
+			return rest
+		}
+	}
+	return ""
+}
+
+// seedUser creates a validated user with password "password123" within its own
+// transaction on the given pool.
+func seedUser(ctx context.Context, db storage.Pool, email string) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	_, err = factories.CreateUser(ctx, tx,
+		factories.WithEmail(email),
+		factories.WithValidatedEmail(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+var testContainer *database.TestDBContainer
+
+func TestMain(m *testing.M) {
+	var err error
+	testContainer, err = database.NewTestDBContainer(context.Background())
+	if err != nil {
+		panic(fmt.Sprintf("failed to start test DB container: %v", err))
+	}
+	code := m.Run()
+	testContainer.Cleanup()
+	os.Exit(code)
+}

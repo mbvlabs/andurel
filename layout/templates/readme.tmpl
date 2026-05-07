@@ -590,8 +590,8 @@ This project includes a built-in integration testing framework that makes it eas
 ### Test Infrastructure
 
 The framework provides:
-- **Automatic test database setup**: Uses [testcontainers](https://golang.testcontainers.org/) to spin up PostgreSQL in Docker
-- **Transaction-based tests**: Each test runs in a transaction that automatically rolls back, keeping tests isolated
+- **Shared PostgreSQL container**: A single Docker container is started once for all tests, with per-test databases created inside it — no need to spin up a new container for each test
+- **Transaction-based tests**: Each test runs in a transaction that automatically rolls back, keeping tests isolated within their database
 - **Factory pattern**: Simple builders for creating test data with sensible defaults
 
 ### Writing Controller Tests
@@ -602,8 +602,11 @@ The framework provides:
 package controllers_test
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/labstack/echo/v5"
@@ -614,20 +617,26 @@ import (
 	"{{.ModuleName}}/models/factories"
 )
 
-var testDB *database.TestDB
+var testContainer *database.TestDBContainer
 
 func TestMain(m *testing.M) {
 	var err error
-	testDB, err = database.NewTestDB()
+	testContainer, err = database.NewTestDBContainer(context.Background())
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("failed to start test DB container: %v", err))
 	}
-	defer testDB.Close()
-
-	m.Run()
+	code := m.Run()
+	testContainer.Cleanup()
+	os.Exit(code)
 }
 
 func TestProducts_Create(t *testing.T) {
+	testDB, err := testContainer.CreateDB("test_products_create")
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+	}
+	t.Cleanup(func() { testDB.Close() })
+
 {{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx pgx.Tx) {
 {{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
 {{end}}		controller := controllers.NewProducts(testDB.DB)
