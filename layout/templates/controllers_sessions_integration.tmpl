@@ -1,0 +1,238 @@
+package controllers_test
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/labstack/echo/v5"
+	"github.com/stretchr/testify/assert"
+
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/models/factories"
+	"{{.ModuleName}}/router/routes"
+)
+
+// newSessionsController creates a Sessions controller with the given pool.
+func newSessionsController(db storage.Pool) controllers.Sessions {
+	return controllers.NewSessions(db, config.NewConfig())
+}
+
+// TestSessions_New renders the login form successfully.
+func TestSessions_New(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := testContainer.CreateDB(context.Background(), "test_sessions_new")
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	e := echo.New()
+	sessions := newSessionsController(testDB.DB)
+
+	req := httptest.NewRequest(http.MethodGet, routes.SessionNew.URL(), nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	setupSessionStore(c)
+
+	err = sessions.New(c)
+	assert.NoError(t, err)
+
+	assert.Contains(t, rec.Body.String(), `data-bind="email"`)
+	assert.Contains(t, rec.Body.String(), "Login to your account")
+}
+
+// TestSessions_Create_LoginSuccess authenticates and sets a session cookie.
+func TestSessions_Create_LoginSuccess(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := testContainer.CreateDB(context.Background(), "test_sessions_login_success")
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	ctx := context.Background()
+
+	if err := seedUser(ctx, testDB.DB, "alice@example.com"); err != nil {
+		t.Fatalf("failed to seed user: %v", err)
+	}
+
+	e := echo.New()
+	sessions := newSessionsController(testDB.DB)
+
+	body := strings.NewReader(`{"email":"alice@example.com","password":"password123"}`)
+	req := httptest.NewRequest(http.MethodPost, routes.SessionCreate.URL(), body)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	setupSessionStore(c)
+
+	err = sessions.Create(c)
+	assert.NoError(t, err)
+
+	assert.Contains(t, rec.Body.String(), "flashContainer")
+	assert.Contains(t, rec.Body.String(), "Successfully logged in")
+
+	cookieVal := getCookieValue(rec.Header(), "app_session")
+	assert.NotEmpty(t, cookieVal, "session cookie should be set on successful login")
+
+	user, err := models.User.FindByEmail(ctx, testDB.DB.Conn(), "alice@example.com")
+	assert.NoError(t, err)
+	assert.Equal(t, "alice@example.com", user.Email)
+}
+
+// TestSessions_Create_InvalidCredentials rejects wrong password.
+func TestSessions_Create_InvalidCredentials(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := testContainer.CreateDB(context.Background(), "test_sessions_invalid_creds")
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	ctx := context.Background()
+
+	if err := seedUser(ctx, testDB.DB, "bob@example.com"); err != nil {
+		t.Fatalf("failed to seed user: %v", err)
+	}
+
+	beforeCount, err := models.User.All(ctx, testDB.DB.Conn())
+	assert.NoError(t, err)
+
+	e := echo.New()
+	sessions := newSessionsController(testDB.DB)
+
+	body := strings.NewReader(`{"email":"bob@example.com","password":"wrong-password"}`)
+	req := httptest.NewRequest(http.MethodPost, routes.SessionCreate.URL(), body)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	setupSessionStore(c)
+
+	err = sessions.Create(c)
+	assert.NoError(t, err)
+
+	assert.Contains(t, rec.Body.String(), `data-bind="email"`)
+	assert.Contains(t, rec.Body.String(), "Login to your account")
+
+	afterCount, err := models.User.All(ctx, testDB.DB.Conn())
+	assert.NoError(t, err)
+	assert.Len(t, afterCount, len(beforeCount), "no new user should be created")
+}
+
+// TestSessions_Create_UnknownEmail rejects non-existent users.
+func TestSessions_Create_UnknownEmail(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := testContainer.CreateDB(context.Background(), "test_sessions_unknown_email")
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	e := echo.New()
+	sessions := newSessionsController(testDB.DB)
+
+	body := strings.NewReader(`{"email":"nobody@example.com","password":"password123"}`)
+	req := httptest.NewRequest(http.MethodPost, routes.SessionCreate.URL(), body)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	setupSessionStore(c)
+
+	err = sessions.Create(c)
+	assert.NoError(t, err)
+
+	assert.Contains(t, rec.Body.String(), `data-bind="email"`)
+	assert.Contains(t, rec.Body.String(), "Login to your account")
+}
+
+// TestSessions_Create_UnverifiedEmail rejects login before email verification.
+func TestSessions_Create_UnverifiedEmail(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := testContainer.CreateDB(context.Background(), "test_sessions_unverified")
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	ctx := context.Background()
+
+	_, err = factories.CreateUser(ctx, testDB.DB.Conn(),
+		factories.WithEmail("carol@example.com"),
+	)
+	assert.NoError(t, err)
+
+	user, err := models.User.FindByEmail(ctx, testDB.DB.Conn(), "carol@example.com")
+	assert.NoError(t, err)
+	assert.Nil(t, user.EmailValidatedAt, "user email should not be validated")
+
+	e := echo.New()
+	sessions := newSessionsController(testDB.DB)
+
+	body := strings.NewReader(`{"email":"carol@example.com","password":"password123"}`)
+	req := httptest.NewRequest(http.MethodPost, routes.SessionCreate.URL(), body)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	setupSessionStore(c)
+
+	err = sessions.Create(c)
+	assert.NoError(t, err)
+
+	assert.Contains(t, rec.Body.String(), `data-bind="email"`)
+	assert.Contains(t, rec.Body.String(), "Login to your account")
+}
+
+// TestSessions_Destroy destroys the session and redirects back to login.
+func TestSessions_Destroy(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := testContainer.CreateDB(context.Background(), "test_sessions_destroy")
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	e := echo.New()
+	sessions := newSessionsController(testDB.DB)
+
+	req := httptest.NewRequest(http.MethodDelete, routes.SessionDestroy.URL(), nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	setupSessionStore(c)
+
+	err = sessions.Destroy(c)
+	assert.NoError(t, err)
+
+	assert.Contains(t, rec.Body.String(), "flashContainer")
+	assert.Contains(t, rec.Body.String(), "Successfully logged out")
+	assert.Contains(t, rec.Body.String(), `data-bind="email"`)
+}

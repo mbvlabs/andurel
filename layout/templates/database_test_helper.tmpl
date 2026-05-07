@@ -2,32 +2,38 @@ package database
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
-	"{{.ModuleName}}/internal/storage"
-
+	"github.com/jackc/pgx/v5"
 	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/uptrace/bun"
+
+	"{{.ModuleName}}/internal/storage"
 )
 
-type TestDB struct {
-	DB        storage.Pool
-	Container *postgres.PostgresContainer
-	DSN       string
+// TestDBContainer manages a single shared PostgreSQL container and provides
+// per-test isolated databases within that container. This is significantly
+// faster than spinning up a container per test.
+type TestDBContainer struct {
+	container *postgres.PostgresContainer
+	host      string
+	port      string
+	user      string
+	password  string
+	ctx       context.Context
 }
 
-func NewTestDB() (*TestDB, error) {
-	ctx := context.Background()
-
+// NewTestDBContainer starts a single shared PostgreSQL container. Call this
+// once in TestMain or package-level init, not per-test.
+func NewTestDBContainer(ctx context.Context) (*TestDBContainer, error) {
 	pgContainer, err := postgres.Run(ctx,
 		"postgres:17-alpine",
 		postgres.WithDatabase("testdb"),
@@ -42,33 +48,106 @@ func NewTestDB() (*TestDB, error) {
 		return nil, fmt.Errorf("failed to start postgres container: %w", err)
 	}
 
-	dsn, err := pgContainer.ConnectionString(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get connection string: %w", err)
-	}
-
-	db, err := NewPostgres(ctx, dsn)
+	// Use PortEndpoint to get the properly mapped host:port from Docker
+	endpoint, err := pgContainer.PortEndpoint(ctx, "5432/tcp", "")
 	if err != nil {
 		pgContainer.Terminate(ctx)
-		return nil, fmt.Errorf("failed to connect to test database: %w", err)
+		return nil, fmt.Errorf("failed to get port endpoint: %w", err)
+	}
+
+	// Parse "host:port" from endpoint — it may be "localhost:12345" or just "12345"
+	host := "localhost"
+	port := "5432"
+	if idx := strings.LastIndex(endpoint, ":"); idx > 0 {
+		host = endpoint[:idx]
+		port = endpoint[idx+1:]
+	}
+
+	return &TestDBContainer{
+		container: pgContainer,
+		host:      host,
+		port:      port,
+		user:      "testuser",
+		password:  "testpass",
+		ctx:       ctx,
+	}, nil
+}
+
+// CreateDB creates a new isolated database within the shared container, runs
+// migrations on it, and returns a fully configured TestDB ready for use.
+// Each call creates a separate database so tests remain isolated from each other.
+// Databases are automatically cleaned up when the container is terminated.
+func (c *TestDBContainer) CreateDB(ctx context.Context, name string) (*TestDB, error) {
+	adminDSN := c.adminDSN()
+	adminConn, err := c.connectAdmin(adminDSN)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to admin database: %w", err)
+	}
+	defer adminConn.Close(ctx)
+
+	if _, err := adminConn.Exec(ctx, fmt.Sprintf(`CREATE DATABASE "%s"`, name)); err != nil {
+		adminConn.Close(ctx)
+		return nil, fmt.Errorf("failed to create database %q: %w", name, err)
+	}
+
+	testDSN := c.databaseDSN(name)
+
+	db, err := NewPostgres(ctx, testDSN)
+	if err != nil {
+		adminConn.Exec(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS "%s" WITH (FORCE)`, name))
+		adminConn.Close(ctx)
+		return nil, fmt.Errorf("failed to connect to test database %q: %w", name, err)
 	}
 
 	if err := runMigrations(db); err != nil {
-		pgContainer.Terminate(ctx)
-		return nil, fmt.Errorf("failed to run migrations: %w", err)
+		adminConn.Exec(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS "%s" WITH (FORCE)`, name))
+		db.Close()
+		return nil, fmt.Errorf("failed to run migrations on %q: %w", name, err)
 	}
 
 	return &TestDB{
 		DB:        db,
-		Container: pgContainer,
-		DSN:       dsn,
+		Container: c.container,
+		DSN:       testDSN,
 	}, nil
 }
 
+// Cleanup terminates the shared PostgreSQL container. Call this in TestMain
+// after all tests complete.
+func (c *TestDBContainer) Cleanup() error {
+	return c.container.Terminate(c.ctx)
+}
+
+// ConnectionString returns the full connection string for the base container database.
+func (c *TestDBContainer) ConnectionString() string {
+	return c.databaseDSN("testdb")
+}
+
+func (c *TestDBContainer) databaseDSN(dbName string) string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		c.user, c.password, c.host, c.port, dbName)
+}
+
+func (c *TestDBContainer) adminDSN() string {
+	return c.databaseDSN("testdb")
+}
+
+func (c *TestDBContainer) connectAdmin(dsn string) (*pgx.Conn, error) {
+	return pgx.Connect(c.ctx, dsn)
+}
+
+// TestDB wraps a database connection and the shared container reference.
+type TestDB struct {
+	DB        storage.Pool
+	Container *postgres.PostgresContainer
+	DSN       string
+}
+
+// Close is kept for backward compatibility but does nothing when using
+// TestDBContainer — use container.Cleanup() instead.
 func (tdb *TestDB) Close() error {
-	ctx := context.Background()
-	if tdb.Container != nil {
-		return tdb.Container.Terminate(ctx)
+	if tdb.DB != nil {
+		return tdb.DB.Close()
 	}
 	return nil
 }
@@ -84,7 +163,7 @@ func (tdb *TestDB) WithTx(t *testing.T, fn func(tx bun.Tx)) {
 		t.Fatalf("failed to begin transaction: %v", err)
 	}
 	defer func() {
-		if rbErr := tx.Rollback(); rbErr != nil && !errors.Is(rbErr, sql.ErrTxDone) {
+		if rbErr := tx.Rollback(); rbErr != nil && rbErr.Error() != "tx already closed" {
 			t.Errorf("failed to rollback transaction: %v", rbErr)
 		}
 	}()

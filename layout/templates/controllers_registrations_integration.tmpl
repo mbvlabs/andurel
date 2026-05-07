@@ -1,0 +1,145 @@
+package controllers_test
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/labstack/echo/v5"
+	"github.com/stretchr/testify/assert"
+
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/queue"
+	"{{.ModuleName}}/queue/workers"
+	"{{.ModuleName}}/router/routes"
+)
+
+// newRegistrationsController creates a Registrations controller with an insert-only queue
+// backed by noop workers so jobs are inserted but never executed.
+func newRegistrationsController(db storage.Pool) controllers.Registrations {
+	wrks, _ := workers.Register(noopWorker{}, noopWorker{})
+	insertOnly, _ := queue.NewInsertOnly(db, wrks)
+	return controllers.NewRegistrations(db, insertOnly, config.NewConfig())
+}
+
+type noopWorker struct{}
+
+func (noopWorker) Kind() string                          { return "noop" }
+func (noopWorker) Run(ctx context.Context, job *river.Job[struct{}]) error { return nil }
+
+// TestRegistrations_New renders the registration form successfully.
+func TestRegistrations_New(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := testContainer.CreateDB(context.Background(), "test_registrations_new")
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	e := echo.New()
+	registrations := newRegistrationsController(testDB.DB)
+
+	req := httptest.NewRequest(http.MethodGet, routes.RegistrationNew.URL(), nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err = registrations.New(c)
+	assert.NoError(t, err)
+
+	assert.Contains(t, rec.Body.String(), `data-bind="email"`)
+	assert.Contains(t, rec.Body.String(), "Create an account")
+}
+
+// TestRegistrations_Create_Success registers a user and verifies DB state.
+func TestRegistrations_Create_Success(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := testContainer.CreateDB(context.Background(), "test_registrations_success")
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	ctx := context.Background()
+
+	beforeCount, err := models.User.All(ctx, testDB.DB.Conn())
+	assert.NoError(t, err)
+
+	e := echo.New()
+	registrations := newRegistrationsController(testDB.DB)
+
+	body := strings.NewReader(`{"email":"dave@example.com","password":"mySecurePass99!","confirmPassword":"mySecurePass99!"}`)
+	req := httptest.NewRequest(http.MethodPost, routes.RegistrationCreate.URL(), body)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	setupSessionStore(c)
+
+	err = registrations.Create(c)
+	assert.NoError(t, err)
+
+	assert.Contains(t, rec.Body.String(), "flashContainer")
+
+	users, err := models.User.All(ctx, testDB.DB.Conn())
+	assert.NoError(t, err)
+	assert.Len(t, users, len(beforeCount)+1)
+	assert.Equal(t, "dave@example.com", users[len(users)-1].Email)
+
+	pwStr := string(users[len(users)-1].Password)
+	assert.NotEqual(t, "mySecurePass99!", pwStr, "password should be hashed")
+	assert.False(t, users[len(users)-1].HasValidatedEmail(), "new user should not have validated email")
+}
+
+// TestRegistrations_Create_DuplicateEmail rejects existing email without creating a second user.
+func TestRegistrations_Create_DuplicateEmail(t *testing.T) {
+	Load(".env.test")
+
+	testDB, err := testContainer.CreateDB(context.Background(), "test_registrations_duplicate")
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+	}
+	t.Cleanup(func() {
+		testDB.Close()
+	})
+
+	ctx := context.Background()
+
+	if err := seedUser(ctx, testDB.DB, "existing@example.com"); err != nil {
+		t.Fatalf("failed to seed user: %v", err)
+	}
+
+	beforeCount, err := models.User.All(ctx, testDB.DB.Conn())
+	assert.NoError(t, err)
+
+	e := echo.New()
+	registrations := newRegistrationsController(testDB.DB)
+
+	body := strings.NewReader(`{"email":"existing@example.com","password":"anotherPass123","confirmPassword":"anotherPass123"}`)
+	req := httptest.NewRequest(http.MethodPost, routes.RegistrationCreate.URL(), body)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	setupSessionStore(c)
+
+	err = registrations.Create(c)
+	assert.NoError(t, err)
+
+	assert.Contains(t, rec.Body.String(), `data-bind="email"`)
+	assert.Contains(t, rec.Body.String(), "Create an account")
+
+	afterCount, err := models.User.All(ctx, testDB.DB.Conn())
+	assert.NoError(t, err)
+	assert.Len(t, afterCount, len(beforeCount), "duplicate registration must not create a second user")
+}
