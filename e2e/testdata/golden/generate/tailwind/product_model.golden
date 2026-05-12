@@ -168,6 +168,9 @@ func (p product) Upsert(ctx context.Context, db storage.Executor, data CreatePro
 	_, err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
+		Set("name = excluded.name").
+		Set("price = excluded.price").
+		Returning("*").
 		Exec(ctx)
 	if err != nil {
 		return ProductEntity{}, err

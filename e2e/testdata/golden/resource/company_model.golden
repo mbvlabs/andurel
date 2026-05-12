@@ -168,6 +168,9 @@ func (c company) Upsert(ctx context.Context, db storage.Executor, data CreateCom
 	_, err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
+		Set("name = excluded.name").
+		Set("industry = excluded.industry").
+		Returning("*").
 		Exec(ctx)
 	if err != nil {
 		return CompanyEntity{}, err
