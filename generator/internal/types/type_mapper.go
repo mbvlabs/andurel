@@ -71,6 +71,10 @@ func (tm *TypeMapper) BuildBunTag(col *catalog.Column) string {
 		parts = append(parts, "type:jsonb")
 	}
 
+	if col.IsAutoIncrement {
+		parts = append(parts, "autoincrement")
+	}
+
 	return strings.Join(parts, ",")
 }
 

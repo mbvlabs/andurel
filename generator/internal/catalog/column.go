@@ -20,9 +20,10 @@ type Column struct {
 	DefaultVal   *string
 	CreatedBy    string // migration file that added this column
 	ModifiedBy   string // migration file that last modified this column
-	IsPrimaryKey bool
-	IsUnique     bool
-	ForeignKey   *ForeignKey // nil if not a foreign key
+	IsPrimaryKey    bool
+	IsUnique        bool
+	IsAutoIncrement bool
+	ForeignKey      *ForeignKey // nil if not a foreign key
 }
 
 func NewColumn(name, dataType string) *Column {
@@ -46,6 +47,11 @@ func (c *Column) SetPrimaryKey() *Column {
 
 func (c *Column) SetUnique() *Column {
 	c.IsUnique = true
+	return c
+}
+
+func (c *Column) SetAutoIncrement() *Column {
+	c.IsAutoIncrement = true
 	return c
 }
 
@@ -90,14 +96,15 @@ func (c *Column) SetModifiedBy(migrationFile string) *Column {
 
 func (c *Column) Clone() *Column {
 	clone := &Column{
-		Name:         c.Name,
-		DataType:     c.DataType,
-		IsNullable:   c.IsNullable,
-		IsArray:      c.IsArray,
-		CreatedBy:    c.CreatedBy,
-		ModifiedBy:   c.ModifiedBy,
-		IsPrimaryKey: c.IsPrimaryKey,
-		IsUnique:     c.IsUnique,
+		Name:            c.Name,
+		DataType:        c.DataType,
+		IsNullable:      c.IsNullable,
+		IsArray:         c.IsArray,
+		CreatedBy:       c.CreatedBy,
+		ModifiedBy:      c.ModifiedBy,
+		IsPrimaryKey:    c.IsPrimaryKey,
+		IsUnique:        c.IsUnique,
+		IsAutoIncrement: c.IsAutoIncrement,
 	}
 
 	if c.Length != nil {
