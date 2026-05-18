@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"{{.ModuleName}}/config"
@@ -172,7 +173,7 @@ func buildTelemetry(ctx context.Context, cfg config.Config) (*telemetry.Telemetr
 }
 
 func run(ctx context.Context) error {
-	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	cfg := config.NewConfig()
