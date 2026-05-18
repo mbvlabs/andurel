@@ -51,6 +51,8 @@ type GeneratedModel struct {
 	NamespaceVar        string // Server (exported, package-scope)
 	NamespaceType       string // server (unexported receiver type)
 	ReceiverName        string // s (for the namespace methods)
+	HasCreatedAt        bool
+	HasUpdatedAt        bool
 }
 
 type Config struct {
@@ -159,6 +161,13 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 
 		model.Fields = append(model.Fields, field)
 
+		if col.Name == "created_at" {
+			model.HasCreatedAt = true
+		}
+		if col.Name == "updated_at" {
+			model.HasUpdatedAt = true
+		}
+
 		if col.Name == "id" && col.IsPrimaryKey {
 			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
 			model.IDType = validation.GoType(pkType)
@@ -232,6 +241,12 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 			return strings.ToLower(s)
 		},
 		"Plural": inflection.Plural,
+		"columnName": func(bunTag string) string {
+			if idx := strings.Index(bunTag, ","); idx != -1 {
+				return bunTag[:idx]
+			}
+			return bunTag
+		},
 	}
 
 	tmpl, err := template.New("model").Funcs(funcMap).Parse(templateStr)

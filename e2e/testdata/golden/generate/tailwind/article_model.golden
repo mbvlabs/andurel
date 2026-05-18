@@ -174,6 +174,10 @@ func (a article) Upsert(ctx context.Context, db storage.Executor, data CreateArt
 	_, err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
+		Set("title = excluded.title").
+		Set("content = excluded.content").
+		Set("published = excluded.published").
+		Returning("*").
 		Exec(ctx)
 	if err != nil {
 		return ArticleEntity{}, err

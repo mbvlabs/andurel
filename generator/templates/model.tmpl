@@ -58,8 +58,12 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db stora
 		ID: data.ID,
 {{- end}}
 {{- end}}
+{{- if .HasCreatedAt}}
 		CreatedAt: time.Now(),
+{{- end}}
+{{- if .HasUpdatedAt}}
 		UpdatedAt: time.Now(),
+{{- end}}
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		{{.Name}}: data.{{.Name}},
@@ -89,8 +93,10 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db stora
 	}
 
 	entity := {{.EntityName}}{
-		ID:        data.ID,
+		ID: data.ID,
+{{- if .HasUpdatedAt}}
 		UpdatedAt: time.Now(),
+{{- end}}
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		{{.Name}}: data.{{.Name}},
@@ -187,8 +193,12 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db stora
 		ID: data.ID,
 {{- end}}
 {{- end}}
+{{- if .HasCreatedAt}}
 		CreatedAt: time.Now(),
+{{- end}}
+{{- if .HasUpdatedAt}}
 		UpdatedAt: time.Now(),
+{{- end}}
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		{{.Name}}: data.{{.Name}},
@@ -199,6 +209,12 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db stora
 	_, err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
+{{- range .Fields}}
+{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+		Set("{{columnName .BunTag}} = excluded.{{columnName .BunTag}}").
+{{- end}}
+{{- end}}
+		Returning("*").
 		Exec(ctx)
 	if err != nil {
 		return {{.EntityName}}{}, err

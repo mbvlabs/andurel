@@ -168,6 +168,9 @@ func (p project) Upsert(ctx context.Context, db storage.Executor, data CreatePro
 	_, err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
+		Set("name = excluded.name").
+		Set("description = excluded.description").
+		Returning("*").
 		Exec(ctx)
 	if err != nil {
 		return ProjectEntity{}, err

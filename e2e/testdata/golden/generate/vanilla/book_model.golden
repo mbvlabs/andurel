@@ -180,6 +180,11 @@ func (b book) Upsert(ctx context.Context, db storage.Executor, data CreateBookDa
 	_, err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
+		Set("title = excluded.title").
+		Set("author = excluded.author").
+		Set("price = excluded.price").
+		Set("pages = excluded.pages").
+		Returning("*").
 		Exec(ctx)
 	if err != nil {
 		return BookEntity{}, err
