@@ -166,6 +166,10 @@ func (r Route) URL(opts ...RouteOption) string {
 	return applyOptions(configurePath(r.path, r.prefix, r.name), opts...)
 }
 
+func (r Route) FullURL(base string, opts ...RouteOption) string {
+	return base + r.URL(opts...)
+}
+
 func (r Route) Name() string {
 	return configureName(r.name, r.prefix)
 }
@@ -196,6 +200,10 @@ func (r RouteWithUUIDID) URL(id uuid.UUID, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
+func (r RouteWithUUIDID) FullURL(base string, id uuid.UUID, opts ...RouteOption) string {
+	return base + r.URL(id, opts...)
+}
+
 func (r RouteWithUUIDID) GetParam() string {
 	return "id"
 }
@@ -220,6 +228,10 @@ func (r RouteWithSerialID) Path() string {
 func (r RouteWithSerialID) URL(id int32, opts ...RouteOption) string {
 	path := strings.Replace(r.Path(), ":id", strconv.Itoa(int(id)), 1)
 	return applyOptions(path, opts...)
+}
+
+func (r RouteWithSerialID) FullURL(base string, id int32, opts ...RouteOption) string {
+	return base + r.URL(id, opts...)
 }
 
 func (r RouteWithSerialID) GetParam() string {
@@ -248,6 +260,10 @@ func (r RouteWithBigSerialID) URL(id int64, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
+func (r RouteWithBigSerialID) FullURL(base string, id int64, opts ...RouteOption) string {
+	return base + r.URL(id, opts...)
+}
+
 func (r RouteWithBigSerialID) GetParam() string {
 	return "id"
 }
@@ -272,6 +288,10 @@ func (r RouteWithStringID) Path() string {
 func (r RouteWithStringID) URL(id string, opts ...RouteOption) string {
 	path := strings.Replace(r.Path(), ":id", id, 1)
 	return applyOptions(path, opts...)
+}
+
+func (r RouteWithStringID) FullURL(base string, id string, opts ...RouteOption) string {
+	return base + r.URL(id, opts...)
 }
 
 func (r RouteWithStringID) GetParam() string {
@@ -299,6 +319,10 @@ func (r RouteWithSlug) URL(slug string, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
+func (r RouteWithSlug) FullURL(base string, slug string, opts ...RouteOption) string {
+	return base + r.URL(slug, opts...)
+}
+
 func (r RouteWithSlug) GetParam() string {
 	return "slug"
 }
@@ -324,6 +348,10 @@ func (r RouteWithToken) URL(token string, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
+func (r RouteWithToken) FullURL(base string, token string, opts ...RouteOption) string {
+	return base + r.URL(token, opts...)
+}
+
 func (r RouteWithToken) GetParam() string {
 	return "token"
 }
@@ -347,6 +375,10 @@ func (r RouteWithFile) Path() string {
 func (r RouteWithFile) URL(file string, opts ...RouteOption) string {
 	path := strings.Replace(r.Path(), ":file", file, 1)
 	return applyOptions(path, opts...)
+}
+
+func (r RouteWithFile) FullURL(base string, file string, opts ...RouteOption) string {
+	return base + r.URL(file, opts...)
 }
 
 func (r RouteWithFile) GetParam() string {
@@ -396,4 +428,8 @@ func (r RouteWithParams[Params]) URL(params Params, opts ...RouteOption) string 
 	}
 
 	return applyOptions(route, opts...)
+}
+
+func (r RouteWithParams[Params]) FullURL(base string, params Params, opts ...RouteOption) string {
+	return base + r.URL(params, opts...)
 }

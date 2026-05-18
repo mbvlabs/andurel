@@ -12,6 +12,7 @@ type SimpleRoute interface {
 	Name() string
 	Path() string
 	URL(opts ...RouteOption) string
+	FullURL(base string, opts ...RouteOption) string
 }
 
 // UUIDIDRoute represents routes with a UUID ID in the URL parameter
@@ -19,6 +20,7 @@ type UUIDIDRoute interface {
 	Name() string
 	Path() string
 	URL(id uuid.UUID, opts ...RouteOption) string
+	FullURL(base string, id uuid.UUID, opts ...RouteOption) string
 	GetParam() string
 }
 
@@ -27,6 +29,7 @@ type SerialIDRoute interface {
 	Name() string
 	Path() string
 	URL(id int32, opts ...RouteOption) string
+	FullURL(base string, id int32, opts ...RouteOption) string
 	GetParam() string
 }
 
@@ -35,6 +38,7 @@ type BigSerialIDRoute interface {
 	Name() string
 	Path() string
 	URL(id int64, opts ...RouteOption) string
+	FullURL(base string, id int64, opts ...RouteOption) string
 	GetParam() string
 }
 
@@ -43,6 +47,7 @@ type StringIDRoute interface {
 	Name() string
 	Path() string
 	URL(id string, opts ...RouteOption) string
+	FullURL(base string, id string, opts ...RouteOption) string
 	GetParam() string
 }
 
@@ -51,6 +56,7 @@ type ParamRoute interface {
 	Name() string
 	Path() string
 	URL(param string, opts ...RouteOption) string
+	FullURL(base string, param string, opts ...RouteOption) string
 	GetParam() string
 }
 
@@ -67,4 +73,5 @@ type ParamsRoute[Params any] interface {
 	Name() string
 	Path() string
 	URL(params Params, opts ...RouteOption) string
+	FullURL(base string, params Params, opts ...RouteOption) string
 }
