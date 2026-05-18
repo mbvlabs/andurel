@@ -51,6 +51,8 @@ type GeneratedModel struct {
 	NamespaceVar        string // Server (exported, package-scope)
 	NamespaceType       string // server (unexported receiver type)
 	ReceiverName        string // s (for the namespace methods)
+	HasCreatedAt        bool
+	HasUpdatedAt        bool
 }
 
 type Config struct {
@@ -158,6 +160,13 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		}
 
 		model.Fields = append(model.Fields, field)
+
+		if col.Name == "created_at" {
+			model.HasCreatedAt = true
+		}
+		if col.Name == "updated_at" {
+			model.HasUpdatedAt = true
+		}
 
 		if col.Name == "id" && col.IsPrimaryKey {
 			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
