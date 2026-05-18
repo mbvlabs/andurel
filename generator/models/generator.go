@@ -241,6 +241,12 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 			return strings.ToLower(s)
 		},
 		"Plural": inflection.Plural,
+		"columnName": func(bunTag string) string {
+			if idx := strings.Index(bunTag, ","); idx != -1 {
+				return bunTag[:idx]
+			}
+			return bunTag
+		},
 	}
 
 	tmpl, err := template.New("model").Funcs(funcMap).Parse(templateStr)

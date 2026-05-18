@@ -209,6 +209,12 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db stora
 	_, err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
+{{- range .Fields}}
+{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+		Set("{{columnName .BunTag}} = excluded.{{columnName .BunTag}}").
+{{- end}}
+{{- end}}
+		Returning("*").
 		Exec(ctx)
 	if err != nil {
 		return {{.EntityName}}{}, err

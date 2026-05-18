@@ -186,6 +186,12 @@ func (p post) Upsert(ctx context.Context, db storage.Executor, data CreatePostDa
 	_, err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
+		Set("title = excluded.title").
+		Set("tags = excluded.tags").
+		Set("scores = excluded.scores").
+		Set("settings = excluded.settings").
+		Set("metadata = excluded.metadata").
+		Returning("*").
 		Exec(ctx)
 	if err != nil {
 		return PostEntity{}, err
