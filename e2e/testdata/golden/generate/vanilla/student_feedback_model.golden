@@ -10,7 +10,6 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// StudentFeedbackEntity represents a StudentFeedback record in the database.
 type StudentFeedbackEntity struct {
 	bun.BaseModel `bun:"table:student_feedback"`
 	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
@@ -23,13 +22,13 @@ type StudentFeedbackEntity struct {
 
 func (sf studentFeedback) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (StudentFeedbackEntity, error) {
 	var entity StudentFeedbackEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return StudentFeedbackEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -53,10 +52,10 @@ func (sf studentFeedback) Create(ctx context.Context, db storage.Executor, data 
 		Rating:    data.Rating,
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return StudentFeedbackEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -81,13 +80,13 @@ func (sf studentFeedback) Update(ctx context.Context, db storage.Executor, data 
 		Rating:    data.Rating,
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
 		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return StudentFeedbackEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -96,17 +95,18 @@ func (sf studentFeedback) Destroy(ctx context.Context, db storage.Executor, id u
 		Model((*StudentFeedbackEntity)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func (sf studentFeedback) All(ctx context.Context, db storage.Executor) ([]StudentFeedbackEntity, error) {
 	var entities []StudentFeedbackEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -171,16 +171,16 @@ func (sf studentFeedback) Upsert(ctx context.Context, db storage.Executor, data 
 		Rating:    data.Rating,
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 		Set("student_id = excluded.student_id").
 		Set("feedback = excluded.feedback").
 		Set("rating = excluded.rating").
 		Returning("*").
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return StudentFeedbackEntity{}, err
 	}
+
 	return entity, nil
 }

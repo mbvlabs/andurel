@@ -10,7 +10,6 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// ProductEntity represents a Product record in the database.
 type ProductEntity struct {
 	bun.BaseModel `bun:"table:products"`
 	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
@@ -22,13 +21,13 @@ type ProductEntity struct {
 
 func (p product) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ProductEntity, error) {
 	var entity ProductEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return ProductEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -50,10 +49,10 @@ func (p product) Create(ctx context.Context, db storage.Executor, data CreatePro
 		Price:     data.Price,
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return ProductEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -76,13 +75,13 @@ func (p product) Update(ctx context.Context, db storage.Executor, data UpdatePro
 		Price:     data.Price,
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
 		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return ProductEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -91,17 +90,18 @@ func (p product) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID)
 		Model((*ProductEntity)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func (p product) All(ctx context.Context, db storage.Executor) ([]ProductEntity, error) {
 	var entities []ProductEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -165,15 +165,15 @@ func (p product) Upsert(ctx context.Context, db storage.Executor, data CreatePro
 		Price:     data.Price,
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 		Set("name = excluded.name").
 		Set("price = excluded.price").
 		Returning("*").
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return ProductEntity{}, err
 	}
+
 	return entity, nil
 }
