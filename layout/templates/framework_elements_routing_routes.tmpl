@@ -48,30 +48,6 @@ func applyOptions(path string, opts ...RouteOption) string {
 	return path + "?" + strings.Join(routeOpts.query, "&")
 }
 
-func slugParamsFromStruct(params any) map[string]string {
-	result := make(map[string]string)
-	v := reflect.ValueOf(params)
-	if v.Kind() != reflect.Struct {
-		return result
-	}
-
-	t := v.Type()
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		slugTag := field.Tag.Get("slug")
-		if slugTag == "" {
-			continue
-		}
-
-		fieldValue := v.Field(i)
-		if fieldValue.Kind() == reflect.String {
-			result[":"+slugTag] = fieldValue.String()
-		}
-	}
-
-	return result
-}
-
 func configureName(name, prefix string) string {
 	if prefix == "" {
 		return name
@@ -377,27 +353,47 @@ func (r RouteWithFile) GetParam() string {
 	return "file"
 }
 
-type RouteWithSlugs[Params any] Route
+type RouteWithParams[Params any] Route
 
-func NewRouteWithSlugs[Params any](path, name, prefix string) RouteWithSlugs[Params] {
-	return RouteWithSlugs[Params]{name, path, prefix}
+func NewRouteWithParams[Params any](path, name, prefix string) RouteWithParams[Params] {
+	return RouteWithParams[Params]{name, path, prefix}
 }
 
-var _ SlugsRoute[any] = (*RouteWithSlugs[any])(nil)
+var _ ParamsRoute[any] = (*RouteWithParams[any])(nil)
 
-func (r RouteWithSlugs[Params]) Name() string {
+func (r RouteWithParams[Params]) Name() string {
 	return configureName(r.name, r.prefix)
 }
 
-func (r RouteWithSlugs[Params]) Path() string {
+func (r RouteWithParams[Params]) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
-func (r RouteWithSlugs[Params]) URL(params Params, opts ...RouteOption) string {
-	slugs := slugParamsFromStruct(params)
+func (r RouteWithParams[Params]) URL(params Params, opts ...RouteOption) string {
+	result := make(map[string]string)
+	v := reflect.ValueOf(params)
+	if v.Kind() != reflect.Struct {
+		return ""
+	}
+
+	t := v.Type()
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		slugTag := field.Tag.Get("param")
+		if slugTag == "" {
+			continue
+		}
+
+		fieldValue := v.Field(i)
+		if fieldValue.Kind() == reflect.String {
+			result[":"+slugTag] = fieldValue.String()
+		}
+	}
+
 	route := r.Path()
-	for param, value := range slugs {
+	for param, value := range result {
 		route = strings.Replace(route, param, value, 1)
 	}
+
 	return applyOptions(route, opts...)
 }
