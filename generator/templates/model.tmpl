@@ -22,13 +22,13 @@ type {{.EntityName}} struct {
 
 func ({{.ReceiverName}} {{.NamespaceType}}) Find(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) ({{.EntityName}}, error) {
 	var entity {{.EntityName}}
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}
+
 	return entity, nil
 }
 
@@ -71,10 +71,10 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db stora
 {{- end}}
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}
+
 	return entity, nil
 }
 
@@ -104,13 +104,13 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db stora
 {{- end}}
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
 		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}
+
 	return entity, nil
 }
 
@@ -119,17 +119,18 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Destroy(ctx context.Context, db stor
 		Model((*{{.EntityName}})(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func ({{.ReceiverName}} {{.NamespaceType}}) All(ctx context.Context, db storage.Executor) ([]{{.EntityName}}, error) {
 	var entities []{{.EntityName}}
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -206,7 +207,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db stora
 {{- end}}
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 {{- range .Fields}}
@@ -215,9 +216,9 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db stora
 {{- end}}
 {{- end}}
 		Returning("*").
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}
+
 	return entity, nil
 }
