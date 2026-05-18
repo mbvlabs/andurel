@@ -174,6 +174,11 @@ func (p *CreateTableParser) parseColumnDefinition(
 
 	col := catalog.NewColumn(columnName, dataType).SetCreatedBy(migrationFile)
 
+	switch strings.ToLower(dataType) {
+	case "serial", "bigserial":
+		col.SetAutoIncrement()
+	}
+
 	if length != nil {
 		col.SetLength(*length)
 	}
