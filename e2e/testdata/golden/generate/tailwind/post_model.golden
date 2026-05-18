@@ -10,7 +10,6 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// PostEntity represents a Post record in the database.
 type PostEntity struct {
 	bun.BaseModel `bun:"table:posts"`
 	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
@@ -25,13 +24,13 @@ type PostEntity struct {
 
 func (p post) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (PostEntity, error) {
 	var entity PostEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return PostEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -59,10 +58,10 @@ func (p post) Create(ctx context.Context, db storage.Executor, data CreatePostDa
 		Metadata:  data.Metadata,
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return PostEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -91,13 +90,13 @@ func (p post) Update(ctx context.Context, db storage.Executor, data UpdatePostDa
 		Metadata:  data.Metadata,
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
 		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return PostEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -106,17 +105,18 @@ func (p post) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) er
 		Model((*PostEntity)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func (p post) All(ctx context.Context, db storage.Executor) ([]PostEntity, error) {
 	var entities []PostEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -183,7 +183,7 @@ func (p post) Upsert(ctx context.Context, db storage.Executor, data CreatePostDa
 		Metadata:  data.Metadata,
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 		Set("title = excluded.title").
@@ -192,9 +192,9 @@ func (p post) Upsert(ctx context.Context, db storage.Executor, data CreatePostDa
 		Set("settings = excluded.settings").
 		Set("metadata = excluded.metadata").
 		Returning("*").
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return PostEntity{}, err
 	}
+
 	return entity, nil
 }

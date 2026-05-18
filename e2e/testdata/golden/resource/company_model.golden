@@ -10,7 +10,6 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// CompanyEntity represents a Company record in the database.
 type CompanyEntity struct {
 	bun.BaseModel `bun:"table:companies"`
 	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
@@ -22,13 +21,13 @@ type CompanyEntity struct {
 
 func (c company) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (CompanyEntity, error) {
 	var entity CompanyEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return CompanyEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -50,10 +49,10 @@ func (c company) Create(ctx context.Context, db storage.Executor, data CreateCom
 		Industry:  data.Industry,
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return CompanyEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -76,13 +75,13 @@ func (c company) Update(ctx context.Context, db storage.Executor, data UpdateCom
 		Industry:  data.Industry,
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
 		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return CompanyEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -91,17 +90,18 @@ func (c company) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID)
 		Model((*CompanyEntity)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func (c company) All(ctx context.Context, db storage.Executor) ([]CompanyEntity, error) {
 	var entities []CompanyEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -165,15 +165,15 @@ func (c company) Upsert(ctx context.Context, db storage.Executor, data CreateCom
 		Industry:  data.Industry,
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 		Set("name = excluded.name").
 		Set("industry = excluded.industry").
 		Returning("*").
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return CompanyEntity{}, err
 	}
+
 	return entity, nil
 }

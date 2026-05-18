@@ -10,7 +10,6 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// ProjectEntity represents a Project record in the database.
 type ProjectEntity struct {
 	bun.BaseModel `bun:"table:projects"`
 	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
@@ -22,13 +21,13 @@ type ProjectEntity struct {
 
 func (p project) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ProjectEntity, error) {
 	var entity ProjectEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return ProjectEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -50,10 +49,10 @@ func (p project) Create(ctx context.Context, db storage.Executor, data CreatePro
 		Description: data.Description,
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return ProjectEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -76,13 +75,13 @@ func (p project) Update(ctx context.Context, db storage.Executor, data UpdatePro
 		Description: data.Description,
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
 		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return ProjectEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -91,17 +90,18 @@ func (p project) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID)
 		Model((*ProjectEntity)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func (p project) All(ctx context.Context, db storage.Executor) ([]ProjectEntity, error) {
 	var entities []ProjectEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -165,15 +165,15 @@ func (p project) Upsert(ctx context.Context, db storage.Executor, data CreatePro
 		Description: data.Description,
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 		Set("name = excluded.name").
 		Set("description = excluded.description").
 		Returning("*").
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return ProjectEntity{}, err
 	}
+
 	return entity, nil
 }

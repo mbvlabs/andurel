@@ -10,7 +10,6 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// BookEntity represents a Book record in the database.
 type BookEntity struct {
 	bun.BaseModel `bun:"table:books"`
 	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
@@ -24,13 +23,13 @@ type BookEntity struct {
 
 func (b book) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (BookEntity, error) {
 	var entity BookEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return BookEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -56,10 +55,10 @@ func (b book) Create(ctx context.Context, db storage.Executor, data CreateBookDa
 		Pages:     data.Pages,
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return BookEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -86,13 +85,13 @@ func (b book) Update(ctx context.Context, db storage.Executor, data UpdateBookDa
 		Pages:     data.Pages,
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
 		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return BookEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -101,17 +100,18 @@ func (b book) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) er
 		Model((*BookEntity)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func (b book) All(ctx context.Context, db storage.Executor) ([]BookEntity, error) {
 	var entities []BookEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -177,7 +177,7 @@ func (b book) Upsert(ctx context.Context, db storage.Executor, data CreateBookDa
 		Pages:     data.Pages,
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 		Set("title = excluded.title").
@@ -185,9 +185,9 @@ func (b book) Upsert(ctx context.Context, db storage.Executor, data CreateBookDa
 		Set("price = excluded.price").
 		Set("pages = excluded.pages").
 		Returning("*").
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return BookEntity{}, err
 	}
+
 	return entity, nil
 }

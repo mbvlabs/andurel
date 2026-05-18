@@ -10,7 +10,6 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// ArticleEntity represents a Article record in the database.
 type ArticleEntity struct {
 	bun.BaseModel `bun:"table:articles"`
 	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
@@ -23,13 +22,13 @@ type ArticleEntity struct {
 
 func (a article) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ArticleEntity, error) {
 	var entity ArticleEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return ArticleEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -53,10 +52,10 @@ func (a article) Create(ctx context.Context, db storage.Executor, data CreateArt
 		Published: data.Published,
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return ArticleEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -81,13 +80,13 @@ func (a article) Update(ctx context.Context, db storage.Executor, data UpdateArt
 		Published: data.Published,
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
 		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return ArticleEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -96,17 +95,18 @@ func (a article) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID)
 		Model((*ArticleEntity)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func (a article) All(ctx context.Context, db storage.Executor) ([]ArticleEntity, error) {
 	var entities []ArticleEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -171,16 +171,16 @@ func (a article) Upsert(ctx context.Context, db storage.Executor, data CreateArt
 		Published: data.Published,
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 		Set("title = excluded.title").
 		Set("content = excluded.content").
 		Set("published = excluded.published").
 		Returning("*").
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return ArticleEntity{}, err
 	}
+
 	return entity, nil
 }

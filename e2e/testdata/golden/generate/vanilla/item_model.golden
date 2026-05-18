@@ -10,7 +10,6 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// ItemEntity represents a Item record in the database.
 type ItemEntity struct {
 	bun.BaseModel `bun:"table:items"`
 	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
@@ -23,13 +22,13 @@ type ItemEntity struct {
 
 func (i item) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ItemEntity, error) {
 	var entity ItemEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return ItemEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -53,10 +52,10 @@ func (i item) Create(ctx context.Context, db storage.Executor, data CreateItemDa
 		Quantity:    data.Quantity,
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return ItemEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -81,13 +80,13 @@ func (i item) Update(ctx context.Context, db storage.Executor, data UpdateItemDa
 		Quantity:    data.Quantity,
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
 		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return ItemEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -96,17 +95,18 @@ func (i item) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) er
 		Model((*ItemEntity)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func (i item) All(ctx context.Context, db storage.Executor) ([]ItemEntity, error) {
 	var entities []ItemEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -171,16 +171,16 @@ func (i item) Upsert(ctx context.Context, db storage.Executor, data CreateItemDa
 		Quantity:    data.Quantity,
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 		Set("warehouse_id = excluded.warehouse_id").
 		Set("name = excluded.name").
 		Set("quantity = excluded.quantity").
 		Returning("*").
-		Exec(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return ItemEntity{}, err
 	}
+
 	return entity, nil
 }
