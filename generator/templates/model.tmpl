@@ -11,7 +11,6 @@ import (
 {{- end}}
 )
 
-// {{.EntityName}} represents a {{.Name}} record in the database.
 type {{.EntityName}} struct {
 	bun.BaseModel `bun:"table:{{.TableName}}"`
 
