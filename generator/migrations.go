@@ -27,11 +27,11 @@ func (mm *MigrationManager) BuildCatalogFromMigrations(
 	}
 
 	cat := catalog.NewCatalog("public")
-	foundTable := false
+	relevantNames := collectRelevantNames(migrationsList, tableName)
 
 	for _, migration := range migrationsList {
 		for _, stmt := range migration.Statements {
-			if isRelevantForTable(stmt, tableName) {
+			if isRelevantForTable(stmt, relevantNames) {
 				if err := ddl.ApplyDDL(cat, stmt, migration.FilePath, databaseType); err != nil {
 					return nil, fmt.Errorf(
 						"failed to apply DDL from %s: %w",
@@ -39,14 +39,13 @@ func (mm *MigrationManager) BuildCatalogFromMigrations(
 						err,
 					)
 				}
-				foundTable = true
 			}
 		}
 	}
 
-	if !foundTable {
+	if _, err := cat.GetTable(cat.DefaultSchema, tableName); err != nil {
 		return nil, fmt.Errorf(
-			"no migration found for table '%s'. Create a migration for this table or use --table-name to specify a different table name",
+			"table '%s' not found in any migration. Create a migration for this table or use --table-name to specify a different table name",
 			tableName,
 		)
 	}
@@ -54,51 +53,71 @@ func (mm *MigrationManager) BuildCatalogFromMigrations(
 	return cat, nil
 }
 
-func isRelevantForTable(stmt, targetTable string) bool {
-	stmtLower := strings.ToLower(stmt)
+func collectRelevantNames(
+	migrationsList []migrations.Migration,
+	targetTable string,
+) map[string]bool {
 	targetLower := strings.ToLower(targetTable)
+	names := map[string]bool{targetLower: true}
 
-	if strings.Contains(stmtLower, "create table") &&
-		strings.Contains(stmtLower, targetLower) {
-		createTableRegex, err := regexp.Compile(
+	renameRe := regexp.MustCompile(
+		`(?i)alter\s+table\s+(?:if\s+exists\s+)?(?:\w+\.)?(\w+)\s+.*rename\s+to\s+(\w+)`,
+	)
+
+	for i := 0; i < 100; i++ {
+		changed := false
+		for _, migration := range migrationsList {
+			for _, stmt := range migration.Statements {
+				matches := renameRe.FindStringSubmatch(stmt)
+				if len(matches) > 2 {
+					srcName := strings.ToLower(matches[1])
+					dstName := strings.ToLower(matches[2])
+					if names[dstName] && !names[srcName] {
+						names[srcName] = true
+						changed = true
+					}
+				}
+			}
+		}
+		if !changed {
+			break
+		}
+	}
+
+	return names
+}
+
+func isRelevantForTable(stmt string, relevantNames map[string]bool) bool {
+	stmtLower := strings.ToLower(stmt)
+
+	var tableName string
+
+	switch {
+	case strings.Contains(stmtLower, "create table"):
+		re := regexp.MustCompile(
 			`(?i)create\s+table(?:\s+if\s+not\s+exists)?\s+(?:\w+\.)?(\w+)`,
 		)
-		if err != nil {
-			return false
+		matches := re.FindStringSubmatch(stmt)
+		if len(matches) > 1 {
+			tableName = strings.ToLower(matches[1])
 		}
-		matches := createTableRegex.FindStringSubmatch(stmt)
-		if len(matches) > 1 && strings.ToLower(matches[1]) == targetLower {
-			return true
-		}
-	}
-
-	if strings.Contains(stmtLower, "alter table") &&
-		strings.Contains(stmtLower, targetLower) {
-		alterTableRegex, err := regexp.Compile(
+	case strings.Contains(stmtLower, "alter table"):
+		re := regexp.MustCompile(
 			`(?i)alter\s+table\s+(?:if\s+exists\s+)?(?:\w+\.)?(\w+)`,
 		)
-		if err != nil {
-			return false
+		matches := re.FindStringSubmatch(stmt)
+		if len(matches) > 1 {
+			tableName = strings.ToLower(matches[1])
 		}
-		matches := alterTableRegex.FindStringSubmatch(stmt)
-		if len(matches) > 1 && strings.ToLower(matches[1]) == targetLower {
-			return true
-		}
-	}
-
-	if strings.Contains(stmtLower, "drop table") &&
-		strings.Contains(stmtLower, targetLower) {
-		dropTableRegex, err := regexp.Compile(
+	case strings.Contains(stmtLower, "drop table"):
+		re := regexp.MustCompile(
 			`(?i)drop\s+table(?:\s+if\s+exists)?\s+(?:\w+\.)?(\w+)`,
 		)
-		if err != nil {
-			return false
-		}
-		matches := dropTableRegex.FindStringSubmatch(stmt)
-		if len(matches) > 1 && strings.ToLower(matches[1]) == targetLower {
-			return true
+		matches := re.FindStringSubmatch(stmt)
+		if len(matches) > 1 {
+			tableName = strings.ToLower(matches[1])
 		}
 	}
 
-	return false
+	return tableName != "" && relevantNames[tableName]
 }

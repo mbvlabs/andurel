@@ -50,9 +50,9 @@ type UpdateModelResult struct {
 	HasChanges     bool
 }
 
-// Diff returns a unified diff of the struct's column fields.
-// bun.BaseModel is excluded — its alignment changes with field widths and is
-// not schema content.
+// Diff returns a unified diff of the struct definitions (Entity,
+// CreateData, UpdateData). bun.BaseModel lines are excluded — their alignment
+// changes with field widths and is not schema content.
 func (r *UpdateModelResult) Diff() (string, error) {
 	d := difflib.UnifiedDiff{
 		A:        difflib.SplitLines(dropBaseModelLine(r.OldStruct)),
@@ -104,6 +104,8 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 	}
 
 	entityName := resourceName + "Entity"
+	createDataName := "Create" + resourceName + "Data"
+	updateDataName := "Update" + resourceName + "Data"
 
 	existingFields, structStart, structEnd, err := parseEntityStruct(src, entityName)
 	if err != nil {
@@ -162,26 +164,52 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 		}
 	}
 
-	oldStructStr := string(src[structStart:structEnd])
-	newStructStr := renderEntityStruct(entityName, tableName, newModel.Fields)
+	oldEntityStr := string(src[structStart:structEnd])
+	oldCreateDataStr, oldUpdateDataStr := "", ""
 
-	// Splice the new struct into the file and format.
-	spliced := string(src[:structStart]) + newStructStr + string(src[structEnd:])
-	formatted, err := format.Source([]byte(spliced))
-	if err != nil {
-		// Fall back to unformatted; goimports will clean it up on write.
-		formatted = []byte(spliced)
+	if cdStart, cdEnd, err := findStructOffsets(src, createDataName); err == nil {
+		oldCreateDataStr = string(src[cdStart:cdEnd])
+	}
+	if udStart, udEnd, err := findStructOffsets(src, updateDataName); err == nil {
+		oldUpdateDataStr = string(src[udStart:udEnd])
 	}
 
-	// Re-extract the struct from the formatted content for a clean diff.
-	formattedStructStr := newStructStr
-	if _, fStart, fEnd, err := parseEntityStruct(formatted, entityName); err == nil {
-		formattedStructStr = string(formatted[fStart:fEnd])
+	newEntityStr := renderEntityStruct(entityName, tableName, newModel.Fields)
+	newCreateDataStr := renderCreateDataStruct(resourceName, newModel)
+	newUpdateDataStr := renderUpdateDataStruct(resourceName, newModel)
+
+	// Splice in reverse offset order (largest start first) so earlier
+	// byte positions remain valid across each replacement.
+	content := string(src)
+
+	if udStart, udEnd, err := findStructOffsets(src, updateDataName); err == nil {
+		content = content[:udStart] + newUpdateDataStr + content[udEnd:]
+	}
+	if cdStart, cdEnd, err := findStructOffsets(src, createDataName); err == nil {
+		content = content[:cdStart] + newCreateDataStr + content[cdEnd:]
+	}
+	content = content[:structStart] + newEntityStr + content[structEnd:]
+
+	formatted, err := format.Source([]byte(content))
+	if err != nil {
+		formatted = []byte(content)
+	}
+
+	// Collect all old and new struct definitions for diffing.
+	oldStructs := oldEntityStr
+	newStructs := newEntityStr
+	if oldCreateDataStr != "" {
+		oldStructs += "\n\n" + oldCreateDataStr
+		newStructs += "\n\n" + newCreateDataStr
+	}
+	if oldUpdateDataStr != "" {
+		oldStructs += "\n\n" + oldUpdateDataStr
+		newStructs += "\n\n" + newUpdateDataStr
 	}
 
 	return &UpdateModelResult{
-		OldStruct:      oldStructStr,
-		NewStruct:      formattedStructStr,
+		OldStruct:      oldStructs,
+		NewStruct:      newStructs,
 		OldFileContent: string(src),
 		NewFileContent: string(formatted),
 		ModelPath:      modelPath,
@@ -272,4 +300,68 @@ func renderEntityStruct(entityName, tableName string, fields []models.GeneratedF
 	}
 	sb.WriteString("}")
 	return sb.String()
+}
+
+// renderCreateDataStruct generates the "type CreateXData struct { ... }" text.
+func renderCreateDataStruct(resourceName string, model *models.GeneratedModel) string {
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "type Create%sData struct {\n", resourceName)
+	for _, f := range model.Fields {
+		if f.Name == "ID" || f.Name == "CreatedAt" || f.Name == "UpdatedAt" {
+			continue
+		}
+		fmt.Fprintf(&sb, "\t%s %s\n", f.Name, f.Type)
+	}
+	if !model.IsAutoIncrementID && model.IDType != "" && model.IDType != "uuid.UUID" {
+		fmt.Fprintf(&sb, "\tID %s\n", model.IDType)
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+// renderUpdateDataStruct generates the "type UpdateXData struct { ... }" text.
+func renderUpdateDataStruct(resourceName string, model *models.GeneratedModel) string {
+	var sb strings.Builder
+	idType := model.IDType
+	if idType == "" {
+		idType = "uuid.UUID"
+	}
+	fmt.Fprintf(&sb, "type Update%sData struct {\n", resourceName)
+	fmt.Fprintf(&sb, "\tID %s\n", idType)
+	for _, f := range model.Fields {
+		if f.Name == "ID" || f.Name == "CreatedAt" {
+			continue
+		}
+		fmt.Fprintf(&sb, "\t%s %s\n", f.Name, f.Type)
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+// findStructOffsets returns the byte offsets [start, end) of a named struct
+// declaration in Go source.
+func findStructOffsets(src []byte, structName string) (int, int, error) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to parse Go source: %w", err)
+	}
+
+	for _, decl := range f.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok || genDecl.Tok != token.TYPE {
+			continue
+		}
+		for _, spec := range genDecl.Specs {
+			typeSpec, ok := spec.(*ast.TypeSpec)
+			if !ok || typeSpec.Name.Name != structName {
+				continue
+			}
+			if _, ok := typeSpec.Type.(*ast.StructType); !ok {
+				continue
+			}
+			return fset.Position(genDecl.Pos()).Offset, fset.Position(genDecl.End()).Offset, nil
+		}
+	}
+	return 0, 0, fmt.Errorf("struct %q not found in file", structName)
 }
