@@ -105,7 +105,13 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db stora
 
 	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
+{{- range .Fields}}
+{{- if and (ne .Name "ID") (ne .Name "CreatedAt")}}
+		Column("{{columnName .BunTag}}").
+{{- end}}
+{{- end}}
+		WherePK().
+		Returning("*").
 		Scan(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}

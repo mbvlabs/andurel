@@ -77,7 +77,11 @@ func (p project) Update(ctx context.Context, db storage.Executor, data UpdatePro
 
 	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
+		Column("name").
+		Column("description").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
 		Scan(ctx); err != nil {
 		return ProjectEntity{}, err
 	}

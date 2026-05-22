@@ -77,7 +77,11 @@ func (c company) Update(ctx context.Context, db storage.Executor, data UpdateCom
 
 	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
+		Column("name").
+		Column("industry").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
 		Scan(ctx); err != nil {
 		return CompanyEntity{}, err
 	}

@@ -82,7 +82,12 @@ func (sf studentFeedback) Update(ctx context.Context, db storage.Executor, data 
 
 	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
+		Column("student_id").
+		Column("feedback").
+		Column("rating").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
 		Scan(ctx); err != nil {
 		return StudentFeedbackEntity{}, err
 	}

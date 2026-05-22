@@ -77,7 +77,11 @@ func (p product) Update(ctx context.Context, db storage.Executor, data UpdatePro
 
 	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
+		Column("name").
+		Column("price").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
 		Scan(ctx); err != nil {
 		return ProductEntity{}, err
 	}

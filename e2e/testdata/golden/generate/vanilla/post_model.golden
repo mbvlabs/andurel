@@ -92,7 +92,14 @@ func (p post) Update(ctx context.Context, db storage.Executor, data UpdatePostDa
 
 	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
+		Column("title").
+		Column("tags").
+		Column("scores").
+		Column("settings").
+		Column("metadata").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
 		Scan(ctx); err != nil {
 		return PostEntity{}, err
 	}

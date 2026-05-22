@@ -82,7 +82,12 @@ func (a article) Update(ctx context.Context, db storage.Executor, data UpdateArt
 
 	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
+		Column("title").
+		Column("content").
+		Column("published").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
 		Scan(ctx); err != nil {
 		return ArticleEntity{}, err
 	}
