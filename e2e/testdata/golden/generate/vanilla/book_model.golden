@@ -87,7 +87,13 @@ func (b book) Update(ctx context.Context, db storage.Executor, data UpdateBookDa
 
 	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
+		Column("title").
+		Column("author").
+		Column("price").
+		Column("pages").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
 		Scan(ctx); err != nil {
 		return BookEntity{}, err
 	}

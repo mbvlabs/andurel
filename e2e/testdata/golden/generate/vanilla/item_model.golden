@@ -82,7 +82,12 @@ func (i item) Update(ctx context.Context, db storage.Executor, data UpdateItemDa
 
 	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
+		Column("warehouse_id").
+		Column("name").
+		Column("quantity").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
 		Scan(ctx); err != nil {
 		return ItemEntity{}, err
 	}
