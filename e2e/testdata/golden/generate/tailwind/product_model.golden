@@ -130,9 +130,9 @@ func (p product) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 
 	offset := (page - 1) * pageSize
 
-	var totalCount int64
-	if err := db.NewSelect().
-		Model(&ProductEntity{}).Scan(ctx, &totalCount); err != nil {
+	totalCount, err := db.NewSelect().
+		Model(&ProductEntity{}).Count(ctx, &totalCount)
+	if err != nil {
 		return PaginatedProducts{}, err
 	}
 
@@ -145,11 +145,11 @@ func (p product) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 		return PaginatedProducts{}, err
 	}
 
-	totalPages := (totalCount + pageSize - 1) / pageSize
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
 
 	return PaginatedProducts{
 		Products:   entities,
-		TotalCount: totalCount,
+		TotalCount: int64(totalCount),
 		Page:       page,
 		PageSize:   pageSize,
 		TotalPages: totalPages,
