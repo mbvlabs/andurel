@@ -25,22 +25,25 @@ func chdirToProjectRoot() error {
 func newGenerateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "generate",
-		Short: "Generate new code (model, controller, scaffold)",
+		Short: "Generate new code (model, controller, scaffold, job)",
 		Long: `Generates new code for your Andurel application. The following
 generators are available:
 
   model       Generate a model from the existing migration
   controller  Generate a controller, views, and routes
-  scaffold    Generate a complete resource with model, controller, views, and routes`,
+  scaffold    Generate a complete resource with model, controller, views, and routes
+  job         Generate a background job with a worker`,
 		Example: `  andurel generate model Post
   andurel generate controller users index show
-  andurel generate scaffold Product`,
+  andurel generate scaffold Product
+  andurel generate job SendWelcomeEmail`,
 	}
 
 	cmd.AddCommand(
 		newGenerateModelCommand(),
 		newGenerateControllerCommand(),
 		newGenerateScaffoldCommand(),
+		newGenerateJobCommand(),
 	)
 
 	setStandardHelp(cmd,
@@ -55,6 +58,10 @@ generators are available:
 		helpCommand{
 			Use:         "generate scaffold NAME",
 			Description: "generates a complete scaffold resource",
+		},
+		helpCommand{
+			Use:         "generate job NAME",
+			Description: "generates a new background job",
 		},
 	)
 
