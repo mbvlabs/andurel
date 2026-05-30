@@ -1,0 +1,79 @@
+package cli
+
+import (
+	"github.com/mbvlabs/andurel/generator"
+	"github.com/spf13/cobra"
+)
+
+func newGenerateScaffoldCommand() *cobra.Command {
+	var (
+		skipFixture bool
+		tableName   string
+		skipRoutes  bool
+	)
+
+	cmd := &cobra.Command{
+		Use:   "scaffold NAME",
+		Short: "Generate a complete scaffold resource",
+		Long: `Scaffolds an entire resource, from model to controller and views, along
+with routes. The resource is ready to use as a starting point for your
+RESTful, resource-oriented application.
+
+Pass the resource name in CamelCase as the first argument.
+
+This is a convenience command that runs both:
+  andurel generate model NAME
+  andurel generate controller NAME
+
+It generates the full set of CRUD actions: index, show, new, create,
+edit, update, destroy.`,
+		Example: `  andurel generate scaffold Post
+
+      Generates a full Post resource with model, CRUD controller, views, and routes.
+      Model:      models/post.go
+      Factory:    models/factories/post.go
+      Controller: controllers/posts.go
+      Views:      views/posts_resource.templ
+      Routes:     router/routes/posts.go
+                  router/connect_posts_routes.go
+
+  andurel generate scaffold User --table-name=people_data
+
+      Generates a User resource from the people_data table.`,
+		Args: cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return cmd.Help()
+			}
+			name := args[0]
+
+			if err := chdirToProjectRoot(); err != nil {
+				return err
+			}
+
+			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
+				gen, err := generator.New()
+				if err != nil {
+					return err
+				}
+
+				if err := gen.GenerateModel(name, tableName, skipFixture); err != nil {
+					return err
+				}
+
+				crudActions := []string{"index", "show", "new", "create", "edit", "update", "destroy"}
+				if err := generateControllerWithActions(name, crudActions, skipRoutes); err != nil {
+					return err
+				}
+
+				return nil
+			})(cmd, args)
+		},
+	}
+
+	cmd.Flags().BoolVar(&skipFixture, "skip-fixture", false, "Skip generating a factory for the model")
+	cmd.Flags().StringVar(&tableName, "table-name", "", "Override the default table name")
+	cmd.Flags().BoolVar(&skipRoutes, "skip-routes", false, "Don't add routes")
+
+	return cmd
+}

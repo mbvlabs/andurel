@@ -70,10 +70,6 @@ func TestGenerateCommands(t *testing.T) {
 				testGenerateController(t, project)
 			})
 
-			t.Run("generate_view", func(t *testing.T) {
-				testGenerateView(t, project)
-			})
-
 			t.Run("generate_resource", func(t *testing.T) {
 				testGenerateResource(t, project)
 			})
@@ -94,11 +90,11 @@ func TestGenerateCommands(t *testing.T) {
 				testGenerateModelWithTableName(t, project)
 			})
 
-			t.Run("generate_controller_without_views", func(t *testing.T) {
+			t.Run("generate_controller_creates_views", func(t *testing.T) {
 				testGenerateControllerWithoutViews(t, project)
 			})
 
-			t.Run("generate_view_with_controller", func(t *testing.T) {
+			t.Run("generate_controller_with_views_and_routes", func(t *testing.T) {
 				testGenerateViewWithController(t, project)
 			})
 
@@ -106,7 +102,7 @@ func TestGenerateCommands(t *testing.T) {
 				testGenerateModelWithArrayTypes(t, project)
 			})
 
-			t.Run("generate_view_with_array_types", func(t *testing.T) {
+			t.Run("generate_controller_with_array_types", func(t *testing.T) {
 				testGenerateViewWithArrayTypes(t, project)
 			})
 		})
@@ -121,7 +117,7 @@ func testGenerateModel(t *testing.T, project *internal.Project) {
 		"price DECIMAL(10,2)",
 	})
 
-	err := project.Generate("model", "Product", "create")
+	err := project.Generate("generate", "model", "Product")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	// Verify model file exists and compare against golden file
@@ -160,7 +156,7 @@ func testGenerateModelWithoutTimestamps(t *testing.T, project *internal.Project)
 		"server_id UUID NOT NULL",
 	})
 
-	err := project.Generate("model", "ServerProvisionStep", "create", "--skip-factory")
+	err := project.Generate("generate", "model", "ServerProvisionStep", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate model without timestamps")
 
 	internal.AssertFileExists(t, project, "models/server_provision_step.go")
@@ -176,10 +172,10 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 		"signature BYTEA",
 	})
 
-	err := project.Generate("model", "Order", "create")
+	err := project.Generate("generate", "model", "Order")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
-	err = project.Generate("controller", "Order", "create", "--with-views")
+	err = project.Generate("generate", "controller", "Order")
 	internal.AssertCommandSucceeds(t, err, "generate controller")
 
 	// Verify controller file exists and compare against golden file
@@ -222,39 +218,6 @@ func testGenerateController(t *testing.T, project *internal.Project) {
 	)
 }
 
-func testGenerateView(t *testing.T, project *internal.Project) {
-	t.Helper()
-
-	createMigration(t, project, "000102_create_categories", "categories", []string{
-		"name VARCHAR(255) NOT NULL",
-		"description TEXT",
-	})
-
-	err := project.Generate("model", "Category", "create")
-	internal.AssertCommandSucceeds(t, err, "generate model")
-
-	err = project.Generate("view", "Category", "create")
-	internal.AssertCommandSucceeds(t, err, "generate view")
-
-	// Verify view file exists and compare against golden file
-	internal.AssertFileExists(t, project, "views/categories_resource.templ")
-	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/categories_resource.templ"))
-	if err != nil {
-		t.Fatalf("Failed to read view file: %v", err)
-	}
-	compareOrUpdateGenerateGolden(
-		t,
-		filepath.Join("testdata", "golden", "generate", "category_view.golden"),
-		string(viewContent),
-		project.CSS,
-	)
-
-	// Controller file should NOT exist when only generating views
-	if project.FileExists("controllers/categories.go") {
-		t.Error("Controller file should NOT exist when only generating views")
-	}
-}
-
 func testGenerateResource(t *testing.T, project *internal.Project) {
 	t.Helper()
 
@@ -264,7 +227,7 @@ func testGenerateResource(t *testing.T, project *internal.Project) {
 		"quantity INTEGER",
 	})
 
-	err := project.Generate("resource", "Item", "create")
+	err := project.Generate("generate", "scaffold", "Item")
 	internal.AssertCommandSucceeds(t, err, "generate resource")
 
 	// Verify model file exists and compare against golden file
@@ -317,9 +280,9 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 	})
 
 	err := project.Generate(
-		"resource",
+		"generate",
+		"scaffold",
 		"StudentFeedback",
-		"create",
 		"--table-name=student_feedback",
 	)
 	internal.AssertCommandSucceeds(t, err, "generate resource with table-name override")
@@ -394,7 +357,7 @@ func testGenerateModelWithFactory(t *testing.T, project *internal.Project) {
 		"pages INTEGER",
 	})
 
-	err := project.Generate("model", "Book", "create")
+	err := project.Generate("generate", "model", "Book")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
 	// Verify model file exists and compare against golden file
@@ -433,7 +396,7 @@ func testGenerateModelSkipFactory(t *testing.T, project *internal.Project) {
 		"published BOOLEAN DEFAULT false",
 	})
 
-	err := project.Generate("model", "Article", "create", "--skip-factory")
+	err := project.Generate("generate", "model", "Article", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate model with --skip-factory")
 
 	// Verify model file exists and compare against golden file
@@ -466,7 +429,7 @@ func testGenerateModelWithTableName(t *testing.T, project *internal.Project) {
 		"email VARCHAR(255)",
 	})
 
-	err := project.Generate("model", "Person", "create", "--table-name=people_data")
+	err := project.Generate("generate", "model", "Person", "--table-name=people_data")
 	internal.AssertCommandSucceeds(t, err, "generate model with --table-name")
 
 	// Verify model file exists and compare against golden file
@@ -506,12 +469,12 @@ func testGenerateControllerWithoutViews(t *testing.T, project *internal.Project)
 		"pdf_data BYTEA",
 	})
 
-	err := project.Generate("model", "Invoice", "create")
+	err := project.Generate("generate", "model", "Invoice")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
-	// Generate controller WITHOUT views (default behavior)
-	err = project.Generate("controller", "Invoice", "create")
-	internal.AssertCommandSucceeds(t, err, "generate controller without views")
+	// Generate controller (always generates views in new system)
+	err = project.Generate("generate", "controller", "Invoice")
+	internal.AssertCommandSucceeds(t, err, "generate controller")
 
 	// Verify controller file exists and compare against golden file
 	internal.AssertFileExists(t, project, "controllers/invoices.go")
@@ -525,6 +488,9 @@ func testGenerateControllerWithoutViews(t *testing.T, project *internal.Project)
 		string(controllerContent),
 		project.CSS,
 	)
+
+	// Verify view file exists (controller always generates views now)
+	internal.AssertFileExists(t, project, "views/invoices_resource.templ")
 
 	// Verify routes file exists and compare against golden file
 	internal.AssertFileExists(t, project, "router/routes/invoices.go")
@@ -551,11 +517,6 @@ func testGenerateControllerWithoutViews(t *testing.T, project *internal.Project)
 		string(routerContent),
 		project.CSS,
 	)
-
-	// View file should NOT exist when generating controller without views
-	if project.FileExists("views/invoices_resource.templ") {
-		t.Error("View file should NOT exist when generating controller without --with-views")
-	}
 }
 
 func testGenerateViewWithController(t *testing.T, project *internal.Project) {
@@ -567,12 +528,12 @@ func testGenerateViewWithController(t *testing.T, project *internal.Project) {
 		"rating INTEGER NOT NULL",
 	})
 
-	err := project.Generate("model", "Review", "create")
+	err := project.Generate("generate", "model", "Review")
 	internal.AssertCommandSucceeds(t, err, "generate model")
 
-	// Generate view WITH controller
-	err = project.Generate("view", "Review", "create", "--with-controller")
-	internal.AssertCommandSucceeds(t, err, "generate view with controller")
+	// Generate controller (always generates views in new system)
+	err = project.Generate("generate", "controller", "Review")
+	internal.AssertCommandSucceeds(t, err, "generate controller")
 
 	// Verify view file exists and compare against golden file
 	internal.AssertFileExists(t, project, "views/reviews_resource.templ")
@@ -587,7 +548,7 @@ func testGenerateViewWithController(t *testing.T, project *internal.Project) {
 		project.CSS,
 	)
 
-	// Verify controller file exists (because --with-controller was passed)
+	// Verify controller file exists (controller always generates both)
 	internal.AssertFileExists(t, project, "controllers/reviews.go")
 	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/reviews.go"))
 	if err != nil {
@@ -643,7 +604,7 @@ DROP TABLE IF EXISTS posts;
 		t.Fatalf("Failed to create migration file: %v", err)
 	}
 
-	err = project.Generate("model", "Post", "create", "--skip-factory")
+	err = project.Generate("generate", "model", "Post", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate model with array types")
 
 	// Verify model file exists and compare against golden file
@@ -789,13 +750,13 @@ DROP TABLE IF EXISTS documents;
 		t.Fatalf("Failed to create migration file: %v", err)
 	}
 
-	// Generate model first (required for view generation)
-	err = project.Generate("model", "Document", "create", "--skip-factory")
+	// Generate model first (required for controller generation)
+	err = project.Generate("generate", "model", "Document", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate model with array types")
 
-	// Generate view
-	err = project.Generate("view", "Document", "create")
-	internal.AssertCommandSucceeds(t, err, "generate view with array types")
+	// Generate controller (always generates views)
+	err = project.Generate("generate", "controller", "Document")
+	internal.AssertCommandSucceeds(t, err, "generate controller with array types")
 
 	// Verify view file exists
 	internal.AssertFileExists(t, project, "views/documents_resource.templ")

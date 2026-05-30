@@ -10,10 +10,15 @@ import (
 
 func newExtensionCommand() *cobra.Command {
 	extensionCmd := &cobra.Command{
-		Use:     "extension",
+		Use:   "extension",
 		Aliases: []string{"ext", "e"},
-		Short:   "Manage project extensions",
-		Long:    "Add and list extensions applied to the current andurel project.",
+		Short: "Manage project extensions",
+		Long: `Add and list extensions applied to the current Andurel project.
+
+Extensions are tracked in andurel.lock and enable optional framework
+features like Docker or authentication.`,
+		Example: `  andurel extension add docker
+  andurel extension list`,
 	}
 
 	extensionCmd.AddCommand(
@@ -28,6 +33,8 @@ func newExtensionAddCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "add [extension-name]",
 		Short: "Add an extension to the project",
+		Long:  "Register an extension and track it in andurel.lock.",
+		Example: "  andurel extension add docker",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			extensionName := args[0]
@@ -60,10 +67,12 @@ func newExtensionAddCommand() *cobra.Command {
 
 func newExtensionListCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:     "list",
+		Use:   "list",
 		Aliases: []string{"ls"},
-		Short:   "List all extensions applied to the project",
-		Args:    cobra.NoArgs,
+		Short: "List all extensions applied to the project",
+		Long:  "Show every extension registered in andurel.lock with the date it was applied.",
+		Example: "  andurel extension list",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
 			if err != nil {

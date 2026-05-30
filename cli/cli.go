@@ -73,6 +73,14 @@ func setStandardHelp(cmd *cobra.Command, commands ...helpCommand) {
 	})
 }
 
+func isInAndurelProject() bool {
+	_, err := findGoModRoot()
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:          "andurel",
@@ -82,23 +90,18 @@ func NewRootCommand(version, date string) *cobra.Command {
 		SilenceUsage: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			printBanner()
+			fmt.Println()
 			cmd.Help()
 		},
 	}
 
-	rootCmd.AddCommand(newRunAppCommand())
-
 	rootCmd.AddCommand(newProjectCommand(version))
-	rootCmd.AddCommand(newControllerRootCommand())
+	rootCmd.AddCommand(newGenerateCommand())
 	rootCmd.AddCommand(newViewRootCommand())
-	rootCmd.AddCommand(newResourceRootCommand())
 	rootCmd.AddCommand(newDatabaseCommand())
-	rootCmd.AddCommand(newMigrateCommand())
 
-	rootCmd.AddCommand(newAppCommand())
+	rootCmd.AddCommand(newRunAppCommand())
 	rootCmd.AddCommand(newConsoleCommand())
-	rootCmd.AddCommand(newDblabCommand())
-	rootCmd.AddCommand(newMailpitCommand())
 	rootCmd.AddCommand(newLlmCommand())
 	rootCmd.AddCommand(newToolCommand())
 	rootCmd.AddCommand(newExtensionCommand())
@@ -106,15 +109,79 @@ func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd.AddCommand(newUpgradeCommand(version))
 	rootCmd.AddCommand(newDoctorCommand(version))
 
+	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true})
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
+
+	rootCmd.SetHelpFunc(func(c *cobra.Command, args []string) {
+		if c.Parent() != nil {
+			c.Print(c.Short)
+			c.Println()
+			c.Println()
+			c.Println("Usage:")
+			c.Printf("  %s\n", c.UseLine())
+			if c.HasAvailableSubCommands() {
+				c.Println()
+				c.Println("Available Commands:")
+				for _, s := range c.Commands() {
+					if !s.IsAvailableCommand() || s.Hidden {
+						continue
+					}
+					c.Printf("  %-12s %s\n", s.Name(), s.Short)
+				}
+			}
+			if c.HasAvailableLocalFlags() {
+				c.Println()
+				c.Println("Flags:")
+				c.Print(c.LocalFlags().FlagUsages())
+			}
+			return
+		}
+		if isInAndurelProject() {
+			c.Println("Usage:")
+			c.Println("  andurel [command]")
+			c.Println()
+			c.Println("Commands:")
+			for _, sub := range c.Commands() {
+				if !sub.IsAvailableCommand() || sub.Hidden {
+					continue
+				}
+				if sub.Name() == "new" || sub.Name() == "help" || sub.Name() == "completion" {
+					continue
+				}
+				c.Printf("  %-12s %s\n", sub.Name(), sub.Short)
+			}
+			c.Println()
+			c.Println("Flags:")
+			c.Println(c.LocalFlags().FlagUsages())
+			c.Println("Use \"andurel [command] --help\" for more information about a command.")
+		} else {
+			fmt.Println("Usage:")
+			fmt.Println("  andurel COMMAND [options]")
+			fmt.Println()
+			fmt.Println("You must specify a command:")
+			fmt.Println()
+			fmt.Printf("  %-14s %s\n", "new", "Create a new Andurel project")
+			fmt.Println()
+			fmt.Println("All commands can be run with -h (or --help) for more information.")
+			fmt.Println()
+			fmt.Println("Inside an Andurel application directory, some common commands are:")
+			fmt.Println()
+			fmt.Printf("  %-14s %s\n", "generate", "Generate new code")
+			fmt.Printf("  %-14s %s\n", "console", "Interactive database console")
+			fmt.Printf("  %-14s %s\n", "migrate", "Run database migrations")
+		}
+	})
+
 	return rootCmd
 }
 
 func newRunAppCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "run",
+		Use:   "run",
 		Aliases: []string{"r"},
-		Short:   "Runs the app",
-		Args:    cobra.ExactArgs(0),
+		Short: "Start the development server",
+		Long:  "Start the development server (shadowfax) for your Andurel application.",
+		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
 			if err != nil {
@@ -185,4 +252,8 @@ func checkBinaries(rootDir string) error {
 	}
 
 	return nil
+}
+
+func findProjectRoot() (string, error) {
+	return findGoModRoot()
 }

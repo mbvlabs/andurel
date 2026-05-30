@@ -10,7 +10,13 @@ func newLlmCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "llm",
 		Short: "Output framework documentation for LLM consumption",
-		Long:  "Generates comprehensive documentation about the Andurel framework that can be used by AI assistants to understand and work with the project.",
+		Long: `Output comprehensive Andurel framework documentation for AI assistants.
+
+Use the subcommands below to get documentation on specific topics.`,
+		Example: `  andurel llm
+  andurel llm controllers
+  andurel llm models
+  andurel llm router`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, err := os.Stdout.WriteString(llmDocumentation)
 			return err
@@ -32,6 +38,7 @@ func newLlmControllersCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "controllers",
 		Short: "Controller-specific LLM documentation",
+		Long:  "Output detailed Andurel controller documentation covering request handling, rendering, sessions, flash messages, and hypermedia patterns.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, err := os.Stdout.WriteString(llmControllersDocumentation)
@@ -44,6 +51,7 @@ func newLlmModelsCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "models",
 		Short: "Model-specific LLM documentation",
+		Long:  "Output detailed Andurel model documentation covering CRUD, SQLC queries, validation, and factories.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, err := os.Stdout.WriteString(llmModelsDocumentation)
@@ -56,6 +64,7 @@ func newLlmViewsCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "views",
 		Short: "View-specific LLM documentation",
+		Long:  "Output detailed Andurel view documentation covering Templ components, layouts, and rendering.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, err := os.Stdout.WriteString(llmViewsDocumentation)
@@ -68,6 +77,7 @@ func newLlmRouterCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "router",
 		Short: "Router-specific LLM documentation",
+		Long:  "Output detailed Andurel router documentation covering route types, middleware, sessions, and cookies.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, err := os.Stdout.WriteString(llmRouterDocumentation)
@@ -80,6 +90,7 @@ func newLlmHypermediaCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "hypermedia",
 		Short: "Hypermedia architecture and Datastar usage (client + server)",
+		Long:  "Output detailed Andurel hypermedia documentation covering Datastar SSE, server helpers, and client-side attributes.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, err := os.Stdout.WriteString(llmHypermediaDocumentation)
@@ -92,6 +103,7 @@ func newLlmJobsCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "jobs",
 		Short: "Background jobs LLM documentation",
+		Long:  "Output detailed Andurel background job documentation covering River workers, job arguments, and queue setup.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, err := os.Stdout.WriteString(llmJobsDocumentation)
@@ -104,6 +116,7 @@ func newLlmConfigCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "config",
 		Short: "Configuration and environment LLM documentation",
+		Long:  "Output detailed Andurel configuration documentation covering environment variables, app config, and setup.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, err := os.Stdout.WriteString(llmConfigDocumentation)

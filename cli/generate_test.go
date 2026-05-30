@@ -14,10 +14,11 @@ func TestGenerateCommands(t *testing.T) {
 		name string
 		args []string
 	}{
+		{"generate model help", []string{"generate", "model", "--help"}},
+		{"generate controller help", []string{"generate", "controller", "--help"}},
+		{"generate scaffold help", []string{"generate", "scaffold", "--help"}},
 		{"model help", []string{"model", "--help"}},
-		{"controller help", []string{"controller", "--help"}},
 		{"view help", []string{"view", "--help"}},
-		{"resource help", []string{"resource", "--help"}},
 	}
 
 	for _, tt := range tests {
@@ -34,7 +35,7 @@ func TestGenerateCommands(t *testing.T) {
 func TestRootCommandStructure(t *testing.T) {
 	rootCmd := NewRootCommand("test", "test-date")
 
-	expectedCommands := []string{"controller", "view", "resource", "model"}
+	expectedCommands := []string{"generate", "view", "model"}
 	foundCommands := make(map[string]bool)
 
 	for _, cmd := range rootCmd.Commands() {
@@ -49,6 +50,31 @@ func TestRootCommandStructure(t *testing.T) {
 				expectedCmd,
 				getCommandNames(rootCmd.Commands()),
 			)
+		}
+	}
+}
+
+func TestGenerateSubCommands(t *testing.T) {
+	rootCmd := NewRootCommand("test", "test-date")
+
+	generateCmd, _, err := rootCmd.Find([]string{"generate"})
+	if err != nil {
+		t.Fatalf("'generate' command not found: %v", err)
+	}
+
+	expectedSubs := []string{"model", "controller", "scaffold"}
+	subNames := getCommandNames(generateCmd.Commands())
+
+	for _, expectedSub := range expectedSubs {
+		found := false
+		for _, name := range subNames {
+			if name == expectedSub {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected generate subcommand '%s' not found. Available: %v", expectedSub, subNames)
 		}
 	}
 }
