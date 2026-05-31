@@ -60,7 +60,7 @@ will generate a Post model with columns matching the posts table.`,
 		},
 	}
 
-	cmd.Flags().BoolVar(&skipFactory, "skip-fixture", false, "Skip generating a factory for the model")
+	cmd.Flags().BoolVar(&skipFactory, "skip-factory", false, "Skip generating a factory for the model")
 	cmd.Flags().StringVar(&tableName, "table-name", "", "Override the default table name")
 
 	return cmd

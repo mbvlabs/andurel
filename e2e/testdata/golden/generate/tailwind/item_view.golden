@@ -1,180 +1,57 @@
 package views
 
 import (
-	"fmt"
 	"net/http"
-	"testapp/internal/hypermedia"
 	"testapp/internal/renderer"
-	"testapp/models"
 	"testapp/router/routes"
 )
 
-templ ItemIndex(items []models.ItemEntity) {
-	@base() {
-		<main class="flex-1 px-6 py-10">
-			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
-				<div class="flex flex-wrap items-center justify-between gap-4">
-					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Items</h1>
-					<a href={ routes.ItemNew.URL() } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">New Item</a>
-				</div>
-				if len(items) == 0 {
-					<p class="text-sm text-base-content/60">No items found.</p>
-				} else {
-					<div class="relative w-full overflow-auto">
-						<table class="w-full caption-bottom text-sm">
-							<thead class="[&_tr]:border-b [&_tr]:border-base-300">
-								<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
-									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Warehouse Id</th>
-									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Name</th>
-									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Quantity</th>
-									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Created At</th>
-									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Updated At</th>
-									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Actions</th>
-								</tr>
-							</thead>
-							<tbody class="[&_tr:last-child]:border-0">
-								for _, item := range items {
-									<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", item.WarehouseID) }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ item.Name }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", item.Quantity) }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", item.CreatedAt) }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", item.UpdatedAt) }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
-											<div class="flex flex-wrap gap-3 text-sm">
-												<a class="text-base-content/80 hover:text-base-content" href={ routes.ItemShow.URL(item.ID) }>View</a>
-												<a class="text-base-content/80 hover:text-base-content" href={ routes.ItemEdit.URL(item.ID) }>Edit</a>
-											</div>
-										</td>
-									</tr>
-								}
-							</tbody>
-						</table>
-					</div>
-				}
-			</div>
-		</main>
-	}
+templ ItemIndex() {
+	<div class="p-6">
+		<h1 class="text-2xl font-semibold">Item#Index</h1>
+		<p class="text-sm text-base-content/60 mt-2">Content for this action has not been implemented yet.</p>
+	</div>
 }
 
-templ ItemShow(item models.ItemEntity) {
-	@base() {
-		<main class="flex-1 px-6 py-10">
-			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
-				<div class="flex flex-wrap items-center justify-between gap-4">
-					<h1 class="text-2xl font-semibold tracking-tight text-base-content">Item Details</h1>
-					<div class="flex flex-wrap items-center gap-3">
-						<a href={ routes.ItemEdit.URL(item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">Edit</a>
-						<a class="text-sm text-base-content/70 hover:text-base-content" href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
-					</div>
-				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
-					<div class="p-6 pt-0">
-						<div class="grid gap-5 sm:grid-cols-2">
-							<div class="space-y-1">
-								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Warehouse Id</label>
-								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", item.WarehouseID) }</p>
-							</div>
-							<div class="space-y-1">
-								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Name</label>
-								<p class="text-sm text-base-content">{ item.Name }</p>
-							</div>
-							<div class="space-y-1">
-								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Quantity</label>
-								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", item.Quantity) }</p>
-							</div>
-							<div class="space-y-1">
-								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
-								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", item.CreatedAt) }</p>
-							</div>
-							<div class="space-y-1">
-								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
-								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", item.UpdatedAt) }</p>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</main>
-	}
+templ ItemShow() {
+	<div class="p-6">
+		<h1 class="text-2xl font-semibold">Item#Show</h1>
+		<p class="text-sm text-base-content/60 mt-2">Content for this action has not been implemented yet.</p>
+	</div>
 }
 
 templ ItemNew() {
-	@base() {
-		<main class="flex-1 flex items-center justify-center px-6 py-10">
-			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
-					<div class="flex flex-col space-y-1.5 p-6">
-						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">New Item</h3>
-						<p class="text-sm text-base-content/60">Enter the details for the new item.</p>
-					</div>
-					<div class="p-6 pt-0">
-						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.ItemCreate.URL()) }>
-							<fieldset data-attr:disabled="$submitting">
-								<div class="space-y-4">
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="warehouseId">Warehouse Id</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="warehouseId"/>
-									</div>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="name">Name</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="name"/>
-									</div>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="quantity">Quantity</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="quantity"/>
-									</div>
-								</div>
-								<div class="mt-6 space-y-3">
-									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Create Item</button>
-									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
-								</div>
-							</fieldset>
-						</form>
-					</div>
-				</div>
-			</div>
-		</main>
-	}
+	<div class="p-6">
+		<h1 class="text-2xl font-semibold">Item#New</h1>
+		<p class="text-sm text-base-content/60 mt-2">Content for this action has not been implemented yet.</p>
+	</div>
 }
 
-templ ItemEdit(item models.ItemEntity) {
-	@base() {
-		<main class="flex-1 flex items-center justify-center px-6 py-10">
-			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
-					<div class="flex flex-col space-y-1.5 p-6">
-						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">Edit Item</h3>
-						<p class="text-sm text-base-content/60">Update the details for this item.</p>
-					</div>
-					<div class="p-6 pt-0">
-						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPut, routes.ItemUpdate.URL(item.ID)) }>
-							<fieldset data-attr:disabled="$submitting">
-								<div class="space-y-4">
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="warehouseId">Warehouse Id</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="warehouseId" value={ fmt.Sprintf("%v", item.WarehouseID) }/>
-									</div>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="name">Name</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="name" value={ item.Name }/>
-									</div>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="quantity">Quantity</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="quantity" value={ fmt.Sprintf("%v", item.Quantity) }/>
-									</div>
-								</div>
-								<div class="mt-6 space-y-3">
-									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Update Item</button>
-									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
-								</div>
-							</fieldset>
-						</form>
-						<div role="separator" class="my-6 shrink-0 bg-base-300 h-px w-full"></div>
-						<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-error text-error-content shadow-sm hover:bg-error/90 h-9 px-4 py-2 text-sm rounded-field w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ItemDestroy.URL(item.ID)) }>Destroy Item</button>
-					</div>
-				</div>
-			</div>
-		</main>
-	}
+templ ItemCreate() {
+	<div class="p-6">
+		<h1 class="text-2xl font-semibold">Item#Create</h1>
+		<p class="text-sm text-base-content/60 mt-2">Content for this action has not been implemented yet.</p>
+	</div>
 }
+
+templ ItemEdit() {
+	<div class="p-6">
+		<h1 class="text-2xl font-semibold">Item#Edit</h1>
+		<p class="text-sm text-base-content/60 mt-2">Content for this action has not been implemented yet.</p>
+	</div>
+}
+
+templ ItemUpdate() {
+	<div class="p-6">
+		<h1 class="text-2xl font-semibold">Item#Update</h1>
+		<p class="text-sm text-base-content/60 mt-2">Content for this action has not been implemented yet.</p>
+	</div>
+}
+
+templ ItemDestroy() {
+	<div class="p-6">
+		<h1 class="text-2xl font-semibold">Item#Destroy</h1>
+		<p class="text-sm text-base-content/60 mt-2">Content for this action has not been implemented yet.</p>
+	</div>
+}
+

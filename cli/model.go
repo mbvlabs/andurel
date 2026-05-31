@@ -16,16 +16,19 @@ func newModelRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "model",
 		Short: "Model management commands",
-		Long: `Manage resource models. Update existing models to reflect changes made
-in database migrations.`,
-		Example: `  andurel model User update
+		Long: `Manage resource models. Create new models or update existing ones
+to reflect changes made in database migrations.`,
+		Example: `  andurel model Product create
+  andurel model Product create --skip-factory
+  andurel model Product create --table-name=inventory
+  andurel model User update
   andurel model User update --yes`,
 	}
 
 	setStandardHelp(cmd,
 		helpCommand{
-			Use:         "model <ResourceName> update",
-			Description: "updates a resource model from migrations",
+			Use:         "model <ResourceName> <create|update>",
+			Description: "creates or updates a resource model from migrations",
 		},
 	)
 
@@ -33,11 +36,19 @@ in database migrations.`,
 		if len(args) < 2 {
 			return cmd.Help()
 		}
-		if len(args) > 2 {
-			return fmt.Errorf("too many arguments\nRun 'andurel model --help' for usage")
-		}
 		name := args[0]
 		switch args[1] {
+		case "create":
+			if err := chdirToProjectRoot(); err != nil {
+				return err
+			}
+			tableName, _ := cmd.Flags().GetString("table-name")
+			skipFactory, _ := cmd.Flags().GetBool("skip-factory")
+			gen, err := generator.New()
+			if err != nil {
+				return err
+			}
+			return gen.GenerateModel(name, tableName, skipFactory)
 		case "update":
 			if err := chdirToProjectRoot(); err != nil {
 				return err
@@ -50,6 +61,8 @@ in database migrations.`,
 	}
 
 	cmd.Flags().Bool("yes", false, "Apply changes without prompting for confirmation")
+	cmd.Flags().Bool("skip-factory", false, "Skip generating a factory for the model")
+	cmd.Flags().String("table-name", "", "Override the default table name")
 
 	return cmd
 }

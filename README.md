@@ -89,7 +89,7 @@ cp .env.example .env
 # Note: you need to edit .env with your database details
 
 # Apply database migrations
-andurel migrate up
+andurel database migrate up
 
 # Run the development server (with live reload)
 andurel run
@@ -125,135 +125,198 @@ andurel database rebuild --skip-seed       # Skip seeding after migrations
 # Create a migration and add the columns you need. Resource generation requires
 # an `id` primary key (uuid/serial/bigserial/string-supported types). `created_at`
 # and `updated_at` are optional but recommended.
-andurel migrate new create_products_table
+andurel database migrate new create_products_table
 
 # Create a complete resource with model, controller, views, and routes
-andurel generate resource Product
+andurel generate scaffold Product
 ```
 
 This single command creates everything you need for a full CRUD interface.
 
 ## CLI Commands
 
-### Run
-Starts the development server (hot reload).
+### `andurel new` — Create a new project
+
+Scaffolds a complete Andurel project with the given name.
+
+```bash
+andurel new [project-name] [flags]
+```
+
+| Flag | Description |
+|------|-------------|
+| `-c`, `--css` | CSS framework: `tailwind` (default) or `vanilla` |
+| `-e`, `--extensions` | Comma-separated extensions to enable (e.g. `docker,aws-ses`) |
+
+### `andurel generate` — Code generation
+
+Generate models, controllers, and scaffolds from your existing database migrations.
+
+```bash
+andurel generate model NAME [flags]
+andurel generate controller NAME [action ...] [flags]
+andurel generate scaffold NAME [flags]
+```
+
+**`generate model`** — Creates a model from a database migration. Fields, types, and timestamps are read from the migration automatically.
+
+| Flag | Description |
+|------|-------------|
+| `--skip-factory` | Skip generating a factory file |
+| `--table-name`   | Override the default table name (e.g. `--table-name=people_data`) |
+
+**`generate controller`** — Creates a controller, views, and routes for the given actions.
+
+| Flag | Description |
+|------|-------------|
+| `--skip-routes` | Generate the controller and views without route files |
+
+**`generate scaffold`** — Convenience command that runs `generate model` + `generate controller` with full CRUD actions (index, show, new, create, edit, update, destroy).
+
+| Flag | Description |
+|------|-------------|
+| `--skip-factory` | Skip generating a factory file |
+| `--table-name`   | Override the default table name |
+
+### `andurel model` — Model management
+
+Create or update models from database migrations.
+
+```bash
+andurel model <ResourceName> create [flags]
+andurel model <ResourceName> update [flags]
+```
+
+**`create`** — Generates a model from an existing migration (equivalent to `generate model`).
+
+| Flag | Description |
+|------|-------------|
+| `--skip-factory` | Skip generating a factory file |
+| `--table-name`   | Override the default table name |
+
+**`update`** — Updates an existing model to reflect migration changes while preserving custom fields.
+
+| Flag | Description |
+|------|-------------|
+| `--yes` | Apply changes without prompting for confirmation |
+
+### `andurel view` — Templ template management
+
+```bash
+andurel view generate    (alias: compile)
+andurel view format
+```
+
+| Subcommand | Description |
+|------------|-------------|
+| `generate` | Run `templ generate` to produce Go code from `.templ` files |
+| `format`   | Run `templ fmt` on all `.templ` files in views/ and email/ |
+
+### `andurel database` — Database management
+
+Manage the full database lifecycle.
+
+```bash
+andurel database (aliases: d, db)
+andurel database create
+andurel database drop [--force]
+andurel database nuke [--force]
+andurel database rebuild [--force] [--skip-seed]
+andurel database seed
+andurel database migrate (aliases: m, mig)
+```
+
+**`database migrate` subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| `new [name]` | Create a new SQL migration file |
+| `up` | Apply all pending migrations |
+| `down` | Roll back the most recently applied migration |
+| `status` | Show current migration version and status |
+| `fix` | Re-number migrations to close gaps |
+| `reset` | Roll back all migrations, then re-apply them |
+| `up-to [version]` | Apply migrations up to a specific version |
+| `down-to [version]` | Roll back migrations down to a specific version |
+
+### `andurel run` — Development server
+
+Starts the development server with live reload (powered by Shadowfax).
 
 ```bash
 andurel run (alias: r)
 ```
 
-### New
-Scaffolds a new Andurel project.
+### `andurel console` — Database console
+
+Opens an interactive database console (usql) using connection details from `.env`.
 
 ```bash
-andurel new [project-name] --css/-c --extensions/-e
+andurel console (alias: c)
 ```
 
-### Generate
-Code and scaffolding generators.
+### `andurel tool` — Project tools and binaries
 
-```bash
-andurel generate (aliases: g, gen)
-andurel generate model [name] --table-name --skip-factory      (alias: m)
-andurel generate controller [model_name] --with-views          (alias: c)
-andurel generate view [model_name] --with-controller           (alias: v)
-andurel generate resource [name] --table-name                  (alias: r)
-```
-
-### Database
-Database lifecycle and seed helpers.
-
-```bash
-andurel database (aliases: d, db)
-andurel database seed
-andurel database create
-andurel database drop
-andurel database nuke
-andurel database rebuild
-```
-
-### Migrate
-Goose migration helpers.
-
-```bash
-andurel migrate (aliases: m, mig)
-andurel migrate new [name]
-andurel migrate up
-andurel migrate down
-andurel migrate status
-andurel migrate fix
-andurel migrate reset
-andurel migrate up-to [version]
-andurel migrate down-to [version]
-```
-
-### Query
-SQLC query generation helpers.
-
-```bash
-andurel query (alias: q)
-andurel query generate [table_name]
-andurel query refresh [table_name]
-andurel query compile
-andurel query validate
-```
-
-### View
-Templ code generation.
-
-```bash
-andurel view (alias: v)
-andurel view generate
-andurel view format
-```
-
-### App
-App utilities and helpers.
-
-```bash
-andurel app (alias: a)
-andurel app console    # alias: c
-andurel app dblab      # alias: d
-andurel app mailpit    # alias: m
-```
-
-### Tool
-Manage project tools and binaries.
+Manage CLI tools and binaries used by your project. Tools are defined in `andurel.lock` and downloaded to `bin/`.
 
 ```bash
 andurel tool (alias: t)
 andurel tool sync
 andurel tool set-version <tool> <version>
+andurel tool dblab (alias: d)
+andurel tool mailpit (alias: m)
 ```
 
-### Extension
-Manage project extensions.
+| Subcommand | Description |
+|------------|-------------|
+| `sync` | Download and validate binaries specified in `andurel.lock` |
+| `set-version` | Set a specific tool version (e.g. `templ 0.3.977`) |
+| `dblab` | Open the dblab database UI in the browser |
+| `mailpit` | Run the Mailpit email testing server (SMTP :1025, HTTP :8025) |
+
+### `andurel extension` — Project extensions
+
+Add and list optional framework features.
 
 ```bash
 andurel extension (aliases: ext, e)
 andurel extension add [extension-name]
-andurel extension list    # alias: ls
+andurel extension list (alias: ls)
 ```
 
-### LLM
-Emit framework docs for AI assistants.
+Available extensions: `docker`, `aws-ses`.
+
+### `andurel llm` — LLM documentation
+
+Outputs comprehensive framework documentation for AI assistants. Supports topic-specific subcommands:
 
 ```bash
 andurel llm
+andurel llm controllers
+andurel llm models
+andurel llm views
+andurel llm router
+andurel llm hypermedia
+andurel llm jobs
+andurel llm config
 ```
 
-### Upgrade
-Upgrade framework-managed files.
+### `andurel upgrade` — Framework upgrade
+
+Upgrade framework-managed files and tool versions to the latest.
 
 ```bash
-andurel upgrade --dry-run
+andurel upgrade [--dry-run]
 ```
 
-### Doctor
-Run project diagnostics.
+> Commit or create a branch before upgrading — this command modifies files in place.
+
+### `andurel doctor` — Project diagnostics
+
+Run comprehensive diagnostic checks (Go version, config, code quality, code generation).
 
 ```bash
-andurel doctor --verbose
+andurel doctor [--verbose]
 ```
 
 ## Project Structure
