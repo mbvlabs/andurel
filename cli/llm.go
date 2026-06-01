@@ -137,6 +137,7 @@ andurel llm router
 andurel llm hypermedia
 andurel llm jobs
 andurel llm config
+andurel generate email  # scaffold a new email template (email/<name>.templ)
 andurel doctor --verbose # for checking project health, use in-place of go vet and go build
 ` + "```" + `
 
