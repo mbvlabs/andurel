@@ -70,7 +70,7 @@ func generateJob(name, queueName string) error {
 	}
 
 	snakeName := naming.ToSnakeCase(name)
-	pascalName := naming.ToPascalCase(name)
+	pascalName := naming.ToPascalCase(snakeName)
 
 	// Generate queue/jobs/<snake>.go
 	jobPath := filepath.Join("queue", "jobs", snakeName+".go")

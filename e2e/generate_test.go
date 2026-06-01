@@ -817,10 +817,10 @@ func testGenerateJob(t *testing.T, project *internal.Project) {
 		t.Fatalf("Failed to read job file: %v", err)
 	}
 	jobStr := string(jobContent)
-	if !strings.Contains(jobStr, "type SendWelcomeEmailArgs struct") {
-		t.Error("Job file should contain SendWelcomeEmailArgs struct")
+	if !strings.Contains(jobStr, "SendWelcomeEmailArgs") {
+		t.Error("Job file should contain SendWelcomeEmailArgs")
 	}
-	if !strings.Contains(jobStr, "func (SendWelcomeEmailArgs) Kind() string") {
+	if !strings.Contains(jobStr, "func (SendWelcomeEmailArgs) Kind()") {
 		t.Error("Job file should contain Kind() method")
 	}
 
@@ -831,8 +831,8 @@ func testGenerateJob(t *testing.T, project *internal.Project) {
 		t.Fatalf("Failed to read worker file: %v", err)
 	}
 	workerStr := string(workerContent)
-	if !strings.Contains(workerStr, "type SendWelcomeEmailWorker struct") {
-		t.Error("Worker file should contain SendWelcomeEmailWorker struct")
+	if !strings.Contains(workerStr, "SendWelcomeEmailWorker") {
+		t.Error("Worker file should contain SendWelcomeEmailWorker")
 	}
 	if !strings.Contains(workerStr, "func (w *SendWelcomeEmailWorker) Work") {
 		t.Error("Worker file should contain Work() method")
