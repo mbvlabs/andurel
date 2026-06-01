@@ -810,43 +810,41 @@ func testGenerateJob(t *testing.T, project *internal.Project) {
 	err := project.Generate("generate", "job", "SendWelcomeEmail")
 	internal.AssertCommandSucceeds(t, err, "generate job")
 
-	// Verify job args file exists
 	internal.AssertFileExists(t, project, "queue/jobs/send_welcome_email.go")
 	jobContent, err := os.ReadFile(filepath.Join(project.Dir, "queue/jobs/send_welcome_email.go"))
 	if err != nil {
 		t.Fatalf("Failed to read job file: %v", err)
 	}
-	jobStr := string(jobContent)
-	if !strings.Contains(jobStr, "SendWelcomeEmailArgs") {
-		t.Error("Job file should contain SendWelcomeEmailArgs")
-	}
-	if !strings.Contains(jobStr, "func (SendWelcomeEmailArgs) Kind()") {
-		t.Error("Job file should contain Kind() method")
-	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "send_welcome_email_job.golden"),
+		string(jobContent),
+		project.CSS,
+	)
 
-	// Verify worker file exists
 	internal.AssertFileExists(t, project, "queue/workers/send_welcome_email.go")
 	workerContent, err := os.ReadFile(filepath.Join(project.Dir, "queue/workers/send_welcome_email.go"))
 	if err != nil {
 		t.Fatalf("Failed to read worker file: %v", err)
 	}
-	workerStr := string(workerContent)
-	if !strings.Contains(workerStr, "SendWelcomeEmailWorker") {
-		t.Error("Worker file should contain SendWelcomeEmailWorker")
-	}
-	if !strings.Contains(workerStr, "func (w *SendWelcomeEmailWorker) Work") {
-		t.Error("Worker file should contain Work() method")
-	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "send_welcome_email_worker.golden"),
+		string(workerContent),
+		project.CSS,
+	)
 
-	// Verify worker is registered in workers.go
 	workersGoPath := filepath.Join(project.Dir, "queue/workers/workers.go")
 	workersGoContent, err := os.ReadFile(workersGoPath)
 	if err != nil {
 		t.Fatalf("Failed to read workers.go: %v", err)
 	}
-	if !strings.Contains(string(workersGoContent), "SendWelcomeEmailWorker") {
-		t.Error("workers.go should register SendWelcomeEmailWorker")
-	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "send_welcome_email_registration.golden"),
+		string(workersGoContent),
+		project.CSS,
+	)
 }
 
 func compareOrUpdateGenerateGolden(t *testing.T, goldenPath, actual, css string) {
