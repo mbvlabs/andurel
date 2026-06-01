@@ -140,16 +140,21 @@ func registerWorkerInWorkersGo(pascalName string) error {
 		return fmt.Errorf("failed to read %s: %w", workersGoPath, err)
 	}
 
-	registrationLine := fmt.Sprintf("\n\tif err := river.AddWorkerSafely(wrks, New%sWorker()); err != nil {\n\t\treturn nil, err\n\t}\n", pascalName)
-
 	contentStr := string(content)
-	target := "return wrks, nil"
-	idx := strings.LastIndex(contentStr, target)
-	if idx == -1 {
-		return fmt.Errorf("could not find '%s' in %s", target, workersGoPath)
+	marker := "// andurel:worker-registration-point"
+	if !strings.Contains(contentStr, marker) {
+		printManualWorkerRegistration(pascalName)
+		return nil
 	}
 
-	newContent := contentStr[:idx] + registrationLine + contentStr[idx:]
+	registrationLine := fmt.Sprintf(`
+	if err := river.AddWorkerSafely(wrks, New%sWorker()); err != nil {
+		return nil, err
+	}
+
+`, pascalName)
+
+	newContent := strings.Replace(contentStr, marker, registrationLine+marker, 1)
 
 	if err := os.WriteFile(workersGoPath, []byte(newContent), constants.FilePermissionPrivate); err != nil {
 		return err
@@ -160,4 +165,16 @@ func registerWorkerInWorkersGo(pascalName string) error {
 	}
 
 	return nil
+}
+
+func printManualWorkerRegistration(pascalName string) {
+	fmt.Printf(`
+INFO: Could not find worker registration marker in queue/workers/workers.go.
+Add the following line before the "return wrks, nil" statement in the Register function:
+
+	if err := river.AddWorkerSafely(wrks, New%sWorker()); err != nil {
+		return nil, err
+	}
+
+`, pascalName)
 }
