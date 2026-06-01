@@ -5,37 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-
-	"github.com/spf13/cobra"
 )
-
-func newTemplGenerateCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:     "generate",
-		Aliases: []string{"compile"},
-		Short:   "Generate Go code from Templ templates",
-		Args:    cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTempl("generate")
-		},
-	}
-}
-
-func newTemplFormatCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "format",
-		Short: "Format Templ templates in views and email directories",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			for _, dir := range []string{"views", "email"} {
-				if err := runTempl("fmt", dir); err != nil {
-					return err
-				}
-			}
-			return nil
-		},
-	}
-}
 
 func runTempl(args ...string) error {
 	rootDir, err := findGoModRoot()

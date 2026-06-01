@@ -37,8 +37,20 @@ func (c *ControllerManager) GenerateController(
 ) error {
 	modulePath := c.projectManager.GetModulePath()
 
-	if err := c.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
-		return err
+	tableNameOverridden := tableName != "" && tableName != naming.DeriveTableName(resourceName)
+
+	if tableName == "" {
+		tableName = naming.DeriveTableName(resourceName)
+	}
+
+	if tableNameOverridden {
+		if err := c.validator.ValidateTableNameOverride(resourceName, tableName); err != nil {
+			return fmt.Errorf("table name validation failed: %w", err)
+		}
+	} else {
+		if err := c.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
+			return err
+		}
 	}
 
 	var modelFileName strings.Builder
@@ -62,10 +74,6 @@ func (c *ControllerManager) GenerateController(
 	if withViews {
 		controllerType = controllers.ResourceController
 	}
-
-	// Check if table name is overridden (different from derived name)
-	derivedTableName := naming.DeriveTableName(resourceName)
-	tableNameOverridden := tableName != derivedTableName
 
 	fileGen := controllers.NewFileGenerator()
 	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden); err != nil {
