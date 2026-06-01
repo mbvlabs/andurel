@@ -9,7 +9,6 @@ func newGenerateScaffoldCommand() *cobra.Command {
 	var (
 		skipFactory bool
 		tableName   string
-		skipRoutes  bool
 	)
 
 	cmd := &cobra.Command{
@@ -61,8 +60,7 @@ edit, update, destroy.`,
 					return err
 				}
 
-				crudActions := []string{"index", "show", "new", "create", "edit", "update", "destroy"}
-				if err := generateControllerWithActions(name, crudActions, skipRoutes); err != nil {
+				if err := gen.GenerateController(name, tableName, true); err != nil {
 					return err
 				}
 
@@ -73,7 +71,6 @@ edit, update, destroy.`,
 
 	cmd.Flags().BoolVar(&skipFactory, "skip-factory", false, "Skip generating a factory for the model")
 	cmd.Flags().StringVar(&tableName, "table-name", "", "Override the default table name")
-	cmd.Flags().BoolVar(&skipRoutes, "skip-routes", false, "Don't add routes")
 
 	return cmd
 }

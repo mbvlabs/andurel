@@ -105,6 +105,10 @@ func TestGenerateCommands(t *testing.T) {
 			t.Run("generate_controller_with_array_types", func(t *testing.T) {
 				testGenerateViewWithArrayTypes(t, project)
 			})
+
+			t.Run("generate_job", func(t *testing.T) {
+				testGenerateJob(t, project)
+			})
 		})
 	}
 }
@@ -750,13 +754,9 @@ DROP TABLE IF EXISTS documents;
 		t.Fatalf("Failed to create migration file: %v", err)
 	}
 
-	// Generate model first (required for controller generation)
-	err = project.Generate("generate", "model", "Document", "--skip-factory")
-	internal.AssertCommandSucceeds(t, err, "generate model with array types")
-
-	// Generate controller (always generates views)
-	err = project.Generate("generate", "controller", "Document")
-	internal.AssertCommandSucceeds(t, err, "generate controller with array types")
+	// Generate scaffold to create both model and resource controller with views
+	err = project.Generate("generate", "scaffold", "Document", "--skip-factory")
+	internal.AssertCommandSucceeds(t, err, "generate scaffold with array types")
 
 	// Verify view file exists
 	internal.AssertFileExists(t, project, "views/documents_resource.templ")
@@ -803,6 +803,51 @@ DROP TABLE IF EXISTS documents;
 	)
 }
 
+
+func testGenerateJob(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	err := project.Generate("generate", "job", "SendWelcomeEmail")
+	internal.AssertCommandSucceeds(t, err, "generate job")
+
+	// Verify job args file exists
+	internal.AssertFileExists(t, project, "queue/jobs/send_welcome_email.go")
+	jobContent, err := os.ReadFile(filepath.Join(project.Dir, "queue/jobs/send_welcome_email.go"))
+	if err != nil {
+		t.Fatalf("Failed to read job file: %v", err)
+	}
+	jobStr := string(jobContent)
+	if !strings.Contains(jobStr, "type SendWelcomeEmailArgs struct") {
+		t.Error("Job file should contain SendWelcomeEmailArgs struct")
+	}
+	if !strings.Contains(jobStr, "func (SendWelcomeEmailArgs) Kind() string") {
+		t.Error("Job file should contain Kind() method")
+	}
+
+	// Verify worker file exists
+	internal.AssertFileExists(t, project, "queue/workers/send_welcome_email.go")
+	workerContent, err := os.ReadFile(filepath.Join(project.Dir, "queue/workers/send_welcome_email.go"))
+	if err != nil {
+		t.Fatalf("Failed to read worker file: %v", err)
+	}
+	workerStr := string(workerContent)
+	if !strings.Contains(workerStr, "type SendWelcomeEmailWorker struct") {
+		t.Error("Worker file should contain SendWelcomeEmailWorker struct")
+	}
+	if !strings.Contains(workerStr, "func (w *SendWelcomeEmailWorker) Work") {
+		t.Error("Worker file should contain Work() method")
+	}
+
+	// Verify worker is registered in workers.go
+	workersGoPath := filepath.Join(project.Dir, "queue/workers/workers.go")
+	workersGoContent, err := os.ReadFile(workersGoPath)
+	if err != nil {
+		t.Fatalf("Failed to read workers.go: %v", err)
+	}
+	if !strings.Contains(string(workersGoContent), "SendWelcomeEmailWorker") {
+		t.Error("workers.go should register SendWelcomeEmailWorker")
+	}
+}
 
 func compareOrUpdateGenerateGolden(t *testing.T, goldenPath, actual, css string) {
 	t.Helper()
