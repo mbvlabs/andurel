@@ -19,8 +19,6 @@ func TestGenerateCommands(t *testing.T) {
 		{"generate controller help", []string{"generate", "controller", "--help"}},
 		{"generate scaffold help", []string{"generate", "scaffold", "--help"}},
 		{"generate job help", []string{"generate", "job", "--help"}},
-		{"model help", []string{"model", "--help"}},
-		{"view help", []string{"view", "--help"}},
 		{"fmt help", []string{"fmt", "--help"}},
 	}
 
@@ -38,7 +36,7 @@ func TestGenerateCommands(t *testing.T) {
 func TestRootCommandStructure(t *testing.T) {
 	rootCmd := NewRootCommand("test", "test-date")
 
-	expectedCommands := []string{"generate", "view", "model", "fmt"}
+	expectedCommands := []string{"generate", "fmt"}
 	foundCommands := make(map[string]bool)
 
 	for _, cmd := range rootCmd.Commands() {

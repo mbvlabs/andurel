@@ -97,8 +97,6 @@ func NewRootCommand(version, date string) *cobra.Command {
 
 	rootCmd.AddCommand(newProjectCommand(version))
 	rootCmd.AddCommand(newGenerateCommand())
-	rootCmd.AddCommand(newViewRootCommand())
-	rootCmd.AddCommand(newModelRootCommand())
 	rootCmd.AddCommand(newFmtCommand())
 	rootCmd.AddCommand(newDatabaseCommand())
 
