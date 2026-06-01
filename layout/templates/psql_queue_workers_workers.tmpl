@@ -18,5 +18,7 @@ func Register(transactionalSender email.TransactionalSender, marketingSender ema
 		return nil, err
 	}
 
+	// andurel:worker-registration-point
+
 	return wrks, nil
 }
