@@ -43,7 +43,7 @@ func testModelUpdatePreservesCustomFields(t *testing.T, project *internal.Projec
 		"price DECIMAL(10,2)",
 	})
 
-	err := project.Generate("model", "Widget", "create", "--skip-factory")
+	err := project.Generate("generate", "model", "Widget", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate widget model")
 
 	internal.AssertFileExists(t, project, "models/widget.go")

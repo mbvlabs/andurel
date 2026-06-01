@@ -75,7 +75,7 @@ func testCreateAndUseMigration(t *testing.T, project *internal.Project) {
 
 	internal.AssertFileExists(t, project, "database/migrations/"+migrationName+".sql")
 
-	err = project.Generate("model", "Product", "create")
+	err = project.Generate("generate", "model", "Product")
 	internal.AssertCommandSucceeds(t, err, "generate model from migration")
 
 	internal.AssertFileExists(t, project, "models/product.go")
