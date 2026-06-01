@@ -66,7 +66,6 @@ func newTemplFormatCommand() *cobra.Command {
 		},
 	}
 }
-
 func runTempl(args ...string) error {
 	rootDir, err := findGoModRoot()
 	if err != nil {

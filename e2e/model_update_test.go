@@ -43,7 +43,7 @@ func testModelUpdatePreservesCustomFields(t *testing.T, project *internal.Projec
 		"price DECIMAL(10,2)",
 	})
 
-	err := project.Generate("model", "Widget", "create", "--skip-factory")
+	err := project.Generate("generate", "model", "Widget", "--skip-factory")
 	internal.AssertCommandSucceeds(t, err, "generate widget model")
 
 	internal.AssertFileExists(t, project, "models/widget.go")
@@ -98,7 +98,7 @@ func testModelUpdatePreservesCustomFields(t *testing.T, project *internal.Projec
 	}
 
 	// Step 4: Run model update with --yes to bypass the interactive prompt.
-	err = project.Generate("model", "Widget", "update", "--yes")
+	err = project.Generate("generate", "model", "Widget", "--update", "--yes")
 	internal.AssertCommandSucceeds(t, err, "model update")
 
 	// Step 5: Verify the updated model.

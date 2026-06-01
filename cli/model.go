@@ -53,7 +53,6 @@ in database migrations.`,
 
 	return cmd
 }
-
 func runModelUpdate(resourceName string, autoApply bool) error {
 	gen, err := generator.New()
 	if err != nil {

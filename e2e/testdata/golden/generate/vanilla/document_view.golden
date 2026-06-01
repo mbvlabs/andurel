@@ -2,8 +2,12 @@ package views
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
+	"testapp/internal/hypermedia"
+	"testapp/internal/renderer"
 	"testapp/models"
+	"testapp/router/routes"
 )
 
 templ DocumentIndex(documents []models.DocumentEntity) {
@@ -15,7 +19,7 @@ templ DocumentIndex(documents []models.DocumentEntity) {
 						<h1>Documents</h1>
 						<p class="muted">Manage your documents with the shared vanilla component system.</p>
 					</div>
-					<a class="btn btn-primary" href="/">New Document</a>
+					<a class="btn btn-primary" href={ routes.DocumentNew.URL() }>New Document</a>
 				</div>
 				if len(documents) == 0 {
 					<section class="panel empty-state">
@@ -24,7 +28,7 @@ templ DocumentIndex(documents []models.DocumentEntity) {
 							<p class="empty-state-description">Create your first document to start filling this view.</p>
 						</div>
 						<div class="empty-state-actions">
-							<a class="btn btn-primary" href="/">New Document</a>
+							<a class="btn btn-primary" href={ routes.DocumentNew.URL() }>New Document</a>
 						</div>
 					</section>
 				} else {
@@ -54,8 +58,8 @@ templ DocumentIndex(documents []models.DocumentEntity) {
 										<td>{ fmt.Sprintf("%v", document.UpdatedAt) }</td>
 										<td>
 											<div class="cluster" data-gap="sm">
-												<a class="btn btn-ghost btn-sm" href="/">View</a>
-												<a class="btn btn-outline btn-sm" href="/">Edit</a>
+												<a class="btn btn-ghost btn-sm" href={ routes.DocumentShow.URL(document.ID) }>View</a>
+												<a class="btn btn-outline btn-sm" href={ routes.DocumentEdit.URL(document.ID) }>Edit</a>
 											</div>
 										</td>
 									</tr>
@@ -79,8 +83,8 @@ templ DocumentShow(document models.DocumentEntity) {
 						<p class="muted">Review the current values stored for this document.</p>
 					</div>
 					<div class="cluster" data-gap="sm">
-						<a class="btn btn-primary" href="/">Edit</a>
-						<a class="btn btn-outline" href="/">Back to List</a>
+						<a class="btn btn-primary" href={ routes.DocumentEdit.URL(document.ID) }>Edit</a>
+						<a class="btn btn-outline" href={ renderer.ResolveBackURL(ctx, routes.DocumentIndex.URL()) }>Back to List</a>
 					</div>
 				</div>
 				<div class="panel">
@@ -133,42 +137,42 @@ templ DocumentNew() {
 						<form
 							class="form"
 							data-indicator:submitting
-							data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", "/") }
+							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.DocumentCreate.URL()) }
 						>
 							<fieldset class="fieldset" data-attr:disabled="$submitting">
 								<div class="field">
 									<label class="field-label" for="title">Title</label>
 									<div class="field-control">
-										<input class="input" id="title" type="text" data-bind="title"/>
+										<input class="input" type="text" id="title" name="title" data-bind="title"/>
 									</div>
 								</div>
 								<div class="field">
 									<label class="field-label" for="tags">Tags</label>
 									<div class="field-control">
-										<input class="input" id="tags" type="text" data-bind="tags"/>
+										<input class="input" type="text" id="tags" name="tags" data-bind="tags"/>
 									</div>
 								</div>
 								<div class="field">
 									<label class="field-label" for="pageNumbers">Page Numbers</label>
 									<div class="field-control">
-										<input class="input" id="pageNumbers" type="text" data-bind="pageNumbers"/>
+										<input class="input" type="text" id="pageNumbers" name="pageNumbers" data-bind="pageNumbers"/>
 									</div>
 								</div>
 								<div class="field">
 									<label class="field-label" for="viewCount">View Count</label>
 									<div class="field-control">
-										<input class="input" id="viewCount" type="number" data-bind="viewCount"/>
+										<input class="input" type="number" id="viewCount" name="viewCount" data-bind="viewCount"/>
 									</div>
 								</div>
 								<div class="field">
 									<label class="field-label" for="isPublished">Is Published</label>
 									<div class="field-control">
-										<input class="input" id="isPublished" type="text" data-bind="isPublished"/>
+										<input class="input" type="text" id="isPublished" name="isPublished" data-bind="isPublished"/>
 									</div>
 								</div>
 								<div class="stack" data-gap="sm">
 									<button class="btn btn-primary btn-block" type="submit">Create Document</button>
-									<a class="btn btn-outline btn-block" href="/">Back to List</a>
+									<a class="btn btn-outline btn-block" href={ renderer.ResolveBackURL(ctx, routes.DocumentIndex.URL()) }>Back to List</a>
 								</div>
 							</fieldset>
 						</form>
@@ -192,42 +196,42 @@ templ DocumentEdit(document models.DocumentEntity) {
 						<form
 							class="form"
 							data-indicator:submitting
-							data-on:submit={ "!$submitting && " + fmt.Sprintf("@put('%s')", "/") }
+							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.DocumentUpdate.URL(document.ID)) }
 						>
 							<fieldset class="fieldset" data-attr:disabled="$submitting">
 								<div class="field">
 									<label class="field-label" for="title">Title</label>
 									<div class="field-control">
-										<input class="input" id="title" type="text" data-bind="title" value={ document.Title }/>
+										<input class="input" type="text" id="title" name="title" data-bind="title" value={ document.Title }/>
 									</div>
 								</div>
 								<div class="field">
 									<label class="field-label" for="tags">Tags</label>
 									<div class="field-control">
-										<input class="input" id="tags" type="text" data-bind="tags" value={ strings.Join(document.Tags, ", ") }/>
+										<input class="input" type="text" id="tags" name="tags" data-bind="tags" value={ strings.Join(document.Tags, ", ") }/>
 									</div>
 								</div>
 								<div class="field">
 									<label class="field-label" for="pageNumbers">Page Numbers</label>
 									<div class="field-control">
-										<input class="input" id="pageNumbers" type="text" data-bind="pageNumbers" value={ fmt.Sprintf("%v", document.PageNumbers) }/>
+										<input class="input" type="text" id="pageNumbers" name="pageNumbers" data-bind="pageNumbers" value={ fmt.Sprintf("%v", document.PageNumbers) }/>
 									</div>
 								</div>
 								<div class="field">
 									<label class="field-label" for="viewCount">View Count</label>
 									<div class="field-control">
-										<input class="input" id="viewCount" type="number" data-bind="viewCount" value={ fmt.Sprintf("%d", document.ViewCount) }/>
+										<input class="input" type="number" id="viewCount" name="viewCount" data-bind="viewCount" value={ fmt.Sprintf("%d", document.ViewCount) }/>
 									</div>
 								</div>
 								<div class="field">
 									<label class="field-label" for="isPublished">Is Published</label>
 									<div class="field-control">
-										<input class="input" id="isPublished" type="text" data-bind="isPublished" value={ fmt.Sprintf("%v", document.IsPublished) }/>
+										<input class="input" type="text" id="isPublished" name="isPublished" data-bind="isPublished" value={ fmt.Sprintf("%v", document.IsPublished) }/>
 									</div>
 								</div>
 								<div class="stack" data-gap="sm">
 									<button class="btn btn-primary btn-block" type="submit">Update Document</button>
-									<a class="btn btn-outline btn-block" href="/">Back to List</a>
+									<a class="btn btn-outline btn-block" href={ renderer.ResolveBackURL(ctx, routes.DocumentIndex.URL()) }>Back to List</a>
 								</div>
 							</fieldset>
 						</form>
@@ -236,7 +240,7 @@ templ DocumentEdit(document models.DocumentEntity) {
 						<button
 							class="btn btn-destructive btn-block"
 							type="button"
-							data-on:click={ fmt.Sprintf("@delete('%s')", "/") }
+							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.DocumentDestroy.URL(document.ID)) }
 						>Destroy Document</button>
 					</div>
 				</div>

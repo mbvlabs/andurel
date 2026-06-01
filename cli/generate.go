@@ -29,11 +29,15 @@ func newGenerateCommand() *cobra.Command {
 		Long: `Generates new code for your Andurel application. The following
 generators are available:
 
-  model       Generate a model from the existing migration
+  model       Generate a model from the existing migration, or update one
+              with --update
+  views       Generate Go code from Templ templates (templ generate)
   controller  Generate a controller, views, and routes
   scaffold    Generate a complete resource with model, controller, views, and routes
   job         Generate a background job with a worker`,
 		Example: `  andurel generate model Post
+  andurel generate model Post --update
+  andurel generate views
   andurel generate controller users index show
   andurel generate scaffold Product
   andurel generate job SendWelcomeEmail`,
@@ -41,6 +45,7 @@ generators are available:
 
 	cmd.AddCommand(
 		newGenerateModelCommand(),
+		newGenerateViewsCommand(),
 		newGenerateControllerCommand(),
 		newGenerateScaffoldCommand(),
 		newGenerateJobCommand(),
@@ -50,6 +55,10 @@ generators are available:
 		helpCommand{
 			Use:         "generate model NAME",
 			Description: "generates a new model from migration",
+		},
+		helpCommand{
+			Use:         "generate views",
+			Description: "generates Go code from Templ templates",
 		},
 		helpCommand{
 			Use:         "generate controller NAME [action ...]",
