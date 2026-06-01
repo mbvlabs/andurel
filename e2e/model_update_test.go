@@ -98,7 +98,7 @@ func testModelUpdatePreservesCustomFields(t *testing.T, project *internal.Projec
 	}
 
 	// Step 4: Run model update with --yes to bypass the interactive prompt.
-	err = project.Generate("model", "Widget", "update", "--yes")
+	err = project.Generate("generate", "model", "Widget", "--update", "--yes")
 	internal.AssertCommandSucceeds(t, err, "model update")
 
 	// Step 5: Verify the updated model.

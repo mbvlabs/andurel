@@ -15,10 +15,10 @@ func TestGenerateCommands(t *testing.T) {
 		args []string
 	}{
 		{"generate model help", []string{"generate", "model", "--help"}},
+		{"generate views help", []string{"generate", "views", "--help"}},
 		{"generate controller help", []string{"generate", "controller", "--help"}},
 		{"generate scaffold help", []string{"generate", "scaffold", "--help"}},
-		{"model help", []string{"model", "--help"}},
-		{"view help", []string{"view", "--help"}},
+		{"fmt help", []string{"fmt", "--help"}},
 	}
 
 	for _, tt := range tests {
@@ -35,7 +35,7 @@ func TestGenerateCommands(t *testing.T) {
 func TestRootCommandStructure(t *testing.T) {
 	rootCmd := NewRootCommand("test", "test-date")
 
-	expectedCommands := []string{"generate", "view", "model"}
+	expectedCommands := []string{"generate", "fmt"}
 	foundCommands := make(map[string]bool)
 
 	for _, cmd := range rootCmd.Commands() {
@@ -62,7 +62,7 @@ func TestGenerateSubCommands(t *testing.T) {
 		t.Fatalf("'generate' command not found: %v", err)
 	}
 
-	expectedSubs := []string{"model", "controller", "scaffold"}
+	expectedSubs := []string{"model", "views", "controller", "scaffold"}
 	subNames := getCommandNames(generateCmd.Commands())
 
 	for _, expectedSub := range expectedSubs {

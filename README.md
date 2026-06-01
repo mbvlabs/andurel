@@ -154,22 +154,27 @@ Generate models, controllers, and scaffolds from your existing database migratio
 
 ```bash
 andurel generate model NAME [flags]
+andurel generate views
 andurel generate controller NAME [action ...] [flags]
 andurel generate scaffold NAME [flags]
 ```
 
-**`generate model`** — Creates a model from a database migration. Fields, types, and timestamps are read from the migration automatically.
+**`generate model`** — Creates a model from a database migration, or updates an existing one. Fields, types, and timestamps are read from the migration automatically.
 
 | Flag | Description |
 |------|-------------|
 | `--skip-factory` | Skip generating a factory file |
 | `--table-name`   | Override the default table name (e.g. `--table-name=people_data`) |
+| `--update`       | Update an existing model from migration changes |
+| `--yes`          | Apply changes without prompting for confirmation (use with `--update`) |
 
 **`generate controller`** — Creates a controller, views, and routes for the given actions.
 
 | Flag | Description |
 |------|-------------|
 | `--skip-routes` | Generate the controller and views without route files |
+
+**`generate views`** — Generates Go code from `.templ` template files (runs `templ generate`).
 
 **`generate scaffold`** — Convenience command that runs `generate model` + `generate controller` with full CRUD actions (index, show, new, create, edit, update, destroy).
 
@@ -178,39 +183,21 @@ andurel generate scaffold NAME [flags]
 | `--skip-factory` | Skip generating a factory file |
 | `--table-name`   | Override the default table name |
 
-### `andurel model` — Model management
+### `andurel fmt` — Format source files
 
-Create or update models from database migrations.
+Formats Go and Templ source files in the project.
 
 ```bash
-andurel model <ResourceName> create [flags]
-andurel model <ResourceName> update [flags]
+andurel fmt [flags]
 ```
-
-**`create`** — Generates a model from an existing migration (equivalent to `generate model`).
 
 | Flag | Description |
 |------|-------------|
-| `--skip-factory` | Skip generating a factory file |
-| `--table-name`   | Override the default table name |
+| `--check`      | Check formatting without modifying files (CI-friendly) |
+| `--skip-templ` | Skip Templ formatting |
+| `--skip-go`    | Skip Go formatting (go fmt and golines) |
 
-**`update`** — Updates an existing model to reflect migration changes while preserving custom fields.
-
-| Flag | Description |
-|------|-------------|
-| `--yes` | Apply changes without prompting for confirmation |
-
-### `andurel view` — Templ template management
-
-```bash
-andurel view generate    (alias: compile)
-andurel view format
-```
-
-| Subcommand | Description |
-|------------|-------------|
-| `generate` | Run `templ generate` to produce Go code from `.templ` files |
-| `format`   | Run `templ fmt` on all `.templ` files in views/ and email/ |
+Runs `go fmt ./...`, `golines -w -m 100 .`, and `templ fmt` on `views/` and `email/` directories.
 
 ### `andurel database` — Database management
 
