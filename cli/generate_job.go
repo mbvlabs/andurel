@@ -7,10 +7,22 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/files"
+	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
 )
+
+type jobTemplateData struct {
+	PascalName string
+	SnakeName  string
+	QueueName  string
+}
+
+type workerTemplateData struct {
+	ModulePath string
+	PascalName string
+}
 
 func newGenerateJobCommand() *cobra.Command {
 	var queueName string
@@ -74,13 +86,20 @@ func generateJob(name, queueName string) error {
 
 	// Generate queue/jobs/<snake>.go
 	jobPath := filepath.Join("queue", "jobs", snakeName+".go")
-	if err := generateJobFile(jobPath, modulePath, pascalName, snakeName, queueName); err != nil {
+	if err := generateFromTemplate("job.tmpl", jobPath, jobTemplateData{
+		PascalName: pascalName,
+		SnakeName:  snakeName,
+		QueueName:  queueName,
+	}); err != nil {
 		return fmt.Errorf("failed to generate job file: %w", err)
 	}
 
 	// Generate queue/workers/<snake>.go
 	workerPath := filepath.Join("queue", "workers", snakeName+".go")
-	if err := generateWorkerFile(workerPath, modulePath, pascalName, snakeName); err != nil {
+	if err := generateFromTemplate("worker.tmpl", workerPath, workerTemplateData{
+		ModulePath: modulePath,
+		PascalName: pascalName,
+	}); err != nil {
 		return fmt.Errorf("failed to generate worker file: %w", err)
 	}
 
@@ -93,83 +112,25 @@ func generateJob(name, queueName string) error {
 	return nil
 }
 
-func generateJobFile(jobPath, modulePath, pascalName, snakeName, queueName string) error {
-	if _, err := os.Stat(jobPath); err == nil {
-		return fmt.Errorf("job file %s already exists", jobPath)
+func generateFromTemplate(tmplName, outputPath string, data any) error {
+	if _, err := os.Stat(outputPath); err == nil {
+		return fmt.Errorf("file %s already exists", outputPath)
 	}
 
-	var sb strings.Builder
-	sb.WriteString("package jobs\n\n")
-
-	if queueName != "" {
-		sb.WriteString("import \"github.com/riverqueue/river\"\n\n")
-	}
-
-	sb.WriteString(fmt.Sprintf("type %sArgs struct{}\n\n", pascalName))
-	sb.WriteString(fmt.Sprintf("func (%sArgs) Kind() string { return %q }\n", pascalName, snakeName))
-
-	if queueName != "" {
-		sb.WriteString(fmt.Sprintf("\nfunc (%sArgs) InsertOpts() river.InsertOpts {\n", pascalName))
-		sb.WriteString("\treturn river.InsertOpts{\n")
-		sb.WriteString(fmt.Sprintf("\t\tQueue: %q,\n", queueName))
-		sb.WriteString("\t}\n")
-		sb.WriteString("}\n")
-	}
-
-	if err := os.MkdirAll(filepath.Dir(jobPath), 0o755); err != nil {
+	content, err := templates.RenderTemplateUsingGlobal(tmplName, data)
+	if err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(jobPath, []byte(sb.String()), constants.FilePermissionPrivate); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return err
 	}
 
-	if err := files.FormatGoFile(jobPath); err != nil {
+	if err := os.WriteFile(outputPath, []byte(content), constants.FilePermissionPrivate); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-func generateWorkerFile(workerPath, modulePath, pascalName, snakeName string) error {
-	if _, err := os.Stat(workerPath); err == nil {
-		return fmt.Errorf("worker file %s already exists", workerPath)
-	}
-
-	var sb strings.Builder
-	sb.WriteString("package workers\n\n")
-	sb.WriteString("import (\n")
-	sb.WriteString("\t\"context\"\n")
-	sb.WriteString("\n")
-	sb.WriteString("\t\"github.com/riverqueue/river\"\n")
-	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("\t%q\n", modulePath+"/queue/jobs"))
-	sb.WriteString(")\n\n")
-	sb.WriteString(fmt.Sprintf("type %sWorker struct {\n", pascalName))
-	sb.WriteString(fmt.Sprintf("\triver.WorkerDefaults[jobs.%sArgs]\n", pascalName))
-	sb.WriteString("}\n\n")
-	sb.WriteString(fmt.Sprintf("func New%sWorker() *%sWorker {\n", pascalName, pascalName))
-	sb.WriteString(fmt.Sprintf("\treturn &%sWorker{}\n", pascalName))
-	sb.WriteString("}\n\n")
-	sb.WriteString(fmt.Sprintf("func (w *%sWorker) Work(ctx context.Context, job *river.Job[jobs.%sArgs]) error {\n", pascalName, pascalName))
-	sb.WriteString("\t_ = ctx\n")
-	sb.WriteString("\t_ = job\n")
-	sb.WriteString("\treturn nil\n")
-	sb.WriteString("}\n")
-
-	if err := os.MkdirAll(filepath.Dir(workerPath), 0o755); err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(workerPath, []byte(sb.String()), constants.FilePermissionPrivate); err != nil {
-		return err
-	}
-
-	if err := files.FormatGoFile(workerPath); err != nil {
-		return err
-	}
-
-	return nil
+	return files.FormatGoFile(outputPath)
 }
 
 func registerWorkerInWorkersGo(pascalName string) error {
