@@ -23,17 +23,7 @@ func (w Workflows) Apply(ctx *Context) error {
 
 	builder.AddMainImport(fmt.Sprintf("%s/queue/workflow", moduleName))
 
-	builder.AddMainInitialization(
-		"dependencyChecker",
-		"workflow.NewDependencyChecker(pool, 30*time.Second)",
-		"db.Conn()",
-	)
-
-	builder.AddBackgroundWorker(
-		"workflowDependencyChecker",
-		"dependencyChecker.Start(ctx)",
-		"dependencyChecker",
-	)
+	builder.AddServiceProvide("workflow.NewDependencyChecker")
 
 	if err := w.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("workflows: failed to render templates: %w", err)

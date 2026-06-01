@@ -29,15 +29,8 @@ func (e AwsSes) Apply(ctx *Context) error {
 	builder.AddEnvVar("AWS_SES_SECRET_ACCESS_KEY", "AwsSes", "")
 	builder.AddEnvVar("AWS_SES_CONFIGURATION_SET", "AwsSes", "")
 
-	// Add email client initialization
-	builder.AddMainInitialization(
-		"emailClient",
-		"mailclients.NewAwsSes(cfg.AwsSes.Region, cfg.AwsSes.AccessKeyID, cfg.AwsSes.SecretAccessKey, cfg.AwsSes.ConfigurationSet)",
-		"cfg",
-	)
-
-	// Add controller dependency
-	builder.AddControllerDependency("emailClient", "email.TransactionalSender")
+	// Add email client service provide
+	builder.AddServiceProvide("func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {\n\t\treturn mailclients.NewAwsSes(cfg.AwsSes.Region, cfg.AwsSes.AccessKeyID, cfg.AwsSes.SecretAccessKey, cfg.AwsSes.ConfigurationSet), mailclients.NewAwsSes(cfg.AwsSes.Region, cfg.AwsSes.AccessKeyID, cfg.AwsSes.SecretAccessKey, cfg.AwsSes.ConfigurationSet)\n\t}")
 
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("aws-ses: failed to render templates: %w", err)

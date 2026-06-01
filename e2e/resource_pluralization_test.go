@@ -93,7 +93,6 @@ func TestResourcePluralization(t *testing.T) {
 			"controllers/" + tc.tableName + ".go",
 			"views/" + tc.tableName + "_resource.templ",
 			"router/routes/" + tc.tableName + ".go",
-			"router/connect_" + tc.tableName + "_routes.go",
 		}
 
 			for _, f := range expectedFiles {
@@ -339,10 +338,12 @@ func validateRouterRegistrationPluralization(
 ) {
 	t.Helper()
 
-	routerPath := filepath.Join(project.Dir, "router", "connect_"+tc.tableName+"_routes.go")
-	content, err := os.ReadFile(routerPath)
+	// Controllers now self-register via the RegisterRoutes method.
+	// Check that the controller file contains RegisterRoutes with proper pluralization.
+	controllerPath := filepath.Join(project.Dir, "controllers", tc.tableName+".go")
+	content, err := os.ReadFile(controllerPath)
 	if err != nil {
-		t.Fatalf("Failed to read router registration file: %v", err)
+		t.Fatalf("Failed to read controller file: %v", err)
 	}
 
 	contentStr := string(content)
@@ -350,39 +351,29 @@ func validateRouterRegistrationPluralization(
 	lowercaseSingular := strings.ToLower(tc.expectedSingular)
 
 	// Check for correct patterns
-	// Note: Controllers use plural type names (e.g., Companies, Projects)
-	// The registration function is now a method on Router: func (r Router) RegisterXRoutes(...)
 	correctPatterns := []struct {
 		pattern string
 		desc    string
 	}{
 		{
-			"func (r Router) Register" + tc.expectedSingular + "Routes(",
-			"Registration function is a Router method using singular",
-		},
-		{
-			lowercaseSingular + " controllers." + tc.expectedPlural,
-			"Controller parameter uses singular name with plural type",
+			"func (" + lowercaseSingular[:1] + " " + tc.expectedPlural + ") RegisterRoutes(r *router.Router) error",
+			"RegisterRoutes method with plural receiver type",
 		},
 		{
 			"routes." + tc.expectedSingular + "Index",
 			"Uses singular for route constants",
 		},
 		{
-			lowercaseSingular + ".Index",
-			"Uses lowercase singular for controller method calls",
+			lowercaseSingular[:1] + ".Index",
+			"Uses receiver for controller method calls",
 		},
 	}
 
 	for _, p := range correctPatterns {
 		if !strings.Contains(contentStr, p.pattern) {
-			t.Errorf("Router registration file should contain %q (%s)", p.pattern, p.desc)
+			t.Errorf("Controller file should contain %q (%s)", p.pattern, p.desc)
 		}
 	}
-
-	// Golden file comparison
-	goldenPath := filepath.Join("testdata", "golden", "resource", tc.name+"_router.golden")
-	compareOrUpdateGolden(t, goldenPath, contentStr)
 }
 
 func compareOrUpdateGolden(t *testing.T, goldenPath, actual string) {

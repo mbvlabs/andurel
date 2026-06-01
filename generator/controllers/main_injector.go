@@ -12,8 +12,7 @@ import (
 )
 
 const (
-	mainFileRelPath    = "cmd/app/main.go"
-	registrationMarker = "// andurel:controller-registration-point"
+	providesFileRelPath = "cmd/app/controller_provides.go"
 )
 
 type MainInjector struct {
@@ -26,74 +25,58 @@ func NewMainInjector() *MainInjector {
 	}
 }
 
-// InjectController adds controller constructor and registration to main.go
-// Returns nil if marker not found (logs info message instead of failing)
+// InjectController appends an fx.Annotate line to controller_provides.go
 func (mi *MainInjector) InjectController(resourceName, pluralName string) error {
-	varName := naming.ToLowerCamelCaseFromAny(pluralName)
 	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
+	provideLine := fmt.Sprintf("\tfx.Annotate(controllers.New%s, fx.As(new(controllers.Controller))),", capitalizedPlural)
 
-	// Find go.mod root and construct full path
 	rootDir, err := mi.fileManager.FindGoModRoot()
 	if err != nil {
-		mi.printManualInstructions(resourceName, pluralName)
-		return nil // Don't fail, just inform
+		mi.printManualInstructions(resourceName, capitalizedPlural)
+		return nil
 	}
 
-	mainFilePath := filepath.Join(rootDir, mainFileRelPath)
+	providesPath := filepath.Join(rootDir, providesFileRelPath)
 
-	// Read main.go
-	content, err := os.ReadFile(mainFilePath)
+	content, err := os.ReadFile(providesPath)
 	if err != nil {
-		mi.printManualInstructions(resourceName, pluralName)
-		return nil // Don't fail, just inform
+		mi.printManualInstructions(resourceName, capitalizedPlural)
+		return nil
 	}
 
 	contentStr := string(content)
 
-	// Look for marker
-	if !strings.Contains(contentStr, registrationMarker) {
-		slog.Info("could not find controller registration marker in cmd/app/main.go",
-			"marker", registrationMarker,
-			"hint", "add the marker to enable automatic controller registration")
-		mi.printManualInstructions(resourceName, pluralName)
-		return nil // Don't fail, just inform
+	// Check if this controller is already registered
+	if strings.Contains(contentStr, provideLine) {
+		slog.Info("controller already registered in controller_provides.go")
+		return nil
 	}
 
-	// Generate injection block
-	injection := fmt.Sprintf(`	%s := controllers.New%s(db)
-	if err := r.Register%sRoutes(%s); err != nil {
-		return err
+	// Append the new provide line before the closing brace of the var block
+	insertion := "\n" + provideLine
+	lastBrace := strings.LastIndex(contentStr, "\n}")
+	if lastBrace < 0 {
+		slog.Info("could not find closing brace in controller_provides.go")
+		mi.printManualInstructions(resourceName, capitalizedPlural)
+		return nil
+	}
+	newContent := contentStr[:lastBrace] + insertion + contentStr[lastBrace:]
+
+	if err := os.WriteFile(providesPath, []byte(newContent), 0644); err != nil {
+		return fmt.Errorf("failed to write controller_provides.go: %w", err)
 	}
 
-	`, varName, capitalizedPlural, resourceName, varName)
-
-	// Insert before marker
-	newContent := strings.Replace(contentStr, registrationMarker, injection+registrationMarker, 1)
-
-	// Write back
-	if err := os.WriteFile(mainFilePath, []byte(newContent), 0644); err != nil {
-		return fmt.Errorf("failed to write main.go: %w", err)
-	}
-
-	// Format with goimports
-	if err := files.FormatGoFile(mainFilePath); err != nil {
-		return fmt.Errorf("failed to format main.go: %w", err)
+	if err := files.FormatGoFile(providesPath); err != nil {
+		return fmt.Errorf("failed to format controller_provides.go: %w", err)
 	}
 
 	return nil
 }
 
-func (mi *MainInjector) printManualInstructions(resourceName, pluralName string) {
-	varName := naming.ToLowerCamelCaseFromAny(pluralName)
-	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
-
+func (mi *MainInjector) printManualInstructions(resourceName, capitalizedPlural string) {
 	fmt.Printf(`
-INFO: Add the following to your controller setup in cmd/app/main.go:
+INFO: Add the following to cmd/app/controller_provides.go:
 
-	%s := controllers.New%s(db)
-	if err := r.Register%sRoutes(%s); err != nil {
-		return err
-	}
-
-`, varName, capitalizedPlural, resourceName, varName)
+	fx.Annotate(controllers.New%s, fx.As(new(controllers.Controller))),
+`, capitalizedPlural)
 }

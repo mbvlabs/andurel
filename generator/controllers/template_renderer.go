@@ -8,7 +8,6 @@ import (
 
 	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/pkg/errors"
-	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type TemplateRenderer struct {
@@ -80,40 +79,6 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName, idTyp
 	result, err := tr.service.RenderTemplate("route.tmpl", data)
 	if err != nil {
 		return "", errors.WrapTemplateError(err, "render route", "route.tmpl")
-	}
-	return result, nil
-}
-
-func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, pluralName string) (string, error) {
-	capitalizedPluralName := naming.Capitalize(naming.ToCamelCase(pluralName))
-	lowercasePluralName := naming.ToLowerCamelCaseFromAny(pluralName)
-
-	// Get module path
-	modulePath, err := tr.getModulePath()
-	if err != nil {
-		return "", fmt.Errorf("failed to get module path: %w", err)
-	}
-
-	// Create custom data structure for route registration template
-	data := struct {
-		ResourceName          string
-		PluralName            string
-		CapitalizedPluralName string
-		LowercasePluralName   string
-		LowercaseResourceName string
-		ModulePath            string
-	}{
-		ResourceName:          resourceName,
-		PluralName:            pluralName,
-		CapitalizedPluralName: capitalizedPluralName,
-		LowercasePluralName:   lowercasePluralName,
-		LowercaseResourceName: naming.ToLowerCamelCase(resourceName),
-		ModulePath:            modulePath,
-	}
-
-	result, err := tr.service.RenderTemplate("route_registration.tmpl", data)
-	if err != nil {
-		return "", errors.WrapTemplateError(err, "render route registration", "route_registration.tmpl")
 	}
 	return result, nil
 }

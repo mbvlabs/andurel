@@ -1,8 +1,13 @@
 package controllers
 
 import (
+	"errors"
+	"net/http"
+
 	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/queue"
+	"{{.ModuleName}}/router"
+	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/views"
 
 	"github.com/a-h/templ"
@@ -21,6 +26,22 @@ func NewPages(
 	cache *Cache[templ.Component],
 ) Pages {
 	return Pages{db, insertOnly, cache}
+}
+
+func (p Pages) RegisterRoutes(r *router.Router) error {
+	errs := []error{}
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.HomePage.Path(),
+		Name:    routes.HomePage.Name(),
+		Handler: p.Home,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
 
 func (p Pages) Home(etx *echo.Context) error {

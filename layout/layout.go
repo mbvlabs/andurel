@@ -347,6 +347,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Clients
 	"clients_email_mailpit.tmpl": "clients/email/mailpit.go",
 
+	// Controller provides (generated)
+	"cmd_app_controller_provides.tmpl": "cmd/app/controller_provides.go",
+
 	// Controllers
 	"controllers_api.tmpl":        "controllers/api.go",
 	"controllers_assets.tmpl":     "controllers/assets.go",
@@ -385,14 +388,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"models_factories_token.tmpl":     "models/factories/token.go",
 
 	// Router
-	"router_router.tmpl":                         "router/router.go",
-	"router_connect_api_routes.tmpl":             "router/connect_api_routes.go",
-	"router_connect_assets_routes.tmpl":          "router/connect_assets_routes.go",
-	"router_connect_pages_routes.tmpl":           "router/connect_pages_routes.go",
-	"router_connect_sessions_routes.tmpl":        "router/connect_sessions_routes.go",
-	"router_connect_registrations_routes.tmpl":   "router/connect_registrations_routes.go",
-	"router_connect_confirmations_routes.tmpl":   "router/connect_confirmations_routes.go",
-	"router_connect_reset_passwords_routes.tmpl": "router/connect_reset_passwords_routes.go",
+	"router_router.tmpl": "router/router.go",
 	"router_cookies_cookies.tmpl":                "router/cookies/cookies.go",
 	"router_cookies_flash.tmpl":                  "router/cookies/flash.go",
 	"router_middleware_middleware.tmpl":          "router/middleware/middleware.go",
@@ -540,12 +536,10 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 
 	blueprintTemplates := []TmplTarget{
 		"cmd_app_main.tmpl",
+		"cmd_app_controller_provides.tmpl",
 		"controllers_controller.tmpl",
 		"config_config.tmpl",
 		"env.tmpl",
-		"router_connect_api_routes.tmpl",
-		"router_connect_assets_routes.tmpl",
-		"router_connect_pages_routes.tmpl",
 		"router_cookies_cookies.tmpl",
 	}
 
@@ -932,46 +926,15 @@ func generateRandomHex(bytes int) string {
 func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 	builder := blueprint.NewBuilder(nil)
 
-	builder.AddMainImport(fmt.Sprintf("%s/clients/email", moduleName))
+	builder.AddMainImport(fmt.Sprintf("%s/email", moduleName))
 	builder.AddControllerImport(fmt.Sprintf("%s/controllers", moduleName))
-	builder.AddControllerImport(fmt.Sprintf("%s/email", moduleName))
-
-	builder.AddMainInitialization(
-		"emailClient",
-		"mailclients.NewMailpit(cfg.Email.MailpitHost, cfg.Email.MailpitPort)",
-		"cfg",
-	)
+	builder.AddControllerImport(fmt.Sprintf("%s/config", moduleName))
 
 	builder.AddConfigField("Email", "email")
-
-	// Auth configuration
 	builder.AddConfigField("Auth", "auth")
 
-	// Auth controller dependencies and imports
-	builder.AddControllerImport(fmt.Sprintf("%s/config", moduleName))
-	builder.AddControllerDependency("cfg", "config.Config")
-
-	builder.AddControllerDependency("db", "storage.Pool")
-
-	// Controller fields - the main sub-controllers
-	builder.
-		AddControllerField("Assets", "controllers.Assets").
-		AddControllerField("API", "controllers.API").
-		AddControllerField("Pages", "controllers.Pages").
-		AddControllerField("Sessions", "controllers.Sessions").
-		AddControllerField("Registrations", "controllers.Registrations").
-		AddControllerField("Confirmations", "controllers.Confirmations").
-		AddControllerField("ResetPasswords", "controllers.ResetPasswords")
-
-	// Constructor initializations
-	builder.
-		AddControllerConstructor("assets", "controllers.NewAssets(assetsCache)").
-		AddControllerConstructor("api", "controllers.NewAPI(db)").
-		AddControllerConstructor("pages", "controllers.NewPages(db, insertOnly, pagesCache)").
-		AddControllerConstructor("sessions", "controllers.NewSessions(db, cfg)").
-		AddControllerConstructor("registrations", "controllers.NewRegistrations(db, insertOnly, cfg)").
-		AddControllerConstructor("confirmations", "controllers.NewConfirmations(db, cfg)").
-		AddControllerConstructor("resetPasswords", "controllers.NewResetPasswords(db, insertOnly, cfg)")
+	builder.AddWorkerDependency("transactionalSender", "email.TransactionalSender")
+	builder.AddWorkerDependency("marketingSender", "email.MarketingSender")
 
 	// Auth cookies configuration
 	builder.AddCookiesImport("github.com/google/uuid")

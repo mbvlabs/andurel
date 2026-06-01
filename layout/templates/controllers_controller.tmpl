@@ -3,11 +3,16 @@ package controllers
 
 import (
 	"{{.ModuleName}}/internal/renderer"
+	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
 )
+
+type Controller interface {
+	RegisterRoutes(r *router.Router) error
+}
 
 func render(etx *echo.Context, t templ.Component) error {
 	return renderer.Render(

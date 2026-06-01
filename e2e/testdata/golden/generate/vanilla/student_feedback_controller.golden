@@ -1,12 +1,14 @@
 package controllers
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"testapp/internal/storage"
 	"testapp/models"
+	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/views"
@@ -200,4 +202,80 @@ func (sf StudentFeedback) Destroy(etx *echo.Context) error {
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.StudentFeedbackIndex.URL())
+}
+
+func (sf StudentFeedback) RegisterRoutes(r *router.Router) error {
+	var errs []error
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.StudentFeedbackIndex.Path(),
+		Name:    routes.StudentFeedbackIndex.Name(),
+		Handler: sf.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.StudentFeedbackShow.Path(),
+		Name:    routes.StudentFeedbackShow.Name(),
+		Handler: sf.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.StudentFeedbackNew.Path(),
+		Name:    routes.StudentFeedbackNew.Name(),
+		Handler: sf.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.StudentFeedbackCreate.Path(),
+		Name:    routes.StudentFeedbackCreate.Name(),
+		Handler: sf.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.StudentFeedbackEdit.Path(),
+		Name:    routes.StudentFeedbackEdit.Name(),
+		Handler: sf.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.StudentFeedbackUpdate.Path(),
+		Name:    routes.StudentFeedbackUpdate.Name(),
+		Handler: sf.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.StudentFeedbackDestroy.Path(),
+		Name:    routes.StudentFeedbackDestroy.Name(),
+		Handler: sf.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }

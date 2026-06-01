@@ -48,40 +48,12 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName, idType string
 		return fmt.Errorf("failed to format routes file: %w", err)
 	}
 
-	if err := rg.createRouteRegistrationFile(resourceName, pluralName); err != nil {
-		return fmt.Errorf("failed to create route registration file: %w", err)
-	}
-
-	// Inject into cmd/app/main.go
+	// Inject controller provide into blueprint
 	if err := rg.mainInjector.InjectController(resourceName, pluralName); err != nil {
-		// This shouldn't happen since InjectController handles errors gracefully
-		// but log it just in case
 		slog.Warn("unexpected error injecting controller", "error", err)
 	}
 
 	return nil
 }
 
-func (rg *RouteGenerator) createRouteRegistrationFile(resourceName, pluralName string) error {
-	connectPath := filepath.Join("router", "connect_"+pluralName+"_routes.go")
 
-	if _, err := os.Stat(connectPath); err == nil {
-		return fmt.Errorf("route registration file %s already exists", connectPath)
-	}
-
-	// Generate the registration file content
-	registrationContent, err := rg.templateRenderer.generateRouteRegistrationFile(resourceName, pluralName)
-	if err != nil {
-		return fmt.Errorf("failed to generate route registration content: %w", err)
-	}
-
-	if err := rg.fileManager.EnsureDir("router"); err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(connectPath, []byte(registrationContent), constants.FilePermissionPrivate); err != nil {
-		return fmt.Errorf("failed to write route registration file: %w", err)
-	}
-
-	return files.FormatGoFile(connectPath)
-}

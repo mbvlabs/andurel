@@ -21,6 +21,8 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	github.com/xhit/go-str2duration/v2 v2.1.0 // indirect
+	go.uber.org/dig v1.19.0 // indirect
+	go.uber.org/fx v1.24.0 // indirect
 	golang.org/x/term v0.34.0 // indirect
 )
 

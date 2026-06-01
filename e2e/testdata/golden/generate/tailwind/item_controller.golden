@@ -1,12 +1,14 @@
 package controllers
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"testapp/internal/storage"
 	"testapp/models"
+	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/views"
@@ -232,4 +234,80 @@ func (i Items) Destroy(etx *echo.Context) error {
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.ItemIndex.URL())
+}
+
+func (i Items) RegisterRoutes(r *router.Router) error {
+	var errs []error
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ItemIndex.Path(),
+		Name:    routes.ItemIndex.Name(),
+		Handler: i.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ItemShow.Path(),
+		Name:    routes.ItemShow.Name(),
+		Handler: i.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ItemNew.Path(),
+		Name:    routes.ItemNew.Name(),
+		Handler: i.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.ItemCreate.Path(),
+		Name:    routes.ItemCreate.Name(),
+		Handler: i.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ItemEdit.Path(),
+		Name:    routes.ItemEdit.Name(),
+		Handler: i.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.ItemUpdate.Path(),
+		Name:    routes.ItemUpdate.Name(),
+		Handler: i.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.ItemDestroy.Path(),
+		Name:    routes.ItemDestroy.Name(),
+		Handler: i.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }

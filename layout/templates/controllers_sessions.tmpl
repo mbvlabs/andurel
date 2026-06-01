@@ -1,12 +1,15 @@
 package controllers
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/views"
@@ -23,6 +26,45 @@ type Sessions struct {
 
 func NewSessions(db storage.Pool, cfg config.Config) Sessions {
 	return Sessions{db, cfg}
+}
+
+func (s Sessions) RegisterRoutes(r *router.Router) error {
+	errs := []error{}
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.SessionNew.Path(),
+		Name:    routes.SessionNew.Name(),
+		Handler: s.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.SessionCreate.Path(),
+		Name:    routes.SessionCreate.Name(),
+		Handler: s.Create,
+		Middlewares: []echo.MiddlewareFunc{
+			middleware.IPRateLimiter(5, routes.SessionNew),
+		},
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.SessionDestroy.Path(),
+		Name:    routes.SessionDestroy.Name(),
+		Handler: s.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
 
 func (s Sessions) New(etx *echo.Context) error {

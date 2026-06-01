@@ -342,8 +342,7 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 
 	mainContentStr := string(mainContent)
 	requiredPatterns := []string{
-		"studentFeedback := controllers.NewStudentFeedback(db)",
-		"RegisterStudentFeedbackRoutes(studentFeedback)",
+		"fx.Annotate(controllers.NewStudentFeedback, fx.As(new(controllers.Controller)))",
 	}
 	for _, pattern := range requiredPatterns {
 		if !strings.Contains(mainContentStr, pattern) {

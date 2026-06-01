@@ -46,76 +46,6 @@ func TestBuilder_AddImport(t *testing.T) {
 	}
 }
 
-func TestBuilder_AddControllerDependency(t *testing.T) {
-	builder := blueprint.NewBuilder(nil)
-
-	builder.
-		AddControllerDependency("db", "database.DB").
-		AddControllerDependency("cache", "cache.Cache").
-		AddControllerDependency("db", "database.DB") // duplicate
-
-	deps := builder.Blueprint().Controllers.SortedDependencies()
-
-	if len(deps) != 2 {
-		t.Fatalf("expected 2 unique dependencies, got %d", len(deps))
-	}
-
-	if deps[0].Name != "db" {
-		t.Errorf("expected first dependency to be 'db', got '%s'", deps[0].Name)
-	}
-
-	if deps[1].Name != "cache" {
-		t.Errorf("expected second dependency to be 'cache', got '%s'", deps[1].Name)
-	}
-
-	// Check ordering
-	if deps[0].Order != 0 {
-		t.Errorf("expected first dependency order to be 0, got %d", deps[0].Order)
-	}
-
-	if deps[1].Order != 1 {
-		t.Errorf("expected second dependency order to be 1, got %d", deps[1].Order)
-	}
-}
-
-func TestBuilder_AddControllerField(t *testing.T) {
-	builder := blueprint.NewBuilder(nil)
-
-	builder.
-		AddControllerField("Pages", "Pages").
-		AddControllerField("API", "API").
-		AddControllerField("Pages", "Pages") // duplicate
-
-	fields := builder.Blueprint().Controllers.SortedFields()
-
-	if len(fields) != 2 {
-		t.Fatalf("expected 2 unique fields, got %d", len(fields))
-	}
-
-	if fields[0].Name != "Pages" {
-		t.Errorf("expected first field to be 'Pages', got '%s'", fields[0].Name)
-	}
-}
-
-func TestBuilder_AddConstructor(t *testing.T) {
-	builder := blueprint.NewBuilder(nil)
-
-	builder.
-		AddControllerConstructor("pages", "newPages(db)").
-		AddControllerConstructor("api", "newAPI(db)").
-		AddControllerConstructor("pages", "newPages(db)") // duplicate
-
-	ctors := builder.Blueprint().Controllers.SortedConstructors()
-
-	if len(ctors) != 2 {
-		t.Fatalf("expected 2 unique constructors, got %d", len(ctors))
-	}
-
-	if ctors[0].VarName != "pages" {
-		t.Errorf("expected first constructor to be 'pages', got '%s'", ctors[0].VarName)
-	}
-}
-
 func TestBuilder_AddRoute(t *testing.T) {
 	builder := blueprint.NewBuilder(nil)
 
@@ -260,18 +190,15 @@ func TestBuilder_Merge(t *testing.T) {
 	builder1 := blueprint.NewBuilder(nil)
 	builder1.
 		AddControllerImport("fmt").
-		AddControllerDependency("db", "database.DB").
-		AddControllerField("Pages", "Pages").
-		AddControllerConstructor("pages", "newPages(db)")
+		AddServiceProvide("email.NewMailpit").
+		AddWorkerDependency("db", "database.DB")
 
 	builder2 := blueprint.NewBuilder(nil)
 	builder2.
-		AddControllerImport("strings").                  // new
-		AddControllerImport("fmt").                      // duplicate
-		AddControllerDependency("cache", "cache.Cache"). // new
-		AddControllerDependency("db", "database.DB").    // duplicate
-		AddControllerField("API", "API").                // new
-		AddControllerConstructor("api", "newAPI(db)")    // new
+		AddControllerImport("strings").       // new
+		AddControllerImport("fmt").           // duplicate
+		AddServiceProvide("queue.NewWorker"). // new
+		AddWorkerDependency("cache", "cache.Cache") // new
 
 	err := builder1.Merge(builder2.Blueprint())
 	if err != nil {
@@ -284,22 +211,16 @@ func TestBuilder_Merge(t *testing.T) {
 		t.Errorf("expected 2 unique imports after merge, got %d", len(imports))
 	}
 
-	// Check dependencies
-	deps := builder1.Blueprint().Controllers.SortedDependencies()
+	// Check service provides
+	provides := builder1.Blueprint().Main.ServiceProvides
+	if len(provides) != 2 {
+		t.Errorf("expected 2 unique service provides after merge, got %d", len(provides))
+	}
+
+	// Check worker dependencies
+	deps := builder1.Blueprint().Main.WorkerDependencies
 	if len(deps) != 2 {
-		t.Errorf("expected 2 unique dependencies after merge, got %d", len(deps))
-	}
-
-	// Check fields
-	fields := builder1.Blueprint().Controllers.SortedFields()
-	if len(fields) != 2 {
-		t.Errorf("expected 2 unique fields after merge, got %d", len(fields))
-	}
-
-	// Check constructors
-	ctors := builder1.Blueprint().Controllers.SortedConstructors()
-	if len(ctors) != 2 {
-		t.Errorf("expected 2 unique constructors after merge, got %d", len(ctors))
+		t.Errorf("expected 2 unique worker dependencies after merge, got %d", len(deps))
 	}
 }
 
@@ -318,9 +239,9 @@ func TestBuilder_Chaining(t *testing.T) {
 	// Test that all methods return builder for chaining
 	result := builder.
 		AddControllerImport("fmt").
-		AddControllerDependency("db", "database.DB").
-		AddControllerField("Pages", "Pages").
-		AddControllerConstructor("pages", "newPages(db)").
+		AddWorkerDependency("db", "database.DB").
+		AddServiceProvide("email.NewMailpit").
+		AddExtraControllerProvide("fx.Annotate(controllers.NewCustom, fx.As(new(controllers.Controller)))").
 		AddRoute(blueprint.Route{Name: "home", Path: "/"}).
 		AddRouteCollection("HomePage").
 		AddRouteImport("middleware").
@@ -340,12 +261,10 @@ func TestBuilder_EmptyValues(t *testing.T) {
 
 	// These should be no-ops
 	builder.
-		AddControllerDependency("", "Type").
-		AddControllerDependency("name", "").
-		AddControllerField("", "Type").
-		AddControllerField("name", "").
-		AddControllerConstructor("", "expr").
-		AddControllerConstructor("var", "").
+		AddWorkerDependency("", "Type").
+		AddWorkerDependency("name", "").
+		AddServiceProvide("").
+		AddExtraControllerProvide("").
 		AddRoute(blueprint.Route{Name: "", Path: "/"}).    // missing name
 		AddRoute(blueprint.Route{Name: "name", Path: ""}). // missing path
 		AddRouteCollection("", "  ").
@@ -364,16 +283,16 @@ func TestBuilder_EmptyValues(t *testing.T) {
 		t.Error("expected no imports for empty values")
 	}
 
-	if len(bp.Controllers.Dependencies) != 0 {
-		t.Error("expected no dependencies for empty values")
+	if len(bp.Main.WorkerDependencies) != 0 {
+		t.Error("expected no worker dependencies for empty values")
 	}
 
-	if len(bp.Controllers.Fields) != 0 {
-		t.Error("expected no fields for empty values")
+	if len(bp.Main.ServiceProvides) != 0 {
+		t.Error("expected no service provides for empty values")
 	}
 
-	if len(bp.Controllers.Constructors) != 0 {
-		t.Error("expected no constructors for empty values")
+	if len(bp.Main.ExtraControllerProvides) != 0 {
+		t.Error("expected no extra controller provides for empty values")
 	}
 
 	if len(bp.Routes.Routes) != 0 {
@@ -413,30 +332,36 @@ func TestBuilder_MainSection(t *testing.T) {
 		t.Errorf("expected 2 imports, got %d", len(imports))
 	}
 
-	// Test AddMainInitialization
-	b.AddMainInitialization("emailSender", "email.NewMailpit()", "cfg")
-	b.AddMainInitialization("queue", "queue.New()", "db", "cfg")
-	b.AddMainInitialization("emailSender", "email.NewSMTP()") // duplicate
+	// Test AddServiceProvide
+	b.AddServiceProvide("email.NewMailpit")
+	b.AddServiceProvide("queue.NewWorker")
+	b.AddServiceProvide("email.NewMailpit") // duplicate
 
-	inits := b.Blueprint().Main.SortedInitializations()
-	if len(inits) != 2 {
-		t.Errorf("expected 2 initializations, got %d", len(inits))
+	provides := b.Blueprint().Main.ServiceProvides
+	if len(provides) != 2 {
+		t.Errorf("expected 2 service provides, got %d", len(provides))
 	}
-	if inits[0].VarName != "emailSender" {
-		t.Errorf("expected first init to be emailSender, got %s", inits[0].VarName)
-	}
-	if len(inits[1].DependsOn) != 2 {
-		t.Errorf("expected queue to have 2 dependencies, got %d", len(inits[1].DependsOn))
+	if provides[0] != "email.NewMailpit" {
+		t.Errorf("expected first provide to be email.NewMailpit, got %s", provides[0])
 	}
 
-	// Test AddBackgroundWorker
-	b.AddBackgroundWorker("queue-worker", "worker.Start(ctx, queue)", "queue")
-	b.AddBackgroundWorker("scheduler", "scheduler.Start(ctx)")
-	b.AddBackgroundWorker("queue-worker", "worker.StartAgain(ctx)") // duplicate
+	// Test AddWorkerDependency
+	b.AddWorkerDependency("transactionalSender", "email.TransactionalSender")
+	b.AddWorkerDependency("marketingSender", "email.MarketingSender")
+	b.AddWorkerDependency("transactionalSender", "email.TransactionalSender") // duplicate
 
-	workers := b.Blueprint().Main.SortedBackgroundWorkers()
-	if len(workers) != 2 {
-		t.Errorf("expected 2 workers, got %d", len(workers))
+	deps := b.Blueprint().Main.WorkerDependencies
+	if len(deps) != 2 {
+		t.Errorf("expected 2 worker dependencies, got %d", len(deps))
+	}
+
+	// Test AddExtraControllerProvide
+	b.AddExtraControllerProvide("fx.Annotate(controllers.NewCustom, fx.As(new(controllers.Controller)))")
+	b.AddExtraControllerProvide("fx.Annotate(controllers.NewCustom, fx.As(new(controllers.Controller)))") // duplicate
+
+	extra := b.Blueprint().Main.ExtraControllerProvides
+	if len(extra) != 1 {
+		t.Errorf("expected 1 extra controller provide, got %d", len(extra))
 	}
 
 	// Test AddPreRunHook
@@ -453,12 +378,12 @@ func TestBuilder_MainSection(t *testing.T) {
 func TestBuilder_MergeMainSection(t *testing.T) {
 	b1 := blueprint.NewBuilder(nil)
 	b1.AddMainImport("myapp/email")
-	b1.AddMainInitialization("emailSender", "email.New()")
+	b1.AddServiceProvide("email.NewMailpit")
 
 	b2 := blueprint.NewBuilder(nil)
 	b2.AddMainImport("myapp/queue")
-	b2.AddMainInitialization("queue", "queue.New()")
-	b2.AddBackgroundWorker("worker", "worker.Start()")
+	b2.AddServiceProvide("queue.New")
+	b2.AddExtraControllerProvide("fx.Annotate(controllers.NewFoo, fx.As(new(controllers.Controller)))")
 
 	err := b1.Merge(b2.Blueprint())
 	if err != nil {
@@ -471,15 +396,15 @@ func TestBuilder_MergeMainSection(t *testing.T) {
 		t.Errorf("expected 2 imports after merge, got %d", len(imports))
 	}
 
-	// Check merged initializations
-	inits := b1.Blueprint().Main.SortedInitializations()
-	if len(inits) != 2 {
-		t.Errorf("expected 2 initializations after merge, got %d", len(inits))
+	// Check merged service provides
+	provides := b1.Blueprint().Main.ServiceProvides
+	if len(provides) != 2 {
+		t.Errorf("expected 2 service provides after merge, got %d", len(provides))
 	}
 
-	// Check merged workers
-	workers := b1.Blueprint().Main.SortedBackgroundWorkers()
-	if len(workers) != 1 {
-		t.Errorf("expected 1 worker after merge, got %d", len(workers))
+	// Check merged extra controller provides
+	extra := b1.Blueprint().Main.ExtraControllerProvides
+	if len(extra) != 1 {
+		t.Errorf("expected 1 extra controller provide after merge, got %d", len(extra))
 	}
 }

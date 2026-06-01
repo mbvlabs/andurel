@@ -3,6 +3,7 @@ package controllers
 import (
 	"crypto/md5"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/routing"
 	"{{.ModuleName}}/internal/server"
+	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/routes"
 
 	"github.com/labstack/echo/v5"
@@ -29,6 +31,74 @@ type Assets struct {
 
 func NewAssets(cache *Cache[string]) Assets {
 	return Assets{cache}
+}
+
+func (a Assets) RegisterRoutes(r *router.Router) error {
+	errs := []error{}
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Robots.Path(),
+		Name:    routes.Robots.Name(),
+		Handler: a.Robots,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Sitemap.Path(),
+		Name:    routes.Sitemap.Name(),
+		Handler: a.Sitemap,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Stylesheet.Path(),
+		Name:    routes.Stylesheet.Name(),
+		Handler: a.Stylesheet,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+{{- if eq .CSSFramework "vanilla"}}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.StyleImport.Path(),
+		Name:    routes.StyleImport.Name(),
+		Handler: a.StyleImport,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+{{- end}}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Scripts.Path(),
+		Name:    routes.Scripts.Name(),
+		Handler: a.Scripts,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Script.Path(),
+		Name:    routes.Script.Name(),
+		Handler: a.Script,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
 
 func (a Assets) enableCaching(etx *echo.Context, content []byte) *echo.Context {
