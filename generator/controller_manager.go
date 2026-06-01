@@ -37,6 +37,10 @@ func (c *ControllerManager) GenerateController(
 ) error {
 	modulePath := c.projectManager.GetModulePath()
 
+	if tableName == "" {
+		tableName = naming.DeriveTableName(resourceName)
+	}
+
 	if err := c.validator.ValidateAll(resourceName, tableName, modulePath); err != nil {
 		return err
 	}
