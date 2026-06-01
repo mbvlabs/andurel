@@ -109,6 +109,10 @@ func TestGenerateCommands(t *testing.T) {
 			t.Run("generate_job", func(t *testing.T) {
 				testGenerateJob(t, project)
 			})
+
+			t.Run("generate_email", func(t *testing.T) {
+				testGenerateEmail(t, project)
+			})
 		})
 	}
 }
@@ -843,6 +847,25 @@ func testGenerateJob(t *testing.T, project *internal.Project) {
 		t,
 		filepath.Join("testdata", "golden", "generate", "send_welcome_email_registration.golden"),
 		string(workersGoContent),
+		project.CSS,
+	)
+}
+
+func testGenerateEmail(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	err := project.Generate("generate", "email", "WelcomeEmail")
+	internal.AssertCommandSucceeds(t, err, "generate email")
+
+	internal.AssertFileExists(t, project, "email/welcome_email.templ")
+	emailContent, err := os.ReadFile(filepath.Join(project.Dir, "email/welcome_email.templ"))
+	if err != nil {
+		t.Fatalf("Failed to read email file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "welcome_email.golden"),
+		string(emailContent),
 		project.CSS,
 	)
 }
