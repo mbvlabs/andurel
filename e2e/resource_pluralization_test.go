@@ -18,7 +18,7 @@ var updateResourceGolden = flag.Bool(
 	"update resource golden files",
 )
 
-// TestResourcePluralization validates that the `andurel generate resource` command
+// TestResourcePluralization validates that the `andurel generate scaffold` command
 // correctly generates files with proper singular/plural forms.
 //
 // This test verifies the fix in commit 9d0088a which replaced hardcoded pluralization
@@ -82,9 +82,9 @@ func TestResourcePluralization(t *testing.T) {
 			// Create the migration
 			createMigration(t, project, "000100_create_"+tc.tableName, tc.tableName, tc.columns)
 
-			// Generate the resource
-			err = project.Generate("resource", tc.resourceName, "create")
-			internal.AssertCommandSucceeds(t, err, "generate resource")
+			// Generate the scaffold
+			err = project.Generate("generate", "scaffold", tc.resourceName)
+			internal.AssertCommandSucceeds(t, err, "generate scaffold")
 
 		// Verify all expected files exist
 		expectedFiles := []string{

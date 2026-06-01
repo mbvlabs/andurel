@@ -6,16 +6,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func TestViewCommands(t *testing.T) {
+func TestFmtCommand(t *testing.T) {
 	rootCmd := NewRootCommand("test", "test-date")
 
 	tests := []struct {
 		name string
 		args []string
 	}{
-		{"view help", []string{"view", "--help"}},
-		{"view generate help", []string{"view", "generate", "--help"}},
-		{"view compile alias help", []string{"view", "compile", "--help"}},
+		{"fmt help", []string{"fmt", "--help"}},
+		{"fmt check help", []string{"fmt", "--check", "--help"}},
 	}
 
 	for _, tt := range tests {
@@ -28,43 +27,71 @@ func TestViewCommands(t *testing.T) {
 	}
 }
 
-func TestViewCommandStructure(t *testing.T) {
+func TestFmtCommandStructure(t *testing.T) {
 	rootCmd := NewRootCommand("test", "test-date")
 
-	var viewCmd *cobra.Command
+	var fmtCmd *cobra.Command
 	for _, cmd := range rootCmd.Commands() {
-		if cmd.Use == "view" {
-			viewCmd = cmd
+		if cmd.Use == "fmt" {
+			fmtCmd = cmd
 			break
 		}
 	}
 
-	if viewCmd == nil {
-		t.Fatal("view command not found")
+	if fmtCmd == nil {
+		t.Fatal("fmt command not found")
 	}
 
-	expectedCommands := []string{"generate", "format"}
-	foundCommands := make(map[string]bool)
-
-	for _, cmd := range viewCmd.Commands() {
-		foundCommands[cmd.Name()] = true
+	if !fmtCmd.HasFlags() {
+		t.Error("fmt command should have flags (--check, --skip-templ, --skip-go)")
 	}
 
-	for _, expectedCmd := range expectedCommands {
-		if !foundCommands[expectedCmd] {
-			t.Errorf(
-				"expected command %q not found. Available commands: %v",
-				expectedCmd,
-				getCommandNames(viewCmd.Commands()),
-			)
-		}
+	checkFlag := fmtCmd.Flag("check")
+	if checkFlag == nil {
+		t.Error("fmt command should have --check flag")
 	}
 
-	generateCmd, _, err := viewCmd.Find([]string{"generate"})
+	skipTemplFlag := fmtCmd.Flag("skip-templ")
+	if skipTemplFlag == nil {
+		t.Error("fmt command should have --skip-templ flag")
+	}
+
+	skipGoFlag := fmtCmd.Flag("skip-go")
+	if skipGoFlag == nil {
+		t.Error("fmt command should have --skip-go flag")
+	}
+}
+
+func TestGenerateViewsCommand(t *testing.T) {
+	rootCmd := NewRootCommand("test", "test-date")
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"generate views help", []string{"generate", "views", "--help"}},
+		{"generate view alias help", []string{"generate", "view", "--help"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rootCmd.SetArgs(tt.args)
+			if err := rootCmd.Execute(); err != nil {
+				t.Errorf("command %v failed: %v", tt.args, err)
+			}
+		})
+	}
+
+	generateCmd, _, err := rootCmd.Find([]string{"generate"})
 	if err != nil {
-		t.Fatalf("failed to find generate command: %v", err)
+		t.Fatalf("'generate' command not found: %v", err)
 	}
-	if !generateCmd.HasAlias("compile") {
-		t.Fatal("generate command should keep compile as an alias")
+
+	viewsCmd, _, err := generateCmd.Find([]string{"views"})
+	if err != nil {
+		t.Fatalf("'generate views' command not found: %v", err)
+	}
+	if !viewsCmd.HasAlias("view") {
+		t.Fatal("generate views command should keep view as an alias")
 	}
 }

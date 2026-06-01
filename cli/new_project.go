@@ -14,12 +14,19 @@ func newProjectCommand(version string) *cobra.Command {
 	projectCmd := &cobra.Command{
 		Use:   "new [project-name]",
 		Short: "Create a new Andurel project",
-		Long: `Create a new Andurel project with the specified name.
+		Long: `Scaffold a complete Andurel project with the given name.
 
-This will scaffold a complete project structure with all necessary files,
-dependencies, and configuration.`,
-		Args: cobra.ExactArgs(1),
+Generates the full project structure including controllers, models, views,
+database migrations, router, services, and configuration files. After
+creation, run 'andurel tool sync' to download required binaries.`,
+		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return cmd.Help()
+			}
+			if isInAndurelProject() {
+				return fmt.Errorf("cannot create a new project inside an existing Andurel project")
+			}
 			return newProject(cmd, args, version)
 		},
 	}
@@ -92,7 +99,7 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	fmt.Printf("  cp .env.example .env\n")
 	fmt.Printf("  fill in your database connection details in .env\n")
 	fmt.Printf("  (andurel database create - if database does not exist\n")
-	fmt.Printf("  andurel migrate up\n")
+	fmt.Printf("  andurel database migrate up\n")
 	fmt.Printf("  andurel run\n")
 
 	return nil

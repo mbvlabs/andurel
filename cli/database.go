@@ -22,7 +22,10 @@ func newDatabaseCommand() *cobra.Command {
 		Use:     "database",
 		Aliases: []string{"d", "db"},
 		Short:   "Database management commands",
-		Long:    "Commands for managing database seeds.",
+		Long: `Commands for managing your Andurel project's database lifecycle:
+create, drop, nuke, rebuild, seed, and run migrations.
+
+Use the subcommands below to manage your database.`, 
 	}
 
 	cmd.AddCommand(
@@ -31,6 +34,7 @@ func newDatabaseCommand() *cobra.Command {
 		newDBCreateCommand(),
 		newDBNukeCommand(),
 		newDBRebuildCommand(),
+		newMigrateCommand(),
 	)
 
 	return cmd
@@ -41,7 +45,15 @@ func newMigrateCommand() *cobra.Command {
 		Use:     "migrate",
 		Aliases: []string{"m", "mig"},
 		Short:   "Database migration helpers",
-		Long:    "Manage database migrations for the current project using goose.",
+		Long: `Manage database migrations for the current project using goose.
+
+Migrations live in database/migrations/ as SQL files. Create a new
+migration, apply pending ones, rollback, check status, or fix gaps.`,
+		Example: `  andurel database migrate new add_user_role
+  andurel database migrate up
+  andurel database migrate status
+  andurel database migrate down
+  andurel database migrate reset`,
 	}
 
 	cmd.AddCommand(
@@ -74,34 +86,14 @@ Edit this file to add your seed data using model factories.`,
 
 // Migration commands
 
-func newDBMigrationCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "migration",
-		Aliases: []string{"m", "mig"},
-		Short:   "Database migration helpers",
-		Long:    "Manage database migrations for the current project using goose.",
-	}
-
-	cmd.AddCommand(
-		newDBMigrationNewCommand(),
-		newDBMigrationUpCommand(),
-		newDBMigrationDownCommand(),
-		newDBMigrationStatusCommand(),
-		newDBMigrationFixCommand(),
-		newDBMigrationResetCommand(),
-		newDBMigrationUpToCommand(),
-		newDBMigrationDownToCommand(),
-	)
-
-	return cmd
-}
-
 func newDBMigrationNewCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:     "new [name]",
-		Short:   "Create a new SQL migration",
+		Use:   "new [name]",
+		Short: "Create a new SQL migration",
+		Long: `Create a new SQL migration file in database/migrations/.
+The name should describe the change, e.g. "create_users_table".`,
 		Args:    cobra.MinimumNArgs(1),
-		Example: "andurel migrate new create_users_table",
+		Example: "  andurel database migrate new create_users_table",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c := []string{"create"}
 			c = append(c, args...)
@@ -116,6 +108,7 @@ func newDBMigrationUpCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "up",
 		Short: "Apply all pending migrations",
+		Long:  "Apply any pending migrations that have not yet been run against the database.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runGoose("up")
@@ -127,6 +120,7 @@ func newDBMigrationDownCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "down",
 		Short: "Rollback the most recent migration",
+		Long:  "Roll back the most recently applied migration.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runGoose("down")
@@ -138,6 +132,7 @@ func newDBMigrationFixCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "fix",
 		Short: "Re-number migrations to fix gaps",
+		Long:  "Re-number sequential migrations to close any gaps in the numbering.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runGoose("fix")
@@ -148,7 +143,8 @@ func newDBMigrationFixCommand() *cobra.Command {
 func newDBMigrationResetCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "reset",
-		Short: "Reset database by rolling back all migrations and reapplying them",
+		Short: "Roll back all migrations and re-apply them",
+		Long:  "Roll back every migration (down), then re-apply them all (up).",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runGoose("reset")
@@ -160,7 +156,9 @@ func newDBMigrationUpToCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "up-to [version]",
 		Short: "Apply migrations up to a specific version",
+		Long:  "Apply migrations only up to (and including) the given version number.",
 		Args:  cobra.ExactArgs(1),
+		Example: "  andurel database migrate up-to 20250101120000",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runGoose("up-to", args[0])
 		},
@@ -171,7 +169,9 @@ func newDBMigrationDownToCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "down-to [version]",
 		Short: "Rollback migrations down to a specific version",
+		Long:  "Roll back migrations down to (but not including) the given version number.",
 		Args:  cobra.ExactArgs(1),
+		Example: "  andurel database migrate down-to 20250101120000",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runGoose("down-to", args[0])
 		},
@@ -200,6 +200,7 @@ func newDBSeedCommand() *cobra.Command {
 
 Edit this file to add your seed data using model factories.`,
 		Args: cobra.NoArgs,
+		Example: "  andurel database seed",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSeed()
 		},
@@ -216,6 +217,7 @@ func newDBDropCommand() *cobra.Command {
 		Short: "Drop the configured database",
 		Long:  "Drop the configured database using the connection details from .env.",
 		Args:  cobra.NoArgs,
+		Example: "  andurel database drop\n  andurel database drop --force",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return dropDatabase(force)
 		},
@@ -233,6 +235,7 @@ func newDBCreateCommand() *cobra.Command {
 		Short: "Create the configured database",
 		Long:  "Create the configured database using the connection details from .env.",
 		Args:  cobra.NoArgs,
+		Example: "  andurel database create",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return createDatabase()
 		},
@@ -247,6 +250,7 @@ func newDBNukeCommand() *cobra.Command {
 		Short: "Drop and recreate the configured database",
 		Long:  "Drop and recreate the configured database using the connection details from .env.",
 		Args:  cobra.NoArgs,
+		Example: "  andurel database nuke\n  andurel database nuke --force",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return nukeDatabase(force)
 		},
@@ -267,6 +271,7 @@ func newDBRebuildCommand() *cobra.Command {
 		Short: "Drop, recreate, migrate, and seed the database",
 		Long:  "Drop, recreate, migrate, and seed the database using the connection details from .env.",
 		Args:  cobra.NoArgs,
+		Example: "  andurel database rebuild\n  andurel database rebuild --skip-seed",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return rebuildDatabase(force, skipSeed)
 		},

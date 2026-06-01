@@ -45,6 +45,8 @@ This command will check:
   • Configuration (andurel.lock)
   • Code quality (go vet, go mod tidy)
   • Code generation (templ)`,
+		Example: `  andurel doctor
+  andurel doctor --verbose`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			return runDoctor(currentVersion, verbose)
