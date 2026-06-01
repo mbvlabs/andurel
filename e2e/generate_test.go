@@ -750,13 +750,9 @@ DROP TABLE IF EXISTS documents;
 		t.Fatalf("Failed to create migration file: %v", err)
 	}
 
-	// Generate model first (required for controller generation)
-	err = project.Generate("generate", "model", "Document", "--skip-factory")
-	internal.AssertCommandSucceeds(t, err, "generate model with array types")
-
-	// Generate controller (always generates views)
-	err = project.Generate("generate", "controller", "Document")
-	internal.AssertCommandSucceeds(t, err, "generate controller with array types")
+	// Generate scaffold to create both model and resource controller with views
+	err = project.Generate("generate", "scaffold", "Document", "--skip-factory")
+	internal.AssertCommandSucceeds(t, err, "generate scaffold with array types")
 
 	// Verify view file exists
 	internal.AssertFileExists(t, project, "views/documents_resource.templ")

@@ -1,57 +1,213 @@
 package views
 
 import (
+	"fmt"
 	"net/http"
+	"testapp/internal/hypermedia"
 	"testapp/internal/renderer"
+	"testapp/models"
 	"testapp/router/routes"
 )
 
-templ ItemIndex() {
-	<div class="p-6">
-		<h1 class="text-2xl font-semibold">Item#Index</h1>
-		<p class="text-sm text-base-content/60 mt-2">Content for this action has not been implemented yet.</p>
-	</div>
+templ ItemIndex(items []models.ItemEntity) {
+	@base() {
+		<main class="page-shell">
+			<section class="container stack" data-gap="lg">
+				<div class="cluster" data-justify="between">
+					<div class="stack" data-gap="sm">
+						<h1>Items</h1>
+						<p class="muted">Manage your items with the shared vanilla component system.</p>
+					</div>
+					<a class="btn btn-primary" href={ routes.ItemNew.URL() }>New Item</a>
+				</div>
+				if len(items) == 0 {
+					<section class="panel empty-state">
+						<div class="stack text-center" data-gap="sm">
+							<h2 class="empty-state-title">No items found</h2>
+							<p class="empty-state-description">Create your first item to start filling this view.</p>
+						</div>
+						<div class="empty-state-actions">
+							<a class="btn btn-primary" href={ routes.ItemNew.URL() }>New Item</a>
+						</div>
+					</section>
+				} else {
+					<div class="panel table-wrap">
+						<table class="table">
+							<thead>
+								<tr>
+									<th>Warehouse Id</th>
+									<th>Name</th>
+									<th>Quantity</th>
+									<th>Created At</th>
+									<th>Updated At</th>
+									<th>Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, item := range items {
+									<tr>
+										<td>{ fmt.Sprintf("%v", item.WarehouseID) }</td>
+										<td>{ item.Name }</td>
+										<td>{ fmt.Sprintf("%v", item.Quantity) }</td>
+										<td>{ fmt.Sprintf("%v", item.CreatedAt) }</td>
+										<td>{ fmt.Sprintf("%v", item.UpdatedAt) }</td>
+										<td>
+											<div class="cluster" data-gap="sm">
+												<a class="btn btn-ghost btn-sm" href={ routes.ItemShow.URL(item.ID) }>View</a>
+												<a class="btn btn-outline btn-sm" href={ routes.ItemEdit.URL(item.ID) }>Edit</a>
+											</div>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</section>
+		</main>
+	}
 }
 
-templ ItemShow() {
-	<div class="p-6">
-		<h1 class="text-2xl font-semibold">Item#Show</h1>
-		<p class="text-sm text-base-content/60 mt-2">Content for this action has not been implemented yet.</p>
-	</div>
+templ ItemShow(item models.ItemEntity) {
+	@base() {
+		<main class="page-shell">
+			<section class="container stack" data-gap="lg">
+				<div class="cluster" data-justify="between">
+					<div class="stack" data-gap="sm">
+						<h1>Item Details</h1>
+						<p class="muted">Review the current values stored for this item.</p>
+					</div>
+					<div class="cluster" data-gap="sm">
+						<a class="btn btn-primary" href={ routes.ItemEdit.URL(item.ID) }>Edit</a>
+						<a class="btn btn-outline" href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
+					</div>
+				</div>
+				<div class="panel">
+					<div class="grid-auto-fit" data-grid="compact">
+						<div class="field">
+							<p class="field-label">Warehouse Id</p>
+							<p>{ fmt.Sprintf("%v", item.WarehouseID) }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Name</p>
+							<p>{ item.Name }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Quantity</p>
+							<p>{ fmt.Sprintf("%v", item.Quantity) }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Created At</p>
+							<p>{ fmt.Sprintf("%v", item.CreatedAt) }</p>
+						</div>
+						<div class="field">
+							<p class="field-label">Updated At</p>
+							<p>{ fmt.Sprintf("%v", item.UpdatedAt) }</p>
+						</div>
+					</div>
+				</div>
+			</section>
+		</main>
+	}
 }
 
 templ ItemNew() {
-	<div class="p-6">
-		<h1 class="text-2xl font-semibold">Item#New</h1>
-		<p class="text-sm text-base-content/60 mt-2">Content for this action has not been implemented yet.</p>
-	</div>
+	@base() {
+		<main class="auth-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">New Item</h1>
+						<p class="card-description">Enter the details for the new item.</p>
+					</div>
+					<div class="card-content">
+						<form
+							class="form"
+							data-indicator:submitting
+							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.ItemCreate.URL()) }
+						>
+							<fieldset class="fieldset" data-attr:disabled="$submitting">
+								<div class="field">
+									<label class="field-label" for="warehouseId">Warehouse Id</label>
+									<div class="field-control">
+										<input class="input" type="text" id="warehouseId" name="warehouseId" data-bind="warehouseId"/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="name">Name</label>
+									<div class="field-control">
+										<input class="input" type="text" id="name" name="name" data-bind="name"/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="quantity">Quantity</label>
+									<div class="field-control">
+										<input class="input" type="text" id="quantity" name="quantity" data-bind="quantity"/>
+									</div>
+								</div>
+								<div class="stack" data-gap="sm">
+									<button class="btn btn-primary btn-block" type="submit">Create Item</button>
+									<a class="btn btn-outline btn-block" href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
+								</div>
+							</fieldset>
+						</form>
+					</div>
+				</div>
+			</section>
+		</main>
+	}
 }
 
-templ ItemCreate() {
-	<div class="p-6">
-		<h1 class="text-2xl font-semibold">Item#Create</h1>
-		<p class="text-sm text-base-content/60 mt-2">Content for this action has not been implemented yet.</p>
-	</div>
+templ ItemEdit(item models.ItemEntity) {
+	@base() {
+		<main class="auth-shell">
+			<section class="center">
+				<div class="card">
+					<div class="card-header">
+						<h1 class="card-title">Edit Item</h1>
+						<p class="card-description">Update the details for this item.</p>
+					</div>
+					<div class="card-content">
+						<form
+							class="form"
+							data-indicator:submitting
+							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.ItemUpdate.URL(item.ID)) }
+						>
+							<fieldset class="fieldset" data-attr:disabled="$submitting">
+								<div class="field">
+									<label class="field-label" for="warehouseId">Warehouse Id</label>
+									<div class="field-control">
+										<input class="input" type="text" id="warehouseId" name="warehouseId" data-bind="warehouseId" value={ fmt.Sprintf("%v", item.WarehouseID) }/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="name">Name</label>
+									<div class="field-control">
+										<input class="input" type="text" id="name" name="name" data-bind="name" value={ item.Name }/>
+									</div>
+								</div>
+								<div class="field">
+									<label class="field-label" for="quantity">Quantity</label>
+									<div class="field-control">
+										<input class="input" type="text" id="quantity" name="quantity" data-bind="quantity" value={ fmt.Sprintf("%v", item.Quantity) }/>
+									</div>
+								</div>
+								<div class="stack" data-gap="sm">
+									<button class="btn btn-primary btn-block" type="submit">Update Item</button>
+									<a class="btn btn-outline btn-block" href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
+								</div>
+							</fieldset>
+						</form>
+					</div>
+					<div class="card-footer">
+						<button
+							class="btn btn-destructive btn-block"
+							type="button"
+							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ItemDestroy.URL(item.ID)) }
+						>Destroy Item</button>
+					</div>
+				</div>
+			</section>
+		</main>
+	}
 }
-
-templ ItemEdit() {
-	<div class="p-6">
-		<h1 class="text-2xl font-semibold">Item#Edit</h1>
-		<p class="text-sm text-base-content/60 mt-2">Content for this action has not been implemented yet.</p>
-	</div>
-}
-
-templ ItemUpdate() {
-	<div class="p-6">
-		<h1 class="text-2xl font-semibold">Item#Update</h1>
-		<p class="text-sm text-base-content/60 mt-2">Content for this action has not been implemented yet.</p>
-	</div>
-}
-
-templ ItemDestroy() {
-	<div class="p-6">
-		<h1 class="text-2xl font-semibold">Item#Destroy</h1>
-		<p class="text-sm text-base-content/60 mt-2">Content for this action has not been implemented yet.</p>
-	</div>
-}
-
