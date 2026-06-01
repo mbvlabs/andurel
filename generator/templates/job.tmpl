@@ -1,0 +1,14 @@
+package jobs
+
+{{if .QueueName}}import "github.com/riverqueue/river"
+
+{{end}}type {{.PascalName}}Args struct{}
+
+func ({{.PascalName}}Args) Kind() string { return "{{.SnakeName}}" }
+{{if .QueueName}}
+func ({{.PascalName}}Args) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{
+		Queue: "{{.QueueName}}",
+	}
+}
+{{end}}
