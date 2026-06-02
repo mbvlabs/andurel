@@ -137,7 +137,7 @@ func (sf studentFeedback) Paginate(ctx context.Context, db storage.Executor, pag
 	offset := (page - 1) * pageSize
 
 	totalCount, err := db.NewSelect().
-		Model(&StudentFeedbackEntity{}).Count(ctx, &totalCount)
+		Model(&StudentFeedbackEntity{}).Count(ctx)
 	if err != nil {
 		return PaginatedStudentFeedback{}, err
 	}

@@ -137,7 +137,7 @@ func (a article) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 	offset := (page - 1) * pageSize
 
 	totalCount, err := db.NewSelect().
-		Model(&ArticleEntity{}).Count(ctx, &totalCount)
+		Model(&ArticleEntity{}).Count(ctx)
 	if err != nil {
 		return PaginatedArticles{}, err
 	}
