@@ -131,7 +131,7 @@ func (c company) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 	offset := (page - 1) * pageSize
 
 	totalCount, err := db.NewSelect().
-		Model(&CompanyEntity{}).Count(ctx, &totalCount)
+		Model(&CompanyEntity{}).Count(ctx)
 	if err != nil {
 		return PaginatedCompanies{}, err
 	}
