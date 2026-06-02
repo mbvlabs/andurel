@@ -131,7 +131,7 @@ func (p project) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 	offset := (page - 1) * pageSize
 
 	totalCount, err := db.NewSelect().
-		Model(&ProjectEntity{}).Count(ctx, &totalCount)
+		Model(&ProjectEntity{}).Count(ctx)
 	if err != nil {
 		return PaginatedProjects{}, err
 	}

@@ -149,7 +149,7 @@ func (p post) Paginate(ctx context.Context, db storage.Executor, page, pageSize 
 	offset := (page - 1) * pageSize
 
 	totalCount, err := db.NewSelect().
-		Model(&PostEntity{}).Count(ctx, &totalCount)
+		Model(&PostEntity{}).Count(ctx)
 	if err != nil {
 		return PaginatedPosts{}, err
 	}
