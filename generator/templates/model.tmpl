@@ -162,7 +162,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db sto
 
 	
 	totalCount, err := db.NewSelect().
-		Model(&{{.EntityName}}{}).Count(ctx, &totalCount)
+		Model(&{{.EntityName}}{}).Count(ctx)
 	if err != nil {
 		return Paginated{{.PluralName}}{}, err
 	}
