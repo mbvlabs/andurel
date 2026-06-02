@@ -9,6 +9,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/models"
+	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
@@ -121,7 +122,9 @@ func (m *ModelManager) GenerateModel(
 		return err
 	}
 
-	if err := m.modelGenerator.GenerateModel(cat, ctx.ResourceName, ctx.TableName, ctx.ModelPath, ctx.ModulePath, tableNameOverride); err != nil {
+	nullType := m.readNullType(ctx.RootDir)
+
+	if err := m.modelGenerator.GenerateModel(cat, ctx.ResourceName, ctx.TableName, ctx.ModelPath, ctx.ModulePath, tableNameOverride, nullType); err != nil {
 		return fmt.Errorf("failed to generate model: %w", err)
 	}
 
@@ -148,6 +151,14 @@ func (m *ModelManager) GenerateModel(
 
 // generateFactory creates a factory file for the model
 func (m *ModelManager) generateFactory(cat *catalog.Catalog, ctx *modelSetupContext) error {
+	// Get root directory
+	rootDir, err := m.fileManager.FindGoModRoot()
+	if err != nil {
+		return fmt.Errorf("failed to find go.mod root: %w", err)
+	}
+
+	nullType := m.readNullType(rootDir)
+
 	// Build the model first
 	genModel, err := m.modelGenerator.Build(cat, models.Config{
 		TableName:    ctx.TableName,
@@ -155,6 +166,7 @@ func (m *ModelManager) generateFactory(cat *catalog.Catalog, ctx *modelSetupCont
 		PackageName:  "models",
 		DatabaseType: m.config.Database.Type,
 		ModulePath:   ctx.ModulePath,
+		NullType:     nullType,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build model for factory: %w", err)
@@ -167,15 +179,10 @@ func (m *ModelManager) generateFactory(cat *catalog.Catalog, ctx *modelSetupCont
 		PackageName:  "factories",
 		DatabaseType: m.config.Database.Type,
 		ModulePath:   ctx.ModulePath,
+		NullType:     nullType,
 	}, genModel)
 	if err != nil {
 		return fmt.Errorf("failed to build factory: %w", err)
-	}
-
-	// Get root directory
-	rootDir, err := m.fileManager.FindGoModRoot()
-	if err != nil {
-		return fmt.Errorf("failed to find go.mod root: %w", err)
 	}
 
 	// Write factory file
@@ -237,6 +244,15 @@ func ensureLineInBlock(src, openMarker, entry string) string {
 	insertAt := openIdx + closeRel + 1
 
 	return src[:insertAt] + entry + "\n" + src[insertAt:]
+}
+
+// readNullType reads the nullable type strategy from andurel.lock.
+// Defaults to "sql.Null" when not configured.
+func (m *ModelManager) readNullType(rootDir string) string {
+	if lock, err := layout.ReadLockFile(rootDir); err == nil && lock.DatabaseConfig != nil && lock.DatabaseConfig.NullType != "" {
+		return lock.DatabaseConfig.NullType
+	}
+	return "sql.Null"
 }
 
 func (m *ModelManager) checkExistingModel(resourceName string) {

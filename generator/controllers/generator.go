@@ -119,6 +119,42 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 	return controller, nil
 }
 
+// isNullableType returns true if the given type is a pointer or a null-wrapper type.
+func isNullableType(goType string) bool {
+	if strings.HasPrefix(goType, "*") {
+		return true
+	}
+	switch goType {
+	case "sql.NullString", "sql.NullBool", "sql.NullInt16", "sql.NullInt32",
+		"sql.NullInt64", "sql.NullFloat64", "sql.NullTime",
+		"bun.NullString", "bun.NullBool", "bun.NullInt32", "bun.NullInt64",
+		"bun.NullFloat64", "bun.NullTime":
+		return true
+	}
+	return false
+}
+
+// resolveControllerBaseType strips null-type wrappers and pointer prefixes.
+func resolveControllerBaseType(goType string) string {
+	switch goType {
+	case "sql.NullString", "bun.NullString":
+		return "string"
+	case "sql.NullBool", "bun.NullBool":
+		return "bool"
+	case "sql.NullInt16":
+		return "int16"
+	case "sql.NullInt32", "bun.NullInt32":
+		return "int32"
+	case "sql.NullInt64", "bun.NullInt64":
+		return "int64"
+	case "sql.NullFloat64", "bun.NullFloat64":
+		return "float64"
+	case "sql.NullTime", "bun.NullTime":
+		return "time.Time"
+	}
+	return strings.TrimPrefix(goType, "*")
+}
+
 func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 	var goType string
 	var err error
@@ -128,7 +164,7 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		return GeneratedField{}, err
 	}
 
-	baseGoType := strings.TrimPrefix(goType, "*")
+	baseGoType := resolveControllerBaseType(goType)
 
 	field := GeneratedField{
 		Name:          types.FormatFieldName(col.Name),
@@ -136,7 +172,7 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		DBName:        col.Name,
 		CamelCase:     types.FormatCamelCase(col.Name),
 		IsSystemField: col.Name == "created_at" || col.Name == "updated_at" || col.Name == "id",
-		IsPointer:     strings.HasPrefix(goType, "*"),
+		IsPointer:     isNullableType(goType),
 	}
 
 	switch baseGoType {
@@ -157,7 +193,7 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 	case "bool":
 		field.GoFormType = "bool"
 	default:
-		if field.IsPointer {
+		if isNullableType(goType) {
 			field.GoFormType = goType
 		} else {
 			field.GoFormType = "string"

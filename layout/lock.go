@@ -15,6 +15,11 @@ type AndurelLock struct {
 	Extensions     map[string]*Extension `json:"extensions,omitempty"`
 	Tools          map[string]*Tool      `json:"tools"`
 	ScaffoldConfig *ScaffoldConfig       `json:"scaffoldConfig,omitempty"`
+	DatabaseConfig *DatabaseConfig       `json:"databaseConfig,omitempty"`
+}
+
+type DatabaseConfig struct {
+	NullType string `json:"nullType"`
 }
 
 type ScaffoldConfig struct {

@@ -1009,6 +1009,9 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 func generateLockFile(targetDir, version string, hasTailwind bool, config *ScaffoldConfig) error {
 	lock := NewAndurelLock(version)
 	lock.ScaffoldConfig = config
+	lock.DatabaseConfig = &DatabaseConfig{
+		NullType: "sql.Null",
+	}
 
 	for _, tool := range DefaultGoTools {
 		sourceRepo := extractRepo(tool.Source)
