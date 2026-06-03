@@ -18,6 +18,7 @@ var Files embed.FS
 type TemplateData interface {
 	DatabaseDialect() string
 	GetModuleName() string
+	GetCSSFramework() string
 	Builder() *blueprint.Builder
 	SetBlueprint(bp *blueprint.Blueprint)
 }

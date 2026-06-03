@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -10,33 +11,32 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// StudentFeedbackEntity represents a StudentFeedback record in the database.
 type StudentFeedbackEntity struct {
-	bun.BaseModel `bun:"table:student_feedback"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	StudentID     string     `bun:"student_id"`
-	Feedback      string     `bun:"feedback"`
-	Rating        *int32     `bun:"rating"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:student_feedback,alias:student_feedback"`
+	ID            uuid.UUID     `bun:"id,pk,type:uuid"`
+	StudentID     string        `bun:"student_id"`
+	Feedback      string        `bun:"feedback"`
+	Rating        sql.NullInt32 `bun:"rating"`
+	CreatedAt     sql.NullTime  `bun:"created_at"`
+	UpdatedAt     sql.NullTime  `bun:"updated_at"`
 }
 
 func (sf studentFeedback) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (StudentFeedbackEntity, error) {
 	var entity StudentFeedbackEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return StudentFeedbackEntity{}, err
 	}
+
 	return entity, nil
 }
 
 type CreateStudentFeedbackData struct {
 	StudentID string
 	Feedback  string
-	Rating    *int32
+	Rating    sql.NullInt32
 }
 
 func (sf studentFeedback) Create(ctx context.Context, db storage.Executor, data CreateStudentFeedbackData) (StudentFeedbackEntity, error) {
@@ -53,10 +53,10 @@ func (sf studentFeedback) Create(ctx context.Context, db storage.Executor, data 
 		Rating:    data.Rating,
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return StudentFeedbackEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -64,8 +64,8 @@ type UpdateStudentFeedbackData struct {
 	ID        uuid.UUID
 	StudentID string
 	Feedback  string
-	Rating    *int32
-	UpdatedAt *time.Time
+	Rating    sql.NullInt32
+	UpdatedAt sql.NullTime
 }
 
 func (sf studentFeedback) Update(ctx context.Context, db storage.Executor, data UpdateStudentFeedbackData) (StudentFeedbackEntity, error) {
@@ -81,13 +81,18 @@ func (sf studentFeedback) Update(ctx context.Context, db storage.Executor, data 
 		Rating:    data.Rating,
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+		Column("student_id").
+		Column("feedback").
+		Column("rating").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
+		Scan(ctx); err != nil {
 		return StudentFeedbackEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -96,17 +101,18 @@ func (sf studentFeedback) Destroy(ctx context.Context, db storage.Executor, id u
 		Model((*StudentFeedbackEntity)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func (sf studentFeedback) All(ctx context.Context, db storage.Executor) ([]StudentFeedbackEntity, error) {
 	var entities []StudentFeedbackEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -131,9 +137,9 @@ func (sf studentFeedback) Paginate(ctx context.Context, db storage.Executor, pag
 
 	offset := (page - 1) * pageSize
 
-	var totalCount int64
-	if err := db.NewSelect().
-		Model(&StudentFeedbackEntity{}).Scan(ctx, &totalCount); err != nil {
+	totalCount, err := db.NewSelect().
+		Model(&StudentFeedbackEntity{}).Count(ctx)
+	if err != nil {
 		return PaginatedStudentFeedback{}, err
 	}
 
@@ -146,11 +152,11 @@ func (sf studentFeedback) Paginate(ctx context.Context, db storage.Executor, pag
 		return PaginatedStudentFeedback{}, err
 	}
 
-	totalPages := (totalCount + pageSize - 1) / pageSize
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
 
 	return PaginatedStudentFeedback{
 		StudentFeedback: entities,
-		TotalCount:      totalCount,
+		TotalCount:      int64(totalCount),
 		Page:            page,
 		PageSize:        pageSize,
 		TotalPages:      totalPages,
@@ -171,12 +177,16 @@ func (sf studentFeedback) Upsert(ctx context.Context, db storage.Executor, data 
 		Rating:    data.Rating,
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
-		Exec(ctx)
-	if err != nil {
+		Set("student_id = excluded.student_id").
+		Set("feedback = excluded.feedback").
+		Set("rating = excluded.rating").
+		Returning("*").
+		Scan(ctx); err != nil {
 		return StudentFeedbackEntity{}, err
 	}
+
 	return entity, nil
 }

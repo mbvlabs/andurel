@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -10,33 +11,32 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// PersonEntity represents a Person record in the database.
 type PersonEntity struct {
-	bun.BaseModel `bun:"table:people_data"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	FirstName     string     `bun:"first_name"`
-	LastName      string     `bun:"last_name"`
-	Email         *string    `bun:"email"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:people_data,alias:people_data"`
+	ID            uuid.UUID      `bun:"id,pk,type:uuid"`
+	FirstName     string         `bun:"first_name"`
+	LastName      string         `bun:"last_name"`
+	Email         sql.NullString `bun:"email"`
+	CreatedAt     sql.NullTime   `bun:"created_at"`
+	UpdatedAt     sql.NullTime   `bun:"updated_at"`
 }
 
 func (p person) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (PersonEntity, error) {
 	var entity PersonEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return PersonEntity{}, err
 	}
+
 	return entity, nil
 }
 
 type CreatePersonData struct {
 	FirstName string
 	LastName  string
-	Email     *string
+	Email     sql.NullString
 }
 
 func (p person) Create(ctx context.Context, db storage.Executor, data CreatePersonData) (PersonEntity, error) {
@@ -53,10 +53,10 @@ func (p person) Create(ctx context.Context, db storage.Executor, data CreatePers
 		Email:     data.Email,
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return PersonEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -64,8 +64,8 @@ type UpdatePersonData struct {
 	ID        uuid.UUID
 	FirstName string
 	LastName  string
-	Email     *string
-	UpdatedAt *time.Time
+	Email     sql.NullString
+	UpdatedAt sql.NullTime
 }
 
 func (p person) Update(ctx context.Context, db storage.Executor, data UpdatePersonData) (PersonEntity, error) {
@@ -81,13 +81,18 @@ func (p person) Update(ctx context.Context, db storage.Executor, data UpdatePers
 		Email:     data.Email,
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+		Column("first_name").
+		Column("last_name").
+		Column("email").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
+		Scan(ctx); err != nil {
 		return PersonEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -96,17 +101,18 @@ func (p person) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) 
 		Model((*PersonEntity)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func (p person) All(ctx context.Context, db storage.Executor) ([]PersonEntity, error) {
 	var entities []PersonEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -131,9 +137,9 @@ func (p person) Paginate(ctx context.Context, db storage.Executor, page, pageSiz
 
 	offset := (page - 1) * pageSize
 
-	var totalCount int64
-	if err := db.NewSelect().
-		Model(&PersonEntity{}).Scan(ctx, &totalCount); err != nil {
+	totalCount, err := db.NewSelect().
+		Model(&PersonEntity{}).Count(ctx)
+	if err != nil {
 		return PaginatedPerson{}, err
 	}
 
@@ -146,11 +152,11 @@ func (p person) Paginate(ctx context.Context, db storage.Executor, page, pageSiz
 		return PaginatedPerson{}, err
 	}
 
-	totalPages := (totalCount + pageSize - 1) / pageSize
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
 
 	return PaginatedPerson{
 		Person:     entities,
-		TotalCount: totalCount,
+		TotalCount: int64(totalCount),
 		Page:       page,
 		PageSize:   pageSize,
 		TotalPages: totalPages,
@@ -171,12 +177,16 @@ func (p person) Upsert(ctx context.Context, db storage.Executor, data CreatePers
 		Email:     data.Email,
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
-		Exec(ctx)
-	if err != nil {
+		Set("first_name = excluded.first_name").
+		Set("last_name = excluded.last_name").
+		Set("email = excluded.email").
+		Returning("*").
+		Scan(ctx); err != nil {
 		return PersonEntity{}, err
 	}
+
 	return entity, nil
 }

@@ -11,9 +11,8 @@ import (
 {{- end}}
 )
 
-// {{.EntityName}} represents a {{.Name}} record in the database.
 type {{.EntityName}} struct {
-	bun.BaseModel `bun:"table:{{.TableName}}"`
+	bun.BaseModel `bun:"table:{{.TableName}},alias:{{.TableName}}"`
 
 {{- range .Fields}}
 	{{.Name}} {{.Type}} `bun:"{{.BunTag}}"`
@@ -22,13 +21,13 @@ type {{.EntityName}} struct {
 
 func ({{.ReceiverName}} {{.NamespaceType}}) Find(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) ({{.EntityName}}, error) {
 	var entity {{.EntityName}}
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}
+
 	return entity, nil
 }
 
@@ -58,8 +57,12 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db stora
 		ID: data.ID,
 {{- end}}
 {{- end}}
+{{- if .HasCreatedAt}}
 		CreatedAt: time.Now(),
+{{- end}}
+{{- if .HasUpdatedAt}}
 		UpdatedAt: time.Now(),
+{{- end}}
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		{{.Name}}: data.{{.Name}},
@@ -67,10 +70,10 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db stora
 {{- end}}
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}
+
 	return entity, nil
 }
 
@@ -89,8 +92,10 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db stora
 	}
 
 	entity := {{.EntityName}}{
-		ID:        data.ID,
+		ID: data.ID,
+{{- if .HasUpdatedAt}}
 		UpdatedAt: time.Now(),
+{{- end}}
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		{{.Name}}: data.{{.Name}},
@@ -98,13 +103,19 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db stora
 {{- end}}
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+{{- range .Fields}}
+{{- if and (ne .Name "ID") (ne .Name "CreatedAt")}}
+		Column("{{columnName .BunTag}}").
+{{- end}}
+{{- end}}
+		WherePK().
+		Returning("*").
+		Scan(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}
+
 	return entity, nil
 }
 
@@ -113,17 +124,18 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Destroy(ctx context.Context, db stor
 		Model((*{{.EntityName}})(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func ({{.ReceiverName}} {{.NamespaceType}}) All(ctx context.Context, db storage.Executor) ([]{{.EntityName}}, error) {
 	var entities []{{.EntityName}}
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -148,9 +160,10 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db sto
 
 	offset := (page - 1) * pageSize
 
-	var totalCount int64
-	if err := db.NewSelect().
-		Model(&{{.EntityName}}{}).Scan(ctx, &totalCount); err != nil {
+	
+	totalCount, err := db.NewSelect().
+		Model(&{{.EntityName}}{}).Count(ctx)
+	if err != nil {
 		return Paginated{{.PluralName}}{}, err
 	}
 
@@ -163,11 +176,11 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db sto
 		return Paginated{{.PluralName}}{}, err
 	}
 
-	totalPages := (totalCount + pageSize - 1) / pageSize
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
 
 	return Paginated{{.PluralName}}{
 		{{.PluralName}}:    entities,
-		TotalCount: totalCount,
+		TotalCount: int64(totalCount),
 		Page:       page,
 		PageSize:   pageSize,
 		TotalPages: totalPages,
@@ -187,8 +200,12 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db stora
 		ID: data.ID,
 {{- end}}
 {{- end}}
+{{- if .HasCreatedAt}}
 		CreatedAt: time.Now(),
+{{- end}}
+{{- if .HasUpdatedAt}}
 		UpdatedAt: time.Now(),
+{{- end}}
 {{- range .Fields}}
 {{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		{{.Name}}: data.{{.Name}},
@@ -196,12 +213,18 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db stora
 {{- end}}
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
-		Exec(ctx)
-	if err != nil {
+{{- range .Fields}}
+{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+		Set("{{columnName .BunTag}} = excluded.{{columnName .BunTag}}").
+{{- end}}
+{{- end}}
+		Returning("*").
+		Scan(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}
+
 	return entity, nil
 }

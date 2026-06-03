@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -10,35 +11,34 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// BookEntity represents a Book record in the database.
 type BookEntity struct {
-	bun.BaseModel `bun:"table:books"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	Title         string     `bun:"title"`
-	Author        string     `bun:"author"`
-	Price         *float64   `bun:"price"`
-	Pages         *int32     `bun:"pages"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:books,alias:books"`
+	ID            uuid.UUID       `bun:"id,pk,type:uuid"`
+	Title         string          `bun:"title"`
+	Author        string          `bun:"author"`
+	Price         sql.NullFloat64 `bun:"price"`
+	Pages         sql.NullInt32   `bun:"pages"`
+	CreatedAt     sql.NullTime    `bun:"created_at"`
+	UpdatedAt     sql.NullTime    `bun:"updated_at"`
 }
 
 func (b book) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (BookEntity, error) {
 	var entity BookEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return BookEntity{}, err
 	}
+
 	return entity, nil
 }
 
 type CreateBookData struct {
 	Title  string
 	Author string
-	Price  *float64
-	Pages  *int32
+	Price  sql.NullFloat64
+	Pages  sql.NullInt32
 }
 
 func (b book) Create(ctx context.Context, db storage.Executor, data CreateBookData) (BookEntity, error) {
@@ -56,10 +56,10 @@ func (b book) Create(ctx context.Context, db storage.Executor, data CreateBookDa
 		Pages:     data.Pages,
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return BookEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -67,9 +67,9 @@ type UpdateBookData struct {
 	ID        uuid.UUID
 	Title     string
 	Author    string
-	Price     *float64
-	Pages     *int32
-	UpdatedAt *time.Time
+	Price     sql.NullFloat64
+	Pages     sql.NullInt32
+	UpdatedAt sql.NullTime
 }
 
 func (b book) Update(ctx context.Context, db storage.Executor, data UpdateBookData) (BookEntity, error) {
@@ -86,13 +86,19 @@ func (b book) Update(ctx context.Context, db storage.Executor, data UpdateBookDa
 		Pages:     data.Pages,
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+		Column("title").
+		Column("author").
+		Column("price").
+		Column("pages").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
+		Scan(ctx); err != nil {
 		return BookEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -101,17 +107,18 @@ func (b book) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) er
 		Model((*BookEntity)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func (b book) All(ctx context.Context, db storage.Executor) ([]BookEntity, error) {
 	var entities []BookEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -136,9 +143,9 @@ func (b book) Paginate(ctx context.Context, db storage.Executor, page, pageSize 
 
 	offset := (page - 1) * pageSize
 
-	var totalCount int64
-	if err := db.NewSelect().
-		Model(&BookEntity{}).Scan(ctx, &totalCount); err != nil {
+	totalCount, err := db.NewSelect().
+		Model(&BookEntity{}).Count(ctx)
+	if err != nil {
 		return PaginatedBooks{}, err
 	}
 
@@ -151,11 +158,11 @@ func (b book) Paginate(ctx context.Context, db storage.Executor, page, pageSize 
 		return PaginatedBooks{}, err
 	}
 
-	totalPages := (totalCount + pageSize - 1) / pageSize
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
 
 	return PaginatedBooks{
 		Books:      entities,
-		TotalCount: totalCount,
+		TotalCount: int64(totalCount),
 		Page:       page,
 		PageSize:   pageSize,
 		TotalPages: totalPages,
@@ -177,12 +184,17 @@ func (b book) Upsert(ctx context.Context, db storage.Executor, data CreateBookDa
 		Pages:     data.Pages,
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
-		Exec(ctx)
-	if err != nil {
+		Set("title = excluded.title").
+		Set("author = excluded.author").
+		Set("price = excluded.price").
+		Set("pages = excluded.pages").
+		Returning("*").
+		Scan(ctx); err != nil {
 		return BookEntity{}, err
 	}
+
 	return entity, nil
 }

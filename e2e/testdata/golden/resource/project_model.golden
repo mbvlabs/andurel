@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -10,31 +11,30 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// ProjectEntity represents a Project record in the database.
 type ProjectEntity struct {
-	bun.BaseModel `bun:"table:projects"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	Name          string     `bun:"name"`
-	Description   *string    `bun:"description"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:projects,alias:projects"`
+	ID            uuid.UUID      `bun:"id,pk,type:uuid"`
+	Name          string         `bun:"name"`
+	Description   sql.NullString `bun:"description"`
+	CreatedAt     sql.NullTime   `bun:"created_at"`
+	UpdatedAt     sql.NullTime   `bun:"updated_at"`
 }
 
 func (p project) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ProjectEntity, error) {
 	var entity ProjectEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return ProjectEntity{}, err
 	}
+
 	return entity, nil
 }
 
 type CreateProjectData struct {
 	Name        string
-	Description *string
+	Description sql.NullString
 }
 
 func (p project) Create(ctx context.Context, db storage.Executor, data CreateProjectData) (ProjectEntity, error) {
@@ -50,18 +50,18 @@ func (p project) Create(ctx context.Context, db storage.Executor, data CreatePro
 		Description: data.Description,
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return ProjectEntity{}, err
 	}
+
 	return entity, nil
 }
 
 type UpdateProjectData struct {
 	ID          uuid.UUID
 	Name        string
-	Description *string
-	UpdatedAt   *time.Time
+	Description sql.NullString
+	UpdatedAt   sql.NullTime
 }
 
 func (p project) Update(ctx context.Context, db storage.Executor, data UpdateProjectData) (ProjectEntity, error) {
@@ -76,13 +76,17 @@ func (p project) Update(ctx context.Context, db storage.Executor, data UpdatePro
 		Description: data.Description,
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+		Column("name").
+		Column("description").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
+		Scan(ctx); err != nil {
 		return ProjectEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -91,17 +95,18 @@ func (p project) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID)
 		Model((*ProjectEntity)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func (p project) All(ctx context.Context, db storage.Executor) ([]ProjectEntity, error) {
 	var entities []ProjectEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -126,9 +131,9 @@ func (p project) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 
 	offset := (page - 1) * pageSize
 
-	var totalCount int64
-	if err := db.NewSelect().
-		Model(&ProjectEntity{}).Scan(ctx, &totalCount); err != nil {
+	totalCount, err := db.NewSelect().
+		Model(&ProjectEntity{}).Count(ctx)
+	if err != nil {
 		return PaginatedProjects{}, err
 	}
 
@@ -141,11 +146,11 @@ func (p project) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 		return PaginatedProjects{}, err
 	}
 
-	totalPages := (totalCount + pageSize - 1) / pageSize
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
 
 	return PaginatedProjects{
 		Projects:   entities,
-		TotalCount: totalCount,
+		TotalCount: int64(totalCount),
 		Page:       page,
 		PageSize:   pageSize,
 		TotalPages: totalPages,
@@ -165,12 +170,15 @@ func (p project) Upsert(ctx context.Context, db storage.Executor, data CreatePro
 		Description: data.Description,
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
-		Exec(ctx)
-	if err != nil {
+		Set("name = excluded.name").
+		Set("description = excluded.description").
+		Returning("*").
+		Scan(ctx); err != nil {
 		return ProjectEntity{}, err
 	}
+
 	return entity, nil
 }

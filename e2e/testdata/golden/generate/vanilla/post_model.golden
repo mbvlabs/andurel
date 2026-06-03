@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -10,28 +11,27 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// PostEntity represents a Post record in the database.
 type PostEntity struct {
-	bun.BaseModel `bun:"table:posts"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	Title         string     `bun:"title"`
-	Tags          []string   `bun:"tags"`
-	Scores        []int32    `bun:"scores"`
-	Settings      []byte     `bun:"settings,type:jsonb"`
-	Metadata      []byte     `bun:"metadata"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:posts,alias:posts"`
+	ID            uuid.UUID    `bun:"id,pk,type:uuid"`
+	Title         string       `bun:"title"`
+	Tags          []string     `bun:"tags"`
+	Scores        []int32      `bun:"scores"`
+	Settings      []byte       `bun:"settings,type:jsonb"`
+	Metadata      []byte       `bun:"metadata"`
+	CreatedAt     sql.NullTime `bun:"created_at"`
+	UpdatedAt     sql.NullTime `bun:"updated_at"`
 }
 
 func (p post) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (PostEntity, error) {
 	var entity PostEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return PostEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -59,10 +59,10 @@ func (p post) Create(ctx context.Context, db storage.Executor, data CreatePostDa
 		Metadata:  data.Metadata,
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return PostEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -73,7 +73,7 @@ type UpdatePostData struct {
 	Scores    []int32
 	Settings  []byte
 	Metadata  []byte
-	UpdatedAt *time.Time
+	UpdatedAt sql.NullTime
 }
 
 func (p post) Update(ctx context.Context, db storage.Executor, data UpdatePostData) (PostEntity, error) {
@@ -91,13 +91,20 @@ func (p post) Update(ctx context.Context, db storage.Executor, data UpdatePostDa
 		Metadata:  data.Metadata,
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+		Column("title").
+		Column("tags").
+		Column("scores").
+		Column("settings").
+		Column("metadata").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
+		Scan(ctx); err != nil {
 		return PostEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -106,17 +113,18 @@ func (p post) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) er
 		Model((*PostEntity)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func (p post) All(ctx context.Context, db storage.Executor) ([]PostEntity, error) {
 	var entities []PostEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -141,9 +149,9 @@ func (p post) Paginate(ctx context.Context, db storage.Executor, page, pageSize 
 
 	offset := (page - 1) * pageSize
 
-	var totalCount int64
-	if err := db.NewSelect().
-		Model(&PostEntity{}).Scan(ctx, &totalCount); err != nil {
+	totalCount, err := db.NewSelect().
+		Model(&PostEntity{}).Count(ctx)
+	if err != nil {
 		return PaginatedPosts{}, err
 	}
 
@@ -156,11 +164,11 @@ func (p post) Paginate(ctx context.Context, db storage.Executor, page, pageSize 
 		return PaginatedPosts{}, err
 	}
 
-	totalPages := (totalCount + pageSize - 1) / pageSize
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
 
 	return PaginatedPosts{
 		Posts:      entities,
-		TotalCount: totalCount,
+		TotalCount: int64(totalCount),
 		Page:       page,
 		PageSize:   pageSize,
 		TotalPages: totalPages,
@@ -183,12 +191,18 @@ func (p post) Upsert(ctx context.Context, db storage.Executor, data CreatePostDa
 		Metadata:  data.Metadata,
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
-		Exec(ctx)
-	if err != nil {
+		Set("title = excluded.title").
+		Set("tags = excluded.tags").
+		Set("scores = excluded.scores").
+		Set("settings = excluded.settings").
+		Set("metadata = excluded.metadata").
+		Returning("*").
+		Scan(ctx); err != nil {
 		return PostEntity{}, err
 	}
+
 	return entity, nil
 }

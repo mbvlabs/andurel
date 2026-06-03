@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -10,33 +11,32 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// ArticleEntity represents a Article record in the database.
 type ArticleEntity struct {
-	bun.BaseModel `bun:"table:articles"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	Title         string     `bun:"title"`
-	Content       *string    `bun:"content"`
-	Published     *bool      `bun:"published"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:articles,alias:articles"`
+	ID            uuid.UUID      `bun:"id,pk,type:uuid"`
+	Title         string         `bun:"title"`
+	Content       sql.NullString `bun:"content"`
+	Published     sql.NullBool   `bun:"published"`
+	CreatedAt     sql.NullTime   `bun:"created_at"`
+	UpdatedAt     sql.NullTime   `bun:"updated_at"`
 }
 
 func (a article) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ArticleEntity, error) {
 	var entity ArticleEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return ArticleEntity{}, err
 	}
+
 	return entity, nil
 }
 
 type CreateArticleData struct {
 	Title     string
-	Content   *string
-	Published *bool
+	Content   sql.NullString
+	Published sql.NullBool
 }
 
 func (a article) Create(ctx context.Context, db storage.Executor, data CreateArticleData) (ArticleEntity, error) {
@@ -53,19 +53,19 @@ func (a article) Create(ctx context.Context, db storage.Executor, data CreateArt
 		Published: data.Published,
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return ArticleEntity{}, err
 	}
+
 	return entity, nil
 }
 
 type UpdateArticleData struct {
 	ID        uuid.UUID
 	Title     string
-	Content   *string
-	Published *bool
-	UpdatedAt *time.Time
+	Content   sql.NullString
+	Published sql.NullBool
+	UpdatedAt sql.NullTime
 }
 
 func (a article) Update(ctx context.Context, db storage.Executor, data UpdateArticleData) (ArticleEntity, error) {
@@ -81,13 +81,18 @@ func (a article) Update(ctx context.Context, db storage.Executor, data UpdateArt
 		Published: data.Published,
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+		Column("title").
+		Column("content").
+		Column("published").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
+		Scan(ctx); err != nil {
 		return ArticleEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -96,17 +101,18 @@ func (a article) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID)
 		Model((*ArticleEntity)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func (a article) All(ctx context.Context, db storage.Executor) ([]ArticleEntity, error) {
 	var entities []ArticleEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -131,9 +137,9 @@ func (a article) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 
 	offset := (page - 1) * pageSize
 
-	var totalCount int64
-	if err := db.NewSelect().
-		Model(&ArticleEntity{}).Scan(ctx, &totalCount); err != nil {
+	totalCount, err := db.NewSelect().
+		Model(&ArticleEntity{}).Count(ctx)
+	if err != nil {
 		return PaginatedArticles{}, err
 	}
 
@@ -146,11 +152,11 @@ func (a article) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 		return PaginatedArticles{}, err
 	}
 
-	totalPages := (totalCount + pageSize - 1) / pageSize
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
 
 	return PaginatedArticles{
 		Articles:   entities,
-		TotalCount: totalCount,
+		TotalCount: int64(totalCount),
 		Page:       page,
 		PageSize:   pageSize,
 		TotalPages: totalPages,
@@ -171,12 +177,16 @@ func (a article) Upsert(ctx context.Context, db storage.Executor, data CreateArt
 		Published: data.Published,
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
-		Exec(ctx)
-	if err != nil {
+		Set("title = excluded.title").
+		Set("content = excluded.content").
+		Set("published = excluded.published").
+		Returning("*").
+		Scan(ctx); err != nil {
 		return ArticleEntity{}, err
 	}
+
 	return entity, nil
 }

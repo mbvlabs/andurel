@@ -2,6 +2,7 @@ package factories
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -26,7 +27,7 @@ func BuildPerson(opts ...PersonOption) models.PersonEntity {
 			ID:        uuid.New(),
 			FirstName: faker.Word(),
 			LastName:  faker.Word(),
-			Email:     *string{},
+			Email:     sql.NullString{String: faker.Word(), Valid: true},
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
@@ -92,7 +93,7 @@ func WithPeopleDataLastName(value string) PersonOption {
 }
 
 // WithPeopleDataEmail sets the Email field
-func WithPeopleDataEmail(value *string) PersonOption {
+func WithPeopleDataEmail(value sql.NullString) PersonOption {
 	return func(f *PersonFactory) {
 		f.PersonEntity.Email = value
 	}

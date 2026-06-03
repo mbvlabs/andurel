@@ -66,10 +66,10 @@ func New(
 
 	server := Server{
 		srv:         srv,
-		Shutdowners: []Shutdowner{srv},
+		Shutdowners: shutdowners,
 	}
 
-	server.Shutdowners = append(server.Shutdowners, shutdowners...)
+	server.Shutdowners = append(server.Shutdowners, srv)
 
 	return server
 }
@@ -93,7 +93,7 @@ func (s *Server) Start(
 			<-egCtx.Done()
 			slog.InfoContext(ctx, "initiating graceful shutdown")
 			shutdownCtx, cancel := context.WithTimeout(
-				ctx,
+				context.Background(),
 				10*time.Second,
 			)
 			defer cancel()
@@ -121,6 +121,10 @@ func (s *Server) Start(
 		return nil
 	}
 
-	return s.srv.ListenAndServe()
+	if err := s.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		return fmt.Errorf("server error: %w", err)
+	}
+
+	return nil
 }
 

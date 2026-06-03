@@ -6,6 +6,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/models"
 	"github.com/mbvlabs/andurel/generator/views"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type Coordinator struct {
@@ -76,6 +77,10 @@ func NewCoordinator() (Coordinator, error) {
 
 // GenerateController coordinates controller and optional view generation
 func (c *Coordinator) GenerateController(resourceName, tableName string, withViews bool) error {
+	if tableName == "" {
+		tableName = naming.DeriveTableName(resourceName)
+	}
+
 	if err := c.ControllerManager.GenerateController(resourceName, tableName, withViews); err != nil {
 		return err
 	}

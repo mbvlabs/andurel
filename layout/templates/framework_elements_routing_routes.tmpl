@@ -48,30 +48,6 @@ func applyOptions(path string, opts ...RouteOption) string {
 	return path + "?" + strings.Join(routeOpts.query, "&")
 }
 
-func slugParamsFromStruct(params any) map[string]string {
-	result := make(map[string]string)
-	v := reflect.ValueOf(params)
-	if v.Kind() != reflect.Struct {
-		return result
-	}
-
-	t := v.Type()
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		slugTag := field.Tag.Get("slug")
-		if slugTag == "" {
-			continue
-		}
-
-		fieldValue := v.Field(i)
-		if fieldValue.Kind() == reflect.String {
-			result[":"+slugTag] = fieldValue.String()
-		}
-	}
-
-	return result
-}
-
 func configureName(name, prefix string) string {
 	if prefix == "" {
 		return name
@@ -190,6 +166,10 @@ func (r Route) URL(opts ...RouteOption) string {
 	return applyOptions(configurePath(r.path, r.prefix, r.name), opts...)
 }
 
+func (r Route) FullURL(base string, opts ...RouteOption) string {
+	return base + r.URL(opts...)
+}
+
 func (r Route) Name() string {
 	return configureName(r.name, r.prefix)
 }
@@ -220,6 +200,10 @@ func (r RouteWithUUIDID) URL(id uuid.UUID, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
+func (r RouteWithUUIDID) FullURL(base string, id uuid.UUID, opts ...RouteOption) string {
+	return base + r.URL(id, opts...)
+}
+
 func (r RouteWithUUIDID) GetParam() string {
 	return "id"
 }
@@ -244,6 +228,10 @@ func (r RouteWithSerialID) Path() string {
 func (r RouteWithSerialID) URL(id int32, opts ...RouteOption) string {
 	path := strings.Replace(r.Path(), ":id", strconv.Itoa(int(id)), 1)
 	return applyOptions(path, opts...)
+}
+
+func (r RouteWithSerialID) FullURL(base string, id int32, opts ...RouteOption) string {
+	return base + r.URL(id, opts...)
 }
 
 func (r RouteWithSerialID) GetParam() string {
@@ -272,6 +260,10 @@ func (r RouteWithBigSerialID) URL(id int64, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
+func (r RouteWithBigSerialID) FullURL(base string, id int64, opts ...RouteOption) string {
+	return base + r.URL(id, opts...)
+}
+
 func (r RouteWithBigSerialID) GetParam() string {
 	return "id"
 }
@@ -296,6 +288,10 @@ func (r RouteWithStringID) Path() string {
 func (r RouteWithStringID) URL(id string, opts ...RouteOption) string {
 	path := strings.Replace(r.Path(), ":id", id, 1)
 	return applyOptions(path, opts...)
+}
+
+func (r RouteWithStringID) FullURL(base string, id string, opts ...RouteOption) string {
+	return base + r.URL(id, opts...)
 }
 
 func (r RouteWithStringID) GetParam() string {
@@ -323,6 +319,10 @@ func (r RouteWithSlug) URL(slug string, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
+func (r RouteWithSlug) FullURL(base string, slug string, opts ...RouteOption) string {
+	return base + r.URL(slug, opts...)
+}
+
 func (r RouteWithSlug) GetParam() string {
 	return "slug"
 }
@@ -346,6 +346,10 @@ func (r RouteWithToken) Path() string {
 func (r RouteWithToken) URL(token string, opts ...RouteOption) string {
 	path := strings.Replace(r.Path(), ":token", token, 1)
 	return applyOptions(path, opts...)
+}
+
+func (r RouteWithToken) FullURL(base string, token string, opts ...RouteOption) string {
+	return base + r.URL(token, opts...)
 }
 
 func (r RouteWithToken) GetParam() string {
@@ -373,31 +377,59 @@ func (r RouteWithFile) URL(file string, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
+func (r RouteWithFile) FullURL(base string, file string, opts ...RouteOption) string {
+	return base + r.URL(file, opts...)
+}
+
 func (r RouteWithFile) GetParam() string {
 	return "file"
 }
 
-type RouteWithSlugs[Params any] Route
+type RouteWithParams[Params any] Route
 
-func NewRouteWithSlugs[Params any](path, name, prefix string) RouteWithSlugs[Params] {
-	return RouteWithSlugs[Params]{name, path, prefix}
+func NewRouteWithParams[Params any](path, name, prefix string) RouteWithParams[Params] {
+	return RouteWithParams[Params]{name, path, prefix}
 }
 
-var _ SlugsRoute[any] = (*RouteWithSlugs[any])(nil)
+var _ ParamsRoute[any] = (*RouteWithParams[any])(nil)
 
-func (r RouteWithSlugs[Params]) Name() string {
+func (r RouteWithParams[Params]) Name() string {
 	return configureName(r.name, r.prefix)
 }
 
-func (r RouteWithSlugs[Params]) Path() string {
+func (r RouteWithParams[Params]) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
-func (r RouteWithSlugs[Params]) URL(params Params, opts ...RouteOption) string {
-	slugs := slugParamsFromStruct(params)
+func (r RouteWithParams[Params]) URL(params Params, opts ...RouteOption) string {
+	result := make(map[string]string)
+	v := reflect.ValueOf(params)
+	if v.Kind() != reflect.Struct {
+		return ""
+	}
+
+	t := v.Type()
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		slugTag := field.Tag.Get("param")
+		if slugTag == "" {
+			continue
+		}
+
+		fieldValue := v.Field(i)
+		if fieldValue.Kind() == reflect.String {
+			result[":"+slugTag] = fieldValue.String()
+		}
+	}
+
 	route := r.Path()
-	for param, value := range slugs {
+	for param, value := range result {
 		route = strings.Replace(route, param, value, 1)
 	}
+
 	return applyOptions(route, opts...)
+}
+
+func (r RouteWithParams[Params]) FullURL(base string, params Params, opts ...RouteOption) string {
+	return base + r.URL(params, opts...)
 }

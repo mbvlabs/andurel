@@ -1,0 +1,51 @@
+.app-shell {
+	grid-template-rows: 1fr auto;
+}
+
+.app-shell > * {
+	min-inline-size: 0;
+}
+
+.site-footer {
+	border-top: 1px solid color-mix(in oklab, var(--border-subtle) 85%, transparent);
+	color: var(--text-muted);
+	padding: var(--space-4);
+}
+
+.site-footer > .container {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.page-shell {
+	display: grid;
+	align-content: start;
+	gap: var(--space-6);
+}
+
+.home-shell {
+	padding-block: var(--space-8);
+}
+
+.auth-shell,
+.error-shell {
+	display: grid;
+	align-items: center;
+	min-block-size: 100%;
+	padding-block: clamp(var(--space-6), 10vh, var(--space-8));
+}
+
+.auth-shell > .center,
+.error-shell > .center {
+	inline-size: min(100%, 32rem);
+	padding-inline: 0;
+}
+
+:where(main > :first-child) {
+	margin-block-start: 0;
+}
+
+:where(main > * + *) {
+	margin-block-start: var(--space-5);
+}

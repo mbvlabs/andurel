@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -10,33 +11,32 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// ItemEntity represents a Item record in the database.
 type ItemEntity struct {
-	bun.BaseModel `bun:"table:items"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	WarehouseID   *uuid.UUID `bun:"warehouse_id,type:uuid"`
-	Name          string     `bun:"name"`
-	Quantity      *int32     `bun:"quantity"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:items,alias:items"`
+	ID            uuid.UUID     `bun:"id,pk,type:uuid"`
+	WarehouseID   *uuid.UUID    `bun:"warehouse_id,type:uuid"`
+	Name          string        `bun:"name"`
+	Quantity      sql.NullInt32 `bun:"quantity"`
+	CreatedAt     sql.NullTime  `bun:"created_at"`
+	UpdatedAt     sql.NullTime  `bun:"updated_at"`
 }
 
 func (i item) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ItemEntity, error) {
 	var entity ItemEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return ItemEntity{}, err
 	}
+
 	return entity, nil
 }
 
 type CreateItemData struct {
 	WarehouseID *uuid.UUID
 	Name        string
-	Quantity    *int32
+	Quantity    sql.NullInt32
 }
 
 func (i item) Create(ctx context.Context, db storage.Executor, data CreateItemData) (ItemEntity, error) {
@@ -53,10 +53,10 @@ func (i item) Create(ctx context.Context, db storage.Executor, data CreateItemDa
 		Quantity:    data.Quantity,
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
 		return ItemEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -64,8 +64,8 @@ type UpdateItemData struct {
 	ID          uuid.UUID
 	WarehouseID *uuid.UUID
 	Name        string
-	Quantity    *int32
-	UpdatedAt   *time.Time
+	Quantity    sql.NullInt32
+	UpdatedAt   sql.NullTime
 }
 
 func (i item) Update(ctx context.Context, db storage.Executor, data UpdateItemData) (ItemEntity, error) {
@@ -81,13 +81,18 @@ func (i item) Update(ctx context.Context, db storage.Executor, data UpdateItemDa
 		Quantity:    data.Quantity,
 	}
 
-	_, err := db.NewUpdate().
+	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+		Column("warehouse_id").
+		Column("name").
+		Column("quantity").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
+		Scan(ctx); err != nil {
 		return ItemEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -96,17 +101,18 @@ func (i item) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) er
 		Model((*ItemEntity)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
+
 	return err
 }
 
 func (i item) All(ctx context.Context, db storage.Executor) ([]ItemEntity, error) {
 	var entities []ItemEntity
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -131,9 +137,9 @@ func (i item) Paginate(ctx context.Context, db storage.Executor, page, pageSize 
 
 	offset := (page - 1) * pageSize
 
-	var totalCount int64
-	if err := db.NewSelect().
-		Model(&ItemEntity{}).Scan(ctx, &totalCount); err != nil {
+	totalCount, err := db.NewSelect().
+		Model(&ItemEntity{}).Count(ctx)
+	if err != nil {
 		return PaginatedItems{}, err
 	}
 
@@ -146,11 +152,11 @@ func (i item) Paginate(ctx context.Context, db storage.Executor, page, pageSize 
 		return PaginatedItems{}, err
 	}
 
-	totalPages := (totalCount + pageSize - 1) / pageSize
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
 
 	return PaginatedItems{
 		Items:      entities,
-		TotalCount: totalCount,
+		TotalCount: int64(totalCount),
 		Page:       page,
 		PageSize:   pageSize,
 		TotalPages: totalPages,
@@ -171,12 +177,16 @@ func (i item) Upsert(ctx context.Context, db storage.Executor, data CreateItemDa
 		Quantity:    data.Quantity,
 	}
 
-	_, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
-		Exec(ctx)
-	if err != nil {
+		Set("warehouse_id = excluded.warehouse_id").
+		Set("name = excluded.name").
+		Set("quantity = excluded.quantity").
+		Returning("*").
+		Scan(ctx); err != nil {
 		return ItemEntity{}, err
 	}
+
 	return entity, nil
 }

@@ -51,6 +51,8 @@ type GeneratedModel struct {
 	NamespaceVar        string // Server (exported, package-scope)
 	NamespaceType       string // server (unexported receiver type)
 	ReceiverName        string // s (for the namespace methods)
+	HasCreatedAt        bool
+	HasUpdatedAt        bool
 }
 
 type Config struct {
@@ -59,6 +61,7 @@ type Config struct {
 	PackageName  string
 	DatabaseType string
 	ModulePath   string
+	NullType     string
 	CustomTypes  []types.TypeOverride
 }
 
@@ -110,6 +113,9 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	}
 
 	g.typeMapper.Overrides = append(g.typeMapper.Overrides, config.CustomTypes...)
+	if config.NullType != "" {
+		g.typeMapper.NullType = config.NullType
+	}
 
 	entityName := config.ResourceName + "Entity"
 	namespaceVar := config.ResourceName
@@ -158,6 +164,13 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		}
 
 		model.Fields = append(model.Fields, field)
+
+		if col.Name == "created_at" {
+			model.HasCreatedAt = true
+		}
+		if col.Name == "updated_at" {
+			model.HasUpdatedAt = true
+		}
 
 		if col.Name == "id" && col.IsPrimaryKey {
 			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
@@ -223,6 +236,9 @@ func (g *Generator) addModelTypeImports(goType string) map[string]bool {
 	if strings.Contains(goType, "uuid.UUID") {
 		importSet["github.com/google/uuid"] = true
 	}
+	if strings.HasPrefix(goType, "sql.Null") {
+		importSet["database/sql"] = true
+	}
 	return importSet
 }
 
@@ -232,6 +248,12 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 			return strings.ToLower(s)
 		},
 		"Plural": inflection.Plural,
+		"columnName": func(bunTag string) string {
+			if idx := strings.Index(bunTag, ","); idx != -1 {
+				return bunTag[:idx]
+			}
+			return bunTag
+		},
 	}
 
 	tmpl, err := template.New("model").Funcs(funcMap).Parse(templateStr)
@@ -254,6 +276,7 @@ func (g *Generator) GenerateModel(
 	modelPath string,
 	modulePath string,
 	tableNameOverride string,
+	nullType string,
 ) error {
 	tableName := pluralName
 	if tableNameOverride != "" {
@@ -266,6 +289,7 @@ func (g *Generator) GenerateModel(
 		PackageName:  "models",
 		DatabaseType: g.typeMapper.GetDatabaseType(),
 		ModulePath:   modulePath,
+		NullType:     nullType,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build model: %w", err)
@@ -425,6 +449,34 @@ func (g *Generator) determineFactoryDefault(fieldName, goType string) string {
 		return "uuid.UUID{}"
 	case "[]byte":
 		return "[]byte{}"
+	// sql.Null types
+	case "sql.NullString":
+		return "sql.NullString{String: faker.Word(), Valid: true}"
+	case "sql.NullBool":
+		return "sql.NullBool{Bool: randomBool(), Valid: true}"
+	case "sql.NullInt16":
+		return "sql.NullInt16{Int16: randomInt16(1, 1000, 100), Valid: true}"
+	case "sql.NullInt32":
+		return "sql.NullInt32{Int32: randomInt(1, 1000, 100), Valid: true}"
+	case "sql.NullInt64":
+		return "sql.NullInt64{Int64: randomInt64(1, 1000, 100), Valid: true}"
+	case "sql.NullFloat64":
+		return "sql.NullFloat64{Float64: float64(randomInt(1, 1000, 100)), Valid: true}"
+	case "sql.NullTime":
+		return "sql.NullTime{Time: time.Now(), Valid: true}"
+	// bun.Null types
+	case "bun.NullString":
+		return "bun.NullString{String: faker.Word(), Valid: true}"
+	case "bun.NullBool":
+		return "bun.NullBool{Bool: randomBool(), Valid: true}"
+	case "bun.NullInt32":
+		return "bun.NullInt32{Int32: randomInt(1, 1000, 100), Valid: true}"
+	case "bun.NullInt64":
+		return "bun.NullInt64{Int64: randomInt64(1, 1000, 100), Valid: true}"
+	case "bun.NullFloat64":
+		return "bun.NullFloat64{Float64: float64(randomInt(1, 1000, 100)), Valid: true}"
+	case "bun.NullTime":
+		return "bun.NullTime{Time: time.Now(), Valid: true}"
 	}
 
 	// Default fallback
@@ -492,6 +544,13 @@ func (g *Generator) getFactoryGoZero(goType string) string {
 		return "uuid.UUID{}"
 	case "[]byte":
 		return "nil"
+	// sql.Null and bun.Null zero values use their empty struct literal
+	case "sql.NullString", "sql.NullBool", "sql.NullInt16", "sql.NullInt32",
+		"sql.NullInt64", "sql.NullFloat64", "sql.NullTime":
+		return fmt.Sprintf("%s{}", goType)
+	case "bun.NullString", "bun.NullBool", "bun.NullInt32", "bun.NullInt64",
+		"bun.NullFloat64", "bun.NullTime":
+		return fmt.Sprintf("%s{}", goType)
 	default:
 		if strings.HasPrefix(goType, "[]") {
 			return "nil"
