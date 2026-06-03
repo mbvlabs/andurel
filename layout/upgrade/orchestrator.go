@@ -194,6 +194,14 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		}
 	}
 
+	// Initialize DatabaseConfig for projects that predate its introduction.
+	if u.lock.DatabaseConfig == nil {
+		u.lock.DatabaseConfig = &layout.DatabaseConfig{
+			NullType: "sql.Null",
+		}
+		fmt.Printf("  ✓ Added database config (nullType: sql.Null) to andurel.lock\n")
+	}
+
 	// Update template version in lock file
 	u.lock.Version = u.opts.TargetVersion
 	if err := u.lock.WriteLockFile(u.projectRoot); err != nil {

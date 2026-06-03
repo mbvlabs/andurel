@@ -121,10 +121,10 @@ func TestBuildModelWithTimestamps(t *testing.T) {
 		"CreatedAt":   "time.Time",
 		"UpdatedAt":   "time.Time",
 		"Name":        "string",
-		"Description": "*string",
+		"Description": "sql.NullString",
 		"Price":       "float64",
 		"Sku":         "string",
-		"IsActive":    "*bool",
+		"IsActive":    "sql.NullBool",
 	}
 
 	if len(model.Fields) != len(expectedFields) {
@@ -294,15 +294,15 @@ DROP TABLE users;`
 		t.Fatalf("Failed to build model: %v", err)
 	}
 
-	// Check nullable fields have pointer types
+	// Check nullable fields have nullable types (pointer or null wrapper)
 	for _, field := range model.Fields {
 		switch field.Name {
 		case "Email", "Bio", "Age":
 			if !field.IsNullable {
 				t.Errorf("Field %s should be nullable", field.Name)
 			}
-			if len(field.Type) == 0 || field.Type[0] != '*' {
-				t.Errorf("Field %s should have pointer type, got %s", field.Name, field.Type)
+			if !isNullableType(field.Type) {
+				t.Errorf("Field %s should have nullable type (pointer or sql.Null), got %s", field.Name, field.Type)
 			}
 		case "Name":
 			if field.IsNullable {
@@ -310,6 +310,20 @@ DROP TABLE users;`
 			}
 		}
 	}
+}
+
+func isNullableType(goType string) bool {
+	if len(goType) > 0 && goType[0] == '*' {
+		return true
+	}
+	switch goType {
+	case "sql.NullString", "sql.NullBool", "sql.NullInt16", "sql.NullInt32",
+		"sql.NullInt64", "sql.NullFloat64", "sql.NullTime",
+		"bun.NullString", "bun.NullBool", "bun.NullInt32", "bun.NullInt64",
+		"bun.NullFloat64", "bun.NullTime":
+		return true
+	}
+	return false
 }
 
 // containsAny checks if the string contains any of the substrings
