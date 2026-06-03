@@ -31,6 +31,21 @@ var standardGoTypes = map[string]bool{
 	"[]int32":  true,
 	"[]string": true,
 	"any":      true,
+	// sql.Null types
+	"sql.NullString":  true,
+	"sql.NullBool":    true,
+	"sql.NullInt16":   true,
+	"sql.NullInt32":   true,
+	"sql.NullInt64":   true,
+	"sql.NullFloat64": true,
+	"sql.NullTime":    true,
+	// bun.Null types
+	"bun.NullString":  true,
+	"bun.NullBool":    true,
+	"bun.NullInt32":   true,
+	"bun.NullInt64":   true,
+	"bun.NullFloat64": true,
+	"bun.NullTime":    true,
 }
 
 type parsedField struct {
@@ -119,12 +134,15 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 		return nil, err
 	}
 
+	rootDir, _ := m.fileManager.FindGoModRoot()
+	nullType := m.readNullType(rootDir)
 	newModel, err := m.modelGenerator.Build(cat, models.Config{
 		TableName:    tableName,
 		ResourceName: resourceName,
 		PackageName:  "models",
 		DatabaseType: m.config.Database.Type,
 		ModulePath:   m.projectManager.GetModulePath(),
+		NullType:     nullType,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to build model: %w", err)
@@ -293,7 +311,7 @@ func parseEntityStruct(src []byte, entityName string) ([]parsedField, int, int, 
 func renderEntityStruct(entityName, tableName string, fields []models.GeneratedField) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "type %s struct {\n", entityName)
-	fmt.Fprintf(&sb, "\tbun.BaseModel `bun:\"table:%s\"`\n", tableName)
+	fmt.Fprintf(&sb, "\tbun.BaseModel `bun:\"table:%s,alias:%s\"`\n", tableName, tableName)
 	sb.WriteString("\n")
 	for _, f := range fields {
 		fmt.Fprintf(&sb, "\t%s %s `bun:\"%s\"`\n", f.Name, f.Type, f.BunTag)

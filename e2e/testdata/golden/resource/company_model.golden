@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -11,12 +12,12 @@ import (
 )
 
 type CompanyEntity struct {
-	bun.BaseModel `bun:"table:companies"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	Name          string     `bun:"name"`
-	Industry      *string    `bun:"industry"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:companies,alias:companies"`
+	ID            uuid.UUID      `bun:"id,pk,type:uuid"`
+	Name          string         `bun:"name"`
+	Industry      sql.NullString `bun:"industry"`
+	CreatedAt     sql.NullTime   `bun:"created_at"`
+	UpdatedAt     sql.NullTime   `bun:"updated_at"`
 }
 
 func (c company) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (CompanyEntity, error) {
@@ -33,7 +34,7 @@ func (c company) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (C
 
 type CreateCompanyData struct {
 	Name     string
-	Industry *string
+	Industry sql.NullString
 }
 
 func (c company) Create(ctx context.Context, db storage.Executor, data CreateCompanyData) (CompanyEntity, error) {
@@ -59,8 +60,8 @@ func (c company) Create(ctx context.Context, db storage.Executor, data CreateCom
 type UpdateCompanyData struct {
 	ID        uuid.UUID
 	Name      string
-	Industry  *string
-	UpdatedAt *time.Time
+	Industry  sql.NullString
+	UpdatedAt sql.NullTime
 }
 
 func (c company) Update(ctx context.Context, db storage.Executor, data UpdateCompanyData) (CompanyEntity, error) {

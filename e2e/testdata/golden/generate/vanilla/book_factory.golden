@@ -2,6 +2,7 @@ package factories
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -26,8 +27,8 @@ func BuildBook(opts ...BookOption) models.BookEntity {
 			ID:        uuid.New(),
 			Title:     faker.Word(),
 			Author:    faker.Word(),
-			Price:     *float64{},
-			Pages:     *int32{},
+			Price:     sql.NullFloat64{Float64: float64(randomInt(1, 1000, 100)), Valid: true},
+			Pages:     sql.NullInt32{Int32: randomInt(1, 1000, 100), Valid: true},
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
@@ -94,14 +95,14 @@ func WithBooksAuthor(value string) BookOption {
 }
 
 // WithBooksPrice sets the Price field
-func WithBooksPrice(value *float64) BookOption {
+func WithBooksPrice(value sql.NullFloat64) BookOption {
 	return func(f *BookFactory) {
 		f.BookEntity.Price = value
 	}
 }
 
 // WithBooksPages sets the Pages field
-func WithBooksPages(value *int32) BookOption {
+func WithBooksPages(value sql.NullInt32) BookOption {
 	return func(f *BookFactory) {
 		f.BookEntity.Pages = value
 	}
