@@ -1,0 +1,161 @@
+package views
+
+import (
+	"fmt"
+	{{if UsesPackage .Fields "strings"}}"strings"
+	{{end}}	"{{.ModulePath}}/internal/renderer"
+	"{{.ModulePath}}/models"
+)
+
+templ {{.ResourceName}}Index({{.PluralName}} []models.{{.EntityName}}) {
+	@base() {
+		<main>
+			<section>
+				<div>
+					<div>
+						<h1>{{Plural .ResourceName}}</h1>
+					</div>
+				</div>
+				if len({{.PluralName}}) == 0 {
+					<section>
+						<div>
+							<h2>No {{.PluralName}} found</h2>
+						</div>
+						<div>
+							<a href="/">New {{.ResourceName}}</a>
+						</div>
+					</section>
+				} else {
+					<div>
+						<table>
+							<thead>
+								<tr>
+									{{range .Fields}}<th>{{.DisplayName}}</th>
+									{{end}}<th>Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, {{.ResourceName | ToLower}} := range {{.PluralName}} {
+									<tr>
+										{{range .Fields}}<td>{{StringTableDisplay . $.ResourceName}}</td>
+										{{end}}
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</section>
+		</main>
+	}
+}
+
+templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.EntityName}}) {
+	@base() {
+		<main>
+			<section>
+				<div>
+					<div>
+						<h1>{{.ResourceName}} Details</h1>
+					</div>
+					<div>
+						<a href="/">Back to List</a>
+					</div>
+				</div>
+				<div>
+					<div>
+						{{range .Fields}}<div>
+							<p>{{.DisplayName}}</p>
+							<p>{{StringDisplay . $.ResourceName}}</p>
+						</div>
+						{{end}}
+					</div>
+				</div>
+			</section>
+		</main>
+	}
+}
+
+templ {{.ResourceName}}New() {
+	@base() {
+		<main>
+			<section>
+				<div>
+					<div>
+						<h1>New {{.ResourceName}}</h1>
+						<p>Enter the details for the new {{.ResourceName | ToLower}}.</p>
+					</div>
+					<div>
+						<form
+							data-indicator:submitting
+							data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", "/") }
+						>
+							<fieldset data-attr:disabled="$submitting">
+								{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div>
+									<input type="checkbox" id="{{.CamelCase}}" data-bind="{{.CamelCase}}" />
+									<label for="{{.CamelCase}}">{{.DisplayName}}</label>
+								</div>
+								{{else}}<div>
+									<label for="{{.CamelCase}}">{{.DisplayName}}</label>
+									<div>
+										<input type="{{.InputType}}" id="{{.CamelCase}}" data-bind="{{.CamelCase}}" />
+									</div>
+								</div>
+								{{end}}{{end}}{{end}}
+								<div>
+									<button type="submit">Create {{.ResourceName}}</button>
+									<a href="/">Back to List</a>
+								</div>
+							</fieldset>
+						</form>
+					</div>
+				</div>
+			</section>
+		</main>
+	}
+}
+
+templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.EntityName}}) {
+	@base() {
+		<main>
+			<section>
+				<div>
+					<div>
+						<h1>Edit {{.ResourceName}}</h1>
+						<p>Update the details for this {{.ResourceName | ToLower}}.</p>
+					</div>
+					<div>
+						<form
+							data-indicator:submitting
+							data-on:submit={ "!$submitting && " + fmt.Sprintf("@put('%s')", "/") }
+						>
+							<fieldset data-attr:disabled="$submitting">
+								{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div>
+									<input type="checkbox" id="{{.CamelCase}}" data-bind="{{.CamelCase}}" if {{FieldRef . $.ResourceName}} { checked } />
+									<label for="{{.CamelCase}}">{{.DisplayName}}</label>
+								</div>
+								{{else}}<div>
+									<label for="{{.CamelCase}}">{{.DisplayName}}</label>
+									<div>
+										<input type="{{.InputType}}" id="{{.CamelCase}}" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
+									</div>
+								</div>
+								{{end}}{{end}}{{end}}
+								<div>
+									<button type="submit">Update {{.ResourceName}}</button>
+									<a href="/">Back to List</a>
+								</div>
+							</fieldset>
+						</form>
+					</div>
+					<div>
+						<button
+							type="button"
+							data-on:click={ fmt.Sprintf("@delete('%s')", "/") }
+						>Destroy {{.ResourceName}}</button>
+					</div>
+				</div>
+			</section>
+		</main>
+	}
+}
