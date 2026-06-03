@@ -1,3 +1,7 @@
+{{$indexRecv := printf "%s%s" .ResourceName "Index" | ToReceiverName}}
+{{$showRecv := printf "%s%s" .ResourceName "Show" | ToReceiverName}}
+{{$newRecv := printf "%s%s" .ResourceName "New" | ToReceiverName}}
+{{$editRecv := printf "%s%s" .ResourceName "Edit" | ToReceiverName}}
 package views
 
 import (
@@ -10,162 +14,202 @@ import (
 	"{{.ModulePath}}/internal/hypermedia"
 )
 
-templ {{.ResourceName}}Index({{.PluralName}} []models.{{.EntityName}}) {
+type {{.ResourceName}}Index struct {
+	Items []models.{{.EntityName}}
+}
+
+func ({{$indexRecv}} {{.ResourceName}}Index) ContainerFragment() string {
+	return "{{.ResourceName | ToLower}}-index-container-fragment"
+}
+
+templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 	@base() {
-		<main>
-			<section>
-				<div>
+		@templ.Fragment({{$indexRecv}}.ContainerFragment()) {
+			<main id="{{.ResourceName | ToLower}}-index-container">
+				<section>
 					<div>
-						<h1>{{Plural .ResourceName}}</h1>
+						<div>
+							<h1>{{Plural .ResourceName}}</h1>
+						</div>
+						<a href={ routes.{{.ResourceName}}New.URL() }>New {{.ResourceName}}</a>
 					</div>
-					<a href={ routes.{{.ResourceName}}New.URL() }>New {{.ResourceName}}</a>
-				</div>
-				if len({{.PluralName}}) == 0 {
-					<section>
+					if len({{$indexRecv}}.Items) == 0 {
+						<section>
+							<div>
+								<h2>No {{.PluralName}} found</h2>
+							</div>
+							<div>
+								<a href={ routes.{{.ResourceName}}New.URL() }>New {{.ResourceName}}</a>
+							</div>
+						</section>
+					} else {
 						<div>
-							<h2>No {{.PluralName}} found</h2>
-						</div>
-						<div>
-							<a href={ routes.{{.ResourceName}}New.URL() }>New {{.ResourceName}}</a>
-						</div>
-					</section>
-				} else {
-					<div>
-						<table>
-							<thead>
-								<tr>
-									{{range .Fields}}<th>{{.DisplayName}}</th>
-									{{end}}<th>Actions</th>
-								</tr>
-							</thead>
-							<tbody>
-								for _, {{.ResourceName | ToLower}} := range {{.PluralName}} {
+							<table>
+								<thead>
 									<tr>
-										{{range .Fields}}<td>{{StringTableDisplay . $.ResourceName}}</td>
-										{{end}}<td>
-											<div>
-												<a href={ routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLower}}.ID) }>View</a>
-												<a href={ routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLower}}.ID) }>Edit</a>
-											</div>
-										</td>
+										{{range .Fields}}<th>{{.DisplayName}}</th>
+										{{end}}<th>Actions</th>
 									</tr>
-								}
-							</tbody>
-						</table>
-					</div>
-				}
-			</section>
-		</main>
-	}
-}
-
-templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.EntityName}}) {
-	@base() {
-		<main>
-			<section>
-				<div>
-					<div>
-						<h1>{{.ResourceName}} Details</h1>
-					</div>
-					<div>
-						<a href={ routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLower}}.ID) }>Edit</a>
-						<a href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
-					</div>
-				</div>
-				<div>
-					<div>
-						{{range .Fields}}<div>
-							<p>{{.DisplayName}}</p>
-							<p>{{StringDisplay . $.ResourceName}}</p>
+								</thead>
+								<tbody>
+									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {
+										<tr>
+											{{range .Fields}}<td>{{StringTableDisplay . ($.ResourceName | ToLower)}}</td>
+											{{end}}<td>
+												<div>
+													<a href={ routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLower}}.ID) }>View</a>
+													<a href={ routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLower}}.ID) }>Edit</a>
+												</div>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
 						</div>
-						{{end}}
-					</div>
-				</div>
-			</section>
-		</main>
+					}
+				</section>
+			</main>
+		}
 	}
 }
 
-templ {{.ResourceName}}New() {
+type {{.ResourceName}}Show struct {
+	Item models.{{.EntityName}}
+}
+
+func ({{$showRecv}} {{.ResourceName}}Show) ContainerFragment() string {
+	return "{{.ResourceName | ToLower}}-show-container-fragment"
+}
+
+templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 	@base() {
-		<main>
-			<section>
-				<div>
+		@templ.Fragment({{$showRecv}}.ContainerFragment()) {
+			<main id="{{.ResourceName | ToLower}}-show-container">
+				<section>
 					<div>
-						<h1>New {{.ResourceName}}</h1>
-						<p>Enter the details for the new {{.ResourceName | ToLower}}.</p>
+						<div>
+							<h1>{{.ResourceName}} Details</h1>
+						</div>
+						<div>
+							<a href={ routes.{{.ResourceName}}Edit.URL({{$showRecv}}.Item.ID) }>Edit</a>
+							<a href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+						</div>
 					</div>
 					<div>
-						<form
-							data-indicator:submitting
-							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.{{.ResourceName}}Create.URL()) }
-						>
-							<fieldset data-attr:disabled="$submitting">
-								{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div>
-									<input type="checkbox" id="{{.CamelCase}}" name="{{.CamelCase}}" data-bind="{{.CamelCase}}"/>
-									<label for="{{.CamelCase}}">{{.DisplayName}}</label>
-								</div>
-								{{else}}<div>
-									<label for="{{.CamelCase}}">{{.DisplayName}}</label>
-									<div>
-										<input type="{{.InputType}}" id="{{.CamelCase}}" name="{{.CamelCase}}" data-bind="{{.CamelCase}}"/>
-									</div>
-								</div>
-								{{end}}{{end}}{{end}}
-								<div>
-									<button type="submit">Create {{.ResourceName}}</button>
-									<a href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
-								</div>
-							</fieldset>
-						</form>
+						<div>
+							{{$itemRef := printf "%s.%s" $showRecv "Item"}}
+							{{range .Fields}}<div>
+								<p>{{.DisplayName}}</p>
+								<p>{{StringDisplay . $itemRef}}</p>
+							</div>
+							{{end}}
+						</div>
 					</div>
-				</div>
-			</section>
-		</main>
+				</section>
+			</main>
+		}
 	}
 }
 
-templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.EntityName}}) {
+type {{.ResourceName}}New struct{}
+
+func ({{$newRecv}} {{.ResourceName}}New) ContainerFragment() string {
+	return "{{.ResourceName | ToLower}}-new-container-fragment"
+}
+
+templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 	@base() {
-		<main>
-			<section>
-				<div>
+		@templ.Fragment({{$newRecv}}.ContainerFragment()) {
+			<main id="{{.ResourceName | ToLower}}-new-container">
+				<section>
 					<div>
-						<h1>Edit {{.ResourceName}}</h1>
-						<p>Update the details for this {{.ResourceName | ToLower}}.</p>
-					</div>
-					<div>
-						<form
-							data-indicator:submitting
-							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{.ResourceName | ToLower}}.ID)) }
-						>
-							<fieldset data-attr:disabled="$submitting">
-								{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div>
-									<input type="checkbox" id="{{.CamelCase}}" name="{{.CamelCase}}" data-bind="{{.CamelCase}}" if {{FieldRef . $.ResourceName}} { checked } />
-									<label for="{{.CamelCase}}">{{.DisplayName}}</label>
-								</div>
-								{{else}}<div>
-									<label for="{{.CamelCase}}">{{.DisplayName}}</label>
-									<div>
-										<input type="{{.InputType}}" id="{{.CamelCase}}" name="{{.CamelCase}}" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
+						<div>
+							<h1>New {{.ResourceName}}</h1>
+							<p>Enter the details for the new {{.ResourceName | ToLower}}.</p>
+						</div>
+						<div>
+							<form
+								data-indicator:_submitting
+								data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.{{.ResourceName}}Create.URL()) }
+							>
+								<fieldset data-attr:disabled="$_submitting">
+									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div>
+										<input type="checkbox" id="{{.CamelCase}}" name="{{.CamelCase}}" data-bind="{{.CamelCase}}"/>
+										<label for="{{.CamelCase}}">{{.DisplayName}}</label>
 									</div>
-								</div>
-								{{end}}{{end}}{{end}}
-								<div>
-									<button type="submit">Update {{.ResourceName}}</button>
-									<a href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
-								</div>
-							</fieldset>
-						</form>
+									{{else}}<div>
+										<label for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<div>
+											<input type="{{.InputType}}" id="{{.CamelCase}}" name="{{.CamelCase}}" data-bind="{{.CamelCase}}"/>
+										</div>
+									</div>
+									{{end}}{{end}}{{end}}
+									<div>
+										<button type="submit">Create {{.ResourceName}}</button>
+										<a href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+						</div>
 					</div>
+				</section>
+			</main>
+		}
+	}
+}
+
+type {{.ResourceName}}Edit struct {
+	Item models.{{.EntityName}}
+}
+
+func ({{$editRecv}} {{.ResourceName}}Edit) ContainerFragment() string {
+	return "{{.ResourceName | ToLower}}-edit-container-fragment"
+}
+
+templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
+	@base() {
+		@templ.Fragment({{$editRecv}}.ContainerFragment()) {
+			<main id="{{.ResourceName | ToLower}}-edit-container">
+				<section>
 					<div>
-						<button
-							type="button"
-							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.{{.ResourceName}}Destroy.URL({{.ResourceName | ToLower}}.ID)) }
-						>Destroy {{.ResourceName}}</button>
+						<div>
+							<h1>Edit {{.ResourceName}}</h1>
+							<p>Update the details for this {{.ResourceName | ToLower}}.</p>
+						</div>
+						<div>
+							<form
+								data-indicator:_submitting
+								data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{$editRecv}}.Item.ID)) }
+							>
+								<fieldset data-attr:disabled="$_submitting">
+									{{$itemRef := printf "%s.%s" $editRecv "Item"}}
+									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div>
+										<input type="checkbox" id="{{.CamelCase}}" name="{{.CamelCase}}" data-bind="{{.CamelCase}}" if {{FieldRef . $itemRef}} { checked } />
+										<label for="{{.CamelCase}}">{{.DisplayName}}</label>
+									</div>
+									{{else}}<div>
+										<label for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<div>
+											<input type="{{.InputType}}" id="{{.CamelCase}}" name="{{.CamelCase}}" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemRef}} } />
+										</div>
+									</div>
+									{{end}}{{end}}{{end}}
+									<div>
+										<button type="submit">Update {{.ResourceName}}</button>
+										<a href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+						</div>
+						<div>
+							<button
+								type="button"
+								data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.{{.ResourceName}}Destroy.URL({{$editRecv}}.Item.ID)) }
+							>Destroy {{.ResourceName}}</button>
+						</div>
 					</div>
-				</div>
-			</section>
-		</main>
+				</section>
+			</main>
+		}
 	}
 }

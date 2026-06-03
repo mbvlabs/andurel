@@ -1,3 +1,7 @@
+
+
+
+
 package views
 
 import (
@@ -9,199 +13,237 @@ import (
 	"testapp/router/routes"
 )
 
-templ StudentFeedbackIndex(student_feedbacks []models.StudentfeedbackEntity) {
+type StudentFeedbackIndex struct {
+	Items []models.StudentfeedbackEntity
+}
+
+func (sfi StudentFeedbackIndex) ContainerFragment() string {
+	return "studentfeedback-index-container-fragment"
+}
+
+templ (sfi StudentFeedbackIndex) Page() {
 	@base() {
-		<main>
-			<section>
-				<div>
+		@templ.Fragment(sfi.ContainerFragment()) {
+			<main id="studentfeedback-index-container">
+				<section>
 					<div>
-						<h1>StudentFeedbacks</h1>
+						<div>
+							<h1>StudentFeedbacks</h1>
+						</div>
+						<a href={ routes.StudentFeedbackNew.URL() }>New StudentFeedback</a>
 					</div>
-					<a href={ routes.StudentFeedbackNew.URL() }>New StudentFeedback</a>
-				</div>
-				if len(student_feedbacks) == 0 {
-					<section>
+					if len(sfi.Items) == 0 {
+						<section>
+							<div>
+								<h2>No student_feedbacks found</h2>
+							</div>
+							<div>
+								<a href={ routes.StudentFeedbackNew.URL() }>New StudentFeedback</a>
+							</div>
+						</section>
+					} else {
 						<div>
-							<h2>No student_feedbacks found</h2>
-						</div>
-						<div>
-							<a href={ routes.StudentFeedbackNew.URL() }>New StudentFeedback</a>
-						</div>
-					</section>
-				} else {
-					<div>
-						<table>
-							<thead>
-								<tr>
-									<th>Student Id</th>
-									<th>Feedback</th>
-									<th>Rating</th>
-									<th>Created At</th>
-									<th>Updated At</th>
-									<th>Actions</th>
-								</tr>
-							</thead>
-							<tbody>
-								for _, studentfeedback := range student_feedbacks {
+							<table>
+								<thead>
 									<tr>
-										<td>{ studentfeedback.StudentID }</td>
-										<td>{ studentfeedback.Feedback }</td>
-										<td>{ fmt.Sprintf("%d", studentfeedback.Rating) }</td>
-										<td>{ studentfeedback.CreatedAt.String() }</td>
-										<td>{ studentfeedback.UpdatedAt.String() }</td>
-										<td>
-											<div>
-												<a href={ routes.StudentFeedbackShow.URL(studentfeedback.ID) }>View</a>
-												<a href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) }>Edit</a>
-											</div>
-										</td>
+										<th>Student Id</th>
+										<th>Feedback</th>
+										<th>Rating</th>
+										<th>Created At</th>
+										<th>Updated At</th>
+										<th>Actions</th>
 									</tr>
-								}
-							</tbody>
-						</table>
-					</div>
-				}
-			</section>
-		</main>
+								</thead>
+								<tbody>
+									for _, studentfeedback := range sfi.Items {
+										<tr>
+											<td>{ studentfeedback.StudentID }</td>
+											<td>{ studentfeedback.Feedback }</td>
+											<td>{ fmt.Sprintf("%d", studentfeedback.Rating) }</td>
+											<td>{ studentfeedback.CreatedAt.String() }</td>
+											<td>{ studentfeedback.UpdatedAt.String() }</td>
+											<td>
+												<div>
+													<a href={ routes.StudentFeedbackShow.URL(studentfeedback.ID) }>View</a>
+													<a href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) }>Edit</a>
+												</div>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</section>
+			</main>
+		}
 	}
 }
 
-templ StudentFeedbackShow(studentfeedback models.StudentfeedbackEntity) {
+type StudentFeedbackShow struct {
+	Item models.StudentfeedbackEntity
+}
+
+func (sfs StudentFeedbackShow) ContainerFragment() string {
+	return "studentfeedback-show-container-fragment"
+}
+
+templ (sfs StudentFeedbackShow) Page() {
 	@base() {
-		<main>
-			<section>
-				<div>
-					<div>
-						<h1>StudentFeedback Details</h1>
-					</div>
-					<div>
-						<a href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) }>Edit</a>
-						<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
-					</div>
-				</div>
-				<div>
+		@templ.Fragment(sfs.ContainerFragment()) {
+			<main id="studentfeedback-show-container">
+				<section>
 					<div>
 						<div>
-							<p>Student Id</p>
-							<p>{ studentfeedback.StudentID }</p>
+							<h1>StudentFeedback Details</h1>
 						</div>
 						<div>
-							<p>Feedback</p>
-							<p>{ studentfeedback.Feedback }</p>
-						</div>
-						<div>
-							<p>Rating</p>
-							<p>{ fmt.Sprintf("%d", studentfeedback.Rating) }</p>
-						</div>
-						<div>
-							<p>Created At</p>
-							<p>{ studentfeedback.CreatedAt.String() }</p>
-						</div>
-						<div>
-							<p>Updated At</p>
-							<p>{ studentfeedback.UpdatedAt.String() }</p>
+							<a href={ routes.StudentFeedbackEdit.URL(sfs.Item.ID) }>Edit</a>
+							<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
 						</div>
 					</div>
-				</div>
-			</section>
-		</main>
+					<div>
+						<div>
+							<div>
+								<p>Student Id</p>
+								<p>{ sfs.Item.StudentID }</p>
+							</div>
+							<div>
+								<p>Feedback</p>
+								<p>{ sfs.Item.Feedback }</p>
+							</div>
+							<div>
+								<p>Rating</p>
+								<p>{ fmt.Sprintf("%d", sfs.Item.Rating) }</p>
+							</div>
+							<div>
+								<p>Created At</p>
+								<p>{ sfs.Item.CreatedAt.String() }</p>
+							</div>
+							<div>
+								<p>Updated At</p>
+								<p>{ sfs.Item.UpdatedAt.String() }</p>
+							</div>
+						</div>
+					</div>
+				</section>
+			</main>
+		}
 	}
 }
 
-templ StudentFeedbackNew() {
+type StudentFeedbackNew struct{}
+
+func (sfn StudentFeedbackNew) ContainerFragment() string {
+	return "studentfeedback-new-container-fragment"
+}
+
+templ (sfn StudentFeedbackNew) Page() {
 	@base() {
-		<main>
-			<section>
-				<div>
+		@templ.Fragment(sfn.ContainerFragment()) {
+			<main id="studentfeedback-new-container">
+				<section>
 					<div>
-						<h1>New StudentFeedback</h1>
-						<p>Enter the details for the new studentfeedback.</p>
+						<div>
+							<h1>New StudentFeedback</h1>
+							<p>Enter the details for the new studentfeedback.</p>
+						</div>
+						<div>
+							<form
+								data-indicator:_submitting
+								data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.StudentFeedbackCreate.URL()) }
+							>
+								<fieldset data-attr:disabled="$_submitting">
+									<div>
+										<label for="studentId">Student Id</label>
+										<div>
+											<input type="text" id="studentId" name="studentId" data-bind="studentId"/>
+										</div>
+									</div>
+									<div>
+										<label for="feedback">Feedback</label>
+										<div>
+											<input type="text" id="feedback" name="feedback" data-bind="feedback"/>
+										</div>
+									</div>
+									<div>
+										<label for="rating">Rating</label>
+										<div>
+											<input type="number" id="rating" name="rating" data-bind="rating"/>
+										</div>
+									</div>
+									<div>
+										<button type="submit">Create StudentFeedback</button>
+										<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+						</div>
 					</div>
-					<div>
-						<form
-							data-indicator:submitting
-							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.StudentFeedbackCreate.URL()) }
-						>
-							<fieldset data-attr:disabled="$submitting">
-								<div>
-									<label for="studentId">Student Id</label>
-									<div>
-										<input type="text" id="studentId" name="studentId" data-bind="studentId"/>
-									</div>
-								</div>
-								<div>
-									<label for="feedback">Feedback</label>
-									<div>
-										<input type="text" id="feedback" name="feedback" data-bind="feedback"/>
-									</div>
-								</div>
-								<div>
-									<label for="rating">Rating</label>
-									<div>
-										<input type="number" id="rating" name="rating" data-bind="rating"/>
-									</div>
-								</div>
-								<div>
-									<button type="submit">Create StudentFeedback</button>
-									<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
-								</div>
-							</fieldset>
-						</form>
-					</div>
-				</div>
-			</section>
-		</main>
+				</section>
+			</main>
+		}
 	}
 }
 
-templ StudentFeedbackEdit(studentfeedback models.StudentfeedbackEntity) {
+type StudentFeedbackEdit struct {
+	Item models.StudentfeedbackEntity
+}
+
+func (sfe StudentFeedbackEdit) ContainerFragment() string {
+	return "studentfeedback-edit-container-fragment"
+}
+
+templ (sfe StudentFeedbackEdit) Page() {
 	@base() {
-		<main>
-			<section>
-				<div>
+		@templ.Fragment(sfe.ContainerFragment()) {
+			<main id="studentfeedback-edit-container">
+				<section>
 					<div>
-						<h1>Edit StudentFeedback</h1>
-						<p>Update the details for this studentfeedback.</p>
-					</div>
-					<div>
-						<form
-							data-indicator:submitting
-							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.StudentFeedbackUpdate.URL(studentfeedback.ID)) }
-						>
-							<fieldset data-attr:disabled="$submitting">
-								<div>
-									<label for="studentId">Student Id</label>
+						<div>
+							<h1>Edit StudentFeedback</h1>
+							<p>Update the details for this studentfeedback.</p>
+						</div>
+						<div>
+							<form
+								data-indicator:_submitting
+								data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.StudentFeedbackUpdate.URL(sfe.Item.ID)) }
+							>
+								<fieldset data-attr:disabled="$_submitting">
 									<div>
-										<input type="text" id="studentId" name="studentId" data-bind="studentId" value={ studentfeedback.StudentID }/>
+										<label for="studentId">Student Id</label>
+										<div>
+											<input type="text" id="studentId" name="studentId" data-bind="studentId" value={ sfe.Item.StudentID }/>
+										</div>
 									</div>
-								</div>
-								<div>
-									<label for="feedback">Feedback</label>
 									<div>
-										<input type="text" id="feedback" name="feedback" data-bind="feedback" value={ studentfeedback.Feedback }/>
+										<label for="feedback">Feedback</label>
+										<div>
+											<input type="text" id="feedback" name="feedback" data-bind="feedback" value={ sfe.Item.Feedback }/>
+										</div>
 									</div>
-								</div>
-								<div>
-									<label for="rating">Rating</label>
 									<div>
-										<input type="number" id="rating" name="rating" data-bind="rating" value={ fmt.Sprintf("%d", studentfeedback.Rating) }/>
+										<label for="rating">Rating</label>
+										<div>
+											<input type="number" id="rating" name="rating" data-bind="rating" value={ fmt.Sprintf("%d", sfe.Item.Rating) }/>
+										</div>
 									</div>
-								</div>
-								<div>
-									<button type="submit">Update StudentFeedback</button>
-									<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
-								</div>
-							</fieldset>
-						</form>
+									<div>
+										<button type="submit">Update StudentFeedback</button>
+										<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+						</div>
+						<div>
+							<button
+								type="button"
+								data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.StudentFeedbackDestroy.URL(sfe.Item.ID)) }
+							>Destroy StudentFeedback</button>
+						</div>
 					</div>
-					<div>
-						<button
-							type="button"
-							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.StudentFeedbackDestroy.URL(studentfeedback.ID)) }
-						>Destroy StudentFeedback</button>
-					</div>
-				</div>
-			</section>
-		</main>
+				</section>
+			</main>
+		}
 	}
 }

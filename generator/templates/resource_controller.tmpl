@@ -64,7 +64,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		return render(etx, views.InternalError())
 	}
 
-	return render(etx, views.{{.ResourceName}}Index({{.PluralName | ToCamelCase}}List.{{.PluralResourceName}}))
+	return render(etx, views.{{.ResourceName}}Index{Items: {{.PluralName | ToCamelCase}}List.{{.PluralResourceName}}}.Page())
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
@@ -96,11 +96,11 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.{{.ResourceName}}Show({{.ResourceName | ToLowerCamelCase}}))
+	return render(etx, views.{{.ResourceName}}Show{Item: {{.ResourceName | ToLowerCamelCase}}}.Page())
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) New(etx *echo.Context) error {
-	return render(etx, views.{{.ResourceName}}New())
+	return render(etx, views.{{.ResourceName}}New{}.Page())
 }
 
 type Create{{.ResourceName}}FormPayload struct {
@@ -248,7 +248,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.{{.ResourceName}}Edit({{.ResourceName | ToLowerCamelCase}}))
+	return render(etx, views.{{.ResourceName}}Edit{Item: {{.ResourceName | ToLowerCamelCase}}}.Page())
 }
 
 type Update{{.ResourceName}}FormPayload struct {

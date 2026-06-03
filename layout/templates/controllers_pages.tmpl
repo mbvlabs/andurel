@@ -27,7 +27,7 @@ func (p Pages) Home(etx *echo.Context) error {
 	cacheKey := "home"
 
 	component, err := p.cache.Get(cacheKey, func() (templ.Component, error) {
-		return views.Home(), nil
+		return views.Home{}.Page(), nil
 	})
 	if err != nil {
 		return err
