@@ -270,10 +270,10 @@ func validateViewPluralization(t *testing.T, project *internal.Project, tc plura
 		pattern string
 		desc    string
 	}{
-		{"templ " + tc.expectedSingular + "Index", "Index template uses singular prefix"},
-		{"templ " + tc.expectedSingular + "Show", "Show template uses singular prefix"},
-		{"templ " + tc.expectedSingular + "New", "New template uses singular prefix"},
-		{"templ " + tc.expectedSingular + "Edit", "Edit template uses singular prefix"},
+		{"type " + tc.expectedSingular + "Index struct", "Index struct uses singular prefix"},
+		{"type " + tc.expectedSingular + "Show struct", "Show struct uses singular prefix"},
+		{"type " + tc.expectedSingular + "New struct", "New struct uses singular prefix"},
+		{"type " + tc.expectedSingular + "Edit struct", "Edit struct uses singular prefix"},
 		{"models." + tc.expectedSingular, "References model with singular"},
 	}
 

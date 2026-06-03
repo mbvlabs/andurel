@@ -1,3 +1,7 @@
+{{$indexRecv := printf "%s%s" .ResourceName "Index" | ToReceiverName}}
+{{$showRecv := printf "%s%s" .ResourceName "Show" | ToReceiverName}}
+{{$newRecv := printf "%s%s" .ResourceName "New" | ToReceiverName}}
+{{$editRecv := printf "%s%s" .ResourceName "Edit" | ToReceiverName}}
 package views
 
 import (
@@ -7,115 +11,206 @@ import (
 	"{{.ModulePath}}/models"
 )
 
-templ {{.ResourceName}}Index({{.PluralName}} []models.{{.EntityName}}) {
+type {{.ResourceName}}Index struct {
+	Items []models.{{.EntityName}}
+}
+
+func ({{$indexRecv}} {{.ResourceName}}Index) ContainerFragment() string {
+	return "{{.ResourceName | ToLower}}-index-container-fragment"
+}
+
+templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 	@base() {
-		<main class="flex-1 px-6 py-10">
-			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
-				<div class="flex flex-wrap items-center justify-between gap-4">
-					<h1 class="text-2xl font-semibold text-gray-900">{{Plural .ResourceName}}</h1>
-				</div>
-				if len({{.PluralName}}) == 0 {
-					<p class="text-sm text-gray-500">No {{.PluralName}} found.</p>
-				} else {
-					<div class="relative w-full overflow-auto">
-						<table class="w-full caption-bottom text-sm">
-							<thead class="[&_tr]:border-b [&_tr]:border-gray-300">
-								<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
-									{{range .Fields}}<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">{{.DisplayName}}</th>
-									{{end}}<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Actions</th>
-								</tr>
-							</thead>
-							<tbody class="[&_tr:last-child]:border-0">
-								for _, {{.ResourceName | ToLower}} := range {{.PluralName}} {
-									<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
-										{{range .Fields}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{{StringTableDisplay . $.ResourceName}}</td>
-										{{end}}
-									</tr>
-								}
-							</tbody>
-						</table>
+		@templ.Fragment({{$indexRecv}}.ContainerFragment()) {
+			<main id="{{.ResourceName | ToLower}}-index-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold text-gray-900">{{Plural .ResourceName}}</h1>
 					</div>
-				}
-			</div>
-		</main>
+					if len({{$indexRecv}}.Items) == 0 {
+						<p class="text-sm text-gray-500">No {{.PluralName}} found.</p>
+					} else {
+						<div class="relative w-full overflow-auto">
+							<table class="w-full caption-bottom text-sm">
+								<thead class="[&_tr]:border-b [&_tr]:border-gray-300">
+									<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
+										{{range .Fields}}<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">{{.DisplayName}}</th>
+										{{end}}<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Actions</th>
+									</tr>
+								</thead>
+								<tbody class="[&_tr:last-child]:border-0">
+									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {
+										<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
+											{{range .Fields}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{{StringTableDisplay . ($.ResourceName | ToLower)}}</td>
+											{{end}}
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</div>
+			</main>
+		}
 	}
 }
 
-templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.EntityName}}) {
+type {{.ResourceName}}Show struct {
+	Item models.{{.EntityName}}
+}
+
+func ({{$showRecv}} {{.ResourceName}}Show) ContainerFragment() string {
+	return "{{.ResourceName | ToLower}}-show-container-fragment"
+}
+
+templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 	@base() {
-		<main class="flex-1 px-6 py-10">
-			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
-				<div class="flex flex-wrap items-center justify-between gap-4">
-					<h1 class="text-2xl font-semibold text-gray-900">{{.ResourceName}} Details</h1>
-					<div class="flex flex-wrap items-center gap-3">
-						<a class="text-sm text-gray-600 hover:text-gray-900">Back to List</a>
+		@templ.Fragment({{$showRecv}}.ContainerFragment()) {
+			<main id="{{.ResourceName | ToLower}}-show-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold text-gray-900">{{.ResourceName}} Details</h1>
+						<div class="flex flex-wrap items-center gap-3">
+							<a class="text-sm text-gray-600 hover:text-gray-900">Back to List</a>
+						</div>
 					</div>
-				</div>
-				<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
-					<div class="p-6 pt-0">
-						<div class="grid gap-5 sm:grid-cols-2">
-							{{range .Fields}}<div class="space-y-1">
-								<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">{{.DisplayName}}</label>
-								<p class="text-sm text-gray-900">{{StringDisplay . $.ResourceName}}</p>
+					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+						<div class="p-6 pt-0">
+							<div class="grid gap-5 sm:grid-cols-2">
+								{{$itemRef := printf "%s.%s" $showRecv "Item"}}
+								{{range .Fields}}<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">{{.DisplayName}}</label>
+									<p class="text-sm text-gray-900">{{StringDisplay . $itemRef}}</p>
+								</div>
+								{{end}}
 							</div>
-							{{end}}
 						</div>
 					</div>
 				</div>
-			</div>
-		</main>
+			</main>
+		}
 	}
 }
 
-templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.EntityName}}) {
+type {{.ResourceName}}New struct{}
+
+func ({{$newRecv}} {{.ResourceName}}New) ContainerFragment() string {
+	return "{{.ResourceName | ToLower}}-new-container-fragment"
+}
+
+templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 	@base() {
-		<main class="flex-1 flex items-center justify-center px-6 py-10">
-			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
-					<div class="flex flex-col space-y-1.5 p-6">
-						<h3 class="text-lg font-semibold leading-none text-gray-900">Edit {{.ResourceName}}</h3>
-						<p class="text-sm text-gray-500">Update the details for this {{.ResourceName | ToLower}}.</p>
-					</div>
-					<div class="p-6 pt-0">
-						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + fmt.Sprintf("@put('%s')", "/") }>
-							<fieldset data-attr:disabled="$submitting">
-								<div class="space-y-4">
-									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
-										<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-gray-300 bg-gray-50 accent-blue-600 transition focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" if {{FieldRef . $.ResourceName}} { checked } />
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
-									</div>
-									{{else if eq .InputType "date"}}<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
-										<div class="relative w-full">
-											<div class="relative">
-												<input type="date" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 pr-8 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
-												<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
+		@templ.Fragment({{$newRecv}}.ContainerFragment()) {
+			<main id="{{.ResourceName | ToLower}}-new-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+						<div class="flex flex-col space-y-1.5 p-6">
+							<h3 class="text-lg font-semibold leading-none text-gray-900">New {{.ResourceName}}</h3>
+							<p class="text-sm text-gray-500">Enter the details for the new {{.ResourceName | ToLower}}.</p>
+						</div>
+						<div class="p-6 pt-0">
+							<form class="space-y-5" data-indicator:_submitting data-on:submit={ fmt.Sprintf("@post('%s')", "/") }>
+								<fieldset data-attr:disabled="$_submitting">
+									<div class="space-y-4">
+										{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
+											<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-gray-300 bg-gray-50 accent-blue-600 transition focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" />
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										</div>
+										{{else if eq .InputType "date"}}<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
+											<div class="relative w-full">
+												<div class="relative">
+													<input type="date" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 pr-8 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" />
+													<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+														<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
+													</div>
 												</div>
 											</div>
 										</div>
+										{{else if eq .InputType "number"}}<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
+											<input type="number" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="{{.CamelCase}}" />
+										</div>
+										{{else}}<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="{{.CamelCase}}" />
+										</div>
+										{{end}}{{end}}{{end}}
 									</div>
-									{{else if eq .InputType "number"}}<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
-										<input type="number" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
+									<div class="mt-6 space-y-3">
+										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Create {{.ResourceName}}</button>
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href="/">Back to List</a>
 									</div>
-									{{else}}<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
-										<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
-									</div>
-									{{end}}{{end}}{{end}}
-								</div>
-								<div class="mt-6 space-y-3">
-									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Update {{.ResourceName}}</button>
-									<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href="/">Back to List</a>
-								</div>
-							</fieldset>
-						</form>
-						<div role="separator" class="my-6 shrink-0 bg-gray-300 h-px w-full"></div>
-						<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white shadow-sm hover:bg-red-700 h-9 px-4 py-2 text-sm rounded w-full" data-on:click={ fmt.Sprintf("@delete('%s')", "/") }>Destroy {{.ResourceName}}</button>
+								</fieldset>
+							</form>
+						</div>
 					</div>
 				</div>
-			</div>
-		</main>
+			</main>
+		}
+	}
+}
+
+type {{.ResourceName}}Edit struct {
+	Item models.{{.EntityName}}
+}
+
+func ({{$editRecv}} {{.ResourceName}}Edit) ContainerFragment() string {
+	return "{{.ResourceName | ToLower}}-edit-container-fragment"
+}
+
+templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
+	@base() {
+		@templ.Fragment({{$editRecv}}.ContainerFragment()) {
+			<main id="{{.ResourceName | ToLower}}-edit-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+						<div class="flex flex-col space-y-1.5 p-6">
+							<h3 class="text-lg font-semibold leading-none text-gray-900">Edit {{.ResourceName}}</h3>
+							<p class="text-sm text-gray-500">Update the details for this {{.ResourceName | ToLower}}.</p>
+						</div>
+						<div class="p-6 pt-0">
+							<form class="space-y-5" data-indicator:_submitting data-on:submit={ fmt.Sprintf("@put('%s')", "/") }>
+								<fieldset data-attr:disabled="$_submitting">
+									<div class="space-y-4">
+										{{$itemRef := printf "%s.%s" $editRecv "Item"}}
+										{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
+											<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-gray-300 bg-gray-50 accent-blue-600 transition focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" if {{FieldRef . $itemRef}} { checked } />
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										</div>
+										{{else if eq .InputType "date"}}<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
+											<div class="relative w-full">
+												<div class="relative">
+													<input type="date" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 pr-8 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemRef}} } />
+													<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+														<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
+													</div>
+												</div>
+											</div>
+										</div>
+										{{else if eq .InputType "number"}}<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
+											<input type="number" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemRef}} } />
+										</div>
+										{{else}}<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemRef}} } />
+										</div>
+										{{end}}{{end}}{{end}}
+									</div>
+									<div class="mt-6 space-y-3">
+										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Update {{.ResourceName}}</button>
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href="/">Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+							<div role="separator" class="my-6 shrink-0 bg-gray-300 h-px w-full"></div>
+							<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white shadow-sm hover:bg-red-700 h-9 px-4 py-2 text-sm rounded w-full" data-on:click={ fmt.Sprintf("@delete('%s')", "/") }>Destroy {{.ResourceName}}</button>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
 	}
 }

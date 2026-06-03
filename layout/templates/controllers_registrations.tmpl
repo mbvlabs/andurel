@@ -32,7 +32,7 @@ func NewRegistrations(
 }
 
 func (r Registrations) New(etx *echo.Context) error {
-	return render(etx, views.RegistrationForm())
+	return render(etx, views.RegistrationForm{}.Page())
 }
 
 func (r Registrations) Create(etx *echo.Context) error {

@@ -1,3 +1,7 @@
+{{$indexRecv := printf "%s%s" .ResourceName "Index" | ToReceiverName}}
+{{$showRecv := printf "%s%s" .ResourceName "Show" | ToReceiverName}}
+{{$newRecv := printf "%s%s" .ResourceName "New" | ToReceiverName}}
+{{$editRecv := printf "%s%s" .ResourceName "Edit" | ToReceiverName}}
 package views
 
 import (
@@ -7,113 +11,202 @@ import (
 	"{{.ModulePath}}/models"
 )
 
-templ {{.ResourceName}}Index({{.PluralName}} []models.{{.EntityName}}) {
+type {{.ResourceName}}Index struct {
+	Items []models.{{.EntityName}}
+}
+
+func ({{$indexRecv}} {{.ResourceName}}Index) ContainerFragment() string {
+	return "{{.ResourceName | ToLower}}-index-container-fragment"
+}
+
+templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 	@base() {
-		<main class="flex-1 px-6 py-10">
-			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
-				<div class="flex flex-wrap items-center justify-between gap-4">
-					<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{Plural .ResourceName}}</h1>
-				</div>
-				if len({{.PluralName}}) == 0 {
-					<p class="text-sm text-base-content/60">No {{.PluralName}} found.</p>
-				} else {
-					<div class="table-wrap">
-						<table class="table">
-							<thead>
-								<tr>
-									{{range .Fields}}<th>{{.DisplayName}}</th>
-									{{end}}<th>Actions</th>
-								</tr>
-							</thead>
-							<tbody>
-								for _, {{.ResourceName | ToLower}} := range {{.PluralName}} {
-									<tr>
-										{{range .Fields}}<td>{{StringTableDisplay . $.ResourceName}}</td>
-										{{end}}
-									</tr>
-								}
-							</tbody>
-						</table>
+		@templ.Fragment({{$indexRecv}}.ContainerFragment()) {
+			<main id="{{.ResourceName | ToLower}}-index-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{Plural .ResourceName}}</h1>
 					</div>
-				}
-			</div>
-		</main>
+					if len({{$indexRecv}}.Items) == 0 {
+						<p class="text-sm text-base-content/60">No {{.PluralName}} found.</p>
+					} else {
+						<div class="table-wrap">
+							<table class="table">
+								<thead>
+									<tr>
+										{{range .Fields}}<th>{{.DisplayName}}</th>
+										{{end}}<th>Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {
+										<tr>
+											{{range .Fields}}<td>{{StringTableDisplay . ($.ResourceName | ToLower)}}</td>
+											{{end}}
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</div>
+			</main>
+		}
 	}
 }
 
-templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.EntityName}}) {
+type {{.ResourceName}}Show struct {
+	Item models.{{.EntityName}}
+}
+
+func ({{$showRecv}} {{.ResourceName}}Show) ContainerFragment() string {
+	return "{{.ResourceName | ToLower}}-show-container-fragment"
+}
+
+templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 	@base() {
-		<main class="flex-1 px-6 py-10">
-			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
-				<div class="flex flex-wrap items-center justify-between gap-4">
-					<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{.ResourceName}} Details</h1>
-					<div class="flex flex-wrap items-center gap-3">
-						<a class="inline-link text-sm">Back to List</a>
+		@templ.Fragment({{$showRecv}}.ContainerFragment()) {
+			<main id="{{.ResourceName | ToLower}}-show-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{.ResourceName}} Details</h1>
+						<div class="flex flex-wrap items-center gap-3">
+							<a class="inline-link text-sm">Back to List</a>
+						</div>
 					</div>
-				</div>
-				<div class="card">
-					<div class="card-content">
-						<div class="grid gap-5 sm:grid-cols-2">
-							{{range .Fields}}<div class="field">
-								<label class="field-label">{{.DisplayName}}</label>
-								<p class="text-sm text-base-content">{{StringDisplay . $.ResourceName}}</p>
+					<div class="card">
+						<div class="card-content">
+							<div class="grid gap-5 sm:grid-cols-2">
+								{{$itemRef := printf "%s.%s" $showRecv "Item"}}
+								{{range .Fields}}<div class="field">
+									<label class="field-label">{{.DisplayName}}</label>
+									<p class="text-sm text-base-content">{{StringDisplay . $itemRef}}</p>
+								</div>
+								{{end}}
 							</div>
-							{{end}}
 						</div>
 					</div>
 				</div>
-			</div>
-		</main>
+			</main>
+		}
 	}
 }
 
-templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.EntityName}}) {
+type {{.ResourceName}}New struct{}
+
+func ({{$newRecv}} {{.ResourceName}}New) ContainerFragment() string {
+	return "{{.ResourceName | ToLower}}-new-container-fragment"
+}
+
+templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 	@base() {
-		<main class="flex-1 flex items-center justify-center px-6 py-10">
-			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="card">
-					<div class="card-header">
-						<h3 class="card-title">Edit {{.ResourceName}}</h3>
-						<p class="card-description">Update the details for this {{.ResourceName | ToLower}}.</p>
-					</div>
-					<div class="card-content">
-						<form class="form" data-indicator:submitting data-on:submit={ "!$submitting && " + fmt.Sprintf("@put('%s')", "/") }>
-							<fieldset class="fieldset" data-attr:disabled="$submitting">
-								{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="radio-row">
-									<input type="checkbox" class="checkbox" data-bind="{{.CamelCase}}" if {{FieldRef . $.ResourceName}} { checked } />
-									<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
-								</div>
-								{{else if eq .InputType "date"}}<div class="field">
-									<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
-									<div class="relative w-full">
-										<div class="relative">
-											<input type="date" class="input" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
-											<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/40"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
+		@templ.Fragment({{$newRecv}}.ContainerFragment()) {
+			<main id="{{.ResourceName | ToLower}}-new-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="card">
+						<div class="card-header">
+							<h3 class="card-title">New {{.ResourceName}}</h3>
+							<p class="card-description">Enter the details for the new {{.ResourceName | ToLower}}.</p>
+						</div>
+						<div class="card-content">
+							<form class="form" data-indicator:_submitting data-on:submit={ fmt.Sprintf("@post('%s')", "/") }>
+								<fieldset class="fieldset" data-attr:disabled="$_submitting">
+									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="radio-row">
+										<input type="checkbox" class="checkbox" data-bind="{{.CamelCase}}" />
+										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+									</div>
+									{{else if eq .InputType "date"}}<div class="field">
+										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<div class="relative w-full">
+											<div class="relative">
+												<input type="date" class="input" data-bind="{{.CamelCase}}" />
+												<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/40"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
+												</div>
 											</div>
 										</div>
 									</div>
-								</div>
-								{{else if eq .InputType "number"}}<div class="field">
-									<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
-									<input type="number" class="input" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
-								</div>
-								{{else}}<div class="field">
-									<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
-									<input type="text" class="input" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
-								</div>
-								{{end}}{{end}}{{end}}
-								<div class="card-footer mt-6 flex-col gap-3">
-									<button type="submit" class="btn btn-primary btn-block">Update {{.ResourceName}}</button>
-									<a class="btn btn-outline btn-block" href="/">Back to List</a>
-								</div>
-							</fieldset>
-						</form>
-						<div class="separator my-6"></div>
-						<button type="button" class="btn btn-destructive btn-block" data-on:click={ fmt.Sprintf("@delete('%s')", "/") }>Destroy {{.ResourceName}}</button>
+									{{else if eq .InputType "number"}}<div class="field">
+										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<input type="number" class="input" data-bind="{{.CamelCase}}" />
+									</div>
+									{{else}}<div class="field">
+										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<input type="text" class="input" data-bind="{{.CamelCase}}" />
+									</div>
+									{{end}}{{end}}{{end}}
+									<div class="card-footer mt-6 flex-col gap-3">
+										<button type="submit" class="btn btn-primary btn-block">Create {{.ResourceName}}</button>
+										<a class="btn btn-outline btn-block" href="/">Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+						</div>
 					</div>
 				</div>
-			</div>
-		</main>
+			</main>
+		}
+	}
+}
+
+type {{.ResourceName}}Edit struct {
+	Item models.{{.EntityName}}
+}
+
+func ({{$editRecv}} {{.ResourceName}}Edit) ContainerFragment() string {
+	return "{{.ResourceName | ToLower}}-edit-container-fragment"
+}
+
+templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
+	@base() {
+		@templ.Fragment({{$editRecv}}.ContainerFragment()) {
+			<main id="{{.ResourceName | ToLower}}-edit-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="card">
+						<div class="card-header">
+							<h3 class="card-title">Edit {{.ResourceName}}</h3>
+							<p class="card-description">Update the details for this {{.ResourceName | ToLower}}.</p>
+						</div>
+						<div class="card-content">
+							<form class="form" data-indicator:_submitting data-on:submit={ fmt.Sprintf("@put('%s')", "/") }>
+								<fieldset class="fieldset" data-attr:disabled="$_submitting">
+									{{$itemRef := printf "%s.%s" $editRecv "Item"}}
+									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="radio-row">
+										<input type="checkbox" class="checkbox" data-bind="{{.CamelCase}}" if {{FieldRef . $itemRef}} { checked } />
+										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+									</div>
+									{{else if eq .InputType "date"}}<div class="field">
+										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<div class="relative w-full">
+											<div class="relative">
+												<input type="date" class="input" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemRef}} } />
+												<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/40"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
+												</div>
+											</div>
+										</div>
+									</div>
+									{{else if eq .InputType "number"}}<div class="field">
+										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<input type="number" class="input" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemRef}} } />
+									</div>
+									{{else}}<div class="field">
+										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<input type="text" class="input" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemRef}} } />
+									</div>
+									{{end}}{{end}}{{end}}
+									<div class="card-footer mt-6 flex-col gap-3">
+										<button type="submit" class="btn btn-primary btn-block">Update {{.ResourceName}}</button>
+										<a class="btn btn-outline btn-block" href="/">Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+							<div class="separator my-6"></div>
+							<button type="button" class="btn btn-destructive btn-block" data-on:click={ fmt.Sprintf("@delete('%s')", "/") }>Destroy {{.ResourceName}}</button>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
 	}
 }

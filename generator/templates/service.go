@@ -165,6 +165,9 @@ func getDefaultTemplateFunctions() template.FuncMap {
 		"ToSnakeCase":      naming.ToSnakeCase,
 		"ToCamelCase":      naming.ToCamelCase,
 		"ToLowerCamelCase": naming.ToLowerCamelCase,
+		"ToPascalCase":     naming.ToPascalCase,
+		"ToReceiverName":   naming.ToReceiverName,
+		"Capitalize":       naming.Capitalize,
 		"DeriveTableName":  naming.DeriveTableName,
 		"Plural":           inflection.Plural,
 		"DatabaseType": func(data any) string {

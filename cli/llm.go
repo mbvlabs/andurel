@@ -1446,9 +1446,9 @@ Datastar interaction happens via HTML attributes on elements in templ views. The
 
 ### Form submit (scaffolded auth)
 ` + "```templ" + `
-<form data-indicator:submitting data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", routes.SessionCreate.URL()) }>
-  <input type="email" id="email" data-bind="email" data-attr:disabled="$submitting" required/>
-  <input type="password" id="password" data-bind="password" data-attr:disabled="$submitting" required/>
+<form data-indicator:_submitting data-on:submit={ fmt.Sprintf("@post('%s')", routes.SessionCreate.URL()) }>
+  <input type="email" id="email" data-bind="email" data-attr:disabled="$_submitting" required/>
+  <input type="password" id="password" data-bind="password" data-attr:disabled="$_submitting" required/>
   @components.SubmitButton("Login")
 </form>
 ` + "```" + `

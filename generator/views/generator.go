@@ -246,69 +246,51 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, t
 			}
 			return false
 		},
-		"FieldRef": func(field ViewField, resourceName string) string {
-			return fmt.Sprintf("%s.%s", strings.ToLower(resourceName), field.Name)
+		"FieldRef": func(field ViewField, objRef string) string {
+			return fmt.Sprintf("%s.%s", objRef, field.Name)
 		},
-		"StringDisplay": func(field ViewField, resourceName string) string {
+		"StringDisplay": func(field ViewField, objRef string) string {
 			if field.StringConverter == "" {
 				return fmt.Sprintf(
 					"{ %s.%s }",
-					strings.ToLower(resourceName),
+					objRef,
 					field.Name,
 				)
 			}
-			var fieldRef strings.Builder
-			fieldRef.Grow(len(resourceName) + len(field.Name) + 1)
-			fieldRef.WriteString(strings.ToLower(resourceName))
-			fieldRef.WriteString(".")
-			fieldRef.WriteString(field.Name)
-			actualFieldRef := fieldRef.String()
 			converter := strings.ReplaceAll(
 				field.StringConverter,
 				"%s",
-				actualFieldRef,
+				fmt.Sprintf("%s.%s", objRef, field.Name),
 			)
 			return fmt.Sprintf("{ %s }", converter)
 		},
-		"StringTableDisplay": func(field ViewField, resourceName string) string {
+		"StringTableDisplay": func(field ViewField, objRef string) string {
 			if field.StringConverter == "" {
 				return fmt.Sprintf(
 					"{ %s.%s }",
-					strings.ToLower(resourceName),
+					objRef,
 					field.Name,
 				)
 			}
-			var fieldRef strings.Builder
-			fieldRef.Grow(len(resourceName) + len(field.Name) + 1)
-			fieldRef.WriteString(strings.ToLower(resourceName))
-			fieldRef.WriteString(".")
-			fieldRef.WriteString(field.Name)
-			actualFieldRef := fieldRef.String()
 			converter := strings.ReplaceAll(
 				field.StringConverter,
 				"%s",
-				actualFieldRef,
+				fmt.Sprintf("%s.%s", objRef, field.Name),
 			)
 			return fmt.Sprintf("{ %s }", converter)
 		},
-		"StringValue": func(field ViewField, resourceName string) string {
+		"StringValue": func(field ViewField, objRef string) string {
 			if field.StringConverter == "" {
 				return fmt.Sprintf(
 					"%s.%s",
-					strings.ToLower(resourceName),
+					objRef,
 					field.Name,
 				)
 			}
-			var fieldRef strings.Builder
-			fieldRef.Grow(len(resourceName) + len(field.Name) + 1)
-			fieldRef.WriteString(strings.ToLower(resourceName))
-			fieldRef.WriteString(".")
-			fieldRef.WriteString(field.Name)
-			actualFieldRef := fieldRef.String()
 			return strings.ReplaceAll(
 				field.StringConverter,
 				"%s",
-				actualFieldRef,
+				fmt.Sprintf("%s.%s", objRef, field.Name),
 			)
 		},
 	}

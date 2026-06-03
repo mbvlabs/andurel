@@ -1,19 +1,27 @@
 package views
 
-templ Home() {
+type Home struct{}
+
+func (Home) ContainerFragment() string {
+	return "home-container-fragment"
+}
+
+templ (h Home) Page() {
 	@base() {
-		<main>
-			<section>
-				<div>
-					<h1>Welcome to Andurel</h1>
-					<p>A clean starting point for building a server-rendered Go application.</p>
-				</div>
-				<div>
+		@templ.Fragment(h.ContainerFragment()) {
+			<main id="home-container">
+				<section>
 					<div>
-						<p>Use this scaffold to wire routes, persistence, and UI flows without rebuilding the project shape from scratch.</p>
+						<h1>Welcome to Andurel</h1>
+						<p>A clean starting point for building a server-rendered Go application.</p>
 					</div>
-				</div>
-			</section>
-		</main>
+					<div>
+						<div>
+							<p>Use this scaffold to wire routes, persistence, and UI flows without rebuilding the project shape from scratch.</p>
+						</div>
+					</div>
+				</section>
+			</main>
+		}
 	}
 }

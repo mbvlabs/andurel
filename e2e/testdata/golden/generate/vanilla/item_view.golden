@@ -1,3 +1,7 @@
+
+
+
+
 package views
 
 import (
@@ -9,199 +13,237 @@ import (
 	"testapp/router/routes"
 )
 
-templ ItemIndex(items []models.ItemEntity) {
+type ItemIndex struct {
+	Items []models.ItemEntity
+}
+
+func (ii ItemIndex) ContainerFragment() string {
+	return "item-index-container-fragment"
+}
+
+templ (ii ItemIndex) Page() {
 	@base() {
-		<main>
-			<section>
-				<div>
+		@templ.Fragment(ii.ContainerFragment()) {
+			<main id="item-index-container">
+				<section>
 					<div>
-						<h1>Items</h1>
+						<div>
+							<h1>Items</h1>
+						</div>
+						<a href={ routes.ItemNew.URL() }>New Item</a>
 					</div>
-					<a href={ routes.ItemNew.URL() }>New Item</a>
-				</div>
-				if len(items) == 0 {
-					<section>
+					if len(ii.Items) == 0 {
+						<section>
+							<div>
+								<h2>No items found</h2>
+							</div>
+							<div>
+								<a href={ routes.ItemNew.URL() }>New Item</a>
+							</div>
+						</section>
+					} else {
 						<div>
-							<h2>No items found</h2>
-						</div>
-						<div>
-							<a href={ routes.ItemNew.URL() }>New Item</a>
-						</div>
-					</section>
-				} else {
-					<div>
-						<table>
-							<thead>
-								<tr>
-									<th>Warehouse Id</th>
-									<th>Name</th>
-									<th>Quantity</th>
-									<th>Created At</th>
-									<th>Updated At</th>
-									<th>Actions</th>
-								</tr>
-							</thead>
-							<tbody>
-								for _, item := range items {
+							<table>
+								<thead>
 									<tr>
-										<td>{ item.WarehouseID.String() }</td>
-										<td>{ item.Name }</td>
-										<td>{ fmt.Sprintf("%d", item.Quantity) }</td>
-										<td>{ item.CreatedAt.String() }</td>
-										<td>{ item.UpdatedAt.String() }</td>
-										<td>
-											<div>
-												<a href={ routes.ItemShow.URL(item.ID) }>View</a>
-												<a href={ routes.ItemEdit.URL(item.ID) }>Edit</a>
-											</div>
-										</td>
+										<th>Warehouse Id</th>
+										<th>Name</th>
+										<th>Quantity</th>
+										<th>Created At</th>
+										<th>Updated At</th>
+										<th>Actions</th>
 									</tr>
-								}
-							</tbody>
-						</table>
-					</div>
-				}
-			</section>
-		</main>
+								</thead>
+								<tbody>
+									for _, item := range ii.Items {
+										<tr>
+											<td>{ item.WarehouseID.String() }</td>
+											<td>{ item.Name }</td>
+											<td>{ fmt.Sprintf("%d", item.Quantity) }</td>
+											<td>{ item.CreatedAt.String() }</td>
+											<td>{ item.UpdatedAt.String() }</td>
+											<td>
+												<div>
+													<a href={ routes.ItemShow.URL(item.ID) }>View</a>
+													<a href={ routes.ItemEdit.URL(item.ID) }>Edit</a>
+												</div>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</section>
+			</main>
+		}
 	}
 }
 
-templ ItemShow(item models.ItemEntity) {
+type ItemShow struct {
+	Item models.ItemEntity
+}
+
+func (is ItemShow) ContainerFragment() string {
+	return "item-show-container-fragment"
+}
+
+templ (is ItemShow) Page() {
 	@base() {
-		<main>
-			<section>
-				<div>
-					<div>
-						<h1>Item Details</h1>
-					</div>
-					<div>
-						<a href={ routes.ItemEdit.URL(item.ID) }>Edit</a>
-						<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
-					</div>
-				</div>
-				<div>
+		@templ.Fragment(is.ContainerFragment()) {
+			<main id="item-show-container">
+				<section>
 					<div>
 						<div>
-							<p>Warehouse Id</p>
-							<p>{ item.WarehouseID.String() }</p>
+							<h1>Item Details</h1>
 						</div>
 						<div>
-							<p>Name</p>
-							<p>{ item.Name }</p>
-						</div>
-						<div>
-							<p>Quantity</p>
-							<p>{ fmt.Sprintf("%d", item.Quantity) }</p>
-						</div>
-						<div>
-							<p>Created At</p>
-							<p>{ item.CreatedAt.String() }</p>
-						</div>
-						<div>
-							<p>Updated At</p>
-							<p>{ item.UpdatedAt.String() }</p>
+							<a href={ routes.ItemEdit.URL(is.Item.ID) }>Edit</a>
+							<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
 						</div>
 					</div>
-				</div>
-			</section>
-		</main>
+					<div>
+						<div>
+							<div>
+								<p>Warehouse Id</p>
+								<p>{ is.Item.WarehouseID.String() }</p>
+							</div>
+							<div>
+								<p>Name</p>
+								<p>{ is.Item.Name }</p>
+							</div>
+							<div>
+								<p>Quantity</p>
+								<p>{ fmt.Sprintf("%d", is.Item.Quantity) }</p>
+							</div>
+							<div>
+								<p>Created At</p>
+								<p>{ is.Item.CreatedAt.String() }</p>
+							</div>
+							<div>
+								<p>Updated At</p>
+								<p>{ is.Item.UpdatedAt.String() }</p>
+							</div>
+						</div>
+					</div>
+				</section>
+			</main>
+		}
 	}
 }
 
-templ ItemNew() {
+type ItemNew struct{}
+
+func (in ItemNew) ContainerFragment() string {
+	return "item-new-container-fragment"
+}
+
+templ (in ItemNew) Page() {
 	@base() {
-		<main>
-			<section>
-				<div>
+		@templ.Fragment(in.ContainerFragment()) {
+			<main id="item-new-container">
+				<section>
 					<div>
-						<h1>New Item</h1>
-						<p>Enter the details for the new item.</p>
+						<div>
+							<h1>New Item</h1>
+							<p>Enter the details for the new item.</p>
+						</div>
+						<div>
+							<form
+								data-indicator:_submitting
+								data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.ItemCreate.URL()) }
+							>
+								<fieldset data-attr:disabled="$_submitting">
+									<div>
+										<label for="warehouseId">Warehouse Id</label>
+										<div>
+											<input type="text" id="warehouseId" name="warehouseId" data-bind="warehouseId"/>
+										</div>
+									</div>
+									<div>
+										<label for="name">Name</label>
+										<div>
+											<input type="text" id="name" name="name" data-bind="name"/>
+										</div>
+									</div>
+									<div>
+										<label for="quantity">Quantity</label>
+										<div>
+											<input type="number" id="quantity" name="quantity" data-bind="quantity"/>
+										</div>
+									</div>
+									<div>
+										<button type="submit">Create Item</button>
+										<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+						</div>
 					</div>
-					<div>
-						<form
-							data-indicator:submitting
-							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.ItemCreate.URL()) }
-						>
-							<fieldset data-attr:disabled="$submitting">
-								<div>
-									<label for="warehouseId">Warehouse Id</label>
-									<div>
-										<input type="text" id="warehouseId" name="warehouseId" data-bind="warehouseId"/>
-									</div>
-								</div>
-								<div>
-									<label for="name">Name</label>
-									<div>
-										<input type="text" id="name" name="name" data-bind="name"/>
-									</div>
-								</div>
-								<div>
-									<label for="quantity">Quantity</label>
-									<div>
-										<input type="number" id="quantity" name="quantity" data-bind="quantity"/>
-									</div>
-								</div>
-								<div>
-									<button type="submit">Create Item</button>
-									<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
-								</div>
-							</fieldset>
-						</form>
-					</div>
-				</div>
-			</section>
-		</main>
+				</section>
+			</main>
+		}
 	}
 }
 
-templ ItemEdit(item models.ItemEntity) {
+type ItemEdit struct {
+	Item models.ItemEntity
+}
+
+func (ie ItemEdit) ContainerFragment() string {
+	return "item-edit-container-fragment"
+}
+
+templ (ie ItemEdit) Page() {
 	@base() {
-		<main>
-			<section>
-				<div>
+		@templ.Fragment(ie.ContainerFragment()) {
+			<main id="item-edit-container">
+				<section>
 					<div>
-						<h1>Edit Item</h1>
-						<p>Update the details for this item.</p>
-					</div>
-					<div>
-						<form
-							data-indicator:submitting
-							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.ItemUpdate.URL(item.ID)) }
-						>
-							<fieldset data-attr:disabled="$submitting">
-								<div>
-									<label for="warehouseId">Warehouse Id</label>
+						<div>
+							<h1>Edit Item</h1>
+							<p>Update the details for this item.</p>
+						</div>
+						<div>
+							<form
+								data-indicator:_submitting
+								data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.ItemUpdate.URL(ie.Item.ID)) }
+							>
+								<fieldset data-attr:disabled="$_submitting">
 									<div>
-										<input type="text" id="warehouseId" name="warehouseId" data-bind="warehouseId" value={ item.WarehouseID.String() }/>
+										<label for="warehouseId">Warehouse Id</label>
+										<div>
+											<input type="text" id="warehouseId" name="warehouseId" data-bind="warehouseId" value={ ie.Item.WarehouseID.String() }/>
+										</div>
 									</div>
-								</div>
-								<div>
-									<label for="name">Name</label>
 									<div>
-										<input type="text" id="name" name="name" data-bind="name" value={ item.Name }/>
+										<label for="name">Name</label>
+										<div>
+											<input type="text" id="name" name="name" data-bind="name" value={ ie.Item.Name }/>
+										</div>
 									</div>
-								</div>
-								<div>
-									<label for="quantity">Quantity</label>
 									<div>
-										<input type="number" id="quantity" name="quantity" data-bind="quantity" value={ fmt.Sprintf("%d", item.Quantity) }/>
+										<label for="quantity">Quantity</label>
+										<div>
+											<input type="number" id="quantity" name="quantity" data-bind="quantity" value={ fmt.Sprintf("%d", ie.Item.Quantity) }/>
+										</div>
 									</div>
-								</div>
-								<div>
-									<button type="submit">Update Item</button>
-									<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
-								</div>
-							</fieldset>
-						</form>
+									<div>
+										<button type="submit">Update Item</button>
+										<a href={ renderer.ResolveBackURL(ctx, routes.ItemIndex.URL()) }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+						</div>
+						<div>
+							<button
+								type="button"
+								data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ItemDestroy.URL(ie.Item.ID)) }
+							>Destroy Item</button>
+						</div>
 					</div>
-					<div>
-						<button
-							type="button"
-							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ItemDestroy.URL(item.ID)) }
-						>Destroy Item</button>
-					</div>
-				</div>
-			</section>
-		</main>
+				</section>
+			</main>
+		}
 	}
 }
