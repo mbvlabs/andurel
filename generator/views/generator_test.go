@@ -208,7 +208,7 @@ func TestGenerateViewFile_ContainsRequiredImports(t *testing.T) {
 		},
 	}
 
-	content, err := generator.GenerateViewFile(view, false, "tailwind")
+	content, err := generator.GenerateViewFile(view, false, "tw_")
 	if err != nil {
 		t.Fatalf("GenerateViewFile returned error: %v", err)
 	}
@@ -243,7 +243,7 @@ func TestGenerateViewFile_ArrayFieldsUseConverters(t *testing.T) {
 		},
 	}
 
-	content, err := generator.GenerateViewFile(view, false, "tailwind")
+	content, err := generator.GenerateViewFile(view, false, "tw_")
 	if err != nil {
 		t.Fatalf("GenerateViewFile returned error: %v", err)
 	}
@@ -274,7 +274,7 @@ func TestGenerateViewFile_IntArrayFieldsUseConverters(t *testing.T) {
 		},
 	}
 
-	content, err := generator.GenerateViewFile(view, false, "tailwind")
+	content, err := generator.GenerateViewFile(view, false, "tw_")
 	if err != nil {
 		t.Fatalf("GenerateViewFile returned error: %v", err)
 	}
