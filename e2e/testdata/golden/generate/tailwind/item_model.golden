@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -11,13 +12,13 @@ import (
 )
 
 type ItemEntity struct {
-	bun.BaseModel `bun:"table:items"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	WarehouseID   *uuid.UUID `bun:"warehouse_id,type:uuid"`
-	Name          string     `bun:"name"`
-	Quantity      *int32     `bun:"quantity"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:items,alias:items"`
+	ID            uuid.UUID     `bun:"id,pk,type:uuid"`
+	WarehouseID   *uuid.UUID    `bun:"warehouse_id,type:uuid"`
+	Name          string        `bun:"name"`
+	Quantity      sql.NullInt32 `bun:"quantity"`
+	CreatedAt     sql.NullTime  `bun:"created_at"`
+	UpdatedAt     sql.NullTime  `bun:"updated_at"`
 }
 
 func (i item) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ItemEntity, error) {
@@ -35,7 +36,7 @@ func (i item) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (Item
 type CreateItemData struct {
 	WarehouseID *uuid.UUID
 	Name        string
-	Quantity    *int32
+	Quantity    sql.NullInt32
 }
 
 func (i item) Create(ctx context.Context, db storage.Executor, data CreateItemData) (ItemEntity, error) {
@@ -63,8 +64,8 @@ type UpdateItemData struct {
 	ID          uuid.UUID
 	WarehouseID *uuid.UUID
 	Name        string
-	Quantity    *int32
-	UpdatedAt   *time.Time
+	Quantity    sql.NullInt32
+	UpdatedAt   sql.NullTime
 }
 
 func (i item) Update(ctx context.Context, db storage.Executor, data UpdateItemData) (ItemEntity, error) {
@@ -137,7 +138,7 @@ func (i item) Paginate(ctx context.Context, db storage.Executor, page, pageSize 
 	offset := (page - 1) * pageSize
 
 	totalCount, err := db.NewSelect().
-		Model(&ItemEntity{}).Count(ctx, &totalCount)
+		Model(&ItemEntity{}).Count(ctx)
 	if err != nil {
 		return PaginatedItems{}, err
 	}

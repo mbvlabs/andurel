@@ -105,6 +105,14 @@ func TestGenerateCommands(t *testing.T) {
 			t.Run("generate_controller_with_array_types", func(t *testing.T) {
 				testGenerateViewWithArrayTypes(t, project)
 			})
+
+			t.Run("generate_job", func(t *testing.T) {
+				testGenerateJob(t, project)
+			})
+
+			t.Run("generate_email", func(t *testing.T) {
+				testGenerateEmail(t, project)
+			})
 		})
 	}
 }
@@ -799,6 +807,68 @@ DROP TABLE IF EXISTS documents;
 	)
 }
 
+
+func testGenerateJob(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	err := project.Generate("generate", "job", "SendWelcomeEmail")
+	internal.AssertCommandSucceeds(t, err, "generate job")
+
+	internal.AssertFileExists(t, project, "queue/jobs/send_welcome_email.go")
+	jobContent, err := os.ReadFile(filepath.Join(project.Dir, "queue/jobs/send_welcome_email.go"))
+	if err != nil {
+		t.Fatalf("Failed to read job file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "send_welcome_email_job.golden"),
+		string(jobContent),
+		project.CSS,
+	)
+
+	internal.AssertFileExists(t, project, "queue/workers/send_welcome_email.go")
+	workerContent, err := os.ReadFile(filepath.Join(project.Dir, "queue/workers/send_welcome_email.go"))
+	if err != nil {
+		t.Fatalf("Failed to read worker file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "send_welcome_email_worker.golden"),
+		string(workerContent),
+		project.CSS,
+	)
+
+	workersGoPath := filepath.Join(project.Dir, "queue/workers/workers.go")
+	workersGoContent, err := os.ReadFile(workersGoPath)
+	if err != nil {
+		t.Fatalf("Failed to read workers.go: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "send_welcome_email_registration.golden"),
+		string(workersGoContent),
+		project.CSS,
+	)
+}
+
+func testGenerateEmail(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	err := project.Generate("generate", "email", "WelcomeEmail")
+	internal.AssertCommandSucceeds(t, err, "generate email")
+
+	internal.AssertFileExists(t, project, "email/welcome_email.templ")
+	emailContent, err := os.ReadFile(filepath.Join(project.Dir, "email/welcome_email.templ"))
+	if err != nil {
+		t.Fatalf("Failed to read email file: %v", err)
+	}
+	compareOrUpdateGenerateGolden(
+		t,
+		filepath.Join("testdata", "golden", "generate", "welcome_email.golden"),
+		string(emailContent),
+		project.CSS,
+	)
+}
 
 func compareOrUpdateGenerateGolden(t *testing.T, goldenPath, actual, css string) {
 	t.Helper()

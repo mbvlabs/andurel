@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -11,13 +12,13 @@ import (
 )
 
 type ArticleEntity struct {
-	bun.BaseModel `bun:"table:articles"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	Title         string     `bun:"title"`
-	Content       *string    `bun:"content"`
-	Published     *bool      `bun:"published"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:articles,alias:articles"`
+	ID            uuid.UUID      `bun:"id,pk,type:uuid"`
+	Title         string         `bun:"title"`
+	Content       sql.NullString `bun:"content"`
+	Published     sql.NullBool   `bun:"published"`
+	CreatedAt     sql.NullTime   `bun:"created_at"`
+	UpdatedAt     sql.NullTime   `bun:"updated_at"`
 }
 
 func (a article) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ArticleEntity, error) {
@@ -34,8 +35,8 @@ func (a article) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (A
 
 type CreateArticleData struct {
 	Title     string
-	Content   *string
-	Published *bool
+	Content   sql.NullString
+	Published sql.NullBool
 }
 
 func (a article) Create(ctx context.Context, db storage.Executor, data CreateArticleData) (ArticleEntity, error) {
@@ -62,9 +63,9 @@ func (a article) Create(ctx context.Context, db storage.Executor, data CreateArt
 type UpdateArticleData struct {
 	ID        uuid.UUID
 	Title     string
-	Content   *string
-	Published *bool
-	UpdatedAt *time.Time
+	Content   sql.NullString
+	Published sql.NullBool
+	UpdatedAt sql.NullTime
 }
 
 func (a article) Update(ctx context.Context, db storage.Executor, data UpdateArticleData) (ArticleEntity, error) {
@@ -137,7 +138,7 @@ func (a article) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 	offset := (page - 1) * pageSize
 
 	totalCount, err := db.NewSelect().
-		Model(&ArticleEntity{}).Count(ctx, &totalCount)
+		Model(&ArticleEntity{}).Count(ctx)
 	if err != nil {
 		return PaginatedArticles{}, err
 	}

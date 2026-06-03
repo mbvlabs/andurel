@@ -81,7 +81,7 @@ func TestMapSQLTypeToGo_NonNullableTypes(t *testing.T) {
 	}
 }
 
-func TestMapSQLTypeToGo_NullableTypes(t *testing.T) {
+func TestMapSQLTypeToGo_NullableTypes_Pointer(t *testing.T) {
 	tests := []struct {
 		name       string
 		sqlType    string
@@ -101,6 +101,7 @@ func TestMapSQLTypeToGo_NullableTypes(t *testing.T) {
 	}
 
 	tm := NewTypeMapper("postgresql")
+	tm.NullType = "pointer"
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -108,23 +109,88 @@ func TestMapSQLTypeToGo_NullableTypes(t *testing.T) {
 			if err != nil {
 				t.Fatalf("MapSQLTypeToGo(%s, true) error = %v", tt.sqlType, err)
 			}
-
 			if goType != tt.expectedGo {
-				t.Errorf(
-					"MapSQLTypeToGo(%s, true) goType = %s, want %s",
-					tt.sqlType,
-					goType,
-					tt.expectedGo,
-				)
+				t.Errorf("MapSQLTypeToGo(%s, true) goType = %s, want %s", tt.sqlType, goType, tt.expectedGo)
 			}
-
 			if pkg != tt.expectedPkg {
-				t.Errorf(
-					"MapSQLTypeToGo(%s, true) package = %s, want %s",
-					tt.sqlType,
-					pkg,
-					tt.expectedPkg,
-				)
+				t.Errorf("MapSQLTypeToGo(%s, true) package = %s, want %s", tt.sqlType, pkg, tt.expectedPkg)
+			}
+		})
+	}
+}
+
+func TestMapSQLTypeToGo_NullableTypes_SqlNull(t *testing.T) {
+	tests := []struct {
+		name       string
+		sqlType    string
+		expectedGo string
+		expectedPkg string
+	}{
+		{"varchar nullable", "varchar", "sql.NullString", ""},
+		{"text nullable", "text", "sql.NullString", ""},
+		{"boolean nullable", "boolean", "sql.NullBool", ""},
+		{"smallint nullable", "smallint", "sql.NullInt16", ""},
+		{"integer nullable", "integer", "sql.NullInt32", ""},
+		{"bigint nullable", "bigint", "sql.NullInt64", ""},
+		{"decimal nullable", "decimal", "sql.NullFloat64", ""},
+		{"numeric nullable", "numeric", "sql.NullFloat64", ""},
+		{"timestamp nullable", "timestamp", "sql.NullTime", "time"},
+		{"timestamptz nullable", "timestamptz", "sql.NullTime", "time"},
+		{"uuid nullable", "uuid", "*uuid.UUID", "github.com/google/uuid"},
+	}
+
+	tm := NewTypeMapper("postgresql")
+	tm.NullType = "sql.Null"
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			goType, pkg, err := tm.MapSQLTypeToGo(tt.sqlType, true)
+			if err != nil {
+				t.Fatalf("MapSQLTypeToGo(%s, true) error = %v", tt.sqlType, err)
+			}
+			if goType != tt.expectedGo {
+				t.Errorf("MapSQLTypeToGo(%s, true) goType = %s, want %s", tt.sqlType, goType, tt.expectedGo)
+			}
+			if pkg != tt.expectedPkg {
+				t.Errorf("MapSQLTypeToGo(%s, true) package = %s, want %s", tt.sqlType, pkg, tt.expectedPkg)
+			}
+		})
+	}
+}
+
+func TestMapSQLTypeToGo_NullableTypes_BunNull(t *testing.T) {
+	tests := []struct {
+		name       string
+		sqlType    string
+		expectedGo string
+		expectedPkg string
+	}{
+		{"varchar nullable", "varchar", "bun.NullString", ""},
+		{"text nullable", "text", "bun.NullString", ""},
+		{"boolean nullable", "boolean", "bun.NullBool", ""},
+		{"integer nullable", "integer", "bun.NullInt32", ""},
+		{"bigint nullable", "bigint", "bun.NullInt64", ""},
+		{"decimal nullable", "decimal", "bun.NullFloat64", ""},
+		{"numeric nullable", "numeric", "bun.NullFloat64", ""},
+		{"timestamp nullable", "timestamp", "bun.NullTime", "time"},
+		{"timestamptz nullable", "timestamptz", "bun.NullTime", "time"},
+		{"uuid nullable", "uuid", "*uuid.UUID", "github.com/google/uuid"},
+	}
+
+	tm := NewTypeMapper("postgresql")
+	tm.NullType = "bun.Null"
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			goType, pkg, err := tm.MapSQLTypeToGo(tt.sqlType, true)
+			if err != nil {
+				t.Fatalf("MapSQLTypeToGo(%s, true) error = %v", tt.sqlType, err)
+			}
+			if goType != tt.expectedGo {
+				t.Errorf("MapSQLTypeToGo(%s, true) goType = %s, want %s", tt.sqlType, goType, tt.expectedGo)
+			}
+			if pkg != tt.expectedPkg {
+				t.Errorf("MapSQLTypeToGo(%s, true) package = %s, want %s", tt.sqlType, pkg, tt.expectedPkg)
 			}
 		})
 	}

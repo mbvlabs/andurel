@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -11,15 +12,15 @@ import (
 )
 
 type PostEntity struct {
-	bun.BaseModel `bun:"table:posts"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	Title         string     `bun:"title"`
-	Tags          []string   `bun:"tags"`
-	Scores        []int32    `bun:"scores"`
-	Settings      []byte     `bun:"settings,type:jsonb"`
-	Metadata      []byte     `bun:"metadata"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:posts,alias:posts"`
+	ID            uuid.UUID    `bun:"id,pk,type:uuid"`
+	Title         string       `bun:"title"`
+	Tags          []string     `bun:"tags"`
+	Scores        []int32      `bun:"scores"`
+	Settings      []byte       `bun:"settings,type:jsonb"`
+	Metadata      []byte       `bun:"metadata"`
+	CreatedAt     sql.NullTime `bun:"created_at"`
+	UpdatedAt     sql.NullTime `bun:"updated_at"`
 }
 
 func (p post) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (PostEntity, error) {
@@ -72,7 +73,7 @@ type UpdatePostData struct {
 	Scores    []int32
 	Settings  []byte
 	Metadata  []byte
-	UpdatedAt *time.Time
+	UpdatedAt sql.NullTime
 }
 
 func (p post) Update(ctx context.Context, db storage.Executor, data UpdatePostData) (PostEntity, error) {
@@ -149,7 +150,7 @@ func (p post) Paginate(ctx context.Context, db storage.Executor, page, pageSize 
 	offset := (page - 1) * pageSize
 
 	totalCount, err := db.NewSelect().
-		Model(&PostEntity{}).Count(ctx, &totalCount)
+		Model(&PostEntity{}).Count(ctx)
 	if err != nil {
 		return PaginatedPosts{}, err
 	}

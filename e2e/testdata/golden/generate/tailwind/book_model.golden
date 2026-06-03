@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -11,14 +12,14 @@ import (
 )
 
 type BookEntity struct {
-	bun.BaseModel `bun:"table:books"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	Title         string     `bun:"title"`
-	Author        string     `bun:"author"`
-	Price         *float64   `bun:"price"`
-	Pages         *int32     `bun:"pages"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:books,alias:books"`
+	ID            uuid.UUID       `bun:"id,pk,type:uuid"`
+	Title         string          `bun:"title"`
+	Author        string          `bun:"author"`
+	Price         sql.NullFloat64 `bun:"price"`
+	Pages         sql.NullInt32   `bun:"pages"`
+	CreatedAt     sql.NullTime    `bun:"created_at"`
+	UpdatedAt     sql.NullTime    `bun:"updated_at"`
 }
 
 func (b book) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (BookEntity, error) {
@@ -36,8 +37,8 @@ func (b book) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (Book
 type CreateBookData struct {
 	Title  string
 	Author string
-	Price  *float64
-	Pages  *int32
+	Price  sql.NullFloat64
+	Pages  sql.NullInt32
 }
 
 func (b book) Create(ctx context.Context, db storage.Executor, data CreateBookData) (BookEntity, error) {
@@ -66,9 +67,9 @@ type UpdateBookData struct {
 	ID        uuid.UUID
 	Title     string
 	Author    string
-	Price     *float64
-	Pages     *int32
-	UpdatedAt *time.Time
+	Price     sql.NullFloat64
+	Pages     sql.NullInt32
+	UpdatedAt sql.NullTime
 }
 
 func (b book) Update(ctx context.Context, db storage.Executor, data UpdateBookData) (BookEntity, error) {
@@ -143,7 +144,7 @@ func (b book) Paginate(ctx context.Context, db storage.Executor, page, pageSize 
 	offset := (page - 1) * pageSize
 
 	totalCount, err := db.NewSelect().
-		Model(&BookEntity{}).Count(ctx, &totalCount)
+		Model(&BookEntity{}).Count(ctx)
 	if err != nil {
 		return PaginatedBooks{}, err
 	}

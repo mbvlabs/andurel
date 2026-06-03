@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -71,8 +72,8 @@ func (c Companies) New(etx *echo.Context) error {
 }
 
 type CreateCompanyFormPayload struct {
-	Name     string  `json:"name"`
-	Industry *string `json:"industry"`
+	Name     string         `json:"name"`
+	Industry sql.NullString `json:"industry"`
 }
 
 func (c Companies) Create(etx *echo.Context) error {
@@ -127,8 +128,8 @@ func (c Companies) Edit(etx *echo.Context) error {
 }
 
 type UpdateCompanyFormPayload struct {
-	Name     string  `json:"name"`
-	Industry *string `json:"industry"`
+	Name     string         `json:"name"`
+	Industry sql.NullString `json:"industry"`
 }
 
 func (c Companies) Update(etx *echo.Context) error {

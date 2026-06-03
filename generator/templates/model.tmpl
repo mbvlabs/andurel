@@ -12,7 +12,7 @@ import (
 )
 
 type {{.EntityName}} struct {
-	bun.BaseModel `bun:"table:{{.TableName}}"`
+	bun.BaseModel `bun:"table:{{.TableName}},alias:{{.TableName}}"`
 
 {{- range .Fields}}
 	{{.Name}} {{.Type}} `bun:"{{.BunTag}}"`
@@ -162,7 +162,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db sto
 
 	
 	totalCount, err := db.NewSelect().
-		Model(&{{.EntityName}}{}).Count(ctx, &totalCount)
+		Model(&{{.EntityName}}{}).Count(ctx)
 	if err != nil {
 		return Paginated{{.PluralName}}{}, err
 	}

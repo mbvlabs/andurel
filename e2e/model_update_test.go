@@ -72,8 +72,8 @@ func testModelUpdatePreservesCustomFields(t *testing.T, project *internal.Projec
 	// Insert the Status field inside the struct, after the bun.BaseModel line.
 	modelStr = strings.Replace(
 		modelStr,
-		"bun.BaseModel `bun:\"table:widgets\"`",
-		"bun.BaseModel `bun:\"table:widgets\"`\n\tStatus        WidgetStatus `bun:\"status\"`",
+		"bun.BaseModel `bun:\"table:widgets,alias:widgets\"`",
+		"bun.BaseModel `bun:\"table:widgets,alias:widgets\"`\n\tStatus        WidgetStatus `bun:\"status\"`",
 		1,
 	)
 

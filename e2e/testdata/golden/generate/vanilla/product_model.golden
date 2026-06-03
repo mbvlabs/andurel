@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -11,12 +12,12 @@ import (
 )
 
 type ProductEntity struct {
-	bun.BaseModel `bun:"table:products"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	Name          string     `bun:"name"`
-	Price         *float64   `bun:"price"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:products,alias:products"`
+	ID            uuid.UUID       `bun:"id,pk,type:uuid"`
+	Name          string          `bun:"name"`
+	Price         sql.NullFloat64 `bun:"price"`
+	CreatedAt     sql.NullTime    `bun:"created_at"`
+	UpdatedAt     sql.NullTime    `bun:"updated_at"`
 }
 
 func (p product) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ProductEntity, error) {
@@ -33,7 +34,7 @@ func (p product) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (P
 
 type CreateProductData struct {
 	Name  string
-	Price *float64
+	Price sql.NullFloat64
 }
 
 func (p product) Create(ctx context.Context, db storage.Executor, data CreateProductData) (ProductEntity, error) {
@@ -59,8 +60,8 @@ func (p product) Create(ctx context.Context, db storage.Executor, data CreatePro
 type UpdateProductData struct {
 	ID        uuid.UUID
 	Name      string
-	Price     *float64
-	UpdatedAt *time.Time
+	Price     sql.NullFloat64
+	UpdatedAt sql.NullTime
 }
 
 func (p product) Update(ctx context.Context, db storage.Executor, data UpdateProductData) (ProductEntity, error) {
@@ -131,7 +132,7 @@ func (p product) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 	offset := (page - 1) * pageSize
 
 	totalCount, err := db.NewSelect().
-		Model(&ProductEntity{}).Count(ctx, &totalCount)
+		Model(&ProductEntity{}).Count(ctx)
 	if err != nil {
 		return PaginatedProducts{}, err
 	}

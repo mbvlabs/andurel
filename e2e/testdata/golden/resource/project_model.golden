@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -11,12 +12,12 @@ import (
 )
 
 type ProjectEntity struct {
-	bun.BaseModel `bun:"table:projects"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	Name          string     `bun:"name"`
-	Description   *string    `bun:"description"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:projects,alias:projects"`
+	ID            uuid.UUID      `bun:"id,pk,type:uuid"`
+	Name          string         `bun:"name"`
+	Description   sql.NullString `bun:"description"`
+	CreatedAt     sql.NullTime   `bun:"created_at"`
+	UpdatedAt     sql.NullTime   `bun:"updated_at"`
 }
 
 func (p project) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ProjectEntity, error) {
@@ -33,7 +34,7 @@ func (p project) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (P
 
 type CreateProjectData struct {
 	Name        string
-	Description *string
+	Description sql.NullString
 }
 
 func (p project) Create(ctx context.Context, db storage.Executor, data CreateProjectData) (ProjectEntity, error) {
@@ -59,8 +60,8 @@ func (p project) Create(ctx context.Context, db storage.Executor, data CreatePro
 type UpdateProjectData struct {
 	ID          uuid.UUID
 	Name        string
-	Description *string
-	UpdatedAt   *time.Time
+	Description sql.NullString
+	UpdatedAt   sql.NullTime
 }
 
 func (p project) Update(ctx context.Context, db storage.Executor, data UpdateProjectData) (ProjectEntity, error) {
@@ -131,7 +132,7 @@ func (p project) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 	offset := (page - 1) * pageSize
 
 	totalCount, err := db.NewSelect().
-		Model(&ProjectEntity{}).Count(ctx, &totalCount)
+		Model(&ProjectEntity{}).Count(ctx)
 	if err != nil {
 		return PaginatedProjects{}, err
 	}

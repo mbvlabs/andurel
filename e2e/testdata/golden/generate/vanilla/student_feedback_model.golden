@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -11,13 +12,13 @@ import (
 )
 
 type StudentFeedbackEntity struct {
-	bun.BaseModel `bun:"table:student_feedback"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	StudentID     string     `bun:"student_id"`
-	Feedback      string     `bun:"feedback"`
-	Rating        *int32     `bun:"rating"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:student_feedback,alias:student_feedback"`
+	ID            uuid.UUID     `bun:"id,pk,type:uuid"`
+	StudentID     string        `bun:"student_id"`
+	Feedback      string        `bun:"feedback"`
+	Rating        sql.NullInt32 `bun:"rating"`
+	CreatedAt     sql.NullTime  `bun:"created_at"`
+	UpdatedAt     sql.NullTime  `bun:"updated_at"`
 }
 
 func (sf studentFeedback) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (StudentFeedbackEntity, error) {
@@ -35,7 +36,7 @@ func (sf studentFeedback) Find(ctx context.Context, db storage.Executor, id uuid
 type CreateStudentFeedbackData struct {
 	StudentID string
 	Feedback  string
-	Rating    *int32
+	Rating    sql.NullInt32
 }
 
 func (sf studentFeedback) Create(ctx context.Context, db storage.Executor, data CreateStudentFeedbackData) (StudentFeedbackEntity, error) {
@@ -63,8 +64,8 @@ type UpdateStudentFeedbackData struct {
 	ID        uuid.UUID
 	StudentID string
 	Feedback  string
-	Rating    *int32
-	UpdatedAt *time.Time
+	Rating    sql.NullInt32
+	UpdatedAt sql.NullTime
 }
 
 func (sf studentFeedback) Update(ctx context.Context, db storage.Executor, data UpdateStudentFeedbackData) (StudentFeedbackEntity, error) {
@@ -137,7 +138,7 @@ func (sf studentFeedback) Paginate(ctx context.Context, db storage.Executor, pag
 	offset := (page - 1) * pageSize
 
 	totalCount, err := db.NewSelect().
-		Model(&StudentFeedbackEntity{}).Count(ctx, &totalCount)
+		Model(&StudentFeedbackEntity{}).Count(ctx)
 	if err != nil {
 		return PaginatedStudentFeedback{}, err
 	}

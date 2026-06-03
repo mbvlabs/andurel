@@ -1,0 +1,23 @@
+package workers
+
+import (
+	"context"
+
+	"github.com/riverqueue/river"
+
+	"{{.ModulePath}}/queue/jobs"
+)
+
+type {{.PascalName}}Worker struct {
+	river.WorkerDefaults[jobs.{{.PascalName}}Args]
+}
+
+func New{{.PascalName}}Worker() *{{.PascalName}}Worker {
+	return &{{.PascalName}}Worker{}
+}
+
+func (w *{{.PascalName}}Worker) Work(ctx context.Context, job *river.Job[jobs.{{.PascalName}}Args]) error {
+	_ = ctx
+	_ = job
+	return nil
+}
