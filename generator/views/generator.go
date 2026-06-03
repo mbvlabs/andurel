@@ -208,7 +208,34 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 	return field, nil
 }
 
-func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, cssFramework string) (string, error) {
+func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
+	cssFramework := "tailwind"
+	hasCssComponents := false
+
+	if lock != nil && lock.ScaffoldConfig != nil {
+		cssFramework = lock.ScaffoldConfig.CSSFramework
+		for _, ext := range lock.ScaffoldConfig.Extensions {
+			if ext == "css-components" {
+				hasCssComponents = true
+				break
+			}
+		}
+	}
+
+	if hasCssComponents {
+		if cssFramework == "vanilla" {
+			return "vanilla_"
+		}
+		return "tw_"
+	}
+
+	if cssFramework == "vanilla" {
+		return "vanilla_bare_"
+	}
+	return "tw_bare_"
+}
+
+func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, templatePrefix string) (string, error) {
 	// Custom template functions for view-specific operations
 	customFuncs := template.FuncMap{
 		"UsesPackage": func(fields []ViewField, packageName string) bool {
@@ -286,12 +313,6 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, c
 		},
 	}
 
-	// Determine template prefix based on CSS framework (default to tailwind)
-	templatePrefix := "tw_"
-	if cssFramework == "vanilla" {
-		templatePrefix = "vanilla_"
-	}
-
 	templateName := templatePrefix + "resource_view_no_controller.tmpl"
 	if withController {
 		templateName = templatePrefix + "resource_view.tmpl"
@@ -329,11 +350,11 @@ func (g *Generator) GenerateViewWithController(
 		return fmt.Errorf("view file %s already exists", viewPath)
 	}
 
-	// Read CSS framework from andurel.lock (default to tailwind)
-	cssFramework := "tailwind"
+	// Read lock file to determine CSS framework and extensions
+	templatePrefix := "tw_bare_"
 	if rootDir, err := g.fileManager.FindGoModRoot(); err == nil {
-		if lock, err := layout.ReadLockFile(rootDir); err == nil && lock.ScaffoldConfig != nil {
-			cssFramework = lock.ScaffoldConfig.CSSFramework
+		if lock, err := layout.ReadLockFile(rootDir); err == nil {
+			templatePrefix = g.templatePrefix(lock)
 		}
 	}
 
@@ -348,7 +369,7 @@ func (g *Generator) GenerateViewWithController(
 		return fmt.Errorf("failed to build view: %w", err)
 	}
 
-	viewContent, err := g.GenerateViewFile(view, withController, cssFramework)
+	viewContent, err := g.GenerateViewFile(view, withController, templatePrefix)
 	if err != nil {
 		return fmt.Errorf("failed to render view file: %w", err)
 	}
