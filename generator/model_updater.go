@@ -8,10 +8,12 @@ import (
 	"go/token"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/models"
+	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/pmezard/go-difflib/difflib"
 )
 
@@ -65,9 +67,10 @@ type UpdateModelResult struct {
 	HasChanges     bool
 }
 
-// Diff returns a unified diff of the struct definitions (Entity,
-// CreateData, UpdateData). bun.BaseModel lines are excluded — their alignment
-// changes with field widths and is not schema content.
+// Diff returns a unified diff of the struct definitions and method bodies
+// (Entity, CreateData, UpdateData, Create, Update, Upsert). bun.BaseModel
+// lines are excluded — their alignment changes with field widths and is not
+// schema content.
 func (r *UpdateModelResult) Diff() (string, error) {
 	d := difflib.UnifiedDiff{
 		A:        difflib.SplitLines(dropBaseModelLine(r.OldStruct)),
@@ -182,52 +185,124 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 		}
 	}
 
-	oldEntityStr := string(src[structStart:structEnd])
-	oldCreateDataStr, oldUpdateDataStr := "", ""
-
-	if cdStart, cdEnd, err := findStructOffsets(src, createDataName); err == nil {
-		oldCreateDataStr = string(src[cdStart:cdEnd])
-	}
-	if udStart, udEnd, err := findStructOffsets(src, updateDataName); err == nil {
-		oldUpdateDataStr = string(src[udStart:udEnd])
-	}
-
 	newEntityStr := renderEntityStruct(entityName, tableName, newModel.Fields)
 	newCreateDataStr := renderCreateDataStruct(resourceName, newModel)
 	newUpdateDataStr := renderUpdateDataStruct(resourceName, newModel)
 
-	// Splice in reverse offset order (largest start first) so earlier
-	// byte positions remain valid across each replacement.
-	content := string(src)
+	// Generate the full file from the template so we can extract new
+	// method bodies for Create, Update, and Upsert.
+	templateContent, err := templates.Files.ReadFile("model.tmpl")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read model template: %w", err)
+	}
+	newFullContent, err := m.modelGenerator.GenerateModelFile(newModel, string(templateContent))
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate model file from template: %w", err)
+	}
 
-	if udStart, udEnd, err := findStructOffsets(src, updateDataName); err == nil {
-		content = content[:udStart] + newUpdateDataStr + content[udEnd:]
+	// Collect replacements: (start offset, end offset, replacement text).
+	// All start/end values come from the ORIGINAL src so they remain valid
+	// when we apply in descending start order.
+	type splice struct {
+		start int
+		end   int
+		text  string
+	}
+	var splices []splice
+
+	receiverType := newModel.NamespaceType
+
+	// Method replacements — extract from the generated full file.
+	if newStart, newEnd, err := findFuncOffsets([]byte(newFullContent), receiverType, "Upsert"); err == nil {
+		if oldStart, oldEnd, err := findFuncOffsets(src, receiverType, "Upsert"); err == nil {
+			splices = append(splices, splice{oldStart, oldEnd, newFullContent[newStart:newEnd]})
+		}
+	}
+	if cdStart, cdEnd, err := findStructOffsets(src, updateDataName); err == nil {
+		splices = append(splices, splice{cdStart, cdEnd, newUpdateDataStr})
+	}
+	if newStart, newEnd, err := findFuncOffsets([]byte(newFullContent), receiverType, "Update"); err == nil {
+		if oldStart, oldEnd, err := findFuncOffsets(src, receiverType, "Update"); err == nil {
+			splices = append(splices, splice{oldStart, oldEnd, newFullContent[newStart:newEnd]})
+		}
 	}
 	if cdStart, cdEnd, err := findStructOffsets(src, createDataName); err == nil {
-		content = content[:cdStart] + newCreateDataStr + content[cdEnd:]
+		splices = append(splices, splice{cdStart, cdEnd, newCreateDataStr})
 	}
-	content = content[:structStart] + newEntityStr + content[structEnd:]
+	if newStart, newEnd, err := findFuncOffsets([]byte(newFullContent), receiverType, "Create"); err == nil {
+		if oldStart, oldEnd, err := findFuncOffsets(src, receiverType, "Create"); err == nil {
+			splices = append(splices, splice{oldStart, oldEnd, newFullContent[newStart:newEnd]})
+		}
+	}
+	splices = append(splices, splice{structStart, structEnd, newEntityStr})
+
+	// Sort by start descending so earlier offsets remain valid.
+	sort.Slice(splices, func(i, j int) bool {
+		return splices[i].start > splices[j].start
+	})
+
+	// Collect old text before modifying content.
+	oldCreateStr, oldUpdateStr, oldUpsertStr := "", "", ""
+	for _, s := range splices {
+		switch {
+		case strings.Contains(s.text, "func (") && strings.Contains(s.text, " Upsert("):
+			oldUpsertStr = string(src[s.start:s.end])
+		case strings.Contains(s.text, "func (") && strings.Contains(s.text, " Update("):
+			oldUpdateStr = string(src[s.start:s.end])
+		case strings.Contains(s.text, "func (") && strings.Contains(s.text, " Create("):
+			oldCreateStr = string(src[s.start:s.end])
+		}
+	}
+
+	content := string(src)
+	for _, s := range splices {
+		content = content[:s.start] + s.text + content[s.end:]
+	}
 
 	formatted, err := format.Source([]byte(content))
 	if err != nil {
 		formatted = []byte(content)
 	}
 
-	// Collect all old and new struct definitions for diffing.
-	oldStructs := oldEntityStr
-	newStructs := newEntityStr
-	if oldCreateDataStr != "" {
-		oldStructs += "\n\n" + oldCreateDataStr
-		newStructs += "\n\n" + newCreateDataStr
+	// Collect all old and new struct+method definitions for diffing.
+	appendIf := func(sb *strings.Builder, text string) {
+		if text != "" {
+			if sb.Len() > 0 {
+				sb.WriteString("\n\n")
+			}
+			sb.WriteString(text)
+		}
 	}
-	if oldUpdateDataStr != "" {
-		oldStructs += "\n\n" + oldUpdateDataStr
-		newStructs += "\n\n" + newUpdateDataStr
+	extractStruct := func(src []byte, name string) string {
+		if start, end, err := findStructOffsets(src, name); err == nil {
+			return string(src[start:end])
+		}
+		return ""
+	}
+	extractFunc := func(src []byte, recv, name string) string {
+		if start, end, err := findFuncOffsets(src, recv, name); err == nil {
+			return string(src[start:end])
+		}
+		return ""
 	}
 
+	var oldParts, newParts strings.Builder
+	appendIf(&oldParts, string(src[structStart:structEnd]))
+	appendIf(&newParts, newEntityStr)
+	appendIf(&oldParts, extractStruct(src, createDataName))
+	appendIf(&newParts, extractStruct([]byte(newFullContent), createDataName))
+	appendIf(&oldParts, extractStruct(src, updateDataName))
+	appendIf(&newParts, extractStruct([]byte(newFullContent), updateDataName))
+	appendIf(&oldParts, oldCreateStr)
+	appendIf(&newParts, extractFunc([]byte(newFullContent), receiverType, "Create"))
+	appendIf(&oldParts, oldUpdateStr)
+	appendIf(&newParts, extractFunc([]byte(newFullContent), receiverType, "Update"))
+	appendIf(&oldParts, oldUpsertStr)
+	appendIf(&newParts, extractFunc([]byte(newFullContent), receiverType, "Upsert"))
+
 	return &UpdateModelResult{
-		OldStruct:      oldStructs,
-		NewStruct:      newStructs,
+		OldStruct:      oldParts.String(),
+		NewStruct:      newParts.String(),
 		OldFileContent: string(src),
 		NewFileContent: string(formatted),
 		ModelPath:      modelPath,
@@ -354,6 +429,40 @@ func renderUpdateDataStruct(resourceName string, model *models.GeneratedModel) s
 	}
 	sb.WriteString("}")
 	return sb.String()
+}
+
+// findFuncOffsets returns the byte offsets [start, end) of a method
+// declaration matching the given receiver type and function name.
+func findFuncOffsets(src []byte, receiverType string, funcName string) (int, int, error) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to parse Go source: %w", err)
+	}
+
+	for _, decl := range f.Decls {
+		funcDecl, ok := decl.(*ast.FuncDecl)
+		if !ok {
+			continue
+		}
+		if funcDecl.Name.Name != funcName {
+			continue
+		}
+		if funcDecl.Recv == nil || len(funcDecl.Recv.List) == 0 {
+			continue
+		}
+		recvType := funcDecl.Recv.List[0].Type
+		typeStart := fset.Position(recvType.Pos()).Offset
+		typeEnd := fset.Position(recvType.End()).Offset
+		typeStr := strings.TrimSpace(string(src[typeStart:typeEnd]))
+		typeStr = strings.TrimPrefix(typeStr, "*")
+		if typeStr != receiverType {
+			continue
+		}
+		return fset.Position(funcDecl.Pos()).Offset, fset.Position(funcDecl.End()).Offset, nil
+	}
+
+	return 0, 0, fmt.Errorf("func %q on receiver %q not found", funcName, receiverType)
 }
 
 // findStructOffsets returns the byte offsets [start, end) of a named struct
