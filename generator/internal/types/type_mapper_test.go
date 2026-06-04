@@ -239,6 +239,39 @@ func TestBuildBunTag(t *testing.T) {
 			},
 			expected: "created_at",
 		},
+		{
+			name: "text array column",
+			col: &catalog.Column{
+				Name:     "tags",
+				DataType: "text[]",
+			},
+			expected: "tags,array",
+		},
+		{
+			name: "integer array column",
+			col: &catalog.Column{
+				Name:     "scores",
+				DataType: "integer[]",
+			},
+			expected: "scores,array",
+		},
+		{
+			name: "array column with primary key",
+			col: &catalog.Column{
+				Name:         "id",
+				DataType:     "uuid",
+				IsPrimaryKey: true,
+			},
+			expected: "id,pk,type:uuid",
+		},
+		{
+			name: "non-array jsonb column",
+			col: &catalog.Column{
+				Name:     "settings",
+				DataType: "jsonb",
+			},
+			expected: "settings,type:jsonb",
+		},
 	}
 
 	for _, tt := range tests {

@@ -56,23 +56,26 @@ func TestBuildModel(t *testing.T) {
 		}
 	}
 
-	// Test text[] -> []string
+	// Test text[] -> []string with array bun tag
 	if tagsField == nil {
 		t.Fatal("Expected to find 'Tags' field (from 'tags' text[] column)")
 	}
 	if tagsField.Type != "[]string" {
 		t.Errorf("Tags field Type = %s, want []string", tagsField.Type)
 	}
-	if tagsField.BunTag == "" {
-		t.Error("Tags field should have a bun tag")
+	if tagsField.BunTag != "tags,array" {
+		t.Errorf("Tags field BunTag = %s, want tags,array", tagsField.BunTag)
 	}
 
-	// Test integer[] -> []int32
+	// Test integer[] -> []int32 with array bun tag
 	if scoresField == nil {
 		t.Fatal("Expected to find 'Scores' field (from 'scores' integer[] column)")
 	}
 	if scoresField.Type != "[]int32" {
 		t.Errorf("Scores field Type = %s, want []int32", scoresField.Type)
+	}
+	if scoresField.BunTag != "scores,array" {
+		t.Errorf("Scores field BunTag = %s, want scores,array", scoresField.BunTag)
 	}
 
 	// Verify bun tags are generated
