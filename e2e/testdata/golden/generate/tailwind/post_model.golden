@@ -15,8 +15,8 @@ type PostEntity struct {
 	bun.BaseModel `bun:"table:posts,alias:posts"`
 	ID            uuid.UUID    `bun:"id,pk,type:uuid"`
 	Title         string       `bun:"title"`
-	Tags          []string     `bun:"tags"`
-	Scores        []int32      `bun:"scores"`
+	Tags          []string     `bun:"tags,array"`
+	Scores        []int32      `bun:"scores,array"`
 	Settings      []byte       `bun:"settings,type:jsonb"`
 	Metadata      []byte       `bun:"metadata"`
 	CreatedAt     sql.NullTime `bun:"created_at"`
