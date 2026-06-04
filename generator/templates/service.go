@@ -190,6 +190,7 @@ func getDefaultTemplateFunctions() template.FuncMap {
 		},
 		"toLowerCamelCase": toLowerCamelCase,
 		"toCamelCase":      toCamelCase,
+		"hasPrefix":        strings.HasPrefix,
 	}
 }
 

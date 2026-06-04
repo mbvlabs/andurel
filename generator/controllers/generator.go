@@ -67,6 +67,10 @@ func NewGenerator(databaseType string) *Generator {
 	}
 }
 
+func (g *Generator) SetNullType(nullType string) {
+	g.typeMapper.NullType = nullType
+}
+
 func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedController, error) {
 	// Compute PluralResourceName: use resource name as-is when table name is overridden,
 	// otherwise use standard pluralization
