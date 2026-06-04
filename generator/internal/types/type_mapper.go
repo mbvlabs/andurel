@@ -99,6 +99,10 @@ func (tm *TypeMapper) BuildBunTag(col *catalog.Column) string {
 		parts = append(parts, "autoincrement")
 	}
 
+	if strings.HasSuffix(col.DataType, "[]") {
+		parts = append(parts, "array")
+	}
+
 	return strings.Join(parts, ",")
 }
 
