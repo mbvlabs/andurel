@@ -33,6 +33,7 @@ func (fg *FileGenerator) GenerateController(
 	modulePath string,
 	databaseType string,
 	tableNameOverridden bool,
+	nullType string,
 ) error {
 	// When table name is overridden, use it directly; otherwise derive from resource name
 	pluralName := tableName
@@ -46,6 +47,9 @@ func (fg *FileGenerator) GenerateController(
 	}
 
 	generator := NewGenerator(databaseType)
+	if nullType != "" {
+		generator.SetNullType(nullType)
+	}
 	controller, err := generator.Build(cat, Config{
 		ResourceName:        resourceName,
 		PluralName:          pluralName,

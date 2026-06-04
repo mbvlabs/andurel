@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/controllers"
+	"github.com/mbvlabs/andurel/generator/files"
+	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
@@ -75,8 +77,10 @@ func (c *ControllerManager) GenerateController(
 		controllerType = controllers.ResourceController
 	}
 
+	nullType := c.readNullType()
+
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden); err != nil {
+	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
@@ -150,8 +154,10 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 		controllerType = controllers.ResourceController
 	}
 
+	nullType := c.readNullType()
+
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden); err != nil {
+	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
@@ -162,4 +168,24 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 	}
 
 	return nil
+}
+
+// readNullType reads the nullable type strategy from andurel.lock.
+// Defaults to "sql.Null" when not configured.
+func (c *ControllerManager) readNullType() string {
+	return ReadNullType()
+}
+
+// ReadNullType reads the nullable type strategy from andurel.lock.
+// Defaults to "sql.Null" when not configured.
+func ReadNullType() string {
+	fm := files.NewUnifiedFileManager()
+	rootDir, err := fm.FindGoModRoot()
+	if err != nil {
+		return "sql.Null"
+	}
+	if lock, err := layout.ReadLockFile(rootDir); err == nil && lock.DatabaseConfig != nil && lock.DatabaseConfig.NullType != "" {
+		return lock.DatabaseConfig.NullType
+	}
+	return "sql.Null"
 }

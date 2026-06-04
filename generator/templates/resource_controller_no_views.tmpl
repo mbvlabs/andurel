@@ -7,6 +7,8 @@ import (
 	"strconv"
 {{- $needsTime := false}}
 {{- $needsUUID := or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- $needsSQLNull := false}}
+{{- $needsBun := false}}
 {{- range .Fields}}
 {{- if and (not .IsSystemField) (eq .GoFormType "time.Time")}}
 	{{- $needsTime = true}}
@@ -14,9 +16,21 @@ import (
 {{- if and (not .IsSystemField) (or (eq .GoType "uuid.UUID") (eq .GoType "*uuid.UUID"))}}
 	{{- $needsUUID = true}}
 {{- end}}
+{{- if and (not .IsSystemField) (hasPrefix .GoType "sql.Null")}}
+	{{- $needsSQLNull = true}}
+{{- end}}
+{{- if and (not .IsSystemField) (hasPrefix .GoType "bun.Null")}}
+	{{- $needsBun = true}}
+{{- end}}
 {{- end}}
 {{- if $needsTime}}
 	"time"
+{{- end}}
+{{- if $needsSQLNull}}
+	"database/sql"
+{{- end}}
+{{- if $needsBun}}
+	"github.com/uptrace/bun"
 {{- end}}
 
 {{- if $needsUUID}}
@@ -180,6 +194,26 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 				return &t
 			}
 			return nil
+		}(),
+		{{- else if eq .GoType "sql.NullTime"}}
+		{{.Name}}:    func() sql.NullTime {
+			if payload.{{.Name}} == "" {
+				return sql.NullTime{Valid: false}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return sql.NullTime{Time: t, Valid: true}
+			}
+			return sql.NullTime{Valid: false}
+		}(),
+		{{- else if eq .GoType "bun.NullTime"}}
+		{{.Name}}:    func() bun.NullTime {
+			if payload.{{.Name}} == "" {
+				return bun.NullTime{Valid: false}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return bun.NullTime{Time: t, Valid: true}
+			}
+			return bun.NullTime{Valid: false}
 		}(),
 		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
@@ -352,6 +386,26 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 				return &t
 			}
 			return nil
+		}(),
+		{{- else if eq .GoType "sql.NullTime"}}
+		{{.Name}}:    func() sql.NullTime {
+			if payload.{{.Name}} == "" {
+				return sql.NullTime{Valid: false}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return sql.NullTime{Time: t, Valid: true}
+			}
+			return sql.NullTime{Valid: false}
+		}(),
+		{{- else if eq .GoType "bun.NullTime"}}
+		{{.Name}}:    func() bun.NullTime {
+			if payload.{{.Name}} == "" {
+				return bun.NullTime{Valid: false}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return bun.NullTime{Time: t, Valid: true}
+			}
+			return bun.NullTime{Valid: false}
 		}(),
 		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
