@@ -6,8 +6,8 @@ import (
 
 func newGenerateViewsCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:     "views",
-		Aliases: []string{"view"},
+		Use:     "view",
+		Aliases: []string{"v"},
 		Short:   "Generate Go code from Templ templates",
 		Long: `Run templ generate to produce Go code from .templ files in views/ and email/.`,
 		Args:    cobra.NoArgs,

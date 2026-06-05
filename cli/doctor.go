@@ -36,7 +36,8 @@ const (
 
 func newDoctorCommand(currentVersion string) *cobra.Command {
 	doctorCmd := &cobra.Command{
-		Use:   "doctor",
+		Use:     "doctor",
+		Aliases: []string{"doc"},
 		Short: "Run diagnostic checks on your Andurel project",
 		Long: `Run comprehensive diagnostic checks to verify your Andurel project health.
 

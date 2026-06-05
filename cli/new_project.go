@@ -12,7 +12,8 @@ import (
 
 func newProjectCommand(version string) *cobra.Command {
 	projectCmd := &cobra.Command{
-		Use:   "new [project-name]",
+		Use:     "new [project-name]",
+		Aliases: []string{"n"},
 		Short: "Create a new Andurel project",
 		Long: `Scaffold a complete Andurel project with the given name.
 

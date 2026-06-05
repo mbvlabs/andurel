@@ -38,7 +38,8 @@ var managedToolByName = func() map[string]managedTool {
 
 func newSetVersionCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "set-version <tool> <version>",
+		Use:     "set-version <tool> <version>",
+		Aliases: []string{"sv"},
 		Short: "Set a specific version for a tool",
 		Long: `Set the version of a tool and update it.
 
