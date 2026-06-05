@@ -82,7 +82,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 
 	for _, col := range table.Columns {
 		// Detect ID type from primary key column
-		if col.Name == "id" && col.IsPrimaryKey {
+		if col.IsPrimaryKey {
 			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
 			view.IDType = validation.GoType(pkType)
 			continue

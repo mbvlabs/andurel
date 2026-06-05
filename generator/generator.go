@@ -16,7 +16,11 @@ func New() (Generator, error) {
 }
 
 func (g *Generator) GenerateModel(resourceName string, tableNameOverride string, skipFactory bool) error {
-	return g.coordinator.ModelManager.GenerateModel(resourceName, tableNameOverride, skipFactory)
+	return g.coordinator.ModelManager.GenerateModel(resourceName, tableNameOverride, skipFactory, "")
+}
+
+func (g *Generator) GenerateModelWithPK(resourceName string, tableNameOverride string, skipFactory bool, primaryKeyColumn string) error {
+	return g.coordinator.ModelManager.GenerateModel(resourceName, tableNameOverride, skipFactory, primaryKeyColumn)
 }
 
 func (g *Generator) GenerateController(resourceName, tableName string, withViews bool) error {

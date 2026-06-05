@@ -73,7 +73,7 @@ func Create{{.ModelName}}(ctx context.Context, exec storage.Executor, {{range .F
 {{- end}}
 {{- if not $.IsAutoIncrementID}}
 {{- if and $.IDType (ne $.IDType "uuid.UUID")}}
-		ID: built.ID,
+		{{$.IDGoFieldName}}: built.{{$.IDGoFieldName}},
 {{- end}}
 {{- end}}
 	}

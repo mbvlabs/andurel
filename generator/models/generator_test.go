@@ -342,3 +342,122 @@ func containsAny(s string, substrs ...string) bool {
 	}
 	return false
 }
+
+func TestBuildModelWithAlternatePK(t *testing.T) {
+	originalWd, _ := os.Getwd()
+	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "custom_pk")
+
+	generator := NewGenerator("postgresql")
+
+	cat, err := generator.BuildCatalogFromMigrations("orders", []string{migrationsDir})
+	if err != nil {
+		t.Fatalf("Failed to build catalog from migrations: %v", err)
+	}
+
+	model, err := generator.Build(cat, Config{
+		TableName:    "orders",
+		ResourceName: "Order",
+		PackageName:  "models",
+		DatabaseType: "postgresql",
+		ModulePath:   "github.com/example/test",
+	})
+	if err != nil {
+		t.Fatalf("Failed to build model: %v", err)
+	}
+
+	if !model.HasPrimaryKey {
+		t.Error("Expected HasPrimaryKey to be true for orders table")
+	}
+	if model.IDFieldName != "order_id" {
+		t.Errorf("Expected IDFieldName 'order_id', got %q", model.IDFieldName)
+	}
+	if model.IDGoFieldName != "OrderID" {
+		t.Errorf("Expected IDGoFieldName 'OrderID', got %q", model.IDGoFieldName)
+	}
+	if model.IDType != "uuid.UUID" {
+		t.Errorf("Expected IDType 'uuid.UUID', got %q", model.IDType)
+	}
+
+	// Verify the PK field exists in fields
+	var foundPKField bool
+	for _, f := range model.Fields {
+		if f.Name == "OrderID" {
+			foundPKField = true
+			if !f.IsPrimaryKey {
+				t.Error("OrderID field should have IsPrimaryKey true")
+			}
+		}
+		if f.Name == "ID" {
+			t.Error("Should not have a field named 'ID' when PK is 'order_id'")
+		}
+	}
+	if !foundPKField {
+		t.Error("Expected to find OrderID field")
+	}
+}
+
+func TestBuildModelWithoutPK(t *testing.T) {
+	originalWd, _ := os.Getwd()
+	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "no_pk")
+
+	generator := NewGenerator("postgresql")
+
+	cat, err := generator.BuildCatalogFromMigrations("audit_log", []string{migrationsDir})
+	if err != nil {
+		t.Fatalf("Failed to build catalog from migrations: %v", err)
+	}
+
+	model, err := generator.Build(cat, Config{
+		TableName:         "audit_log",
+		ResourceName:      "AuditLog",
+		PackageName:       "models",
+		DatabaseType:      "postgresql",
+		ModulePath:        "github.com/example/test",
+		GenerateWithoutPK: true,
+	})
+	if err != nil {
+		t.Fatalf("Failed to build model: %v", err)
+	}
+
+	if model.HasPrimaryKey {
+		t.Error("Expected HasPrimaryKey to be false for audit_log table")
+	}
+	if model.IDType != "" {
+		t.Errorf("Expected empty IDType, got %q", model.IDType)
+	}
+}
+
+func TestBuildModelWithPrimaryKeyOverride(t *testing.T) {
+	originalWd, _ := os.Getwd()
+	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "custom_pk")
+
+	generator := NewGenerator("postgresql")
+
+	cat, err := generator.BuildCatalogFromMigrations("orders", []string{migrationsDir})
+	if err != nil {
+		t.Fatalf("Failed to build catalog from migrations: %v", err)
+	}
+
+	// Override with a different column name than the actual PK
+	model, err := generator.Build(cat, Config{
+		TableName:        "orders",
+		ResourceName:     "Order",
+		PackageName:      "models",
+		DatabaseType:     "postgresql",
+		ModulePath:       "github.com/example/test",
+		PrimaryKeyColumn: "order_id",
+	})
+	if err != nil {
+		t.Fatalf("Failed to build model: %v", err)
+	}
+
+	if !model.HasPrimaryKey {
+		t.Error("Expected HasPrimaryKey to be true")
+	}
+	if model.IDFieldName != "order_id" {
+		t.Errorf("Expected IDFieldName 'order_id', got %q", model.IDFieldName)
+	}
+	if model.IDGoFieldName != "OrderID" {
+		t.Errorf("Expected IDGoFieldName 'OrderID', got %q", model.IDGoFieldName)
+	}
+}
