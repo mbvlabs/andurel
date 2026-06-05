@@ -88,7 +88,8 @@ Edit this file to add your seed data using model factories.`,
 
 func newDBMigrationNewCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "new [name]",
+		Use:     "new [name]",
+		Aliases: []string{"n"},
 		Short: "Create a new SQL migration",
 		Long: `Create a new SQL migration file in database/migrations/.
 The name should describe the change, e.g. "create_users_table".`,
@@ -142,7 +143,8 @@ func newDBMigrationFixCommand() *cobra.Command {
 
 func newDBMigrationResetCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "reset",
+		Use:     "reset",
+		Aliases: []string{"rs"},
 		Short: "Roll back all migrations and re-apply them",
 		Long:  "Roll back every migration (down), then re-apply them all (up).",
 		Args:  cobra.NoArgs,
@@ -154,7 +156,8 @@ func newDBMigrationResetCommand() *cobra.Command {
 
 func newDBMigrationUpToCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "up-to [version]",
+		Use:     "up-to [version]",
+		Aliases: []string{"upto"},
 		Short: "Apply migrations up to a specific version",
 		Long:  "Apply migrations only up to (and including) the given version number.",
 		Args:  cobra.ExactArgs(1),
@@ -167,7 +170,8 @@ func newDBMigrationUpToCommand() *cobra.Command {
 
 func newDBMigrationDownToCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "down-to [version]",
+		Use:     "down-to [version]",
+		Aliases: []string{"downto"},
 		Short: "Rollback migrations down to a specific version",
 		Long:  "Roll back migrations down to (but not including) the given version number.",
 		Args:  cobra.ExactArgs(1),
@@ -180,7 +184,8 @@ func newDBMigrationDownToCommand() *cobra.Command {
 
 func newDBMigrationStatusCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "status",
+		Use:     "status",
+		Aliases: []string{"st"},
 		Short: "Show current migration status",
 		Long:  "Display the current migration version and list all migrations with their status.",
 		Args:  cobra.NoArgs,
@@ -194,7 +199,8 @@ func newDBMigrationStatusCommand() *cobra.Command {
 
 func newDBSeedCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "seed",
+		Use:     "seed",
+		Aliases: []string{"s"},
 		Short: "Run database seeds",
 		Long: `Run the database seed file at database/seeds/main.go.
 
@@ -231,7 +237,8 @@ func newDBDropCommand() *cobra.Command {
 
 func newDBCreateCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "create",
+		Use:     "create",
+		Aliases: []string{"crt"},
 		Short: "Create the configured database",
 		Long:  "Create the configured database using the connection details from .env.",
 		Args:  cobra.NoArgs,
@@ -267,7 +274,8 @@ func newDBRebuildCommand() *cobra.Command {
 	var skipSeed bool
 
 	cmd := &cobra.Command{
-		Use:   "rebuild",
+		Use:     "rebuild",
+		Aliases: []string{"rb"},
 		Short: "Drop, recreate, migrate, and seed the database",
 		Long:  "Drop, recreate, migrate, and seed the database using the connection details from .env.",
 		Args:  cobra.NoArgs,

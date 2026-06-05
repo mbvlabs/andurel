@@ -31,7 +31,8 @@ features like Docker or authentication.`,
 
 func newExtensionAddCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "add [extension-name]",
+		Use:     "add [extension-name]",
+		Aliases: []string{"a"},
 		Short: "Add an extension to the project",
 		Long:  "Register an extension and track it in andurel.lock.",
 		Example: "  andurel extension add docker",

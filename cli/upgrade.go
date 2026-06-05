@@ -9,7 +9,8 @@ import (
 
 func newUpgradeCommand(version string) *cobra.Command {
 	upgradeCmd := &cobra.Command{
-		Use:   "upgrade",
+		Use:     "upgrade",
+		Aliases: []string{"up"},
 		Short: "Upgrade framework files to latest version",
 		Long: `Upgrade framework files and tool versions.
 

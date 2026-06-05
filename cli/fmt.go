@@ -19,7 +19,8 @@ func newFmtCommand() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "fmt",
+		Use:     "fmt",
+		Aliases: []string{"f"},
 		Short: "Format Go and Templ source files",
 		Long: `Formats all source files in the project.
 

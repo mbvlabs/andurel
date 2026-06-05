@@ -18,7 +18,8 @@ type emailTemplateData struct {
 
 func newGenerateEmailCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "email NAME",
+		Use:     "email NAME",
+		Aliases: []string{"e"},
 		Short: "Generate a new email template",
 		Long: `Generates a new email template with the given name. Pass the email name
 in CamelCase.

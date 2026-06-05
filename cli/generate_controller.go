@@ -18,7 +18,8 @@ func newGenerateControllerCommand() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "controller NAME [action action ...]",
+		Use:     "controller NAME [action action ...]",
+		Aliases: []string{"c"},
 		Short: "Generate a new controller",
 		Long: `Generates a new controller, views, and routes. Pass the controller name
 in CamelCase and a list of actions as arguments.
