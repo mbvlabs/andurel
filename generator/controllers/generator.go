@@ -197,7 +197,9 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 	case "bool":
 		field.GoFormType = "bool"
 	default:
-		if isNullableType(goType) {
+		if strings.HasPrefix(goType, "sql.Null") || strings.HasPrefix(goType, "bun.Null") {
+			field.GoFormType = "string"
+		} else if isNullableType(goType) {
 			field.GoFormType = goType
 		} else {
 			field.GoFormType = "string"

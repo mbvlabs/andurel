@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -92,7 +93,7 @@ func (sf StudentFeedback) Create(etx *echo.Context) error {
 	data := models.CreateStudentFeedbackData{
 		StudentID: payload.StudentID,
 		Feedback:  payload.Feedback,
-		Rating:    payload.Rating,
+		Rating:    sql.NullInt32{Int32: payload.Rating, Valid: true},
 	}
 
 	studentFeedback, err := models.StudentFeedback.Create(
@@ -156,7 +157,7 @@ func (sf StudentFeedback) Update(etx *echo.Context) error {
 		ID:        studentFeedbackID,
 		StudentID: payload.StudentID,
 		Feedback:  payload.Feedback,
-		Rating:    payload.Rating,
+		Rating:    sql.NullInt32{Int32: payload.Rating, Valid: true},
 	}
 
 	studentFeedback, err := models.StudentFeedback.Update(

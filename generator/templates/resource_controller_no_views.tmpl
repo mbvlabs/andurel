@@ -215,6 +215,28 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 			}
 			return bun.NullTime{Valid: false}
 		}(),
+		{{- else if eq .GoType "sql.NullString"}}
+		{{.Name}}:    sql.NullString{String: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullBool"}}
+		{{.Name}}:    sql.NullBool{Bool: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullInt16"}}
+		{{.Name}}:    sql.NullInt16{Int16: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullInt32"}}
+		{{.Name}}:    sql.NullInt32{Int32: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullInt64"}}
+		{{.Name}}:    sql.NullInt64{Int64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullFloat64"}}
+		{{.Name}}:    sql.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullString"}}
+		{{.Name}}:    bun.NullString{String: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullBool"}}
+		{{.Name}}:    bun.NullBool{Bool: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullInt32"}}
+		{{.Name}}:    bun.NullInt32{Int32: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullInt64"}}
+		{{.Name}}:    bun.NullInt64{Int64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullFloat64"}}
+		{{.Name}}:    bun.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
 			if payload.{{.Name}} == "" {
@@ -407,6 +429,28 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 			}
 			return bun.NullTime{Valid: false}
 		}(),
+		{{- else if eq .GoType "sql.NullString"}}
+		{{.Name}}:    sql.NullString{String: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullBool"}}
+		{{.Name}}:    sql.NullBool{Bool: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullInt16"}}
+		{{.Name}}:    sql.NullInt16{Int16: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullInt32"}}
+		{{.Name}}:    sql.NullInt32{Int32: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullInt64"}}
+		{{.Name}}:    sql.NullInt64{Int64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullFloat64"}}
+		{{.Name}}:    sql.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullString"}}
+		{{.Name}}:    bun.NullString{String: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullBool"}}
+		{{.Name}}:    bun.NullBool{Bool: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullInt32"}}
+		{{.Name}}:    bun.NullInt32{Int32: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullInt64"}}
+		{{.Name}}:    bun.NullInt64{Int64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullFloat64"}}
+		{{.Name}}:    bun.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
 			if payload.{{.Name}} == "" {
