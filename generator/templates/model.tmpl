@@ -19,11 +19,12 @@ type {{.EntityName}} struct {
 {{- end}}
 }
 
+{{if .HasPrimaryKey}}
 func ({{.ReceiverName}} {{.NamespaceType}}) Find(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) ({{.EntityName}}, error) {
 	var entity {{.EntityName}}
 	if err := db.NewSelect().
 		Model(&entity).
-		Where("id = ?", id).
+		Where("{{.IDFieldName}} = ?", id).
 		Scan(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}
@@ -33,13 +34,13 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Find(ctx context.Context, db storage
 
 type Create{{.Name}}Data struct {
 {{- range .Fields}}
-{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 	{{.Name}} {{.Type}}
 {{- end}}
 {{- end}}
 {{- if not .IsAutoIncrementID}}
 {{- if and .IDType (ne .IDType "uuid.UUID")}}
-	ID {{.IDType}}
+	{{.IDGoFieldName}} {{.IDType}}
 {{- end}}
 {{- end}}
 }
@@ -52,9 +53,9 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db stora
 	entity := {{.EntityName}}{
 {{- if not .IsAutoIncrementID}}
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
-		ID: uuid.New(),
+		{{.IDGoFieldName}}: uuid.New(),
 {{- else}}
-		ID: data.ID,
+		{{.IDGoFieldName}}: data.{{.IDGoFieldName}},
 {{- end}}
 {{- end}}
 {{- if .HasCreatedAt}}
@@ -64,7 +65,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db stora
 		UpdatedAt: time.Now(),
 {{- end}}
 {{- range .Fields}}
-{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		{{.Name}}: data.{{.Name}},
 {{- end}}
 {{- end}}
@@ -78,9 +79,9 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db stora
 }
 
 type Update{{.Name}}Data struct {
-	ID {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}
+	{{.IDGoFieldName}} {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}
 {{- range .Fields}}
-{{- if and (ne .Name "ID") (ne .Name "CreatedAt")}}
+{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt")}}
 	{{.Name}} {{.Type}}
 {{- end}}
 {{- end}}
@@ -92,12 +93,12 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db stora
 	}
 
 	entity := {{.EntityName}}{
-		ID: data.ID,
+		{{.IDGoFieldName}}: data.{{.IDGoFieldName}},
 {{- if .HasUpdatedAt}}
 		UpdatedAt: time.Now(),
 {{- end}}
 {{- range .Fields}}
-{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		{{.Name}}: data.{{.Name}},
 {{- end}}
 {{- end}}
@@ -106,7 +107,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db stora
 	if err := db.NewUpdate().
 		Model(&entity).
 {{- range .Fields}}
-{{- if and (ne .Name "ID") (ne .Name "CreatedAt")}}
+{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt")}}
 		Column("{{columnName .BunTag}}").
 {{- end}}
 {{- end}}
@@ -122,11 +123,12 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db stora
 func ({{.ReceiverName}} {{.NamespaceType}}) Destroy(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) error {
 	_, err := db.NewDelete().
 		Model((*{{.EntityName}})(nil)).
-		Where("id = ?", id).
+		Where("{{.IDFieldName}} = ?", id).
 		Exec(ctx)
 
 	return err
 }
+{{end}}
 
 func ({{.ReceiverName}} {{.NamespaceType}}) All(ctx context.Context, db storage.Executor) ([]{{.EntityName}}, error) {
 	var entities []{{.EntityName}}
@@ -187,6 +189,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db sto
 	}, nil
 }
 
+{{if .HasPrimaryKey}}
 func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db storage.Executor, data Create{{.Name}}Data) ({{.EntityName}}, error) {
 	if err := Validate.Struct(data); err != nil {
 		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
@@ -195,9 +198,9 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db stora
 	entity := {{.EntityName}}{
 {{- if not .IsAutoIncrementID}}
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
-		ID: uuid.New(),
+		{{.IDGoFieldName}}: uuid.New(),
 {{- else}}
-		ID: data.ID,
+		{{.IDGoFieldName}}: data.{{.IDGoFieldName}},
 {{- end}}
 {{- end}}
 {{- if .HasCreatedAt}}
@@ -207,7 +210,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db stora
 		UpdatedAt: time.Now(),
 {{- end}}
 {{- range .Fields}}
-{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		{{.Name}}: data.{{.Name}},
 {{- end}}
 {{- end}}
@@ -215,9 +218,9 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db stora
 
 	if err := db.NewInsert().
 		Model(&entity).
-		On("CONFLICT (id) DO UPDATE").
+		On("CONFLICT ({{.IDFieldName}}) DO UPDATE").
 {{- range .Fields}}
-{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		Set("{{columnName .BunTag}} = excluded.{{columnName .BunTag}}").
 {{- end}}
 {{- end}}
@@ -228,3 +231,4 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db stora
 
 	return entity, nil
 }
+{{end}}

@@ -47,6 +47,9 @@ type GeneratedModel struct {
 	IDType              string // "uuid.UUID", "int32", "int64", "string"
 	IDGoType            string // Same as IDType (for template clarity)
 	IsAutoIncrementID   bool   // True for serial/bigserial
+	IDFieldName         string // SQL column name of PK (e.g., "id", "user_id")
+	IDGoFieldName       string // Go struct field name of PK (e.g., "ID", "UserID")
+	HasPrimaryKey       bool   // Whether the table has any primary key
 	EntityName          string // ServerEntity (resource name + "Entity")
 	NamespaceVar        string // Server (exported, package-scope)
 	NamespaceType       string // server (unexported receiver type)
@@ -56,13 +59,15 @@ type GeneratedModel struct {
 }
 
 type Config struct {
-	TableName    string
-	ResourceName string
-	PackageName  string
-	DatabaseType string
-	ModulePath   string
-	NullType     string
-	CustomTypes  []types.TypeOverride
+	TableName         string
+	ResourceName      string
+	PackageName       string
+	DatabaseType      string
+	ModulePath        string
+	NullType          string
+	CustomTypes       []types.TypeOverride
+	PrimaryKeyColumn  string // Override PK column name (empty = auto-detect)
+	GenerateWithoutPK bool   // Force generation without PK handling
 }
 
 // BunModelConfig holds configuration for bun model generation
@@ -137,6 +142,9 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		StandardImports:  make([]string, 0),
 		ExternalImports:  make([]string, 0),
 		Imports:          make([]string, 0),
+		IDFieldName:      config.PrimaryKeyColumn,
+		IDGoFieldName:    "",
+		HasPrimaryKey:    false,
 	}
 
 	importSet := make(map[string]bool)
@@ -171,12 +179,40 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		if col.Name == "updated_at" {
 			model.HasUpdatedAt = true
 		}
+	}
 
-		if col.Name == "id" && col.IsPrimaryKey {
-			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
-			model.IDType = validation.GoType(pkType)
-			model.IDGoType = model.IDType
-			model.IsAutoIncrementID = validation.IsAutoIncrement(col.DataType)
+	// Three-pass PK detection:
+	// 1. Use config override if provided
+	// 2. Look for column named "id" that is primary key
+	// 3. Fall back to any column with IsPrimaryKey flag
+	if config.PrimaryKeyColumn != "" {
+		col := findColumn(table, config.PrimaryKeyColumn)
+		if col != nil {
+			setModelPK(model, col)
+			model.IDFieldName = col.Name
+			model.IDGoFieldName = types.FormatFieldName(col.Name)
+			model.HasPrimaryKey = true
+		}
+	} else if !config.GenerateWithoutPK {
+		for _, col := range table.Columns {
+			if col.Name == "id" && col.IsPrimaryKey {
+				setModelPK(model, col)
+				model.IDFieldName = col.Name
+				model.IDGoFieldName = types.FormatFieldName(col.Name)
+				model.HasPrimaryKey = true
+				break
+			}
+		}
+		if !model.HasPrimaryKey {
+			for _, col := range table.Columns {
+				if col.IsPrimaryKey {
+					setModelPK(model, col)
+					model.IDFieldName = col.Name
+					model.IDGoFieldName = types.FormatFieldName(col.Name)
+					model.HasPrimaryKey = true
+					break
+				}
+			}
 		}
 	}
 
@@ -205,6 +241,22 @@ func groupAndSortImports(importSet map[string]bool) (stdImports []string, extImp
 	sort.Strings(stdImports)
 	sort.Strings(extImports)
 	return stdImports, extImports
+}
+
+func setModelPK(model *GeneratedModel, col *catalog.Column) {
+	pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
+	model.IDType = validation.GoType(pkType)
+	model.IDGoType = model.IDType
+	model.IsAutoIncrementID = validation.IsAutoIncrement(col.DataType)
+}
+
+func findColumn(table *catalog.Table, name string) *catalog.Column {
+	for _, col := range table.Columns {
+		if col.Name == name {
+			return col
+		}
+	}
+	return nil
 }
 
 func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
@@ -277,6 +329,8 @@ func (g *Generator) GenerateModel(
 	modulePath string,
 	tableNameOverride string,
 	nullType string,
+	primaryKeyColumn string,
+	generateWithoutPK bool,
 ) error {
 	tableName := pluralName
 	if tableNameOverride != "" {
@@ -284,12 +338,14 @@ func (g *Generator) GenerateModel(
 	}
 
 	model, err := g.Build(cat, Config{
-		TableName:    tableName,
-		ResourceName: resourceName,
-		PackageName:  "models",
-		DatabaseType: g.typeMapper.GetDatabaseType(),
-		ModulePath:   modulePath,
-		NullType:     nullType,
+		TableName:         tableName,
+		ResourceName:      resourceName,
+		PackageName:       "models",
+		DatabaseType:      g.typeMapper.GetDatabaseType(),
+		ModulePath:        modulePath,
+		NullType:          nullType,
+		PrimaryKeyColumn:  primaryKeyColumn,
+		GenerateWithoutPK: generateWithoutPK,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build model: %w", err)

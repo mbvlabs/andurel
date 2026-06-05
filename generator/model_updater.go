@@ -398,15 +398,19 @@ func renderEntityStruct(entityName, tableName string, fields []models.GeneratedF
 // renderCreateDataStruct generates the "type CreateXData struct { ... }" text.
 func renderCreateDataStruct(resourceName string, model *models.GeneratedModel) string {
 	var sb strings.Builder
+	idGoField := model.IDGoFieldName
+	if idGoField == "" {
+		idGoField = "ID"
+	}
 	fmt.Fprintf(&sb, "type Create%sData struct {\n", resourceName)
 	for _, f := range model.Fields {
-		if f.Name == "ID" || f.Name == "CreatedAt" || f.Name == "UpdatedAt" {
+		if f.Name == idGoField || f.Name == "CreatedAt" || f.Name == "UpdatedAt" {
 			continue
 		}
 		fmt.Fprintf(&sb, "\t%s %s\n", f.Name, f.Type)
 	}
 	if !model.IsAutoIncrementID && model.IDType != "" && model.IDType != "uuid.UUID" {
-		fmt.Fprintf(&sb, "\tID %s\n", model.IDType)
+		fmt.Fprintf(&sb, "\t%s %s\n", idGoField, model.IDType)
 	}
 	sb.WriteString("}")
 	return sb.String()
@@ -415,14 +419,18 @@ func renderCreateDataStruct(resourceName string, model *models.GeneratedModel) s
 // renderUpdateDataStruct generates the "type UpdateXData struct { ... }" text.
 func renderUpdateDataStruct(resourceName string, model *models.GeneratedModel) string {
 	var sb strings.Builder
+	idGoField := model.IDGoFieldName
+	if idGoField == "" {
+		idGoField = "ID"
+	}
 	idType := model.IDType
 	if idType == "" {
 		idType = "uuid.UUID"
 	}
 	fmt.Fprintf(&sb, "type Update%sData struct {\n", resourceName)
-	fmt.Fprintf(&sb, "\tID %s\n", idType)
+	fmt.Fprintf(&sb, "\t%s %s\n", idGoField, idType)
 	for _, f := range model.Fields {
-		if f.Name == "ID" || f.Name == "CreatedAt" {
+		if f.Name == idGoField || f.Name == "CreatedAt" {
 			continue
 		}
 		fmt.Fprintf(&sb, "\t%s %s\n", f.Name, f.Type)

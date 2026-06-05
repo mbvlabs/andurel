@@ -272,7 +272,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		return render(etx, views.InternalError())
 	}
 
-	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
@@ -356,7 +356,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	}
 
 	data := models.Update{{.ResourceName}}Data{
-		ID:      {{.ResourceName | ToLowerCamelCase}}ID,
+		{{.IDGoFieldName}}:      {{.ResourceName | ToLowerCamelCase}}ID,
 {{- range .Fields}}
 {{- if not .IsSystemField}}
 		{{- if eq .GoType "*uuid.UUID"}}
@@ -489,7 +489,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		return render(etx, views.InternalError())
 	}
 
-	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) error {

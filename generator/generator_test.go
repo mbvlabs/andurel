@@ -99,7 +99,7 @@ func TestGenerator_DelegationToCoordinator(t *testing.T) {
 	// Both should return the same validation error
 	t.Run("GenerateModel delegation", func(t *testing.T) {
 		genErr := gen.GenerateModel("", "", false)
-		coordErr := gen.coordinator.ModelManager.GenerateModel("", "", false)
+		coordErr := gen.coordinator.ModelManager.GenerateModel("", "", false, "")
 
 		if genErr == nil || coordErr == nil {
 			t.Skip("Expected validation errors for empty resource name")
