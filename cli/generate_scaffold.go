@@ -13,7 +13,8 @@ func newGenerateScaffoldCommand() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "scaffold NAME",
+		Use:     "scaffold NAME",
+		Aliases: []string{"s"},
 		Short: "Generate a complete scaffold resource",
 		Long: `Scaffolds an entire resource, from model to controller and views, along
 with routes. The resource is ready to use as a starting point for your

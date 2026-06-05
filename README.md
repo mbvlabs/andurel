@@ -140,7 +140,7 @@ This single command creates everything you need for a full CRUD interface.
 Scaffolds a complete Andurel project with the given name.
 
 ```bash
-andurel new [project-name] [flags]
+andurel new (alias: n) [project-name] [flags]
 ```
 
 | Flag | Description |
@@ -153,10 +153,12 @@ andurel new [project-name] [flags]
 Generate models, controllers, and scaffolds from your existing database migrations.
 
 ```bash
-andurel generate model NAME [flags]
-andurel generate views
-andurel generate controller NAME [action ...] [flags]
-andurel generate scaffold NAME [flags]
+andurel generate (alias: g) model NAME [flags]
+andurel generate view (alias: v)
+andurel generate controller (alias: c) NAME [action ...] [flags]
+andurel generate scaffold (alias: s) NAME [flags]
+andurel generate job (alias: j) NAME [flags]
+andurel generate email (alias: e) NAME
 ```
 
 **`generate model`** — Creates a model from a database migration, or updates an existing one. Fields, types, and timestamps are read from the migration automatically.
@@ -174,7 +176,7 @@ andurel generate scaffold NAME [flags]
 |------|-------------|
 | `--skip-routes` | Generate the controller and views without route files |
 
-**`generate views`** — Generates Go code from `.templ` template files (runs `templ generate`).
+**`generate view`** — Generates Go code from `.templ` template files (runs `templ generate`).
 
 **`generate scaffold`** — Convenience command that runs `generate model` + `generate controller` with full CRUD actions (index, show, new, create, edit, update, destroy).
 
@@ -188,7 +190,7 @@ andurel generate scaffold NAME [flags]
 Formats Go and Templ source files in the project.
 
 ```bash
-andurel fmt [flags]
+andurel fmt (alias: f) [flags]
 ```
 
 | Flag | Description |
@@ -217,14 +219,14 @@ andurel database migrate (aliases: m, mig)
 
 | Subcommand | Description |
 |------------|-------------|
-| `new [name]` | Create a new SQL migration file |
+| `new [name]` (alias: `n`) | Create a new SQL migration file |
 | `up` | Apply all pending migrations |
 | `down` | Roll back the most recently applied migration |
-| `status` | Show current migration version and status |
+| `status` (alias: `st`) | Show current migration version and status |
 | `fix` | Re-number migrations to close gaps |
-| `reset` | Roll back all migrations, then re-apply them |
-| `up-to [version]` | Apply migrations up to a specific version |
-| `down-to [version]` | Roll back migrations down to a specific version |
+| `reset` (alias: `rs`) | Roll back all migrations, then re-apply them |
+| `up-to [version]` (alias: `upto`) | Apply migrations up to a specific version |
+| `down-to [version]` (alias: `downto`) | Roll back migrations down to a specific version |
 
 ### `andurel run` — Development server
 
@@ -256,10 +258,10 @@ andurel tool mailpit (alias: m)
 
 | Subcommand | Description |
 |------------|-------------|
-| `sync` | Download and validate binaries specified in `andurel.lock` |
-| `set-version` | Set a specific tool version (e.g. `templ 0.3.977`) |
-| `dblab` | Open the dblab database UI in the browser |
-| `mailpit` | Run the Mailpit email testing server (SMTP :1025, HTTP :8025) |
+| `sync` (alias: `s`) | Download and validate binaries specified in `andurel.lock` |
+| `set-version` (alias: `sv`) | Set a specific tool version (e.g. `templ 0.3.977`) |
+| `dblab` (alias: `d`) | Open the dblab database UI in the browser |
+| `mailpit` (alias: `m`) | Run the Mailpit email testing server (SMTP :1025, HTTP :8025) |
 
 ### `andurel extension` — Project extensions
 
@@ -267,7 +269,7 @@ Add and list optional framework features.
 
 ```bash
 andurel extension (aliases: ext, e)
-andurel extension add [extension-name]
+andurel extension add (alias: a) [extension-name]
 andurel extension list (alias: ls)
 ```
 
@@ -278,14 +280,14 @@ Available extensions: `docker`, `aws-ses`.
 Outputs comprehensive framework documentation for AI assistants. Supports topic-specific subcommands:
 
 ```bash
-andurel llm
-andurel llm controllers
-andurel llm models
-andurel llm views
-andurel llm router
-andurel llm hypermedia
-andurel llm jobs
-andurel llm config
+andurel llm (alias: l)
+andurel llm controllers (alias: c)
+andurel llm models (alias: m)
+andurel llm views (alias: v)
+andurel llm router (alias: r)
+andurel llm hypermedia (alias: h)
+andurel llm jobs (alias: j)
+andurel llm config (alias: cfg)
 ```
 
 ### `andurel upgrade` — Framework upgrade
@@ -293,7 +295,7 @@ andurel llm config
 Upgrade framework-managed files and tool versions to the latest.
 
 ```bash
-andurel upgrade [--dry-run]
+andurel upgrade (alias: up) [--dry-run]
 ```
 
 > Commit or create a branch before upgrading — this command modifies files in place.
@@ -303,8 +305,54 @@ andurel upgrade [--dry-run]
 Run comprehensive diagnostic checks (Go version, config, code quality, code generation).
 
 ```bash
-andurel doctor [--verbose]
+andurel doctor (alias: doc) [--verbose]
 ```
+
+---
+
+### Alias Reference
+
+| Full Command | Alias(es) |
+|---|---|
+| `andurel new` | `n` |
+| `andurel generate` | `g` |
+| `andurel generate model` | `m` |
+| `andurel generate view` | `v` |
+| `andurel generate controller` | `c` |
+| `andurel generate scaffold` | `s` |
+| `andurel generate job` | `j` |
+| `andurel generate email` | `e` |
+| `andurel fmt` | `f` |
+| `andurel database` | `d`, `db` |
+| `andurel database create` | `crt` |
+| `andurel database seed` | `s` |
+| `andurel database rebuild` | `rb` |
+| `andurel database migrate` | `m`, `mig` |
+| `andurel database migrate new` | `n` |
+| `andurel database migrate status` | `st` |
+| `andurel database migrate reset` | `rs` |
+| `andurel database migrate up-to` | `upto` |
+| `andurel database migrate down-to` | `downto` |
+| `andurel run` | `r` |
+| `andurel console` | `c` |
+| `andurel llm` | `l` |
+| `andurel llm controllers` | `c` |
+| `andurel llm models` | `m` |
+| `andurel llm views` | `v` |
+| `andurel llm router` | `r` |
+| `andurel llm hypermedia` | `h` |
+| `andurel llm jobs` | `j` |
+| `andurel llm config` | `cfg` |
+| `andurel tool` | `t` |
+| `andurel tool sync` | `s` |
+| `andurel tool set-version` | `sv` |
+| `andurel tool dblab` | `d` |
+| `andurel tool mailpit` | `m` |
+| `andurel extension` | `ext`, `e` |
+| `andurel extension add` | `a` |
+| `andurel extension list` | `ls` |
+| `andurel upgrade` | `up` |
+| `andurel doctor` | `doc` |
 
 ## Project Structure
 

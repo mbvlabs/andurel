@@ -17,7 +17,8 @@ func newGenerateModelCommand() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "model NAME",
+		Use:     "model NAME",
+		Aliases: []string{"m"},
 		Short: "Generate a new model or update an existing one",
 		Long: `Generates a new model or updates an existing one. Pass the model name in CamelCase.
 
