@@ -204,8 +204,8 @@ func TestBuildField_NullableInt32(t *testing.T) {
 		isPointer bool
 	}{
 		{"pointer", "pointer", "*int32", "int32", true},
-		{"sql.Null", "sql.Null", "sql.NullInt32", "string", true},
-		{"bun.Null", "bun.Null", "bun.NullInt32", "string", true},
+		{"sql.Null", "sql.Null", "sql.NullInt32", "int32", true},
+		{"bun.Null", "bun.Null", "bun.NullInt32", "int32", true},
 	}
 
 	for _, s := range strategies {
@@ -246,8 +246,8 @@ func TestBuildField_NullableBool(t *testing.T) {
 		isPointer bool
 	}{
 		{"pointer", "pointer", "*bool", "bool", true},
-		{"sql.Null", "sql.Null", "sql.NullBool", "string", true},
-		{"bun.Null", "bun.Null", "bun.NullBool", "string", true},
+		{"sql.Null", "sql.Null", "sql.NullBool", "bool", true},
+		{"bun.Null", "bun.Null", "bun.NullBool", "bool", true},
 	}
 
 	for _, s := range strategies {
@@ -288,8 +288,8 @@ func TestBuildField_NullableFloat64(t *testing.T) {
 		isPointer bool
 	}{
 		{"pointer", "pointer", "*float64", "float64", true},
-		{"sql.Null", "sql.Null", "sql.NullFloat64", "string", true},
-		{"bun.Null", "bun.Null", "bun.NullFloat64", "string", true},
+		{"sql.Null", "sql.Null", "sql.NullFloat64", "float64", true},
+		{"bun.Null", "bun.Null", "bun.NullFloat64", "float64", true},
 	}
 
 	for _, s := range strategies {

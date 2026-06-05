@@ -216,109 +216,27 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 			return bun.NullTime{Valid: false}
 		}(),
 		{{- else if eq .GoType "sql.NullString"}}
-		{{.Name}}:    func() sql.NullString {
-			if payload.{{.Name}} == "" {
-				return sql.NullString{Valid: false}
-			}
-			return sql.NullString{String: payload.{{.Name}}, Valid: true}
-		}(),
+		{{.Name}}:    sql.NullString{String: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullBool"}}
-		{{.Name}}:    func() sql.NullBool {
-			if payload.{{.Name}} == "" {
-				return sql.NullBool{Valid: false}
-			}
-			if parsed, err := strconv.ParseBool(payload.{{.Name}}); err == nil {
-				return sql.NullBool{Bool: parsed, Valid: true}
-			}
-			return sql.NullBool{Valid: false}
-		}(),
+		{{.Name}}:    sql.NullBool{Bool: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullInt16"}}
-		{{.Name}}:    func() sql.NullInt16 {
-			if payload.{{.Name}} == "" {
-				return sql.NullInt16{Valid: false}
-			}
-			if parsed, err := strconv.ParseInt(payload.{{.Name}}, 10, 16); err == nil {
-				return sql.NullInt16{Int16: int16(parsed), Valid: true}
-			}
-			return sql.NullInt16{Valid: false}
-		}(),
+		{{.Name}}:    sql.NullInt16{Int16: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullInt32"}}
-		{{.Name}}:    func() sql.NullInt32 {
-			if payload.{{.Name}} == "" {
-				return sql.NullInt32{Valid: false}
-			}
-			if parsed, err := strconv.ParseInt(payload.{{.Name}}, 10, 32); err == nil {
-				return sql.NullInt32{Int32: int32(parsed), Valid: true}
-			}
-			return sql.NullInt32{Valid: false}
-		}(),
+		{{.Name}}:    sql.NullInt32{Int32: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullInt64"}}
-		{{.Name}}:    func() sql.NullInt64 {
-			if payload.{{.Name}} == "" {
-				return sql.NullInt64{Valid: false}
-			}
-			if parsed, err := strconv.ParseInt(payload.{{.Name}}, 10, 64); err == nil {
-				return sql.NullInt64{Int64: parsed, Valid: true}
-			}
-			return sql.NullInt64{Valid: false}
-		}(),
+		{{.Name}}:    sql.NullInt64{Int64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullFloat64"}}
-		{{.Name}}:    func() sql.NullFloat64 {
-			if payload.{{.Name}} == "" {
-				return sql.NullFloat64{Valid: false}
-			}
-			if parsed, err := strconv.ParseFloat(payload.{{.Name}}, 64); err == nil {
-				return sql.NullFloat64{Float64: parsed, Valid: true}
-			}
-			return sql.NullFloat64{Valid: false}
-		}(),
+		{{.Name}}:    sql.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "bun.NullString"}}
-		{{.Name}}:    func() bun.NullString {
-			if payload.{{.Name}} == "" {
-				return bun.NullString{Valid: false}
-			}
-			return bun.NullString{String: payload.{{.Name}}, Valid: true}
-		}(),
+		{{.Name}}:    bun.NullString{String: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "bun.NullBool"}}
-		{{.Name}}:    func() bun.NullBool {
-			if payload.{{.Name}} == "" {
-				return bun.NullBool{Valid: false}
-			}
-			if parsed, err := strconv.ParseBool(payload.{{.Name}}); err == nil {
-				return bun.NullBool{Bool: parsed, Valid: true}
-			}
-			return bun.NullBool{Valid: false}
-		}(),
+		{{.Name}}:    bun.NullBool{Bool: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "bun.NullInt32"}}
-		{{.Name}}:    func() bun.NullInt32 {
-			if payload.{{.Name}} == "" {
-				return bun.NullInt32{Valid: false}
-			}
-			if parsed, err := strconv.ParseInt(payload.{{.Name}}, 10, 32); err == nil {
-				return bun.NullInt32{Int32: int32(parsed), Valid: true}
-			}
-			return bun.NullInt32{Valid: false}
-		}(),
+		{{.Name}}:    bun.NullInt32{Int32: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "bun.NullInt64"}}
-		{{.Name}}:    func() bun.NullInt64 {
-			if payload.{{.Name}} == "" {
-				return bun.NullInt64{Valid: false}
-			}
-			if parsed, err := strconv.ParseInt(payload.{{.Name}}, 10, 64); err == nil {
-				return bun.NullInt64{Int64: parsed, Valid: true}
-			}
-			return bun.NullInt64{Valid: false}
-		}(),
+		{{.Name}}:    bun.NullInt64{Int64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "bun.NullFloat64"}}
-		{{.Name}}:    func() bun.NullFloat64 {
-			if payload.{{.Name}} == "" {
-				return bun.NullFloat64{Valid: false}
-			}
-			if parsed, err := strconv.ParseFloat(payload.{{.Name}}, 64); err == nil {
-				return bun.NullFloat64{Float64: parsed, Valid: true}
-			}
-			return bun.NullFloat64{Valid: false}
-		}(),
+		{{.Name}}:    bun.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
 			if payload.{{.Name}} == "" {
@@ -512,109 +430,27 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 			return bun.NullTime{Valid: false}
 		}(),
 		{{- else if eq .GoType "sql.NullString"}}
-		{{.Name}}:    func() sql.NullString {
-			if payload.{{.Name}} == "" {
-				return sql.NullString{Valid: false}
-			}
-			return sql.NullString{String: payload.{{.Name}}, Valid: true}
-		}(),
+		{{.Name}}:    sql.NullString{String: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullBool"}}
-		{{.Name}}:    func() sql.NullBool {
-			if payload.{{.Name}} == "" {
-				return sql.NullBool{Valid: false}
-			}
-			if parsed, err := strconv.ParseBool(payload.{{.Name}}); err == nil {
-				return sql.NullBool{Bool: parsed, Valid: true}
-			}
-			return sql.NullBool{Valid: false}
-		}(),
+		{{.Name}}:    sql.NullBool{Bool: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullInt16"}}
-		{{.Name}}:    func() sql.NullInt16 {
-			if payload.{{.Name}} == "" {
-				return sql.NullInt16{Valid: false}
-			}
-			if parsed, err := strconv.ParseInt(payload.{{.Name}}, 10, 16); err == nil {
-				return sql.NullInt16{Int16: int16(parsed), Valid: true}
-			}
-			return sql.NullInt16{Valid: false}
-		}(),
+		{{.Name}}:    sql.NullInt16{Int16: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullInt32"}}
-		{{.Name}}:    func() sql.NullInt32 {
-			if payload.{{.Name}} == "" {
-				return sql.NullInt32{Valid: false}
-			}
-			if parsed, err := strconv.ParseInt(payload.{{.Name}}, 10, 32); err == nil {
-				return sql.NullInt32{Int32: int32(parsed), Valid: true}
-			}
-			return sql.NullInt32{Valid: false}
-		}(),
+		{{.Name}}:    sql.NullInt32{Int32: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullInt64"}}
-		{{.Name}}:    func() sql.NullInt64 {
-			if payload.{{.Name}} == "" {
-				return sql.NullInt64{Valid: false}
-			}
-			if parsed, err := strconv.ParseInt(payload.{{.Name}}, 10, 64); err == nil {
-				return sql.NullInt64{Int64: parsed, Valid: true}
-			}
-			return sql.NullInt64{Valid: false}
-		}(),
+		{{.Name}}:    sql.NullInt64{Int64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullFloat64"}}
-		{{.Name}}:    func() sql.NullFloat64 {
-			if payload.{{.Name}} == "" {
-				return sql.NullFloat64{Valid: false}
-			}
-			if parsed, err := strconv.ParseFloat(payload.{{.Name}}, 64); err == nil {
-				return sql.NullFloat64{Float64: parsed, Valid: true}
-			}
-			return sql.NullFloat64{Valid: false}
-		}(),
+		{{.Name}}:    sql.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "bun.NullString"}}
-		{{.Name}}:    func() bun.NullString {
-			if payload.{{.Name}} == "" {
-				return bun.NullString{Valid: false}
-			}
-			return bun.NullString{String: payload.{{.Name}}, Valid: true}
-		}(),
+		{{.Name}}:    bun.NullString{String: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "bun.NullBool"}}
-		{{.Name}}:    func() bun.NullBool {
-			if payload.{{.Name}} == "" {
-				return bun.NullBool{Valid: false}
-			}
-			if parsed, err := strconv.ParseBool(payload.{{.Name}}); err == nil {
-				return bun.NullBool{Bool: parsed, Valid: true}
-			}
-			return bun.NullBool{Valid: false}
-		}(),
+		{{.Name}}:    bun.NullBool{Bool: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "bun.NullInt32"}}
-		{{.Name}}:    func() bun.NullInt32 {
-			if payload.{{.Name}} == "" {
-				return bun.NullInt32{Valid: false}
-			}
-			if parsed, err := strconv.ParseInt(payload.{{.Name}}, 10, 32); err == nil {
-				return bun.NullInt32{Int32: int32(parsed), Valid: true}
-			}
-			return bun.NullInt32{Valid: false}
-		}(),
+		{{.Name}}:    bun.NullInt32{Int32: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "bun.NullInt64"}}
-		{{.Name}}:    func() bun.NullInt64 {
-			if payload.{{.Name}} == "" {
-				return bun.NullInt64{Valid: false}
-			}
-			if parsed, err := strconv.ParseInt(payload.{{.Name}}, 10, 64); err == nil {
-				return bun.NullInt64{Int64: parsed, Valid: true}
-			}
-			return bun.NullInt64{Valid: false}
-		}(),
+		{{.Name}}:    bun.NullInt64{Int64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "bun.NullFloat64"}}
-		{{.Name}}:    func() bun.NullFloat64 {
-			if payload.{{.Name}} == "" {
-				return bun.NullFloat64{Valid: false}
-			}
-			if parsed, err := strconv.ParseFloat(payload.{{.Name}}, 64); err == nil {
-				return bun.NullFloat64{Float64: parsed, Valid: true}
-			}
-			return bun.NullFloat64{Valid: false}
-		}(),
+		{{.Name}}:    bun.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
 			if payload.{{.Name}} == "" {

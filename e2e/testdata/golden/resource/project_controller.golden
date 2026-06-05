@@ -90,13 +90,8 @@ func (p Projects) Create(etx *echo.Context) error {
 	}
 
 	data := models.CreateProjectData{
-		Name: payload.Name,
-		Description: func() sql.NullString {
-			if payload.Description == "" {
-				return sql.NullString{Valid: false}
-			}
-			return sql.NullString{String: payload.Description, Valid: true}
-		}(),
+		Name:        payload.Name,
+		Description: sql.NullString{String: payload.Description, Valid: true},
 	}
 
 	project, err := models.Project.Create(
@@ -156,14 +151,9 @@ func (p Projects) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateProjectData{
-		ID:   projectID,
-		Name: payload.Name,
-		Description: func() sql.NullString {
-			if payload.Description == "" {
-				return sql.NullString{Valid: false}
-			}
-			return sql.NullString{String: payload.Description, Valid: true}
-		}(),
+		ID:          projectID,
+		Name:        payload.Name,
+		Description: sql.NullString{String: payload.Description, Valid: true},
 	}
 
 	project, err := models.Project.Update(
