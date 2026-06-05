@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -74,7 +75,7 @@ func (i Items) New(etx *echo.Context) error {
 type CreateItemFormPayload struct {
 	WarehouseID string `json:"warehouseId"`
 	Name        string `json:"name"`
-	Quantity    int32  `json:"quantity"`
+	Quantity    string `json:"quantity"`
 }
 
 func (i Items) Create(etx *echo.Context) error {
@@ -108,8 +109,16 @@ func (i Items) Create(etx *echo.Context) error {
 
 			return parsed
 		}(),
-		Name:     payload.Name,
-		Quantity: payload.Quantity,
+		Name: payload.Name,
+		Quantity: func() sql.NullInt32 {
+			if payload.Quantity == "" {
+				return sql.NullInt32{Valid: false}
+			}
+			if parsed, err := strconv.ParseInt(payload.Quantity, 10, 32); err == nil {
+				return sql.NullInt32{Int32: int32(parsed), Valid: true}
+			}
+			return sql.NullInt32{Valid: false}
+		}(),
 	}
 
 	item, err := models.CreateItem(
@@ -148,7 +157,7 @@ func (i Items) Edit(etx *echo.Context) error {
 type UpdateItemFormPayload struct {
 	WarehouseID string `json:"warehouseId"`
 	Name        string `json:"name"`
-	Quantity    int32  `json:"quantity"`
+	Quantity    string `json:"quantity"`
 }
 
 func (i Items) Update(etx *echo.Context) error {
@@ -188,8 +197,16 @@ func (i Items) Update(etx *echo.Context) error {
 
 			return parsed
 		}(),
-		Name:     payload.Name,
-		Quantity: payload.Quantity,
+		Name: payload.Name,
+		Quantity: func() sql.NullInt32 {
+			if payload.Quantity == "" {
+				return sql.NullInt32{Valid: false}
+			}
+			if parsed, err := strconv.ParseInt(payload.Quantity, 10, 32); err == nil {
+				return sql.NullInt32{Int32: int32(parsed), Valid: true}
+			}
+			return sql.NullInt32{Valid: false}
+		}(),
 	}
 
 	item, err := models.UpdateItem(

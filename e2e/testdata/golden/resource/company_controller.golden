@@ -72,8 +72,8 @@ func (c Companies) New(etx *echo.Context) error {
 }
 
 type CreateCompanyFormPayload struct {
-	Name     string         `json:"name"`
-	Industry sql.NullString `json:"industry"`
+	Name     string `json:"name"`
+	Industry string `json:"industry"`
 }
 
 func (c Companies) Create(etx *echo.Context) error {
@@ -90,8 +90,13 @@ func (c Companies) Create(etx *echo.Context) error {
 	}
 
 	data := models.CreateCompanyData{
-		Name:     payload.Name,
-		Industry: payload.Industry,
+		Name: payload.Name,
+		Industry: func() sql.NullString {
+			if payload.Industry == "" {
+				return sql.NullString{Valid: false}
+			}
+			return sql.NullString{String: payload.Industry, Valid: true}
+		}(),
 	}
 
 	company, err := models.Company.Create(
@@ -128,8 +133,8 @@ func (c Companies) Edit(etx *echo.Context) error {
 }
 
 type UpdateCompanyFormPayload struct {
-	Name     string         `json:"name"`
-	Industry sql.NullString `json:"industry"`
+	Name     string `json:"name"`
+	Industry string `json:"industry"`
 }
 
 func (c Companies) Update(etx *echo.Context) error {
@@ -151,9 +156,14 @@ func (c Companies) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateCompanyData{
-		ID:       companyID,
-		Name:     payload.Name,
-		Industry: payload.Industry,
+		ID:   companyID,
+		Name: payload.Name,
+		Industry: func() sql.NullString {
+			if payload.Industry == "" {
+				return sql.NullString{Valid: false}
+			}
+			return sql.NullString{String: payload.Industry, Valid: true}
+		}(),
 	}
 
 	company, err := models.Company.Update(

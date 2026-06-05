@@ -204,5 +204,15 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		}
 	}
 
+	// For sql.Null*/bun.Null* wrapper types that wrap scalar types
+	// (not time.Time), use "string" as the form type so Echo's binder
+	// can handle empty string as "null". Conversion to the appropriate
+	// wrapper type happens in the template's data-mapping section.
+	if strings.HasPrefix(goType, "sql.Null") || strings.HasPrefix(goType, "bun.Null") {
+		if baseGoType != "time.Time" {
+			field.GoFormType = "string"
+		}
+	}
+
 	return field, nil
 }

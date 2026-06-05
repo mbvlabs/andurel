@@ -72,8 +72,8 @@ func (p Projects) New(etx *echo.Context) error {
 }
 
 type CreateProjectFormPayload struct {
-	Name        string         `json:"name"`
-	Description sql.NullString `json:"description"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 func (p Projects) Create(etx *echo.Context) error {
@@ -90,8 +90,13 @@ func (p Projects) Create(etx *echo.Context) error {
 	}
 
 	data := models.CreateProjectData{
-		Name:        payload.Name,
-		Description: payload.Description,
+		Name: payload.Name,
+		Description: func() sql.NullString {
+			if payload.Description == "" {
+				return sql.NullString{Valid: false}
+			}
+			return sql.NullString{String: payload.Description, Valid: true}
+		}(),
 	}
 
 	project, err := models.Project.Create(
@@ -128,8 +133,8 @@ func (p Projects) Edit(etx *echo.Context) error {
 }
 
 type UpdateProjectFormPayload struct {
-	Name        string         `json:"name"`
-	Description sql.NullString `json:"description"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 func (p Projects) Update(etx *echo.Context) error {
@@ -151,9 +156,14 @@ func (p Projects) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateProjectData{
-		ID:          projectID,
-		Name:        payload.Name,
-		Description: payload.Description,
+		ID:   projectID,
+		Name: payload.Name,
+		Description: func() sql.NullString {
+			if payload.Description == "" {
+				return sql.NullString{Valid: false}
+			}
+			return sql.NullString{String: payload.Description, Valid: true}
+		}(),
 	}
 
 	project, err := models.Project.Update(
