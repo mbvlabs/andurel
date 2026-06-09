@@ -91,8 +91,8 @@ func (tm *TypeMapper) BuildBunTag(col *catalog.Column) string {
 	switch normalized {
 	case "uuid":
 		parts = append(parts, "type:uuid")
-	case "jsonb":
-		parts = append(parts, "type:jsonb")
+	case "json", "jsonb":
+		parts = append(parts, "type:"+normalized)
 	}
 
 	if col.IsAutoIncrement {

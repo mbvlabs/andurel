@@ -265,6 +265,14 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		return GeneratedField{}, err
 	}
 
+	normalized := strings.ToLower(col.DataType)
+	if idx := strings.Index(normalized, "("); idx != -1 {
+		normalized = normalized[:idx]
+	}
+	if (normalized == "json" || normalized == "jsonb") && goType == "[]byte" {
+		goType = "json.RawMessage"
+	}
+
 	bunTag := g.typeMapper.BuildBunTag(col)
 
 	field := GeneratedField{
@@ -290,6 +298,9 @@ func (g *Generator) addModelTypeImports(goType string) map[string]bool {
 	}
 	if strings.HasPrefix(goType, "sql.Null") {
 		importSet["database/sql"] = true
+	}
+	if strings.Contains(goType, "json.RawMessage") {
+		importSet["encoding/json"] = true
 	}
 	return importSet
 }
@@ -503,6 +514,8 @@ func (g *Generator) determineFactoryDefault(fieldName, goType string) string {
 		return "time.Time{}"
 	case "uuid.UUID":
 		return "uuid.UUID{}"
+	case "json.RawMessage":
+		return "json.RawMessage{}"
 	case "[]byte":
 		return "[]byte{}"
 	// sql.Null types
@@ -598,6 +611,8 @@ func (g *Generator) getFactoryGoZero(goType string) string {
 		return "time.Time{}"
 	case "uuid.UUID":
 		return "uuid.UUID{}"
+	case "json.RawMessage":
+		return "nil"
 	case "[]byte":
 		return "nil"
 	// sql.Null and bun.Null zero values use their empty struct literal
