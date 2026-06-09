@@ -54,7 +54,7 @@ func (p person) Create(ctx context.Context, db storage.Executor, data CreatePers
 	}
 
 	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return Person{}, err
+		return PersonEntity{}, err
 	}
 
 	return entity, nil
