@@ -9,7 +9,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 {{- if eq .DatabaseType "postgresql" }}
-	"github.com/jackc/pgx/v5"
+	"github.com/uptrace/bun"
 {{- else }}
 	"database/sql"
 {{- end }}
@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 
 func Test{{Plural .ResourceName}}_Create(t *testing.T) {
 {{- if eq .DatabaseType "postgresql" }}
-	testDB.WithTx(t, func(tx pgx.Tx) {
+	testDB.WithTx(t, func(tx bun.Tx) {
 {{- else }}
 	testDB.WithTx(t, func(tx *sql.Tx) {
 {{- end }}
@@ -84,7 +84,7 @@ func Test{{Plural .ResourceName}}_Create(t *testing.T) {
 
 func Test{{Plural .ResourceName}}_Show(t *testing.T) {
 {{- if eq .DatabaseType "postgresql" }}
-	testDB.WithTx(t, func(tx pgx.Tx) {
+	testDB.WithTx(t, func(tx bun.Tx) {
 {{- else }}
 	testDB.WithTx(t, func(tx *sql.Tx) {
 {{- end }}

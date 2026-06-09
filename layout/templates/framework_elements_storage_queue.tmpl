@@ -4,8 +4,8 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
 )
@@ -24,7 +24,7 @@ type InsertQueue interface {
 	) (*rivertype.JobInsertResult, error)
 	InsertTx(
 		ctx context.Context,
-		tx pgx.Tx,
+		tx *sql.Tx,
 		args river.JobArgs,
 		opts *river.InsertOpts,
 	) (*rivertype.JobInsertResult, error)
@@ -34,9 +34,9 @@ type InsertQueue interface {
 	) ([]*rivertype.JobInsertResult, error)
 	InsertManyTx(
 		ctx context.Context,
-		tx pgx.Tx,
+		tx *sql.Tx,
 		params []river.InsertManyParams,
 	) ([]*rivertype.JobInsertResult, error)
 	InsertManyFast(ctx context.Context, params []river.InsertManyParams) (int, error)
-	InsertManyFastTx(ctx context.Context, tx pgx.Tx, params []river.InsertManyParams) (int, error)
+	InsertManyFastTx(ctx context.Context, tx *sql.Tx, params []river.InsertManyParams) (int, error)
 }
