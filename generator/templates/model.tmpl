@@ -71,7 +71,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db stora
 {{- end}}
 	}
 
-	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}
 

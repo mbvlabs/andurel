@@ -50,7 +50,7 @@ func (p product) Create(ctx context.Context, db storage.Executor, data CreatePro
 		Price:     data.Price,
 	}
 
-	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return ProductEntity{}, err
 	}
 

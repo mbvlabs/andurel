@@ -53,7 +53,7 @@ func (a article) Create(ctx context.Context, db storage.Executor, data CreateArt
 		Published: data.Published,
 	}
 
-	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return ArticleEntity{}, err
 	}
 

@@ -50,7 +50,7 @@ func (p project) Create(ctx context.Context, db storage.Executor, data CreatePro
 		Description: data.Description,
 	}
 
-	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return ProjectEntity{}, err
 	}
 
