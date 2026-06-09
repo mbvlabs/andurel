@@ -53,8 +53,8 @@ func (p person) Create(ctx context.Context, db storage.Executor, data CreatePers
 		Email:     data.Email,
 	}
 
-	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
-		return PersonEntity{}, err
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return Person{}, err
 	}
 
 	return entity, nil

@@ -56,7 +56,7 @@ func (b book) Create(ctx context.Context, db storage.Executor, data CreateBookDa
 		Pages:     data.Pages,
 	}
 
-	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return BookEntity{}, err
 	}
 
