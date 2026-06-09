@@ -53,7 +53,7 @@ func (i item) Create(ctx context.Context, db storage.Executor, data CreateItemDa
 		Quantity:    data.Quantity,
 	}
 
-	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return ItemEntity{}, err
 	}
 

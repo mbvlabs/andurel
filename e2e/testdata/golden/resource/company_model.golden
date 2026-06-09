@@ -50,7 +50,7 @@ func (c company) Create(ctx context.Context, db storage.Executor, data CreateCom
 		Industry:  data.Industry,
 	}
 
-	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return CompanyEntity{}, err
 	}
 

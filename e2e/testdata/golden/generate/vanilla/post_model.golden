@@ -59,7 +59,7 @@ func (p post) Create(ctx context.Context, db storage.Executor, data CreatePostDa
 		Metadata:  data.Metadata,
 	}
 
-	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return PostEntity{}, err
 	}
 
