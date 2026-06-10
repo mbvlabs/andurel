@@ -29,8 +29,10 @@ var standardGoTypes = map[string]bool{
 	"float64": true, "*float64": true,
 	"time.Time": true, "*time.Time": true,
 	"uuid.UUID": true, "*uuid.UUID": true,
-	"[]byte":   true,
-	"[]int32":  true,
+	"[]byte":         true,
+	"json.RawMessage":  true,
+	"*json.RawMessage": true,
+	"[]int32":         true,
 	"[]string": true,
 	"any":      true,
 	// sql.Null types
