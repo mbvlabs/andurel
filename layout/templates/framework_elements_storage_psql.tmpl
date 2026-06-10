@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
@@ -23,46 +23,36 @@ var (
 // Executor is the query interface satisfied by *bun.DB, *bun.Tx, *bun.Conn.
 type Executor = bun.IDB
 
-// Pool is the application-wide database handle. Exposes both a bun.DB
-// (for model queries) and a pgxpool.Pool (for River and other pgx-native
-// consumers).
+// Pool is the application-wide database handle.
 type Pool interface {
 	Conn() *bun.DB
-	Pool() *pgxpool.Pool
 	BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error)
 	Close() error
 }
 
-// Postgres wraps a bun.DB and the underlying pgx pool.
+// Postgres wraps a bun.DB.
 type Postgres struct {
-	conn   *bun.DB
-	pool *pgxpool.Pool
+	conn *bun.DB
 }
 
 var _ Pool = (*Postgres)(nil)
 
-// NewPostgres creates a new database connection using bun + pgx/v5.
+// NewPostgres creates a new database connection using bun.
 func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
-	config, err := pgxpool.ParseConfig(databaseURL)
+	config, err := pgx.ParseConfig(databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse database URL: %w", err)
 	}
 
-	pool, err := pgxpool.NewWithConfig(ctx, config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create pgx pool: %w", err)
-	}
-
-	sqldb := stdlib.OpenDBFromPool(pool)
+	sqldb := stdlib.OpenDB(*config)
 	db := bun.NewDB(sqldb, pgdialect.New())
 
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
-		pool.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	return &Postgres{conn: db, pool: pool}, nil
+	return &Postgres{conn: db}, nil
 }
 
 // Conn returns the underlying bun.DB.
@@ -70,17 +60,9 @@ func (p *Postgres) Conn() *bun.DB {
 	return p.conn
 }
 
-// Pool returns the underlying pgx pool (for River and other pgx-native users).
-func (p *Postgres) Pool() *pgxpool.Pool {
-	return p.pool
-}
-
 // Close closes the database connection.
 func (p *Postgres) Close() error {
-	err := p.conn.Close()
-	p.pool.Close()
-
-	return err
+	return p.conn.Close()
 }
 
 // BeginTx starts a new transaction. Caller is responsible for Commit or Rollback.

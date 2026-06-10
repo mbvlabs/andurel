@@ -628,7 +628,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestProducts_Create(t *testing.T) {
-{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx pgx.Tx) {
+{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx bun.Tx) {
 {{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
 {{end}}		controller := controllers.NewProducts(testDB.DB)
 
@@ -709,7 +709,7 @@ func (b *ProductBuilder) Build() models.CreateProductData {
 
 ```go
 func TestProducts_Show(t *testing.T) {
-{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx pgx.Tx) {
+{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx bun.Tx) {
 {{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
 {{end}}		// Create test data with default values
 		product := factories.Product().Create(tx)
@@ -732,7 +732,7 @@ func TestProducts_Show(t *testing.T) {
 
 ```go
 func TestFindProduct(t *testing.T) {
-{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx pgx.Tx) {
+{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx bun.Tx) {
 {{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
 {{end}}		product := factories.Product().Create(tx)
 
@@ -752,7 +752,7 @@ func TestFindProduct(t *testing.T) {
 
 ```go
 func TestPaginateProducts(t *testing.T) {
-{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx pgx.Tx) {
+{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx bun.Tx) {
 {{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
 {{end}}		// Create test data
 		for i := 0; i < 25; i++ {
@@ -780,7 +780,7 @@ func TestPaginateProducts(t *testing.T) {
 
 ```go
 func TestCreateOrder(t *testing.T) {
-{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx pgx.Tx) {
+{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx bun.Tx) {
 {{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
 {{end}}		// Create dependencies
 		user := factories.User().Create(tx)

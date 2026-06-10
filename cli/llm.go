@@ -1776,7 +1776,7 @@ River provides a web UI for monitoring jobs, accessible at /riverui when the app
 Configure queues in queue/queue.go:
 
 ` + "```go" + `
-riverClient, err := river.NewClient(riverpgxv5.New(db.Conn()), &river.Config{
+riverClient, err := river.NewClient(riverdatabasesql.New(db.Conn().DB), &river.Config{
 	Queues: map[string]river.QueueConfig{
 		river.QueueDefault: {MaxWorkers: 100},
 		"high_priority":    {MaxWorkers: 50},
