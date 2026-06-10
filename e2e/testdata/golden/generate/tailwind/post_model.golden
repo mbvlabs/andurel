@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -13,14 +14,14 @@ import (
 
 type PostEntity struct {
 	bun.BaseModel `bun:"table:posts,alias:posts"`
-	ID            uuid.UUID    `bun:"id,pk,type:uuid"`
-	Title         string       `bun:"title"`
-	Tags          []string     `bun:"tags,array"`
-	Scores        []int32      `bun:"scores,array"`
-	Settings      []byte       `bun:"settings,type:jsonb"`
-	Metadata      []byte       `bun:"metadata"`
-	CreatedAt     sql.NullTime `bun:"created_at"`
-	UpdatedAt     sql.NullTime `bun:"updated_at"`
+	ID            uuid.UUID       `bun:"id,pk,type:uuid"`
+	Title         string          `bun:"title"`
+	Tags          []string        `bun:"tags,array"`
+	Scores        []int32         `bun:"scores,array"`
+	Settings      json.RawMessage `bun:"settings,type:jsonb"`
+	Metadata      json.RawMessage `bun:"metadata,type:json"`
+	CreatedAt     sql.NullTime    `bun:"created_at"`
+	UpdatedAt     sql.NullTime    `bun:"updated_at"`
 }
 
 func (p post) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (PostEntity, error) {
@@ -39,8 +40,8 @@ type CreatePostData struct {
 	Title    string
 	Tags     []string
 	Scores   []int32
-	Settings []byte
-	Metadata []byte
+	Settings json.RawMessage
+	Metadata json.RawMessage
 }
 
 func (p post) Create(ctx context.Context, db storage.Executor, data CreatePostData) (PostEntity, error) {
@@ -71,8 +72,8 @@ type UpdatePostData struct {
 	Title     string
 	Tags      []string
 	Scores    []int32
-	Settings  []byte
-	Metadata  []byte
+	Settings  json.RawMessage
+	Metadata  json.RawMessage
 	UpdatedAt sql.NullTime
 }
 
