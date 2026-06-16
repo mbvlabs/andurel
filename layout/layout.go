@@ -347,9 +347,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Clients
 	"clients_email_mailpit.tmpl": "clients/email/mailpit.go",
 
-	// Controller provides (generated)
-	"cmd_app_controller_provides.tmpl": "cmd/app/controller_provides.go",
-
 	// Controllers
 	"controllers_api.tmpl":        "controllers/api.go",
 	"controllers_assets.tmpl":     "controllers/assets.go",
@@ -536,7 +533,6 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 
 	blueprintTemplates := []TmplTarget{
 		"cmd_app_main.tmpl",
-		"cmd_app_controller_provides.tmpl",
 		"controllers_controller.tmpl",
 		"config_config.tmpl",
 		"env.tmpl",

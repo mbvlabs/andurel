@@ -28,6 +28,8 @@ func NewPages(
 	return Pages{db, insertOnly, cache}
 }
 
+var _ = RegisterController(NewPages)
+
 func (p Pages) RegisterRoutes(r *router.Router) error {
 	errs := []error{}
 

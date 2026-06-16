@@ -64,9 +64,9 @@ func main() {
 {{- range .Blueprint.Main.ServiceProvides}}
 			{{.}},
 {{- end}}
-
-			controllerProvides...,
 		),
+
+		fx.Options(controllers.Controllers...),
 
 		fx.Invoke(registerControllers),
 		fx.Invoke(startQueueProcessor),

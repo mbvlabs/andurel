@@ -19,6 +19,8 @@ func NewAPI(db storage.Pool) API {
 	return API{db}
 }
 
+var _ = RegisterController(NewAPI)
+
 func (a API) RegisterRoutes(r *router.Router) error {
 	errs := []error{}
 

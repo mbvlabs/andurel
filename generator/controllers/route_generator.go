@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -13,14 +12,12 @@ import (
 type RouteGenerator struct {
 	fileManager      files.Manager
 	templateRenderer *TemplateRenderer
-	mainInjector     *MainInjector
 }
 
 func NewRouteGenerator() *RouteGenerator {
 	return &RouteGenerator{
 		fileManager:      files.NewUnifiedFileManager(),
 		templateRenderer: NewTemplateRenderer(),
-		mainInjector:     NewMainInjector(),
 	}
 }
 
@@ -46,11 +43,6 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName, idType string
 
 	if err := files.FormatGoFile(routesPath); err != nil {
 		return fmt.Errorf("failed to format routes file: %w", err)
-	}
-
-	// Inject controller provide into blueprint
-	if err := rg.mainInjector.InjectController(resourceName, pluralName); err != nil {
-		slog.Warn("unexpected error injecting controller", "error", err)
 	}
 
 	return nil

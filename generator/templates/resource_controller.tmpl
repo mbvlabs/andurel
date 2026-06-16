@@ -40,6 +40,8 @@ func New{{.PluralResourceName}}(db storage.Pool) {{.PluralResourceName}} {
 	return {{.PluralResourceName}}{db}
 }
 
+var _ = RegisterController(New{{.PluralResourceName}})
+
 func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error {
 	page := int64(1)
 	if p := etx.QueryParam("page"); p != "" {

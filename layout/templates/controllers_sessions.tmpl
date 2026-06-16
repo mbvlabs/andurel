@@ -28,6 +28,8 @@ func NewSessions(db storage.Pool, cfg config.Config) Sessions {
 	return Sessions{db, cfg}
 }
 
+var _ = RegisterController(NewSessions)
+
 func (s Sessions) RegisterRoutes(r *router.Router) error {
 	errs := []error{}
 

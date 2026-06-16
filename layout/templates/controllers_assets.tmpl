@@ -33,6 +33,8 @@ func NewAssets(cache *Cache[string]) Assets {
 	return Assets{cache}
 }
 
+var _ = RegisterController(NewAssets)
+
 func (a Assets) RegisterRoutes(r *router.Router) error {
 	errs := []error{}
 

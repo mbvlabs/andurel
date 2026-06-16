@@ -334,23 +334,27 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 		project.CSS,
 	)
 
-	// Verify main.go uses camelCase variable name for snake_case table name
+	// Verify main.go uses controllers.Controllers...
 	mainContent, err := os.ReadFile(filepath.Join(project.Dir, "cmd", "app", "main.go"))
 	if err != nil {
 		t.Fatalf("Failed to read cmd/app/main.go: %v", err)
 	}
 
 	mainContentStr := string(mainContent)
-	requiredPatterns := []string{
-		"fx.Annotate(controllers.NewStudentFeedback, fx.As(new(controllers.Controller)))",
-	}
-	for _, pattern := range requiredPatterns {
-		if !strings.Contains(mainContentStr, pattern) {
-			t.Errorf("cmd/app/main.go should contain %q", pattern)
-		}
+	if !strings.Contains(mainContentStr, "controllers.Controllers...") {
+		t.Error("cmd/app/main.go should contain controllers.Controllers...")
 	}
 	if strings.Contains(mainContentStr, "student_feedback") {
 		t.Error("cmd/app/main.go should not contain snake_case variable names for controller registration")
+	}
+
+	// Verify controller file self-registers
+	ctrlContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers", "student_feedback.go"))
+	if err != nil {
+		t.Fatalf("Failed to read controllers/student_feedback.go: %v", err)
+	}
+	if !strings.Contains(string(ctrlContent), "var _ = RegisterController(NewStudentFeedback)") {
+		t.Error("controllers/student_feedback.go should contain var _ = RegisterController(NewStudentFeedback)")
 	}
 }
 
