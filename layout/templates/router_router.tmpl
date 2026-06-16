@@ -11,6 +11,9 @@ import (
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/telemetry"
+{{- if eq .ViewLayer "inertia-vue"}}
+	"{{.ModuleName}}/internal/renderer"
+{{- end}}
 
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
@@ -88,6 +91,9 @@ func SetupGlobalMiddleware(
 	middlewares := []echo.MiddlewareFunc{
 		mw.TraceRouteAttributes(tel),
 		mw.Logger(tel),
+{{- if eq .ViewLayer "inertia-vue"}}
+		renderer.InertiaMiddleware(),
+{{- end}}
 		session.Middleware(
 			sessions.NewCookieStore(
 				authKey,

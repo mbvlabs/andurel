@@ -3,12 +3,20 @@ package controllers
 import (
 	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/queue"
+{{- if ne .ViewLayer "inertia-vue"}}
 	"{{.ModuleName}}/views"
 
 	"github.com/a-h/templ"
+{{- else}}
+	"{{.ModuleName}}/internal/renderer"
+
+	inertia "github.com/romsar/gonertia/v3"
+{{- end}}
+
 	"github.com/labstack/echo/v5"
 )
 
+{{- if ne .ViewLayer "inertia-vue"}}
 type Pages struct {
 	db         storage.Pool
 	insertOnly queue.InsertOnly
@@ -48,3 +56,24 @@ func (p Pages) NotFound(etx *echo.Context) error {
 
 	return render(etx, component)
 }
+{{- else}}
+type Pages struct {
+	db         storage.Pool
+	insertOnly queue.InsertOnly
+}
+
+func NewPages(
+	db storage.Pool,
+	insertOnly queue.InsertOnly,
+) Pages {
+	return Pages{db, insertOnly}
+}
+
+func (p Pages) Home(etx *echo.Context) error {
+	return renderer.Inertia(etx, "Welcome", inertia.Props{})
+}
+
+func (p Pages) NotFound(etx *echo.Context) error {
+	return renderer.Inertia(etx, "Error/NotFound", inertia.Props{})
+}
+{{- end}}

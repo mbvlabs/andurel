@@ -30,8 +30,13 @@ import (
 {{- range .Blueprint.Main.Imports.Items}}
 	"{{.}}"
 {{- end}}
+{{- if eq .ViewLayer "inertia-vue"}}
+
+	"{{.ModuleName}}/internal/renderer"
+{{- else}}
 
 	"github.com/a-h/templ"
+{{- end}}
 )
 
 var appVersion string
@@ -49,10 +54,12 @@ func setupControllers(
 	riverHandler *riverui.Handler,
 	mw middleware.Middleware,
 ) error {
+{{- if ne .ViewLayer "inertia-vue"}}
 	pagesCache, err := controllers.NewCacheBuilder[templ.Component]().Build()
 	if err != nil {
 		return err
 	}
+{{- end}}
 
 	assetsCache, err := controllers.NewCacheBuilder[string]().WithSize(2).Build()
 	if err != nil {
@@ -263,6 +270,12 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+{{- if eq .ViewLayer "inertia-vue"}}
+	if err := renderer.InitInertia("views/root.go.html"); err != nil {
+		return fmt.Errorf("failed to initialize inertia: %w", err)
+	}
+{{- end}}
 
 	err = setupControllers(
 {{- range .Blueprint.Controllers.SortedDependencies}}

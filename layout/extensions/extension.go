@@ -19,6 +19,7 @@ type TemplateData interface {
 	DatabaseDialect() string
 	GetModuleName() string
 	GetCSSFramework() string
+	GetViewLayer() string
 	Builder() *blueprint.Builder
 	SetBlueprint(bp *blueprint.Blueprint)
 }

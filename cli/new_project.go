@@ -36,6 +36,9 @@ creation, run 'andurel tool sync' to download required binaries.`,
 		StringP("css", "c", "", "CSS framework to use (tailwind, vanilla) (optional, default: tailwind)")
 
 	projectCmd.Flags().
+		String("frontend", "", "Frontend view layer (templ, inertia-vue) (optional, default: templ)")
+
+	projectCmd.Flags().
 		StringSliceP("extensions", "e", nil, "Extensions to enable (comma-separated list)")
 
 	return projectCmd
@@ -85,11 +88,27 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 		)
 	}
 
+	viewLayer, err := cmd.Flags().GetString("frontend")
+	if err != nil {
+		return err
+	}
+
+	if viewLayer == "" {
+		viewLayer = "templ"
+	}
+
+	if viewLayer != "templ" && viewLayer != "inertia-vue" {
+		return fmt.Errorf(
+			"invalid frontend view layer provided: %s - valid options are 'templ' and 'inertia-vue'",
+			viewLayer,
+		)
+	}
+
 	extensions, err := cmd.Flags().GetStringSlice("extensions")
 	if err != nil {
 		return err
 	}
-	if err := layout.Scaffold(basePath, projectName, database, cssFramework, version, extensions); err != nil {
+	if err := layout.Scaffold(basePath, projectName, database, cssFramework, viewLayer, version, extensions); err != nil {
 		return err
 	}
 

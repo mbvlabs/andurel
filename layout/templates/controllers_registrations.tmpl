@@ -13,8 +13,6 @@ import (
 	"{{.ModuleName}}/views"
 
 	"github.com/labstack/echo/v5"
-
-	"{{.ModuleName}}/internal/hypermedia"
 )
 
 type Registrations struct {
@@ -77,5 +75,5 @@ func (r Registrations) Create(etx *echo.Context) error {
 		return etx.Redirect(http.StatusSeeOther, routes.RegistrationNew.URL())
 	}
 
-	return hypermedia.Redirect(etx, routes.ConfirmationNew.URL())
+	return etx.Redirect(http.StatusSeeOther, routes.ConfirmationNew.URL())
 }

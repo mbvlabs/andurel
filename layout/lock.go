@@ -26,6 +26,7 @@ type ScaffoldConfig struct {
 	ProjectName  string   `json:"projectName"`
 	Database     string   `json:"database"`
 	CSSFramework string   `json:"cssFramework"`
+	ViewLayer    string   `json:"viewLayer"`
 	Extensions   []string `json:"extensions,omitempty"`
 }
 

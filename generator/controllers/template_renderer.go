@@ -7,6 +7,7 @@ import (
 	"text/template"
 
 	"github.com/mbvlabs/andurel/generator/templates"
+	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/errors"
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
@@ -22,15 +23,7 @@ func NewTemplateRenderer() *TemplateRenderer {
 }
 
 func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController) (string, error) {
-	var templateName string
-	switch controller.Type {
-	case ResourceController:
-		templateName = "resource_controller.tmpl"
-	case ResourceControllerNoViews:
-		templateName = "resource_controller_no_views.tmpl"
-	default:
-		templateName = "controller.tmpl"
-	}
+	templateName := tr.selectControllerTemplate(controller)
 
 	// Custom template functions for controller-specific operations
 	customFuncs := template.FuncMap{
@@ -116,6 +109,27 @@ func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, pluralNa
 		return "", errors.WrapTemplateError(err, "render route registration", "route_registration.tmpl")
 	}
 	return result, nil
+}
+
+func (tr *TemplateRenderer) selectControllerTemplate(controller *GeneratedController) string {
+	if controller.Type != ResourceController {
+		switch controller.Type {
+		case ResourceControllerNoViews:
+			return "resource_controller_no_views.tmpl"
+		default:
+			return "controller.tmpl"
+		}
+	}
+
+	if rootDir, err := os.Getwd(); err == nil {
+		if lock, err := layout.ReadLockFile(rootDir); err == nil {
+			if lock.ScaffoldConfig != nil && lock.ScaffoldConfig.ViewLayer == "inertia-vue" {
+				return "inertia_vue_resource_controller.tmpl"
+			}
+		}
+	}
+
+	return "resource_controller.tmpl"
 }
 
 // getModulePath reads go.mod to get the module path

@@ -35,12 +35,16 @@ var (
 )
 
 func Scaffold(
-	targetDir, projectName, database, cssFramework, version string,
+	targetDir, projectName, database, cssFramework, viewLayer, version string,
 	extensionNames []string,
 ) error {
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
 
 	moduleName := projectName
+
+	if viewLayer == "" {
+		viewLayer = "templ"
+	}
 
 	templateData := TemplateData{
 		AppName:              projectName,
@@ -48,6 +52,7 @@ func Scaffold(
 		ModuleName:           moduleName,
 		Database:             database,
 		CSSFramework:         cssFramework,
+		ViewLayer:            viewLayer,
 		GoVersion:            goVersion,
 		SessionKey:           generateRandomHex(64),
 		SessionEncryptionKey: generateRandomHex(32),
@@ -55,7 +60,7 @@ func Scaffold(
 		Pepper:               generateRandomHex(12),
 		Extensions:           extensionNames,
 		RunToolVersion:       GetRunToolVersion(),
-		blueprint:            initializeBaseBlueprint(moduleName),
+		blueprint:            initializeBaseBlueprint(moduleName, viewLayer),
 	}
 
 	if err := registerBuiltinExtensions(); err != nil {
@@ -102,6 +107,7 @@ func Scaffold(
 		ProjectName:  projectName,
 		Database:     database,
 		CSSFramework: cssFramework,
+		ViewLayer:    viewLayer,
 		Extensions:   extensionNames,
 	}
 	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", scaffoldConfig); err != nil {
@@ -378,12 +384,57 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"email_verify_email.tmpl":   "email/verify_email.templ",
 }
 
+var inertiaViewLayers = map[string]bool{
+	"inertia-vue": true,
+}
+
+// inertiaHypermediaTemplates lists base templates that are replaced or skipped
+// when using an Inertia view layer (Datastar/hypermedia is not needed).
+var inertiaHypermediaTemplates = map[TmplTarget]bool{}
+
+var inertiaTemplateMappings = map[TmplTarget]TmplTargetPath{
+	"inertia_framework_root_html.tmpl":   "views/root.go.html",
+	"inertia_assets_vite_config.tmpl":    "vite.config.ts",
+	"inertia_assets_package_json.tmpl":   "package.json",
+	"inertia_assets_tsconfig.tmpl":       "tsconfig.json",
+	"inertia_assets_app.tmpl":            "resources/js/app.ts",
+	"inertia_assets_pages_welcome.tmpl":  "resources/js/Pages/Welcome.vue",
+}
+
+var inertiaTailwindMappings = map[TmplTarget]TmplTargetPath{
+	"inertia_assets_app_css.tmpl":         "resources/css/app.css",
+	"inertia_assets_tailwind_config.tmpl": "tailwind.config.js",
+	"inertia_assets_postcss_config.tmpl":  "postcss.config.js",
+}
+
+// inertiaAuthViewMappings lists the Templ view templates needed for auth pages
+// (login, register, password reset, email confirmation) in Inertia projects.
+// These are server-rendered pages that exist alongside the Inertia SPA.
+var inertiaAuthViewMappings = map[TmplTarget]TmplTargetPath{
+	"tw_views_layout.tmpl":         "views/layout.templ",
+	"tw_views_head.tmpl":           "views/head.templ",
+	"tw_views_login.tmpl":          "views/login.templ",
+	"tw_views_registration.tmpl":   "views/registration.templ",
+	"tw_views_reset_password.tmpl": "views/reset_password.templ",
+	"tw_views_confirm_email.tmpl":  "views/confirm_email.templ",
+	"tw_views_bad_request.tmpl":    "views/bad_request.templ",
+	"tw_views_internal_error.tmpl": "views/internal_error.templ",
+	"tw_views_not_found.tmpl":      "views/not_found.templ",
+}
+
 func processTemplatedFiles(
 	targetDir string,
 	cssFramework string,
 	data extensions.TemplateData,
 ) error {
+	isInertia := inertiaViewLayers[data.GetViewLayer()]
+
 	for templateFile, targetPath := range baseTemplateMappings {
+		// Skip templates specific to the non-Inertia view layer
+		if isInertia && inertiaHypermediaTemplates[templateFile] {
+			continue
+		}
+
 		if templateFile == "assets_js_datastar.tmpl" {
 			if err := copyFile(targetDir, string(templateFile), string(targetPath), templates.Files); err != nil {
 				return fmt.Errorf("failed to copy file %s: %w", templateFile, err)
@@ -395,7 +446,30 @@ func processTemplatedFiles(
 		}
 	}
 
-	if cssFramework == "tailwind" {
+	// Render Inertia-specific templates (copied as-is — no Go template vars)
+	if isInertia {
+		for templateFile, targetPath := range inertiaTemplateMappings {
+			if err := copyFile(targetDir, string(templateFile), string(targetPath), templates.Files); err != nil {
+				return fmt.Errorf("failed to copy inertia template %s: %w", templateFile, err)
+			}
+		}
+
+		// Inertia Tailwind assets — always generated since Vue components use Tailwind classes
+		for templateFile, targetPath := range inertiaTailwindMappings {
+			if err := copyFile(targetDir, string(templateFile), string(targetPath), templates.Files); err != nil {
+				return fmt.Errorf("failed to copy inertia tailwind template %s: %w", templateFile, err)
+			}
+		}
+
+		// Inertia auth pages — server-rendered Templ views (login, register, etc.)
+		for templateFile, targetPath := range inertiaAuthViewMappings {
+			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
+				return fmt.Errorf("failed to render inertia auth view template %s: %w", templateFile, err)
+			}
+		}
+	}
+
+	if cssFramework == "tailwind" && !isInertia {
 		for templateFile, targetPath := range baseTailwindTemplateMappings {
 			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
 				return fmt.Errorf("failed to process tailwind template %s: %w", templateFile, err)
@@ -403,7 +477,7 @@ func processTemplatedFiles(
 		}
 	}
 
-	if cssFramework == "vanilla" {
+	if cssFramework == "vanilla" && !isInertia {
 		for templateFile, targetPath := range baseVanillaCSSTemplateMappings {
 			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
 				return fmt.Errorf(
@@ -871,7 +945,7 @@ func generateRandomHex(bytes int) string {
 
 // initializeBaseBlueprint creates a blueprint with default base configuration
 // for controllers, routes, and other scaffold components.
-func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
+func initializeBaseBlueprint(moduleName string, viewLayer string) *blueprint.Blueprint {
 	builder := blueprint.NewBuilder(nil)
 
 	builder.AddMainImport(fmt.Sprintf("%s/clients/email", moduleName))
@@ -906,10 +980,15 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 		AddControllerField("ResetPasswords", "controllers.ResetPasswords")
 
 	// Constructor initializations
+	pagesConstructor := "controllers.NewPages(db, insertOnly, pagesCache)"
+	if viewLayer == "inertia-vue" {
+		pagesConstructor = "controllers.NewPages(db, insertOnly)"
+	}
+
 	builder.
 		AddControllerConstructor("assets", "controllers.NewAssets(assetsCache)").
 		AddControllerConstructor("api", "controllers.NewAPI(db)").
-		AddControllerConstructor("pages", "controllers.NewPages(db, insertOnly, pagesCache)").
+		AddControllerConstructor("pages", pagesConstructor).
 		AddControllerConstructor("sessions", "controllers.NewSessions(db, cfg)").
 		AddControllerConstructor("registrations", "controllers.NewRegistrations(db, insertOnly, cfg)").
 		AddControllerConstructor("confirmations", "controllers.NewConfirmations(db, cfg)").

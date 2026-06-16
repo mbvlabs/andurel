@@ -1,19 +1,75 @@
-// Package renderer provides utilities for rendering templ components.
-// Code generated and maintained by the andurel framework. DO NOT EDIT.
+// Package renderer provides utilities for rendering templ components and inertia pages.
 package renderer
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
+{{- if eq .ViewLayer "inertia-vue"}}
+	inertia "github.com/romsar/gonertia/v3"
+{{- end}}
 )
 
 type CookieKey string
 
 const BackURLKey CookieKey = "back_url_context"
+
+{{- if eq .ViewLayer "inertia-vue"}}
+
+// Package-level Inertia instance, initialized once at startup.
+var gInertia *inertia.Inertia
+
+// InitInertia initializes the global Inertia instance with the root HTML template
+// that serves as the mounting point for the Vue application. Must be called once
+// during application startup before any Inertia middleware or render calls.
+func InitInertia(rootHTML string, opts ...inertia.Option) error {
+	i, err := inertia.New(rootHTML, opts...)
+	if err != nil {
+		return err
+	}
+	gInertia = i
+	return nil
+}
+
+// Inertia renders an Inertia page response.
+// For initial (non-Inertia) requests: returns a full HTML document with the page
+// object embedded in the data-page attribute of the root element.
+// For Inertia XHR requests (identified by the X-Inertia header): returns a JSON
+// response containing the component name and props.
+func Inertia(etx *echo.Context, component string, props inertia.Props) error {
+	if gInertia == nil {
+		return errors.New("renderer: Inertia not initialized, call InitInertia")
+	}
+	return gInertia.Render(etx.Response(), etx.Request(), component, props)
+}
+
+// InertiaRedirect sends an Inertia-aware redirect.
+// For Inertia requests: automatically promotes PUT/PATCH/DELETE to 303.
+// For standard requests: performs a normal HTTP redirect with the given status.
+func InertiaRedirect(etx *echo.Context, url string, status ...int) error {
+	if gInertia == nil {
+		return errors.New("renderer: Inertia not initialized, call InitInertia")
+	}
+	gInertia.Redirect(etx.Response(), etx.Request(), url, status...)
+	return nil
+}
+
+// InertiaMiddleware returns an Echo middleware that wraps the gonertia middleware.
+// It handles:
+//   - Asset version mismatch detection (409 + X-Inertia-Location response)
+//   - 302 to 303 promotion for PUT/PATCH/DELETE requests
+//   - Vary: X-Inertia header on all responses
+//   - Shared prop injection and session persistence
+func InertiaMiddleware() echo.MiddlewareFunc {
+	return echo.WrapMiddleware(func(next http.Handler) http.Handler {
+		return gInertia.Middleware(next)
+	})
+}
+{{- end}}
 
 func Render(ctx *echo.Context, t templ.Component, cookieKeys []CookieKey) error {
 	buf := templ.GetBuffer()

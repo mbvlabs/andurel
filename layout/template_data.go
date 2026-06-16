@@ -14,6 +14,7 @@ type TemplateData struct {
 	ModuleName           string
 	Database             string // Always "postgresql"
 	CSSFramework         string
+	ViewLayer            string // "templ" (default) or "inertia-vue"
 	GoVersion            string
 	SessionKey           string
 	SessionEncryptionKey string
@@ -47,6 +48,19 @@ func (td *TemplateData) GetCSSFramework() string {
 	}
 
 	return td.CSSFramework
+}
+
+// GetViewLayer returns the view layer for the project.
+func (td *TemplateData) GetViewLayer() string {
+	if td == nil {
+		return ""
+	}
+
+	if td.ViewLayer == "" {
+		return "templ"
+	}
+
+	return td.ViewLayer
 }
 
 // Blueprint returns the underlying blueprint. If not yet initialized, creates

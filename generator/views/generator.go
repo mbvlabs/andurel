@@ -8,11 +8,11 @@ import (
 	"strings"
 	"text/template"
 
+	inertiaTemplates "github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/internal/types"
 	"github.com/mbvlabs/andurel/generator/internal/validation"
-	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/mbvlabs/andurel/pkg/errors"
@@ -30,6 +30,14 @@ type ViewField struct {
 	DBName          string
 	CamelCase       string
 	IsSystemField   bool
+}
+
+// VuePageData wraps GeneratedView with component-specific information
+// for generating Vue Single-File Components.
+type VuePageData struct {
+	*GeneratedView
+	ComponentName string // "Index", "Show", "Create", or "Edit"
+	ModulePath    string
 }
 
 type GeneratedView struct {
@@ -208,6 +216,17 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 	return field, nil
 }
 
+// viewLayerPrefix returns the prefix for the view layer (templ vs inertia-vue).
+func viewLayerPrefix(lock *layout.AndurelLock) string {
+	if lock != nil && lock.ScaffoldConfig != nil {
+		switch lock.ScaffoldConfig.ViewLayer {
+		case "inertia-vue":
+			return "inertia_vue_"
+		}
+	}
+	return ""
+}
+
 func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
 	cssFramework := "tailwind"
 	hasCssComponents := false
@@ -222,17 +241,26 @@ func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
 		}
 	}
 
+	var prefix string
 	if hasCssComponents {
 		if cssFramework == "vanilla" {
-			return "vanilla_"
+			prefix = "vanilla_"
+		} else {
+			prefix = "tw_"
 		}
-		return "tw_"
+	} else {
+		if cssFramework == "vanilla" {
+			prefix = "vanilla_bare_"
+		} else {
+			prefix = "tw_bare_"
+		}
 	}
 
-	if cssFramework == "vanilla" {
-		return "vanilla_bare_"
-	}
-	return "tw_bare_"
+	return viewLayerPrefix(lock) + prefix
+}
+
+func (g *Generator) isInertiaVue(lock *layout.AndurelLock) bool {
+	return lock != nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.ViewLayer == "inertia-vue"
 }
 
 func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, templatePrefix string) (string, error) {
@@ -301,12 +329,38 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, t
 	}
 
 	// Use the unified template service with custom functions
-	service := templates.GetGlobalTemplateService()
+	service := inertiaTemplates.GetGlobalTemplateService()
 	result, err := service.RenderTemplateWithCustomFunctions(templateName, view, customFuncs)
 	if err != nil {
 		return "", errors.WrapTemplateError(err, "render view", templateName)
 	}
 	return result, nil
+}
+
+func (g *Generator) GenerateVueViewFiles(view *GeneratedView, templatePrefix string) (map[string]string, error) {
+	service := inertiaTemplates.GetGlobalTemplateService()
+	components := []string{"Index", "Show", "Create", "Edit"}
+	files := make(map[string]string, len(components))
+
+	templateName := templatePrefix + "resource_view.tmpl"
+
+	for _, componentName := range components {
+		data := VuePageData{
+			GeneratedView: view,
+			ComponentName: componentName,
+			ModulePath:    view.ModulePath,
+		}
+
+		result, err := service.RenderTemplate(templateName, data)
+		if err != nil {
+			return nil, errors.WrapTemplateError(err, "render vue view", templateName)
+		}
+
+		fileName := componentName + ".vue"
+		files[fileName] = result
+	}
+
+	return files, nil
 }
 
 func (g *Generator) GenerateView(
@@ -326,16 +380,17 @@ func (g *Generator) GenerateViewWithController(
 	withController bool,
 ) error {
 	pluralName := naming.DeriveTableName(resourceName)
-	viewPath := filepath.Join("views", tableName+"_resource.templ")
 
-	if _, err := os.Stat(viewPath); err == nil {
-		return fmt.Errorf("view file %s already exists", viewPath)
+	if _, err := os.Stat(filepath.Join("views", tableName+"_resource.templ")); err == nil {
+		return fmt.Errorf("view file %s already exists", "views/"+tableName+"_resource.templ")
 	}
 
-	// Read lock file to determine CSS framework and extensions
+	// Read lock file to determine CSS framework, extensions, and view layer
 	templatePrefix := "tw_bare_"
+	var lock *layout.AndurelLock
 	if rootDir, err := g.fileManager.FindGoModRoot(); err == nil {
-		if lock, err := layout.ReadLockFile(rootDir); err == nil {
+		lock, _ = layout.ReadLockFile(rootDir)
+		if lock != nil {
 			templatePrefix = g.templatePrefix(lock)
 		}
 	}
@@ -351,11 +406,18 @@ func (g *Generator) GenerateViewWithController(
 		return fmt.Errorf("failed to build view: %w", err)
 	}
 
+	// Inertia+Vue generates separate .vue files for each page component
+	if g.isInertiaVue(lock) {
+		return g.generateVueViews(view, templatePrefix, resourceName)
+	}
+
+	// Templ generates a single .templ file with all components
 	viewContent, err := g.GenerateViewFile(view, withController, templatePrefix)
 	if err != nil {
 		return fmt.Errorf("failed to render view file: %w", err)
 	}
 
+	viewPath := filepath.Join("views", tableName+"_resource.templ")
 	if err := g.fileManager.EnsureDir("views"); err != nil {
 		return err
 	}
@@ -373,6 +435,28 @@ func (g *Generator) GenerateViewWithController(
 	}
 
 	fmt.Printf("Successfully generated view at %s\n", viewPath)
+	return nil
+}
+
+func (g *Generator) generateVueViews(view *GeneratedView, templatePrefix string, resourceName string) error {
+	vueFiles, err := g.GenerateVueViewFiles(view, templatePrefix)
+	if err != nil {
+		return fmt.Errorf("failed to render vue view files: %w", err)
+	}
+
+	pagesDir := filepath.Join("resources", "js", "Pages", resourceName)
+	if err := g.fileManager.EnsureDir(pagesDir); err != nil {
+		return err
+	}
+
+	for fileName, content := range vueFiles {
+		filePath := filepath.Join(pagesDir, fileName)
+		if err := os.WriteFile(filePath, []byte(content), constants.FilePermissionPrivate); err != nil {
+			return fmt.Errorf("failed to write vue view file %s: %w", fileName, err)
+		}
+		fmt.Printf("Successfully generated vue view at %s\n", filePath)
+	}
+
 	return nil
 }
 
