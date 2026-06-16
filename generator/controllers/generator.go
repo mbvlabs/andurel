@@ -43,6 +43,8 @@ type GeneratedController struct {
 	TableNameOverridden bool
 	IDType              string // "uuid.UUID", "int32", "int64", "string"
 	IsAutoIncrementID   bool   // True for serial/bigserial
+	IDGoFieldName       string // Go struct field name of PK (e.g., "ID", "UserID")
+	HasPrimaryKey       bool   // Whether the table has any primary key
 }
 
 type Config struct {
@@ -53,6 +55,7 @@ type Config struct {
 	ModulePath          string
 	ControllerType      ControllerType
 	TableNameOverridden bool
+	PrimaryKeyColumn    string // Override PK column name (empty = auto-detect)
 }
 
 type Generator struct {
@@ -65,6 +68,10 @@ func NewGenerator(databaseType string) *Generator {
 		typeMapper:  types.NewTypeMapper(databaseType),
 		fileManager: files.NewUnifiedFileManager(),
 	}
+}
+
+func (g *Generator) SetNullType(nullType string) {
+	g.typeMapper.NullType = nullType
 }
 
 func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedController, error) {
@@ -106,17 +113,86 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 				return nil, fmt.Errorf("failed to build field for column %s: %w", col.Name, err)
 			}
 			controller.Fields = append(controller.Fields, field)
+		}
 
-			// Detect ID type from primary key column
-			if col.Name == "id" && col.IsPrimaryKey {
-				pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
-				controller.IDType = validation.GoType(pkType)
-				controller.IsAutoIncrementID = validation.IsAutoIncrement(col.DataType)
+		// Three-pass PK detection:
+		// 1. Use config override if provided
+		// 2. Look for column named "id" that is primary key
+		// 3. Fall back to any column with IsPrimaryKey flag
+		if config.PrimaryKeyColumn != "" {
+			for _, col := range table.Columns {
+				if col.Name == config.PrimaryKeyColumn {
+					setControllerPK(controller, col)
+					controller.IDGoFieldName = types.FormatFieldName(col.Name)
+					controller.HasPrimaryKey = true
+					break
+				}
+			}
+		} else {
+			for _, col := range table.Columns {
+				if col.Name == "id" && col.IsPrimaryKey {
+					setControllerPK(controller, col)
+					controller.IDGoFieldName = types.FormatFieldName(col.Name)
+					controller.HasPrimaryKey = true
+					break
+				}
+			}
+			if !controller.HasPrimaryKey {
+				for _, col := range table.Columns {
+					if col.IsPrimaryKey {
+						setControllerPK(controller, col)
+						controller.IDGoFieldName = types.FormatFieldName(col.Name)
+						controller.HasPrimaryKey = true
+						break
+					}
+				}
 			}
 		}
 	}
 
 	return controller, nil
+}
+
+func setControllerPK(controller *GeneratedController, col *catalog.Column) {
+	pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
+	controller.IDType = validation.GoType(pkType)
+	controller.IsAutoIncrementID = validation.IsAutoIncrement(col.DataType)
+}
+
+// isNullableType returns true if the given type is a pointer or a null-wrapper type.
+func isNullableType(goType string) bool {
+	if strings.HasPrefix(goType, "*") {
+		return true
+	}
+	switch goType {
+	case "sql.NullString", "sql.NullBool", "sql.NullInt16", "sql.NullInt32",
+		"sql.NullInt64", "sql.NullFloat64", "sql.NullTime",
+		"bun.NullString", "bun.NullBool", "bun.NullInt32", "bun.NullInt64",
+		"bun.NullFloat64", "bun.NullTime":
+		return true
+	}
+	return false
+}
+
+// resolveControllerBaseType strips null-type wrappers and pointer prefixes.
+func resolveControllerBaseType(goType string) string {
+	switch goType {
+	case "sql.NullString", "bun.NullString":
+		return "string"
+	case "sql.NullBool", "bun.NullBool":
+		return "bool"
+	case "sql.NullInt16":
+		return "int16"
+	case "sql.NullInt32", "bun.NullInt32":
+		return "int32"
+	case "sql.NullInt64", "bun.NullInt64":
+		return "int64"
+	case "sql.NullFloat64", "bun.NullFloat64":
+		return "float64"
+	case "sql.NullTime", "bun.NullTime":
+		return "time.Time"
+	}
+	return strings.TrimPrefix(goType, "*")
 }
 
 func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
@@ -128,15 +204,15 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		return GeneratedField{}, err
 	}
 
-	baseGoType := strings.TrimPrefix(goType, "*")
+	baseGoType := resolveControllerBaseType(goType)
 
 	field := GeneratedField{
 		Name:          types.FormatFieldName(col.Name),
 		GoType:        goType,
 		DBName:        col.Name,
 		CamelCase:     types.FormatCamelCase(col.Name),
-		IsSystemField: col.Name == "created_at" || col.Name == "updated_at" || col.Name == "id",
-		IsPointer:     strings.HasPrefix(goType, "*"),
+		IsSystemField: col.Name == "created_at" || col.Name == "updated_at" || col.IsPrimaryKey,
+		IsPointer:     isNullableType(goType),
 	}
 
 	switch baseGoType {
@@ -157,7 +233,9 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 	case "bool":
 		field.GoFormType = "bool"
 	default:
-		if field.IsPointer {
+		if strings.HasPrefix(goType, "sql.Null") || strings.HasPrefix(goType, "bun.Null") {
+			field.GoFormType = "string"
+		} else if isNullableType(goType) {
 			field.GoFormType = goType
 		} else {
 			field.GoFormType = "string"

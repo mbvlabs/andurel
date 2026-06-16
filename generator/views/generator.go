@@ -82,7 +82,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 
 	for _, col := range table.Columns {
 		// Detect ID type from primary key column
-		if col.Name == "id" && col.IsPrimaryKey {
+		if col.IsPrimaryKey {
 			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
 			view.IDType = validation.GoType(pkType)
 			continue
@@ -101,11 +101,35 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 	return view, nil
 }
 
+// resolveViewBaseType strips null type wrappers and pointer prefixes to get
+// the underlying scalar type for view rendering purposes.
+func resolveViewBaseType(goType string) string {
+	switch goType {
+	case "sql.NullString", "bun.NullString":
+		return "string"
+	case "sql.NullBool", "bun.NullBool":
+		return "bool"
+	case "sql.NullInt16":
+		return "int16"
+	case "sql.NullInt32", "bun.NullInt32":
+		return "int32"
+	case "sql.NullInt64", "bun.NullInt64":
+		return "int64"
+	case "sql.NullFloat64", "bun.NullFloat64":
+		return "float64"
+	case "sql.NullTime", "bun.NullTime":
+		return "time.Time"
+	}
+	return strings.TrimPrefix(goType, "*")
+}
+
 func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 	goType, _, err := g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
 	if err != nil {
 		goType = "string"
 	}
+
+	viewGoType := resolveViewBaseType(goType)
 
 	field := ViewField{
 		Name:          types.FormatFieldName(col.Name),
@@ -116,7 +140,7 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 		GoType:        goType,
 	}
 
-	switch goType {
+	switch viewGoType {
 	case "time.Time":
 		field.IsTimestamp = true
 		field.InputType = "date"
@@ -162,7 +186,7 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 		field.StringConverter = "fmt.Sprintf(\"%v\", %s)"
 	}
 
-	switch goType {
+	switch viewGoType {
 	case "time.Time":
 		field.GoFormType = "time.Time"
 	case "int16":
@@ -184,7 +208,34 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 	return field, nil
 }
 
-func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, cssFramework string) (string, error) {
+func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
+	cssFramework := "tailwind"
+	hasCssComponents := false
+
+	if lock != nil && lock.ScaffoldConfig != nil {
+		cssFramework = lock.ScaffoldConfig.CSSFramework
+		for _, ext := range lock.ScaffoldConfig.Extensions {
+			if ext == "css-components" {
+				hasCssComponents = true
+				break
+			}
+		}
+	}
+
+	if hasCssComponents {
+		if cssFramework == "vanilla" {
+			return "vanilla_"
+		}
+		return "tw_"
+	}
+
+	if cssFramework == "vanilla" {
+		return "vanilla_bare_"
+	}
+	return "tw_bare_"
+}
+
+func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, templatePrefix string) (string, error) {
 	// Custom template functions for view-specific operations
 	customFuncs := template.FuncMap{
 		"UsesPackage": func(fields []ViewField, packageName string) bool {
@@ -195,77 +246,53 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, c
 			}
 			return false
 		},
-		"FieldRef": func(field ViewField, resourceName string) string {
-			return fmt.Sprintf("%s.%s", strings.ToLower(resourceName), field.Name)
+		"FieldRef": func(field ViewField, objRef string) string {
+			return fmt.Sprintf("%s.%s", objRef, field.Name)
 		},
-		"StringDisplay": func(field ViewField, resourceName string) string {
+		"StringDisplay": func(field ViewField, objRef string) string {
 			if field.StringConverter == "" {
 				return fmt.Sprintf(
 					"{ %s.%s }",
-					strings.ToLower(resourceName),
+					objRef,
 					field.Name,
 				)
 			}
-			var fieldRef strings.Builder
-			fieldRef.Grow(len(resourceName) + len(field.Name) + 1)
-			fieldRef.WriteString(strings.ToLower(resourceName))
-			fieldRef.WriteString(".")
-			fieldRef.WriteString(field.Name)
-			actualFieldRef := fieldRef.String()
 			converter := strings.ReplaceAll(
 				field.StringConverter,
 				"%s",
-				actualFieldRef,
+				fmt.Sprintf("%s.%s", objRef, field.Name),
 			)
 			return fmt.Sprintf("{ %s }", converter)
 		},
-		"StringTableDisplay": func(field ViewField, resourceName string) string {
+		"StringTableDisplay": func(field ViewField, objRef string) string {
 			if field.StringConverter == "" {
 				return fmt.Sprintf(
 					"{ %s.%s }",
-					strings.ToLower(resourceName),
+					objRef,
 					field.Name,
 				)
 			}
-			var fieldRef strings.Builder
-			fieldRef.Grow(len(resourceName) + len(field.Name) + 1)
-			fieldRef.WriteString(strings.ToLower(resourceName))
-			fieldRef.WriteString(".")
-			fieldRef.WriteString(field.Name)
-			actualFieldRef := fieldRef.String()
 			converter := strings.ReplaceAll(
 				field.StringConverter,
 				"%s",
-				actualFieldRef,
+				fmt.Sprintf("%s.%s", objRef, field.Name),
 			)
 			return fmt.Sprintf("{ %s }", converter)
 		},
-		"StringValue": func(field ViewField, resourceName string) string {
+		"StringValue": func(field ViewField, objRef string) string {
 			if field.StringConverter == "" {
 				return fmt.Sprintf(
 					"%s.%s",
-					strings.ToLower(resourceName),
+					objRef,
 					field.Name,
 				)
 			}
-			var fieldRef strings.Builder
-			fieldRef.Grow(len(resourceName) + len(field.Name) + 1)
-			fieldRef.WriteString(strings.ToLower(resourceName))
-			fieldRef.WriteString(".")
-			fieldRef.WriteString(field.Name)
-			actualFieldRef := fieldRef.String()
 			return strings.ReplaceAll(
 				field.StringConverter,
 				"%s",
-				actualFieldRef,
+				fmt.Sprintf("%s.%s", objRef, field.Name),
 			)
 		},
-	}
-
-	// Determine template prefix based on CSS framework (default to tailwind)
-	templatePrefix := "tw_"
-	if cssFramework == "vanilla" {
-		templatePrefix = "vanilla_"
 	}
 
 	templateName := templatePrefix + "resource_view_no_controller.tmpl"
@@ -305,11 +332,11 @@ func (g *Generator) GenerateViewWithController(
 		return fmt.Errorf("view file %s already exists", viewPath)
 	}
 
-	// Read CSS framework from andurel.lock (default to tailwind)
-	cssFramework := "tailwind"
+	// Read lock file to determine CSS framework and extensions
+	templatePrefix := "tw_bare_"
 	if rootDir, err := g.fileManager.FindGoModRoot(); err == nil {
-		if lock, err := layout.ReadLockFile(rootDir); err == nil && lock.ScaffoldConfig != nil {
-			cssFramework = lock.ScaffoldConfig.CSSFramework
+		if lock, err := layout.ReadLockFile(rootDir); err == nil {
+			templatePrefix = g.templatePrefix(lock)
 		}
 	}
 
@@ -324,7 +351,7 @@ func (g *Generator) GenerateViewWithController(
 		return fmt.Errorf("failed to build view: %w", err)
 	}
 
-	viewContent, err := g.GenerateViewFile(view, withController, cssFramework)
+	viewContent, err := g.GenerateViewFile(view, withController, templatePrefix)
 	if err != nil {
 		return fmt.Errorf("failed to render view file: %w", err)
 	}

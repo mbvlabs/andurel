@@ -641,12 +641,12 @@ DROP TABLE IF EXISTS posts;
 		t.Error("Expected 'Scores []int32' in model for integer[] column")
 	}
 
-	// Verify []byte is used for jsonb/json columns
-	if !strings.Contains(modelStr, "Settings") || !strings.Contains(modelStr, "[]byte") {
-		t.Error("Expected 'Settings []byte' in model for jsonb column")
+	// Verify json.RawMessage is used for jsonb/json columns
+	if !strings.Contains(modelStr, "Settings") || !strings.Contains(modelStr, "json.RawMessage") {
+		t.Error("Expected 'Settings json.RawMessage' in model for jsonb column")
 	}
-	if !strings.Contains(modelStr, "Metadata") {
-		t.Error("Expected 'Metadata []byte' in model for json column")
+	if !strings.Contains(modelStr, "Metadata") || !strings.Contains(modelStr, "json.RawMessage") {
+		t.Error("Expected 'Metadata json.RawMessage' in model for json column")
 	}
 
 	compareOrUpdateGenerateGolden(

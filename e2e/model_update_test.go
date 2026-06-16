@@ -72,8 +72,8 @@ func testModelUpdatePreservesCustomFields(t *testing.T, project *internal.Projec
 	// Insert the Status field inside the struct, after the bun.BaseModel line.
 	modelStr = strings.Replace(
 		modelStr,
-		"bun.BaseModel `bun:\"table:widgets\"`",
-		"bun.BaseModel `bun:\"table:widgets\"`\n\tStatus        WidgetStatus `bun:\"status\"`",
+		"bun.BaseModel `bun:\"table:widgets,alias:widgets\"`",
+		"bun.BaseModel `bun:\"table:widgets,alias:widgets\"`\n\tStatus        WidgetStatus `bun:\"status\"`",
 		1,
 	)
 
@@ -132,5 +132,27 @@ func testModelUpdatePreservesCustomFields(t *testing.T, project *internal.Projec
 	}
 	if !strings.Contains(updated, "Price") {
 		t.Error("updated model should still contain the Price field")
+	}
+
+	// Method bodies must reference the new Description field.
+	if !strings.Contains(updated, "data.Description") {
+		t.Error("Create/Update/Upsert methods should reference Description field")
+	}
+	if !strings.Contains(updated, `Column("description")`) {
+		t.Error("Update method should include Column(\"description\")")
+	}
+	if !strings.Contains(updated, `Set("description = excluded.description"`) {
+		t.Error("Upsert method should include Set clause for description")
+	}
+
+	// Method bodies must reference the custom Status field.
+	if !strings.Contains(updated, "data.Status") {
+		t.Error("Create/Update/Upsert methods should reference Status field")
+	}
+	if !strings.Contains(updated, `Column("status")`) {
+		t.Error("Update method should include Column(\"status\") for custom field")
+	}
+	if !strings.Contains(updated, `Set("status = excluded.status"`) {
+		t.Error("Upsert method should include Set clause for status")
 	}
 }

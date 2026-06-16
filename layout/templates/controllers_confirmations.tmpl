@@ -56,7 +56,7 @@ func (c Confirmations) RegisterRoutes(r *router.Router) error {
 }
 
 func (c Confirmations) New(etx *echo.Context) error {
-	return render(etx, views.ConfirmationForm())
+	return render(etx, views.ConfirmationForm{}.Page())
 }
 
 func (c Confirmations) Create(etx *echo.Context) error {

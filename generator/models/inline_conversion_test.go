@@ -69,13 +69,13 @@ func TestBunModelGeneration(t *testing.T) {
 			}
 		}
 		if field.Name == "Age" {
-			if field.Type != "int32" && field.Type != "*int32" {
-				t.Errorf("Field %s should be int32 or *int32, got %s", field.Name, field.Type)
+			if field.Type != "int32" && field.Type != "*int32" && field.Type != "sql.NullInt32" {
+				t.Errorf("Field %s should be int32, *int32, or sql.NullInt32, got %s", field.Name, field.Type)
 			}
 		}
 		if field.Name == "IsActive" {
-			if field.Type != "bool" && field.Type != "*bool" {
-				t.Errorf("Field %s should be bool or *bool, got %s", field.Name, field.Type)
+			if field.Type != "bool" && field.Type != "*bool" && field.Type != "sql.NullBool" {
+				t.Errorf("Field %s should be bool, *bool, or sql.NullBool, got %s", field.Name, field.Type)
 			}
 		}
 	}

@@ -2,6 +2,8 @@ package models
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -11,15 +13,15 @@ import (
 )
 
 type PostEntity struct {
-	bun.BaseModel `bun:"table:posts"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	Title         string     `bun:"title"`
-	Tags          []string   `bun:"tags"`
-	Scores        []int32    `bun:"scores"`
-	Settings      []byte     `bun:"settings,type:jsonb"`
-	Metadata      []byte     `bun:"metadata"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:posts,alias:posts"`
+	ID            uuid.UUID       `bun:"id,pk,type:uuid"`
+	Title         string          `bun:"title"`
+	Tags          []string        `bun:"tags,array"`
+	Scores        []int32         `bun:"scores,array"`
+	Settings      json.RawMessage `bun:"settings,type:jsonb"`
+	Metadata      json.RawMessage `bun:"metadata,type:json"`
+	CreatedAt     sql.NullTime    `bun:"created_at"`
+	UpdatedAt     sql.NullTime    `bun:"updated_at"`
 }
 
 func (p post) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (PostEntity, error) {
@@ -38,8 +40,8 @@ type CreatePostData struct {
 	Title    string
 	Tags     []string
 	Scores   []int32
-	Settings []byte
-	Metadata []byte
+	Settings json.RawMessage
+	Metadata json.RawMessage
 }
 
 func (p post) Create(ctx context.Context, db storage.Executor, data CreatePostData) (PostEntity, error) {
@@ -58,7 +60,7 @@ func (p post) Create(ctx context.Context, db storage.Executor, data CreatePostDa
 		Metadata:  data.Metadata,
 	}
 
-	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return PostEntity{}, err
 	}
 
@@ -70,9 +72,9 @@ type UpdatePostData struct {
 	Title     string
 	Tags      []string
 	Scores    []int32
-	Settings  []byte
-	Metadata  []byte
-	UpdatedAt *time.Time
+	Settings  json.RawMessage
+	Metadata  json.RawMessage
+	UpdatedAt sql.NullTime
 }
 
 func (p post) Update(ctx context.Context, db storage.Executor, data UpdatePostData) (PostEntity, error) {
@@ -149,7 +151,7 @@ func (p post) Paginate(ctx context.Context, db storage.Executor, page, pageSize 
 	offset := (page - 1) * pageSize
 
 	totalCount, err := db.NewSelect().
-		Model(&PostEntity{}).Count(ctx, &totalCount)
+		Model(&PostEntity{}).Count(ctx)
 	if err != nil {
 		return PaginatedPosts{}, err
 	}

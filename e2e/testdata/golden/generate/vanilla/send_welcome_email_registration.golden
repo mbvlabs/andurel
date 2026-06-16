@@ -22,5 +22,11 @@ func RegisterWorkers(
 		return nil, err
 	}
 
+	if err := river.AddWorkerSafely(wrks, NewSendWelcomeEmailWorker()); err != nil {
+		return nil, err
+	}
+
+	// andurel:worker-registration-point
+
 	return wrks, nil
 }

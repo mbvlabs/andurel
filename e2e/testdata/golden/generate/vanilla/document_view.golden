@@ -1,3 +1,7 @@
+
+
+
+
 package views
 
 import (
@@ -10,241 +14,271 @@ import (
 	"testapp/router/routes"
 )
 
-templ DocumentIndex(documents []models.DocumentEntity) {
+type DocumentIndex struct {
+	Items []models.DocumentEntity
+}
+
+func (di DocumentIndex) ContainerFragment() string {
+	return "document-index-container-fragment"
+}
+
+templ (di DocumentIndex) Page() {
 	@base() {
-		<main class="page-shell">
-			<section class="container stack" data-gap="lg">
-				<div class="cluster" data-justify="between">
-					<div class="stack" data-gap="sm">
-						<h1>Documents</h1>
-						<p class="muted">Manage your documents with the shared vanilla component system.</p>
+		@templ.Fragment(di.ContainerFragment()) {
+			<main id="document-index-container">
+				<section>
+					<div>
+						<div>
+							<h1>Documents</h1>
+						</div>
+						<a href={ routes.DocumentNew.URL() }>New Document</a>
 					</div>
-					<a class="btn btn-primary" href={ routes.DocumentNew.URL() }>New Document</a>
-				</div>
-				if len(documents) == 0 {
-					<section class="panel empty-state">
-						<div class="stack text-center" data-gap="sm">
-							<h2 class="empty-state-title">No documents found</h2>
-							<p class="empty-state-description">Create your first document to start filling this view.</p>
-						</div>
-						<div class="empty-state-actions">
-							<a class="btn btn-primary" href={ routes.DocumentNew.URL() }>New Document</a>
-						</div>
-					</section>
-				} else {
-					<div class="panel table-wrap">
-						<table class="table">
-							<thead>
-								<tr>
-									<th>Title</th>
-									<th>Tags</th>
-									<th>Page Numbers</th>
-									<th>View Count</th>
-									<th>Is Published</th>
-									<th>Created At</th>
-									<th>Updated At</th>
-									<th>Actions</th>
-								</tr>
-							</thead>
-							<tbody>
-								for _, document := range documents {
+					if len(di.Items) == 0 {
+						<section>
+							<div>
+								<h2>No documents found</h2>
+							</div>
+							<div>
+								<a href={ routes.DocumentNew.URL() }>New Document</a>
+							</div>
+						</section>
+					} else {
+						<div>
+							<table>
+								<thead>
 									<tr>
-										<td>{ document.Title }</td>
-										<td>{ strings.Join(document.Tags, ", ") }</td>
-										<td>{ fmt.Sprintf("%v", document.PageNumbers) }</td>
-										<td>{ fmt.Sprintf("%d", document.ViewCount) }</td>
-										<td>{ fmt.Sprintf("%v", document.IsPublished) }</td>
-										<td>{ fmt.Sprintf("%v", document.CreatedAt) }</td>
-										<td>{ fmt.Sprintf("%v", document.UpdatedAt) }</td>
-										<td>
-											<div class="cluster" data-gap="sm">
-												<a class="btn btn-ghost btn-sm" href={ routes.DocumentShow.URL(document.ID) }>View</a>
-												<a class="btn btn-outline btn-sm" href={ routes.DocumentEdit.URL(document.ID) }>Edit</a>
-											</div>
-										</td>
+										<th>Title</th>
+										<th>Tags</th>
+										<th>Page Numbers</th>
+										<th>View Count</th>
+										<th>Is Published</th>
+										<th>Created At</th>
+										<th>Updated At</th>
+										<th>Actions</th>
 									</tr>
-								}
-							</tbody>
-						</table>
-					</div>
-				}
-			</section>
-		</main>
+								</thead>
+								<tbody>
+									for _, document := range di.Items {
+										<tr>
+											<td>{ document.Title }</td>
+											<td>{ strings.Join(document.Tags, ", ") }</td>
+											<td>{ fmt.Sprintf("%v", document.PageNumbers) }</td>
+											<td>{ fmt.Sprintf("%d", document.ViewCount) }</td>
+											<td>{ fmt.Sprintf("%t", document.IsPublished) }</td>
+											<td>{ document.CreatedAt.String() }</td>
+											<td>{ document.UpdatedAt.String() }</td>
+											<td>
+												<div>
+													<a href={ routes.DocumentShow.URL(document.ID) }>View</a>
+													<a href={ routes.DocumentEdit.URL(document.ID) }>Edit</a>
+												</div>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</section>
+			</main>
+		}
 	}
 }
 
-templ DocumentShow(document models.DocumentEntity) {
+type DocumentShow struct {
+	Item models.DocumentEntity
+}
+
+func (ds DocumentShow) ContainerFragment() string {
+	return "document-show-container-fragment"
+}
+
+templ (ds DocumentShow) Page() {
 	@base() {
-		<main class="page-shell">
-			<section class="container stack" data-gap="lg">
-				<div class="cluster" data-justify="between">
-					<div class="stack" data-gap="sm">
-						<h1>Document Details</h1>
-						<p class="muted">Review the current values stored for this document.</p>
-					</div>
-					<div class="cluster" data-gap="sm">
-						<a class="btn btn-primary" href={ routes.DocumentEdit.URL(document.ID) }>Edit</a>
-						<a class="btn btn-outline" href={ renderer.ResolveBackURL(ctx, routes.DocumentIndex.URL()) }>Back to List</a>
-					</div>
-				</div>
-				<div class="panel">
-					<div class="grid-auto-fit" data-grid="compact">
-						<div class="field">
-							<p class="field-label">Title</p>
-							<p>{ document.Title }</p>
+		@templ.Fragment(ds.ContainerFragment()) {
+			<main id="document-show-container">
+				<section>
+					<div>
+						<div>
+							<h1>Document Details</h1>
 						</div>
-						<div class="field">
-							<p class="field-label">Tags</p>
-							<p>{ strings.Join(document.Tags, ", ") }</p>
-						</div>
-						<div class="field">
-							<p class="field-label">Page Numbers</p>
-							<p>{ fmt.Sprintf("%v", document.PageNumbers) }</p>
-						</div>
-						<div class="field">
-							<p class="field-label">View Count</p>
-							<p>{ fmt.Sprintf("%d", document.ViewCount) }</p>
-						</div>
-						<div class="field">
-							<p class="field-label">Is Published</p>
-							<p>{ fmt.Sprintf("%v", document.IsPublished) }</p>
-						</div>
-						<div class="field">
-							<p class="field-label">Created At</p>
-							<p>{ fmt.Sprintf("%v", document.CreatedAt) }</p>
-						</div>
-						<div class="field">
-							<p class="field-label">Updated At</p>
-							<p>{ fmt.Sprintf("%v", document.UpdatedAt) }</p>
+						<div>
+							<a href={ routes.DocumentEdit.URL(ds.Item.ID) }>Edit</a>
+							<a href={ renderer.ResolveBackURL(ctx, routes.DocumentIndex.URL()) }>Back to List</a>
 						</div>
 					</div>
-				</div>
-			</section>
-		</main>
+					<div>
+						<div>
+							<div>
+								<p>Title</p>
+								<p>{ ds.Item.Title }</p>
+							</div>
+							<div>
+								<p>Tags</p>
+								<p>{ strings.Join(ds.Item.Tags, ", ") }</p>
+							</div>
+							<div>
+								<p>Page Numbers</p>
+								<p>{ fmt.Sprintf("%v", ds.Item.PageNumbers) }</p>
+							</div>
+							<div>
+								<p>View Count</p>
+								<p>{ fmt.Sprintf("%d", ds.Item.ViewCount) }</p>
+							</div>
+							<div>
+								<p>Is Published</p>
+								<p>{ fmt.Sprintf("%t", ds.Item.IsPublished) }</p>
+							</div>
+							<div>
+								<p>Created At</p>
+								<p>{ ds.Item.CreatedAt.String() }</p>
+							</div>
+							<div>
+								<p>Updated At</p>
+								<p>{ ds.Item.UpdatedAt.String() }</p>
+							</div>
+						</div>
+					</div>
+				</section>
+			</main>
+		}
 	}
 }
 
-templ DocumentNew() {
+type DocumentNew struct{}
+
+func (dn DocumentNew) ContainerFragment() string {
+	return "document-new-container-fragment"
+}
+
+templ (dn DocumentNew) Page() {
 	@base() {
-		<main class="auth-shell">
-			<section class="center">
-				<div class="card">
-					<div class="card-header">
-						<h1 class="card-title">New Document</h1>
-						<p class="card-description">Enter the details for the new document.</p>
+		@templ.Fragment(dn.ContainerFragment()) {
+			<main id="document-new-container">
+				<section>
+					<div>
+						<div>
+							<h1>New Document</h1>
+							<p>Enter the details for the new document.</p>
+						</div>
+						<div>
+							<form
+								data-indicator:_submitting
+								data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.DocumentCreate.URL()) }
+							>
+								<fieldset data-attr:disabled="$_submitting">
+									<div>
+										<label for="title">Title</label>
+										<div>
+											<input type="text" id="title" name="title" data-bind="title"/>
+										</div>
+									</div>
+									<div>
+										<label for="tags">Tags</label>
+										<div>
+											<input type="text" id="tags" name="tags" data-bind="tags"/>
+										</div>
+									</div>
+									<div>
+										<label for="pageNumbers">Page Numbers</label>
+										<div>
+											<input type="text" id="pageNumbers" name="pageNumbers" data-bind="pageNumbers"/>
+										</div>
+									</div>
+									<div>
+										<label for="viewCount">View Count</label>
+										<div>
+											<input type="number" id="viewCount" name="viewCount" data-bind="viewCount"/>
+										</div>
+									</div>
+									<div>
+										<input type="checkbox" id="isPublished" name="isPublished" data-bind="isPublished"/>
+										<label for="isPublished">Is Published</label>
+									</div>
+									<div>
+										<button type="submit">Create Document</button>
+										<a href={ renderer.ResolveBackURL(ctx, routes.DocumentIndex.URL()) }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+						</div>
 					</div>
-					<div class="card-content">
-						<form
-							class="form"
-							data-indicator:submitting
-							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPost, routes.DocumentCreate.URL()) }
-						>
-							<fieldset class="fieldset" data-attr:disabled="$submitting">
-								<div class="field">
-									<label class="field-label" for="title">Title</label>
-									<div class="field-control">
-										<input class="input" type="text" id="title" name="title" data-bind="title"/>
-									</div>
-								</div>
-								<div class="field">
-									<label class="field-label" for="tags">Tags</label>
-									<div class="field-control">
-										<input class="input" type="text" id="tags" name="tags" data-bind="tags"/>
-									</div>
-								</div>
-								<div class="field">
-									<label class="field-label" for="pageNumbers">Page Numbers</label>
-									<div class="field-control">
-										<input class="input" type="text" id="pageNumbers" name="pageNumbers" data-bind="pageNumbers"/>
-									</div>
-								</div>
-								<div class="field">
-									<label class="field-label" for="viewCount">View Count</label>
-									<div class="field-control">
-										<input class="input" type="number" id="viewCount" name="viewCount" data-bind="viewCount"/>
-									</div>
-								</div>
-								<div class="field">
-									<label class="field-label" for="isPublished">Is Published</label>
-									<div class="field-control">
-										<input class="input" type="text" id="isPublished" name="isPublished" data-bind="isPublished"/>
-									</div>
-								</div>
-								<div class="stack" data-gap="sm">
-									<button class="btn btn-primary btn-block" type="submit">Create Document</button>
-									<a class="btn btn-outline btn-block" href={ renderer.ResolveBackURL(ctx, routes.DocumentIndex.URL()) }>Back to List</a>
-								</div>
-							</fieldset>
-						</form>
-					</div>
-				</div>
-			</section>
-		</main>
+				</section>
+			</main>
+		}
 	}
 }
 
-templ DocumentEdit(document models.DocumentEntity) {
+type DocumentEdit struct {
+	Item models.DocumentEntity
+}
+
+func (de DocumentEdit) ContainerFragment() string {
+	return "document-edit-container-fragment"
+}
+
+templ (de DocumentEdit) Page() {
 	@base() {
-		<main class="auth-shell">
-			<section class="center">
-				<div class="card">
-					<div class="card-header">
-						<h1 class="card-title">Edit Document</h1>
-						<p class="card-description">Update the details for this document.</p>
+		@templ.Fragment(de.ContainerFragment()) {
+			<main id="document-edit-container">
+				<section>
+					<div>
+						<div>
+							<h1>Edit Document</h1>
+							<p>Update the details for this document.</p>
+						</div>
+						<div>
+							<form
+								data-indicator:_submitting
+								data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.DocumentUpdate.URL(de.Item.ID)) }
+							>
+								<fieldset data-attr:disabled="$_submitting">
+									<div>
+										<label for="title">Title</label>
+										<div>
+											<input type="text" id="title" name="title" data-bind="title" value={ de.Item.Title }/>
+										</div>
+									</div>
+									<div>
+										<label for="tags">Tags</label>
+										<div>
+											<input type="text" id="tags" name="tags" data-bind="tags" value={ strings.Join(de.Item.Tags, ", ") }/>
+										</div>
+									</div>
+									<div>
+										<label for="pageNumbers">Page Numbers</label>
+										<div>
+											<input type="text" id="pageNumbers" name="pageNumbers" data-bind="pageNumbers" value={ fmt.Sprintf("%v", de.Item.PageNumbers) }/>
+										</div>
+									</div>
+									<div>
+										<label for="viewCount">View Count</label>
+										<div>
+											<input type="number" id="viewCount" name="viewCount" data-bind="viewCount" value={ fmt.Sprintf("%d", de.Item.ViewCount) }/>
+										</div>
+									</div>
+									<div>
+										<input type="checkbox" id="isPublished" name="isPublished" data-bind="isPublished" if de.Item.IsPublished {
+	checked
+}/>
+										<label for="isPublished">Is Published</label>
+									</div>
+									<div>
+										<button type="submit">Update Document</button>
+										<a href={ renderer.ResolveBackURL(ctx, routes.DocumentIndex.URL()) }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+						</div>
+						<div>
+							<button
+								type="button"
+								data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.DocumentDestroy.URL(de.Item.ID)) }
+							>Destroy Document</button>
+						</div>
 					</div>
-					<div class="card-content">
-						<form
-							class="form"
-							data-indicator:submitting
-							data-on:submit={ "!$submitting &&" + hypermedia.DataAction(http.MethodPut, routes.DocumentUpdate.URL(document.ID)) }
-						>
-							<fieldset class="fieldset" data-attr:disabled="$submitting">
-								<div class="field">
-									<label class="field-label" for="title">Title</label>
-									<div class="field-control">
-										<input class="input" type="text" id="title" name="title" data-bind="title" value={ document.Title }/>
-									</div>
-								</div>
-								<div class="field">
-									<label class="field-label" for="tags">Tags</label>
-									<div class="field-control">
-										<input class="input" type="text" id="tags" name="tags" data-bind="tags" value={ strings.Join(document.Tags, ", ") }/>
-									</div>
-								</div>
-								<div class="field">
-									<label class="field-label" for="pageNumbers">Page Numbers</label>
-									<div class="field-control">
-										<input class="input" type="text" id="pageNumbers" name="pageNumbers" data-bind="pageNumbers" value={ fmt.Sprintf("%v", document.PageNumbers) }/>
-									</div>
-								</div>
-								<div class="field">
-									<label class="field-label" for="viewCount">View Count</label>
-									<div class="field-control">
-										<input class="input" type="number" id="viewCount" name="viewCount" data-bind="viewCount" value={ fmt.Sprintf("%d", document.ViewCount) }/>
-									</div>
-								</div>
-								<div class="field">
-									<label class="field-label" for="isPublished">Is Published</label>
-									<div class="field-control">
-										<input class="input" type="text" id="isPublished" name="isPublished" data-bind="isPublished" value={ fmt.Sprintf("%v", document.IsPublished) }/>
-									</div>
-								</div>
-								<div class="stack" data-gap="sm">
-									<button class="btn btn-primary btn-block" type="submit">Update Document</button>
-									<a class="btn btn-outline btn-block" href={ renderer.ResolveBackURL(ctx, routes.DocumentIndex.URL()) }>Back to List</a>
-								</div>
-							</fieldset>
-						</form>
-					</div>
-					<div class="card-footer">
-						<button
-							class="btn btn-destructive btn-block"
-							type="button"
-							data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.DocumentDestroy.URL(document.ID)) }
-						>Destroy Document</button>
-					</div>
-				</div>
-			</section>
-		</main>
+				</section>
+			</main>
+		}
 	}
 }

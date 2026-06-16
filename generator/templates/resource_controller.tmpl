@@ -8,6 +8,8 @@ import (
 	"strconv"
 {{- $needsTime := false}}
 {{- $needsUUID := or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- $needsSQLNull := false}}
+{{- $needsBun := false}}
 {{- range .Fields}}
 {{- if and (not .IsSystemField) (eq .GoFormType "time.Time")}}
 	{{- $needsTime = true}}
@@ -15,9 +17,21 @@ import (
 {{- if and (not .IsSystemField) (or (eq .GoType "uuid.UUID") (eq .GoType "*uuid.UUID"))}}
 	{{- $needsUUID = true}}
 {{- end}}
+{{- if and (not .IsSystemField) (hasPrefix .GoType "sql.Null")}}
+	{{- $needsSQLNull = true}}
+{{- end}}
+{{- if and (not .IsSystemField) (hasPrefix .GoType "bun.Null")}}
+	{{- $needsBun = true}}
+{{- end}}
 {{- end}}
 {{- if $needsTime}}
 	"time"
+{{- end}}
+{{- if $needsSQLNull}}
+	"database/sql"
+{{- end}}
+{{- if $needsBun}}
+	"github.com/uptrace/bun"
 {{- end}}
 
 {{- if $needsUUID}}
@@ -68,7 +82,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		return render(etx, views.InternalError())
 	}
 
-	return render(etx, views.{{.ResourceName}}Index({{.PluralName | ToCamelCase}}List.{{.PluralResourceName}}))
+	return render(etx, views.{{.ResourceName}}Index{Items: {{.PluralName | ToCamelCase}}List.{{.PluralResourceName}}}.Page())
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
@@ -100,11 +114,11 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.{{.ResourceName}}Show({{.ResourceName | ToLowerCamelCase}}))
+	return render(etx, views.{{.ResourceName}}Show{Item: {{.ResourceName | ToLowerCamelCase}}}.Page())
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) New(etx *echo.Context) error {
-	return render(etx, views.{{.ResourceName}}New())
+	return render(etx, views.{{.ResourceName}}New{}.Page())
 }
 
 type Create{{.ResourceName}}FormPayload struct {
@@ -185,6 +199,48 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 			}
 			return nil
 		}(),
+		{{- else if eq .GoType "sql.NullTime"}}
+		{{.Name}}:    func() sql.NullTime {
+			if payload.{{.Name}} == "" {
+				return sql.NullTime{Valid: false}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return sql.NullTime{Time: t, Valid: true}
+			}
+			return sql.NullTime{Valid: false}
+		}(),
+		{{- else if eq .GoType "bun.NullTime"}}
+		{{.Name}}:    func() bun.NullTime {
+			if payload.{{.Name}} == "" {
+				return bun.NullTime{Valid: false}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return bun.NullTime{Time: t, Valid: true}
+			}
+			return bun.NullTime{Valid: false}
+		}(),
+		{{- else if eq .GoType "sql.NullString"}}
+		{{.Name}}:    sql.NullString{String: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullBool"}}
+		{{.Name}}:    sql.NullBool{Bool: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullInt16"}}
+		{{.Name}}:    sql.NullInt16{Int16: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullInt32"}}
+		{{.Name}}:    sql.NullInt32{Int32: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullInt64"}}
+		{{.Name}}:    sql.NullInt64{Int64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullFloat64"}}
+		{{.Name}}:    sql.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullString"}}
+		{{.Name}}:    bun.NullString{String: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullBool"}}
+		{{.Name}}:    bun.NullBool{Bool: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullInt32"}}
+		{{.Name}}:    bun.NullInt32{Int32: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullInt64"}}
+		{{.Name}}:    bun.NullInt64{Int64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullFloat64"}}
+		{{.Name}}:    bun.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
 			if payload.{{.Name}} == "" {
@@ -220,7 +276,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		return render(etx, views.InternalError())
 	}
 
-	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
@@ -252,7 +308,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.{{.ResourceName}}Edit({{.ResourceName | ToLowerCamelCase}}))
+	return render(etx, views.{{.ResourceName}}Edit{Item: {{.ResourceName | ToLowerCamelCase}}}.Page())
 }
 
 type Update{{.ResourceName}}FormPayload struct {
@@ -304,7 +360,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	}
 
 	data := models.Update{{.ResourceName}}Data{
-		ID:      {{.ResourceName | ToLowerCamelCase}}ID,
+		{{.IDGoFieldName}}:      {{.ResourceName | ToLowerCamelCase}}ID,
 {{- range .Fields}}
 {{- if not .IsSystemField}}
 		{{- if eq .GoType "*uuid.UUID"}}
@@ -357,6 +413,48 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 			}
 			return nil
 		}(),
+		{{- else if eq .GoType "sql.NullTime"}}
+		{{.Name}}:    func() sql.NullTime {
+			if payload.{{.Name}} == "" {
+				return sql.NullTime{Valid: false}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return sql.NullTime{Time: t, Valid: true}
+			}
+			return sql.NullTime{Valid: false}
+		}(),
+		{{- else if eq .GoType "bun.NullTime"}}
+		{{.Name}}:    func() bun.NullTime {
+			if payload.{{.Name}} == "" {
+				return bun.NullTime{Valid: false}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return bun.NullTime{Time: t, Valid: true}
+			}
+			return bun.NullTime{Valid: false}
+		}(),
+		{{- else if eq .GoType "sql.NullString"}}
+		{{.Name}}:    sql.NullString{String: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullBool"}}
+		{{.Name}}:    sql.NullBool{Bool: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullInt16"}}
+		{{.Name}}:    sql.NullInt16{Int16: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullInt32"}}
+		{{.Name}}:    sql.NullInt32{Int32: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullInt64"}}
+		{{.Name}}:    sql.NullInt64{Int64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "sql.NullFloat64"}}
+		{{.Name}}:    sql.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullString"}}
+		{{.Name}}:    bun.NullString{String: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullBool"}}
+		{{.Name}}:    bun.NullBool{Bool: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullInt32"}}
+		{{.Name}}:    bun.NullInt32{Int32: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullInt64"}}
+		{{.Name}}:    bun.NullInt64{Int64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "bun.NullFloat64"}}
+		{{.Name}}:    bun.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
 			if payload.{{.Name}} == "" {
@@ -395,7 +493,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		return render(etx, views.InternalError())
 	}
 
-	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) error {

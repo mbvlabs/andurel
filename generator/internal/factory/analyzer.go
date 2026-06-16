@@ -66,6 +66,8 @@ func (fa *FieldAnalyzer) determineDefault(fieldName, goType string) string {
 		return "time.Now()"
 	case "uuid.UUID":
 		return "uuid.New()"
+	case "json.RawMessage":
+		return "json.RawMessage{}"
 	case "[]byte":
 		return "[]byte{}"
 	case "*string":
@@ -134,6 +136,8 @@ func (fa *FieldAnalyzer) getGoZero(goType string) string {
 		return "time.Time{}"
 	case "uuid.UUID":
 		return "uuid.UUID{}"
+	case "json.RawMessage":
+		return "nil"
 	case "[]byte":
 		return "nil"
 	default:

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -53,7 +54,7 @@ func (p Projects) Index(etx *echo.Context) error {
 		return render(etx, views.InternalError())
 	}
 
-	return render(etx, views.ProjectIndex(projectsList.Projects))
+	return render(etx, views.ProjectIndex{Items: projectsList.Projects}.Page())
 }
 
 func (p Projects) Show(etx *echo.Context) error {
@@ -67,16 +68,16 @@ func (p Projects) Show(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.ProjectShow(project))
+	return render(etx, views.ProjectShow{Item: project}.Page())
 }
 
 func (p Projects) New(etx *echo.Context) error {
-	return render(etx, views.ProjectNew())
+	return render(etx, views.ProjectNew{}.Page())
 }
 
 type CreateProjectFormPayload struct {
-	Name        string  `json:"name"`
-	Description *string `json:"description"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 func (p Projects) Create(etx *echo.Context) error {
@@ -94,7 +95,7 @@ func (p Projects) Create(etx *echo.Context) error {
 
 	data := models.CreateProjectData{
 		Name:        payload.Name,
-		Description: payload.Description,
+		Description: sql.NullString{String: payload.Description, Valid: true},
 	}
 
 	project, err := models.Project.Create(
@@ -127,12 +128,12 @@ func (p Projects) Edit(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.ProjectEdit(project))
+	return render(etx, views.ProjectEdit{Item: project}.Page())
 }
 
 type UpdateProjectFormPayload struct {
-	Name        string  `json:"name"`
-	Description *string `json:"description"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 func (p Projects) Update(etx *echo.Context) error {
@@ -156,7 +157,7 @@ func (p Projects) Update(etx *echo.Context) error {
 	data := models.UpdateProjectData{
 		ID:          projectID,
 		Name:        payload.Name,
-		Description: payload.Description,
+		Description: sql.NullString{String: payload.Description, Valid: true},
 	}
 
 	project, err := models.Project.Update(

@@ -33,6 +33,8 @@ func (fg *FileGenerator) GenerateController(
 	modulePath string,
 	databaseType string,
 	tableNameOverridden bool,
+	nullType string,
+	primaryKeyColumn string,
 ) error {
 	// When table name is overridden, use it directly; otherwise derive from resource name
 	pluralName := tableName
@@ -46,6 +48,9 @@ func (fg *FileGenerator) GenerateController(
 	}
 
 	generator := NewGenerator(databaseType)
+	if nullType != "" {
+		generator.SetNullType(nullType)
+	}
 	controller, err := generator.Build(cat, Config{
 		ResourceName:        resourceName,
 		PluralName:          pluralName,
@@ -54,6 +59,7 @@ func (fg *FileGenerator) GenerateController(
 		ModulePath:          modulePath,
 		ControllerType:      controllerType,
 		TableNameOverridden: tableNameOverridden,
+		PrimaryKeyColumn:    primaryKeyColumn,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller: %w", err)

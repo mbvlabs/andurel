@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -53,7 +54,7 @@ func (i Items) Index(etx *echo.Context) error {
 		return render(etx, views.InternalError())
 	}
 
-	return render(etx, views.ItemIndex(itemsList.Items))
+	return render(etx, views.ItemIndex{Items: itemsList.Items}.Page())
 }
 
 func (i Items) Show(etx *echo.Context) error {
@@ -67,11 +68,11 @@ func (i Items) Show(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.ItemShow(item))
+	return render(etx, views.ItemShow{Item: item}.Page())
 }
 
 func (i Items) New(etx *echo.Context) error {
-	return render(etx, views.ItemNew())
+	return render(etx, views.ItemNew{}.Page())
 }
 
 type CreateItemFormPayload struct {
@@ -112,7 +113,7 @@ func (i Items) Create(etx *echo.Context) error {
 			return &parsed
 		}(),
 		Name:     payload.Name,
-		Quantity: payload.Quantity,
+		Quantity: sql.NullInt32{Int32: payload.Quantity, Valid: true},
 	}
 
 	item, err := models.Item.Create(
@@ -145,7 +146,7 @@ func (i Items) Edit(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.ItemEdit(item))
+	return render(etx, views.ItemEdit{Item: item}.Page())
 }
 
 type UpdateItemFormPayload struct {
@@ -192,7 +193,7 @@ func (i Items) Update(etx *echo.Context) error {
 			return &parsed
 		}(),
 		Name:     payload.Name,
-		Quantity: payload.Quantity,
+		Quantity: sql.NullInt32{Int32: payload.Quantity, Valid: true},
 	}
 
 	item, err := models.Item.Update(

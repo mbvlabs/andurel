@@ -7,8 +7,8 @@ import (
 )
 
 // TypeOverride lets users map a SQL database type to a custom Go type.
-// When the column is nullable, the resulting Go type will be wrapped in a
-// pointer automatically (matching the bun convention adopted by andurel).
+// When the column is nullable, the resulting Go type will be wrapped
+// according to the TypeMapper's NullType setting.
 type TypeOverride struct {
 	DatabaseType string
 	GoType       string
@@ -17,19 +17,43 @@ type TypeOverride struct {
 
 type TypeMapper struct {
 	DatabaseType string
+	NullType     string // "pointer", "sql.Null", or "bun.Null"
 	Overrides    []TypeOverride
 }
 
 func NewTypeMapper(databaseType string) *TypeMapper {
 	return &TypeMapper{
 		DatabaseType: databaseType,
+		NullType:     "sql.Null",
 		Overrides:    make([]TypeOverride, 0),
 	}
 }
 
+// sqlNullTypeMap maps base Go types to their database/sql null equivalent.
+var sqlNullTypeMap = map[string]string{
+	"string":  "sql.NullString",
+	"bool":    "sql.NullBool",
+	"int16":   "sql.NullInt16",
+	"int32":   "sql.NullInt32",
+	"int64":   "sql.NullInt64",
+	"float64": "sql.NullFloat64",
+	"time.Time": "sql.NullTime",
+}
+
+// bunNullTypeMap maps base Go types to their bun null equivalent.
+var bunNullTypeMap = map[string]string{
+	"string":  "bun.NullString",
+	"bool":    "bun.NullBool",
+	"int32":   "bun.NullInt32",
+	"int64":   "bun.NullInt64",
+	"float64": "bun.NullFloat64",
+	"time.Time": "bun.NullTime",
+}
+
 // MapSQLTypeToGo returns the Go type for a SQL column. Nullable columns are
-// returned as pointer types (e.g. `*string`, `*time.Time`). The second return
-// value is the import path required for the type, or "" if it is a builtin.
+// wrapped according to tm.NullType ("pointer" → *string, "sql.Null" →
+// sql.NullString, "bun.Null" → bun.NullString). The second return value is
+// the import path required for the type, or "" if it is a builtin.
 func (tm *TypeMapper) MapSQLTypeToGo(
 	sqlType string,
 	nullable bool,
@@ -38,7 +62,7 @@ func (tm *TypeMapper) MapSQLTypeToGo(
 
 	for _, override := range tm.Overrides {
 		if override.DatabaseType == normalized {
-			return wrapPointer(override.GoType, nullable), override.Package, nil
+			return tm.wrapNullable(override.GoType, nullable), override.Package, nil
 		}
 	}
 
@@ -47,7 +71,7 @@ func (tm *TypeMapper) MapSQLTypeToGo(
 		return "any", "", nil
 	}
 
-	return wrapPointer(base, nullable), pkg, nil
+	return tm.wrapNullable(base, nullable), pkg, nil
 }
 
 // BuildBunTag returns the value of the `bun:"..."` struct tag for a column.
@@ -67,24 +91,40 @@ func (tm *TypeMapper) BuildBunTag(col *catalog.Column) string {
 	switch normalized {
 	case "uuid":
 		parts = append(parts, "type:uuid")
-	case "jsonb":
-		parts = append(parts, "type:jsonb")
+	case "json", "jsonb":
+		parts = append(parts, "type:"+normalized)
 	}
 
 	if col.IsAutoIncrement {
 		parts = append(parts, "autoincrement")
 	}
 
+	if strings.HasSuffix(col.DataType, "[]") {
+		parts = append(parts, "array")
+	}
+
 	return strings.Join(parts, ",")
 }
 
-func wrapPointer(goType string, nullable bool) string {
+func (tm *TypeMapper) wrapNullable(goType string, nullable bool) string {
 	if !nullable {
 		return goType
 	}
 	if strings.HasPrefix(goType, "*") || strings.HasPrefix(goType, "[]") {
 		return goType
 	}
+
+	switch tm.NullType {
+	case "sql.Null":
+		if nt, ok := sqlNullTypeMap[goType]; ok {
+			return nt
+		}
+	case "bun.Null":
+		if nt, ok := bunNullTypeMap[goType]; ok {
+			return nt
+		}
+	}
+	// Default to pointer for types without a null type equivalent.
 	return "*" + goType
 }
 

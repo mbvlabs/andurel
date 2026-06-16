@@ -7,6 +7,9 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/controllers"
+	"github.com/mbvlabs/andurel/generator/files"
+	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
@@ -15,6 +18,7 @@ type ControllerManager struct {
 	projectManager   *ProjectManager
 	migrationManager *MigrationManager
 	config           *UnifiedConfig
+	pkResolver       PrimaryKeyResolver
 }
 
 func NewControllerManager(
@@ -28,7 +32,34 @@ func NewControllerManager(
 		projectManager:   projectManager,
 		migrationManager: migrationManager,
 		config:           config,
+		pkResolver:       DefaultPrimaryKeyResolver{},
 	}
+}
+
+func (c *ControllerManager) SetPrimaryKeyResolver(resolver PrimaryKeyResolver) {
+	c.pkResolver = resolver
+}
+
+func (c *ControllerManager) resolvePK(cat *catalog.Catalog, tableName string) (PrimaryKeyInfo, error) {
+	pkInfo := DetectPrimaryKey(cat, tableName)
+	if !pkInfo.Found {
+		ok, err := c.pkResolver.ConfirmNoPK(tableName)
+		if err != nil {
+			return PrimaryKeyInfo{}, err
+		}
+		if !ok {
+			return PrimaryKeyInfo{}, fmt.Errorf("generation aborted: table %q has no primary key", tableName)
+		}
+		return PrimaryKeyInfo{Found: false}, nil
+	}
+	if !pkInfo.IsNamedID {
+		resolved, err := c.pkResolver.ResolveAlternatePK(pkInfo, tableName)
+		if err != nil {
+			return PrimaryKeyInfo{}, err
+		}
+		return resolved, nil
+	}
+	return pkInfo, nil
 }
 
 func (c *ControllerManager) GenerateController(
@@ -70,13 +101,21 @@ func (c *ControllerManager) GenerateController(
 		return err
 	}
 
+	// Resolve primary key
+	pkInfo, err := c.resolvePK(cat, tableName)
+	if err != nil {
+		return err
+	}
+
 	controllerType := controllers.ResourceControllerNoViews
 	if withViews {
 		controllerType = controllers.ResourceController
 	}
 
+	nullType := c.readNullType()
+
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden); err != nil {
+	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
@@ -145,13 +184,21 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 		return err
 	}
 
+	// Resolve primary key
+	pkInfo, err := c.resolvePK(cat, tableName)
+	if err != nil {
+		return err
+	}
+
 	controllerType := controllers.ResourceControllerNoViews
 	if withViews {
 		controllerType = controllers.ResourceController
 	}
 
+	nullType := c.readNullType()
+
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden); err != nil {
+	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
@@ -162,4 +209,24 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 	}
 
 	return nil
+}
+
+// readNullType reads the nullable type strategy from andurel.lock.
+// Defaults to "sql.Null" when not configured.
+func (c *ControllerManager) readNullType() string {
+	return ReadNullType()
+}
+
+// ReadNullType reads the nullable type strategy from andurel.lock.
+// Defaults to "sql.Null" when not configured.
+func ReadNullType() string {
+	fm := files.NewUnifiedFileManager()
+	rootDir, err := fm.FindGoModRoot()
+	if err != nil {
+		return "sql.Null"
+	}
+	if lock, err := layout.ReadLockFile(rootDir); err == nil && lock.DatabaseConfig != nil && lock.DatabaseConfig.NullType != "" {
+		return lock.DatabaseConfig.NullType
+	}
+	return "sql.Null"
 }

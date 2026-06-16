@@ -16,8 +16,8 @@ type Post struct {
 	Title     string
 	Tags      []string
 	Scores    []int32
-	Settings  []byte
-	Metadata  []byte
+	Settings  json.RawMessage
+	Metadata  json.RawMessage
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -73,8 +73,8 @@ type UpdatePostData struct {
 	Title     string
 	Tags      []string
 	Scores    []int32
-	Settings  []byte
-	Metadata  []byte
+	Settings  json.RawMessage
+	Metadata  json.RawMessage
 	UpdatedAt time.Time
 }
 

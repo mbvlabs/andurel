@@ -9,14 +9,16 @@ import (
 
 func newGenerateModelCommand() *cobra.Command {
 	var (
-		skipFactory bool
-		tableName   string
-		updateModel bool
-		autoApply   bool
+		skipFactory     bool
+		tableName       string
+		updateModel     bool
+		autoApply       bool
+		primaryKeyColumn string
 	)
 
 	cmd := &cobra.Command{
-		Use:   "model NAME",
+		Use:     "model NAME",
+		Aliases: []string{"m"},
 		Short: "Generate a new model or update an existing one",
 		Long: `Generates a new model or updates an existing one. Pass the model name in CamelCase.
 
@@ -71,6 +73,9 @@ Use --update to sync an existing model file with migration changes.`,
 				if err != nil {
 					return err
 				}
+				if primaryKeyColumn != "" {
+					return gen.GenerateModelWithPK(name, tableName, skipFactory, primaryKeyColumn)
+				}
 				return gen.GenerateModel(name, tableName, skipFactory)
 			})(cmd, args)
 		},
@@ -80,6 +85,7 @@ Use --update to sync an existing model file with migration changes.`,
 	cmd.Flags().StringVar(&tableName, "table-name", "", "Override the default table name")
 	cmd.Flags().BoolVar(&updateModel, "update", false, "Update an existing model from migration changes")
 	cmd.Flags().BoolVar(&autoApply, "yes", false, "Apply changes without prompting for confirmation")
+	cmd.Flags().StringVar(&primaryKeyColumn, "primary-key", "", "Specify the primary key column (skips interactive detection)")
 
 	return cmd
 }

@@ -1,3 +1,7 @@
+
+
+
+
 package views
 
 import (
@@ -9,172 +13,210 @@ import (
 	"testapp/router/routes"
 )
 
-templ StudentFeedbackIndex(student_feedbacks []models.StudentfeedbackEntity) {
+type StudentFeedbackIndex struct {
+	Items []models.StudentfeedbackEntity
+}
+
+func (sfi StudentFeedbackIndex) ContainerFragment() string {
+	return "studentfeedback-index-container-fragment"
+}
+
+templ (sfi StudentFeedbackIndex) Page() {
 	@base() {
-		<main class="flex-1 px-6 py-10">
-			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
-				<div class="flex flex-wrap items-center justify-between gap-4">
-					<h1 class="text-2xl font-semibold tracking-tight text-base-content">StudentFeedbacks</h1>
-					<a href={ routes.StudentFeedbackNew.URL() } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">New StudentFeedback</a>
-				</div>
-				if len(student_feedbacks) == 0 {
-					<p class="text-sm text-base-content/60">No student_feedbacks found.</p>
-				} else {
-					<div class="relative w-full overflow-auto">
-						<table class="w-full caption-bottom text-sm">
-							<thead class="[&_tr]:border-b [&_tr]:border-base-300">
-								<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
-									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Student Id</th>
-									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Feedback</th>
-									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Rating</th>
-									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Created At</th>
-									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Updated At</th>
-									<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Actions</th>
-								</tr>
-							</thead>
-							<tbody class="[&_tr:last-child]:border-0">
-								for _, studentfeedback := range student_feedbacks {
-									<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ studentfeedback.StudentID }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ studentfeedback.Feedback }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", studentfeedback.Rating) }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", studentfeedback.CreatedAt) }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", studentfeedback.UpdatedAt) }</td>
-										<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
-											<div class="flex flex-wrap gap-3 text-sm">
-												<a class="text-base-content/80 hover:text-base-content" href={ routes.StudentFeedbackShow.URL(studentfeedback.ID) }>View</a>
-												<a class="text-base-content/80 hover:text-base-content" href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) }>Edit</a>
-											</div>
-										</td>
-									</tr>
-								}
-							</tbody>
-						</table>
+		@templ.Fragment(sfi.ContainerFragment()) {
+			<main id="studentfeedback-index-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold text-gray-900">StudentFeedbacks</h1>
+						<a href={ routes.StudentFeedbackNew.URL() } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded">New StudentFeedback</a>
 					</div>
-				}
-			</div>
-		</main>
+					if len(sfi.Items) == 0 {
+						<p class="text-sm text-gray-500">No student_feedbacks found.</p>
+					} else {
+						<div class="relative w-full overflow-auto">
+							<table class="w-full caption-bottom text-sm">
+								<thead class="[&_tr]:border-b [&_tr]:border-gray-300">
+									<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Student Id</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Feedback</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Rating</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Created At</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Updated At</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Actions</th>
+									</tr>
+								</thead>
+								<tbody class="[&_tr:last-child]:border-0">
+									for _, studentfeedback := range sfi.Items {
+										<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ studentfeedback.StudentID }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ studentfeedback.Feedback }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%d", studentfeedback.Rating) }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ studentfeedback.CreatedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ studentfeedback.UpdatedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+												<div class="flex flex-wrap gap-3 text-sm">
+													<a class="text-gray-600 hover:text-gray-900" href={ routes.StudentFeedbackShow.URL(studentfeedback.ID) }>View</a>
+													<a class="text-gray-600 hover:text-gray-900" href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) }>Edit</a>
+												</div>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</div>
+			</main>
+		}
 	}
 }
 
-templ StudentFeedbackShow(studentfeedback models.StudentfeedbackEntity) {
+type StudentFeedbackShow struct {
+	Item models.StudentfeedbackEntity
+}
+
+func (sfs StudentFeedbackShow) ContainerFragment() string {
+	return "studentfeedback-show-container-fragment"
+}
+
+templ (sfs StudentFeedbackShow) Page() {
 	@base() {
-		<main class="flex-1 px-6 py-10">
-			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
-				<div class="flex flex-wrap items-center justify-between gap-4">
-					<h1 class="text-2xl font-semibold tracking-tight text-base-content">StudentFeedback Details</h1>
-					<div class="flex flex-wrap items-center gap-3">
-						<a href={ routes.StudentFeedbackEdit.URL(studentfeedback.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">Edit</a>
-						<a class="text-sm text-base-content/70 hover:text-base-content" href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+		@templ.Fragment(sfs.ContainerFragment()) {
+			<main id="studentfeedback-show-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold text-gray-900">StudentFeedback Details</h1>
+						<div class="flex flex-wrap items-center gap-3">
+							<a href={ routes.StudentFeedbackEdit.URL(sfs.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded">Edit</a>
+							<a class="text-sm text-gray-600 hover:text-gray-900" href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+						</div>
 					</div>
-				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
-					<div class="p-6 pt-0">
-						<div class="grid gap-5 sm:grid-cols-2">
-							<div class="space-y-1">
-								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Student Id</label>
-								<p class="text-sm text-base-content">{ studentfeedback.StudentID }</p>
-							</div>
-							<div class="space-y-1">
-								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Feedback</label>
-								<p class="text-sm text-base-content">{ studentfeedback.Feedback }</p>
-							</div>
-							<div class="space-y-1">
-								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Rating</label>
-								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", studentfeedback.Rating) }</p>
-							</div>
-							<div class="space-y-1">
-								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
-								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", studentfeedback.CreatedAt) }</p>
-							</div>
-							<div class="space-y-1">
-								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
-								<p class="text-sm text-base-content">{ fmt.Sprintf("%v", studentfeedback.UpdatedAt) }</p>
+					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+						<div class="p-6 pt-0">
+							<div class="grid gap-5 sm:grid-cols-2">
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Student Id</label>
+									<p class="text-sm text-gray-900">{ sfs.Item.StudentID }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Feedback</label>
+									<p class="text-sm text-gray-900">{ sfs.Item.Feedback }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Rating</label>
+									<p class="text-sm text-gray-900">{ fmt.Sprintf("%d", sfs.Item.Rating) }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
+									<p class="text-sm text-gray-900">{ sfs.Item.CreatedAt.String() }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
+									<p class="text-sm text-gray-900">{ sfs.Item.UpdatedAt.String() }</p>
+								</div>
 							</div>
 						</div>
 					</div>
 				</div>
-			</div>
-		</main>
+			</main>
+		}
 	}
 }
 
-templ StudentFeedbackNew() {
+type StudentFeedbackNew struct{}
+
+func (sfn StudentFeedbackNew) ContainerFragment() string {
+	return "studentfeedback-new-container-fragment"
+}
+
+templ (sfn StudentFeedbackNew) Page() {
 	@base() {
-		<main class="flex-1 flex items-center justify-center px-6 py-10">
-			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
-					<div class="flex flex-col space-y-1.5 p-6">
-						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">New StudentFeedback</h3>
-						<p class="text-sm text-base-content/60">Enter the details for the new studentfeedback.</p>
-					</div>
-					<div class="p-6 pt-0">
-						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.StudentFeedbackCreate.URL()) }>
-							<fieldset data-attr:disabled="$submitting">
-								<div class="space-y-4">
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="studentId">Student Id</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="studentId"/>
+		@templ.Fragment(sfn.ContainerFragment()) {
+			<main id="studentfeedback-new-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+						<div class="flex flex-col space-y-1.5 p-6">
+							<h3 class="text-lg font-semibold leading-none text-gray-900">New StudentFeedback</h3>
+							<p class="text-sm text-gray-500">Enter the details for the new studentfeedback.</p>
+						</div>
+						<div class="p-6 pt-0">
+							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.StudentFeedbackCreate.URL()) }>
+								<fieldset data-attr:disabled="$_submitting">
+									<div class="space-y-4">
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="studentId">Student Id</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="studentId"/>
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="feedback">Feedback</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="feedback"/>
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="rating">Rating</label>
+											<input type="number" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="rating"/>
+										</div>
 									</div>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="feedback">Feedback</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="feedback"/>
+									<div class="mt-6 space-y-3">
+										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Create StudentFeedback</button>
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
 									</div>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="rating">Rating</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="rating"/>
-									</div>
-								</div>
-								<div class="mt-6 space-y-3">
-									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Create StudentFeedback</button>
-									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
-								</div>
-							</fieldset>
-						</form>
+								</fieldset>
+							</form>
+						</div>
 					</div>
 				</div>
-			</div>
-		</main>
+			</main>
+		}
 	}
 }
 
-templ StudentFeedbackEdit(studentfeedback models.StudentfeedbackEntity) {
+type StudentFeedbackEdit struct {
+	Item models.StudentfeedbackEntity
+}
+
+func (sfe StudentFeedbackEdit) ContainerFragment() string {
+	return "studentfeedback-edit-container-fragment"
+}
+
+templ (sfe StudentFeedbackEdit) Page() {
 	@base() {
-		<main class="flex-1 flex items-center justify-center px-6 py-10">
-			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
-					<div class="flex flex-col space-y-1.5 p-6">
-						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">Edit StudentFeedback</h3>
-						<p class="text-sm text-base-content/60">Update the details for this studentfeedback.</p>
-					</div>
-					<div class="p-6 pt-0">
-						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPut, routes.StudentFeedbackUpdate.URL(studentfeedback.ID)) }>
-							<fieldset data-attr:disabled="$submitting">
-								<div class="space-y-4">
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="studentId">Student Id</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="studentId" value={ studentfeedback.StudentID }/>
+		@templ.Fragment(sfe.ContainerFragment()) {
+			<main id="studentfeedback-edit-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+						<div class="flex flex-col space-y-1.5 p-6">
+							<h3 class="text-lg font-semibold leading-none text-gray-900">Edit StudentFeedback</h3>
+							<p class="text-sm text-gray-500">Update the details for this studentfeedback.</p>
+						</div>
+						<div class="p-6 pt-0">
+							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.StudentFeedbackUpdate.URL(sfe.Item.ID)) }>
+								<fieldset data-attr:disabled="$_submitting">
+									<div class="space-y-4">
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="studentId">Student Id</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="studentId" value={ sfe.Item.StudentID }/>
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="feedback">Feedback</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="feedback" value={ sfe.Item.Feedback }/>
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="rating">Rating</label>
+											<input type="number" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="rating" value={ fmt.Sprintf("%d", sfe.Item.Rating) }/>
+										</div>
 									</div>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="feedback">Feedback</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="feedback" value={ studentfeedback.Feedback }/>
+									<div class="mt-6 space-y-3">
+										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Update StudentFeedback</button>
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
 									</div>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="rating">Rating</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="rating" value={ fmt.Sprintf("%v", studentfeedback.Rating) }/>
-									</div>
-								</div>
-								<div class="mt-6 space-y-3">
-									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Update StudentFeedback</button>
-									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
-								</div>
-							</fieldset>
-						</form>
-						<div role="separator" class="my-6 shrink-0 bg-base-300 h-px w-full"></div>
-						<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-error text-error-content shadow-sm hover:bg-error/90 h-9 px-4 py-2 text-sm rounded-field w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.StudentFeedbackDestroy.URL(studentfeedback.ID)) }>Destroy StudentFeedback</button>
+								</fieldset>
+							</form>
+							<div role="separator" class="my-6 shrink-0 bg-gray-300 h-px w-full"></div>
+							<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white shadow-sm hover:bg-red-700 h-9 px-4 py-2 text-sm rounded w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.StudentFeedbackDestroy.URL(sfe.Item.ID)) }>Destroy StudentFeedback</button>
+						</div>
 					</div>
 				</div>
-			</div>
-		</main>
+			</main>
+		}
 	}
 }

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -53,7 +54,7 @@ func (sf StudentFeedback) Index(etx *echo.Context) error {
 		return render(etx, views.InternalError())
 	}
 
-	return render(etx, views.StudentFeedbackIndex(studentFeedbackList.StudentFeedback))
+	return render(etx, views.StudentFeedbackIndex{Items: studentFeedbackList.StudentFeedback}.Page())
 }
 
 func (sf StudentFeedback) Show(etx *echo.Context) error {
@@ -67,11 +68,11 @@ func (sf StudentFeedback) Show(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.StudentFeedbackShow(studentFeedback))
+	return render(etx, views.StudentFeedbackShow{Item: studentFeedback}.Page())
 }
 
 func (sf StudentFeedback) New(etx *echo.Context) error {
-	return render(etx, views.StudentFeedbackNew())
+	return render(etx, views.StudentFeedbackNew{}.Page())
 }
 
 type CreateStudentFeedbackFormPayload struct {
@@ -96,7 +97,7 @@ func (sf StudentFeedback) Create(etx *echo.Context) error {
 	data := models.CreateStudentFeedbackData{
 		StudentID: payload.StudentID,
 		Feedback:  payload.Feedback,
-		Rating:    payload.Rating,
+		Rating:    sql.NullInt32{Int32: payload.Rating, Valid: true},
 	}
 
 	studentFeedback, err := models.StudentFeedback.Create(
@@ -129,7 +130,7 @@ func (sf StudentFeedback) Edit(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.StudentFeedbackEdit(studentFeedback))
+	return render(etx, views.StudentFeedbackEdit{Item: studentFeedback}.Page())
 }
 
 type UpdateStudentFeedbackFormPayload struct {
@@ -160,7 +161,7 @@ func (sf StudentFeedback) Update(etx *echo.Context) error {
 		ID:        studentFeedbackID,
 		StudentID: payload.StudentID,
 		Feedback:  payload.Feedback,
-		Rating:    payload.Rating,
+		Rating:    sql.NullInt32{Int32: payload.Rating, Valid: true},
 	}
 
 	studentFeedback, err := models.StudentFeedback.Update(

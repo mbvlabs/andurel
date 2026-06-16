@@ -28,7 +28,8 @@ func newGenerateJobCommand() *cobra.Command {
 	var queueName string
 
 	cmd := &cobra.Command{
-		Use:   "job NAME",
+		Use:     "job NAME",
+		Aliases: []string{"j"},
 		Short: "Generate a new background job",
 		Long: `Generates a new background job with the given name. Pass the job name
 in CamelCase.

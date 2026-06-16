@@ -2,6 +2,7 @@ package factories
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -25,7 +26,7 @@ func BuildProduct(opts ...ProductOption) models.ProductEntity {
 		ProductEntity: models.ProductEntity{
 			ID:        uuid.New(),
 			Name:      faker.Word(),
-			Price:     *float64{},
+			Price:     sql.NullFloat64{Float64: float64(randomInt(1, 1000, 100)), Valid: true},
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
@@ -83,7 +84,7 @@ func WithProductsName(value string) ProductOption {
 }
 
 // WithProductsPrice sets the Price field
-func WithProductsPrice(value *float64) ProductOption {
+func WithProductsPrice(value sql.NullFloat64) ProductOption {
 	return func(f *ProductFactory) {
 		f.ProductEntity.Price = value
 	}

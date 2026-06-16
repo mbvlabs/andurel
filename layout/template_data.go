@@ -40,6 +40,15 @@ func (td *TemplateData) GetModuleName() string {
 	return td.ModuleName
 }
 
+// GetCSSFramework returns the CSS framework for the project.
+func (td *TemplateData) GetCSSFramework() string {
+	if td == nil {
+		return ""
+	}
+
+	return td.CSSFramework
+}
+
 // Blueprint returns the underlying blueprint. If not yet initialized, creates
 // a new one.
 func (td *TemplateData) Blueprint() *blueprint.Blueprint {

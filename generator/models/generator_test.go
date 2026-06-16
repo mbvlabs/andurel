@@ -56,23 +56,26 @@ func TestBuildModel(t *testing.T) {
 		}
 	}
 
-	// Test text[] -> []string
+	// Test text[] -> []string with array bun tag
 	if tagsField == nil {
 		t.Fatal("Expected to find 'Tags' field (from 'tags' text[] column)")
 	}
 	if tagsField.Type != "[]string" {
 		t.Errorf("Tags field Type = %s, want []string", tagsField.Type)
 	}
-	if tagsField.BunTag == "" {
-		t.Error("Tags field should have a bun tag")
+	if tagsField.BunTag != "tags,array" {
+		t.Errorf("Tags field BunTag = %s, want tags,array", tagsField.BunTag)
 	}
 
-	// Test integer[] -> []int32
+	// Test integer[] -> []int32 with array bun tag
 	if scoresField == nil {
 		t.Fatal("Expected to find 'Scores' field (from 'scores' integer[] column)")
 	}
 	if scoresField.Type != "[]int32" {
 		t.Errorf("Scores field Type = %s, want []int32", scoresField.Type)
+	}
+	if scoresField.BunTag != "scores,array" {
+		t.Errorf("Scores field BunTag = %s, want scores,array", scoresField.BunTag)
 	}
 
 	// Verify bun tags are generated
@@ -121,10 +124,10 @@ func TestBuildModelWithTimestamps(t *testing.T) {
 		"CreatedAt":   "time.Time",
 		"UpdatedAt":   "time.Time",
 		"Name":        "string",
-		"Description": "*string",
+		"Description": "sql.NullString",
 		"Price":       "float64",
 		"Sku":         "string",
-		"IsActive":    "*bool",
+		"IsActive":    "sql.NullBool",
 	}
 
 	if len(model.Fields) != len(expectedFields) {
@@ -294,15 +297,15 @@ DROP TABLE users;`
 		t.Fatalf("Failed to build model: %v", err)
 	}
 
-	// Check nullable fields have pointer types
+	// Check nullable fields have nullable types (pointer or null wrapper)
 	for _, field := range model.Fields {
 		switch field.Name {
 		case "Email", "Bio", "Age":
 			if !field.IsNullable {
 				t.Errorf("Field %s should be nullable", field.Name)
 			}
-			if len(field.Type) == 0 || field.Type[0] != '*' {
-				t.Errorf("Field %s should have pointer type, got %s", field.Name, field.Type)
+			if !isNullableType(field.Type) {
+				t.Errorf("Field %s should have nullable type (pointer or sql.Null), got %s", field.Name, field.Type)
 			}
 		case "Name":
 			if field.IsNullable {
@@ -310,6 +313,20 @@ DROP TABLE users;`
 			}
 		}
 	}
+}
+
+func isNullableType(goType string) bool {
+	if len(goType) > 0 && goType[0] == '*' {
+		return true
+	}
+	switch goType {
+	case "sql.NullString", "sql.NullBool", "sql.NullInt16", "sql.NullInt32",
+		"sql.NullInt64", "sql.NullFloat64", "sql.NullTime",
+		"bun.NullString", "bun.NullBool", "bun.NullInt32", "bun.NullInt64",
+		"bun.NullFloat64", "bun.NullTime":
+		return true
+	}
+	return false
 }
 
 // containsAny checks if the string contains any of the substrings
@@ -324,4 +341,123 @@ func containsAny(s string, substrs ...string) bool {
 		}
 	}
 	return false
+}
+
+func TestBuildModelWithAlternatePK(t *testing.T) {
+	originalWd, _ := os.Getwd()
+	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "custom_pk")
+
+	generator := NewGenerator("postgresql")
+
+	cat, err := generator.BuildCatalogFromMigrations("orders", []string{migrationsDir})
+	if err != nil {
+		t.Fatalf("Failed to build catalog from migrations: %v", err)
+	}
+
+	model, err := generator.Build(cat, Config{
+		TableName:    "orders",
+		ResourceName: "Order",
+		PackageName:  "models",
+		DatabaseType: "postgresql",
+		ModulePath:   "github.com/example/test",
+	})
+	if err != nil {
+		t.Fatalf("Failed to build model: %v", err)
+	}
+
+	if !model.HasPrimaryKey {
+		t.Error("Expected HasPrimaryKey to be true for orders table")
+	}
+	if model.IDFieldName != "order_id" {
+		t.Errorf("Expected IDFieldName 'order_id', got %q", model.IDFieldName)
+	}
+	if model.IDGoFieldName != "OrderID" {
+		t.Errorf("Expected IDGoFieldName 'OrderID', got %q", model.IDGoFieldName)
+	}
+	if model.IDType != "uuid.UUID" {
+		t.Errorf("Expected IDType 'uuid.UUID', got %q", model.IDType)
+	}
+
+	// Verify the PK field exists in fields
+	var foundPKField bool
+	for _, f := range model.Fields {
+		if f.Name == "OrderID" {
+			foundPKField = true
+			if !f.IsPrimaryKey {
+				t.Error("OrderID field should have IsPrimaryKey true")
+			}
+		}
+		if f.Name == "ID" {
+			t.Error("Should not have a field named 'ID' when PK is 'order_id'")
+		}
+	}
+	if !foundPKField {
+		t.Error("Expected to find OrderID field")
+	}
+}
+
+func TestBuildModelWithoutPK(t *testing.T) {
+	originalWd, _ := os.Getwd()
+	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "no_pk")
+
+	generator := NewGenerator("postgresql")
+
+	cat, err := generator.BuildCatalogFromMigrations("audit_log", []string{migrationsDir})
+	if err != nil {
+		t.Fatalf("Failed to build catalog from migrations: %v", err)
+	}
+
+	model, err := generator.Build(cat, Config{
+		TableName:         "audit_log",
+		ResourceName:      "AuditLog",
+		PackageName:       "models",
+		DatabaseType:      "postgresql",
+		ModulePath:        "github.com/example/test",
+		GenerateWithoutPK: true,
+	})
+	if err != nil {
+		t.Fatalf("Failed to build model: %v", err)
+	}
+
+	if model.HasPrimaryKey {
+		t.Error("Expected HasPrimaryKey to be false for audit_log table")
+	}
+	if model.IDType != "" {
+		t.Errorf("Expected empty IDType, got %q", model.IDType)
+	}
+}
+
+func TestBuildModelWithPrimaryKeyOverride(t *testing.T) {
+	originalWd, _ := os.Getwd()
+	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "custom_pk")
+
+	generator := NewGenerator("postgresql")
+
+	cat, err := generator.BuildCatalogFromMigrations("orders", []string{migrationsDir})
+	if err != nil {
+		t.Fatalf("Failed to build catalog from migrations: %v", err)
+	}
+
+	// Override with a different column name than the actual PK
+	model, err := generator.Build(cat, Config{
+		TableName:        "orders",
+		ResourceName:     "Order",
+		PackageName:      "models",
+		DatabaseType:     "postgresql",
+		ModulePath:       "github.com/example/test",
+		PrimaryKeyColumn: "order_id",
+	})
+	if err != nil {
+		t.Fatalf("Failed to build model: %v", err)
+	}
+
+	if !model.HasPrimaryKey {
+		t.Error("Expected HasPrimaryKey to be true")
+	}
+	if model.IDFieldName != "order_id" {
+		t.Errorf("Expected IDFieldName 'order_id', got %q", model.IDFieldName)
+	}
+	if model.IDGoFieldName != "OrderID" {
+		t.Errorf("Expected IDGoFieldName 'OrderID', got %q", model.IDGoFieldName)
+	}
 }

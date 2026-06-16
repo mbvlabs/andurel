@@ -1,11 +1,19 @@
 package views
 
-templ Home() {
+type Home struct{}
+
+func (Home) ContainerFragment() string {
+	return "home-container-fragment"
+}
+
+templ (h Home) Page() {
 	@base() {
-		<main class="flex-1">
+		@templ.Fragment(h.ContainerFragment()) {
+			<main id="home-container" class="flex-1">
 				<div class="space-y-3">
 					<h1 class="text-3xl font-bold">Welcome to Andurel</h1>
 				</div>
-		</main>
+			</main>
+		}
 	}
 }

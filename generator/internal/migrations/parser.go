@@ -80,6 +80,10 @@ func ParseMigration(filePath string) (*Migration, error) {
 		return nil, fmt.Errorf("failed to parse filename %s: %w", filename, err)
 	}
 
+	if err := validateGooseMarkers(string(content)); err != nil {
+		return nil, fmt.Errorf("migration file %s: %w", filename, err)
+	}
+
 	format := detectMigrationFormat(string(content))
 	upSQL := RemoveRollbackStatements(string(content), format)
 	downSQL := extractDownSQL(string(content), format)
@@ -144,6 +148,44 @@ func detectMigrationFormat(content string) MigrationFormat {
 	}
 
 	return Goose
+}
+
+func validateGooseMarkers(content string) error {
+	lines := strings.Split(content, "\n")
+	validMarkers := map[string]string{
+		"up":             "Up",
+		"down":           "Down",
+		"statementbegin": "StatementBegin",
+		"statementend":   "StatementEnd",
+	}
+
+	for lineIdx, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(strings.ToLower(trimmed), "-- +goose ") {
+			continue
+		}
+
+		marker := strings.TrimSpace(trimmed[len("-- +goose "):])
+		if marker == "" {
+			continue
+		}
+
+		markerWords := strings.Fields(marker)
+		if len(markerWords) == 0 {
+			continue
+		}
+		markerWord := markerWords[0]
+
+		expected, found := validMarkers[strings.ToLower(markerWord)]
+		if found && markerWord != expected {
+			return fmt.Errorf(
+				"line %d: invalid goose annotation '%s', expected '%s%s'",
+				lineIdx+1, trimmed, "-- +goose ", expected,
+			)
+		}
+	}
+
+	return nil
 }
 
 func extractUpSQLGoose(content string) string {

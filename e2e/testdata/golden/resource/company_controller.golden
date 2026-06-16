@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -53,7 +54,7 @@ func (c Companies) Index(etx *echo.Context) error {
 		return render(etx, views.InternalError())
 	}
 
-	return render(etx, views.CompanyIndex(companiesList.Companies))
+	return render(etx, views.CompanyIndex{Items: companiesList.Companies}.Page())
 }
 
 func (c Companies) Show(etx *echo.Context) error {
@@ -67,16 +68,16 @@ func (c Companies) Show(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.CompanyShow(company))
+	return render(etx, views.CompanyShow{Item: company}.Page())
 }
 
 func (c Companies) New(etx *echo.Context) error {
-	return render(etx, views.CompanyNew())
+	return render(etx, views.CompanyNew{}.Page())
 }
 
 type CreateCompanyFormPayload struct {
-	Name     string  `json:"name"`
-	Industry *string `json:"industry"`
+	Name     string `json:"name"`
+	Industry string `json:"industry"`
 }
 
 func (c Companies) Create(etx *echo.Context) error {
@@ -94,7 +95,7 @@ func (c Companies) Create(etx *echo.Context) error {
 
 	data := models.CreateCompanyData{
 		Name:     payload.Name,
-		Industry: payload.Industry,
+		Industry: sql.NullString{String: payload.Industry, Valid: true},
 	}
 
 	company, err := models.Company.Create(
@@ -127,12 +128,12 @@ func (c Companies) Edit(etx *echo.Context) error {
 		return render(etx, views.NotFound())
 	}
 
-	return render(etx, views.CompanyEdit(company))
+	return render(etx, views.CompanyEdit{Item: company}.Page())
 }
 
 type UpdateCompanyFormPayload struct {
-	Name     string  `json:"name"`
-	Industry *string `json:"industry"`
+	Name     string `json:"name"`
+	Industry string `json:"industry"`
 }
 
 func (c Companies) Update(etx *echo.Context) error {
@@ -156,7 +157,7 @@ func (c Companies) Update(etx *echo.Context) error {
 	data := models.UpdateCompanyData{
 		ID:       companyID,
 		Name:     payload.Name,
-		Industry: payload.Industry,
+		Industry: sql.NullString{String: payload.Industry, Valid: true},
 	}
 
 	company, err := models.Company.Update(

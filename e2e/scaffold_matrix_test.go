@@ -29,6 +29,13 @@ func getScaffoldConfigs() []ScaffoldConfig {
 			Critical: true,
 		},
 		{
+			Name:       "postgresql-vanilla-css-components",
+			Database:   "postgresql",
+			CSS:        "vanilla",
+			Extensions: []string{"css-components"},
+			Critical:   true,
+		},
+		{
 			Name:       "postgresql-tailwind-all-extensions",
 			Database:   "postgresql",
 			CSS:        "tailwind",
@@ -123,11 +130,6 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 			"assets/css/base.css",
 			"assets/css/objects.css",
 			"assets/css/utilities.css",
-			"assets/css/components/layout.css",
-			"assets/css/components/panels.css",
-			"assets/css/components/buttons.css",
-			"assets/css/components/forms.css",
-			"assets/css/components/feedback.css",
 		}
 		internal.AssertFilesExist(t, project, vanillaCSSFiles)
 		internal.AssertFileContains(t, project, "router/routes/assets.go", `"/css/*"`)
@@ -180,5 +182,15 @@ func verifyExtension(t *testing.T, project *internal.Project, extension string) 
 			"config/aws_ses.go",
 		}
 		internal.AssertFilesExist(t, project, awsSesFiles)
+
+	case "css-components":
+		cssComponentFiles := []string{
+			"assets/css/components/layout.css",
+			"assets/css/components/panels.css",
+			"assets/css/components/buttons.css",
+			"assets/css/components/forms.css",
+			"assets/css/components/feedback.css",
+		}
+		internal.AssertFilesExist(t, project, cssComponentFiles)
 	}
 }

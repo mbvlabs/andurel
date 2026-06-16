@@ -8,8 +8,9 @@ import (
 
 func newLlmCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "llm",
-		Short: "Output framework documentation for LLM consumption",
+		Use:     "llm",
+		Aliases: []string{"l"},
+		Short:   "Output framework documentation for LLM consumption",
 		Long: `Output comprehensive Andurel framework documentation for AI assistants.
 
 Use the subcommands below to get documentation on specific topics.`,
@@ -36,7 +37,8 @@ Use the subcommands below to get documentation on specific topics.`,
 
 func newLlmControllersCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "controllers",
+		Use:     "controllers",
+		Aliases: []string{"c"},
 		Short: "Controller-specific LLM documentation",
 		Long:  "Output detailed Andurel controller documentation covering request handling, rendering, sessions, flash messages, and hypermedia patterns.",
 		Args:  cobra.NoArgs,
@@ -49,7 +51,8 @@ func newLlmControllersCommand() *cobra.Command {
 
 func newLlmModelsCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "models",
+		Use:     "models",
+		Aliases: []string{"m"},
 		Short: "Model-specific LLM documentation",
 		Long:  "Output detailed Andurel model documentation covering CRUD, SQLC queries, validation, and factories.",
 		Args:  cobra.NoArgs,
@@ -62,7 +65,8 @@ func newLlmModelsCommand() *cobra.Command {
 
 func newLlmViewsCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "views",
+		Use:     "views",
+		Aliases: []string{"v"},
 		Short: "View-specific LLM documentation",
 		Long:  "Output detailed Andurel view documentation covering Templ components, layouts, and rendering.",
 		Args:  cobra.NoArgs,
@@ -75,7 +79,8 @@ func newLlmViewsCommand() *cobra.Command {
 
 func newLlmRouterCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "router",
+		Use:     "router",
+		Aliases: []string{"r"},
 		Short: "Router-specific LLM documentation",
 		Long:  "Output detailed Andurel router documentation covering route types, middleware, sessions, and cookies.",
 		Args:  cobra.NoArgs,
@@ -88,7 +93,8 @@ func newLlmRouterCommand() *cobra.Command {
 
 func newLlmHypermediaCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "hypermedia",
+		Use:     "hypermedia",
+		Aliases: []string{"h"},
 		Short: "Hypermedia architecture and Datastar usage (client + server)",
 		Long:  "Output detailed Andurel hypermedia documentation covering Datastar SSE, server helpers, and client-side attributes.",
 		Args:  cobra.NoArgs,
@@ -101,7 +107,8 @@ func newLlmHypermediaCommand() *cobra.Command {
 
 func newLlmJobsCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "jobs",
+		Use:     "jobs",
+		Aliases: []string{"j"},
 		Short: "Background jobs LLM documentation",
 		Long:  "Output detailed Andurel background job documentation covering River workers, job arguments, and queue setup.",
 		Args:  cobra.NoArgs,
@@ -114,7 +121,8 @@ func newLlmJobsCommand() *cobra.Command {
 
 func newLlmConfigCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "config",
+		Use:     "config",
+		Aliases: []string{"cfg"},
 		Short: "Configuration and environment LLM documentation",
 		Long:  "Output detailed Andurel configuration documentation covering environment variables, app config, and setup.",
 		Args:  cobra.NoArgs,
@@ -893,7 +901,7 @@ const llmViewsDocumentation = `# Andurel Framework - Views
 ## CLI Commands
 ` + "```bash" + `
 andurel llm views
-andurel generate views
+andurel generate view
 andurel fmt
 andurel generate model User
 andurel generate scaffold Product
@@ -1446,9 +1454,9 @@ Datastar interaction happens via HTML attributes on elements in templ views. The
 
 ### Form submit (scaffolded auth)
 ` + "```templ" + `
-<form data-indicator:submitting data-on:submit={ "!$submitting && " + fmt.Sprintf("@post('%s')", routes.SessionCreate.URL()) }>
-  <input type="email" id="email" data-bind="email" data-attr:disabled="$submitting" required/>
-  <input type="password" id="password" data-bind="password" data-attr:disabled="$submitting" required/>
+<form data-indicator:_submitting data-on:submit={ fmt.Sprintf("@post('%s')", routes.SessionCreate.URL()) }>
+  <input type="email" id="email" data-bind="email" data-attr:disabled="$_submitting" required/>
+  <input type="password" id="password" data-bind="password" data-attr:disabled="$_submitting" required/>
   @components.SubmitButton("Login")
 </form>
 ` + "```" + `
@@ -1768,7 +1776,7 @@ River provides a web UI for monitoring jobs, accessible at /riverui when the app
 Configure queues in queue/queue.go:
 
 ` + "```go" + `
-riverClient, err := river.NewClient(riverpgxv5.New(db.Conn()), &river.Config{
+riverClient, err := river.NewClient(riverdatabasesql.New(db.Conn().DB), &river.Config{
 	Queues: map[string]river.QueueConfig{
 		river.QueueDefault: {MaxWorkers: 100},
 		"high_priority":    {MaxWorkers: 50},

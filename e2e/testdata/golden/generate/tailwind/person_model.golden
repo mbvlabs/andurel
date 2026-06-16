@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"time"
@@ -11,13 +12,13 @@ import (
 )
 
 type PersonEntity struct {
-	bun.BaseModel `bun:"table:people_data"`
-	ID            uuid.UUID  `bun:"id,pk,type:uuid"`
-	FirstName     string     `bun:"first_name"`
-	LastName      string     `bun:"last_name"`
-	Email         *string    `bun:"email"`
-	CreatedAt     *time.Time `bun:"created_at"`
-	UpdatedAt     *time.Time `bun:"updated_at"`
+	bun.BaseModel `bun:"table:people_data,alias:people_data"`
+	ID            uuid.UUID      `bun:"id,pk,type:uuid"`
+	FirstName     string         `bun:"first_name"`
+	LastName      string         `bun:"last_name"`
+	Email         sql.NullString `bun:"email"`
+	CreatedAt     sql.NullTime   `bun:"created_at"`
+	UpdatedAt     sql.NullTime   `bun:"updated_at"`
 }
 
 func (p person) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (PersonEntity, error) {
@@ -35,7 +36,7 @@ func (p person) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (Pe
 type CreatePersonData struct {
 	FirstName string
 	LastName  string
-	Email     *string
+	Email     sql.NullString
 }
 
 func (p person) Create(ctx context.Context, db storage.Executor, data CreatePersonData) (PersonEntity, error) {
@@ -52,7 +53,7 @@ func (p person) Create(ctx context.Context, db storage.Executor, data CreatePers
 		Email:     data.Email,
 	}
 
-	if err := db.NewInsert().Model(&entity).Scan(ctx); err != nil {
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return PersonEntity{}, err
 	}
 
@@ -63,8 +64,8 @@ type UpdatePersonData struct {
 	ID        uuid.UUID
 	FirstName string
 	LastName  string
-	Email     *string
-	UpdatedAt *time.Time
+	Email     sql.NullString
+	UpdatedAt sql.NullTime
 }
 
 func (p person) Update(ctx context.Context, db storage.Executor, data UpdatePersonData) (PersonEntity, error) {
@@ -137,7 +138,7 @@ func (p person) Paginate(ctx context.Context, db storage.Executor, page, pageSiz
 	offset := (page - 1) * pageSize
 
 	totalCount, err := db.NewSelect().
-		Model(&PersonEntity{}).Count(ctx, &totalCount)
+		Model(&PersonEntity{}).Count(ctx)
 	if err != nil {
 		return PaginatedPerson{}, err
 	}
