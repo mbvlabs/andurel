@@ -393,23 +393,25 @@ var inertiaViewLayers = map[string]bool{
 var inertiaHypermediaTemplates = map[TmplTarget]bool{}
 
 var inertiaTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"inertia_framework_root_html.tmpl":   "views/root.go.html",
-	"inertia_assets_vite_config.tmpl":    "vite.config.ts",
-	"inertia_assets_package_json.tmpl":   "package.json",
-	"inertia_assets_tsconfig.tmpl":       "tsconfig.json",
-	"inertia_assets_app.tmpl":            "resources/js/app.ts",
-	"inertia_assets_pages_welcome.tmpl":  "resources/js/Pages/Welcome.vue",
+	"inertia_framework_root_html.tmpl":      "views/root.go.html",
+	"inertia_assets_vite_config.tmpl":       "vite.config.ts",
+	"inertia_assets_package_json.tmpl":      "package.json",
+	"inertia_assets_tsconfig.tmpl":          "tsconfig.json",
+	"inertia_assets_inertia_tsconfig.tmpl":  "inertia/tsconfig.json",
+	"inertia_assets_app.tmpl":               "resources/js/app.ts",
+	"inertia_assets_pages_welcome.tmpl":     "resources/js/Pages/Welcome.vue",
 }
 
-var inertiaTailwindMappings = map[TmplTarget]TmplTargetPath{
-	"inertia_assets_app_css.tmpl":         "resources/css/app.css",
-	"inertia_assets_tailwind_config.tmpl": "tailwind.config.js",
-	"inertia_assets_postcss_config.tmpl":  "postcss.config.js",
-}
 
 // inertiaAuthViewMappings lists the Templ view templates needed for auth pages
 // (login, register, password reset, email confirmation) in Inertia projects.
 // These are server-rendered pages that exist alongside the Inertia SPA.
+// inertiaRendererMappings maps Go source templates that are rendered through
+// Go's text/template engine into the internal/renderer package for Inertia projects.
+var inertiaRendererMappings = map[TmplTarget]TmplTargetPath{
+	"inertia_renderer_vite.tmpl": "internal/renderer/vite.go",
+}
+
 var inertiaAuthViewMappings = map[TmplTarget]TmplTargetPath{
 	"tw_views_layout.tmpl":         "views/layout.templ",
 	"tw_views_head.tmpl":           "views/head.templ",
@@ -454,10 +456,10 @@ func processTemplatedFiles(
 			}
 		}
 
-		// Inertia Tailwind assets — always generated since Vue components use Tailwind classes
-		for templateFile, targetPath := range inertiaTailwindMappings {
-			if err := copyFile(targetDir, string(templateFile), string(targetPath), templates.Files); err != nil {
-				return fmt.Errorf("failed to copy inertia tailwind template %s: %w", templateFile, err)
+		// Single Tailwind CSS source for both auth pages and SPA
+		if cssFramework == "tailwind" {
+			if err := renderTemplate(targetDir, "tw_css_base.tmpl", "css/base.css", templates.Files, data); err != nil {
+				return fmt.Errorf("failed to render tailwind base CSS: %w", err)
 			}
 		}
 
@@ -465,6 +467,13 @@ func processTemplatedFiles(
 		for templateFile, targetPath := range inertiaAuthViewMappings {
 			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
 				return fmt.Errorf("failed to render inertia auth view template %s: %w", templateFile, err)
+			}
+		}
+
+		// Inertia Go source templates — rendered through text/template for the renderer package
+		for templateFile, targetPath := range inertiaRendererMappings {
+			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
+				return fmt.Errorf("failed to render inertia renderer template %s: %w", templateFile, err)
 			}
 		}
 	}

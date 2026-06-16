@@ -10,6 +10,9 @@ import (
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
 {{- if eq .ViewLayer "inertia-vue"}}
+	"fmt"
+
+	"{{.ModuleName}}/config"
 	inertia "github.com/romsar/gonertia/v3"
 {{- end}}
 )
@@ -27,7 +30,22 @@ var gInertia *inertia.Inertia
 // that serves as the mounting point for the Vue application. Must be called once
 // during application startup before any Inertia middleware or render calls.
 func InitInertia(rootHTML string, opts ...inertia.Option) error {
-	i, err := inertia.New(rootHTML, opts...)
+	tags, err := initVite()
+	if err != nil {
+		return fmt.Errorf("renderer: vite init: %w", err)
+	}
+
+	templateData := map[string]any{
+		"viteHead": tags.ViteHead,
+		"viteBody": tags.ViteBody,
+		"appName":  config.ProjectName,
+	}
+
+	allOpts := append([]inertia.Option{
+		inertia.WithTemplateData(templateData),
+	}, opts...)
+
+	i, err := inertia.NewFromFile(rootHTML, allOpts...)
 	if err != nil {
 		return err
 	}

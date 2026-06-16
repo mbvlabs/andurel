@@ -155,7 +155,11 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 		twitterCreator: "@mbvisti",
 		faviconBaseURL: "https://media.andurel.com/favicon",
 		MetaType:       "website",
+		{{- if eq .ViewLayer "inertia-vue"}}
+		stylesheetHref: "http://localhost:5173/css/base.css",
+		{{- else}}
 		stylesheetHref: routes.Stylesheet.URL(),
+		{{- end}}
 		scriptSrc:      routes.Scripts.URL(),
 	}
 

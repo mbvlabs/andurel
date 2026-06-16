@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title inertia>{{ .appName }}</title>
     {{ .inertiaHead }}
-    <script type="module" src="http://localhost:5173/@vite/client"></script>
-    <script type="module" src="http://localhost:5173/resources/js/app.ts"></script>
+    {{ .viteHead }}
 </head>
 <body>
     {{ .inertia }}
+    {{ .viteBody }}
 </body>
 </html>
