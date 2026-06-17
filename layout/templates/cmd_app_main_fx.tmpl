@@ -20,7 +20,6 @@ import (
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/queue/workers"
 	"{{.ModuleName}}/router"
-	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/clients/email"
 	"{{.ModuleName}}/email"
 	"{{.ModuleName}}/telemetry"
@@ -47,7 +46,6 @@ func main() {
 			telemetry.New,
 			fx.Annotate(database.NewPostgresFromConfig, fx.As(new(storage.Pool))),
 			router.New,
-			middleware.New,
 			controllers.NewCacheBuilder[templ.Component]().Build,
 			controllers.NewCacheBuilder[string]().WithSize(2).Build,
 			workers.RegisterWorkers,

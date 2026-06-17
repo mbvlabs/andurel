@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"{{.ModuleName}}/internal/renderer"
 	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/router"
@@ -64,7 +65,7 @@ func (p Pages) Home(etx *echo.Context) error {
 		return err
 	}
 
-	return render(etx, component)
+	return renderer.Render(etx, component)
 }
 
 func (p Pages) NotFound(etx *echo.Context) error {
@@ -77,5 +78,5 @@ func (p Pages) NotFound(etx *echo.Context) error {
 		return err
 	}
 
-	return render(etx, component)
+	return renderer.Render(etx, component)
 }

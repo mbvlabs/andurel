@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -128,45 +127,8 @@ func setupRouter(
 	return r, nil
 }
 
-func parseHeaders(headersStr string) map[string]string {
-	headers := make(map[string]string)
-	if headersStr == "" {
-		return headers
-	}
-
-	pairs := strings.SplitSeq(headersStr, ",")
-	for pair := range pairs {
-		kv := strings.SplitN(pair, "=", 2)
-		if len(kv) == 2 {
-			headers[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
-		}
-	}
-
-	return headers
-}
-
-func buildTelemetry(ctx context.Context, cfg config.Config) (*telemetry.Telemetry, error) {
-	opts := []telemetry.Option{
-		telemetry.WithService(cfg.Telemetry.ServiceName, cfg.Telemetry.ServiceVersion),
-		telemetry.WithBatchConfig(cfg.Telemetry.BatchSize, cfg.Telemetry.BatchTimeoutMs, 2048),
-		telemetry.WithTraceSampleRate(cfg.Telemetry.TraceSampleRate),
-	}
-
-	opts = append(opts, telemetry.WithLogExporters(telemetry.NewStdoutExporter()))
-
-	if cfg.Telemetry.OtlpMetricsEndpoint != "" {
-		opts = append(opts, telemetry.WithMetricExporters(
-			telemetry.NewOtlpMetricExporter(cfg.Telemetry.OtlpMetricsEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders))))
-	}
-
-	if cfg.Telemetry.OtlpTracesEndpoint != "" {
-		opts = append(opts, telemetry.WithTraceExporters(
-			telemetry.NewOtlpTraceExporter(cfg.Telemetry.OtlpTracesEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders))))
-	} else {
-		opts = append(opts, telemetry.WithTraceExporters(telemetry.NewNoopTraceExporter()))
-	}
-
-	return telemetry.New(ctx, opts...)
+func buildTelemetry(cfg config.Config) (*telemetry.Telemetry, error) {
+	return telemetry.New(cfg)
 }
 
 func run(ctx context.Context) error {
@@ -175,7 +137,7 @@ func run(ctx context.Context) error {
 
 	cfg := config.NewConfig()
 
-	tel, err := buildTelemetry(ctx, cfg)
+	tel, err := buildTelemetry(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to initialize telemetry: %w", err)
 	}
@@ -207,7 +169,7 @@ func run(ctx context.Context) error {
 	{{.VarName}} := {{.Expression}}
 {{- end}}
 
-	wrks, err := workers.Register(emailClient, emailClient)
+	wrks, err := workers.RegisterWorkers(emailClient, emailClient)
 	if err != nil {
 		return err
 	}
@@ -221,7 +183,6 @@ func run(ctx context.Context) error {
 	}
 
 	processor, err := queue.NewProcessor(
-		ctx,
 		db,
 		wrks,
 	)

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/internal/renderer"
 	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/router"
@@ -64,7 +65,7 @@ func (r Registrations) RegisterRoutes(rtr *router.Router) error {
 }
 
 func (r Registrations) New(etx *echo.Context) error {
-	return render(etx, views.RegistrationForm{}.Page())
+	return renderer.Render(etx, views.RegistrationForm{}.Page())
 }
 
 func (r Registrations) Create(etx *echo.Context) error {
@@ -81,7 +82,7 @@ func (r Registrations) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return render(etx, views.BadRequest())
+		return renderer.Render(etx, views.BadRequest())
 	}
 
 	if err := services.RegisterUser(
@@ -103,7 +104,7 @@ func (r Registrations) Create(etx *echo.Context) error {
 		)
 
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, "Failed to register user"); flashErr != nil {
-			return render(etx, views.InternalError())
+			return renderer.Render(etx, views.InternalError())
 		}
 
 		return etx.Redirect(http.StatusSeeOther, routes.RegistrationNew.URL())

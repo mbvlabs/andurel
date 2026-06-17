@@ -10,11 +10,12 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2/types"
 
+	appconfig "{{.ModuleName}}/config"
 	"{{.ModuleName}}/email"
 )
 
@@ -26,12 +27,12 @@ type AwsSes struct {
 	configurationSet string
 }
 
-func NewAwsSes(region, accessKeyID, secretAccessKey, configurationSet string) *AwsSes {
-	cfg, err := config.LoadDefaultConfig(context.Background(),
-		config.WithRegion(region),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
-			accessKeyID,
-			secretAccessKey,
+func NewAwsSes(cfg appconfig.Config) *AwsSes {
+	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(),
+		awsconfig.WithRegion(cfg.AwsSes.Region),
+		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			cfg.AwsSes.AccessKeyID,
+			cfg.AwsSes.SecretAccessKey,
 			"",
 		)),
 	)
@@ -39,11 +40,11 @@ func NewAwsSes(region, accessKeyID, secretAccessKey, configurationSet string) *A
 		panic(fmt.Sprintf("failed to load AWS SES config: %v", err))
 	}
 
-	client := sesv2.NewFromConfig(cfg)
+	client := sesv2.NewFromConfig(awsCfg)
 
 	return &AwsSes{
 		client:           client,
-		configurationSet: configurationSet,
+		configurationSet: cfg.AwsSes.ConfigurationSet,
 	}
 }
 

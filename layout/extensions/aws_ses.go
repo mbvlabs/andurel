@@ -38,7 +38,7 @@ func (e AwsSes) Apply(ctx *Context) error {
 
 		builder.AddMainInitialization(
 			"emailClient",
-			"mailclients.NewAwsSes(cfg.AwsSes.Region, cfg.AwsSes.AccessKeyID, cfg.AwsSes.SecretAccessKey, cfg.AwsSes.ConfigurationSet)",
+			"mailclients.NewAwsSes(cfg)",
 			"cfg",
 		)
 

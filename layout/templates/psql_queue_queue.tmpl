@@ -32,7 +32,6 @@ func (p Processor) Stop(ctx context.Context) error {
 }
 
 func NewProcessor(
-	ctx context.Context,
 	db storage.Pool,
 	workers *river.Workers,
 ) (Processor, error) {

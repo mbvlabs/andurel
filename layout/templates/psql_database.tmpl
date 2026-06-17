@@ -8,6 +8,7 @@ import (
 	"errors"
 	"log/slog"
 
+	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/storage"
 
 	"github.com/exaring/otelpgx"
@@ -16,6 +17,10 @@ import (
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 )
+
+func NewPostgresFromConfig(cfg config.Config) (storage.Pool, error) {
+	return NewPostgres(context.Background(), cfg.DB.GetDatabaseURL())
+}
 
 //go:embed migrations/*
 var Migrations embed.FS

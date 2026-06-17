@@ -975,7 +975,7 @@ func initializeManualBlueprint(moduleName string) *blueprint.Blueprint {
 
 	builder.AddMainInitialization(
 		"emailClient",
-		"mailclients.NewMailpit(cfg.Email.MailpitHost, cfg.Email.MailpitPort)",
+		"mailclients.NewMailpit(cfg)",
 		"cfg",
 	)
 
