@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/storage"
 
 	"github.com/uptrace/bun"
@@ -42,17 +43,31 @@ func NewTestDB() (*TestDB, error) {
 		return nil, fmt.Errorf("failed to start postgres container: %w", err)
 	}
 
-	dsn, err := pgContainer.ConnectionString(ctx)
+	port, err := pgContainer.MappedPort(ctx, "")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get connection string: %w", err)
+		return nil, err
+	}
+	host, err := pgContainer.Host(ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	if err := runMigrations("postgres", dsn); err != nil {
+	cfg := config.Config{DB: config.Database{
+		Port:         port.Port(),
+		Host:         host,
+		Name:         "testdb",
+		User:         "testuser",
+		Password:     "testpass",
+		DatabaseKind: "postgresql",
+		SslMode:      "disable",
+	}}
+
+	if err := runMigrations("postgres", cfg.DB.GetDatabaseURL()); err != nil {
 		pgContainer.Terminate(ctx)
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
-	db, err := NewPostgres(ctx, dsn)
+	db, err := NewPostgres(ctx, cfg)
 	if err != nil {
 		pgContainer.Terminate(ctx)
 		return nil, fmt.Errorf("failed to connect to test database: %w", err)
@@ -61,7 +76,7 @@ func NewTestDB() (*TestDB, error) {
 	return &TestDB{
 		DB:        db,
 		Container: pgContainer,
-		DSN:       dsn,
+		DSN:       cfg.DB.GetDatabaseURL(),
 	}, nil
 }
 

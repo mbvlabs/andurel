@@ -6,7 +6,7 @@ import (
 	"github.com/caarlos0/env/v11"
 )
 
-type database struct {
+type Database struct {
 	Port         string `env:"DB_PORT"`
 	Host         string `env:"DB_HOST"`
 	Name         string `env:"DB_NAME"`
@@ -16,15 +16,15 @@ type database struct {
 	SslMode      string `env:"DB_SSL_MODE"`
 }
 
-func (d database) GetDatabaseURL() string {
+func (d Database) GetDatabaseURL() string {
 	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
 		d.DatabaseKind, d.User, d.Password, d.Host, d.Port,
 		d.Name, d.SslMode,
 	)
 }
 
-func newDatabaseConfig() database {
-	dataCfg := database{}
+func newDatabaseConfig() Database {
+	dataCfg := Database{}
 
 	if err := env.ParseWithOptions(&dataCfg, env.Options{
 		RequiredIfNoDef: true,

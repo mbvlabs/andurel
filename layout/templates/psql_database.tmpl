@@ -16,11 +16,10 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
+    {{if eq .DIMode "uberfx"}}
+	"go.uber.org/fx"
+    {{end}}
 )
-
-func NewPostgresFromConfig(cfg config.Config) (storage.Pool, error) {
-	return NewPostgres(context.Background(), cfg.DB.GetDatabaseURL())
-}
 
 //go:embed migrations/*
 var Migrations embed.FS
@@ -31,8 +30,8 @@ type Postgres struct {
 
 var _ storage.Pool = (*Postgres)(nil)
 
-func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
-	pgxCfg, err := pgx.ParseConfig(databaseURL)
+func NewPostgres(ctx context.Context, cfg config.Config) (*Postgres, error) {
+	pgxCfg, err := pgx.ParseConfig(cfg.DB.GetDatabaseURL())
 	if err != nil {
 		slog.ErrorContext(ctx, "could not parse database connection string", "error", err)
 		return &Postgres{}, err
@@ -67,3 +66,7 @@ func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, er
 func (p *Postgres) Close() error {
 	return p.conn.Close()
 }
+
+{{if eq .DIMode "uberfx"}}
+var Module = fx.Module("database", fx.Provide(fx.Annotate(NewPostgres, fx.As(new(storage.Pool)))))
+{{end}}

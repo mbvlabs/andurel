@@ -4,6 +4,9 @@ package workers
 import (
 	"github.com/riverqueue/river"
 
+    {{if eq .DIMode "uberfx"}}
+	"go.uber.org/fx"
+    {{end}}
 	"{{.ModuleName}}/email"
 )
 
@@ -22,3 +25,7 @@ func RegisterWorkers(transactionalSender email.TransactionalSender, marketingSen
 
 	return wrks, nil
 }
+
+{{if eq .DIMode "uberfx"}}
+var Module = fx.Module("queue-workers", fx.Provide(RegisterWorkers))
+{{end}}

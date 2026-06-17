@@ -52,6 +52,8 @@ func (p Pages) RegisterRoutes(r *router.Router) error {
 		errs = append(errs, err)
 	}
 
+	_ = r.AddRouteNotFound(p.NotFound)
+
 	return errors.Join(errs...)
 }
 
