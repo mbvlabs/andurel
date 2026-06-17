@@ -57,6 +57,10 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName, idType, diMod
 		if err := rg.mainInjector.InjectController(resourceName, pluralName); err != nil {
 			slog.Warn("unexpected error injecting controller", "error", err)
 		}
+	} else {
+		if err := rg.mainInjector.InjectFXController(resourceName, pluralName); err != nil {
+			slog.Warn("unexpected error injecting fx controller", "error", err)
+		}
 	}
 
 	return nil

@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mbvlabs/andurel/generator"
 	"github.com/mbvlabs/andurel/generator/files"
-	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
@@ -21,23 +21,28 @@ func newGenerateControllerCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "controller NAME [action action ...]",
 		Aliases: []string{"c"},
-		Short: "Generate a new controller",
-		Long: `Generates a new controller, views, and routes. Pass the controller name
-in CamelCase and a list of actions as arguments.
+		Short:   "Generate a new controller",
+		Long: `Generates a controller for the given resource name.
 
-This generates a controller with stub methods for each action, view
-templates with placeholder content, and route entries.`,
-		Example: `  andurel generate controller CreditCards open debit credit close
+When no actions are provided, or any action is one of index, show, new,
+create, edit, update, or destroy, this uses the resource controller templates
+and generates the standard CRUD controller, views, and routes.
 
-      Generates a CreditCardsController with open, debit, and credit actions.
+Non-CRUD actions are added as empty controller methods, with matching empty
+components in views/<name>_resource.templ. Custom action routes are not
+generated yet.`,
+		Example: `  andurel generate controller CreditCard
+
+      Generates the standard CRUD resource controller, views, and routes.
       Controller: controllers/credit_cards.go
       Views:      views/credit_cards_resource.templ
       Routes:     router/routes/credit_cards.go
                   router/connect_credit_cards_routes.go
 
-  andurel generate controller Users index --skip-routes
+  andurel generate controller CreditCard export
 
-      Generates a UsersController with an index action, no route files.`,
+      Adds an empty Export method to controllers/credit_cards.go and an empty
+      CreditCardExport component to views/credit_cards_resource.templ.`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
@@ -56,12 +61,14 @@ templates with placeholder content, and route entries.`,
 		},
 	}
 
-	cmd.Flags().BoolVar(&skipRoutes, "skip-routes", false, "Don't add routes to router")
+	cmd.Flags().BoolVar(&skipRoutes, "skip-routes", false, "Deprecated: custom actions do not generate routes")
 
 	return cmd
 }
 
 func generateControllerWithActions(name string, actions []string, skipRoutes bool) error {
+	_ = skipRoutes
+
 	tableName := naming.DeriveTableName(name)
 	pluralName := tableName
 	modulePath, err := readModulePath()
@@ -70,16 +77,25 @@ func generateControllerWithActions(name string, actions []string, skipRoutes boo
 	}
 
 	controllerPath := filepath.Join("controllers", tableName+".go")
-	if _, err := os.Stat(controllerPath); err == nil {
-		return fmt.Errorf("controller file %s already exists", controllerPath)
+	customActions := nonCRUDControllerActions(actions)
+	shouldGenerateResource := len(actions) == 0 || hasCRUDControllerAction(actions)
+
+	if shouldGenerateResource {
+		if _, err := os.Stat(controllerPath); os.IsNotExist(err) {
+			gen, err := generator.New()
+			if err != nil {
+				return err
+			}
+			if err := gen.GenerateController(name, "", true); err != nil {
+				return err
+			}
+		} else if err != nil {
+			return err
+		}
 	}
 
-	if err := generateActionControllerFile(name, tableName, pluralName, modulePath, controllerPath, actions); err != nil {
-		return err
-	}
-
-	if !skipRoutes {
-		if err := generateActionRoutes(name, tableName, modulePath, actions); err != nil {
+	if len(customActions) > 0 {
+		if err := generateActionControllerFile(name, tableName, pluralName, modulePath, controllerPath, customActions); err != nil {
 			return err
 		}
 	}
@@ -88,48 +104,90 @@ func generateControllerWithActions(name string, actions []string, skipRoutes boo
 	return nil
 }
 
-func readDIModeForProject() string {
-	lock, err := layout.ReadLockFile(".")
-	if err != nil || lock.ScaffoldConfig == nil || lock.ScaffoldConfig.DIMode == "" {
-		return "manual"
+func hasCRUDControllerAction(actions []string) bool {
+	for _, action := range actions {
+		if isCRUDControllerAction(action) {
+			return true
+		}
 	}
-	return lock.ScaffoldConfig.DIMode
+	return false
+}
+
+func nonCRUDControllerActions(actions []string) []string {
+	customActions := make([]string, 0, len(actions))
+	for _, action := range actions {
+		if !isCRUDControllerAction(action) {
+			customActions = append(customActions, action)
+		}
+	}
+	return customActions
+}
+
+func isCRUDControllerAction(action string) bool {
+	switch strings.ToLower(action) {
+	case "index", "show", "new", "create", "edit", "update", "destroy":
+		return true
+	default:
+		return false
+	}
 }
 
 func generateActionControllerFile(name, tableName, pluralName, modulePath, controllerPath string, actions []string) error {
 	ts := naming.ToSnakeCase(name)
 	receiverName := naming.ToReceiverName(name)
 	resourceName := name
-
-	var sb strings.Builder
-	sb.WriteString("package controllers\n\n")
-	sb.WriteString("import (\n")
-	sb.WriteString("\t\"net/http\"\n")
-	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("\t\"%s/internal/renderer\"\n", modulePath))
-	sb.WriteString("\n")
-	sb.WriteString("\t\"github.com/a-h/templ\"\n")
-	sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")
-	sb.WriteString(")\n\n")
-	sb.WriteString(fmt.Sprintf("type %s struct {\n", naming.ToPascalCase(pluralName)))
-	sb.WriteString("\tdb interface{ Conn() any }\n")
-	sb.WriteString("}\n\n")
-	sb.WriteString(fmt.Sprintf("func New%s() %s {\n", naming.ToPascalCase(pluralName), naming.ToPascalCase(pluralName)))
-	sb.WriteString(fmt.Sprintf("\treturn %s{}\n", naming.ToPascalCase(pluralName)))
-	sb.WriteString("}\n\n")
-
-	for _, action := range actions {
-		methodName := naming.ToPascalCase(action)
-		sb.WriteString(fmt.Sprintf("func (%s %s) %s(etx echo.Context) error {\n", receiverName, naming.ToPascalCase(pluralName), methodName))
-		sb.WriteString(fmt.Sprintf("\treturn renderer.Render(etx, %s%s())\n", naming.ToPascalCase(resourceName), methodName))
-		sb.WriteString("}\n\n")
-	}
+	controllerName := naming.ToPascalCase(pluralName)
 
 	if err := os.MkdirAll("controllers", 0o755); err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(controllerPath, []byte(sb.String()), constants.FilePermissionPrivate); err != nil {
+	if _, err := os.Stat(controllerPath); err == nil {
+		content, err := os.ReadFile(controllerPath)
+		if err != nil {
+			return err
+		}
+		contentStr := strings.ReplaceAll(string(content), "(etx echo.Context)", "(etx *echo.Context)")
+
+		var additions strings.Builder
+		for _, action := range actions {
+			methodName := naming.ToPascalCase(action)
+			if controllerMethodExists(contentStr, methodName) {
+				continue
+			}
+			additions.WriteString(actionControllerMethod(receiverName, controllerName, resourceName, methodName))
+		}
+
+		if additions.Len() > 0 {
+			contentStr = strings.TrimRight(contentStr, "\n") + "\n\n" + strings.TrimRight(additions.String(), "\n") + "\n"
+		}
+
+		if err := os.WriteFile(controllerPath, []byte(contentStr), constants.FilePermissionPrivate); err != nil {
+			return err
+		}
+	} else if os.IsNotExist(err) {
+		var sb strings.Builder
+		sb.WriteString("package controllers\n\n")
+		sb.WriteString("import (\n")
+		sb.WriteString(fmt.Sprintf("\t\"%s/internal/renderer\"\n", modulePath))
+		sb.WriteString(fmt.Sprintf("\t\"%s/views\"\n", modulePath))
+		sb.WriteString("\n")
+		sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")
+		sb.WriteString(")\n\n")
+		sb.WriteString(fmt.Sprintf("type %s struct{}\n\n", controllerName))
+		sb.WriteString(fmt.Sprintf("func New%s() %s {\n", controllerName, controllerName))
+		sb.WriteString(fmt.Sprintf("\treturn %s{}\n", controllerName))
+		sb.WriteString("}\n\n")
+
+		for _, action := range actions {
+			methodName := naming.ToPascalCase(action)
+			sb.WriteString(actionControllerMethod(receiverName, controllerName, resourceName, methodName))
+		}
+
+		if err := os.WriteFile(controllerPath, []byte(sb.String()), constants.FilePermissionPrivate); err != nil {
+			return err
+		}
+	} else {
 		return err
 	}
 
@@ -145,29 +203,54 @@ func generateActionControllerFile(name, tableName, pluralName, modulePath, contr
 	return nil
 }
 
+func controllerMethodExists(content, methodName string) bool {
+	return strings.Contains(content, ") "+methodName+"(etx *echo.Context)") ||
+		strings.Contains(content, ") "+methodName+"(etx echo.Context)")
+}
+
+func actionControllerMethod(receiverName, controllerName, resourceName, methodName string) string {
+	return fmt.Sprintf("func (%s %s) %s(etx *echo.Context) error {\n\treturn renderer.Render(etx, views.%s%s())\n}\n\n",
+		receiverName,
+		controllerName,
+		methodName,
+		naming.ToPascalCase(resourceName),
+		methodName,
+	)
+}
+
 func generateActionViewFile(name, tableName, modulePath, ts string, actions []string) error {
 	resourceName := naming.ToPascalCase(name)
 	viewPath := filepath.Join("views", tableName+"_resource.templ")
-	if _, err := os.Stat(viewPath); err == nil {
-		return fmt.Errorf("view file %s already exists", viewPath)
-	}
 
 	var sb strings.Builder
+	if _, err := os.Stat(viewPath); err == nil {
+		content, err := os.ReadFile(viewPath)
+		if err != nil {
+			return err
+		}
+		contentStr := string(content)
+		for _, action := range actions {
+			methodName := naming.ToPascalCase(action)
+			componentName := resourceName + methodName
+			if strings.Contains(contentStr, "templ "+componentName+"(") {
+				continue
+			}
+			sb.WriteString(actionViewComponent(resourceName, methodName))
+		}
+		if sb.Len() == 0 {
+			return nil
+		}
+		contentStr = strings.TrimRight(contentStr, "\n") + "\n\n" + strings.TrimRight(sb.String(), "\n") + "\n"
+		return os.WriteFile(viewPath, []byte(contentStr), constants.FilePermissionPrivate)
+	} else if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
 	sb.WriteString("package views\n\n")
-	sb.WriteString("import (\n")
-	sb.WriteString("\t\"net/http\"\n")
-	sb.WriteString(fmt.Sprintf("\t\"%s/internal/renderer\"\n", modulePath))
-	sb.WriteString(fmt.Sprintf("\t\"%s/router/routes\"\n", modulePath))
-	sb.WriteString(")\n\n")
 
 	for _, action := range actions {
 		methodName := naming.ToPascalCase(action)
-		sb.WriteString(fmt.Sprintf("templ %s%s() {\n", resourceName, methodName))
-		sb.WriteString("\t<div class=\"p-6\">\n")
-		sb.WriteString(fmt.Sprintf("\t\t<h1 class=\"text-2xl font-semibold\">%s#%s</h1>\n", resourceName, methodName))
-		sb.WriteString("\t\t<p class=\"text-sm text-base-content/60 mt-2\">Content for this action has not been implemented yet.</p>\n")
-		sb.WriteString("\t</div>\n")
-		sb.WriteString("}\n\n")
+		sb.WriteString(actionViewComponent(resourceName, methodName))
 	}
 
 	if err := os.MkdirAll("views", 0o755); err != nil {
@@ -181,107 +264,15 @@ func generateActionViewFile(name, tableName, modulePath, ts string, actions []st
 	return nil
 }
 
-func generateActionRoutes(name, tableName, modulePath string, actions []string) error {
-	pluralName := tableName
-	resourceName := naming.ToPascalCase(name)
-	pluralResource := naming.ToPascalCase(pluralName)
-	lowerResource := naming.ToLowerCamelCase(name)
-
-	routesDir := "router/routes"
-	routesPath := filepath.Join(routesDir, pluralName+".go")
-	if _, err := os.Stat(routesPath); err == nil {
-		return fmt.Errorf("routes file %s already exists", routesPath)
-	}
-
+func actionViewComponent(resourceName, methodName string) string {
 	var sb strings.Builder
-	sb.WriteString("package routes\n\n")
-	sb.WriteString(fmt.Sprintf("import (\n\t\"%s/internal/routing\"\n)\n\n", modulePath))
-	sb.WriteString(fmt.Sprintf("const %sPrefix = \"/%s\"\n\n", resourceName, pluralName))
-
-	for _, action := range actions {
-		routeName := resourceName + naming.ToPascalCase(action)
-		actionLower := naming.ToLowerCamelCase(action)
-		path := "/" + actionLower
-		sb.WriteString(fmt.Sprintf("var %s = routing.NewSimpleRoute(\n", routeName))
-		sb.WriteString(fmt.Sprintf("\t\"%s\",\n", path))
-		sb.WriteString(fmt.Sprintf("\t\"%s.%s\",\n", pluralName, actionLower))
-		sb.WriteString(fmt.Sprintf("\t%sPrefix,\n", resourceName))
-		sb.WriteString(")\n\n")
-	}
-
-	if err := os.MkdirAll(routesDir, 0o755); err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(routesPath, []byte(sb.String()), constants.FilePermissionPrivate); err != nil {
-		return err
-	}
-
-	if err := files.FormatGoFile(routesPath); err != nil {
-		return err
-	}
-
-	// Generate route registration file (skipped in uberfx mode)
-	if diMode := readDIModeForProject(); diMode != "uberfx" {
-		connectPath := filepath.Join("router", "connect_"+pluralName+"_routes.go")
-		if _, err := os.Stat(connectPath); err == nil {
-			return fmt.Errorf("route registration file %s already exists", connectPath)
-		}
-
-		var regSb strings.Builder
-		regSb.WriteString("package router\n\n")
-		regSb.WriteString("import (\n")
-		regSb.WriteString("\t\"errors\"\n")
-		regSb.WriteString("\t\"net/http\"\n\n")
-		regSb.WriteString(fmt.Sprintf("\t\"%s/controllers\"\n", modulePath))
-		regSb.WriteString(fmt.Sprintf("\t\"%s/router/routes\"\n", modulePath))
-		regSb.WriteString(")\n\n")
-		regSb.WriteString(fmt.Sprintf("func (r Router) Register%sRoutes(%s controllers.%s) error {\n", pluralResource, lowerResource, pluralResource))
-		regSb.WriteString("\terrs := []error{}\n\n")
-
-		for _, action := range actions {
-			routeName := resourceName + naming.ToPascalCase(action)
-			actionTitle := naming.ToPascalCase(action)
-			method := actionHTTPMethod(action)
-			regSb.WriteString(fmt.Sprintf("\t_, err := r.e.AddRoute(echo.Route{\n"))
-			regSb.WriteString(fmt.Sprintf("\t\tMethod: %s,\n", method))
-			regSb.WriteString(fmt.Sprintf("\t\tPath:   routes.%s.Path(),\n", routeName))
-			regSb.WriteString(fmt.Sprintf("\t\tName:   routes.%s.Name(),\n", routeName))
-			regSb.WriteString(fmt.Sprintf("\t\tHandler: %s.%s,\n", lowerResource, actionTitle))
-			regSb.WriteString("\t})\n")
-			regSb.WriteString("\tif err != nil {\n\t\terrs = append(errs, err)\n\t}\n\n")
-		}
-
-		regSb.WriteString("\treturn errors.Join(errs...)\n")
-		regSb.WriteString("}\n")
-
-		if err := os.MkdirAll("router", 0o755); err != nil {
-			return err
-		}
-
-		if err := os.WriteFile(connectPath, []byte(regSb.String()), constants.FilePermissionPrivate); err != nil {
-			return err
-		}
-
-		if err := files.FormatGoFile(connectPath); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func actionHTTPMethod(action string) string {
-	switch action {
-	case "create":
-		return "http.MethodPost"
-	case "update", "edit":
-		return "http.MethodPut"
-	case "destroy", "delete":
-		return "http.MethodDelete"
-	default:
-		return "http.MethodGet"
-	}
+	sb.WriteString(fmt.Sprintf("templ %s%s() {\n", resourceName, methodName))
+	sb.WriteString("\t<div class=\"p-6\">\n")
+	sb.WriteString(fmt.Sprintf("\t\t<h1 class=\"text-2xl font-semibold\">%s#%s</h1>\n", resourceName, methodName))
+	sb.WriteString("\t\t<p class=\"text-sm text-base-content/60 mt-2\">Content for this action has not been implemented yet.</p>\n")
+	sb.WriteString("\t</div>\n")
+	sb.WriteString("}\n\n")
+	return sb.String()
 }
 
 func readModulePath() (string, error) {
