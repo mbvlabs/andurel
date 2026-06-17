@@ -19,6 +19,7 @@ type TemplateData interface {
 	DatabaseDialect() string
 	GetModuleName() string
 	GetCSSFramework() string
+	GetViewLayer() string
 	Builder() *blueprint.Builder
 	SetBlueprint(bp *blueprint.Blueprint)
 }
@@ -32,6 +33,7 @@ type Context struct {
 	AddPostStep       func(func(targetDir string) error)
 	NextMigrationTime *time.Time
 	DIMode            string // "manual" or "uberfx"
+	ViewLayer         string // "templ" or "inertia-vue"
 }
 
 // Builder returns the blueprint builder for structured contributions.

@@ -28,6 +28,7 @@ type ScaffoldConfig struct {
 	CSSFramework string   `json:"cssFramework"`
 	Extensions   []string `json:"extensions,omitempty"`
 	DIMode       string   `json:"diMode"`
+	ViewLayer    string   `json:"viewLayer"`
 }
 
 type Extension struct {

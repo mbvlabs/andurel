@@ -36,6 +36,7 @@ func (fg *FileGenerator) GenerateController(
 	nullType string,
 	primaryKeyColumn string,
 	diMode string,
+	viewLayer string,
 ) error {
 	// When table name is overridden, use it directly; otherwise derive from resource name
 	pluralName := tableName
@@ -66,7 +67,7 @@ func (fg *FileGenerator) GenerateController(
 		return fmt.Errorf("failed to build controller: %w", err)
 	}
 
-	controllerContent, err := fg.templateRenderer.RenderControllerFile(controller, diMode)
+	controllerContent, err := fg.templateRenderer.RenderControllerFile(controller, diMode, viewLayer)
 	if err != nil {
 		return fmt.Errorf("failed to render controller file: %w", err)
 	}

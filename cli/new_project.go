@@ -14,7 +14,7 @@ func newProjectCommand(version string) *cobra.Command {
 	projectCmd := &cobra.Command{
 		Use:     "new [project-name]",
 		Aliases: []string{"n"},
-		Short: "Create a new Andurel project",
+		Short:   "Create a new Andurel project",
 		Long: `Scaffold a complete Andurel project with the given name.
 
 Generates the full project structure including controllers, models, views,
@@ -40,6 +40,9 @@ creation, run 'andurel tool sync' to download required binaries.`,
 
 	projectCmd.Flags().
 		String("di", "manual", "Dependency injection approach (manual, uberfx)")
+
+	projectCmd.Flags().
+		String("frontend", "templ", "Frontend layer (templ, inertia-vue)")
 
 	return projectCmd
 }
@@ -100,11 +103,27 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 		)
 	}
 
+	viewLayer, err := cmd.Flags().GetString("frontend")
+	if err != nil {
+		return err
+	}
+
+	if viewLayer != "templ" && viewLayer != "inertia-vue" {
+		return fmt.Errorf(
+			"invalid frontend provided: %s - valid options are 'templ' and 'inertia-vue'",
+			viewLayer,
+		)
+	}
+
+	if viewLayer == "inertia-vue" && cssFramework != "tailwind" {
+		return fmt.Errorf("--frontend inertia-vue currently requires --css tailwind")
+	}
+
 	extensions, err := cmd.Flags().GetStringSlice("extensions")
 	if err != nil {
 		return err
 	}
-	if err := layout.Scaffold(basePath, projectName, database, cssFramework, version, extensions, diMode); err != nil {
+	if err := layout.Scaffold(basePath, projectName, database, cssFramework, version, extensions, diMode, viewLayer); err != nil {
 		return err
 	}
 
