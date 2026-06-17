@@ -18,13 +18,13 @@ type DocumentIndex struct {
 	Items []models.DocumentEntity
 }
 
-func (di DocumentIndex) ContainerFragment() string {
-	return "document-index-container-fragment"
+func (di DocumentIndex) PageFragment() string {
+	return "document-index-page-fragment"
 }
 
 templ (di DocumentIndex) Page() {
 	@base() {
-		@templ.Fragment(di.ContainerFragment()) {
+		@templ.Fragment(di.PageFragment()) {
 			<main id="document-index-container" class="flex-1 px-6 py-10">
 				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 					<div class="flex flex-wrap items-center justify-between gap-4">
@@ -80,13 +80,13 @@ type DocumentShow struct {
 	Item models.DocumentEntity
 }
 
-func (ds DocumentShow) ContainerFragment() string {
-	return "document-show-container-fragment"
+func (ds DocumentShow) PageFragment() string {
+	return "document-show-page-fragment"
 }
 
 templ (ds DocumentShow) Page() {
 	@base() {
-		@templ.Fragment(ds.ContainerFragment()) {
+		@templ.Fragment(ds.PageFragment()) {
 			<main id="document-show-container" class="flex-1 px-6 py-10">
 				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
 					<div class="flex flex-wrap items-center justify-between gap-4">
@@ -138,13 +138,13 @@ templ (ds DocumentShow) Page() {
 
 type DocumentNew struct{}
 
-func (dn DocumentNew) ContainerFragment() string {
-	return "document-new-container-fragment"
+func (dn DocumentNew) PageFragment() string {
+	return "document-new-page-fragment"
 }
 
 templ (dn DocumentNew) Page() {
 	@base() {
-		@templ.Fragment(dn.ContainerFragment()) {
+		@templ.Fragment(dn.PageFragment()) {
 			<main id="document-new-container" class="flex-1 flex items-center justify-center px-6 py-10">
 				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
 					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
@@ -195,13 +195,13 @@ type DocumentEdit struct {
 	Item models.DocumentEntity
 }
 
-func (de DocumentEdit) ContainerFragment() string {
-	return "document-edit-container-fragment"
+func (de DocumentEdit) PageFragment() string {
+	return "document-edit-page-fragment"
 }
 
 templ (de DocumentEdit) Page() {
 	@base() {
-		@templ.Fragment(de.ContainerFragment()) {
+		@templ.Fragment(de.PageFragment()) {
 			<main id="document-edit-container" class="flex-1 flex items-center justify-center px-6 py-10">
 				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
 					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">

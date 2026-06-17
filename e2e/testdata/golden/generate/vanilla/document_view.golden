@@ -18,13 +18,13 @@ type DocumentIndex struct {
 	Items []models.DocumentEntity
 }
 
-func (di DocumentIndex) ContainerFragment() string {
-	return "document-index-container-fragment"
+func (di DocumentIndex) PageFragment() string {
+	return "document-index-page-fragment"
 }
 
 templ (di DocumentIndex) Page() {
 	@base() {
-		@templ.Fragment(di.ContainerFragment()) {
+		@templ.Fragment(di.PageFragment()) {
 			<main id="document-index-container">
 				<section>
 					<div>
@@ -89,13 +89,13 @@ type DocumentShow struct {
 	Item models.DocumentEntity
 }
 
-func (ds DocumentShow) ContainerFragment() string {
-	return "document-show-container-fragment"
+func (ds DocumentShow) PageFragment() string {
+	return "document-show-page-fragment"
 }
 
 templ (ds DocumentShow) Page() {
 	@base() {
-		@templ.Fragment(ds.ContainerFragment()) {
+		@templ.Fragment(ds.PageFragment()) {
 			<main id="document-show-container">
 				<section>
 					<div>
@@ -147,13 +147,13 @@ templ (ds DocumentShow) Page() {
 
 type DocumentNew struct{}
 
-func (dn DocumentNew) ContainerFragment() string {
-	return "document-new-container-fragment"
+func (dn DocumentNew) PageFragment() string {
+	return "document-new-page-fragment"
 }
 
 templ (dn DocumentNew) Page() {
 	@base() {
-		@templ.Fragment(dn.ContainerFragment()) {
+		@templ.Fragment(dn.PageFragment()) {
 			<main id="document-new-container">
 				<section>
 					<div>
@@ -213,13 +213,13 @@ type DocumentEdit struct {
 	Item models.DocumentEntity
 }
 
-func (de DocumentEdit) ContainerFragment() string {
-	return "document-edit-container-fragment"
+func (de DocumentEdit) PageFragment() string {
+	return "document-edit-page-fragment"
 }
 
 templ (de DocumentEdit) Page() {
 	@base() {
-		@templ.Fragment(de.ContainerFragment()) {
+		@templ.Fragment(de.PageFragment()) {
 			<main id="document-edit-container">
 				<section>
 					<div>

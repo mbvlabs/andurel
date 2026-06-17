@@ -17,13 +17,13 @@ type ItemIndex struct {
 	Items []models.ItemEntity
 }
 
-func (ii ItemIndex) ContainerFragment() string {
-	return "item-index-container-fragment"
+func (ii ItemIndex) PageFragment() string {
+	return "item-index-page-fragment"
 }
 
 templ (ii ItemIndex) Page() {
 	@base() {
-		@templ.Fragment(ii.ContainerFragment()) {
+		@templ.Fragment(ii.PageFragment()) {
 			<main id="item-index-container">
 				<section>
 					<div>
@@ -84,13 +84,13 @@ type ItemShow struct {
 	Item models.ItemEntity
 }
 
-func (is ItemShow) ContainerFragment() string {
-	return "item-show-container-fragment"
+func (is ItemShow) PageFragment() string {
+	return "item-show-page-fragment"
 }
 
 templ (is ItemShow) Page() {
 	@base() {
-		@templ.Fragment(is.ContainerFragment()) {
+		@templ.Fragment(is.PageFragment()) {
 			<main id="item-show-container">
 				<section>
 					<div>
@@ -134,13 +134,13 @@ templ (is ItemShow) Page() {
 
 type ItemNew struct{}
 
-func (in ItemNew) ContainerFragment() string {
-	return "item-new-container-fragment"
+func (in ItemNew) PageFragment() string {
+	return "item-new-page-fragment"
 }
 
 templ (in ItemNew) Page() {
 	@base() {
-		@templ.Fragment(in.ContainerFragment()) {
+		@templ.Fragment(in.PageFragment()) {
 			<main id="item-new-container">
 				<section>
 					<div>
@@ -190,13 +190,13 @@ type ItemEdit struct {
 	Item models.ItemEntity
 }
 
-func (ie ItemEdit) ContainerFragment() string {
-	return "item-edit-container-fragment"
+func (ie ItemEdit) PageFragment() string {
+	return "item-edit-page-fragment"
 }
 
 templ (ie ItemEdit) Page() {
 	@base() {
-		@templ.Fragment(ie.ContainerFragment()) {
+		@templ.Fragment(ie.PageFragment()) {
 			<main id="item-edit-container">
 				<section>
 					<div>

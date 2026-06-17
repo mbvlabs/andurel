@@ -17,13 +17,13 @@ type StudentFeedbackIndex struct {
 	Items []models.StudentfeedbackEntity
 }
 
-func (sfi StudentFeedbackIndex) ContainerFragment() string {
-	return "studentfeedback-index-container-fragment"
+func (sfi StudentFeedbackIndex) PageFragment() string {
+	return "studentfeedback-index-page-fragment"
 }
 
 templ (sfi StudentFeedbackIndex) Page() {
 	@base() {
-		@templ.Fragment(sfi.ContainerFragment()) {
+		@templ.Fragment(sfi.PageFragment()) {
 			<main id="studentfeedback-index-container" class="flex-1 px-6 py-10">
 				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 					<div class="flex flex-wrap items-center justify-between gap-4">
@@ -75,13 +75,13 @@ type StudentFeedbackShow struct {
 	Item models.StudentfeedbackEntity
 }
 
-func (sfs StudentFeedbackShow) ContainerFragment() string {
-	return "studentfeedback-show-container-fragment"
+func (sfs StudentFeedbackShow) PageFragment() string {
+	return "studentfeedback-show-page-fragment"
 }
 
 templ (sfs StudentFeedbackShow) Page() {
 	@base() {
-		@templ.Fragment(sfs.ContainerFragment()) {
+		@templ.Fragment(sfs.PageFragment()) {
 			<main id="studentfeedback-show-container" class="flex-1 px-6 py-10">
 				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
 					<div class="flex flex-wrap items-center justify-between gap-4">
@@ -125,13 +125,13 @@ templ (sfs StudentFeedbackShow) Page() {
 
 type StudentFeedbackNew struct{}
 
-func (sfn StudentFeedbackNew) ContainerFragment() string {
-	return "studentfeedback-new-container-fragment"
+func (sfn StudentFeedbackNew) PageFragment() string {
+	return "studentfeedback-new-page-fragment"
 }
 
 templ (sfn StudentFeedbackNew) Page() {
 	@base() {
-		@templ.Fragment(sfn.ContainerFragment()) {
+		@templ.Fragment(sfn.PageFragment()) {
 			<main id="studentfeedback-new-container" class="flex-1 flex items-center justify-center px-6 py-10">
 				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
 					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
@@ -174,13 +174,13 @@ type StudentFeedbackEdit struct {
 	Item models.StudentfeedbackEntity
 }
 
-func (sfe StudentFeedbackEdit) ContainerFragment() string {
-	return "studentfeedback-edit-container-fragment"
+func (sfe StudentFeedbackEdit) PageFragment() string {
+	return "studentfeedback-edit-page-fragment"
 }
 
 templ (sfe StudentFeedbackEdit) Page() {
 	@base() {
-		@templ.Fragment(sfe.ContainerFragment()) {
+		@templ.Fragment(sfe.PageFragment()) {
 			<main id="studentfeedback-edit-container" class="flex-1 flex items-center justify-center px-6 py-10">
 				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
 					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">

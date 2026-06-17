@@ -15,13 +15,13 @@ type {{.ResourceName}}Index struct {
 	Items []models.{{.EntityName}}
 }
 
-func ({{$indexRecv}} {{.ResourceName}}Index) ContainerFragment() string {
-	return "{{.ResourceName | ToLower}}-index-container-fragment"
+func ({{$indexRecv}} {{.ResourceName}}Index) PageFragment() string {
+	return "{{.ResourceName | ToLower}}-index-page-fragment"
 }
 
 templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 	@base() {
-		@templ.Fragment({{$indexRecv}}.ContainerFragment()) {
+		@templ.Fragment({{$indexRecv}}.PageFragment()) {
 			<main id="{{.ResourceName | ToLower}}-index-container" class="page-shell">
 				<section class="container stack" data-gap="lg">
 					<div class="cluster" data-justify="between">
@@ -76,13 +76,13 @@ type {{.ResourceName}}Show struct {
 	Item models.{{.EntityName}}
 }
 
-func ({{$showRecv}} {{.ResourceName}}Show) ContainerFragment() string {
-	return "{{.ResourceName | ToLower}}-show-container-fragment"
+func ({{$showRecv}} {{.ResourceName}}Show) PageFragment() string {
+	return "{{.ResourceName | ToLower}}-show-page-fragment"
 }
 
 templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 	@base() {
-		@templ.Fragment({{$showRecv}}.ContainerFragment()) {
+		@templ.Fragment({{$showRecv}}.PageFragment()) {
 			<main id="{{.ResourceName | ToLower}}-show-container" class="page-shell">
 				<section class="container stack" data-gap="lg">
 					<div class="cluster" data-justify="between">
@@ -113,13 +113,13 @@ templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 
 type {{.ResourceName}}New struct{}
 
-func ({{$newRecv}} {{.ResourceName}}New) ContainerFragment() string {
-	return "{{.ResourceName | ToLower}}-new-container-fragment"
+func ({{$newRecv}} {{.ResourceName}}New) PageFragment() string {
+	return "{{.ResourceName | ToLower}}-new-page-fragment"
 }
 
 templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 	@base() {
-		@templ.Fragment({{$newRecv}}.ContainerFragment()) {
+		@templ.Fragment({{$newRecv}}.PageFragment()) {
 			<main id="{{.ResourceName | ToLower}}-new-container" class="auth-shell">
 				<section class="center">
 					<div class="card">
@@ -163,13 +163,13 @@ type {{.ResourceName}}Edit struct {
 	Item models.{{.EntityName}}
 }
 
-func ({{$editRecv}} {{.ResourceName}}Edit) ContainerFragment() string {
-	return "{{.ResourceName | ToLower}}-edit-container-fragment"
+func ({{$editRecv}} {{.ResourceName}}Edit) PageFragment() string {
+	return "{{.ResourceName | ToLower}}-edit-page-fragment"
 }
 
 templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
 	@base() {
-		@templ.Fragment({{$editRecv}}.ContainerFragment()) {
+		@templ.Fragment({{$editRecv}}.PageFragment()) {
 			<main id="{{.ResourceName | ToLower}}-edit-container" class="auth-shell">
 				<section class="center">
 					<div class="card">
