@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/internal/renderer"
 	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
@@ -26,7 +27,7 @@ func NewSessions(db storage.Pool, cfg config.Config) Sessions {
 }
 
 func (s Sessions) New(etx *echo.Context) error {
-	return render(etx, views.LoginForm{}.Page())
+	return renderer.Render(etx, views.LoginForm{}.Page())
 }
 
 func (s Sessions) Create(etx *echo.Context) error {
@@ -42,7 +43,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return render(etx, views.BadRequest())
+		return renderer.Render(etx, views.BadRequest())
 	}
 
 	user, err := services.AuthenticateUser(
@@ -73,7 +74,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 		}
 
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return render(etx, views.InternalError())
+			return renderer.Render(etx, views.InternalError())
 		}
 
 		return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
@@ -87,11 +88,11 @@ func (s Sessions) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return render(etx, views.InternalError())
+		return renderer.Render(etx, views.InternalError())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Successfully logged in!"); flashErr != nil {
-		return render(etx, views.InternalError())
+		return renderer.Render(etx, views.InternalError())
 	}
 
 	return hypermedia.Redirect(etx, routes.HomePage.URL())
@@ -105,11 +106,11 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return render(etx, views.InternalError())
+		return renderer.Render(etx, views.InternalError())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Successfully logged out!"); flashErr != nil {
-		return render(etx, views.InternalError())
+		return renderer.Render(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())

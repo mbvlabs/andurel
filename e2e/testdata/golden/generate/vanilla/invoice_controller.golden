@@ -1,28 +1,9 @@
 package controllers
 
-import (
-	"testapp/internal/renderer"
-	"testapp/router/cookies"
-
-	"github.com/a-h/templ"
-	"github.com/labstack/echo/v5"
-)
-
 type Invoices struct {
 	db interface{ Conn() any }
 }
 
 func NewInvoices() Invoices {
 	return Invoices{}
-}
-
-func render(etx echo.Context, t templ.Component) error {
-	return renderer.Render(
-		etx,
-		t,
-		[]renderer.CookieKey{
-			cookies.AppKey,
-			cookies.FlashKey,
-		},
-	)
 }

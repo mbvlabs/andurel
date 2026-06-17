@@ -259,6 +259,8 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Core files
 	"framework_elements_renderer_render.tmpl":        "internal/renderer/render.go",
+	"framework_elements_request_context.tmpl":        "internal/request/context.go",
+	"framework_elements_request_request.tmpl":        "internal/request/request.go",
 	"framework_elements_routing_definitions.tmpl":    "internal/routing/definitions.go",
 	"framework_elements_routing_routes.tmpl":         "internal/routing/routes.go",
 	"framework_elements_server_server.tmpl":          "internal/server/server.go",
@@ -485,6 +487,8 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		"controllers_controller.tmpl",
 		"config_config.tmpl",
 		"env.tmpl",
+		"framework_elements_request_context.tmpl",
+		"framework_elements_request_request.tmpl",
 		"router_connect_api_routes.tmpl",
 		"router_connect_assets_routes.tmpl",
 		"router_connect_pages_routes.tmpl",

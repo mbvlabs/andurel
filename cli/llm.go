@@ -286,14 +286,11 @@ func (u Users) Index(etx *echo.Context) error {
 
 ## Rendering views
 
-The render() helper renders templ components with automatic cookie/flash injection:
+The render() helper renders templ components:
 
 ` + "```go" + `
 func render(etx *echo.Context, t templ.Component) error {
-	return renderer.Render(etx, t, []renderer.CookieKey{
-		cookies.AppKey,
-		cookies.FlashKey,
-	})
+	return renderer.Render(etx, t)
 }
 ` + "```" + `
 
@@ -957,7 +954,7 @@ templ Home() {
 
 ### Context in views
 - templ provides an implicit ctx (context.Context) inside components.
-- Andurel injects cookie-related context via renderer.Render; use router/cookies helpers (e.g., cookies.GetFlashesCtx(ctx)) as in the base layout.
+- Andurel injects request metadata (session, flashes, actor, back URL) into context via the RegisterRequestMeta middleware. Use request.ExtractContext or request.SafeExtractContext to access typed values from context in your views.
 
 ## Andurel view conventions
 - Wrap pages with @base(...) for consistent layout, assets, and flash toasts.
@@ -1177,12 +1174,11 @@ Global middleware is configured in SetupGlobalMiddleware and applies to all rout
 
 ` + "```go" + `
 middlewares := []echo.MiddlewareFunc{
-	mw.TraceRouteAttributes(tel),    // Add route info to traces
-	mw.Logger(tel),                  // Request logging and metrics
-	session.Middleware(store),       // Session management
-	mw.ValidateSession,              // Session validation hook
-	mw.RegisterAppContext,           // Inject app session into context
-	mw.RegisterFlashMessagesContext, // Inject flash messages into context
+	middleware.TraceRouteAttributes(tel),    // Add route info to traces
+	middleware.Logger(tel),                  // Request logging and metrics
+	session.Middleware(store),              // Session management
+	middleware.ValidateSession,             // Session validation hook
+	middleware.RegisterRequestMeta,         // Inject request metadata into context
 	echomw.CORSWithConfig(...),      // CORS handling
 	csrfMiddleware,                  // CSRF protection
 	echomw.Recover(),                // Panic recovery (must be last)
@@ -1215,7 +1211,7 @@ Protect routes that require authentication:
 // router/middleware/auth.go
 func AuthOnly(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-		if cookies.GetApp(c).IsAuthenticated {
+		if cookies.ExtractFromCookieApp(c).IsAuthenticated {
 			return next(c)
 		}
 		return c.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
@@ -1287,10 +1283,7 @@ func CreateAppSession(c *echo.Context, user models.User) error
 func DestroyAppSession(c *echo.Context) error
 
 // Get session from echo context (in handlers)
-func GetApp(c *echo.Context) App
-
-// Get session from context.Context (in views via renderer)
-func GetAppCtx(ctx context.Context) App
+func ExtractFromCookieApp(c *echo.Context) App
 ` + "```" + `
 
 Usage in controllers:
@@ -1320,7 +1313,7 @@ Usage in views:
 
 ` + "```templ" + `
 templ navbar() {
-	if cookies.GetAppCtx(ctx).IsAuthenticated {
+	if request.ExtractContext[cookies.App](ctx, request.SessionCookieKey).IsAuthenticated {
 		<a href={ routes.SessionDestroy.URL() }>Logout</a>
 	} else {
 		<a href={ routes.SessionNew.URL() }>Login</a>
@@ -1348,10 +1341,7 @@ const (
 func AddFlash(c *echo.Context, flashType FlashType, msg string) error
 
 // Get flashes (consumed on read)
-func GetFlashes(c *echo.Context) ([]FlashMessage, error)
-
-// Get from context (in views)
-func GetFlashesCtx(ctx context.Context) []FlashMessage
+func ExtractFlashes(c *echo.Context) ([]FlashMessage, error)
 ` + "```" + `
 
 Usage:

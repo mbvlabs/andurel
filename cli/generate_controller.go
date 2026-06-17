@@ -98,7 +98,6 @@ func generateActionControllerFile(name, tableName, pluralName, modulePath, contr
 	sb.WriteString("\t\"net/http\"\n")
 	sb.WriteString("\n")
 	sb.WriteString(fmt.Sprintf("\t\"%s/internal/renderer\"\n", modulePath))
-	sb.WriteString(fmt.Sprintf("\t\"%s/router/cookies\"\n", modulePath))
 	sb.WriteString("\n")
 	sb.WriteString("\t\"github.com/a-h/templ\"\n")
 	sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")
@@ -110,21 +109,10 @@ func generateActionControllerFile(name, tableName, pluralName, modulePath, contr
 	sb.WriteString(fmt.Sprintf("\treturn %s{}\n", naming.ToPascalCase(pluralName)))
 	sb.WriteString("}\n\n")
 
-	sb.WriteString("func render(etx echo.Context, t templ.Component) error {\n")
-	sb.WriteString("\treturn renderer.Render(\n")
-	sb.WriteString("\t\tetx,\n")
-	sb.WriteString("\t\tt,\n")
-	sb.WriteString("\t\t[]renderer.CookieKey{\n")
-	sb.WriteString("\t\t\tcookies.AppKey,\n")
-	sb.WriteString("\t\t\tcookies.FlashKey,\n")
-	sb.WriteString("\t\t},\n")
-	sb.WriteString("\t)\n")
-	sb.WriteString("}\n\n")
-
 	for _, action := range actions {
 		methodName := naming.ToPascalCase(action)
 		sb.WriteString(fmt.Sprintf("func (%s %s) %s(etx echo.Context) error {\n", receiverName, naming.ToPascalCase(pluralName), methodName))
-		sb.WriteString(fmt.Sprintf("\treturn render(etx, %s%s())\n", naming.ToPascalCase(resourceName), methodName))
+		sb.WriteString(fmt.Sprintf("\treturn renderer.Render(etx, %s%s())\n", naming.ToPascalCase(resourceName), methodName))
 		sb.WriteString("}\n\n")
 	}
 
