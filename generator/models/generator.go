@@ -72,11 +72,11 @@ type Config struct {
 
 // BunModelConfig holds configuration for bun model generation
 type BunModelConfig struct {
-	ResourceName       string
-	TableName         string
-	ModulePath        string
-	PackageName       string
-	UseSoftDelete     bool // If true, use deleted_at for soft deletes
+	ResourceName  string
+	TableName     string
+	ModulePath    string
+	PackageName   string
+	UseSoftDelete bool // If true, use deleted_at for soft deletes
 }
 
 type Generator struct {
@@ -128,23 +128,23 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	receiverName := naming.ToReceiverName(config.ResourceName)
 
 	model := &GeneratedModel{
-		Name:             config.ResourceName,
-		PluralName:       inflection.Plural(config.ResourceName),
-		EntityName:       entityName,
-		NamespaceVar:     namespaceVar,
-		NamespaceType:    namespaceType,
-		ReceiverName:     receiverName,
-		Package:          config.PackageName,
-		TableName:        config.TableName,
-		ModulePath:       config.ModulePath,
-		DatabaseType:     g.typeMapper.GetDatabaseType(),
-		Fields:           make([]GeneratedField, 0, len(table.Columns)),
-		StandardImports:  make([]string, 0),
-		ExternalImports:  make([]string, 0),
-		Imports:          make([]string, 0),
-		IDFieldName:      config.PrimaryKeyColumn,
-		IDGoFieldName:    "",
-		HasPrimaryKey:    false,
+		Name:            config.ResourceName,
+		PluralName:      inflection.Plural(config.ResourceName),
+		EntityName:      entityName,
+		NamespaceVar:    namespaceVar,
+		NamespaceType:   namespaceType,
+		ReceiverName:    receiverName,
+		Package:         config.PackageName,
+		TableName:       config.TableName,
+		ModulePath:      config.ModulePath,
+		DatabaseType:    g.typeMapper.GetDatabaseType(),
+		Fields:          make([]GeneratedField, 0, len(table.Columns)),
+		StandardImports: make([]string, 0),
+		ExternalImports: make([]string, 0),
+		Imports:         make([]string, 0),
+		IDFieldName:     config.PrimaryKeyColumn,
+		IDGoFieldName:   "",
+		HasPrimaryKey:   false,
 	}
 
 	importSet := make(map[string]bool)
@@ -263,14 +263,6 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 	goType, pkg, err := g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
 	if err != nil {
 		return GeneratedField{}, err
-	}
-
-	normalized := strings.ToLower(col.DataType)
-	if idx := strings.Index(normalized, "("); idx != -1 {
-		normalized = normalized[:idx]
-	}
-	if (normalized == "json" || normalized == "jsonb") && goType == "[]byte" {
-		goType = "json.RawMessage"
 	}
 
 	bunTag := g.typeMapper.BuildBunTag(col)

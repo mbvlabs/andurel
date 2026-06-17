@@ -2,7 +2,6 @@ package versions
 
 const (
 	Templ       = "v0.3.1001"
-	Sqlc        = "v1.30.0"
 	Goose       = "v3.27.0"
 	Mailpit     = "v1.29.2"
 	Usql        = "v0.21.1"

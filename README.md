@@ -170,11 +170,11 @@ andurel generate email (alias: e) NAME
 | `--update`       | Update an existing model from migration changes |
 | `--yes`          | Apply changes without prompting for confirmation (use with `--update`) |
 
-**`generate controller`** — Creates a controller, views, and routes for the given actions.
+**`generate controller`** — Creates a controller for a resource. With no actions, or with any standard CRUD action (`index`, `show`, `new`, `create`, `edit`, `update`, `destroy`), it uses the resource templates and generates the standard CRUD controller, views, and routes. Non-CRUD actions add empty controller methods and matching empty components to `views/<name>_resource.templ`; custom action routes are not generated yet.
 
 | Flag | Description |
 |------|-------------|
-| `--skip-routes` | Generate the controller and views without route files |
+| `--skip-routes` | Deprecated; custom actions do not generate routes |
 
 **`generate view`** — Generates Go code from `.templ` template files (runs `templ generate`).
 

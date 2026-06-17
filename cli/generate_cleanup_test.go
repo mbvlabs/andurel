@@ -75,7 +75,7 @@ func TestCreatedFileTracker_CleanupCreatedFiles(t *testing.T) {
 }
 
 func TestFormatGenerateFailure_WithCleanupDetails(t *testing.T) {
-	runErr := errors.New("failed to generate model: sqlc failed")
+	runErr := errors.New("failed to generate model: validation failed")
 	formattedErr := formatGenerateFailure(
 		runErr,
 		[]string{"controllers/users.go", "views/users_resource.templ"},
@@ -85,7 +85,7 @@ func TestFormatGenerateFailure_WithCleanupDetails(t *testing.T) {
 
 	msg := formattedErr.Error()
 	expectedParts := []string{
-		"failed to generate model: sqlc failed",
+		"failed to generate model: validation failed",
 		"Generation failed and automatic cleanup ran.",
 		"Removed 2 created file(s):",
 		"controllers/users.go",

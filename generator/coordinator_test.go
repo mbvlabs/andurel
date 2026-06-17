@@ -18,14 +18,9 @@ func setupTestProject(t *testing.T) (string, func()) {
 		t.Fatalf("Failed to write go.mod: %v", err)
 	}
 
-	dbDir := tmpDir + "/database"
-	if err := os.MkdirAll(dbDir, 0o755); err != nil {
+	migrationDir := tmpDir + "/database/migrations"
+	if err := os.MkdirAll(migrationDir, 0o755); err != nil {
 		t.Fatalf("Failed to create database directory: %v", err)
-	}
-
-	sqlcContent := `sql: []`
-	if err := os.WriteFile(dbDir+"/sqlc.yaml", []byte(sqlcContent), 0o644); err != nil {
-		t.Fatalf("Failed to write sqlc.yaml: %v", err)
 	}
 
 	originalDir, err := os.Getwd()

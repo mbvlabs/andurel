@@ -86,40 +86,40 @@ func TestResourcePluralization(t *testing.T) {
 			err = project.Generate("generate", "scaffold", tc.resourceName)
 			internal.AssertCommandSucceeds(t, err, "generate scaffold")
 
-		// Verify all expected files exist
-		expectedFiles := []string{
-			"models/" + strings.ToLower(tc.resourceName) + ".go",
-			"models/factories/" + strings.ToLower(tc.resourceName) + ".go",
-			"controllers/" + tc.tableName + ".go",
-			"views/" + tc.tableName + "_resource.templ",
-			"router/routes/" + tc.tableName + ".go",
-			"router/connect_" + tc.tableName + "_routes.go",
-		}
+			// Verify all expected files exist
+			expectedFiles := []string{
+				"models/" + strings.ToLower(tc.resourceName) + ".go",
+				"models/factories/" + strings.ToLower(tc.resourceName) + ".go",
+				"controllers/" + tc.tableName + ".go",
+				"views/" + tc.tableName + "_resource.templ",
+				"router/routes/" + tc.tableName + ".go",
+				"router/connect_" + tc.tableName + "_routes.go",
+			}
 
 			for _, f := range expectedFiles {
 				internal.AssertFileExists(t, project, f)
 			}
 
 			// Run golden file comparisons for each generated file
-		t.Run("model_pluralization", func(t *testing.T) {
-			validateModelPluralization(t, project, tc)
-		})
+			t.Run("model_pluralization", func(t *testing.T) {
+				validateModelPluralization(t, project, tc)
+			})
 
-		t.Run("controller_pluralization", func(t *testing.T) {
-			validateControllerPluralization(t, project, tc)
-		})
+			t.Run("controller_pluralization", func(t *testing.T) {
+				validateControllerPluralization(t, project, tc)
+			})
 
-		t.Run("view_pluralization", func(t *testing.T) {
-			validateViewPluralization(t, project, tc)
-		})
+			t.Run("view_pluralization", func(t *testing.T) {
+				validateViewPluralization(t, project, tc)
+			})
 
-		t.Run("routes_pluralization", func(t *testing.T) {
-			validateRoutesPluralization(t, project, tc)
-		})
+			t.Run("routes_pluralization", func(t *testing.T) {
+				validateRoutesPluralization(t, project, tc)
+			})
 
-		t.Run("router_registration_pluralization", func(t *testing.T) {
-			validateRouterRegistrationPluralization(t, project, tc)
-		})
+			t.Run("router_registration_pluralization", func(t *testing.T) {
+				validateRouterRegistrationPluralization(t, project, tc)
+			})
 		})
 	}
 }
@@ -186,9 +186,6 @@ func validateModelPluralization(t *testing.T, project *internal.Project, tc plur
 	goldenPath := filepath.Join("testdata", "golden", "resource", tc.name+"_model.golden")
 	compareOrUpdateGolden(t, goldenPath, contentStr)
 }
-
-// validateQueriesPluralization is no longer used - we've moved from sqlc to bun
-// func validateQueriesPluralization(
 
 func validateControllerPluralization(
 	t *testing.T,
