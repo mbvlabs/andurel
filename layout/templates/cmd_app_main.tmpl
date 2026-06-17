@@ -154,7 +154,7 @@ func run(ctx context.Context) error {
 	}
 
 
-	db, err := database.NewPostgres(ctx, cfg.DB.GetDatabaseURL())
+	db, err := database.NewPostgres(ctx, cfg)
 	if err != nil {
 		return err
 	}
