@@ -1,0 +1,25 @@
+// Package renderer provides utilities for rendering templ components.
+// Code generated and maintained by the andurel framework. DO NOT EDIT.
+package renderer
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+
+	"github.com/a-h/templ"
+)
+
+func ExtractFragments(
+	ctx context.Context,
+	t templ.Component,
+	fragmentKeys ...any,
+) (string, error) {
+	fragments := new(bytes.Buffer)
+
+	if err := templ.RenderFragments(ctx, fragments, t, fragmentKeys); err != nil {
+		return "", fmt.Errorf("failed to render fragment: %w", err)
+	}
+
+	return fragments.String(), nil
+}
