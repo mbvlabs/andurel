@@ -75,10 +75,9 @@ func SetupGlobalMiddleware(
 	tel *telemetry.Telemetry,
 	authKey []byte,
 	encKey []byte,
-	mw middleware.Middleware,
 	csrfName string,
 ) ([]echo.MiddlewareFunc, error) {
-	csrfMiddleware, err := mw.CSRFMiddleware(cfg, csrfName)
+	csrfMiddleware, err := middleware.CSRFMiddleware(cfg, csrfName)
 	if err != nil {
 		return nil, err
 	}
@@ -86,18 +85,16 @@ func SetupGlobalMiddleware(
 	// Order matters: middlewares execute in the order listed, with Recover last
 	// to catch panics from all preceding middlewares.
 	middlewares := []echo.MiddlewareFunc{
-		mw.TraceRouteAttributes(tel),
-		mw.Logger(tel),
+		middleware.TraceRouteAttributes(tel),
+		middleware.Logger(tel),
 		session.Middleware(
 			sessions.NewCookieStore(
 				authKey,
 				encKey,
 			),
 		),
-		mw.ValidateSession,
-		mw.RegisterAppContext,
-		mw.RegisterFlashMessagesContext,
-		mw.TrackReturnTo,
+		middleware.ValidateSession,
+		middleware.RegisterRequestMeta,
 		echomw.CORSWithConfig(echomw.CORSConfig{
 			AllowOrigins:     []string{"https://*", "http://*"},
 			AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},

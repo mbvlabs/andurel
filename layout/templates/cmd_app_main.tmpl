@@ -18,7 +18,6 @@ import (
 	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/router"
-	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/telemetry"
 	"{{.ModuleName}}/queue/workers"
 	"riverqueue.com/riverui"
@@ -47,7 +46,6 @@ func setupControllers(
 	insertOnly queue.InsertOnly,
 	r *router.Router,
 	riverHandler *riverui.Handler,
-	mw middleware.Middleware,
 ) error {
 	pagesCache, err := controllers.NewCacheBuilder[templ.Component]().Build()
 	if err != nil {
@@ -104,7 +102,6 @@ func setupControllers(
 func setupRouter(
 	cfg config.Config,
 	tel *telemetry.Telemetry,
-	mw middleware.Middleware,
 ) (*router.Router, error) {
 	authKey, err := hex.DecodeString(cfg.App.SessionKey)
 	if err != nil {
@@ -115,7 +112,7 @@ func setupRouter(
 		return nil, err
 	}
 
-	globalMiddleware, err := router.SetupGlobalMiddleware(cfg, tel, authKey, encKey, mw, "_csrf")
+	globalMiddleware, err := router.SetupGlobalMiddleware(cfg, tel, authKey, encKey, "_csrf")
 	if err != nil {
 		return nil, err
 	}
@@ -244,8 +241,6 @@ func run(ctx context.Context) error {
 	{{.Code}}
 {{- end}}
 
-	mw := middleware.New(db)
-
 	endpoints := riverui.NewEndpoints(processor.Client, nil)
 	opts := &riverui.HandlerOpts{
 		Endpoints: endpoints,
@@ -259,7 +254,7 @@ func run(ctx context.Context) error {
 
 	riverHandler.Start(ctx)
 
-	r, err := setupRouter(cfg, tel, mw)
+	r, err := setupRouter(cfg, tel)
 	if err != nil {
 		return err
 	}
@@ -271,7 +266,6 @@ func run(ctx context.Context) error {
 		insertOnly,
 		r,
 		riverHandler,
-		mw,
 	)
 	if err != nil {
 		return err

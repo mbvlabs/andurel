@@ -1,6 +1,7 @@
 package views
 
 import (
+	"{{.ModuleName}}/internal/request"
 	"{{.ModuleName}}/router/cookies"
 	"time"
 )
@@ -17,7 +18,7 @@ templ base(headOpts ...HeadDataOption) {
 				</div>
 			</footer>
 			<div id="flashContainer">
-				for _, flash := range cookies.GetFlashesCtx(ctx) {
+				for _, flash := range request.ExtractContext[[]cookies.FlashMessage](ctx, request.SessionFlashesKey) {
 					<div>
 						{ flash.Message }
 					</div>

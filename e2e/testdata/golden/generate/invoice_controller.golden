@@ -11,6 +11,7 @@ import (
 	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/views"
+	"testapp/internal/renderer"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
@@ -47,7 +48,7 @@ func (i Invoices) Index(etx *echo.Context) error {
 		perPage,
 	)
 	if err != nil {
-		return render(etx, views.InternalError())
+		return renderer.Render(etx, views.InternalError())
 	}
 
 	return etx.HTML(http.StatusOK, "invoices index - no views implemented")
@@ -56,12 +57,12 @@ func (i Invoices) Index(etx *echo.Context) error {
 func (i Invoices) Show(etx *echo.Context) error {
 	invoiceID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(etx, views.BadRequest())
+		return renderer.Render(etx, views.BadRequest())
 	}
 
 	invoice, err := models.FindInvoice(etx.Request().Context(), i.db.Conn(), invoiceID)
 	if err != nil {
-		return render(etx, views.NotFound())
+		return renderer.Render(etx, views.NotFound())
 	}
 
 	return etx.HTML(http.StatusOK, "invoice show - no views implemented")
@@ -88,7 +89,7 @@ func (i Invoices) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return render(etx, views.NotFound())
+		return renderer.Render(etx, views.NotFound())
 	}
 
 	data := models.CreateInvoiceData{
@@ -111,7 +112,7 @@ func (i Invoices) Create(etx *echo.Context) error {
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Invoice created successfully"); flashErr != nil {
-		return render(etx, views.InternalError())
+		return renderer.Render(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.InvoiceShow.URL(invoice.ID))
@@ -120,12 +121,12 @@ func (i Invoices) Create(etx *echo.Context) error {
 func (i Invoices) Edit(etx *echo.Context) error {
 	invoiceID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(etx, views.BadRequest())
+		return renderer.Render(etx, views.BadRequest())
 	}
 
 	invoice, err := models.FindInvoice(etx.Request().Context(), i.db.Conn(), invoiceID)
 	if err != nil {
-		return render(etx, views.NotFound())
+		return renderer.Render(etx, views.NotFound())
 	}
 
 	return etx.HTML(http.StatusOK, "invoice edit - no views implemented")
@@ -141,7 +142,7 @@ type UpdateInvoiceFormPayload struct {
 func (i Invoices) Update(etx *echo.Context) error {
 	invoiceID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(etx, views.BadRequest())
+		return renderer.Render(etx, views.BadRequest())
 	}
 
 	var payload UpdateInvoiceFormPayload
@@ -153,7 +154,7 @@ func (i Invoices) Update(etx *echo.Context) error {
 			err,
 		)
 
-		return render(etx, views.NotFound())
+		return renderer.Render(etx, views.NotFound())
 	}
 
 	data := models.UpdateInvoiceData{
@@ -171,7 +172,7 @@ func (i Invoices) Update(etx *echo.Context) error {
 	)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update invoice: %v", err)); flashErr != nil {
-			return render(etx, views.InternalError())
+			return renderer.Render(etx, views.InternalError())
 		}
 		return etx.Redirect(
 			http.StatusSeeOther,
@@ -180,7 +181,7 @@ func (i Invoices) Update(etx *echo.Context) error {
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Invoice updated successfully"); flashErr != nil {
-		return render(etx, views.InternalError())
+		return renderer.Render(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.InvoiceShow.URL(invoice.ID))
@@ -189,19 +190,19 @@ func (i Invoices) Update(etx *echo.Context) error {
 func (i Invoices) Destroy(etx *echo.Context) error {
 	invoiceID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return render(etx, views.BadRequest())
+		return renderer.Render(etx, views.BadRequest())
 	}
 
 	err = models.DestroyInvoice(etx.Request().Context(), i.db.Conn(), invoiceID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete invoice: %v", err)); flashErr != nil {
-			return render(etx, views.InternalError())
+			return renderer.Render(etx, views.InternalError())
 		}
 		return etx.Redirect(http.StatusSeeOther, routes.InvoiceIndex.URL())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Invoice destroyed successfully"); flashErr != nil {
-		return render(etx, views.InternalError())
+		return renderer.Render(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.InvoiceIndex.URL())
