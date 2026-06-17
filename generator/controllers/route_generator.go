@@ -24,7 +24,7 @@ func NewRouteGenerator() *RouteGenerator {
 	}
 }
 
-func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName, idType string) error {
+func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName, idType, diMode string) error {
 	routesPath := filepath.Join("router/routes", pluralName+".go")
 
 	if _, err := os.Stat(routesPath); err == nil {
@@ -48,15 +48,15 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName, idType string
 		return fmt.Errorf("failed to format routes file: %w", err)
 	}
 
-	if err := rg.createRouteRegistrationFile(resourceName, pluralName); err != nil {
-		return fmt.Errorf("failed to create route registration file: %w", err)
-	}
+	if diMode != "uberfx" {
+		if err := rg.createRouteRegistrationFile(resourceName, pluralName); err != nil {
+			return fmt.Errorf("failed to create route registration file: %w", err)
+		}
 
-	// Inject into cmd/app/main.go
-	if err := rg.mainInjector.InjectController(resourceName, pluralName); err != nil {
-		// This shouldn't happen since InjectController handles errors gracefully
-		// but log it just in case
-		slog.Warn("unexpected error injecting controller", "error", err)
+		// Inject into cmd/app/main.go
+		if err := rg.mainInjector.InjectController(resourceName, pluralName); err != nil {
+			slog.Warn("unexpected error injecting controller", "error", err)
+		}
 	}
 
 	return nil

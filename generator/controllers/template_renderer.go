@@ -21,13 +21,19 @@ func NewTemplateRenderer() *TemplateRenderer {
 	}
 }
 
-func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController) (string, error) {
+func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController, diMode string) (string, error) {
 	var templateName string
 	switch controller.Type {
 	case ResourceController:
 		templateName = "resource_controller.tmpl"
+		if diMode == "uberfx" {
+			templateName = "resource_controller_fx.tmpl"
+		}
 	case ResourceControllerNoViews:
 		templateName = "resource_controller_no_views.tmpl"
+		if diMode == "uberfx" {
+			templateName = "resource_controller_no_views_fx.tmpl"
+		}
 	default:
 		templateName = "controller.tmpl"
 	}

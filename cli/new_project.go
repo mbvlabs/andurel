@@ -38,6 +38,9 @@ creation, run 'andurel tool sync' to download required binaries.`,
 	projectCmd.Flags().
 		StringSliceP("extensions", "e", nil, "Extensions to enable (comma-separated list)")
 
+	projectCmd.Flags().
+		String("di", "manual", "Dependency injection approach (manual, uberfx)")
+
 	return projectCmd
 }
 
@@ -85,11 +88,23 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 		)
 	}
 
+	diMode, err := cmd.Flags().GetString("di")
+	if err != nil {
+		return err
+	}
+
+	if diMode != "manual" && diMode != "uberfx" {
+		return fmt.Errorf(
+			"invalid di mode provided: %s - valid options are 'manual' and 'uberfx'",
+			diMode,
+		)
+	}
+
 	extensions, err := cmd.Flags().GetStringSlice("extensions")
 	if err != nil {
 		return err
 	}
-	if err := layout.Scaffold(basePath, projectName, database, cssFramework, version, extensions); err != nil {
+	if err := layout.Scaffold(basePath, projectName, database, cssFramework, version, extensions, diMode); err != nil {
 		return err
 	}
 

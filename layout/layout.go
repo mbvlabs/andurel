@@ -37,11 +37,17 @@ var (
 func Scaffold(
 	targetDir, projectName, database, cssFramework, version string,
 	extensionNames []string,
+	diMode string,
 ) error {
+	if diMode == "" {
+		diMode = "manual"
+	}
+
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
 
 	moduleName := projectName
 
+	blueprint := initializeBaseBlueprint(moduleName, diMode)
 	templateData := TemplateData{
 		AppName:              projectName,
 		ProjectName:          projectName,
@@ -55,7 +61,8 @@ func Scaffold(
 		Pepper:               generateRandomHex(12),
 		Extensions:           extensionNames,
 		RunToolVersion:       GetRunToolVersion(),
-		blueprint:            initializeBaseBlueprint(moduleName),
+		DIMode:               diMode,
+		blueprint:            blueprint,
 	}
 
 	if err := registerBuiltinExtensions(); err != nil {
@@ -103,6 +110,7 @@ func Scaffold(
 		Database:     database,
 		CSSFramework: cssFramework,
 		Extensions:   extensionNames,
+		DIMode:       diMode,
 	}
 	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", scaffoldConfig); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
@@ -131,6 +139,7 @@ func Scaffold(
 		ctx := extensions.Context{
 			TargetDir: targetDir,
 			Data:      &templateData,
+			DIMode:    diMode,
 			ProcessTemplate: func(templateFile, targetPath string, data extensions.TemplateData) error {
 				if data == nil {
 					data = &templateData
@@ -381,12 +390,65 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"email_verify_email.tmpl":   "email/verify_email.templ",
 }
 
+// fxTemplateOverrides maps base template names to their uberfx variants.
+// In uberfx mode, these entries replace the manual-mode templates.
+var fxTemplateOverrides = map[TmplTarget]TmplTargetPath{
+	"cmd_app_main_fx.tmpl":              "cmd/app/main.go",
+	"router_router_fx.tmpl":             "router/router.go",
+	"controllers_api_fx.tmpl":           "controllers/api.go",
+	"controllers_assets_fx.tmpl":        "controllers/assets.go",
+	"controllers_controller_fx.tmpl":    "controllers/controller.go",
+	"controllers_pages_fx.tmpl":         "controllers/pages.go",
+	"controllers_sessions_fx.tmpl":      "controllers/sessions.go",
+	"controllers_registrations_fx.tmpl": "controllers/registrations.go",
+	"controllers_confirmations_fx.tmpl": "controllers/confirmations.go",
+	"controllers_reset_passwords_fx.tmpl": "controllers/reset_passwords.go",
+}
+
+// fxSkippedTemplates lists base template entries skipped in uberfx mode.
+var fxSkippedTemplates = map[TmplTarget]bool{
+	"cmd_app_main.tmpl":                      true,
+	"router_router.tmpl":                     true,
+	"controllers_api.tmpl":                   true,
+	"controllers_assets.tmpl":                true,
+	"controllers_controller.tmpl":            true,
+	"controllers_pages.tmpl":                 true,
+	"controllers_sessions.tmpl":              true,
+	"controllers_registrations.tmpl":         true,
+	"controllers_confirmations.tmpl":         true,
+	"controllers_reset_passwords.tmpl":       true,
+	"router_connect_api_routes.tmpl":         true,
+	"router_connect_assets_routes.tmpl":      true,
+	"router_connect_pages_routes.tmpl":       true,
+	"router_connect_sessions_routes.tmpl":    true,
+	"router_connect_registrations_routes.tmpl":   true,
+	"router_connect_confirmations_routes.tmpl":   true,
+	"router_connect_reset_passwords_routes.tmpl": true,
+}
+
 func processTemplatedFiles(
 	targetDir string,
 	cssFramework string,
 	data extensions.TemplateData,
 ) error {
-	for templateFile, targetPath := range baseTemplateMappings {
+	mappings := baseTemplateMappings
+
+	if td, ok := data.(*TemplateData); ok && td.DIMode == "uberfx" {
+		// Start with base mappings but skip entries that are replaced or removed
+		uberfxMappings := make(map[TmplTarget]TmplTargetPath, len(baseTemplateMappings)+len(fxTemplateOverrides))
+		for k, v := range baseTemplateMappings {
+			if !fxSkippedTemplates[k] {
+				uberfxMappings[k] = v
+			}
+		}
+		// Add fx overrides
+		for k, v := range fxTemplateOverrides {
+			uberfxMappings[k] = v
+		}
+		mappings = uberfxMappings
+	}
+
+	for templateFile, targetPath := range mappings {
 		if templateFile == "assets_js_datastar.tmpl" {
 			if err := copyFile(targetDir, string(templateFile), string(targetPath), templates.Files); err != nil {
 				return fmt.Errorf("failed to copy file %s: %w", templateFile, err)
@@ -483,23 +545,44 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		return fmt.Errorf("template data is nil")
 	}
 
+	td, ok := data.(*TemplateData)
+	if !ok {
+		return fmt.Errorf("template data is not *TemplateData")
+	}
+
+	// Templates to re-render after extensions have been applied
 	blueprintTemplates := []TmplTarget{
-		"cmd_app_main.tmpl",
-		"controllers_controller.tmpl",
 		"config_config.tmpl",
 		"env.tmpl",
 		"framework_elements_request_context.tmpl",
 		"framework_elements_request_request.tmpl",
-		"router_connect_api_routes.tmpl",
-		"router_connect_assets_routes.tmpl",
-		"router_connect_pages_routes.tmpl",
 		"router_cookies_cookies.tmpl",
 	}
 
+	// Mode-specific templates
+	if td.DIMode == "uberfx" {
+		blueprintTemplates = append(blueprintTemplates,
+			"cmd_app_main_fx.tmpl",
+			"controllers_controller_fx.tmpl",
+		)
+	} else {
+		blueprintTemplates = append(blueprintTemplates,
+			"cmd_app_main.tmpl",
+			"controllers_controller.tmpl",
+			"router_connect_api_routes.tmpl",
+			"router_connect_assets_routes.tmpl",
+			"router_connect_pages_routes.tmpl",
+		)
+	}
+
 	for _, tmplName := range blueprintTemplates {
+		// Look up in base mappings first, then fx overrides
 		targetPath, ok := baseTemplateMappings[tmplName]
 		if !ok {
-			return fmt.Errorf("template mapping missing for blueprint template %s", tmplName)
+			targetPath, ok = fxTemplateOverrides[tmplName]
+			if !ok {
+				return fmt.Errorf("template mapping missing for blueprint template %s", tmplName)
+			}
 		}
 
 		if err := renderTemplate(targetDir, string(tmplName), string(targetPath), templates.Files, data); err != nil {
@@ -876,7 +959,14 @@ func generateRandomHex(bytes int) string {
 
 // initializeBaseBlueprint creates a blueprint with default base configuration
 // for controllers, routes, and other scaffold components.
-func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
+func initializeBaseBlueprint(moduleName, diMode string) *blueprint.Blueprint {
+	if diMode == "uberfx" {
+		return initializeUberFxBlueprint(moduleName)
+	}
+	return initializeManualBlueprint(moduleName)
+}
+
+func initializeManualBlueprint(moduleName string) *blueprint.Blueprint {
 	builder := blueprint.NewBuilder(nil)
 
 	builder.AddMainImport(fmt.Sprintf("%s/clients/email", moduleName))
@@ -919,6 +1009,51 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 		AddControllerConstructor("registrations", "controllers.NewRegistrations(db, insertOnly, cfg)").
 		AddControllerConstructor("confirmations", "controllers.NewConfirmations(db, cfg)").
 		AddControllerConstructor("resetPasswords", "controllers.NewResetPasswords(db, insertOnly, cfg)")
+
+	// Auth cookies configuration
+	builder.AddCookiesImport("github.com/google/uuid")
+	builder.AddCookiesImport(fmt.Sprintf("%s/models", moduleName))
+
+	builder.AddCookiesConstant("isAuthenticated", "is_authenticated")
+	builder.AddCookiesConstant("isAdmin", "is_admin")
+	builder.AddCookiesConstant("userID", "user_id")
+
+	builder.AddCookiesAppField("UserID", "uuid.UUID")
+	builder.AddCookiesAppField("IsAdmin", "bool")
+	builder.AddCookiesAppField("IsAuthenticated", "bool")
+
+	builder.SetCookiesCreateSessionCode(`	sess.Values[isAuthenticated] = true
+	sess.Values[isAdmin] = user.IsAdmin
+	sess.Values[userID] = user.ID.String()`)
+
+	builder.SetCookiesGetSessionCode(`	if v, ok := sess.Values[isAuthenticated].(bool); ok {
+		app.IsAuthenticated = v
+	}
+	if v, ok := sess.Values[isAdmin].(bool); ok {
+		app.IsAdmin = v
+	}
+	if v, ok := sess.Values[userID].(string); ok {
+		app.UserID, _ = uuid.Parse(v)
+	}`)
+
+	for _, tool := range defaultTools {
+		builder.AddTool(tool)
+	}
+
+	return builder.Blueprint()
+}
+
+func initializeUberFxBlueprint(moduleName string) *blueprint.Blueprint {
+	builder := blueprint.NewBuilder(nil)
+
+	builder.AddControllerImport(fmt.Sprintf("%s/controllers", moduleName))
+	builder.AddControllerImport(fmt.Sprintf("%s/config", moduleName))
+
+	builder.AddConfigField("Email", "email")
+	builder.AddConfigField("Auth", "auth")
+
+	builder.AddWorkerDependency("transactionalSender", "email.TransactionalSender")
+	builder.AddWorkerDependency("marketingSender", "email.MarketingSender")
 
 	// Auth cookies configuration
 	builder.AddCookiesImport("github.com/google/uuid")

@@ -1,0 +1,199 @@
+package main
+
+import (
+	"context"
+	"fmt"
+{{- if eq (len .Blueprint.Main.ServiceProvides) 0}}
+	"log"
+{{- end}}
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/internal/server"
+	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/queue"
+	"{{.ModuleName}}/queue/workers"
+	"{{.ModuleName}}/router"
+	"{{.ModuleName}}/router/middleware"
+	"{{.ModuleName}}/clients/email"
+	"{{.ModuleName}}/email"
+	"{{.ModuleName}}/telemetry"
+	"riverqueue.com/riverui"
+{{- range .Blueprint.Main.Imports.Items}}
+	"{{.}}"
+{{- end}}
+	"github.com/a-h/templ"
+	"go.uber.org/fx"
+)
+
+var appVersion string
+
+func main() {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	cfg := config.NewConfig()
+
+	app := fx.New(
+		fx.Supply(cfg),
+
+		fx.Provide(
+			telemetry.New,
+			fx.Annotate(database.NewPostgresFromConfig, fx.As(new(storage.Pool))),
+			router.New,
+			middleware.New,
+			controllers.NewCacheBuilder[templ.Component]().Build,
+			controllers.NewCacheBuilder[string]().WithSize(2).Build,
+			workers.RegisterWorkers,
+			queue.NewInsertOnly,
+			queue.NewProcessor,
+			func(processor queue.Processor) (*riverui.Handler, error) {
+				endpoints := riverui.NewEndpoints(processor.Client, nil)
+				return riverui.NewHandler(&riverui.HandlerOpts{
+					Endpoints: endpoints,
+					Logger:    slog.Default(),
+					Prefix:    "/riverui",
+				})
+			},
+{{- if eq (len .Blueprint.Main.ServiceProvides) 0}}
+			func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
+				if config.Env == server.ProdEnvironment {
+					log.Fatal("provide real email sender")
+				}
+
+				return mailclients.NewMailpit(cfg), mailclients.NewMailpit(cfg)
+			},
+{{- else }}
+{{- range .Blueprint.Main.ServiceProvides}}
+			{{.}},
+{{- end }}
+{{- end}}
+		),
+
+		fx.Provide(
+			controllers.NewPages,
+			controllers.NewAssets,
+			controllers.NewAPI,
+			controllers.NewSessions,
+			controllers.NewRegistrations,
+			controllers.NewConfirmations,
+			controllers.NewResetPasswords,
+
+			// Add generated controller constructors here, e.g.:
+			// controllers.NewPosts,
+		),
+
+		fx.Invoke(func(r *router.Router, c controllers.Pages) error {
+			return c.RegisterRoutes(r)
+		}),
+		fx.Invoke(func(r *router.Router, c controllers.Assets) error {
+			return c.RegisterRoutes(r)
+		}),
+		fx.Invoke(func(r *router.Router, c controllers.API) error {
+			return c.RegisterRoutes(r)
+		}),
+		fx.Invoke(func(r *router.Router, c controllers.Sessions) error {
+			return c.RegisterRoutes(r)
+		}),
+		fx.Invoke(func(r *router.Router, c controllers.Registrations) error {
+			return c.RegisterRoutes(r)
+		}),
+		fx.Invoke(func(r *router.Router, c controllers.Confirmations) error {
+			return c.RegisterRoutes(r)
+		}),
+		fx.Invoke(func(r *router.Router, c controllers.ResetPasswords) error {
+			return c.RegisterRoutes(r)
+		}),
+
+		// Add generated controller route registration here, e.g.:
+		// fx.Invoke(func(r *router.Router, c controllers.Posts) error {
+		// 	return c.RegisterRoutes(r)
+		// }),
+
+		fx.Invoke(func(r *router.Router, p controllers.Pages, handler *riverui.Handler) error {
+			r.RegisterCustomRoutes(handler, p.NotFound)
+			return nil
+		}),
+		fx.Invoke(startQueueProcessor),
+		fx.Invoke(startRiverUI),
+		fx.Invoke(startServer),
+	)
+
+	if err := app.Start(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+
+	<-ctx.Done()
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := app.Stop(shutdownCtx); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+}
+
+func startQueueProcessor(lc fx.Lifecycle, p queue.Processor) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			go func() {
+				if err := p.Start(ctx); err != nil {
+					slog.Error("queue processor error", "error", err)
+				}
+			}()
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			return p.Stop(ctx)
+		},
+	})
+}
+
+func startRiverUI(lc fx.Lifecycle, handler *riverui.Handler) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			handler.Start(ctx)
+			return nil
+		},
+	})
+}
+
+func startServer(lc fx.Lifecycle, r *router.Router, cfg config.Config, processor queue.Processor) {
+	srv := server.New(
+		context.Background(),
+		cfg.App.Host,
+		cfg.App.Port,
+		config.Env,
+		r.Handler,
+		[]server.Shutdowner{processor},
+	)
+
+	lc.Append(fx.Hook{
+		OnStart: func(_ context.Context) error {
+			slog.InfoContext(context.Background(), "starting server", "host", cfg.App.Host, "port", cfg.App.Port)
+			go func() {
+				if err := srv.Start(context.Background(), config.Env); err != nil {
+					slog.Error("server error", "error", err)
+				}
+			}()
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			slog.InfoContext(ctx, "initiating graceful shutdown")
+			for _, shutdowner := range srv.Shutdowners {
+				if err := shutdowner.Shutdown(ctx); err != nil {
+					return fmt.Errorf("component shutdown error (%T): %w", shutdowner, err)
+				}
+			}
+			return nil
+		},
+	})
+}

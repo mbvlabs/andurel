@@ -514,6 +514,43 @@ func (b *Builder) AddPreRunHook(name, code string) *Builder {
 	return b
 }
 
+// AddServiceProvide adds a service provide expression for use in uberfx mode.
+// The expression is a function literal or constructor reference passed to fx.Provide.
+func (b *Builder) AddServiceProvide(expr string) *Builder {
+	if expr == "" {
+		return b
+	}
+
+	for _, s := range b.bp.Main.ServiceProvides {
+		if s == expr {
+			return b
+		}
+	}
+
+	b.bp.Main.ServiceProvides = append(b.bp.Main.ServiceProvides, expr)
+	return b
+}
+
+// AddWorkerDependency adds a named worker dependency for uberfx mode.
+func (b *Builder) AddWorkerDependency(name, typeName string) *Builder {
+	if name == "" || typeName == "" {
+		return b
+	}
+
+	for i, d := range b.bp.Main.WorkerDependencies {
+		if d.Name == name {
+			b.bp.Main.WorkerDependencies[i].Type = typeName
+			return b
+		}
+	}
+
+	b.bp.Main.WorkerDependencies = append(
+		b.bp.Main.WorkerDependencies,
+		WorkerDependency{Name: name, Type: typeName},
+	)
+	return b
+}
+
 // AddCookiesImport adds an import path to the cookies section.
 func (b *Builder) AddCookiesImport(importPath string) *Builder {
 	if importPath != "" {
@@ -677,6 +714,12 @@ func (b *Builder) Merge(other *Blueprint) error {
 	}
 	for _, hook := range other.Main.PreRunHooks {
 		b.AddPreRunHook(hook.Name, hook.Code)
+	}
+	for _, s := range other.Main.ServiceProvides {
+		b.AddServiceProvide(s)
+	}
+	for _, dep := range other.Main.WorkerDependencies {
+		b.AddWorkerDependency(dep.Name, dep.Type)
 	}
 
 	// Merge cookies section

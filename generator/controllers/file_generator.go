@@ -35,6 +35,7 @@ func (fg *FileGenerator) GenerateController(
 	tableNameOverridden bool,
 	nullType string,
 	primaryKeyColumn string,
+	diMode string,
 ) error {
 	// When table name is overridden, use it directly; otherwise derive from resource name
 	pluralName := tableName
@@ -65,7 +66,7 @@ func (fg *FileGenerator) GenerateController(
 		return fmt.Errorf("failed to build controller: %w", err)
 	}
 
-	controllerContent, err := fg.templateRenderer.RenderControllerFile(controller)
+	controllerContent, err := fg.templateRenderer.RenderControllerFile(controller, diMode)
 	if err != nil {
 		return fmt.Errorf("failed to render controller file: %w", err)
 	}
@@ -82,7 +83,7 @@ func (fg *FileGenerator) GenerateController(
 		return fmt.Errorf("failed to format controller file: %w", err)
 	}
 
-	if err := fg.routeGenerator.GenerateRoutes(resourceName, pluralName, controller.IDType); err != nil {
+	if err := fg.routeGenerator.GenerateRoutes(resourceName, pluralName, controller.IDType, diMode); err != nil {
 		return fmt.Errorf("failed to generate routes: %w", err)
 	}
 

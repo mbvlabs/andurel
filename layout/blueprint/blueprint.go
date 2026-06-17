@@ -98,14 +98,28 @@ type MainSection struct {
 	// Import paths needed in main.go (beyond controller dependencies)
 	Imports *OrderedSet
 
-	// Initialization code blocks (e.g., service creation)
+	// Initialization code blocks (e.g., service creation) — used in manual mode
 	Initializations []Initialization
 
-	// Background workers to start
+	// Background workers to start — used in manual mode
 	BackgroundWorkers []BackgroundWorker
 
-	// Pre-run hooks executed before server starts
+	// Pre-run hooks executed before server starts — used in both modes
 	PreRunHooks []PreRunHook
+
+	// ServiceProvides holds fx.Provide function expressions — used in uberfx mode
+	// Each expression is a Go function literal or constructor reference.
+	ServiceProvides []string
+
+	// WorkerDependencies holds named worker dependency types — used in uberfx mode
+	// for providing email senders and similar multi-return-value provides.
+	WorkerDependencies []WorkerDependency
+}
+
+// WorkerDependency represents a named dependency for workers in uberfx mode.
+type WorkerDependency struct {
+	Name string
+	Type string
 }
 
 // Initialization represents a service/dependency initialization in main.go
@@ -308,6 +322,8 @@ func New() *Blueprint {
 			Initializations:   make([]Initialization, 0),
 			BackgroundWorkers: make([]BackgroundWorker, 0),
 			PreRunHooks:       make([]PreRunHook, 0),
+			ServiceProvides:   make([]string, 0),
+			WorkerDependencies: make([]WorkerDependency, 0),
 		},
 		Cookies: CookiesSection{
 			Imports:   NewOrderedSet(),

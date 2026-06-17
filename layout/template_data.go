@@ -21,6 +21,7 @@ type TemplateData struct {
 	Pepper               string
 	Extensions           []string
 	RunToolVersion       string // Version of the run built tool
+	DIMode               string // "manual" or "uberfx"
 
 	// Blueprint holds the structured scaffold configuration
 	blueprint *blueprint.Blueprint
