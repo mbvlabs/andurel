@@ -302,13 +302,17 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 	appendIf(&oldParts, oldUpsertStr)
 	appendIf(&newParts, extractFunc([]byte(newFullContent), receiverType, "Upsert"))
 
+	oldDropped := dropBaseModelLine(oldStructStr)
+	newDropped := dropBaseModelLine(formattedStructStr)
+	hasChanges := oldDropped != newDropped
+
 	return &UpdateModelResult{
 		OldStruct:      oldParts.String(),
 		NewStruct:      newParts.String(),
 		OldFileContent: string(src),
 		NewFileContent: string(formatted),
 		ModelPath:      modelPath,
-		HasChanges:     string(formatted) != string(src),
+		HasChanges:     hasChanges,
 	}, nil
 }
 
