@@ -26,8 +26,6 @@ func NewProjects(db storage.Pool) Projects {
 	return Projects{db}
 }
 
-var _ = RegisterController(NewProjects)
-
 func (p Projects) Index(etx *echo.Context) error {
 	page := int64(1)
 	if p := etx.QueryParam("page"); p != "" {

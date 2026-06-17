@@ -3,29 +3,11 @@ package controllers
 
 import (
 	"{{.ModuleName}}/internal/renderer"
-	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
-	"go.uber.org/fx"
 )
-
-type Controller interface {
-	RegisterRoutes(r *router.Router) error
-}
-
-var Controllers []fx.Option
-
-func RegisterController(constructor any) int {
-	Controllers = append(
-		Controllers,
-		fx.Provide(
-			fx.Annotate(constructor, fx.As(new(Controller))),
-		),
-	)
-	return 0
-}
 
 func render(etx *echo.Context, t templ.Component) error {
 	return renderer.Render(

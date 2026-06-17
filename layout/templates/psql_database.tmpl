@@ -8,6 +8,7 @@ import (
 	"errors"
 	"log/slog"
 
+	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/storage"
 
 	"github.com/exaring/otelpgx"
@@ -45,6 +46,10 @@ func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
 	}
 
 	return &Postgres{conn: db}, nil
+}
+
+func NewPostgresFromConfig(cfg config.Config) (*Postgres, error) {
+	return NewPostgres(context.Background(), cfg.DB.GetDatabaseURL())
 }
 
 func (p *Postgres) Conn() *bun.DB {

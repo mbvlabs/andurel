@@ -294,19 +294,6 @@ func (b *Builder) AddWorkerDependency(name, typeName string) *Builder {
 	return b
 }
 
-func (b *Builder) AddExtraControllerProvide(expr string) *Builder {
-	if expr == "" {
-		return b
-	}
-	for _, s := range b.bp.Main.ExtraControllerProvides {
-		if s == expr {
-			return b
-		}
-	}
-	b.bp.Main.ExtraControllerProvides = append(b.bp.Main.ExtraControllerProvides, expr)
-	return b
-}
-
 func (b *Builder) AddPreRunHook(name, code string) *Builder {
 	if name == "" || code == "" {
 		return b
@@ -449,9 +436,6 @@ func (b *Builder) Merge(other *Blueprint) error {
 	}
 	for _, dep := range other.Main.WorkerDependencies {
 		b.AddWorkerDependency(dep.Name, dep.Type)
-	}
-	for _, c := range other.Main.ExtraControllerProvides {
-		b.AddExtraControllerProvide(c)
 	}
 	for _, hook := range other.Main.PreRunHooks {
 		b.AddPreRunHook(hook.Name, hook.Code)

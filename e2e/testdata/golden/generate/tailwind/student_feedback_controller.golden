@@ -26,8 +26,6 @@ func NewStudentFeedback(db storage.Pool) StudentFeedback {
 	return StudentFeedback{db}
 }
 
-var _ = RegisterController(NewStudentFeedback)
-
 func (sf StudentFeedback) Index(etx *echo.Context) error {
 	page := int64(1)
 	if p := etx.QueryParam("page"); p != "" {

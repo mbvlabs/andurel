@@ -334,27 +334,27 @@ func testGenerateResourceWithTableNameOverride(t *testing.T, project *internal.P
 		project.CSS,
 	)
 
-	// Verify main.go uses controllers.Controllers...
+	// Verify main.go uses fx.Provide for built-in controllers
 	mainContent, err := os.ReadFile(filepath.Join(project.Dir, "cmd", "app", "main.go"))
 	if err != nil {
 		t.Fatalf("Failed to read cmd/app/main.go: %v", err)
 	}
 
 	mainContentStr := string(mainContent)
-	if !strings.Contains(mainContentStr, "controllers.Controllers...") {
-		t.Error("cmd/app/main.go should contain controllers.Controllers...")
+	if !strings.Contains(mainContentStr, "fx.Provide(") {
+		t.Error("cmd/app/main.go should contain fx.Provide")
 	}
-	if strings.Contains(mainContentStr, "student_feedback") {
-		t.Error("cmd/app/main.go should not contain snake_case variable names for controller registration")
+	if !strings.Contains(mainContentStr, "controllers.NewPages") {
+		t.Error("cmd/app/main.go should contain controllers.NewPages in fx.Provide")
 	}
 
-	// Verify controller file self-registers
+	// Verify controller file is generated
 	ctrlContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers", "student_feedback.go"))
 	if err != nil {
 		t.Fatalf("Failed to read controllers/student_feedback.go: %v", err)
 	}
-	if !strings.Contains(string(ctrlContent), "var _ = RegisterController(NewStudentFeedback)") {
-		t.Error("controllers/student_feedback.go should contain var _ = RegisterController(NewStudentFeedback)")
+	if !strings.Contains(string(ctrlContent), "func NewStudentFeedback") {
+		t.Error("controllers/student_feedback.go should contain NewStudentFeedback constructor")
 	}
 }
 

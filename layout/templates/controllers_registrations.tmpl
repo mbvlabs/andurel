@@ -34,8 +34,6 @@ func NewRegistrations(
 	return Registrations{db, insertOnly, cfg}
 }
 
-var _ = RegisterController(NewRegistrations)
-
 func (r Registrations) RegisterRoutes(rtr *router.Router) error {
 	errs := []error{}
 

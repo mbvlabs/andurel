@@ -27,8 +27,6 @@ func NewConfirmations(db storage.Pool, cfg config.Config) Confirmations {
 	return Confirmations{db, cfg}
 }
 
-var _ = RegisterController(NewConfirmations)
-
 func (c Confirmations) RegisterRoutes(r *router.Router) error {
 	errs := []error{}
 

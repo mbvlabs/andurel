@@ -14,11 +14,6 @@ func (e AwsSes) Apply(ctx *Context) error {
 	}
 
 	builder := ctx.Builder()
-	moduleName := ctx.Data.GetModuleName()
-
-	// Add imports
-	builder.AddMainImport(fmt.Sprintf("%s/email", moduleName))
-	builder.AddMainImport(fmt.Sprintf("%s/clients/email", moduleName))
 
 	// Add config field
 	builder.AddConfigField("AwsSes", "awsSes")
@@ -29,8 +24,13 @@ func (e AwsSes) Apply(ctx *Context) error {
 	builder.AddEnvVar("AWS_SES_SECRET_ACCESS_KEY", "AwsSes", "")
 	builder.AddEnvVar("AWS_SES_CONFIGURATION_SET", "AwsSes", "")
 
-	// Add email client service provide
-	builder.AddServiceProvide("func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {\n\t\treturn mailclients.NewAwsSes(cfg.AwsSes.Region, cfg.AwsSes.AccessKeyID, cfg.AwsSes.SecretAccessKey, cfg.AwsSes.ConfigurationSet), mailclients.NewAwsSes(cfg.AwsSes.Region, cfg.AwsSes.AccessKeyID, cfg.AwsSes.SecretAccessKey, cfg.AwsSes.ConfigurationSet)\n\t}")
+	// Add email client service provide with env-based dispatch
+	builder.AddServiceProvide(`func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
+	if config.Env == "production" {
+		return mailclients.NewAwsSes(cfg), mailclients.NewAwsSes(cfg)
+	}
+	return mailclients.NewMailpit(cfg), mailclients.NewMailpit(cfg)
+}`)
 
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("aws-ses: failed to render templates: %w", err)

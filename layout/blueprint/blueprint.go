@@ -46,11 +46,10 @@ type WorkerDependency struct {
 }
 
 type MainSection struct {
-	Imports                *OrderedSet
-	ServiceProvides        []string
-	WorkerDependencies     []WorkerDependency
-	ExtraControllerProvides []string
-	PreRunHooks            []PreRunHook
+	Imports            *OrderedSet
+	ServiceProvides    []string
+	WorkerDependencies []WorkerDependency
+	PreRunHooks        []PreRunHook
 }
 
 type PreRunHook struct {
@@ -163,11 +162,10 @@ func New() *Blueprint {
 			Migrations: make([]Migration, 0),
 		},
 		Main: MainSection{
-			Imports:                NewOrderedSet(),
-			ServiceProvides:        make([]string, 0),
-			WorkerDependencies:     make([]WorkerDependency, 0),
-			ExtraControllerProvides: make([]string, 0),
-			PreRunHooks:            make([]PreRunHook, 0),
+			Imports:            NewOrderedSet(),
+			ServiceProvides:    make([]string, 0),
+			WorkerDependencies: make([]WorkerDependency, 0),
+			PreRunHooks:        make([]PreRunHook, 0),
 		},
 		Cookies: CookiesSection{
 			Imports:   NewOrderedSet(),

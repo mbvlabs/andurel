@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
+
+	"{{.ModuleName}}/config"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -25,7 +28,42 @@ type Telemetry struct {
 	config         *telemetryOptions
 }
 
-func New(ctx context.Context, opts ...Option) (*Telemetry, error) {
+func New(cfg config.Config) (*Telemetry, error) {
+	ctx := context.Background()
+
+	opts := []Option{
+		WithService(cfg.Telemetry.ServiceName, cfg.Telemetry.ServiceVersion),
+		WithBatchConfig(cfg.Telemetry.BatchSize, cfg.Telemetry.BatchTimeoutMs, 2048),
+		WithTraceSampleRate(cfg.Telemetry.TraceSampleRate),
+	}
+
+	opts = append(opts, WithLogExporters(NewStdoutExporter()))
+
+	if cfg.Telemetry.OtlpMetricsEndpoint != "" {
+		opts = append(opts, WithMetricExporters(
+			NewOtlpMetricExporter(cfg.Telemetry.OtlpMetricsEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders))))
+	}
+
+	if cfg.Telemetry.OtlpTracesEndpoint != "" {
+		opts = append(opts, WithTraceExporters(
+			NewOtlpTraceExporter(cfg.Telemetry.OtlpTracesEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders))))
+	} else {
+		opts = append(opts, WithTraceExporters(NewNoopTraceExporter()))
+	}
+
+	tel, err := newWithOpts(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tel.HealthCheck(ctx); err != nil {
+		slog.Warn("telemetry health check failed", "error", err)
+	}
+
+	return tel, nil
+}
+
+func newWithOpts(ctx context.Context, opts ...Option) (*Telemetry, error) {
 	cfg := defaultConfig()
 	for _, opt := range opts {
 		if err := opt(cfg); err != nil {
@@ -238,4 +276,21 @@ func (m *multiHandler) WithGroup(name string) slog.Handler {
 		newHandlers[i] = h.WithGroup(name)
 	}
 	return &multiHandler{handlers: newHandlers}
+}
+
+func parseHeaders(headersStr string) map[string]string {
+	headers := make(map[string]string)
+	if headersStr == "" {
+		return headers
+	}
+
+	pairs := strings.SplitSeq(headersStr, ",")
+	for pair := range pairs {
+		kv := strings.SplitN(pair, "=", 2)
+		if len(kv) == 2 {
+			headers[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+		}
+	}
+
+	return headers
 }

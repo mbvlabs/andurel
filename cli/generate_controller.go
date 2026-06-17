@@ -83,7 +83,16 @@ func generateControllerWithActions(name string, actions []string, skipRoutes boo
 		}
 	}
 
-	fmt.Printf("Successfully generated controller %s\n", name)
+	fmt.Printf(`Successfully generated controller %s
+
+Wire it up by adding to cmd/app/main.go:
+  Inside the second fx.Provide block, add:
+    controllers.New%s,
+  Add a new fx.Invoke line:
+    fx.Invoke(func(r *router.Router, c controllers.%s) error {
+        return c.RegisterRoutes(r)
+    }),
+`, name, naming.ToPascalCase(pluralName), naming.ToPascalCase(pluralName))
 	return nil
 }
 

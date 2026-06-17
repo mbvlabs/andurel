@@ -3,6 +3,7 @@ package router
 
 import (
 	"encoding/gob"
+	"encoding/hex"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -26,11 +27,21 @@ type Router struct {
 }
 
 func New(
-	enableHTTPInstrumentation bool,
-	globalMiddleware []echo.MiddlewareFunc,
+	cfg config.Config,
+	tel *telemetry.Telemetry,
+	mw middleware.Middleware,
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
+
+	authKey, err := hex.DecodeString(cfg.App.SessionKey)
+	if err != nil {
+		return nil, err
+	}
+	encKey, err := hex.DecodeString(cfg.App.SessionEncryptionKey)
+	if err != nil {
+		return nil, err
+	}
 
 	router := echo.New()
 	defaultHTTPErrorHandler := echo.DefaultHTTPErrorHandler(false)
@@ -57,12 +68,15 @@ func New(
 		defaultHTTPErrorHandler(c, err)
 	}
 
+	globalMiddleware, err := SetupGlobalMiddleware(cfg, tel, authKey, encKey, mw, "_csrf")
+	if err != nil {
+		return nil, err
+	}
+
 	router.Use(globalMiddleware...)
 
 	handler := http.Handler(router)
-	if enableHTTPInstrumentation {
-		handler = otelhttp.NewHandler(router, "http")
-	}
+	handler = otelhttp.NewHandler(router, "http")
 
 	return &Router{
 		e:       router,

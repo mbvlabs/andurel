@@ -119,10 +119,29 @@ func (c *ControllerManager) GenerateController(
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
+	pluralResourceName := naming.ToPascalCase(naming.DeriveTableName(resourceName))
 	if withViews {
-		fmt.Printf("Successfully generated resource controller %s with views\n", resourceName)
+		fmt.Printf(`Successfully generated resource controller %s with views
+
+Wire it up by adding to cmd/app/main.go:
+  Inside the second fx.Provide block, add:
+    controllers.New%s,
+  Add a new fx.Invoke line:
+    fx.Invoke(func(r *router.Router, c controllers.%s) error {
+        return c.RegisterRoutes(r)
+    }),
+`, resourceName, pluralResourceName, pluralResourceName)
 	} else {
-		fmt.Printf("Successfully generated resource controller %s (no views)\n", resourceName)
+		fmt.Printf(`Successfully generated resource controller %s (no views)
+
+Wire it up by adding to cmd/app/main.go:
+  Inside the second fx.Provide block, add:
+    controllers.New%s,
+  Add a new fx.Invoke line:
+    fx.Invoke(func(r *router.Router, c controllers.%s) error {
+        return c.RegisterRoutes(r)
+    }),
+`, resourceName, pluralResourceName, pluralResourceName)
 	}
 
 	return nil
@@ -202,10 +221,29 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
+	pluralResourceName := naming.ToPascalCase(naming.DeriveTableName(resourceName))
 	if withViews {
-		fmt.Printf("Successfully generated resource controller %s with views\n", resourceName)
+		fmt.Printf(`Successfully generated resource controller %s with views
+
+Wire it up by adding to cmd/app/main.go:
+  Inside the second fx.Provide block, add:
+    controllers.New%s,
+  Add a new fx.Invoke line:
+    fx.Invoke(func(r *router.Router, c controllers.%s) error {
+        return c.RegisterRoutes(r)
+    }),
+`, resourceName, pluralResourceName, pluralResourceName)
 	} else {
-		fmt.Printf("Successfully generated resource controller %s (no views)\n", resourceName)
+		fmt.Printf(`Successfully generated resource controller %s (no views)
+
+Wire it up by adding to cmd/app/main.go:
+  Inside the second fx.Provide block, add:
+    controllers.New%s,
+  Add a new fx.Invoke line:
+    fx.Invoke(func(r *router.Router, c controllers.%s) error {
+        return c.RegisterRoutes(r)
+    }),
+`, resourceName, pluralResourceName, pluralResourceName)
 	}
 
 	return nil

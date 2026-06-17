@@ -241,7 +241,6 @@ func TestBuilder_Chaining(t *testing.T) {
 		AddControllerImport("fmt").
 		AddWorkerDependency("db", "database.DB").
 		AddServiceProvide("email.NewMailpit").
-		AddExtraControllerProvide("fx.Annotate(controllers.NewCustom, fx.As(new(controllers.Controller)))").
 		AddRoute(blueprint.Route{Name: "home", Path: "/"}).
 		AddRouteCollection("HomePage").
 		AddRouteImport("middleware").
@@ -264,7 +263,6 @@ func TestBuilder_EmptyValues(t *testing.T) {
 		AddWorkerDependency("", "Type").
 		AddWorkerDependency("name", "").
 		AddServiceProvide("").
-		AddExtraControllerProvide("").
 		AddRoute(blueprint.Route{Name: "", Path: "/"}).    // missing name
 		AddRoute(blueprint.Route{Name: "name", Path: ""}). // missing path
 		AddRouteCollection("", "  ").
@@ -289,10 +287,6 @@ func TestBuilder_EmptyValues(t *testing.T) {
 
 	if len(bp.Main.ServiceProvides) != 0 {
 		t.Error("expected no service provides for empty values")
-	}
-
-	if len(bp.Main.ExtraControllerProvides) != 0 {
-		t.Error("expected no extra controller provides for empty values")
 	}
 
 	if len(bp.Routes.Routes) != 0 {
@@ -355,15 +349,6 @@ func TestBuilder_MainSection(t *testing.T) {
 		t.Errorf("expected 2 worker dependencies, got %d", len(deps))
 	}
 
-	// Test AddExtraControllerProvide
-	b.AddExtraControllerProvide("fx.Annotate(controllers.NewCustom, fx.As(new(controllers.Controller)))")
-	b.AddExtraControllerProvide("fx.Annotate(controllers.NewCustom, fx.As(new(controllers.Controller)))") // duplicate
-
-	extra := b.Blueprint().Main.ExtraControllerProvides
-	if len(extra) != 1 {
-		t.Errorf("expected 1 extra controller provide, got %d", len(extra))
-	}
-
 	// Test AddPreRunHook
 	b.AddPreRunHook("migrate", "if err := migrate(db); err != nil { return err }")
 	b.AddPreRunHook("seed", "seed(db)")
@@ -383,7 +368,6 @@ func TestBuilder_MergeMainSection(t *testing.T) {
 	b2 := blueprint.NewBuilder(nil)
 	b2.AddMainImport("myapp/queue")
 	b2.AddServiceProvide("queue.New")
-	b2.AddExtraControllerProvide("fx.Annotate(controllers.NewFoo, fx.As(new(controllers.Controller)))")
 
 	err := b1.Merge(b2.Blueprint())
 	if err != nil {
@@ -400,11 +384,5 @@ func TestBuilder_MergeMainSection(t *testing.T) {
 	provides := b1.Blueprint().Main.ServiceProvides
 	if len(provides) != 2 {
 		t.Errorf("expected 2 service provides after merge, got %d", len(provides))
-	}
-
-	// Check merged extra controller provides
-	extra := b1.Blueprint().Main.ExtraControllerProvides
-	if len(extra) != 1 {
-		t.Errorf("expected 1 extra controller provide after merge, got %d", len(extra))
 	}
 }

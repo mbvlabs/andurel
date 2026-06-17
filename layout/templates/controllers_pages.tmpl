@@ -28,8 +28,6 @@ func NewPages(
 	return Pages{db, insertOnly, cache}
 }
 
-var _ = RegisterController(NewPages)
-
 func (p Pages) RegisterRoutes(r *router.Router) error {
 	errs := []error{}
 
@@ -37,6 +35,16 @@ func (p Pages) RegisterRoutes(r *router.Router) error {
 		Method:  http.MethodGet,
 		Path:    routes.HomePage.Path(),
 		Name:    routes.HomePage.Name(),
+		Handler: p.Home,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodHead,
+		Path:    routes.HomePage.Path(),
+		Name:    routes.HomePage.Name() + ".head",
 		Handler: p.Home,
 	})
 	if err != nil {
