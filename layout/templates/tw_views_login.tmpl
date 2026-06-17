@@ -8,13 +8,13 @@ import (
 
 type LoginForm struct{}
 
-func (LoginForm) ContainerFragment() string {
-	return "login-container-fragment"
+func (lf LoginForm) PageFragment() string {
+	return "login-page-fragment"
 }
 
 templ (lf LoginForm) Page() {
 	@base() {
-		@templ.Fragment(lf.ContainerFragment()) {
+		@templ.Fragment(lf.PageFragment()) {
 			<main id="login-container" class="flex flex-1 items-center justify-center px-6 py-10">
 				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
 					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">

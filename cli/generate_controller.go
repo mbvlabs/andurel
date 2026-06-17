@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/files"
+	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
@@ -85,6 +86,14 @@ func generateControllerWithActions(name string, actions []string, skipRoutes boo
 
 	fmt.Printf("Successfully generated controller %s\n", name)
 	return nil
+}
+
+func readDIModeForProject() string {
+	lock, err := layout.ReadLockFile(".")
+	if err != nil || lock.ScaffoldConfig == nil || lock.ScaffoldConfig.DIMode == "" {
+		return "manual"
+	}
+	return lock.ScaffoldConfig.DIMode
 }
 
 func generateActionControllerFile(name, tableName, pluralName, modulePath, controllerPath string, actions []string) error {
@@ -212,49 +221,51 @@ func generateActionRoutes(name, tableName, modulePath string, actions []string) 
 		return err
 	}
 
-	// Generate route registration file
-	connectPath := filepath.Join("router", "connect_"+pluralName+"_routes.go")
-	if _, err := os.Stat(connectPath); err == nil {
-		return fmt.Errorf("route registration file %s already exists", connectPath)
-	}
+	// Generate route registration file (skipped in uberfx mode)
+	if diMode := readDIModeForProject(); diMode != "uberfx" {
+		connectPath := filepath.Join("router", "connect_"+pluralName+"_routes.go")
+		if _, err := os.Stat(connectPath); err == nil {
+			return fmt.Errorf("route registration file %s already exists", connectPath)
+		}
 
-	var regSb strings.Builder
-	regSb.WriteString("package router\n\n")
-	regSb.WriteString("import (\n")
-	regSb.WriteString("\t\"errors\"\n")
-	regSb.WriteString("\t\"net/http\"\n\n")
-	regSb.WriteString(fmt.Sprintf("\t\"%s/controllers\"\n", modulePath))
-	regSb.WriteString(fmt.Sprintf("\t\"%s/router/routes\"\n", modulePath))
-	regSb.WriteString(")\n\n")
-	regSb.WriteString(fmt.Sprintf("func (r Router) Register%sRoutes(%s controllers.%s) error {\n", pluralResource, lowerResource, pluralResource))
-	regSb.WriteString("\terrs := []error{}\n\n")
+		var regSb strings.Builder
+		regSb.WriteString("package router\n\n")
+		regSb.WriteString("import (\n")
+		regSb.WriteString("\t\"errors\"\n")
+		regSb.WriteString("\t\"net/http\"\n\n")
+		regSb.WriteString(fmt.Sprintf("\t\"%s/controllers\"\n", modulePath))
+		regSb.WriteString(fmt.Sprintf("\t\"%s/router/routes\"\n", modulePath))
+		regSb.WriteString(")\n\n")
+		regSb.WriteString(fmt.Sprintf("func (r Router) Register%sRoutes(%s controllers.%s) error {\n", pluralResource, lowerResource, pluralResource))
+		regSb.WriteString("\terrs := []error{}\n\n")
 
-	for _, action := range actions {
-		routeName := resourceName + naming.ToPascalCase(action)
-		actionTitle := naming.ToPascalCase(action)
-		method := actionHTTPMethod(action)
-		regSb.WriteString(fmt.Sprintf("\t_, err := r.e.AddRoute(echo.Route{\n"))
-		regSb.WriteString(fmt.Sprintf("\t\tMethod: %s,\n", method))
-		regSb.WriteString(fmt.Sprintf("\t\tPath:   routes.%s.Path(),\n", routeName))
-		regSb.WriteString(fmt.Sprintf("\t\tName:   routes.%s.Name(),\n", routeName))
-		regSb.WriteString(fmt.Sprintf("\t\tHandler: %s.%s,\n", lowerResource, actionTitle))
-		regSb.WriteString("\t})\n")
-		regSb.WriteString("\tif err != nil {\n\t\terrs = append(errs, err)\n\t}\n\n")
-	}
+		for _, action := range actions {
+			routeName := resourceName + naming.ToPascalCase(action)
+			actionTitle := naming.ToPascalCase(action)
+			method := actionHTTPMethod(action)
+			regSb.WriteString(fmt.Sprintf("\t_, err := r.e.AddRoute(echo.Route{\n"))
+			regSb.WriteString(fmt.Sprintf("\t\tMethod: %s,\n", method))
+			regSb.WriteString(fmt.Sprintf("\t\tPath:   routes.%s.Path(),\n", routeName))
+			regSb.WriteString(fmt.Sprintf("\t\tName:   routes.%s.Name(),\n", routeName))
+			regSb.WriteString(fmt.Sprintf("\t\tHandler: %s.%s,\n", lowerResource, actionTitle))
+			regSb.WriteString("\t})\n")
+			regSb.WriteString("\tif err != nil {\n\t\terrs = append(errs, err)\n\t}\n\n")
+		}
 
-	regSb.WriteString("\treturn errors.Join(errs...)\n")
-	regSb.WriteString("}\n")
+		regSb.WriteString("\treturn errors.Join(errs...)\n")
+		regSb.WriteString("}\n")
 
-	if err := os.MkdirAll("router", 0o755); err != nil {
-		return err
-	}
+		if err := os.MkdirAll("router", 0o755); err != nil {
+			return err
+		}
 
-	if err := os.WriteFile(connectPath, []byte(regSb.String()), constants.FilePermissionPrivate); err != nil {
-		return err
-	}
+		if err := os.WriteFile(connectPath, []byte(regSb.String()), constants.FilePermissionPrivate); err != nil {
+			return err
+		}
 
-	if err := files.FormatGoFile(connectPath); err != nil {
-		return err
+		if err := files.FormatGoFile(connectPath); err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -3,6 +3,7 @@ package router
 
 import (
 	"encoding/gob"
+	"encoding/hex"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 	"github.com/labstack/echo/v5"
 	echomw "github.com/labstack/echo/v5/middleware"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.uber.org/fx"
 )
 
 type Router struct {
@@ -26,11 +28,20 @@ type Router struct {
 }
 
 func New(
-	enableHTTPInstrumentation bool,
-	globalMiddleware []echo.MiddlewareFunc,
+	cfg config.Config,
+	tel *telemetry.Telemetry,
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
+
+	authKey, err := hex.DecodeString(cfg.App.SessionKey)
+	if err != nil {
+		return nil, err
+	}
+	encKey, err := hex.DecodeString(cfg.App.SessionEncryptionKey)
+	if err != nil {
+		return nil, err
+	}
 
 	router := echo.New()
 	defaultHTTPErrorHandler := echo.DefaultHTTPErrorHandler(false)
@@ -57,12 +68,14 @@ func New(
 		defaultHTTPErrorHandler(c, err)
 	}
 
+	globalMiddleware, err := SetupGlobalMiddleware(cfg, tel, authKey, encKey, "_csrf")
+	if err != nil {
+		return nil, err
+	}
+
 	router.Use(globalMiddleware...)
 
-	handler := http.Handler(router)
-	if enableHTTPInstrumentation {
-		handler = otelhttp.NewHandler(router, "http")
-	}
+	handler := otelhttp.NewHandler(router, "http")
 
 	return &Router{
 		e:       router,
@@ -111,10 +124,17 @@ func SetupGlobalMiddleware(
 	return middlewares, nil
 }
 
-func (r *Router) RegisterCustomRoutes(
-	riverHandler interface{ ServeHTTP(http.ResponseWriter, *http.Request) },
-	notFoundHandler echo.HandlerFunc,
-) {
-	r.e.Any("/riverui*", echo.WrapHandler(riverHandler))
-	r.e.RouteNotFound("/*", notFoundHandler)
+func (r *Router) AddRoute(route echo.Route) (echo.RouteInfo, error) {
+	return r.e.AddRoute(route)
 }
+
+func (r *Router) AddRouteNotFound(
+	notFoundHandler echo.HandlerFunc,
+) echo.RouteInfo {
+	return r.e.RouteNotFound("/*", notFoundHandler)
+}
+
+var Module = fx.Module(
+	"router",
+	fx.Provide(New),
+)

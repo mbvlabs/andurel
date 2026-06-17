@@ -2,13 +2,13 @@ package views
 
 type Home struct{}
 
-func (Home) ContainerFragment() string {
-	return "home-container-fragment"
+func (h Home) PageFragment() string {
+	return "home-page-fragment"
 }
 
 templ (h Home) Page() {
 	@base() {
-		@templ.Fragment(h.ContainerFragment()) {
+		@templ.Fragment(h.PageFragment()) {
 			<main id="home-container">
 				<section>
 					<div>

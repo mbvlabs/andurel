@@ -8,13 +8,13 @@ import (
 
 type RegistrationForm struct{}
 
-func (RegistrationForm) ContainerFragment() string {
-	return "registration-container-fragment"
+func (rf RegistrationForm) PageFragment() string {
+	return "registration-page-fragment"
 }
 
 templ (rf RegistrationForm) Page() {
 	@base() {
-		@templ.Fragment(rf.ContainerFragment()) {
+		@templ.Fragment(rf.PageFragment()) {
 			<main id="registration-container">
 				<section>
 					<div>

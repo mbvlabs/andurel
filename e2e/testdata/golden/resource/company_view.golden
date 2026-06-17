@@ -16,13 +16,13 @@ type CompanyIndex struct {
 	Items []models.CompanyEntity
 }
 
-func (ci CompanyIndex) ContainerFragment() string {
-	return "company-index-container-fragment"
+func (ci CompanyIndex) PageFragment() string {
+	return "company-index-page-fragment"
 }
 
 templ (ci CompanyIndex) Page() {
 	@base() {
-		@templ.Fragment(ci.ContainerFragment()) {
+		@templ.Fragment(ci.PageFragment()) {
 			<main id="company-index-container" class="flex-1 px-6 py-10">
 				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 					<div class="flex flex-wrap items-center justify-between gap-4">
@@ -72,13 +72,13 @@ type CompanyShow struct {
 	Item models.CompanyEntity
 }
 
-func (cs CompanyShow) ContainerFragment() string {
-	return "company-show-container-fragment"
+func (cs CompanyShow) PageFragment() string {
+	return "company-show-page-fragment"
 }
 
 templ (cs CompanyShow) Page() {
 	@base() {
-		@templ.Fragment(cs.ContainerFragment()) {
+		@templ.Fragment(cs.PageFragment()) {
 			<main id="company-show-container" class="flex-1 px-6 py-10">
 				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
 					<div class="flex flex-wrap items-center justify-between gap-4">
@@ -118,13 +118,13 @@ templ (cs CompanyShow) Page() {
 
 type CompanyNew struct{}
 
-func (cn CompanyNew) ContainerFragment() string {
-	return "company-new-container-fragment"
+func (cn CompanyNew) PageFragment() string {
+	return "company-new-page-fragment"
 }
 
 templ (cn CompanyNew) Page() {
 	@base() {
-		@templ.Fragment(cn.ContainerFragment()) {
+		@templ.Fragment(cn.PageFragment()) {
 			<main id="company-new-container" class="flex-1 flex items-center justify-center px-6 py-10">
 				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
 					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
@@ -163,13 +163,13 @@ type CompanyEdit struct {
 	Item models.CompanyEntity
 }
 
-func (ce CompanyEdit) ContainerFragment() string {
-	return "company-edit-container-fragment"
+func (ce CompanyEdit) PageFragment() string {
+	return "company-edit-page-fragment"
 }
 
 templ (ce CompanyEdit) Page() {
 	@base() {
-		@templ.Fragment(ce.ContainerFragment()) {
+		@templ.Fragment(ce.PageFragment()) {
 			<main id="company-edit-container" class="flex-1 flex items-center justify-center px-6 py-10">
 				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
 					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">

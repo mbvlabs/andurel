@@ -6,6 +6,7 @@ import (
 	"net/smtp"
 	"strings"
 
+	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/email"
 )
 
@@ -17,10 +18,10 @@ type Mailpit struct {
 	port string
 }
 
-func NewMailpit(host, port string) *Mailpit {
+func NewMailpit(cfg config.Config) *Mailpit {
 	return &Mailpit{
-		host,
-		port,
+		host: cfg.Email.MailpitHost,
+		port: cfg.Email.MailpitPort,
 	}
 }
 

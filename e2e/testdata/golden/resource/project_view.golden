@@ -16,13 +16,13 @@ type ProjectIndex struct {
 	Items []models.ProjectEntity
 }
 
-func (pi ProjectIndex) ContainerFragment() string {
-	return "project-index-container-fragment"
+func (pi ProjectIndex) PageFragment() string {
+	return "project-index-page-fragment"
 }
 
 templ (pi ProjectIndex) Page() {
 	@base() {
-		@templ.Fragment(pi.ContainerFragment()) {
+		@templ.Fragment(pi.PageFragment()) {
 			<main id="project-index-container" class="flex-1 px-6 py-10">
 				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 					<div class="flex flex-wrap items-center justify-between gap-4">
@@ -72,13 +72,13 @@ type ProjectShow struct {
 	Item models.ProjectEntity
 }
 
-func (ps ProjectShow) ContainerFragment() string {
-	return "project-show-container-fragment"
+func (ps ProjectShow) PageFragment() string {
+	return "project-show-page-fragment"
 }
 
 templ (ps ProjectShow) Page() {
 	@base() {
-		@templ.Fragment(ps.ContainerFragment()) {
+		@templ.Fragment(ps.PageFragment()) {
 			<main id="project-show-container" class="flex-1 px-6 py-10">
 				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
 					<div class="flex flex-wrap items-center justify-between gap-4">
@@ -118,13 +118,13 @@ templ (ps ProjectShow) Page() {
 
 type ProjectNew struct{}
 
-func (pn ProjectNew) ContainerFragment() string {
-	return "project-new-container-fragment"
+func (pn ProjectNew) PageFragment() string {
+	return "project-new-page-fragment"
 }
 
 templ (pn ProjectNew) Page() {
 	@base() {
-		@templ.Fragment(pn.ContainerFragment()) {
+		@templ.Fragment(pn.PageFragment()) {
 			<main id="project-new-container" class="flex-1 flex items-center justify-center px-6 py-10">
 				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
 					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
@@ -163,13 +163,13 @@ type ProjectEdit struct {
 	Item models.ProjectEntity
 }
 
-func (pe ProjectEdit) ContainerFragment() string {
-	return "project-edit-container-fragment"
+func (pe ProjectEdit) PageFragment() string {
+	return "project-edit-page-fragment"
 }
 
 templ (pe ProjectEdit) Page() {
 	@base() {
-		@templ.Fragment(pe.ContainerFragment()) {
+		@templ.Fragment(pe.PageFragment()) {
 			<main id="project-edit-container" class="flex-1 flex items-center justify-center px-6 py-10">
 				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
 					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">

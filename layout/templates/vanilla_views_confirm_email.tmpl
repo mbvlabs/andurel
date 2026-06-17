@@ -8,13 +8,13 @@ import (
 
 type ConfirmationForm struct{}
 
-func (ConfirmationForm) ContainerFragment() string {
-	return "confirmation-container-fragment"
+func (cf ConfirmationForm) PageFragment() string {
+	return "confirmation-page-fragment"
 }
 
 templ (cf ConfirmationForm) Page() {
 	@base() {
-		@templ.Fragment(cf.ContainerFragment()) {
+		@templ.Fragment(cf.PageFragment()) {
 			<main id="confirmation-container">
 				<section>
 					<div>

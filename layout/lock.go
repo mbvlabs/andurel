@@ -27,6 +27,7 @@ type ScaffoldConfig struct {
 	Database     string   `json:"database"`
 	CSSFramework string   `json:"cssFramework"`
 	Extensions   []string `json:"extensions,omitempty"`
+	DIMode       string   `json:"diMode"`
 }
 
 type Extension struct {

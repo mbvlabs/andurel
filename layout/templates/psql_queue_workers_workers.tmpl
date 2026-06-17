@@ -4,10 +4,13 @@ package workers
 import (
 	"github.com/riverqueue/river"
 
+    {{if eq .DIMode "uberfx"}}
+	"go.uber.org/fx"
+    {{end}}
 	"{{.ModuleName}}/email"
 )
 
-func Register(transactionalSender email.TransactionalSender, marketingSender email.MarketingSender) (*river.Workers, error) {
+func RegisterWorkers(transactionalSender email.TransactionalSender, marketingSender email.MarketingSender) (*river.Workers, error) {
 	wrks := river.NewWorkers()
 
 	if err := river.AddWorkerSafely(wrks, NewSendTransactionalEmailWorker(transactionalSender)); err != nil {
@@ -22,3 +25,7 @@ func Register(transactionalSender email.TransactionalSender, marketingSender ema
 
 	return wrks, nil
 }
+
+{{if eq .DIMode "uberfx"}}
+var Module = fx.Module("queue-workers", fx.Provide(RegisterWorkers))
+{{end}}

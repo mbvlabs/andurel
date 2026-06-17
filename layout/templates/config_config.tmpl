@@ -9,6 +9,9 @@ import (
 	"{{.ModuleName}}/internal/server"
 
 	"github.com/gosimple/slug"
+    {{if eq .DIMode "uberfx"}}
+	"go.uber.org/fx"
+    {{end}}
 )
 
 // Global application settings that can be used throughout the codebase with defaults.
@@ -66,7 +69,7 @@ var (
 
 type Config struct {
 	App       app
-	DB        database
+	DB        Database
 	Telemetry telemetry
 {{- range .Blueprint.Config.SortedFields}}
 	{{.Name}} {{.Type}}
@@ -83,3 +86,7 @@ func NewConfig() Config {
 {{- end}}
 	}
 }
+
+{{if eq .DIMode "uberfx"}}
+    var Module = fx.Module("config", fx.Provide(NewConfig))
+{{end}}

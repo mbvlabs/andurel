@@ -11,6 +11,9 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverdatabasesql"
 	"github.com/riverqueue/river/rivertype"
+    {{if eq .DIMode "uberfx"}}
+	"go.uber.org/fx"
+    {{end}}
 )
 
 type Processor struct {
@@ -32,7 +35,6 @@ func (p Processor) Stop(ctx context.Context) error {
 }
 
 func NewProcessor(
-	ctx context.Context,
 	db storage.Pool,
 	workers *river.Workers,
 ) (Processor, error) {
@@ -119,3 +121,15 @@ func NewInsertOnly(db storage.Pool, workers *river.Workers) (InsertOnly, error) 
 
 	return InsertOnly{riverClient}, nil
 }
+
+{{if eq .DIMode "uberfx"}}
+var constructors = fx.Provide(
+	NewInsertOnly,
+	NewProcessor,
+)
+
+var Module = fx.Module(
+	"queue",
+	constructors,
+)
+{{end}}

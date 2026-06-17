@@ -1,0 +1,159 @@
+package controllers
+
+import (
+	"errors"
+	"log/slog"
+	"net/http"
+
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/internal/renderer"
+	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/router"
+	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/router/middleware"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/services"
+	"{{.ModuleName}}/views"
+
+	"github.com/labstack/echo/v5"
+
+	"{{.ModuleName}}/internal/hypermedia"
+)
+
+type Sessions struct {
+	db  storage.Pool
+	cfg config.Config
+}
+
+func NewSessions(db storage.Pool, cfg config.Config) Sessions {
+	return Sessions{db, cfg}
+}
+
+func (s Sessions) RegisterRoutes(r *router.Router) error {
+	errs := []error{}
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.SessionNew.Path(),
+		Name:    routes.SessionNew.Name(),
+		Handler: s.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.SessionCreate.Path(),
+		Name:    routes.SessionCreate.Name(),
+		Handler: s.Create,
+		Middlewares: []echo.MiddlewareFunc{
+			middleware.IPRateLimiter(5, routes.SessionNew),
+		},
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.SessionDestroy.Path(),
+		Name:    routes.SessionDestroy.Name(),
+		Handler: s.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+func (s Sessions) New(etx *echo.Context) error {
+	return renderer.Render(etx, views.LoginForm{}.Page())
+}
+
+func (s Sessions) Create(etx *echo.Context) error {
+	var payload struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse login form payload",
+			"error",
+			err,
+		)
+		return renderer.Render(etx, views.BadRequest())
+	}
+
+	user, err := services.AuthenticateUser(
+		etx.Request().Context(),
+		s.db,
+		s.cfg.Auth.Pepper,
+		services.LoginData{
+			Email:    payload.Email,
+			Password: payload.Password,
+		},
+	)
+	if err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"failed to authenticate user",
+			"error",
+			err,
+		)
+
+		var errorMsg string
+		switch err {
+		case services.ErrInvalidCredentials:
+			errorMsg = "Invalid email or password"
+		case services.ErrEmailNotVerified:
+			errorMsg = "Please verify your email before logging in"
+		default:
+			errorMsg = "Failed to log in"
+		}
+
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
+			return renderer.Render(etx, views.InternalError())
+		}
+
+		return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
+	}
+
+	if err := cookies.CreateAppSession(etx, user); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"failed to create session",
+			"error",
+			err,
+		)
+
+		return renderer.Render(etx, views.InternalError())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Successfully logged in!"); flashErr != nil {
+		return renderer.Render(etx, views.InternalError())
+	}
+
+	return hypermedia.Redirect(etx, routes.HomePage.URL())
+}
+
+func (s Sessions) Destroy(etx *echo.Context) error {
+	if err := cookies.DestroyAppSession(etx); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"failed to destroy session",
+			"error",
+			err,
+		)
+		return renderer.Render(etx, views.InternalError())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Successfully logged out!"); flashErr != nil {
+		return renderer.Render(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
+}

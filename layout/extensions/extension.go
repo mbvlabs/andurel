@@ -31,6 +31,7 @@ type Context struct {
 	ProcessTemplate   ProcessTemplateFunc
 	AddPostStep       func(func(targetDir string) error)
 	NextMigrationTime *time.Time
+	DIMode            string // "manual" or "uberfx"
 }
 
 // Builder returns the blueprint builder for structured contributions.
