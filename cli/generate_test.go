@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -68,13 +69,7 @@ func TestGenerateSubCommands(t *testing.T) {
 	subNames := getCommandNames(generateCmd.Commands())
 
 	for _, expectedSub := range expectedSubs {
-		found := false
-		for _, name := range subNames {
-			if name == expectedSub {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(subNames, expectedSub)
 		if !found {
 			t.Errorf("Expected generate subcommand '%s' not found. Available: %v", expectedSub, subNames)
 		}

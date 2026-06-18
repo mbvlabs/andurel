@@ -46,13 +46,17 @@ func TestBuildModel(t *testing.T) {
 	}
 
 	// Find specific fields and verify their types
-	var tagsField, scoresField *GeneratedField
+	var tagsField, scoresField, settingsField, metadataField *GeneratedField
 	for i := range model.Fields {
 		switch model.Fields[i].Name {
 		case "Tags":
 			tagsField = &model.Fields[i]
 		case "Scores":
 			scoresField = &model.Fields[i]
+		case "Settings":
+			settingsField = &model.Fields[i]
+		case "Metadata":
+			metadataField = &model.Fields[i]
 		}
 	}
 
@@ -76,6 +80,27 @@ func TestBuildModel(t *testing.T) {
 	}
 	if scoresField.BunTag != "scores,array" {
 		t.Errorf("Scores field BunTag = %s, want scores,array", scoresField.BunTag)
+	}
+
+	// Test jsonb/json -> json.RawMessage with JSON bun tags
+	if settingsField == nil {
+		t.Fatal("Expected to find 'Settings' field (from 'settings' jsonb column)")
+	}
+	if settingsField.Type != "json.RawMessage" {
+		t.Errorf("Settings field Type = %s, want json.RawMessage", settingsField.Type)
+	}
+	if settingsField.BunTag != "settings,type:jsonb" {
+		t.Errorf("Settings field BunTag = %s, want settings,type:jsonb", settingsField.BunTag)
+	}
+
+	if metadataField == nil {
+		t.Fatal("Expected to find 'Metadata' field (from 'metadata' json column)")
+	}
+	if metadataField.Type != "json.RawMessage" {
+		t.Errorf("Metadata field Type = %s, want json.RawMessage", metadataField.Type)
+	}
+	if metadataField.BunTag != "metadata,type:json" {
+		t.Errorf("Metadata field BunTag = %s, want metadata,type:json", metadataField.BunTag)
 	}
 
 	// Verify bun tags are generated

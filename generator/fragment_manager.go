@@ -218,7 +218,7 @@ func (fm *FragmentManager) checkDuplicates(controllerPath, routesPath, connectPa
 // extracted from the given path (e.g. "/:product_id/categories/:category_id").
 func (fm *FragmentManager) buildSlugParamsStruct(typeName, path string) string {
 	var fields strings.Builder
-	for _, seg := range strings.Split(path, "/") {
+	for seg := range strings.SplitSeq(path, "/") {
 		if !strings.HasPrefix(seg, ":") {
 			continue
 		}

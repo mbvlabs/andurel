@@ -64,7 +64,7 @@ func collectRelevantNames(
 		`(?i)alter\s+table\s+(?:if\s+exists\s+)?(?:\w+\.)?(\w+)\s+.*rename\s+to\s+(\w+)`,
 	)
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		changed := false
 		for _, migration := range migrationsList {
 			for _, stmt := range migration.Statements {
