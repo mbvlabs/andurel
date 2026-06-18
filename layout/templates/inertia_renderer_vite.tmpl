@@ -25,8 +25,8 @@ type viteManifestEntry struct {
 func initVite() (*viteTags, error) {
 	if config.Env != server.ProdEnvironment {
 		return &viteTags{
-			ViteHead: template.HTML(`<script type="module" src="http://localhost:5173/@vite/client"></script>`),
-			ViteBody: template.HTML(`<script type="module" src="http://localhost:5173/resources/js/app.ts"></script>`),
+			ViteHead: template.HTML(`<script type="module" src="http://localhost:5173/assets/build/@vite/client"></script>`),
+			ViteBody: template.HTML(`<script type="module" src="http://localhost:5173/assets/build/resources/js/app.ts"></script>`),
 		}, nil
 	}
 
