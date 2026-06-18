@@ -1,8 +1,225 @@
+
+
+
+
 package views
 
 import (
+	"fmt"
 	"net/http"
+
 	"testapp/internal/renderer"
+	"testapp/models"
+
 	"testapp/router/routes"
+
+	"testapp/internal/hypermedia"
 )
 
+type ReviewIndex struct {
+	Items []models.ReviewEntity
+}
+
+func (ri ReviewIndex) PageFragment() string {
+	return "review-index-page-fragment"
+}
+
+templ (ri ReviewIndex) Page() {
+	@base() {
+		@templ.Fragment(ri.PageFragment()) {
+			<main id="review-index-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold text-gray-900">Reviews</h1>
+						<a href={ routes.ReviewNew.URL() } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded">New Review</a>
+					</div>
+					if len(ri.Items) == 0 {
+						<p class="text-sm text-gray-500">No reviews found.</p>
+					} else {
+						<div class="relative w-full overflow-auto">
+							<table class="w-full caption-bottom text-sm">
+								<thead class="[&_tr]:border-b [&_tr]:border-gray-300">
+									<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Title</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Body</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Rating</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Created At</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Updated At</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Actions</th>
+									</tr>
+								</thead>
+								<tbody class="[&_tr:last-child]:border-0">
+									for _, review := range ri.Items {
+										<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ review.Title }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ review.Body }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%d", review.Rating) }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ review.CreatedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ review.UpdatedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+												<div class="flex flex-wrap gap-3 text-sm">
+													<a class="text-gray-600 hover:text-gray-900" href={ routes.ReviewShow.URL(review.ID) }>View</a>
+													<a class="text-gray-600 hover:text-gray-900" href={ routes.ReviewEdit.URL(review.ID) }>Edit</a>
+												</div>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</div>
+			</main>
+		}
+	}
+}
+
+type ReviewShow struct {
+	Item models.ReviewEntity
+}
+
+func (rs ReviewShow) PageFragment() string {
+	return "review-show-page-fragment"
+}
+
+templ (rs ReviewShow) Page() {
+	@base() {
+		@templ.Fragment(rs.PageFragment()) {
+			<main id="review-show-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold text-gray-900">Review Details</h1>
+						<div class="flex flex-wrap items-center gap-3">
+							<a href={ routes.ReviewEdit.URL(rs.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded">Edit</a>
+							<a class="text-sm text-gray-600 hover:text-gray-900" href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
+						</div>
+					</div>
+					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+						<div class="p-6 pt-0">
+							<div class="grid gap-5 sm:grid-cols-2">
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Title</label>
+									<p class="text-sm text-gray-900">{ rs.Item.Title }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Body</label>
+									<p class="text-sm text-gray-900">{ rs.Item.Body }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Rating</label>
+									<p class="text-sm text-gray-900">{ fmt.Sprintf("%d", rs.Item.Rating) }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
+									<p class="text-sm text-gray-900">{ rs.Item.CreatedAt.String() }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
+									<p class="text-sm text-gray-900">{ rs.Item.UpdatedAt.String() }</p>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}
+
+type ReviewNew struct{}
+
+func (rn ReviewNew) PageFragment() string {
+	return "review-new-page-fragment"
+}
+
+templ (rn ReviewNew) Page() {
+	@base() {
+		@templ.Fragment(rn.PageFragment()) {
+			<main id="review-new-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+						<div class="flex flex-col space-y-1.5 p-6">
+							<h3 class="text-lg font-semibold leading-none text-gray-900">New Review</h3>
+							<p class="text-sm text-gray-500">Enter the details for the new review.</p>
+						</div>
+						<div class="p-6 pt-0">
+							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.ReviewCreate.URL()) }>
+								<fieldset data-attr:disabled="$_submitting">
+									<div class="space-y-4">
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="title">Title</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="title"/>
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="body">Body</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="body"/>
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="rating">Rating</label>
+											<input type="number" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="rating"/>
+										</div>
+									</div>
+									<div class="mt-6 space-y-3">
+										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Create Review</button>
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}
+
+type ReviewEdit struct {
+	Item models.ReviewEntity
+}
+
+func (re ReviewEdit) PageFragment() string {
+	return "review-edit-page-fragment"
+}
+
+templ (re ReviewEdit) Page() {
+	@base() {
+		@templ.Fragment(re.PageFragment()) {
+			<main id="review-edit-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+						<div class="flex flex-col space-y-1.5 p-6">
+							<h3 class="text-lg font-semibold leading-none text-gray-900">Edit Review</h3>
+							<p class="text-sm text-gray-500">Update the details for this review.</p>
+						</div>
+						<div class="p-6 pt-0">
+							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.ReviewUpdate.URL(re.Item.ID)) }>
+								<fieldset data-attr:disabled="$_submitting">
+									<div class="space-y-4">
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="title">Title</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="title" value={ re.Item.Title }/>
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="body">Body</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="body" value={ re.Item.Body }/>
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="rating">Rating</label>
+											<input type="number" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="rating" value={ fmt.Sprintf("%d", re.Item.Rating) }/>
+										</div>
+									</div>
+									<div class="mt-6 space-y-3">
+										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Update Review</button>
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+							<div role="separator" class="my-6 shrink-0 bg-gray-300 h-px w-full"></div>
+							<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white shadow-sm hover:bg-red-700 h-9 px-4 py-2 text-sm rounded w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ReviewDestroy.URL(re.Item.ID)) }>Destroy Review</button>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}

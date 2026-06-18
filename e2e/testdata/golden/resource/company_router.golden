@@ -12,7 +12,6 @@ import (
 
 func (r Router) RegisterCompanyRoutes(company controllers.Companies) error {
 	errs := []error{}
-
 	_, err := r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.CompanyIndex.Path(),
@@ -22,7 +21,6 @@ func (r Router) RegisterCompanyRoutes(company controllers.Companies) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.CompanyShow.Path(),
@@ -32,7 +30,6 @@ func (r Router) RegisterCompanyRoutes(company controllers.Companies) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.CompanyNew.Path(),
@@ -42,7 +39,6 @@ func (r Router) RegisterCompanyRoutes(company controllers.Companies) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPost,
 		Path:    routes.CompanyCreate.Path(),
@@ -52,7 +48,6 @@ func (r Router) RegisterCompanyRoutes(company controllers.Companies) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.CompanyEdit.Path(),
@@ -62,7 +57,6 @@ func (r Router) RegisterCompanyRoutes(company controllers.Companies) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPut,
 		Path:    routes.CompanyUpdate.Path(),
@@ -72,7 +66,6 @@ func (r Router) RegisterCompanyRoutes(company controllers.Companies) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodDelete,
 		Path:    routes.CompanyDestroy.Path(),

@@ -20,7 +20,6 @@ func BenchmarkNewCoordinator(b *testing.B) {
 	os.MkdirAll("database/migrations", 0755)
 	os.MkdirAll("router/routes", 0755)
 	os.WriteFile("go.mod", []byte("module test\n\ngo 1.21\n"), 0644)
-	os.WriteFile("database/sqlc.yaml", []byte("sql: []\n"), 0644)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -42,7 +41,6 @@ func BenchmarkConfigManagerLoad(b *testing.B) {
 	os.MkdirAll("database/migrations", 0755)
 	os.MkdirAll("router/routes", 0755)
 	os.WriteFile("go.mod", []byte("module test\n\ngo 1.21\n"), 0644)
-	os.WriteFile("database/sqlc.yaml", []byte("sql: []\n"), 0644)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -166,7 +164,6 @@ DROP TABLE users;
 `
 	os.WriteFile(filepath.Join(migrationDir, "001_create_users.sql"), []byte(migrationContent), 0644)
 	os.WriteFile("go.mod", []byte("module test\n\ngo 1.21\n"), 0644)
-	os.WriteFile("sqlc.yaml", []byte("version: \"2\"\nsql:\n  - engine: \"postgresql\"\n    queries: \"internal/database/queries\"\n    schema: \"internal/database/migrations\"\n"), 0644)
 
 	config := &UnifiedConfig{
 		Database: DatabaseConfig{

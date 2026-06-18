@@ -30,7 +30,6 @@ type PathConfig struct {
 	Controllers string `yaml:"controllers"`
 	Views       string `yaml:"views"`
 	Routes      string `yaml:"routes"`
-	Queries     string `yaml:"queries"`
 	Migrations  string `yaml:"migrations"`
 	Database    string `yaml:"database"`
 }
@@ -93,7 +92,6 @@ func (cm *ConfigManager) Load() (*UnifiedConfig, error) {
 			Controllers: "controllers",
 			Views:       "views",
 			Routes:      "router/routes",
-			Queries:     "database/queries",
 			Migrations:  "database/migrations",
 			Database:    "database",
 		},
@@ -178,8 +176,7 @@ func (uc *UnifiedConfig) GetModelConfig() ModelConfig {
 		DatabaseType: uc.Database.Type,
 		ModulePath:   uc.Project.ModulePath,
 		Paths: ModelPaths{
-			Models:  uc.Paths.Models,
-			Queries: uc.Paths.Queries,
+			Models: uc.Paths.Models,
 		},
 		Generation: uc.Generation,
 	}
@@ -222,8 +219,7 @@ type ModelConfig struct {
 }
 
 type ModelPaths struct {
-	Models  string `json:"models"`
-	Queries string `json:"queries"`
+	Models string `json:"models"`
 }
 
 type ControllerConfig struct {

@@ -8,9 +8,9 @@ import (
 
 func TestMapSQLTypeToGo_NonNullableTypes(t *testing.T) {
 	tests := []struct {
-		name       string
-		sqlType    string
-		expectedGo string
+		name        string
+		sqlType     string
+		expectedGo  string
 		expectedPkg string
 	}{
 		{"varchar", "varchar", "string", ""},
@@ -47,8 +47,8 @@ func TestMapSQLTypeToGo_NonNullableTypes(t *testing.T) {
 		{"time", "time", "time.Time", "time"},
 
 		{"bytea", "bytea", "[]byte", ""},
-		{"jsonb", "jsonb", "[]byte", ""},
-		{"json", "json", "[]byte", ""},
+		{"jsonb", "jsonb", "json.RawMessage", "encoding/json"},
+		{"json", "json", "json.RawMessage", "encoding/json"},
 	}
 
 	tm := NewTypeMapper("postgresql")
@@ -83,9 +83,9 @@ func TestMapSQLTypeToGo_NonNullableTypes(t *testing.T) {
 
 func TestMapSQLTypeToGo_NullableTypes_Pointer(t *testing.T) {
 	tests := []struct {
-		name       string
-		sqlType    string
-		expectedGo string
+		name        string
+		sqlType     string
+		expectedGo  string
 		expectedPkg string
 	}{
 		{"varchar nullable", "varchar", "*string", ""},
@@ -121,9 +121,9 @@ func TestMapSQLTypeToGo_NullableTypes_Pointer(t *testing.T) {
 
 func TestMapSQLTypeToGo_NullableTypes_SqlNull(t *testing.T) {
 	tests := []struct {
-		name       string
-		sqlType    string
-		expectedGo string
+		name        string
+		sqlType     string
+		expectedGo  string
 		expectedPkg string
 	}{
 		{"varchar nullable", "varchar", "sql.NullString", ""},
@@ -160,9 +160,9 @@ func TestMapSQLTypeToGo_NullableTypes_SqlNull(t *testing.T) {
 
 func TestMapSQLTypeToGo_NullableTypes_BunNull(t *testing.T) {
 	tests := []struct {
-		name       string
-		sqlType    string
-		expectedGo string
+		name        string
+		sqlType     string
+		expectedGo  string
 		expectedPkg string
 	}{
 		{"varchar nullable", "varchar", "bun.NullString", ""},
@@ -216,9 +216,9 @@ func TestBuildBunTag(t *testing.T) {
 		{
 			name: "nullable column",
 			col: &catalog.Column{
-				Name:        "email",
-				DataType:    "varchar",
-				IsNullable:  true,
+				Name:       "email",
+				DataType:   "varchar",
+				IsNullable: true,
 			},
 			expected: "email",
 		},

@@ -22,7 +22,6 @@ var requiredTools = []struct {
 	module  string
 	version string
 }{
-	{"sqlc", "github.com/sqlc-dev/sqlc/cmd/sqlc", versions.Sqlc},
 	{"templ", "github.com/a-h/templ/cmd/templ", versions.Templ},
 	{"goose", "github.com/pressly/goose/v3/cmd/goose", versions.Goose},
 }
@@ -99,16 +98,6 @@ func TestToolVersions(t *testing.T) {
 		expectedVersion string
 		versionParser   func(output string) string
 	}{
-		{
-			name:            "sqlc",
-			binary:          "sqlc",
-			versionFlag:     "version",
-			expectedVersion: versions.Sqlc,
-			versionParser: func(output string) string {
-				// sqlc outputs: "v1.30.0"
-				return strings.TrimSpace(output)
-			},
-		},
 		{
 			name:            "templ",
 			binary:          "templ",

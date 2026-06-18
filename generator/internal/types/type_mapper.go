@@ -31,22 +31,22 @@ func NewTypeMapper(databaseType string) *TypeMapper {
 
 // sqlNullTypeMap maps base Go types to their database/sql null equivalent.
 var sqlNullTypeMap = map[string]string{
-	"string":  "sql.NullString",
-	"bool":    "sql.NullBool",
-	"int16":   "sql.NullInt16",
-	"int32":   "sql.NullInt32",
-	"int64":   "sql.NullInt64",
-	"float64": "sql.NullFloat64",
+	"string":    "sql.NullString",
+	"bool":      "sql.NullBool",
+	"int16":     "sql.NullInt16",
+	"int32":     "sql.NullInt32",
+	"int64":     "sql.NullInt64",
+	"float64":   "sql.NullFloat64",
 	"time.Time": "sql.NullTime",
 }
 
 // bunNullTypeMap maps base Go types to their bun null equivalent.
 var bunNullTypeMap = map[string]string{
-	"string":  "bun.NullString",
-	"bool":    "bun.NullBool",
-	"int32":   "bun.NullInt32",
-	"int64":   "bun.NullInt64",
-	"float64": "bun.NullFloat64",
+	"string":    "bun.NullString",
+	"bool":      "bun.NullBool",
+	"int32":     "bun.NullInt32",
+	"int64":     "bun.NullInt64",
+	"float64":   "bun.NullFloat64",
 	"time.Time": "bun.NullTime",
 }
 
@@ -110,7 +110,7 @@ func (tm *TypeMapper) wrapNullable(goType string, nullable bool) string {
 	if !nullable {
 		return goType
 	}
-	if strings.HasPrefix(goType, "*") || strings.HasPrefix(goType, "[]") {
+	if strings.HasPrefix(goType, "*") || strings.HasPrefix(goType, "[]") || goType == "json.RawMessage" {
 		return goType
 	}
 
@@ -164,7 +164,7 @@ func (tm *TypeMapper) basePostgresType(
 		"date", "time", "timetz":
 		return "time.Time", "time"
 	case "json", "jsonb":
-		return "[]byte", ""
+		return "json.RawMessage", "encoding/json"
 	case "_integer":
 		return "[]int32", ""
 	case "_text":

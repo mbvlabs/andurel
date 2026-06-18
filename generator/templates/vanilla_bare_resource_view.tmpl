@@ -7,13 +7,19 @@ package views
 import (
 	"fmt"
 	{{if UsesPackage .Fields "strings"}}"strings"
-	{{end}}	"net/http"
-	"{{.ModulePath}}/internal/renderer"
+	{{end}}{{if or (HasAction "new") (HasAction "edit")}}	"net/http"
+	{{end}}
 	"{{.ModulePath}}/models"
+	{{if or (and (HasAction "show") (HasAction "index")) (HasAction "new") (HasAction "edit")}}"{{.ModulePath}}/internal/renderer"
+	{{end}}
+	{{if or (and (HasAction "index") (or (HasAction "new") (HasAction "show") (HasAction "edit"))) (and (HasAction "show") (or (HasAction "edit") (HasAction "index"))) (HasAction "new") (HasAction "edit")}}
 	"{{.ModulePath}}/router/routes"
-	"{{.ModulePath}}/internal/hypermedia"
+	{{end}}
+	{{if or (HasAction "new") (HasAction "edit")}}"{{.ModulePath}}/internal/hypermedia"
+	{{end}}
 )
 
+{{if HasAction "index"}}
 type {{.ResourceName}}Index struct {
 	Items []models.{{.EntityName}}
 }
@@ -31,16 +37,20 @@ templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 						<div>
 							<h1>{{Plural .ResourceName}}</h1>
 						</div>
+						{{if HasAction "new"}}
 						<a href={ routes.{{.ResourceName}}New.URL() }>New {{.ResourceName}}</a>
+						{{end}}
 					</div>
 					if len({{$indexRecv}}.Items) == 0 {
 						<section>
 							<div>
 								<h2>No {{.PluralName}} found</h2>
 							</div>
+							{{if HasAction "new"}}
 							<div>
 								<a href={ routes.{{.ResourceName}}New.URL() }>New {{.ResourceName}}</a>
 							</div>
+							{{end}}
 						</section>
 					} else {
 						<div>
@@ -57,8 +67,12 @@ templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 											{{range .Fields}}<td>{{StringTableDisplay . ($.ResourceName | ToLower)}}</td>
 											{{end}}<td>
 												<div>
+													{{if HasAction "show"}}
 													<a href={ routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLower}}.ID) }>View</a>
+													{{end}}
+													{{if HasAction "edit"}}
 													<a href={ routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLower}}.ID) }>Edit</a>
+													{{end}}
 												</div>
 											</td>
 										</tr>
@@ -72,7 +86,9 @@ templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 		}
 	}
 }
+{{end}}
 
+{{if HasAction "show"}}
 type {{.ResourceName}}Show struct {
 	Item models.{{.EntityName}}
 }
@@ -91,8 +107,12 @@ templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 							<h1>{{.ResourceName}} Details</h1>
 						</div>
 						<div>
+							{{if HasAction "edit"}}
 							<a href={ routes.{{.ResourceName}}Edit.URL({{$showRecv}}.Item.ID) }>Edit</a>
+							{{end}}
+							{{if HasAction "index"}}
 							<a href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+							{{end}}
 						</div>
 					</div>
 					<div>
@@ -110,7 +130,9 @@ templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 		}
 	}
 }
+{{end}}
 
+{{if HasAction "new"}}
 type {{.ResourceName}}New struct{}
 
 func ({{$newRecv}} {{.ResourceName}}New) PageFragment() string {
@@ -157,7 +179,9 @@ templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 		}
 	}
 }
+{{end}}
 
+{{if HasAction "edit"}}
 type {{.ResourceName}}Edit struct {
 	Item models.{{.EntityName}}
 }
@@ -213,3 +237,4 @@ templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
 		}
 	}
 }
+{{end}}

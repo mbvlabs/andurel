@@ -77,16 +77,20 @@ func NewCoordinator() (Coordinator, error) {
 
 // GenerateController coordinates controller and optional view generation
 func (c *Coordinator) GenerateController(resourceName, tableName string, withViews bool) error {
+	return c.GenerateControllerWithActions(resourceName, tableName, withViews, nil)
+}
+
+func (c *Coordinator) GenerateControllerWithActions(resourceName, tableName string, withViews bool, actions []string) error {
 	if tableName == "" {
 		tableName = naming.DeriveTableName(resourceName)
 	}
 
-	if err := c.ControllerManager.GenerateController(resourceName, tableName, withViews); err != nil {
+	if err := c.ControllerManager.GenerateControllerWithActions(resourceName, tableName, withViews, actions); err != nil {
 		return err
 	}
 
 	if withViews {
-		if err := c.ViewManager.GenerateViewWithController(resourceName, tableName); err != nil {
+		if err := c.ViewManager.GenerateViewWithControllerActions(resourceName, tableName, actions); err != nil {
 			return err
 		}
 	}

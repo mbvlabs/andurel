@@ -66,6 +66,14 @@ func (c *ControllerManager) GenerateController(
 	resourceName, tableName string,
 	withViews bool,
 ) error {
+	return c.GenerateControllerWithActions(resourceName, tableName, withViews, nil)
+}
+
+func (c *ControllerManager) GenerateControllerWithActions(
+	resourceName, tableName string,
+	withViews bool,
+	actions []string,
+) error {
 	modulePath := c.projectManager.GetModulePath()
 
 	tableNameOverridden := tableName != "" && tableName != naming.DeriveTableName(resourceName)
@@ -117,7 +125,7 @@ func (c *ControllerManager) GenerateController(
 	viewLayer := ReadViewLayer()
 
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, viewLayer); err != nil {
+	if err := fileGen.GenerateControllerWithActions(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, viewLayer, actions); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 

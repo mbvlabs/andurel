@@ -6,10 +6,13 @@ package views
 
 import (
 	"net/http"
-	"testapp/internal/hypermedia"
+
 	"testapp/internal/renderer"
 	"testapp/models"
+
 	"testapp/router/routes"
+
+	"testapp/internal/hypermedia"
 )
 
 type ProjectIndex struct {

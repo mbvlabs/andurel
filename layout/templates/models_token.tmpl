@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/base32"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -24,7 +25,7 @@ type TokenEntity struct {
 	Scope         string    `bun:"scope"`
 	ExpiresAt     time.Time `bun:"expires_at"`
 	Hash          string    `bun:"hash"`
-	MetaData      []byte    `bun:"meta_data,type:jsonb"`
+	MetaData      json.RawMessage `bun:"meta_data,type:jsonb"`
 }
 
 func (t TokenEntity) IsValid(token, secret string) bool {
@@ -102,7 +103,7 @@ type createTokenData struct {
 	Scope     string    `validate:"required"`
 	ExpiresAt time.Time `validate:"required"`
 	Hash      string    `validate:"required"`
-	MetaData  []byte    `validate:"required"`
+	MetaData  json.RawMessage `validate:"required"`
 }
 
 func (t token) createToken(
@@ -137,7 +138,7 @@ func (t token) CreateCode(
 	pepper string,
 	scope string,
 	expiresAt time.Time,
-	metaData []byte,
+	metaData json.RawMessage,
 ) (string, error) {
 	tkn, err := GenerateCode(6)
 	if err != nil {
@@ -162,7 +163,7 @@ func (t token) Create(
 	pepper string,
 	scope string,
 	expiresAt time.Time,
-	metaData []byte,
+	metaData json.RawMessage,
 ) (string, error) {
 	tkn, err := GenerateSecureToken()
 	if err != nil {

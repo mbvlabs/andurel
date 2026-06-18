@@ -2,6 +2,7 @@ package blueprint
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -521,10 +522,8 @@ func (b *Builder) AddServiceProvide(expr string) *Builder {
 		return b
 	}
 
-	for _, s := range b.bp.Main.ServiceProvides {
-		if s == expr {
-			return b
-		}
+	if slices.Contains(b.bp.Main.ServiceProvides, expr) {
+		return b
 	}
 
 	b.bp.Main.ServiceProvides = append(b.bp.Main.ServiceProvides, expr)

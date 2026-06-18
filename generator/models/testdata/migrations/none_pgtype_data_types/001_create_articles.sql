@@ -1,5 +1,5 @@
 -- +goose Up
--- Test table for types where sqlc generates native Go types instead of pgtype wrappers
+-- Test table for native array and JSON model types
 CREATE TABLE articles (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     title text NOT NULL,
