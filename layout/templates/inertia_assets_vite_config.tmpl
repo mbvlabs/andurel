@@ -4,9 +4,10 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
+  base: '/assets/build/',
   build: {
     manifest: true,
-    outDir: 'public/build',
+    outDir: 'assets/build',
     rollupOptions: {
       input: 'resources/js/app.ts',
     },

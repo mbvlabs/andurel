@@ -135,6 +135,9 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	fmt.Printf("  fill in your database connection details in .env\n")
 	fmt.Printf("  (andurel database create - if database does not exist\n")
 	fmt.Printf("  andurel database migrate up\n")
+	if viewLayer == "inertia-vue" {
+		fmt.Printf("  npm install\n")
+	}
 	fmt.Printf("  andurel run\n")
 
 	return nil

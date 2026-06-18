@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"os"
-	"path/filepath"
 
+	"{{.ModuleName}}/assets"
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/server"
 )
@@ -31,13 +30,7 @@ func initVite() (*viteTags, error) {
 		}, nil
 	}
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("vite: getwd: %w", err)
-	}
-
-	manifestPath := filepath.Join(cwd, "public", "build", "manifest.json")
-	data, err := os.ReadFile(manifestPath)
+	data, err := assets.Files.ReadFile("build/manifest.json")
 	if err != nil {
 		return nil, fmt.Errorf("vite: read manifest: %w", err)
 	}
@@ -54,9 +47,9 @@ func initVite() (*viteTags, error) {
 
 	tags := &viteTags{}
 	for _, css := range entry.CSS {
-		tags.ViteHead += template.HTML(`<link rel="stylesheet" href="/build/` + css + `">`)
+		tags.ViteHead += template.HTML(`<link rel="stylesheet" href="/assets/build/` + css + `">`)
 	}
-	tags.ViteBody = template.HTML(`<script type="module" src="/build/` + entry.File + `"></script>`)
+	tags.ViteBody = template.HTML(`<script type="module" src="/assets/build/` + entry.File + `"></script>`)
 
 	return tags, nil
 }

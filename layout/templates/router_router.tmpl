@@ -62,6 +62,10 @@ func New(
 
 	router.Use(globalMiddleware...)
 
+{{- if eq .ViewLayer "inertia-vue"}}
+	router.Static("/assets/build", "assets/build")
+{{- end}}
+
 	handler := http.Handler(router)
 	if enableHTTPInstrumentation {
 		handler = otelhttp.NewHandler(router, "http")
