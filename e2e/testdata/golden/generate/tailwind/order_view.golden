@@ -1,8 +1,236 @@
+
+
+
+
 package views
 
 import (
+	"fmt"
 	"net/http"
+	"testapp/internal/hypermedia"
 	"testapp/internal/renderer"
+	"testapp/models"
 	"testapp/router/routes"
 )
 
+type OrderIndex struct {
+	Items []models.OrderEntity
+}
+
+func (oi OrderIndex) PageFragment() string {
+	return "order-index-page-fragment"
+}
+
+templ (oi OrderIndex) Page() {
+	@base() {
+		@templ.Fragment(oi.PageFragment()) {
+			<main id="order-index-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold text-gray-900">Orders</h1>
+						<a href={ routes.OrderNew.URL() } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded">New Order</a>
+					</div>
+					if len(oi.Items) == 0 {
+						<p class="text-sm text-gray-500">No orders found.</p>
+					} else {
+						<div class="relative w-full overflow-auto">
+							<table class="w-full caption-bottom text-sm">
+								<thead class="[&_tr]:border-b [&_tr]:border-gray-300">
+									<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Account Id</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Customer Name</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Total</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Signature</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Created At</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Updated At</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0">Actions</th>
+									</tr>
+								</thead>
+								<tbody class="[&_tr:last-child]:border-0">
+									for _, order := range oi.Items {
+										<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ order.AccountID.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ order.CustomerName }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%f", order.Total) }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ string(order.Signature) }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ order.CreatedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ order.UpdatedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+												<div class="flex flex-wrap gap-3 text-sm">
+													<a class="text-gray-600 hover:text-gray-900" href={ routes.OrderShow.URL(order.ID) }>View</a>
+													<a class="text-gray-600 hover:text-gray-900" href={ routes.OrderEdit.URL(order.ID) }>Edit</a>
+												</div>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</div>
+			</main>
+		}
+	}
+}
+
+type OrderShow struct {
+	Item models.OrderEntity
+}
+
+func (os OrderShow) PageFragment() string {
+	return "order-show-page-fragment"
+}
+
+templ (os OrderShow) Page() {
+	@base() {
+		@templ.Fragment(os.PageFragment()) {
+			<main id="order-show-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold text-gray-900">Order Details</h1>
+						<div class="flex flex-wrap items-center gap-3">
+							<a href={ routes.OrderEdit.URL(os.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded">Edit</a>
+							<a class="text-sm text-gray-600 hover:text-gray-900" href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
+						</div>
+					</div>
+					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+						<div class="p-6 pt-0">
+							<div class="grid gap-5 sm:grid-cols-2">
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Account Id</label>
+									<p class="text-sm text-gray-900">{ os.Item.AccountID.String() }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Customer Name</label>
+									<p class="text-sm text-gray-900">{ os.Item.CustomerName }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Total</label>
+									<p class="text-sm text-gray-900">{ fmt.Sprintf("%f", os.Item.Total) }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Signature</label>
+									<p class="text-sm text-gray-900">{ string(os.Item.Signature) }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
+									<p class="text-sm text-gray-900">{ os.Item.CreatedAt.String() }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
+									<p class="text-sm text-gray-900">{ os.Item.UpdatedAt.String() }</p>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}
+
+type OrderNew struct{}
+
+func (on OrderNew) PageFragment() string {
+	return "order-new-page-fragment"
+}
+
+templ (on OrderNew) Page() {
+	@base() {
+		@templ.Fragment(on.PageFragment()) {
+			<main id="order-new-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+						<div class="flex flex-col space-y-1.5 p-6">
+							<h3 class="text-lg font-semibold leading-none text-gray-900">New Order</h3>
+							<p class="text-sm text-gray-500">Enter the details for the new order.</p>
+						</div>
+						<div class="p-6 pt-0">
+							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.OrderCreate.URL()) }>
+								<fieldset data-attr:disabled="$_submitting">
+									<div class="space-y-4">
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="accountId">Account Id</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="accountId"/>
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="customerName">Customer Name</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="customerName"/>
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="total">Total</label>
+											<input type="number" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="total"/>
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="signature">Signature</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="signature"/>
+										</div>
+									</div>
+									<div class="mt-6 space-y-3">
+										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Create Order</button>
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}
+
+type OrderEdit struct {
+	Item models.OrderEntity
+}
+
+func (oe OrderEdit) PageFragment() string {
+	return "order-edit-page-fragment"
+}
+
+templ (oe OrderEdit) Page() {
+	@base() {
+		@templ.Fragment(oe.PageFragment()) {
+			<main id="order-edit-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+						<div class="flex flex-col space-y-1.5 p-6">
+							<h3 class="text-lg font-semibold leading-none text-gray-900">Edit Order</h3>
+							<p class="text-sm text-gray-500">Update the details for this order.</p>
+						</div>
+						<div class="p-6 pt-0">
+							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.OrderUpdate.URL(oe.Item.ID)) }>
+								<fieldset data-attr:disabled="$_submitting">
+									<div class="space-y-4">
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="accountId">Account Id</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="accountId" value={ oe.Item.AccountID.String() }/>
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="customerName">Customer Name</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="customerName" value={ oe.Item.CustomerName }/>
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="total">Total</label>
+											<input type="number" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="total" value={ fmt.Sprintf("%f", oe.Item.Total) }/>
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="signature">Signature</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="signature" value={ string(oe.Item.Signature) }/>
+										</div>
+									</div>
+									<div class="mt-6 space-y-3">
+										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Update Order</button>
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+							<div role="separator" class="my-6 shrink-0 bg-gray-300 h-px w-full"></div>
+							<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white shadow-sm hover:bg-red-700 h-9 px-4 py-2 text-sm rounded w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.OrderDestroy.URL(oe.Item.ID)) }>Destroy Order</button>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}
