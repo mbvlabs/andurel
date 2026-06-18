@@ -122,10 +122,10 @@ func (c *ControllerManager) GenerateControllerWithActions(
 
 	nullType := c.readNullType()
 	diMode := c.readDIMode()
-	viewLayer := ReadViewLayer()
+	inertia := ReadInertia()
 
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateControllerWithActions(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, viewLayer, actions); err != nil {
+	if err := fileGen.GenerateControllerWithActions(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia, actions); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
@@ -207,10 +207,10 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 
 	nullType := c.readNullType()
 	diMode := c.readDIMode()
-	viewLayer := ReadViewLayer()
+	inertia := ReadInertia()
 
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, viewLayer); err != nil {
+	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
@@ -261,16 +261,16 @@ func ReadDIMode() string {
 	return "manual"
 }
 
-// ReadViewLayer reads the frontend layer from andurel.lock.
-// Defaults to "templ" when not configured.
-func ReadViewLayer() string {
+// ReadInertia reads the inertia adapter from andurel.lock.
+// Returns "" when not configured (templ-only mode).
+func ReadInertia() string {
 	fm := files.NewUnifiedFileManager()
 	rootDir, err := fm.FindGoModRoot()
 	if err != nil {
-		return "templ"
+		return ""
 	}
-	if lock, err := layout.ReadLockFile(rootDir); err == nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.ViewLayer != "" {
-		return lock.ScaffoldConfig.ViewLayer
+	if lock, err := layout.ReadLockFile(rootDir); err == nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.Inertia != "" {
+		return lock.ScaffoldConfig.Inertia
 	}
-	return "templ"
+	return ""
 }

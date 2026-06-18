@@ -105,7 +105,7 @@ func buildApp(rootDir string, versionFlag string) error {
 	}
 
 	// 2.5. Vite/NPM build for inertia-vue frontend
-	if lock.ScaffoldConfig != nil && lock.ScaffoldConfig.ViewLayer == "inertia-vue" {
+	if lock.ScaffoldConfig != nil && lock.ScaffoldConfig.Inertia == "vue" {
 		fmt.Println("Installing NPM dependencies...")
 		npmCi := exec.Command("npm", "ci")
 		npmCi.Dir = rootDir

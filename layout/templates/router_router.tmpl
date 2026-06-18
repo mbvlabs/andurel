@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/config"
-{{- if eq .ViewLayer "inertia-vue"}}
+{{- if eq .Inertia "vue"}}
 	"{{.ModuleName}}/internal/renderer"
 {{- end}}
 	"{{.ModuleName}}/router/cookies"
@@ -62,7 +62,7 @@ func New(
 
 	router.Use(globalMiddleware...)
 
-{{- if eq .ViewLayer "inertia-vue"}}
+{{- if eq .Inertia "vue"}}
 	router.Static("/assets/build", "assets/build")
 {{- end}}
 
@@ -104,7 +104,7 @@ func SetupGlobalMiddleware(
 		middleware.RegisterAppContext,
 		middleware.RegisterFlashMessagesContext,
 		middleware.TrackReturnTo,
-{{- if eq .ViewLayer "inertia-vue"}}
+{{- if eq .Inertia "vue"}}
 		renderer.InertiaMiddleware(),
 {{- end}}
 		echomw.CORSWithConfig(echomw.CORSConfig{

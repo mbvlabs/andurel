@@ -4,19 +4,19 @@ package controllers
 import (
 	"{{.ModuleName}}/router"
 
-{{- if ne .ViewLayer "inertia-vue"}}
+{{- if not .Inertia}}
 	"github.com/a-h/templ"
 {{- end}}
 	"go.uber.org/fx"
 )
 
-{{- if ne .ViewLayer "inertia-vue"}}
+{{- if not .Inertia}}
 var pageCache = NewCacheBuilder[templ.Component]().Build
 {{- end}}
 var otherCache = NewCacheBuilder[string]().WithSize(2).Build
 
 var constructors = fx.Provide(
-{{- if ne .ViewLayer "inertia-vue"}}
+{{- if not .Inertia}}
 	pageCache,
 {{- end}}
 	otherCache,

@@ -38,20 +38,17 @@ func Scaffold(
 	targetDir, projectName, database, cssFramework, version string,
 	extensionNames []string,
 	diMode string,
-	viewLayer string,
+	inertia string,
 ) error {
 	if diMode == "" {
 		diMode = "manual"
-	}
-	if viewLayer == "" {
-		viewLayer = "templ"
 	}
 
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
 
 	moduleName := projectName
 
-	blueprint := initializeBaseBlueprint(moduleName, diMode, viewLayer)
+	blueprint := initializeBaseBlueprint(moduleName, diMode, inertia)
 	templateData := TemplateData{
 		AppName:              projectName,
 		ProjectName:          projectName,
@@ -66,7 +63,7 @@ func Scaffold(
 		Extensions:           extensionNames,
 		RunToolVersion:       GetRunToolVersion(),
 		DIMode:               diMode,
-		ViewLayer:            viewLayer,
+		Inertia:              inertia,
 		blueprint:            blueprint,
 	}
 
@@ -116,7 +113,7 @@ func Scaffold(
 		CSSFramework: cssFramework,
 		Extensions:   extensionNames,
 		DIMode:       diMode,
-		ViewLayer:    viewLayer,
+		Inertia:      inertia,
 	}
 	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", scaffoldConfig); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
@@ -146,7 +143,7 @@ func Scaffold(
 			TargetDir: targetDir,
 			Data:      &templateData,
 			DIMode:    diMode,
-			ViewLayer: viewLayer,
+			Inertia: inertia,
 			ProcessTemplate: func(templateFile, targetPath string, data extensions.TemplateData) error {
 				if data == nil {
 					data = &templateData
@@ -473,7 +470,7 @@ func processTemplatedFiles(
 		}
 	}
 
-	if td, ok := data.(*TemplateData); ok && td.ViewLayer == "inertia-vue" {
+	if td, ok := data.(*TemplateData); ok && td.Inertia == "vue" {
 		for k := range inertiaSkippedTemplates {
 			delete(mappings, k)
 		}
@@ -509,7 +506,7 @@ func processTemplatedFiles(
 
 	if cssFramework == "tailwind" {
 		for templateFile, targetPath := range baseTailwindTemplateMappings {
-			if td, ok := data.(*TemplateData); ok && td.ViewLayer == "inertia-vue" && inertiaSkippedTemplates[templateFile] {
+			if td, ok := data.(*TemplateData); ok && td.Inertia == "vue" && inertiaSkippedTemplates[templateFile] {
 				continue
 			}
 			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
@@ -1009,14 +1006,14 @@ func generateRandomHex(bytes int) string {
 
 // initializeBaseBlueprint creates a blueprint with default base configuration
 // for controllers, routes, and other scaffold components.
-func initializeBaseBlueprint(moduleName, diMode, viewLayer string) *blueprint.Blueprint {
+func initializeBaseBlueprint(moduleName, diMode, inertia string) *blueprint.Blueprint {
 	if diMode == "uberfx" {
 		return initializeUberFxBlueprint(moduleName)
 	}
-	return initializeManualBlueprint(moduleName, viewLayer)
+	return initializeManualBlueprint(moduleName, inertia)
 }
 
-func initializeManualBlueprint(moduleName, viewLayer string) *blueprint.Blueprint {
+func initializeManualBlueprint(moduleName, inertia string) *blueprint.Blueprint {
 	builder := blueprint.NewBuilder(nil)
 
 	builder.AddMainImport(fmt.Sprintf("%s/clients/email", moduleName))
@@ -1051,7 +1048,7 @@ func initializeManualBlueprint(moduleName, viewLayer string) *blueprint.Blueprin
 		AddControllerField("ResetPasswords", "controllers.ResetPasswords")
 
 	pagesConstructor := "controllers.NewPages(db, insertOnly, pagesCache)"
-	if viewLayer == "inertia-vue" {
+	if inertia == "vue" {
 		pagesConstructor = "controllers.NewPages(db, insertOnly)"
 	}
 

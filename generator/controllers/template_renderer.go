@@ -22,12 +22,12 @@ func NewTemplateRenderer() *TemplateRenderer {
 	}
 }
 
-func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController, diMode, viewLayer string) (string, error) {
+func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController, diMode, inertia string) (string, error) {
 	var templateName string
 	switch controller.Type {
 	case ResourceController:
 		templateName = "resource_controller.tmpl"
-		if viewLayer == "inertia-vue" {
+		if inertia == "vue" {
 			templateName = "inertia_vue_resource_controller.tmpl"
 			if diMode == "uberfx" {
 				templateName = "inertia_vue_resource_controller_fx.tmpl"

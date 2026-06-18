@@ -13,7 +13,7 @@ import (
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/database"
-{{- if eq .ViewLayer "inertia-vue"}}
+{{- if eq .Inertia "vue"}}
 	"{{.ModuleName}}/internal/renderer"
 {{- end}}
 	"{{.ModuleName}}/internal/server"
@@ -32,7 +32,7 @@ import (
 	"{{.}}"
 {{- end}}
 
-{{- if ne .ViewLayer "inertia-vue"}}
+{{- if not .Inertia}}
 	"github.com/a-h/templ"
 {{- end}}
 )
@@ -51,7 +51,7 @@ func setupControllers(
 	r *router.Router,
 	riverHandler *riverui.Handler,
 ) error {
-{{- if ne .ViewLayer "inertia-vue"}}
+{{- if not .Inertia}}
 	pagesCache, err := controllers.NewCacheBuilder[templ.Component]().Build()
 	if err != nil {
 		return err
@@ -144,7 +144,7 @@ func run(ctx context.Context) error {
 
 	cfg := config.NewConfig()
 
-{{- if eq .ViewLayer "inertia-vue"}}
+{{- if eq .Inertia "vue"}}
 	if err := renderer.InitInertia("views/root.go.html"); err != nil {
 		return fmt.Errorf("failed to initialize inertia: %w", err)
 	}

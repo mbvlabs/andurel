@@ -15,7 +15,7 @@ import (
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/email"
-{{- if eq .ViewLayer "inertia-vue"}}
+{{- if eq .Inertia "vue"}}
 	"{{.ModuleName}}/internal/renderer"
 {{- end}}
 	"{{.ModuleName}}/internal/server"
@@ -33,7 +33,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-{{- if eq .ViewLayer "inertia-vue"}}
+{{- if eq .Inertia "vue"}}
 	if err := renderer.InitInertia("views/root.go.html"); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to initialize inertia: %s\n", err)
 		os.Exit(1)

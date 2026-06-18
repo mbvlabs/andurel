@@ -22,7 +22,7 @@ type TemplateData struct {
 	Extensions           []string
 	RunToolVersion       string // Version of the run built tool
 	DIMode               string // "manual" or "uberfx"
-	ViewLayer            string // "templ" or "inertia-vue"
+	Inertia              string // "vue", "react", etc. Empty means templ-only
 
 	// Blueprint holds the structured scaffold configuration
 	blueprint *blueprint.Blueprint
@@ -51,13 +51,13 @@ func (td *TemplateData) GetCSSFramework() string {
 	return td.CSSFramework
 }
 
-// GetViewLayer returns the frontend layer for the project.
-func (td *TemplateData) GetViewLayer() string {
+// GetInertia returns the inertia adapter for the project, if any.
+func (td *TemplateData) GetInertia() string {
 	if td == nil {
 		return ""
 	}
 
-	return td.ViewLayer
+	return td.Inertia
 }
 
 // Blueprint returns the underlying blueprint. If not yet initialized, creates

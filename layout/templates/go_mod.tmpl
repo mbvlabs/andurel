@@ -1,7 +1,7 @@
 module {{.ModuleName}}
 
 go {{.GoVersion}}
-{{- if eq .ViewLayer "inertia-vue"}}
+{{- if eq .Inertia "vue"}}
 
 require github.com/romsar/gonertia/v3 v3.0.0
 {{- end}}

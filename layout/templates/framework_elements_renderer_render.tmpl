@@ -1,9 +1,9 @@
-// Package renderer provides utilities for rendering templ components{{if eq .ViewLayer "inertia-vue"}} and Inertia pages{{end}}.
+// Package renderer provides utilities for rendering templ components{{if eq .Inertia "vue"}} and Inertia pages{{end}}.
 // Code generated and maintained by the andurel framework. DO NOT EDIT.
 package renderer
 
 import (
-{{- if eq .ViewLayer "inertia-vue"}}
+{{- if eq .Inertia "vue"}}
 	"errors"
 	"fmt"
 {{- end}}
@@ -11,14 +11,14 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
-{{- if eq .ViewLayer "inertia-vue"}}
+{{- if eq .Inertia "vue"}}
 	inertia "github.com/romsar/gonertia/v3"
 
 	"{{.ModuleName}}/config"
 {{- end}}
 )
 
-{{- if eq .ViewLayer "inertia-vue"}}
+{{- if eq .Inertia "vue"}}
 
 var gInertia *inertia.Inertia
 

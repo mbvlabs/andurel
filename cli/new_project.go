@@ -42,7 +42,7 @@ creation, run 'andurel tool sync' to download required binaries.`,
 		String("di", "manual", "Dependency injection approach (manual, uberfx)")
 
 	projectCmd.Flags().
-		String("frontend", "templ", "Frontend layer (templ, inertia-vue)")
+		String("inertia", "", "Inertia adapter to use (vue)")
 
 	return projectCmd
 }
@@ -103,27 +103,27 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 		)
 	}
 
-	viewLayer, err := cmd.Flags().GetString("frontend")
+	inertia, err := cmd.Flags().GetString("inertia")
 	if err != nil {
 		return err
 	}
 
-	if viewLayer != "templ" && viewLayer != "inertia-vue" {
+	if inertia != "" && inertia != "vue" {
 		return fmt.Errorf(
-			"invalid frontend provided: %s - valid options are 'templ' and 'inertia-vue'",
-			viewLayer,
+			"invalid inertia adapter: %s - valid options are 'vue'",
+			inertia,
 		)
 	}
 
-	if viewLayer == "inertia-vue" && cssFramework != "tailwind" {
-		return fmt.Errorf("--frontend inertia-vue currently requires --css tailwind")
+	if inertia == "vue" && cssFramework != "tailwind" {
+		return fmt.Errorf("--inertia vue currently requires --css tailwind")
 	}
 
 	extensions, err := cmd.Flags().GetStringSlice("extensions")
 	if err != nil {
 		return err
 	}
-	if err := layout.Scaffold(basePath, projectName, database, cssFramework, version, extensions, diMode, viewLayer); err != nil {
+	if err := layout.Scaffold(basePath, projectName, database, cssFramework, version, extensions, diMode, inertia); err != nil {
 		return err
 	}
 
@@ -135,7 +135,7 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	fmt.Printf("  fill in your database connection details in .env\n")
 	fmt.Printf("  (andurel database create - if database does not exist\n")
 	fmt.Printf("  andurel database migrate up\n")
-	if viewLayer == "inertia-vue" {
+	if inertia == "vue" {
 		fmt.Printf("  npm install\n")
 	}
 	fmt.Printf("  andurel run\n")

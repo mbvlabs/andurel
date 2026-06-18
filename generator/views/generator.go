@@ -221,7 +221,7 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 }
 
 func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
-	if lock != nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.ViewLayer == "inertia-vue" {
+	if lock != nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.Inertia == "vue" {
 		return "inertia_vue_tw_bare_"
 	}
 
@@ -249,7 +249,7 @@ func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
 }
 
 func (g *Generator) isInertiaVue(lock *layout.AndurelLock) bool {
-	return lock != nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.ViewLayer == "inertia-vue"
+	return lock != nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.Inertia == "vue"
 }
 
 func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, templatePrefix string) (string, error) {
