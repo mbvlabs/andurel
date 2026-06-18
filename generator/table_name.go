@@ -24,11 +24,11 @@ func ExtractTableNameOverride(modelPath string, resourceName string) (string, bo
 		if !strings.HasPrefix(line, "bun.BaseModel") {
 			continue
 		}
-		start := strings.Index(line, `bun:"table:`)
-		if start == -1 {
+		_, after, ok := strings.Cut(line, `bun:"table:`)
+		if !ok {
 			break
 		}
-		rest := line[start+len(`bun:"table:`):]
+		rest := after
 		end := strings.IndexAny(rest, `",`)
 		if end == -1 {
 			break

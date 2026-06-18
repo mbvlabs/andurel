@@ -26,7 +26,7 @@ func newGenerateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "generate",
 		Aliases: []string{"g"},
-		Short: "Generate new code (model, controller, scaffold, job, email)",
+		Short:   "Generate new code (model, controller, scaffold, job, email)",
 		Long: `Generates new code for your Andurel application. The following
 generators are available:
 
@@ -219,12 +219,9 @@ func formatGenerateFailure(runErr error, removedFiles []string, cleanupFailures 
 
 func formatPathList(paths []string, maxItems int) string {
 	var out strings.Builder
-	limit := len(paths)
-	if limit > maxItems {
-		limit = maxItems
-	}
+	limit := min(len(paths), maxItems)
 
-	for i := 0; i < limit; i++ {
+	for i := range limit {
 		out.WriteString("\n  - ")
 		out.WriteString(paths[i])
 	}

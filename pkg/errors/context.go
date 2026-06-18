@@ -8,10 +8,10 @@ import (
 
 // ErrorContext provides context for error wrapping
 type ErrorContext struct {
-	Operation string                 `json:"operation"`
-	Resource  string                 `json:"resource"`
-	File      string                 `json:"file"`
-	Details   map[string]interface{} `json:"details"`
+	Operation string         `json:"operation"`
+	Resource  string         `json:"resource"`
+	File      string         `json:"file"`
+	Details   map[string]any `json:"details"`
 }
 
 // NewErrorContext creates a new error context
@@ -20,12 +20,12 @@ func NewErrorContext(operation, resource, file string) *ErrorContext {
 		Operation: operation,
 		Resource:  resource,
 		File:      file,
-		Details:   make(map[string]interface{}),
+		Details:   make(map[string]any),
 	}
 }
 
 // WithDetail adds a detail to the error context
-func (ec *ErrorContext) WithDetail(key string, value interface{}) *ErrorContext {
+func (ec *ErrorContext) WithDetail(key string, value any) *ErrorContext {
 	ec.Details[key] = value
 	return ec
 }
@@ -171,7 +171,7 @@ type ErrorBuilder struct {
 func NewErrorBuilder() *ErrorBuilder {
 	return &ErrorBuilder{
 		context: &ErrorContext{
-			Details: make(map[string]interface{}),
+			Details: make(map[string]any),
 		},
 	}
 }
@@ -195,7 +195,7 @@ func (eb *ErrorBuilder) File(file string) *ErrorBuilder {
 }
 
 // Detail adds a detail
-func (eb *ErrorBuilder) Detail(key string, value interface{}) *ErrorBuilder {
+func (eb *ErrorBuilder) Detail(key string, value any) *ErrorBuilder {
 	eb.context.Details[key] = value
 	return eb
 }

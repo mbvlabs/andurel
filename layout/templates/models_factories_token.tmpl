@@ -2,6 +2,7 @@ package factories
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -34,7 +35,7 @@ func BuildToken(opts ...TokenOption) models.TokenEntity {
 			Scope:     "default",
 			ExpiresAt: time.Now().Add(1 * time.Hour),
 			Hash:      "test-hash",
-			MetaData:  []byte("{}"),
+			MetaData:  json.RawMessage("{}"),
 		},
 	}
 
@@ -67,7 +68,7 @@ func CreateToken(
 		TokenEntity: models.TokenEntity{
 			Scope:     "default",
 			ExpiresAt: time.Now().Add(1 * time.Hour),
-			MetaData:  []byte("{}"),
+			MetaData:  json.RawMessage("{}"),
 		},
 	}
 
@@ -134,7 +135,7 @@ func WithExpiresAt(t time.Time) TokenOption {
 }
 
 // WithMetaData sets the metadata for the token
-func WithMetaData(data []byte) TokenOption {
+func WithMetaData(data json.RawMessage) TokenOption {
 	return func(f *TokenFactory) {
 		f.MetaData = data
 	}

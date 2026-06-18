@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -214,11 +215,8 @@ func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
 
 	if lock != nil && lock.ScaffoldConfig != nil {
 		cssFramework = lock.ScaffoldConfig.CSSFramework
-		for _, ext := range lock.ScaffoldConfig.Extensions {
-			if ext == "css-components" {
-				hasCssComponents = true
-				break
-			}
+		if slices.Contains(lock.ScaffoldConfig.Extensions, "css-components") {
+			hasCssComponents = true
 		}
 	}
 

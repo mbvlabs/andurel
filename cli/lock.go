@@ -48,7 +48,6 @@ The version should be specified WITHOUT the "v" prefix.
 
 Examples:
   andurel tool set-version templ 0.3.977
-  andurel tool set-version sqlc 1.30.0
   andurel tool set-version tailwindcli 4.1.18
   andurel tool set-version shadowfax 0.1.3
 

@@ -6,7 +6,7 @@ import (
 )
 
 type Entry struct {
-	Value     interface{}
+	Value     any
 	ExpiresAt time.Time
 }
 
@@ -27,7 +27,7 @@ func NewFileSystemCache(ttl time.Duration) *FileSystemCache {
 	}
 }
 
-func (fsc *FileSystemCache) Get(key string) (interface{}, bool) {
+func (fsc *FileSystemCache) Get(key string) (any, bool) {
 	fsc.mutex.RLock()
 	defer fsc.mutex.RUnlock()
 
@@ -39,7 +39,7 @@ func (fsc *FileSystemCache) Get(key string) (interface{}, bool) {
 	return entry.Value, true
 }
 
-func (fsc *FileSystemCache) Set(key string, value interface{}) {
+func (fsc *FileSystemCache) Set(key string, value any) {
 	fsc.mutex.Lock()
 	defer fsc.mutex.Unlock()
 

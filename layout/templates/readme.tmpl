@@ -22,11 +22,9 @@ A full-stack web application built with [Andurel](https://github.com/mbvlabs/and
 ├── examples/
 │   └── html/            # Copy/paste HTML snippets with Datastar attributes
 {{end}}├── database/
-│   ├── migrations/      # SQL migration files
-│   └── queries/         # SQLC query definitions
+│   └── migrations/      # SQL migration files
 ├── email/               # Email templates and sending
 ├── models/              # Data models and business logic
-│   └── internal/db/     # Generated SQLC code (don't edit)
 ├── queue/               # Background job processing
 │   ├── jobs/            # Job definitions
 │   └── workers/         # Worker implementations
@@ -172,8 +170,7 @@ This creates:
 - Routes automatically registered in `router/routes/products.go`
 
 The generator also:
-- Updates `database/queries/` with SQLC queries
-- Regenerates SQLC code
+- Creates Bun-backed model methods for CRUD operations
 - Creates a complete CRUD interface at `/products`
 
 **Custom table names**: If your table doesn't follow Rails naming conventions (model `Product` → table `products`):
@@ -365,35 +362,6 @@ _, err := insertOnly.Client.Insert(ctx, jobs.SendTransactionalEmailArgs{
 
 Emails are sent to Mailpit in development. Access the web UI at `http://localhost:8025` to view sent emails.
 
-### Working with the Database
-
-**Add queries**
-
-Create SQL queries in `database/queries/`:
-
-```sql
--- name: GetUserByEmail :one
-SELECT * FROM users WHERE email = $1 LIMIT 1;
-
--- name: ListActiveUsers :many
-SELECT * FROM users WHERE active = true ORDER BY created_at DESC;
-```
-
-**Generate type-safe code**
-
-```bash
-andurel sqlc generate
-```
-
-**Use generated code**
-
-```go
-import "{{.ModuleName}}/models/internal/db"
-
-user, err := queries.GetUserByEmail(ctx, "user@example.com")
-users, err := queries.ListActiveUsers(ctx)
-```
-
 ### Schema Changes
 
 When modifying your database schema:
@@ -408,12 +376,7 @@ andurel migration new add_email_to_users
 # 3. Apply the migration
 andurel migration up
 
-# 4. Update queries if needed (in database/queries/)
-
-# 5. Regenerate SQLC code
-andurel sqlc generate
-
-# 6. Refresh affected models
+# 4. Refresh affected models
 andurel g model User --refresh
 ```
 {{if eq .CSSFramework "tailwind"}}
@@ -552,7 +515,7 @@ CSRF protection is always enabled for HTML routes and uses Fetch Metadata to ali
 ## Development Tips
 
 1. **Live Reload**: Use `andurel run` during development for automatic reloading
-2. **Type Safety**: Let SQLC and Templ catch errors at compile time
+2. **Type Safety**: Let Bun models and Templ catch errors at compile time
 3. **Database Console**: Use `andurel app console` for quick database queries
 4. **Hot Reload**: Changes to Go, Templ, or CSS automatically trigger rebuilds{{if eq .CSSFramework "tailwind"}}
 5. **Tailwind**: Use Tailwind's utility classes in your Templ templates{{end}}{{if eq .CSSFramework "vanilla"}}
@@ -572,9 +535,6 @@ andurel migration new add_field_to_products
 
 # Run migrations
 andurel migration up
-
-# Regenerate SQLC code
-andurel sqlc generate
 
 # Access database console
 andurel app console
@@ -837,7 +797,7 @@ The test helper automatically:
 3. **Test isolation**: Each test should be independent and not rely on other tests
 4. **Descriptive names**: Name tests clearly (e.g., `TestProducts_Create_WithInvalidData`)
 5. **Assert clearly**: Check both success cases and expected database state
-6. **Don't test frameworks**: Focus on your business logic, not Echo or SQLC behavior
+6. **Don't test frameworks**: Focus on your business logic, not Echo or Bun behavior
 {{if .Extensions}}
 ## Extensions
 
@@ -1131,7 +1091,6 @@ Request production access: AWS SES Console → Account Dashboard → Request Pro
 
 - [Andurel Documentation](https://github.com/mbvlabs/andurel)
 - [Echo Framework](https://echo.labstack.com/)
-- [SQLC](https://sqlc.dev/)
 - [Templ](https://templ.guide/)
 - [Datastar](https://data-star.dev/){{if eq .Database "postgres"}}
 - [River](https://riverqueue.com/){{else}}

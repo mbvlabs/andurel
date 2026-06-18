@@ -32,15 +32,9 @@ func TestMultiMigrationHandling(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tempDir := t.TempDir()
-			queriesDir := filepath.Join(tempDir, "database", "queries")
 			modelsDir := filepath.Join(tempDir, "models")
 
-			err := os.MkdirAll(queriesDir, constants.DirPermissionDefault)
-			if err != nil {
-				t.Fatalf("Failed to create queries directory: %v", err)
-			}
-
-			err = os.MkdirAll(modelsDir, constants.DirPermissionDefault)
+			err := os.MkdirAll(modelsDir, constants.DirPermissionDefault)
 			if err != nil {
 				t.Fatalf("Failed to create models directory: %v", err)
 			}
