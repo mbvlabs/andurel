@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator"
@@ -106,12 +107,7 @@ func generateControllerWithActions(name string, actions []string, skipRoutes boo
 }
 
 func hasCRUDControllerAction(actions []string) bool {
-	for _, action := range actions {
-		if isCRUDControllerAction(action) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(actions, isCRUDControllerAction)
 }
 
 func nonCRUDControllerActions(actions []string) []string {
