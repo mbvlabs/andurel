@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	mainFileRelPath    = "cmd/app/main.go"
-	registrationMarker = "// andurel:controller-registration-point"
+	mainFileRelPath       = "cmd/app/main.go"
+	controllerFileRelPath = "controllers/controller.go"
+	registrationMarker    = "// andurel:controller-registration-point"
 )
 
 type MainInjector struct {
@@ -83,6 +84,69 @@ func (mi *MainInjector) InjectController(resourceName, pluralName string) error 
 	return nil
 }
 
+// InjectFXController adds a generated resource controller to controllers.Module.
+// Returns nil if the file or expected module shape is not found, after printing
+// instructions for a manual update.
+func (mi *MainInjector) InjectFXController(resourceName, pluralName string) error {
+	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
+
+	rootDir, err := mi.fileManager.FindGoModRoot()
+	if err != nil {
+		mi.printFXManualInstructions(resourceName, pluralName)
+		return nil
+	}
+
+	controllerFilePath := filepath.Join(rootDir, controllerFileRelPath)
+	content, err := os.ReadFile(controllerFilePath)
+	if err != nil {
+		mi.printFXManualInstructions(resourceName, pluralName)
+		return nil
+	}
+
+	contentStr := string(content)
+	updated := false
+
+	constructor := "New" + capitalizedPlural
+	if !strings.Contains(contentStr, constructor+",") {
+		insertAt := strings.Index(contentStr, ")\n\nvar Module = fx.Module(")
+		if insertAt == -1 {
+			mi.printFXManualInstructions(resourceName, pluralName)
+			return nil
+		}
+		contentStr = contentStr[:insertAt] + "\t" + constructor + ",\n" + contentStr[insertAt:]
+		updated = true
+	}
+
+	invokeNeedle := fmt.Sprintf("c %s) error", capitalizedPlural)
+	if !strings.Contains(contentStr, invokeNeedle) {
+		invoke := fmt.Sprintf(`	fx.Invoke(func(r *router.Router, c %s) error {
+		return c.RegisterRoutes(r)
+	}),
+`, capitalizedPlural)
+		insertAt := strings.LastIndex(contentStr, "\n)")
+		if insertAt == -1 {
+			mi.printFXManualInstructions(resourceName, pluralName)
+			return nil
+		}
+		contentStr = contentStr[:insertAt] + invoke + contentStr[insertAt:]
+		updated = true
+	}
+
+	if !updated {
+		return nil
+	}
+
+	if err := os.WriteFile(controllerFilePath, []byte(contentStr), 0644); err != nil {
+		return fmt.Errorf("failed to write controllers/controller.go: %w", err)
+	}
+
+	if err := files.FormatGoFile(controllerFilePath); err != nil {
+		return fmt.Errorf("failed to format controllers/controller.go: %w", err)
+	}
+
+	return nil
+}
+
 func (mi *MainInjector) printManualInstructions(resourceName, pluralName string) {
 	varName := naming.ToLowerCamelCaseFromAny(pluralName)
 	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
@@ -96,4 +160,19 @@ INFO: Add the following to your controller setup in cmd/app/main.go:
 	}
 
 `, varName, capitalizedPlural, resourceName, varName)
+}
+
+func (mi *MainInjector) printFXManualInstructions(resourceName, pluralName string) {
+	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
+
+	fmt.Printf(`
+INFO: Add the following to your controller setup in controllers/controller.go:
+
+	New%s,
+
+	fx.Invoke(func(r *router.Router, c %s) error {
+		return c.RegisterRoutes(r)
+	}),
+
+`, capitalizedPlural, capitalizedPlural)
 }

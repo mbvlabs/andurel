@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -49,6 +50,12 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 		"uuidParam": func(param string) string {
 			return param
 		},
+		"HasAction": func(action string) bool {
+			if len(controller.Actions) == 0 {
+				return true
+			}
+			return slices.Contains(controller.Actions, action)
+		},
 	}
 
 	// Use the unified template service with custom functions and original data structure
@@ -90,7 +97,7 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName, idTyp
 	return result, nil
 }
 
-func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, pluralName string) (string, error) {
+func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, pluralName string, actions []string) (string, error) {
 	capitalizedPluralName := naming.Capitalize(naming.ToCamelCase(pluralName))
 	lowercasePluralName := naming.ToLowerCamelCaseFromAny(pluralName)
 
@@ -108,6 +115,7 @@ func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, pluralNa
 		LowercasePluralName   string
 		LowercaseResourceName string
 		ModulePath            string
+		Actions               []string
 	}{
 		ResourceName:          resourceName,
 		PluralName:            pluralName,
@@ -115,9 +123,18 @@ func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, pluralNa
 		LowercasePluralName:   lowercasePluralName,
 		LowercaseResourceName: naming.ToLowerCamelCase(resourceName),
 		ModulePath:            modulePath,
+		Actions:               actions,
+	}
+	customFuncs := template.FuncMap{
+		"HasAction": func(action string) bool {
+			if len(actions) == 0 {
+				return true
+			}
+			return slices.Contains(actions, action)
+		},
 	}
 
-	result, err := tr.service.RenderTemplate("route_registration.tmpl", data)
+	result, err := tr.service.RenderTemplateWithCustomFunctions("route_registration.tmpl", data, customFuncs)
 	if err != nil {
 		return "", errors.WrapTemplateError(err, "render route registration", "route_registration.tmpl")
 	}

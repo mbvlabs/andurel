@@ -40,6 +40,7 @@ type GeneratedView struct {
 	Fields       []ViewField
 	ModulePath   string
 	IDType       string // "uuid.UUID", "int32", "int64", "string"
+	Actions      []string
 }
 
 type Config struct {
@@ -48,6 +49,7 @@ type Config struct {
 	PluralName   string
 	TableName    string
 	ModulePath   string
+	Actions      []string
 }
 
 type Generator struct {
@@ -70,6 +72,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 		ModulePath:   config.ModulePath,
 		Fields:       make([]ViewField, 0),
 		IDType:       "uuid.UUID", // Default to UUID
+		Actions:      config.Actions,
 	}
 
 	tableName := config.TableName
@@ -291,6 +294,12 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, t
 				fmt.Sprintf("%s.%s", objRef, field.Name),
 			)
 		},
+		"HasAction": func(action string) bool {
+			if len(view.Actions) == 0 {
+				return true
+			}
+			return slices.Contains(view.Actions, action)
+		},
 	}
 
 	templateName := templatePrefix + "resource_view_no_controller.tmpl"
@@ -323,11 +332,33 @@ func (g *Generator) GenerateViewWithController(
 	modulePath string,
 	withController bool,
 ) error {
+	return g.GenerateViewWithControllerActions(cat, resourceName, tableName, modulePath, withController, nil)
+}
+
+func (g *Generator) GenerateViewWithControllerActions(
+	cat *catalog.Catalog,
+	resourceName string,
+	tableName string,
+	modulePath string,
+	withController bool,
+	actions []string,
+) error {
 	pluralName := naming.DeriveTableName(resourceName)
 	viewPath := filepath.Join("views", tableName+"_resource.templ")
 
+	viewExists := false
 	if _, err := os.Stat(viewPath); err == nil {
-		return fmt.Errorf("view file %s already exists", viewPath)
+		viewExists = true
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to stat view file %s: %w", viewPath, err)
+	}
+	renderActions := actions
+	if viewExists && len(actions) > 0 {
+		existingActions, err := existingResourceViewActions(viewPath, resourceName)
+		if err != nil {
+			return err
+		}
+		renderActions = mergeResourceViewActions(existingActions, actions)
 	}
 
 	// Read lock file to determine CSS framework and extensions
@@ -344,6 +375,7 @@ func (g *Generator) GenerateViewWithController(
 		PluralName:   pluralName,
 		TableName:    tableName,
 		ModulePath:   modulePath,
+		Actions:      renderActions,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build view: %w", err)
@@ -372,6 +404,50 @@ func (g *Generator) GenerateViewWithController(
 
 	fmt.Printf("Successfully generated view at %s\n", viewPath)
 	return nil
+}
+
+var resourceViewActions = []string{"index", "show", "new", "create", "edit", "update", "destroy"}
+
+func mergeResourceViewActions(existing, requested []string) []string {
+	if len(requested) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(existing)+len(requested))
+	merged := make([]string, 0, len(existing)+len(requested))
+	for _, group := range [][]string{existing, requested} {
+		for _, action := range group {
+			action = strings.ToLower(action)
+			if _, ok := seen[action]; ok || !slices.Contains(resourceViewActions, action) {
+				continue
+			}
+			seen[action] = struct{}{}
+			merged = append(merged, action)
+		}
+	}
+	return merged
+}
+
+func existingResourceViewActions(viewPath, resourceName string) ([]string, error) {
+	content, err := os.ReadFile(viewPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read view file %s: %w", viewPath, err)
+	}
+
+	contentStr := string(content)
+	actions := make([]string, 0, len(resourceViewActions))
+	for _, action := range []string{"index", "show", "new", "edit"} {
+		typeName := resourceName + naming.ToPascalCase(action)
+		if strings.Contains(contentStr, "type "+typeName) {
+			actions = append(actions, action)
+		}
+	}
+	for _, action := range []string{"create", "update", "destroy"} {
+		routeName := "routes." + resourceName + naming.ToPascalCase(action)
+		if strings.Contains(contentStr, routeName) {
+			actions = append(actions, action)
+		}
+	}
+	return actions, nil
 }
 
 func (g *Generator) formatTemplFile(filePath string) error {

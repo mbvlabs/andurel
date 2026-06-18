@@ -1,8 +1,252 @@
+
+
+
+
 package views
 
 import (
+	"fmt"
 	"net/http"
+
 	"testapp/internal/renderer"
+	"testapp/models"
+
 	"testapp/router/routes"
+
+	"testapp/internal/hypermedia"
 )
 
+type ReviewIndex struct {
+	Items []models.ReviewEntity
+}
+
+func (ri ReviewIndex) PageFragment() string {
+	return "review-index-page-fragment"
+}
+
+templ (ri ReviewIndex) Page() {
+	@base() {
+		@templ.Fragment(ri.PageFragment()) {
+			<main id="review-index-container">
+				<section>
+					<div>
+						<div>
+							<h1>Reviews</h1>
+						</div>
+						<a href={ routes.ReviewNew.URL() }>New Review</a>
+					</div>
+					if len(ri.Items) == 0 {
+						<section>
+							<div>
+								<h2>No reviews found</h2>
+							</div>
+							<div>
+								<a href={ routes.ReviewNew.URL() }>New Review</a>
+							</div>
+						</section>
+					} else {
+						<div>
+							<table>
+								<thead>
+									<tr>
+										<th>Title</th>
+										<th>Body</th>
+										<th>Rating</th>
+										<th>Created At</th>
+										<th>Updated At</th>
+										<th>Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									for _, review := range ri.Items {
+										<tr>
+											<td>{ review.Title }</td>
+											<td>{ review.Body }</td>
+											<td>{ fmt.Sprintf("%d", review.Rating) }</td>
+											<td>{ review.CreatedAt.String() }</td>
+											<td>{ review.UpdatedAt.String() }</td>
+											<td>
+												<div>
+													<a href={ routes.ReviewShow.URL(review.ID) }>View</a>
+													<a href={ routes.ReviewEdit.URL(review.ID) }>Edit</a>
+												</div>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</section>
+			</main>
+		}
+	}
+}
+
+type ReviewShow struct {
+	Item models.ReviewEntity
+}
+
+func (rs ReviewShow) PageFragment() string {
+	return "review-show-page-fragment"
+}
+
+templ (rs ReviewShow) Page() {
+	@base() {
+		@templ.Fragment(rs.PageFragment()) {
+			<main id="review-show-container">
+				<section>
+					<div>
+						<div>
+							<h1>Review Details</h1>
+						</div>
+						<div>
+							<a href={ routes.ReviewEdit.URL(rs.Item.ID) }>Edit</a>
+							<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
+						</div>
+					</div>
+					<div>
+						<div>
+							<div>
+								<p>Title</p>
+								<p>{ rs.Item.Title }</p>
+							</div>
+							<div>
+								<p>Body</p>
+								<p>{ rs.Item.Body }</p>
+							</div>
+							<div>
+								<p>Rating</p>
+								<p>{ fmt.Sprintf("%d", rs.Item.Rating) }</p>
+							</div>
+							<div>
+								<p>Created At</p>
+								<p>{ rs.Item.CreatedAt.String() }</p>
+							</div>
+							<div>
+								<p>Updated At</p>
+								<p>{ rs.Item.UpdatedAt.String() }</p>
+							</div>
+						</div>
+					</div>
+				</section>
+			</main>
+		}
+	}
+}
+
+type ReviewNew struct{}
+
+func (rn ReviewNew) PageFragment() string {
+	return "review-new-page-fragment"
+}
+
+templ (rn ReviewNew) Page() {
+	@base() {
+		@templ.Fragment(rn.PageFragment()) {
+			<main id="review-new-container">
+				<section>
+					<div>
+						<div>
+							<h1>New Review</h1>
+							<p>Enter the details for the new review.</p>
+						</div>
+						<div>
+							<form
+								data-indicator:_submitting
+								data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.ReviewCreate.URL()) }
+							>
+								<fieldset data-attr:disabled="$_submitting">
+									<div>
+										<label for="title">Title</label>
+										<div>
+											<input type="text" id="title" name="title" data-bind="title"/>
+										</div>
+									</div>
+									<div>
+										<label for="body">Body</label>
+										<div>
+											<input type="text" id="body" name="body" data-bind="body"/>
+										</div>
+									</div>
+									<div>
+										<label for="rating">Rating</label>
+										<div>
+											<input type="number" id="rating" name="rating" data-bind="rating"/>
+										</div>
+									</div>
+									<div>
+										<button type="submit">Create Review</button>
+										<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+						</div>
+					</div>
+				</section>
+			</main>
+		}
+	}
+}
+
+type ReviewEdit struct {
+	Item models.ReviewEntity
+}
+
+func (re ReviewEdit) PageFragment() string {
+	return "review-edit-page-fragment"
+}
+
+templ (re ReviewEdit) Page() {
+	@base() {
+		@templ.Fragment(re.PageFragment()) {
+			<main id="review-edit-container">
+				<section>
+					<div>
+						<div>
+							<h1>Edit Review</h1>
+							<p>Update the details for this review.</p>
+						</div>
+						<div>
+							<form
+								data-indicator:_submitting
+								data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.ReviewUpdate.URL(re.Item.ID)) }
+							>
+								<fieldset data-attr:disabled="$_submitting">
+									<div>
+										<label for="title">Title</label>
+										<div>
+											<input type="text" id="title" name="title" data-bind="title" value={ re.Item.Title }/>
+										</div>
+									</div>
+									<div>
+										<label for="body">Body</label>
+										<div>
+											<input type="text" id="body" name="body" data-bind="body" value={ re.Item.Body }/>
+										</div>
+									</div>
+									<div>
+										<label for="rating">Rating</label>
+										<div>
+											<input type="number" id="rating" name="rating" data-bind="rating" value={ fmt.Sprintf("%d", re.Item.Rating) }/>
+										</div>
+									</div>
+									<div>
+										<button type="submit">Update Review</button>
+										<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+						</div>
+						<div>
+							<button
+								type="button"
+								data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.ReviewDestroy.URL(re.Item.ID)) }
+							>Destroy Review</button>
+						</div>
+					</div>
+				</section>
+			</main>
+		}
+	}
+}
