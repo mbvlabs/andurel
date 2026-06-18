@@ -358,7 +358,7 @@ func (g *Generator) GenerateView(
 	tableName string,
 	modulePath string,
 ) error {
-	return g.GenerateViewWithController(cat, resourceName, tableName, modulePath, false)
+	return g.GenerateViewWithController(cat, resourceName, tableName, modulePath, false, "")
 }
 
 func (g *Generator) GenerateViewWithController(
@@ -367,8 +367,9 @@ func (g *Generator) GenerateViewWithController(
 	tableName string,
 	modulePath string,
 	withController bool,
+	inertia string,
 ) error {
-	return g.GenerateViewWithControllerActions(cat, resourceName, tableName, modulePath, withController, nil)
+	return g.GenerateViewWithControllerActions(cat, resourceName, tableName, modulePath, withController, nil, inertia)
 }
 
 func (g *Generator) GenerateViewWithControllerActions(
@@ -378,6 +379,7 @@ func (g *Generator) GenerateViewWithControllerActions(
 	modulePath string,
 	withController bool,
 	actions []string,
+	inertia string,
 ) error {
 	pluralName := naming.DeriveTableName(resourceName)
 	viewPath := filepath.Join("views", tableName+"_resource.templ")
@@ -407,6 +409,14 @@ func (g *Generator) GenerateViewWithControllerActions(
 		}
 	}
 
+	// Override inertia mode from parameter if explicitly set
+	isInertiaVue := inertia == "vue"
+	if isInertiaVue {
+		templatePrefix = "inertia_vue_tw_bare_"
+	} else if lock != nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.Inertia == "vue" {
+		isInertiaVue = true
+	}
+
 	view, err := g.Build(cat, Config{
 		ResourceName: resourceName,
 		EntityName:   naming.ToPascalCase(resourceName) + "Entity",
@@ -419,7 +429,7 @@ func (g *Generator) GenerateViewWithControllerActions(
 		return fmt.Errorf("failed to build view: %w", err)
 	}
 
-	if g.isInertiaVue(lock) {
+	if isInertiaVue {
 		return g.generateVueViews(view, templatePrefix, resourceName)
 	}
 

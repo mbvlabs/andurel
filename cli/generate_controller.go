@@ -17,6 +17,7 @@ import (
 func newGenerateControllerCommand() *cobra.Command {
 	var (
 		skipRoutes bool
+		vue        bool
 	)
 
 	cmd := &cobra.Command{
@@ -57,18 +58,24 @@ generated yet.`,
 				return err
 			}
 
+			inertia := ""
+			if vue {
+				inertia = "vue"
+			}
+
 			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				return generateControllerWithActions(name, actions, skipRoutes)
+				return generateControllerWithActions(name, actions, skipRoutes, inertia)
 			})(cmd, args)
 		},
 	}
 
 	cmd.Flags().BoolVar(&skipRoutes, "skip-routes", false, "Deprecated: custom actions do not generate routes")
+	cmd.Flags().BoolVar(&vue, "vue", false, "Generate Inertia Vue views instead of Templ views")
 
 	return cmd
 }
 
-func generateControllerWithActions(name string, actions []string, skipRoutes bool) error {
+func generateControllerWithActions(name string, actions []string, skipRoutes bool, inertia string) error {
 	_ = skipRoutes
 
 	tableName := naming.DeriveTableName(name)
@@ -91,13 +98,13 @@ func generateControllerWithActions(name string, actions []string, skipRoutes boo
 		if err != nil {
 			return err
 		}
-		if err := gen.GenerateControllerWithActions(name, "", true, crudActions); err != nil {
+		if err := gen.GenerateControllerWithActions(name, "", true, crudActions, inertia); err != nil {
 			return err
 		}
 	}
 
 	if len(customActions) > 0 {
-		if err := generateActionControllerFile(name, tableName, pluralName, modulePath, controllerPath, customActions); err != nil {
+		if err := generateActionControllerFile(name, tableName, pluralName, modulePath, controllerPath, customActions, inertia); err != nil {
 			return err
 		}
 	}
@@ -136,11 +143,12 @@ func isCRUDControllerAction(action string) bool {
 	}
 }
 
-func generateActionControllerFile(name, tableName, pluralName, modulePath, controllerPath string, actions []string) error {
+func generateActionControllerFile(name, tableName, pluralName, modulePath, controllerPath string, actions []string, inertia string) error {
 	ts := naming.ToSnakeCase(name)
 	receiverName := naming.ToReceiverName(name)
 	resourceName := name
 	controllerName := naming.ToPascalCase(pluralName)
+	isInertia := inertia == "vue"
 
 	if err := os.MkdirAll("controllers", 0o755); err != nil {
 		return err
@@ -159,7 +167,11 @@ func generateActionControllerFile(name, tableName, pluralName, modulePath, contr
 			if controllerMethodExists(contentStr, methodName) {
 				continue
 			}
-			additions.WriteString(actionControllerMethod(receiverName, controllerName, resourceName, methodName))
+			if isInertia {
+				additions.WriteString(actionControllerMethodInertia(receiverName, controllerName, resourceName, methodName))
+			} else {
+				additions.WriteString(actionControllerMethod(receiverName, controllerName, resourceName, methodName))
+			}
 		}
 
 		if additions.Len() > 0 {
@@ -174,9 +186,15 @@ func generateActionControllerFile(name, tableName, pluralName, modulePath, contr
 		sb.WriteString("package controllers\n\n")
 		sb.WriteString("import (\n")
 		sb.WriteString(fmt.Sprintf("\t\"%s/internal/renderer\"\n", modulePath))
-		sb.WriteString(fmt.Sprintf("\t\"%s/views\"\n", modulePath))
-		sb.WriteString("\n")
-		sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")
+		if isInertia {
+			sb.WriteString("\n")
+			sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")
+			sb.WriteString("\tinertia \"github.com/romsar/gonertia/v3\"\n")
+		} else {
+			sb.WriteString(fmt.Sprintf("\t\"%s/views\"\n", modulePath))
+			sb.WriteString("\n")
+			sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")
+		}
 		sb.WriteString(")\n\n")
 		sb.WriteString(fmt.Sprintf("type %s struct{}\n\n", controllerName))
 		sb.WriteString(fmt.Sprintf("func New%s() %s {\n", controllerName, controllerName))
@@ -185,7 +203,11 @@ func generateActionControllerFile(name, tableName, pluralName, modulePath, contr
 
 		for _, action := range actions {
 			methodName := naming.ToPascalCase(action)
-			sb.WriteString(actionControllerMethod(receiverName, controllerName, resourceName, methodName))
+			if isInertia {
+				sb.WriteString(actionControllerMethodInertia(receiverName, controllerName, resourceName, methodName))
+			} else {
+				sb.WriteString(actionControllerMethod(receiverName, controllerName, resourceName, methodName))
+			}
 		}
 
 		if err := os.WriteFile(controllerPath, []byte(sb.String()), constants.FilePermissionPrivate); err != nil {
@@ -200,8 +222,14 @@ func generateActionControllerFile(name, tableName, pluralName, modulePath, contr
 	}
 
 	// Generate view file with action components
-	if err := generateActionViewFile(name, tableName, modulePath, ts, actions); err != nil {
-		return fmt.Errorf("failed to generate view file: %w", err)
+	if isInertia {
+		if err := generateActionVueViewFile(name, tableName, actions); err != nil {
+			return fmt.Errorf("failed to generate vue view file: %w", err)
+		}
+	} else {
+		if err := generateActionViewFile(name, tableName, modulePath, ts, actions); err != nil {
+			return fmt.Errorf("failed to generate view file: %w", err)
+		}
 	}
 
 	return nil
@@ -214,6 +242,16 @@ func controllerMethodExists(content, methodName string) bool {
 
 func actionControllerMethod(receiverName, controllerName, resourceName, methodName string) string {
 	return fmt.Sprintf("func (%s %s) %s(etx *echo.Context) error {\n\treturn renderer.Render(etx, views.%s%s())\n}\n\n",
+		receiverName,
+		controllerName,
+		methodName,
+		naming.ToPascalCase(resourceName),
+		methodName,
+	)
+}
+
+func actionControllerMethodInertia(receiverName, controllerName, resourceName, methodName string) string {
+	return fmt.Sprintf("func (%s %s) %s(etx *echo.Context) error {\n\treturn renderer.Inertia(etx, \"%s/%s\", inertia.Props{})\n}\n\n",
 		receiverName,
 		controllerName,
 		methodName,
@@ -277,6 +315,43 @@ func actionViewComponent(resourceName, methodName string) string {
 	sb.WriteString("\t</div>\n")
 	sb.WriteString("}\n\n")
 	return sb.String()
+}
+
+func generateActionVueViewFile(name, tableName string, actions []string) error {
+	resourceName := naming.ToPascalCase(name)
+	pagesDir := filepath.Join("resources", "js", "Pages", resourceName)
+
+	if err := os.MkdirAll(pagesDir, 0o755); err != nil {
+		return err
+	}
+
+	for _, action := range actions {
+		methodName := naming.ToPascalCase(action)
+		vueFilePath := filepath.Join(pagesDir, methodName+".vue")
+
+		if _, err := os.Stat(vueFilePath); err == nil {
+			continue
+		}
+
+		var sb strings.Builder
+		sb.WriteString("<script setup lang=\"ts\">\n")
+		sb.WriteString("import { Head } from '@inertiajs/vue3'\n")
+		sb.WriteString("</script>\n\n")
+		sb.WriteString("<template>\n")
+		sb.WriteString(fmt.Sprintf("  <Head title=\"%s %s\" />\n", resourceName, methodName))
+		sb.WriteString("  <div class=\"mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8\">\n")
+		sb.WriteString(fmt.Sprintf("    <h1 class=\"text-2xl font-bold text-gray-900\">%s#%s</h1>\n", resourceName, methodName))
+		sb.WriteString("    <p class=\"mt-2 text-sm text-gray-500\">Content for this action has not been implemented yet.</p>\n")
+		sb.WriteString("  </div>\n")
+		sb.WriteString("</template>\n")
+
+		if err := os.WriteFile(vueFilePath, []byte(sb.String()), constants.FilePermissionPrivate); err != nil {
+			return fmt.Errorf("failed to write vue view file %s: %w", vueFilePath, err)
+		}
+	}
+
+	fmt.Printf("Successfully generated vue views at %s\n", pagesDir)
+	return nil
 }
 
 func readModulePath() (string, error) {

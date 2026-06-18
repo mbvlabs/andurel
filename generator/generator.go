@@ -23,12 +23,12 @@ func (g *Generator) GenerateModelWithPK(resourceName string, tableNameOverride s
 	return g.coordinator.ModelManager.GenerateModel(resourceName, tableNameOverride, skipFactory, primaryKeyColumn)
 }
 
-func (g *Generator) GenerateController(resourceName, tableName string, withViews bool) error {
-	return g.coordinator.GenerateController(resourceName, tableName, withViews)
+func (g *Generator) GenerateController(resourceName, tableName string, withViews bool, inertia string) error {
+	return g.coordinator.GenerateController(resourceName, tableName, withViews, inertia)
 }
 
-func (g *Generator) GenerateControllerWithActions(resourceName, tableName string, withViews bool, actions []string) error {
-	return g.coordinator.GenerateControllerWithActions(resourceName, tableName, withViews, actions)
+func (g *Generator) GenerateControllerWithActions(resourceName, tableName string, withViews bool, actions []string, inertia string) error {
+	return g.coordinator.GenerateControllerWithActions(resourceName, tableName, withViews, actions, inertia)
 }
 
 func (g *Generator) GenerateControllerFromModel(resourceName string, withViews bool) error {

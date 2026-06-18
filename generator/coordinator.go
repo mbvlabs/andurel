@@ -76,21 +76,21 @@ func NewCoordinator() (Coordinator, error) {
 }
 
 // GenerateController coordinates controller and optional view generation
-func (c *Coordinator) GenerateController(resourceName, tableName string, withViews bool) error {
-	return c.GenerateControllerWithActions(resourceName, tableName, withViews, nil)
+func (c *Coordinator) GenerateController(resourceName, tableName string, withViews bool, inertia string) error {
+	return c.GenerateControllerWithActions(resourceName, tableName, withViews, nil, inertia)
 }
 
-func (c *Coordinator) GenerateControllerWithActions(resourceName, tableName string, withViews bool, actions []string) error {
+func (c *Coordinator) GenerateControllerWithActions(resourceName, tableName string, withViews bool, actions []string, inertia string) error {
 	if tableName == "" {
 		tableName = naming.DeriveTableName(resourceName)
 	}
 
-	if err := c.ControllerManager.GenerateControllerWithActions(resourceName, tableName, withViews, actions); err != nil {
+	if err := c.ControllerManager.GenerateControllerWithActions(resourceName, tableName, withViews, actions, inertia); err != nil {
 		return err
 	}
 
 	if withViews {
-		if err := c.ViewManager.GenerateViewWithControllerActions(resourceName, tableName, actions); err != nil {
+		if err := c.ViewManager.GenerateViewWithControllerActions(resourceName, tableName, actions, inertia); err != nil {
 			return err
 		}
 	}
@@ -106,7 +106,7 @@ func (c *Coordinator) GenerateControllerFromModel(resourceName string, withViews
 
 	if withViews {
 		tableName := ResolveTableName(c.config.Paths.Models, resourceName)
-		if err := c.ViewManager.GenerateViewWithController(resourceName, tableName); err != nil {
+		if err := c.ViewManager.GenerateViewWithController(resourceName, tableName, ""); err != nil {
 			return err
 		}
 	}
