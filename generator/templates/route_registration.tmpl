@@ -11,6 +11,7 @@ import (
 func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} controllers.{{.CapitalizedPluralName}}) error {
 	errs := []error{}
 
+{{- if HasAction "index" }}
 	_, err := r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}Index.Path(),
@@ -20,7 +21,9 @@ func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} contr
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "show" }}
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}Show.Path(),
@@ -30,7 +33,9 @@ func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} contr
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "new" }}
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}New.Path(),
@@ -40,7 +45,9 @@ func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} contr
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "create" }}
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPost,
 		Path:    routes.{{.ResourceName}}Create.Path(),
@@ -50,7 +57,9 @@ func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} contr
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "edit" }}
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}Edit.Path(),
@@ -60,7 +69,9 @@ func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} contr
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "update" }}
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPut,
 		Path:    routes.{{.ResourceName}}Update.Path(),
@@ -70,7 +81,9 @@ func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} contr
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "destroy" }}
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodDelete,
 		Path:    routes.{{.ResourceName}}Destroy.Path(),
@@ -80,6 +93,7 @@ func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} contr
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
 	return errors.Join(errs...)
 }

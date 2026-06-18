@@ -25,6 +25,10 @@ func NewRouteGenerator() *RouteGenerator {
 }
 
 func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName, idType, diMode string) error {
+	return rg.GenerateRoutesWithActions(resourceName, pluralName, idType, diMode, nil)
+}
+
+func (rg *RouteGenerator) GenerateRoutesWithActions(resourceName, pluralName, idType, diMode string, actions []string) error {
 	routesPath := filepath.Join("router/routes", pluralName+".go")
 
 	if _, err := os.Stat(routesPath); err == nil {
@@ -49,7 +53,7 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName, idType, diMod
 	}
 
 	if diMode != "uberfx" {
-		if err := rg.createRouteRegistrationFile(resourceName, pluralName); err != nil {
+		if err := rg.createRouteRegistrationFile(resourceName, pluralName, actions); err != nil {
 			return fmt.Errorf("failed to create route registration file: %w", err)
 		}
 
@@ -66,7 +70,7 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName, idType, diMod
 	return nil
 }
 
-func (rg *RouteGenerator) createRouteRegistrationFile(resourceName, pluralName string) error {
+func (rg *RouteGenerator) createRouteRegistrationFile(resourceName, pluralName string, actions []string) error {
 	connectPath := filepath.Join("router", "connect_"+pluralName+"_routes.go")
 
 	if _, err := os.Stat(connectPath); err == nil {
@@ -74,7 +78,7 @@ func (rg *RouteGenerator) createRouteRegistrationFile(resourceName, pluralName s
 	}
 
 	// Generate the registration file content
-	registrationContent, err := rg.templateRenderer.generateRouteRegistrationFile(resourceName, pluralName)
+	registrationContent, err := rg.templateRenderer.generateRouteRegistrationFile(resourceName, pluralName, actions)
 	if err != nil {
 		return fmt.Errorf("failed to generate route registration content: %w", err)
 	}

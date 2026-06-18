@@ -27,6 +27,10 @@ func (g *Generator) GenerateController(resourceName, tableName string, withViews
 	return g.coordinator.GenerateController(resourceName, tableName, withViews)
 }
 
+func (g *Generator) GenerateControllerWithActions(resourceName, tableName string, withViews bool, actions []string) error {
+	return g.coordinator.GenerateControllerWithActions(resourceName, tableName, withViews, actions)
+}
+
 func (g *Generator) GenerateControllerFromModel(resourceName string, withViews bool) error {
 	return g.coordinator.GenerateControllerFromModel(resourceName, withViews)
 }

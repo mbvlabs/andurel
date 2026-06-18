@@ -7,13 +7,19 @@ package views
 import (
 	"fmt"
 	{{if UsesPackage .Fields "strings"}}"strings"
-	{{end}}	"net/http"
-	"{{.ModulePath}}/internal/renderer"
+	{{end}}{{if or (HasAction "new") (HasAction "edit")}}	"net/http"
+	{{end}}
 	"{{.ModulePath}}/models"
+	{{if or (and (HasAction "show") (HasAction "index")) (HasAction "new") (HasAction "edit")}}"{{.ModulePath}}/internal/renderer"
+	{{end}}
+	{{if or (and (HasAction "index") (or (HasAction "new") (HasAction "show") (HasAction "edit"))) (and (HasAction "show") (or (HasAction "edit") (HasAction "index"))) (HasAction "new") (HasAction "edit")}}
 	"{{.ModulePath}}/router/routes"
-	"{{.ModulePath}}/internal/hypermedia"
+	{{end}}
+	{{if or (HasAction "new") (HasAction "edit")}}"{{.ModulePath}}/internal/hypermedia"
+	{{end}}
 )
 
+{{if HasAction "index"}}
 type {{.ResourceName}}Index struct {
 	Items []models.{{.EntityName}}
 }
@@ -29,7 +35,9 @@ templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 					<div class="flex flex-wrap items-center justify-between gap-4">
 						<h1 class="text-2xl font-semibold text-gray-900">{{Plural .ResourceName}}</h1>
+						{{if HasAction "new"}}
 						<a href={ routes.{{.ResourceName}}New.URL() } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded">New {{.ResourceName}}</a>
+						{{end}}
 					</div>
 					if len({{$indexRecv}}.Items) == 0 {
 						<p class="text-sm text-gray-500">No {{.PluralName}} found.</p>
@@ -48,8 +56,12 @@ templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 											{{range .Fields}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{{StringTableDisplay . ($.ResourceName | ToLower)}}</td>
 											{{end}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 												<div class="flex flex-wrap gap-3 text-sm">
+													{{if HasAction "show"}}
 													<a class="text-gray-600 hover:text-gray-900" href={ routes.{{$.ResourceName}}Show.URL({{$.ResourceName | ToLower}}.ID) }>View</a>
+													{{end}}
+													{{if HasAction "edit"}}
 													<a class="text-gray-600 hover:text-gray-900" href={ routes.{{$.ResourceName}}Edit.URL({{$.ResourceName | ToLower}}.ID) }>Edit</a>
+													{{end}}
 												</div>
 											</td>
 										</tr>
@@ -63,7 +75,9 @@ templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 		}
 	}
 }
+{{end}}
 
+{{if HasAction "show"}}
 type {{.ResourceName}}Show struct {
 	Item models.{{.EntityName}}
 }
@@ -80,8 +94,12 @@ templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 					<div class="flex flex-wrap items-center justify-between gap-4">
 						<h1 class="text-2xl font-semibold text-gray-900">{{.ResourceName}} Details</h1>
 						<div class="flex flex-wrap items-center gap-3">
+							{{if HasAction "edit"}}
 							<a href={ routes.{{.ResourceName}}Edit.URL({{$showRecv}}.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded">Edit</a>
+							{{end}}
+							{{if HasAction "index"}}
 							<a class="text-sm text-gray-600 hover:text-gray-900" href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+							{{end}}
 						</div>
 					</div>
 					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
@@ -101,7 +119,9 @@ templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 		}
 	}
 }
+{{end}}
 
+{{if HasAction "new"}}
 type {{.ResourceName}}New struct{}
 
 func ({{$newRecv}} {{.ResourceName}}New) PageFragment() string {
@@ -160,7 +180,9 @@ templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 		}
 	}
 }
+{{end}}
 
+{{if HasAction "edit"}}
 type {{.ResourceName}}Edit struct {
 	Item models.{{.EntityName}}
 }
@@ -224,3 +246,4 @@ templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
 		}
 	}
 }
+{{end}}

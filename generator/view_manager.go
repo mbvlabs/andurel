@@ -40,10 +40,18 @@ func (v *ViewManager) GenerateView(resourceName, tableName string) error {
 }
 
 func (v *ViewManager) GenerateViewWithController(resourceName, tableName string) error {
-	return v.generateView(resourceName, tableName, true)
+	return v.GenerateViewWithControllerActions(resourceName, tableName, nil)
+}
+
+func (v *ViewManager) GenerateViewWithControllerActions(resourceName, tableName string, actions []string) error {
+	return v.generateViewWithActions(resourceName, tableName, true, actions)
 }
 
 func (v *ViewManager) generateView(resourceName, tableName string, withController bool) error {
+	return v.generateViewWithActions(resourceName, tableName, withController, nil)
+}
+
+func (v *ViewManager) generateViewWithActions(resourceName, tableName string, withController bool, actions []string) error {
 	modulePath := v.projectManager.GetModulePath()
 
 	modelPath := BuildModelPath(v.config.Paths.Models, resourceName)
@@ -79,7 +87,7 @@ func (v *ViewManager) generateView(resourceName, tableName string, withControlle
 		return err
 	}
 
-	if err := v.viewGenerator.GenerateViewWithController(cat, resourceName, tableName, modulePath, withController); err != nil {
+	if err := v.viewGenerator.GenerateViewWithControllerActions(cat, resourceName, tableName, modulePath, withController, actions); err != nil {
 		return fmt.Errorf("failed to generate view: %w", err)
 	}
 

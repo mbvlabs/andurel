@@ -40,6 +40,7 @@ type GeneratedView struct {
 	Fields       []ViewField
 	ModulePath   string
 	IDType       string // "uuid.UUID", "int32", "int64", "string"
+	Actions      []string
 }
 
 type Config struct {
@@ -48,6 +49,7 @@ type Config struct {
 	PluralName   string
 	TableName    string
 	ModulePath   string
+	Actions      []string
 }
 
 type Generator struct {
@@ -70,6 +72,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 		ModulePath:   config.ModulePath,
 		Fields:       make([]ViewField, 0),
 		IDType:       "uuid.UUID", // Default to UUID
+		Actions:      config.Actions,
 	}
 
 	tableName := config.TableName
@@ -291,6 +294,12 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, t
 				fmt.Sprintf("%s.%s", objRef, field.Name),
 			)
 		},
+		"HasAction": func(action string) bool {
+			if len(view.Actions) == 0 {
+				return true
+			}
+			return slices.Contains(view.Actions, action)
+		},
 	}
 
 	templateName := templatePrefix + "resource_view_no_controller.tmpl"
@@ -323,6 +332,17 @@ func (g *Generator) GenerateViewWithController(
 	modulePath string,
 	withController bool,
 ) error {
+	return g.GenerateViewWithControllerActions(cat, resourceName, tableName, modulePath, withController, nil)
+}
+
+func (g *Generator) GenerateViewWithControllerActions(
+	cat *catalog.Catalog,
+	resourceName string,
+	tableName string,
+	modulePath string,
+	withController bool,
+	actions []string,
+) error {
 	pluralName := naming.DeriveTableName(resourceName)
 	viewPath := filepath.Join("views", tableName+"_resource.templ")
 
@@ -344,6 +364,7 @@ func (g *Generator) GenerateViewWithController(
 		PluralName:   pluralName,
 		TableName:    tableName,
 		ModulePath:   modulePath,
+		Actions:      actions,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build view: %w", err)

@@ -45,6 +45,7 @@ type GeneratedController struct {
 	IsAutoIncrementID   bool   // True for serial/bigserial
 	IDGoFieldName       string // Go struct field name of PK (e.g., "ID", "UserID")
 	HasPrimaryKey       bool   // Whether the table has any primary key
+	Actions             []string
 }
 
 type Config struct {
@@ -56,6 +57,7 @@ type Config struct {
 	ControllerType      ControllerType
 	TableNameOverridden bool
 	PrimaryKeyColumn    string // Override PK column name (empty = auto-detect)
+	Actions             []string
 }
 
 type Generator struct {
@@ -94,6 +96,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 		TableNameOverridden: config.TableNameOverridden,
 		Fields:              make([]GeneratedField, 0),
 		IDType:              "uuid.UUID", // Default to UUID
+		Actions:             config.Actions,
 	}
 
 	if config.ControllerType == ResourceController ||

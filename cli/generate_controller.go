@@ -79,8 +79,9 @@ func generateControllerWithActions(name string, actions []string, skipRoutes boo
 	}
 
 	controllerPath := filepath.Join("controllers", tableName+".go")
+	crudActions := crudControllerActions(actions)
 	customActions := nonCRUDControllerActions(actions)
-	shouldGenerateResource := len(actions) == 0 || hasCRUDControllerAction(actions)
+	shouldGenerateResource := len(actions) == 0 || len(crudActions) > 0
 
 	if shouldGenerateResource {
 		if _, err := os.Stat(controllerPath); os.IsNotExist(err) {
@@ -88,7 +89,7 @@ func generateControllerWithActions(name string, actions []string, skipRoutes boo
 			if err != nil {
 				return err
 			}
-			if err := gen.GenerateController(name, "", true); err != nil {
+			if err := gen.GenerateControllerWithActions(name, "", true, crudActions); err != nil {
 				return err
 			}
 		} else if err != nil {
@@ -106,8 +107,15 @@ func generateControllerWithActions(name string, actions []string, skipRoutes boo
 	return nil
 }
 
-func hasCRUDControllerAction(actions []string) bool {
-	return slices.ContainsFunc(actions, isCRUDControllerAction)
+func crudControllerActions(actions []string) []string {
+	crudActions := make([]string, 0, len(actions))
+	for _, action := range actions {
+		action = strings.ToLower(action)
+		if isCRUDControllerAction(action) && !slices.Contains(crudActions, action) {
+			crudActions = append(crudActions, action)
+		}
+	}
+	return crudActions
 }
 
 func nonCRUDControllerActions(actions []string) []string {
