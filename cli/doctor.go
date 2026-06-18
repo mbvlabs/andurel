@@ -38,7 +38,7 @@ func newDoctorCommand(currentVersion string) *cobra.Command {
 	doctorCmd := &cobra.Command{
 		Use:     "doctor",
 		Aliases: []string{"doc"},
-		Short: "Run diagnostic checks on your Andurel project",
+		Short:   "Run diagnostic checks on your Andurel project",
 		Long: `Run comprehensive diagnostic checks to verify your Andurel project health.
 
 This command will check:
@@ -476,8 +476,8 @@ func extractVersion(output string) string {
 		return ""
 	}
 
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(output, "\n")
+	for line := range lines {
 		lower := strings.ToLower(line)
 		if strings.Contains(lower, "update available") || strings.Contains(lower, "new version available") {
 			continue
@@ -537,11 +537,8 @@ func checkGoVet(rootDir string, verbose bool) checkResult {
 		message := fmt.Sprintf("%d issues found", issueCount)
 		if !verbose && issueCount > 0 {
 			// Show first 3 issues in non-verbose mode
-			previewCount := 3
-			if issueCount < previewCount {
-				previewCount = issueCount
-			}
-			for i := 0; i < previewCount; i++ {
+			previewCount := min(issueCount, 3)
+			for i := range previewCount {
 				if i < len(lines) && strings.TrimSpace(lines[i]) != "" {
 					details = append(details, lines[i])
 				}
@@ -670,5 +667,3 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 		message: "templates generated successfully",
 	}
 }
-
-

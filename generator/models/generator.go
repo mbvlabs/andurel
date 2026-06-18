@@ -304,8 +304,8 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 		},
 		"Plural": inflection.Plural,
 		"columnName": func(bunTag string) string {
-			if idx := strings.Index(bunTag, ","); idx != -1 {
-				return bunTag[:idx]
+			if before, _, ok := strings.Cut(bunTag, ","); ok {
+				return before
 			}
 			return bunTag
 		},

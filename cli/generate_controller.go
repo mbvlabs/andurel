@@ -21,7 +21,7 @@ func newGenerateControllerCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "controller NAME [action action ...]",
 		Aliases: []string{"c"},
-		Short: "Generate a new controller",
+		Short:   "Generate a new controller",
 		Long: `Generates a new controller, views, and routes. Pass the controller name
 in CamelCase and a list of actions as arguments.
 
@@ -289,8 +289,8 @@ func readModulePath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to read go.mod: %w", err)
 	}
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(content), "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "module ") {
 			return strings.TrimSpace(strings.TrimPrefix(line, "module")), nil

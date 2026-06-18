@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -242,11 +243,11 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 }
 
 var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"assets_vanilla_css_reset.tmpl":      "assets/css/reset.css",
-	"assets_vanilla_css_tokens.tmpl":     "assets/css/tokens.css",
-	"assets_vanilla_css_base.tmpl":       "assets/css/base.css",
-	"assets_vanilla_css_objects.tmpl":    "assets/css/objects.css",
-	"assets_vanilla_css_utilities.tmpl":  "assets/css/utilities.css",
+	"assets_vanilla_css_reset.tmpl":     "assets/css/reset.css",
+	"assets_vanilla_css_tokens.tmpl":    "assets/css/tokens.css",
+	"assets_vanilla_css_base.tmpl":      "assets/css/base.css",
+	"assets_vanilla_css_objects.tmpl":   "assets/css/objects.css",
+	"assets_vanilla_css_utilities.tmpl": "assets/css/utilities.css",
 
 	// Views
 	"vanilla_views_layout.tmpl":         "views/layout.templ",
@@ -393,34 +394,34 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 // fxTemplateOverrides maps base template names to their uberfx variants.
 // In uberfx mode, these entries replace the manual-mode templates.
 var fxTemplateOverrides = map[TmplTarget]TmplTargetPath{
-	"cmd_app_main_fx.tmpl":              "cmd/app/main.go",
-	"router_router_fx.tmpl":             "router/router.go",
-	"controllers_api_fx.tmpl":           "controllers/api.go",
-	"controllers_assets_fx.tmpl":        "controllers/assets.go",
-	"controllers_controller_fx.tmpl":    "controllers/controller.go",
-	"controllers_pages_fx.tmpl":         "controllers/pages.go",
-	"controllers_sessions_fx.tmpl":      "controllers/sessions.go",
-	"controllers_registrations_fx.tmpl": "controllers/registrations.go",
-	"controllers_confirmations_fx.tmpl": "controllers/confirmations.go",
+	"cmd_app_main_fx.tmpl":                "cmd/app/main.go",
+	"router_router_fx.tmpl":               "router/router.go",
+	"controllers_api_fx.tmpl":             "controllers/api.go",
+	"controllers_assets_fx.tmpl":          "controllers/assets.go",
+	"controllers_controller_fx.tmpl":      "controllers/controller.go",
+	"controllers_pages_fx.tmpl":           "controllers/pages.go",
+	"controllers_sessions_fx.tmpl":        "controllers/sessions.go",
+	"controllers_registrations_fx.tmpl":   "controllers/registrations.go",
+	"controllers_confirmations_fx.tmpl":   "controllers/confirmations.go",
 	"controllers_reset_passwords_fx.tmpl": "controllers/reset_passwords.go",
 }
 
 // fxSkippedTemplates lists base template entries skipped in uberfx mode.
 var fxSkippedTemplates = map[TmplTarget]bool{
-	"cmd_app_main.tmpl":                      true,
-	"router_router.tmpl":                     true,
-	"controllers_api.tmpl":                   true,
-	"controllers_assets.tmpl":                true,
-	"controllers_controller.tmpl":            true,
-	"controllers_pages.tmpl":                 true,
-	"controllers_sessions.tmpl":              true,
-	"controllers_registrations.tmpl":         true,
-	"controllers_confirmations.tmpl":         true,
-	"controllers_reset_passwords.tmpl":       true,
-	"router_connect_api_routes.tmpl":         true,
-	"router_connect_assets_routes.tmpl":      true,
-	"router_connect_pages_routes.tmpl":       true,
-	"router_connect_sessions_routes.tmpl":    true,
+	"cmd_app_main.tmpl":                          true,
+	"router_router.tmpl":                         true,
+	"controllers_api.tmpl":                       true,
+	"controllers_assets.tmpl":                    true,
+	"controllers_controller.tmpl":                true,
+	"controllers_pages.tmpl":                     true,
+	"controllers_sessions.tmpl":                  true,
+	"controllers_registrations.tmpl":             true,
+	"controllers_confirmations.tmpl":             true,
+	"controllers_reset_passwords.tmpl":           true,
+	"router_connect_api_routes.tmpl":             true,
+	"router_connect_assets_routes.tmpl":          true,
+	"router_connect_pages_routes.tmpl":           true,
+	"router_connect_sessions_routes.tmpl":        true,
 	"router_connect_registrations_routes.tmpl":   true,
 	"router_connect_confirmations_routes.tmpl":   true,
 	"router_connect_reset_passwords_routes.tmpl": true,
@@ -442,9 +443,7 @@ func processTemplatedFiles(
 			}
 		}
 		// Add fx overrides
-		for k, v := range fxTemplateOverrides {
-			uberfxMappings[k] = v
-		}
+		maps.Copy(uberfxMappings, fxTemplateOverrides)
 		mappings = uberfxMappings
 	}
 
