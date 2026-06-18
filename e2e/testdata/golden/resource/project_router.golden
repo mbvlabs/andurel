@@ -12,7 +12,6 @@ import (
 
 func (r Router) RegisterProjectRoutes(project controllers.Projects) error {
 	errs := []error{}
-
 	_, err := r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.ProjectIndex.Path(),
@@ -22,7 +21,6 @@ func (r Router) RegisterProjectRoutes(project controllers.Projects) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.ProjectShow.Path(),
@@ -32,7 +30,6 @@ func (r Router) RegisterProjectRoutes(project controllers.Projects) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.ProjectNew.Path(),
@@ -42,7 +39,6 @@ func (r Router) RegisterProjectRoutes(project controllers.Projects) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPost,
 		Path:    routes.ProjectCreate.Path(),
@@ -52,7 +48,6 @@ func (r Router) RegisterProjectRoutes(project controllers.Projects) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.ProjectEdit.Path(),
@@ -62,7 +57,6 @@ func (r Router) RegisterProjectRoutes(project controllers.Projects) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPut,
 		Path:    routes.ProjectUpdate.Path(),
@@ -72,7 +66,6 @@ func (r Router) RegisterProjectRoutes(project controllers.Projects) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodDelete,
 		Path:    routes.ProjectDestroy.Path(),

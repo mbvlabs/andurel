@@ -12,7 +12,6 @@ import (
 
 func (r Router) RegisterInvoiceRoutes(invoice controllers.Invoices) error {
 	errs := []error{}
-
 	_, err := r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.InvoiceIndex.Path(),
@@ -22,7 +21,6 @@ func (r Router) RegisterInvoiceRoutes(invoice controllers.Invoices) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.InvoiceShow.Path(),
@@ -32,7 +30,6 @@ func (r Router) RegisterInvoiceRoutes(invoice controllers.Invoices) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.InvoiceNew.Path(),
@@ -42,7 +39,6 @@ func (r Router) RegisterInvoiceRoutes(invoice controllers.Invoices) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPost,
 		Path:    routes.InvoiceCreate.Path(),
@@ -52,7 +48,6 @@ func (r Router) RegisterInvoiceRoutes(invoice controllers.Invoices) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.InvoiceEdit.Path(),
@@ -62,7 +57,6 @@ func (r Router) RegisterInvoiceRoutes(invoice controllers.Invoices) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPut,
 		Path:    routes.InvoiceUpdate.Path(),
@@ -72,7 +66,6 @@ func (r Router) RegisterInvoiceRoutes(invoice controllers.Invoices) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodDelete,
 		Path:    routes.InvoiceDestroy.Path(),

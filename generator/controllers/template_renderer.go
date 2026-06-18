@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -53,12 +54,7 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 			if len(controller.Actions) == 0 {
 				return true
 			}
-			for _, candidate := range controller.Actions {
-				if candidate == action {
-					return true
-				}
-			}
-			return false
+			return slices.Contains(controller.Actions, action)
 		},
 	}
 
@@ -134,12 +130,7 @@ func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, pluralNa
 			if len(actions) == 0 {
 				return true
 			}
-			for _, candidate := range actions {
-				if candidate == action {
-					return true
-				}
-			}
-			return false
+			return slices.Contains(actions, action)
 		},
 	}
 

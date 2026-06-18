@@ -7,10 +7,13 @@ package views
 import (
 	"fmt"
 	"net/http"
-	"testapp/internal/hypermedia"
+
 	"testapp/internal/renderer"
 	"testapp/models"
+
 	"testapp/router/routes"
+
+	"testapp/internal/hypermedia"
 )
 
 type OrderIndex struct {

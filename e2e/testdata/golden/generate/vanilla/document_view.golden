@@ -8,10 +8,13 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"testapp/internal/hypermedia"
+
 	"testapp/internal/renderer"
 	"testapp/models"
+
 	"testapp/router/routes"
+
+	"testapp/internal/hypermedia"
 )
 
 type DocumentIndex struct {
