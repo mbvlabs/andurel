@@ -14,7 +14,7 @@ func newProjectCommand(version string) *cobra.Command {
 	projectCmd := &cobra.Command{
 		Use:     "new [project-name]",
 		Aliases: []string{"n"},
-		Short: "Create a new Andurel project",
+		Short:   "Create a new Andurel project",
 		Long: `Scaffold a complete Andurel project with the given name.
 
 Generates the full project structure including controllers, models, views,
@@ -40,6 +40,9 @@ creation, run 'andurel tool sync' to download required binaries.`,
 
 	projectCmd.Flags().
 		String("di", "manual", "Dependency injection approach (manual, uberfx)")
+
+	projectCmd.Flags().
+		String("inertia", "", "Inertia adapter to use (vue)")
 
 	return projectCmd
 }
@@ -100,11 +103,27 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 		)
 	}
 
+	inertia, err := cmd.Flags().GetString("inertia")
+	if err != nil {
+		return err
+	}
+
+	if inertia != "" && inertia != "vue" {
+		return fmt.Errorf(
+			"invalid inertia adapter: %s - valid options are 'vue'",
+			inertia,
+		)
+	}
+
+	if inertia == "vue" && cssFramework != "tailwind" {
+		return fmt.Errorf("--inertia vue currently requires --css tailwind")
+	}
+
 	extensions, err := cmd.Flags().GetStringSlice("extensions")
 	if err != nil {
 		return err
 	}
-	if err := layout.Scaffold(basePath, projectName, database, cssFramework, version, extensions, diMode); err != nil {
+	if err := layout.Scaffold(basePath, projectName, database, cssFramework, version, extensions, diMode, inertia); err != nil {
 		return err
 	}
 
@@ -116,6 +135,9 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	fmt.Printf("  fill in your database connection details in .env\n")
 	fmt.Printf("  (andurel database create - if database does not exist\n")
 	fmt.Printf("  andurel database migrate up\n")
+	if inertia == "vue" {
+		fmt.Printf("  npm install\n")
+	}
 	fmt.Printf("  andurel run\n")
 
 	return nil

@@ -75,5 +75,17 @@ func (r Router) RegisterAssetsRoutes(assets controllers.Assets) error {
 		errs = append(errs, err)
 	}
 
+{{- if eq .Inertia "vue"}}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ViteBuild.Path(),
+		Name:    routes.ViteBuild.Name(),
+		Handler: assets.ViteBuild,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+{{- end}}
 	return errors.Join(errs...)
 }

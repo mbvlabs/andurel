@@ -4,15 +4,21 @@ package controllers
 import (
 	"{{.ModuleName}}/router"
 
+{{- if not .Inertia}}
 	"github.com/a-h/templ"
+{{- end}}
 	"go.uber.org/fx"
 )
 
+{{- if not .Inertia}}
 var pageCache = NewCacheBuilder[templ.Component]().Build
+{{- end}}
 var otherCache = NewCacheBuilder[string]().WithSize(2).Build
 
 var constructors = fx.Provide(
+{{- if not .Inertia}}
 	pageCache,
+{{- end}}
 	otherCache,
 	NewPages,
 	NewAssets,
@@ -21,6 +27,7 @@ var constructors = fx.Provide(
 	NewRegistrations,
 	NewConfirmations,
 	NewResetPasswords,
+	// andurel:fx-controller-provide-point
 )
 
 var Module = fx.Module(
@@ -47,4 +54,5 @@ var Module = fx.Module(
 	fx.Invoke(func(r *router.Router, c ResetPasswords) error {
 		return c.RegisterRoutes(r)
 	}),
+	// andurel:fx-controller-invoke-point
 )

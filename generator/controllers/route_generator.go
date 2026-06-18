@@ -17,6 +17,7 @@ type RouteGenerator struct {
 	fileManager      files.Manager
 	templateRenderer *TemplateRenderer
 	mainInjector     *MainInjector
+	fxInjector       *FxInjector
 }
 
 func NewRouteGenerator() *RouteGenerator {
@@ -24,6 +25,7 @@ func NewRouteGenerator() *RouteGenerator {
 		fileManager:      files.NewUnifiedFileManager(),
 		templateRenderer: NewTemplateRenderer(),
 		mainInjector:     NewMainInjector(),
+		fxInjector:       NewFxInjector(),
 	}
 }
 
@@ -62,7 +64,14 @@ func (rg *RouteGenerator) GenerateRoutesWithActions(resourceName, pluralName, id
 		return fmt.Errorf("failed to format routes file: %w", err)
 	}
 
-	if diMode != "uberfx" {
+	if diMode == "uberfx" {
+		if err := rg.fxInjector.InjectController(resourceName, pluralName); err != nil {
+			slog.Warn("unexpected error injecting fx controller", "error", err)
+		}
+		if err := rg.mainInjector.InjectFXController(resourceName, pluralName); err != nil {
+			slog.Warn("unexpected error injecting fx controller", "error", err)
+		}
+	} else {
 		if err := rg.createRouteRegistrationFile(resourceName, pluralName, actions); err != nil {
 			return fmt.Errorf("failed to create route registration file: %w", err)
 		}
@@ -70,10 +79,6 @@ func (rg *RouteGenerator) GenerateRoutesWithActions(resourceName, pluralName, id
 		// Inject into cmd/app/main.go
 		if err := rg.mainInjector.InjectController(resourceName, pluralName); err != nil {
 			slog.Warn("unexpected error injecting controller", "error", err)
-		}
-	} else {
-		if err := rg.mainInjector.InjectFXController(resourceName, pluralName); err != nil {
-			slog.Warn("unexpected error injecting fx controller", "error", err)
 		}
 	}
 

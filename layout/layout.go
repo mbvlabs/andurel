@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
-	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,6 +38,7 @@ func Scaffold(
 	targetDir, projectName, database, cssFramework, version string,
 	extensionNames []string,
 	diMode string,
+	inertia string,
 ) error {
 	if diMode == "" {
 		diMode = "manual"
@@ -48,7 +48,7 @@ func Scaffold(
 
 	moduleName := projectName
 
-	blueprint := initializeBaseBlueprint(moduleName, diMode)
+	blueprint := initializeBaseBlueprint(moduleName, diMode, inertia)
 	templateData := TemplateData{
 		AppName:              projectName,
 		ProjectName:          projectName,
@@ -63,6 +63,7 @@ func Scaffold(
 		Extensions:           extensionNames,
 		RunToolVersion:       GetRunToolVersion(),
 		DIMode:               diMode,
+		Inertia:              inertia,
 		blueprint:            blueprint,
 	}
 
@@ -112,6 +113,7 @@ func Scaffold(
 		CSSFramework: cssFramework,
 		Extensions:   extensionNames,
 		DIMode:       diMode,
+		Inertia:      inertia,
 	}
 	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", scaffoldConfig); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
@@ -141,6 +143,7 @@ func Scaffold(
 			TargetDir: targetDir,
 			Data:      &templateData,
 			DIMode:    diMode,
+			Inertia: inertia,
 			ProcessTemplate: func(templateFile, targetPath string, data extensions.TemplateData) error {
 				if data == nil {
 					data = &templateData
@@ -427,28 +430,70 @@ var fxSkippedTemplates = map[TmplTarget]bool{
 	"router_connect_reset_passwords_routes.tmpl": true,
 }
 
+var inertiaTemplateMappings = map[TmplTarget]TmplTargetPath{
+	"inertia_framework_root_html.tmpl":     "views/root.go.html",
+	"inertia_assets_app.tmpl":              "resources/js/app.ts",
+	"inertia_assets_pages_welcome.tmpl":    "resources/js/Pages/Welcome.vue",
+	"inertia_assets_vite_config.tmpl":      "vite.config.ts",
+	"inertia_assets_package_json.tmpl":     "package.json",
+	"inertia_assets_tsconfig.tmpl":         "tsconfig.json",
+	"inertia_assets_inertia_tsconfig.tmpl": "inertia/tsconfig.json",
+	"inertia_renderer_vite.tmpl":           "internal/renderer/vite.go",
+}
+
+var inertiaTemplateOverrides = map[TmplTarget]TmplTargetPath{
+	"controllers_pages_inertia.tmpl":    "controllers/pages.go",
+	"controllers_pages_inertia_fx.tmpl": "controllers/pages.go",
+}
+
+var inertiaSkippedTemplates = map[TmplTarget]bool{
+	"tw_views_home.tmpl":      true,
+	"vanilla_views_home.tmpl": true,
+}
+
 func processTemplatedFiles(
 	targetDir string,
 	cssFramework string,
 	data extensions.TemplateData,
 ) error {
-	mappings := baseTemplateMappings
+	mappings := make(map[TmplTarget]TmplTargetPath, len(baseTemplateMappings)+len(fxTemplateOverrides)+len(inertiaTemplateMappings))
+	for k, v := range baseTemplateMappings {
+		mappings[k] = v
+	}
 
 	if td, ok := data.(*TemplateData); ok && td.DIMode == "uberfx" {
-		// Start with base mappings but skip entries that are replaced or removed
-		uberfxMappings := make(map[TmplTarget]TmplTargetPath, len(baseTemplateMappings)+len(fxTemplateOverrides))
-		for k, v := range baseTemplateMappings {
-			if !fxSkippedTemplates[k] {
-				uberfxMappings[k] = v
-			}
+		for k := range fxSkippedTemplates {
+			delete(mappings, k)
 		}
-		// Add fx overrides
-		maps.Copy(uberfxMappings, fxTemplateOverrides)
-		mappings = uberfxMappings
+		for k, v := range fxTemplateOverrides {
+			mappings[k] = v
+		}
+	}
+
+	if td, ok := data.(*TemplateData); ok && td.Inertia == "vue" {
+		for k := range inertiaSkippedTemplates {
+			delete(mappings, k)
+		}
+		if td.DIMode == "uberfx" {
+			delete(mappings, "controllers_pages_fx.tmpl")
+			mappings["controllers_pages_inertia_fx.tmpl"] = inertiaTemplateOverrides["controllers_pages_inertia_fx.tmpl"]
+		} else {
+			delete(mappings, "controllers_pages.tmpl")
+			mappings["controllers_pages_inertia.tmpl"] = inertiaTemplateOverrides["controllers_pages_inertia.tmpl"]
+		}
+		for k, v := range inertiaTemplateMappings {
+			mappings[k] = v
+		}
 	}
 
 	for templateFile, targetPath := range mappings {
 		if templateFile == "assets_js_datastar.tmpl" {
+			if err := copyFile(targetDir, string(templateFile), string(targetPath), templates.Files); err != nil {
+				return fmt.Errorf("failed to copy file %s: %w", templateFile, err)
+			}
+			continue
+		}
+		if strings.HasPrefix(string(templateFile), "inertia_assets_") || templateFile == "inertia_framework_root_html.tmpl" {
 			if err := copyFile(targetDir, string(templateFile), string(targetPath), templates.Files); err != nil {
 				return fmt.Errorf("failed to copy file %s: %w", templateFile, err)
 			}
@@ -461,6 +506,9 @@ func processTemplatedFiles(
 
 	if cssFramework == "tailwind" {
 		for templateFile, targetPath := range baseTailwindTemplateMappings {
+			if td, ok := data.(*TemplateData); ok && td.Inertia == "vue" && inertiaSkippedTemplates[templateFile] {
+				continue
+			}
 			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
 				return fmt.Errorf("failed to process tailwind template %s: %w", templateFile, err)
 			}
@@ -958,14 +1006,14 @@ func generateRandomHex(bytes int) string {
 
 // initializeBaseBlueprint creates a blueprint with default base configuration
 // for controllers, routes, and other scaffold components.
-func initializeBaseBlueprint(moduleName, diMode string) *blueprint.Blueprint {
+func initializeBaseBlueprint(moduleName, diMode, inertia string) *blueprint.Blueprint {
 	if diMode == "uberfx" {
 		return initializeUberFxBlueprint(moduleName)
 	}
-	return initializeManualBlueprint(moduleName)
+	return initializeManualBlueprint(moduleName, inertia)
 }
 
-func initializeManualBlueprint(moduleName string) *blueprint.Blueprint {
+func initializeManualBlueprint(moduleName, inertia string) *blueprint.Blueprint {
 	builder := blueprint.NewBuilder(nil)
 
 	builder.AddMainImport(fmt.Sprintf("%s/clients/email", moduleName))
@@ -999,11 +1047,16 @@ func initializeManualBlueprint(moduleName string) *blueprint.Blueprint {
 		AddControllerField("Confirmations", "controllers.Confirmations").
 		AddControllerField("ResetPasswords", "controllers.ResetPasswords")
 
+	pagesConstructor := "controllers.NewPages(db, insertOnly, pagesCache)"
+	if inertia == "vue" {
+		pagesConstructor = "controllers.NewPages(db, insertOnly)"
+	}
+
 	// Constructor initializations
 	builder.
 		AddControllerConstructor("assets", "controllers.NewAssets(assetsCache)").
 		AddControllerConstructor("api", "controllers.NewAPI(db)").
-		AddControllerConstructor("pages", "controllers.NewPages(db, insertOnly, pagesCache)").
+		AddControllerConstructor("pages", pagesConstructor).
 		AddControllerConstructor("sessions", "controllers.NewSessions(db, cfg)").
 		AddControllerConstructor("registrations", "controllers.NewRegistrations(db, insertOnly, cfg)").
 		AddControllerConstructor("confirmations", "controllers.NewConfirmations(db, cfg)").

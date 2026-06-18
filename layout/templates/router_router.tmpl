@@ -8,6 +8,9 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/config"
+{{- if eq .Inertia "vue"}}
+	"{{.ModuleName}}/internal/renderer"
+{{- end}}
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/telemetry"
@@ -97,6 +100,9 @@ func SetupGlobalMiddleware(
 		middleware.RegisterAppContext,
 		middleware.RegisterFlashMessagesContext,
 		middleware.TrackReturnTo,
+{{- if eq .Inertia "vue"}}
+		renderer.InertiaMiddleware(),
+{{- end}}
 		echomw.CORSWithConfig(echomw.CORSConfig{
 			AllowOrigins:     []string{"https://*", "http://*"},
 			AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},

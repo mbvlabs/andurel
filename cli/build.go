@@ -104,6 +104,27 @@ func buildApp(rootDir string, versionFlag string) error {
 		}
 	}
 
+	// 2.5. Vite/NPM build for inertia-vue frontend
+	if lock.ScaffoldConfig != nil && lock.ScaffoldConfig.Inertia == "vue" {
+		fmt.Println("Installing NPM dependencies...")
+		npmCi := exec.Command("npm", "ci")
+		npmCi.Dir = rootDir
+		npmCi.Stdout = os.Stdout
+		npmCi.Stderr = os.Stderr
+		if err := npmCi.Run(); err != nil {
+			return fmt.Errorf("npm ci failed: %w", err)
+		}
+
+		fmt.Println("Building Vite assets...")
+		viteBuild := exec.Command("npm", "run", "build")
+		viteBuild.Dir = rootDir
+		viteBuild.Stdout = os.Stdout
+		viteBuild.Stderr = os.Stderr
+		if err := viteBuild.Run(); err != nil {
+			return fmt.Errorf("npm run build failed: %w", err)
+		}
+	}
+
 	// 3. go mod download
 	fmt.Println("Downloading Go dependencies...")
 	dlCmd := exec.Command("go", "mod", "download")

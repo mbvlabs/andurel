@@ -1,13 +1,67 @@
-// Package renderer provides utilities for rendering templ components.
+// Package renderer provides utilities for rendering templ components{{if eq .Inertia "vue"}} and Inertia pages{{end}}.
 // Code generated and maintained by the andurel framework. DO NOT EDIT.
 package renderer
 
 import (
+{{- if eq .Inertia "vue"}}
+	"errors"
+	"fmt"
+{{- end}}
 	"net/http"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
+{{- if eq .Inertia "vue"}}
+	inertia "github.com/romsar/gonertia/v3"
+
+	"{{.ModuleName}}/config"
+{{- end}}
 )
+
+{{- if eq .Inertia "vue"}}
+
+var gInertia *inertia.Inertia
+
+func InitInertia(rootHTML string, opts ...inertia.Option) error {
+	tags, err := initVite()
+	if err != nil {
+		return fmt.Errorf("renderer: vite init: %w", err)
+	}
+
+	i, err := inertia.NewFromFile(rootHTML, opts...)
+	if err != nil {
+		return err
+	}
+
+	i.ShareTemplateData("viteHead", tags.ViteHead)
+	i.ShareTemplateData("viteBody", tags.ViteBody)
+	i.ShareTemplateData("appName", config.ProjectName)
+
+	gInertia = i
+	return nil
+}
+
+func Inertia(etx *echo.Context, component string, props inertia.Props) error {
+	if gInertia == nil {
+		return errors.New("renderer: Inertia not initialized, call InitInertia")
+	}
+	return gInertia.Render(etx.Response(), etx.Request(), component, props)
+}
+
+func InertiaRedirect(etx *echo.Context, url string, status ...int) error {
+	if gInertia == nil {
+		return errors.New("renderer: Inertia not initialized, call InitInertia")
+	}
+	gInertia.Redirect(etx.Response(), etx.Request(), url, status...)
+	return nil
+}
+
+func InertiaMiddleware() echo.MiddlewareFunc {
+	return echo.WrapMiddleware(func(next http.Handler) http.Handler {
+		return gInertia.Middleware(next)
+	})
+}
+{{- end}}
 
 func Render(etx *echo.Context, t templ.Component) error {
 	buf := templ.GetBuffer()

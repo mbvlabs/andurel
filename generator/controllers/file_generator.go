@@ -42,8 +42,9 @@ func (fg *FileGenerator) GenerateController(
 	nullType string,
 	primaryKeyColumn string,
 	diMode string,
+	inertia string,
 ) error {
-	return fg.GenerateControllerWithActions(cat, resourceName, tableName, controllerType, modulePath, databaseType, tableNameOverridden, nullType, primaryKeyColumn, diMode, nil)
+	return fg.GenerateControllerWithActions(cat, resourceName, tableName, controllerType, modulePath, databaseType, tableNameOverridden, nullType, primaryKeyColumn, diMode, inertia, nil)
 }
 
 func (fg *FileGenerator) GenerateControllerWithActions(
@@ -57,6 +58,7 @@ func (fg *FileGenerator) GenerateControllerWithActions(
 	nullType string,
 	primaryKeyColumn string,
 	diMode string,
+	inertia string,
 	actions []string,
 ) error {
 	// When table name is overridden, use it directly; otherwise derive from resource name
@@ -99,7 +101,7 @@ func (fg *FileGenerator) GenerateControllerWithActions(
 		return fmt.Errorf("failed to build controller: %w", err)
 	}
 
-	controllerContent, err := fg.templateRenderer.RenderControllerFile(controller, diMode)
+	controllerContent, err := fg.templateRenderer.RenderControllerFile(controller, diMode, inertia)
 	if err != nil {
 		return fmt.Errorf("failed to render controller file: %w", err)
 	}

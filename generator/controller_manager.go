@@ -122,9 +122,10 @@ func (c *ControllerManager) GenerateControllerWithActions(
 
 	nullType := c.readNullType()
 	diMode := c.readDIMode()
+	inertia := ReadInertia()
 
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateControllerWithActions(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, actions); err != nil {
+	if err := fileGen.GenerateControllerWithActions(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia, actions); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
@@ -206,9 +207,10 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 
 	nullType := c.readNullType()
 	diMode := c.readDIMode()
+	inertia := ReadInertia()
 
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode); err != nil {
+	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
@@ -257,4 +259,18 @@ func ReadDIMode() string {
 		return lock.ScaffoldConfig.DIMode
 	}
 	return "manual"
+}
+
+// ReadInertia reads the inertia adapter from andurel.lock.
+// Returns "" when not configured (templ-only mode).
+func ReadInertia() string {
+	fm := files.NewUnifiedFileManager()
+	rootDir, err := fm.FindGoModRoot()
+	if err != nil {
+		return ""
+	}
+	if lock, err := layout.ReadLockFile(rootDir); err == nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.Inertia != "" {
+		return lock.ScaffoldConfig.Inertia
+	}
+	return ""
 }

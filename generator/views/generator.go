@@ -33,6 +33,11 @@ type ViewField struct {
 	IsSystemField   bool
 }
 
+type VuePageData struct {
+	*GeneratedView
+	ComponentName string
+}
+
 type GeneratedView struct {
 	ResourceName string
 	EntityName   string
@@ -40,6 +45,7 @@ type GeneratedView struct {
 	Fields       []ViewField
 	ModulePath   string
 	IDType       string // "uuid.UUID", "int32", "int64", "string"
+	IDFieldName  string
 	Actions      []string
 }
 
@@ -72,6 +78,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 		ModulePath:   config.ModulePath,
 		Fields:       make([]ViewField, 0),
 		IDType:       "uuid.UUID", // Default to UUID
+		IDFieldName:  "ID",
 		Actions:      config.Actions,
 	}
 
@@ -89,6 +96,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 		if col.IsPrimaryKey {
 			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
 			view.IDType = validation.GoType(pkType)
+			view.IDFieldName = types.FormatFieldName(col.Name)
 			continue
 		}
 		if col.Name == "id" {
@@ -213,6 +221,10 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 }
 
 func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
+	if lock != nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.Inertia == "vue" {
+		return "inertia_vue_tw_bare_"
+	}
+
 	cssFramework := "tailwind"
 	hasCssComponents := false
 
@@ -234,6 +246,10 @@ func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
 		return "vanilla_bare_"
 	}
 	return "tw_bare_"
+}
+
+func (g *Generator) isInertiaVue(lock *layout.AndurelLock) bool {
+	return lock != nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.Inertia == "vue"
 }
 
 func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, templatePrefix string) (string, error) {
@@ -316,6 +332,26 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, t
 	return result, nil
 }
 
+func (g *Generator) GenerateVueViewFiles(view *GeneratedView, templatePrefix string) (map[string]string, error) {
+	service := templates.GetGlobalTemplateService()
+	components := []string{"Index", "Show", "Create", "Edit"}
+	files := make(map[string]string, len(components))
+	templateName := templatePrefix + "resource_view.tmpl"
+
+	for _, componentName := range components {
+		result, err := service.RenderTemplate(templateName, VuePageData{
+			GeneratedView: view,
+			ComponentName: componentName,
+		})
+		if err != nil {
+			return nil, errors.WrapTemplateError(err, "render vue view", templateName)
+		}
+		files[componentName+".vue"] = result
+	}
+
+	return files, nil
+}
+
 func (g *Generator) GenerateView(
 	cat *catalog.Catalog,
 	resourceName string,
@@ -361,10 +397,12 @@ func (g *Generator) GenerateViewWithControllerActions(
 		renderActions = mergeResourceViewActions(existingActions, actions)
 	}
 
-	// Read lock file to determine CSS framework and extensions
+	// Read lock file to determine CSS framework, extensions, and view layer.
 	templatePrefix := "tw_bare_"
+	var lock *layout.AndurelLock
 	if rootDir, err := g.fileManager.FindGoModRoot(); err == nil {
-		if lock, err := layout.ReadLockFile(rootDir); err == nil {
+		if projectLock, err := layout.ReadLockFile(rootDir); err == nil {
+			lock = projectLock
 			templatePrefix = g.templatePrefix(lock)
 		}
 	}
@@ -379,6 +417,14 @@ func (g *Generator) GenerateViewWithControllerActions(
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build view: %w", err)
+	}
+
+	if g.isInertiaVue(lock) {
+		return g.generateVueViews(view, templatePrefix, resourceName)
+	}
+
+	if _, err := os.Stat(viewPath); err == nil {
+		return fmt.Errorf("view file %s already exists", viewPath)
 	}
 
 	viewContent, err := g.GenerateViewFile(view, withController, templatePrefix)
@@ -403,6 +449,31 @@ func (g *Generator) GenerateViewWithControllerActions(
 	}
 
 	fmt.Printf("Successfully generated view at %s\n", viewPath)
+	return nil
+}
+
+func (g *Generator) generateVueViews(view *GeneratedView, templatePrefix, resourceName string) error {
+	vueFiles, err := g.GenerateVueViewFiles(view, templatePrefix)
+	if err != nil {
+		return fmt.Errorf("failed to render vue view files: %w", err)
+	}
+
+	pagesDir := filepath.Join("resources", "js", "Pages", resourceName)
+	if err := g.fileManager.EnsureDir(pagesDir); err != nil {
+		return err
+	}
+
+	for fileName, content := range vueFiles {
+		filePath := filepath.Join(pagesDir, fileName)
+		if _, err := os.Stat(filePath); err == nil {
+			return fmt.Errorf("view file %s already exists", filePath)
+		}
+		if err := os.WriteFile(filePath, []byte(content), constants.FilePermissionPrivate); err != nil {
+			return fmt.Errorf("failed to write vue view file %s: %w", fileName, err)
+		}
+	}
+
+	fmt.Printf("Successfully generated vue views at %s\n", pagesDir)
 	return nil
 }
 

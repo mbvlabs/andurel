@@ -1,0 +1,55 @@
+package renderer
+
+import (
+	"encoding/json"
+	"fmt"
+	"html/template"
+
+	"{{.ModuleName}}/assets"
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/internal/server"
+)
+
+type viteTags struct {
+	ViteHead template.HTML
+	ViteBody template.HTML
+}
+
+type viteManifestEntry struct {
+	File    string   `json:"file"`
+	CSS     []string `json:"css"`
+	Src     string   `json:"src"`
+	IsEntry bool     `json:"isEntry"`
+}
+
+func initVite() (*viteTags, error) {
+	if config.Env != server.ProdEnvironment {
+		return &viteTags{
+			ViteHead: template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/@vite/client"></script>`),
+			ViteBody: template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/resources/js/app.ts"></script>`),
+		}, nil
+	}
+
+	data, err := assets.Files.ReadFile("dist/vite/manifest.json")
+	if err != nil {
+		return nil, fmt.Errorf("vite: read manifest: %w", err)
+	}
+
+	var manifest map[string]viteManifestEntry
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return nil, fmt.Errorf("vite: parse manifest: %w", err)
+	}
+
+	entry, ok := manifest["resources/js/app.ts"]
+	if !ok {
+		return nil, fmt.Errorf("vite: entry point 'resources/js/app.ts' not found in manifest")
+	}
+
+	tags := &viteTags{}
+	for _, css := range entry.CSS {
+		tags.ViteHead += template.HTML(`<link rel="stylesheet" href="/assets/dist/` + css + `">`)
+	}
+	tags.ViteBody = template.HTML(`<script type="module" src="/assets/dist/` + entry.File + `"></script>`)
+
+	return tags, nil
+}

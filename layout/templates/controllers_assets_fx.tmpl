@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-{{- if eq .CSSFramework "vanilla"}}
+{{- if or (eq .CSSFramework "vanilla") (eq .Inertia "vue")}}
 	"path"
 	"strings"
 {{- end}}
@@ -98,6 +98,18 @@ func (a Assets) RegisterRoutes(r *router.Router) error {
 		errs = append(errs, err)
 	}
 
+{{- if eq .Inertia "vue"}}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ViteBuild.Path(),
+		Name:    routes.ViteBuild.Name(),
+		Handler: a.ViteBuild,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+{{- end}}
 	return errors.Join(errs...)
 }
 
@@ -294,3 +306,36 @@ func (a Assets) Script(etx *echo.Context) error {
 	etx = a.enableCaching(etx, stylesheet)
 	return etx.Blob(http.StatusOK, "application/javascript", stylesheet)
 }
+
+{{- if eq .Inertia "vue"}}
+func contentTypeByExt(name string) string {
+	switch {
+	case strings.HasSuffix(name, ".js"):
+		return "application/javascript"
+	case strings.HasSuffix(name, ".css"):
+		return "text/css"
+	case strings.HasSuffix(name, ".json"):
+		return "application/json"
+	case strings.HasSuffix(name, ".svg"):
+		return "image/svg+xml"
+	default:
+		return "application/octet-stream"
+	}
+}
+
+func (a Assets) ViteBuild(etx *echo.Context) error {
+	param := strings.TrimPrefix(etx.Param("*"), "/")
+	param = path.Clean(param)
+	if param == "." || param == "" || strings.HasPrefix(param, "../") {
+		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+	}
+
+	data, err := assets.Files.ReadFile(fmt.Sprintf("dist/%s", param))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+	}
+
+	etx = a.enableCaching(etx, data)
+	return etx.Blob(http.StatusOK, contentTypeByExt(param), data)
+}
+{{- end}}
