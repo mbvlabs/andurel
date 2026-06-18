@@ -63,7 +63,7 @@ func New(
 	router.Use(globalMiddleware...)
 
 {{- if eq .Inertia "vue"}}
-	router.Static("/assets/build", "assets/build")
+	router.Static("/assets/dist", "assets/dist")
 {{- end}}
 
 	handler := http.Handler(router)

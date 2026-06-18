@@ -2,8 +2,10 @@ package renderer
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
+	"io/fs"
 
 	"{{.ModuleName}}/assets"
 	"{{.ModuleName}}/config"
@@ -23,33 +25,48 @@ type viteManifestEntry struct {
 }
 
 func initVite() (*viteTags, error) {
-	if config.Env != server.ProdEnvironment {
-		return &viteTags{
-			ViteHead: template.HTML(`<script type="module" src="http://localhost:5173/assets/build/@vite/client"></script>`),
-			ViteBody: template.HTML(`<script type="module" src="http://localhost:5173/assets/build/resources/js/app.ts"></script>`),
-		}, nil
+	viteHead, viteBody, err := readManifestTags()
+	if err != nil {
+		if config.Env == server.ProdEnvironment {
+			return nil, fmt.Errorf("vite: %w", err)
+		}
+		return devViteTags(), nil
 	}
 
-	data, err := assets.Files.ReadFile("build/manifest.json")
+	return &viteTags{ViteHead: viteHead, ViteBody: viteBody}, nil
+}
+
+func devViteTags() *viteTags {
+	return &viteTags{
+		ViteHead: template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/@vite/client"></script>`),
+		ViteBody: template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/resources/js/app.ts"></script>`),
+	}
+}
+
+func readManifestTags() (template.HTML, template.HTML, error) {
+	data, err := assets.Files.ReadFile("dist/vite/manifest.json")
 	if err != nil {
-		return nil, fmt.Errorf("vite: read manifest: %w", err)
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", "", fmt.Errorf("manifest not found (run vite build)")
+		}
+		return "", "", fmt.Errorf("read manifest: %w", err)
 	}
 
 	var manifest map[string]viteManifestEntry
 	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, fmt.Errorf("vite: parse manifest: %w", err)
+		return "", "", fmt.Errorf("parse manifest: %w", err)
 	}
 
 	entry, ok := manifest["resources/js/app.ts"]
 	if !ok {
-		return nil, fmt.Errorf("vite: entry point 'resources/js/app.ts' not found in manifest")
+		return "", "", fmt.Errorf("entry point 'resources/js/app.ts' not found in manifest")
 	}
 
-	tags := &viteTags{}
+	var head template.HTML
 	for _, css := range entry.CSS {
-		tags.ViteHead += template.HTML(`<link rel="stylesheet" href="/assets/build/` + css + `">`)
+		head += template.HTML(`<link rel="stylesheet" href="/assets/dist/` + css + `">`)
 	}
-	tags.ViteBody = template.HTML(`<script type="module" src="/assets/build/` + entry.File + `"></script>`)
+	body := template.HTML(`<script type="module" src="/assets/dist/` + entry.File + `"></script>`)
 
-	return tags, nil
+	return head, body, nil
 }
