@@ -49,3 +49,11 @@ var Script = routing.NewRouteWithFile(
 	"js.script",
 	AssetsPrefix,
 )
+
+{{- if eq .Inertia "vue"}}
+var ViteBuild = routing.NewSimpleRoute(
+	"/dist/*",
+	"vite.build",
+	AssetsPrefix,
+)
+{{- end}}
