@@ -84,15 +84,14 @@ func generateControllerWithActions(name string, actions []string, skipRoutes boo
 	shouldGenerateResource := len(actions) == 0 || len(crudActions) > 0
 
 	if shouldGenerateResource {
-		if _, err := os.Stat(controllerPath); os.IsNotExist(err) {
-			gen, err := generator.New()
-			if err != nil {
-				return err
-			}
-			if err := gen.GenerateControllerWithActions(name, "", true, crudActions); err != nil {
-				return err
-			}
-		} else if err != nil {
+		if _, err := os.Stat(controllerPath); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		gen, err := generator.New()
+		if err != nil {
+			return err
+		}
+		if err := gen.GenerateControllerWithActions(name, "", true, crudActions); err != nil {
 			return err
 		}
 	}

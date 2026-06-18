@@ -65,14 +65,24 @@ func (fg *FileGenerator) GenerateControllerWithActions(
 		pluralName = naming.DeriveTableName(resourceName)
 	}
 	controllerPath := filepath.Join("controllers", tableName+".go")
-
+	controllerExists := false
 	if _, err := os.Stat(controllerPath); err == nil {
-		return fmt.Errorf("controller file %s already exists", controllerPath)
+		controllerExists = true
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to stat controller file %s: %w", controllerPath, err)
 	}
 
 	generator := NewGenerator(databaseType)
 	if nullType != "" {
 		generator.SetNullType(nullType)
+	}
+	renderActions := actions
+	if controllerExists && len(actions) > 0 {
+		existingActions, err := existingControllerActions(controllerPath)
+		if err != nil {
+			return err
+		}
+		renderActions = mergeActions(existingActions, actions)
 	}
 	controller, err := generator.Build(cat, Config{
 		ResourceName:        resourceName,
@@ -83,7 +93,7 @@ func (fg *FileGenerator) GenerateControllerWithActions(
 		ControllerType:      controllerType,
 		TableNameOverridden: tableNameOverridden,
 		PrimaryKeyColumn:    primaryKeyColumn,
-		Actions:             actions,
+		Actions:             renderActions,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller: %w", err)
@@ -93,8 +103,8 @@ func (fg *FileGenerator) GenerateControllerWithActions(
 	if err != nil {
 		return fmt.Errorf("failed to render controller file: %w", err)
 	}
-	if len(actions) > 0 {
-		controllerContent, err = filterControllerActions(controllerContent, actions)
+	if len(renderActions) > 0 {
+		controllerContent, err = filterControllerActions(controllerContent, renderActions)
 		if err != nil {
 			return fmt.Errorf("failed to filter controller actions: %w", err)
 		}
@@ -112,11 +122,53 @@ func (fg *FileGenerator) GenerateControllerWithActions(
 		return fmt.Errorf("failed to format controller file: %w", err)
 	}
 
-	if err := fg.routeGenerator.GenerateRoutesWithActions(resourceName, pluralName, controller.IDType, diMode, actions); err != nil {
+	if err := fg.routeGenerator.GenerateRoutesWithActions(resourceName, pluralName, controller.IDType, diMode, renderActions); err != nil {
 		return fmt.Errorf("failed to generate routes: %w", err)
 	}
 
 	return nil
+}
+
+var crudActions = []string{"index", "show", "new", "create", "edit", "update", "destroy"}
+
+func mergeActions(existing, requested []string) []string {
+	if len(requested) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(existing)+len(requested))
+	merged := make([]string, 0, len(existing)+len(requested))
+	for _, group := range [][]string{existing, requested} {
+		for _, action := range group {
+			action = strings.ToLower(action)
+			if _, ok := seen[action]; ok || !slices.Contains(crudActions, action) {
+				continue
+			}
+			seen[action] = struct{}{}
+			merged = append(merged, action)
+		}
+	}
+	return merged
+}
+
+func existingControllerActions(controllerPath string) ([]string, error) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, controllerPath, nil, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse existing controller %s: %w", controllerPath, err)
+	}
+
+	actions := make([]string, 0, len(crudActions))
+	for _, decl := range file.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Recv == nil {
+			continue
+		}
+		action := strings.ToLower(fn.Name.Name)
+		if slices.Contains(crudActions, action) {
+			actions = append(actions, action)
+		}
+	}
+	return actions, nil
 }
 
 func filterControllerActions(content string, actions []string) (string, error) {

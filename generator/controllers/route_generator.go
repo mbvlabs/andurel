@@ -5,9 +5,12 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/pkg/constants"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type RouteGenerator struct {
@@ -32,7 +35,14 @@ func (rg *RouteGenerator) GenerateRoutesWithActions(resourceName, pluralName, id
 	routesPath := filepath.Join("router/routes", pluralName+".go")
 
 	if _, err := os.Stat(routesPath); err == nil {
-		return fmt.Errorf("routes file %s already exists", routesPath)
+		if diMode != "uberfx" {
+			if err := rg.createRouteRegistrationFile(resourceName, pluralName, actions); err != nil {
+				return fmt.Errorf("failed to create route registration file: %w", err)
+			}
+		}
+		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to stat routes file %s: %w", routesPath, err)
 	}
 
 	routeContent, err := rg.templateRenderer.generateRouteContent(resourceName, pluralName, idType)
@@ -74,7 +84,13 @@ func (rg *RouteGenerator) createRouteRegistrationFile(resourceName, pluralName s
 	connectPath := filepath.Join("router", "connect_"+pluralName+"_routes.go")
 
 	if _, err := os.Stat(connectPath); err == nil {
-		return fmt.Errorf("route registration file %s already exists", connectPath)
+		existingActions, err := existingRouteRegistrationActions(connectPath, resourceName)
+		if err != nil {
+			return err
+		}
+		actions = mergeActions(existingActions, actions)
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to stat route registration file %s: %w", connectPath, err)
 	}
 
 	// Generate the registration file content
@@ -92,4 +108,26 @@ func (rg *RouteGenerator) createRouteRegistrationFile(resourceName, pluralName s
 	}
 
 	return files.FormatGoFile(connectPath)
+}
+
+func existingRouteRegistrationActions(connectPath, resourceName string) ([]string, error) {
+	content, err := os.ReadFile(connectPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read route registration file %s: %w", connectPath, err)
+	}
+
+	actions := make([]string, 0, len(crudActions))
+	for _, action := range crudActions {
+		handler := fmt.Sprintf(".%s,", naming.ToPascalCase(action))
+		if strings.Contains(string(content), handler) && !slices.Contains(actions, action) {
+			actions = append(actions, action)
+			continue
+		}
+
+		routeRef := fmt.Sprintf("routes.%s%s.", resourceName, naming.ToPascalCase(action))
+		if strings.Contains(string(content), routeRef) && !slices.Contains(actions, action) {
+			actions = append(actions, action)
+		}
+	}
+	return actions, nil
 }
