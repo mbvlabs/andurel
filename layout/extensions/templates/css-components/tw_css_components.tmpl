@@ -1,37 +1,32 @@
 @layer components {
 	/* Base button shape and interaction styling. */
 	.btn {
-		@apply inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-field px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60;
+		@apply inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-sm px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60;
 	}
 
 	/* Primary solid button for main actions. */
 	.btn-primary {
-		@apply bg-primary text-primary-content shadow-sm hover:bg-primary/90;
+		@apply bg-primary text-primary-foreground shadow-sm hover:bg-primary/90;
 	}
 
 	/* Secondary solid button for supporting actions. */
 	.btn-secondary {
-		@apply bg-secondary text-secondary-content shadow-sm hover:bg-secondary/90;
+		@apply bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/90;
 	}
 
 	/* Accent-colored button for highlighted secondary actions. */
 	.btn-accent {
-		@apply bg-accent text-accent-content shadow-sm hover:bg-accent/90;
-	}
-
-	/* Neutral solid button for subdued actions. */
-	.btn-neutral {
-		@apply bg-neutral text-neutral-content shadow-sm hover:bg-neutral/90;
+		@apply bg-accent text-accent-foreground shadow-sm hover:bg-accent/90;
 	}
 
 	/* Outlined button for lower emphasis actions. */
 	.btn-outline {
-		@apply border border-base-300 bg-transparent text-base-content shadow-sm hover:bg-base-200;
+		@apply border border-outline bg-transparent text-foreground shadow-sm hover:bg-muted;
 	}
 
 	/* Ghost button with only hover feedback. */
 	.btn-ghost {
-		@apply bg-transparent text-base-content hover:bg-base-200;
+		@apply bg-transparent text-foreground hover:bg-muted;
 	}
 
 	/* Link-style button for inline actions. */
@@ -41,7 +36,7 @@
 
 	/* High-emphasis button for destructive actions. */
 	.btn-destructive {
-		@apply bg-error text-error-content shadow-sm hover:bg-error/90;
+		@apply bg-error text-error-foreground shadow-sm hover:bg-error/90;
 	}
 
 	/* Small button size. */
@@ -88,13 +83,13 @@
 	/* Restore left rounding for the first grouped button. */
 	.btn-group > .btn:first-child,
 	.btn-group > .copy-button:first-child {
-		@apply rounded-l-field;
+		@apply rounded-l-sm;
 	}
 
 	/* Restore right rounding for the last grouped button. */
 	.btn-group > .btn:last-child,
 	.btn-group > .copy-button:last-child {
-		@apply rounded-r-field;
+		@apply rounded-r-sm;
 	}
 
 	/* Collapse borders between grouped buttons. */
@@ -107,7 +102,7 @@
 
 	/* Compact utility button used for copy or dismiss actions. */
 	.copy-button {
-		@apply inline-flex h-9 w-9 items-center justify-center rounded-field border border-base-300 bg-transparent text-xs text-base-content shadow-sm hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60;
+		@apply inline-flex h-9 w-9 items-center justify-center rounded-sm border border-outline bg-transparent text-xs text-foreground shadow-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60;
 	}
 
 	/* Form primitives */
@@ -143,7 +138,7 @@
 
 	/* Helper text shown beneath a field. */
 	.field-hint {
-		@apply text-sm text-base-content/60;
+		@apply text-sm text-muted-foreground;
 	}
 
 	/* Error message shown beneath an invalid field. */
@@ -153,7 +148,7 @@
 
 	/* Prefix or suffix element inside an input group. */
 	.field-addon {
-		@apply inline-flex h-9 shrink-0 items-center px-3 text-sm text-base-content/60;
+		@apply inline-flex h-9 shrink-0 items-center px-3 text-sm text-muted-foreground;
 	}
 
 	/* Default text-like input. */
@@ -193,12 +188,12 @@
 
 	/* Individual visual slot for multi-cell OTP layouts. */
 	.input-otp-slot {
-		@apply flex h-10 w-10 items-center justify-center rounded-field border border-base-300 bg-base-200 text-sm font-medium text-base-content shadow-inner transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/50;
+		@apply flex h-10 w-10 items-center justify-center rounded-sm border border-outline bg-muted text-sm font-medium text-foreground shadow-inner transition focus-within:border-primary focus-within:ring-2 focus-within:ring-ring;
 	}
 
 	/* Checkbox control. */
 	.checkbox {
-		@apply checkable-base rounded-[4px] bg-base-100;
+		@apply checkable-base rounded-[4px] bg-background;
 	}
 
 	/* Vertical stack of checkboxes. */
@@ -223,12 +218,12 @@
 
 	/* Toggle switch track. */
 	.switch {
-		@apply toggle-base relative inline-flex h-6 w-11 items-center rounded-full bg-base-300 data-[checked=true]:bg-primary;
+		@apply toggle-base relative inline-flex h-6 w-11 items-center rounded-full bg-muted data-[checked=true]:bg-primary;
 	}
 
 	/* Toggle switch thumb. */
 	.switch-thumb {
-		@apply inline-block h-5 w-5 translate-x-0.5 rounded-full bg-base-100 shadow transition-transform data-[checked=true]:translate-x-5;
+		@apply inline-block h-5 w-5 translate-x-0.5 rounded-full bg-background shadow transition-transform data-[checked=true]:translate-x-5;
 	}
 
 	/* Wrapper around a range input. */
@@ -248,17 +243,17 @@
 
 	/* Restore left rounding for the first grouped child. */
 	.input-group > :first-child {
-		@apply rounded-l-field;
+		@apply rounded-l-sm;
 	}
 
 	/* Restore right rounding for the last grouped child. */
 	.input-group > :last-child {
-		@apply rounded-r-field;
+		@apply rounded-r-sm;
 	}
 
 	/* Shared surface styling for addons inside an input group. */
 	.input-group > .field-addon {
-		@apply border border-base-300 bg-base-300;
+		@apply border border-outline bg-muted;
 	}
 
 	/* Remove the right border from non-terminal left addons. */
@@ -309,7 +304,7 @@
 
 	/* Styled range input track. */
 	.slider-input {
-		@apply h-2 w-full cursor-pointer appearance-none rounded-full bg-base-300 accent-primary;
+		@apply h-2 w-full cursor-pointer appearance-none rounded-full bg-muted accent-primary;
 	}
 
 	/* Container for rating icons. */
@@ -319,7 +314,7 @@
 
 	/* Inactive rating icon. */
 	.rating-star {
-		@apply h-5 w-5 text-base-content/30;
+		@apply h-5 w-5 text-muted-foreground;
 	}
 
 	/* Active rating icon. */
@@ -329,7 +324,7 @@
 
 	/* Tokenized input surface for editable tags. */
 	.tags-input {
-		@apply flex min-h-9 w-full flex-wrap items-center gap-2 rounded-field border border-base-300 bg-base-200 px-2 py-1;
+		@apply flex min-h-9 w-full flex-wrap items-center gap-2 rounded-sm border border-outline bg-muted px-2 py-1;
 	}
 
 	/* Individual tag token. */
@@ -364,7 +359,7 @@
 
 	/* Standard inline text link. */
 	.inline-link {
-		@apply text-base-content/70 hover:text-base-content hover:underline;
+		@apply text-muted-foreground hover:text-foreground hover:underline;
 	}
 
 	/* Vertical menu list container. */
@@ -379,12 +374,12 @@
 
 	/* Small heading used to label a menu section. */
 	.menu-title {
-		@apply px-2 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-base-content/50;
+		@apply px-2 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground;
 	}
 
 	/* Divider between menu sections. */
 	.menu-section {
-		@apply my-1 h-px bg-base-300;
+		@apply my-1 h-px bg-muted;
 	}
 
 	/* Structural wrapper for an individual menu entry. */
@@ -394,12 +389,12 @@
 
 	/* Clickable menu entry row. */
 	.menu-link {
-		@apply interactive-item flex w-full items-center justify-between gap-2 px-2.5 py-2 text-sm text-base-content;
+		@apply interactive-item flex w-full items-center justify-between gap-2 px-2.5 py-2 text-sm text-foreground;
 	}
 
 	/* Active menu entry state. */
 	.menu-link[data-active="true"] {
-		@apply bg-primary text-primary-content;
+		@apply bg-primary text-primary-foreground;
 	}
 
 	/* Destructive menu entry styling. */
@@ -424,7 +419,7 @@
 
 	/* Small keyboard shortcut or meta text for a menu row. */
 	.menu-shortcut {
-		@apply text-xs text-base-content/50;
+		@apply text-xs text-muted-foreground;
 	}
 
 	/* Data/display primitives */
@@ -435,47 +430,37 @@
 
 	/* Primary badge. */
 	.badge-primary {
-		@apply bg-primary text-primary-content;
+		@apply bg-primary text-primary-foreground;
 	}
 
 	/* Secondary badge. */
 	.badge-secondary {
-		@apply bg-secondary text-secondary-content;
+		@apply bg-secondary text-secondary-foreground;
 	}
 
 	/* Accent badge. */
 	.badge-accent {
-		@apply bg-accent text-accent-content;
-	}
-
-	/* Neutral badge. */
-	.badge-neutral {
-		@apply bg-neutral text-neutral-content;
+		@apply bg-accent text-accent-foreground;
 	}
 
 	/* Outlined badge. */
 	.badge-outline {
-		@apply border border-base-300 bg-transparent text-base-content;
+		@apply border border-outline bg-transparent text-foreground;
 	}
 
 	/* Success badge. */
 	.badge-success {
-		@apply bg-success text-success-content;
-	}
-
-	/* Info badge. */
-	.badge-info {
-		@apply bg-info text-info-content;
+		@apply bg-success text-success-foreground;
 	}
 
 	/* Warning badge. */
 	.badge-warning {
-		@apply bg-warning text-warning-content;
+		@apply bg-warning text-warning-foreground;
 	}
 
 	/* Error badge. */
 	.badge-error {
-		@apply bg-error text-error-content;
+		@apply bg-error text-error-foreground;
 	}
 
 	/* Destructive badge with outlined danger emphasis. */
@@ -485,17 +470,12 @@
 
 	/* Base alert surface. */
 	.alert {
-		@apply w-full rounded-box border p-4;
+		@apply w-full rounded-lg border p-4;
 	}
 
 	/* Neutral alert state. */
 	.alert-neutral {
-		@apply border-base-300 text-base-content;
-	}
-
-	/* Informational alert state. */
-	.alert-info {
-		@apply status-info;
+		@apply border-outline text-foreground;
 	}
 
 	/* Success alert state. */
@@ -530,7 +510,7 @@
 
 	/* Base card surface. */
 	.card {
-		@apply panel-base text-base-content shadow-sm;
+		@apply panel-base text-foreground shadow-sm;
 	}
 
 	/* Card header container. */
@@ -545,7 +525,7 @@
 
 	/* Card supporting text. */
 	.card-description {
-		@apply text-sm text-base-content/60;
+		@apply text-sm text-muted-foreground;
 	}
 
 	/* Card body container. */
@@ -565,12 +545,12 @@
 
 	/* Horizontal stats layout, switching to columns on larger screens. */
 	.stats[data-orientation="horizontal"] {
-		@apply grid-cols-1 divide-y divide-base-300 md:grid-flow-col md:auto-cols-fr md:divide-x md:divide-y-0;
+		@apply grid-cols-1 divide-y divide-outline md:grid-flow-col md:auto-cols-fr md:divide-x md:divide-y-0;
 	}
 
 	/* Vertical stats layout. */
 	.stats[data-orientation="vertical"] {
-		@apply divide-y divide-base-300;
+		@apply divide-y divide-outline;
 	}
 
 	/* Individual stat block. */
@@ -580,22 +560,22 @@
 
 	/* Optional leading icon or figure in a stat block. */
 	.stat-figure {
-		@apply mb-2 flex h-10 w-10 items-center justify-center rounded-field bg-base-200 text-base-content/70;
+		@apply mb-2 flex h-10 w-10 items-center justify-center rounded-sm bg-muted text-muted-foreground;
 	}
 
 	/* Small stat label. */
 	.stat-title {
-		@apply text-xs font-semibold uppercase tracking-[0.08em] text-base-content/50;
+		@apply text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground;
 	}
 
 	/* Main stat value. */
 	.stat-value {
-		@apply text-3xl font-semibold leading-none text-base-content;
+		@apply text-3xl font-semibold leading-none text-foreground;
 	}
 
 	/* Supporting text beneath a stat value. */
 	.stat-desc {
-		@apply text-sm text-base-content/60;
+		@apply text-sm text-muted-foreground;
 	}
 
 	/* Action row inside a stat block. */
@@ -605,7 +585,7 @@
 
 	/* Base circular avatar container. */
 	.avatar {
-		@apply relative inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-base-300;
+		@apply relative inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted;
 	}
 
 	/* Small avatar size. */
@@ -625,22 +605,22 @@
 
 	/* Text fallback shown when no avatar image is present. */
 	.avatar-fallback {
-		@apply font-medium text-base-content/70;
+		@apply font-medium text-muted-foreground;
 	}
 
 	/* Horizontal divider. */
 	.separator {
-		@apply h-px w-full bg-base-300;
+		@apply h-px w-full bg-muted;
 	}
 
 	/* Vertical divider. */
 	.separator-vertical {
-		@apply h-6 w-px bg-base-300;
+		@apply h-6 w-px bg-muted;
 	}
 
 	/* Base circular loading spinner. */
 	.spinner {
-		@apply inline-block h-5 w-5 animate-spin rounded-full border-2 border-base-300 border-t-primary;
+		@apply inline-block h-5 w-5 animate-spin rounded-full border-2 border-outline border-t-primary;
 	}
 
 	/* Small spinner size. */
@@ -655,7 +635,7 @@
 
 	/* Base progress track. */
 	.progress {
-		@apply h-2 w-full overflow-hidden rounded-full bg-base-300;
+		@apply h-2 w-full overflow-hidden rounded-full bg-muted;
 	}
 
 	/* Filled progress indicator. */
@@ -665,7 +645,7 @@
 
 	/* Animated loading placeholder block. */
 	.skeleton {
-		@apply animate-pulse rounded-field bg-base-300;
+		@apply animate-pulse rounded-sm bg-muted;
 	}
 
 	/* Centered empty-state surface. */
@@ -675,17 +655,17 @@
 
 	/* Icon or symbol container in an empty state. */
 	.empty-state-icon {
-		@apply flex h-14 w-14 items-center justify-center rounded-full bg-base-200 text-base-content/60;
+		@apply flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground;
 	}
 
 	/* Empty-state headline text. */
 	.empty-state-title {
-		@apply text-lg font-semibold text-base-content;
+		@apply text-lg font-semibold text-foreground;
 	}
 
 	/* Empty-state supporting text. */
 	.empty-state-description {
-		@apply max-w-prose text-sm text-base-content/60;
+		@apply max-w-prose text-sm text-muted-foreground;
 	}
 
 	/* Action row in an empty state. */
@@ -695,12 +675,12 @@
 
 	/* Keyboard key visual token. */
 	.kbd {
-		@apply inline-flex h-6 min-w-6 items-center justify-center rounded-field border border-base-300 bg-base-100 px-1.5 text-xs font-medium text-base-content/80;
+		@apply inline-flex h-6 min-w-6 items-center justify-center rounded-sm border border-outline bg-background px-1.5 text-xs font-medium text-muted-foreground;
 	}
 
 	/* Inline code token. */
 	.code-inline {
-		@apply rounded-field bg-base-200 px-1.5 py-0.5 font-mono text-xs;
+		@apply rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs;
 	}
 
 	/* Scrollable block code surface. */
@@ -720,27 +700,27 @@
 
 	/* Table header section. */
 	.table thead {
-		@apply border-b border-base-300 bg-base-200/60;
+		@apply border-b border-outline bg-muted/60;
 	}
 
 	/* Table header row. */
 	.table thead tr {
-		@apply border-b border-base-300 text-base text-base-content font-semibold;
+		@apply border-b border-outline text-base text-foreground font-semibold;
 	}
 
 	/* Table body section. */
 	.table tbody {
-		@apply bg-base-100;
+		@apply bg-background;
 	}
 
 	/* Table body rows with separators. */
 	.table tbody tr {
-		@apply border-b border-base-300 last:border-0;
+		@apply border-b border-outline last:border-0;
 	}
 
 	/* Table header cells. */
 	.table th {
-		@apply h-10 px-3 text-left font-medium text-base-content/70;
+		@apply h-10 px-3 text-left font-medium text-muted-foreground;
 	}
 
 	/* Table body cells. */
@@ -750,12 +730,12 @@
 
 	/* Table caption text. */
 	.table caption {
-		@apply p-3 text-sm text-base-content/60;
+		@apply p-3 text-sm text-muted-foreground;
 	}
 
 	/* Table footer row styling. */
 	.table tfoot {
-		@apply border-t border-base-300 bg-base-200/50 font-medium;
+		@apply border-t border-outline bg-muted/50 font-medium;
 	}
 
 	/* Calendar surface. */
@@ -775,7 +755,7 @@
 
 	/* Weekday label cell. */
 	.calendar-weekday {
-		@apply text-center text-xs text-base-content/60;
+		@apply text-center text-xs text-muted-foreground;
 	}
 
 	/* Individual day cell. */
@@ -790,13 +770,13 @@
 
 	/* Selected day in the calendar. */
 	.calendar-day[data-selected="true"] {
-		@apply bg-primary text-primary-content;
+		@apply bg-primary text-primary-foreground;
 	}
 
 	/* Navigation */
 	/* Breadcrumb list container. */
 	.breadcrumb {
-		@apply flex flex-wrap items-center gap-1.5 text-sm text-base-content/60;
+		@apply flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground;
 	}
 
 	/* Breadcrumb item wrapper. */
@@ -806,17 +786,17 @@
 
 	/* Clickable breadcrumb link. */
 	.breadcrumb-link {
-		@apply transition-colors hover:text-base-content;
+		@apply transition-colors hover:text-foreground;
 	}
 
 	/* Current breadcrumb item text. */
 	.breadcrumb-current {
-		@apply font-medium text-base-content;
+		@apply font-medium text-foreground;
 	}
 
 	/* Separator between breadcrumb items. */
 	.breadcrumb-separator {
-		@apply text-base-content/40;
+		@apply text-muted-foreground;
 	}
 
 	/* Pagination container. */
@@ -831,12 +811,12 @@
 
 	/* Active pagination link. */
 	.pagination-link[data-current="true"] {
-		@apply bg-primary text-primary-content;
+		@apply bg-primary text-primary-foreground;
 	}
 
 	/* Non-clickable pagination gap marker. */
 	.pagination-ellipsis {
-		@apply inline-flex h-8 min-w-8 items-center justify-center text-base-content/60;
+		@apply inline-flex h-8 min-w-8 items-center justify-center text-muted-foreground;
 	}
 
 	/* Steps container. */
@@ -857,7 +837,7 @@
 	/* Vertical connector line between stacked steps. */
 	.steps[data-orientation="vertical"] .step:not(:last-child)::after {
 		content: "";
-		@apply absolute left-4 top-9 h-[calc(100%-1.5rem)] w-px bg-base-300;
+		@apply absolute left-4 top-9 h-[calc(100%-1.5rem)] w-px bg-muted;
 	}
 
 	/* Horizontal layout for each step on wider screens. */
@@ -868,12 +848,12 @@
 	/* Horizontal connector line between steps. */
 	.steps[data-orientation="horizontal"] .step:not(:last-child)::after {
 		content: "";
-		@apply hidden md:block absolute left-[calc(50%+1.25rem)] top-4 h-px w-[calc(100%-2.5rem)] bg-base-300;
+		@apply hidden md:block absolute left-[calc(50%+1.25rem)] top-4 h-px w-[calc(100%-2.5rem)] bg-muted;
 	}
 
 	/* Circular step marker. */
 	.step-indicator {
-		@apply relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-base-300 bg-base-100 text-sm font-semibold text-base-content/70;
+		@apply relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-outline bg-background text-sm font-semibold text-muted-foreground;
 	}
 
 	/* Text container for a step. */
@@ -888,27 +868,27 @@
 
 	/* Step title text. */
 	.step-title {
-		@apply text-sm font-medium text-base-content;
+		@apply text-sm font-medium text-foreground;
 	}
 
 	/* Step helper text. */
 	.step-description {
-		@apply text-sm text-base-content/60;
+		@apply text-sm text-muted-foreground;
 	}
 
 	/* Current step indicator styling. */
 	.step[data-state="current"] .step-indicator {
-		@apply border-primary bg-primary text-primary-content;
+		@apply border-primary bg-primary text-primary-foreground;
 	}
 
 	/* Completed step indicator styling. */
 	.step[data-state="completed"] .step-indicator {
-		@apply border-success bg-success text-success-content;
+		@apply border-success bg-success text-success-foreground;
 	}
 
 	/* Error step indicator styling. */
 	.step[data-state="error"] .step-indicator {
-		@apply border-error bg-error text-error-content;
+		@apply border-error bg-error text-error-foreground;
 	}
 
 	/* Highlight connectors leading into completed or current steps. */
@@ -919,17 +899,17 @@
 
 	/* Tabs list container. */
 	.tab-list {
-		@apply inline-flex h-9 items-center justify-center rounded-box bg-base-200 p-1 text-base-content/60;
+		@apply inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground;
 	}
 
 	/* Individual tab trigger. */
 	.tab-trigger {
-		@apply inline-flex items-center justify-center whitespace-nowrap rounded-field px-3 py-1 text-sm font-medium text-base-content/70 transition-all hover:bg-base-100 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:pointer-events-none disabled:opacity-60 data-[selected]:bg-primary data-[selected]:font-semibold data-[selected]:text-primary-content data-[selected]:shadow-sm data-[selected]:ring-1 data-[selected]:ring-primary/40;
+		@apply inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-sm font-medium text-muted-foreground transition-all hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-60 data-[selected]:bg-primary data-[selected]:font-semibold data-[selected]:text-primary-foreground data-[selected]:shadow-sm data-[selected]:ring-1 data-[selected]:ring-primary/40;
 	}
 
 	/* Tab panel surface. */
 	.tab-content {
-		@apply panel-base mt-2 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50;
+		@apply panel-base mt-2 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
 	}
 
 	/* Interactive containers */
@@ -940,7 +920,7 @@
 
 	/* Accordion item divider. */
 	.accordion-item {
-		@apply border-b border-base-300 last:border-b-0;
+		@apply border-b border-outline last:border-b-0;
 	}
 
 	/* Accordion trigger row. */
@@ -950,7 +930,7 @@
 
 	/* Accordion panel content. */
 	.accordion-content {
-		@apply px-4 pb-4 text-sm text-base-content/80;
+		@apply px-4 pb-4 text-sm text-muted-foreground;
 	}
 
 	/* Collapsible surface. */
@@ -965,7 +945,7 @@
 
 	/* Collapsible content area. */
 	.collapsible-content {
-		@apply px-4 pb-4 text-sm text-base-content/80;
+		@apply px-4 pb-4 text-sm text-muted-foreground;
 	}
 
 	/* Fixed-ratio media wrapper. */
@@ -976,7 +956,7 @@
 
 	/* Centered content overlay inside an aspect-ratio box. */
 	.aspect-ratio-content {
-		@apply absolute inset-0 flex items-center justify-center text-sm text-base-content/70;
+		@apply absolute inset-0 flex items-center justify-center text-sm text-muted-foreground;
 	}
 
 	/* Carousel viewport surface. */
@@ -1001,7 +981,7 @@
 
 	/* Carousel navigation dot. */
 	.carousel-dot {
-		@apply h-2 w-2 rounded-full bg-base-content/30;
+		@apply h-2 w-2 rounded-full bg-foreground/30;
 	}
 
 	/* Active carousel navigation dot. */
@@ -1037,7 +1017,7 @@
 
 	/* Dialog supporting text. */
 	.dialog-description {
-		@apply text-sm text-base-content/60;
+		@apply text-sm text-muted-foreground;
 	}
 
 	/* Dialog action row. */
@@ -1062,27 +1042,27 @@
 
 	/* Base sheet panel surface. */
 	.sheet-panel {
-		@apply fixed z-50 bg-base-100 p-6 shadow-lg;
+		@apply fixed z-50 bg-background p-6 shadow-lg;
 	}
 
 	/* Right-aligned sheet variant. */
 	.sheet-panel[data-side="right"] {
-		@apply inset-y-0 right-0 h-full w-full max-w-md border-l border-base-300;
+		@apply inset-y-0 right-0 h-full w-full max-w-md border-l border-outline;
 	}
 
 	/* Left-aligned sheet variant. */
 	.sheet-panel[data-side="left"] {
-		@apply inset-y-0 left-0 h-full w-full max-w-md border-r border-base-300;
+		@apply inset-y-0 left-0 h-full w-full max-w-md border-r border-outline;
 	}
 
 	/* Top-aligned sheet variant. */
 	.sheet-panel[data-side="top"] {
-		@apply inset-x-0 top-0 w-full border-b border-base-300;
+		@apply inset-x-0 top-0 w-full border-b border-outline;
 	}
 
 	/* Bottom-aligned sheet variant. */
 	.sheet-panel[data-side="bottom"] {
-		@apply inset-x-0 bottom-0 w-full border-t border-base-300;
+		@apply inset-x-0 bottom-0 w-full border-t border-outline;
 	}
 
 	/* Sheet title and description wrapper. */
@@ -1097,7 +1077,7 @@
 
 	/* Sheet supporting text. */
 	.sheet-description {
-		@apply text-sm text-base-content/60;
+		@apply text-sm text-muted-foreground;
 	}
 
 	/* Sheet action row. */
@@ -1132,7 +1112,7 @@
 
 	/* Small label at the top of a dropdown menu. */
 	.dropdown-label {
-		@apply px-2 py-1.5 text-xs font-medium text-base-content/60;
+		@apply px-2 py-1.5 text-xs font-medium text-muted-foreground;
 	}
 
 	/* Clickable dropdown row. */
@@ -1142,7 +1122,7 @@
 
 	/* Divider between dropdown groups. */
 	.dropdown-separator {
-		@apply my-1 h-px bg-base-300;
+		@apply my-1 h-px bg-muted;
 	}
 
 	/* Relative wrapper for tooltip trigger and content. */
@@ -1152,7 +1132,7 @@
 
 	/* Tooltip bubble content. */
 	.tooltip-content {
-		@apply absolute bottom-[calc(100%+0.5rem)] left-1/2 z-40 -translate-x-1/2 whitespace-nowrap rounded-field bg-base-content px-2 py-1 text-xs text-base-100 shadow;
+		@apply absolute bottom-[calc(100%+0.5rem)] left-1/2 z-40 -translate-x-1/2 whitespace-nowrap rounded-sm bg-foreground px-2 py-1 text-xs text-background shadow;
 	}
 
 	/* Toast / flash */
@@ -1171,11 +1151,6 @@
 		@apply border-success/40;
 	}
 
-	/* Info toast border state. */
-	.toast-info {
-		@apply border-info/40;
-	}
-
 	/* Warning toast border state. */
 	.toast-warning {
 		@apply border-warning/40;
@@ -1188,17 +1163,17 @@
 
 	/* Toast header row. */
 	.toast-header {
-		@apply flex items-center justify-between border-b border-base-300 px-4 py-2;
+		@apply flex items-center justify-between border-b border-outline px-4 py-2;
 	}
 
 	/* Colored status dot inside a toast. */
 	.toast-indicator {
-		@apply h-3 w-3 rounded-full bg-info;
+		@apply h-3 w-3 rounded-full bg-primary;
 	}
 
 	/* Small time label inside a toast. */
 	.toast-time {
-		@apply text-xs text-base-content/60;
+		@apply text-xs text-muted-foreground;
 	}
 
 	/* Toast dismiss button. */
@@ -1208,17 +1183,12 @@
 
 	/* Main toast body text. */
 	.toast-message {
-		@apply px-4 py-3 text-sm text-base-content;
+		@apply px-4 py-3 text-sm text-foreground;
 	}
 
 	/* Success indicator color override. */
 	.toast-success .toast-indicator {
 		@apply bg-success;
-	}
-
-	/* Info indicator color override. */
-	.toast-info .toast-indicator {
-		@apply bg-info;
 	}
 
 	/* Warning indicator color override. */
