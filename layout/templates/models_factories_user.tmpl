@@ -2,6 +2,7 @@ package factories
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -20,22 +21,13 @@ type UserFactory struct {
 // UserOption is a functional option for configuring a UserFactory
 type UserOption func(*UserFactory)
 
-// defaultPassword generates a default password hash for testing
-func defaultPassword() []byte {
-	hash, err := models.HashPassword("password123", TestPepper)
-	if err != nil {
-		return []byte("3tqjNE7qwBqPvqEGqLxPrMzKFH9YkRJPqQXqN3yVzNE:AAAAAAAAAAAAAAAAAAAAAA")
-	}
-	return []byte(hash)
-}
-
 // BuildUser creates an in-memory User with default test values.
 // Auto-managed fields (ID, timestamps) are left at zero and set by CreateUser.
 func BuildUser(opts ...UserOption) models.UserEntity {
 	f := &UserFactory{
 		UserEntity: models.UserEntity{
 			Email:            faker.Email(),
-			EmailValidatedAt: nil,
+			EmailValidatedAt: sql.NullTime{},
 			Password:         defaultPassword(),
 			IsAdmin:          false,
 		},
@@ -111,7 +103,7 @@ func WithIsAdmin(isAdmin bool) UserOption {
 // WithEmailValidatedAt sets the email validation timestamp
 func WithEmailValidatedAt(t time.Time) UserOption {
 	return func(f *UserFactory) {
-		f.EmailValidatedAt = &t
+		f.EmailValidatedAt = sql.NullTime{Time: t, Valid: true}
 	}
 }
 
