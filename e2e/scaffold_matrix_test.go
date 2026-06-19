@@ -134,8 +134,18 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 		"cmd/app/main.go",
 		"controllers/pages.go",
 		"views/layout.templ",
-		"views/home.templ",
 	}
+
+	if config.Inertia == "vue" {
+		inertiaCoreFiles := []string{
+			"views/root.go.html",
+			"internal/renderer/vite.go",
+		}
+		coreFiles = append(coreFiles, inertiaCoreFiles...)
+	} else {
+		coreFiles = append(coreFiles, "views/home.templ")
+	}
+
 	internal.AssertFilesExist(t, project, coreFiles)
 
 	internal.AssertFileExists(
@@ -182,8 +192,6 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 			"vite.config.ts",
 			"package.json",
 			"tsconfig.json",
-			"views/root.go.html",
-			"internal/renderer/vite.go",
 		}
 		internal.AssertFilesExist(t, project, inertiaFiles)
 	} else {
