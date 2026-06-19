@@ -334,10 +334,25 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, t
 
 func (g *Generator) GenerateVueViewFiles(view *GeneratedView, templatePrefix string) (map[string]string, error) {
 	service := templates.GetGlobalTemplateService()
-	components := []string{"Index", "Show", "Create", "Edit"}
-	files := make(map[string]string, len(components))
-	templateName := templatePrefix + "resource_view.tmpl"
+	fileNames := make(map[string]string, 4)
 
+	defaultComponents := []string{"Index", "Show", "Create", "Edit"}
+	components := defaultComponents
+	if len(view.Actions) > 0 {
+		actionSet := make(map[string]struct{}, len(defaultComponents))
+		for _, a := range defaultComponents {
+			actionSet[strings.ToLower(a)] = struct{}{}
+		}
+		components = make([]string, 0, len(view.Actions))
+		for _, action := range view.Actions {
+			pascal := naming.ToPascalCase(action)
+			if _, ok := actionSet[strings.ToLower(pascal)]; ok {
+				components = append(components, pascal)
+			}
+		}
+	}
+
+	templateName := templatePrefix + "resource_view.tmpl"
 	for _, componentName := range components {
 		result, err := service.RenderTemplate(templateName, VuePageData{
 			GeneratedView: view,
@@ -346,10 +361,10 @@ func (g *Generator) GenerateVueViewFiles(view *GeneratedView, templatePrefix str
 		if err != nil {
 			return nil, errors.WrapTemplateError(err, "render vue view", templateName)
 		}
-		files[componentName+".vue"] = result
+		fileNames[componentName+".vue"] = result
 	}
 
-	return files, nil
+	return fileNames, nil
 }
 
 func (g *Generator) GenerateView(

@@ -15,6 +15,8 @@ import (
 	inertia "github.com/romsar/gonertia/v3"
 
 	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/internal/request"
+	"{{.ModuleName}}/router/cookies"
 {{- end}}
 )
 
@@ -45,6 +47,16 @@ func Inertia(etx *echo.Context, component string, props inertia.Props) error {
 	if gInertia == nil {
 		return errors.New("renderer: Inertia not initialized, call InitInertia")
 	}
+
+	if flashes := request.ExtractContext[[]cookies.FlashMessage](
+		etx.Request().Context(), request.SessionFlashesKey,
+	); len(flashes) > 0 {
+		if props == nil {
+			props = make(inertia.Props)
+		}
+		props["flash"] = flashes
+	}
+
 	return gInertia.Render(etx.Response(), etx.Request(), component, props)
 }
 

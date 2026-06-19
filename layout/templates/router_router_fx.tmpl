@@ -110,9 +110,7 @@ func SetupGlobalMiddleware(
 			),
 		),
 		middleware.ValidateSession,
-		middleware.RegisterAppContext,
-		middleware.RegisterFlashMessagesContext,
-		middleware.TrackReturnTo,
+		middleware.RegisterRequestMeta,
 {{- if eq .Inertia "vue"}}
 		renderer.InertiaMiddleware(),
 {{- end}}

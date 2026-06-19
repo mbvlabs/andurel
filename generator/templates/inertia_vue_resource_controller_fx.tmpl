@@ -543,6 +543,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router) error {
 	var errs []error
 
+{{- if HasAction "index" }}
 	_, err := r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}Index.Path(),
@@ -552,7 +553,9 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "show" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}Show.Path(),
@@ -562,7 +565,9 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "new" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}New.Path(),
@@ -572,7 +577,9 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "create" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodPost,
 		Path:    routes.{{.ResourceName}}Create.Path(),
@@ -582,7 +589,9 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "edit" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}Edit.Path(),
@@ -592,7 +601,9 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "update" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodPut,
 		Path:    routes.{{.ResourceName}}Update.Path(),
@@ -602,7 +613,9 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "destroy" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodDelete,
 		Path:    routes.{{.ResourceName}}Destroy.Path(),
@@ -612,6 +625,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
 	return errors.Join(errs...)
 }

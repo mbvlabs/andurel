@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/internal/request"
 	"{{.ModuleName}}/internal/server"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
@@ -23,7 +24,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func RegisterAppContext(
+func RegisterRequestMeta(
 	next echo.HandlerFunc,
 ) echo.HandlerFunc {
 	return func(c *echo.Context) error {
@@ -32,102 +33,74 @@ func RegisterAppContext(
 			return next(c)
 		}
 
-		c.Set("app_cookie", cookies.ExtractFromCookieApp(c))
-
-		return next(c)
-	}
-}
-
-func RegisterFlashMessagesContext(
-	next echo.HandlerFunc,
-) echo.HandlerFunc {
-	return func(c *echo.Context) error {
-		if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
-			strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
-			return next(c)
-		}
+		appCookie := cookies.ExtractFromCookieApp(c)
+		appCookie.CurrentPath = c.Request().URL.Path
 
 		flashes, err := cookies.ExtractFlashes(c)
 		if err != nil {
 			slog.Error("Error getting flash messages from session", "error", err)
-			return next(c)
 		}
 
-		c.Set("flash_messages", flashes)
-
-		return next(c)
-	}
-}
-
-func TrackReturnTo(
-	next echo.HandlerFunc,
-) echo.HandlerFunc {
-	return func(c *echo.Context) error {
-		if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
-			strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
-			return next(c)
-		}
-
-		c.Set("back_url", cookies.GetReturnTo(c))
+		returnTo := cookies.GetReturnTo(c)
 
 		method := c.Request().Method
-		if method != http.MethodGet && method != http.MethodHead {
-			return next(c)
-		}
+		if method == http.MethodGet || method == http.MethodHead {
+			referer := strings.TrimSpace(c.Request().Referer())
+			if referer == "" {
+				if sessErr := cookies.SetReturnTo(c, ""); sessErr != nil {
+					slog.Warn("Error clearing return_to", "error", sessErr)
+				}
+				returnTo = ""
+			} else {
+				refererURL, parseErr := url.Parse(referer)
+				if parseErr != nil {
+					if sessErr := cookies.SetReturnTo(c, ""); sessErr != nil {
+						slog.Warn("Error clearing return_to", "error", sessErr)
+					}
+					returnTo = ""
+				} else if refererURL.Host != "" && !strings.EqualFold(refererURL.Host, c.Request().Host) {
+					if sessErr := cookies.SetReturnTo(c, ""); sessErr != nil {
+						slog.Warn("Error clearing return_to", "error", sessErr)
+					}
+					returnTo = ""
+				} else {
+					newReturnTo := refererURL.EscapedPath()
+					if refererURL.RawQuery != "" {
+						newReturnTo += "?" + refererURL.RawQuery
+					}
+					if newReturnTo == "" {
+						newReturnTo = "/"
+					}
 
-		referer := strings.TrimSpace(c.Request().Referer())
-		if referer == "" {
-			if err := cookies.SetReturnTo(c, ""); err != nil {
-				slog.Warn("Error clearing return_to", "error", err)
+					current := c.Request().URL.Path
+					if c.Request().URL.RawQuery != "" {
+						current += "?" + c.Request().URL.RawQuery
+					}
+
+					if newReturnTo == current ||
+						!strings.HasPrefix(newReturnTo, "/") ||
+						strings.HasPrefix(newReturnTo, "//") {
+						if sessErr := cookies.SetReturnTo(c, ""); sessErr != nil {
+							slog.Warn("Error clearing return_to", "error", sessErr)
+						}
+						returnTo = ""
+					} else {
+						if sessErr := cookies.SetReturnTo(c, newReturnTo); sessErr != nil {
+							slog.Warn("Error setting return_to", "error", sessErr)
+						}
+						returnTo = newReturnTo
+					}
+				}
 			}
-			c.Set("back_url", "")
-			return next(c)
 		}
 
-		refererURL, err := url.Parse(referer)
-		if err != nil {
-			if clearErr := cookies.SetReturnTo(c, ""); clearErr != nil {
-				slog.Warn("Error clearing return_to", "error", clearErr)
-			}
-			c.Set("back_url", "")
-			return next(c)
-		}
+		ctx := request.BuildRequestMeta(c.Request().Context(), map[request.AppContextKey]any{
+			request.SessionCookieKey:  appCookie,
+			request.SessionFlashesKey: flashes,
+			request.BackURLKey:        returnTo,
+		})
 
-		if refererURL.Host != "" && !strings.EqualFold(refererURL.Host, c.Request().Host) {
-			if clearErr := cookies.SetReturnTo(c, ""); clearErr != nil {
-				slog.Warn("Error clearing return_to", "error", clearErr)
-			}
-			c.Set("back_url", "")
-			return next(c)
-		}
-
-		returnTo := refererURL.EscapedPath()
-		if returnTo == "" {
-			returnTo = "/"
-		}
-		if refererURL.RawQuery != "" {
-			returnTo += "?" + refererURL.RawQuery
-		}
-
-		current := c.Request().URL.Path
-		if c.Request().URL.RawQuery != "" {
-			current += "?" + c.Request().URL.RawQuery
-		}
-
-		if returnTo == current ||
-			!strings.HasPrefix(returnTo, "/") ||
-			strings.HasPrefix(returnTo, "//") {
-			if clearErr := cookies.SetReturnTo(c, ""); clearErr != nil {
-				slog.Warn("Error clearing return_to", "error", clearErr)
-			}
-			c.Set("back_url", "")
-			return next(c)
-		}
-
-		if err := cookies.SetReturnTo(c, returnTo); err != nil {
-			slog.Warn("Error setting return_to", "error", err)
-		}
-		c.Set("back_url", returnTo)
+		c.SetRequest(c.Request().WithContext(ctx))
 
 		return next(c)
 	}

@@ -6,44 +6,58 @@ import (
 
 const {{.ResourceName}}Prefix = "/{{.PluralName}}"
 
+{{- if HasAction "index" }}
 var {{.ResourceName}}Index = routing.NewSimpleRoute(
 	"",
 	"{{.PluralName}}.index",
 	{{.ResourceName}}Prefix,
 )
+{{- end }}
 
+{{- if HasAction "show" }}
 var {{.ResourceName}}Show = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
 	"/:id",
 	"{{.PluralName}}.show",
 	{{.ResourceName}}Prefix,
 )
+{{- end }}
 
+{{- if HasAction "new" }}
 var {{.ResourceName}}New = routing.NewSimpleRoute(
 	"/new",
 	"{{.PluralName}}.new",
 	{{.ResourceName}}Prefix,
 )
+{{- end }}
 
+{{- if HasAction "create" }}
 var {{.ResourceName}}Create = routing.NewSimpleRoute(
 	"",
 	"{{.PluralName}}.create",
 	{{.ResourceName}}Prefix,
 )
+{{- end }}
 
+{{- if HasAction "edit" }}
 var {{.ResourceName}}Edit = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
 	"/:id/edit",
 	"{{.PluralName}}.edit",
 	{{.ResourceName}}Prefix,
 )
+{{- end }}
 
+{{- if HasAction "update" }}
 var {{.ResourceName}}Update = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
 	"/:id",
 	"{{.PluralName}}.update",
 	{{.ResourceName}}Prefix,
 )
+{{- end }}
 
+{{- if HasAction "destroy" }}
 var {{.ResourceName}}Destroy = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
 	"/:id",
 	"{{.PluralName}}.destroy",
 	{{.ResourceName}}Prefix,
 )
+{{- end }}
