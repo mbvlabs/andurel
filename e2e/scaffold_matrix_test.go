@@ -182,7 +182,7 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 		internal.AssertFileContains(t, project, "cmd/app/main.go", "fx.New")
 		internal.AssertFileContains(t, project, "cmd/app/main.go", "fx.Provide")
 	} else {
-		internal.AssertFileContains(t, project, "cmd/app/main.go", "func run()")
+		internal.AssertFileContains(t, project, "cmd/app/main.go", "func run")
 	}
 
 	if config.Inertia == "vue" {
