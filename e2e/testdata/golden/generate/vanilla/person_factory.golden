@@ -15,21 +15,19 @@ import (
 
 // PersonFactory wraps models.PersonEntity for testing
 type PersonFactory struct {
-	models.PersonEntity // Embedded
+	models.PersonEntity
 }
 
 type PersonOption func(*PersonFactory)
 
-// BuildPerson creates an in-memory Person with default test values
+// BuildPerson creates an in-memory Person with default test values.
+// Auto-managed fields (ID, timestamps) are left at zero and set by CreatePerson.
 func BuildPerson(opts ...PersonOption) models.PersonEntity {
 	f := &PersonFactory{
 		PersonEntity: models.PersonEntity{
-			ID:        uuid.New(),
 			FirstName: faker.Word(),
 			LastName:  faker.Word(),
 			Email:     sql.NullString{String: faker.Word(), Valid: true},
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
 		},
 	}
 
@@ -40,21 +38,21 @@ func BuildPerson(opts ...PersonOption) models.PersonEntity {
 	return f.PersonEntity
 }
 
-// CreatePerson creates and persists a Person to the database
+// CreatePerson creates and persists a Person to the database.
+// It returns the entity populated with all DB-assigned values via RETURNING *.
 func CreatePerson(ctx context.Context, exec storage.Executor, opts ...PersonOption) (models.PersonEntity, error) {
-	// Build with defaults and required FKs
 	built := BuildPerson(opts...)
 
-	// Prepare creation data
-	data := models.CreatePersonData{
+	entity := models.PersonEntity{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 		FirstName: built.FirstName,
 		LastName:  built.LastName,
 		Email:     built.Email,
 	}
 
-	// Use model's Create function via namespace
-	entity, err := models.Person.Create(ctx, exec, data)
-	if err != nil {
+	if err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
 		return models.PersonEntity{}, err
 	}
 

@@ -22,19 +22,34 @@ func runModelUpdate(resourceName string, autoApply bool) error {
 		return err
 	}
 
-	if !result.HasChanges {
-		fmt.Println("No changes — model struct is already up to date.")
+	if !result.HasChanges && !result.FactoryHasChanges {
+		fmt.Println("No changes — model is already up to date.")
 		return nil
 	}
 
-	diff, err := result.Diff()
-	if err != nil {
-		return fmt.Errorf("failed to compute diff: %w", err)
+	// Show model diff if there are changes
+	if result.HasChanges {
+		diff, err := result.Diff()
+		if err != nil {
+			return fmt.Errorf("failed to compute diff: %w", err)
+		}
+
+		fmt.Printf("Changes to %s:\n\n", result.ModelPath)
+		printColoredDiff(diff)
+		fmt.Println()
 	}
 
-	fmt.Printf("Changes to %s:\n\n", result.ModelPath)
-	printColoredDiff(diff)
-	fmt.Println()
+	// Show factory diff if there are changes
+	if result.FactoryHasChanges {
+		factoryDiff, err := result.FactoryDiff()
+		if err != nil {
+			return fmt.Errorf("failed to compute factory diff: %w", err)
+		}
+
+		fmt.Printf("Changes to %s:\n\n", result.FactoryPath)
+		printColoredDiff(factoryDiff)
+		fmt.Println()
+	}
 
 	if !autoApply {
 		confirmed, err := confirmModelApply()
@@ -51,7 +66,12 @@ func runModelUpdate(resourceName string, autoApply bool) error {
 		return err
 	}
 
-	fmt.Printf("Updated %s\n", result.ModelPath)
+	if result.HasChanges {
+		fmt.Printf("Updated %s\n", result.ModelPath)
+	}
+	if result.FactoryHasChanges {
+		fmt.Printf("Updated %s\n", result.FactoryPath)
+	}
 	return nil
 }
 

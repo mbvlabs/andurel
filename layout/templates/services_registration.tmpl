@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"time"
@@ -155,7 +156,7 @@ func VerifyEmail(
 	user, err = models.User.Update(ctx, tx, models.UpdateUserData{
 		ID:               user.ID,
 		Email:            user.Email,
-		EmailValidatedAt: &now,
+		EmailValidatedAt: sql.NullTime{Time: now, Valid: true},
 		Password:         user.Password,
 		IsAdmin:          user.IsAdmin,
 	})

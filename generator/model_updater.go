@@ -7,13 +7,14 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path/filepath"
 	"reflect"
-	"sort"
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/models"
 	"github.com/mbvlabs/andurel/generator/templates"
+	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/pmezard/go-difflib/difflib"
 )
 
@@ -67,6 +68,11 @@ type UpdateModelResult struct {
 	NewFileContent string
 	ModelPath      string
 	HasChanges     bool
+
+	FactoryPath       string
+	OldFactoryContent string
+	NewFactoryContent string
+	FactoryHasChanges bool
 }
 
 // Diff returns a unified diff of the struct definitions and method bodies
@@ -77,6 +83,18 @@ func (r *UpdateModelResult) Diff() (string, error) {
 	d := difflib.UnifiedDiff{
 		A:        difflib.SplitLines(dropBaseModelLine(r.OldStruct)),
 		B:        difflib.SplitLines(dropBaseModelLine(r.NewStruct)),
+		FromFile: "current",
+		ToFile:   "updated",
+		Context:  2,
+	}
+	return difflib.GetUnifiedDiffString(d)
+}
+
+// FactoryDiff returns a unified diff of the old vs new factory file content.
+func (r *UpdateModelResult) FactoryDiff() (string, error) {
+	d := difflib.UnifiedDiff{
+		A:        difflib.SplitLines(r.OldFactoryContent),
+		B:        difflib.SplitLines(r.NewFactoryContent),
 		FromFile: "current",
 		ToFile:   "updated",
 		Context:  2,
@@ -124,8 +142,6 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 	}
 
 	entityName := resourceName + "Entity"
-	createDataName := "Create" + resourceName + "Data"
-	updateDataName := "Update" + resourceName + "Data"
 
 	existingFields, structStart, structEnd, err := parseEntityStruct(src, entityName)
 	if err != nil {
@@ -188,131 +204,63 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 	}
 
 	newEntityStr := renderEntityStruct(entityName, tableName, newModel.Fields)
-	newCreateDataStr := renderCreateDataStruct(resourceName, newModel)
-	newUpdateDataStr := renderUpdateDataStruct(resourceName, newModel)
-
-	// Generate the full file from the template so we can extract new
-	// method bodies for Create, Update, and Upsert.
-	templateContent, err := templates.Files.ReadFile("model.tmpl")
-	if err != nil {
-		return nil, fmt.Errorf("failed to read model template: %w", err)
-	}
-	newFullContent, err := m.modelGenerator.GenerateModelFile(newModel, string(templateContent))
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate model file from template: %w", err)
-	}
-
-	// Collect replacements: (start offset, end offset, replacement text).
-	// All start/end values come from the ORIGINAL src so they remain valid
-	// when we apply in descending start order.
-	type splice struct {
-		start int
-		end   int
-		text  string
-	}
-	var splices []splice
-
-	receiverType := newModel.NamespaceType
-
-	// Method replacements — extract from the generated full file.
-	if newStart, newEnd, err := findFuncOffsets([]byte(newFullContent), receiverType, "Upsert"); err == nil {
-		if oldStart, oldEnd, err := findFuncOffsets(src, receiverType, "Upsert"); err == nil {
-			splices = append(splices, splice{oldStart, oldEnd, newFullContent[newStart:newEnd]})
-		}
-	}
-	if cdStart, cdEnd, err := findStructOffsets(src, updateDataName); err == nil {
-		splices = append(splices, splice{cdStart, cdEnd, newUpdateDataStr})
-	}
-	if newStart, newEnd, err := findFuncOffsets([]byte(newFullContent), receiverType, "Update"); err == nil {
-		if oldStart, oldEnd, err := findFuncOffsets(src, receiverType, "Update"); err == nil {
-			splices = append(splices, splice{oldStart, oldEnd, newFullContent[newStart:newEnd]})
-		}
-	}
-	if cdStart, cdEnd, err := findStructOffsets(src, createDataName); err == nil {
-		splices = append(splices, splice{cdStart, cdEnd, newCreateDataStr})
-	}
-	if newStart, newEnd, err := findFuncOffsets([]byte(newFullContent), receiverType, "Create"); err == nil {
-		if oldStart, oldEnd, err := findFuncOffsets(src, receiverType, "Create"); err == nil {
-			splices = append(splices, splice{oldStart, oldEnd, newFullContent[newStart:newEnd]})
-		}
-	}
-	splices = append(splices, splice{structStart, structEnd, newEntityStr})
-
-	// Sort by start descending so earlier offsets remain valid.
-	sort.Slice(splices, func(i, j int) bool {
-		return splices[i].start > splices[j].start
-	})
-
-	// Collect old text before modifying content.
-	oldCreateStr, oldUpdateStr, oldUpsertStr := "", "", ""
-	for _, s := range splices {
-		switch {
-		case strings.Contains(s.text, "func (") && strings.Contains(s.text, " Upsert("):
-			oldUpsertStr = string(src[s.start:s.end])
-		case strings.Contains(s.text, "func (") && strings.Contains(s.text, " Update("):
-			oldUpdateStr = string(src[s.start:s.end])
-		case strings.Contains(s.text, "func (") && strings.Contains(s.text, " Create("):
-			oldCreateStr = string(src[s.start:s.end])
-		}
-	}
 
 	content := string(src)
-	for _, s := range splices {
-		content = content[:s.start] + s.text + content[s.end:]
-	}
+	content = content[:structStart] + newEntityStr + content[structEnd:]
 
 	formatted, err := format.Source([]byte(content))
 	if err != nil {
 		formatted = []byte(content)
 	}
 
-	// Collect all old and new struct+method definitions for diffing.
-	appendIf := func(sb *strings.Builder, text string) {
-		if text != "" {
-			if sb.Len() > 0 {
-				sb.WriteString("\n\n")
-			}
-			sb.WriteString(text)
-		}
-	}
-	extractStruct := func(src []byte, name string) string {
-		if start, end, err := findStructOffsets(src, name); err == nil {
-			return string(src[start:end])
-		}
-		return ""
-	}
-	extractFunc := func(src []byte, recv, name string) string {
-		if start, end, err := findFuncOffsets(src, recv, name); err == nil {
-			return string(src[start:end])
-		}
-		return ""
+	oldParts := string(src[structStart:structEnd])
+	newParts := newEntityStr
+
+	// Generate factory content for the updated model
+	factoryPath := fmt.Sprintf("%s/models/factories/%s.go", rootDir, naming.ToSnakeCase(resourceName))
+	var oldFactoryContent, newFactoryContent string
+	if existingSrc, err := os.ReadFile(factoryPath); err == nil {
+		oldFactoryContent = string(existingSrc)
 	}
 
-	var oldParts, newParts strings.Builder
-	appendIf(&oldParts, string(src[structStart:structEnd]))
-	appendIf(&newParts, newEntityStr)
-	appendIf(&oldParts, extractStruct(src, createDataName))
-	appendIf(&newParts, extractStruct([]byte(newFullContent), createDataName))
-	appendIf(&oldParts, extractStruct(src, updateDataName))
-	appendIf(&newParts, extractStruct([]byte(newFullContent), updateDataName))
-	appendIf(&oldParts, oldCreateStr)
-	appendIf(&newParts, extractFunc([]byte(newFullContent), receiverType, "Create"))
-	appendIf(&oldParts, oldUpdateStr)
-	appendIf(&newParts, extractFunc([]byte(newFullContent), receiverType, "Update"))
-	appendIf(&oldParts, oldUpsertStr)
-	appendIf(&newParts, extractFunc([]byte(newFullContent), receiverType, "Upsert"))
+	factoryGenFactory, factoryErr := m.modelGenerator.BuildFactory(cat, models.Config{
+		TableName:    tableName,
+		ResourceName: resourceName,
+		PackageName:  "factories",
+		DatabaseType: m.config.Database.Type,
+		ModulePath:   m.projectManager.GetModulePath(),
+		NullType:     nullType,
+	}, newModel)
+	if factoryErr == nil {
+		factoryTmplContent, tmplErr := templates.Files.ReadFile("factory.tmpl")
+		if tmplErr == nil {
+			if genFactoryContent, genErr := m.modelGenerator.GenerateFactoryFile(factoryGenFactory, string(factoryTmplContent)); genErr == nil {
+				formattedFactory, fmtErr := format.Source([]byte(genFactoryContent))
+				if fmtErr == nil {
+					newFactoryContent = string(formattedFactory)
+				} else {
+					newFactoryContent = genFactoryContent
+				}
+			}
+		}
+	}
 
 	return &UpdateModelResult{
-		OldStruct:      oldParts.String(),
-		NewStruct:      newParts.String(),
+		OldStruct:      oldParts,
+		NewStruct:      newParts,
 		OldFileContent: string(src),
 		NewFileContent: string(formatted),
 		ModelPath:      modelPath,
 		HasChanges:     string(formatted) != string(src),
+
+		FactoryPath:       factoryPath,
+		OldFactoryContent: oldFactoryContent,
+		NewFactoryContent: newFactoryContent,
+		FactoryHasChanges: oldFactoryContent != newFactoryContent,
 	}, nil
 }
 
-// ApplyModelUpdate writes the updated file content and runs the Go formatter.
+// ApplyModelUpdate writes the updated model and factory file content and runs the Go formatter.
 func (m *ModelManager) ApplyModelUpdate(result *UpdateModelResult) error {
 	if err := os.WriteFile(result.ModelPath, []byte(result.NewFileContent), 0o600); err != nil {
 		return fmt.Errorf("failed to write model file: %w", err)
@@ -320,6 +268,21 @@ func (m *ModelManager) ApplyModelUpdate(result *UpdateModelResult) error {
 	if err := files.FormatGoFile(result.ModelPath); err != nil {
 		return fmt.Errorf("failed to format model file: %w", err)
 	}
+
+	// Write updated factory file if we have new content
+	if result.NewFactoryContent != "" {
+		factoryDir := filepath.Dir(result.FactoryPath)
+		if err := os.MkdirAll(factoryDir, 0755); err != nil {
+			return fmt.Errorf("failed to create factories directory: %w", err)
+		}
+		if err := os.WriteFile(result.FactoryPath, []byte(result.NewFactoryContent), 0o600); err != nil {
+			return fmt.Errorf("failed to write factory file: %w", err)
+		}
+		if err := files.FormatGoFile(result.FactoryPath); err != nil {
+			return fmt.Errorf("failed to format factory file: %w", err)
+		}
+	}
+
 	return nil
 }
 

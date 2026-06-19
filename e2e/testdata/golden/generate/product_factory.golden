@@ -2,6 +2,7 @@ package factories
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -12,22 +13,20 @@ import (
 	"github.com/google/uuid"
 )
 
-// ProductFactory wraps models.Product for testing
+// ProductFactory wraps models.ProductEntity for testing
 type ProductFactory struct {
-	models.Product // Embedded
+	models.ProductEntity
 }
 
 type ProductOption func(*ProductFactory)
 
-// BuildProduct creates an in-memory Product with default test values
-func BuildProduct(opts ...ProductOption) models.Product {
+// BuildProduct creates an in-memory Product with default test values.
+// Auto-managed fields (ID, timestamps) are left at zero and set by CreateProduct.
+func BuildProduct(opts ...ProductOption) models.ProductEntity {
 	f := &ProductFactory{
-		Product: models.Product{
-			ID:        uuid.New(),
-			Name:      faker.Word(),
-			Price:     float64{},
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
+		ProductEntity: models.ProductEntity{
+			Name:  faker.Word(),
+			Price: sql.NullFloat64{Float64: float64(randomInt(1, 1000, 100)), Valid: true},
 		},
 	}
 
@@ -35,39 +34,39 @@ func BuildProduct(opts ...ProductOption) models.Product {
 		opt(f)
 	}
 
-	return f.Product
+	return f.ProductEntity
 }
 
-// CreateProduct creates and persists a Product to the database
-func CreateProduct(ctx context.Context, exec storage.Executor, opts ...ProductOption) (models.Product, error) {
-	// Build with defaults and required FKs
+// CreateProduct creates and persists a Product to the database.
+// It returns the entity populated with all DB-assigned values via RETURNING *.
+func CreateProduct(ctx context.Context, exec storage.Executor, opts ...ProductOption) (models.ProductEntity, error) {
 	built := BuildProduct(opts...)
 
-	// Prepare creation data
-	data := models.CreateProductData{
-		Name:  built.Name,
-		Price: built.Price,
+	entity := models.ProductEntity{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      built.Name,
+		Price:     built.Price,
 	}
 
-	// Use model's Create function
-	product, err := models.CreateProduct(ctx, exec, data)
-	if err != nil {
-		return models.Product{}, err
+	if _, err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
+		return models.ProductEntity{}, err
 	}
 
-	return product, nil
+	return entity, nil
 }
 
 // CreateProducts creates multiple Product records at once
-func CreateProducts(ctx context.Context, exec storage.Executor, count int, opts ...ProductOption) ([]models.Product, error) {
-	products := make([]models.Product, 0, count)
+func CreateProducts(ctx context.Context, exec storage.Executor, count int, opts ...ProductOption) ([]models.ProductEntity, error) {
+	products := make([]models.ProductEntity, 0, count)
 
 	for i := 0; i < count; i++ {
-		product, err := CreateProduct(ctx, exec, opts...)
+		entity, err := CreateProduct(ctx, exec, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create product %d: %w", i+1, err)
 		}
-		products = append(products, product)
+		products = append(products, entity)
 	}
 
 	return products, nil
@@ -78,13 +77,13 @@ func CreateProducts(ctx context.Context, exec storage.Executor, count int, opts 
 // WithProductsName sets the Name field
 func WithProductsName(value string) ProductOption {
 	return func(f *ProductFactory) {
-		f.Product.Name = value
+		f.ProductEntity.Name = value
 	}
 }
 
 // WithProductsPrice sets the Price field
-func WithProductsPrice(value float64) ProductOption {
+func WithProductsPrice(value sql.NullFloat64) ProductOption {
 	return func(f *ProductFactory) {
-		f.Product.Price = value
+		f.ProductEntity.Price = value
 	}
 }

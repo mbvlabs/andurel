@@ -18,7 +18,7 @@ import (
 )
 
 type TokenEntity struct {
-	bun.BaseModel `bun:"table:tokens"`
+	bun.BaseModel `bun:"table:tokens,alias:tokens"`
 	ID            uuid.UUID `bun:"id,pk,type:uuid"`
 	CreatedAt     time.Time `bun:"created_at"`
 	UpdatedAt     time.Time `bun:"updated_at"`

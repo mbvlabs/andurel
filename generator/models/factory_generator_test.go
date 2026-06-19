@@ -269,6 +269,10 @@ func TestGenerator_WriteFactoryFile(t *testing.T) {
 		StandardImports:   []string{},
 		ExternalImports:   []string{"github.com/go-faker/faker/v4"},
 		HasCreateFunction: true,
+		IDType:            "uuid.UUID",
+		IDGoFieldName:     "ID",
+		HasCreatedAt:      true,
+		HasUpdatedAt:      true,
 	}
 
 	err := gen.WriteFactoryFile(factory, tmpDir)

@@ -15,20 +15,18 @@ import (
 
 // ProductFactory wraps models.ProductEntity for testing
 type ProductFactory struct {
-	models.ProductEntity // Embedded
+	models.ProductEntity
 }
 
 type ProductOption func(*ProductFactory)
 
-// BuildProduct creates an in-memory Product with default test values
+// BuildProduct creates an in-memory Product with default test values.
+// Auto-managed fields (ID, timestamps) are left at zero and set by CreateProduct.
 func BuildProduct(opts ...ProductOption) models.ProductEntity {
 	f := &ProductFactory{
 		ProductEntity: models.ProductEntity{
-			ID:        uuid.New(),
-			Name:      faker.Word(),
-			Price:     sql.NullFloat64{Float64: float64(randomInt(1, 1000, 100)), Valid: true},
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
+			Name:  faker.Word(),
+			Price: sql.NullFloat64{Float64: float64(randomInt(1, 1000, 100)), Valid: true},
 		},
 	}
 
@@ -39,20 +37,20 @@ func BuildProduct(opts ...ProductOption) models.ProductEntity {
 	return f.ProductEntity
 }
 
-// CreateProduct creates and persists a Product to the database
+// CreateProduct creates and persists a Product to the database.
+// It returns the entity populated with all DB-assigned values via RETURNING *.
 func CreateProduct(ctx context.Context, exec storage.Executor, opts ...ProductOption) (models.ProductEntity, error) {
-	// Build with defaults and required FKs
 	built := BuildProduct(opts...)
 
-	// Prepare creation data
-	data := models.CreateProductData{
-		Name:  built.Name,
-		Price: built.Price,
+	entity := models.ProductEntity{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      built.Name,
+		Price:     built.Price,
 	}
 
-	// Use model's Create function via namespace
-	entity, err := models.Product.Create(ctx, exec, data)
-	if err != nil {
+	if err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
 		return models.ProductEntity{}, err
 	}
 
