@@ -31,7 +31,7 @@ Development speed is everything. Andurel eliminates boilerplate and lets you foc
 
 - **Instant Scaffolding** - Generate complete CRUD resources with one command
 - **Live Reload** - Hot reloading for Go, templates, and CSS with `andurel run` powered by [Shadowfax](https://github.com/mbvlabs/shadowfax)
-- **Type Safety Everywhere** - SQLC for SQL, Templ/Vue for HTML, Go for logic
+- **Type Safety Everywhere** - Bun for SQL, Templ/Vue for HTML, Go for logic
 - **Batteries Included** — Echo, Datastar, background jobs, sessions, CSRF protection, telemetry, email support, authentication, optional extensions (docker, aws-ses, css-components)
 - **Two DI Modes** — Choose **manual** wiring for simplicity or **uberfx** for declarative dependency injection with `go.uber.org/fx`
 - **Two Frontend Options** — Server-rendered HTML with **Templ + Datastar** for hypermedia interactivity, or **Inertia SPA with Vue 3 + Vite** for a reactive single-page app
@@ -45,7 +45,7 @@ The core philosophy around resource generation in andurel, is that it should be 
 
 - **[Echo](https://echo.labstack.com/)** - High-performance HTTP framework
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
-- **[SQLC](https://sqlc.dev/)** - Type-safe SQL code generation
+- **[Bun](https://bun.uptrace.dev/)** - Type-safe SQL ORM and query builder
 - **[Templ](https://templ.guide/)** - Type-safe HTML templates
 - **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity (RC6)
 - **[River](https://riverqueue.com/)** - PostgreSQL-backed background jobs and workflows
@@ -600,7 +600,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Andurel is built on top of excellent open-source projects:
 
 - **[Echo](https://echo.labstack.com/)** - High-performance HTTP router and framework
-- **[SQLC](https://sqlc.dev/)** - Type-safe SQL code generation
+- **[Bun](https://bun.uptrace.dev/)** - Type-safe SQL ORM and query builder
 - **[Templ](https://templ.guide/)** - Type-safe Go templates
 - **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity (RC6)
 - **[River](https://riverqueue.com/)** - Fast PostgreSQL-backed job queue and workflows
