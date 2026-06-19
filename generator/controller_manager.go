@@ -65,14 +65,16 @@ func (c *ControllerManager) resolvePK(cat *catalog.Catalog, tableName string) (P
 func (c *ControllerManager) GenerateController(
 	resourceName, tableName string,
 	withViews bool,
+	inertia string,
 ) error {
-	return c.GenerateControllerWithActions(resourceName, tableName, withViews, nil)
+	return c.GenerateControllerWithActions(resourceName, tableName, withViews, nil, inertia)
 }
 
 func (c *ControllerManager) GenerateControllerWithActions(
 	resourceName, tableName string,
 	withViews bool,
 	actions []string,
+	inertia string,
 ) error {
 	modulePath := c.projectManager.GetModulePath()
 
@@ -122,7 +124,9 @@ func (c *ControllerManager) GenerateControllerWithActions(
 
 	nullType := c.readNullType()
 	diMode := c.readDIMode()
-	inertia := ReadInertia()
+	if inertia == "" {
+		inertia = ReadInertia()
+	}
 
 	fileGen := controllers.NewFileGenerator()
 	if err := fileGen.GenerateControllerWithActions(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia, actions); err != nil {

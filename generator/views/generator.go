@@ -334,10 +334,25 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, t
 
 func (g *Generator) GenerateVueViewFiles(view *GeneratedView, templatePrefix string) (map[string]string, error) {
 	service := templates.GetGlobalTemplateService()
-	components := []string{"Index", "Show", "Create", "Edit"}
-	files := make(map[string]string, len(components))
-	templateName := templatePrefix + "resource_view.tmpl"
+	fileNames := make(map[string]string, 4)
 
+	defaultComponents := []string{"Index", "Show", "Create", "Edit"}
+	components := defaultComponents
+	if len(view.Actions) > 0 {
+		actionSet := make(map[string]struct{}, len(defaultComponents))
+		for _, a := range defaultComponents {
+			actionSet[strings.ToLower(a)] = struct{}{}
+		}
+		components = make([]string, 0, len(view.Actions))
+		for _, action := range view.Actions {
+			pascal := naming.ToPascalCase(action)
+			if _, ok := actionSet[strings.ToLower(pascal)]; ok {
+				components = append(components, pascal)
+			}
+		}
+	}
+
+	templateName := templatePrefix + "resource_view.tmpl"
 	for _, componentName := range components {
 		result, err := service.RenderTemplate(templateName, VuePageData{
 			GeneratedView: view,
@@ -346,10 +361,10 @@ func (g *Generator) GenerateVueViewFiles(view *GeneratedView, templatePrefix str
 		if err != nil {
 			return nil, errors.WrapTemplateError(err, "render vue view", templateName)
 		}
-		files[componentName+".vue"] = result
+		fileNames[componentName+".vue"] = result
 	}
 
-	return files, nil
+	return fileNames, nil
 }
 
 func (g *Generator) GenerateView(
@@ -358,7 +373,7 @@ func (g *Generator) GenerateView(
 	tableName string,
 	modulePath string,
 ) error {
-	return g.GenerateViewWithController(cat, resourceName, tableName, modulePath, false)
+	return g.GenerateViewWithController(cat, resourceName, tableName, modulePath, false, "")
 }
 
 func (g *Generator) GenerateViewWithController(
@@ -367,8 +382,9 @@ func (g *Generator) GenerateViewWithController(
 	tableName string,
 	modulePath string,
 	withController bool,
+	inertia string,
 ) error {
-	return g.GenerateViewWithControllerActions(cat, resourceName, tableName, modulePath, withController, nil)
+	return g.GenerateViewWithControllerActions(cat, resourceName, tableName, modulePath, withController, nil, inertia)
 }
 
 func (g *Generator) GenerateViewWithControllerActions(
@@ -378,6 +394,7 @@ func (g *Generator) GenerateViewWithControllerActions(
 	modulePath string,
 	withController bool,
 	actions []string,
+	inertia string,
 ) error {
 	pluralName := naming.DeriveTableName(resourceName)
 	viewPath := filepath.Join("views", tableName+"_resource.templ")
@@ -407,6 +424,14 @@ func (g *Generator) GenerateViewWithControllerActions(
 		}
 	}
 
+	// Override inertia mode from parameter if explicitly set
+	isInertiaVue := inertia == "vue"
+	if isInertiaVue {
+		templatePrefix = "inertia_vue_tw_bare_"
+	} else if lock != nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.Inertia == "vue" {
+		isInertiaVue = true
+	}
+
 	view, err := g.Build(cat, Config{
 		ResourceName: resourceName,
 		EntityName:   naming.ToPascalCase(resourceName) + "Entity",
@@ -419,7 +444,7 @@ func (g *Generator) GenerateViewWithControllerActions(
 		return fmt.Errorf("failed to build view: %w", err)
 	}
 
-	if g.isInertiaVue(lock) {
+	if isInertiaVue {
 		return g.generateVueViews(view, templatePrefix, resourceName)
 	}
 

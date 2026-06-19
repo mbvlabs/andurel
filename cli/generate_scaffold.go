@@ -10,6 +10,7 @@ func newGenerateScaffoldCommand() *cobra.Command {
 		skipFactory      bool
 		tableName        string
 		primaryKeyColumn string
+		vue              bool
 	)
 
 	cmd := &cobra.Command{
@@ -52,6 +53,11 @@ edit, update, destroy.`,
 				return err
 			}
 
+			inertia := ""
+			if vue {
+				inertia = "vue"
+			}
+
 			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
 				gen, err := generator.New()
 				if err != nil {
@@ -68,7 +74,7 @@ edit, update, destroy.`,
 					}
 				}
 
-				if err := gen.GenerateController(name, tableName, true); err != nil {
+				if err := gen.GenerateController(name, tableName, true, inertia); err != nil {
 					return err
 				}
 
@@ -80,6 +86,7 @@ edit, update, destroy.`,
 	cmd.Flags().BoolVar(&skipFactory, "skip-factory", false, "Skip generating a factory for the model")
 	cmd.Flags().StringVar(&tableName, "table-name", "", "Override the default table name")
 	cmd.Flags().StringVar(&primaryKeyColumn, "primary-key", "", "Specify the primary key column (skips interactive detection)")
+	cmd.Flags().BoolVar(&vue, "vue", false, "Generate Inertia Vue views instead of Templ views")
 
 	return cmd
 }

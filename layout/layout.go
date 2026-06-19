@@ -436,9 +436,8 @@ var inertiaTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_assets_pages_welcome.tmpl":    "resources/js/Pages/Welcome.vue",
 	"inertia_assets_vite_config.tmpl":      "vite.config.ts",
 	"inertia_assets_package_json.tmpl":     "package.json",
-	"inertia_assets_tsconfig.tmpl":         "tsconfig.json",
-	"inertia_assets_inertia_tsconfig.tmpl": "inertia/tsconfig.json",
-	"inertia_renderer_vite.tmpl":           "internal/renderer/vite.go",
+	"inertia_assets_tsconfig.tmpl":       "tsconfig.json",
+	"inertia_renderer_vite.tmpl":         "internal/renderer/vite.go",
 }
 
 var inertiaTemplateOverrides = map[TmplTarget]TmplTargetPath{

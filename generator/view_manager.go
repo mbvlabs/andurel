@@ -39,19 +39,19 @@ func (v *ViewManager) GenerateView(resourceName, tableName string) error {
 	return v.generateView(resourceName, tableName, false)
 }
 
-func (v *ViewManager) GenerateViewWithController(resourceName, tableName string) error {
-	return v.GenerateViewWithControllerActions(resourceName, tableName, nil)
+func (v *ViewManager) GenerateViewWithController(resourceName, tableName string, inertia string) error {
+	return v.GenerateViewWithControllerActions(resourceName, tableName, nil, inertia)
 }
 
-func (v *ViewManager) GenerateViewWithControllerActions(resourceName, tableName string, actions []string) error {
-	return v.generateViewWithActions(resourceName, tableName, true, actions)
+func (v *ViewManager) GenerateViewWithControllerActions(resourceName, tableName string, actions []string, inertia string) error {
+	return v.generateViewWithActions(resourceName, tableName, true, actions, inertia)
 }
 
 func (v *ViewManager) generateView(resourceName, tableName string, withController bool) error {
-	return v.generateViewWithActions(resourceName, tableName, withController, nil)
+	return v.generateViewWithActions(resourceName, tableName, withController, nil, "")
 }
 
-func (v *ViewManager) generateViewWithActions(resourceName, tableName string, withController bool, actions []string) error {
+func (v *ViewManager) generateViewWithActions(resourceName, tableName string, withController bool, actions []string, inertia string) error {
 	modulePath := v.projectManager.GetModulePath()
 
 	modelPath := BuildModelPath(v.config.Paths.Models, resourceName)
@@ -87,7 +87,7 @@ func (v *ViewManager) generateViewWithActions(resourceName, tableName string, wi
 		return err
 	}
 
-	if err := v.viewGenerator.GenerateViewWithControllerActions(cat, resourceName, tableName, modulePath, withController, actions); err != nil {
+	if err := v.viewGenerator.GenerateViewWithControllerActions(cat, resourceName, tableName, modulePath, withController, actions, inertia); err != nil {
 		return fmt.Errorf("failed to generate view: %w", err)
 	}
 
@@ -152,7 +152,7 @@ func (v *ViewManager) GenerateViewFromModel(resourceName string, withController 
 		return err
 	}
 
-	if err := v.viewGenerator.GenerateViewWithController(cat, resourceName, tableName, modulePath, withController); err != nil {
+	if err := v.viewGenerator.GenerateViewWithController(cat, resourceName, tableName, modulePath, withController, ""); err != nil {
 		return fmt.Errorf("failed to generate view: %w", err)
 	}
 

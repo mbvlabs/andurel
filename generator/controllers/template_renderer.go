@@ -75,7 +75,7 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 	return result, nil
 }
 
-func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName, idType string) (string, error) {
+func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName, idType string, actions []string) (string, error) {
 	// Get module path
 	modulePath, err := tr.getModulePath()
 	if err != nil {
@@ -88,14 +88,25 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName, idTyp
 		PluralName   string
 		ModulePath   string
 		IDType       string
+		Actions      []string
 	}{
 		ResourceName: resourceName,
 		PluralName:   pluralName,
 		ModulePath:   modulePath,
 		IDType:       idType,
+		Actions:      actions,
 	}
 
-	result, err := tr.service.RenderTemplate("route.tmpl", data)
+	customFuncs := template.FuncMap{
+		"HasAction": func(action string) bool {
+			if len(actions) == 0 {
+				return true
+			}
+			return slices.Contains(actions, action)
+		},
+	}
+
+	result, err := tr.service.RenderTemplateWithCustomFunctions("route.tmpl", data, customFuncs)
 	if err != nil {
 		return "", errors.WrapTemplateError(err, "render route", "route.tmpl")
 	}
