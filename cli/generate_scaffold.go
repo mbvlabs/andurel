@@ -64,17 +64,18 @@ edit, update, destroy.`,
 					return err
 				}
 
-				if primaryKeyColumn != "" {
-					if err := gen.GenerateModelWithPK(name, tableName, skipFactory, primaryKeyColumn); err != nil {
-						return err
-					}
-				} else {
-					if err := gen.GenerateModel(name, tableName, skipFactory); err != nil {
-						return err
-					}
+			if primaryKeyColumn != "" {
+				if err := gen.GenerateModelWithPK(name, tableName, skipFactory, primaryKeyColumn); err != nil {
+					return err
 				}
+				gen.SetControllerPKResolver(generator.NopPrimaryKeyResolver{})
+			} else {
+				if err := gen.GenerateModel(name, tableName, skipFactory); err != nil {
+					return err
+				}
+			}
 
-				if err := gen.GenerateController(name, tableName, true, inertia); err != nil {
+			if err := gen.GenerateController(name, tableName, true, inertia); err != nil {
 					return err
 				}
 

@@ -1035,14 +1035,17 @@ func testGenerateControllerWithMixedActions(t *testing.T, project *internal.Proj
 	}
 
 	controllerStr := string(controllerContent)
-	crudActions := []string{"Index", "Show", "Create", "Update", "Destroy", "New", "Edit"}
-	for _, action := range crudActions {
+	requestedActions := []string{"Index", "Show", "Export"}
+	for _, action := range requestedActions {
 		if !strings.Contains(controllerStr, ") "+action+"(etx *echo.Context)") {
-			t.Errorf("Controller should contain CRUD method %s", action)
+			t.Errorf("Controller should contain method %s", action)
 		}
 	}
-	if !strings.Contains(controllerStr, ") Export(etx *echo.Context)") {
-		t.Error("Controller should contain custom Export method")
+	unexpectedActions := []string{"Create", "Update", "Destroy", "New", "Edit"}
+	for _, action := range unexpectedActions {
+		if strings.Contains(controllerStr, ") "+action+"(etx *echo.Context)") {
+			t.Errorf("Controller should NOT contain method %s (only requested actions)", action)
+		}
 	}
 
 	internal.AssertFileExists(t, project, "views/dashboards_resource.templ")
@@ -1106,7 +1109,7 @@ func testGenerateControllerVue(t *testing.T, project *internal.Project) {
 
 	// With --vue, Vue page files should be generated instead of templ views
 	vuePagesDir := filepath.Join(project.Dir, "resources", "js", "Pages", "Team")
-	expectedVuePages := []string{"Index.vue", "Show.vue", "New.vue", "Create.vue", "Edit.vue", "Update.vue", "Destroy.vue"}
+	expectedVuePages := []string{"Index.vue", "Show.vue", "Create.vue", "Edit.vue"}
 	for _, page := range expectedVuePages {
 		pagePath := filepath.Join(vuePagesDir, page)
 		if _, err := os.Stat(pagePath); os.IsNotExist(err) {
@@ -1138,7 +1141,7 @@ func testGenerateScaffoldVue(t *testing.T, project *internal.Project) {
 
 	// With --vue, Vue page files should be generated
 	vuePagesDir := filepath.Join(project.Dir, "resources", "js", "Pages", "Project")
-	expectedVuePages := []string{"Index.vue", "Show.vue", "New.vue", "Create.vue", "Edit.vue", "Update.vue", "Destroy.vue"}
+	expectedVuePages := []string{"Index.vue", "Show.vue", "Create.vue", "Edit.vue"}
 	for _, page := range expectedVuePages {
 		pagePath := filepath.Join(vuePagesDir, page)
 		if _, err := os.Stat(pagePath); os.IsNotExist(err) {
