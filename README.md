@@ -4,7 +4,7 @@
 
 # Andurel - Rails-like Web Framework for Go
 
-[![Go Version](https://img.shields.io/badge/go-1.24.4%2B-blue.svg)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/go-1.26.0%2B-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/mbvlabs/andurel.svg)](https://pkg.go.dev/github.com/mbvlabs/andurel)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mbvlabs/andurel)](https://goreportcard.com/report/github.com/mbvlabs/andurel)
@@ -31,8 +31,11 @@ Development speed is everything. Andurel eliminates boilerplate and lets you foc
 
 - **Instant Scaffolding** - Generate complete CRUD resources with one command
 - **Live Reload** - Hot reloading for Go, templates, and CSS with `andurel run` powered by [Shadowfax](https://github.com/mbvlabs/shadowfax)
-- **Type Safety Everywhere** - SQLC for SQL, Templ for HTML, Go for logic
-- **Batteries Included** - Echo, Datastar, background jobs, sessions, CSRF protection, telemetry, email support, authentication, optional extensions (workflows, docker, aws-ses)
+- **Type Safety Everywhere** - SQLC for SQL, Templ/Vue for HTML, Go for logic
+- **Batteries Included** — Echo, Datastar, background jobs, sessions, CSRF protection, telemetry, email support, authentication, optional extensions (docker, aws-ses, css-components)
+- **Two DI Modes** — Choose **manual** wiring for simplicity or **uberfx** for declarative dependency injection with `go.uber.org/fx`
+- **Two Frontend Options** — Server-rendered HTML with **Templ + Datastar** for hypermedia interactivity, or **Inertia SPA with Vue 3 + Vite** for a reactive single-page app
+- **Production Build** — One command (`andurel build`) to compile everything: Templ, Tailwind CSS, Vite assets, and Go binary
 - **Just enough Convention** - Convention over configuration is great to a certain point. Andurel provides just enough sensible defaults that just work and get out of your way.
 - **PostgreSQL-Backed** - Built on PostgreSQL with River job queues, pgx driver, and UUID support
 
@@ -44,39 +47,44 @@ The core philosophy around resource generation in andurel, is that it should be 
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
 - **[SQLC](https://sqlc.dev/)** - Type-safe SQL code generation
 - **[Templ](https://templ.guide/)** - Type-safe HTML templates
-- **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity
+- **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity (RC6)
 - **[River](https://riverqueue.com/)** - PostgreSQL-backed background jobs and workflows
 - **[OpenTelemetry](https://opentelemetry.io/)** - Built-in observability
 - **[PostgreSQL](https://www.postgresql.org/)** - Powerful open-source database with pgx driver and native UUID support
-- **[Shadowfax](https://github.com/mbvlabs/shadowfax)** - Andurel specific app runner
+- **[Shadowfax](https://github.com/mbvlabs/shadowfax)** - Andurel-specific app runner
+- **[go.uber.org/fx](https://uber-go.github.io/fx/)** - Dependency injection framework (optional, `--di uberfx`)
+- **[gonertia](https://github.com/romsar/gonertia)** - Inertia.js Go adapter (optional, `--inertia vue`)
+- **[Vue.js](https://vuejs.org/)** - Progressive JavaScript framework (optional, via Inertia)
+- **[Vite](https://vitejs.dev/)** - Next-generation frontend build tool (optional, via Inertia)
 
 ## Quick Start
-
-This is subject to change as Andurel is in beta.
-
-I have not documented every feature or command yet, only enough to get you started and trying out the framework.
-
-Once the framework reaches a release candidate, I will provide more comprehensive documentation and guides.
 
 ### Installation
 
 ```bash
-go install github.com/mbvlabs/andurel@v1.0.0-beta.3
+go install github.com/mbvlabs/andurel@latest
 ```
 
 ### Create Your First Project
 
 Andurel gives you choices when creating a new project:
 
-> Note: `--css vanilla` is currently WIP and not properly supported before `v1.0.0`. Use Tailwind for now.
-
 ```bash
-# Create a new project with defaults (PostgreSQL + Tailwind CSS)
+# Create a new project with defaults (PostgreSQL + Tailwind CSS + manual DI)
 andurel new myapp
 
 # Add extensions for additional features:
 andurel new myapp -e docker              # Add Dockerfile for containerization
 andurel new myapp -e aws-ses             # Add AWS SES email integration
+
+# Choose dependency injection approach:
+andurel new myapp --di uberfx            # Use uber-go/fx for declarative DI
+
+# Choose your frontend approach:
+andurel new myapp --inertia vue          # Inertia SPA with Vue 3 + Vite
+
+# Combine options:
+andurel new myapp --di uberfx --inertia vue -e docker
 
 cd myapp
 
@@ -87,6 +95,9 @@ andurel tool sync
 cp .env.example .env
 
 # Note: you need to edit .env with your database details
+
+# Install NPM dependencies (only if using --inertia vue)
+npm install
 
 # Apply database migrations
 andurel database migrate up
@@ -131,7 +142,7 @@ andurel database migrate new create_products_table
 andurel generate scaffold Product
 ```
 
-This single command creates everything you need for a full CRUD interface.
+This single command creates everything you need for a full CRUD interface: model, factory, controller, views (Templ or Vue), and resource routes.
 
 ## CLI Commands
 
@@ -146,7 +157,9 @@ andurel new (alias: n) [project-name] [flags]
 | Flag | Description |
 |------|-------------|
 | `-c`, `--css` | CSS framework: `tailwind` (default) or `vanilla` |
-| `-e`, `--extensions` | Comma-separated extensions to enable (e.g. `docker,aws-ses`) |
+| `-e`, `--extensions` | Comma-separated extensions to enable (e.g. `docker,aws-ses,css-components`) |
+| `--di` | Dependency injection approach: `manual` (default) or `uberfx` |
+| `--inertia` | Frontend adapter: `vue` (enables Inertia SPA with Vue 3 + Vite) |
 
 ### `andurel generate` — Code generation
 
@@ -169,21 +182,25 @@ andurel generate email (alias: e) NAME
 | `--table-name`   | Override the default table name (e.g. `--table-name=people_data`) |
 | `--update`       | Update an existing model from migration changes |
 | `--yes`          | Apply changes without prompting for confirmation (use with `--update`) |
+| `--primary-key`  | Specify the primary key column (skips interactive detection) |
 
 **`generate controller`** — Creates a controller for a resource. With no actions, or with any standard CRUD action (`index`, `show`, `new`, `create`, `edit`, `update`, `destroy`), it uses the resource templates and generates the standard CRUD controller, views, and routes. Non-CRUD actions add empty controller methods and matching empty components to `views/<name>_resource.templ`; custom action routes are not generated yet.
 
 | Flag | Description |
 |------|-------------|
 | `--skip-routes` | Deprecated; custom actions do not generate routes |
+| `--vue` | Generate Inertia Vue views instead of Templ views |
 
 **`generate view`** — Generates Go code from `.templ` template files (runs `templ generate`).
 
-**`generate scaffold`** — Convenience command that runs `generate model` + `generate controller` with full CRUD actions (index, show, new, create, edit, update, destroy).
+**`generate scaffold`** — Convenience command that runs `generate model` + `generate controller` with full CRUD actions (index, show, new, create, edit, update, destroy). By default generates Templ views; use `--vue` for Inertia Vue SFC views.
 
 | Flag | Description |
 |------|-------------|
 | `--skip-factory` | Skip generating a factory file |
 | `--table-name`   | Override the default table name |
+| `--vue`          | Generate Inertia Vue views instead of Templ views |
+| `--primary-key`  | Specify the primary key column (skips interactive detection) |
 
 ### `andurel fmt` — Format source files
 
@@ -227,6 +244,20 @@ andurel database migrate (aliases: m, mig)
 | `reset` (alias: `rs`) | Roll back all migrations, then re-apply them |
 | `up-to [version]` (alias: `upto`) | Apply migrations up to a specific version |
 | `down-to [version]` (alias: `downto`) | Roll back migrations down to a specific version |
+
+### `andurel build` — Production build
+
+Build the application binary and compile all assets for production deployment.
+
+```bash
+andurel build [--version]
+```
+
+Runs Templ generation, minifies Tailwind CSS, installs NPM dependencies and builds Vite assets (if using Inertia), downloads Go dependencies, and compiles a static Linux binary.
+
+| Flag | Description |
+|------|-------------|
+| `--version` | Set the application version (injected via ldflags) |
 
 ### `andurel run` — Development server
 
@@ -273,7 +304,7 @@ andurel extension add (alias: a) [extension-name]
 andurel extension list (alias: ls)
 ```
 
-Available extensions: `docker`, `aws-ses`.
+Available extensions: `docker`, `aws-ses`, `css-components`.
 
 ### `andurel llm` — LLM documentation
 
@@ -356,76 +387,188 @@ andurel doctor (alias: doc) [--verbose]
 
 ## Project Structure
 
+Andurel generates a complete project based on your chosen options. Below is the default structure, followed by what changes with each option.
+
+### Default (Manual DI + Tailwind CSS)
+
 ```
 myapp/
-├── assets/              # Static assets
-│   ├── css/            # Compiled CSS files
-│   ├── js/            # JavaScript files
-│   └── assets.go              
-├── clients/             # External service clients
-│   └── email/          # Email client (Mailpit/AWS SES)
+├── assets/                  # Static assets (served at /assets/)
+│   ├── assets.go
+│   ├── css/
+│   │   └── style.css       # Compiled Tailwind output
+│   └── js/
+│       ├── datastar_1-0-1.min.js
+│       └── scripts.js
+├── clients/
+│   └── email/
+│       └── mailpit.go       # Mailpit email client
 ├── cmd/
-│   ├── app/            # Main web application
-├── bin/
-│   └── shadowfax       # Development server orchestrator
-├── config/              # Application configuration
-│   ├── app.go          # Sessions, tokens, security
-│   ├── database.go     # Database connection
-│   ├── email.go        # Email configuration
-│   ├── telemetry.go    # Logging, tracing, metrics config
-│   └── config.go       # Main config aggregator
-├── controllers/         # HTTP request handlers
-│   ├── controller.go   # Base controller utilities
-│   ├── cache.go        # Cache control utilities
-│   ├── pages.go        # Page controllers
-│   └── assets.go       # Asset serving
-├── css/                 # Source CSS files (Tailwind input)
+│   └── app/
+│       └── main.go          # Application entry point
+├── config/
+│   ├── config.go            # Main config aggregator
+│   ├── app.go               # Sessions, tokens, security
+│   ├── auth.go              # Authentication config
+│   ├── database.go          # Database connection config
+│   ├── email.go             # Email configuration
+│   └── telemetry.go         # Logging, tracing, metrics
+├── controllers/
+│   ├── controller.go        # Base controller setup
+│   ├── api.go
+│   ├── assets.go
+│   ├── cache.go             # Cache control utilities
+│   ├── confirmations.go
+│   ├── pages.go
+│   ├── registrations.go
+│   ├── reset_passwords.go
+│   └── sessions.go
+├── css/
+│   ├── base.css             # Tailwind CSS source input
 ├── database/
-│   ├── migrations/     # SQL migration files
-│   ├── queries/        # SQLC query definitions
-│   └── sqlc.yaml       # SQLC user overlay config
-├── email/               # Email functionality
-│   ├── email.go        # Email client and sending logic
-│   ├── base_layout.templ    # Base email template layout
-│   └── components.templ     # Reusable email components
-├── internal/            # Internal framework packages
-│   ├── hypermedia/     # Datastar/SSE helpers
-│   ├── renderer/       # Template rendering
-│   ├── routing/        # Routing utilities
-│   ├── server/         # Server configuration
-│   └── storage/        # Storage utilities (+ SQLC base/effective config)
-├── models/              # Data models and business logic
-│   ├── model.go        # Base model setup
-│   ├── factories/      # Model factories for testing
-│   └── internal/db/    # Generated SQLC code (do not edit)
-├── queue/               # Background job processing
-│   ├── jobs/           # Job definitions
-│   ├── workers/        # Worker implementations
-├── router/              # Routes and middleware
-│   ├── router.go       # Main router setup
-│   ├── routes/         # Route definitions
-│   ├── cookies/        # Cookie and session helpers
-│   └── middleware/     # Custom middleware
-├── services/            # Business logic services
-│   ├── authentication.go    # Authentication service
-│   ├── registration.go      # User registration service
-│   └── reset_password.go    # Password reset service
-├── telemetry/           # Observability setup
-│   ├── logger.go       # Structured logging
-│   ├── tracer.go       # Distributed tracing
-│   ├── metrics.go      # Application metrics
-│   └── helpers.go      # Telemetry utilities
-├── views/               # Templ templates
-│   ├── components/     # Reusable template components
-│   ├── *.templ         # Template source files
-│   └── *_templ.go      # Generated Go code (do not edit)
-├── .env.example         # Example environment variables
-├── .gitignore           # Git ignore patterns
-├── andurel.lock         # Framework version lock file
-├── Dockerfile           # Container build (docker ext)
-├── go.mod               # Go module definition
-└── go.sum               # Go module checksums
+│   ├── database.go          # Database connection helper
+│   ├── test_helper.go       # Test database setup
+│   ├── migrations/          # SQL migration files (goose)
+│   └── seeds/
+│       └── main.go          # Database seeder
+├── email/
+│   ├── email.go
+│   ├── base_layout.templ
+│   ├── components.templ
+│   ├── reset_password.templ
+│   └── verify_email.templ
+├── internal/
+│   ├── hypermedia/          # Datastar/SSE helpers
+│   │   ├── broadcaster.go
+│   │   ├── core.go
+│   │   ├── helpers.go
+│   │   ├── signals.go
+│   │   └── sse.go
+│   ├── renderer/
+│   │   ├── fragments.go
+│   │   └── render.go        # Server-side renderer
+│   ├── request/
+│   │   ├── context.go
+│   │   └── request.go
+│   ├── routing/
+│   │   ├── definitions.go
+│   │   └── routes.go
+│   ├── server/
+│   │   └── server.go
+│   └── storage/
+│       ├── psql.go
+│       └── queue.go
+├── models/
+│   ├── model.go
+│   ├── errors.go
+│   ├── token.go
+│   ├── user.go
+│   └── factories/           # Model factories for testing
+│       ├── factories.go
+│       ├── token.go
+│       └── user.go
+├── queue/
+│   ├── queue.go
+│   ├── jobs/
+│   │   ├── send_marketing_email.go
+│   │   └── send_transactional_email.go
+│   └── workers/
+│       ├── workers.go
+│       ├── send_marketing_email.go
+│       └── send_transactional_email.go
+├── router/
+│   ├── router.go            # Main router setup
+│   ├── connect_*.go          # Route registration files
+│   ├── cookies/
+│   │   ├── cookies.go
+│   │   └── flash.go
+│   ├── middleware/
+│   │   ├── middleware.go
+│   │   └── auth.go
+│   └── routes/
+│       ├── api.go
+│       ├── assets.go
+│       ├── pages.go
+│       └── users.go
+├── services/
+│   ├── authentication.go
+│   ├── registration.go
+│   └── reset_password.go
+├── telemetry/
+│   ├── telemetry.go
+│   ├── options.go
+│   ├── logger.go
+│   ├── log_exporters.go
+│   ├── metrics.go
+│   ├── metric_exporters.go
+│   ├── tracer.go
+│   ├── trace_exporters.go
+│   └── helpers.go
+├── views/                    # Templ templates
+│   ├── layout.templ
+│   ├── head.templ
+│   ├── home.templ
+│   ├── bad_request.templ
+│   ├── confirm_email.templ
+│   ├── internal_error.templ
+│   ├── login.templ
+│   ├── not_found.templ
+│   ├── registration.templ
+│   ├── reset_password.templ
+│   └── components/
+├── .env.example
+├── .gitignore
+├── andurel.lock              # Tool version lock file
+├── go.mod
+└── go.sum
 ```
+
+### UberFX Mode (`--di uberfx`)
+
+When using uberfx, the following files **change**:
+
+| File | What changes |
+|------|-------------|
+| `cmd/app/main.go` | Uses `fx.New()` with `fx.Provide` and `fx.Invoke` instead of imperative boot sequence |
+| `controllers/controller.go` | Becomes an `fx.Module` — contains `fx.Provide` for all controllers + `fx.Invoke` for route registration |
+| `controllers/api.go`, `assets.go`, `pages.go`, `sessions.go`, `registrations.go`, `confirmations.go`, `reset_passwords.go` | Each has a `RegisterRoutes(r *router.Router) error` method for self-registering routes |
+| `router/router.go` | Exposes `AddRoute` / `AddRouteNotFound` methods; controllers self-register |
+
+The following files are **removed** (route registration moves into controllers):
+```
+router/connect_*.go    (connect_api_routes, connect_assets_routes,
+                        connect_pages_routes, connect_sessions_routes,
+                        connect_registrations_routes, connect_confirmations_routes,
+                        connect_reset_passwords_routes)
+```
+
+### Inertia Vue Mode (`--inertia vue`)
+
+When using the Inertia SPA frontend, these files are **added**:
+
+```
+myapp/
+├── resources/
+│   └── js/
+│       ├── app.ts               # Vue + Inertia app entry point
+│       └── Pages/
+│           └── Welcome.vue      # Home page Vue component
+├── views/
+│   ├── root.go.html             # Inertia root HTML shell
+│   └── (no home.templ — replaced by Vue Welcome page)
+├── internal/
+│   └── renderer/
+│       └── vite.go              # Vite dev/prod manifest resolver
+├── vite.config.ts
+├── package.json
+├── tsconfig.json
+```
+
+The `controllers/pages.go` uses Inertia rendering instead of Templ, and `cmd/app/main.go` initializes the Inertia renderer. Run `npm install` after scaffolding.
+
+### Inertia Vue + UberFX (`--di uberfx --inertia vue`)
+
+Combines the UberFX routing pattern with the Inertia frontend layer. The pages controller uses `RegisterRoutes()` and renders via Inertia instead of Templ.
 
 ## Contributing
 
