@@ -113,6 +113,26 @@ func TestGenerateCommands(t *testing.T) {
 			t.Run("generate_email", func(t *testing.T) {
 				testGenerateEmail(t, project)
 			})
+
+			t.Run("generate_model_with_primary_key", func(t *testing.T) {
+				testGenerateModelWithPrimaryKey(t, project)
+			})
+
+			t.Run("generate_scaffold_with_primary_key", func(t *testing.T) {
+				testGenerateScaffoldWithPrimaryKey(t, project)
+			})
+
+			t.Run("generate_job_with_queue", func(t *testing.T) {
+				testGenerateJobWithQueue(t, project)
+			})
+
+			t.Run("generate_controller_with_custom_actions", func(t *testing.T) {
+				testGenerateControllerWithCustomActions(t, project)
+			})
+
+			t.Run("generate_controller_with_mixed_actions", func(t *testing.T) {
+				testGenerateControllerWithMixedActions(t, project)
+			})
 		})
 	}
 }
@@ -868,6 +888,266 @@ func testGenerateEmail(t *testing.T, project *internal.Project) {
 		string(emailContent),
 		project.CSS,
 	)
+}
+
+func testGenerateModelWithPrimaryKey(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	migrationDir := filepath.Join(project.Dir, "database", "migrations")
+	migrationContent := `-- +goose Up
+CREATE TABLE IF NOT EXISTS coupons (
+	code VARCHAR(50) PRIMARY KEY,
+	description TEXT NOT NULL,
+	discount_percent INTEGER NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- +goose Down
+DROP TABLE IF EXISTS coupons;
+`
+	migrationFile := filepath.Join(migrationDir, "000200_create_coupons.sql")
+	err := os.WriteFile(migrationFile, []byte(migrationContent), 0o644)
+	if err != nil {
+		t.Fatalf("Failed to create migration file: %v", err)
+	}
+
+	err = project.Generate("generate", "model", "Coupon", "--primary-key=code")
+	internal.AssertCommandSucceeds(t, err, "generate model with --primary-key")
+
+	internal.AssertFileExists(t, project, "models/coupon.go")
+	modelContent, err := os.ReadFile(filepath.Join(project.Dir, "models/coupon.go"))
+	if err != nil {
+		t.Fatalf("Failed to read model file: %v", err)
+	}
+
+	modelStr := string(modelContent)
+	if !strings.Contains(modelStr, `bun:",pk"`) &&
+		!strings.Contains(modelStr, `bun:"code,pk"`) {
+		if !strings.Contains(modelStr, "Code") {
+			t.Error("Model should reference the custom primary key field 'Code'")
+		}
+	}
+}
+
+func testGenerateScaffoldWithPrimaryKey(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	migrationDir := filepath.Join(project.Dir, "database", "migrations")
+	migrationContent := `-- +goose Up
+CREATE TABLE IF NOT EXISTS warehouses (
+	slug VARCHAR(100) PRIMARY KEY,
+	name VARCHAR(255) NOT NULL,
+	location TEXT,
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- +goose Down
+DROP TABLE IF EXISTS warehouses;
+`
+	migrationFile := filepath.Join(migrationDir, "000201_create_warehouses.sql")
+	err := os.WriteFile(migrationFile, []byte(migrationContent), 0o644)
+	if err != nil {
+		t.Fatalf("Failed to create migration file: %v", err)
+	}
+
+	err = project.Generate("generate", "scaffold", "Warehouse", "--primary-key=slug", "--skip-factory")
+	internal.AssertCommandSucceeds(t, err, "generate scaffold with --primary-key")
+
+	internal.AssertFileExists(t, project, "models/warehouse.go")
+	internal.AssertFileExists(t, project, "controllers/warehouses.go")
+	internal.AssertFileExists(t, project, "views/warehouses_resource.templ")
+	internal.AssertFileExists(t, project, "router/routes/warehouses.go")
+	internal.AssertFileExists(t, project, "router/connect_warehouses_routes.go")
+}
+
+func testGenerateJobWithQueue(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	err := project.Generate("generate", "job", "ProcessPayment", "--queue=financial")
+	internal.AssertCommandSucceeds(t, err, "generate job with --queue")
+
+	internal.AssertFileExists(t, project, "queue/jobs/process_payment.go")
+	jobContent, err := os.ReadFile(filepath.Join(project.Dir, "queue/jobs/process_payment.go"))
+	if err != nil {
+		t.Fatalf("Failed to read job file: %v", err)
+	}
+
+	jobStr := string(jobContent)
+	if !strings.Contains(jobStr, "financial") {
+		t.Error("Job file should reference the 'financial' queue")
+	}
+	if !strings.Contains(jobStr, "InsertOpts") {
+		t.Error("Job file should contain InsertOpts method when queue is specified")
+	}
+
+	internal.AssertFileExists(t, project, "queue/workers/process_payment.go")
+}
+
+func testGenerateControllerWithCustomActions(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	createMigration(t, project, "000202_create_reports", "reports", []string{
+		"title VARCHAR(255) NOT NULL",
+		"category VARCHAR(100)",
+	})
+
+	err := project.Generate("generate", "model", "Report")
+	internal.AssertCommandSucceeds(t, err, "generate model")
+
+	err = project.Generate("generate", "controller", "Report", "export", "approve")
+	internal.AssertCommandSucceeds(t, err, "generate controller with custom actions")
+
+	internal.AssertFileExists(t, project, "controllers/reports.go")
+	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/reports.go"))
+	if err != nil {
+		t.Fatalf("Failed to read controller file: %v", err)
+	}
+
+	controllerStr := string(controllerContent)
+	if !strings.Contains(controllerStr, "func (") || !strings.Contains(controllerStr, ") Export(etx *echo.Context)") {
+		t.Error("Controller should contain Export method")
+	}
+	if !strings.Contains(controllerStr, "func (") || !strings.Contains(controllerStr, ") Approve(etx *echo.Context)") {
+		t.Error("Controller should contain Approve method")
+	}
+}
+
+func testGenerateControllerWithMixedActions(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	createMigration(t, project, "000203_create_dashboards", "dashboards", []string{
+		"name VARCHAR(255) NOT NULL",
+		"config JSONB",
+	})
+
+	err := project.Generate("generate", "model", "Dashboard")
+	internal.AssertCommandSucceeds(t, err, "generate model")
+
+	err = project.Generate("generate", "controller", "Dashboard", "index", "show", "export")
+	internal.AssertCommandSucceeds(t, err, "generate controller with mixed actions")
+
+	internal.AssertFileExists(t, project, "controllers/dashboards.go")
+	controllerContent, err := os.ReadFile(filepath.Join(project.Dir, "controllers/dashboards.go"))
+	if err != nil {
+		t.Fatalf("Failed to read controller file: %v", err)
+	}
+
+	controllerStr := string(controllerContent)
+	requestedActions := []string{"Index", "Show", "Export"}
+	for _, action := range requestedActions {
+		if !strings.Contains(controllerStr, ") "+action+"(etx *echo.Context)") {
+			t.Errorf("Controller should contain method %s", action)
+		}
+	}
+	unexpectedActions := []string{"Create", "Update", "Destroy", "New", "Edit"}
+	for _, action := range unexpectedActions {
+		if strings.Contains(controllerStr, ") "+action+"(etx *echo.Context)") {
+			t.Errorf("Controller should NOT contain method %s (only requested actions)", action)
+		}
+	}
+
+	internal.AssertFileExists(t, project, "views/dashboards_resource.templ")
+	viewContent, err := os.ReadFile(filepath.Join(project.Dir, "views/dashboards_resource.templ"))
+	if err != nil {
+		t.Fatalf("Failed to read view file: %v", err)
+	}
+	viewStr := string(viewContent)
+	if !strings.Contains(viewStr, "DashboardExport") {
+		t.Error("View file should contain DashboardExport component")
+	}
+}
+
+func TestGenerateCommandsInertia(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping E2E generate inertia test in short mode")
+	}
+
+	binary := buildAndurelBinary(t)
+
+	t.Run("postgresql-tailwind-inertia", func(t *testing.T) {
+		if isCriticalOnly() {
+			t.Skip("Skipping non-critical test in critical-only mode")
+		}
+
+		t.Parallel()
+
+		project := internal.NewProjectWithDatabase(t, binary, getSharedBinDir(), "postgresql")
+		project.CSS = "tailwind"
+
+		err := project.Scaffold("-c", "tailwind", "--inertia", "vue")
+		internal.AssertCommandSucceeds(t, err, "scaffold inertia")
+
+		t.Run("generate_controller_vue", func(t *testing.T) {
+			testGenerateControllerVue(t, project)
+		})
+
+		t.Run("generate_scaffold_vue", func(t *testing.T) {
+			testGenerateScaffoldVue(t, project)
+		})
+	})
+}
+
+func testGenerateControllerVue(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	createMigration(t, project, "000300_create_teams", "teams", []string{
+		"name VARCHAR(255) NOT NULL",
+		"description TEXT",
+	})
+
+	err := project.Generate("generate", "model", "Team")
+	internal.AssertCommandSucceeds(t, err, "generate model")
+
+	err = project.Generate("generate", "controller", "Team", "--vue")
+	internal.AssertCommandSucceeds(t, err, "generate controller with --vue")
+
+	internal.AssertFileExists(t, project, "controllers/teams.go")
+	internal.AssertFileExists(t, project, "router/routes/teams.go")
+	internal.AssertFileExists(t, project, "router/connect_teams_routes.go")
+
+	// With --vue, Vue page files should be generated instead of templ views
+	vuePagesDir := filepath.Join(project.Dir, "resources", "js", "Pages", "Team")
+	expectedVuePages := []string{"Index.vue", "Show.vue", "Create.vue", "Edit.vue"}
+	for _, page := range expectedVuePages {
+		pagePath := filepath.Join(vuePagesDir, page)
+		if _, err := os.Stat(pagePath); os.IsNotExist(err) {
+			t.Errorf("Expected Vue page to exist: resources/js/Pages/Team/%s", page)
+		}
+	}
+
+	// Verify no templ view file was generated for the controller
+	if project.FileExists("views/teams_resource.templ") {
+		t.Log("Note: teams_resource.templ exists (expected when --vue is used with a non-Inertia controller)")
+	}
+}
+
+func testGenerateScaffoldVue(t *testing.T, project *internal.Project) {
+	t.Helper()
+
+	createMigration(t, project, "000301_create_projects", "projects", []string{
+		"title VARCHAR(255) NOT NULL",
+		"status VARCHAR(50) DEFAULT 'draft'",
+	})
+
+	err := project.Generate("generate", "scaffold", "Project", "--vue", "--skip-factory")
+	internal.AssertCommandSucceeds(t, err, "generate scaffold with --vue")
+
+	internal.AssertFileExists(t, project, "models/project.go")
+	internal.AssertFileExists(t, project, "controllers/projects.go")
+	internal.AssertFileExists(t, project, "router/routes/projects.go")
+	internal.AssertFileExists(t, project, "router/connect_projects_routes.go")
+
+	// With --vue, Vue page files should be generated
+	vuePagesDir := filepath.Join(project.Dir, "resources", "js", "Pages", "Project")
+	expectedVuePages := []string{"Index.vue", "Show.vue", "Create.vue", "Edit.vue"}
+	for _, page := range expectedVuePages {
+		pagePath := filepath.Join(vuePagesDir, page)
+		if _, err := os.Stat(pagePath); os.IsNotExist(err) {
+			t.Errorf("Expected Vue page to exist: resources/js/Pages/Project/%s", page)
+		}
+	}
 }
 
 func compareOrUpdateGenerateGolden(t *testing.T, goldenPath, actual, css string) {

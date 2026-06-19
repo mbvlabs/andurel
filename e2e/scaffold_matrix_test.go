@@ -10,6 +10,8 @@ type ScaffoldConfig struct {
 	Name       string
 	Database   string
 	CSS        string
+	DIMode     string
+	Inertia    string
 	Extensions []string
 	Critical   bool
 }
@@ -49,6 +51,28 @@ func getScaffoldConfigs() []ScaffoldConfig {
 			Extensions: []string{"aws-ses"},
 			Critical:   true,
 		},
+		{
+			Name:     "postgresql-tailwind-uberfx",
+			Database: "postgresql",
+			CSS:      "tailwind",
+			DIMode:   "uberfx",
+			Critical: true,
+		},
+		{
+			Name:     "postgresql-tailwind-inertia-vue",
+			Database: "postgresql",
+			CSS:      "tailwind",
+			Inertia:  "vue",
+			Critical: true,
+		},
+		{
+			Name:       "postgresql-vanilla-uberfx-all-extensions",
+			Database:   "postgresql",
+			CSS:        "vanilla",
+			DIMode:     "uberfx",
+			Extensions: []string{"docker", "aws-ses", "css-components"},
+			Critical:   true,
+		},
 	}
 }
 
@@ -73,6 +97,14 @@ func TestScaffoldMatrix(t *testing.T) {
 
 			args := []string{
 				"-c", config.CSS,
+			}
+
+			if config.DIMode != "" {
+				args = append(args, "--di", config.DIMode)
+			}
+
+			if config.Inertia != "" {
+				args = append(args, "--inertia", config.Inertia)
 			}
 
 			if len(config.Extensions) > 0 {
@@ -102,8 +134,18 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 		"cmd/app/main.go",
 		"controllers/pages.go",
 		"views/layout.templ",
-		"views/home.templ",
 	}
+
+	if config.Inertia == "vue" {
+		inertiaCoreFiles := []string{
+			"views/root.go.html",
+			"internal/renderer/vite.go",
+		}
+		coreFiles = append(coreFiles, inertiaCoreFiles...)
+	} else {
+		coreFiles = append(coreFiles, "views/home.templ")
+	}
+
 	internal.AssertFilesExist(t, project, coreFiles)
 
 	internal.AssertFileExists(
@@ -134,6 +176,26 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 		internal.AssertFilesExist(t, project, vanillaCSSFiles)
 		internal.AssertFileContains(t, project, "router/routes/assets.go", `"/css/*"`)
 		internal.AssertFileContains(t, project, "controllers/assets.go", `etx.Param("*")`)
+	}
+
+	if config.DIMode == "uberfx" {
+		internal.AssertFileContains(t, project, "cmd/app/main.go", "fx.New")
+		internal.AssertFileContains(t, project, "cmd/app/main.go", "fx.Provide")
+	} else {
+		internal.AssertFileContains(t, project, "cmd/app/main.go", "func run")
+	}
+
+	if config.Inertia == "vue" {
+		inertiaFiles := []string{
+			"resources/js/app.ts",
+			"resources/js/Pages/Welcome.vue",
+			"vite.config.ts",
+			"package.json",
+			"tsconfig.json",
+		}
+		internal.AssertFilesExist(t, project, inertiaFiles)
+	} else {
+		internal.AssertFileContains(t, project, "controllers/pages.go", "views.Home")
 	}
 
 	// Auth is now part of base scaffold, verify auth files always exist

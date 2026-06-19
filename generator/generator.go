@@ -43,6 +43,10 @@ func (g *Generator) GenerateViewFromModel(resourceName string, withController bo
 	return g.coordinator.ViewManager.GenerateViewFromModel(resourceName, withController)
 }
 
+func (g *Generator) SetControllerPKResolver(resolver PrimaryKeyResolver) {
+	g.coordinator.ControllerManager.SetPrimaryKeyResolver(resolver)
+}
+
 func (g *Generator) GenerateFragment(config FragmentConfig) error {
 	return g.coordinator.FragmentManager.GenerateFragment(config)
 }
