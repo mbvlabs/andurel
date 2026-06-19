@@ -15,22 +15,20 @@ import (
 
 // BookFactory wraps models.BookEntity for testing
 type BookFactory struct {
-	models.BookEntity // Embedded
+	models.BookEntity
 }
 
 type BookOption func(*BookFactory)
 
-// BuildBook creates an in-memory Book with default test values
+// BuildBook creates an in-memory Book with default test values.
+// Auto-managed fields (ID, timestamps) are left at zero and set by CreateBook.
 func BuildBook(opts ...BookOption) models.BookEntity {
 	f := &BookFactory{
 		BookEntity: models.BookEntity{
-			ID:        uuid.New(),
-			Title:     faker.Word(),
-			Author:    faker.Word(),
-			Price:     sql.NullFloat64{Float64: float64(randomInt(1, 1000, 100)), Valid: true},
-			Pages:     sql.NullInt32{Int32: randomInt(1, 1000, 100), Valid: true},
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
+			Title:  faker.Word(),
+			Author: faker.Word(),
+			Price:  sql.NullFloat64{Float64: float64(randomInt(1, 1000, 100)), Valid: true},
+			Pages:  sql.NullInt32{Int32: randomInt(1, 1000, 100), Valid: true},
 		},
 	}
 
@@ -41,22 +39,22 @@ func BuildBook(opts ...BookOption) models.BookEntity {
 	return f.BookEntity
 }
 
-// CreateBook creates and persists a Book to the database
+// CreateBook creates and persists a Book to the database.
+// It returns the entity populated with all DB-assigned values via RETURNING *.
 func CreateBook(ctx context.Context, exec storage.Executor, opts ...BookOption) (models.BookEntity, error) {
-	// Build with defaults and required FKs
 	built := BuildBook(opts...)
 
-	// Prepare creation data
-	data := models.CreateBookData{
-		Title:  built.Title,
-		Author: built.Author,
-		Price:  built.Price,
-		Pages:  built.Pages,
+	entity := models.BookEntity{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Title:     built.Title,
+		Author:    built.Author,
+		Price:     built.Price,
+		Pages:     built.Pages,
 	}
 
-	// Use model's Create function via namespace
-	entity, err := models.Book.Create(ctx, exec, data)
-	if err != nil {
+	if err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
 		return models.BookEntity{}, err
 	}
 

@@ -16,36 +16,23 @@ import (
 
 // {{.ModelName}}Factory wraps models.{{.EntityName}} for testing
 type {{.ModelName}}Factory struct {
-	models.{{.EntityName}}  // Embedded
+	models.{{.EntityName}}
 }
 
 type {{.ModelName}}Option func(*{{.ModelName}}Factory)
 
-// Build{{.ModelName}} creates an in-memory {{.ModelName}} with default test values
+// Build{{.ModelName}} creates an in-memory {{.ModelName}} with default test values.
+// Auto-managed fields (ID, timestamps) are left at zero and set by Create{{.ModelName}}.
 func Build{{.ModelName}}({{- range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}opts ...{{.ModelName}}Option) models.{{.EntityName}} {
 	f := &{{.ModelName}}Factory{
 		{{.EntityName}}: models.{{.EntityName}}{
 {{- range .Fields}}
-{{- if .IsID}}
-{{- if or (not $.IDType) (eq $.IDType "uuid.UUID")}}
-			{{.Name}}: uuid.New(),
-{{- else if or (eq $.IDType "int32") (eq $.IDType "int64")}}
-			{{.Name}}: 0, // Will be assigned by database or test setup
-{{- else if eq $.IDType "string"}}
-			{{.Name}}: faker.UUIDHyphenated(),
-{{- end}}
-{{- else if .IsTimestamp}}
-{{- if eq .Name "CreatedAt"}}
-			{{.Name}}: time.Now(),
-{{- else if eq .Name "UpdatedAt"}}
-			{{.Name}}: time.Now(),
-{{- else}}
-			{{.Name}}: {{.GoZero}},  // Optional timestamp - zero by default
-{{- end}}
-{{- else if .IsFK}}
-			{{.Name}}: {{.ArgumentName}},  // Foreign key - required parameter
+{{- if not .IsAutoManaged}}
+{{- if .IsFK}}
+			{{.Name}}: {{.ArgumentName}},
 {{- else}}
 			{{.Name}}: {{.DefaultValue}},
+{{- end}}
 {{- end}}
 {{- end}}
 		},
@@ -59,28 +46,33 @@ func Build{{.ModelName}}({{- range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}
 }
 
 {{if .HasCreateFunction}}
-// Create{{.ModelName}} creates and persists a {{.ModelName}} to the database
+// Create{{.ModelName}} creates and persists a {{.ModelName}} to the database.
+// It returns the entity populated with all DB-assigned values via RETURNING *.
 func Create{{.ModelName}}(ctx context.Context, exec storage.Executor, {{range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}opts ...{{.ModelName}}Option) (models.{{.EntityName}}, error) {
-	// Build with defaults and required FKs
 	built := Build{{.ModelName}}({{range .ForeignKeyFields}}{{.ArgumentName}}, {{end}}opts...)
 
-	// Prepare creation data
-	data := models.Create{{.ModelName}}Data{
+	entity := models.{{.EntityName}}{
+{{- if and (not .IsAutoIncrementID) .IDGoFieldName}}
+{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
+		{{.IDGoFieldName}}: uuid.New(),
+{{- else}}
+		{{.IDGoFieldName}}: built.{{.IDGoFieldName}},
+{{- end}}
+{{- end}}
+{{- if .HasCreatedAt}}
+		CreatedAt: time.Now(),
+{{- end}}
+{{- if .HasUpdatedAt}}
+		UpdatedAt: time.Now(),
+{{- end}}
 {{- range .Fields}}
 {{- if not .IsAutoManaged}}
 		{{.Name}}: built.{{.Name}},
 {{- end}}
 {{- end}}
-{{- if not $.IsAutoIncrementID}}
-{{- if and $.IDType (ne $.IDType "uuid.UUID")}}
-		{{$.IDGoFieldName}}: built.{{$.IDGoFieldName}},
-{{- end}}
-{{- end}}
 	}
 
-	// Use model's Create function via namespace
-	entity, err := models.{{.NamespaceVar}}.Create(ctx, exec, data)
-	if err != nil {
+	if err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
 		return models.{{.EntityName}}{}, err
 	}
 

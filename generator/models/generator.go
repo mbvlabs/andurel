@@ -398,7 +398,10 @@ type GeneratedFactory struct {
 	HasForeignKeys    bool           // True if there are 1+ FKs
 	ForeignKeyFields  []FactoryField // All FK fields
 	IDType            string         // "uuid.UUID", "int32", "int64", "string"
+	IDGoFieldName     string         // Go field name for the primary key (e.g., "ID")
 	IsAutoIncrementID bool           // True for serial/bigserial
+	HasCreatedAt      bool
+	HasUpdatedAt      bool
 }
 
 // FactoryField represents a field in a factory
@@ -452,6 +455,12 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 		}
 	}
 
+	// Default IDGoFieldName if not set
+	idGoFieldName := genModel.IDGoFieldName
+	if idGoFieldName == "" {
+		idGoFieldName = "ID"
+	}
+
 	return &GeneratedFactory{
 		ModelName:         genModel.Name,
 		EntityName:        genModel.EntityName,
@@ -465,7 +474,10 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 		HasForeignKeys:    len(fkFields) > 0,
 		ForeignKeyFields:  fkFields,
 		IDType:            genModel.IDType,
+		IDGoFieldName:     idGoFieldName,
 		IsAutoIncrementID: genModel.IsAutoIncrementID,
+		HasCreatedAt:      genModel.HasCreatedAt,
+		HasUpdatedAt:      genModel.HasUpdatedAt,
 	}, nil
 }
 
