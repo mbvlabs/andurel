@@ -8,12 +8,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"testapp/internal/renderer"
+	"testapp/internal/hypermedia"
 	"testapp/models"
 
 	"testapp/router/routes"
-
-	"testapp/internal/hypermedia"
 )
 
 type OrderIndex struct {
@@ -93,7 +91,7 @@ templ (os OrderShow) Page() {
 						<h1 class="text-2xl font-semibold text-gray-900">Order Details</h1>
 						<div class="flex flex-wrap items-center gap-3">
 							<a href={ routes.OrderEdit.URL(os.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded">Edit</a>
-							<a class="text-sm text-gray-600 hover:text-gray-900" href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
+							<a class="text-sm text-gray-600 hover:text-gray-900" href={ hypermedia.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
 						</div>
 					</div>
 					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
@@ -171,7 +169,7 @@ templ (on OrderNew) Page() {
 									</div>
 									<div class="mt-6 space-y-3">
 										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Create Order</button>
-										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href={ hypermedia.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
 									</div>
 								</fieldset>
 							</form>
@@ -224,7 +222,7 @@ templ (oe OrderEdit) Page() {
 									</div>
 									<div class="mt-6 space-y-3">
 										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Update Order</button>
-										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href={ hypermedia.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
 									</div>
 								</fieldset>
 							</form>

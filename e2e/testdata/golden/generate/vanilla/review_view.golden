@@ -8,12 +8,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"testapp/internal/renderer"
+	"testapp/internal/hypermedia"
 	"testapp/models"
 
 	"testapp/router/routes"
-
-	"testapp/internal/hypermedia"
 )
 
 type ReviewIndex struct {
@@ -102,7 +100,7 @@ templ (rs ReviewShow) Page() {
 						</div>
 						<div>
 							<a href={ routes.ReviewEdit.URL(rs.Item.ID) }>Edit</a>
-							<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
+							<a href={ hypermedia.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
 						</div>
 					</div>
 					<div>
@@ -177,7 +175,7 @@ templ (rn ReviewNew) Page() {
 									</div>
 									<div>
 										<button type="submit">Create Review</button>
-										<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
+										<a href={ hypermedia.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
 									</div>
 								</fieldset>
 							</form>
@@ -233,7 +231,7 @@ templ (re ReviewEdit) Page() {
 									</div>
 									<div>
 										<button type="submit">Update Review</button>
-										<a href={ renderer.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
+										<a href={ hypermedia.ResolveBackURL(ctx, routes.ReviewIndex.URL()) }>Back to List</a>
 									</div>
 								</fieldset>
 							</form>

@@ -14,7 +14,7 @@ import (
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/database"
 {{- if eq .Inertia "vue"}}
-	"{{.ModuleName}}/internal/renderer"
+	"{{.ModuleName}}/internal/inertia"
 {{- end}}
 	"{{.ModuleName}}/internal/server"
 	"{{.ModuleName}}/internal/storage"
@@ -145,7 +145,7 @@ func run(ctx context.Context) error {
 	cfg := config.NewConfig()
 
 {{- if eq .Inertia "vue"}}
-	if err := renderer.InitInertia("views/root.go.html"); err != nil {
+	if err := inertia.Init("views/root.go.html"); err != nil {
 		return fmt.Errorf("failed to initialize inertia: %w", err)
 	}
 

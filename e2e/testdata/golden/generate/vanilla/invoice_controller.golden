@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"testapp/internal/renderer"
+	"testapp/internal/hypermedia"
 	"testapp/internal/storage"
 	"testapp/models"
 	"testapp/router/cookies"
@@ -48,28 +48,28 @@ func (i Invoices) Index(etx *echo.Context) error {
 		perPage,
 	)
 	if err != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
-	return renderer.Render(etx, views.InvoiceIndex{Items: invoicesList.Invoices}.Page())
+	return hypermedia.RenderPage(etx, views.InvoiceIndex{Items: invoicesList.Invoices}.Page())
 }
 
 func (i Invoices) Show(etx *echo.Context) error {
 	invoiceID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	invoice, err := models.Invoice.Find(etx.Request().Context(), i.db.Conn(), invoiceID)
 	if err != nil {
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
-	return renderer.Render(etx, views.InvoiceShow{Item: invoice}.Page())
+	return hypermedia.RenderPage(etx, views.InvoiceShow{Item: invoice}.Page())
 }
 
 func (i Invoices) New(etx *echo.Context) error {
-	return renderer.Render(etx, views.InvoiceNew{}.Page())
+	return hypermedia.RenderPage(etx, views.InvoiceNew{}.Page())
 }
 
 type CreateInvoiceFormPayload struct {
@@ -89,7 +89,7 @@ func (i Invoices) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
 	data := models.CreateInvoiceData{
@@ -112,7 +112,7 @@ func (i Invoices) Create(etx *echo.Context) error {
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Invoice created successfully"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.InvoiceShow.URL(invoice.ID))
@@ -121,15 +121,15 @@ func (i Invoices) Create(etx *echo.Context) error {
 func (i Invoices) Edit(etx *echo.Context) error {
 	invoiceID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	invoice, err := models.Invoice.Find(etx.Request().Context(), i.db.Conn(), invoiceID)
 	if err != nil {
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
-	return renderer.Render(etx, views.InvoiceEdit{Item: invoice}.Page())
+	return hypermedia.RenderPage(etx, views.InvoiceEdit{Item: invoice}.Page())
 }
 
 type UpdateInvoiceFormPayload struct {
@@ -142,7 +142,7 @@ type UpdateInvoiceFormPayload struct {
 func (i Invoices) Update(etx *echo.Context) error {
 	invoiceID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	var payload UpdateInvoiceFormPayload
@@ -154,7 +154,7 @@ func (i Invoices) Update(etx *echo.Context) error {
 			err,
 		)
 
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
 	data := models.UpdateInvoiceData{
@@ -172,7 +172,7 @@ func (i Invoices) Update(etx *echo.Context) error {
 	)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update invoice: %v", err)); flashErr != nil {
-			return renderer.Render(etx, views.InternalError())
+			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(
 			http.StatusSeeOther,
@@ -181,7 +181,7 @@ func (i Invoices) Update(etx *echo.Context) error {
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Invoice updated successfully"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.InvoiceShow.URL(invoice.ID))
@@ -190,19 +190,19 @@ func (i Invoices) Update(etx *echo.Context) error {
 func (i Invoices) Destroy(etx *echo.Context) error {
 	invoiceID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	err = models.Invoice.Destroy(etx.Request().Context(), i.db.Conn(), invoiceID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete invoice: %v", err)); flashErr != nil {
-			return renderer.Render(etx, views.InternalError())
+			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(http.StatusSeeOther, routes.InvoiceIndex.URL())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Invoice destroyed successfully"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.InvoiceIndex.URL())

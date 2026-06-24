@@ -9,12 +9,10 @@ import (
 	"net/http"
 	"strings"
 
-	"testapp/internal/renderer"
+	"testapp/internal/hypermedia"
 	"testapp/models"
 
 	"testapp/router/routes"
-
-	"testapp/internal/hypermedia"
 )
 
 type DocumentIndex struct {
@@ -107,7 +105,7 @@ templ (ds DocumentShow) Page() {
 						</div>
 						<div>
 							<a href={ routes.DocumentEdit.URL(ds.Item.ID) }>Edit</a>
-							<a href={ renderer.ResolveBackURL(ctx, routes.DocumentIndex.URL()) }>Back to List</a>
+							<a href={ hypermedia.ResolveBackURL(ctx, routes.DocumentIndex.URL()) }>Back to List</a>
 						</div>
 					</div>
 					<div>
@@ -200,7 +198,7 @@ templ (dn DocumentNew) Page() {
 									</div>
 									<div>
 										<button type="submit">Create Document</button>
-										<a href={ renderer.ResolveBackURL(ctx, routes.DocumentIndex.URL()) }>Back to List</a>
+										<a href={ hypermedia.ResolveBackURL(ctx, routes.DocumentIndex.URL()) }>Back to List</a>
 									</div>
 								</fieldset>
 							</form>
@@ -268,7 +266,7 @@ templ (de DocumentEdit) Page() {
 									</div>
 									<div>
 										<button type="submit">Update Document</button>
-										<a href={ renderer.ResolveBackURL(ctx, routes.DocumentIndex.URL()) }>Back to List</a>
+										<a href={ hypermedia.ResolveBackURL(ctx, routes.DocumentIndex.URL()) }>Back to List</a>
 									</div>
 								</fieldset>
 							</form>

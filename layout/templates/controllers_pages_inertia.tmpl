@@ -1,13 +1,13 @@
 package controllers
 
 import (
-	"{{.ModuleName}}/internal/renderer"
+	"{{.ModuleName}}/internal/hypermedia"
+	"{{.ModuleName}}/internal/inertia"
 	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/views"
 
 	"github.com/labstack/echo/v5"
-	inertia "github.com/romsar/gonertia/v3"
 )
 
 type Pages struct {
@@ -23,11 +23,11 @@ func NewPages(
 }
 
 func (p Pages) Home(etx *echo.Context) error {
-	return renderer.Inertia(etx, "Welcome", inertia.Props{
+	return inertia.Page(etx, "Welcome", inertia.Props{
 		"appName": "{{.ProjectName}}",
 	})
 }
 
 func (p Pages) NotFound(etx *echo.Context) error {
-	return renderer.Render(etx, views.NotFound())
+	return hypermedia.RenderPage(etx, views.NotFound())
 }

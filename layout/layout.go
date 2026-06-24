@@ -62,6 +62,7 @@ func Scaffold(
 		Pepper:               generateRandomHex(12),
 		Extensions:           extensionNames,
 		RunToolVersion:       GetRunToolVersion(),
+		FrameworkVersion:     normalizeFrameworkVersion(version),
 		DIMode:               diMode,
 		Inertia:              inertia,
 		blueprint:            blueprint,
@@ -143,7 +144,7 @@ func Scaffold(
 			TargetDir: targetDir,
 			Data:      &templateData,
 			DIMode:    diMode,
-			Inertia: inertia,
+			Inertia:   inertia,
 			ProcessTemplate: func(templateFile, targetPath string, data extensions.TemplateData) error {
 				if data == nil {
 					data = &templateData
@@ -271,8 +272,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"readme.tmpl":    "README.md",
 
 	// Core files
-	"framework_elements_renderer_render.tmpl":        "internal/renderer/render.go",
-	"framework_elements_renderer_fragments.tmpl":     "internal/renderer/fragments.go",
 	"framework_elements_request_context.tmpl":        "internal/request/context.go",
 	"framework_elements_request_request.tmpl":        "internal/request/request.go",
 	"framework_elements_routing_definitions.tmpl":    "internal/routing/definitions.go",
@@ -282,6 +281,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"framework_elements_storage_queue.tmpl":          "internal/storage/queue.go",
 	"framework_elements_hypermedia_signals.tmpl":     "internal/hypermedia/signals.go",
 	"framework_elements_hypermedia_core.tmpl":        "internal/hypermedia/core.go",
+	"framework_elements_hypermedia_options.tmpl":     "internal/hypermedia/options.go",
+	"framework_elements_hypermedia_render.tmpl":      "internal/hypermedia/render.go",
+	"framework_elements_hypermedia_script.tmpl":      "internal/hypermedia/script.go",
 	"framework_elements_hypermedia_sse.tmpl":         "internal/hypermedia/sse.go",
 	"framework_elements_hypermedia_broadcaster.tmpl": "internal/hypermedia/broadcaster.go",
 	"framework_elements_hypermedia_helpers.tmpl":     "internal/hypermedia/helpers.go",
@@ -431,13 +433,14 @@ var fxSkippedTemplates = map[TmplTarget]bool{
 }
 
 var inertiaTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"inertia_framework_root_html.tmpl":     "views/root.go.html",
-	"inertia_assets_app.tmpl":              "resources/js/app.ts",
-	"inertia_assets_pages_welcome.tmpl":    "resources/js/Pages/Welcome.vue",
-	"inertia_assets_vite_config.tmpl":      "vite.config.ts",
-	"inertia_assets_package_json.tmpl":     "package.json",
-	"inertia_assets_tsconfig.tmpl":       "tsconfig.json",
-	"inertia_renderer_vite.tmpl":         "internal/renderer/vite.go",
+	"inertia_framework_root_html.tmpl":  "views/root.go.html",
+	"inertia_assets_app.tmpl":           "resources/js/app.ts",
+	"inertia_assets_pages_welcome.tmpl": "resources/js/Pages/Welcome.vue",
+	"inertia_assets_vite_config.tmpl":   "vite.config.ts",
+	"inertia_assets_package_json.tmpl":  "package.json",
+	"inertia_assets_tsconfig.tmpl":      "tsconfig.json",
+	"inertia_render.tmpl":               "internal/inertia/render.go",
+	"inertia_vite.tmpl":                 "internal/inertia/vite.go",
 }
 
 var inertiaTemplateOverrides = map[TmplTarget]TmplTargetPath{
@@ -977,6 +980,14 @@ func GetExpectedTools(config *ScaffoldConfig) map[string]*Tool {
 // GetRunToolVersion returns the version of the run tool
 func GetRunToolVersion() string {
 	return versions.Shadowfax
+}
+
+func normalizeFrameworkVersion(version string) string {
+	version = strings.TrimSpace(version)
+	if version == "" {
+		return "dev"
+	}
+	return version
 }
 
 func createGoMod(targetDir string, data *TemplateData) error {

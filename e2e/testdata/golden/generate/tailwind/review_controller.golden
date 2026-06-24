@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"testapp/internal/renderer"
+	"testapp/internal/hypermedia"
 	"testapp/internal/storage"
 	"testapp/models"
 	"testapp/router/cookies"
@@ -48,28 +48,28 @@ func (r Reviews) Index(etx *echo.Context) error {
 		perPage,
 	)
 	if err != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
-	return renderer.Render(etx, views.ReviewIndex{Items: reviewsList.Reviews}.Page())
+	return hypermedia.RenderPage(etx, views.ReviewIndex{Items: reviewsList.Reviews}.Page())
 }
 
 func (r Reviews) Show(etx *echo.Context) error {
 	reviewID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	review, err := models.Review.Find(etx.Request().Context(), r.db.Conn(), reviewID)
 	if err != nil {
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
-	return renderer.Render(etx, views.ReviewShow{Item: review}.Page())
+	return hypermedia.RenderPage(etx, views.ReviewShow{Item: review}.Page())
 }
 
 func (r Reviews) New(etx *echo.Context) error {
-	return renderer.Render(etx, views.ReviewNew{}.Page())
+	return hypermedia.RenderPage(etx, views.ReviewNew{}.Page())
 }
 
 type CreateReviewFormPayload struct {
@@ -88,7 +88,7 @@ func (r Reviews) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
 	data := models.CreateReviewData{
@@ -110,7 +110,7 @@ func (r Reviews) Create(etx *echo.Context) error {
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Review created successfully"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.ReviewShow.URL(review.ID))
@@ -119,15 +119,15 @@ func (r Reviews) Create(etx *echo.Context) error {
 func (r Reviews) Edit(etx *echo.Context) error {
 	reviewID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	review, err := models.Review.Find(etx.Request().Context(), r.db.Conn(), reviewID)
 	if err != nil {
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
-	return renderer.Render(etx, views.ReviewEdit{Item: review}.Page())
+	return hypermedia.RenderPage(etx, views.ReviewEdit{Item: review}.Page())
 }
 
 type UpdateReviewFormPayload struct {
@@ -139,7 +139,7 @@ type UpdateReviewFormPayload struct {
 func (r Reviews) Update(etx *echo.Context) error {
 	reviewID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	var payload UpdateReviewFormPayload
@@ -151,7 +151,7 @@ func (r Reviews) Update(etx *echo.Context) error {
 			err,
 		)
 
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
 	data := models.UpdateReviewData{
@@ -168,7 +168,7 @@ func (r Reviews) Update(etx *echo.Context) error {
 	)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update review: %v", err)); flashErr != nil {
-			return renderer.Render(etx, views.InternalError())
+			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(
 			http.StatusSeeOther,
@@ -177,7 +177,7 @@ func (r Reviews) Update(etx *echo.Context) error {
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Review updated successfully"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.ReviewShow.URL(review.ID))
@@ -186,19 +186,19 @@ func (r Reviews) Update(etx *echo.Context) error {
 func (r Reviews) Destroy(etx *echo.Context) error {
 	reviewID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	err = models.Review.Destroy(etx.Request().Context(), r.db.Conn(), reviewID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete review: %v", err)); flashErr != nil {
-			return renderer.Render(etx, views.InternalError())
+			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(http.StatusSeeOther, routes.ReviewIndex.URL())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Review destroyed successfully"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.ReviewIndex.URL())

@@ -8,12 +8,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"testapp/internal/renderer"
+	"testapp/internal/hypermedia"
 	"testapp/models"
 
 	"testapp/router/routes"
-
-	"testapp/internal/hypermedia"
 )
 
 type StudentFeedbackIndex struct {
@@ -102,7 +100,7 @@ templ (sfs StudentFeedbackShow) Page() {
 						</div>
 						<div>
 							<a href={ routes.StudentFeedbackEdit.URL(sfs.Item.ID) }>Edit</a>
-							<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+							<a href={ hypermedia.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
 						</div>
 					</div>
 					<div>
@@ -177,7 +175,7 @@ templ (sfn StudentFeedbackNew) Page() {
 									</div>
 									<div>
 										<button type="submit">Create StudentFeedback</button>
-										<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+										<a href={ hypermedia.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
 									</div>
 								</fieldset>
 							</form>
@@ -233,7 +231,7 @@ templ (sfe StudentFeedbackEdit) Page() {
 									</div>
 									<div>
 										<button type="submit">Update StudentFeedback</button>
-										<a href={ renderer.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
+										<a href={ hypermedia.ResolveBackURL(ctx, routes.StudentFeedbackIndex.URL()) }>Back to List</a>
 									</div>
 								</fieldset>
 							</form>

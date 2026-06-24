@@ -185,12 +185,12 @@ func generateActionControllerFile(name, tableName, pluralName, modulePath, contr
 		var sb strings.Builder
 		sb.WriteString("package controllers\n\n")
 		sb.WriteString("import (\n")
-		sb.WriteString(fmt.Sprintf("\t\"%s/internal/renderer\"\n", modulePath))
 		if isInertia {
+			sb.WriteString(fmt.Sprintf("\t\"%s/internal/inertia\"\n", modulePath))
 			sb.WriteString("\n")
 			sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")
-			sb.WriteString("\tinertia \"github.com/romsar/gonertia/v3\"\n")
 		} else {
+			sb.WriteString(fmt.Sprintf("\t\"%s/internal/hypermedia\"\n", modulePath))
 			sb.WriteString(fmt.Sprintf("\t\"%s/views\"\n", modulePath))
 			sb.WriteString("\n")
 			sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")
@@ -241,7 +241,7 @@ func controllerMethodExists(content, methodName string) bool {
 }
 
 func actionControllerMethod(receiverName, controllerName, resourceName, methodName string) string {
-	return fmt.Sprintf("func (%s %s) %s(etx *echo.Context) error {\n\treturn renderer.Render(etx, views.%s%s())\n}\n\n",
+	return fmt.Sprintf("func (%s %s) %s(etx *echo.Context) error {\n\treturn hypermedia.RenderPage(etx, views.%s%s())\n}\n\n",
 		receiverName,
 		controllerName,
 		methodName,
@@ -251,7 +251,7 @@ func actionControllerMethod(receiverName, controllerName, resourceName, methodNa
 }
 
 func actionControllerMethodInertia(receiverName, controllerName, resourceName, methodName string) string {
-	return fmt.Sprintf("func (%s %s) %s(etx *echo.Context) error {\n\treturn renderer.Inertia(etx, \"%s/%s\", inertia.Props{})\n}\n\n",
+	return fmt.Sprintf("func (%s %s) %s(etx *echo.Context) error {\n\treturn inertia.Page(etx, \"%s/%s\", inertia.Props{})\n}\n\n",
 		receiverName,
 		controllerName,
 		methodName,

@@ -10,7 +10,7 @@ import (
 
 	"{{.ModuleName}}/config"
 {{- if eq .Inertia "vue"}}
-	"{{.ModuleName}}/internal/renderer"
+	"{{.ModuleName}}/internal/inertia"
 {{- end}}
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
@@ -112,7 +112,7 @@ func SetupGlobalMiddleware(
 		middleware.ValidateSession,
 		middleware.RegisterRequestMeta,
 {{- if eq .Inertia "vue"}}
-		renderer.InertiaMiddleware(),
+		inertia.Middleware(),
 {{- end}}
 		echomw.CORSWithConfig(echomw.CORSConfig{
 			AllowOrigins:     []string{"https://*", "http://*"},
