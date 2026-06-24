@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"testapp/internal/renderer"
+	"testapp/internal/hypermedia"
 	"testapp/internal/storage"
 	"testapp/models"
 	"testapp/router/cookies"
@@ -48,28 +48,28 @@ func (sf StudentFeedback) Index(etx *echo.Context) error {
 		perPage,
 	)
 	if err != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
-	return renderer.Render(etx, views.StudentFeedbackIndex{Items: studentFeedbackList.StudentFeedback}.Page())
+	return hypermedia.RenderPage(etx, views.StudentFeedbackIndex{Items: studentFeedbackList.StudentFeedback}.Page())
 }
 
 func (sf StudentFeedback) Show(etx *echo.Context) error {
 	studentFeedbackID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	studentFeedback, err := models.StudentFeedback.Find(etx.Request().Context(), sf.db.Conn(), studentFeedbackID)
 	if err != nil {
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
-	return renderer.Render(etx, views.StudentFeedbackShow{Item: studentFeedback}.Page())
+	return hypermedia.RenderPage(etx, views.StudentFeedbackShow{Item: studentFeedback}.Page())
 }
 
 func (sf StudentFeedback) New(etx *echo.Context) error {
-	return renderer.Render(etx, views.StudentFeedbackNew{}.Page())
+	return hypermedia.RenderPage(etx, views.StudentFeedbackNew{}.Page())
 }
 
 type CreateStudentFeedbackFormPayload struct {
@@ -88,7 +88,7 @@ func (sf StudentFeedback) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
 	data := models.CreateStudentFeedbackData{
@@ -110,7 +110,7 @@ func (sf StudentFeedback) Create(etx *echo.Context) error {
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "StudentFeedback created successfully"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.StudentFeedbackShow.URL(studentFeedback.ID))
@@ -119,15 +119,15 @@ func (sf StudentFeedback) Create(etx *echo.Context) error {
 func (sf StudentFeedback) Edit(etx *echo.Context) error {
 	studentFeedbackID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	studentFeedback, err := models.StudentFeedback.Find(etx.Request().Context(), sf.db.Conn(), studentFeedbackID)
 	if err != nil {
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
-	return renderer.Render(etx, views.StudentFeedbackEdit{Item: studentFeedback}.Page())
+	return hypermedia.RenderPage(etx, views.StudentFeedbackEdit{Item: studentFeedback}.Page())
 }
 
 type UpdateStudentFeedbackFormPayload struct {
@@ -139,7 +139,7 @@ type UpdateStudentFeedbackFormPayload struct {
 func (sf StudentFeedback) Update(etx *echo.Context) error {
 	studentFeedbackID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	var payload UpdateStudentFeedbackFormPayload
@@ -151,7 +151,7 @@ func (sf StudentFeedback) Update(etx *echo.Context) error {
 			err,
 		)
 
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
 	data := models.UpdateStudentFeedbackData{
@@ -168,7 +168,7 @@ func (sf StudentFeedback) Update(etx *echo.Context) error {
 	)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update studentFeedback: %v", err)); flashErr != nil {
-			return renderer.Render(etx, views.InternalError())
+			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(
 			http.StatusSeeOther,
@@ -177,7 +177,7 @@ func (sf StudentFeedback) Update(etx *echo.Context) error {
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "StudentFeedback updated successfully"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.StudentFeedbackShow.URL(studentFeedback.ID))
@@ -186,19 +186,19 @@ func (sf StudentFeedback) Update(etx *echo.Context) error {
 func (sf StudentFeedback) Destroy(etx *echo.Context) error {
 	studentFeedbackID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	err = models.StudentFeedback.Destroy(etx.Request().Context(), sf.db.Conn(), studentFeedbackID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete studentFeedback: %v", err)); flashErr != nil {
-			return renderer.Render(etx, views.InternalError())
+			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(http.StatusSeeOther, routes.StudentFeedbackIndex.URL())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "StudentFeedback destroyed successfully"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.StudentFeedbackIndex.URL())

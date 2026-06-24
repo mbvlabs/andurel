@@ -438,15 +438,15 @@ myapp/
 │   ├── reset_password.templ
 │   └── verify_email.templ
 ├── internal/
-│   ├── hypermedia/          # Datastar/SSE helpers
+│   ├── hypermedia/          # HTML-over-the-wire helpers
 │   │   ├── broadcaster.go
 │   │   ├── core.go
 │   │   ├── helpers.go
+│   │   ├── options.go
+│   │   ├── render.go
+│   │   ├── script.go
 │   │   ├── signals.go
 │   │   └── sse.go
-│   ├── renderer/
-│   │   ├── fragments.go
-│   │   └── render.go        # Server-side renderer
 │   ├── request/
 │   │   ├── context.go
 │   │   └── request.go
@@ -557,14 +557,15 @@ myapp/
 │   ├── root.go.html             # Inertia root HTML shell
 │   └── (no home.templ — replaced by Vue Welcome page)
 ├── internal/
-│   └── renderer/
+│   └── inertia/
+│       ├── render.go            # Inertia response helpers
 │       └── vite.go              # Vite dev/prod manifest resolver
 ├── vite.config.ts
 ├── package.json
 ├── tsconfig.json
 ```
 
-The `controllers/pages.go` uses Inertia rendering instead of Templ, and `cmd/app/main.go` initializes the Inertia renderer. Run `npm install` after scaffolding.
+The `controllers/pages.go` uses Inertia rendering instead of Templ, and `cmd/app/main.go` initializes `internal/inertia`. Run `npm install` after scaffolding.
 
 ### Inertia Vue + UberFX (`--di uberfx --inertia vue`)
 

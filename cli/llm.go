@@ -188,8 +188,8 @@ myapp/
 │   ├── base_layout.templ    # Base email template layout
 │   └── components.templ     # Reusable email components
 ├── internal/            # Internal framework packages
-│   ├── hypermedia/     # Datastar/SSE helpers
-│   ├── renderer/       # Template rendering
+│   ├── hypermedia/     # HTML-over-the-wire helpers
+│   ├── inertia/        # Inertia helpers when enabled
 │   ├── routing/        # Routing utilities
 │   ├── server/         # Server configuration
 │   └── storage/        # Storage utilities and database executor interfaces
@@ -288,7 +288,7 @@ The render() helper renders templ components:
 
 ` + "```go" + `
 func render(etx *echo.Context, t templ.Component) error {
-	return renderer.Render(etx, t)
+	return hypermedia.RenderPage(etx, t)
 }
 ` + "```" + `
 
@@ -301,16 +301,22 @@ return render(etx, views.InternalError())
 
 ### Partial rendering with fragments
 
-For hypermedia responses, use renderer.ExtractFragment to render only a named fragment from a templ component:
+For hypermedia responses, use hypermedia.RenderFragment to render only a named fragment from a templ component:
 
 ` + "```go" + `
 // Extract a single fragment
-partial := renderer.ExtractFragment(views.UserShow(user), "user-card")
-return render(etx, partial)
+partial, err := hypermedia.RenderFragment(etx.Request().Context(), views.UserShow(user), "user-card")
+if err != nil {
+	return err
+}
+return hypermedia.PatchHTML(etx, partial)
 
 // Extract multiple fragments
-partial := renderer.ExtractFragments(views.UserShow(user), []string{"user-card", "user-stats"})
-return render(etx, partial)
+partial, err := hypermedia.RenderFragments(etx.Request().Context(), views.UserShow(user), "user-card", "user-stats")
+if err != nil {
+	return err
+}
+return hypermedia.PatchHTML(etx, partial)
 ` + "```" + `
 
 Define fragments in templ views using the @fragment directive:
@@ -516,7 +522,7 @@ For Datastar/SSE responses instead of full page renders:
 hypermedia.Redirect(etx, routes.UserShow.URL(userID))
 
 // Patch DOM elements
-hypermedia.PatchElementTempl(etx, "#user-list", views.UserListPartial(users))
+hypermedia.PatchComponent(etx, views.UserListPartial(users), hypermedia.WithSelector("#user-list"))
 
 // Update signals
 hypermedia.PatchSignal(etx, "loading", false)
@@ -812,7 +818,7 @@ Andurel views are written in templ (https://templ.guide). Views compile to Go co
 - generated CRUD views: views/<table>_resource.templ
 
 ## Rendering pipeline (how views get used)
-- Controllers call render(etx, views.SomeView(...)). This uses internal/renderer to render a templ.Component.
+- Controllers call hypermedia.RenderPage(etx, views.SomeView(...)). This uses internal/hypermedia to render a templ.Component.
 - For controller patterns and request payload handling, see: andurel llm controllers.
 
 ## Templ essentials (useful for Andurel views)
@@ -1378,7 +1384,7 @@ Notes:
 Server handlers respond with SSE events that the client interprets as patch/merge actions.
 
 ### Single-response helpers
-- PatchElements / PatchElementTempl: send HTML patches.
+- PatchHTML / PatchComponent: send event-stream HTML patches.
 - PatchSignal / PatchSignals: send signal updates.
 - MergeSignals: merge signals.
 - ExecuteScript / Redirect / ReplaceURL / Prefetch: run client JS via SSE.

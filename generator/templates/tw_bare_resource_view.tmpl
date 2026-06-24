@@ -10,12 +10,10 @@ import (
 	{{end}}{{if or (HasAction "new") (HasAction "edit")}}	"net/http"
 	{{end}}
 	"{{.ModulePath}}/models"
-	{{if or (and (HasAction "show") (HasAction "index")) (HasAction "new") (HasAction "edit")}}"{{.ModulePath}}/internal/renderer"
+	{{if or (and (HasAction "show") (HasAction "index")) (HasAction "new") (HasAction "edit")}}"{{.ModulePath}}/internal/hypermedia"
 	{{end}}
 	{{if or (and (HasAction "index") (or (HasAction "new") (HasAction "show") (HasAction "edit"))) (and (HasAction "show") (or (HasAction "edit") (HasAction "index"))) (HasAction "new") (HasAction "edit")}}
 	"{{.ModulePath}}/router/routes"
-	{{end}}
-	{{if or (HasAction "new") (HasAction "edit")}}"{{.ModulePath}}/internal/hypermedia"
 	{{end}}
 )
 
@@ -98,7 +96,7 @@ templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 							<a href={ routes.{{.ResourceName}}Edit.URL({{$showRecv}}.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded">Edit</a>
 							{{end}}
 							{{if HasAction "index"}}
-							<a class="text-sm text-gray-600 hover:text-gray-900" href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+							<a class="text-sm text-gray-600 hover:text-gray-900" href={ hypermedia.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
 							{{end}}
 						</div>
 					</div>
@@ -169,7 +167,7 @@ templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 									</div>
 									<div class="mt-6 space-y-3">
 										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Create {{.ResourceName}}</button>
-										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href={ hypermedia.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
 									</div>
 								</fieldset>
 							</form>
@@ -233,7 +231,7 @@ templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
 									</div>
 									<div class="mt-6 space-y-3">
 										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Update {{.ResourceName}}</button>
-										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href={ hypermedia.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
 									</div>
 								</fieldset>
 							</form>

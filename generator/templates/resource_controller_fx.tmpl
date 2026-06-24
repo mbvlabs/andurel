@@ -39,7 +39,7 @@ import (
 {{- end}}
 	"github.com/labstack/echo/v5"
 	"{{.ModulePath}}/models"
-	"{{.ModulePath}}/internal/renderer"
+	"{{.ModulePath}}/internal/hypermedia"
 	"{{.ModulePath}}/internal/storage"
 	"{{.ModulePath}}/router"
 	"{{.ModulePath}}/router/cookies"
@@ -78,46 +78,46 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		perPage,
 	)
 	if err != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
-	return renderer.Render(etx, views.{{.ResourceName}}Index{Items: {{.PluralName | ToCamelCase}}List.{{.PluralResourceName}}}.Page())
+	return hypermedia.RenderPage(etx, views.{{.ResourceName}}Index{Items: {{.PluralName | ToCamelCase}}List.{{.PluralResourceName}}}.Page())
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 {{- else if eq .IDType "int64"}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := strconv.ParseInt(etx.Param("id"), 10, 64)
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 {{- else if eq .IDType "int32"}}
 	parsed, err := strconv.ParseInt(etx.Param("id"), 10, 32)
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 	{{.ResourceName | ToLowerCamelCase}}ID := int32(parsed)
 {{- else if eq .IDType "string"}}
 	{{.ResourceName | ToLowerCamelCase}}ID := etx.Param("id")
 	if {{.ResourceName | ToLowerCamelCase}}ID == "" {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 {{- end}}
 
 	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
-	return renderer.Render(etx, views.{{.ResourceName}}Show{Item: {{.ResourceName | ToLowerCamelCase}}}.Page())
+	return hypermedia.RenderPage(etx, views.{{.ResourceName}}Show{Item: {{.ResourceName | ToLowerCamelCase}}}.Page())
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) New(etx *echo.Context) error {
-	return renderer.Render(etx, views.{{.ResourceName}}New{}.Page())
+	return hypermedia.RenderPage(etx, views.{{.ResourceName}}New{}.Page())
 }
 
 type Create{{.ResourceName}}FormPayload struct {
@@ -142,7 +142,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 			err,
 		)
 
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
 	data := models.Create{{.ResourceName}}Data{
@@ -272,7 +272,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} created successfully"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
@@ -282,32 +282,32 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 {{- else if eq .IDType "int64"}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := strconv.ParseInt(etx.Param("id"), 10, 64)
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 {{- else if eq .IDType "int32"}}
 	parsed, err := strconv.ParseInt(etx.Param("id"), 10, 32)
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 	{{.ResourceName | ToLowerCamelCase}}ID := int32(parsed)
 {{- else if eq .IDType "string"}}
 	{{.ResourceName | ToLowerCamelCase}}ID := etx.Param("id")
 	if {{.ResourceName | ToLowerCamelCase}}ID == "" {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 {{- end}}
 
 	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
-	return renderer.Render(etx, views.{{.ResourceName}}Edit{Item: {{.ResourceName | ToLowerCamelCase}}}.Page())
+	return hypermedia.RenderPage(etx, views.{{.ResourceName}}Edit{Item: {{.ResourceName | ToLowerCamelCase}}}.Page())
 }
 
 type Update{{.ResourceName}}FormPayload struct {
@@ -326,23 +326,23 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 {{- else if eq .IDType "int64"}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := strconv.ParseInt(etx.Param("id"), 10, 64)
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 {{- else if eq .IDType "int32"}}
 	parsed, err := strconv.ParseInt(etx.Param("id"), 10, 32)
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 	{{.ResourceName | ToLowerCamelCase}}ID := int32(parsed)
 {{- else if eq .IDType "string"}}
 	{{.ResourceName | ToLowerCamelCase}}ID := etx.Param("id")
 	if {{.ResourceName | ToLowerCamelCase}}ID == "" {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 {{- end}}
 
@@ -355,7 +355,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 			err,
 		)
 
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
 	data := models.Update{{.ResourceName}}Data{
@@ -480,7 +480,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
-			return renderer.Render(etx, views.InternalError())
+			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(
 			http.StatusSeeOther,
@@ -489,7 +489,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} updated successfully"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
@@ -499,36 +499,36 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 {{- else if eq .IDType "int64"}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := strconv.ParseInt(etx.Param("id"), 10, 64)
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 {{- else if eq .IDType "int32"}}
 	parsed, err := strconv.ParseInt(etx.Param("id"), 10, 32)
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 	{{.ResourceName | ToLowerCamelCase}}ID := int32(parsed)
 {{- else if eq .IDType "string"}}
 	{{.ResourceName | ToLowerCamelCase}}ID := etx.Param("id")
 	if {{.ResourceName | ToLowerCamelCase}}ID == "" {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 {{- end}}
 
 	err = models.{{.ResourceName}}.Destroy(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
-			return renderer.Render(etx, views.InternalError())
+			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} destroyed successfully"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())

@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/internal/renderer"
+	"{{.ModuleName}}/internal/hypermedia"
 	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
@@ -15,8 +15,6 @@ import (
 	"{{.ModuleName}}/views"
 
 	"github.com/labstack/echo/v5"
-
-	"{{.ModuleName}}/internal/hypermedia"
 )
 
 type Confirmations struct {
@@ -55,7 +53,7 @@ func (c Confirmations) RegisterRoutes(r *router.Router) error {
 }
 
 func (c Confirmations) New(etx *echo.Context) error {
-	return renderer.Render(etx, views.ConfirmationForm{}.Page())
+	return hypermedia.RenderPage(etx, views.ConfirmationForm{}.Page())
 }
 
 func (c Confirmations) Create(etx *echo.Context) error {
@@ -70,7 +68,7 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	user, err := services.VerifyEmail(
@@ -100,7 +98,7 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		}
 
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return renderer.Render(etx, views.InternalError())
+			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return hypermedia.Redirect(etx, routes.ConfirmationNew.URL())
 	}
@@ -113,11 +111,11 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Email verified successfully!"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return hypermedia.Redirect(etx, routes.HomePage.URL())

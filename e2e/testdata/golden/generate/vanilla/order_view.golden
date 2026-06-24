@@ -8,12 +8,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"testapp/internal/renderer"
+	"testapp/internal/hypermedia"
 	"testapp/models"
 
 	"testapp/router/routes"
-
-	"testapp/internal/hypermedia"
 )
 
 type OrderIndex struct {
@@ -104,7 +102,7 @@ templ (os OrderShow) Page() {
 						</div>
 						<div>
 							<a href={ routes.OrderEdit.URL(os.Item.ID) }>Edit</a>
-							<a href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
+							<a href={ hypermedia.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
 						</div>
 					</div>
 					<div>
@@ -189,7 +187,7 @@ templ (on OrderNew) Page() {
 									</div>
 									<div>
 										<button type="submit">Create Order</button>
-										<a href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
+										<a href={ hypermedia.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
 									</div>
 								</fieldset>
 							</form>
@@ -251,7 +249,7 @@ templ (oe OrderEdit) Page() {
 									</div>
 									<div>
 										<button type="submit">Update Order</button>
-										<a href={ renderer.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
+										<a href={ hypermedia.ResolveBackURL(ctx, routes.OrderIndex.URL()) }>Back to List</a>
 									</div>
 								</fieldset>
 							</form>

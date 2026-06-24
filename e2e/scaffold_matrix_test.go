@@ -133,13 +133,17 @@ func verifyScaffoldedProject(t *testing.T, project *internal.Project, config Sca
 		".gitignore",
 		"cmd/app/main.go",
 		"controllers/pages.go",
+		"internal/hypermedia/options.go",
+		"internal/hypermedia/render.go",
+		"internal/hypermedia/script.go",
 		"views/layout.templ",
 	}
 
 	if config.Inertia == "vue" {
 		inertiaCoreFiles := []string{
 			"views/root.go.html",
-			"internal/renderer/vite.go",
+			"internal/inertia/render.go",
+			"internal/inertia/vite.go",
 		}
 		coreFiles = append(coreFiles, inertiaCoreFiles...)
 	} else {

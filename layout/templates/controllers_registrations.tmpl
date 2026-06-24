@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/internal/renderer"
+	"{{.ModuleName}}/internal/hypermedia"
 	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/router/cookies"
@@ -14,8 +14,6 @@ import (
 	"{{.ModuleName}}/views"
 
 	"github.com/labstack/echo/v5"
-
-	"{{.ModuleName}}/internal/hypermedia"
 )
 
 type Registrations struct {
@@ -33,7 +31,7 @@ func NewRegistrations(
 }
 
 func (r Registrations) New(etx *echo.Context) error {
-	return renderer.Render(etx, views.RegistrationForm{}.Page())
+	return hypermedia.RenderPage(etx, views.RegistrationForm{}.Page())
 }
 
 func (r Registrations) Create(etx *echo.Context) error {
@@ -50,7 +48,7 @@ func (r Registrations) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	if err := services.RegisterUser(
@@ -72,7 +70,7 @@ func (r Registrations) Create(etx *echo.Context) error {
 		)
 
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, "Failed to register user"); flashErr != nil {
-			return renderer.Render(etx, views.InternalError())
+			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 
 		return etx.Redirect(http.StatusSeeOther, routes.RegistrationNew.URL())

@@ -10,12 +10,10 @@ import (
 	{{end}}{{if or (HasAction "new") (HasAction "edit")}}	"net/http"
 	{{end}}
 	"{{.ModulePath}}/models"
-	{{if or (and (HasAction "show") (HasAction "index")) (HasAction "new") (HasAction "edit")}}"{{.ModulePath}}/internal/renderer"
+	{{if or (and (HasAction "show") (HasAction "index")) (HasAction "new") (HasAction "edit")}}"{{.ModulePath}}/internal/hypermedia"
 	{{end}}
 	{{if or (and (HasAction "index") (or (HasAction "new") (HasAction "show") (HasAction "edit"))) (and (HasAction "show") (or (HasAction "edit") (HasAction "index"))) (HasAction "new") (HasAction "edit")}}
 	"{{.ModulePath}}/router/routes"
-	{{end}}
-	{{if or (HasAction "new") (HasAction "edit")}}"{{.ModulePath}}/internal/hypermedia"
 	{{end}}
 )
 
@@ -114,7 +112,7 @@ templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 							<a class="btn btn-primary" href={ routes.{{.ResourceName}}Edit.URL({{$showRecv}}.Item.ID) }>Edit</a>
 							{{end}}
 							{{if HasAction "index"}}
-							<a class="btn btn-outline" href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+							<a class="btn btn-outline" href={ hypermedia.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
 							{{end}}
 						</div>
 					</div>
@@ -172,7 +170,7 @@ templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 									{{end}}{{end}}{{end}}
 									<div class="stack" data-gap="sm">
 										<button class="btn btn-primary btn-block" type="submit">Create {{.ResourceName}}</button>
-										<a class="btn btn-outline btn-block" href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
 									</div>
 								</fieldset>
 							</form>
@@ -225,7 +223,7 @@ templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
 									{{end}}{{end}}{{end}}
 									<div class="stack" data-gap="sm">
 										<button class="btn btn-primary btn-block" type="submit">Update {{.ResourceName}}</button>
-										<a class="btn btn-outline btn-block" href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
 									</div>
 								</fieldset>
 							</form>

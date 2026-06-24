@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/internal/renderer"
+	"{{.ModuleName}}/internal/hypermedia"
 	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
@@ -13,8 +13,6 @@ import (
 	"{{.ModuleName}}/views"
 
 	"github.com/labstack/echo/v5"
-
-	"{{.ModuleName}}/internal/hypermedia"
 )
 
 type Sessions struct {
@@ -27,7 +25,7 @@ func NewSessions(db storage.Pool, cfg config.Config) Sessions {
 }
 
 func (s Sessions) New(etx *echo.Context) error {
-	return renderer.Render(etx, views.LoginForm{}.Page())
+	return hypermedia.RenderPage(etx, views.LoginForm{}.Page())
 }
 
 func (s Sessions) Create(etx *echo.Context) error {
@@ -43,7 +41,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	user, err := services.AuthenticateUser(
@@ -74,7 +72,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 		}
 
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return renderer.Render(etx, views.InternalError())
+			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 
 		return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
@@ -88,11 +86,11 @@ func (s Sessions) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Successfully logged in!"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return hypermedia.Redirect(etx, routes.HomePage.URL())
@@ -106,11 +104,11 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Successfully logged out!"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())

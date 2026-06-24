@@ -21,6 +21,7 @@ type TemplateData struct {
 	Pepper               string
 	Extensions           []string
 	RunToolVersion       string // Version of the run built tool
+	FrameworkVersion     string // Version of the framework that generated managed files
 	DIMode               string // "manual" or "uberfx"
 	Inertia              string // "vue", "react", etc. Empty means templ-only
 

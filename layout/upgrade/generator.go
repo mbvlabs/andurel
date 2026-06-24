@@ -27,10 +27,11 @@ func GetFrameworkTemplates() []FrameworkTemplate {
 		{"framework_elements_hypermedia_broadcaster.tmpl", "internal/hypermedia/broadcaster.go"},
 		{"framework_elements_hypermedia_core.tmpl", "internal/hypermedia/core.go"},
 		{"framework_elements_hypermedia_helpers.tmpl", "internal/hypermedia/helpers.go"},
+		{"framework_elements_hypermedia_options.tmpl", "internal/hypermedia/options.go"},
+		{"framework_elements_hypermedia_render.tmpl", "internal/hypermedia/render.go"},
+		{"framework_elements_hypermedia_script.tmpl", "internal/hypermedia/script.go"},
 		{"framework_elements_hypermedia_signals.tmpl", "internal/hypermedia/signals.go"},
 		{"framework_elements_hypermedia_sse.tmpl", "internal/hypermedia/sse.go"},
-
-		{"framework_elements_renderer_render.tmpl", "internal/renderer/render.go"},
 
 		{"framework_elements_routing_definitions.tmpl", "internal/routing/definitions.go"},
 		{"framework_elements_routing_routes.tmpl", "internal/routing/routes.go"},
@@ -67,6 +68,12 @@ func (g *TemplateGenerator) RenderFrameworkTemplates(
 	result := make(map[string][]byte)
 
 	frameworkTemplates := GetFrameworkTemplates()
+	if config.Inertia == "vue" {
+		frameworkTemplates = append(frameworkTemplates,
+			FrameworkTemplate{"inertia_render.tmpl", "internal/inertia/render.go"},
+			FrameworkTemplate{"inertia_vite.tmpl", "internal/inertia/vite.go"},
+		)
+	}
 
 	for _, ft := range frameworkTemplates {
 		content, err := renderTemplateToBytes(ft.TemplateName, templates.Files, templateData)
@@ -85,14 +92,22 @@ func (g *TemplateGenerator) buildTemplateData(
 	config layout.ScaffoldConfig,
 	modulePath string,
 ) *layout.TemplateData {
+	frameworkVersion := strings.TrimSpace(g.targetVersion)
+	if frameworkVersion == "" {
+		frameworkVersion = "dev"
+	}
+
 	return &layout.TemplateData{
-		AppName:        config.ProjectName,
-		ProjectName:    config.ProjectName,
-		ModuleName:     modulePath,
-		Database:       config.Database,
-		CSSFramework:   config.CSSFramework,
-		Extensions:     config.Extensions,
-		RunToolVersion: layout.GetRunToolVersion(),
+		AppName:          config.ProjectName,
+		ProjectName:      config.ProjectName,
+		ModuleName:       modulePath,
+		Database:         config.Database,
+		CSSFramework:     config.CSSFramework,
+		Extensions:       config.Extensions,
+		RunToolVersion:   layout.GetRunToolVersion(),
+		FrameworkVersion: frameworkVersion,
+		DIMode:           config.DIMode,
+		Inertia:          config.Inertia,
 	}
 }
 

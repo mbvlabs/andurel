@@ -12,7 +12,7 @@ import (
 	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/views"
-	"testapp/internal/renderer"
+	"testapp/internal/hypermedia"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
@@ -49,28 +49,28 @@ func (i Items) Index(etx *echo.Context) error {
 		perPage,
 	)
 	if err != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
-	return renderer.Render(etx, views.ItemIndex(itemsList.Items))
+	return hypermedia.RenderPage(etx, views.ItemIndex(itemsList.Items))
 }
 
 func (i Items) Show(etx *echo.Context) error {
 	itemID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	item, err := models.FindItem(etx.Request().Context(), i.db.Conn(), itemID)
 	if err != nil {
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
-	return renderer.Render(etx, views.ItemShow(item))
+	return hypermedia.RenderPage(etx, views.ItemShow(item))
 }
 
 func (i Items) New(etx *echo.Context) error {
-	return renderer.Render(etx, views.ItemNew())
+	return hypermedia.RenderPage(etx, views.ItemNew())
 }
 
 type CreateItemFormPayload struct {
@@ -89,7 +89,7 @@ func (i Items) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
 	data := models.CreateItemData{
@@ -127,7 +127,7 @@ func (i Items) Create(etx *echo.Context) error {
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Item created successfully"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.ItemShow.URL(item.ID))
@@ -136,15 +136,15 @@ func (i Items) Create(etx *echo.Context) error {
 func (i Items) Edit(etx *echo.Context) error {
 	itemID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	item, err := models.FindItem(etx.Request().Context(), i.db.Conn(), itemID)
 	if err != nil {
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
-	return renderer.Render(etx, views.ItemEdit(item))
+	return hypermedia.RenderPage(etx, views.ItemEdit(item))
 }
 
 type UpdateItemFormPayload struct {
@@ -156,7 +156,7 @@ type UpdateItemFormPayload struct {
 func (i Items) Update(etx *echo.Context) error {
 	itemID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	var payload UpdateItemFormPayload
@@ -168,7 +168,7 @@ func (i Items) Update(etx *echo.Context) error {
 			err,
 		)
 
-		return renderer.Render(etx, views.NotFound())
+		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
 	data := models.UpdateItemData{
@@ -201,7 +201,7 @@ func (i Items) Update(etx *echo.Context) error {
 	)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update item: %v", err)); flashErr != nil {
-			return renderer.Render(etx, views.InternalError())
+			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(
 			http.StatusSeeOther,
@@ -210,7 +210,7 @@ func (i Items) Update(etx *echo.Context) error {
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Item updated successfully"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.ItemShow.URL(item.ID))
@@ -219,19 +219,19 @@ func (i Items) Update(etx *echo.Context) error {
 func (i Items) Destroy(etx *echo.Context) error {
 	itemID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return renderer.Render(etx, views.BadRequest())
+		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
 	err = models.DestroyItem(etx.Request().Context(), i.db.Conn(), itemID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete item: %v", err)); flashErr != nil {
-			return renderer.Render(etx, views.InternalError())
+			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(http.StatusSeeOther, routes.ItemIndex.URL())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Item destroyed successfully"); flashErr != nil {
-		return renderer.Render(etx, views.InternalError())
+		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
 	return etx.Redirect(http.StatusSeeOther, routes.ItemIndex.URL())
