@@ -1,110 +1,102 @@
 package controllers_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/labstack/echo/v5"
-{{- if eq .DatabaseType "postgresql" }}
-	"github.com/uptrace/bun"
-{{- else }}
-	"database/sql"
-{{- end }}
 
 	"{{.ModulePath}}/controllers"
 	"{{.ModulePath}}/database"
+	"{{.ModulePath}}/internal/storage"
 	"{{.ModulePath}}/models"
 	"{{.ModulePath}}/models/factories"
 )
 
-var testDB *database.TestDB
+var testCluster *storage.TestCluster
 
 func TestMain(m *testing.M) {
+	ctx := context.Background()
 	var err error
-	testDB, err = database.NewTestDB()
+	testCluster, err = storage.NewTestCluster(ctx)
 	if err != nil {
 		panic(err)
 	}
-	defer testDB.Close()
 
-	m.Run()
+	code := m.Run()
+	if err := testCluster.Close(ctx); err != nil && code == 0 {
+		panic(err)
+	}
+	os.Exit(code)
 }
 
 func Test{{Plural .ResourceName}}_Create(t *testing.T) {
-{{- if eq .DatabaseType "postgresql" }}
-	testDB.WithTx(t, func(tx bun.Tx) {
-{{- else }}
-	testDB.WithTx(t, func(tx *sql.Tx) {
-{{- end }}
-		controller := controllers.New{{Plural .ResourceName}}(testDB.DB)
+	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
+	controller := controllers.New{{Plural .ResourceName}}(db)
 
-		form := url.Values{}
+	form := url.Values{}
 {{- range .Fields}}
 {{- if not .IsSystemField}}
-		form.Set("{{.DBName}}", {{.TestValue}})
+	form.Set("{{.DBName}}", {{.TestValue}})
 {{- end}}
 {{- end}}
 
-		e := echo.New()
-		req := httptest.NewRequest(http.MethodPost, "/{{.PluralName | ToLower}}", strings.NewReader(form.Encode()))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/{{.PluralName | ToLower}}", strings.NewReader(form.Encode()))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
 
-		err := controller.Create(c)
-		if err != nil {
-			t.Fatalf("Create failed: %v", err)
-		}
+	err := controller.Create(c)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
 
-		if rec.Code != http.StatusSeeOther {
-			t.Errorf("expected status %d, got %d", http.StatusSeeOther, rec.Code)
-		}
+	if rec.Code != http.StatusSeeOther {
+		t.Errorf("expected status %d, got %d", http.StatusSeeOther, rec.Code)
+	}
 
-		{{.PluralName | ToCamelCase}}, err := models.All{{Plural .ResourceName}}(c.Request().Context(), tx)
-		if err != nil {
-			t.Fatalf("failed to query {{.PluralName | ToLower}}: %v", err)
-		}
+	{{.PluralName | ToCamelCase}}, err := models.All{{Plural .ResourceName}}(c.Request().Context(), db.Conn())
+	if err != nil {
+		t.Fatalf("failed to query {{.PluralName | ToLower}}: %v", err)
+	}
 
-		if len({{.PluralName | ToCamelCase}}) != 1 {
-			t.Errorf("expected 1 {{.ResourceName | ToLower}}, got %d", len({{.PluralName | ToCamelCase}}))
-		}
+	if len({{.PluralName | ToCamelCase}}) != 1 {
+		t.Errorf("expected 1 {{.ResourceName | ToLower}}, got %d", len({{.PluralName | ToCamelCase}}))
+	}
 
 {{- range .Fields}}
 {{- if and (not .IsSystemField) (not (eq .GoFormType "time.Time"))}}
-		if {{$.PluralName | ToCamelCase}}[0].{{.Name}} != {{.TestValue}} {
-			t.Errorf("expected {{.Name}} to be {{.TestValue}}, got %v", {{$.PluralName | ToCamelCase}}[0].{{.Name}})
-		}
+	if {{$.PluralName | ToCamelCase}}[0].{{.Name}} != {{.TestValue}} {
+		t.Errorf("expected {{.Name}} to be {{.TestValue}}, got %v", {{$.PluralName | ToCamelCase}}[0].{{.Name}})
+	}
 {{- end}}
 {{- end}}
-	})
 }
 
 func Test{{Plural .ResourceName}}_Show(t *testing.T) {
-{{- if eq .DatabaseType "postgresql" }}
-	testDB.WithTx(t, func(tx bun.Tx) {
-{{- else }}
-	testDB.WithTx(t, func(tx *sql.Tx) {
-{{- end }}
-		controller := controllers.New{{Plural .ResourceName}}(testDB.DB)
+	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
+	controller := controllers.New{{Plural .ResourceName}}(db)
 
-		{{.ResourceName | ToLowerCamelCase}} := factories.{{.ResourceName}}().Create(tx)
+	{{.ResourceName | ToLowerCamelCase}} := factories.{{.ResourceName}}().Create(db.Conn())
 
-		e := echo.New()
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-		c.SetPathValues(echo.PathValues{{`{{`}}Name: "id", Value: {{.ResourceName | ToLowerCamelCase}}.ID.String(){{`}}`}})
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetPathValues(echo.PathValues{{`{{`}}Name: "id", Value: {{.ResourceName | ToLowerCamelCase}}.ID.String(){{`}}`}})
 
-		err := controller.Show(c)
-		if err != nil {
-			t.Fatalf("Show failed: %v", err)
-		}
+	err := controller.Show(c)
+	if err != nil {
+		t.Fatalf("Show failed: %v", err)
+	}
 
-		if rec.Code != http.StatusOK {
-			t.Errorf("expected status %d, got %d", http.StatusOK, rec.Code)
-		}
-	})
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
 }

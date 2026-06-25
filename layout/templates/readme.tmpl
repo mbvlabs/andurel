@@ -551,7 +551,7 @@ This project includes a built-in integration testing framework that makes it eas
 
 The framework provides:
 - **Automatic test database setup**: Uses [testcontainers](https://golang.testcontainers.org/) to spin up PostgreSQL in Docker
-- **Transaction-based tests**: Each test runs in a transaction that automatically rolls back, keeping tests isolated
+- **Per-test databases**: Each test gets an isolated migrated database from a package-scoped PostgreSQL container
 - **Factory pattern**: Simple builders for creating test data with sensible defaults
 
 ### Writing Controller Tests
@@ -562,58 +562,62 @@ The framework provides:
 package controllers_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/labstack/echo/v5"
-	"github.com/jackc/pgx/v5"
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/models"
 	"{{.ModuleName}}/models/factories"
 )
 
-var testDB *database.TestDB
+var testCluster *storage.TestCluster
 
 func TestMain(m *testing.M) {
+	ctx := context.Background()
 	var err error
-	testDB, err = database.NewTestDB()
+	testCluster, err = storage.NewTestCluster(ctx)
 	if err != nil {
 		panic(err)
 	}
-	defer testDB.Close()
 
-	m.Run()
+	code := m.Run()
+	if err := testCluster.Close(ctx); err != nil && code == 0 {
+		panic(err)
+	}
+	os.Exit(code)
 }
 
 func TestProducts_Create(t *testing.T) {
-{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx bun.Tx) {
-{{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
-{{end}}		controller := controllers.NewProducts(testDB.DB)
+	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
+	controller := controllers.NewProducts(db)
 
-		// Create test request
-		e := echo.New()
-		req := httptest.NewRequest(http.MethodPost, "/products", nil)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
+	// Create test request
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/products", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
 
-		// Test the controller action
-		err := controller.Create(c)
-		if err != nil {
-			t.Fatalf("Create failed: %v", err)
-		}
+	// Test the controller action
+	err := controller.Create(c)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
 
-		// Assert database state
-		products, err := models.AllProducts(c.Request().Context(), tx)
-		if err != nil {
-			t.Fatalf("failed to query products: %v", err)
-		}
+	// Assert database state
+	products, err := models.AllProducts(c.Request().Context(), db.Conn())
+	if err != nil {
+		t.Fatalf("failed to query products: %v", err)
+	}
 
-		if len(products) != 1 {
-			t.Errorf("expected 1 product, got %d", len(products))
-		}
-	})
+	if len(products) != 1 {
+		t.Errorf("expected 1 product, got %d", len(products))
+	}
 }
 ```
 
@@ -669,20 +673,19 @@ func (b *ProductBuilder) Build() models.CreateProductData {
 
 ```go
 func TestProducts_Show(t *testing.T) {
-{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx bun.Tx) {
-{{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
-{{end}}		// Create test data with default values
-		product := factories.Product().Create(tx)
+	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
 
-		// Or customize specific fields
-		premiumProduct := factories.Product().
-			WithName("Premium Product").
-			WithPrice("99.99").
-			Create(tx)
+	// Create test data with default values
+	product := factories.Product().Create(db.Conn())
 
-		// Test your controller with the created data
-		// ...
-	})
+	// Or customize specific fields
+	premiumProduct := factories.Product().
+		WithName("Premium Product").
+		WithPrice("99.99").
+		Create(db.Conn())
+
+	// Test your controller with the created data
+	// ...
 }
 ```
 
@@ -692,19 +695,17 @@ func TestProducts_Show(t *testing.T) {
 
 ```go
 func TestFindProduct(t *testing.T) {
-{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx bun.Tx) {
-{{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
-{{end}}		product := factories.Product().Create(tx)
+	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
+	product := factories.Product().Create(db.Conn())
 
-		found, err := models.FindProduct(context.Background(), tx, product.ID)
-		if err != nil {
-			t.Fatalf("FindProduct failed: %v", err)
-		}
+	found, err := models.FindProduct(context.Background(), db.Conn(), product.ID)
+	if err != nil {
+		t.Fatalf("FindProduct failed: %v", err)
+	}
 
-		if found.Name != product.Name {
-			t.Errorf("expected name %s, got %s", product.Name, found.Name)
-		}
-	})
+	if found.Name != product.Name {
+		t.Errorf("expected name %s, got %s", product.Name, found.Name)
+	}
 }
 ```
 
@@ -712,27 +713,26 @@ func TestFindProduct(t *testing.T) {
 
 ```go
 func TestPaginateProducts(t *testing.T) {
-{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx bun.Tx) {
-{{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
-{{end}}		// Create test data
-		for i := 0; i < 25; i++ {
-			factories.Product().Create(tx)
-		}
+	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
 
-		// Test pagination
-		result, err := models.PaginateProducts(context.Background(), tx, 1, 10)
-		if err != nil {
-			t.Fatalf("PaginateProducts failed: %v", err)
-		}
+	// Create test data
+	for i := 0; i < 25; i++ {
+		factories.Product().Create(db.Conn())
+	}
 
-		if len(result.Products) != 10 {
-			t.Errorf("expected 10 products, got %d", len(result.Products))
-		}
+	// Test pagination
+	result, err := models.PaginateProducts(context.Background(), db.Conn(), 1, 10)
+	if err != nil {
+		t.Fatalf("PaginateProducts failed: %v", err)
+	}
 
-		if result.TotalCount != 25 {
-			t.Errorf("expected total count 25, got %d", result.TotalCount)
-		}
-	})
+	if len(result.Products) != 10 {
+		t.Errorf("expected 10 products, got %d", len(result.Products))
+	}
+
+	if result.TotalCount != 25 {
+		t.Errorf("expected total count 25, got %d", result.TotalCount)
+	}
 }
 ```
 
@@ -740,22 +740,21 @@ func TestPaginateProducts(t *testing.T) {
 
 ```go
 func TestCreateOrder(t *testing.T) {
-{{if eq .Database "postgresql"}}	testDB.WithTx(t, func(tx bun.Tx) {
-{{else}}	testDB.WithTx(t, func(tx *sql.Tx) {
-{{end}}		// Create dependencies
-		user := factories.User().Create(tx)
-		product := factories.Product().Create(tx)
+	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
 
-		// Test order creation
-		order := factories.Order().
-			WithUserID(user.ID).
-			WithProductID(product.ID).
-			Create(tx)
+	// Create dependencies
+	user := factories.User().Create(db.Conn())
+	product := factories.Product().Create(db.Conn())
 
-		if order.UserID != user.ID {
-			t.Errorf("order user_id mismatch")
-		}
-	})
+	// Test order creation
+	order := factories.Order().
+		WithUserID(user.ID).
+		WithProductID(product.ID).
+		Create(db.Conn())
+
+	if order.UserID != user.ID {
+		t.Errorf("order user_id mismatch")
+	}
 }
 ```
 
@@ -784,15 +783,15 @@ go test -v ./...
 
 The test helper automatically:
 1. Starts a PostgreSQL container with `postgres:17-alpine`
-2. Runs all migrations from `database/migrations/`
-3. Provides a clean database for each test suite
+2. Creates an isolated database for each test
+3. Runs embedded migrations from `database.Migrations`
 4. Cleans up containers when tests complete
 
 **Note**: The first test run will download the PostgreSQL Docker image, which may take a moment.
 
 ### Best Practices
 
-1. **Use transactions**: Always wrap test logic in `testDB.WithTx()` for automatic cleanup
+1. **Use per-test databases**: Call `testCluster.NewTestDB(t, database.Migrations, "migrations")` in each test
 2. **Use factories**: Create test data with factories instead of manual model creation
 3. **Test isolation**: Each test should be independent and not rely on other tests
 4. **Descriptive names**: Name tests clearly (e.g., `TestProducts_Create_WithInvalidData`)

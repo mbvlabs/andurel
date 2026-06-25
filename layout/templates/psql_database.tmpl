@@ -55,6 +55,10 @@ func (p *Postgres) Conn() *bun.DB {
 	return p.conn
 }
 
+func (p *Postgres) DB() *sql.DB {
+	return p.conn.DB
+}
+
 func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error) {
 	tx, err := p.conn.BeginTx(ctx, opts)
 	if err != nil {
