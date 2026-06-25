@@ -50,40 +50,20 @@ test:
 test-cover:
 	go list ./... | grep -v /e2e | xargs go test -v -race -coverprofile=coverage.txt -covermode=atomic
 
-# Run critical e2e tests only (~25 min, 15 test scenarios)
+# Run critical e2e tests only
 test-e2e-critical:
 	go clean -testcache
 	E2E_CRITICAL_ONLY=true go test ./e2e/... -v -timeout 25m
 
-# Run full e2e test suite (~55 min, 19 test scenarios)
+# Run full e2e test suite
 test-e2e-full:
 	go clean -testcache
 	go test ./e2e/... -v -timeout 55m
 
-# Run specific e2e test suite - scaffold tests
+# Run scaffold golden e2e tests
 test-e2e-scaffold:
 	go clean -testcache
-	go test ./e2e -run TestScaffoldMatrix -v -timeout 30m
-
-# Run specific e2e test suite - generate command tests
-test-e2e-generate:
-	go clean -testcache
-	go test ./e2e -run TestGenerateCommands -v -timeout 15m
-
-# Run specific e2e test suite - resource naming
-test-e2e-naming:
-	go clean -testcache
-	go test ./e2e -run TestResourcePluralization -v -timeout 15m
-
-# Run a specific generate subtest (usage: just test-e2e-generate-sub generate_model)
-test-e2e-generate-sub subtest:
-	go clean -testcache
-	go test ./e2e -run "TestGenerateCommands/.*/{{subtest}}" -v -timeout 10m
-
-# Run specific e2e test suite - migration workflow tests
-test-e2e-migration:
-	go clean -testcache
-	go test ./e2e -run TestMigrationWorkflow -v -timeout 10m
+	go test ./e2e -run TestScaffoldGoldens -v -timeout 30m
 
 # Run critical tests (unit + critical e2e, recommended for PRs)
 test-critical:
@@ -116,11 +96,10 @@ ci:
 	@just test-e2e-critical
 	@echo "\n✅ All CI checks passed!"
 
-# Update golden files for generate tests
+# Update scaffold golden files
 update-golden:
 	go clean -testcache
-	go test ./e2e -run TestGenerateCommands -v -timeout 15m -update-generate-golden
-	go test ./e2e -run TestResourcePluralization -v -timeout 15m -update-resource-golden
+	go test ./e2e -run TestScaffoldGoldens -v -timeout 30m -update -clean
 
 # Clean test artifacts and cache
 clean-test:
