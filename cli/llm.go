@@ -274,7 +274,7 @@ Methods follow Echo's handler signature and use short receiver names:
 
 ` + "```go" + `
 func (u Users) Index(etx *echo.Context) error {
-	users, err := models.AllUsers(etx.Request().Context(), u.db.Conn())
+	users, err := models.AllUsers(etx.Request().Context(), u.db.Executor())
 	if err != nil {
 		return render(etx, views.InternalError())
 	}
@@ -463,7 +463,7 @@ func (u Users) Update(etx *echo.Context) error {
 	}
 
 	// Find resource
-	user, err := models.FindUser(etx.Request().Context(), u.db.Conn(), userID)
+	user, err := models.FindUser(etx.Request().Context(), u.db.Executor(), userID)
 	if err != nil {
 		return render(etx, views.NotFound())
 	}
@@ -475,7 +475,7 @@ func (u Users) Update(etx *echo.Context) error {
 	}
 
 	// Update with flash feedback
-	if err := user.Update(etx.Request().Context(), u.db.Conn(), data); err != nil {
+	if err := user.Update(etx.Request().Context(), u.db.Executor(), data); err != nil {
 		cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Update failed: %v", err))
 		return etx.Redirect(http.StatusSeeOther, routes.UserEdit.URL(userID))
 	}
@@ -663,7 +663,7 @@ All model functions accept a storage.Executor interface, not a direct connection
 
 ` + "```go" + `
 // Regular query - use pool connection
-user, err := models.User.Find(ctx, db.Conn(), userID)
+user, err := models.User.Find(ctx, db.Executor(), userID)
 
 // Transaction - use tx
 tx, _ := db.Begin(ctx)
@@ -769,7 +769,7 @@ func (p Products) Create(etx echo.Context) error {
 	// Models handle validation and persistence
 	product, err := models.Product.Create(
 		etx.Request().Context(),
-		p.db.Conn(),
+		p.db.Executor(),
 		models.CreateProductData{
 			Name:        payload.Name,
 			Description: payload.Description,
@@ -1668,7 +1668,7 @@ River provides a web UI for monitoring jobs, accessible at /riverui when the app
 Configure queues in queue/queue.go:
 
 ` + "```go" + `
-riverClient, err := river.NewClient(riverdatabasesql.New(db.Conn().DB), &river.Config{
+riverClient, err := river.NewClient(riverdatabasesql.New(db.Conn()), &river.Config{
 	Queues: map[string]river.QueueConfig{
 		river.QueueDefault: {MaxWorkers: 100},
 		"high_priority":    {MaxWorkers: 50},

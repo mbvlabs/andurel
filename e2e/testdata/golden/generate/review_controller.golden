@@ -43,7 +43,7 @@ func (r Reviews) Index(etx *echo.Context) error {
 
 	reviewsList, err := models.PaginateReviews(
 		etx.Request().Context(),
-		r.db.Conn(),
+		r.db.Executor(),
 		page,
 		perPage,
 	)
@@ -60,7 +60,7 @@ func (r Reviews) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	review, err := models.FindReview(etx.Request().Context(), r.db.Conn(), reviewID)
+	review, err := models.FindReview(etx.Request().Context(), r.db.Executor(), reviewID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -99,7 +99,7 @@ func (r Reviews) Create(etx *echo.Context) error {
 
 	review, err := models.CreateReview(
 		etx.Request().Context(),
-		r.db.Conn(),
+		r.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -122,7 +122,7 @@ func (r Reviews) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	review, err := models.FindReview(etx.Request().Context(), r.db.Conn(), reviewID)
+	review, err := models.FindReview(etx.Request().Context(), r.db.Executor(), reviewID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -163,7 +163,7 @@ func (r Reviews) Update(etx *echo.Context) error {
 
 	review, err := models.UpdateReview(
 		etx.Request().Context(),
-		r.db.Conn(),
+		r.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -189,7 +189,7 @@ func (r Reviews) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = models.DestroyReview(etx.Request().Context(), r.db.Conn(), reviewID)
+	err = models.DestroyReview(etx.Request().Context(), r.db.Executor(), reviewID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete review: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())

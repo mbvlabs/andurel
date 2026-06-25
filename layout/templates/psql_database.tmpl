@@ -51,8 +51,12 @@ func NewPostgres(ctx context.Context, cfg config.Config) (*Postgres, error) {
 	return &Postgres{conn: db}, nil
 }
 
-func (p *Postgres) Conn() *bun.DB {
+func (p *Postgres) Executor() *bun.DB {
 	return p.conn
+}
+
+func (p *Postgres) Conn() *sql.DB {
+	return p.conn.DB
 }
 
 func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error) {

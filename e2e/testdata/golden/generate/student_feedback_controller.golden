@@ -44,7 +44,7 @@ func (sf StudentFeedback) Index(etx *echo.Context) error {
 
 	studentFeedbackList, err := models.PaginateStudentFeedback(
 		etx.Request().Context(),
-		sf.db.Conn(),
+		sf.db.Executor(),
 		page,
 		perPage,
 	)
@@ -61,7 +61,7 @@ func (sf StudentFeedback) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	studentFeedback, err := models.FindStudentFeedback(etx.Request().Context(), sf.db.Conn(), studentFeedbackID)
+	studentFeedback, err := models.FindStudentFeedback(etx.Request().Context(), sf.db.Executor(), studentFeedbackID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -100,7 +100,7 @@ func (sf StudentFeedback) Create(etx *echo.Context) error {
 
 	studentFeedback, err := models.CreateStudentFeedback(
 		etx.Request().Context(),
-		sf.db.Conn(),
+		sf.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -123,7 +123,7 @@ func (sf StudentFeedback) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	studentFeedback, err := models.FindStudentFeedback(etx.Request().Context(), sf.db.Conn(), studentFeedbackID)
+	studentFeedback, err := models.FindStudentFeedback(etx.Request().Context(), sf.db.Executor(), studentFeedbackID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -164,7 +164,7 @@ func (sf StudentFeedback) Update(etx *echo.Context) error {
 
 	studentFeedback, err := models.UpdateStudentFeedback(
 		etx.Request().Context(),
-		sf.db.Conn(),
+		sf.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -190,7 +190,7 @@ func (sf StudentFeedback) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = models.DestroyStudentFeedback(etx.Request().Context(), sf.db.Conn(), studentFeedbackID)
+	err = models.DestroyStudentFeedback(etx.Request().Context(), sf.db.Executor(), studentFeedbackID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete studentFeedback: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())

@@ -10,12 +10,6 @@ import (
 	"github.com/riverqueue/river/rivertype"
 )
 
-type Queue interface {
-	Shutdown(ctx context.Context) error
-	Start(ctx context.Context) error
-	Stop(ctx context.Context) error
-}
-
 type InsertQueue interface {
 	Insert(
 		ctx context.Context,

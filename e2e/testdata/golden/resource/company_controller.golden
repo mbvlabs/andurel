@@ -43,7 +43,7 @@ func (c Companies) Index(etx *echo.Context) error {
 
 	companiesList, err := models.Company.Paginate(
 		etx.Request().Context(),
-		c.db.Conn(),
+		c.db.Executor(),
 		page,
 		perPage,
 	)
@@ -60,7 +60,7 @@ func (c Companies) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	company, err := models.Company.Find(etx.Request().Context(), c.db.Conn(), companyID)
+	company, err := models.Company.Find(etx.Request().Context(), c.db.Executor(), companyID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -97,7 +97,7 @@ func (c Companies) Create(etx *echo.Context) error {
 
 	company, err := models.Company.Create(
 		etx.Request().Context(),
-		c.db.Conn(),
+		c.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -120,7 +120,7 @@ func (c Companies) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	company, err := models.Company.Find(etx.Request().Context(), c.db.Conn(), companyID)
+	company, err := models.Company.Find(etx.Request().Context(), c.db.Executor(), companyID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -159,7 +159,7 @@ func (c Companies) Update(etx *echo.Context) error {
 
 	company, err := models.Company.Update(
 		etx.Request().Context(),
-		c.db.Conn(),
+		c.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -185,7 +185,7 @@ func (c Companies) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = models.Company.Destroy(etx.Request().Context(), c.db.Conn(), companyID)
+	err = models.Company.Destroy(etx.Request().Context(), c.db.Executor(), companyID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete company: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
