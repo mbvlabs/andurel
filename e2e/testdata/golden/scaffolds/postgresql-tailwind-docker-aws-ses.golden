@@ -1,3 +1,32 @@
+file -----------rw-r--r-- .dockerignore
+```
+.git
+.github
+.gitignore
+.env
+.env.*
+*.md
+LICENSE
+README.md
+
+tmp/
+*.log
+*.test
+*.out
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+node_modules/
+
+Dockerfile
+.dockerignore
+docker-compose.yml
+```
+
 file -----------rw-r--r-- .env.example
 ```
 ENVIRONMENT=development
@@ -40,6 +69,46 @@ bin
 tmp
 testapp.db
 .andurel-upgrade-state.json
+```
+
+file -----------rw-r--r-- Dockerfile
+```
+ARG GO_VERSION=1.26.0
+FROM debian:bookworm-slim AS css-builder
+
+WORKDIR /usr/src/app
+
+COPY bin/tailwindcli ./bin/tailwindcli
+COPY css ./css
+COPY views ./views
+
+RUN ./bin/tailwindcli -i ./css/base.css -o ./assets/css/style.css --minify
+
+FROM golang:${GO_VERSION}-bookworm AS builder
+
+WORKDIR /usr/src/app
+
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
+
+COPY . .
+COPY --from=css-builder /usr/src/app/assets/css/style.css ./assets/css/style.css
+
+RUN CGO_ENABLED=0 GOOS=linux go build -v -o /run-app ./cmd/app
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /run-app /usr/local/bin/run-app
+
+WORKDIR /app
+
+EXPOSE 8080
+
+CMD ["run-app"]
 ```
 
 file -----------rw-r--r-- README.md
@@ -751,6 +820,11 @@ The test helper automatically:
 
 This project includes the following extensions:
 
+### docker
+
+<!-- Extension-specific documentation will be added here -->
+
+
 ### aws-ses
 
 This project uses Amazon SES (Simple Email Service) for sending transactional and marketing emails in production.
@@ -1041,6 +1115,9 @@ file -----------rw-r--r-- andurel.lock
   "extensions": {
     "aws-ses": {
       "appliedAt": "\u003cAPPLIED_AT\u003e"
+    },
+    "docker": {
+      "appliedAt": "\u003cAPPLIED_AT\u003e"
     }
   },
   "scaffoldConfig": {
@@ -1048,6 +1125,7 @@ file -----------rw-r--r-- andurel.lock
     "database": "postgresql",
     "diMode": "manual",
     "extensions": [
+      "docker",
       "aws-ses"
     ],
     "projectName": "testapp"

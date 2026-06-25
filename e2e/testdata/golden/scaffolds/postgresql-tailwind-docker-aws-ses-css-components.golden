@@ -1,3 +1,32 @@
+file -----------rw-r--r-- .dockerignore
+```
+.git
+.github
+.gitignore
+.env
+.env.*
+*.md
+LICENSE
+README.md
+
+tmp/
+*.log
+*.test
+*.out
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+node_modules/
+
+Dockerfile
+.dockerignore
+docker-compose.yml
+```
+
 file -----------rw-r--r-- .env.example
 ```
 ENVIRONMENT=development
@@ -40,6 +69,46 @@ bin
 tmp
 testapp.db
 .andurel-upgrade-state.json
+```
+
+file -----------rw-r--r-- Dockerfile
+```
+ARG GO_VERSION=1.26.0
+FROM debian:bookworm-slim AS css-builder
+
+WORKDIR /usr/src/app
+
+COPY bin/tailwindcli ./bin/tailwindcli
+COPY css ./css
+COPY views ./views
+
+RUN ./bin/tailwindcli -i ./css/base.css -o ./assets/css/style.css --minify
+
+FROM golang:${GO_VERSION}-bookworm AS builder
+
+WORKDIR /usr/src/app
+
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
+
+COPY . .
+COPY --from=css-builder /usr/src/app/assets/css/style.css ./assets/css/style.css
+
+RUN CGO_ENABLED=0 GOOS=linux go build -v -o /run-app ./cmd/app
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /run-app /usr/local/bin/run-app
+
+WORKDIR /app
+
+EXPOSE 8080
+
+CMD ["run-app"]
 ```
 
 file -----------rw-r--r-- README.md
@@ -751,6 +820,11 @@ The test helper automatically:
 
 This project includes the following extensions:
 
+### docker
+
+<!-- Extension-specific documentation will be added here -->
+
+
 ### aws-ses
 
 This project uses Amazon SES (Simple Email Service) for sending transactional and marketing emails in production.
@@ -1011,6 +1085,11 @@ Request production access: AWS SES Console → Account Dashboard → Request Pro
 - [Moving out of Sandbox](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html)
 
 
+### css-components
+
+<!-- Extension-specific documentation will be added here -->
+
+
 
 ## Learn More
 
@@ -1041,6 +1120,12 @@ file -----------rw-r--r-- andurel.lock
   "extensions": {
     "aws-ses": {
       "appliedAt": "\u003cAPPLIED_AT\u003e"
+    },
+    "css-components": {
+      "appliedAt": "\u003cAPPLIED_AT\u003e"
+    },
+    "docker": {
+      "appliedAt": "\u003cAPPLIED_AT\u003e"
     }
   },
   "scaffoldConfig": {
@@ -1048,7 +1133,9 @@ file -----------rw-r--r-- andurel.lock
     "database": "postgresql",
     "diMode": "manual",
     "extensions": [
-      "aws-ses"
+      "docker",
+      "aws-ses",
+      "css-components"
     ],
     "projectName": "testapp"
   },
@@ -3021,6 +3108,1464 @@ body {
 
 @source "./views";
 @source "./resources/js";
+```
+
+file -----------rw-r--r-- css/components.css
+```
+@layer components {
+	/* Base button shape and interaction styling. */
+	.btn {
+		@apply inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-sm px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60;
+	}
+
+	/* Primary solid button for main actions. */
+	.btn-primary {
+		@apply bg-primary text-primary-foreground shadow-sm hover:bg-primary/90;
+	}
+
+	/* Secondary solid button for supporting actions. */
+	.btn-secondary {
+		@apply bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/90;
+	}
+
+	/* Accent-colored button for highlighted secondary actions. */
+	.btn-accent {
+		@apply bg-accent text-accent-foreground shadow-sm hover:bg-accent/90;
+	}
+
+	/* Outlined button for lower emphasis actions. */
+	.btn-outline {
+		@apply border border-outline bg-transparent text-foreground shadow-sm hover:bg-muted;
+	}
+
+	/* Ghost button with only hover feedback. */
+	.btn-ghost {
+		@apply bg-transparent text-foreground hover:bg-muted;
+	}
+
+	/* Link-style button for inline actions. */
+	.btn-link {
+		@apply h-auto rounded-none p-0 text-primary underline-offset-4 hover:underline;
+	}
+
+	/* High-emphasis button for destructive actions. */
+	.btn-destructive {
+		@apply bg-error text-error-foreground shadow-sm hover:bg-error/90;
+	}
+
+	/* Small button size. */
+	.btn-sm {
+		@apply h-8 px-3 text-xs;
+	}
+
+	/* Extra-small button size. */
+	.btn-xs {
+		@apply h-7 px-2.5 text-xs;
+	}
+
+	/* Large button size. */
+	.btn-lg {
+		@apply h-10 px-5 text-base;
+	}
+
+	/* Extra-large button size. */
+	.btn-xl {
+		@apply h-11 px-6 text-base;
+	}
+
+	/* Square button for icon-only actions. */
+	.btn-icon {
+		@apply h-9 w-9 px-0;
+	}
+
+	/* Full-width button layout. */
+	.btn-block {
+		@apply flex w-full;
+	}
+
+	/* Container that visually joins adjacent buttons. */
+	.btn-group {
+		@apply inline-flex items-center gap-0;
+	}
+
+	/* Remove rounded corners from grouped buttons by default. */
+	.btn-group > .btn,
+	.btn-group > .copy-button {
+		@apply rounded-none;
+	}
+
+	/* Restore left rounding for the first grouped button. */
+	.btn-group > .btn:first-child,
+	.btn-group > .copy-button:first-child {
+		@apply rounded-l-sm;
+	}
+
+	/* Restore right rounding for the last grouped button. */
+	.btn-group > .btn:last-child,
+	.btn-group > .copy-button:last-child {
+		@apply rounded-r-sm;
+	}
+
+	/* Collapse borders between grouped buttons. */
+	.btn-group > .btn + .btn,
+	.btn-group > .btn + .copy-button,
+	.btn-group > .copy-button + .btn,
+	.btn-group > .copy-button + .copy-button {
+		@apply -ml-px;
+	}
+
+	/* Compact utility button used for copy or dismiss actions. */
+	.copy-button {
+		@apply inline-flex h-9 w-9 items-center justify-center rounded-sm border border-outline bg-transparent text-xs text-foreground shadow-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60;
+	}
+
+	/* Form primitives */
+	/* Default vertical spacing for stacked forms. */
+	.form {
+		@apply space-y-5;
+	}
+
+	/* Unstyled fieldset wrapper with spacing only. */
+	.fieldset {
+		@apply min-w-0 space-y-5 border-0 p-0;
+	}
+
+	/* Standard field wrapper for a label, control, and help text. */
+	.field {
+		@apply w-full space-y-1.5;
+	}
+
+	/* Generic label using the shared label utility. */
+	.label {
+		@apply label-base;
+	}
+
+	/* Block-level field label. */
+	.field-label {
+		@apply label-base block;
+	}
+
+	/* Wrapper for grouped control content. */
+	.field-control {
+		@apply min-w-0 space-y-2;
+	}
+
+	/* Helper text shown beneath a field. */
+	.field-hint {
+		@apply text-sm text-muted-foreground;
+	}
+
+	/* Error message shown beneath an invalid field. */
+	.field-error {
+		@apply text-sm font-medium text-error;
+	}
+
+	/* Prefix or suffix element inside an input group. */
+	.field-addon {
+		@apply inline-flex h-9 shrink-0 items-center px-3 text-sm text-muted-foreground;
+	}
+
+	/* Default text-like input. */
+	.input {
+		@apply input-base control-default h-9;
+	}
+
+	/* Invalid text-like input. */
+	.input-error {
+		@apply input-base control-error h-9;
+	}
+
+	/* Default multiline text input. */
+	.textarea {
+		@apply input-base control-default min-h-24 py-2;
+	}
+
+	/* Invalid multiline text input. */
+	.textarea-error {
+		@apply input-base control-error min-h-24 py-2;
+	}
+
+	/* Default select control. */
+	.select {
+		@apply input-base control-default h-9 appearance-none;
+	}
+
+	/* Invalid select control. */
+	.select-error {
+		@apply input-base control-error h-9 appearance-none;
+	}
+
+	/* Single-field one-time-password input. */
+	.input-otp {
+		@apply input-base control-default h-9 text-center tracking-[0.3em];
+	}
+
+	/* Individual visual slot for multi-cell OTP layouts. */
+	.input-otp-slot {
+		@apply flex h-10 w-10 items-center justify-center rounded-sm border border-outline bg-muted text-sm font-medium text-foreground shadow-inner transition focus-within:border-primary focus-within:ring-2 focus-within:ring-ring;
+	}
+
+	/* Checkbox control. */
+	.checkbox {
+		@apply checkable-base rounded-[4px] bg-background;
+	}
+
+	/* Vertical stack of checkboxes. */
+	.checkbox-group {
+		@apply space-y-3;
+	}
+
+	/* Vertical stack of radio options. */
+	.radio-group {
+		@apply space-y-2;
+	}
+
+	/* Horizontal row for a checkable control and label. */
+	.radio-row {
+		@apply flex items-center gap-2;
+	}
+
+	/* Radio control. */
+	.radio {
+		@apply checkable-base;
+	}
+
+	/* Toggle switch track. */
+	.switch {
+		@apply toggle-base relative inline-flex h-6 w-11 items-center rounded-full bg-muted data-[checked=true]:bg-primary;
+	}
+
+	/* Toggle switch thumb. */
+	.switch-thumb {
+		@apply inline-block h-5 w-5 translate-x-0.5 rounded-full bg-background shadow transition-transform data-[checked=true]:translate-x-5;
+	}
+
+	/* Wrapper around a range input. */
+	.slider {
+		@apply w-full;
+	}
+
+	/* Wrapper that visually joins multiple controls. */
+	.input-group {
+		@apply flex w-full items-stretch;
+	}
+
+	/* Reset group child rounding before edge-specific rules. */
+	.input-group > * {
+		@apply rounded-none;
+	}
+
+	/* Restore left rounding for the first grouped child. */
+	.input-group > :first-child {
+		@apply rounded-l-sm;
+	}
+
+	/* Restore right rounding for the last grouped child. */
+	.input-group > :last-child {
+		@apply rounded-r-sm;
+	}
+
+	/* Shared surface styling for addons inside an input group. */
+	.input-group > .field-addon {
+		@apply border border-outline bg-muted;
+	}
+
+	/* Remove the right border from non-terminal left addons. */
+	.input-group > .field-addon:not(:last-child) {
+		@apply border-r-0;
+	}
+
+	/* Remove the left border from non-initial right addons. */
+	.input-group > .field-addon:not(:first-child) {
+		@apply border-l-0;
+	}
+
+	/* Allow supported controls to grow inside an input group. */
+	.input-group > .input,
+	.input-group > .select,
+	.input-group > .datepicker,
+	.input-group > .timepicker {
+		@apply flex-1;
+	}
+
+	/* Collapse borders between adjacent grouped controls and addons. */
+	.input-group > .input + .input,
+	.input-group > .input + .select,
+	.input-group > .input + .datepicker,
+	.input-group > .input + .timepicker,
+	.input-group > .select + .input,
+	.input-group > .select + .select,
+	.input-group > .select + .datepicker,
+	.input-group > .select + .timepicker,
+	.input-group > .datepicker + .input,
+	.input-group > .datepicker + .select,
+	.input-group > .datepicker + .datepicker,
+	.input-group > .datepicker + .timepicker,
+	.input-group > .timepicker + .input,
+	.input-group > .timepicker + .select,
+	.input-group > .timepicker + .datepicker,
+	.input-group > .timepicker + .timepicker,
+	.input-group > .field-addon + .input,
+	.input-group > .field-addon + .select,
+	.input-group > .field-addon + .datepicker,
+	.input-group > .field-addon + .timepicker,
+	.input-group > .input + .field-addon,
+	.input-group > .select + .field-addon,
+	.input-group > .datepicker + .field-addon,
+	.input-group > .timepicker + .field-addon {
+		@apply -ml-px;
+	}
+
+	/* Styled range input track. */
+	.slider-input {
+		@apply h-2 w-full cursor-pointer appearance-none rounded-full bg-muted accent-primary;
+	}
+
+	/* Container for rating icons. */
+	.rating {
+		@apply inline-flex items-center gap-1;
+	}
+
+	/* Inactive rating icon. */
+	.rating-star {
+		@apply h-5 w-5 text-muted-foreground;
+	}
+
+	/* Active rating icon. */
+	.rating-star[data-active="true"] {
+		@apply text-warning;
+	}
+
+	/* Tokenized input surface for editable tags. */
+	.tags-input {
+		@apply flex min-h-9 w-full flex-wrap items-center gap-2 rounded-sm border border-outline bg-muted px-2 py-1;
+	}
+
+	/* Individual tag token. */
+	.tag-pill {
+		@apply inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary;
+	}
+
+	/* Small remove action inside a tag. */
+	.tag-remove {
+		@apply rounded-full p-0.5 hover:bg-primary/20;
+	}
+
+	/* Relative wrapper for a combobox input and list. */
+	.combobox {
+		@apply relative w-full;
+	}
+
+	/* Floating option list beneath a combobox input. */
+	.combobox-list {
+		@apply popup-base mt-1 max-h-60 w-full overflow-auto p-1;
+	}
+
+	/* Selectable row inside a combobox list. */
+	.combobox-item {
+		@apply interactive-item flex cursor-pointer items-center justify-between px-2 py-1.5 text-sm;
+	}
+
+	/* Selected combobox row state. */
+	.combobox-item[data-selected="true"] {
+		@apply bg-primary/10 text-primary;
+	}
+
+	/* Standard inline text link. */
+	.inline-link {
+		@apply text-muted-foreground hover:text-foreground hover:underline;
+	}
+
+	/* Vertical menu list container. */
+	.menu {
+		@apply flex min-w-56 flex-col gap-1 p-2;
+	}
+
+	/* Optional bordered panel around a menu. */
+	.menu-panel {
+		@apply panel-base;
+	}
+
+	/* Small heading used to label a menu section. */
+	.menu-title {
+		@apply px-2 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground;
+	}
+
+	/* Divider between menu sections. */
+	.menu-section {
+		@apply my-1 h-px bg-muted;
+	}
+
+	/* Structural wrapper for an individual menu entry. */
+	.menu-item {
+		@apply list-none;
+	}
+
+	/* Clickable menu entry row. */
+	.menu-link {
+		@apply interactive-item flex w-full items-center justify-between gap-2 px-2.5 py-2 text-sm text-foreground;
+	}
+
+	/* Active menu entry state. */
+	.menu-link[data-active="true"] {
+		@apply bg-primary text-primary-foreground;
+	}
+
+	/* Destructive menu entry styling. */
+	.menu-link[data-variant="destructive"] {
+		@apply text-error hover:bg-error/10 hover:text-error;
+	}
+
+	/* Disabled menu entry state. */
+	.menu-link[data-disabled="true"] {
+		@apply pointer-events-none opacity-50;
+	}
+
+	/* Leading icon inside a menu row. */
+	.menu-icon {
+		@apply h-4 w-4 shrink-0 text-current;
+	}
+
+	/* Truncating label inside a menu row. */
+	.menu-label {
+		@apply min-w-0 flex-1 truncate text-left;
+	}
+
+	/* Small keyboard shortcut or meta text for a menu row. */
+	.menu-shortcut {
+		@apply text-xs text-muted-foreground;
+	}
+
+	/* Data/display primitives */
+	/* Base badge shape. */
+	.badge {
+		@apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
+	}
+
+	/* Primary badge. */
+	.badge-primary {
+		@apply bg-primary text-primary-foreground;
+	}
+
+	/* Secondary badge. */
+	.badge-secondary {
+		@apply bg-secondary text-secondary-foreground;
+	}
+
+	/* Accent badge. */
+	.badge-accent {
+		@apply bg-accent text-accent-foreground;
+	}
+
+	/* Outlined badge. */
+	.badge-outline {
+		@apply border border-outline bg-transparent text-foreground;
+	}
+
+	/* Success badge. */
+	.badge-success {
+		@apply bg-success text-success-foreground;
+	}
+
+	/* Warning badge. */
+	.badge-warning {
+		@apply bg-warning text-warning-foreground;
+	}
+
+	/* Error badge. */
+	.badge-error {
+		@apply bg-error text-error-foreground;
+	}
+
+	/* Destructive badge with outlined danger emphasis. */
+	.badge-destructive {
+		@apply border border-error bg-transparent text-error;
+	}
+
+	/* Base alert surface. */
+	.alert {
+		@apply w-full rounded-lg border p-4;
+	}
+
+	/* Neutral alert state. */
+	.alert-neutral {
+		@apply border-outline text-foreground;
+	}
+
+	/* Success alert state. */
+	.alert-success {
+		@apply status-success;
+	}
+
+	/* Warning alert state. */
+	.alert-warning {
+		@apply status-warning;
+	}
+
+	/* Error alert state. */
+	.alert-error {
+		@apply status-error;
+	}
+
+	/* Strong destructive alert state. */
+	.alert-destructive {
+		@apply status-destructive;
+	}
+
+	/* Alert headline text. */
+	.alert-title {
+		@apply text-sm font-semibold;
+	}
+
+	/* Alert body text. */
+	.alert-description {
+		@apply mt-1 text-sm opacity-90;
+	}
+
+	/* Base card surface. */
+	.card {
+		@apply panel-base text-foreground shadow-sm;
+	}
+
+	/* Card header container. */
+	.card-header {
+		@apply flex flex-col space-y-1.5 p-6 pb-3;
+	}
+
+	/* Card title text. */
+	.card-title {
+		@apply text-lg font-semibold;
+	}
+
+	/* Card supporting text. */
+	.card-description {
+		@apply text-sm text-muted-foreground;
+	}
+
+	/* Card body container. */
+	.card-content {
+		@apply p-6 pt-0;
+	}
+
+	/* Card footer actions. */
+	.card-footer {
+		@apply flex items-center p-6 pt-0;
+	}
+
+	/* Container for grouped statistic cards. */
+	.stats {
+		@apply panel-base grid overflow-hidden;
+	}
+
+	/* Horizontal stats layout, switching to columns on larger screens. */
+	.stats[data-orientation="horizontal"] {
+		@apply grid-cols-1 divide-y divide-outline md:grid-flow-col md:auto-cols-fr md:divide-x md:divide-y-0;
+	}
+
+	/* Vertical stats layout. */
+	.stats[data-orientation="vertical"] {
+		@apply divide-y divide-outline;
+	}
+
+	/* Individual stat block. */
+	.stat {
+		@apply flex min-w-0 flex-col gap-1 p-5;
+	}
+
+	/* Optional leading icon or figure in a stat block. */
+	.stat-figure {
+		@apply mb-2 flex h-10 w-10 items-center justify-center rounded-sm bg-muted text-muted-foreground;
+	}
+
+	/* Small stat label. */
+	.stat-title {
+		@apply text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground;
+	}
+
+	/* Main stat value. */
+	.stat-value {
+		@apply text-3xl font-semibold leading-none text-foreground;
+	}
+
+	/* Supporting text beneath a stat value. */
+	.stat-desc {
+		@apply text-sm text-muted-foreground;
+	}
+
+	/* Action row inside a stat block. */
+	.stat-actions {
+		@apply mt-3 flex items-center gap-2;
+	}
+
+	/* Base circular avatar container. */
+	.avatar {
+		@apply relative inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted;
+	}
+
+	/* Small avatar size. */
+	.avatar-sm {
+		@apply h-8 w-8 text-xs;
+	}
+
+	/* Large avatar size. */
+	.avatar-lg {
+		@apply h-12 w-12 text-lg;
+	}
+
+	/* Avatar image fill behavior. */
+	.avatar-image {
+		@apply h-full w-full object-cover;
+	}
+
+	/* Text fallback shown when no avatar image is present. */
+	.avatar-fallback {
+		@apply font-medium text-muted-foreground;
+	}
+
+	/* Horizontal divider. */
+	.separator {
+		@apply h-px w-full bg-muted;
+	}
+
+	/* Vertical divider. */
+	.separator-vertical {
+		@apply h-6 w-px bg-muted;
+	}
+
+	/* Base circular loading spinner. */
+	.spinner {
+		@apply inline-block h-5 w-5 animate-spin rounded-full border-2 border-outline border-t-primary;
+	}
+
+	/* Small spinner size. */
+	.spinner-sm {
+		@apply h-4 w-4;
+	}
+
+	/* Large spinner size. */
+	.spinner-lg {
+		@apply h-7 w-7;
+	}
+
+	/* Base progress track. */
+	.progress {
+		@apply h-2 w-full overflow-hidden rounded-full bg-muted;
+	}
+
+	/* Filled progress indicator. */
+	.progress-indicator {
+		@apply h-full bg-primary transition-all;
+	}
+
+	/* Animated loading placeholder block. */
+	.skeleton {
+		@apply animate-pulse rounded-sm bg-muted;
+	}
+
+	/* Centered empty-state surface. */
+	.empty-state {
+		@apply panel-base flex w-full flex-col items-center justify-center gap-3 px-6 py-10 text-center;
+	}
+
+	/* Icon or symbol container in an empty state. */
+	.empty-state-icon {
+		@apply flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground;
+	}
+
+	/* Empty-state headline text. */
+	.empty-state-title {
+		@apply text-lg font-semibold text-foreground;
+	}
+
+	/* Empty-state supporting text. */
+	.empty-state-description {
+		@apply max-w-prose text-sm text-muted-foreground;
+	}
+
+	/* Action row in an empty state. */
+	.empty-state-actions {
+		@apply mt-2 flex flex-wrap items-center justify-center gap-2;
+	}
+
+	/* Keyboard key visual token. */
+	.kbd {
+		@apply inline-flex h-6 min-w-6 items-center justify-center rounded-sm border border-outline bg-background px-1.5 text-xs font-medium text-muted-foreground;
+	}
+
+	/* Inline code token. */
+	.code-inline {
+		@apply rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs;
+	}
+
+	/* Scrollable block code surface. */
+	.code-block {
+		@apply panel-base overflow-x-auto p-4 font-mono text-sm;
+	}
+
+	/* Scrollable wrapper around tables. */
+	.table-wrap {
+		@apply panel-base overflow-x-auto;
+	}
+
+	/* Base table typography and layout. */
+	.table {
+		@apply w-full text-sm;
+	}
+
+	/* Table header section. */
+	.table thead {
+		@apply border-b border-outline bg-muted/60;
+	}
+
+	/* Table header row. */
+	.table thead tr {
+		@apply border-b border-outline text-base text-foreground font-semibold;
+	}
+
+	/* Table body section. */
+	.table tbody {
+		@apply bg-background;
+	}
+
+	/* Table body rows with separators. */
+	.table tbody tr {
+		@apply border-b border-outline last:border-0;
+	}
+
+	/* Table header cells. */
+	.table th {
+		@apply h-10 px-3 text-left font-medium text-muted-foreground;
+	}
+
+	/* Table body cells. */
+	.table td {
+		@apply p-3 align-middle;
+	}
+
+	/* Table caption text. */
+	.table caption {
+		@apply p-3 text-sm text-muted-foreground;
+	}
+
+	/* Table footer row styling. */
+	.table tfoot {
+		@apply border-t border-outline bg-muted/50 font-medium;
+	}
+
+	/* Calendar surface. */
+	.calendar {
+		@apply panel-base w-full p-3;
+	}
+
+	/* Calendar month header row. */
+	.calendar-head {
+		@apply mb-3 flex items-center justify-between;
+	}
+
+	/* Seven-column calendar grid. */
+	.calendar-grid {
+		@apply grid grid-cols-7 gap-1;
+	}
+
+	/* Weekday label cell. */
+	.calendar-weekday {
+		@apply text-center text-xs text-muted-foreground;
+	}
+
+	/* Individual day cell. */
+	.calendar-day {
+		@apply interactive-item flex h-9 items-center justify-center text-sm;
+	}
+
+	/* Today indicator in the calendar. */
+	.calendar-day[data-today="true"] {
+		@apply border border-primary/40;
+	}
+
+	/* Selected day in the calendar. */
+	.calendar-day[data-selected="true"] {
+		@apply bg-primary text-primary-foreground;
+	}
+
+	/* Navigation */
+	/* Breadcrumb list container. */
+	.breadcrumb {
+		@apply flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground;
+	}
+
+	/* Breadcrumb item wrapper. */
+	.breadcrumb-item {
+		@apply inline-flex items-center gap-1.5;
+	}
+
+	/* Clickable breadcrumb link. */
+	.breadcrumb-link {
+		@apply transition-colors hover:text-foreground;
+	}
+
+	/* Current breadcrumb item text. */
+	.breadcrumb-current {
+		@apply font-medium text-foreground;
+	}
+
+	/* Separator between breadcrumb items. */
+	.breadcrumb-separator {
+		@apply text-muted-foreground;
+	}
+
+	/* Pagination container. */
+	.pagination {
+		@apply inline-flex items-center gap-1;
+	}
+
+	/* Clickable page link. */
+	.pagination-link {
+		@apply interactive-item inline-flex h-8 min-w-8 items-center justify-center px-2 text-sm;
+	}
+
+	/* Active pagination link. */
+	.pagination-link[data-current="true"] {
+		@apply bg-primary text-primary-foreground;
+	}
+
+	/* Non-clickable pagination gap marker. */
+	.pagination-ellipsis {
+		@apply inline-flex h-8 min-w-8 items-center justify-center text-muted-foreground;
+	}
+
+	/* Steps container. */
+	.steps {
+		@apply flex flex-col gap-4;
+	}
+
+	/* Horizontal steps layout on larger screens. */
+	.steps[data-orientation="horizontal"] {
+		@apply gap-0 md:flex-row md:items-start md:justify-between;
+	}
+
+	/* Individual step wrapper. */
+	.step {
+		@apply relative flex min-w-0 items-start gap-3;
+	}
+
+	/* Vertical connector line between stacked steps. */
+	.steps[data-orientation="vertical"] .step:not(:last-child)::after {
+		content: "";
+		@apply absolute left-4 top-9 h-[calc(100%-1.5rem)] w-px bg-muted;
+	}
+
+	/* Horizontal layout for each step on wider screens. */
+	.steps[data-orientation="horizontal"] .step {
+		@apply md:flex-1 md:flex-col md:items-center md:gap-2 md:text-center;
+	}
+
+	/* Horizontal connector line between steps. */
+	.steps[data-orientation="horizontal"] .step:not(:last-child)::after {
+		content: "";
+		@apply hidden md:block absolute left-[calc(50%+1.25rem)] top-4 h-px w-[calc(100%-2.5rem)] bg-muted;
+	}
+
+	/* Circular step marker. */
+	.step-indicator {
+		@apply relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-outline bg-background text-sm font-semibold text-muted-foreground;
+	}
+
+	/* Text container for a step. */
+	.step-body {
+		@apply min-w-0 space-y-0.5 pb-4;
+	}
+
+	/* Remove extra bottom spacing in horizontal step layouts. */
+	.steps[data-orientation="horizontal"] .step-body {
+		@apply md:pb-0;
+	}
+
+	/* Step title text. */
+	.step-title {
+		@apply text-sm font-medium text-foreground;
+	}
+
+	/* Step helper text. */
+	.step-description {
+		@apply text-sm text-muted-foreground;
+	}
+
+	/* Current step indicator styling. */
+	.step[data-state="current"] .step-indicator {
+		@apply border-primary bg-primary text-primary-foreground;
+	}
+
+	/* Completed step indicator styling. */
+	.step[data-state="completed"] .step-indicator {
+		@apply border-success bg-success text-success-foreground;
+	}
+
+	/* Error step indicator styling. */
+	.step[data-state="error"] .step-indicator {
+		@apply border-error bg-error text-error-foreground;
+	}
+
+	/* Highlight connectors leading into completed or current steps. */
+	.step[data-state="completed"]::after,
+	.step[data-state="current"]::after {
+		@apply bg-primary;
+	}
+
+	/* Tabs list container. */
+	.tab-list {
+		@apply inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground;
+	}
+
+	/* Individual tab trigger. */
+	.tab-trigger {
+		@apply inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-sm font-medium text-muted-foreground transition-all hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-60 data-[selected]:bg-primary data-[selected]:font-semibold data-[selected]:text-primary-foreground data-[selected]:shadow-sm data-[selected]:ring-1 data-[selected]:ring-primary/40;
+	}
+
+	/* Tab panel surface. */
+	.tab-content {
+		@apply panel-base mt-2 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+	}
+
+	/* Interactive containers */
+	/* Accordion surface. */
+	.accordion {
+		@apply panel-base w-full;
+	}
+
+	/* Accordion item divider. */
+	.accordion-item {
+		@apply border-b border-outline last:border-b-0;
+	}
+
+	/* Accordion trigger row. */
+	.accordion-trigger {
+		@apply interactive-item flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium;
+	}
+
+	/* Accordion panel content. */
+	.accordion-content {
+		@apply px-4 pb-4 text-sm text-muted-foreground;
+	}
+
+	/* Collapsible surface. */
+	.collapsible {
+		@apply panel-base;
+	}
+
+	/* Collapsible trigger row. */
+	.collapsible-trigger {
+		@apply interactive-item flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium;
+	}
+
+	/* Collapsible content area. */
+	.collapsible-content {
+		@apply px-4 pb-4 text-sm text-muted-foreground;
+	}
+
+	/* Fixed-ratio media wrapper. */
+	.aspect-ratio {
+		@apply panel-base relative w-full overflow-hidden;
+		aspect-ratio: 16 / 9;
+	}
+
+	/* Centered content overlay inside an aspect-ratio box. */
+	.aspect-ratio-content {
+		@apply absolute inset-0 flex items-center justify-center text-sm text-muted-foreground;
+	}
+
+	/* Carousel viewport surface. */
+	.carousel {
+		@apply panel-base relative overflow-hidden;
+	}
+
+	/* Sliding track for carousel items. */
+	.carousel-track {
+		@apply flex transition-transform duration-300;
+	}
+
+	/* Individual carousel slide. */
+	.carousel-item {
+		@apply min-w-full p-6;
+	}
+
+	/* Dot navigation container for a carousel. */
+	.carousel-nav {
+		@apply absolute inset-x-0 bottom-3 flex justify-center gap-2;
+	}
+
+	/* Carousel navigation dot. */
+	.carousel-dot {
+		@apply h-2 w-2 rounded-full bg-foreground/30;
+	}
+
+	/* Active carousel navigation dot. */
+	.carousel-dot[data-active="true"] {
+		@apply bg-primary;
+	}
+
+	/* Overlay patterns */
+	/* Relative wrapper for dialog primitives. */
+	.dialog {
+		@apply relative;
+	}
+
+	/* Full-screen backdrop behind a dialog. */
+	.dialog-backdrop {
+		@apply fixed inset-0 z-40 bg-black/70;
+	}
+
+	/* Dialog panel surface. */
+	.dialog-panel {
+		@apply panel-base fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 p-6 shadow-lg;
+	}
+
+	/* Dialog title and description wrapper. */
+	.dialog-header {
+		@apply space-y-1;
+	}
+
+	/* Dialog title text. */
+	.dialog-title {
+		@apply text-lg font-semibold;
+	}
+
+	/* Dialog supporting text. */
+	.dialog-description {
+		@apply text-sm text-muted-foreground;
+	}
+
+	/* Dialog action row. */
+	.dialog-footer {
+		@apply mt-4 flex justify-end gap-2;
+	}
+
+	/* Dialog close button. */
+	.dialog-close {
+		@apply overlay-close absolute right-4 top-4;
+	}
+
+	/* Full-screen backdrop behind a sheet. */
+	.sheet-backdrop {
+		@apply fixed inset-0 z-40 bg-black/70;
+	}
+
+	/* Relative wrapper for sheet primitives. */
+	.sheet {
+		@apply relative;
+	}
+
+	/* Base sheet panel surface. */
+	.sheet-panel {
+		@apply fixed z-50 bg-background p-6 shadow-lg;
+	}
+
+	/* Right-aligned sheet variant. */
+	.sheet-panel[data-side="right"] {
+		@apply inset-y-0 right-0 h-full w-full max-w-md border-l border-outline;
+	}
+
+	/* Left-aligned sheet variant. */
+	.sheet-panel[data-side="left"] {
+		@apply inset-y-0 left-0 h-full w-full max-w-md border-r border-outline;
+	}
+
+	/* Top-aligned sheet variant. */
+	.sheet-panel[data-side="top"] {
+		@apply inset-x-0 top-0 w-full border-b border-outline;
+	}
+
+	/* Bottom-aligned sheet variant. */
+	.sheet-panel[data-side="bottom"] {
+		@apply inset-x-0 bottom-0 w-full border-t border-outline;
+	}
+
+	/* Sheet title and description wrapper. */
+	.sheet-header {
+		@apply space-y-1;
+	}
+
+	/* Sheet title text. */
+	.sheet-title {
+		@apply text-lg font-semibold;
+	}
+
+	/* Sheet supporting text. */
+	.sheet-description {
+		@apply text-sm text-muted-foreground;
+	}
+
+	/* Sheet action row. */
+	.sheet-footer {
+		@apply mt-4 flex justify-end gap-2;
+	}
+
+	/* Sheet close button. */
+	.sheet-close {
+		@apply overlay-close absolute right-4 top-4;
+	}
+
+	/* Relative wrapper for a popover trigger and panel. */
+	.popover {
+		@apply relative inline-block;
+	}
+
+	/* Floating popover panel. */
+	.popover-panel {
+		@apply popup-base min-w-56 p-3 text-sm;
+	}
+
+	/* Relative wrapper for a dropdown trigger and menu. */
+	.dropdown {
+		@apply relative inline-block;
+	}
+
+	/* Floating dropdown menu surface. */
+	.dropdown-menu {
+		@apply popup-base min-w-48 p-1;
+	}
+
+	/* Small label at the top of a dropdown menu. */
+	.dropdown-label {
+		@apply px-2 py-1.5 text-xs font-medium text-muted-foreground;
+	}
+
+	/* Clickable dropdown row. */
+	.dropdown-item {
+		@apply interactive-item flex w-full items-center px-2 py-1.5 text-sm;
+	}
+
+	/* Divider between dropdown groups. */
+	.dropdown-separator {
+		@apply my-1 h-px bg-muted;
+	}
+
+	/* Relative wrapper for tooltip trigger and content. */
+	.tooltip {
+		@apply relative inline-flex;
+	}
+
+	/* Tooltip bubble content. */
+	.tooltip-content {
+		@apply absolute bottom-[calc(100%+0.5rem)] left-1/2 z-40 -translate-x-1/2 whitespace-nowrap rounded-sm bg-foreground px-2 py-1 text-xs text-background shadow;
+	}
+
+	/* Toast / flash */
+	/* Fixed stack container for toast messages. */
+	.toast-stack {
+		@apply fixed right-4 top-4 z-50 space-y-2;
+	}
+
+	/* Base toast surface. */
+	.toast {
+		@apply panel-base flex max-w-96 flex-col shadow-lg;
+	}
+
+	/* Success toast border state. */
+	.toast-success {
+		@apply border-success/40;
+	}
+
+	/* Warning toast border state. */
+	.toast-warning {
+		@apply border-warning/40;
+	}
+
+	/* Error toast border state. */
+	.toast-error {
+		@apply border-error/40;
+	}
+
+	/* Toast header row. */
+	.toast-header {
+		@apply flex items-center justify-between border-b border-outline px-4 py-2;
+	}
+
+	/* Colored status dot inside a toast. */
+	.toast-indicator {
+		@apply h-3 w-3 rounded-full bg-primary;
+	}
+
+	/* Small time label inside a toast. */
+	.toast-time {
+		@apply text-xs text-muted-foreground;
+	}
+
+	/* Toast dismiss button. */
+	.toast-close {
+		@apply overlay-close;
+	}
+
+	/* Main toast body text. */
+	.toast-message {
+		@apply px-4 py-3 text-sm text-foreground;
+	}
+
+	/* Success indicator color override. */
+	.toast-success .toast-indicator {
+		@apply bg-success;
+	}
+
+	/* Warning indicator color override. */
+	.toast-warning .toast-indicator {
+		@apply bg-warning;
+	}
+
+	/* Error indicator color override. */
+	.toast-error .toast-indicator {
+		@apply bg-error;
+	}
+}
+```
+
+file -----------rw-r--r-- css/themes.css
+```
+/*
+Tokens
+background
+foreground
+
+card
+card-foreground
+
+popover
+popover-foreground
+
+primary
+primary-foreground
+
+secondary
+secondary-foreground
+
+accent
+accent-foreground
+
+muted
+muted-foreground
+
+success
+success-foreground
+
+warning
+warning-foreground
+
+error
+error-foreground
+
+outline
+input
+ring
+
+radius
+*/
+
+.light {
+	/* Base */
+	--background: oklch(100% 0 0);
+	--foreground: oklch(8% 0.01 220);
+
+	/* Surfaces */
+	--card: oklch(98% 0.005 210);
+	--card-foreground: oklch(8% 0.01 220);
+
+	--popover: oklch(98% 0.005 210);
+	--popover-foreground: oklch(8% 0.01 220);
+
+	/* Brand */
+	--primary: oklch(45% 0.24 277);
+	--primary-foreground: oklch(96% 0.01 220);
+
+	/* Secondary */
+	--secondary: oklch(92% 0.01 210);
+	--secondary-foreground: oklch(8% 0.01 220);
+
+	/* Interactive */
+	--accent: oklch(92% 0.01 200);
+	--accent-foreground: oklch(8% 0.01 220);
+
+	/* Muted */
+	--muted: oklch(95% 0.005 210);
+	--muted-foreground: oklch(50% 0.02 220);
+
+	/* Structure */
+	--outline: oklch(85% 0.01 210);
+	--input: oklch(90% 0.01 210);
+
+	--ring: oklch(45% 0.24 277);
+
+	/* Status */
+	--success: oklch(50% 0.22 150);
+	--success-foreground: oklch(96% 0.01 220);
+
+	--warning: oklch(75% 0.18 85);
+	--warning-foreground: oklch(8% 0.01 220);
+
+	--error: oklch(55% 0.25 25);
+	--error-foreground: oklch(96% 0.01 220);
+
+	--radius: 0.75rem;
+
+	color-scheme: light;
+}
+
+.dark {
+	/* Base */
+	--background: oklch(8% 0.01 220);
+	--foreground: oklch(96% 0.01 220);
+
+	/* Surfaces */
+	--card: oklch(14% 0.02 210);
+	--card-foreground: oklch(96% 0.01 220);
+
+	--popover: oklch(18% 0.025 210);
+	--popover-foreground: oklch(96% 0.01 220);
+
+	/* Brand */
+	--primary: oklch(72% 0.16 205);
+	--primary-foreground: oklch(8% 0.01 220);
+
+	/* Secondary */
+	--secondary: oklch(18% 0.025 215);
+	--secondary-foreground: oklch(96% 0.01 220);
+
+	/* Interactive */
+	--accent: oklch(20% 0.03 200);
+	--accent-foreground: oklch(96% 0.01 220);
+
+	/* Muted */
+	--muted: oklch(12% 0.015 215);
+	--muted-foreground: oklch(68% 0.02 220);
+
+	/* Structure */
+	--outline: oklch(40% 0.025 210);
+	--input: oklch(22% 0.025 210);
+
+	--ring: oklch(72% 0.16 205);
+
+	/* Status */
+	--success: oklch(72% 0.18 155);
+	--success-foreground: oklch(8% 0.01 220);
+
+	--warning: oklch(82% 0.15 85);
+	--warning-foreground: oklch(8% 0.01 220);
+
+	--error: oklch(68% 0.22 25);
+	--error-foreground: oklch(96% 0.01 220);
+
+	--radius: 0.75rem;
+
+	color-scheme: dark;
+}
+
+@theme {
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+
+	--color-success: var(--success);
+	--color-success-foreground: var(--success-foreground);
+
+	--color-warning: var(--warning);
+	--color-warning-foreground: var(--warning-foreground);
+
+	--color-error: var(--error);
+	--color-error-foreground: var(--error-foreground);
+
+	--color-outline: var(--outline);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+
+	--radius: var(--radius);
+}
+```
+
+file -----------rw-r--r-- css/utilities.css
+```
+/* Shared base for text-like form controls. */
+@utility input-base {
+	@apply flex w-full rounded-sm border bg-background px-3 py-1 text-sm text-foreground shadow-inner transition placeholder:text-muted-foreground focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+/* Default border and focus treatment for valid controls. */
+@utility control-default {
+	@apply border border-input focus:border-primary focus:ring-ring;
+}
+
+/* Error border and focus treatment for invalid controls. */
+@utility control-error {
+	@apply border border-error focus:border-error focus:ring-error/50;
+}
+
+/* Shared label typography and disabled-peer handling. */
+@utility label-base {
+	@apply text-sm font-medium leading-none text-muted-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-60;
+}
+
+/* Reusable hoverable row or action item surface. */
+@utility interactive-item {
+	@apply rounded-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+}
+
+/* Standard bordered panel surface used by cards and containers. */
+@utility panel-base {
+	@apply rounded-lg border border-outline bg-card text-card-foreground;
+}
+
+/* Shared close-button treatment for dismissible overlays. */
+@utility overlay-close {
+	@apply cursor-pointer rounded-sm p-0.5 opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+}
+
+/* Shared floating popup panel anchored below a trigger. */
+@utility popup-base {
+	@apply absolute left-0 top-full z-40 mt-2 rounded-lg border border-outline bg-popover text-popover-foreground shadow-lg;
+}
+
+/* Success feedback text and border styling. */
+@utility status-success {
+	@apply border-success/40 text-success;
+}
+
+/* Warning feedback text and border styling. */
+@utility status-warning {
+	@apply border-warning/40 text-warning;
+}
+
+/* Error feedback text and border styling. */
+@utility status-error {
+	@apply border-error/40 text-error;
+}
+
+/* Stronger destructive feedback surface for dangerous actions. */
+@utility status-destructive {
+	@apply border-error bg-error text-error-foreground;
+}
+
+/* Shared checkbox and radio sizing, focus, and disabled state. */
+@utility checkable-base {
+	@apply h-4 w-4 border border-input text-primary focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+/* Shared switch-like control focus and disabled behavior. */
+@utility toggle-base {
+	@apply transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60;
+}
 ```
 
 dir  d----------rwxr-xr-x database
@@ -12869,6 +14414,161 @@ func BadRequest() templ.Component {
 var _ = templruntime.GeneratedTemplate
 ```
 
+dir  d----------rwxr-xr-x views/components
+
+file -----------rw-r--r-- views/components/toast.templ
+```
+package components
+
+import (
+	"testapp/router/cookies"
+	"time"
+)
+
+templ ToastMessage(flash cookies.FlashMessage) {
+	<div
+		class={ "toast toast-" + string(flash.Type) }
+		id={ "toast-" + flash.ID.String() }
+		data-flash-type={ string(flash.Type) }
+		data-signals:visible="true"
+		data-show="$visible"
+		data-init__delay.5000ms="$visible = false"
+	>
+		<div class="toast-header">
+			<div class="toast-indicator"></div>
+			<span class="flex items-center gap-2">
+				<p class="toast-time">{ flash.CreatedAt.Format(time.Kitchen) }</p>
+				<button class="toast-close" data-on:click="$visible = false">
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+				</button>
+			</span>
+		</div>
+		<span class="toast-message">
+			{ flash.Message }
+		</span>
+	</div>
+}
+```
+
+file -----------rw-r--r-- views/components/toast_templ.go
+```
+// Code generated by templ - DO NOT EDIT.
+
+// templ: version: v0.3.1001
+package components
+
+//lint:file-ignore SA4006 This context is only used if a nested component is present.
+
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
+
+import (
+	"testapp/router/cookies"
+	"time"
+)
+
+func ToastMessage(flash cookies.FlashMessage) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var1 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var1 == nil {
+			templ_7745c5c3_Var1 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		var templ_7745c5c3_Var2 = []any{"toast toast-" + string(flash.Type)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var2...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 string
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var2).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toast.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var4 string
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs("toast-" + flash.ID.String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toast.templ`, Line: 11, Col: 35}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" data-flash-type=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var5 string
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(string(flash.Type))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toast.templ`, Line: 12, Col: 38}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" data-signals:visible=\"true\" data-show=\"$visible\" data-init__delay.5000ms=\"$visible = false\"><div class=\"toast-header\"><div class=\"toast-indicator\"></div><span class=\"flex items-center gap-2\"><p class=\"toast-time\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var6 string
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(flash.CreatedAt.Format(time.Kitchen))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toast.templ`, Line: 20, Col: 64}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p><button class=\"toast-close\" data-on:click=\"$visible = false\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M18 6 6 18\"></path><path d=\"m6 6 12 12\"></path></svg></button></span></div><span class=\"toast-message\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var7 string
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(flash.Message)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/toast.templ`, Line: 27, Col: 18}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</span></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+var _ = templruntime.GeneratedTemplate
+```
+
 file -----------rw-r--r-- views/confirm_email.templ
 ```
 package views
@@ -13020,6 +14720,1490 @@ func (cf ConfirmationForm) Page() templ.Component {
 }
 
 var _ = templruntime.GeneratedTemplate
+```
+
+dir  d----------rwxr-xr-x views/examples
+
+file -----------rw-r--r-- views/examples/accordion.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/alerts.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/aspect_ratio.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/avatar.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/badges.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/breadcrumb.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/buttons.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/calendar.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/card.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/carousel.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/checkbox.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/code.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/collapsible.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/combobox.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/copy_button.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/date_input.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/dialog.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/dropdown.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/empty_state.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/input.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/input_group.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/input_otp.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/kbd.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/menu.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/pagination.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/popover.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/progress.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/radio.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/rating.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/select.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/separator.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/sheet.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/skeleton.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/slider.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/spinner.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/stats.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/steps.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/switch.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/table.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/tabs.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/tabs_input.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/textarea.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/time_input.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/toast.html
+```
+<div class="toast-stack relative right-auto top-auto z-auto">
+	<div class="toast toast-success">
+		<div class="toast-header">
+			<div class="toast-indicator"></div>
+			<div class="flex items-center gap-2">
+				<p class="toast-time">2:14 PM</p>
+				<button type="button" class="toast-close" aria-label="Dismiss success toast">
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M18 6 6 18"></path>
+						<path d="m6 6 12 12"></path>
+					</svg>
+				</button>
+			</div>
+		</div>
+		<div class="toast-message">
+			Profile changes saved successfully.
+		</div>
+	</div>
+	<div class="toast toast-info">
+		<div class="toast-header">
+			<div class="toast-indicator"></div>
+			<div class="flex items-center gap-2">
+				<p class="toast-time">2:16 PM</p>
+				<button type="button" class="toast-close" aria-label="Dismiss info toast">
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M18 6 6 18"></path>
+						<path d="m6 6 12 12"></path>
+					</svg>
+				</button>
+			</div>
+		</div>
+		<div class="toast-message">
+			New release notes are available for review.
+		</div>
+	</div>
+	<div class="toast toast-warning">
+		<div class="toast-header">
+			<div class="toast-indicator"></div>
+			<div class="flex items-center gap-2">
+				<p class="toast-time">2:18 PM</p>
+				<button type="button" class="toast-close" aria-label="Dismiss warning toast">
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M18 6 6 18"></path>
+						<path d="m6 6 12 12"></path>
+					</svg>
+				</button>
+			</div>
+		</div>
+		<div class="toast-message">
+			Your session will expire in 5 minutes.
+		</div>
+	</div>
+	<div class="toast toast-error">
+		<div class="toast-header">
+			<div class="toast-indicator"></div>
+			<div class="flex items-center gap-2">
+				<p class="toast-time">2:20 PM</p>
+				<button type="button" class="toast-close" aria-label="Dismiss error toast">
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M18 6 6 18"></path>
+						<path d="m6 6 12 12"></path>
+					</svg>
+				</button>
+			</div>
+		</div>
+		<div class="toast-message">
+			Payment failed. Please verify your billing details.
+		</div>
+	</div>
+</div>
+```
+
+file -----------rw-r--r-- views/examples/tooltip.html
+```
+<div class="w-full">
+	<div class="tab-list" role="tablist">
+		<button
+			type="button"
+			role="tab"
+			aria-selected="true"
+			class="tab-trigger"
+		>
+			Binary Artifacts
+		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected="false"
+			class="tab-trigger"
+		>
+			Docker Images
+		</button>
+	</div>
+	<div class="tab-content" role="tabpanel">
+		<div>
+			Content for Binary Artifacts
+		</div>
+		<div>
+			Content for Docker Images
+		</div>
+	</div>
+</div>
 ```
 
 file -----------rw-r--r-- views/head.templ

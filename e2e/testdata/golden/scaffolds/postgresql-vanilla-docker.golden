@@ -1,3 +1,32 @@
+file -----------rw-r--r-- .dockerignore
+```
+.git
+.github
+.gitignore
+.env
+.env.*
+*.md
+LICENSE
+README.md
+
+tmp/
+*.log
+*.test
+*.out
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+node_modules/
+
+Dockerfile
+.dockerignore
+docker-compose.yml
+```
+
 file -----------rw-r--r-- .env.example
 ```
 ENVIRONMENT=development
@@ -25,11 +54,6 @@ CSRF_STRATEGY=header_only
 CSRF_TRUSTED_ORIGINS=
 
 PEPPER=<PEPPER>
-
-AWS_REGION=us-east-1
-AWS_SES_ACCESS_KEY_ID=
-AWS_SES_SECRET_ACCESS_KEY=
-AWS_SES_CONFIGURATION_SET=
 ```
 
 file -----------rw-r--r-- .gitignore
@@ -42,6 +66,36 @@ testapp.db
 .andurel-upgrade-state.json
 ```
 
+file -----------rw-r--r-- Dockerfile
+```
+ARG GO_VERSION=1.26.0
+
+FROM golang:${GO_VERSION}-bookworm AS builder
+
+WORKDIR /usr/src/app
+
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build -v -o /run-app ./cmd/app
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /run-app /usr/local/bin/run-app
+
+WORKDIR /app
+
+EXPOSE 8080
+
+CMD ["run-app"]
+```
+
 file -----------rw-r--r-- README.md
 ```
 # testapp
@@ -52,7 +106,8 @@ A full-stack web application built with [Andurel](https://github.com/mbvlabs/and
 
 ```
 testapp/
-├── assets/              # Static assets (compiled CSS, images)
+├── assets/              # Static assets and source CSS
+│   └── css/             # Layered vanilla CSS manifest, tokens, objects, utilities, and components
 ├── bin/                 # Command-line tools
 │   ├── app              # Main application binary
 │   ├── console          # Database console
@@ -63,9 +118,6 @@ testapp/
 ├── clients/             # External service clients
 ├── config/              # Application configuration
 ├── controllers/         # HTTP request handlers
-├── css/                 # Source CSS files (Tailwind wrappers + theme)
-├── examples/
-│   └── html/            # Copy/paste HTML snippets with Datastar attributes
 ├── database/
 │   └── migrations/      # SQL migration files
 ├── email/               # Email templates and sending
@@ -126,7 +178,7 @@ Your application is now running at `http://localhost:8080` with live reload for 
 andurel run
 ```
 
-This orchestrates Air (Go), Templ watch, and Tailwind CSS compilation.
+This orchestrates Air (Go) and Templ watch while serving the vanilla CSS manifest and imported partials directly.
 
 ### Database Console
 
@@ -381,23 +433,57 @@ andurel migration up
 andurel g model User --refresh
 ```
 
+
 ### Customize Styling
 
-This project uses Tailwind CSS. Customize your theme in `css/themes.css`:
+This project uses layered native CSS under `assets/css/`. The manifest is `assets/css/style.css`, and it imports the rest of the system in this order:
 
 ```css
-@layer theme {
-  :root {
-    --color-primary: theme('colors.blue.600');
-    --color-secondary: theme('colors.gray.600');
-  }
-}
+@layer reset, tokens, base, objects, components, utilities, overrides;
+
+@import url('/assets/css/reset.css') layer(reset);
+@import url('/assets/css/tokens.css') layer(tokens);
+@import url('/assets/css/base.css') layer(base);
+@import url('/assets/css/objects.css') layer(objects);
+@import url('/assets/css/components/layout.css') layer(components);
+@import url('/assets/css/components/panels.css') layer(components);
+@import url('/assets/css/components/buttons.css') layer(components);
+@import url('/assets/css/components/forms.css') layer(components);
+@import url('/assets/css/components/feedback.css') layer(components);
+@import url('/assets/css/utilities.css') layer(utilities);
 ```
 
-Add reusable wrapper classes in `css/components.css` under `@layer components`, then import or compose in your views.
-Use `examples/html/*.html` for snippet-based patterns (pure HTML + Datastar attributes).
-The development server automatically rebuilds CSS on changes.
+File responsibilities:
+- `assets/css/reset.css`: browser normalization and low-level defaults
+- `assets/css/tokens.css`: theme tokens for color, spacing, type, radius, shadow, and motion
+- `assets/css/base.css`: element defaults for typography, links, media, and forms
+- `assets/css/objects.css`: reusable layout primitives such as `.container`, `.stack`, `.cluster`, and grid helpers
+- `assets/css/components/*.css`: the shared UI contract for buttons, forms, feedback, layout, and panels
+- `assets/css/utilities.css`: small escape-hatch helpers
 
+Start customization in `assets/css/tokens.css`. That file defines the semantic design contract used across components, including:
+- surfaces and text tokens such as `--surface-page`, `--surface-panel`, `--text-strong`, and `--text-muted`
+- brand and status tokens such as `--primary`, `--secondary`, `--accent`, `--success`, `--warning`, and `--error`
+- spacing, radius, shadow, typography, motion, and z-index scales
+
+Theme values are defined for both light and dark modes. Adjust those token values first before editing component rules.
+
+Theme activation uses the class-based contract directly on `<html>`:
+- `html.light`: force the light token set
+- `html.dark`: force the dark token set
+- no theme class: fall back to `prefers-color-scheme`
+
+Typical editing flow:
+- change `assets/css/tokens.css` when the visual language should shift globally
+- change `assets/css/objects.css` when layout primitives such as stacks, clusters, or containers need to evolve
+- change one file under `assets/css/components/` when a reusable UI pattern needs different behavior or presentation
+- use `assets/css/utilities.css` for small opt-in escape hatches, not as the primary styling strategy
+
+When you need to change component styling, edit the matching file in `assets/css/components/`. The public class names are intentionally aligned with the Tailwind scaffold where practical, so classes like `.btn`, `.btn-primary`, `.input`, `.field`, `.panel`, and `.alert` map to the same component vocabulary with a different implementation.
+
+That shared class contract keeps the generated markup portable between the Tailwind and vanilla scaffolds even though the CSS implementation is different.
+
+The development server serves these files directly, so editing any imported CSS partial updates the app without a separate CSS build step.
 
 
 ## Environment Configuration
@@ -468,7 +554,7 @@ CSRF protection is always enabled for HTML routes and uses Fetch Metadata to ali
 2. **Type Safety**: Let Bun models and Templ catch errors at compile time
 3. **Database Console**: Use `andurel app console` for quick database queries
 4. **Hot Reload**: Changes to Go, Templ, or CSS automatically trigger rebuilds
-5. **Tailwind**: Use Tailwind's utility classes in your Templ templates
+5. **Vanilla CSS**: Prefer editing tokens, objects, and component partials in `assets/css/` instead of adding page-specific styles
 
 ## Common Tasks
 
@@ -751,264 +837,9 @@ The test helper automatically:
 
 This project includes the following extensions:
 
-### aws-ses
+### docker
 
-This project uses Amazon SES (Simple Email Service) for sending transactional and marketing emails in production.
-
-#### Setup
-
-**1. AWS Configuration**
-
-You'll need an AWS account with SES configured:
-
-```bash
-# Verify your sender email address or domain in AWS SES Console
-# https://console.aws.amazon.com/ses/
-
-# Create IAM credentials with SES sending permissions
-# Required policy: AmazonSESFullAccess or custom policy with ses:SendEmail
-```
-
-**2. Environment Variables**
-
-Add these to your `.env` file:
-
-```bash
-# AWS SES Configuration
-AWS_REGION=us-east-1                      # Your AWS region
-AWS_SES_ACCESS_KEY_ID=your_access_key     # IAM access key
-AWS_SES_SECRET_ACCESS_KEY=your_secret     # IAM secret key
-AWS_SES_CONFIGURATION_SET=                # Optional: for open/click tracking
-```
-
-**3. Configuration Set (Optional)**
-
-For email tracking (opens, clicks), create a Configuration Set in AWS SES:
-
-1. Go to AWS SES Console → Configuration Sets
-2. Create a new configuration set
-3. Add event destinations (SNS, CloudWatch, Kinesis, etc.)
-4. Set `AWS_SES_CONFIGURATION_SET` environment variable
-
-#### Sending Transactional Emails
-
-Transactional emails are one-to-one messages like password resets, order confirmations, and account notifications.
-
-**Create an email template:**
-
-```go
-// email/order_confirmation.templ
-package email
-
-templ OrderConfirmation(orderID string, total string) {
-    @BaseLayout() {
-        <h1>Order Confirmed!</h1>
-        <p>Thank you for your order #{orderID}.</p>
-        <p>Total: {total}</p>
-    }
-}
-```
-
-**Send immediately (synchronous):**
-
-```go
-import "testapp/email"
-
-err := email.SendTransactional(ctx, email.TransactionalData{
-    To:      "customer@example.com",
-    Cc:      []string{"manager@example.com"},  // Optional
-    From:    "orders@yourapp.com",
-    Subject: "Order Confirmation",
-    Component: email.OrderConfirmation("12345", "$99.99"),
-    Attachments: []email.Attachment{  // Optional
-        {
-            Filename:    "invoice.pdf",
-            ContentType: "application/pdf",
-            Content:     pdfBytes,
-        },
-    },
-}, emailClient)
-```
-
-**Send via background queue (recommended):**
-
-```go
-import "testapp/queue/jobs"
-
-_, err := insertOnly.Client.Insert(ctx, jobs.SendTransactionalEmailArgs{
-    Data: email.TransactionalData{
-        To:      "customer@example.com",
-        From:    "orders@yourapp.com",
-        Subject: "Order Confirmation",
-        Component: email.OrderConfirmation("12345", "$99.99"),
-    },
-}, nil)
-```
-
-Benefits of queuing:
-- Non-blocking: Returns immediately without waiting for AWS SES
-- Automatic retries: Failed sends retry with exponential backoff
-- Better reliability: Survives temporary AWS outages
-- Observability: Track job status through River
-
-#### Sending Marketing Emails
-
-Marketing emails are bulk messages like newsletters, promotions, and announcements sent to multiple recipients.
-
-**Important:** Marketing emails must include an unsubscribe link to comply with email regulations (CAN-SPAM, GDPR).
-
-**Create a newsletter template:**
-
-```go
-// email/newsletter.templ
-package email
-
-templ Newsletter(recipientName string, unsubscribeURL string) {
-    @BaseLayout() {
-        <h1>Monthly Newsletter</h1>
-        <p>Hi {recipientName},</p>
-        <p>Here's what's new this month...</p>
-
-        <footer>
-            <a href={unsubscribeURL}>Unsubscribe</a>
-        </footer>
-    }
-}
-```
-
-**Send to multiple recipients (queued pattern):**
-
-```go
-import "testapp/queue/jobs"
-
-// Queue individual emails for each recipient
-recipients := []struct{
-    Email string
-    Name  string
-    ID    string
-}{
-    {Email: "user1@example.com", Name: "Alice", ID: "user-123"},
-    {Email: "user2@example.com", Name: "Bob", ID: "user-456"},
-}
-
-for _, recipient := range recipients {
-    unsubscribeURL := fmt.Sprintf("https://yourapp.com/unsubscribe/%s", recipient.ID)
-
-    _, err := insertOnly.Client.Insert(ctx, jobs.SendMarketingEmailArgs{
-        Data: email.MarketingData{
-            To:             []string{recipient.Email},
-            From:           "newsletter@yourapp.com",
-            Subject:        "Your Monthly Newsletter",
-            Component:      email.Newsletter(recipient.Name, unsubscribeURL),
-            UnsubscribeURL: unsubscribeURL,  // Required!
-            Tags:           []string{"newsletter", "monthly"},
-            TrackOpens:     true,   // Requires Configuration Set
-            TrackClicks:    true,   // Requires Configuration Set
-        },
-    }, nil)
-
-    if err != nil {
-        // Handle error (log, retry, etc.)
-        continue
-    }
-}
-```
-
-**Why queue individual emails?**
-
-- **Personalization**: Each recipient gets customized content (name, preferences, etc.)
-- **Tracking**: Individual delivery status and bounce tracking per recipient
-- **Rate limiting**: AWS SES has sending limits; queuing prevents hitting them
-- **Retries**: Failed emails retry automatically without affecting successful sends
-- **Unsubscribe compliance**: Each email has a unique unsubscribe link
-
-#### Email Tracking
-
-Enable open and click tracking by configuring a Configuration Set in AWS SES:
-
-```go
-// Tracking is enabled per email
-Data: email.MarketingData{
-    // ... other fields
-    TrackOpens:  true,
-    TrackClicks: true,
-}
-```
-
-**View tracking data:**
-- Configure event destinations in your AWS SES Configuration Set
-- Send events to CloudWatch, SNS, or Kinesis
-- Build dashboards to visualize open/click rates
-
-#### Testing in Development
-
-During development, emails are sent to Mailpit instead of AWS SES:
-
-```bash
-# Mailpit configuration (automatically used in development)
-MAILPIT_HOST=0.0.0.0
-MAILPIT_PORT=1025
-```
-
-View test emails at `http://localhost:8025`
-
-To test with real AWS SES in development:
-
-1. Use the `aws-ses` extension
-2. Set `ENVIRONMENT=production` or configure your app to use AWS SES in dev
-3. Ensure your AWS credentials are valid
-
-#### Error Handling
-
-AWS SES provides detailed error information:
-
-```go
-err := email.SendTransactional(ctx, data, emailClient)
-if err != nil {
-    if email.IsValidationError(err) {
-        // Invalid email address, missing required fields, etc.
-        // Don't retry - fix the data
-        log.Error("Invalid email data", "error", err)
-    } else if email.IsTemporaryError(err) {
-        // AWS throttling, service unavailable, etc.
-        // Safe to retry
-        log.Warn("Temporary email error, will retry", "error", err)
-    } else if email.IsPermanentError(err) {
-        // Account suspended, domain not verified, etc.
-        // Don't retry - requires AWS console action
-        log.Error("Permanent email error", "error", err)
-    }
-}
-```
-
-The background queue automatically handles retries for temporary errors and cancels jobs with validation or permanent errors.
-
-#### AWS SES Limits
-
-Be aware of AWS SES sending limits:
-
-- **Sandbox**: 200 emails/day, verified recipients only
-- **Production**: Request limit increase (up to millions/day)
-- **Rate limit**: 14 emails/second (default, can be increased)
-
-Request production access: AWS SES Console → Account Dashboard → Request Production Access
-
-#### Best Practices
-
-1. **Verify your domain**: Use domain verification instead of email verification for better deliverability
-2. **Use Configuration Sets**: Enable tracking and monitoring
-3. **Monitor bounce rates**: High bounce rates can hurt your sender reputation
-4. **Handle suppression lists**: AWS SES automatically suppresses bounced/complained addresses
-5. **Warm up your sending**: Gradually increase volume when starting with a new domain
-6. **Use templates**: Create reusable email templates in AWS SES for simple use cases
-7. **Queue emails**: Use background jobs for reliability and non-blocking sends
-
-#### Resources
-
-- [AWS SES Documentation](https://docs.aws.amazon.com/ses/)
-- [AWS SES Pricing](https://aws.amazon.com/ses/pricing/) - $0.10 per 1,000 emails
-- [SES Best Practices](https://docs.aws.amazon.com/ses/latest/dg/best-practices.html)
-- [Moving out of Sandbox](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html)
+<!-- Extension-specific documentation will be added here -->
 
 
 
@@ -1039,16 +870,16 @@ file -----------rw-r--r-- andurel.lock
     "nullType": "sql.Null"
   },
   "extensions": {
-    "aws-ses": {
+    "docker": {
       "appliedAt": "\u003cAPPLIED_AT\u003e"
     }
   },
   "scaffoldConfig": {
-    "cssFramework": "tailwind",
+    "cssFramework": "vanilla",
     "database": "postgresql",
     "diMode": "manual",
     "extensions": [
-      "aws-ses"
+      "docker"
     ],
     "projectName": "testapp"
   },
@@ -1089,14 +920,6 @@ file -----------rw-r--r-- andurel.lock
       "source": "github.com/mbvlabs/shadowfax",
       "version": "v0.2.7"
     },
-    "tailwindcli": {
-      "download": {
-        "archive": "binary",
-        "binaryName": "tailwindcli",
-        "urlTemplate": "https://github.com/tailwindlabs/tailwindcss/releases/download/{{version}}/tailwindcss-{{os_tailwind}}-{{arch_tailwind}}"
-      },
-      "version": "v4.2.1"
-    },
     "templ": {
       "download": {
         "archive": "tar.gz",
@@ -1135,9 +958,476 @@ var Files embed.FS
 
 dir  d----------rwxr-xr-x assets/css
 
+file -----------rw-r--r-- assets/css/base.css
+```
+:where(html) {
+	background:
+		radial-gradient(circle at top, color-mix(in oklab, var(--primary) 10%, transparent), transparent 35%),
+		linear-gradient(180deg, var(--surface-page), color-mix(in oklab, var(--surface-page) 92%, black));
+	color: var(--text-strong);
+	font-family: var(--font-sans);
+}
+
+:where(body) {
+	display: grid;
+	grid-template-rows: 1fr auto;
+	min-block-size: 100vh;
+}
+
+:where(main) {
+	inline-size: var(--container-inline);
+	margin-inline: auto;
+	padding-block: var(--space-8);
+	padding-inline: var(--space-4);
+}
+
+:where(h1, h2, h3) {
+	line-height: 1.05;
+	letter-spacing: -0.03em;
+	text-wrap: balance;
+}
+
+:where(h1) {
+	font-size: var(--step-3);
+	max-inline-size: 12ch;
+}
+
+:where(h2) {
+	font-size: var(--step-2);
+}
+
+:where(h3) {
+	font-size: var(--step-1);
+}
+
+:where(p, li, label, input, textarea, select, button) {
+	font-size: var(--step-0);
+}
+
+:where(p, ul, ol) {
+	color: var(--text-muted);
+	max-inline-size: var(--measure);
+}
+
+:where(a) {
+	color: var(--primary);
+	text-decoration-color: color-mix(in oklab, var(--primary) 45%, transparent);
+	text-underline-offset: 0.18em;
+}
+
+:where(a:hover) {
+	color: var(--primary-strong);
+}
+
+:where(button, input, textarea, select) {
+	accent-color: var(--primary);
+}
+
+:where(:focus-visible) {
+	outline: 3px solid var(--ring);
+	outline-offset: 3px;
+}
+
+:where(::placeholder) {
+	color: color-mix(in oklab, var(--text-muted) 70%, transparent);
+}
+
+:where([hidden]) {
+	display: none !important;
+}
+```
+
+file -----------rw-r--r-- assets/css/objects.css
+```
+:where(.container, .o-container) {
+	inline-size: min(100% - 2 * var(--space-4), var(--container-inline));
+	margin-inline: auto;
+}
+
+:where(.stack, .o-stack) {
+	display: grid;
+	gap: var(--stack-gap, var(--space-4));
+	justify-items: start;
+}
+
+:where(.stack, .o-stack) > * {
+	margin: 0;
+}
+
+:where(.stack, .o-stack)[data-gap="sm"] {
+	--stack-gap: var(--space-3);
+}
+
+:where(.stack, .o-stack)[data-gap="lg"] {
+	--stack-gap: var(--space-6);
+}
+
+:where(.cluster, .o-cluster) {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--cluster-gap, var(--space-3));
+}
+
+:where(.cluster, .o-cluster)[data-gap="sm"] {
+	--cluster-gap: var(--space-2);
+}
+
+:where(.cluster, .o-cluster)[data-gap="lg"] {
+	--cluster-gap: var(--space-5);
+}
+
+:where(.cluster, .o-cluster)[data-justify="between"] {
+	justify-content: space-between;
+}
+
+:where(.cluster, .o-cluster)[data-justify="center"] {
+	justify-content: center;
+}
+
+:where(.center, .o-center) {
+	box-sizing: content-box;
+	max-inline-size: var(--measure);
+	margin-inline: auto;
+	padding-inline: var(--space-4);
+	text-align: center;
+}
+
+:where(.center, .o-center)[data-center="wide"] {
+	max-inline-size: var(--container-inline);
+}
+
+:where(.grid-auto-fit, .o-grid) {
+	--grid-min: 16rem;
+	display: grid;
+	gap: var(--grid-gap, var(--space-5));
+	grid-template-columns: repeat(auto-fit, minmax(min(var(--grid-min), 100%), 1fr));
+}
+
+:where(.grid-auto-fit, .o-grid)[data-gap="sm"] {
+	--grid-gap: var(--space-3);
+}
+
+:where(.grid-auto-fit, .o-grid)[data-gap="lg"] {
+	--grid-gap: var(--space-6);
+}
+
+:where(.grid-auto-fit, .o-grid)[data-grid="compact"] {
+	--grid-min: 12rem;
+}
+
+:where(.grid-auto-fit, .o-grid)[data-grid="wide"] {
+	--grid-min: 20rem;
+}
+
+@media (min-width: 48rem) {
+	:where(.o-grid)[data-columns="2"] {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+```
+
+file -----------rw-r--r-- assets/css/reset.css
+```
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html {
+	-webkit-text-size-adjust: 100%;
+	tab-size: 4;
+}
+
+body,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+blockquote,
+figure,
+dl,
+dd {
+	margin: 0;
+}
+
+ul[role="list"],
+ol[role="list"] {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	min-block-size: 100vh;
+	line-height: 1.5;
+	text-rendering: optimizeLegibility;
+}
+
+img,
+picture,
+svg,
+video,
+canvas {
+	display: block;
+	max-inline-size: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+	font: inherit;
+}
+
+button,
+select {
+	text-transform: none;
+}
+
+textarea {
+	resize: vertical;
+}
+
+a:not([class]) {
+	text-decoration-skip-ink: auto;
+}
+
+:target {
+	scroll-margin-block: 4rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html:focus-within {
+		scroll-behavior: auto;
+	}
+
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		scroll-behavior: auto !important;
+		transition-duration: 0.01ms !important;
+	}
+}
+```
+
 file -----------rw-r--r-- assets/css/style.css
 ```
 
+@layer reset, tokens, base, objects, utilities, overrides;
+
+@import url('/assets/css/reset.css') layer(reset);
+@import url('/assets/css/tokens.css') layer(tokens);
+@import url('/assets/css/base.css') layer(base);
+@import url('/assets/css/objects.css') layer(objects);
+@import url('/assets/css/utilities.css') layer(utilities);
+```
+
+file -----------rw-r--r-- assets/css/tokens.css
+```
+:root,
+html.light {
+	color-scheme: light;
+
+	--font-sans: "Inter", "Segoe UI", sans-serif;
+	--font-mono: "IBM Plex Mono", "SFMono-Regular", monospace;
+	--font-weight-regular: 400;
+	--font-weight-medium: 500;
+	--font-weight-semibold: 600;
+	--font-weight-bold: 700;
+
+	--step--1: 0.875rem;
+	--step-0: 1rem;
+	--step-1: clamp(1.25rem, 1.1rem + 0.75vw, 1.75rem);
+	--step-2: clamp(1.75rem, 1.35rem + 2vw, 3rem);
+	--step-3: clamp(2.25rem, 1.6rem + 3vw, 4rem);
+
+	--space-1: 0.25rem;
+	--space-2: 0.5rem;
+	--space-3: 0.75rem;
+	--space-4: 1rem;
+	--space-5: 1.5rem;
+	--space-6: 2rem;
+	--space-7: 3rem;
+	--space-8: 4rem;
+
+	--radius-xs: 0.25rem;
+	--radius-sm: 0.5rem;
+	--radius-md: 0.9rem;
+	--radius-lg: 1.5rem;
+	--radius-xl: 2rem;
+	--radius-round: 999px;
+
+	--shadow-sm: 0 1px 2px hsl(220 30% 12% / 0.08);
+	--shadow-md: 0 12px 30px hsl(220 35% 20% / 0.12);
+	--shadow-lg: 0 24px 60px hsl(220 35% 18% / 0.18);
+
+	--duration-fast: 120ms;
+	--duration-base: 180ms;
+	--duration-slow: 280ms;
+	--ease-standard: cubic-bezier(0.2, 0, 0.13, 1);
+
+	--z-base: 0;
+	--z-dropdown: 10;
+	--z-sticky: 20;
+	--z-overlay: 30;
+	--z-toast: 40;
+	--z-modal: 50;
+
+	--color-surface-page: oklch(98% 0.01 240);
+	--color-surface-panel: oklch(100% 0 0);
+	--color-surface-panel-muted: oklch(97% 0.01 240);
+	--color-surface-inverse: oklch(23% 0.03 250);
+	--color-text-strong: oklch(24% 0.02 255);
+	--color-text-muted: oklch(49% 0.03 250);
+	--color-text-inverse: oklch(98% 0 0);
+	--color-border-subtle: oklch(88% 0.01 250);
+	--color-border-strong: oklch(75% 0.02 250);
+
+	--color-primary: oklch(58% 0.19 256);
+	--color-primary-strong: oklch(49% 0.19 257);
+	--color-secondary: oklch(65% 0.1 205);
+	--color-accent: oklch(72% 0.16 145);
+	--color-neutral: oklch(59% 0.02 250);
+	--color-success: oklch(71% 0.15 148);
+	--color-warning: oklch(76% 0.16 78);
+	--color-error: oklch(60% 0.22 26);
+
+	--color-info: color-mix(in oklab, var(--color-primary) 72%, white);
+	--color-ring: color-mix(in oklab, var(--color-primary) 35%, white);
+
+	--surface-page: var(--color-surface-page);
+	--surface-panel: var(--color-surface-panel);
+	--surface-panel-muted: var(--color-surface-panel-muted);
+	--surface-inverse: var(--color-surface-inverse);
+	--text-strong: var(--color-text-strong);
+	--text-muted: var(--color-text-muted);
+	--text-inverse: var(--color-text-inverse);
+	--border-subtle: var(--color-border-subtle);
+	--border-strong: var(--color-border-strong);
+
+	--primary: var(--color-primary);
+	--primary-strong: var(--color-primary-strong);
+	--secondary: var(--color-secondary);
+	--accent: var(--color-accent);
+	--neutral: var(--color-neutral);
+	--success: var(--color-success);
+	--warning: var(--color-warning);
+	--destructive: var(--color-error);
+	--error: var(--color-error);
+	--info: var(--color-info);
+	--ring: var(--color-ring);
+
+	--container-inline: min(72rem, calc(100vw - 2 * var(--space-5)));
+	--measure: 65ch;
+}
+
+html.dark {
+	color-scheme: dark;
+
+	--color-surface-page: oklch(20% 0.02 255);
+	--color-surface-panel: oklch(27% 0.02 255);
+	--color-surface-panel-muted: oklch(31% 0.02 255);
+	--color-surface-inverse: oklch(96% 0 0);
+	--color-text-strong: oklch(96% 0 0);
+	--color-text-muted: oklch(78% 0.02 250);
+	--color-text-inverse: oklch(20% 0.02 255);
+	--color-border-subtle: oklch(38% 0.02 255);
+	--color-border-strong: oklch(52% 0.02 255);
+
+	--color-primary: oklch(69% 0.16 255);
+	--color-primary-strong: oklch(77% 0.14 255);
+	--color-secondary: oklch(74% 0.09 205);
+	--color-accent: oklch(79% 0.14 145);
+	--color-neutral: oklch(72% 0.02 255);
+	--color-success: oklch(79% 0.12 150);
+	--color-warning: oklch(82% 0.12 84);
+	--color-error: oklch(68% 0.18 28);
+
+	--shadow-sm: 0 1px 2px hsl(220 50% 3% / 0.22);
+	--shadow-md: 0 14px 36px hsl(220 50% 3% / 0.34);
+	--shadow-lg: 0 28px 72px hsl(220 50% 3% / 0.4);
+
+	--color-info: color-mix(in oklab, var(--color-primary) 65%, white);
+	--color-ring: color-mix(in oklab, var(--color-primary) 45%, white);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not(.light):not(.dark) {
+		color-scheme: dark;
+
+		--color-surface-page: oklch(20% 0.02 255);
+		--color-surface-panel: oklch(27% 0.02 255);
+		--color-surface-panel-muted: oklch(31% 0.02 255);
+		--color-surface-inverse: oklch(96% 0 0);
+		--color-text-strong: oklch(96% 0 0);
+		--color-text-muted: oklch(78% 0.02 250);
+		--color-text-inverse: oklch(20% 0.02 255);
+		--color-border-subtle: oklch(38% 0.02 255);
+		--color-border-strong: oklch(52% 0.02 255);
+
+		--color-primary: oklch(69% 0.16 255);
+		--color-primary-strong: oklch(77% 0.14 255);
+		--color-secondary: oklch(74% 0.09 205);
+		--color-accent: oklch(79% 0.14 145);
+		--color-neutral: oklch(72% 0.02 255);
+		--color-success: oklch(79% 0.12 150);
+		--color-warning: oklch(82% 0.12 84);
+		--color-error: oklch(68% 0.18 28);
+
+		--shadow-sm: 0 1px 2px hsl(220 50% 3% / 0.22);
+		--shadow-md: 0 14px 36px hsl(220 50% 3% / 0.34);
+		--shadow-lg: 0 28px 72px hsl(220 50% 3% / 0.4);
+
+		--color-info: color-mix(in oklab, var(--color-primary) 65%, white);
+		--color-ring: color-mix(in oklab, var(--color-primary) 45%, white);
+	}
+}
+```
+
+file -----------rw-r--r-- assets/css/utilities.css
+```
+:where(.flow, .u-flow) > * + * {
+	margin-block-start: var(--space-4);
+}
+
+:where(.flow, .u-flow)[data-gap="sm"] > * + * {
+	margin-block-start: var(--space-3);
+}
+
+:where(.flow, .u-flow)[data-gap="lg"] > * + * {
+	margin-block-start: var(--space-5);
+}
+
+:where(.muted, .u-muted) {
+	color: var(--text-muted);
+}
+
+:where(.text-center, .u-center) {
+	text-align: center;
+}
+
+:where(.full-width) {
+	inline-size: 100%;
+}
+
+:where(.visually-hidden, .u-visually-hidden) {
+	position: absolute;
+	inline-size: 1px;
+	block-size: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
 ```
 
 dir  d----------rwxr-xr-x assets/js
@@ -1162,342 +1452,6 @@ import "./datastar_1-0-1.min.js"
 dir  d----------rwxr-xr-x clients
 
 dir  d----------rwxr-xr-x clients/email
-
-file -----------rw-r--r-- clients/email/aws_ses.go
-```
-package mailclients
-
-import (
-	"bytes"
-	"context"
-	"encoding/base64"
-	"fmt"
-	"mime/multipart"
-	"net/textproto"
-	"strings"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/service/sesv2"
-	"github.com/aws/aws-sdk-go-v2/service/sesv2/types"
-
-	appconfig "testapp/config"
-	"testapp/email"
-)
-
-var _ email.TransactionalSender = (*AwsSes)(nil)
-var _ email.MarketingSender = (*AwsSes)(nil)
-
-type AwsSes struct {
-	client           *sesv2.Client
-	configurationSet string
-}
-
-func NewAwsSes(cfg appconfig.Config) *AwsSes {
-	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(),
-		awsconfig.WithRegion(cfg.AwsSes.Region),
-		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
-			cfg.AwsSes.AccessKeyID,
-			cfg.AwsSes.SecretAccessKey,
-			"",
-		)),
-	)
-	if err != nil {
-		panic(fmt.Sprintf("failed to load AWS SES config: %v", err))
-	}
-
-	client := sesv2.NewFromConfig(awsCfg)
-
-	return &AwsSes{
-		client:           client,
-		configurationSet: cfg.AwsSes.ConfigurationSet,
-	}
-}
-
-func (a *AwsSes) SendTransactional(ctx context.Context, payload email.TransactionalPayload) error {
-	// If there are attachments, use raw email format
-	if len(payload.Attachments) > 0 {
-		return a.sendRawEmail(ctx, payload, nil)
-	}
-
-	// Build destination
-	destination := &types.Destination{
-		ToAddresses: []string{payload.To},
-	}
-	if len(payload.Cc) > 0 {
-		destination.CcAddresses = payload.Cc
-	}
-	if len(payload.Bcc) > 0 {
-		destination.BccAddresses = payload.Bcc
-	}
-
-	// Build email content
-	content := &types.EmailContent{
-		Simple: &types.Message{
-			Subject: &types.Content{
-				Data: aws.String(payload.Subject),
-			},
-			Body: &types.Body{},
-		},
-	}
-
-	if payload.TextBody != "" {
-		content.Simple.Body.Text = &types.Content{
-			Data: aws.String(payload.TextBody),
-		}
-	}
-
-	if payload.HTMLBody != "" {
-		content.Simple.Body.Html = &types.Content{
-			Data: aws.String(payload.HTMLBody),
-		}
-	}
-
-	// Build send request
-	input := &sesv2.SendEmailInput{
-		Destination: destination,
-		Content:     content,
-		FromEmailAddress: aws.String(payload.From),
-	}
-
-	if payload.ReplyTo != "" {
-		input.ReplyToAddresses = []string{payload.ReplyTo}
-	}
-
-	if a.configurationSet != "" {
-		input.ConfigurationSetName = aws.String(a.configurationSet)
-	}
-
-	// Add metadata as email tags
-	if len(payload.Metadata) > 0 {
-		var tags []types.MessageTag
-		for key, value := range payload.Metadata {
-			tags = append(tags, types.MessageTag{
-				Name:  aws.String(key),
-				Value: aws.String(value),
-			})
-		}
-		input.EmailTags = tags
-	}
-
-	// Send email
-	_, err := a.client.SendEmail(ctx, input)
-	if err != nil {
-		return mapSESError(err)
-	}
-
-	return nil
-}
-
-func (a *AwsSes) SendMarketing(ctx context.Context, payload email.MarketingPayload) error {
-	// Extract first recipient (queue pattern sends one email per job)
-	if len(payload.To) == 0 {
-		return email.ValidationError{Err: fmt.Errorf("no recipients specified")}
-	}
-
-	recipient := payload.To[0]
-
-	// Build destination
-	destination := &types.Destination{
-		ToAddresses: []string{recipient},
-	}
-
-	// Build email content
-	content := &types.EmailContent{
-		Simple: &types.Message{
-			Subject: &types.Content{
-				Data: aws.String(payload.Subject),
-			},
-			Body: &types.Body{},
-		},
-	}
-
-	if payload.TextBody != "" {
-		content.Simple.Body.Text = &types.Content{
-			Data: aws.String(payload.TextBody),
-		}
-	}
-
-	if payload.HTMLBody != "" {
-		content.Simple.Body.Html = &types.Content{
-			Data: aws.String(payload.HTMLBody),
-		}
-	}
-
-	// Build send request
-	input := &sesv2.SendEmailInput{
-		Destination:      destination,
-		Content:          content,
-		FromEmailAddress: aws.String(payload.From),
-	}
-
-	if payload.ReplyTo != "" {
-		input.ReplyToAddresses = []string{payload.ReplyTo}
-	}
-
-	if a.configurationSet != "" {
-		input.ConfigurationSetName = aws.String(a.configurationSet)
-	}
-
-	// Add tags and metadata
-	var tags []types.MessageTag
-	for _, tag := range payload.Tags {
-		tags = append(tags, types.MessageTag{
-			Name:  aws.String("tag"),
-			Value: aws.String(tag),
-		})
-	}
-	for key, value := range payload.Metadata {
-		tags = append(tags, types.MessageTag{
-			Name:  aws.String(key),
-			Value: aws.String(value),
-		})
-	}
-	if len(tags) > 0 {
-		input.EmailTags = tags
-	}
-
-	// Send email
-	_, err := a.client.SendEmail(ctx, input)
-	if err != nil {
-		return mapSESError(err)
-	}
-
-	return nil
-}
-
-func (a *AwsSes) sendRawEmail(ctx context.Context, payload email.TransactionalPayload, marketingPayload *email.MarketingPayload) error {
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-
-	// Write headers
-	headers := make(textproto.MIMEHeader)
-	headers.Set("From", payload.From)
-	headers.Set("To", payload.To)
-
-	if len(payload.Cc) > 0 {
-		headers.Set("Cc", strings.Join(payload.Cc, ", "))
-	}
-	if len(payload.Bcc) > 0 {
-		headers.Set("Bcc", strings.Join(payload.Bcc, ", "))
-	}
-	if payload.ReplyTo != "" {
-		headers.Set("Reply-To", payload.ReplyTo)
-	}
-	headers.Set("Subject", payload.Subject)
-	headers.Set("MIME-Version", "1.0")
-	headers.Set("Content-Type", fmt.Sprintf("multipart/mixed; boundary=%s", writer.Boundary()))
-
-	// Write headers to buffer
-	var headerBuf bytes.Buffer
-	for key, values := range headers {
-		for _, value := range values {
-			headerBuf.WriteString(fmt.Sprintf("%s: %s\r\n", key, value))
-		}
-	}
-	headerBuf.WriteString("\r\n")
-
-	// Create the raw message
-	var rawMessage bytes.Buffer
-	rawMessage.Write(headerBuf.Bytes())
-
-	// Write text part
-	if payload.TextBody != "" {
-		part, _ := writer.CreatePart(textproto.MIMEHeader{
-			"Content-Type": []string{"text/plain; charset=UTF-8"},
-		})
-		part.Write([]byte(payload.TextBody))
-	}
-
-	// Write HTML part
-	if payload.HTMLBody != "" {
-		part, _ := writer.CreatePart(textproto.MIMEHeader{
-			"Content-Type": []string{"text/html; charset=UTF-8"},
-		})
-		part.Write([]byte(payload.HTMLBody))
-	}
-
-	// Write attachments
-	for _, attachment := range payload.Attachments {
-		part, _ := writer.CreatePart(textproto.MIMEHeader{
-			"Content-Type":              []string{attachment.ContentType},
-			"Content-Disposition":       []string{fmt.Sprintf("attachment; filename=%s", attachment.Name)},
-			"Content-Transfer-Encoding": []string{"base64"},
-		})
-		encoded := base64.StdEncoding.EncodeToString(attachment.Content)
-		part.Write([]byte(encoded))
-	}
-
-	writer.Close()
-	rawMessage.Write(buf.Bytes())
-
-	// Build raw email input
-	input := &sesv2.SendEmailInput{
-		Content: &types.EmailContent{
-			Raw: &types.RawMessage{
-				Data: rawMessage.Bytes(),
-			},
-		},
-	}
-
-	if a.configurationSet != "" {
-		input.ConfigurationSetName = aws.String(a.configurationSet)
-	}
-
-	// Add metadata as email tags
-	if len(payload.Metadata) > 0 {
-		var tags []types.MessageTag
-		for key, value := range payload.Metadata {
-			tags = append(tags, types.MessageTag{
-				Name:  aws.String(key),
-				Value: aws.String(value),
-			})
-		}
-		input.EmailTags = tags
-	}
-
-	// Send raw email
-	_, err := a.client.SendEmail(ctx, input)
-	if err != nil {
-		return mapSESError(err)
-	}
-
-	return nil
-}
-
-func mapSESError(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	errStr := err.Error()
-
-	// Validation errors (don't retry)
-	if strings.Contains(errStr, "ValidationError") ||
-		strings.Contains(errStr, "InvalidParameterValue") ||
-		strings.Contains(errStr, "MessageRejected") {
-		return email.ValidationError{Err: err}
-	}
-
-	// Permanent errors (don't retry)
-	if strings.Contains(errStr, "AccountSendingPausedException") ||
-		strings.Contains(errStr, "MailFromDomainNotVerifiedException") ||
-		strings.Contains(errStr, "ConfigurationSetDoesNotExist") {
-		return email.PermanentError{Err: err}
-	}
-
-	// Temporary errors (retry)
-	if strings.Contains(errStr, "Throttling") ||
-		strings.Contains(errStr, "ServiceUnavailable") ||
-		strings.Contains(errStr, "TooManyRequests") {
-		return email.TemporaryError{Err: err}
-	}
-
-	// Default to temporary error for unknown cases
-	return email.TemporaryError{Err: err}
-}
-```
 
 file -----------rw-r--r-- clients/email/mailpit.go
 ```
@@ -1671,7 +1625,6 @@ import (
 	"testapp/queue/workers"
 	"riverqueue.com/riverui"
 	"testapp/clients/email"
-	"testapp/email"
 	"github.com/a-h/templ"
 )
 
@@ -1683,7 +1636,6 @@ var appVersion string
 // If you decide to move it, ensure it remains in a logical place within a function that passes the correct dependencies to the controllers.
 func setupControllers(
 	cfg config.Config,
-	emailClient email.TransactionalSender,
 	db storage.Pool,
 	insertOnly queue.InsertOnly,
 	r *router.Router,
@@ -1852,7 +1804,6 @@ func run(ctx context.Context) error {
 
 	err = setupControllers(
 		cfg,
-		emailClient,
 		db,
 		insertOnly,
 		r,
@@ -1938,34 +1889,6 @@ func newAuthConfig() auth {
 }
 ```
 
-file -----------rw-r--r-- config/aws_ses.go
-```
-package config
-
-import (
-	"github.com/caarlos0/env/v10"
-)
-
-type awsSes struct {
-	Region           string `env:"AWS_REGION" envDefault:"us-east-1"`
-	AccessKeyID      string `env:"AWS_SES_ACCESS_KEY_ID"`
-	SecretAccessKey  string `env:"AWS_SES_SECRET_ACCESS_KEY"`
-	ConfigurationSet string `env:"AWS_SES_CONFIGURATION_SET"`
-}
-
-func newAwsSesConfig() awsSes {
-	cfg := awsSes{}
-
-	if err := env.ParseWithOptions(&cfg, env.Options{
-		RequiredIfNoDef: true,
-	}); err != nil {
-		panic(err)
-	}
-
-	return cfg
-}
-```
-
 file -----------rw-r--r-- config/config.go
 ```
 // Package config provides application-wide configuration settings.
@@ -2040,7 +1963,6 @@ type Config struct {
 	DB        Database
 	Telemetry telemetry
 	Email email
-	AwsSes awsSes
 	Auth auth
 }
 
@@ -2050,7 +1972,6 @@ func NewConfig() Config {
 		DB:        newDatabaseConfig(),
 		Telemetry: newTelemetryConfig(),
 		Email: newEmailConfig(),
-		AwsSes: newAwsSesConfig(),
 		Auth: newAuthConfig(),
 	}
 }
@@ -2191,6 +2112,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"path"
+	"strings"
 
 	"testapp/assets"
 	"testapp/config"
@@ -2352,6 +2275,23 @@ func createSitemap(routes []routing.Route) (string, error) {
 func (a Assets) Stylesheet(etx *echo.Context) error {
 	stylesheet, err := assets.Files.ReadFile(
 		"css/style.css",
+	)
+	if err != nil {
+		return err
+	}
+
+	etx = a.enableCaching(etx, stylesheet)
+	return etx.Blob(http.StatusOK, "text/css", stylesheet)
+}
+func (a Assets) StyleImport(etx *echo.Context) error {
+	param := strings.TrimPrefix(etx.Param("*"), "/")
+	param = path.Clean(param)
+	if param == "." || param == "" || strings.HasPrefix(param, "../") {
+		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+	}
+
+	stylesheet, err := assets.Files.ReadFile(
+		fmt.Sprintf("css/%s", param),
 	)
 	if err != nil {
 		return err
@@ -2995,32 +2935,6 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 
 	return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 }
-```
-
-dir  d----------rwxr-xr-x css
-
-file -----------rw-r--r-- css/base.css
-```
-@import "tailwindcss";
-
-html {
-	scroll-behavior: smooth;
-}
-
-body {
-	font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
-	font-style: normal;
-	font-weight: 400;
-	letter-spacing: -0.0125em;
-	line-height: 1.5;
-	-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-	text-rendering: optimizeLegibility;
-}
-
-@source "./views";
-@source "./resources/js";
 ```
 
 dir  d----------rwxr-xr-x database
@@ -5660,10 +5574,6 @@ go 1.26.0
 
 require (
 	github.com/a-h/templ v0.3.1020
-	github.com/aws/aws-sdk-go-v2 v1.42.0
-	github.com/aws/aws-sdk-go-v2/config v1.32.25
-	github.com/aws/aws-sdk-go-v2/credentials v1.19.24
-	github.com/aws/aws-sdk-go-v2/service/sesv2 v1.62.4
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/exaring/otelpgx v0.11.1
@@ -5708,17 +5618,6 @@ require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.29 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.29 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.29 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.30 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.12 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.29 // indirect
-	github.com/aws/aws-sdk-go-v2/service/signin v1.2.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.31.3 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.6 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.43.3 // indirect
-	github.com/aws/smithy-go v1.27.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -5813,36 +5712,6 @@ github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERo
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/a-h/templ v0.3.1020 h1:ypAT/L5ySWEnZ6Zft/5yfoWXYYkhFNvEFOeeqecg4tw=
 github.com/a-h/templ v0.3.1020/go.mod h1:A2DlK61v+K+NRoGnhmYbNYVmtYHcFO5/AisMvBdDxTM=
-github.com/aws/aws-sdk-go-v2 v1.42.0 h1:XvXMJTkFQtpBKIWZnmr9ZEOc2InWM2yldjXEJ/bymhA=
-github.com/aws/aws-sdk-go-v2 v1.42.0/go.mod h1:27+ACypSLljLAEKsCYOmrjKh83vuTRkuAe9Uv/3A4bg=
-github.com/aws/aws-sdk-go-v2/config v1.32.25 h1:ACCejvStYoilgwrfegSt5ZntCbPrk52qfwyNcnl3omM=
-github.com/aws/aws-sdk-go-v2/config v1.32.25/go.mod h1:LJyU8sDRbXUxFn8xMJIGP+v9QYYwveNLI8a/giAOiAs=
-github.com/aws/aws-sdk-go-v2/credentials v1.19.24 h1:2hQqYCV9yqyePQ9o6dCrZc/zO8U3TwPr9mIKlZnPu/I=
-github.com/aws/aws-sdk-go-v2/credentials v1.19.24/go.mod h1:IDwpACtwqHLISdzfwUUNq4P9DsB/h5BLg4FwJPNfqFY=
-github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.29 h1:r6qZHbT+wxgWO/e9vYNUEtg7lv5+UN3pRqKhLXvnArg=
-github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.29/go.mod h1:QRnaRcTVGKPGRy8w78HMQtKUGRYcnMZAANATkeVA6Mo=
-github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.29 h1:f3vKqSo13fhTYb+JEcXwXefZQE26I1FB5eTSniU67ko=
-github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.29/go.mod h1:MzoLFUArKGpGD+ukmPiTPG1X5x4o6M2kq4v2dr1FiEc=
-github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.29 h1:RdwIf/CuUsvJX3RgJagbOyotl/cxoLY4xviKuE7p2GY=
-github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.29/go.mod h1:71wt8W2EgswdZy9Mf9KNnzxZ3TiZlv4caKghPktDOkA=
-github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.30 h1:VTGy885W5DKBxWRUJbym9hytNaYzsyaPkCHGRRMAOhU=
-github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.30/go.mod h1:AS0HycUvJRFvTt613AYDOgO2jzw+00cVSMny8XB3yMY=
-github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.12 h1:ZD2+BSw9vFsNlKYIasSNt3uDbjqqXIBcM13UJv/Lx2k=
-github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.12/go.mod h1:Ms4zlcVBbXbiP7EVLhl+lgjvA/a7YphqQ3Ih3174EmI=
-github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.29 h1:DRebniUGZ2MqiiIVmQJ04vIXr918hubdHMnarSLEWyU=
-github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.29/go.mod h1:LfRkPCD8YHDM2E5eTkos2UpwYeZnBcVarTa8L59bJHA=
-github.com/aws/aws-sdk-go-v2/service/sesv2 v1.62.4 h1:E+hfJiJ/ZAx5SmnpDIejKpgqpd0TqoWqcmBGmLhe7PU=
-github.com/aws/aws-sdk-go-v2/service/sesv2 v1.62.4/go.mod h1:pPfcguG4y24CV1iQeejOJ8MRkTMFqHtxc8/Lmklv4gY=
-github.com/aws/aws-sdk-go-v2/service/signin v1.2.0 h1:3nXpRcFwRCW8n7HgO2QGy0Dc20eQNfBuUemGQhpF8m8=
-github.com/aws/aws-sdk-go-v2/service/signin v1.2.0/go.mod h1:LxYujSTLPRlp2vTtcUO/+1ilrew8ytt6SvQyOgejzFQ=
-github.com/aws/aws-sdk-go-v2/service/sso v1.31.3 h1:ey1XLTYXb9PcLt4535632o5kCGXNXEhNb620Dqwuylo=
-github.com/aws/aws-sdk-go-v2/service/sso v1.31.3/go.mod h1:Lk7PlmoTYryQmyBG0EXqj5BcUbj3whXdU2s3yGI3EAc=
-github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.6 h1:yLr03zQE/5Eu5l3QU0Si+xMbLMbSDF2YXsigqXngs6g=
-github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.6/go.mod h1:Q5N6icH+KJZDLh+ESNwzdv6cZ6vLFF/egy3IOxWhmz4=
-github.com/aws/aws-sdk-go-v2/service/sts v1.43.3 h1:VrIhKRCSK1umelSgB9RghvA9RTUYeQffyAS5ApXehNI=
-github.com/aws/aws-sdk-go-v2/service/sts v1.43.3/go.mod h1:r8wkDOuLaaMFqFiYAb8dGY2A3gJCOujMc6CFOVC4Zhc=
-github.com/aws/smithy-go v1.27.1 h1:4T340VFndXtADGF52gYa1POyL7s9E4Z1OeZ1hCscIw8=
-github.com/aws/smithy-go v1.27.1/go.mod h1:YE2RhdIuDbA5E5bTdciG9KrW3+TiEONeUWCqxX9i1Fc=
 github.com/caarlos0/env/v10 v10.0.0 h1:yIHUBZGsyqCnpTkbjk8asUlx6RFhhEs+h7TOBdgdzXA=
 github.com/caarlos0/env/v10 v10.0.0/go.mod h1:ZfulV76NvVPw3tm591U4SwL3Xx9ldzBP9aGxzeN7G18=
 github.com/caarlos0/env/v11 v11.4.1 h1:fYwH0sWEsBSMPG7t4e/PEfTFzrWrpjyygXyUnWiSwEw=
@@ -9977,6 +9846,15 @@ func (r Router) RegisterAssetsRoutes(assets controllers.Assets) error {
 	}
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
+		Path:    routes.StyleImport.Path(),
+		Name:    routes.StyleImport.Name(),
+		Handler: assets.StyleImport,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
 		Path:    routes.Scripts.Path(),
 		Name:    routes.Scripts.Name(),
 		Handler: assets.Scripts,
@@ -10971,6 +10849,11 @@ var Sitemap = routing.NewSimpleRoute(
 	"/sitemap.xml",
 	"assets.sitemap",
 	"",
+)
+var StyleImport = routing.NewSimpleRoute(
+	"/css/*",
+	"css.file",
+	AssetsPrefix,
 )
 
 var Stylesheet = routing.NewSimpleRoute(
@@ -12802,7 +12685,16 @@ package views
 
 templ BadRequest() {
 	@base() {
-		<h1>The request made was invalid</h1>
+		<main>
+			<section>
+				<div>
+					<div>
+						<h1>Bad request</h1>
+						<p>The request could not be processed because the submitted data or URL was invalid.</p>
+					</div>
+				</div>
+			</section>
+		</main>
 	}
 }
 ```
@@ -12852,7 +12744,7 @@ func BadRequest() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<h1>The request made was invalid</h1>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main><section><div><div><h1>Bad request</h1><p>The request could not be processed because the submitted data or URL was invalid.</p></div></div></section></main>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -12888,21 +12780,33 @@ func (cf ConfirmationForm) PageFragment() string {
 templ (cf ConfirmationForm) Page() {
 	@base() {
 		@templ.Fragment(cf.PageFragment()) {
-			<main id="confirmation-container" class="flex flex-1 items-center justify-center px-6 py-10">
-				<div class="mx-auto my-6 flex w-full max-w-md flex-col gap-6">
-					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
-						<div class="flex flex-col space-y-1.5 p-8 pb-0">
-							<h2 class="text-xl font-semibold text-gray-900">Verify Your Email</h2>
-							<p class="text-sm text-gray-500">Please enter the 6-digit verification code sent to your email.</p>
+			<main id="confirmation-container">
+				<section>
+					<div>
+						<div>
+							<h1>Verify Your Email</h1>
+							<p>Please enter the 6-digit verification code sent to your email.</p>
 						</div>
-						<div class="p-8">
-							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.ConfirmationCreate.URL()) }>
-								<fieldset class="space-y-5 border-0 p-0" data-attr:disabled="$_submitting">
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="code">Verification Code</label>
-										<input id="code" type="text" maxlength="6" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-center text-sm tracking-[0.3em] text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="code" required/>
+						<div>
+							<form data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.ConfirmationCreate.URL()) }>
+								<fieldset data-attr:disabled="$_submitting">
+									<div>
+										<label for="code">Verification Code</label>
+										<div>
+											<input
+												type="text"
+												id="code"
+												data-bind="code"
+												required
+												pattern="[A-Z0-9]{6}"
+												maxlength="6"
+												placeholder="Enter 6-digit code"
+												autocomplete="off"
+											/>
+										</div>
+										<p>Codes are six characters long and may include letters or numbers.</p>
 									</div>
-									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60">
+									<button type="submit">
 										<span data-show="!$_submitting">Verify Email</span>
 										<span data-show="$_submitting">Loading</span>
 									</button>
@@ -12910,7 +12814,7 @@ templ (cf ConfirmationForm) Page() {
 							</form>
 						</div>
 					</div>
-				</div>
+				</section>
 			</main>
 		}
 	}
@@ -12986,20 +12890,20 @@ func (cf ConfirmationForm) Page() templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"confirmation-container\" class=\"flex flex-1 items-center justify-center px-6 py-10\"><div class=\"mx-auto my-6 flex w-full max-w-md flex-col gap-6\"><div class=\"rounded-lg border border-gray-300 bg-white shadow-sm\"><div class=\"flex flex-col space-y-1.5 p-8 pb-0\"><h2 class=\"text-xl font-semibold text-gray-900\">Verify Your Email</h2><p class=\"text-sm text-gray-500\">Please enter the 6-digit verification code sent to your email.</p></div><div class=\"p-8\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"confirmation-container\"><section><div><div><h1>Verify Your Email</h1><p>Please enter the 6-digit verification code sent to your email.</p></div><div><form data-indicator:_submitting data-on:submit=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(hypermedia.DataAction(http.MethodPost, routes.ConfirmationCreate.URL()))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/confirm_email.templ`, Line: 26, Col: 146}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/confirm_email.templ`, Line: 26, Col: 128}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset class=\"space-y-5 border-0 p-0\" data-attr:disabled=\"$_submitting\"><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"code\">Verification Code</label> <input id=\"code\" type=\"text\" maxlength=\"6\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-center text-sm tracking-[0.3em] text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"code\" required></div><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Verify Email</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form></div></div></div></main>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset data-attr:disabled=\"$_submitting\"><div><label for=\"code\">Verification Code</label><div><input type=\"text\" id=\"code\" data-bind=\"code\" required pattern=\"[A-Z0-9]{6}\" maxlength=\"6\" placeholder=\"Enter 6-digit code\" autocomplete=\"off\"></div><p>Codes are six characters long and may include letters or numbers.</p></div><button type=\"submit\"><span data-show=\"!$_submitting\">Verify Email</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form></div></div></section></main>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -13761,10 +13665,18 @@ func (h Home) PageFragment() string {
 templ (h Home) Page() {
 	@base() {
 		@templ.Fragment(h.PageFragment()) {
-			<main id="home-container" class="flex-1">
-				<div class="space-y-3">
-					<h1 class="text-3xl font-bold">Welcome to Andurel</h1>
-				</div>
+			<main id="home-container">
+				<section>
+					<div>
+						<h1>Welcome to Andurel</h1>
+						<p>A clean starting point for building a server-rendered Go application.</p>
+					</div>
+					<div>
+						<div>
+							<p>Use this scaffold to wire routes, persistence, and UI flows without rebuilding the project shape from scratch.</p>
+						</div>
+					</div>
+				</section>
 			</main>
 		}
 	}
@@ -13834,7 +13746,7 @@ func (h Home) Page() templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"home-container\" class=\"flex-1\"><div class=\"space-y-3\"><h1 class=\"text-3xl font-bold\">Welcome to Andurel</h1></div></main>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"home-container\"><section><div><h1>Welcome to Andurel</h1><p>A clean starting point for building a server-rendered Go application.</p></div><div><div><p>Use this scaffold to wire routes, persistence, and UI flows without rebuilding the project shape from scratch.</p></div></div></section></main>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -13863,7 +13775,16 @@ package views
 
 templ InternalError() {
 	@base() {
-		<h1>something went wrong on our end.</h1>
+		<main>
+			<section>
+				<div>
+					<div>
+						<h1>Internal error</h1>
+						<p>Something went wrong on our end. Please try again in a moment.</p>
+					</div>
+				</div>
+			</section>
+		</main>
 	}
 }
 ```
@@ -13913,7 +13834,7 @@ func InternalError() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<h1>something went wrong on our end.</h1>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main><section><div><div><h1>Internal error</h1><p>Something went wrong on our end. Please try again in a moment.</p></div></div></section></main>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -13944,16 +13865,16 @@ templ base(headOpts ...HeadDataOption) {
 	<!DOCTYPE html>
 	<html lang="en" class="dark">
 		@SetupHead(ctx, headOpts...)
-		<body class="min-h-screen flex flex-col bg-gray-50 text-gray-900">
+		<body>
 			{ children... }
 			<footer>
-				<div class="container mx-auto py-4 text-center text-sm text-gray-500">
+				<div>
 					&copy; { time.Now().Format("2006") } andurel.
 				</div>
 			</footer>
-			<div id="flashContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+			<div id="flashContainer">
 				for _, flash := range request.ExtractContext[[]cookies.FlashMessage](ctx, request.SessionFlashesKey) {
-					<div class="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-lg">
+					<div>
 						{ flash.Message }
 					</div>
 				}
@@ -14010,7 +13931,7 @@ func base(headOpts ...HeadDataOption) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<body class=\"min-h-screen flex flex-col bg-gray-50 text-gray-900\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<body>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -14018,7 +13939,7 @@ func base(headOpts ...HeadDataOption) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<footer><div class=\"container mx-auto py-4 text-center text-sm text-gray-500\">&copy; ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<footer><div>&copy; ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -14031,12 +13952,12 @@ func base(headOpts ...HeadDataOption) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " andurel.</div></footer><div id=\"flashContainer\" class=\"fixed bottom-4 right-4 z-50 flex flex-col gap-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " andurel.</div></footer><div id=\"flashContainer\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, flash := range request.ExtractContext[[]cookies.FlashMessage](ctx, request.SessionFlashesKey) {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-lg\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -14084,39 +14005,45 @@ func (lf LoginForm) PageFragment() string {
 templ (lf LoginForm) Page() {
 	@base() {
 		@templ.Fragment(lf.PageFragment()) {
-			<main id="login-container" class="flex flex-1 items-center justify-center px-6 py-10">
-				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
-						<div class="flex flex-col space-y-1.5 p-8 pb-0">
-							<h2 class="text-xl font-semibold text-gray-900">Login to your account</h2>
-							<p class="text-sm text-gray-500">Enter your details below to login to your account</p>
+			<main id="login-container">
+				<section>
+					<div>
+						<div>
+							<h1>Login to your account</h1>
+							<p>Enter your details below to sign in.</p>
 						</div>
-						<div class="p-8">
-							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.SessionCreate.URL()) }>
-								<fieldset class="space-y-5 border-0 p-0" data-attr:disabled="$_submitting">
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="email">Email</label>
-										<input id="email" type="email" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="email" required/>
+						<div>
+							<form data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.SessionCreate.URL()) }>
+								<fieldset data-attr:disabled="$_submitting">
+									<div>
+										<label for="email">Email</label>
+										<div>
+											<input type="email" id="email" data-bind="email" required/>
+										</div>
 									</div>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="password">Password</label>
-										<input id="password" type="password" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="password" required/>
+									<div>
+										<label for="password">Password</label>
+										<div>
+											<input type="password" id="password" data-bind="password" required/>
+										</div>
 									</div>
-									<p class="mb-1 text-right text-sm">
-										<a class="text-gray-600 hover:text-gray-900 hover:underline" href={ routes.PasswordNew.URL() }>Forgot your password?</a>
-									</p>
-									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60">
+									<div>
+										<span>Protected session access.</span>
+										<a href={ routes.PasswordNew.URL() }>Forgot your password?</a>
+									</div>
+									<button type="submit">
 										<span data-show="!$_submitting">Login</span>
 										<span data-show="$_submitting">Loading</span>
 									</button>
 								</fieldset>
 							</form>
-							<p class="mt-6 text-center text-sm text-gray-500">
-								Don't have an account? <a class="text-gray-600 hover:text-gray-900 hover:underline" href={ routes.RegistrationNew.URL() }>Sign up</a>
-							</p>
+						</div>
+						<div>
+							<p>Don't have an account?</p>
+							<a href={ routes.RegistrationNew.URL() }>Sign up</a>
 						</div>
 					</div>
-				</div>
+				</section>
 			</main>
 		}
 	}
@@ -14192,46 +14119,46 @@ func (lf LoginForm) Page() templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"login-container\" class=\"flex flex-1 items-center justify-center px-6 py-10\"><div class=\"mx-auto flex w-full max-w-md flex-col gap-6\"><div class=\"rounded-lg border border-gray-300 bg-white shadow-sm\"><div class=\"flex flex-col space-y-1.5 p-8 pb-0\"><h2 class=\"text-xl font-semibold text-gray-900\">Login to your account</h2><p class=\"text-sm text-gray-500\">Enter your details below to login to your account</p></div><div class=\"p-8\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"login-container\"><section><div><div><h1>Login to your account</h1><p>Enter your details below to sign in.</p></div><div><form data-indicator:_submitting data-on:submit=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(hypermedia.DataAction(http.MethodPost, routes.SessionCreate.URL()))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/login.templ`, Line: 26, Col: 141}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/login.templ`, Line: 26, Col: 123}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset class=\"space-y-5 border-0 p-0\" data-attr:disabled=\"$_submitting\"><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"email\">Email</label> <input id=\"email\" type=\"email\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"email\" required></div><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"password\">Password</label> <input id=\"password\" type=\"password\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"password\" required></div><p class=\"mb-1 text-right text-sm\"><a class=\"text-gray-600 hover:text-gray-900 hover:underline\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset data-attr:disabled=\"$_submitting\"><div><label for=\"email\">Email</label><div><input type=\"email\" id=\"email\" data-bind=\"email\" required></div></div><div><label for=\"password\">Password</label><div><input type=\"password\" id=\"password\" data-bind=\"password\" required></div></div><div><span>Protected session access.</span> <a href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var5 templ.SafeURL
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(routes.PasswordNew.URL())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/login.templ`, Line: 37, Col: 102}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/login.templ`, Line: 42, Col: 44}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\">Forgot your password?</a></p><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Login</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form><p class=\"mt-6 text-center text-sm text-gray-500\">Don't have an account? <a class=\"text-gray-600 hover:text-gray-900 hover:underline\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\">Forgot your password?</a></div><button type=\"submit\"><span data-show=\"!$_submitting\">Login</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form></div><div><p>Don't have an account?</p><a href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var6 templ.SafeURL
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(routes.RegistrationNew.URL())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/login.templ`, Line: 46, Col: 127}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/login.templ`, Line: 53, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\">Sign up</a></p></div></div></div></main>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\">Sign up</a></div></div></section></main>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -14260,7 +14187,16 @@ package views
 
 templ NotFound() {
 	@base() {
-		<h1>Not found</h1>
+		<main>
+			<section>
+				<div>
+					<div>
+						<h1>Page not found</h1>
+						<p>The page you requested does not exist or is no longer available.</p>
+					</div>
+				</div>
+			</section>
+		</main>
 	}
 }
 ```
@@ -14310,7 +14246,7 @@ func NotFound() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<h1>Not found</h1>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main><section><div><div><h1>Page not found</h1><p>The page you requested does not exist or is no longer available.</p></div></div></section></main>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -14346,40 +14282,47 @@ func (rf RegistrationForm) PageFragment() string {
 templ (rf RegistrationForm) Page() {
 	@base() {
 		@templ.Fragment(rf.PageFragment()) {
-			<main id="registration-container" class="flex flex-1 items-center justify-center px-6 py-10">
-				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
-						<div class="flex flex-col space-y-1.5 p-8 pb-0">
-							<h2 class="text-xl font-semibold text-gray-900">Create an account</h2>
-							<p class="text-sm text-gray-500">Enter your details below to create your account</p>
+			<main id="registration-container">
+				<section>
+					<div>
+						<div>
+							<h1>Create an account</h1>
+							<p>Enter your details below to create your account.</p>
 						</div>
-						<div class="p-8">
-							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()) }>
-								<fieldset class="space-y-5 border-0 p-0" data-attr:disabled="$_submitting">
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="email">Email</label>
-										<input id="email" type="email" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="email" required/>
+						<div>
+							<form data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()) }>
+								<fieldset data-attr:disabled="$_submitting">
+									<div>
+										<label for="email">Email</label>
+										<div>
+											<input type="email" id="email" data-bind="email" required/>
+										</div>
 									</div>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="password">Password</label>
-										<input id="password" type="password" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="password" required/>
+									<div>
+										<label for="password">Password</label>
+										<div>
+											<input type="password" id="password" data-bind="password" required minlength="8"/>
+										</div>
 									</div>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="confirmPassword">Confirm Password</label>
-										<input id="confirmPassword" type="password" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="confirmPassword" required/>
+									<div>
+										<label for="confirmPassword">Confirm Password</label>
+										<div>
+											<input type="password" id="confirmPassword" data-bind="confirmPassword" required minlength="8"/>
+										</div>
 									</div>
-									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60">
+									<button type="submit">
 										<span data-show="!$_submitting">Sign Up</span>
 										<span data-show="$_submitting">Loading</span>
 									</button>
 								</fieldset>
 							</form>
-							<p class="mt-6 text-center text-sm text-gray-500">
-								Already have an account? <a class="text-gray-600 hover:text-gray-900 hover:underline" href={ routes.SessionNew.URL() }>Login</a>
-							</p>
+						</div>
+						<div>
+							<p>Already have an account?</p>
+							<a href={ routes.SessionNew.URL() }>Login</a>
 						</div>
 					</div>
-				</div>
+				</section>
 			</main>
 		}
 	}
@@ -14455,33 +14398,33 @@ func (rf RegistrationForm) Page() templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"registration-container\" class=\"flex flex-1 items-center justify-center px-6 py-10\"><div class=\"mx-auto flex w-full max-w-md flex-col gap-6\"><div class=\"rounded-lg border border-gray-300 bg-white shadow-sm\"><div class=\"flex flex-col space-y-1.5 p-8 pb-0\"><h2 class=\"text-xl font-semibold text-gray-900\">Create an account</h2><p class=\"text-sm text-gray-500\">Enter your details below to create your account</p></div><div class=\"p-8\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"registration-container\"><section><div><div><h1>Create an account</h1><p>Enter your details below to create your account.</p></div><div><form data-indicator:_submitting data-on:submit=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/registration.templ`, Line: 26, Col: 146}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/registration.templ`, Line: 26, Col: 128}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset class=\"space-y-5 border-0 p-0\" data-attr:disabled=\"$_submitting\"><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"email\">Email</label> <input id=\"email\" type=\"email\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"email\" required></div><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"password\">Password</label> <input id=\"password\" type=\"password\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"password\" required></div><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"confirmPassword\">Confirm Password</label> <input id=\"confirmPassword\" type=\"password\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"confirmPassword\" required></div><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Sign Up</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form><p class=\"mt-6 text-center text-sm text-gray-500\">Already have an account? <a class=\"text-gray-600 hover:text-gray-900 hover:underline\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset data-attr:disabled=\"$_submitting\"><div><label for=\"email\">Email</label><div><input type=\"email\" id=\"email\" data-bind=\"email\" required></div></div><div><label for=\"password\">Password</label><div><input type=\"password\" id=\"password\" data-bind=\"password\" required minlength=\"8\"></div></div><div><label for=\"confirmPassword\">Confirm Password</label><div><input type=\"password\" id=\"confirmPassword\" data-bind=\"confirmPassword\" required minlength=\"8\"></div></div><button type=\"submit\"><span data-show=\"!$_submitting\">Sign Up</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form></div><div><p>Already have an account?</p><a href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var5 templ.SafeURL
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(routes.SessionNew.URL())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/registration.templ`, Line: 47, Col: 124}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/registration.templ`, Line: 55, Col: 40}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\">Login</a></p></div></div></div></main>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\">Login</a></div></div></section></main>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -14523,32 +14466,35 @@ func (rprf ResetPasswordRequestForm) PageFragment() string {
 templ (rprf ResetPasswordRequestForm) Page() {
 	@base() {
 		@templ.Fragment(rprf.PageFragment()) {
-			<main id="reset-password-request-container" class="flex flex-1 items-center justify-center px-6 py-10">
-				<div class="mx-auto my-6 flex w-full max-w-md flex-col gap-6">
-					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
-						<div class="flex flex-col space-y-1.5 p-8 pb-0">
-							<h2 class="text-xl font-semibold text-gray-900">Reset Password</h2>
-							<p class="text-sm text-gray-500">Enter your email address and we'll send you a code to reset your password.</p>
+			<main id="reset-password-request-container">
+				<section>
+					<div>
+						<div>
+							<h1>Reset Password</h1>
+							<p>Enter your email address and we'll send you a code to reset your password.</p>
 						</div>
-						<div class="p-8">
-							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.PasswordCreate.URL()) }>
-								<fieldset class="space-y-5 border-0 p-0" data-attr:disabled="$_submitting">
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="email">Email</label>
-										<input id="email" type="email" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="email" required/>
+						<div>
+							<form data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.PasswordCreate.URL()) }>
+								<fieldset data-attr:disabled="$_submitting">
+									<div>
+										<label for="email">Email</label>
+										<div>
+											<input type="email" id="email" data-bind="email" required/>
+										</div>
 									</div>
-									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60">
+									<button type="submit">
 										<span data-show="!$_submitting">Send Reset Code</span>
 										<span data-show="$_submitting">Loading</span>
 									</button>
 								</fieldset>
 							</form>
-							<p class="mt-6 text-center text-sm text-gray-500">
-								Remember your password? <a class="text-gray-600 hover:text-gray-900 hover:underline" href={ routes.SessionNew.URL() }>Login</a>
-							</p>
+						</div>
+						<div>
+							<p>Remember your password?</p>
+							<a href={ routes.SessionNew.URL() }>Login</a>
 						</div>
 					</div>
-				</div>
+				</section>
 			</main>
 		}
 	}
@@ -14565,26 +14511,30 @@ func (rpf ResetPasswordForm) PageFragment() string {
 templ (rpf ResetPasswordForm) Page() {
 	@base() {
 		@templ.Fragment(rpf.PageFragment()) {
-			<main id="reset-password-container" class="flex flex-1 items-center justify-center px-6 py-10">
-				<div class="mx-auto my-6 flex w-full max-w-md flex-col gap-6">
-					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
-						<div class="flex flex-col space-y-1.5 p-8 pb-0">
-							<h2 class="text-xl font-semibold text-gray-900">Reset Your Password</h2>
-							<p class="text-sm text-gray-500">Enter your new password below.</p>
+			<main id="reset-password-container">
+				<section>
+					<div>
+						<div>
+							<h1>Reset Your Password</h1>
+							<p>Enter your new password below.</p>
 						</div>
-						<div class="p-8">
-							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.PasswordUpdate.URL()) }>
-								<fieldset class="space-y-5 border-0 p-0" data-attr:disabled="$_submitting">
+						<div>
+							<form data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.PasswordUpdate.URL()) }>
+								<fieldset data-attr:disabled="$_submitting">
 									<input type="hidden" data-bind="resetPasswordToken" value={ rpf.Token }/>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="password">New Password</label>
-										<input id="password" type="password" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="password" required/>
+									<div>
+										<label for="password">New Password</label>
+										<div>
+											<input type="password" id="password" data-bind="password" required minlength="8"/>
+										</div>
 									</div>
-									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="confirmPassword">Confirm New Password</label>
-										<input id="confirmPassword" type="password" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="confirmPassword" required/>
+									<div>
+										<label for="confirmPassword">Confirm New Password</label>
+										<div>
+											<input type="password" id="confirmPassword" data-bind="confirmPassword" required minlength="8"/>
+										</div>
 									</div>
-									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60">
+									<button type="submit">
 										<span data-show="!$_submitting">Reset Password</span>
 										<span data-show="$_submitting">Loading</span>
 									</button>
@@ -14592,7 +14542,7 @@ templ (rpf ResetPasswordForm) Page() {
 							</form>
 						</div>
 					</div>
-				</div>
+				</section>
 			</main>
 		}
 	}
@@ -14668,33 +14618,33 @@ func (rprf ResetPasswordRequestForm) Page() templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"reset-password-request-container\" class=\"flex flex-1 items-center justify-center px-6 py-10\"><div class=\"mx-auto my-6 flex w-full max-w-md flex-col gap-6\"><div class=\"rounded-lg border border-gray-300 bg-white shadow-sm\"><div class=\"flex flex-col space-y-1.5 p-8 pb-0\"><h2 class=\"text-xl font-semibold text-gray-900\">Reset Password</h2><p class=\"text-sm text-gray-500\">Enter your email address and we'll send you a code to reset your password.</p></div><div class=\"p-8\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"reset-password-request-container\"><section><div><div><h1>Reset Password</h1><p>Enter your email address and we'll send you a code to reset your password.</p></div><div><form data-indicator:_submitting data-on:submit=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(hypermedia.DataAction(http.MethodPost, routes.PasswordCreate.URL()))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/reset_password.templ`, Line: 26, Col: 142}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/reset_password.templ`, Line: 26, Col: 124}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset class=\"space-y-5 border-0 p-0\" data-attr:disabled=\"$_submitting\"><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"email\">Email</label> <input id=\"email\" type=\"email\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"email\" required></div><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Send Reset Code</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form><p class=\"mt-6 text-center text-sm text-gray-500\">Remember your password? <a class=\"text-gray-600 hover:text-gray-900 hover:underline\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset data-attr:disabled=\"$_submitting\"><div><label for=\"email\">Email</label><div><input type=\"email\" id=\"email\" data-bind=\"email\" required></div></div><button type=\"submit\"><span data-show=\"!$_submitting\">Send Reset Code</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form></div><div><p>Remember your password?</p><a href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var5 templ.SafeURL
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(routes.SessionNew.URL())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/reset_password.templ`, Line: 39, Col: 123}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/reset_password.templ`, Line: 43, Col: 40}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\">Login</a></p></div></div></div></main>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\">Login</a></div></div></section></main>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -14767,33 +14717,33 @@ func (rpf ResetPasswordForm) Page() templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<main id=\"reset-password-container\" class=\"flex flex-1 items-center justify-center px-6 py-10\"><div class=\"mx-auto my-6 flex w-full max-w-md flex-col gap-6\"><div class=\"rounded-lg border border-gray-300 bg-white shadow-sm\"><div class=\"flex flex-col space-y-1.5 p-8 pb-0\"><h2 class=\"text-xl font-semibold text-gray-900\">Reset Your Password</h2><p class=\"text-sm text-gray-500\">Enter your new password below.</p></div><div class=\"p-8\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<main id=\"reset-password-container\"><section><div><div><h1>Reset Your Password</h1><p>Enter your new password below.</p></div><div><form data-indicator:_submitting data-on:submit=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(hypermedia.DataAction(http.MethodPut, routes.PasswordUpdate.URL()))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/reset_password.templ`, Line: 68, Col: 141}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/reset_password.templ`, Line: 71, Col: 123}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"><fieldset class=\"space-y-5 border-0 p-0\" data-attr:disabled=\"$_submitting\"><input type=\"hidden\" data-bind=\"resetPasswordToken\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"><fieldset data-attr:disabled=\"$_submitting\"><input type=\"hidden\" data-bind=\"resetPasswordToken\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(rpf.Token)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/reset_password.templ`, Line: 70, Col: 78}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/reset_password.templ`, Line: 73, Col: 78}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"password\">New Password</label> <input id=\"password\" type=\"password\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"password\" required></div><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"confirmPassword\">Confirm New Password</label> <input id=\"confirmPassword\" type=\"password\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"confirmPassword\" required></div><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Reset Password</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form></div></div></div></main>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><div><label for=\"password\">New Password</label><div><input type=\"password\" id=\"password\" data-bind=\"password\" required minlength=\"8\"></div></div><div><label for=\"confirmPassword\">Confirm New Password</label><div><input type=\"password\" id=\"confirmPassword\" data-bind=\"confirmPassword\" required minlength=\"8\"></div></div><button type=\"submit\"><span data-show=\"!$_submitting\">Reset Password</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form></div></div></section></main>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

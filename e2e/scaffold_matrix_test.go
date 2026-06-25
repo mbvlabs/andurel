@@ -27,63 +27,65 @@ type ScaffoldConfig struct {
 }
 
 func getScaffoldConfigs() []ScaffoldConfig {
-	return []ScaffoldConfig{
-		{
-			Name:     "postgresql-tailwind",
-			Database: "postgresql",
-			CSS:      "tailwind",
-			Critical: true,
-		},
-		{
-			Name:     "postgresql-vanilla",
-			Database: "postgresql",
-			CSS:      "vanilla",
-			Critical: true,
-		},
-		{
-			Name:       "postgresql-vanilla-css-components",
-			Database:   "postgresql",
-			CSS:        "vanilla",
-			Extensions: []string{"css-components"},
-			Critical:   true,
-		},
-		{
-			Name:       "postgresql-tailwind-docker",
-			Database:   "postgresql",
-			CSS:        "tailwind",
-			Extensions: []string{"docker"},
-			Critical:   true,
-		},
-		{
-			Name:       "postgresql-tailwind-aws-ses",
-			Database:   "postgresql",
-			CSS:        "tailwind",
-			Extensions: []string{"aws-ses"},
-			Critical:   true,
-		},
-		{
-			Name:     "postgresql-tailwind-uberfx",
-			Database: "postgresql",
-			CSS:      "tailwind",
-			DIMode:   "uberfx",
-			Critical: true,
-		},
-		{
-			Name:     "postgresql-tailwind-inertia-vue",
-			Database: "postgresql",
-			CSS:      "tailwind",
-			Inertia:  "vue",
-			Critical: true,
-		},
-		{
-			Name:       "postgresql-vanilla-uberfx-all-extensions",
-			Database:   "postgresql",
-			CSS:        "vanilla",
-			DIMode:     "uberfx",
-			Extensions: []string{"docker", "aws-ses", "css-components"},
-			Critical:   true,
-		},
+	cssFrameworks := []string{"tailwind", "vanilla"}
+	diModes := []string{"manual", "uberfx"}
+	inertiaModesByCSS := map[string][]string{
+		"tailwind": {"", "vue"},
+		"vanilla":  {""},
 	}
+	extensionSets := extensionPowerSet([]string{"docker", "aws-ses", "css-components"})
+
+	var configs []ScaffoldConfig
+	for _, css := range cssFrameworks {
+		for _, diMode := range diModes {
+			for _, inertia := range inertiaModesByCSS[css] {
+				for _, extensions := range extensionSets {
+					configs = append(configs, ScaffoldConfig{
+						Name:       scaffoldConfigName("postgresql", css, diMode, inertia, extensions),
+						Database:   "postgresql",
+						CSS:        css,
+						DIMode:     diMode,
+						Inertia:    inertia,
+						Extensions: extensions,
+						Critical:   true,
+					})
+				}
+			}
+		}
+	}
+
+	return configs
+}
+
+func extensionPowerSet(extensions []string) [][]string {
+	sets := make([][]string, 0, 1<<len(extensions))
+	for mask := 0; mask < 1<<len(extensions); mask++ {
+		var set []string
+		for i, extension := range extensions {
+			if mask&(1<<i) != 0 {
+				set = append(set, extension)
+			}
+		}
+		sets = append(sets, set)
+	}
+
+	return sets
+}
+
+func scaffoldConfigName(database, css, diMode, inertia string, extensions []string) string {
+	parts := []string{database, css}
+
+	if diMode != "" && diMode != "manual" {
+		parts = append(parts, diMode)
+	}
+
+	if inertia != "" {
+		parts = append(parts, "inertia", inertia)
+	}
+
+	parts = append(parts, extensions...)
+
+	return strings.Join(parts, "-")
 }
 
 func TestScaffoldGoldens(t *testing.T) {
