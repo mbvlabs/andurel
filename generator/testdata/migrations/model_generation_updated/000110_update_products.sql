@@ -1,0 +1,13 @@
+-- +goose Up
+ALTER TABLE products ADD COLUMN archived_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE products ADD COLUMN rating NUMERIC(3, 2) NOT NULL DEFAULT 0;
+ALTER TABLE products ALTER COLUMN description SET NOT NULL;
+ALTER TABLE products ALTER COLUMN price_cents TYPE BIGINT;
+ALTER TABLE products DROP COLUMN stock_count;
+
+-- +goose Down
+ALTER TABLE products ADD COLUMN stock_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE products ALTER COLUMN price_cents TYPE INTEGER;
+ALTER TABLE products ALTER COLUMN description DROP NOT NULL;
+ALTER TABLE products DROP COLUMN rating;
+ALTER TABLE products DROP COLUMN archived_at;
