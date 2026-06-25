@@ -75,6 +75,18 @@ func TestModelGenerationGoldens(t *testing.T) {
 		content := readModelGoldenFile(t, manager, "AuditLog")
 		g.Assert(t, "audit_log_no_pk", content)
 	})
+
+	t.Run("no_primary_key_without_uuid_generation", func(t *testing.T) {
+		manager := setupModelGoldenProject(t, "model_generation_no_pk_no_uuid")
+		manager.SetPrimaryKeyResolver(NopPrimaryKeyResolver{})
+
+		if err := manager.GenerateModel("EventMetric", "", true, ""); err != nil {
+			t.Fatalf("failed to generate model: %v", err)
+		}
+
+		content := readModelGoldenFile(t, manager, "EventMetric")
+		g.Assert(t, "event_metric_no_pk_no_uuid", content)
+	})
 }
 
 func setupModelGoldenProject(t *testing.T, migrationsFixture string) *ModelManager {
