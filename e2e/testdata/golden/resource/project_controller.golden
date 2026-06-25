@@ -43,7 +43,7 @@ func (p Projects) Index(etx *echo.Context) error {
 
 	projectsList, err := models.Project.Paginate(
 		etx.Request().Context(),
-		p.db.Conn(),
+		p.db.Executor(),
 		page,
 		perPage,
 	)
@@ -60,7 +60,7 @@ func (p Projects) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	project, err := models.Project.Find(etx.Request().Context(), p.db.Conn(), projectID)
+	project, err := models.Project.Find(etx.Request().Context(), p.db.Executor(), projectID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -97,7 +97,7 @@ func (p Projects) Create(etx *echo.Context) error {
 
 	project, err := models.Project.Create(
 		etx.Request().Context(),
-		p.db.Conn(),
+		p.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -120,7 +120,7 @@ func (p Projects) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	project, err := models.Project.Find(etx.Request().Context(), p.db.Conn(), projectID)
+	project, err := models.Project.Find(etx.Request().Context(), p.db.Executor(), projectID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -159,7 +159,7 @@ func (p Projects) Update(etx *echo.Context) error {
 
 	project, err := models.Project.Update(
 		etx.Request().Context(),
-		p.db.Conn(),
+		p.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -185,7 +185,7 @@ func (p Projects) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = models.Project.Destroy(etx.Request().Context(), p.db.Conn(), projectID)
+	err = models.Project.Destroy(etx.Request().Context(), p.db.Executor(), projectID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete project: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())

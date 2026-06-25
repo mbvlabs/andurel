@@ -43,7 +43,7 @@ func (i Invoices) Index(etx *echo.Context) error {
 
 	invoicesList, err := models.Invoice.Paginate(
 		etx.Request().Context(),
-		i.db.Conn(),
+		i.db.Executor(),
 		page,
 		perPage,
 	)
@@ -60,7 +60,7 @@ func (i Invoices) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	invoice, err := models.Invoice.Find(etx.Request().Context(), i.db.Conn(), invoiceID)
+	invoice, err := models.Invoice.Find(etx.Request().Context(), i.db.Executor(), invoiceID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -101,7 +101,7 @@ func (i Invoices) Create(etx *echo.Context) error {
 
 	invoice, err := models.Invoice.Create(
 		etx.Request().Context(),
-		i.db.Conn(),
+		i.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -124,7 +124,7 @@ func (i Invoices) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	invoice, err := models.Invoice.Find(etx.Request().Context(), i.db.Conn(), invoiceID)
+	invoice, err := models.Invoice.Find(etx.Request().Context(), i.db.Executor(), invoiceID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -167,7 +167,7 @@ func (i Invoices) Update(etx *echo.Context) error {
 
 	invoice, err := models.Invoice.Update(
 		etx.Request().Context(),
-		i.db.Conn(),
+		i.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -193,7 +193,7 @@ func (i Invoices) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = models.Invoice.Destroy(etx.Request().Context(), i.db.Conn(), invoiceID)
+	err = models.Invoice.Destroy(etx.Request().Context(), i.db.Executor(), invoiceID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete invoice: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())

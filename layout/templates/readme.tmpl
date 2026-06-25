@@ -610,7 +610,7 @@ func TestProducts_Create(t *testing.T) {
 	}
 
 	// Assert database state
-	products, err := models.AllProducts(c.Request().Context(), db.Conn())
+	products, err := models.AllProducts(c.Request().Context(), db.Executor())
 	if err != nil {
 		t.Fatalf("failed to query products: %v", err)
 	}
@@ -676,13 +676,13 @@ func TestProducts_Show(t *testing.T) {
 	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
 
 	// Create test data with default values
-	product := factories.Product().Create(db.Conn())
+	product := factories.Product().Create(db.Executor())
 
 	// Or customize specific fields
 	premiumProduct := factories.Product().
 		WithName("Premium Product").
 		WithPrice("99.99").
-		Create(db.Conn())
+		Create(db.Executor())
 
 	// Test your controller with the created data
 	// ...
@@ -696,9 +696,9 @@ func TestProducts_Show(t *testing.T) {
 ```go
 func TestFindProduct(t *testing.T) {
 	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
-	product := factories.Product().Create(db.Conn())
+	product := factories.Product().Create(db.Executor())
 
-	found, err := models.FindProduct(context.Background(), db.Conn(), product.ID)
+	found, err := models.FindProduct(context.Background(), db.Executor(), product.ID)
 	if err != nil {
 		t.Fatalf("FindProduct failed: %v", err)
 	}
@@ -717,11 +717,11 @@ func TestPaginateProducts(t *testing.T) {
 
 	// Create test data
 	for i := 0; i < 25; i++ {
-		factories.Product().Create(db.Conn())
+		factories.Product().Create(db.Executor())
 	}
 
 	// Test pagination
-	result, err := models.PaginateProducts(context.Background(), db.Conn(), 1, 10)
+	result, err := models.PaginateProducts(context.Background(), db.Executor(), 1, 10)
 	if err != nil {
 		t.Fatalf("PaginateProducts failed: %v", err)
 	}
@@ -743,14 +743,14 @@ func TestCreateOrder(t *testing.T) {
 	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
 
 	// Create dependencies
-	user := factories.User().Create(db.Conn())
-	product := factories.Product().Create(db.Conn())
+	user := factories.User().Create(db.Executor())
+	product := factories.Product().Create(db.Executor())
 
 	// Test order creation
 	order := factories.Order().
 		WithUserID(user.ID).
 		WithProductID(product.ID).
-		Create(db.Conn())
+		Create(db.Executor())
 
 	if order.UserID != user.ID {
 		t.Errorf("order user_id mismatch")

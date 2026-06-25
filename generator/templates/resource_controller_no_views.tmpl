@@ -71,7 +71,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 
 	{{.PluralName | ToCamelCase}}List, err := models.{{.ResourceName}}.Paginate(
 		etx.Request().Context(),
-		{{.ReceiverName}}.db.Conn(),
+		{{.ReceiverName}}.db.Executor(),
 		page,
 		perPage,
 	)
@@ -106,7 +106,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -259,7 +259,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 
 	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Create(
 		etx.Request().Context(),
-		{{.ReceiverName}}.db.Conn(),
+		{{.ReceiverName}}.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -300,7 +300,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -473,7 +473,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 
 	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Update(
 		etx.Request().Context(),
-		{{.ReceiverName}}.db.Conn(),
+		{{.ReceiverName}}.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -517,7 +517,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 	}
 {{- end}}
 
-	err = models.{{.ResourceName}}.Destroy(etx.Request().Context(), {{.ReceiverName}}.db.Conn(), {{.ResourceName | ToLowerCamelCase}}ID)
+	err = models.{{.ResourceName}}.Destroy(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())

@@ -61,7 +61,7 @@ func Test{{Plural .ResourceName}}_Create(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusSeeOther, rec.Code)
 	}
 
-	{{.PluralName | ToCamelCase}}, err := models.All{{Plural .ResourceName}}(c.Request().Context(), db.Conn())
+	{{.PluralName | ToCamelCase}}, err := models.All{{Plural .ResourceName}}(c.Request().Context(), db.Executor())
 	if err != nil {
 		t.Fatalf("failed to query {{.PluralName | ToLower}}: %v", err)
 	}
@@ -83,7 +83,7 @@ func Test{{Plural .ResourceName}}_Show(t *testing.T) {
 	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
 	controller := controllers.New{{Plural .ResourceName}}(db)
 
-	{{.ResourceName | ToLowerCamelCase}} := factories.{{.ResourceName}}().Create(db.Conn())
+	{{.ResourceName | ToLowerCamelCase}} := factories.{{.ResourceName}}().Create(db.Executor())
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)

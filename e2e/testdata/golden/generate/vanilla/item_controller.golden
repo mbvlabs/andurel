@@ -43,7 +43,7 @@ func (i Items) Index(etx *echo.Context) error {
 
 	itemsList, err := models.Item.Paginate(
 		etx.Request().Context(),
-		i.db.Conn(),
+		i.db.Executor(),
 		page,
 		perPage,
 	)
@@ -60,7 +60,7 @@ func (i Items) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	item, err := models.Item.Find(etx.Request().Context(), i.db.Conn(), itemID)
+	item, err := models.Item.Find(etx.Request().Context(), i.db.Executor(), itemID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -115,7 +115,7 @@ func (i Items) Create(etx *echo.Context) error {
 
 	item, err := models.Item.Create(
 		etx.Request().Context(),
-		i.db.Conn(),
+		i.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -138,7 +138,7 @@ func (i Items) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	item, err := models.Item.Find(etx.Request().Context(), i.db.Conn(), itemID)
+	item, err := models.Item.Find(etx.Request().Context(), i.db.Executor(), itemID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -195,7 +195,7 @@ func (i Items) Update(etx *echo.Context) error {
 
 	item, err := models.Item.Update(
 		etx.Request().Context(),
-		i.db.Conn(),
+		i.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -221,7 +221,7 @@ func (i Items) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = models.Item.Destroy(etx.Request().Context(), i.db.Conn(), itemID)
+	err = models.Item.Destroy(etx.Request().Context(), i.db.Executor(), itemID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete item: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
