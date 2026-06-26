@@ -7,12 +7,12 @@ package views
 import (
 	"fmt"
 	{{if UsesPackage .Fields "strings"}}"strings"
-	{{end}}{{if or (HasAction "new") (HasAction "edit")}}	"net/http"
+	{{end}}{{if or (and (HasAction "new") (HasAction "create")) (and (HasAction "edit") (or (HasAction "update") (HasAction "destroy")))}}	"net/http"
 	{{end}}
 	"{{.ModulePath}}/models"
-	{{if or (and (HasAction "show") (HasAction "index")) (HasAction "new") (HasAction "edit")}}"{{.ModulePath}}/internal/hypermedia"
+	{{if or (and (HasAction "show") (HasAction "index")) (and (HasAction "new") (or (HasAction "create") (HasAction "index"))) (and (HasAction "edit") (or (HasAction "update") (HasAction "index") (HasAction "destroy")))}}"{{.ModulePath}}/internal/hypermedia"
 	{{end}}
-	{{if or (and (HasAction "index") (or (HasAction "new") (HasAction "show") (HasAction "edit"))) (and (HasAction "show") (or (HasAction "edit") (HasAction "index"))) (HasAction "new") (HasAction "edit")}}
+	{{if or (and (HasAction "index") (or (HasAction "new") (HasAction "show") (HasAction "edit"))) (and (HasAction "show") (or (HasAction "edit") (HasAction "index"))) (and (HasAction "new") (or (HasAction "create") (HasAction "index"))) (and (HasAction "edit") (or (HasAction "update") (HasAction "index") (HasAction "destroy")))}}
 	"{{.ModulePath}}/router/routes"
 	{{end}}
 )
@@ -137,7 +137,7 @@ templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 							<p class="text-sm text-gray-500">Enter the details for the new {{.ResourceName | ToLower}}.</p>
 						</div>
 						<div class="p-6 pt-0">
-							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.{{.ResourceName}}Create.URL()) }>
+							<form class="space-y-5" data-indicator:_submitting{{if HasAction "create"}} data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.{{.ResourceName}}Create.URL()) }{{end}}>
 								<fieldset data-attr:disabled="$_submitting">
 									<div class="space-y-4">
 										{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
@@ -166,8 +166,10 @@ templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 										{{end}}{{end}}{{end}}
 									</div>
 									<div class="mt-6 space-y-3">
-										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Create {{.ResourceName}}</button>
+										{{if HasAction "create"}}<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Create {{.ResourceName}}</button>{{end}}
+										{{if HasAction "index"}}
 										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href={ hypermedia.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+										{{end}}
 									</div>
 								</fieldset>
 							</form>
@@ -200,7 +202,7 @@ templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
 							<p class="text-sm text-gray-500">Update the details for this {{.ResourceName | ToLower}}.</p>
 						</div>
 						<div class="p-6 pt-0">
-							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{$editRecv}}.Item.ID)) }>
+							<form class="space-y-5" data-indicator:_submitting{{if HasAction "update"}} data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{$editRecv}}.Item.ID)) }{{end}}>
 								<fieldset data-attr:disabled="$_submitting">
 									<div class="space-y-4">
 										{{$itemRef := printf "%s.%s" $editRecv "Item"}}
@@ -230,13 +232,16 @@ templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
 										{{end}}{{end}}{{end}}
 									</div>
 									<div class="mt-6 space-y-3">
-										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Update {{.ResourceName}}</button>
+										{{if HasAction "update"}}<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded w-full">Update {{.ResourceName}}</button>{{end}}
+										{{if HasAction "index"}}
 										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900" href={ hypermedia.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+										{{end}}
 									</div>
 								</fieldset>
 							</form>
-							<div role="separator" class="my-6 shrink-0 bg-gray-300 h-px w-full"></div>
+							{{if HasAction "destroy"}}<div role="separator" class="my-6 shrink-0 bg-gray-300 h-px w-full"></div>
 							<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white shadow-sm hover:bg-red-700 h-9 px-4 py-2 text-sm rounded w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.{{.ResourceName}}Destroy.URL({{$editRecv}}.Item.ID)) }>Destroy {{.ResourceName}}</button>
+							{{end}}
 						</div>
 					</div>
 				</div>

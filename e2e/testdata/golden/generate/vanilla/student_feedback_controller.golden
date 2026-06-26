@@ -112,7 +112,6 @@ func (sf StudentFeedback) Create(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "StudentFeedback created successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-
 	return etx.Redirect(http.StatusSeeOther, routes.StudentFeedbackShow.URL(studentFeedback.ID))
 }
 
@@ -179,7 +178,6 @@ func (sf StudentFeedback) Update(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "StudentFeedback updated successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-
 	return etx.Redirect(http.StatusSeeOther, routes.StudentFeedbackShow.URL(studentFeedback.ID))
 }
 
@@ -200,6 +198,5 @@ func (sf StudentFeedback) Destroy(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "StudentFeedback destroyed successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-
 	return etx.Redirect(http.StatusSeeOther, routes.StudentFeedbackIndex.URL())
 }

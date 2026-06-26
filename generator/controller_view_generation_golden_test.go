@@ -22,6 +22,7 @@ func TestControllerViewGenerationGoldens(t *testing.T) {
 		{name: "full_crud", withViews: true},
 		{name: "single_action", withViews: true, actions: []string{"show"}},
 		{name: "add_action", withViews: false, initialActions: []string{"show"}, actions: []string{"edit"}},
+		{name: "add_view_action", withViews: true, initialActions: []string{"show"}, actions: []string{"edit"}},
 		{name: "controller_only", withViews: false},
 	}
 

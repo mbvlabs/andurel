@@ -130,7 +130,6 @@ func (o Orders) Create(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Order created successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-
 	return etx.Redirect(http.StatusSeeOther, routes.OrderShow.URL(order.ID))
 }
 
@@ -215,7 +214,6 @@ func (o Orders) Update(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Order updated successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-
 	return etx.Redirect(http.StatusSeeOther, routes.OrderShow.URL(order.ID))
 }
 
@@ -236,6 +234,5 @@ func (o Orders) Destroy(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Order destroyed successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-
 	return etx.Redirect(http.StatusSeeOther, routes.OrderIndex.URL())
 }

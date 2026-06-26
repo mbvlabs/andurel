@@ -177,7 +177,9 @@ templ (wn WidgetNew) Page() {
 									
 									<div class="card-footer mt-6 flex-col gap-3">
 										<button type="submit" class="btn btn-primary btn-block">Create Widget</button>
+										
 										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.WidgetIndex.URL()) }>Back to List</a>
+										
 									</div>
 								</fieldset>
 							</form>
@@ -228,12 +230,15 @@ templ (we WidgetEdit) Page() {
 									
 									<div class="card-footer mt-6 flex-col gap-3">
 										<button type="submit" class="btn btn-primary btn-block">Update Widget</button>
+										
 										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.WidgetIndex.URL()) }>Back to List</a>
+										
 									</div>
 								</fieldset>
 							</form>
 							<div class="separator my-6"></div>
 							<button type="button" class="btn btn-destructive btn-block" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.WidgetDestroy.URL(we.Item.ID)) }>Destroy Widget</button>
+							
 						</div>
 					</div>
 				</div>

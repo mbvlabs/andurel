@@ -114,7 +114,6 @@ func (i Invoices) Create(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Invoice created successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-
 	return etx.Redirect(http.StatusSeeOther, routes.InvoiceShow.URL(invoice.ID))
 }
 
@@ -183,7 +182,6 @@ func (i Invoices) Update(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Invoice updated successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-
 	return etx.Redirect(http.StatusSeeOther, routes.InvoiceShow.URL(invoice.ID))
 }
 
@@ -204,6 +202,5 @@ func (i Invoices) Destroy(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Invoice destroyed successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-
 	return etx.Redirect(http.StatusSeeOther, routes.InvoiceIndex.URL())
 }

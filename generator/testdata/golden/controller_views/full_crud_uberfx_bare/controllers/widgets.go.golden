@@ -113,7 +113,6 @@ func (w Widgets) Create(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Widget created successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-
 	return etx.Redirect(http.StatusSeeOther, routes.WidgetShow.URL(widget.ID))
 }
 
@@ -180,7 +179,6 @@ func (w Widgets) Update(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Widget updated successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-
 	return etx.Redirect(http.StatusSeeOther, routes.WidgetShow.URL(widget.ID))
 }
 
@@ -201,7 +199,6 @@ func (w Widgets) Destroy(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Widget destroyed successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-
 	return etx.Redirect(http.StatusSeeOther, routes.WidgetIndex.URL())
 }
 

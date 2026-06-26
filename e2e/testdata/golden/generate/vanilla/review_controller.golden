@@ -112,7 +112,6 @@ func (r Reviews) Create(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Review created successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-
 	return etx.Redirect(http.StatusSeeOther, routes.ReviewShow.URL(review.ID))
 }
 
@@ -179,7 +178,6 @@ func (r Reviews) Update(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Review updated successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-
 	return etx.Redirect(http.StatusSeeOther, routes.ReviewShow.URL(review.ID))
 }
 
@@ -200,6 +198,5 @@ func (r Reviews) Destroy(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Review destroyed successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-
 	return etx.Redirect(http.StatusSeeOther, routes.ReviewIndex.URL())
 }
