@@ -1,7 +1,6 @@
 package generator
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -44,7 +43,7 @@ func TestControllerViewGenerationGoldens(t *testing.T) {
 						t.Fatalf("failed to generate controller/view: %v", err)
 					}
 
-					g.Assert(t, testName, collectControllerViewArtifacts(t, coord, scenario.withViews, diMode))
+					assertControllerViewArtifacts(t, g, testName, scenario.withViews, diMode)
 				})
 			}
 		}
@@ -114,7 +113,7 @@ func setupControllerViewGoldenProject(t *testing.T, diMode string, cssComponents
 	return coord
 }
 
-func collectControllerViewArtifacts(t *testing.T, coord Coordinator, withViews bool, diMode string) []byte {
+func assertControllerViewArtifacts(t *testing.T, g *goldie.Goldie, fixtureDir string, withViews bool, diMode string) {
 	t.Helper()
 
 	paths := []string{
@@ -132,11 +131,9 @@ func collectControllerViewArtifacts(t *testing.T, coord Coordinator, withViews b
 		paths = append(paths, "!views/widgets_resource.templ")
 	}
 
-	var out bytes.Buffer
 	for _, path := range paths {
 		if path[0] == '!' {
 			assertControllerViewGoldenFileMissing(t, path[1:])
-			out.WriteString("===== ABSENT: " + path[1:] + " =====\n\n")
 			continue
 		}
 
@@ -144,16 +141,8 @@ func collectControllerViewArtifacts(t *testing.T, coord Coordinator, withViews b
 		if err != nil {
 			t.Fatalf("failed to read generated artifact %s: %v", path, err)
 		}
-		out.WriteString("===== " + path + " =====\n")
-		out.Write(content)
-		if len(content) == 0 || content[len(content)-1] != '\n' {
-			out.WriteByte('\n')
-		}
-		out.WriteByte('\n')
+		g.Assert(t, filepath.Join(fixtureDir, path), content)
 	}
-
-	_ = coord
-	return out.Bytes()
 }
 
 func assertControllerViewGoldenFileMissing(t *testing.T, path string) {
@@ -206,12 +195,10 @@ import (
 )
 
 var constructors = fx.Provide(
-	// andurel:fx-controller-provide-point
 )
 
 var Module = fx.Module(
 	"controllers",
 	constructors,
-	// andurel:fx-controller-invoke-point
 )
 `

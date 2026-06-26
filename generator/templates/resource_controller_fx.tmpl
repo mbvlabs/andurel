@@ -536,9 +536,10 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router) error {
 	var errs []error
+	var err error
 
 {{- if HasAction "index" }}
-	_, err := r.AddRoute(echo.Route{
+	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}Index.Path(),
 		Name:    routes.{{.ResourceName}}Index.Name(),
