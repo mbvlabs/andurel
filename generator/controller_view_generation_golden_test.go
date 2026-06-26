@@ -14,12 +14,14 @@ func TestControllerViewGenerationGoldens(t *testing.T) {
 	g := goldie.New(t, goldie.WithFixtureDir(controllerViewGenerationGoldenDir(t)))
 
 	scenarios := []struct {
-		name      string
-		withViews bool
-		actions   []string
+		name           string
+		withViews      bool
+		initialActions []string
+		actions        []string
 	}{
 		{name: "full_crud", withViews: true},
 		{name: "single_action", withViews: true, actions: []string{"show"}},
+		{name: "add_action", withViews: false, initialActions: []string{"show"}, actions: []string{"edit"}},
 		{name: "controller_only", withViews: false},
 	}
 
@@ -38,6 +40,12 @@ func TestControllerViewGenerationGoldens(t *testing.T) {
 				testName := scenario.name + "_" + diMode + "_" + cssMode.name
 				t.Run(testName, func(t *testing.T) {
 					coord := setupControllerViewGoldenProject(t, diMode, cssMode.cssComponents)
+
+					if len(scenario.initialActions) > 0 {
+						if err := coord.GenerateControllerWithActions("Widget", "", scenario.withViews, scenario.initialActions, ""); err != nil {
+							t.Fatalf("failed to generate initial controller/view: %v", err)
+						}
+					}
 
 					if err := coord.GenerateControllerWithActions("Widget", "", scenario.withViews, scenario.actions, ""); err != nil {
 						t.Fatalf("failed to generate controller/view: %v", err)
