@@ -1,0 +1,597 @@
+===== controllers/widgets.go =====
+package controllers
+
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+	"strconv"
+	"testapp/internal/hypermedia"
+	"testapp/internal/storage"
+	"testapp/models"
+	"testapp/router/cookies"
+	"testapp/router/routes"
+	"testapp/views"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v5"
+)
+
+type Widgets struct {
+	db storage.Pool
+}
+
+func NewWidgets(db storage.Pool) Widgets {
+	return Widgets{db}
+}
+
+func (w Widgets) Index(etx *echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	widgetsList, err := models.Widget.Paginate(
+		etx.Request().Context(),
+		w.db.Executor(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+
+	return hypermedia.RenderPage(etx, views.WidgetIndex{Items: widgetsList.Widgets}.Page())
+}
+
+func (w Widgets) Show(etx *echo.Context) error {
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	widget, err := models.Widget.Find(etx.Request().Context(), w.db.Executor(), widgetID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.WidgetShow{Item: widget}.Page())
+}
+
+func (w Widgets) New(etx *echo.Context) error {
+	return hypermedia.RenderPage(etx, views.WidgetNew{}.Page())
+}
+
+type CreateWidgetFormPayload struct {
+	Name     string `json:"name"`
+	Quantity int32  `json:"quantity"`
+	Active   bool   `json:"active"`
+}
+
+func (w Widgets) Create(etx *echo.Context) error {
+	var payload CreateWidgetFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse CreateWidgetFormPayload",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	data := models.CreateWidgetData{
+		Name:     payload.Name,
+		Quantity: payload.Quantity,
+		Active:   payload.Active,
+	}
+
+	widget, err := models.Widget.Create(
+		etx.Request().Context(),
+		w.db.Executor(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create widget: %v", err)); flashErr != nil {
+			return flashErr
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.WidgetNew.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Widget created successfully"); flashErr != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.WidgetShow.URL(widget.ID))
+}
+
+func (w Widgets) Edit(etx *echo.Context) error {
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	widget, err := models.Widget.Find(etx.Request().Context(), w.db.Executor(), widgetID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.WidgetEdit{Item: widget}.Page())
+}
+
+type UpdateWidgetFormPayload struct {
+	Name     string `json:"name"`
+	Quantity int32  `json:"quantity"`
+	Active   bool   `json:"active"`
+}
+
+func (w Widgets) Update(etx *echo.Context) error {
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	var payload UpdateWidgetFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse UpdateWidgetFormPayload",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	data := models.UpdateWidgetData{
+		ID:       widgetID,
+		Name:     payload.Name,
+		Quantity: payload.Quantity,
+		Active:   payload.Active,
+	}
+
+	widget, err := models.Widget.Update(
+		etx.Request().Context(),
+		w.db.Executor(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update widget: %v", err)); flashErr != nil {
+			return hypermedia.RenderPage(etx, views.InternalError())
+		}
+		return etx.Redirect(
+			http.StatusSeeOther,
+			routes.WidgetEdit.URL(widgetID),
+		)
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Widget updated successfully"); flashErr != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.WidgetShow.URL(widget.ID))
+}
+
+func (w Widgets) Destroy(etx *echo.Context) error {
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	err = models.Widget.Destroy(etx.Request().Context(), w.db.Executor(), widgetID)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete widget: %v", err)); flashErr != nil {
+			return hypermedia.RenderPage(etx, views.InternalError())
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.WidgetIndex.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Widget destroyed successfully"); flashErr != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+
+	return etx.Redirect(http.StatusSeeOther, routes.WidgetIndex.URL())
+}
+
+===== router/routes/widgets.go =====
+package routes
+
+import (
+	"testapp/internal/routing"
+)
+
+const WidgetPrefix = "/widgets"
+
+var WidgetIndex = routing.NewSimpleRoute(
+	"",
+	"widgets.index",
+	WidgetPrefix,
+)
+var WidgetShow = routing.NewRouteWithUUIDID(
+	"/:id",
+	"widgets.show",
+	WidgetPrefix,
+)
+var WidgetNew = routing.NewSimpleRoute(
+	"/new",
+	"widgets.new",
+	WidgetPrefix,
+)
+var WidgetCreate = routing.NewSimpleRoute(
+	"",
+	"widgets.create",
+	WidgetPrefix,
+)
+var WidgetEdit = routing.NewRouteWithUUIDID(
+	"/:id/edit",
+	"widgets.edit",
+	WidgetPrefix,
+)
+var WidgetUpdate = routing.NewRouteWithUUIDID(
+	"/:id",
+	"widgets.update",
+	WidgetPrefix,
+)
+var WidgetDestroy = routing.NewRouteWithUUIDID(
+	"/:id",
+	"widgets.destroy",
+	WidgetPrefix,
+)
+
+===== router/connect_widgets_routes.go =====
+package router
+
+import (
+	"errors"
+	"net/http"
+
+	"testapp/controllers"
+	"testapp/router/routes"
+
+	"github.com/labstack/echo"
+)
+
+func (r Router) RegisterWidgetRoutes(widget controllers.Widgets) error {
+	errs := []error{}
+	_, err := r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WidgetIndex.Path(),
+		Name:    routes.WidgetIndex.Name(),
+		Handler: widget.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WidgetShow.Path(),
+		Name:    routes.WidgetShow.Name(),
+		Handler: widget.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WidgetNew.Path(),
+		Name:    routes.WidgetNew.Name(),
+		Handler: widget.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.WidgetCreate.Path(),
+		Name:    routes.WidgetCreate.Name(),
+		Handler: widget.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WidgetEdit.Path(),
+		Name:    routes.WidgetEdit.Name(),
+		Handler: widget.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.WidgetUpdate.Path(),
+		Name:    routes.WidgetUpdate.Name(),
+		Handler: widget.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.WidgetDestroy.Path(),
+		Name:    routes.WidgetDestroy.Name(),
+		Handler: widget.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+===== cmd/app/main.go =====
+package main
+
+import (
+	"testapp/controllers"
+	"testapp/router"
+)
+
+func setupControllers(db interface{}, r *router.Router) error {
+	widgets := controllers.NewWidgets(db)
+	if err := r.RegisterWidgetRoutes(widgets); err != nil {
+		return err
+	}
+
+	// andurel:controller-registration-point
+	return nil
+}
+
+===== views/widgets_resource.templ =====
+
+
+
+
+package views
+
+import (
+	"fmt"
+		"net/http"
+	
+	"testapp/models"
+	"testapp/internal/hypermedia"
+	
+	
+	"testapp/router/routes"
+	
+)
+
+
+type WidgetIndex struct {
+	Items []models.WidgetEntity
+}
+
+func (wi WidgetIndex) PageFragment() string {
+	return "widget-index-page-fragment"
+}
+
+templ (wi WidgetIndex) Page() {
+	@base() {
+		@templ.Fragment(wi.PageFragment()) {
+			<main id="widget-index-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold tracking-tight text-base-content">Widgets</h1>
+						
+						<a href={ routes.WidgetNew.URL() } class="btn btn-primary">New Widget</a>
+						
+					</div>
+					if len(wi.Items) == 0 {
+						<p class="text-sm text-base-content/60">No widgets found.</p>
+					} else {
+						<div class="table-wrap">
+							<table class="table">
+								<thead>
+									<tr>
+										<th>Name</th>
+										<th>Quantity</th>
+										<th>Active</th>
+										<th>Created At</th>
+										<th>Updated At</th>
+										<th>Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									for _, widget := range wi.Items {
+										<tr>
+											<td>{ widget.Name }</td>
+											<td>{ fmt.Sprintf("%d", widget.Quantity) }</td>
+											<td>{ fmt.Sprintf("%t", widget.Active) }</td>
+											<td>{ widget.CreatedAt.String() }</td>
+											<td>{ widget.UpdatedAt.String() }</td>
+											<td>
+												<div class="flex flex-wrap gap-3 text-sm">
+													
+													<a class="inline-link" href={ routes.WidgetShow.URL(widget.ID) }>View</a>
+													
+													
+													<a class="inline-link" href={ routes.WidgetEdit.URL(widget.ID) }>Edit</a>
+													
+												</div>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</div>
+			</main>
+		}
+	}
+}
+
+
+
+type WidgetShow struct {
+	Item models.WidgetEntity
+}
+
+func (ws WidgetShow) PageFragment() string {
+	return "widget-show-page-fragment"
+}
+
+templ (ws WidgetShow) Page() {
+	@base() {
+		@templ.Fragment(ws.PageFragment()) {
+			<main id="widget-show-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold tracking-tight text-base-content">Widget Details</h1>
+						<div class="flex flex-wrap items-center gap-3">
+							
+							<a href={ routes.WidgetEdit.URL(ws.Item.ID) } class="btn btn-primary">Edit</a>
+							
+							
+							<a class="inline-link text-sm" href={ hypermedia.ResolveBackURL(ctx, routes.WidgetIndex.URL()) }>Back to List</a>
+							
+						</div>
+					</div>
+					<div class="card">
+						<div class="card-content">
+							<div class="grid gap-5 sm:grid-cols-2">
+								
+								<div class="field">
+									<label class="field-label">Name</label>
+									<p class="text-sm text-base-content">{ ws.Item.Name }</p>
+								</div>
+								<div class="field">
+									<label class="field-label">Quantity</label>
+									<p class="text-sm text-base-content">{ fmt.Sprintf("%d", ws.Item.Quantity) }</p>
+								</div>
+								<div class="field">
+									<label class="field-label">Active</label>
+									<p class="text-sm text-base-content">{ fmt.Sprintf("%t", ws.Item.Active) }</p>
+								</div>
+								<div class="field">
+									<label class="field-label">Created At</label>
+									<p class="text-sm text-base-content">{ ws.Item.CreatedAt.String() }</p>
+								</div>
+								<div class="field">
+									<label class="field-label">Updated At</label>
+									<p class="text-sm text-base-content">{ ws.Item.UpdatedAt.String() }</p>
+								</div>
+								
+							</div>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}
+
+
+
+type WidgetNew struct{}
+
+func (wn WidgetNew) PageFragment() string {
+	return "widget-new-page-fragment"
+}
+
+templ (wn WidgetNew) Page() {
+	@base() {
+		@templ.Fragment(wn.PageFragment()) {
+			<main id="widget-new-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="card">
+						<div class="card-header">
+							<h3 class="card-title">New Widget</h3>
+							<p class="card-description">Enter the details for the new widget.</p>
+						</div>
+						<div class="card-content">
+							<form class="form" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.WidgetCreate.URL()) }>
+								<fieldset class="fieldset" data-attr:disabled="$_submitting">
+									<div class="field">
+										<label class="field-label" for="name">Name</label>
+										<input type="text" class="input" data-bind="name" />
+									</div>
+									<div class="field">
+										<label class="field-label" for="quantity">Quantity</label>
+										<input type="number" class="input" data-bind="quantity" />
+									</div>
+									<div class="radio-row">
+										<input type="checkbox" class="checkbox" data-bind="active" />
+										<label class="field-label" for="active">Active</label>
+									</div>
+									
+									<div class="card-footer mt-6 flex-col gap-3">
+										<button type="submit" class="btn btn-primary btn-block">Create Widget</button>
+										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.WidgetIndex.URL()) }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}
+
+
+
+type WidgetEdit struct {
+	Item models.WidgetEntity
+}
+
+func (we WidgetEdit) PageFragment() string {
+	return "widget-edit-page-fragment"
+}
+
+templ (we WidgetEdit) Page() {
+	@base() {
+		@templ.Fragment(we.PageFragment()) {
+			<main id="widget-edit-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="card">
+						<div class="card-header">
+							<h3 class="card-title">Edit Widget</h3>
+							<p class="card-description">Update the details for this widget.</p>
+						</div>
+						<div class="card-content">
+							<form class="form" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.WidgetUpdate.URL(we.Item.ID)) }>
+								<fieldset class="fieldset" data-attr:disabled="$_submitting">
+									
+									<div class="field">
+										<label class="field-label" for="name">Name</label>
+										<input type="text" class="input" data-bind="name" value={ we.Item.Name } />
+									</div>
+									<div class="field">
+										<label class="field-label" for="quantity">Quantity</label>
+										<input type="number" class="input" data-bind="quantity" value={ fmt.Sprintf("%d", we.Item.Quantity) } />
+									</div>
+									<div class="radio-row">
+										<input type="checkbox" class="checkbox" data-bind="active" if we.Item.Active { checked } />
+										<label class="field-label" for="active">Active</label>
+									</div>
+									
+									<div class="card-footer mt-6 flex-col gap-3">
+										<button type="submit" class="btn btn-primary btn-block">Update Widget</button>
+										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.WidgetIndex.URL()) }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+							<div class="separator my-6"></div>
+							<button type="button" class="btn btn-destructive btn-block" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.WidgetDestroy.URL(we.Item.ID)) }>Destroy Widget</button>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}
+
+
