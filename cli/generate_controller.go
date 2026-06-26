@@ -27,9 +27,11 @@ func newGenerateControllerCommand() *cobra.Command {
 		Long: `Generates a new controller, views, and routes. Pass the controller name
 in CamelCase and a list of actions as arguments.
 
-When no actions are provided, or any action is one of index, show, new,
-create, edit, update, or destroy, this uses the resource controller templates
-and generates the standard CRUD controller, views, and routes.
+When no actions are provided, this generates the full standard CRUD controller,
+views, and routes. When one or more standard CRUD actions are provided
+(index, show, new, create, edit, update, destroy), only those resource actions
+are generated. Partial CRUD views are self-contained and only link to companion
+actions that are also present.
 
 Non-CRUD actions are added as empty controller methods, with matching empty
 components in views/<name>_resource.templ. Custom action routes are not

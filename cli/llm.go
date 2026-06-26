@@ -352,6 +352,10 @@ Generated resource controllers include these actions:
 | Update   | PUT    | /resources/:id    | Handle update submission   |
 | Destroy  | DELETE | /resources/:id    | Delete resource            |
 
+When CRUD actions are passed explicitly to ` + "`andurel generate controller`" + `,
+only those actions are generated. Partial CRUD views are self-contained and
+only link to companion actions that are also present.
+
 ## Request handling
 
 ### Path parameters
