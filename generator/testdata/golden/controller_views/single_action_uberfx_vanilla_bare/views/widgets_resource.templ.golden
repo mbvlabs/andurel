@@ -1,0 +1,75 @@
+
+
+
+
+package views
+
+import (
+	"fmt"
+	
+	"testapp/models"
+	
+	
+)
+
+
+
+
+type WidgetShow struct {
+	Item models.WidgetEntity
+}
+
+func (ws WidgetShow) PageFragment() string {
+	return "widget-show-page-fragment"
+}
+
+templ (ws WidgetShow) Page() {
+	@base() {
+		@templ.Fragment(ws.PageFragment()) {
+			<main id="widget-show-container">
+				<section>
+					<div>
+						<div>
+							<h1>Widget Details</h1>
+						</div>
+						<div>
+							
+							
+						</div>
+					</div>
+					<div>
+						<div>
+							
+							<div>
+								<p>Name</p>
+								<p>{ ws.Item.Name }</p>
+							</div>
+							<div>
+								<p>Quantity</p>
+								<p>{ fmt.Sprintf("%d", ws.Item.Quantity) }</p>
+							</div>
+							<div>
+								<p>Active</p>
+								<p>{ fmt.Sprintf("%t", ws.Item.Active) }</p>
+							</div>
+							<div>
+								<p>Created At</p>
+								<p>{ ws.Item.CreatedAt.String() }</p>
+							</div>
+							<div>
+								<p>Updated At</p>
+								<p>{ ws.Item.UpdatedAt.String() }</p>
+							</div>
+							
+						</div>
+					</div>
+				</section>
+			</main>
+		}
+	}
+}
+
+
+
+
+

@@ -28,19 +28,25 @@ func TestControllerViewGenerationGoldens(t *testing.T) {
 
 	diModes := []string{"manual", "uberfx"}
 	cssModes := []struct {
-		name          string
+		name         string
+		framework    string
 		cssComponents bool
 	}{
-		{name: "bare"},
-		{name: "css_components", cssComponents: true},
+		{name: "bare", framework: "tailwind"},
+		{name: "css_components", framework: "tailwind", cssComponents: true},
+		{name: "vanilla_bare", framework: "vanilla"},
+		{name: "vanilla_css_components", framework: "vanilla", cssComponents: true},
 	}
 
 	for _, scenario := range scenarios {
 		for _, diMode := range diModes {
 			for _, cssMode := range cssModes {
+				if !scenario.withViews && cssMode.name != "bare" {
+					continue
+				}
 				testName := scenario.name + "_" + diMode + "_" + cssMode.name
 				t.Run(testName, func(t *testing.T) {
-					coord := setupControllerViewGoldenProject(t, diMode, cssMode.cssComponents)
+					coord := setupControllerViewGoldenProject(t, diMode, cssMode.framework, cssMode.cssComponents)
 
 					if len(scenario.initialActions) > 0 {
 						if err := coord.GenerateControllerWithActions("Widget", "", scenario.withViews, scenario.initialActions, ""); err != nil {
@@ -59,7 +65,7 @@ func TestControllerViewGenerationGoldens(t *testing.T) {
 	}
 }
 
-func setupControllerViewGoldenProject(t *testing.T, diMode string, cssComponents bool) Coordinator {
+func setupControllerViewGoldenProject(t *testing.T, diMode, cssFramework string, cssComponents bool) Coordinator {
 	t.Helper()
 
 	cache.ClearFileSystemCache()
@@ -91,7 +97,7 @@ func setupControllerViewGoldenProject(t *testing.T, diMode string, cssComponents
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName:  "testapp",
 		Database:     "postgresql",
-		CSSFramework: "tailwind",
+		CSSFramework: cssFramework,
 		DIMode:       diMode,
 	}
 	if cssComponents {

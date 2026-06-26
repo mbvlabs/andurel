@@ -1,0 +1,138 @@
+
+
+
+
+package views
+
+import (
+	"fmt"
+	
+	"testapp/models"
+	
+	
+	"testapp/router/routes"
+	
+)
+
+
+
+
+type WidgetShow struct {
+	Item models.WidgetEntity
+}
+
+func (ws WidgetShow) PageFragment() string {
+	return "widget-show-page-fragment"
+}
+
+templ (ws WidgetShow) Page() {
+	@base() {
+		@templ.Fragment(ws.PageFragment()) {
+			<main id="widget-show-container" class="page-shell">
+				<section class="container stack" data-gap="lg">
+					<div class="cluster" data-justify="between">
+						<div class="stack" data-gap="sm">
+							<h1>Widget Details</h1>
+							<p class="muted">Review the current values stored for this widget.</p>
+						</div>
+						<div class="cluster" data-gap="sm">
+							
+							<a class="btn btn-primary" href={ routes.WidgetEdit.URL(ws.Item.ID) }>Edit</a>
+							
+							
+						</div>
+					</div>
+					<div class="panel">
+						<div class="grid-auto-fit" data-grid="compact">
+							
+							<div class="field">
+								<p class="field-label">Name</p>
+								<p>{ ws.Item.Name }</p>
+							</div>
+							<div class="field">
+								<p class="field-label">Quantity</p>
+								<p>{ fmt.Sprintf("%d", ws.Item.Quantity) }</p>
+							</div>
+							<div class="field">
+								<p class="field-label">Active</p>
+								<p>{ fmt.Sprintf("%t", ws.Item.Active) }</p>
+							</div>
+							<div class="field">
+								<p class="field-label">Created At</p>
+								<p>{ ws.Item.CreatedAt.String() }</p>
+							</div>
+							<div class="field">
+								<p class="field-label">Updated At</p>
+								<p>{ ws.Item.UpdatedAt.String() }</p>
+							</div>
+							
+						</div>
+					</div>
+				</section>
+			</main>
+		}
+	}
+}
+
+
+
+
+
+type WidgetEdit struct {
+	Item models.WidgetEntity
+}
+
+func (we WidgetEdit) PageFragment() string {
+	return "widget-edit-page-fragment"
+}
+
+templ (we WidgetEdit) Page() {
+	@base() {
+		@templ.Fragment(we.PageFragment()) {
+			<main id="widget-edit-container" class="auth-shell">
+				<section class="center">
+					<div class="card">
+						<div class="card-header">
+							<h1 class="card-title">Edit Widget</h1>
+							<p class="card-description">Update the details for this widget.</p>
+						</div>
+						<div class="card-content">
+							<form
+								class="form"
+								data-indicator:_submitting
+								
+							>
+								<fieldset class="fieldset" data-attr:disabled="$_submitting">
+									
+									<div class="field">
+										<label class="field-label" for="name">Name</label>
+										<div class="field-control">
+											<input class="input" type="text" id="name" name="name" data-bind="name" value={ we.Item.Name }/>
+										</div>
+									</div>
+									<div class="field">
+										<label class="field-label" for="quantity">Quantity</label>
+										<div class="field-control">
+											<input class="input" type="number" id="quantity" name="quantity" data-bind="quantity" value={ fmt.Sprintf("%d", we.Item.Quantity) }/>
+										</div>
+									</div>
+									<div class="radio-row">
+										<input class="checkbox" type="checkbox" id="active" name="active" data-bind="active" if we.Item.Active { checked }/>
+										<label class="label" for="active">Active</label>
+									</div>
+									
+									<div class="stack" data-gap="sm">
+										
+										
+									</div>
+								</fieldset>
+							</form>
+						</div>
+						
+					</div>
+				</section>
+			</main>
+		}
+	}
+}
+
