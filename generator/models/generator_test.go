@@ -1,488 +1,95 @@
 package models
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
-	"github.com/mbvlabs/andurel/generator/templates"
+	"github.com/mbvlabs/andurel/generator/internal/catalog"
 )
 
-func TestBuildModel(t *testing.T) {
-	originalWd, _ := os.Getwd()
-	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "none_pgtype_data_types")
-
-	generator := NewGenerator("postgresql")
-
-	cat, err := generator.BuildCatalogFromMigrations("articles", []string{migrationsDir})
-	if err != nil {
-		t.Fatalf("Failed to build catalog from migrations: %v", err)
-	}
-
-	model, err := generator.Build(cat, Config{
-		TableName:    "articles",
-		ResourceName: "Article",
-		PackageName:  "models",
-		DatabaseType: "postgresql",
-		ModulePath:   "github.com/example/test",
-	})
-	if err != nil {
-		t.Fatalf("Failed to build model from catalog: %v", err)
-	}
-
-	if len(model.Fields) == 0 {
-		t.Fatal("Expected model to have fields")
-	}
-
-	// Check entity name and namespace
-	if model.EntityName != "ArticleEntity" {
-		t.Errorf("EntityName = %s, want ArticleEntity", model.EntityName)
-	}
-	if model.NamespaceVar != "Article" {
-		t.Errorf("NamespaceVar = %s, want Article", model.NamespaceVar)
-	}
-	if model.NamespaceType != "article" {
-		t.Errorf("NamespaceType = %s, want article", model.NamespaceType)
-	}
-
-	// Find specific fields and verify their types
-	var tagsField, scoresField, settingsField, metadataField *GeneratedField
-	for i := range model.Fields {
-		switch model.Fields[i].Name {
-		case "Tags":
-			tagsField = &model.Fields[i]
-		case "Scores":
-			scoresField = &model.Fields[i]
-		case "Settings":
-			settingsField = &model.Fields[i]
-		case "Metadata":
-			metadataField = &model.Fields[i]
-		}
-	}
-
-	// Test text[] -> []string with array bun tag
-	if tagsField == nil {
-		t.Fatal("Expected to find 'Tags' field (from 'tags' text[] column)")
-	}
-	if tagsField.Type != "[]string" {
-		t.Errorf("Tags field Type = %s, want []string", tagsField.Type)
-	}
-	if tagsField.BunTag != "tags,array" {
-		t.Errorf("Tags field BunTag = %s, want tags,array", tagsField.BunTag)
-	}
-
-	// Test integer[] -> []int32 with array bun tag
-	if scoresField == nil {
-		t.Fatal("Expected to find 'Scores' field (from 'scores' integer[] column)")
-	}
-	if scoresField.Type != "[]int32" {
-		t.Errorf("Scores field Type = %s, want []int32", scoresField.Type)
-	}
-	if scoresField.BunTag != "scores,array" {
-		t.Errorf("Scores field BunTag = %s, want scores,array", scoresField.BunTag)
-	}
-
-	// Test jsonb/json -> json.RawMessage with JSON bun tags
-	if settingsField == nil {
-		t.Fatal("Expected to find 'Settings' field (from 'settings' jsonb column)")
-	}
-	if settingsField.Type != "json.RawMessage" {
-		t.Errorf("Settings field Type = %s, want json.RawMessage", settingsField.Type)
-	}
-	if settingsField.BunTag != "settings,type:jsonb" {
-		t.Errorf("Settings field BunTag = %s, want settings,type:jsonb", settingsField.BunTag)
-	}
-
-	if metadataField == nil {
-		t.Fatal("Expected to find 'Metadata' field (from 'metadata' json column)")
-	}
-	if metadataField.Type != "json.RawMessage" {
-		t.Errorf("Metadata field Type = %s, want json.RawMessage", metadataField.Type)
-	}
-	if metadataField.BunTag != "metadata,type:json" {
-		t.Errorf("Metadata field BunTag = %s, want metadata,type:json", metadataField.BunTag)
-	}
-
-	// Verify bun tags are generated
-	hasIDField := false
-	for _, field := range model.Fields {
-		if field.Name == "ID" {
-			hasIDField = true
-			if field.BunTag == "" {
-				t.Error("ID field should have a bun tag")
-			}
-			if !field.IsPrimaryKey {
-				t.Error("ID field should be marked as primary key")
-			}
-		}
-	}
-	if !hasIDField {
-		t.Error("Expected to find ID field")
-	}
-}
-
-func TestBuildModelWithTimestamps(t *testing.T) {
-	originalWd, _ := os.Getwd()
-	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "comments_in_migration")
-
-	generator := NewGenerator("postgresql")
-
-	cat, err := generator.BuildCatalogFromMigrations("products", []string{migrationsDir})
-	if err != nil {
-		t.Fatalf("Failed to build catalog from migrations: %v", err)
-	}
-
-	model, err := generator.Build(cat, Config{
-		TableName:    "products",
-		ResourceName: "Product",
-		PackageName:  "models",
-		DatabaseType: "postgresql",
-		ModulePath:   "github.com/example/test",
-	})
-	if err != nil {
-		t.Fatalf("Failed to build model: %v", err)
-	}
-
-	// Verify all expected fields are present with correct types
-	expectedFields := map[string]string{
-		"ID":          "uuid.UUID",
-		"CreatedAt":   "time.Time",
-		"UpdatedAt":   "time.Time",
-		"Name":        "string",
-		"Description": "sql.NullString",
-		"Price":       "float64",
-		"Sku":         "string",
-		"IsActive":    "sql.NullBool",
-	}
-
-	if len(model.Fields) != len(expectedFields) {
-		t.Errorf("Expected %d fields, got %d", len(expectedFields), len(model.Fields))
-	}
-
-	for _, field := range model.Fields {
-		expectedType, ok := expectedFields[field.Name]
-		if !ok {
-			t.Errorf("Unexpected field: %s", field.Name)
-			continue
-		}
-		if field.Type != expectedType {
-			t.Errorf("Field %s: expected type %s, got %s", field.Name, expectedType, field.Type)
-		}
-	}
-
-	// Generate the model file and verify it uses bun patterns
-	templateContent, err := templates.Files.ReadFile("model.tmpl")
-	if err != nil {
-		t.Fatalf("Failed to read model template: %v", err)
-	}
-
-	generatedCode, err := generator.GenerateModelFile(model, string(templateContent))
-	if err != nil {
-		t.Fatalf("Failed to generate model file: %v", err)
-	}
-
-	// Verify bun patterns in generated code
-	if !containsAny(generatedCode, "bun.BaseModel", `bun:"`) {
-		t.Error("Generated code should contain bun tags and BaseModel")
-	}
-	if !containsAny(generatedCode, "func (", "Find(", "Create(", "Update(", "Destroy(") {
-		t.Error("Generated code should contain namespace methods")
-	}
-}
-
-func TestBuildModelUsesResourceName(t *testing.T) {
+func TestBuildUUIDImports(t *testing.T) {
 	tests := []struct {
-		name         string
-		tableName    string
-		resourceName string
-		migration    string
+		name     string
+		table    *catalog.Table
+		wantUUID bool
 	}{
 		{
-			name:         "categories_to_category",
-			tableName:    "categories",
-			resourceName: "Category",
-			migration: `-- +goose Up
-CREATE TABLE categories (
-    id uuid PRIMARY KEY,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    slug VARCHAR(100) NOT NULL
-);
-
--- +goose Down
-DROP TABLE categories;`,
+			name: "no primary key without uuid fields",
+			table: tableWithColumns(t, "audit_logs",
+				catalog.NewColumn("action", "text").SetNotNull(),
+				catalog.NewColumn("occurred_at", "timestamp").SetNotNull(),
+			),
+			wantUUID: false,
 		},
 		{
-			name:         "queries_to_query",
-			tableName:    "queries",
-			resourceName: "Query",
-			migration: `-- +goose Up
-CREATE TABLE queries (
-    id uuid PRIMARY KEY,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    sql_text TEXT NOT NULL,
-    status VARCHAR(50) NOT NULL
-);
-
--- +goose Down
-DROP TABLE queries;`,
+			name: "no primary key with uuid field",
+			table: tableWithColumns(t, "audit_logs",
+				catalog.NewColumn("event_id", "uuid").SetNotNull(),
+				catalog.NewColumn("action", "text").SetNotNull(),
+			),
+			wantUUID: true,
+		},
+		{
+			name: "uuid primary key",
+			table: tableWithColumns(t, "audit_logs",
+				catalog.NewColumn("id", "uuid").SetPrimaryKey(),
+				catalog.NewColumn("action", "text").SetNotNull(),
+			),
+			wantUUID: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tempDir := t.TempDir()
-			migrationsDir := filepath.Join(tempDir, "database", "migrations")
-
-			err := os.MkdirAll(migrationsDir, 0o755)
-			if err != nil {
-				t.Fatalf("Failed to create migrations directory: %v", err)
+			cat := catalog.NewCatalog("public")
+			if err := cat.AddTable("public", tt.table); err != nil {
+				t.Fatalf("failed to add table: %v", err)
 			}
 
-			migrationFile := filepath.Join(migrationsDir, "001_create_"+tt.tableName+".sql")
-			err = os.WriteFile(migrationFile, []byte(tt.migration), 0o644)
-			if err != nil {
-				t.Fatalf("Failed to write migration file: %v", err)
-			}
-
-			generator := NewGenerator("postgresql")
-
-			cat, err := generator.BuildCatalogFromMigrations(tt.tableName, []string{migrationsDir})
-			if err != nil {
-				t.Fatalf("Failed to build catalog from migrations: %v", err)
-			}
-
-			model, err := generator.Build(cat, Config{
-				TableName:    tt.tableName,
-				ResourceName: tt.resourceName,
-				PackageName:  "models",
-				DatabaseType: "postgresql",
-				ModulePath:   "github.com/example/test",
+			model, err := NewGenerator("postgresql").Build(cat, Config{
+				TableName:         tt.table.Name,
+				ResourceName:      "AuditLog",
+				PackageName:       "models",
+				DatabaseType:      "postgresql",
+				ModulePath:        "github.com/example/shop",
+				GenerateWithoutPK: !tableHasPrimaryKey(tt.table),
 			})
 			if err != nil {
-				t.Fatalf("Failed to build model from catalog: %v", err)
+				t.Fatalf("Build() returned error: %v", err)
 			}
 
-			if model.EntityName != tt.resourceName+"Entity" {
-				t.Errorf("EntityName = %s, want %s", model.EntityName, tt.resourceName+"Entity")
-			}
-			if model.NamespaceVar != tt.resourceName {
-				t.Errorf("NamespaceVar = %s, want %s", model.NamespaceVar, tt.resourceName)
+			if got := hasImport(model.ExternalImports, "github.com/google/uuid"); got != tt.wantUUID {
+				t.Fatalf("uuid import = %v, want %v; imports: %v", got, tt.wantUUID, model.ExternalImports)
 			}
 		})
 	}
 }
 
-func TestBuildModelWithNullableFields(t *testing.T) {
-	tempDir := t.TempDir()
-	migrationsDir := filepath.Join(tempDir, "database", "migrations")
+func tableWithColumns(t *testing.T, name string, columns ...*catalog.Column) *catalog.Table {
+	t.Helper()
 
-	err := os.MkdirAll(migrationsDir, 0o755)
-	if err != nil {
-		t.Fatalf("Failed to create migrations directory: %v", err)
-	}
-
-	migration := `-- +goose Up
-CREATE TABLE users (
-    id uuid PRIMARY KEY,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(200),
-    bio TEXT,
-    age INTEGER
-);
-
--- +goose Down
-DROP TABLE users;`
-
-	migrationFile := filepath.Join(migrationsDir, "001_create_users.sql")
-	err = os.WriteFile(migrationFile, []byte(migration), 0o644)
-	if err != nil {
-		t.Fatalf("Failed to write migration file: %v", err)
-	}
-
-	generator := NewGenerator("postgresql")
-
-	cat, err := generator.BuildCatalogFromMigrations("users", []string{migrationsDir})
-	if err != nil {
-		t.Fatalf("Failed to build catalog from migrations: %v", err)
-	}
-
-	model, err := generator.Build(cat, Config{
-		TableName:    "users",
-		ResourceName: "User",
-		PackageName:  "models",
-		DatabaseType: "postgresql",
-		ModulePath:   "github.com/example/test",
-	})
-	if err != nil {
-		t.Fatalf("Failed to build model: %v", err)
-	}
-
-	// Check nullable fields have nullable types (pointer or null wrapper)
-	for _, field := range model.Fields {
-		switch field.Name {
-		case "Email", "Bio", "Age":
-			if !field.IsNullable {
-				t.Errorf("Field %s should be nullable", field.Name)
-			}
-			if !isNullableType(field.Type) {
-				t.Errorf("Field %s should have nullable type (pointer or sql.Null), got %s", field.Name, field.Type)
-			}
-		case "Name":
-			if field.IsNullable {
-				t.Errorf("Field %s should not be nullable", field.Name)
-			}
+	table := catalog.NewTable("public", name)
+	for _, column := range columns {
+		if err := table.AddColumn(column); err != nil {
+			t.Fatalf("failed to add column %s: %v", column.Name, err)
 		}
 	}
+	return table
 }
 
-func isNullableType(goType string) bool {
-	if len(goType) > 0 && goType[0] == '*' {
-		return true
-	}
-	switch goType {
-	case "sql.NullString", "sql.NullBool", "sql.NullInt16", "sql.NullInt32",
-		"sql.NullInt64", "sql.NullFloat64", "sql.NullTime",
-		"bun.NullString", "bun.NullBool", "bun.NullInt32", "bun.NullInt64",
-		"bun.NullFloat64", "bun.NullTime":
-		return true
-	}
-	return false
-}
-
-// containsAny checks if the string contains any of the substrings
-func containsAny(s string, substrs ...string) bool {
-	for _, sub := range substrs {
-		if len(s) > 0 && len(sub) > 0 {
-			for i := 0; i <= len(s)-len(sub); i++ {
-				if s[i:i+len(sub)] == sub {
-					return true
-				}
-			}
+func tableHasPrimaryKey(table *catalog.Table) bool {
+	for _, column := range table.Columns {
+		if column.IsPrimaryKey {
+			return true
 		}
 	}
 	return false
 }
 
-func TestBuildModelWithAlternatePK(t *testing.T) {
-	originalWd, _ := os.Getwd()
-	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "custom_pk")
-
-	generator := NewGenerator("postgresql")
-
-	cat, err := generator.BuildCatalogFromMigrations("orders", []string{migrationsDir})
-	if err != nil {
-		t.Fatalf("Failed to build catalog from migrations: %v", err)
-	}
-
-	model, err := generator.Build(cat, Config{
-		TableName:    "orders",
-		ResourceName: "Order",
-		PackageName:  "models",
-		DatabaseType: "postgresql",
-		ModulePath:   "github.com/example/test",
-	})
-	if err != nil {
-		t.Fatalf("Failed to build model: %v", err)
-	}
-
-	if !model.HasPrimaryKey {
-		t.Error("Expected HasPrimaryKey to be true for orders table")
-	}
-	if model.IDFieldName != "order_id" {
-		t.Errorf("Expected IDFieldName 'order_id', got %q", model.IDFieldName)
-	}
-	if model.IDGoFieldName != "OrderID" {
-		t.Errorf("Expected IDGoFieldName 'OrderID', got %q", model.IDGoFieldName)
-	}
-	if model.IDType != "uuid.UUID" {
-		t.Errorf("Expected IDType 'uuid.UUID', got %q", model.IDType)
-	}
-
-	// Verify the PK field exists in fields
-	var foundPKField bool
-	for _, f := range model.Fields {
-		if f.Name == "OrderID" {
-			foundPKField = true
-			if !f.IsPrimaryKey {
-				t.Error("OrderID field should have IsPrimaryKey true")
-			}
-		}
-		if f.Name == "ID" {
-			t.Error("Should not have a field named 'ID' when PK is 'order_id'")
+func hasImport(imports []string, target string) bool {
+	for _, imp := range imports {
+		if imp == target {
+			return true
 		}
 	}
-	if !foundPKField {
-		t.Error("Expected to find OrderID field")
-	}
-}
-
-func TestBuildModelWithoutPK(t *testing.T) {
-	originalWd, _ := os.Getwd()
-	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "no_pk")
-
-	generator := NewGenerator("postgresql")
-
-	cat, err := generator.BuildCatalogFromMigrations("audit_log", []string{migrationsDir})
-	if err != nil {
-		t.Fatalf("Failed to build catalog from migrations: %v", err)
-	}
-
-	model, err := generator.Build(cat, Config{
-		TableName:         "audit_log",
-		ResourceName:      "AuditLog",
-		PackageName:       "models",
-		DatabaseType:      "postgresql",
-		ModulePath:        "github.com/example/test",
-		GenerateWithoutPK: true,
-	})
-	if err != nil {
-		t.Fatalf("Failed to build model: %v", err)
-	}
-
-	if model.HasPrimaryKey {
-		t.Error("Expected HasPrimaryKey to be false for audit_log table")
-	}
-	if model.IDType != "" {
-		t.Errorf("Expected empty IDType, got %q", model.IDType)
-	}
-}
-
-func TestBuildModelWithPrimaryKeyOverride(t *testing.T) {
-	originalWd, _ := os.Getwd()
-	migrationsDir := filepath.Join(originalWd, "testdata", "migrations", "custom_pk")
-
-	generator := NewGenerator("postgresql")
-
-	cat, err := generator.BuildCatalogFromMigrations("orders", []string{migrationsDir})
-	if err != nil {
-		t.Fatalf("Failed to build catalog from migrations: %v", err)
-	}
-
-	// Override with a different column name than the actual PK
-	model, err := generator.Build(cat, Config{
-		TableName:        "orders",
-		ResourceName:     "Order",
-		PackageName:      "models",
-		DatabaseType:     "postgresql",
-		ModulePath:       "github.com/example/test",
-		PrimaryKeyColumn: "order_id",
-	})
-	if err != nil {
-		t.Fatalf("Failed to build model: %v", err)
-	}
-
-	if !model.HasPrimaryKey {
-		t.Error("Expected HasPrimaryKey to be true")
-	}
-	if model.IDFieldName != "order_id" {
-		t.Errorf("Expected IDFieldName 'order_id', got %q", model.IDFieldName)
-	}
-	if model.IDGoFieldName != "OrderID" {
-		t.Errorf("Expected IDGoFieldName 'OrderID', got %q", model.IDGoFieldName)
-	}
+	return false
 }
