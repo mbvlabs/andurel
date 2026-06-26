@@ -1,0 +1,292 @@
+
+
+
+
+package views
+
+import (
+	"fmt"
+		"net/http"
+	
+	"testapp/models"
+	"testapp/internal/hypermedia"
+	
+	
+	"testapp/router/routes"
+	
+)
+
+
+type WidgetIndex struct {
+	Items []models.WidgetEntity
+}
+
+func (wi WidgetIndex) PageFragment() string {
+	return "widget-index-page-fragment"
+}
+
+templ (wi WidgetIndex) Page() {
+	@base() {
+		@templ.Fragment(wi.PageFragment()) {
+			<main id="widget-index-container" class="page-shell">
+				<section class="container stack" data-gap="lg">
+					<div class="cluster" data-justify="between">
+						<div class="stack" data-gap="sm">
+							<h1>Widgets</h1>
+							<p class="muted">Manage your widgets with the shared vanilla component system.</p>
+						</div>
+						
+						<a class="btn btn-primary" href={ routes.WidgetNew.URL() }>New Widget</a>
+						
+					</div>
+					if len(wi.Items) == 0 {
+						<section class="panel empty-state">
+							<div class="stack text-center" data-gap="sm">
+								<h2 class="empty-state-title">No widgets found</h2>
+								<p class="empty-state-description">Create your first widget to start filling this view.</p>
+							</div>
+							
+							<div class="empty-state-actions">
+								<a class="btn btn-primary" href={ routes.WidgetNew.URL() }>New Widget</a>
+							</div>
+							
+						</section>
+					} else {
+						<div class="panel table-wrap">
+							<table class="table">
+								<thead>
+									<tr>
+										<th>Name</th>
+										<th>Quantity</th>
+										<th>Active</th>
+										<th>Created At</th>
+										<th>Updated At</th>
+										<th>Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									for _, widget := range wi.Items {
+										<tr>
+											<td>{ widget.Name }</td>
+											<td>{ fmt.Sprintf("%d", widget.Quantity) }</td>
+											<td>{ fmt.Sprintf("%t", widget.Active) }</td>
+											<td>{ widget.CreatedAt.String() }</td>
+											<td>{ widget.UpdatedAt.String() }</td>
+											<td>
+												<div class="cluster" data-gap="sm">
+													
+													<a class="btn btn-ghost btn-sm" href={ routes.WidgetShow.URL(widget.ID) }>View</a>
+													
+													
+													<a class="btn btn-outline btn-sm" href={ routes.WidgetEdit.URL(widget.ID) }>Edit</a>
+													
+												</div>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</section>
+			</main>
+		}
+	}
+}
+
+
+
+type WidgetShow struct {
+	Item models.WidgetEntity
+}
+
+func (ws WidgetShow) PageFragment() string {
+	return "widget-show-page-fragment"
+}
+
+templ (ws WidgetShow) Page() {
+	@base() {
+		@templ.Fragment(ws.PageFragment()) {
+			<main id="widget-show-container" class="page-shell">
+				<section class="container stack" data-gap="lg">
+					<div class="cluster" data-justify="between">
+						<div class="stack" data-gap="sm">
+							<h1>Widget Details</h1>
+							<p class="muted">Review the current values stored for this widget.</p>
+						</div>
+						<div class="cluster" data-gap="sm">
+							
+							<a class="btn btn-primary" href={ routes.WidgetEdit.URL(ws.Item.ID) }>Edit</a>
+							
+							
+							<a class="btn btn-outline" href={ hypermedia.ResolveBackURL(ctx, routes.WidgetIndex.URL()) }>Back to List</a>
+							
+						</div>
+					</div>
+					<div class="panel">
+						<div class="grid-auto-fit" data-grid="compact">
+							
+							<div class="field">
+								<p class="field-label">Name</p>
+								<p>{ ws.Item.Name }</p>
+							</div>
+							<div class="field">
+								<p class="field-label">Quantity</p>
+								<p>{ fmt.Sprintf("%d", ws.Item.Quantity) }</p>
+							</div>
+							<div class="field">
+								<p class="field-label">Active</p>
+								<p>{ fmt.Sprintf("%t", ws.Item.Active) }</p>
+							</div>
+							<div class="field">
+								<p class="field-label">Created At</p>
+								<p>{ ws.Item.CreatedAt.String() }</p>
+							</div>
+							<div class="field">
+								<p class="field-label">Updated At</p>
+								<p>{ ws.Item.UpdatedAt.String() }</p>
+							</div>
+							
+						</div>
+					</div>
+				</section>
+			</main>
+		}
+	}
+}
+
+
+
+type WidgetNew struct{}
+
+func (wn WidgetNew) PageFragment() string {
+	return "widget-new-page-fragment"
+}
+
+templ (wn WidgetNew) Page() {
+	@base() {
+		@templ.Fragment(wn.PageFragment()) {
+			<main id="widget-new-container" class="auth-shell">
+				<section class="center">
+					<div class="card">
+						<div class="card-header">
+							<h1 class="card-title">New Widget</h1>
+							<p class="card-description">Enter the details for the new widget.</p>
+						</div>
+						<div class="card-content">
+							<form
+								class="form"
+								data-indicator:_submitting
+								
+								data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.WidgetCreate.URL()) }
+								
+							>
+								<fieldset class="fieldset" data-attr:disabled="$_submitting">
+									<div class="field">
+										<label class="field-label" for="name">Name</label>
+										<div class="field-control">
+											<input class="input" type="text" id="name" name="name" data-bind="name"/>
+										</div>
+									</div>
+									<div class="field">
+										<label class="field-label" for="quantity">Quantity</label>
+										<div class="field-control">
+											<input class="input" type="number" id="quantity" name="quantity" data-bind="quantity"/>
+										</div>
+									</div>
+									<div class="radio-row">
+										<input class="checkbox" type="checkbox" id="active" name="active" data-bind="active"/>
+										<label class="label" for="active">Active</label>
+									</div>
+									
+									<div class="stack" data-gap="sm">
+										
+										<button class="btn btn-primary btn-block" type="submit">Create Widget</button>
+										
+										
+										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.WidgetIndex.URL()) }>Back to List</a>
+										
+									</div>
+								</fieldset>
+							</form>
+						</div>
+					</div>
+				</section>
+			</main>
+		}
+	}
+}
+
+
+
+type WidgetEdit struct {
+	Item models.WidgetEntity
+}
+
+func (we WidgetEdit) PageFragment() string {
+	return "widget-edit-page-fragment"
+}
+
+templ (we WidgetEdit) Page() {
+	@base() {
+		@templ.Fragment(we.PageFragment()) {
+			<main id="widget-edit-container" class="auth-shell">
+				<section class="center">
+					<div class="card">
+						<div class="card-header">
+							<h1 class="card-title">Edit Widget</h1>
+							<p class="card-description">Update the details for this widget.</p>
+						</div>
+						<div class="card-content">
+							<form
+								class="form"
+								data-indicator:_submitting
+								
+								data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.WidgetUpdate.URL(we.Item.ID)) }
+								
+							>
+								<fieldset class="fieldset" data-attr:disabled="$_submitting">
+									
+									<div class="field">
+										<label class="field-label" for="name">Name</label>
+										<div class="field-control">
+											<input class="input" type="text" id="name" name="name" data-bind="name" value={ we.Item.Name }/>
+										</div>
+									</div>
+									<div class="field">
+										<label class="field-label" for="quantity">Quantity</label>
+										<div class="field-control">
+											<input class="input" type="number" id="quantity" name="quantity" data-bind="quantity" value={ fmt.Sprintf("%d", we.Item.Quantity) }/>
+										</div>
+									</div>
+									<div class="radio-row">
+										<input class="checkbox" type="checkbox" id="active" name="active" data-bind="active" if we.Item.Active { checked }/>
+										<label class="label" for="active">Active</label>
+									</div>
+									
+									<div class="stack" data-gap="sm">
+										
+										<button class="btn btn-primary btn-block" type="submit">Update Widget</button>
+										
+										
+										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.WidgetIndex.URL()) }>Back to List</a>
+										
+									</div>
+								</fieldset>
+							</form>
+						</div>
+						<div class="card-footer">
+							<button
+								class="btn btn-destructive btn-block"
+								type="button"
+								data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.WidgetDestroy.URL(we.Item.ID)) }
+							>Destroy Widget</button>
+						</div>
+						
+					</div>
+				</section>
+			</main>
+		}
+	}
+}
+

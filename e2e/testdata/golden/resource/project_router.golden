@@ -12,7 +12,8 @@ import (
 
 func (r Router) RegisterProjectRoutes(project controllers.Projects) error {
 	errs := []error{}
-	_, err := r.e.AddRoute(echo.Route{
+	var err error
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.ProjectIndex.Path(),
 		Name:    routes.ProjectIndex.Name(),

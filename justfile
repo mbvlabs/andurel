@@ -117,14 +117,30 @@ ci:
 	@echo "\n✅ All CI checks passed!"
 
 # Update golden files for generator model tests
-update-golden-generator:
+update-golden-generator-models:
 	go clean -testcache
 	go test ./generator -run TestModelGenerationGoldens -v -update
 
-# Update golden files for generate tests
-update-golden:
+# Update golden files for generator controller/view tests
+update-golden-generator-controller-views:
+	go clean -testcache
+	go test ./generator -run TestControllerViewGenerationGoldens -v -update
+
+# Update golden files for e2e generate command tests
+update-golden-e2e-generate:
+	go clean -testcache
+	go test ./e2e -run TestGenerateCommands -v -timeout 15m -update-generate-golden
+
+# Update golden files for e2e resource pluralization tests
+update-golden-e2e-resource:
+	go clean -testcache
+	go test ./e2e -run TestResourcePluralization -v -timeout 15m -update-resource-golden
+
+# Update all golden files
+update-golden-all:
 	go clean -testcache
 	go test ./generator -run TestModelGenerationGoldens -v -update
+	go test ./generator -run TestControllerViewGenerationGoldens -v -update
 	go test ./e2e -run TestGenerateCommands -v -timeout 15m -update-generate-golden
 	go test ./e2e -run TestResourcePluralization -v -timeout 15m -update-resource-golden
 

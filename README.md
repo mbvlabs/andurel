@@ -184,7 +184,7 @@ andurel generate email (alias: e) NAME
 | `--yes`          | Apply changes without prompting for confirmation (use with `--update`) |
 | `--primary-key`  | Specify the primary key column (skips interactive detection) |
 
-**`generate controller`** — Creates a controller for a resource. With no actions, or with any standard CRUD action (`index`, `show`, `new`, `create`, `edit`, `update`, `destroy`), it uses the resource templates and generates the standard CRUD controller, views, and routes. Non-CRUD actions add empty controller methods and matching empty components to `views/<name>_resource.templ`; custom action routes are not generated yet.
+**`generate controller`** — Creates a controller for a resource. With no actions, it generates the full standard CRUD controller, views, and routes. With one or more standard CRUD actions (`index`, `show`, `new`, `create`, `edit`, `update`, `destroy`), it generates only those resource actions; partial CRUD views are self-contained and only link to companion actions that are also present. Non-CRUD actions add empty controller methods and matching empty components to `views/<name>_resource.templ`; custom action routes are not generated yet.
 
 | Flag | Description |
 |------|-------------|

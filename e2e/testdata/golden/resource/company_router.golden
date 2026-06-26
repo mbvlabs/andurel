@@ -12,7 +12,8 @@ import (
 
 func (r Router) RegisterCompanyRoutes(company controllers.Companies) error {
 	errs := []error{}
-	_, err := r.e.AddRoute(echo.Route{
+	var err error
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.CompanyIndex.Path(),
 		Name:    routes.CompanyIndex.Name(),

@@ -1,0 +1,43 @@
+package routes
+
+import (
+	"testapp/internal/routing"
+)
+
+const WidgetPrefix = "/widgets"
+
+var WidgetIndex = routing.NewSimpleRoute(
+	"",
+	"widgets.index",
+	WidgetPrefix,
+)
+var WidgetShow = routing.NewRouteWithUUIDID(
+	"/:id",
+	"widgets.show",
+	WidgetPrefix,
+)
+var WidgetNew = routing.NewSimpleRoute(
+	"/new",
+	"widgets.new",
+	WidgetPrefix,
+)
+var WidgetCreate = routing.NewSimpleRoute(
+	"",
+	"widgets.create",
+	WidgetPrefix,
+)
+var WidgetEdit = routing.NewRouteWithUUIDID(
+	"/:id/edit",
+	"widgets.edit",
+	WidgetPrefix,
+)
+var WidgetUpdate = routing.NewRouteWithUUIDID(
+	"/:id",
+	"widgets.update",
+	WidgetPrefix,
+)
+var WidgetDestroy = routing.NewRouteWithUUIDID(
+	"/:id",
+	"widgets.destroy",
+	WidgetPrefix,
+)
