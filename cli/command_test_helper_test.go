@@ -154,6 +154,7 @@ type scaffoldCall struct {
 
 type controllerCall struct {
 	name      string
+	modelName string
 	tableName string
 	withViews bool
 	actions   []string
@@ -185,6 +186,19 @@ func (f *fakeGenerator) GenerateModelWithPK(resourceName string, tableNameOverri
 func (f *fakeGenerator) GenerateControllerWithActions(resourceName, tableName string, withViews bool, actions []string, inertia string) error {
 	f.controllerCalls = append(f.controllerCalls, controllerCall{
 		name:      resourceName,
+		modelName: resourceName,
+		tableName: tableName,
+		withViews: withViews,
+		actions:   append([]string(nil), actions...),
+		inertia:   inertia,
+	})
+	return f.err
+}
+
+func (f *fakeGenerator) GenerateControllerWithActionsForModel(resourceName, modelName, tableName string, withViews bool, actions []string, inertia string) error {
+	f.controllerCalls = append(f.controllerCalls, controllerCall{
+		name:      resourceName,
+		modelName: modelName,
 		tableName: tableName,
 		withViews: withViews,
 		actions:   append([]string(nil), actions...),

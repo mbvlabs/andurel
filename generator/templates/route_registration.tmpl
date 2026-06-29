@@ -96,5 +96,17 @@ func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} contr
 	}
 {{- end }}
 
+{{- range .CustomActions }}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.{{$.ResourceName}}{{.MethodName}}.Path(),
+		Name:    routes.{{$.ResourceName}}{{.MethodName}}.Name(),
+		Handler: {{$.LowercaseResourceName}}.{{.MethodName}},
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+{{- end }}
+
 	return errors.Join(errs...)
 }

@@ -81,16 +81,23 @@ func (c *Coordinator) GenerateController(resourceName, tableName string, withVie
 }
 
 func (c *Coordinator) GenerateControllerWithActions(resourceName, tableName string, withViews bool, actions []string, inertia string) error {
+	return c.GenerateControllerWithActionsForModel(resourceName, resourceName, tableName, withViews, actions, inertia)
+}
+
+func (c *Coordinator) GenerateControllerWithActionsForModel(resourceName, modelName, tableName string, withViews bool, actions []string, inertia string) error {
+	if modelName == "" {
+		modelName = resourceName
+	}
 	if tableName == "" {
 		tableName = naming.DeriveTableName(resourceName)
 	}
 
-	if err := c.ControllerManager.GenerateControllerWithActions(resourceName, tableName, withViews, actions, inertia); err != nil {
+	if err := c.ControllerManager.GenerateControllerWithActionsForModel(resourceName, modelName, tableName, withViews, actions, inertia); err != nil {
 		return err
 	}
 
 	if withViews {
-		if err := c.ViewManager.GenerateViewWithControllerActions(resourceName, tableName, actions, inertia); err != nil {
+		if err := c.ViewManager.GenerateViewWithControllerActionsForModel(resourceName, modelName, tableName, actions, inertia); err != nil {
 			return err
 		}
 	}

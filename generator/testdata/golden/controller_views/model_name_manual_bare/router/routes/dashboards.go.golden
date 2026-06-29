@@ -1,0 +1,18 @@
+package routes
+
+import (
+	"testapp/internal/routing"
+)
+
+const DashboardPrefix = "/dashboards"
+
+var DashboardIndex = routing.NewSimpleRoute(
+	"",
+	"dashboards.index",
+	DashboardPrefix,
+)
+var DashboardShow = routing.NewRouteWithUUIDID(
+	"/:id",
+	"dashboards.show",
+	DashboardPrefix,
+)

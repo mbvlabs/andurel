@@ -6,6 +6,7 @@ type cliGenerator interface {
 	GenerateModel(resourceName string, tableNameOverride string, skipFactory bool) error
 	GenerateModelWithPK(resourceName string, tableNameOverride string, skipFactory bool, primaryKeyColumn string) error
 	GenerateControllerWithActions(resourceName, tableName string, withViews bool, actions []string, inertia string) error
+	GenerateControllerWithActionsForModel(resourceName, modelName, tableName string, withViews bool, actions []string, inertia string) error
 	GenerateScaffold(resourceName, tableName string, skipFactory bool, primaryKeyColumn string, inertia string) error
 }
 

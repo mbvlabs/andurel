@@ -28,8 +28,8 @@ func TestControllerViewGenerationGoldens(t *testing.T) {
 
 	diModes := []string{"manual", "uberfx"}
 	cssModes := []struct {
-		name         string
-		framework    string
+		name          string
+		framework     string
 		cssComponents bool
 	}{
 		{name: "bare", framework: "tailwind"},
@@ -63,6 +63,23 @@ func TestControllerViewGenerationGoldens(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestControllerViewGenerationWithModelNameGolden(t *testing.T) {
+	g := goldie.New(t, goldie.WithFixtureDir(controllerViewGenerationGoldenDir(t)))
+	coord := setupControllerViewGoldenProject(t, "manual", "tailwind", false)
+
+	if err := coord.GenerateControllerWithActionsForModel("Dashboard", "Widget", "", true, []string{"index", "show"}, ""); err != nil {
+		t.Fatalf("failed to generate controller/view with model name: %v", err)
+	}
+
+	assertControllerViewGoldenPaths(t, g, "model_name_manual_bare", []string{
+		"controllers/dashboards.go",
+		"router/routes/dashboards.go",
+		"router/connect_dashboards_routes.go",
+		"cmd/app/main.go",
+		"views/dashboards_resource.templ",
+	})
 }
 
 func setupControllerViewGoldenProject(t *testing.T, diMode, cssFramework string, cssComponents bool) Coordinator {
@@ -145,6 +162,23 @@ func assertControllerViewArtifacts(t *testing.T, g *goldie.Goldie, fixtureDir st
 	} else {
 		paths = append(paths, "!views/widgets_resource.templ")
 	}
+
+	for _, path := range paths {
+		if path[0] == '!' {
+			assertControllerViewGoldenFileMissing(t, path[1:])
+			continue
+		}
+
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("failed to read generated artifact %s: %v", path, err)
+		}
+		g.Assert(t, filepath.Join(fixtureDir, path), content)
+	}
+}
+
+func assertControllerViewGoldenPaths(t *testing.T, g *goldie.Goldie, fixtureDir string, paths []string) {
+	t.Helper()
 
 	for _, path := range paths {
 		if path[0] == '!' {

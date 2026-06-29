@@ -54,7 +54,7 @@ func TestCommandFlagsContract(t *testing.T) {
 	}{
 		{path: "new", flags: []string{"css", "extensions", "di", "inertia"}},
 		{path: "generate model", flags: []string{"skip-factory", "table-name", "update", "yes", "primary-key"}},
-		{path: "generate controller", flags: []string{"skip-routes", "vue"}},
+		{path: "generate controller", flags: []string{"skip-routes", "vue", "model-name"}},
 		{path: "generate scaffold", flags: []string{"skip-factory", "table-name", "primary-key", "vue"}},
 		{path: "generate job", flags: []string{"queue"}},
 		{path: "fmt", flags: []string{"check", "skip-templ", "skip-go"}},

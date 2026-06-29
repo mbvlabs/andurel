@@ -31,33 +31,40 @@ type GeneratedField struct {
 }
 
 type GeneratedController struct {
-	ResourceName        string
-	PluralName          string
-	PluralResourceName  string // The pluralized form of ResourceName (respects --table-name override)
-	ReceiverName        string // Short receiver name for methods (e.g., "sf" for StudentFeedback)
-	Package             string
-	Fields              []GeneratedField
-	ModulePath          string
-	Type                ControllerType
-	DatabaseType        string
-	TableNameOverridden bool
-	IDType              string // "uuid.UUID", "int32", "int64", "string"
-	IsAutoIncrementID   bool   // True for serial/bigserial
-	IDGoFieldName       string // Go struct field name of PK (e.g., "ID", "UserID")
-	HasPrimaryKey       bool   // Whether the table has any primary key
-	Actions             []string
+	ResourceName            string
+	ModelName               string
+	PluralName              string
+	ModelPluralName         string
+	PluralResourceName      string // The pluralized form of ResourceName (respects --table-name override)
+	ModelPluralResourceName string
+	ReceiverName            string // Short receiver name for methods (e.g., "sf" for StudentFeedback)
+	Package                 string
+	Fields                  []GeneratedField
+	ModulePath              string
+	Type                    ControllerType
+	DatabaseType            string
+	TableNameOverridden     bool
+	IDType                  string // "uuid.UUID", "int32", "int64", "string"
+	IsAutoIncrementID       bool   // True for serial/bigserial
+	IDGoFieldName           string // Go struct field name of PK (e.g., "ID", "UserID")
+	HasPrimaryKey           bool   // Whether the table has any primary key
+	Actions                 []string
 }
 
 type Config struct {
-	ResourceName        string
-	PluralName          string
-	TableName           string
-	PackageName         string
-	ModulePath          string
-	ControllerType      ControllerType
-	TableNameOverridden bool
-	PrimaryKeyColumn    string // Override PK column name (empty = auto-detect)
-	Actions             []string
+	ResourceName             string
+	ModelName                string
+	PluralName               string
+	ModelPluralName          string
+	TableName                string
+	ModelTableName           string
+	PackageName              string
+	ModulePath               string
+	ControllerType           ControllerType
+	TableNameOverridden      bool
+	ModelTableNameOverridden bool
+	PrimaryKeyColumn         string // Override PK column name (empty = auto-detect)
+	Actions                  []string
 }
 
 type Generator struct {
@@ -77,33 +84,51 @@ func (g *Generator) SetNullType(nullType string) {
 }
 
 func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedController, error) {
+	modelName := config.ModelName
+	if modelName == "" {
+		modelName = config.ResourceName
+	}
+	modelPluralName := config.ModelPluralName
+	if modelPluralName == "" {
+		modelPluralName = config.PluralName
+	}
 	// Compute PluralResourceName: use resource name as-is when table name is overridden,
 	// otherwise use standard pluralization
 	pluralResourceName := inflection.Plural(config.ResourceName)
 	if config.TableNameOverridden {
 		pluralResourceName = config.ResourceName
 	}
+	modelPluralResourceName := inflection.Plural(modelName)
+	if config.ModelTableNameOverridden {
+		modelPluralResourceName = modelName
+	}
 
 	controller := &GeneratedController{
-		ResourceName:        config.ResourceName,
-		PluralName:          config.PluralName,
-		PluralResourceName:  pluralResourceName,
-		ReceiverName:        naming.ToReceiverName(config.ResourceName),
-		Package:             config.PackageName,
-		ModulePath:          config.ModulePath,
-		Type:                config.ControllerType,
-		DatabaseType:        g.typeMapper.GetDatabaseType(),
-		TableNameOverridden: config.TableNameOverridden,
-		Fields:              make([]GeneratedField, 0),
-		IDType:              "uuid.UUID", // Default to UUID
-		Actions:             config.Actions,
+		ResourceName:            config.ResourceName,
+		ModelName:               modelName,
+		PluralName:              config.PluralName,
+		ModelPluralName:         modelPluralName,
+		PluralResourceName:      pluralResourceName,
+		ModelPluralResourceName: modelPluralResourceName,
+		ReceiverName:            naming.ToReceiverName(config.ResourceName),
+		Package:                 config.PackageName,
+		ModulePath:              config.ModulePath,
+		Type:                    config.ControllerType,
+		DatabaseType:            g.typeMapper.GetDatabaseType(),
+		TableNameOverridden:     config.TableNameOverridden,
+		Fields:                  make([]GeneratedField, 0),
+		IDType:                  "uuid.UUID", // Default to UUID
+		Actions:                 config.Actions,
 	}
 
 	if config.ControllerType == ResourceController ||
 		config.ControllerType == ResourceControllerNoViews {
 		tableName := config.TableName
+		if config.ModelTableName != "" {
+			tableName = config.ModelTableName
+		}
 		if tableName == "" {
-			tableName = config.PluralName
+			tableName = modelPluralName
 		}
 		table, err := cat.GetTable("", tableName)
 		if err != nil {

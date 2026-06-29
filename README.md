@@ -184,11 +184,38 @@ andurel generate email (alias: e) NAME
 | `--yes`          | Apply changes without prompting for confirmation (use with `--update`) |
 | `--primary-key`  | Specify the primary key column (skips interactive detection) |
 
-**`generate controller`** — Creates a controller for a resource. With no actions, it generates the full standard CRUD controller, views, and routes. With one or more standard CRUD actions (`index`, `show`, `new`, `create`, `edit`, `update`, `destroy`), it generates only those resource actions; partial CRUD views are self-contained and only link to companion actions that are also present. Non-CRUD actions add empty controller methods and matching empty components to `views/<name>_resource.templ`; custom action routes are not generated yet.
+**`generate controller`** — Creates a controller for a resource. With no actions, it generates the full standard CRUD controller, views, and routes. With one or more standard CRUD actions (`index`, `show`, `new`, `create`, `edit`, `update`, `destroy`), it generates only those resource actions; partial CRUD views are self-contained and only link to companion actions that are also present.
+
+Non-CRUD actions create standalone/custom controller actions. They add empty controller methods, matching Templ components or Vue pages, and conventional `GET` routes:
+
+```bash
+andurel generate controller Dashboard overview
+```
+
+Generates:
+
+| Artifact | Example |
+|----------|---------|
+| Controller method | `controllers/dashboards.go`: `Dashboards.Overview` |
+| Templ view | `views/dashboards_resource.templ`: `DashboardOverview()` |
+| Route variable | `router/routes/dashboards.go`: `DashboardOverview` |
+| Route registration | `GET /dashboards/overview` named `dashboards.overview` |
+
+Custom-only controller generation does not require a model or migration. If any CRUD action is requested, generation is model-backed and still requires an existing model/migration.
+
+Use `--model-name` when the controller/resource name should differ from the model it is backed by:
+
+```bash
+andurel generate controller Dashboard --model-name User
+andurel generate controller Dashboard index overview --model-name User
+```
+
+In this mode, controller/UI artifacts use `Dashboard` (`controllers/dashboards.go`, `views/dashboards_resource.templ`, `/dashboards` routes), while model calls and entity types use `User` (`models.User.Paginate`, `models.User.Find`, `models.UserEntity`, `models.CreateUserData`, `models.UpdateUserData`). This is only for `generate controller`; `generate scaffold` keeps the existing one-resource-name behavior.
 
 | Flag | Description |
 |------|-------------|
-| `--skip-routes` | Deprecated; custom actions do not generate routes |
+| `--model-name` | Use a different existing model for model-backed controller generation |
+| `--skip-routes` | Deprecated; ignored |
 | `--vue` | Generate Inertia Vue views instead of Templ views |
 
 **`generate view`** — Generates Go code from `.templ` template files (runs `templ generate`).
