@@ -154,7 +154,7 @@ func (d document) Paginate(ctx context.Context, db storage.Executor, page, pageS
 		return PaginatedDocuments{}, err
 	}
 
-	var entities []DocumentEntity
+	entities := make([]DocumentEntity, 0, int(pageSize))
 	if err := db.NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).

@@ -149,7 +149,7 @@ func (fe feedbackEntry) Paginate(ctx context.Context, db storage.Executor, page,
 		return PaginatedFeedbackEntry{}, err
 	}
 
-	var entities []FeedbackEntryEntity
+	entities := make([]FeedbackEntryEntity, 0, int(pageSize))
 	if err := db.NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).

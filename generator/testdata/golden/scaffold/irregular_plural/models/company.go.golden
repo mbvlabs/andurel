@@ -137,7 +137,7 @@ func (c company) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 		return PaginatedCompanies{}, err
 	}
 
-	var entities []CompanyEntity
+	entities := make([]CompanyEntity, 0, int(pageSize))
 	if err := db.NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).

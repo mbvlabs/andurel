@@ -142,7 +142,7 @@ func (w widget) Paginate(ctx context.Context, db storage.Executor, page, pageSiz
 		return PaginatedWidgets{}, err
 	}
 
-	var entities []WidgetEntity
+	entities := make([]WidgetEntity, 0, int(pageSize))
 	if err := db.NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
