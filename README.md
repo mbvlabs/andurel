@@ -571,6 +571,124 @@ The `controllers/pages.go` uses Inertia rendering instead of Templ, and `cmd/app
 
 Combines the UberFX routing pattern with the Inertia frontend layer. The pages controller uses `RegisterRoutes()` and renders via Inertia instead of Templ.
 
+### Real Example: Controller to Vue Component
+
+Here's how a controller passes data to a Vue component via Inertia, from route definition to rendered page.
+
+#### Route Definition
+
+```go
+// router/routes/pages.go
+var HomePage = routing.NewSimpleRoute("/", "pages.home", "")
+```
+
+#### Route Registration
+
+```go
+// router/connect_pages_routes.go
+func (r Router) RegisterPagesRoutes(pages controllers.Pages) error {
+    _, err := r.e.AddRoute(echo.Route{
+        Method:  http.MethodGet,
+        Path:    routes.HomePage.Path(),
+        Name:    routes.HomePage.Name(),
+        Handler: pages.Home,
+    })
+    return err
+}
+```
+
+#### Controller
+
+```go
+// controllers/pages.go
+func (p Pages) Home(etx *echo.Context) error {
+    return inertia.Page(etx, "Welcome", inertia.Props{
+        "appName": "MyApp",
+    })
+}
+```
+
+#### Vue Component
+
+```vue
+<!-- resources/js/Pages/Welcome.vue -->
+<script setup lang="ts">
+import { Head } from '@inertiajs/vue3'
+
+defineProps<{
+  appName: string
+}>()
+</script>
+
+<template>
+  <Head :title="appName" />
+  <div class="min-h-screen flex items-center justify-center bg-gray-50">
+    <div class="text-center">
+      <h1 class="mb-4 text-4xl font-bold text-gray-900">{{ appName }}</h1>
+      <p class="text-gray-600">Built with Andurel + Inertia + Vue</p>
+    </div>
+  </div>
+</template>
+```
+
+#### CRUD Index Example
+
+For paginated list views, the controller queries data and passes it as props:
+
+```go
+// controllers/widgets.go
+func (w Widgets) Index(etx *echo.Context) error {
+    page := int64(1)
+    if p := etx.QueryParam("page"); p != "" {
+        if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+            page = int64(parsed)
+        }
+    }
+    perPage := int64(25)
+
+    widgets, err := models.Widget.Paginate(
+        etx.Request().Context(), w.db.Executor(), page, perPage,
+    )
+    if err != nil {
+        return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+    }
+
+    return inertia.Page(etx, "Widget/Index", inertia.Props{
+        "items": widgets.Widgets,
+    })
+}
+```
+
+```vue
+<!-- resources/js/Pages/Widget/Index.vue -->
+<script setup lang="ts">
+import { Head, Link } from '@inertiajs/vue3'
+
+defineProps<{
+  items: Array<Record<string, unknown>>
+}>()
+</script>
+
+<template>
+  <Head title="Widgets" />
+  <div>
+    <h1>Widgets</h1>
+    <Link :href="'/widgets/create'">New Widget</Link>
+    <table>
+      <tr v-for="item in items" :key="item.id">
+        <td>{{ item.name }}</td>
+        <td>
+          <Link :href="`/widgets/${item.id}`">View</Link>
+          <Link :href="`/widgets/${item.id}/edit`">Edit</Link>
+        </td>
+      </tr>
+    </table>
+  </div>
+</template>
+```
+
+Flash messages set via `cookies.AddFlash()` in the controller are automatically injected into Inertia props as `flash` and displayed as toast notifications in the Vue app entry point.
+
 ## Contributing
 
 Contributions are welcome! Here's how to get started:
