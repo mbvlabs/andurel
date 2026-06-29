@@ -76,12 +76,33 @@ func (c *ControllerManager) GenerateControllerWithActions(
 	actions []string,
 	inertia string,
 ) error {
+	return c.GenerateControllerWithActionsForModel(resourceName, resourceName, tableName, withViews, actions, inertia)
+}
+
+func (c *ControllerManager) GenerateControllerWithActionsForModel(
+	resourceName, modelName, tableName string,
+	withViews bool,
+	actions []string,
+	inertia string,
+) error {
 	modulePath := c.projectManager.GetModulePath()
+	if modelName == "" {
+		modelName = resourceName
+	}
+	if err := c.validator.ValidateResourceName(modelName); err != nil {
+		return fmt.Errorf("model name validation failed: %w", err)
+	}
 
 	tableNameOverridden := tableName != "" && tableName != naming.DeriveTableName(resourceName)
 
 	if tableName == "" {
 		tableName = naming.DeriveTableName(resourceName)
+	}
+	modelTableName := tableName
+	modelTableNameOverridden := tableNameOverridden
+	if modelName != resourceName {
+		modelTableName = naming.DeriveTableName(modelName)
+		modelTableNameOverridden = false
 	}
 
 	if tableNameOverridden {
@@ -95,8 +116,8 @@ func (c *ControllerManager) GenerateControllerWithActions(
 	}
 
 	var modelFileName strings.Builder
-	modelFileName.Grow(len(resourceName) + 3) // +3 for ".go"
-	modelFileName.WriteString(naming.ToSnakeCase(resourceName))
+	modelFileName.Grow(len(modelName) + 3) // +3 for ".go"
+	modelFileName.WriteString(naming.ToSnakeCase(modelName))
 	modelFileName.WriteString(".go")
 	modelPath := filepath.Join(c.config.Paths.Models, modelFileName.String())
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
@@ -106,13 +127,13 @@ func (c *ControllerManager) GenerateControllerWithActions(
 		)
 	}
 
-	cat, err := c.migrationManager.BuildCatalogFromMigrations(tableName, c.config)
+	cat, err := c.migrationManager.BuildCatalogFromMigrations(modelTableName, c.config)
 	if err != nil {
 		return err
 	}
 
 	// Resolve primary key
-	pkInfo, err := c.resolvePK(cat, tableName)
+	pkInfo, err := c.resolvePK(cat, modelTableName)
 	if err != nil {
 		return err
 	}
@@ -129,7 +150,7 @@ func (c *ControllerManager) GenerateControllerWithActions(
 	}
 
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateControllerWithActions(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia, actions); err != nil {
+	if err := fileGen.GenerateControllerWithActionsForModel(cat, resourceName, modelName, tableName, modelTableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, modelTableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia, actions); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 

@@ -194,9 +194,10 @@ func TestGenerateScaffoldMapsFlagsToGenerator(t *testing.T) {
 func TestGenerateControllerMapsActionsAndVue(t *testing.T) {
 	resetCLITestSeams(t)
 	var got controllerCall
-	generateControllerWithActionsFunc = func(name string, actions []string, skipRoutes bool, inertia string) error {
+	generateControllerWithActionsFunc = func(name, modelName string, actions []string, skipRoutes bool, inertia string) error {
 		got = controllerCall{
 			name:      name,
+			modelName: modelName,
 			actions:   append([]string(nil), actions...),
 			withViews: !skipRoutes,
 			inertia:   inertia,
@@ -211,12 +212,102 @@ func TestGenerateControllerMapsActionsAndVue(t *testing.T) {
 
 	want := controllerCall{
 		name:      "Widget",
+		modelName: "",
 		actions:   []string{"index", "export"},
 		withViews: true,
 		inertia:   "vue",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("controller call: expected %#v, got %#v", want, got)
+	}
+}
+
+func TestGenerateControllerMapsModelName(t *testing.T) {
+	resetCLITestSeams(t)
+	var got controllerCall
+	generateControllerWithActionsFunc = func(name, modelName string, actions []string, skipRoutes bool, inertia string) error {
+		got = controllerCall{
+			name:      name,
+			modelName: modelName,
+			actions:   append([]string(nil), actions...),
+			withViews: !skipRoutes,
+			inertia:   inertia,
+		}
+		return nil
+	}
+
+	result := executeCLITest(t, "generate", "controller", "Dashboard", "index", "--model-name", "User")
+	if result.err != nil {
+		t.Fatalf("generate controller failed: %v", result.err)
+	}
+
+	want := controllerCall{
+		name:      "Dashboard",
+		modelName: "User",
+		actions:   []string{"index"},
+		withViews: true,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("controller call: expected %#v, got %#v", want, got)
+	}
+}
+
+func TestGenerateControllerCustomActionCreatesRouteWithoutModel(t *testing.T) {
+	resetCLITestSeams(t)
+	rootDir := t.TempDir()
+	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
+	writeCLITestFile(t, rootDir, "cmd/app/main.go", `package main
+
+import "example.com/app/router"
+
+func setupControllers(db interface{}, r *router.Router) error {
+	// andurel:controller-registration-point
+	return nil
+}
+`)
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(rootDir); err != nil {
+		t.Fatalf("chdir temp project: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	if err := generateControllerWithActions("Dashboard", "", []string{"overview"}, false, ""); err != nil {
+		t.Fatalf("generate custom controller action: %v", err)
+	}
+
+	assertCLITestFileContains(t, rootDir, "controllers/dashboards.go", "func (d Dashboards) Overview(etx *echo.Context) error")
+	assertCLITestFileContains(t, rootDir, "views/dashboards_resource.templ", "templ DashboardOverview()")
+	assertCLITestFileContains(t, rootDir, "router/routes/dashboards.go", "var DashboardOverview = routing.NewSimpleRoute")
+	assertCLITestFileContains(t, rootDir, "router/routes/dashboards.go", "\"dashboards.overview\"")
+	assertCLITestFileContains(t, rootDir, "router/connect_dashboards_routes.go", "Handler: dashboard.Overview")
+	assertCLITestFileContains(t, rootDir, "cmd/app/main.go", "dashboards := controllers.NewDashboards()")
+}
+
+func TestGenerateControllerRejectsModelNameForCustomOnly(t *testing.T) {
+	resetCLITestSeams(t)
+	rootDir := t.TempDir()
+	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(rootDir); err != nil {
+		t.Fatalf("chdir temp project: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	err = generateControllerWithActions("Dashboard", "User", []string{"overview"}, false, "")
+	if err == nil || !strings.Contains(err.Error(), "--model-name requires") {
+		t.Fatalf("expected --model-name custom-only error, got %v", err)
 	}
 }
 
@@ -228,6 +319,28 @@ func TestControllerActionClassification(t *testing.T) {
 	}
 	if got := nonCRUDControllerActions(actions); !reflect.DeepEqual(got, []string{"export", "archive"}) {
 		t.Fatalf("custom actions: expected [export archive], got %v", got)
+	}
+}
+
+func writeCLITestFile(t *testing.T, root, relPath, content string) {
+	t.Helper()
+	path := filepath.Join(root, relPath)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", relPath, err)
+	}
+}
+
+func assertCLITestFileContains(t *testing.T, root, relPath, want string) {
+	t.Helper()
+	content, err := os.ReadFile(filepath.Join(root, relPath))
+	if err != nil {
+		t.Fatalf("read %s: %v", relPath, err)
+	}
+	if !strings.Contains(string(content), want) {
+		t.Fatalf("expected %s to contain %q:\n%s", relPath, want, string(content))
 	}
 }
 

@@ -44,21 +44,39 @@ func (v *ViewManager) GenerateViewWithController(resourceName, tableName string,
 }
 
 func (v *ViewManager) GenerateViewWithControllerActions(resourceName, tableName string, actions []string, inertia string) error {
-	return v.generateViewWithActions(resourceName, tableName, true, actions, inertia)
+	return v.GenerateViewWithControllerActionsForModel(resourceName, resourceName, tableName, actions, inertia)
+}
+
+func (v *ViewManager) GenerateViewWithControllerActionsForModel(resourceName, modelName, tableName string, actions []string, inertia string) error {
+	return v.generateViewWithActionsForModel(resourceName, modelName, tableName, true, actions, inertia)
 }
 
 func (v *ViewManager) generateView(resourceName, tableName string, withController bool) error {
-	return v.generateViewWithActions(resourceName, tableName, withController, nil, "")
+	return v.generateViewWithActionsForModel(resourceName, resourceName, tableName, withController, nil, "")
 }
 
 func (v *ViewManager) generateViewWithActions(resourceName, tableName string, withController bool, actions []string, inertia string) error {
-	modulePath := v.projectManager.GetModulePath()
+	return v.generateViewWithActionsForModel(resourceName, resourceName, tableName, withController, actions, inertia)
+}
 
-	modelPath := BuildModelPath(v.config.Paths.Models, resourceName)
+func (v *ViewManager) generateViewWithActionsForModel(resourceName, modelName, tableName string, withController bool, actions []string, inertia string) error {
+	modulePath := v.projectManager.GetModulePath()
+	if modelName == "" {
+		modelName = resourceName
+	}
+
+	modelPath := BuildModelPath(v.config.Paths.Models, modelName)
 	tableNameOverridden := tableName != naming.DeriveTableName(resourceName)
+	modelTableName := tableName
+	if modelName != resourceName {
+		modelTableName = naming.DeriveTableName(modelName)
+	}
 
 	if err := v.validator.ValidateResourceName(resourceName); err != nil {
 		return err
+	}
+	if err := v.validator.ValidateResourceName(modelName); err != nil {
+		return fmt.Errorf("model name validation failed: %w", err)
 	}
 
 	if tableNameOverridden {
@@ -82,12 +100,12 @@ func (v *ViewManager) generateViewWithActions(resourceName, tableName string, wi
 		)
 	}
 
-	cat, err := v.migrationManager.BuildCatalogFromMigrations(tableName, v.config)
+	cat, err := v.migrationManager.BuildCatalogFromMigrations(modelTableName, v.config)
 	if err != nil {
 		return err
 	}
 
-	if err := v.viewGenerator.GenerateViewWithControllerActions(cat, resourceName, tableName, modulePath, withController, actions, inertia); err != nil {
+	if err := v.viewGenerator.GenerateViewWithControllerActionsForModel(cat, resourceName, modelName, tableName, modelTableName, modulePath, withController, actions, inertia); err != nil {
 		return fmt.Errorf("failed to generate view: %w", err)
 	}
 

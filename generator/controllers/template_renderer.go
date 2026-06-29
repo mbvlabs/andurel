@@ -16,6 +16,36 @@ type TemplateRenderer struct {
 	service *templates.TemplateService
 }
 
+type customRouteAction struct {
+	Name       string
+	MethodName string
+	RouteName  string
+	Path       string
+}
+
+func customRouteActions(actions []string) []customRouteAction {
+	customActions := make([]customRouteAction, 0, len(actions))
+	seen := map[string]struct{}{}
+	for _, action := range actions {
+		normalized := strings.ToLower(action)
+		if slices.Contains(crudActions, normalized) {
+			continue
+		}
+		routeName := naming.ToSnakeCase(action)
+		if _, ok := seen[routeName]; ok {
+			continue
+		}
+		seen[routeName] = struct{}{}
+		customActions = append(customActions, customRouteAction{
+			Name:       action,
+			MethodName: naming.ToPascalCase(action),
+			RouteName:  routeName,
+			Path:       routeName,
+		})
+	}
+	return customActions
+}
+
 func NewTemplateRenderer() *TemplateRenderer {
 	return &TemplateRenderer{
 		service: templates.GetGlobalTemplateService(),
@@ -23,6 +53,16 @@ func NewTemplateRenderer() *TemplateRenderer {
 }
 
 func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController, diMode, inertia string) (string, error) {
+	if controller.ModelName == "" {
+		controller.ModelName = controller.ResourceName
+	}
+	if controller.ModelPluralName == "" {
+		controller.ModelPluralName = controller.PluralName
+	}
+	if controller.ModelPluralResourceName == "" {
+		controller.ModelPluralResourceName = controller.PluralResourceName
+	}
+
 	var templateName string
 	switch controller.Type {
 	case ResourceController:
@@ -60,6 +100,9 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 				return true
 			}
 			return slices.Contains(controller.Actions, action)
+		},
+		"CustomActions": func() []customRouteAction {
+			return customRouteActions(controller.Actions)
 		},
 		"InertiaDataType":  inertiaDataType,
 		"InertiaDataValue": inertiaDataValue,
@@ -160,17 +203,19 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName, idTyp
 
 	// Create custom data structure for route template (router/routes/users.go)
 	data := struct {
-		ResourceName string
-		PluralName   string
-		ModulePath   string
-		IDType       string
-		Actions      []string
+		ResourceName  string
+		PluralName    string
+		ModulePath    string
+		IDType        string
+		Actions       []string
+		CustomActions []customRouteAction
 	}{
-		ResourceName: resourceName,
-		PluralName:   pluralName,
-		ModulePath:   modulePath,
-		IDType:       idType,
-		Actions:      actions,
+		ResourceName:  resourceName,
+		PluralName:    pluralName,
+		ModulePath:    modulePath,
+		IDType:        idType,
+		Actions:       actions,
+		CustomActions: customRouteActions(actions),
 	}
 
 	customFuncs := template.FuncMap{
@@ -208,6 +253,7 @@ func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, pluralNa
 		LowercaseResourceName string
 		ModulePath            string
 		Actions               []string
+		CustomActions         []customRouteAction
 	}{
 		ResourceName:          resourceName,
 		PluralName:            pluralName,
@@ -216,6 +262,7 @@ func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, pluralNa
 		LowercaseResourceName: naming.ToLowerCamelCase(resourceName),
 		ModulePath:            modulePath,
 		Actions:               actions,
+		CustomActions:         customRouteActions(actions),
 	}
 	customFuncs := template.FuncMap{
 		"HasAction": func(action string) bool {

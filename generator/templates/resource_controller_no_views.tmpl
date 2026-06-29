@@ -69,7 +69,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		}
 	}
 
-	{{.PluralName | ToCamelCase}}List, err := models.{{.ResourceName}}.Paginate(
+	{{.ModelPluralName | ToCamelCase}}List, err := models.{{.ModelName}}.Paginate(
 		etx.Request().Context(),
 		{{.ReceiverName}}.db.Executor(),
 		page,
@@ -106,7 +106,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ModelName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -143,7 +143,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
-	data := models.Create{{.ResourceName}}Data{
+	data := models.Create{{.ModelName}}Data{
 {{- range .Fields}}
 {{- if not .IsSystemField}}
 		{{- if eq .GoType "*uuid.UUID"}}
@@ -257,7 +257,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 {{- end}}
 	}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Create(
+	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ModelName}}.Create(
 		etx.Request().Context(),
 		{{.ReceiverName}}.db.Executor(),
 		data,
@@ -313,7 +313,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ModelName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -369,7 +369,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
-	data := models.Update{{.ResourceName}}Data{
+	data := models.Update{{.ModelName}}Data{
 		{{.IDGoFieldName}}:      {{.ResourceName | ToLowerCamelCase}}ID,
 {{- range .Fields}}
 {{- if not .IsSystemField}}
@@ -484,7 +484,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 {{- end}}
 	}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Update(
+	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ModelName}}.Update(
 		etx.Request().Context(),
 		{{.ReceiverName}}.db.Executor(),
 		data,
@@ -543,7 +543,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 	}
 {{- end}}
 
-	err = models.{{.ResourceName}}.Destroy(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
+	err = models.{{.ModelName}}.Destroy(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())

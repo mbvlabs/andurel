@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 
+	generatorpkg "github.com/mbvlabs/andurel/generator"
+	controllergen "github.com/mbvlabs/andurel/generator/controllers"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/mbvlabs/andurel/pkg/naming"
@@ -17,6 +19,7 @@ func newGenerateControllerCommand() *cobra.Command {
 	var (
 		skipRoutes bool
 		vue        bool
+		modelName  string
 	)
 
 	cmd := &cobra.Command{
@@ -33,8 +36,13 @@ are generated. Partial CRUD views are self-contained and only link to companion
 actions that are also present.
 
 Non-CRUD actions are added as empty controller methods, with matching empty
-components in views/<name>_resource.templ. Custom action routes are not
-generated yet.`,
+components in views/<name>_resource.templ or Inertia Vue pages, and conventional
+GET routes at /<controllers>/<action>.
+
+Use --model-name when the generated controller/resource name should differ from
+the existing model it is backed by. Regular controller generation and scaffold
+generation keep the existing one-resource-name behavior unless this flag is
+provided.`,
 		Example: `  andurel generate controller CreditCard
 
       Generates the standard CRUD resource controller, views, and routes.
@@ -46,7 +54,12 @@ generated yet.`,
   andurel generate controller CreditCard export
 
       Adds an empty Export method to controllers/credit_cards.go and an empty
-      CreditCardExport component to views/credit_cards_resource.templ.`,
+      CreditCardExport component to views/credit_cards_resource.templ.
+      Also registers GET /credit_cards/export.
+
+  andurel generate controller Dashboard --model-name User
+
+      Generates dashboard controller, views, and routes backed by models.User.`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
@@ -65,18 +78,19 @@ generated yet.`,
 			}
 
 			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				return generateControllerWithActionsFunc(name, actions, skipRoutes, inertia)
+				return generateControllerWithActionsFunc(name, modelName, actions, skipRoutes, inertia)
 			})(cmd, args)
 		},
 	}
 
 	cmd.Flags().BoolVar(&skipRoutes, "skip-routes", false, "Deprecated: custom actions do not generate routes")
 	cmd.Flags().BoolVar(&vue, "vue", false, "Generate Inertia Vue views instead of Templ views")
+	cmd.Flags().StringVar(&modelName, "model-name", "", "Use a different model name for model-backed controller generation")
 
 	return cmd
 }
 
-func generateControllerWithActions(name string, actions []string, skipRoutes bool, inertia string) error {
+func generateControllerWithActions(name, modelName string, actions []string, skipRoutes bool, inertia string) error {
 	_ = skipRoutes
 
 	tableName := naming.DeriveTableName(name)
@@ -90,6 +104,13 @@ func generateControllerWithActions(name string, actions []string, skipRoutes boo
 	crudActions := crudControllerActions(actions)
 	customActions := nonCRUDControllerActions(actions)
 	shouldGenerateResource := len(actions) == 0 || len(crudActions) > 0
+	modelBackedActions := crudActions
+	if len(customActions) > 0 {
+		modelBackedActions = append(append([]string(nil), crudActions...), customActions...)
+	}
+	if modelName != "" && !shouldGenerateResource {
+		return fmt.Errorf("--model-name requires a CRUD action or full resource generation")
+	}
 
 	if shouldGenerateResource {
 		if _, err := os.Stat(controllerPath); err != nil && !os.IsNotExist(err) {
@@ -99,13 +120,22 @@ func generateControllerWithActions(name string, actions []string, skipRoutes boo
 		if err != nil {
 			return err
 		}
-		if err := gen.GenerateControllerWithActions(name, "", true, crudActions, inertia); err != nil {
+		if modelName != "" {
+			if err := gen.GenerateControllerWithActionsForModel(name, modelName, "", true, modelBackedActions, inertia); err != nil {
+				return err
+			}
+		} else if err := gen.GenerateControllerWithActions(name, "", true, modelBackedActions, inertia); err != nil {
 			return err
 		}
 	}
 
 	if len(customActions) > 0 {
-		if err := generateActionControllerFile(name, tableName, pluralName, modulePath, controllerPath, customActions, inertia); err != nil {
+		diMode := generatorpkg.ReadDIMode()
+		if err := generateActionControllerFile(name, tableName, pluralName, modulePath, controllerPath, customActions, inertia, diMode); err != nil {
+			return err
+		}
+		routeGen := controllergen.NewRouteGenerator()
+		if err := routeGen.GenerateRoutesWithActionsAndConstructor(name, pluralName, "uuid.UUID", diMode, customActions, shouldGenerateResource); err != nil {
 			return err
 		}
 	}
@@ -144,12 +174,13 @@ func isCRUDControllerAction(action string) bool {
 	}
 }
 
-func generateActionControllerFile(name, tableName, pluralName, modulePath, controllerPath string, actions []string, inertia string) error {
+func generateActionControllerFile(name, tableName, pluralName, modulePath, controllerPath string, actions []string, inertia, diMode string) error {
 	ts := naming.ToSnakeCase(name)
 	receiverName := naming.ToReceiverName(name)
 	resourceName := name
 	controllerName := naming.ToPascalCase(pluralName)
 	isInertia := inertia == "vue"
+	isFX := diMode == "uberfx"
 
 	if err := os.MkdirAll("controllers", 0o755); err != nil {
 		return err
@@ -178,6 +209,9 @@ func generateActionControllerFile(name, tableName, pluralName, modulePath, contr
 		if additions.Len() > 0 {
 			contentStr = strings.TrimRight(contentStr, "\n") + "\n\n" + strings.TrimRight(additions.String(), "\n") + "\n"
 		}
+		if isFX {
+			contentStr = ensureCustomFXRegisterRoutes(contentStr, receiverName, resourceName, actions)
+		}
 
 		if err := os.WriteFile(controllerPath, []byte(contentStr), constants.FilePermissionPrivate); err != nil {
 			return err
@@ -187,10 +221,24 @@ func generateActionControllerFile(name, tableName, pluralName, modulePath, contr
 		sb.WriteString("package controllers\n\n")
 		sb.WriteString("import (\n")
 		if isInertia {
+			if isFX {
+				sb.WriteString("\t\"errors\"\n")
+				sb.WriteString("\t\"net/http\"\n")
+				sb.WriteString(fmt.Sprintf("\t\"%s/router\"\n", modulePath))
+				sb.WriteString(fmt.Sprintf("\t\"%s/router/routes\"\n", modulePath))
+				sb.WriteString("\n")
+			}
 			sb.WriteString(fmt.Sprintf("\t\"%s/internal/inertia\"\n", modulePath))
 			sb.WriteString("\n")
 			sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")
 		} else {
+			if isFX {
+				sb.WriteString("\t\"errors\"\n")
+				sb.WriteString("\t\"net/http\"\n")
+				sb.WriteString(fmt.Sprintf("\t\"%s/router\"\n", modulePath))
+				sb.WriteString(fmt.Sprintf("\t\"%s/router/routes\"\n", modulePath))
+				sb.WriteString("\n")
+			}
 			sb.WriteString(fmt.Sprintf("\t\"%s/internal/hypermedia\"\n", modulePath))
 			sb.WriteString(fmt.Sprintf("\t\"%s/views\"\n", modulePath))
 			sb.WriteString("\n")
@@ -209,6 +257,9 @@ func generateActionControllerFile(name, tableName, pluralName, modulePath, contr
 			} else {
 				sb.WriteString(actionControllerMethod(receiverName, controllerName, resourceName, methodName))
 			}
+		}
+		if isFX {
+			sb.WriteString(customFXRegisterRoutesMethod(receiverName, controllerName, resourceName, actions))
 		}
 
 		if err := os.WriteFile(controllerPath, []byte(sb.String()), constants.FilePermissionPrivate); err != nil {
@@ -257,6 +308,57 @@ func actionControllerMethodInertia(receiverName, controllerName, resourceName, m
 		controllerName,
 		methodName,
 		naming.ToPascalCase(resourceName),
+		methodName,
+	)
+}
+
+func ensureCustomFXRegisterRoutes(content, receiverName, resourceName string, actions []string) string {
+	if !strings.Contains(content, "RegisterRoutes(r *router.Router)") {
+		controllerName := naming.ToPascalCase(naming.DeriveTableName(resourceName))
+		return strings.TrimRight(content, "\n") + "\n\n" + strings.TrimRight(customFXRegisterRoutesMethod(receiverName, controllerName, resourceName, actions), "\n") + "\n"
+	}
+
+	var additions strings.Builder
+	for _, action := range actions {
+		methodName := naming.ToPascalCase(action)
+		routeRef := fmt.Sprintf("routes.%s%s.Path()", resourceName, methodName)
+		if strings.Contains(content, routeRef) {
+			continue
+		}
+		additions.WriteString(customFXRouteBlock(receiverName, resourceName, methodName))
+	}
+	if additions.Len() == 0 {
+		return content
+	}
+
+	needle := "\n\treturn errors.Join(errs...)"
+	if strings.Contains(content, needle) {
+		return strings.Replace(content, needle, "\n"+strings.TrimRight(additions.String(), "\n")+needle, 1)
+	}
+	return strings.TrimRight(content, "\n") + "\n\n" + strings.TrimRight(additions.String(), "\n") + "\n"
+}
+
+func customFXRegisterRoutesMethod(receiverName, controllerName, resourceName string, actions []string) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("func (%s %s) RegisterRoutes(r *router.Router) error {\n", receiverName, controllerName))
+	sb.WriteString("\tvar errs []error\n")
+	sb.WriteString("\tvar err error\n\n")
+	for _, action := range actions {
+		methodName := naming.ToPascalCase(action)
+		sb.WriteString(customFXRouteBlock(receiverName, resourceName, methodName))
+	}
+	sb.WriteString("\treturn errors.Join(errs...)\n")
+	sb.WriteString("}\n\n")
+	return sb.String()
+}
+
+func customFXRouteBlock(receiverName, resourceName, methodName string) string {
+	return fmt.Sprintf("\t_, err = r.AddRoute(echo.Route{\n\t\tMethod:  http.MethodGet,\n\t\tPath:    routes.%s%s.Path(),\n\t\tName:    routes.%s%s.Name(),\n\t\tHandler: %s.%s,\n\t})\n\tif err != nil {\n\t\terrs = append(errs, err)\n\t}\n\n",
+		resourceName,
+		methodName,
+		resourceName,
+		methodName,
+		receiverName,
 		methodName,
 	)
 }

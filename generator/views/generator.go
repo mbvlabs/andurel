@@ -39,23 +39,28 @@ type VuePageData struct {
 }
 
 type GeneratedView struct {
-	ResourceName string
-	EntityName   string
-	PluralName   string
-	Fields       []ViewField
-	ModulePath   string
-	IDType       string // "uuid.UUID", "int32", "int64", "string"
-	IDFieldName  string
-	Actions      []string
+	ResourceName    string
+	ModelName       string
+	EntityName      string
+	PluralName      string
+	ModelPluralName string
+	Fields          []ViewField
+	ModulePath      string
+	IDType          string // "uuid.UUID", "int32", "int64", "string"
+	IDFieldName     string
+	Actions         []string
 }
 
 type Config struct {
-	ResourceName string
-	EntityName   string
-	PluralName   string
-	TableName    string
-	ModulePath   string
-	Actions      []string
+	ResourceName    string
+	ModelName       string
+	EntityName      string
+	PluralName      string
+	ModelPluralName string
+	TableName       string
+	ModelTableName  string
+	ModulePath      string
+	Actions         []string
 }
 
 type Generator struct {
@@ -71,20 +76,33 @@ func NewGenerator(databaseType string) *Generator {
 }
 
 func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, error) {
+	modelName := config.ModelName
+	if modelName == "" {
+		modelName = config.ResourceName
+	}
+	modelPluralName := config.ModelPluralName
+	if modelPluralName == "" {
+		modelPluralName = config.PluralName
+	}
 	view := &GeneratedView{
-		ResourceName: config.ResourceName,
-		EntityName:   config.EntityName,
-		PluralName:   config.PluralName,
-		ModulePath:   config.ModulePath,
-		Fields:       make([]ViewField, 0),
-		IDType:       "uuid.UUID", // Default to UUID
-		IDFieldName:  "ID",
-		Actions:      config.Actions,
+		ResourceName:    config.ResourceName,
+		ModelName:       modelName,
+		EntityName:      config.EntityName,
+		PluralName:      config.PluralName,
+		ModelPluralName: modelPluralName,
+		ModulePath:      config.ModulePath,
+		Fields:          make([]ViewField, 0),
+		IDType:          "uuid.UUID", // Default to UUID
+		IDFieldName:     "ID",
+		Actions:         config.Actions,
 	}
 
 	tableName := config.TableName
+	if config.ModelTableName != "" {
+		tableName = config.ModelTableName
+	}
 	if tableName == "" {
-		tableName = config.PluralName
+		tableName = modelPluralName
 	}
 	table, err := cat.GetTable("", tableName)
 	if err != nil {
@@ -396,7 +414,28 @@ func (g *Generator) GenerateViewWithControllerActions(
 	actions []string,
 	inertia string,
 ) error {
+	return g.GenerateViewWithControllerActionsForModel(cat, resourceName, resourceName, tableName, tableName, modulePath, withController, actions, inertia)
+}
+
+func (g *Generator) GenerateViewWithControllerActionsForModel(
+	cat *catalog.Catalog,
+	resourceName string,
+	modelName string,
+	tableName string,
+	modelTableName string,
+	modulePath string,
+	withController bool,
+	actions []string,
+	inertia string,
+) error {
+	if modelName == "" {
+		modelName = resourceName
+	}
+	if modelTableName == "" {
+		modelTableName = tableName
+	}
 	pluralName := naming.DeriveTableName(resourceName)
+	modelPluralName := naming.DeriveTableName(modelName)
 	viewPath := filepath.Join("views", tableName+"_resource.templ")
 
 	viewExists := false
@@ -433,12 +472,15 @@ func (g *Generator) GenerateViewWithControllerActions(
 	}
 
 	view, err := g.Build(cat, Config{
-		ResourceName: resourceName,
-		EntityName:   naming.ToPascalCase(resourceName) + "Entity",
-		PluralName:   pluralName,
-		TableName:    tableName,
-		ModulePath:   modulePath,
-		Actions:      renderActions,
+		ResourceName:    resourceName,
+		ModelName:       modelName,
+		EntityName:      naming.ToPascalCase(modelName) + "Entity",
+		PluralName:      pluralName,
+		ModelPluralName: modelPluralName,
+		TableName:       tableName,
+		ModelTableName:  modelTableName,
+		ModulePath:      modulePath,
+		Actions:         renderActions,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build view: %w", err)

@@ -64,7 +64,7 @@ type {{.ResourceName}}Data struct {
 {{- end}}
 }
 
-func new{{.ResourceName}}Data(entity models.{{.ResourceName}}Entity) {{.ResourceName}}Data {
+func new{{.ResourceName}}Data(entity models.{{.ModelName}}Entity) {{.ResourceName}}Data {
 	return {{.ResourceName}}Data{
 {{- range .Fields}}
 		{{.Name}}: {{InertiaDataValue . (printf "entity.%s" .Name)}},
@@ -72,7 +72,7 @@ func new{{.ResourceName}}Data(entity models.{{.ResourceName}}Entity) {{.Resource
 	}
 }
 
-func new{{.ResourceName}}DataList(entities []models.{{.ResourceName}}Entity) []{{.ResourceName}}Data {
+func new{{.ResourceName}}DataList(entities []models.{{.ModelName}}Entity) []{{.ResourceName}}Data {
 	items := make([]{{.ResourceName}}Data, 0, len(entities))
 	for _, entity := range entities {
 		items = append(items, new{{.ResourceName}}Data(entity))
@@ -97,7 +97,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		}
 	}
 
-	{{.PluralName | ToCamelCase}}List, err := models.{{.ResourceName}}.Paginate(
+	{{.ModelPluralName | ToCamelCase}}List, err := models.{{.ModelName}}.Paginate(
 		etx.Request().Context(),
 		{{.ReceiverName}}.db.Executor(),
 		page,
@@ -108,7 +108,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 	}
 
 	return inertia.Page(etx, "{{.ResourceName}}/Index", inertia.Props{
-		"items": new{{.ResourceName}}DataList({{.PluralName | ToCamelCase}}List.{{.PluralResourceName}}),
+		"items": new{{.ResourceName}}DataList({{.ModelPluralName | ToCamelCase}}List.{{.ModelPluralResourceName}}),
 	})
 }
 
@@ -136,7 +136,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ModelName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
 	}
@@ -175,7 +175,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
 	}
 
-	data := models.Create{{.ResourceName}}Data{
+	data := models.Create{{.ModelName}}Data{
 {{- range .Fields}}
 {{- if not .IsSystemField}}
 		{{- if eq .GoType "*uuid.UUID"}}
@@ -291,7 +291,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 {{- end}}
 	}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Create(
+	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ModelName}}.Create(
 		etx.Request().Context(),
 		{{.ReceiverName}}.db.Executor(),
 		data,
@@ -347,7 +347,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ModelName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
 	}
@@ -405,7 +405,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
 	}
 
-	data := models.Update{{.ResourceName}}Data{
+	data := models.Update{{.ModelName}}Data{
 		{{.IDGoFieldName}}:      {{.ResourceName | ToLowerCamelCase}}ID,
 {{- range .Fields}}
 {{- if not .IsSystemField}}
@@ -522,7 +522,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 {{- end}}
 	}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ResourceName}}.Update(
+	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ModelName}}.Update(
 		etx.Request().Context(),
 		{{.ReceiverName}}.db.Executor(),
 		data,
@@ -581,7 +581,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 	}
 {{- end}}
 
-	err = models.{{.ResourceName}}.Destroy(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
+	err = models.{{.ModelName}}.Destroy(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return inertia.Page(etx, "Errors/InternalError", inertia.Props{})

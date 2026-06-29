@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -32,10 +33,19 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName, idType, diMod
 }
 
 func (rg *RouteGenerator) GenerateRoutesWithActions(resourceName, pluralName, idType, diMode string, actions []string) error {
+	return rg.GenerateRoutesWithActionsAndConstructor(resourceName, pluralName, idType, diMode, actions, true)
+}
+
+func (rg *RouteGenerator) GenerateRoutesWithActionsAndConstructor(resourceName, pluralName, idType, diMode string, actions []string, withDB bool) error {
 	routesPath := filepath.Join("router/routes", pluralName+".go")
 
 	if _, err := os.Stat(routesPath); err == nil {
 		if len(actions) > 0 {
+			existingActions, err := existingRouteFileActions(routesPath, resourceName, pluralName)
+			if err != nil {
+				return err
+			}
+			actions = mergeActions(existingActions, actions)
 			routeContent, err := rg.templateRenderer.generateRouteContent(resourceName, pluralName, idType, actions)
 			if err != nil {
 				return fmt.Errorf("failed to generate route content: %w", err)
@@ -87,7 +97,7 @@ func (rg *RouteGenerator) GenerateRoutesWithActions(resourceName, pluralName, id
 		}
 
 		// Inject into cmd/app/main.go
-		if err := rg.mainInjector.InjectController(resourceName, pluralName); err != nil {
+		if err := rg.mainInjector.InjectControllerWithDB(resourceName, pluralName, withDB); err != nil {
 			slog.Warn("unexpected error injecting controller", "error", err)
 		}
 	}
@@ -141,6 +151,34 @@ func existingRouteRegistrationActions(connectPath, resourceName string) ([]strin
 
 		routeRef := fmt.Sprintf("routes.%s%s.", resourceName, naming.ToPascalCase(action))
 		if strings.Contains(string(content), routeRef) && !slices.Contains(actions, action) {
+			actions = append(actions, action)
+		}
+	}
+	return actions, nil
+}
+
+func existingRouteFileActions(routesPath, resourceName, pluralName string) ([]string, error) {
+	content, err := os.ReadFile(routesPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read routes file %s: %w", routesPath, err)
+	}
+
+	contentStr := string(content)
+	actions := make([]string, 0, len(crudActions))
+	for _, action := range crudActions {
+		routeVar := fmt.Sprintf("var %s%s", resourceName, naming.ToPascalCase(action))
+		if strings.Contains(contentStr, routeVar) && !slices.Contains(actions, action) {
+			actions = append(actions, action)
+		}
+	}
+
+	routeNamePattern := regexp.MustCompile(fmt.Sprintf(`"%s\.([a-z0-9_]+)"`, regexp.QuoteMeta(pluralName)))
+	for _, match := range routeNamePattern.FindAllStringSubmatch(contentStr, -1) {
+		if len(match) != 2 {
+			continue
+		}
+		action := match[1]
+		if !slices.Contains(actions, action) {
 			actions = append(actions, action)
 		}
 	}

@@ -61,3 +61,11 @@ var {{.ResourceName}}Destroy = routing.{{if eq .IDType "int32"}}NewRouteWithSeri
 	{{.ResourceName}}Prefix,
 )
 {{- end }}
+
+{{- range .CustomActions }}
+var {{$.ResourceName}}{{.MethodName}} = routing.NewSimpleRoute(
+	"/{{.Path}}",
+	"{{$.PluralName}}.{{.RouteName}}",
+	{{$.ResourceName}}Prefix,
+)
+{{- end }}

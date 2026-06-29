@@ -30,13 +30,17 @@ func NewMainInjector() *MainInjector {
 // InjectController adds controller constructor and registration to main.go
 // Returns nil if marker not found (logs info message instead of failing)
 func (mi *MainInjector) InjectController(resourceName, pluralName string) error {
+	return mi.InjectControllerWithDB(resourceName, pluralName, true)
+}
+
+func (mi *MainInjector) InjectControllerWithDB(resourceName, pluralName string, withDB bool) error {
 	varName := naming.ToLowerCamelCaseFromAny(pluralName)
 	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
 
 	// Find go.mod root and construct full path
 	rootDir, err := mi.fileManager.FindGoModRoot()
 	if err != nil {
-		mi.printManualInstructions(resourceName, pluralName)
+		mi.printManualInstructions(resourceName, pluralName, withDB)
 		return nil // Don't fail, just inform
 	}
 
@@ -45,7 +49,7 @@ func (mi *MainInjector) InjectController(resourceName, pluralName string) error 
 	// Read main.go
 	content, err := os.ReadFile(mainFilePath)
 	if err != nil {
-		mi.printManualInstructions(resourceName, pluralName)
+		mi.printManualInstructions(resourceName, pluralName, withDB)
 		return nil // Don't fail, just inform
 	}
 
@@ -56,17 +60,21 @@ func (mi *MainInjector) InjectController(resourceName, pluralName string) error 
 		slog.Info("could not find controller registration marker in cmd/app/main.go",
 			"marker", registrationMarker,
 			"hint", "add the marker to enable automatic controller registration")
-		mi.printManualInstructions(resourceName, pluralName)
+		mi.printManualInstructions(resourceName, pluralName, withDB)
 		return nil // Don't fail, just inform
 	}
 
 	// Generate injection block
-	injection := fmt.Sprintf(`	%s := controllers.New%s(db)
+	constructorArgs := ""
+	if withDB {
+		constructorArgs = "db"
+	}
+	injection := fmt.Sprintf(`	%s := controllers.New%s(%s)
 	if err := r.Register%sRoutes(%s); err != nil {
 		return err
 	}
 
-	`, varName, capitalizedPlural, resourceName, varName)
+	`, varName, capitalizedPlural, constructorArgs, resourceName, varName)
 
 	// Insert before marker
 	newContent := strings.Replace(contentStr, registrationMarker, injection+registrationMarker, 1)
@@ -148,19 +156,23 @@ func (mi *MainInjector) InjectFXController(resourceName, pluralName string) erro
 	return nil
 }
 
-func (mi *MainInjector) printManualInstructions(resourceName, pluralName string) {
+func (mi *MainInjector) printManualInstructions(resourceName, pluralName string, withDB bool) {
 	varName := naming.ToLowerCamelCaseFromAny(pluralName)
 	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
+	constructorArgs := ""
+	if withDB {
+		constructorArgs = "db"
+	}
 
 	fmt.Printf(`
 INFO: Add the following to your controller setup in cmd/app/main.go:
 
-	%s := controllers.New%s(db)
+	%s := controllers.New%s(%s)
 	if err := r.Register%sRoutes(%s); err != nil {
 		return err
 	}
 
-`, varName, capitalizedPlural, resourceName, varName)
+`, varName, capitalizedPlural, constructorArgs, resourceName, varName)
 }
 
 func (mi *MainInjector) printFXManualInstructions(resourceName, pluralName string) {

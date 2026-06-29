@@ -61,10 +61,40 @@ func (fg *FileGenerator) GenerateControllerWithActions(
 	inertia string,
 	actions []string,
 ) error {
+	return fg.GenerateControllerWithActionsForModel(cat, resourceName, resourceName, tableName, tableName, controllerType, modulePath, databaseType, tableNameOverridden, tableNameOverridden, nullType, primaryKeyColumn, diMode, inertia, actions)
+}
+
+func (fg *FileGenerator) GenerateControllerWithActionsForModel(
+	cat *catalog.Catalog,
+	resourceName string,
+	modelName string,
+	tableName string,
+	modelTableName string,
+	controllerType ControllerType,
+	modulePath string,
+	databaseType string,
+	tableNameOverridden bool,
+	modelTableNameOverridden bool,
+	nullType string,
+	primaryKeyColumn string,
+	diMode string,
+	inertia string,
+	actions []string,
+) error {
+	if modelName == "" {
+		modelName = resourceName
+	}
+	if modelTableName == "" {
+		modelTableName = tableName
+	}
 	// When table name is overridden, use it directly; otherwise derive from resource name
 	pluralName := tableName
 	if !tableNameOverridden {
 		pluralName = naming.DeriveTableName(resourceName)
+	}
+	modelPluralName := modelTableName
+	if !modelTableNameOverridden {
+		modelPluralName = naming.DeriveTableName(modelName)
 	}
 	controllerPath := filepath.Join("controllers", tableName+".go")
 	controllerExists := false
@@ -87,15 +117,19 @@ func (fg *FileGenerator) GenerateControllerWithActions(
 		renderActions = mergeActions(existingActions, actions)
 	}
 	controller, err := generator.Build(cat, Config{
-		ResourceName:        resourceName,
-		PluralName:          pluralName,
-		TableName:           tableName,
-		PackageName:         "controllers",
-		ModulePath:          modulePath,
-		ControllerType:      controllerType,
-		TableNameOverridden: tableNameOverridden,
-		PrimaryKeyColumn:    primaryKeyColumn,
-		Actions:             renderActions,
+		ResourceName:             resourceName,
+		ModelName:                modelName,
+		PluralName:               pluralName,
+		ModelPluralName:          modelPluralName,
+		TableName:                tableName,
+		ModelTableName:           modelTableName,
+		PackageName:              "controllers",
+		ModulePath:               modulePath,
+		ControllerType:           controllerType,
+		TableNameOverridden:      tableNameOverridden,
+		ModelTableNameOverridden: modelTableNameOverridden,
+		PrimaryKeyColumn:         primaryKeyColumn,
+		Actions:                  renderActions,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller: %w", err)
@@ -142,7 +176,7 @@ func mergeActions(existing, requested []string) []string {
 	for _, group := range [][]string{existing, requested} {
 		for _, action := range group {
 			action = strings.ToLower(action)
-			if _, ok := seen[action]; ok || !slices.Contains(crudActions, action) {
+			if _, ok := seen[action]; ok {
 				continue
 			}
 			seen[action] = struct{}{}
