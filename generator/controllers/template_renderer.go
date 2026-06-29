@@ -61,6 +61,8 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 			}
 			return slices.Contains(controller.Actions, action)
 		},
+		"InertiaDataType":  inertiaDataType,
+		"InertiaDataValue": inertiaDataValue,
 	}
 
 	// Use the unified template service with custom functions and original data structure
@@ -73,6 +75,80 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 		return "", errors.WrapTemplateError(err, "render controller", templateName)
 	}
 	return result, nil
+}
+
+func inertiaDataType(field GeneratedField) string {
+	switch field.GoType {
+	case "sql.NullString", "bun.NullString", "json.RawMessage", "*json.RawMessage", "[]byte":
+		return "string"
+	case "sql.NullBool", "bun.NullBool":
+		return "bool"
+	case "sql.NullInt16":
+		return "int16"
+	case "sql.NullInt32", "bun.NullInt32":
+		return "int32"
+	case "sql.NullInt64", "bun.NullInt64":
+		return "int64"
+	case "sql.NullFloat64", "bun.NullFloat64":
+		return "float64"
+	case "sql.NullTime", "bun.NullTime":
+		return "time.Time"
+	}
+
+	if strings.HasPrefix(field.GoType, "*") {
+		return strings.TrimPrefix(field.GoType, "*")
+	}
+
+	return field.GoType
+}
+
+func inertiaDataValue(field GeneratedField, source string) string {
+	switch field.GoType {
+	case "sql.NullString", "bun.NullString":
+		return source + ".String"
+	case "sql.NullBool", "bun.NullBool":
+		return source + ".Bool"
+	case "sql.NullInt16":
+		return source + ".Int16"
+	case "sql.NullInt32", "bun.NullInt32":
+		return source + ".Int32"
+	case "sql.NullInt64", "bun.NullInt64":
+		return source + ".Int64"
+	case "sql.NullFloat64", "bun.NullFloat64":
+		return source + ".Float64"
+	case "sql.NullTime", "bun.NullTime":
+		return source + ".Time"
+	case "json.RawMessage":
+		return "string(" + source + ")"
+	case "*json.RawMessage":
+		return "func() string { if " + source + " == nil { return \"\" }; return string(*" + source + ") }()"
+	case "[]byte":
+		return "string(" + source + ")"
+	}
+
+	if strings.HasPrefix(field.GoType, "*") {
+		dataType := inertiaDataType(field)
+		return "func() " + dataType + " { if " + source + " == nil { return " +
+			inertiaZeroValue(dataType) + " }; return *" + source + " }()"
+	}
+
+	return source
+}
+
+func inertiaZeroValue(goType string) string {
+	switch goType {
+	case "string":
+		return `""`
+	case "bool":
+		return "false"
+	case "int", "int16", "int32", "int64", "float32", "float64":
+		return "0"
+	default:
+		if strings.HasPrefix(goType, "[]") || strings.HasPrefix(goType, "map[") {
+			return "nil"
+		}
+		return goType + "{}"
+	}
 }
 
 func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName, idType string, actions []string) (string, error) {

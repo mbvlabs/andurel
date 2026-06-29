@@ -8,12 +8,16 @@ import (
 {{- $needsUUID := or (not .IDType) (eq .IDType "uuid.UUID")}}
 {{- $needsSQLNull := false}}
 {{- $needsBun := false}}
+{{- $needsJSON := false}}
 {{- range .Fields}}
-{{- if and (not .IsSystemField) (eq .GoFormType "time.Time")}}
+{{- if or (eq .GoFormType "time.Time") (eq .GoType "sql.NullTime") (eq .GoType "bun.NullTime")}}
 	{{- $needsTime = true}}
 {{- end}}
 {{- if and (not .IsSystemField) (or (eq .GoType "uuid.UUID") (eq .GoType "*uuid.UUID"))}}
 	{{- $needsUUID = true}}
+{{- end}}
+{{- if and (not .IsSystemField) (eq .GoType "json.RawMessage") (or (HasAction "create") (HasAction "update"))}}
+	{{- $needsJSON = true}}
 {{- end}}
 {{- if and (not .IsSystemField) (hasPrefix .GoType "sql.Null")}}
 	{{- $needsSQLNull = true}}
@@ -24,6 +28,9 @@ import (
 {{- end}}
 {{- if $needsTime}}
 	"time"
+{{- end}}
+{{- if $needsJSON}}
+	"encoding/json"
 {{- end}}
 {{- if $needsSQLNull}}
 	"database/sql"
@@ -49,6 +56,29 @@ type {{.PluralResourceName}} struct {
 
 func New{{.PluralResourceName}}(db storage.Pool) {{.PluralResourceName}} {
 	return {{.PluralResourceName}}{db}
+}
+
+type {{.ResourceName}}Data struct {
+{{- range .Fields}}
+	{{.Name}} {{InertiaDataType .}}
+{{- end}}
+}
+
+func new{{.ResourceName}}Data(entity models.{{.ResourceName}}Entity) {{.ResourceName}}Data {
+	return {{.ResourceName}}Data{
+{{- range .Fields}}
+		{{.Name}}: {{InertiaDataValue . (printf "entity.%s" .Name)}},
+{{- end}}
+	}
+}
+
+func new{{.ResourceName}}DataList(entities []models.{{.ResourceName}}Entity) []{{.ResourceName}}Data {
+	items := make([]{{.ResourceName}}Data, 0, len(entities))
+	for _, entity := range entities {
+		items = append(items, new{{.ResourceName}}Data(entity))
+	}
+
+	return items
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error {
@@ -78,7 +108,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 	}
 
 	return inertia.Page(etx, "{{.ResourceName}}/Index", inertia.Props{
-		"items": {{.PluralName | ToCamelCase}}List.{{.PluralResourceName}},
+		"items": new{{.ResourceName}}DataList({{.PluralName | ToCamelCase}}List.{{.PluralResourceName}}),
 	})
 }
 
@@ -112,7 +142,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 	}
 
 	return inertia.Page(etx, "{{.ResourceName}}/Show", inertia.Props{
-		"item": {{.ResourceName | ToLowerCamelCase}},
+		"item": new{{.ResourceName}}Data({{.ResourceName | ToLowerCamelCase}}),
 	})
 }
 
@@ -186,6 +216,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		}(),
 		{{- else if eq .GoType "[]byte"}}
 		{{.Name}}:    []byte(payload.{{.Name}}),
+		{{- else if eq .GoType "json.RawMessage"}}
+		{{.Name}}:    json.RawMessage{},
 		{{- else if eq .GoType "bool"}}
 		{{.Name}}:    payload.{{.Name}},
 		{{- else if eq .GoType "*time.Time"}}
@@ -321,7 +353,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 	}
 
 	return inertia.Page(etx, "{{.ResourceName}}/Edit", inertia.Props{
-		"item": {{.ResourceName | ToLowerCamelCase}},
+		"item": new{{.ResourceName}}Data({{.ResourceName | ToLowerCamelCase}}),
 	})
 }
 
@@ -415,6 +447,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		}(),
 		{{- else if eq .GoType "[]byte"}}
 		{{.Name}}:    []byte(payload.{{.Name}}),
+		{{- else if eq .GoType "json.RawMessage"}}
+		{{.Name}}:    json.RawMessage{},
 		{{- else if eq .GoType "bool"}}
 		{{.Name}}:    payload.{{.Name}},
 		{{- else if eq .GoType "*time.Time"}}

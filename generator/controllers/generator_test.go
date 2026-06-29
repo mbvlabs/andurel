@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
@@ -329,9 +330,9 @@ func TestBuildField_SystemFields(t *testing.T) {
 	for _, name := range systemFields {
 		t.Run(name, func(t *testing.T) {
 			col := &catalog.Column{
-				Name:       name,
-				DataType:   "uuid",
-				IsNullable: false,
+				Name:         name,
+				DataType:     "uuid",
+				IsNullable:   false,
 				IsPrimaryKey: name == "id",
 			}
 
@@ -362,5 +363,99 @@ func TestSetNullType(t *testing.T) {
 	gen.SetNullType("pointer")
 	if gen.typeMapper.NullType != "pointer" {
 		t.Errorf("after SetNullType NullType = %q, want %q", gen.typeMapper.NullType, "pointer")
+	}
+}
+
+func TestInertiaDataTypeAndValue(t *testing.T) {
+	tests := []struct {
+		name      string
+		field     GeneratedField
+		wantType  string
+		wantValue string
+	}{
+		{
+			name:      "sql null string",
+			field:     GeneratedField{Name: "Name", GoType: "sql.NullString"},
+			wantType:  "string",
+			wantValue: "entity.Name.String",
+		},
+		{
+			name:      "bun null bool",
+			field:     GeneratedField{Name: "Published", GoType: "bun.NullBool"},
+			wantType:  "bool",
+			wantValue: "entity.Published.Bool",
+		},
+		{
+			name:      "raw message",
+			field:     GeneratedField{Name: "Metadata", GoType: "json.RawMessage"},
+			wantType:  "string",
+			wantValue: "string(entity.Metadata)",
+		},
+		{
+			name:      "pointer string",
+			field:     GeneratedField{Name: "Subtitle", GoType: "*string"},
+			wantType:  "string",
+			wantValue: `func() string { if entity.Subtitle == nil { return "" }; return *entity.Subtitle }()`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := inertiaDataType(tt.field); got != tt.wantType {
+				t.Errorf("inertiaDataType() = %q, want %q", got, tt.wantType)
+			}
+
+			source := "entity." + tt.field.Name
+			if got := inertiaDataValue(tt.field, source); got != tt.wantValue {
+				t.Errorf("inertiaDataValue() = %q, want %q", got, tt.wantValue)
+			}
+		})
+	}
+}
+
+func TestRenderInertiaControllerUsesDataStructAndRawMessagePlaceholder(t *testing.T) {
+	controller := &GeneratedController{
+		ResourceName:       "Widget",
+		PluralName:         "widgets",
+		PluralResourceName: "Widgets",
+		ReceiverName:       "w",
+		Package:            "controllers",
+		ModulePath:         "testapp",
+		Type:               ResourceController,
+		IDType:             "uuid.UUID",
+		IDGoFieldName:      "ID",
+		HasPrimaryKey:      true,
+		Fields: []GeneratedField{
+			{Name: "ID", GoType: "uuid.UUID", GoFormType: "string", IsSystemField: true},
+			{Name: "Name", GoType: "sql.NullString", GoFormType: "string", CamelCase: "name"},
+			{Name: "Published", GoType: "bun.NullBool", GoFormType: "bool", CamelCase: "published"},
+			{Name: "Metadata", GoType: "json.RawMessage", GoFormType: "string", CamelCase: "metadata"},
+			{Name: "CreatedAt", GoType: "time.Time", GoFormType: "time.Time", IsSystemField: true},
+		},
+	}
+
+	rendered, err := NewTemplateRenderer().RenderControllerFile(controller, "manual", "vue")
+	if err != nil {
+		t.Fatalf("RenderControllerFile failed: %v", err)
+	}
+
+	expectedSnippets := []string{
+		`"encoding/json"`,
+		"type WidgetData struct {",
+		"Name string",
+		"Published bool",
+		"Metadata string",
+		"Name: entity.Name.String,",
+		"Published: entity.Published.Bool,",
+		"Metadata: string(entity.Metadata),",
+		`"items": newWidgetDataList(widgetsList.Widgets),`,
+		`"item": newWidgetData(widget),`,
+		"Metadata:    json.RawMessage{},",
+	}
+
+	for _, snippet := range expectedSnippets {
+		if !strings.Contains(rendered, snippet) {
+			t.Fatalf("rendered controller missing %q\n\n%s", snippet, rendered)
+		}
 	}
 }
