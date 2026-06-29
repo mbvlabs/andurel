@@ -89,7 +89,7 @@ func (al auditLog) Paginate(ctx context.Context, db storage.Executor, page, page
 		return PaginatedAuditLogs{}, err
 	}
 
-	var entities []AuditLogEntity
+	entities := make([]AuditLogEntity, 0, int(pageSize))
 	if err := db.NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).

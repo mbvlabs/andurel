@@ -137,7 +137,7 @@ func (w warehouse) Paginate(ctx context.Context, db storage.Executor, page, page
 		return PaginatedWarehouses{}, err
 	}
 
-	var entities []WarehouseEntity
+	entities := make([]WarehouseEntity, 0, int(pageSize))
 	if err := db.NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
