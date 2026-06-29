@@ -31,6 +31,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Find(ctx context.Context, db storage
 
 	return entity, nil
 }
+{{end}}
 
 type Create{{.Name}}Data struct {
 {{- range .Fields}}
@@ -51,11 +52,13 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db stora
 	}
 
 	entity := {{.EntityName}}{
+{{- if .HasPrimaryKey}}
 {{- if not .IsAutoIncrementID}}
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 		{{.IDGoFieldName}}: uuid.New(),
 {{- else}}
 		{{.IDGoFieldName}}: data.{{.IDGoFieldName}},
+{{- end}}
 {{- end}}
 {{- end}}
 {{- if .HasCreatedAt}}
@@ -78,6 +81,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db stora
 	return entity, nil
 }
 
+{{if .HasPrimaryKey}}
 type Update{{.Name}}Data struct {
 	{{.IDGoFieldName}} {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}
 {{- range .Fields}}

@@ -101,6 +101,29 @@ update-golden:
 	go clean -testcache
 	go test ./e2e -run TestScaffoldGoldens -v -timeout 30m -update -clean
 
+# Update golden files for generator model tests
+update-golden-generator-models:
+	go clean -testcache
+	go test ./generator -run TestModelGenerationGoldens -v -update
+
+# Update golden files for generator controller/view tests
+update-golden-generator-controller-views:
+	go clean -testcache
+	go test ./generator -run TestControllerViewGenerationGoldens -v -update
+
+# Update golden files for generator scaffold tests
+update-golden-generator-scaffold:
+	go clean -testcache
+	go test ./generator -run TestScaffoldGenerationGoldens -v -update
+
+# Update all golden files
+update-golden-all:
+	go clean -testcache
+	go test ./generator -run TestModelGenerationGoldens -v -update
+	go test ./generator -run TestControllerViewGenerationGoldens -v -update
+	go test ./generator -run TestScaffoldGenerationGoldens -v -update
+	go test ./e2e -run TestScaffoldGoldens -v -timeout 30m -update -clean
+
 # Clean test artifacts and cache
 clean-test:
 	go clean -testcache

@@ -1,0 +1,43 @@
+package routes
+
+import (
+	"testapp/internal/routing"
+)
+
+const FeedbackEntryPrefix = "/student_feedback"
+
+var FeedbackEntryIndex = routing.NewSimpleRoute(
+	"",
+	"student_feedback.index",
+	FeedbackEntryPrefix,
+)
+var FeedbackEntryShow = routing.NewRouteWithUUIDID(
+	"/:id",
+	"student_feedback.show",
+	FeedbackEntryPrefix,
+)
+var FeedbackEntryNew = routing.NewSimpleRoute(
+	"/new",
+	"student_feedback.new",
+	FeedbackEntryPrefix,
+)
+var FeedbackEntryCreate = routing.NewSimpleRoute(
+	"",
+	"student_feedback.create",
+	FeedbackEntryPrefix,
+)
+var FeedbackEntryEdit = routing.NewRouteWithUUIDID(
+	"/:id/edit",
+	"student_feedback.edit",
+	FeedbackEntryPrefix,
+)
+var FeedbackEntryUpdate = routing.NewRouteWithUUIDID(
+	"/:id",
+	"student_feedback.update",
+	FeedbackEntryPrefix,
+)
+var FeedbackEntryDestroy = routing.NewRouteWithUUIDID(
+	"/:id",
+	"student_feedback.destroy",
+	FeedbackEntryPrefix,
+)

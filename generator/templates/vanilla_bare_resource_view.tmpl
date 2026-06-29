@@ -7,12 +7,12 @@ package views
 import (
 	"fmt"
 	{{if UsesPackage .Fields "strings"}}"strings"
-	{{end}}{{if or (HasAction "new") (HasAction "edit")}}	"net/http"
+	{{end}}{{if or (and (HasAction "new") (HasAction "create")) (and (HasAction "edit") (or (HasAction "update") (HasAction "destroy")))}}	"net/http"
 	{{end}}
 	"{{.ModulePath}}/models"
-	{{if or (and (HasAction "show") (HasAction "index")) (HasAction "new") (HasAction "edit")}}"{{.ModulePath}}/internal/hypermedia"
+	{{if or (and (HasAction "show") (HasAction "index")) (and (HasAction "new") (or (HasAction "create") (HasAction "index"))) (and (HasAction "edit") (or (HasAction "update") (HasAction "index") (HasAction "destroy")))}}"{{.ModulePath}}/internal/hypermedia"
 	{{end}}
-	{{if or (and (HasAction "index") (or (HasAction "new") (HasAction "show") (HasAction "edit"))) (and (HasAction "show") (or (HasAction "edit") (HasAction "index"))) (HasAction "new") (HasAction "edit")}}
+	{{if or (and (HasAction "index") (or (HasAction "new") (HasAction "show") (HasAction "edit"))) (and (HasAction "show") (or (HasAction "edit") (HasAction "index"))) (and (HasAction "new") (or (HasAction "create") (HasAction "index"))) (and (HasAction "edit") (or (HasAction "update") (HasAction "index") (HasAction "destroy")))}}
 	"{{.ModulePath}}/router/routes"
 	{{end}}
 )
@@ -150,7 +150,9 @@ templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 						<div>
 							<form
 								data-indicator:_submitting
+								{{if HasAction "create"}}
 								data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.{{.ResourceName}}Create.URL()) }
+								{{end}}
 							>
 								<fieldset data-attr:disabled="$_submitting">
 									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div>
@@ -165,8 +167,12 @@ templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 									</div>
 									{{end}}{{end}}{{end}}
 									<div>
+										{{if HasAction "create"}}
 										<button type="submit">Create {{.ResourceName}}</button>
+										{{end}}
+										{{if HasAction "index"}}
 										<a href={ hypermedia.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+										{{end}}
 									</div>
 								</fieldset>
 							</form>
@@ -201,7 +207,9 @@ templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
 						<div>
 							<form
 								data-indicator:_submitting
+								{{if HasAction "update"}}
 								data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{$editRecv}}.Item.ID)) }
+								{{end}}
 							>
 								<fieldset data-attr:disabled="$_submitting">
 									{{$itemRef := printf "%s.%s" $editRecv "Item"}}
@@ -217,18 +225,23 @@ templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
 									</div>
 									{{end}}{{end}}{{end}}
 									<div>
+										{{if HasAction "update"}}
 										<button type="submit">Update {{.ResourceName}}</button>
+										{{end}}
+										{{if HasAction "index"}}
 										<a href={ hypermedia.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+										{{end}}
 									</div>
 								</fieldset>
 							</form>
 						</div>
-						<div>
+						{{if HasAction "destroy"}}<div>
 							<button
 								type="button"
 								data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.{{.ResourceName}}Destroy.URL({{$editRecv}}.Item.ID)) }
 							>Destroy {{.ResourceName}}</button>
 						</div>
+						{{end}}
 					</div>
 				</section>
 			</main>

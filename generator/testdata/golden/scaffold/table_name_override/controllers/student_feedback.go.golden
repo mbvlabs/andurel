@@ -1,0 +1,223 @@
+package controllers
+
+import (
+	"database/sql"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"strconv"
+	"testapp/internal/hypermedia"
+	"testapp/internal/storage"
+	"testapp/models"
+	"testapp/router/cookies"
+	"testapp/router/routes"
+	"testapp/views"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v5"
+)
+
+type FeedbackEntry struct {
+	db storage.Pool
+}
+
+func NewFeedbackEntry(db storage.Pool) FeedbackEntry {
+	return FeedbackEntry{db}
+}
+
+func (fe FeedbackEntry) Index(etx *echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	studentFeedbackList, err := models.FeedbackEntry.Paginate(
+		etx.Request().Context(),
+		fe.db.Executor(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+
+	return hypermedia.RenderPage(etx, views.FeedbackEntryIndex{Items: studentFeedbackList.FeedbackEntry}.Page())
+}
+
+func (fe FeedbackEntry) Show(etx *echo.Context) error {
+	feedbackEntryID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	feedbackEntry, err := models.FeedbackEntry.Find(etx.Request().Context(), fe.db.Executor(), feedbackEntryID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.FeedbackEntryShow{Item: feedbackEntry}.Page())
+}
+
+func (fe FeedbackEntry) New(etx *echo.Context) error {
+	return hypermedia.RenderPage(etx, views.FeedbackEntryNew{}.Page())
+}
+
+type CreateFeedbackEntryFormPayload struct {
+	StudentName string `json:"studentName"`
+	Feedback    string `json:"feedback"`
+	Rating      int32  `json:"rating"`
+	SubmittedAt string `json:"submittedAt"`
+}
+
+func (fe FeedbackEntry) Create(etx *echo.Context) error {
+	var payload CreateFeedbackEntryFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse CreateFeedbackEntryFormPayload",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	data := models.CreateFeedbackEntryData{
+		StudentName: payload.StudentName,
+		Feedback:    payload.Feedback,
+		Rating:      sql.NullInt32{Int32: payload.Rating, Valid: true},
+		SubmittedAt: func() sql.NullTime {
+			if payload.SubmittedAt == "" {
+				return sql.NullTime{Valid: false}
+			}
+			if t, err := time.Parse("2006-01-02", payload.SubmittedAt); err == nil {
+				return sql.NullTime{Time: t, Valid: true}
+			}
+			return sql.NullTime{Valid: false}
+		}(),
+	}
+
+	feedbackEntry, err := models.FeedbackEntry.Create(
+		etx.Request().Context(),
+		fe.db.Executor(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create feedbackEntry: %v", err)); flashErr != nil {
+			return flashErr
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryNew.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "FeedbackEntry created successfully"); flashErr != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+	return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryShow.URL(feedbackEntry.ID))
+}
+
+func (fe FeedbackEntry) Edit(etx *echo.Context) error {
+	feedbackEntryID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	feedbackEntry, err := models.FeedbackEntry.Find(etx.Request().Context(), fe.db.Executor(), feedbackEntryID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.FeedbackEntryEdit{Item: feedbackEntry}.Page())
+}
+
+type UpdateFeedbackEntryFormPayload struct {
+	StudentName string `json:"studentName"`
+	Feedback    string `json:"feedback"`
+	Rating      int32  `json:"rating"`
+	SubmittedAt string `json:"submittedAt"`
+}
+
+func (fe FeedbackEntry) Update(etx *echo.Context) error {
+	feedbackEntryID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	var payload UpdateFeedbackEntryFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse UpdateFeedbackEntryFormPayload",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	data := models.UpdateFeedbackEntryData{
+		ID:          feedbackEntryID,
+		StudentName: payload.StudentName,
+		Feedback:    payload.Feedback,
+		Rating:      sql.NullInt32{Int32: payload.Rating, Valid: true},
+		SubmittedAt: func() sql.NullTime {
+			if payload.SubmittedAt == "" {
+				return sql.NullTime{Valid: false}
+			}
+			if t, err := time.Parse("2006-01-02", payload.SubmittedAt); err == nil {
+				return sql.NullTime{Time: t, Valid: true}
+			}
+			return sql.NullTime{Valid: false}
+		}(),
+	}
+
+	feedbackEntry, err := models.FeedbackEntry.Update(
+		etx.Request().Context(),
+		fe.db.Executor(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update feedbackEntry: %v", err)); flashErr != nil {
+			return hypermedia.RenderPage(etx, views.InternalError())
+		}
+		return etx.Redirect(
+			http.StatusSeeOther,
+			routes.FeedbackEntryEdit.URL(feedbackEntryID),
+		)
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "FeedbackEntry updated successfully"); flashErr != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+	return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryShow.URL(feedbackEntry.ID))
+}
+
+func (fe FeedbackEntry) Destroy(etx *echo.Context) error {
+	feedbackEntryID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	err = models.FeedbackEntry.Destroy(etx.Request().Context(), fe.db.Executor(), feedbackEntryID)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete feedbackEntry: %v", err)); flashErr != nil {
+			return hypermedia.RenderPage(etx, views.InternalError())
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryIndex.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "FeedbackEntry destroyed successfully"); flashErr != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+	return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryIndex.URL())
+}

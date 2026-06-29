@@ -1,0 +1,34 @@
+--- current
++++ updated
+@@ -1,16 +1,17 @@
+ type ProductEntity struct {
+-	ID            uuid.UUID       `bun:"id,pk,type:uuid"`
+-	Sku           string          `bun:"sku"`
+-	Name          string          `bun:"name"`
+-	Description   sql.NullString  `bun:"description"`
+-	PriceCents    int32           `bun:"price_cents"`
+-	StockCount    int32           `bun:"stock_count"`
+-	Active        bool            `bun:"active"`
+-	Tags          []string        `bun:"tags,array"`
+-	Scores        []int32         `bun:"scores,array"`
+-	Metadata      json.RawMessage `bun:"metadata,type:jsonb"`
+-	Attributes    json.RawMessage `bun:"attributes,type:json"`
+-	LaunchedAt    sql.NullTime    `bun:"launched_at"`
+-	CreatedAt     time.Time       `bun:"created_at"`
+-	UpdatedAt     time.Time       `bun:"updated_at"`
++	ID uuid.UUID `bun:"id,pk,type:uuid"`
++	Sku string `bun:"sku"`
++	Name string `bun:"name"`
++	Description string `bun:"description"`
++	PriceCents int64 `bun:"price_cents"`
++	Active bool `bun:"active"`
++	Tags []string `bun:"tags,array"`
++	Scores []int32 `bun:"scores,array"`
++	Metadata json.RawMessage `bun:"metadata,type:jsonb"`
++	Attributes json.RawMessage `bun:"attributes,type:json"`
++	LaunchedAt sql.NullTime `bun:"launched_at"`
++	CreatedAt time.Time `bun:"created_at"`
++	UpdatedAt time.Time `bun:"updated_at"`
++	ArchivedAt sql.NullTime `bun:"archived_at"`
++	Rating float64 `bun:"rating"`
+ }

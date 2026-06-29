@@ -27,7 +27,6 @@ var constructors = fx.Provide(
 	NewRegistrations,
 	NewConfirmations,
 	NewResetPasswords,
-	// andurel:fx-controller-provide-point
 )
 
 var Module = fx.Module(
@@ -54,5 +53,4 @@ var Module = fx.Module(
 	fx.Invoke(func(r *router.Router, c ResetPasswords) error {
 		return c.RegisterRoutes(r)
 	}),
-	// andurel:fx-controller-invoke-point
 )

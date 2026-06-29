@@ -31,6 +31,10 @@ func (g *Generator) GenerateControllerWithActions(resourceName, tableName string
 	return g.coordinator.GenerateControllerWithActions(resourceName, tableName, withViews, actions, inertia)
 }
 
+func (g *Generator) GenerateScaffold(resourceName, tableName string, skipFactory bool, primaryKeyColumn string, inertia string) error {
+	return g.coordinator.GenerateScaffold(resourceName, tableName, skipFactory, primaryKeyColumn, inertia)
+}
+
 func (g *Generator) GenerateControllerFromModel(resourceName string, withViews bool) error {
 	return g.coordinator.GenerateControllerFromModel(resourceName, withViews)
 }

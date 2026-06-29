@@ -1,0 +1,18 @@
+package routes
+
+import (
+	"testapp/internal/routing"
+)
+
+const WidgetPrefix = "/widgets"
+
+var WidgetShow = routing.NewRouteWithUUIDID(
+	"/:id",
+	"widgets.show",
+	WidgetPrefix,
+)
+var WidgetEdit = routing.NewRouteWithUUIDID(
+	"/:id/edit",
+	"widgets.edit",
+	WidgetPrefix,
+)

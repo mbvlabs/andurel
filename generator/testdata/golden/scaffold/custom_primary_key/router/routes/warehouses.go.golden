@@ -1,0 +1,43 @@
+package routes
+
+import (
+	"testapp/internal/routing"
+)
+
+const WarehousePrefix = "/warehouses"
+
+var WarehouseIndex = routing.NewSimpleRoute(
+	"",
+	"warehouses.index",
+	WarehousePrefix,
+)
+var WarehouseShow = routing.NewRouteWithStringID(
+	"/:id",
+	"warehouses.show",
+	WarehousePrefix,
+)
+var WarehouseNew = routing.NewSimpleRoute(
+	"/new",
+	"warehouses.new",
+	WarehousePrefix,
+)
+var WarehouseCreate = routing.NewSimpleRoute(
+	"",
+	"warehouses.create",
+	WarehousePrefix,
+)
+var WarehouseEdit = routing.NewRouteWithStringID(
+	"/:id/edit",
+	"warehouses.edit",
+	WarehousePrefix,
+)
+var WarehouseUpdate = routing.NewRouteWithStringID(
+	"/:id",
+	"warehouses.update",
+	WarehousePrefix,
+)
+var WarehouseDestroy = routing.NewRouteWithStringID(
+	"/:id",
+	"warehouses.destroy",
+	WarehousePrefix,
+)
