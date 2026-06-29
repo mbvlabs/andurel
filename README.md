@@ -47,7 +47,7 @@ The core philosophy around resource generation in andurel, is that it should be 
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
 - **[Bun](https://bun.uptrace.dev/)** - Type-safe SQL ORM and query builder
 - **[Templ](https://templ.guide/)** - Type-safe HTML templates
-- **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity (RC6)
+- **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity
 - **[River](https://riverqueue.com/)** - PostgreSQL-backed background jobs and workflows
 - **[OpenTelemetry](https://opentelemetry.io/)** - Built-in observability
 - **[PostgreSQL](https://www.postgresql.org/)** - Powerful open-source database with pgx driver and native UUID support
@@ -62,7 +62,7 @@ The core philosophy around resource generation in andurel, is that it should be 
 ### Installation
 
 ```bash
-go install github.com/mbvlabs/andurel@v1.0.0-beta.4
+go install github.com/mbvlabs/andurel@v1.0.0-beta.5
 ```
 
 ### Create Your First Project
