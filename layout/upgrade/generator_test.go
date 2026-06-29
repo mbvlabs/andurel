@@ -36,7 +36,7 @@ func TestBuildTemplateData_UsesModulePathInsteadOfProjectName(t *testing.T) {
 		ProjectName:  "test-upgrade",
 		Database:     "postgresql",
 		CSSFramework: "tailwind",
-	}, "github.com/example/correct-module")
+	}, "github.com/example/correct-module", nil)
 
 	if templateData.ProjectName != "test-upgrade" {
 		t.Fatalf("ProjectName = %q, want %q", templateData.ProjectName, "test-upgrade")

@@ -1087,10 +1087,6 @@ file -----------rw-r--r-- andurel.lock
     "cssFramework": "vanilla",
     "database": "postgresql",
     "diMode": "manual",
-    "extensions": [
-      "aws-ses",
-      "css-components"
-    ],
     "projectName": "testapp"
   },
   "tools": {

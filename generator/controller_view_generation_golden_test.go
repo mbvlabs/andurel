@@ -101,7 +101,7 @@ func setupControllerViewGoldenProject(t *testing.T, diMode, cssFramework string,
 		DIMode:       diMode,
 	}
 	if cssComponents {
-		lock.ScaffoldConfig.Extensions = []string{"css-components"}
+		lock.AddExtension("css-components", "test-applied-at")
 	}
 	if err := lock.WriteLockFile(projectDir); err != nil {
 		t.Fatalf("failed to write andurel.lock: %v", err)

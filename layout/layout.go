@@ -112,11 +112,10 @@ func Scaffold(
 		ProjectName:  projectName,
 		Database:     database,
 		CSSFramework: cssFramework,
-		Extensions:   extensionNames,
 		DIMode:       diMode,
 		Inertia:      inertia,
 	}
-	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", scaffoldConfig); err != nil {
+	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", scaffoldConfig, extensionNames); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
 	}
 
@@ -1148,7 +1147,7 @@ func initializeUberFxBlueprint(moduleName string) *blueprint.Blueprint {
 	return builder.Blueprint()
 }
 
-func generateLockFile(targetDir, version string, hasTailwind bool, config *ScaffoldConfig) error {
+func generateLockFile(targetDir, version string, hasTailwind bool, config *ScaffoldConfig, extensions []string) error {
 	lock := NewAndurelLock(version)
 	lock.ScaffoldConfig = config
 	lock.DatabaseConfig = &DatabaseConfig{
@@ -1164,10 +1163,8 @@ func generateLockFile(targetDir, version string, hasTailwind bool, config *Scaff
 		lock.AddTool("tailwindcli", NewBinaryTool("tailwindcli", versions.TailwindCLI))
 	}
 
-	if config != nil {
-		for _, ext := range config.Extensions {
-			lock.AddExtension(ext, time.Now().Format(time.RFC3339))
-		}
+	for _, ext := range extensions {
+		lock.AddExtension(ext, time.Now().Format(time.RFC3339))
 	}
 
 	return lock.WriteLockFile(targetDir)
