@@ -9,6 +9,7 @@ import (
 	"testapp/models"
 	"testapp/router/cookies"
 	"testapp/router/routes"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
@@ -20,6 +21,33 @@ type Projects struct {
 
 func NewProjects(db storage.Pool) Projects {
 	return Projects{db}
+}
+
+type ProjectData struct {
+	ID        uuid.UUID
+	Title     string
+	Status    string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func newProjectData(entity models.ProjectEntity) ProjectData {
+	return ProjectData{
+		ID:        entity.ID,
+		Title:     entity.Title,
+		Status:    entity.Status,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	}
+}
+
+func newProjectDataList(entities []models.ProjectEntity) []ProjectData {
+	items := make([]ProjectData, 0, len(entities))
+	for _, entity := range entities {
+		items = append(items, newProjectData(entity))
+	}
+
+	return items
 }
 
 func (p Projects) Index(etx *echo.Context) error {
@@ -49,7 +77,7 @@ func (p Projects) Index(etx *echo.Context) error {
 	}
 
 	return inertia.Page(etx, "Project/Index", inertia.Props{
-		"items": projectsList.Projects,
+		"items": newProjectDataList(projectsList.Projects),
 	})
 }
 
@@ -65,7 +93,7 @@ func (p Projects) Show(etx *echo.Context) error {
 	}
 
 	return inertia.Page(etx, "Project/Show", inertia.Props{
-		"item": project,
+		"item": newProjectData(project),
 	})
 }
 
@@ -126,7 +154,7 @@ func (p Projects) Edit(etx *echo.Context) error {
 	}
 
 	return inertia.Page(etx, "Project/Edit", inertia.Props{
-		"item": project,
+		"item": newProjectData(project),
 	})
 }
 
