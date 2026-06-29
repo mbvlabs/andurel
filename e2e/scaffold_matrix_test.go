@@ -64,6 +64,7 @@ func isCriticalScaffoldConfig(database, css, diMode, inertia string, extensions 
 		"postgresql-vanilla":                                true,
 		"postgresql-tailwind-uberfx":                        true,
 		"postgresql-tailwind-inertia-vue":                   true,
+		"postgresql-tailwind-uberfx-inertia-vue":            true,
 		"postgresql-tailwind-docker-aws-ses-css-components": true,
 		"postgresql-vanilla-docker-aws-ses-css-components":  true,
 	}
@@ -108,6 +109,7 @@ func TestScaffoldCriticalConfigs(t *testing.T) {
 		"postgresql-tailwind-docker-aws-ses-css-components",
 		"postgresql-tailwind-inertia-vue",
 		"postgresql-tailwind-uberfx",
+		"postgresql-tailwind-uberfx-inertia-vue",
 		"postgresql-vanilla",
 		"postgresql-vanilla-docker-aws-ses-css-components",
 	}
