@@ -878,9 +878,6 @@ file -----------rw-r--r-- andurel.lock
     "cssFramework": "vanilla",
     "database": "postgresql",
     "diMode": "manual",
-    "extensions": [
-      "docker"
-    ],
     "projectName": "testapp"
   },
   "tools": {

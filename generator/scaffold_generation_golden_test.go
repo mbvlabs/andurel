@@ -167,8 +167,10 @@ func setupScaffoldGoldenProject(t *testing.T, migrationsFixture, diMode, cssFram
 		Database:     "postgresql",
 		CSSFramework: cssFramework,
 		DIMode:       diMode,
-		Extensions:   extensions,
 		Inertia:      inertia,
+	}
+	for _, ext := range extensions {
+		lock.AddExtension(ext, "test-applied-at")
 	}
 	if err := lock.WriteLockFile(projectDir); err != nil {
 		t.Fatalf("failed to write andurel.lock: %v", err)

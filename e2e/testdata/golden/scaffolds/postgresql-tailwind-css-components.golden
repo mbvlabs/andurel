@@ -787,9 +787,6 @@ file -----------rw-r--r-- andurel.lock
     "cssFramework": "tailwind",
     "database": "postgresql",
     "diMode": "manual",
-    "extensions": [
-      "css-components"
-    ],
     "projectName": "testapp"
   },
   "tools": {

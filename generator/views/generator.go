@@ -230,7 +230,7 @@ func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
 
 	if lock != nil && lock.ScaffoldConfig != nil {
 		cssFramework = lock.ScaffoldConfig.CSSFramework
-		if slices.Contains(lock.ScaffoldConfig.Extensions, "css-components") {
+		if _, ok := lock.Extensions["css-components"]; ok {
 			hasCssComponents = true
 		}
 	}

@@ -1154,11 +1154,6 @@ file -----------rw-r--r-- andurel.lock
     "cssFramework": "vanilla",
     "database": "postgresql",
     "diMode": "uberfx",
-    "extensions": [
-      "docker",
-      "aws-ses",
-      "css-components"
-    ],
     "projectName": "testapp"
   },
   "tools": {

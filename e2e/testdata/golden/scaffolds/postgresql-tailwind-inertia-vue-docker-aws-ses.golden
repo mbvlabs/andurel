@@ -1124,10 +1124,6 @@ file -----------rw-r--r-- andurel.lock
     "cssFramework": "tailwind",
     "database": "postgresql",
     "diMode": "manual",
-    "extensions": [
-      "docker",
-      "aws-ses"
-    ],
     "inertia": "vue",
     "projectName": "testapp"
   },

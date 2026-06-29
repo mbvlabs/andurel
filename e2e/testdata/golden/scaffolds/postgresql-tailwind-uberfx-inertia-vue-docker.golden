@@ -856,9 +856,6 @@ file -----------rw-r--r-- andurel.lock
     "cssFramework": "tailwind",
     "database": "postgresql",
     "diMode": "uberfx",
-    "extensions": [
-      "docker"
-    ],
     "inertia": "vue",
     "projectName": "testapp"
   },

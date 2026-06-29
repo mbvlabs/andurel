@@ -90,6 +90,7 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	renderedTemplates, err := u.generator.RenderFrameworkTemplates(
 		u.projectRoot,
 		*u.lock.ScaffoldConfig,
+		u.lock.ExtensionNames(),
 	)
 	if err != nil {
 		report.Error = err
