@@ -3,7 +3,9 @@ package generator
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/pkg/cache"
@@ -50,6 +52,61 @@ func TestModelGenerationGoldens(t *testing.T) {
 			t.Fatalf("failed to diff model update: %v", err)
 		}
 		g.Assert(t, "product_update_diff", []byte(diff))
+	})
+
+	t.Run("update_preserves_custom_typed_fields", func(t *testing.T) {
+		manager := setupModelGoldenProject(t, "model_generation_initial")
+
+		if err := manager.GenerateModel("Product", "", true, ""); err != nil {
+			t.Fatalf("failed to generate initial model: %v", err)
+		}
+
+		modelPath := BuildModelPath(manager.config.Paths.Models, "Product")
+		content, err := os.ReadFile(modelPath)
+		if err != nil {
+			t.Fatalf("failed to read generated model: %v", err)
+		}
+
+		modelContent := string(content)
+		modelContent = strings.Replace(
+			modelContent,
+			"type ProductEntity struct {",
+			"type ProductStatus string\n\nconst (\n\tProductStatusActive   ProductStatus = \"active\"\n\tProductStatusArchived ProductStatus = \"archived\"\n)\n\ntype ProductEntity struct {",
+			1,
+		)
+		modelContent = strings.Replace(
+			modelContent,
+			"bun.BaseModel `bun:\"table:products,alias:products\"`",
+			"bun.BaseModel `bun:\"table:products,alias:products\"`\n\tStatus        ProductStatus `bun:\"status\"`",
+			1,
+		)
+		if err := os.WriteFile(modelPath, []byte(modelContent), 0o600); err != nil {
+			t.Fatalf("failed to write modified model: %v", err)
+		}
+
+		manager.config.Database.MigrationDirs = []string{
+			modelGenerationFixtureDir(t, "model_generation_updated"),
+		}
+
+		result, err := manager.UpdateModel("Product")
+		if err != nil {
+			t.Fatalf("failed to update model: %v", err)
+		}
+
+		if !regexp.MustCompile("Status\\s+ProductStatus\\s+`bun:\"status\"`").MatchString(result.NewFileContent) {
+			t.Fatalf("updated model should preserve custom Status field\n\n%s", result.NewFileContent)
+		}
+
+		for _, want := range []string{
+			"type ProductStatus string",
+			"ProductStatusArchived ProductStatus = \"archived\"",
+			"ArchivedAt",
+			"Rating",
+		} {
+			if !strings.Contains(result.NewFileContent, want) {
+				t.Fatalf("updated model should contain %q\n\n%s", want, result.NewFileContent)
+			}
+		}
 	})
 
 	t.Run("custom_primary_key_generation", func(t *testing.T) {

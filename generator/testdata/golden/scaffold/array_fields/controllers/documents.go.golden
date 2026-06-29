@@ -1,0 +1,209 @@
+package controllers
+
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+	"strconv"
+	"testapp/internal/hypermedia"
+	"testapp/internal/storage"
+	"testapp/models"
+	"testapp/router/cookies"
+	"testapp/router/routes"
+	"testapp/views"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v5"
+)
+
+type Documents struct {
+	db storage.Pool
+}
+
+func NewDocuments(db storage.Pool) Documents {
+	return Documents{db}
+}
+
+func (d Documents) Index(etx *echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	documentsList, err := models.Document.Paginate(
+		etx.Request().Context(),
+		d.db.Executor(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+
+	return hypermedia.RenderPage(etx, views.DocumentIndex{Items: documentsList.Documents}.Page())
+}
+
+func (d Documents) Show(etx *echo.Context) error {
+	documentID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	document, err := models.Document.Find(etx.Request().Context(), d.db.Executor(), documentID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.DocumentShow{Item: document}.Page())
+}
+
+func (d Documents) New(etx *echo.Context) error {
+	return hypermedia.RenderPage(etx, views.DocumentNew{}.Page())
+}
+
+type CreateDocumentFormPayload struct {
+	Title       string `json:"title"`
+	Tags        string `json:"tags"`
+	PageNumbers string `json:"pageNumbers"`
+	ViewCount   int32  `json:"viewCount"`
+	IsPublished bool   `json:"isPublished"`
+}
+
+func (d Documents) Create(etx *echo.Context) error {
+	var payload CreateDocumentFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse CreateDocumentFormPayload",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	data := models.CreateDocumentData{
+		Title:       payload.Title,
+		Tags:        payload.Tags,
+		PageNumbers: payload.PageNumbers,
+		ViewCount:   payload.ViewCount,
+		IsPublished: payload.IsPublished,
+	}
+
+	document, err := models.Document.Create(
+		etx.Request().Context(),
+		d.db.Executor(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create document: %v", err)); flashErr != nil {
+			return flashErr
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.DocumentNew.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Document created successfully"); flashErr != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID))
+}
+
+func (d Documents) Edit(etx *echo.Context) error {
+	documentID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	document, err := models.Document.Find(etx.Request().Context(), d.db.Executor(), documentID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.DocumentEdit{Item: document}.Page())
+}
+
+type UpdateDocumentFormPayload struct {
+	Title       string `json:"title"`
+	Tags        string `json:"tags"`
+	PageNumbers string `json:"pageNumbers"`
+	ViewCount   int32  `json:"viewCount"`
+	IsPublished bool   `json:"isPublished"`
+}
+
+func (d Documents) Update(etx *echo.Context) error {
+	documentID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	var payload UpdateDocumentFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse UpdateDocumentFormPayload",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	data := models.UpdateDocumentData{
+		ID:          documentID,
+		Title:       payload.Title,
+		Tags:        payload.Tags,
+		PageNumbers: payload.PageNumbers,
+		ViewCount:   payload.ViewCount,
+		IsPublished: payload.IsPublished,
+	}
+
+	document, err := models.Document.Update(
+		etx.Request().Context(),
+		d.db.Executor(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update document: %v", err)); flashErr != nil {
+			return hypermedia.RenderPage(etx, views.InternalError())
+		}
+		return etx.Redirect(
+			http.StatusSeeOther,
+			routes.DocumentEdit.URL(documentID),
+		)
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Document updated successfully"); flashErr != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID))
+}
+
+func (d Documents) Destroy(etx *echo.Context) error {
+	documentID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	err = models.Document.Destroy(etx.Request().Context(), d.db.Executor(), documentID)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete document: %v", err)); flashErr != nil {
+			return hypermedia.RenderPage(etx, views.InternalError())
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.DocumentIndex.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Document destroyed successfully"); flashErr != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+	return etx.Redirect(http.StatusSeeOther, routes.DocumentIndex.URL())
+}

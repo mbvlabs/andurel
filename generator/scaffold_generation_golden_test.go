@@ -73,6 +73,21 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 			cssFramework: "tailwind",
 		},
 		{
+			name:         "irregular_plural",
+			resourceName: "Company",
+			migrations:   "scaffold_generation_companies",
+			diMode:       "manual",
+			cssFramework: "tailwind",
+		},
+		{
+			name:         "array_fields",
+			resourceName: "Document",
+			migrations:   "scaffold_generation_documents",
+			skipFactory:  true,
+			diMode:       "manual",
+			cssFramework: "tailwind",
+		},
+		{
 			name:             "custom_primary_key",
 			resourceName:     "Warehouse",
 			migrations:       "scaffold_generation_warehouses",

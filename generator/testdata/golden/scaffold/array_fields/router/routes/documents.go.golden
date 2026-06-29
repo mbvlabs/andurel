@@ -1,0 +1,43 @@
+package routes
+
+import (
+	"testapp/internal/routing"
+)
+
+const DocumentPrefix = "/documents"
+
+var DocumentIndex = routing.NewSimpleRoute(
+	"",
+	"documents.index",
+	DocumentPrefix,
+)
+var DocumentShow = routing.NewRouteWithUUIDID(
+	"/:id",
+	"documents.show",
+	DocumentPrefix,
+)
+var DocumentNew = routing.NewSimpleRoute(
+	"/new",
+	"documents.new",
+	DocumentPrefix,
+)
+var DocumentCreate = routing.NewSimpleRoute(
+	"",
+	"documents.create",
+	DocumentPrefix,
+)
+var DocumentEdit = routing.NewRouteWithUUIDID(
+	"/:id/edit",
+	"documents.edit",
+	DocumentPrefix,
+)
+var DocumentUpdate = routing.NewRouteWithUUIDID(
+	"/:id",
+	"documents.update",
+	DocumentPrefix,
+)
+var DocumentDestroy = routing.NewRouteWithUUIDID(
+	"/:id",
+	"documents.destroy",
+	DocumentPrefix,
+)
