@@ -323,7 +323,10 @@ andurel tool mailpit (alias: m)
 
 ### `andurel extension` — Project extensions
 
-Add and list optional framework features.
+Add and list optional framework features. Adding an extension to an existing
+project generates its code files, updates framework-managed files (config.go,
+.env.example, main.go, etc.), and records it in andurel.lock. Commit or create
+a branch before adding an extension, as it modifies files in place.
 
 ```bash
 andurel extension (aliases: ext, e)
