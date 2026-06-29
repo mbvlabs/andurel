@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mbvlabs/andurel/generator"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/mbvlabs/andurel/pkg/naming"
@@ -66,7 +65,7 @@ generated yet.`,
 			}
 
 			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				return generateControllerWithActions(name, actions, skipRoutes, inertia)
+				return generateControllerWithActionsFunc(name, actions, skipRoutes, inertia)
 			})(cmd, args)
 		},
 	}
@@ -96,7 +95,7 @@ func generateControllerWithActions(name string, actions []string, skipRoutes boo
 		if _, err := os.Stat(controllerPath); err != nil && !os.IsNotExist(err) {
 			return err
 		}
-		gen, err := generator.New()
+		gen, err := newGenerator()
 		if err != nil {
 			return err
 		}
