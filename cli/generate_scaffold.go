@@ -1,7 +1,8 @@
 package cli
 
 import (
-	"github.com/mbvlabs/andurel/generator"
+	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -47,6 +48,9 @@ edit, update, destroy.`,
 			if len(args) < 1 {
 				return cmd.Help()
 			}
+			if len(args) > 1 {
+				return fmt.Errorf("too many arguments: scaffold takes exactly 1 argument (the resource name)")
+			}
 			name := args[0]
 
 			if err := chdirToProjectRoot(); err != nil {
@@ -59,7 +63,7 @@ edit, update, destroy.`,
 			}
 
 			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				gen, err := generator.New()
+				gen, err := newGenerator()
 				if err != nil {
 					return err
 				}

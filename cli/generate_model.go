@@ -3,23 +3,22 @@ package cli
 import (
 	"fmt"
 
-	"github.com/mbvlabs/andurel/generator"
 	"github.com/spf13/cobra"
 )
 
 func newGenerateModelCommand() *cobra.Command {
 	var (
-		skipFactory     bool
-		tableName       string
-		updateModel     bool
-		autoApply       bool
+		skipFactory      bool
+		tableName        string
+		updateModel      bool
+		autoApply        bool
 		primaryKeyColumn string
 	)
 
 	cmd := &cobra.Command{
 		Use:     "model NAME",
 		Aliases: []string{"m"},
-		Short: "Generate a new model or update an existing one",
+		Short:   "Generate a new model or update an existing one",
 		Long: `Generates a new model or updates an existing one. Pass the model name in CamelCase.
 
 When generating, the model is created from the existing database migration for the
@@ -65,11 +64,11 @@ Use --update to sync an existing model file with migration changes.`,
 			}
 
 			if updateModel {
-				return runModelUpdate(name, autoApply)
+				return runModelUpdateFunc(name, autoApply)
 			}
 
 			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				gen, err := generator.New()
+				gen, err := newGenerator()
 				if err != nil {
 					return err
 				}
