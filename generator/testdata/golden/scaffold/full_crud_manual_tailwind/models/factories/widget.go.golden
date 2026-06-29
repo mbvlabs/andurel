@@ -1,0 +1,97 @@
+package factories
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"testapp/internal/storage"
+	"testapp/models"
+
+	"github.com/go-faker/faker/v4"
+	"github.com/google/uuid"
+)
+
+// WidgetFactory wraps models.WidgetEntity for testing
+type WidgetFactory struct {
+	models.WidgetEntity
+}
+
+type WidgetOption func(*WidgetFactory)
+
+// BuildWidget creates an in-memory Widget with default test values.
+// Auto-managed fields (ID, timestamps) are left at zero and set by CreateWidget.
+func BuildWidget(opts ...WidgetOption) models.WidgetEntity {
+	f := &WidgetFactory{
+		WidgetEntity: models.WidgetEntity{
+			Name:     faker.Word(),
+			Quantity: randomInt(1, 1000, 100),
+			Active:   randomBool(),
+		},
+	}
+
+	for _, opt := range opts {
+		opt(f)
+	}
+
+	return f.WidgetEntity
+}
+
+// CreateWidget creates and persists a Widget to the database.
+// It returns the entity populated with all DB-assigned values via RETURNING *.
+func CreateWidget(ctx context.Context, exec storage.Executor, opts ...WidgetOption) (models.WidgetEntity, error) {
+	built := BuildWidget(opts...)
+
+	entity := models.WidgetEntity{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      built.Name,
+		Quantity:  built.Quantity,
+		Active:    built.Active,
+	}
+
+	if err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
+		return models.WidgetEntity{}, err
+	}
+
+	return entity, nil
+}
+
+// CreateWidgets creates multiple Widget records at once
+func CreateWidgets(ctx context.Context, exec storage.Executor, count int, opts ...WidgetOption) ([]models.WidgetEntity, error) {
+	widgets := make([]models.WidgetEntity, 0, count)
+
+	for i := 0; i < count; i++ {
+		entity, err := CreateWidget(ctx, exec, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create widget %d: %w", i+1, err)
+		}
+		widgets = append(widgets, entity)
+	}
+
+	return widgets, nil
+}
+
+// Option functions
+
+// WithWidgetsName sets the Name field
+func WithWidgetsName(value string) WidgetOption {
+	return func(f *WidgetFactory) {
+		f.WidgetEntity.Name = value
+	}
+}
+
+// WithWidgetsQuantity sets the Quantity field
+func WithWidgetsQuantity(value int32) WidgetOption {
+	return func(f *WidgetFactory) {
+		f.WidgetEntity.Quantity = value
+	}
+}
+
+// WithWidgetsActive sets the Active field
+func WithWidgetsActive(value bool) WidgetOption {
+	return func(f *WidgetFactory) {
+		f.WidgetEntity.Active = value
+	}
+}

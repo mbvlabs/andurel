@@ -1,0 +1,81 @@
+package router
+
+import (
+	"errors"
+	"net/http"
+
+	"testapp/controllers"
+	"testapp/router/routes"
+
+	"github.com/labstack/echo"
+)
+
+func (r Router) RegisterWarehouseRoutes(warehouse controllers.Warehouses) error {
+	errs := []error{}
+	var err error
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WarehouseIndex.Path(),
+		Name:    routes.WarehouseIndex.Name(),
+		Handler: warehouse.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WarehouseShow.Path(),
+		Name:    routes.WarehouseShow.Name(),
+		Handler: warehouse.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WarehouseNew.Path(),
+		Name:    routes.WarehouseNew.Name(),
+		Handler: warehouse.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.WarehouseCreate.Path(),
+		Name:    routes.WarehouseCreate.Name(),
+		Handler: warehouse.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WarehouseEdit.Path(),
+		Name:    routes.WarehouseEdit.Name(),
+		Handler: warehouse.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.WarehouseUpdate.Path(),
+		Name:    routes.WarehouseUpdate.Name(),
+		Handler: warehouse.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.WarehouseDestroy.Path(),
+		Name:    routes.WarehouseDestroy.Name(),
+		Handler: warehouse.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}

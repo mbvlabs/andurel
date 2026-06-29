@@ -119,7 +119,8 @@ func (mi *MainInjector) InjectFXController(resourceName, pluralName string) erro
 
 	invokeNeedle := fmt.Sprintf("c %s) error", capitalizedPlural)
 	if !strings.Contains(contentStr, invokeNeedle) {
-		invoke := fmt.Sprintf(`	fx.Invoke(func(r *router.Router, c %s) error {
+		invoke := fmt.Sprintf(`
+	fx.Invoke(func(r *router.Router, c %s) error {
 		return c.RegisterRoutes(r)
 	}),
 `, capitalizedPlural)

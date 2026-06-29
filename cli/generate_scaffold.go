@@ -1,7 +1,8 @@
 package cli
 
 import (
-	"github.com/mbvlabs/andurel/generator"
+	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +17,7 @@ func newGenerateScaffoldCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "scaffold NAME",
 		Aliases: []string{"s"},
-		Short: "Generate a complete scaffold resource",
+		Short:   "Generate a complete scaffold resource",
 		Long: `Scaffolds an entire resource, from model to controller and views, along
 with routes. The resource is ready to use as a starting point for your
 RESTful, resource-oriented application.
@@ -47,6 +48,9 @@ edit, update, destroy.`,
 			if len(args) < 1 {
 				return cmd.Help()
 			}
+			if len(args) > 1 {
+				return fmt.Errorf("too many arguments: scaffold takes exactly 1 argument (the resource name)")
+			}
 			name := args[0]
 
 			if err := chdirToProjectRoot(); err != nil {
@@ -59,27 +63,12 @@ edit, update, destroy.`,
 			}
 
 			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				gen, err := generator.New()
+				gen, err := newGenerator()
 				if err != nil {
 					return err
 				}
 
-			if primaryKeyColumn != "" {
-				if err := gen.GenerateModelWithPK(name, tableName, skipFactory, primaryKeyColumn); err != nil {
-					return err
-				}
-				gen.SetControllerPKResolver(generator.NopPrimaryKeyResolver{})
-			} else {
-				if err := gen.GenerateModel(name, tableName, skipFactory); err != nil {
-					return err
-				}
-			}
-
-			if err := gen.GenerateController(name, tableName, true, inertia); err != nil {
-					return err
-				}
-
-				return nil
+				return gen.GenerateScaffold(name, tableName, skipFactory, primaryKeyColumn, inertia)
 			})(cmd, args)
 		},
 	}

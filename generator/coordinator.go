@@ -98,6 +98,23 @@ func (c *Coordinator) GenerateControllerWithActions(resourceName, tableName stri
 	return nil
 }
 
+// GenerateScaffold coordinates model, controller, and view generation for a
+// complete resource scaffold.
+func (c *Coordinator) GenerateScaffold(resourceName, tableName string, skipFactory bool, primaryKeyColumn string, inertia string) error {
+	if primaryKeyColumn != "" {
+		if err := c.ModelManager.GenerateModel(resourceName, tableName, skipFactory, primaryKeyColumn); err != nil {
+			return err
+		}
+		c.ControllerManager.SetPrimaryKeyResolver(NopPrimaryKeyResolver{})
+	} else {
+		if err := c.ModelManager.GenerateModel(resourceName, tableName, skipFactory, ""); err != nil {
+			return err
+		}
+	}
+
+	return c.GenerateController(resourceName, tableName, true, inertia)
+}
+
 // GenerateControllerFromModel coordinates controller and optional view generation from existing model
 func (c *Coordinator) GenerateControllerFromModel(resourceName string, withViews bool) error {
 	if err := c.ControllerManager.GenerateControllerFromModel(resourceName, withViews); err != nil {

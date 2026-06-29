@@ -10,9 +10,10 @@ import (
 
 func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} controllers.{{.CapitalizedPluralName}}) error {
 	errs := []error{}
+	var err error
 
 {{- if HasAction "index" }}
-	_, err := r.e.AddRoute(echo.Route{
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}Index.Path(),
 		Name:    routes.{{.ResourceName}}Index.Name(),

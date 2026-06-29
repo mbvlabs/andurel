@@ -1,5 +1,0 @@
-package jobs
-
-type SendWelcomeEmailArgs struct{}
-
-func (SendWelcomeEmailArgs) Kind() string { return "send_welcome_email" }

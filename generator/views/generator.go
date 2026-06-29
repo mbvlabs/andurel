@@ -448,7 +448,7 @@ func (g *Generator) GenerateViewWithControllerActions(
 		return g.generateVueViews(view, templatePrefix, resourceName)
 	}
 
-	if _, err := os.Stat(viewPath); err == nil {
+	if viewExists && len(actions) == 0 {
 		return fmt.Errorf("view file %s already exists", viewPath)
 	}
 

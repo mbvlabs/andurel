@@ -1,0 +1,183 @@
+package models
+
+import (
+	"context"
+	"errors"
+	"testapp/internal/storage"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/uptrace/bun"
+)
+
+type ProjectEntity struct {
+	bun.BaseModel `bun:"table:projects,alias:projects"`
+	ID            uuid.UUID `bun:"id,pk,type:uuid"`
+	Title         string    `bun:"title"`
+	Status        string    `bun:"status"`
+	CreatedAt     time.Time `bun:"created_at"`
+	UpdatedAt     time.Time `bun:"updated_at"`
+}
+
+func (p project) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ProjectEntity, error) {
+	var entity ProjectEntity
+	if err := db.NewSelect().
+		Model(&entity).
+		Where("id = ?", id).
+		Scan(ctx); err != nil {
+		return ProjectEntity{}, err
+	}
+
+	return entity, nil
+}
+
+type CreateProjectData struct {
+	Title  string
+	Status string
+}
+
+func (p project) Create(ctx context.Context, db storage.Executor, data CreateProjectData) (ProjectEntity, error) {
+	if err := Validate.Struct(data); err != nil {
+		return ProjectEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	entity := ProjectEntity{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Title:     data.Title,
+		Status:    data.Status,
+	}
+
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return ProjectEntity{}, err
+	}
+
+	return entity, nil
+}
+
+type UpdateProjectData struct {
+	ID        uuid.UUID
+	Title     string
+	Status    string
+	UpdatedAt time.Time
+}
+
+func (p project) Update(ctx context.Context, db storage.Executor, data UpdateProjectData) (ProjectEntity, error) {
+	if err := Validate.Struct(data); err != nil {
+		return ProjectEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	entity := ProjectEntity{
+		ID:        data.ID,
+		UpdatedAt: time.Now(),
+		Title:     data.Title,
+		Status:    data.Status,
+	}
+
+	if err := db.NewUpdate().
+		Model(&entity).
+		Column("title").
+		Column("status").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
+		Scan(ctx); err != nil {
+		return ProjectEntity{}, err
+	}
+
+	return entity, nil
+}
+
+func (p project) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
+	_, err := db.NewDelete().
+		Model((*ProjectEntity)(nil)).
+		Where("id = ?", id).
+		Exec(ctx)
+
+	return err
+}
+
+func (p project) All(ctx context.Context, db storage.Executor) ([]ProjectEntity, error) {
+	var entities []ProjectEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Scan(ctx); err != nil {
+		return nil, err
+	}
+
+	return entities, nil
+}
+
+type PaginatedProjects struct {
+	Projects   []ProjectEntity
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func (p project) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedProjects, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := db.NewSelect().
+		Model(&ProjectEntity{}).Count(ctx)
+	if err != nil {
+		return PaginatedProjects{}, err
+	}
+
+	var entities []ProjectEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Limit(int(pageSize)).
+		Offset(int(offset)).
+		Scan(ctx); err != nil {
+		return PaginatedProjects{}, err
+	}
+
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
+
+	return PaginatedProjects{
+		Projects:   entities,
+		TotalCount: int64(totalCount),
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (p project) Upsert(ctx context.Context, db storage.Executor, data CreateProjectData) (ProjectEntity, error) {
+	if err := Validate.Struct(data); err != nil {
+		return ProjectEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	entity := ProjectEntity{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Title:     data.Title,
+		Status:    data.Status,
+	}
+
+	if err := db.NewInsert().
+		Model(&entity).
+		On("CONFLICT (id) DO UPDATE").
+		Set("title = excluded.title").
+		Set("status = excluded.status").
+		Returning("*").
+		Scan(ctx); err != nil {
+		return ProjectEntity{}, err
+	}
+
+	return entity, nil
+}

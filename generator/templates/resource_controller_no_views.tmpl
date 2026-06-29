@@ -266,14 +266,27 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return flashErr
 		}
+		{{- if HasAction "new"}}
 		return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}New.URL())
+		{{- else}}
+		return hypermedia.RenderPage(etx, views.InternalError())
+		{{- end}}
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} created successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
+	{{- if HasAction "show"}}
 	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
+	{{- else}}
+	_ = {{.ResourceName | ToLowerCamelCase}}
+	{{- if HasAction "index"}}
+	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
+	{{- else}}
+	return etx.NoContent(http.StatusCreated)
+	{{- end}}
+	{{- end}}
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
@@ -480,17 +493,30 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
+		{{- if HasAction "edit"}}
 		return etx.Redirect(
 			http.StatusSeeOther,
 			routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLowerCamelCase}}ID),
 		)
+		{{- else}}
+		return hypermedia.RenderPage(etx, views.InternalError())
+		{{- end}}
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} updated successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
+	{{- if HasAction "show"}}
 	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
+	{{- else}}
+	_ = {{.ResourceName | ToLowerCamelCase}}
+	{{- if HasAction "index"}}
+	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
+	{{- else}}
+	return etx.NoContent(http.StatusOK)
+	{{- end}}
+	{{- end}}
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) error {
@@ -522,12 +548,20 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
+		{{- if HasAction "index"}}
 		return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
+		{{- else}}
+		return hypermedia.RenderPage(etx, views.InternalError())
+		{{- end}}
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} destroyed successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
+	{{- if HasAction "index"}}
 	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
+	{{- else}}
+	return etx.NoContent(http.StatusOK)
+	{{- end}}
 }

@@ -1,0 +1,53 @@
+package controllers
+
+import (
+	"errors"
+	"net/http"
+	"testapp/internal/hypermedia"
+	"testapp/internal/storage"
+	"testapp/models"
+	"testapp/router"
+	"testapp/router/routes"
+	"testapp/views"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v5"
+)
+
+type Widgets struct {
+	db storage.Pool
+}
+
+func NewWidgets(db storage.Pool) Widgets {
+	return Widgets{db}
+}
+
+func (w Widgets) Show(etx *echo.Context) error {
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	widget, err := models.Widget.Find(etx.Request().Context(), w.db.Executor(), widgetID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.WidgetShow{Item: widget}.Page())
+}
+
+func (w Widgets) RegisterRoutes(r *router.Router) error {
+	var errs []error
+	var err error
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WidgetShow.Path(),
+		Name:    routes.WidgetShow.Name(),
+		Handler: w.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
