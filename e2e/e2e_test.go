@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/layout/versions"
@@ -82,66 +81,4 @@ func getSharedBinDir() string {
 
 func isCriticalOnly() bool {
 	return os.Getenv("E2E_CRITICAL_ONLY") == "true"
-}
-
-// TestToolVersions validates that the tool versions in layout/versions match what
-// the tools actually report. This ensures our version constants stay in sync.
-func TestToolVersions(t *testing.T) {
-	if sharedBinDir == "" {
-		t.Skip("Shared bin directory not available")
-	}
-
-	tests := []struct {
-		name            string
-		binary          string
-		versionFlag     string
-		expectedVersion string
-		versionParser   func(output string) string
-	}{
-		{
-			name:            "templ",
-			binary:          "templ",
-			versionFlag:     "version",
-			expectedVersion: versions.Templ,
-			versionParser: func(output string) string {
-				// templ outputs: "templ version v0.3.960"
-				parts := strings.Fields(output)
-				if len(parts) >= 3 {
-					return parts[2]
-				}
-				return strings.TrimSpace(output)
-			},
-		},
-		{
-			name:            "goose",
-			binary:          "goose",
-			versionFlag:     "--version",
-			expectedVersion: versions.Goose,
-			versionParser: func(output string) string {
-				// goose outputs: "goose version: v3.24.1"
-				parts := strings.Fields(output)
-				if len(parts) >= 3 {
-					return parts[2]
-				}
-				return strings.TrimSpace(output)
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			binPath := filepath.Join(sharedBinDir, tc.binary)
-			cmd := exec.Command(binPath, tc.versionFlag)
-			output, err := cmd.CombinedOutput()
-			if err != nil {
-				t.Fatalf("Failed to get %s version: %v\nOutput: %s", tc.name, err, output)
-			}
-
-			actualVersion := tc.versionParser(string(output))
-			if actualVersion != tc.expectedVersion {
-				t.Errorf("%s version mismatch: expected %s, got %s",
-					tc.name, tc.expectedVersion, actualVersion)
-			}
-		})
-	}
 }

@@ -1,4 +1,4 @@
-name: E2E Nightly Suite
+name: Nightly Test Suite
 
 on:
   schedule:
@@ -6,10 +6,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  e2e-full:
-    name: E2E Full Test Matrix
+  test-full:
+    name: Full Test Suite
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
 
     services:
       postgres:
@@ -48,6 +48,12 @@ jobs:
           go install github.com/segmentio/golines
           go install golang.org/x/tools/cmd/goimports
 
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run unit tests
+        run: go test $(go list ./... | grep -v /e2e) -v -race -coverprofile=coverage.txt -covermode=atomic
+
       - name: Run E2E full test suite
         run: go test ./e2e/... -v -timeout 55m
 
@@ -68,7 +74,7 @@ jobs:
             github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: 'E2E Nightly Tests Failed',
-              body: `The nightly E2E test suite failed. Please check the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId}) for details.`,
-              labels: ['e2e-failure', 'automated']
+              title: 'Nightly Test Suite Failed',
+              body: `The nightly test suite failed. Please check the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId}) for details.`,
+              labels: ['nightly-failure', 'automated']
             })
