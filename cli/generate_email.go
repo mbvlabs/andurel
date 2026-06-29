@@ -20,7 +20,7 @@ func newGenerateEmailCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "email NAME",
 		Aliases: []string{"e"},
-		Short: "Generate a new email template",
+		Short:   "Generate a new email template",
 		Long: `Generates a new email template with the given name. Pass the email name
 in CamelCase.
 
@@ -30,8 +30,14 @@ email.SendMarketing.`,
 		Example: `  andurel generate email WelcomeEmail
 
       Creates a WelcomeEmail template at email/welcome_email.templ`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return cmd.Help()
+			}
+			if len(args) > 1 {
+				return fmt.Errorf("too many arguments: email takes exactly 1 argument (the email name)")
+			}
 			name := args[0]
 
 			if err := chdirToProjectRoot(); err != nil {

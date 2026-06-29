@@ -207,7 +207,7 @@ func newRunAppCommand() *cobra.Command {
 	return cmd
 }
 
-func findGoModRoot() (string, error) {
+var findGoModRoot = func() (string, error) {
 	return cache.GetDirectoryRoot("go_mod_root", func() (string, error) {
 		dir, err := os.Getwd()
 		if err != nil {

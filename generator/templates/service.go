@@ -144,9 +144,14 @@ func (ts *TemplateService) RenderTemplateWithCustomFunctions(
 	maps.Copy(mergedFuncs, ts.functions)
 	maps.Copy(mergedFuncs, funcMap)
 
-	tmpl, err := ts.cache.GetTemplate(templateName, mergedFuncs)
+	templateContent, err := Files.ReadFile(templateName)
 	if err != nil {
 		return "", errors.WrapTemplateError(err, "get template", templateName)
+	}
+
+	tmpl, err := template.New(templateName).Funcs(mergedFuncs).Parse(string(templateContent))
+	if err != nil {
+		return "", errors.WrapTemplateError(err, "parse template", templateName)
 	}
 
 	var buf strings.Builder

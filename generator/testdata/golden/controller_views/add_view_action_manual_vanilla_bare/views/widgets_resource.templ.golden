@@ -1,0 +1,136 @@
+
+
+
+
+package views
+
+import (
+	"fmt"
+	
+	"testapp/models"
+	
+	
+	"testapp/router/routes"
+	
+)
+
+
+
+
+type WidgetShow struct {
+	Item models.WidgetEntity
+}
+
+func (ws WidgetShow) PageFragment() string {
+	return "widget-show-page-fragment"
+}
+
+templ (ws WidgetShow) Page() {
+	@base() {
+		@templ.Fragment(ws.PageFragment()) {
+			<main id="widget-show-container">
+				<section>
+					<div>
+						<div>
+							<h1>Widget Details</h1>
+						</div>
+						<div>
+							
+							<a href={ routes.WidgetEdit.URL(ws.Item.ID) }>Edit</a>
+							
+							
+						</div>
+					</div>
+					<div>
+						<div>
+							
+							<div>
+								<p>Name</p>
+								<p>{ ws.Item.Name }</p>
+							</div>
+							<div>
+								<p>Quantity</p>
+								<p>{ fmt.Sprintf("%d", ws.Item.Quantity) }</p>
+							</div>
+							<div>
+								<p>Active</p>
+								<p>{ fmt.Sprintf("%t", ws.Item.Active) }</p>
+							</div>
+							<div>
+								<p>Created At</p>
+								<p>{ ws.Item.CreatedAt.String() }</p>
+							</div>
+							<div>
+								<p>Updated At</p>
+								<p>{ ws.Item.UpdatedAt.String() }</p>
+							</div>
+							
+						</div>
+					</div>
+				</section>
+			</main>
+		}
+	}
+}
+
+
+
+
+
+type WidgetEdit struct {
+	Item models.WidgetEntity
+}
+
+func (we WidgetEdit) PageFragment() string {
+	return "widget-edit-page-fragment"
+}
+
+templ (we WidgetEdit) Page() {
+	@base() {
+		@templ.Fragment(we.PageFragment()) {
+			<main id="widget-edit-container">
+				<section>
+					<div>
+						<div>
+							<h1>Edit Widget</h1>
+							<p>Update the details for this widget.</p>
+						</div>
+						<div>
+							<form
+								data-indicator:_submitting
+								
+							>
+								<fieldset data-attr:disabled="$_submitting">
+									
+									<div>
+										<label for="name">Name</label>
+										<div>
+											<input type="text" id="name" name="name" data-bind="name" value={ we.Item.Name } />
+										</div>
+									</div>
+									<div>
+										<label for="quantity">Quantity</label>
+										<div>
+											<input type="number" id="quantity" name="quantity" data-bind="quantity" value={ fmt.Sprintf("%d", we.Item.Quantity) } />
+										</div>
+									</div>
+									<div>
+										<input type="checkbox" id="active" name="active" data-bind="active" if we.Item.Active { checked } />
+										<label for="active">Active</label>
+									</div>
+									
+									<div>
+										
+										
+									</div>
+								</fieldset>
+							</form>
+						</div>
+						
+					</div>
+				</section>
+			</main>
+		}
+	}
+}
+

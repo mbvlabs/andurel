@@ -17,7 +17,6 @@ type RouteGenerator struct {
 	fileManager      files.Manager
 	templateRenderer *TemplateRenderer
 	mainInjector     *MainInjector
-	fxInjector       *FxInjector
 }
 
 func NewRouteGenerator() *RouteGenerator {
@@ -25,7 +24,6 @@ func NewRouteGenerator() *RouteGenerator {
 		fileManager:      files.NewUnifiedFileManager(),
 		templateRenderer: NewTemplateRenderer(),
 		mainInjector:     NewMainInjector(),
-		fxInjector:       NewFxInjector(),
 	}
 }
 
@@ -80,9 +78,6 @@ func (rg *RouteGenerator) GenerateRoutesWithActions(resourceName, pluralName, id
 	}
 
 	if diMode == "uberfx" {
-		if err := rg.fxInjector.InjectController(resourceName, pluralName); err != nil {
-			slog.Warn("unexpected error injecting fx controller", "error", err)
-		}
 		if err := rg.mainInjector.InjectFXController(resourceName, pluralName); err != nil {
 			slog.Warn("unexpected error injecting fx controller", "error", err)
 		}

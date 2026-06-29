@@ -1,0 +1,197 @@
+package controllers
+
+import (
+	"database/sql"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"strconv"
+	"testapp/internal/hypermedia"
+	"testapp/internal/storage"
+	"testapp/models"
+	"testapp/router/cookies"
+	"testapp/router/routes"
+	"testapp/views"
+
+	"github.com/labstack/echo/v5"
+)
+
+type Warehouses struct {
+	db storage.Pool
+}
+
+func NewWarehouses(db storage.Pool) Warehouses {
+	return Warehouses{db}
+}
+
+func (w Warehouses) Index(etx *echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	warehousesList, err := models.Warehouse.Paginate(
+		etx.Request().Context(),
+		w.db.Executor(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+
+	return hypermedia.RenderPage(etx, views.WarehouseIndex{Items: warehousesList.Warehouses}.Page())
+}
+
+func (w Warehouses) Show(etx *echo.Context) error {
+	warehouseID := etx.Param("id")
+	if warehouseID == "" {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	warehouse, err := models.Warehouse.Find(etx.Request().Context(), w.db.Executor(), warehouseID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.WarehouseShow{Item: warehouse}.Page())
+}
+
+func (w Warehouses) New(etx *echo.Context) error {
+	return hypermedia.RenderPage(etx, views.WarehouseNew{}.Page())
+}
+
+type CreateWarehouseFormPayload struct {
+	Name     string `json:"name"`
+	Location string `json:"location"`
+}
+
+func (w Warehouses) Create(etx *echo.Context) error {
+	var payload CreateWarehouseFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse CreateWarehouseFormPayload",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	data := models.CreateWarehouseData{
+		Name:     payload.Name,
+		Location: sql.NullString{String: payload.Location, Valid: true},
+	}
+
+	warehouse, err := models.Warehouse.Create(
+		etx.Request().Context(),
+		w.db.Executor(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create warehouse: %v", err)); flashErr != nil {
+			return flashErr
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.WarehouseNew.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Warehouse created successfully"); flashErr != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+	return etx.Redirect(http.StatusSeeOther, routes.WarehouseShow.URL(warehouse.Slug))
+}
+
+func (w Warehouses) Edit(etx *echo.Context) error {
+	warehouseID := etx.Param("id")
+	if warehouseID == "" {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	warehouse, err := models.Warehouse.Find(etx.Request().Context(), w.db.Executor(), warehouseID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.WarehouseEdit{Item: warehouse}.Page())
+}
+
+type UpdateWarehouseFormPayload struct {
+	Name     string `json:"name"`
+	Location string `json:"location"`
+}
+
+func (w Warehouses) Update(etx *echo.Context) error {
+	warehouseID := etx.Param("id")
+	if warehouseID == "" {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	var payload UpdateWarehouseFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse UpdateWarehouseFormPayload",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	data := models.UpdateWarehouseData{
+		Slug:     warehouseID,
+		Name:     payload.Name,
+		Location: sql.NullString{String: payload.Location, Valid: true},
+	}
+
+	warehouse, err := models.Warehouse.Update(
+		etx.Request().Context(),
+		w.db.Executor(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update warehouse: %v", err)); flashErr != nil {
+			return hypermedia.RenderPage(etx, views.InternalError())
+		}
+		return etx.Redirect(
+			http.StatusSeeOther,
+			routes.WarehouseEdit.URL(warehouseID),
+		)
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Warehouse updated successfully"); flashErr != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+	return etx.Redirect(http.StatusSeeOther, routes.WarehouseShow.URL(warehouse.Slug))
+}
+
+func (w Warehouses) Destroy(etx *echo.Context) error {
+	warehouseID := etx.Param("id")
+	if warehouseID == "" {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	err = models.Warehouse.Destroy(etx.Request().Context(), w.db.Executor(), warehouseID)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete warehouse: %v", err)); flashErr != nil {
+			return hypermedia.RenderPage(etx, views.InternalError())
+		}
+		return etx.Redirect(http.StatusSeeOther, routes.WarehouseIndex.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Warehouse destroyed successfully"); flashErr != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+	return etx.Redirect(http.StatusSeeOther, routes.WarehouseIndex.URL())
+}

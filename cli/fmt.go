@@ -21,7 +21,7 @@ func newFmtCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "fmt",
 		Aliases: []string{"f"},
-		Short: "Format Go and Templ source files",
+		Short:   "Format Go and Templ source files",
 		Long: `Formats all source files in the project.
 
 Runs gofmt (via go fmt), golines, and templ fmt to ensure consistent
@@ -38,7 +38,7 @@ Use --check to verify formatting without modifying files.`,
 			if err != nil {
 				return fmt.Errorf("not in an andurel project directory: %w", err)
 			}
-			return runFmt(rootDir, checkMode, skipTempl, skipGo)
+			return runFmtFunc(rootDir, checkMode, skipTempl, skipGo)
 		},
 	}
 
@@ -53,19 +53,19 @@ func runFmt(rootDir string, checkMode, skipTempl, skipGo bool) error {
 	hasIssues := false
 
 	if !skipGo {
-		if err := runGoFmt(rootDir, checkMode); err != nil {
+		if err := runGoFmtFunc(rootDir, checkMode); err != nil {
 			hasIssues = true
 			fmt.Fprintf(os.Stderr, "go fmt: %v\n", err)
 		}
 
-		if err := runGolines(rootDir, checkMode); err != nil {
+		if err := runGolinesFunc(rootDir, checkMode); err != nil {
 			hasIssues = true
 			fmt.Fprintf(os.Stderr, "golines: %v\n", err)
 		}
 	}
 
 	if !skipTempl {
-		if err := runTemplFmt(rootDir, checkMode); err != nil {
+		if err := runTemplFmtFunc(rootDir, checkMode); err != nil {
 			hasIssues = true
 			fmt.Fprintf(os.Stderr, "templ fmt: %v\n", err)
 		}

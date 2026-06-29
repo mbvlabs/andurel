@@ -1,0 +1,13 @@
+package models
+
+type (
+	token struct{}
+	user  struct{}
+	widget struct{}
+)
+
+var (
+	Token token
+	User  user
+	Widget widget
+)

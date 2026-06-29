@@ -1,0 +1,184 @@
+package models
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"testapp/internal/storage"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/uptrace/bun"
+)
+
+type CompanyEntity struct {
+	bun.BaseModel `bun:"table:companies,alias:companies"`
+	ID            uuid.UUID      `bun:"id,pk,type:uuid"`
+	Name          string         `bun:"name"`
+	Industry      sql.NullString `bun:"industry"`
+	CreatedAt     time.Time      `bun:"created_at"`
+	UpdatedAt     time.Time      `bun:"updated_at"`
+}
+
+func (c company) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (CompanyEntity, error) {
+	var entity CompanyEntity
+	if err := db.NewSelect().
+		Model(&entity).
+		Where("id = ?", id).
+		Scan(ctx); err != nil {
+		return CompanyEntity{}, err
+	}
+
+	return entity, nil
+}
+
+type CreateCompanyData struct {
+	Name     string
+	Industry sql.NullString
+}
+
+func (c company) Create(ctx context.Context, db storage.Executor, data CreateCompanyData) (CompanyEntity, error) {
+	if err := Validate.Struct(data); err != nil {
+		return CompanyEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	entity := CompanyEntity{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      data.Name,
+		Industry:  data.Industry,
+	}
+
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return CompanyEntity{}, err
+	}
+
+	return entity, nil
+}
+
+type UpdateCompanyData struct {
+	ID        uuid.UUID
+	Name      string
+	Industry  sql.NullString
+	UpdatedAt time.Time
+}
+
+func (c company) Update(ctx context.Context, db storage.Executor, data UpdateCompanyData) (CompanyEntity, error) {
+	if err := Validate.Struct(data); err != nil {
+		return CompanyEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	entity := CompanyEntity{
+		ID:        data.ID,
+		UpdatedAt: time.Now(),
+		Name:      data.Name,
+		Industry:  data.Industry,
+	}
+
+	if err := db.NewUpdate().
+		Model(&entity).
+		Column("name").
+		Column("industry").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
+		Scan(ctx); err != nil {
+		return CompanyEntity{}, err
+	}
+
+	return entity, nil
+}
+
+func (c company) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
+	_, err := db.NewDelete().
+		Model((*CompanyEntity)(nil)).
+		Where("id = ?", id).
+		Exec(ctx)
+
+	return err
+}
+
+func (c company) All(ctx context.Context, db storage.Executor) ([]CompanyEntity, error) {
+	var entities []CompanyEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Scan(ctx); err != nil {
+		return nil, err
+	}
+
+	return entities, nil
+}
+
+type PaginatedCompanies struct {
+	Companies  []CompanyEntity
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func (c company) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedCompanies, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := db.NewSelect().
+		Model(&CompanyEntity{}).Count(ctx)
+	if err != nil {
+		return PaginatedCompanies{}, err
+	}
+
+	var entities []CompanyEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Limit(int(pageSize)).
+		Offset(int(offset)).
+		Scan(ctx); err != nil {
+		return PaginatedCompanies{}, err
+	}
+
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
+
+	return PaginatedCompanies{
+		Companies:  entities,
+		TotalCount: int64(totalCount),
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (c company) Upsert(ctx context.Context, db storage.Executor, data CreateCompanyData) (CompanyEntity, error) {
+	if err := Validate.Struct(data); err != nil {
+		return CompanyEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	entity := CompanyEntity{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      data.Name,
+		Industry:  data.Industry,
+	}
+
+	if err := db.NewInsert().
+		Model(&entity).
+		On("CONFLICT (id) DO UPDATE").
+		Set("name = excluded.name").
+		Set("industry = excluded.industry").
+		Returning("*").
+		Scan(ctx); err != nil {
+		return CompanyEntity{}, err
+	}
+
+	return entity, nil
+}

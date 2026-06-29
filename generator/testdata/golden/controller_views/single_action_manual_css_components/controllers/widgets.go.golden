@@ -1,0 +1,33 @@
+package controllers
+
+import (
+	"testapp/internal/hypermedia"
+	"testapp/internal/storage"
+	"testapp/models"
+	"testapp/views"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v5"
+)
+
+type Widgets struct {
+	db storage.Pool
+}
+
+func NewWidgets(db storage.Pool) Widgets {
+	return Widgets{db}
+}
+
+func (w Widgets) Show(etx *echo.Context) error {
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	widget, err := models.Widget.Find(etx.Request().Context(), w.db.Executor(), widgetID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.WidgetShow{Item: widget}.Page())
+}

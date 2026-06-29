@@ -1,0 +1,207 @@
+package models
+
+import (
+	"context"
+	"errors"
+	"testapp/internal/storage"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/uptrace/bun"
+)
+
+type DocumentEntity struct {
+	bun.BaseModel `bun:"table:documents,alias:documents"`
+	ID            uuid.UUID `bun:"id,pk,type:uuid"`
+	Title         string    `bun:"title"`
+	Tags          []string  `bun:"tags,array"`
+	PageNumbers   []int32   `bun:"page_numbers,array"`
+	ViewCount     int32     `bun:"view_count"`
+	IsPublished   bool      `bun:"is_published"`
+	CreatedAt     time.Time `bun:"created_at"`
+	UpdatedAt     time.Time `bun:"updated_at"`
+}
+
+func (d document) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (DocumentEntity, error) {
+	var entity DocumentEntity
+	if err := db.NewSelect().
+		Model(&entity).
+		Where("id = ?", id).
+		Scan(ctx); err != nil {
+		return DocumentEntity{}, err
+	}
+
+	return entity, nil
+}
+
+type CreateDocumentData struct {
+	Title       string
+	Tags        []string
+	PageNumbers []int32
+	ViewCount   int32
+	IsPublished bool
+}
+
+func (d document) Create(ctx context.Context, db storage.Executor, data CreateDocumentData) (DocumentEntity, error) {
+	if err := Validate.Struct(data); err != nil {
+		return DocumentEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	entity := DocumentEntity{
+		ID:          uuid.New(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+		Title:       data.Title,
+		Tags:        data.Tags,
+		PageNumbers: data.PageNumbers,
+		ViewCount:   data.ViewCount,
+		IsPublished: data.IsPublished,
+	}
+
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return DocumentEntity{}, err
+	}
+
+	return entity, nil
+}
+
+type UpdateDocumentData struct {
+	ID          uuid.UUID
+	Title       string
+	Tags        []string
+	PageNumbers []int32
+	ViewCount   int32
+	IsPublished bool
+	UpdatedAt   time.Time
+}
+
+func (d document) Update(ctx context.Context, db storage.Executor, data UpdateDocumentData) (DocumentEntity, error) {
+	if err := Validate.Struct(data); err != nil {
+		return DocumentEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	entity := DocumentEntity{
+		ID:          data.ID,
+		UpdatedAt:   time.Now(),
+		Title:       data.Title,
+		Tags:        data.Tags,
+		PageNumbers: data.PageNumbers,
+		ViewCount:   data.ViewCount,
+		IsPublished: data.IsPublished,
+	}
+
+	if err := db.NewUpdate().
+		Model(&entity).
+		Column("title").
+		Column("tags").
+		Column("page_numbers").
+		Column("view_count").
+		Column("is_published").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
+		Scan(ctx); err != nil {
+		return DocumentEntity{}, err
+	}
+
+	return entity, nil
+}
+
+func (d document) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
+	_, err := db.NewDelete().
+		Model((*DocumentEntity)(nil)).
+		Where("id = ?", id).
+		Exec(ctx)
+
+	return err
+}
+
+func (d document) All(ctx context.Context, db storage.Executor) ([]DocumentEntity, error) {
+	var entities []DocumentEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Scan(ctx); err != nil {
+		return nil, err
+	}
+
+	return entities, nil
+}
+
+type PaginatedDocuments struct {
+	Documents  []DocumentEntity
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func (d document) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedDocuments, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := db.NewSelect().
+		Model(&DocumentEntity{}).Count(ctx)
+	if err != nil {
+		return PaginatedDocuments{}, err
+	}
+
+	var entities []DocumentEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Limit(int(pageSize)).
+		Offset(int(offset)).
+		Scan(ctx); err != nil {
+		return PaginatedDocuments{}, err
+	}
+
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
+
+	return PaginatedDocuments{
+		Documents:  entities,
+		TotalCount: int64(totalCount),
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (d document) Upsert(ctx context.Context, db storage.Executor, data CreateDocumentData) (DocumentEntity, error) {
+	if err := Validate.Struct(data); err != nil {
+		return DocumentEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	entity := DocumentEntity{
+		ID:          uuid.New(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+		Title:       data.Title,
+		Tags:        data.Tags,
+		PageNumbers: data.PageNumbers,
+		ViewCount:   data.ViewCount,
+		IsPublished: data.IsPublished,
+	}
+
+	if err := db.NewInsert().
+		Model(&entity).
+		On("CONFLICT (id) DO UPDATE").
+		Set("title = excluded.title").
+		Set("tags = excluded.tags").
+		Set("page_numbers = excluded.page_numbers").
+		Set("view_count = excluded.view_count").
+		Set("is_published = excluded.is_published").
+		Returning("*").
+		Scan(ctx); err != nil {
+		return DocumentEntity{}, err
+	}
+
+	return entity, nil
+}

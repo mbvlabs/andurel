@@ -216,7 +216,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		}
 	}
 
-	if model.IDType == "uuid.UUID" || model.IDType == "" {
+	if model.HasPrimaryKey && model.IDType == "uuid.UUID" {
 		importSet["github.com/google/uuid"] = true
 	}
 

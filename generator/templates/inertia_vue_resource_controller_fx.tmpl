@@ -271,14 +271,27 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return flashErr
 		}
+		{{- if HasAction "new"}}
 		return inertia.Redirect(etx, routes.{{.ResourceName}}New.URL())
+		{{- else}}
+		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		{{- end}}
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} created successfully"); flashErr != nil {
 		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
+	{{- if HasAction "show"}}
 	return inertia.Redirect(etx, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
+	{{- else}}
+	_ = {{.ResourceName | ToLowerCamelCase}}
+	{{- if HasAction "index"}}
+	return inertia.Redirect(etx, routes.{{.ResourceName}}Index.URL())
+	{{- else}}
+	return etx.NoContent(201)
+	{{- end}}
+	{{- end}}
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
@@ -487,17 +500,30 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
 		}
+		{{- if HasAction "edit"}}
 		return inertia.Redirect(
 			etx,
 			routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLowerCamelCase}}ID),
 		)
+		{{- else}}
+		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		{{- end}}
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} updated successfully"); flashErr != nil {
 		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
+	{{- if HasAction "show"}}
 	return inertia.Redirect(etx, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
+	{{- else}}
+	_ = {{.ResourceName | ToLowerCamelCase}}
+	{{- if HasAction "index"}}
+	return inertia.Redirect(etx, routes.{{.ResourceName}}Index.URL())
+	{{- else}}
+	return etx.NoContent(200)
+	{{- end}}
+	{{- end}}
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) error {
@@ -529,21 +555,30 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
 		}
+		{{- if HasAction "index"}}
 		return inertia.Redirect(etx, routes.{{.ResourceName}}Index.URL())
+		{{- else}}
+		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		{{- end}}
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} destroyed successfully"); flashErr != nil {
 		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
+	{{- if HasAction "index"}}
 	return inertia.Redirect(etx, routes.{{.ResourceName}}Index.URL())
+	{{- else}}
+	return etx.NoContent(200)
+	{{- end}}
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router) error {
 	var errs []error
+	var err error
 
 {{- if HasAction "index" }}
-	_, err := r.AddRoute(echo.Route{
+	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.ResourceName}}Index.Path(),
 		Name:    routes.{{.ResourceName}}Index.Name(),

@@ -58,6 +58,12 @@ func TestGenerator_MethodsExist(t *testing.T) {
 			},
 		},
 		{
+			name: "GenerateScaffold",
+			fn: func() error {
+				return gen.GenerateScaffold("", "", false, "", "")
+			},
+		},
+		{
 			name: "GenerateControllerFromModel",
 			fn: func() error {
 				return gen.GenerateControllerFromModel("", false)

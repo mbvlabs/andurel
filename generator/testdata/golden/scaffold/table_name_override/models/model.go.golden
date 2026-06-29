@@ -1,0 +1,13 @@
+package models
+
+type (
+	token struct{}
+	user  struct{}
+	feedbackEntry struct{}
+)
+
+var (
+	Token token
+	User  user
+	FeedbackEntry feedbackEntry
+)
