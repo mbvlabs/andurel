@@ -11231,7 +11231,7 @@ func (t token) Paginate(
 		return PaginatedTokens{}, err
 	}
 
-	var entities []TokenEntity
+	entities := make([]TokenEntity, 0, int(pageSize))
 	if err := db.NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
@@ -11494,7 +11494,7 @@ func (u user) Paginate(
 		return PaginatedUsers{}, err
 	}
 
-	var entities []UserEntity
+	entities := make([]UserEntity, 0, int(pageSize))
 	err := db.NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
