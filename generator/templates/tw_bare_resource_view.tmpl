@@ -49,16 +49,16 @@ templ ({{$indexRecv}} {{.NamespacePascal}}{{.ResourceName}}Index) Page() {
 									</tr>
 								</thead>
 								<tbody class="[&_tr:last-child]:border-0">
-									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {{ViewDataLoop .ResourceName (.ResourceName | ToLower) (HasNullFields .Fields)}}
+									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {{ViewDataLoop $.NamespacePascal .ResourceName (.ResourceName | ToLower) (HasNullFields .Fields)}}
 										<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
-											{{range .Fields}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{{StringTableDisplay . (ViewDataRowRef ($.ResourceName | ToLower) (HasNullFields $.Fields))}}</td>
+											{{range .Fields}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{{StringTableDisplay . (ViewDataRowRef $.NamespacePascal $.ResourceName ($.ResourceName | ToLower) (HasNullFields $.Fields))}}</td>
 											{{end}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 												<div class="flex flex-wrap gap-3 text-sm">
 													{{if HasAction "show"}}
-													<a class="text-gray-600 hover:text-gray-900" href={ routes.{{$.ResourceName}}Show.URL({{$.ResourceName | ToLower}}.ID) }>View</a>
+													<a class="text-gray-600 hover:text-gray-900" href={ routes.{{$.NamespacePascal}}{{$.ResourceName}}Show.URL({{$.ResourceName | ToLower}}.ID) }>View</a>
 													{{end}}
 													{{if HasAction "edit"}}
-													<a class="text-gray-600 hover:text-gray-900" href={ routes.{{$.ResourceName}}Edit.URL({{$.ResourceName | ToLower}}.ID) }>Edit</a>
+													<a class="text-gray-600 hover:text-gray-900" href={ routes.{{$.NamespacePascal}}{{$.ResourceName}}Edit.URL({{$.ResourceName | ToLower}}.ID) }>Edit</a>
 													{{end}}
 												</div>
 											</td>
@@ -103,7 +103,7 @@ templ ({{$showRecv}} {{.NamespacePascal}}{{.ResourceName}}Show) Page() {
 					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
 						<div class="p-6 pt-0">
 							<div class="grid gap-5 sm:grid-cols-2">
-								{{$itemRef := printf "%s.%s" $showRecv "Item"}}{{$itemDisplayRef := ViewDataRef .ResourceName $itemRef (HasNullFields .Fields)}}
+								{{$itemRef := printf "%s.%s" $showRecv "Item"}}{{$itemDisplayRef := ViewDataRef $.NamespacePascal .ResourceName $itemRef (HasNullFields .Fields)}}
 								{{range .Fields}}<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">{{.DisplayName}}</label>
 									<p class="text-sm text-gray-900">{{StringDisplay . $itemDisplayRef}}</p>
@@ -205,7 +205,7 @@ templ ({{$editRecv}} {{.NamespacePascal}}{{.ResourceName}}Edit) Page() {
 							<form class="space-y-5" data-indicator:_submitting{{if HasAction "update"}} data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.{{.NamespacePascal}}{{.ResourceName}}Update.URL({{$editRecv}}.Item.ID)) }{{end}}>
 								<fieldset data-attr:disabled="$_submitting">
 									<div class="space-y-4">
-										{{$itemRef := printf "%s.%s" $editRecv "Item"}}{{$itemDisplayRef := ViewDataRef .ResourceName $itemRef (HasNullFields .Fields)}}
+										{{$itemRef := printf "%s.%s" $editRecv "Item"}}{{$itemDisplayRef := ViewDataRef $.NamespacePascal .ResourceName $itemRef (HasNullFields .Fields)}}
 										{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
 											<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-gray-300 bg-gray-50 accent-blue-600 transition focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" if {{FieldRef . $itemDisplayRef}} { checked } />
 											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>

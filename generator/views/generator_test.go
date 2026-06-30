@@ -181,15 +181,23 @@ func TestBuildViewField_UnknownTypeHasConverter(t *testing.T) {
 
 func TestViewDataLoopAssignment(t *testing.T) {
 	t.Run("plain loop opens a templ control block", func(t *testing.T) {
-		got := viewDataLoopAssignment("Article", "article", false)
+		got := viewDataLoopAssignment("", "Article", "article", false)
 		if got != "{" {
 			t.Fatalf("viewDataLoopAssignment() = %q, want %q", got, "{")
 		}
 	})
 
 	t.Run("dto loop wraps assignment in templ go code delimiters", func(t *testing.T) {
-		got := viewDataLoopAssignment("Article", "article", true)
+		got := viewDataLoopAssignment("", "Article", "article", true)
 		want := "{\n\t\t\t\t\t\t\t\t\t{{ articleData := newArticleData(article) }}"
+		if got != want {
+			t.Fatalf("viewDataLoopAssignment() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("dto loop with namespace prefix", func(t *testing.T) {
+		got := viewDataLoopAssignment("Admin", "Article", "article", true)
+		want := "{\n\t\t\t\t\t\t\t\t\t{{ adminArticleData := newAdminArticleData(article) }}"
 		if got != want {
 			t.Fatalf("viewDataLoopAssignment() = %q, want %q", got, want)
 		}

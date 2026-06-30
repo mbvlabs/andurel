@@ -89,8 +89,10 @@ func TestControllerViewGenerationNamespacedManual(t *testing.T) {
 	assertGeneratedFileContains(t, filepath.Join("router", "routes", "admin_widgets.go"), "const AdminWidgetPrefix =")
 	assertGeneratedFileContains(t, filepath.Join("router", "routes", "admin_widgets.go"), `"admin.widgets.index"`)
 	assertGeneratedFileContains(t, filepath.Join("router", "connect_admin_widgets_routes.go"), `controllers "testapp/controllers/admin"`)
-	assertGeneratedFileContains(t, filepath.Join("cmd", "app", "main.go"), "widgets := admin.NewWidgets(db)")
+	assertGeneratedFileContains(t, filepath.Join("cmd", "app", "main.go"), "adminWidgets := admin.NewWidgets(db)")
 	assertGeneratedFileContains(t, filepath.Join("views", "admin_widgets_resource.templ"), "type AdminWidgetIndex struct")
+	assertGeneratedFileContains(t, filepath.Join("views", "admin_widgets_resource.templ"), "routes.AdminWidgetShow.URL(")
+	assertGeneratedFileContains(t, filepath.Join("views", "admin_widgets_resource.templ"), "routes.AdminWidgetEdit.URL(")
 }
 
 func TestControllerViewGenerationNamespacedUberFX(t *testing.T) {
@@ -106,6 +108,8 @@ func TestControllerViewGenerationNamespacedUberFX(t *testing.T) {
 	assertGeneratedFileContains(t, filepath.Join("controllers", "controller.go"), "return c.RegisterRoutes(r)")
 	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "func (w Widgets) RegisterRoutes(r *router.Router) error")
 	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "routes.AdminWidgetIndex.Path()")
+	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "routes.AdminWidgetShow.Path()")
+	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "routes.AdminWidgetEdit.Path()")
 }
 
 func TestControllerViewGenerationUberFXRootAndNamespacedRegistrations(t *testing.T) {
@@ -137,6 +141,77 @@ func TestControllerViewGenerationNamespacedModelName(t *testing.T) {
 	assertGeneratedFileContains(t, filepath.Join("router", "routes", "admin_dashboards.go"), `"admin.dashboards.index"`)
 	assertGeneratedFileContains(t, filepath.Join("router", "connect_admin_dashboards_routes.go"), "RegisterAdminDashboardRoutes")
 	assertGeneratedFileContains(t, filepath.Join("views", "admin_dashboards_resource.templ"), "type AdminDashboardIndex struct")
+}
+
+func TestControllerViewGenerationNamespacedUberFXNoControllerGo(t *testing.T) {
+	projectDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Fatalf("failed to restore working directory: %v", err)
+		}
+	})
+
+	cache.ClearFileSystemCache()
+	t.Cleanup(cache.ClearFileSystemCache)
+
+	writeControllerViewFixtureFile(t, projectDir, "go.mod", "module testapp\n\ngo 1.26\n")
+	writeControllerViewFixtureFile(t, projectDir, "models/model.go", modelNamespaceFixture)
+	writeControllerViewFixtureFile(t, projectDir, "bin/templ", "#!/bin/sh\nexit 0\n")
+	if err := os.Chmod(filepath.Join(projectDir, "bin", "templ"), 0o755); err != nil {
+		t.Fatalf("failed to chmod fake templ binary: %v", err)
+	}
+	writeControllerViewFixtureFile(t, projectDir, "cmd/app/main.go", manualMainFixture)
+
+	// Intentionally NOT writing controllers/controller.go —
+	// this should be a non-fatal fallback, not an error.
+
+	lock := layout.NewAndurelLock("test")
+	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName:  "testapp",
+		Database:     "postgresql",
+		CSSFramework: "tailwind",
+		DIMode:       "uberfx",
+	}
+	if err := lock.WriteLockFile(projectDir); err != nil {
+		t.Fatalf("failed to write andurel.lock: %v", err)
+	}
+
+	if err := os.Chdir(projectDir); err != nil {
+		t.Fatalf("failed to enter temp project: %v", err)
+	}
+
+	coord, err := NewCoordinator()
+	if err != nil {
+		t.Fatalf("failed to create coordinator: %v", err)
+	}
+	coord.config.Database.MigrationDirs = []string{
+		modelGenerationFixtureDir(t, "controller_view_generation"),
+	}
+	coord.ModelManager.SetPrimaryKeyResolver(NopPrimaryKeyResolver{})
+	coord.ControllerManager.SetPrimaryKeyResolver(NopPrimaryKeyResolver{})
+
+	if err := coord.ModelManager.GenerateModel("Widget", "", true, ""); err != nil {
+		t.Fatalf("failed to generate model prerequisite: %v", err)
+	}
+
+	if err := coord.GenerateControllerWithActions("Widget", "admin", "", nil, ""); err != nil {
+		t.Fatalf("failed to generate namespaced uberfx controller/view without controller.go: %v", err)
+	}
+
+	// The controller file and view should still be generated
+	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "package admin")
+	assertGeneratedFileContains(t, filepath.Join("views", "admin_widgets_resource.templ"), "type AdminWidgetIndex struct")
+
+	// controllers/controller.go should NOT exist (was never created, and generation
+	// should not have created it — it only updates, it doesn't create)
+	if _, err := os.Stat(filepath.Join(projectDir, "controllers", "controller.go")); err == nil {
+		t.Fatal("expected controllers/controller.go to not exist after non-fatal fallback")
+	}
 }
 
 func TestControllerViewGenerationNamespacedInertia(t *testing.T) {

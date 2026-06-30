@@ -62,9 +62,9 @@ templ ({{$indexRecv}} {{.NamespacePascal}}{{.ResourceName}}Index) Page() {
 									</tr>
 								</thead>
 								<tbody>
-									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {{ViewDataLoop .ResourceName (.ResourceName | ToLower) (HasNullFields .Fields)}}
+									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {{ViewDataLoop $.NamespacePascal .ResourceName (.ResourceName | ToLower) (HasNullFields .Fields)}}
 										<tr>
-											{{range .Fields}}<td>{{StringTableDisplay . (ViewDataRowRef ($.ResourceName | ToLower) (HasNullFields $.Fields))}}</td>
+											{{range .Fields}}<td>{{StringTableDisplay . (ViewDataRowRef $.NamespacePascal $.ResourceName ($.ResourceName | ToLower) (HasNullFields $.Fields))}}</td>
 											{{end}}<td>
 												<div class="cluster" data-gap="sm">
 													{{if HasAction "show"}}
@@ -118,7 +118,7 @@ templ ({{$showRecv}} {{.NamespacePascal}}{{.ResourceName}}Show) Page() {
 					</div>
 					<div class="panel">
 						<div class="grid-auto-fit" data-grid="compact">
-							{{$itemRef := printf "%s.%s" $showRecv "Item"}}{{$itemDisplayRef := ViewDataRef .ResourceName $itemRef (HasNullFields .Fields)}}
+							{{$itemRef := printf "%s.%s" $showRecv "Item"}}{{$itemDisplayRef := ViewDataRef $.NamespacePascal .ResourceName $itemRef (HasNullFields .Fields)}}
 							{{range .Fields}}<div class="field">
 								<p class="field-label">{{.DisplayName}}</p>
 								<p>{{StringDisplay . $itemDisplayRef}}</p>
@@ -217,7 +217,7 @@ templ ({{$editRecv}} {{.NamespacePascal}}{{.ResourceName}}Edit) Page() {
 								{{end}}
 							>
 								<fieldset class="fieldset" data-attr:disabled="$_submitting">
-									{{$itemRef := printf "%s.%s" $editRecv "Item"}}{{$itemDisplayRef := ViewDataRef .ResourceName $itemRef (HasNullFields .Fields)}}
+									{{$itemRef := printf "%s.%s" $editRecv "Item"}}{{$itemDisplayRef := ViewDataRef $.NamespacePascal .ResourceName $itemRef (HasNullFields .Fields)}}
 									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="radio-row">
 										<input class="checkbox" type="checkbox" id="{{.CamelCase}}" name="{{.CamelCase}}" data-bind="{{.CamelCase}}" if {{FieldRef . $itemDisplayRef}} { checked }/>
 										<label class="label" for="{{.CamelCase}}">{{.DisplayName}}</label>

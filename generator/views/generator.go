@@ -208,25 +208,34 @@ func viewDataValue(field ViewField, source string) string {
 	}
 }
 
-func viewDataRef(resourceName, entityRef string, useDTO bool) string {
+func viewDataRef(namespacePascal, resourceName, entityRef string, useDTO bool) string {
 	if !useDTO {
 		return entityRef
 	}
-	return fmt.Sprintf("new%sData(%s)", resourceName, entityRef)
+	return fmt.Sprintf("new%s%sData(%s)", namespacePascal, resourceName, entityRef)
 }
 
-func viewDataRowRef(rowRef string, useDTO bool) string {
+func viewDataRowRef(namespacePascal, resourceName, rowRef string, useDTO bool) string {
 	if !useDTO {
 		return rowRef
 	}
-	return rowRef + "Data"
+	if namespacePascal == "" {
+		return rowRef + "Data"
+	}
+	dtoPrefix := naming.ToLowerCamelCase(namespacePascal) + resourceName
+	return dtoPrefix + "Data"
 }
 
-func viewDataLoopAssignment(resourceName, rowRef string, useDTO bool) string {
+func viewDataLoopAssignment(namespacePascal, resourceName, rowRef string, useDTO bool) string {
 	if !useDTO {
 		return "{"
 	}
-	return fmt.Sprintf("{\n\t\t\t\t\t\t\t\t\t{{ %sData := new%sData(%s) }}", rowRef, resourceName, rowRef)
+	qualifiedName := namespacePascal + resourceName
+	dtoVar := rowRef + "Data"
+	if namespacePascal != "" {
+		dtoVar = naming.ToLowerCamelCase(namespacePascal) + resourceName + "Data"
+	}
+	return fmt.Sprintf("{\n\t\t\t\t\t\t\t\t\t{{ %s := new%sData(%s) }}", dtoVar, qualifiedName, rowRef)
 }
 
 func viewDataImports(fields []ViewField) string {
@@ -252,20 +261,22 @@ func viewDataDefinition(view *GeneratedView) string {
 		return ""
 	}
 
+	prefix := view.NamespacePascal
+
 	var b strings.Builder
-	fmt.Fprintf(&b, "\ntype %sData struct {\n", view.ResourceName)
+	fmt.Fprintf(&b, "\ntype %s%sData struct {\n", prefix, view.ResourceName)
 	for _, field := range view.Fields {
 		fmt.Fprintf(&b, "\t%s %s\n", field.Name, viewDataType(field))
 	}
 	b.WriteString("}\n\n")
 	fmt.Fprintf(
 		&b,
-		"func new%sData(entity models.%s) %sData {\n",
-		view.ResourceName,
+		"func new%s%sData(entity models.%s) %s%sData {\n",
+		prefix, view.ResourceName,
 		view.EntityName,
-		view.ResourceName,
+		prefix, view.ResourceName,
 	)
-	fmt.Fprintf(&b, "\treturn %sData{\n", view.ResourceName)
+	fmt.Fprintf(&b, "\treturn %s%sData{\n", prefix, view.ResourceName)
 	for _, field := range view.Fields {
 		fmt.Fprintf(&b, "\t\t%s: %s,\n", field.Name, viewDataValue(field, "entity."+field.Name))
 	}
@@ -386,15 +397,15 @@ func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
 func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, templatePrefix string) (string, error) {
 	// Custom template functions for view-specific operations
 	customFuncs := template.FuncMap{
-		"HasNullFields":    hasNullFields,
-		"UsesViewDataType": usesViewDataType,
-		"ViewDataType":     viewDataType,
-		"ViewDataValue":    viewDataValue,
-		"ViewDataRef":      viewDataRef,
-		"ViewDataRowRef":   viewDataRowRef,
-		"ViewDataLoop":     viewDataLoopAssignment,
-		"ViewDataImports":  viewDataImports,
-		"ViewData":         viewDataDefinition,
+		"HasNullFields":      hasNullFields,
+		"UsesViewDataType":   usesViewDataType,
+		"ViewDataType":       viewDataType,
+		"ViewDataValue":      viewDataValue,
+		"ViewDataRef":        viewDataRef,
+		"ViewDataRowRef":     viewDataRowRef,
+		"ViewDataLoop":       viewDataLoopAssignment,
+		"ViewDataImports":    viewDataImports,
+		"ViewData":           viewDataDefinition,
 		"UsesPackage": func(fields []ViewField, packageName string) bool {
 			for _, field := range fields {
 				if strings.Contains(field.StringConverter, packageName+".") {

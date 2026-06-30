@@ -36,6 +36,9 @@ func (mi *MainInjector) InjectController(resourceName, namespace, pluralName str
 
 func (mi *MainInjector) InjectControllerWithDB(resourceName, namespace, pluralName string, withDB bool) error {
 	varName := naming.ToLowerCamelCaseFromAny(pluralName)
+	if namespace != "" {
+		varName = naming.ToLowerCamelCase(namespace) + naming.Capitalize(varName)
+	}
 	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
 	packageName := naming.ControllerPackageName(namespace)
 	constructorPackage := packageName
@@ -120,7 +123,10 @@ func (mi *MainInjector) InjectFXController(resourceName, namespace, pluralName s
 	controllerFilePath := filepath.Join(rootDir, controllerFileRelPath)
 	content, err := os.ReadFile(controllerFilePath)
 	if err != nil {
-		return fmt.Errorf("failed to read controllers/controller.go for fx controller injection: %w", err)
+		slog.Info("controllers/controller.go not found for fx controller injection",
+			"hint", "manually add the controller to the FX module")
+		mi.printManualInstructions(resourceName, namespace, pluralName, false)
+		return nil
 	}
 
 	contentStr := string(content)
@@ -250,6 +256,9 @@ func findMatchingParen(content string, openIdx int) int {
 
 func (mi *MainInjector) printManualInstructions(resourceName, namespace, pluralName string, withDB bool) {
 	varName := naming.ToLowerCamelCaseFromAny(pluralName)
+	if namespace != "" {
+		varName = naming.ToLowerCamelCase(namespace) + naming.Capitalize(varName)
+	}
 	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
 	packageName := naming.ControllerPackageName(namespace)
 	registrationFunc := "Register" + namespacePrefixPascal(namespace) + resourceName + "Routes"

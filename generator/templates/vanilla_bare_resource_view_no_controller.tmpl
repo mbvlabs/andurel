@@ -48,9 +48,9 @@ templ ({{$indexRecv}} {{.NamespacePascal}}{{.ResourceName}}Index) Page() {
 									</tr>
 								</thead>
 								<tbody>
-									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {{ViewDataLoop .ResourceName (.ResourceName | ToLower) (HasNullFields .Fields)}}
+									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {{ViewDataLoop $.NamespacePascal .ResourceName (.ResourceName | ToLower) (HasNullFields .Fields)}}
 										<tr>
-											{{range .Fields}}<td>{{StringTableDisplay . (ViewDataRowRef ($.ResourceName | ToLower) (HasNullFields $.Fields))}}</td>
+											{{range .Fields}}<td>{{StringTableDisplay . (ViewDataRowRef $.NamespacePascal $.ResourceName ($.ResourceName | ToLower) (HasNullFields $.Fields))}}</td>
 											{{end}}
 										</tr>
 									}
@@ -87,7 +87,7 @@ templ ({{$showRecv}} {{.NamespacePascal}}{{.ResourceName}}Show) Page() {
 					</div>
 					<div>
 						<div>
-							{{$itemRef := printf "%s.%s" $showRecv "Item"}}{{$itemDisplayRef := ViewDataRef .ResourceName $itemRef (HasNullFields .Fields)}}
+							{{$itemRef := printf "%s.%s" $showRecv "Item"}}{{$itemDisplayRef := ViewDataRef $.NamespacePascal .ResourceName $itemRef (HasNullFields .Fields)}}
 							{{range .Fields}}<div>
 								<p>{{.DisplayName}}</p>
 								<p>{{StringDisplay . $itemDisplayRef}}</p>
@@ -172,7 +172,7 @@ templ ({{$editRecv}} {{.NamespacePascal}}{{.ResourceName}}Edit) Page() {
 								data-on:submit={ fmt.Sprintf("@put('%s')", "/") }
 							>
 								<fieldset data-attr:disabled="$_submitting">
-									{{$itemRef := printf "%s.%s" $editRecv "Item"}}{{$itemDisplayRef := ViewDataRef .ResourceName $itemRef (HasNullFields .Fields)}}
+									{{$itemRef := printf "%s.%s" $editRecv "Item"}}{{$itemDisplayRef := ViewDataRef $.NamespacePascal .ResourceName $itemRef (HasNullFields .Fields)}}
 									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div>
 										<input type="checkbox" id="{{.CamelCase}}" data-bind="{{.CamelCase}}" if {{FieldRef . $itemDisplayRef}} { checked } />
 										<label for="{{.CamelCase}}">{{.DisplayName}}</label>

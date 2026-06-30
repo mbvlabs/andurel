@@ -49,16 +49,16 @@ templ ({{$indexRecv}} {{.NamespacePascal}}{{.ResourceName}}Index) Page() {
 									</tr>
 								</thead>
 								<tbody>
-									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {{ViewDataLoop .ResourceName (.ResourceName | ToLower) (HasNullFields .Fields)}}
+									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {{ViewDataLoop $.NamespacePascal .ResourceName (.ResourceName | ToLower) (HasNullFields .Fields)}}
 										<tr>
-											{{range .Fields}}<td>{{StringTableDisplay . (ViewDataRowRef ($.ResourceName | ToLower) (HasNullFields $.Fields))}}</td>
+											{{range .Fields}}<td>{{StringTableDisplay . (ViewDataRowRef $.NamespacePascal $.ResourceName ($.ResourceName | ToLower) (HasNullFields $.Fields))}}</td>
 											{{end}}<td>
 												<div class="flex flex-wrap gap-3 text-sm">
 													{{if HasAction "show"}}
-													<a class="inline-link" href={ routes.{{$.ResourceName}}Show.URL({{$.ResourceName | ToLower}}.ID) }>View</a>
+													<a class="inline-link" href={ routes.{{$.NamespacePascal}}{{$.ResourceName}}Show.URL({{$.ResourceName | ToLower}}.ID) }>View</a>
 													{{end}}
 													{{if HasAction "edit"}}
-													<a class="inline-link" href={ routes.{{$.ResourceName}}Edit.URL({{$.ResourceName | ToLower}}.ID) }>Edit</a>
+													<a class="inline-link" href={ routes.{{$.NamespacePascal}}{{$.ResourceName}}Edit.URL({{$.ResourceName | ToLower}}.ID) }>Edit</a>
 													{{end}}
 												</div>
 											</td>
@@ -103,7 +103,7 @@ templ ({{$showRecv}} {{.NamespacePascal}}{{.ResourceName}}Show) Page() {
 					<div class="card">
 						<div class="card-content">
 							<div class="grid gap-5 sm:grid-cols-2">
-								{{$itemRef := printf "%s.%s" $showRecv "Item"}}{{$itemDisplayRef := ViewDataRef .ResourceName $itemRef (HasNullFields .Fields)}}
+								{{$itemRef := printf "%s.%s" $showRecv "Item"}}{{$itemDisplayRef := ViewDataRef $.NamespacePascal .ResourceName $itemRef (HasNullFields .Fields)}}
 								{{range .Fields}}<div class="field">
 									<label class="field-label">{{.DisplayName}}</label>
 									<p class="text-sm text-base-content">{{StringDisplay . $itemDisplayRef}}</p>
@@ -202,7 +202,7 @@ templ ({{$editRecv}} {{.NamespacePascal}}{{.ResourceName}}Edit) Page() {
 						<div class="card-content">
 							<form class="form" data-indicator:_submitting{{if HasAction "update"}} data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.{{.NamespacePascal}}{{.ResourceName}}Update.URL({{$editRecv}}.Item.ID)) }{{end}}>
 								<fieldset class="fieldset" data-attr:disabled="$_submitting">
-									{{$itemRef := printf "%s.%s" $editRecv "Item"}}{{$itemDisplayRef := ViewDataRef .ResourceName $itemRef (HasNullFields .Fields)}}
+									{{$itemRef := printf "%s.%s" $editRecv "Item"}}{{$itemDisplayRef := ViewDataRef $.NamespacePascal .ResourceName $itemRef (HasNullFields .Fields)}}
 									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="radio-row">
 										<input type="checkbox" class="checkbox" data-bind="{{.CamelCase}}" if {{FieldRef . $itemDisplayRef}} { checked } />
 										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
