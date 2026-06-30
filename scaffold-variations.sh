@@ -59,7 +59,7 @@ scaffold_variation() {
 	fi
 
 	name="${name}$(extension_name_suffix "${selected_extensions[@]}")"
-	cmd+=("$name" -c "$css" --di "$di")
+	cmd+=("$name" --di "$di")
 
 	if [[ "$inertia" != "" ]]; then
 		cmd+=(--inertia "$inertia")

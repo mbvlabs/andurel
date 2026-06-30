@@ -140,9 +140,7 @@ func TestScaffoldGoldens(t *testing.T) {
 
 			project := internal.NewProject(t, binary, getSharedBinDir())
 
-			args := []string{
-				"-c", config.CSS,
-			}
+			var args []string
 
 			if config.DIMode != "" {
 				args = append(args, "--di", config.DIMode)
