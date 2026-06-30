@@ -76,15 +76,15 @@ func NewCoordinator() (Coordinator, error) {
 }
 
 // GenerateController coordinates controller and optional view generation
-func (c *Coordinator) GenerateController(resourceName, namespace, tableName string, inertia string) error {
-	return c.GenerateControllerWithActions(resourceName, namespace, tableName, nil, inertia)
+func (c *Coordinator) GenerateController(resourceName, namespace, tableName string, inertia string, isAPI bool) error {
+	return c.GenerateControllerWithActions(resourceName, namespace, tableName, nil, inertia, isAPI)
 }
 
-func (c *Coordinator) GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string) error {
-	return c.GenerateControllerWithActionsForModel(resourceName, namespace, resourceName, tableName, actions, inertia)
+func (c *Coordinator) GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string, isAPI bool) error {
+	return c.GenerateControllerWithActionsForModel(resourceName, namespace, resourceName, tableName, actions, inertia, isAPI)
 }
 
-func (c *Coordinator) GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string) error {
+func (c *Coordinator) GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string, isAPI bool) error {
 	if modelName == "" {
 		modelName = resourceName
 	}
@@ -92,8 +92,12 @@ func (c *Coordinator) GenerateControllerWithActionsForModel(resourceName, namesp
 		tableName = naming.DeriveTableName(resourceName)
 	}
 
-	if err := c.ControllerManager.GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName, actions, inertia); err != nil {
+	if err := c.ControllerManager.GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName, actions, inertia, isAPI); err != nil {
 		return err
+	}
+
+	if isAPI {
+		return nil
 	}
 
 	if err := c.ViewManager.GenerateViewWithControllerActionsForModel(resourceName, modelName, tableName, namespace, actions, inertia); err != nil {
@@ -105,7 +109,7 @@ func (c *Coordinator) GenerateControllerWithActionsForModel(resourceName, namesp
 
 // GenerateScaffold coordinates model, controller, and view generation for a
 // complete resource scaffold.
-func (c *Coordinator) GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string) error {
+func (c *Coordinator) GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string, isAPI bool) error {
 	if primaryKeyColumn != "" {
 		if err := c.ModelManager.GenerateModel(resourceName, tableName, skipFactory, primaryKeyColumn); err != nil {
 			return err
@@ -117,7 +121,7 @@ func (c *Coordinator) GenerateScaffold(resourceName, namespace, tableName string
 		}
 	}
 
-	return c.GenerateController(resourceName, namespace, tableName, inertia)
+	return c.GenerateController(resourceName, namespace, tableName, inertia, isAPI)
 }
 
 // GenerateControllerFromModel coordinates controller and view generation from existing model

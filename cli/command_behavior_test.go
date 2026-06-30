@@ -228,7 +228,7 @@ func TestGenerateScaffoldRejectsInvalidNamespaceBeforeGenerator(t *testing.T) {
 func TestGenerateControllerMapsActionsAndVue(t *testing.T) {
 	resetCLITestSeams(t)
 	var got controllerCall
-	generateControllerWithActionsFunc = func(name, modelName string, actions []string, inertia string) error {
+	generateControllerWithActionsFunc = func(name, modelName string, actions []string, inertia string, isAPI bool) error {
 		got = controllerCall{
 			name:      name,
 			modelName: modelName,
@@ -290,7 +290,7 @@ func TestGenerateControllerRejectsInvalidNamespaceBeforeGenerator(t *testing.T) 
 func TestGenerateControllerMapsModelName(t *testing.T) {
 	resetCLITestSeams(t)
 	var got controllerCall
-	generateControllerWithActionsFunc = func(name, modelName string, actions []string, inertia string) error {
+	generateControllerWithActionsFunc = func(name, modelName string, actions []string, inertia string, isAPI bool) error {
 		got = controllerCall{
 			name:      name,
 			modelName: modelName,
@@ -340,7 +340,7 @@ func setupControllers(db interface{}, r *router.Router) error {
 		_ = os.Chdir(originalWD)
 	})
 
-	if err := generateControllerWithActions("Dashboard", "", []string{"overview"}, ""); err != nil {
+	if err := generateControllerWithActions("Dashboard", "", []string{"overview"}, "", false); err != nil {
 		t.Fatalf("generate custom controller action: %v", err)
 	}
 
@@ -377,7 +377,7 @@ func setupControllers(db interface{}, r *router.Router) error {
 		_ = os.Chdir(originalWD)
 	})
 
-	if err := generateControllerWithActions("admin/Widget", "", []string{"export"}, ""); err != nil {
+	if err := generateControllerWithActions("admin/Widget", "", []string{"export"}, "", false); err != nil {
 		t.Fatalf("generate namespaced custom controller action: %v", err)
 	}
 
@@ -456,7 +456,7 @@ func setupControllers(db interface{}, r *router.Router) error {
 				_ = os.Chdir(originalWD)
 			})
 
-			if err := generateControllerWithActions("Dashboard", "", []string{"overview"}, tt.inertia); err != nil {
+			if err := generateControllerWithActions("Dashboard", "", []string{"overview"}, tt.inertia, false); err != nil {
 				t.Fatalf("generate custom controller action: %v", err)
 			}
 
@@ -484,7 +484,7 @@ func TestGenerateControllerSingleCRUDActionVueGeneratesInertiaController(t *test
 		_ = os.Chdir(originalWD)
 	})
 
-	if err := generateControllerWithActions("ProjectInquiry", "", []string{"show"}, "vue"); err != nil {
+	if err := generateControllerWithActions("ProjectInquiry", "", []string{"show"}, "vue", false); err != nil {
 		t.Fatalf("generate controller: %v", err)
 	}
 
@@ -556,7 +556,7 @@ func TestGenerateControllerSingleCRUDActionInertiaProjectDefaultsToTemplControll
 		_ = os.Chdir(originalWD)
 	})
 
-	if err := generateControllerWithActions("ProjectInquiry", "", []string{"index"}, ""); err != nil {
+	if err := generateControllerWithActions("ProjectInquiry", "", []string{"index"}, "", false); err != nil {
 		t.Fatalf("generate controller: %v", err)
 	}
 
@@ -585,7 +585,7 @@ func TestGenerateControllerRejectsModelNameForCustomOnly(t *testing.T) {
 		_ = os.Chdir(originalWD)
 	})
 
-	err = generateControllerWithActions("Dashboard", "User", []string{"overview"}, "")
+	err = generateControllerWithActions("Dashboard", "User", []string{"overview"}, "", false)
 	if err == nil || !strings.Contains(err.Error(), "--model-name requires") {
 		t.Fatalf("expected --model-name custom-only error, got %v", err)
 	}

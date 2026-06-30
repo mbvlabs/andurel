@@ -50,6 +50,7 @@ type GeneratedController struct {
 	IDGoFieldName           string // Go struct field name of PK (e.g., "ID", "UserID")
 	HasPrimaryKey           bool   // Whether the table has any primary key
 	Actions                 []string
+	IsAPI                   bool   // Generate JSON API controller under controllers/api
 }
 
 type Config struct {
@@ -67,6 +68,7 @@ type Config struct {
 	ModelTableNameOverridden bool
 	PrimaryKeyColumn         string // Override PK column name (empty = auto-detect)
 	Actions                  []string
+	IsAPI                    bool   // Controller is JSON API
 }
 
 type Generator struct {
@@ -123,6 +125,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 		Fields:                  make([]GeneratedField, 0),
 		IDType:                  "uuid.UUID", // Default to UUID
 		Actions:                 config.Actions,
+		IsAPI:                   config.IsAPI,
 	}
 
 	if config.ControllerType == ResourceController {

@@ -118,6 +118,7 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 				scenario.skipFactory,
 				scenario.primaryKeyColumn,
 				scenario.inertia,
+				false,
 			); err != nil {
 				t.Fatalf("failed to generate scaffold: %v", err)
 			}
@@ -137,7 +138,7 @@ func TestScaffoldGenerationGoldensInertiaProjectDefaultsToTempl(t *testing.T) {
 		"vue",
 	)
 
-	if err := gen.GenerateScaffold("Project", "", "", true, "", ""); err != nil {
+	if err := gen.GenerateScaffold("Project", "", "", true, "", "", false); err != nil {
 		t.Fatalf("failed to generate scaffold: %v", err)
 	}
 
@@ -157,7 +158,7 @@ func TestScaffoldGenerationNamespaced(t *testing.T) {
 		"",
 	)
 
-	if err := gen.GenerateScaffold("Widget", "admin", "", false, "", ""); err != nil {
+	if err := gen.GenerateScaffold("Widget", "admin", "", false, "", "", false); err != nil {
 		t.Fatalf("failed to generate namespaced scaffold: %v", err)
 	}
 
