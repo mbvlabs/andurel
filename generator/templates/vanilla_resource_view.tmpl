@@ -18,15 +18,15 @@ import (
 )
 {{ViewData .}}
 {{if HasAction "index"}}
-type {{.ResourceName}}Index struct {
+type {{.NamespacePascal}}{{.ResourceName}}Index struct {
 	Items []models.{{.EntityName}}
 }
 
-func ({{$indexRecv}} {{.ResourceName}}Index) PageFragment() string {
+func ({{$indexRecv}} {{.NamespacePascal}}{{.ResourceName}}Index) PageFragment() string {
 	return "{{.ResourceName | ToLower}}-index-page-fragment"
 }
 
-templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
+templ ({{$indexRecv}} {{.NamespacePascal}}{{.ResourceName}}Index) Page() {
 	@base() {
 		@templ.Fragment({{$indexRecv}}.PageFragment()) {
 			<main id="{{.ResourceName | ToLower}}-index-container" class="page-shell">
@@ -37,7 +37,7 @@ templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 							<p class="muted">Manage your {{.PluralName}} with the shared vanilla component system.</p>
 						</div>
 						{{if HasAction "new"}}
-						<a class="btn btn-primary" href={ routes.{{.ResourceName}}New.URL() }>New {{.ResourceName}}</a>
+						<a class="btn btn-primary" href={ routes.{{.NamespacePascal}}{{.ResourceName}}New.URL() }>New {{.ResourceName}}</a>
 						{{end}}
 					</div>
 					if len({{$indexRecv}}.Items) == 0 {
@@ -48,7 +48,7 @@ templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 							</div>
 							{{if HasAction "new"}}
 							<div class="empty-state-actions">
-								<a class="btn btn-primary" href={ routes.{{.ResourceName}}New.URL() }>New {{.ResourceName}}</a>
+								<a class="btn btn-primary" href={ routes.{{.NamespacePascal}}{{.ResourceName}}New.URL() }>New {{.ResourceName}}</a>
 							</div>
 							{{end}}
 						</section>
@@ -62,16 +62,16 @@ templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 									</tr>
 								</thead>
 								<tbody>
-									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {{ViewDataLoop .ResourceName (.ResourceName | ToLower) (HasNullFields .Fields)}}
+									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {{ViewDataLoop $.NamespacePascal .ResourceName (.ResourceName | ToLower) (HasNullFields .Fields)}}
 										<tr>
-											{{range .Fields}}<td>{{StringTableDisplay . (ViewDataRowRef ($.ResourceName | ToLower) (HasNullFields $.Fields))}}</td>
+											{{range .Fields}}<td>{{StringTableDisplay . (ViewDataRowRef $.NamespacePascal $.ResourceName ($.ResourceName | ToLower) (HasNullFields $.Fields))}}</td>
 											{{end}}<td>
 												<div class="cluster" data-gap="sm">
 													{{if HasAction "show"}}
-													<a class="btn btn-ghost btn-sm" href={ routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLower}}.ID) }>View</a>
+													<a class="btn btn-ghost btn-sm" href={ routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLower}}.ID) }>View</a>
 													{{end}}
 													{{if HasAction "edit"}}
-													<a class="btn btn-outline btn-sm" href={ routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLower}}.ID) }>Edit</a>
+													<a class="btn btn-outline btn-sm" href={ routes.{{.NamespacePascal}}{{.ResourceName}}Edit.URL({{.ResourceName | ToLower}}.ID) }>Edit</a>
 													{{end}}
 												</div>
 											</td>
@@ -89,15 +89,15 @@ templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 {{end}}
 
 {{if HasAction "show"}}
-type {{.ResourceName}}Show struct {
+type {{.NamespacePascal}}{{.ResourceName}}Show struct {
 	Item models.{{.EntityName}}
 }
 
-func ({{$showRecv}} {{.ResourceName}}Show) PageFragment() string {
+func ({{$showRecv}} {{.NamespacePascal}}{{.ResourceName}}Show) PageFragment() string {
 	return "{{.ResourceName | ToLower}}-show-page-fragment"
 }
 
-templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
+templ ({{$showRecv}} {{.NamespacePascal}}{{.ResourceName}}Show) Page() {
 	@base() {
 		@templ.Fragment({{$showRecv}}.PageFragment()) {
 			<main id="{{.ResourceName | ToLower}}-show-container" class="page-shell">
@@ -109,16 +109,16 @@ templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 						</div>
 						<div class="cluster" data-gap="sm">
 							{{if HasAction "edit"}}
-							<a class="btn btn-primary" href={ routes.{{.ResourceName}}Edit.URL({{$showRecv}}.Item.ID) }>Edit</a>
+							<a class="btn btn-primary" href={ routes.{{.NamespacePascal}}{{.ResourceName}}Edit.URL({{$showRecv}}.Item.ID) }>Edit</a>
 							{{end}}
 							{{if HasAction "index"}}
-							<a class="btn btn-outline" href={ hypermedia.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+							<a class="btn btn-outline" href={ hypermedia.ResolveBackURL(ctx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL()) }>Back to List</a>
 							{{end}}
 						</div>
 					</div>
 					<div class="panel">
 						<div class="grid-auto-fit" data-grid="compact">
-							{{$itemRef := printf "%s.%s" $showRecv "Item"}}{{$itemDisplayRef := ViewDataRef .ResourceName $itemRef (HasNullFields .Fields)}}
+							{{$itemRef := printf "%s.%s" $showRecv "Item"}}{{$itemDisplayRef := ViewDataRef $.NamespacePascal .ResourceName $itemRef (HasNullFields .Fields)}}
 							{{range .Fields}}<div class="field">
 								<p class="field-label">{{.DisplayName}}</p>
 								<p>{{StringDisplay . $itemDisplayRef}}</p>
@@ -134,13 +134,13 @@ templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 {{end}}
 
 {{if HasAction "new"}}
-type {{.ResourceName}}New struct{}
+type {{.NamespacePascal}}{{.ResourceName}}New struct{}
 
-func ({{$newRecv}} {{.ResourceName}}New) PageFragment() string {
+func ({{$newRecv}} {{.NamespacePascal}}{{.ResourceName}}New) PageFragment() string {
 	return "{{.ResourceName | ToLower}}-new-page-fragment"
 }
 
-templ ({{$newRecv}} {{.ResourceName}}New) Page() {
+templ ({{$newRecv}} {{.NamespacePascal}}{{.ResourceName}}New) Page() {
 	@base() {
 		@templ.Fragment({{$newRecv}}.PageFragment()) {
 			<main id="{{.ResourceName | ToLower}}-new-container" class="auth-shell">
@@ -155,7 +155,7 @@ templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 								class="form"
 								data-indicator:_submitting
 								{{if HasAction "create"}}
-								data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.{{.ResourceName}}Create.URL()) }
+								data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.{{.NamespacePascal}}{{.ResourceName}}Create.URL()) }
 								{{end}}
 							>
 								<fieldset class="fieldset" data-attr:disabled="$_submitting">
@@ -175,7 +175,7 @@ templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 										<button class="btn btn-primary btn-block" type="submit">Create {{.ResourceName}}</button>
 										{{end}}
 										{{if HasAction "index"}}
-										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL()) }>Back to List</a>
 										{{end}}
 									</div>
 								</fieldset>
@@ -190,15 +190,15 @@ templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 {{end}}
 
 {{if HasAction "edit"}}
-type {{.ResourceName}}Edit struct {
+type {{.NamespacePascal}}{{.ResourceName}}Edit struct {
 	Item models.{{.EntityName}}
 }
 
-func ({{$editRecv}} {{.ResourceName}}Edit) PageFragment() string {
+func ({{$editRecv}} {{.NamespacePascal}}{{.ResourceName}}Edit) PageFragment() string {
 	return "{{.ResourceName | ToLower}}-edit-page-fragment"
 }
 
-templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
+templ ({{$editRecv}} {{.NamespacePascal}}{{.ResourceName}}Edit) Page() {
 	@base() {
 		@templ.Fragment({{$editRecv}}.PageFragment()) {
 			<main id="{{.ResourceName | ToLower}}-edit-container" class="auth-shell">
@@ -213,11 +213,11 @@ templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
 								class="form"
 								data-indicator:_submitting
 								{{if HasAction "update"}}
-								data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{$editRecv}}.Item.ID)) }
+								data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.{{.NamespacePascal}}{{.ResourceName}}Update.URL({{$editRecv}}.Item.ID)) }
 								{{end}}
 							>
 								<fieldset class="fieldset" data-attr:disabled="$_submitting">
-									{{$itemRef := printf "%s.%s" $editRecv "Item"}}{{$itemDisplayRef := ViewDataRef .ResourceName $itemRef (HasNullFields .Fields)}}
+									{{$itemRef := printf "%s.%s" $editRecv "Item"}}{{$itemDisplayRef := ViewDataRef $.NamespacePascal .ResourceName $itemRef (HasNullFields .Fields)}}
 									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="radio-row">
 										<input class="checkbox" type="checkbox" id="{{.CamelCase}}" name="{{.CamelCase}}" data-bind="{{.CamelCase}}" if {{FieldRef . $itemDisplayRef}} { checked }/>
 										<label class="label" for="{{.CamelCase}}">{{.DisplayName}}</label>
@@ -234,7 +234,7 @@ templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
 										<button class="btn btn-primary btn-block" type="submit">Update {{.ResourceName}}</button>
 										{{end}}
 										{{if HasAction "index"}}
-										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL()) }>Back to List</a>
 										{{end}}
 									</div>
 								</fieldset>
@@ -244,7 +244,7 @@ templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
 							<button
 								class="btn btn-destructive btn-block"
 								type="button"
-								data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.{{.ResourceName}}Destroy.URL({{$editRecv}}.Item.ID)) }
+								data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.{{.NamespacePascal}}{{.ResourceName}}Destroy.URL({{$editRecv}}.Item.ID)) }
 							>Destroy {{.ResourceName}}</button>
 						</div>
 						{{end}}

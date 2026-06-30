@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	generatorpkg "github.com/mbvlabs/andurel/generator"
+	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
 )
 
@@ -24,6 +25,7 @@ with routes. The resource is ready to use as a starting point for your
 RESTful, resource-oriented application.
 
 Pass the resource name in CamelCase as the first argument.
+Names may include one lowercase namespace segment, such as admin/Widget.
 
 This is a convenience command that runs both:
   andurel generate model NAME
@@ -41,6 +43,12 @@ edit, update, destroy.`,
       Routes:     router/routes/posts.go
                   router/connect_posts_routes.go
 
+  andurel generate scaffold admin/Widget
+
+      Generates models/widget.go plus a namespaced controller, routes, and
+      views under controllers/admin, router/*admin_widgets*, and
+      views/admin_widgets_resource.templ.
+
   andurel generate scaffold User --table-name=people_data
 
       Generates a User resource from the people_data table.`,
@@ -53,6 +61,10 @@ edit, update, destroy.`,
 				return fmt.Errorf("too many arguments: scaffold takes exactly 1 argument (the resource name)")
 			}
 			name := args[0]
+			namespace, resourceName, err := naming.ParseNamespacedResource(name)
+			if err != nil {
+				return err
+			}
 
 			if err := chdirToProjectRoot(); err != nil {
 				return err
@@ -69,7 +81,7 @@ edit, update, destroy.`,
 					return err
 				}
 
-				return gen.GenerateScaffold(name, tableName, skipFactory, primaryKeyColumn, inertiaStr)
+				return gen.GenerateScaffold(resourceName, namespace, tableName, skipFactory, primaryKeyColumn, inertiaStr)
 			})(cmd, args)
 		},
 	}

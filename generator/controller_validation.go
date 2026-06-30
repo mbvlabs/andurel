@@ -22,7 +22,7 @@ type controllerValidationContext struct {
 	ControllerReturnField string
 }
 
-func newControllerValidationContext(resourceName, tableName string, config *UnifiedConfig) *controllerValidationContext {
+func newControllerValidationContext(resourceName, tableName, namespace string, config *UnifiedConfig) *controllerValidationContext {
 	pluralResourceName := inflection.Plural(resourceName)
 	controllerFieldName := pluralResourceName
 	controllerVarName := naming.ToCamelCase(naming.ToSnakeCase(pluralResourceName))
@@ -32,14 +32,21 @@ func newControllerValidationContext(resourceName, tableName string, config *Unif
 	return &controllerValidationContext{
 		ResourceName:          resourceName,
 		TableName:             tableName,
-		ControllerPath:        filepath.Join(config.Paths.Controllers, tableName+".go"),
-		IndividualRoutePath:   filepath.Join("router/routes", tableName+".go"),
-		ControllerFilePath:    filepath.Join(config.Paths.Controllers, "controller.go"),
-		ControllerFieldName:   controllerFieldName,
+		ControllerPath:        filepath.Join(config.Paths.Controllers, namespace, tableName+".go"),
+		IndividualRoutePath:     filepath.Join("router/routes", namespacePrefix(namespace)+tableName+".go"),
+		ControllerFilePath:      filepath.Join(config.Paths.Controllers, "controller.go"),
+		ControllerFieldName:     controllerFieldName,
 		ControllerVarName:     controllerVarName,
-		ControllerConstructor: controllerConstructor,
-		ControllerReturnField: controllerReturnField,
+		ControllerConstructor:   controllerConstructor,
+		ControllerReturnField:   controllerReturnField,
 	}
+}
+
+func namespacePrefix(namespace string) string {
+	if namespace == "" {
+		return ""
+	}
+	return namespace + "_"
 }
 
 func validateControllerNotExists(ctx *controllerValidationContext) error {

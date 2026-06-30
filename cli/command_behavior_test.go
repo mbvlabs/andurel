@@ -183,6 +183,7 @@ func TestGenerateScaffoldMapsFlagsToGenerator(t *testing.T) {
 
 	want := []scaffoldCall{{
 		name:        "Project",
+		namespace:   "",
 		tableName:   "work_projects",
 		skipFactory: true,
 		primaryKey:  "slug",
@@ -190,6 +191,37 @@ func TestGenerateScaffoldMapsFlagsToGenerator(t *testing.T) {
 	}}
 	if !reflect.DeepEqual(fake.scaffoldCalls, want) {
 		t.Fatalf("scaffold calls: expected %#v, got %#v", want, fake.scaffoldCalls)
+	}
+}
+
+func TestGenerateScaffoldMapsNamespaceToGenerator(t *testing.T) {
+	resetCLITestSeams(t)
+	fake := installFakeGenerator(t)
+
+	result := executeCLITest(t, "generate", "scaffold", "admin/Widget")
+	if result.err != nil {
+		t.Fatalf("generate scaffold failed: %v", result.err)
+	}
+
+	want := []scaffoldCall{{
+		name:      "Widget",
+		namespace: "admin",
+	}}
+	if !reflect.DeepEqual(fake.scaffoldCalls, want) {
+		t.Fatalf("scaffold calls: expected %#v, got %#v", want, fake.scaffoldCalls)
+	}
+}
+
+func TestGenerateScaffoldRejectsInvalidNamespaceBeforeGenerator(t *testing.T) {
+	resetCLITestSeams(t)
+	fake := installFakeGenerator(t)
+
+	result := executeCLITest(t, "generate", "scaffold", "admin/reports/Widget")
+	if result.err == nil {
+		t.Fatalf("expected invalid namespace error")
+	}
+	if len(fake.scaffoldCalls) != 0 {
+		t.Fatalf("expected no scaffold calls, got %#v", fake.scaffoldCalls)
 	}
 }
 
@@ -201,7 +233,6 @@ func TestGenerateControllerMapsActionsAndVue(t *testing.T) {
 			name:      name,
 			modelName: modelName,
 			actions:   append([]string(nil), actions...),
-			withViews: true,
 			inertia:   inertia,
 		}
 		return nil
@@ -216,11 +247,43 @@ func TestGenerateControllerMapsActionsAndVue(t *testing.T) {
 		name:      "Widget",
 		modelName: "",
 		actions:   []string{"index", "export"},
-		withViews: true,
 		inertia:   "",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("controller call: expected %#v, got %#v", want, got)
+	}
+}
+
+func TestGenerateControllerMapsNamespaceToGenerator(t *testing.T) {
+	resetCLITestSeams(t)
+	fake := installFakeGenerator(t)
+
+	result := executeCLITest(t, "generate", "controller", "admin/Widget", "index")
+	if result.err != nil {
+		t.Fatalf("generate controller failed: %v", result.err)
+	}
+
+	want := []controllerCall{{
+		name:      "Widget",
+		namespace: "admin",
+		modelName: "Widget",
+		actions:   []string{"index"},
+	}}
+	if !reflect.DeepEqual(fake.controllerCalls, want) {
+		t.Fatalf("controller calls: expected %#v, got %#v", want, fake.controllerCalls)
+	}
+}
+
+func TestGenerateControllerRejectsInvalidNamespaceBeforeGenerator(t *testing.T) {
+	resetCLITestSeams(t)
+	fake := installFakeGenerator(t)
+
+	result := executeCLITest(t, "generate", "controller", "admin/reports/Widget", "index")
+	if result.err == nil {
+		t.Fatalf("expected invalid namespace error")
+	}
+	if len(fake.controllerCalls) != 0 {
+		t.Fatalf("expected no controller calls, got %#v", fake.controllerCalls)
 	}
 }
 
@@ -232,7 +295,6 @@ func TestGenerateControllerMapsModelName(t *testing.T) {
 			name:      name,
 			modelName: modelName,
 			actions:   append([]string(nil), actions...),
-			withViews: true,
 			inertia:   inertia,
 		}
 		return nil
@@ -247,7 +309,6 @@ func TestGenerateControllerMapsModelName(t *testing.T) {
 		name:      "Dashboard",
 		modelName: "User",
 		actions:   []string{"index"},
-		withViews: true,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("controller call: expected %#v, got %#v", want, got)
@@ -289,6 +350,46 @@ func setupControllers(db interface{}, r *router.Router) error {
 	assertCLITestFileContains(t, rootDir, "router/routes/dashboards.go", "\"dashboards.overview\"")
 	assertCLITestFileContains(t, rootDir, "router/connect_dashboards_routes.go", "Handler: dashboard.Overview")
 	assertCLITestFileContains(t, rootDir, "cmd/app/main.go", "dashboards := controllers.NewDashboards()")
+}
+
+func TestGenerateControllerNamespacedCustomActionCreatesNamespacedArtifacts(t *testing.T) {
+	resetCLITestSeams(t)
+	rootDir := t.TempDir()
+	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
+	writeCLITestFile(t, rootDir, "cmd/app/main.go", `package main
+
+import "example.com/app/router"
+
+func setupControllers(db interface{}, r *router.Router) error {
+	// andurel:controller-registration-point
+	return nil
+}
+`)
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(rootDir); err != nil {
+		t.Fatalf("chdir temp project: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	if err := generateControllerWithActions("admin/Widget", "", []string{"export"}, ""); err != nil {
+		t.Fatalf("generate namespaced custom controller action: %v", err)
+	}
+
+	assertCLITestFileContains(t, rootDir, filepath.Join("controllers", "admin", "widgets.go"), "package admin")
+	assertCLITestFileContains(t, rootDir, filepath.Join("controllers", "admin", "widgets.go"), "func (w Widgets) Export(etx *echo.Context) error")
+	assertCLITestFileContains(t, rootDir, filepath.Join("controllers", "admin", "widgets.go"), "views.AdminWidgetExport()")
+	assertCLITestFileContains(t, rootDir, filepath.Join("views", "admin_widgets_resource.templ"), "templ AdminWidgetExport()")
+	assertCLITestFileContains(t, rootDir, filepath.Join("router", "routes", "admin_widgets.go"), "const AdminWidgetPrefix =")
+	assertCLITestFileContains(t, rootDir, filepath.Join("router", "routes", "admin_widgets.go"), "var AdminWidgetExport = routing.NewSimpleRoute")
+	assertCLITestFileContains(t, rootDir, filepath.Join("router", "routes", "admin_widgets.go"), `"admin.widgets.export"`)
+	assertCLITestFileContains(t, rootDir, filepath.Join("router", "connect_admin_widgets_routes.go"), `controllers "example.com/app/controllers/admin"`)
+	assertCLITestFileContains(t, rootDir, filepath.Join("router", "connect_admin_widgets_routes.go"), "routes.AdminWidgetExport.Path()")
 }
 
 func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFlag(t *testing.T) {

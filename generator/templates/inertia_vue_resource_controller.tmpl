@@ -1,4 +1,4 @@
-package controllers
+package {{or .Namespace "controllers"}}
 
 import (
 	"fmt"
@@ -107,7 +107,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
-	return inertia.Page(etx, "{{.ResourceName}}/Index", inertia.Props{
+	return inertia.Page(etx, "{{if .Namespace}}{{.NamespacePascal}}/{{end}}{{.ResourceName}}/Index", inertia.Props{
 		"items": new{{.ResourceName}}DataList({{.ModelPluralName | ToCamelCase}}List.{{.ModelPluralResourceName}}),
 	})
 }
@@ -141,13 +141,13 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 		return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
 	}
 
-	return inertia.Page(etx, "{{.ResourceName}}/Show", inertia.Props{
+	return inertia.Page(etx, "{{if .Namespace}}{{.NamespacePascal}}/{{end}}{{.ResourceName}}/Show", inertia.Props{
 		"item": new{{.ResourceName}}Data({{.ResourceName | ToLowerCamelCase}}),
 	})
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) New(etx *echo.Context) error {
-	return inertia.Page(etx, "{{.ResourceName}}/Create", inertia.Props{})
+	return inertia.Page(etx, "{{if .Namespace}}{{.NamespacePascal}}/{{end}}{{.ResourceName}}/Create", inertia.Props{})
 }
 
 type Create{{.ResourceName}}FormPayload struct {
@@ -301,7 +301,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 			return flashErr
 		}
 		{{- if HasAction "new"}}
-		return inertia.Redirect(etx, routes.{{.ResourceName}}New.URL())
+		return inertia.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}New.URL())
 		{{- else}}
 		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
 		{{- end}}
@@ -312,11 +312,11 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 	}
 
 	{{- if HasAction "show"}}
-	return inertia.Redirect(etx, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
+	return inertia.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
 	{{- else}}
 	_ = {{.ResourceName | ToLowerCamelCase}}
 	{{- if HasAction "index"}}
-	return inertia.Redirect(etx, routes.{{.ResourceName}}Index.URL())
+	return inertia.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
 	{{- else}}
 	return etx.NoContent(201)
 	{{- end}}
@@ -352,7 +352,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 		return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
 	}
 
-	return inertia.Page(etx, "{{.ResourceName}}/Edit", inertia.Props{
+	return inertia.Page(etx, "{{if .Namespace}}{{.NamespacePascal}}/{{end}}{{.ResourceName}}/Edit", inertia.Props{
 		"item": new{{.ResourceName}}Data({{.ResourceName | ToLowerCamelCase}}),
 	})
 }
@@ -534,7 +534,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		{{- if HasAction "edit"}}
 		return inertia.Redirect(
 			etx,
-			routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLowerCamelCase}}ID),
+			routes.{{.NamespacePascal}}{{.ResourceName}}Edit.URL({{.ResourceName | ToLowerCamelCase}}ID),
 		)
 		{{- else}}
 		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
@@ -546,11 +546,11 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	}
 
 	{{- if HasAction "show"}}
-	return inertia.Redirect(etx, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
+	return inertia.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
 	{{- else}}
 	_ = {{.ResourceName | ToLowerCamelCase}}
 	{{- if HasAction "index"}}
-	return inertia.Redirect(etx, routes.{{.ResourceName}}Index.URL())
+	return inertia.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
 	{{- else}}
 	return etx.NoContent(200)
 	{{- end}}
@@ -587,7 +587,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 			return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
 		}
 		{{- if HasAction "index"}}
-		return inertia.Redirect(etx, routes.{{.ResourceName}}Index.URL())
+		return inertia.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
 		{{- else}}
 		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
 		{{- end}}
@@ -598,7 +598,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 	}
 
 	{{- if HasAction "index"}}
-	return inertia.Redirect(etx, routes.{{.ResourceName}}Index.URL())
+	return inertia.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
 	{{- else}}
 	return etx.NoContent(200)
 	{{- end}}

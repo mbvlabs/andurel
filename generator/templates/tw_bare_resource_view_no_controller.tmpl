@@ -11,15 +11,15 @@ import (
 	"{{.ModulePath}}/models"
 )
 {{ViewData .}}
-type {{.ResourceName}}Index struct {
+type {{.NamespacePascal}}{{.ResourceName}}Index struct {
 	Items []models.{{.EntityName}}
 }
 
-func ({{$indexRecv}} {{.ResourceName}}Index) PageFragment() string {
+func ({{$indexRecv}} {{.NamespacePascal}}{{.ResourceName}}Index) PageFragment() string {
 	return "{{.ResourceName | ToLower}}-index-page-fragment"
 }
 
-templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
+templ ({{$indexRecv}} {{.NamespacePascal}}{{.ResourceName}}Index) Page() {
 	@base() {
 		@templ.Fragment({{$indexRecv}}.PageFragment()) {
 			<main id="{{.ResourceName | ToLower}}-index-container" class="flex-1 px-6 py-10">
@@ -39,9 +39,9 @@ templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 									</tr>
 								</thead>
 								<tbody class="[&_tr:last-child]:border-0">
-									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {{ViewDataLoop .ResourceName (.ResourceName | ToLower) (HasNullFields .Fields)}}
+									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {{ViewDataLoop $.NamespacePascal .ResourceName (.ResourceName | ToLower) (HasNullFields .Fields)}}
 										<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
-											{{range .Fields}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{{StringTableDisplay . (ViewDataRowRef ($.ResourceName | ToLower) (HasNullFields $.Fields))}}</td>
+											{{range .Fields}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{{StringTableDisplay . (ViewDataRowRef $.NamespacePascal $.ResourceName ($.ResourceName | ToLower) (HasNullFields $.Fields))}}</td>
 											{{end}}
 										</tr>
 									}
@@ -55,15 +55,15 @@ templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 	}
 }
 
-type {{.ResourceName}}Show struct {
+type {{.NamespacePascal}}{{.ResourceName}}Show struct {
 	Item models.{{.EntityName}}
 }
 
-func ({{$showRecv}} {{.ResourceName}}Show) PageFragment() string {
+func ({{$showRecv}} {{.NamespacePascal}}{{.ResourceName}}Show) PageFragment() string {
 	return "{{.ResourceName | ToLower}}-show-page-fragment"
 }
 
-templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
+templ ({{$showRecv}} {{.NamespacePascal}}{{.ResourceName}}Show) Page() {
 	@base() {
 		@templ.Fragment({{$showRecv}}.PageFragment()) {
 			<main id="{{.ResourceName | ToLower}}-show-container" class="flex-1 px-6 py-10">
@@ -77,7 +77,7 @@ templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
 						<div class="p-6 pt-0">
 							<div class="grid gap-5 sm:grid-cols-2">
-								{{$itemRef := printf "%s.%s" $showRecv "Item"}}{{$itemDisplayRef := ViewDataRef .ResourceName $itemRef (HasNullFields .Fields)}}
+								{{$itemRef := printf "%s.%s" $showRecv "Item"}}{{$itemDisplayRef := ViewDataRef $.NamespacePascal .ResourceName $itemRef (HasNullFields .Fields)}}
 								{{range .Fields}}<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">{{.DisplayName}}</label>
 									<p class="text-sm text-gray-900">{{StringDisplay . $itemDisplayRef}}</p>
@@ -92,13 +92,13 @@ templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 	}
 }
 
-type {{.ResourceName}}New struct{}
+type {{.NamespacePascal}}{{.ResourceName}}New struct{}
 
-func ({{$newRecv}} {{.ResourceName}}New) PageFragment() string {
+func ({{$newRecv}} {{.NamespacePascal}}{{.ResourceName}}New) PageFragment() string {
 	return "{{.ResourceName | ToLower}}-new-page-fragment"
 }
 
-templ ({{$newRecv}} {{.ResourceName}}New) Page() {
+templ ({{$newRecv}} {{.NamespacePascal}}{{.ResourceName}}New) Page() {
 	@base() {
 		@templ.Fragment({{$newRecv}}.PageFragment()) {
 			<main id="{{.ResourceName | ToLower}}-new-container" class="flex-1 flex items-center justify-center px-6 py-10">
@@ -151,15 +151,15 @@ templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 	}
 }
 
-type {{.ResourceName}}Edit struct {
+type {{.NamespacePascal}}{{.ResourceName}}Edit struct {
 	Item models.{{.EntityName}}
 }
 
-func ({{$editRecv}} {{.ResourceName}}Edit) PageFragment() string {
+func ({{$editRecv}} {{.NamespacePascal}}{{.ResourceName}}Edit) PageFragment() string {
 	return "{{.ResourceName | ToLower}}-edit-page-fragment"
 }
 
-templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
+templ ({{$editRecv}} {{.NamespacePascal}}{{.ResourceName}}Edit) Page() {
 	@base() {
 		@templ.Fragment({{$editRecv}}.PageFragment()) {
 			<main id="{{.ResourceName | ToLower}}-edit-container" class="flex-1 flex items-center justify-center px-6 py-10">
@@ -173,7 +173,7 @@ templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
 							<form class="space-y-5" data-indicator:_submitting data-on:submit={ fmt.Sprintf("@put('%s')", "/") }>
 								<fieldset data-attr:disabled="$_submitting">
 									<div class="space-y-4">
-										{{$itemRef := printf "%s.%s" $editRecv "Item"}}{{$itemDisplayRef := ViewDataRef .ResourceName $itemRef (HasNullFields .Fields)}}
+										{{$itemRef := printf "%s.%s" $editRecv "Item"}}{{$itemDisplayRef := ViewDataRef $.NamespacePascal .ResourceName $itemRef (HasNullFields .Fields)}}
 										{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
 											<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-gray-300 bg-gray-50 accent-blue-600 transition focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" if {{FieldRef . $itemDisplayRef}} { checked } />
 											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>

@@ -1,4 +1,4 @@
-package controllers
+package {{or .Namespace "controllers"}}
 
 import (
 	"errors"
@@ -81,7 +81,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
-	return hypermedia.RenderPage(etx, views.{{.ResourceName}}Index{Items: {{.ModelPluralName | ToCamelCase}}List.{{.ModelPluralResourceName}}}.Page())
+	return hypermedia.RenderPage(etx, views.{{.NamespacePascal}}{{.ResourceName}}Index{Items: {{.ModelPluralName | ToCamelCase}}List.{{.ModelPluralResourceName}}}.Page())
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
@@ -113,11 +113,11 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
-	return hypermedia.RenderPage(etx, views.{{.ResourceName}}Show{Item: {{.ResourceName | ToLowerCamelCase}}}.Page())
+	return hypermedia.RenderPage(etx, views.{{.NamespacePascal}}{{.ResourceName}}Show{Item: {{.ResourceName | ToLowerCamelCase}}}.Page())
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) New(etx *echo.Context) error {
-	return hypermedia.RenderPage(etx, views.{{.ResourceName}}New{}.Page())
+	return hypermedia.RenderPage(etx, views.{{.NamespacePascal}}{{.ResourceName}}New{}.Page())
 }
 
 type Create{{.ResourceName}}FormPayload struct {
@@ -269,7 +269,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 			return flashErr
 		}
 		{{- if HasAction "new"}}
-		return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}New.URL())
+		return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}New.URL())
 		{{- else}}
 		return hypermedia.RenderPage(etx, views.InternalError())
 		{{- end}}
@@ -280,11 +280,11 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 	}
 
 	{{- if HasAction "show"}}
-	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
+	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
 	{{- else}}
 	_ = {{.ResourceName | ToLowerCamelCase}}
 	{{- if HasAction "index"}}
-	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
+	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
 	{{- else}}
 	return etx.NoContent(http.StatusCreated)
 	{{- end}}
@@ -320,7 +320,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
-	return hypermedia.RenderPage(etx, views.{{.ResourceName}}Edit{Item: {{.ResourceName | ToLowerCamelCase}}}.Page())
+	return hypermedia.RenderPage(etx, views.{{.NamespacePascal}}{{.ResourceName}}Edit{Item: {{.ResourceName | ToLowerCamelCase}}}.Page())
 }
 
 type Update{{.ResourceName}}FormPayload struct {
@@ -498,7 +498,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		{{- if HasAction "edit"}}
 		return etx.Redirect(
 			http.StatusSeeOther,
-			routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLowerCamelCase}}ID),
+			routes.{{.NamespacePascal}}{{.ResourceName}}Edit.URL({{.ResourceName | ToLowerCamelCase}}ID),
 		)
 		{{- else}}
 		return hypermedia.RenderPage(etx, views.InternalError())
@@ -510,11 +510,11 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	}
 
 	{{- if HasAction "show"}}
-	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
+	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
 	{{- else}}
 	_ = {{.ResourceName | ToLowerCamelCase}}
 	{{- if HasAction "index"}}
-	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
+	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
 	{{- else}}
 	return etx.NoContent(http.StatusOK)
 	{{- end}}
@@ -551,7 +551,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		{{- if HasAction "index"}}
-		return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
+		return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
 		{{- else}}
 		return hypermedia.RenderPage(etx, views.InternalError())
 		{{- end}}
@@ -562,7 +562,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 	}
 
 	{{- if HasAction "index"}}
-	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
+	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
 	{{- else}}
 	return etx.NoContent(http.StatusOK)
 	{{- end}}
@@ -575,8 +575,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 {{- if HasAction "index" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.{{.ResourceName}}Index.Path(),
-		Name:    routes.{{.ResourceName}}Index.Name(),
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Index.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Index.Name(),
 		Handler: {{.ReceiverName}}.Index,
 	})
 	if err != nil {
@@ -587,8 +587,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 {{- if HasAction "show" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.{{.ResourceName}}Show.Path(),
-		Name:    routes.{{.ResourceName}}Show.Name(),
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Show.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Show.Name(),
 		Handler: {{.ReceiverName}}.Show,
 	})
 	if err != nil {
@@ -599,8 +599,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 {{- if HasAction "new" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.{{.ResourceName}}New.Path(),
-		Name:    routes.{{.ResourceName}}New.Name(),
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}New.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}New.Name(),
 		Handler: {{.ReceiverName}}.New,
 	})
 	if err != nil {
@@ -611,8 +611,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 {{- if HasAction "create" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodPost,
-		Path:    routes.{{.ResourceName}}Create.Path(),
-		Name:    routes.{{.ResourceName}}Create.Name(),
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Create.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Create.Name(),
 		Handler: {{.ReceiverName}}.Create,
 	})
 	if err != nil {
@@ -623,8 +623,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 {{- if HasAction "edit" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.{{.ResourceName}}Edit.Path(),
-		Name:    routes.{{.ResourceName}}Edit.Name(),
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Edit.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Edit.Name(),
 		Handler: {{.ReceiverName}}.Edit,
 	})
 	if err != nil {
@@ -635,8 +635,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 {{- if HasAction "update" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodPut,
-		Path:    routes.{{.ResourceName}}Update.Path(),
-		Name:    routes.{{.ResourceName}}Update.Name(),
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Update.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Update.Name(),
 		Handler: {{.ReceiverName}}.Update,
 	})
 	if err != nil {
@@ -647,8 +647,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 {{- if HasAction "destroy" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodDelete,
-		Path:    routes.{{.ResourceName}}Destroy.Path(),
-		Name:    routes.{{.ResourceName}}Destroy.Name(),
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Destroy.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Destroy.Name(),
 		Handler: {{.ReceiverName}}.Destroy,
 	})
 	if err != nil {
@@ -659,8 +659,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 {{- range CustomActions }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.{{$.ResourceName}}{{.MethodName}}.Path(),
-		Name:    routes.{{$.ResourceName}}{{.MethodName}}.Name(),
+		Path:    routes.{{$.NamespacePascal}}{{$.ResourceName}}{{.MethodName}}.Path(),
+		Name:    routes.{{$.NamespacePascal}}{{$.ResourceName}}{{.MethodName}}.Name(),
 		Handler: {{$.ReceiverName}}.{{.MethodName}},
 	})
 	if err != nil {

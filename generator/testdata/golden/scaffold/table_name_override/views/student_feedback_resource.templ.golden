@@ -75,7 +75,7 @@ templ (fei FeedbackEntryIndex) Page() {
 								</thead>
 								<tbody class="[&_tr:last-child]:border-0">
 									for _, feedbackentry := range fei.Items {
-									feedbackentryData := newFeedbackEntryData(feedbackentry)
+									{{ feedbackentryData := newFeedbackEntryData(feedbackentry) }}
 										<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ feedbackentryData.StudentName }</td>
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ feedbackentryData.Feedback }</td>

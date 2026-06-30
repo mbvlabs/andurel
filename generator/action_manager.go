@@ -12,31 +12,31 @@ import (
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
-// FragmentConfig holds the input configuration for fragment generation.
-type FragmentConfig struct {
+// ActionConfig holds the input configuration for action generation.
+type ActionConfig struct {
 	ControllerName string // PascalCase, e.g. "Webhook"
 	MethodName     string // PascalCase, e.g. "Validate"
 	Path           string // Route path, e.g. "/validate" or "/:id/approve"
 	HTTPMethod     string // HTTP method, e.g. "GET", "POST"
 }
 
-// FragmentManager orchestrates fragment generation across controller,
+// ActionManager orchestrates action generation across controller,
 // routes, and connect files.
-type FragmentManager struct {
-	injector *controllers.FragmentInjector
+type ActionManager struct {
+	injector *controllers.ActionInjector
 }
 
-// NewFragmentManager creates a new FragmentManager.
-func NewFragmentManager() *FragmentManager {
-	return &FragmentManager{
-		injector: controllers.NewFragmentInjector(),
+// NewActionManager creates a new ActionManager.
+func NewActionManager() *ActionManager {
+	return &ActionManager{
+		injector: controllers.NewActionInjector(),
 	}
 }
 
-// GenerateFragment validates inputs, resolves naming, and delegates to
-// FragmentInjector for the three file modifications.
-func (fm *FragmentManager) GenerateFragment(config FragmentConfig) error {
-	if err := fm.validateConfig(config); err != nil {
+// GenerateAction validates inputs, resolves naming, and delegates to
+// ActionInjector for the three file modifications.
+func (am *ActionManager) GenerateAction(config ActionConfig) error {
+	if err := am.validateConfig(config); err != nil {
 		return err
 	}
 
@@ -59,7 +59,7 @@ func (fm *FragmentManager) GenerateFragment(config FragmentConfig) error {
 	}
 
 	// Check for duplicates across all files before modifying any
-	if err := fm.checkDuplicates(controllerPath, routesPath, connectPath, config); err != nil {
+	if err := am.checkDuplicates(controllerPath, routesPath, connectPath, config); err != nil {
 		return err
 	}
 
@@ -67,31 +67,31 @@ func (fm *FragmentManager) GenerateFragment(config FragmentConfig) error {
 	routeType := controllers.DetectRouteType(config.Path)
 
 	// Detect ID type from existing routes file
-	idType := fm.detectIDTypeFromRoutes(routesPath)
+	idType := am.detectIDTypeFromRoutes(routesPath)
 
 	// Normalize HTTP method for template
-	httpMethod := fm.normalizeHTTPMethodName(config.HTTPMethod)
+	httpMethod := am.normalizeHTTPMethodName(config.HTTPMethod)
 
 	// Build slug params type name and struct definition for multi-param routes
 	paramsTypeName := ""
 	paramsStruct := ""
 	if routeType == controllers.RouteWithSlugs {
 		paramsTypeName = config.ControllerName + config.MethodName + "Params"
-		paramsStruct = fm.buildSlugParamsStruct(paramsTypeName, config.Path)
+		paramsStruct = am.buildSlugParamsStruct(paramsTypeName, config.Path)
 	}
 
 	// 1. Inject controller method
-	methodData := controllers.FragmentMethodData{
+	methodData := controllers.ActionMethodData{
 		ReceiverName:       receiverName,
 		PluralResourceName: capitalizedPlural,
 		MethodName:         config.MethodName,
 	}
-	if err := fm.injector.InjectControllerMethod(controllerPath, methodData); err != nil {
+	if err := am.injector.InjectControllerMethod(controllerPath, methodData); err != nil {
 		return fmt.Errorf("failed to inject controller method: %w", err)
 	}
 
 	// 2. Inject route variable
-	routeData := controllers.FragmentRouteData{
+	routeData := controllers.ActionRouteData{
 		ResourceName:    config.ControllerName,
 		MethodName:      config.MethodName,
 		ConstructorName: routeType.ConstructorName(idType, paramsTypeName),
@@ -100,28 +100,28 @@ func (fm *FragmentManager) GenerateFragment(config FragmentConfig) error {
 		PluralName:      pluralName,
 		LowerMethodName: strings.ToLower(config.MethodName),
 	}
-	if err := fm.injector.InjectRouteVariable(routesPath, routeData); err != nil {
+	if err := am.injector.InjectRouteVariable(routesPath, routeData); err != nil {
 		return fmt.Errorf("failed to inject route variable: %w", err)
 	}
 
 	// 3. Inject route registration
-	registrationData := controllers.FragmentRegistrationData{
+	registrationData := controllers.ActionRegistrationData{
 		ResourceName: config.ControllerName,
 		MethodName:   config.MethodName,
 		HTTPMethod:   httpMethod,
 		HandlerVar:   lowercaseResourceName,
 	}
-	if err := fm.injector.InjectRouteRegistration(connectPath, registrationData); err != nil {
+	if err := am.injector.InjectRouteRegistration(connectPath, registrationData); err != nil {
 		return fmt.Errorf("failed to inject route registration: %w", err)
 	}
 
-	fmt.Printf("Successfully generated fragment %s.%s\n", config.ControllerName, config.MethodName)
+	fmt.Printf("Successfully generated action %s.%s\n", config.ControllerName, config.MethodName)
 	return nil
 }
 
 // detectIDTypeFromRoutes scans an existing routes file for ID route constructors
 // and returns the corresponding Go type string. Defaults to "uuid.UUID".
-func (fm *FragmentManager) detectIDTypeFromRoutes(routesPath string) string {
+func (am *ActionManager) detectIDTypeFromRoutes(routesPath string) string {
 	content, err := os.ReadFile(routesPath)
 	if err != nil {
 		return "uuid.UUID"
@@ -139,7 +139,7 @@ func (fm *FragmentManager) detectIDTypeFromRoutes(routesPath string) string {
 	}
 }
 
-func (fm *FragmentManager) validateConfig(config FragmentConfig) error {
+func (am *ActionManager) validateConfig(config ActionConfig) error {
 	// Validate controller name is PascalCase
 	pascalRegex, err := regexp.Compile(`^[A-Z][a-zA-Z0-9]*$`)
 	if err != nil {
@@ -179,7 +179,7 @@ func (fm *FragmentManager) validateConfig(config FragmentConfig) error {
 	return nil
 }
 
-func (fm *FragmentManager) checkDuplicates(controllerPath, routesPath, connectPath string, config FragmentConfig) error {
+func (am *ActionManager) checkDuplicates(controllerPath, routesPath, connectPath string, config ActionConfig) error {
 	// Check controller method duplicate
 	controllerContent, err := os.ReadFile(controllerPath)
 	if err != nil {
@@ -216,7 +216,7 @@ func (fm *FragmentManager) checkDuplicates(controllerPath, routesPath, connectPa
 
 // buildSlugParamsStruct generates a Go struct definition for slug route params
 // extracted from the given path (e.g. "/:product_id/categories/:category_id").
-func (fm *FragmentManager) buildSlugParamsStruct(typeName, path string) string {
+func (am *ActionManager) buildSlugParamsStruct(typeName, path string) string {
 	var fields strings.Builder
 	for seg := range strings.SplitSeq(path, "/") {
 		if !strings.HasPrefix(seg, ":") {
@@ -231,7 +231,7 @@ func (fm *FragmentManager) buildSlugParamsStruct(typeName, path string) string {
 
 // normalizeHTTPMethodName converts an HTTP method string to the Go net/http constant suffix.
 // e.g. "GET" -> "Get", "POST" -> "Post", "DELETE" -> "Delete"
-func (fm *FragmentManager) normalizeHTTPMethodName(method string) string {
+func (am *ActionManager) normalizeHTTPMethodName(method string) string {
 	switch strings.ToUpper(method) {
 	case "GET":
 		return "Get"

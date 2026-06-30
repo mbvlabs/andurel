@@ -44,6 +44,8 @@ type GeneratedView struct {
 	EntityName      string
 	PluralName      string
 	ModelPluralName string
+	Namespace       string
+	NamespacePascal string
 	Fields          []ViewField
 	ModulePath      string
 	IDType          string // "uuid.UUID", "int32", "int64", "string"
@@ -59,6 +61,7 @@ type Config struct {
 	ModelPluralName string
 	TableName       string
 	ModelTableName  string
+	Namespace       string
 	ModulePath      string
 	Actions         []string
 }
@@ -90,6 +93,8 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 		EntityName:      config.EntityName,
 		PluralName:      config.PluralName,
 		ModelPluralName: modelPluralName,
+		Namespace:       config.Namespace,
+		NamespacePascal: naming.ToPascalCase(config.Namespace),
 		ModulePath:      config.ModulePath,
 		Fields:          make([]ViewField, 0),
 		IDType:          "uuid.UUID", // Default to UUID
@@ -203,25 +208,34 @@ func viewDataValue(field ViewField, source string) string {
 	}
 }
 
-func viewDataRef(resourceName, entityRef string, useDTO bool) string {
+func viewDataRef(namespacePascal, resourceName, entityRef string, useDTO bool) string {
 	if !useDTO {
 		return entityRef
 	}
-	return fmt.Sprintf("new%sData(%s)", resourceName, entityRef)
+	return fmt.Sprintf("new%s%sData(%s)", namespacePascal, resourceName, entityRef)
 }
 
-func viewDataRowRef(rowRef string, useDTO bool) string {
+func viewDataRowRef(namespacePascal, resourceName, rowRef string, useDTO bool) string {
 	if !useDTO {
 		return rowRef
 	}
-	return rowRef + "Data"
+	if namespacePascal == "" {
+		return rowRef + "Data"
+	}
+	dtoPrefix := naming.ToLowerCamelCase(namespacePascal) + resourceName
+	return dtoPrefix + "Data"
 }
 
-func viewDataLoopAssignment(resourceName, rowRef string, useDTO bool) string {
+func viewDataLoopAssignment(namespacePascal, resourceName, rowRef string, useDTO bool) string {
 	if !useDTO {
 		return "{"
 	}
-	return fmt.Sprintf("{\n\t\t\t\t\t\t\t\t\t%sData := new%sData(%s)", rowRef, resourceName, rowRef)
+	qualifiedName := namespacePascal + resourceName
+	dtoVar := rowRef + "Data"
+	if namespacePascal != "" {
+		dtoVar = naming.ToLowerCamelCase(namespacePascal) + resourceName + "Data"
+	}
+	return fmt.Sprintf("{\n\t\t\t\t\t\t\t\t\t{{ %s := new%sData(%s) }}", dtoVar, qualifiedName, rowRef)
 }
 
 func viewDataImports(fields []ViewField) string {
@@ -247,20 +261,22 @@ func viewDataDefinition(view *GeneratedView) string {
 		return ""
 	}
 
+	prefix := view.NamespacePascal
+
 	var b strings.Builder
-	fmt.Fprintf(&b, "\ntype %sData struct {\n", view.ResourceName)
+	fmt.Fprintf(&b, "\ntype %s%sData struct {\n", prefix, view.ResourceName)
 	for _, field := range view.Fields {
 		fmt.Fprintf(&b, "\t%s %s\n", field.Name, viewDataType(field))
 	}
 	b.WriteString("}\n\n")
 	fmt.Fprintf(
 		&b,
-		"func new%sData(entity models.%s) %sData {\n",
-		view.ResourceName,
+		"func new%s%sData(entity models.%s) %s%sData {\n",
+		prefix, view.ResourceName,
 		view.EntityName,
-		view.ResourceName,
+		prefix, view.ResourceName,
 	)
-	fmt.Fprintf(&b, "\treturn %sData{\n", view.ResourceName)
+	fmt.Fprintf(&b, "\treturn %s%sData{\n", prefix, view.ResourceName)
 	for _, field := range view.Fields {
 		fmt.Fprintf(&b, "\t\t%s: %s,\n", field.Name, viewDataValue(field, "entity."+field.Name))
 	}
@@ -381,15 +397,15 @@ func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
 func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, templatePrefix string) (string, error) {
 	// Custom template functions for view-specific operations
 	customFuncs := template.FuncMap{
-		"HasNullFields":    hasNullFields,
-		"UsesViewDataType": usesViewDataType,
-		"ViewDataType":     viewDataType,
-		"ViewDataValue":    viewDataValue,
-		"ViewDataRef":      viewDataRef,
-		"ViewDataRowRef":   viewDataRowRef,
-		"ViewDataLoop":     viewDataLoopAssignment,
-		"ViewDataImports":  viewDataImports,
-		"ViewData":         viewDataDefinition,
+		"HasNullFields":      hasNullFields,
+		"UsesViewDataType":   usesViewDataType,
+		"ViewDataType":       viewDataType,
+		"ViewDataValue":      viewDataValue,
+		"ViewDataRef":        viewDataRef,
+		"ViewDataRowRef":     viewDataRowRef,
+		"ViewDataLoop":       viewDataLoopAssignment,
+		"ViewDataImports":    viewDataImports,
+		"ViewData":           viewDataDefinition,
 		"UsesPackage": func(fields []ViewField, packageName string) bool {
 			for _, field := range fields {
 				if strings.Contains(field.StringConverter, packageName+".") {
@@ -502,13 +518,21 @@ func (g *Generator) GenerateVueViewFiles(view *GeneratedView, templatePrefix str
 	return fileNames, nil
 }
 
+func namespacePrefix(namespace string) string {
+	if namespace == "" {
+		return ""
+	}
+	return namespace + "_"
+}
+
 func (g *Generator) GenerateView(
 	cat *catalog.Catalog,
 	resourceName string,
 	tableName string,
 	modulePath string,
+	namespace string,
 ) error {
-	return g.GenerateViewWithController(cat, resourceName, tableName, modulePath, false, "")
+	return g.GenerateViewWithController(cat, resourceName, tableName, modulePath, false, "", namespace)
 }
 
 func (g *Generator) GenerateViewWithController(
@@ -518,8 +542,9 @@ func (g *Generator) GenerateViewWithController(
 	modulePath string,
 	withController bool,
 	inertia string,
+	namespace string,
 ) error {
-	return g.GenerateViewWithControllerActions(cat, resourceName, tableName, modulePath, withController, nil, inertia)
+	return g.GenerateViewWithControllerActions(cat, resourceName, tableName, modulePath, withController, nil, inertia, namespace)
 }
 
 func (g *Generator) GenerateViewWithControllerActions(
@@ -530,8 +555,9 @@ func (g *Generator) GenerateViewWithControllerActions(
 	withController bool,
 	actions []string,
 	inertia string,
+	namespace string,
 ) error {
-	return g.GenerateViewWithControllerActionsForModel(cat, resourceName, resourceName, tableName, tableName, modulePath, withController, actions, inertia)
+	return g.GenerateViewWithControllerActionsForModel(cat, resourceName, resourceName, tableName, tableName, modulePath, namespace, withController, actions, inertia)
 }
 
 func (g *Generator) GenerateViewWithControllerActionsForModel(
@@ -541,6 +567,7 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 	tableName string,
 	modelTableName string,
 	modulePath string,
+	namespace string,
 	withController bool,
 	actions []string,
 	inertia string,
@@ -553,7 +580,7 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 	}
 	pluralName := naming.DeriveTableName(resourceName)
 	modelPluralName := naming.DeriveTableName(modelName)
-	viewPath := filepath.Join("views", tableName+"_resource.templ")
+	viewPath := filepath.Join("views", namespacePrefix(namespace)+tableName+"_resource.templ")
 
 	viewExists := false
 	if _, err := os.Stat(viewPath); err == nil {
@@ -564,7 +591,7 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 	isInertiaVue := inertia == "vue"
 	renderActions := actions
 	if !isInertiaVue && viewExists && len(actions) > 0 {
-		existingActions, err := existingResourceViewActions(viewPath, resourceName)
+		existingActions, err := existingResourceViewActions(viewPath, resourceName, namespace)
 		if err != nil {
 			return err
 		}
@@ -594,6 +621,7 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 		ModelPluralName: modelPluralName,
 		TableName:       tableName,
 		ModelTableName:  modelTableName,
+		Namespace:       namespace,
 		ModulePath:      modulePath,
 		Actions:         renderActions,
 	})
@@ -640,7 +668,7 @@ func (g *Generator) generateVueViews(view *GeneratedView, templatePrefix, resour
 		return fmt.Errorf("failed to render vue view files: %w", err)
 	}
 
-	pagesDir := filepath.Join("resources", "js", "Pages", resourceName)
+	pagesDir := filepath.Join("resources", "js", "Pages", view.NamespacePascal, resourceName)
 	if err := g.fileManager.EnsureDir(pagesDir); err != nil {
 		return err
 	}
@@ -680,22 +708,23 @@ func mergeResourceViewActions(existing, requested []string) []string {
 	return merged
 }
 
-func existingResourceViewActions(viewPath, resourceName string) ([]string, error) {
+func existingResourceViewActions(viewPath, resourceName, namespace string) ([]string, error) {
 	content, err := os.ReadFile(viewPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read view file %s: %w", viewPath, err)
 	}
 
 	contentStr := string(content)
+	prefix := naming.ToPascalCase(namespace)
 	actions := make([]string, 0, len(resourceViewActions))
 	for _, action := range []string{"index", "show", "new", "edit"} {
-		typeName := resourceName + naming.ToPascalCase(action)
+		typeName := prefix + resourceName + naming.ToPascalCase(action)
 		if strings.Contains(contentStr, "type "+typeName) {
 			actions = append(actions, action)
 		}
 	}
 	for _, action := range []string{"create", "update", "destroy"} {
-		routeName := "routes." + resourceName + naming.ToPascalCase(action)
+		routeName := "routes." + prefix + resourceName + naming.ToPascalCase(action)
 		if strings.Contains(contentStr, routeName) {
 			actions = append(actions, action)
 		}

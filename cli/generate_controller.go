@@ -41,7 +41,11 @@ GET routes at /<controllers>/<action>.
 Use --model-name when the generated controller/resource name should differ from
 the existing model it is backed by. Regular controller generation and scaffold
 generation keep the existing one-resource-name behavior unless this flag is
-provided.`,
+provided.
+
+Names may include one lowercase namespace segment, such as admin/Widget.
+Namespaced controllers are generated under controllers/admin, use admin.*
+route names, and use Admin-prefixed route and view symbols.`,
 		Example: `  andurel generate controller CreditCard
 
       Generates the standard CRUD resource controller, views, and routes.
@@ -55,6 +59,11 @@ provided.`,
       Adds an empty Export method to controllers/credit_cards.go and an empty
       CreditCardExport component to views/credit_cards_resource.templ.
       Also registers GET /credit_cards/export.
+
+  andurel generate controller admin/Widget export
+
+      Adds an AdminWidgetExport action in controllers/admin/widgets.go,
+      views/admin_widgets_resource.templ, and admin.widgets.export route.
 
   andurel generate controller Dashboard --model-name User
 
@@ -89,14 +98,22 @@ provided.`,
 }
 
 func generateControllerWithActions(name, modelName string, actions []string, inertia string) error {
-	tableName := naming.DeriveTableName(name)
+	namespace, resourceName, err := naming.ParseNamespacedResource(name)
+	if err != nil {
+		return err
+	}
+
+	tableName := naming.DeriveTableName(resourceName)
 	pluralName := tableName
 	modulePath, err := readModulePath()
 	if err != nil {
 		return fmt.Errorf("failed to read module path: %w", err)
 	}
 
-	controllerPath := filepath.Join("controllers", tableName+".go")
+	controllerPath := filepath.Join("controllers", namespace, tableName+".go")
+	if namespace == "" {
+		controllerPath = filepath.Join("controllers", tableName+".go")
+	}
 	crudActions := crudControllerActions(actions)
 	customActions := nonCRUDControllerActions(actions)
 	shouldGenerateResource := len(actions) == 0 || len(crudActions) > 0
@@ -117,21 +134,21 @@ func generateControllerWithActions(name, modelName string, actions []string, ine
 			return err
 		}
 		if modelName != "" {
-			if err := gen.GenerateControllerWithActionsForModel(name, modelName, "", true, modelBackedActions, inertia); err != nil {
+			if err := gen.GenerateControllerWithActionsForModel(resourceName, namespace, modelName, "", modelBackedActions, inertia); err != nil {
 				return err
 			}
-		} else if err := gen.GenerateControllerWithActions(name, "", true, modelBackedActions, inertia); err != nil {
+		} else if err := gen.GenerateControllerWithActions(resourceName, namespace, "", modelBackedActions, inertia); err != nil {
 			return err
 		}
 	}
 
 	if len(customActions) > 0 {
 		diMode := generatorpkg.ReadDIMode()
-		if err := generateActionControllerFile(name, tableName, pluralName, modulePath, controllerPath, customActions, inertia, diMode); err != nil {
+		if err := generateActionControllerFile(resourceName, namespace, tableName, pluralName, modulePath, controllerPath, customActions, inertia, diMode); err != nil {
 			return err
 		}
 		routeGen := controllergen.NewRouteGenerator()
-		if err := routeGen.GenerateRoutesWithActionsAndConstructor(name, pluralName, "uuid.UUID", diMode, customActions, shouldGenerateResource); err != nil {
+		if err := routeGen.GenerateRoutesWithActionsAndConstructor(resourceName, namespace, pluralName, "uuid.UUID", diMode, customActions, shouldGenerateResource); err != nil {
 			return err
 		}
 	}
@@ -170,15 +187,16 @@ func isCRUDControllerAction(action string) bool {
 	}
 }
 
-func generateActionControllerFile(name, tableName, pluralName, modulePath, controllerPath string, actions []string, inertia, diMode string) error {
-	ts := naming.ToSnakeCase(name)
+func generateActionControllerFile(name, namespace, tableName, pluralName, modulePath, controllerPath string, actions []string, inertia, diMode string) error {
+	ts := namespacePrefix(namespace) + tableName
 	receiverName := naming.ToReceiverName(name)
 	resourceName := name
 	controllerName := naming.ToPascalCase(pluralName)
 	isInertia := inertia == "vue"
 	isFX := diMode == "uberfx"
+	packageName := naming.ControllerPackageName(namespace)
 
-	if err := os.MkdirAll("controllers", 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(controllerPath), 0o755); err != nil {
 		return err
 	}
 
@@ -196,9 +214,9 @@ func generateActionControllerFile(name, tableName, pluralName, modulePath, contr
 				continue
 			}
 			if isInertia {
-				additions.WriteString(actionControllerMethodInertia(receiverName, controllerName, resourceName, methodName))
+				additions.WriteString(actionControllerMethodInertia(receiverName, controllerName, namespace, resourceName, methodName))
 			} else {
-				additions.WriteString(actionControllerMethod(receiverName, controllerName, resourceName, methodName))
+				additions.WriteString(actionControllerMethod(receiverName, controllerName, namespace, resourceName, methodName))
 			}
 		}
 
@@ -206,7 +224,7 @@ func generateActionControllerFile(name, tableName, pluralName, modulePath, contr
 			contentStr = strings.TrimRight(contentStr, "\n") + "\n\n" + strings.TrimRight(additions.String(), "\n") + "\n"
 		}
 		if isFX {
-			contentStr = ensureCustomFXRegisterRoutes(contentStr, receiverName, resourceName, actions)
+			contentStr = ensureCustomFXRegisterRoutes(contentStr, receiverName, namespace, resourceName, actions)
 		}
 
 		if err := os.WriteFile(controllerPath, []byte(contentStr), constants.FilePermissionPrivate); err != nil {
@@ -214,7 +232,7 @@ func generateActionControllerFile(name, tableName, pluralName, modulePath, contr
 		}
 	} else if os.IsNotExist(err) {
 		var sb strings.Builder
-		sb.WriteString("package controllers\n\n")
+		sb.WriteString(fmt.Sprintf("package %s\n\n", packageName))
 		sb.WriteString("import (\n")
 		if isInertia {
 			if isFX {
@@ -249,13 +267,13 @@ func generateActionControllerFile(name, tableName, pluralName, modulePath, contr
 		for _, action := range actions {
 			methodName := naming.ToPascalCase(action)
 			if isInertia {
-				sb.WriteString(actionControllerMethodInertia(receiverName, controllerName, resourceName, methodName))
+				sb.WriteString(actionControllerMethodInertia(receiverName, controllerName, namespace, resourceName, methodName))
 			} else {
-				sb.WriteString(actionControllerMethod(receiverName, controllerName, resourceName, methodName))
+				sb.WriteString(actionControllerMethod(receiverName, controllerName, namespace, resourceName, methodName))
 			}
 		}
 		if isFX {
-			sb.WriteString(customFXRegisterRoutesMethod(receiverName, controllerName, resourceName, actions))
+			sb.WriteString(customFXRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName, actions))
 		}
 
 		if err := os.WriteFile(controllerPath, []byte(sb.String()), constants.FilePermissionPrivate); err != nil {
@@ -271,11 +289,11 @@ func generateActionControllerFile(name, tableName, pluralName, modulePath, contr
 
 	// Generate view file with action components
 	if isInertia {
-		if err := generateActionVueViewFile(name, tableName, actions); err != nil {
+		if err := generateActionVueViewFile(name, namespace, tableName, actions); err != nil {
 			return fmt.Errorf("failed to generate vue view file: %w", err)
 		}
 	} else {
-		if err := generateActionViewFile(name, tableName, modulePath, ts, actions); err != nil {
+		if err := generateActionViewFile(name, namespace, tableName, modulePath, ts, actions); err != nil {
 			return fmt.Errorf("failed to generate view file: %w", err)
 		}
 	}
@@ -288,40 +306,45 @@ func controllerMethodExists(content, methodName string) bool {
 		strings.Contains(content, ") "+methodName+"(etx echo.Context)")
 }
 
-func actionControllerMethod(receiverName, controllerName, resourceName, methodName string) string {
-	return fmt.Sprintf("func (%s %s) %s(etx *echo.Context) error {\n\treturn hypermedia.RenderPage(etx, views.%s%s())\n}\n\n",
+func actionControllerMethod(receiverName, controllerName, namespace, resourceName, methodName string) string {
+	namespacePascal := naming.ToPascalCase(namespace)
+	return fmt.Sprintf("func (%s %s) %s(etx *echo.Context) error {\n\treturn hypermedia.RenderPage(etx, views.%s%s%s())\n}\n\n",
 		receiverName,
 		controllerName,
 		methodName,
+		namespacePascal,
 		naming.ToPascalCase(resourceName),
 		methodName,
 	)
 }
 
-func actionControllerMethodInertia(receiverName, controllerName, resourceName, methodName string) string {
-	return fmt.Sprintf("func (%s %s) %s(etx *echo.Context) error {\n\treturn inertia.Page(etx, \"%s/%s\", inertia.Props{})\n}\n\n",
+func actionControllerMethodInertia(receiverName, controllerName, namespace, resourceName, methodName string) string {
+	pageName := naming.ToPascalCase(resourceName) + "/" + methodName
+	if namespace != "" {
+		pageName = naming.ToPascalCase(namespace) + "/" + pageName
+	}
+	return fmt.Sprintf("func (%s %s) %s(etx *echo.Context) error {\n\treturn inertia.Page(etx, \"%s\", inertia.Props{})\n}\n\n",
 		receiverName,
 		controllerName,
 		methodName,
-		naming.ToPascalCase(resourceName),
-		methodName,
+		pageName,
 	)
 }
 
-func ensureCustomFXRegisterRoutes(content, receiverName, resourceName string, actions []string) string {
+func ensureCustomFXRegisterRoutes(content, receiverName, namespace, resourceName string, actions []string) string {
 	if !strings.Contains(content, "RegisterRoutes(r *router.Router)") {
 		controllerName := naming.ToPascalCase(naming.DeriveTableName(resourceName))
-		return strings.TrimRight(content, "\n") + "\n\n" + strings.TrimRight(customFXRegisterRoutesMethod(receiverName, controllerName, resourceName, actions), "\n") + "\n"
+		return strings.TrimRight(content, "\n") + "\n\n" + strings.TrimRight(customFXRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName, actions), "\n") + "\n"
 	}
 
 	var additions strings.Builder
 	for _, action := range actions {
 		methodName := naming.ToPascalCase(action)
-		routeRef := fmt.Sprintf("routes.%s%s.Path()", resourceName, methodName)
+		routeRef := fmt.Sprintf("routes.%s%s%s.Path()", naming.ToPascalCase(namespace), resourceName, methodName)
 		if strings.Contains(content, routeRef) {
 			continue
 		}
-		additions.WriteString(customFXRouteBlock(receiverName, resourceName, methodName))
+		additions.WriteString(customFXRouteBlock(receiverName, namespace, resourceName, methodName))
 	}
 	if additions.Len() == 0 {
 		return content
@@ -334,34 +357,35 @@ func ensureCustomFXRegisterRoutes(content, receiverName, resourceName string, ac
 	return strings.TrimRight(content, "\n") + "\n\n" + strings.TrimRight(additions.String(), "\n") + "\n"
 }
 
-func customFXRegisterRoutesMethod(receiverName, controllerName, resourceName string, actions []string) string {
+func customFXRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName string, actions []string) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("func (%s %s) RegisterRoutes(r *router.Router) error {\n", receiverName, controllerName))
 	sb.WriteString("\tvar errs []error\n")
 	sb.WriteString("\tvar err error\n\n")
 	for _, action := range actions {
 		methodName := naming.ToPascalCase(action)
-		sb.WriteString(customFXRouteBlock(receiverName, resourceName, methodName))
+		sb.WriteString(customFXRouteBlock(receiverName, namespace, resourceName, methodName))
 	}
 	sb.WriteString("\treturn errors.Join(errs...)\n")
 	sb.WriteString("}\n\n")
 	return sb.String()
 }
 
-func customFXRouteBlock(receiverName, resourceName, methodName string) string {
+func customFXRouteBlock(receiverName, namespace, resourceName, methodName string) string {
 	return fmt.Sprintf("\t_, err = r.AddRoute(echo.Route{\n\t\tMethod:  http.MethodGet,\n\t\tPath:    routes.%s%s.Path(),\n\t\tName:    routes.%s%s.Name(),\n\t\tHandler: %s.%s,\n\t})\n\tif err != nil {\n\t\terrs = append(errs, err)\n\t}\n\n",
-		resourceName,
+		naming.ToPascalCase(namespace)+resourceName,
 		methodName,
-		resourceName,
+		naming.ToPascalCase(namespace)+resourceName,
 		methodName,
 		receiverName,
 		methodName,
 	)
 }
 
-func generateActionViewFile(name, tableName, modulePath, ts string, actions []string) error {
+func generateActionViewFile(name, namespace, tableName, modulePath, ts string, actions []string) error {
 	resourceName := naming.ToPascalCase(name)
-	viewPath := filepath.Join("views", tableName+"_resource.templ")
+	namespacePascal := naming.ToPascalCase(namespace)
+	viewPath := filepath.Join("views", namespacePrefix(namespace)+tableName+"_resource.templ")
 
 	var sb strings.Builder
 	if _, err := os.Stat(viewPath); err == nil {
@@ -372,11 +396,11 @@ func generateActionViewFile(name, tableName, modulePath, ts string, actions []st
 		contentStr := string(content)
 		for _, action := range actions {
 			methodName := naming.ToPascalCase(action)
-			componentName := resourceName + methodName
+			componentName := namespacePascal + resourceName + methodName
 			if strings.Contains(contentStr, "templ "+componentName+"(") {
 				continue
 			}
-			sb.WriteString(actionViewComponent(resourceName, methodName))
+			sb.WriteString(actionViewComponent(resourceName, namespacePascal, methodName))
 		}
 		if sb.Len() == 0 {
 			return nil
@@ -391,7 +415,7 @@ func generateActionViewFile(name, tableName, modulePath, ts string, actions []st
 
 	for _, action := range actions {
 		methodName := naming.ToPascalCase(action)
-		sb.WriteString(actionViewComponent(resourceName, methodName))
+		sb.WriteString(actionViewComponent(resourceName, namespacePascal, methodName))
 	}
 
 	if err := os.MkdirAll("views", 0o755); err != nil {
@@ -405,9 +429,10 @@ func generateActionViewFile(name, tableName, modulePath, ts string, actions []st
 	return nil
 }
 
-func actionViewComponent(resourceName, methodName string) string {
+func actionViewComponent(resourceName, namespacePascal, methodName string) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("templ %s%s() {\n", resourceName, methodName))
+	componentName := namespacePascal + resourceName + methodName
+	sb.WriteString(fmt.Sprintf("templ %s() {\n", componentName))
 	sb.WriteString("\t<div class=\"p-6\">\n")
 	sb.WriteString(fmt.Sprintf("\t\t<h1 class=\"text-2xl font-semibold\">%s#%s</h1>\n", resourceName, methodName))
 	sb.WriteString("\t\t<p class=\"text-sm text-base-content/60 mt-2\">Content for this action has not been implemented yet.</p>\n")
@@ -416,9 +441,9 @@ func actionViewComponent(resourceName, methodName string) string {
 	return sb.String()
 }
 
-func generateActionVueViewFile(name, tableName string, actions []string) error {
+func generateActionVueViewFile(name, namespace, tableName string, actions []string) error {
 	resourceName := naming.ToPascalCase(name)
-	pagesDir := filepath.Join("resources", "js", "Pages", resourceName)
+	pagesDir := filepath.Join("resources", "js", "Pages", naming.ToPascalCase(namespace), resourceName)
 
 	if err := os.MkdirAll(pagesDir, 0o755); err != nil {
 		return err
@@ -466,4 +491,11 @@ func readModulePath() (string, error) {
 		}
 	}
 	return "", fmt.Errorf("module declaration not found in go.mod")
+}
+
+func namespacePrefix(namespace string) string {
+	if namespace == "" {
+		return ""
+	}
+	return namespace + "_"
 }

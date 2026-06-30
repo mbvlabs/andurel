@@ -16,7 +16,6 @@ type ControllerType int
 
 const (
 	ResourceController ControllerType = iota
-	ResourceControllerNoViews
 	NormalController
 )
 
@@ -38,6 +37,8 @@ type GeneratedController struct {
 	PluralResourceName      string // The pluralized form of ResourceName (respects --table-name override)
 	ModelPluralResourceName string
 	ReceiverName            string // Short receiver name for methods (e.g., "sf" for StudentFeedback)
+	Namespace               string // "admin" (empty if no namespace)
+	NamespacePascal         string // "Admin" (PascalCase for prefixing)
 	Package                 string
 	Fields                  []GeneratedField
 	ModulePath              string
@@ -58,6 +59,7 @@ type Config struct {
 	ModelPluralName          string
 	TableName                string
 	ModelTableName           string
+	Namespace                string
 	PackageName              string
 	ModulePath               string
 	ControllerType           ControllerType
@@ -111,6 +113,8 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 		PluralResourceName:      pluralResourceName,
 		ModelPluralResourceName: modelPluralResourceName,
 		ReceiverName:            naming.ToReceiverName(config.ResourceName),
+		Namespace:               config.Namespace,
+		NamespacePascal:         naming.ToPascalCase(config.Namespace),
 		Package:                 config.PackageName,
 		ModulePath:              config.ModulePath,
 		Type:                    config.ControllerType,
@@ -121,8 +125,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 		Actions:                 config.Actions,
 	}
 
-	if config.ControllerType == ResourceController ||
-		config.ControllerType == ResourceControllerNoViews {
+	if config.ControllerType == ResourceController {
 		tableName := config.TableName
 		if config.ModelTableName != "" {
 			tableName = config.ModelTableName

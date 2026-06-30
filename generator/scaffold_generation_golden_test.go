@@ -113,6 +113,7 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 
 			if err := gen.GenerateScaffold(
 				scenario.resourceName,
+				"",
 				scenario.tableName,
 				scenario.skipFactory,
 				scenario.primaryKeyColumn,
@@ -136,7 +137,7 @@ func TestScaffoldGenerationGoldensInertiaProjectDefaultsToTempl(t *testing.T) {
 		"vue",
 	)
 
-	if err := gen.GenerateScaffold("Project", "", true, "", ""); err != nil {
+	if err := gen.GenerateScaffold("Project", "", "", true, "", ""); err != nil {
 		t.Fatalf("failed to generate scaffold: %v", err)
 	}
 
@@ -144,6 +145,28 @@ func TestScaffoldGenerationGoldensInertiaProjectDefaultsToTempl(t *testing.T) {
 	assertControllerViewGoldenFileMissing(t, filepath.Join("resources", "js", "Pages", "Project", "Index.vue"))
 	assertGeneratedFileContains(t, "controllers/projects.go", "testapp/internal/hypermedia")
 	assertGeneratedFileNotContains(t, "controllers/projects.go", "testapp/internal/inertia")
+}
+
+func TestScaffoldGenerationNamespaced(t *testing.T) {
+	gen := setupScaffoldGoldenProject(
+		t,
+		"controller_view_generation",
+		"manual",
+		"tailwind",
+		nil,
+		"",
+	)
+
+	if err := gen.GenerateScaffold("Widget", "admin", "", false, "", ""); err != nil {
+		t.Fatalf("failed to generate namespaced scaffold: %v", err)
+	}
+
+	assertGeneratedFileContains(t, filepath.Join("models", "widget.go"), "type WidgetEntity struct")
+	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "package admin")
+	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "views.AdminWidgetIndex")
+	assertGeneratedFileContains(t, filepath.Join("router", "routes", "admin_widgets.go"), `"admin.widgets.index"`)
+	assertGeneratedFileContains(t, filepath.Join("router", "connect_admin_widgets_routes.go"), `controllers "testapp/controllers/admin"`)
+	assertGeneratedFileContains(t, filepath.Join("views", "admin_widgets_resource.templ"), "type AdminWidgetIndex struct")
 }
 
 func setupScaffoldGoldenProject(t *testing.T, migrationsFixture, diMode, cssFramework string, extensions []string, inertia string) Generator {

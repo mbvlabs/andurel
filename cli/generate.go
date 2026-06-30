@@ -36,12 +36,18 @@ generators are available:
   controller  Generate a controller, views, and routes
   scaffold    Generate a complete resource with model, controller, views, and routes
   job         Generate a background job with a worker
-  email       Generate an email template`,
+  email       Generate an email template
+
+Controller and scaffold names may include one lowercase namespace segment,
+for example admin/Widget. Namespaces generate controllers/admin, admin route
+names, and Admin-prefixed route/view symbols.`,
 		Example: `  andurel generate model Post
   andurel generate model Post --update
   andurel generate view
-  andurel generate controller users index show
+  andurel generate controller Widget index show
+  andurel generate controller admin/Widget export
   andurel generate scaffold Product
+  andurel generate scaffold admin/Widget
   andurel generate job SendWelcomeEmail
   andurel generate email WelcomeEmail`,
 	}
@@ -65,11 +71,11 @@ generators are available:
 			Description: "generates Go code from Templ templates",
 		},
 		helpCommand{
-			Use:         "generate controller NAME [action ...]",
+			Use:         "generate controller [namespace/]NAME [action ...]",
 			Description: "generates a new controller",
 		},
 		helpCommand{
-			Use:         "generate scaffold NAME",
+			Use:         "generate scaffold [namespace/]NAME",
 			Description: "generates a complete scaffold resource",
 		},
 		helpCommand{
