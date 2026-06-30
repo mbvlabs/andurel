@@ -6,7 +6,7 @@ package views
 
 import (
 	"fmt"
-	{{if UsesPackage .Fields "strings"}}"strings"
+{{ViewDataImports .Fields}}	{{if UsesPackage .Fields "strings"}}"strings"
 	{{end}}{{if or (and (HasAction "new") (HasAction "create")) (and (HasAction "edit") (or (HasAction "update") (HasAction "destroy")))}}	"net/http"
 	{{end}}
 	"{{.ModulePath}}/models"
@@ -16,7 +16,7 @@ import (
 	"{{.ModulePath}}/router/routes"
 	{{end}}
 )
-
+{{ViewData .}}
 {{if HasAction "index"}}
 type {{.ResourceName}}Index struct {
 	Items []models.{{.EntityName}}
@@ -60,9 +60,9 @@ templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 									</tr>
 								</thead>
 								<tbody>
-									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {
+									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {{ViewDataLoop .ResourceName (.ResourceName | ToLower) (HasNullFields .Fields)}}
 										<tr>
-											{{range .Fields}}<td>{{StringTableDisplay . ($.ResourceName | ToLower)}}</td>
+											{{range .Fields}}<td>{{StringTableDisplay . (ViewDataRowRef ($.ResourceName | ToLower) (HasNullFields $.Fields))}}</td>
 											{{end}}<td>
 												<div>
 													{{if HasAction "show"}}
@@ -115,10 +115,10 @@ templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 					</div>
 					<div>
 						<div>
-							{{$itemRef := printf "%s.%s" $showRecv "Item"}}
+							{{$itemRef := printf "%s.%s" $showRecv "Item"}}{{$itemDisplayRef := ViewDataRef .ResourceName $itemRef (HasNullFields .Fields)}}
 							{{range .Fields}}<div>
 								<p>{{.DisplayName}}</p>
-								<p>{{StringDisplay . $itemRef}}</p>
+								<p>{{StringDisplay . $itemDisplayRef}}</p>
 							</div>
 							{{end}}
 						</div>
@@ -212,15 +212,15 @@ templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
 								{{end}}
 							>
 								<fieldset data-attr:disabled="$_submitting">
-									{{$itemRef := printf "%s.%s" $editRecv "Item"}}
+									{{$itemRef := printf "%s.%s" $editRecv "Item"}}{{$itemDisplayRef := ViewDataRef .ResourceName $itemRef (HasNullFields .Fields)}}
 									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div>
-										<input type="checkbox" id="{{.CamelCase}}" name="{{.CamelCase}}" data-bind="{{.CamelCase}}" if {{FieldRef . $itemRef}} { checked } />
+										<input type="checkbox" id="{{.CamelCase}}" name="{{.CamelCase}}" data-bind="{{.CamelCase}}" if {{FieldRef . $itemDisplayRef}} { checked } />
 										<label for="{{.CamelCase}}">{{.DisplayName}}</label>
 									</div>
 									{{else}}<div>
 										<label for="{{.CamelCase}}">{{.DisplayName}}</label>
 										<div>
-											<input type="{{.InputType}}" id="{{.CamelCase}}" name="{{.CamelCase}}" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemRef}} } />
+											<input type="{{.InputType}}" id="{{.CamelCase}}" name="{{.CamelCase}}" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemDisplayRef}} } />
 										</div>
 									</div>
 									{{end}}{{end}}{{end}}

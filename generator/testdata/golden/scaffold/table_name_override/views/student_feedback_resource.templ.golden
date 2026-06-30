@@ -6,6 +6,7 @@ package views
 
 import (
 	"fmt"
+	"time"
 		"net/http"
 	
 	"testapp/models"
@@ -16,9 +17,29 @@ import (
 	
 )
 
+type FeedbackEntryData struct {
+	StudentName string
+	Feedback string
+	Rating int32
+	SubmittedAt time.Time
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func newFeedbackEntryData(entity models.FeedbackEntryEntity) FeedbackEntryData {
+	return FeedbackEntryData{
+		StudentName: entity.StudentName,
+		Feedback: entity.Feedback,
+		Rating: func() int32 { if !entity.Rating.Valid { return 0 }; return entity.Rating.Int32 }(),
+		SubmittedAt: func() time.Time { if !entity.SubmittedAt.Valid { return time.Time{} }; return entity.SubmittedAt.Time }(),
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	}
+}
+
 
 type FeedbackEntryIndex struct {
-	Items []models.FeedbackentryEntity
+	Items []models.FeedbackEntryEntity
 }
 
 func (fei FeedbackEntryIndex) PageFragment() string {
@@ -54,13 +75,14 @@ templ (fei FeedbackEntryIndex) Page() {
 								</thead>
 								<tbody class="[&_tr:last-child]:border-0">
 									for _, feedbackentry := range fei.Items {
+									feedbackentryData := newFeedbackEntryData(feedbackentry)
 										<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
-											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ feedbackentry.StudentName }</td>
-											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ feedbackentry.Feedback }</td>
-											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%d", feedbackentry.Rating) }</td>
-											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ feedbackentry.SubmittedAt.String() }</td>
-											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ feedbackentry.CreatedAt.String() }</td>
-											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ feedbackentry.UpdatedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ feedbackentryData.StudentName }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ feedbackentryData.Feedback }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%d", feedbackentryData.Rating) }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ feedbackentryData.SubmittedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ feedbackentryData.CreatedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ feedbackentryData.UpdatedAt.String() }</td>
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 												<div class="flex flex-wrap gap-3 text-sm">
 													
@@ -86,7 +108,7 @@ templ (fei FeedbackEntryIndex) Page() {
 
 
 type FeedbackEntryShow struct {
-	Item models.FeedbackentryEntity
+	Item models.FeedbackEntryEntity
 }
 
 func (fes FeedbackEntryShow) PageFragment() string {
@@ -115,27 +137,27 @@ templ (fes FeedbackEntryShow) Page() {
 								
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Student Name</label>
-									<p class="text-sm text-gray-900">{ fes.Item.StudentName }</p>
+									<p class="text-sm text-gray-900">{ newFeedbackEntryData(fes.Item).StudentName }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Feedback</label>
-									<p class="text-sm text-gray-900">{ fes.Item.Feedback }</p>
+									<p class="text-sm text-gray-900">{ newFeedbackEntryData(fes.Item).Feedback }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Rating</label>
-									<p class="text-sm text-gray-900">{ fmt.Sprintf("%d", fes.Item.Rating) }</p>
+									<p class="text-sm text-gray-900">{ fmt.Sprintf("%d", newFeedbackEntryData(fes.Item).Rating) }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Submitted At</label>
-									<p class="text-sm text-gray-900">{ fes.Item.SubmittedAt.String() }</p>
+									<p class="text-sm text-gray-900">{ newFeedbackEntryData(fes.Item).SubmittedAt.String() }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
-									<p class="text-sm text-gray-900">{ fes.Item.CreatedAt.String() }</p>
+									<p class="text-sm text-gray-900">{ newFeedbackEntryData(fes.Item).CreatedAt.String() }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
-									<p class="text-sm text-gray-900">{ fes.Item.UpdatedAt.String() }</p>
+									<p class="text-sm text-gray-900">{ newFeedbackEntryData(fes.Item).UpdatedAt.String() }</p>
 								</div>
 								
 							</div>
@@ -213,7 +235,7 @@ templ (fen FeedbackEntryNew) Page() {
 
 
 type FeedbackEntryEdit struct {
-	Item models.FeedbackentryEntity
+	Item models.FeedbackEntryEntity
 }
 
 func (fee FeedbackEntryEdit) PageFragment() string {
@@ -237,21 +259,21 @@ templ (fee FeedbackEntryEdit) Page() {
 										
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="studentName">Student Name</label>
-											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="studentName" value={ fee.Item.StudentName } />
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="studentName" value={ newFeedbackEntryData(fee.Item).StudentName } />
 										</div>
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="feedback">Feedback</label>
-											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="feedback" value={ fee.Item.Feedback } />
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="feedback" value={ newFeedbackEntryData(fee.Item).Feedback } />
 										</div>
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="rating">Rating</label>
-											<input type="number" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="rating" value={ fmt.Sprintf("%d", fee.Item.Rating) } />
+											<input type="number" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="rating" value={ fmt.Sprintf("%d", newFeedbackEntryData(fee.Item).Rating) } />
 										</div>
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="submittedAt">Submitted At</label>
 											<div class="relative w-full">
 												<div class="relative">
-													<input type="date" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 pr-8 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="submittedAt" value={ fee.Item.SubmittedAt.String() } />
+													<input type="date" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 pr-8 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="submittedAt" value={ newFeedbackEntryData(fee.Item).SubmittedAt.String() } />
 													<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
 														<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
 													</div>

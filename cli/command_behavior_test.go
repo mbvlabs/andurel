@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/mbvlabs/andurel/layout"
 )
 
 func TestNoArgGeneratorCommandsShowHelpWithoutCallingGenerators(t *testing.T) {
@@ -174,7 +176,7 @@ func TestGenerateScaffoldMapsFlagsToGenerator(t *testing.T) {
 	resetCLITestSeams(t)
 	fake := installFakeGenerator(t)
 
-	result := executeCLITest(t, "generate", "scaffold", "Project", "--skip-factory", "--table-name", "work_projects", "--primary-key", "slug", "--vue")
+	result := executeCLITest(t, "generate", "scaffold", "Project", "--skip-factory", "--table-name", "work_projects", "--primary-key", "slug", "--inertia", "vue")
 	if result.err != nil {
 		t.Fatalf("generate scaffold failed: %v", result.err)
 	}
@@ -205,7 +207,7 @@ func TestGenerateControllerMapsActionsAndVue(t *testing.T) {
 		return nil
 	}
 
-	result := executeCLITest(t, "generate", "controller", "Widget", "index", "export", "--vue")
+	result := executeCLITest(t, "generate", "controller", "Widget", "index", "export", "--inertia", "vue")
 	if result.err != nil {
 		t.Fatalf("generate controller failed: %v", result.err)
 	}
@@ -289,6 +291,183 @@ func setupControllers(db interface{}, r *router.Router) error {
 	assertCLITestFileContains(t, rootDir, "cmd/app/main.go", "dashboards := controllers.NewDashboards()")
 }
 
+func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFlag(t *testing.T) {
+	tests := []struct {
+		name               string
+		inertia            string
+		wantController     string
+		unwantedController string
+		wantView           string
+		unwantedView       string
+	}{
+		{
+			name:               "default templ",
+			wantController:     "example.com/app/internal/hypermedia",
+			unwantedController: "example.com/app/internal/inertia",
+			wantView:           "views/dashboards_resource.templ",
+			unwantedView:       filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.vue"),
+		},
+		{
+			name:               "explicit vue",
+			inertia:            "vue",
+			wantController:     "example.com/app/internal/inertia",
+			unwantedController: "example.com/app/internal/hypermedia",
+			wantView:           filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.vue"),
+			unwantedView:       "views/dashboards_resource.templ",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetCLITestSeams(t)
+			rootDir := t.TempDir()
+			writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
+			writeCLITestFile(t, rootDir, "cmd/app/main.go", `package main
+
+import "example.com/app/router"
+
+func setupControllers(db interface{}, r *router.Router) error {
+	// andurel:controller-registration-point
+	return nil
+}
+`)
+
+			lock := layout.NewAndurelLock("test")
+			lock.ScaffoldConfig = &layout.ScaffoldConfig{
+				ProjectName:  "app",
+				Database:     "postgresql",
+				CSSFramework: "tailwind",
+				DIMode:       "manual",
+				Inertia:      "vue",
+			}
+			if err := lock.WriteLockFile(rootDir); err != nil {
+				t.Fatalf("write andurel.lock: %v", err)
+			}
+
+			originalWD, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("getwd: %v", err)
+			}
+			if err := os.Chdir(rootDir); err != nil {
+				t.Fatalf("chdir temp project: %v", err)
+			}
+			t.Cleanup(func() {
+				_ = os.Chdir(originalWD)
+			})
+
+			if err := generateControllerWithActions("Dashboard", "", []string{"overview"}, false, tt.inertia); err != nil {
+				t.Fatalf("generate custom controller action: %v", err)
+			}
+
+			assertCLITestFileContains(t, rootDir, "controllers/dashboards.go", tt.wantController)
+			assertCLITestFileNotContains(t, rootDir, "controllers/dashboards.go", tt.unwantedController)
+			assertCLITestFileExists(t, rootDir, tt.wantView)
+			assertCLITestFileMissing(t, rootDir, tt.unwantedView)
+		})
+	}
+}
+
+func TestGenerateControllerSingleCRUDActionVueGeneratesInertiaController(t *testing.T) {
+	resetCLITestSeams(t)
+	rootDir := t.TempDir()
+	setupProjectInquiryCLITestProject(t, rootDir)
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(rootDir); err != nil {
+		t.Fatalf("chdir temp project: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	if err := generateControllerWithActions("ProjectInquiry", "", []string{"show"}, false, "vue"); err != nil {
+		t.Fatalf("generate controller: %v", err)
+	}
+
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/inertia")
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return inertia.Page(etx, "ProjectInquiry/Show"`)
+	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/hypermedia")
+	assertCLITestFileExists(t, rootDir, filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Show.vue"))
+	assertCLITestFileMissing(t, rootDir, "views/project_inquiries_resource.templ")
+}
+
+func setupProjectInquiryCLITestProject(t *testing.T, rootDir string) {
+	t.Helper()
+
+	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
+	writeCLITestFile(t, rootDir, "database/migrations/000100_create_project_inquiries.sql", `-- +goose Up
+CREATE TABLE project_inquiries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+-- +goose Down
+DROP TABLE project_inquiries;
+`)
+	writeCLITestFile(t, rootDir, "models/project_inquiry.go", "package models\n")
+	writeCLITestFile(t, rootDir, "bin/templ", "#!/bin/sh\nexit 0\n")
+	if err := os.Chmod(filepath.Join(rootDir, "bin", "templ"), 0o755); err != nil {
+		t.Fatalf("chmod fake templ: %v", err)
+	}
+	writeCLITestFile(t, rootDir, "cmd/app/main.go", `package main
+
+import "example.com/app/router"
+
+func setupControllers(db interface{}, r *router.Router) error {
+	// andurel:controller-registration-point
+	return nil
+}
+`)
+
+	lock := layout.NewAndurelLock("test")
+	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName:  "app",
+		Database:     "postgresql",
+		CSSFramework: "tailwind",
+		DIMode:       "manual",
+		Inertia:      "vue",
+	}
+	if err := lock.WriteLockFile(rootDir); err != nil {
+		t.Fatalf("write andurel.lock: %v", err)
+	}
+}
+
+func TestGenerateControllerSingleCRUDActionInertiaProjectDefaultsToTemplController(t *testing.T) {
+	resetCLITestSeams(t)
+	rootDir := t.TempDir()
+	setupProjectInquiryCLITestProject(t, rootDir)
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(rootDir); err != nil {
+		t.Fatalf("chdir temp project: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	if err := generateControllerWithActions("ProjectInquiry", "", []string{"index"}, false, ""); err != nil {
+		t.Fatalf("generate controller: %v", err)
+	}
+
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/hypermedia")
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "return hypermedia.RenderPage")
+	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/inertia")
+	assertCLITestFileExists(t, rootDir, "views/project_inquiries_resource.templ")
+	assertCLITestFileContains(t, rootDir, "views/project_inquiries_resource.templ", "Items []models.ProjectInquiryEntity")
+	assertCLITestFileNotContains(t, rootDir, "views/project_inquiries_resource.templ", "ProjectinquiryEntity")
+	assertCLITestFileMissing(t, rootDir, filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Index.vue"))
+}
+
 func TestGenerateControllerRejectsModelNameForCustomOnly(t *testing.T) {
 	resetCLITestSeams(t)
 	rootDir := t.TempDir()
@@ -341,6 +520,33 @@ func assertCLITestFileContains(t *testing.T, root, relPath, want string) {
 	}
 	if !strings.Contains(string(content), want) {
 		t.Fatalf("expected %s to contain %q:\n%s", relPath, want, string(content))
+	}
+}
+
+func assertCLITestFileNotContains(t *testing.T, root, relPath, unwanted string) {
+	t.Helper()
+	content, err := os.ReadFile(filepath.Join(root, relPath))
+	if err != nil {
+		t.Fatalf("read %s: %v", relPath, err)
+	}
+	if strings.Contains(string(content), unwanted) {
+		t.Fatalf("expected %s not to contain %q:\n%s", relPath, unwanted, string(content))
+	}
+}
+
+func assertCLITestFileExists(t *testing.T, root, relPath string) {
+	t.Helper()
+	if _, err := os.Stat(filepath.Join(root, relPath)); err != nil {
+		t.Fatalf("expected %s to exist: %v", relPath, err)
+	}
+}
+
+func assertCLITestFileMissing(t *testing.T, root, relPath string) {
+	t.Helper()
+	if _, err := os.Stat(filepath.Join(root, relPath)); err == nil {
+		t.Fatalf("expected %s to be missing", relPath)
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat %s: %v", relPath, err)
 	}
 }
 

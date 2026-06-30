@@ -18,7 +18,7 @@ import (
 func newGenerateControllerCommand() *cobra.Command {
 	var (
 		skipRoutes bool
-		vue        bool
+		inertia    string
 		modelName  string
 	)
 
@@ -72,9 +72,11 @@ provided.`,
 				return err
 			}
 
-			inertia := ""
-			if vue {
-				inertia = "vue"
+			if inertia != "" && inertia != "vue" {
+				return fmt.Errorf(
+					"invalid inertia adapter: %s - valid options are 'vue'",
+					inertia,
+				)
 			}
 
 			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
@@ -84,7 +86,8 @@ provided.`,
 	}
 
 	cmd.Flags().BoolVar(&skipRoutes, "skip-routes", false, "Deprecated: custom actions do not generate routes")
-	cmd.Flags().BoolVar(&vue, "vue", false, "Generate Inertia Vue views instead of Templ views")
+	cmd.Flags().StringVar(&inertia, "inertia", "", "Generate Inertia views with the specified adapter (default: vue)")
+	cmd.Flags().Lookup("inertia").NoOptDefVal = "vue"
 	cmd.Flags().StringVar(&modelName, "model-name", "", "Use a different model name for model-backed controller generation")
 
 	return cmd

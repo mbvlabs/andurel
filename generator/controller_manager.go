@@ -145,9 +145,6 @@ func (c *ControllerManager) GenerateControllerWithActionsForModel(
 
 	nullType := c.readNullType()
 	diMode := c.readDIMode()
-	if inertia == "" {
-		inertia = ReadInertia()
-	}
 
 	fileGen := controllers.NewFileGenerator()
 	if err := fileGen.GenerateControllerWithActionsForModel(cat, resourceName, modelName, tableName, modelTableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, modelTableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia, actions); err != nil {
@@ -232,7 +229,7 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 
 	nullType := c.readNullType()
 	diMode := c.readDIMode()
-	inertia := ReadInertia()
+	inertia := ""
 
 	fileGen := controllers.NewFileGenerator()
 	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia); err != nil {

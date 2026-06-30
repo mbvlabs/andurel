@@ -142,7 +142,7 @@ andurel database migrate new create_products_table
 andurel generate scaffold Product
 ```
 
-This single command creates everything you need for a full CRUD interface: model, factory, controller, views (Templ or Vue), and resource routes.
+This single command creates everything you need for a full CRUD interface: model, factory, controller, Templ views, and resource routes. Pass `--inertia vue` when you want the generated resource/controller views as Inertia Vue pages instead.
 
 ## CLI Commands
 
@@ -184,9 +184,9 @@ andurel generate email (alias: e) NAME
 | `--yes`          | Apply changes without prompting for confirmation (use with `--update`) |
 | `--primary-key`  | Specify the primary key column (skips interactive detection) |
 
-**`generate controller`** — Creates a controller for a resource. With no actions, it generates the full standard CRUD controller, views, and routes. With one or more standard CRUD actions (`index`, `show`, `new`, `create`, `edit`, `update`, `destroy`), it generates only those resource actions; partial CRUD views are self-contained and only link to companion actions that are also present.
+**`generate controller`** — Creates a controller for a resource. With no actions, it generates the full standard CRUD controller, views, and routes. With one or more standard CRUD actions (`index`, `show`, `new`, `create`, `edit`, `update`, `destroy`), it generates only those resource actions; partial CRUD views are self-contained and only link to companion actions that are also present. Generated resource/controller views default to Templ in every project; pass `--inertia vue` to generate Inertia Vue pages.
 
-Non-CRUD actions create standalone/custom controller actions. They add empty controller methods, matching Templ components or Vue pages, and conventional `GET` routes:
+Non-CRUD actions create standalone/custom controller actions. They add empty controller methods, matching Templ components by default or Vue pages with `--inertia vue`, and conventional `GET` routes:
 
 ```bash
 andurel generate controller Dashboard overview
@@ -216,17 +216,17 @@ In this mode, controller/UI artifacts use `Dashboard` (`controllers/dashboards.g
 |------|-------------|
 | `--model-name` | Use a different existing model for model-backed controller generation |
 | `--skip-routes` | Deprecated; ignored |
-| `--vue` | Generate Inertia Vue views instead of Templ views |
+| `--inertia vue` | Generate Inertia Vue views instead of Templ views |
 
 **`generate view`** — Generates Go code from `.templ` template files (runs `templ generate`).
 
-**`generate scaffold`** — Convenience command that runs `generate model` + `generate controller` with full CRUD actions (index, show, new, create, edit, update, destroy). By default generates Templ views; use `--vue` for Inertia Vue SFC views.
+**`generate scaffold`** — Convenience command that runs `generate model` + `generate controller` with full CRUD actions (index, show, new, create, edit, update, destroy). By default generates Templ views, including in projects created with `--inertia vue`; use `--inertia vue` for Inertia Vue SFC views.
 
 | Flag | Description |
 |------|-------------|
 | `--skip-factory` | Skip generating a factory file |
 | `--table-name`   | Override the default table name |
-| `--vue`          | Generate Inertia Vue views instead of Templ views |
+| `--inertia vue`          | Generate Inertia Vue views instead of Templ views |
 | `--primary-key`  | Specify the primary key column (skips interactive detection) |
 
 ### `andurel fmt` — Format source files
@@ -595,7 +595,7 @@ myapp/
 ├── tsconfig.json
 ```
 
-The `controllers/pages.go` uses Inertia rendering instead of Templ, and `cmd/app/main.go` initializes `internal/inertia`. Run `npm install` after scaffolding.
+The `controllers/pages.go` uses Inertia rendering instead of Templ, and `cmd/app/main.go` initializes `internal/inertia`. Run `npm install` after scaffolding. Later resource/controller generation still defaults to Templ; pass `--inertia vue` to `andurel generate controller` or `andurel generate scaffold` for Inertia Vue resource pages.
 
 ### Inertia Vue + UberFX (`--di uberfx --inertia vue`)
 

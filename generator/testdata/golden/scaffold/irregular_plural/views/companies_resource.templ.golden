@@ -6,6 +6,7 @@ package views
 
 import (
 	"fmt"
+	"time"
 		"net/http"
 	
 	"testapp/models"
@@ -15,6 +16,22 @@ import (
 	"testapp/router/routes"
 	
 )
+
+type CompanyData struct {
+	Name string
+	Industry string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func newCompanyData(entity models.CompanyEntity) CompanyData {
+	return CompanyData{
+		Name: entity.Name,
+		Industry: func() string { if !entity.Industry.Valid { return "" }; return entity.Industry.String }(),
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	}
+}
 
 
 type CompanyIndex struct {
@@ -52,11 +69,12 @@ templ (ci CompanyIndex) Page() {
 								</thead>
 								<tbody class="[&_tr:last-child]:border-0">
 									for _, company := range ci.Items {
+									companyData := newCompanyData(company)
 										<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
-											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ company.Name }</td>
-											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ company.Industry }</td>
-											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ company.CreatedAt.String() }</td>
-											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ company.UpdatedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ companyData.Name }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ companyData.Industry }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ companyData.CreatedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ companyData.UpdatedAt.String() }</td>
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 												<div class="flex flex-wrap gap-3 text-sm">
 													
@@ -111,19 +129,19 @@ templ (cs CompanyShow) Page() {
 								
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Name</label>
-									<p class="text-sm text-gray-900">{ cs.Item.Name }</p>
+									<p class="text-sm text-gray-900">{ newCompanyData(cs.Item).Name }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Industry</label>
-									<p class="text-sm text-gray-900">{ cs.Item.Industry }</p>
+									<p class="text-sm text-gray-900">{ newCompanyData(cs.Item).Industry }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
-									<p class="text-sm text-gray-900">{ cs.Item.CreatedAt.String() }</p>
+									<p class="text-sm text-gray-900">{ newCompanyData(cs.Item).CreatedAt.String() }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
-									<p class="text-sm text-gray-900">{ cs.Item.UpdatedAt.String() }</p>
+									<p class="text-sm text-gray-900">{ newCompanyData(cs.Item).UpdatedAt.String() }</p>
 								</div>
 								
 							</div>
@@ -210,11 +228,11 @@ templ (ce CompanyEdit) Page() {
 										
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="name">Name</label>
-											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="name" value={ ce.Item.Name } />
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="name" value={ newCompanyData(ce.Item).Name } />
 										</div>
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="industry">Industry</label>
-											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="industry" value={ ce.Item.Industry } />
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="industry" value={ newCompanyData(ce.Item).Industry } />
 										</div>
 										
 									</div>

@@ -11,7 +11,7 @@ func newGenerateScaffoldCommand() *cobra.Command {
 		skipFactory      bool
 		tableName        string
 		primaryKeyColumn string
-		vue              bool
+		inertia          string
 	)
 
 	cmd := &cobra.Command{
@@ -57,9 +57,11 @@ edit, update, destroy.`,
 				return err
 			}
 
-			inertia := ""
-			if vue {
-				inertia = "vue"
+			if inertia != "" && inertia != "vue" {
+				return fmt.Errorf(
+					"invalid inertia adapter: %s - valid options are 'vue'",
+					inertia,
+				)
 			}
 
 			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
@@ -76,7 +78,8 @@ edit, update, destroy.`,
 	cmd.Flags().BoolVar(&skipFactory, "skip-factory", false, "Skip generating a factory for the model")
 	cmd.Flags().StringVar(&tableName, "table-name", "", "Override the default table name")
 	cmd.Flags().StringVar(&primaryKeyColumn, "primary-key", "", "Specify the primary key column (skips interactive detection)")
-	cmd.Flags().BoolVar(&vue, "vue", false, "Generate Inertia Vue views instead of Templ views")
+	cmd.Flags().StringVar(&inertia, "inertia", "", "Generate Inertia views with the specified adapter (default: vue)")
+	cmd.Flags().Lookup("inertia").NoOptDefVal = "vue"
 
 	return cmd
 }

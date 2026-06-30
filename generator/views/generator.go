@@ -153,6 +153,122 @@ func resolveViewBaseType(goType string) string {
 	return strings.TrimPrefix(goType, "*")
 }
 
+func hasNullFields(fields []ViewField) bool {
+	for _, field := range fields {
+		if isNullType(field.GoType) {
+			return true
+		}
+	}
+	return false
+}
+
+func isNullType(goType string) bool {
+	return strings.HasPrefix(goType, "sql.Null") || strings.HasPrefix(goType, "bun.Null")
+}
+
+func usesViewDataType(fields []ViewField, goType string) bool {
+	for _, field := range fields {
+		if strings.TrimPrefix(viewDataType(field), "*") == goType {
+			return true
+		}
+	}
+	return false
+}
+
+func viewDataType(field ViewField) string {
+	if isNullType(field.GoType) {
+		return resolveViewBaseType(field.GoType)
+	}
+	return field.GoType
+}
+
+func viewDataValue(field ViewField, source string) string {
+	switch field.GoType {
+	case "sql.NullString", "bun.NullString":
+		return "func() string { if !" + source + ".Valid { return \"\" }; return " + source + ".String }()"
+	case "sql.NullBool", "bun.NullBool":
+		return "func() bool { if !" + source + ".Valid { return false }; return " + source + ".Bool }()"
+	case "sql.NullInt16":
+		return "func() int16 { if !" + source + ".Valid { return 0 }; return " + source + ".Int16 }()"
+	case "sql.NullInt32", "bun.NullInt32":
+		return "func() int32 { if !" + source + ".Valid { return 0 }; return " + source + ".Int32 }()"
+	case "sql.NullInt64", "bun.NullInt64":
+		return "func() int64 { if !" + source + ".Valid { return 0 }; return " + source + ".Int64 }()"
+	case "sql.NullFloat64", "bun.NullFloat64":
+		return "func() float64 { if !" + source + ".Valid { return 0 }; return " + source + ".Float64 }()"
+	case "sql.NullTime", "bun.NullTime":
+		return "func() time.Time { if !" + source + ".Valid { return time.Time{} }; return " + source + ".Time }()"
+	default:
+		return source
+	}
+}
+
+func viewDataRef(resourceName, entityRef string, useDTO bool) string {
+	if !useDTO {
+		return entityRef
+	}
+	return fmt.Sprintf("new%sData(%s)", resourceName, entityRef)
+}
+
+func viewDataRowRef(rowRef string, useDTO bool) string {
+	if !useDTO {
+		return rowRef
+	}
+	return rowRef + "Data"
+}
+
+func viewDataLoopAssignment(resourceName, rowRef string, useDTO bool) string {
+	if !useDTO {
+		return "{"
+	}
+	return fmt.Sprintf("{\n\t\t\t\t\t\t\t\t\t%sData := new%sData(%s)", rowRef, resourceName, rowRef)
+}
+
+func viewDataImports(fields []ViewField) string {
+	if !hasNullFields(fields) {
+		return ""
+	}
+
+	var b strings.Builder
+	if usesViewDataType(fields, "json.RawMessage") {
+		b.WriteString("\t\"encoding/json\"\n")
+	}
+	if usesViewDataType(fields, "time.Time") {
+		b.WriteString("\t\"time\"\n")
+	}
+	if usesViewDataType(fields, "uuid.UUID") {
+		b.WriteString("\t\"github.com/google/uuid\"\n")
+	}
+	return b.String()
+}
+
+func viewDataDefinition(view *GeneratedView) string {
+	if !hasNullFields(view.Fields) {
+		return ""
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "\ntype %sData struct {\n", view.ResourceName)
+	for _, field := range view.Fields {
+		fmt.Fprintf(&b, "\t%s %s\n", field.Name, viewDataType(field))
+	}
+	b.WriteString("}\n\n")
+	fmt.Fprintf(
+		&b,
+		"func new%sData(entity models.%s) %sData {\n",
+		view.ResourceName,
+		view.EntityName,
+		view.ResourceName,
+	)
+	fmt.Fprintf(&b, "\treturn %sData{\n", view.ResourceName)
+	for _, field := range view.Fields {
+		fmt.Fprintf(&b, "\t\t%s: %s,\n", field.Name, viewDataValue(field, "entity."+field.Name))
+	}
+	b.WriteString("\t}\n")
+	b.WriteString("}\n")
+	return b.String()
+}
+
 func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 	goType, _, err := g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
 	if err != nil {
@@ -239,10 +355,6 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 }
 
 func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
-	if lock != nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.Inertia == "vue" {
-		return "inertia_vue_tw_bare_"
-	}
-
 	cssFramework := "tailwind"
 	hasCssComponents := false
 
@@ -266,13 +378,18 @@ func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
 	return "tw_bare_"
 }
 
-func (g *Generator) isInertiaVue(lock *layout.AndurelLock) bool {
-	return lock != nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.Inertia == "vue"
-}
-
 func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, templatePrefix string) (string, error) {
 	// Custom template functions for view-specific operations
 	customFuncs := template.FuncMap{
+		"HasNullFields":    hasNullFields,
+		"UsesViewDataType": usesViewDataType,
+		"ViewDataType":     viewDataType,
+		"ViewDataValue":    viewDataValue,
+		"ViewDataRef":      viewDataRef,
+		"ViewDataRowRef":   viewDataRowRef,
+		"ViewDataLoop":     viewDataLoopAssignment,
+		"ViewDataImports":  viewDataImports,
+		"ViewData":         viewDataDefinition,
 		"UsesPackage": func(fields []ViewField, packageName string) bool {
 			for _, field := range fields {
 				if strings.Contains(field.StringConverter, packageName+".") {
@@ -444,8 +561,9 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("failed to stat view file %s: %w", viewPath, err)
 	}
+	isInertiaVue := inertia == "vue"
 	renderActions := actions
-	if viewExists && len(actions) > 0 {
+	if !isInertiaVue && viewExists && len(actions) > 0 {
 		existingActions, err := existingResourceViewActions(viewPath, resourceName)
 		if err != nil {
 			return err
@@ -464,17 +582,14 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 	}
 
 	// Override inertia mode from parameter if explicitly set
-	isInertiaVue := inertia == "vue"
 	if isInertiaVue {
 		templatePrefix = "inertia_vue_tw_bare_"
-	} else if lock != nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.Inertia == "vue" {
-		isInertiaVue = true
 	}
 
 	view, err := g.Build(cat, Config{
 		ResourceName:    resourceName,
 		ModelName:       modelName,
-		EntityName:      naming.ToPascalCase(modelName) + "Entity",
+		EntityName:      modelName + "Entity",
 		PluralName:      pluralName,
 		ModelPluralName: modelPluralName,
 		TableName:       tableName,
