@@ -65,7 +65,7 @@ func (fg *FileGenerator) GenerateControllerWithActions(
 	inertia string,
 	actions []string,
 ) error {
-	return fg.GenerateControllerWithActionsForModel(cat, resourceName, namespace, resourceName, tableName, tableName, controllerType, modulePath, databaseType, tableNameOverridden, tableNameOverridden, nullType, primaryKeyColumn, diMode, inertia, actions)
+	return fg.GenerateControllerWithActionsForModel(cat, resourceName, namespace, resourceName, tableName, tableName, controllerType, modulePath, databaseType, tableNameOverridden, tableNameOverridden, nullType, primaryKeyColumn, diMode, inertia, actions, false)
 }
 
 func (fg *FileGenerator) GenerateControllerWithActionsForModel(
@@ -85,6 +85,7 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 	diMode string,
 	inertia string,
 	actions []string,
+	isAPI bool,
 ) error {
 	if modelName == "" {
 		modelName = resourceName
@@ -140,6 +141,14 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 			renderActions = routeActions
 		}
 	}
+	// For API controllers with no specific actions, default to JSON-relevant CRUD actions
+	if isAPI && len(renderActions) == 0 {
+		renderActions = []string{"index", "show", "create", "update", "destroy"}
+	}
+	if isAPI && len(routeActions) == 0 {
+		routeActions = []string{"index", "show", "create", "update", "destroy"}
+	}
+
 	controller, err := generator.Build(cat, Config{
 		ResourceName:             resourceName,
 		ModelName:                modelName,
@@ -155,6 +164,7 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		ModelTableNameOverridden: modelTableNameOverridden,
 		PrimaryKeyColumn:         primaryKeyColumn,
 		Actions:                  renderActions,
+		IsAPI:                    isAPI,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller: %w", err)
@@ -213,6 +223,7 @@ const (
 	controllerFrontendUnknown    controllerFrontend = ""
 	controllerFrontendTempl      controllerFrontend = "templ"
 	controllerFrontendInertiaVue controllerFrontend = "inertia-vue"
+	controllerFrontendAPI        controllerFrontend = "api"
 )
 
 func detectControllerFrontend(content string) controllerFrontend {

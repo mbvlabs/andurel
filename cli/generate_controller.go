@@ -19,6 +19,7 @@ func newGenerateControllerCommand() *cobra.Command {
 	var (
 		inertia   bool
 		modelName string
+		api       bool
 	)
 
 	cmd := &cobra.Command{
@@ -67,7 +68,12 @@ route names, and use Admin-prefixed route and view symbols.`,
 
   andurel generate controller Dashboard --model-name User
 
-      Generates dashboard controller, views, and routes backed by models.User.`,
+      Generates dashboard controller, views, and routes backed by models.User.
+
+  andurel generate controller Users --api
+
+      Generates a JSON API controller at controllers/api/users.go with
+      JSON responses for all CRUD actions. No views are generated.`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
@@ -86,21 +92,26 @@ route names, and use Admin-prefixed route and view symbols.`,
 			}
 
 			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				return generateControllerWithActionsFunc(name, modelName, actions, inertiaStr)
+				return generateControllerWithActionsFunc(name, modelName, actions, inertiaStr, api)
 			})(cmd, args)
 		},
 	}
 
+	cmd.Flags().BoolVar(&api, "api", false, "Generate a JSON API controller under controllers/api")
 	cmd.Flags().BoolVar(&inertia, "inertia", false, "Generate Inertia views using the adapter configured in andurel.lock")
 	cmd.Flags().StringVar(&modelName, "model-name", "", "Use a different model name for model-backed controller generation")
 
 	return cmd
 }
 
-func generateControllerWithActions(name, modelName string, actions []string, inertia string) error {
+func generateControllerWithActions(name, modelName string, actions []string, inertia string, isAPI bool) error {
 	namespace, resourceName, err := naming.ParseNamespacedResource(name)
 	if err != nil {
 		return err
+	}
+
+	if isAPI {
+		namespace = "api"
 	}
 
 	tableName := naming.DeriveTableName(resourceName)
@@ -134,17 +145,17 @@ func generateControllerWithActions(name, modelName string, actions []string, ine
 			return err
 		}
 		if modelName != "" {
-			if err := gen.GenerateControllerWithActionsForModel(resourceName, namespace, modelName, "", modelBackedActions, inertia); err != nil {
+			if err := gen.GenerateControllerWithActionsForModel(resourceName, namespace, modelName, "", modelBackedActions, inertia, isAPI); err != nil {
 				return err
 			}
-		} else if err := gen.GenerateControllerWithActions(resourceName, namespace, "", modelBackedActions, inertia); err != nil {
+		} else if err := gen.GenerateControllerWithActions(resourceName, namespace, "", modelBackedActions, inertia, isAPI); err != nil {
 			return err
 		}
 	}
 
 	if len(customActions) > 0 {
 		diMode := generatorpkg.ReadDIMode()
-		if err := generateActionControllerFile(resourceName, namespace, tableName, pluralName, modulePath, controllerPath, customActions, inertia, diMode); err != nil {
+		if err := generateActionControllerFile(resourceName, namespace, tableName, pluralName, modulePath, controllerPath, customActions, inertia, diMode, isAPI); err != nil {
 			return err
 		}
 		routeGen := controllergen.NewRouteGenerator()
@@ -187,7 +198,7 @@ func isCRUDControllerAction(action string) bool {
 	}
 }
 
-func generateActionControllerFile(name, namespace, tableName, pluralName, modulePath, controllerPath string, actions []string, inertia, diMode string) error {
+func generateActionControllerFile(name, namespace, tableName, pluralName, modulePath, controllerPath string, actions []string, inertia, diMode string, isAPI bool) error {
 	ts := namespacePrefix(namespace) + tableName
 	receiverName := naming.ToReceiverName(name)
 	resourceName := name
@@ -213,7 +224,9 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 			if controllerMethodExists(contentStr, methodName) {
 				continue
 			}
-			if isInertia {
+			if isAPI {
+				additions.WriteString(actionControllerMethodAPI(receiverName, controllerName, resourceName, methodName))
+			} else if isInertia {
 				additions.WriteString(actionControllerMethodInertia(receiverName, controllerName, namespace, resourceName, methodName))
 			} else {
 				additions.WriteString(actionControllerMethod(receiverName, controllerName, namespace, resourceName, methodName))
@@ -266,7 +279,9 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 
 		for _, action := range actions {
 			methodName := naming.ToPascalCase(action)
-			if isInertia {
+			if isAPI {
+				sb.WriteString(actionControllerMethodAPI(receiverName, controllerName, resourceName, methodName))
+			} else if isInertia {
 				sb.WriteString(actionControllerMethodInertia(receiverName, controllerName, namespace, resourceName, methodName))
 			} else {
 				sb.WriteString(actionControllerMethod(receiverName, controllerName, namespace, resourceName, methodName))
@@ -288,7 +303,9 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 	}
 
 	// Generate view file with action components
-	if isInertia {
+	if isAPI {
+		// API controllers don't have views
+	} else if isInertia {
 		if err := generateActionVueViewFile(name, namespace, tableName, actions); err != nil {
 			return fmt.Errorf("failed to generate vue view file: %w", err)
 		}
@@ -314,6 +331,14 @@ func actionControllerMethod(receiverName, controllerName, namespace, resourceNam
 		methodName,
 		namespacePascal,
 		naming.ToPascalCase(resourceName),
+		methodName,
+	)
+}
+
+func actionControllerMethodAPI(receiverName, controllerName, resourceName, methodName string) string {
+	return fmt.Sprintf("func (%s %s) %s(etx *echo.Context) error {\n\treturn etx.JSON(http.StatusOK, map[string]any{})\n}\n\n",
+		receiverName,
+		controllerName,
 		methodName,
 	)
 }

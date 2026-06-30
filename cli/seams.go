@@ -5,9 +5,9 @@ import "github.com/mbvlabs/andurel/generator"
 type cliGenerator interface {
 	GenerateModel(resourceName string, tableNameOverride string, skipFactory bool) error
 	GenerateModelWithPK(resourceName string, tableNameOverride string, skipFactory bool, primaryKeyColumn string) error
-	GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string) error
-	GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string) error
-	GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string) error
+	GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string, isAPI bool) error
+	GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string, isAPI bool) error
+	GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string, isAPI bool) error
 }
 
 var newGenerator = func() (cliGenerator, error) {

@@ -23,20 +23,20 @@ func (g *Generator) GenerateModelWithPK(resourceName string, tableNameOverride s
 	return g.coordinator.ModelManager.GenerateModel(resourceName, tableNameOverride, skipFactory, primaryKeyColumn)
 }
 
-func (g *Generator) GenerateController(resourceName, namespace, tableName string, inertia string) error {
-	return g.coordinator.GenerateController(resourceName, namespace, tableName, inertia)
+func (g *Generator) GenerateController(resourceName, namespace, tableName string, inertia string, isAPI bool) error {
+	return g.coordinator.GenerateController(resourceName, namespace, tableName, inertia, isAPI)
 }
 
-func (g *Generator) GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string) error {
-	return g.coordinator.GenerateControllerWithActions(resourceName, namespace, tableName, actions, inertia)
+func (g *Generator) GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string, isAPI bool) error {
+	return g.coordinator.GenerateControllerWithActions(resourceName, namespace, tableName, actions, inertia, isAPI)
 }
 
-func (g *Generator) GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string) error {
-	return g.coordinator.GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName, actions, inertia)
+func (g *Generator) GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string, isAPI bool) error {
+	return g.coordinator.GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName, actions, inertia, isAPI)
 }
 
-func (g *Generator) GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string) error {
-	return g.coordinator.GenerateScaffold(resourceName, namespace, tableName, skipFactory, primaryKeyColumn, inertia)
+func (g *Generator) GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string, isAPI bool) error {
+	return g.coordinator.GenerateScaffold(resourceName, namespace, tableName, skipFactory, primaryKeyColumn, inertia, isAPI)
 }
 
 func (g *Generator) GenerateControllerFromModel(resourceName string) error {

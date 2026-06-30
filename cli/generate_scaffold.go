@@ -14,6 +14,7 @@ func newGenerateScaffoldCommand() *cobra.Command {
 		tableName        string
 		primaryKeyColumn string
 		inertia          bool
+		api              bool
 	)
 
 	cmd := &cobra.Command{
@@ -49,6 +50,10 @@ edit, update, destroy.`,
       views under controllers/admin, router/*admin_widgets*, and
       views/admin_widgets_resource.templ.
 
+  andurel generate scaffold User --api
+
+      Generates a model, JSON API controller, and routes. No views.
+
   andurel generate scaffold User --table-name=people_data
 
       Generates a User resource from the people_data table.`,
@@ -81,7 +86,7 @@ edit, update, destroy.`,
 					return err
 				}
 
-				return gen.GenerateScaffold(resourceName, namespace, tableName, skipFactory, primaryKeyColumn, inertiaStr)
+				return gen.GenerateScaffold(resourceName, namespace, tableName, skipFactory, primaryKeyColumn, inertiaStr, api)
 			})(cmd, args)
 		},
 	}
@@ -89,6 +94,7 @@ edit, update, destroy.`,
 	cmd.Flags().BoolVar(&skipFactory, "skip-factory", false, "Skip generating a factory for the model")
 	cmd.Flags().StringVar(&tableName, "table-name", "", "Override the default table name")
 	cmd.Flags().StringVar(&primaryKeyColumn, "primary-key", "", "Specify the primary key column (skips interactive detection)")
+	cmd.Flags().BoolVar(&api, "api", false, "Generate a JSON API controller under controllers/api")
 	cmd.Flags().BoolVar(&inertia, "inertia", false, "Generate Inertia views using the adapter configured in andurel.lock")
 
 	return cmd

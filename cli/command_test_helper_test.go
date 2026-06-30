@@ -184,7 +184,7 @@ func (f *fakeGenerator) GenerateModelWithPK(resourceName string, tableNameOverri
 	return f.err
 }
 
-func (f *fakeGenerator) GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string) error {
+func (f *fakeGenerator) GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string, isAPI bool) error {
 	f.controllerCalls = append(f.controllerCalls, controllerCall{
 		name:      resourceName,
 		namespace: namespace,
@@ -196,7 +196,7 @@ func (f *fakeGenerator) GenerateControllerWithActions(resourceName, namespace, t
 	return f.err
 }
 
-func (f *fakeGenerator) GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string) error {
+func (f *fakeGenerator) GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string, isAPI bool) error {
 	f.controllerCalls = append(f.controllerCalls, controllerCall{
 		name:      resourceName,
 		namespace: namespace,
@@ -208,7 +208,7 @@ func (f *fakeGenerator) GenerateControllerWithActionsForModel(resourceName, name
 	return f.err
 }
 
-func (f *fakeGenerator) GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string) error {
+func (f *fakeGenerator) GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string, isAPI bool) error {
 	f.scaffoldCalls = append(f.scaffoldCalls, scaffoldCall{
 		name:        resourceName,
 		namespace:   namespace,

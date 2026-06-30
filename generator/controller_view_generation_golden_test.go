@@ -44,12 +44,12 @@ func TestControllerViewGenerationGoldens(t *testing.T) {
 					coord := setupControllerViewGoldenProject(t, diMode, cssMode.framework, cssMode.cssComponents)
 
 					if len(scenario.initialActions) > 0 {
-						if err := coord.GenerateControllerWithActions("Widget", "", "", scenario.initialActions, ""); err != nil {
+						if err := coord.GenerateControllerWithActions("Widget", "", "", scenario.initialActions, "", false); err != nil {
 							t.Fatalf("failed to generate initial controller/view: %v", err)
 						}
 					}
 
-					if err := coord.GenerateControllerWithActions("Widget", "", "", scenario.actions, ""); err != nil {
+					if err := coord.GenerateControllerWithActions("Widget", "", "", scenario.actions, "", false); err != nil {
 						t.Fatalf("failed to generate controller/view: %v", err)
 					}
 
@@ -64,7 +64,7 @@ func TestControllerViewGenerationWithModelNameGolden(t *testing.T) {
 	g := goldie.New(t, goldie.WithFixtureDir(controllerViewGenerationGoldenDir(t)))
 	coord := setupControllerViewGoldenProject(t, "manual", "tailwind", false)
 
-	if err := coord.GenerateControllerWithActionsForModel("Dashboard", "", "Widget", "", []string{"index", "show"}, ""); err != nil {
+	if err := coord.GenerateControllerWithActionsForModel("Dashboard", "", "Widget", "", []string{"index", "show"}, "", false); err != nil {
 		t.Fatalf("failed to generate controller/view with model name: %v", err)
 	}
 
@@ -80,7 +80,7 @@ func TestControllerViewGenerationWithModelNameGolden(t *testing.T) {
 func TestControllerViewGenerationNamespacedManual(t *testing.T) {
 	coord := setupControllerViewGoldenProject(t, "manual", "tailwind", false)
 
-	if err := coord.GenerateControllerWithActions("Widget", "admin", "", nil, ""); err != nil {
+	if err := coord.GenerateControllerWithActions("Widget", "admin", "", nil, "", false); err != nil {
 		t.Fatalf("failed to generate namespaced controller/view: %v", err)
 	}
 
@@ -98,7 +98,7 @@ func TestControllerViewGenerationNamespacedManual(t *testing.T) {
 func TestControllerViewGenerationNamespacedUberFX(t *testing.T) {
 	coord := setupControllerViewGoldenProject(t, "uberfx", "tailwind", false)
 
-	if err := coord.GenerateControllerWithActions("Widget", "admin", "", nil, ""); err != nil {
+	if err := coord.GenerateControllerWithActions("Widget", "admin", "", nil, "", false); err != nil {
 		t.Fatalf("failed to generate namespaced uberfx controller/view: %v", err)
 	}
 
@@ -115,10 +115,10 @@ func TestControllerViewGenerationNamespacedUberFX(t *testing.T) {
 func TestControllerViewGenerationUberFXRootAndNamespacedRegistrations(t *testing.T) {
 	coord := setupControllerViewGoldenProject(t, "uberfx", "tailwind", false)
 
-	if err := coord.GenerateControllerWithActions("Widget", "admin", "", nil, ""); err != nil {
+	if err := coord.GenerateControllerWithActions("Widget", "admin", "", nil, "", false); err != nil {
 		t.Fatalf("failed to generate namespaced uberfx controller/view: %v", err)
 	}
-	if err := coord.GenerateControllerWithActions("Widget", "", "", nil, ""); err != nil {
+	if err := coord.GenerateControllerWithActions("Widget", "", "", nil, "", false); err != nil {
 		t.Fatalf("failed to generate root uberfx controller/view: %v", err)
 	}
 
@@ -133,7 +133,7 @@ func TestControllerViewGenerationUberFXRootAndNamespacedRegistrations(t *testing
 func TestControllerViewGenerationNamespacedModelName(t *testing.T) {
 	coord := setupControllerViewGoldenProject(t, "manual", "tailwind", false)
 
-	if err := coord.GenerateControllerWithActionsForModel("Dashboard", "admin", "Widget", "", []string{"index", "show"}, ""); err != nil {
+	if err := coord.GenerateControllerWithActionsForModel("Dashboard", "admin", "Widget", "", []string{"index", "show"}, "", false); err != nil {
 		t.Fatalf("failed to generate namespaced controller/view with model name: %v", err)
 	}
 
@@ -199,7 +199,7 @@ func TestControllerViewGenerationNamespacedUberFXNoControllerGo(t *testing.T) {
 		t.Fatalf("failed to generate model prerequisite: %v", err)
 	}
 
-	if err := coord.GenerateControllerWithActions("Widget", "admin", "", nil, ""); err != nil {
+	if err := coord.GenerateControllerWithActions("Widget", "admin", "", nil, "", false); err != nil {
 		t.Fatalf("failed to generate namespaced uberfx controller/view without controller.go: %v", err)
 	}
 
@@ -217,7 +217,7 @@ func TestControllerViewGenerationNamespacedUberFXNoControllerGo(t *testing.T) {
 func TestControllerViewGenerationNamespacedInertia(t *testing.T) {
 	coord := setupControllerViewGoldenProject(t, "manual", "tailwind", false)
 
-	if err := coord.GenerateControllerWithActions("Widget", "admin", "", []string{"show"}, "vue"); err != nil {
+	if err := coord.GenerateControllerWithActions("Widget", "admin", "", []string{"show"}, "vue", false); err != nil {
 		t.Fatalf("failed to generate namespaced inertia controller/view: %v", err)
 	}
 
@@ -229,7 +229,7 @@ func TestControllerViewGenerationNamespacedInertia(t *testing.T) {
 func TestControllerViewGenerationGoldensInertiaProjectDefaultsToTempl(t *testing.T) {
 	coord := setupControllerViewGoldenProjectWithInertia(t, "manual", "tailwind", false, "vue")
 
-	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index", "show"}, ""); err != nil {
+	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index", "show"}, "", false); err != nil {
 		t.Fatalf("failed to generate controller/view: %v", err)
 	}
 
@@ -242,7 +242,7 @@ func TestControllerViewGenerationGoldensInertiaProjectDefaultsToTempl(t *testing
 func TestControllerViewGenerationGoldensInertiaFlagStillGeneratesInertia(t *testing.T) {
 	coord := setupControllerViewGoldenProject(t, "manual", "tailwind", false)
 
-	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index", "show"}, "vue"); err != nil {
+	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index", "show"}, "vue", false); err != nil {
 		t.Fatalf("failed to generate controller/view: %v", err)
 	}
 
@@ -256,7 +256,7 @@ func TestControllerViewGenerationGoldensInertiaFlagStillGeneratesInertia(t *test
 func TestControllerViewGenerationGoldensSingleVueActionGeneratesInertiaController(t *testing.T) {
 	coord := setupControllerViewGoldenProject(t, "manual", "tailwind", false)
 
-	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"show"}, "vue"); err != nil {
+	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"show"}, "vue", false); err != nil {
 		t.Fatalf("failed to generate controller/view: %v", err)
 	}
 
@@ -270,10 +270,10 @@ func TestControllerViewGenerationGoldensSingleVueActionGeneratesInertiaControlle
 func TestControllerViewGenerationGoldensVueActionDoesNotInheritTemplViewActions(t *testing.T) {
 	coord := setupControllerViewGoldenProjectWithInertia(t, "manual", "tailwind", false, "vue")
 
-	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index"}, ""); err != nil {
+	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index"}, "", false); err != nil {
 		t.Fatalf("failed to generate templ controller/view: %v", err)
 	}
-	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"show"}, "vue"); err != nil {
+	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"show"}, "vue", false); err != nil {
 		t.Fatalf("failed to generate vue controller/view: %v", err)
 	}
 
@@ -289,10 +289,10 @@ func TestControllerViewGenerationGoldensVueActionDoesNotInheritTemplViewActions(
 func TestControllerViewGenerationGoldensVueActionUpdatesUberFXRegisterRoutes(t *testing.T) {
 	coord := setupControllerViewGoldenProjectWithInertia(t, "uberfx", "tailwind", false, "vue")
 
-	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index"}, ""); err != nil {
+	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index"}, "", false); err != nil {
 		t.Fatalf("failed to generate templ controller/view: %v", err)
 	}
-	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"show"}, "vue"); err != nil {
+	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"show"}, "vue", false); err != nil {
 		t.Fatalf("failed to generate vue controller/view: %v", err)
 	}
 

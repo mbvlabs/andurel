@@ -64,7 +64,13 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 	}
 
 	var templateName string
-	if controller.Type == ResourceController {
+	if controller.IsAPI {
+		if diMode == "uberfx" {
+			templateName = "api_resource_controller_fx.tmpl"
+		} else {
+			templateName = "api_resource_controller.tmpl"
+		}
+	} else if controller.Type == ResourceController {
 		templateName = "resource_controller.tmpl"
 		if inertia == "vue" {
 			templateName = "inertia_vue_resource_controller.tmpl"

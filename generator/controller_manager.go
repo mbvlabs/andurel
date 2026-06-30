@@ -74,13 +74,14 @@ func (c *ControllerManager) GenerateControllerWithActions(
 	actions []string,
 	inertia string,
 ) error {
-	return c.GenerateControllerWithActionsForModel(resourceName, namespace, resourceName, "", actions, inertia)
+	return c.GenerateControllerWithActionsForModel(resourceName, namespace, resourceName, "", actions, inertia, false)
 }
 
 func (c *ControllerManager) GenerateControllerWithActionsForModel(
 	resourceName, namespace, modelName, tableName string,
 	actions []string,
 	inertia string,
+	isAPI bool,
 ) error {
 	modulePath := c.projectManager.GetModulePath()
 	if modelName == "" {
@@ -141,7 +142,7 @@ func (c *ControllerManager) GenerateControllerWithActionsForModel(
 	diMode := c.readDIMode()
 
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateControllerWithActionsForModel(cat, resourceName, namespace, modelName, tableName, modelTableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, modelTableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia, actions); err != nil {
+	if err := fileGen.GenerateControllerWithActionsForModel(cat, resourceName, namespace, modelName, tableName, modelTableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, modelTableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia, actions, isAPI); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
