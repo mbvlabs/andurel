@@ -64,8 +64,7 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 	}
 
 	var templateName string
-	switch controller.Type {
-	case ResourceController:
+	if controller.Type == ResourceController {
 		templateName = "resource_controller.tmpl"
 		if inertia == "vue" {
 			templateName = "inertia_vue_resource_controller.tmpl"
@@ -75,12 +74,7 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 		} else if diMode == "uberfx" {
 			templateName = "resource_controller_fx.tmpl"
 		}
-	case ResourceControllerNoViews:
-		templateName = "resource_controller_no_views.tmpl"
-		if diMode == "uberfx" {
-			templateName = "resource_controller_no_views_fx.tmpl"
-		}
-	default:
+	} else {
 		templateName = "controller.tmpl"
 	}
 
@@ -194,7 +188,7 @@ func inertiaZeroValue(goType string) string {
 	}
 }
 
-func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName, idType string, actions []string) (string, error) {
+func (tr *TemplateRenderer) generateRouteContent(resourceName, namespace, pluralName, idType string, actions []string) (string, error) {
 	// Get module path
 	modulePath, err := tr.getModulePath()
 	if err != nil {
@@ -203,19 +197,23 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName, idTyp
 
 	// Create custom data structure for route template (router/routes/users.go)
 	data := struct {
-		ResourceName  string
-		PluralName    string
-		ModulePath    string
-		IDType        string
-		Actions       []string
-		CustomActions []customRouteAction
+		ResourceName    string
+		Namespace       string
+		NamespacePascal string
+		PluralName      string
+		ModulePath      string
+		IDType          string
+		Actions         []string
+		CustomActions   []customRouteAction
 	}{
-		ResourceName:  resourceName,
-		PluralName:    pluralName,
-		ModulePath:    modulePath,
-		IDType:        idType,
-		Actions:       actions,
-		CustomActions: customRouteActions(actions),
+		ResourceName:    resourceName,
+		Namespace:       namespace,
+		NamespacePascal: naming.ToPascalCase(namespace),
+		PluralName:      pluralName,
+		ModulePath:      modulePath,
+		IDType:          idType,
+		Actions:         actions,
+		CustomActions:   customRouteActions(actions),
 	}
 
 	customFuncs := template.FuncMap{
@@ -235,7 +233,7 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName, idTyp
 	return result, nil
 }
 
-func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, pluralName string, actions []string) (string, error) {
+func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, namespace, pluralName string, actions []string) (string, error) {
 	capitalizedPluralName := naming.Capitalize(naming.ToCamelCase(pluralName))
 	lowercasePluralName := naming.ToLowerCamelCaseFromAny(pluralName)
 
@@ -248,6 +246,8 @@ func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, pluralNa
 	// Create custom data structure for route registration template
 	data := struct {
 		ResourceName          string
+		Namespace             string
+		NamespacePascal       string
 		PluralName            string
 		CapitalizedPluralName string
 		LowercasePluralName   string
@@ -257,6 +257,8 @@ func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, pluralNa
 		CustomActions         []customRouteAction
 	}{
 		ResourceName:          resourceName,
+		Namespace:             namespace,
+		NamespacePascal:       naming.ToPascalCase(namespace),
 		PluralName:            pluralName,
 		CapitalizedPluralName: capitalizedPluralName,
 		LowercasePluralName:   lowercasePluralName,

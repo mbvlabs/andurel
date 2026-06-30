@@ -11,29 +11,31 @@ import (
 
 const returnErrsMarker = "return errors.Join(errs...)"
 
-// FragmentInjector handles injecting fragment code into existing controller,
+// ActionInjector handles injecting action code into existing controller,
 // route, and connect files.
-type FragmentInjector struct {
+type ActionInjector struct {
 	templateService *templates.TemplateService
 }
 
-// NewFragmentInjector creates a new FragmentInjector.
-func NewFragmentInjector() *FragmentInjector {
-	return &FragmentInjector{
+// NewActionInjector creates a new ActionInjector.
+func NewActionInjector() *ActionInjector {
+	return &ActionInjector{
 		templateService: templates.GetGlobalTemplateService(),
 	}
 }
 
-// FragmentMethodData holds data for rendering the fragment_method.tmpl template.
-type FragmentMethodData struct {
+// ActionMethodData holds data for rendering the action_method.tmpl template.
+type ActionMethodData struct {
 	ReceiverName       string
 	PluralResourceName string
 	MethodName         string
 }
 
-// FragmentRouteData holds data for rendering the fragment_route.tmpl template.
-type FragmentRouteData struct {
+// ActionRouteData holds data for rendering the action_route.tmpl template.
+type ActionRouteData struct {
 	ResourceName    string
+	Namespace       string
+	NamespacePascal string
 	MethodName      string
 	ConstructorName string
 	ParamsStruct    string // non-empty for RouteWithSlugs: the generated params struct definition
@@ -42,17 +44,19 @@ type FragmentRouteData struct {
 	LowerMethodName string
 }
 
-// FragmentRegistrationData holds data for rendering the fragment_route_registration.tmpl template.
-type FragmentRegistrationData struct {
-	ResourceName string
-	MethodName   string
-	HTTPMethod   string
-	HandlerVar   string
+// ActionRegistrationData holds data for rendering the action_registration.tmpl template.
+type ActionRegistrationData struct {
+	ResourceName    string
+	Namespace       string
+	NamespacePascal string
+	MethodName      string
+	HTTPMethod      string
+	HandlerVar      string
 }
 
 // InjectControllerMethod appends a method stub to the end of the controller file.
 // It checks for duplicate methods before injecting.
-func (fi *FragmentInjector) InjectControllerMethod(controllerPath string, data FragmentMethodData) error {
+func (ai *ActionInjector) InjectControllerMethod(controllerPath string, data ActionMethodData) error {
 	content, err := os.ReadFile(controllerPath)
 	if err != nil {
 		return fmt.Errorf("failed to read controller file: %w", err)
@@ -67,9 +71,9 @@ func (fi *FragmentInjector) InjectControllerMethod(controllerPath string, data F
 	}
 
 	// Render the template
-	rendered, err := fi.templateService.RenderTemplate("fragment_method.tmpl", data)
+	rendered, err := ai.templateService.RenderTemplate("action_method.tmpl", data)
 	if err != nil {
-		return fmt.Errorf("failed to render fragment method template: %w", err)
+		return fmt.Errorf("failed to render action method template: %w", err)
 	}
 
 	// Append to end of file
@@ -84,7 +88,7 @@ func (fi *FragmentInjector) InjectControllerMethod(controllerPath string, data F
 
 // InjectRouteVariable appends a route variable declaration to the end of the routes file.
 // It checks for duplicate route variables before injecting.
-func (fi *FragmentInjector) InjectRouteVariable(routesPath string, data FragmentRouteData) error {
+func (ai *ActionInjector) InjectRouteVariable(routesPath string, data ActionRouteData) error {
 	content, err := os.ReadFile(routesPath)
 	if err != nil {
 		return fmt.Errorf("failed to read routes file: %w", err)
@@ -93,15 +97,15 @@ func (fi *FragmentInjector) InjectRouteVariable(routesPath string, data Fragment
 	contentStr := string(content)
 
 	// Check for duplicate route variable
-	varName := fmt.Sprintf("var %s%s ", data.ResourceName, data.MethodName)
+	varName := fmt.Sprintf("var %s%s%s ", data.NamespacePascal, data.ResourceName, data.MethodName)
 	if strings.Contains(contentStr, varName) {
-		return fmt.Errorf("route variable %s%s already exists in %s", data.ResourceName, data.MethodName, routesPath)
+		return fmt.Errorf("route variable %s%s%s already exists in %s", data.NamespacePascal, data.ResourceName, data.MethodName, routesPath)
 	}
 
 	// Render the template
-	rendered, err := fi.templateService.RenderTemplate("fragment_route.tmpl", data)
+	rendered, err := ai.templateService.RenderTemplate("action_route.tmpl", data)
 	if err != nil {
-		return fmt.Errorf("failed to render fragment route template: %w", err)
+		return fmt.Errorf("failed to render action route template: %w", err)
 	}
 
 	// Append to end of file
@@ -117,7 +121,7 @@ func (fi *FragmentInjector) InjectRouteVariable(routesPath string, data Fragment
 // InjectRouteRegistration inserts a route registration block before the
 // "return errors.Join(errs...)" marker in the connect file.
 // If the marker is not found, it prints manual instructions.
-func (fi *FragmentInjector) InjectRouteRegistration(connectPath string, data FragmentRegistrationData) error {
+func (ai *ActionInjector) InjectRouteRegistration(connectPath string, data ActionRegistrationData) error {
 	content, err := os.ReadFile(connectPath)
 	if err != nil {
 		return fmt.Errorf("failed to read connect file: %w", err)
@@ -133,14 +137,14 @@ func (fi *FragmentInjector) InjectRouteRegistration(connectPath string, data Fra
 
 	// Find the marker
 	if !strings.Contains(contentStr, returnErrsMarker) {
-		fi.printManualRegistrationInstructions(data)
+		ai.printManualRegistrationInstructions(data)
 		return nil
 	}
 
 	// Render the template
-	rendered, err := fi.templateService.RenderTemplate("fragment_route_registration.tmpl", data)
+	rendered, err := ai.templateService.RenderTemplate("action_registration.tmpl", data)
 	if err != nil {
-		return fmt.Errorf("failed to render fragment route registration template: %w", err)
+		return fmt.Errorf("failed to render action registration template: %w", err)
 	}
 
 	// Insert before marker
@@ -153,20 +157,20 @@ func (fi *FragmentInjector) InjectRouteRegistration(connectPath string, data Fra
 	return files.FormatGoFile(connectPath)
 }
 
-func (fi *FragmentInjector) printManualRegistrationInstructions(data FragmentRegistrationData) {
+func (ai *ActionInjector) printManualRegistrationInstructions(data ActionRegistrationData) {
 	fmt.Printf(`
 INFO: Could not find marker "%s" in connect file.
 Add the following route registration manually:
 
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.Method%s,
-		Path:    routes.%s%s.Path(),
-		Name:    routes.%s%s.Name(),
+		Path:    routes.%s%s%s.Path(),
+		Name:    routes.%s%s%s.Name(),
 		Handler: %s.%s,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-`, returnErrsMarker, data.HTTPMethod, data.ResourceName, data.MethodName, data.ResourceName, data.MethodName, data.HandlerVar, data.MethodName)
+`, returnErrsMarker, data.HTTPMethod, data.NamespacePascal, data.ResourceName, data.MethodName, data.NamespacePascal, data.ResourceName, data.MethodName, data.HandlerVar, data.MethodName)
 }

@@ -11,15 +11,15 @@ import (
 	"{{.ModulePath}}/models"
 )
 {{ViewData .}}
-type {{.ResourceName}}Index struct {
+type {{.NamespacePascal}}{{.ResourceName}}Index struct {
 	Items []models.{{.EntityName}}
 }
 
-func ({{$indexRecv}} {{.ResourceName}}Index) PageFragment() string {
+func ({{$indexRecv}} {{.NamespacePascal}}{{.ResourceName}}Index) PageFragment() string {
 	return "{{.ResourceName | ToLower}}-index-page-fragment"
 }
 
-templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
+templ ({{$indexRecv}} {{.NamespacePascal}}{{.ResourceName}}Index) Page() {
 	@base() {
 		@templ.Fragment({{$indexRecv}}.PageFragment()) {
 			<main id="{{.ResourceName | ToLower}}-index-container" class="flex-1 px-6 py-10">
@@ -55,15 +55,15 @@ templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 	}
 }
 
-type {{.ResourceName}}Show struct {
+type {{.NamespacePascal}}{{.ResourceName}}Show struct {
 	Item models.{{.EntityName}}
 }
 
-func ({{$showRecv}} {{.ResourceName}}Show) PageFragment() string {
+func ({{$showRecv}} {{.NamespacePascal}}{{.ResourceName}}Show) PageFragment() string {
 	return "{{.ResourceName | ToLower}}-show-page-fragment"
 }
 
-templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
+templ ({{$showRecv}} {{.NamespacePascal}}{{.ResourceName}}Show) Page() {
 	@base() {
 		@templ.Fragment({{$showRecv}}.PageFragment()) {
 			<main id="{{.ResourceName | ToLower}}-show-container" class="flex-1 px-6 py-10">
@@ -92,13 +92,13 @@ templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 	}
 }
 
-type {{.ResourceName}}New struct{}
+type {{.NamespacePascal}}{{.ResourceName}}New struct{}
 
-func ({{$newRecv}} {{.ResourceName}}New) PageFragment() string {
+func ({{$newRecv}} {{.NamespacePascal}}{{.ResourceName}}New) PageFragment() string {
 	return "{{.ResourceName | ToLower}}-new-page-fragment"
 }
 
-templ ({{$newRecv}} {{.ResourceName}}New) Page() {
+templ ({{$newRecv}} {{.NamespacePascal}}{{.ResourceName}}New) Page() {
 	@base() {
 		@templ.Fragment({{$newRecv}}.PageFragment()) {
 			<main id="{{.ResourceName | ToLower}}-new-container" class="flex-1 flex items-center justify-center px-6 py-10">
@@ -149,15 +149,15 @@ templ ({{$newRecv}} {{.ResourceName}}New) Page() {
 	}
 }
 
-type {{.ResourceName}}Edit struct {
+type {{.NamespacePascal}}{{.ResourceName}}Edit struct {
 	Item models.{{.EntityName}}
 }
 
-func ({{$editRecv}} {{.ResourceName}}Edit) PageFragment() string {
+func ({{$editRecv}} {{.NamespacePascal}}{{.ResourceName}}Edit) PageFragment() string {
 	return "{{.ResourceName | ToLower}}-edit-page-fragment"
 }
 
-templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
+templ ({{$editRecv}} {{.NamespacePascal}}{{.ResourceName}}Edit) Page() {
 	@base() {
 		@templ.Fragment({{$editRecv}}.PageFragment()) {
 			<main id="{{.ResourceName | ToLower}}-edit-container" class="flex-1 flex items-center justify-center px-6 py-10">

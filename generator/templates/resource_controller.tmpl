@@ -1,4 +1,4 @@
-package controllers
+package {{or .Namespace "controllers"}}
 
 import (
 	"fmt"
@@ -79,7 +79,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
-	return hypermedia.RenderPage(etx, views.{{.ResourceName}}Index{Items: {{.ModelPluralName | ToCamelCase}}List.{{.ModelPluralResourceName}}}.Page())
+	return hypermedia.RenderPage(etx, views.{{.NamespacePascal}}{{.ResourceName}}Index{Items: {{.ModelPluralName | ToCamelCase}}List.{{.ModelPluralResourceName}}}.Page())
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
@@ -111,11 +111,11 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
-	return hypermedia.RenderPage(etx, views.{{.ResourceName}}Show{Item: {{.ResourceName | ToLowerCamelCase}}}.Page())
+	return hypermedia.RenderPage(etx, views.{{.NamespacePascal}}{{.ResourceName}}Show{Item: {{.ResourceName | ToLowerCamelCase}}}.Page())
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) New(etx *echo.Context) error {
-	return hypermedia.RenderPage(etx, views.{{.ResourceName}}New{}.Page())
+	return hypermedia.RenderPage(etx, views.{{.NamespacePascal}}{{.ResourceName}}New{}.Page())
 }
 
 type Create{{.ResourceName}}FormPayload struct {
@@ -267,7 +267,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 			return flashErr
 		}
 		{{- if HasAction "new"}}
-		return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}New.URL())
+		return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}New.URL())
 		{{- else}}
 		return hypermedia.RenderPage(etx, views.InternalError())
 		{{- end}}
@@ -278,11 +278,11 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 	}
 
 	{{- if HasAction "show"}}
-	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
+	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
 	{{- else}}
 	_ = {{.ResourceName | ToLowerCamelCase}}
 	{{- if HasAction "index"}}
-	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
+	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
 	{{- else}}
 	return etx.NoContent(http.StatusCreated)
 	{{- end}}
@@ -318,7 +318,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
 
-	return hypermedia.RenderPage(etx, views.{{.ResourceName}}Edit{Item: {{.ResourceName | ToLowerCamelCase}}}.Page())
+	return hypermedia.RenderPage(etx, views.{{.NamespacePascal}}{{.ResourceName}}Edit{Item: {{.ResourceName | ToLowerCamelCase}}}.Page())
 }
 
 type Update{{.ResourceName}}FormPayload struct {
@@ -496,7 +496,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		{{- if HasAction "edit"}}
 		return etx.Redirect(
 			http.StatusSeeOther,
-			routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLowerCamelCase}}ID),
+			routes.{{.NamespacePascal}}{{.ResourceName}}Edit.URL({{.ResourceName | ToLowerCamelCase}}ID),
 		)
 		{{- else}}
 		return hypermedia.RenderPage(etx, views.InternalError())
@@ -508,11 +508,11 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	}
 
 	{{- if HasAction "show"}}
-	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
+	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
 	{{- else}}
 	_ = {{.ResourceName | ToLowerCamelCase}}
 	{{- if HasAction "index"}}
-	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
+	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
 	{{- else}}
 	return etx.NoContent(http.StatusOK)
 	{{- end}}
@@ -549,7 +549,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		{{- if HasAction "index"}}
-		return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
+		return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
 		{{- else}}
 		return hypermedia.RenderPage(etx, views.InternalError())
 		{{- end}}
@@ -560,7 +560,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 	}
 
 	{{- if HasAction "index"}}
-	return etx.Redirect(http.StatusSeeOther, routes.{{.ResourceName}}Index.URL())
+	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
 	{{- else}}
 	return etx.NoContent(http.StatusOK)
 	{{- end}}

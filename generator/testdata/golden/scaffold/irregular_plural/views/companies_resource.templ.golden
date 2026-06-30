@@ -69,7 +69,7 @@ templ (ci CompanyIndex) Page() {
 								</thead>
 								<tbody class="[&_tr:last-child]:border-0">
 									for _, company := range ci.Items {
-									companyData := newCompanyData(company)
+									{{ companyData := newCompanyData(company) }}
 										<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ companyData.Name }</td>
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ companyData.Industry }</td>

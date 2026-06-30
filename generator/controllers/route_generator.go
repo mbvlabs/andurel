@@ -28,25 +28,26 @@ func NewRouteGenerator() *RouteGenerator {
 	}
 }
 
-func (rg *RouteGenerator) GenerateRoutes(resourceName, pluralName, idType, diMode string) error {
-	return rg.GenerateRoutesWithActions(resourceName, pluralName, idType, diMode, nil)
+func (rg *RouteGenerator) GenerateRoutes(resourceName, namespace, pluralName, idType, diMode string) error {
+	return rg.GenerateRoutesWithActions(resourceName, namespace, pluralName, idType, diMode, nil)
 }
 
-func (rg *RouteGenerator) GenerateRoutesWithActions(resourceName, pluralName, idType, diMode string, actions []string) error {
-	return rg.GenerateRoutesWithActionsAndConstructor(resourceName, pluralName, idType, diMode, actions, true)
+func (rg *RouteGenerator) GenerateRoutesWithActions(resourceName, namespace, pluralName, idType, diMode string, actions []string) error {
+	return rg.GenerateRoutesWithActionsAndConstructor(resourceName, namespace, pluralName, idType, diMode, actions, true)
 }
 
-func (rg *RouteGenerator) GenerateRoutesWithActionsAndConstructor(resourceName, pluralName, idType, diMode string, actions []string, withDB bool) error {
-	routesPath := filepath.Join("router/routes", pluralName+".go")
+func (rg *RouteGenerator) GenerateRoutesWithActionsAndConstructor(resourceName, namespace, pluralName, idType, diMode string, actions []string, withDB bool) error {
+	prefixedPluralName := namespacePrefix(namespace) + pluralName
+	routesPath := filepath.Join("router/routes", prefixedPluralName+".go")
 
 	if _, err := os.Stat(routesPath); err == nil {
 		if len(actions) > 0 {
-			existingActions, err := existingRouteFileActions(routesPath, resourceName, pluralName)
+			existingActions, err := existingRouteFileActions(routesPath, resourceName, namespace, pluralName)
 			if err != nil {
 				return err
 			}
 			actions = mergeActions(existingActions, actions)
-			routeContent, err := rg.templateRenderer.generateRouteContent(resourceName, pluralName, idType, actions)
+			routeContent, err := rg.templateRenderer.generateRouteContent(resourceName, namespace, pluralName, idType, actions)
 			if err != nil {
 				return fmt.Errorf("failed to generate route content: %w", err)
 			}
@@ -60,8 +61,12 @@ func (rg *RouteGenerator) GenerateRoutesWithActionsAndConstructor(resourceName, 
 			}
 		}
 
-		if diMode != "uberfx" {
-			if err := rg.createRouteRegistrationFile(resourceName, pluralName, actions); err != nil {
+		if diMode == "uberfx" {
+			if err := rg.mainInjector.InjectFXController(resourceName, namespace, pluralName); err != nil {
+				return fmt.Errorf("failed to inject fx controller: %w", err)
+			}
+		} else {
+			if err := rg.createRouteRegistrationFile(resourceName, namespace, pluralName, actions); err != nil {
 				return fmt.Errorf("failed to create route registration file: %w", err)
 			}
 		}
@@ -70,7 +75,7 @@ func (rg *RouteGenerator) GenerateRoutesWithActionsAndConstructor(resourceName, 
 		return fmt.Errorf("failed to stat routes file %s: %w", routesPath, err)
 	}
 
-	routeContent, err := rg.templateRenderer.generateRouteContent(resourceName, pluralName, idType, actions)
+	routeContent, err := rg.templateRenderer.generateRouteContent(resourceName, namespace, pluralName, idType, actions)
 	if err != nil {
 		return fmt.Errorf("failed to generate route content: %w", err)
 	}
@@ -88,16 +93,16 @@ func (rg *RouteGenerator) GenerateRoutesWithActionsAndConstructor(resourceName, 
 	}
 
 	if diMode == "uberfx" {
-		if err := rg.mainInjector.InjectFXController(resourceName, pluralName); err != nil {
-			slog.Warn("unexpected error injecting fx controller", "error", err)
+		if err := rg.mainInjector.InjectFXController(resourceName, namespace, pluralName); err != nil {
+			return fmt.Errorf("failed to inject fx controller: %w", err)
 		}
 	} else {
-		if err := rg.createRouteRegistrationFile(resourceName, pluralName, actions); err != nil {
+		if err := rg.createRouteRegistrationFile(resourceName, namespace, pluralName, actions); err != nil {
 			return fmt.Errorf("failed to create route registration file: %w", err)
 		}
 
 		// Inject into cmd/app/main.go
-		if err := rg.mainInjector.InjectControllerWithDB(resourceName, pluralName, withDB); err != nil {
+		if err := rg.mainInjector.InjectControllerWithDB(resourceName, namespace, pluralName, withDB); err != nil {
 			slog.Warn("unexpected error injecting controller", "error", err)
 		}
 	}
@@ -105,11 +110,12 @@ func (rg *RouteGenerator) GenerateRoutesWithActionsAndConstructor(resourceName, 
 	return nil
 }
 
-func (rg *RouteGenerator) createRouteRegistrationFile(resourceName, pluralName string, actions []string) error {
-	connectPath := filepath.Join("router", "connect_"+pluralName+"_routes.go")
+func (rg *RouteGenerator) createRouteRegistrationFile(resourceName, namespace, pluralName string, actions []string) error {
+	prefixedPluralName := namespacePrefix(namespace) + pluralName
+	connectPath := filepath.Join("router", "connect_"+prefixedPluralName+"_routes.go")
 
 	if _, err := os.Stat(connectPath); err == nil {
-		existingActions, err := existingRouteRegistrationActions(connectPath, resourceName)
+		existingActions, err := existingRouteRegistrationActions(connectPath, resourceName, namespace)
 		if err != nil {
 			return err
 		}
@@ -119,7 +125,7 @@ func (rg *RouteGenerator) createRouteRegistrationFile(resourceName, pluralName s
 	}
 
 	// Generate the registration file content
-	registrationContent, err := rg.templateRenderer.generateRouteRegistrationFile(resourceName, pluralName, actions)
+	registrationContent, err := rg.templateRenderer.generateRouteRegistrationFile(resourceName, namespace, pluralName, actions)
 	if err != nil {
 		return fmt.Errorf("failed to generate route registration content: %w", err)
 	}
@@ -135,12 +141,13 @@ func (rg *RouteGenerator) createRouteRegistrationFile(resourceName, pluralName s
 	return files.FormatGoFile(connectPath)
 }
 
-func existingRouteRegistrationActions(connectPath, resourceName string) ([]string, error) {
+func existingRouteRegistrationActions(connectPath, resourceName, namespace string) ([]string, error) {
 	content, err := os.ReadFile(connectPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read route registration file %s: %w", connectPath, err)
 	}
 
+	prefix := naming.ToPascalCase(namespace)
 	actions := make([]string, 0, len(crudActions))
 	for _, action := range crudActions {
 		handler := fmt.Sprintf(".%s,", naming.ToPascalCase(action))
@@ -149,7 +156,7 @@ func existingRouteRegistrationActions(connectPath, resourceName string) ([]strin
 			continue
 		}
 
-		routeRef := fmt.Sprintf("routes.%s%s.", resourceName, naming.ToPascalCase(action))
+		routeRef := fmt.Sprintf("routes.%s%s%s.", prefix, resourceName, naming.ToPascalCase(action))
 		if strings.Contains(string(content), routeRef) && !slices.Contains(actions, action) {
 			actions = append(actions, action)
 		}
@@ -157,22 +164,27 @@ func existingRouteRegistrationActions(connectPath, resourceName string) ([]strin
 	return actions, nil
 }
 
-func existingRouteFileActions(routesPath, resourceName, pluralName string) ([]string, error) {
+func existingRouteFileActions(routesPath, resourceName, namespace, pluralName string) ([]string, error) {
 	content, err := os.ReadFile(routesPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read routes file %s: %w", routesPath, err)
 	}
 
+	prefix := naming.ToPascalCase(namespace)
 	contentStr := string(content)
 	actions := make([]string, 0, len(crudActions))
 	for _, action := range crudActions {
-		routeVar := fmt.Sprintf("var %s%s", resourceName, naming.ToPascalCase(action))
+		routeVar := fmt.Sprintf("var %s%s%s", prefix, resourceName, naming.ToPascalCase(action))
 		if strings.Contains(contentStr, routeVar) && !slices.Contains(actions, action) {
 			actions = append(actions, action)
 		}
 	}
 
-	routeNamePattern := regexp.MustCompile(fmt.Sprintf(`"%s\.([a-z0-9_]+)"`, regexp.QuoteMeta(pluralName)))
+	routeNamePrefix := pluralName
+	if namespace != "" {
+		routeNamePrefix = namespace + "." + pluralName
+	}
+	routeNamePattern := regexp.MustCompile(fmt.Sprintf(`"%s\.([a-z0-9_]+)"`, regexp.QuoteMeta(routeNamePrefix)))
 	for _, match := range routeNamePattern.FindAllStringSubmatch(contentStr, -1) {
 		if len(match) != 2 {
 			continue
@@ -183,4 +195,11 @@ func existingRouteFileActions(routesPath, resourceName, pluralName string) ([]st
 		}
 	}
 	return actions, nil
+}
+
+func namespacePrefix(namespace string) string {
+	if namespace == "" {
+		return ""
+	}
+	return namespace + "_"
 }

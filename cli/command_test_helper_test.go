@@ -146,6 +146,7 @@ type modelWithPKCall struct {
 
 type scaffoldCall struct {
 	name        string
+	namespace   string
 	tableName   string
 	skipFactory bool
 	primaryKey  string
@@ -154,9 +155,9 @@ type scaffoldCall struct {
 
 type controllerCall struct {
 	name      string
+	namespace string
 	modelName string
 	tableName string
-	withViews bool
 	actions   []string
 	inertia   string
 }
@@ -183,33 +184,34 @@ func (f *fakeGenerator) GenerateModelWithPK(resourceName string, tableNameOverri
 	return f.err
 }
 
-func (f *fakeGenerator) GenerateControllerWithActions(resourceName, tableName string, withViews bool, actions []string, inertia string) error {
+func (f *fakeGenerator) GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string) error {
 	f.controllerCalls = append(f.controllerCalls, controllerCall{
 		name:      resourceName,
+		namespace: namespace,
 		modelName: resourceName,
 		tableName: tableName,
-		withViews: withViews,
 		actions:   append([]string(nil), actions...),
 		inertia:   inertia,
 	})
 	return f.err
 }
 
-func (f *fakeGenerator) GenerateControllerWithActionsForModel(resourceName, modelName, tableName string, withViews bool, actions []string, inertia string) error {
+func (f *fakeGenerator) GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string) error {
 	f.controllerCalls = append(f.controllerCalls, controllerCall{
 		name:      resourceName,
+		namespace: namespace,
 		modelName: modelName,
 		tableName: tableName,
-		withViews: withViews,
 		actions:   append([]string(nil), actions...),
 		inertia:   inertia,
 	})
 	return f.err
 }
 
-func (f *fakeGenerator) GenerateScaffold(resourceName, tableName string, skipFactory bool, primaryKeyColumn string, inertia string) error {
+func (f *fakeGenerator) GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string) error {
 	f.scaffoldCalls = append(f.scaffoldCalls, scaffoldCall{
 		name:        resourceName,
+		namespace:   namespace,
 		tableName:   tableName,
 		skipFactory: skipFactory,
 		primaryKey:  primaryKeyColumn,

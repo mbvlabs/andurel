@@ -21,7 +21,7 @@ const form = useForm({
 })
 
 function submit() {
-  form.post('/{{.PluralName}}')
+  form.post('/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}')
 }
 {{- else if eq .ComponentName "Edit"}}
 
@@ -38,7 +38,7 @@ const form = useForm({
 })
 
 function submit() {
-  form.put(`/{{.PluralName}}/${props.item.{{.IDFieldName}}}`)
+  form.put(`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${props.item.{{.IDFieldName}}}`)
 }
 {{- end}}
 </script>
@@ -50,7 +50,7 @@ function submit() {
   <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-gray-900">{{.ResourceName}}s</h1>
-      <Link href="/{{.PluralName}}/new" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">New {{.ResourceName}}</Link>
+      <Link href="/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/new" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">New {{.ResourceName}}</Link>
     </div>
 
     <div class="mt-8 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -69,9 +69,9 @@ function submit() {
             <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{{ "{{" }} item.{{.Name}} {{ "}}" }}</td>
 {{- end}}
             <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-              <Link :href="`/{{.PluralName}}/${item.{{.IDFieldName}}}`" class="mr-3 text-blue-600 hover:text-blue-900">View</Link>
-              <Link :href="`/{{.PluralName}}/${item.{{.IDFieldName}}}/edit`" class="mr-3 text-indigo-600 hover:text-indigo-900">Edit</Link>
-              <Link :href="`/{{.PluralName}}/${item.{{.IDFieldName}}}`" method="delete" as="button" class="text-red-600 hover:text-red-900">Delete</Link>
+              <Link :href="`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}`" class="mr-3 text-blue-600 hover:text-blue-900">View</Link>
+              <Link :href="`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}/edit`" class="mr-3 text-indigo-600 hover:text-indigo-900">Edit</Link>
+              <Link :href="`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}`" method="delete" as="button" class="text-red-600 hover:text-red-900">Delete</Link>
             </td>
           </tr>
         </tbody>
@@ -83,8 +83,8 @@ function submit() {
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-gray-900">{{.ResourceName}} Details</h1>
       <div class="flex gap-3">
-        <Link :href="`/{{.PluralName}}/${item.{{.IDFieldName}}}/edit`" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Edit</Link>
-        <Link href="/{{.PluralName}}" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Back</Link>
+        <Link :href="`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}/edit`" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Edit</Link>
+        <Link href="/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Back</Link>
       </div>
     </div>
 
@@ -103,7 +103,7 @@ function submit() {
   <div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-gray-900">New {{.ResourceName}}</h1>
-      <Link href="/{{.PluralName}}" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Back</Link>
+      <Link href="/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Back</Link>
     </div>
 
     <form @submit.prevent="submit" class="mt-8 space-y-6 overflow-hidden rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -124,7 +124,7 @@ function submit() {
   <div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-gray-900">Edit {{.ResourceName}}</h1>
-      <Link :href="`/{{.PluralName}}/${item.{{.IDFieldName}}}`" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</Link>
+      <Link :href="`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}`" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</Link>
     </div>
 
     <form @submit.prevent="submit" class="mt-8 space-y-6 overflow-hidden rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -137,7 +137,7 @@ function submit() {
 {{- end}}
 {{- end}}
       <div class="flex justify-end gap-3">
-        <Link :href="`/{{.PluralName}}/${item.{{.IDFieldName}}}`" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</Link>
+        <Link :href="`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}`" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</Link>
         <button type="submit" :disabled="form.processing" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">{{ "{{" }} form.processing ? 'Updating...' : 'Update {{.ResourceName}}' {{ "}}" }}</button>
       </div>
     </form>

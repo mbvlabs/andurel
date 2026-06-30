@@ -242,7 +242,6 @@ const llmControllersDocumentation = `# Andurel Framework - Controllers
 andurel llm controllers
 andurel generate controller User
 andurel generate resource Product
-andurel generate fragment User Search /search
 ` + "```" + `
 
 Controllers handle HTTP requests, interact with models, and render views. They follow REST conventions and support both traditional page rendering and hypermedia (SSE) responses.

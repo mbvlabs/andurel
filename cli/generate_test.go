@@ -76,6 +76,44 @@ func TestGenerateSubCommands(t *testing.T) {
 	}
 }
 
+func TestGenerateHelpMentionsNamespacedResources(t *testing.T) {
+	generateCmd := newGenerateCommand()
+	controllerCmd := newGenerateControllerCommand()
+	scaffoldCmd := newGenerateScaffoldCommand()
+
+	tests := []struct {
+		name string
+		text string
+		want []string
+	}{
+		{
+			name: "generate",
+			text: generateCmd.Long + "\n" + generateCmd.Example,
+			want: []string{"admin/Widget", "generate controller admin/Widget export", "generate scaffold admin/Widget"},
+		},
+		{
+			name: "controller",
+			text: controllerCmd.Long + "\n" + controllerCmd.Example,
+			want: []string{"admin/Widget", "controllers/admin/widgets.go", "admin.widgets.export"},
+		},
+		{
+			name: "scaffold",
+			text: scaffoldCmd.Long + "\n" + scaffoldCmd.Example,
+			want: []string{"admin/Widget", "controllers/admin", "views/admin_widgets_resource.templ"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, want := range tt.want {
+				if !strings.Contains(tt.text, want) {
+					t.Fatalf("expected %s help to mention %q:\n%s", tt.name, want, tt.text)
+				}
+			}
+		})
+	}
+}
+
 func getCommandNames(commands []*cobra.Command) []string {
 	var names []string
 	for _, cmd := range commands {

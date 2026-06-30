@@ -21,6 +21,7 @@ type FileGenerator struct {
 	fileManager      files.Manager
 	templateRenderer *TemplateRenderer
 	routeGenerator   *RouteGenerator
+	mainInjector     *MainInjector
 }
 
 func NewFileGenerator() *FileGenerator {
@@ -28,12 +29,14 @@ func NewFileGenerator() *FileGenerator {
 		fileManager:      files.NewUnifiedFileManager(),
 		templateRenderer: NewTemplateRenderer(),
 		routeGenerator:   NewRouteGenerator(),
+		mainInjector:     NewMainInjector(),
 	}
 }
 
 func (fg *FileGenerator) GenerateController(
 	cat *catalog.Catalog,
 	resourceName string,
+	namespace string,
 	tableName string,
 	controllerType ControllerType,
 	modulePath string,
@@ -44,12 +47,13 @@ func (fg *FileGenerator) GenerateController(
 	diMode string,
 	inertia string,
 ) error {
-	return fg.GenerateControllerWithActions(cat, resourceName, tableName, controllerType, modulePath, databaseType, tableNameOverridden, nullType, primaryKeyColumn, diMode, inertia, nil)
+	return fg.GenerateControllerWithActions(cat, resourceName, namespace, tableName, controllerType, modulePath, databaseType, tableNameOverridden, nullType, primaryKeyColumn, diMode, inertia, nil)
 }
 
 func (fg *FileGenerator) GenerateControllerWithActions(
 	cat *catalog.Catalog,
 	resourceName string,
+	namespace string,
 	tableName string,
 	controllerType ControllerType,
 	modulePath string,
@@ -61,12 +65,13 @@ func (fg *FileGenerator) GenerateControllerWithActions(
 	inertia string,
 	actions []string,
 ) error {
-	return fg.GenerateControllerWithActionsForModel(cat, resourceName, resourceName, tableName, tableName, controllerType, modulePath, databaseType, tableNameOverridden, tableNameOverridden, nullType, primaryKeyColumn, diMode, inertia, actions)
+	return fg.GenerateControllerWithActionsForModel(cat, resourceName, namespace, resourceName, tableName, tableName, controllerType, modulePath, databaseType, tableNameOverridden, tableNameOverridden, nullType, primaryKeyColumn, diMode, inertia, actions)
 }
 
 func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 	cat *catalog.Catalog,
 	resourceName string,
+	namespace string,
 	modelName string,
 	tableName string,
 	modelTableName string,
@@ -96,7 +101,8 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 	if !modelTableNameOverridden {
 		modelPluralName = naming.DeriveTableName(modelName)
 	}
-	controllerPath := filepath.Join("controllers", tableName+".go")
+	controllerDir := filepath.Join("controllers", namespace)
+	controllerPath := filepath.Join(controllerDir, tableName+".go")
 	controllerExists := false
 	if _, err := os.Stat(controllerPath); err == nil {
 		controllerExists = true
@@ -141,7 +147,8 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		ModelPluralName:          modelPluralName,
 		TableName:                tableName,
 		ModelTableName:           modelTableName,
-		PackageName:              "controllers",
+		PackageName:              naming.ControllerPackageName(namespace),
+		Namespace:                namespace,
 		ModulePath:               modulePath,
 		ControllerType:           controllerType,
 		TableNameOverridden:      tableNameOverridden,
@@ -169,11 +176,11 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 			return fmt.Errorf("failed to merge controller file: %w", err)
 		}
 		if diMode == "uberfx" {
-			controllerContent = ensureFXRegisterRoutes(controllerContent, controller.ReceiverName, controller.PluralResourceName, resourceName, actions)
+			controllerContent = ensureFXRegisterRoutes(controllerContent, controller.ReceiverName, controller.PluralResourceName, namespace, resourceName, actions)
 		}
 	}
 
-	if err := fg.fileManager.EnsureDir("controllers"); err != nil {
+	if err := fg.fileManager.EnsureDir(controllerDir); err != nil {
 		return err
 	}
 
@@ -185,7 +192,13 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		return fmt.Errorf("failed to format controller file: %w", err)
 	}
 
-	if err := fg.routeGenerator.GenerateRoutesWithActions(resourceName, pluralName, controller.IDType, diMode, routeActions); err != nil {
+	if diMode == "uberfx" {
+		if err := fg.mainInjector.InjectFXController(resourceName, namespace, pluralName); err != nil {
+			return fmt.Errorf("failed to inject fx controller: %w", err)
+		}
+	}
+
+	if err := fg.routeGenerator.GenerateRoutesWithActions(resourceName, namespace, pluralName, controller.IDType, diMode, routeActions); err != nil {
 		return fmt.Errorf("failed to generate routes: %w", err)
 	}
 
@@ -328,21 +341,22 @@ func controllerDeclKeys(decl ast.Decl) []string {
 	}
 }
 
-func ensureFXRegisterRoutes(content, receiverName, controllerName, resourceName string, actions []string) string {
+func ensureFXRegisterRoutes(content, receiverName, controllerName, namespace, resourceName string, actions []string) string {
 	if !strings.Contains(content, "RegisterRoutes(r *router.Router)") {
 		return strings.TrimRight(content, "\n") + "\n\n" +
-			strings.TrimRight(fxRegisterRoutesMethod(receiverName, controllerName, resourceName, actions), "\n") + "\n"
+			strings.TrimRight(fxRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName, actions), "\n") + "\n"
 	}
 
 	var additions strings.Builder
+	routePrefix := naming.ToPascalCase(namespace) + resourceName
 	for _, action := range actions {
 		action = strings.ToLower(action)
 		methodName := naming.ToPascalCase(action)
-		routeRef := fmt.Sprintf("routes.%s%s.Path()", resourceName, methodName)
+		routeRef := fmt.Sprintf("routes.%s%s.Path()", routePrefix, methodName)
 		if strings.Contains(content, routeRef) {
 			continue
 		}
-		if block := fxRouteBlock(receiverName, resourceName, action); block != "" {
+		if block := fxRouteBlock(receiverName, namespace, resourceName, action); block != "" {
 			additions.WriteString(block)
 		}
 	}
@@ -357,13 +371,13 @@ func ensureFXRegisterRoutes(content, receiverName, controllerName, resourceName 
 	return strings.TrimRight(content, "\n") + "\n\n" + strings.TrimRight(additions.String(), "\n") + "\n"
 }
 
-func fxRegisterRoutesMethod(receiverName, controllerName, resourceName string, actions []string) string {
+func fxRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName string, actions []string) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("func (%s %s) RegisterRoutes(r *router.Router) error {\n", receiverName, controllerName))
 	sb.WriteString("\tvar errs []error\n")
 	sb.WriteString("\tvar err error\n\n")
 	for _, action := range actions {
-		if block := fxRouteBlock(receiverName, resourceName, strings.ToLower(action)); block != "" {
+		if block := fxRouteBlock(receiverName, namespace, resourceName, strings.ToLower(action)); block != "" {
 			sb.WriteString(block)
 		}
 	}
@@ -372,7 +386,7 @@ func fxRegisterRoutesMethod(receiverName, controllerName, resourceName string, a
 	return sb.String()
 }
 
-func fxRouteBlock(receiverName, resourceName, action string) string {
+func fxRouteBlock(receiverName, namespace, resourceName, action string) string {
 	methodName := naming.ToPascalCase(action)
 	httpMethod := map[string]string{
 		"index":   "http.MethodGet",
@@ -386,12 +400,13 @@ func fxRouteBlock(receiverName, resourceName, action string) string {
 	if httpMethod == "" {
 		return ""
 	}
+	routePrefix := naming.ToPascalCase(namespace) + resourceName
 
 	return fmt.Sprintf("\t_, err = r.AddRoute(echo.Route{\n\t\tMethod:  %s,\n\t\tPath:    routes.%s%s.Path(),\n\t\tName:    routes.%s%s.Name(),\n\t\tHandler: %s.%s,\n\t})\n\tif err != nil {\n\t\terrs = append(errs, err)\n\t}\n\n",
 		httpMethod,
-		resourceName,
+		routePrefix,
 		methodName,
-		resourceName,
+		routePrefix,
 		methodName,
 		receiverName,
 		methodName,

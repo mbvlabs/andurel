@@ -63,25 +63,22 @@ func (c *ControllerManager) resolvePK(cat *catalog.Catalog, tableName string) (P
 }
 
 func (c *ControllerManager) GenerateController(
-	resourceName, tableName string,
-	withViews bool,
+	resourceName, namespace string,
 	inertia string,
 ) error {
-	return c.GenerateControllerWithActions(resourceName, tableName, withViews, nil, inertia)
+	return c.GenerateControllerWithActions(resourceName, namespace, nil, inertia)
 }
 
 func (c *ControllerManager) GenerateControllerWithActions(
-	resourceName, tableName string,
-	withViews bool,
+	resourceName, namespace string,
 	actions []string,
 	inertia string,
 ) error {
-	return c.GenerateControllerWithActionsForModel(resourceName, resourceName, tableName, withViews, actions, inertia)
+	return c.GenerateControllerWithActionsForModel(resourceName, namespace, resourceName, "", actions, inertia)
 }
 
 func (c *ControllerManager) GenerateControllerWithActionsForModel(
-	resourceName, modelName, tableName string,
-	withViews bool,
+	resourceName, namespace, modelName, tableName string,
 	actions []string,
 	inertia string,
 ) error {
@@ -138,29 +135,22 @@ func (c *ControllerManager) GenerateControllerWithActionsForModel(
 		return err
 	}
 
-	controllerType := controllers.ResourceControllerNoViews
-	if withViews {
-		controllerType = controllers.ResourceController
-	}
+	controllerType := controllers.ResourceController
 
 	nullType := c.readNullType()
 	diMode := c.readDIMode()
 
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateControllerWithActionsForModel(cat, resourceName, modelName, tableName, modelTableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, modelTableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia, actions); err != nil {
+	if err := fileGen.GenerateControllerWithActionsForModel(cat, resourceName, namespace, modelName, tableName, modelTableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, modelTableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia, actions); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
-	if withViews {
-		fmt.Printf("Successfully generated resource controller %s with views\n", resourceName)
-	} else {
-		fmt.Printf("Successfully generated resource controller %s (no views)\n", resourceName)
-	}
+	fmt.Printf("Successfully generated resource controller %s with views\n", resourceName)
 
 	return nil
 }
 
-func (c *ControllerManager) GenerateControllerFromModel(resourceName string, withViews bool) error {
+func (c *ControllerManager) GenerateControllerFromModel(resourceName string) error {
 	modulePath := c.projectManager.GetModulePath()
 
 	var modelFileName strings.Builder
@@ -192,25 +182,22 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 		}
 	}
 
-	validationCtx := newControllerValidationContext(resourceName, tableName, c.config)
+	validationCtx := newControllerValidationContext(resourceName, tableName, "", c.config)
 	if err := validateControllerNotExists(validationCtx); err != nil {
 		return err
 	}
 
-	if withViews {
-		if _, err := os.Stat(c.config.Paths.Views); os.IsNotExist(err) {
-			return fmt.Errorf(
-				"views directory %s does not exist. Create views directory before using --with-views",
-				c.config.Paths.Views,
-			)
-		}
-
-		viewPath := filepath.Join(c.config.Paths.Views, tableName+"_resource.templ")
-		if _, err := os.Stat(viewPath); err == nil {
-			return fmt.Errorf("view file %s already exists", viewPath)
-		}
+	if _, err := os.Stat(c.config.Paths.Views); os.IsNotExist(err) {
+		return fmt.Errorf(
+			"views directory %s does not exist. Create views directory before generating controllers",
+			c.config.Paths.Views,
+		)
 	}
 
+	viewPath := filepath.Join(c.config.Paths.Views, controllerNamespacePrefix("")+tableName+"_resource.templ")
+	if _, err := os.Stat(viewPath); err == nil {
+		return fmt.Errorf("view file %s already exists", viewPath)
+	}
 	cat, err := c.migrationManager.BuildCatalogFromMigrations(tableName, c.config)
 	if err != nil {
 		return err
@@ -222,25 +209,18 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string, wit
 		return err
 	}
 
-	controllerType := controllers.ResourceControllerNoViews
-	if withViews {
-		controllerType = controllers.ResourceController
-	}
+	controllerType := controllers.ResourceController
 
 	nullType := c.readNullType()
 	diMode := c.readDIMode()
 	inertia := ""
 
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia); err != nil {
+	if err := fileGen.GenerateController(cat, resourceName, "", tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
-	if withViews {
-		fmt.Printf("Successfully generated resource controller %s with views\n", resourceName)
-	} else {
-		fmt.Printf("Successfully generated resource controller %s (no views)\n", resourceName)
-	}
+	fmt.Printf("Successfully generated resource controller %s with views\n", resourceName)
 
 	return nil
 }
@@ -283,7 +263,13 @@ func ReadDIMode() string {
 	return "manual"
 }
 
-// ReadInertia reads the inertia adapter from andurel.lock.
+func controllerNamespacePrefix(namespace string) string {
+	if namespace == "" {
+		return ""
+	}
+	return namespace + "_"
+}
+
 // Returns "" when not configured (templ-only mode).
 func ReadInertia() string {
 	fm := files.NewUnifiedFileManager()
