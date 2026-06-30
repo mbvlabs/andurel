@@ -72,11 +72,11 @@ func (d Documents) New(etx *echo.Context) error {
 }
 
 type CreateDocumentFormPayload struct {
-	Title       string `json:"title"`
-	Tags        string `json:"tags"`
-	PageNumbers string `json:"pageNumbers"`
-	ViewCount   int32  `json:"viewCount"`
-	IsPublished bool   `json:"isPublished"`
+	Title       string   `json:"title"`
+	Tags        []string `json:"tags"`
+	PageNumbers []int32  `json:"pageNumbers"`
+	ViewCount   int32    `json:"viewCount"`
+	IsPublished bool     `json:"isPublished"`
 }
 
 func (d Documents) Create(etx *echo.Context) error {
@@ -133,11 +133,11 @@ func (d Documents) Edit(etx *echo.Context) error {
 }
 
 type UpdateDocumentFormPayload struct {
-	Title       string `json:"title"`
-	Tags        string `json:"tags"`
-	PageNumbers string `json:"pageNumbers"`
-	ViewCount   int32  `json:"viewCount"`
-	IsPublished bool   `json:"isPublished"`
+	Title       string   `json:"title"`
+	Tags        []string `json:"tags"`
+	PageNumbers []int32  `json:"pageNumbers"`
+	ViewCount   int32    `json:"viewCount"`
+	IsPublished bool     `json:"isPublished"`
 }
 
 func (d Documents) Update(etx *echo.Context) error {

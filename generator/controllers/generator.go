@@ -266,6 +266,10 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		field.GoFormType = "float64"
 	case "bool":
 		field.GoFormType = "bool"
+	case "[]string":
+		field.GoFormType = "[]string"
+	case "[]int32":
+		field.GoFormType = "[]int32"
 	default:
 		if strings.HasPrefix(goType, "sql.Null") || strings.HasPrefix(goType, "bun.Null") {
 			field.GoFormType = "string"
