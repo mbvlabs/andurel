@@ -176,7 +176,7 @@ func TestGenerateScaffoldMapsFlagsToGenerator(t *testing.T) {
 	resetCLITestSeams(t)
 	fake := installFakeGenerator(t)
 
-	result := executeCLITest(t, "generate", "scaffold", "Project", "--skip-factory", "--table-name", "work_projects", "--primary-key", "slug", "--inertia", "vue")
+	result := executeCLITest(t, "generate", "scaffold", "Project", "--skip-factory", "--table-name", "work_projects", "--primary-key", "slug", "--inertia")
 	if result.err != nil {
 		t.Fatalf("generate scaffold failed: %v", result.err)
 	}
@@ -186,7 +186,7 @@ func TestGenerateScaffoldMapsFlagsToGenerator(t *testing.T) {
 		tableName:   "work_projects",
 		skipFactory: true,
 		primaryKey:  "slug",
-		inertia:     "vue",
+		inertia:     "",
 	}}
 	if !reflect.DeepEqual(fake.scaffoldCalls, want) {
 		t.Fatalf("scaffold calls: expected %#v, got %#v", want, fake.scaffoldCalls)
@@ -196,18 +196,18 @@ func TestGenerateScaffoldMapsFlagsToGenerator(t *testing.T) {
 func TestGenerateControllerMapsActionsAndVue(t *testing.T) {
 	resetCLITestSeams(t)
 	var got controllerCall
-	generateControllerWithActionsFunc = func(name, modelName string, actions []string, skipRoutes bool, inertia string) error {
+	generateControllerWithActionsFunc = func(name, modelName string, actions []string, inertia string) error {
 		got = controllerCall{
 			name:      name,
 			modelName: modelName,
 			actions:   append([]string(nil), actions...),
-			withViews: !skipRoutes,
+			withViews: true,
 			inertia:   inertia,
 		}
 		return nil
 	}
 
-	result := executeCLITest(t, "generate", "controller", "Widget", "index", "export", "--inertia", "vue")
+	result := executeCLITest(t, "generate", "controller", "Widget", "index", "export", "--inertia")
 	if result.err != nil {
 		t.Fatalf("generate controller failed: %v", result.err)
 	}
@@ -217,7 +217,7 @@ func TestGenerateControllerMapsActionsAndVue(t *testing.T) {
 		modelName: "",
 		actions:   []string{"index", "export"},
 		withViews: true,
-		inertia:   "vue",
+		inertia:   "",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("controller call: expected %#v, got %#v", want, got)
@@ -227,12 +227,12 @@ func TestGenerateControllerMapsActionsAndVue(t *testing.T) {
 func TestGenerateControllerMapsModelName(t *testing.T) {
 	resetCLITestSeams(t)
 	var got controllerCall
-	generateControllerWithActionsFunc = func(name, modelName string, actions []string, skipRoutes bool, inertia string) error {
+	generateControllerWithActionsFunc = func(name, modelName string, actions []string, inertia string) error {
 		got = controllerCall{
 			name:      name,
 			modelName: modelName,
 			actions:   append([]string(nil), actions...),
-			withViews: !skipRoutes,
+			withViews: true,
 			inertia:   inertia,
 		}
 		return nil
@@ -279,7 +279,7 @@ func setupControllers(db interface{}, r *router.Router) error {
 		_ = os.Chdir(originalWD)
 	})
 
-	if err := generateControllerWithActions("Dashboard", "", []string{"overview"}, false, ""); err != nil {
+	if err := generateControllerWithActions("Dashboard", "", []string{"overview"}, ""); err != nil {
 		t.Fatalf("generate custom controller action: %v", err)
 	}
 
@@ -355,7 +355,7 @@ func setupControllers(db interface{}, r *router.Router) error {
 				_ = os.Chdir(originalWD)
 			})
 
-			if err := generateControllerWithActions("Dashboard", "", []string{"overview"}, false, tt.inertia); err != nil {
+			if err := generateControllerWithActions("Dashboard", "", []string{"overview"}, tt.inertia); err != nil {
 				t.Fatalf("generate custom controller action: %v", err)
 			}
 
@@ -383,7 +383,7 @@ func TestGenerateControllerSingleCRUDActionVueGeneratesInertiaController(t *test
 		_ = os.Chdir(originalWD)
 	})
 
-	if err := generateControllerWithActions("ProjectInquiry", "", []string{"show"}, false, "vue"); err != nil {
+	if err := generateControllerWithActions("ProjectInquiry", "", []string{"show"}, "vue"); err != nil {
 		t.Fatalf("generate controller: %v", err)
 	}
 
@@ -455,7 +455,7 @@ func TestGenerateControllerSingleCRUDActionInertiaProjectDefaultsToTemplControll
 		_ = os.Chdir(originalWD)
 	})
 
-	if err := generateControllerWithActions("ProjectInquiry", "", []string{"index"}, false, ""); err != nil {
+	if err := generateControllerWithActions("ProjectInquiry", "", []string{"index"}, ""); err != nil {
 		t.Fatalf("generate controller: %v", err)
 	}
 
@@ -484,7 +484,7 @@ func TestGenerateControllerRejectsModelNameForCustomOnly(t *testing.T) {
 		_ = os.Chdir(originalWD)
 	})
 
-	err = generateControllerWithActions("Dashboard", "User", []string{"overview"}, false, "")
+	err = generateControllerWithActions("Dashboard", "User", []string{"overview"}, "")
 	if err == nil || !strings.Contains(err.Error(), "--model-name requires") {
 		t.Fatalf("expected --model-name custom-only error, got %v", err)
 	}

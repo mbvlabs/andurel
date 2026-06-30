@@ -4,7 +4,7 @@ import (
 	"{{.ModulePath}}/internal/routing"
 )
 
-const {{.ResourceName}}Prefix = "/{{.PluralName}}"
+const {{.ResourceName}}Prefix = "/{{.PluralName | kebab}}"
 
 {{- if HasAction "index" }}
 var {{.ResourceName}}Index = routing.NewSimpleRoute(

@@ -40,7 +40,7 @@ func customRouteActions(actions []string) []customRouteAction {
 			Name:       action,
 			MethodName: naming.ToPascalCase(action),
 			RouteName:  routeName,
-			Path:       routeName,
+			Path:       naming.ToKebabCase(routeName),
 		})
 	}
 	return customActions
@@ -225,6 +225,7 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, pluralName, idTyp
 			}
 			return slices.Contains(actions, action)
 		},
+		"kebab": naming.ToKebabCase,
 	}
 
 	result, err := tr.service.RenderTemplateWithCustomFunctions("route.tmpl", data, customFuncs)

@@ -102,6 +102,11 @@ func ToLowerCamelCaseFromAny(s string) string {
 	return ToLowerCamelCase(s)
 }
 
+// ToKebabCase converts a snake_case identifier into kebab-case.
+func ToKebabCase(s string) string {
+	return strings.ReplaceAll(s, "_", "-")
+}
+
 func Capitalize(s string) string {
 	if len(s) == 0 {
 		return s

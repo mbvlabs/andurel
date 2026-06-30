@@ -17,9 +17,8 @@ import (
 
 func newGenerateControllerCommand() *cobra.Command {
 	var (
-		skipRoutes bool
-		inertia    string
-		modelName  string
+		inertia   bool
+		modelName string
 	)
 
 	cmd := &cobra.Command{
@@ -72,30 +71,24 @@ provided.`,
 				return err
 			}
 
-			if inertia != "" && inertia != "vue" {
-				return fmt.Errorf(
-					"invalid inertia adapter: %s - valid options are 'vue'",
-					inertia,
-				)
+			inertiaStr := ""
+			if inertia {
+				inertiaStr = generatorpkg.ReadInertia()
 			}
 
 			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				return generateControllerWithActionsFunc(name, modelName, actions, skipRoutes, inertia)
+				return generateControllerWithActionsFunc(name, modelName, actions, inertiaStr)
 			})(cmd, args)
 		},
 	}
 
-	cmd.Flags().BoolVar(&skipRoutes, "skip-routes", false, "Deprecated: custom actions do not generate routes")
-	cmd.Flags().StringVar(&inertia, "inertia", "", "Generate Inertia views with the specified adapter (default: vue)")
-	cmd.Flags().Lookup("inertia").NoOptDefVal = "vue"
+	cmd.Flags().BoolVar(&inertia, "inertia", false, "Generate Inertia views using the adapter configured in andurel.lock")
 	cmd.Flags().StringVar(&modelName, "model-name", "", "Use a different model name for model-backed controller generation")
 
 	return cmd
 }
 
-func generateControllerWithActions(name, modelName string, actions []string, skipRoutes bool, inertia string) error {
-	_ = skipRoutes
-
+func generateControllerWithActions(name, modelName string, actions []string, inertia string) error {
 	tableName := naming.DeriveTableName(name)
 	pluralName := tableName
 	modulePath, err := readModulePath()
