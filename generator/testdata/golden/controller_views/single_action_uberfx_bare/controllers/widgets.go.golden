@@ -22,20 +22,6 @@ func NewWidgets(db storage.Pool) Widgets {
 	return Widgets{db}
 }
 
-func (w Widgets) Show(etx *echo.Context) error {
-	widgetID, err := uuid.Parse(etx.Param("id"))
-	if err != nil {
-		return hypermedia.RenderPage(etx, views.BadRequest())
-	}
-
-	widget, err := models.Widget.Find(etx.Request().Context(), w.db.Executor(), widgetID)
-	if err != nil {
-		return hypermedia.RenderPage(etx, views.NotFound())
-	}
-
-	return hypermedia.RenderPage(etx, views.WidgetShow{Item: widget}.Page())
-}
-
 func (w Widgets) RegisterRoutes(r *router.Router) error {
 	var errs []error
 	var err error
@@ -50,4 +36,18 @@ func (w Widgets) RegisterRoutes(r *router.Router) error {
 	}
 
 	return errors.Join(errs...)
+}
+
+func (w Widgets) Show(etx *echo.Context) error {
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	widget, err := models.Widget.Find(etx.Request().Context(), w.db.Executor(), widgetID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.WidgetShow{Item: widget}.Page())
 }

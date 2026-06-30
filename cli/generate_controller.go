@@ -282,6 +282,9 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 		sb.WriteString(fmt.Sprintf("\treturn %s{}\n", controllerName))
 		sb.WriteString("}\n\n")
 
+		if isFX {
+			sb.WriteString(customFXRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName, actions))
+		}
 		for _, action := range actions {
 			methodName := naming.ToPascalCase(action)
 			if isAPI {
@@ -291,9 +294,6 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 			} else {
 				sb.WriteString(actionControllerMethod(receiverName, controllerName, namespace, resourceName, methodName))
 			}
-		}
-		if isFX {
-			sb.WriteString(customFXRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName, actions))
 		}
 
 		if err := os.WriteFile(controllerPath, []byte(sb.String()), constants.FilePermissionPrivate); err != nil {
