@@ -46,7 +46,12 @@ provided.
 
 Names may include one lowercase namespace segment, such as admin/Widget.
 Namespaced controllers are generated under controllers/admin, use admin.*
-route names, and use Admin-prefixed route and view symbols.`,
+route names, and use Admin-prefixed route and view symbols.
+
+Use --api to generate a JSON API controller instead. The controller is placed
+under controllers/api and returns echo.JSON responses. No views are generated.
+When --api is provided, the namespace is forced to "api" regardless of any
+namespace segment in the name, and the default action set excludes new/edit.`,
 		Example: `  andurel generate controller CreditCard
 
       Generates the standard CRUD resource controller, views, and routes.

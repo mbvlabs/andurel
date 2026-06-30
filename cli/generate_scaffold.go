@@ -33,7 +33,11 @@ This is a convenience command that runs both:
   andurel generate controller NAME
 
 It generates the full set of CRUD actions: index, show, new, create,
-edit, update, destroy.`,
+edit, update, destroy.
+
+Use --api to generate a JSON API controller instead of views. The
+scaffold creates the model and an API controller under controllers/api
+with echo.JSON responses. No views are generated.`,
 		Example: `  andurel generate scaffold Post
 
       Generates a full Post resource with model, CRUD controller, views, and routes.

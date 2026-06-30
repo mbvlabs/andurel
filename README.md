@@ -211,10 +211,20 @@ andurel generate controller Dashboard index overview --model-name User
 
 In this mode, controller/UI artifacts use `Dashboard` (`controllers/dashboards.go`, `views/dashboards_resource.templ`, `/dashboards` routes), while model calls and entity types use `User` (`models.User.Paginate`, `models.User.Find`, `models.UserEntity`, `models.CreateUserData`, `models.UpdateUserData`). This is only for `generate controller`; `generate scaffold` keeps the existing one-resource-name behavior.
 
+Use `--api` to generate a JSON API controller instead. The controller is placed under `controllers/api` with `echo.JSON` responses and no views:
+
+```bash
+andurel generate controller Users --api
+andurel generate controller admin/Widget export --api
+```
+
+When `--api` is set, the namespace is forced to `"api"` (overriding any namespace segment in the name), and the default action set excludes `new` and `edit`. Custom actions create `etx.JSON(http.StatusOK, map[string]any{})` stubs.
+
 | Flag | Description |
 |------|-------------|
 | `--model-name` | Use a different existing model for model-backed controller generation |
 | `--inertia` | Generate Inertia views using the adapter configured in `andurel.lock` |
+| `--api`       | Generate a JSON API controller under `controllers/api` without views |
 
 **`generate view`** — Generates Go code from `.templ` template files (runs `templ generate`).
 
@@ -225,6 +235,7 @@ In this mode, controller/UI artifacts use `Dashboard` (`controllers/dashboards.g
 | `--skip-factory` | Skip generating a factory file |
 | `--table-name`   | Override the default table name |
 | `--inertia`      | Generate Inertia views using the adapter configured in `andurel.lock` |
+| `--api`          | Generate a JSON API controller under `controllers/api` without views |
 | `--primary-key`  | Specify the primary key column (skips interactive detection) |
 
 ### `andurel fmt` — Format source files
