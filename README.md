@@ -156,7 +156,7 @@ andurel new (alias: n) [project-name] [flags]
 
 | Flag | Description |
 |------|-------------|
-| `-c`, `--css` | CSS framework: `tailwind` (default) or `vanilla` |
+| `-c`, `--css` | CSS framework: `tailwind` (default) |
 | `-e`, `--extensions` | Comma-separated extensions to enable (e.g. `docker,aws-ses,css-components`) |
 | `--di` | Dependency injection approach: `manual` (default) or `uberfx` |
 | `--inertia` | Frontend adapter: `vue` (enables Inertia SPA with Vue 3 + Vite) |

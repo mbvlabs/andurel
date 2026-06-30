@@ -73,7 +73,7 @@ scaffold_variation() {
 	run_cmd "${cmd[@]}"
 }
 
-for css in tailwind vanilla; do
+for css in tailwind; do
 	for di in manual uberfx; do
 		inertia_modes=("")
 		if [[ "$css" == "tailwind" ]]; then
