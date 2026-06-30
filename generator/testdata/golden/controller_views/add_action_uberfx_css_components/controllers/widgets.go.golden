@@ -22,6 +22,31 @@ func NewWidgets(db storage.Pool) Widgets {
 	return Widgets{db}
 }
 
+func (w Widgets) RegisterRoutes(r *router.Router) error {
+	var errs []error
+	var err error
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WidgetShow.Path(),
+		Name:    routes.WidgetShow.Name(),
+		Handler: w.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WidgetEdit.Path(),
+		Name:    routes.WidgetEdit.Name(),
+		Handler: w.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
 func (w Widgets) Show(etx *echo.Context) error {
 	widgetID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
@@ -48,29 +73,4 @@ func (w Widgets) Edit(etx *echo.Context) error {
 	}
 
 	return hypermedia.RenderPage(etx, views.WidgetEdit{Item: widget}.Page())
-}
-
-func (w Widgets) RegisterRoutes(r *router.Router) error {
-	var errs []error
-	var err error
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.WidgetShow.Path(),
-		Name:    routes.WidgetShow.Name(),
-		Handler: w.Show,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.WidgetEdit.Path(),
-		Name:    routes.WidgetEdit.Name(),
-		Handler: w.Edit,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	return errors.Join(errs...)
 }

@@ -55,6 +55,109 @@ func New{{.PluralResourceName}}(db storage.Pool) {{.PluralResourceName}} {
 	return {{.PluralResourceName}}{db}
 }
 
+func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router) error {
+	var errs []error
+	var err error
+
+{{- if HasAction "index" }}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Index.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Index.Name(),
+		Handler: {{.ReceiverName}}.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+{{- end }}
+
+{{- if HasAction "show" }}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Show.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Show.Name(),
+		Handler: {{.ReceiverName}}.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+{{- end }}
+
+{{- if HasAction "new" }}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}New.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}New.Name(),
+		Handler: {{.ReceiverName}}.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+{{- end }}
+
+{{- if HasAction "create" }}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Create.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Create.Name(),
+		Handler: {{.ReceiverName}}.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+{{- end }}
+
+{{- if HasAction "edit" }}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Edit.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Edit.Name(),
+		Handler: {{.ReceiverName}}.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+{{- end }}
+
+{{- if HasAction "update" }}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Update.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Update.Name(),
+		Handler: {{.ReceiverName}}.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+{{- end }}
+
+{{- if HasAction "destroy" }}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Destroy.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Destroy.Name(),
+		Handler: {{.ReceiverName}}.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+{{- end }}
+
+{{- range CustomActions }}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.{{$.NamespacePascal}}{{$.ResourceName}}{{.MethodName}}.Path(),
+		Name:    routes.{{$.NamespacePascal}}{{$.ResourceName}}{{.MethodName}}.Name(),
+		Handler: {{$.ReceiverName}}.{{.MethodName}},
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+{{- end }}
+
+	return errors.Join(errs...)
+}
+
 func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error {
 	page := int64(1)
 	if p := etx.QueryParam("page"); p != "" {
@@ -566,107 +669,4 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 	{{- else}}
 	return etx.NoContent(http.StatusOK)
 	{{- end}}
-}
-
-func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router) error {
-	var errs []error
-	var err error
-
-{{- if HasAction "index" }}
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Index.Path(),
-		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Index.Name(),
-		Handler: {{.ReceiverName}}.Index,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-{{- end }}
-
-{{- if HasAction "show" }}
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Show.Path(),
-		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Show.Name(),
-		Handler: {{.ReceiverName}}.Show,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-{{- end }}
-
-{{- if HasAction "new" }}
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}New.Path(),
-		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}New.Name(),
-		Handler: {{.ReceiverName}}.New,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-{{- end }}
-
-{{- if HasAction "create" }}
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodPost,
-		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Create.Path(),
-		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Create.Name(),
-		Handler: {{.ReceiverName}}.Create,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-{{- end }}
-
-{{- if HasAction "edit" }}
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Edit.Path(),
-		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Edit.Name(),
-		Handler: {{.ReceiverName}}.Edit,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-{{- end }}
-
-{{- if HasAction "update" }}
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodPut,
-		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Update.Path(),
-		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Update.Name(),
-		Handler: {{.ReceiverName}}.Update,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-{{- end }}
-
-{{- if HasAction "destroy" }}
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodDelete,
-		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Destroy.Path(),
-		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Destroy.Name(),
-		Handler: {{.ReceiverName}}.Destroy,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-{{- end }}
-
-{{- range CustomActions }}
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.{{$.NamespacePascal}}{{$.ResourceName}}{{.MethodName}}.Path(),
-		Name:    routes.{{$.NamespacePascal}}{{$.ResourceName}}{{.MethodName}}.Name(),
-		Handler: {{$.ReceiverName}}.{{.MethodName}},
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-{{- end }}
-
-	return errors.Join(errs...)
 }

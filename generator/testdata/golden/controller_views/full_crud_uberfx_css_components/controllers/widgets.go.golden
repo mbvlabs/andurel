@@ -26,6 +26,76 @@ func NewWidgets(db storage.Pool) Widgets {
 	return Widgets{db}
 }
 
+func (w Widgets) RegisterRoutes(r *router.Router) error {
+	var errs []error
+	var err error
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WidgetIndex.Path(),
+		Name:    routes.WidgetIndex.Name(),
+		Handler: w.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WidgetShow.Path(),
+		Name:    routes.WidgetShow.Name(),
+		Handler: w.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WidgetNew.Path(),
+		Name:    routes.WidgetNew.Name(),
+		Handler: w.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.WidgetCreate.Path(),
+		Name:    routes.WidgetCreate.Name(),
+		Handler: w.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WidgetEdit.Path(),
+		Name:    routes.WidgetEdit.Name(),
+		Handler: w.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.WidgetUpdate.Path(),
+		Name:    routes.WidgetUpdate.Name(),
+		Handler: w.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.WidgetDestroy.Path(),
+		Name:    routes.WidgetDestroy.Name(),
+		Handler: w.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
 func (w Widgets) Index(etx *echo.Context) error {
 	page := int64(1)
 	if p := etx.QueryParam("page"); p != "" {
@@ -200,74 +270,4 @@ func (w Widgets) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 	return etx.Redirect(http.StatusSeeOther, routes.WidgetIndex.URL())
-}
-
-func (w Widgets) RegisterRoutes(r *router.Router) error {
-	var errs []error
-	var err error
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.WidgetIndex.Path(),
-		Name:    routes.WidgetIndex.Name(),
-		Handler: w.Index,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.WidgetShow.Path(),
-		Name:    routes.WidgetShow.Name(),
-		Handler: w.Show,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.WidgetNew.Path(),
-		Name:    routes.WidgetNew.Name(),
-		Handler: w.New,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodPost,
-		Path:    routes.WidgetCreate.Path(),
-		Name:    routes.WidgetCreate.Name(),
-		Handler: w.Create,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.WidgetEdit.Path(),
-		Name:    routes.WidgetEdit.Name(),
-		Handler: w.Edit,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodPut,
-		Path:    routes.WidgetUpdate.Path(),
-		Name:    routes.WidgetUpdate.Name(),
-		Handler: w.Update,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodDelete,
-		Path:    routes.WidgetDestroy.Path(),
-		Name:    routes.WidgetDestroy.Name(),
-		Handler: w.Destroy,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	return errors.Join(errs...)
 }
