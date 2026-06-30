@@ -6,7 +6,7 @@ package views
 
 import (
 	"fmt"
-	{{if UsesPackage .Fields "strings"}}"strings"
+{{ViewDataImports .Fields}}	{{if UsesPackage .Fields "strings"}}"strings"
 	{{end}}{{if or (and (HasAction "new") (HasAction "create")) (and (HasAction "edit") (or (HasAction "update") (HasAction "destroy")))}}	"net/http"
 	{{end}}
 	"{{.ModulePath}}/models"
@@ -16,7 +16,7 @@ import (
 	"{{.ModulePath}}/router/routes"
 	{{end}}
 )
-
+{{ViewData .}}
 {{if HasAction "index"}}
 type {{.ResourceName}}Index struct {
 	Items []models.{{.EntityName}}
@@ -49,9 +49,9 @@ templ ({{$indexRecv}} {{.ResourceName}}Index) Page() {
 									</tr>
 								</thead>
 								<tbody>
-									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {
+									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {{ViewDataLoop .ResourceName (.ResourceName | ToLower) (HasNullFields .Fields)}}
 										<tr>
-											{{range .Fields}}<td>{{StringTableDisplay . ($.ResourceName | ToLower)}}</td>
+											{{range .Fields}}<td>{{StringTableDisplay . (ViewDataRowRef ($.ResourceName | ToLower) (HasNullFields $.Fields))}}</td>
 											{{end}}<td>
 												<div class="flex flex-wrap gap-3 text-sm">
 													{{if HasAction "show"}}
@@ -103,10 +103,10 @@ templ ({{$showRecv}} {{.ResourceName}}Show) Page() {
 					<div class="card">
 						<div class="card-content">
 							<div class="grid gap-5 sm:grid-cols-2">
-								{{$itemRef := printf "%s.%s" $showRecv "Item"}}
+								{{$itemRef := printf "%s.%s" $showRecv "Item"}}{{$itemDisplayRef := ViewDataRef .ResourceName $itemRef (HasNullFields .Fields)}}
 								{{range .Fields}}<div class="field">
 									<label class="field-label">{{.DisplayName}}</label>
-									<p class="text-sm text-base-content">{{StringDisplay . $itemRef}}</p>
+									<p class="text-sm text-base-content">{{StringDisplay . $itemDisplayRef}}</p>
 								</div>
 								{{end}}
 							</div>
@@ -202,16 +202,16 @@ templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
 						<div class="card-content">
 							<form class="form" data-indicator:_submitting{{if HasAction "update"}} data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{$editRecv}}.Item.ID)) }{{end}}>
 								<fieldset class="fieldset" data-attr:disabled="$_submitting">
-									{{$itemRef := printf "%s.%s" $editRecv "Item"}}
+									{{$itemRef := printf "%s.%s" $editRecv "Item"}}{{$itemDisplayRef := ViewDataRef .ResourceName $itemRef (HasNullFields .Fields)}}
 									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="radio-row">
-										<input type="checkbox" class="checkbox" data-bind="{{.CamelCase}}" if {{FieldRef . $itemRef}} { checked } />
+										<input type="checkbox" class="checkbox" data-bind="{{.CamelCase}}" if {{FieldRef . $itemDisplayRef}} { checked } />
 										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
 									</div>
 									{{else if eq .InputType "date"}}<div class="field">
 										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
 										<div class="relative w-full">
 											<div class="relative">
-												<input type="date" class="input" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemRef}} } />
+												<input type="date" class="input" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemDisplayRef}} } />
 												<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
 													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/40"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
 												</div>
@@ -220,11 +220,11 @@ templ ({{$editRecv}} {{.ResourceName}}Edit) Page() {
 									</div>
 									{{else if eq .InputType "number"}}<div class="field">
 										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
-										<input type="number" class="input" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemRef}} } />
+										<input type="number" class="input" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemDisplayRef}} } />
 									</div>
 									{{else}}<div class="field">
 										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
-										<input type="text" class="input" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemRef}} } />
+										<input type="text" class="input" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemDisplayRef}} } />
 									</div>
 									{{end}}{{end}}{{end}}
 									<div class="card-footer mt-6 flex-col gap-3">

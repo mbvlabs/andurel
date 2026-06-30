@@ -17,9 +17,8 @@ import (
 
 func newGenerateControllerCommand() *cobra.Command {
 	var (
-		skipRoutes bool
-		vue        bool
-		modelName  string
+		inertia   bool
+		modelName string
 	)
 
 	cmd := &cobra.Command{
@@ -72,27 +71,24 @@ provided.`,
 				return err
 			}
 
-			inertia := ""
-			if vue {
-				inertia = "vue"
+			inertiaStr := ""
+			if inertia {
+				inertiaStr = generatorpkg.ReadInertia()
 			}
 
 			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				return generateControllerWithActionsFunc(name, modelName, actions, skipRoutes, inertia)
+				return generateControllerWithActionsFunc(name, modelName, actions, inertiaStr)
 			})(cmd, args)
 		},
 	}
 
-	cmd.Flags().BoolVar(&skipRoutes, "skip-routes", false, "Deprecated: custom actions do not generate routes")
-	cmd.Flags().BoolVar(&vue, "vue", false, "Generate Inertia Vue views instead of Templ views")
+	cmd.Flags().BoolVar(&inertia, "inertia", false, "Generate Inertia views using the adapter configured in andurel.lock")
 	cmd.Flags().StringVar(&modelName, "model-name", "", "Use a different model name for model-backed controller generation")
 
 	return cmd
 }
 
-func generateControllerWithActions(name, modelName string, actions []string, skipRoutes bool, inertia string) error {
-	_ = skipRoutes
-
+func generateControllerWithActions(name, modelName string, actions []string, inertia string) error {
 	tableName := naming.DeriveTableName(name)
 	pluralName := tableName
 	modulePath, err := readModulePath()

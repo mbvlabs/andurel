@@ -133,6 +133,26 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 	}
 }
 
+func TestScaffoldGenerationGoldensInertiaProjectDefaultsToTempl(t *testing.T) {
+	gen := setupScaffoldGoldenProject(
+		t,
+		"scaffold_generation_projects",
+		"manual",
+		"tailwind",
+		nil,
+		"vue",
+	)
+
+	if err := gen.GenerateScaffold("Project", "", true, "", ""); err != nil {
+		t.Fatalf("failed to generate scaffold: %v", err)
+	}
+
+	assertGeneratedFileContains(t, "views/projects_resource.templ", "type ProjectIndex struct")
+	assertControllerViewGoldenFileMissing(t, filepath.Join("resources", "js", "Pages", "Project", "Index.vue"))
+	assertGeneratedFileContains(t, "controllers/projects.go", "testapp/internal/hypermedia")
+	assertGeneratedFileNotContains(t, "controllers/projects.go", "testapp/internal/inertia")
+}
+
 func setupScaffoldGoldenProject(t *testing.T, migrationsFixture, diMode, cssFramework string, extensions []string, inertia string) Generator {
 	t.Helper()
 

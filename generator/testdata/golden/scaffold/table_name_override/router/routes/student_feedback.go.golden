@@ -4,7 +4,7 @@ import (
 	"testapp/internal/routing"
 )
 
-const FeedbackEntryPrefix = "/student_feedback"
+const FeedbackEntryPrefix = "/student-feedback"
 
 var FeedbackEntryIndex = routing.NewSimpleRoute(
 	"",

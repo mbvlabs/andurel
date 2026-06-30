@@ -3,6 +3,7 @@ package generator
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/layout"
@@ -82,7 +83,89 @@ func TestControllerViewGenerationWithModelNameGolden(t *testing.T) {
 	})
 }
 
+func TestControllerViewGenerationGoldensInertiaProjectDefaultsToTempl(t *testing.T) {
+	coord := setupControllerViewGoldenProjectWithInertia(t, "manual", "tailwind", false, "vue")
+
+	if err := coord.GenerateControllerWithActions("Widget", "", true, []string{"index", "show"}, ""); err != nil {
+		t.Fatalf("failed to generate controller/view: %v", err)
+	}
+
+	assertGeneratedFileContains(t, "views/widgets_resource.templ", "type WidgetIndex struct")
+	assertControllerViewGoldenFileMissing(t, filepath.Join("resources", "js", "Pages", "Widget", "Index.vue"))
+	assertGeneratedFileContains(t, "controllers/widgets.go", "testapp/internal/hypermedia")
+	assertGeneratedFileNotContains(t, "controllers/widgets.go", "testapp/internal/inertia")
+}
+
+func TestControllerViewGenerationGoldensInertiaFlagStillGeneratesInertia(t *testing.T) {
+	coord := setupControllerViewGoldenProject(t, "manual", "tailwind", false)
+
+	if err := coord.GenerateControllerWithActions("Widget", "", true, []string{"index", "show"}, "vue"); err != nil {
+		t.Fatalf("failed to generate controller/view: %v", err)
+	}
+
+	assertControllerViewGoldenFileMissing(t, "views/widgets_resource.templ")
+	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Index.vue"), "<template>")
+	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Show.vue"), "<template>")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "testapp/internal/inertia")
+	assertGeneratedFileNotContains(t, "controllers/widgets.go", "testapp/internal/hypermedia")
+}
+
+func TestControllerViewGenerationGoldensSingleVueActionGeneratesInertiaController(t *testing.T) {
+	coord := setupControllerViewGoldenProject(t, "manual", "tailwind", false)
+
+	if err := coord.GenerateControllerWithActions("Widget", "", true, []string{"show"}, "vue"); err != nil {
+		t.Fatalf("failed to generate controller/view: %v", err)
+	}
+
+	assertControllerViewGoldenFileMissing(t, "views/widgets_resource.templ")
+	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Show.vue"), "<template>")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "testapp/internal/inertia")
+	assertGeneratedFileNotContains(t, "controllers/widgets.go", "testapp/internal/hypermedia")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "return inertia.Page(etx, \"Widget/Show\"")
+}
+
+func TestControllerViewGenerationGoldensVueActionDoesNotInheritTemplViewActions(t *testing.T) {
+	coord := setupControllerViewGoldenProjectWithInertia(t, "manual", "tailwind", false, "vue")
+
+	if err := coord.GenerateControllerWithActions("Widget", "", true, []string{"index"}, ""); err != nil {
+		t.Fatalf("failed to generate templ controller/view: %v", err)
+	}
+	if err := coord.GenerateControllerWithActions("Widget", "", true, []string{"show"}, "vue"); err != nil {
+		t.Fatalf("failed to generate vue controller/view: %v", err)
+	}
+
+	assertGeneratedFileContains(t, "views/widgets_resource.templ", "type WidgetIndex struct")
+	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Show.vue"), "<template>")
+	assertControllerViewGoldenFileMissing(t, filepath.Join("resources", "js", "Pages", "Widget", "Index.vue"))
+	assertGeneratedFileContains(t, "controllers/widgets.go", "testapp/internal/hypermedia")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "testapp/internal/inertia")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "return hypermedia.RenderPage(etx, views.WidgetIndex")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "return inertia.Page(etx, \"Widget/Show\"")
+}
+
+func TestControllerViewGenerationGoldensVueActionUpdatesUberFXRegisterRoutes(t *testing.T) {
+	coord := setupControllerViewGoldenProjectWithInertia(t, "uberfx", "tailwind", false, "vue")
+
+	if err := coord.GenerateControllerWithActions("Widget", "", true, []string{"index"}, ""); err != nil {
+		t.Fatalf("failed to generate templ controller/view: %v", err)
+	}
+	if err := coord.GenerateControllerWithActions("Widget", "", true, []string{"show"}, "vue"); err != nil {
+		t.Fatalf("failed to generate vue controller/view: %v", err)
+	}
+
+	assertGeneratedFileContains(t, "controllers/widgets.go", "routes.WidgetIndex.Path()")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "routes.WidgetShow.Path()")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "Handler: w.Index")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "Handler: w.Show")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "return hypermedia.RenderPage(etx, views.WidgetIndex")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "return inertia.Page(etx, \"Widget/Show\"")
+}
+
 func setupControllerViewGoldenProject(t *testing.T, diMode, cssFramework string, cssComponents bool) Coordinator {
+	return setupControllerViewGoldenProjectWithInertia(t, diMode, cssFramework, cssComponents, "")
+}
+
+func setupControllerViewGoldenProjectWithInertia(t *testing.T, diMode, cssFramework string, cssComponents bool, inertia string) Coordinator {
 	t.Helper()
 
 	cache.ClearFileSystemCache()
@@ -116,6 +199,7 @@ func setupControllerViewGoldenProject(t *testing.T, diMode, cssFramework string,
 		Database:     "postgresql",
 		CSSFramework: cssFramework,
 		DIMode:       diMode,
+		Inertia:      inertia,
 	}
 	if cssComponents {
 		lock.AddExtension("css-components", "test-applied-at")
@@ -201,6 +285,30 @@ func assertControllerViewGoldenFileMissing(t *testing.T, path string) {
 		t.Fatalf("expected %s not to be generated", path)
 	} else if !os.IsNotExist(err) {
 		t.Fatalf("failed to stat %s: %v", path, err)
+	}
+}
+
+func assertGeneratedFileContains(t *testing.T, path, want string) {
+	t.Helper()
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read generated artifact %s: %v", path, err)
+	}
+	if !strings.Contains(string(content), want) {
+		t.Fatalf("expected %s to contain %q:\n%s", path, want, string(content))
+	}
+}
+
+func assertGeneratedFileNotContains(t *testing.T, path, unwanted string) {
+	t.Helper()
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read generated artifact %s: %v", path, err)
+	}
+	if strings.Contains(string(content), unwanted) {
+		t.Fatalf("expected %s not to contain %q:\n%s", path, unwanted, string(content))
 	}
 }
 

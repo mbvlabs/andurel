@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 
+	generatorpkg "github.com/mbvlabs/andurel/generator"
 	"github.com/spf13/cobra"
 )
 
@@ -11,7 +12,7 @@ func newGenerateScaffoldCommand() *cobra.Command {
 		skipFactory      bool
 		tableName        string
 		primaryKeyColumn string
-		vue              bool
+		inertia          bool
 	)
 
 	cmd := &cobra.Command{
@@ -57,9 +58,9 @@ edit, update, destroy.`,
 				return err
 			}
 
-			inertia := ""
-			if vue {
-				inertia = "vue"
+			inertiaStr := ""
+			if inertia {
+				inertiaStr = generatorpkg.ReadInertia()
 			}
 
 			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
@@ -68,7 +69,7 @@ edit, update, destroy.`,
 					return err
 				}
 
-				return gen.GenerateScaffold(name, tableName, skipFactory, primaryKeyColumn, inertia)
+				return gen.GenerateScaffold(name, tableName, skipFactory, primaryKeyColumn, inertiaStr)
 			})(cmd, args)
 		},
 	}
@@ -76,7 +77,7 @@ edit, update, destroy.`,
 	cmd.Flags().BoolVar(&skipFactory, "skip-factory", false, "Skip generating a factory for the model")
 	cmd.Flags().StringVar(&tableName, "table-name", "", "Override the default table name")
 	cmd.Flags().StringVar(&primaryKeyColumn, "primary-key", "", "Specify the primary key column (skips interactive detection)")
-	cmd.Flags().BoolVar(&vue, "vue", false, "Generate Inertia Vue views instead of Templ views")
+	cmd.Flags().BoolVar(&inertia, "inertia", false, "Generate Inertia views using the adapter configured in andurel.lock")
 
 	return cmd
 }

@@ -6,6 +6,7 @@ package views
 
 import (
 	"fmt"
+	"time"
 		"net/http"
 	
 	"testapp/models"
@@ -15,6 +16,22 @@ import (
 	"testapp/router/routes"
 	
 )
+
+type WarehouseData struct {
+	Name string
+	Location string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func newWarehouseData(entity models.WarehouseEntity) WarehouseData {
+	return WarehouseData{
+		Name: entity.Name,
+		Location: func() string { if !entity.Location.Valid { return "" }; return entity.Location.String }(),
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	}
+}
 
 
 type WarehouseIndex struct {
@@ -52,11 +69,12 @@ templ (wi WarehouseIndex) Page() {
 								</thead>
 								<tbody class="[&_tr:last-child]:border-0">
 									for _, warehouse := range wi.Items {
+									warehouseData := newWarehouseData(warehouse)
 										<tr class="border-b border-gray-300 transition-colors hover:bg-gray-100">
-											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ warehouse.Name }</td>
-											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ warehouse.Location }</td>
-											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ warehouse.CreatedAt.String() }</td>
-											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ warehouse.UpdatedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ warehouseData.Name }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ warehouseData.Location }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ warehouseData.CreatedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ warehouseData.UpdatedAt.String() }</td>
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 												<div class="flex flex-wrap gap-3 text-sm">
 													
@@ -111,19 +129,19 @@ templ (ws WarehouseShow) Page() {
 								
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Name</label>
-									<p class="text-sm text-gray-900">{ ws.Item.Name }</p>
+									<p class="text-sm text-gray-900">{ newWarehouseData(ws.Item).Name }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Location</label>
-									<p class="text-sm text-gray-900">{ ws.Item.Location }</p>
+									<p class="text-sm text-gray-900">{ newWarehouseData(ws.Item).Location }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
-									<p class="text-sm text-gray-900">{ ws.Item.CreatedAt.String() }</p>
+									<p class="text-sm text-gray-900">{ newWarehouseData(ws.Item).CreatedAt.String() }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
-									<p class="text-sm text-gray-900">{ ws.Item.UpdatedAt.String() }</p>
+									<p class="text-sm text-gray-900">{ newWarehouseData(ws.Item).UpdatedAt.String() }</p>
 								</div>
 								
 							</div>
@@ -210,11 +228,11 @@ templ (we WarehouseEdit) Page() {
 										
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="name">Name</label>
-											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="name" value={ we.Item.Name } />
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="name" value={ newWarehouseData(we.Item).Name } />
 										</div>
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="location">Location</label>
-											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="location" value={ we.Item.Location } />
+											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="location" value={ newWarehouseData(we.Item).Location } />
 										</div>
 										
 									</div>
