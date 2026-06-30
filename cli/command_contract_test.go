@@ -52,7 +52,7 @@ func TestCommandFlagsContract(t *testing.T) {
 		path  string
 		flags []string
 	}{
-		{path: "new", flags: []string{"css", "extensions", "di", "inertia"}},
+		{path: "new", flags: []string{"extensions", "di", "inertia"}},
 		{path: "generate model", flags: []string{"skip-factory", "table-name", "update", "yes", "primary-key"}},
 		{path: "generate controller", flags: []string{"inertia", "model-name"}},
 		{path: "generate scaffold", flags: []string{"skip-factory", "table-name", "primary-key", "inertia"}},

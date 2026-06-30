@@ -41,13 +41,6 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 			cssFramework: "tailwind",
 		},
 		{
-			name:         "full_crud_manual_vanilla",
-			resourceName: "Widget",
-			migrations:   "controller_view_generation",
-			diMode:       "manual",
-			cssFramework: "vanilla",
-		},
-		{
 			name:         "full_crud_manual_css_components",
 			resourceName: "Widget",
 			migrations:   "controller_view_generation",

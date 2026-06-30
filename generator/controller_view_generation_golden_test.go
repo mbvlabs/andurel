@@ -35,8 +35,6 @@ func TestControllerViewGenerationGoldens(t *testing.T) {
 	}{
 		{name: "bare", framework: "tailwind"},
 		{name: "css_components", framework: "tailwind", cssComponents: true},
-		{name: "vanilla_bare", framework: "vanilla"},
-		{name: "vanilla_css_components", framework: "vanilla", cssComponents: true},
 	}
 
 	for _, scenario := range scenarios {

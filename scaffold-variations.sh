@@ -59,7 +59,7 @@ scaffold_variation() {
 	fi
 
 	name="${name}$(extension_name_suffix "${selected_extensions[@]}")"
-	cmd+=("$name" -c "$css" --di "$di")
+	cmd+=("$name" --di "$di")
 
 	if [[ "$inertia" != "" ]]; then
 		cmd+=(--inertia "$inertia")
@@ -73,7 +73,7 @@ scaffold_variation() {
 	run_cmd "${cmd[@]}"
 }
 
-for css in tailwind vanilla; do
+for css in tailwind; do
 	for di in manual uberfx; do
 		inertia_modes=("")
 		if [[ "$css" == "tailwind" ]]; then

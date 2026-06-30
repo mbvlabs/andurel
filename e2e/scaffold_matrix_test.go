@@ -28,11 +28,10 @@ type ScaffoldConfig struct {
 }
 
 func getScaffoldConfigs() []ScaffoldConfig {
-	cssFrameworks := []string{"tailwind", "vanilla"}
+	cssFrameworks := []string{"tailwind"}
 	diModes := []string{"manual", "uberfx"}
 	inertiaModesByCSS := map[string][]string{
 		"tailwind": {"", "vue"},
-		"vanilla":  {""},
 	}
 	extensionSets := extensionPowerSet([]string{"docker", "aws-ses", "css-components"})
 
@@ -61,12 +60,10 @@ func getScaffoldConfigs() []ScaffoldConfig {
 func isCriticalScaffoldConfig(database, css, diMode, inertia string, extensions []string) bool {
 	criticalConfigs := map[string]bool{
 		"postgresql-tailwind":                               true,
-		"postgresql-vanilla":                                true,
 		"postgresql-tailwind-uberfx":                        true,
 		"postgresql-tailwind-inertia-vue":                   true,
 		"postgresql-tailwind-uberfx-inertia-vue":            true,
 		"postgresql-tailwind-docker-aws-ses-css-components": true,
-		"postgresql-vanilla-docker-aws-ses-css-components":  true,
 	}
 
 	return criticalConfigs[scaffoldConfigName(database, css, diMode, inertia, extensions)]
@@ -110,8 +107,6 @@ func TestScaffoldCriticalConfigs(t *testing.T) {
 		"postgresql-tailwind-inertia-vue",
 		"postgresql-tailwind-uberfx",
 		"postgresql-tailwind-uberfx-inertia-vue",
-		"postgresql-vanilla",
-		"postgresql-vanilla-docker-aws-ses-css-components",
 	}
 
 	var actual []string
@@ -145,9 +140,7 @@ func TestScaffoldGoldens(t *testing.T) {
 
 			project := internal.NewProject(t, binary, getSharedBinDir())
 
-			args := []string{
-				"-c", config.CSS,
-			}
+			var args []string
 
 			if config.DIMode != "" {
 				args = append(args, "--di", config.DIMode)

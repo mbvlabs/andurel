@@ -33,9 +33,6 @@ creation, run 'andurel tool sync' to download required binaries.`,
 	}
 
 	projectCmd.Flags().
-		StringP("css", "c", "", "CSS framework to use (tailwind, vanilla) (optional, default: tailwind)")
-
-	projectCmd.Flags().
 		StringSliceP("extensions", "e", nil, "Extensions to enable (comma-separated list)")
 
 	projectCmd.Flags().
@@ -74,22 +71,7 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	}
 
 	database := "postgresql"
-
-	cssFramework, err := cmd.Flags().GetString("css")
-	if err != nil {
-		return err
-	}
-
-	if cssFramework == "" {
-		cssFramework = "tailwind"
-	}
-
-	if cssFramework != "tailwind" && cssFramework != "vanilla" {
-		return fmt.Errorf(
-			"invalid css framework provided: %s - valid options are 'tailwind' and 'vanilla'",
-			cssFramework,
-		)
-	}
+	cssFramework := "tailwind"
 
 	diMode, err := cmd.Flags().GetString("di")
 	if err != nil {
@@ -113,10 +95,6 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 			"invalid inertia adapter: %s - valid options are 'vue'",
 			inertia,
 		)
-	}
-
-	if inertia == "vue" && cssFramework != "tailwind" {
-		return fmt.Errorf("--inertia vue currently requires --css tailwind")
 	}
 
 	extensions, err := cmd.Flags().GetStringSlice("extensions")
