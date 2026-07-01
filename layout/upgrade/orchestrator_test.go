@@ -1,6 +1,8 @@
 package upgrade
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -237,5 +239,62 @@ func TestSyncToolsToFrameworkVersion_PrefersHigherExistingVersion(t *testing.T) 
 		if strings.HasPrefix(updated, "templ:") {
 			t.Fatalf("templ should not be updated when existing version is higher, got update: %s", updated)
 		}
+	}
+}
+
+func TestSyncToolsToFrameworkVersion_InitializesMissingToolsMap(t *testing.T) {
+	upgrader := &Upgrader{
+		lock: &layout.AndurelLock{
+			Version: "v0.1.0",
+			ScaffoldConfig: &layout.ScaffoldConfig{
+				ProjectName:  "myapp",
+				Database:     "postgres",
+				CSSFramework: "tailwind",
+			},
+		},
+	}
+
+	result, err := upgrader.syncToolsToFrameworkVersion()
+	if err != nil {
+		t.Fatalf("syncToolsToFrameworkVersion returned error: %v", err)
+	}
+
+	if upgrader.lock.Tools == nil {
+		t.Fatal("expected tools map to be initialized")
+	}
+	if _, ok := upgrader.lock.Tools["templ"]; !ok {
+		t.Fatal("expected templ to be added to missing tools map")
+	}
+	if _, ok := upgrader.lock.Tools["tailwindcli"]; !ok {
+		t.Fatal("expected tailwindcli to be added for tailwind projects")
+	}
+	if len(result.Added) == 0 {
+		t.Fatal("expected tools to be reported as added")
+	}
+}
+
+func TestObsoleteManagedInternalFiles_RemovesInertiaWhenNotConfigured(t *testing.T) {
+	projectRoot := t.TempDir()
+	inertiaDir := filepath.Join(projectRoot, "internal", "inertia")
+	if err := os.MkdirAll(inertiaDir, 0o755); err != nil {
+		t.Fatalf("failed to create inertia dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(inertiaDir, "render.go"), []byte("package inertia\n"), 0o644); err != nil {
+		t.Fatalf("failed to write inertia file: %v", err)
+	}
+
+	upgrader := &Upgrader{
+		projectRoot: projectRoot,
+		lock: &layout.AndurelLock{
+			ScaffoldConfig: &layout.ScaffoldConfig{},
+		},
+	}
+
+	obsolete := upgrader.obsoleteManagedInternalFiles()
+	if len(obsolete) != 1 {
+		t.Fatalf("obsolete files = %v, want one file", obsolete)
+	}
+	if obsolete[0] != "internal/inertia/render.go" {
+		t.Fatalf("obsolete file = %q, want internal/inertia/render.go", obsolete[0])
 	}
 }
