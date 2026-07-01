@@ -1151,7 +1151,7 @@ var appVersion string
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	if err := inertia.Init("views/root.go.html"); err != nil {
+	if err := inertia.Init("views/root.go.html", config.InertiaEnableSSR); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to initialize inertia: %s\n", err)
 		os.Exit(1)
 	}
@@ -1374,6 +1374,9 @@ var (
 		}
 
 		return "noreply@" + Domain
+	}()
+	InertiaEnableSSR = func() bool {
+		return os.Getenv("INERTIA_SSR_ENABLED") == "true"
 	}()
 )
 
@@ -7328,7 +7331,9 @@ package inertia
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v5"
 	gonertia "github.com/romsar/gonertia/v3"
@@ -7341,9 +7346,13 @@ import (
 type Props = gonertia.Props
 type Option = gonertia.Option
 
-var gInertia *gonertia.Inertia
+var (
+	gInertia       *gonertia.Inertia
+	gInertiaSSR    *gonertia.Inertia
+	gInertiaSSRURL string
+)
 
-func Init(rootHTML string, opts ...Option) error {
+func Init(rootHTML string, enableSSR bool, opts ...Option) error {
 	tags, err := initVite()
 	if err != nil {
 		return fmt.Errorf("inertia: vite init: %w", err)
@@ -7359,10 +7368,34 @@ func Init(rootHTML string, opts ...Option) error {
 	i.ShareTemplateData("appName", config.ProjectName)
 
 	gInertia = i
+
+	if enableSSR {
+		ssr, err := gonertia.NewFromFile(rootHTML,
+			gonertia.WithSSR(),
+			gonertia.WithSSRHTTPClient(&http.Client{Timeout: 5 * time.Second}),
+		)
+		if err != nil {
+			return fmt.Errorf("inertia: create ssr renderer: %v", err)
+		}
+
+		ssr.ShareTemplateData("viteHead", tags.ViteHead)
+		ssr.ShareTemplateData("viteBody", tags.ViteBody)
+		ssr.ShareTemplateData("appName", config.ProjectName)
+
+		gInertiaSSR = ssr
+		gInertiaSSRURL = "http://127.0.0.1:13714"
+	}
+
 	return nil
 }
 
-func Page(etx *echo.Context, component string, props Props) error {
+type PageOption func(*bool)
+
+func SSREnabled() PageOption {
+	return func(ssr *bool) { *ssr = true }
+}
+
+func Page(etx *echo.Context, component string, props Props, opts ...PageOption) error {
 	if gInertia == nil {
 		return errors.New("inertia: not initialized")
 	}
@@ -7374,6 +7407,29 @@ func Page(etx *echo.Context, component string, props Props) error {
 			props = make(Props)
 		}
 		props["flash"] = flashes
+	}
+
+	var ssr bool
+	for _, opt := range opts {
+		opt(&ssr)
+	}
+
+	if ssr {
+		if gInertiaSSR == nil {
+			return errors.New("inertia: SSR not enabled at init")
+		}
+
+		if gonertia.IsInertiaRequest(etx.Request()) {
+			return gInertia.Render(etx.Response(), etx.Request(), component, props)
+		}
+
+		conn, err := net.DialTimeout("tcp", "127.0.0.1:13714", 500*time.Millisecond)
+		if err != nil {
+			return fmt.Errorf("inertia: SSR server unreachable: %w", err)
+		}
+		conn.Close()
+
+		return gInertiaSSR.Render(etx.Response(), etx.Request(), component, props)
 	}
 
 	return gInertia.Render(etx.Response(), etx.Request(), component, props)

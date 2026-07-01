@@ -34,7 +34,7 @@ func main() {
 	defer cancel()
 
 {{- if eq .Inertia "vue"}}
-	if err := inertia.Init("views/root.go.html"); err != nil {
+	if err := inertia.Init("views/root.go.html", config.InertiaEnableSSR); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to initialize inertia: %s\n", err)
 		os.Exit(1)
 	}
