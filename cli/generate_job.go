@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	generatorpkg "github.com/mbvlabs/andurel/generator"
@@ -236,7 +237,7 @@ func registerFXWorkerInQueueGo(pascalName string) error {
 }
 
 func ensureFXProvideEntry(content, provideDeclaration, constructorRef string) (string, bool, error) {
-	if strings.Contains(content, constructorRef+",") {
+	if hasFXReference(content, constructorRef) {
 		return content, false, nil
 	}
 
@@ -255,6 +256,12 @@ func ensureFXProvideEntry(content, provideDeclaration, constructorRef string) (s
 	}
 
 	return content[:closeIdx] + "\t" + constructorRef + ",\n" + content[closeIdx:], true, nil
+}
+
+func hasFXReference(content, ref string) bool {
+	refPattern := regexp.QuoteMeta(ref)
+	pattern := regexp.MustCompile(`(?m)(^|[[:space:](])` + refPattern + `\s*[,)]`)
+	return pattern.FindStringIndex(content) != nil
 }
 
 func ensureFXModuleEntry(content, moduleDeclaration, entry string) (string, bool, error) {

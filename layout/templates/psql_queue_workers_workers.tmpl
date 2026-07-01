@@ -11,7 +11,6 @@ var wrksConstructors = fx.Provide(
 	river.NewWorkers,
 	NewSendTransactionalEmailWorker,
 	NewSendMarketingEmailWorker,
-	// andurel:worker-constructor-registration-point
 )
 
 var WorkersModule = fx.Module(
@@ -23,7 +22,6 @@ var WorkersModule = fx.Module(
 	fx.Invoke(func(workers *river.Workers, worker *SendMarketingEmailWorker) error {
 		return worker.Register(workers)
 	}),
-	// andurel:worker-fx-invoke-registration-point
 )
 {{else}}
 // Package workers provides a centralized place to register all background workers for the application.

@@ -106,11 +106,17 @@ func TestGenerateJobUberFXWritesQueueWorkerAndModuleRegistration(t *testing.T) {
 		"NewProcessPaymentWorker,",
 		"fx.Invoke(func(workers *river.Workers, worker *ProcessPaymentWorker) error",
 		"return worker.Register(workers)",
-		"// andurel:worker-constructor-registration-point",
-		"// andurel:worker-fx-invoke-registration-point",
 	} {
 		if !strings.Contains(workersContent, want) {
 			t.Fatalf("fx workers registration should contain %q\n\n%s", want, workersContent)
+		}
+	}
+	for _, marker := range []string{
+		"// andurel:worker-constructor-registration-point",
+		"// andurel:worker-fx-invoke-registration-point",
+	} {
+		if strings.Contains(workersContent, marker) {
+			t.Fatalf("fx workers registration should not contain marker %q\n\n%s", marker, workersContent)
 		}
 	}
 }
@@ -220,7 +226,6 @@ var wrksConstructors = fx.Provide(
 	river.NewWorkers,
 	NewSendTransactionalEmailWorker,
 	NewSendMarketingEmailWorker,
-	// andurel:worker-constructor-registration-point
 )
 
 var WorkersModule = fx.Module(
@@ -232,6 +237,5 @@ var WorkersModule = fx.Module(
 	fx.Invoke(func(workers *river.Workers, worker *SendMarketingEmailWorker) error {
 		return worker.Register(workers)
 	}),
-	// andurel:worker-fx-invoke-registration-point
 )
 `
