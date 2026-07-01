@@ -83,10 +83,10 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		)
 
 		var errorMsg string
-		switch err {
-		case services.ErrInvalidVerificationCode:
+		switch {
+		case errors.Is(err, services.ErrInvalidVerificationCode):
 			errorMsg = "Invalid verification code"
-		case services.ErrExpiredVerificationCode:
+		case errors.Is(err, services.ErrExpiredVerificationCode):
 			errorMsg = "Verification code has expired"
 		default:
 			errorMsg = "Failed to verify email"

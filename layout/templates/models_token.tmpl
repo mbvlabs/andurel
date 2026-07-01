@@ -5,6 +5,9 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+{{ if eq .DIMode "uberfx" }}
+	"database/sql"
+{{ end }}
 	"encoding/base32"
 	"encoding/hex"
 	"encoding/json"
@@ -73,6 +76,11 @@ func (t token) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (Tok
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
+{{ if eq .DIMode "uberfx" }}
+		if errors.Is(err, sql.ErrNoRows) {
+			return TokenEntity{}, ErrNotFound
+		}
+{{ end }}
 		return TokenEntity{}, err
 	}
 	return entity, nil
@@ -94,6 +102,11 @@ func (t token) FindByScopeAndHash(
 		Where("hash = ?", hash).
 		Scan(ctx)
 	if err != nil {
+{{ if eq .DIMode "uberfx" }}
+		if errors.Is(err, sql.ErrNoRows) {
+			return TokenEntity{}, ErrNotFound
+		}
+{{ end }}
 		return TokenEntity{}, err
 	}
 	return entity, nil

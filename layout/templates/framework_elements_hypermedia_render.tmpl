@@ -35,7 +35,7 @@ func RenderHTML(ctx context.Context, component templ.Component) (string, error) 
 	defer templ.ReleaseBuffer(buf)
 
 	if err := component.Render(ctx, buf); err != nil {
-		return "", err
+		return "", fmt.Errorf("hypermedia: render html: %v", err)
 	}
 
 	return buf.String(), nil
@@ -51,7 +51,7 @@ func RenderFragments(ctx context.Context, component templ.Component, keys ...any
 	fragments := new(bytes.Buffer)
 
 	if err := templ.RenderFragments(ctx, fragments, component, keys); err != nil {
-		return "", fmt.Errorf("failed to render fragment: %w", err)
+		return "", fmt.Errorf("hypermedia: render fragment: %v", err)
 	}
 
 	return fragments.String(), nil
@@ -71,7 +71,11 @@ func RenderPage(etx *echo.Context, component templ.Component, opts ...PageOption
 		return err
 	}
 
-	return etx.HTML(options.Status, html)
+	if err := etx.HTML(options.Status, html); err != nil {
+		return fmt.Errorf("hypermedia: write response: %w", err)
+	}
+
+	return nil
 }
 
 // RenderComponent is identical to RenderPage; use it when naming the templ component improves readability at the call site.

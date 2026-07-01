@@ -5,7 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
-	"errors"
+	"fmt"
 	"log/slog"
 
 	"{{.ModuleName}}/config"
@@ -34,7 +34,7 @@ func NewPostgres(ctx context.Context, cfg config.Config) (*Postgres, error) {
 	pgxCfg, err := pgx.ParseConfig(cfg.DB.GetDatabaseURL())
 	if err != nil {
 		slog.ErrorContext(ctx, "could not parse database connection string", "error", err)
-		return &Postgres{}, err
+		return nil, fmt.Errorf("database: parse database URL: %w", err)
 	}
 
 	pgxCfg.Tracer = otelpgx.NewTracer()
@@ -45,7 +45,7 @@ func NewPostgres(ctx context.Context, cfg config.Config) (*Postgres, error) {
 	if err := db.PingContext(ctx); err != nil {
 		slog.ErrorContext(ctx, "could not ping database", "error", err)
 		db.Close()
-		return &Postgres{}, err
+		return nil, fmt.Errorf("database: ping database: %w", err)
 	}
 
 	return &Postgres{conn: db}, nil
@@ -62,7 +62,7 @@ func (p *Postgres) Conn() *sql.DB {
 func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error) {
 	tx, err := p.conn.BeginTx(ctx, opts)
 	if err != nil {
-		return bun.Tx{}, errors.Join(storage.ErrBeginTx, err)
+		return bun.Tx{}, fmt.Errorf("database: begin transaction: %w", err)
 	}
 	return tx, nil
 }

@@ -84,7 +84,7 @@ func (s *Server) Start(
 		eg.Go(func() error {
 			if err := s.srv.ListenAndServe(); err != nil &&
 				err != http.ErrServerClosed {
-				return fmt.Errorf("server error: %w", err)
+				return fmt.Errorf("server: listen: %w", err)
 			}
 			return nil
 		})
@@ -106,7 +106,7 @@ func (s *Server) Start(
 					fmt.Sprintf("%T", shutdowner),
 				)
 				if err := shutdowner.Shutdown(shutdownCtx); err != nil {
-					return fmt.Errorf("component shutdown error (%T): %w", shutdowner, err)
+					return fmt.Errorf("server: shutdown component %T: %w", shutdowner, err)
 				}
 			}
 
@@ -122,7 +122,7 @@ func (s *Server) Start(
 	}
 
 	if err := s.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		return fmt.Errorf("server error: %w", err)
+		return fmt.Errorf("server: listen: %w", err)
 	}
 
 	return nil

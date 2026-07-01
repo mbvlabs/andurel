@@ -128,7 +128,7 @@ func startServer(lc fx.Lifecycle, r *router.Router, cfg config.Config, processor
 			slog.InfoContext(ctx, "initiating graceful shutdown")
 			for _, shutdowner := range srv.Shutdowners {
 				if err := shutdowner.Shutdown(ctx); err != nil {
-					return fmt.Errorf("component shutdown error (%T): %w", shutdowner, err)
+					return fmt.Errorf("server: shutdown component %T: %w", shutdowner, err)
 				}
 			}
 			return nil

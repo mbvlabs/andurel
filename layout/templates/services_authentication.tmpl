@@ -2,8 +2,13 @@ package services
 
 import (
 	"context"
+{{ if ne .DIMode "uberfx" }}
 	"database/sql"
+{{ end }}
 	"errors"
+{{ if eq .DIMode "uberfx" }}
+	"fmt"
+{{ end }}
 
 {{- if ne .DIMode "uberfx"}}
 	"{{.ModuleName}}/internal/storage"
@@ -37,11 +42,19 @@ func AuthenticateUser(
 	user, err := models.User.FindByEmail(ctx, db.Executor(), data.Email)
 {{end}}
 	if err != nil {
+{{if eq .DIMode "uberfx"}}
+		if errors.Is(err, models.ErrNotFound) {
+			return models.UserEntity{}, ErrInvalidCredentials
+		}
+
+		return models.UserEntity{}, fmt.Errorf("find user by email: %w", err)
+{{else}}
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.UserEntity{}, ErrInvalidCredentials
 		}
 
 		return models.UserEntity{}, err
+{{end}}
 	}
 
 {{if eq .DIMode "uberfx"}}
@@ -50,7 +63,11 @@ func AuthenticateUser(
 	validPassword, err := user.ValidPassword(data.Password, salt)
 {{end}}
 	if err != nil {
+{{if eq .DIMode "uberfx"}}
+		return models.UserEntity{}, fmt.Errorf("validate password: %w", err)
+{{else}}
 		return models.UserEntity{}, err
+{{end}}
 	}
 
 	if !validPassword {

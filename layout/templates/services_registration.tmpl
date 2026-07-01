@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+{{ if eq .DIMode "uberfx" }}
+	"fmt"
+{{ end }}
 	"time"
 
 	"{{.ModuleName}}/config"
@@ -44,7 +47,11 @@ func RegisterUser(
 	tx, err := db.BeginTx(ctx, nil)
 {{end}}
 	if err != nil {
+{{if eq .DIMode "uberfx"}}
+		return fmt.Errorf("begin registration transaction: %w", err)
+{{else}}
 		return err
+{{end}}
 	}
 
 {{if eq .DIMode "uberfx"}}
@@ -60,7 +67,11 @@ func RegisterUser(
 	})
 	if err != nil {
 		_ = tx.Rollback()
+{{if eq .DIMode "uberfx"}}
+		return fmt.Errorf("create user: %w", err)
+{{else}}
 		return err
+{{end}}
 	}
 
 	meta, err := json.Marshal(map[string]string{
@@ -68,7 +79,11 @@ func RegisterUser(
 	})
 	if err != nil {
 		_ = tx.Rollback()
+{{if eq .DIMode "uberfx"}}
+		return fmt.Errorf("marshal verification token metadata: %v", err)
+{{else}}
 		return err
+{{end}}
 	}
 
 {{if eq .DIMode "uberfx"}}
@@ -88,23 +103,39 @@ func RegisterUser(
 	)
 	if err != nil {
 		_ = tx.Rollback()
+{{if eq .DIMode "uberfx"}}
+		return fmt.Errorf("create verification token: %w", err)
+{{else}}
 		return err
+{{end}}
 	}
 
 	if err := tx.Commit(); err != nil {
+{{if eq .DIMode "uberfx"}}
+		return fmt.Errorf("commit registration transaction: %w", err)
+{{else}}
 		return err
+{{end}}
 	}
 
 	vEmail := email.VerifyEmail{VerificationCode: code}
 
 	html, err := vEmail.ToHTML()
 	if err != nil {
+{{if eq .DIMode "uberfx"}}
+		return fmt.Errorf("render verification email html: %v", err)
+{{else}}
 		return err
+{{end}}
 	}
 
 	text, err := vEmail.ToText()
 	if err != nil {
+{{if eq .DIMode "uberfx"}}
+		return fmt.Errorf("render verification email text: %v", err)
+{{else}}
 		return err
+{{end}}
 	}
 
 {{if eq .DIMode "uberfx"}}
@@ -120,7 +151,15 @@ func RegisterUser(
 			TextBody: text,
 		},
 	}, nil)
+{{if eq .DIMode "uberfx"}}
+	if err != nil {
+		return fmt.Errorf("queue verification email: %v", err)
+	}
+
+	return nil
+{{else}}
 	return err
+{{end}}
 }
 
 var (
@@ -149,7 +188,11 @@ func VerifyEmail(
 	tx, err := db.BeginTx(ctx, nil)
 {{end}}
 	if err != nil {
+{{if eq .DIMode "uberfx"}}
+		return models.UserEntity{}, fmt.Errorf("begin email verification transaction: %w", err)
+{{else}}
 		return models.UserEntity{}, err
+{{end}}
 	}
 
 {{if eq .DIMode "uberfx"}}
@@ -168,7 +211,14 @@ func VerifyEmail(
 	)
 	if err != nil {
 		_ = tx.Rollback()
+{{if eq .DIMode "uberfx"}}
+		if errors.Is(err, models.ErrNotFound) {
+			return models.UserEntity{}, ErrInvalidVerificationCode
+		}
+		return models.UserEntity{}, fmt.Errorf("find email verification token: %w", err)
+{{else}}
 		return models.UserEntity{}, ErrInvalidVerificationCode
+{{end}}
 	}
 
 {{if eq .DIMode "uberfx"}}
@@ -183,19 +233,34 @@ func VerifyEmail(
 	var meta map[string]string
 	if err := json.Unmarshal(token.MetaData, &meta); err != nil {
 		_ = tx.Rollback()
+{{if eq .DIMode "uberfx"}}
+		return models.UserEntity{}, fmt.Errorf("unmarshal verification token metadata: %v", err)
+{{else}}
 		return models.UserEntity{}, err
+{{end}}
 	}
 
 	emailAddr, ok := meta["email"]
 	if !ok {
 		_ = tx.Rollback()
+{{if eq .DIMode "uberfx"}}
+		return models.UserEntity{}, errors.New("verification token metadata missing email")
+{{else}}
 		return models.UserEntity{}, errors.New("token metadata missing email")
+{{end}}
 	}
 
 	user, err := models.User.FindByEmail(ctx, tx, emailAddr)
 	if err != nil {
 		_ = tx.Rollback()
+{{if eq .DIMode "uberfx"}}
+		if errors.Is(err, models.ErrNotFound) {
+			return models.UserEntity{}, ErrUserNotFound
+		}
+		return models.UserEntity{}, fmt.Errorf("find verification user: %w", err)
+{{else}}
 		return models.UserEntity{}, err
+{{end}}
 	}
 
 	now := time.Now()
@@ -208,16 +273,31 @@ func VerifyEmail(
 	})
 	if err != nil {
 		_ = tx.Rollback()
+{{if eq .DIMode "uberfx"}}
+		if errors.Is(err, models.ErrNotFound) {
+			return models.UserEntity{}, ErrUserNotFound
+		}
+		return models.UserEntity{}, fmt.Errorf("mark user email verified: %w", err)
+{{else}}
 		return models.UserEntity{}, err
+{{end}}
 	}
 
 	if err := models.Token.Destroy(ctx, tx, token.ID); err != nil {
 		_ = tx.Rollback()
+{{if eq .DIMode "uberfx"}}
+		return models.UserEntity{}, fmt.Errorf("destroy email verification token: %w", err)
+{{else}}
 		return models.UserEntity{}, err
+{{end}}
 	}
 
 	if err := tx.Commit(); err != nil {
+{{if eq .DIMode "uberfx"}}
+		return models.UserEntity{}, fmt.Errorf("commit email verification transaction: %w", err)
+{{else}}
 		return models.UserEntity{}, err
+{{end}}
 	}
 
 	return user, nil
