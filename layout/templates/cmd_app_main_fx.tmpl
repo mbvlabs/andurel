@@ -20,8 +20,8 @@ import (
 {{- end}}
 	"{{.ModuleName}}/internal/server"
 	"{{.ModuleName}}/queue"
-	"{{.ModuleName}}/queue/workers"
 	"{{.ModuleName}}/router"
+	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/telemetry"
 
 	"go.uber.org/fx"
@@ -55,8 +55,9 @@ func main() {
 		config.Module,
 		database.Module,
 		telemetry.Module,
-		workers.Module,
 		queue.Module,
+		queue.WorkersModule,
+		services.Module,
 		controllers.Module,
 		router.Module,
 

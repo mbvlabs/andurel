@@ -9,9 +9,13 @@ import (
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/email"
+{{- if ne .DIMode "uberfx"}}
 	"{{.ModuleName}}/internal/storage"
+{{- end}}
 	"{{.ModuleName}}/models"
+{{- if ne .DIMode "uberfx"}}
 	"{{.ModuleName}}/queue"
+{{- end}}
 	"{{.ModuleName}}/queue/jobs"
 )
 
@@ -23,6 +27,13 @@ type RegisterUserData struct {
 	ConfirmPassword string
 }
 
+{{if eq .DIMode "uberfx"}}
+func (i Identity) RegisterUser(
+	ctx context.Context,
+	data RegisterUserData,
+) error {
+	tx, err := i.db.BeginTx(ctx, nil)
+{{else}}
 func RegisterUser(
 	ctx context.Context,
 	db storage.Pool,
@@ -31,11 +42,16 @@ func RegisterUser(
 	data RegisterUserData,
 ) error {
 	tx, err := db.BeginTx(ctx, nil)
+{{end}}
 	if err != nil {
 		return err
 	}
 
+{{if eq .DIMode "uberfx"}}
+	user, err := models.User.Create(ctx, tx, i.pepper, models.CreateUserData{
+{{else}}
 	user, err := models.User.Create(ctx, tx, salt, models.CreateUserData{
+{{end}}
 		Email: data.Email,
 		PasswordPair: models.PasswordPair{
 			Password:        data.Password,
@@ -55,10 +71,17 @@ func RegisterUser(
 		return err
 	}
 
+{{if eq .DIMode "uberfx"}}
+	code, err := models.Token.CreateCode(
+		ctx,
+		tx,
+		i.pepper,
+{{else}}
 	code, err := models.Token.CreateCode(
 		ctx,
 		tx,
 		salt,
+{{end}}
 		userEmailVerification,
 		time.Now().Add(24*time.Hour),
 		meta,
@@ -84,7 +107,11 @@ func RegisterUser(
 		return err
 	}
 
+{{if eq .DIMode "uberfx"}}
+	_, err = i.insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
+{{else}}
 	_, err = insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
+{{end}}
 		Data: email.TransactionalData{
 			To:       user.Email,
 			From:     config.DefaultSenderSignature,
@@ -106,6 +133,13 @@ type VerifyEmailData struct {
 	Code string
 }
 
+{{if eq .DIMode "uberfx"}}
+func (i Identity) VerifyEmail(
+	ctx context.Context,
+	data VerifyEmailData,
+) (models.UserEntity, error) {
+	tx, err := i.db.BeginTx(ctx, nil)
+{{else}}
 func VerifyEmail(
 	ctx context.Context,
 	db storage.Pool,
@@ -113,14 +147,22 @@ func VerifyEmail(
 	data VerifyEmailData,
 ) (models.UserEntity, error) {
 	tx, err := db.BeginTx(ctx, nil)
+{{end}}
 	if err != nil {
 		return models.UserEntity{}, err
 	}
 
+{{if eq .DIMode "uberfx"}}
+	token, err := models.Token.FindByScopeAndHash(
+		ctx,
+		tx,
+		i.pepper,
+{{else}}
 	token, err := models.Token.FindByScopeAndHash(
 		ctx,
 		tx,
 		salt,
+{{end}}
 		userEmailVerification,
 		data.Code,
 	)
@@ -129,7 +171,11 @@ func VerifyEmail(
 		return models.UserEntity{}, ErrInvalidVerificationCode
 	}
 
+{{if eq .DIMode "uberfx"}}
+	if !token.IsValid(data.Code, i.pepper) {
+{{else}}
 	if !token.IsValid(data.Code, salt) {
+{{end}}
 		_ = tx.Rollback()
 		return models.UserEntity{}, ErrExpiredVerificationCode
 	}

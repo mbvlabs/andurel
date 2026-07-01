@@ -1666,8 +1666,8 @@ import (
 	"testapp/internal/inertia"
 	"testapp/internal/server"
 	"testapp/queue"
-	"testapp/queue/workers"
 	"testapp/router"
+	"testapp/services"
 	"testapp/telemetry"
 
 	"go.uber.org/fx"
@@ -1697,8 +1697,9 @@ func main() {
 		config.Module,
 		database.Module,
 		telemetry.Module,
-		workers.Module,
 		queue.Module,
+		queue.WorkersModule,
+		services.Module,
 		controllers.Module,
 		router.Module,
 
@@ -2500,9 +2501,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"testapp/config"
 	"testapp/internal/hypermedia"
-	"testapp/internal/storage"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
@@ -2513,12 +2512,11 @@ import (
 )
 
 type Confirmations struct {
-	db  storage.Pool
-	cfg config.Config
+	identity services.Identity
 }
 
-func NewConfirmations(db storage.Pool, cfg config.Config) Confirmations {
-	return Confirmations{db, cfg}
+func NewConfirmations(identity services.Identity) Confirmations {
+	return Confirmations{identity}
 }
 
 func (c Confirmations) RegisterRoutes(r *router.Router) error {
@@ -2566,10 +2564,8 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	user, err := services.VerifyEmail(
+	user, err := c.identity.VerifyEmail(
 		etx.Request().Context(),
-		c.db,
-		c.cfg.Auth.Pepper,
 		services.VerifyEmailData{
 			Code: payload.Code,
 		},
@@ -2745,10 +2741,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"testapp/config"
 	"testapp/internal/hypermedia"
-	"testapp/internal/storage"
-	"testapp/queue"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/middleware"
@@ -2760,17 +2753,11 @@ import (
 )
 
 type Registrations struct {
-	db         storage.Pool
-	insertOnly queue.InsertOnly
-	cfg        config.Config
+	identity services.Identity
 }
 
-func NewRegistrations(
-	db storage.Pool,
-	insertOnly queue.InsertOnly,
-	cfg config.Config,
-) Registrations {
-	return Registrations{db, insertOnly, cfg}
+func NewRegistrations(identity services.Identity) Registrations {
+	return Registrations{identity}
 }
 
 func (r Registrations) RegisterRoutes(rtr *router.Router) error {
@@ -2823,11 +2810,8 @@ func (r Registrations) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	if err := services.RegisterUser(
+	if err := r.identity.RegisterUser(
 		etx.Request().Context(),
-		r.db,
-		r.insertOnly,
-		r.cfg.Auth.Pepper,
 		services.RegisterUserData{
 			Email:           payload.Email,
 			Password:        payload.Password,
@@ -2861,10 +2845,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"testapp/config"
 	"testapp/internal/hypermedia"
-	"testapp/internal/storage"
-	"testapp/queue"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
@@ -2875,17 +2856,11 @@ import (
 )
 
 type ResetPasswords struct {
-	db         storage.Pool
-	insertOnly queue.InsertOnly
-	cfg        config.Config
+	identity services.Identity
 }
 
-func NewResetPasswords(
-	db storage.Pool,
-	insertOnly queue.InsertOnly,
-	cfg config.Config,
-) ResetPasswords {
-	return ResetPasswords{db, insertOnly, cfg}
+func NewResetPasswords(identity services.Identity) ResetPasswords {
+	return ResetPasswords{identity}
 }
 
 func (rp ResetPasswords) RegisterRoutes(r *router.Router) error {
@@ -2954,11 +2929,8 @@ func (rp ResetPasswords) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	if err := services.RequestResetPassword(
+	if err := rp.identity.RequestResetPassword(
 		etx.Request().Context(),
-		rp.db,
-		rp.insertOnly,
-		rp.cfg.Auth.Pepper,
 		services.RequestResetPasswordData{
 			Email: payload.Email,
 		},
@@ -3014,10 +2986,8 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	if err := services.ResetPassword(
+	if err := rp.identity.ResetPassword(
 		etx.Request().Context(),
-		rp.db,
-		rp.cfg.Auth.Pepper,
 		services.ResetPasswordData{
 			Token:           payload.Token,
 			Password:        payload.Password,
@@ -3069,9 +3039,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"testapp/config"
 	"testapp/internal/hypermedia"
-	"testapp/internal/storage"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/middleware"
@@ -3083,12 +3051,11 @@ import (
 )
 
 type Sessions struct {
-	db  storage.Pool
-	cfg config.Config
+	identity services.Identity
 }
 
-func NewSessions(db storage.Pool, cfg config.Config) Sessions {
-	return Sessions{db, cfg}
+func NewSessions(identity services.Identity) Sessions {
+	return Sessions{identity}
 }
 
 func (s Sessions) RegisterRoutes(r *router.Router) error {
@@ -3150,10 +3117,8 @@ func (s Sessions) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	user, err := services.AuthenticateUser(
+	user, err := s.identity.AuthenticateUser(
 		etx.Request().Context(),
-		s.db,
-		s.cfg.Auth.Pepper,
 		services.LoginData{
 			Email:    payload.Email,
 			Password: payload.Password,
@@ -10183,23 +10148,19 @@ func NewInsertOnly(db storage.Pool, workers *river.Workers) (InsertOnly, error) 
 }
 
 
-var constructors = fx.Provide(
-	NewInsertOnly,
-	NewProcessor,
-)
-
 var Module = fx.Module(
 	"queue",
-	constructors,
+	fx.Provide(
+		NewInsertOnly,
+		NewProcessor,
+	),
 )
 
 ```
 
-dir  d----------rwxr-xr-x queue/workers
-
-file -----------rw-r--r-- queue/workers/send_marketing_email.go
+file -----------rw-r--r-- queue/send_marketing_email.go
 ```
-package workers
+package queue
 
 import (
 	"context"
@@ -10221,6 +10182,12 @@ func NewSendMarketingEmailWorker(sender email.MarketingSender) *SendMarketingEma
 	}
 }
 
+
+func (w *SendMarketingEmailWorker) Register(workers *river.Workers) error {
+	return river.AddWorkerSafely(workers, w)
+}
+
+
 func (w *SendMarketingEmailWorker) Work(ctx context.Context, job *river.Job[jobs.SendMarketingEmailArgs]) error {
 	err := email.SendMarketing(ctx, job.Args.Data, w.sender)
 	if err != nil {
@@ -10234,9 +10201,9 @@ func (w *SendMarketingEmailWorker) Work(ctx context.Context, job *river.Job[jobs
 }
 ```
 
-file -----------rw-r--r-- queue/workers/send_transactional_email.go
+file -----------rw-r--r-- queue/send_transactional_email.go
 ```
-package workers
+package queue
 
 import (
 	"context"
@@ -10258,6 +10225,12 @@ func NewSendTransactionalEmailWorker(sender email.TransactionalSender) *SendTran
 	}
 }
 
+
+func (w *SendTransactionalEmailWorker) Register(workers *river.Workers) error {
+	return river.AddWorkerSafely(workers, w)
+}
+
+
 func (w *SendTransactionalEmailWorker) Work(ctx context.Context, job *river.Job[jobs.SendTransactionalEmailArgs]) error {
 	err := email.SendTransactional(ctx, job.Args.Data, w.sender)
 	if err != nil {
@@ -10271,38 +10244,35 @@ func (w *SendTransactionalEmailWorker) Work(ctx context.Context, job *river.Job[
 }
 ```
 
-file -----------rw-r--r-- queue/workers/workers.go
+file -----------rw-r--r-- queue/workers.go
 ```
-// Package workers provides a centralized place to register all background workers for the application.
-package workers
+
+// Package queue provides queue-specific resources.
+package queue
 
 import (
 	"github.com/riverqueue/river"
-
-    
 	"go.uber.org/fx"
-    
-	"testapp/email"
 )
 
-func RegisterWorkers(transactionalSender email.TransactionalSender, marketingSender email.MarketingSender) (*river.Workers, error) {
-	wrks := river.NewWorkers()
+var wrksConstructors = fx.Provide(
+	river.NewWorkers,
+	NewSendTransactionalEmailWorker,
+	NewSendMarketingEmailWorker,
+	// andurel:worker-constructor-registration-point
+)
 
-	if err := river.AddWorkerSafely(wrks, NewSendTransactionalEmailWorker(transactionalSender)); err != nil {
-		return nil, err
-	}
-
-	if err := river.AddWorkerSafely(wrks, NewSendMarketingEmailWorker(marketingSender)); err != nil {
-		return nil, err
-	}
-
-	// andurel:worker-registration-point
-
-	return wrks, nil
-}
-
-
-var Module = fx.Module("queue-workers", fx.Provide(RegisterWorkers))
+var WorkersModule = fx.Module(
+	"queue-workers",
+	wrksConstructors,
+	fx.Invoke(func(workers *river.Workers, worker *SendTransactionalEmailWorker) error {
+		return worker.Register(workers)
+	}),
+	fx.Invoke(func(workers *river.Workers, worker *SendMarketingEmailWorker) error {
+		return worker.Register(workers)
+	}),
+	// andurel:worker-fx-invoke-registration-point
+)
 
 ```
 
@@ -11292,8 +11262,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-
-	"testapp/internal/storage"
 	"testapp/models"
 )
 
@@ -11307,13 +11275,13 @@ type LoginData struct {
 	Password string
 }
 
-func AuthenticateUser(
+
+func (i Identity) AuthenticateUser(
 	ctx context.Context,
-	db storage.Pool,
-	salt string,
 	data LoginData,
 ) (models.UserEntity, error) {
-	user, err := models.User.FindByEmail(ctx, db.Executor(), data.Email)
+	user, err := models.User.FindByEmail(ctx, i.db.Executor(), data.Email)
+
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.UserEntity{}, ErrInvalidCredentials
@@ -11322,13 +11290,17 @@ func AuthenticateUser(
 		return models.UserEntity{}, err
 	}
 
-	validPassword, err := user.ValidPassword(data.Password, salt)
+
+	validPassword, err := user.ValidPassword(data.Password, i.pepper)
+
 	if err != nil {
 		return models.UserEntity{}, err
 	}
 
 	if !validPassword {
-		return models.UserEntity{}, errors.New("invalid password")
+
+		return models.UserEntity{}, ErrInvalidCredentials
+
 	}
 
 	if !user.HasValidatedEmail() {
@@ -11336,6 +11308,27 @@ func AuthenticateUser(
 	}
 
 	return user, nil
+}
+```
+
+file -----------rw-r--r-- services/identity.go
+```
+package services
+
+import (
+	"testapp/config"
+	"testapp/internal/storage"
+	"testapp/queue"
+)
+
+type Identity struct {
+	db         storage.Pool
+	insertOnly queue.InsertOnly
+	pepper     string
+}
+
+func NewIdentity(db storage.Pool, insertOnly queue.InsertOnly, cfg config.Config) Identity {
+	return Identity{db: db, insertOnly: insertOnly, pepper: cfg.Auth.Pepper}
 }
 ```
 
@@ -11352,9 +11345,7 @@ import (
 
 	"testapp/config"
 	"testapp/email"
-	"testapp/internal/storage"
 	"testapp/models"
-	"testapp/queue"
 	"testapp/queue/jobs"
 )
 
@@ -11366,19 +11357,20 @@ type RegisterUserData struct {
 	ConfirmPassword string
 }
 
-func RegisterUser(
+
+func (i Identity) RegisterUser(
 	ctx context.Context,
-	db storage.Pool,
-	insertOnly queue.InsertOnly,
-	salt string,
 	data RegisterUserData,
 ) error {
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := i.db.BeginTx(ctx, nil)
+
 	if err != nil {
 		return err
 	}
 
-	user, err := models.User.Create(ctx, tx, salt, models.CreateUserData{
+
+	user, err := models.User.Create(ctx, tx, i.pepper, models.CreateUserData{
+
 		Email: data.Email,
 		PasswordPair: models.PasswordPair{
 			Password:        data.Password,
@@ -11398,10 +11390,12 @@ func RegisterUser(
 		return err
 	}
 
+
 	code, err := models.Token.CreateCode(
 		ctx,
 		tx,
-		salt,
+		i.pepper,
+
 		userEmailVerification,
 		time.Now().Add(24*time.Hour),
 		meta,
@@ -11427,7 +11421,9 @@ func RegisterUser(
 		return err
 	}
 
-	_, err = insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
+
+	_, err = i.insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
+
 		Data: email.TransactionalData{
 			To:       user.Email,
 			From:     config.DefaultSenderSignature,
@@ -11449,21 +11445,23 @@ type VerifyEmailData struct {
 	Code string
 }
 
-func VerifyEmail(
+
+func (i Identity) VerifyEmail(
 	ctx context.Context,
-	db storage.Pool,
-	salt string,
 	data VerifyEmailData,
 ) (models.UserEntity, error) {
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := i.db.BeginTx(ctx, nil)
+
 	if err != nil {
 		return models.UserEntity{}, err
 	}
 
+
 	token, err := models.Token.FindByScopeAndHash(
 		ctx,
 		tx,
-		salt,
+		i.pepper,
+
 		userEmailVerification,
 		data.Code,
 	)
@@ -11472,7 +11470,9 @@ func VerifyEmail(
 		return models.UserEntity{}, ErrInvalidVerificationCode
 	}
 
-	if !token.IsValid(data.Code, salt) {
+
+	if !token.IsValid(data.Code, i.pepper) {
+
 		_ = tx.Rollback()
 		return models.UserEntity{}, ErrExpiredVerificationCode
 	}
@@ -11535,9 +11535,7 @@ import (
 
 	"testapp/config"
 	"testapp/email"
-	"testapp/internal/storage"
 	"testapp/models"
-	"testapp/queue"
 	"testapp/queue/jobs"
 	"testapp/router/routes"
 )
@@ -11553,14 +11551,13 @@ type RequestResetPasswordData struct {
 	Email string
 }
 
-func RequestResetPassword(
+
+func (i Identity) RequestResetPassword(
 	ctx context.Context,
-	db storage.Pool,
-	insertOnly queue.InsertOnly,
-	salt string,
 	data RequestResetPasswordData,
 ) error {
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := i.db.BeginTx(ctx, nil)
+
 	if err != nil {
 		return err
 	}
@@ -11582,10 +11579,12 @@ func RequestResetPassword(
 		return err
 	}
 
+
 	token, err := models.Token.Create(
 		ctx,
 		tx,
-		salt,
+		i.pepper,
+
 		userResetPassword,
 		time.Now().Add(1*time.Hour),
 		meta,
@@ -11613,7 +11612,9 @@ func RequestResetPassword(
 		return err
 	}
 
-	_, err = insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
+
+	_, err = i.insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
+
 		Data: email.TransactionalData{
 			To:       user.Email,
 			From:     config.DefaultSenderSignature,
@@ -11631,12 +11632,12 @@ type ResetPasswordData struct {
 	ConfirmPassword string
 }
 
-func ResetPassword(
+
+func (i Identity) ResetPassword(
 	ctx context.Context,
-	db storage.Pool,
-	salt string,
 	data ResetPasswordData,
 ) error {
+
 	if data.Password != data.ConfirmPassword {
 		return errors.New("passwords do not match")
 	}
@@ -11645,15 +11646,19 @@ func ResetPassword(
 		return errors.New("password must be at least 8 characters")
 	}
 
-	tx, err := db.BeginTx(ctx, nil)
+
+	tx, err := i.db.BeginTx(ctx, nil)
+
 	if err != nil {
 		return err
 	}
 
+
 	token, err := models.Token.FindByScopeAndHash(
 		ctx,
 		tx,
-		salt,
+		i.pepper,
+
 		userResetPassword,
 		data.Token,
 	)
@@ -11662,7 +11667,9 @@ func ResetPassword(
 		return ErrInvalidResetCode
 	}
 
-	if !token.IsValid(data.Token, salt) {
+
+	if !token.IsValid(data.Token, i.pepper) {
+
 		_ = tx.Rollback()
 		return ErrExpiredResetCode
 	}
@@ -11685,7 +11692,9 @@ func ResetPassword(
 		return err
 	}
 
-	hashedPassword, err := models.HashPassword(data.Password, salt)
+
+	hashedPassword, err := models.HashPassword(data.Password, i.pepper)
+
 	if err != nil {
 		_ = tx.Rollback()
 		return err
@@ -11710,6 +11719,21 @@ func ResetPassword(
 
 	return tx.Commit()
 }
+```
+
+file -----------rw-r--r-- services/service.go
+```
+// Package services provides application services for business workflows.
+package services
+
+import "go.uber.org/fx"
+
+var Module = fx.Module(
+	"services",
+	fx.Provide(
+		NewIdentity,
+	),
+)
 ```
 
 dir  d----------rwxr-xr-x telemetry

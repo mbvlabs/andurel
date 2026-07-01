@@ -121,13 +121,11 @@ func NewInsertOnly(db storage.Pool, workers *river.Workers) (InsertOnly, error) 
 }
 
 {{if eq .DIMode "uberfx"}}
-var constructors = fx.Provide(
-	NewInsertOnly,
-	NewProcessor,
-)
-
 var Module = fx.Module(
 	"queue",
-	constructors,
+	fx.Provide(
+		NewInsertOnly,
+		NewProcessor,
+	),
 )
 {{end}}

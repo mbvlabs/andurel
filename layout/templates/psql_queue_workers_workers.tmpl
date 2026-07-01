@@ -1,3 +1,31 @@
+{{if eq .DIMode "uberfx"}}
+// Package queue provides queue-specific resources.
+package queue
+
+import (
+	"github.com/riverqueue/river"
+	"go.uber.org/fx"
+)
+
+var wrksConstructors = fx.Provide(
+	river.NewWorkers,
+	NewSendTransactionalEmailWorker,
+	NewSendMarketingEmailWorker,
+	// andurel:worker-constructor-registration-point
+)
+
+var WorkersModule = fx.Module(
+	"queue-workers",
+	wrksConstructors,
+	fx.Invoke(func(workers *river.Workers, worker *SendTransactionalEmailWorker) error {
+		return worker.Register(workers)
+	}),
+	fx.Invoke(func(workers *river.Workers, worker *SendMarketingEmailWorker) error {
+		return worker.Register(workers)
+	}),
+	// andurel:worker-fx-invoke-registration-point
+)
+{{else}}
 // Package workers provides a centralized place to register all background workers for the application.
 package workers
 
@@ -28,4 +56,5 @@ func RegisterWorkers(transactionalSender email.TransactionalSender, marketingSen
 
 {{if eq .DIMode "uberfx"}}
 var Module = fx.Module("queue-workers", fx.Provide(RegisterWorkers))
+{{end}}
 {{end}}
