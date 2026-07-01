@@ -67,6 +67,54 @@ func TestGenerateJobDefaultQueueOmitsInsertOpts(t *testing.T) {
 	}
 }
 
+func TestGenerateJobUberFXWritesQueueWorkerAndModuleRegistration(t *testing.T) {
+	rootDir := setupGenerateFileTestProject(t)
+	writeGenerateFileTestLock(t, rootDir, "uberfx")
+	workersPath := filepath.Join(rootDir, "queue", "workers.go")
+	if err := os.MkdirAll(filepath.Dir(workersPath), 0o755); err != nil {
+		t.Fatalf("create queue dir: %v", err)
+	}
+	if err := os.WriteFile(workersPath, []byte(fxWorkersFixture), 0o644); err != nil {
+		t.Fatalf("write fx workers fixture: %v", err)
+	}
+
+	if err := generateJob("ProcessPayment", "financial"); err != nil {
+		t.Fatalf("generateJob failed: %v", err)
+	}
+
+	workerContent := readGeneratedTestFile(t, rootDir, "queue/process_payment.go")
+	for _, want := range []string{
+		"package queue",
+		"\"example.com/app/queue/jobs\"",
+		"type ProcessPaymentWorker struct",
+		"func NewProcessPaymentWorker() *ProcessPaymentWorker",
+		"func (w *ProcessPaymentWorker) Register(workers *river.Workers) error",
+		"return river.AddWorkerSafely(workers, w)",
+		"river.WorkerDefaults[jobs.ProcessPaymentArgs]",
+	} {
+		if !strings.Contains(workerContent, want) {
+			t.Fatalf("worker file should contain %q\n\n%s", want, workerContent)
+		}
+	}
+
+	if _, err := os.Stat(filepath.Join(rootDir, "queue", "workers", "process_payment.go")); !os.IsNotExist(err) {
+		t.Fatalf("uberfx job generation should not write queue/workers/process_payment.go: %v", err)
+	}
+
+	workersContent := readGeneratedTestFile(t, rootDir, "queue/workers.go")
+	for _, want := range []string{
+		"NewProcessPaymentWorker,",
+		"fx.Invoke(func(workers *river.Workers, worker *ProcessPaymentWorker) error",
+		"return worker.Register(workers)",
+		"// andurel:worker-constructor-registration-point",
+		"// andurel:worker-fx-invoke-registration-point",
+	} {
+		if !strings.Contains(workersContent, want) {
+			t.Fatalf("fx workers registration should contain %q\n\n%s", want, workersContent)
+		}
+	}
+}
+
 func TestGenerateEmailWritesTemplTransformer(t *testing.T) {
 	rootDir := setupGenerateFileTestProject(t)
 
@@ -121,6 +169,25 @@ func setupGenerateFileTestProject(t *testing.T) string {
 	return rootDir
 }
 
+func writeGenerateFileTestLock(t *testing.T, rootDir, diMode string) {
+	t.Helper()
+
+	content := `{
+  "version": "test",
+  "tools": {},
+  "scaffoldConfig": {
+    "projectName": "app",
+    "database": "postgresql",
+    "cssFramework": "tailwind",
+    "diMode": "` + diMode + `"
+  }
+}
+`
+	if err := os.WriteFile(filepath.Join(rootDir, "andurel.lock"), []byte(content), 0o644); err != nil {
+		t.Fatalf("write andurel.lock: %v", err)
+	}
+}
+
 func readGeneratedTestFile(t *testing.T, rootDir, relPath string) string {
 	t.Helper()
 
@@ -140,4 +207,31 @@ func Register() (*river.Workers, error) {
 	// andurel:worker-registration-point
 	return wrks, nil
 }
+`
+
+const fxWorkersFixture = `package queue
+
+import (
+	"github.com/riverqueue/river"
+	"go.uber.org/fx"
+)
+
+var wrksConstructors = fx.Provide(
+	river.NewWorkers,
+	NewSendTransactionalEmailWorker,
+	NewSendMarketingEmailWorker,
+	// andurel:worker-constructor-registration-point
+)
+
+var WorkersModule = fx.Module(
+	"queue-workers",
+	wrksConstructors,
+	fx.Invoke(func(workers *river.Workers, worker *SendTransactionalEmailWorker) error {
+		return worker.Register(workers)
+	}),
+	fx.Invoke(func(workers *river.Workers, worker *SendMarketingEmailWorker) error {
+		return worker.Register(workers)
+	}),
+	// andurel:worker-fx-invoke-registration-point
+)
 `
