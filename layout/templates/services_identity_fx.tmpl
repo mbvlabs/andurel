@@ -1,0 +1,17 @@
+package services
+
+import (
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/queue"
+)
+
+type Identity struct {
+	db         storage.Pool
+	insertOnly queue.InsertOnly
+	pepper     string
+}
+
+func NewIdentity(db storage.Pool, insertOnly queue.InsertOnly, cfg config.Config) Identity {
+	return Identity{db: db, insertOnly: insertOnly, pepper: cfg.Auth.Pepper}
+}

@@ -5,10 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/hypermedia"
-	"{{.ModuleName}}/internal/storage"
-	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
@@ -20,17 +17,11 @@ import (
 )
 
 type Registrations struct {
-	db         storage.Pool
-	insertOnly queue.InsertOnly
-	cfg        config.Config
+	identity services.Identity
 }
 
-func NewRegistrations(
-	db storage.Pool,
-	insertOnly queue.InsertOnly,
-	cfg config.Config,
-) Registrations {
-	return Registrations{db, insertOnly, cfg}
+func NewRegistrations(identity services.Identity) Registrations {
+	return Registrations{identity}
 }
 
 func (r Registrations) RegisterRoutes(rtr *router.Router) error {
@@ -83,11 +74,8 @@ func (r Registrations) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	if err := services.RegisterUser(
+	if err := r.identity.RegisterUser(
 		etx.Request().Context(),
-		r.db,
-		r.insertOnly,
-		r.cfg.Auth.Pepper,
 		services.RegisterUserData{
 			Email:           payload.Email,
 			Password:        payload.Password,

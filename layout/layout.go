@@ -396,16 +396,21 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 // fxTemplateOverrides maps base template names to their uberfx variants.
 // In uberfx mode, these entries replace the manual-mode templates.
 var fxTemplateOverrides = map[TmplTarget]TmplTargetPath{
-	"cmd_app_main_fx.tmpl":                "cmd/app/main.go",
-	"router_router_fx.tmpl":               "router/router.go",
-	"controllers_api_fx.tmpl":             "controllers/api.go",
-	"controllers_assets_fx.tmpl":          "controllers/assets.go",
-	"controllers_controller_fx.tmpl":      "controllers/controller.go",
-	"controllers_pages_fx.tmpl":           "controllers/pages.go",
-	"controllers_sessions_fx.tmpl":        "controllers/sessions.go",
-	"controllers_registrations_fx.tmpl":   "controllers/registrations.go",
-	"controllers_confirmations_fx.tmpl":   "controllers/confirmations.go",
-	"controllers_reset_passwords_fx.tmpl": "controllers/reset_passwords.go",
+	"cmd_app_main_fx.tmpl":                             "cmd/app/main.go",
+	"router_router_fx.tmpl":                            "router/router.go",
+	"controllers_api_fx.tmpl":                          "controllers/api.go",
+	"controllers_assets_fx.tmpl":                       "controllers/assets.go",
+	"controllers_controller_fx.tmpl":                   "controllers/controller.go",
+	"controllers_pages_fx.tmpl":                        "controllers/pages.go",
+	"controllers_sessions_fx.tmpl":                     "controllers/sessions.go",
+	"controllers_registrations_fx.tmpl":                "controllers/registrations.go",
+	"controllers_confirmations_fx.tmpl":                "controllers/confirmations.go",
+	"controllers_reset_passwords_fx.tmpl":              "controllers/reset_passwords.go",
+	"services_service_fx.tmpl":                         "services/service.go",
+	"services_identity_fx.tmpl":                        "services/identity.go",
+	"psql_queue_workers_workers.tmpl":                  "queue/workers.go",
+	"psql_queue_workers_send_transactional_email.tmpl": "queue/send_transactional_email.go",
+	"psql_queue_workers_send_marketing_email.tmpl":     "queue/send_marketing_email.go",
 }
 
 // fxSkippedTemplates lists base template entries skipped in uberfx mode.

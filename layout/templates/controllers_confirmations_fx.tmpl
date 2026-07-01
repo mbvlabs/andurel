@@ -5,9 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/hypermedia"
-	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
@@ -18,12 +16,11 @@ import (
 )
 
 type Confirmations struct {
-	db  storage.Pool
-	cfg config.Config
+	identity services.Identity
 }
 
-func NewConfirmations(db storage.Pool, cfg config.Config) Confirmations {
-	return Confirmations{db, cfg}
+func NewConfirmations(identity services.Identity) Confirmations {
+	return Confirmations{identity}
 }
 
 func (c Confirmations) RegisterRoutes(r *router.Router) error {
@@ -71,10 +68,8 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	user, err := services.VerifyEmail(
+	user, err := c.identity.VerifyEmail(
 		etx.Request().Context(),
-		c.db,
-		c.cfg.Auth.Pepper,
 		services.VerifyEmailData{
 			Code: payload.Code,
 		},

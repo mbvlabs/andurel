@@ -9889,6 +9889,7 @@ func NewSendMarketingEmailWorker(sender email.MarketingSender) *SendMarketingEma
 	}
 }
 
+
 func (w *SendMarketingEmailWorker) Work(ctx context.Context, job *river.Job[jobs.SendMarketingEmailArgs]) error {
 	err := email.SendMarketing(ctx, job.Args.Data, w.sender)
 	if err != nil {
@@ -9926,6 +9927,7 @@ func NewSendTransactionalEmailWorker(sender email.TransactionalSender) *SendTran
 	}
 }
 
+
 func (w *SendTransactionalEmailWorker) Work(ctx context.Context, job *river.Job[jobs.SendTransactionalEmailArgs]) error {
 	err := email.SendTransactional(ctx, job.Args.Data, w.sender)
 	if err != nil {
@@ -9941,6 +9943,7 @@ func (w *SendTransactionalEmailWorker) Work(ctx context.Context, job *river.Job[
 
 file -----------rw-r--r-- queue/workers/workers.go
 ```
+
 // Package workers provides a centralized place to register all background workers for the application.
 package workers
 
@@ -9966,6 +9969,7 @@ func RegisterWorkers(transactionalSender email.TransactionalSender, marketingSen
 
 	return wrks, nil
 }
+
 
 
 ```
@@ -11168,7 +11172,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-
 	"testapp/internal/storage"
 	"testapp/models"
 )
@@ -11183,6 +11186,7 @@ type LoginData struct {
 	Password string
 }
 
+
 func AuthenticateUser(
 	ctx context.Context,
 	db storage.Pool,
@@ -11190,6 +11194,7 @@ func AuthenticateUser(
 	data LoginData,
 ) (models.UserEntity, error) {
 	user, err := models.User.FindByEmail(ctx, db.Executor(), data.Email)
+
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.UserEntity{}, ErrInvalidCredentials
@@ -11198,13 +11203,17 @@ func AuthenticateUser(
 		return models.UserEntity{}, err
 	}
 
+
 	validPassword, err := user.ValidPassword(data.Password, salt)
+
 	if err != nil {
 		return models.UserEntity{}, err
 	}
 
 	if !validPassword {
+
 		return models.UserEntity{}, errors.New("invalid password")
+
 	}
 
 	if !user.HasValidatedEmail() {
@@ -11242,6 +11251,7 @@ type RegisterUserData struct {
 	ConfirmPassword string
 }
 
+
 func RegisterUser(
 	ctx context.Context,
 	db storage.Pool,
@@ -11250,11 +11260,14 @@ func RegisterUser(
 	data RegisterUserData,
 ) error {
 	tx, err := db.BeginTx(ctx, nil)
+
 	if err != nil {
 		return err
 	}
 
+
 	user, err := models.User.Create(ctx, tx, salt, models.CreateUserData{
+
 		Email: data.Email,
 		PasswordPair: models.PasswordPair{
 			Password:        data.Password,
@@ -11274,10 +11287,12 @@ func RegisterUser(
 		return err
 	}
 
+
 	code, err := models.Token.CreateCode(
 		ctx,
 		tx,
 		salt,
+
 		userEmailVerification,
 		time.Now().Add(24*time.Hour),
 		meta,
@@ -11303,7 +11318,9 @@ func RegisterUser(
 		return err
 	}
 
+
 	_, err = insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
+
 		Data: email.TransactionalData{
 			To:       user.Email,
 			From:     config.DefaultSenderSignature,
@@ -11325,6 +11342,7 @@ type VerifyEmailData struct {
 	Code string
 }
 
+
 func VerifyEmail(
 	ctx context.Context,
 	db storage.Pool,
@@ -11332,14 +11350,17 @@ func VerifyEmail(
 	data VerifyEmailData,
 ) (models.UserEntity, error) {
 	tx, err := db.BeginTx(ctx, nil)
+
 	if err != nil {
 		return models.UserEntity{}, err
 	}
+
 
 	token, err := models.Token.FindByScopeAndHash(
 		ctx,
 		tx,
 		salt,
+
 		userEmailVerification,
 		data.Code,
 	)
@@ -11348,7 +11369,9 @@ func VerifyEmail(
 		return models.UserEntity{}, ErrInvalidVerificationCode
 	}
 
+
 	if !token.IsValid(data.Code, salt) {
+
 		_ = tx.Rollback()
 		return models.UserEntity{}, ErrExpiredVerificationCode
 	}
@@ -11429,6 +11452,7 @@ type RequestResetPasswordData struct {
 	Email string
 }
 
+
 func RequestResetPassword(
 	ctx context.Context,
 	db storage.Pool,
@@ -11437,6 +11461,7 @@ func RequestResetPassword(
 	data RequestResetPasswordData,
 ) error {
 	tx, err := db.BeginTx(ctx, nil)
+
 	if err != nil {
 		return err
 	}
@@ -11458,10 +11483,12 @@ func RequestResetPassword(
 		return err
 	}
 
+
 	token, err := models.Token.Create(
 		ctx,
 		tx,
 		salt,
+
 		userResetPassword,
 		time.Now().Add(1*time.Hour),
 		meta,
@@ -11489,7 +11516,9 @@ func RequestResetPassword(
 		return err
 	}
 
+
 	_, err = insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
+
 		Data: email.TransactionalData{
 			To:       user.Email,
 			From:     config.DefaultSenderSignature,
@@ -11507,12 +11536,14 @@ type ResetPasswordData struct {
 	ConfirmPassword string
 }
 
+
 func ResetPassword(
 	ctx context.Context,
 	db storage.Pool,
 	salt string,
 	data ResetPasswordData,
 ) error {
+
 	if data.Password != data.ConfirmPassword {
 		return errors.New("passwords do not match")
 	}
@@ -11521,15 +11552,19 @@ func ResetPassword(
 		return errors.New("password must be at least 8 characters")
 	}
 
+
 	tx, err := db.BeginTx(ctx, nil)
+
 	if err != nil {
 		return err
 	}
+
 
 	token, err := models.Token.FindByScopeAndHash(
 		ctx,
 		tx,
 		salt,
+
 		userResetPassword,
 		data.Token,
 	)
@@ -11538,7 +11573,9 @@ func ResetPassword(
 		return ErrInvalidResetCode
 	}
 
+
 	if !token.IsValid(data.Token, salt) {
+
 		_ = tx.Rollback()
 		return ErrExpiredResetCode
 	}
@@ -11561,7 +11598,9 @@ func ResetPassword(
 		return err
 	}
 
+
 	hashedPassword, err := models.HashPassword(data.Password, salt)
+
 	if err != nil {
 		_ = tx.Rollback()
 		return err

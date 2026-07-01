@@ -5,9 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/hypermedia"
-	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
@@ -19,12 +17,11 @@ import (
 )
 
 type Sessions struct {
-	db  storage.Pool
-	cfg config.Config
+	identity services.Identity
 }
 
-func NewSessions(db storage.Pool, cfg config.Config) Sessions {
-	return Sessions{db, cfg}
+func NewSessions(identity services.Identity) Sessions {
+	return Sessions{identity}
 }
 
 func (s Sessions) RegisterRoutes(r *router.Router) error {
@@ -86,10 +83,8 @@ func (s Sessions) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	user, err := services.AuthenticateUser(
+	user, err := s.identity.AuthenticateUser(
 		etx.Request().Context(),
-		s.db,
-		s.cfg.Auth.Pepper,
 		services.LoginData{
 			Email:    payload.Email,
 			Password: payload.Password,
