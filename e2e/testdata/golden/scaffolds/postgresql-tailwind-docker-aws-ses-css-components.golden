@@ -4574,7 +4574,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
-	"errors"
+	"fmt"
 	"log/slog"
 
 	"testapp/config"
@@ -4601,7 +4601,7 @@ func NewPostgres(ctx context.Context, cfg config.Config) (*Postgres, error) {
 	pgxCfg, err := pgx.ParseConfig(cfg.DB.GetDatabaseURL())
 	if err != nil {
 		slog.ErrorContext(ctx, "could not parse database connection string", "error", err)
-		return &Postgres{}, err
+		return nil, fmt.Errorf("database: parse database URL: %w", err)
 	}
 
 	pgxCfg.Tracer = otelpgx.NewTracer()
@@ -4612,7 +4612,7 @@ func NewPostgres(ctx context.Context, cfg config.Config) (*Postgres, error) {
 	if err := db.PingContext(ctx); err != nil {
 		slog.ErrorContext(ctx, "could not ping database", "error", err)
 		db.Close()
-		return &Postgres{}, err
+		return nil, fmt.Errorf("database: ping database: %w", err)
 	}
 
 	return &Postgres{conn: db}, nil
@@ -4629,7 +4629,7 @@ func (p *Postgres) Conn() *sql.DB {
 func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error) {
 	tx, err := p.conn.BeginTx(ctx, opts)
 	if err != nil {
-		return bun.Tx{}, errors.Join(storage.ErrBeginTx, err)
+		return bun.Tx{}, fmt.Errorf("database: begin transaction: %w", err)
 	}
 	return tx, nil
 }
@@ -7699,6 +7699,7 @@ package hypermedia
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -7734,7 +7735,7 @@ func NewBroadcaster(c *echo.Context) (*Broadcaster, error) {
 	rc := http.NewResponseController(c.Response())
 
 	if err := rc.Flush(); err != nil {
-		return nil, fmt.Errorf("failed to flush headers: %w", err)
+		return nil, fmt.Errorf("hypermedia: flush broadcaster headers: %w", err)
 	}
 
 	return &Broadcaster{
@@ -7795,7 +7796,7 @@ func (sse *Broadcaster) patchElements(elements string, opts ...PatchElementOptio
 		dataRows,
 		sendOptions...,
 	); err != nil {
-		return fmt.Errorf("failed to send elements: %w", err)
+		return fmt.Errorf("hypermedia: send elements: %w", err)
 	}
 
 	return nil
@@ -7829,11 +7830,11 @@ func (sse *Broadcaster) PatchComponent(comp templ.Component, opts ...PatchElemen
 	defer bytebufferpool.Put(buf)
 
 	if err := comp.Render(sse.ctx, buf); err != nil {
-		return fmt.Errorf("failed to render template: %w", err)
+		return fmt.Errorf("hypermedia: render broadcaster component: %v", err)
 	}
 
 	if err := sse.PatchHTML(buf.String(), opts...); err != nil {
-		return fmt.Errorf("failed to patch element: %w", err)
+		return fmt.Errorf("hypermedia: patch rendered component: %w", err)
 	}
 
 	return nil
@@ -7887,7 +7888,7 @@ func (sse *Broadcaster) ExecuteScript(scriptContents string, opts ...ExecuteScri
 		dataRows,
 		sendOptions...,
 	); err != nil {
-		return fmt.Errorf("failed to execute script: %w", err)
+		return fmt.Errorf("hypermedia: execute script: %w", err)
 	}
 
 	return nil
@@ -7929,12 +7930,12 @@ func (sse *Broadcaster) DispatchCustomEvent(
 	opts ...DispatchCustomEventOption,
 ) error {
 	if eventName == "" {
-		return fmt.Errorf("eventName is required")
+		return errors.New("hypermedia: event name is required")
 	}
 
 	detailsJSON, err := json.Marshal(detail)
 	if err != nil {
-		return fmt.Errorf("failed to marshal detail: %w", err)
+		return fmt.Errorf("hypermedia: marshal custom event detail: %v", err)
 	}
 
 	const defaultSelector = "document"
@@ -8043,7 +8044,7 @@ func (sse *Broadcaster) PatchSignal(key string, value any, opts ...PatchSignalsO
 func (sse *Broadcaster) PatchSignals(signals map[string]any, opts ...PatchSignalsOption) error {
 	signalsJSON, err := json.Marshal(signals)
 	if err != nil {
-		return fmt.Errorf("failed to marshal signals: %w", err)
+		return fmt.Errorf("hypermedia: marshal signals: %v", err)
 	}
 	return sse.patchSignalsRaw(signalsJSON, opts...)
 }
@@ -8084,7 +8085,7 @@ func (sse *Broadcaster) patchSignalsRaw(signalsContents []byte, opts ...PatchSig
 		dataRows,
 		sendOptions...,
 	); err != nil {
-		return fmt.Errorf("failed to send patch signals: %w", err)
+		return fmt.Errorf("hypermedia: send patch signals: %w", err)
 	}
 	return nil
 }
@@ -8100,7 +8101,7 @@ func (sse *Broadcaster) MergeSignals(signals map[string]any) error {
 		EventTypeMergeSignals,
 		dataRows,
 	); err != nil {
-		return fmt.Errorf("failed to merge signals: %w", err)
+		return fmt.Errorf("hypermedia: merge signals: %w", err)
 	}
 
 	return nil
@@ -8114,7 +8115,7 @@ func (sse *Broadcaster) Send(
 	opts ...SSEEventOption,
 ) error {
 	if err := sse.ctx.Err(); err != nil {
-		return fmt.Errorf("context cancelled: %w", err)
+		return fmt.Errorf("hypermedia: broadcaster context done: %w", err)
 	}
 
 	buf, err := buildSSEEvent(eventType, dataLines, opts...)
@@ -8127,11 +8128,11 @@ func (sse *Broadcaster) Send(
 	defer sse.mu.Unlock()
 
 	if _, err := buf.WriteTo(sse.w); err != nil {
-		return fmt.Errorf("failed to write to response writer: %w", err)
+		return fmt.Errorf("hypermedia: write broadcaster event: %w", err)
 	}
 
 	if err := sse.rc.Flush(); err != nil {
-		return fmt.Errorf("failed to flush data: %w", err)
+		return fmt.Errorf("hypermedia: flush broadcaster event: %w", err)
 	}
 
 	return nil
@@ -8538,7 +8539,7 @@ func RenderHTML(ctx context.Context, component templ.Component) (string, error) 
 	defer templ.ReleaseBuffer(buf)
 
 	if err := component.Render(ctx, buf); err != nil {
-		return "", err
+		return "", fmt.Errorf("hypermedia: render html: %v", err)
 	}
 
 	return buf.String(), nil
@@ -8554,7 +8555,7 @@ func RenderFragments(ctx context.Context, component templ.Component, keys ...any
 	fragments := new(bytes.Buffer)
 
 	if err := templ.RenderFragments(ctx, fragments, component, keys); err != nil {
-		return "", fmt.Errorf("failed to render fragment: %w", err)
+		return "", fmt.Errorf("hypermedia: render fragment: %v", err)
 	}
 
 	return fragments.String(), nil
@@ -8574,7 +8575,11 @@ func RenderPage(etx *echo.Context, component templ.Component, opts ...PageOption
 		return err
 	}
 
-	return etx.HTML(options.Status, html)
+	if err := etx.HTML(options.Status, html); err != nil {
+		return fmt.Errorf("hypermedia: write response: %w", err)
+	}
+
+	return nil
 }
 
 // RenderComponent is identical to RenderPage; use it when naming the templ component improves readability at the call site.
@@ -8615,7 +8620,7 @@ func ExecuteScript(c *echo.Context, scriptContents string, opts ...ExecuteScript
 
 	rc := http.NewResponseController(c.Response())
 	if err := rc.Flush(); err != nil {
-		return fmt.Errorf("failed to flush headers: %w", err)
+		return fmt.Errorf("hypermedia: flush script headers: %w", err)
 	}
 
 	options := &executeScriptOptions{
@@ -8665,7 +8670,7 @@ func ExecuteScript(c *echo.Context, scriptContents string, opts ...ExecuteScript
 		dataRows,
 		sendOptions...,
 	); err != nil {
-		return fmt.Errorf("failed to execute script: %w", err)
+		return fmt.Errorf("hypermedia: execute script: %w", err)
 	}
 
 	return nil
@@ -8846,7 +8851,7 @@ func patchElements(c *echo.Context, elements string, opts ...PatchElementOption)
 
 	rc := http.NewResponseController(c.Response())
 	if err := rc.Flush(); err != nil {
-		return fmt.Errorf("failed to flush headers: %w", err)
+		return fmt.Errorf("hypermedia: flush patch headers: %w", err)
 	}
 
 	options := &patchElementOptions{
@@ -8891,7 +8896,7 @@ func patchElements(c *echo.Context, elements string, opts ...PatchElementOption)
 		dataRows,
 		sendOptions...,
 	); err != nil {
-		return fmt.Errorf("failed to send elements: %w", err)
+		return fmt.Errorf("hypermedia: send elements: %w", err)
 	}
 
 	return nil
@@ -8961,16 +8966,16 @@ func DispatchCustomEvent(
 
 	rc := http.NewResponseController(c.Response())
 	if err := rc.Flush(); err != nil {
-		return fmt.Errorf("failed to flush headers: %w", err)
+		return fmt.Errorf("hypermedia: flush custom event headers: %w", err)
 	}
 
 	if eventName == "" {
-		return fmt.Errorf("eventName is required")
+		return errors.New("hypermedia: event name is required")
 	}
 
 	detailsJSON, err := json.Marshal(detail)
 	if err != nil {
-		return fmt.Errorf("failed to marshal detail: %w", err)
+		return fmt.Errorf("hypermedia: marshal custom event detail: %v", err)
 	}
 
 	const defaultSelector = "document"
@@ -9037,7 +9042,7 @@ func PatchSignal(c *echo.Context, key string, value any, opts ...PatchSignalsOpt
 func PatchSignals(c *echo.Context, signals map[string]any, opts ...PatchSignalsOption) error {
 	signalsJSON, err := json.Marshal(signals)
 	if err != nil {
-		return fmt.Errorf("failed to marshal signals: %w", err)
+		return fmt.Errorf("hypermedia: marshal signals: %v", err)
 	}
 	return patchSignalsRaw(c, signalsJSON, opts...)
 }
@@ -9049,7 +9054,7 @@ func patchSignalsRaw(c *echo.Context, signalsContents []byte, opts ...PatchSigna
 
 	rc := http.NewResponseController(c.Response())
 	if err := rc.Flush(); err != nil {
-		return fmt.Errorf("failed to flush headers: %w", err)
+		return fmt.Errorf("hypermedia: flush patch signal headers: %w", err)
 	}
 
 	options := &patchSignalsOptions{
@@ -9087,7 +9092,7 @@ func patchSignalsRaw(c *echo.Context, signalsContents []byte, opts ...PatchSigna
 		dataRows,
 		sendOptions...,
 	); err != nil {
-		return fmt.Errorf("failed to send patch signals: %w", err)
+		return fmt.Errorf("hypermedia: send patch signals: %w", err)
 	}
 	return nil
 }
@@ -9099,7 +9104,7 @@ func MergeSignals(c *echo.Context, signals map[string]any) error {
 
 	rc := http.NewResponseController(c.Response())
 	if err := rc.Flush(); err != nil {
-		return fmt.Errorf("failed to flush headers: %w", err)
+		return fmt.Errorf("hypermedia: flush merge signal headers: %w", err)
 	}
 
 	dataRows := make([]string, 0, len(signals))
@@ -9112,7 +9117,7 @@ func MergeSignals(c *echo.Context, signals map[string]any) error {
 		EventTypeMergeSignals,
 		dataRows,
 	); err != nil {
-		return fmt.Errorf("failed to merge signals: %w", err)
+		return fmt.Errorf("hypermedia: merge signals: %w", err)
 	}
 
 	return nil
@@ -9135,17 +9140,17 @@ func ReadSignals(r *http.Request, signals any) error {
 		if _, err := buf.ReadFrom(r.Body); err != nil {
 			if err == http.ErrBodyReadAfterClose {
 				return fmt.Errorf(
-					"body already closed, are you sure you created the SSE ***AFTER*** the ReadSignals? %w",
+					"hypermedia: read signals after body close: %w",
 					err,
 				)
 			}
-			return fmt.Errorf("failed to read body: %w", err)
+			return fmt.Errorf("hypermedia: read signals body: %w", err)
 		}
 		dsInput = buf.Bytes()
 	}
 
 	if err := json.Unmarshal(dsInput, signals); err != nil {
-		return fmt.Errorf("failed to unmarshal: %w", err)
+		return fmt.Errorf("hypermedia: unmarshal signals: %v", err)
 	}
 	return nil
 }
@@ -9153,7 +9158,7 @@ func ReadSignals(r *http.Request, signals any) error {
 // Send writes one server-sent event to the response and flushes it.
 func Send(c *echo.Context, eventType EventType, dataLines []string, opts ...SSEEventOption) error {
 	if err := c.Request().Context().Err(); err != nil {
-		return fmt.Errorf("context cancelled: %w", err)
+		return fmt.Errorf("hypermedia: request context done: %w", err)
 	}
 
 	buf, err := buildSSEEvent(eventType, dataLines, opts...)
@@ -9163,12 +9168,12 @@ func Send(c *echo.Context, eventType EventType, dataLines []string, opts ...SSEE
 	defer bytebufferpool.Put(buf)
 
 	if _, err := buf.WriteTo(c.Response()); err != nil {
-		return fmt.Errorf("failed to write to response writer: %w", err)
+		return fmt.Errorf("hypermedia: write SSE event: %w", err)
 	}
 
 	rc := http.NewResponseController(c.Response())
 	if err := rc.Flush(); err != nil {
-		return fmt.Errorf("failed to flush data: %w", err)
+		return fmt.Errorf("hypermedia: flush SSE event: %w", err)
 	}
 
 	return nil
@@ -9198,7 +9203,7 @@ func buildSSEEvent(
 		writeJustError(buf, newLineBuf),
 	); err != nil {
 		bytebufferpool.Put(buf)
-		return nil, fmt.Errorf("failed to write event type: %w", err)
+		return nil, fmt.Errorf("hypermedia: write SSE event type: %w", err)
 	}
 
 	if evt.EventID != "" {
@@ -9208,7 +9213,7 @@ func buildSSEEvent(
 			writeJustError(buf, newLineBuf),
 		); err != nil {
 			bytebufferpool.Put(buf)
-			return nil, fmt.Errorf("failed to write id: %w", err)
+			return nil, fmt.Errorf("hypermedia: write SSE id: %w", err)
 		}
 	}
 
@@ -9222,7 +9227,7 @@ func buildSSEEvent(
 			writeJustError(buf, newLineBuf),
 		); err != nil {
 			bytebufferpool.Put(buf)
-			return nil, fmt.Errorf("failed to write retry: %w", err)
+			return nil, fmt.Errorf("hypermedia: write SSE retry: %w", err)
 		}
 	}
 
@@ -9233,13 +9238,13 @@ func buildSSEEvent(
 			writeJustError(buf, newLineBuf),
 		); err != nil {
 			bytebufferpool.Put(buf)
-			return nil, fmt.Errorf("failed to write data: %w", err)
+			return nil, fmt.Errorf("hypermedia: write SSE data: %w", err)
 		}
 	}
 
 	if err := writeJustError(buf, doubleNewLineBuf); err != nil {
 		bytebufferpool.Put(buf)
-		return nil, fmt.Errorf("failed to write newline: %w", err)
+		return nil, fmt.Errorf("hypermedia: write SSE newline: %w", err)
 	}
 
 	return buf, nil
@@ -9924,7 +9929,7 @@ func (s *Server) Start(
 		eg.Go(func() error {
 			if err := s.srv.ListenAndServe(); err != nil &&
 				err != http.ErrServerClosed {
-				return fmt.Errorf("server error: %w", err)
+				return fmt.Errorf("server: listen: %w", err)
 			}
 			return nil
 		})
@@ -9946,7 +9951,7 @@ func (s *Server) Start(
 					fmt.Sprintf("%T", shutdowner),
 				)
 				if err := shutdowner.Shutdown(shutdownCtx); err != nil {
-					return fmt.Errorf("component shutdown error (%T): %w", shutdowner, err)
+					return fmt.Errorf("server: shutdown component %T: %w", shutdowner, err)
 				}
 			}
 
@@ -9962,7 +9967,7 @@ func (s *Server) Start(
 	}
 
 	if err := s.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		return fmt.Errorf("server error: %w", err)
+		return fmt.Errorf("server: listen: %w", err)
 	}
 
 	return nil
@@ -10025,7 +10030,7 @@ var _ Pool = (*Postgres)(nil)
 func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
 	config, err := pgx.ParseConfig(databaseURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse database URL: %w", err)
+		return nil, fmt.Errorf("storage: parse database URL: %w", err)
 	}
 
 	sqldb := stdlib.OpenDB(*config)
@@ -10033,7 +10038,7 @@ func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
 
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		return nil, fmt.Errorf("storage: ping database: %w", err)
 	}
 
 	return &Postgres{conn: db}, nil
@@ -10058,7 +10063,7 @@ func (p *Postgres) Close() error {
 func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error) {
 	tx, err := p.conn.BeginTx(ctx, opts)
 	if err != nil {
-		return bun.Tx{}, errors.Join(ErrBeginTx, err)
+		return bun.Tx{}, fmt.Errorf("storage: begin transaction: %w", err)
 	}
 
 	return tx, nil
@@ -10093,19 +10098,19 @@ func NewTestCluster(ctx context.Context) (*TestCluster, error) {
 				WithStartupTimeout(60*time.Second)),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to start postgres container: %w", err)
+		return nil, fmt.Errorf("storage: start postgres container: %w", err)
 	}
 
 	port, err := pgContainer.MappedPort(ctx, "5432/tcp")
 	if err != nil {
 		_ = pgContainer.Terminate(ctx)
-		return nil, fmt.Errorf("failed to get postgres port: %w", err)
+		return nil, fmt.Errorf("storage: get postgres port: %w", err)
 	}
 
 	host, err := pgContainer.Host(ctx)
 	if err != nil {
 		_ = pgContainer.Terminate(ctx)
-		return nil, fmt.Errorf("failed to get postgres host: %w", err)
+		return nil, fmt.Errorf("storage: get postgres host: %w", err)
 	}
 
 	return &TestCluster{
@@ -10193,7 +10198,7 @@ func (tc *TestCluster) databaseURL(name string) string {
 func RunMigrations(ctx context.Context, db *sql.DB, migrations fs.FS, migrationDir string) error {
 	entries, err := fs.ReadDir(migrations, migrationDir)
 	if err != nil {
-		return fmt.Errorf("failed to read migrations: %w", err)
+		return fmt.Errorf("storage: read migrations: %w", err)
 	}
 
 	hasSQL := false
@@ -10204,21 +10209,21 @@ func RunMigrations(ctx context.Context, db *sql.DB, migrations fs.FS, migrationD
 		}
 	}
 	if !hasSQL {
-		return fmt.Errorf("no SQL migrations found in %s", migrationDir)
+		return fmt.Errorf("storage: no SQL migrations found in %s", migrationDir)
 	}
 
 	migrationFS, err := fs.Sub(migrations, migrationDir)
 	if err != nil {
-		return fmt.Errorf("failed to open migrations: %w", err)
+		return fmt.Errorf("storage: open migrations: %w", err)
 	}
 
 	provider, err := goose.NewProvider(goose.DialectPostgres, db, migrationFS)
 	if err != nil {
-		return fmt.Errorf("failed to create migration provider: %w", err)
+		return fmt.Errorf("storage: create migration provider: %w", err)
 	}
 
 	if _, err := provider.Up(ctx); err != nil {
-		return fmt.Errorf("failed to apply migrations: %w", err)
+		return fmt.Errorf("storage: apply migrations: %w", err)
 	}
 
 	return nil
@@ -10273,7 +10278,10 @@ package models
 
 import "errors"
 
-var ErrDomainValidation = errors.New("the provided payload failed validations")
+var (
+	ErrDomainValidation = errors.New("the provided payload failed validations")
+
+)
 ```
 
 dir  d----------rwxr-xr-x models/factories
@@ -10630,6 +10638,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+
 	"encoding/base32"
 	"encoding/hex"
 	"encoding/json"
@@ -10698,6 +10707,7 @@ func (t token) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (Tok
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
+
 		return TokenEntity{}, err
 	}
 	return entity, nil
@@ -10719,6 +10729,7 @@ func (t token) FindByScopeAndHash(
 		Where("hash = ?", hash).
 		Scan(ctx)
 	if err != nil {
+
 		return TokenEntity{}, err
 	}
 	return entity, nil
@@ -10887,9 +10898,9 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"database/sql"
 	"errors"
 	"fmt"
-	"database/sql"
 	"strings"
 	"time"
 
@@ -10951,6 +10962,7 @@ func (u user) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (User
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
+
 		return UserEntity{}, err
 	}
 	return entity, nil
@@ -10963,6 +10975,7 @@ func (u user) FindByEmail(ctx context.Context, db storage.Executor, email string
 		Where("email = ?", strings.ToLower(email)).
 		Scan(ctx)
 	if err != nil {
+
 		return UserEntity{}, err
 	}
 	return entity, nil
@@ -11030,6 +11043,7 @@ func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserDa
 		Where("id = ?", data.ID).
 		Scan(ctx)
 	if err != nil {
+
 		return UserEntity{}, err
 	}
 
@@ -12636,8 +12650,11 @@ package services
 
 import (
 	"context"
+
 	"database/sql"
+
 	"errors"
+
 	"testapp/internal/storage"
 	"testapp/models"
 )
@@ -12662,18 +12679,22 @@ func AuthenticateUser(
 	user, err := models.User.FindByEmail(ctx, db.Executor(), data.Email)
 
 	if err != nil {
+
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.UserEntity{}, ErrInvalidCredentials
 		}
 
 		return models.UserEntity{}, err
+
 	}
 
 
 	validPassword, err := user.ValidPassword(data.Password, salt)
 
 	if err != nil {
+
 		return models.UserEntity{}, err
+
 	}
 
 	if !validPassword {
@@ -12699,6 +12720,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+
 	"time"
 
 	"testapp/config"
@@ -12728,7 +12750,9 @@ func RegisterUser(
 	tx, err := db.BeginTx(ctx, nil)
 
 	if err != nil {
+
 		return err
+
 	}
 
 
@@ -12742,7 +12766,9 @@ func RegisterUser(
 	})
 	if err != nil {
 		_ = tx.Rollback()
+
 		return err
+
 	}
 
 	meta, err := json.Marshal(map[string]string{
@@ -12750,7 +12776,9 @@ func RegisterUser(
 	})
 	if err != nil {
 		_ = tx.Rollback()
+
 		return err
+
 	}
 
 
@@ -12765,23 +12793,31 @@ func RegisterUser(
 	)
 	if err != nil {
 		_ = tx.Rollback()
+
 		return err
+
 	}
 
 	if err := tx.Commit(); err != nil {
+
 		return err
+
 	}
 
 	vEmail := email.VerifyEmail{VerificationCode: code}
 
 	html, err := vEmail.ToHTML()
 	if err != nil {
+
 		return err
+
 	}
 
 	text, err := vEmail.ToText()
 	if err != nil {
+
 		return err
+
 	}
 
 
@@ -12795,7 +12831,9 @@ func RegisterUser(
 			TextBody: text,
 		},
 	}, nil)
+
 	return err
+
 }
 
 var (
@@ -12818,7 +12856,9 @@ func VerifyEmail(
 	tx, err := db.BeginTx(ctx, nil)
 
 	if err != nil {
+
 		return models.UserEntity{}, err
+
 	}
 
 
@@ -12832,7 +12872,9 @@ func VerifyEmail(
 	)
 	if err != nil {
 		_ = tx.Rollback()
+
 		return models.UserEntity{}, ErrInvalidVerificationCode
+
 	}
 
 
@@ -12845,19 +12887,25 @@ func VerifyEmail(
 	var meta map[string]string
 	if err := json.Unmarshal(token.MetaData, &meta); err != nil {
 		_ = tx.Rollback()
+
 		return models.UserEntity{}, err
+
 	}
 
 	emailAddr, ok := meta["email"]
 	if !ok {
 		_ = tx.Rollback()
+
 		return models.UserEntity{}, errors.New("token metadata missing email")
+
 	}
 
 	user, err := models.User.FindByEmail(ctx, tx, emailAddr)
 	if err != nil {
 		_ = tx.Rollback()
+
 		return models.UserEntity{}, err
+
 	}
 
 	now := time.Now()
@@ -12870,16 +12918,22 @@ func VerifyEmail(
 	})
 	if err != nil {
 		_ = tx.Rollback()
+
 		return models.UserEntity{}, err
+
 	}
 
 	if err := models.Token.Destroy(ctx, tx, token.ID); err != nil {
 		_ = tx.Rollback()
+
 		return models.UserEntity{}, err
+
 	}
 
 	if err := tx.Commit(); err != nil {
+
 		return models.UserEntity{}, err
+
 	}
 
 	return user, nil
@@ -12892,7 +12946,9 @@ package services
 
 import (
 	"context"
+
 	"database/sql"
+
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12912,6 +12968,7 @@ const userResetPassword = "user_password_reset"
 var (
 	ErrInvalidResetCode = errors.New("invalid reset code")
 	ErrExpiredResetCode = errors.New("reset code has expired")
+
 )
 
 type RequestResetPasswordData struct {
@@ -12929,16 +12986,20 @@ func RequestResetPassword(
 	tx, err := db.BeginTx(ctx, nil)
 
 	if err != nil {
+
 		return err
+
 	}
 
 	user, err := models.User.FindByEmail(ctx, tx, data.Email)
 	if err != nil {
 		_ = tx.Rollback()
+
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}
 		return err
+
 	}
 
 	meta, err := json.Marshal(map[string]string{
@@ -12946,7 +13007,9 @@ func RequestResetPassword(
 	})
 	if err != nil {
 		_ = tx.Rollback()
+
 		return err
+
 	}
 
 
@@ -12961,11 +13024,15 @@ func RequestResetPassword(
 	)
 	if err != nil {
 		_ = tx.Rollback()
+
 		return err
+
 	}
 
 	if err := tx.Commit(); err != nil {
+
 		return err
+
 	}
 
 	resetURL := fmt.Sprintf("%s%s", config.BaseURL, routes.PasswordEdit.URL(token))
@@ -12974,12 +13041,16 @@ func RequestResetPassword(
 
 	html, err := rpEmail.ToHTML()
 	if err != nil {
+
 		return err
+
 	}
 
 	text, err := rpEmail.ToText()
 	if err != nil {
+
 		return err
+
 	}
 
 
@@ -12993,7 +13064,9 @@ func RequestResetPassword(
 			TextBody: text,
 		},
 	}, nil)
+
 	return err
+
 }
 
 type ResetPasswordData struct {
@@ -13011,18 +13084,24 @@ func ResetPassword(
 ) error {
 
 	if data.Password != data.ConfirmPassword {
+
 		return errors.New("passwords do not match")
+
 	}
 
 	if len(data.Password) < 8 {
+
 		return errors.New("password must be at least 8 characters")
+
 	}
 
 
 	tx, err := db.BeginTx(ctx, nil)
 
 	if err != nil {
+
 		return err
+
 	}
 
 
@@ -13036,7 +13115,9 @@ func ResetPassword(
 	)
 	if err != nil {
 		_ = tx.Rollback()
+
 		return ErrInvalidResetCode
+
 	}
 
 
@@ -13049,19 +13130,25 @@ func ResetPassword(
 	var meta map[string]string
 	if err := json.Unmarshal(token.MetaData, &meta); err != nil {
 		_ = tx.Rollback()
+
 		return err
+
 	}
 
 	emailAddr, ok := meta["email"]
 	if !ok {
 		_ = tx.Rollback()
+
 		return errors.New("token metadata missing email")
+
 	}
 
 	user, err := models.User.FindByEmail(ctx, tx, emailAddr)
 	if err != nil {
 		_ = tx.Rollback()
+
 		return err
+
 	}
 
 
@@ -13069,7 +13156,9 @@ func ResetPassword(
 
 	if err != nil {
 		_ = tx.Rollback()
+
 		return err
+
 	}
 
 	_, err = models.User.Update(ctx, tx, models.UpdateUserData{
@@ -13081,15 +13170,21 @@ func ResetPassword(
 	})
 	if err != nil {
 		_ = tx.Rollback()
+
 		return err
+
 	}
 
 	if err := models.Token.Destroy(ctx, tx, token.ID); err != nil {
 		_ = tx.Rollback()
+
 		return err
+
 	}
 
+
 	return tx.Commit()
+
 }
 ```
 

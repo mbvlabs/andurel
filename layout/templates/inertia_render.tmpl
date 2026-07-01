@@ -28,7 +28,7 @@ func Init(rootHTML string, opts ...Option) error {
 
 	i, err := gonertia.NewFromFile(rootHTML, opts...)
 	if err != nil {
-		return err
+		return fmt.Errorf("inertia: create renderer: %v", err)
 	}
 
 	i.ShareTemplateData("viteHead", tags.ViteHead)
@@ -41,7 +41,7 @@ func Init(rootHTML string, opts ...Option) error {
 
 func Page(etx *echo.Context, component string, props Props) error {
 	if gInertia == nil {
-		return errors.New("inertia: not initialized, call Init")
+		return errors.New("inertia: not initialized")
 	}
 
 	if flashes := request.ExtractContext[[]cookies.FlashMessage](
@@ -58,13 +58,21 @@ func Page(etx *echo.Context, component string, props Props) error {
 
 func Redirect(etx *echo.Context, url string, status ...int) error {
 	if gInertia == nil {
-		return errors.New("inertia: not initialized, call Init")
+		return errors.New("inertia: not initialized")
 	}
 	gInertia.Redirect(etx.Response(), etx.Request(), url, status...)
 	return nil
 }
 
 func Middleware() echo.MiddlewareFunc {
+	if gInertia == nil {
+		return func(next echo.HandlerFunc) echo.HandlerFunc {
+			return func(c *echo.Context) error {
+				return errors.New("inertia: not initialized")
+			}
+		}
+	}
+
 	return echo.WrapMiddleware(func(next http.Handler) http.Handler {
 		return gInertia.Middleware(next)
 	})

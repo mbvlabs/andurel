@@ -50,7 +50,7 @@ var _ Pool = (*Postgres)(nil)
 func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
 	config, err := pgx.ParseConfig(databaseURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse database URL: %w", err)
+		return nil, fmt.Errorf("storage: parse database URL: %w", err)
 	}
 
 	sqldb := stdlib.OpenDB(*config)
@@ -58,7 +58,7 @@ func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
 
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		return nil, fmt.Errorf("storage: ping database: %w", err)
 	}
 
 	return &Postgres{conn: db}, nil
@@ -83,7 +83,7 @@ func (p *Postgres) Close() error {
 func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error) {
 	tx, err := p.conn.BeginTx(ctx, opts)
 	if err != nil {
-		return bun.Tx{}, errors.Join(ErrBeginTx, err)
+		return bun.Tx{}, fmt.Errorf("storage: begin transaction: %w", err)
 	}
 
 	return tx, nil
@@ -118,19 +118,19 @@ func NewTestCluster(ctx context.Context) (*TestCluster, error) {
 				WithStartupTimeout(60*time.Second)),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to start postgres container: %w", err)
+		return nil, fmt.Errorf("storage: start postgres container: %w", err)
 	}
 
 	port, err := pgContainer.MappedPort(ctx, "5432/tcp")
 	if err != nil {
 		_ = pgContainer.Terminate(ctx)
-		return nil, fmt.Errorf("failed to get postgres port: %w", err)
+		return nil, fmt.Errorf("storage: get postgres port: %w", err)
 	}
 
 	host, err := pgContainer.Host(ctx)
 	if err != nil {
 		_ = pgContainer.Terminate(ctx)
-		return nil, fmt.Errorf("failed to get postgres host: %w", err)
+		return nil, fmt.Errorf("storage: get postgres host: %w", err)
 	}
 
 	return &TestCluster{
@@ -218,7 +218,7 @@ func (tc *TestCluster) databaseURL(name string) string {
 func RunMigrations(ctx context.Context, db *sql.DB, migrations fs.FS, migrationDir string) error {
 	entries, err := fs.ReadDir(migrations, migrationDir)
 	if err != nil {
-		return fmt.Errorf("failed to read migrations: %w", err)
+		return fmt.Errorf("storage: read migrations: %w", err)
 	}
 
 	hasSQL := false
@@ -229,21 +229,21 @@ func RunMigrations(ctx context.Context, db *sql.DB, migrations fs.FS, migrationD
 		}
 	}
 	if !hasSQL {
-		return fmt.Errorf("no SQL migrations found in %s", migrationDir)
+		return fmt.Errorf("storage: no SQL migrations found in %s", migrationDir)
 	}
 
 	migrationFS, err := fs.Sub(migrations, migrationDir)
 	if err != nil {
-		return fmt.Errorf("failed to open migrations: %w", err)
+		return fmt.Errorf("storage: open migrations: %w", err)
 	}
 
 	provider, err := goose.NewProvider(goose.DialectPostgres, db, migrationFS)
 	if err != nil {
-		return fmt.Errorf("failed to create migration provider: %w", err)
+		return fmt.Errorf("storage: create migration provider: %w", err)
 	}
 
 	if _, err := provider.Up(ctx); err != nil {
-		return fmt.Errorf("failed to apply migrations: %w", err)
+		return fmt.Errorf("storage: apply migrations: %w", err)
 	}
 
 	return nil

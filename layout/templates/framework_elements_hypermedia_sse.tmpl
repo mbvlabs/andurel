@@ -23,7 +23,7 @@ func patchElements(c *echo.Context, elements string, opts ...PatchElementOption)
 
 	rc := http.NewResponseController(c.Response())
 	if err := rc.Flush(); err != nil {
-		return fmt.Errorf("failed to flush headers: %w", err)
+		return fmt.Errorf("hypermedia: flush patch headers: %w", err)
 	}
 
 	options := &patchElementOptions{
@@ -68,7 +68,7 @@ func patchElements(c *echo.Context, elements string, opts ...PatchElementOption)
 		dataRows,
 		sendOptions...,
 	); err != nil {
-		return fmt.Errorf("failed to send elements: %w", err)
+		return fmt.Errorf("hypermedia: send elements: %w", err)
 	}
 
 	return nil
@@ -138,16 +138,16 @@ func DispatchCustomEvent(
 
 	rc := http.NewResponseController(c.Response())
 	if err := rc.Flush(); err != nil {
-		return fmt.Errorf("failed to flush headers: %w", err)
+		return fmt.Errorf("hypermedia: flush custom event headers: %w", err)
 	}
 
 	if eventName == "" {
-		return fmt.Errorf("eventName is required")
+		return errors.New("hypermedia: event name is required")
 	}
 
 	detailsJSON, err := json.Marshal(detail)
 	if err != nil {
-		return fmt.Errorf("failed to marshal detail: %w", err)
+		return fmt.Errorf("hypermedia: marshal custom event detail: %v", err)
 	}
 
 	const defaultSelector = "document"
@@ -214,7 +214,7 @@ func PatchSignal(c *echo.Context, key string, value any, opts ...PatchSignalsOpt
 func PatchSignals(c *echo.Context, signals map[string]any, opts ...PatchSignalsOption) error {
 	signalsJSON, err := json.Marshal(signals)
 	if err != nil {
-		return fmt.Errorf("failed to marshal signals: %w", err)
+		return fmt.Errorf("hypermedia: marshal signals: %v", err)
 	}
 	return patchSignalsRaw(c, signalsJSON, opts...)
 }
@@ -226,7 +226,7 @@ func patchSignalsRaw(c *echo.Context, signalsContents []byte, opts ...PatchSigna
 
 	rc := http.NewResponseController(c.Response())
 	if err := rc.Flush(); err != nil {
-		return fmt.Errorf("failed to flush headers: %w", err)
+		return fmt.Errorf("hypermedia: flush patch signal headers: %w", err)
 	}
 
 	options := &patchSignalsOptions{
@@ -264,7 +264,7 @@ func patchSignalsRaw(c *echo.Context, signalsContents []byte, opts ...PatchSigna
 		dataRows,
 		sendOptions...,
 	); err != nil {
-		return fmt.Errorf("failed to send patch signals: %w", err)
+		return fmt.Errorf("hypermedia: send patch signals: %w", err)
 	}
 	return nil
 }
@@ -276,7 +276,7 @@ func MergeSignals(c *echo.Context, signals map[string]any) error {
 
 	rc := http.NewResponseController(c.Response())
 	if err := rc.Flush(); err != nil {
-		return fmt.Errorf("failed to flush headers: %w", err)
+		return fmt.Errorf("hypermedia: flush merge signal headers: %w", err)
 	}
 
 	dataRows := make([]string, 0, len(signals))
@@ -289,7 +289,7 @@ func MergeSignals(c *echo.Context, signals map[string]any) error {
 		EventTypeMergeSignals,
 		dataRows,
 	); err != nil {
-		return fmt.Errorf("failed to merge signals: %w", err)
+		return fmt.Errorf("hypermedia: merge signals: %w", err)
 	}
 
 	return nil
@@ -312,17 +312,17 @@ func ReadSignals(r *http.Request, signals any) error {
 		if _, err := buf.ReadFrom(r.Body); err != nil {
 			if err == http.ErrBodyReadAfterClose {
 				return fmt.Errorf(
-					"body already closed, are you sure you created the SSE ***AFTER*** the ReadSignals? %w",
+					"hypermedia: read signals after body close: %w",
 					err,
 				)
 			}
-			return fmt.Errorf("failed to read body: %w", err)
+			return fmt.Errorf("hypermedia: read signals body: %w", err)
 		}
 		dsInput = buf.Bytes()
 	}
 
 	if err := json.Unmarshal(dsInput, signals); err != nil {
-		return fmt.Errorf("failed to unmarshal: %w", err)
+		return fmt.Errorf("hypermedia: unmarshal signals: %v", err)
 	}
 	return nil
 }
@@ -330,7 +330,7 @@ func ReadSignals(r *http.Request, signals any) error {
 // Send writes one server-sent event to the response and flushes it.
 func Send(c *echo.Context, eventType EventType, dataLines []string, opts ...SSEEventOption) error {
 	if err := c.Request().Context().Err(); err != nil {
-		return fmt.Errorf("context cancelled: %w", err)
+		return fmt.Errorf("hypermedia: request context done: %w", err)
 	}
 
 	buf, err := buildSSEEvent(eventType, dataLines, opts...)
@@ -340,12 +340,12 @@ func Send(c *echo.Context, eventType EventType, dataLines []string, opts ...SSEE
 	defer bytebufferpool.Put(buf)
 
 	if _, err := buf.WriteTo(c.Response()); err != nil {
-		return fmt.Errorf("failed to write to response writer: %w", err)
+		return fmt.Errorf("hypermedia: write SSE event: %w", err)
 	}
 
 	rc := http.NewResponseController(c.Response())
 	if err := rc.Flush(); err != nil {
-		return fmt.Errorf("failed to flush data: %w", err)
+		return fmt.Errorf("hypermedia: flush SSE event: %w", err)
 	}
 
 	return nil
@@ -375,7 +375,7 @@ func buildSSEEvent(
 		writeJustError(buf, newLineBuf),
 	); err != nil {
 		bytebufferpool.Put(buf)
-		return nil, fmt.Errorf("failed to write event type: %w", err)
+		return nil, fmt.Errorf("hypermedia: write SSE event type: %w", err)
 	}
 
 	if evt.EventID != "" {
@@ -385,7 +385,7 @@ func buildSSEEvent(
 			writeJustError(buf, newLineBuf),
 		); err != nil {
 			bytebufferpool.Put(buf)
-			return nil, fmt.Errorf("failed to write id: %w", err)
+			return nil, fmt.Errorf("hypermedia: write SSE id: %w", err)
 		}
 	}
 
@@ -399,7 +399,7 @@ func buildSSEEvent(
 			writeJustError(buf, newLineBuf),
 		); err != nil {
 			bytebufferpool.Put(buf)
-			return nil, fmt.Errorf("failed to write retry: %w", err)
+			return nil, fmt.Errorf("hypermedia: write SSE retry: %w", err)
 		}
 	}
 
@@ -410,13 +410,13 @@ func buildSSEEvent(
 			writeJustError(buf, newLineBuf),
 		); err != nil {
 			bytebufferpool.Put(buf)
-			return nil, fmt.Errorf("failed to write data: %w", err)
+			return nil, fmt.Errorf("hypermedia: write SSE data: %w", err)
 		}
 	}
 
 	if err := writeJustError(buf, doubleNewLineBuf); err != nil {
 		bytebufferpool.Put(buf)
-		return nil, fmt.Errorf("failed to write newline: %w", err)
+		return nil, fmt.Errorf("hypermedia: write SSE newline: %w", err)
 	}
 
 	return buf, nil

@@ -99,10 +99,10 @@ func (s Sessions) Create(etx *echo.Context) error {
 		)
 
 		var errorMsg string
-		switch err {
-		case services.ErrInvalidCredentials:
+		switch {
+		case errors.Is(err, services.ErrInvalidCredentials):
 			errorMsg = "Invalid email or password"
-		case services.ErrEmailNotVerified:
+		case errors.Is(err, services.ErrEmailNotVerified):
 			errorMsg = "Please verify your email before logging in"
 		default:
 			errorMsg = "Failed to log in"

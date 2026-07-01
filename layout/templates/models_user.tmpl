@@ -5,9 +5,9 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"database/sql"
 	"errors"
 	"fmt"
-	"database/sql"
 	"strings"
 	"time"
 
@@ -69,6 +69,11 @@ func (u user) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (User
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
+{{ if eq .DIMode "uberfx" }}
+		if errors.Is(err, sql.ErrNoRows) {
+			return UserEntity{}, ErrNotFound
+		}
+{{ end }}
 		return UserEntity{}, err
 	}
 	return entity, nil
@@ -81,6 +86,11 @@ func (u user) FindByEmail(ctx context.Context, db storage.Executor, email string
 		Where("email = ?", strings.ToLower(email)).
 		Scan(ctx)
 	if err != nil {
+{{ if eq .DIMode "uberfx" }}
+		if errors.Is(err, sql.ErrNoRows) {
+			return UserEntity{}, ErrNotFound
+		}
+{{ end }}
 		return UserEntity{}, err
 	}
 	return entity, nil
@@ -148,6 +158,11 @@ func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserDa
 		Where("id = ?", data.ID).
 		Scan(ctx)
 	if err != nil {
+{{ if eq .DIMode "uberfx" }}
+		if errors.Is(err, sql.ErrNoRows) {
+			return UserEntity{}, ErrNotFound
+		}
+{{ end }}
 		return UserEntity{}, err
 	}
 

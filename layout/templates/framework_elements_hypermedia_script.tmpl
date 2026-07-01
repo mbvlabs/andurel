@@ -18,7 +18,7 @@ func ExecuteScript(c *echo.Context, scriptContents string, opts ...ExecuteScript
 
 	rc := http.NewResponseController(c.Response())
 	if err := rc.Flush(); err != nil {
-		return fmt.Errorf("failed to flush headers: %w", err)
+		return fmt.Errorf("hypermedia: flush script headers: %w", err)
 	}
 
 	options := &executeScriptOptions{
@@ -68,7 +68,7 @@ func ExecuteScript(c *echo.Context, scriptContents string, opts ...ExecuteScript
 		dataRows,
 		sendOptions...,
 	); err != nil {
-		return fmt.Errorf("failed to execute script: %w", err)
+		return fmt.Errorf("hypermedia: execute script: %w", err)
 	}
 
 	return nil
