@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/labstack/echo/v5"
@@ -44,9 +45,15 @@ func Init(rootHTML string, enableSSR bool, opts ...Option) error {
 	gInertia = i
 
 	if enableSSR {
-		ssr, err := gonertia.NewFromFile(rootHTML,
-			gonertia.WithSSR(),
+		gInertiaSSRURL = config.InertiaSSRURL
+		ssrOpts := append([]Option{}, opts...)
+		ssrOpts = append(ssrOpts,
+			gonertia.WithSSR(gInertiaSSRURL),
 			gonertia.WithSSRHTTPClient(&http.Client{Timeout: 5 * time.Second}),
+		)
+
+		ssr, err := gonertia.NewFromFile(rootHTML,
+			ssrOpts...,
 		)
 		if err != nil {
 			return fmt.Errorf("inertia: create ssr renderer: %v", err)
@@ -57,7 +64,6 @@ func Init(rootHTML string, enableSSR bool, opts ...Option) error {
 		ssr.ShareTemplateData("appName", config.ProjectName)
 
 		gInertiaSSR = ssr
-		gInertiaSSRURL = "http://127.0.0.1:13714"
 	}
 
 	return nil
@@ -88,7 +94,7 @@ func Page(etx *echo.Context, component string, props Props, opts ...PageOption) 
 		opt(&ssr)
 	}
 
-	if ssr {
+	if ssr && etx.Request().Method != http.MethodHead {
 		if gInertiaSSR == nil {
 			return errors.New("inertia: SSR not enabled at init")
 		}
@@ -97,16 +103,51 @@ func Page(etx *echo.Context, component string, props Props, opts ...PageOption) 
 			return gInertia.Render(etx.Response(), etx.Request(), component, props)
 		}
 
-		conn, err := net.DialTimeout("tcp", "127.0.0.1:13714", 500*time.Millisecond)
-		if err != nil {
-			return fmt.Errorf("inertia: SSR server unreachable: %w", err)
+		if err := assertSSRServerReachable(gInertiaSSRURL); err != nil {
+			return err
 		}
-		conn.Close()
 
 		return gInertiaSSR.Render(etx.Response(), etx.Request(), component, props)
 	}
 
 	return gInertia.Render(etx.Response(), etx.Request(), component, props)
+}
+
+func assertSSRServerReachable(rawURL string) error {
+	address, err := ssrServerAddress(rawURL)
+	if err != nil {
+		return err
+	}
+
+	conn, err := net.DialTimeout("tcp", address, 500*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("inertia: SSR server unreachable at %s: %w", rawURL, err)
+	}
+	return conn.Close()
+}
+
+func ssrServerAddress(rawURL string) (string, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", fmt.Errorf("inertia: invalid SSR URL %q: %w", rawURL, err)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", fmt.Errorf("inertia: invalid SSR URL %q: expected http or https", rawURL)
+	}
+	if parsed.Hostname() == "" {
+		return "", fmt.Errorf("inertia: invalid SSR URL %q: missing host", rawURL)
+	}
+
+	port := parsed.Port()
+	if port == "" {
+		if parsed.Scheme == "https" {
+			port = "443"
+		} else {
+			port = "80"
+		}
+	}
+
+	return net.JoinHostPort(parsed.Hostname(), port), nil
 }
 
 func Redirect(etx *echo.Context, url string, status ...int) error {

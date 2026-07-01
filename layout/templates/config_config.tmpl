@@ -68,6 +68,15 @@ var (
 	InertiaEnableSSR = func() bool {
 		return os.Getenv("INERTIA_SSR_ENABLED") == "true"
 	}()
+{{ if eq .Inertia "vue"}}
+	InertiaSSRURL = func() string {
+		if os.Getenv("INERTIA_SSR_URL") != "" {
+			return os.Getenv("INERTIA_SSR_URL")
+		}
+
+		return "http://127.0.0.1:13714"
+	}()
+{{ end}}
 )
 
 type Config struct {

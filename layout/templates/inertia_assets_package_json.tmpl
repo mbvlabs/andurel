@@ -2,7 +2,10 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run build:client && npm run build:ssr",
+    "build:client": "vite build",
+    "build:ssr": "vite build --ssr resources/js/ssr.ts",
+    "ssr": "node assets/dist/ssr/ssr.js",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -10,6 +13,7 @@
     "vue": "^3.5.0"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "@tailwindcss/vite": "^4.0.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "tailwindcss": "^4.0.0",

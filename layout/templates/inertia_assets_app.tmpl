@@ -1,6 +1,6 @@
 import '../../css/base.css'
 
-import { createApp, h, defineComponent, ref, watch, type DefineComponent } from 'vue'
+import { createSSRApp, h, defineComponent, ref, watch, type DefineComponent } from 'vue'
 import { createInertiaApp, usePage } from '@inertiajs/vue3'
 
 type FlashMessage = {
@@ -48,7 +48,7 @@ createInertiaApp({
     return pages[`./Pages/${name}.vue`]
   },
   setup({ el, App, props, plugin }) {
-    createApp({
+    createSSRApp({
       render() {
         return h('div', [
           h(App, props),

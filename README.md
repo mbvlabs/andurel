@@ -620,7 +620,16 @@ return inertia.Page(etx, "Products", inertia.Props{
 }, inertia.SSREnabled())
 ```
 
-SSR requires running an Inertia SSR server (default: `http://127.0.0.1:13714`). If the SSR server is unreachable when rendering an SSR-enabled page, the request fails with a 500 error (fail-closed). Inertia XHR requests are never SSR'd - the JSON response is returned directly.
+SSR requires running an Inertia SSR server (default: `http://127.0.0.1:13714`). Build and start it with:
+
+```bash
+npm run build:ssr
+npm run ssr
+```
+
+Use `INERTIA_SSR_URL` to point the Go app and generated Node server at a different SSR URL. Do not point it at the Andurel HTTP app port; Gonertia sends SSR render requests to the SSR server's `/render` endpoint.
+
+If the SSR server is unreachable when rendering an SSR-enabled page, the request fails with a 500 error (fail-closed). Inertia XHR requests are never SSR'd - the JSON response is returned directly. To confirm SSR is working, request the page without the `X-Inertia` header and inspect the HTML source: an SSR response contains page markup inside `<div id="app">`, while a client-rendered response only contains the Inertia JSON payload script and an empty app div.
 
 ### Inertia Vue + UberFX (`--di uberfx --inertia vue`)
 
