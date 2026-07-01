@@ -6,6 +6,8 @@ import (
 
 	{{if .Namespace}}controllers {{end}}"{{.ModulePath}}/controllers{{if .Namespace}}/{{.Namespace}}{{end}}"
 	"{{.ModulePath}}/router/routes"
+
+	"github.com/labstack/echo/v5"
 )
 
 func (r Router) Register{{.NamespacePascal}}{{.ResourceName}}Routes({{.LowercaseResourceName}} controllers.{{.CapitalizedPluralName}}) error {
