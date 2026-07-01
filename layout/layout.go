@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"text/template"
@@ -224,6 +225,12 @@ type (
 	TmplTarget     string
 	TmplTargetPath string
 )
+
+// FrameworkManagedFile identifies a template-backed file that Andurel owns.
+type FrameworkManagedFile struct {
+	TemplateName string
+	TargetPath   string
+}
 
 var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"tw_css_base.tmpl": "css/base.css",
@@ -453,6 +460,59 @@ var inertiaTemplateOverrides = map[TmplTarget]TmplTargetPath{
 var inertiaSkippedTemplates = map[TmplTarget]bool{
 	"tw_views_home.tmpl":      true,
 	"vanilla_views_home.tmpl": true,
+}
+
+// GetInternalFrameworkFiles returns the internal package files expected for a project config.
+func GetInternalFrameworkFiles(config *ScaffoldConfig) []FrameworkManagedFile {
+	mappings := make(map[TmplTarget]TmplTargetPath)
+	for templateName, targetPath := range baseTemplateMappings {
+		if strings.HasPrefix(string(targetPath), "internal/") {
+			mappings[templateName] = targetPath
+		}
+	}
+
+	if config != nil && config.Inertia == "vue" {
+		for templateName, targetPath := range inertiaTemplateMappings {
+			if strings.HasPrefix(string(targetPath), "internal/") {
+				mappings[templateName] = targetPath
+			}
+		}
+	}
+
+	return sortedFrameworkManagedFiles(mappings)
+}
+
+// GetAllManagedInternalFrameworkFiles returns every internal package file Andurel can manage.
+func GetAllManagedInternalFrameworkFiles() []FrameworkManagedFile {
+	mappings := make(map[TmplTarget]TmplTargetPath)
+	for templateName, targetPath := range baseTemplateMappings {
+		if strings.HasPrefix(string(targetPath), "internal/") {
+			mappings[templateName] = targetPath
+		}
+	}
+	for templateName, targetPath := range inertiaTemplateMappings {
+		if strings.HasPrefix(string(targetPath), "internal/") {
+			mappings[templateName] = targetPath
+		}
+	}
+
+	return sortedFrameworkManagedFiles(mappings)
+}
+
+func sortedFrameworkManagedFiles(mappings map[TmplTarget]TmplTargetPath) []FrameworkManagedFile {
+	files := make([]FrameworkManagedFile, 0, len(mappings))
+	for templateName, targetPath := range mappings {
+		files = append(files, FrameworkManagedFile{
+			TemplateName: string(templateName),
+			TargetPath:   string(targetPath),
+		})
+	}
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].TargetPath < files[j].TargetPath
+	})
+
+	return files
 }
 
 func processTemplatedFiles(

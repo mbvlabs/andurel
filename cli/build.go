@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/spf13/cobra"
 )
 
@@ -82,7 +83,7 @@ func buildApp(rootDir string, versionFlag string) error {
 	if needsTailwind {
 		tailwindTool, ok := lock.Tools["tailwindcli"]
 		if !ok {
-			tailwindTool = layout.NewBinaryTool("tailwindcli", "v4.2.1")
+			tailwindTool = layout.NewBinaryTool("tailwindcli", versions.TailwindCLI)
 		}
 
 		if err := syncSingleTool(rootDir, "tailwindcli", tailwindTool, goos, goarch); err != nil {
