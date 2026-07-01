@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
+	generatorpkg "github.com/mbvlabs/andurel/generator"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
@@ -22,6 +24,7 @@ type jobTemplateData struct {
 type workerTemplateData struct {
 	ModulePath string
 	PascalName string
+	DIMode     string
 }
 
 func newGenerateJobCommand() *cobra.Command {
@@ -30,7 +33,7 @@ func newGenerateJobCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "job NAME",
 		Aliases: []string{"j"},
-		Short: "Generate a new background job",
+		Short:   "Generate a new background job",
 		Long: `Generates a new background job with the given name. Pass the job name
 in CamelCase.
 
@@ -84,6 +87,7 @@ func generateJob(name, queueName string) error {
 
 	snakeName := naming.ToSnakeCase(name)
 	pascalName := naming.ToPascalCase(snakeName)
+	diMode := generatorpkg.ReadDIMode()
 
 	// Generate queue/jobs/<snake>.go
 	jobPath := filepath.Join("queue", "jobs", snakeName+".go")
@@ -95,17 +99,19 @@ func generateJob(name, queueName string) error {
 		return fmt.Errorf("failed to generate job file: %w", err)
 	}
 
-	// Generate queue/workers/<snake>.go
 	workerPath := filepath.Join("queue", "workers", snakeName+".go")
+	if diMode == "uberfx" {
+		workerPath = filepath.Join("queue", snakeName+".go")
+	}
 	if err := generateFromTemplate("worker.tmpl", workerPath, workerTemplateData{
 		ModulePath: modulePath,
 		PascalName: pascalName,
+		DIMode:     diMode,
 	}); err != nil {
 		return fmt.Errorf("failed to generate worker file: %w", err)
 	}
 
-	// Register worker in queue/workers/workers.go
-	if err := registerWorkerInWorkersGo(pascalName); err != nil {
+	if err := registerWorker(pascalName, diMode); err != nil {
 		return fmt.Errorf("failed to register worker: %w", err)
 	}
 
@@ -132,6 +138,13 @@ func generateFromTemplate(tmplName, outputPath string, data any) error {
 	}
 
 	return files.FormatGoFile(outputPath)
+}
+
+func registerWorker(pascalName, diMode string) error {
+	if diMode == "uberfx" {
+		return registerFXWorkerInQueueGo(pascalName)
+	}
+	return registerWorkerInWorkersGo(pascalName)
 }
 
 func registerWorkerInWorkersGo(pascalName string) error {
@@ -166,6 +179,127 @@ func registerWorkerInWorkersGo(pascalName string) error {
 	}
 
 	return nil
+}
+
+func registerFXWorkerInQueueGo(pascalName string) error {
+	workersGoPath := filepath.Join("queue", "workers.go")
+	content, err := os.ReadFile(workersGoPath)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", workersGoPath, err)
+	}
+
+	contentStr := string(content)
+	updated := false
+
+	constructorRef := "New" + pascalName + "Worker"
+	nextContent, changed, err := ensureFXProvideEntry(
+		contentStr,
+		"var wrksConstructors = fx.Provide(",
+		constructorRef,
+	)
+	if err != nil {
+		return err
+	}
+	if changed {
+		contentStr = nextContent
+		updated = true
+	}
+
+	invokeNeedle := fmt.Sprintf("worker *%sWorker) error", pascalName)
+	if !strings.Contains(contentStr, invokeNeedle) {
+		invoke := fmt.Sprintf(`	fx.Invoke(func(workers *river.Workers, worker *%sWorker) error {
+		return worker.Register(workers)
+	}),
+`, pascalName)
+		nextContent, changed, err = ensureFXModuleEntry(contentStr, "var WorkersModule = fx.Module(", invoke)
+		if err != nil {
+			return err
+		}
+		if changed {
+			contentStr = nextContent
+			updated = true
+		}
+	}
+
+	if !updated {
+		return nil
+	}
+
+	if err := os.WriteFile(workersGoPath, []byte(contentStr), constants.FilePermissionPrivate); err != nil {
+		return err
+	}
+
+	if err := files.FormatGoFile(workersGoPath); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ensureFXProvideEntry(content, provideDeclaration, constructorRef string) (string, bool, error) {
+	if hasFXReference(content, constructorRef) {
+		return content, false, nil
+	}
+
+	provideIdx := strings.Index(content, provideDeclaration)
+	if provideIdx == -1 {
+		return "", false, fmt.Errorf("failed to locate %s in queue/workers.go", strings.TrimSuffix(provideDeclaration, "("))
+	}
+	openIdx := strings.Index(content[provideIdx:], "(")
+	if openIdx == -1 {
+		return "", false, fmt.Errorf("failed to locate worker constructor fx.Provide opening parenthesis")
+	}
+	openIdx += provideIdx
+	closeIdx := findMatchingParen(content, openIdx)
+	if closeIdx == -1 {
+		return "", false, fmt.Errorf("failed to locate worker constructor fx.Provide closing parenthesis")
+	}
+
+	return content[:closeIdx] + "\t" + constructorRef + ",\n" + content[closeIdx:], true, nil
+}
+
+func hasFXReference(content, ref string) bool {
+	refPattern := regexp.QuoteMeta(ref)
+	pattern := regexp.MustCompile(`(?m)(^|[[:space:](])` + refPattern + `\s*[,)]`)
+	return pattern.FindStringIndex(content) != nil
+}
+
+func ensureFXModuleEntry(content, moduleDeclaration, entry string) (string, bool, error) {
+	if strings.Contains(content, entry) {
+		return content, false, nil
+	}
+
+	moduleIdx := strings.Index(content, moduleDeclaration)
+	if moduleIdx == -1 {
+		return "", false, fmt.Errorf("failed to locate %s in queue/workers.go", strings.TrimSuffix(moduleDeclaration, "("))
+	}
+	openIdx := strings.Index(content[moduleIdx:], "(")
+	if openIdx == -1 {
+		return "", false, fmt.Errorf("failed to locate queue workers fx.Module opening parenthesis")
+	}
+	openIdx += moduleIdx
+	closeIdx := findMatchingParen(content, openIdx)
+	if closeIdx == -1 {
+		return "", false, fmt.Errorf("failed to locate queue workers fx.Module closing parenthesis")
+	}
+
+	return content[:closeIdx] + entry + content[closeIdx:], true, nil
+}
+
+func findMatchingParen(content string, openIdx int) int {
+	depth := 0
+	for i := openIdx; i < len(content); i++ {
+		switch content[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return i
+			}
+		}
+	}
+	return -1
 }
 
 func printManualWorkerRegistration(pascalName string) {
