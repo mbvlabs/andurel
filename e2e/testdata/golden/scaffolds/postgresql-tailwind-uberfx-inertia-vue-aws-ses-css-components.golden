@@ -7323,10 +7323,10 @@ go 1.26.0
 
 require (
 	github.com/a-h/templ v0.3.1020
-	github.com/aws/aws-sdk-go-v2 v1.42.0
-	github.com/aws/aws-sdk-go-v2/config v1.32.26
-	github.com/aws/aws-sdk-go-v2/credentials v1.19.25
-	github.com/aws/aws-sdk-go-v2/service/sesv2 v1.62.5
+	github.com/aws/aws-sdk-go-v2 v1.42.1
+	github.com/aws/aws-sdk-go-v2/config v1.32.27
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.26
+	github.com/aws/aws-sdk-go-v2/service/sesv2 v1.62.6
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/exaring/otelpgx v0.11.1
@@ -7372,17 +7372,17 @@ require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.29 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.29 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.29 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.30 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.12 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.29 // indirect
-	github.com/aws/aws-sdk-go-v2/service/signin v1.2.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.31.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.7 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.43.4 // indirect
-	github.com/aws/smithy-go v1.27.1 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.30 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.30 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.30 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.31 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.13 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.30 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.2.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.31.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.8 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.43.5 // indirect
+	github.com/aws/smithy-go v1.27.3 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -7477,36 +7477,36 @@ github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERo
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/a-h/templ v0.3.1020 h1:ypAT/L5ySWEnZ6Zft/5yfoWXYYkhFNvEFOeeqecg4tw=
 github.com/a-h/templ v0.3.1020/go.mod h1:A2DlK61v+K+NRoGnhmYbNYVmtYHcFO5/AisMvBdDxTM=
-github.com/aws/aws-sdk-go-v2 v1.42.0 h1:XvXMJTkFQtpBKIWZnmr9ZEOc2InWM2yldjXEJ/bymhA=
-github.com/aws/aws-sdk-go-v2 v1.42.0/go.mod h1:27+ACypSLljLAEKsCYOmrjKh83vuTRkuAe9Uv/3A4bg=
-github.com/aws/aws-sdk-go-v2/config v1.32.26 h1:JI+W5B3jUA8UBz2ggbICGd9UCR6/+SB21G8EFl0SFTQ=
-github.com/aws/aws-sdk-go-v2/config v1.32.26/go.mod h1:RLE2Ls/wRstvdSz1GPrIWNnXcKZ/znDdWyMuiQxdBoY=
-github.com/aws/aws-sdk-go-v2/credentials v1.19.25 h1:TzPVjfUZ1hsKafvYE+DIzKXIik2KufQxsPHanlkttbo=
-github.com/aws/aws-sdk-go-v2/credentials v1.19.25/go.mod h1:K4hw0buguVvtC74HnVfTRr0LzQQHAWPqJbBU9QGk2Pg=
-github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.29 h1:r6qZHbT+wxgWO/e9vYNUEtg7lv5+UN3pRqKhLXvnArg=
-github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.29/go.mod h1:QRnaRcTVGKPGRy8w78HMQtKUGRYcnMZAANATkeVA6Mo=
-github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.29 h1:f3vKqSo13fhTYb+JEcXwXefZQE26I1FB5eTSniU67ko=
-github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.29/go.mod h1:MzoLFUArKGpGD+ukmPiTPG1X5x4o6M2kq4v2dr1FiEc=
-github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.29 h1:RdwIf/CuUsvJX3RgJagbOyotl/cxoLY4xviKuE7p2GY=
-github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.29/go.mod h1:71wt8W2EgswdZy9Mf9KNnzxZ3TiZlv4caKghPktDOkA=
-github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.30 h1:VTGy885W5DKBxWRUJbym9hytNaYzsyaPkCHGRRMAOhU=
-github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.30/go.mod h1:AS0HycUvJRFvTt613AYDOgO2jzw+00cVSMny8XB3yMY=
-github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.12 h1:ZD2+BSw9vFsNlKYIasSNt3uDbjqqXIBcM13UJv/Lx2k=
-github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.12/go.mod h1:Ms4zlcVBbXbiP7EVLhl+lgjvA/a7YphqQ3Ih3174EmI=
-github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.29 h1:DRebniUGZ2MqiiIVmQJ04vIXr918hubdHMnarSLEWyU=
-github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.29/go.mod h1:LfRkPCD8YHDM2E5eTkos2UpwYeZnBcVarTa8L59bJHA=
-github.com/aws/aws-sdk-go-v2/service/sesv2 v1.62.5 h1:EJF5uLH1dCMiFzeSheqfMokRKEBPWJ4SHU3CQlYQR40=
-github.com/aws/aws-sdk-go-v2/service/sesv2 v1.62.5/go.mod h1:pPfcguG4y24CV1iQeejOJ8MRkTMFqHtxc8/Lmklv4gY=
-github.com/aws/aws-sdk-go-v2/service/signin v1.2.1 h1:BeJmkm5YOZs6lGRGcNoIuLSoTTtGLLCEqlSiRKYodfM=
-github.com/aws/aws-sdk-go-v2/service/signin v1.2.1/go.mod h1:LxYujSTLPRlp2vTtcUO/+1ilrew8ytt6SvQyOgejzFQ=
-github.com/aws/aws-sdk-go-v2/service/sso v1.31.4 h1:i465b/3c7xJd++pobNIDOggouekCuiWOnB0goQJy+94=
-github.com/aws/aws-sdk-go-v2/service/sso v1.31.4/go.mod h1:Lk7PlmoTYryQmyBG0EXqj5BcUbj3whXdU2s3yGI3EAc=
-github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.7 h1:xbmJAnBbyYPkTzoCNCF/bpJ6ymQHRdXX1vquYfDIGYk=
-github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.7/go.mod h1:Q5N6icH+KJZDLh+ESNwzdv6cZ6vLFF/egy3IOxWhmz4=
-github.com/aws/aws-sdk-go-v2/service/sts v1.43.4 h1:Np0vmL7op0Zs5xGacYMMX3v5O5pvZ46xhb5LwDgPj8M=
-github.com/aws/aws-sdk-go-v2/service/sts v1.43.4/go.mod h1:r8wkDOuLaaMFqFiYAb8dGY2A3gJCOujMc6CFOVC4Zhc=
-github.com/aws/smithy-go v1.27.1 h1:4T340VFndXtADGF52gYa1POyL7s9E4Z1OeZ1hCscIw8=
-github.com/aws/smithy-go v1.27.1/go.mod h1:YE2RhdIuDbA5E5bTdciG9KrW3+TiEONeUWCqxX9i1Fc=
+github.com/aws/aws-sdk-go-v2 v1.42.1 h1:9eOTgu1z/dVtYpNZ3/8/XbbaX0x/BqE3HUzAzs6K0ek=
+github.com/aws/aws-sdk-go-v2 v1.42.1/go.mod h1:5pKeft2eJj+gElQ38Jqg4ibCqh+/AK33/0X3hip7IjM=
+github.com/aws/aws-sdk-go-v2/config v1.32.27 h1:SJwJ9Q4kM7v5QVSYYyXj3znRr6lNyZEhSgAXmXXcVbI=
+github.com/aws/aws-sdk-go-v2/config v1.32.27/go.mod h1:uBfrzTRedDmB2u+b6+UlaKJy2O6VSH5un2jP24t/KvQ=
+github.com/aws/aws-sdk-go-v2/credentials v1.19.26 h1:Si8kk1kyJnuJWCEgiwpBtTdtgSdR7i611596NnC0YIQ=
+github.com/aws/aws-sdk-go-v2/credentials v1.19.26/go.mod h1:lBckz+W9SAdNtSDw3pYgQUJDJFcBBWry0GSzw+bK0TY=
+github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.30 h1:/hi1JADLEW9YYryEz1w4GQu0EtP23pP553Cf9KgsDV4=
+github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.30/go.mod h1:/3AOgy4K17Dm4ucMZVC/MJkzy5kmfKUcINRHZyo0koQ=
+github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.30 h1:xM/Is9cKMHa8Jj8zkvWhvrFkZsXJV9E+BB4g0HW0duQ=
+github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.30/go.mod h1:WueJeNDZvK1fMYEWJIkcivBfEzUkTpBhzlrUKKY8EuA=
+github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.30 h1:jn46zC9LdsVR/ZpMIJqMqb8hHv31BlLx3ulVqNspUOk=
+github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.30/go.mod h1:1hTMsAgbdS/AtUi4bw8+gUuh1pceo+eXRLfpSuSQj3M=
+github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.31 h1:3GUprIsfmGcC5SACIyB0e7E0BM1O1b3Erl5CePYIAeQ=
+github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.31/go.mod h1:7PuV1yl5e2xnUbm+RqvVg5i2iBM8EyijZNoI9wsOoOc=
+github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.13 h1:mbRIur/BiHK6SKPjoBIXSE/hJ6g6JGRLuxQy1jGjlN4=
+github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.13/go.mod h1:ITg9em2KbJx1s0y4aqRX5OYWG6HBZ5TVR//OdpEZ2CQ=
+github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.30 h1:/Z5jmNrKsSD7EmDjzAPsm/3L9IuOkzaynklJZ1qX7S4=
+github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.30/go.mod h1:lEzEZnOosE7zi8Z6royW1cFJTD9fpab4Ul1SBrllewk=
+github.com/aws/aws-sdk-go-v2/service/sesv2 v1.62.6 h1:P3eoIM/ULwU8Q1xWvh0CrWybeVgkSFNTHhkRtLLzUDA=
+github.com/aws/aws-sdk-go-v2/service/sesv2 v1.62.6/go.mod h1:HlQu5hAX7DOaLl8AK1ac10N4PhMhslC7mds020yPKJ8=
+github.com/aws/aws-sdk-go-v2/service/signin v1.2.2 h1:69JEZSDTQ+UNbTWQJCZMmbpQb5sfc79KUt0O7Pyfjmo=
+github.com/aws/aws-sdk-go-v2/service/signin v1.2.2/go.mod h1:mxC0nT/C8wMMS97DemZPzvUZxvIt+2Iq+eS3JdFZGgg=
+github.com/aws/aws-sdk-go-v2/service/sso v1.31.5 h1:xlK3Tdc8FO7Tq1k0+hL+otF33glj+dE+qeM5iINiDvU=
+github.com/aws/aws-sdk-go-v2/service/sso v1.31.5/go.mod h1:u8af9Nqkmqnr96f7v9nHqzZT9XBwbXEkTiqT4ROuJSE=
+github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.8 h1:yX1IbiBfC7SdEgDwIGnRaZyPPDRbQPDOJxl8102PcGk=
+github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.8/go.mod h1:DMPWJBjYs6+3+f/qhBFEFPPlQ6NlhWjai3dJNvipJ84=
+github.com/aws/aws-sdk-go-v2/service/sts v1.43.5 h1:T3ANO8QWDbzQD8f4+UaX+fvJlyGnOFMKLbW+NGBHg04=
+github.com/aws/aws-sdk-go-v2/service/sts v1.43.5/go.mod h1:9gdl4RrflIdpDb2TlXshWgR1F9TeCkvqDx77Vpr4Z/Q=
+github.com/aws/smithy-go v1.27.3 h1:F3Zb497UhhskkfpJmfkXswyo+t0sh9OTBnIHjogWbVY=
+github.com/aws/smithy-go v1.27.3/go.mod h1:YE2RhdIuDbA5E5bTdciG9KrW3+TiEONeUWCqxX9i1Fc=
 github.com/caarlos0/env/v10 v10.0.0 h1:yIHUBZGsyqCnpTkbjk8asUlx6RFhhEs+h7TOBdgdzXA=
 github.com/caarlos0/env/v10 v10.0.0/go.mod h1:ZfulV76NvVPw3tm591U4SwL3Xx9ldzBP9aGxzeN7G18=
 github.com/caarlos0/env/v11 v11.4.1 h1:fYwH0sWEsBSMPG7t4e/PEfTFzrWrpjyygXyUnWiSwEw=
@@ -10541,6 +10541,604 @@ type InsertQueue interface {
 	) ([]*rivertype.JobInsertResult, error)
 	InsertManyFast(ctx context.Context, params []river.InsertManyParams) (int, error)
 	InsertManyFastTx(ctx context.Context, tx *sql.Tx, params []river.InsertManyParams) (int, error)
+}
+```
+
+dir  d----------rwxr-xr-x internal/validation
+
+file -----------rw-r--r-- internal/validation/helpers.go
+```
+// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
+package validation
+
+import (
+	"database/sql"
+	"net/url"
+	"reflect"
+	"strings"
+	"time"
+)
+
+func isMissing(fieldPtr any) bool {
+	switch field := fieldPtr.(type) {
+	case string:
+		return strings.TrimSpace(field) == ""
+
+	case *string:
+		return field == nil || strings.TrimSpace(*field) == ""
+
+	case *sql.NullString:
+		return field == nil || !field.Valid || strings.TrimSpace(field.String) == ""
+
+	case sql.NullString:
+		return !field.Valid || strings.TrimSpace(field.String) == ""
+
+	case time.Time:
+		return field.IsZero()
+
+	case *time.Time:
+		return field == nil || field.IsZero()
+
+	case *sql.NullTime:
+		return field == nil || !field.Valid || field.Time.IsZero()
+
+	case sql.NullTime:
+		return !field.Valid || field.Time.IsZero()
+
+	case int:
+		return field == 0
+
+	case *int:
+		return field == nil || *field == 0
+
+	case int32:
+		return field == 0
+
+	case *int32:
+		return field == nil || *field == 0
+
+	case int64:
+		return field == 0
+
+	case *int64:
+		return field == nil || *field == 0
+
+	case *sql.NullInt64:
+		return field == nil || !field.Valid
+
+	case sql.NullInt64:
+		return !field.Valid
+
+	case []string:
+		return len(field) == 0
+
+	case *[]string:
+		return field == nil || len(*field) == 0
+	}
+
+	value, ok := dereferencedValue(fieldPtr)
+	if !ok {
+		return true
+	}
+
+	switch value.Kind() {
+	case reflect.String:
+		return strings.TrimSpace(value.String()) == ""
+
+	case reflect.Slice, reflect.Map:
+		return value.Len() == 0
+	}
+
+	return value.IsZero()
+}
+
+func stringValue(fieldPtr any) (value string, present bool, ok bool) {
+	switch field := fieldPtr.(type) {
+	case *string:
+		if field == nil {
+			return "", false, true
+		}
+
+		return *field, strings.TrimSpace(*field) != "", true
+
+	case string:
+		return field, strings.TrimSpace(field) != "", true
+
+	case *sql.NullString:
+		if field == nil || !field.Valid {
+			return "", false, true
+		}
+
+		return field.String, true, true
+
+	case sql.NullString:
+		if !field.Valid {
+			return "", false, true
+		}
+
+		return field.String, true, true
+
+	default:
+		value, ok := dereferencedValue(fieldPtr)
+		if !ok {
+			return "", false, false
+		}
+
+		if value.Kind() != reflect.String {
+			return "", false, false
+		}
+
+		str := value.String()
+		return str, strings.TrimSpace(str) != "", true
+	}
+}
+
+func sliceLen(fieldPtr any) (int, bool) {
+	value, ok := dereferencedValue(fieldPtr)
+	if !ok {
+		return 0, false
+	}
+
+	if value.Kind() != reflect.Slice && value.Kind() != reflect.Array {
+		return 0, false
+	}
+
+	return value.Len(), true
+}
+
+func timeValue(fieldPtr any) (time.Time, bool) {
+	switch field := fieldPtr.(type) {
+	case time.Time:
+		if field.IsZero() {
+			return time.Time{}, false
+		}
+
+		return field, true
+
+	case *time.Time:
+		if field == nil || field.IsZero() {
+			return time.Time{}, false
+		}
+
+		return *field, true
+
+	case *sql.NullTime:
+		if field == nil || !field.Valid || field.Time.IsZero() {
+			return time.Time{}, false
+		}
+
+		return field.Time, true
+
+	case sql.NullTime:
+		if !field.Valid || field.Time.IsZero() {
+			return time.Time{}, false
+		}
+
+		return field.Time, true
+
+	default:
+		value, ok := dereferencedValue(fieldPtr)
+		if !ok {
+			return time.Time{}, false
+		}
+
+		switch value.Type() {
+		case reflect.TypeOf(time.Time{}):
+			t := value.Interface().(time.Time)
+			if t.IsZero() {
+				return time.Time{}, false
+			}
+
+			return t, true
+
+		case reflect.TypeOf(sql.NullTime{}):
+			t := value.Interface().(sql.NullTime)
+			if !t.Valid || t.Time.IsZero() {
+				return time.Time{}, false
+			}
+
+			return t.Time, true
+		}
+
+		return time.Time{}, false
+	}
+}
+
+func dereferencedValue(value any) (reflect.Value, bool) {
+	rv := reflect.ValueOf(value)
+	if !rv.IsValid() {
+		return reflect.Value{}, false
+	}
+
+	for rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return reflect.Value{}, false
+		}
+
+		rv = rv.Elem()
+	}
+
+	return rv, true
+}
+
+func requiredBool(value any) (bool, bool) {
+	switch field := value.(type) {
+	case bool:
+		return field, true
+
+	case *bool:
+		if field == nil {
+			return false, false
+		}
+
+		return *field, true
+
+	default:
+		rv, ok := dereferencedValue(value)
+		if !ok || rv.Kind() != reflect.Bool {
+			return false, false
+		}
+
+		return rv.Bool(), true
+	}
+}
+
+func isHTTPURL(value string) bool {
+	value = strings.TrimSpace(value)
+
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return false
+	}
+
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return false
+	}
+
+	return parsed.Host != ""
+}
+```
+
+file -----------rw-r--r-- internal/validation/rules.go
+```
+// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
+package validation
+
+import (
+	"fmt"
+	"reflect"
+	"slices"
+	"strconv"
+	"strings"
+	"unicode/utf8"
+)
+
+func (b *ValidationBuilder) Required(field string, value any, message ...string) {
+	if isMissing(value) {
+		b.AddField(field, "required", messageOrDefault("is required", message))
+	}
+}
+
+func (b *ValidationBuilder) RequiredWhen(condition bool, field string, value any, message ...string) {
+	if condition {
+		b.Required(field, value, message...)
+	}
+}
+
+func (b *ValidationBuilder) MinLen(field string, value any, min int, message ...string) {
+	str, present, ok := stringValue(value)
+	if !ok || !present {
+		return
+	}
+
+	if utf8.RuneCountInString(str) < min {
+		b.AddFieldWithParams(
+			field,
+			"min",
+			messageOrDefault(fmt.Sprintf("must be at least %d characters", min), message),
+			map[string]any{"min": min},
+		)
+	}
+}
+
+func (b *ValidationBuilder) MaxLen(field string, value any, max int, message ...string) {
+	str, present, ok := stringValue(value)
+	if !ok || !present {
+		return
+	}
+
+	if utf8.RuneCountInString(str) > max {
+		b.AddFieldWithParams(
+			field,
+			"max",
+			messageOrDefault(fmt.Sprintf("must be at most %d characters", max), message),
+			map[string]any{"max": max},
+		)
+	}
+}
+
+func (b *ValidationBuilder) LenBetween(field string, value any, min int, max int, message ...string) {
+	b.MinLen(field, value, min, message...)
+	b.MaxLen(field, value, max, message...)
+}
+
+func (b *ValidationBuilder) OneOf(field string, value any, allowed ...string) {
+	b.oneOf(field, value, "has an invalid value", allowed...)
+}
+
+func (b *ValidationBuilder) OneOfWithMessage(
+	field string,
+	value any,
+	message string,
+	allowed ...string,
+) {
+	b.oneOf(field, value, messageOrDefault("has an invalid value", []string{message}), allowed...)
+}
+
+func (b *ValidationBuilder) oneOf(field string, value any, message string, allowed ...string) {
+	str, present, ok := stringValue(value)
+	if !ok || !present {
+		return
+	}
+
+	if slices.Contains(allowed, str) {
+		return
+	}
+
+	b.AddFieldWithParams(
+		field,
+		"one_of",
+		message,
+		map[string]any{"allowed": allowed},
+	)
+}
+
+func (b *ValidationBuilder) URL(field string, value any, message ...string) {
+	str, present, ok := stringValue(value)
+	if !ok || !present || strings.TrimSpace(str) == "" {
+		return
+	}
+
+	if !isHTTPURL(str) {
+		b.AddField(field, "url", messageOrDefault("must be a valid URL", message))
+	}
+}
+
+func (b *ValidationBuilder) RequiredURL(field string, value any, message ...string) {
+	b.Required(field, value, message...)
+	b.URL(field, value, message...)
+}
+
+func (b *ValidationBuilder) MinItems(field string, value any, min int, message ...string) {
+	length, ok := sliceLen(value)
+	if !ok {
+		return
+	}
+
+	if length < min {
+		b.AddFieldWithParams(
+			field,
+			"min_items",
+			messageOrDefault(fmt.Sprintf("must contain at least %d item(s)", min), message),
+			map[string]any{"min": min},
+		)
+	}
+}
+
+func (b *ValidationBuilder) MaxItems(field string, value any, max int, message ...string) {
+	length, ok := sliceLen(value)
+	if !ok {
+		return
+	}
+
+	if length > max {
+		b.AddFieldWithParams(
+			field,
+			"max_items",
+			messageOrDefault(fmt.Sprintf("must contain at most %d item(s)", max), message),
+			map[string]any{"max": max},
+		)
+	}
+}
+
+func (b *ValidationBuilder) NoBlankItems(field string, value any, message ...string) {
+	slice, ok := dereferencedValue(value)
+	if !ok {
+		return
+	}
+	if slice.Kind() != reflect.Slice && slice.Kind() != reflect.Array {
+		return
+	}
+
+	for i := 0; i < slice.Len(); i++ {
+		item := slice.Index(i)
+
+		if item.Kind() == reflect.String && strings.TrimSpace(item.String()) == "" {
+			b.Add(
+				normalizeField(field)+"["+strconv.Itoa(i)+"]",
+				"required",
+				messageOrDefault("is required", message),
+			)
+		}
+	}
+}
+
+func (b *ValidationBuilder) TimeBeforeOrEqual(
+	startField string,
+	startValue any,
+	endField string,
+	endValue any,
+	message ...string,
+) {
+	start, startOK := timeValue(startValue)
+	end, endOK := timeValue(endValue)
+
+	if !startOK || !endOK {
+		return
+	}
+
+	if start.After(end) {
+		b.AddFieldWithParams(
+			startField,
+			"before_or_equal",
+			messageOrDefault("must be before or equal to the end time", message),
+			map[string]any{"other": normalizeField(endField)},
+		)
+	}
+}
+
+func (b *ValidationBuilder) True(field string, value any, message ...string) {
+	boolValue, ok := requiredBool(value)
+	if !ok || !boolValue {
+		b.AddField(field, "true", messageOrDefault("must be true", message))
+	}
+}
+
+func messageOrDefault(defaultMessage string, messages []string) string {
+	if len(messages) == 0 || strings.TrimSpace(messages[0]) == "" {
+		return defaultMessage
+	}
+
+	return messages[0]
+}
+```
+
+file -----------rw-r--r-- internal/validation/validation.go
+```
+// Package validation provides types and utilities for validating struct fields
+// and collecting validation errors. It uses a builder pattern for composing
+// validation rules and supports structured error reporting with field-level
+// details, codes, and parameters.
+// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
+package validation
+
+import "errors"
+
+const UnknownField = "unknown"
+
+type Validatable interface {
+	Validate() error
+}
+
+type Error struct {
+	Field   string         `json:"field"`
+	Code    string         `json:"code"`
+	Message string         `json:"message"`
+	Params  map[string]any `json:"params,omitempty"`
+}
+
+type ValidationErrors []Error
+
+func (e ValidationErrors) Error() string {
+	return "validation failed"
+}
+
+func (e ValidationErrors) Empty() bool {
+	return len(e) == 0
+}
+
+func (e ValidationErrors) Len() int {
+	return len(e)
+}
+
+func (e ValidationErrors) ToMap() map[string]string {
+	result := map[string]string{}
+	for _, validationErr := range e {
+		if _, exists := result[validationErr.Field]; exists {
+			continue
+		}
+		result[validationErr.Field] = validationErr.Message
+	}
+
+	return result
+}
+
+func As(err error) (ValidationErrors, bool) {
+	if err == nil {
+		return nil, false
+	}
+
+	if validationErrors, ok := errors.AsType[ValidationErrors](err); ok {
+		return validationErrors, true
+	}
+
+	return nil, false
+}
+
+func Validate(value any) error {
+	if value == nil {
+		return nil
+	}
+
+	validatable, ok := value.(Validatable)
+	if !ok {
+		return nil
+	}
+
+	return validatable.Validate()
+}
+
+type ValidationBuilder struct {
+	errors ValidationErrors
+}
+
+func NewBuilder() *ValidationBuilder {
+	return &ValidationBuilder{}
+}
+
+func (b *ValidationBuilder) Add(field, code, message string) {
+	b.errors = append(b.errors, Error{
+		Field:   normalizeField(field),
+		Code:    code,
+		Message: message,
+	})
+}
+
+func (b *ValidationBuilder) AddWithParams(
+	field string,
+	code string,
+	message string,
+	params map[string]any,
+) {
+	b.errors = append(b.errors, Error{
+		Field:   normalizeField(field),
+		Code:    code,
+		Message: message,
+		Params:  params,
+	})
+}
+
+func (b *ValidationBuilder) AddField(field string, code, message string) {
+	b.Add(field, code, message)
+}
+
+func (b *ValidationBuilder) AddFieldWithParams(
+	field string,
+	code string,
+	message string,
+	params map[string]any,
+) {
+	b.AddWithParams(field, code, message, params)
+}
+
+func (b *ValidationBuilder) Err() error {
+	if len(b.errors) == 0 {
+		return nil
+	}
+
+	return b.errors
+}
+
+func (b *ValidationBuilder) Errors() ValidationErrors {
+	return b.errors
+}
+
+func normalizeField(field string) string {
+	if field == "" {
+		return UnknownField
+	}
+
+	return field
 }
 ```
 
