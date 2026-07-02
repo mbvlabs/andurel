@@ -5756,7 +5756,6 @@ require (
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/exaring/otelpgx v0.11.1
 	github.com/go-faker/faker/v4 v4.9.0
-	github.com/go-playground/validator/v10 v10.30.3
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/sessions v1.4.0
 	github.com/gosimple/slug v1.15.0
@@ -5822,12 +5821,13 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
+	github.com/go-playground/validator/v10 v10.30.1 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
@@ -5971,8 +5971,8 @@ github.com/exaring/otelpgx v0.11.1 h1:pE79fIg/qh/Lpu00kvswFC5dKfqyJJhMJ4Y4N3w5Lj
 github.com/exaring/otelpgx v0.11.1/go.mod h1:3OojrUKhhy3lTbYIMBijP3YjMey/jo14eHAW5cXcUdk=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
-github.com/gabriel-vasile/mimetype v1.4.13 h1:46nXokslUBsAJE/wMsp5gtO500a4F3Nkz9Ufpk2AcUM=
-github.com/gabriel-vasile/mimetype v1.4.13/go.mod h1:d+9Oxyo1wTzWdyVUPMmXFvp4F9tea18J8ufA774AB3s=
+github.com/gabriel-vasile/mimetype v1.4.12 h1:e9hWvmLYvtp846tLHam2o++qitpguFiYCKbn0w9jyqw=
+github.com/gabriel-vasile/mimetype v1.4.12/go.mod h1:d+9Oxyo1wTzWdyVUPMmXFvp4F9tea18J8ufA774AB3s=
 github.com/go-faker/faker/v4 v4.9.0 h1:a4HXLwueuTCtgF93VpUsl8Zd2nG1VH2SgNWDPVEBg5U=
 github.com/go-faker/faker/v4 v4.9.0/go.mod h1:u1dIRP5neLB6kTzgyVjdBOV5R1uP7BdxkcWk7tiKQXk=
 github.com/go-logr/logr v1.2.2/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
@@ -5988,8 +5988,8 @@ github.com/go-playground/locales v0.14.1 h1:EWaQ/wswjilfKLTECiXz7Rh+3BjFhfDFKv/o
 github.com/go-playground/locales v0.14.1/go.mod h1:hxrqLVvrK65+Rwrd5Fc6F2O76J/NuW9t0sjnWqG1slY=
 github.com/go-playground/universal-translator v0.18.1 h1:Bcnm0ZwsGyWbCzImXv+pAJnYK9S473LQFuzCbDbfSFY=
 github.com/go-playground/universal-translator v0.18.1/go.mod h1:xekY+UJKNuX9WP91TpwSH2VMlDf28Uj24BCp08ZFTUY=
-github.com/go-playground/validator/v10 v10.30.3 h1:4MU6YkEwx7GbcPJOZxrtbu+QfF3pJLJuaYTeAH0DYy8=
-github.com/go-playground/validator/v10 v10.30.3/go.mod h1:4Axh7oCNGcoGkqLoE4YWt6n20mcEIsPRlB7vPk3lpyc=
+github.com/go-playground/validator/v10 v10.30.1 h1:f3zDSN/zOma+w6+1Wswgd9fLkdwy06ntQJp0BBvFG0w=
+github.com/go-playground/validator/v10 v10.30.1/go.mod h1:oSuBIQzuJxL//3MelwSLD5hc2Tu889bF0Idm9Dg26cM=
 github.com/golang/protobuf v1.5.4 h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=
 github.com/golang/protobuf v1.5.4/go.mod h1:lnTiLA8Wa4RWRcIUkrtSVa5nRhsEGBg48fD6rSs7xps=
 github.com/google/go-cmp v0.5.6/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
@@ -9949,17 +9949,6 @@ file -----------rw-r--r-- models/model.go
 // Package models contains data models and validation logic.
 package models
 
-import (
-	"github.com/go-playground/validator/v10"
-)
-
-var Validate = setupValidator()
-
-func setupValidator() *validator.Validate {
-	v := validator.New(validator.WithRequiredStructEnabled())
-	return v
-}
-
 type (
 	user struct{}
 	token struct{}
@@ -9988,6 +9977,7 @@ import (
 	"time"
 
 	"testapp/internal/storage"
+	"testapp/internal/validation"
 
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
@@ -10078,10 +10068,20 @@ func (t token) FindByScopeAndHash(
 }
 
 type createTokenData struct {
-	Scope     string    `validate:"required"`
-	ExpiresAt time.Time `validate:"required"`
-	Hash      string    `validate:"required"`
-	MetaData  json.RawMessage `validate:"required"`
+	Scope     string
+	ExpiresAt time.Time
+	Hash      string
+	MetaData  json.RawMessage
+}
+
+func (t *TokenEntity) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("scope", t.Scope)
+	b.Required("expires_at", t.ExpiresAt)
+	b.Required("hash", t.Hash)
+	b.Required("meta_data", t.MetaData)
+
+	return b.Err()
 }
 
 func (t token) createToken(
@@ -10089,10 +10089,6 @@ func (t token) createToken(
 	db storage.Executor,
 	data createTokenData,
 ) (TokenEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return TokenEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := TokenEntity{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
@@ -10101,6 +10097,10 @@ func (t token) createToken(
 		ExpiresAt: data.ExpiresAt,
 		Hash:      data.Hash,
 		MetaData:  data.MetaData,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return TokenEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
@@ -10247,6 +10247,7 @@ import (
 	"time"
 
 	"testapp/internal/storage"
+	"testapp/internal/validation"
 
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
@@ -10263,6 +10264,14 @@ type UserEntity struct {
 	EmailValidatedAt sql.NullTime `bun:"email_validated_at"`
 	Password         []byte     `bun:"password"`
 	IsAdmin          bool       `bun:"is_admin"`
+}
+
+func (u *UserEntity) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("email", u.Email)
+	b.MaxLen("email", u.Email, 255)
+
+	return b.Err()
 }
 
 func (u *UserEntity) HasValidatedEmail() bool {
@@ -10324,12 +10333,12 @@ func (u user) FindByEmail(ctx context.Context, db storage.Executor, email string
 }
 
 type PasswordPair struct {
-	Password        string `validate:"required,min=8,max=72"`
-	ConfirmPassword string `validate:"required,min=8,max=72"`
+	Password        string
+	ConfirmPassword string
 }
 
 type CreateUserData struct {
-	Email        string `validate:"required,email,max=255"`
+	Email        string
 	PasswordPair PasswordPair
 }
 
@@ -10339,10 +10348,6 @@ func (u user) Create(
 	pepper string,
 	data CreateUserData,
 ) (UserEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return UserEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	hashedPassword, err := HashPassword(data.PasswordPair.Password, pepper)
 	if err != nil {
 		return UserEntity{}, err
@@ -10358,6 +10363,10 @@ func (u user) Create(
 		IsAdmin:          false,
 	}
 
+	if err := validation.Validate(&entity); err != nil {
+		return UserEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
 	_, err = db.NewInsert().Model(&entity).Exec(ctx)
 	if err != nil {
 		return UserEntity{}, err
@@ -10368,17 +10377,13 @@ func (u user) Create(
 
 type UpdateUserData struct {
 	ID               uuid.UUID
-	Email            string `validate:"required,email,max=255"`
+	Email            string
 	EmailValidatedAt sql.NullTime
 	Password         []byte
 	IsAdmin          bool
 }
 
 func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserData) (UserEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return UserEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	var current UserEntity
 	err := db.NewSelect().
 		Model(&current).
@@ -10411,6 +10416,10 @@ func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserDa
 		EmailValidatedAt: emailValidatedAt,
 		Password:         password,
 		IsAdmin:          data.IsAdmin,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return UserEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	_, err = db.NewUpdate().
