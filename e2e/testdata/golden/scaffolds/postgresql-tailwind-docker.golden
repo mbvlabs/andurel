@@ -1284,7 +1284,7 @@ package config
 import "github.com/caarlos0/env/v10"
 
 type auth struct {
-	Pepper         string `env:"PEPPER"`
+	Pepper string `env:"PEPPER"`
 }
 
 func newAuthConfig() auth {
@@ -1313,9 +1313,8 @@ import (
 	"testapp/internal/server"
 
 	"github.com/gosimple/slug"
-    
+
 	"go.uber.org/fx"
-    
 )
 
 // Global application settings that can be used throughout the codebase with defaults.
@@ -1360,7 +1359,7 @@ var (
 		return fmt.Sprintf("%s://%s", protocol, Domain)
 	}()
 	AppCookieSessionName = func() string {
-		return "app_sess_"+slug.Make(strings.ToLower(ProjectName)) + "-" + Env
+		return "app_sess_" + slug.Make(strings.ToLower(ProjectName)) + "-" + Env
 	}()
 	DefaultSenderSignature = func() string {
 		if os.Getenv("DEFAULT_SENDER_SIGNATURE") != "" {
@@ -1375,8 +1374,8 @@ type Config struct {
 	App       app
 	DB        Database
 	Telemetry telemetry
-	Email email
-	Auth auth
+	Email     email
+	Auth      auth
 }
 
 func NewConfig() Config {
@@ -1384,14 +1383,12 @@ func NewConfig() Config {
 		App:       newAppConfig(),
 		DB:        newDatabaseConfig(),
 		Telemetry: newTelemetryConfig(),
-		Email: newEmailConfig(),
-		Auth: newAuthConfig(),
+		Email:     newEmailConfig(),
+		Auth:      newAuthConfig(),
 	}
 }
 
-
-    var Module = fx.Module("config", fx.Provide(NewConfig))
-
+var Module = fx.Module("config", fx.Provide(NewConfig))
 ```
 
 file -----------rw-r--r-- config/database.go
@@ -1678,7 +1675,6 @@ func createRobotsTxt() (string, error) {
 	return string(robots), nil
 }
 
-
 func (a Assets) Robots(etx *echo.Context) error {
 	cacheKey := "assets:robots"
 
@@ -1754,11 +1750,11 @@ func createSitemap(routes []routing.Route) (string, error) {
 	}
 
 	xmlBytes, err := xml.MarshalIndent(sitemap, "", "  ")
-    if err != nil {
-    	return "", err
-    }
+	if err != nil {
+		return "", err
+	}
 
-    return xml.Header + string(xmlBytes), nil
+	return xml.Header + string(xmlBytes), nil
 }
 
 func (a Assets) Stylesheet(etx *echo.Context) error {
@@ -1811,8 +1807,8 @@ import (
 )
 
 const (
-	defaultCacheSize  = 50
-	defaultTTL  	  = 15 * time.Minute
+	defaultCacheSize = 50
+	defaultTTL       = 15 * time.Minute
 )
 
 type Cache[T any] struct {
@@ -2015,10 +2011,11 @@ file -----------rw-r--r-- controllers/controller.go
 package controllers
 
 import (
-	"testapp/router"
 	"github.com/a-h/templ"
 	"go.uber.org/fx"
+	"testapp/router"
 )
+
 var pageCache = NewCacheBuilder[templ.Component]().Build
 var otherCache = NewCacheBuilder[string]().WithSize(2).Build
 
@@ -2655,9 +2652,8 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
-    
+
 	"go.uber.org/fx"
-    
 )
 
 //go:embed migrations/*
@@ -2710,9 +2706,7 @@ func (p *Postgres) Close() error {
 	return p.conn.Close()
 }
 
-
 var Module = fx.Module("database", fx.Provide(fx.Annotate(NewPostgres, fx.As(new(storage.Pool)))))
-
 ```
 
 dir  d----------rwxr-xr-x database/migrations
@@ -8893,8 +8887,7 @@ import "errors"
 var (
 	ErrDomainValidation = errors.New("the provided payload failed validations")
 
-	ErrNotFound         = errors.New("record not found")
-
+	ErrNotFound = errors.New("record not found")
 )
 ```
 
@@ -9222,12 +9215,12 @@ file -----------rw-r--r-- models/model.go
 package models
 
 type (
-	user struct{}
+	user  struct{}
 	token struct{}
 )
 
 var (
-	User user
+	User  user
 	Token token
 )
 ```
@@ -9259,12 +9252,12 @@ import (
 
 type TokenEntity struct {
 	bun.BaseModel `bun:"table:tokens,alias:tokens"`
-	ID            uuid.UUID `bun:"id,pk,type:uuid"`
-	CreatedAt     time.Time `bun:"created_at"`
-	UpdatedAt     time.Time `bun:"updated_at"`
-	Scope         string    `bun:"scope"`
-	ExpiresAt     time.Time `bun:"expires_at"`
-	Hash          string    `bun:"hash"`
+	ID            uuid.UUID       `bun:"id,pk,type:uuid"`
+	CreatedAt     time.Time       `bun:"created_at"`
+	UpdatedAt     time.Time       `bun:"updated_at"`
+	Scope         string          `bun:"scope"`
+	ExpiresAt     time.Time       `bun:"expires_at"`
+	Hash          string          `bun:"hash"`
 	MetaData      json.RawMessage `bun:"meta_data,type:jsonb"`
 }
 
@@ -9521,8 +9514,8 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
-	"encoding/base64"
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -9539,13 +9532,13 @@ import (
 
 type UserEntity struct {
 	bun.BaseModel    `bun:"table:users,alias:user"`
-	ID               uuid.UUID  `bun:"id,pk,type:uuid"`
-	CreatedAt        time.Time  `bun:"created_at"`
-	UpdatedAt        time.Time  `bun:"updated_at"`
-	Email            string     `bun:"email"`
+	ID               uuid.UUID    `bun:"id,pk,type:uuid"`
+	CreatedAt        time.Time    `bun:"created_at"`
+	UpdatedAt        time.Time    `bun:"updated_at"`
+	Email            string       `bun:"email"`
 	EmailValidatedAt sql.NullTime `bun:"email_validated_at"`
-	Password         []byte     `bun:"password"`
-	IsAdmin          bool       `bun:"is_admin"`
+	Password         []byte       `bun:"password"`
+	IsAdmin          bool         `bun:"is_admin"`
 }
 
 func (u *UserEntity) Validate() error {
@@ -9878,9 +9871,8 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverdatabasesql"
 	"github.com/riverqueue/river/rivertype"
-    
+
 	"go.uber.org/fx"
-    
 )
 
 type Processor struct {
@@ -9987,7 +9979,6 @@ func NewInsertOnly(db storage.Pool, workers *river.Workers) (InsertOnly, error) 
 	return InsertOnly{riverClient}, nil
 }
 
-
 var Module = fx.Module(
 	"queue",
 	fx.Provide(
@@ -9995,7 +9986,6 @@ var Module = fx.Module(
 		NewProcessor,
 	),
 )
-
 ```
 
 file -----------rw-r--r-- queue/send_marketing_email.go
@@ -10022,11 +10012,9 @@ func NewSendMarketingEmailWorker(sender email.MarketingSender) *SendMarketingEma
 	}
 }
 
-
 func (w *SendMarketingEmailWorker) Register(workers *river.Workers) error {
 	return river.AddWorkerSafely(workers, w)
 }
-
 
 func (w *SendMarketingEmailWorker) Work(ctx context.Context, job *river.Job[jobs.SendMarketingEmailArgs]) error {
 	err := email.SendMarketing(ctx, job.Args.Data, w.sender)
@@ -10065,11 +10053,9 @@ func NewSendTransactionalEmailWorker(sender email.TransactionalSender) *SendTran
 	}
 }
 
-
 func (w *SendTransactionalEmailWorker) Register(workers *river.Workers) error {
 	return river.AddWorkerSafely(workers, w)
 }
-
 
 func (w *SendTransactionalEmailWorker) Work(ctx context.Context, job *river.Job[jobs.SendTransactionalEmailArgs]) error {
 	err := email.SendTransactional(ctx, job.Args.Data, w.sender)
@@ -10086,7 +10072,6 @@ func (w *SendTransactionalEmailWorker) Work(ctx context.Context, job *river.Job[
 
 file -----------rw-r--r-- queue/workers.go
 ```
-
 // Package queue provides queue-specific resources.
 package queue
 
@@ -10111,7 +10096,6 @@ var WorkersModule = fx.Module(
 		return worker.Register(workers)
 	}),
 )
-
 ```
 
 dir  d----------rwxr-xr-x router
@@ -10125,8 +10109,8 @@ package cookies
 import (
 	"strings"
 
-	"testapp/config"
 	"github.com/google/uuid"
+	"testapp/config"
 	"testapp/models"
 
 	"github.com/labstack/echo-contrib/v5/session"
@@ -10137,16 +10121,17 @@ const ReturnToKey = "return_to"
 
 const (
 	isAuthenticated = "is_authenticated"
-	isAdmin = "is_admin"
-	userID = "user_id"
+	isAdmin         = "is_admin"
+	userID          = "user_id"
 )
 
 type App struct {
-	CurrentPath string
-	UserID uuid.UUID
-	IsAdmin bool
+	CurrentPath     string
+	UserID          uuid.UUID
+	IsAdmin         bool
 	IsAuthenticated bool
 }
+
 func CreateAppSession(c *echo.Context, user models.UserEntity) error {
 	sess, err := session.Get(config.AppCookieSessionName, c)
 	if err != nil {
@@ -10634,8 +10619,8 @@ func CSRFMiddleware(cfg config.Config, csrfName string) (echo.MiddlewareFunc, er
 			return strings.Contains(c.Request().URL.Path, routes.APIPrefix) ||
 				strings.Contains(c.Request().URL.Path, routes.AssetsPrefix)
 		},
-		TokenLookup:    tokenLookup,
-		CookiePath:     "/",
+		TokenLookup: tokenLookup,
+		CookiePath:  "/",
 		CookieDomain: func() string {
 			if config.Env == server.ProdEnvironment {
 				return config.Domain
@@ -11015,7 +11000,6 @@ type LoginData struct {
 	Password string
 }
 
-
 func (i Identity) AuthenticateUser(
 	ctx context.Context,
 	data LoginData,
@@ -11031,7 +11015,6 @@ func (i Identity) AuthenticateUser(
 		return models.UserEntity{}, fmt.Errorf("find user by email: %w", err)
 
 	}
-
 
 	validPassword, err := user.ValidPassword(data.Password, i.pepper)
 
@@ -11104,7 +11087,6 @@ type RegisterUserData struct {
 	ConfirmPassword string
 }
 
-
 func (i Identity) RegisterUser(
 	ctx context.Context,
 	data RegisterUserData,
@@ -11116,7 +11098,6 @@ func (i Identity) RegisterUser(
 		return fmt.Errorf("begin registration transaction: %w", err)
 
 	}
-
 
 	user, err := models.User.Create(ctx, tx, i.pepper, models.CreateUserData{
 
@@ -11142,7 +11123,6 @@ func (i Identity) RegisterUser(
 		return fmt.Errorf("marshal verification token metadata: %v", err)
 
 	}
-
 
 	code, err := models.Token.CreateCode(
 		ctx,
@@ -11182,7 +11162,6 @@ func (i Identity) RegisterUser(
 
 	}
 
-
 	_, err = i.insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
 
 		Data: email.TransactionalData{
@@ -11212,7 +11191,6 @@ type VerifyEmailData struct {
 	Code string
 }
 
-
 func (i Identity) VerifyEmail(
 	ctx context.Context,
 	data VerifyEmailData,
@@ -11224,7 +11202,6 @@ func (i Identity) VerifyEmail(
 		return models.UserEntity{}, fmt.Errorf("begin email verification transaction: %w", err)
 
 	}
-
 
 	token, err := models.Token.FindByScopeAndHash(
 		ctx,
@@ -11243,7 +11220,6 @@ func (i Identity) VerifyEmail(
 		return models.UserEntity{}, fmt.Errorf("find email verification token: %w", err)
 
 	}
-
 
 	if !token.IsValid(data.Code, i.pepper) {
 
@@ -11340,13 +11316,11 @@ var (
 
 	ErrPasswordMismatch = errors.New("passwords do not match")
 	ErrPasswordTooShort = errors.New("password must be at least 8 characters")
-
 )
 
 type RequestResetPasswordData struct {
 	Email string
 }
-
 
 func (i Identity) RequestResetPassword(
 	ctx context.Context,
@@ -11380,7 +11354,6 @@ func (i Identity) RequestResetPassword(
 		return fmt.Errorf("marshal password reset token metadata: %v", err)
 
 	}
-
 
 	token, err := models.Token.Create(
 		ctx,
@@ -11422,7 +11395,6 @@ func (i Identity) RequestResetPassword(
 
 	}
 
-
 	_, err = i.insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
 
 		Data: email.TransactionalData{
@@ -11448,7 +11420,6 @@ type ResetPasswordData struct {
 	ConfirmPassword string
 }
 
-
 func (i Identity) ResetPassword(
 	ctx context.Context,
 	data ResetPasswordData,
@@ -11466,7 +11437,6 @@ func (i Identity) ResetPassword(
 
 	}
 
-
 	tx, err := i.db.BeginTx(ctx, nil)
 
 	if err != nil {
@@ -11474,7 +11444,6 @@ func (i Identity) ResetPassword(
 		return fmt.Errorf("begin password reset transaction: %w", err)
 
 	}
-
 
 	token, err := models.Token.FindByScopeAndHash(
 		ctx,
@@ -11493,7 +11462,6 @@ func (i Identity) ResetPassword(
 		return fmt.Errorf("find password reset token: %w", err)
 
 	}
-
 
 	if !token.IsValid(data.Token, i.pepper) {
 
@@ -11528,7 +11496,6 @@ func (i Identity) ResetPassword(
 
 	}
 
-
 	hashedPassword, err := models.HashPassword(data.Password, i.pepper)
 
 	if err != nil {
@@ -11561,7 +11528,6 @@ func (i Identity) ResetPassword(
 		return fmt.Errorf("destroy password reset token: %w", err)
 
 	}
-
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit password reset transaction: %w", err)
@@ -12314,14 +12280,14 @@ import (
 type Option func(*telemetryOptions) error
 
 type telemetryOptions struct {
-	serviceName    string
-	serviceVersion string
-	logExporters   []LogExporter
+	serviceName     string
+	serviceVersion  string
+	logExporters    []LogExporter
 	metricExporters []MetricExporter
 	traceExporters  []TraceExporter
-	batchSize      int
-	batchTimeout   time.Duration
-	queueSize      int
+	batchSize       int
+	batchTimeout    time.Duration
+	queueSize       int
 	traceSampleRate float64
 }
 
@@ -12433,9 +12399,9 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
-    
+
 	"go.uber.org/fx"
-    
+
 	"golang.org/x/sync/errgroup"
 
 	sdklog "go.opentelemetry.io/otel/sdk/log"
@@ -12719,9 +12685,7 @@ func parseHeaders(headersStr string) map[string]string {
 	return headers
 }
 
-
 var Module = fx.Module("telemetry", fx.Provide(New))
-
 ```
 
 file -----------rw-r--r-- telemetry/trace_exporters.go

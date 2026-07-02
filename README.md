@@ -34,7 +34,7 @@ Development speed is everything. Andurel eliminates boilerplate and lets you foc
 - **Type Safety Everywhere** - Bun for SQL, Templ/Vue for HTML, Go for logic
 - **Batteries Included** — Echo, Datastar, background jobs, sessions, CSRF protection, telemetry, email support, authentication, optional extensions (docker, aws-ses, css-components)
 - **UberFX DI** — Declarative dependency injection with `go.uber.org/fx`
-- **Two Frontend Options** — Server-rendered HTML with **Templ + Datastar** for hypermedia interactivity, or **Inertia SPA with Vue 3 + Vite** for a reactive single-page app
+- **Two Frontend Options** — Server-rendered HTML with **Templ + Datastar** for hypermedia interactivity, or **Inertia SPA with Vue 3 or React + Vite** for a reactive single-page app
 - **Production Build** — One command (`andurel build`) to compile everything: Templ, Tailwind CSS, Vite assets, and Go binary
 - **Just enough Convention** - Convention over configuration is great to a certain point. Andurel provides just enough sensible defaults that just work and get out of your way.
 - **PostgreSQL-Backed** - Built on PostgreSQL with River job queues, pgx driver, and UUID support
@@ -53,8 +53,8 @@ The core philosophy around resource generation in andurel, is that it should be 
 - **[PostgreSQL](https://www.postgresql.org/)** - Powerful open-source database with pgx driver and native UUID support
 - **[Shadowfax](https://github.com/mbvlabs/shadowfax)** - Andurel-specific app runner
 - **[go.uber.org/fx](https://uber-go.github.io/fx/)** - Dependency injection framework
-- **[gonertia](https://github.com/romsar/gonertia)** - Inertia.js Go adapter (optional, `--inertia vue`)
-- **[Vue.js](https://vuejs.org/)** - Progressive JavaScript framework (optional, via Inertia)
+- **[gonertia](https://github.com/romsar/gonertia)** - Inertia.js Go adapter (optional, `--inertia vue` or `--inertia react`)
+- **[Vue.js](https://vuejs.org/) / [React](https://react.dev/)** - JavaScript UI adapters (optional, via Inertia)
 - **[Vite](https://vitejs.dev/)** - Next-generation frontend build tool (optional, via Inertia)
 
 ## Quick Start
@@ -79,6 +79,7 @@ andurel new myapp -e aws-ses             # Add AWS SES email integration
 
 # Choose your frontend approach:
 andurel new myapp --inertia vue          # Inertia SPA with Vue 3 + Vite
+andurel new myapp --inertia react        # Inertia SPA with React + Vite
 
 # Combine options:
 andurel new myapp --inertia vue -e docker
@@ -93,7 +94,7 @@ cp .env.example .env
 
 # Note: you need to edit .env with your database details
 
-# Install NPM dependencies (only if using --inertia vue)
+# Install NPM dependencies (only if using --inertia vue/react)
 npm install
 
 # Apply database migrations
@@ -139,7 +140,7 @@ andurel database migrate new create_products_table
 andurel generate scaffold Product
 ```
 
-This single command creates everything you need for a full CRUD interface: model, factory, controller, Templ views, and resource routes. Pass `--inertia` when you want the generated resource/controller views as Inertia Vue pages instead (reads the adapter from `andurel.lock`).
+This single command creates everything you need for a full CRUD interface: model, factory, controller, Templ views, and resource routes. Pass `--inertia` when you want the generated resource/controller views as Inertia pages instead (reads the adapter from `andurel.lock`).
 
 ## CLI Commands
 
@@ -155,7 +156,7 @@ andurel new (alias: n) [project-name] [flags]
 |------|-------------|
 | `-e`, `--extensions` | Comma-separated extensions to enable (e.g. `docker,aws-ses,css-components`) |
 
-| `--inertia` | Frontend adapter: `vue` (enables Inertia SPA with Vue 3 + Vite) |
+| `--inertia` | Frontend adapter: `vue` or `react` (enables Inertia SPA with Vite) |
 
 ### `andurel generate` — Code generation
 
@@ -180,9 +181,9 @@ andurel generate email (alias: e) NAME
 | `--yes`          | Apply changes without prompting for confirmation (use with `--update`) |
 | `--primary-key`  | Specify the primary key column (skips interactive detection) |
 
-**`generate controller`** — Creates a controller for a resource. With no actions, it generates the full standard CRUD controller, views, and routes. With one or more standard CRUD actions (`index`, `show`, `new`, `create`, `edit`, `update`, `destroy`), it generates only those resource actions; partial CRUD views are self-contained and only link to companion actions that are also present. Generated resource/controller views default to Templ in every project; pass `--inertia` to generate Inertia Vue pages (uses the adapter from `andurel.lock`).
+**`generate controller`** — Creates a controller for a resource. With no actions, it generates the full standard CRUD controller, views, and routes. With one or more standard CRUD actions (`index`, `show`, `new`, `create`, `edit`, `update`, `destroy`), it generates only those resource actions; partial CRUD views are self-contained and only link to companion actions that are also present. Generated resource/controller views default to Templ in every project; pass `--inertia` to generate Inertia pages (uses the adapter from `andurel.lock`).
 
-Non-CRUD actions create standalone/custom controller actions. They add empty controller methods, matching Templ components by default or Vue pages with `--inertia`, and conventional `GET` routes:
+Non-CRUD actions create standalone/custom controller actions. They add empty controller methods, matching Templ components by default or Inertia pages with `--inertia`, and conventional `GET` routes:
 
 ```bash
 andurel generate controller Dashboard overview
@@ -225,7 +226,7 @@ When `--api` is set, the namespace is forced to `"api"` (overriding any namespac
 
 **`generate view`** — Generates Go code from `.templ` template files (runs `templ generate`).
 
-**`generate scaffold`** — Convenience command that runs `generate model` + `generate controller` with full CRUD actions (index, show, new, create, edit, update, destroy). By default generates Templ views, including in projects created with Inertia; pass `--inertia` for Inertia Vue SFC views (reads the adapter from `andurel.lock`).
+**`generate scaffold`** — Convenience command that runs `generate model` + `generate controller` with full CRUD actions (index, show, new, create, edit, update, destroy). By default generates Templ views, including in projects created with Inertia; pass `--inertia` for Inertia views (reads the adapter from `andurel.lock`).
 
 | Flag | Description |
 |------|-------------|
@@ -578,7 +579,7 @@ router/connect_*.go    (connect_api_routes, connect_assets_routes,
                         connect_reset_passwords_routes)
 ```
 
-### Inertia Vue Mode (`--inertia vue`)
+### Inertia Mode (`--inertia vue` or `--inertia react`)
 
 When using the Inertia SPA frontend, these files are **added**:
 
@@ -586,9 +587,9 @@ When using the Inertia SPA frontend, these files are **added**:
 myapp/
 ├── resources/
 │   └── js/
-│       ├── app.ts               # Vue + Inertia app entry point
+│       ├── app.ts/app.tsx       # Vue/React + Inertia app entry point
 │       └── Pages/
-│           └── Welcome.vue      # Home page Vue component
+│           └── Welcome.vue/tsx  # Home page component
 ├── views/
 │   ├── root.go.html             # Inertia root HTML shell
 │   └── (no home.templ — replaced by Vue Welcome page)
@@ -601,9 +602,9 @@ myapp/
 ├── tsconfig.json
 ```
 
-The `controllers/pages.go` uses Inertia rendering instead of Templ, and `cmd/app/main.go` initializes `internal/inertia`. Run `npm install` after scaffolding. Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia Vue resource pages (reads the adapter from `andurel.lock`).
+The `controllers/pages.go` uses Inertia rendering instead of Templ, and `cmd/app/main.go` initializes `internal/inertia`. Run `npm install` after scaffolding. Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia resource pages (reads the adapter from `andurel.lock`).
 
-When using `--inertia vue`, controllers can render Inertia Vue pages alongside Templ.
+When using `--inertia vue` or `--inertia react`, controllers can render Inertia pages alongside Templ.
 
 ### Real Example: Controller to Vue Component
 

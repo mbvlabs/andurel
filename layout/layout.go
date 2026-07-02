@@ -218,6 +218,15 @@ func Scaffold(
 		)
 	}
 
+	fmt.Print("Running go fmt...\n")
+	if err := cmds.RunGoFmt(targetDir); err != nil {
+		slog.Error(
+			"failed to run go fmt",
+			"error",
+			err,
+		)
+	}
+
 	return nil
 }
 
@@ -321,7 +330,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Controllers
 	"deprecated_controllers_api.tmpl":        "controllers/api.go",
 	"deprecated_controllers_assets.tmpl":     "controllers/assets.go",
-	"controllers_cache.tmpl":      "controllers/cache.go",
+	"controllers_cache.tmpl":                 "controllers/cache.go",
 	"deprecated_controllers_controller.tmpl": "controllers/controller.go",
 	"deprecated_controllers_pages.tmpl":      "controllers/pages.go",
 
@@ -362,9 +371,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"deprecated_router_connect_registrations_routes.tmpl":   "router/connect_registrations_routes.go",
 	"deprecated_router_connect_confirmations_routes.tmpl":   "router/connect_confirmations_routes.go",
 	"deprecated_router_connect_reset_passwords_routes.tmpl": "router/connect_reset_passwords_routes.go",
-	"router_cookies_cookies.tmpl":                "router/cookies/cookies.go",
-	"router_cookies_flash.tmpl":                  "router/cookies/flash.go",
-	"router_middleware_middleware.tmpl":          "router/middleware/middleware.go",
+	"router_cookies_cookies.tmpl":                           "router/cookies/cookies.go",
+	"router_cookies_flash.tmpl":                             "router/cookies/flash.go",
+	"router_middleware_middleware.tmpl":                     "router/middleware/middleware.go",
 
 	// Routes
 	"router_routes_api.tmpl":    "router/routes/api.go",
@@ -446,26 +455,54 @@ var fxSkippedTemplates = map[TmplTarget]bool{
 	"deprecated_router_connect_reset_passwords_routes.tmpl": true,
 }
 
-var inertiaTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"inertia_framework_root_html.tmpl":  "views/root.go.html",
+var inertiaSharedTemplateMappings = map[TmplTarget]TmplTargetPath{
+	"inertia_framework_root_html.tmpl": "views/root.go.html",
+	"inertia_page_options.tmpl":        "internal/inertia/page_options.go",
+	"inertia_render.tmpl":              "internal/inertia/render.go",
+	"inertia_vite.tmpl":                "internal/inertia/vite.go",
+}
+
+var inertiaVueTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_assets_app.tmpl":           "resources/js/app.ts",
 	"inertia_assets_pages_welcome.tmpl": "resources/js/Pages/Welcome.vue",
 	"inertia_assets_vite_config.tmpl":   "vite.config.ts",
 	"inertia_assets_package_json.tmpl":  "package.json",
 	"inertia_assets_tsconfig.tmpl":      "tsconfig.json",
-	"inertia_page_options.tmpl":         "internal/inertia/page_options.go",
-	"inertia_render.tmpl":               "internal/inertia/render.go",
-	"inertia_vite.tmpl":                 "internal/inertia/vite.go",
+}
+
+var inertiaReactTemplateMappings = map[TmplTarget]TmplTargetPath{
+	"inertia_react_assets_app.tmpl":           "resources/js/app.tsx",
+	"inertia_react_assets_pages_welcome.tmpl": "resources/js/Pages/Welcome.tsx",
+	"inertia_react_assets_vite_config.tmpl":   "vite.config.ts",
+	"inertia_react_assets_package_json.tmpl":  "package.json",
+	"inertia_react_assets_tsconfig.tmpl":      "tsconfig.json",
 }
 
 var inertiaTemplateOverrides = map[TmplTarget]TmplTargetPath{
-	"deprecated_controllers_pages_inertia.tmpl":    "controllers/pages.go",
-	"controllers_pages_inertia_fx.tmpl": "controllers/pages.go",
+	"deprecated_controllers_pages_inertia.tmpl": "controllers/pages.go",
+	"controllers_pages_inertia_fx.tmpl":         "controllers/pages.go",
 }
 
 var inertiaSkippedTemplates = map[TmplTarget]bool{
 	"tw_views_home.tmpl":      true,
 	"vanilla_views_home.tmpl": true,
+}
+
+func inertiaAdapterTemplateMappings(adapter string) map[TmplTarget]TmplTargetPath {
+	switch adapter {
+	case "vue":
+		return inertiaVueTemplateMappings
+	case "react":
+		return inertiaReactTemplateMappings
+	default:
+		return nil
+	}
+}
+
+func isStaticInertiaAssetTemplate(templateFile TmplTarget) bool {
+	return strings.HasPrefix(string(templateFile), "inertia_assets_") ||
+		strings.HasPrefix(string(templateFile), "inertia_react_assets_") ||
+		templateFile == "inertia_framework_root_html.tmpl"
 }
 
 // GetInternalFrameworkFiles returns the internal package files expected for a project config.
@@ -477,8 +514,8 @@ func GetInternalFrameworkFiles(config *ScaffoldConfig) []FrameworkManagedFile {
 		}
 	}
 
-	if config != nil && config.Inertia == "vue" {
-		for templateName, targetPath := range inertiaTemplateMappings {
+	if config != nil && IsSupportedInertiaAdapter(config.Inertia) {
+		for templateName, targetPath := range inertiaSharedTemplateMappings {
 			if strings.HasPrefix(string(targetPath), "internal/") {
 				mappings[templateName] = targetPath
 			}
@@ -496,7 +533,7 @@ func GetAllManagedInternalFrameworkFiles() []FrameworkManagedFile {
 			mappings[templateName] = targetPath
 		}
 	}
-	for templateName, targetPath := range inertiaTemplateMappings {
+	for templateName, targetPath := range inertiaSharedTemplateMappings {
 		if strings.HasPrefix(string(targetPath), "internal/") {
 			mappings[templateName] = targetPath
 		}
@@ -526,7 +563,7 @@ func processTemplatedFiles(
 	cssFramework string,
 	data extensions.TemplateData,
 ) error {
-	mappings := make(map[TmplTarget]TmplTargetPath, len(baseTemplateMappings)+len(fxTemplateOverrides)+len(inertiaTemplateMappings))
+	mappings := make(map[TmplTarget]TmplTargetPath, len(baseTemplateMappings)+len(fxTemplateOverrides)+len(inertiaSharedTemplateMappings)+len(inertiaVueTemplateMappings))
 	for k, v := range baseTemplateMappings {
 		mappings[k] = v
 	}
@@ -540,7 +577,7 @@ func processTemplatedFiles(
 		}
 	}
 
-	if td, ok := data.(*TemplateData); ok && td.Inertia == "vue" {
+	if td, ok := data.(*TemplateData); ok && IsSupportedInertiaAdapter(td.Inertia) {
 		for k := range inertiaSkippedTemplates {
 			delete(mappings, k)
 		}
@@ -551,7 +588,10 @@ func processTemplatedFiles(
 			delete(mappings, "deprecated_controllers_pages.tmpl")
 			mappings["deprecated_controllers_pages_inertia.tmpl"] = inertiaTemplateOverrides["deprecated_controllers_pages_inertia.tmpl"]
 		}
-		for k, v := range inertiaTemplateMappings {
+		for k, v := range inertiaSharedTemplateMappings {
+			mappings[k] = v
+		}
+		for k, v := range inertiaAdapterTemplateMappings(td.Inertia) {
 			mappings[k] = v
 		}
 	}
@@ -563,7 +603,7 @@ func processTemplatedFiles(
 			}
 			continue
 		}
-		if strings.HasPrefix(string(templateFile), "inertia_assets_") || templateFile == "inertia_framework_root_html.tmpl" {
+		if isStaticInertiaAssetTemplate(templateFile) {
 			if err := copyFile(targetDir, string(templateFile), string(targetPath), templates.Files); err != nil {
 				return fmt.Errorf("failed to copy file %s: %w", templateFile, err)
 			}
@@ -576,7 +616,7 @@ func processTemplatedFiles(
 
 	if cssFramework == "tailwind" {
 		for templateFile, targetPath := range baseTailwindTemplateMappings {
-			if td, ok := data.(*TemplateData); ok && td.Inertia == "vue" && inertiaSkippedTemplates[templateFile] {
+			if td, ok := data.(*TemplateData); ok && IsSupportedInertiaAdapter(td.Inertia) && inertiaSkippedTemplates[templateFile] {
 				continue
 			}
 			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
