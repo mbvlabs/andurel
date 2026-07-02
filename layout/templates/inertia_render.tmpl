@@ -39,9 +39,22 @@ func Init(rootHTML string, opts ...Option) error {
 	return nil
 }
 
-func Page(etx *echo.Context, component string, props Props) error {
+func Page(etx *echo.Context, component string, props Props, opts ...PageOption) error {
 	if gInertia == nil {
 		return errors.New("inertia: not initialized")
+	}
+
+	pageOptions := pageOptions{}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&pageOptions)
+		}
+	}
+	if len(pageOptions.validationErrors) > 0 {
+		etx.SetRequest(etx.Request().WithContext(gonertia.SetValidationErrors(
+			etx.Request().Context(),
+			pageOptions.validationErrors,
+		)))
 	}
 
 	if flashes := request.ExtractContext[[]cookies.FlashMessage](
@@ -53,7 +66,11 @@ func Page(etx *echo.Context, component string, props Props) error {
 		props["flash"] = flashes
 	}
 
-	return gInertia.Render(etx.Response(), etx.Request(), component, props)
+	if err := gInertia.Render(etx.Response(), etx.Request(), component, props); err != nil {
+		return fmt.Errorf("inertia: render page: %v", err)
+	}
+
+	return nil
 }
 
 func Redirect(etx *echo.Context, url string, status ...int) error {
