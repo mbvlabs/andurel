@@ -168,6 +168,8 @@ func setupGenerateFileTestProject(t *testing.T) string {
 		t.Fatalf("write workers fixture: %v", err)
 	}
 
+	writeGenerateFileTestLock(t, rootDir, "manual")
+
 	if err := os.Chdir(rootDir); err != nil {
 		t.Fatalf("chdir temp project: %v", err)
 	}

@@ -42,7 +42,7 @@ func Scaffold(
 	inertia string,
 ) error {
 	if diMode == "" {
-		diMode = "manual"
+		diMode = "uberfx"
 	}
 
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
@@ -306,7 +306,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-1.min.js",
 
 	// Commands
-	"cmd_app_main.tmpl": "cmd/app/main.go",
+	"deprecated_cmd_app_main.tmpl": "cmd/app/main.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
@@ -319,11 +319,11 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"clients_email_mailpit.tmpl": "clients/email/mailpit.go",
 
 	// Controllers
-	"controllers_api.tmpl":        "controllers/api.go",
-	"controllers_assets.tmpl":     "controllers/assets.go",
+	"deprecated_controllers_api.tmpl":        "controllers/api.go",
+	"deprecated_controllers_assets.tmpl":     "controllers/assets.go",
 	"controllers_cache.tmpl":      "controllers/cache.go",
-	"controllers_controller.tmpl": "controllers/controller.go",
-	"controllers_pages.tmpl":      "controllers/pages.go",
+	"deprecated_controllers_controller.tmpl": "controllers/controller.go",
+	"deprecated_controllers_pages.tmpl":      "controllers/pages.go",
 
 	// Database
 	"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
@@ -354,14 +354,14 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"models_factories_token.tmpl":     "models/factories/token.go",
 
 	// Router
-	"router_router.tmpl":                         "router/router.go",
-	"router_connect_api_routes.tmpl":             "router/connect_api_routes.go",
-	"router_connect_assets_routes.tmpl":          "router/connect_assets_routes.go",
-	"router_connect_pages_routes.tmpl":           "router/connect_pages_routes.go",
-	"router_connect_sessions_routes.tmpl":        "router/connect_sessions_routes.go",
-	"router_connect_registrations_routes.tmpl":   "router/connect_registrations_routes.go",
-	"router_connect_confirmations_routes.tmpl":   "router/connect_confirmations_routes.go",
-	"router_connect_reset_passwords_routes.tmpl": "router/connect_reset_passwords_routes.go",
+	"deprecated_router_router.tmpl":                         "router/router.go",
+	"deprecated_router_connect_api_routes.tmpl":             "router/connect_api_routes.go",
+	"deprecated_router_connect_assets_routes.tmpl":          "router/connect_assets_routes.go",
+	"deprecated_router_connect_pages_routes.tmpl":           "router/connect_pages_routes.go",
+	"deprecated_router_connect_sessions_routes.tmpl":        "router/connect_sessions_routes.go",
+	"deprecated_router_connect_registrations_routes.tmpl":   "router/connect_registrations_routes.go",
+	"deprecated_router_connect_confirmations_routes.tmpl":   "router/connect_confirmations_routes.go",
+	"deprecated_router_connect_reset_passwords_routes.tmpl": "router/connect_reset_passwords_routes.go",
 	"router_cookies_cookies.tmpl":                "router/cookies/cookies.go",
 	"router_cookies_flash.tmpl":                  "router/cookies/flash.go",
 	"router_middleware_middleware.tmpl":          "router/middleware/middleware.go",
@@ -383,10 +383,10 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"telemetry_helpers.tmpl":          "telemetry/helpers.go",
 
 	// Auth - Controllers
-	"controllers_confirmations.tmpl":   "controllers/confirmations.go",
-	"controllers_registrations.tmpl":   "controllers/registrations.go",
-	"controllers_reset_passwords.tmpl": "controllers/reset_passwords.go",
-	"controllers_sessions.tmpl":        "controllers/sessions.go",
+	"deprecated_controllers_confirmations.tmpl":   "controllers/confirmations.go",
+	"deprecated_controllers_registrations.tmpl":   "controllers/registrations.go",
+	"deprecated_controllers_reset_passwords.tmpl": "controllers/reset_passwords.go",
+	"deprecated_controllers_sessions.tmpl":        "controllers/sessions.go",
 
 	// Auth - Config
 	"config_auth.tmpl": "config/auth.go",
@@ -427,23 +427,23 @@ var fxTemplateOverrides = map[TmplTarget]TmplTargetPath{
 
 // fxSkippedTemplates lists base template entries skipped in uberfx mode.
 var fxSkippedTemplates = map[TmplTarget]bool{
-	"cmd_app_main.tmpl":                          true,
-	"router_router.tmpl":                         true,
-	"controllers_api.tmpl":                       true,
-	"controllers_assets.tmpl":                    true,
-	"controllers_controller.tmpl":                true,
-	"controllers_pages.tmpl":                     true,
-	"controllers_sessions.tmpl":                  true,
-	"controllers_registrations.tmpl":             true,
-	"controllers_confirmations.tmpl":             true,
-	"controllers_reset_passwords.tmpl":           true,
-	"router_connect_api_routes.tmpl":             true,
-	"router_connect_assets_routes.tmpl":          true,
-	"router_connect_pages_routes.tmpl":           true,
-	"router_connect_sessions_routes.tmpl":        true,
-	"router_connect_registrations_routes.tmpl":   true,
-	"router_connect_confirmations_routes.tmpl":   true,
-	"router_connect_reset_passwords_routes.tmpl": true,
+	"deprecated_cmd_app_main.tmpl":                          true,
+	"deprecated_router_router.tmpl":                         true,
+	"deprecated_controllers_api.tmpl":                       true,
+	"deprecated_controllers_assets.tmpl":                    true,
+	"deprecated_controllers_controller.tmpl":                true,
+	"deprecated_controllers_pages.tmpl":                     true,
+	"deprecated_controllers_sessions.tmpl":                  true,
+	"deprecated_controllers_registrations.tmpl":             true,
+	"deprecated_controllers_confirmations.tmpl":             true,
+	"deprecated_controllers_reset_passwords.tmpl":           true,
+	"deprecated_router_connect_api_routes.tmpl":             true,
+	"deprecated_router_connect_assets_routes.tmpl":          true,
+	"deprecated_router_connect_pages_routes.tmpl":           true,
+	"deprecated_router_connect_sessions_routes.tmpl":        true,
+	"deprecated_router_connect_registrations_routes.tmpl":   true,
+	"deprecated_router_connect_confirmations_routes.tmpl":   true,
+	"deprecated_router_connect_reset_passwords_routes.tmpl": true,
 }
 
 var inertiaTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -459,7 +459,7 @@ var inertiaTemplateMappings = map[TmplTarget]TmplTargetPath{
 }
 
 var inertiaTemplateOverrides = map[TmplTarget]TmplTargetPath{
-	"controllers_pages_inertia.tmpl":    "controllers/pages.go",
+	"deprecated_controllers_pages_inertia.tmpl":    "controllers/pages.go",
 	"controllers_pages_inertia_fx.tmpl": "controllers/pages.go",
 }
 
@@ -548,8 +548,8 @@ func processTemplatedFiles(
 			delete(mappings, "controllers_pages_fx.tmpl")
 			mappings["controllers_pages_inertia_fx.tmpl"] = inertiaTemplateOverrides["controllers_pages_inertia_fx.tmpl"]
 		} else {
-			delete(mappings, "controllers_pages.tmpl")
-			mappings["controllers_pages_inertia.tmpl"] = inertiaTemplateOverrides["controllers_pages_inertia.tmpl"]
+			delete(mappings, "deprecated_controllers_pages.tmpl")
+			mappings["deprecated_controllers_pages_inertia.tmpl"] = inertiaTemplateOverrides["deprecated_controllers_pages_inertia.tmpl"]
 		}
 		for k, v := range inertiaTemplateMappings {
 			mappings[k] = v
@@ -684,11 +684,11 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		)
 	} else {
 		blueprintTemplates = append(blueprintTemplates,
-			"cmd_app_main.tmpl",
-			"controllers_controller.tmpl",
-			"router_connect_api_routes.tmpl",
-			"router_connect_assets_routes.tmpl",
-			"router_connect_pages_routes.tmpl",
+			"deprecated_cmd_app_main.tmpl",
+			"deprecated_controllers_controller.tmpl",
+			"deprecated_router_connect_api_routes.tmpl",
+			"deprecated_router_connect_assets_routes.tmpl",
+			"deprecated_router_connect_pages_routes.tmpl",
 		)
 	}
 

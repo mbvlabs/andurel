@@ -68,12 +68,12 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 		if diMode == "uberfx" {
 			templateName = "api_resource_controller_fx.tmpl"
 		} else {
-			templateName = "api_resource_controller.tmpl"
+			templateName = "deprecated_api_resource_controller.tmpl"
 		}
 	} else if controller.Type == ResourceController {
-		templateName = "resource_controller.tmpl"
+		templateName = "deprecated_resource_controller.tmpl"
 		if inertia == "vue" {
-			templateName = "inertia_vue_resource_controller.tmpl"
+			templateName = "deprecated_inertia_vue_resource_controller.tmpl"
 			if diMode == "uberfx" {
 				templateName = "inertia_vue_resource_controller_fx.tmpl"
 			}

@@ -329,6 +329,8 @@ func setupControllers(db interface{}, r *router.Router) error {
 }
 `)
 
+	writeGenerateFileTestLock(t, rootDir, "manual")
+
 	originalWD, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("getwd: %v", err)
@@ -365,6 +367,8 @@ func setupControllers(db interface{}, r *router.Router) error {
 	return nil
 }
 `)
+
+	writeGenerateFileTestLock(t, rootDir, "manual")
 
 	originalWD, err := os.Getwd()
 	if err != nil {
