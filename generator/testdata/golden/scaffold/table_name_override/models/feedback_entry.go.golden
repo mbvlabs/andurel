@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"testapp/internal/storage"
+	"testapp/internal/validation"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,6 +21,10 @@ type FeedbackEntryEntity struct {
 	SubmittedAt   sql.NullTime  `bun:"submitted_at"`
 	CreatedAt     time.Time     `bun:"created_at"`
 	UpdatedAt     time.Time     `bun:"updated_at"`
+}
+
+func (e *FeedbackEntryEntity) Validate() error {
+	return nil
 }
 
 func (fe feedbackEntry) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (FeedbackEntryEntity, error) {
@@ -42,10 +47,6 @@ type CreateFeedbackEntryData struct {
 }
 
 func (fe feedbackEntry) Create(ctx context.Context, db storage.Executor, data CreateFeedbackEntryData) (FeedbackEntryEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return FeedbackEntryEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := FeedbackEntryEntity{
 		ID:          uuid.New(),
 		CreatedAt:   time.Now(),
@@ -54,6 +55,10 @@ func (fe feedbackEntry) Create(ctx context.Context, db storage.Executor, data Cr
 		Feedback:    data.Feedback,
 		Rating:      data.Rating,
 		SubmittedAt: data.SubmittedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return FeedbackEntryEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
@@ -73,10 +78,6 @@ type UpdateFeedbackEntryData struct {
 }
 
 func (fe feedbackEntry) Update(ctx context.Context, db storage.Executor, data UpdateFeedbackEntryData) (FeedbackEntryEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return FeedbackEntryEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := FeedbackEntryEntity{
 		ID:          data.ID,
 		UpdatedAt:   time.Now(),
@@ -84,6 +85,10 @@ func (fe feedbackEntry) Update(ctx context.Context, db storage.Executor, data Up
 		Feedback:    data.Feedback,
 		Rating:      data.Rating,
 		SubmittedAt: data.SubmittedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return FeedbackEntryEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewUpdate().
@@ -170,10 +175,6 @@ func (fe feedbackEntry) Paginate(ctx context.Context, db storage.Executor, page,
 }
 
 func (fe feedbackEntry) Upsert(ctx context.Context, db storage.Executor, data CreateFeedbackEntryData) (FeedbackEntryEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return FeedbackEntryEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := FeedbackEntryEntity{
 		ID:          uuid.New(),
 		CreatedAt:   time.Now(),
@@ -182,6 +183,10 @@ func (fe feedbackEntry) Upsert(ctx context.Context, db storage.Executor, data Cr
 		Feedback:    data.Feedback,
 		Rating:      data.Rating,
 		SubmittedAt: data.SubmittedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return FeedbackEntryEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewInsert().

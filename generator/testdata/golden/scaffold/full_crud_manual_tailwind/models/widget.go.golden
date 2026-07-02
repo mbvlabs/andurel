@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testapp/internal/storage"
+	"testapp/internal/validation"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,6 +19,10 @@ type WidgetEntity struct {
 	Active        bool      `bun:"active"`
 	CreatedAt     time.Time `bun:"created_at"`
 	UpdatedAt     time.Time `bun:"updated_at"`
+}
+
+func (e *WidgetEntity) Validate() error {
+	return nil
 }
 
 func (w widget) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (WidgetEntity, error) {
@@ -39,10 +44,6 @@ type CreateWidgetData struct {
 }
 
 func (w widget) Create(ctx context.Context, db storage.Executor, data CreateWidgetData) (WidgetEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return WidgetEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := WidgetEntity{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
@@ -50,6 +51,10 @@ func (w widget) Create(ctx context.Context, db storage.Executor, data CreateWidg
 		Name:      data.Name,
 		Quantity:  data.Quantity,
 		Active:    data.Active,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return WidgetEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
@@ -68,16 +73,16 @@ type UpdateWidgetData struct {
 }
 
 func (w widget) Update(ctx context.Context, db storage.Executor, data UpdateWidgetData) (WidgetEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return WidgetEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := WidgetEntity{
 		ID:        data.ID,
 		UpdatedAt: time.Now(),
 		Name:      data.Name,
 		Quantity:  data.Quantity,
 		Active:    data.Active,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return WidgetEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewUpdate().
@@ -163,10 +168,6 @@ func (w widget) Paginate(ctx context.Context, db storage.Executor, page, pageSiz
 }
 
 func (w widget) Upsert(ctx context.Context, db storage.Executor, data CreateWidgetData) (WidgetEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return WidgetEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := WidgetEntity{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
@@ -174,6 +175,10 @@ func (w widget) Upsert(ctx context.Context, db storage.Executor, data CreateWidg
 		Name:      data.Name,
 		Quantity:  data.Quantity,
 		Active:    data.Active,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return WidgetEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewInsert().

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testapp/internal/storage"
+	"testapp/internal/validation"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +18,10 @@ type ProjectEntity struct {
 	Status        string    `bun:"status"`
 	CreatedAt     time.Time `bun:"created_at"`
 	UpdatedAt     time.Time `bun:"updated_at"`
+}
+
+func (e *ProjectEntity) Validate() error {
+	return nil
 }
 
 func (p project) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ProjectEntity, error) {
@@ -37,16 +42,16 @@ type CreateProjectData struct {
 }
 
 func (p project) Create(ctx context.Context, db storage.Executor, data CreateProjectData) (ProjectEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return ProjectEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := ProjectEntity{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Title:     data.Title,
 		Status:    data.Status,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return ProjectEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
@@ -64,15 +69,15 @@ type UpdateProjectData struct {
 }
 
 func (p project) Update(ctx context.Context, db storage.Executor, data UpdateProjectData) (ProjectEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return ProjectEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := ProjectEntity{
 		ID:        data.ID,
 		UpdatedAt: time.Now(),
 		Title:     data.Title,
 		Status:    data.Status,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return ProjectEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewUpdate().
@@ -157,16 +162,16 @@ func (p project) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 }
 
 func (p project) Upsert(ctx context.Context, db storage.Executor, data CreateProjectData) (ProjectEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return ProjectEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := ProjectEntity{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Title:     data.Title,
 		Status:    data.Status,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return ProjectEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewInsert().

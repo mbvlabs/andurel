@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/example/shop/internal/storage"
+	"github.com/example/shop/internal/validation"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 )
@@ -21,6 +22,10 @@ type AuditLogEntity struct {
 	OccurredAt    time.Time       `bun:"occurred_at"`
 }
 
+func (e *AuditLogEntity) Validate() error {
+	return nil
+}
+
 type CreateAuditLogData struct {
 	EventID    uuid.UUID
 	Action     string
@@ -31,10 +36,6 @@ type CreateAuditLogData struct {
 }
 
 func (al auditLog) Create(ctx context.Context, db storage.Executor, data CreateAuditLogData) (AuditLogEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return AuditLogEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := AuditLogEntity{
 		EventID:    data.EventID,
 		Action:     data.Action,
@@ -42,6 +43,10 @@ func (al auditLog) Create(ctx context.Context, db storage.Executor, data CreateA
 		EntityID:   data.EntityID,
 		Payload:    data.Payload,
 		OccurredAt: data.OccurredAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return AuditLogEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {

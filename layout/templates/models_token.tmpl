@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/internal/validation"
 
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
@@ -113,10 +114,20 @@ func (t token) FindByScopeAndHash(
 }
 
 type createTokenData struct {
-	Scope     string    `validate:"required"`
-	ExpiresAt time.Time `validate:"required"`
-	Hash      string    `validate:"required"`
-	MetaData  json.RawMessage `validate:"required"`
+	Scope     string
+	ExpiresAt time.Time
+	Hash      string
+	MetaData  json.RawMessage
+}
+
+func (t *TokenEntity) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("scope", t.Scope)
+	b.Required("expires_at", t.ExpiresAt)
+	b.Required("hash", t.Hash)
+	b.Required("meta_data", t.MetaData)
+
+	return b.Err()
 }
 
 func (t token) createToken(
@@ -124,10 +135,6 @@ func (t token) createToken(
 	db storage.Executor,
 	data createTokenData,
 ) (TokenEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return TokenEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := TokenEntity{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
@@ -136,6 +143,10 @@ func (t token) createToken(
 		ExpiresAt: data.ExpiresAt,
 		Hash:      data.Hash,
 		MetaData:  data.MetaData,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return TokenEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {

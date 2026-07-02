@@ -12,23 +12,14 @@ default:
 
 # Build the andurel binary
 build:
-	go build -o andurel-dev main.go
+	go build -o dev-andurel main.go
 
 # Build a local snapshot using GoReleaser (requires goreleaser installed)
 release-snapshot:
 	goreleaser release --snapshot --clean
 
 move:
-	mv andurel-dev ../
-
-# Scaffolding recipes
-scaf-psql:
-	cd ../ && ./andurel-dev new myp-psql && mv ./andurel-dev ./myp-psql && cd ./myp-psql && cp .env.example .env && just new-migration users
-
-full-psql:
-	just build
-	just move
-	just scaf-psql
+	mv dev-andurel ../
 
 full:
 	just build
