@@ -3,10 +3,17 @@ package views
 import (
 	"net/http"
 	"{{.ModuleName}}/internal/hypermedia"
+	"{{.ModuleName}}/internal/validation"
 	"{{.ModuleName}}/router/routes"
 )
 
-type ConfirmationForm struct{}
+type ConfirmationForm struct {
+	Errors validation.ValidationErrors
+}
+
+func (cf ConfirmationForm) FieldError(field string) string {
+	return cf.Errors.ToMap()[field]
+}
 
 func (cf ConfirmationForm) PageFragment() string {
 	return "confirmation-page-fragment"
@@ -39,6 +46,9 @@ templ (cf ConfirmationForm) Page() {
 												autocomplete="off"
 											/>
 										</div>
+										if cf.FieldError("code") != "" {
+											<p id="code-error" style="color: var(--destructive); font-size: var(--step--1); font-weight: 600;" role="alert">{ cf.FieldError("code") }</p>
+										}
 										<p>Codes are six characters long and may include letters or numbers.</p>
 									</div>
 									<button type="submit">

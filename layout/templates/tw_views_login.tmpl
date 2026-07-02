@@ -3,10 +3,17 @@ package views
 import (
 	"net/http"
 	"{{.ModuleName}}/internal/hypermedia"
+	"{{.ModuleName}}/internal/validation"
 	"{{.ModuleName}}/router/routes"
 )
 
-type LoginForm struct{}
+type LoginForm struct {
+	Errors validation.ValidationErrors
+}
+
+func (lf LoginForm) FieldError(field string) string {
+	return lf.Errors.ToMap()[field]
+}
 
 func (lf LoginForm) PageFragment() string {
 	return "login-page-fragment"
@@ -28,10 +35,16 @@ templ (lf LoginForm) Page() {
 									<div class="space-y-1">
 										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="email">Email</label>
 										<input id="email" type="email" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="email" required/>
+										if lf.FieldError("email") != "" {
+											<p id="email-error" class="text-sm font-medium text-red-600" role="alert">{ lf.FieldError("email") }</p>
+										}
 									</div>
 									<div class="space-y-1">
 										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="password">Password</label>
 										<input id="password" type="password" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="password" required/>
+										if lf.FieldError("password") != "" {
+											<p id="password-error" class="text-sm font-medium text-red-600" role="alert">{ lf.FieldError("password") }</p>
+										}
 									</div>
 									<p class="mb-1 text-right text-sm">
 										<a class="text-gray-600 hover:text-gray-900 hover:underline" href={ routes.PasswordNew.URL() }>Forgot your password?</a>
