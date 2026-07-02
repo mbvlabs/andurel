@@ -8594,6 +8594,36 @@ func writeJustError(w io.Writer, b []byte) (err error) {
 
 dir  d----------rwxr-xr-x internal/inertia
 
+file -----------rw-r--r-- internal/inertia/page_options.go
+```
+package inertia
+
+import (
+	gonertia "github.com/romsar/gonertia/v3"
+)
+
+type PageOption func(*pageOptions)
+
+type pageOptions struct {
+	validationErrors gonertia.ValidationErrors
+}
+
+func WithValidationErrors(errors map[string]string) PageOption {
+	return func(opts *pageOptions) {
+		if len(errors) == 0 {
+			return
+		}
+
+		if opts.validationErrors == nil {
+			opts.validationErrors = gonertia.ValidationErrors{}
+		}
+		for field, message := range errors {
+			opts.validationErrors[field] = message
+		}
+	}
+}
+```
+
 file -----------rw-r--r-- internal/inertia/render.go
 ```
 // Package inertia provides Inertia.js rendering helpers.
@@ -8637,9 +8667,22 @@ func Init(rootHTML string, opts ...Option) error {
 	return nil
 }
 
-func Page(etx *echo.Context, component string, props Props) error {
+func Page(etx *echo.Context, component string, props Props, opts ...PageOption) error {
 	if gInertia == nil {
 		return errors.New("inertia: not initialized")
+	}
+
+	pageOptions := pageOptions{}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&pageOptions)
+		}
+	}
+	if len(pageOptions.validationErrors) > 0 {
+		etx.SetRequest(etx.Request().WithContext(gonertia.SetValidationErrors(
+			etx.Request().Context(),
+			pageOptions.validationErrors,
+		)))
 	}
 
 	if flashes := request.ExtractContext[[]cookies.FlashMessage](
@@ -8651,7 +8694,11 @@ func Page(etx *echo.Context, component string, props Props) error {
 		props["flash"] = flashes
 	}
 
-	return gInertia.Render(etx.Response(), etx.Request(), component, props)
+	if err := gInertia.Render(etx.Response(), etx.Request(), component, props); err != nil {
+		return fmt.Errorf("inertia: render page: %v", err)
+	}
+
+	return nil
 }
 
 func Redirect(etx *echo.Context, url string, status ...int) error {

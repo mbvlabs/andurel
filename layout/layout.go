@@ -453,6 +453,7 @@ var inertiaTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_assets_vite_config.tmpl":   "vite.config.ts",
 	"inertia_assets_package_json.tmpl":  "package.json",
 	"inertia_assets_tsconfig.tmpl":      "tsconfig.json",
+	"inertia_page_options.tmpl":         "internal/inertia/page_options.go",
 	"inertia_render.tmpl":               "internal/inertia/render.go",
 	"inertia_vite.tmpl":                 "internal/inertia/vite.go",
 }
