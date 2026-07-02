@@ -81,16 +81,22 @@ func TestGetFrameworkTemplates_IncludesAllExpectedInternalPackages(t *testing.T)
 func TestGetFrameworkTemplates_IncludesInertiaInternalPackageWhenConfigured(t *testing.T) {
 	t.Parallel()
 
-	templates := GetFrameworkTemplates(&layout.ScaffoldConfig{Inertia: "vue"})
-	paths := make([]string, 0, len(templates))
-	for _, tmpl := range templates {
-		paths = append(paths, tmpl.TargetPath)
-	}
+	for _, adapter := range []string{"vue", "react"} {
+		t.Run(adapter, func(t *testing.T) {
+			t.Parallel()
 
-	if !slices.Contains(paths, "internal/inertia/render.go") {
-		t.Fatal("expected inertia render package file when inertia is configured")
-	}
-	if !slices.Contains(paths, "internal/inertia/vite.go") {
-		t.Fatal("expected inertia vite package file when inertia is configured")
+			templates := GetFrameworkTemplates(&layout.ScaffoldConfig{Inertia: adapter})
+			paths := make([]string, 0, len(templates))
+			for _, tmpl := range templates {
+				paths = append(paths, tmpl.TargetPath)
+			}
+
+			if !slices.Contains(paths, "internal/inertia/render.go") {
+				t.Fatal("expected inertia render package file when inertia is configured")
+			}
+			if !slices.Contains(paths, "internal/inertia/vite.go") {
+				t.Fatal("expected inertia vite package file when inertia is configured")
+			}
+		})
 	}
 }

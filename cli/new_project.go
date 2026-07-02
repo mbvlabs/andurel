@@ -36,7 +36,7 @@ creation, run 'andurel tool sync' to download required binaries.`,
 		StringSliceP("extensions", "e", nil, "Extensions to enable (comma-separated list)")
 
 	projectCmd.Flags().
-		String("inertia", "", "Inertia adapter to use (vue)")
+		String("inertia", "", "Inertia adapter to use (vue, react)")
 
 	return projectCmd
 }
@@ -75,9 +75,9 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 		return err
 	}
 
-	if inertia != "" && inertia != "vue" {
+	if inertia != "" && !layout.IsSupportedInertiaAdapter(inertia) {
 		return fmt.Errorf(
-			"invalid inertia adapter: %s - valid options are 'vue'",
+			"invalid inertia adapter: %s - valid options are 'vue', 'react'",
 			inertia,
 		)
 	}
@@ -98,7 +98,7 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	fmt.Printf("  fill in your database connection details in .env\n")
 	fmt.Printf("  (andurel database create - if database does not exist\n")
 	fmt.Printf("  andurel database migrate up\n")
-	if inertia == "vue" {
+	if layout.IsSupportedInertiaAdapter(inertia) {
 		fmt.Printf("  npm install\n")
 	}
 	fmt.Printf("  andurel run\n")

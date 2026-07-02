@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-{{- if or (eq .CSSFramework "vanilla") (eq .Inertia "vue")}}
+{{- if or (eq .CSSFramework "vanilla") .Inertia}}
 	"path"
 	"strings"
 {{- end}}
@@ -98,7 +98,7 @@ func (a Assets) RegisterRoutes(r *router.Router) error {
 		errs = append(errs, err)
 	}
 
-{{- if eq .Inertia "vue"}}
+{{- if .Inertia}}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.ViteBuild.Path(),
@@ -307,7 +307,7 @@ func (a Assets) Script(etx *echo.Context) error {
 	return etx.Blob(http.StatusOK, "application/javascript", stylesheet)
 }
 
-{{- if eq .Inertia "vue"}}
+{{- if .Inertia}}
 func contentTypeByExt(name string) string {
 	switch {
 	case strings.HasSuffix(name, ".js"):

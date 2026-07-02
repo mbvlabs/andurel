@@ -33,7 +33,7 @@ type ViewField struct {
 	IsSystemField   bool
 }
 
-type VuePageData struct {
+type InertiaPageData struct {
 	*GeneratedView
 	ComponentName string
 }
@@ -397,15 +397,15 @@ func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
 func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, templatePrefix string) (string, error) {
 	// Custom template functions for view-specific operations
 	customFuncs := template.FuncMap{
-		"HasNullFields":      hasNullFields,
-		"UsesViewDataType":   usesViewDataType,
-		"ViewDataType":       viewDataType,
-		"ViewDataValue":      viewDataValue,
-		"ViewDataRef":        viewDataRef,
-		"ViewDataRowRef":     viewDataRowRef,
-		"ViewDataLoop":       viewDataLoopAssignment,
-		"ViewDataImports":    viewDataImports,
-		"ViewData":           viewDataDefinition,
+		"HasNullFields":    hasNullFields,
+		"UsesViewDataType": usesViewDataType,
+		"ViewDataType":     viewDataType,
+		"ViewDataValue":    viewDataValue,
+		"ViewDataRef":      viewDataRef,
+		"ViewDataRowRef":   viewDataRowRef,
+		"ViewDataLoop":     viewDataLoopAssignment,
+		"ViewDataImports":  viewDataImports,
+		"ViewData":         viewDataDefinition,
 		"UsesPackage": func(fields []ViewField, packageName string) bool {
 			for _, field := range fields {
 				if strings.Contains(field.StringConverter, packageName+".") {
@@ -483,7 +483,7 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, t
 	return result, nil
 }
 
-func (g *Generator) GenerateVueViewFiles(view *GeneratedView, templatePrefix string) (map[string]string, error) {
+func (g *Generator) GenerateInertiaViewFiles(view *GeneratedView, templatePrefix, extension string) (map[string]string, error) {
 	service := templates.GetGlobalTemplateService()
 	fileNames := make(map[string]string, 4)
 
@@ -505,14 +505,14 @@ func (g *Generator) GenerateVueViewFiles(view *GeneratedView, templatePrefix str
 
 	templateName := templatePrefix + "resource_view.tmpl"
 	for _, componentName := range components {
-		result, err := service.RenderTemplate(templateName, VuePageData{
+		result, err := service.RenderTemplate(templateName, InertiaPageData{
 			GeneratedView: view,
 			ComponentName: componentName,
 		})
 		if err != nil {
-			return nil, errors.WrapTemplateError(err, "render vue view", templateName)
+			return nil, errors.WrapTemplateError(err, "render inertia view", templateName)
 		}
-		fileNames[componentName+".vue"] = result
+		fileNames[componentName+extension] = result
 	}
 
 	return fileNames, nil
@@ -588,9 +588,9 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("failed to stat view file %s: %w", viewPath, err)
 	}
-	isInertiaVue := inertia == "vue"
+	isInertia := layout.IsSupportedInertiaAdapter(inertia)
 	renderActions := actions
-	if !isInertiaVue && viewExists && len(actions) > 0 {
+	if !isInertia && viewExists && len(actions) > 0 {
 		existingActions, err := existingResourceViewActions(viewPath, resourceName, namespace)
 		if err != nil {
 			return err
@@ -609,8 +609,8 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 	}
 
 	// Override inertia mode from parameter if explicitly set
-	if isInertiaVue {
-		templatePrefix = "inertia_vue_tw_bare_"
+	if isInertia {
+		templatePrefix = inertiaViewTemplatePrefix(inertia)
 	}
 
 	view, err := g.Build(cat, Config{
@@ -629,8 +629,8 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 		return fmt.Errorf("failed to build view: %w", err)
 	}
 
-	if isInertiaVue {
-		return g.generateVueViews(view, templatePrefix, resourceName)
+	if isInertia {
+		return g.generateInertiaViews(view, templatePrefix, resourceName, inertia)
 	}
 
 	if viewExists && len(actions) == 0 {
@@ -662,10 +662,28 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 	return nil
 }
 
-func (g *Generator) generateVueViews(view *GeneratedView, templatePrefix, resourceName string) error {
-	vueFiles, err := g.GenerateVueViewFiles(view, templatePrefix)
+func inertiaViewTemplatePrefix(adapter string) string {
+	switch adapter {
+	case "react":
+		return "inertia_react_tw_bare_"
+	default:
+		return "inertia_vue_tw_bare_"
+	}
+}
+
+func inertiaViewExtension(adapter string) string {
+	switch adapter {
+	case "react":
+		return ".tsx"
+	default:
+		return ".vue"
+	}
+}
+
+func (g *Generator) generateInertiaViews(view *GeneratedView, templatePrefix, resourceName, adapter string) error {
+	inertiaFiles, err := g.GenerateInertiaViewFiles(view, templatePrefix, inertiaViewExtension(adapter))
 	if err != nil {
-		return fmt.Errorf("failed to render vue view files: %w", err)
+		return fmt.Errorf("failed to render inertia view files: %w", err)
 	}
 
 	pagesDir := filepath.Join("resources", "js", "Pages", view.NamespacePascal, resourceName)
@@ -673,17 +691,17 @@ func (g *Generator) generateVueViews(view *GeneratedView, templatePrefix, resour
 		return err
 	}
 
-	for fileName, content := range vueFiles {
+	for fileName, content := range inertiaFiles {
 		filePath := filepath.Join(pagesDir, fileName)
 		if _, err := os.Stat(filePath); err == nil {
 			return fmt.Errorf("view file %s already exists", filePath)
 		}
 		if err := os.WriteFile(filePath, []byte(content), constants.FilePermissionPrivate); err != nil {
-			return fmt.Errorf("failed to write vue view file %s: %w", fileName, err)
+			return fmt.Errorf("failed to write inertia view file %s: %w", fileName, err)
 		}
 	}
 
-	fmt.Printf("Successfully generated vue views at %s\n", pagesDir)
+	fmt.Printf("Successfully generated inertia views at %s\n", pagesDir)
 	return nil
 }
 

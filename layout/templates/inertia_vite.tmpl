@@ -26,10 +26,23 @@ type viteManifestEntry struct {
 
 func initVite() (*viteTags, error) {
 	if config.Env != server.ProdEnvironment {
-		return &viteTags{
+		tags := &viteTags{
 			ViteHead: template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/@vite/client"></script>`),
-			ViteBody: template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/resources/js/app.ts"></script>`),
-		}, nil
+		}
+		{{if eq .Inertia "vue"}}
+		tags.ViteBody = template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/resources/js/app.ts"></script>`)
+		{{end}}
+		{{if eq .Inertia "react"}}
+		tags.ViteHead += template.HTML(`<script type="module">
+import RefreshRuntime from "http://localhost:5173/assets/dist/@react-refresh"
+RefreshRuntime.injectIntoGlobalHook(window)
+window.$RefreshReg$ = () => {}
+window.$RefreshSig$ = () => (type) => type
+window.__vite_plugin_react_preamble_installed__ = true
+</script>`)
+		tags.ViteBody = template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/resources/js/app.tsx"></script>`)
+		{{end}}
+		return tags, nil
 	}
 
 	data, err := assets.Files.ReadFile("dist/vite/manifest.json")
@@ -41,12 +54,18 @@ func initVite() (*viteTags, error) {
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return nil, fmt.Errorf("vite: parse manifest: %w", err)
 	}
-
+	{{if eq .Inertia "vue"}}
 	entry, ok := manifest["resources/js/app.ts"]
 	if !ok {
-		return nil, fmt.Errorf("vite: entry point 'resources/js/app.ts' not found in manifest")
+		return nil, fmt.Errorf("vite: entry point not found in manifest")
 	}
-
+	{{end}}
+	{{if eq .Inertia "react"}}
+	entry, ok := manifest["resources/js/app.tsx"]
+	if !ok {
+		return nil, fmt.Errorf("vite: entry point not found in manifest")
+	}
+	{{end}}
 	tags := &viteTags{}
 	for _, css := range entry.CSS {
 		tags.ViteHead += template.HTML(`<link rel="stylesheet" href="/assets/dist/` + css + `">`)

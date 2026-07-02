@@ -420,6 +420,14 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 			wantView:           filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.vue"),
 			unwantedView:       "views/dashboards_resource.templ",
 		},
+		{
+			name:               "explicit react",
+			inertia:            "react",
+			wantController:     "example.com/app/internal/inertia",
+			unwantedController: "example.com/app/internal/hypermedia",
+			wantView:           filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.tsx"),
+			unwantedView:       "views/dashboards_resource.templ",
+		},
 	}
 
 	for _, tt := range tests {
@@ -496,6 +504,33 @@ func TestGenerateControllerSingleCRUDActionVueGeneratesInertiaController(t *test
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return inertia.Page(etx, "ProjectInquiry/Show"`)
 	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/hypermedia")
 	assertCLITestFileExists(t, rootDir, filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Show.vue"))
+	assertCLITestFileMissing(t, rootDir, "views/project_inquiries_resource.templ")
+}
+
+func TestGenerateControllerSingleCRUDActionReactGeneratesInertiaController(t *testing.T) {
+	resetCLITestSeams(t)
+	rootDir := t.TempDir()
+	setupProjectInquiryCLITestProject(t, rootDir)
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(rootDir); err != nil {
+		t.Fatalf("chdir temp project: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	if err := generateControllerWithActions("ProjectInquiry", "", []string{"show"}, "react", false); err != nil {
+		t.Fatalf("generate controller: %v", err)
+	}
+
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/inertia")
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return inertia.Page(etx, "ProjectInquiry/Show"`)
+	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/hypermedia")
+	assertCLITestFileExists(t, rootDir, filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Show.tsx"))
 	assertCLITestFileMissing(t, rootDir, "views/project_inquiries_resource.templ")
 }
 
