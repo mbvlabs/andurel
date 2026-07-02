@@ -294,6 +294,11 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"framework_elements_hypermedia_broadcaster.tmpl": "internal/hypermedia/broadcaster.go",
 	"framework_elements_hypermedia_helpers.tmpl":     "internal/hypermedia/helpers.go",
 
+	// Validation
+	"framework_elements_validation_validation.tmpl": "internal/validation/validation.go",
+	"framework_elements_validation_rules.tmpl":      "internal/validation/rules.go",
+	"framework_elements_validation_helpers.tmpl":    "internal/validation/helpers.go",
+
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
 	"assets_css_style.tmpl":   "assets/css/style.css",
