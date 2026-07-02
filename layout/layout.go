@@ -218,6 +218,15 @@ func Scaffold(
 		)
 	}
 
+	fmt.Print("Running go fmt...\n")
+	if err := cmds.RunGoFmt(targetDir); err != nil {
+		slog.Error(
+			"failed to run go fmt",
+			"error",
+			err,
+		)
+	}
+
 	return nil
 }
 

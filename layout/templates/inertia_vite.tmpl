@@ -54,19 +54,18 @@ window.__vite_plugin_react_preamble_installed__ = true
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return nil, fmt.Errorf("vite: parse manifest: %w", err)
 	}
-
-	var entry viteManifestEntry
-	var ok bool
 	{{if eq .Inertia "vue"}}
-	entry, ok = manifest["resources/js/app.ts"]
-	{{end}}
-	{{if eq .Inertia "react"}}
-	entry, ok = manifest["resources/js/app.tsx"]
-	{{end}}
+	entry, ok := manifest["resources/js/app.ts"]
 	if !ok {
 		return nil, fmt.Errorf("vite: entry point not found in manifest")
 	}
-
+	{{end}}
+	{{if eq .Inertia "react"}}
+	entry, ok := manifest["resources/js/app.tsx"]
+	if !ok {
+		return nil, fmt.Errorf("vite: entry point not found in manifest")
+	}
+	{{end}}
 	tags := &viteTags{}
 	for _, css := range entry.CSS {
 		tags.ViteHead += template.HTML(`<link rel="stylesheet" href="/assets/dist/` + css + `">`)
