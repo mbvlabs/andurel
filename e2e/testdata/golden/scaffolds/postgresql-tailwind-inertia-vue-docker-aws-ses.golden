@@ -8141,10 +8141,14 @@ type viteManifestEntry struct {
 
 func initVite() (*viteTags, error) {
 	if config.Env != server.ProdEnvironment {
-		return &viteTags{
+		tags := &viteTags{
 			ViteHead: template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/@vite/client"></script>`),
-			ViteBody: template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/resources/js/app.ts"></script>`),
-		}, nil
+		}
+		
+		tags.ViteBody = template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/resources/js/app.ts"></script>`)
+		
+		
+		return tags, nil
 	}
 
 	data, err := assets.Files.ReadFile("dist/vite/manifest.json")
@@ -8157,9 +8161,14 @@ func initVite() (*viteTags, error) {
 		return nil, fmt.Errorf("vite: parse manifest: %w", err)
 	}
 
-	entry, ok := manifest["resources/js/app.ts"]
+	var entry viteManifestEntry
+	var ok bool
+	
+	entry, ok = manifest["resources/js/app.ts"]
+	
+	
 	if !ok {
-		return nil, fmt.Errorf("vite: entry point 'resources/js/app.ts' not found in manifest")
+		return nil, fmt.Errorf("vite: entry point not found in manifest")
 	}
 
 	tags := &viteTags{}
