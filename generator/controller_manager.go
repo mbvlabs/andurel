@@ -251,17 +251,17 @@ func (c *ControllerManager) readDIMode() string {
 }
 
 // ReadDIMode reads the DI mode strategy from andurel.lock.
-// Defaults to "manual" when not configured.
+// Defaults to "uberfx" when not configured.
 func ReadDIMode() string {
 	fm := files.NewUnifiedFileManager()
 	rootDir, err := fm.FindGoModRoot()
 	if err != nil {
-		return "manual"
+		return "uberfx"
 	}
 	if lock, err := layout.ReadLockFile(rootDir); err == nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.DIMode != "" {
 		return lock.ScaffoldConfig.DIMode
 	}
-	return "manual"
+	return "uberfx"
 }
 
 func controllerNamespacePrefix(namespace string) string {

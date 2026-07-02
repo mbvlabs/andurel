@@ -159,7 +159,7 @@ func TestLoadProjectContext(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping scaffold test in short mode")
 	}
-	projectDir := scaffoldTestProject(t, []string{"docker"}, "manual", "vanilla")
+	projectDir := scaffoldTestProject(t, []string{"docker"}, "uberfx", "tailwind")
 
 	td, lock, err := LoadProjectContext(projectDir)
 	if err != nil {
@@ -172,11 +172,11 @@ func TestLoadProjectContext(t *testing.T) {
 	if td.Database != "postgresql" {
 		t.Fatalf("expected Database postgresql, got %s", td.Database)
 	}
-	if td.CSSFramework != "vanilla" {
-		t.Fatalf("expected CSSFramework vanilla, got %s", td.CSSFramework)
+	if td.CSSFramework != "tailwind" {
+		t.Fatalf("expected CSSFramework tailwind, got %s", td.CSSFramework)
 	}
-	if td.DIMode != "manual" {
-		t.Fatalf("expected DIMode manual, got %s", td.DIMode)
+	if td.DIMode != "uberfx" {
+		t.Fatalf("expected DIMode uberfx, got %s", td.DIMode)
 	}
 	if td.ModuleName == "" {
 		t.Fatalf("expected non-empty ModuleName")
@@ -205,7 +205,7 @@ func TestLoadProjectContext_RebuildsBlueprintWithExistingExtensions(t *testing.T
 	if testing.Short() {
 		t.Skip("skipping scaffold test in short mode")
 	}
-	projectDir := scaffoldTestProject(t, []string{"aws-ses"}, "manual", "vanilla")
+	projectDir := scaffoldTestProject(t, []string{"aws-ses"}, "uberfx", "tailwind")
 
 	td, _, err := LoadProjectContext(projectDir)
 	if err != nil {
@@ -265,7 +265,7 @@ func TestApplyExtension_Docker(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping scaffold test in short mode")
 	}
-	projectDir := scaffoldTestProject(t, nil, "manual", "vanilla")
+	projectDir := scaffoldTestProject(t, nil, "uberfx", "tailwind")
 
 	applied, err := ApplyExtension(projectDir, "docker")
 	if err != nil {
@@ -292,7 +292,7 @@ func TestApplyExtension_AwsSes(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping scaffold test in short mode")
 	}
-	projectDir := scaffoldTestProject(t, nil, "manual", "vanilla")
+	projectDir := scaffoldTestProject(t, nil, "uberfx", "tailwind")
 
 	applied, err := ApplyExtension(projectDir, "aws-ses")
 	if err != nil {
@@ -326,7 +326,7 @@ func TestApplyExtension_CssComponents(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping scaffold test in short mode")
 	}
-	projectDir := scaffoldTestProject(t, nil, "manual", "vanilla")
+	projectDir := scaffoldTestProject(t, nil, "uberfx", "tailwind")
 
 	applied, err := ApplyExtension(projectDir, "css-components")
 	if err != nil {
@@ -337,9 +337,10 @@ func TestApplyExtension_CssComponents(t *testing.T) {
 		t.Fatalf("expected [css-components], got %v", applied)
 	}
 
-	// Vanilla CSS framework → vanilla component files
-	fileExists(t, projectDir, "assets/css/style.css")
-	fileExists(t, projectDir, "assets/css/components/buttons.css")
+	// Tailwind CSS framework → tailwind component files
+	fileExists(t, projectDir, "css/themes.css")
+	fileExists(t, projectDir, "css/utilities.css")
+	fileExists(t, projectDir, "css/components.css")
 	fileExists(t, projectDir, "views/components/toast.templ")
 
 	lock, err := ReadLockFile(projectDir)
@@ -355,7 +356,7 @@ func TestApplyExtension_AlreadyApplied(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping scaffold test in short mode")
 	}
-	projectDir := scaffoldTestProject(t, []string{"docker"}, "manual", "vanilla")
+	projectDir := scaffoldTestProject(t, []string{"docker"}, "uberfx", "tailwind")
 
 	_, err := ApplyExtension(projectDir, "docker")
 	if err == nil {
@@ -370,7 +371,7 @@ func TestApplyExtension_UnknownExtension(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping scaffold test in short mode")
 	}
-	projectDir := scaffoldTestProject(t, nil, "manual", "vanilla")
+	projectDir := scaffoldTestProject(t, nil, "uberfx", "tailwind")
 
 	_, err := ApplyExtension(projectDir, "nonexistent")
 	if err == nil {
@@ -386,7 +387,7 @@ func TestApplyExtension_PreservesExistingExtensions(t *testing.T) {
 		t.Skip("skipping scaffold test in short mode")
 	}
 	// Scaffold with aws-ses already applied
-	projectDir := scaffoldTestProject(t, []string{"aws-ses"}, "manual", "vanilla")
+	projectDir := scaffoldTestProject(t, []string{"aws-ses"}, "uberfx", "tailwind")
 
 	// Add docker extension
 	applied, err := ApplyExtension(projectDir, "docker")
@@ -429,7 +430,7 @@ func TestApplyExtension_PreservesSecrets(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping scaffold test in short mode")
 	}
-	projectDir := scaffoldTestProject(t, nil, "manual", "vanilla")
+	projectDir := scaffoldTestProject(t, nil, "uberfx", "tailwind")
 
 	// Read original secrets from .env.example
 	originalEnv := readFileContent(t, projectDir, ".env.example")
@@ -466,7 +467,7 @@ func TestApplyExtension_UberFxMode(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping scaffold test in short mode")
 	}
-	projectDir := scaffoldTestProject(t, nil, "uberfx", "vanilla")
+	projectDir := scaffoldTestProject(t, nil, "uberfx", "tailwind")
 
 	applied, err := ApplyExtension(projectDir, "aws-ses")
 	if err != nil {

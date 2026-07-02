@@ -1123,7 +1123,7 @@ file -----------rw-r--r-- andurel.lock
   "scaffoldConfig": {
     "cssFramework": "tailwind",
     "database": "postgresql",
-    "diMode": "manual",
+    "diMode": "uberfx",
     "inertia": "vue",
     "projectName": "testapp"
   },
@@ -1727,217 +1727,98 @@ package main
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	mailclients "testapp/clients/email"
 	"testapp/config"
 	"testapp/controllers"
 	"testapp/database"
+	"testapp/email"
 	"testapp/internal/inertia"
 	"testapp/internal/server"
-	"testapp/internal/storage"
 	"testapp/queue"
 	"testapp/router"
+	"testapp/services"
 	"testapp/telemetry"
-	"testapp/queue/workers"
-	"riverqueue.com/riverui"
-	"testapp/clients/email"
-	"testapp/email"
+
+	"go.uber.org/fx"
 )
 
 var appVersion string
 
-// setupControllers initializes and registers all controllers with the router.
-// The comment: 'andurel:controller-registration-point' is used as a marker for automated code generation tools.
-// If you remove it or change it, the generator tool may not function correctly. 
-// If you decide to move it, ensure it remains in a logical place within a function that passes the correct dependencies to the controllers.
-func setupControllers(
-	cfg config.Config,
-	emailClient email.TransactionalSender,
-	db storage.Pool,
-	insertOnly queue.InsertOnly,
-	r *router.Router,
-	riverHandler *riverui.Handler,
-) error {
-	assetsCache, err := controllers.NewCacheBuilder[string]().WithSize(2).Build()
-	if err != nil {
-		return err
+func main() {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	if err := inertia.Init("views/root.go.html"); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to initialize inertia: %s\n", err)
+		os.Exit(1)
 	}
-	assets := controllers.NewAssets(assetsCache)
-	api := controllers.NewAPI(db)
-	pages := controllers.NewPages(db, insertOnly)
-	sessions := controllers.NewSessions(db, cfg)
-	registrations := controllers.NewRegistrations(db, insertOnly, cfg)
-	confirmations := controllers.NewConfirmations(db, cfg)
-	resetPasswords := controllers.NewResetPasswords(db, insertOnly, cfg)
+	app := fx.New(
+		fx.Provide(
+			func() context.Context { return ctx },
+			func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
+				if config.Env == server.ProdEnvironment {
+					log.Fatal("provide real email sender")
+				}
 
-	if err := r.RegisterAPIRoutes(api); err != nil {
-		return err
-	}
+				return mailclients.NewMailpit(cfg), mailclients.NewMailpit(cfg)
+			},
+		),
 
-	if err := r.RegisterAssetsRoutes(assets); err != nil {
-		return err
-	}
+		config.Module,
+		database.Module,
+		telemetry.Module,
+		queue.Module,
+		queue.WorkersModule,
+		services.Module,
+		controllers.Module,
+		router.Module,
 
-	if err := r.RegisterConfirmationsRoutes(confirmations); err != nil {
-		return err
-	}
-
-	if err := r.RegisterPagesRoutes(pages); err != nil {
-		return err
-	}
-
-	if err := r.RegisterResetPasswordsRoutes(resetPasswords); err != nil {
-		return err
-	}
-
-	if err := r.RegisterSessionsRoutes(sessions); err != nil {
-		return err
-	}
-
-	if err := r.RegisterRegistrationsRoutes(registrations); err != nil {
-		return err
-	}
-
-	// andurel:controller-registration-point
-
-	r.RegisterCustomRoutes(
-		riverHandler,
-		pages.NotFound,
+		fx.Invoke(startQueueProcessor),
+		fx.Invoke(startServer),
 	)
 
-	return nil
-}
-
-func setupRouter(
-	cfg config.Config,
-	tel *telemetry.Telemetry,
-) (*router.Router, error) {
-	authKey, err := hex.DecodeString(cfg.App.SessionKey)
-	if err != nil {
-		return nil, err
-	}
-	encKey, err := hex.DecodeString(cfg.App.SessionEncryptionKey)
-	if err != nil {
-		return nil, err
+	if err := app.Start(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
 	}
 
-	globalMiddleware, err := router.SetupGlobalMiddleware(cfg, tel, authKey, encKey, "_csrf")
-	if err != nil {
-		return nil, err
-	}
+	<-ctx.Done()
 
-	r, err := router.New(
-		true,
-		globalMiddleware,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return r, nil
-}
-
-func buildTelemetry(cfg config.Config) (*telemetry.Telemetry, error) {
-	return telemetry.New(cfg)
-}
-
-func run(ctx context.Context) error {
-	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cfg := config.NewConfig()
-	if err := inertia.Init("views/root.go.html"); err != nil {
-		return fmt.Errorf("failed to initialize inertia: %w", err)
+	if err := app.Stop(shutdownCtx); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
 	}
-	tel, err := buildTelemetry(cfg)
-	if err != nil {
-		return fmt.Errorf("failed to initialize telemetry: %w", err)
-	}
-	defer func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if err := tel.Shutdown(shutdownCtx); err != nil {
-			slog.Error("telemetry shutdown error", "error", err)
-		}
-	}()
+}
 
-	if err := tel.HealthCheck(ctx); err != nil {
-		slog.Warn("telemetry health check failed", "error", err)
-	}
+func startQueueProcessor(lc fx.Lifecycle, p queue.Processor) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			go func() {
+				if err := p.Start(ctx); err != nil {
+					slog.Error("queue processor error", "error", err)
+				}
+			}()
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			return p.Stop(ctx)
+		},
+	})
+}
 
-
-	db, err := database.NewPostgres(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	emailClient := mailclients.NewMailpit(cfg)
-
-	wrks, err := workers.RegisterWorkers(emailClient, emailClient)
-	if err != nil {
-		return err
-	}
-
-	insertOnly, err := queue.NewInsertOnly(
-		db,
-		wrks,
-	)
-	if err != nil {
-		return err
-	}
-
-	processor, err := queue.NewProcessor(
-		db,
-		wrks,
-	)
-	if err != nil {
-		return err
-	}
-
-	go func() {
-		if err := processor.Start(ctx); err != nil {
-			slog.Error("queue processor error", "error", err)
-			cancel()
-		}
-	}()
-
-	endpoints := riverui.NewEndpoints(processor.Client, nil)
-	opts := &riverui.HandlerOpts{
-		Endpoints: endpoints,
-		Logger:    slog.Default(),
-		Prefix:    "/riverui", // mount the UI and its APIs under /riverui or another path
-	}
-	riverHandler, err := riverui.NewHandler(opts)
-	if err != nil {
-		return err
-	}
-
-	riverHandler.Start(ctx)
-
-	r, err := setupRouter(cfg, tel)
-	if err != nil {
-		return err
-	}
-
-	err = setupControllers(
-		cfg,
-		emailClient,
-		db,
-		insertOnly,
-		r,
-		riverHandler,
-	)
-	if err != nil {
-		return err
-	}
-
-	server := server.New(
-		ctx,
+func startServer(lc fx.Lifecycle, r *router.Router, cfg config.Config, processor queue.Processor) {
+	srv := server.New(
+		context.Background(),
 		cfg.App.Host,
 		cfg.App.Port,
 		config.Env,
@@ -1945,16 +1826,33 @@ func run(ctx context.Context) error {
 		[]server.Shutdowner{processor},
 	)
 
-	slog.InfoContext(ctx, "starting server", "host", cfg.App.Host, "port", cfg.App.Port)
-	return server.Start(ctx, config.Env)
-}
-
-func main() {
-	ctx := context.Background()
-	if err := run(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
-	}
+	lc.Append(fx.Hook{
+		OnStart: func(_ context.Context) error {
+			slog.InfoContext(
+				context.Background(),
+				"starting server",
+				"host",
+				cfg.App.Host,
+				"port",
+				cfg.App.Port,
+			)
+			go func() {
+				if err := srv.Start(context.Background(), config.Env); err != nil {
+					slog.Error("server error", "error", err)
+				}
+			}()
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			slog.InfoContext(ctx, "initiating graceful shutdown")
+			for _, shutdowner := range srv.Shutdowners {
+				if err := shutdowner.Shutdown(ctx); err != nil {
+					return fmt.Errorf("server: shutdown component %T: %w", shutdowner, err)
+				}
+			}
+			return nil
+		},
+	})
 }
 ```
 
@@ -2054,6 +1952,8 @@ import (
 
 	"github.com/gosimple/slug"
     
+	"go.uber.org/fx"
+    
 )
 
 // Global application settings that can be used throughout the codebase with defaults.
@@ -2129,6 +2029,8 @@ func NewConfig() Config {
 	}
 }
 
+
+    var Module = fx.Module("config", fx.Provide(NewConfig))
 
 ```
 
@@ -2236,8 +2138,12 @@ file -----------rw-r--r-- controllers/api.go
 package controllers
 
 import (
-	"testapp/internal/storage"
+	"errors"
 	"net/http"
+
+	"testapp/internal/storage"
+	"testapp/router"
+	"testapp/router/routes"
 
 	"github.com/labstack/echo/v5"
 )
@@ -2248,6 +2154,22 @@ type API struct {
 
 func NewAPI(db storage.Pool) API {
 	return API{db}
+}
+
+func (a API) RegisterRoutes(r *router.Router) error {
+	errs := []error{}
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Health.Path(),
+		Name:    routes.Health.Name(),
+		Handler: a.Health,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
 
 func (a API) Health(etx *echo.Context) error {
@@ -2262,6 +2184,7 @@ package controllers
 import (
 	"crypto/md5"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -2272,6 +2195,7 @@ import (
 	"testapp/config"
 	"testapp/internal/routing"
 	"testapp/internal/server"
+	"testapp/router"
 	"testapp/router/routes"
 
 	"github.com/labstack/echo/v5"
@@ -2286,6 +2210,69 @@ type Assets struct {
 
 func NewAssets(cache *Cache[string]) Assets {
 	return Assets{cache}
+}
+
+func (a Assets) RegisterRoutes(r *router.Router) error {
+	errs := []error{}
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Robots.Path(),
+		Name:    routes.Robots.Name(),
+		Handler: a.Robots,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Sitemap.Path(),
+		Name:    routes.Sitemap.Name(),
+		Handler: a.Sitemap,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Stylesheet.Path(),
+		Name:    routes.Stylesheet.Name(),
+		Handler: a.Stylesheet,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Scripts.Path(),
+		Name:    routes.Scripts.Name(),
+		Handler: a.Scripts,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Script.Path(),
+		Name:    routes.Script.Name(),
+		Handler: a.Script,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ViteBuild.Path(),
+		Name:    routes.ViteBuild.Name(),
+		Handler: a.ViteBuild,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	return errors.Join(errs...)
 }
 
 func (a Assets) enableCaching(etx *echo.Context, content []byte) *echo.Context {
@@ -2587,11 +2574,12 @@ file -----------rw-r--r-- controllers/confirmations.go
 package controllers
 
 import (
+	"errors"
 	"log/slog"
+	"net/http"
 
-	"testapp/config"
 	"testapp/internal/hypermedia"
-	"testapp/internal/storage"
+	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/services"
@@ -2601,12 +2589,37 @@ import (
 )
 
 type Confirmations struct {
-	db  storage.Pool
-	cfg config.Config
+	identity services.Identity
 }
 
-func NewConfirmations(db storage.Pool, cfg config.Config) Confirmations {
-	return Confirmations{db, cfg}
+func NewConfirmations(identity services.Identity) Confirmations {
+	return Confirmations{identity}
+}
+
+func (c Confirmations) RegisterRoutes(r *router.Router) error {
+	errs := []error{}
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ConfirmationNew.Path(),
+		Name:    routes.ConfirmationNew.Name(),
+		Handler: c.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.ConfirmationCreate.Path(),
+		Name:    routes.ConfirmationCreate.Name(),
+		Handler: c.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
 
 func (c Confirmations) New(etx *echo.Context) error {
@@ -2628,10 +2641,8 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	user, err := services.VerifyEmail(
+	user, err := c.identity.VerifyEmail(
 		etx.Request().Context(),
-		c.db,
-		c.cfg.Auth.Pepper,
 		services.VerifyEmailData{
 			Code: payload.Code,
 		},
@@ -2645,10 +2656,10 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		)
 
 		var errorMsg string
-		switch err {
-		case services.ErrInvalidVerificationCode:
+		switch {
+		case errors.Is(err, services.ErrInvalidVerificationCode):
 			errorMsg = "Invalid verification code"
-		case services.ErrExpiredVerificationCode:
+		case errors.Is(err, services.ErrExpiredVerificationCode):
 			errorMsg = "Verification code has expired"
 		default:
 			errorMsg = "Failed to verify email"
@@ -2683,6 +2694,49 @@ file -----------rw-r--r-- controllers/controller.go
 ```
 // Package controllers provides HTTP handlers for the web application.
 package controllers
+
+import (
+	"testapp/router"
+	"go.uber.org/fx"
+)
+var otherCache = NewCacheBuilder[string]().WithSize(2).Build
+
+var constructors = fx.Provide(
+	otherCache,
+	NewPages,
+	NewAssets,
+	NewAPI,
+	NewSessions,
+	NewRegistrations,
+	NewConfirmations,
+	NewResetPasswords,
+)
+
+var Module = fx.Module(
+	"controllers",
+	constructors,
+	fx.Invoke(func(r *router.Router, c Pages) error {
+		return c.RegisterRoutes(r)
+	}),
+	fx.Invoke(func(r *router.Router, c Assets) error {
+		return c.RegisterRoutes(r)
+	}),
+	fx.Invoke(func(r *router.Router, c API) error {
+		return c.RegisterRoutes(r)
+	}),
+	fx.Invoke(func(r *router.Router, c Sessions) error {
+		return c.RegisterRoutes(r)
+	}),
+	fx.Invoke(func(r *router.Router, c Registrations) error {
+		return c.RegisterRoutes(r)
+	}),
+	fx.Invoke(func(r *router.Router, c Confirmations) error {
+		return c.RegisterRoutes(r)
+	}),
+	fx.Invoke(func(r *router.Router, c ResetPasswords) error {
+		return c.RegisterRoutes(r)
+	}),
+)
 ```
 
 file -----------rw-r--r-- controllers/pages.go
@@ -2690,10 +2744,15 @@ file -----------rw-r--r-- controllers/pages.go
 package controllers
 
 import (
+	"errors"
+	"net/http"
+
 	"testapp/internal/hypermedia"
 	"testapp/internal/inertia"
 	"testapp/internal/storage"
 	"testapp/queue"
+	"testapp/router"
+	"testapp/router/routes"
 	"testapp/views"
 
 	"github.com/labstack/echo/v5"
@@ -2709,6 +2768,34 @@ func NewPages(
 	insertOnly queue.InsertOnly,
 ) Pages {
 	return Pages{db, insertOnly}
+}
+
+func (p Pages) RegisterRoutes(r *router.Router) error {
+	errs := []error{}
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.HomePage.Path(),
+		Name:    routes.HomePage.Name(),
+		Handler: p.Home,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodHead,
+		Path:    routes.HomePage.Path(),
+		Name:    routes.HomePage.Name() + ".head",
+		Handler: p.Home,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_ = r.AddRouteNotFound(p.NotFound)
+
+	return errors.Join(errs...)
 }
 
 func (p Pages) Home(etx *echo.Context) error {
@@ -2727,14 +2814,14 @@ file -----------rw-r--r-- controllers/registrations.go
 package controllers
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
-	"testapp/config"
 	"testapp/internal/hypermedia"
-	"testapp/internal/storage"
-	"testapp/queue"
+	"testapp/router"
 	"testapp/router/cookies"
+	"testapp/router/middleware"
 	"testapp/router/routes"
 	"testapp/services"
 	"testapp/views"
@@ -2743,17 +2830,40 @@ import (
 )
 
 type Registrations struct {
-	db         storage.Pool
-	insertOnly queue.InsertOnly
-	cfg        config.Config
+	identity services.Identity
 }
 
-func NewRegistrations(
-	db storage.Pool,
-	insertOnly queue.InsertOnly,
-	cfg config.Config,
-) Registrations {
-	return Registrations{db, insertOnly, cfg}
+func NewRegistrations(identity services.Identity) Registrations {
+	return Registrations{identity}
+}
+
+func (r Registrations) RegisterRoutes(rtr *router.Router) error {
+	errs := []error{}
+
+	_, err := rtr.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.RegistrationNew.Path(),
+		Name:    routes.RegistrationNew.Name(),
+		Handler: r.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = rtr.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.RegistrationCreate.Path(),
+		Name:    routes.RegistrationCreate.Name(),
+		Handler: r.Create,
+		Middlewares: []echo.MiddlewareFunc{
+			middleware.IPRateLimiter(5, routes.RegistrationNew),
+		},
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
 
 func (r Registrations) New(etx *echo.Context) error {
@@ -2777,11 +2887,8 @@ func (r Registrations) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	if err := services.RegisterUser(
+	if err := r.identity.RegisterUser(
 		etx.Request().Context(),
-		r.db,
-		r.insertOnly,
-		r.cfg.Auth.Pepper,
 		services.RegisterUserData{
 			Email:           payload.Email,
 			Password:        payload.Password,
@@ -2811,13 +2918,12 @@ file -----------rw-r--r-- controllers/reset_passwords.go
 package controllers
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
-	"testapp/config"
 	"testapp/internal/hypermedia"
-	"testapp/internal/storage"
-	"testapp/queue"
+	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/services"
@@ -2827,17 +2933,57 @@ import (
 )
 
 type ResetPasswords struct {
-	db         storage.Pool
-	insertOnly queue.InsertOnly
-	cfg        config.Config
+	identity services.Identity
 }
 
-func NewResetPasswords(
-	db storage.Pool,
-	insertOnly queue.InsertOnly,
-	cfg config.Config,
-) ResetPasswords {
-	return ResetPasswords{db, insertOnly, cfg}
+func NewResetPasswords(identity services.Identity) ResetPasswords {
+	return ResetPasswords{identity}
+}
+
+func (rp ResetPasswords) RegisterRoutes(r *router.Router) error {
+	errs := []error{}
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.PasswordNew.Path(),
+		Name:    routes.PasswordNew.Name(),
+		Handler: rp.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.PasswordCreate.Path(),
+		Name:    routes.PasswordCreate.Name(),
+		Handler: rp.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.PasswordEdit.Path(),
+		Name:    routes.PasswordEdit.Name(),
+		Handler: rp.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.PasswordUpdate.Path(),
+		Name:    routes.PasswordUpdate.Name(),
+		Handler: rp.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
 
 func (rp ResetPasswords) New(etx *echo.Context) error {
@@ -2860,11 +3006,8 @@ func (rp ResetPasswords) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	if err := services.RequestResetPassword(
+	if err := rp.identity.RequestResetPassword(
 		etx.Request().Context(),
-		rp.db,
-		rp.insertOnly,
-		rp.cfg.Auth.Pepper,
 		services.RequestResetPasswordData{
 			Email: payload.Email,
 		},
@@ -2920,10 +3063,8 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	if err := services.ResetPassword(
+	if err := rp.identity.ResetPassword(
 		etx.Request().Context(),
-		rp.db,
-		rp.cfg.Auth.Pepper,
 		services.ResetPasswordData{
 			Token:           payload.Token,
 			Password:        payload.Password,
@@ -2938,11 +3079,15 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 		)
 
 		var errorMsg string
-		switch err {
-		case services.ErrInvalidResetCode:
+		switch {
+		case errors.Is(err, services.ErrInvalidResetCode):
 			errorMsg = "Invalid reset code"
-		case services.ErrExpiredResetCode:
+		case errors.Is(err, services.ErrExpiredResetCode):
 			errorMsg = "Reset code has expired"
+		case errors.Is(err, services.ErrPasswordMismatch):
+			errorMsg = "Passwords do not match"
+		case errors.Is(err, services.ErrPasswordTooShort):
+			errorMsg = "Password must be at least 8 characters"
 		default:
 			errorMsg = "Failed to reset password"
 		}
@@ -2971,13 +3116,14 @@ file -----------rw-r--r-- controllers/sessions.go
 package controllers
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
-	"testapp/config"
 	"testapp/internal/hypermedia"
-	"testapp/internal/storage"
+	"testapp/router"
 	"testapp/router/cookies"
+	"testapp/router/middleware"
 	"testapp/router/routes"
 	"testapp/services"
 	"testapp/views"
@@ -2986,12 +3132,50 @@ import (
 )
 
 type Sessions struct {
-	db  storage.Pool
-	cfg config.Config
+	identity services.Identity
 }
 
-func NewSessions(db storage.Pool, cfg config.Config) Sessions {
-	return Sessions{db, cfg}
+func NewSessions(identity services.Identity) Sessions {
+	return Sessions{identity}
+}
+
+func (s Sessions) RegisterRoutes(r *router.Router) error {
+	errs := []error{}
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.SessionNew.Path(),
+		Name:    routes.SessionNew.Name(),
+		Handler: s.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.SessionCreate.Path(),
+		Name:    routes.SessionCreate.Name(),
+		Handler: s.Create,
+		Middlewares: []echo.MiddlewareFunc{
+			middleware.IPRateLimiter(5, routes.SessionNew),
+		},
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.SessionDestroy.Path(),
+		Name:    routes.SessionDestroy.Name(),
+		Handler: s.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
 
 func (s Sessions) New(etx *echo.Context) error {
@@ -3014,10 +3198,8 @@ func (s Sessions) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	user, err := services.AuthenticateUser(
+	user, err := s.identity.AuthenticateUser(
 		etx.Request().Context(),
-		s.db,
-		s.cfg.Auth.Pepper,
 		services.LoginData{
 			Email:    payload.Email,
 			Password: payload.Password,
@@ -3032,10 +3214,10 @@ func (s Sessions) Create(etx *echo.Context) error {
 		)
 
 		var errorMsg string
-		switch err {
-		case services.ErrInvalidCredentials:
+		switch {
+		case errors.Is(err, services.ErrInvalidCredentials):
 			errorMsg = "Invalid email or password"
-		case services.ErrEmailNotVerified:
+		case errors.Is(err, services.ErrEmailNotVerified):
 			errorMsg = "Please verify your email before logging in"
 		default:
 			errorMsg = "Failed to log in"
@@ -3134,6 +3316,8 @@ import (
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
     
+	"go.uber.org/fx"
+    
 )
 
 //go:embed migrations/*
@@ -3186,6 +3370,8 @@ func (p *Postgres) Close() error {
 	return p.conn.Close()
 }
 
+
+var Module = fx.Module("database", fx.Provide(fx.Annotate(NewPostgres, fx.As(new(storage.Pool)))))
 
 ```
 
@@ -5785,11 +5971,11 @@ require (
 	go.opentelemetry.io/otel/sdk/log v0.20.0
 	go.opentelemetry.io/otel/sdk/metric v1.44.0
 	go.opentelemetry.io/otel/trace v1.44.0
+	go.uber.org/fx v1.24.0
 	golang.org/x/crypto v0.53.0
 	golang.org/x/net v0.56.0
 	golang.org/x/sync v0.21.0
 	gopkg.in/yaml.v2 v2.4.0
-	riverqueue.com/riverui v0.16.0
 )
 
 require (
@@ -5821,23 +6007,17 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
-	github.com/go-playground/locales v0.14.1 // indirect
-	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-playground/validator/v10 v10.30.1 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
-	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/klauspost/compress v1.18.5 // indirect
-	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/lib/pq v1.12.3 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
@@ -5856,7 +6036,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
-	github.com/riverqueue/apiframe v0.0.0-20251229202423-2b52ce1c482e // indirect
 	github.com/riverqueue/river/riverdriver v0.39.0 // indirect
 	github.com/riverqueue/river/rivershared v0.39.0 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect
@@ -5877,8 +6056,10 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.44.0 // indirect
 	go.opentelemetry.io/otel/log v0.20.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
+	go.uber.org/dig v1.19.0 // indirect
 	go.uber.org/goleak v1.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
+	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
@@ -5971,8 +6152,6 @@ github.com/exaring/otelpgx v0.11.1 h1:pE79fIg/qh/Lpu00kvswFC5dKfqyJJhMJ4Y4N3w5Lj
 github.com/exaring/otelpgx v0.11.1/go.mod h1:3OojrUKhhy3lTbYIMBijP3YjMey/jo14eHAW5cXcUdk=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
-github.com/gabriel-vasile/mimetype v1.4.12 h1:e9hWvmLYvtp846tLHam2o++qitpguFiYCKbn0w9jyqw=
-github.com/gabriel-vasile/mimetype v1.4.12/go.mod h1:d+9Oxyo1wTzWdyVUPMmXFvp4F9tea18J8ufA774AB3s=
 github.com/go-faker/faker/v4 v4.9.0 h1:a4HXLwueuTCtgF93VpUsl8Zd2nG1VH2SgNWDPVEBg5U=
 github.com/go-faker/faker/v4 v4.9.0/go.mod h1:u1dIRP5neLB6kTzgyVjdBOV5R1uP7BdxkcWk7tiKQXk=
 github.com/go-logr/logr v1.2.2/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
@@ -5982,14 +6161,6 @@ github.com/go-logr/stdr v1.2.2 h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=
 github.com/go-logr/stdr v1.2.2/go.mod h1:mMo/vtBO5dYbehREoey6XUKy/eSumjCCveDpRre4VKE=
 github.com/go-ole/go-ole v1.2.6 h1:/Fpf6oFPoeFik9ty7siob0G6Ke8QvQEuVcuChpwXzpY=
 github.com/go-ole/go-ole v1.2.6/go.mod h1:pprOEPIfldk/42T2oK7lQ4v4JSDwmV0As9GaiUsvbm0=
-github.com/go-playground/assert/v2 v2.2.0 h1:JvknZsQTYeFEAhQwI4qEt9cyV5ONwRHC+lYKSsYSR8s=
-github.com/go-playground/assert/v2 v2.2.0/go.mod h1:VDjEfimB/XKnb+ZQfWdccd7VUvScMdVu0Titje2rxJ4=
-github.com/go-playground/locales v0.14.1 h1:EWaQ/wswjilfKLTECiXz7Rh+3BjFhfDFKv/oXslEjJA=
-github.com/go-playground/locales v0.14.1/go.mod h1:hxrqLVvrK65+Rwrd5Fc6F2O76J/NuW9t0sjnWqG1slY=
-github.com/go-playground/universal-translator v0.18.1 h1:Bcnm0ZwsGyWbCzImXv+pAJnYK9S473LQFuzCbDbfSFY=
-github.com/go-playground/universal-translator v0.18.1/go.mod h1:xekY+UJKNuX9WP91TpwSH2VMlDf28Uj24BCp08ZFTUY=
-github.com/go-playground/validator/v10 v10.30.1 h1:f3zDSN/zOma+w6+1Wswgd9fLkdwy06ntQJp0BBvFG0w=
-github.com/go-playground/validator/v10 v10.30.1/go.mod h1:oSuBIQzuJxL//3MelwSLD5hc2Tu889bF0Idm9Dg26cM=
 github.com/golang/protobuf v1.5.4 h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=
 github.com/golang/protobuf v1.5.4/go.mod h1:lnTiLA8Wa4RWRcIUkrtSVa5nRhsEGBg48fD6rSs7xps=
 github.com/google/go-cmp v0.5.6/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
@@ -6009,8 +6180,8 @@ github.com/gosimple/unidecode v1.0.1 h1:hZzFTMMqSswvf0LBJZCZgThIZrpDHFXux9KeGmn6
 github.com/gosimple/unidecode v1.0.1/go.mod h1:CP0Cr1Y1kogOtx0bJblKzsVWrqYaqfNOnHzpgWw4Awc=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 h1:5VipnvEpbqr2gA2VbM+nYVbkIF28c5ZQfqCBQ5g2xfk=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0/go.mod h1:Hyl3n6Twe1hvtd9XUXDec4pTvgMSEixRuQKPTMH2bNs=
-github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6 h1:D/V0gu4zQ3cL2WKeVNVM4r2gLxGGf6McLwgXzRTo2RQ=
-github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6/go.mod h1:a/s9Lp5W7n/DD0VrVoyJ00FbP2ytTPDVOivvn2bMlds=
+github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438 h1:Dj0L5fhJ9F82ZJyVOmBx6msDp/kfd1t9GRfny/mfJA0=
+github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438/go.mod h1:a/s9Lp5W7n/DD0VrVoyJ00FbP2ytTPDVOivvn2bMlds=
 github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=
 github.com/jackc/pgpassfile v1.0.0/go.mod h1:CEx0iS5ambNFdcRtxPj5JhEz+xB6uRky5eyVu/W2HEg=
 github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 h1:iCEnooe7UlwOQYpKFhBabPMi4aNAfoODPEFNiAnClxo=
@@ -6033,8 +6204,6 @@ github.com/labstack/echo-contrib/v5 v5.0.1 h1:Z23m8p1F9Doax+pa8ek8ll5d6wvzCbvrAn
 github.com/labstack/echo-contrib/v5 v5.0.1/go.mod h1:ajrqEwSloW0vQSTfJ4j9u4tHoS+dg4umCDPxuTvChZs=
 github.com/labstack/echo/v5 v5.2.1 h1:TzpIksY6zLMzV0T0ycYbvTEoj9w6o6AcL5twg182VTY=
 github.com/labstack/echo/v5 v5.2.1/go.mod h1:SyvlSdObGjRXeQfCCXW/sybkZdOOQZBmpKF0bvALaeo=
-github.com/leodido/go-urn v1.4.0 h1:WT9HwE9SGECu3lg4d/dIA+jxlljEa1/ffXKmRjqdmIQ=
-github.com/leodido/go-urn v1.4.0/go.mod h1:bvxc+MVxLKB4z00jd1z+Dvzr47oO32F/QSNjSBOlFxI=
 github.com/lib/pq v1.12.3 h1:tTWxr2YLKwIvK90ZXEw8GP7UFHtcbTtty8zsI+YjrfQ=
 github.com/lib/pq v1.12.3/go.mod h1:/p+8NSbOcwzAEI7wiMXFlgydTwcgTr3OSKMsD2BitpA=
 github.com/lmittmann/tint v1.1.3 h1:Hv4EaHWXQr+GTFnOU4VKf8UvAtZgn0VuKT+G0wFlO3I=
@@ -6085,8 +6254,6 @@ github.com/puzpuzpuz/xsync/v3 v3.5.1 h1:GJYJZwO6IdxN/IKbneznS6yPkVC+c3zyY/j19c++
 github.com/puzpuzpuz/xsync/v3 v3.5.1/go.mod h1:VjzYrABPabuM4KyBh1Ftq6u8nhwY5tBPKP9jpmh0nnA=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
-github.com/riverqueue/apiframe v0.0.0-20251229202423-2b52ce1c482e h1:OwOgxT3MRpOj5Mp6DhFdZP43FOQOf2hhywAuT5XZCR4=
-github.com/riverqueue/apiframe v0.0.0-20251229202423-2b52ce1c482e/go.mod h1:O7UmsAMjpMYuToN4au5GNXdmN1gli+5FTldgXqAfaD0=
 github.com/riverqueue/river v0.39.0 h1:VsoPJ8KTx7SvWQGWtdLjKxw15IjnYHj3xKb0UA+7200=
 github.com/riverqueue/river v0.39.0/go.mod h1:YeHQKKQDakPapXgNarXUp3o3XGp8fXp5HiBmsn2FOHg=
 github.com/riverqueue/river/riverdriver v0.39.0 h1:Vze5DtNJkxStjIlbDDwtxqk9wB2THn1RKEk5C5CZgFg=
@@ -6181,10 +6348,16 @@ go.opentelemetry.io/otel/trace v1.44.0 h1:jxF5CsGYCe74MCRx2X4g7WsY/VBKRqqpNvXlX/
 go.opentelemetry.io/otel/trace v1.44.0/go.mod h1:oLl1jrMQAVo6v3GAggN+1VH9VIz9iUSvW53sW1Q8PIE=
 go.opentelemetry.io/proto/otlp v1.10.0 h1:IQRWgT5srOCYfiWnpqUYz9CVmbO8bFmKcwYxpuCSL2g=
 go.opentelemetry.io/proto/otlp v1.10.0/go.mod h1:/CV4QoCR/S9yaPj8utp3lvQPoqMtxXdzn7ozvvozVqk=
+go.uber.org/dig v1.19.0 h1:BACLhebsYdpQ7IROQ1AGPjrXcP5dF80U3gKoFzbaq/4=
+go.uber.org/dig v1.19.0/go.mod h1:Us0rSJiThwCv2GteUN0Q7OKvU7n5J4dxZ9JKUXozFdE=
+go.uber.org/fx v1.24.0 h1:wE8mruvpg2kiiL1Vqd0CC+tr0/24XIB10Iwp2lLWzkg=
+go.uber.org/fx v1.24.0/go.mod h1:AmDeGyS+ZARGKM4tlH4FY2Jr63VjbEDJHtqXTGP5hbo=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
 go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
 go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=
 go.uber.org/multierr v1.11.0/go.mod h1:20+QtiLqy0Nd6FdQB9TLXag12DsQkrbs3htMFfDN80Y=
+go.uber.org/zap v1.26.0 h1:sI7k6L95XOKS281NhVKOFCUNIvv9e0w4BF8N3u+tCRo=
+go.uber.org/zap v1.26.0/go.mod h1:dtElttAiwGvoJ/vj4IwHBS/gXsEu/pZ50mUIRWuG0so=
 golang.org/x/crypto v0.53.0 h1:QZ4Muo8THX6CizN2vPPd5fBGHyogrdK9fG4wLPFUsto=
 golang.org/x/crypto v0.53.0/go.mod h1:DNLU434OwVakk9PzuwV8w62mAJpRJL3vsgcfp4Qnsio=
 golang.org/x/net v0.56.0 h1:Rw8j/hFzGvJUZwNBXnAtf5sVDVt+65SK2C7IxCxZt5o=
@@ -6233,8 +6406,6 @@ modernc.org/sqlite v1.53.0 h1:20WG8N9q4ji/dEqGk4uiI0c6OPjSeLTNYGFCc3+7c1M=
 modernc.org/sqlite v1.53.0/go.mod h1:xoEpOIpGrgT48H5iiyt/YXPCZPEzlfmfFwtk8Lklw8s=
 pgregory.net/rapid v1.2.0 h1:keKAYRcjm+e1F0oAuU5F5+YPAWcyxNNRK2wud503Gnk=
 pgregory.net/rapid v1.2.0/go.mod h1:PY5XlDGj0+V1FCq0o192FdRhpKHGTRIWBgqjDBTrq04=
-riverqueue.com/riverui v0.16.0 h1:XFgTdKqRYjdPsGV2QSBRTrMaWiXAZWvouH2zanQ0t9g=
-riverqueue.com/riverui v0.16.0/go.mod h1:NoIMP+QRd/Z+k5QYZ4LlYzRPinZ/qfIvyrNXFS61cak=
 ```
 
 dir  d----------rwxr-xr-x internal
@@ -9623,6 +9794,8 @@ import "errors"
 var (
 	ErrDomainValidation = errors.New("the provided payload failed validations")
 
+	ErrNotFound         = errors.New("record not found")
+
 )
 ```
 
@@ -9970,6 +10143,8 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 
+	"database/sql"
+
 	"encoding/base32"
 	"encoding/hex"
 	"encoding/json"
@@ -10040,6 +10215,10 @@ func (t token) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (Tok
 		Scan(ctx)
 	if err != nil {
 
+		if errors.Is(err, sql.ErrNoRows) {
+			return TokenEntity{}, ErrNotFound
+		}
+
 		return TokenEntity{}, err
 	}
 	return entity, nil
@@ -10061,6 +10240,10 @@ func (t token) FindByScopeAndHash(
 		Where("hash = ?", hash).
 		Scan(ctx)
 	if err != nil {
+
+		if errors.Is(err, sql.ErrNoRows) {
+			return TokenEntity{}, ErrNotFound
+		}
 
 		return TokenEntity{}, err
 	}
@@ -10314,6 +10497,10 @@ func (u user) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (User
 		Scan(ctx)
 	if err != nil {
 
+		if errors.Is(err, sql.ErrNoRows) {
+			return UserEntity{}, ErrNotFound
+		}
+
 		return UserEntity{}, err
 	}
 	return entity, nil
@@ -10326,6 +10513,10 @@ func (u user) FindByEmail(ctx context.Context, db storage.Executor, email string
 		Where("email = ?", strings.ToLower(email)).
 		Scan(ctx)
 	if err != nil {
+
+		if errors.Is(err, sql.ErrNoRows) {
+			return UserEntity{}, ErrNotFound
+		}
 
 		return UserEntity{}, err
 	}
@@ -10390,6 +10581,10 @@ func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserDa
 		Where("id = ?", data.ID).
 		Scan(ctx)
 	if err != nil {
+
+		if errors.Is(err, sql.ErrNoRows) {
+			return UserEntity{}, ErrNotFound
+		}
 
 		return UserEntity{}, err
 	}
@@ -10608,6 +10803,8 @@ import (
 	"github.com/riverqueue/river/riverdriver/riverdatabasesql"
 	"github.com/riverqueue/river/rivertype"
     
+	"go.uber.org/fx"
+    
 )
 
 type Processor struct {
@@ -10715,13 +10912,19 @@ func NewInsertOnly(db storage.Pool, workers *river.Workers) (InsertOnly, error) 
 }
 
 
+var Module = fx.Module(
+	"queue",
+	fx.Provide(
+		NewInsertOnly,
+		NewProcessor,
+	),
+)
+
 ```
 
-dir  d----------rwxr-xr-x queue/workers
-
-file -----------rw-r--r-- queue/workers/send_marketing_email.go
+file -----------rw-r--r-- queue/send_marketing_email.go
 ```
-package workers
+package queue
 
 import (
 	"context"
@@ -10744,6 +10947,11 @@ func NewSendMarketingEmailWorker(sender email.MarketingSender) *SendMarketingEma
 }
 
 
+func (w *SendMarketingEmailWorker) Register(workers *river.Workers) error {
+	return river.AddWorkerSafely(workers, w)
+}
+
+
 func (w *SendMarketingEmailWorker) Work(ctx context.Context, job *river.Job[jobs.SendMarketingEmailArgs]) error {
 	err := email.SendMarketing(ctx, job.Args.Data, w.sender)
 	if err != nil {
@@ -10757,9 +10965,9 @@ func (w *SendMarketingEmailWorker) Work(ctx context.Context, job *river.Job[jobs
 }
 ```
 
-file -----------rw-r--r-- queue/workers/send_transactional_email.go
+file -----------rw-r--r-- queue/send_transactional_email.go
 ```
-package workers
+package queue
 
 import (
 	"context"
@@ -10782,6 +10990,11 @@ func NewSendTransactionalEmailWorker(sender email.TransactionalSender) *SendTran
 }
 
 
+func (w *SendTransactionalEmailWorker) Register(workers *river.Workers) error {
+	return river.AddWorkerSafely(workers, w)
+}
+
+
 func (w *SendTransactionalEmailWorker) Work(ctx context.Context, job *river.Job[jobs.SendTransactionalEmailArgs]) error {
 	err := email.SendTransactional(ctx, job.Args.Data, w.sender)
 	if err != nil {
@@ -10795,36 +11008,33 @@ func (w *SendTransactionalEmailWorker) Work(ctx context.Context, job *river.Job[
 }
 ```
 
-file -----------rw-r--r-- queue/workers/workers.go
+file -----------rw-r--r-- queue/workers.go
 ```
 
-// Package workers provides a centralized place to register all background workers for the application.
-package workers
+// Package queue provides queue-specific resources.
+package queue
 
 import (
 	"github.com/riverqueue/river"
-
-    
-	"testapp/email"
+	"go.uber.org/fx"
 )
 
-func RegisterWorkers(transactionalSender email.TransactionalSender, marketingSender email.MarketingSender) (*river.Workers, error) {
-	wrks := river.NewWorkers()
+var wrksConstructors = fx.Provide(
+	river.NewWorkers,
+	NewSendTransactionalEmailWorker,
+	NewSendMarketingEmailWorker,
+)
 
-	if err := river.AddWorkerSafely(wrks, NewSendTransactionalEmailWorker(transactionalSender)); err != nil {
-		return nil, err
-	}
-
-	if err := river.AddWorkerSafely(wrks, NewSendMarketingEmailWorker(marketingSender)); err != nil {
-		return nil, err
-	}
-
-	// andurel:worker-registration-point
-
-	return wrks, nil
-}
-
-
+var WorkersModule = fx.Module(
+	"queue-workers",
+	wrksConstructors,
+	fx.Invoke(func(workers *river.Workers, worker *SendTransactionalEmailWorker) error {
+		return worker.Register(workers)
+	}),
+	fx.Invoke(func(workers *river.Workers, worker *SendMarketingEmailWorker) error {
+		return worker.Register(workers)
+	}),
+)
 
 ```
 
@@ -10923,348 +11133,6 @@ createInertiaApp({
 ```
 
 dir  d----------rwxr-xr-x router
-
-file -----------rw-r--r-- router/connect_api_routes.go
-```
-package router
-
-import (
-	"errors"
-	"net/http"
-
-	"testapp/controllers"
-	"testapp/router/routes"
-
-	"github.com/labstack/echo/v5"
-)
-
-func (r Router) RegisterAPIRoutes(api controllers.API) error {
-	errs := []error{}
-
-	_, err := r.e.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.Health.Path(),
-		Name:    routes.Health.Name(),
-		Handler: api.Health,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	return errors.Join(errs...)
-}
-```
-
-file -----------rw-r--r-- router/connect_assets_routes.go
-```
-package router
-
-import (
-	"errors"
-	"net/http"
-
-	"testapp/controllers"
-	"testapp/router/routes"
-
-	"github.com/labstack/echo/v5"
-)
-
-func (r Router) RegisterAssetsRoutes(assets controllers.Assets) error {
-	errs := []error{}
-
-	_, err := r.e.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.Robots.Path(),
-		Name:    routes.Robots.Name(),
-		Handler: assets.Robots,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	_, err = r.e.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.Sitemap.Path(),
-		Name:    routes.Sitemap.Name(),
-		Handler: assets.Sitemap,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	_, err = r.e.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.Stylesheet.Path(),
-		Name:    routes.Stylesheet.Name(),
-		Handler: assets.Stylesheet,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-	_, err = r.e.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.Scripts.Path(),
-		Name:    routes.Scripts.Name(),
-		Handler: assets.Scripts,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	_, err = r.e.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.Script.Path(),
-		Name:    routes.Script.Name(),
-		Handler: assets.Script,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-	_, err = r.e.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.ViteBuild.Path(),
-		Name:    routes.ViteBuild.Name(),
-		Handler: assets.ViteBuild,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-	return errors.Join(errs...)
-}
-```
-
-file -----------rw-r--r-- router/connect_confirmations_routes.go
-```
-package router
-
-import (
-	"errors"
-	"net/http"
-
-	"testapp/controllers"
-	"testapp/router/routes"
-
-	"github.com/labstack/echo/v5"
-)
-
-func (r Router) RegisterConfirmationsRoutes(confirmations controllers.Confirmations) error {
-	errs := []error{}
-
-	_, err := r.e.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.ConfirmationNew.Path(),
-		Name:    routes.ConfirmationNew.Name(),
-		Handler: confirmations.New,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	_, err = r.e.AddRoute(echo.Route{
-		Method:  http.MethodPost,
-		Path:    routes.ConfirmationCreate.Path(),
-		Name:    routes.ConfirmationCreate.Name(),
-		Handler: confirmations.Create,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	return errors.Join(errs...)
-}
-```
-
-file -----------rw-r--r-- router/connect_pages_routes.go
-```
-package router
-
-import (
-	"errors"
-	"net/http"
-
-	"testapp/controllers"
-	"testapp/router/routes"
-
-	"github.com/labstack/echo/v5"
-)
-
-func (r Router) RegisterPagesRoutes(pages controllers.Pages) error {
-	errs := []error{}
-
-	_, err := r.e.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.HomePage.Path(),
-		Name:    routes.HomePage.Name(),
-		Handler: pages.Home,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	return errors.Join(errs...)
-}
-```
-
-file -----------rw-r--r-- router/connect_registrations_routes.go
-```
-package router
-
-import (
-	"errors"
-	"net/http"
-
-	"testapp/controllers"
-	"testapp/router/middleware"
-	"testapp/router/routes"
-
-	"github.com/labstack/echo/v5"
-)
-
-func (r Router) RegisterRegistrationsRoutes(registrations controllers.Registrations) error {
-	errs := []error{}
-
-	_, err := r.e.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.RegistrationNew.Path(),
-		Name:    routes.RegistrationNew.Name(),
-		Handler: registrations.New,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	_, err = r.e.AddRoute(echo.Route{
-		Method:  http.MethodPost,
-		Path:    routes.RegistrationCreate.Path(),
-		Name:    routes.RegistrationCreate.Name(),
-		Handler: registrations.Create,
-		Middlewares: []echo.MiddlewareFunc{
-			middleware.IPRateLimiter(5, routes.RegistrationNew),
-		},
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	return errors.Join(errs...)
-}
-```
-
-file -----------rw-r--r-- router/connect_reset_passwords_routes.go
-```
-package router
-
-import (
-	"errors"
-	"net/http"
-
-	"testapp/controllers"
-	"testapp/router/routes"
-
-	"github.com/labstack/echo/v5"
-)
-
-func (r Router) RegisterResetPasswordsRoutes(resetPasswords controllers.ResetPasswords) error {
-	errs := []error{}
-
-	_, err := r.e.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.PasswordNew.Path(),
-		Name:    routes.PasswordNew.Name(),
-		Handler: resetPasswords.New,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	_, err = r.e.AddRoute(echo.Route{
-		Method:  http.MethodPost,
-		Path:    routes.PasswordCreate.Path(),
-		Name:    routes.PasswordCreate.Name(),
-		Handler: resetPasswords.Create,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	_, err = r.e.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.PasswordEdit.Path(),
-		Name:    routes.PasswordEdit.Name(),
-		Handler: resetPasswords.Edit,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	_, err = r.e.AddRoute(echo.Route{
-		Method:  http.MethodPut,
-		Path:    routes.PasswordUpdate.Path(),
-		Name:    routes.PasswordUpdate.Name(),
-		Handler: resetPasswords.Update,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	return errors.Join(errs...)
-}
-```
-
-file -----------rw-r--r-- router/connect_sessions_routes.go
-```
-package router
-
-import (
-	"errors"
-	"net/http"
-
-	"testapp/controllers"
-	"testapp/router/middleware"
-	"testapp/router/routes"
-
-	"github.com/labstack/echo/v5"
-)
-
-func (r Router) RegisterSessionsRoutes(sessions controllers.Sessions) error {
-	errs := []error{}
-
-	_, err := r.e.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.SessionNew.Path(),
-		Name:    routes.SessionNew.Name(),
-		Handler: sessions.New,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	_, err = r.e.AddRoute(echo.Route{
-		Method:  http.MethodPost,
-		Path:    routes.SessionCreate.Path(),
-		Name:    routes.SessionCreate.Name(),
-		Handler: sessions.Create,
-		Middlewares: []echo.MiddlewareFunc{
-			middleware.IPRateLimiter(5, routes.SessionNew),
-		},
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	_, err = r.e.AddRoute(echo.Route{
-		Method:  http.MethodDelete,
-		Path:    routes.SessionDestroy.Path(),
-		Name:    routes.SessionDestroy.Name(),
-		Handler: sessions.Destroy,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	return errors.Join(errs...)
-}
-```
 
 dir  d----------rwxr-xr-x router/cookies
 
@@ -11846,6 +11714,7 @@ package router
 
 import (
 	"encoding/gob"
+	"encoding/hex"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -11862,6 +11731,7 @@ import (
 	"github.com/labstack/echo/v5"
 	echomw "github.com/labstack/echo/v5/middleware"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.uber.org/fx"
 )
 
 type Router struct {
@@ -11870,11 +11740,20 @@ type Router struct {
 }
 
 func New(
-	enableHTTPInstrumentation bool,
-	globalMiddleware []echo.MiddlewareFunc,
+	cfg config.Config,
+	tel *telemetry.Telemetry,
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
+
+	authKey, err := hex.DecodeString(cfg.App.SessionKey)
+	if err != nil {
+		return nil, err
+	}
+	encKey, err := hex.DecodeString(cfg.App.SessionEncryptionKey)
+	if err != nil {
+		return nil, err
+	}
 
 	router := echo.New()
 	defaultHTTPErrorHandler := echo.DefaultHTTPErrorHandler(false)
@@ -11901,12 +11780,14 @@ func New(
 		defaultHTTPErrorHandler(c, err)
 	}
 
+	globalMiddleware, err := SetupGlobalMiddleware(cfg, tel, authKey, encKey, "_csrf")
+	if err != nil {
+		return nil, err
+	}
+
 	router.Use(globalMiddleware...)
 
-	handler := http.Handler(router)
-	if enableHTTPInstrumentation {
-		handler = otelhttp.NewHandler(router, "http")
-	}
+	handler := otelhttp.NewHandler(router, "http")
 
 	return &Router{
 		e:       router,
@@ -11954,13 +11835,20 @@ func SetupGlobalMiddleware(
 	return middlewares, nil
 }
 
-func (r *Router) RegisterCustomRoutes(
-	riverHandler interface{ ServeHTTP(http.ResponseWriter, *http.Request) },
-	notFoundHandler echo.HandlerFunc,
-) {
-	r.e.Any("/riverui*", echo.WrapHandler(riverHandler))
-	r.e.RouteNotFound("/*", notFoundHandler)
+func (r *Router) AddRoute(route echo.Route) (echo.RouteInfo, error) {
+	return r.e.AddRoute(route)
 }
+
+func (r *Router) AddRouteNotFound(
+	notFoundHandler echo.HandlerFunc,
+) echo.RouteInfo {
+	return r.e.RouteNotFound("/*", notFoundHandler)
+}
+
+var Module = fx.Module(
+	"router",
+	fx.Provide(New),
+)
 ```
 
 dir  d----------rwxr-xr-x router/routes
@@ -12135,11 +12023,10 @@ package services
 import (
 	"context"
 
-	"database/sql"
-
 	"errors"
 
-	"testapp/internal/storage"
+	"fmt"
+
 	"testapp/models"
 )
 
@@ -12154,36 +12041,34 @@ type LoginData struct {
 }
 
 
-func AuthenticateUser(
+func (i Identity) AuthenticateUser(
 	ctx context.Context,
-	db storage.Pool,
-	salt string,
 	data LoginData,
 ) (models.UserEntity, error) {
-	user, err := models.User.FindByEmail(ctx, db.Executor(), data.Email)
+	user, err := models.User.FindByEmail(ctx, i.db.Executor(), data.Email)
 
 	if err != nil {
 
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, models.ErrNotFound) {
 			return models.UserEntity{}, ErrInvalidCredentials
 		}
 
-		return models.UserEntity{}, err
+		return models.UserEntity{}, fmt.Errorf("find user by email: %w", err)
 
 	}
 
 
-	validPassword, err := user.ValidPassword(data.Password, salt)
+	validPassword, err := user.ValidPassword(data.Password, i.pepper)
 
 	if err != nil {
 
-		return models.UserEntity{}, err
+		return models.UserEntity{}, fmt.Errorf("validate password: %w", err)
 
 	}
 
 	if !validPassword {
 
-		return models.UserEntity{}, errors.New("invalid password")
+		return models.UserEntity{}, ErrInvalidCredentials
 
 	}
 
@@ -12192,6 +12077,27 @@ func AuthenticateUser(
 	}
 
 	return user, nil
+}
+```
+
+file -----------rw-r--r-- services/identity.go
+```
+package services
+
+import (
+	"testapp/config"
+	"testapp/internal/storage"
+	"testapp/queue"
+)
+
+type Identity struct {
+	db         storage.Pool
+	insertOnly queue.InsertOnly
+	pepper     string
+}
+
+func NewIdentity(db storage.Pool, insertOnly queue.InsertOnly, cfg config.Config) Identity {
+	return Identity{db: db, insertOnly: insertOnly, pepper: cfg.Auth.Pepper}
 }
 ```
 
@@ -12205,13 +12111,13 @@ import (
 	"encoding/json"
 	"errors"
 
+	"fmt"
+
 	"time"
 
 	"testapp/config"
 	"testapp/email"
-	"testapp/internal/storage"
 	"testapp/models"
-	"testapp/queue"
 	"testapp/queue/jobs"
 )
 
@@ -12224,23 +12130,20 @@ type RegisterUserData struct {
 }
 
 
-func RegisterUser(
+func (i Identity) RegisterUser(
 	ctx context.Context,
-	db storage.Pool,
-	insertOnly queue.InsertOnly,
-	salt string,
 	data RegisterUserData,
 ) error {
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := i.db.BeginTx(ctx, nil)
 
 	if err != nil {
 
-		return err
+		return fmt.Errorf("begin registration transaction: %w", err)
 
 	}
 
 
-	user, err := models.User.Create(ctx, tx, salt, models.CreateUserData{
+	user, err := models.User.Create(ctx, tx, i.pepper, models.CreateUserData{
 
 		Email: data.Email,
 		PasswordPair: models.PasswordPair{
@@ -12251,7 +12154,7 @@ func RegisterUser(
 	if err != nil {
 		_ = tx.Rollback()
 
-		return err
+		return fmt.Errorf("create user: %w", err)
 
 	}
 
@@ -12261,7 +12164,7 @@ func RegisterUser(
 	if err != nil {
 		_ = tx.Rollback()
 
-		return err
+		return fmt.Errorf("marshal verification token metadata: %v", err)
 
 	}
 
@@ -12269,7 +12172,7 @@ func RegisterUser(
 	code, err := models.Token.CreateCode(
 		ctx,
 		tx,
-		salt,
+		i.pepper,
 
 		userEmailVerification,
 		time.Now().Add(24*time.Hour),
@@ -12278,13 +12181,13 @@ func RegisterUser(
 	if err != nil {
 		_ = tx.Rollback()
 
-		return err
+		return fmt.Errorf("create verification token: %w", err)
 
 	}
 
 	if err := tx.Commit(); err != nil {
 
-		return err
+		return fmt.Errorf("commit registration transaction: %w", err)
 
 	}
 
@@ -12293,19 +12196,19 @@ func RegisterUser(
 	html, err := vEmail.ToHTML()
 	if err != nil {
 
-		return err
+		return fmt.Errorf("render verification email html: %v", err)
 
 	}
 
 	text, err := vEmail.ToText()
 	if err != nil {
 
-		return err
+		return fmt.Errorf("render verification email text: %v", err)
 
 	}
 
 
-	_, err = insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
+	_, err = i.insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
 
 		Data: email.TransactionalData{
 			To:       user.Email,
@@ -12316,7 +12219,11 @@ func RegisterUser(
 		},
 	}, nil)
 
-	return err
+	if err != nil {
+		return fmt.Errorf("queue verification email: %v", err)
+	}
+
+	return nil
 
 }
 
@@ -12331,17 +12238,15 @@ type VerifyEmailData struct {
 }
 
 
-func VerifyEmail(
+func (i Identity) VerifyEmail(
 	ctx context.Context,
-	db storage.Pool,
-	salt string,
 	data VerifyEmailData,
 ) (models.UserEntity, error) {
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := i.db.BeginTx(ctx, nil)
 
 	if err != nil {
 
-		return models.UserEntity{}, err
+		return models.UserEntity{}, fmt.Errorf("begin email verification transaction: %w", err)
 
 	}
 
@@ -12349,7 +12254,7 @@ func VerifyEmail(
 	token, err := models.Token.FindByScopeAndHash(
 		ctx,
 		tx,
-		salt,
+		i.pepper,
 
 		userEmailVerification,
 		data.Code,
@@ -12357,12 +12262,15 @@ func VerifyEmail(
 	if err != nil {
 		_ = tx.Rollback()
 
-		return models.UserEntity{}, ErrInvalidVerificationCode
+		if errors.Is(err, models.ErrNotFound) {
+			return models.UserEntity{}, ErrInvalidVerificationCode
+		}
+		return models.UserEntity{}, fmt.Errorf("find email verification token: %w", err)
 
 	}
 
 
-	if !token.IsValid(data.Code, salt) {
+	if !token.IsValid(data.Code, i.pepper) {
 
 		_ = tx.Rollback()
 		return models.UserEntity{}, ErrExpiredVerificationCode
@@ -12372,7 +12280,7 @@ func VerifyEmail(
 	if err := json.Unmarshal(token.MetaData, &meta); err != nil {
 		_ = tx.Rollback()
 
-		return models.UserEntity{}, err
+		return models.UserEntity{}, fmt.Errorf("unmarshal verification token metadata: %v", err)
 
 	}
 
@@ -12380,7 +12288,7 @@ func VerifyEmail(
 	if !ok {
 		_ = tx.Rollback()
 
-		return models.UserEntity{}, errors.New("token metadata missing email")
+		return models.UserEntity{}, errors.New("verification token metadata missing email")
 
 	}
 
@@ -12388,7 +12296,10 @@ func VerifyEmail(
 	if err != nil {
 		_ = tx.Rollback()
 
-		return models.UserEntity{}, err
+		if errors.Is(err, models.ErrNotFound) {
+			return models.UserEntity{}, ErrUserNotFound
+		}
+		return models.UserEntity{}, fmt.Errorf("find verification user: %w", err)
 
 	}
 
@@ -12403,20 +12314,23 @@ func VerifyEmail(
 	if err != nil {
 		_ = tx.Rollback()
 
-		return models.UserEntity{}, err
+		if errors.Is(err, models.ErrNotFound) {
+			return models.UserEntity{}, ErrUserNotFound
+		}
+		return models.UserEntity{}, fmt.Errorf("mark user email verified: %w", err)
 
 	}
 
 	if err := models.Token.Destroy(ctx, tx, token.ID); err != nil {
 		_ = tx.Rollback()
 
-		return models.UserEntity{}, err
+		return models.UserEntity{}, fmt.Errorf("destroy email verification token: %w", err)
 
 	}
 
 	if err := tx.Commit(); err != nil {
 
-		return models.UserEntity{}, err
+		return models.UserEntity{}, fmt.Errorf("commit email verification transaction: %w", err)
 
 	}
 
@@ -12431,8 +12345,6 @@ package services
 import (
 	"context"
 
-	"database/sql"
-
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12440,9 +12352,7 @@ import (
 
 	"testapp/config"
 	"testapp/email"
-	"testapp/internal/storage"
 	"testapp/models"
-	"testapp/queue"
 	"testapp/queue/jobs"
 	"testapp/router/routes"
 )
@@ -12453,6 +12363,9 @@ var (
 	ErrInvalidResetCode = errors.New("invalid reset code")
 	ErrExpiredResetCode = errors.New("reset code has expired")
 
+	ErrPasswordMismatch = errors.New("passwords do not match")
+	ErrPasswordTooShort = errors.New("password must be at least 8 characters")
+
 )
 
 type RequestResetPasswordData struct {
@@ -12460,18 +12373,15 @@ type RequestResetPasswordData struct {
 }
 
 
-func RequestResetPassword(
+func (i Identity) RequestResetPassword(
 	ctx context.Context,
-	db storage.Pool,
-	insertOnly queue.InsertOnly,
-	salt string,
 	data RequestResetPasswordData,
 ) error {
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := i.db.BeginTx(ctx, nil)
 
 	if err != nil {
 
-		return err
+		return fmt.Errorf("begin password reset request transaction: %w", err)
 
 	}
 
@@ -12479,10 +12389,10 @@ func RequestResetPassword(
 	if err != nil {
 		_ = tx.Rollback()
 
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, models.ErrNotFound) {
 			return nil
 		}
-		return err
+		return fmt.Errorf("find password reset user: %w", err)
 
 	}
 
@@ -12492,7 +12402,7 @@ func RequestResetPassword(
 	if err != nil {
 		_ = tx.Rollback()
 
-		return err
+		return fmt.Errorf("marshal password reset token metadata: %v", err)
 
 	}
 
@@ -12500,7 +12410,7 @@ func RequestResetPassword(
 	token, err := models.Token.Create(
 		ctx,
 		tx,
-		salt,
+		i.pepper,
 
 		userResetPassword,
 		time.Now().Add(1*time.Hour),
@@ -12509,13 +12419,13 @@ func RequestResetPassword(
 	if err != nil {
 		_ = tx.Rollback()
 
-		return err
+		return fmt.Errorf("create password reset token: %w", err)
 
 	}
 
 	if err := tx.Commit(); err != nil {
 
-		return err
+		return fmt.Errorf("commit password reset request transaction: %w", err)
 
 	}
 
@@ -12526,19 +12436,19 @@ func RequestResetPassword(
 	html, err := rpEmail.ToHTML()
 	if err != nil {
 
-		return err
+		return fmt.Errorf("render password reset email html: %v", err)
 
 	}
 
 	text, err := rpEmail.ToText()
 	if err != nil {
 
-		return err
+		return fmt.Errorf("render password reset email text: %v", err)
 
 	}
 
 
-	_, err = insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
+	_, err = i.insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
 
 		Data: email.TransactionalData{
 			To:       user.Email,
@@ -12549,7 +12459,11 @@ func RequestResetPassword(
 		},
 	}, nil)
 
-	return err
+	if err != nil {
+		return fmt.Errorf("queue password reset email: %v", err)
+	}
+
+	return nil
 
 }
 
@@ -12560,31 +12474,29 @@ type ResetPasswordData struct {
 }
 
 
-func ResetPassword(
+func (i Identity) ResetPassword(
 	ctx context.Context,
-	db storage.Pool,
-	salt string,
 	data ResetPasswordData,
 ) error {
 
 	if data.Password != data.ConfirmPassword {
 
-		return errors.New("passwords do not match")
+		return ErrPasswordMismatch
 
 	}
 
 	if len(data.Password) < 8 {
 
-		return errors.New("password must be at least 8 characters")
+		return ErrPasswordTooShort
 
 	}
 
 
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := i.db.BeginTx(ctx, nil)
 
 	if err != nil {
 
-		return err
+		return fmt.Errorf("begin password reset transaction: %w", err)
 
 	}
 
@@ -12592,7 +12504,7 @@ func ResetPassword(
 	token, err := models.Token.FindByScopeAndHash(
 		ctx,
 		tx,
-		salt,
+		i.pepper,
 
 		userResetPassword,
 		data.Token,
@@ -12600,12 +12512,15 @@ func ResetPassword(
 	if err != nil {
 		_ = tx.Rollback()
 
-		return ErrInvalidResetCode
+		if errors.Is(err, models.ErrNotFound) {
+			return ErrInvalidResetCode
+		}
+		return fmt.Errorf("find password reset token: %w", err)
 
 	}
 
 
-	if !token.IsValid(data.Token, salt) {
+	if !token.IsValid(data.Token, i.pepper) {
 
 		_ = tx.Rollback()
 		return ErrExpiredResetCode
@@ -12615,7 +12530,7 @@ func ResetPassword(
 	if err := json.Unmarshal(token.MetaData, &meta); err != nil {
 		_ = tx.Rollback()
 
-		return err
+		return fmt.Errorf("unmarshal password reset token metadata: %v", err)
 
 	}
 
@@ -12623,7 +12538,7 @@ func ResetPassword(
 	if !ok {
 		_ = tx.Rollback()
 
-		return errors.New("token metadata missing email")
+		return errors.New("password reset token metadata missing email")
 
 	}
 
@@ -12631,17 +12546,20 @@ func ResetPassword(
 	if err != nil {
 		_ = tx.Rollback()
 
-		return err
+		if errors.Is(err, models.ErrNotFound) {
+			return ErrInvalidResetCode
+		}
+		return fmt.Errorf("find password reset user: %w", err)
 
 	}
 
 
-	hashedPassword, err := models.HashPassword(data.Password, salt)
+	hashedPassword, err := models.HashPassword(data.Password, i.pepper)
 
 	if err != nil {
 		_ = tx.Rollback()
 
-		return err
+		return fmt.Errorf("hash reset password: %w", err)
 
 	}
 
@@ -12655,21 +12573,43 @@ func ResetPassword(
 	if err != nil {
 		_ = tx.Rollback()
 
-		return err
+		if errors.Is(err, models.ErrNotFound) {
+			return ErrInvalidResetCode
+		}
+		return fmt.Errorf("update password reset user: %w", err)
 
 	}
 
 	if err := models.Token.Destroy(ctx, tx, token.ID); err != nil {
 		_ = tx.Rollback()
 
-		return err
+		return fmt.Errorf("destroy password reset token: %w", err)
 
 	}
 
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit password reset transaction: %w", err)
+	}
+
+	return nil
 
 }
+```
+
+file -----------rw-r--r-- services/service.go
+```
+// Package services provides application services for business workflows.
+package services
+
+import "go.uber.org/fx"
+
+var Module = fx.Module(
+	"services",
+	fx.Provide(
+		NewIdentity,
+	),
+)
 ```
 
 dir  d----------rwxr-xr-x telemetry
@@ -13519,6 +13459,8 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
     
+	"go.uber.org/fx"
+    
 	"golang.org/x/sync/errgroup"
 
 	sdklog "go.opentelemetry.io/otel/sdk/log"
@@ -13802,6 +13744,8 @@ func parseHeaders(headersStr string) map[string]string {
 	return headers
 }
 
+
+var Module = fx.Module("telemetry", fx.Provide(New))
 
 ```
 

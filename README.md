@@ -33,7 +33,7 @@ Development speed is everything. Andurel eliminates boilerplate and lets you foc
 - **Live Reload** - Hot reloading for Go, templates, and CSS with `andurel run` powered by [Shadowfax](https://github.com/mbvlabs/shadowfax)
 - **Type Safety Everywhere** - Bun for SQL, Templ/Vue for HTML, Go for logic
 - **Batteries Included** — Echo, Datastar, background jobs, sessions, CSRF protection, telemetry, email support, authentication, optional extensions (docker, aws-ses, css-components)
-- **Two DI Modes** — Choose **manual** wiring for simplicity or **uberfx** for declarative dependency injection with `go.uber.org/fx`
+- **UberFX DI** — Declarative dependency injection with `go.uber.org/fx`
 - **Two Frontend Options** — Server-rendered HTML with **Templ + Datastar** for hypermedia interactivity, or **Inertia SPA with Vue 3 + Vite** for a reactive single-page app
 - **Production Build** — One command (`andurel build`) to compile everything: Templ, Tailwind CSS, Vite assets, and Go binary
 - **Just enough Convention** - Convention over configuration is great to a certain point. Andurel provides just enough sensible defaults that just work and get out of your way.
@@ -52,7 +52,7 @@ The core philosophy around resource generation in andurel, is that it should be 
 - **[OpenTelemetry](https://opentelemetry.io/)** - Built-in observability
 - **[PostgreSQL](https://www.postgresql.org/)** - Powerful open-source database with pgx driver and native UUID support
 - **[Shadowfax](https://github.com/mbvlabs/shadowfax)** - Andurel-specific app runner
-- **[go.uber.org/fx](https://uber-go.github.io/fx/)** - Dependency injection framework (optional, `--di uberfx`)
+- **[go.uber.org/fx](https://uber-go.github.io/fx/)** - Dependency injection framework
 - **[gonertia](https://github.com/romsar/gonertia)** - Inertia.js Go adapter (optional, `--inertia vue`)
 - **[Vue.js](https://vuejs.org/)** - Progressive JavaScript framework (optional, via Inertia)
 - **[Vite](https://vitejs.dev/)** - Next-generation frontend build tool (optional, via Inertia)
@@ -70,21 +70,18 @@ go install github.com/mbvlabs/andurel@v1.0.0-beta.5
 Andurel gives you choices when creating a new project:
 
 ```bash
-# Create a new project with defaults (PostgreSQL + Tailwind CSS + manual DI)
+# Create a new project (PostgreSQL + Tailwind CSS + uberfx DI)
 andurel new myapp
 
 # Add extensions for additional features:
 andurel new myapp -e docker              # Add Dockerfile for containerization
 andurel new myapp -e aws-ses             # Add AWS SES email integration
 
-# Choose dependency injection approach:
-andurel new myapp --di uberfx            # Use uber-go/fx for declarative DI
-
 # Choose your frontend approach:
 andurel new myapp --inertia vue          # Inertia SPA with Vue 3 + Vite
 
 # Combine options:
-andurel new myapp --di uberfx --inertia vue -e docker
+andurel new myapp --inertia vue -e docker
 
 cd myapp
 
@@ -157,7 +154,7 @@ andurel new (alias: n) [project-name] [flags]
 | Flag | Description |
 |------|-------------|
 | `-e`, `--extensions` | Comma-separated extensions to enable (e.g. `docker,aws-ses,css-components`) |
-| `--di` | Dependency injection approach: `manual` (default) or `uberfx` |
+
 | `--inertia` | Frontend adapter: `vue` (enables Inertia SPA with Vue 3 + Vite) |
 
 ### `andurel generate` — Code generation
@@ -562,7 +559,7 @@ myapp/
 └── go.sum
 ```
 
-### UberFX Mode (`--di uberfx`)
+### UberFX Mode
 
 When using uberfx, the following files **change**:
 
@@ -606,9 +603,7 @@ myapp/
 
 The `controllers/pages.go` uses Inertia rendering instead of Templ, and `cmd/app/main.go` initializes `internal/inertia`. Run `npm install` after scaffolding. Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia Vue resource pages (reads the adapter from `andurel.lock`).
 
-### Inertia Vue + UberFX (`--di uberfx --inertia vue`)
-
-Combines the UberFX routing pattern with the Inertia frontend layer. The pages controller uses `RegisterRoutes()` and renders via Inertia instead of Templ.
+When using `--inertia vue`, controllers can render Inertia Vue pages alongside Templ.
 
 ### Real Example: Controller to Vue Component
 

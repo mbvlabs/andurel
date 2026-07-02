@@ -43,7 +43,7 @@ func LoadProjectContext(rootDir string) (*TemplateData, *AndurelLock, error) {
 
 	diMode := lock.ScaffoldConfig.DIMode
 	if diMode == "" {
-		diMode = "manual"
+		diMode = "uberfx"
 	}
 
 	td := &TemplateData{
