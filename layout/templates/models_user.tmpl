@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/internal/validation"
 
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
@@ -28,6 +29,14 @@ type UserEntity struct {
 	EmailValidatedAt sql.NullTime `bun:"email_validated_at"`
 	Password         []byte     `bun:"password"`
 	IsAdmin          bool       `bun:"is_admin"`
+}
+
+func (u *UserEntity) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("email", u.Email)
+	b.MaxLen("email", u.Email, 255)
+
+	return b.Err()
 }
 
 func (u *UserEntity) HasValidatedEmail() bool {
@@ -97,12 +106,12 @@ func (u user) FindByEmail(ctx context.Context, db storage.Executor, email string
 }
 
 type PasswordPair struct {
-	Password        string `validate:"required,min=8,max=72"`
-	ConfirmPassword string `validate:"required,min=8,max=72"`
+	Password        string
+	ConfirmPassword string
 }
 
 type CreateUserData struct {
-	Email        string `validate:"required,email,max=255"`
+	Email        string
 	PasswordPair PasswordPair
 }
 
@@ -112,10 +121,6 @@ func (u user) Create(
 	pepper string,
 	data CreateUserData,
 ) (UserEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return UserEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	hashedPassword, err := HashPassword(data.PasswordPair.Password, pepper)
 	if err != nil {
 		return UserEntity{}, err
@@ -131,6 +136,10 @@ func (u user) Create(
 		IsAdmin:          false,
 	}
 
+	if err := validation.Validate(&entity); err != nil {
+		return UserEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
 	_, err = db.NewInsert().Model(&entity).Exec(ctx)
 	if err != nil {
 		return UserEntity{}, err
@@ -141,17 +150,13 @@ func (u user) Create(
 
 type UpdateUserData struct {
 	ID               uuid.UUID
-	Email            string `validate:"required,email,max=255"`
+	Email            string
 	EmailValidatedAt sql.NullTime
 	Password         []byte
 	IsAdmin          bool
 }
 
 func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserData) (UserEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return UserEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	var current UserEntity
 	err := db.NewSelect().
 		Model(&current).
@@ -188,6 +193,10 @@ func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserDa
 		EmailValidatedAt: emailValidatedAt,
 		Password:         password,
 		IsAdmin:          data.IsAdmin,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return UserEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	_, err = db.NewUpdate().

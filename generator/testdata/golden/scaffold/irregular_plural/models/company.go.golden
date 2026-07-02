@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"testapp/internal/storage"
+	"testapp/internal/validation"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,6 +19,10 @@ type CompanyEntity struct {
 	Industry      sql.NullString `bun:"industry"`
 	CreatedAt     time.Time      `bun:"created_at"`
 	UpdatedAt     time.Time      `bun:"updated_at"`
+}
+
+func (e *CompanyEntity) Validate() error {
+	return nil
 }
 
 func (c company) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (CompanyEntity, error) {
@@ -38,16 +43,16 @@ type CreateCompanyData struct {
 }
 
 func (c company) Create(ctx context.Context, db storage.Executor, data CreateCompanyData) (CompanyEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return CompanyEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := CompanyEntity{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Name:      data.Name,
 		Industry:  data.Industry,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return CompanyEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
@@ -65,15 +70,15 @@ type UpdateCompanyData struct {
 }
 
 func (c company) Update(ctx context.Context, db storage.Executor, data UpdateCompanyData) (CompanyEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return CompanyEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := CompanyEntity{
 		ID:        data.ID,
 		UpdatedAt: time.Now(),
 		Name:      data.Name,
 		Industry:  data.Industry,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return CompanyEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewUpdate().
@@ -158,16 +163,16 @@ func (c company) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 }
 
 func (c company) Upsert(ctx context.Context, db storage.Executor, data CreateCompanyData) (CompanyEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return CompanyEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := CompanyEntity{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Name:      data.Name,
 		Industry:  data.Industry,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return CompanyEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewInsert().

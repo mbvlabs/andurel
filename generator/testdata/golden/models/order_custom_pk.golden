@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/example/shop/internal/storage"
+	"github.com/example/shop/internal/validation"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 )
@@ -21,6 +22,10 @@ type OrderEntity struct {
 	PlacedAt      sql.NullTime `bun:"placed_at"`
 	CreatedAt     time.Time    `bun:"created_at"`
 	UpdatedAt     time.Time    `bun:"updated_at"`
+}
+
+func (e *OrderEntity) Validate() error {
+	return nil
 }
 
 func (o order) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (OrderEntity, error) {
@@ -44,10 +49,6 @@ type CreateOrderData struct {
 }
 
 func (o order) Create(ctx context.Context, db storage.Executor, data CreateOrderData) (OrderEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return OrderEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := OrderEntity{
 		OrderID:    uuid.New(),
 		CreatedAt:  time.Now(),
@@ -57,6 +58,10 @@ func (o order) Create(ctx context.Context, db storage.Executor, data CreateOrder
 		TotalCents: data.TotalCents,
 		Status:     data.Status,
 		PlacedAt:   data.PlacedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return OrderEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
@@ -77,10 +82,6 @@ type UpdateOrderData struct {
 }
 
 func (o order) Update(ctx context.Context, db storage.Executor, data UpdateOrderData) (OrderEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return OrderEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := OrderEntity{
 		OrderID:    data.OrderID,
 		UpdatedAt:  time.Now(),
@@ -89,6 +90,10 @@ func (o order) Update(ctx context.Context, db storage.Executor, data UpdateOrder
 		TotalCents: data.TotalCents,
 		Status:     data.Status,
 		PlacedAt:   data.PlacedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return OrderEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewUpdate().
@@ -176,10 +181,6 @@ func (o order) Paginate(ctx context.Context, db storage.Executor, page, pageSize
 }
 
 func (o order) Upsert(ctx context.Context, db storage.Executor, data CreateOrderData) (OrderEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return OrderEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := OrderEntity{
 		OrderID:    uuid.New(),
 		CreatedAt:  time.Now(),
@@ -189,6 +190,10 @@ func (o order) Upsert(ctx context.Context, db storage.Executor, data CreateOrder
 		TotalCents: data.TotalCents,
 		Status:     data.Status,
 		PlacedAt:   data.PlacedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return OrderEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewInsert().

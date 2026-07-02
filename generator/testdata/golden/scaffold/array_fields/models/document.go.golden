@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testapp/internal/storage"
+	"testapp/internal/validation"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,6 +21,10 @@ type DocumentEntity struct {
 	IsPublished   bool      `bun:"is_published"`
 	CreatedAt     time.Time `bun:"created_at"`
 	UpdatedAt     time.Time `bun:"updated_at"`
+}
+
+func (e *DocumentEntity) Validate() error {
+	return nil
 }
 
 func (d document) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (DocumentEntity, error) {
@@ -43,10 +48,6 @@ type CreateDocumentData struct {
 }
 
 func (d document) Create(ctx context.Context, db storage.Executor, data CreateDocumentData) (DocumentEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return DocumentEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := DocumentEntity{
 		ID:          uuid.New(),
 		CreatedAt:   time.Now(),
@@ -56,6 +57,10 @@ func (d document) Create(ctx context.Context, db storage.Executor, data CreateDo
 		PageNumbers: data.PageNumbers,
 		ViewCount:   data.ViewCount,
 		IsPublished: data.IsPublished,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return DocumentEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
@@ -76,10 +81,6 @@ type UpdateDocumentData struct {
 }
 
 func (d document) Update(ctx context.Context, db storage.Executor, data UpdateDocumentData) (DocumentEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return DocumentEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := DocumentEntity{
 		ID:          data.ID,
 		UpdatedAt:   time.Now(),
@@ -88,6 +89,10 @@ func (d document) Update(ctx context.Context, db storage.Executor, data UpdateDo
 		PageNumbers: data.PageNumbers,
 		ViewCount:   data.ViewCount,
 		IsPublished: data.IsPublished,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return DocumentEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewUpdate().
@@ -175,10 +180,6 @@ func (d document) Paginate(ctx context.Context, db storage.Executor, page, pageS
 }
 
 func (d document) Upsert(ctx context.Context, db storage.Executor, data CreateDocumentData) (DocumentEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return DocumentEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := DocumentEntity{
 		ID:          uuid.New(),
 		CreatedAt:   time.Now(),
@@ -188,6 +189,10 @@ func (d document) Upsert(ctx context.Context, db storage.Executor, data CreateDo
 		PageNumbers: data.PageNumbers,
 		ViewCount:   data.ViewCount,
 		IsPublished: data.IsPublished,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return DocumentEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewInsert().

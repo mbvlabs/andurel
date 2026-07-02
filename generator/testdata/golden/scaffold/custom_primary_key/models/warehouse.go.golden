@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"testapp/internal/storage"
+	"testapp/internal/validation"
 	"time"
 
 	"github.com/uptrace/bun"
@@ -17,6 +18,10 @@ type WarehouseEntity struct {
 	Location      sql.NullString `bun:"location"`
 	CreatedAt     time.Time      `bun:"created_at"`
 	UpdatedAt     time.Time      `bun:"updated_at"`
+}
+
+func (e *WarehouseEntity) Validate() error {
+	return nil
 }
 
 func (w warehouse) Find(ctx context.Context, db storage.Executor, id string) (WarehouseEntity, error) {
@@ -38,16 +43,16 @@ type CreateWarehouseData struct {
 }
 
 func (w warehouse) Create(ctx context.Context, db storage.Executor, data CreateWarehouseData) (WarehouseEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return WarehouseEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := WarehouseEntity{
 		Slug:      data.Slug,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Name:      data.Name,
 		Location:  data.Location,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return WarehouseEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
@@ -65,15 +70,15 @@ type UpdateWarehouseData struct {
 }
 
 func (w warehouse) Update(ctx context.Context, db storage.Executor, data UpdateWarehouseData) (WarehouseEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return WarehouseEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := WarehouseEntity{
 		Slug:      data.Slug,
 		UpdatedAt: time.Now(),
 		Name:      data.Name,
 		Location:  data.Location,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return WarehouseEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewUpdate().
@@ -158,16 +163,16 @@ func (w warehouse) Paginate(ctx context.Context, db storage.Executor, page, page
 }
 
 func (w warehouse) Upsert(ctx context.Context, db storage.Executor, data CreateWarehouseData) (WarehouseEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return WarehouseEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := WarehouseEntity{
 		Slug:      data.Slug,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Name:      data.Name,
 		Location:  data.Location,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return WarehouseEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewInsert().

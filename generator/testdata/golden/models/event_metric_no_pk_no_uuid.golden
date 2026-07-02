@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/example/shop/internal/storage"
+	"github.com/example/shop/internal/validation"
 	"github.com/uptrace/bun"
 )
 
@@ -18,6 +19,10 @@ type EventMetricEntity struct {
 	OccurredAt    time.Time `bun:"occurred_at"`
 }
 
+func (e *EventMetricEntity) Validate() error {
+	return nil
+}
+
 type CreateEventMetricData struct {
 	Action     string
 	EntityType string
@@ -27,16 +32,16 @@ type CreateEventMetricData struct {
 }
 
 func (em eventMetric) Create(ctx context.Context, db storage.Executor, data CreateEventMetricData) (EventMetricEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return EventMetricEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := EventMetricEntity{
 		Action:     data.Action,
 		EntityType: data.EntityType,
 		EventCount: data.EventCount,
 		Successful: data.Successful,
 		OccurredAt: data.OccurredAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return EventMetricEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {

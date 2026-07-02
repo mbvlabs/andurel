@@ -19,6 +19,10 @@ type {{.EntityName}} struct {
 {{- end}}
 }
 
+func (e *{{.EntityName}}) Validate() error {
+	return nil
+}
+
 {{if .HasPrimaryKey}}
 func ({{.ReceiverName}} {{.NamespaceType}}) Find(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) ({{.EntityName}}, error) {
 	var entity {{.EntityName}}
@@ -47,10 +51,6 @@ type Create{{.Name}}Data struct {
 }
 
 func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db storage.Executor, data Create{{.Name}}Data) ({{.EntityName}}, error) {
-	if err := Validate.Struct(data); err != nil {
-		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := {{.EntityName}}{
 {{- if .HasPrimaryKey}}
 {{- if not .IsAutoIncrementID}}
@@ -74,6 +74,10 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db stora
 {{- end}}
 	}
 
+	if err := validation.Validate(&entity); err != nil {
+		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
+	}
+
 	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}
@@ -92,10 +96,6 @@ type Update{{.Name}}Data struct {
 }
 
 func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db storage.Executor, data Update{{.Name}}Data) ({{.EntityName}}, error) {
-	if err := Validate.Struct(data); err != nil {
-		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := {{.EntityName}}{
 		{{.IDGoFieldName}}: data.{{.IDGoFieldName}},
 {{- if .HasUpdatedAt}}
@@ -106,6 +106,10 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db stora
 		{{.Name}}: data.{{.Name}},
 {{- end}}
 {{- end}}
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewUpdate().
@@ -195,10 +199,6 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db sto
 
 {{if .HasPrimaryKey}}
 func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db storage.Executor, data Create{{.Name}}Data) ({{.EntityName}}, error) {
-	if err := Validate.Struct(data); err != nil {
-		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := {{.EntityName}}{
 {{- if not .IsAutoIncrementID}}
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
@@ -218,6 +218,10 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db stora
 		{{.Name}}: data.{{.Name}},
 {{- end}}
 {{- end}}
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewInsert().

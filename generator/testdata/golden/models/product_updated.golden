@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/example/shop/internal/storage"
+	"github.com/example/shop/internal/validation"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 )
@@ -30,6 +31,10 @@ type ProductEntity struct {
 	UpdatedAt   time.Time       `bun:"updated_at"`
 	ArchivedAt  sql.NullTime    `bun:"archived_at"`
 	Rating      float64         `bun:"rating"`
+}
+
+func (e *ProductEntity) Validate() error {
+	return nil
 }
 
 func (p product) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ProductEntity, error) {
@@ -59,10 +64,6 @@ type CreateProductData struct {
 }
 
 func (p product) Create(ctx context.Context, db storage.Executor, data CreateProductData) (ProductEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return ProductEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := ProductEntity{
 		ID:          uuid.New(),
 		CreatedAt:   time.Now(),
@@ -78,6 +79,10 @@ func (p product) Create(ctx context.Context, db storage.Executor, data CreatePro
 		Metadata:    data.Metadata,
 		Attributes:  data.Attributes,
 		LaunchedAt:  data.LaunchedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return ProductEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
@@ -104,10 +109,6 @@ type UpdateProductData struct {
 }
 
 func (p product) Update(ctx context.Context, db storage.Executor, data UpdateProductData) (ProductEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return ProductEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := ProductEntity{
 		ID:          data.ID,
 		UpdatedAt:   time.Now(),
@@ -122,6 +123,10 @@ func (p product) Update(ctx context.Context, db storage.Executor, data UpdatePro
 		Metadata:    data.Metadata,
 		Attributes:  data.Attributes,
 		LaunchedAt:  data.LaunchedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return ProductEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewUpdate().
@@ -215,10 +220,6 @@ func (p product) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 }
 
 func (p product) Upsert(ctx context.Context, db storage.Executor, data CreateProductData) (ProductEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return ProductEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := ProductEntity{
 		ID:          uuid.New(),
 		CreatedAt:   time.Now(),
@@ -234,6 +235,10 @@ func (p product) Upsert(ctx context.Context, db storage.Executor, data CreatePro
 		Metadata:    data.Metadata,
 		Attributes:  data.Attributes,
 		LaunchedAt:  data.LaunchedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return ProductEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	if err := db.NewInsert().
