@@ -253,6 +253,21 @@ func TestControllerViewGenerationGoldensInertiaFlagStillGeneratesInertia(t *test
 	assertGeneratedFileNotContains(t, "controllers/widgets.go", "testapp/internal/hypermedia")
 }
 
+func TestControllerViewGenerationGoldensReactInertiaFlagGeneratesReactPages(t *testing.T) {
+	coord := setupControllerViewGoldenProject(t, "uberfx", "tailwind", false)
+
+	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index", "show"}, "react", false); err != nil {
+		t.Fatalf("failed to generate controller/view: %v", err)
+	}
+
+	assertControllerViewGoldenFileMissing(t, "views/widgets_resource.templ")
+	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Index.tsx"), "@inertiajs/react")
+	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Show.tsx"), "export default function Show")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "testapp/internal/inertia")
+	assertGeneratedFileNotContains(t, "controllers/widgets.go", "testapp/internal/hypermedia")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "return inertia.Page(etx, \"Widget/Index\"")
+}
+
 func TestControllerViewGenerationGoldensSingleVueActionGeneratesInertiaController(t *testing.T) {
 	coord := setupControllerViewGoldenProject(t, "manual", "tailwind", false)
 

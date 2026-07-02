@@ -1,0 +1,97 @@
+import '../../css/base.css'
+
+import { useEffect, useState, type ComponentType } from 'react'
+import { createRoot } from 'react-dom/client'
+import { createInertiaApp, router } from '@inertiajs/react'
+
+type FlashMessage = {
+  Type: string
+  Message: string
+}
+
+type PageProps = {
+  flash?: FlashMessage[]
+  [key: string]: unknown
+}
+
+type RootProps = {
+  App: ComponentType<any>
+  props: Record<string, any> & { initialPage?: { props?: PageProps } }
+}
+
+function FlashToasts({ initialFlashes }: { initialFlashes?: FlashMessage[] }) {
+  const [toasts, setToasts] = useState<Array<FlashMessage & { id: number }>>([])
+
+  useEffect(() => {
+    let nextId = 0
+
+    function pushFlashes(flashes?: FlashMessage[]) {
+      if (!flashes || flashes.length === 0) {
+        return
+      }
+
+      for (const flash of flashes) {
+        const id = nextId++
+        setToasts((current) => [...current, { ...flash, id }])
+        window.setTimeout(() => {
+          setToasts((current) => current.filter((toast) => toast.id !== id))
+        }, 5000)
+      }
+    }
+
+    pushFlashes(initialFlashes)
+
+    const removeListener = router.on('success', (event) => {
+      pushFlashes((event.detail.page.props as PageProps).flash)
+    })
+
+    return () => {
+      removeListener()
+    }
+  }, [initialFlashes])
+
+  if (toasts.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="fixed bottom-4 right-4 z-50">
+      {toasts.map((toast) => {
+        const color =
+          toast.Type === 'success'
+            ? 'bg-green-600'
+            : toast.Type === 'error'
+              ? 'bg-red-600'
+              : 'bg-blue-600'
+
+        return (
+          <div
+            key={toast.id}
+            className={`${color} mb-2 rounded-lg px-4 py-3 text-white shadow-lg transition-opacity duration-300`}
+          >
+            {toast.Message}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function Root({ App, props }: RootProps) {
+  return (
+    <>
+      <App {...props} />
+      <FlashToasts initialFlashes={props.initialPage?.props?.flash} />
+    </>
+  )
+}
+
+createInertiaApp({
+  resolve: (name: string) => {
+    const pages = import.meta.glob<ComponentType<any>>('./Pages/**/*.tsx', { eager: true, import: 'default' })
+    return pages[`./Pages/${name}.tsx`]
+  },
+  setup({ el, App, props }) {
+    createRoot(el).render(<Root App={App} props={props} />)
+  },
+})

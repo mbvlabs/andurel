@@ -61,6 +61,17 @@ func (td *TemplateData) GetInertia() string {
 	return td.Inertia
 }
 
+// IsSupportedInertiaAdapter reports whether adapter names a frontend adapter
+// Andurel knows how to scaffold.
+func IsSupportedInertiaAdapter(adapter string) bool {
+	switch adapter {
+	case "vue", "react":
+		return true
+	default:
+		return false
+	}
+}
+
 // Blueprint returns the underlying blueprint. If not yet initialized, creates
 // a new one.
 func (td *TemplateData) Blueprint() *blueprint.Blueprint {

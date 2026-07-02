@@ -9,7 +9,7 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/config"
-{{- if eq .Inertia "vue"}}
+{{- if .Inertia}}
 	"{{.ModuleName}}/internal/inertia"
 {{- end}}
 	"{{.ModuleName}}/router/cookies"
@@ -111,7 +111,7 @@ func SetupGlobalMiddleware(
 		),
 		middleware.ValidateSession,
 		middleware.RegisterRequestMeta,
-{{- if eq .Inertia "vue"}}
+{{- if .Inertia}}
 		inertia.Middleware(),
 {{- end}}
 		echomw.CORSWithConfig(echomw.CORSConfig{

@@ -13,6 +13,7 @@ import (
 
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
@@ -132,8 +133,8 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		routeActions = mergeActions(existingActions, actions)
 		existingFrontend := detectControllerFrontend(existingControllerContent)
 		requestedFrontend := controllerFrontendTempl
-		if inertia == "vue" {
-			requestedFrontend = controllerFrontendInertiaVue
+		if layout.IsSupportedInertiaAdapter(inertia) {
+			requestedFrontend = controllerFrontendInertia
 		}
 		if existingFrontend != controllerFrontendUnknown && existingFrontend != requestedFrontend {
 			mergeIntoExistingController = true
@@ -220,16 +221,16 @@ var crudActions = []string{"index", "show", "new", "create", "edit", "update", "
 type controllerFrontend string
 
 const (
-	controllerFrontendUnknown    controllerFrontend = ""
-	controllerFrontendTempl      controllerFrontend = "templ"
-	controllerFrontendInertiaVue controllerFrontend = "inertia-vue"
-	controllerFrontendAPI        controllerFrontend = "api"
+	controllerFrontendUnknown controllerFrontend = ""
+	controllerFrontendTempl   controllerFrontend = "templ"
+	controllerFrontendInertia controllerFrontend = "inertia"
+	controllerFrontendAPI     controllerFrontend = "api"
 )
 
 func detectControllerFrontend(content string) controllerFrontend {
 	switch {
 	case strings.Contains(content, "/internal/inertia\""):
-		return controllerFrontendInertiaVue
+		return controllerFrontendInertia
 	case strings.Contains(content, "/internal/hypermedia\""):
 		return controllerFrontendTempl
 	default:

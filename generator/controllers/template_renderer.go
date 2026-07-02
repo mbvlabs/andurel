@@ -8,6 +8,7 @@ import (
 	"text/template"
 
 	"github.com/mbvlabs/andurel/generator/templates"
+	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/errors"
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
@@ -72,7 +73,7 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 		}
 	} else if controller.Type == ResourceController {
 		templateName = "deprecated_resource_controller.tmpl"
-		if inertia == "vue" {
+		if layout.IsSupportedInertiaAdapter(inertia) {
 			templateName = "deprecated_inertia_vue_resource_controller.tmpl"
 			if diMode == "uberfx" {
 				templateName = "inertia_vue_resource_controller_fx.tmpl"

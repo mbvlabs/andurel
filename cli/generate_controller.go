@@ -10,6 +10,7 @@ import (
 	generatorpkg "github.com/mbvlabs/andurel/generator"
 	controllergen "github.com/mbvlabs/andurel/generator/controllers"
 	"github.com/mbvlabs/andurel/generator/files"
+	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
@@ -36,7 +37,7 @@ are generated. Partial CRUD views are self-contained and only link to companion
 actions that are also present.
 
 Non-CRUD actions are added as empty controller methods, with matching empty
-components in views/<name>_resource.templ or Inertia Vue pages, and conventional
+components in views/<name>_resource.templ or Inertia pages, and conventional
 GET routes at /<controllers>/<action>.
 
 Use --model-name when the generated controller/resource name should differ from
@@ -208,7 +209,7 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 	receiverName := naming.ToReceiverName(name)
 	resourceName := name
 	controllerName := naming.ToPascalCase(pluralName)
-	isInertia := inertia == "vue"
+	isInertia := layout.IsSupportedInertiaAdapter(inertia)
 	isFX := diMode == "uberfx"
 	packageName := naming.ControllerPackageName(namespace)
 
@@ -311,8 +312,8 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 	if isAPI {
 		// API controllers don't have views
 	} else if isInertia {
-		if err := generateActionVueViewFile(name, namespace, tableName, actions); err != nil {
-			return fmt.Errorf("failed to generate vue view file: %w", err)
+		if err := generateActionInertiaViewFile(name, namespace, tableName, actions, inertia); err != nil {
+			return fmt.Errorf("failed to generate inertia view file: %w", err)
 		}
 	} else {
 		if err := generateActionViewFile(name, namespace, tableName, modulePath, ts, actions); err != nil {
@@ -471,7 +472,7 @@ func actionViewComponent(resourceName, namespacePascal, methodName string) strin
 	return sb.String()
 }
 
-func generateActionVueViewFile(name, namespace, tableName string, actions []string) error {
+func generateActionInertiaViewFile(name, namespace, tableName string, actions []string, adapter string) error {
 	resourceName := naming.ToPascalCase(name)
 	pagesDir := filepath.Join("resources", "js", "Pages", naming.ToPascalCase(namespace), resourceName)
 
@@ -481,31 +482,59 @@ func generateActionVueViewFile(name, namespace, tableName string, actions []stri
 
 	for _, action := range actions {
 		methodName := naming.ToPascalCase(action)
-		vueFilePath := filepath.Join(pagesDir, methodName+".vue")
+		viewFilePath := filepath.Join(pagesDir, methodName+inertiaActionViewExtension(adapter))
 
-		if _, err := os.Stat(vueFilePath); err == nil {
+		if _, err := os.Stat(viewFilePath); err == nil {
 			continue
 		}
 
-		var sb strings.Builder
-		sb.WriteString("<script setup lang=\"ts\">\n")
-		sb.WriteString("import { Head } from '@inertiajs/vue3'\n")
-		sb.WriteString("</script>\n\n")
-		sb.WriteString("<template>\n")
-		sb.WriteString(fmt.Sprintf("  <Head title=\"%s %s\" />\n", resourceName, methodName))
-		sb.WriteString("  <div class=\"mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8\">\n")
-		sb.WriteString(fmt.Sprintf("    <h1 class=\"text-2xl font-bold text-gray-900\">%s#%s</h1>\n", resourceName, methodName))
-		sb.WriteString("    <p class=\"mt-2 text-sm text-gray-500\">Content for this action has not been implemented yet.</p>\n")
-		sb.WriteString("  </div>\n")
-		sb.WriteString("</template>\n")
-
-		if err := os.WriteFile(vueFilePath, []byte(sb.String()), constants.FilePermissionPrivate); err != nil {
-			return fmt.Errorf("failed to write vue view file %s: %w", vueFilePath, err)
+		content := actionInertiaViewComponent(adapter, resourceName, methodName)
+		if err := os.WriteFile(viewFilePath, []byte(content), constants.FilePermissionPrivate); err != nil {
+			return fmt.Errorf("failed to write inertia view file %s: %w", viewFilePath, err)
 		}
 	}
 
-	fmt.Printf("Successfully generated vue views at %s\n", pagesDir)
+	fmt.Printf("Successfully generated inertia views at %s\n", pagesDir)
 	return nil
+}
+
+func inertiaActionViewExtension(adapter string) string {
+	if adapter == "react" {
+		return ".tsx"
+	}
+	return ".vue"
+}
+
+func actionInertiaViewComponent(adapter, resourceName, methodName string) string {
+	if adapter == "react" {
+		return fmt.Sprintf(`import { Head } from '@inertiajs/react'
+
+export default function %s() {
+  return (
+    <>
+      <Head title="%s %s" />
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <h1 className="text-2xl font-bold text-gray-900">%s#%s</h1>
+        <p className="mt-2 text-sm text-gray-500">Content for this action has not been implemented yet.</p>
+      </div>
+    </>
+  )
+}
+`, methodName, resourceName, methodName, resourceName, methodName)
+	}
+
+	return fmt.Sprintf(`<script setup lang="ts">
+import { Head } from '@inertiajs/vue3'
+</script>
+
+<template>
+  <Head title="%s %s" />
+  <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <h1 class="text-2xl font-bold text-gray-900">%s#%s</h1>
+    <p class="mt-2 text-sm text-gray-500">Content for this action has not been implemented yet.</p>
+  </div>
+</template>
+`, resourceName, methodName, resourceName, methodName)
 }
 
 func readModulePath() (string, error) {
