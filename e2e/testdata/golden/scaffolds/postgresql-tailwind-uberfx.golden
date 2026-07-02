@@ -1285,6 +1285,9 @@ var (
 
 		return "noreply@" + Domain
 	}()
+	InertiaEnableSSR = func() bool {
+		return os.Getenv("INERTIA_SSR_ENABLED") == "true"
+	}()
 )
 
 type Config struct {

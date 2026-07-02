@@ -3,7 +3,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 
-export default defineConfig({
+export default defineConfig(({ isSsrBuild }) => ({
   plugins: [vue(), tailwindcss()],
   resolve: {
     alias: {
@@ -12,15 +12,18 @@ export default defineConfig({
   },
   base: '/assets/dist/',
   build: {
-    manifest: "vite/manifest.json",
+    manifest: isSsrBuild ? false : "vite/manifest.json",
     assetsDir: "",
-    outDir: 'assets/dist',
+    outDir: isSsrBuild ? 'assets/dist/ssr' : 'assets/dist',
     rollupOptions: {
-      input: 'resources/js/app.ts',
+      input: isSsrBuild ? 'resources/js/ssr.ts' : 'resources/js/app.ts',
+      output: isSsrBuild ? {
+        entryFileNames: '[name].js',
+      } : undefined,
     },
   },
   server: {
     port: 5173,
     strictPort: true,
   },
-})
+}))

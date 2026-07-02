@@ -1,0 +1,38 @@
+import { createInertiaApp } from '@inertiajs/vue3'
+import createServer from '@inertiajs/vue3/server'
+import { createSSRApp, defineComponent, h, type DefineComponent } from 'vue'
+import { renderToString } from 'vue/server-renderer'
+
+const ssrUrl = new URL(process.env.INERTIA_SSR_URL ?? 'http://127.0.0.1:13714')
+const ssrPort = Number(ssrUrl.port || (ssrUrl.protocol === 'https:' ? 443 : 80))
+
+const FlashToasts = defineComponent({
+  setup() {
+    return () => null
+  },
+})
+
+createServer((page) =>
+  createInertiaApp({
+    page,
+    render: renderToString,
+    resolve: (name: string): Promise<DefineComponent> => {
+      const pages = import.meta.glob<DefineComponent>('./Pages/**/*.vue')
+      return pages[`./Pages/${name}.vue`]() as Promise<DefineComponent>
+    },
+    setup({ App, props, plugin }) {
+      return createSSRApp({
+        render() {
+          return h('div', [
+            h(App, props),
+            h(FlashToasts),
+          ])
+        },
+      }).use(plugin)
+    },
+  }),
+  {
+    host: ssrUrl.hostname,
+    port: ssrPort,
+  },
+)

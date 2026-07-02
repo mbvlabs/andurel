@@ -606,6 +606,31 @@ myapp/
 
 The `controllers/pages.go` uses Inertia rendering instead of Templ, and `cmd/app/main.go` initializes `internal/inertia`. Run `npm install` after scaffolding. Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia Vue resource pages (reads the adapter from `andurel.lock`).
 
+**Server-Side Rendering (SSR):** Per-page SSR is supported via `inertia.SSREnabled()`. Enable the SSR infrastructure by setting `INERTIA_SSR_ENABLED=true` in your environment (this adds `config.InertiaEnableSSR` to the generated config). Then opt in per page:
+
+```go
+// Without SSR (default)
+return inertia.Page(etx, "Welcome", inertia.Props{
+    "appName": "MyApp",
+})
+
+// With SSR
+return inertia.Page(etx, "Products", inertia.Props{
+    "items": products,
+}, inertia.SSREnabled())
+```
+
+SSR requires running an Inertia SSR server (default: `http://127.0.0.1:13714`). Build and start it with:
+
+```bash
+npm run build:ssr
+npm run ssr
+```
+
+Use `INERTIA_SSR_URL` to point the Go app and generated Node server at a different SSR URL. Do not point it at the Andurel HTTP app port; Gonertia sends SSR render requests to the SSR server's `/render` endpoint.
+
+If the SSR server is unreachable when rendering an SSR-enabled page, the request fails with a 500 error (fail-closed). Inertia XHR requests are never SSR'd - the JSON response is returned directly. To confirm SSR is working, request the page without the `X-Inertia` header and inspect the HTML source: an SSR response contains page markup inside `<div id="app">`, while a client-rendered response only contains the Inertia JSON payload script and an empty app div.
+
 ### Inertia Vue + UberFX (`--di uberfx --inertia vue`)
 
 Combines the UberFX routing pattern with the Inertia frontend layer. The pages controller uses `RegisterRoutes()` and renders via Inertia instead of Templ.

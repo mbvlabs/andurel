@@ -145,7 +145,7 @@ func run(ctx context.Context) error {
 	cfg := config.NewConfig()
 
 {{- if eq .Inertia "vue"}}
-	if err := inertia.Init("views/root.go.html"); err != nil {
+	if err := inertia.Init("views/root.go.html", config.InertiaEnableSSR); err != nil {
 		return fmt.Errorf("failed to initialize inertia: %w", err)
 	}
 

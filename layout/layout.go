@@ -444,6 +444,7 @@ var fxSkippedTemplates = map[TmplTarget]bool{
 var inertiaTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_framework_root_html.tmpl":  "views/root.go.html",
 	"inertia_assets_app.tmpl":           "resources/js/app.ts",
+	"inertia_assets_ssr.tmpl":           "resources/js/ssr.ts",
 	"inertia_assets_pages_welcome.tmpl": "resources/js/Pages/Welcome.vue",
 	"inertia_assets_vite_config.tmpl":   "vite.config.ts",
 	"inertia_assets_package_json.tmpl":  "package.json",
