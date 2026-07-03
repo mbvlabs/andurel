@@ -855,7 +855,6 @@ file -----------rw-r--r-- andurel.lock
   "scaffoldConfig": {
     "cssFramework": "tailwind",
     "database": "postgresql",
-    "diMode": "uberfx",
     "inertia": "vue",
     "javascriptRuntime": "npm",
     "projectName": "testapp"

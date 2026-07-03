@@ -53,7 +53,7 @@ The core philosophy around resource generation in andurel, is that it should be 
 - **[PostgreSQL](https://www.postgresql.org/)** - Powerful open-source database with pgx driver and native UUID support
 - **[Shadowfax](https://github.com/mbvlabs/shadowfax)** - Andurel-specific app runner
 - **[go.uber.org/fx](https://uber-go.github.io/fx/)** - Dependency injection framework
-- **[gonertia](https://github.com/romsar/gonertia)** - Inertia.js Go adapter (optional, `--inertia vue` or `--inertia react`)
+- **[gonertia](https://github.com/romsar/gonertia)** - Inertia.js Go adapter (optional, `--inertia vue` or `--inertia react`; append `/pnpm`, `/bun`, or `/yarn` to set JS runtime)
 - **[Vue.js](https://vuejs.org/) / [React](https://react.dev/)** - JavaScript UI adapters (optional, via Inertia)
 - **[Vite](https://vitejs.dev/)** - Next-generation frontend build tool (optional, via Inertia)
 
@@ -78,8 +78,9 @@ andurel new myapp -e docker              # Add Dockerfile for containerization
 andurel new myapp -e aws-ses             # Add AWS SES email integration
 
 # Choose your frontend approach:
-andurel new myapp --inertia vue          # Inertia SPA with Vue 3 + Vite
-andurel new myapp --inertia react        # Inertia SPA with React + Vite
+andurel new myapp --inertia vue           # Inertia SPA with Vue 3 + Vite (JS runtime: npm)
+andurel new myapp --inertia react/pnpm    # Inertia SPA with React + Vite (JS runtime: pnpm)
+andurel new myapp --inertia vue/bun       # Inertia SPA with Vue 3 + Vite (JS runtime: bun)
 
 # Combine options:
 andurel new myapp --inertia vue -e docker
@@ -94,8 +95,8 @@ cp .env.example .env
 
 # Note: you need to edit .env with your database details
 
-# Install NPM dependencies (only if using --inertia vue/react)
-npm install
+# Install JS dependencies (only if using --inertia vue/react)
+andurel new prints the correct package manager command based on the configured runtime (npm/pnpm/bun/yarn)
 
 # Apply database migrations
 andurel database migrate up
@@ -155,8 +156,7 @@ andurel new (alias: n) [project-name] [flags]
 | Flag | Description |
 |------|-------------|
 | `-e`, `--extensions` | Comma-separated extensions to enable (e.g. `docker,aws-ses,css-components`) |
-
-| `--inertia` | Frontend adapter: `vue` or `react` (enables Inertia SPA with Vite) |
+| `--inertia` | Frontend adapter: `vue` or `react`. Optionally append `/npm`, `/pnpm`, `/bun`, or `/yarn` to set JS runtime (default: `npm`). Example: `--inertia vue/pnpm` |
 
 ### `andurel generate` — Code generation
 
@@ -602,9 +602,18 @@ myapp/
 ├── tsconfig.json
 ```
 
-The `controllers/pages.go` uses Inertia rendering instead of Templ, and `cmd/app/main.go` initializes `internal/inertia`. Run `npm install` after scaffolding. Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia resource pages (reads the adapter from `andurel.lock`).
+The `controllers/pages.go` uses Inertia rendering instead of Templ, and `cmd/app/main.go` initializes `internal/inertia`. Run the configured package manager's install command after scaffolding (the `andurel new` output shows the right command based on the configured runtime). Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia resource pages (reads the adapter from `andurel.lock`).
 
 When using `--inertia vue` or `--inertia react`, controllers can render Inertia pages alongside Templ.
+
+You can specify the JS runtime by appending `/npm`, `/pnpm`, `/bun`, or `/yarn` to the adapter name:
+- `--inertia vue` — uses `npm` (default)
+- `--inertia vue/pnpm` — uses `pnpm`
+- `--inertia react/bun` — uses `bun`
+- `--inertia react/yarn` — uses `yarn`
+
+The runtime is stored in `andurel.lock` as `javascriptRuntime`.
+
 
 ### Real Example: Controller to Vue Component
 

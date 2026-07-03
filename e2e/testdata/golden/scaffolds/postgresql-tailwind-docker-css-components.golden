@@ -863,7 +863,6 @@ file -----------rw-r--r-- andurel.lock
   "scaffoldConfig": {
     "cssFramework": "tailwind",
     "database": "postgresql",
-    "diMode": "uberfx",
     "projectName": "testapp"
   },
   "tools": {

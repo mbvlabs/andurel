@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"testapp/internal/hypermedia"
 	"testapp/internal/storage"
 	"testapp/models"
+	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/views"
@@ -24,6 +26,76 @@ type FeedbackEntry struct {
 
 func NewFeedbackEntry(db storage.Pool) FeedbackEntry {
 	return FeedbackEntry{db}
+}
+
+func (fe FeedbackEntry) RegisterRoutes(r *router.Router) error {
+	var errs []error
+	var err error
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.FeedbackEntryIndex.Path(),
+		Name:    routes.FeedbackEntryIndex.Name(),
+		Handler: fe.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.FeedbackEntryShow.Path(),
+		Name:    routes.FeedbackEntryShow.Name(),
+		Handler: fe.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.FeedbackEntryNew.Path(),
+		Name:    routes.FeedbackEntryNew.Name(),
+		Handler: fe.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.FeedbackEntryCreate.Path(),
+		Name:    routes.FeedbackEntryCreate.Name(),
+		Handler: fe.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.FeedbackEntryEdit.Path(),
+		Name:    routes.FeedbackEntryEdit.Name(),
+		Handler: fe.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.FeedbackEntryUpdate.Path(),
+		Name:    routes.FeedbackEntryUpdate.Name(),
+		Handler: fe.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.FeedbackEntryDestroy.Path(),
+		Name:    routes.FeedbackEntryDestroy.Name(),
+		Handler: fe.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
 
 func (fe FeedbackEntry) Index(etx *echo.Context) error {

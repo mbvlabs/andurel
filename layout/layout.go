@@ -112,7 +112,6 @@ func Scaffold(
 		ProjectName:       projectName,
 		Database:          database,
 		CSSFramework:      cssFramework,
-		DIMode:            diMode,
 		Inertia:           inertia,
 		JavaScriptRuntime: javascriptRuntime,
 	}

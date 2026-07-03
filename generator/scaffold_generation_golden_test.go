@@ -21,30 +21,20 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 		migrations       string
 		skipFactory      bool
 		primaryKeyColumn string
-		diMode           string
 		cssFramework     string
 		extensions       []string
 		inertia          string
 	}{
 		{
-			name:         "full_crud_manual_tailwind",
+			name:         "full_crud_tailwind",
 			resourceName: "Widget",
 			migrations:   "controller_view_generation",
-			diMode:       "manual",
 			cssFramework: "tailwind",
 		},
 		{
-			name:         "full_crud_uberfx_tailwind",
+			name:         "full_crud_css_components",
 			resourceName: "Widget",
 			migrations:   "controller_view_generation",
-			diMode:       "uberfx",
-			cssFramework: "tailwind",
-		},
-		{
-			name:         "full_crud_manual_css_components",
-			resourceName: "Widget",
-			migrations:   "controller_view_generation",
-			diMode:       "manual",
 			cssFramework: "tailwind",
 			extensions:   []string{"css-components"},
 		},
@@ -53,7 +43,6 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 			resourceName: "Widget",
 			migrations:   "controller_view_generation",
 			skipFactory:  true,
-			diMode:       "manual",
 			cssFramework: "tailwind",
 		},
 		{
@@ -62,14 +51,12 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 			tableName:    "student_feedback",
 			migrations:   "scaffold_generation_student_feedback",
 			skipFactory:  true,
-			diMode:       "manual",
 			cssFramework: "tailwind",
 		},
 		{
 			name:         "irregular_plural",
 			resourceName: "Company",
 			migrations:   "scaffold_generation_companies",
-			diMode:       "manual",
 			cssFramework: "tailwind",
 		},
 		{
@@ -77,7 +64,6 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 			resourceName: "Document",
 			migrations:   "scaffold_generation_documents",
 			skipFactory:  true,
-			diMode:       "manual",
 			cssFramework: "tailwind",
 		},
 		{
@@ -86,7 +72,6 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 			migrations:       "scaffold_generation_warehouses",
 			skipFactory:      true,
 			primaryKeyColumn: "slug",
-			diMode:           "manual",
 			cssFramework:     "tailwind",
 		},
 		{
@@ -94,7 +79,6 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 			resourceName: "Project",
 			migrations:   "scaffold_generation_projects",
 			skipFactory:  true,
-			diMode:       "manual",
 			cssFramework: "tailwind",
 			inertia:      "vue",
 		},
@@ -105,7 +89,6 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 			gen := setupScaffoldGoldenProject(
 				t,
 				scenario.migrations,
-				scenario.diMode,
 				scenario.cssFramework,
 				scenario.extensions,
 				scenario.inertia,
@@ -123,7 +106,7 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 				t.Fatalf("failed to generate scaffold: %v", err)
 			}
 
-			assertScaffoldArtifacts(t, g, scenario.name, scenario.resourceName, scenario.tableName, scenario.skipFactory, scenario.diMode, scenario.inertia)
+			assertScaffoldArtifacts(t, g, scenario.name, scenario.resourceName, scenario.tableName, scenario.skipFactory, scenario.inertia)
 		})
 	}
 }
@@ -132,7 +115,6 @@ func TestScaffoldGenerationGoldensInertiaProjectDefaultsToTempl(t *testing.T) {
 	gen := setupScaffoldGoldenProject(
 		t,
 		"scaffold_generation_projects",
-		"manual",
 		"tailwind",
 		nil,
 		"vue",
@@ -152,7 +134,6 @@ func TestScaffoldGenerationNamespaced(t *testing.T) {
 	gen := setupScaffoldGoldenProject(
 		t,
 		"controller_view_generation",
-		"manual",
 		"tailwind",
 		nil,
 		"",
@@ -166,11 +147,11 @@ func TestScaffoldGenerationNamespaced(t *testing.T) {
 	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "package admin")
 	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "views.AdminWidgetIndex")
 	assertGeneratedFileContains(t, filepath.Join("router", "routes", "admin_widgets.go"), `"admin.widgets.index"`)
-	assertGeneratedFileContains(t, filepath.Join("router", "connect_admin_widgets_routes.go"), `controllers "testapp/controllers/admin"`)
+	assertGeneratedFileContains(t, filepath.Join("controllers", "controller.go"), `"testapp/controllers/admin"`)
 	assertGeneratedFileContains(t, filepath.Join("views", "admin_widgets_resource.templ"), "type AdminWidgetIndex struct")
 }
 
-func setupScaffoldGoldenProject(t *testing.T, migrationsFixture, diMode, cssFramework string, extensions []string, inertia string) Generator {
+func setupScaffoldGoldenProject(t *testing.T, migrationsFixture, cssFramework string, extensions []string, inertia string) Generator {
 	t.Helper()
 
 	cache.ClearFileSystemCache()
@@ -203,7 +184,6 @@ func setupScaffoldGoldenProject(t *testing.T, migrationsFixture, diMode, cssFram
 		ProjectName:  "testapp",
 		Database:     "postgresql",
 		CSSFramework: cssFramework,
-		DIMode:       diMode,
 		Inertia:      inertia,
 	}
 	for _, ext := range extensions {
@@ -228,7 +208,7 @@ func setupScaffoldGoldenProject(t *testing.T, migrationsFixture, diMode, cssFram
 	return gen
 }
 
-func assertScaffoldArtifacts(t *testing.T, g *goldie.Goldie, fixtureDir, resourceName, tableName string, skipFactory bool, diMode string, inertia string) {
+func assertScaffoldArtifacts(t *testing.T, g *goldie.Goldie, fixtureDir, resourceName, tableName string, skipFactory bool, inertia string) {
 	t.Helper()
 
 	if tableName == "" {
@@ -241,18 +221,13 @@ func assertScaffoldArtifacts(t *testing.T, g *goldie.Goldie, fixtureDir, resourc
 		filepath.Join("models", modelFile),
 		filepath.Join("controllers", tableName+".go"),
 		filepath.Join("router", "routes", tableName+".go"),
+		filepath.Join("controllers", "controller.go"),
 	}
 
 	if skipFactory {
 		paths = append(paths, "!"+filepath.Join("models", "factories", modelFile))
 	} else {
 		paths = append(paths, filepath.Join("models", "factories", modelFile))
-	}
-
-	if diMode == "manual" {
-		paths = append(paths, filepath.Join("router", "connect_"+tableName+"_routes.go"), filepath.Join("cmd", "app", "main.go"))
-	} else {
-		paths = append(paths, filepath.Join("controllers", "controller.go"))
 	}
 
 	if inertia == "vue" {

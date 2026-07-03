@@ -328,8 +328,24 @@ func setupControllers(db interface{}, r *router.Router) error {
 	return nil
 }
 `)
+	writeCLITestFile(t, rootDir, "controllers/controller.go", `package controllers
 
-	writeGenerateFileTestLock(t, rootDir, "manual")
+import (
+	"example.com/app/router"
+
+	"go.uber.org/fx"
+)
+
+var constructors = fx.Provide(
+)
+
+var Module = fx.Module(
+	"controllers",
+	constructors,
+)
+`)
+
+	writeGenerateFileTestLock(t, rootDir)
 
 	originalWD, err := os.Getwd()
 	if err != nil {
@@ -350,8 +366,7 @@ func setupControllers(db interface{}, r *router.Router) error {
 	assertCLITestFileContains(t, rootDir, "views/dashboards_resource.templ", "templ DashboardOverview()")
 	assertCLITestFileContains(t, rootDir, "router/routes/dashboards.go", "var DashboardOverview = routing.NewSimpleRoute")
 	assertCLITestFileContains(t, rootDir, "router/routes/dashboards.go", "\"dashboards.overview\"")
-	assertCLITestFileContains(t, rootDir, "router/connect_dashboards_routes.go", "Handler: dashboard.Overview")
-	assertCLITestFileContains(t, rootDir, "cmd/app/main.go", "dashboards := controllers.NewDashboards()")
+	assertCLITestFileContains(t, rootDir, "controllers/controller.go", "NewDashboards,")
 }
 
 func TestGenerateControllerNamespacedCustomActionCreatesNamespacedArtifacts(t *testing.T) {
@@ -367,8 +382,24 @@ func setupControllers(db interface{}, r *router.Router) error {
 	return nil
 }
 `)
+	writeCLITestFile(t, rootDir, "controllers/controller.go", `package controllers
 
-	writeGenerateFileTestLock(t, rootDir, "manual")
+import (
+	"example.com/app/router"
+
+	"go.uber.org/fx"
+)
+
+var constructors = fx.Provide(
+)
+
+var Module = fx.Module(
+	"controllers",
+	constructors,
+)
+`)
+
+	writeGenerateFileTestLock(t, rootDir)
 
 	originalWD, err := os.Getwd()
 	if err != nil {
@@ -392,8 +423,8 @@ func setupControllers(db interface{}, r *router.Router) error {
 	assertCLITestFileContains(t, rootDir, filepath.Join("router", "routes", "admin_widgets.go"), "const AdminWidgetPrefix =")
 	assertCLITestFileContains(t, rootDir, filepath.Join("router", "routes", "admin_widgets.go"), "var AdminWidgetExport = routing.NewSimpleRoute")
 	assertCLITestFileContains(t, rootDir, filepath.Join("router", "routes", "admin_widgets.go"), `"admin.widgets.export"`)
-	assertCLITestFileContains(t, rootDir, filepath.Join("router", "connect_admin_widgets_routes.go"), `controllers "example.com/app/controllers/admin"`)
-	assertCLITestFileContains(t, rootDir, filepath.Join("router", "connect_admin_widgets_routes.go"), "routes.AdminWidgetExport.Path()")
+	assertCLITestFileContains(t, rootDir, filepath.Join("controllers", "controller.go"), `"example.com/app/controllers/admin"`)
+	assertCLITestFileContains(t, rootDir, filepath.Join("controllers", "controller.go"), "admin.NewWidgets,")
 }
 
 func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFlag(t *testing.T) {
@@ -450,7 +481,6 @@ func setupControllers(db interface{}, r *router.Router) error {
 				ProjectName:  "app",
 				Database:     "postgresql",
 				CSSFramework: "tailwind",
-				DIMode:       "manual",
 				Inertia:      "vue",
 			}
 			if err := lock.WriteLockFile(rootDir); err != nil {
@@ -571,7 +601,6 @@ func setupControllers(db interface{}, r *router.Router) error {
 		ProjectName:  "app",
 		Database:     "postgresql",
 		CSSFramework: "tailwind",
-		DIMode:       "manual",
 		Inertia:      "vue",
 	}
 	if err := lock.WriteLockFile(rootDir); err != nil {

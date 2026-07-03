@@ -41,10 +41,7 @@ func LoadProjectContext(rootDir string) (*TemplateData, *AndurelLock, error) {
 
 	secrets := readSecrets(rootDir)
 
-	diMode := lock.ScaffoldConfig.DIMode
-	if diMode == "" {
-		diMode = "uberfx"
-	}
+	diMode := "uberfx"
 
 	td := &TemplateData{
 		AppName:              lock.ScaffoldConfig.ProjectName,
