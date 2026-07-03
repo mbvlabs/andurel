@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/internal/hypermedia"
+	"{{.ModuleName}}/internal/validation"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
@@ -66,6 +67,12 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			err,
 		)
 		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	v := validation.NewBuilder()
+	v.Required("code", payload.Code)
+	if !v.Errors().Empty() {
+		return hypermedia.RenderPage(etx, views.ConfirmationForm{Errors: v.Errors()}.Page())
 	}
 
 	user, err := c.identity.VerifyEmail(

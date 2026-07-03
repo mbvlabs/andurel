@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/internal/hypermedia"
+	"{{.ModuleName}}/internal/validation"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
@@ -72,6 +73,18 @@ func (r Registrations) Create(etx *echo.Context) error {
 			err,
 		)
 		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	v := validation.NewBuilder()
+	v.Required("email", payload.Email)
+	v.Required("password", payload.Password)
+	v.MinLen("password", payload.Password, 8)
+	v.Required("confirmPassword", payload.ConfirmPassword)
+	if payload.Password != payload.ConfirmPassword {
+		v.Add("confirmPassword", "mismatch", "Passwords do not match")
+	}
+	if !v.Errors().Empty() {
+		return hypermedia.RenderPage(etx, views.RegistrationForm{Errors: v.Errors()}.Page())
 	}
 
 	if err := r.identity.RegisterUser(

@@ -7,6 +7,7 @@ import (
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/hypermedia"
 	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/internal/validation"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
@@ -42,6 +43,13 @@ func (s Sessions) Create(etx *echo.Context) error {
 			err,
 		)
 		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	v := validation.NewBuilder()
+	v.Required("email", payload.Email)
+	v.Required("password", payload.Password)
+	if !v.Errors().Empty() {
+		return hypermedia.RenderPage(etx, views.LoginForm{Errors: v.Errors()}.Page())
 	}
 
 	user, err := services.AuthenticateUser(
