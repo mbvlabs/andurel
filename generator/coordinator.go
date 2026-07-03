@@ -13,7 +13,7 @@ type Coordinator struct {
 	ModelManager      *ModelManager
 	ControllerManager *ControllerManager
 	ViewManager       *ViewManager
-	ActionManager   *ActionManager
+	ActionManager     *ActionManager
 	projectManager    *ProjectManager
 	config            *UnifiedConfig
 }

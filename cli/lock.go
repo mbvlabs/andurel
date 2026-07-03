@@ -40,7 +40,7 @@ func newSetVersionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:     "set-version <tool> <version>",
 		Aliases: []string{"sv"},
-		Short: "Set a specific version for a tool",
+		Short:   "Set a specific version for a tool",
 		Long: `Set the version of a tool and update it.
 
 The tool entry in andurel.lock controls where binaries are downloaded from.

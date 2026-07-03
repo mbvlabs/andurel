@@ -1,12 +1,15 @@
 package controllers
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strconv"
 	"testapp/internal/inertia"
 	"testapp/internal/storage"
 	"testapp/models"
+	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
 	"time"
@@ -21,6 +24,76 @@ type Projects struct {
 
 func NewProjects(db storage.Pool) Projects {
 	return Projects{db}
+}
+
+func (p Projects) RegisterRoutes(r *router.Router) error {
+	var errs []error
+	var err error
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ProjectIndex.Path(),
+		Name:    routes.ProjectIndex.Name(),
+		Handler: p.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ProjectShow.Path(),
+		Name:    routes.ProjectShow.Name(),
+		Handler: p.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ProjectNew.Path(),
+		Name:    routes.ProjectNew.Name(),
+		Handler: p.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.ProjectCreate.Path(),
+		Name:    routes.ProjectCreate.Name(),
+		Handler: p.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ProjectEdit.Path(),
+		Name:    routes.ProjectEdit.Name(),
+		Handler: p.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.ProjectUpdate.Path(),
+		Name:    routes.ProjectUpdate.Name(),
+		Handler: p.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.ProjectDestroy.Path(),
+		Name:    routes.ProjectDestroy.Name(),
+		Handler: p.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
 
 type ProjectData struct {

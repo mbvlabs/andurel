@@ -30,11 +30,11 @@ func (d database) GetDatabaseURL() string {
 
 func newConsoleCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "console",
+		Use:     "console",
 		Aliases: []string{"c"},
-		Short: "Open an interactive database console",
-		Long:  "Open an interactive database console (usql) using the connection details from .env.",
-		Args:  cobra.ExactArgs(0),
+		Short:   "Open an interactive database console",
+		Long:    "Open an interactive database console (usql) using the connection details from .env.",
+		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
 			if err != nil {
@@ -90,11 +90,11 @@ func newConsoleCommand() *cobra.Command {
 
 func newDblabCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "dblab",
+		Use:     "dblab",
 		Aliases: []string{"d"},
-		Short: "Open the database UI (dblab)",
-		Long:  "Open the dblab interactive database UI in the browser. Uses connection details from .env.",
-		Args:  cobra.ExactArgs(0),
+		Short:   "Open the database UI (dblab)",
+		Long:    "Open the dblab interactive database UI in the browser. Uses connection details from .env.",
+		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
 			if err != nil {

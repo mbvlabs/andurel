@@ -177,11 +177,11 @@ func NewRootCommand(version, date string) *cobra.Command {
 
 func newRunAppCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "run",
+		Use:     "run",
 		Aliases: []string{"r"},
-		Short: "Start the development server",
-		Long:  "Start the development server (shadowfax) for your Andurel application.",
-		Args:  cobra.ExactArgs(0),
+		Short:   "Start the development server",
+		Long:    "Start the development server (shadowfax) for your Andurel application.",
+		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
 			if err != nil {

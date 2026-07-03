@@ -28,22 +28,21 @@ func TestGenerateJobWritesJobWorkerAndRegistration(t *testing.T) {
 		}
 	}
 
-	workerContent := readGeneratedTestFile(t, rootDir, "queue/workers/process_payment.go")
+	workerContent := readGeneratedTestFile(t, rootDir, "queue/process_payment.go")
 	for _, want := range []string{
 		"\"example.com/app/queue/jobs\"",
 		"type ProcessPaymentWorker struct",
 		"func NewProcessPaymentWorker() *ProcessPaymentWorker",
-		"river.WorkerDefaults[jobs.ProcessPaymentArgs]",
+		"func (w *ProcessPaymentWorker) Register(workers *river.Workers) error",
 	} {
 		if !strings.Contains(workerContent, want) {
 			t.Fatalf("worker file should contain %q\n\n%s", want, workerContent)
 		}
 	}
 
-	workersContent := readGeneratedTestFile(t, rootDir, "queue/workers/workers.go")
+	workersContent := readGeneratedTestFile(t, rootDir, "queue/workers.go")
 	for _, want := range []string{
-		"river.AddWorkerSafely(wrks, NewProcessPaymentWorker())",
-		"// andurel:worker-registration-point",
+		"NewProcessPaymentWorker,",
 	} {
 		if !strings.Contains(workersContent, want) {
 			t.Fatalf("workers registration should contain %q\n\n%s", want, workersContent)
@@ -69,7 +68,7 @@ func TestGenerateJobDefaultQueueOmitsInsertOpts(t *testing.T) {
 
 func TestGenerateJobUberFXWritesQueueWorkerAndModuleRegistration(t *testing.T) {
 	rootDir := setupGenerateFileTestProject(t)
-	writeGenerateFileTestLock(t, rootDir, "uberfx")
+	writeGenerateFileTestLock(t, rootDir)
 	workersPath := filepath.Join(rootDir, "queue", "workers.go")
 	if err := os.MkdirAll(filepath.Dir(workersPath), 0o755); err != nil {
 		t.Fatalf("create queue dir: %v", err)
@@ -160,15 +159,15 @@ func setupGenerateFileTestProject(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(rootDir, "go.mod"), []byte("module example.com/app\n\ngo 1.26\n"), 0o644); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
-	workersPath := filepath.Join(rootDir, "queue", "workers", "workers.go")
+	workersPath := filepath.Join(rootDir, "queue", "workers.go")
 	if err := os.MkdirAll(filepath.Dir(workersPath), 0o755); err != nil {
-		t.Fatalf("create workers dir: %v", err)
+		t.Fatalf("create queue dir: %v", err)
 	}
-	if err := os.WriteFile(workersPath, []byte(workersFixture), 0o644); err != nil {
-		t.Fatalf("write workers fixture: %v", err)
+	if err := os.WriteFile(workersPath, []byte(fxWorkersFixture), 0o644); err != nil {
+		t.Fatalf("write fx workers fixture: %v", err)
 	}
 
-	writeGenerateFileTestLock(t, rootDir, "manual")
+	writeGenerateFileTestLock(t, rootDir)
 
 	if err := os.Chdir(rootDir); err != nil {
 		t.Fatalf("chdir temp project: %v", err)
@@ -177,7 +176,7 @@ func setupGenerateFileTestProject(t *testing.T) string {
 	return rootDir
 }
 
-func writeGenerateFileTestLock(t *testing.T, rootDir, diMode string) {
+func writeGenerateFileTestLock(t *testing.T, rootDir string) {
 	t.Helper()
 
 	content := `{
@@ -186,8 +185,7 @@ func writeGenerateFileTestLock(t *testing.T, rootDir, diMode string) {
   "scaffoldConfig": {
     "projectName": "app",
     "database": "postgresql",
-    "cssFramework": "tailwind",
-    "diMode": "` + diMode + `"
+    "cssFramework": "tailwind"
   }
 }
 `

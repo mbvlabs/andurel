@@ -9,9 +9,9 @@ import (
 
 func newExtensionCommand() *cobra.Command {
 	extensionCmd := &cobra.Command{
-		Use:   "extension",
+		Use:     "extension",
 		Aliases: []string{"ext", "e"},
-		Short: "Manage project extensions",
+		Short:   "Manage project extensions",
 		Long: `Add and list extensions applied to the current Andurel project.
 
 Extensions add optional features like Docker or email integration. Adding an
@@ -32,7 +32,7 @@ func newExtensionAddCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:     "add [extension-name]",
 		Aliases: []string{"a"},
-		Short: "Add an extension to the project",
+		Short:   "Add an extension to the project",
 		Long: `Add an extension to an existing project.
 
 This generates the extension's code files, updates framework-managed files
@@ -42,7 +42,7 @@ andurel.lock.
 ⚠️  Commit or create a branch before running this command, as it modifies
 files in place.`,
 		Example: "  andurel extension add docker",
-		Args:  cobra.ExactArgs(1),
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			extensionName := args[0]
 
@@ -67,12 +67,12 @@ files in place.`,
 
 func newExtensionListCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
+		Use:     "list",
 		Aliases: []string{"ls"},
-		Short: "List all extensions applied to the project",
-		Long:  "Show every extension registered in andurel.lock with the date it was applied.",
+		Short:   "List all extensions applied to the project",
+		Long:    "Show every extension registered in andurel.lock with the date it was applied.",
 		Example: "  andurel extension list",
-		Args:  cobra.NoArgs,
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
 			if err != nil {

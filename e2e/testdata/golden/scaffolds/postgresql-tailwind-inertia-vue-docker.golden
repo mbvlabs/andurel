@@ -855,8 +855,8 @@ file -----------rw-r--r-- andurel.lock
   "scaffoldConfig": {
     "cssFramework": "tailwind",
     "database": "postgresql",
-    "diMode": "uberfx",
     "inertia": "vue",
+    "javascriptRuntime": "npm",
     "projectName": "testapp"
   },
   "tools": {
@@ -910,7 +910,7 @@ file -----------rw-r--r-- andurel.lock
         "urlTemplate": "https://github.com/mbvlabs/shadowfax/releases/download/{{version}}/shadowfax-{{os}}-{{arch}}"
       },
       "source": "github.com/mbvlabs/shadowfax",
-      "version": "v0.7.0",
+      "version": "v0.8.0",
       "versionCheck": {
         "args": [
           "--version"

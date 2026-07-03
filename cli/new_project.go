@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/mbvlabs/andurel/layout"
 
@@ -36,7 +37,7 @@ creation, run 'andurel tool sync' to download required binaries.`,
 		StringSliceP("extensions", "e", nil, "Extensions to enable (comma-separated list)")
 
 	projectCmd.Flags().
-		String("inertia", "", "Inertia adapter to use (vue, react)")
+		String("inertia", "", "Inertia adapter to use (vue, react). Optionally append /npm|pnpm|bun|yarn to specify the JS runtime (default: npm)")
 
 	return projectCmd
 }
@@ -70,23 +71,41 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	database := "postgresql"
 	cssFramework := "tailwind"
 
-	inertia, err := cmd.Flags().GetString("inertia")
+	inertiaFlag, err := cmd.Flags().GetString("inertia")
 	if err != nil {
 		return err
 	}
 
-	if inertia != "" && !layout.IsSupportedInertiaAdapter(inertia) {
-		return fmt.Errorf(
-			"invalid inertia adapter: %s - valid options are 'vue', 'react'",
-			inertia,
-		)
+	adapter := inertiaFlag
+	javascriptRuntime := ""
+	if inertiaFlag != "" {
+		parts := strings.SplitN(inertiaFlag, "/", 2)
+		adapter = parts[0]
+		if len(parts) == 2 {
+			javascriptRuntime = parts[1]
+		} else {
+			javascriptRuntime = "npm"
+		}
+
+		if !layout.IsSupportedInertiaAdapter(adapter) {
+			return fmt.Errorf(
+				"invalid inertia adapter: %s - valid options are 'vue', 'react'",
+				adapter,
+			)
+		}
+		if !layout.IsSupportedJavaScriptRuntime(javascriptRuntime) {
+			return fmt.Errorf(
+				"invalid JavaScript runtime: %s - valid options are 'npm', 'pnpm', 'bun', 'yarn'",
+				javascriptRuntime,
+			)
+		}
 	}
 
 	extensions, err := cmd.Flags().GetStringSlice("extensions")
 	if err != nil {
 		return err
 	}
-	if err := layout.Scaffold(basePath, projectName, database, cssFramework, version, extensions, "uberfx", inertia); err != nil {
+	if err := layout.Scaffold(basePath, projectName, database, cssFramework, version, extensions, "uberfx", adapter, javascriptRuntime); err != nil {
 		return err
 	}
 
@@ -98,8 +117,8 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	fmt.Printf("  fill in your database connection details in .env\n")
 	fmt.Printf("  (andurel database create - if database does not exist\n")
 	fmt.Printf("  andurel database migrate up\n")
-	if layout.IsSupportedInertiaAdapter(inertia) {
-		fmt.Printf("  npm install\n")
+	if layout.IsSupportedInertiaAdapter(adapter) {
+		fmt.Printf("  %s install\n", javascriptRuntime)
 	}
 	fmt.Printf("  andurel run\n")
 

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"testapp/internal/hypermedia"
 	"testapp/internal/storage"
 	"testapp/models"
+	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/views"
@@ -23,6 +25,76 @@ type Companies struct {
 
 func NewCompanies(db storage.Pool) Companies {
 	return Companies{db}
+}
+
+func (c Companies) RegisterRoutes(r *router.Router) error {
+	var errs []error
+	var err error
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.CompanyIndex.Path(),
+		Name:    routes.CompanyIndex.Name(),
+		Handler: c.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.CompanyShow.Path(),
+		Name:    routes.CompanyShow.Name(),
+		Handler: c.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.CompanyNew.Path(),
+		Name:    routes.CompanyNew.Name(),
+		Handler: c.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.CompanyCreate.Path(),
+		Name:    routes.CompanyCreate.Name(),
+		Handler: c.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.CompanyEdit.Path(),
+		Name:    routes.CompanyEdit.Name(),
+		Handler: c.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.CompanyUpdate.Path(),
+		Name:    routes.CompanyUpdate.Name(),
+		Handler: c.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.CompanyDestroy.Path(),
+		Name:    routes.CompanyDestroy.Name(),
+		Handler: c.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
 
 func (c Companies) Index(etx *echo.Context) error {

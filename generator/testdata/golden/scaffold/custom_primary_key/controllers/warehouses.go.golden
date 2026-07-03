@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"testapp/internal/hypermedia"
 	"testapp/internal/storage"
 	"testapp/models"
+	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/views"
@@ -22,6 +24,76 @@ type Warehouses struct {
 
 func NewWarehouses(db storage.Pool) Warehouses {
 	return Warehouses{db}
+}
+
+func (w Warehouses) RegisterRoutes(r *router.Router) error {
+	var errs []error
+	var err error
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WarehouseIndex.Path(),
+		Name:    routes.WarehouseIndex.Name(),
+		Handler: w.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WarehouseShow.Path(),
+		Name:    routes.WarehouseShow.Name(),
+		Handler: w.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WarehouseNew.Path(),
+		Name:    routes.WarehouseNew.Name(),
+		Handler: w.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.WarehouseCreate.Path(),
+		Name:    routes.WarehouseCreate.Name(),
+		Handler: w.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WarehouseEdit.Path(),
+		Name:    routes.WarehouseEdit.Name(),
+		Handler: w.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.WarehouseUpdate.Path(),
+		Name:    routes.WarehouseUpdate.Name(),
+		Handler: w.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.WarehouseDestroy.Path(),
+		Name:    routes.WarehouseDestroy.Name(),
+		Handler: w.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
 
 func (w Warehouses) Index(etx *echo.Context) error {

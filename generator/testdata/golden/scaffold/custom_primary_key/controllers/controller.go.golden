@@ -1,0 +1,19 @@
+package controllers
+
+import (
+	"testapp/router"
+
+	"go.uber.org/fx"
+)
+
+var constructors = fx.Provide(
+	NewWarehouses,
+)
+
+var Module = fx.Module(
+	"controllers",
+	constructors,
+	fx.Invoke(func(r *router.Router, c Warehouses) error {
+		return c.RegisterRoutes(r)
+	}),
+)
