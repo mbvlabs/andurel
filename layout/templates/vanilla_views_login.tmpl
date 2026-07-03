@@ -3,10 +3,17 @@ package views
 import (
 	"net/http"
 	"{{.ModuleName}}/internal/hypermedia"
+	"{{.ModuleName}}/internal/validation"
 	"{{.ModuleName}}/router/routes"
 )
 
-type LoginForm struct{}
+type LoginForm struct {
+	Errors validation.ValidationErrors
+}
+
+func (lf LoginForm) FieldError(field string) string {
+	return lf.Errors.ToMap()[field]
+}
 
 func (lf LoginForm) PageFragment() string {
 	return "login-page-fragment"
@@ -30,12 +37,18 @@ templ (lf LoginForm) Page() {
 										<div>
 											<input type="email" id="email" data-bind="email" required/>
 										</div>
+										if lf.FieldError("email") != "" {
+											<p id="email-error" style="color: var(--destructive); font-size: var(--step--1); font-weight: 600;" role="alert">{ lf.FieldError("email") }</p>
+										}
 									</div>
 									<div>
 										<label for="password">Password</label>
 										<div>
 											<input type="password" id="password" data-bind="password" required/>
 										</div>
+										if lf.FieldError("password") != "" {
+											<p id="password-error" style="color: var(--destructive); font-size: var(--step--1); font-weight: 600;" role="alert">{ lf.FieldError("password") }</p>
+										}
 									</div>
 									<div>
 										<span>Protected session access.</span>

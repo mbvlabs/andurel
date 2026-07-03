@@ -15,6 +15,7 @@ import (
 {{- if ne .DIMode "uberfx"}}
 	"{{.ModuleName}}/internal/storage"
 {{- end}}
+	"{{.ModuleName}}/internal/validation"
 	"{{.ModuleName}}/models"
 {{- if ne .DIMode "uberfx"}}
 	"{{.ModuleName}}/queue"
@@ -35,6 +36,18 @@ func (i Identity) RegisterUser(
 	ctx context.Context,
 	data RegisterUserData,
 ) error {
+	b := validation.NewBuilder()
+	b.Required("email", data.Email)
+	b.Required("password", data.Password)
+	b.MinLen("password", data.Password, 8)
+	b.Required("confirmPassword", data.ConfirmPassword)
+	if data.Password != data.ConfirmPassword {
+		b.Add("confirmPassword", "mismatch", "Passwords do not match")
+	}
+	if !b.Errors().Empty() {
+		return b.Errors()
+	}
+
 	tx, err := i.db.BeginTx(ctx, nil)
 {{else}}
 func RegisterUser(
@@ -44,6 +57,18 @@ func RegisterUser(
 	salt string,
 	data RegisterUserData,
 ) error {
+	b := validation.NewBuilder()
+	b.Required("email", data.Email)
+	b.Required("password", data.Password)
+	b.MinLen("password", data.Password, 8)
+	b.Required("confirmPassword", data.ConfirmPassword)
+	if data.Password != data.ConfirmPassword {
+		b.Add("confirmPassword", "mismatch", "Passwords do not match")
+	}
+	if !b.Errors().Empty() {
+		return b.Errors()
+	}
+
 	tx, err := db.BeginTx(ctx, nil)
 {{end}}
 	if err != nil {
@@ -177,6 +202,12 @@ func (i Identity) VerifyEmail(
 	ctx context.Context,
 	data VerifyEmailData,
 ) (models.UserEntity, error) {
+	b := validation.NewBuilder()
+	b.Required("code", data.Code)
+	if !b.Errors().Empty() {
+		return models.UserEntity{}, b.Errors()
+	}
+
 	tx, err := i.db.BeginTx(ctx, nil)
 {{else}}
 func VerifyEmail(
@@ -185,6 +216,12 @@ func VerifyEmail(
 	salt string,
 	data VerifyEmailData,
 ) (models.UserEntity, error) {
+	b := validation.NewBuilder()
+	b.Required("code", data.Code)
+	if !b.Errors().Empty() {
+		return models.UserEntity{}, b.Errors()
+	}
+
 	tx, err := db.BeginTx(ctx, nil)
 {{end}}
 	if err != nil {
