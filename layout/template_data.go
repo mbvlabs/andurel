@@ -72,6 +72,17 @@ func IsSupportedInertiaAdapter(adapter string) bool {
 	}
 }
 
+// IsSupportedJavaScriptRuntime reports whether runtime is a known
+// JavaScript package manager.
+func IsSupportedJavaScriptRuntime(runtime string) bool {
+	switch runtime {
+	case "npm", "pnpm", "bun", "yarn":
+		return true
+	default:
+		return false
+	}
+}
+
 // Blueprint returns the underlying blueprint. If not yet initialized, creates
 // a new one.
 func (td *TemplateData) Blueprint() *blueprint.Blueprint {

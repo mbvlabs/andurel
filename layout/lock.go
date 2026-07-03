@@ -24,11 +24,12 @@ type DatabaseConfig struct {
 }
 
 type ScaffoldConfig struct {
-	ProjectName  string `json:"projectName"`
-	Database     string `json:"database"`
-	CSSFramework string `json:"cssFramework"`
-	DIMode       string `json:"diMode"`
-	Inertia    string   `json:"inertia,omitempty"`
+	ProjectName       string `json:"projectName"`
+	Database          string `json:"database"`
+	CSSFramework      string `json:"cssFramework"`
+	DIMode            string `json:"diMode"`
+	Inertia           string `json:"inertia,omitempty"`
+	JavaScriptRuntime string `json:"javascriptRuntime,omitempty"`
 }
 
 type Extension struct {

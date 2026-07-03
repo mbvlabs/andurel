@@ -6,9 +6,9 @@ import (
 
 func newToolCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "tool",
+		Use:     "tool",
 		Aliases: []string{"t"},
-		Short: "Manage project tools and binaries",
+		Short:   "Manage project tools and binaries",
 		Long: `Manage CLI tools and binaries used by your Andurel project.
 
 Tools are defined in andurel.lock and downloaded to bin/. Use the

@@ -38,8 +38,7 @@ var (
 func Scaffold(
 	targetDir, projectName, database, cssFramework, version string,
 	extensionNames []string,
-	diMode string,
-	inertia string,
+	diMode, inertia, javascriptRuntime string,
 ) error {
 	if diMode == "" {
 		diMode = "uberfx"
@@ -110,11 +109,12 @@ func Scaffold(
 
 	fmt.Print("Generating andurel.lock file...\n")
 	scaffoldConfig := &ScaffoldConfig{
-		ProjectName:  projectName,
-		Database:     database,
-		CSSFramework: cssFramework,
-		DIMode:       diMode,
-		Inertia:      inertia,
+		ProjectName:       projectName,
+		Database:          database,
+		CSSFramework:      cssFramework,
+		DIMode:            diMode,
+		Inertia:           inertia,
+		JavaScriptRuntime: javascriptRuntime,
 	}
 	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", scaffoldConfig, extensionNames); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)

@@ -21,9 +21,9 @@ func newSyncCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:     "sync",
 		Aliases: []string{"s"},
-		Short: "Download and validate binaries specified in andurel.lock",
-		Long:  "Download all tools listed in andurel.lock to bin/. Already-downloaded tools at the correct version are skipped.",
-		Args:  cobra.ExactArgs(0),
+		Short:   "Download and validate binaries specified in andurel.lock",
+		Long:    "Download all tools listed in andurel.lock to bin/. Already-downloaded tools at the correct version are skipped.",
+		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectRoot, err := findGoModRoot()
 			if err != nil {

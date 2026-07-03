@@ -60,7 +60,7 @@ func getScaffoldConfigs() []ScaffoldConfig {
 func isCriticalScaffoldConfig(database, css, diMode, inertia string, extensions []string) bool {
 	criticalConfigs := map[string]bool{
 		"postgresql-tailwind":                               true,
-		"postgresql-tailwind-inertia-vue":                    true,
+		"postgresql-tailwind-inertia-vue":                   true,
 		"postgresql-tailwind-docker-aws-ses-css-components": true,
 	}
 

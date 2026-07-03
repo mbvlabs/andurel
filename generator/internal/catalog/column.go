@@ -10,16 +10,16 @@ type ForeignKey struct {
 }
 
 type Column struct {
-	Name         string
-	DataType     string
-	IsNullable   bool
-	IsArray      bool
-	Length       *int32
-	Precision    *int32
-	Scale        *int32
-	DefaultVal   *string
-	CreatedBy    string // migration file that added this column
-	ModifiedBy   string // migration file that last modified this column
+	Name            string
+	DataType        string
+	IsNullable      bool
+	IsArray         bool
+	Length          *int32
+	Precision       *int32
+	Scale           *int32
+	DefaultVal      *string
+	CreatedBy       string // migration file that added this column
+	ModifiedBy      string // migration file that last modified this column
 	IsPrimaryKey    bool
 	IsUnique        bool
 	IsAutoIncrement bool

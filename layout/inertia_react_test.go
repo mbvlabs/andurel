@@ -10,7 +10,7 @@ import (
 func TestScaffoldReactInertiaAssets(t *testing.T) {
 	projectDir := t.TempDir()
 
-	if err := Scaffold(projectDir, "testapp", "postgresql", "tailwind", "test", nil, "uberfx", "react"); err != nil {
+	if err := Scaffold(projectDir, "testapp", "postgresql", "tailwind", "test", nil, "uberfx", "react", ""); err != nil {
 		t.Fatalf("scaffold react inertia project: %v", err)
 	}
 

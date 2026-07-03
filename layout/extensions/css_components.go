@@ -107,7 +107,7 @@ func (c CssComponents) renderTailwindTemplates(ctx *Context) error {
 
 func (c CssComponents) renderVanillaTemplates(ctx *Context) error {
 	vanillaTemplates := map[string]string{
-		"assets_css_style_components.tmpl":           "assets/css/style.css",
+		"assets_css_style_components.tmpl":            "assets/css/style.css",
 		"assets_vanilla_css_components_buttons.tmpl":  "assets/css/components/buttons.css",
 		"assets_vanilla_css_components_feedback.tmpl": "assets/css/components/feedback.css",
 		"assets_vanilla_css_components_forms.tmpl":    "assets/css/components/forms.css",

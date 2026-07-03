@@ -18,7 +18,7 @@ func scaffoldTestProject(t *testing.T, extensions []string, diMode, cssFramework
 	tmpDir := t.TempDir()
 	projectDir := filepath.Join(tmpDir, "testapp")
 
-	if err := Scaffold(projectDir, "testapp", "postgresql", cssFramework, "test", extensions, diMode, ""); err != nil {
+	if err := Scaffold(projectDir, "testapp", "postgresql", cssFramework, "test", extensions, diMode, "", ""); err != nil {
 		t.Fatalf("failed to scaffold project: %v", err)
 	}
 

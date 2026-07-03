@@ -318,11 +318,11 @@ func New() *Blueprint {
 			Migrations: make([]Migration, 0),
 		},
 		Main: MainSection{
-			Imports:           NewOrderedSet(),
-			Initializations:   make([]Initialization, 0),
-			BackgroundWorkers: make([]BackgroundWorker, 0),
-			PreRunHooks:       make([]PreRunHook, 0),
-			ServiceProvides:   make([]string, 0),
+			Imports:            NewOrderedSet(),
+			Initializations:    make([]Initialization, 0),
+			BackgroundWorkers:  make([]BackgroundWorker, 0),
+			PreRunHooks:        make([]PreRunHook, 0),
+			ServiceProvides:    make([]string, 0),
 			WorkerDependencies: make([]WorkerDependency, 0),
 		},
 		Cookies: CookiesSection{
