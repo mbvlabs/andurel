@@ -12,11 +12,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// getToolVersionForSync gets the version of a tool binary.
-// Uses the same logic as doctor.go's getToolVersion.
-func getToolVersionForSync(name string) (string, error) {
+func getToolVersionForSync(name string, vc *layout.VersionCheck) (string, error) {
 	binPath := filepath.Join("bin", name)
-	return versionFromCommand(binPath, name)
+	return versionFromCommand(binPath, vc, name)
 }
 
 func newSyncCommand() *cobra.Command {
@@ -106,7 +104,7 @@ func syncSingleTool(projectRoot, name string, tool *layout.Tool, goos, goarch st
 	binPath := filepath.Join(projectRoot, "bin", name)
 
 	if _, err := os.Stat(binPath); err == nil {
-		actualVersion, verr := getToolVersionForSync(name)
+		actualVersion, verr := getToolVersionForSync(name, tool.VersionCheck)
 		if verr == nil && versionsMatch(tool.Version, actualVersion) {
 			fmt.Printf("✓ %s (%s) - up to date\n", name, tool.Version)
 			return nil

@@ -41,11 +41,27 @@ type ToolDownload struct {
 	BinaryName  string `json:"binaryName,omitempty"`
 }
 
+type VersionCheck struct {
+	Args   []string `json:"args"`
+	Regexp string   `json:"regexp,omitempty"`
+}
+
 type Tool struct {
-	Version  string        `json:"version,omitempty"`
-	Source   string        `json:"source,omitempty"`
-	Path     string        `json:"path,omitempty"`
-	Download *ToolDownload `json:"download,omitempty"`
+	Version      string        `json:"version,omitempty"`
+	Source       string        `json:"source,omitempty"`
+	Path         string        `json:"path,omitempty"`
+	Download     *ToolDownload `json:"download,omitempty"`
+	VersionCheck *VersionCheck `json:"versionCheck,omitempty"`
+}
+
+var defaultToolVersionChecks = map[string]VersionCheck{
+	"templ":       {Args: []string{"--version"}},
+	"goose":       {Args: []string{"--version"}},
+	"mailpit":     {Args: []string{"version", "--no-release-check"}},
+	"usql":        {Args: []string{"--version"}},
+	"dblab":       {Args: []string{"--version"}},
+	"shadowfax":   {Args: []string{"--version"}},
+	"tailwindcli": {Args: []string{"--version"}},
 }
 
 var defaultToolDownloads = map[string]ToolDownload{
@@ -94,6 +110,17 @@ func NewAndurelLock(version string) *AndurelLock {
 	}
 }
 
+func GetDefaultToolVersionCheck(name string) (*VersionCheck, bool) {
+	vc, ok := defaultToolVersionChecks[name]
+	if !ok {
+		return nil, false
+	}
+	return &VersionCheck{
+		Args:   append([]string{}, vc.Args...),
+		Regexp: vc.Regexp,
+	}, true
+}
+
 func GetDefaultToolDownload(name string) (*ToolDownload, bool) {
 	spec, ok := defaultToolDownloads[name]
 	if !ok {
@@ -117,6 +144,10 @@ func NewGoTool(name, source, version string) *Tool {
 		tool.Download = spec
 	}
 
+	if vc, ok := GetDefaultToolVersionCheck(name); ok {
+		tool.VersionCheck = vc
+	}
+
 	return tool
 }
 
@@ -124,6 +155,9 @@ func NewBinaryTool(name, version string) *Tool {
 	tool := &Tool{Version: version}
 	if spec, ok := GetDefaultToolDownload(name); ok {
 		tool.Download = spec
+	}
+	if vc, ok := GetDefaultToolVersionCheck(name); ok {
+		tool.VersionCheck = vc
 	}
 	return tool
 }

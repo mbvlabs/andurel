@@ -107,6 +107,11 @@ func setVersion(projectRoot, toolName, version string) error {
 				tool.Download = spec
 			}
 		}
+		if tool.VersionCheck == nil {
+			if vc, ok := layout.GetDefaultToolVersionCheck(toolName); ok {
+				tool.VersionCheck = vc
+			}
+		}
 		lock.AddTool(toolName, tool)
 	}
 
