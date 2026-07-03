@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/internal/hypermedia"
+	"{{.ModuleName}}/internal/validation"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
@@ -75,6 +76,10 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		},
 	)
 	if err != nil {
+		if validationErrors, ok := validation.As(err); ok {
+			return hypermedia.RenderPage(etx, views.ConfirmationForm{Errors: validationErrors}.Page())
+		}
+
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to verify email",

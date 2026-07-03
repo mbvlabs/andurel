@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"{{.ModuleName}}/internal/hypermedia"
+	"{{.ModuleName}}/internal/validation"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
@@ -82,6 +83,10 @@ func (r Registrations) Create(etx *echo.Context) error {
 			ConfirmPassword: payload.ConfirmPassword,
 		},
 	); err != nil {
+		if validationErrors, ok := validation.As(err); ok {
+			return hypermedia.RenderPage(etx, views.RegistrationForm{Errors: validationErrors}.Page())
+		}
+
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to register user",

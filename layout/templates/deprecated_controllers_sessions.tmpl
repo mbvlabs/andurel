@@ -7,6 +7,7 @@ import (
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/hypermedia"
 	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/internal/validation"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
@@ -54,6 +55,10 @@ func (s Sessions) Create(etx *echo.Context) error {
 		},
 	)
 	if err != nil {
+		if validationErrors, ok := validation.As(err); ok {
+			return hypermedia.RenderPage(etx, views.LoginForm{Errors: validationErrors}.Page())
+		}
+
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to authenticate user",

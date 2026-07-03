@@ -13,6 +13,7 @@ import (
 {{- if ne .DIMode "uberfx"}}
 	"{{.ModuleName}}/internal/storage"
 {{- end}}
+	"{{.ModuleName}}/internal/validation"
 	"{{.ModuleName}}/models"
 )
 
@@ -31,6 +32,13 @@ func (i Identity) AuthenticateUser(
 	ctx context.Context,
 	data LoginData,
 ) (models.UserEntity, error) {
+	b := validation.NewBuilder()
+	b.Required("email", data.Email)
+	b.Required("password", data.Password)
+	if !b.Errors().Empty() {
+		return models.UserEntity{}, b.Errors()
+	}
+
 	user, err := models.User.FindByEmail(ctx, i.db.Executor(), data.Email)
 {{else}}
 func AuthenticateUser(
@@ -39,6 +47,13 @@ func AuthenticateUser(
 	salt string,
 	data LoginData,
 ) (models.UserEntity, error) {
+	b := validation.NewBuilder()
+	b.Required("email", data.Email)
+	b.Required("password", data.Password)
+	if !b.Errors().Empty() {
+		return models.UserEntity{}, b.Errors()
+	}
+
 	user, err := models.User.FindByEmail(ctx, db.Executor(), data.Email)
 {{end}}
 	if err != nil {
