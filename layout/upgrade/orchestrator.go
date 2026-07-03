@@ -346,6 +346,7 @@ func (u *Upgrader) syncToolsToFrameworkVersion() (*ToolSyncResult, error) {
 				existingTool.Version = expectedTool.Version
 				existingTool.Source = expectedTool.Source
 				existingTool.Download = expectedTool.Download
+				existingTool.VersionCheck = expectedTool.VersionCheck
 				result.Updated = append(result.Updated, fmt.Sprintf("%s: %s", toolName, getToolVersion(expectedTool)))
 			}
 			u.lock.Tools[toolName] = existingTool
@@ -358,6 +359,10 @@ func (u *Upgrader) syncToolsToFrameworkVersion() (*ToolSyncResult, error) {
 			}
 			if existingTool.Download == nil && expectedTool.Download != nil {
 				existingTool.Download = expectedTool.Download
+				metadataChanged = true
+			}
+			if existingTool.VersionCheck == nil && expectedTool.VersionCheck != nil {
+				existingTool.VersionCheck = expectedTool.VersionCheck
 				metadataChanged = true
 			}
 			if metadataChanged {

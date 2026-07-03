@@ -314,7 +314,7 @@ func checkToolVersions(rootDir string, verbose bool) checkResult {
 			}
 
 			binPath := filepath.Join("bin", name)
-			actualVersion, err := getToolVersion(binPath, name)
+			actualVersion, err := getToolVersion(binPath, tool.VersionCheck, name)
 			if err != nil {
 				results <- versionResult{name: name, expectedVer: tool.Version, unknown: true, versionErr: err}
 				return
@@ -346,10 +346,11 @@ func checkToolVersions(rootDir string, verbose bool) checkResult {
 		}
 		if r.unknown {
 			unknownCount++
-			details = append(
-				details,
-				fmt.Sprintf("%s: could not determine version (expected %s)", name, r.expectedVer),
-			)
+			msg := fmt.Sprintf("%s: could not determine version (expected %s)", name, r.expectedVer)
+			if r.versionErr != nil {
+				msg = fmt.Sprintf("%s: %v", name, r.versionErr)
+			}
+			details = append(details, msg)
 			continue
 		}
 		if !versionsMatch(r.expectedVer, r.actualVer) {
@@ -396,8 +397,8 @@ func truncateDetails(details []string, max int) []string {
 	return truncated
 }
 
-func getToolVersion(binPath string, toolName string) (string, error) {
-	return versionFromCommand(binPath, toolName)
+func getToolVersion(binPath string, vc *layout.VersionCheck, toolName string) (string, error) {
+	return versionFromCommand(binPath, vc, toolName)
 }
 
 // runWithTimeout runs a command with a timeout, killing the entire process group
@@ -445,29 +446,32 @@ func runWithTimeout(ctx context.Context, path string, args ...string) ([]byte, e
 	}
 }
 
-func versionFromCommand(binPath, toolName string) (string, error) {
+func versionFromCommand(binPath string, vc *layout.VersionCheck, toolName string) (string, error) {
+	if vc == nil || len(vc.Args) == 0 {
+		return "", fmt.Errorf(
+			"%s: missing versionCheck in andurel.lock (e.g. \"versionCheck\": {\"args\": [\"version\", \"--flag\"]})",
+			toolName,
+		)
+	}
+
 	rootDir, err := findGoModRoot()
 	if err != nil {
 		return "", fmt.Errorf("could not find project root: %w", err)
 	}
 
 	fullPath := filepath.Join(rootDir, binPath)
-	candidates := []string{"--version", "-version", "version", "--help"}
-
-	for _, arg := range candidates {
-		ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
-		output, err := runWithTimeout(ctx, fullPath, arg)
-		cancel()
-		if err != nil {
-			continue
-		}
-		version := extractVersion(string(output))
-		if version != "" {
-			return version, nil
-		}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	output, err := runWithTimeout(ctx, fullPath, vc.Args...)
+	cancel()
+	if err != nil {
+		return "", fmt.Errorf("version command failed for %s: %w", toolName, err)
 	}
 
-	return "", fmt.Errorf("no version output for %s", toolName)
+	version := extractVersion(string(output))
+	if version == "" {
+		return "", fmt.Errorf("no version output for %s", toolName)
+	}
+	return version, nil
 }
 
 func extractVersion(output string) string {
