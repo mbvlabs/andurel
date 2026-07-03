@@ -1,4 +1,4 @@
-package workers
+{{if eq .DIMode "uberfx"}}package queue{{else}}package workers{{end}}
 
 import (
 	"context"
@@ -20,6 +20,12 @@ func NewSendMarketingEmailWorker(sender email.MarketingSender) *SendMarketingEma
 	}
 }
 
+{{if eq .DIMode "uberfx"}}
+func (w *SendMarketingEmailWorker) Register(workers *river.Workers) error {
+	return river.AddWorkerSafely(workers, w)
+}
+
+{{end}}
 func (w *SendMarketingEmailWorker) Work(ctx context.Context, job *river.Job[jobs.SendMarketingEmailArgs]) error {
 	err := email.SendMarketing(ctx, job.Args.Data, w.sender)
 	if err != nil {

@@ -165,3 +165,40 @@ func TestDeriveResourceName(t *testing.T) {
 		})
 	}
 }
+
+func TestParseNamespacedResource(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		wantNamespace string
+		wantResource  string
+		wantErr       bool
+	}{
+		{name: "plain resource", input: "Widget", wantResource: "Widget"},
+		{name: "single namespace", input: "admin/Widget", wantNamespace: "admin", wantResource: "Widget"},
+		{name: "nested namespace", input: "admin/reports/Widget", wantErr: true},
+		{name: "missing resource", input: "admin/", wantErr: true},
+		{name: "missing namespace", input: "/Widget", wantErr: true},
+		{name: "uppercase namespace", input: "Admin/Widget", wantErr: true},
+		{name: "reserved namespace", input: "controllers/Widget", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotNamespace, gotResource, err := ParseNamespacedResource(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got namespace=%q resource=%q", gotNamespace, gotResource)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if gotNamespace != tt.wantNamespace || gotResource != tt.wantResource {
+				t.Fatalf("ParseNamespacedResource(%q) = (%q, %q), want (%q, %q)",
+					tt.input, gotNamespace, gotResource, tt.wantNamespace, tt.wantResource)
+			}
+		})
+	}
+}

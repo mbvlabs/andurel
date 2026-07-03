@@ -21,6 +21,9 @@ type TemplateData struct {
 	Pepper               string
 	Extensions           []string
 	RunToolVersion       string // Version of the run built tool
+	FrameworkVersion     string // Version of the framework that generated managed files
+	DIMode               string // "manual" or "uberfx"
+	Inertia              string // "vue", "react", etc. Empty means templ-only
 
 	// Blueprint holds the structured scaffold configuration
 	blueprint *blueprint.Blueprint
@@ -38,6 +41,35 @@ func (td *TemplateData) GetModuleName() string {
 	}
 
 	return td.ModuleName
+}
+
+// GetCSSFramework returns the CSS framework for the project.
+func (td *TemplateData) GetCSSFramework() string {
+	if td == nil {
+		return ""
+	}
+
+	return td.CSSFramework
+}
+
+// GetInertia returns the inertia adapter for the project, if any.
+func (td *TemplateData) GetInertia() string {
+	if td == nil {
+		return ""
+	}
+
+	return td.Inertia
+}
+
+// IsSupportedInertiaAdapter reports whether adapter names a frontend adapter
+// Andurel knows how to scaffold.
+func IsSupportedInertiaAdapter(adapter string) bool {
+	switch adapter {
+	case "vue", "react":
+		return true
+	default:
+		return false
+	}
 }
 
 // Blueprint returns the underlying blueprint. If not yet initialized, creates

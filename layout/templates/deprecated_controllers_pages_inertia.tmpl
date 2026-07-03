@@ -1,0 +1,33 @@
+package controllers
+
+import (
+	"{{.ModuleName}}/internal/hypermedia"
+	"{{.ModuleName}}/internal/inertia"
+	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/queue"
+	"{{.ModuleName}}/views"
+
+	"github.com/labstack/echo/v5"
+)
+
+type Pages struct {
+	db         storage.Pool
+	insertOnly queue.InsertOnly
+}
+
+func NewPages(
+	db storage.Pool,
+	insertOnly queue.InsertOnly,
+) Pages {
+	return Pages{db, insertOnly}
+}
+
+func (p Pages) Home(etx *echo.Context) error {
+	return inertia.Page(etx, "Welcome", inertia.Props{
+		"appName": "{{.ProjectName}}",
+	})
+}
+
+func (p Pages) NotFound(etx *echo.Context) error {
+	return hypermedia.RenderPage(etx, views.NotFound())
+}

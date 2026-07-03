@@ -1,182 +1,248 @@
+{{$indexRecv := printf "%s%s" .ResourceName "Index" | ToReceiverName}}
+{{$showRecv := printf "%s%s" .ResourceName "Show" | ToReceiverName}}
+{{$newRecv := printf "%s%s" .ResourceName "New" | ToReceiverName}}
+{{$editRecv := printf "%s%s" .ResourceName "Edit" | ToReceiverName}}
 package views
 
 import (
 	"fmt"
-	{{if UsesPackage .Fields "strings"}}"strings"
-	{{end}}	"net/http"
-	"{{.ModulePath}}/internal/renderer"
+{{ViewDataImports .Fields}}	{{if UsesPackage .Fields "strings"}}"strings"
+	{{end}}{{if or (and (HasAction "new") (HasAction "create")) (and (HasAction "edit") (or (HasAction "update") (HasAction "destroy")))}}	"net/http"
+	{{end}}
 	"{{.ModulePath}}/models"
+	{{if or (and (HasAction "show") (HasAction "index")) (and (HasAction "new") (or (HasAction "create") (HasAction "index"))) (and (HasAction "edit") (or (HasAction "update") (HasAction "index") (HasAction "destroy")))}}"{{.ModulePath}}/internal/hypermedia"
+	{{end}}
+	{{if or (and (HasAction "index") (or (HasAction "new") (HasAction "show") (HasAction "edit"))) (and (HasAction "show") (or (HasAction "edit") (HasAction "index"))) (and (HasAction "new") (or (HasAction "create") (HasAction "index"))) (and (HasAction "edit") (or (HasAction "update") (HasAction "index") (HasAction "destroy")))}}
 	"{{.ModulePath}}/router/routes"
-	"{{.ModulePath}}/internal/hypermedia"
+	{{end}}
 )
-
-templ {{.ResourceName}}Index({{.PluralName}} []models.{{.EntityName}}) {
-	@base() {
-		<main class="flex-1 px-6 py-10">
-			<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
-				<div class="flex flex-wrap items-center justify-between gap-4">
-					<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{Plural .ResourceName}}</h1>
-					<a href={ routes.{{.ResourceName}}New.URL() } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">New {{.ResourceName}}</a>
-				</div>
-				if len({{.PluralName}}) == 0 {
-					<p class="text-sm text-base-content/60">No {{.PluralName}} found.</p>
-				} else {
-					<div class="relative w-full overflow-auto">
-						<table class="w-full caption-bottom text-sm">
-							<thead class="[&_tr]:border-b [&_tr]:border-base-300">
-								<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
-									{{range .Fields}}<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">{{.DisplayName}}</th>
-									{{end}}<th class="h-10 px-4 text-left align-middle font-medium text-base-content/60 [&:has([role=checkbox])]:pr-0">Actions</th>
-								</tr>
-							</thead>
-							<tbody class="[&_tr:last-child]:border-0">
-								for _, {{.ResourceName | ToLower}} := range {{.PluralName}} {
-									<tr class="border-b border-base-300 transition-colors hover:bg-base-200/50">
-										{{range .Fields}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{{StringTableDisplay . $.ResourceName}}</td>
-										{{end}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
-											<div class="flex flex-wrap gap-3 text-sm">
-												<a class="text-base-content/80 hover:text-base-content" href={ routes.{{$.ResourceName}}Show.URL({{$.ResourceName | ToLower}}.ID) }>View</a>
-												<a class="text-base-content/80 hover:text-base-content" href={ routes.{{$.ResourceName}}Edit.URL({{$.ResourceName | ToLower}}.ID) }>Edit</a>
-											</div>
-										</td>
-									</tr>
-								}
-							</tbody>
-						</table>
-					</div>
-				}
-			</div>
-		</main>
-	}
+{{ViewData .}}
+{{if HasAction "index"}}
+type {{.NamespacePascal}}{{.ResourceName}}Index struct {
+	Items []models.{{.EntityName}}
 }
 
-templ {{.ResourceName}}Show({{.ResourceName | ToLower}} models.{{.EntityName}}) {
+func ({{$indexRecv}} {{.NamespacePascal}}{{.ResourceName}}Index) PageFragment() string {
+	return "{{.ResourceName | ToLower}}-index-page-fragment"
+}
+
+templ ({{$indexRecv}} {{.NamespacePascal}}{{.ResourceName}}Index) Page() {
 	@base() {
-		<main class="flex-1 px-6 py-10">
-			<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
-				<div class="flex flex-wrap items-center justify-between gap-4">
-					<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{.ResourceName}} Details</h1>
-					<div class="flex flex-wrap items-center gap-3">
-						<a href={ routes.{{.ResourceName}}Edit.URL({{.ResourceName | ToLower}}.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field">Edit</a>
-						<a class="text-sm text-base-content/70 hover:text-base-content" href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
+		@templ.Fragment({{$indexRecv}}.PageFragment()) {
+			<main id="{{.ResourceName | ToLower}}-index-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{Plural .ResourceName}}</h1>
+						{{if HasAction "new"}}
+						<a href={ routes.{{.NamespacePascal}}{{.ResourceName}}New.URL() } class="btn btn-primary">New {{.ResourceName}}</a>
+						{{end}}
+					</div>
+					if len({{$indexRecv}}.Items) == 0 {
+						<p class="text-sm text-base-content/60">No {{.PluralName}} found.</p>
+					} else {
+						<div class="table-wrap">
+							<table class="table">
+								<thead>
+									<tr>
+										{{range .Fields}}<th>{{.DisplayName}}</th>
+										{{end}}<th>Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									for _, {{.ResourceName | ToLower}} := range {{$indexRecv}}.Items {{ViewDataLoop $.NamespacePascal .ResourceName (.ResourceName | ToLower) (HasNullFields .Fields)}}
+										<tr>
+											{{range .Fields}}<td>{{StringTableDisplay . (ViewDataRowRef $.NamespacePascal $.ResourceName ($.ResourceName | ToLower) (HasNullFields $.Fields))}}</td>
+											{{end}}<td>
+												<div class="flex flex-wrap gap-3 text-sm">
+													{{if HasAction "show"}}
+													<a class="inline-link" href={ routes.{{$.NamespacePascal}}{{$.ResourceName}}Show.URL({{$.ResourceName | ToLower}}.ID) }>View</a>
+													{{end}}
+													{{if HasAction "edit"}}
+													<a class="inline-link" href={ routes.{{$.NamespacePascal}}{{$.ResourceName}}Edit.URL({{$.ResourceName | ToLower}}.ID) }>Edit</a>
+													{{end}}
+												</div>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</div>
+			</main>
+		}
+	}
+}
+{{end}}
+
+{{if HasAction "show"}}
+type {{.NamespacePascal}}{{.ResourceName}}Show struct {
+	Item models.{{.EntityName}}
+}
+
+func ({{$showRecv}} {{.NamespacePascal}}{{.ResourceName}}Show) PageFragment() string {
+	return "{{.ResourceName | ToLower}}-show-page-fragment"
+}
+
+templ ({{$showRecv}} {{.NamespacePascal}}{{.ResourceName}}Show) Page() {
+	@base() {
+		@templ.Fragment({{$showRecv}}.PageFragment()) {
+			<main id="{{.ResourceName | ToLower}}-show-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{.ResourceName}} Details</h1>
+						<div class="flex flex-wrap items-center gap-3">
+							{{if HasAction "edit"}}
+							<a href={ routes.{{.NamespacePascal}}{{.ResourceName}}Edit.URL({{$showRecv}}.Item.ID) } class="btn btn-primary">Edit</a>
+							{{end}}
+							{{if HasAction "index"}}
+							<a class="inline-link text-sm" href={ hypermedia.ResolveBackURL(ctx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL()) }>Back to List</a>
+							{{end}}
+						</div>
+					</div>
+					<div class="card">
+						<div class="card-content">
+							<div class="grid gap-5 sm:grid-cols-2">
+								{{$itemRef := printf "%s.%s" $showRecv "Item"}}{{$itemDisplayRef := ViewDataRef $.NamespacePascal .ResourceName $itemRef (HasNullFields .Fields)}}
+								{{range .Fields}}<div class="field">
+									<label class="field-label">{{.DisplayName}}</label>
+									<p class="text-sm text-base-content">{{StringDisplay . $itemDisplayRef}}</p>
+								</div>
+								{{end}}
+							</div>
+						</div>
 					</div>
 				</div>
-				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
-					<div class="p-6 pt-0">
-						<div class="grid gap-5 sm:grid-cols-2">
-							{{range .Fields}}<div class="space-y-1">
-								<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">{{.DisplayName}}</label>
-								<p class="text-sm text-base-content">{{StringDisplay . $.ResourceName}}</p>
-							</div>
+			</main>
+		}
+	}
+}
+{{end}}
+
+{{if HasAction "new"}}
+type {{.NamespacePascal}}{{.ResourceName}}New struct{}
+
+func ({{$newRecv}} {{.NamespacePascal}}{{.ResourceName}}New) PageFragment() string {
+	return "{{.ResourceName | ToLower}}-new-page-fragment"
+}
+
+templ ({{$newRecv}} {{.NamespacePascal}}{{.ResourceName}}New) Page() {
+	@base() {
+		@templ.Fragment({{$newRecv}}.PageFragment()) {
+			<main id="{{.ResourceName | ToLower}}-new-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="card">
+						<div class="card-header">
+							<h3 class="card-title">New {{.ResourceName}}</h3>
+							<p class="card-description">Enter the details for the new {{.ResourceName | ToLower}}.</p>
+						</div>
+						<div class="card-content">
+							<form class="form" data-indicator:_submitting{{if HasAction "create"}} data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.{{.NamespacePascal}}{{.ResourceName}}Create.URL()) }{{end}}>
+								<fieldset class="fieldset" data-attr:disabled="$_submitting">
+									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="radio-row">
+										<input type="checkbox" class="checkbox" data-bind="{{.CamelCase}}" />
+										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+									</div>
+									{{else if eq .InputType "date"}}<div class="field">
+										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<div class="relative w-full">
+											<div class="relative">
+												<input type="date" class="input" data-bind="{{.CamelCase}}" />
+												<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/40"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
+												</div>
+											</div>
+										</div>
+									</div>
+									{{else if eq .InputType "number"}}<div class="field">
+										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<input type="number" class="input" data-bind="{{.CamelCase}}" />
+									</div>
+									{{else}}<div class="field">
+										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<input type="text" class="input" data-bind="{{.CamelCase}}" />
+									</div>
+									{{end}}{{end}}{{end}}
+									<div class="card-footer mt-6 flex-col gap-3">
+										{{if HasAction "create"}}<button type="submit" class="btn btn-primary btn-block">Create {{.ResourceName}}</button>{{end}}
+										{{if HasAction "index"}}
+										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL()) }>Back to List</a>
+										{{end}}
+									</div>
+								</fieldset>
+							</form>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}
+{{end}}
+
+{{if HasAction "edit"}}
+type {{.NamespacePascal}}{{.ResourceName}}Edit struct {
+	Item models.{{.EntityName}}
+}
+
+func ({{$editRecv}} {{.NamespacePascal}}{{.ResourceName}}Edit) PageFragment() string {
+	return "{{.ResourceName | ToLower}}-edit-page-fragment"
+}
+
+templ ({{$editRecv}} {{.NamespacePascal}}{{.ResourceName}}Edit) Page() {
+	@base() {
+		@templ.Fragment({{$editRecv}}.PageFragment()) {
+			<main id="{{.ResourceName | ToLower}}-edit-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="card">
+						<div class="card-header">
+							<h3 class="card-title">Edit {{.ResourceName}}</h3>
+							<p class="card-description">Update the details for this {{.ResourceName | ToLower}}.</p>
+						</div>
+						<div class="card-content">
+							<form class="form" data-indicator:_submitting{{if HasAction "update"}} data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.{{.NamespacePascal}}{{.ResourceName}}Update.URL({{$editRecv}}.Item.ID)) }{{end}}>
+								<fieldset class="fieldset" data-attr:disabled="$_submitting">
+									{{$itemRef := printf "%s.%s" $editRecv "Item"}}{{$itemDisplayRef := ViewDataRef $.NamespacePascal .ResourceName $itemRef (HasNullFields .Fields)}}
+									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="radio-row">
+										<input type="checkbox" class="checkbox" data-bind="{{.CamelCase}}" if {{FieldRef . $itemDisplayRef}} { checked } />
+										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+									</div>
+									{{else if eq .InputType "date"}}<div class="field">
+										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<div class="relative w-full">
+											<div class="relative">
+												<input type="date" class="input" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemDisplayRef}} } />
+												<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/40"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
+												</div>
+											</div>
+										</div>
+									</div>
+									{{else if eq .InputType "number"}}<div class="field">
+										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<input type="number" class="input" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemDisplayRef}} } />
+									</div>
+									{{else}}<div class="field">
+										<label class="field-label" for="{{.CamelCase}}">{{.DisplayName}}</label>
+										<input type="text" class="input" data-bind="{{.CamelCase}}" value={ {{StringValue . $itemDisplayRef}} } />
+									</div>
+									{{end}}{{end}}{{end}}
+									<div class="card-footer mt-6 flex-col gap-3">
+										{{if HasAction "update"}}<button type="submit" class="btn btn-primary btn-block">Update {{.ResourceName}}</button>{{end}}
+										{{if HasAction "index"}}
+										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL()) }>Back to List</a>
+										{{end}}
+									</div>
+								</fieldset>
+							</form>
+							{{if HasAction "destroy"}}<div class="separator my-6"></div>
+							<button type="button" class="btn btn-destructive btn-block" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.{{.NamespacePascal}}{{.ResourceName}}Destroy.URL({{$editRecv}}.Item.ID)) }>Destroy {{.ResourceName}}</button>
 							{{end}}
 						</div>
 					</div>
 				</div>
-			</div>
-		</main>
+			</main>
+		}
 	}
 }
-
-templ {{.ResourceName}}New() {
-	@base() {
-		<main class="flex-1 flex items-center justify-center px-6 py-10">
-			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
-					<div class="flex flex-col space-y-1.5 p-6">
-						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">New {{.ResourceName}}</h3>
-						<p class="text-sm text-base-content/60">Enter the details for the new {{.ResourceName | ToLower}}.</p>
-					</div>
-					<div class="p-6 pt-0">
-						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPost, routes.{{.ResourceName}}Create.URL()) }>
-							<fieldset data-attr:disabled="$submitting">
-								<div class="space-y-4">
-									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
-										<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-base-300 bg-base-200 accent-primary transition focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" />
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
-									</div>
-									{{else if eq .InputType "date"}}<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
-										<div class="relative w-full">
-											<div class="relative">
-												<input type="date" class="flex h-9 w-full rounded-field border border-base-300 bg-base-200 px-3 py-1 pr-8 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" />
-												<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/40"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
-												</div>
-											</div>
-										</div>
-									</div>
-									{{else if eq .InputType "number"}}<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
-										<input type="number" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="{{.CamelCase}}" />
-									</div>
-									{{else}}<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="{{.CamelCase}}" />
-									</div>
-									{{end}}{{end}}{{end}}
-								</div>
-								<div class="mt-6 space-y-3">
-									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Create {{.ResourceName}}</button>
-									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
-								</div>
-							</fieldset>
-						</form>
-					</div>
-				</div>
-			</div>
-		</main>
-	}
-}
-
-templ {{.ResourceName}}Edit({{.ResourceName | ToLower}} models.{{.EntityName}}) {
-	@base() {
-		<main class="flex-1 flex items-center justify-center px-6 py-10">
-			<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-				<div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
-					<div class="flex flex-col space-y-1.5 p-6">
-						<h3 class="text-lg font-semibold leading-none tracking-tight text-base-content">Edit {{.ResourceName}}</h3>
-						<p class="text-sm text-base-content/60">Update the details for this {{.ResourceName | ToLower}}.</p>
-					</div>
-					<div class="p-6 pt-0">
-						<form class="space-y-5" data-indicator:submitting data-on:submit={ "!$submitting && " + hypermedia.DataAction(http.MethodPut, routes.{{.ResourceName}}Update.URL({{.ResourceName | ToLower}}.ID)) }>
-							<fieldset data-attr:disabled="$submitting">
-								<div class="space-y-4">
-									{{range .Fields}}{{if not .IsSystemField}}{{if eq .InputType "checkbox"}}<div class="flex items-center gap-2">
-										<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-base-300 bg-base-200 accent-primary transition focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" if {{FieldRef . $.ResourceName}} { checked } />
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
-									</div>
-									{{else if eq .InputType "date"}}<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
-										<div class="relative w-full">
-											<div class="relative">
-												<input type="date" class="flex h-9 w-full rounded-field border border-base-300 bg-base-200 px-3 py-1 pr-8 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
-												<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-													<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/40"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
-												</div>
-											</div>
-										</div>
-									</div>
-									{{else if eq .InputType "number"}}<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
-										<input type="number" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
-									</div>
-									{{else}}<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-base-content/80 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="{{.CamelCase}}">{{.DisplayName}}</label>
-										<input type="text" class="flex h-9 w-full rounded-field border bg-base-200 px-3 py-1 text-sm text-base-content shadow-inner transition placeholder:text-base-content/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60 border-base-300" data-bind="{{.CamelCase}}" value={ {{StringValue . $.ResourceName}} } />
-									</div>
-									{{end}}{{end}}{{end}}
-								</div>
-								<div class="mt-6 space-y-3">
-									<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-content shadow-sm hover:bg-primary/90 h-9 px-4 py-2 text-sm rounded-field w-full">Update {{.ResourceName}}</button>
-									<a class="inline-flex h-9 w-full items-center justify-center rounded-field border border-base-300 px-4 py-2 text-sm font-medium text-base-content/80 transition hover:bg-base-200/70 hover:text-base-content" href={ renderer.ResolveBackURL(ctx, routes.{{.ResourceName}}Index.URL()) }>Back to List</a>
-								</div>
-							</fieldset>
-						</form>
-						<div role="separator" class="my-6 shrink-0 bg-base-300 h-px w-full"></div>
-						<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 disabled:cursor-not-allowed bg-error text-error-content shadow-sm hover:bg-error/90 h-9 px-4 py-2 text-sm rounded-field w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.{{.ResourceName}}Destroy.URL({{.ResourceName | ToLower}}.ID)) }>Destroy {{.ResourceName}}</button>
-					</div>
-				</div>
-			</div>
-		</main>
-	}
-}
+{{end}}

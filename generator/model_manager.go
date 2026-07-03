@@ -9,6 +9,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/models"
+	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
@@ -19,6 +20,7 @@ type ModelManager struct {
 	projectManager   *ProjectManager
 	migrationManager *MigrationManager
 	config           *UnifiedConfig
+	pkResolver       PrimaryKeyResolver
 }
 
 type modelSetupContext struct {
@@ -45,7 +47,12 @@ func NewModelManager(
 		projectManager:   projectManager,
 		migrationManager: migrationManager,
 		config:           config,
+		pkResolver:       DefaultPrimaryKeyResolver{},
 	}
+}
+
+func (m *ModelManager) SetPrimaryKeyResolver(resolver PrimaryKeyResolver) {
+	m.pkResolver = resolver
 }
 
 func (m *ModelManager) setupModelContext(
@@ -95,6 +102,7 @@ func (m *ModelManager) GenerateModel(
 	resourceName string,
 	tableNameOverride string,
 	skipFactory bool,
+	primaryKeyColumn string,
 ) error {
 	tableName := tableNameOverride
 	if tableName == "" {
@@ -121,7 +129,25 @@ func (m *ModelManager) GenerateModel(
 		return err
 	}
 
-	if err := m.modelGenerator.GenerateModel(cat, ctx.ResourceName, ctx.TableName, ctx.ModelPath, ctx.ModulePath, tableNameOverride); err != nil {
+	// Resolve primary key
+	var pkInfo PrimaryKeyInfo
+	if primaryKeyColumn != "" {
+		pkInfo = PrimaryKeyInfo{
+			ColumnName: primaryKeyColumn,
+			Found:      true,
+			IsNamedID:  primaryKeyColumn == "id",
+		}
+	} else {
+		var err error
+		pkInfo, err = m.resolvePrimaryKey(cat, ctx.TableName)
+		if err != nil {
+			return err
+		}
+	}
+
+	nullType := m.readNullType(ctx.RootDir)
+
+	if err := m.modelGenerator.GenerateModel(cat, ctx.ResourceName, ctx.TableName, ctx.ModelPath, ctx.ModulePath, tableNameOverride, nullType, pkInfo.ColumnName, !pkInfo.Found); err != nil {
 		return fmt.Errorf("failed to generate model: %w", err)
 	}
 
@@ -131,7 +157,7 @@ func (m *ModelManager) GenerateModel(
 
 	// Generate factory (unless skipped)
 	if !skipFactory {
-		if err := m.generateFactory(cat, ctx); err != nil {
+		if err := m.generateFactory(cat, ctx, pkInfo); err != nil {
 			// Log the error but don't fail the entire generation
 			fmt.Printf("Warning: failed to generate factory: %v\n", err)
 		} else {
@@ -146,15 +172,53 @@ func (m *ModelManager) GenerateModel(
 	return nil
 }
 
+// resolvePrimaryKey inspects the catalog for the table's primary key and
+// interacts with the user if the PK is non-standard or missing.
+func (m *ModelManager) resolvePrimaryKey(cat *catalog.Catalog, tableName string) (PrimaryKeyInfo, error) {
+	pkInfo := DetectPrimaryKey(cat, tableName)
+
+	if !pkInfo.Found {
+		ok, err := m.pkResolver.ConfirmNoPK(tableName)
+		if err != nil {
+			return PrimaryKeyInfo{}, err
+		}
+		if !ok {
+			return PrimaryKeyInfo{}, fmt.Errorf("generation aborted: table %q has no primary key", tableName)
+		}
+		return PrimaryKeyInfo{Found: false}, nil
+	}
+
+	if !pkInfo.IsNamedID {
+		resolved, err := m.pkResolver.ResolveAlternatePK(pkInfo, tableName)
+		if err != nil {
+			return PrimaryKeyInfo{}, err
+		}
+		return resolved, nil
+	}
+
+	return pkInfo, nil
+}
+
 // generateFactory creates a factory file for the model
-func (m *ModelManager) generateFactory(cat *catalog.Catalog, ctx *modelSetupContext) error {
+func (m *ModelManager) generateFactory(cat *catalog.Catalog, ctx *modelSetupContext, pkInfo PrimaryKeyInfo) error {
+	// Get root directory
+	rootDir, err := m.fileManager.FindGoModRoot()
+	if err != nil {
+		return fmt.Errorf("failed to find go.mod root: %w", err)
+	}
+
+	nullType := m.readNullType(rootDir)
+
 	// Build the model first
 	genModel, err := m.modelGenerator.Build(cat, models.Config{
-		TableName:    ctx.TableName,
-		ResourceName: ctx.ResourceName,
-		PackageName:  "models",
-		DatabaseType: m.config.Database.Type,
-		ModulePath:   ctx.ModulePath,
+		TableName:         ctx.TableName,
+		ResourceName:      ctx.ResourceName,
+		PackageName:       "models",
+		DatabaseType:      m.config.Database.Type,
+		ModulePath:        ctx.ModulePath,
+		NullType:          nullType,
+		PrimaryKeyColumn:  pkInfo.ColumnName,
+		GenerateWithoutPK: !pkInfo.Found,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build model for factory: %w", err)
@@ -162,20 +226,17 @@ func (m *ModelManager) generateFactory(cat *catalog.Catalog, ctx *modelSetupCont
 
 	// Build factory metadata
 	genFactory, err := m.modelGenerator.BuildFactory(cat, models.Config{
-		TableName:    ctx.TableName,
-		ResourceName: ctx.ResourceName,
-		PackageName:  "factories",
-		DatabaseType: m.config.Database.Type,
-		ModulePath:   ctx.ModulePath,
+		TableName:         ctx.TableName,
+		ResourceName:      ctx.ResourceName,
+		PackageName:       "factories",
+		DatabaseType:      m.config.Database.Type,
+		ModulePath:        ctx.ModulePath,
+		NullType:          nullType,
+		PrimaryKeyColumn:  pkInfo.ColumnName,
+		GenerateWithoutPK: !pkInfo.Found,
 	}, genModel)
 	if err != nil {
 		return fmt.Errorf("failed to build factory: %w", err)
-	}
-
-	// Get root directory
-	rootDir, err := m.fileManager.FindGoModRoot()
-	if err != nil {
-		return fmt.Errorf("failed to find go.mod root: %w", err)
 	}
 
 	// Write factory file
@@ -239,6 +300,15 @@ func ensureLineInBlock(src, openMarker, entry string) string {
 	return src[:insertAt] + entry + "\n" + src[insertAt:]
 }
 
+// readNullType reads the nullable type strategy from andurel.lock.
+// Defaults to "sql.Null" when not configured.
+func (m *ModelManager) readNullType(rootDir string) string {
+	if lock, err := layout.ReadLockFile(rootDir); err == nil && lock.DatabaseConfig != nil && lock.DatabaseConfig.NullType != "" {
+		return lock.DatabaseConfig.NullType
+	}
+	return "sql.Null"
+}
+
 func (m *ModelManager) checkExistingModel(resourceName string) {
 	modelFileName := naming.ToSnakeCase(resourceName) + ".go"
 	modelPath := filepath.Join(m.config.Paths.Models, modelFileName)
@@ -250,3 +320,5 @@ func (m *ModelManager) checkExistingModel(resourceName string) {
 		)
 	}
 }
+
+

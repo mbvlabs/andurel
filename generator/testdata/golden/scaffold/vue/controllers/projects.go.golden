@@ -1,0 +1,229 @@
+package controllers
+
+import (
+	"fmt"
+	"log/slog"
+	"strconv"
+	"testapp/internal/inertia"
+	"testapp/internal/storage"
+	"testapp/models"
+	"testapp/router/cookies"
+	"testapp/router/routes"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v5"
+)
+
+type Projects struct {
+	db storage.Pool
+}
+
+func NewProjects(db storage.Pool) Projects {
+	return Projects{db}
+}
+
+type ProjectData struct {
+	ID        uuid.UUID
+	Title     string
+	Status    string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func newProjectData(entity models.ProjectEntity) ProjectData {
+	return ProjectData{
+		ID:        entity.ID,
+		Title:     entity.Title,
+		Status:    entity.Status,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	}
+}
+
+func newProjectDataList(entities []models.ProjectEntity) []ProjectData {
+	items := make([]ProjectData, 0, len(entities))
+	for _, entity := range entities {
+		items = append(items, newProjectData(entity))
+	}
+
+	return items
+}
+
+func (p Projects) Index(etx *echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	projectsList, err := models.Project.Paginate(
+		etx.Request().Context(),
+		p.db.Executor(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+	}
+
+	return inertia.Page(etx, "Project/Index", inertia.Props{
+		"items": newProjectDataList(projectsList.Projects),
+	})
+}
+
+func (p Projects) Show(etx *echo.Context) error {
+	projectID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return inertia.Page(etx, "Errors/BadRequest", inertia.Props{})
+	}
+
+	project, err := models.Project.Find(etx.Request().Context(), p.db.Executor(), projectID)
+	if err != nil {
+		return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
+	}
+
+	return inertia.Page(etx, "Project/Show", inertia.Props{
+		"item": newProjectData(project),
+	})
+}
+
+func (p Projects) New(etx *echo.Context) error {
+	return inertia.Page(etx, "Project/Create", inertia.Props{})
+}
+
+type CreateProjectFormPayload struct {
+	Title  string `json:"title"`
+	Status string `json:"status"`
+}
+
+func (p Projects) Create(etx *echo.Context) error {
+	var payload CreateProjectFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse CreateProjectFormPayload",
+			"error",
+			err,
+		)
+
+		return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
+	}
+
+	data := models.CreateProjectData{
+		Title:  payload.Title,
+		Status: payload.Status,
+	}
+
+	project, err := models.Project.Create(
+		etx.Request().Context(),
+		p.db.Executor(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create project: %v", err)); flashErr != nil {
+			return flashErr
+		}
+		return inertia.Redirect(etx, routes.ProjectNew.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Project created successfully"); flashErr != nil {
+		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+	}
+	return inertia.Redirect(etx, routes.ProjectShow.URL(project.ID))
+}
+
+func (p Projects) Edit(etx *echo.Context) error {
+	projectID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return inertia.Page(etx, "Errors/BadRequest", inertia.Props{})
+	}
+
+	project, err := models.Project.Find(etx.Request().Context(), p.db.Executor(), projectID)
+	if err != nil {
+		return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
+	}
+
+	return inertia.Page(etx, "Project/Edit", inertia.Props{
+		"item": newProjectData(project),
+	})
+}
+
+type UpdateProjectFormPayload struct {
+	Title  string `json:"title"`
+	Status string `json:"status"`
+}
+
+func (p Projects) Update(etx *echo.Context) error {
+	projectID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return inertia.Page(etx, "Errors/BadRequest", inertia.Props{})
+	}
+
+	var payload UpdateProjectFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse UpdateProjectFormPayload",
+			"error",
+			err,
+		)
+
+		return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
+	}
+
+	data := models.UpdateProjectData{
+		ID:     projectID,
+		Title:  payload.Title,
+		Status: payload.Status,
+	}
+
+	project, err := models.Project.Update(
+		etx.Request().Context(),
+		p.db.Executor(),
+		data,
+	)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update project: %v", err)); flashErr != nil {
+			return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		}
+		return inertia.Redirect(
+			etx,
+			routes.ProjectEdit.URL(projectID),
+		)
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Project updated successfully"); flashErr != nil {
+		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+	}
+	return inertia.Redirect(etx, routes.ProjectShow.URL(project.ID))
+}
+
+func (p Projects) Destroy(etx *echo.Context) error {
+	projectID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return inertia.Page(etx, "Errors/BadRequest", inertia.Props{})
+	}
+
+	err = models.Project.Destroy(etx.Request().Context(), p.db.Executor(), projectID)
+	if err != nil {
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete project: %v", err)); flashErr != nil {
+			return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		}
+		return inertia.Redirect(etx, routes.ProjectIndex.URL())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Project destroyed successfully"); flashErr != nil {
+		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+	}
+	return inertia.Redirect(etx, routes.ProjectIndex.URL())
+}

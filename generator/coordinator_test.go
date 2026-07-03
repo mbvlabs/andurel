@@ -18,14 +18,9 @@ func setupTestProject(t *testing.T) (string, func()) {
 		t.Fatalf("Failed to write go.mod: %v", err)
 	}
 
-	dbDir := tmpDir + "/database"
-	if err := os.MkdirAll(dbDir, 0o755); err != nil {
+	migrationDir := tmpDir + "/database/migrations"
+	if err := os.MkdirAll(migrationDir, 0o755); err != nil {
 		t.Fatalf("Failed to create database directory: %v", err)
-	}
-
-	sqlcContent := `sql: []`
-	if err := os.WriteFile(dbDir+"/sqlc.yaml", []byte(sqlcContent), 0o644); err != nil {
-		t.Fatalf("Failed to write sqlc.yaml: %v", err)
 	}
 
 	originalDir, err := os.Getwd()
@@ -148,12 +143,12 @@ func TestCoordinator_GenerateModelValidation(t *testing.T) {
 	}
 
 	// Test that validation errors are properly returned via ModelManager
-	err = coord.ModelManager.GenerateModel("", "", false)
+	err = coord.ModelManager.GenerateModel("", "", false, "")
 	if err == nil {
 		t.Error("Expected validation error for empty resource name")
 	}
 
-	err = coord.ModelManager.GenerateModel("invalid-name", "", false)
+	err = coord.ModelManager.GenerateModel("invalid-name", "", false, "")
 	if err == nil {
 		t.Error("Expected validation error for invalid resource name")
 	}
@@ -169,12 +164,12 @@ func TestCoordinator_GenerateControllerValidation(t *testing.T) {
 	}
 
 	// Test that validation errors are properly returned
-	err = coord.GenerateController("", "", false)
+	err = coord.GenerateController("", "", "", "", false)
 	if err == nil {
 		t.Error("Expected validation error for empty resource name")
 	}
 
-	err = coord.GenerateController("invalid-name", "table", false)
+	err = coord.GenerateController("invalid-name", "table", "", "", false)
 	if err == nil {
 		t.Error("Expected validation error for invalid resource name")
 	}
@@ -190,12 +185,12 @@ func TestCoordinator_GenerateViewValidation(t *testing.T) {
 	}
 
 	// Test that validation errors are properly returned via ViewManager
-	err = coord.ViewManager.GenerateView("", "")
+	err = coord.ViewManager.GenerateView("", "", "")
 	if err == nil {
 		t.Error("Expected validation error for empty resource name")
 	}
 
-	err = coord.ViewManager.GenerateView("invalid-name", "table")
+	err = coord.ViewManager.GenerateView("invalid-name", "table", "")
 	if err == nil {
 		t.Error("Expected validation error for invalid resource name")
 	}
@@ -211,12 +206,12 @@ func TestCoordinator_GenerateControllerFromModelValidation(t *testing.T) {
 	}
 
 	// Test that validation errors are properly returned
-	err = coord.GenerateControllerFromModel("", false)
+	err = coord.GenerateControllerFromModel("")
 	if err == nil {
 		t.Error("Expected validation error for empty resource name")
 	}
 
-	err = coord.GenerateControllerFromModel("invalid-name", false)
+	err = coord.GenerateControllerFromModel("invalid-name")
 	if err == nil {
 		t.Error("Expected validation error for invalid resource name")
 	}

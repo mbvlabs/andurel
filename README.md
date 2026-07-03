@@ -4,11 +4,11 @@
 
 # Andurel - Rails-like Web Framework for Go
 
-[![Go Version](https://img.shields.io/badge/go-1.24.4%2B-blue.svg)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/go-1.26.0%2B-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/mbvlabs/andurel.svg)](https://pkg.go.dev/github.com/mbvlabs/andurel)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mbvlabs/andurel)](https://goreportcard.com/report/github.com/mbvlabs/andurel)
-![Coverage](https://img.shields.io/badge/Coverage-33.2%25-yellow)
+![Coverage](https://img.shields.io/badge/Coverage-41.0%25-yellow)
 
 ---
 
@@ -31,8 +31,11 @@ Development speed is everything. Andurel eliminates boilerplate and lets you foc
 
 - **Instant Scaffolding** - Generate complete CRUD resources with one command
 - **Live Reload** - Hot reloading for Go, templates, and CSS with `andurel run` powered by [Shadowfax](https://github.com/mbvlabs/shadowfax)
-- **Type Safety Everywhere** - SQLC for SQL, Templ for HTML, Go for logic
-- **Batteries Included** - Echo, Datastar, background jobs, sessions, CSRF protection, telemetry, email support, authentication, optional extensions (workflows, docker, aws-ses)
+- **Type Safety Everywhere** - Bun for SQL, Templ/Vue for HTML, Go for logic
+- **Batteries Included** — Echo, Datastar, background jobs, sessions, CSRF protection, telemetry, email support, authentication, optional extensions (docker, aws-ses, css-components)
+- **UberFX DI** — Declarative dependency injection with `go.uber.org/fx`
+- **Two Frontend Options** — Server-rendered HTML with **Templ + Datastar** for hypermedia interactivity, or **Inertia SPA with Vue 3 or React + Vite** for a reactive single-page app
+- **Production Build** — One command (`andurel build`) to compile everything: Templ, Tailwind CSS, Vite assets, and Go binary
 - **Just enough Convention** - Convention over configuration is great to a certain point. Andurel provides just enough sensible defaults that just work and get out of your way.
 - **PostgreSQL-Backed** - Built on PostgreSQL with River job queues, pgx driver, and UUID support
 
@@ -42,41 +45,44 @@ The core philosophy around resource generation in andurel, is that it should be 
 
 - **[Echo](https://echo.labstack.com/)** - High-performance HTTP framework
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
-- **[SQLC](https://sqlc.dev/)** - Type-safe SQL code generation
+- **[Bun](https://bun.uptrace.dev/)** - Type-safe SQL ORM and query builder
 - **[Templ](https://templ.guide/)** - Type-safe HTML templates
 - **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity
 - **[River](https://riverqueue.com/)** - PostgreSQL-backed background jobs and workflows
 - **[OpenTelemetry](https://opentelemetry.io/)** - Built-in observability
 - **[PostgreSQL](https://www.postgresql.org/)** - Powerful open-source database with pgx driver and native UUID support
-- **[Shadowfax](https://github.com/mbvlabs/shadowfax)** - Andurel specific app runner
+- **[Shadowfax](https://github.com/mbvlabs/shadowfax)** - Andurel-specific app runner
+- **[go.uber.org/fx](https://uber-go.github.io/fx/)** - Dependency injection framework
+- **[gonertia](https://github.com/romsar/gonertia)** - Inertia.js Go adapter (optional, `--inertia vue` or `--inertia react`)
+- **[Vue.js](https://vuejs.org/) / [React](https://react.dev/)** - JavaScript UI adapters (optional, via Inertia)
+- **[Vite](https://vitejs.dev/)** - Next-generation frontend build tool (optional, via Inertia)
 
 ## Quick Start
-
-This is subject to change as Andurel is in beta.
-
-I have not documented every feature or command yet, only enough to get you started and trying out the framework.
-
-Once the framework reaches a release candidate, I will provide more comprehensive documentation and guides.
 
 ### Installation
 
 ```bash
-go install github.com/mbvlabs/andurel@v1.0.0-beta.3
+go install github.com/mbvlabs/andurel@v1.0.0-beta.5
 ```
 
 ### Create Your First Project
 
 Andurel gives you choices when creating a new project:
 
-> Note: `--css vanilla` is currently WIP and not properly supported before `v1.0.0`. Use Tailwind for now.
-
 ```bash
-# Create a new project with defaults (PostgreSQL + Tailwind CSS)
+# Create a new project (PostgreSQL + Tailwind CSS + uberfx DI)
 andurel new myapp
 
 # Add extensions for additional features:
 andurel new myapp -e docker              # Add Dockerfile for containerization
 andurel new myapp -e aws-ses             # Add AWS SES email integration
+
+# Choose your frontend approach:
+andurel new myapp --inertia vue          # Inertia SPA with Vue 3 + Vite
+andurel new myapp --inertia react        # Inertia SPA with React + Vite
+
+# Combine options:
+andurel new myapp --inertia vue -e docker
 
 cd myapp
 
@@ -88,8 +94,11 @@ cp .env.example .env
 
 # Note: you need to edit .env with your database details
 
+# Install NPM dependencies (only if using --inertia vue/react)
+npm install
+
 # Apply database migrations
-andurel migrate up
+andurel database migrate up
 
 # Run the development server (with live reload)
 andurel run
@@ -125,209 +134,595 @@ andurel database rebuild --skip-seed       # Skip seeding after migrations
 # Create a migration and add the columns you need. Resource generation requires
 # an `id` primary key (uuid/serial/bigserial/string-supported types). `created_at`
 # and `updated_at` are optional but recommended.
-andurel migrate new create_products_table
+andurel database migrate new create_products_table
 
 # Create a complete resource with model, controller, views, and routes
-andurel generate resource Product
+andurel generate scaffold Product
 ```
 
-This single command creates everything you need for a full CRUD interface.
+This single command creates everything you need for a full CRUD interface: model, factory, controller, Templ views, and resource routes. Pass `--inertia` when you want the generated resource/controller views as Inertia pages instead (reads the adapter from `andurel.lock`).
 
 ## CLI Commands
 
-### Run
-Starts the development server (hot reload).
+### `andurel new` — Create a new project
+
+Scaffolds a complete Andurel project with the given name.
+
+```bash
+andurel new (alias: n) [project-name] [flags]
+```
+
+| Flag | Description |
+|------|-------------|
+| `-e`, `--extensions` | Comma-separated extensions to enable (e.g. `docker,aws-ses,css-components`) |
+
+| `--inertia` | Frontend adapter: `vue` or `react` (enables Inertia SPA with Vite) |
+
+### `andurel generate` — Code generation
+
+Generate models, controllers, and scaffolds from your existing database migrations.
+
+```bash
+andurel generate (alias: g) model NAME [flags]
+andurel generate view (alias: v)
+andurel generate controller (alias: c) NAME [action ...] [flags]
+andurel generate scaffold (alias: s) NAME [flags]
+andurel generate job (alias: j) NAME [flags]
+andurel generate email (alias: e) NAME
+```
+
+**`generate model`** — Creates a model from a database migration, or updates an existing one. Fields, types, and timestamps are read from the migration automatically.
+
+| Flag | Description |
+|------|-------------|
+| `--skip-factory` | Skip generating a factory file |
+| `--table-name`   | Override the default table name (e.g. `--table-name=people_data`) |
+| `--update`       | Update an existing model from migration changes |
+| `--yes`          | Apply changes without prompting for confirmation (use with `--update`) |
+| `--primary-key`  | Specify the primary key column (skips interactive detection) |
+
+**`generate controller`** — Creates a controller for a resource. With no actions, it generates the full standard CRUD controller, views, and routes. With one or more standard CRUD actions (`index`, `show`, `new`, `create`, `edit`, `update`, `destroy`), it generates only those resource actions; partial CRUD views are self-contained and only link to companion actions that are also present. Generated resource/controller views default to Templ in every project; pass `--inertia` to generate Inertia pages (uses the adapter from `andurel.lock`).
+
+Non-CRUD actions create standalone/custom controller actions. They add empty controller methods, matching Templ components by default or Inertia pages with `--inertia`, and conventional `GET` routes:
+
+```bash
+andurel generate controller Dashboard overview
+```
+
+Generates:
+
+| Artifact | Example |
+|----------|---------|
+| Controller method | `controllers/dashboards.go`: `Dashboards.Overview` |
+| Templ view | `views/dashboards_resource.templ`: `DashboardOverview()` |
+| Route variable | `router/routes/dashboards.go`: `DashboardOverview` |
+| Route registration | `GET /dashboards/overview` named `dashboards.overview` |
+
+Custom-only controller generation does not require a model or migration. If any CRUD action is requested, generation is model-backed and still requires an existing model/migration.
+
+Use `--model-name` when the controller/resource name should differ from the model it is backed by:
+
+```bash
+andurel generate controller Dashboard --model-name User
+andurel generate controller Dashboard index overview --model-name User
+```
+
+In this mode, controller/UI artifacts use `Dashboard` (`controllers/dashboards.go`, `views/dashboards_resource.templ`, `/dashboards` routes), while model calls and entity types use `User` (`models.User.Paginate`, `models.User.Find`, `models.UserEntity`, `models.CreateUserData`, `models.UpdateUserData`). This is only for `generate controller`; `generate scaffold` keeps the existing one-resource-name behavior.
+
+Use `--api` to generate a JSON API controller instead. The controller is placed under `controllers/api` with `echo.JSON` responses and no views:
+
+```bash
+andurel generate controller Users --api
+andurel generate controller admin/Widget export --api
+```
+
+When `--api` is set, the namespace is forced to `"api"` (overriding any namespace segment in the name), and the default action set excludes `new` and `edit`. Custom actions create `etx.JSON(http.StatusOK, map[string]any{})` stubs.
+
+| Flag | Description |
+|------|-------------|
+| `--model-name` | Use a different existing model for model-backed controller generation |
+| `--inertia` | Generate Inertia views using the adapter configured in `andurel.lock` |
+| `--api`       | Generate a JSON API controller under `controllers/api` without views |
+
+**`generate view`** — Generates Go code from `.templ` template files (runs `templ generate`).
+
+**`generate scaffold`** — Convenience command that runs `generate model` + `generate controller` with full CRUD actions (index, show, new, create, edit, update, destroy). By default generates Templ views, including in projects created with Inertia; pass `--inertia` for Inertia views (reads the adapter from `andurel.lock`).
+
+| Flag | Description |
+|------|-------------|
+| `--skip-factory` | Skip generating a factory file |
+| `--table-name`   | Override the default table name |
+| `--inertia`      | Generate Inertia views using the adapter configured in `andurel.lock` |
+| `--api`          | Generate a JSON API controller under `controllers/api` without views |
+| `--primary-key`  | Specify the primary key column (skips interactive detection) |
+
+### `andurel fmt` — Format source files
+
+Formats Go and Templ source files in the project.
+
+```bash
+andurel fmt (alias: f) [flags]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--check`      | Check formatting without modifying files (CI-friendly) |
+| `--skip-templ` | Skip Templ formatting |
+| `--skip-go`    | Skip Go formatting (go fmt and golines) |
+
+Runs `go fmt ./...`, `golines -w -m 100 .`, and `templ fmt` on `views/` and `email/` directories.
+
+### `andurel database` — Database management
+
+Manage the full database lifecycle.
+
+```bash
+andurel database (aliases: d, db)
+andurel database create
+andurel database drop [--force]
+andurel database nuke [--force]
+andurel database rebuild [--force] [--skip-seed]
+andurel database seed
+andurel database migrate (aliases: m, mig)
+```
+
+**`database migrate` subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| `new [name]` (alias: `n`) | Create a new SQL migration file |
+| `up` | Apply all pending migrations |
+| `down` | Roll back the most recently applied migration |
+| `status` (alias: `st`) | Show current migration version and status |
+| `fix` | Re-number migrations to close gaps |
+| `reset` (alias: `rs`) | Roll back all migrations, then re-apply them |
+| `up-to [version]` (alias: `upto`) | Apply migrations up to a specific version |
+| `down-to [version]` (alias: `downto`) | Roll back migrations down to a specific version |
+
+### `andurel build` — Production build
+
+Build the application binary and compile all assets for production deployment.
+
+```bash
+andurel build [--version]
+```
+
+Runs Templ generation, minifies Tailwind CSS, installs NPM dependencies and builds Vite assets (if using Inertia), downloads Go dependencies, and compiles a static Linux binary.
+
+| Flag | Description |
+|------|-------------|
+| `--version` | Set the application version (injected via ldflags) |
+
+### `andurel run` — Development server
+
+Starts the development server with live reload (powered by Shadowfax).
 
 ```bash
 andurel run (alias: r)
 ```
 
-### New
-Scaffolds a new Andurel project.
+### `andurel console` — Database console
+
+Opens an interactive database console (usql) using connection details from `.env`.
 
 ```bash
-andurel new [project-name] --css/-c --extensions/-e
+andurel console (alias: c)
 ```
 
-### Generate
-Code and scaffolding generators.
+### `andurel tool` — Project tools and binaries
 
-```bash
-andurel generate (aliases: g, gen)
-andurel generate model [name] --table-name --skip-factory      (alias: m)
-andurel generate controller [model_name] --with-views          (alias: c)
-andurel generate view [model_name] --with-controller           (alias: v)
-andurel generate resource [name] --table-name                  (alias: r)
-```
-
-### Database
-Database lifecycle and seed helpers.
-
-```bash
-andurel database (aliases: d, db)
-andurel database seed
-andurel database create
-andurel database drop
-andurel database nuke
-andurel database rebuild
-```
-
-### Migrate
-Goose migration helpers.
-
-```bash
-andurel migrate (aliases: m, mig)
-andurel migrate new [name]
-andurel migrate up
-andurel migrate down
-andurel migrate status
-andurel migrate fix
-andurel migrate reset
-andurel migrate up-to [version]
-andurel migrate down-to [version]
-```
-
-### Query
-SQLC query generation helpers.
-
-```bash
-andurel query (alias: q)
-andurel query generate [table_name]
-andurel query refresh [table_name]
-andurel query compile
-andurel query validate
-```
-
-### View
-Templ code generation.
-
-```bash
-andurel view (alias: v)
-andurel view generate
-andurel view format
-```
-
-### App
-App utilities and helpers.
-
-```bash
-andurel app (alias: a)
-andurel app console    # alias: c
-andurel app dblab      # alias: d
-andurel app mailpit    # alias: m
-```
-
-### Tool
-Manage project tools and binaries.
+Manage CLI tools and binaries used by your project. Tools are defined in `andurel.lock` and downloaded to `bin/`.
 
 ```bash
 andurel tool (alias: t)
 andurel tool sync
 andurel tool set-version <tool> <version>
+andurel tool dblab (alias: d)
+andurel tool mailpit (alias: m)
 ```
 
-### Extension
-Manage project extensions.
+| Subcommand | Description |
+|------------|-------------|
+| `sync` (alias: `s`) | Download and validate binaries specified in `andurel.lock` |
+| `set-version` (alias: `sv`) | Set a specific tool version (e.g. `templ 0.3.977`) |
+| `dblab` (alias: `d`) | Open the dblab database UI in the browser |
+| `mailpit` (alias: `m`) | Run the Mailpit email testing server (SMTP :1025, HTTP :8025) |
+
+### `andurel extension` — Project extensions
+
+Add and list optional framework features. Adding an extension to an existing
+project generates its code files, updates framework-managed files (config.go,
+.env.example, main.go, etc.), and records it in andurel.lock. Commit or create
+a branch before adding an extension, as it modifies files in place.
 
 ```bash
 andurel extension (aliases: ext, e)
-andurel extension add [extension-name]
-andurel extension list    # alias: ls
+andurel extension add (alias: a) [extension-name]
+andurel extension list (alias: ls)
 ```
 
-### LLM
-Emit framework docs for AI assistants.
+Available extensions: `docker`, `aws-ses`, `css-components`.
+
+### `andurel llm` — LLM documentation
+
+Outputs comprehensive framework documentation for AI assistants. Supports topic-specific subcommands:
 
 ```bash
-andurel llm
+andurel llm (alias: l)
+andurel llm controllers (alias: c)
+andurel llm models (alias: m)
+andurel llm views (alias: v)
+andurel llm router (alias: r)
+andurel llm hypermedia (alias: h)
+andurel llm jobs (alias: j)
+andurel llm config (alias: cfg)
 ```
 
-### Upgrade
-Upgrade framework-managed files.
+### `andurel upgrade` — Framework upgrade
+
+Upgrade framework-managed files and tool versions to the latest.
 
 ```bash
-andurel upgrade --dry-run
+andurel upgrade (alias: up) [--dry-run]
 ```
 
-### Doctor
-Run project diagnostics.
+> Commit or create a branch before upgrading — this command modifies files in place.
+
+### `andurel doctor` — Project diagnostics
+
+Run comprehensive diagnostic checks (Go version, config, code quality, code generation).
 
 ```bash
-andurel doctor --verbose
+andurel doctor (alias: doc) [--verbose]
 ```
+
+---
+
+### Alias Reference
+
+| Full Command | Alias(es) |
+|---|---|
+| `andurel new` | `n` |
+| `andurel generate` | `g` |
+| `andurel generate model` | `m` |
+| `andurel generate view` | `v` |
+| `andurel generate controller` | `c` |
+| `andurel generate scaffold` | `s` |
+| `andurel generate job` | `j` |
+| `andurel generate email` | `e` |
+| `andurel fmt` | `f` |
+| `andurel database` | `d`, `db` |
+| `andurel database create` | `crt` |
+| `andurel database seed` | `s` |
+| `andurel database rebuild` | `rb` |
+| `andurel database migrate` | `m`, `mig` |
+| `andurel database migrate new` | `n` |
+| `andurel database migrate status` | `st` |
+| `andurel database migrate reset` | `rs` |
+| `andurel database migrate up-to` | `upto` |
+| `andurel database migrate down-to` | `downto` |
+| `andurel run` | `r` |
+| `andurel console` | `c` |
+| `andurel llm` | `l` |
+| `andurel llm controllers` | `c` |
+| `andurel llm models` | `m` |
+| `andurel llm views` | `v` |
+| `andurel llm router` | `r` |
+| `andurel llm hypermedia` | `h` |
+| `andurel llm jobs` | `j` |
+| `andurel llm config` | `cfg` |
+| `andurel tool` | `t` |
+| `andurel tool sync` | `s` |
+| `andurel tool set-version` | `sv` |
+| `andurel tool dblab` | `d` |
+| `andurel tool mailpit` | `m` |
+| `andurel extension` | `ext`, `e` |
+| `andurel extension add` | `a` |
+| `andurel extension list` | `ls` |
+| `andurel upgrade` | `up` |
+| `andurel doctor` | `doc` |
 
 ## Project Structure
 
+Andurel generates a complete project based on your chosen options. Below is the default structure, followed by what changes with each option.
+
+### Default (Manual DI + Tailwind CSS)
+
 ```
 myapp/
-├── assets/              # Static assets
-│   ├── css/            # Compiled CSS files
-│   ├── js/            # JavaScript files
-│   └── assets.go              
-├── clients/             # External service clients
-│   └── email/          # Email client (Mailpit/AWS SES)
+├── assets/                  # Static assets (served at /assets/)
+│   ├── assets.go
+│   ├── css/
+│   │   └── style.css       # Compiled Tailwind output
+│   └── js/
+│       ├── datastar_1-0-1.min.js
+│       └── scripts.js
+├── clients/
+│   └── email/
+│       └── mailpit.go       # Mailpit email client
 ├── cmd/
-│   ├── app/            # Main web application
-├── bin/
-│   └── shadowfax       # Development server orchestrator
-├── config/              # Application configuration
-│   ├── app.go          # Sessions, tokens, security
-│   ├── database.go     # Database connection
-│   ├── email.go        # Email configuration
-│   ├── telemetry.go    # Logging, tracing, metrics config
-│   └── config.go       # Main config aggregator
-├── controllers/         # HTTP request handlers
-│   ├── controller.go   # Base controller utilities
-│   ├── cache.go        # Cache control utilities
-│   ├── pages.go        # Page controllers
-│   └── assets.go       # Asset serving
-├── css/                 # Source CSS files (Tailwind input)
+│   └── app/
+│       └── main.go          # Application entry point
+├── config/
+│   ├── config.go            # Main config aggregator
+│   ├── app.go               # Sessions, tokens, security
+│   ├── auth.go              # Authentication config
+│   ├── database.go          # Database connection config
+│   ├── email.go             # Email configuration
+│   └── telemetry.go         # Logging, tracing, metrics
+├── controllers/
+│   ├── controller.go        # Base controller setup
+│   ├── api.go
+│   ├── assets.go
+│   ├── cache.go             # Cache control utilities
+│   ├── confirmations.go
+│   ├── pages.go
+│   ├── registrations.go
+│   ├── reset_passwords.go
+│   └── sessions.go
+├── css/
+│   ├── base.css             # Tailwind CSS source input
 ├── database/
-│   ├── migrations/     # SQL migration files
-│   ├── queries/        # SQLC query definitions
-│   └── sqlc.yaml       # SQLC user overlay config
-├── email/               # Email functionality
-│   ├── email.go        # Email client and sending logic
-│   ├── base_layout.templ    # Base email template layout
-│   └── components.templ     # Reusable email components
-├── internal/            # Internal framework packages
-│   ├── hypermedia/     # Datastar/SSE helpers
-│   ├── renderer/       # Template rendering
-│   ├── routing/        # Routing utilities
-│   ├── server/         # Server configuration
-│   └── storage/        # Storage utilities (+ SQLC base/effective config)
-├── models/              # Data models and business logic
-│   ├── model.go        # Base model setup
-│   ├── factories/      # Model factories for testing
-│   └── internal/db/    # Generated SQLC code (do not edit)
-├── queue/               # Background job processing
-│   ├── jobs/           # Job definitions
-│   ├── workers/        # Worker implementations
-├── router/              # Routes and middleware
-│   ├── router.go       # Main router setup
-│   ├── routes/         # Route definitions
-│   ├── cookies/        # Cookie and session helpers
-│   └── middleware/     # Custom middleware
-├── services/            # Business logic services
-│   ├── authentication.go    # Authentication service
-│   ├── registration.go      # User registration service
-│   └── reset_password.go    # Password reset service
-├── telemetry/           # Observability setup
-│   ├── logger.go       # Structured logging
-│   ├── tracer.go       # Distributed tracing
-│   ├── metrics.go      # Application metrics
-│   └── helpers.go      # Telemetry utilities
-├── views/               # Templ templates
-│   ├── components/     # Reusable template components
-│   ├── *.templ         # Template source files
-│   └── *_templ.go      # Generated Go code (do not edit)
-├── .env.example         # Example environment variables
-├── .gitignore           # Git ignore patterns
-├── andurel.lock         # Framework version lock file
-├── Dockerfile           # Container build (docker ext)
-├── go.mod               # Go module definition
-└── go.sum               # Go module checksums
+│   ├── database.go          # Database connection helper
+│   ├── test_helper.go       # Test database setup
+│   ├── migrations/          # SQL migration files (goose)
+│   └── seeds/
+│       └── main.go          # Database seeder
+├── email/
+│   ├── email.go
+│   ├── base_layout.templ
+│   ├── components.templ
+│   ├── reset_password.templ
+│   └── verify_email.templ
+├── internal/
+│   ├── hypermedia/          # HTML-over-the-wire helpers
+│   │   ├── broadcaster.go
+│   │   ├── core.go
+│   │   ├── helpers.go
+│   │   ├── options.go
+│   │   ├── render.go
+│   │   ├── script.go
+│   │   ├── signals.go
+│   │   └── sse.go
+│   ├── request/
+│   │   ├── context.go
+│   │   └── request.go
+│   ├── routing/
+│   │   ├── definitions.go
+│   │   └── routes.go
+│   ├── server/
+│   │   └── server.go
+│   └── storage/
+│       ├── psql.go
+│       └── queue.go
+├── models/
+│   ├── model.go
+│   ├── errors.go
+│   ├── token.go
+│   ├── user.go
+│   └── factories/           # Model factories for testing
+│       ├── factories.go
+│       ├── token.go
+│       └── user.go
+├── queue/
+│   ├── queue.go
+│   ├── jobs/
+│   │   ├── send_marketing_email.go
+│   │   └── send_transactional_email.go
+│   └── workers/
+│       ├── workers.go
+│       ├── send_marketing_email.go
+│       └── send_transactional_email.go
+├── router/
+│   ├── router.go            # Main router setup
+│   ├── connect_*.go          # Route registration files
+│   ├── cookies/
+│   │   ├── cookies.go
+│   │   └── flash.go
+│   ├── middleware/
+│   │   ├── middleware.go
+│   │   └── auth.go
+│   └── routes/
+│       ├── api.go
+│       ├── assets.go
+│       ├── pages.go
+│       └── users.go
+├── services/
+│   ├── authentication.go
+│   ├── registration.go
+│   └── reset_password.go
+├── telemetry/
+│   ├── telemetry.go
+│   ├── options.go
+│   ├── logger.go
+│   ├── log_exporters.go
+│   ├── metrics.go
+│   ├── metric_exporters.go
+│   ├── tracer.go
+│   ├── trace_exporters.go
+│   └── helpers.go
+├── views/                    # Templ templates
+│   ├── layout.templ
+│   ├── head.templ
+│   ├── home.templ
+│   ├── bad_request.templ
+│   ├── confirm_email.templ
+│   ├── internal_error.templ
+│   ├── login.templ
+│   ├── not_found.templ
+│   ├── registration.templ
+│   ├── reset_password.templ
+│   └── components/
+├── .env.example
+├── .gitignore
+├── andurel.lock              # Tool version lock file
+├── go.mod
+└── go.sum
 ```
+
+### UberFX Mode
+
+When using uberfx, the following files **change**:
+
+| File | What changes |
+|------|-------------|
+| `cmd/app/main.go` | Uses `fx.New()` with `fx.Provide` and `fx.Invoke` instead of imperative boot sequence |
+| `controllers/controller.go` | Becomes an `fx.Module` — contains `fx.Provide` for all controllers + `fx.Invoke` for route registration |
+| `controllers/api.go`, `assets.go`, `pages.go`, `sessions.go`, `registrations.go`, `confirmations.go`, `reset_passwords.go` | Each has a `RegisterRoutes(r *router.Router) error` method for self-registering routes |
+| `router/router.go` | Exposes `AddRoute` / `AddRouteNotFound` methods; controllers self-register |
+
+The following files are **removed** (route registration moves into controllers):
+```
+router/connect_*.go    (connect_api_routes, connect_assets_routes,
+                        connect_pages_routes, connect_sessions_routes,
+                        connect_registrations_routes, connect_confirmations_routes,
+                        connect_reset_passwords_routes)
+```
+
+### Inertia Mode (`--inertia vue` or `--inertia react`)
+
+When using the Inertia SPA frontend, these files are **added**:
+
+```
+myapp/
+├── resources/
+│   └── js/
+│       ├── app.ts/app.tsx       # Vue/React + Inertia app entry point
+│       └── Pages/
+│           └── Welcome.vue/tsx  # Home page component
+├── views/
+│   ├── root.go.html             # Inertia root HTML shell
+│   └── (no home.templ — replaced by Vue Welcome page)
+├── internal/
+│   └── inertia/
+│       ├── render.go            # Inertia response helpers
+│       └── vite.go              # Vite dev/prod manifest resolver
+├── vite.config.ts
+├── package.json
+├── tsconfig.json
+```
+
+The `controllers/pages.go` uses Inertia rendering instead of Templ, and `cmd/app/main.go` initializes `internal/inertia`. Run `npm install` after scaffolding. Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia resource pages (reads the adapter from `andurel.lock`).
+
+When using `--inertia vue` or `--inertia react`, controllers can render Inertia pages alongside Templ.
+
+### Real Example: Controller to Vue Component
+
+Here's how a controller passes data to a Vue component via Inertia, from route definition to rendered page.
+
+#### Route Definition
+
+```go
+// router/routes/pages.go
+var HomePage = routing.NewSimpleRoute("/", "pages.home", "")
+```
+
+#### Route Registration
+
+```go
+// router/connect_pages_routes.go
+func (r Router) RegisterPagesRoutes(pages controllers.Pages) error {
+    _, err := r.e.AddRoute(echo.Route{
+        Method:  http.MethodGet,
+        Path:    routes.HomePage.Path(),
+        Name:    routes.HomePage.Name(),
+        Handler: pages.Home,
+    })
+    return err
+}
+```
+
+#### Controller
+
+```go
+// controllers/pages.go
+func (p Pages) Home(etx *echo.Context) error {
+    return inertia.Page(etx, "Welcome", inertia.Props{
+        "appName": "MyApp",
+    })
+}
+```
+
+#### Vue Component
+
+```vue
+<!-- resources/js/Pages/Welcome.vue -->
+<script setup lang="ts">
+import { Head } from '@inertiajs/vue3'
+
+defineProps<{
+  appName: string
+}>()
+</script>
+
+<template>
+  <Head :title="appName" />
+  <div class="min-h-screen flex items-center justify-center bg-gray-50">
+    <div class="text-center">
+      <h1 class="mb-4 text-4xl font-bold text-gray-900">{{ appName }}</h1>
+      <p class="text-gray-600">Built with Andurel + Inertia + Vue</p>
+    </div>
+  </div>
+</template>
+```
+
+#### CRUD Index Example
+
+For paginated list views, the controller queries data and passes it as props:
+
+```go
+// controllers/widgets.go
+func (w Widgets) Index(etx *echo.Context) error {
+    page := int64(1)
+    if p := etx.QueryParam("page"); p != "" {
+        if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+            page = int64(parsed)
+        }
+    }
+    perPage := int64(25)
+
+    widgets, err := models.Widget.Paginate(
+        etx.Request().Context(), w.db.Executor(), page, perPage,
+    )
+    if err != nil {
+        return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+    }
+
+    return inertia.Page(etx, "Widget/Index", inertia.Props{
+        "items": widgets.Widgets,
+    })
+}
+```
+
+```vue
+<!-- resources/js/Pages/Widget/Index.vue -->
+<script setup lang="ts">
+import { Head, Link } from '@inertiajs/vue3'
+
+defineProps<{
+  items: Array<Record<string, unknown>>
+}>()
+</script>
+
+<template>
+  <Head title="Widgets" />
+  <div>
+    <h1>Widgets</h1>
+    <Link :href="'/widgets/create'">New Widget</Link>
+    <table>
+      <tr v-for="item in items" :key="item.id">
+        <td>{{ item.name }}</td>
+        <td>
+          <Link :href="`/widgets/${item.id}`">View</Link>
+          <Link :href="`/widgets/${item.id}/edit`">Edit</Link>
+        </td>
+      </tr>
+    </table>
+  </div>
+</template>
+```
+
+Flash messages set via `cookies.AddFlash()` in the controller are automatically injected into Inertia props as `flash` and displayed as toast notifications in the Vue app entry point.
 
 ## Contributing
 
@@ -359,7 +754,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Andurel is built on top of excellent open-source projects:
 
 - **[Echo](https://echo.labstack.com/)** - High-performance HTTP router and framework
-- **[SQLC](https://sqlc.dev/)** - Type-safe SQL code generation
+- **[Bun](https://bun.uptrace.dev/)** - Type-safe SQL ORM and query builder
 - **[Templ](https://templ.guide/)** - Type-safe Go templates
 - **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity (RC6)
 - **[River](https://riverqueue.com/)** - Fast PostgreSQL-backed job queue and workflows
@@ -377,6 +772,7 @@ Inspired by Ruby on Rails and its philosophy that developer happiness and produc
 ### Sites build with Andurel
 
 Here is a collection of sites and projects, I've built with this framework:
+- [DeployCrate](https://deploycrate.com)
 - [MBV Blog](https://mortenvistisen.com) | personal blog
 - [Master Golang](https://mastergolang.com) | course platform
 - [Palantir](https://github.com/mbvlabs/palantir) | open sourced analytics platform (WIP)

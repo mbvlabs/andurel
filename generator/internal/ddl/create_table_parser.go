@@ -174,6 +174,11 @@ func (p *CreateTableParser) parseColumnDefinition(
 
 	col := catalog.NewColumn(columnName, dataType).SetCreatedBy(migrationFile)
 
+	switch strings.ToLower(dataType) {
+	case "serial", "bigserial":
+		col.SetAutoIncrement()
+	}
+
 	if length != nil {
 		col.SetLength(*length)
 	}
@@ -316,9 +321,9 @@ func parseCreateTableMatches(sql string) []string {
 
 	schemaName := ""
 	tableName := namePart
-	if dotIdx := strings.Index(namePart, "."); dotIdx != -1 {
-		schemaName = strings.TrimSpace(namePart[:dotIdx])
-		tableName = strings.TrimSpace(namePart[dotIdx+1:])
+	if before, after, ok := strings.Cut(namePart, "."); ok {
+		schemaName = strings.TrimSpace(before)
+		tableName = strings.TrimSpace(after)
 	}
 
 	if tableName == "" {

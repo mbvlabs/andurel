@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 
 	"github.com/mbvlabs/andurel/layout/cmds"
 )
@@ -15,13 +16,19 @@ type AndurelLock struct {
 	Extensions     map[string]*Extension `json:"extensions,omitempty"`
 	Tools          map[string]*Tool      `json:"tools"`
 	ScaffoldConfig *ScaffoldConfig       `json:"scaffoldConfig,omitempty"`
+	DatabaseConfig *DatabaseConfig       `json:"databaseConfig,omitempty"`
+}
+
+type DatabaseConfig struct {
+	NullType string `json:"nullType"`
 }
 
 type ScaffoldConfig struct {
-	ProjectName  string   `json:"projectName"`
-	Database     string   `json:"database"`
-	CSSFramework string   `json:"cssFramework"`
-	Extensions   []string `json:"extensions,omitempty"`
+	ProjectName  string `json:"projectName"`
+	Database     string `json:"database"`
+	CSSFramework string `json:"cssFramework"`
+	DIMode       string `json:"diMode"`
+	Inertia    string   `json:"inertia,omitempty"`
 }
 
 type Extension struct {
@@ -136,6 +143,16 @@ func (l *AndurelLock) AddExtension(name, appliedAt string) {
 	l.Extensions[name] = &Extension{
 		AppliedAt: appliedAt,
 	}
+}
+
+// ExtensionNames returns the names of all applied extensions in sorted order.
+func (l *AndurelLock) ExtensionNames() []string {
+	names := make([]string, 0, len(l.Extensions))
+	for name := range l.Extensions {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
 }
 
 func (l *AndurelLock) WriteLockFile(targetDir string) error {

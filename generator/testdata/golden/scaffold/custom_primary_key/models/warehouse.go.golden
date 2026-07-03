@@ -1,0 +1,189 @@
+package models
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"testapp/internal/storage"
+	"testapp/internal/validation"
+	"time"
+
+	"github.com/uptrace/bun"
+)
+
+type WarehouseEntity struct {
+	bun.BaseModel `bun:"table:warehouses,alias:warehouses"`
+	Slug          string         `bun:"slug,pk"`
+	Name          string         `bun:"name"`
+	Location      sql.NullString `bun:"location"`
+	CreatedAt     time.Time      `bun:"created_at"`
+	UpdatedAt     time.Time      `bun:"updated_at"`
+}
+
+func (e *WarehouseEntity) Validate() error {
+	return nil
+}
+
+func (w warehouse) Find(ctx context.Context, db storage.Executor, id string) (WarehouseEntity, error) {
+	var entity WarehouseEntity
+	if err := db.NewSelect().
+		Model(&entity).
+		Where("slug = ?", id).
+		Scan(ctx); err != nil {
+		return WarehouseEntity{}, err
+	}
+
+	return entity, nil
+}
+
+type CreateWarehouseData struct {
+	Name     string
+	Location sql.NullString
+	Slug     string
+}
+
+func (w warehouse) Create(ctx context.Context, db storage.Executor, data CreateWarehouseData) (WarehouseEntity, error) {
+	entity := WarehouseEntity{
+		Slug:      data.Slug,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      data.Name,
+		Location:  data.Location,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return WarehouseEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return WarehouseEntity{}, err
+	}
+
+	return entity, nil
+}
+
+type UpdateWarehouseData struct {
+	Slug      string
+	Name      string
+	Location  sql.NullString
+	UpdatedAt time.Time
+}
+
+func (w warehouse) Update(ctx context.Context, db storage.Executor, data UpdateWarehouseData) (WarehouseEntity, error) {
+	entity := WarehouseEntity{
+		Slug:      data.Slug,
+		UpdatedAt: time.Now(),
+		Name:      data.Name,
+		Location:  data.Location,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return WarehouseEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if err := db.NewUpdate().
+		Model(&entity).
+		Column("name").
+		Column("location").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
+		Scan(ctx); err != nil {
+		return WarehouseEntity{}, err
+	}
+
+	return entity, nil
+}
+
+func (w warehouse) Destroy(ctx context.Context, db storage.Executor, id string) error {
+	_, err := db.NewDelete().
+		Model((*WarehouseEntity)(nil)).
+		Where("slug = ?", id).
+		Exec(ctx)
+
+	return err
+}
+
+func (w warehouse) All(ctx context.Context, db storage.Executor) ([]WarehouseEntity, error) {
+	var entities []WarehouseEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Scan(ctx); err != nil {
+		return nil, err
+	}
+
+	return entities, nil
+}
+
+type PaginatedWarehouses struct {
+	Warehouses []WarehouseEntity
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func (w warehouse) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedWarehouses, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := db.NewSelect().
+		Model(&WarehouseEntity{}).Count(ctx)
+	if err != nil {
+		return PaginatedWarehouses{}, err
+	}
+
+	entities := make([]WarehouseEntity, 0, int(pageSize))
+	if err := db.NewSelect().
+		Model(&entities).
+		Limit(int(pageSize)).
+		Offset(int(offset)).
+		Scan(ctx); err != nil {
+		return PaginatedWarehouses{}, err
+	}
+
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
+
+	return PaginatedWarehouses{
+		Warehouses: entities,
+		TotalCount: int64(totalCount),
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (w warehouse) Upsert(ctx context.Context, db storage.Executor, data CreateWarehouseData) (WarehouseEntity, error) {
+	entity := WarehouseEntity{
+		Slug:      data.Slug,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      data.Name,
+		Location:  data.Location,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return WarehouseEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if err := db.NewInsert().
+		Model(&entity).
+		On("CONFLICT (slug) DO UPDATE").
+		Set("name = excluded.name").
+		Set("location = excluded.location").
+		Returning("*").
+		Scan(ctx); err != nil {
+		return WarehouseEntity{}, err
+	}
+
+	return entity, nil
+}

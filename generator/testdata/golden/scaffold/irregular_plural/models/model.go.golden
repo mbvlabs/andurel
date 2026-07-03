@@ -1,0 +1,13 @@
+package models
+
+type (
+	token struct{}
+	user  struct{}
+	company struct{}
+)
+
+var (
+	Token token
+	User  user
+	Company company
+)

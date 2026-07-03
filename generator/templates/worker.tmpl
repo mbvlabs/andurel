@@ -1,0 +1,29 @@
+{{if eq .DIMode "uberfx"}}package queue{{else}}package workers{{end}}
+
+import (
+	"context"
+
+	"github.com/riverqueue/river"
+
+	"{{.ModulePath}}/queue/jobs"
+)
+
+type {{.PascalName}}Worker struct {
+	river.WorkerDefaults[jobs.{{.PascalName}}Args]
+}
+
+func New{{.PascalName}}Worker() *{{.PascalName}}Worker {
+	return &{{.PascalName}}Worker{}
+}
+
+{{if eq .DIMode "uberfx"}}
+func (w *{{.PascalName}}Worker) Register(workers *river.Workers) error {
+	return river.AddWorkerSafely(workers, w)
+}
+
+{{end}}
+func (w *{{.PascalName}}Worker) Work(ctx context.Context, job *river.Job[jobs.{{.PascalName}}Args]) error {
+	_ = ctx
+	_ = job
+	return nil
+}

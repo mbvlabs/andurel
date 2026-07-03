@@ -1,0 +1,81 @@
+package router
+
+import (
+	"errors"
+	"net/http"
+
+	"testapp/controllers"
+	"testapp/router/routes"
+
+	"github.com/labstack/echo/v5"
+)
+
+func (r Router) RegisterFeedbackEntryRoutes(feedbackEntry controllers.StudentFeedback) error {
+	errs := []error{}
+	var err error
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.FeedbackEntryIndex.Path(),
+		Name:    routes.FeedbackEntryIndex.Name(),
+		Handler: feedbackEntry.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.FeedbackEntryShow.Path(),
+		Name:    routes.FeedbackEntryShow.Name(),
+		Handler: feedbackEntry.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.FeedbackEntryNew.Path(),
+		Name:    routes.FeedbackEntryNew.Name(),
+		Handler: feedbackEntry.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.FeedbackEntryCreate.Path(),
+		Name:    routes.FeedbackEntryCreate.Name(),
+		Handler: feedbackEntry.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.FeedbackEntryEdit.Path(),
+		Name:    routes.FeedbackEntryEdit.Name(),
+		Handler: feedbackEntry.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.FeedbackEntryUpdate.Path(),
+		Name:    routes.FeedbackEntryUpdate.Name(),
+		Handler: feedbackEntry.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.FeedbackEntryDestroy.Path(),
+		Name:    routes.FeedbackEntryDestroy.Name(),
+		Handler: feedbackEntry.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}

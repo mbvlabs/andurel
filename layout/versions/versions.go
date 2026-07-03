@@ -1,12 +1,11 @@
 package versions
 
 const (
-	Templ       = "v0.3.1001"
-	Sqlc        = "v1.30.0"
-	Goose       = "v3.27.0"
-	Mailpit     = "v1.29.2"
-	Usql        = "v0.21.1"
-	Dblab       = "v0.34.3"
-	TailwindCLI = "v4.2.1"
-	Shadowfax   = "v0.2.7"
+	Templ       = "v0.3.1020"
+	Goose       = "v3.27.1"
+	Mailpit     = "v1.30.2"
+	Usql        = "v0.21.4"
+	Dblab       = "v0.40.2"
+	TailwindCLI = "v4.3.2"
+	Shadowfax   = "v0.7.0"
 )

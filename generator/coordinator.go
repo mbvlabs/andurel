@@ -6,13 +6,14 @@ import (
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/models"
 	"github.com/mbvlabs/andurel/generator/views"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type Coordinator struct {
 	ModelManager      *ModelManager
 	ControllerManager *ControllerManager
 	ViewManager       *ViewManager
-	FragmentManager   *FragmentManager
+	ActionManager   *ActionManager
 	projectManager    *ProjectManager
 	config            *UnifiedConfig
 }
@@ -62,44 +63,76 @@ func NewCoordinator() (Coordinator, error) {
 		unifiedConfig,
 	)
 
-	fragmentManager := NewFragmentManager()
+	actionManager := NewActionManager()
 
 	return Coordinator{
 		ModelManager:      modelManager,
 		ControllerManager: controllerManager,
 		ViewManager:       viewManager,
-		FragmentManager:   fragmentManager,
+		ActionManager:     actionManager,
 		projectManager:    projectManager,
 		config:            unifiedConfig,
 	}, nil
 }
 
 // GenerateController coordinates controller and optional view generation
-func (c *Coordinator) GenerateController(resourceName, tableName string, withViews bool) error {
-	if err := c.ControllerManager.GenerateController(resourceName, tableName, withViews); err != nil {
+func (c *Coordinator) GenerateController(resourceName, namespace, tableName string, inertia string, isAPI bool) error {
+	return c.GenerateControllerWithActions(resourceName, namespace, tableName, nil, inertia, isAPI)
+}
+
+func (c *Coordinator) GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string, isAPI bool) error {
+	return c.GenerateControllerWithActionsForModel(resourceName, namespace, resourceName, tableName, actions, inertia, isAPI)
+}
+
+func (c *Coordinator) GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string, isAPI bool) error {
+	if modelName == "" {
+		modelName = resourceName
+	}
+	if tableName == "" {
+		tableName = naming.DeriveTableName(resourceName)
+	}
+
+	if err := c.ControllerManager.GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName, actions, inertia, isAPI); err != nil {
 		return err
 	}
 
-	if withViews {
-		if err := c.ViewManager.GenerateViewWithController(resourceName, tableName); err != nil {
-			return err
-		}
+	if isAPI {
+		return nil
+	}
+
+	if err := c.ViewManager.GenerateViewWithControllerActionsForModel(resourceName, modelName, tableName, namespace, actions, inertia); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-// GenerateControllerFromModel coordinates controller and optional view generation from existing model
-func (c *Coordinator) GenerateControllerFromModel(resourceName string, withViews bool) error {
-	if err := c.ControllerManager.GenerateControllerFromModel(resourceName, withViews); err != nil {
+// GenerateScaffold coordinates model, controller, and view generation for a
+// complete resource scaffold.
+func (c *Coordinator) GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string, isAPI bool) error {
+	if primaryKeyColumn != "" {
+		if err := c.ModelManager.GenerateModel(resourceName, tableName, skipFactory, primaryKeyColumn); err != nil {
+			return err
+		}
+		c.ControllerManager.SetPrimaryKeyResolver(NopPrimaryKeyResolver{})
+	} else {
+		if err := c.ModelManager.GenerateModel(resourceName, tableName, skipFactory, ""); err != nil {
+			return err
+		}
+	}
+
+	return c.GenerateController(resourceName, namespace, tableName, inertia, isAPI)
+}
+
+// GenerateControllerFromModel coordinates controller and view generation from existing model
+func (c *Coordinator) GenerateControllerFromModel(resourceName string) error {
+	if err := c.ControllerManager.GenerateControllerFromModel(resourceName); err != nil {
 		return err
 	}
 
-	if withViews {
-		tableName := ResolveTableName(c.config.Paths.Models, resourceName)
-		if err := c.ViewManager.GenerateViewWithController(resourceName, tableName); err != nil {
-			return err
-		}
+	tableName := ResolveTableName(c.config.Paths.Models, resourceName)
+	if err := c.ViewManager.GenerateViewWithControllerActions(resourceName, tableName, "", nil, ""); err != nil {
+		return err
 	}
 
 	return nil

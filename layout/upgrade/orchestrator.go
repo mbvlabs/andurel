@@ -27,6 +27,7 @@ type UpgradeReport struct {
 	FromVersion   string
 	ToVersion     string
 	FilesReplaced int
+	FilesRemoved  int
 
 	ToolsAdded   int
 	ToolsRemoved int
@@ -36,6 +37,7 @@ type UpgradeReport struct {
 	RemovedTools  []string
 	UpdatedTools  []string
 	ReplacedFiles []string
+	RemovedFiles  []string
 
 	Success bool
 	Error   error
@@ -61,16 +63,13 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		FromVersion:   u.lock.Version,
 		ToVersion:     u.opts.TargetVersion,
 		ReplacedFiles: []string{},
+		RemovedFiles:  []string{},
 		UpdatedTools:  []string{},
 	}
 
 	if err := u.validatePreconditions(); err != nil {
 		report.Error = err
 		return report, err
-	}
-
-	if u.lock.Version == u.opts.TargetVersion {
-		return report, fmt.Errorf("project is already at version %s", u.opts.TargetVersion)
 	}
 
 	if u.lock.ScaffoldConfig == nil {
@@ -90,6 +89,7 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	renderedTemplates, err := u.generator.RenderFrameworkTemplates(
 		u.projectRoot,
 		*u.lock.ScaffoldConfig,
+		u.lock.ExtensionNames(),
 	)
 	if err != nil {
 		report.Error = err
@@ -100,6 +100,14 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		fmt.Printf("\n[DRY RUN] Would replace:\n")
 		for path := range renderedTemplates {
 			fmt.Printf("  • %s\n", path)
+		}
+
+		obsoleteInternalFiles := u.obsoleteManagedInternalFiles()
+		if len(obsoleteInternalFiles) > 0 {
+			fmt.Printf("\n[DRY RUN] Would remove obsolete internal package files:\n")
+			for _, path := range obsoleteInternalFiles {
+				fmt.Printf("  - %s\n", path)
+			}
 		}
 
 		// Preview tool changes
@@ -150,6 +158,22 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		fmt.Printf("  ✓ %s\n", targetPath)
 	}
 
+	obsoleteInternalFiles := u.obsoleteManagedInternalFiles()
+	if len(obsoleteInternalFiles) > 0 {
+		fmt.Printf("Removing obsolete internal package files...\n")
+		for _, targetPath := range obsoleteInternalFiles {
+			fullPath := filepath.Join(u.projectRoot, targetPath)
+			if err := os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
+				report.Error = err
+				return report, fmt.Errorf("failed to remove obsolete internal file %s: %w", targetPath, err)
+			}
+
+			report.FilesRemoved++
+			report.RemovedFiles = append(report.RemovedFiles, targetPath)
+			fmt.Printf("  - %s\n", targetPath)
+		}
+	}
+
 	// Synchronize tools with target version
 	fmt.Printf("Synchronizing tools with framework version...\n")
 	toolSyncResult, err := u.syncToolsToFrameworkVersion()
@@ -194,6 +218,14 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		}
 	}
 
+	// Initialize DatabaseConfig for projects that predate its introduction.
+	if u.lock.DatabaseConfig == nil {
+		u.lock.DatabaseConfig = &layout.DatabaseConfig{
+			NullType: "sql.Null",
+		}
+		fmt.Printf("  ✓ Added database config (nullType: sql.Null) to andurel.lock\n")
+	}
+
 	// Update template version in lock file
 	u.lock.Version = u.opts.TargetVersion
 	if err := u.lock.WriteLockFile(u.projectRoot); err != nil {
@@ -205,6 +237,9 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	fmt.Printf("\n✓ Upgrade complete! Project is now at version %s\n", u.opts.TargetVersion)
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  • %d framework files replaced\n", report.FilesReplaced)
+	if report.FilesRemoved > 0 {
+		fmt.Printf("  • %d obsolete internal package files removed\n", report.FilesRemoved)
+	}
 	if report.ToolsAdded > 0 {
 		fmt.Printf("  • %d tools added\n", report.ToolsAdded)
 	}
@@ -239,6 +274,27 @@ func (u *Upgrader) validatePreconditions() error {
 	return nil
 }
 
+func (u *Upgrader) obsoleteManagedInternalFiles() []string {
+	expected := make(map[string]struct{})
+	for _, file := range layout.GetInternalFrameworkFiles(u.lock.ScaffoldConfig) {
+		expected[file.TargetPath] = struct{}{}
+	}
+
+	var obsolete []string
+	for _, file := range layout.GetAllManagedInternalFrameworkFiles() {
+		if _, ok := expected[file.TargetPath]; ok {
+			continue
+		}
+
+		fullPath := filepath.Join(u.projectRoot, file.TargetPath)
+		if _, err := os.Stat(fullPath); err == nil {
+			obsolete = append(obsolete, file.TargetPath)
+		}
+	}
+
+	return obsolete
+}
+
 // ToolSyncResult represents the result of synchronizing tools
 type ToolSyncResult struct {
 	Added   []string
@@ -253,6 +309,10 @@ func (u *Upgrader) syncToolsToFrameworkVersion() (*ToolSyncResult, error) {
 		Added:   []string{},
 		Removed: []string{},
 		Updated: []string{},
+	}
+
+	if u.lock.Tools == nil {
+		u.lock.Tools = make(map[string]*layout.Tool)
 	}
 
 	if existingTool, ok := u.lock.Tools["run"]; ok && existingTool.Path != "" {

@@ -3,6 +3,7 @@ package upgrade
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/mbvlabs/andurel/layout"
@@ -36,7 +37,7 @@ func TestBuildTemplateData_UsesModulePathInsteadOfProjectName(t *testing.T) {
 		ProjectName:  "test-upgrade",
 		Database:     "postgresql",
 		CSSFramework: "tailwind",
-	}, "github.com/example/correct-module")
+	}, "github.com/example/correct-module", nil)
 
 	if templateData.ProjectName != "test-upgrade" {
 		t.Fatalf("ProjectName = %q, want %q", templateData.ProjectName, "test-upgrade")
@@ -48,5 +49,54 @@ func TestBuildTemplateData_UsesModulePathInsteadOfProjectName(t *testing.T) {
 			templateData.ModuleName,
 			"github.com/example/correct-module",
 		)
+	}
+}
+
+func TestGetFrameworkTemplates_IncludesAllExpectedInternalPackages(t *testing.T) {
+	t.Parallel()
+
+	templates := GetFrameworkTemplates(&layout.ScaffoldConfig{})
+	paths := make([]string, 0, len(templates))
+	for _, tmpl := range templates {
+		paths = append(paths, tmpl.TargetPath)
+	}
+
+	required := []string{
+		"internal/request/context.go",
+		"internal/request/request.go",
+		"internal/routing/definitions.go",
+		"internal/routing/routes.go",
+		"internal/server/server.go",
+		"internal/storage/psql.go",
+		"internal/storage/queue.go",
+	}
+
+	for _, path := range required {
+		if !slices.Contains(paths, path) {
+			t.Fatalf("expected framework templates to include %s", path)
+		}
+	}
+}
+
+func TestGetFrameworkTemplates_IncludesInertiaInternalPackageWhenConfigured(t *testing.T) {
+	t.Parallel()
+
+	for _, adapter := range []string{"vue", "react"} {
+		t.Run(adapter, func(t *testing.T) {
+			t.Parallel()
+
+			templates := GetFrameworkTemplates(&layout.ScaffoldConfig{Inertia: adapter})
+			paths := make([]string, 0, len(templates))
+			for _, tmpl := range templates {
+				paths = append(paths, tmpl.TargetPath)
+			}
+
+			if !slices.Contains(paths, "internal/inertia/render.go") {
+				t.Fatal("expected inertia render package file when inertia is configured")
+			}
+			if !slices.Contains(paths, "internal/inertia/vite.go") {
+				t.Fatal("expected inertia vite package file when inertia is configured")
+			}
+		})
 	}
 }

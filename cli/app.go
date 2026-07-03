@@ -11,21 +11,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newAppCommand() *cobra.Command {
-	appCmd := &cobra.Command{
-		Use:     "app",
-		Aliases: []string{"a"},
-		Short:   "App related commands",
-		Long:    "Commands related to running and managing the application.",
-	}
-
-	appCmd.AddCommand(newConsoleCommand())
-	appCmd.AddCommand(newDblabCommand())
-	appCmd.AddCommand(newMailpitCommand())
-
-	return appCmd
-}
-
 type database struct {
 	Port         string `env:"DB_PORT"`
 	Host         string `env:"DB_HOST"`
@@ -45,10 +30,11 @@ func (d database) GetDatabaseURL() string {
 
 func newConsoleCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "console",
+		Use:   "console",
 		Aliases: []string{"c"},
-		Short:   "Runs an interactive database console",
-		Args:    cobra.ExactArgs(0),
+		Short: "Open an interactive database console",
+		Long:  "Open an interactive database console (usql) using the connection details from .env.",
+		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
 			if err != nil {
@@ -104,10 +90,11 @@ func newConsoleCommand() *cobra.Command {
 
 func newDblabCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "dblab",
+		Use:   "dblab",
 		Aliases: []string{"d"},
-		Short:   "Runs an interactive database UI with dblab",
-		Args:    cobra.ExactArgs(0),
+		Short: "Open the database UI (dblab)",
+		Long:  "Open the dblab interactive database UI in the browser. Uses connection details from .env.",
+		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
 			if err != nil {
@@ -173,7 +160,7 @@ Default bindings:
   - HTTP: 0.0.0.0:8025
 
 Override defaults by passing flags, e.g.:
-  andurel app mailpit --smtp=0.0.0.0:2525`,
+  andurel tool mailpit --smtp=0.0.0.0:2525`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
 			if err != nil {

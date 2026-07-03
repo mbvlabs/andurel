@@ -38,13 +38,13 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version-file: 'go.mod'
+        go-version: '1.26.x'
+        check-latest: true
 
     - name: Install tools
       run: |
         go install github.com/a-h/templ/cmd/templ
         go install github.com/segmentio/golines
-        go install github.com/sqlc-dev/sqlc/cmd/sqlc
         go install golang.org/x/tools/cmd/goimports
 
     - name: Build

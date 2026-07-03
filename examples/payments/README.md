@@ -301,7 +301,7 @@ func newPaymentPricing(db andurel.Database, client *payment.PaddleClient) Paymen
 
 func (pp PaymentPricing) Index(c *echo.Context) error {
     // Get active products from database
-    products, err := models.ListActiveProducts(c.Request().Context(), pp.db.Conn())
+    products, err := models.ListActiveProducts(c.Request().Context(), pp.db.Executor())
     if err != nil {
         slog.ErrorContext(
             c.Request().Context(),
@@ -488,7 +488,7 @@ func (w PaymentWebhooks) handleTransactionCompleted(c *echo.Context, event *paym
     // Check if transaction already exists
     _, err := models.FindPaymentTransactionByProviderID(
         c.Request().Context(),
-        w.db.Conn(),
+        w.db.Executor(),
         txData.ID,
     )
 
@@ -496,7 +496,7 @@ func (w PaymentWebhooks) handleTransactionCompleted(c *echo.Context, event *paym
         // Transaction exists, update status
         _, err = models.UpdatePaymentTransactionStatus(
             c.Request().Context(),
-            w.db.Conn(),
+            w.db.Executor(),
             txData.ID,
             txData.Status,
             time.Now(),
@@ -533,7 +533,7 @@ func (w PaymentWebhooks) handleTransactionUpdated(c *echo.Context, event *paymen
     // Update transaction status
     _, err := models.UpdatePaymentTransactionStatus(
         c.Request().Context(),
-        w.db.Conn(),
+        w.db.Executor(),
         txData.ID,
         txData.Status,
         time.Now(),

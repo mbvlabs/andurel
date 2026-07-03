@@ -1,6 +1,8 @@
 package naming
 
 import (
+	"fmt"
+	"regexp"
 	"strings"
 	"unicode"
 
@@ -102,6 +104,11 @@ func ToLowerCamelCaseFromAny(s string) string {
 	return ToLowerCamelCase(s)
 }
 
+// ToKebabCase converts a snake_case identifier into kebab-case.
+func ToKebabCase(s string) string {
+	return strings.ReplaceAll(s, "_", "-")
+}
+
 func Capitalize(s string) string {
 	if len(s) == 0 {
 		return s
@@ -138,6 +145,74 @@ func ToPascalCase(s string) string {
 	}
 
 	return builder.String()
+}
+
+// ParseNamespacedResource splits a resource name into an optional single-level
+// namespace and resource name. Namespaces are intentionally lower-case Go
+// package names; resource names remain the original PascalCase generator input.
+func ParseNamespacedResource(input string) (namespace, resource string, err error) {
+	parts := strings.Split(input, "/")
+	switch len(parts) {
+	case 1:
+		if parts[0] == "" {
+			return "", "", fmt.Errorf("resource name cannot be empty")
+		}
+		return "", parts[0], nil
+	case 2:
+		namespace, resource = parts[0], parts[1]
+		if namespace == "" || resource == "" {
+			return "", "", fmt.Errorf("invalid namespaced resource %q: namespace and resource name are required", input)
+		}
+		if !IsValidNamespace(namespace) {
+			return "", "", fmt.Errorf("invalid namespace %q: namespace must be a valid Go package name and not a reserved path", namespace)
+		}
+		return namespace, resource, nil
+	default:
+		return "", "", fmt.Errorf("invalid namespaced resource %q: only single-level namespaces are supported", input)
+	}
+}
+
+// NamespaceFromResource splits a namespaced resource name into its namespace
+// and resource name parts. Invalid namespaced input is returned as an
+// unnamespaced resource for backward-compatible callers that cannot surface an
+// error; command paths should use ParseNamespacedResource.
+func NamespaceFromResource(resourceName string) (namespace, name string) {
+	namespace, name, err := ParseNamespacedResource(resourceName)
+	if err != nil {
+		return "", resourceName
+	}
+	return namespace, name
+}
+
+// IsValidNamespace validates that a namespace is a valid Go package name and not
+// a reserved path.
+func IsValidNamespace(namespace string) bool {
+	if namespace == "" {
+		return true
+	}
+	if namespace == "controllers" || namespace == "routes" || namespace == "router" || namespace == "views" || namespace == "models" {
+		return false
+	}
+	valid := regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
+	return valid.MatchString(namespace)
+}
+
+// ControllerPackageName returns the package name for a controller file given an
+// optional namespace. Empty namespace yields "controllers".
+func ControllerPackageName(namespace string) string {
+	if namespace == "" {
+		return "controllers"
+	}
+	return namespace
+}
+
+// NamespacedControllerImportPath returns the import path for a controller
+// package, optionally namespaced.
+func NamespacedControllerImportPath(modulePath, namespace string) string {
+	if namespace == "" {
+		return modulePath + "/controllers"
+	}
+	return modulePath + "/controllers/" + namespace
 }
 
 // DeriveResourceName converts a snake_case plural table name into a PascalCase singular resource name.

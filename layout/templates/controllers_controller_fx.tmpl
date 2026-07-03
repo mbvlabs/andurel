@@ -1,0 +1,56 @@
+// Package controllers provides HTTP handlers for the web application.
+package controllers
+
+import (
+	"{{.ModuleName}}/router"
+
+{{- if not .Inertia}}
+	"github.com/a-h/templ"
+{{- end}}
+	"go.uber.org/fx"
+)
+
+{{- if not .Inertia}}
+var pageCache = NewCacheBuilder[templ.Component]().Build
+{{- end}}
+var otherCache = NewCacheBuilder[string]().WithSize(2).Build
+
+var constructors = fx.Provide(
+{{- if not .Inertia}}
+	pageCache,
+{{- end}}
+	otherCache,
+	NewPages,
+	NewAssets,
+	NewAPI,
+	NewSessions,
+	NewRegistrations,
+	NewConfirmations,
+	NewResetPasswords,
+)
+
+var Module = fx.Module(
+	"controllers",
+	constructors,
+	fx.Invoke(func(r *router.Router, c Pages) error {
+		return c.RegisterRoutes(r)
+	}),
+	fx.Invoke(func(r *router.Router, c Assets) error {
+		return c.RegisterRoutes(r)
+	}),
+	fx.Invoke(func(r *router.Router, c API) error {
+		return c.RegisterRoutes(r)
+	}),
+	fx.Invoke(func(r *router.Router, c Sessions) error {
+		return c.RegisterRoutes(r)
+	}),
+	fx.Invoke(func(r *router.Router, c Registrations) error {
+		return c.RegisterRoutes(r)
+	}),
+	fx.Invoke(func(r *router.Router, c Confirmations) error {
+		return c.RegisterRoutes(r)
+	}),
+	fx.Invoke(func(r *router.Router, c ResetPasswords) error {
+		return c.RegisterRoutes(r)
+	}),
+)

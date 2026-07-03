@@ -1,8 +1,8 @@
 package views
 
 import (
+	"{{.ModuleName}}/internal/request"
 	"{{.ModuleName}}/router/cookies"
-	"{{.ModuleName}}/views/components"
 	"time"
 )
 
@@ -10,16 +10,18 @@ templ base(headOpts ...HeadDataOption) {
 	<!DOCTYPE html>
 	<html lang="en" class="dark">
 		@SetupHead(ctx, headOpts...)
-		<body class="app-shell">
+		<body>
 			{ children... }
-			<footer class="site-footer">
-				<div class="container">
+			<footer>
+				<div>
 					&copy; { time.Now().Format("2006") } andurel.
 				</div>
 			</footer>
-			<div id="flashContainer" class="toast-stack">
-				for _, flash := range cookies.GetFlashesCtx(ctx) {
-					@components.ToastMessage(flash)
+			<div id="flashContainer">
+				for _, flash := range request.ExtractContext[[]cookies.FlashMessage](ctx, request.SessionFlashesKey) {
+					<div>
+						{ flash.Message }
+					</div>
 				}
 			</div>
 		</body>

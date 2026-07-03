@@ -35,22 +35,44 @@ func NewViewManager(
 	}
 }
 
-func (v *ViewManager) GenerateView(resourceName, tableName string) error {
-	return v.generateView(resourceName, tableName, false)
+func (v *ViewManager) GenerateView(resourceName, tableName, namespace string) error {
+	return v.generateView(resourceName, tableName, namespace, false)
 }
 
-func (v *ViewManager) GenerateViewWithController(resourceName, tableName string) error {
-	return v.generateView(resourceName, tableName, true)
+func (v *ViewManager) GenerateViewWithControllerActions(resourceName, tableName string, namespace string, actions []string, inertia string) error {
+	return v.GenerateViewWithControllerActionsForModel(resourceName, resourceName, tableName, namespace, actions, inertia)
 }
 
-func (v *ViewManager) generateView(resourceName, tableName string, withController bool) error {
+func (v *ViewManager) GenerateViewWithControllerActionsForModel(resourceName, modelName, tableName string, namespace string, actions []string, inertia string) error {
+	return v.generateViewWithActionsForModel(resourceName, modelName, tableName, namespace, true, actions, inertia)
+}
+
+func (v *ViewManager) generateView(resourceName, tableName string, namespace string, withController bool) error {
+	return v.generateViewWithActionsForModel(resourceName, resourceName, tableName, namespace, withController, nil, "")
+}
+
+func (v *ViewManager) generateViewWithActions(resourceName, tableName string, namespace string, withController bool, actions []string, inertia string) error {
+	return v.generateViewWithActionsForModel(resourceName, resourceName, tableName, namespace, withController, actions, inertia)
+}
+
+func (v *ViewManager) generateViewWithActionsForModel(resourceName, modelName, tableName string, namespace string, withController bool, actions []string, inertia string) error {
 	modulePath := v.projectManager.GetModulePath()
+	if modelName == "" {
+		modelName = resourceName
+	}
 
-	modelPath := BuildModelPath(v.config.Paths.Models, resourceName)
+	modelPath := BuildModelPath(v.config.Paths.Models, modelName)
 	tableNameOverridden := tableName != naming.DeriveTableName(resourceName)
+	modelTableName := tableName
+	if modelName != resourceName {
+		modelTableName = naming.DeriveTableName(modelName)
+	}
 
 	if err := v.validator.ValidateResourceName(resourceName); err != nil {
 		return err
+	}
+	if err := v.validator.ValidateResourceName(modelName); err != nil {
+		return fmt.Errorf("model name validation failed: %w", err)
 	}
 
 	if tableNameOverridden {
@@ -74,12 +96,12 @@ func (v *ViewManager) generateView(resourceName, tableName string, withControlle
 		)
 	}
 
-	cat, err := v.migrationManager.BuildCatalogFromMigrations(tableName, v.config)
+	cat, err := v.migrationManager.BuildCatalogFromMigrations(modelTableName, v.config)
 	if err != nil {
 		return err
 	}
 
-	if err := v.viewGenerator.GenerateViewWithController(cat, resourceName, tableName, modulePath, withController); err != nil {
+	if err := v.viewGenerator.GenerateViewWithControllerActionsForModel(cat, resourceName, modelName, tableName, modelTableName, modulePath, namespace, withController, actions, inertia); err != nil {
 		return fmt.Errorf("failed to generate view: %w", err)
 	}
 
@@ -133,7 +155,7 @@ func (v *ViewManager) GenerateViewFromModel(resourceName string, withController 
 	}
 
 	if withController {
-		validationCtx := newControllerValidationContext(resourceName, tableName, v.config)
+		validationCtx := newControllerValidationContext(resourceName, tableName, "", v.config)
 		if err := validateControllerNotExists(validationCtx); err != nil {
 			return err
 		}
@@ -144,14 +166,18 @@ func (v *ViewManager) GenerateViewFromModel(resourceName string, withController 
 		return err
 	}
 
-	if err := v.viewGenerator.GenerateViewWithController(cat, resourceName, tableName, modulePath, withController); err != nil {
+	if err := v.viewGenerator.GenerateViewWithController(cat, resourceName, tableName, modulePath, withController, "", ""); err != nil {
 		return fmt.Errorf("failed to generate view: %w", err)
 	}
 
 	if withController {
 		controllerType := controllers.ResourceController // with views since we're generating both
 		fileGen := controllers.NewFileGenerator()
-		if err := fileGen.GenerateController(cat, resourceName, tableName, controllerType, modulePath, v.config.Database.Type, tableNameOverridden); err != nil {
+		nullType := ReadNullType()
+		diMode := ReadDIMode()
+		inertia := ""
+		pkInfo := DetectPrimaryKey(cat, tableName)
+		if err := fileGen.GenerateController(cat, resourceName, "", tableName, controllerType, modulePath, v.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia); err != nil {
 			return fmt.Errorf("failed to generate controller: %w", err)
 		}
 		fmt.Printf("Successfully generated resource view for %s with controller\n", resourceName)

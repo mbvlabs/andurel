@@ -9,71 +9,7 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator"
-	"github.com/spf13/cobra"
 )
-
-func newModelRootCommand() *cobra.Command {
-	var tableName string
-	var skipFactory bool
-
-	cmd := &cobra.Command{
-		Use:   "model <name> <command>",
-		Short: "Model management commands",
-		Long:  "Manage resource models.\n\n<ResourceName> is the associated model name used for generation.",
-		Example: `  model User create
-  model User create --table-name=accounts
-  model User create --skip-factory
-  model User update`,
-	}
-
-	setStandardHelp(cmd,
-		helpCommand{
-			Use:         "model <ResourceName> create",
-			Description: "creates a resource model",
-		},
-		helpCommand{
-			Use:         "model <ResourceName> update",
-			Description: "updates a resource model from migrations",
-		},
-	)
-
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		if len(args) < 2 {
-			return cmd.Help()
-		}
-		if len(args) > 2 {
-			return fmt.Errorf("too many arguments\nRun 'andurel model --help' for usage")
-		}
-		name := args[0]
-		switch args[1] {
-		case "create":
-			if err := chdirToProjectRoot(); err != nil {
-				return err
-			}
-			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				gen, err := generator.New()
-				if err != nil {
-					return err
-				}
-				return gen.GenerateModel(name, tableName, skipFactory)
-			})(cmd, args)
-		case "update":
-			if err := chdirToProjectRoot(); err != nil {
-				return err
-			}
-			yes, _ := cmd.Flags().GetBool("yes")
-			return runModelUpdate(name, yes)
-		default:
-			return fmt.Errorf("unknown model command %q\nRun 'andurel model --help' for usage", args[1])
-		}
-	}
-
-	cmd.Flags().StringVar(&tableName, "table-name", "", "Override the default table name (defaults to plural form of model name)")
-	cmd.Flags().BoolVar(&skipFactory, "skip-factory", false, "Skip factory generation")
-	cmd.Flags().Bool("yes", false, "Apply changes without prompting for confirmation")
-
-	return cmd
-}
 
 func runModelUpdate(resourceName string, autoApply bool) error {
 	gen, err := generator.New()
@@ -86,19 +22,34 @@ func runModelUpdate(resourceName string, autoApply bool) error {
 		return err
 	}
 
-	if !result.HasChanges {
-		fmt.Println("No changes — model struct is already up to date.")
+	if !result.HasChanges && !result.FactoryHasChanges {
+		fmt.Println("No changes — model is already up to date.")
 		return nil
 	}
 
-	diff, err := result.Diff()
-	if err != nil {
-		return fmt.Errorf("failed to compute diff: %w", err)
+	// Show model diff if there are changes
+	if result.HasChanges {
+		diff, err := result.Diff()
+		if err != nil {
+			return fmt.Errorf("failed to compute diff: %w", err)
+		}
+
+		fmt.Printf("Changes to %s:\n\n", result.ModelPath)
+		printColoredDiff(diff)
+		fmt.Println()
 	}
 
-	fmt.Printf("Changes to %s:\n\n", result.ModelPath)
-	printColoredDiff(diff)
-	fmt.Println()
+	// Show factory diff if there are changes
+	if result.FactoryHasChanges {
+		factoryDiff, err := result.FactoryDiff()
+		if err != nil {
+			return fmt.Errorf("failed to compute factory diff: %w", err)
+		}
+
+		fmt.Printf("Changes to %s:\n\n", result.FactoryPath)
+		printColoredDiff(factoryDiff)
+		fmt.Println()
+	}
 
 	if !autoApply {
 		confirmed, err := confirmModelApply()
@@ -115,7 +66,12 @@ func runModelUpdate(resourceName string, autoApply bool) error {
 		return err
 	}
 
-	fmt.Printf("Updated %s\n", result.ModelPath)
+	if result.HasChanges {
+		fmt.Printf("Updated %s\n", result.ModelPath)
+	}
+	if result.FactoryHasChanges {
+		fmt.Printf("Updated %s\n", result.FactoryPath)
+	}
 	return nil
 }
 

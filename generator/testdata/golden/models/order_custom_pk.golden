@@ -1,0 +1,213 @@
+package models
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"time"
+
+	"github.com/example/shop/internal/storage"
+	"github.com/example/shop/internal/validation"
+	"github.com/google/uuid"
+	"github.com/uptrace/bun"
+)
+
+type OrderEntity struct {
+	bun.BaseModel `bun:"table:orders,alias:orders"`
+	OrderID       uuid.UUID    `bun:"order_id,pk,type:uuid"`
+	CustomerID    uuid.UUID    `bun:"customer_id,type:uuid"`
+	Reference     string       `bun:"reference"`
+	TotalCents    int64        `bun:"total_cents"`
+	Status        string       `bun:"status"`
+	PlacedAt      sql.NullTime `bun:"placed_at"`
+	CreatedAt     time.Time    `bun:"created_at"`
+	UpdatedAt     time.Time    `bun:"updated_at"`
+}
+
+func (e *OrderEntity) Validate() error {
+	return nil
+}
+
+func (o order) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (OrderEntity, error) {
+	var entity OrderEntity
+	if err := db.NewSelect().
+		Model(&entity).
+		Where("order_id = ?", id).
+		Scan(ctx); err != nil {
+		return OrderEntity{}, err
+	}
+
+	return entity, nil
+}
+
+type CreateOrderData struct {
+	CustomerID uuid.UUID
+	Reference  string
+	TotalCents int64
+	Status     string
+	PlacedAt   sql.NullTime
+}
+
+func (o order) Create(ctx context.Context, db storage.Executor, data CreateOrderData) (OrderEntity, error) {
+	entity := OrderEntity{
+		OrderID:    uuid.New(),
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+		CustomerID: data.CustomerID,
+		Reference:  data.Reference,
+		TotalCents: data.TotalCents,
+		Status:     data.Status,
+		PlacedAt:   data.PlacedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return OrderEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return OrderEntity{}, err
+	}
+
+	return entity, nil
+}
+
+type UpdateOrderData struct {
+	OrderID    uuid.UUID
+	CustomerID uuid.UUID
+	Reference  string
+	TotalCents int64
+	Status     string
+	PlacedAt   sql.NullTime
+	UpdatedAt  time.Time
+}
+
+func (o order) Update(ctx context.Context, db storage.Executor, data UpdateOrderData) (OrderEntity, error) {
+	entity := OrderEntity{
+		OrderID:    data.OrderID,
+		UpdatedAt:  time.Now(),
+		CustomerID: data.CustomerID,
+		Reference:  data.Reference,
+		TotalCents: data.TotalCents,
+		Status:     data.Status,
+		PlacedAt:   data.PlacedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return OrderEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if err := db.NewUpdate().
+		Model(&entity).
+		Column("customer_id").
+		Column("reference").
+		Column("total_cents").
+		Column("status").
+		Column("placed_at").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
+		Scan(ctx); err != nil {
+		return OrderEntity{}, err
+	}
+
+	return entity, nil
+}
+
+func (o order) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
+	_, err := db.NewDelete().
+		Model((*OrderEntity)(nil)).
+		Where("order_id = ?", id).
+		Exec(ctx)
+
+	return err
+}
+
+func (o order) All(ctx context.Context, db storage.Executor) ([]OrderEntity, error) {
+	var entities []OrderEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Scan(ctx); err != nil {
+		return nil, err
+	}
+
+	return entities, nil
+}
+
+type PaginatedOrders struct {
+	Orders     []OrderEntity
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func (o order) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedOrders, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := db.NewSelect().
+		Model(&OrderEntity{}).Count(ctx)
+	if err != nil {
+		return PaginatedOrders{}, err
+	}
+
+	entities := make([]OrderEntity, 0, int(pageSize))
+	if err := db.NewSelect().
+		Model(&entities).
+		Limit(int(pageSize)).
+		Offset(int(offset)).
+		Scan(ctx); err != nil {
+		return PaginatedOrders{}, err
+	}
+
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
+
+	return PaginatedOrders{
+		Orders:     entities,
+		TotalCount: int64(totalCount),
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (o order) Upsert(ctx context.Context, db storage.Executor, data CreateOrderData) (OrderEntity, error) {
+	entity := OrderEntity{
+		OrderID:    uuid.New(),
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+		CustomerID: data.CustomerID,
+		Reference:  data.Reference,
+		TotalCents: data.TotalCents,
+		Status:     data.Status,
+		PlacedAt:   data.PlacedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return OrderEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if err := db.NewInsert().
+		Model(&entity).
+		On("CONFLICT (order_id) DO UPDATE").
+		Set("customer_id = excluded.customer_id").
+		Set("reference = excluded.reference").
+		Set("total_cents = excluded.total_cents").
+		Set("status = excluded.status").
+		Set("placed_at = excluded.placed_at").
+		Returning("*").
+		Scan(ctx); err != nil {
+		return OrderEntity{}, err
+	}
+
+	return entity, nil
+}

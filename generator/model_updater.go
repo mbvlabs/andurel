@@ -7,11 +7,14 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/models"
+	"github.com/mbvlabs/andurel/generator/templates"
+	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/pmezard/go-difflib/difflib"
 )
 
@@ -27,10 +30,27 @@ var standardGoTypes = map[string]bool{
 	"float64": true, "*float64": true,
 	"time.Time": true, "*time.Time": true,
 	"uuid.UUID": true, "*uuid.UUID": true,
-	"[]byte":   true,
-	"[]int32":  true,
+	"[]byte":         true,
+	"json.RawMessage":  true,
+	"*json.RawMessage": true,
+	"[]int32":         true,
 	"[]string": true,
 	"any":      true,
+	// sql.Null types
+	"sql.NullString":  true,
+	"sql.NullBool":    true,
+	"sql.NullInt16":   true,
+	"sql.NullInt32":   true,
+	"sql.NullInt64":   true,
+	"sql.NullFloat64": true,
+	"sql.NullTime":    true,
+	// bun.Null types
+	"bun.NullString":  true,
+	"bun.NullBool":    true,
+	"bun.NullInt32":   true,
+	"bun.NullInt64":   true,
+	"bun.NullFloat64": true,
+	"bun.NullTime":    true,
 }
 
 type parsedField struct {
@@ -48,15 +68,33 @@ type UpdateModelResult struct {
 	NewFileContent string
 	ModelPath      string
 	HasChanges     bool
+
+	FactoryPath       string
+	OldFactoryContent string
+	NewFactoryContent string
+	FactoryHasChanges bool
 }
 
-// Diff returns a unified diff of the struct's column fields.
-// bun.BaseModel is excluded — its alignment changes with field widths and is
-// not schema content.
+// Diff returns a unified diff of the struct definitions and method bodies
+// (Entity, CreateData, UpdateData, Create, Update, Upsert). bun.BaseModel
+// lines are excluded — their alignment changes with field widths and is not
+// schema content.
 func (r *UpdateModelResult) Diff() (string, error) {
 	d := difflib.UnifiedDiff{
 		A:        difflib.SplitLines(dropBaseModelLine(r.OldStruct)),
 		B:        difflib.SplitLines(dropBaseModelLine(r.NewStruct)),
+		FromFile: "current",
+		ToFile:   "updated",
+		Context:  2,
+	}
+	return difflib.GetUnifiedDiffString(d)
+}
+
+// FactoryDiff returns a unified diff of the old vs new factory file content.
+func (r *UpdateModelResult) FactoryDiff() (string, error) {
+	d := difflib.UnifiedDiff{
+		A:        difflib.SplitLines(r.OldFactoryContent),
+		B:        difflib.SplitLines(r.NewFactoryContent),
 		FromFile: "current",
 		ToFile:   "updated",
 		Context:  2,
@@ -117,12 +155,15 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 		return nil, err
 	}
 
+	rootDir, _ := m.fileManager.FindGoModRoot()
+	nullType := m.readNullType(rootDir)
 	newModel, err := m.modelGenerator.Build(cat, models.Config{
 		TableName:    tableName,
 		ResourceName: resourceName,
 		PackageName:  "models",
 		DatabaseType: m.config.Database.Type,
 		ModulePath:   m.projectManager.GetModulePath(),
+		NullType:     nullType,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to build model: %w", err)
@@ -162,21 +203,46 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 		}
 	}
 
-	oldStructStr := string(src[structStart:structEnd])
-	newStructStr := renderEntityStruct(entityName, tableName, newModel.Fields)
+	newEntityStr := renderEntityStruct(entityName, tableName, newModel.Fields)
 
-	// Splice the new struct into the file and format.
-	spliced := string(src[:structStart]) + newStructStr + string(src[structEnd:])
-	formatted, err := format.Source([]byte(spliced))
+	content := string(src)
+	content = content[:structStart] + newEntityStr + content[structEnd:]
+
+	formatted, err := format.Source([]byte(content))
 	if err != nil {
-		// Fall back to unformatted; goimports will clean it up on write.
-		formatted = []byte(spliced)
+		formatted = []byte(content)
 	}
 
-	// Re-extract the struct from the formatted content for a clean diff.
-	formattedStructStr := newStructStr
-	if _, fStart, fEnd, err := parseEntityStruct(formatted, entityName); err == nil {
-		formattedStructStr = string(formatted[fStart:fEnd])
+	oldParts := string(src[structStart:structEnd])
+	newParts := newEntityStr
+
+	// Generate factory content for the updated model
+	factoryPath := fmt.Sprintf("%s/models/factories/%s.go", rootDir, naming.ToSnakeCase(resourceName))
+	var oldFactoryContent, newFactoryContent string
+	if existingSrc, err := os.ReadFile(factoryPath); err == nil {
+		oldFactoryContent = string(existingSrc)
+	}
+
+	factoryGenFactory, factoryErr := m.modelGenerator.BuildFactory(cat, models.Config{
+		TableName:    tableName,
+		ResourceName: resourceName,
+		PackageName:  "factories",
+		DatabaseType: m.config.Database.Type,
+		ModulePath:   m.projectManager.GetModulePath(),
+		NullType:     nullType,
+	}, newModel)
+	if factoryErr == nil {
+		factoryTmplContent, tmplErr := templates.Files.ReadFile("factory.tmpl")
+		if tmplErr == nil {
+			if genFactoryContent, genErr := m.modelGenerator.GenerateFactoryFile(factoryGenFactory, string(factoryTmplContent)); genErr == nil {
+				formattedFactory, fmtErr := format.Source([]byte(genFactoryContent))
+				if fmtErr == nil {
+					newFactoryContent = string(formattedFactory)
+				} else {
+					newFactoryContent = genFactoryContent
+				}
+			}
+		}
 	}
 
 	oldDropped := dropBaseModelLine(oldStructStr)
@@ -184,16 +250,20 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 	hasChanges := oldDropped != newDropped
 
 	return &UpdateModelResult{
-		OldStruct:      oldStructStr,
-		NewStruct:      formattedStructStr,
+		OldStruct:      oldParts,
+		NewStruct:      newParts,
 		OldFileContent: string(src),
 		NewFileContent: string(formatted),
 		ModelPath:      modelPath,
 		HasChanges:     hasChanges,
+		FactoryPath:       factoryPath,
+		OldFactoryContent: oldFactoryContent,
+		NewFactoryContent: newFactoryContent,
+		FactoryHasChanges: oldFactoryContent != newFactoryContent,
 	}, nil
 }
 
-// ApplyModelUpdate writes the updated file content and runs the Go formatter.
+// ApplyModelUpdate writes the updated model and factory file content and runs the Go formatter.
 func (m *ModelManager) ApplyModelUpdate(result *UpdateModelResult) error {
 	if err := os.WriteFile(result.ModelPath, []byte(result.NewFileContent), 0o600); err != nil {
 		return fmt.Errorf("failed to write model file: %w", err)
@@ -201,6 +271,21 @@ func (m *ModelManager) ApplyModelUpdate(result *UpdateModelResult) error {
 	if err := files.FormatGoFile(result.ModelPath); err != nil {
 		return fmt.Errorf("failed to format model file: %w", err)
 	}
+
+	// Write updated factory file if we have new content
+	if result.NewFactoryContent != "" {
+		factoryDir := filepath.Dir(result.FactoryPath)
+		if err := os.MkdirAll(factoryDir, 0755); err != nil {
+			return fmt.Errorf("failed to create factories directory: %w", err)
+		}
+		if err := os.WriteFile(result.FactoryPath, []byte(result.NewFactoryContent), 0o600); err != nil {
+			return fmt.Errorf("failed to write factory file: %w", err)
+		}
+		if err := files.FormatGoFile(result.FactoryPath); err != nil {
+			return fmt.Errorf("failed to format factory file: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -269,11 +354,117 @@ func parseEntityStruct(src []byte, entityName string) ([]parsedField, int, int, 
 func renderEntityStruct(entityName, tableName string, fields []models.GeneratedField) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "type %s struct {\n", entityName)
-	fmt.Fprintf(&sb, "\tbun.BaseModel `bun:\"table:%s\"`\n", tableName)
+	fmt.Fprintf(&sb, "\tbun.BaseModel `bun:\"table:%s,alias:%s\"`\n", tableName, tableName)
 	sb.WriteString("\n")
 	for _, f := range fields {
 		fmt.Fprintf(&sb, "\t%s %s `bun:\"%s\"`\n", f.Name, f.Type, f.BunTag)
 	}
 	sb.WriteString("}")
 	return sb.String()
+}
+
+// renderCreateDataStruct generates the "type CreateXData struct { ... }" text.
+func renderCreateDataStruct(resourceName string, model *models.GeneratedModel) string {
+	var sb strings.Builder
+	idGoField := model.IDGoFieldName
+	if idGoField == "" {
+		idGoField = "ID"
+	}
+	fmt.Fprintf(&sb, "type Create%sData struct {\n", resourceName)
+	for _, f := range model.Fields {
+		if f.Name == idGoField || f.Name == "CreatedAt" || f.Name == "UpdatedAt" {
+			continue
+		}
+		fmt.Fprintf(&sb, "\t%s %s\n", f.Name, f.Type)
+	}
+	if !model.IsAutoIncrementID && model.IDType != "" && model.IDType != "uuid.UUID" {
+		fmt.Fprintf(&sb, "\t%s %s\n", idGoField, model.IDType)
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+// renderUpdateDataStruct generates the "type UpdateXData struct { ... }" text.
+func renderUpdateDataStruct(resourceName string, model *models.GeneratedModel) string {
+	var sb strings.Builder
+	idGoField := model.IDGoFieldName
+	if idGoField == "" {
+		idGoField = "ID"
+	}
+	idType := model.IDType
+	if idType == "" {
+		idType = "uuid.UUID"
+	}
+	fmt.Fprintf(&sb, "type Update%sData struct {\n", resourceName)
+	fmt.Fprintf(&sb, "\t%s %s\n", idGoField, idType)
+	for _, f := range model.Fields {
+		if f.Name == idGoField || f.Name == "CreatedAt" {
+			continue
+		}
+		fmt.Fprintf(&sb, "\t%s %s\n", f.Name, f.Type)
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+// findFuncOffsets returns the byte offsets [start, end) of a method
+// declaration matching the given receiver type and function name.
+func findFuncOffsets(src []byte, receiverType string, funcName string) (int, int, error) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to parse Go source: %w", err)
+	}
+
+	for _, decl := range f.Decls {
+		funcDecl, ok := decl.(*ast.FuncDecl)
+		if !ok {
+			continue
+		}
+		if funcDecl.Name.Name != funcName {
+			continue
+		}
+		if funcDecl.Recv == nil || len(funcDecl.Recv.List) == 0 {
+			continue
+		}
+		recvType := funcDecl.Recv.List[0].Type
+		typeStart := fset.Position(recvType.Pos()).Offset
+		typeEnd := fset.Position(recvType.End()).Offset
+		typeStr := strings.TrimSpace(string(src[typeStart:typeEnd]))
+		typeStr = strings.TrimPrefix(typeStr, "*")
+		if typeStr != receiverType {
+			continue
+		}
+		return fset.Position(funcDecl.Pos()).Offset, fset.Position(funcDecl.End()).Offset, nil
+	}
+
+	return 0, 0, fmt.Errorf("func %q on receiver %q not found", funcName, receiverType)
+}
+
+// findStructOffsets returns the byte offsets [start, end) of a named struct
+// declaration in Go source.
+func findStructOffsets(src []byte, structName string) (int, int, error) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to parse Go source: %w", err)
+	}
+
+	for _, decl := range f.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok || genDecl.Tok != token.TYPE {
+			continue
+		}
+		for _, spec := range genDecl.Specs {
+			typeSpec, ok := spec.(*ast.TypeSpec)
+			if !ok || typeSpec.Name.Name != structName {
+				continue
+			}
+			if _, ok := typeSpec.Type.(*ast.StructType); !ok {
+				continue
+			}
+			return fset.Position(genDecl.Pos()).Offset, fset.Position(genDecl.End()).Offset, nil
+		}
+	}
+	return 0, 0, fmt.Errorf("struct %q not found in file", structName)
 }

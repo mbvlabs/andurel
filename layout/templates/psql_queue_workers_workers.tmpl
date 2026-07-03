@@ -1,13 +1,42 @@
+{{if eq .DIMode "uberfx"}}
+// Package queue provides queue-specific resources.
+package queue
+
+import (
+	"github.com/riverqueue/river"
+	"go.uber.org/fx"
+)
+
+var wrksConstructors = fx.Provide(
+	river.NewWorkers,
+	NewSendTransactionalEmailWorker,
+	NewSendMarketingEmailWorker,
+)
+
+var WorkersModule = fx.Module(
+	"queue-workers",
+	wrksConstructors,
+	fx.Invoke(func(workers *river.Workers, worker *SendTransactionalEmailWorker) error {
+		return worker.Register(workers)
+	}),
+	fx.Invoke(func(workers *river.Workers, worker *SendMarketingEmailWorker) error {
+		return worker.Register(workers)
+	}),
+)
+{{else}}
 // Package workers provides a centralized place to register all background workers for the application.
 package workers
 
 import (
 	"github.com/riverqueue/river"
 
+    {{if eq .DIMode "uberfx"}}
+	"go.uber.org/fx"
+    {{end}}
 	"{{.ModuleName}}/email"
 )
 
-func Register(transactionalSender email.TransactionalSender, marketingSender email.MarketingSender) (*river.Workers, error) {
+func RegisterWorkers(transactionalSender email.TransactionalSender, marketingSender email.MarketingSender) (*river.Workers, error) {
 	wrks := river.NewWorkers()
 
 	if err := river.AddWorkerSafely(wrks, NewSendTransactionalEmailWorker(transactionalSender)); err != nil {
@@ -18,5 +47,12 @@ func Register(transactionalSender email.TransactionalSender, marketingSender ema
 		return nil, err
 	}
 
+	// andurel:worker-registration-point
+
 	return wrks, nil
 }
+
+{{if eq .DIMode "uberfx"}}
+var Module = fx.Module("queue-workers", fx.Provide(RegisterWorkers))
+{{end}}
+{{end}}

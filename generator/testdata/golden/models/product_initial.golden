@@ -1,0 +1,262 @@
+package models
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"time"
+
+	"github.com/example/shop/internal/storage"
+	"github.com/example/shop/internal/validation"
+	"github.com/google/uuid"
+	"github.com/uptrace/bun"
+)
+
+type ProductEntity struct {
+	bun.BaseModel `bun:"table:products,alias:products"`
+	ID            uuid.UUID       `bun:"id,pk,type:uuid"`
+	Sku           string          `bun:"sku"`
+	Name          string          `bun:"name"`
+	Description   sql.NullString  `bun:"description"`
+	PriceCents    int32           `bun:"price_cents"`
+	StockCount    int32           `bun:"stock_count"`
+	Active        bool            `bun:"active"`
+	Tags          []string        `bun:"tags,array"`
+	Scores        []int32         `bun:"scores,array"`
+	Metadata      json.RawMessage `bun:"metadata,type:jsonb"`
+	Attributes    json.RawMessage `bun:"attributes,type:json"`
+	LaunchedAt    sql.NullTime    `bun:"launched_at"`
+	CreatedAt     time.Time       `bun:"created_at"`
+	UpdatedAt     time.Time       `bun:"updated_at"`
+}
+
+func (e *ProductEntity) Validate() error {
+	return nil
+}
+
+func (p product) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ProductEntity, error) {
+	var entity ProductEntity
+	if err := db.NewSelect().
+		Model(&entity).
+		Where("id = ?", id).
+		Scan(ctx); err != nil {
+		return ProductEntity{}, err
+	}
+
+	return entity, nil
+}
+
+type CreateProductData struct {
+	Sku         string
+	Name        string
+	Description sql.NullString
+	PriceCents  int32
+	StockCount  int32
+	Active      bool
+	Tags        []string
+	Scores      []int32
+	Metadata    json.RawMessage
+	Attributes  json.RawMessage
+	LaunchedAt  sql.NullTime
+}
+
+func (p product) Create(ctx context.Context, db storage.Executor, data CreateProductData) (ProductEntity, error) {
+	entity := ProductEntity{
+		ID:          uuid.New(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+		Sku:         data.Sku,
+		Name:        data.Name,
+		Description: data.Description,
+		PriceCents:  data.PriceCents,
+		StockCount:  data.StockCount,
+		Active:      data.Active,
+		Tags:        data.Tags,
+		Scores:      data.Scores,
+		Metadata:    data.Metadata,
+		Attributes:  data.Attributes,
+		LaunchedAt:  data.LaunchedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return ProductEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return ProductEntity{}, err
+	}
+
+	return entity, nil
+}
+
+type UpdateProductData struct {
+	ID          uuid.UUID
+	Sku         string
+	Name        string
+	Description sql.NullString
+	PriceCents  int32
+	StockCount  int32
+	Active      bool
+	Tags        []string
+	Scores      []int32
+	Metadata    json.RawMessage
+	Attributes  json.RawMessage
+	LaunchedAt  sql.NullTime
+	UpdatedAt   time.Time
+}
+
+func (p product) Update(ctx context.Context, db storage.Executor, data UpdateProductData) (ProductEntity, error) {
+	entity := ProductEntity{
+		ID:          data.ID,
+		UpdatedAt:   time.Now(),
+		Sku:         data.Sku,
+		Name:        data.Name,
+		Description: data.Description,
+		PriceCents:  data.PriceCents,
+		StockCount:  data.StockCount,
+		Active:      data.Active,
+		Tags:        data.Tags,
+		Scores:      data.Scores,
+		Metadata:    data.Metadata,
+		Attributes:  data.Attributes,
+		LaunchedAt:  data.LaunchedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return ProductEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if err := db.NewUpdate().
+		Model(&entity).
+		Column("sku").
+		Column("name").
+		Column("description").
+		Column("price_cents").
+		Column("stock_count").
+		Column("active").
+		Column("tags").
+		Column("scores").
+		Column("metadata").
+		Column("attributes").
+		Column("launched_at").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
+		Scan(ctx); err != nil {
+		return ProductEntity{}, err
+	}
+
+	return entity, nil
+}
+
+func (p product) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
+	_, err := db.NewDelete().
+		Model((*ProductEntity)(nil)).
+		Where("id = ?", id).
+		Exec(ctx)
+
+	return err
+}
+
+func (p product) All(ctx context.Context, db storage.Executor) ([]ProductEntity, error) {
+	var entities []ProductEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Scan(ctx); err != nil {
+		return nil, err
+	}
+
+	return entities, nil
+}
+
+type PaginatedProducts struct {
+	Products   []ProductEntity
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func (p product) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedProducts, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := db.NewSelect().
+		Model(&ProductEntity{}).Count(ctx)
+	if err != nil {
+		return PaginatedProducts{}, err
+	}
+
+	entities := make([]ProductEntity, 0, int(pageSize))
+	if err := db.NewSelect().
+		Model(&entities).
+		Limit(int(pageSize)).
+		Offset(int(offset)).
+		Scan(ctx); err != nil {
+		return PaginatedProducts{}, err
+	}
+
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
+
+	return PaginatedProducts{
+		Products:   entities,
+		TotalCount: int64(totalCount),
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (p product) Upsert(ctx context.Context, db storage.Executor, data CreateProductData) (ProductEntity, error) {
+	entity := ProductEntity{
+		ID:          uuid.New(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+		Sku:         data.Sku,
+		Name:        data.Name,
+		Description: data.Description,
+		PriceCents:  data.PriceCents,
+		StockCount:  data.StockCount,
+		Active:      data.Active,
+		Tags:        data.Tags,
+		Scores:      data.Scores,
+		Metadata:    data.Metadata,
+		Attributes:  data.Attributes,
+		LaunchedAt:  data.LaunchedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return ProductEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if err := db.NewInsert().
+		Model(&entity).
+		On("CONFLICT (id) DO UPDATE").
+		Set("sku = excluded.sku").
+		Set("name = excluded.name").
+		Set("description = excluded.description").
+		Set("price_cents = excluded.price_cents").
+		Set("stock_count = excluded.stock_count").
+		Set("active = excluded.active").
+		Set("tags = excluded.tags").
+		Set("scores = excluded.scores").
+		Set("metadata = excluded.metadata").
+		Set("attributes = excluded.attributes").
+		Set("launched_at = excluded.launched_at").
+		Returning("*").
+		Scan(ctx); err != nil {
+		return ProductEntity{}, err
+	}
+
+	return entity, nil
+}

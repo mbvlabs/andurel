@@ -1,0 +1,7 @@
+{{if .ParamsStruct}}{{.ParamsStruct}}
+
+{{end}}var {{.NamespacePascal}}{{.ResourceName}}{{.MethodName}} = routing.{{.ConstructorName}}(
+	"{{.Path}}",
+	"{{.PluralName}}.{{.LowerMethodName}}",
+	{{.NamespacePascal}}{{.ResourceName}}Prefix,
+)

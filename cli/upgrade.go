@@ -9,7 +9,8 @@ import (
 
 func newUpgradeCommand(version string) *cobra.Command {
 	upgradeCmd := &cobra.Command{
-		Use:   "upgrade",
+		Use:     "upgrade",
+		Aliases: []string{"up"},
 		Short: "Upgrade framework files to latest version",
 		Long: `Upgrade framework files and tool versions.
 
@@ -21,6 +22,8 @@ This command will:
 
 Note: This only upgrades framework code. You are responsible for updating
 your application code to work with any API changes in the new version.`,
+		Example: `  andurel upgrade
+  andurel upgrade --dry-run`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runUpgrade(cmd, version)
 		},

@@ -47,28 +47,36 @@ type GeneratedModel struct {
 	IDType              string // "uuid.UUID", "int32", "int64", "string"
 	IDGoType            string // Same as IDType (for template clarity)
 	IsAutoIncrementID   bool   // True for serial/bigserial
+	IDFieldName         string // SQL column name of PK (e.g., "id", "user_id")
+	IDGoFieldName       string // Go struct field name of PK (e.g., "ID", "UserID")
+	HasPrimaryKey       bool   // Whether the table has any primary key
 	EntityName          string // ServerEntity (resource name + "Entity")
 	NamespaceVar        string // Server (exported, package-scope)
 	NamespaceType       string // server (unexported receiver type)
 	ReceiverName        string // s (for the namespace methods)
+	HasCreatedAt        bool
+	HasUpdatedAt        bool
 }
 
 type Config struct {
-	TableName    string
-	ResourceName string
-	PackageName  string
-	DatabaseType string
-	ModulePath   string
-	CustomTypes  []types.TypeOverride
+	TableName         string
+	ResourceName      string
+	PackageName       string
+	DatabaseType      string
+	ModulePath        string
+	NullType          string
+	CustomTypes       []types.TypeOverride
+	PrimaryKeyColumn  string // Override PK column name (empty = auto-detect)
+	GenerateWithoutPK bool   // Force generation without PK handling
 }
 
 // BunModelConfig holds configuration for bun model generation
 type BunModelConfig struct {
-	ResourceName       string
-	TableName         string
-	ModulePath        string
-	PackageName       string
-	UseSoftDelete     bool // If true, use deleted_at for soft deletes
+	ResourceName  string
+	TableName     string
+	ModulePath    string
+	PackageName   string
+	UseSoftDelete bool // If true, use deleted_at for soft deletes
 }
 
 type Generator struct {
@@ -110,6 +118,9 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	}
 
 	g.typeMapper.Overrides = append(g.typeMapper.Overrides, config.CustomTypes...)
+	if config.NullType != "" {
+		g.typeMapper.NullType = config.NullType
+	}
 
 	entityName := config.ResourceName + "Entity"
 	namespaceVar := config.ResourceName
@@ -117,20 +128,23 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	receiverName := naming.ToReceiverName(config.ResourceName)
 
 	model := &GeneratedModel{
-		Name:             config.ResourceName,
-		PluralName:       inflection.Plural(config.ResourceName),
-		EntityName:       entityName,
-		NamespaceVar:     namespaceVar,
-		NamespaceType:    namespaceType,
-		ReceiverName:     receiverName,
-		Package:          config.PackageName,
-		TableName:        config.TableName,
-		ModulePath:       config.ModulePath,
-		DatabaseType:     g.typeMapper.GetDatabaseType(),
-		Fields:           make([]GeneratedField, 0, len(table.Columns)),
-		StandardImports:  make([]string, 0),
-		ExternalImports:  make([]string, 0),
-		Imports:          make([]string, 0),
+		Name:            config.ResourceName,
+		PluralName:      inflection.Plural(config.ResourceName),
+		EntityName:      entityName,
+		NamespaceVar:    namespaceVar,
+		NamespaceType:   namespaceType,
+		ReceiverName:    receiverName,
+		Package:         config.PackageName,
+		TableName:       config.TableName,
+		ModulePath:      config.ModulePath,
+		DatabaseType:    g.typeMapper.GetDatabaseType(),
+		Fields:          make([]GeneratedField, 0, len(table.Columns)),
+		StandardImports: make([]string, 0),
+		ExternalImports: make([]string, 0),
+		Imports:         make([]string, 0),
+		IDFieldName:     config.PrimaryKeyColumn,
+		IDGoFieldName:   "",
+		HasPrimaryKey:   false,
 	}
 
 	importSet := make(map[string]bool)
@@ -140,6 +154,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	importSet["github.com/uptrace/bun"] = true
 	if config.ModulePath != "" {
 		importSet[config.ModulePath+"/internal/storage"] = true
+		importSet[config.ModulePath+"/internal/validation"] = true
 	}
 
 	for _, col := range table.Columns {
@@ -159,15 +174,50 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 
 		model.Fields = append(model.Fields, field)
 
-		if col.Name == "id" && col.IsPrimaryKey {
-			pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
-			model.IDType = validation.GoType(pkType)
-			model.IDGoType = model.IDType
-			model.IsAutoIncrementID = validation.IsAutoIncrement(col.DataType)
+		if col.Name == "created_at" {
+			model.HasCreatedAt = true
+		}
+		if col.Name == "updated_at" {
+			model.HasUpdatedAt = true
 		}
 	}
 
-	if model.IDType == "uuid.UUID" || model.IDType == "" {
+	// Three-pass PK detection:
+	// 1. Use config override if provided
+	// 2. Look for column named "id" that is primary key
+	// 3. Fall back to any column with IsPrimaryKey flag
+	if config.PrimaryKeyColumn != "" {
+		col := findColumn(table, config.PrimaryKeyColumn)
+		if col != nil {
+			setModelPK(model, col)
+			model.IDFieldName = col.Name
+			model.IDGoFieldName = types.FormatFieldName(col.Name)
+			model.HasPrimaryKey = true
+		}
+	} else if !config.GenerateWithoutPK {
+		for _, col := range table.Columns {
+			if col.Name == "id" && col.IsPrimaryKey {
+				setModelPK(model, col)
+				model.IDFieldName = col.Name
+				model.IDGoFieldName = types.FormatFieldName(col.Name)
+				model.HasPrimaryKey = true
+				break
+			}
+		}
+		if !model.HasPrimaryKey {
+			for _, col := range table.Columns {
+				if col.IsPrimaryKey {
+					setModelPK(model, col)
+					model.IDFieldName = col.Name
+					model.IDGoFieldName = types.FormatFieldName(col.Name)
+					model.HasPrimaryKey = true
+					break
+				}
+			}
+		}
+	}
+
+	if model.HasPrimaryKey && model.IDType == "uuid.UUID" {
 		importSet["github.com/google/uuid"] = true
 	}
 
@@ -192,6 +242,22 @@ func groupAndSortImports(importSet map[string]bool) (stdImports []string, extImp
 	sort.Strings(stdImports)
 	sort.Strings(extImports)
 	return stdImports, extImports
+}
+
+func setModelPK(model *GeneratedModel, col *catalog.Column) {
+	pkType, _ := validation.ClassifyPrimaryKeyType(col.DataType)
+	model.IDType = validation.GoType(pkType)
+	model.IDGoType = model.IDType
+	model.IsAutoIncrementID = validation.IsAutoIncrement(col.DataType)
+}
+
+func findColumn(table *catalog.Table, name string) *catalog.Column {
+	for _, col := range table.Columns {
+		if col.Name == name {
+			return col
+		}
+	}
+	return nil
 }
 
 func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
@@ -223,6 +289,12 @@ func (g *Generator) addModelTypeImports(goType string) map[string]bool {
 	if strings.Contains(goType, "uuid.UUID") {
 		importSet["github.com/google/uuid"] = true
 	}
+	if strings.HasPrefix(goType, "sql.Null") {
+		importSet["database/sql"] = true
+	}
+	if strings.Contains(goType, "json.RawMessage") {
+		importSet["encoding/json"] = true
+	}
 	return importSet
 }
 
@@ -232,6 +304,12 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 			return strings.ToLower(s)
 		},
 		"Plural": inflection.Plural,
+		"columnName": func(bunTag string) string {
+			if before, _, ok := strings.Cut(bunTag, ","); ok {
+				return before
+			}
+			return bunTag
+		},
 	}
 
 	tmpl, err := template.New("model").Funcs(funcMap).Parse(templateStr)
@@ -254,6 +332,9 @@ func (g *Generator) GenerateModel(
 	modelPath string,
 	modulePath string,
 	tableNameOverride string,
+	nullType string,
+	primaryKeyColumn string,
+	generateWithoutPK bool,
 ) error {
 	tableName := pluralName
 	if tableNameOverride != "" {
@@ -261,11 +342,14 @@ func (g *Generator) GenerateModel(
 	}
 
 	model, err := g.Build(cat, Config{
-		TableName:    tableName,
-		ResourceName: resourceName,
-		PackageName:  "models",
-		DatabaseType: g.typeMapper.GetDatabaseType(),
-		ModulePath:   modulePath,
+		TableName:         tableName,
+		ResourceName:      resourceName,
+		PackageName:       "models",
+		DatabaseType:      g.typeMapper.GetDatabaseType(),
+		ModulePath:        modulePath,
+		NullType:          nullType,
+		PrimaryKeyColumn:  primaryKeyColumn,
+		GenerateWithoutPK: generateWithoutPK,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build model: %w", err)
@@ -315,7 +399,10 @@ type GeneratedFactory struct {
 	HasForeignKeys    bool           // True if there are 1+ FKs
 	ForeignKeyFields  []FactoryField // All FK fields
 	IDType            string         // "uuid.UUID", "int32", "int64", "string"
+	IDGoFieldName     string         // Go field name for the primary key (e.g., "ID")
 	IsAutoIncrementID bool           // True for serial/bigserial
+	HasCreatedAt      bool
+	HasUpdatedAt      bool
 }
 
 // FactoryField represents a field in a factory
@@ -369,6 +456,12 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 		}
 	}
 
+	// Default IDGoFieldName if not set
+	idGoFieldName := genModel.IDGoFieldName
+	if idGoFieldName == "" {
+		idGoFieldName = "ID"
+	}
+
 	return &GeneratedFactory{
 		ModelName:         genModel.Name,
 		EntityName:        genModel.EntityName,
@@ -382,7 +475,10 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 		HasForeignKeys:    len(fkFields) > 0,
 		ForeignKeyFields:  fkFields,
 		IDType:            genModel.IDType,
+		IDGoFieldName:     idGoFieldName,
 		IsAutoIncrementID: genModel.IsAutoIncrementID,
+		HasCreatedAt:      genModel.HasCreatedAt,
+		HasUpdatedAt:      genModel.HasUpdatedAt,
 	}, nil
 }
 
@@ -423,8 +519,38 @@ func (g *Generator) determineFactoryDefault(fieldName, goType string) string {
 		return "time.Time{}"
 	case "uuid.UUID":
 		return "uuid.UUID{}"
+	case "json.RawMessage":
+		return "json.RawMessage{}"
 	case "[]byte":
 		return "[]byte{}"
+	// sql.Null types
+	case "sql.NullString":
+		return "sql.NullString{String: faker.Word(), Valid: true}"
+	case "sql.NullBool":
+		return "sql.NullBool{Bool: randomBool(), Valid: true}"
+	case "sql.NullInt16":
+		return "sql.NullInt16{Int16: randomInt16(1, 1000, 100), Valid: true}"
+	case "sql.NullInt32":
+		return "sql.NullInt32{Int32: randomInt(1, 1000, 100), Valid: true}"
+	case "sql.NullInt64":
+		return "sql.NullInt64{Int64: randomInt64(1, 1000, 100), Valid: true}"
+	case "sql.NullFloat64":
+		return "sql.NullFloat64{Float64: float64(randomInt(1, 1000, 100)), Valid: true}"
+	case "sql.NullTime":
+		return "sql.NullTime{Time: time.Now(), Valid: true}"
+	// bun.Null types
+	case "bun.NullString":
+		return "bun.NullString{String: faker.Word(), Valid: true}"
+	case "bun.NullBool":
+		return "bun.NullBool{Bool: randomBool(), Valid: true}"
+	case "bun.NullInt32":
+		return "bun.NullInt32{Int32: randomInt(1, 1000, 100), Valid: true}"
+	case "bun.NullInt64":
+		return "bun.NullInt64{Int64: randomInt64(1, 1000, 100), Valid: true}"
+	case "bun.NullFloat64":
+		return "bun.NullFloat64{Float64: float64(randomInt(1, 1000, 100)), Valid: true}"
+	case "bun.NullTime":
+		return "bun.NullTime{Time: time.Now(), Valid: true}"
 	}
 
 	// Default fallback
@@ -490,8 +616,17 @@ func (g *Generator) getFactoryGoZero(goType string) string {
 		return "time.Time{}"
 	case "uuid.UUID":
 		return "uuid.UUID{}"
+	case "json.RawMessage":
+		return "nil"
 	case "[]byte":
 		return "nil"
+	// sql.Null and bun.Null zero values use their empty struct literal
+	case "sql.NullString", "sql.NullBool", "sql.NullInt16", "sql.NullInt32",
+		"sql.NullInt64", "sql.NullFloat64", "sql.NullTime":
+		return fmt.Sprintf("%s{}", goType)
+	case "bun.NullString", "bun.NullBool", "bun.NullInt32", "bun.NullInt64",
+		"bun.NullFloat64", "bun.NullTime":
+		return fmt.Sprintf("%s{}", goType)
 	default:
 		if strings.HasPrefix(goType, "[]") {
 			return "nil"

@@ -1,0 +1,146 @@
+<script setup lang="ts">
+import { Head, Link, useForm } from '@inertiajs/vue3'
+{{- if eq .ComponentName "Index"}}
+
+defineProps<{
+  items: Array<Record<string, unknown>>
+}>()
+{{- else if eq .ComponentName "Show"}}
+
+defineProps<{
+  item: Record<string, unknown>
+}>()
+{{- else if eq .ComponentName "Create"}}
+
+const form = useForm({
+{{- range .Fields}}
+{{- if not .IsSystemField}}
+  {{.CamelCase}}: '' as {{.GoFormType}},
+{{- end}}
+{{- end}}
+})
+
+function submit() {
+  form.post('/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}')
+}
+{{- else if eq .ComponentName "Edit"}}
+
+const props = defineProps<{
+  item: Record<string, unknown>
+}>()
+
+const form = useForm({
+{{- range .Fields}}
+{{- if not .IsSystemField}}
+  {{.CamelCase}}: props.item.{{.Name}} as {{.GoFormType}},
+{{- end}}
+{{- end}}
+})
+
+function submit() {
+  form.put(`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${props.item.{{.IDFieldName}}}`)
+}
+{{- end}}
+</script>
+
+<template>
+  <Head title="{{.ResourceName}}{{if eq .ComponentName "Index"}}s{{end}}" />
+
+{{- if eq .ComponentName "Index"}}
+  <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-gray-900">{{.ResourceName}}s</h1>
+      <Link href="/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/new" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">New {{.ResourceName}}</Link>
+    </div>
+
+    <div class="mt-8 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+{{- range .Fields}}
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">{{.DisplayName}}</th>
+{{- end}}
+            <th class="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 bg-white">
+          <tr v-for="item in items" :key="item.{{.IDFieldName}}" class="hover:bg-gray-50">
+{{- range .Fields}}
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{{ "{{" }} item.{{.Name}} {{ "}}" }}</td>
+{{- end}}
+            <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+              <Link :href="`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}`" class="mr-3 text-blue-600 hover:text-blue-900">View</Link>
+              <Link :href="`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}/edit`" class="mr-3 text-indigo-600 hover:text-indigo-900">Edit</Link>
+              <Link :href="`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}`" method="delete" as="button" class="text-red-600 hover:text-red-900">Delete</Link>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+{{- else if eq .ComponentName "Show"}}
+  <div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-gray-900">{{.ResourceName}} Details</h1>
+      <div class="flex gap-3">
+        <Link :href="`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}/edit`" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Edit</Link>
+        <Link href="/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Back</Link>
+      </div>
+    </div>
+
+    <div class="mt-8 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+      <dl class="divide-y divide-gray-200">
+{{- range .Fields}}
+        <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+          <dt class="text-sm font-medium text-gray-500">{{.DisplayName}}</dt>
+          <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{{ "{{" }} item.{{.Name}} {{ "}}" }}</dd>
+        </div>
+{{- end}}
+      </dl>
+    </div>
+  </div>
+{{- else if eq .ComponentName "Create"}}
+  <div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-gray-900">New {{.ResourceName}}</h1>
+      <Link href="/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Back</Link>
+    </div>
+
+    <form @submit.prevent="submit" class="mt-8 space-y-6 overflow-hidden rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+{{- range .Fields}}
+{{- if not .IsSystemField}}
+      <div>
+        <label for="{{.CamelCase}}" class="block text-sm font-medium text-gray-700">{{.DisplayName}}</label>
+        <input id="{{.CamelCase}}" type="{{.InputType}}" v-model="form.{{.CamelCase}}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+      </div>
+{{- end}}
+{{- end}}
+      <div class="flex justify-end">
+        <button type="submit" :disabled="form.processing" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">{{ "{{" }} form.processing ? 'Creating...' : 'Create {{.ResourceName}}' {{ "}}" }}</button>
+      </div>
+    </form>
+  </div>
+{{- else if eq .ComponentName "Edit"}}
+  <div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-gray-900">Edit {{.ResourceName}}</h1>
+      <Link :href="`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}`" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</Link>
+    </div>
+
+    <form @submit.prevent="submit" class="mt-8 space-y-6 overflow-hidden rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+{{- range .Fields}}
+{{- if not .IsSystemField}}
+      <div>
+        <label for="{{.CamelCase}}" class="block text-sm font-medium text-gray-700">{{.DisplayName}}</label>
+        <input id="{{.CamelCase}}" type="{{.InputType}}" v-model="form.{{.CamelCase}}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+      </div>
+{{- end}}
+{{- end}}
+      <div class="flex justify-end gap-3">
+        <Link :href="`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}`" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</Link>
+        <button type="submit" :disabled="form.processing" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">{{ "{{" }} form.processing ? 'Updating...' : 'Update {{.ResourceName}}' {{ "}}" }}</button>
+      </div>
+    </form>
+  </div>
+{{- end}}
+</template>

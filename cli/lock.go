@@ -38,7 +38,8 @@ var managedToolByName = func() map[string]managedTool {
 
 func newSetVersionCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "set-version <tool> <version>",
+		Use:     "set-version <tool> <version>",
+		Aliases: []string{"sv"},
 		Short: "Set a specific version for a tool",
 		Long: `Set the version of a tool and update it.
 
@@ -47,7 +48,6 @@ The version should be specified WITHOUT the "v" prefix.
 
 Examples:
   andurel tool set-version templ 0.3.977
-  andurel tool set-version sqlc 1.30.0
   andurel tool set-version tailwindcli 4.1.18
   andurel tool set-version shadowfax 0.1.3
 

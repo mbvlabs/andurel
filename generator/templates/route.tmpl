@@ -4,46 +4,68 @@ import (
 	"{{.ModulePath}}/internal/routing"
 )
 
-const {{.ResourceName}}Prefix = "/{{.PluralName}}"
+const {{.NamespacePascal}}{{.ResourceName}}Prefix = "/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName | kebab}}"
 
-var {{.ResourceName}}Index = routing.NewSimpleRoute(
+{{- if HasAction "index" }}
+var {{.NamespacePascal}}{{.ResourceName}}Index = routing.NewSimpleRoute(
 	"",
-	"{{.PluralName}}.index",
-	{{.ResourceName}}Prefix,
+	"{{if .Namespace}}{{.Namespace}}.{{end}}{{.PluralName}}.index",
+	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 )
+{{- end }}
 
-var {{.ResourceName}}Show = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
+{{- if HasAction "show" }}
+var {{.NamespacePascal}}{{.ResourceName}}Show = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
 	"/:id",
-	"{{.PluralName}}.show",
-	{{.ResourceName}}Prefix,
+	"{{if .Namespace}}{{.Namespace}}.{{end}}{{.PluralName}}.show",
+	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 )
+{{- end }}
 
-var {{.ResourceName}}New = routing.NewSimpleRoute(
+{{- if HasAction "new" }}
+var {{.NamespacePascal}}{{.ResourceName}}New = routing.NewSimpleRoute(
 	"/new",
-	"{{.PluralName}}.new",
-	{{.ResourceName}}Prefix,
+	"{{if .Namespace}}{{.Namespace}}.{{end}}{{.PluralName}}.new",
+	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 )
+{{- end }}
 
-var {{.ResourceName}}Create = routing.NewSimpleRoute(
+{{- if HasAction "create" }}
+var {{.NamespacePascal}}{{.ResourceName}}Create = routing.NewSimpleRoute(
 	"",
-	"{{.PluralName}}.create",
-	{{.ResourceName}}Prefix,
+	"{{if .Namespace}}{{.Namespace}}.{{end}}{{.PluralName}}.create",
+	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 )
+{{- end }}
 
-var {{.ResourceName}}Edit = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
+{{- if HasAction "edit" }}
+var {{.NamespacePascal}}{{.ResourceName}}Edit = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
 	"/:id/edit",
-	"{{.PluralName}}.edit",
-	{{.ResourceName}}Prefix,
+	"{{if .Namespace}}{{.Namespace}}.{{end}}{{.PluralName}}.edit",
+	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 )
+{{- end }}
 
-var {{.ResourceName}}Update = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
+{{- if HasAction "update" }}
+var {{.NamespacePascal}}{{.ResourceName}}Update = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
 	"/:id",
-	"{{.PluralName}}.update",
-	{{.ResourceName}}Prefix,
+	"{{if .Namespace}}{{.Namespace}}.{{end}}{{.PluralName}}.update",
+	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 )
+{{- end }}
 
-var {{.ResourceName}}Destroy = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
+{{- if HasAction "destroy" }}
+var {{.NamespacePascal}}{{.ResourceName}}Destroy = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
 	"/:id",
-	"{{.PluralName}}.destroy",
-	{{.ResourceName}}Prefix,
+	"{{if .Namespace}}{{.Namespace}}.{{end}}{{.PluralName}}.destroy",
+	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 )
+{{- end }}
+
+{{- range .CustomActions }}
+var {{$.NamespacePascal}}{{$.ResourceName}}{{.MethodName}} = routing.NewSimpleRoute(
+	"/{{.Path}}",
+	"{{if $.Namespace}}{{$.Namespace}}.{{end}}{{$.PluralName}}.{{.RouteName}}",
+	{{$.NamespacePascal}}{{$.ResourceName}}Prefix,
+)
+{{- end }}

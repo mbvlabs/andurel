@@ -5,12 +5,14 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/internal/validation"
 
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
@@ -19,18 +21,26 @@ import (
 )
 
 type UserEntity struct {
-	bun.BaseModel    `bun:"table:users"`
+	bun.BaseModel    `bun:"table:users,alias:user"`
 	ID               uuid.UUID  `bun:"id,pk,type:uuid"`
 	CreatedAt        time.Time  `bun:"created_at"`
 	UpdatedAt        time.Time  `bun:"updated_at"`
 	Email            string     `bun:"email"`
-	EmailValidatedAt *time.Time `bun:"email_validated_at"`
+	EmailValidatedAt sql.NullTime `bun:"email_validated_at"`
 	Password         []byte     `bun:"password"`
 	IsAdmin          bool       `bun:"is_admin"`
 }
 
+func (u *UserEntity) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("email", u.Email)
+	b.MaxLen("email", u.Email, 255)
+
+	return b.Err()
+}
+
 func (u *UserEntity) HasValidatedEmail() bool {
-	return u.EmailValidatedAt != nil
+	return u.EmailValidatedAt.Valid
 }
 
 func (u *UserEntity) ValidPassword(providedPassword, pepper string) (bool, error) {
@@ -61,38 +71,6 @@ func (u *UserEntity) ValidPassword(providedPassword, pepper string) (bool, error
 	return subtle.ConstantTimeCompare(newHash, expectedHash) == 1, nil
 }
 
-// func generateSalt(size int) ([]byte, error) {
-// 	salt := make([]byte, size)
-// 	_, err := rand.Read(salt)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	return salt, nil
-// }
-//
-// func HashPassword(password, pepper string) (string, error) {
-// 	salt, err := generateSalt(16)
-// 	if err != nil {
-// 		return "", err
-// 	}
-//
-// 	hash := argon2.IDKey(
-// 		[]byte(password+pepper),
-// 		[]byte(salt),
-// 		2,
-// 		19*1024,
-// 		1,
-// 		32,
-// 	)
-//
-// 	encodedHash := fmt.Sprintf("%s:%s",
-// 		base64.RawStdEncoding.EncodeToString(hash),
-// 		base64.RawStdEncoding.EncodeToString(salt))
-//
-// 	return encodedHash, nil
-// }
-
 func (u user) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (UserEntity, error) {
 	var entity UserEntity
 	err := db.NewSelect().
@@ -100,6 +78,11 @@ func (u user) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (User
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
+{{ if eq .DIMode "uberfx" }}
+		if errors.Is(err, sql.ErrNoRows) {
+			return UserEntity{}, ErrNotFound
+		}
+{{ end }}
 		return UserEntity{}, err
 	}
 	return entity, nil
@@ -112,18 +95,23 @@ func (u user) FindByEmail(ctx context.Context, db storage.Executor, email string
 		Where("email = ?", strings.ToLower(email)).
 		Scan(ctx)
 	if err != nil {
+{{ if eq .DIMode "uberfx" }}
+		if errors.Is(err, sql.ErrNoRows) {
+			return UserEntity{}, ErrNotFound
+		}
+{{ end }}
 		return UserEntity{}, err
 	}
 	return entity, nil
 }
 
 type PasswordPair struct {
-	Password        string `validate:"required,min=8,max=72"`
-	ConfirmPassword string `validate:"required,min=8,max=72"`
+	Password        string
+	ConfirmPassword string
 }
 
 type CreateUserData struct {
-	Email        string `validate:"required,email,max=255"`
+	Email        string
 	PasswordPair PasswordPair
 }
 
@@ -133,10 +121,6 @@ func (u user) Create(
 	pepper string,
 	data CreateUserData,
 ) (UserEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return UserEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	hashedPassword, err := HashPassword(data.PasswordPair.Password, pepper)
 	if err != nil {
 		return UserEntity{}, err
@@ -147,9 +131,13 @@ func (u user) Create(
 		CreatedAt:        time.Now(),
 		UpdatedAt:        time.Now(),
 		Email:            strings.ToLower(data.Email),
-		EmailValidatedAt: nil,
+		EmailValidatedAt: sql.NullTime{},
 		Password:         []byte(hashedPassword),
 		IsAdmin:          false,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return UserEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	_, err = db.NewInsert().Model(&entity).Exec(ctx)
@@ -162,23 +150,24 @@ func (u user) Create(
 
 type UpdateUserData struct {
 	ID               uuid.UUID
-	Email            string `validate:"required,email,max=255"`
-	EmailValidatedAt *time.Time
+	Email            string
+	EmailValidatedAt sql.NullTime
 	Password         []byte
 	IsAdmin          bool
 }
 
 func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserData) (UserEntity, error) {
-	if err := Validate.Struct(data); err != nil {
-		return UserEntity{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	var current UserEntity
 	err := db.NewSelect().
 		Model(&current).
 		Where("id = ?", data.ID).
 		Scan(ctx)
 	if err != nil {
+{{ if eq .DIMode "uberfx" }}
+		if errors.Is(err, sql.ErrNoRows) {
+			return UserEntity{}, ErrNotFound
+		}
+{{ end }}
 		return UserEntity{}, err
 	}
 
@@ -188,7 +177,7 @@ func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserDa
 	}
 
 	emailValidatedAt := data.EmailValidatedAt
-	if emailValidatedAt == nil && current.EmailValidatedAt != nil {
+	if !emailValidatedAt.Valid && current.EmailValidatedAt.Valid {
 		emailValidatedAt = current.EmailValidatedAt
 	}
 
@@ -204,6 +193,10 @@ func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserDa
 		EmailValidatedAt: emailValidatedAt,
 		Password:         password,
 		IsAdmin:          data.IsAdmin,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return UserEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
 	_, err = db.NewUpdate().
@@ -269,7 +262,7 @@ func (u user) Paginate(
 		return PaginatedUsers{}, err
 	}
 
-	var entities []UserEntity
+	entities := make([]UserEntity, 0, int(pageSize))
 	err := db.NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).

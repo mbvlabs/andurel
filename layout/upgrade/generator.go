@@ -22,24 +22,17 @@ type FrameworkTemplate struct {
 
 // GetFrameworkTemplates returns the list of framework element templates
 // These are the only files that get upgraded when running andurel upgrade
-func GetFrameworkTemplates() []FrameworkTemplate {
-	return []FrameworkTemplate{
-		{"framework_elements_hypermedia_broadcaster.tmpl", "internal/hypermedia/broadcaster.go"},
-		{"framework_elements_hypermedia_core.tmpl", "internal/hypermedia/core.go"},
-		{"framework_elements_hypermedia_helpers.tmpl", "internal/hypermedia/helpers.go"},
-		{"framework_elements_hypermedia_signals.tmpl", "internal/hypermedia/signals.go"},
-		{"framework_elements_hypermedia_sse.tmpl", "internal/hypermedia/sse.go"},
-
-		{"framework_elements_renderer_render.tmpl", "internal/renderer/render.go"},
-
-		{"framework_elements_routing_definitions.tmpl", "internal/routing/definitions.go"},
-		{"framework_elements_routing_routes.tmpl", "internal/routing/routes.go"},
-
-		{"framework_elements_server_server.tmpl", "internal/server/server.go"},
-
-		{"framework_elements_storage_psql.tmpl", "internal/storage/psql.go"},
-		{"framework_elements_storage_queue.tmpl", "internal/storage/queue.go"},
+func GetFrameworkTemplates(config *layout.ScaffoldConfig) []FrameworkTemplate {
+	files := layout.GetInternalFrameworkFiles(config)
+	templates := make([]FrameworkTemplate, 0, len(files))
+	for _, file := range files {
+		templates = append(templates, FrameworkTemplate{
+			TemplateName: file.TemplateName,
+			TargetPath:   file.TargetPath,
+		})
 	}
+
+	return templates
 }
 
 type TemplateGenerator struct {
@@ -57,16 +50,17 @@ func NewTemplateGenerator(targetVersion string) *TemplateGenerator {
 func (g *TemplateGenerator) RenderFrameworkTemplates(
 	projectRoot string,
 	config layout.ScaffoldConfig,
+	extensions []string,
 ) (map[string][]byte, error) {
 	modulePath, err := resolveModulePath(projectRoot)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve module path: %w", err)
 	}
 
-	templateData := g.buildTemplateData(config, modulePath)
+	templateData := g.buildTemplateData(config, modulePath, extensions)
 	result := make(map[string][]byte)
 
-	frameworkTemplates := GetFrameworkTemplates()
+	frameworkTemplates := GetFrameworkTemplates(&config)
 
 	for _, ft := range frameworkTemplates {
 		content, err := renderTemplateToBytes(ft.TemplateName, templates.Files, templateData)
@@ -84,15 +78,24 @@ func (g *TemplateGenerator) RenderFrameworkTemplates(
 func (g *TemplateGenerator) buildTemplateData(
 	config layout.ScaffoldConfig,
 	modulePath string,
+	extensions []string,
 ) *layout.TemplateData {
+	frameworkVersion := strings.TrimSpace(g.targetVersion)
+	if frameworkVersion == "" {
+		frameworkVersion = "dev"
+	}
+
 	return &layout.TemplateData{
-		AppName:        config.ProjectName,
-		ProjectName:    config.ProjectName,
-		ModuleName:     modulePath,
-		Database:       config.Database,
-		CSSFramework:   config.CSSFramework,
-		Extensions:     config.Extensions,
-		RunToolVersion: layout.GetRunToolVersion(),
+		AppName:          config.ProjectName,
+		ProjectName:      config.ProjectName,
+		ModuleName:       modulePath,
+		Database:         config.Database,
+		CSSFramework:     config.CSSFramework,
+		Extensions:       extensions,
+		RunToolVersion:   layout.GetRunToolVersion(),
+		FrameworkVersion: frameworkVersion,
+		DIMode:           config.DIMode,
+		Inertia:          config.Inertia,
 	}
 }
 

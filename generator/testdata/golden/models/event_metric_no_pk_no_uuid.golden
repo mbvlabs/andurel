@@ -1,0 +1,110 @@
+package models
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/example/shop/internal/storage"
+	"github.com/example/shop/internal/validation"
+	"github.com/uptrace/bun"
+)
+
+type EventMetricEntity struct {
+	bun.BaseModel `bun:"table:event_metrics,alias:event_metrics"`
+	Action        string    `bun:"action"`
+	EntityType    string    `bun:"entity_type"`
+	EventCount    int32     `bun:"event_count"`
+	Successful    bool      `bun:"successful"`
+	OccurredAt    time.Time `bun:"occurred_at"`
+}
+
+func (e *EventMetricEntity) Validate() error {
+	return nil
+}
+
+type CreateEventMetricData struct {
+	Action     string
+	EntityType string
+	EventCount int32
+	Successful bool
+	OccurredAt time.Time
+}
+
+func (em eventMetric) Create(ctx context.Context, db storage.Executor, data CreateEventMetricData) (EventMetricEntity, error) {
+	entity := EventMetricEntity{
+		Action:     data.Action,
+		EntityType: data.EntityType,
+		EventCount: data.EventCount,
+		Successful: data.Successful,
+		OccurredAt: data.OccurredAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return EventMetricEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return EventMetricEntity{}, err
+	}
+
+	return entity, nil
+}
+
+func (em eventMetric) All(ctx context.Context, db storage.Executor) ([]EventMetricEntity, error) {
+	var entities []EventMetricEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Scan(ctx); err != nil {
+		return nil, err
+	}
+
+	return entities, nil
+}
+
+type PaginatedEventMetrics struct {
+	EventMetrics []EventMetricEntity
+	TotalCount   int64
+	Page         int64
+	PageSize     int64
+	TotalPages   int64
+}
+
+func (em eventMetric) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedEventMetrics, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := db.NewSelect().
+		Model(&EventMetricEntity{}).Count(ctx)
+	if err != nil {
+		return PaginatedEventMetrics{}, err
+	}
+
+	entities := make([]EventMetricEntity, 0, int(pageSize))
+	if err := db.NewSelect().
+		Model(&entities).
+		Limit(int(pageSize)).
+		Offset(int(offset)).
+		Scan(ctx); err != nil {
+		return PaginatedEventMetrics{}, err
+	}
+
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
+
+	return PaginatedEventMetrics{
+		EventMetrics: entities,
+		TotalCount:   int64(totalCount),
+		Page:         page,
+		PageSize:     pageSize,
+		TotalPages:   totalPages,
+	}, nil
+}

@@ -1,0 +1,13 @@
+package models
+
+type (
+	token struct{}
+	user  struct{}
+	warehouse struct{}
+)
+
+var (
+	Token token
+	User  user
+	Warehouse warehouse
+)

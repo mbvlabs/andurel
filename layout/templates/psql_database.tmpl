@@ -5,73 +5,72 @@ import (
 	"context"
 	"database/sql"
 	"embed"
-	"errors"
+	"fmt"
 	"log/slog"
 
+	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/storage"
 
 	"github.com/exaring/otelpgx"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
+    {{if eq .DIMode "uberfx"}}
+	"go.uber.org/fx"
+    {{end}}
 )
 
 //go:embed migrations/*
 var Migrations embed.FS
 
 type Postgres struct {
-	conn   *bun.DB
-	pool *pgxpool.Pool
+	conn *bun.DB
 }
 
 var _ storage.Pool = (*Postgres)(nil)
 
-func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
-	pgxCfg, err := pgxpool.ParseConfig(databaseURL)
+func NewPostgres(ctx context.Context, cfg config.Config) (*Postgres, error) {
+	pgxCfg, err := pgx.ParseConfig(cfg.DB.GetDatabaseURL())
 	if err != nil {
 		slog.ErrorContext(ctx, "could not parse database connection string", "error", err)
-		return &Postgres{}, err
+		return nil, fmt.Errorf("database: parse database URL: %w", err)
 	}
 
-	pgxCfg.ConnConfig.Tracer = otelpgx.NewTracer()
+	pgxCfg.Tracer = otelpgx.NewTracer()
 
-	pool, err := pgxpool.NewWithConfig(ctx, pgxCfg)
-	if err != nil {
-		slog.ErrorContext(ctx, "could not establish connection to database", "error", err)
-		return &Postgres{}, err
-	}
-
-	if err := pool.Ping(ctx); err != nil {
-		slog.ErrorContext(ctx, "could not ping database", "error", err)
-		pool.Close()
-		return &Postgres{}, err
-	}
-
-	sqldb := stdlib.OpenDBFromPool(pool)
+	sqldb := stdlib.OpenDB(*pgxCfg)
 	db := bun.NewDB(sqldb, pgdialect.New())
 
-	return &Postgres{conn: db, pool: pool}, nil
+	if err := db.PingContext(ctx); err != nil {
+		slog.ErrorContext(ctx, "could not ping database", "error", err)
+		db.Close()
+		return nil, fmt.Errorf("database: ping database: %w", err)
+	}
+
+	return &Postgres{conn: db}, nil
 }
 
-func (p *Postgres) Conn() *bun.DB {
+func (p *Postgres) Executor() *bun.DB {
 	return p.conn
 }
 
-func (p *Postgres) Pool() *pgxpool.Pool {
-	return p.pool
+func (p *Postgres) Conn() *sql.DB {
+	return p.conn.DB
 }
 
 func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error) {
 	tx, err := p.conn.BeginTx(ctx, opts)
 	if err != nil {
-		return bun.Tx{}, errors.Join(storage.ErrBeginTx, err)
+		return bun.Tx{}, fmt.Errorf("database: begin transaction: %w", err)
 	}
 	return tx, nil
 }
 
 func (p *Postgres) Close() error {
-	err := p.conn.Close()
-	p.pool.Close()
-	return err
+	return p.conn.Close()
 }
+
+{{if eq .DIMode "uberfx"}}
+var Module = fx.Module("database", fx.Provide(fx.Annotate(NewPostgres, fx.As(new(storage.Pool)))))
+{{end}}

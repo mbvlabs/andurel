@@ -2,43 +2,36 @@ package factories
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
-	"{{.ModuleName}}/models"
 	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/models"
+
 	"github.com/google/uuid"
 )
 
-// TokenFactory wraps models.TokenEntity and adds factory methods
+// TokenFactory wraps models.TokenEntity for testing
 type TokenFactory struct {
-	models.TokenEntity // Embedded
+	models.TokenEntity
 }
 
 // TokenOption is a functional option for configuring a TokenFactory
 type TokenOption func(*TokenFactory)
 
-// BuildToken creates a Token struct with default values and applies any provided options.
-// This creates an in-memory struct only - it does not persist to the database.
-//
-// The hash field is set to "test-hash" as a placeholder. For actual authentication
-// testing, use CreateToken which generates a real token and hash.
-//
-// Use CreateToken to build and save to the database in one step.
+// BuildToken creates an in-memory Token with default test values.
+// Auto-managed fields (ID, timestamps) are left at zero and set by CreateToken.
 func BuildToken(opts ...TokenOption) models.TokenEntity {
 	f := &TokenFactory{
 		TokenEntity: models.TokenEntity{
-			ID:        uuid.New(),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
 			Scope:     "default",
 			ExpiresAt: time.Now().Add(1 * time.Hour),
 			Hash:      "test-hash",
-			MetaData:  []byte("{}"),
+			MetaData:  json.RawMessage("{}"),
 		},
 	}
 
-	// Apply options
 	for _, opt := range opts {
 		opt(f)
 	}
@@ -46,77 +39,50 @@ func BuildToken(opts ...TokenOption) models.TokenEntity {
 	return f.TokenEntity
 }
 
-// CreateToken creates a Token in the database with the provided options.
-// It returns both the Token model and the plain token string, since tests
-// often need the plain token to verify authentication.
-//
-// The token is generated using models.GenerateSecureToken() and properly
-// hashed with HMAC-SHA256. Default expiration is 1 hour from now.
-//
-// Example:
-//
-//	token, plainToken, err := factories.CreateToken(ctx, db)
-//	token, plainToken, err := factories.CreateToken(ctx, db, factories.WithScope("session"))
+// CreateToken creates and persists a Token to the database.
+// It returns the entity populated with all DB-assigned values via RETURNING *.
 func CreateToken(
 	ctx context.Context,
 	exec storage.Executor,
 	opts ...TokenOption,
-) (models.TokenEntity, string, error) {
-	// Build the factory with defaults
-	f := &TokenFactory{
-		TokenEntity: models.TokenEntity{
-			Scope:     "default",
-			ExpiresAt: time.Now().Add(1 * time.Hour),
-			MetaData:  []byte("{}"),
-		},
+) (models.TokenEntity, error) {
+	built := BuildToken(opts...)
+
+	entity := models.TokenEntity{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Scope:     built.Scope,
+		ExpiresAt: built.ExpiresAt,
+		Hash:      built.Hash,
+		MetaData:  built.MetaData,
 	}
 
-	// Apply options
-	for _, opt := range opts {
-		opt(f)
+	if err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
+		return models.TokenEntity{}, err
 	}
 
-	// Generate actual token using models package
-	plainToken, err := models.Token.Create(ctx, exec, TestPepper, f.Scope, f.ExpiresAt, f.MetaData)
-	if err != nil {
-		return models.TokenEntity{}, "", err
-	}
-
-	// Find and return the created token
-	token, err := models.Token.FindByScopeAndHash(ctx, exec, TestPepper, f.Scope, plainToken)
-	if err != nil {
-		return models.TokenEntity{}, "", err
-	}
-
-	return token, plainToken, nil
+	return entity, nil
 }
 
-// CreateTokens creates multiple tokens at once with the provided options.
-// Returns slices of both the Token models and the plain token strings.
-//
-// Example:
-//
-//	tokens, plainTokens, err := factories.CreateTokens(ctx, db, 5)
-//	tokens, plainTokens, err := factories.CreateTokens(ctx, db, 3, factories.WithScope("reset_password"))
+// CreateTokens creates multiple Token records at once
 func CreateTokens(
 	ctx context.Context,
 	exec storage.Executor,
 	count int,
 	opts ...TokenOption,
-) ([]models.TokenEntity, []string, error) {
+) ([]models.TokenEntity, error) {
 	tokens := make([]models.TokenEntity, 0, count)
-	plainTokens := make([]string, 0, count)
 
 	for i := range count {
-		token, plainToken, err := CreateToken(ctx, exec, opts...)
+		token, err := CreateToken(ctx, exec, opts...)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create token %d: %w", i+1, err)
+			return nil, fmt.Errorf("failed to create token %d: %w", i+1, err)
 		}
 		tokens = append(tokens, token)
-		plainTokens = append(plainTokens, plainToken)
 	}
 
-	return tokens, plainTokens, nil
+	return tokens, nil
 }
 
 // WithScope sets the scope for the token
@@ -134,7 +100,7 @@ func WithExpiresAt(t time.Time) TokenOption {
 }
 
 // WithMetaData sets the metadata for the token
-func WithMetaData(data []byte) TokenOption {
+func WithMetaData(data json.RawMessage) TokenOption {
 	return func(f *TokenFactory) {
 		f.MetaData = data
 	}
@@ -145,9 +111,7 @@ func WithExpired() TokenOption {
 	return WithExpiresAt(time.Now().Add(-1 * time.Hour))
 }
 
-// WithHash sets a custom hash.
-// Note: This only works with BuildToken for in-memory structs.
-// CreateToken always generates a new token and hash via models.CreateToken.
+// WithHash sets a custom hash
 func WithHash(hash string) TokenOption {
 	return func(f *TokenFactory) {
 		f.Hash = hash

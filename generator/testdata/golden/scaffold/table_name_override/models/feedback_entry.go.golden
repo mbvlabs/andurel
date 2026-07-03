@@ -1,0 +1,205 @@
+package models
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"testapp/internal/storage"
+	"testapp/internal/validation"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/uptrace/bun"
+)
+
+type FeedbackEntryEntity struct {
+	bun.BaseModel `bun:"table:student_feedback,alias:student_feedback"`
+	ID            uuid.UUID     `bun:"id,pk,type:uuid"`
+	StudentName   string        `bun:"student_name"`
+	Feedback      string        `bun:"feedback"`
+	Rating        sql.NullInt32 `bun:"rating"`
+	SubmittedAt   sql.NullTime  `bun:"submitted_at"`
+	CreatedAt     time.Time     `bun:"created_at"`
+	UpdatedAt     time.Time     `bun:"updated_at"`
+}
+
+func (e *FeedbackEntryEntity) Validate() error {
+	return nil
+}
+
+func (fe feedbackEntry) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (FeedbackEntryEntity, error) {
+	var entity FeedbackEntryEntity
+	if err := db.NewSelect().
+		Model(&entity).
+		Where("id = ?", id).
+		Scan(ctx); err != nil {
+		return FeedbackEntryEntity{}, err
+	}
+
+	return entity, nil
+}
+
+type CreateFeedbackEntryData struct {
+	StudentName string
+	Feedback    string
+	Rating      sql.NullInt32
+	SubmittedAt sql.NullTime
+}
+
+func (fe feedbackEntry) Create(ctx context.Context, db storage.Executor, data CreateFeedbackEntryData) (FeedbackEntryEntity, error) {
+	entity := FeedbackEntryEntity{
+		ID:          uuid.New(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+		StudentName: data.StudentName,
+		Feedback:    data.Feedback,
+		Rating:      data.Rating,
+		SubmittedAt: data.SubmittedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return FeedbackEntryEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return FeedbackEntryEntity{}, err
+	}
+
+	return entity, nil
+}
+
+type UpdateFeedbackEntryData struct {
+	ID          uuid.UUID
+	StudentName string
+	Feedback    string
+	Rating      sql.NullInt32
+	SubmittedAt sql.NullTime
+	UpdatedAt   time.Time
+}
+
+func (fe feedbackEntry) Update(ctx context.Context, db storage.Executor, data UpdateFeedbackEntryData) (FeedbackEntryEntity, error) {
+	entity := FeedbackEntryEntity{
+		ID:          data.ID,
+		UpdatedAt:   time.Now(),
+		StudentName: data.StudentName,
+		Feedback:    data.Feedback,
+		Rating:      data.Rating,
+		SubmittedAt: data.SubmittedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return FeedbackEntryEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if err := db.NewUpdate().
+		Model(&entity).
+		Column("student_name").
+		Column("feedback").
+		Column("rating").
+		Column("submitted_at").
+		Column("updated_at").
+		WherePK().
+		Returning("*").
+		Scan(ctx); err != nil {
+		return FeedbackEntryEntity{}, err
+	}
+
+	return entity, nil
+}
+
+func (fe feedbackEntry) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
+	_, err := db.NewDelete().
+		Model((*FeedbackEntryEntity)(nil)).
+		Where("id = ?", id).
+		Exec(ctx)
+
+	return err
+}
+
+func (fe feedbackEntry) All(ctx context.Context, db storage.Executor) ([]FeedbackEntryEntity, error) {
+	var entities []FeedbackEntryEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Scan(ctx); err != nil {
+		return nil, err
+	}
+
+	return entities, nil
+}
+
+type PaginatedFeedbackEntry struct {
+	FeedbackEntry []FeedbackEntryEntity
+	TotalCount    int64
+	Page          int64
+	PageSize      int64
+	TotalPages    int64
+}
+
+func (fe feedbackEntry) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedFeedbackEntry, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := db.NewSelect().
+		Model(&FeedbackEntryEntity{}).Count(ctx)
+	if err != nil {
+		return PaginatedFeedbackEntry{}, err
+	}
+
+	entities := make([]FeedbackEntryEntity, 0, int(pageSize))
+	if err := db.NewSelect().
+		Model(&entities).
+		Limit(int(pageSize)).
+		Offset(int(offset)).
+		Scan(ctx); err != nil {
+		return PaginatedFeedbackEntry{}, err
+	}
+
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
+
+	return PaginatedFeedbackEntry{
+		FeedbackEntry: entities,
+		TotalCount:    int64(totalCount),
+		Page:          page,
+		PageSize:      pageSize,
+		TotalPages:    totalPages,
+	}, nil
+}
+
+func (fe feedbackEntry) Upsert(ctx context.Context, db storage.Executor, data CreateFeedbackEntryData) (FeedbackEntryEntity, error) {
+	entity := FeedbackEntryEntity{
+		ID:          uuid.New(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+		StudentName: data.StudentName,
+		Feedback:    data.Feedback,
+		Rating:      data.Rating,
+		SubmittedAt: data.SubmittedAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return FeedbackEntryEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if err := db.NewInsert().
+		Model(&entity).
+		On("CONFLICT (id) DO UPDATE").
+		Set("student_name = excluded.student_name").
+		Set("feedback = excluded.feedback").
+		Set("rating = excluded.rating").
+		Set("submitted_at = excluded.submitted_at").
+		Returning("*").
+		Scan(ctx); err != nil {
+		return FeedbackEntryEntity{}, err
+	}
+
+	return entity, nil
+}

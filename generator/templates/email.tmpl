@@ -1,0 +1,41 @@
+package email
+
+import (
+	"bytes"
+	"context"
+)
+
+type {{.PascalName}} struct {
+}
+
+var _ Transformer = (*{{.PascalName}})(nil)
+
+func (e {{.PascalName}}) ToHTML() (string, error) {
+	var buf bytes.Buffer
+	if err := e.render().Render(context.Background(), &buf); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+func (e {{.PascalName}}) ToText() (string, error) {
+	html, err := e.ToHTML()
+	if err != nil {
+		return "", err
+	}
+	return HTMLToText(html)
+}
+
+templ (e {{.PascalName}}) render() {
+	@baseLayout("Subject", "Pre-header text") {
+		@spacer("32")
+		@title("Title")
+		@spacer("24")
+		@copy() {
+			<span class="st-Delink" style="color: #414552; text-decoration: none;">
+				Email body content goes here.
+			</span>
+		}
+		@spacer("32")
+	}
+}

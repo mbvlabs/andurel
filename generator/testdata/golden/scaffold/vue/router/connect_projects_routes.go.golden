@@ -1,0 +1,81 @@
+package router
+
+import (
+	"errors"
+	"net/http"
+
+	"testapp/controllers"
+	"testapp/router/routes"
+
+	"github.com/labstack/echo/v5"
+)
+
+func (r Router) RegisterProjectRoutes(project controllers.Projects) error {
+	errs := []error{}
+	var err error
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ProjectIndex.Path(),
+		Name:    routes.ProjectIndex.Name(),
+		Handler: project.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ProjectShow.Path(),
+		Name:    routes.ProjectShow.Name(),
+		Handler: project.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ProjectNew.Path(),
+		Name:    routes.ProjectNew.Name(),
+		Handler: project.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.ProjectCreate.Path(),
+		Name:    routes.ProjectCreate.Name(),
+		Handler: project.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ProjectEdit.Path(),
+		Name:    routes.ProjectEdit.Name(),
+		Handler: project.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.ProjectUpdate.Path(),
+		Name:    routes.ProjectUpdate.Name(),
+		Handler: project.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.ProjectDestroy.Path(),
+		Name:    routes.ProjectDestroy.Name(),
+		Handler: project.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}

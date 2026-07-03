@@ -8,8 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mbvlabs/andurel/generator"
-
 	"github.com/spf13/cobra"
 )
 
@@ -24,218 +22,71 @@ func chdirToProjectRoot() error {
 	return os.Chdir(rootDir)
 }
 
-func newControllerRootCommand() *cobra.Command {
-	var withViews bool
-
+func newGenerateCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "controller <name> <command>",
-		Short: "Controller management commands",
-		Long:  "Manage resource controllers.\n\n<ResourceName> is the associated model name used for generation.",
-		Example: `  controller User create
-  controller User create --with-views`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 2 {
-				return cmd.Help()
-			}
-			if len(args) > 2 {
-				return fmt.Errorf("too many arguments\nRun 'andurel controller --help' for usage")
-			}
-			name := args[0]
-			switch args[1] {
-			case "create":
-				if err := chdirToProjectRoot(); err != nil {
-					return err
-				}
-				return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-					gen, err := generator.New()
-					if err != nil {
-						return err
-					}
-					return gen.GenerateControllerFromModel(name, withViews)
-				})(cmd, args)
-			default:
-				return fmt.Errorf("unknown controller command %q\nRun 'andurel controller --help' for usage", args[1])
-			}
-		},
+		Use:     "generate",
+		Aliases: []string{"g"},
+		Short:   "Generate new code (model, controller, scaffold, job, email)",
+		Long: `Generates new code for your Andurel application. The following
+generators are available:
+
+  model       Generate a model from the existing migration, or update one
+              with --update
+  views       Generate Go code from Templ templates (templ generate)
+  controller  Generate a controller, views, and routes
+  scaffold    Generate a complete resource with model, controller, views, and routes
+  job         Generate a background job with a worker
+  email       Generate an email template
+
+Controller and scaffold names may include one lowercase namespace segment,
+for example admin/Widget. Namespaces generate controllers/admin, admin route
+names, and Admin-prefixed route/view symbols.`,
+		Example: `  andurel generate model Post
+  andurel generate model Post --update
+  andurel generate view
+  andurel generate controller Widget index show
+  andurel generate controller admin/Widget export
+  andurel generate scaffold Product
+  andurel generate scaffold admin/Widget
+  andurel generate job SendWelcomeEmail
+  andurel generate email WelcomeEmail`,
 	}
 
-	setStandardHelp(cmd, helpCommand{
-		Use:         "controller <ResourceName> create",
-		Description: "creates a resource controller",
-	})
-
-	cmd.Flags().BoolVar(&withViews, "with-views", false, "Generate views along with the controller")
-
-	cmd.AddCommand(newControllerCreateCommand())
-
-	return cmd
-}
-
-func newControllerCreateCommand() *cobra.Command {
-	var withViews bool
-
-	cmd := &cobra.Command{
-		Use:   "create <name>",
-		Short: "Create a new controller",
-		Example: `  controller User create
-  controller User create --with-views`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			name := args[0]
-			if err := chdirToProjectRoot(); err != nil {
-				return err
-			}
-			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				gen, err := generator.New()
-				if err != nil {
-					return err
-				}
-				return gen.GenerateControllerFromModel(name, withViews)
-			})(cmd, args)
-		},
-	}
-
-	cmd.Flags().BoolVar(&withViews, "with-views", false, "Generate views along with the controller")
-
-	return cmd
-}
-
-func newViewRootCommand() *cobra.Command {
-	var withController bool
-
-	cmd := &cobra.Command{
-		Use:   "view",
-		Short: "View management commands",
-		Long:  "Manage view templates and Templ code generation.\n\n<ResourceName> is the associated model name used for generation.",
-		Example: `  view User create
-  view User create --with-controller
-  view generate`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 2 {
-				return cmd.Help()
-			}
-			if len(args) > 2 {
-				return fmt.Errorf("too many arguments\nRun 'andurel view --help' for usage")
-			}
-			name := args[0]
-			switch args[1] {
-			case "create":
-				if err := chdirToProjectRoot(); err != nil {
-					return err
-				}
-				return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-					gen, err := generator.New()
-					if err != nil {
-						return err
-					}
-					return gen.GenerateViewFromModel(name, withController)
-				})(cmd, args)
-			default:
-				return fmt.Errorf("unknown view command %q\nRun 'andurel view --help' for usage", args[1])
-			}
-		},
-	}
+	cmd.AddCommand(
+		newGenerateModelCommand(),
+		newGenerateViewsCommand(),
+		newGenerateControllerCommand(),
+		newGenerateScaffoldCommand(),
+		newGenerateJobCommand(),
+		newGenerateEmailCommand(),
+	)
 
 	setStandardHelp(cmd,
 		helpCommand{
-			Use:         "view <ResourceName> create",
-			Description: "creates a resource view",
+			Use:         "generate model NAME",
+			Description: "generates a new model from migration",
 		},
 		helpCommand{
-			Use:         "view generate",
+			Use:         "generate view",
 			Description: "generates Go code from Templ templates",
 		},
 		helpCommand{
-			Use:         "view format",
-			Description: "formats Templ templates in views and email directories",
+			Use:         "generate controller [namespace/]NAME [action ...]",
+			Description: "generates a new controller",
+		},
+		helpCommand{
+			Use:         "generate scaffold [namespace/]NAME",
+			Description: "generates a complete scaffold resource",
+		},
+		helpCommand{
+			Use:         "generate job NAME",
+			Description: "generates a new background job",
+		},
+		helpCommand{
+			Use:         "generate email NAME",
+			Description: "generates a new email template",
 		},
 	)
-
-	cmd.Flags().BoolVar(&withController, "with-controller", false, "Generate controller along with the views")
-
-	cmd.AddCommand(
-		newViewCreateCommand(),
-		newTemplGenerateCommand(),
-		newTemplFormatCommand(),
-	)
-
-	return cmd
-}
-
-func newViewCreateCommand() *cobra.Command {
-	var withController bool
-
-	cmd := &cobra.Command{
-		Use:   "create <name>",
-		Short: "Create new views for a model",
-		Example: `  view User create
-  view User create --with-controller`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			name := args[0]
-			if err := chdirToProjectRoot(); err != nil {
-				return err
-			}
-			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				gen, err := generator.New()
-				if err != nil {
-					return err
-				}
-				return gen.GenerateViewFromModel(name, withController)
-			})(cmd, args)
-		},
-	}
-
-	cmd.Flags().BoolVar(&withController, "with-controller", false, "Generate controller along with the views")
-
-	return cmd
-}
-
-func newResourceRootCommand() *cobra.Command {
-	var tableName string
-
-	cmd := &cobra.Command{
-		Use:   "resource <name> <command>",
-		Short: "Resource management commands",
-		Long:  "Generate complete resources (model, controller, views, and routes).\n\n<ResourceName> is the associated model name used for generation.",
-		Example: `  resource Product create
-  resource Product create --table-name=inventory`,
-	}
-
-	setStandardHelp(cmd, helpCommand{
-		Use:         "resource <ResourceName> create",
-		Description: "creates a complete resource",
-	})
-
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		if len(args) < 2 {
-			return cmd.Help()
-		}
-		if len(args) > 2 {
-			return fmt.Errorf("too many arguments\nRun 'andurel resource --help' for usage")
-		}
-		name := args[0]
-		switch args[1] {
-		case "create":
-			if err := chdirToProjectRoot(); err != nil {
-				return err
-			}
-			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				gen, err := generator.New()
-				if err != nil {
-					return err
-				}
-				if err := gen.GenerateModel(name, tableName, false); err != nil {
-					return err
-				}
-				return gen.GenerateControllerFromModel(name, true)
-			})(cmd, args)
-		default:
-			return fmt.Errorf("unknown resource command %q\nRun 'andurel resource --help' for usage", args[1])
-		}
-	}
-
-	cmd.Flags().StringVar(&tableName, "table-name", "", "Override the default table name (defaults to plural form of model name)")
 
 	return cmd
 }
@@ -313,26 +164,6 @@ func (t *createdFileTracker) cleanupCreatedFiles() ([]string, []string, error) {
 	return removedFiles, cleanupFailures, nil
 }
 
-func findProjectRoot() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	for {
-		goModPath := filepath.Join(dir, "go.mod")
-		if _, statErr := os.Stat(goModPath); statErr == nil {
-			return dir, nil
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", errors.New("unable to locate project root containing go.mod")
-		}
-		dir = parent
-	}
-}
-
 func snapshotFiles(rootDir string) (map[string]struct{}, error) {
 	files := make(map[string]struct{})
 
@@ -394,12 +225,9 @@ func formatGenerateFailure(runErr error, removedFiles []string, cleanupFailures 
 
 func formatPathList(paths []string, maxItems int) string {
 	var out strings.Builder
-	limit := len(paths)
-	if limit > maxItems {
-		limit = maxItems
-	}
+	limit := min(len(paths), maxItems)
 
-	for i := 0; i < limit; i++ {
+	for i := range limit {
 		out.WriteString("\n  - ")
 		out.WriteString(paths[i])
 	}

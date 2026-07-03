@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"text/template"
@@ -37,11 +38,18 @@ var (
 func Scaffold(
 	targetDir, projectName, database, cssFramework, version string,
 	extensionNames []string,
+	diMode string,
+	inertia string,
 ) error {
+	if diMode == "" {
+		diMode = "uberfx"
+	}
+
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
 
 	moduleName := projectName
 
+	blueprint := initializeBaseBlueprint(moduleName, diMode, inertia)
 	templateData := TemplateData{
 		AppName:              projectName,
 		ProjectName:          projectName,
@@ -55,7 +63,10 @@ func Scaffold(
 		Pepper:               generateRandomHex(12),
 		Extensions:           extensionNames,
 		RunToolVersion:       GetRunToolVersion(),
-		blueprint:            initializeBaseBlueprint(moduleName),
+		FrameworkVersion:     normalizeFrameworkVersion(version),
+		DIMode:               diMode,
+		Inertia:              inertia,
+		blueprint:            blueprint,
 	}
 
 	if err := registerBuiltinExtensions(); err != nil {
@@ -102,9 +113,10 @@ func Scaffold(
 		ProjectName:  projectName,
 		Database:     database,
 		CSSFramework: cssFramework,
-		Extensions:   extensionNames,
+		DIMode:       diMode,
+		Inertia:      inertia,
 	}
-	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", scaffoldConfig); err != nil {
+	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", scaffoldConfig, extensionNames); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
 	}
 
@@ -131,6 +143,8 @@ func Scaffold(
 		ctx := extensions.Context{
 			TargetDir: targetDir,
 			Data:      &templateData,
+			DIMode:    diMode,
+			Inertia:   inertia,
 			ProcessTemplate: func(templateFile, targetPath string, data extensions.TemplateData) error {
 				if data == nil {
 					data = &templateData
@@ -204,6 +218,15 @@ func Scaffold(
 		)
 	}
 
+	fmt.Print("Running go fmt...\n")
+	if err := cmds.RunGoFmt(targetDir); err != nil {
+		slog.Error(
+			"failed to run go fmt",
+			"error",
+			err,
+		)
+	}
+
 	return nil
 }
 
@@ -212,11 +235,14 @@ type (
 	TmplTargetPath string
 )
 
+// FrameworkManagedFile identifies a template-backed file that Andurel owns.
+type FrameworkManagedFile struct {
+	TemplateName string
+	TargetPath   string
+}
+
 var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"tw_css_themes.tmpl":     "css/themes.css",
-	"tw_css_utilities.tmpl":  "css/utilities.css",
-	"tw_css_components.tmpl": "css/components.css",
-	"tw_css_base.tmpl":       "css/base.css",
+	"tw_css_base.tmpl": "css/base.css",
 
 	// Views
 	"tw_views_layout.tmpl": "views/layout.templ",
@@ -233,81 +259,26 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Views
 	"tw_views_head.tmpl": "views/head.templ",
-
-	// Components
-	"tw_views_components_toast.tmpl": "views/components/toast.templ",
-	// Examples
-	"tw_views_examples_accordian.tmpl":    "views/examples/accordion.html",
-	"tw_views_examples_alerts.tmpl":       "views/examples/alerts.html",
-	"tw_views_examples_aspect_ratio.tmpl": "views/examples/aspect_ratio.html",
-	"tw_views_examples_avatar.tmpl":       "views/examples/avatar.html",
-	"tw_views_examples_badges.tmpl":       "views/examples/badges.html",
-	"tw_views_examples_breadcrump.tmpl":   "views/examples/breadcrumb.html",
-	"tw_views_examples_buttons.tmpl":      "views/examples/buttons.html",
-	"tw_views_examples_calendar.tmpl":     "views/examples/calendar.html",
-	"tw_views_examples_card.tmpl":         "views/examples/card.html",
-	"tw_views_examples_carousel.tmpl":     "views/examples/carousel.html",
-	"tw_views_examples_checkbox.tmpl":     "views/examples/checkbox.html",
-	"tw_views_examples_code.tmpl":         "views/examples/code.html",
-	"tw_views_examples_collapsible.tmpl":  "views/examples/collapsible.html",
-	"tw_views_examples_combobox.tmpl":     "views/examples/combobox.html",
-	"tw_views_examples_copy_button.tmpl":  "views/examples/copy_button.html",
-	"tw_views_examples_data_input.tmpl":   "views/examples/date_input.html",
-	"tw_views_examples_dialog.tmpl":       "views/examples/dialog.html",
-	"tw_views_examples_dropdown.tmpl":     "views/examples/dropdown.html",
-	"tw_views_examples_empty_state.tmpl":  "views/examples/empty_state.html",
-	"tw_views_examples_input.tmpl":        "views/examples/input.html",
-	"tw_views_examples_input_group.tmpl":  "views/examples/input_group.html",
-	"tw_views_examples_input_otp.tmpl":    "views/examples/input_otp.html",
-	"tw_views_examples_kdb.tmpl":          "views/examples/kbd.html",
-	"tw_views_examples_menu.tmpl":         "views/examples/menu.html",
-	"tw_views_examples_pagination.tmpl":   "views/examples/pagination.html",
-	"tw_views_examples_popover.tmpl":      "views/examples/popover.html",
-	"tw_views_examples_progress.tmpl":     "views/examples/progress.html",
-	"tw_views_examples_radio.tmpl":        "views/examples/radio.html",
-	"tw_views_examples_rating.tmpl":       "views/examples/rating.html",
-	"tw_views_examples_select.tmpl":       "views/examples/select.html",
-	"tw_views_examples_separator.tmpl":    "views/examples/separator.html",
-	"tw_views_examples_sheet.tmpl":        "views/examples/sheet.html",
-	"tw_views_examples_skeleton.tmpl":     "views/examples/skeleton.html",
-	"tw_views_examples_slider.tmpl":       "views/examples/slider.html",
-	"tw_views_examples_spinner.tmpl":      "views/examples/spinner.html",
-	"tw_views_examples_stats.tmpl":        "views/examples/stats.html",
-	"tw_views_examples_steps.tmpl":        "views/examples/steps.html",
-	"tw_views_examples_switch.tmpl":       "views/examples/switch.html",
-	"tw_views_examples_table.tmpl":        "views/examples/table.html",
-	"tw_views_examples_tabs.tmpl":         "views/examples/tabs.html",
-	"tw_views_examples_tabs_input.tmpl":   "views/examples/tabs_input.html",
-	"tw_views_examples_textarea.tmpl":     "views/examples/textarea.html",
-	"tw_views_examples_time_input.tmpl":   "views/examples/time_input.html",
-	"tw_views_examples_toast.tmpl":        "views/examples/toast.html",
-	"tw_views_examples_tooltip.tmpl":      "views/examples/tooltip.html",
 }
 
 var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"assets_vanilla_css_reset.tmpl":               "assets/css/reset.css",
-	"assets_vanilla_css_tokens.tmpl":              "assets/css/tokens.css",
-	"assets_vanilla_css_base.tmpl":                "assets/css/base.css",
-	"assets_vanilla_css_objects.tmpl":             "assets/css/objects.css",
-	"assets_vanilla_css_utilities.tmpl":           "assets/css/utilities.css",
-	"assets_vanilla_css_components_buttons.tmpl":  "assets/css/components/buttons.css",
-	"assets_vanilla_css_components_feedback.tmpl": "assets/css/components/feedback.css",
-	"assets_vanilla_css_components_forms.tmpl":    "assets/css/components/forms.css",
-	"assets_vanilla_css_components_layout.tmpl":   "assets/css/components/layout.css",
-	"assets_vanilla_css_components_panels.tmpl":   "assets/css/components/panels.css",
+	"assets_vanilla_css_reset.tmpl":     "assets/css/reset.css",
+	"assets_vanilla_css_tokens.tmpl":    "assets/css/tokens.css",
+	"assets_vanilla_css_base.tmpl":      "assets/css/base.css",
+	"assets_vanilla_css_objects.tmpl":   "assets/css/objects.css",
+	"assets_vanilla_css_utilities.tmpl": "assets/css/utilities.css",
 
 	// Views
-	"vanilla_views_layout.tmpl":           "views/layout.templ",
-	"vanilla_views_components_toast.tmpl": "views/components/toast.templ",
-	"vanilla_views_head.tmpl":             "views/head.templ",
-	"vanilla_views_home.tmpl":             "views/home.templ",
-	"vanilla_views_bad_request.tmpl":      "views/bad_request.templ",
-	"vanilla_views_internal_error.tmpl":   "views/internal_error.templ",
-	"vanilla_views_not_found.tmpl":        "views/not_found.templ",
-	"vanilla_views_confirm_email.tmpl":    "views/confirm_email.templ",
-	"vanilla_views_login.tmpl":            "views/login.templ",
-	"vanilla_views_registration.tmpl":     "views/registration.templ",
-	"vanilla_views_reset_password.tmpl":   "views/reset_password.templ",
+	"vanilla_views_layout.tmpl":         "views/layout.templ",
+	"vanilla_views_head.tmpl":           "views/head.templ",
+	"vanilla_views_home.tmpl":           "views/home.templ",
+	"vanilla_views_bad_request.tmpl":    "views/bad_request.templ",
+	"vanilla_views_internal_error.tmpl": "views/internal_error.templ",
+	"vanilla_views_not_found.tmpl":      "views/not_found.templ",
+	"vanilla_views_confirm_email.tmpl":  "views/confirm_email.templ",
+	"vanilla_views_login.tmpl":          "views/login.templ",
+	"vanilla_views_registration.tmpl":   "views/registration.templ",
+	"vanilla_views_reset_password.tmpl": "views/reset_password.templ",
 }
 
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -316,7 +287,8 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"readme.tmpl":    "README.md",
 
 	// Core files
-	"framework_elements_renderer_render.tmpl":        "internal/renderer/render.go",
+	"framework_elements_request_context.tmpl":        "internal/request/context.go",
+	"framework_elements_request_request.tmpl":        "internal/request/request.go",
 	"framework_elements_routing_definitions.tmpl":    "internal/routing/definitions.go",
 	"framework_elements_routing_routes.tmpl":         "internal/routing/routes.go",
 	"framework_elements_server_server.tmpl":          "internal/server/server.go",
@@ -324,9 +296,17 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"framework_elements_storage_queue.tmpl":          "internal/storage/queue.go",
 	"framework_elements_hypermedia_signals.tmpl":     "internal/hypermedia/signals.go",
 	"framework_elements_hypermedia_core.tmpl":        "internal/hypermedia/core.go",
+	"framework_elements_hypermedia_options.tmpl":     "internal/hypermedia/options.go",
+	"framework_elements_hypermedia_render.tmpl":      "internal/hypermedia/render.go",
+	"framework_elements_hypermedia_script.tmpl":      "internal/hypermedia/script.go",
 	"framework_elements_hypermedia_sse.tmpl":         "internal/hypermedia/sse.go",
 	"framework_elements_hypermedia_broadcaster.tmpl": "internal/hypermedia/broadcaster.go",
 	"framework_elements_hypermedia_helpers.tmpl":     "internal/hypermedia/helpers.go",
+
+	// Validation
+	"framework_elements_validation_validation.tmpl": "internal/validation/validation.go",
+	"framework_elements_validation_rules.tmpl":      "internal/validation/rules.go",
+	"framework_elements_validation_helpers.tmpl":    "internal/validation/helpers.go",
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
@@ -335,7 +315,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-1.min.js",
 
 	// Commands
-	"cmd_app_main.tmpl": "cmd/app/main.go",
+	"deprecated_cmd_app_main.tmpl": "cmd/app/main.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
@@ -348,18 +328,16 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"clients_email_mailpit.tmpl": "clients/email/mailpit.go",
 
 	// Controllers
-	"controllers_api.tmpl":        "controllers/api.go",
-	"controllers_assets.tmpl":     "controllers/assets.go",
-	"controllers_cache.tmpl":      "controllers/cache.go",
-	"controllers_controller.tmpl": "controllers/controller.go",
-	"controllers_pages.tmpl":      "controllers/pages.go",
+	"deprecated_controllers_api.tmpl":        "controllers/api.go",
+	"deprecated_controllers_assets.tmpl":     "controllers/assets.go",
+	"controllers_cache.tmpl":                 "controllers/cache.go",
+	"deprecated_controllers_controller.tmpl": "controllers/controller.go",
+	"deprecated_controllers_pages.tmpl":      "controllers/pages.go",
 
 	// Database
 	"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
 	"database_seeds_main.tmpl":         "database/seeds/main.go",
-	"database_test_helper.tmpl":        "database/test_helper.go",
-
-	"psql_database.tmpl": "database/database.go",
+	"psql_database.tmpl":               "database/database.go",
 
 	// Queue package
 	"psql_queue_queue.tmpl":                            "queue/queue.go",
@@ -385,17 +363,17 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"models_factories_token.tmpl":     "models/factories/token.go",
 
 	// Router
-	"router_router.tmpl":                         "router/router.go",
-	"router_connect_api_routes.tmpl":             "router/connect_api_routes.go",
-	"router_connect_assets_routes.tmpl":          "router/connect_assets_routes.go",
-	"router_connect_pages_routes.tmpl":           "router/connect_pages_routes.go",
-	"router_connect_sessions_routes.tmpl":        "router/connect_sessions_routes.go",
-	"router_connect_registrations_routes.tmpl":   "router/connect_registrations_routes.go",
-	"router_connect_confirmations_routes.tmpl":   "router/connect_confirmations_routes.go",
-	"router_connect_reset_passwords_routes.tmpl": "router/connect_reset_passwords_routes.go",
-	"router_cookies_cookies.tmpl":                "router/cookies/cookies.go",
-	"router_cookies_flash.tmpl":                  "router/cookies/flash.go",
-	"router_middleware_middleware.tmpl":          "router/middleware/middleware.go",
+	"deprecated_router_router.tmpl":                         "router/router.go",
+	"deprecated_router_connect_api_routes.tmpl":             "router/connect_api_routes.go",
+	"deprecated_router_connect_assets_routes.tmpl":          "router/connect_assets_routes.go",
+	"deprecated_router_connect_pages_routes.tmpl":           "router/connect_pages_routes.go",
+	"deprecated_router_connect_sessions_routes.tmpl":        "router/connect_sessions_routes.go",
+	"deprecated_router_connect_registrations_routes.tmpl":   "router/connect_registrations_routes.go",
+	"deprecated_router_connect_confirmations_routes.tmpl":   "router/connect_confirmations_routes.go",
+	"deprecated_router_connect_reset_passwords_routes.tmpl": "router/connect_reset_passwords_routes.go",
+	"router_cookies_cookies.tmpl":                           "router/cookies/cookies.go",
+	"router_cookies_flash.tmpl":                             "router/cookies/flash.go",
+	"router_middleware_middleware.tmpl":                     "router/middleware/middleware.go",
 
 	// Routes
 	"router_routes_api.tmpl":    "router/routes/api.go",
@@ -414,10 +392,10 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"telemetry_helpers.tmpl":          "telemetry/helpers.go",
 
 	// Auth - Controllers
-	"controllers_confirmations.tmpl":   "controllers/confirmations.go",
-	"controllers_registrations.tmpl":   "controllers/registrations.go",
-	"controllers_reset_passwords.tmpl": "controllers/reset_passwords.go",
-	"controllers_sessions.tmpl":        "controllers/sessions.go",
+	"deprecated_controllers_confirmations.tmpl":   "controllers/confirmations.go",
+	"deprecated_controllers_registrations.tmpl":   "controllers/registrations.go",
+	"deprecated_controllers_reset_passwords.tmpl": "controllers/reset_passwords.go",
+	"deprecated_controllers_sessions.tmpl":        "controllers/sessions.go",
 
 	// Auth - Config
 	"config_auth.tmpl": "config/auth.go",
@@ -436,13 +414,196 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"email_verify_email.tmpl":   "email/verify_email.templ",
 }
 
+// fxTemplateOverrides maps base template names to their uberfx variants.
+// In uberfx mode, these entries replace the manual-mode templates.
+var fxTemplateOverrides = map[TmplTarget]TmplTargetPath{
+	"cmd_app_main_fx.tmpl":                             "cmd/app/main.go",
+	"router_router_fx.tmpl":                            "router/router.go",
+	"controllers_api_fx.tmpl":                          "controllers/api.go",
+	"controllers_assets_fx.tmpl":                       "controllers/assets.go",
+	"controllers_controller_fx.tmpl":                   "controllers/controller.go",
+	"controllers_pages_fx.tmpl":                        "controllers/pages.go",
+	"controllers_sessions_fx.tmpl":                     "controllers/sessions.go",
+	"controllers_registrations_fx.tmpl":                "controllers/registrations.go",
+	"controllers_confirmations_fx.tmpl":                "controllers/confirmations.go",
+	"controllers_reset_passwords_fx.tmpl":              "controllers/reset_passwords.go",
+	"services_service_fx.tmpl":                         "services/service.go",
+	"services_identity_fx.tmpl":                        "services/identity.go",
+	"psql_queue_workers_workers.tmpl":                  "queue/workers.go",
+	"psql_queue_workers_send_transactional_email.tmpl": "queue/send_transactional_email.go",
+	"psql_queue_workers_send_marketing_email.tmpl":     "queue/send_marketing_email.go",
+}
+
+// fxSkippedTemplates lists base template entries skipped in uberfx mode.
+var fxSkippedTemplates = map[TmplTarget]bool{
+	"deprecated_cmd_app_main.tmpl":                          true,
+	"deprecated_router_router.tmpl":                         true,
+	"deprecated_controllers_api.tmpl":                       true,
+	"deprecated_controllers_assets.tmpl":                    true,
+	"deprecated_controllers_controller.tmpl":                true,
+	"deprecated_controllers_pages.tmpl":                     true,
+	"deprecated_controllers_sessions.tmpl":                  true,
+	"deprecated_controllers_registrations.tmpl":             true,
+	"deprecated_controllers_confirmations.tmpl":             true,
+	"deprecated_controllers_reset_passwords.tmpl":           true,
+	"deprecated_router_connect_api_routes.tmpl":             true,
+	"deprecated_router_connect_assets_routes.tmpl":          true,
+	"deprecated_router_connect_pages_routes.tmpl":           true,
+	"deprecated_router_connect_sessions_routes.tmpl":        true,
+	"deprecated_router_connect_registrations_routes.tmpl":   true,
+	"deprecated_router_connect_confirmations_routes.tmpl":   true,
+	"deprecated_router_connect_reset_passwords_routes.tmpl": true,
+}
+
+var inertiaSharedTemplateMappings = map[TmplTarget]TmplTargetPath{
+	"inertia_framework_root_html.tmpl": "views/root.go.html",
+	"inertia_page_options.tmpl":        "internal/inertia/page_options.go",
+	"inertia_render.tmpl":              "internal/inertia/render.go",
+	"inertia_vite.tmpl":                "internal/inertia/vite.go",
+}
+
+var inertiaVueTemplateMappings = map[TmplTarget]TmplTargetPath{
+	"inertia_assets_app.tmpl":           "resources/js/app.ts",
+	"inertia_assets_pages_welcome.tmpl": "resources/js/Pages/Welcome.vue",
+	"inertia_assets_vite_config.tmpl":   "vite.config.ts",
+	"inertia_assets_package_json.tmpl":  "package.json",
+	"inertia_assets_tsconfig.tmpl":      "tsconfig.json",
+}
+
+var inertiaReactTemplateMappings = map[TmplTarget]TmplTargetPath{
+	"inertia_react_assets_app.tmpl":           "resources/js/app.tsx",
+	"inertia_react_assets_pages_welcome.tmpl": "resources/js/Pages/Welcome.tsx",
+	"inertia_react_assets_vite_config.tmpl":   "vite.config.ts",
+	"inertia_react_assets_package_json.tmpl":  "package.json",
+	"inertia_react_assets_tsconfig.tmpl":      "tsconfig.json",
+}
+
+var inertiaTemplateOverrides = map[TmplTarget]TmplTargetPath{
+	"deprecated_controllers_pages_inertia.tmpl": "controllers/pages.go",
+	"controllers_pages_inertia_fx.tmpl":         "controllers/pages.go",
+}
+
+var inertiaSkippedTemplates = map[TmplTarget]bool{
+	"tw_views_home.tmpl":      true,
+	"vanilla_views_home.tmpl": true,
+}
+
+func inertiaAdapterTemplateMappings(adapter string) map[TmplTarget]TmplTargetPath {
+	switch adapter {
+	case "vue":
+		return inertiaVueTemplateMappings
+	case "react":
+		return inertiaReactTemplateMappings
+	default:
+		return nil
+	}
+}
+
+func isStaticInertiaAssetTemplate(templateFile TmplTarget) bool {
+	return strings.HasPrefix(string(templateFile), "inertia_assets_") ||
+		strings.HasPrefix(string(templateFile), "inertia_react_assets_") ||
+		templateFile == "inertia_framework_root_html.tmpl"
+}
+
+// GetInternalFrameworkFiles returns the internal package files expected for a project config.
+func GetInternalFrameworkFiles(config *ScaffoldConfig) []FrameworkManagedFile {
+	mappings := make(map[TmplTarget]TmplTargetPath)
+	for templateName, targetPath := range baseTemplateMappings {
+		if strings.HasPrefix(string(targetPath), "internal/") {
+			mappings[templateName] = targetPath
+		}
+	}
+
+	if config != nil && IsSupportedInertiaAdapter(config.Inertia) {
+		for templateName, targetPath := range inertiaSharedTemplateMappings {
+			if strings.HasPrefix(string(targetPath), "internal/") {
+				mappings[templateName] = targetPath
+			}
+		}
+	}
+
+	return sortedFrameworkManagedFiles(mappings)
+}
+
+// GetAllManagedInternalFrameworkFiles returns every internal package file Andurel can manage.
+func GetAllManagedInternalFrameworkFiles() []FrameworkManagedFile {
+	mappings := make(map[TmplTarget]TmplTargetPath)
+	for templateName, targetPath := range baseTemplateMappings {
+		if strings.HasPrefix(string(targetPath), "internal/") {
+			mappings[templateName] = targetPath
+		}
+	}
+	for templateName, targetPath := range inertiaSharedTemplateMappings {
+		if strings.HasPrefix(string(targetPath), "internal/") {
+			mappings[templateName] = targetPath
+		}
+	}
+
+	return sortedFrameworkManagedFiles(mappings)
+}
+
+func sortedFrameworkManagedFiles(mappings map[TmplTarget]TmplTargetPath) []FrameworkManagedFile {
+	files := make([]FrameworkManagedFile, 0, len(mappings))
+	for templateName, targetPath := range mappings {
+		files = append(files, FrameworkManagedFile{
+			TemplateName: string(templateName),
+			TargetPath:   string(targetPath),
+		})
+	}
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].TargetPath < files[j].TargetPath
+	})
+
+	return files
+}
+
 func processTemplatedFiles(
 	targetDir string,
 	cssFramework string,
 	data extensions.TemplateData,
 ) error {
-	for templateFile, targetPath := range baseTemplateMappings {
+	mappings := make(map[TmplTarget]TmplTargetPath, len(baseTemplateMappings)+len(fxTemplateOverrides)+len(inertiaSharedTemplateMappings)+len(inertiaVueTemplateMappings))
+	for k, v := range baseTemplateMappings {
+		mappings[k] = v
+	}
+
+	if td, ok := data.(*TemplateData); ok && td.DIMode == "uberfx" {
+		for k := range fxSkippedTemplates {
+			delete(mappings, k)
+		}
+		for k, v := range fxTemplateOverrides {
+			mappings[k] = v
+		}
+	}
+
+	if td, ok := data.(*TemplateData); ok && IsSupportedInertiaAdapter(td.Inertia) {
+		for k := range inertiaSkippedTemplates {
+			delete(mappings, k)
+		}
+		if td.DIMode == "uberfx" {
+			delete(mappings, "controllers_pages_fx.tmpl")
+			mappings["controllers_pages_inertia_fx.tmpl"] = inertiaTemplateOverrides["controllers_pages_inertia_fx.tmpl"]
+		} else {
+			delete(mappings, "deprecated_controllers_pages.tmpl")
+			mappings["deprecated_controllers_pages_inertia.tmpl"] = inertiaTemplateOverrides["deprecated_controllers_pages_inertia.tmpl"]
+		}
+		for k, v := range inertiaSharedTemplateMappings {
+			mappings[k] = v
+		}
+		for k, v := range inertiaAdapterTemplateMappings(td.Inertia) {
+			mappings[k] = v
+		}
+	}
+
+	for templateFile, targetPath := range mappings {
 		if templateFile == "assets_js_datastar.tmpl" {
+			if err := copyFile(targetDir, string(templateFile), string(targetPath), templates.Files); err != nil {
+				return fmt.Errorf("failed to copy file %s: %w", templateFile, err)
+			}
+			continue
+		}
+		if isStaticInertiaAssetTemplate(templateFile) {
 			if err := copyFile(targetDir, string(templateFile), string(targetPath), templates.Files); err != nil {
 				return fmt.Errorf("failed to copy file %s: %w", templateFile, err)
 			}
@@ -455,6 +616,9 @@ func processTemplatedFiles(
 
 	if cssFramework == "tailwind" {
 		for templateFile, targetPath := range baseTailwindTemplateMappings {
+			if td, ok := data.(*TemplateData); ok && IsSupportedInertiaAdapter(td.Inertia) && inertiaSkippedTemplates[templateFile] {
+				continue
+			}
 			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
 				return fmt.Errorf("failed to process tailwind template %s: %w", templateFile, err)
 			}
@@ -538,21 +702,44 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		return fmt.Errorf("template data is nil")
 	}
 
+	td, ok := data.(*TemplateData)
+	if !ok {
+		return fmt.Errorf("template data is not *TemplateData")
+	}
+
+	// Templates to re-render after extensions have been applied
 	blueprintTemplates := []TmplTarget{
-		"cmd_app_main.tmpl",
-		"controllers_controller.tmpl",
 		"config_config.tmpl",
 		"env.tmpl",
-		"router_connect_api_routes.tmpl",
-		"router_connect_assets_routes.tmpl",
-		"router_connect_pages_routes.tmpl",
+		"framework_elements_request_context.tmpl",
+		"framework_elements_request_request.tmpl",
 		"router_cookies_cookies.tmpl",
 	}
 
+	// Mode-specific templates
+	if td.DIMode == "uberfx" {
+		blueprintTemplates = append(blueprintTemplates,
+			"cmd_app_main_fx.tmpl",
+			"controllers_controller_fx.tmpl",
+		)
+	} else {
+		blueprintTemplates = append(blueprintTemplates,
+			"deprecated_cmd_app_main.tmpl",
+			"deprecated_controllers_controller.tmpl",
+			"deprecated_router_connect_api_routes.tmpl",
+			"deprecated_router_connect_assets_routes.tmpl",
+			"deprecated_router_connect_pages_routes.tmpl",
+		)
+	}
+
 	for _, tmplName := range blueprintTemplates {
+		// Look up in base mappings first, then fx overrides
 		targetPath, ok := baseTemplateMappings[tmplName]
 		if !ok {
-			return fmt.Errorf("template mapping missing for blueprint template %s", tmplName)
+			targetPath, ok = fxTemplateOverrides[tmplName]
+			if !ok {
+				return fmt.Errorf("template mapping missing for blueprint template %s", tmplName)
+			}
 		}
 
 		if err := renderTemplate(targetDir, string(tmplName), string(targetPath), templates.Files, data); err != nil {
@@ -693,7 +880,7 @@ func registerBuiltinExtensions() error {
 		builtin := []extensions.Extension{
 			extensions.AwsSes{},
 			extensions.Docker{},
-			extensions.Workflows{},
+			extensions.CssComponents{},
 		}
 
 		for _, ext := range builtin {
@@ -903,6 +1090,14 @@ func GetRunToolVersion() string {
 	return versions.Shadowfax
 }
 
+func normalizeFrameworkVersion(version string) string {
+	version = strings.TrimSpace(version)
+	if version == "" {
+		return "dev"
+	}
+	return version
+}
+
 func createGoMod(targetDir string, data *TemplateData) error {
 	if data == nil {
 		return fmt.Errorf("template data is nil")
@@ -929,7 +1124,14 @@ func generateRandomHex(bytes int) string {
 
 // initializeBaseBlueprint creates a blueprint with default base configuration
 // for controllers, routes, and other scaffold components.
-func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
+func initializeBaseBlueprint(moduleName, diMode, inertia string) *blueprint.Blueprint {
+	if diMode == "uberfx" {
+		return initializeUberFxBlueprint(moduleName)
+	}
+	return initializeManualBlueprint(moduleName, inertia)
+}
+
+func initializeManualBlueprint(moduleName, inertia string) *blueprint.Blueprint {
 	builder := blueprint.NewBuilder(nil)
 
 	builder.AddMainImport(fmt.Sprintf("%s/clients/email", moduleName))
@@ -938,7 +1140,7 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 
 	builder.AddMainInitialization(
 		"emailClient",
-		"mailclients.NewMailpit(cfg.Email.MailpitHost, cfg.Email.MailpitPort)",
+		"mailclients.NewMailpit(cfg)",
 		"cfg",
 	)
 
@@ -963,11 +1165,16 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 		AddControllerField("Confirmations", "controllers.Confirmations").
 		AddControllerField("ResetPasswords", "controllers.ResetPasswords")
 
+	pagesConstructor := "controllers.NewPages(db, insertOnly, pagesCache)"
+	if inertia == "vue" {
+		pagesConstructor = "controllers.NewPages(db, insertOnly)"
+	}
+
 	// Constructor initializations
 	builder.
 		AddControllerConstructor("assets", "controllers.NewAssets(assetsCache)").
 		AddControllerConstructor("api", "controllers.NewAPI(db)").
-		AddControllerConstructor("pages", "controllers.NewPages(db, insertOnly, pagesCache)").
+		AddControllerConstructor("pages", pagesConstructor).
 		AddControllerConstructor("sessions", "controllers.NewSessions(db, cfg)").
 		AddControllerConstructor("registrations", "controllers.NewRegistrations(db, insertOnly, cfg)").
 		AddControllerConstructor("confirmations", "controllers.NewConfirmations(db, cfg)").
@@ -1006,9 +1213,57 @@ func initializeBaseBlueprint(moduleName string) *blueprint.Blueprint {
 	return builder.Blueprint()
 }
 
-func generateLockFile(targetDir, version string, hasTailwind bool, config *ScaffoldConfig) error {
+func initializeUberFxBlueprint(moduleName string) *blueprint.Blueprint {
+	builder := blueprint.NewBuilder(nil)
+
+	builder.AddControllerImport(fmt.Sprintf("%s/controllers", moduleName))
+	builder.AddControllerImport(fmt.Sprintf("%s/config", moduleName))
+
+	builder.AddConfigField("Email", "email")
+	builder.AddConfigField("Auth", "auth")
+
+	builder.AddWorkerDependency("transactionalSender", "email.TransactionalSender")
+	builder.AddWorkerDependency("marketingSender", "email.MarketingSender")
+
+	// Auth cookies configuration
+	builder.AddCookiesImport("github.com/google/uuid")
+	builder.AddCookiesImport(fmt.Sprintf("%s/models", moduleName))
+
+	builder.AddCookiesConstant("isAuthenticated", "is_authenticated")
+	builder.AddCookiesConstant("isAdmin", "is_admin")
+	builder.AddCookiesConstant("userID", "user_id")
+
+	builder.AddCookiesAppField("UserID", "uuid.UUID")
+	builder.AddCookiesAppField("IsAdmin", "bool")
+	builder.AddCookiesAppField("IsAuthenticated", "bool")
+
+	builder.SetCookiesCreateSessionCode(`	sess.Values[isAuthenticated] = true
+	sess.Values[isAdmin] = user.IsAdmin
+	sess.Values[userID] = user.ID.String()`)
+
+	builder.SetCookiesGetSessionCode(`	if v, ok := sess.Values[isAuthenticated].(bool); ok {
+		app.IsAuthenticated = v
+	}
+	if v, ok := sess.Values[isAdmin].(bool); ok {
+		app.IsAdmin = v
+	}
+	if v, ok := sess.Values[userID].(string); ok {
+		app.UserID, _ = uuid.Parse(v)
+	}`)
+
+	for _, tool := range defaultTools {
+		builder.AddTool(tool)
+	}
+
+	return builder.Blueprint()
+}
+
+func generateLockFile(targetDir, version string, hasTailwind bool, config *ScaffoldConfig, extensions []string) error {
 	lock := NewAndurelLock(version)
 	lock.ScaffoldConfig = config
+	lock.DatabaseConfig = &DatabaseConfig{
+		NullType: "sql.Null",
+	}
 
 	for _, tool := range DefaultGoTools {
 		sourceRepo := extractRepo(tool.Source)
@@ -1019,10 +1274,8 @@ func generateLockFile(targetDir, version string, hasTailwind bool, config *Scaff
 		lock.AddTool("tailwindcli", NewBinaryTool("tailwindcli", versions.TailwindCLI))
 	}
 
-	if config != nil {
-		for _, ext := range config.Extensions {
-			lock.AddExtension(ext, time.Now().Format(time.RFC3339))
-		}
+	for _, ext := range extensions {
+		lock.AddExtension(ext, time.Now().Format(time.RFC3339))
 	}
 
 	return lock.WriteLockFile(targetDir)

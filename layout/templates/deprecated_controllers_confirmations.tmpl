@@ -1,0 +1,93 @@
+package controllers
+
+import (
+	"log/slog"
+
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/internal/hypermedia"
+	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/services"
+	"{{.ModuleName}}/views"
+
+	"github.com/labstack/echo/v5"
+)
+
+type Confirmations struct {
+	db  storage.Pool
+	cfg config.Config
+}
+
+func NewConfirmations(db storage.Pool, cfg config.Config) Confirmations {
+	return Confirmations{db, cfg}
+}
+
+func (c Confirmations) New(etx *echo.Context) error {
+	return hypermedia.RenderPage(etx, views.ConfirmationForm{}.Page())
+}
+
+func (c Confirmations) Create(etx *echo.Context) error {
+	var payload struct {
+		Code string `json:"code"`
+	}
+
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse verification form payload",
+			"error",
+			err,
+		)
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	user, err := services.VerifyEmail(
+		etx.Request().Context(),
+		c.db,
+		c.cfg.Auth.Pepper,
+		services.VerifyEmailData{
+			Code: payload.Code,
+		},
+	)
+	if err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"failed to verify email",
+			"error",
+			err,
+		)
+
+		var errorMsg string
+		switch err {
+		case services.ErrInvalidVerificationCode:
+			errorMsg = "Invalid verification code"
+		case services.ErrExpiredVerificationCode:
+			errorMsg = "Verification code has expired"
+		default:
+			errorMsg = "Failed to verify email"
+		}
+
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
+			return hypermedia.RenderPage(etx, views.InternalError())
+		}
+		return hypermedia.Redirect(etx, routes.ConfirmationNew.URL())
+	}
+
+	if err := cookies.CreateAppSession(etx, user); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"failed to create session",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+
+	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Email verified successfully!"); flashErr != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+
+	return hypermedia.Redirect(etx, routes.HomePage.URL())
+}

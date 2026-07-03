@@ -144,9 +144,14 @@ func (ts *TemplateService) RenderTemplateWithCustomFunctions(
 	maps.Copy(mergedFuncs, ts.functions)
 	maps.Copy(mergedFuncs, funcMap)
 
-	tmpl, err := ts.cache.GetTemplate(templateName, mergedFuncs)
+	templateContent, err := Files.ReadFile(templateName)
 	if err != nil {
 		return "", errors.WrapTemplateError(err, "get template", templateName)
+	}
+
+	tmpl, err := template.New(templateName).Funcs(mergedFuncs).Parse(string(templateContent))
+	if err != nil {
+		return "", errors.WrapTemplateError(err, "parse template", templateName)
 	}
 
 	var buf strings.Builder
@@ -165,6 +170,9 @@ func getDefaultTemplateFunctions() template.FuncMap {
 		"ToSnakeCase":      naming.ToSnakeCase,
 		"ToCamelCase":      naming.ToCamelCase,
 		"ToLowerCamelCase": naming.ToLowerCamelCase,
+		"ToPascalCase":     naming.ToPascalCase,
+		"ToReceiverName":   naming.ToReceiverName,
+		"Capitalize":       naming.Capitalize,
 		"DeriveTableName":  naming.DeriveTableName,
 		"Plural":           inflection.Plural,
 		"DatabaseType": func(data any) string {
@@ -187,6 +195,7 @@ func getDefaultTemplateFunctions() template.FuncMap {
 		},
 		"toLowerCamelCase": toLowerCamelCase,
 		"toCamelCase":      toCamelCase,
+		"hasPrefix":        strings.HasPrefix,
 	}
 }
 

@@ -4,82 +4,111 @@ import (
 	"errors"
 	"net/http"
 
-	"{{.ModulePath}}/controllers"
+	{{if .Namespace}}controllers {{end}}"{{.ModulePath}}/controllers{{if .Namespace}}/{{.Namespace}}{{end}}"
 	"{{.ModulePath}}/router/routes"
+
+	"github.com/labstack/echo/v5"
 )
 
-func (r Router) Register{{.ResourceName}}Routes({{.LowercaseResourceName}} controllers.{{.CapitalizedPluralName}}) error {
+func (r Router) Register{{.NamespacePascal}}{{.ResourceName}}Routes({{.LowercaseResourceName}} controllers.{{.CapitalizedPluralName}}) error {
 	errs := []error{}
+	var err error
 
-	_, err := r.e.AddRoute(echo.Route{
+{{- if HasAction "index" }}
+	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.{{.ResourceName}}Index.Path(),
-		Name:    routes.{{.ResourceName}}Index.Name(),
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Index.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Index.Name(),
 		Handler: {{.LowercaseResourceName}}.Index,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "show" }}
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.{{.ResourceName}}Show.Path(),
-		Name:    routes.{{.ResourceName}}Show.Name(),
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Show.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Show.Name(),
 		Handler: {{.LowercaseResourceName}}.Show,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "new" }}
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.{{.ResourceName}}New.Path(),
-		Name:    routes.{{.ResourceName}}New.Name(),
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}New.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}New.Name(),
 		Handler: {{.LowercaseResourceName}}.New,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "create" }}
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPost,
-		Path:    routes.{{.ResourceName}}Create.Path(),
-		Name:    routes.{{.ResourceName}}Create.Name(),
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Create.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Create.Name(),
 		Handler: {{.LowercaseResourceName}}.Create,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "edit" }}
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.{{.ResourceName}}Edit.Path(),
-		Name:    routes.{{.ResourceName}}Edit.Name(),
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Edit.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Edit.Name(),
 		Handler: {{.LowercaseResourceName}}.Edit,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "update" }}
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodPut,
-		Path:    routes.{{.ResourceName}}Update.Path(),
-		Name:    routes.{{.ResourceName}}Update.Name(),
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Update.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Update.Name(),
 		Handler: {{.LowercaseResourceName}}.Update,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "destroy" }}
 	_, err = r.e.AddRoute(echo.Route{
 		Method:  http.MethodDelete,
-		Path:    routes.{{.ResourceName}}Destroy.Path(),
-		Name:    routes.{{.ResourceName}}Destroy.Name(),
+		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Destroy.Path(),
+		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}Destroy.Name(),
 		Handler: {{.LowercaseResourceName}}.Destroy,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
+
+{{- range .CustomActions }}
+	_, err = r.e.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.{{$.NamespacePascal}}{{$.ResourceName}}{{.MethodName}}.Path(),
+		Name:    routes.{{$.NamespacePascal}}{{$.ResourceName}}{{.MethodName}}.Name(),
+		Handler: {{$.LowercaseResourceName}}.{{.MethodName}},
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+{{- end }}
 
 	return errors.Join(errs...)
 }

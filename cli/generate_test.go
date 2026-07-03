@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -14,10 +15,13 @@ func TestGenerateCommands(t *testing.T) {
 		name string
 		args []string
 	}{
-		{"model help", []string{"model", "--help"}},
-		{"controller help", []string{"controller", "--help"}},
-		{"view help", []string{"view", "--help"}},
-		{"resource help", []string{"resource", "--help"}},
+		{"generate model help", []string{"generate", "model", "--help"}},
+		{"generate view help", []string{"generate", "view", "--help"}},
+		{"generate controller help", []string{"generate", "controller", "--help"}},
+		{"generate scaffold help", []string{"generate", "scaffold", "--help"}},
+		{"generate job help", []string{"generate", "job", "--help"}},
+		{"generate email help", []string{"generate", "email", "--help"}},
+		{"fmt help", []string{"fmt", "--help"}},
 	}
 
 	for _, tt := range tests {
@@ -34,7 +38,7 @@ func TestGenerateCommands(t *testing.T) {
 func TestRootCommandStructure(t *testing.T) {
 	rootCmd := NewRootCommand("test", "test-date")
 
-	expectedCommands := []string{"controller", "view", "resource", "model"}
+	expectedCommands := []string{"generate", "fmt"}
 	foundCommands := make(map[string]bool)
 
 	for _, cmd := range rootCmd.Commands() {
@@ -50,6 +54,63 @@ func TestRootCommandStructure(t *testing.T) {
 				getCommandNames(rootCmd.Commands()),
 			)
 		}
+	}
+}
+
+func TestGenerateSubCommands(t *testing.T) {
+	rootCmd := NewRootCommand("test", "test-date")
+
+	generateCmd, _, err := rootCmd.Find([]string{"generate"})
+	if err != nil {
+		t.Fatalf("'generate' command not found: %v", err)
+	}
+
+	expectedSubs := []string{"model", "view", "controller", "scaffold", "job", "email"}
+	subNames := getCommandNames(generateCmd.Commands())
+
+	for _, expectedSub := range expectedSubs {
+		found := slices.Contains(subNames, expectedSub)
+		if !found {
+			t.Errorf("Expected generate subcommand '%s' not found. Available: %v", expectedSub, subNames)
+		}
+	}
+}
+
+func TestGenerateHelpMentionsNamespacedResources(t *testing.T) {
+	generateCmd := newGenerateCommand()
+	controllerCmd := newGenerateControllerCommand()
+	scaffoldCmd := newGenerateScaffoldCommand()
+
+	tests := []struct {
+		name string
+		text string
+		want []string
+	}{
+		{
+			name: "generate",
+			text: generateCmd.Long + "\n" + generateCmd.Example,
+			want: []string{"admin/Widget", "generate controller admin/Widget export", "generate scaffold admin/Widget"},
+		},
+		{
+			name: "controller",
+			text: controllerCmd.Long + "\n" + controllerCmd.Example,
+			want: []string{"admin/Widget", "controllers/admin/widgets.go", "admin.widgets.export"},
+		},
+		{
+			name: "scaffold",
+			text: scaffoldCmd.Long + "\n" + scaffoldCmd.Example,
+			want: []string{"admin/Widget", "controllers/admin", "views/admin_widgets_resource.templ"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, want := range tt.want {
+				if !strings.Contains(tt.text, want) {
+					t.Fatalf("expected %s help to mention %q:\n%s", tt.name, want, tt.text)
+				}
+			}
+		})
 	}
 }
 

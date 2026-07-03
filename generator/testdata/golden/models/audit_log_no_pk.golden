@@ -1,0 +1,115 @@
+package models
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"time"
+
+	"github.com/example/shop/internal/storage"
+	"github.com/example/shop/internal/validation"
+	"github.com/google/uuid"
+	"github.com/uptrace/bun"
+)
+
+type AuditLogEntity struct {
+	bun.BaseModel `bun:"table:audit_logs,alias:audit_logs"`
+	EventID       uuid.UUID       `bun:"event_id,type:uuid"`
+	Action        string          `bun:"action"`
+	EntityType    string          `bun:"entity_type"`
+	EntityID      uuid.UUID       `bun:"entity_id,type:uuid"`
+	Payload       json.RawMessage `bun:"payload,type:jsonb"`
+	OccurredAt    time.Time       `bun:"occurred_at"`
+}
+
+func (e *AuditLogEntity) Validate() error {
+	return nil
+}
+
+type CreateAuditLogData struct {
+	EventID    uuid.UUID
+	Action     string
+	EntityType string
+	EntityID   uuid.UUID
+	Payload    json.RawMessage
+	OccurredAt time.Time
+}
+
+func (al auditLog) Create(ctx context.Context, db storage.Executor, data CreateAuditLogData) (AuditLogEntity, error) {
+	entity := AuditLogEntity{
+		EventID:    data.EventID,
+		Action:     data.Action,
+		EntityType: data.EntityType,
+		EntityID:   data.EntityID,
+		Payload:    data.Payload,
+		OccurredAt: data.OccurredAt,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return AuditLogEntity{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return AuditLogEntity{}, err
+	}
+
+	return entity, nil
+}
+
+func (al auditLog) All(ctx context.Context, db storage.Executor) ([]AuditLogEntity, error) {
+	var entities []AuditLogEntity
+	if err := db.NewSelect().
+		Model(&entities).
+		Scan(ctx); err != nil {
+		return nil, err
+	}
+
+	return entities, nil
+}
+
+type PaginatedAuditLogs struct {
+	AuditLogs  []AuditLogEntity
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func (al auditLog) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedAuditLogs, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := db.NewSelect().
+		Model(&AuditLogEntity{}).Count(ctx)
+	if err != nil {
+		return PaginatedAuditLogs{}, err
+	}
+
+	entities := make([]AuditLogEntity, 0, int(pageSize))
+	if err := db.NewSelect().
+		Model(&entities).
+		Limit(int(pageSize)).
+		Offset(int(offset)).
+		Scan(ctx); err != nil {
+		return PaginatedAuditLogs{}, err
+	}
+
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
+
+	return PaginatedAuditLogs{
+		AuditLogs:  entities,
+		TotalCount: int64(totalCount),
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}

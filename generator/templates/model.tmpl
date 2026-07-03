@@ -11,119 +11,141 @@ import (
 {{- end}}
 )
 
-// {{.EntityName}} represents a {{.Name}} record in the database.
 type {{.EntityName}} struct {
-	bun.BaseModel `bun:"table:{{.TableName}}"`
+	bun.BaseModel `bun:"table:{{.TableName}},alias:{{.TableName}}"`
 
 {{- range .Fields}}
 	{{.Name}} {{.Type}} `bun:"{{.BunTag}}"`
 {{- end}}
 }
 
+func (e *{{.EntityName}}) Validate() error {
+	return nil
+}
+
+{{if .HasPrimaryKey}}
 func ({{.ReceiverName}} {{.NamespaceType}}) Find(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) ({{.EntityName}}, error) {
 	var entity {{.EntityName}}
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entity).
-		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+		Where("{{.IDFieldName}} = ?", id).
+		Scan(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}
+
 	return entity, nil
 }
+{{end}}
 
 type Create{{.Name}}Data struct {
 {{- range .Fields}}
-{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 	{{.Name}} {{.Type}}
 {{- end}}
 {{- end}}
 {{- if not .IsAutoIncrementID}}
 {{- if and .IDType (ne .IDType "uuid.UUID")}}
-	ID {{.IDType}}
+	{{.IDGoFieldName}} {{.IDType}}
 {{- end}}
 {{- end}}
 }
 
 func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db storage.Executor, data Create{{.Name}}Data) ({{.EntityName}}, error) {
-	if err := Validate.Struct(data); err != nil {
-		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := {{.EntityName}}{
+{{- if .HasPrimaryKey}}
 {{- if not .IsAutoIncrementID}}
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
-		ID: uuid.New(),
+		{{.IDGoFieldName}}: uuid.New(),
 {{- else}}
-		ID: data.ID,
+		{{.IDGoFieldName}}: data.{{.IDGoFieldName}},
 {{- end}}
 {{- end}}
+{{- end}}
+{{- if .HasCreatedAt}}
 		CreatedAt: time.Now(),
+{{- end}}
+{{- if .HasUpdatedAt}}
 		UpdatedAt: time.Now(),
+{{- end}}
 {{- range .Fields}}
-{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		{{.Name}}: data.{{.Name}},
 {{- end}}
 {{- end}}
 	}
 
-	_, err := db.NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
+	if err := validation.Validate(&entity); err != nil {
+		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}
+
 	return entity, nil
 }
 
+{{if .HasPrimaryKey}}
 type Update{{.Name}}Data struct {
-	ID {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}
+	{{.IDGoFieldName}} {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}
 {{- range .Fields}}
-{{- if and (ne .Name "ID") (ne .Name "CreatedAt")}}
+{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt")}}
 	{{.Name}} {{.Type}}
 {{- end}}
 {{- end}}
 }
 
 func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db storage.Executor, data Update{{.Name}}Data) ({{.EntityName}}, error) {
-	if err := Validate.Struct(data); err != nil {
-		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := {{.EntityName}}{
-		ID:        data.ID,
+		{{.IDGoFieldName}}: data.{{.IDGoFieldName}},
+{{- if .HasUpdatedAt}}
 		UpdatedAt: time.Now(),
+{{- end}}
 {{- range .Fields}}
-{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		{{.Name}}: data.{{.Name}},
 {{- end}}
 {{- end}}
 	}
 
-	_, err := db.NewUpdate().
+	if err := validation.Validate(&entity); err != nil {
+		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if err := db.NewUpdate().
 		Model(&entity).
-		Where("id = ?", data.ID).
-		Exec(ctx)
-	if err != nil {
+{{- range .Fields}}
+{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt")}}
+		Column("{{columnName .BunTag}}").
+{{- end}}
+{{- end}}
+		WherePK().
+		Returning("*").
+		Scan(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}
+
 	return entity, nil
 }
 
 func ({{.ReceiverName}} {{.NamespaceType}}) Destroy(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) error {
 	_, err := db.NewDelete().
 		Model((*{{.EntityName}})(nil)).
-		Where("id = ?", id).
+		Where("{{.IDFieldName}} = ?", id).
 		Exec(ctx)
+
 	return err
 }
+{{end}}
 
 func ({{.ReceiverName}} {{.NamespaceType}}) All(ctx context.Context, db storage.Executor) ([]{{.EntityName}}, error) {
 	var entities []{{.EntityName}}
-	err := db.NewSelect().
+	if err := db.NewSelect().
 		Model(&entities).
-		Scan(ctx)
-	if err != nil {
+		Scan(ctx); err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -148,13 +170,14 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db sto
 
 	offset := (page - 1) * pageSize
 
-	var totalCount int64
-	if err := db.NewSelect().
-		Model(&{{.EntityName}}{}).Scan(ctx, &totalCount); err != nil {
+	
+	totalCount, err := db.NewSelect().
+		Model(&{{.EntityName}}{}).Count(ctx)
+	if err != nil {
 		return Paginated{{.PluralName}}{}, err
 	}
 
-	var entities []{{.EntityName}}
+	entities := make([]{{.EntityName}}, 0, int(pageSize))
 	if err := db.NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
@@ -163,45 +186,57 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db sto
 		return Paginated{{.PluralName}}{}, err
 	}
 
-	totalPages := (totalCount + pageSize - 1) / pageSize
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
 
 	return Paginated{{.PluralName}}{
 		{{.PluralName}}:    entities,
-		TotalCount: totalCount,
+		TotalCount: int64(totalCount),
 		Page:       page,
 		PageSize:   pageSize,
 		TotalPages: totalPages,
 	}, nil
 }
 
+{{if .HasPrimaryKey}}
 func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db storage.Executor, data Create{{.Name}}Data) ({{.EntityName}}, error) {
-	if err := Validate.Struct(data); err != nil {
-		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
-	}
-
 	entity := {{.EntityName}}{
 {{- if not .IsAutoIncrementID}}
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
-		ID: uuid.New(),
+		{{.IDGoFieldName}}: uuid.New(),
 {{- else}}
-		ID: data.ID,
+		{{.IDGoFieldName}}: data.{{.IDGoFieldName}},
 {{- end}}
 {{- end}}
+{{- if .HasCreatedAt}}
 		CreatedAt: time.Now(),
+{{- end}}
+{{- if .HasUpdatedAt}}
 		UpdatedAt: time.Now(),
+{{- end}}
 {{- range .Fields}}
-{{- if and (ne .Name "ID") (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 		{{.Name}}: data.{{.Name}},
 {{- end}}
 {{- end}}
 	}
 
-	_, err := db.NewInsert().
+	if err := validation.Validate(&entity); err != nil {
+		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	if err := db.NewInsert().
 		Model(&entity).
-		On("CONFLICT (id) DO UPDATE").
-		Exec(ctx)
-	if err != nil {
+		On("CONFLICT ({{.IDFieldName}}) DO UPDATE").
+{{- range .Fields}}
+{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
+		Set("{{columnName .BunTag}} = excluded.{{columnName .BunTag}}").
+{{- end}}
+{{- end}}
+		Returning("*").
+		Scan(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}
+
 	return entity, nil
 }
+{{end}}
