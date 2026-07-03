@@ -2459,6 +2459,7 @@ import (
 	"net/http"
 
 	"testapp/internal/hypermedia"
+	"testapp/internal/validation"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
@@ -2528,6 +2529,10 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		},
 	)
 	if err != nil {
+		if validationErrors, ok := validation.As(err); ok {
+			return hypermedia.RenderPage(etx, views.ConfirmationForm{Errors: validationErrors}.Page())
+		}
+
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to verify email",
@@ -2721,6 +2726,7 @@ import (
 	"net/http"
 
 	"testapp/internal/hypermedia"
+	"testapp/internal/validation"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/middleware"
@@ -2797,6 +2803,10 @@ func (r Registrations) Create(etx *echo.Context) error {
 			ConfirmPassword: payload.ConfirmPassword,
 		},
 	); err != nil {
+		if validationErrors, ok := validation.As(err); ok {
+			return hypermedia.RenderPage(etx, views.RegistrationForm{Errors: validationErrors}.Page())
+		}
+
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to register user",
@@ -2825,6 +2835,7 @@ import (
 	"net/http"
 
 	"testapp/internal/hypermedia"
+	"testapp/internal/validation"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
@@ -2914,6 +2925,10 @@ func (rp ResetPasswords) Create(etx *echo.Context) error {
 			Email: payload.Email,
 		},
 	); err != nil {
+		if validationErrors, ok := validation.As(err); ok {
+			return hypermedia.RenderPage(etx, views.ResetPasswordRequestForm{Errors: validationErrors}.Page())
+		}
+
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to request password reset",
@@ -2973,6 +2988,10 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 			ConfirmPassword: payload.ConfirmPassword,
 		},
 	); err != nil {
+		if validationErrors, ok := validation.As(err); ok {
+			return hypermedia.RenderPage(etx, views.ResetPasswordForm{Token: payload.Token, Errors: validationErrors}.Page())
+		}
+
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to reset password",
@@ -2986,10 +3005,6 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 			errorMsg = "Invalid reset code"
 		case errors.Is(err, services.ErrExpiredResetCode):
 			errorMsg = "Reset code has expired"
-		case errors.Is(err, services.ErrPasswordMismatch):
-			errorMsg = "Passwords do not match"
-		case errors.Is(err, services.ErrPasswordTooShort):
-			errorMsg = "Password must be at least 8 characters"
 		default:
 			errorMsg = "Failed to reset password"
 		}
@@ -3023,6 +3038,7 @@ import (
 	"net/http"
 
 	"testapp/internal/hypermedia"
+	"testapp/internal/validation"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/middleware"
@@ -3108,6 +3124,10 @@ func (s Sessions) Create(etx *echo.Context) error {
 		},
 	)
 	if err != nil {
+		if validationErrors, ok := validation.As(err); ok {
+			return hypermedia.RenderPage(etx, views.LoginForm{Errors: validationErrors}.Page())
+		}
+
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to authenticate user",
@@ -13055,6 +13075,7 @@ import (
 
 	"fmt"
 
+	"testapp/internal/validation"
 	"testapp/models"
 )
 
@@ -13072,6 +13093,13 @@ func (i Identity) AuthenticateUser(
 	ctx context.Context,
 	data LoginData,
 ) (models.UserEntity, error) {
+	b := validation.NewBuilder()
+	b.Required("email", data.Email)
+	b.Required("password", data.Password)
+	if !b.Errors().Empty() {
+		return models.UserEntity{}, b.Errors()
+	}
+
 	user, err := models.User.FindByEmail(ctx, i.db.Executor(), data.Email)
 
 	if err != nil {
@@ -13143,6 +13171,7 @@ import (
 
 	"testapp/config"
 	"testapp/email"
+	"testapp/internal/validation"
 	"testapp/models"
 	"testapp/queue/jobs"
 )
@@ -13159,6 +13188,18 @@ func (i Identity) RegisterUser(
 	ctx context.Context,
 	data RegisterUserData,
 ) error {
+	b := validation.NewBuilder()
+	b.Required("email", data.Email)
+	b.Required("password", data.Password)
+	b.MinLen("password", data.Password, 8)
+	b.Required("confirmPassword", data.ConfirmPassword)
+	if data.Password != data.ConfirmPassword {
+		b.Add("confirmPassword", "mismatch", "Passwords do not match")
+	}
+	if !b.Errors().Empty() {
+		return b.Errors()
+	}
+
 	tx, err := i.db.BeginTx(ctx, nil)
 
 	if err != nil {
@@ -13263,6 +13304,12 @@ func (i Identity) VerifyEmail(
 	ctx context.Context,
 	data VerifyEmailData,
 ) (models.UserEntity, error) {
+	b := validation.NewBuilder()
+	b.Required("code", data.Code)
+	if !b.Errors().Empty() {
+		return models.UserEntity{}, b.Errors()
+	}
+
 	tx, err := i.db.BeginTx(ctx, nil)
 
 	if err != nil {
@@ -13371,6 +13418,7 @@ import (
 
 	"testapp/config"
 	"testapp/email"
+	"testapp/internal/validation"
 	"testapp/models"
 	"testapp/queue/jobs"
 	"testapp/router/routes"
@@ -13381,9 +13429,6 @@ const userResetPassword = "user_password_reset"
 var (
 	ErrInvalidResetCode = errors.New("invalid reset code")
 	ErrExpiredResetCode = errors.New("reset code has expired")
-
-	ErrPasswordMismatch = errors.New("passwords do not match")
-	ErrPasswordTooShort = errors.New("password must be at least 8 characters")
 )
 
 type RequestResetPasswordData struct {
@@ -13394,6 +13439,12 @@ func (i Identity) RequestResetPassword(
 	ctx context.Context,
 	data RequestResetPasswordData,
 ) error {
+	b := validation.NewBuilder()
+	b.Required("email", data.Email)
+	if !b.Errors().Empty() {
+		return b.Errors()
+	}
+
 	tx, err := i.db.BeginTx(ctx, nil)
 
 	if err != nil {
@@ -13493,16 +13544,15 @@ func (i Identity) ResetPassword(
 	data ResetPasswordData,
 ) error {
 
+	b := validation.NewBuilder()
+	b.Required("password", data.Password)
+	b.MinLen("password", data.Password, 8)
+	b.Required("confirmPassword", data.ConfirmPassword)
 	if data.Password != data.ConfirmPassword {
-
-		return ErrPasswordMismatch
-
+		b.Add("confirmPassword", "mismatch", "Passwords do not match")
 	}
-
-	if len(data.Password) < 8 {
-
-		return ErrPasswordTooShort
-
+	if !b.Errors().Empty() {
+		return b.Errors()
 	}
 
 	tx, err := i.db.BeginTx(ctx, nil)

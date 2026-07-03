@@ -75,18 +75,6 @@ func (r Registrations) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	v := validation.NewBuilder()
-	v.Required("email", payload.Email)
-	v.Required("password", payload.Password)
-	v.MinLen("password", payload.Password, 8)
-	v.Required("confirmPassword", payload.ConfirmPassword)
-	if payload.Password != payload.ConfirmPassword {
-		v.Add("confirmPassword", "mismatch", "Passwords do not match")
-	}
-	if !v.Errors().Empty() {
-		return hypermedia.RenderPage(etx, views.RegistrationForm{Errors: v.Errors()}.Page())
-	}
-
 	if err := r.identity.RegisterUser(
 		etx.Request().Context(),
 		services.RegisterUserData{
@@ -95,6 +83,10 @@ func (r Registrations) Create(etx *echo.Context) error {
 			ConfirmPassword: payload.ConfirmPassword,
 		},
 	); err != nil {
+		if validationErrors, ok := validation.As(err); ok {
+			return hypermedia.RenderPage(etx, views.RegistrationForm{Errors: validationErrors}.Page())
+		}
+
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to register user",

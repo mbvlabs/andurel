@@ -43,12 +43,6 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	v := validation.NewBuilder()
-	v.Required("code", payload.Code)
-	if !v.Errors().Empty() {
-		return hypermedia.RenderPage(etx, views.ConfirmationForm{Errors: v.Errors()}.Page())
-	}
-
 	user, err := services.VerifyEmail(
 		etx.Request().Context(),
 		c.db,
@@ -58,6 +52,10 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		},
 	)
 	if err != nil {
+		if validationErrors, ok := validation.As(err); ok {
+			return hypermedia.RenderPage(etx, views.ConfirmationForm{Errors: validationErrors}.Page())
+		}
+
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to verify email",

@@ -84,13 +84,6 @@ func (s Sessions) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	v := validation.NewBuilder()
-	v.Required("email", payload.Email)
-	v.Required("password", payload.Password)
-	if !v.Errors().Empty() {
-		return hypermedia.RenderPage(etx, views.LoginForm{Errors: v.Errors()}.Page())
-	}
-
 	user, err := s.identity.AuthenticateUser(
 		etx.Request().Context(),
 		services.LoginData{
@@ -99,6 +92,10 @@ func (s Sessions) Create(etx *echo.Context) error {
 		},
 	)
 	if err != nil {
+		if validationErrors, ok := validation.As(err); ok {
+			return hypermedia.RenderPage(etx, views.LoginForm{Errors: validationErrors}.Page())
+		}
+
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to authenticate user",
