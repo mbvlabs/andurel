@@ -101,6 +101,8 @@ This command will check:
 		},
 	}
 
+	doctorCmd.Flags().Bool("verbose", false, "Emit verbose diagnostic output")
+
 	return doctorCmd
 }
 

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -157,9 +158,9 @@ func ParseOptions(cmd *cobra.Command) (Options, error) {
 		return opts, nil
 	}
 
-	jsonMode, _ := cmd.Flags().GetBool("json")
-	agentMode, _ := cmd.Flags().GetBool("agent")
-	mdMode, _ := cmd.Flags().GetBool("md")
+	jsonMode, _ := boolFlag(cmd, "json")
+	agentMode, _ := boolFlag(cmd, "agent")
+	mdMode, _ := boolFlag(cmd, "md")
 
 	selected := 0
 	for _, enabled := range []bool{jsonMode, agentMode, mdMode} {
@@ -185,16 +186,32 @@ func ParseOptions(cmd *cobra.Command) (Options, error) {
 		opts.Mode = ModeMarkdown
 	}
 
-	opts.Quiet, _ = cmd.Flags().GetBool("quiet")
-	opts.JQ, _ = cmd.Flags().GetString("jq")
-	opts.IDsOnly, _ = cmd.Flags().GetBool("ids-only")
-	opts.Count, _ = cmd.Flags().GetBool("count")
-	opts.Verbose, _ = cmd.Flags().GetBool("verbose")
+	opts.Quiet, _ = boolFlag(cmd, "quiet")
+	opts.JQ, _ = stringFlag(cmd, "jq")
+	opts.IDsOnly, _ = boolFlag(cmd, "ids-only")
+	opts.Count, _ = boolFlag(cmd, "count")
+	opts.Verbose, _ = boolFlag(cmd, "verbose")
 	if opts.JQ != "" && opts.Mode == ModeHuman {
 		opts.Mode = ModeJSON
 	}
 
 	return opts, nil
+}
+
+func boolFlag(cmd *cobra.Command, name string) (bool, error) {
+	flag := cmd.Flag(name)
+	if flag == nil {
+		return false, nil
+	}
+	return strconv.ParseBool(flag.Value.String())
+}
+
+func stringFlag(cmd *cobra.Command, name string) (string, error) {
+	flag := cmd.Flag(name)
+	if flag == nil {
+		return "", nil
+	}
+	return flag.Value.String(), nil
 }
 
 // UsesStructuredOutput reports whether a command should render through the
