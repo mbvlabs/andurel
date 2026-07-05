@@ -149,7 +149,7 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 }
 
 func newProjectReport(projectName, basePath string, dryRun bool, diff bool, scaffold func(target string) error) (mutationReport, error) {
-	targetPath := basePath
+	var targetPath string
 	if dryRun {
 		tempDir, err := os.MkdirTemp("", "andurel-new-dry-run-*")
 		if err != nil {
