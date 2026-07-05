@@ -90,7 +90,7 @@ func runMutation(cmd *cobra.Command, opts mutationOptions) error {
 	if err := os.Chdir(opts.RootDir); err != nil {
 		return err
 	}
-	runErr := runWithOptionalStdoutSilence(outOpts.Mode == output.ModeJSON || outOpts.Mode == output.ModeAgent, func() error {
+	runErr := runWithOptionalStdoutSilence(output.SuppressesHumanOutput(outOpts), func() error {
 		return opts.Run(opts.RootDir)
 	})
 	_ = os.Chdir(oldWD)
@@ -103,7 +103,7 @@ func runMutation(cmd *cobra.Command, opts mutationOptions) error {
 		return err
 	}
 	report := buildMutationReport(opts, before, after)
-	if outOpts.Mode == output.ModeJSON || outOpts.Mode == output.ModeAgent || outOpts.Mode == output.ModeMarkdown || outOpts.Quiet {
+	if output.SuppressesHumanOutput(outOpts) {
 		return output.OK(cmd, report, mutationSummary(report), opts.Breadcrumbs...)
 	}
 	return nil
@@ -134,7 +134,7 @@ func runDryMutation(cmd *cobra.Command, outOpts output.Options, opts mutationOpt
 	findGoModRoot = func() (string, error) {
 		return tempRoot, nil
 	}
-	runErr := runWithOptionalStdoutSilence(outOpts.Mode == output.ModeJSON || outOpts.Mode == output.ModeAgent, func() error {
+	runErr := runWithOptionalStdoutSilence(output.SuppressesHumanOutput(outOpts), func() error {
 		return opts.Run(tempRoot)
 	})
 	findGoModRoot = originalFindGoModRoot

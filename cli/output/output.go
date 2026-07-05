@@ -190,8 +190,23 @@ func ParseOptions(cmd *cobra.Command) (Options, error) {
 	opts.IDsOnly, _ = cmd.Flags().GetBool("ids-only")
 	opts.Count, _ = cmd.Flags().GetBool("count")
 	opts.Verbose, _ = cmd.Flags().GetBool("verbose")
+	if opts.JQ != "" && opts.Mode == ModeHuman {
+		opts.Mode = ModeJSON
+	}
 
 	return opts, nil
+}
+
+// UsesStructuredOutput reports whether a command should render through the
+// shared output contract instead of human prose.
+func UsesStructuredOutput(opts Options) bool {
+	return opts.Mode != ModeHuman
+}
+
+// SuppressesHumanOutput reports whether command progress from lower-level
+// routines should be hidden before rendering the final response.
+func SuppressesHumanOutput(opts Options) bool {
+	return UsesStructuredOutput(opts) || opts.Quiet
 }
 
 // OK renders a successful response using the selected output mode.
@@ -199,9 +214,6 @@ func OK(cmd *cobra.Command, data any, summary string, breadcrumbs ...Breadcrumb)
 	opts, err := ParseOptions(cmd)
 	if err != nil {
 		return err
-	}
-	if opts.JQ != "" && opts.Mode == ModeHuman {
-		opts.Mode = ModeJSON
 	}
 
 	renderData := data

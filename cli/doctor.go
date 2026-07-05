@@ -105,7 +105,13 @@ This command will check:
 }
 
 func runDoctorStructured(cmd *cobra.Command, currentVersion string, verbose bool) error {
-	report, _ := collectDoctorReport(currentVersion, verbose)
+	report, err := collectDoctorReport(currentVersion, verbose)
+	if err != nil {
+		return err
+	}
+	if report.Summary.Status == "fail" {
+		return output.NewError(output.CodeError, doctorSummaryMessage(report), output.ExitUsage, "Inspect the failed doctor checks and address the reported issues.")
+	}
 	if err := output.OK(cmd, report, doctorSummaryMessage(report)); err != nil {
 		return err
 	}

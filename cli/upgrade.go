@@ -61,7 +61,7 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		TargetVersion: targetVersion,
 	}
 
-	if outOpts.Mode != output.ModeJSON && outOpts.Mode != output.ModeAgent {
+	if !output.SuppressesHumanOutput(outOpts) {
 		fmt.Printf("Upgrading project to version %s...\n\n", targetVersion)
 	}
 
@@ -75,7 +75,7 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		return snapErr
 	}
 	report, err := func() (*upgrade.UpgradeReport, error) {
-		if outOpts.Mode == output.ModeJSON || outOpts.Mode == output.ModeAgent {
+		if output.SuppressesHumanOutput(outOpts) {
 			var report *upgrade.UpgradeReport
 			runErr := runWithOptionalStdoutSilence(true, func() error {
 				var executeErr error
@@ -90,7 +90,7 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		return err
 	}
 
-	if outOpts.Mode == output.ModeJSON || outOpts.Mode == output.ModeAgent || outOpts.Mode == output.ModeMarkdown || outOpts.Quiet {
+	if output.SuppressesHumanOutput(outOpts) {
 		after, err := snapshotFilesForReport(projectRoot)
 		if err != nil {
 			return err

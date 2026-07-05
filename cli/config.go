@@ -85,7 +85,10 @@ func newConfigCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cfg, _ := readAgentConfig(path)
+			cfg, err := readOptionalAgentConfig(path)
+			if err != nil {
+				return err
+			}
 			setConfigValue(&cfg, args[0], args[1])
 			if err := writeAgentConfig(path, cfg); err != nil {
 				return err
@@ -103,7 +106,10 @@ func newConfigCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cfg, _ := readAgentConfig(path)
+			cfg, err := readOptionalAgentConfig(path)
+			if err != nil {
+				return err
+			}
 			unsetConfigValue(&cfg, args[0])
 			if err := writeAgentConfig(path, cfg); err != nil {
 				return err
@@ -131,9 +137,18 @@ func loadConfigShowReport() (configShowReport, error) {
 	userPath, _ := userConfigPath()
 	projectPath, _ := projectConfigPath()
 	cachePath, _ := cacheConfigPath()
-	user, _ := readAgentConfig(userPath)
-	project, _ := readAgentConfig(projectPath)
-	cacheCfg, _ := readAgentConfig(cachePath)
+	user, err := readOptionalAgentConfig(userPath)
+	if err != nil {
+		return configShowReport{}, err
+	}
+	project, err := readOptionalAgentConfig(projectPath)
+	if err != nil {
+		return configShowReport{}, err
+	}
+	cacheCfg, err := readOptionalAgentConfig(cachePath)
+	if err != nil {
+		return configShowReport{}, err
+	}
 	merged := mergeAgentConfigs(user, cacheCfg, project)
 	return configShowReport{
 		User:    user,
@@ -206,6 +221,17 @@ func readAgentConfig(path string) (agentConfig, error) {
 		cfg.Values = map[string]string{}
 	}
 	return cfg, nil
+}
+
+func readOptionalAgentConfig(path string) (agentConfig, error) {
+	cfg, err := readAgentConfig(path)
+	if err == nil {
+		return cfg, nil
+	}
+	if path == "" || os.IsNotExist(err) {
+		return agentConfig{Values: map[string]string{}}, nil
+	}
+	return agentConfig{}, err
 }
 
 func writeAgentConfig(path string, cfg agentConfig) error {

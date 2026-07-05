@@ -115,8 +115,8 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 	if err != nil {
 		return err
 	}
-	if dryRun || opts.Mode == output.ModeJSON || opts.Mode == output.ModeAgent || opts.Mode == output.ModeMarkdown || opts.Quiet {
-		silence := opts.Mode == output.ModeJSON || opts.Mode == output.ModeAgent
+	if dryRun || output.SuppressesHumanOutput(opts) {
+		silence := output.SuppressesHumanOutput(opts)
 		report, err := newProjectReport(projectName, basePath, dryRun, diff, func(target string) error {
 			return runWithOptionalStdoutSilence(silence, func() error {
 				return layout.Scaffold(target, projectName, database, cssFramework, version, extensions, "uberfx", adapter, javascriptRuntime)
