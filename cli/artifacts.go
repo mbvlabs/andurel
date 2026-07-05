@@ -309,7 +309,7 @@ func copyDir(src, dst string) error {
 	})
 }
 
-func copyFile(src, dst string, mode os.FileMode) error {
+func copyFile(src, dst string, mode os.FileMode) (err error) {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
@@ -322,7 +322,11 @@ func copyFile(src, dst string, mode os.FileMode) error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer func() {
+		if closeErr := out.Close(); err == nil && closeErr != nil {
+			err = closeErr
+		}
+	}()
 	_, err = io.Copy(out, in)
 	return err
 }
