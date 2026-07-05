@@ -102,7 +102,6 @@ func NewRootCommand(version, date string) *cobra.Command {
 
 	rootCmd.AddCommand(newRunAppCommand())
 	rootCmd.AddCommand(newConsoleCommand())
-	rootCmd.AddCommand(newLlmCommand())
 	rootCmd.AddCommand(newToolCommand())
 	rootCmd.AddCommand(newExtensionCommand())
 	rootCmd.AddCommand(newBuildCommand())
@@ -180,7 +179,11 @@ func newRunAppCommand() *cobra.Command {
 		Use:     "run",
 		Aliases: []string{"r"},
 		Short:   "Start the development server",
-		Long:    "Start the development server (shadowfax) for your Andurel application.",
+		Long: `Start the development server (shadowfax) for your Andurel application.
+
+The server auto-reloads on file changes, including Go, Templ, and
+CSS files. Run this from your project root.`,
+		Example: `  andurel run`,
 		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()

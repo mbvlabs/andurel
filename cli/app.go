@@ -33,7 +33,12 @@ func newConsoleCommand() *cobra.Command {
 		Use:     "console",
 		Aliases: []string{"c"},
 		Short:   "Open an interactive database console",
-		Long:    "Open an interactive database console (usql) using the connection details from .env.",
+		Long: `Open an interactive database console (usql) using the connection
+details from .env.
+
+Reads DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DB_KIND, and
+DB_SSL_MODE from your .env file and connects via usql.`,
+		Example: `  andurel console`,
 		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
@@ -93,7 +98,11 @@ func newDblabCommand() *cobra.Command {
 		Use:     "dblab",
 		Aliases: []string{"d"},
 		Short:   "Open the database UI (dblab)",
-		Long:    "Open the dblab interactive database UI in the browser. Uses connection details from .env.",
+		Long: `Open the dblab interactive database UI in the browser.
+
+Uses DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DB_KIND, and
+DB_SSL_MODE from your .env file.`,
+		Example: `  andurel tool dblab`,
 		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()

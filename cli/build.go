@@ -25,8 +25,12 @@ func newBuildCommand() *cobra.Command {
 This command:
   • Downloads templ and generates views
   • Builds Tailwind CSS (if configured)
+  • Builds Vite assets (if Inertia is configured)
   • Downloads Go dependencies
-  • Compiles the application binary as a static Linux binary`,
+  • Compiles the application binary as a static Linux binary
+  • Injects a version string via ldflags (from --version or git describe)`,
+		Example: `  andurel build
+  andurel build --version 1.2.3`,
 		Args: cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
