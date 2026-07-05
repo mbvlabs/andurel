@@ -1,3 +1,8 @@
+---
+name: andurel
+description: Use this skill when working in an Andurel project or generating Andurel code.
+---
+
 # Andurel
 
 Use this skill when working in an Andurel project or generating Andurel code.
