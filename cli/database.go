@@ -219,9 +219,12 @@ func newDBDropCommand() *cobra.Command {
 	var force bool
 
 	cmd := &cobra.Command{
-		Use:     "drop",
-		Short:   "Drop the configured database",
-		Long:    "Drop the configured database using the connection details from .env.",
+		Use:   "drop",
+		Short: "Drop the configured database",
+		Long: `Drop the configured database using the connection details from .env.
+
+Uses --force to override protection on system databases (e.g.,
+postgres, template1). This cannot be undone.`,
 		Args:    cobra.NoArgs,
 		Example: "  andurel database drop\n  andurel database drop --force",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -240,7 +243,10 @@ func newDBCreateCommand() *cobra.Command {
 		Use:     "create",
 		Aliases: []string{"crt"},
 		Short:   "Create the configured database",
-		Long:    "Create the configured database using the connection details from .env.",
+		Long: `Create the configured database using the connection details from .env.
+
+Reads DB_HOST, DB_PORT, DB_NAME, DB_USER, and DB_PASSWORD to connect
+and create the database. No-op if the database already exists.`,
 		Args:    cobra.NoArgs,
 		Example: "  andurel database create",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -253,9 +259,13 @@ func newDBNukeCommand() *cobra.Command {
 	var force bool
 
 	cmd := &cobra.Command{
-		Use:     "nuke",
-		Short:   "Drop and recreate the configured database",
-		Long:    "Drop and recreate the configured database using the connection details from .env.",
+		Use:   "nuke",
+		Short: "Drop and recreate the configured database",
+		Long: `Drop and recreate the configured database using the connection details
+from .env.
+
+This is a destructive operation that drops the database and creates a
+fresh empty one. Use --force to override system database protection.`,
 		Args:    cobra.NoArgs,
 		Example: "  andurel database nuke\n  andurel database nuke --force",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -277,7 +287,16 @@ func newDBRebuildCommand() *cobra.Command {
 		Use:     "rebuild",
 		Aliases: []string{"rb"},
 		Short:   "Drop, recreate, migrate, and seed the database",
-		Long:    "Drop, recreate, migrate, and seed the database using the connection details from .env.",
+		Long: `Drop, recreate, migrate, and seed the database.
+
+This is a full database reset:
+  1. Drops the existing database
+  2. Creates a fresh one
+  3. Runs all pending migrations
+  4. Seeds the database from database/seeds/main.go
+
+Use --skip-seed to skip step 4. Use --force to override system
+database protection for the drop step.`,
 		Args:    cobra.NoArgs,
 		Example: "  andurel database rebuild\n  andurel database rebuild --skip-seed",
 		RunE: func(cmd *cobra.Command, args []string) error {

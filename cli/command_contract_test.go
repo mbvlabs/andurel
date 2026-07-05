@@ -19,7 +19,6 @@ func TestRootCommandPublicSurface(t *testing.T) {
 		{name: "extension", aliases: []string{"ext", "e"}},
 		{name: "fmt", aliases: []string{"f"}},
 		{name: "generate", aliases: []string{"g"}},
-		{name: "llm", aliases: []string{"l"}},
 		{name: "new", aliases: []string{"n"}},
 		{name: "run", aliases: []string{"r"}},
 		{name: "tool", aliases: []string{"t"}},
