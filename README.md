@@ -343,21 +343,6 @@ andurel extension list (alias: ls)
 
 Available extensions: `docker`, `aws-ses`, `css-components`.
 
-### `andurel llm` — LLM documentation
-
-Outputs comprehensive framework documentation for AI assistants. Supports topic-specific subcommands:
-
-```bash
-andurel llm (alias: l)
-andurel llm controllers (alias: c)
-andurel llm models (alias: m)
-andurel llm views (alias: v)
-andurel llm router (alias: r)
-andurel llm hypermedia (alias: h)
-andurel llm jobs (alias: j)
-andurel llm config (alias: cfg)
-```
-
 ### `andurel upgrade` — Framework upgrade
 
 Upgrade framework-managed files and tool versions to the latest.
@@ -403,14 +388,6 @@ andurel doctor (alias: doc) [--verbose]
 | `andurel database migrate down-to` | `downto` |
 | `andurel run` | `r` |
 | `andurel console` | `c` |
-| `andurel llm` | `l` |
-| `andurel llm controllers` | `c` |
-| `andurel llm models` | `m` |
-| `andurel llm views` | `v` |
-| `andurel llm router` | `r` |
-| `andurel llm hypermedia` | `h` |
-| `andurel llm jobs` | `j` |
-| `andurel llm config` | `cfg` |
 | `andurel tool` | `t` |
 | `andurel tool sync` | `s` |
 | `andurel tool set-version` | `sv` |

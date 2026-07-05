@@ -283,7 +283,7 @@ func newScaffoldNormalizer(t *testing.T, project *internal.Project) *scaffoldNor
 		t.Fatalf("failed to read .env.example for normalization: %v", err)
 	}
 
-	for _, line := range strings.Split(strings.ReplaceAll(string(content), "\r\n", "\n"), "\n") {
+	for line := range strings.SplitSeq(strings.ReplaceAll(string(content), "\r\n", "\n"), "\n") {
 		key, value, ok := strings.Cut(line, "=")
 		if !ok || value == "" {
 			continue

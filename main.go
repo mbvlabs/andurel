@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/mbvlabs/andurel/cli"
+	"github.com/mbvlabs/andurel/cli/output"
 )
 
 var (
@@ -34,6 +35,7 @@ func main() {
 	rootCmd := cli.NewRootCommand(getVersion(), date)
 
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
-		os.Exit(1)
+		_ = output.RenderError(rootCmd, err)
+		os.Exit(output.ExitCode(err))
 	}
 }

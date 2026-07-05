@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 
+	"github.com/mbvlabs/andurel/cli/output"
 	generatorpkg "github.com/mbvlabs/andurel/generator"
 	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
@@ -15,6 +16,8 @@ func newGenerateScaffoldCommand() *cobra.Command {
 		primaryKeyColumn string
 		inertia          bool
 		api              bool
+		dryRun           bool
+		diff             bool
 	)
 
 	cmd := &cobra.Command{
@@ -75,23 +78,36 @@ with echo.JSON responses. No views are generated.`,
 				return err
 			}
 
-			if err := chdirToProjectRoot(); err != nil {
+			rootDir, err := findGoModRoot()
+			if err != nil {
 				return err
 			}
 
-			inertiaStr := ""
-			if inertia {
-				inertiaStr = generatorpkg.ReadInertia()
-			}
+			return runMutation(cmd, mutationOptions{
+				Action:   "generate scaffold",
+				Resource: name,
+				RootDir:  rootDir,
+				DryRun:   dryRun,
+				Diff:     diff,
+				Breadcrumbs: []output.Breadcrumb{
+					{Command: "andurel database migrate up", Description: "Apply migrations before using the resource"},
+					{Command: "andurel run", Description: "Start the development server"},
+				},
+				Run: func(rootDir string) error {
+					inertiaStr := ""
+					if inertia {
+						inertiaStr = generatorpkg.ReadInertia()
+					}
+					return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
+						gen, err := newGenerator()
+						if err != nil {
+							return err
+						}
 
-			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				gen, err := newGenerator()
-				if err != nil {
-					return err
-				}
-
-				return gen.GenerateScaffold(resourceName, namespace, tableName, skipFactory, primaryKeyColumn, inertiaStr, api)
-			})(cmd, args)
+						return gen.GenerateScaffold(resourceName, namespace, tableName, skipFactory, primaryKeyColumn, inertiaStr, api)
+					})(cmd, args)
+				},
+			})
 		},
 	}
 
@@ -100,6 +116,8 @@ with echo.JSON responses. No views are generated.`,
 	cmd.Flags().StringVar(&primaryKeyColumn, "primary-key", "", "Specify the primary key column (skips interactive detection)")
 	cmd.Flags().BoolVar(&api, "api", false, "Generate a JSON API controller under controllers/api")
 	cmd.Flags().BoolVar(&inertia, "inertia", false, "Generate Inertia views using the adapter configured in andurel.lock")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview file changes without applying")
+	cmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
 
 	return cmd
 }

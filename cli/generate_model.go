@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 
+	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/spf13/cobra"
 )
 
@@ -13,6 +14,8 @@ func newGenerateModelCommand() *cobra.Command {
 		updateModel      bool
 		autoApply        bool
 		primaryKeyColumn string
+		dryRun           bool
+		diff             bool
 	)
 
 	cmd := &cobra.Command{
@@ -59,24 +62,36 @@ Use --update to sync an existing model file with migration changes.`,
 			}
 			name := args[0]
 
-			if err := chdirToProjectRoot(); err != nil {
+			rootDir, err := findGoModRoot()
+			if err != nil {
 				return err
 			}
 
-			if updateModel {
-				return runModelUpdateFunc(name, autoApply)
-			}
-
-			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				gen, err := newGenerator()
-				if err != nil {
-					return err
-				}
-				if primaryKeyColumn != "" {
-					return gen.GenerateModelWithPK(name, tableName, skipFactory, primaryKeyColumn)
-				}
-				return gen.GenerateModel(name, tableName, skipFactory)
-			})(cmd, args)
+			return runMutation(cmd, mutationOptions{
+				Action:   "generate model",
+				Resource: name,
+				RootDir:  rootDir,
+				DryRun:   dryRun,
+				Diff:     diff,
+				Breadcrumbs: []output.Breadcrumb{
+					{Command: "andurel doctor", Description: "Verify generated model health"},
+				},
+				Run: func(rootDir string) error {
+					if updateModel {
+						return runModelUpdateFunc(name, autoApply)
+					}
+					return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
+						gen, err := newGenerator()
+						if err != nil {
+							return err
+						}
+						if primaryKeyColumn != "" {
+							return gen.GenerateModelWithPK(name, tableName, skipFactory, primaryKeyColumn)
+						}
+						return gen.GenerateModel(name, tableName, skipFactory)
+					})(cmd, args)
+				},
+			})
 		},
 	}
 
@@ -85,6 +100,8 @@ Use --update to sync an existing model file with migration changes.`,
 	cmd.Flags().BoolVar(&updateModel, "update", false, "Update an existing model from migration changes")
 	cmd.Flags().BoolVar(&autoApply, "yes", false, "Apply changes without prompting for confirmation")
 	cmd.Flags().StringVar(&primaryKeyColumn, "primary-key", "", "Specify the primary key column (skips interactive detection)")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview file changes without applying")
+	cmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
 
 	return cmd
 }

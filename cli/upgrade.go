@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 
+	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/layout/upgrade"
 	"github.com/spf13/cobra"
 )
@@ -30,6 +31,7 @@ your application code to work with any API changes in the new version.`,
 	}
 
 	upgradeCmd.Flags().Bool("dry-run", false, "Show what would be changed without applying")
+	upgradeCmd.Flags().Bool("diff", false, "Include a text diff preview in structured output")
 
 	return upgradeCmd
 }
@@ -44,6 +46,14 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 	if err != nil {
 		return err
 	}
+	diff, err := cmd.Flags().GetBool("diff")
+	if err != nil {
+		return err
+	}
+	outOpts, err := output.ParseOptions(cmd)
+	if err != nil {
+		return err
+	}
 
 	opts := upgrade.UpgradeOptions{
 		DryRun:        dryRun,
@@ -51,16 +61,59 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		TargetVersion: targetVersion,
 	}
 
-	fmt.Printf("Upgrading project to version %s...\n\n", targetVersion)
+	if outOpts.Mode != output.ModeJSON && outOpts.Mode != output.ModeAgent {
+		fmt.Printf("Upgrading project to version %s...\n\n", targetVersion)
+	}
 
 	upgrader, err := upgrade.NewUpgrader(projectRoot, opts)
 	if err != nil {
 		return fmt.Errorf("failed to initialize upgrader: %w", err)
 	}
 
-	report, err := upgrader.Execute()
+	before, snapErr := snapshotFilesForReport(projectRoot)
+	if snapErr != nil {
+		return snapErr
+	}
+	report, err := func() (*upgrade.UpgradeReport, error) {
+		if outOpts.Mode == output.ModeJSON || outOpts.Mode == output.ModeAgent {
+			var report *upgrade.UpgradeReport
+			runErr := runWithOptionalStdoutSilence(true, func() error {
+				var executeErr error
+				report, executeErr = upgrader.Execute()
+				return executeErr
+			})
+			return report, runErr
+		}
+		return upgrader.Execute()
+	}()
 	if err != nil {
 		return err
+	}
+
+	if outOpts.Mode == output.ModeJSON || outOpts.Mode == output.ModeAgent || outOpts.Mode == output.ModeMarkdown || outOpts.Quiet {
+		after, err := snapshotFilesForReport(projectRoot)
+		if err != nil {
+			return err
+		}
+		artifactReport := buildMutationReport(mutationOptions{
+			Action:   "upgrade",
+			Resource: targetVersion,
+			DryRun:   dryRun,
+			Diff:     diff,
+			CommandsRun: []string{
+				"andurel tool sync",
+			},
+		}, before, after)
+		if dryRun && report != nil {
+			artifactReport.FilesUpdated = append([]string(nil), report.ReplacedFiles...)
+			artifactReport.FilesDeleted = append([]string(nil), report.RemovedFiles...)
+			artifactReport.Warnings = append(artifactReport.Warnings, "dry run only; no files were changed")
+		}
+		data := map[string]any{
+			"upgrade":   report,
+			"artifacts": artifactReport,
+		}
+		return output.OK(cmd, data, mutationSummary(artifactReport), output.Breadcrumb{Command: "andurel doctor"}, output.Breadcrumb{Command: "git diff"})
 	}
 
 	if dryRun {

@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/mbvlabs/andurel/cli/output"
 	generatorpkg "github.com/mbvlabs/andurel/generator"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/templates"
@@ -29,6 +30,8 @@ type workerTemplateData struct {
 
 func newGenerateJobCommand() *cobra.Command {
 	var queueName string
+	var dryRun bool
+	var diff bool
 
 	cmd := &cobra.Command{
 		Use:     "job NAME",
@@ -64,17 +67,33 @@ when inserting the job.`,
 			}
 			name := args[0]
 
-			if err := chdirToProjectRoot(); err != nil {
+			rootDir, err := findGoModRoot()
+			if err != nil {
 				return err
 			}
 
-			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				return generateJob(name, queueName)
-			})(cmd, args)
+			return runMutation(cmd, mutationOptions{
+				Action:   "generate job",
+				Resource: name,
+				RootDir:  rootDir,
+				DryRun:   dryRun,
+				Diff:     diff,
+				Breadcrumbs: []output.Breadcrumb{
+					{Command: "andurel jobs --json", Description: "Inspect generated jobs"},
+					{Command: "andurel doctor", Description: "Verify project health"},
+				},
+				Run: func(rootDir string) error {
+					return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
+						return generateJob(name, queueName)
+					})(cmd, args)
+				},
+			})
 		},
 	}
 
 	cmd.Flags().StringVar(&queueName, "queue", "", "Assign the job to a specific queue")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview file changes without applying")
+	cmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
 
 	return cmd
 }
