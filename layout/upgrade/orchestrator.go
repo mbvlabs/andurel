@@ -100,15 +100,19 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		fmt.Printf("\n[DRY RUN] Would replace:\n")
 		for path := range renderedTemplates {
 			fmt.Printf("  • %s\n", path)
+			report.ReplacedFiles = append(report.ReplacedFiles, path)
 		}
+		report.FilesReplaced = len(report.ReplacedFiles)
 
 		obsoleteInternalFiles := u.obsoleteManagedInternalFiles()
 		if len(obsoleteInternalFiles) > 0 {
 			fmt.Printf("\n[DRY RUN] Would remove obsolete internal package files:\n")
 			for _, path := range obsoleteInternalFiles {
 				fmt.Printf("  - %s\n", path)
+				report.RemovedFiles = append(report.RemovedFiles, path)
 			}
 		}
+		report.FilesRemoved = len(report.RemovedFiles)
 
 		// Preview tool changes
 		fmt.Printf("\n[DRY RUN] Tool changes:\n")
@@ -118,18 +122,24 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 			for _, tool := range toolSyncPreview.Added {
 				fmt.Printf("    + %s\n", tool)
 			}
+			report.AddedTools = toolSyncPreview.Added
+			report.ToolsAdded = len(toolSyncPreview.Added)
 		}
 		if len(toolSyncPreview.Updated) > 0 {
 			fmt.Printf("  Would update:\n")
 			for _, tool := range toolSyncPreview.Updated {
 				fmt.Printf("    ↑ %s\n", tool)
 			}
+			report.UpdatedTools = toolSyncPreview.Updated
+			report.ToolsUpdated = len(toolSyncPreview.Updated)
 		}
 		if len(toolSyncPreview.Removed) > 0 {
 			fmt.Printf("  Would remove:\n")
 			for _, tool := range toolSyncPreview.Removed {
 				fmt.Printf("    - %s\n", tool)
 			}
+			report.RemovedTools = toolSyncPreview.Removed
+			report.ToolsRemoved = len(toolSyncPreview.Removed)
 		}
 
 		report.Success = true

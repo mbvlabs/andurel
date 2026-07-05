@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
 	"github.com/mbvlabs/andurel/pkg/naming"
@@ -17,6 +18,9 @@ type emailTemplateData struct {
 }
 
 func newGenerateEmailCommand() *cobra.Command {
+	var dryRun bool
+	var diff bool
+
 	cmd := &cobra.Command{
 		Use:     "email NAME",
 		Aliases: []string{"e"},
@@ -40,15 +44,32 @@ email.SendMarketing.`,
 			}
 			name := args[0]
 
-			if err := chdirToProjectRoot(); err != nil {
+			rootDir, err := findGoModRoot()
+			if err != nil {
 				return err
 			}
 
-			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				return generateEmail(name)
-			})(cmd, args)
+			return runMutation(cmd, mutationOptions{
+				Action:   "generate email",
+				Resource: name,
+				RootDir:  rootDir,
+				DryRun:   dryRun,
+				Diff:     diff,
+				Breadcrumbs: []output.Breadcrumb{
+					{Command: "andurel views --json", Description: "Inspect generated templates"},
+					{Command: "andurel doctor", Description: "Verify project health"},
+				},
+				Run: func(rootDir string) error {
+					return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
+						return generateEmail(name)
+					})(cmd, args)
+				},
+			})
 		},
 	}
+
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview file changes without applying")
+	cmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
 
 	return cmd
 }

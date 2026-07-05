@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -563,17 +564,13 @@ func processTemplatedFiles(
 	data extensions.TemplateData,
 ) error {
 	mappings := make(map[TmplTarget]TmplTargetPath, len(baseTemplateMappings)+len(fxTemplateOverrides)+len(inertiaSharedTemplateMappings)+len(inertiaVueTemplateMappings))
-	for k, v := range baseTemplateMappings {
-		mappings[k] = v
-	}
+	maps.Copy(mappings, baseTemplateMappings)
 
 	if td, ok := data.(*TemplateData); ok && td.DIMode == "uberfx" {
 		for k := range fxSkippedTemplates {
 			delete(mappings, k)
 		}
-		for k, v := range fxTemplateOverrides {
-			mappings[k] = v
-		}
+		maps.Copy(mappings, fxTemplateOverrides)
 	}
 
 	if td, ok := data.(*TemplateData); ok && IsSupportedInertiaAdapter(td.Inertia) {
@@ -587,12 +584,8 @@ func processTemplatedFiles(
 			delete(mappings, "deprecated_controllers_pages.tmpl")
 			mappings["deprecated_controllers_pages_inertia.tmpl"] = inertiaTemplateOverrides["deprecated_controllers_pages_inertia.tmpl"]
 		}
-		for k, v := range inertiaSharedTemplateMappings {
-			mappings[k] = v
-		}
-		for k, v := range inertiaAdapterTemplateMappings(td.Inertia) {
-			mappings[k] = v
-		}
+		maps.Copy(mappings, inertiaSharedTemplateMappings)
+		maps.Copy(mappings, inertiaAdapterTemplateMappings(td.Inertia))
 	}
 
 	for templateFile, targetPath := range mappings {
@@ -891,6 +884,14 @@ func registerBuiltinExtensions() error {
 	})
 
 	return registerBuiltinErr
+}
+
+// AvailableExtensionNames returns the sorted names of built-in extensions.
+func AvailableExtensionNames() ([]string, error) {
+	if err := registerBuiltinExtensions(); err != nil {
+		return nil, err
+	}
+	return extensions.Names(), nil
 }
 
 func resolveExtensions(names []string) ([]extensions.Extension, error) {

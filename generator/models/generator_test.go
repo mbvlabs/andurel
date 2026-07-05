@@ -1,6 +1,7 @@
 package models
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
@@ -86,10 +87,5 @@ func tableHasPrimaryKey(table *catalog.Table) bool {
 }
 
 func hasImport(imports []string, target string) bool {
-	for _, imp := range imports {
-		if imp == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(imports, target)
 }

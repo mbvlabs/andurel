@@ -15,15 +15,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/spf13/cobra"
 )
 
 type checkResult struct {
-	name    string
-	status  checkStatus
-	message string
-	details []string
+	category string
+	name     string
+	status   checkStatus
+	message  string
+	details  []string
 }
 
 type checkStatus int
@@ -33,6 +35,44 @@ const (
 	statusWarn
 	statusFail
 )
+
+func (s checkStatus) String() string {
+	switch s {
+	case statusPass:
+		return "pass"
+	case statusWarn:
+		return "warn"
+	case statusFail:
+		return "fail"
+	default:
+		return "unknown"
+	}
+}
+
+type doctorReport struct {
+	Version string        `json:"version,omitempty"`
+	Root    string        `json:"root,omitempty"`
+	Checks  []doctorCheck `json:"checks"`
+	Summary doctorSummary `json:"summary"`
+}
+
+type doctorCheck struct {
+	Category string   `json:"category"`
+	Name     string   `json:"name"`
+	Status   string   `json:"status"`
+	Message  string   `json:"message,omitempty"`
+	Details  []string `json:"details,omitempty"`
+	Hint     string   `json:"hint,omitempty"`
+	Blocking bool     `json:"blocking"`
+}
+
+type doctorSummary struct {
+	Total    int    `json:"total"`
+	Passed   int    `json:"passed"`
+	Warnings int    `json:"warnings"`
+	Failed   int    `json:"failed"`
+	Status   string `json:"status"`
+}
 
 func newDoctorCommand(currentVersion string) *cobra.Command {
 	doctorCmd := &cobra.Command{
@@ -50,13 +90,150 @@ This command will check:
   andurel doctor --verbose`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			opts, err := output.ParseOptions(cmd)
+			if err != nil {
+				return err
+			}
+			if opts.Mode == output.ModeJSON || opts.Mode == output.ModeAgent {
+				return runDoctorStructured(cmd, currentVersion, verbose)
+			}
 			return runDoctor(currentVersion, verbose)
 		},
 	}
 
-	doctorCmd.Flags().Bool("verbose", false, "Show detailed output from all checks")
+	doctorCmd.Flags().Bool("verbose", false, "Emit verbose diagnostic output")
 
 	return doctorCmd
+}
+
+func runDoctorStructured(cmd *cobra.Command, currentVersion string, verbose bool) error {
+	report, err := collectDoctorReport(currentVersion, verbose)
+	if err != nil {
+		return err
+	}
+	if report.Summary.Status == "fail" {
+		return output.NewError(output.CodeError, doctorSummaryMessage(report), output.ExitUsage, "Inspect the failed doctor checks and address the reported issues.")
+	}
+	if err := output.OK(cmd, report, doctorSummaryMessage(report)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func collectDoctorReport(currentVersion string, verbose bool) (doctorReport, error) {
+	var results []checkResult
+
+	results = append(results, categorizeResults("environment",
+		checkGoVersion(),
+		checkInAndurelProject(),
+	)...)
+
+	rootDir, err := findGoModRoot()
+	if err != nil {
+		return buildDoctorReport(currentVersion, "", results), err
+	}
+
+	results = append(results, categorizeResults("configuration",
+		checkLockFile(rootDir),
+		checkAndurelVersion(rootDir, currentVersion),
+		checkToolVersions(rootDir, verbose),
+	)...)
+
+	results = append(results, categorizeResults("code_quality",
+		checkGoVet(rootDir, verbose),
+		checkGoModTidy(rootDir, verbose),
+	)...)
+
+	results = append(results, categorizeResults("code_generation",
+		checkTemplGenerate(rootDir, verbose),
+	)...)
+
+	return buildDoctorReport(currentVersion, rootDir, results), nil
+}
+
+func categorizeResults(category string, results ...checkResult) []checkResult {
+	for i := range results {
+		results[i].category = category
+	}
+	return results
+}
+
+func buildDoctorReport(currentVersion, rootDir string, results []checkResult) doctorReport {
+	report := doctorReport{
+		Version: currentVersion,
+		Root:    rootDir,
+		Checks:  make([]doctorCheck, 0, len(results)),
+		Summary: doctorSummary{Total: len(results), Status: "pass"},
+	}
+
+	for _, result := range results {
+		switch result.status {
+		case statusPass:
+			report.Summary.Passed++
+		case statusWarn:
+			report.Summary.Warnings++
+		case statusFail:
+			report.Summary.Failed++
+		}
+
+		report.Checks = append(report.Checks, doctorCheckFromResult(result))
+	}
+
+	if report.Summary.Failed > 0 {
+		report.Summary.Status = "fail"
+	} else if report.Summary.Warnings > 0 {
+		report.Summary.Status = "warn"
+	}
+
+	return report
+}
+
+func doctorCheckFromResult(result checkResult) doctorCheck {
+	return doctorCheck{
+		Category: result.category,
+		Name:     result.name,
+		Status:   result.status.String(),
+		Message:  result.message,
+		Details:  append([]string(nil), result.details...),
+		Hint:     doctorHint(result),
+		Blocking: result.status == statusFail,
+	}
+}
+
+func doctorHint(result checkResult) string {
+	if result.status == statusPass {
+		return ""
+	}
+
+	switch result.name {
+	case "Andurel project":
+		return "Run this from a directory containing an Andurel project's go.mod file."
+	case "andurel.lock":
+		return "Run from a generated Andurel project root with a valid andurel.lock file."
+	case "Andurel version":
+		return "Use the Andurel version recorded in andurel.lock or run andurel upgrade."
+	case "tool versions":
+		return "Run andurel tool sync to install or update framework tools."
+	case "go vet":
+		return "Run go vet ./... and fix the reported issues."
+	case "go mod tidy":
+		return "Run go mod tidy and commit the resulting go.mod or go.sum changes."
+	case "views generate":
+		return "Run andurel generate view and fix any template generation errors."
+	default:
+		return ""
+	}
+}
+
+func doctorSummaryMessage(report doctorReport) string {
+	switch report.Summary.Status {
+	case "fail":
+		return "Doctor checks failed"
+	case "warn":
+		return "Doctor checks completed with warnings"
+	default:
+		return "Doctor checks passed"
+	}
 }
 
 func runDoctor(currentVersion string, verbose bool) error {

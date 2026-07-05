@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/spf13/cobra"
 )
@@ -19,6 +20,10 @@ type helpCommand struct {
 func setStandardHelp(cmd *cobra.Command, commands ...helpCommand) {
 	helpOwner := cmd
 	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		if renderStructuredHelpIfNeeded(cmd) {
+			return
+		}
+
 		// Output description
 		if cmd.Long != "" {
 			fmt.Println(cmd.Long)
@@ -70,6 +75,10 @@ func setStandardHelp(cmd *cobra.Command, commands ...helpCommand) {
 			// FlagUsages already has leading spaces, just print as-is
 			fmt.Print(usage)
 		}
+		if cmd.HasAvailableInheritedFlags() {
+			fmt.Println("Global Flags:")
+			fmt.Print(cmd.InheritedFlags().FlagUsages())
+		}
 	})
 }
 
@@ -83,17 +92,20 @@ func isInAndurelProject() bool {
 
 func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:          "andurel",
-		Short:        "Andurel - The Go Web development framework",
-		Long:         `Andurel is a comprehensive web development framework for Go,`,
-		Version:      fmt.Sprintf("%s (built: %s)", version, date),
-		SilenceUsage: true,
+		Use:           "andurel",
+		Short:         "Andurel - The Go Web development framework",
+		Long:          `Andurel is a comprehensive web development framework for Go,`,
+		Version:       fmt.Sprintf("%s (built: %s)", version, date),
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			printBanner()
 			fmt.Println()
 			cmd.Help()
 		},
 	}
+
+	output.RegisterPersistentFlags(rootCmd)
 
 	rootCmd.AddCommand(newProjectCommand(version))
 	rootCmd.AddCommand(newGenerateCommand())
@@ -107,11 +119,25 @@ func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd.AddCommand(newBuildCommand())
 	rootCmd.AddCommand(newUpgradeCommand(version))
 	rootCmd.AddCommand(newDoctorCommand(version))
+	rootCmd.AddCommand(newCommandsCommand(rootCmd))
+	rootCmd.AddCommand(newProjectInfoCommand())
+	rootCmd.AddCommand(newRoutesCommand())
+	rootCmd.AddCommand(newModelsCommand())
+	rootCmd.AddCommand(newMigrationsCommand())
+	rootCmd.AddCommand(newControllersCommand())
+	rootCmd.AddCommand(newViewsCommand())
+	rootCmd.AddCommand(newJobsCommand())
+	rootCmd.AddCommand(newConfigCommand())
+	rootCmd.AddCommand(newSkillCommand())
 
 	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true})
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 
 	rootCmd.SetHelpFunc(func(c *cobra.Command, args []string) {
+		if renderStructuredHelpIfNeeded(c) {
+			return
+		}
+
 		if c.Parent() != nil {
 			c.Print(c.Short)
 			c.Println()
@@ -133,6 +159,11 @@ func NewRootCommand(version, date string) *cobra.Command {
 				c.Println("Flags:")
 				c.Print(c.LocalFlags().FlagUsages())
 			}
+			if c.HasAvailableInheritedFlags() {
+				c.Println()
+				c.Println("Global Flags:")
+				c.Print(c.InheritedFlags().FlagUsages())
+			}
 			return
 		}
 		if isInAndurelProject() {
@@ -151,7 +182,7 @@ func NewRootCommand(version, date string) *cobra.Command {
 			}
 			c.Println()
 			c.Println("Flags:")
-			c.Println(c.LocalFlags().FlagUsages())
+			c.Print(c.PersistentFlags().FlagUsages())
 			c.Println("Use \"andurel [command] --help\" for more information about a command.")
 		} else {
 			fmt.Println("Usage:")
@@ -162,6 +193,9 @@ func NewRootCommand(version, date string) *cobra.Command {
 			fmt.Printf("  %-14s %s\n", "new", "Create a new Andurel project")
 			fmt.Println()
 			fmt.Println("All commands can be run with -h (or --help) for more information.")
+			fmt.Println()
+			fmt.Println("Global Flags:")
+			fmt.Print(c.PersistentFlags().FlagUsages())
 			fmt.Println()
 			fmt.Println("Inside an Andurel application directory, some common commands are:")
 			fmt.Println()
@@ -251,7 +285,7 @@ func checkBinaries(rootDir string) error {
 
 	binPath := filepath.Join(rootDir, "bin", "shadowfax")
 	if _, err := os.Stat(binPath); err != nil {
-		return fmt.Errorf("bin/shadowfax not found. Run 'andurel tool sync' to download it")
+		return output.NewError(output.CodeMissingTool, "bin/shadowfax not found", output.ExitDependency, "Run 'andurel tool sync' to download it.")
 	}
 
 	return nil

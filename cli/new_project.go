@@ -4,14 +4,18 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
+	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/layout"
 
 	"github.com/spf13/cobra"
 )
 
 func newProjectCommand(version string) *cobra.Command {
+	var dryRun bool
+	var diff bool
 	projectCmd := &cobra.Command{
 		Use:     "new [project-name]",
 		Aliases: []string{"n"},
@@ -27,9 +31,9 @@ creation, run 'andurel tool sync' to download required binaries.`,
 				return cmd.Help()
 			}
 			if isInAndurelProject() {
-				return fmt.Errorf("cannot create a new project inside an existing Andurel project")
+				return output.NewError(output.CodeUnsafeAction, "cannot create a new project inside an existing Andurel project", output.ExitUnsafe, "Run andurel new from a parent directory outside an existing project.")
 			}
-			return newProject(cmd, args, version)
+			return newProject(cmd, args, version, dryRun, diff)
 		},
 	}
 
@@ -38,11 +42,13 @@ creation, run 'andurel tool sync' to download required binaries.`,
 
 	projectCmd.Flags().
 		String("inertia", "", "Inertia adapter to use (vue, react). Optionally append /npm|pnpm|bun|yarn to specify the JS runtime (default: npm)")
+	projectCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview project files without creating them")
+	projectCmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
 
 	return projectCmd
 }
 
-func newProject(cmd *cobra.Command, args []string, version string) error {
+func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, diff bool) error {
 	projectName := args[0]
 	basePath := "./" + projectName
 
@@ -105,8 +111,25 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	if err != nil {
 		return err
 	}
-	if err := layout.Scaffold(basePath, projectName, database, cssFramework, version, extensions, "uberfx", adapter, javascriptRuntime); err != nil {
+	opts, err := output.ParseOptions(cmd)
+	if err != nil {
 		return err
+	}
+	if dryRun || output.SuppressesHumanOutput(opts) {
+		silence := output.SuppressesHumanOutput(opts)
+		report, err := newProjectReport(projectName, basePath, dryRun, diff, func(target string) error {
+			return runWithOptionalStdoutSilence(silence, func() error {
+				return layout.Scaffold(target, projectName, database, cssFramework, version, extensions, "uberfx", adapter, javascriptRuntime)
+			})
+		})
+		if err != nil {
+			return err
+		}
+		return output.OK(cmd, report, mutationSummary(report), output.Breadcrumb{Command: "andurel tool sync"}, output.Breadcrumb{Command: "andurel database migrate up"}, output.Breadcrumb{Command: "andurel run"})
+	}
+
+	if err := layout.Scaffold(basePath, projectName, database, cssFramework, version, extensions, "uberfx", adapter, javascriptRuntime); err != nil {
+		return output.WrapError(output.CodeGenerationFailed, err, output.ExitGeneration, "Inspect the scaffold inputs and retry.")
 	}
 
 	fmt.Printf("\n🎉 Successfully created project: %s\n", projectName)
@@ -123,4 +146,40 @@ func newProject(cmd *cobra.Command, args []string, version string) error {
 	fmt.Printf("  andurel run\n")
 
 	return nil
+}
+
+func newProjectReport(projectName, basePath string, dryRun bool, diff bool, scaffold func(target string) error) (mutationReport, error) {
+	var targetPath string
+	if dryRun {
+		tempDir, err := os.MkdirTemp("", "andurel-new-dry-run-*")
+		if err != nil {
+			return mutationReport{}, err
+		}
+		defer os.RemoveAll(tempDir)
+		targetPath = filepath.Join(tempDir, projectName)
+		if err := scaffold(targetPath); err != nil {
+			return mutationReport{}, err
+		}
+	} else {
+		targetPath = basePath
+		if err := scaffold(targetPath); err != nil {
+			return mutationReport{}, err
+		}
+	}
+
+	absTarget, err := filepath.Abs(targetPath)
+	if err != nil {
+		return mutationReport{}, err
+	}
+	after, err := snapshotFilesForReport(absTarget)
+	if err != nil {
+		return mutationReport{}, err
+	}
+	report := buildMutationReport(mutationOptions{
+		Action:   "new project",
+		Resource: projectName,
+		DryRun:   dryRun,
+		Diff:     diff,
+	}, fileSnapshot{}, after)
+	return report, nil
 }

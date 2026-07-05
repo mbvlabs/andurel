@@ -314,8 +314,8 @@ func readModulePathFromRoot(rootDir string) (string, error) {
 	}
 	for line := range strings.SplitSeq(string(content), "\n") {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "module ") {
-			return strings.TrimSpace(strings.TrimPrefix(line, "module ")), nil
+		if after, ok := strings.CutPrefix(line, "module "); ok {
+			return strings.TrimSpace(after), nil
 		}
 	}
 	return "", fmt.Errorf("module declaration not found in go.mod")

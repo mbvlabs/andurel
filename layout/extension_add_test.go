@@ -494,10 +494,10 @@ func TestApplyExtension_UberFxMode(t *testing.T) {
 
 // extractEnvValue extracts the value for a given key from KEY=VALUE format text.
 func extractEnvValue(text, key string) string {
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, key+"=") {
-			return strings.TrimPrefix(line, key+"=")
+		if after, ok := strings.CutPrefix(line, key+"="); ok {
+			return after
 		}
 	}
 	return ""

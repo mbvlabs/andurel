@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/mbvlabs/andurel/cli/output"
 	generatorpkg "github.com/mbvlabs/andurel/generator"
 	controllergen "github.com/mbvlabs/andurel/generator/controllers"
 	"github.com/mbvlabs/andurel/generator/files"
@@ -21,6 +22,8 @@ func newGenerateControllerCommand() *cobra.Command {
 		inertia   bool
 		modelName string
 		api       bool
+		dryRun    bool
+		diff      bool
 	)
 
 	cmd := &cobra.Command{
@@ -88,24 +91,39 @@ namespace segment in the name, and the default action set excludes new/edit.`,
 			name := args[0]
 			actions := args[1:]
 
-			if err := chdirToProjectRoot(); err != nil {
+			rootDir, err := findGoModRoot()
+			if err != nil {
 				return err
 			}
 
-			inertiaStr := ""
-			if inertia {
-				inertiaStr = generatorpkg.ReadInertia()
-			}
-
-			return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-				return generateControllerWithActionsFunc(name, modelName, actions, inertiaStr, api)
-			})(cmd, args)
+			return runMutation(cmd, mutationOptions{
+				Action:   "generate controller",
+				Resource: name,
+				RootDir:  rootDir,
+				DryRun:   dryRun,
+				Diff:     diff,
+				Breadcrumbs: []output.Breadcrumb{
+					{Command: "andurel routes --json", Description: "Inspect generated route files"},
+					{Command: "andurel doctor", Description: "Verify project health"},
+				},
+				Run: func(rootDir string) error {
+					inertiaStr := ""
+					if inertia {
+						inertiaStr = generatorpkg.ReadInertia()
+					}
+					return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
+						return generateControllerWithActionsFunc(name, modelName, actions, inertiaStr, api)
+					})(cmd, args)
+				},
+			})
 		},
 	}
 
 	cmd.Flags().BoolVar(&api, "api", false, "Generate a JSON API controller under controllers/api")
 	cmd.Flags().BoolVar(&inertia, "inertia", false, "Generate Inertia views using the adapter configured in andurel.lock")
 	cmd.Flags().StringVar(&modelName, "model-name", "", "Use a different model name for model-backed controller generation")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview file changes without applying")
+	cmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
 
 	return cmd
 }

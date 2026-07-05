@@ -139,8 +139,8 @@ func inertiaDataType(field GeneratedField) string {
 		return "time.Time"
 	}
 
-	if strings.HasPrefix(field.GoType, "*") {
-		return strings.TrimPrefix(field.GoType, "*")
+	if after, ok := strings.CutPrefix(field.GoType, "*"); ok {
+		return after
 	}
 
 	return field.GoType

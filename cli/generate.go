@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +18,7 @@ import (
 func chdirToProjectRoot() error {
 	rootDir, err := findGoModRoot()
 	if err != nil {
-		return fmt.Errorf("not in an andurel project directory: %w", err)
+		return output.WrapError(output.CodeProjectNotFound, err, output.ExitProject, "Run this from a directory containing an Andurel project's go.mod file.")
 	}
 	return os.Chdir(rootDir)
 }
@@ -51,6 +52,7 @@ names, and Admin-prefixed route/view symbols.`,
   andurel generate job SendWelcomeEmail
   andurel generate email WelcomeEmail`,
 	}
+	setAgentMetadata(cmd, "generation", "Requires an Andurel project root for generators that inspect or write project files.")
 
 	cmd.AddCommand(
 		newGenerateModelCommand(),
