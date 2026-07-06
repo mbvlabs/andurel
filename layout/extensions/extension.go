@@ -18,7 +18,6 @@ var Files embed.FS
 type TemplateData interface {
 	DatabaseDialect() string
 	GetModuleName() string
-	GetCSSFramework() string
 	GetInertia() string
 	Builder() *blueprint.Builder
 	SetBlueprint(bp *blueprint.Blueprint)

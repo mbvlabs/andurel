@@ -21,7 +21,6 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 		migrations       string
 		skipFactory      bool
 		primaryKeyColumn string
-		cssFramework     string
 		extensions       []string
 		inertia          string
 	}{
@@ -29,13 +28,11 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 			name:         "full_crud_tailwind",
 			resourceName: "Widget",
 			migrations:   "controller_view_generation",
-			cssFramework: "tailwind",
 		},
 		{
 			name:         "full_crud_css_components",
 			resourceName: "Widget",
 			migrations:   "controller_view_generation",
-			cssFramework: "tailwind",
 			extensions:   []string{"css-components"},
 		},
 		{
@@ -43,7 +40,6 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 			resourceName: "Widget",
 			migrations:   "controller_view_generation",
 			skipFactory:  true,
-			cssFramework: "tailwind",
 		},
 		{
 			name:         "table_name_override",
@@ -51,20 +47,17 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 			tableName:    "student_feedback",
 			migrations:   "scaffold_generation_student_feedback",
 			skipFactory:  true,
-			cssFramework: "tailwind",
 		},
 		{
 			name:         "irregular_plural",
 			resourceName: "Company",
 			migrations:   "scaffold_generation_companies",
-			cssFramework: "tailwind",
 		},
 		{
 			name:         "array_fields",
 			resourceName: "Document",
 			migrations:   "scaffold_generation_documents",
 			skipFactory:  true,
-			cssFramework: "tailwind",
 		},
 		{
 			name:             "custom_primary_key",
@@ -72,14 +65,12 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 			migrations:       "scaffold_generation_warehouses",
 			skipFactory:      true,
 			primaryKeyColumn: "slug",
-			cssFramework:     "tailwind",
 		},
 		{
 			name:         "vue",
 			resourceName: "Project",
 			migrations:   "scaffold_generation_projects",
 			skipFactory:  true,
-			cssFramework: "tailwind",
 			inertia:      "vue",
 		},
 	}
@@ -89,7 +80,6 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 			gen := setupScaffoldGoldenProject(
 				t,
 				scenario.migrations,
-				scenario.cssFramework,
 				scenario.extensions,
 				scenario.inertia,
 			)
@@ -115,7 +105,6 @@ func TestScaffoldGenerationGoldensInertiaProjectDefaultsToTempl(t *testing.T) {
 	gen := setupScaffoldGoldenProject(
 		t,
 		"scaffold_generation_projects",
-		"tailwind",
 		nil,
 		"vue",
 	)
@@ -134,7 +123,6 @@ func TestScaffoldGenerationNamespaced(t *testing.T) {
 	gen := setupScaffoldGoldenProject(
 		t,
 		"controller_view_generation",
-		"tailwind",
 		nil,
 		"",
 	)
@@ -151,7 +139,7 @@ func TestScaffoldGenerationNamespaced(t *testing.T) {
 	assertGeneratedFileContains(t, filepath.Join("views", "admin_widgets_resource.templ"), "type AdminWidgetIndex struct")
 }
 
-func setupScaffoldGoldenProject(t *testing.T, migrationsFixture, cssFramework string, extensions []string, inertia string) Generator {
+func setupScaffoldGoldenProject(t *testing.T, migrationsFixture string, extensions []string, inertia string) Generator {
 	t.Helper()
 
 	cache.ClearFileSystemCache()
@@ -181,10 +169,9 @@ func setupScaffoldGoldenProject(t *testing.T, migrationsFixture, cssFramework st
 	lock := layout.NewAndurelLock("test")
 	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
-		ProjectName:  "testapp",
-		Database:     "postgresql",
-		CSSFramework: cssFramework,
-		Inertia:      inertia,
+		ProjectName: "testapp",
+		Database:    "postgresql",
+		Inertia:     inertia,
 	}
 	for _, ext := range extensions {
 		lock.AddExtension(ext, "test-applied-at")

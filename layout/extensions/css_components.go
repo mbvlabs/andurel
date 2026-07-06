@@ -25,21 +25,7 @@ func (c CssComponents) Dependencies() []string {
 }
 
 func (c CssComponents) renderTemplates(ctx *Context) error {
-	cssFramework := ctx.Data.GetCSSFramework()
-
-	if cssFramework == "tailwind" {
-		if err := c.renderTailwindTemplates(ctx); err != nil {
-			return err
-		}
-	}
-
-	if cssFramework == "vanilla" {
-		if err := c.renderVanillaTemplates(ctx); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return c.renderTailwindTemplates(ctx)
 }
 
 func (c CssComponents) renderTailwindTemplates(ctx *Context) error {
@@ -96,27 +82,6 @@ func (c CssComponents) renderTailwindTemplates(ctx *Context) error {
 	}
 
 	for tmpl, target := range tailwindTemplates {
-		templatePath := fmt.Sprintf("templates/css-components/%s", tmpl)
-		if err := ctx.ProcessTemplate(templatePath, target, nil); err != nil {
-			return fmt.Errorf("failed to process %s: %w", tmpl, err)
-		}
-	}
-
-	return nil
-}
-
-func (c CssComponents) renderVanillaTemplates(ctx *Context) error {
-	vanillaTemplates := map[string]string{
-		"assets_css_style_components.tmpl":            "assets/css/style.css",
-		"assets_vanilla_css_components_buttons.tmpl":  "assets/css/components/buttons.css",
-		"assets_vanilla_css_components_feedback.tmpl": "assets/css/components/feedback.css",
-		"assets_vanilla_css_components_forms.tmpl":    "assets/css/components/forms.css",
-		"assets_vanilla_css_components_layout.tmpl":   "assets/css/components/layout.css",
-		"assets_vanilla_css_components_panels.tmpl":   "assets/css/components/panels.css",
-		"vanilla_views_components_toast.tmpl":         "views/components/toast.templ",
-	}
-
-	for tmpl, target := range vanillaTemplates {
 		templatePath := fmt.Sprintf("templates/css-components/%s", tmpl)
 		if err := ctx.ProcessTemplate(templatePath, target, nil); err != nil {
 			return fmt.Errorf("failed to process %s: %w", tmpl, err)

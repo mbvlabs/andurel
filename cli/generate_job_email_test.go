@@ -184,8 +184,7 @@ func writeGenerateFileTestLock(t *testing.T, rootDir string) {
   "tools": {},
   "scaffoldConfig": {
     "projectName": "app",
-    "database": "postgresql",
-    "cssFramework": "tailwind"
+    "database": "postgresql"
   }
 }
 `

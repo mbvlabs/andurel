@@ -54,6 +54,11 @@ CSRF_STRATEGY=header_only
 CSRF_TRUSTED_ORIGINS=
 
 PEPPER=<PEPPER>
+
+AWS_REGION=us-east-1
+AWS_SES_ACCESS_KEY_ID=
+AWS_SES_SECRET_ACCESS_KEY=
+AWS_SES_CONFIGURATION_SET=
 ```
 
 file -----------rw-r--r-- .gitignore
@@ -444,7 +449,6 @@ andurel migration up
 # 4. Refresh affected models
 andurel g model User --refresh
 ```
-
 ### Customize Styling
 
 This project uses Tailwind CSS. Customize your theme in `css/themes.css`:
@@ -461,8 +465,6 @@ This project uses Tailwind CSS. Customize your theme in `css/themes.css`:
 Add reusable wrapper classes in `css/components.css` under `@layer components`, then import or compose in your views.
 Use `examples/html/*.html` for snippet-based patterns (pure HTML + Datastar attributes).
 The development server automatically rebuilds CSS on changes.
-
-
 
 ## Environment Configuration
 
@@ -820,6 +822,266 @@ This project includes the following extensions:
 <!-- Extension-specific documentation will be added here -->
 
 
+### aws-ses
+
+This project uses Amazon SES (Simple Email Service) for sending transactional and marketing emails in production.
+
+#### Setup
+
+**1. AWS Configuration**
+
+You'll need an AWS account with SES configured:
+
+```bash
+# Verify your sender email address or domain in AWS SES Console
+# https://console.aws.amazon.com/ses/
+
+# Create IAM credentials with SES sending permissions
+# Required policy: AmazonSESFullAccess or custom policy with ses:SendEmail
+```
+
+**2. Environment Variables**
+
+Add these to your `.env` file:
+
+```bash
+# AWS SES Configuration
+AWS_REGION=us-east-1                      # Your AWS region
+AWS_SES_ACCESS_KEY_ID=your_access_key     # IAM access key
+AWS_SES_SECRET_ACCESS_KEY=your_secret     # IAM secret key
+AWS_SES_CONFIGURATION_SET=                # Optional: for open/click tracking
+```
+
+**3. Configuration Set (Optional)**
+
+For email tracking (opens, clicks), create a Configuration Set in AWS SES:
+
+1. Go to AWS SES Console → Configuration Sets
+2. Create a new configuration set
+3. Add event destinations (SNS, CloudWatch, Kinesis, etc.)
+4. Set `AWS_SES_CONFIGURATION_SET` environment variable
+
+#### Sending Transactional Emails
+
+Transactional emails are one-to-one messages like password resets, order confirmations, and account notifications.
+
+**Create an email template:**
+
+```go
+// email/order_confirmation.templ
+package email
+
+templ OrderConfirmation(orderID string, total string) {
+    @BaseLayout() {
+        <h1>Order Confirmed!</h1>
+        <p>Thank you for your order #{orderID}.</p>
+        <p>Total: {total}</p>
+    }
+}
+```
+
+**Send immediately (synchronous):**
+
+```go
+import "testapp/email"
+
+err := email.SendTransactional(ctx, email.TransactionalData{
+    To:      "customer@example.com",
+    Cc:      []string{"manager@example.com"},  // Optional
+    From:    "orders@yourapp.com",
+    Subject: "Order Confirmation",
+    Component: email.OrderConfirmation("12345", "$99.99"),
+    Attachments: []email.Attachment{  // Optional
+        {
+            Filename:    "invoice.pdf",
+            ContentType: "application/pdf",
+            Content:     pdfBytes,
+        },
+    },
+}, emailClient)
+```
+
+**Send via background queue (recommended):**
+
+```go
+import "testapp/queue/jobs"
+
+_, err := insertOnly.Client.Insert(ctx, jobs.SendTransactionalEmailArgs{
+    Data: email.TransactionalData{
+        To:      "customer@example.com",
+        From:    "orders@yourapp.com",
+        Subject: "Order Confirmation",
+        Component: email.OrderConfirmation("12345", "$99.99"),
+    },
+}, nil)
+```
+
+Benefits of queuing:
+- Non-blocking: Returns immediately without waiting for AWS SES
+- Automatic retries: Failed sends retry with exponential backoff
+- Better reliability: Survives temporary AWS outages
+- Observability: Track job status through River
+
+#### Sending Marketing Emails
+
+Marketing emails are bulk messages like newsletters, promotions, and announcements sent to multiple recipients.
+
+**Important:** Marketing emails must include an unsubscribe link to comply with email regulations (CAN-SPAM, GDPR).
+
+**Create a newsletter template:**
+
+```go
+// email/newsletter.templ
+package email
+
+templ Newsletter(recipientName string, unsubscribeURL string) {
+    @BaseLayout() {
+        <h1>Monthly Newsletter</h1>
+        <p>Hi {recipientName},</p>
+        <p>Here's what's new this month...</p>
+
+        <footer>
+            <a href={unsubscribeURL}>Unsubscribe</a>
+        </footer>
+    }
+}
+```
+
+**Send to multiple recipients (queued pattern):**
+
+```go
+import "testapp/queue/jobs"
+
+// Queue individual emails for each recipient
+recipients := []struct{
+    Email string
+    Name  string
+    ID    string
+}{
+    {Email: "user1@example.com", Name: "Alice", ID: "user-123"},
+    {Email: "user2@example.com", Name: "Bob", ID: "user-456"},
+}
+
+for _, recipient := range recipients {
+    unsubscribeURL := fmt.Sprintf("https://yourapp.com/unsubscribe/%s", recipient.ID)
+
+    _, err := insertOnly.Client.Insert(ctx, jobs.SendMarketingEmailArgs{
+        Data: email.MarketingData{
+            To:             []string{recipient.Email},
+            From:           "newsletter@yourapp.com",
+            Subject:        "Your Monthly Newsletter",
+            Component:      email.Newsletter(recipient.Name, unsubscribeURL),
+            UnsubscribeURL: unsubscribeURL,  // Required!
+            Tags:           []string{"newsletter", "monthly"},
+            TrackOpens:     true,   // Requires Configuration Set
+            TrackClicks:    true,   // Requires Configuration Set
+        },
+    }, nil)
+
+    if err != nil {
+        // Handle error (log, retry, etc.)
+        continue
+    }
+}
+```
+
+**Why queue individual emails?**
+
+- **Personalization**: Each recipient gets customized content (name, preferences, etc.)
+- **Tracking**: Individual delivery status and bounce tracking per recipient
+- **Rate limiting**: AWS SES has sending limits; queuing prevents hitting them
+- **Retries**: Failed emails retry automatically without affecting successful sends
+- **Unsubscribe compliance**: Each email has a unique unsubscribe link
+
+#### Email Tracking
+
+Enable open and click tracking by configuring a Configuration Set in AWS SES:
+
+```go
+// Tracking is enabled per email
+Data: email.MarketingData{
+    // ... other fields
+    TrackOpens:  true,
+    TrackClicks: true,
+}
+```
+
+**View tracking data:**
+- Configure event destinations in your AWS SES Configuration Set
+- Send events to CloudWatch, SNS, or Kinesis
+- Build dashboards to visualize open/click rates
+
+#### Testing in Development
+
+During development, emails are sent to Mailpit instead of AWS SES:
+
+```bash
+# Mailpit configuration (automatically used in development)
+MAILPIT_HOST=0.0.0.0
+MAILPIT_PORT=1025
+```
+
+View test emails at `http://localhost:8025`
+
+To test with real AWS SES in development:
+
+1. Use the `aws-ses` extension
+2. Set `ENVIRONMENT=production` or configure your app to use AWS SES in dev
+3. Ensure your AWS credentials are valid
+
+#### Error Handling
+
+AWS SES provides detailed error information:
+
+```go
+err := email.SendTransactional(ctx, data, emailClient)
+if err != nil {
+    if email.IsValidationError(err) {
+        // Invalid email address, missing required fields, etc.
+        // Don't retry - fix the data
+        log.Error("Invalid email data", "error", err)
+    } else if email.IsTemporaryError(err) {
+        // AWS throttling, service unavailable, etc.
+        // Safe to retry
+        log.Warn("Temporary email error, will retry", "error", err)
+    } else if email.IsPermanentError(err) {
+        // Account suspended, domain not verified, etc.
+        // Don't retry - requires AWS console action
+        log.Error("Permanent email error", "error", err)
+    }
+}
+```
+
+The background queue automatically handles retries for temporary errors and cancels jobs with validation or permanent errors.
+
+#### AWS SES Limits
+
+Be aware of AWS SES sending limits:
+
+- **Sandbox**: 200 emails/day, verified recipients only
+- **Production**: Request limit increase (up to millions/day)
+- **Rate limit**: 14 emails/second (default, can be increased)
+
+Request production access: AWS SES Console → Account Dashboard → Request Production Access
+
+#### Best Practices
+
+1. **Verify your domain**: Use domain verification instead of email verification for better deliverability
+2. **Use Configuration Sets**: Enable tracking and monitoring
+3. **Monitor bounce rates**: High bounce rates can hurt your sender reputation
+4. **Handle suppression lists**: AWS SES automatically suppresses bounced/complained addresses
+5. **Warm up your sending**: Gradually increase volume when starting with a new domain
+6. **Use templates**: Create reusable email templates in AWS SES for simple use cases
+7. **Queue emails**: Use background jobs for reliability and non-blocking sends
+
+#### Resources
+
+- [AWS SES Documentation](https://docs.aws.amazon.com/ses/)
+- [AWS SES Pricing](https://aws.amazon.com/ses/pricing/) - $0.10 per 1,000 emails
+- [SES Best Practices](https://docs.aws.amazon.com/ses/latest/dg/best-practices.html)
+- [Moving out of Sandbox](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html)
+
+
 
 ## Learn More
 
@@ -848,12 +1110,14 @@ file -----------rw-r--r-- andurel.lock
     "nullType": "sql.Null"
   },
   "extensions": {
+    "aws-ses": {
+      "appliedAt": "\u003cAPPLIED_AT\u003e"
+    },
     "docker": {
       "appliedAt": "\u003cAPPLIED_AT\u003e"
     }
   },
   "scaffoldConfig": {
-    "cssFramework": "tailwind",
     "database": "postgresql",
     "inertia": "vue",
     "javascriptRuntime": "npm",
@@ -1005,6 +1269,342 @@ import "./datastar_1-0-1.min.js"
 dir  d----------rwxr-xr-x clients
 
 dir  d----------rwxr-xr-x clients/email
+
+file -----------rw-r--r-- clients/email/aws_ses.go
+```
+package mailclients
+
+import (
+	"bytes"
+	"context"
+	"encoding/base64"
+	"fmt"
+	"mime/multipart"
+	"net/textproto"
+	"strings"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/sesv2"
+	"github.com/aws/aws-sdk-go-v2/service/sesv2/types"
+
+	appconfig "testapp/config"
+	"testapp/email"
+)
+
+var _ email.TransactionalSender = (*AwsSes)(nil)
+var _ email.MarketingSender = (*AwsSes)(nil)
+
+type AwsSes struct {
+	client           *sesv2.Client
+	configurationSet string
+}
+
+func NewAwsSes(cfg appconfig.Config) *AwsSes {
+	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(),
+		awsconfig.WithRegion(cfg.AwsSes.Region),
+		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			cfg.AwsSes.AccessKeyID,
+			cfg.AwsSes.SecretAccessKey,
+			"",
+		)),
+	)
+	if err != nil {
+		panic(fmt.Sprintf("failed to load AWS SES config: %v", err))
+	}
+
+	client := sesv2.NewFromConfig(awsCfg)
+
+	return &AwsSes{
+		client:           client,
+		configurationSet: cfg.AwsSes.ConfigurationSet,
+	}
+}
+
+func (a *AwsSes) SendTransactional(ctx context.Context, payload email.TransactionalPayload) error {
+	// If there are attachments, use raw email format
+	if len(payload.Attachments) > 0 {
+		return a.sendRawEmail(ctx, payload, nil)
+	}
+
+	// Build destination
+	destination := &types.Destination{
+		ToAddresses: []string{payload.To},
+	}
+	if len(payload.Cc) > 0 {
+		destination.CcAddresses = payload.Cc
+	}
+	if len(payload.Bcc) > 0 {
+		destination.BccAddresses = payload.Bcc
+	}
+
+	// Build email content
+	content := &types.EmailContent{
+		Simple: &types.Message{
+			Subject: &types.Content{
+				Data: aws.String(payload.Subject),
+			},
+			Body: &types.Body{},
+		},
+	}
+
+	if payload.TextBody != "" {
+		content.Simple.Body.Text = &types.Content{
+			Data: aws.String(payload.TextBody),
+		}
+	}
+
+	if payload.HTMLBody != "" {
+		content.Simple.Body.Html = &types.Content{
+			Data: aws.String(payload.HTMLBody),
+		}
+	}
+
+	// Build send request
+	input := &sesv2.SendEmailInput{
+		Destination:      destination,
+		Content:          content,
+		FromEmailAddress: aws.String(payload.From),
+	}
+
+	if payload.ReplyTo != "" {
+		input.ReplyToAddresses = []string{payload.ReplyTo}
+	}
+
+	if a.configurationSet != "" {
+		input.ConfigurationSetName = aws.String(a.configurationSet)
+	}
+
+	// Add metadata as email tags
+	if len(payload.Metadata) > 0 {
+		var tags []types.MessageTag
+		for key, value := range payload.Metadata {
+			tags = append(tags, types.MessageTag{
+				Name:  aws.String(key),
+				Value: aws.String(value),
+			})
+		}
+		input.EmailTags = tags
+	}
+
+	// Send email
+	_, err := a.client.SendEmail(ctx, input)
+	if err != nil {
+		return mapSESError(err)
+	}
+
+	return nil
+}
+
+func (a *AwsSes) SendMarketing(ctx context.Context, payload email.MarketingPayload) error {
+	// Extract first recipient (queue pattern sends one email per job)
+	if len(payload.To) == 0 {
+		return email.ValidationError{Err: fmt.Errorf("no recipients specified")}
+	}
+
+	recipient := payload.To[0]
+
+	// Build destination
+	destination := &types.Destination{
+		ToAddresses: []string{recipient},
+	}
+
+	// Build email content
+	content := &types.EmailContent{
+		Simple: &types.Message{
+			Subject: &types.Content{
+				Data: aws.String(payload.Subject),
+			},
+			Body: &types.Body{},
+		},
+	}
+
+	if payload.TextBody != "" {
+		content.Simple.Body.Text = &types.Content{
+			Data: aws.String(payload.TextBody),
+		}
+	}
+
+	if payload.HTMLBody != "" {
+		content.Simple.Body.Html = &types.Content{
+			Data: aws.String(payload.HTMLBody),
+		}
+	}
+
+	// Build send request
+	input := &sesv2.SendEmailInput{
+		Destination:      destination,
+		Content:          content,
+		FromEmailAddress: aws.String(payload.From),
+	}
+
+	if payload.ReplyTo != "" {
+		input.ReplyToAddresses = []string{payload.ReplyTo}
+	}
+
+	if a.configurationSet != "" {
+		input.ConfigurationSetName = aws.String(a.configurationSet)
+	}
+
+	// Add tags and metadata
+	var tags []types.MessageTag
+	for _, tag := range payload.Tags {
+		tags = append(tags, types.MessageTag{
+			Name:  aws.String("tag"),
+			Value: aws.String(tag),
+		})
+	}
+	for key, value := range payload.Metadata {
+		tags = append(tags, types.MessageTag{
+			Name:  aws.String(key),
+			Value: aws.String(value),
+		})
+	}
+	if len(tags) > 0 {
+		input.EmailTags = tags
+	}
+
+	// Send email
+	_, err := a.client.SendEmail(ctx, input)
+	if err != nil {
+		return mapSESError(err)
+	}
+
+	return nil
+}
+
+func (a *AwsSes) sendRawEmail(ctx context.Context, payload email.TransactionalPayload, marketingPayload *email.MarketingPayload) error {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	// Write headers
+	headers := make(textproto.MIMEHeader)
+	headers.Set("From", payload.From)
+	headers.Set("To", payload.To)
+
+	if len(payload.Cc) > 0 {
+		headers.Set("Cc", strings.Join(payload.Cc, ", "))
+	}
+	if len(payload.Bcc) > 0 {
+		headers.Set("Bcc", strings.Join(payload.Bcc, ", "))
+	}
+	if payload.ReplyTo != "" {
+		headers.Set("Reply-To", payload.ReplyTo)
+	}
+	headers.Set("Subject", payload.Subject)
+	headers.Set("MIME-Version", "1.0")
+	headers.Set("Content-Type", fmt.Sprintf("multipart/mixed; boundary=%s", writer.Boundary()))
+
+	// Write headers to buffer
+	var headerBuf bytes.Buffer
+	for key, values := range headers {
+		for _, value := range values {
+			headerBuf.WriteString(fmt.Sprintf("%s: %s\r\n", key, value))
+		}
+	}
+	headerBuf.WriteString("\r\n")
+
+	// Create the raw message
+	var rawMessage bytes.Buffer
+	rawMessage.Write(headerBuf.Bytes())
+
+	// Write text part
+	if payload.TextBody != "" {
+		part, _ := writer.CreatePart(textproto.MIMEHeader{
+			"Content-Type": []string{"text/plain; charset=UTF-8"},
+		})
+		part.Write([]byte(payload.TextBody))
+	}
+
+	// Write HTML part
+	if payload.HTMLBody != "" {
+		part, _ := writer.CreatePart(textproto.MIMEHeader{
+			"Content-Type": []string{"text/html; charset=UTF-8"},
+		})
+		part.Write([]byte(payload.HTMLBody))
+	}
+
+	// Write attachments
+	for _, attachment := range payload.Attachments {
+		part, _ := writer.CreatePart(textproto.MIMEHeader{
+			"Content-Type":              []string{attachment.ContentType},
+			"Content-Disposition":       []string{fmt.Sprintf("attachment; filename=%s", attachment.Name)},
+			"Content-Transfer-Encoding": []string{"base64"},
+		})
+		encoded := base64.StdEncoding.EncodeToString(attachment.Content)
+		part.Write([]byte(encoded))
+	}
+
+	writer.Close()
+	rawMessage.Write(buf.Bytes())
+
+	// Build raw email input
+	input := &sesv2.SendEmailInput{
+		Content: &types.EmailContent{
+			Raw: &types.RawMessage{
+				Data: rawMessage.Bytes(),
+			},
+		},
+	}
+
+	if a.configurationSet != "" {
+		input.ConfigurationSetName = aws.String(a.configurationSet)
+	}
+
+	// Add metadata as email tags
+	if len(payload.Metadata) > 0 {
+		var tags []types.MessageTag
+		for key, value := range payload.Metadata {
+			tags = append(tags, types.MessageTag{
+				Name:  aws.String(key),
+				Value: aws.String(value),
+			})
+		}
+		input.EmailTags = tags
+	}
+
+	// Send raw email
+	_, err := a.client.SendEmail(ctx, input)
+	if err != nil {
+		return mapSESError(err)
+	}
+
+	return nil
+}
+
+func mapSESError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	errStr := err.Error()
+
+	// Validation errors (don't retry)
+	if strings.Contains(errStr, "ValidationError") ||
+		strings.Contains(errStr, "InvalidParameterValue") ||
+		strings.Contains(errStr, "MessageRejected") {
+		return email.ValidationError{Err: err}
+	}
+
+	// Permanent errors (don't retry)
+	if strings.Contains(errStr, "AccountSendingPausedException") ||
+		strings.Contains(errStr, "MailFromDomainNotVerifiedException") ||
+		strings.Contains(errStr, "ConfigurationSetDoesNotExist") {
+		return email.PermanentError{Err: err}
+	}
+
+	// Temporary errors (retry)
+	if strings.Contains(errStr, "Throttling") ||
+		strings.Contains(errStr, "ServiceUnavailable") ||
+		strings.Contains(errStr, "TooManyRequests") {
+		return email.TemporaryError{Err: err}
+	}
+
+	// Default to temporary error for unknown cases
+	return email.TemporaryError{Err: err}
+}
+```
 
 file -----------rw-r--r-- clients/email/mailpit.go
 ```
@@ -1342,6 +1942,34 @@ func newAuthConfig() auth {
 }
 ```
 
+file -----------rw-r--r-- config/aws_ses.go
+```
+package config
+
+import (
+	"github.com/caarlos0/env/v10"
+)
+
+type awsSes struct {
+	Region           string `env:"AWS_REGION" envDefault:"us-east-1"`
+	AccessKeyID      string `env:"AWS_SES_ACCESS_KEY_ID"`
+	SecretAccessKey  string `env:"AWS_SES_SECRET_ACCESS_KEY"`
+	ConfigurationSet string `env:"AWS_SES_CONFIGURATION_SET"`
+}
+
+func newAwsSesConfig() awsSes {
+	cfg := awsSes{}
+
+	if err := env.ParseWithOptions(&cfg, env.Options{
+		RequiredIfNoDef: true,
+	}); err != nil {
+		panic(err)
+	}
+
+	return cfg
+}
+```
+
 file -----------rw-r--r-- config/config.go
 ```
 // Package config provides application-wide configuration settings.
@@ -1417,6 +2045,7 @@ type Config struct {
 	DB        Database
 	Telemetry telemetry
 	Email     email
+	AwsSes    awsSes
 	Auth      auth
 }
 
@@ -1426,6 +2055,7 @@ func NewConfig() Config {
 		DB:        newDatabaseConfig(),
 		Telemetry: newTelemetryConfig(),
 		Email:     newEmailConfig(),
+		AwsSes:    newAwsSesConfig(),
 		Auth:      newAuthConfig(),
 	}
 }
@@ -1642,6 +2272,7 @@ func (a Assets) RegisterRoutes(r *router.Router) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
+
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.Scripts.Path(),
@@ -5333,6 +5964,10 @@ go 1.26.0
 
 require (
 	github.com/a-h/templ v0.3.1020
+	github.com/aws/aws-sdk-go-v2 v1.42.1
+	github.com/aws/aws-sdk-go-v2/config v1.32.27
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.26
+	github.com/aws/aws-sdk-go-v2/service/sesv2 v1.62.6
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/exaring/otelpgx v0.11.1
@@ -5376,6 +6011,17 @@ require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.30 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.30 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.30 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.31 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.13 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.30 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.2.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.31.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.8 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.43.5 // indirect
+	github.com/aws/smithy-go v1.27.3 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -5466,6 +6112,36 @@ github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERo
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/a-h/templ v0.3.1020 h1:ypAT/L5ySWEnZ6Zft/5yfoWXYYkhFNvEFOeeqecg4tw=
 github.com/a-h/templ v0.3.1020/go.mod h1:A2DlK61v+K+NRoGnhmYbNYVmtYHcFO5/AisMvBdDxTM=
+github.com/aws/aws-sdk-go-v2 v1.42.1 h1:9eOTgu1z/dVtYpNZ3/8/XbbaX0x/BqE3HUzAzs6K0ek=
+github.com/aws/aws-sdk-go-v2 v1.42.1/go.mod h1:5pKeft2eJj+gElQ38Jqg4ibCqh+/AK33/0X3hip7IjM=
+github.com/aws/aws-sdk-go-v2/config v1.32.27 h1:SJwJ9Q4kM7v5QVSYYyXj3znRr6lNyZEhSgAXmXXcVbI=
+github.com/aws/aws-sdk-go-v2/config v1.32.27/go.mod h1:uBfrzTRedDmB2u+b6+UlaKJy2O6VSH5un2jP24t/KvQ=
+github.com/aws/aws-sdk-go-v2/credentials v1.19.26 h1:Si8kk1kyJnuJWCEgiwpBtTdtgSdR7i611596NnC0YIQ=
+github.com/aws/aws-sdk-go-v2/credentials v1.19.26/go.mod h1:lBckz+W9SAdNtSDw3pYgQUJDJFcBBWry0GSzw+bK0TY=
+github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.30 h1:/hi1JADLEW9YYryEz1w4GQu0EtP23pP553Cf9KgsDV4=
+github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.30/go.mod h1:/3AOgy4K17Dm4ucMZVC/MJkzy5kmfKUcINRHZyo0koQ=
+github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.30 h1:xM/Is9cKMHa8Jj8zkvWhvrFkZsXJV9E+BB4g0HW0duQ=
+github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.30/go.mod h1:WueJeNDZvK1fMYEWJIkcivBfEzUkTpBhzlrUKKY8EuA=
+github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.30 h1:jn46zC9LdsVR/ZpMIJqMqb8hHv31BlLx3ulVqNspUOk=
+github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.30/go.mod h1:1hTMsAgbdS/AtUi4bw8+gUuh1pceo+eXRLfpSuSQj3M=
+github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.31 h1:3GUprIsfmGcC5SACIyB0e7E0BM1O1b3Erl5CePYIAeQ=
+github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.31/go.mod h1:7PuV1yl5e2xnUbm+RqvVg5i2iBM8EyijZNoI9wsOoOc=
+github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.13 h1:mbRIur/BiHK6SKPjoBIXSE/hJ6g6JGRLuxQy1jGjlN4=
+github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.13/go.mod h1:ITg9em2KbJx1s0y4aqRX5OYWG6HBZ5TVR//OdpEZ2CQ=
+github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.30 h1:/Z5jmNrKsSD7EmDjzAPsm/3L9IuOkzaynklJZ1qX7S4=
+github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.30/go.mod h1:lEzEZnOosE7zi8Z6royW1cFJTD9fpab4Ul1SBrllewk=
+github.com/aws/aws-sdk-go-v2/service/sesv2 v1.62.6 h1:P3eoIM/ULwU8Q1xWvh0CrWybeVgkSFNTHhkRtLLzUDA=
+github.com/aws/aws-sdk-go-v2/service/sesv2 v1.62.6/go.mod h1:HlQu5hAX7DOaLl8AK1ac10N4PhMhslC7mds020yPKJ8=
+github.com/aws/aws-sdk-go-v2/service/signin v1.2.2 h1:69JEZSDTQ+UNbTWQJCZMmbpQb5sfc79KUt0O7Pyfjmo=
+github.com/aws/aws-sdk-go-v2/service/signin v1.2.2/go.mod h1:mxC0nT/C8wMMS97DemZPzvUZxvIt+2Iq+eS3JdFZGgg=
+github.com/aws/aws-sdk-go-v2/service/sso v1.31.5 h1:xlK3Tdc8FO7Tq1k0+hL+otF33glj+dE+qeM5iINiDvU=
+github.com/aws/aws-sdk-go-v2/service/sso v1.31.5/go.mod h1:u8af9Nqkmqnr96f7v9nHqzZT9XBwbXEkTiqT4ROuJSE=
+github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.8 h1:yX1IbiBfC7SdEgDwIGnRaZyPPDRbQPDOJxl8102PcGk=
+github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.8/go.mod h1:DMPWJBjYs6+3+f/qhBFEFPPlQ6NlhWjai3dJNvipJ84=
+github.com/aws/aws-sdk-go-v2/service/sts v1.43.5 h1:T3ANO8QWDbzQD8f4+UaX+fvJlyGnOFMKLbW+NGBHg04=
+github.com/aws/aws-sdk-go-v2/service/sts v1.43.5/go.mod h1:9gdl4RrflIdpDb2TlXshWgR1F9TeCkvqDx77Vpr4Z/Q=
+github.com/aws/smithy-go v1.27.3 h1:F3Zb497UhhskkfpJmfkXswyo+t0sh9OTBnIHjogWbVY=
+github.com/aws/smithy-go v1.27.3/go.mod h1:YE2RhdIuDbA5E5bTdciG9KrW3+TiEONeUWCqxX9i1Fc=
 github.com/caarlos0/env/v10 v10.0.0 h1:yIHUBZGsyqCnpTkbjk8asUlx6RFhhEs+h7TOBdgdzXA=
 github.com/caarlos0/env/v10 v10.0.0/go.mod h1:ZfulV76NvVPw3tm591U4SwL3Xx9ldzBP9aGxzeN7G18=
 github.com/caarlos0/env/v11 v11.4.1 h1:fYwH0sWEsBSMPG7t4e/PEfTFzrWrpjyygXyUnWiSwEw=
