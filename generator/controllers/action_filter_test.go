@@ -101,3 +101,51 @@ func (p Products) New(etx *echo.Context) error { return nil }
 		t.Fatalf("expected filtered source not to contain New action:\n%s", filtered)
 	}
 }
+
+func TestFilterControllerActionsRemovesUnrequestedAPIPayloads(t *testing.T) {
+	source := `package api
+
+import "github.com/labstack/echo/v5"
+
+type Products struct{}
+
+func NewProducts() Products { return Products{} }
+
+func (p Products) RegisterRoutes(r any) error { return nil }
+
+type CreateProductPayload struct{}
+
+func (p Products) Create(etx *echo.Context) error { return nil }
+
+type UpdateProductPayload struct{}
+
+func (p Products) Update(etx *echo.Context) error { return nil }
+`
+
+	filtered, err := filterControllerActions(source, []string{"create"})
+	if err != nil {
+		t.Fatalf("filterControllerActions returned error: %v", err)
+	}
+
+	expectedParts := []string{
+		"func NewProducts() Products",
+		"func (p Products) RegisterRoutes(",
+		"type CreateProductPayload",
+		"func (p Products) Create(",
+	}
+	for _, part := range expectedParts {
+		if !strings.Contains(filtered, part) {
+			t.Fatalf("expected filtered source to contain %q:\n%s", part, filtered)
+		}
+	}
+
+	unexpectedParts := []string{
+		"type UpdateProductPayload",
+		"func (p Products) Update(",
+	}
+	for _, part := range unexpectedParts {
+		if strings.Contains(filtered, part) {
+			t.Fatalf("expected filtered source not to contain %q:\n%s", part, filtered)
+		}
+	}
+}

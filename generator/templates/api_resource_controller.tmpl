@@ -2,25 +2,38 @@ package {{or .Namespace "controllers"}}
 
 import (
 	"errors"
+{{- $hasIndex := HasAction "index"}}
+{{- $hasShow := HasAction "show"}}
+{{- $hasCreate := HasAction "create"}}
+{{- $hasUpdate := HasAction "update"}}
+{{- $hasDestroy := HasAction "destroy"}}
+{{- $hasIDAction := or $hasShow (or $hasUpdate $hasDestroy)}}
+{{- $hasWrite := or $hasCreate $hasUpdate}}
+{{- if or $hasCreate (or $hasUpdate $hasDestroy)}}
 	"fmt"
+{{- end}}
+{{- if or $hasCreate (or $hasUpdate $hasDestroy)}}
 	"log/slog"
+{{- end}}
 	"net/http"
+{{- if or $hasIndex (and $hasIDAction (or (eq .IDType "int64") (eq .IDType "int32")))}}
 	"strconv"
+{{- end}}
 {{- $needsTime := false}}
-{{- $needsUUID := or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- $needsUUID := and $hasIDAction (or (not .IDType) (eq .IDType "uuid.UUID"))}}
 {{- $needsSQLNull := false}}
 {{- $needsBun := false}}
 {{- range .Fields}}
-{{- if and (not .IsSystemField) (eq .GoFormType "time.Time")}}
+{{- if and $hasWrite (not .IsSystemField) (eq .GoFormType "time.Time")}}
 	{{- $needsTime = true}}
 {{- end}}
-{{- if and (not .IsSystemField) (or (eq .GoType "uuid.UUID") (eq .GoType "*uuid.UUID"))}}
+{{- if and $hasWrite (not .IsSystemField) (or (eq .GoType "uuid.UUID") (eq .GoType "*uuid.UUID"))}}
 	{{- $needsUUID = true}}
 {{- end}}
-{{- if and (not .IsSystemField) (hasPrefix .GoType "sql.Null")}}
+{{- if and $hasWrite (not .IsSystemField) (hasPrefix .GoType "sql.Null")}}
 	{{- $needsSQLNull = true}}
 {{- end}}
-{{- if and (not .IsSystemField) (hasPrefix .GoType "bun.Null")}}
+{{- if and $hasWrite (not .IsSystemField) (hasPrefix .GoType "bun.Null")}}
 	{{- $needsBun = true}}
 {{- end}}
 {{- end}}
@@ -56,6 +69,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 	errs := []error{}
 	var err error
 
+{{- if HasAction "index" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Index.Path(),
@@ -65,7 +79,9 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "show" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Show.Path(),
@@ -75,7 +91,9 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "create" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodPost,
 		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Create.Path(),
@@ -85,7 +103,9 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "update" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodPut,
 		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Update.Path(),
@@ -95,7 +115,9 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
+{{- if HasAction "destroy" }}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodDelete,
 		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}Destroy.Path(),
@@ -105,6 +127,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 	if err != nil {
 		errs = append(errs, err)
 	}
+{{- end }}
 
 	return errors.Join(errs...)
 }
