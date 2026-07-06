@@ -16,6 +16,12 @@ func New{{.PascalName}}Worker() *{{.PascalName}}Worker {
 	return &{{.PascalName}}Worker{}
 }
 
+func (w *{{.PascalName}}Worker) Register(workers *river.Workers) error {
+	return river.AddWorkerSafely(workers, w)
+}
 
-func (w *{{.PascalName}}
-func (w *{{.PascalName}}Worker) Work(ctx context.Context, job *river.Job[jobs.{{.PascalName}}
+func (w *{{.PascalName}}Worker) Work(ctx context.Context, job *river.Job[jobs.{{.PascalName}}Args]) error {
+	_ = ctx
+	_ = job
+	return nil
+}
