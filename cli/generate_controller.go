@@ -181,7 +181,7 @@ func generateControllerWithActions(name, modelName string, actions []string, ine
 			return err
 		}
 		routeGen := controllergen.NewRouteGenerator()
-		if err := routeGen.GenerateRoutesWithActionsAndConstructor(resourceName, namespace, pluralName, "uuid.UUID", customActions); err != nil {
+		if err := routeGen.GenerateRoutes(resourceName, namespace, pluralName, "uuid.UUID", customActions); err != nil {
 			return err
 		}
 	}

@@ -13,9 +13,7 @@ import (
 )
 
 const (
-	mainFileRelPath       = "cmd/app/main.go"
 	controllerFileRelPath = "controllers/controller.go"
-	registrationMarker    = "// andurel:controller-registration-point"
 )
 
 type MainInjector struct {
@@ -26,86 +24,6 @@ func NewMainInjector() *MainInjector {
 	return &MainInjector{
 		fileManager: files.NewUnifiedFileManager(),
 	}
-}
-
-// InjectController adds controller constructor and registration to main.go
-// Returns nil if marker not found (logs info message instead of failing)
-func (mi *MainInjector) InjectController(resourceName, namespace, pluralName string) error {
-	return mi.InjectControllerWithDB(resourceName, namespace, pluralName, true)
-}
-
-func (mi *MainInjector) InjectControllerWithDB(resourceName, namespace, pluralName string, withDB bool) error {
-	varName := naming.ToLowerCamelCaseFromAny(pluralName)
-	if namespace != "" {
-		varName = naming.ToLowerCamelCase(namespace) + naming.Capitalize(varName)
-	}
-	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
-	packageName := naming.ControllerPackageName(namespace)
-	constructorPackage := packageName
-	registrationFunc := "Register" + namespacePrefixPascal(namespace) + resourceName + "Routes"
-
-	// Find go.mod root and construct full path
-	rootDir, err := mi.fileManager.FindGoModRoot()
-	if err != nil {
-		mi.printManualInstructions(resourceName, namespace, pluralName, withDB)
-		return nil // Don't fail, just inform
-	}
-
-	mainFilePath := filepath.Join(rootDir, mainFileRelPath)
-
-	// Read main.go
-	content, err := os.ReadFile(mainFilePath)
-	if err != nil {
-		mi.printManualInstructions(resourceName, namespace, pluralName, withDB)
-		return nil // Don't fail, just inform
-	}
-
-	contentStr := string(content)
-	if namespace != "" {
-		modulePath, err := readModulePathFromRoot(rootDir)
-		if err != nil {
-			mi.printManualInstructions(resourceName, namespace, pluralName, withDB)
-			return nil
-		}
-		contentStr = ensureImport(contentStr, "", modulePath+"/controllers/"+namespace)
-		constructorPackage = namespace
-	}
-
-	// Look for marker
-	if !strings.Contains(contentStr, registrationMarker) {
-		slog.Info("could not find controller registration marker in cmd/app/main.go",
-			"marker", registrationMarker,
-			"hint", "add the marker to enable automatic controller registration")
-		mi.printManualInstructions(resourceName, namespace, pluralName, withDB)
-		return nil // Don't fail, just inform
-	}
-
-	// Generate injection block
-	constructorArgs := ""
-	if withDB {
-		constructorArgs = "db"
-	}
-	injection := fmt.Sprintf(`	%s := %s.New%s(%s)
-	if err := r.%s(%s); err != nil {
-		return err
-	}
-
-	`, varName, constructorPackage, capitalizedPlural, constructorArgs, registrationFunc, varName)
-
-	// Insert before marker
-	newContent := strings.Replace(contentStr, registrationMarker, injection+registrationMarker, 1)
-
-	// Write back
-	if err := os.WriteFile(mainFilePath, []byte(newContent), 0644); err != nil {
-		return fmt.Errorf("failed to write main.go: %w", err)
-	}
-
-	// Format with goimports
-	if err := files.FormatGoFile(mainFilePath); err != nil {
-		return fmt.Errorf("failed to format main.go: %w", err)
-	}
-
-	return nil
 }
 
 // InjectFXController adds a generated resource controller to controllers.Module.
@@ -125,7 +43,7 @@ func (mi *MainInjector) InjectFXController(resourceName, namespace, pluralName s
 	if err != nil {
 		slog.Info("controllers/controller.go not found for fx controller injection",
 			"hint", "manually add the controller to the FX module")
-		mi.printManualInstructions(resourceName, namespace, pluralName, false)
+		mi.printFXManualInstructions(resourceName, namespace, pluralName)
 		return nil
 	}
 
@@ -254,30 +172,6 @@ func findMatchingParen(content string, openIdx int) int {
 	return -1
 }
 
-func (mi *MainInjector) printManualInstructions(resourceName, namespace, pluralName string, withDB bool) {
-	varName := naming.ToLowerCamelCaseFromAny(pluralName)
-	if namespace != "" {
-		varName = naming.ToLowerCamelCase(namespace) + naming.Capitalize(varName)
-	}
-	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
-	packageName := naming.ControllerPackageName(namespace)
-	registrationFunc := "Register" + namespacePrefixPascal(namespace) + resourceName + "Routes"
-	constructorArgs := ""
-	if withDB {
-		constructorArgs = "db"
-	}
-
-	fmt.Printf(`
-INFO: Add the following to your controller setup in cmd/app/main.go:
-
-	%s := %s.New%s(%s)
-	if err := r.%s(%s); err != nil {
-		return err
-	}
-
-`, varName, packageName, capitalizedPlural, constructorArgs, registrationFunc, varName)
-}
-
 func (mi *MainInjector) printFXManualInstructions(resourceName, namespace, pluralName string) {
 	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
 	packageName := naming.ControllerPackageName(namespace)
@@ -298,13 +192,6 @@ INFO: Add the following to your controller setup in controllers/controller.go:
 	}),
 
 `, constructorRef, controllerType)
-}
-
-func namespacePrefixPascal(namespace string) string {
-	if namespace == "" {
-		return ""
-	}
-	return naming.ToPascalCase(namespace)
 }
 
 func readModulePathFromRoot(rootDir string) (string, error) {

@@ -9,7 +9,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/templates"
 )
 
-const returnErrsMarker = "return errors.Join(errs...)"
+const registerRoutesReturn = "return errors.Join(errs...)"
 
 // ActionInjector handles injecting action code into existing controller and route files.
 type ActionInjector struct {
@@ -118,8 +118,8 @@ func (ai *ActionInjector) InjectRouteVariable(routesPath string, data ActionRout
 }
 
 // InjectRouteRegistration inserts a route registration block before the
-// "return errors.Join(errs...)" marker in the controller RegisterRoutes method.
-// If the marker is not found, it prints manual instructions.
+// final error return in the controller RegisterRoutes method.
+// If the return statement is not found, it prints manual instructions.
 func (ai *ActionInjector) InjectRouteRegistration(controllerPath string, data ActionRegistrationData) error {
 	content, err := os.ReadFile(controllerPath)
 	if err != nil {
@@ -134,8 +134,7 @@ func (ai *ActionInjector) InjectRouteRegistration(controllerPath string, data Ac
 		return fmt.Errorf("route registration for %s.%s already exists in %s", data.HandlerVar, data.MethodName, controllerPath)
 	}
 
-	// Find the marker
-	if !strings.Contains(contentStr, returnErrsMarker) {
+	if !strings.Contains(contentStr, registerRoutesReturn) {
 		ai.printManualRegistrationInstructions(data)
 		return nil
 	}
@@ -146,8 +145,7 @@ func (ai *ActionInjector) InjectRouteRegistration(controllerPath string, data Ac
 		return fmt.Errorf("failed to render action registration template: %w", err)
 	}
 
-	// Insert before marker
-	newContent := strings.Replace(contentStr, returnErrsMarker, rendered+"\n\t"+returnErrsMarker, 1)
+	newContent := strings.Replace(contentStr, registerRoutesReturn, rendered+"\n\t"+registerRoutesReturn, 1)
 
 	if err := os.WriteFile(controllerPath, []byte(newContent), 0o600); err != nil {
 		return fmt.Errorf("failed to write controller file: %w", err)
@@ -158,7 +156,7 @@ func (ai *ActionInjector) InjectRouteRegistration(controllerPath string, data Ac
 
 func (ai *ActionInjector) printManualRegistrationInstructions(data ActionRegistrationData) {
 	fmt.Printf(`
-INFO: Could not find marker "%s" in controller RegisterRoutes method.
+INFO: Could not find the RegisterRoutes error return.
 Add the following route registration manually:
 
 	_, err = r.AddRoute(echo.Route{
@@ -171,5 +169,5 @@ Add the following route registration manually:
 		errs = append(errs, err)
 	}
 
-`, returnErrsMarker, data.HTTPMethod, data.NamespacePascal, data.ResourceName, data.MethodName, data.NamespacePascal, data.ResourceName, data.MethodName, data.HandlerVar, data.MethodName)
+`, data.HTTPMethod, data.NamespacePascal, data.ResourceName, data.MethodName, data.NamespacePascal, data.ResourceName, data.MethodName, data.HandlerVar, data.MethodName)
 }

@@ -460,7 +460,6 @@ import (
 )
 
 func setupControllers(db interface{}, r *router.Router) error {
-	// andurel:controller-registration-point
 	return nil
 }
 `

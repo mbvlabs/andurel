@@ -47,24 +47,7 @@ func (fg *FileGenerator) GenerateController(
 	primaryKeyColumn string,
 	inertia string,
 ) error {
-	return fg.GenerateControllerWithActions(cat, resourceName, namespace, tableName, controllerType, modulePath, databaseType, tableNameOverridden, nullType, primaryKeyColumn, inertia, nil)
-}
-
-func (fg *FileGenerator) GenerateControllerWithActions(
-	cat *catalog.Catalog,
-	resourceName string,
-	namespace string,
-	tableName string,
-	controllerType ControllerType,
-	modulePath string,
-	databaseType string,
-	tableNameOverridden bool,
-	nullType string,
-	primaryKeyColumn string,
-	inertia string,
-	actions []string,
-) error {
-	return fg.GenerateControllerWithActionsForModel(cat, resourceName, namespace, resourceName, tableName, tableName, controllerType, modulePath, databaseType, tableNameOverridden, tableNameOverridden, nullType, primaryKeyColumn, inertia, actions, false)
+	return fg.GenerateControllerWithActionsForModel(cat, resourceName, namespace, resourceName, tableName, tableName, controllerType, modulePath, databaseType, tableNameOverridden, tableNameOverridden, nullType, primaryKeyColumn, inertia, nil, false)
 }
 
 func (fg *FileGenerator) GenerateControllerWithActionsForModel(
@@ -202,7 +185,7 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		return fmt.Errorf("failed to inject fx controller: %w", err)
 	}
 
-	if err := fg.routeGenerator.GenerateRoutesWithActions(resourceName, namespace, pluralName, controller.IDType, routeActions); err != nil {
+	if err := fg.routeGenerator.GenerateRoutes(resourceName, namespace, pluralName, controller.IDType, routeActions); err != nil {
 		return fmt.Errorf("failed to generate routes: %w", err)
 	}
 

@@ -110,14 +110,6 @@ func TestGenerateJobWritesQueueWorkerAndModuleRegistration(t *testing.T) {
 			t.Fatalf("fx workers registration should contain %q\n\n%s", want, workersContent)
 		}
 	}
-	for _, marker := range []string{
-		"// andurel:worker-constructor-registration-point",
-		"// andurel:worker-fx-invoke-registration-point",
-	} {
-		if strings.Contains(workersContent, marker) {
-			t.Fatalf("fx workers registration should not contain marker %q\n\n%s", marker, workersContent)
-		}
-	}
 }
 
 func TestGenerateEmailWritesTemplTransformer(t *testing.T) {
@@ -202,17 +194,6 @@ func readGeneratedTestFile(t *testing.T, rootDir, relPath string) string {
 	}
 	return string(content)
 }
-
-const workersFixture = `package workers
-
-import "github.com/riverqueue/river"
-
-func Register() (*river.Workers, error) {
-	wrks := river.NewWorkers()
-	// andurel:worker-registration-point
-	return wrks, nil
-}
-`
 
 const fxWorkersFixture = `package queue
 

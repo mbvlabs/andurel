@@ -324,7 +324,6 @@ func TestGenerateControllerCustomActionCreatesRouteWithoutModel(t *testing.T) {
 import "example.com/app/router"
 
 func setupControllers(db interface{}, r *router.Router) error {
-	// andurel:controller-registration-point
 	return nil
 }
 `)
@@ -378,7 +377,6 @@ func TestGenerateControllerNamespacedCustomActionCreatesNamespacedArtifacts(t *t
 import "example.com/app/router"
 
 func setupControllers(db interface{}, r *router.Router) error {
-	// andurel:controller-registration-point
 	return nil
 }
 `)
@@ -471,7 +469,6 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 import "example.com/app/router"
 
 func setupControllers(db interface{}, r *router.Router) error {
-	// andurel:controller-registration-point
 	return nil
 }
 `)
@@ -589,7 +586,6 @@ DROP TABLE project_inquiries;
 import "example.com/app/router"
 
 func setupControllers(db interface{}, r *router.Router) error {
-	// andurel:controller-registration-point
 	return nil
 }
 `)
