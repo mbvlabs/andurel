@@ -247,3 +247,7 @@ func (i Identity) VerifyEmail(
 	if err := tx.Commit(); err != nil {
 
 		return models.UserEntity{}, fmt.Errorf("commit email verification transaction: %w", err)
+	}
+
+	return user, nil
+}

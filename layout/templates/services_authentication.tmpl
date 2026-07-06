@@ -59,3 +59,11 @@ func (i Identity) AuthenticateUser(
 	if !validPassword {
 
 		return models.UserEntity{}, ErrInvalidCredentials
+	}
+
+	if !user.HasValidatedEmail() {
+		return models.UserEntity{}, ErrEmailNotVerified
+	}
+
+	return user, nil
+}
