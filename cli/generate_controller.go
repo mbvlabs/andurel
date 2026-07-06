@@ -260,7 +260,7 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 		if additions.Len() > 0 {
 			contentStr = strings.TrimRight(contentStr, "\n") + "\n\n" + strings.TrimRight(additions.String(), "\n") + "\n"
 		}
-		contentStr = ensureCustomFXRegisterRoutes(contentStr, receiverName, namespace, resourceName, actions)
+		contentStr = ensureCustomRegisterRoutes(contentStr, receiverName, namespace, resourceName, actions)
 
 		if err := os.WriteFile(controllerPath, []byte(contentStr), constants.FilePermissionPrivate); err != nil {
 			return err
@@ -295,7 +295,7 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 		sb.WriteString(fmt.Sprintf("\treturn %s{}\n", controllerName))
 		sb.WriteString("}\n\n")
 
-		sb.WriteString(customFXRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName, actions))
+		sb.WriteString(customRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName, actions))
 		for _, action := range actions {
 			methodName := naming.ToPascalCase(action)
 			if isAPI {
@@ -372,10 +372,10 @@ func actionControllerMethodInertia(receiverName, controllerName, namespace, reso
 	)
 }
 
-func ensureCustomFXRegisterRoutes(content, receiverName, namespace, resourceName string, actions []string) string {
+func ensureCustomRegisterRoutes(content, receiverName, namespace, resourceName string, actions []string) string {
 	if !strings.Contains(content, "RegisterRoutes(r *router.Router)") {
 		controllerName := naming.ToPascalCase(naming.DeriveTableName(resourceName))
-		return strings.TrimRight(content, "\n") + "\n\n" + strings.TrimRight(customFXRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName, actions), "\n") + "\n"
+		return strings.TrimRight(content, "\n") + "\n\n" + strings.TrimRight(customRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName, actions), "\n") + "\n"
 	}
 
 	var additions strings.Builder
@@ -385,7 +385,7 @@ func ensureCustomFXRegisterRoutes(content, receiverName, namespace, resourceName
 		if strings.Contains(content, routeRef) {
 			continue
 		}
-		additions.WriteString(customFXRouteBlock(receiverName, namespace, resourceName, methodName))
+		additions.WriteString(customRouteRegistrationBlock(receiverName, namespace, resourceName, methodName))
 	}
 	if additions.Len() == 0 {
 		return content
@@ -398,21 +398,21 @@ func ensureCustomFXRegisterRoutes(content, receiverName, namespace, resourceName
 	return strings.TrimRight(content, "\n") + "\n\n" + strings.TrimRight(additions.String(), "\n") + "\n"
 }
 
-func customFXRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName string, actions []string) string {
+func customRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName string, actions []string) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("func (%s %s) RegisterRoutes(r *router.Router) error {\n", receiverName, controllerName))
 	sb.WriteString("\tvar errs []error\n")
 	sb.WriteString("\tvar err error\n\n")
 	for _, action := range actions {
 		methodName := naming.ToPascalCase(action)
-		sb.WriteString(customFXRouteBlock(receiverName, namespace, resourceName, methodName))
+		sb.WriteString(customRouteRegistrationBlock(receiverName, namespace, resourceName, methodName))
 	}
 	sb.WriteString("\treturn errors.Join(errs...)\n")
 	sb.WriteString("}\n\n")
 	return sb.String()
 }
 
-func customFXRouteBlock(receiverName, namespace, resourceName, methodName string) string {
+func customRouteRegistrationBlock(receiverName, namespace, resourceName, methodName string) string {
 	return fmt.Sprintf("\t_, err = r.AddRoute(echo.Route{\n\t\tMethod:  http.MethodGet,\n\t\tPath:    routes.%s%s.Path(),\n\t\tName:    routes.%s%s.Name(),\n\t\tHandler: %s.%s,\n\t})\n\tif err != nil {\n\t\terrs = append(errs, err)\n\t}\n\n",
 		naming.ToPascalCase(namespace)+resourceName,
 		methodName,

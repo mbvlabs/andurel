@@ -166,7 +166,7 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		if err != nil {
 			return fmt.Errorf("failed to merge controller file: %w", err)
 		}
-		controllerContent = ensureFXRegisterRoutes(controllerContent, controller.ReceiverName, controller.PluralResourceName, namespace, resourceName, actions)
+		controllerContent = ensureRegisterRoutes(controllerContent, controller.ReceiverName, controller.PluralResourceName, namespace, resourceName, actions)
 	}
 
 	if err := fg.fileManager.EnsureDir(controllerDir); err != nil {
@@ -329,10 +329,10 @@ func controllerDeclKeys(decl ast.Decl) []string {
 	}
 }
 
-func ensureFXRegisterRoutes(content, receiverName, controllerName, namespace, resourceName string, actions []string) string {
+func ensureRegisterRoutes(content, receiverName, controllerName, namespace, resourceName string, actions []string) string {
 	if !strings.Contains(content, "RegisterRoutes(r *router.Router)") {
 		return strings.TrimRight(content, "\n") + "\n\n" +
-			strings.TrimRight(fxRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName, actions), "\n") + "\n"
+			strings.TrimRight(registerRoutesMethod(receiverName, controllerName, namespace, resourceName, actions), "\n") + "\n"
 	}
 
 	var additions strings.Builder
@@ -344,7 +344,7 @@ func ensureFXRegisterRoutes(content, receiverName, controllerName, namespace, re
 		if strings.Contains(content, routeRef) {
 			continue
 		}
-		if block := fxRouteBlock(receiverName, namespace, resourceName, action); block != "" {
+		if block := routeRegistrationBlock(receiverName, namespace, resourceName, action); block != "" {
 			additions.WriteString(block)
 		}
 	}
@@ -359,13 +359,13 @@ func ensureFXRegisterRoutes(content, receiverName, controllerName, namespace, re
 	return strings.TrimRight(content, "\n") + "\n\n" + strings.TrimRight(additions.String(), "\n") + "\n"
 }
 
-func fxRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName string, actions []string) string {
+func registerRoutesMethod(receiverName, controllerName, namespace, resourceName string, actions []string) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("func (%s %s) RegisterRoutes(r *router.Router) error {\n", receiverName, controllerName))
 	sb.WriteString("\tvar errs []error\n")
 	sb.WriteString("\tvar err error\n\n")
 	for _, action := range actions {
-		if block := fxRouteBlock(receiverName, namespace, resourceName, strings.ToLower(action)); block != "" {
+		if block := routeRegistrationBlock(receiverName, namespace, resourceName, strings.ToLower(action)); block != "" {
 			sb.WriteString(block)
 		}
 	}
@@ -374,7 +374,7 @@ func fxRegisterRoutesMethod(receiverName, controllerName, namespace, resourceNam
 	return sb.String()
 }
 
-func fxRouteBlock(receiverName, namespace, resourceName, action string) string {
+func routeRegistrationBlock(receiverName, namespace, resourceName, action string) string {
 	methodName := naming.ToPascalCase(action)
 	httpMethod := map[string]string{
 		"index":   "http.MethodGet",

@@ -164,7 +164,7 @@ func setupScaffoldGoldenProject(t *testing.T, migrationsFixture string, extensio
 	}
 
 	writeControllerViewFixtureFile(t, projectDir, "cmd/app/main.go", manualMainFixture)
-	writeControllerViewFixtureFile(t, projectDir, "controllers/controller.go", fxControllerModuleFixture)
+	writeControllerViewFixtureFile(t, projectDir, "controllers/controller.go", controllerModuleFixture)
 
 	lock := layout.NewAndurelLock("test")
 	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}

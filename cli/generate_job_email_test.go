@@ -73,8 +73,8 @@ func TestGenerateJobWritesQueueWorkerAndModuleRegistration(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(workersPath), 0o755); err != nil {
 		t.Fatalf("create queue dir: %v", err)
 	}
-	if err := os.WriteFile(workersPath, []byte(fxWorkersFixture), 0o644); err != nil {
-		t.Fatalf("write fx workers fixture: %v", err)
+	if err := os.WriteFile(workersPath, []byte(queueWorkersFixture), 0o644); err != nil {
+		t.Fatalf("write queue workers fixture: %v", err)
 	}
 
 	if err := generateJob("ProcessPayment", "financial"); err != nil {
@@ -155,8 +155,8 @@ func setupGenerateFileTestProject(t *testing.T) string {
 	if err := os.MkdirAll(filepath.Dir(workersPath), 0o755); err != nil {
 		t.Fatalf("create queue dir: %v", err)
 	}
-	if err := os.WriteFile(workersPath, []byte(fxWorkersFixture), 0o644); err != nil {
-		t.Fatalf("write fx workers fixture: %v", err)
+	if err := os.WriteFile(workersPath, []byte(queueWorkersFixture), 0o644); err != nil {
+		t.Fatalf("write queue workers fixture: %v", err)
 	}
 
 	writeGenerateFileTestLock(t, rootDir)
@@ -195,7 +195,7 @@ func readGeneratedTestFile(t *testing.T, rootDir, relPath string) string {
 	return string(content)
 }
 
-const fxWorkersFixture = `package queue
+const queueWorkersFixture = `package queue
 
 import (
 	"github.com/riverqueue/river"

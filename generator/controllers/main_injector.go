@@ -65,7 +65,7 @@ func (mi *MainInjector) InjectController(resourceName, namespace, pluralName str
 		constructorProvideRef = constructorRef
 	}
 
-	nextContent, changed, err := ensureFXConstructor(contentStr, constructorProvideRef)
+	nextContent, changed, err := ensureConstructorRegistration(contentStr, constructorProvideRef)
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func (mi *MainInjector) InjectController(resourceName, namespace, pluralName str
 		return c.RegisterRoutes(r)
 	}),
 `, controllerType)
-		nextContent, changed, err := ensureFXModuleEntry(contentStr, invoke)
+		nextContent, changed, err := ensureModuleEntry(contentStr, invoke)
 		if err != nil {
 			return err
 		}
@@ -110,8 +110,8 @@ func (mi *MainInjector) InjectController(resourceName, namespace, pluralName str
 	return nil
 }
 
-func ensureFXConstructor(content, constructorRef string) (string, bool, error) {
-	if hasFXReference(content, constructorRef) {
+func ensureConstructorRegistration(content, constructorRef string) (string, bool, error) {
+	if hasRegistrationReference(content, constructorRef) {
 		return content, false, nil
 	}
 
@@ -130,16 +130,16 @@ func ensureFXConstructor(content, constructorRef string) (string, bool, error) {
 	}
 
 	entry := fmt.Sprintf("\tfx.Provide(%s),\n", constructorRef)
-	return ensureFXModuleEntry(content, entry)
+	return ensureModuleEntry(content, entry)
 }
 
-func hasFXReference(content, ref string) bool {
+func hasRegistrationReference(content, ref string) bool {
 	refPattern := regexp.QuoteMeta(ref)
 	pattern := regexp.MustCompile(`(?m)(^|[[:space:](])` + refPattern + `\s*[,)]`)
 	return pattern.FindStringIndex(content) != nil
 }
 
-func ensureFXModuleEntry(content, entry string) (string, bool, error) {
+func ensureModuleEntry(content, entry string) (string, bool, error) {
 	moduleIdx := strings.Index(content, "var Module = fx.Module(")
 	if moduleIdx == -1 {
 		return "", false, fmt.Errorf("failed to locate controllers fx.Module in controllers/controller.go")

@@ -322,7 +322,7 @@ func setupControllerViewGoldenProjectWithInertia(t *testing.T, cssComponents boo
 	}
 
 	writeControllerViewFixtureFile(t, projectDir, "cmd/app/main.go", manualMainFixture)
-	writeControllerViewFixtureFile(t, projectDir, "controllers/controller.go", fxControllerModuleFixture)
+	writeControllerViewFixtureFile(t, projectDir, "controllers/controller.go", controllerModuleFixture)
 
 	lock := layout.NewAndurelLock("test")
 	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
@@ -464,7 +464,7 @@ func setupControllers(db interface{}, r *router.Router) error {
 }
 `
 
-const fxControllerModuleFixture = `package controllers
+const controllerModuleFixture = `package controllers
 
 import (
 	"testapp/router"
