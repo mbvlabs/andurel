@@ -5,9 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-{{ if eq .DIMode "uberfx" }}
 	"database/sql"
-{{ end }}
 	"encoding/base32"
 	"encoding/hex"
 	"encoding/json"
@@ -23,12 +21,12 @@ import (
 
 type TokenEntity struct {
 	bun.BaseModel `bun:"table:tokens,alias:tokens"`
-	ID            uuid.UUID `bun:"id,pk,type:uuid"`
-	CreatedAt     time.Time `bun:"created_at"`
-	UpdatedAt     time.Time `bun:"updated_at"`
-	Scope         string    `bun:"scope"`
-	ExpiresAt     time.Time `bun:"expires_at"`
-	Hash          string    `bun:"hash"`
+	ID            uuid.UUID       `bun:"id,pk,type:uuid"`
+	CreatedAt     time.Time       `bun:"created_at"`
+	UpdatedAt     time.Time       `bun:"updated_at"`
+	Scope         string          `bun:"scope"`
+	ExpiresAt     time.Time       `bun:"expires_at"`
+	Hash          string          `bun:"hash"`
 	MetaData      json.RawMessage `bun:"meta_data,type:jsonb"`
 }
 
@@ -77,11 +75,9 @@ func (t token) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (Tok
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
-{{ if eq .DIMode "uberfx" }}
 		if errors.Is(err, sql.ErrNoRows) {
 			return TokenEntity{}, ErrNotFound
 		}
-{{ end }}
 		return TokenEntity{}, err
 	}
 	return entity, nil
@@ -103,11 +99,9 @@ func (t token) FindByScopeAndHash(
 		Where("hash = ?", hash).
 		Scan(ctx)
 	if err != nil {
-{{ if eq .DIMode "uberfx" }}
 		if errors.Is(err, sql.ErrNoRows) {
 			return TokenEntity{}, ErrNotFound
 		}
-{{ end }}
 		return TokenEntity{}, err
 	}
 	return entity, nil

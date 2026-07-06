@@ -21,7 +21,6 @@ type ScaffoldConfig struct {
 	Name       string
 	Database   string
 	CSS        string
-	DIMode     string
 	Inertia    string
 	Extensions []string
 	Critical   bool
@@ -29,7 +28,6 @@ type ScaffoldConfig struct {
 
 func getScaffoldConfigs() []ScaffoldConfig {
 	cssFrameworks := []string{"tailwind"}
-	diModes := []string{"uberfx"}
 	inertiaModesByCSS := map[string][]string{
 		"tailwind": {"", "vue"},
 	}
@@ -37,19 +35,16 @@ func getScaffoldConfigs() []ScaffoldConfig {
 
 	var configs []ScaffoldConfig
 	for _, css := range cssFrameworks {
-		for _, diMode := range diModes {
-			for _, inertia := range inertiaModesByCSS[css] {
-				for _, extensions := range extensionSets {
-					configs = append(configs, ScaffoldConfig{
-						Name:       scaffoldConfigName("postgresql", css, diMode, inertia, extensions),
-						Database:   "postgresql",
-						CSS:        css,
-						DIMode:     diMode,
-						Inertia:    inertia,
-						Extensions: extensions,
-						Critical:   isCriticalScaffoldConfig("postgresql", css, diMode, inertia, extensions),
-					})
-				}
+		for _, inertia := range inertiaModesByCSS[css] {
+			for _, extensions := range extensionSets {
+				configs = append(configs, ScaffoldConfig{
+					Name:       scaffoldConfigName("postgresql", css, inertia, extensions),
+					Database:   "postgresql",
+					CSS:        css,
+					Inertia:    inertia,
+					Extensions: extensions,
+					Critical:   isCriticalScaffoldConfig("postgresql", css, inertia, extensions),
+				})
 			}
 		}
 	}
@@ -57,14 +52,14 @@ func getScaffoldConfigs() []ScaffoldConfig {
 	return configs
 }
 
-func isCriticalScaffoldConfig(database, css, diMode, inertia string, extensions []string) bool {
+func isCriticalScaffoldConfig(database, css, inertia string, extensions []string) bool {
 	criticalConfigs := map[string]bool{
 		"postgresql-tailwind":                               true,
 		"postgresql-tailwind-inertia-vue":                   true,
 		"postgresql-tailwind-docker-aws-ses-css-components": true,
 	}
 
-	return criticalConfigs[scaffoldConfigName(database, css, diMode, inertia, extensions)]
+	return criticalConfigs[scaffoldConfigName(database, css, inertia, extensions)]
 }
 
 func extensionPowerSet(extensions []string) [][]string {
@@ -82,12 +77,8 @@ func extensionPowerSet(extensions []string) [][]string {
 	return sets
 }
 
-func scaffoldConfigName(database, css, diMode, inertia string, extensions []string) string {
+func scaffoldConfigName(database, css, inertia string, extensions []string) string {
 	parts := []string{database, css}
-
-	if diMode != "" && diMode != "uberfx" {
-		parts = append(parts, diMode)
-	}
 
 	if inertia != "" {
 		parts = append(parts, "inertia", inertia)

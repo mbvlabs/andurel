@@ -98,25 +98,25 @@ type MainSection struct {
 	// Import paths needed in main.go (beyond controller dependencies)
 	Imports *OrderedSet
 
-	// Initialization code blocks (e.g., service creation) — used in manual mode
+	// Initialization code blocks for startup templates.
 	Initializations []Initialization
 
-	// Background workers to start — used in manual mode
+	// Background workers to start.
 	BackgroundWorkers []BackgroundWorker
 
-	// Pre-run hooks executed before server starts — used in both modes
+	// Pre-run hooks executed before server starts.
 	PreRunHooks []PreRunHook
 
-	// ServiceProvides holds fx.Provide function expressions — used in uberfx mode
+	// ServiceProvides holds fx.Provide function expressions.
 	// Each expression is a Go function literal or constructor reference.
 	ServiceProvides []string
 
-	// WorkerDependencies holds named worker dependency types — used in uberfx mode
+	// WorkerDependencies holds named worker dependency types.
 	// for providing email senders and similar multi-return-value provides.
 	WorkerDependencies []WorkerDependency
 }
 
-// WorkerDependency represents a named dependency for workers in uberfx mode.
+// WorkerDependency represents a named dependency for workers.
 type WorkerDependency struct {
 	Name string
 	Type string

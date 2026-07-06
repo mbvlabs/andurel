@@ -39,17 +39,13 @@ var (
 func Scaffold(
 	targetDir, projectName, database, cssFramework, version string,
 	extensionNames []string,
-	diMode, inertia, javascriptRuntime string,
+	inertia, javascriptRuntime string,
 ) error {
-	if diMode == "" {
-		diMode = "uberfx"
-	}
-
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
 
 	moduleName := projectName
 
-	blueprint := initializeBaseBlueprint(moduleName, diMode, inertia)
+	blueprint := initializeBlueprint(moduleName)
 	templateData := TemplateData{
 		AppName:              projectName,
 		ProjectName:          projectName,
@@ -64,7 +60,6 @@ func Scaffold(
 		Extensions:           extensionNames,
 		RunToolVersion:       GetRunToolVersion(),
 		FrameworkVersion:     normalizeFrameworkVersion(version),
-		DIMode:               diMode,
 		Inertia:              inertia,
 		blueprint:            blueprint,
 	}
@@ -143,7 +138,6 @@ func Scaffold(
 		ctx := extensions.Context{
 			TargetDir: targetDir,
 			Data:      &templateData,
-			DIMode:    diMode,
 			Inertia:   inertia,
 			ProcessTemplate: func(templateFile, targetPath string, data extensions.TemplateData) error {
 				if data == nil {
@@ -315,7 +309,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-1.min.js",
 
 	// Commands
-	"deprecated_cmd_app_main.tmpl": "cmd/app/main.go",
+	"cmd_app_main_fx.tmpl": "cmd/app/main.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
@@ -328,11 +322,11 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"clients_email_mailpit.tmpl": "clients/email/mailpit.go",
 
 	// Controllers
-	"deprecated_controllers_api.tmpl":        "controllers/api.go",
-	"deprecated_controllers_assets.tmpl":     "controllers/assets.go",
-	"controllers_cache.tmpl":                 "controllers/cache.go",
-	"deprecated_controllers_controller.tmpl": "controllers/controller.go",
-	"deprecated_controllers_pages.tmpl":      "controllers/pages.go",
+	"controllers_api_fx.tmpl":        "controllers/api.go",
+	"controllers_assets_fx.tmpl":     "controllers/assets.go",
+	"controllers_cache.tmpl":         "controllers/cache.go",
+	"controllers_controller_fx.tmpl": "controllers/controller.go",
+	"controllers_pages_fx.tmpl":      "controllers/pages.go",
 
 	// Database
 	"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
@@ -343,9 +337,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"psql_queue_queue.tmpl":                            "queue/queue.go",
 	"psql_queue_jobs_send_transactional_email.tmpl":    "queue/jobs/send_transactional_email.go",
 	"psql_queue_jobs_send_marketing_email.tmpl":        "queue/jobs/send_marketing_email.go",
-	"psql_queue_workers_workers.tmpl":                  "queue/workers/workers.go",
-	"psql_queue_workers_send_transactional_email.tmpl": "queue/workers/send_transactional_email.go",
-	"psql_queue_workers_send_marketing_email.tmpl":     "queue/workers/send_marketing_email.go",
+	"psql_queue_workers_workers.tmpl":                  "queue/workers.go",
+	"psql_queue_workers_send_transactional_email.tmpl": "queue/send_transactional_email.go",
+	"psql_queue_workers_send_marketing_email.tmpl":     "queue/send_marketing_email.go",
 
 	// Email
 	"email_email.tmpl":       "email/email.go",
@@ -363,17 +357,10 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"models_factories_token.tmpl":     "models/factories/token.go",
 
 	// Router
-	"deprecated_router_router.tmpl":                         "router/router.go",
-	"deprecated_router_connect_api_routes.tmpl":             "router/connect_api_routes.go",
-	"deprecated_router_connect_assets_routes.tmpl":          "router/connect_assets_routes.go",
-	"deprecated_router_connect_pages_routes.tmpl":           "router/connect_pages_routes.go",
-	"deprecated_router_connect_sessions_routes.tmpl":        "router/connect_sessions_routes.go",
-	"deprecated_router_connect_registrations_routes.tmpl":   "router/connect_registrations_routes.go",
-	"deprecated_router_connect_confirmations_routes.tmpl":   "router/connect_confirmations_routes.go",
-	"deprecated_router_connect_reset_passwords_routes.tmpl": "router/connect_reset_passwords_routes.go",
-	"router_cookies_cookies.tmpl":                           "router/cookies/cookies.go",
-	"router_cookies_flash.tmpl":                             "router/cookies/flash.go",
-	"router_middleware_middleware.tmpl":                     "router/middleware/middleware.go",
+	"router_router_fx.tmpl":             "router/router.go",
+	"router_cookies_cookies.tmpl":       "router/cookies/cookies.go",
+	"router_cookies_flash.tmpl":         "router/cookies/flash.go",
+	"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
 
 	// Routes
 	"router_routes_api.tmpl":    "router/routes/api.go",
@@ -392,15 +379,17 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"telemetry_helpers.tmpl":          "telemetry/helpers.go",
 
 	// Auth - Controllers
-	"deprecated_controllers_confirmations.tmpl":   "controllers/confirmations.go",
-	"deprecated_controllers_registrations.tmpl":   "controllers/registrations.go",
-	"deprecated_controllers_reset_passwords.tmpl": "controllers/reset_passwords.go",
-	"deprecated_controllers_sessions.tmpl":        "controllers/sessions.go",
+	"controllers_confirmations_fx.tmpl":   "controllers/confirmations.go",
+	"controllers_registrations_fx.tmpl":   "controllers/registrations.go",
+	"controllers_reset_passwords_fx.tmpl": "controllers/reset_passwords.go",
+	"controllers_sessions_fx.tmpl":        "controllers/sessions.go",
 
 	// Auth - Config
 	"config_auth.tmpl": "config/auth.go",
 
 	// Auth - Services
+	"services_service_fx.tmpl":     "services/service.go",
+	"services_identity_fx.tmpl":    "services/identity.go",
 	"services_authentication.tmpl": "services/authentication.go",
 	"services_registration.tmpl":   "services/registration.go",
 	"services_reset_password.tmpl": "services/reset_password.go",
@@ -412,47 +401,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Auth - Email
 	"email_reset_password.tmpl": "email/reset_password.templ",
 	"email_verify_email.tmpl":   "email/verify_email.templ",
-}
-
-// fxTemplateOverrides maps base template names to their uberfx variants.
-// In uberfx mode, these entries replace the manual-mode templates.
-var fxTemplateOverrides = map[TmplTarget]TmplTargetPath{
-	"cmd_app_main_fx.tmpl":                             "cmd/app/main.go",
-	"router_router_fx.tmpl":                            "router/router.go",
-	"controllers_api_fx.tmpl":                          "controllers/api.go",
-	"controllers_assets_fx.tmpl":                       "controllers/assets.go",
-	"controllers_controller_fx.tmpl":                   "controllers/controller.go",
-	"controllers_pages_fx.tmpl":                        "controllers/pages.go",
-	"controllers_sessions_fx.tmpl":                     "controllers/sessions.go",
-	"controllers_registrations_fx.tmpl":                "controllers/registrations.go",
-	"controllers_confirmations_fx.tmpl":                "controllers/confirmations.go",
-	"controllers_reset_passwords_fx.tmpl":              "controllers/reset_passwords.go",
-	"services_service_fx.tmpl":                         "services/service.go",
-	"services_identity_fx.tmpl":                        "services/identity.go",
-	"psql_queue_workers_workers.tmpl":                  "queue/workers.go",
-	"psql_queue_workers_send_transactional_email.tmpl": "queue/send_transactional_email.go",
-	"psql_queue_workers_send_marketing_email.tmpl":     "queue/send_marketing_email.go",
-}
-
-// fxSkippedTemplates lists base template entries skipped in uberfx mode.
-var fxSkippedTemplates = map[TmplTarget]bool{
-	"deprecated_cmd_app_main.tmpl":                          true,
-	"deprecated_router_router.tmpl":                         true,
-	"deprecated_controllers_api.tmpl":                       true,
-	"deprecated_controllers_assets.tmpl":                    true,
-	"deprecated_controllers_controller.tmpl":                true,
-	"deprecated_controllers_pages.tmpl":                     true,
-	"deprecated_controllers_sessions.tmpl":                  true,
-	"deprecated_controllers_registrations.tmpl":             true,
-	"deprecated_controllers_confirmations.tmpl":             true,
-	"deprecated_controllers_reset_passwords.tmpl":           true,
-	"deprecated_router_connect_api_routes.tmpl":             true,
-	"deprecated_router_connect_assets_routes.tmpl":          true,
-	"deprecated_router_connect_pages_routes.tmpl":           true,
-	"deprecated_router_connect_sessions_routes.tmpl":        true,
-	"deprecated_router_connect_registrations_routes.tmpl":   true,
-	"deprecated_router_connect_confirmations_routes.tmpl":   true,
-	"deprecated_router_connect_reset_passwords_routes.tmpl": true,
 }
 
 var inertiaSharedTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -476,11 +424,6 @@ var inertiaReactTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_react_assets_vite_config.tmpl":   "vite.config.ts",
 	"inertia_react_assets_package_json.tmpl":  "package.json",
 	"inertia_react_assets_tsconfig.tmpl":      "tsconfig.json",
-}
-
-var inertiaTemplateOverrides = map[TmplTarget]TmplTargetPath{
-	"deprecated_controllers_pages_inertia.tmpl": "controllers/pages.go",
-	"controllers_pages_inertia_fx.tmpl":         "controllers/pages.go",
 }
 
 var inertiaSkippedTemplates = map[TmplTarget]bool{
@@ -563,27 +506,15 @@ func processTemplatedFiles(
 	cssFramework string,
 	data extensions.TemplateData,
 ) error {
-	mappings := make(map[TmplTarget]TmplTargetPath, len(baseTemplateMappings)+len(fxTemplateOverrides)+len(inertiaSharedTemplateMappings)+len(inertiaVueTemplateMappings))
+	mappings := make(map[TmplTarget]TmplTargetPath, len(baseTemplateMappings)+len(inertiaSharedTemplateMappings)+len(inertiaVueTemplateMappings))
 	maps.Copy(mappings, baseTemplateMappings)
-
-	if td, ok := data.(*TemplateData); ok && td.DIMode == "uberfx" {
-		for k := range fxSkippedTemplates {
-			delete(mappings, k)
-		}
-		maps.Copy(mappings, fxTemplateOverrides)
-	}
 
 	if td, ok := data.(*TemplateData); ok && IsSupportedInertiaAdapter(td.Inertia) {
 		for k := range inertiaSkippedTemplates {
 			delete(mappings, k)
 		}
-		if td.DIMode == "uberfx" {
-			delete(mappings, "controllers_pages_fx.tmpl")
-			mappings["controllers_pages_inertia_fx.tmpl"] = inertiaTemplateOverrides["controllers_pages_inertia_fx.tmpl"]
-		} else {
-			delete(mappings, "deprecated_controllers_pages.tmpl")
-			mappings["deprecated_controllers_pages_inertia.tmpl"] = inertiaTemplateOverrides["deprecated_controllers_pages_inertia.tmpl"]
-		}
+		delete(mappings, "controllers_pages_fx.tmpl")
+		mappings["controllers_pages_inertia_fx.tmpl"] = "controllers/pages.go"
 		maps.Copy(mappings, inertiaSharedTemplateMappings)
 		maps.Copy(mappings, inertiaAdapterTemplateMappings(td.Inertia))
 	}
@@ -694,8 +625,7 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		return fmt.Errorf("template data is nil")
 	}
 
-	td, ok := data.(*TemplateData)
-	if !ok {
+	if _, ok := data.(*TemplateData); !ok {
 		return fmt.Errorf("template data is not *TemplateData")
 	}
 
@@ -708,30 +638,15 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		"router_cookies_cookies.tmpl",
 	}
 
-	// Mode-specific templates
-	if td.DIMode == "uberfx" {
-		blueprintTemplates = append(blueprintTemplates,
-			"cmd_app_main_fx.tmpl",
-			"controllers_controller_fx.tmpl",
-		)
-	} else {
-		blueprintTemplates = append(blueprintTemplates,
-			"deprecated_cmd_app_main.tmpl",
-			"deprecated_controllers_controller.tmpl",
-			"deprecated_router_connect_api_routes.tmpl",
-			"deprecated_router_connect_assets_routes.tmpl",
-			"deprecated_router_connect_pages_routes.tmpl",
-		)
-	}
+	blueprintTemplates = append(blueprintTemplates,
+		"cmd_app_main_fx.tmpl",
+		"controllers_controller_fx.tmpl",
+	)
 
 	for _, tmplName := range blueprintTemplates {
-		// Look up in base mappings first, then fx overrides
 		targetPath, ok := baseTemplateMappings[tmplName]
 		if !ok {
-			targetPath, ok = fxTemplateOverrides[tmplName]
-			if !ok {
-				return fmt.Errorf("template mapping missing for blueprint template %s", tmplName)
-			}
+			return fmt.Errorf("template mapping missing for blueprint template %s", tmplName)
 		}
 
 		if err := renderTemplate(targetDir, string(tmplName), string(targetPath), templates.Files, data); err != nil {
@@ -1122,98 +1037,9 @@ func generateRandomHex(bytes int) string {
 	return hex.EncodeToString(randomBytes)
 }
 
-// initializeBaseBlueprint creates a blueprint with default base configuration
+// initializeBlueprint creates a blueprint with default base configuration
 // for controllers, routes, and other scaffold components.
-func initializeBaseBlueprint(moduleName, diMode, inertia string) *blueprint.Blueprint {
-	if diMode == "uberfx" {
-		return initializeUberFxBlueprint(moduleName)
-	}
-	return initializeManualBlueprint(moduleName, inertia)
-}
-
-func initializeManualBlueprint(moduleName, inertia string) *blueprint.Blueprint {
-	builder := blueprint.NewBuilder(nil)
-
-	builder.AddMainImport(fmt.Sprintf("%s/clients/email", moduleName))
-	builder.AddControllerImport(fmt.Sprintf("%s/controllers", moduleName))
-	builder.AddControllerImport(fmt.Sprintf("%s/email", moduleName))
-
-	builder.AddMainInitialization(
-		"emailClient",
-		"mailclients.NewMailpit(cfg)",
-		"cfg",
-	)
-
-	builder.AddConfigField("Email", "email")
-
-	// Auth configuration
-	builder.AddConfigField("Auth", "auth")
-
-	// Auth controller dependencies and imports
-	builder.AddControllerImport(fmt.Sprintf("%s/config", moduleName))
-	builder.AddControllerDependency("cfg", "config.Config")
-
-	builder.AddControllerDependency("db", "storage.Pool")
-
-	// Controller fields - the main sub-controllers
-	builder.
-		AddControllerField("Assets", "controllers.Assets").
-		AddControllerField("API", "controllers.API").
-		AddControllerField("Pages", "controllers.Pages").
-		AddControllerField("Sessions", "controllers.Sessions").
-		AddControllerField("Registrations", "controllers.Registrations").
-		AddControllerField("Confirmations", "controllers.Confirmations").
-		AddControllerField("ResetPasswords", "controllers.ResetPasswords")
-
-	pagesConstructor := "controllers.NewPages(db, insertOnly, pagesCache)"
-	if inertia == "vue" {
-		pagesConstructor = "controllers.NewPages(db, insertOnly)"
-	}
-
-	// Constructor initializations
-	builder.
-		AddControllerConstructor("assets", "controllers.NewAssets(assetsCache)").
-		AddControllerConstructor("api", "controllers.NewAPI(db)").
-		AddControllerConstructor("pages", pagesConstructor).
-		AddControllerConstructor("sessions", "controllers.NewSessions(db, cfg)").
-		AddControllerConstructor("registrations", "controllers.NewRegistrations(db, insertOnly, cfg)").
-		AddControllerConstructor("confirmations", "controllers.NewConfirmations(db, cfg)").
-		AddControllerConstructor("resetPasswords", "controllers.NewResetPasswords(db, insertOnly, cfg)")
-
-	// Auth cookies configuration
-	builder.AddCookiesImport("github.com/google/uuid")
-	builder.AddCookiesImport(fmt.Sprintf("%s/models", moduleName))
-
-	builder.AddCookiesConstant("isAuthenticated", "is_authenticated")
-	builder.AddCookiesConstant("isAdmin", "is_admin")
-	builder.AddCookiesConstant("userID", "user_id")
-
-	builder.AddCookiesAppField("UserID", "uuid.UUID")
-	builder.AddCookiesAppField("IsAdmin", "bool")
-	builder.AddCookiesAppField("IsAuthenticated", "bool")
-
-	builder.SetCookiesCreateSessionCode(`	sess.Values[isAuthenticated] = true
-	sess.Values[isAdmin] = user.IsAdmin
-	sess.Values[userID] = user.ID.String()`)
-
-	builder.SetCookiesGetSessionCode(`	if v, ok := sess.Values[isAuthenticated].(bool); ok {
-		app.IsAuthenticated = v
-	}
-	if v, ok := sess.Values[isAdmin].(bool); ok {
-		app.IsAdmin = v
-	}
-	if v, ok := sess.Values[userID].(string); ok {
-		app.UserID, _ = uuid.Parse(v)
-	}`)
-
-	for _, tool := range defaultTools {
-		builder.AddTool(tool)
-	}
-
-	return builder.Blueprint()
-}
-
-func initializeUberFxBlueprint(moduleName string) *blueprint.Blueprint {
+func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 	builder := blueprint.NewBuilder(nil)
 
 	builder.AddControllerImport(fmt.Sprintf("%s/controllers", moduleName))

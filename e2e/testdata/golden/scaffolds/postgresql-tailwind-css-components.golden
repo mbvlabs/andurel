@@ -10658,9 +10658,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-
 	"database/sql"
-
 	"encoding/base32"
 	"encoding/hex"
 	"encoding/json"
@@ -10730,11 +10728,9 @@ func (t token) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (Tok
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
-
 		if errors.Is(err, sql.ErrNoRows) {
 			return TokenEntity{}, ErrNotFound
 		}
-
 		return TokenEntity{}, err
 	}
 	return entity, nil
@@ -10756,11 +10752,9 @@ func (t token) FindByScopeAndHash(
 		Where("hash = ?", hash).
 		Scan(ctx)
 	if err != nil {
-
 		if errors.Is(err, sql.ErrNoRows) {
 			return TokenEntity{}, ErrNotFound
 		}
-
 		return TokenEntity{}, err
 	}
 	return entity, nil
@@ -11012,11 +11006,9 @@ func (u user) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (User
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
-
 		if errors.Is(err, sql.ErrNoRows) {
 			return UserEntity{}, ErrNotFound
 		}
-
 		return UserEntity{}, err
 	}
 	return entity, nil
@@ -11029,11 +11021,9 @@ func (u user) FindByEmail(ctx context.Context, db storage.Executor, email string
 		Where("email = ?", strings.ToLower(email)).
 		Scan(ctx)
 	if err != nil {
-
 		if errors.Is(err, sql.ErrNoRows) {
 			return UserEntity{}, ErrNotFound
 		}
-
 		return UserEntity{}, err
 	}
 	return entity, nil
@@ -11097,11 +11087,9 @@ func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserDa
 		Where("id = ?", data.ID).
 		Scan(ctx)
 	if err != nil {
-
 		if errors.Is(err, sql.ErrNoRows) {
 			return UserEntity{}, ErrNotFound
 		}
-
 		return UserEntity{}, err
 	}
 
@@ -12459,7 +12447,6 @@ func (i Identity) AuthenticateUser(
 	if !validPassword {
 
 		return models.UserEntity{}, ErrInvalidCredentials
-
 	}
 
 	if !user.HasValidatedEmail() {
@@ -12507,8 +12494,10 @@ import (
 
 	"testapp/config"
 	"testapp/email"
+
 	"testapp/internal/validation"
 	"testapp/models"
+
 	"testapp/queue/jobs"
 )
 
@@ -12733,7 +12722,6 @@ func (i Identity) VerifyEmail(
 	if err := tx.Commit(); err != nil {
 
 		return models.UserEntity{}, fmt.Errorf("commit email verification transaction: %w", err)
-
 	}
 
 	return user, nil
@@ -12754,8 +12742,10 @@ import (
 
 	"testapp/config"
 	"testapp/email"
+
 	"testapp/internal/validation"
 	"testapp/models"
+
 	"testapp/queue/jobs"
 	"testapp/router/routes"
 )
@@ -12866,7 +12856,6 @@ func (i Identity) RequestResetPassword(
 	}
 
 	return nil
-
 }
 
 type ResetPasswordData struct {
@@ -12988,7 +12977,6 @@ func (i Identity) ResetPassword(
 	}
 
 	return nil
-
 }
 ```
 

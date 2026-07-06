@@ -178,12 +178,11 @@ func generateControllerWithActions(name, modelName string, actions []string, ine
 	}
 
 	if len(customActions) > 0 {
-		diMode := generatorpkg.ReadDIMode()
-		if err := generateActionControllerFile(resourceName, namespace, tableName, pluralName, modulePath, controllerPath, customActions, inertia, diMode, isAPI); err != nil {
+		if err := generateActionControllerFile(resourceName, namespace, tableName, pluralName, modulePath, controllerPath, customActions, inertia, isAPI); err != nil {
 			return err
 		}
 		routeGen := controllergen.NewRouteGenerator()
-		if err := routeGen.GenerateRoutesWithActionsAndConstructor(resourceName, namespace, pluralName, "uuid.UUID", diMode, customActions, shouldGenerateResource); err != nil {
+		if err := routeGen.GenerateRoutesWithActionsAndConstructor(resourceName, namespace, pluralName, "uuid.UUID", customActions); err != nil {
 			return err
 		}
 	}
@@ -222,13 +221,12 @@ func isCRUDControllerAction(action string) bool {
 	}
 }
 
-func generateActionControllerFile(name, namespace, tableName, pluralName, modulePath, controllerPath string, actions []string, inertia, diMode string, isAPI bool) error {
+func generateActionControllerFile(name, namespace, tableName, pluralName, modulePath, controllerPath string, actions []string, inertia string, isAPI bool) error {
 	ts := namespacePrefix(namespace) + tableName
 	receiverName := naming.ToReceiverName(name)
 	resourceName := name
 	controllerName := naming.ToPascalCase(pluralName)
 	isInertia := layout.IsSupportedInertiaAdapter(inertia)
-	isFX := diMode == "uberfx"
 	packageName := naming.ControllerPackageName(namespace)
 
 	if err := os.MkdirAll(filepath.Dir(controllerPath), 0o755); err != nil {
@@ -260,9 +258,7 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 		if additions.Len() > 0 {
 			contentStr = strings.TrimRight(contentStr, "\n") + "\n\n" + strings.TrimRight(additions.String(), "\n") + "\n"
 		}
-		if isFX {
-			contentStr = ensureCustomFXRegisterRoutes(contentStr, receiverName, namespace, resourceName, actions)
-		}
+		contentStr = ensureCustomFXRegisterRoutes(contentStr, receiverName, namespace, resourceName, actions)
 
 		if err := os.WriteFile(controllerPath, []byte(contentStr), constants.FilePermissionPrivate); err != nil {
 			return err
@@ -272,24 +268,20 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 		sb.WriteString(fmt.Sprintf("package %s\n\n", packageName))
 		sb.WriteString("import (\n")
 		if isInertia {
-			if isFX {
-				sb.WriteString("\t\"errors\"\n")
-				sb.WriteString("\t\"net/http\"\n")
-				sb.WriteString(fmt.Sprintf("\t\"%s/router\"\n", modulePath))
-				sb.WriteString(fmt.Sprintf("\t\"%s/router/routes\"\n", modulePath))
-				sb.WriteString("\n")
-			}
+			sb.WriteString("\t\"errors\"\n")
+			sb.WriteString("\t\"net/http\"\n")
+			sb.WriteString(fmt.Sprintf("\t\"%s/router\"\n", modulePath))
+			sb.WriteString(fmt.Sprintf("\t\"%s/router/routes\"\n", modulePath))
+			sb.WriteString("\n")
 			sb.WriteString(fmt.Sprintf("\t\"%s/internal/inertia\"\n", modulePath))
 			sb.WriteString("\n")
 			sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")
 		} else {
-			if isFX {
-				sb.WriteString("\t\"errors\"\n")
-				sb.WriteString("\t\"net/http\"\n")
-				sb.WriteString(fmt.Sprintf("\t\"%s/router\"\n", modulePath))
-				sb.WriteString(fmt.Sprintf("\t\"%s/router/routes\"\n", modulePath))
-				sb.WriteString("\n")
-			}
+			sb.WriteString("\t\"errors\"\n")
+			sb.WriteString("\t\"net/http\"\n")
+			sb.WriteString(fmt.Sprintf("\t\"%s/router\"\n", modulePath))
+			sb.WriteString(fmt.Sprintf("\t\"%s/router/routes\"\n", modulePath))
+			sb.WriteString("\n")
 			sb.WriteString(fmt.Sprintf("\t\"%s/internal/hypermedia\"\n", modulePath))
 			sb.WriteString(fmt.Sprintf("\t\"%s/views\"\n", modulePath))
 			sb.WriteString("\n")
@@ -301,9 +293,7 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 		sb.WriteString(fmt.Sprintf("\treturn %s{}\n", controllerName))
 		sb.WriteString("}\n\n")
 
-		if isFX {
-			sb.WriteString(customFXRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName, actions))
-		}
+		sb.WriteString(customFXRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName, actions))
 		for _, action := range actions {
 			methodName := naming.ToPascalCase(action)
 			if isAPI {

@@ -139,10 +139,9 @@ func (c *ControllerManager) GenerateControllerWithActionsForModel(
 	controllerType := controllers.ResourceController
 
 	nullType := c.readNullType()
-	diMode := c.readDIMode()
 
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateControllerWithActionsForModel(cat, resourceName, namespace, modelName, tableName, modelTableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, modelTableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia, actions, isAPI); err != nil {
+	if err := fileGen.GenerateControllerWithActionsForModel(cat, resourceName, namespace, modelName, tableName, modelTableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, modelTableNameOverridden, nullType, pkInfo.ColumnName, inertia, actions, isAPI); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
@@ -213,11 +212,10 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string) err
 	controllerType := controllers.ResourceController
 
 	nullType := c.readNullType()
-	diMode := c.readDIMode()
 	inertia := ""
 
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateController(cat, resourceName, "", tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia); err != nil {
+	if err := fileGen.GenerateController(cat, resourceName, "", tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, inertia); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
@@ -244,16 +242,6 @@ func ReadNullType() string {
 		return lock.DatabaseConfig.NullType
 	}
 	return "sql.Null"
-}
-
-func (c *ControllerManager) readDIMode() string {
-	return ReadDIMode()
-}
-
-// ReadDIMode returns the DI mode strategy.
-// Always returns "uberfx" as it is the only supported mode.
-func ReadDIMode() string {
-	return "uberfx"
 }
 
 func controllerNamespacePrefix(namespace string) string {

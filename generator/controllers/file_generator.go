@@ -45,10 +45,9 @@ func (fg *FileGenerator) GenerateController(
 	tableNameOverridden bool,
 	nullType string,
 	primaryKeyColumn string,
-	diMode string,
 	inertia string,
 ) error {
-	return fg.GenerateControllerWithActions(cat, resourceName, namespace, tableName, controllerType, modulePath, databaseType, tableNameOverridden, nullType, primaryKeyColumn, diMode, inertia, nil)
+	return fg.GenerateControllerWithActions(cat, resourceName, namespace, tableName, controllerType, modulePath, databaseType, tableNameOverridden, nullType, primaryKeyColumn, inertia, nil)
 }
 
 func (fg *FileGenerator) GenerateControllerWithActions(
@@ -62,11 +61,10 @@ func (fg *FileGenerator) GenerateControllerWithActions(
 	tableNameOverridden bool,
 	nullType string,
 	primaryKeyColumn string,
-	diMode string,
 	inertia string,
 	actions []string,
 ) error {
-	return fg.GenerateControllerWithActionsForModel(cat, resourceName, namespace, resourceName, tableName, tableName, controllerType, modulePath, databaseType, tableNameOverridden, tableNameOverridden, nullType, primaryKeyColumn, diMode, inertia, actions, false)
+	return fg.GenerateControllerWithActionsForModel(cat, resourceName, namespace, resourceName, tableName, tableName, controllerType, modulePath, databaseType, tableNameOverridden, tableNameOverridden, nullType, primaryKeyColumn, inertia, actions, false)
 }
 
 func (fg *FileGenerator) GenerateControllerWithActionsForModel(
@@ -83,7 +81,6 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 	modelTableNameOverridden bool,
 	nullType string,
 	primaryKeyColumn string,
-	diMode string,
 	inertia string,
 	actions []string,
 	isAPI bool,
@@ -171,7 +168,7 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		return fmt.Errorf("failed to build controller: %w", err)
 	}
 
-	controllerContent, err := fg.templateRenderer.RenderControllerFile(controller, diMode, inertia)
+	controllerContent, err := fg.templateRenderer.RenderControllerFile(controller, inertia)
 	if err != nil {
 		return fmt.Errorf("failed to render controller file: %w", err)
 	}
@@ -186,9 +183,7 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		if err != nil {
 			return fmt.Errorf("failed to merge controller file: %w", err)
 		}
-		if diMode == "uberfx" {
-			controllerContent = ensureFXRegisterRoutes(controllerContent, controller.ReceiverName, controller.PluralResourceName, namespace, resourceName, actions)
-		}
+		controllerContent = ensureFXRegisterRoutes(controllerContent, controller.ReceiverName, controller.PluralResourceName, namespace, resourceName, actions)
 	}
 
 	if err := fg.fileManager.EnsureDir(controllerDir); err != nil {
@@ -203,13 +198,11 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		return fmt.Errorf("failed to format controller file: %w", err)
 	}
 
-	if diMode == "uberfx" {
-		if err := fg.mainInjector.InjectFXController(resourceName, namespace, pluralName); err != nil {
-			return fmt.Errorf("failed to inject fx controller: %w", err)
-		}
+	if err := fg.mainInjector.InjectFXController(resourceName, namespace, pluralName); err != nil {
+		return fmt.Errorf("failed to inject fx controller: %w", err)
 	}
 
-	if err := fg.routeGenerator.GenerateRoutesWithActions(resourceName, namespace, pluralName, controller.IDType, diMode, routeActions); err != nil {
+	if err := fg.routeGenerator.GenerateRoutesWithActions(resourceName, namespace, pluralName, controller.IDType, routeActions); err != nil {
 		return fmt.Errorf("failed to generate routes: %w", err)
 	}
 

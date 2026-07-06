@@ -11,9 +11,9 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverdatabasesql"
 	"github.com/riverqueue/river/rivertype"
-    {{if eq .DIMode "uberfx"}}
+    
 	"go.uber.org/fx"
-    {{end}}
+    
 )
 
 type Processor struct {
@@ -120,7 +120,7 @@ func NewInsertOnly(db storage.Pool, workers *river.Workers) (InsertOnly, error) 
 	return InsertOnly{riverClient}, nil
 }
 
-{{if eq .DIMode "uberfx"}}
+
 var Module = fx.Module(
 	"queue",
 	fx.Provide(
@@ -128,4 +128,3 @@ var Module = fx.Module(
 		NewProcessor,
 	),
 )
-{{end}}

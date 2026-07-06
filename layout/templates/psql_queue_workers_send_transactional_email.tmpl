@@ -1,4 +1,4 @@
-{{if eq .DIMode "uberfx"}}package queue{{else}}package workers{{end}}
+package queue
 
 import (
 	"context"
@@ -20,12 +20,10 @@ func NewSendTransactionalEmailWorker(sender email.TransactionalSender) *SendTran
 	}
 }
 
-{{if eq .DIMode "uberfx"}}
 func (w *SendTransactionalEmailWorker) Register(workers *river.Workers) error {
 	return river.AddWorkerSafely(workers, w)
 }
 
-{{end}}
 func (w *SendTransactionalEmailWorker) Work(ctx context.Context, job *river.Job[jobs.SendTransactionalEmailArgs]) error {
 	err := email.SendTransactional(ctx, job.Args.Data, w.sender)
 	if err != nil {

@@ -16,9 +16,9 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
-    {{if eq .DIMode "uberfx"}}
+    
 	"go.uber.org/fx"
-    {{end}}
+    
 )
 
 //go:embed migrations/*
@@ -71,6 +71,5 @@ func (p *Postgres) Close() error {
 	return p.conn.Close()
 }
 
-{{if eq .DIMode "uberfx"}}
+
 var Module = fx.Module("database", fx.Provide(fx.Annotate(NewPostgres, fx.As(new(storage.Pool)))))
-{{end}}

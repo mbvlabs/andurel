@@ -53,7 +53,7 @@ func NewTemplateRenderer() *TemplateRenderer {
 	}
 }
 
-func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController, diMode, inertia string) (string, error) {
+func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController, inertia string) (string, error) {
 	if controller.ModelName == "" {
 		controller.ModelName = controller.ResourceName
 	}
@@ -66,19 +66,11 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 
 	var templateName string
 	if controller.IsAPI {
-		if diMode == "uberfx" {
-			templateName = "api_resource_controller_fx.tmpl"
-		} else {
-			templateName = "deprecated_api_resource_controller.tmpl"
-		}
+		templateName = "api_resource_controller_fx.tmpl"
 	} else if controller.Type == ResourceController {
-		templateName = "deprecated_resource_controller.tmpl"
 		if layout.IsSupportedInertiaAdapter(inertia) {
-			templateName = "deprecated_inertia_vue_resource_controller.tmpl"
-			if diMode == "uberfx" {
-				templateName = "inertia_vue_resource_controller_fx.tmpl"
-			}
-		} else if diMode == "uberfx" {
+			templateName = "inertia_vue_resource_controller_fx.tmpl"
+		} else {
 			templateName = "resource_controller_fx.tmpl"
 		}
 	} else {
