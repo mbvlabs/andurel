@@ -515,7 +515,7 @@ func (b *Builder) AddPreRunHook(name, code string) *Builder {
 	return b
 }
 
-// AddServiceProvide adds a service provide expression for use in uberfx mode.
+// AddServiceProvide adds a service provide expression.
 // The expression is a function literal or constructor reference passed to fx.Provide.
 func (b *Builder) AddServiceProvide(expr string) *Builder {
 	if expr == "" {
@@ -530,7 +530,7 @@ func (b *Builder) AddServiceProvide(expr string) *Builder {
 	return b
 }
 
-// AddWorkerDependency adds a named worker dependency for uberfx mode.
+// AddWorkerDependency adds a named worker dependency.
 func (b *Builder) AddWorkerDependency(name, typeName string) *Builder {
 	if name == "" || typeName == "" {
 		return b

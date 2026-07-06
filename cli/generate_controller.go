@@ -62,7 +62,6 @@ namespace segment in the name, and the default action set excludes new/edit.`,
       Controller: controllers/credit_cards.go
       Views:      views/credit_cards_resource.templ
       Routes:     router/routes/credit_cards.go
-                  router/connect_credit_cards_routes.go
 
   andurel generate controller CreditCard export
 

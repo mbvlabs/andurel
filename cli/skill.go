@@ -34,10 +34,10 @@ func newSkillCommand() *cobra.Command {
 
 	cmd.AddCommand(&cobra.Command{
 		Use:   "install",
-		Short: "Install the embedded Andurel skill into CODEX_HOME",
+		Short: "Install the embedded Andurel skill into the current project",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			target, err := codexSkillPath()
+			target, err := projectCodexSkillPath()
 			if err != nil {
 				return err
 			}
@@ -54,14 +54,10 @@ func newSkillCommand() *cobra.Command {
 	return cmd
 }
 
-func codexSkillPath() (string, error) {
-	home := os.Getenv("CODEX_HOME")
-	if home == "" {
-		userHome, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		home = filepath.Join(userHome, ".codex")
+func projectCodexSkillPath() (string, error) {
+	rootDir, err := findGoModRoot()
+	if err != nil {
+		return "", err
 	}
-	return filepath.Join(home, "skills", "andurel", "SKILL.md"), nil
+	return filepath.Join(rootDir, ".codex", "skills", "andurel", "SKILL.md"), nil
 }

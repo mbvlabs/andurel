@@ -25,7 +25,7 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 		inertia          string
 	}{
 		{
-			name:         "full_crud_tailwind",
+			name:         "full_crud",
 			resourceName: "Widget",
 			migrations:   "controller_view_generation",
 		},

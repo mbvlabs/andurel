@@ -11,8 +11,7 @@ import (
 
 const returnErrsMarker = "return errors.Join(errs...)"
 
-// ActionInjector handles injecting action code into existing controller,
-// route, and connect files.
+// ActionInjector handles injecting action code into existing controller and route files.
 type ActionInjector struct {
 	templateService *templates.TemplateService
 }
@@ -119,12 +118,12 @@ func (ai *ActionInjector) InjectRouteVariable(routesPath string, data ActionRout
 }
 
 // InjectRouteRegistration inserts a route registration block before the
-// "return errors.Join(errs...)" marker in the connect file.
+// "return errors.Join(errs...)" marker in the controller RegisterRoutes method.
 // If the marker is not found, it prints manual instructions.
-func (ai *ActionInjector) InjectRouteRegistration(connectPath string, data ActionRegistrationData) error {
-	content, err := os.ReadFile(connectPath)
+func (ai *ActionInjector) InjectRouteRegistration(controllerPath string, data ActionRegistrationData) error {
+	content, err := os.ReadFile(controllerPath)
 	if err != nil {
-		return fmt.Errorf("failed to read connect file: %w", err)
+		return fmt.Errorf("failed to read controller file: %w", err)
 	}
 
 	contentStr := string(content)
@@ -132,7 +131,7 @@ func (ai *ActionInjector) InjectRouteRegistration(connectPath string, data Actio
 	// Check for duplicate registration
 	handlerRef := fmt.Sprintf("Handler: %s.%s,", data.HandlerVar, data.MethodName)
 	if strings.Contains(contentStr, handlerRef) {
-		return fmt.Errorf("route registration for %s.%s already exists in %s", data.HandlerVar, data.MethodName, connectPath)
+		return fmt.Errorf("route registration for %s.%s already exists in %s", data.HandlerVar, data.MethodName, controllerPath)
 	}
 
 	// Find the marker
@@ -150,19 +149,19 @@ func (ai *ActionInjector) InjectRouteRegistration(connectPath string, data Actio
 	// Insert before marker
 	newContent := strings.Replace(contentStr, returnErrsMarker, rendered+"\n\t"+returnErrsMarker, 1)
 
-	if err := os.WriteFile(connectPath, []byte(newContent), 0o600); err != nil {
-		return fmt.Errorf("failed to write connect file: %w", err)
+	if err := os.WriteFile(controllerPath, []byte(newContent), 0o600); err != nil {
+		return fmt.Errorf("failed to write controller file: %w", err)
 	}
 
-	return files.FormatGoFile(connectPath)
+	return files.FormatGoFile(controllerPath)
 }
 
 func (ai *ActionInjector) printManualRegistrationInstructions(data ActionRegistrationData) {
 	fmt.Printf(`
-INFO: Could not find marker "%s" in connect file.
+INFO: Could not find marker "%s" in controller RegisterRoutes method.
 Add the following route registration manually:
 
-	_, err = r.e.AddRoute(echo.Route{
+	_, err = r.AddRoute(echo.Route{
 		Method:  http.Method%s,
 		Path:    routes.%s%s%s.Path(),
 		Name:    routes.%s%s%s.Name(),

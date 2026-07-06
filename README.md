@@ -33,7 +33,7 @@ Development speed is everything. Andurel eliminates boilerplate and lets you foc
 - **Live Reload** - Hot reloading for Go, templates, and CSS with `andurel run` powered by [Shadowfax](https://github.com/mbvlabs/shadowfax)
 - **Type Safety Everywhere** - Bun for SQL, Templ/Vue for HTML, Go for logic
 - **Batteries Included** — Echo, Datastar, background jobs, sessions, CSRF protection, telemetry, email support, authentication, optional extensions (docker, aws-ses, css-components)
-- **UberFX DI** — Declarative dependency injection with `go.uber.org/fx`
+- **Dependency Injection** — Declarative application wiring with `go.uber.org/fx`
 - **Two Frontend Options** — Server-rendered HTML with **Templ + Datastar** for hypermedia interactivity, or **Inertia SPA with Vue 3 or React + Vite** for a reactive single-page app
 - **Production Build** — One command (`andurel build`) to compile everything: Templ, Tailwind CSS, Vite assets, and Go binary
 - **Just enough Convention** - Convention over configuration is great to a certain point. Andurel provides just enough sensible defaults that just work and get out of your way.
@@ -70,7 +70,7 @@ go install github.com/mbvlabs/andurel@v1.0.0-beta.5
 Andurel gives you choices when creating a new project:
 
 ```bash
-# Create a new project (PostgreSQL + Tailwind CSS + uberfx DI)
+# Create a new project (PostgreSQL + Tailwind CSS)
 andurel new myapp
 
 # Add extensions for additional features:
@@ -403,7 +403,7 @@ andurel doctor (alias: doc) [--verbose]
 
 Andurel generates a complete project based on your chosen options. Below is the default structure, followed by what changes with each option.
 
-### Default (Manual DI + Tailwind CSS)
+### Default Project
 
 ```
 myapp/
@@ -419,7 +419,7 @@ myapp/
 │       └── mailpit.go       # Mailpit email client
 ├── cmd/
 │   └── app/
-│       └── main.go          # Application entry point
+│       └── main.go          # Application entry point with fx wiring
 ├── config/
 │   ├── config.go            # Main config aggregator
 │   ├── app.go               # Sessions, tokens, security
@@ -428,7 +428,7 @@ myapp/
 │   ├── email.go             # Email configuration
 │   └── telemetry.go         # Logging, tracing, metrics
 ├── controllers/
-│   ├── controller.go        # Base controller setup
+│   ├── controller.go        # Controller module setup
 │   ├── api.go
 │   ├── assets.go
 │   ├── cache.go             # Cache control utilities
@@ -492,7 +492,6 @@ myapp/
 │       └── send_transactional_email.go
 ├── router/
 │   ├── router.go            # Main router setup
-│   ├── connect_*.go          # Route registration files
 │   ├── cookies/
 │   │   ├── cookies.go
 │   │   └── flash.go
@@ -535,25 +534,6 @@ myapp/
 ├── andurel.lock              # Tool version lock file
 ├── go.mod
 └── go.sum
-```
-
-### UberFX Mode
-
-When using uberfx, the following files **change**:
-
-| File | What changes |
-|------|-------------|
-| `cmd/app/main.go` | Uses `fx.New()` with `fx.Provide` and `fx.Invoke` instead of imperative boot sequence |
-| `controllers/controller.go` | Becomes an `fx.Module` — contains `fx.Provide` for all controllers + `fx.Invoke` for route registration |
-| `controllers/api.go`, `assets.go`, `pages.go`, `sessions.go`, `registrations.go`, `confirmations.go`, `reset_passwords.go` | Each has a `RegisterRoutes(r *router.Router) error` method for self-registering routes |
-| `router/router.go` | Exposes `AddRoute` / `AddRouteNotFound` methods; controllers self-register |
-
-The following files are **removed** (route registration moves into controllers):
-```
-router/connect_*.go    (connect_api_routes, connect_assets_routes,
-                        connect_pages_routes, connect_sessions_routes,
-                        connect_registrations_routes, connect_confirmations_routes,
-                        connect_reset_passwords_routes)
 ```
 
 ### Inertia Mode (`--inertia vue` or `--inertia react`)
@@ -606,13 +586,13 @@ var HomePage = routing.NewSimpleRoute("/", "pages.home", "")
 #### Route Registration
 
 ```go
-// router/connect_pages_routes.go
-func (r Router) RegisterPagesRoutes(pages controllers.Pages) error {
-    _, err := r.e.AddRoute(echo.Route{
+// controllers/pages.go
+func (p Pages) RegisterRoutes(r *router.Router) error {
+    _, err := r.AddRoute(echo.Route{
         Method:  http.MethodGet,
         Path:    routes.HomePage.Path(),
         Name:    routes.HomePage.Name(),
-        Handler: pages.Home,
+        Handler: p.Home,
     })
     return err
 }

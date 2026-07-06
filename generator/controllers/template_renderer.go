@@ -232,56 +232,6 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, namespace, plural
 	return result, nil
 }
 
-func (tr *TemplateRenderer) generateRouteRegistrationFile(resourceName, namespace, pluralName string, actions []string) (string, error) {
-	capitalizedPluralName := naming.Capitalize(naming.ToCamelCase(pluralName))
-	lowercasePluralName := naming.ToLowerCamelCaseFromAny(pluralName)
-
-	// Get module path
-	modulePath, err := tr.getModulePath()
-	if err != nil {
-		return "", fmt.Errorf("failed to get module path: %w", err)
-	}
-
-	// Create custom data structure for route registration template
-	data := struct {
-		ResourceName          string
-		Namespace             string
-		NamespacePascal       string
-		PluralName            string
-		CapitalizedPluralName string
-		LowercasePluralName   string
-		LowercaseResourceName string
-		ModulePath            string
-		Actions               []string
-		CustomActions         []customRouteAction
-	}{
-		ResourceName:          resourceName,
-		Namespace:             namespace,
-		NamespacePascal:       naming.ToPascalCase(namespace),
-		PluralName:            pluralName,
-		CapitalizedPluralName: capitalizedPluralName,
-		LowercasePluralName:   lowercasePluralName,
-		LowercaseResourceName: naming.ToLowerCamelCase(resourceName),
-		ModulePath:            modulePath,
-		Actions:               actions,
-		CustomActions:         customRouteActions(actions),
-	}
-	customFuncs := template.FuncMap{
-		"HasAction": func(action string) bool {
-			if len(actions) == 0 {
-				return true
-			}
-			return slices.Contains(actions, action)
-		},
-	}
-
-	result, err := tr.service.RenderTemplateWithCustomFunctions("route_registration.tmpl", data, customFuncs)
-	if err != nil {
-		return "", errors.WrapTemplateError(err, "render route registration", "route_registration.tmpl")
-	}
-	return result, nil
-}
-
 // getModulePath reads go.mod to get the module path
 func (tr *TemplateRenderer) getModulePath() (string, error) {
 	content, err := os.ReadFile("go.mod")

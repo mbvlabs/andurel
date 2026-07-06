@@ -66,7 +66,7 @@ func TestGenerateJobDefaultQueueOmitsInsertOpts(t *testing.T) {
 	}
 }
 
-func TestGenerateJobUberFXWritesQueueWorkerAndModuleRegistration(t *testing.T) {
+func TestGenerateJobWritesQueueWorkerAndModuleRegistration(t *testing.T) {
 	rootDir := setupGenerateFileTestProject(t)
 	writeGenerateFileTestLock(t, rootDir)
 	workersPath := filepath.Join(rootDir, "queue", "workers.go")
@@ -97,7 +97,7 @@ func TestGenerateJobUberFXWritesQueueWorkerAndModuleRegistration(t *testing.T) {
 	}
 
 	if _, err := os.Stat(filepath.Join(rootDir, "queue", "workers", "process_payment.go")); !os.IsNotExist(err) {
-		t.Fatalf("uberfx job generation should not write queue/workers/process_payment.go: %v", err)
+		t.Fatalf("job generation should not write queue/workers/process_payment.go: %v", err)
 	}
 
 	workersContent := readGeneratedTestFile(t, rootDir, "queue/workers.go")
