@@ -477,11 +477,13 @@ func filterControllerActions(content string, actions []string) (string, error) {
 					continue
 				}
 				switch {
-				case strings.HasPrefix(typeSpec.Name.Name, "Create") && strings.HasSuffix(typeSpec.Name.Name, "FormPayload"):
+				case strings.HasPrefix(typeSpec.Name.Name, "Create") &&
+					(strings.HasSuffix(typeSpec.Name.Name, "FormPayload") || strings.HasSuffix(typeSpec.Name.Name, "Payload")):
 					if slices.Contains(actions, "create") {
 						specs = append(specs, spec)
 					}
-				case strings.HasPrefix(typeSpec.Name.Name, "Update") && strings.HasSuffix(typeSpec.Name.Name, "FormPayload"):
+				case strings.HasPrefix(typeSpec.Name.Name, "Update") &&
+					(strings.HasSuffix(typeSpec.Name.Name, "FormPayload") || strings.HasSuffix(typeSpec.Name.Name, "Payload")):
 					if slices.Contains(actions, "update") {
 						specs = append(specs, spec)
 					}

@@ -66,12 +66,12 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 
 	var templateName string
 	if controller.IsAPI {
-		templateName = "api_resource_controller_fx.tmpl"
+		templateName = "api_resource_controller.tmpl"
 	} else if controller.Type == ResourceController {
 		if layout.IsSupportedInertiaAdapter(inertia) {
-			templateName = "inertia_vue_resource_controller_fx.tmpl"
+			templateName = "inertia_vue_resource_controller.tmpl"
 		} else {
-			templateName = "resource_controller_fx.tmpl"
+			templateName = "resource_controller.tmpl"
 		}
 	} else {
 		templateName = "controller.tmpl"

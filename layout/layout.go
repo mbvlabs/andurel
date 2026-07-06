@@ -278,7 +278,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-1.min.js",
 
 	// Commands
-	"cmd_app_main_fx.tmpl": "cmd/app/main.go",
+	"cmd_app_main.tmpl": "cmd/app/main.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
@@ -291,11 +291,11 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"clients_email_mailpit.tmpl": "clients/email/mailpit.go",
 
 	// Controllers
-	"controllers_api_fx.tmpl":        "controllers/api.go",
-	"controllers_assets_fx.tmpl":     "controllers/assets.go",
-	"controllers_cache.tmpl":         "controllers/cache.go",
-	"controllers_controller_fx.tmpl": "controllers/controller.go",
-	"controllers_pages_fx.tmpl":      "controllers/pages.go",
+	"controllers_api.tmpl":        "controllers/api.go",
+	"controllers_assets.tmpl":     "controllers/assets.go",
+	"controllers_cache.tmpl":      "controllers/cache.go",
+	"controllers_controller.tmpl": "controllers/controller.go",
+	"controllers_pages.tmpl":      "controllers/pages.go",
 
 	// Database
 	"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
@@ -326,7 +326,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"models_factories_token.tmpl":     "models/factories/token.go",
 
 	// Router
-	"router_router_fx.tmpl":             "router/router.go",
+	"router_router.tmpl":                "router/router.go",
 	"router_cookies_cookies.tmpl":       "router/cookies/cookies.go",
 	"router_cookies_flash.tmpl":         "router/cookies/flash.go",
 	"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
@@ -348,17 +348,17 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"telemetry_helpers.tmpl":          "telemetry/helpers.go",
 
 	// Auth - Controllers
-	"controllers_confirmations_fx.tmpl":   "controllers/confirmations.go",
-	"controllers_registrations_fx.tmpl":   "controllers/registrations.go",
-	"controllers_reset_passwords_fx.tmpl": "controllers/reset_passwords.go",
-	"controllers_sessions_fx.tmpl":        "controllers/sessions.go",
+	"controllers_confirmations.tmpl":   "controllers/confirmations.go",
+	"controllers_registrations.tmpl":   "controllers/registrations.go",
+	"controllers_reset_passwords.tmpl": "controllers/reset_passwords.go",
+	"controllers_sessions.tmpl":        "controllers/sessions.go",
 
 	// Auth - Config
 	"config_auth.tmpl": "config/auth.go",
 
 	// Auth - Services
-	"services_service_fx.tmpl":     "services/service.go",
-	"services_identity_fx.tmpl":    "services/identity.go",
+	"services_service.tmpl":        "services/service.go",
+	"services_identity.tmpl":       "services/identity.go",
 	"services_authentication.tmpl": "services/authentication.go",
 	"services_registration.tmpl":   "services/registration.go",
 	"services_reset_password.tmpl": "services/reset_password.go",
@@ -477,8 +477,8 @@ func processTemplatedFiles(targetDir string, data extensions.TemplateData) error
 		for k := range inertiaSkippedTemplates {
 			delete(mappings, k)
 		}
-		delete(mappings, "controllers_pages_fx.tmpl")
-		mappings["controllers_pages_inertia_fx.tmpl"] = "controllers/pages.go"
+		delete(mappings, "controllers_pages.tmpl")
+		mappings["controllers_pages_inertia.tmpl"] = "controllers/pages.go"
 		maps.Copy(mappings, inertiaSharedTemplateMappings)
 		maps.Copy(mappings, inertiaAdapterTemplateMappings(td.Inertia))
 	}
@@ -589,8 +589,8 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 	}
 
 	blueprintTemplates = append(blueprintTemplates,
-		"cmd_app_main_fx.tmpl",
-		"controllers_controller_fx.tmpl",
+		"cmd_app_main.tmpl",
+		"controllers_controller.tmpl",
 	)
 
 	for _, tmplName := range blueprintTemplates {
