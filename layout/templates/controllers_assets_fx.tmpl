@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-{{- if or (eq .CSSFramework "vanilla") .Inertia}}
+{{- if .Inertia}}
 	"path"
 	"strings"
 {{- end}}
@@ -65,18 +65,6 @@ func (a Assets) RegisterRoutes(r *router.Router) error {
 		errs = append(errs, err)
 	}
 
-{{- if eq .CSSFramework "vanilla"}}
-	_, err = r.AddRoute(echo.Route{
-		Method:  http.MethodGet,
-		Path:    routes.StyleImport.Path(),
-		Name:    routes.StyleImport.Name(),
-		Handler: a.StyleImport,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-{{- end}}
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.Scripts.Path(),
@@ -243,26 +231,6 @@ func (a Assets) Stylesheet(etx *echo.Context) error {
 	etx = a.enableCaching(etx, stylesheet)
 	return etx.Blob(http.StatusOK, "text/css", stylesheet)
 }
-
-{{- if eq .CSSFramework "vanilla"}}
-func (a Assets) StyleImport(etx *echo.Context) error {
-	param := strings.TrimPrefix(etx.Param("*"), "/")
-	param = path.Clean(param)
-	if param == "." || param == "" || strings.HasPrefix(param, "../") {
-		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
-	}
-
-	stylesheet, err := assets.Files.ReadFile(
-		fmt.Sprintf("css/%s", param),
-	)
-	if err != nil {
-		return err
-	}
-
-	etx = a.enableCaching(etx, stylesheet)
-	return etx.Blob(http.StatusOK, "text/css", stylesheet)
-}
-{{- end}}
 
 func (a Assets) Scripts(etx *echo.Context) error {
 	stylesheet, err := assets.Files.ReadFile(

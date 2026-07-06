@@ -371,26 +371,18 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 }
 
 func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
-	cssFramework := "tailwind"
 	hasCssComponents := false
 
-	if lock != nil && lock.ScaffoldConfig != nil {
-		cssFramework = lock.ScaffoldConfig.CSSFramework
+	if lock != nil {
 		if _, ok := lock.Extensions["css-components"]; ok {
 			hasCssComponents = true
 		}
 	}
 
 	if hasCssComponents {
-		if cssFramework == "vanilla" {
-			return "vanilla_"
-		}
 		return "tw_"
 	}
 
-	if cssFramework == "vanilla" {
-		return "vanilla_bare_"
-	}
 	return "tw_bare_"
 }
 
@@ -598,7 +590,7 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 		renderActions = mergeResourceViewActions(existingActions, actions)
 	}
 
-	// Read lock file to determine CSS framework, extensions, and view layer.
+	// Read lock file to determine extensions and view layer.
 	templatePrefix := "tw_bare_"
 	var lock *layout.AndurelLock
 	if rootDir, err := g.fileManager.FindGoModRoot(); err == nil {

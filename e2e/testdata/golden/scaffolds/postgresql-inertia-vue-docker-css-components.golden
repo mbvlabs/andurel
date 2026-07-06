@@ -444,7 +444,6 @@ andurel migration up
 # 4. Refresh affected models
 andurel g model User --refresh
 ```
-
 ### Customize Styling
 
 This project uses Tailwind CSS. Customize your theme in `css/themes.css`:
@@ -461,8 +460,6 @@ This project uses Tailwind CSS. Customize your theme in `css/themes.css`:
 Add reusable wrapper classes in `css/components.css` under `@layer components`, then import or compose in your views.
 Use `examples/html/*.html` for snippet-based patterns (pure HTML + Datastar attributes).
 The development server automatically rebuilds CSS on changes.
-
-
 
 ## Environment Configuration
 
@@ -861,8 +858,9 @@ file -----------rw-r--r-- andurel.lock
     }
   },
   "scaffoldConfig": {
-    "cssFramework": "tailwind",
     "database": "postgresql",
+    "inertia": "vue",
+    "javascriptRuntime": "npm",
     "projectName": "testapp"
   },
   "tools": {
@@ -1178,6 +1176,7 @@ import (
 	"testapp/controllers"
 	"testapp/database"
 	"testapp/email"
+	"testapp/internal/inertia"
 	"testapp/internal/server"
 	"testapp/queue"
 	"testapp/router"
@@ -1192,6 +1191,10 @@ var appVersion string
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+	if err := inertia.Init("views/root.go.html"); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to initialize inertia: %s\n", err)
+		os.Exit(1)
+	}
 	app := fx.New(
 		fx.Provide(
 			func() context.Context { return ctx },
@@ -1588,6 +1591,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"path"
+	"strings"
 
 	"testapp/assets"
 	"testapp/config"
@@ -1641,6 +1646,7 @@ func (a Assets) RegisterRoutes(r *router.Router) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
+
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.Scripts.Path(),
@@ -1656,6 +1662,15 @@ func (a Assets) RegisterRoutes(r *router.Router) error {
 		Path:    routes.Script.Path(),
 		Name:    routes.Script.Name(),
 		Handler: a.Script,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ViteBuild.Path(),
+		Name:    routes.ViteBuild.Name(),
+		Handler: a.ViteBuild,
 	})
 	if err != nil {
 		errs = append(errs, err)
@@ -1818,6 +1833,36 @@ func (a Assets) Script(etx *echo.Context) error {
 
 	etx = a.enableCaching(etx, stylesheet)
 	return etx.Blob(http.StatusOK, "application/javascript", stylesheet)
+}
+func contentTypeByExt(name string) string {
+	switch {
+	case strings.HasSuffix(name, ".js"):
+		return "application/javascript"
+	case strings.HasSuffix(name, ".css"):
+		return "text/css"
+	case strings.HasSuffix(name, ".json"):
+		return "application/json"
+	case strings.HasSuffix(name, ".svg"):
+		return "image/svg+xml"
+	default:
+		return "application/octet-stream"
+	}
+}
+
+func (a Assets) ViteBuild(etx *echo.Context) error {
+	param := strings.TrimPrefix(etx.Param("*"), "/")
+	param = path.Clean(param)
+	if param == "." || param == "" || strings.HasPrefix(param, "../") {
+		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+	}
+
+	data, err := assets.Files.ReadFile(fmt.Sprintf("dist/%s", param))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+	}
+
+	etx = a.enableCaching(etx, data)
+	return etx.Blob(http.StatusOK, contentTypeByExt(param), data)
 }
 ```
 
@@ -2042,16 +2087,13 @@ file -----------rw-r--r-- controllers/controller.go
 package controllers
 
 import (
-	"github.com/a-h/templ"
 	"go.uber.org/fx"
 	"testapp/router"
 )
 
-var pageCache = NewCacheBuilder[templ.Component]().Build
 var otherCache = NewCacheBuilder[string]().WithSize(2).Build
 
 var constructors = fx.Provide(
-	pageCache,
 	otherCache,
 	NewPages,
 	NewAssets,
@@ -2098,28 +2140,26 @@ import (
 	"net/http"
 
 	"testapp/internal/hypermedia"
+	"testapp/internal/inertia"
 	"testapp/internal/storage"
 	"testapp/queue"
 	"testapp/router"
 	"testapp/router/routes"
 	"testapp/views"
 
-	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
 )
 
 type Pages struct {
 	db         storage.Pool
 	insertOnly queue.InsertOnly
-	cache      *Cache[templ.Component]
 }
 
 func NewPages(
 	db storage.Pool,
 	insertOnly queue.InsertOnly,
-	cache *Cache[templ.Component],
 ) Pages {
-	return Pages{db, insertOnly, cache}
+	return Pages{db, insertOnly}
 }
 
 func (p Pages) RegisterRoutes(r *router.Router) error {
@@ -2151,29 +2191,13 @@ func (p Pages) RegisterRoutes(r *router.Router) error {
 }
 
 func (p Pages) Home(etx *echo.Context) error {
-	cacheKey := "home"
-
-	component, err := p.cache.Get(cacheKey, func() (templ.Component, error) {
-		return views.Home{}.Page(), nil
+	return inertia.Page(etx, "Welcome", inertia.Props{
+		"appName": "testapp",
 	})
-	if err != nil {
-		return err
-	}
-
-	return hypermedia.RenderPage(etx, component)
 }
 
 func (p Pages) NotFound(etx *echo.Context) error {
-	cacheKey := "not_found"
-
-	component, err := p.cache.Get(cacheKey, func() (templ.Component, error) {
-		return views.NotFound(), nil
-	})
-	if err != nil {
-		return err
-	}
-
-	return hypermedia.RenderPage(etx, component)
+	return hypermedia.RenderPage(etx, views.NotFound())
 }
 ```
 
@@ -6789,6 +6813,7 @@ require (
 	github.com/riverqueue/river v0.40.0
 	github.com/riverqueue/river/riverdriver/riverdatabasesql v0.40.0
 	github.com/riverqueue/river/rivertype v0.40.0
+	github.com/romsar/gonertia/v3 v3.0.0
 	github.com/rs/xid v1.6.0
 	github.com/testcontainers/testcontainers-go v0.43.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.43.0
@@ -7061,6 +7086,8 @@ github.com/robfig/cron/v3 v3.0.1 h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=
 github.com/robfig/cron/v3 v3.0.1/go.mod h1:eQICP3HwyT7UooqI/z+Ov+PtYAWygg1TEWWzGIFLtro=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
+github.com/romsar/gonertia/v3 v3.0.0 h1:Prnfflq14Axz4Csjn+h9WVlinSGGoJSbyiXinNMcuAg=
+github.com/romsar/gonertia/v3 v3.0.0/go.mod h1:QrEjAsqiHXxWSEtILCf3SQJ5UwPkcXYKbuPLxb0T6kY=
 github.com/rs/xid v1.6.0 h1:fV591PaemRlL6JfRxGDEPl69wICngIQ3shQtzfy2gxU=
 github.com/rs/xid v1.6.0/go.mod h1:7XoLgs4eV+QndskICGsho+ADou8ySMSjJKDIan90Nz0=
 github.com/sethvargo/go-retry v0.3.0 h1:EEt31A35QhrcRZtrYFDTBg91cqZVnFL2navjDrah2SE=
@@ -8763,6 +8790,202 @@ func buildSSEEvent(
 func writeJustError(w io.Writer, b []byte) (err error) {
 	_, err = w.Write(b)
 	return err
+}
+```
+
+dir  d----------rwxr-xr-x internal/inertia
+
+file -----------rw-r--r-- internal/inertia/page_options.go
+```
+package inertia
+
+import (
+	gonertia "github.com/romsar/gonertia/v3"
+)
+
+type PageOption func(*pageOptions)
+
+type pageOptions struct {
+	validationErrors gonertia.ValidationErrors
+}
+
+func WithValidationErrors(errors map[string]string) PageOption {
+	return func(opts *pageOptions) {
+		if len(errors) == 0 {
+			return
+		}
+
+		if opts.validationErrors == nil {
+			opts.validationErrors = gonertia.ValidationErrors{}
+		}
+		for field, message := range errors {
+			opts.validationErrors[field] = message
+		}
+	}
+}
+```
+
+file -----------rw-r--r-- internal/inertia/render.go
+```
+// Package inertia provides Inertia.js rendering helpers.
+// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
+package inertia
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+
+	"github.com/labstack/echo/v5"
+	gonertia "github.com/romsar/gonertia/v3"
+
+	"testapp/config"
+	"testapp/internal/request"
+	"testapp/router/cookies"
+)
+
+type Props = gonertia.Props
+type Option = gonertia.Option
+
+var gInertia *gonertia.Inertia
+
+func Init(rootHTML string, opts ...Option) error {
+	tags, err := initVite()
+	if err != nil {
+		return fmt.Errorf("inertia: vite init: %w", err)
+	}
+
+	i, err := gonertia.NewFromFile(rootHTML, opts...)
+	if err != nil {
+		return fmt.Errorf("inertia: create renderer: %v", err)
+	}
+
+	i.ShareTemplateData("viteHead", tags.ViteHead)
+	i.ShareTemplateData("viteBody", tags.ViteBody)
+	i.ShareTemplateData("appName", config.ProjectName)
+
+	gInertia = i
+	return nil
+}
+
+func Page(etx *echo.Context, component string, props Props, opts ...PageOption) error {
+	if gInertia == nil {
+		return errors.New("inertia: not initialized")
+	}
+
+	pageOptions := pageOptions{}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&pageOptions)
+		}
+	}
+	if len(pageOptions.validationErrors) > 0 {
+		etx.SetRequest(etx.Request().WithContext(gonertia.SetValidationErrors(
+			etx.Request().Context(),
+			pageOptions.validationErrors,
+		)))
+	}
+
+	if flashes := request.ExtractContext[[]cookies.FlashMessage](
+		etx.Request().Context(), request.SessionFlashesKey,
+	); len(flashes) > 0 {
+		if props == nil {
+			props = make(Props)
+		}
+		props["flash"] = flashes
+	}
+
+	if err := gInertia.Render(etx.Response(), etx.Request(), component, props); err != nil {
+		return fmt.Errorf("inertia: render page: %v", err)
+	}
+
+	return nil
+}
+
+func Redirect(etx *echo.Context, url string, status ...int) error {
+	if gInertia == nil {
+		return errors.New("inertia: not initialized")
+	}
+	gInertia.Redirect(etx.Response(), etx.Request(), url, status...)
+	return nil
+}
+
+func Middleware() echo.MiddlewareFunc {
+	if gInertia == nil {
+		return func(next echo.HandlerFunc) echo.HandlerFunc {
+			return func(c *echo.Context) error {
+				return errors.New("inertia: not initialized")
+			}
+		}
+	}
+
+	return echo.WrapMiddleware(func(next http.Handler) http.Handler {
+		return gInertia.Middleware(next)
+	})
+}
+```
+
+file -----------rw-r--r-- internal/inertia/vite.go
+```
+// Package inertia provides Inertia.js rendering helpers.
+// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
+package inertia
+
+import (
+	"encoding/json"
+	"fmt"
+	"html/template"
+
+	"testapp/assets"
+	"testapp/config"
+	"testapp/internal/server"
+)
+
+type viteTags struct {
+	ViteHead template.HTML
+	ViteBody template.HTML
+}
+
+type viteManifestEntry struct {
+	File    string   `json:"file"`
+	CSS     []string `json:"css"`
+	Src     string   `json:"src"`
+	IsEntry bool     `json:"isEntry"`
+}
+
+func initVite() (*viteTags, error) {
+	if config.Env != server.ProdEnvironment {
+		tags := &viteTags{
+			ViteHead: template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/@vite/client"></script>`),
+		}
+
+		tags.ViteBody = template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/resources/js/app.ts"></script>`)
+
+		return tags, nil
+	}
+
+	data, err := assets.Files.ReadFile("dist/vite/manifest.json")
+	if err != nil {
+		return nil, fmt.Errorf("vite: read manifest: %w", err)
+	}
+
+	var manifest map[string]viteManifestEntry
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return nil, fmt.Errorf("vite: parse manifest: %w", err)
+	}
+
+	entry, ok := manifest["resources/js/app.ts"]
+	if !ok {
+		return nil, fmt.Errorf("vite: entry point not found in manifest")
+	}
+
+	tags := &viteTags{}
+	for _, css := range entry.CSS {
+		tags.ViteHead += template.HTML(`<link rel="stylesheet" href="/assets/dist/` + css + `">`)
+	}
+	tags.ViteBody = template.HTML(`<script type="module" src="/assets/dist/` + entry.File + `"></script>`)
+
+	return tags, nil
 }
 ```
 
@@ -11315,6 +11538,29 @@ func HashPassword(password, pepper string) (string, error) {
 }
 ```
 
+file -----------rw-r--r-- package.json
+```
+{
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@inertiajs/vue3": "^2.0.0",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.5.0",
+    "vite": "^6.0.0"
+  }
+}
+```
+
 dir  d----------rwxr-xr-x queue
 
 dir  d----------rwxr-xr-x queue/jobs
@@ -11585,6 +11831,100 @@ var WorkersModule = fx.Module(
 		return worker.Register(workers)
 	}),
 )
+```
+
+dir  d----------rwxr-xr-x resources
+
+dir  d----------rwxr-xr-x resources/js
+
+dir  d----------rwxr-xr-x resources/js/Pages
+
+file -----------rw-r--r-- resources/js/Pages/Welcome.vue
+```
+<script setup lang="ts">
+import { Head } from '@inertiajs/vue3'
+
+defineProps<{
+  appName: string
+}>()
+</script>
+
+<template>
+  <Head :title="appName" />
+
+  <div class="min-h-screen flex items-center justify-center bg-gray-50">
+    <div class="text-center">
+      <h1 class="mb-4 text-4xl font-bold text-gray-900">{{ appName }}</h1>
+      <p class="text-gray-600">Built with Andurel + Inertia + Vue</p>
+    </div>
+  </div>
+</template>
+```
+
+file -----------rw-r--r-- resources/js/app.ts
+```
+import '../../css/base.css'
+
+import { createApp, h, defineComponent, ref, watch, type DefineComponent } from 'vue'
+import { createInertiaApp, usePage } from '@inertiajs/vue3'
+
+type FlashMessage = {
+  Type: string
+  Message: string
+}
+
+const FlashToasts = defineComponent({
+  setup() {
+    const toasts = ref<Array<FlashMessage & { id: number }>>([])
+    let nextId = 0
+
+    watch(
+      () => usePage().props.flash as FlashMessage[] | undefined,
+      (flashes) => {
+        if (!flashes || flashes.length === 0) {return}
+        for (const f of flashes) {
+          const id = nextId++
+          toasts.value.push({ ...f, id })
+          setTimeout(() => {
+            toasts.value = toasts.value.filter(t => t.id !== id)
+          }, 5000)
+        }
+      },
+      { immediate: true, deep: true },
+    )
+
+    return () => {
+      if (toasts.value.length === 0) {return null}
+      const items = toasts.value.map(t => {
+        const color = t.Type === 'success' ? 'bg-green-600' : t.Type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+        return h('div', {
+          key: t.id,
+          class: `${color} text-white px-4 py-3 rounded-lg shadow-lg mb-2 transition-opacity duration-300`,
+        }, t.Message)
+      })
+      return h('div', { class: 'fixed bottom-4 right-4 z-50' }, items)
+    }
+  },
+})
+
+createInertiaApp({
+  resolve: (name: string): DefineComponent => {
+    const pages = import.meta.glob<DefineComponent>('./Pages/**/*.vue', { eager: true })
+    return pages[`./Pages/${name}.vue`]
+  },
+  setup({ el, App, props, plugin }) {
+    createApp({
+      render() {
+        return h('div', [
+          h(App, props),
+          h(FlashToasts),
+        ])
+      },
+    })
+      .use(plugin)
+      .mount(el)
+  },
+})
 ```
 
 dir  d----------rwxr-xr-x router
@@ -12176,6 +12516,7 @@ import (
 	"net/http"
 
 	"testapp/config"
+	"testapp/internal/inertia"
 	"testapp/router/cookies"
 	"testapp/router/middleware"
 	"testapp/telemetry"
@@ -12275,6 +12616,7 @@ func SetupGlobalMiddleware(
 		),
 		middleware.ValidateSession,
 		middleware.RegisterRequestMeta,
+		inertia.Middleware(),
 		echomw.CORSWithConfig(echomw.CORSConfig{
 			AllowOrigins:     []string{"https://*", "http://*"},
 			AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
@@ -12367,6 +12709,11 @@ var Scripts = routing.NewSimpleRoute(
 var Script = routing.NewRouteWithFile(
 	fmt.Sprintf("/js/%v/:file", startTime),
 	"js.script",
+	AssetsPrefix,
+)
+var ViteBuild = routing.NewSimpleRoute(
+	"/dist/*",
+	"vite.build",
 	AssetsPrefix,
 )
 ```
@@ -14351,6 +14698,31 @@ type TraceExporter interface {
 
 func GetTracer(serviceName string) trace.Tracer {
 	return otel.Tracer(serviceName)
+}
+```
+
+file -----------rw-r--r-- tsconfig.json
+```
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "target": "ES2021",
+    "module": "ES2020",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "jsx": "preserve",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "lib": ["ES2021", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+    "noEmit": true,
+    "paths": {
+      "@/*": ["./resources/js/*"]
+    }
+  },
+  "include": ["resources/js/**/*.ts", "resources/js/**/*.vue"],
+  "exclude": ["node_modules"]
 }
 ```
 
@@ -16987,115 +17359,6 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 var _ = templruntime.GeneratedTemplate
 ```
 
-file -----------rw-r--r-- views/home.templ
-```
-package views
-
-type Home struct{}
-
-func (h Home) PageFragment() string {
-	return "home-page-fragment"
-}
-
-templ (h Home) Page() {
-	@base() {
-		@templ.Fragment(h.PageFragment()) {
-			<main id="home-container" class="flex-1">
-				<div class="space-y-3">
-					<h1 class="text-3xl font-bold">Welcome to Andurel</h1>
-				</div>
-			</main>
-		}
-	}
-}
-```
-
-file -----------rw-r--r-- views/home_templ.go
-```
-// Code generated by templ - DO NOT EDIT.
-
-// templ: version: v0.3.1020
-package views
-
-//lint:file-ignore SA4006 This context is only used if a nested component is present.
-
-import "github.com/a-h/templ"
-import templruntime "github.com/a-h/templ/runtime"
-
-type Home struct{}
-
-func (h Home) PageFragment() string {
-	return "home-page-fragment"
-}
-
-func (h Home) Page() templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var1 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var1 == nil {
-			templ_7745c5c3_Var1 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var2 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-			if !templ_7745c5c3_IsBuffer {
-				defer func() {
-					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-					if templ_7745c5c3_Err == nil {
-						templ_7745c5c3_Err = templ_7745c5c3_BufErr
-					}
-				}()
-			}
-			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Var3 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-				if !templ_7745c5c3_IsBuffer {
-					defer func() {
-						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-						if templ_7745c5c3_Err == nil {
-							templ_7745c5c3_Err = templ_7745c5c3_BufErr
-						}
-					}()
-				}
-				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"home-container\" class=\"flex-1\"><div class=\"space-y-3\"><h1 class=\"text-3xl font-bold\">Welcome to Andurel</h1></div></main>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				return nil
-			})
-			templ_7745c5c3_Err = templ.Fragment(h.PageFragment()).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			return nil
-		})
-		templ_7745c5c3_Err = base().Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return nil
-	})
-}
-
-var _ = templruntime.GeneratedTemplate
-```
-
 file -----------rw-r--r-- views/internal_error.templ
 ```
 package views
@@ -18339,5 +18602,53 @@ func (rpf ResetPasswordForm) Page() templ.Component {
 }
 
 var _ = templruntime.GeneratedTemplate
+```
+
+file -----------rw-r--r-- views/root.go.html
+```
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title inertia>{{ .appName }}</title>
+    {{ .inertiaHead }}
+    {{ .viteHead }}
+</head>
+<body>
+    {{ .inertia }}
+    {{ .viteBody }}
+</body>
+</html>
+```
+
+file -----------rw-r--r-- vite.config.ts
+```
+import { fileURLToPath, URL } from 'node:url'
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  plugins: [vue(), tailwindcss()],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./resources/js', import.meta.url)),
+    },
+  },
+  base: '/assets/dist/',
+  build: {
+    manifest: "vite/manifest.json",
+    assetsDir: "",
+    outDir: 'assets/dist',
+    rollupOptions: {
+      input: 'resources/js/app.ts',
+    },
+  },
+  server: {
+    port: 5173,
+    strictPort: true,
+  },
+})
 ```
 

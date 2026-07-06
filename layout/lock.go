@@ -26,7 +26,6 @@ type DatabaseConfig struct {
 type ScaffoldConfig struct {
 	ProjectName       string `json:"projectName"`
 	Database          string `json:"database"`
-	CSSFramework      string `json:"cssFramework"`
 	Inertia           string `json:"inertia,omitempty"`
 	JavaScriptRuntime string `json:"javascriptRuntime,omitempty"`
 }

@@ -478,10 +478,9 @@ func setupControllers(db interface{}, r *router.Router) error {
 
 			lock := layout.NewAndurelLock("test")
 			lock.ScaffoldConfig = &layout.ScaffoldConfig{
-				ProjectName:  "app",
-				Database:     "postgresql",
-				CSSFramework: "tailwind",
-				Inertia:      "vue",
+				ProjectName: "app",
+				Database:    "postgresql",
+				Inertia:     "vue",
 			}
 			if err := lock.WriteLockFile(rootDir); err != nil {
 				t.Fatalf("write andurel.lock: %v", err)
@@ -598,10 +597,9 @@ func setupControllers(db interface{}, r *router.Router) error {
 	lock := layout.NewAndurelLock("test")
 	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
-		ProjectName:  "app",
-		Database:     "postgresql",
-		CSSFramework: "tailwind",
-		Inertia:      "vue",
+		ProjectName: "app",
+		Database:    "postgresql",
+		Inertia:     "vue",
 	}
 	if err := lock.WriteLockFile(rootDir); err != nil {
 		t.Fatalf("write andurel.lock: %v", err)

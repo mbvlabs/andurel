@@ -46,7 +46,6 @@ func LoadProjectContext(rootDir string) (*TemplateData, *AndurelLock, error) {
 		ProjectName:          lock.ScaffoldConfig.ProjectName,
 		ModuleName:           moduleName,
 		Database:             lock.ScaffoldConfig.Database,
-		CSSFramework:         lock.ScaffoldConfig.CSSFramework,
 		GoVersion:            goVer,
 		SessionKey:           secrets["SESSION_KEY"],
 		SessionEncryptionKey: secrets["SESSION_ENCRYPTION_KEY"],

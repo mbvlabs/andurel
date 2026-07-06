@@ -24,7 +24,7 @@ func newBuildCommand() *cobra.Command {
 
 This command:
   • Downloads templ and generates views
-  • Builds Tailwind CSS (if configured)
+  • Builds Tailwind CSS
   • Builds Vite assets (if Inertia is configured)
   • Downloads Go dependencies
   • Compiles the application binary as a static Linux binary
@@ -76,37 +76,28 @@ func buildApp(rootDir string, versionFlag string) error {
 		}
 	}
 
-	// 2. Tailwind minify (if applicable)
-	needsTailwind := false
-	if _, ok := lock.Tools["tailwindcli"]; ok {
-		needsTailwind = true
-	} else if lock.ScaffoldConfig != nil && lock.ScaffoldConfig.CSSFramework == "tailwind" {
-		needsTailwind = true
+	// 2. Tailwind minify
+	tailwindTool, ok := lock.Tools["tailwindcli"]
+	if !ok {
+		tailwindTool = layout.NewBinaryTool("tailwindcli", versions.TailwindCLI)
 	}
 
-	if needsTailwind {
-		tailwindTool, ok := lock.Tools["tailwindcli"]
-		if !ok {
-			tailwindTool = layout.NewBinaryTool("tailwindcli", versions.TailwindCLI)
-		}
+	if err := syncSingleTool(rootDir, "tailwindcli", tailwindTool, goos, goarch); err != nil {
+		return fmt.Errorf("failed to sync tailwind CLI: %w", err)
+	}
 
-		if err := syncSingleTool(rootDir, "tailwindcli", tailwindTool, goos, goarch); err != nil {
-			return fmt.Errorf("failed to sync tailwind CLI: %w", err)
-		}
-
-		fmt.Println("Building tailwind CSS...")
-		twCmd := exec.Command(
-			filepath.Join(binDir, "tailwindcli"),
-			"-i", "./css/base.css",
-			"-o", "./assets/css/style.css",
-			"--minify",
-		)
-		twCmd.Dir = rootDir
-		twCmd.Stdout = os.Stdout
-		twCmd.Stderr = os.Stderr
-		if err := twCmd.Run(); err != nil {
-			return fmt.Errorf("tailwind build failed: %w", err)
-		}
+	fmt.Println("Building tailwind CSS...")
+	twCmd := exec.Command(
+		filepath.Join(binDir, "tailwindcli"),
+		"-i", "./css/base.css",
+		"-o", "./assets/css/style.css",
+		"--minify",
+	)
+	twCmd.Dir = rootDir
+	twCmd.Stdout = os.Stdout
+	twCmd.Stderr = os.Stderr
+	if err := twCmd.Run(); err != nil {
+		return fmt.Errorf("tailwind build failed: %w", err)
 	}
 
 	// 2.5. Vite/NPM build for Inertia frontend

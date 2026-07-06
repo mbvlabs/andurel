@@ -1,3 +1,32 @@
+file -----------rw-r--r-- .dockerignore
+```
+.git
+.github
+.gitignore
+.env
+.env.*
+*.md
+LICENSE
+README.md
+
+tmp/
+*.log
+*.test
+*.out
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+node_modules/
+
+Dockerfile
+.dockerignore
+docker-compose.yml
+```
+
 file -----------rw-r--r-- .env.example
 ```
 ENVIRONMENT=development
@@ -35,6 +64,46 @@ bin
 tmp
 testapp.db
 .andurel-upgrade-state.json
+```
+
+file -----------rw-r--r-- Dockerfile
+```
+ARG GO_VERSION=1.26.0
+FROM debian:bookworm-slim AS css-builder
+
+WORKDIR /usr/src/app
+
+COPY bin/tailwindcli ./bin/tailwindcli
+COPY css ./css
+COPY views ./views
+
+RUN ./bin/tailwindcli -i ./css/base.css -o ./assets/css/style.css --minify
+
+FROM golang:${GO_VERSION}-bookworm AS builder
+
+WORKDIR /usr/src/app
+
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
+
+COPY . .
+COPY --from=css-builder /usr/src/app/assets/css/style.css ./assets/css/style.css
+
+RUN CGO_ENABLED=0 GOOS=linux go build -v -o /run-app ./cmd/app
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /run-app /usr/local/bin/run-app
+
+WORKDIR /app
+
+EXPOSE 8080
+
+CMD ["run-app"]
 ```
 
 file -----------rw-r--r-- README.md
@@ -375,7 +444,6 @@ andurel migration up
 # 4. Refresh affected models
 andurel g model User --refresh
 ```
-
 ### Customize Styling
 
 This project uses Tailwind CSS. Customize your theme in `css/themes.css`:
@@ -392,8 +460,6 @@ This project uses Tailwind CSS. Customize your theme in `css/themes.css`:
 Add reusable wrapper classes in `css/components.css` under `@layer components`, then import or compose in your views.
 Use `examples/html/*.html` for snippet-based patterns (pure HTML + Datastar attributes).
 The development server automatically rebuilds CSS on changes.
-
-
 
 ## Environment Configuration
 
@@ -742,6 +808,16 @@ The test helper automatically:
 5. **Assert clearly**: Check both success cases and expected database state
 6. **Don't test frameworks**: Focus on your business logic, not Echo or Bun behavior
 
+## Extensions
+
+This project includes the following extensions:
+
+### docker
+
+<!-- Extension-specific documentation will be added here -->
+
+
+
 ## Learn More
 
 - [Andurel Documentation](https://github.com/mbvlabs/andurel)
@@ -768,8 +844,12 @@ file -----------rw-r--r-- andurel.lock
   "databaseConfig": {
     "nullType": "sql.Null"
   },
+  "extensions": {
+    "docker": {
+      "appliedAt": "\u003cAPPLIED_AT\u003e"
+    }
+  },
   "scaffoldConfig": {
-    "cssFramework": "tailwind",
     "database": "postgresql",
     "projectName": "testapp"
   },
@@ -1549,6 +1629,7 @@ func (a Assets) RegisterRoutes(r *router.Router) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
+
 	_, err = r.AddRoute(echo.Route{
 		Method:  http.MethodGet,
 		Path:    routes.Scripts.Path(),

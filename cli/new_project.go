@@ -75,7 +75,6 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 	}
 
 	database := "postgresql"
-	cssFramework := "tailwind"
 
 	inertiaFlag, err := cmd.Flags().GetString("inertia")
 	if err != nil {
@@ -119,7 +118,7 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 		silence := output.SuppressesHumanOutput(opts)
 		report, err := newProjectReport(projectName, basePath, dryRun, diff, func(target string) error {
 			return runWithOptionalStdoutSilence(silence, func() error {
-				return layout.Scaffold(target, projectName, database, cssFramework, version, extensions, adapter, javascriptRuntime)
+				return layout.Scaffold(target, projectName, database, version, extensions, adapter, javascriptRuntime)
 			})
 		})
 		if err != nil {
@@ -128,7 +127,7 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 		return output.OK(cmd, report, mutationSummary(report), output.Breadcrumb{Command: "andurel tool sync"}, output.Breadcrumb{Command: "andurel database migrate up"}, output.Breadcrumb{Command: "andurel run"})
 	}
 
-	if err := layout.Scaffold(basePath, projectName, database, cssFramework, version, extensions, adapter, javascriptRuntime); err != nil {
+	if err := layout.Scaffold(basePath, projectName, database, version, extensions, adapter, javascriptRuntime); err != nil {
 		return output.WrapError(output.CodeGenerationFailed, err, output.ExitGeneration, "Inspect the scaffold inputs and retry.")
 	}
 

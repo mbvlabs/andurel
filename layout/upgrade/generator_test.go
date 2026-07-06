@@ -34,9 +34,8 @@ func TestBuildTemplateData_UsesModulePathInsteadOfProjectName(t *testing.T) {
 
 	generator := NewTemplateGenerator("v0.0.0")
 	templateData := generator.buildTemplateData(layout.ScaffoldConfig{
-		ProjectName:  "test-upgrade",
-		Database:     "postgresql",
-		CSSFramework: "tailwind",
+		ProjectName: "test-upgrade",
+		Database:    "postgresql",
 	}, "github.com/example/correct-module", nil)
 
 	if templateData.ProjectName != "test-upgrade" {

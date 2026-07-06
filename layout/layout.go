@@ -37,7 +37,7 @@ var (
 )
 
 func Scaffold(
-	targetDir, projectName, database, cssFramework, version string,
+	targetDir, projectName, database, version string,
 	extensionNames []string,
 	inertia, javascriptRuntime string,
 ) error {
@@ -51,7 +51,6 @@ func Scaffold(
 		ProjectName:          projectName,
 		ModuleName:           moduleName,
 		Database:             database,
-		CSSFramework:         cssFramework,
 		GoVersion:            goVersion,
 		SessionKey:           generateRandomHex(64),
 		SessionEncryptionKey: generateRandomHex(32),
@@ -89,7 +88,7 @@ func Scaffold(
 	}
 
 	fmt.Print("Processing templated files...\n")
-	if err := processTemplatedFiles(targetDir, templateData.CSSFramework, &templateData); err != nil {
+	if err := processTemplatedFiles(targetDir, &templateData); err != nil {
 		return fmt.Errorf("failed to process templated files: %w", err)
 	}
 
@@ -107,11 +106,10 @@ func Scaffold(
 	scaffoldConfig := &ScaffoldConfig{
 		ProjectName:       projectName,
 		Database:          database,
-		CSSFramework:      cssFramework,
 		Inertia:           inertia,
 		JavaScriptRuntime: javascriptRuntime,
 	}
-	if err := generateLockFile(targetDir, version, templateData.CSSFramework == "tailwind", scaffoldConfig, extensionNames); err != nil {
+	if err := generateLockFile(targetDir, version, scaffoldConfig, extensionNames); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
 	}
 
@@ -253,26 +251,6 @@ var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Views
 	"tw_views_head.tmpl": "views/head.templ",
-}
-
-var baseVanillaCSSTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"assets_vanilla_css_reset.tmpl":     "assets/css/reset.css",
-	"assets_vanilla_css_tokens.tmpl":    "assets/css/tokens.css",
-	"assets_vanilla_css_base.tmpl":      "assets/css/base.css",
-	"assets_vanilla_css_objects.tmpl":   "assets/css/objects.css",
-	"assets_vanilla_css_utilities.tmpl": "assets/css/utilities.css",
-
-	// Views
-	"vanilla_views_layout.tmpl":         "views/layout.templ",
-	"vanilla_views_head.tmpl":           "views/head.templ",
-	"vanilla_views_home.tmpl":           "views/home.templ",
-	"vanilla_views_bad_request.tmpl":    "views/bad_request.templ",
-	"vanilla_views_internal_error.tmpl": "views/internal_error.templ",
-	"vanilla_views_not_found.tmpl":      "views/not_found.templ",
-	"vanilla_views_confirm_email.tmpl":  "views/confirm_email.templ",
-	"vanilla_views_login.tmpl":          "views/login.templ",
-	"vanilla_views_registration.tmpl":   "views/registration.templ",
-	"vanilla_views_reset_password.tmpl": "views/reset_password.templ",
 }
 
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -427,8 +405,7 @@ var inertiaReactTemplateMappings = map[TmplTarget]TmplTargetPath{
 }
 
 var inertiaSkippedTemplates = map[TmplTarget]bool{
-	"tw_views_home.tmpl":      true,
-	"vanilla_views_home.tmpl": true,
+	"tw_views_home.tmpl": true,
 }
 
 func inertiaAdapterTemplateMappings(adapter string) map[TmplTarget]TmplTargetPath {
@@ -501,11 +478,7 @@ func sortedFrameworkManagedFiles(mappings map[TmplTarget]TmplTargetPath) []Frame
 	return files
 }
 
-func processTemplatedFiles(
-	targetDir string,
-	cssFramework string,
-	data extensions.TemplateData,
-) error {
+func processTemplatedFiles(targetDir string, data extensions.TemplateData) error {
 	mappings := make(map[TmplTarget]TmplTargetPath, len(baseTemplateMappings)+len(inertiaSharedTemplateMappings)+len(inertiaVueTemplateMappings))
 	maps.Copy(mappings, baseTemplateMappings)
 
@@ -537,26 +510,12 @@ func processTemplatedFiles(
 		}
 	}
 
-	if cssFramework == "tailwind" {
-		for templateFile, targetPath := range baseTailwindTemplateMappings {
-			if td, ok := data.(*TemplateData); ok && IsSupportedInertiaAdapter(td.Inertia) && inertiaSkippedTemplates[templateFile] {
-				continue
-			}
-			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
-				return fmt.Errorf("failed to process tailwind template %s: %w", templateFile, err)
-			}
+	for templateFile, targetPath := range baseTailwindTemplateMappings {
+		if td, ok := data.(*TemplateData); ok && IsSupportedInertiaAdapter(td.Inertia) && inertiaSkippedTemplates[templateFile] {
+			continue
 		}
-	}
-
-	if cssFramework == "vanilla" {
-		for templateFile, targetPath := range baseVanillaCSSTemplateMappings {
-			if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
-				return fmt.Errorf(
-					"failed to process vanilla css template %s: %w",
-					templateFile,
-					err,
-				)
-			}
+		if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
+			return fmt.Errorf("failed to process tailwind template %s: %w", templateFile, err)
 		}
 	}
 
@@ -992,10 +951,7 @@ func GetExpectedTools(config *ScaffoldConfig) map[string]*Tool {
 		expectedTools[tool.Name] = NewGoTool(tool.Name, sourceRepo, tool.Version)
 	}
 
-	// Add tailwindcli if using Tailwind CSS
-	if config != nil && config.CSSFramework == "tailwind" {
-		expectedTools["tailwindcli"] = NewBinaryTool("tailwindcli", versions.TailwindCLI)
-	}
+	expectedTools["tailwindcli"] = NewBinaryTool("tailwindcli", versions.TailwindCLI)
 
 	return expectedTools
 }
@@ -1084,7 +1040,7 @@ func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 	return builder.Blueprint()
 }
 
-func generateLockFile(targetDir, version string, hasTailwind bool, config *ScaffoldConfig, extensions []string) error {
+func generateLockFile(targetDir, version string, config *ScaffoldConfig, extensions []string) error {
 	lock := NewAndurelLock(version)
 	lock.ScaffoldConfig = config
 	lock.DatabaseConfig = &DatabaseConfig{
@@ -1096,9 +1052,7 @@ func generateLockFile(targetDir, version string, hasTailwind bool, config *Scaff
 		lock.AddTool(tool.Name, NewGoTool(tool.Name, sourceRepo, tool.Version))
 	}
 
-	if hasTailwind {
-		lock.AddTool("tailwindcli", NewBinaryTool("tailwindcli", versions.TailwindCLI))
-	}
+	lock.AddTool("tailwindcli", NewBinaryTool("tailwindcli", versions.TailwindCLI))
 
 	for _, ext := range extensions {
 		lock.AddExtension(ext, time.Now().Format(time.RFC3339))

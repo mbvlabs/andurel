@@ -20,46 +20,39 @@ import (
 type ScaffoldConfig struct {
 	Name       string
 	Database   string
-	CSS        string
 	Inertia    string
 	Extensions []string
 	Critical   bool
 }
 
 func getScaffoldConfigs() []ScaffoldConfig {
-	cssFrameworks := []string{"tailwind"}
-	inertiaModesByCSS := map[string][]string{
-		"tailwind": {"", "vue"},
-	}
+	inertiaModes := []string{"", "vue"}
 	extensionSets := extensionPowerSet([]string{"docker", "aws-ses", "css-components"})
 
 	var configs []ScaffoldConfig
-	for _, css := range cssFrameworks {
-		for _, inertia := range inertiaModesByCSS[css] {
-			for _, extensions := range extensionSets {
-				configs = append(configs, ScaffoldConfig{
-					Name:       scaffoldConfigName("postgresql", css, inertia, extensions),
-					Database:   "postgresql",
-					CSS:        css,
-					Inertia:    inertia,
-					Extensions: extensions,
-					Critical:   isCriticalScaffoldConfig("postgresql", css, inertia, extensions),
-				})
-			}
+	for _, inertia := range inertiaModes {
+		for _, extensions := range extensionSets {
+			configs = append(configs, ScaffoldConfig{
+				Name:       scaffoldConfigName("postgresql", inertia, extensions),
+				Database:   "postgresql",
+				Inertia:    inertia,
+				Extensions: extensions,
+				Critical:   isCriticalScaffoldConfig("postgresql", inertia, extensions),
+			})
 		}
 	}
 
 	return configs
 }
 
-func isCriticalScaffoldConfig(database, css, inertia string, extensions []string) bool {
+func isCriticalScaffoldConfig(database, inertia string, extensions []string) bool {
 	criticalConfigs := map[string]bool{
-		"postgresql-tailwind":                               true,
-		"postgresql-tailwind-inertia-vue":                   true,
-		"postgresql-tailwind-docker-aws-ses-css-components": true,
+		"postgresql":                               true,
+		"postgresql-inertia-vue":                   true,
+		"postgresql-docker-aws-ses-css-components": true,
 	}
 
-	return criticalConfigs[scaffoldConfigName(database, css, inertia, extensions)]
+	return criticalConfigs[scaffoldConfigName(database, inertia, extensions)]
 }
 
 func extensionPowerSet(extensions []string) [][]string {
@@ -77,8 +70,8 @@ func extensionPowerSet(extensions []string) [][]string {
 	return sets
 }
 
-func scaffoldConfigName(database, css, inertia string, extensions []string) string {
-	parts := []string{database, css}
+func scaffoldConfigName(database, inertia string, extensions []string) string {
+	parts := []string{database}
 
 	if inertia != "" {
 		parts = append(parts, "inertia", inertia)
@@ -91,9 +84,9 @@ func scaffoldConfigName(database, css, inertia string, extensions []string) stri
 
 func TestScaffoldCriticalConfigs(t *testing.T) {
 	expected := []string{
-		"postgresql-tailwind",
-		"postgresql-tailwind-docker-aws-ses-css-components",
-		"postgresql-tailwind-inertia-vue",
+		"postgresql",
+		"postgresql-docker-aws-ses-css-components",
+		"postgresql-inertia-vue",
 	}
 
 	var actual []string

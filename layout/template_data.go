@@ -13,7 +13,6 @@ type TemplateData struct {
 	ProjectName          string
 	ModuleName           string
 	Database             string // Always "postgresql"
-	CSSFramework         string
 	GoVersion            string
 	SessionKey           string
 	SessionEncryptionKey string
@@ -40,15 +39,6 @@ func (td *TemplateData) GetModuleName() string {
 	}
 
 	return td.ModuleName
-}
-
-// GetCSSFramework returns the CSS framework for the project.
-func (td *TemplateData) GetCSSFramework() string {
-	if td == nil {
-		return ""
-	}
-
-	return td.CSSFramework
 }
 
 // GetInertia returns the inertia adapter for the project, if any.

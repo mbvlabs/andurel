@@ -28,18 +28,17 @@ func TestControllerViewGenerationGoldens(t *testing.T) {
 
 	cssModes := []struct {
 		name          string
-		framework     string
 		cssComponents bool
 	}{
-		{name: "bare", framework: "tailwind"},
-		{name: "css_components", framework: "tailwind", cssComponents: true},
+		{name: "bare"},
+		{name: "css_components", cssComponents: true},
 	}
 
 	for _, scenario := range scenarios {
 		for _, cssMode := range cssModes {
 			testName := scenario.name + "_uberfx_" + cssMode.name
 			t.Run(testName, func(t *testing.T) {
-				coord := setupControllerViewGoldenProject(t, cssMode.framework, cssMode.cssComponents)
+				coord := setupControllerViewGoldenProject(t, cssMode.cssComponents)
 
 				if len(scenario.initialActions) > 0 {
 					if err := coord.GenerateControllerWithActions("Widget", "", "", scenario.initialActions, "", false); err != nil {
@@ -59,7 +58,7 @@ func TestControllerViewGenerationGoldens(t *testing.T) {
 
 func TestControllerViewGenerationWithModelNameGolden(t *testing.T) {
 	g := goldie.New(t, goldie.WithFixtureDir(controllerViewGenerationGoldenDir(t)))
-	coord := setupControllerViewGoldenProject(t, "tailwind", false)
+	coord := setupControllerViewGoldenProject(t, false)
 
 	if err := coord.GenerateControllerWithActionsForModel("Dashboard", "", "Widget", "", []string{"index", "show"}, "", false); err != nil {
 		t.Fatalf("failed to generate controller/view with model name: %v", err)
@@ -73,7 +72,7 @@ func TestControllerViewGenerationWithModelNameGolden(t *testing.T) {
 }
 
 func TestControllerViewGenerationNamespacedUberFX(t *testing.T) {
-	coord := setupControllerViewGoldenProject(t, "tailwind", false)
+	coord := setupControllerViewGoldenProject(t, false)
 
 	if err := coord.GenerateControllerWithActions("Widget", "admin", "", nil, "", false); err != nil {
 		t.Fatalf("failed to generate namespaced uberfx controller/view: %v", err)
@@ -90,7 +89,7 @@ func TestControllerViewGenerationNamespacedUberFX(t *testing.T) {
 }
 
 func TestControllerViewGenerationUberFXRootAndNamespacedRegistrations(t *testing.T) {
-	coord := setupControllerViewGoldenProject(t, "tailwind", false)
+	coord := setupControllerViewGoldenProject(t, false)
 
 	if err := coord.GenerateControllerWithActions("Widget", "admin", "", nil, "", false); err != nil {
 		t.Fatalf("failed to generate namespaced uberfx controller/view: %v", err)
@@ -108,7 +107,7 @@ func TestControllerViewGenerationUberFXRootAndNamespacedRegistrations(t *testing
 }
 
 func TestControllerViewGenerationNamespacedModelName(t *testing.T) {
-	coord := setupControllerViewGoldenProject(t, "tailwind", false)
+	coord := setupControllerViewGoldenProject(t, false)
 
 	if err := coord.GenerateControllerWithActionsForModel("Dashboard", "admin", "Widget", "", []string{"index", "show"}, "", false); err != nil {
 		t.Fatalf("failed to generate namespaced controller/view with model name: %v", err)
@@ -149,9 +148,8 @@ func TestControllerViewGenerationNamespacedUberFXNoControllerGo(t *testing.T) {
 	lock := layout.NewAndurelLock("test")
 	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
-		ProjectName:  "testapp",
-		Database:     "postgresql",
-		CSSFramework: "tailwind",
+		ProjectName: "testapp",
+		Database:    "postgresql",
 	}
 	if err := lock.WriteLockFile(projectDir); err != nil {
 		t.Fatalf("failed to write andurel.lock: %v", err)
@@ -191,7 +189,7 @@ func TestControllerViewGenerationNamespacedUberFXNoControllerGo(t *testing.T) {
 }
 
 func TestControllerViewGenerationNamespacedInertia(t *testing.T) {
-	coord := setupControllerViewGoldenProject(t, "tailwind", false)
+	coord := setupControllerViewGoldenProject(t, false)
 
 	if err := coord.GenerateControllerWithActions("Widget", "admin", "", []string{"show"}, "vue", false); err != nil {
 		t.Fatalf("failed to generate namespaced inertia controller/view: %v", err)
@@ -203,7 +201,7 @@ func TestControllerViewGenerationNamespacedInertia(t *testing.T) {
 }
 
 func TestControllerViewGenerationGoldensInertiaProjectDefaultsToTempl(t *testing.T) {
-	coord := setupControllerViewGoldenProjectWithInertia(t, "tailwind", false, "vue")
+	coord := setupControllerViewGoldenProjectWithInertia(t, false, "vue")
 
 	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index", "show"}, "", false); err != nil {
 		t.Fatalf("failed to generate controller/view: %v", err)
@@ -216,7 +214,7 @@ func TestControllerViewGenerationGoldensInertiaProjectDefaultsToTempl(t *testing
 }
 
 func TestControllerViewGenerationGoldensInertiaFlagStillGeneratesInertia(t *testing.T) {
-	coord := setupControllerViewGoldenProject(t, "tailwind", false)
+	coord := setupControllerViewGoldenProject(t, false)
 
 	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index", "show"}, "vue", false); err != nil {
 		t.Fatalf("failed to generate controller/view: %v", err)
@@ -230,7 +228,7 @@ func TestControllerViewGenerationGoldensInertiaFlagStillGeneratesInertia(t *test
 }
 
 func TestControllerViewGenerationGoldensReactInertiaFlagGeneratesReactPages(t *testing.T) {
-	coord := setupControllerViewGoldenProject(t, "tailwind", false)
+	coord := setupControllerViewGoldenProject(t, false)
 
 	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index", "show"}, "react", false); err != nil {
 		t.Fatalf("failed to generate controller/view: %v", err)
@@ -245,7 +243,7 @@ func TestControllerViewGenerationGoldensReactInertiaFlagGeneratesReactPages(t *t
 }
 
 func TestControllerViewGenerationGoldensSingleVueActionGeneratesInertiaController(t *testing.T) {
-	coord := setupControllerViewGoldenProject(t, "tailwind", false)
+	coord := setupControllerViewGoldenProject(t, false)
 
 	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"show"}, "vue", false); err != nil {
 		t.Fatalf("failed to generate controller/view: %v", err)
@@ -259,7 +257,7 @@ func TestControllerViewGenerationGoldensSingleVueActionGeneratesInertiaControlle
 }
 
 func TestControllerViewGenerationGoldensVueActionDoesNotInheritTemplViewActions(t *testing.T) {
-	coord := setupControllerViewGoldenProjectWithInertia(t, "tailwind", false, "vue")
+	coord := setupControllerViewGoldenProjectWithInertia(t, false, "vue")
 
 	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index"}, "", false); err != nil {
 		t.Fatalf("failed to generate templ controller/view: %v", err)
@@ -278,7 +276,7 @@ func TestControllerViewGenerationGoldensVueActionDoesNotInheritTemplViewActions(
 }
 
 func TestControllerViewGenerationGoldensVueActionUpdatesUberFXRegisterRoutes(t *testing.T) {
-	coord := setupControllerViewGoldenProjectWithInertia(t, "tailwind", false, "vue")
+	coord := setupControllerViewGoldenProjectWithInertia(t, false, "vue")
 
 	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index"}, "", false); err != nil {
 		t.Fatalf("failed to generate templ controller/view: %v", err)
@@ -295,11 +293,11 @@ func TestControllerViewGenerationGoldensVueActionUpdatesUberFXRegisterRoutes(t *
 	assertGeneratedFileContains(t, "controllers/widgets.go", "return inertia.Page(etx, \"Widget/Show\"")
 }
 
-func setupControllerViewGoldenProject(t *testing.T, cssFramework string, cssComponents bool) Coordinator {
-	return setupControllerViewGoldenProjectWithInertia(t, cssFramework, cssComponents, "")
+func setupControllerViewGoldenProject(t *testing.T, cssComponents bool) Coordinator {
+	return setupControllerViewGoldenProjectWithInertia(t, cssComponents, "")
 }
 
-func setupControllerViewGoldenProjectWithInertia(t *testing.T, cssFramework string, cssComponents bool, inertia string) Coordinator {
+func setupControllerViewGoldenProjectWithInertia(t *testing.T, cssComponents bool, inertia string) Coordinator {
 	t.Helper()
 
 	cache.ClearFileSystemCache()
@@ -329,10 +327,9 @@ func setupControllerViewGoldenProjectWithInertia(t *testing.T, cssFramework stri
 	lock := layout.NewAndurelLock("test")
 	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
-		ProjectName:  "testapp",
-		Database:     "postgresql",
-		CSSFramework: cssFramework,
-		Inertia:      inertia,
+		ProjectName: "testapp",
+		Database:    "postgresql",
+		Inertia:     inertia,
 	}
 	if cssComponents {
 		lock.AddExtension("css-components", "test-applied-at")

@@ -178,9 +178,8 @@ func TestSyncToolsToFrameworkVersion_PreservesNonFrameworkTools(t *testing.T) {
 				},
 			},
 			ScaffoldConfig: &layout.ScaffoldConfig{
-				ProjectName:  "myapp",
-				Database:     "postgres",
-				CSSFramework: "tailwind",
+				ProjectName: "myapp",
+				Database:    "postgres",
 			},
 		},
 	}
@@ -219,9 +218,8 @@ func TestSyncToolsToFrameworkVersion_PrefersHigherExistingVersion(t *testing.T) 
 				},
 			},
 			ScaffoldConfig: &layout.ScaffoldConfig{
-				ProjectName:  "myapp",
-				Database:     "postgres",
-				CSSFramework: "tailwind",
+				ProjectName: "myapp",
+				Database:    "postgres",
 			},
 		},
 	}
@@ -247,9 +245,8 @@ func TestSyncToolsToFrameworkVersion_InitializesMissingToolsMap(t *testing.T) {
 		lock: &layout.AndurelLock{
 			Version: "v0.1.0",
 			ScaffoldConfig: &layout.ScaffoldConfig{
-				ProjectName:  "myapp",
-				Database:     "postgres",
-				CSSFramework: "tailwind",
+				ProjectName: "myapp",
+				Database:    "postgres",
 			},
 		},
 	}
