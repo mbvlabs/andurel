@@ -123,7 +123,7 @@ func generateJob(name, queueName string) error {
 		return fmt.Errorf("failed to generate worker file: %w", err)
 	}
 
-	if err := registerFXWorkerInQueueGo(pascalName); err != nil {
+	if err := registerWorkerInQueueModule(pascalName); err != nil {
 		return fmt.Errorf("failed to register worker: %w", err)
 	}
 
@@ -152,7 +152,7 @@ func generateFromTemplate(tmplName, outputPath string, data any) error {
 	return files.FormatGoFile(outputPath)
 }
 
-func registerFXWorkerInQueueGo(pascalName string) error {
+func registerWorkerInQueueModule(pascalName string) error {
 	workersGoPath := filepath.Join("queue", "workers.go")
 	content, err := os.ReadFile(workersGoPath)
 	if err != nil {
@@ -163,7 +163,7 @@ func registerFXWorkerInQueueGo(pascalName string) error {
 	updated := false
 
 	constructorRef := "New" + pascalName + "Worker"
-	nextContent, changed, err := ensureFXProvideEntry(
+	nextContent, changed, err := ensureProviderEntry(
 		contentStr,
 		"var wrksConstructors = fx.Provide(",
 		constructorRef,
@@ -182,7 +182,7 @@ func registerFXWorkerInQueueGo(pascalName string) error {
 		return worker.Register(workers)
 	}),
 `, pascalName)
-		nextContent, changed, err = ensureFXModuleEntry(contentStr, "var WorkersModule = fx.Module(", invoke)
+		nextContent, changed, err = ensureModuleEntry(contentStr, "var WorkersModule = fx.Module(", invoke)
 		if err != nil {
 			return err
 		}
@@ -207,8 +207,8 @@ func registerFXWorkerInQueueGo(pascalName string) error {
 	return nil
 }
 
-func ensureFXProvideEntry(content, provideDeclaration, constructorRef string) (string, bool, error) {
-	if hasFXReference(content, constructorRef) {
+func ensureProviderEntry(content, provideDeclaration, constructorRef string) (string, bool, error) {
+	if hasRegistrationReference(content, constructorRef) {
 		return content, false, nil
 	}
 
@@ -229,13 +229,13 @@ func ensureFXProvideEntry(content, provideDeclaration, constructorRef string) (s
 	return content[:closeIdx] + "\t" + constructorRef + ",\n" + content[closeIdx:], true, nil
 }
 
-func hasFXReference(content, ref string) bool {
+func hasRegistrationReference(content, ref string) bool {
 	refPattern := regexp.QuoteMeta(ref)
 	pattern := regexp.MustCompile(`(?m)(^|[[:space:](])` + refPattern + `\s*[,)]`)
 	return pattern.FindStringIndex(content) != nil
 }
 
-func ensureFXModuleEntry(content, moduleDeclaration, entry string) (string, bool, error) {
+func ensureModuleEntry(content, moduleDeclaration, entry string) (string, bool, error) {
 	if strings.Contains(content, entry) {
 		return content, false, nil
 	}

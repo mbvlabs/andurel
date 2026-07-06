@@ -319,15 +319,6 @@ func TestGenerateControllerCustomActionCreatesRouteWithoutModel(t *testing.T) {
 	resetCLITestSeams(t)
 	rootDir := t.TempDir()
 	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
-	writeCLITestFile(t, rootDir, "cmd/app/main.go", `package main
-
-import "example.com/app/router"
-
-func setupControllers(db interface{}, r *router.Router) error {
-	// andurel:controller-registration-point
-	return nil
-}
-`)
 	writeCLITestFile(t, rootDir, "controllers/controller.go", `package controllers
 
 import (
@@ -373,15 +364,6 @@ func TestGenerateControllerNamespacedCustomActionCreatesNamespacedArtifacts(t *t
 	resetCLITestSeams(t)
 	rootDir := t.TempDir()
 	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
-	writeCLITestFile(t, rootDir, "cmd/app/main.go", `package main
-
-import "example.com/app/router"
-
-func setupControllers(db interface{}, r *router.Router) error {
-	// andurel:controller-registration-point
-	return nil
-}
-`)
 	writeCLITestFile(t, rootDir, "controllers/controller.go", `package controllers
 
 import (
@@ -466,15 +448,6 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 			resetCLITestSeams(t)
 			rootDir := t.TempDir()
 			writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
-			writeCLITestFile(t, rootDir, "cmd/app/main.go", `package main
-
-import "example.com/app/router"
-
-func setupControllers(db interface{}, r *router.Router) error {
-	// andurel:controller-registration-point
-	return nil
-}
-`)
 
 			lock := layout.NewAndurelLock("test")
 			lock.ScaffoldConfig = &layout.ScaffoldConfig{
@@ -584,15 +557,6 @@ DROP TABLE project_inquiries;
 	if err := os.Chmod(filepath.Join(rootDir, "bin", "templ"), 0o755); err != nil {
 		t.Fatalf("chmod fake templ: %v", err)
 	}
-	writeCLITestFile(t, rootDir, "cmd/app/main.go", `package main
-
-import "example.com/app/router"
-
-func setupControllers(db interface{}, r *router.Router) error {
-	// andurel:controller-registration-point
-	return nil
-}
-`)
 
 	lock := layout.NewAndurelLock("test")
 	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}

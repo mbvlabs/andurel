@@ -278,17 +278,17 @@ func (m *ModelManager) registerNamespace(resourceName string) error {
 }
 
 // ensureLineInBlock inserts entry as a new line just before the `)` that
-// closes the block opened by openMarker. If the entry is already present in
+// closes the block opened by blockHeader. If the entry is already present in
 // the file the source is returned unchanged. If the block does not exist a
 // new one is appended.
-func ensureLineInBlock(src, openMarker, entry string) string {
+func ensureLineInBlock(src, blockHeader, entry string) string {
 	if strings.Contains(src, entry+"\n") {
 		return src
 	}
 
-	openIdx := strings.Index(src, openMarker)
+	openIdx := strings.Index(src, blockHeader)
 	if openIdx < 0 {
-		return src + "\n" + openMarker + "\n" + entry + "\n)\n"
+		return src + "\n" + blockHeader + "\n" + entry + "\n)\n"
 	}
 
 	closeRel := strings.Index(src[openIdx:], "\n)")

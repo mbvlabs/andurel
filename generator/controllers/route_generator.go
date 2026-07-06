@@ -16,26 +16,16 @@ import (
 type RouteGenerator struct {
 	fileManager      files.Manager
 	templateRenderer *TemplateRenderer
-	mainInjector     *MainInjector
 }
 
 func NewRouteGenerator() *RouteGenerator {
 	return &RouteGenerator{
 		fileManager:      files.NewUnifiedFileManager(),
 		templateRenderer: NewTemplateRenderer(),
-		mainInjector:     NewMainInjector(),
 	}
 }
 
-func (rg *RouteGenerator) GenerateRoutes(resourceName, namespace, pluralName, idType string) error {
-	return rg.GenerateRoutesWithActions(resourceName, namespace, pluralName, idType, nil)
-}
-
-func (rg *RouteGenerator) GenerateRoutesWithActions(resourceName, namespace, pluralName, idType string, actions []string) error {
-	return rg.GenerateRoutesWithActionsAndConstructor(resourceName, namespace, pluralName, idType, actions)
-}
-
-func (rg *RouteGenerator) GenerateRoutesWithActionsAndConstructor(resourceName, namespace, pluralName, idType string, actions []string) error {
+func (rg *RouteGenerator) GenerateRoutes(resourceName, namespace, pluralName, idType string, actions []string) error {
 	prefixedPluralName := namespacePrefix(namespace) + pluralName
 	routesPath := filepath.Join("router/routes", prefixedPluralName+".go")
 
@@ -60,9 +50,6 @@ func (rg *RouteGenerator) GenerateRoutesWithActionsAndConstructor(resourceName, 
 			}
 		}
 
-		if err := rg.mainInjector.InjectFXController(resourceName, namespace, pluralName); err != nil {
-			return fmt.Errorf("failed to inject fx controller: %w", err)
-		}
 		return nil
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("failed to stat routes file %s: %w", routesPath, err)
@@ -83,10 +70,6 @@ func (rg *RouteGenerator) GenerateRoutesWithActionsAndConstructor(resourceName, 
 
 	if err := files.FormatGoFile(routesPath); err != nil {
 		return fmt.Errorf("failed to format routes file: %w", err)
-	}
-
-	if err := rg.mainInjector.InjectFXController(resourceName, namespace, pluralName); err != nil {
-		return fmt.Errorf("failed to inject fx controller: %w", err)
 	}
 
 	return nil

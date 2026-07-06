@@ -20,8 +20,7 @@ type ActionConfig struct {
 	HTTPMethod     string // HTTP method, e.g. "GET", "POST"
 }
 
-// ActionManager orchestrates action generation across controller,
-// routes, and connect files.
+// ActionManager orchestrates action generation across controller and route files.
 type ActionManager struct {
 	injector *controllers.ActionInjector
 }
@@ -34,7 +33,7 @@ func NewActionManager() *ActionManager {
 }
 
 // GenerateAction validates inputs, resolves naming, and delegates to
-// ActionInjector for the three file modifications.
+// ActionInjector for controller and route file modifications.
 func (am *ActionManager) GenerateAction(config ActionConfig) error {
 	if err := am.validateConfig(config); err != nil {
 		return err
@@ -44,22 +43,20 @@ func (am *ActionManager) GenerateAction(config ActionConfig) error {
 	pluralName := naming.DeriveTableName(config.ControllerName) // e.g. "webhooks"
 	receiverName := naming.ToReceiverName(config.ControllerName)
 	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName)) // e.g. "Webhooks"
-	lowercaseResourceName := naming.ToLowerCamelCase(config.ControllerName)
 
 	// Resolve file paths
 	controllerPath := filepath.Join("controllers", pluralName+".go")
 	routesPath := filepath.Join("router", "routes", pluralName+".go")
-	connectPath := filepath.Join("router", "connect_"+pluralName+"_routes.go")
 
-	// Verify all three target files exist before modifying any
-	for _, path := range []string{controllerPath, routesPath, connectPath} {
+	// Verify target files exist before modifying any
+	for _, path := range []string{controllerPath, routesPath} {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			return fmt.Errorf("required file %s does not exist. Generate the controller first: andurel generate controller %s", path, config.ControllerName)
 		}
 	}
 
 	// Check for duplicates across all files before modifying any
-	if err := am.checkDuplicates(controllerPath, routesPath, connectPath, config); err != nil {
+	if err := am.checkDuplicates(controllerPath, routesPath, config, receiverName); err != nil {
 		return err
 	}
 
@@ -109,9 +106,9 @@ func (am *ActionManager) GenerateAction(config ActionConfig) error {
 		ResourceName: config.ControllerName,
 		MethodName:   config.MethodName,
 		HTTPMethod:   httpMethod,
-		HandlerVar:   lowercaseResourceName,
+		HandlerVar:   receiverName,
 	}
-	if err := am.injector.InjectRouteRegistration(connectPath, registrationData); err != nil {
+	if err := am.injector.InjectRouteRegistration(controllerPath, registrationData); err != nil {
 		return fmt.Errorf("failed to inject route registration: %w", err)
 	}
 
@@ -179,7 +176,7 @@ func (am *ActionManager) validateConfig(config ActionConfig) error {
 	return nil
 }
 
-func (am *ActionManager) checkDuplicates(controllerPath, routesPath, connectPath string, config ActionConfig) error {
+func (am *ActionManager) checkDuplicates(controllerPath, routesPath string, config ActionConfig, handlerVar string) error {
 	// Check controller method duplicate
 	controllerContent, err := os.ReadFile(controllerPath)
 	if err != nil {
@@ -201,14 +198,9 @@ func (am *ActionManager) checkDuplicates(controllerPath, routesPath, connectPath
 	}
 
 	// Check route registration duplicate
-	connectContent, err := os.ReadFile(connectPath)
-	if err != nil {
-		return fmt.Errorf("failed to read connect file: %w", err)
-	}
-	lowercaseResourceName := naming.ToLowerCamelCase(config.ControllerName)
-	handlerRef := fmt.Sprintf("Handler: %s.%s,", lowercaseResourceName, config.MethodName)
-	if strings.Contains(string(connectContent), handlerRef) {
-		return fmt.Errorf("route registration for %s.%s already exists in %s", lowercaseResourceName, config.MethodName, connectPath)
+	handlerRef := fmt.Sprintf("Handler: %s.%s,", handlerVar, config.MethodName)
+	if strings.Contains(string(controllerContent), handlerRef) {
+		return fmt.Errorf("route registration for %s.%s already exists in %s", handlerVar, config.MethodName, controllerPath)
 	}
 
 	return nil

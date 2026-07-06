@@ -49,7 +49,6 @@ with echo.JSON responses. No views are generated.`,
       Controller: controllers/posts.go
       Views:      views/posts_resource.templ
       Routes:     router/routes/posts.go
-                  router/connect_posts_routes.go
 
   andurel generate scaffold admin/Widget
 

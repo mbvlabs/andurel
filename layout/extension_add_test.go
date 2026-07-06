@@ -457,7 +457,7 @@ func TestApplyExtension_PreservesSecrets(t *testing.T) {
 	}
 }
 
-func TestApplyExtension_UberFxMode(t *testing.T) {
+func TestApplyExtension_GeneratedProject(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping scaffold test in short mode")
 	}

@@ -25,7 +25,7 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 		inertia          string
 	}{
 		{
-			name:         "full_crud_tailwind",
+			name:         "full_crud",
 			resourceName: "Widget",
 			migrations:   "controller_view_generation",
 		},
@@ -163,8 +163,7 @@ func setupScaffoldGoldenProject(t *testing.T, migrationsFixture string, extensio
 		t.Fatalf("failed to chmod fake templ binary: %v", err)
 	}
 
-	writeControllerViewFixtureFile(t, projectDir, "cmd/app/main.go", manualMainFixture)
-	writeControllerViewFixtureFile(t, projectDir, "controllers/controller.go", fxControllerModuleFixture)
+	writeControllerViewFixtureFile(t, projectDir, "controllers/controller.go", controllerModuleFixture)
 
 	lock := layout.NewAndurelLock("test")
 	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}

@@ -98,10 +98,6 @@ func Scaffold(
 		return fmt.Errorf("failed to process migrations: %w", err)
 	}
 
-	// if err := os.Mkdir(filepath.Join(targetDir, "bin"), constants.DirPermissionDefault); err != nil {
-	// 	return fmt.Errorf("failed to create bin directory: %w", err)
-	// }
-
 	fmt.Print("Generating andurel.lock file...\n")
 	scaffoldConfig := &ScaffoldConfig{
 		ProjectName:       projectName,
@@ -112,11 +108,6 @@ func Scaffold(
 	if err := generateLockFile(targetDir, version, scaffoldConfig, extensionNames); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
 	}
-
-	// fmt.Print("Running go mod tidy...\n")
-	// if err := cmds.RunGoModTidy(targetDir); err != nil {
-	// 	return fmt.Errorf("failed to run go mod tidy: %w", err)
-	// }
 
 	type postStep struct {
 		extensionName string
