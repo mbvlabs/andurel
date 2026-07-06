@@ -1514,7 +1514,6 @@ import (
 	"testapp/router/routes"
 
 	"github.com/labstack/echo/v5"
-	"gopkg.in/yaml.v2"
 )
 
 const threeMonthsCache = "7776000"
@@ -1621,34 +1620,19 @@ func (a Assets) enableCaching(etx *echo.Context, content []byte) *echo.Context {
 	return etx
 }
 
-func createRobotsTxt() (string, error) {
-	type robotsTxt struct {
-		UserAgent string `yaml:"User-agent"`
-		Allow     string `yaml:"Allow"`
-		Sitemap   string `yaml:"Sitemap"`
-	}
-
-	robots, err := yaml.Marshal(robotsTxt{
-		UserAgent: "*",
-		Allow:     "/",
-		Sitemap: fmt.Sprintf(
-			"%s%s",
-			config.BaseURL,
-			routes.Sitemap.URL(),
-		),
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return string(robots), nil
+func createRobotsTxt() string {
+	return fmt.Sprintf(
+		"User-agent: *\nAllow: /\nSitemap: %s%s\n",
+		config.BaseURL,
+		routes.Sitemap.URL(),
+	)
 }
 
 func (a Assets) Robots(etx *echo.Context) error {
 	cacheKey := "assets:robots"
 
 	robotsTxt, err := a.cache.Get(cacheKey, func() (string, error) {
-		return createRobotsTxt()
+		return createRobotsTxt(), nil
 	})
 	if err != nil {
 		slog.ErrorContext(
@@ -1656,8 +1640,7 @@ func (a Assets) Robots(etx *echo.Context) error {
 			"failed to get robots.txt from cache",
 			"error", err,
 		)
-		result, _ := createRobotsTxt()
-		return etx.String(http.StatusOK, result)
+		return etx.String(http.StatusOK, createRobotsTxt())
 	}
 
 	return etx.String(http.StatusOK, robotsTxt)
@@ -5303,7 +5286,6 @@ require (
 	golang.org/x/crypto v0.53.0
 	golang.org/x/net v0.56.0
 	golang.org/x/sync v0.21.0
-	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -5676,8 +5658,6 @@ google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c h1:Hei/4ADfdWqJk1ZMxUNpqntNwaWcugrBjAiHlqqRiVk=
 gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c/go.mod h1:JHkPIbrfpd72SG/EVd6muEfDQjcINNoR0C8j2r3qZ4Q=
-gopkg.in/yaml.v2 v2.4.0 h1:D8xgwECY7CYvx+Y2n4sBz93Jn9JRvxdiyyo8CTfuKaY=
-gopkg.in/yaml.v2 v2.4.0/go.mod h1:RDklbk79AGWmwhnvt/jBztapEOGDOx6ZbXqjP6csGnQ=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
