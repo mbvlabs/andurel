@@ -26,24 +26,24 @@ func NewMainInjector() *MainInjector {
 	}
 }
 
-// InjectFXController adds a generated resource controller to controllers.Module.
+// InjectController adds a generated resource controller to controllers.Module.
 // Returns nil if the file or expected module shape is not found, after printing
 // instructions for a manual update.
-func (mi *MainInjector) InjectFXController(resourceName, namespace, pluralName string) error {
+func (mi *MainInjector) InjectController(resourceName, namespace, pluralName string) error {
 	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
 	packageName := naming.ControllerPackageName(namespace)
 
 	rootDir, err := mi.fileManager.FindGoModRoot()
 	if err != nil {
-		return fmt.Errorf("failed to find project root for fx controller injection: %w", err)
+		return fmt.Errorf("failed to find project root for controller injection: %w", err)
 	}
 
 	controllerFilePath := filepath.Join(rootDir, controllerFileRelPath)
 	content, err := os.ReadFile(controllerFilePath)
 	if err != nil {
-		slog.Info("controllers/controller.go not found for fx controller injection",
-			"hint", "manually add the controller to the FX module")
-		mi.printFXManualInstructions(resourceName, namespace, pluralName)
+		slog.Info("controllers/controller.go not found for controller injection",
+			"hint", "manually add the controller to the controllers module")
+		mi.printManualInstructions(resourceName, namespace, pluralName)
 		return nil
 	}
 
@@ -54,7 +54,7 @@ func (mi *MainInjector) InjectFXController(resourceName, namespace, pluralName s
 	if namespace != "" {
 		modulePath, err := readModulePathFromRoot(rootDir)
 		if err != nil {
-			return fmt.Errorf("failed to read module path for fx controller injection: %w", err)
+			return fmt.Errorf("failed to read module path for controller injection: %w", err)
 		}
 		nextContent := ensureImport(contentStr, "", modulePath+"/controllers/"+namespace)
 		if nextContent != contentStr {
@@ -172,7 +172,7 @@ func findMatchingParen(content string, openIdx int) int {
 	return -1
 }
 
-func (mi *MainInjector) printFXManualInstructions(resourceName, namespace, pluralName string) {
+func (mi *MainInjector) printManualInstructions(resourceName, namespace, pluralName string) {
 	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
 	packageName := naming.ControllerPackageName(namespace)
 	constructorRef := "New" + capitalizedPlural

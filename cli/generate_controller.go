@@ -180,6 +180,9 @@ func generateControllerWithActions(name, modelName string, actions []string, ine
 		if err := generateActionControllerFile(resourceName, namespace, tableName, pluralName, modulePath, controllerPath, customActions, inertia, isAPI); err != nil {
 			return err
 		}
+		if err := controllergen.NewMainInjector().InjectController(resourceName, namespace, pluralName); err != nil {
+			return err
+		}
 		routeGen := controllergen.NewRouteGenerator()
 		if err := routeGen.GenerateRoutes(resourceName, namespace, pluralName, "uuid.UUID", customActions); err != nil {
 			return err

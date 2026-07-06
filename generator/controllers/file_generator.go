@@ -181,8 +181,8 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		return fmt.Errorf("failed to format controller file: %w", err)
 	}
 
-	if err := fg.mainInjector.InjectFXController(resourceName, namespace, pluralName); err != nil {
-		return fmt.Errorf("failed to inject fx controller: %w", err)
+	if err := fg.mainInjector.InjectController(resourceName, namespace, pluralName); err != nil {
+		return fmt.Errorf("failed to inject controller: %w", err)
 	}
 
 	if err := fg.routeGenerator.GenerateRoutes(resourceName, namespace, pluralName, controller.IDType, routeActions); err != nil {
