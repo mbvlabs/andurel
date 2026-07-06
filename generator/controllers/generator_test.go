@@ -434,7 +434,7 @@ func TestRenderInertiaControllerUsesDataStructAndRawMessagePlaceholder(t *testin
 		},
 	}
 
-	rendered, err := NewTemplateRenderer().RenderControllerFile(controller, "manual", "vue")
+	rendered, err := NewTemplateRenderer().RenderControllerFile(controller, "vue")
 	if err != nil {
 		t.Fatalf("RenderControllerFile failed: %v", err)
 	}

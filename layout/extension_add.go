@@ -20,7 +20,7 @@ import (
 // (or .env as fallback) so they are preserved when blueprint templates are
 // re-rendered.
 //
-// The blueprint is rebuilt from scratch by calling initializeBaseBlueprint and
+// The blueprint is rebuilt from scratch by calling initializeBlueprint and
 // then re-applying all existing extensions with a no-op ProcessTemplate. This
 // restores the full blueprint state (config fields, env vars, imports, etc.)
 // without overwriting any existing extension-generated files.
@@ -41,8 +41,6 @@ func LoadProjectContext(rootDir string) (*TemplateData, *AndurelLock, error) {
 
 	secrets := readSecrets(rootDir)
 
-	diMode := "uberfx"
-
 	td := &TemplateData{
 		AppName:              lock.ScaffoldConfig.ProjectName,
 		ProjectName:          lock.ScaffoldConfig.ProjectName,
@@ -57,11 +55,10 @@ func LoadProjectContext(rootDir string) (*TemplateData, *AndurelLock, error) {
 		Extensions:           lock.ExtensionNames(),
 		RunToolVersion:       GetRunToolVersion(),
 		FrameworkVersion:     lock.Version,
-		DIMode:               diMode,
 		Inertia:              lock.ScaffoldConfig.Inertia,
 	}
 
-	bp := initializeBaseBlueprint(moduleName, diMode, td.Inertia)
+	bp := initializeBlueprint(moduleName)
 	td.SetBlueprint(bp)
 
 	if err := registerBuiltinExtensions(); err != nil {
@@ -80,7 +77,6 @@ func LoadProjectContext(rootDir string) (*TemplateData, *AndurelLock, error) {
 			ctx := extensions.Context{
 				TargetDir: rootDir,
 				Data:      td,
-				DIMode:    diMode,
 				Inertia:   td.Inertia,
 				ProcessTemplate: func(templateFile, targetPath string, data extensions.TemplateData) error {
 					return nil
@@ -174,7 +170,6 @@ func ApplyExtension(rootDir, extensionName string) ([]string, error) {
 		extCtx := extensions.Context{
 			TargetDir:         rootDir,
 			Data:              td,
-			DIMode:            td.DIMode,
 			Inertia:           td.Inertia,
 			NextMigrationTime: &nextMigrationTime,
 		}

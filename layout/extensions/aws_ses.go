@@ -14,8 +14,6 @@ func (e AwsSes) Apply(ctx *Context) error {
 	}
 
 	builder := ctx.Builder()
-	moduleName := ctx.Data.GetModuleName()
-
 	// Add config field
 	builder.AddConfigField("AwsSes", "awsSes")
 
@@ -25,25 +23,12 @@ func (e AwsSes) Apply(ctx *Context) error {
 	builder.AddEnvVar("AWS_SES_SECRET_ACCESS_KEY", "AwsSes", "")
 	builder.AddEnvVar("AWS_SES_CONFIGURATION_SET", "AwsSes", "")
 
-	if ctx.DIMode == "uberfx" {
-		builder.AddServiceProvide(`func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
+	builder.AddServiceProvide(`func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
 	if config.Env == "production" {
 		return mailclients.NewAwsSes(cfg), mailclients.NewAwsSes(cfg)
 	}
 	return mailclients.NewMailpit(cfg), mailclients.NewMailpit(cfg)
 }`)
-	} else {
-		builder.AddMainImport(fmt.Sprintf("%s/email", moduleName))
-		builder.AddMainImport(fmt.Sprintf("%s/clients/email", moduleName))
-
-		builder.AddMainInitialization(
-			"emailClient",
-			"mailclients.NewAwsSes(cfg)",
-			"cfg",
-		)
-
-		builder.AddControllerDependency("emailClient", "email.TransactionalSender")
-	}
 
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("aws-ses: failed to render templates: %w", err)

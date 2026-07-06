@@ -9,9 +9,9 @@ import (
 	"{{.ModuleName}}/internal/server"
 
 	"github.com/gosimple/slug"
-    {{if eq .DIMode "uberfx"}}
+    
 	"go.uber.org/fx"
-    {{end}}
+    
 )
 
 // Global application settings that can be used throughout the codebase with defaults.
@@ -87,6 +87,5 @@ func NewConfig() Config {
 	}
 }
 
-{{if eq .DIMode "uberfx"}}
+
     var Module = fx.Module("config", fx.Provide(NewConfig))
-{{end}}

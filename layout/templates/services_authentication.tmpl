@@ -2,17 +2,13 @@ package services
 
 import (
 	"context"
-{{ if ne .DIMode "uberfx" }}
-	"database/sql"
-{{ end }}
-	"errors"
-{{ if eq .DIMode "uberfx" }}
-	"fmt"
-{{ end }}
 
-{{- if ne .DIMode "uberfx"}}
-	"{{.ModuleName}}/internal/storage"
-{{- end}}
+	"errors"
+
+	"fmt"
+
+
+
 	"{{.ModuleName}}/internal/validation"
 	"{{.ModuleName}}/models"
 )
@@ -27,7 +23,7 @@ type LoginData struct {
 	Password string
 }
 
-{{if eq .DIMode "uberfx"}}
+
 func (i Identity) AuthenticateUser(
 	ctx context.Context,
 	data LoginData,
@@ -40,62 +36,26 @@ func (i Identity) AuthenticateUser(
 	}
 
 	user, err := models.User.FindByEmail(ctx, i.db.Executor(), data.Email)
-{{else}}
-func AuthenticateUser(
-	ctx context.Context,
-	db storage.Pool,
-	salt string,
-	data LoginData,
-) (models.UserEntity, error) {
-	b := validation.NewBuilder()
-	b.Required("email", data.Email)
-	b.Required("password", data.Password)
-	if !b.Errors().Empty() {
-		return models.UserEntity{}, b.Errors()
-	}
 
-	user, err := models.User.FindByEmail(ctx, db.Executor(), data.Email)
-{{end}}
 	if err != nil {
-{{if eq .DIMode "uberfx"}}
+
 		if errors.Is(err, models.ErrNotFound) {
 			return models.UserEntity{}, ErrInvalidCredentials
 		}
 
 		return models.UserEntity{}, fmt.Errorf("find user by email: %w", err)
-{{else}}
-		if errors.Is(err, sql.ErrNoRows) {
-			return models.UserEntity{}, ErrInvalidCredentials
-		}
 
-		return models.UserEntity{}, err
-{{end}}
 	}
 
-{{if eq .DIMode "uberfx"}}
+
 	validPassword, err := user.ValidPassword(data.Password, i.pepper)
-{{else}}
-	validPassword, err := user.ValidPassword(data.Password, salt)
-{{end}}
+
 	if err != nil {
-{{if eq .DIMode "uberfx"}}
+
 		return models.UserEntity{}, fmt.Errorf("validate password: %w", err)
-{{else}}
-		return models.UserEntity{}, err
-{{end}}
+
 	}
 
 	if !validPassword {
-{{if eq .DIMode "uberfx"}}
+
 		return models.UserEntity{}, ErrInvalidCredentials
-{{else}}
-		return models.UserEntity{}, errors.New("invalid password")
-{{end}}
-	}
-
-	if !user.HasValidatedEmail() {
-		return models.UserEntity{}, ErrEmailNotVerified
-	}
-
-	return user, nil
-}

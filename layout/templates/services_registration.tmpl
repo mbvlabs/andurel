@@ -5,21 +5,17 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-{{ if eq .DIMode "uberfx" }}
+
 	"fmt"
-{{ end }}
+
 	"time"
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/email"
-{{- if ne .DIMode "uberfx"}}
-	"{{.ModuleName}}/internal/storage"
-{{- end}}
+
 	"{{.ModuleName}}/internal/validation"
 	"{{.ModuleName}}/models"
-{{- if ne .DIMode "uberfx"}}
-	"{{.ModuleName}}/queue"
-{{- end}}
+
 	"{{.ModuleName}}/queue/jobs"
 )
 
@@ -31,7 +27,7 @@ type RegisterUserData struct {
 	ConfirmPassword string
 }
 
-{{if eq .DIMode "uberfx"}}
+
 func (i Identity) RegisterUser(
 	ctx context.Context,
 	data RegisterUserData,
@@ -49,41 +45,16 @@ func (i Identity) RegisterUser(
 	}
 
 	tx, err := i.db.BeginTx(ctx, nil)
-{{else}}
-func RegisterUser(
-	ctx context.Context,
-	db storage.Pool,
-	insertOnly queue.InsertOnly,
-	salt string,
-	data RegisterUserData,
-) error {
-	b := validation.NewBuilder()
-	b.Required("email", data.Email)
-	b.Required("password", data.Password)
-	b.MinLen("password", data.Password, 8)
-	b.Required("confirmPassword", data.ConfirmPassword)
-	if data.Password != data.ConfirmPassword {
-		b.Add("confirmPassword", "mismatch", "Passwords do not match")
-	}
-	if !b.Errors().Empty() {
-		return b.Errors()
-	}
 
-	tx, err := db.BeginTx(ctx, nil)
-{{end}}
 	if err != nil {
-{{if eq .DIMode "uberfx"}}
+
 		return fmt.Errorf("begin registration transaction: %w", err)
-{{else}}
-		return err
-{{end}}
+
 	}
 
-{{if eq .DIMode "uberfx"}}
+
 	user, err := models.User.Create(ctx, tx, i.pepper, models.CreateUserData{
-{{else}}
-	user, err := models.User.Create(ctx, tx, salt, models.CreateUserData{
-{{end}}
+
 		Email: data.Email,
 		PasswordPair: models.PasswordPair{
 			Password:        data.Password,
@@ -92,11 +63,9 @@ func RegisterUser(
 	})
 	if err != nil {
 		_ = tx.Rollback()
-{{if eq .DIMode "uberfx"}}
+
 		return fmt.Errorf("create user: %w", err)
-{{else}}
-		return err
-{{end}}
+
 	}
 
 	meta, err := json.Marshal(map[string]string{
@@ -104,70 +73,53 @@ func RegisterUser(
 	})
 	if err != nil {
 		_ = tx.Rollback()
-{{if eq .DIMode "uberfx"}}
+
 		return fmt.Errorf("marshal verification token metadata: %v", err)
-{{else}}
-		return err
-{{end}}
+
 	}
 
-{{if eq .DIMode "uberfx"}}
+
 	code, err := models.Token.CreateCode(
 		ctx,
 		tx,
 		i.pepper,
-{{else}}
-	code, err := models.Token.CreateCode(
-		ctx,
-		tx,
-		salt,
-{{end}}
+
 		userEmailVerification,
 		time.Now().Add(24*time.Hour),
 		meta,
 	)
 	if err != nil {
 		_ = tx.Rollback()
-{{if eq .DIMode "uberfx"}}
+
 		return fmt.Errorf("create verification token: %w", err)
-{{else}}
-		return err
-{{end}}
+
 	}
 
 	if err := tx.Commit(); err != nil {
-{{if eq .DIMode "uberfx"}}
+
 		return fmt.Errorf("commit registration transaction: %w", err)
-{{else}}
-		return err
-{{end}}
+
 	}
 
 	vEmail := email.VerifyEmail{VerificationCode: code}
 
 	html, err := vEmail.ToHTML()
 	if err != nil {
-{{if eq .DIMode "uberfx"}}
+
 		return fmt.Errorf("render verification email html: %v", err)
-{{else}}
-		return err
-{{end}}
+
 	}
 
 	text, err := vEmail.ToText()
 	if err != nil {
-{{if eq .DIMode "uberfx"}}
+
 		return fmt.Errorf("render verification email text: %v", err)
-{{else}}
-		return err
-{{end}}
+
 	}
 
-{{if eq .DIMode "uberfx"}}
+
 	_, err = i.insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
-{{else}}
-	_, err = insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
-{{end}}
+
 		Data: email.TransactionalData{
 			To:       user.Email,
 			From:     config.DefaultSenderSignature,
@@ -176,15 +128,13 @@ func RegisterUser(
 			TextBody: text,
 		},
 	}, nil)
-{{if eq .DIMode "uberfx"}}
+
 	if err != nil {
 		return fmt.Errorf("queue verification email: %v", err)
 	}
 
 	return nil
-{{else}}
-	return err
-{{end}}
+
 }
 
 var (
@@ -197,7 +147,7 @@ type VerifyEmailData struct {
 	Code string
 }
 
-{{if eq .DIMode "uberfx"}}
+
 func (i Identity) VerifyEmail(
 	ctx context.Context,
 	data VerifyEmailData,
@@ -209,60 +159,35 @@ func (i Identity) VerifyEmail(
 	}
 
 	tx, err := i.db.BeginTx(ctx, nil)
-{{else}}
-func VerifyEmail(
-	ctx context.Context,
-	db storage.Pool,
-	salt string,
-	data VerifyEmailData,
-) (models.UserEntity, error) {
-	b := validation.NewBuilder()
-	b.Required("code", data.Code)
-	if !b.Errors().Empty() {
-		return models.UserEntity{}, b.Errors()
-	}
 
-	tx, err := db.BeginTx(ctx, nil)
-{{end}}
 	if err != nil {
-{{if eq .DIMode "uberfx"}}
+
 		return models.UserEntity{}, fmt.Errorf("begin email verification transaction: %w", err)
-{{else}}
-		return models.UserEntity{}, err
-{{end}}
+
 	}
 
-{{if eq .DIMode "uberfx"}}
+
 	token, err := models.Token.FindByScopeAndHash(
 		ctx,
 		tx,
 		i.pepper,
-{{else}}
-	token, err := models.Token.FindByScopeAndHash(
-		ctx,
-		tx,
-		salt,
-{{end}}
+
 		userEmailVerification,
 		data.Code,
 	)
 	if err != nil {
 		_ = tx.Rollback()
-{{if eq .DIMode "uberfx"}}
+
 		if errors.Is(err, models.ErrNotFound) {
 			return models.UserEntity{}, ErrInvalidVerificationCode
 		}
 		return models.UserEntity{}, fmt.Errorf("find email verification token: %w", err)
-{{else}}
-		return models.UserEntity{}, ErrInvalidVerificationCode
-{{end}}
+
 	}
 
-{{if eq .DIMode "uberfx"}}
+
 	if !token.IsValid(data.Code, i.pepper) {
-{{else}}
-	if !token.IsValid(data.Code, salt) {
-{{end}}
+
 		_ = tx.Rollback()
 		return models.UserEntity{}, ErrExpiredVerificationCode
 	}
@@ -270,34 +195,28 @@ func VerifyEmail(
 	var meta map[string]string
 	if err := json.Unmarshal(token.MetaData, &meta); err != nil {
 		_ = tx.Rollback()
-{{if eq .DIMode "uberfx"}}
+
 		return models.UserEntity{}, fmt.Errorf("unmarshal verification token metadata: %v", err)
-{{else}}
-		return models.UserEntity{}, err
-{{end}}
+
 	}
 
 	emailAddr, ok := meta["email"]
 	if !ok {
 		_ = tx.Rollback()
-{{if eq .DIMode "uberfx"}}
+
 		return models.UserEntity{}, errors.New("verification token metadata missing email")
-{{else}}
-		return models.UserEntity{}, errors.New("token metadata missing email")
-{{end}}
+
 	}
 
 	user, err := models.User.FindByEmail(ctx, tx, emailAddr)
 	if err != nil {
 		_ = tx.Rollback()
-{{if eq .DIMode "uberfx"}}
+
 		if errors.Is(err, models.ErrNotFound) {
 			return models.UserEntity{}, ErrUserNotFound
 		}
 		return models.UserEntity{}, fmt.Errorf("find verification user: %w", err)
-{{else}}
-		return models.UserEntity{}, err
-{{end}}
+
 	}
 
 	now := time.Now()
@@ -310,32 +229,21 @@ func VerifyEmail(
 	})
 	if err != nil {
 		_ = tx.Rollback()
-{{if eq .DIMode "uberfx"}}
+
 		if errors.Is(err, models.ErrNotFound) {
 			return models.UserEntity{}, ErrUserNotFound
 		}
 		return models.UserEntity{}, fmt.Errorf("mark user email verified: %w", err)
-{{else}}
-		return models.UserEntity{}, err
-{{end}}
+
 	}
 
 	if err := models.Token.Destroy(ctx, tx, token.ID); err != nil {
 		_ = tx.Rollback()
-{{if eq .DIMode "uberfx"}}
+
 		return models.UserEntity{}, fmt.Errorf("destroy email verification token: %w", err)
-{{else}}
-		return models.UserEntity{}, err
-{{end}}
+
 	}
 
 	if err := tx.Commit(); err != nil {
-{{if eq .DIMode "uberfx"}}
-		return models.UserEntity{}, fmt.Errorf("commit email verification transaction: %w", err)
-{{else}}
-		return models.UserEntity{}, err
-{{end}}
-	}
 
-	return user, nil
-}
+		return models.UserEntity{}, fmt.Errorf("commit email verification transaction: %w", err)

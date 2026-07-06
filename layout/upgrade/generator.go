@@ -94,7 +94,6 @@ func (g *TemplateGenerator) buildTemplateData(
 		Extensions:       extensions,
 		RunToolVersion:   layout.GetRunToolVersion(),
 		FrameworkVersion: frameworkVersion,
-		DIMode:           "uberfx",
 		Inertia:          config.Inertia,
 	}
 }

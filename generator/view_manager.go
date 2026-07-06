@@ -174,10 +174,9 @@ func (v *ViewManager) GenerateViewFromModel(resourceName string, withController 
 		controllerType := controllers.ResourceController // with views since we're generating both
 		fileGen := controllers.NewFileGenerator()
 		nullType := ReadNullType()
-		diMode := ReadDIMode()
 		inertia := ""
 		pkInfo := DetectPrimaryKey(cat, tableName)
-		if err := fileGen.GenerateController(cat, resourceName, "", tableName, controllerType, modulePath, v.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, diMode, inertia); err != nil {
+		if err := fileGen.GenerateController(cat, resourceName, "", tableName, controllerType, modulePath, v.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, inertia); err != nil {
 			return fmt.Errorf("failed to generate controller: %w", err)
 		}
 		fmt.Printf("Successfully generated resource view for %s with controller\n", resourceName)

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/cli/output"
-	generatorpkg "github.com/mbvlabs/andurel/generator"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/pkg/constants"
@@ -25,7 +24,6 @@ type jobTemplateData struct {
 type workerTemplateData struct {
 	ModulePath string
 	PascalName string
-	DIMode     string
 }
 
 func newGenerateJobCommand() *cobra.Command {
@@ -106,7 +104,6 @@ func generateJob(name, queueName string) error {
 
 	snakeName := naming.ToSnakeCase(name)
 	pascalName := naming.ToPascalCase(snakeName)
-	diMode := generatorpkg.ReadDIMode()
 
 	// Generate queue/jobs/<snake>.go
 	jobPath := filepath.Join("queue", "jobs", snakeName+".go")
@@ -118,19 +115,15 @@ func generateJob(name, queueName string) error {
 		return fmt.Errorf("failed to generate job file: %w", err)
 	}
 
-	workerPath := filepath.Join("queue", "workers", snakeName+".go")
-	if diMode == "uberfx" {
-		workerPath = filepath.Join("queue", snakeName+".go")
-	}
+	workerPath := filepath.Join("queue", snakeName+".go")
 	if err := generateFromTemplate("worker.tmpl", workerPath, workerTemplateData{
 		ModulePath: modulePath,
 		PascalName: pascalName,
-		DIMode:     diMode,
 	}); err != nil {
 		return fmt.Errorf("failed to generate worker file: %w", err)
 	}
 
-	if err := registerWorker(pascalName, diMode); err != nil {
+	if err := registerFXWorkerInQueueGo(pascalName); err != nil {
 		return fmt.Errorf("failed to register worker: %w", err)
 	}
 
@@ -157,47 +150,6 @@ func generateFromTemplate(tmplName, outputPath string, data any) error {
 	}
 
 	return files.FormatGoFile(outputPath)
-}
-
-func registerWorker(pascalName, diMode string) error {
-	if diMode == "uberfx" {
-		return registerFXWorkerInQueueGo(pascalName)
-	}
-	return registerWorkerInWorkersGo(pascalName)
-}
-
-func registerWorkerInWorkersGo(pascalName string) error {
-	workersGoPath := filepath.Join("queue", "workers", "workers.go")
-	content, err := os.ReadFile(workersGoPath)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", workersGoPath, err)
-	}
-
-	contentStr := string(content)
-	marker := "// andurel:worker-registration-point"
-	if !strings.Contains(contentStr, marker) {
-		printManualWorkerRegistration(pascalName)
-		return nil
-	}
-
-	registrationLine := fmt.Sprintf(`
-	if err := river.AddWorkerSafely(wrks, New%sWorker()); err != nil {
-		return nil, err
-	}
-
-`, pascalName)
-
-	newContent := strings.Replace(contentStr, marker, registrationLine+marker, 1)
-
-	if err := os.WriteFile(workersGoPath, []byte(newContent), constants.FilePermissionPrivate); err != nil {
-		return err
-	}
-
-	if err := files.FormatGoFile(workersGoPath); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func registerFXWorkerInQueueGo(pascalName string) error {
@@ -319,16 +271,4 @@ func findMatchingParen(content string, openIdx int) int {
 		}
 	}
 	return -1
-}
-
-func printManualWorkerRegistration(pascalName string) {
-	fmt.Printf(`
-INFO: Could not find worker registration marker in queue/workers/workers.go.
-Add the following line before the "return wrks, nil" statement in the Register function:
-
-	if err := river.AddWorkerSafely(wrks, New%sWorker()); err != nil {
-		return nil, err
-	}
-
-`, pascalName)
 }

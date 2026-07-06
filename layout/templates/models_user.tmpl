@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
-	"encoding/base64"
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -22,13 +22,13 @@ import (
 
 type UserEntity struct {
 	bun.BaseModel    `bun:"table:users,alias:user"`
-	ID               uuid.UUID  `bun:"id,pk,type:uuid"`
-	CreatedAt        time.Time  `bun:"created_at"`
-	UpdatedAt        time.Time  `bun:"updated_at"`
-	Email            string     `bun:"email"`
+	ID               uuid.UUID    `bun:"id,pk,type:uuid"`
+	CreatedAt        time.Time    `bun:"created_at"`
+	UpdatedAt        time.Time    `bun:"updated_at"`
+	Email            string       `bun:"email"`
 	EmailValidatedAt sql.NullTime `bun:"email_validated_at"`
-	Password         []byte     `bun:"password"`
-	IsAdmin          bool       `bun:"is_admin"`
+	Password         []byte       `bun:"password"`
+	IsAdmin          bool         `bun:"is_admin"`
 }
 
 func (u *UserEntity) Validate() error {
@@ -78,11 +78,9 @@ func (u user) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (User
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
-{{ if eq .DIMode "uberfx" }}
 		if errors.Is(err, sql.ErrNoRows) {
 			return UserEntity{}, ErrNotFound
 		}
-{{ end }}
 		return UserEntity{}, err
 	}
 	return entity, nil
@@ -95,11 +93,9 @@ func (u user) FindByEmail(ctx context.Context, db storage.Executor, email string
 		Where("email = ?", strings.ToLower(email)).
 		Scan(ctx)
 	if err != nil {
-{{ if eq .DIMode "uberfx" }}
 		if errors.Is(err, sql.ErrNoRows) {
 			return UserEntity{}, ErrNotFound
 		}
-{{ end }}
 		return UserEntity{}, err
 	}
 	return entity, nil
@@ -163,11 +159,9 @@ func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserDa
 		Where("id = ?", data.ID).
 		Scan(ctx)
 	if err != nil {
-{{ if eq .DIMode "uberfx" }}
 		if errors.Is(err, sql.ErrNoRows) {
 			return UserEntity{}, ErrNotFound
 		}
-{{ end }}
 		return UserEntity{}, err
 	}
 

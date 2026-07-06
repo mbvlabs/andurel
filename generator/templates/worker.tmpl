@@ -1,4 +1,4 @@
-{{if eq .DIMode "uberfx"}}package queue{{else}}package workers{{end}}
+package queue
 
 import (
 	"context"
@@ -16,14 +16,6 @@ func New{{.PascalName}}Worker() *{{.PascalName}}Worker {
 	return &{{.PascalName}}Worker{}
 }
 
-{{if eq .DIMode "uberfx"}}
-func (w *{{.PascalName}}Worker) Register(workers *river.Workers) error {
-	return river.AddWorkerSafely(workers, w)
-}
 
-{{end}}
-func (w *{{.PascalName}}Worker) Work(ctx context.Context, job *river.Job[jobs.{{.PascalName}}Args]) error {
-	_ = ctx
-	_ = job
-	return nil
-}
+func (w *{{.PascalName}}
+func (w *{{.PascalName}}Worker) Work(ctx context.Context, job *river.Job[jobs.{{.PascalName}}
