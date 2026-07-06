@@ -140,7 +140,6 @@ func TestControllerViewGenerationNamespacedNoControllerGo(t *testing.T) {
 	if err := os.Chmod(filepath.Join(projectDir, "bin", "templ"), 0o755); err != nil {
 		t.Fatalf("failed to chmod fake templ binary: %v", err)
 	}
-	writeControllerViewFixtureFile(t, projectDir, "cmd/app/main.go", manualMainFixture)
 
 	// Intentionally NOT writing controllers/controller.go —
 	// this should be a non-fatal fallback, not an error.
@@ -321,7 +320,6 @@ func setupControllerViewGoldenProjectWithInertia(t *testing.T, cssComponents boo
 		t.Fatalf("failed to chmod fake templ binary: %v", err)
 	}
 
-	writeControllerViewFixtureFile(t, projectDir, "cmd/app/main.go", manualMainFixture)
 	writeControllerViewFixtureFile(t, projectDir, "controllers/controller.go", controllerModuleFixture)
 
 	lock := layout.NewAndurelLock("test")
@@ -451,18 +449,6 @@ func controllerViewGenerationGoldenDir(t *testing.T) string {
 
 	return filepath.Join(generatorPackageDir(t), "testdata", "golden", "controller_views")
 }
-
-const manualMainFixture = `package main
-
-import (
-	"testapp/controllers"
-	"testapp/router"
-)
-
-func setupControllers(db interface{}, r *router.Router) error {
-	return nil
-}
-`
 
 const controllerModuleFixture = `package controllers
 

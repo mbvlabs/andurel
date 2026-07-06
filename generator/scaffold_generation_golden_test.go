@@ -163,7 +163,6 @@ func setupScaffoldGoldenProject(t *testing.T, migrationsFixture string, extensio
 		t.Fatalf("failed to chmod fake templ binary: %v", err)
 	}
 
-	writeControllerViewFixtureFile(t, projectDir, "cmd/app/main.go", manualMainFixture)
 	writeControllerViewFixtureFile(t, projectDir, "controllers/controller.go", controllerModuleFixture)
 
 	lock := layout.NewAndurelLock("test")
