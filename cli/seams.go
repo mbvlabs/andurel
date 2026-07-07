@@ -8,6 +8,8 @@ type cliGenerator interface {
 	GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string, isAPI bool) error
 	GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string, isAPI bool) error
 	GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string, isAPI bool) error
+	SyncFactory(resourceName string, opts generator.FactorySyncOptions) (*generator.FactorySyncResult, error)
+	SyncFactories(opts generator.FactorySyncOptions) ([]*generator.FactorySyncResult, error)
 }
 
 var newGenerator = func() (cliGenerator, error) {

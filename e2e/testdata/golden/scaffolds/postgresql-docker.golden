@@ -1277,6 +1277,87 @@ func startServer(lc fx.Lifecycle, r *router.Router, cfg config.Config, processor
 }
 ```
 
+dir  d----------rwxr-xr-x cmd/seeds
+
+file -----------rw-r--r-- cmd/seeds/main.go
+```
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"strings"
+
+	"github.com/joho/godotenv"
+	"testapp/database/seeds"
+	"testapp/internal/storage"
+)
+
+func main() {
+	if err := run(os.Args[1:]); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(args []string) error {
+	flags := flag.NewFlagSet("seeds", flag.ExitOnError)
+	list := flags.Bool("list", false, "list available seeds")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+
+	if *list {
+		fmt.Println(strings.Join(seeds.Names(), "\n"))
+		return nil
+	}
+
+	if flags.NArg() > 1 {
+		return fmt.Errorf("expected at most one seed name, got %d", flags.NArg())
+	}
+
+	godotenv.Load()
+
+	ctx := context.Background()
+
+	db, err := storage.NewPostgres(ctx, buildDatabaseURL())
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+	defer db.Close()
+
+	seedName := ""
+	if flags.NArg() == 1 {
+		seedName = flags.Arg(0)
+	}
+	if seedName == "" {
+		seedName = seeds.Default
+	}
+
+	fmt.Printf("Seeding database with %q...\n", seedName)
+	if err := seeds.Run(ctx, db.Executor(), seedName); err != nil {
+		return err
+	}
+
+	fmt.Println("Seeding complete!")
+	return nil
+}
+
+func buildDatabaseURL() string {
+	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
+		os.Getenv("DB_KIND"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_SSL_MODE"),
+	)
+}
+```
+
 dir  d----------rwxr-xr-x config
 
 file -----------rw-r--r-- config/app.go
@@ -3263,42 +3344,54 @@ DROP TABLE IF EXISTS tokens;
 
 dir  d----------rwxr-xr-x database/seeds
 
-file -----------rw-r--r-- database/seeds/main.go
+file -----------rw-r--r-- database/seeds/seeds.go
 ```
-package main
+package seeds
 
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
+	"slices"
+	"strings"
 
-	"github.com/joho/godotenv"
 	"testapp/internal/storage"
 	"testapp/models/factories"
 )
 
-func main() {
-	if err := run(); err != nil {
-		log.Fatal(err)
-	}
+const Default = "development"
+
+type Runner func(context.Context, storage.Executor) error
+
+var Registry = map[string]Runner{
+	"default":     Development,
+	"development": Development,
+	"test":        Test,
 }
 
-func run() error {
-	godotenv.Load()
-
-	ctx := context.Background()
-
-	db, err := storage.NewPostgres(ctx, buildDatabaseURL())
-	if err != nil {
-		return fmt.Errorf("failed to connect to database: %w", err)
+func Names() []string {
+	names := make([]string, 0, len(Registry))
+	for name := range Registry {
+		names = append(names, name)
 	}
-	defer db.Close()
+	slices.Sort(names)
+	return names
+}
 
-	fmt.Println("Seeding database...")
+func Run(ctx context.Context, exec storage.Executor, name string) error {
+	if name == "" {
+		name = Default
+	}
 
-	// Create an admin user
-	admin, err := factories.CreateUser(ctx, db.Executor(),
+	runner, ok := Registry[name]
+	if !ok {
+		return fmt.Errorf("unknown seed %q (available: %s)", name, strings.Join(Names(), ", "))
+	}
+
+	return runner(ctx, exec)
+}
+
+func Development(ctx context.Context, exec storage.Executor) error {
+	admin, err := factories.CreateUser(ctx, exec,
 		factories.WithEmail("admin@example.com"),
 		factories.WithIsAdmin(true),
 		factories.WithValidatedEmail(),
@@ -3308,8 +3401,7 @@ func run() error {
 	}
 	fmt.Printf("Created admin user: %s\n", admin.Email)
 
-	// Create a regular user
-	user, err := factories.CreateUser(ctx, db.Executor(),
+	user, err := factories.CreateUser(ctx, exec,
 		factories.WithEmail("user@example.com"),
 		factories.WithValidatedEmail(),
 	)
@@ -3321,26 +3413,25 @@ func run() error {
 	// Add more seeds here using factories:
 	//
 	// // Create 10 additional users with random emails
-	// users, err := factories.CreateUsers(ctx, db.Executor(), 10)
+	// users, err := factories.CreateUsers(ctx, exec, 10)
 	// if err != nil {
 	// 	return fmt.Errorf("failed to create users: %w", err)
 	// }
 	// fmt.Printf("Created %d additional users\n", len(users))
 
-	fmt.Println("Seeding complete!")
 	return nil
 }
 
-func buildDatabaseURL() string {
-	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
-		os.Getenv("DB_KIND"),
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_NAME"),
-		os.Getenv("DB_SSL_MODE"),
+func Test(ctx context.Context, exec storage.Executor) error {
+	_, err := factories.CreateUser(ctx, exec,
+		factories.WithEmail("test@example.com"),
+		factories.WithValidatedEmail(),
 	)
+	if err != nil {
+		return fmt.Errorf("failed to create test user: %w", err)
+	}
+
+	return nil
 }
 ```
 

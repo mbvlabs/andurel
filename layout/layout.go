@@ -278,7 +278,8 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-1.min.js",
 
 	// Commands
-	"cmd_app_main.tmpl": "cmd/app/main.go",
+	"cmd_app_main.tmpl":   "cmd/app/main.go",
+	"cmd_seeds_main.tmpl": "cmd/seeds/main.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
@@ -299,7 +300,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Database
 	"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
-	"database_seeds_main.tmpl":         "database/seeds/main.go",
+	"database_seeds_seeds.tmpl":        "database/seeds/seeds.go",
 	"psql_database.tmpl":               "database/database.go",
 
 	// Queue package

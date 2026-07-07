@@ -55,6 +55,8 @@ func TestGenerateCommandPublicSurface(t *testing.T) {
 	expected := []commandContract{
 		{name: "controller", aliases: []string{"c"}},
 		{name: "email", aliases: []string{"e"}},
+		{name: "factories"},
+		{name: "factory"},
 		{name: "job", aliases: []string{"j"}},
 		{name: "model", aliases: []string{"m"}},
 		{name: "scaffold", aliases: []string{"s"}},
@@ -174,6 +176,8 @@ func TestCommandFlagsContract(t *testing.T) {
 	}{
 		{path: "new", flags: []string{"extensions", "inertia", "dry-run", "diff"}},
 		{path: "generate model", flags: []string{"skip-factory", "table-name", "update", "yes", "primary-key", "dry-run", "diff"}},
+		{path: "generate factory", flags: []string{"check", "sync", "diff"}},
+		{path: "generate factories", flags: []string{"check", "sync", "diff"}},
 		{path: "generate controller", flags: []string{"inertia", "model-name", "dry-run", "diff"}},
 		{path: "generate scaffold", flags: []string{"skip-factory", "table-name", "primary-key", "inertia", "dry-run", "diff"}},
 		{path: "generate job", flags: []string{"queue", "dry-run", "diff"}},
@@ -183,7 +187,8 @@ func TestCommandFlagsContract(t *testing.T) {
 		{path: "fmt", flags: []string{"check", "skip-templ", "skip-go"}},
 		{path: "database drop", flags: []string{"force"}},
 		{path: "database nuke", flags: []string{"force"}},
-		{path: "database rebuild", flags: []string{"force", "skip-seed"}},
+		{path: "database seed", flags: []string{"list"}},
+		{path: "database rebuild", flags: []string{"force", "skip-seed", "seed"}},
 		{path: "build", flags: []string{"version"}},
 		{path: "doctor", flags: []string{"verbose"}},
 		{path: "upgrade", flags: []string{"dry-run", "diff"}},

@@ -12,10 +12,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mbvlabs/andurel/cli/output"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
+
+type seedReport struct {
+	Name   string   `json:"name,omitempty"`
+	Names  []string `json:"names,omitempty"`
+	Output []string `json:"output,omitempty"`
+}
 
 func newDatabaseCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -27,6 +35,7 @@ create, drop, nuke, rebuild, seed, and run migrations.
 
 Use the subcommands below to manage your database.`,
 	}
+	setAgentMetadata(cmd, "database", "Database lifecycle commands. Prefer --json or --agent for automation; destructive commands may prompt unless --force is provided.")
 
 	cmd.AddCommand(
 		newDBSeedCommand(),
@@ -68,20 +77,6 @@ migration, apply pending ones, rollback, check status, or fix gaps.`,
 	)
 
 	return cmd
-}
-
-func newSeedCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "seed",
-		Short: "Run database seeds",
-		Long: `Run the database seed file at database/seeds/main.go.
-
-Edit this file to add your seed data using model factories.`,
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runSeed()
-		},
-	}
 }
 
 // Migration commands
@@ -198,19 +193,33 @@ func newDBMigrationStatusCommand() *cobra.Command {
 // Seed command
 
 func newDBSeedCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:     "seed",
+	var list bool
+
+	cmd := &cobra.Command{
+		Use:     "seed [name]",
 		Aliases: []string{"s"},
 		Short:   "Run database seeds",
-		Long: `Run the database seed file at database/seeds/main.go.
+		Long: `Run the database seed entrypoint at cmd/seeds.
 
-Edit this file to add your seed data using model factories.`,
-		Args:    cobra.NoArgs,
-		Example: "  andurel database seed",
+Edit database/seeds to add reusable named seed sets using model factories.`,
+		Args: cobra.MaximumNArgs(1),
+		Example: `  andurel database seed
+  andurel database seed development
+  andurel database seed test
+  andurel database seed --list`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runSeed()
+			name := ""
+			if len(args) == 1 {
+				name = args[0]
+			}
+			return runSeed(cmd, name, list)
 		},
 	}
+	setAgentMetadata(cmd, "database", "Runs the v1 seed entrypoint at cmd/seeds. Use --list to discover available named seeds.")
+
+	cmd.Flags().BoolVar(&list, "list", false, "List available seeds")
+
+	return cmd
 }
 
 // Lifecycle commands
@@ -282,6 +291,7 @@ fresh empty one. Use --force to override system database protection.`,
 func newDBRebuildCommand() *cobra.Command {
 	var force bool
 	var skipSeed bool
+	var seedName string
 
 	cmd := &cobra.Command{
 		Use:     "rebuild",
@@ -293,51 +303,107 @@ This is a full database reset:
   1. Drops the existing database
   2. Creates a fresh one
   3. Runs all pending migrations
-  4. Seeds the database from database/seeds/main.go
+  4. Seeds the database through cmd/seeds
 
-Use --skip-seed to skip step 4. Use --force to override system
+Use --seed to choose a named seed set. Use --skip-seed to skip step 4.
+Use --force to override system
 database protection for the drop step.`,
 		Args:    cobra.NoArgs,
-		Example: "  andurel database rebuild\n  andurel database rebuild --skip-seed",
+		Example: "  andurel database rebuild\n  andurel database rebuild --seed development\n  andurel database rebuild --skip-seed",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return rebuildDatabase(force, skipSeed)
+			return rebuildDatabase(cmd, force, skipSeed, seedName)
 		},
 	}
+	setAgentMetadata(cmd, "database", "Drops, recreates, migrates, then runs cmd/seeds. Use --seed to select the seed set.")
 
 	cmd.Flags().
 		BoolVar(&force, "force", false, "Allow dropping system databases like postgres/template1")
 	cmd.Flags().
 		BoolVar(&skipSeed, "skip-seed", false, "Skip running database seeds after migrations")
+	cmd.Flags().
+		StringVar(&seedName, "seed", "", "Seed name to run after migrations")
 
 	return cmd
 }
 
-func runSeed() error {
+func runSeed(cmd *cobra.Command, name string, list bool) error {
 	rootDir, err := findGoModRoot()
 	if err != nil {
 		return err
 	}
 
-	seedDir := filepath.Join(rootDir, "database", "seeds")
-	mainFile := filepath.Join(seedDir, "main.go")
-
-	if _, err := os.Stat(mainFile); err != nil {
+	cmdSeedsMain := filepath.Join(rootDir, "cmd", "seeds", "main.go")
+	if _, err := os.Stat(cmdSeedsMain); err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf(
-				"seed file not found at %s\nCreate it at database/seeds/main.go or scaffold a new project with 'andurel new'",
-				mainFile,
+			return output.NewError(
+				output.CodeMissingTool,
+				fmt.Sprintf("seed entrypoint not found at %s", cmdSeedsMain),
+				output.ExitDependency,
+				fmt.Sprintf("Create %s or run andurel new to scaffold a v1 project.", cmdSeedsMain),
 			)
 		}
 		return err
 	}
 
-	cmd := exec.Command("go", "run", "./database/seeds")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	cmd.Dir = rootDir
+	goArgs := []string{"run", "./cmd/seeds"}
+	if list {
+		goArgs = append(goArgs, "--list")
+	}
+	if name != "" {
+		goArgs = append(goArgs, name)
+	}
 
-	return cmd.Run()
+	runCmd := exec.Command("go", goArgs...)
+	runCmd.Stdin = os.Stdin
+	runCmd.Dir = rootDir
+
+	opts, err := output.ParseOptions(cmd)
+	if err != nil {
+		return err
+	}
+	if !output.UsesStructuredOutput(opts) {
+		runCmd.Stdout = os.Stdout
+		runCmd.Stderr = os.Stderr
+		return runCmd.Run()
+	}
+
+	out, err := runCmd.CombinedOutput()
+	lines := splitNonEmptyLines(string(out))
+	if err != nil {
+		return output.WrapError(
+			output.CodeExternalCommandFailed,
+			fmt.Errorf("run seed command: %w", err),
+			output.ExitExternal,
+			strings.Join(lines, "\n"),
+		)
+	}
+
+	if list {
+		return output.OK(cmd, seedReport{Names: lines}, fmt.Sprintf("Found %d seed sets", len(lines)))
+	}
+
+	seedName := name
+	if seedName == "" {
+		seedName = "default"
+	}
+	return output.OK(
+		cmd,
+		seedReport{Name: seedName, Output: lines},
+		fmt.Sprintf("Ran %q seed", seedName),
+		output.Breadcrumb{Command: "andurel database seed --list", Description: "List available seed sets"},
+	)
+}
+
+func splitNonEmptyLines(value string) []string {
+	raw := strings.Split(value, "\n")
+	lines := make([]string, 0, len(raw))
+	for _, line := range raw {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			lines = append(lines, line)
+		}
+	}
+	return lines
 }
 
 // Shared helpers
@@ -537,7 +603,7 @@ func nukeDatabase(force bool) error {
 	return nil
 }
 
-func rebuildDatabase(force bool, skipSeed bool) error {
+func rebuildDatabase(cmd *cobra.Command, force bool, skipSeed bool, seedName string) error {
 	rootDir, err := findGoModRoot()
 	if err != nil {
 		return err
@@ -561,7 +627,7 @@ func rebuildDatabase(force bool, skipSeed bool) error {
 		return nil
 	}
 
-	if err := runSeed(); err != nil {
+	if err := runSeed(cmd, seedName, false); err != nil {
 		return err
 	}
 

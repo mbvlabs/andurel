@@ -110,7 +110,7 @@ func TestGenerateModelUpdateMapsYesFlag(t *testing.T) {
 	resetCLITestSeams(t)
 	var gotName string
 	var gotAutoApply bool
-	runModelUpdateFunc = func(resourceName string, autoApply bool) error {
+	runModelUpdateFunc = func(resourceName string, autoApply bool, skipFactory bool) error {
 		gotName = resourceName
 		gotAutoApply = autoApply
 		return nil

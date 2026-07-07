@@ -78,7 +78,7 @@ Use --update to sync an existing model file with migration changes.`,
 				},
 				Run: func(rootDir string) error {
 					if updateModel {
-						return runModelUpdateFunc(name, autoApply)
+						return runModelUpdateFunc(name, autoApply, skipFactory)
 					}
 					return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
 						gen, err := newGenerator()

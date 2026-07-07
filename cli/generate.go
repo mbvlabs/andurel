@@ -27,12 +27,14 @@ func newGenerateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "generate",
 		Aliases: []string{"g"},
-		Short:   "Generate new code (model, controller, scaffold, job, email)",
+		Short:   "Generate new code (model, factory, controller, scaffold, job, email)",
 		Long: `Generates new code for your Andurel application. The following
 generators are available:
 
   model       Generate a model from the existing migration, or update one
               with --update
+  factory     Generate or sync a model factory
+  factories   Check or sync all model factories
   views       Generate Go code from Templ templates (templ generate)
   controller  Generate a controller, views, and routes
   scaffold    Generate a complete resource with model, controller, views, and routes
@@ -44,6 +46,8 @@ for example admin/Widget. Namespaces generate controllers/admin, admin route
 names, and Admin-prefixed route/view symbols.`,
 		Example: `  andurel generate model Post
   andurel generate model Post --update
+  andurel generate factory Post --sync
+  andurel generate factories --check
   andurel generate view
   andurel generate controller Widget index show
   andurel generate controller admin/Widget export
@@ -56,6 +60,8 @@ names, and Admin-prefixed route/view symbols.`,
 
 	cmd.AddCommand(
 		newGenerateModelCommand(),
+		newGenerateFactoryCommand(),
+		newGenerateFactoriesCommand(),
 		newGenerateViewsCommand(),
 		newGenerateControllerCommand(),
 		newGenerateScaffoldCommand(),
@@ -67,6 +73,14 @@ names, and Admin-prefixed route/view symbols.`,
 		helpCommand{
 			Use:         "generate model NAME",
 			Description: "generates a new model from migration",
+		},
+		helpCommand{
+			Use:         "generate factory NAME",
+			Description: "generates or syncs a model factory",
+		},
+		helpCommand{
+			Use:         "generate factories",
+			Description: "checks or syncs all model factories",
 		},
 		helpCommand{
 			Use:         "generate view",

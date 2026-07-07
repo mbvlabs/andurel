@@ -1,0 +1,87 @@
+package seeds
+
+import (
+	"context"
+	"fmt"
+	"slices"
+	"strings"
+
+	"{{.ModuleName}}/internal/storage"
+	"{{.ModuleName}}/models/factories"
+)
+
+const Default = "development"
+
+type Runner func(context.Context, storage.Executor) error
+
+var Registry = map[string]Runner{
+	"default":     Development,
+	"development": Development,
+	"test":        Test,
+}
+
+func Names() []string {
+	names := make([]string, 0, len(Registry))
+	for name := range Registry {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
+}
+
+func Run(ctx context.Context, exec storage.Executor, name string) error {
+	if name == "" {
+		name = Default
+	}
+
+	runner, ok := Registry[name]
+	if !ok {
+		return fmt.Errorf("unknown seed %q (available: %s)", name, strings.Join(Names(), ", "))
+	}
+
+	return runner(ctx, exec)
+}
+
+func Development(ctx context.Context, exec storage.Executor) error {
+	admin, err := factories.CreateUser(ctx, exec,
+		factories.WithEmail("admin@example.com"),
+		factories.WithIsAdmin(true),
+		factories.WithValidatedEmail(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create admin user: %w", err)
+	}
+	fmt.Printf("Created admin user: %s\n", admin.Email)
+
+	user, err := factories.CreateUser(ctx, exec,
+		factories.WithEmail("user@example.com"),
+		factories.WithValidatedEmail(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create regular user: %w", err)
+	}
+	fmt.Printf("Created regular user: %s\n", user.Email)
+
+	// Add more seeds here using factories:
+	//
+	// // Create 10 additional users with random emails
+	// users, err := factories.CreateUsers(ctx, exec, 10)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create users: %w", err)
+	// }
+	// fmt.Printf("Created %d additional users\n", len(users))
+
+	return nil
+}
+
+func Test(ctx context.Context, exec storage.Executor) error {
+	_, err := factories.CreateUser(ctx, exec,
+		factories.WithEmail("test@example.com"),
+		factories.WithValidatedEmail(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create test user: %w", err)
+	}
+
+	return nil
+}
