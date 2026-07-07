@@ -43,10 +43,7 @@ func newControllerValidationContext(resourceName, tableName, namespace string, c
 }
 
 func namespacePrefix(namespace string) string {
-	if namespace == "" {
-		return ""
-	}
-	return namespace + "_"
+	return naming.NamespaceFilePrefix(namespace)
 }
 
 func validateControllerNotExists(ctx *controllerValidationContext) error {

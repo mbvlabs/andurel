@@ -203,6 +203,10 @@ func ControllerPackageName(namespace string) string {
 	if namespace == "" {
 		return "controllers"
 	}
+	if strings.Contains(namespace, "/") {
+		parts := strings.Split(namespace, "/")
+		return parts[len(parts)-1]
+	}
 	return namespace
 }
 
@@ -213,6 +217,35 @@ func NamespacedControllerImportPath(modulePath, namespace string) string {
 		return modulePath + "/controllers"
 	}
 	return modulePath + "/controllers/" + namespace
+}
+
+// NamespaceToPascal converts a slash-separated namespace path into a PascalCase
+// prefix suitable for route variables and generated view symbols.
+func NamespaceToPascal(namespace string) string {
+	if namespace == "" {
+		return ""
+	}
+	parts := strings.Split(namespace, "/")
+	var builder strings.Builder
+	for _, part := range parts {
+		builder.WriteString(ToPascalCase(part))
+	}
+	return builder.String()
+}
+
+// NamespaceRouteName converts a slash-separated namespace path into a dotted
+// route-name prefix.
+func NamespaceRouteName(namespace string) string {
+	return strings.ReplaceAll(namespace, "/", ".")
+}
+
+// NamespaceFilePrefix converts a slash-separated namespace path into the file
+// prefix used for same-package generated artifacts such as route and view files.
+func NamespaceFilePrefix(namespace string) string {
+	if namespace == "" {
+		return ""
+	}
+	return strings.ReplaceAll(namespace, "/", "_") + "_"
 }
 
 // DeriveResourceName converts a snake_case plural table name into a PascalCase singular resource name.

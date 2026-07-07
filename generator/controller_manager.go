@@ -145,7 +145,11 @@ func (c *ControllerManager) GenerateControllerWithActionsForModel(
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
-	fmt.Printf("Successfully generated resource controller %s with views\n", resourceName)
+	if isAPI {
+		fmt.Printf("Successfully generated API resource controller %s\n", resourceName)
+	} else {
+		fmt.Printf("Successfully generated resource controller %s with views\n", resourceName)
+	}
 
 	return nil
 }
@@ -245,10 +249,7 @@ func ReadNullType() string {
 }
 
 func controllerNamespacePrefix(namespace string) string {
-	if namespace == "" {
-		return ""
-	}
-	return namespace + "_"
+	return naming.NamespaceFilePrefix(namespace)
 }
 
 // Returns "" when not configured (templ-only mode).

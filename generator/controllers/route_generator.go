@@ -81,7 +81,7 @@ func existingRouteFileActions(routesPath, resourceName, namespace, pluralName st
 		return nil, fmt.Errorf("failed to read routes file %s: %w", routesPath, err)
 	}
 
-	prefix := naming.ToPascalCase(namespace)
+	prefix := naming.NamespaceToPascal(namespace)
 	contentStr := string(content)
 	actions := make([]string, 0, len(crudActions))
 	for _, action := range crudActions {
@@ -93,7 +93,7 @@ func existingRouteFileActions(routesPath, resourceName, namespace, pluralName st
 
 	routeNamePrefix := pluralName
 	if namespace != "" {
-		routeNamePrefix = namespace + "." + pluralName
+		routeNamePrefix = naming.NamespaceRouteName(namespace) + "." + pluralName
 	}
 	routeNamePattern := regexp.MustCompile(fmt.Sprintf(`"%s\.([a-z0-9_]+)"`, regexp.QuoteMeta(routeNamePrefix)))
 	for _, match := range routeNamePattern.FindAllStringSubmatch(contentStr, -1) {
@@ -109,8 +109,5 @@ func existingRouteFileActions(routesPath, resourceName, namespace, pluralName st
 }
 
 func namespacePrefix(namespace string) string {
-	if namespace == "" {
-		return ""
-	}
-	return namespace + "_"
+	return naming.NamespaceFilePrefix(namespace)
 }

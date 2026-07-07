@@ -63,6 +63,9 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 	if controller.ModelPluralResourceName == "" {
 		controller.ModelPluralResourceName = controller.PluralResourceName
 	}
+	if controller.Package == "" {
+		controller.Package = naming.ControllerPackageName(controller.Namespace)
+	}
 
 	var templateName string
 	if controller.IsAPI {
@@ -199,6 +202,7 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, namespace, plural
 		ResourceName    string
 		Namespace       string
 		NamespacePascal string
+		NamespaceRoute  string
 		PluralName      string
 		ModulePath      string
 		IDType          string
@@ -207,7 +211,8 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, namespace, plural
 	}{
 		ResourceName:    resourceName,
 		Namespace:       namespace,
-		NamespacePascal: naming.ToPascalCase(namespace),
+		NamespacePascal: naming.NamespaceToPascal(namespace),
+		NamespaceRoute:  naming.NamespaceRouteName(namespace),
 		PluralName:      pluralName,
 		ModulePath:      modulePath,
 		IDType:          idType,

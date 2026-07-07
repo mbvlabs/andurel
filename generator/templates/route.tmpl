@@ -9,7 +9,7 @@ const {{.NamespacePascal}}{{.ResourceName}}Prefix = "/{{if .Namespace}}{{.Namesp
 {{- if HasAction "index" }}
 var {{.NamespacePascal}}{{.ResourceName}}Index = routing.NewSimpleRoute(
 	"",
-	"{{if .Namespace}}{{.Namespace}}.{{end}}{{.PluralName}}.index",
+	"{{if .NamespaceRoute}}{{.NamespaceRoute}}.{{end}}{{.PluralName}}.index",
 	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 )
 {{- end }}
@@ -17,7 +17,7 @@ var {{.NamespacePascal}}{{.ResourceName}}Index = routing.NewSimpleRoute(
 {{- if HasAction "show" }}
 var {{.NamespacePascal}}{{.ResourceName}}Show = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
 	"/:id",
-	"{{if .Namespace}}{{.Namespace}}.{{end}}{{.PluralName}}.show",
+	"{{if .NamespaceRoute}}{{.NamespaceRoute}}.{{end}}{{.PluralName}}.show",
 	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 )
 {{- end }}
@@ -25,7 +25,7 @@ var {{.NamespacePascal}}{{.ResourceName}}Show = routing.{{if eq .IDType "int32"}
 {{- if HasAction "new" }}
 var {{.NamespacePascal}}{{.ResourceName}}New = routing.NewSimpleRoute(
 	"/new",
-	"{{if .Namespace}}{{.Namespace}}.{{end}}{{.PluralName}}.new",
+	"{{if .NamespaceRoute}}{{.NamespaceRoute}}.{{end}}{{.PluralName}}.new",
 	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 )
 {{- end }}
@@ -33,7 +33,7 @@ var {{.NamespacePascal}}{{.ResourceName}}New = routing.NewSimpleRoute(
 {{- if HasAction "create" }}
 var {{.NamespacePascal}}{{.ResourceName}}Create = routing.NewSimpleRoute(
 	"",
-	"{{if .Namespace}}{{.Namespace}}.{{end}}{{.PluralName}}.create",
+	"{{if .NamespaceRoute}}{{.NamespaceRoute}}.{{end}}{{.PluralName}}.create",
 	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 )
 {{- end }}
@@ -41,7 +41,7 @@ var {{.NamespacePascal}}{{.ResourceName}}Create = routing.NewSimpleRoute(
 {{- if HasAction "edit" }}
 var {{.NamespacePascal}}{{.ResourceName}}Edit = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
 	"/:id/edit",
-	"{{if .Namespace}}{{.Namespace}}.{{end}}{{.PluralName}}.edit",
+	"{{if .NamespaceRoute}}{{.NamespaceRoute}}.{{end}}{{.PluralName}}.edit",
 	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 )
 {{- end }}
@@ -49,7 +49,7 @@ var {{.NamespacePascal}}{{.ResourceName}}Edit = routing.{{if eq .IDType "int32"}
 {{- if HasAction "update" }}
 var {{.NamespacePascal}}{{.ResourceName}}Update = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
 	"/:id",
-	"{{if .Namespace}}{{.Namespace}}.{{end}}{{.PluralName}}.update",
+	"{{if .NamespaceRoute}}{{.NamespaceRoute}}.{{end}}{{.PluralName}}.update",
 	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 )
 {{- end }}
@@ -57,7 +57,7 @@ var {{.NamespacePascal}}{{.ResourceName}}Update = routing.{{if eq .IDType "int32
 {{- if HasAction "destroy" }}
 var {{.NamespacePascal}}{{.ResourceName}}Destroy = routing.{{if eq .IDType "int32"}}NewRouteWithSerialID{{else if eq .IDType "int64"}}NewRouteWithBigSerialID{{else if eq .IDType "string"}}NewRouteWithStringID{{else}}NewRouteWithUUIDID{{end}}(
 	"/:id",
-	"{{if .Namespace}}{{.Namespace}}.{{end}}{{.PluralName}}.destroy",
+	"{{if .NamespaceRoute}}{{.NamespaceRoute}}.{{end}}{{.PluralName}}.destroy",
 	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 )
 {{- end }}
@@ -65,7 +65,7 @@ var {{.NamespacePascal}}{{.ResourceName}}Destroy = routing.{{if eq .IDType "int3
 {{- range .CustomActions }}
 var {{$.NamespacePascal}}{{$.ResourceName}}{{.MethodName}} = routing.NewSimpleRoute(
 	"/{{.Path}}",
-	"{{if $.Namespace}}{{$.Namespace}}.{{end}}{{$.PluralName}}.{{.RouteName}}",
+	"{{if $.NamespaceRoute}}{{$.NamespaceRoute}}.{{end}}{{$.PluralName}}.{{.RouteName}}",
 	{{$.NamespacePascal}}{{$.ResourceName}}Prefix,
 )
 {{- end }}

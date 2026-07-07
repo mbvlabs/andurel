@@ -54,8 +54,8 @@ route names, and use Admin-prefixed route and view symbols.
 
 Use --api to generate a JSON API controller instead. The controller is placed
 under controllers/api and returns echo.JSON responses. No views are generated.
-When --api is provided, the namespace is forced to "api" regardless of any
-namespace segment in the name, and the default action set excludes new/edit.`,
+When --api is provided, any namespace segment in the name is nested under api,
+and the default action set excludes new/edit.`,
 		Example: `  andurel generate controller CreditCard
 
       Generates the standard CRUD resource controller, views, and routes.
@@ -134,7 +134,7 @@ func generateControllerWithActions(name, modelName string, actions []string, ine
 	}
 
 	if isAPI {
-		namespace = "api"
+		namespace = apiNamespace(namespace)
 	}
 
 	tableName := naming.DeriveTableName(resourceName)
@@ -189,8 +189,19 @@ func generateControllerWithActions(name, modelName string, actions []string, ine
 		}
 	}
 
-	fmt.Printf("Successfully generated controller %s\n", name)
+	if isAPI {
+		fmt.Printf("Successfully generated API controller %s\n", name)
+	} else {
+		fmt.Printf("Successfully generated controller %s\n", name)
+	}
 	return nil
+}
+
+func apiNamespace(namespace string) string {
+	if namespace == "" {
+		return "api"
+	}
+	return "api/" + namespace
 }
 
 func crudControllerActions(actions []string) []string {
@@ -269,7 +280,14 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 		var sb strings.Builder
 		sb.WriteString(fmt.Sprintf("package %s\n\n", packageName))
 		sb.WriteString("import (\n")
-		if isInertia {
+		if isAPI {
+			sb.WriteString("\t\"errors\"\n")
+			sb.WriteString("\t\"net/http\"\n")
+			sb.WriteString(fmt.Sprintf("\t\"%s/router\"\n", modulePath))
+			sb.WriteString(fmt.Sprintf("\t\"%s/router/routes\"\n", modulePath))
+			sb.WriteString("\n")
+			sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")
+		} else if isInertia {
 			sb.WriteString("\t\"errors\"\n")
 			sb.WriteString("\t\"net/http\"\n")
 			sb.WriteString(fmt.Sprintf("\t\"%s/router\"\n", modulePath))
@@ -340,7 +358,7 @@ func controllerMethodExists(content, methodName string) bool {
 }
 
 func actionControllerMethod(receiverName, controllerName, namespace, resourceName, methodName string) string {
-	namespacePascal := naming.ToPascalCase(namespace)
+	namespacePascal := naming.NamespaceToPascal(namespace)
 	return fmt.Sprintf("func (%s %s) %s(etx *echo.Context) error {\n\treturn hypermedia.RenderPage(etx, views.%s%s%s())\n}\n\n",
 		receiverName,
 		controllerName,
@@ -362,7 +380,7 @@ func actionControllerMethodAPI(receiverName, controllerName, resourceName, metho
 func actionControllerMethodInertia(receiverName, controllerName, namespace, resourceName, methodName string) string {
 	pageName := naming.ToPascalCase(resourceName) + "/" + methodName
 	if namespace != "" {
-		pageName = naming.ToPascalCase(namespace) + "/" + pageName
+		pageName = naming.NamespaceToPascal(namespace) + "/" + pageName
 	}
 	return fmt.Sprintf("func (%s %s) %s(etx *echo.Context) error {\n\treturn inertia.Page(etx, \"%s\", inertia.Props{})\n}\n\n",
 		receiverName,
@@ -381,7 +399,7 @@ func ensureCustomRegisterRoutes(content, receiverName, namespace, resourceName s
 	var additions strings.Builder
 	for _, action := range actions {
 		methodName := naming.ToPascalCase(action)
-		routeRef := fmt.Sprintf("routes.%s%s%s.Path()", naming.ToPascalCase(namespace), resourceName, methodName)
+		routeRef := fmt.Sprintf("routes.%s%s%s.Path()", naming.NamespaceToPascal(namespace), resourceName, methodName)
 		if strings.Contains(content, routeRef) {
 			continue
 		}
@@ -414,9 +432,9 @@ func customRegisterRoutesMethod(receiverName, controllerName, namespace, resourc
 
 func customRouteRegistrationBlock(receiverName, namespace, resourceName, methodName string) string {
 	return fmt.Sprintf("\t_, err = r.AddRoute(echo.Route{\n\t\tMethod:  http.MethodGet,\n\t\tPath:    routes.%s%s.Path(),\n\t\tName:    routes.%s%s.Name(),\n\t\tHandler: %s.%s,\n\t})\n\tif err != nil {\n\t\terrs = append(errs, err)\n\t}\n\n",
-		naming.ToPascalCase(namespace)+resourceName,
+		naming.NamespaceToPascal(namespace)+resourceName,
 		methodName,
-		naming.ToPascalCase(namespace)+resourceName,
+		naming.NamespaceToPascal(namespace)+resourceName,
 		methodName,
 		receiverName,
 		methodName,
@@ -425,7 +443,7 @@ func customRouteRegistrationBlock(receiverName, namespace, resourceName, methodN
 
 func generateActionViewFile(name, namespace, tableName, modulePath, ts string, actions []string) error {
 	resourceName := naming.ToPascalCase(name)
-	namespacePascal := naming.ToPascalCase(namespace)
+	namespacePascal := naming.NamespaceToPascal(namespace)
 	viewPath := filepath.Join("views", namespacePrefix(namespace)+tableName+"_resource.templ")
 
 	var sb strings.Builder
@@ -484,7 +502,7 @@ func actionViewComponent(resourceName, namespacePascal, methodName string) strin
 
 func generateActionInertiaViewFile(name, namespace, tableName string, actions []string, adapter string) error {
 	resourceName := naming.ToPascalCase(name)
-	pagesDir := filepath.Join("resources", "js", "Pages", naming.ToPascalCase(namespace), resourceName)
+	pagesDir := filepath.Join("resources", "js", "Pages", naming.NamespaceToPascal(namespace), resourceName)
 
 	if err := os.MkdirAll(pagesDir, 0o755); err != nil {
 		return err
@@ -563,8 +581,5 @@ func readModulePath() (string, error) {
 }
 
 func namespacePrefix(namespace string) string {
-	if namespace == "" {
-		return ""
-	}
-	return namespace + "_"
+	return naming.NamespaceFilePrefix(namespace)
 }
